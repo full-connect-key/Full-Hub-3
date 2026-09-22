@@ -1,48 +1,32 @@
 import type { Metadata } from "next";
-import { Construction } from "lucide-react";
+import { Home } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
+import { PageHeader } from "@/components/shared/page-header";
 import { exigirCliente, primeiroNome } from "@/lib/auth/dal";
-import { criarClienteServidor } from "@/lib/supabase/server";
+import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 
-export const metadata: Metadata = { title: "Portal" };
+export const metadata: Metadata = { title: "Início" };
 
-export default async function PaginaDoPortal() {
+export default async function PaginaInicialDoPortal() {
   const { profile } = await exigirCliente();
-
-  // O RLS ja limita o resultado as empresas deste cliente: mesmo sem filtro
-  // no codigo, o banco nao devolve as dos outros.
-  const supabase = await criarClienteServidor();
-  const { data: empresas } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .order("nome_empresa");
+  const empresas = await obterMinhasEmpresas();
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">
-          Olá, {primeiroNome(profile.nome)}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {empresas && empresas.length > 0
+    <div className="space-y-8">
+      <PageHeader
+        title={`Olá, ${primeiroNome(profile.nome)}`}
+        description={
+          empresas.length > 0
             ? `Acompanhamento de ${empresas.map((e) => e.nome_empresa).join(", ")}.`
-            : "Portal do cliente da Full Connect Key."}
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <div className="bg-muted text-muted-foreground mb-2 flex size-10 items-center justify-center rounded-lg">
-            <Construction aria-hidden className="size-5" />
-          </div>
-          <CardTitle>Em construção</CardTitle>
-          <CardDescription>
-            Seu acesso já está ativo. As áreas de acompanhamento entram nos próximos sprints.
-          </CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
+            : "Seu acesso ao portal da Full Connect Key."
+        }
+      />
+      <EmptyState
+        icon={Home}
+        title="Seu acompanhamento aparece aqui"
+        description="Conteúdos para aprovar, campanhas em andamento e os resultados do período. As áreas entram nos próximos sprints."
+      />
     </div>
   );
 }

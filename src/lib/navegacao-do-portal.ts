@@ -1,0 +1,51 @@
+import { Home, Megaphone, Settings, Share2, type LucideIcon } from "lucide-react";
+
+/**
+ * Navegação do Portal do Cliente.
+ *
+ * Separada do menu do painel de propósito: o portal é curto, plano e sem
+ * perfis — todo cliente vê os mesmos itens. Misturar as duas navegações num
+ * arquivo só faria a regra de permissão do painel valer para quem não tem
+ * perfil de acesso interno.
+ */
+export type ItemDoPortal = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  description: string;
+};
+
+export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
+  {
+    label: "Início",
+    href: "/portal",
+    icon: Home,
+    description: "O panorama do que está acontecendo na sua conta.",
+  },
+  {
+    label: "Social Media",
+    href: "/portal/social-media",
+    icon: Share2,
+    description: "Os conteúdos das suas redes, para acompanhar e aprovar.",
+  },
+  {
+    label: "Campanhas",
+    href: "/portal/campanhas",
+    icon: Megaphone,
+    description: "Suas campanhas em andamento e os resultados de cada uma.",
+  },
+  {
+    label: "Configurações",
+    href: "/portal/configuracoes",
+    icon: Settings,
+    description: "Seus dados de contato e preferências de acesso.",
+  },
+];
+
+export function acharItemDoPortal(pathname: string): ItemDoPortal | undefined {
+  const candidatos = NAVEGACAO_DO_PORTAL.filter(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+  if (candidatos.length === 0) return undefined;
+  return candidatos.reduce((maior, item) => (item.href.length > maior.href.length ? item : maior));
+}

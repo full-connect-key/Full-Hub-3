@@ -95,8 +95,14 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 
 **Código**
 
-- Toda a interface em **português do Brasil**, com acento. Nomes de tabela e
-  coluna em inglês (`profiles`, `clients`); identificadores do app em português.
+- Toda a interface em **português do Brasil**, com acento.
+- Idioma dos identificadores, por camada:
+  - **inglês** — nomes de tabela e coluna (`profiles`, `created_at`), a API dos
+    componentes de `components/ui/` e `components/shared/` (`DataTable`,
+    `PageHeader`, props `title`/`columns`) e `lib/auth/permissions.ts`
+    (`canAccess`, `getMenuForRole`), porque são camadas genéricas;
+  - **português** — todo o resto: rotas, componentes de domínio, funções,
+    variáveis.
 - Datas sempre com `date-fns` e locale `ptBR`. Nada de `toLocaleDateString`
   espalhado.
 - Formulários com react-hook-form + zod. O mesmo esquema zod valida no
@@ -105,6 +111,13 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - No servidor, sempre `supabase.auth.getUser()`, nunca `getSession()`:
   `getSession` só lê o cookie, que o navegador pode ter adulterado.
 - Proteção de rota no servidor, não no menu. Esconder o link não é segurança.
+- Permissão e menu saem de `src/lib/auth/permissions.ts`, e só de lá. Nunca
+  escreva `if (role === "socio")` numa tela: acrescentar um módulo é
+  acrescentar uma linha em `MENU`.
+- Componente novo que vários módulos vão usar vai para `components/shared/` e
+  ganha uma seção em `/painel/dev/componentes`.
+- Feedback de ação com `toast` (sonner), nunca `alert()`.
+- Carregamento com `LoadingSkeleton`, nunca tela branca.
 
 **Três camadas de proteção, e elas são independentes**
 
@@ -152,3 +165,4 @@ scripts/                      Verificação de conexão e gerador de protótipos
 | Sprint | Entrega |
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
+| Sprint 1 | Estrutura do dashboard: `lib/auth/permissions.ts` como fonte única do menu e das permissões, menu lateral colapsável com seções e gaveta no celular, topbar com trilha, busca (casca), sino e menu do usuário, 15 rotas placeholder validando o perfil no servidor, cor de marca em variável CSS, 10 componentes compartilhados com vitrine em `/painel/dev/componentes`, e o casco do Portal do Cliente com navegação superior. Nenhuma tabela nova. |

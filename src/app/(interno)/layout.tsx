@@ -1,20 +1,13 @@
-import { Cabecalho } from "@/components/shared/cabecalho";
 import { exigirEquipe } from "@/lib/auth/dal";
 
 /**
- * Area interna da agencia.
+ * Guarda da área interna.
  *
- * exigirEquipe() roda no servidor, antes de qualquer HTML sair daqui: um
- * cliente que digitar /painel na barra de enderecos recebe HTTP 403 e nunca
- * ve o conteudo. Esconder o link no menu nao seria protecao nenhuma.
+ * O visual fica no layout de /painel; aqui só barramos quem não é da equipe,
+ * para qualquer rota futura deste grupo já nascer protegida. A consulta não se
+ * repete: exigirEquipe() é memorizada por requisição.
  */
 export default async function LayoutInterno({ children }: LayoutProps<"/">) {
-  const { email, profile } = await exigirEquipe();
-
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <Cabecalho nome={profile.nome} email={email} role={profile.role} area="Painel" />
-      <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
-    </div>
-  );
+  await exigirEquipe();
+  return children;
 }

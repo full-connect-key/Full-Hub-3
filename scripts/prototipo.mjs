@@ -8,12 +8,17 @@
  * As imagens saem em prototipos/.
  *
  * COMO FUNCIONA
- *   O projeto e copiado para uma pasta temporaria. So nessa copia, quatro
- *   modulos sao trocados por versoes de exemplo (scripts/prototipo/), usando
- *   apelidos de caminho do TypeScript -- nenhum arquivo de src/ e alterado.
+ *   O projeto e copiado para .prototipo/. So nessa copia, alguns modulos sao
+ *   trocados por versoes de exemplo (scripts/prototipo/) usando apelidos de
+ *   caminho do TypeScript, e o proxy vira um que deixa tudo passar. Nenhum
+ *   arquivo de src/ e alterado, e a copia e apagada no fim.
  *
  *   Por isso o codigo que pula o login NAO existe no app publicado: ele vive
- *   apenas dentro da copia temporaria, que e apagada no fim.
+ *   apenas dentro da copia temporaria.
+ *
+ *   O perfil vem de PROTOTIPO_ROLE, entao o mesmo build mostra o painel como
+ *   colaborador, desenvolvedor ou socio -- o servidor e reiniciado a cada
+ *   perfil.
  *
  * A CADA SPRINT
  *   1. acrescente os dados ficticios em scripts/prototipo/dados-exemplo.ts
@@ -29,21 +34,36 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 // ---------------------------------------------------------------------------
-// Telas capturadas. Acrescente uma linha por pagina nova.
+// Telas capturadas.
+//   role  -> perfil usado (padrao: socio). Telas do portal ignoram.
+//   tema  -> "escuro" para capturar no modo escuro.
+//   menu  -> "recolhido" para capturar com o menu lateral fechado.
 // ---------------------------------------------------------------------------
 const TELAS = [
   { nome: "01-login", rota: "/login", largura: 900, altura: 760 },
   { nome: "02-login-escuro", rota: "/login", largura: 900, altura: 760, tema: "escuro" },
   { nome: "03-login-sessao-expirada", rota: "/login?motivo=inatividade", largura: 900, altura: 800 },
   { nome: "04-esqueci-senha", rota: "/esqueci-senha", largura: 900, altura: 760 },
-  { nome: "05-redefinir-senha", rota: "/redefinir-senha", largura: 900, altura: 800 },
-  { nome: "06-painel", rota: "/painel", largura: 1440, altura: 800 },
-  { nome: "07-painel-escuro", rota: "/painel", largura: 1440, altura: 800, tema: "escuro" },
-  { nome: "08-portal", rota: "/portal", largura: 1440, altura: 800 },
-  { nome: "09-acesso-negado-403", rota: "/403-exemplo", largura: 900, altura: 700 },
-  { nome: "10-status-da-conexao", rota: "/status", largura: 1000, altura: 1000 },
-  { nome: "11-painel-celular", rota: "/painel", largura: 390, altura: 844 },
-  { nome: "12-portal-celular", rota: "/portal", largura: 390, altura: 844 },
+
+  { nome: "05-painel-socio", rota: "/painel", largura: 1440, altura: 860, role: "socio" },
+  { nome: "06-painel-socio-escuro", rota: "/painel", largura: 1440, altura: 860, role: "socio", tema: "escuro" },
+  { nome: "07-painel-menu-recolhido", rota: "/painel", largura: 1440, altura: 860, role: "socio", menu: "recolhido" },
+  { nome: "08-painel-colaborador", rota: "/painel", largura: 1440, altura: 860, role: "colaborador" },
+  { nome: "09-painel-desenvolvedor", rota: "/painel", largura: 1440, altura: 860, role: "desenvolvedor" },
+
+  { nome: "10-modulo-clientes", rota: "/painel/clientes", largura: 1440, altura: 800, role: "socio" },
+  { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
+  { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
+
+  { nome: "13-acesso-negado-403", rota: "/403-exemplo", largura: 900, altura: 700 },
+  { nome: "14-status-da-conexao", rota: "/status", largura: 1000, altura: 1000 },
+
+  { nome: "15-portal", rota: "/portal", largura: 1280, altura: 800 },
+  { nome: "16-portal-social-media", rota: "/portal/social-media", largura: 1280, altura: 700 },
+  { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
+
+  { nome: "18-painel-celular", rota: "/painel", largura: 390, altura: 844, role: "socio" },
+  { nome: "19-portal-celular", rota: "/portal", largura: 390, altura: 844 },
 ];
 
 const PORTA = 3100;
@@ -60,6 +80,7 @@ const COPIA = path.join(RAIZ, ".prototipo");
 const SUBSTITUICOES = {
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
   "@/lib/supabase/diagnostico": ["./scripts/prototipo/diagnostico.ts"],
+  "@/lib/dados/clientes": ["./scripts/prototipo/clientes.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -111,9 +132,26 @@ async function abrirNavegador(chromium) {
   }
 }
 
+function subirServidor(role) {
+  return spawn("npx", ["next", "start", "--port", String(PORTA)], {
+    cwd: COPIA,
+    stdio: "ignore",
+    detached: true,
+    env: { ...process.env, PROTOTIPO_ROLE: role },
+  });
+}
+
+function encerrar(servidor) {
+  if (!servidor?.pid) return;
+  try {
+    process.kill(-servidor.pid);
+  } catch {
+    /* ja encerrou */
+  }
+}
+
 // ---------------------------------------------------------------------------
 
-let temporaria;
 let servidor;
 
 try {
@@ -122,68 +160,74 @@ try {
   log("preparando a copia temporaria do projeto...");
   await rm(COPIA, { recursive: true, force: true });
   await mkdir(COPIA, { recursive: true });
-  temporaria = COPIA;
 
   for (const item of ["src", "public", "scripts", "next.config.ts", "postcss.config.mjs", "package.json"]) {
-    await cp(path.join(RAIZ, item), path.join(temporaria, item), { recursive: true });
+    await cp(path.join(RAIZ, item), path.join(COPIA, item), { recursive: true });
   }
 
   // Rotas que existem so no prototipo, como a que dispara a tela de 403.
-  await cp(
-    path.join(RAIZ, "scripts", "prototipo", "extras"),
-    path.join(temporaria, "src", "app"),
-    { recursive: true },
-  );
+  await cp(path.join(RAIZ, "scripts", "prototipo", "extras"), path.join(COPIA, "src", "app"), {
+    recursive: true,
+  });
 
   // O proxy e carregado pelo Next por caminho fixo, e nao por apelido, entao a
   // substituicao dele e uma copia por cima. Sem isso /login redirecionaria
   // para /painel e as telas publicas nao dariam para fotografar.
   await cp(
     path.join(RAIZ, "scripts", "prototipo", "proxy-raiz.ts"),
-    path.join(temporaria, "src", "proxy.ts"),
+    path.join(COPIA, "src", "proxy.ts"),
   );
 
-  // As substituicoes entram como apelidos de caminho do TypeScript.
   const tsconfig = JSON.parse(await readFile(path.join(RAIZ, "tsconfig.json"), "utf8"));
   tsconfig.compilerOptions.paths = { ...SUBSTITUICOES, ...tsconfig.compilerOptions.paths };
-  await writeFile(path.join(temporaria, "tsconfig.json"), JSON.stringify(tsconfig, null, 2));
+  await writeFile(path.join(COPIA, "tsconfig.json"), JSON.stringify(tsconfig, null, 2));
 
-  // Credenciais de fachada: nada aqui chega a falar com o Supabase.
   // O dominio .invalid nunca resolve, e de proposito: as poucas consultas que
   // escapam das substituicoes falham na hora, em vez de segurar a captura
   // esperando um servidor que nao existe.
   await writeFile(
-    path.join(temporaria, ".env.local"),
+    path.join(COPIA, ".env.local"),
     'NEXT_PUBLIC_SUPABASE_URL="https://exemplo.invalid"\n' +
       'NEXT_PUBLIC_SUPABASE_ANON_KEY="chave-de-exemplo"\n',
   );
 
   log("compilando...");
-  await executar("npx", ["next", "build"], { cwd: temporaria });
+  await executar("npx", ["next", "build"], { cwd: COPIA });
 
-  log(`subindo o servidor na porta ${PORTA}...`);
-  servidor = spawn("npx", ["next", "start", "--port", String(PORTA)], {
-    cwd: temporaria,
-    stdio: "ignore",
-    detached: true,
-  });
-  await esperarNoAr(`http://localhost:${PORTA}/login`);
-
-  log("capturando as telas...");
   await rm(SAIDA, { recursive: true, force: true });
   const navegador = await abrirNavegador(chromium);
 
-  for (const { nome, rota, largura, altura, tema } of TELAS) {
-    const pagina = await navegador.newPage({
-      viewport: { width: largura, height: altura },
-      deviceScaleFactor: 2,
-      colorScheme: tema === "escuro" ? "dark" : "light",
-      locale: "pt-BR",
-    });
-    await pagina.goto(`http://localhost:${PORTA}${rota}`, { waitUntil: "networkidle" });
-    await pagina.screenshot({ path: path.join(SAIDA, `${nome}.png`), fullPage: true });
-    await pagina.close();
-    log(`  ${nome}.png`);
+  // Agrupa por perfil para reiniciar o servidor o mínimo possível.
+  const perfis = [...new Set(TELAS.map((tela) => tela.role ?? "socio"))];
+
+  for (const role of perfis) {
+    log(`subindo o servidor como ${role}...`);
+    servidor = subirServidor(role);
+    await esperarNoAr(`http://localhost:${PORTA}/login`);
+
+    for (const tela of TELAS.filter((t) => (t.role ?? "socio") === role)) {
+      const pagina = await navegador.newPage({
+        viewport: { width: tela.largura, height: tela.altura },
+        deviceScaleFactor: 2,
+        colorScheme: tela.tema === "escuro" ? "dark" : "light",
+        locale: "pt-BR",
+      });
+
+      if (tela.menu) {
+        await pagina.addInitScript(
+          (estado) => localStorage.setItem("full-hub:menu", estado),
+          tela.menu,
+        );
+      }
+
+      await pagina.goto(`http://localhost:${PORTA}${tela.rota}`, { waitUntil: "networkidle" });
+      await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
+      await pagina.close();
+      log(`  ${tela.nome}.png`);
+    }
+
+    encerrar(servidor);
+    servidor = undefined;
   }
 
   await navegador.close();
@@ -192,12 +236,6 @@ try {
   console.error(`\n  Falhou: ${erro.message}\n`);
   process.exitCode = 1;
 } finally {
-  if (servidor?.pid) {
-    try {
-      process.kill(-servidor.pid);
-    } catch {
-      /* ja encerrou */
-    }
-  }
-  if (temporaria) await rm(temporaria, { recursive: true, force: true });
+  encerrar(servidor);
+  await rm(COPIA, { recursive: true, force: true });
 }

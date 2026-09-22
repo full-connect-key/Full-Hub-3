@@ -5,6 +5,7 @@ import { forbidden, redirect } from "next/navigation";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/supabase/database.types";
+import { canAccess } from "./permissions";
 import { ehCliente, ehEquipe } from "./roles";
 
 /**
@@ -61,6 +62,19 @@ export async function exigirSessao(): Promise<Sessao> {
 export async function exigirEquipe(): Promise<Sessao> {
   const sessao = await exigirSessao();
   if (!ehEquipe(sessao.profile.role)) forbidden();
+  return sessao;
+}
+
+/**
+ * Valida o perfil para uma rota especifica do painel.
+ *
+ * E esta funcao que faz o "esconder no menu nao basta" valer: quem digitar
+ * /painel/financeiro sendo desenvolvedor recebe 403, mesmo sem o item aparecer
+ * no menu. Toda pagina do painel comeca chamando isto com a propria rota.
+ */
+export async function exigirAcessoARota(href: string): Promise<Sessao> {
+  const sessao = await exigirEquipe();
+  if (!canAccess(sessao.profile.role, href)) forbidden();
   return sessao;
 }
 

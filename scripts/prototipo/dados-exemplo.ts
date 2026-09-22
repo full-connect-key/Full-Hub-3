@@ -34,3 +34,7 @@ export const USUARIO_EXEMPLO = {
   email: PROFILE_EQUIPE.email,
   user_metadata: { nome: PROFILE_EQUIPE.nome },
 };
+
+export const EMPRESAS_EXEMPLO = [
+  { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Cliente Alfa" },
+];

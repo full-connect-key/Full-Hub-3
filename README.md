@@ -234,7 +234,9 @@ src/
     status/                    Diagnóstico da conexão
     api/status/supabase/       O mesmo diagnóstico em JSON
   components/ui/               shadcn/ui
-  components/shared/           Componentes do produto
+  components/shared/           Componentes reaproveitados por todo módulo
+  components/painel/           Menu lateral, trilha, topbar do painel
+  components/portal/           Navegação e menu do Portal do Cliente
   hooks/                       Timeout de inatividade
   lib/
     auth/roles.ts              Os 4 perfis, espelhando as funções SQL
