@@ -137,6 +137,30 @@ export async function listarWorkflows(): Promise<WorkflowCompleto[]> {
   }));
 }
 
+/**
+ * O fluxo de um TIPO de tarefa, já traduzido em etapas.
+ *
+ * Mora aqui, e não na Server Action, porque é leitura: a action só orquestra.
+ * E porque é aqui que o gerador de protótipo consegue trocar a fonte por dados
+ * de exemplo — uma consulta solta dentro da action deixaria a tela do protótipo
+ * sem as etapas, que é exatamente o que ela precisa mostrar.
+ */
+export async function fluxoDoTipoDeTarefa(
+  tipoId: string,
+  dataInicio: string,
+): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  const supabase = await criarClienteServidor();
+
+  const { data: tipo } = await supabase
+    .from("task_types")
+    .select("workflow_template_id")
+    .eq("id", tipoId)
+    .maybeSingle();
+
+  if (!tipo?.workflow_template_id) return null;
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
+}
+
 export type EtapaAplicada = {
   titulo: string;
   prazo: string | null;

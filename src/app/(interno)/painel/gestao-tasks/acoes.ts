@@ -7,7 +7,7 @@ import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
-import { etapasDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
+import { fluxoDoTipoDeTarefa, type EtapaAplicada } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
@@ -24,7 +24,17 @@ import type { Database, Json } from "@/lib/supabase/database.types";
  * `recalcular_status_task` devolve por cima na mesma transação.
  */
 
-export const RECUSA_DO_BANCO =
+/**
+ * Mensagem de quando o Postgres devolve zero linhas sem erro. Isso é o RLS
+ * recusando: a policy filtra a linha em vez de reclamar.
+ *
+ * NÃO exporte esta constante. Um arquivo "use server" só pode exportar função
+ * assíncrona — exportar uma string faz o módulo inteiro falhar ao carregar, e
+ * com ele TODAS as actions daqui. O build não avisa: a checagem é em tempo de
+ * execução, e o sintoma é um "não foi possível falar com o servidor" em cada
+ * botão da tela.
+ */
+const RECUSA_DO_BANCO =
   "O banco recusou a operação. Normalmente é o RLS: mexer numa task é do " +
   "Atendimento ou da gestão.";
 
@@ -426,18 +436,9 @@ export async function sugerirEtapasDoTipo(
   return executarAcao("sugerirEtapasDoTipo", async () => {
     await exigirRotaNaAcao(ROTA);
 
-    const supabase = await criarClienteServidor();
-    const { data: tipo } = await supabase
-      .from("task_types")
-      .select("workflow_template_id")
-      .eq("id", tipoId)
-      .maybeSingle();
+    const aplicado = await fluxoDoTipoDeTarefa(tipoId, dataInicio);
+    if (!aplicado) return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
 
-    if (!tipo?.workflow_template_id) {
-      return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
-    }
-
-    const aplicado = await etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
     return sucesso("Fluxo aplicado.", aplicado);
   });
 }

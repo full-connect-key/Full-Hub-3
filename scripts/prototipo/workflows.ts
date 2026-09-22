@@ -129,6 +129,15 @@ export async function listarWorkflows(): Promise<WorkflowCompleto[]> {
   return WORKFLOWS;
 }
 
+export async function fluxoDoTipoDeTarefa(
+  tipoId: string,
+  dataInicio: string,
+): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  const tipo = TIPOS.find((t) => t.id === tipoId);
+  if (!tipo?.workflow_template_id) return null;
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
+}
+
 export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
@@ -136,9 +145,13 @@ export async function etapasDoWorkflow(
   const modelo = WORKFLOWS.find((w) => w.id === templateId);
   if (!modelo) return null;
 
+  // A dependencia e gravada pela ORDEM dentro do modelo; o formulario pensa em
+  // posicao na lista. O mapa traduz uma na outra, como a versao real faz.
+  const posicaoPorOrdem = new Map(modelo.etapas.map((e, indice) => [e.ordem, indice + 1]));
+
   return {
     snapshot: { workflow_id: modelo.id, nome: modelo.nome, etapas: modelo.etapas },
-    etapas: modelo.etapas.map((etapa, indice) => ({
+    etapas: modelo.etapas.map((etapa) => ({
       titulo: etapa.nome,
       prazo:
         etapa.prazo_offset_dias === null ? null : somarDias(dataInicio, etapa.prazo_offset_dias),
@@ -147,7 +160,10 @@ export async function etapasDoWorkflow(
       prioridade: etapa.prioridade,
       requer_aprovacao: etapa.requer_aprovacao,
       tipo_aprovacao: etapa.tipo_aprovacao,
-      depende_de: etapa.depende_de_ordem === null ? null : indice,
+      depende_de:
+        etapa.depende_de_ordem === null
+          ? null
+          : (posicaoPorOrdem.get(etapa.depende_de_ordem) ?? null),
     })),
   };
 }
