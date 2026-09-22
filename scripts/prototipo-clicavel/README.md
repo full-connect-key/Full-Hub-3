@@ -64,6 +64,19 @@ Essas quatro coisas são capturadas clicando de verdade, com o app rodando.
    confirmação faz em `ACOES`, dentro de `gerar.mjs`.
 3. Gere e confira clicando antes de publicar.
 
+## Verificar antes de publicar
+
+Com o servidor no ar (passo 1), rode:
+
+```bash
+node scripts/prototipo-clicavel/verificar-fluxo.mjs
+```
+
+São os critérios de aceite que só aparecem clicando — e é a rede que pega erro
+de runtime invisível ao build. Já apanhou um `export const` num arquivo
+`"use server"`, que derrubava todas as Server Actions da Gestão de Tasks sem
+o `npm run build` reclamar.
+
 ## Armadilha conhecida
 
 O `<script>` da página final é escrito dentro de um template literal do
