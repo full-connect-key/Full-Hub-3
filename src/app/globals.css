@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   Tokens de cor
+   ---------------------------------------------------------------------------
+   Todas as cores da interface saem daqui. Para aplicar a identidade visual da
+   agencia, troque os valores de --brand-* neste bloco: o dashboard inteiro
+   acompanha, sem precisar cacar codigo de cor espalhado pelos componentes.
+   =========================================================================== */
+:root {
+  --fundo: #f6f7f9;
+  --superficie: #ffffff;
+  --superficie-suave: #f1f3f7;
+  --borda: #e3e7ee;
+  --texto: #111827;
+  --texto-suave: #5b6472;
+  --texto-tenue: #8a93a2;
+
+  --brand: #4338ca;
+  --brand-forte: #3730a3;
+  --brand-suave: #eef0ff;
+  --brand-contraste: #ffffff;
+
+  --positivo: #047857;
+  --positivo-suave: #e7f6ef;
+  --atencao: #b45309;
+  --atencao-suave: #fdf3e3;
+  --negativo: #b91c1c;
+  --negativo-suave: #fdecec;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #0b0e14;
+    --superficie: #141922;
+    --superficie-suave: #1b212c;
+    --borda: #262e3b;
+    --texto: #eef1f6;
+    --texto-suave: #a3adbd;
+    --texto-tenue: #78828f;
+
+    --brand: #8b8bf7;
+    --brand-forte: #a5a5fa;
+    --brand-suave: #1e2140;
+    --brand-contraste: #0b0e14;
+
+    --positivo: #4ade80;
+    --positivo-suave: #10251c;
+    --atencao: #fbbf24;
+    --atencao-suave: #2a2012;
+    --negativo: #f87171;
+    --negativo-suave: #2c1618;
+  }
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-suave: var(--superficie-suave);
+  --color-borda: var(--borda);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-texto-tenue: var(--texto-tenue);
+
+  --color-brand: var(--brand);
+  --color-brand-forte: var(--brand-forte);
+  --color-brand-suave: var(--brand-suave);
+  --color-brand-contraste: var(--brand-contraste);
+
+  --color-positivo: var(--positivo);
+  --color-positivo-suave: var(--positivo-suave);
+  --color-atencao: var(--atencao);
+  --color-atencao-suave: var(--atencao-suave);
+  --color-negativo: var(--negativo);
+  --color-negativo-suave: var(--negativo-suave);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--fundo);
+  color: var(--texto);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Foco visivel e consistente em toda a navegacao por teclado. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
