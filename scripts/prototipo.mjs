@@ -56,8 +56,10 @@ const TELAS = [
   { nome: "10c-cliente-dados", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1000, role: "socio" },
   { nome: "10d-cliente-usuarios", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Usuários com acesso")' },
   { nome: "10e-equipe-lista", rota: "/painel/equipe", largura: 1440, altura: 900, role: "socio" },
-  { nome: "10f-colaborador-dados", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1100, role: "socio" },
+  { nome: "10f-colaborador-dados", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
   { nome: "10g-desligamento", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
+  { nome: "10j-colaborador-desativar", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Desativar acesso")' },
+  { nome: "10k-cliente-exclusao-barrada", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 900, role: "socio", clicar: 'button:has-text("Excluir definitivamente")' },
   { nome: "10h-meu-perfil", rota: "/painel/perfil", largura: 1440, altura: 1000, role: "socio" },
   { nome: "10i-equipe-desenvolvedor", rota: "/painel/equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
 
@@ -264,5 +266,11 @@ try {
   process.exitCode = 1;
 } finally {
   encerrar(servidor);
-  await rm(COPIA, { recursive: true, force: true });
+  // PROTOTIPO_MANTER_COPIA=1 preserva .prototipo/ para capturar o HTML das
+  // telas (e montar a versao clicavel). Fora disso a copia sempre some.
+  if (!process.env.PROTOTIPO_MANTER_COPIA) {
+    await rm(COPIA, { recursive: true, force: true });
+  } else {
+    console.log(`  Copia preservada em ${COPIA} (PROTOTIPO_MANTER_COPIA).`);
+  }
 }

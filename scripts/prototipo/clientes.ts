@@ -48,15 +48,15 @@ export async function usuariosDoCliente(clientId: string) {
       vinculadoEm: "2024-03-12T10:00:00.000Z",
       id: "a0000000-0000-0000-0000-000000000004",
       nome: "Caio Alves",
-      email: "contato@clientealfa.com.br",
+      email: "contato@mundoverde.com.br",
       ativo: true,
     },
     {
       vinculoId: "v2",
       vinculadoEm: "2024-09-02T10:00:00.000Z",
-      id: "a0000000-0000-0000-0000-000000000006",
-      nome: "Renata Dias",
-      email: "renata@clientealfa.com.br",
+      id: "a0000000-0000-0000-0000-000000000008",
+      nome: "Juliana Prado",
+      email: "marketing@mundoverde.com.br",
       ativo: true,
     },
   ];
@@ -64,5 +64,17 @@ export async function usuariosDoCliente(clientId: string) {
 
 export async function vinculosDoCliente(clientId: string) {
   const usuarios = (await usuariosDoCliente(clientId)).length;
-  return { usuarios, campanhas: 0, posts: 0, total: usuarios, impedeExclusao: false };
+  // A Mundo Verde tem trabalho no nome dela, entao a exclusao aparece barrada
+  // no prototipo -- que e o comportamento que a agencia vai encontrar.
+  const tasks = clientId === "c0000000-0000-0000-0000-00000000000a" ? 3 : 0;
+  const total = usuarios + tasks;
+  return {
+    usuarios,
+    tasks,
+    campanhas: 0,
+    posts: 0,
+    lancamentos: 0,
+    total,
+    impedeExclusao: total > 0,
+  };
 }

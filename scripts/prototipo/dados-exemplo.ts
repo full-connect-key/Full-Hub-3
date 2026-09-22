@@ -21,7 +21,7 @@ export const PROFILE_EQUIPE: Profile = {
 
 export const PROFILE_CLIENTE: Profile = {
   id: "a0000000-0000-0000-0000-000000000004",
-  email: "contato@clientealfa.com.br",
+  email: "contato@mundoverde.com.br",
   nome: "Caio Alves",
   role: "cliente",
   avatar_url: null,
@@ -36,7 +36,7 @@ export const USUARIO_EXEMPLO = {
 };
 
 export const EMPRESAS_EXEMPLO = [
-  { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Cliente Alfa" },
+  { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" },
 ];
 
 /** Equipe fictícia usada nas telas de Equipe e nos seletores. */
@@ -51,7 +51,7 @@ export const EQUIPE_EXEMPLO = [
     created_at: "2021-03-01T10:00:00.000Z",
     membro: {
       id: "t1", user_id: "a0000000-0000-0000-0000-000000000001",
-      cargo: "Sócia-diretora", area: "Direção", funcao: "Atendimento" as const,
+      cargo: "Sócia-diretora", area: "Direção", funcao: "Gestao" as const,
       data_admissao: "2021-03-01", dias_ferias_ano: 30, ativo: true,
       desligado_em: null, created_at: "2021-03-01T10:00:00.000Z",
     },
@@ -88,8 +88,8 @@ export const EQUIPE_EXEMPLO = [
   },
   {
     id: "a0000000-0000-0000-0000-000000000005",
-    email: "marina@fullconnectkey.com.br",
-    nome: "Marina Alves",
+    email: "design@fullconnectkey.com.br",
+    nome: "Bruno Lima",
     role: "colaborador" as const,
     avatar_url: null,
     ativo: true,
@@ -97,8 +97,38 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t4", user_id: "a0000000-0000-0000-0000-000000000005",
       cargo: "Designer", area: "Criação", funcao: "Design" as const,
+      data_admissao: "2024-06-10", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2024-06-10T10:00:00.000Z",
+    },
+  },
+  {
+    id: "a0000000-0000-0000-0000-000000000006",
+    email: "social@fullconnectkey.com.br",
+    nome: "Marina Costa",
+    role: "colaborador" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2025-01-20T10:00:00.000Z",
+    membro: {
+      id: "t5", user_id: "a0000000-0000-0000-0000-000000000006",
+      cargo: "Social media", area: "Criação", funcao: "Social Media" as const,
       data_admissao: "2025-01-20", dias_ferias_ano: 30, ativo: true,
       desligado_em: null, created_at: "2025-01-20T10:00:00.000Z",
+    },
+  },
+  {
+    id: "a0000000-0000-0000-0000-000000000007",
+    email: "trafego@fullconnectkey.com.br",
+    nome: "Rafael Dias",
+    role: "colaborador" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2025-04-02T10:00:00.000Z",
+    membro: {
+      id: "t6", user_id: "a0000000-0000-0000-0000-000000000007",
+      cargo: "Analista de tráfego", area: "Mídia", funcao: "Trafego" as const,
+      data_admissao: "2025-04-02", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2025-04-02T10:00:00.000Z",
     },
   },
 ];
@@ -107,12 +137,12 @@ export const EQUIPE_EXEMPLO = [
 export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000a",
-    nome_empresa: "Cliente Alfa",
+    nome_empresa: "Mundo Verde",
     nome_contato: "Caio Alves",
-    email_contato: "contato@clientealfa.com.br",
+    email_contato: "contato@mundoverde.com.br",
     telefone: "(11) 98888-0001",
     drive_folder_id: null,
-    segmento: "Varejo",
+    segmento: "Alimentação saudável",
     responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000003",
     observacoes: "Conta com dois contatos ativos. Reunião mensal na primeira terça.",
     ativo: true,
@@ -120,12 +150,12 @@ export const CLIENTES_EXEMPLO = [
   },
   {
     id: "c0000000-0000-0000-0000-00000000000b",
-    nome_empresa: "Cliente Beta",
-    nome_contato: "Bianca Prado",
-    email_contato: "contato@clientebeta.com.br",
+    nome_empresa: "Óptica Visão",
+    nome_contato: "Marcos Vieira",
+    email_contato: "contato@opticavisao.com.br",
     telefone: "(11) 98888-0002",
     drive_folder_id: null,
-    segmento: "Saúde",
+    segmento: "Varejo óptico",
     responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000001",
     observacoes: null,
     ativo: true,
@@ -133,12 +163,12 @@ export const CLIENTES_EXEMPLO = [
   },
   {
     id: "c0000000-0000-0000-0000-00000000000c",
-    nome_empresa: "Cliente Gama",
+    nome_empresa: "Academia Corpo Livre",
     nome_contato: null,
     email_contato: null,
     telefone: null,
     drive_folder_id: null,
-    segmento: "Educação",
+    segmento: "Academia",
     responsavel_atendimento_id: null,
     observacoes: null,
     ativo: false,

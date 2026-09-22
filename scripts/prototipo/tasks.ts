@@ -31,8 +31,8 @@ const DIEGO: Pessoa = { id: "a0000000-0000-0000-0000-000000000002", nome: "Diego
 const CARLA: Pessoa = { id: "a0000000-0000-0000-0000-000000000003", nome: "Carla Nunes", avatar_url: null };
 const MARINA: Pessoa = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Alves", avatar_url: null };
 
-const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Cliente Alfa" };
-const BETA = { id: "c0000000-0000-0000-0000-00000000000b", nome_empresa: "Cliente Beta" };
+const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" };
+const BETA = { id: "c0000000-0000-0000-0000-00000000000b", nome_empresa: "Óptica Visão" };
 
 const BRIEFING_RICO = {
   type: "doc",

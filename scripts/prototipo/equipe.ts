@@ -7,7 +7,7 @@ import { EQUIPE_EXEMPLO } from "./dados-exemplo";
 
 export type MembroDaEquipe = Profile & { membro: TeamMember | null };
 
-export async function listarEquipe(): Promise<MembroDaEquipe[]> {
+export async function listarEquipe(_incluirDesligados = false): Promise<MembroDaEquipe[]> {
   return EQUIPE_EXEMPLO as unknown as MembroDaEquipe[];
 }
 
@@ -26,13 +26,18 @@ export async function listarEquipeAtiva() {
 }
 
 export async function vinculosDoColaborador(userId: string) {
-  // Carla responde por um cliente; os demais, por nenhum.
-  const clientes = userId === "a0000000-0000-0000-0000-000000000003" ? 1 : 0;
+  // Carla e do Atendimento: responde por dois clientes e tem task em aberto.
+  // Com task aberta, a tela de desligamento passa a exigir para quem
+  // transferir -- e e isso que o prototipo precisa mostrar.
+  const daCarla = userId === "a0000000-0000-0000-0000-000000000003";
+  const tasksAbertas = daCarla ? 3 : 0;
+  const clientesSobResponsabilidade = daCarla ? 2 : 0;
+
   return {
-    tasksAbertas: 0,
+    tasksAbertas,
     solicitacoesPendentes: 0,
-    clientesSobResponsabilidade: clientes,
-    exigeTransferencia: false,
-    total: clientes,
+    clientesSobResponsabilidade,
+    exigeTransferencia: tasksAbertas > 0,
+    total: tasksAbertas + clientesSobResponsabilidade,
   };
 }
