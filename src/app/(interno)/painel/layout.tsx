@@ -6,6 +6,7 @@ import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { Trilha } from "@/components/painel/trilha";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
+import { minhasNotificacoes } from "@/lib/dados/notificacoes";
 
 /**
  * Lê a preferência do menu antes de qualquer pintura.
@@ -27,7 +28,7 @@ const SCRIPT_DO_MENU = `
 
 export default async function LayoutDoPainel({ children }: LayoutProps<"/painel">) {
   const { email, profile } = await exigirEquipe();
-  const ficha = await obterMinhaFicha();
+  const [ficha, avisos] = await Promise.all([obterMinhaFicha(), minhasNotificacoes()]);
 
   return (
     <>
@@ -48,7 +49,7 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
               <BuscaGlobal />
-              <SinoDeNotificacoes count={0} />
+              <SinoDeNotificacoes notificacoes={avisos.lista} naoLidas={avisos.naoLidas} />
               <MenuDoUsuario
                 nome={profile.nome}
                 email={email}

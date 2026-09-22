@@ -52,7 +52,7 @@ export function CascaDoPortal({
           ) : null}
 
           <div className="ml-auto flex items-center gap-1">
-            <SinoDeNotificacoes count={0} />
+            <SinoDeNotificacoes />
             <MenuDoCliente nome={nome} email={email} hrefDosDados={hrefDosDados} />
           </div>
         </div>

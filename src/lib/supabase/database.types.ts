@@ -55,6 +55,25 @@ export type EscopoRodada = "interna" | "cliente";
 
 export type StatusRodada = "pendente" | "aprovada" | "ajustes_solicitados";
 
+export type NotificationTipo =
+  | "task"
+  | "aprovacao"
+  | "full_days"
+  | "equipe"
+  | "cliente"
+  | "sistema";
+
+export type HrTipo = "ferias" | "licenca" | "ausencia";
+export type HrStatus = "pendente" | "aprovada" | "reprovada" | "cancelada";
+export type PresencaStatus =
+  | "presente"
+  | "remoto"
+  | "ferias"
+  | "licenca"
+  | "ausente"
+  | "folga"
+  | "feriado";
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
@@ -189,6 +208,99 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * Avisos in-app (migration 0011).
+       *
+       * SEM Insert: nao existe policy de insert, e a unica porta e a funcao
+       * `notificar()` no Postgres. O Update aceita so `lida_em` -- um trigger
+       * recusa qualquer outra coluna.
+       */
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          tipo: NotificationTipo;
+          titulo: string;
+          corpo: string | null;
+          link: string | null;
+          origem_id: string | null;
+          lida_em: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: { lida_em?: string | null };
+        Relationships: [];
+      };
+      /** Pedidos de ferias, licenca e ausencia (migration 0011). */
+      hr_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          tipo: HrTipo;
+          data_inicio: string;
+          data_fim: string;
+          dias_uteis: number;
+          motivo: string | null;
+          status: HrStatus;
+          motivo_reprovacao: string | null;
+          aprovado_por: string | null;
+          decidido_em: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tipo: HrTipo;
+          data_inicio: string;
+          data_fim: string;
+          dias_uteis: number;
+          motivo?: string | null;
+        };
+        // Decidir e cancelar passam pelas funcoes do banco, nao por update.
+        // O update direto e so do dono e so enquanto pendente.
+        Update: {
+          tipo?: HrTipo;
+          data_inicio?: string;
+          data_fim?: string;
+          dias_uteis?: number;
+          motivo?: string | null;
+        };
+        Relationships: [];
+      };
+      /** Um dia de uma pessoa na matriz da equipe (migration 0011). */
+      team_presence: {
+        Row: {
+          id: string;
+          user_id: string;
+          data: string;
+          status: PresencaStatus;
+          observacao: string | null;
+          hr_request_id: string | null;
+          atualizado_por: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          data: string;
+          status?: PresencaStatus;
+          observacao?: string | null;
+          hr_request_id?: string | null;
+          atualizado_por?: string | null;
+        };
+        Update: {
+          status?: PresencaStatus;
+          observacao?: string | null;
+          atualizado_por?: string | null;
+        };
+        Relationships: [];
+      };
+      holidays: {
+        Row: { id: string; data: string; nome: string };
+        Insert: { id?: string; data: string; nome: string };
+        Update: { data?: string; nome?: string };
+        Relationships: [];
+      };
       client_users: {
         Row: { id: string; client_id: string; user_id: string; created_at: string };
         Insert: { id?: string; client_id: string; user_id: string; created_at?: string };
@@ -204,6 +316,7 @@ export interface Database {
           funcao: TeamFuncao | null;
           data_admissao: string | null;
           dias_ferias_ano: number;
+          max_parcelas_ferias: number;
           ativo: boolean;
           desligado_em: string | null;
           created_at: string;
@@ -216,6 +329,7 @@ export interface Database {
           funcao?: TeamFuncao | null;
           data_admissao?: string | null;
           dias_ferias_ano?: number;
+          max_parcelas_ferias?: number;
           ativo?: boolean;
           desligado_em?: string | null;
           created_at?: string;
@@ -226,6 +340,7 @@ export interface Database {
           funcao?: TeamFuncao | null;
           data_admissao?: string | null;
           dias_ferias_ano?: number;
+          max_parcelas_ferias?: number;
           ativo?: boolean;
           desligado_em?: string | null;
         };
@@ -614,3 +729,7 @@ export type TaskHistory = Database["public"]["Tables"]["task_history"]["Row"];
 export type TaskType = Database["public"]["Tables"]["task_types"]["Row"];
 export type WorkflowTemplate = Database["public"]["Tables"]["workflow_templates"]["Row"];
 export type WorkflowStep = Database["public"]["Tables"]["workflow_steps"]["Row"];
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
+export type HrRequest = Database["public"]["Tables"]["hr_requests"]["Row"];
+export type TeamPresence = Database["public"]["Tables"]["team_presence"]["Row"];
+export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
