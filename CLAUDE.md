@@ -187,7 +187,7 @@ src/
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
 supabase/seed.sql             9 usuários de teste, 3 empresas (uma desativada)
-scripts/                      Verificação de conexão e gerador de protótipos
+scripts/                      Verificação de conexão e geradores de protótipo
 ```
 
 ## Comandos
@@ -199,6 +199,7 @@ scripts/                      Verificação de conexão e gerador de protótipos
 | `npm run lint` / `npm run typecheck` | Padrões e tipos |
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
+| `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
 ## Histórico de sprints
 
