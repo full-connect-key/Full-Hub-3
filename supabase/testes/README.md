@@ -24,6 +24,7 @@ psql -d fullhub -f supabase/testes/01_permissoes_e_fluxo.sql
 psql -d fullhub -f supabase/testes/02_status_da_task.sql
 psql -d fullhub -f supabase/testes/03_ciclos_e_cliente.sql
 psql -d fullhub -f supabase/testes/04_portais_de_clientes.sql
+psql -d fullhub -f supabase/testes/05_full_days.sql
 psql -d fullhub -c "select * from teste.resultado where situacao = 'FALHOU'"
 ```
 
@@ -63,4 +64,12 @@ rodada de fato pendente — aprovar antes faria as três recusas passarem pelo
 motivo errado. Fecha com o Resumo Semanal, que é privado: nem a sócia lê o
 registro de outra pessoa, e ninguém escreve no nome de ninguém.
 
-São 102 cenários no total.
+`05_full_days.sql` — a regra de férias da casa (**15 dias por ano, em até duas
+parcelas**) valendo no banco: a terceira parcela é recusada mesmo com saldo, o
+pedido de 16 dias não entra, licença não desconta do saldo, sobreposição com
+pedido próprio é barrada. E quem decide: nem o próprio solicitante, **nem o
+desenvolvedor** — só o sócio. Aprovar pinta os dias úteis na matriz na mesma
+transação, e um dia que veio de pedido aprovado não se edita na mão. Fecha com
+o sino: ninguém forja uma notificação, nem para si mesmo.
+
+São 148 cenários no total.

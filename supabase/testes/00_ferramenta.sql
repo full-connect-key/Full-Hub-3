@@ -65,3 +65,16 @@ begin
   delete from public.subtasks;
   delete from public.tasks;
 end $$;
+
+-- Comparacao direta, para o que nao e questao de permissao e sim de calculo:
+-- o status que o trigger produziu, o saldo de ferias, a contagem de dias
+-- uteis. Vive aqui, e nao no arquivo que a usou primeiro, para qualquer
+-- bateria poder rodar sozinha.
+create or replace function teste.conferir(p_descricao text, p_achado text, p_esperado text)
+returns void language plpgsql as $$
+begin
+  insert into teste.resultado (descricao, situacao, detalhe)
+  values (p_descricao,
+          case when p_achado is not distinct from p_esperado then 'passou' else 'FALHOU' end,
+          format('esperado %s, achado %s', p_esperado, p_achado));
+end $$;
