@@ -39,6 +39,27 @@
 -- exatamente o caso que ninguem testa.
 -- ---------------------------------------------------------------------------
 
+-- As palavras que o Portal ja usa como secao. Um cliente chamado "Campanhas"
+-- pegaria o slug "campanhas", e /portal/campanhas deixaria de ser a secao para
+-- virar o portal dele -- ou nem isso, porque no Next a rota estatica ganha da
+-- dinamica, e o portal daquele cliente simplesmente nunca abriria. O slug
+-- reservado ganha sufixo, como qualquer outro conflito.
+create or replace function public.slug_reservado(texto text)
+returns boolean
+language plpgsql
+immutable
+as $$
+begin
+  return texto in (
+    'aprovacoes', 'campanhas', 'social-media', 'configuracoes',
+    'painel', 'portal', 'login', 'auth', 'api', 'status'
+  );
+end;
+$$;
+
+comment on function public.slug_reservado is
+  'Palavras que ja sao rota do sistema e nao podem virar endereco de cliente.';
+
 create or replace function public.gerar_slug(texto text)
 returns text
 language plpgsql
@@ -99,7 +120,8 @@ begin
     end if;
 
     tentativa := 1;
-    while exists (select 1 from public.clients where slug = candidato) loop
+    while public.slug_reservado(candidato)
+       or exists (select 1 from public.clients where slug = candidato) loop
       tentativa := tentativa + 1;
       candidato := public.gerar_slug(linha.nome_empresa) || '-' || tentativa;
     end loop;
@@ -126,15 +148,23 @@ declare
   candidato text;
   tentativa integer := 1;
 begin
+  -- Slug escolhido a mao continua valendo, mas nao escapa da reserva: quem
+  -- digitar "campanhas" recebe um erro em vez de um endereco que nunca abre.
   if new.slug is not null and trim(new.slug) <> '' then
     new.slug := public.gerar_slug(new.slug);
+    if public.slug_reservado(new.slug) then
+      raise exception using
+        errcode = 'check_violation',
+        message = format('O endereco "%s" ja e uma secao do sistema. Escolha outro.', new.slug);
+    end if;
     return new;
   end if;
 
   base := coalesce(public.gerar_slug(new.nome_empresa), 'cliente');
   candidato := base;
 
-  while exists (
+  while public.slug_reservado(candidato)
+     or exists (
     select 1 from public.clients
      where slug = candidato
        and id is distinct from new.id

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useTheme } from "next-themes";
 import { startTransition } from "react";
 import { LogOut, Moon, Sun, UserRound } from "lucide-react";
@@ -17,7 +19,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { sair } from "@/lib/auth/acoes";
 
-export function MenuDoCliente({ nome, email }: { nome: string; email: string }) {
+/**
+ * `hrefDosDados` existe por causa da visualização administrativa. Na tela do
+ * cliente, "Meus dados" leva às Configurações do portal. Em /portal/{slug},
+ * quem está logado é da equipe: mandá-la para as Configurações do portal seria
+ * mandá-la para uma rota que `exigirCliente()` recusa com 403 — o menu levaria
+ * a pessoa para fora, e para um erro.
+ */
+export function MenuDoCliente({
+  nome,
+  email,
+  hrefDosDados = "/portal/configuracoes",
+}: {
+  nome: string;
+  email: string;
+  hrefDosDados?: string;
+}) {
   const { resolvedTheme, setTheme } = useTheme();
 
   return (
@@ -39,10 +56,10 @@ export function MenuDoCliente({ nome, email }: { nome: string; email: string }) 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild>
-          <a href="/portal/configuracoes">
+          <Link href={hrefDosDados}>
             <UserRound aria-hidden />
             Meus dados
-          </a>
+          </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem

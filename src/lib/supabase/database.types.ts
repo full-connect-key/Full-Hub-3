@@ -92,6 +92,13 @@ export interface Database {
         Row: {
           id: string;
           nome_empresa: string;
+          /**
+           * O endereco do portal: /portal/<slug>. Unico, gerado do nome pelo
+           * gatilho `clients_slug` (migration 0009). Nulo so no instante entre
+           * o insert e o gatilho -- nenhuma linha gravada chega ao cliente sem
+           * slug --, mas fica nulavel aqui porque o Insert pode omiti-lo.
+           */
+          slug: string | null;
           nome_contato: string | null;
           email_contato: string | null;
           telefone: string | null;
@@ -105,6 +112,8 @@ export interface Database {
         Insert: {
           id?: string;
           nome_empresa: string;
+          /** Omita e o gatilho gera a partir do nome. */
+          slug?: string | null;
           nome_contato?: string | null;
           email_contato?: string | null;
           telefone?: string | null;
@@ -117,6 +126,7 @@ export interface Database {
         };
         Update: {
           nome_empresa?: string;
+          slug?: string | null;
           nome_contato?: string | null;
           email_contato?: string | null;
           telefone?: string | null;
@@ -126,6 +136,29 @@ export interface Database {
           observacoes?: string | null;
           ativo?: boolean;
         };
+        Relationships: [];
+      };
+      /**
+       * Quem da equipe abriu o portal de qual cliente. Sem Update alem de
+       * encerrar, e sem Delete: registro de auditoria nao se apaga pela
+       * aplicacao (migration 0009 nao cria policy de DELETE).
+       */
+      client_portal_views: {
+        Row: {
+          id: string;
+          client_id: string;
+          staff_user_id: string;
+          iniciado_em: string;
+          encerrado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          staff_user_id: string;
+          iniciado_em?: string;
+          encerrado_em?: string | null;
+        };
+        Update: { encerrado_em?: string | null };
         Relationships: [];
       };
       client_users: {

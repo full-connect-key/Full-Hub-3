@@ -55,3 +55,18 @@ export function acharItemDoPortal(pathname: string): ItemDoPortal | undefined {
   if (candidatos.length === 0) return undefined;
   return candidatos.reduce((maior, item) => (item.href.length > maior.href.length ? item : maior));
 }
+
+/**
+ * A mesma navegação, com outro prefixo.
+ *
+ * Serve a visualização administrativa, em /portal/{slug}: os itens são os
+ * mesmos do portal do cliente — é esse o ponto, mostrar o que ele vê — e só o
+ * caminho muda.
+ */
+export function navegacaoComBase(base: string): ItemDoPortal[] {
+  if (base === "/portal") return NAVEGACAO_DO_PORTAL;
+  return NAVEGACAO_DO_PORTAL.map((item) => ({
+    ...item,
+    href: item.href === "/portal" ? base : `${base}${item.href.slice("/portal".length)}`,
+  }));
+}

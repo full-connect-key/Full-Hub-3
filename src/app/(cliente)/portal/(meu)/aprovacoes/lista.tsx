@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { AprovacaoDoCliente } from "@/lib/dados/portal-aprovacoes";
 
@@ -34,20 +35,33 @@ import { decisaoCliente } from "./acoes";
  * Pedir ajustes exige escrever o motivo. Não é burocracia: sem o texto, a
  * equipe recomeça no escuro — e o banco recusa a rodada sem comentário de
  * qualquer forma.
+ *
+ * `somenteLeitura` é a visualização administrativa em /portal/{slug}: a equipe
+ * vê o que o cliente vê, e os botões de decisão ficam desligados com a
+ * explicação no lugar. O botão desligado é cortesia, não é a trava — quem
+ * montasse a chamada à mão seria recusado pela função
+ * `decidir_rodada_do_cliente` no Postgres, que confere se quem chama é o
+ * cliente daquela rodada.
  */
 export function ListaDeAprovacoes({
   esperando,
   decididas,
+  somenteLeitura = false,
 }: {
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
+  somenteLeitura?: boolean;
 }) {
   if (esperando.length === 0 && decididas.length === 0) {
     return (
       <EmptyState
         icon={BadgeCheck}
-        title="Nada esperando você"
-        description="Quando a agência enviar um material para a sua aprovação, ele aparece aqui."
+        title={somenteLeitura ? "Nada esperando o cliente" : "Nada esperando você"}
+        description={
+          somenteLeitura
+            ? "Quando a equipe enviar um material para aprovação, ele aparece aqui."
+            : "Quando a agência enviar um material para a sua aprovação, ele aparece aqui."
+        }
       />
     );
   }
@@ -55,7 +69,9 @@ export function ListaDeAprovacoes({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Esperando você</h2>
+        <h2 className="text-sm font-semibold">
+          {somenteLeitura ? "Esperando o cliente" : "Esperando você"}
+        </h2>
         {esperando.length === 0 ? (
           <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
             Nada pendente no momento.
@@ -63,7 +79,11 @@ export function ListaDeAprovacoes({
         ) : (
           <ul className="space-y-3">
             {esperando.map((item) => (
-              <CartaoPendente key={item.rodadaId} item={item} />
+              <CartaoPendente
+                key={item.rodadaId}
+                item={item}
+                somenteLeitura={somenteLeitura}
+              />
             ))}
           </ul>
         )}
@@ -99,7 +119,13 @@ export function ListaDeAprovacoes({
   );
 }
 
-function CartaoPendente({ item }: { item: AprovacaoDoCliente }) {
+function CartaoPendente({
+  item,
+  somenteLeitura,
+}: {
+  item: AprovacaoDoCliente;
+  somenteLeitura: boolean;
+}) {
   const router = useRouter();
   const [executando, iniciar] = useTransition();
   const [pedindoAjustes, setPedindoAjustes] = useState(false);
@@ -164,22 +190,43 @@ function CartaoPendente({ item }: { item: AprovacaoDoCliente }) {
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          disabled={executando}
-          onClick={() => {
-            setMotivo("");
-            setPedindoAjustes(true);
-          }}
-        >
-          Solicitar ajustes
-        </Button>
-        <Button disabled={executando} onClick={() => decidir("aprovada", "")}>
-          {executando ? <Loader2 className="animate-spin" /> : <BadgeCheck aria-hidden />}
-          Aprovar
-        </Button>
-      </div>
+      {somenteLeitura ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* O <span> existe para o tooltip ter o que escutar: botão
+                desabilitado não dispara evento de mouse. */}
+            <span className="inline-flex flex-wrap gap-2">
+              <Button variant="outline" disabled>
+                Solicitar ajustes
+              </Button>
+              <Button disabled>
+                <BadgeCheck aria-hidden />
+                Aprovar
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            A decisão é do cliente. Você está visualizando o portal dele como equipe.
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={executando}
+            onClick={() => {
+              setMotivo("");
+              setPedindoAjustes(true);
+            }}
+          >
+            Solicitar ajustes
+          </Button>
+          <Button disabled={executando} onClick={() => decidir("aprovada", "")}>
+            {executando ? <Loader2 className="animate-spin" /> : <BadgeCheck aria-hidden />}
+            Aprovar
+          </Button>
+        </div>
+      )}
 
       <Dialog open={pedindoAjustes} onOpenChange={(aberto) => !aberto && setPedindoAjustes(false)}>
         <DialogContent className="sm:max-w-md">

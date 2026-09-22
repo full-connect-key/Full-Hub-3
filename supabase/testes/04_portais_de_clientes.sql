@@ -179,3 +179,22 @@ select teste.cenario('A cliente aprova a propria rodada', :JOANA,
 select teste.cenario('A aprovacao do cliente concluiu a subtarefa', :DIEGO,
   format('select 1 from public.subtasks where id = %L and status = %L',
          'ffffffff-0000-0000-0000-00000000000a', 'concluida'), 'ok', 1);
+
+
+-- --- O slug reservado ------------------------------------------------------
+--
+-- No Next, rota estatica ganha de rota dinamica. Um cliente com slug
+-- "campanhas" nao roubaria /portal/campanhas -- o portal dele e que nunca
+-- abriria, e ninguem entenderia por que. O banco desvia antes.
+
+select teste.cenario('Empresa chamada Campanhas nao fica com o slug "campanhas"', :ANA,
+  format('insert into public.clients (nome_empresa) values (%L)', 'Campanhas'), 'ok', 1);
+
+select teste.cenario('Ela recebeu campanhas-2', :DIEGO,
+  format('select 1 from public.clients where nome_empresa = %L and slug = %L',
+         'Campanhas', 'campanhas-2'), 'ok', 1);
+
+select teste.cenario('Escolher "aprovacoes" a mao e recusado com explicacao', :ANA,
+  format($fmt$
+    insert into public.clients (nome_empresa, slug) values (%L, %L)
+  $fmt$, 'Outra Empresa', 'aprovacoes'), 'recusa');

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { NAVEGACAO_DO_PORTAL } from "@/lib/navegacao-do-portal";
+import { navegacaoComBase } from "@/lib/navegacao-do-portal";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,16 +12,17 @@ import { cn } from "@/lib/utils";
  * No celular vira uma faixa que rola na horizontal: são quatro itens, então
  * uma gaveta como a do painel seria peso sem necessidade.
  */
-export function NavegacaoDoPortal() {
+export function NavegacaoDoPortal({ base = "/portal" }: { base?: string }) {
   const pathname = usePathname();
+  const itens = navegacaoComBase(base);
 
   return (
     <nav aria-label="Seções do portal" className="-mb-px overflow-x-auto">
       <ul className="flex min-w-max items-center gap-1">
-        {NAVEGACAO_DO_PORTAL.map((item) => {
+        {itens.map((item) => {
           const ativo =
-            item.href === "/portal"
-              ? pathname === "/portal"
+            item.href === base
+              ? pathname === base
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (

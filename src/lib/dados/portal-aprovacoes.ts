@@ -11,6 +11,13 @@ import type { ApprovalRound, SubtaskEntrega } from "@/lib/supabase/database.type
  * da parede, e isso não é uma escolha desta consulta: as policies
  * `approval_rounds_select_cliente` e `subtasks_select_cliente` já recusam o
  * resto. Aqui só montamos o que passou.
+ *
+ * `clienteId` é para a visualização administrativa em /portal/{slug}. Para a
+ * pessoa cliente ele é dispensável — o RLS já limita as linhas às empresas
+ * dela. Para quem é da equipe, NÃO É: `is_staff()` enxerga todos os clientes,
+ * e sem este filtro o portal da Mundo Verde mostraria as aprovações da Óptica
+ * Visão. O isolamento por cliente continua valendo; o que muda é que aqui ele
+ * precisa ser dito, porque quem pergunta tem permissão para ver mais.
  */
 
 export type AprovacaoDoCliente = {
@@ -28,17 +35,40 @@ export type AprovacaoDoCliente = {
   conversa: { id: string; texto: string; created_at: string; meu: boolean }[];
 };
 
-export async function minhasAprovacoes(usuarioId: string): Promise<{
+export async function minhasAprovacoes(
+  usuarioId: string,
+  clienteId?: string,
+): Promise<{
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
 }> {
   const supabase = await criarClienteServidor();
 
-  const { data: rodadas } = await supabase
-    .from("approval_rounds")
-    .select("*")
-    .eq("escopo", "cliente")
-    .order("solicitado_em", { ascending: false });
+  // Com cliente definido, a pergunta começa pelas tasks dele: assim o filtro
+  // acontece no banco, e não depois de trazer o que não interessa.
+  let idsPermitidos: string[] | null = null;
+  if (clienteId) {
+    const { data: tasksDoCliente } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("client_id", clienteId);
+
+    const ids = (tasksDoCliente ?? []).map((t) => t.id);
+    if (ids.length === 0) return { esperando: [], decididas: [] };
+
+    const { data: subtarefasDoCliente } = await supabase
+      .from("subtasks")
+      .select("id")
+      .in("task_id", ids);
+
+    idsPermitidos = (subtarefasDoCliente ?? []).map((s) => s.id);
+    if (idsPermitidos.length === 0) return { esperando: [], decididas: [] };
+  }
+
+  let consulta = supabase.from("approval_rounds").select("*").eq("escopo", "cliente");
+  if (idsPermitidos) consulta = consulta.in("subtask_id", idsPermitidos);
+
+  const { data: rodadas } = await consulta.order("solicitado_em", { ascending: false });
 
   const todas = (rodadas ?? []) as ApprovalRound[];
   if (todas.length === 0) return { esperando: [], decididas: [] };
