@@ -262,6 +262,49 @@ de calendário de parede, e aqui a unidade é a semana de trabalho. A semana sai
 da data por cálculo e **nunca é gravada**: coluna de semana ao lado da data é
 um jeito de as duas discordarem.
 
+### Full Days: férias, licença e ausência
+
+**15 dias de férias por ano, em até duas parcelas.** Os dois números são
+colunas de `team_members` (`dias_ferias_ano`, `max_parcelas_ferias`), não
+constantes no código: contrato muda por pessoa, e mudar contrato não pode
+exigir deploy.
+
+- **Pendente conta como usado.** Sem isso a pessoa pediria 15 dias duas vezes
+  enquanto o primeiro pedido espera decisão, e o sócio aprovaria os dois sem
+  ver o problema.
+- **Só o sócio decide.** O desenvolvedor é gestão para todo o resto do sistema
+  e aqui não — está escrito na primeira linha de `decidir_solicitacao()`.
+- **Aprovar é transacional, e por isso mora no banco.** Aprovar muda o status,
+  pinta os dias úteis em `team_presence` e avisa o solicitante; três chamadas
+  pelo PostgREST seriam três transações, e a segunda falhando deixaria um
+  pedido "aprovada" sem nenhum dia pintado.
+- **Dia que veio de pedido aprovado não se edita na matriz.** Um clique
+  apagaria as férias de alguém e o pedido continuaria dizendo "aprovada" —
+  duas verdades sobre o mesmo dia.
+- Licença e ausência **não** descontam do saldo; entram na matriz e no
+  relatório.
+- Os dias úteis gravados saem de `public.dias_uteis()`, não da conta da tela.
+  A tela conta para mostrar o número enquanto a pessoa seleciona; se o gravado
+  viesse dali, bastaria alterar o corpo da requisição.
+- A **área** é o agrupamento que importa: quem decide precisa saber quem mais
+  do mesmo time está fora. É por isso que o calendário bloqueia dias de colegas
+  da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
+  uma recusa que ninguém tem como contornar nem entender.
+
+### O sino
+
+`notifications` **não tem policy de INSERT.** A única porta é a função
+`notificar()` no Postgres: se qualquer usuário pudesse inserir, daria para
+forjar um aviso no nome de outra pessoa, e um sino em que não se confia é pior
+que nenhum sino. Um trigger também impede reescrever o título do próprio aviso
+— policy não limita coluna.
+
+A função nunca notifica quem causou o aviso. O sino é para o que os **outros**
+fizeram.
+
+Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
+vezes fecha para resolver depois.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -415,6 +458,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
 | Sprint 3C | Tela inicial, menu definitivo e Portais de Clientes: identidade visual em tokens com `npm run check:cores` provando 26 pares de contraste e nenhum hex solto; menu em duas seções (Principal / Gestão com selo Admin) com Diário→Resumo Semanal e Minhas Skills→Meu Desenvolvimento redirecionando em 308; barra lateral escura com cartão da pessoa separando nome, cargo e perfil; tela inicial com boas-vindas, Acesso Rápido e a grade de Portais de Clientes; `/portal/{slug}` para a gestão ver o portal de um cliente em modo leitura, com faixa de aviso, registro em `client_portal_views` e a recusa valendo no banco; Resumo Semanal organizado por semana com registro privado; Notas Fiscais como módulo da pessoa; Financeiro Pessoal em aba dentro de Meu perfil. |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
 | Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |

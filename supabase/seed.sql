@@ -79,15 +79,22 @@ select
   jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
   'email', now(), now(), now()
 from auth.users u
-where u.email like '%@fullconnectkey.com.br'
-   or u.email in (
-     'contato@mundoverde.com.br',
-     'marketing@mundoverde.com.br',
-     'contato@opticavisao.com.br'
-   )
-and not exists (
-  select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email'
-);
+-- OS PARENTESES IMPORTAM. `AND` liga mais forte que `OR`: sem eles, a leitura
+-- era "e-mail da agencia OU (e-mail de cliente E sem identidade)", e a guarda
+-- so valia para os clientes. Rodar o seed duas vezes duplicava a identidade de
+-- toda a equipe e quebrava com violacao de unicidade -- que e como o erro
+-- apareceu.
+where (
+       u.email like '%@fullconnectkey.com.br'
+    or u.email in (
+         'contato@mundoverde.com.br',
+         'marketing@mundoverde.com.br',
+         'contato@opticavisao.com.br'
+       )
+  )
+  and not exists (
+    select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email'
+  );
 
 
 -- ---------------------------------------------------------------------------
@@ -358,3 +365,71 @@ from public.tasks t
 left join public.subtasks s on s.task_id = t.id
 group by t.id, t.titulo, t.status
 order by t.titulo;
+
+
+-- ===========================================================================
+-- Full Days (Sprint 6)
+--
+-- O que estes dados fazem aparecer nas telas:
+--
+--   - a Marina (Criação) com ferias APROVADAS, que pintam a matriz de roxo e
+--     BLOQUEIAM aqueles dias no calendario do Rafael, que e da mesma area --
+--     e e assim que da para ver a regra funcionando sem esperar alguem pedir;
+--   - um pedido PENDENTE, para a fila do socio nao nascer vazia;
+--   - um dia de trabalho remoto marcado a mao, que e o outro caminho de
+--     escrita da matriz.
+--
+-- As datas sao relativas a hoje (current_date), e nao fixas: seed com data
+-- fixa envelhece e, meses depois, mostra "ferias" num passado que ninguem
+-- reconhece.
+-- ===========================================================================
+
+-- Marina (Criação) de ferias daqui a duas semanas, ja aprovadas pela socia.
+insert into public.hr_requests
+  (id, user_id, tipo, data_inicio, data_fim, dias_uteis, motivo, status, aprovado_por, decidido_em)
+select 'fd000000-0000-0000-0000-000000000001'::uuid,
+       'a0000000-0000-0000-0000-000000000005'::uuid,
+       'ferias',
+       (current_date + 14)::date,
+       (current_date + 20)::date,
+       public.dias_uteis((current_date + 14)::date, (current_date + 20)::date),
+       'Viagem em familia',
+       'aprovada',
+       'a0000000-0000-0000-0000-000000000001'::uuid,
+       now()
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000005')
+on conflict (id) do nothing;
+
+-- Os dias uteis dela viram linha na matriz, com o vinculo ao pedido -- que e o
+-- que impede a gestao de apagar isso com um clique.
+insert into public.team_presence (user_id, data, status, hr_request_id)
+select 'a0000000-0000-0000-0000-000000000005'::uuid,
+       d.dia::date,
+       'ferias',
+       'fd000000-0000-0000-0000-000000000001'::uuid
+  from generate_series((current_date + 14)::date, (current_date + 20)::date, interval '1 day') as d(dia)
+ where extract(isodow from d.dia) < 6
+   and not exists (select 1 from public.holidays h where h.data = d.dia::date)
+   and exists (select 1 from public.hr_requests where id = 'fd000000-0000-0000-0000-000000000001')
+on conflict (user_id, data) do nothing;
+
+-- Rafael (mesma area da Marina) pediu e ainda espera decisao. Aparece na fila
+-- do socio COM o aviso de que a Marina ja esta fora em parte do periodo.
+insert into public.hr_requests
+  (id, user_id, tipo, data_inicio, data_fim, dias_uteis, motivo, status)
+select 'fd000000-0000-0000-0000-000000000002'::uuid,
+       'a0000000-0000-0000-0000-000000000006'::uuid,
+       'ferias',
+       (current_date + 18)::date,
+       (current_date + 24)::date,
+       public.dias_uteis((current_date + 18)::date, (current_date + 24)::date),
+       'Casamento da irma',
+       'pendente'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000006')
+on conflict (id) do nothing;
+
+-- Carla trabalhou remoto ontem. Marcado a mao, sem pedido por tras.
+insert into public.team_presence (user_id, data, status)
+select 'a0000000-0000-0000-0000-000000000003'::uuid, (current_date - 1)::date, 'remoto'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
+on conflict (user_id, data) do nothing;
