@@ -7,7 +7,7 @@ import { adminOuErro, criarConta, desfazerConta, enviarConviteDeSenha } from "@/
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { podeConcederRole } from "@/lib/dominio/equipe";
-import { STATUS_EM_ABERTO } from "@/lib/dominio/tasks";
+import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
 
 /**
  * Criação e remoção de acessos.
@@ -334,15 +334,18 @@ export async function desligarColaborador(dados: unknown): Promise<Resultado> {
       throw new ErroDeAcao("O nome digitado não confere com o cadastro.");
     }
 
-    const { count: tasksAbertas } = await admin
-      .from("tasks")
+    // O que fica sem dono e a SUBTAREFA: e ela que tem responsavel desde o
+    // Sprint 3B. A task nao precisa ser transferida -- ela continua sendo o
+    // agrupador da demanda, com as etapas agora no nome de outra pessoa.
+    const { count: subtarefasAbertas } = await admin
+      .from("subtasks")
       .select("id", { count: "exact", head: true })
       .eq("responsavel_id", userId)
-      .in("status", STATUS_EM_ABERTO);
+      .in("status", SUBTAREFAS_EM_ABERTO);
 
-    if ((tasksAbertas ?? 0) > 0 && !transferirPara) {
+    if ((subtarefasAbertas ?? 0) > 0 && !transferirPara) {
       throw new ErroDeAcao(
-        `${pessoa.nome} tem ${tasksAbertas} task(s) em aberto. Escolha quem vai assumir antes de concluir.`,
+        `${pessoa.nome} tem ${subtarefasAbertas} subtarefa(s) em aberto. Escolha quem vai assumir antes de concluir.`,
       );
     }
 
@@ -361,13 +364,13 @@ export async function desligarColaborador(dados: unknown): Promise<Resultado> {
       }
 
       const { error: erroDasTasks } = await admin
-        .from("tasks")
+        .from("subtasks")
         .update({ responsavel_id: transferirPara })
         .eq("responsavel_id", userId)
-        .in("status", STATUS_EM_ABERTO);
+        .in("status", SUBTAREFAS_EM_ABERTO);
 
       if (erroDasTasks) {
-        throw new ErroDeAcao(`Não foi possível transferir as tasks: ${erroDasTasks.message}`);
+        throw new ErroDeAcao(`Não foi possível transferir as subtarefas: ${erroDasTasks.message}`);
       }
     }
 

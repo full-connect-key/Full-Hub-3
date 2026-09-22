@@ -5,10 +5,27 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json, SubtaskStatus } from "@/lib/supabase/database.types";
 
 type EdicaoDeSubtarefa = Database["public"]["Tables"]["subtasks"]["Update"];
+type ClienteSupabase = Awaited<ReturnType<typeof criarClienteServidor>>;
+type EventoDeHistorico = Database["public"]["Tables"]["task_history"]["Insert"];
+
+const RECUSA_DO_BANCO = "O banco recusou a operação.";
+
+const RECUSA_DA_SUBTAREFA =
+  "O banco recusou a operação. A subtarefa é de quem a executa: só o responsável por ela, " +
+  "o Atendimento e a gestão conseguem mexer.";
+
+/**
+ * Histórico. Nunca some e nunca é reescrito — é o que permite reconstruir o
+ * que foi pedido e o que foi decidido meses depois.
+ */
+async function registrar(supabase: ClienteSupabase, evento: EventoDeHistorico) {
+  await supabase.from("task_history").insert(evento);
+}
 
 /**
  * Ações das partes de uma task: subtarefas, referências e comentários.
@@ -29,27 +46,48 @@ function vazioParaNulo(valor: unknown): string | null {
   return texto === "" ? null : texto;
 }
 
-function numeroOuNulo(valor: unknown): number | null {
+/** Tempo chega como texto livre ("2h30", "150"). Aqui vira minuto inteiro. */
+function minutosOuNulo(valor: unknown): number | null {
   if (valor === null || valor === undefined || valor === "") return null;
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? numero : null;
+  if (typeof valor === "number") return Number.isFinite(valor) ? Math.round(valor) : null;
+  const lido = interpretarTempo(String(valor));
+  return lido ?? null;
 }
 
 // --- subtarefas -------------------------------------------------------------
 
 const esquemaDeSubtarefa = z.object({
   titulo: z.string().min(1).optional(),
+  descricao_rica: z.unknown().optional(),
+  descricao_texto: z.string().nullable().optional(),
   prazo: z.string().nullable().optional(),
   responsavel_id: z.string().uuid().nullable().optional(),
-  estimativa_horas: z.union([z.number(), z.string(), z.null()]).optional(),
-  tempo_real_horas: z.union([z.number(), z.string(), z.null()]).optional(),
-  concluida: z.boolean().optional(),
+  prioridade: z.enum(["baixa", "normal", "alta", "urgente"]).optional(),
+  requer_aprovacao: z.boolean().optional(),
+  tipo_aprovacao: z.enum(["interna", "cliente"]).nullable().optional(),
+  estimativa: z.union([z.number(), z.string(), z.null()]).optional(),
+  ordem: z.number().int().optional(),
 });
 
-export async function criarSubtarefa(taskId: string, titulo: string): Promise<Resultado> {
+/**
+ * Criar subtarefa é do Atendimento e da gestão — é a policy `subtasks_insert`
+ * que diz isso, e a tela apenas não mostra o campo para os outros.
+ */
+export async function criarSubtarefa(
+  taskId: string,
+  dados: { titulo: string } & Record<string, unknown>,
+): Promise<Resultado<string>> {
   return executarAcao("criarSubtarefa", async () => {
-    await exigirRotaNaAcao(ROTA);
-    if (titulo.trim().length === 0) return falha("A subtarefa precisa de um título.");
+    const sessao = await exigirRotaNaAcao(ROTA);
+
+    const validacao = esquemaDeSubtarefa.safeParse(dados);
+    if (!validacao.success) return falha("Confira os dados da subtarefa.");
+    const entrada = validacao.data;
+
+    if (!entrada.titulo?.trim()) return falha("A subtarefa precisa de um título.");
+    if (entrada.requer_aprovacao && !entrada.tipo_aprovacao) {
+      return falha("Diga de que tipo é a aprovação: interna ou do cliente.");
+    }
 
     const supabase = await criarClienteServidor();
 
@@ -61,50 +99,162 @@ export async function criarSubtarefa(taskId: string, titulo: string): Promise<Re
       .limit(1)
       .maybeSingle();
 
-    const { error } = await supabase.from("subtasks").insert({
+    const { data, error } = await supabase
+      .from("subtasks")
+      .insert({
+        task_id: taskId,
+        titulo: entrada.titulo.trim(),
+        prazo: vazioParaNulo(entrada.prazo),
+        responsavel_id: entrada.responsavel_id || null,
+        prioridade: entrada.prioridade ?? "normal",
+        requer_aprovacao: entrada.requer_aprovacao ?? false,
+        tipo_aprovacao: entrada.requer_aprovacao ? (entrada.tipo_aprovacao ?? "interna") : null,
+        estimativa_minutos: minutosOuNulo(entrada.estimativa),
+        ordem: (ultima?.ordem ?? 0) + 1,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      return falha(`Não foi possível criar a subtarefa: ${error?.message ?? RECUSA_DO_BANCO}`);
+    }
+
+    await registrar(supabase, {
       task_id: taskId,
-      titulo: titulo.trim(),
-      ordem: (ultima?.ordem ?? -1) + 1,
+      subtask_id: data.id,
+      acao: "subtarefa_criada",
+      para_valor: entrada.titulo.trim(),
+      autor_id: sessao.usuarioId,
     });
 
-    if (error) return falha(`Não foi possível criar: ${error.message}`);
     revalidar(taskId);
-    return sucesso("Subtarefa criada.");
+    return sucesso("Subtarefa criada.", data.id);
   });
 }
 
+/**
+ * Edição dos campos da subtarefa. O STATUS não passa por aqui: ele tem ação
+ * própria (`moverSubtarefa`), que checa a máquina de estados antes.
+ */
 export async function atualizarSubtarefa(
   id: string,
   taskId: string,
   campos: unknown,
 ): Promise<Resultado> {
   return executarAcao("atualizarSubtarefa", async () => {
-    await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirRotaNaAcao(ROTA);
 
     const validacao = esquemaDeSubtarefa.safeParse(campos);
     if (!validacao.success) return falha("Dados inválidos.");
+    const entrada = validacao.data;
 
     const mudancas: EdicaoDeSubtarefa = {};
-    const entrada = validacao.data;
     if (entrada.titulo !== undefined) mudancas.titulo = entrada.titulo.trim();
+    if (entrada.descricao_rica !== undefined)
+      mudancas.descricao_rica = (entrada.descricao_rica ?? null) as Json | null;
+    if (entrada.descricao_texto !== undefined) mudancas.descricao_texto = entrada.descricao_texto;
     if (entrada.prazo !== undefined) mudancas.prazo = vazioParaNulo(entrada.prazo);
     if (entrada.responsavel_id !== undefined) mudancas.responsavel_id = entrada.responsavel_id;
-    if (entrada.estimativa_horas !== undefined)
-      mudancas.estimativa_horas = numeroOuNulo(entrada.estimativa_horas);
-    if (entrada.tempo_real_horas !== undefined)
-      mudancas.tempo_real_horas = numeroOuNulo(entrada.tempo_real_horas);
-    if (entrada.concluida !== undefined) {
-      mudancas.concluida = entrada.concluida;
-      // Marcar como concluída registra data e hora; desmarcar apaga o registro.
-      mudancas.concluida_em = entrada.concluida ? new Date().toISOString() : null;
+    if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
+    if (entrada.estimativa !== undefined)
+      mudancas.estimativa_minutos = minutosOuNulo(entrada.estimativa);
+    if (entrada.ordem !== undefined) mudancas.ordem = entrada.ordem;
+
+    // O par (requer_aprovacao, tipo_aprovacao) tem check no banco: ou os dois
+    // preenchidos, ou os dois vazios. Mandar um sem o outro seria erro de SQL
+    // na cara do usuário; aqui vira mensagem.
+    if (entrada.requer_aprovacao !== undefined) {
+      mudancas.requer_aprovacao = entrada.requer_aprovacao;
+      mudancas.tipo_aprovacao = entrada.requer_aprovacao
+        ? (entrada.tipo_aprovacao ?? "interna")
+        : null;
+    } else if (entrada.tipo_aprovacao !== undefined) {
+      mudancas.tipo_aprovacao = entrada.tipo_aprovacao;
+      mudancas.requer_aprovacao = entrada.tipo_aprovacao !== null;
     }
 
     if (Object.keys(mudancas).length === 0) return sucesso("Nada a alterar.");
 
     const supabase = await criarClienteServidor();
-    const { error } = await supabase.from("subtasks").update(mudancas).eq("id", id);
+
+    const anterior =
+      entrada.responsavel_id !== undefined
+        ? await supabase.from("subtasks").select("responsavel_id").eq("id", id).maybeSingle()
+        : null;
+
+    const { data, error } = await supabase
+      .from("subtasks")
+      .update(mudancas)
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
 
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
+    if (!data) return falha(RECUSA_DA_SUBTAREFA);
+
+    if (anterior?.data && anterior.data.responsavel_id !== entrada.responsavel_id) {
+      await registrar(supabase, {
+        task_id: taskId,
+        subtask_id: id,
+        acao: "responsavel_alterado",
+        de_valor: anterior.data.responsavel_id,
+        para_valor: entrada.responsavel_id ?? null,
+        autor_id: sessao.usuarioId,
+      });
+    }
+
+    revalidar(taskId);
+    return sucesso("Salvo.");
+  });
+}
+
+/**
+ * Mover a subtarefa de status.
+ *
+ * As transições que o banco recusa (concluir o que exige aprovação, sair de
+ * `nao_iniciada` com dependência aberta) chegam aqui como erro de trigger. A
+ * mensagem do Postgres já é escrita para ser lida por gente — ela vem com o
+ * nome da subtarefa e o que está faltando —, então é ela que vai para a tela.
+ */
+export async function moverSubtarefa(
+  id: string,
+  taskId: string,
+  destino: SubtaskStatus,
+  tempoReal?: number | string | null,
+): Promise<Resultado> {
+  return executarAcao("moverSubtarefa", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data: antes } = await supabase
+      .from("subtasks")
+      .select("status, titulo")
+      .eq("id", id)
+      .maybeSingle();
+    if (!antes) return falha("Subtarefa não encontrada.");
+
+    const mudancas: EdicaoDeSubtarefa = { status: destino };
+    if (tempoReal !== undefined) mudancas.tempo_real_minutos = minutosOuNulo(tempoReal);
+
+    const { data, error } = await supabase
+      .from("subtasks")
+      .update(mudancas)
+      .eq("id", id)
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) return falha(error.message);
+    if (!data) return falha(RECUSA_DA_SUBTAREFA);
+
+    await registrar(supabase, {
+      task_id: taskId,
+      subtask_id: id,
+      acao: "status_da_subtarefa",
+      de_valor: antes.status,
+      para_valor: data.status,
+      autor_id: sessao.usuarioId,
+    });
+
     revalidar(taskId);
     return sucesso("Salvo.");
   });
@@ -114,28 +264,77 @@ export async function removerSubtarefa(id: string, taskId: string): Promise<Resu
   return executarAcao("removerSubtarefa", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
-    const { error } = await supabase.from("subtasks").delete().eq("id", id);
+    const { data, error } = await supabase
+      .from("subtasks")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
     if (error) return falha(`Não foi possível remover: ${error.message}`);
+    if (!data) return falha(RECUSA_DA_SUBTAREFA);
     revalidar(taskId);
     return sucesso("Subtarefa removida.");
   });
 }
 
-/** Grava a nova ordem depois do arrastar. Recebe os ids já na ordem final. */
 export async function reordenarSubtarefas(taskId: string, ids: string[]): Promise<Resultado> {
   return executarAcao("reordenarSubtarefas", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
 
-    const resultados = await Promise.all(
-      ids.map((id, indice) => supabase.from("subtasks").update({ ordem: indice }).eq("id", id)),
-    );
-
-    const problema = resultados.find((r) => r.error);
-    if (problema?.error) return falha(`Não foi possível reordenar: ${problema.error.message}`);
+    for (const [indice, id] of ids.entries()) {
+      const { error } = await supabase
+        .from("subtasks")
+        .update({ ordem: indice + 1 })
+        .eq("id", id);
+      if (error) return falha(`Não foi possível reordenar: ${error.message}`);
+    }
 
     revalidar(taskId);
     return sucesso("Ordem salva.");
+  });
+}
+
+// --- dependências -----------------------------------------------------------
+
+export async function vincularDependencia(
+  taskId: string,
+  subtaskId: string,
+  dependeDeId: string,
+): Promise<Resultado> {
+  return executarAcao("vincularDependencia", async () => {
+    await exigirRotaNaAcao(ROTA);
+    if (subtaskId === dependeDeId) return falha("Uma subtarefa não depende de si mesma.");
+
+    const supabase = await criarClienteServidor();
+    // O ciclo é recusado por trigger, com a mensagem por extenso. Aqui ela
+    // passa direto para a tela em vez de virar "erro ao salvar".
+    const { error } = await supabase
+      .from("subtask_dependencies")
+      .insert({ subtask_id: subtaskId, depende_de_id: dependeDeId });
+
+    if (error) return falha(error.message);
+    revalidar(taskId);
+    return sucesso("Dependência criada.");
+  });
+}
+
+export async function desvincularDependencia(
+  taskId: string,
+  subtaskId: string,
+  dependeDeId: string,
+): Promise<Resultado> {
+  return executarAcao("desvincularDependencia", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase
+      .from("subtask_dependencies")
+      .delete()
+      .eq("subtask_id", subtaskId)
+      .eq("depende_de_id", dependeDeId);
+    if (error) return falha(`Não foi possível remover: ${error.message}`);
+    revalidar(taskId);
+    return sucesso("Dependência removida.");
   });
 }
 
@@ -200,10 +399,16 @@ export async function urlDoArquivo(caminho: string): Promise<Resultado<string>> 
 
 // --- comentários ------------------------------------------------------------
 
+/**
+ * Comentar na task ou numa subtarefa dela.
+ *
+ * `interno` é true por padrão, e a tela precisa de um gesto explícito para
+ * desmarcar: conversa de equipe não vaza para o Portal por esquecimento.
+ */
 export async function comentar(
   taskId: string,
   texto: string,
-  respostaA?: string | null,
+  opcoes?: { respostaA?: string | null; subtaskId?: string | null; interno?: boolean },
 ): Promise<Resultado> {
   return executarAcao("comentar", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
@@ -212,9 +417,11 @@ export async function comentar(
     const supabase = await criarClienteServidor();
     const { error } = await supabase.from("task_comentarios").insert({
       task_id: taskId,
+      subtask_id: opcoes?.subtaskId || null,
       autor_id: sessao.usuarioId,
       texto: texto.trim(),
-      resposta_a: respostaA || null,
+      interno: opcoes?.interno ?? true,
+      resposta_a: opcoes?.respostaA || null,
     });
 
     if (error) return falha(`Não foi possível comentar: ${error.message}`);
@@ -231,5 +438,74 @@ export async function removerComentario(id: string, taskId: string): Promise<Res
     if (error) return falha(`Não foi possível remover: ${error.message}`);
     revalidar(taskId);
     return sucesso("Comentário removido.");
+  });
+}
+
+// --- entregas da subtarefa --------------------------------------------------
+
+/**
+ * O material produzido: arquivo no bucket privado ou link.
+ *
+ * O caminho do arquivo segue a convenção `entregas/<subtask_id>/<nome>` — é
+ * por ela que a policy do Storage consegue decidir, por subtarefa, se o
+ * cliente pode abrir aquele arquivo.
+ */
+export async function anexarEntrega(
+  taskId: string,
+  subtaskId: string,
+  entrega: { tipo: "link" | "arquivo"; url: string; nome?: string | null },
+): Promise<Resultado> {
+  return executarAcao("anexarEntrega", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    if (!entrega.url?.trim()) return falha("Informe o endereço ou envie o arquivo.");
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("subtask_entregas")
+      .insert({
+        subtask_id: subtaskId,
+        tipo: entrega.tipo,
+        url: entrega.url.trim(),
+        nome: vazioParaNulo(entrega.nome),
+        enviado_por: sessao.usuarioId,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível anexar: ${error.message}`);
+    if (!data) {
+      return falha(
+        "O banco recusou o anexo. Anexar entrega é do responsável pela subtarefa, do " +
+          "Atendimento ou da gestão.",
+      );
+    }
+
+    await registrar(supabase, {
+      task_id: taskId,
+      subtask_id: subtaskId,
+      acao: "entrega_anexada",
+      para_valor: entrega.nome ?? entrega.url,
+      autor_id: sessao.usuarioId,
+    });
+
+    revalidar(taskId);
+    return sucesso("Entrega anexada.");
+  });
+}
+
+export async function removerEntrega(id: string, taskId: string): Promise<Resultado> {
+  return executarAcao("removerEntrega", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("subtask_entregas")
+      .delete()
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+    if (error) return falha(`Não foi possível remover: ${error.message}`);
+    if (!data) return falha(RECUSA_DO_BANCO);
+    revalidar(taskId);
+    return sucesso("Entrega removida.");
   });
 }

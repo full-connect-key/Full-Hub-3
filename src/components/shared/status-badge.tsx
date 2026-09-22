@@ -17,17 +17,33 @@ export type StatusConteudo =
   | "stand_by";
 
 /**
- * Status de task. Espelham o enum task_status do banco (migration 0004) --
- * mudar um sem mudar o outro faz o selo aparecer cru na tela.
+ * Status de task e de subtarefa. Espelham os enums `task_status` e
+ * `subtask_status` do banco (migration 0007) -- mudar um sem mudar o outro faz
+ * o selo aparecer cru na tela.
+ *
+ * `aguardando_informacoes`, `em_aprovacao` e `em_ajustes` aparecem nas duas
+ * listas: o fluxo de conteudo do cliente e o de task usam a mesma palavra para
+ * a mesma coisa, e um selo so evita dois vermelhos diferentes na mesma tela.
  */
 export type StatusTask =
-  | "aberta"
+  | "nao_iniciada"
   | "em_andamento"
-  | "aguardando_aprovacao"
-  | "concluida"
+  | "aguardando_informacoes"
+  | "entregue"
+  | "em_aprovacao"
+  | "em_ajustes"
+  | "concluido"
   | "cancelada";
 
-export type Status = StatusConteudo | StatusTask;
+export type StatusSubtarefa =
+  | "nao_iniciada"
+  | "em_andamento"
+  | "aguardando_informacoes"
+  | "enviada_aprovacao"
+  | "em_ajustes"
+  | "concluida";
+
+export type Status = StatusConteudo | StatusTask | StatusSubtarefa;
 
 type Tom = "neutro" | "marca" | "info" | "atencao" | "positivo" | "negativo" | "pausado";
 
@@ -51,11 +67,17 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   rejeitado: { label: "Rejeitado", tom: "negativo" },
   stand_by: { label: "Stand by", tom: "pausado" },
   // Task
-  aberta: { label: "Aberta", tom: "neutro" },
+  nao_iniciada: { label: "Não iniciada", tom: "neutro" },
   em_andamento: { label: "Em andamento", tom: "marca" },
-  aguardando_aprovacao: { label: "Aguardando aprovação", tom: "info" },
-  concluida: { label: "Concluída", tom: "positivo" },
+  // "Entregue" e "Aprovado" nao sao a mesma coisa: o material saiu, ninguem
+  // disse que esta certo. Por isso tom de atencao, e nao o verde de aprovado.
+  entregue: { label: "Entregue", tom: "atencao" },
+  em_ajustes: { label: "Em ajustes", tom: "atencao" },
+  concluido: { label: "Concluído", tom: "positivo" },
   cancelada: { label: "Cancelada", tom: "pausado" },
+  // Subtarefa
+  enviada_aprovacao: { label: "Enviada para aprovação", tom: "info" },
+  concluida: { label: "Concluída", tom: "positivo" },
 };
 
 export function StatusBadge({ status, className }: { status: Status; className?: string }) {
@@ -102,11 +124,23 @@ export const STATUS_DE_CONTEUDO: StatusConteudo[] = [
 ];
 
 export const STATUS_DE_TASK: StatusTask[] = [
-  "aberta",
+  "nao_iniciada",
   "em_andamento",
-  "aguardando_aprovacao",
-  "concluida",
+  "aguardando_informacoes",
+  "entregue",
+  "em_aprovacao",
+  "em_ajustes",
+  "concluido",
   "cancelada",
+];
+
+export const STATUS_DE_SUBTAREFA: StatusSubtarefa[] = [
+  "nao_iniciada",
+  "em_andamento",
+  "aguardando_informacoes",
+  "enviada_aprovacao",
+  "em_ajustes",
+  "concluida",
 ];
 
 export function rotuloDoStatus(status: Status): string {

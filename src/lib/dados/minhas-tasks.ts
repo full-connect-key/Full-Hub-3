@@ -2,31 +2,37 @@ import "server-only";
 
 import { endOfWeek, format } from "date-fns";
 
-import { enriquecer, type ItemDeCalendario, type Pessoa, type TaskDaLista } from "./tasks";
+import {
+  enriquecer,
+  type ItemDeCalendario,
+  type Pessoa,
+  type SubtarefaDetalhada,
+  type TaskDaLista,
+} from "./tasks";
 import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "@/lib/dominio/tasks";
+import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { Subtask, Task } from "@/lib/supabase/database.types";
+import type { ApprovalRound, Subtask, Task } from "@/lib/supabase/database.types";
 
 /**
  * Consultas da tela Minhas Tasks.
  *
- * O que separa esta camada da de `tasks.ts` é uma regra só, e ela é o coração
- * do módulo: **o que é meu não é só a task onde sou responsável.** Uma
- * subtarefa atribuída a mim, dentro de uma task de outra pessoa, também é meu
- * trabalho — é assim que a produção funciona, com o redator escrevendo dentro
- * de uma task que é do social media.
+ * A regra é uma só, e é o coração do módulo: **o meu trabalho são as minhas
+ * SUBTAREFAS.** A Task não tem responsável desde o Sprint 3B — ela é o
+ * agrupador da demanda, e aparece aqui porque tem alguma etapa no meu nome.
  *
- * Por isso a consulta tem dois lados, e a task-mãe alheia entra na lista
- * marcada como tal: eu enxergo a subtarefa, mas não mando na task.
+ * Consequência prática: a Task aparece UMA vez, mesmo quando tenho três
+ * subtarefas nela, e os contadores de prazo olham para o prazo das minhas
+ * subtarefas, nunca para o período da Task.
  */
 
-export type MinhaSubtarefa = Subtask & { responsavel: Pessoa | null };
+export type MinhaSubtarefa = SubtarefaDetalhada;
 
 export type MinhaTask = TaskDaLista & {
-  /** Sou o responsável pela task, e não só por uma subtarefa dentro dela. */
-  souResponsavel: boolean;
   /** As subtarefas desta task que estão no meu nome. */
   minhasSubtarefas: MinhaSubtarefa[];
+  /** As outras, em cinza, como contexto de quem mais está na demanda. */
+  outrasSubtarefas: { id: string; titulo: string; status: Subtask["status"]; responsavel: Pessoa | null }[];
 };
 
 export type Prazos = { hoje: string; fimDaSemana: string };
@@ -47,95 +53,146 @@ export function prazosDeHoje(): Prazos {
   };
 }
 
-/** Tasks minhas e tasks que têm subtarefa minha, num formato só. */
+/** As tasks que têm subtarefa minha, cada uma uma vez só. */
 async function carregar(userId: string): Promise<MinhaTask[]> {
   const supabase = await criarClienteServidor();
 
-  const [{ data: minhas }, { data: minhasSubs }] = await Promise.all([
-    supabase.from("tasks").select("*").eq("responsavel_id", userId),
-    supabase.from("subtasks").select("*").eq("responsavel_id", userId),
+  const { data: minhasSubs } = await supabase
+    .from("subtasks")
+    .select("*")
+    .eq("responsavel_id", userId);
+
+  const subtarefas = (minhasSubs ?? []) as Subtask[];
+  if (subtarefas.length === 0) return [];
+
+  const idsDeTasks = [...new Set(subtarefas.map((s) => s.task_id))];
+
+  const [{ data: tasks }, { data: todasAsSubs }] = await Promise.all([
+    supabase.from("tasks").select("*").in("id", idsDeTasks),
+    supabase
+      .from("subtasks")
+      .select("id, task_id, titulo, status, responsavel_id, ordem")
+      .in("task_id", idsDeTasks)
+      .order("ordem"),
   ]);
 
-  const tasksMinhas = (minhas ?? []) as Task[];
-  const subtarefas = (minhasSubs ?? []) as Subtask[];
+  const [{ data: rodadas }, { data: dependencias }] = await Promise.all([
+    supabase
+      .from("approval_rounds")
+      .select("*")
+      .in(
+        "subtask_id",
+        subtarefas.map((s) => s.id),
+      )
+      .order("numero_rodada", { ascending: false }),
+    supabase
+      .from("subtask_dependencies")
+      .select("subtask_id, depende_de_id")
+      .in(
+        "subtask_id",
+        subtarefas.map((s) => s.id),
+      ),
+  ]);
 
-  const jaTenho = new Set(tasksMinhas.map((t) => t.id));
-  const idsDeMaesAlheias = [
-    ...new Set(subtarefas.map((s) => s.task_id).filter((id) => !jaTenho.has(id))),
-  ];
+  const outras = (todasAsSubs ?? []).filter((s) => s.responsavel_id !== userId);
+  const idsDePessoas = [...new Set(outras.map((s) => s.responsavel_id).filter(Boolean))] as string[];
 
-  const { data: maesAlheias } = idsDeMaesAlheias.length
-    ? await supabase.from("tasks").select("*").in("id", idsDeMaesAlheias)
-    : { data: [] as Task[] };
+  const { data: pessoas } = idsDePessoas.length
+    ? await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas)
+    : { data: [] as Pessoa[] };
 
-  const todas = [...tasksMinhas, ...((maesAlheias ?? []) as Task[])];
-  const enriquecidas = await enriquecer(todas);
-
-  // O responsável da subtarefa sou eu, sempre — mas a linha precisa do nome
-  // para o detalhe e para o board, então buscamos o perfil uma vez.
   const { data: eu } = await supabase
     .from("profiles")
     .select("id, nome, avatar_url")
     .eq("id", userId)
     .maybeSingle();
 
-  const porTask = new Map<string, Subtask[]>();
+  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
+  const porId = new Map((todasAsSubs ?? []).map((s) => [s.id, s]));
+  const enriquecidas = await enriquecer((tasks ?? []) as Task[]);
+
+  const minhasPorTask = new Map<string, MinhaSubtarefa[]>();
   for (const sub of subtarefas) {
-    porTask.set(sub.task_id, [...(porTask.get(sub.task_id) ?? []), sub]);
+    const minhasRodadas = ((rodadas ?? []) as ApprovalRound[]).filter(
+      (r) => r.subtask_id === sub.id,
+    );
+    const dependeDe = (dependencias ?? [])
+      .filter((d) => d.subtask_id === sub.id)
+      .map((d) => porId.get(d.depende_de_id))
+      .filter(Boolean)
+      .map((dep) => ({ id: dep!.id, titulo: dep!.titulo, status: dep!.status }));
+
+    const detalhada: MinhaSubtarefa = {
+      ...sub,
+      responsavel: (eu as Pessoa | null) ?? null,
+      dependeDe,
+      dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
+      // O painel pessoal não abre as rodadas em detalhe: ele precisa saber se
+      // há uma esperando decisão para escolher o botão. O acordeão completo
+      // fica no detalhe da Task.
+      rodadas: minhasRodadas.map((r) => ({ ...r, solicitante: null, decisor: null })),
+      entregas: [],
+      ...situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao),
+    };
+
+    minhasPorTask.set(sub.task_id, [...(minhasPorTask.get(sub.task_id) ?? []), detalhada]);
   }
 
   return enriquecidas.map((task) => ({
     ...task,
-    souResponsavel: task.responsavel_id === userId,
-    minhasSubtarefas: (porTask.get(task.id) ?? [])
-      .map((sub) => ({ ...sub, responsavel: (eu as Pessoa | null) ?? null }))
-      .sort((a, b) => a.ordem - b.ordem),
+    minhasSubtarefas: (minhasPorTask.get(task.id) ?? []).sort((a, b) => a.ordem - b.ordem),
+    outrasSubtarefas: outras
+      .filter((s) => s.task_id === task.id)
+      .map((s) => ({
+        id: s.id,
+        titulo: s.titulo,
+        status: s.status,
+        responsavel: s.responsavel_id ? (porPessoa.get(s.responsavel_id) ?? null) : null,
+      })),
   }));
 }
 
 /**
- * Uma task entra na lista se ela própria combina com o foco, ou se alguma
- * subtarefa minha combina. No segundo caso, só as subtarefas que combinam
- * ficam visíveis — senão o filtro "Para hoje" traria junto a subtarefa que
- * vence semana que vem.
+ * Uma task entra na lista quando alguma subtarefa minha combina com o foco, e
+ * só as que combinam ficam visíveis — senão "Para hoje" traria junto a etapa
+ * que vence semana que vem.
  */
 function aplicarFoco(tasks: MinhaTask[], foco: FocoDoDia | null, prazos: Prazos): MinhaTask[] {
   if (!foco) return tasks;
 
   const resultado: MinhaTask[] = [];
   for (const task of tasks) {
-    const daTask =
-      task.souResponsavel &&
+    const combinam = task.minhasSubtarefas.filter((sub) =>
       combinaComFoco(
-        situacaoDoPrazo(
-          task.prazo,
-          task.status === "concluida" || task.status === "cancelada",
-          prazos.hoje,
-          prazos.fimDaSemana,
-        ),
-        foco,
-      );
-
-    const subsQueCombinam = task.minhasSubtarefas.filter((sub) =>
-      combinaComFoco(
-        situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana),
+        situacaoDoPrazo(sub.prazo, sub.status === "concluida", prazos.hoje, prazos.fimDaSemana),
         foco,
       ),
     );
-
-    if (daTask || subsQueCombinam.length > 0) {
-      resultado.push({ ...task, minhasSubtarefas: daTask ? task.minhasSubtarefas : subsQueCombinam });
-    }
+    if (combinam.length > 0) resultado.push({ ...task, minhasSubtarefas: combinam });
   }
   return resultado;
 }
 
-/** Ordenação padrão da tela: prazo crescente, e quem não tem prazo por último. */
+/**
+ * Ordenação padrão: pelo prazo mais apertado entre as MINHAS subtarefas, e
+ * quem não tem prazo por último. O período da Task não entra nessa conta.
+ */
+function meuPrazo(task: MinhaTask): string | null {
+  const prazos = task.minhasSubtarefas
+    .filter((s) => s.status !== "concluida")
+    .map((s) => s.prazo)
+    .filter(Boolean) as string[];
+  if (prazos.length === 0) return null;
+  return prazos.sort()[0];
+}
+
 function porPrazo(a: MinhaTask, b: MinhaTask): number {
-  if (a.prazo === b.prazo) return a.titulo.localeCompare(b.titulo, "pt-BR");
-  if (!a.prazo) return 1;
-  if (!b.prazo) return -1;
-  return a.prazo.localeCompare(b.prazo);
+  const pa = meuPrazo(a);
+  const pb = meuPrazo(b);
+  if (pa === pb) return a.titulo.localeCompare(b.titulo, "pt-BR");
+  if (!pa) return 1;
+  if (!pb) return -1;
+  return pa.localeCompare(pb);
 }
 
 export async function minhasTasks(
@@ -150,10 +207,9 @@ export async function minhasTasks(
 /**
  * Os três contadores do cabeçalho.
  *
- * Contam ITENS, não tasks: a subtarefa que vence hoje conta como uma entrega
- * de hoje, mesmo que a task-mãe só vença na semana que vem. É o mesmo conjunto
- * que as listas mostram, calculado pela mesma função — é isso que faz o número
- * bater com a tela.
+ * Contam SUBTAREFAS minhas, não tasks: é a unidade de trabalho, e é o mesmo
+ * conjunto que as listas mostram, calculado pela mesma função — é isso que faz
+ * o número bater com a tela.
  */
 export async function contadoresPessoais(
   userId: string,
@@ -163,23 +219,13 @@ export async function contadoresPessoais(
   const contagem: Record<FocoDoDia, number> = { atrasadas: 0, hoje: 0, semana: 0 };
 
   for (const task of todas) {
-    const situacoes = [
-      ...(task.souResponsavel
-        ? [
-            situacaoDoPrazo(
-              task.prazo,
-              task.status === "concluida" || task.status === "cancelada",
-              prazos.hoje,
-              prazos.fimDaSemana,
-            ),
-          ]
-        : []),
-      ...task.minhasSubtarefas.map((sub) =>
-        situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana),
-      ),
-    ];
-
-    for (const situacao of situacoes) {
+    for (const sub of task.minhasSubtarefas) {
+      const situacao = situacaoDoPrazo(
+        sub.prazo,
+        sub.status === "concluida",
+        prazos.hoje,
+        prazos.fimDaSemana,
+      );
       if (combinaComFoco(situacao, "atrasadas")) contagem.atrasadas += 1;
       if (combinaComFoco(situacao, "hoje")) contagem.hoje += 1;
       if (combinaComFoco(situacao, "semana")) contagem.semana += 1;
@@ -189,7 +235,13 @@ export async function contadoresPessoais(
   return contagem;
 }
 
-/** Os mesmos itens, no formato que o calendário compartilhado já entende. */
+/**
+ * Os mesmos itens, no formato que o calendário compartilhado já entende.
+ *
+ * Só as subtarefas: cada uma no dia do prazo dela. O período da Task não
+ * aparece aqui — na visão pessoal ele seria ruído, porque não é o que a pessoa
+ * entrega.
+ */
 export async function itensPessoaisDoCalendario(
   userId: string,
   foco: FocoDoDia | null = null,
@@ -199,21 +251,6 @@ export async function itensPessoaisDoCalendario(
   const itens: ItemDeCalendario[] = [];
 
   for (const task of tasks) {
-    if (task.souResponsavel && task.prazo) {
-      itens.push({
-        chave: `task-${task.id}`,
-        tipo: "task",
-        taskId: task.id,
-        titulo: task.titulo,
-        prazo: task.prazo,
-        prioridade: task.prioridade,
-        status: task.status,
-        concluida: task.status === "concluida",
-        responsavel: task.responsavel,
-        cliente: task.cliente?.nome_empresa ?? null,
-      });
-    }
-
     for (const sub of task.minhasSubtarefas) {
       if (!sub.prazo) continue;
       itens.push({
@@ -222,9 +259,9 @@ export async function itensPessoaisDoCalendario(
         taskId: task.id,
         titulo: sub.titulo,
         prazo: sub.prazo,
-        prioridade: task.prioridade,
+        prioridade: sub.prioridade,
         status: task.status,
-        concluida: sub.concluida,
+        concluida: sub.status === "concluida",
         responsavel: sub.responsavel,
         cliente: task.cliente?.nome_empresa ?? null,
       });
@@ -236,15 +273,19 @@ export async function itensPessoaisDoCalendario(
 
 export type ItemDoDia = {
   chave: string;
-  tipo: "task" | "subtarefa";
   id: string;
   taskId: string;
   titulo: string;
-  tituloDaMae: string | null;
+  tituloDaMae: string;
   cliente: string | null;
   prazo: string | null;
   atrasada: boolean;
-  estimativa: number | null;
+  estimativaMinutos: number | null;
+  /** O que fazer com ela — vem da máquina de estados, não do palpite da tela. */
+  requerAprovacao: boolean;
+  tipoAprovacao: "interna" | "cliente" | null;
+  dependenciasAbertas: string[];
+  status: Subtask["status"];
 };
 
 /**
@@ -253,38 +294,21 @@ export type ItemDoDia = {
  * Deliberadamente curto — é a primeira coisa que a pessoa lê ao abrir a tela,
  * e serve para responder "o que eu entrego hoje?" sem rolagem.
  */
-export async function meuDia(
-  userId: string,
-  prazos: Prazos = prazosDeHoje(),
-): Promise<ItemDoDia[]> {
+export async function meuDia(userId: string, prazos: Prazos = prazosDeHoje()): Promise<ItemDoDia[]> {
   const tasks = await carregar(userId);
   const itens: ItemDoDia[] = [];
 
   for (const task of tasks) {
-    const viva = task.status !== "concluida" && task.status !== "cancelada";
-    const situacaoDaTask = situacaoDoPrazo(task.prazo, !viva, prazos.hoje, prazos.fimDaSemana);
-
-    if (task.souResponsavel && (situacaoDaTask === "atrasada" || situacaoDaTask === "hoje")) {
-      itens.push({
-        chave: `task-${task.id}`,
-        tipo: "task",
-        id: task.id,
-        taskId: task.id,
-        titulo: task.titulo,
-        tituloDaMae: null,
-        cliente: task.cliente?.nome_empresa ?? null,
-        prazo: task.prazo,
-        atrasada: situacaoDaTask === "atrasada",
-        estimativa: task.estimativa_horas,
-      });
-    }
-
     for (const sub of task.minhasSubtarefas) {
-      const situacao = situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana);
+      const situacao = situacaoDoPrazo(
+        sub.prazo,
+        sub.status === "concluida",
+        prazos.hoje,
+        prazos.fimDaSemana,
+      );
       if (situacao !== "atrasada" && situacao !== "hoje") continue;
       itens.push({
         chave: `subtarefa-${sub.id}`,
-        tipo: "subtarefa",
         id: sub.id,
         taskId: task.id,
         titulo: sub.titulo,
@@ -292,7 +316,11 @@ export async function meuDia(
         cliente: task.cliente?.nome_empresa ?? null,
         prazo: sub.prazo,
         atrasada: situacao === "atrasada",
-        estimativa: sub.estimativa_horas,
+        estimativaMinutos: sub.estimativa_minutos,
+        requerAprovacao: sub.requer_aprovacao,
+        tipoAprovacao: sub.tipo_aprovacao,
+        dependenciasAbertas: sub.dependenciasAbertas,
+        status: sub.status,
       });
     }
   }
@@ -324,4 +352,3 @@ export async function souDoAtendimento(): Promise<boolean> {
   }
   return data === true;
 }
-

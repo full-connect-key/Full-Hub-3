@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { STATUS_EM_ABERTO } from "@/lib/dominio/tasks";
+import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Profile, TeamMember } from "@/lib/supabase/database.types";
 
@@ -85,8 +85,10 @@ export const listarEquipeAtiva = cache(async () => {
  * O que está preso ao nome de uma pessoa e precisa ser resolvido antes de
  * desligá-la.
  *
- * `tasksAbertas` é contagem real desde o Sprint 3: com qualquer task em aberto
- * no nome dela, a tela de desligamento passa a exigir para quem transferir.
+ * `tasksAbertas` conta SUBTAREFAS em aberto no nome da pessoa: desde o Sprint
+ * 3B é a subtarefa que tem dono, e é ela que precisa de alguém para assumir.
+ * Com qualquer uma em aberto, a tela de desligamento passa a exigir para quem
+ * transferir.
  * Full Days entram no Sprint 6 — some a contagem aqui e a tela obedece
  * sozinha, porque ela só olha para este resultado.
  */
@@ -95,10 +97,10 @@ export async function vinculosDoColaborador(userId: string) {
 
   const [{ count: tasks }, { count: clientes }] = await Promise.all([
     supabase
-      .from("tasks")
+      .from("subtasks")
       .select("id", { count: "exact", head: true })
       .eq("responsavel_id", userId)
-      .in("status", STATUS_EM_ABERTO),
+      .in("status", SUBTAREFAS_EM_ABERTO),
     supabase
       .from("clients")
       .select("id", { count: "exact", head: true })

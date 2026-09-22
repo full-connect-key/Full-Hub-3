@@ -5,55 +5,68 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { interpretarTempo } from "@/lib/dominio/tempo";
+import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
 /**
- * Mensagem de quando o Postgres devolve zero linhas sem erro. Isso é o RLS
- * recusando: a policy filtra a linha em vez de reclamar.
- */
-const RECUSA_DO_BANCO =
-  "O banco recusou a operação. Normalmente é o RLS: para editar uma task é preciso ser do " +
-  "Atendimento, da gestão ou responsável por ela.";
-
-/** O update tipado da tabela: evita mandar coluna que nao existe. */
-type EdicaoDeTask = Database["public"]["Tables"]["tasks"]["Update"];
-
-/**
- * Ações do módulo de tasks.
+ * Ações da Task.
  *
  * Tudo passa pelo cliente Supabase da própria pessoa: quem pode criar e editar
- * é o RLS que decide (gestão, Atendimento ou quem é responsável pela task).
- * A checagem de rota aqui é a primeira barreira, não a única.
+ * é o RLS que decide. A checagem de rota aqui é a primeira barreira, não a
+ * única.
+ *
+ * A Task não tem responsável, prazo nem tempo próprios desde o Sprint 3B —
+ * ela tem período e um status calculado pelas subtarefas. O que esta ação
+ * grava em `status` são só os três estados manuais; os outros o trigger
+ * `recalcular_status_task` devolve por cima na mesma transação.
  */
+
+export const RECUSA_DO_BANCO =
+  "O banco recusou a operação. Normalmente é o RLS: mexer numa task é do " +
+  "Atendimento ou da gestão.";
+
+type EdicaoDeTask = Database["public"]["Tables"]["tasks"]["Update"];
 
 const ROTA = "/painel/gestao-tasks";
 
 const prioridade = z.enum(["baixa", "normal", "alta", "urgente"]);
-const status = z.enum([
-  "aberta",
+const statusDeTask = z.enum([
+  "nao_iniciada",
   "em_andamento",
-  "aguardando_aprovacao",
-  "concluida",
+  "aguardando_informacoes",
+  "entregue",
+  "em_aprovacao",
+  "em_ajustes",
+  "concluido",
   "cancelada",
 ]);
+const tipoDeAprovacao = z.enum(["interna", "cliente"]);
 
 function vazioParaNulo(valor: unknown): string | null {
   const texto = typeof valor === "string" ? valor.trim() : "";
   return texto === "" ? null : texto;
 }
 
-function numeroOuNulo(valor: unknown): number | null {
+/** Tempo chega como texto livre ("2h30", "150"). Aqui vira minuto inteiro. */
+function minutosOuNulo(valor: unknown): number | null {
   if (valor === null || valor === undefined || valor === "") return null;
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? numero : null;
+  if (typeof valor === "number") return Number.isFinite(valor) ? Math.round(valor) : null;
+  const lido = interpretarTempo(String(valor));
+  return lido ?? null;
 }
 
 const esquemaDeSubtarefa = z.object({
   titulo: z.string().min(1, "A subtarefa precisa de um título."),
   prazo: z.string().optional().nullable(),
   responsavel_id: z.string().uuid().optional().nullable(),
-  estimativa_horas: z.union([z.number(), z.string(), z.null()]).optional(),
+  prioridade: prioridade.default("normal"),
+  requer_aprovacao: z.boolean().default(false),
+  tipo_aprovacao: tipoDeAprovacao.optional().nullable(),
+  estimativa: z.union([z.number(), z.string(), z.null()]).optional(),
+  /** Posição (1-based) da subtarefa de que esta depende, dentro do formulário. */
+  depende_de: z.number().int().positive().optional().nullable(),
 });
 
 const esquemaDeReferencia = z.object({
@@ -65,17 +78,25 @@ const esquemaDeReferencia = z.object({
 
 const esquemaDeTask = z.object({
   titulo: z.string().min(2, "Informe o título da task."),
-  client_id: z.string().uuid().optional().nullable(),
+  client_id: z.string().uuid("Toda task pertence a um cliente."),
+  task_type_id: z.string().uuid().optional().nullable(),
+  workflow_snapshot: z.unknown().optional().nullable(),
   briefing_rico: z.unknown().optional().nullable(),
   briefing_texto: z.string().optional().nullable(),
-  responsavel_id: z.string().uuid().optional().nullable(),
-  prazo: z.string().optional().nullable(),
+  data_inicio: z.string().min(1, "Informe a data de início."),
+  data_fim: z.string().optional().nullable(),
   prioridade: prioridade.default("normal"),
-  estimativa_horas: z.union([z.number(), z.string(), z.null()]).optional(),
   subtarefas: z.array(esquemaDeSubtarefa).default([]),
   referencias: z.array(esquemaDeReferencia).default([]),
 });
 
+/**
+ * Cria a task com as subtarefas de uma vez.
+ *
+ * Se as subtarefas falharem depois da task criada, a task é apagada: demanda
+ * pela metade é pior que nenhuma — ela aparece na lista sem nada dentro e
+ * ninguém entende o que aconteceu.
+ */
 export async function criarTask(dados: unknown): Promise<Resultado<string>> {
   return executarAcao("criarTask", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
@@ -86,42 +107,89 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
     }
     const entrada = validacao.data;
 
+    for (const sub of entrada.subtarefas) {
+      if (sub.requer_aprovacao && !sub.tipo_aprovacao) {
+        return falha(`Diga de que tipo é a aprovação de "${sub.titulo}": interna ou do cliente.`);
+      }
+    }
+
     const supabase = await criarClienteServidor();
 
     const { data: task, error } = await supabase
       .from("tasks")
       .insert({
         titulo: entrada.titulo.trim(),
-        client_id: entrada.client_id || null,
+        client_id: entrada.client_id,
+        task_type_id: entrada.task_type_id || null,
+        workflow_snapshot: (entrada.workflow_snapshot ?? null) as Json | null,
         briefing_rico: (entrada.briefing_rico ?? null) as Json | null,
         briefing_texto: vazioParaNulo(entrada.briefing_texto),
-        responsavel_id: entrada.responsavel_id || null,
-        prazo: vazioParaNulo(entrada.prazo),
+        data_inicio: entrada.data_inicio,
+        data_fim: vazioParaNulo(entrada.data_fim),
         prioridade: entrada.prioridade,
-        estimativa_horas: numeroOuNulo(entrada.estimativa_horas),
         criado_por: sessao.usuarioId,
       })
       .select("id")
       .single();
 
     if (error || !task) {
-      return falha(`Não foi possível criar a task: ${error?.message ?? "erro desconhecido"}`);
+      return falha(`Não foi possível criar a task: ${error?.message ?? RECUSA_DO_BANCO}`);
     }
 
     if (entrada.subtarefas.length > 0) {
-      const { error: erroDasSubtarefas } = await supabase.from("subtasks").insert(
-        entrada.subtarefas.map((sub, indice) => ({
+      const { data: criadas, error: erroDasSubtarefas } = await supabase
+        .from("subtasks")
+        .insert(
+          entrada.subtarefas.map((sub, indice) => ({
+            task_id: task.id,
+            titulo: sub.titulo.trim(),
+            prazo: vazioParaNulo(sub.prazo),
+            responsavel_id: sub.responsavel_id || null,
+            prioridade: sub.prioridade,
+            requer_aprovacao: sub.requer_aprovacao,
+            tipo_aprovacao: sub.requer_aprovacao ? (sub.tipo_aprovacao ?? "interna") : null,
+            estimativa_minutos: minutosOuNulo(sub.estimativa),
+            ordem: indice + 1,
+          })),
+        )
+        .select("id, ordem");
+
+      if (erroDasSubtarefas || !criadas) {
+        await supabase.from("tasks").delete().eq("id", task.id);
+        return falha(
+          `As subtarefas falharam, então a task não foi criada: ${erroDasSubtarefas?.message ?? RECUSA_DO_BANCO}`,
+        );
+      }
+
+      const porOrdem = new Map(criadas.map((s) => [s.ordem, s.id]));
+      const vinculos = entrada.subtarefas
+        .map((sub, indice) => ({ sub, ordem: indice + 1 }))
+        .filter(({ sub }) => sub.depende_de)
+        .map(({ sub, ordem }) => ({
+          subtask_id: porOrdem.get(ordem)!,
+          depende_de_id: porOrdem.get(sub.depende_de!)!,
+        }))
+        .filter((v) => v.subtask_id && v.depende_de_id && v.subtask_id !== v.depende_de_id);
+
+      if (vinculos.length > 0) {
+        const { error: erroDasDependencias } = await supabase
+          .from("subtask_dependencies")
+          .insert(vinculos);
+        if (erroDasDependencias) {
+          return falha(
+            `Task criada, mas as dependências falharam: ${erroDasDependencias.message}`,
+          );
+        }
+      }
+
+      await supabase.from("task_history").insert(
+        criadas.map((s) => ({
           task_id: task.id,
-          titulo: sub.titulo.trim(),
-          prazo: vazioParaNulo(sub.prazo),
-          responsavel_id: sub.responsavel_id || null,
-          estimativa_horas: numeroOuNulo(sub.estimativa_horas),
-          ordem: indice,
+          subtask_id: s.id,
+          acao: "subtarefa_criada",
+          autor_id: sessao.usuarioId,
         })),
       );
-      if (erroDasSubtarefas) {
-        return falha(`Task criada, mas as subtarefas falharam: ${erroDasSubtarefas.message}`);
-      }
     }
 
     if (entrada.referencias.length > 0) {
@@ -137,6 +205,13 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
       );
     }
 
+    await supabase.from("task_history").insert({
+      task_id: task.id,
+      acao: "task_criada",
+      para_valor: entrada.titulo.trim(),
+      autor_id: sessao.usuarioId,
+    });
+
     revalidatePath(ROTA);
     return sucesso("Task criada.", task.id);
   });
@@ -144,74 +219,133 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
 
 const esquemaDeEdicao = z.object({
   titulo: z.string().min(2).optional(),
-  client_id: z.string().uuid().nullable().optional(),
+  client_id: z.string().uuid().optional(),
+  task_type_id: z.string().uuid().nullable().optional(),
   briefing_rico: z.unknown().optional(),
   briefing_texto: z.string().nullable().optional(),
-  responsavel_id: z.string().uuid().nullable().optional(),
-  prazo: z.string().nullable().optional(),
+  data_inicio: z.string().optional(),
+  data_fim: z.string().nullable().optional(),
   prioridade: prioridade.optional(),
-  status: status.optional(),
-  estimativa_horas: z.union([z.number(), z.string(), z.null()]).optional(),
-  tempo_real_horas: z.union([z.number(), z.string(), z.null()]).optional(),
+  status: statusDeTask.optional(),
 });
 
 /**
- * Edição pontual — usada pelo arrastar do board, pela edição inline da lista e
- * pelo detalhe. Recebe só os campos que mudaram.
+ * Edição pontual — o arrastar do board, a edição inline da lista e o detalhe.
+ * Recebe só os campos que mudaram.
  */
 export async function atualizarTask(id: string, campos: unknown): Promise<Resultado> {
   return executarAcao("atualizarTask", async () => {
-    await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirRotaNaAcao(ROTA);
 
     const validacao = esquemaDeEdicao.safeParse(campos);
     if (!validacao.success) {
       return falha(validacao.error.issues[0]?.message ?? "Dados inválidos.");
     }
 
-    const mudancas: EdicaoDeTask = {};
     const entrada = validacao.data;
+    const mudancas: EdicaoDeTask = {};
 
     if (entrada.titulo !== undefined) mudancas.titulo = entrada.titulo.trim();
     if (entrada.client_id !== undefined) mudancas.client_id = entrada.client_id;
+    if (entrada.task_type_id !== undefined) mudancas.task_type_id = entrada.task_type_id;
     // O conteúdo do editor chega como unknown (é JSON arbitrário do TipTap);
     // o banco guarda em jsonb, então a conversão é declarada aqui, num lugar só.
     if (entrada.briefing_rico !== undefined)
       mudancas.briefing_rico = (entrada.briefing_rico ?? null) as Json | null;
     if (entrada.briefing_texto !== undefined) mudancas.briefing_texto = entrada.briefing_texto;
-    if (entrada.responsavel_id !== undefined) mudancas.responsavel_id = entrada.responsavel_id;
-    if (entrada.prazo !== undefined) mudancas.prazo = vazioParaNulo(entrada.prazo);
+    if (entrada.data_inicio !== undefined) mudancas.data_inicio = entrada.data_inicio;
+    if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
-    if (entrada.estimativa_horas !== undefined)
-      mudancas.estimativa_horas = numeroOuNulo(entrada.estimativa_horas);
-    if (entrada.tempo_real_horas !== undefined)
-      mudancas.tempo_real_horas = numeroOuNulo(entrada.tempo_real_horas);
 
+    const supabase = await criarClienteServidor();
+
+    // Mudar o status da Task é o caso especial: ele é calculado, e só os três
+    // estados manuais podem ser fixados à mão. Recusar aqui, com o motivo por
+    // extenso, evita um arrasto que o trigger desfaria em silêncio um
+    // milissegundo depois.
     if (entrada.status !== undefined) {
+      const atual = await lerContextoDaTask(supabase, id, sessao.profile.role);
+      if (!atual) return falha("Task não encontrada.");
+
+      const veredito = podeMoverTaskPara(atual, entrada.status);
+      if (!veredito.ok) return falha(veredito.motivo);
+
       mudancas.status = entrada.status;
-      // A data de conclusão acompanha o status: sair de concluída limpa a data,
-      // senão a task fica com um carimbo de conclusão que não aconteceu.
-      mudancas.concluida_em = entrada.status === "concluida" ? new Date().toISOString() : null;
+      mudancas.status_manual = STATUS_MANUAIS_DA_TASK.includes(entrada.status);
     }
 
     if (Object.keys(mudancas).length === 0) return sucesso("Nada a alterar.");
 
-    const supabase = await criarClienteServidor();
     // `.select()` no fim porque um update barrado pelo RLS volta sem erro e
     // sem linha: sem conferir, a tela diria "Salvo." sem nada ter mudado.
     const { data, error } = await supabase
       .from("tasks")
       .update(mudancas)
       .eq("id", id)
-      .select("id")
+      .select("id, status")
       .maybeSingle();
 
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
     if (!data) return falha(RECUSA_DO_BANCO);
 
+    if (entrada.status !== undefined) {
+      await supabase.from("task_history").insert({
+        task_id: id,
+        acao: "status_da_task",
+        para_valor: data.status,
+        autor_id: sessao.usuarioId,
+      });
+    }
+
     revalidatePath(ROTA);
     revalidatePath(`${ROTA}/${id}`);
     return sucesso("Salvo.");
   });
+}
+
+type ClienteSupabase = Awaited<ReturnType<typeof criarClienteServidor>>;
+
+async function lerContextoDaTask(
+  supabase: ClienteSupabase,
+  id: string,
+  role: string,
+): Promise<{
+  status: Database["public"]["Enums"]["task_status"];
+  souGestorOuAtendimento: boolean;
+  aprovacaoPendenteEm: string | null;
+  temSubtarefaEmAjustes: boolean;
+} | null> {
+  const { data: task } = await supabase.from("tasks").select("status").eq("id", id).maybeSingle();
+  if (!task) return null;
+
+  const { data: subtarefas } = await supabase
+    .from("subtasks")
+    .select("id, titulo, status")
+    .eq("task_id", id);
+
+  const ids = (subtarefas ?? []).map((s) => s.id);
+  const { data: pendentes } = ids.length
+    ? await supabase
+        .from("approval_rounds")
+        .select("subtask_id")
+        .eq("status", "pendente")
+        .in("subtask_id", ids)
+    : { data: [] as { subtask_id: string }[] };
+
+  const comPendencia = new Set((pendentes ?? []).map((r) => r.subtask_id));
+  const bloqueadora = (subtarefas ?? []).find((s) => comPendencia.has(s.id));
+
+  // A pessoa do Atendimento pode não ser gestora, e mesmo assim manda na task:
+  // é o que `is_atendimento()` diz no banco. Aqui vale a pergunta ao banco.
+  const { data: ehDoAtendimento } = await supabase.rpc("is_atendimento");
+
+  return {
+    status: task.status,
+    souGestorOuAtendimento:
+      ehDoAtendimento === true || role === "desenvolvedor" || role === "socio",
+    aprovacaoPendenteEm: bloqueadora?.titulo ?? null,
+    temSubtarefaEmAjustes: (subtarefas ?? []).some((s) => s.status === "em_ajustes"),
+  };
 }
 
 /** Ações em massa da visão Lista. */
@@ -223,24 +357,25 @@ export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Pro
     const validacao = esquemaDeEdicao.safeParse(campos);
     if (!validacao.success) return falha("Dados inválidos.");
 
-    const mudancas: EdicaoDeTask = {};
     const entrada = validacao.data;
-    if (entrada.responsavel_id !== undefined) mudancas.responsavel_id = entrada.responsavel_id;
+    const mudancas: EdicaoDeTask = {};
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
-    if (entrada.prazo !== undefined) mudancas.prazo = vazioParaNulo(entrada.prazo);
+    if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.status !== undefined) {
+      if (!STATUS_MANUAIS_DA_TASK.includes(entrada.status)) {
+        return falha(
+          "Em massa só dá para marcar os status manuais (Entregue, Aguardando informações, " +
+            "Cancelada). Os outros são calculados pelas subtarefas.",
+        );
+      }
       mudancas.status = entrada.status;
-      mudancas.concluida_em = entrada.status === "concluida" ? new Date().toISOString() : null;
+      mudancas.status_manual = true;
     }
 
     if (Object.keys(mudancas).length === 0) return falha("Escolha o que alterar.");
 
     const supabase = await criarClienteServidor();
-    const { data, error } = await supabase
-      .from("tasks")
-      .update(mudancas)
-      .in("id", ids)
-      .select("id");
+    const { data, error } = await supabase.from("tasks").update(mudancas).in("id", ids).select("id");
 
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
     if (!data || data.length === 0) return falha(RECUSA_DO_BANCO);
