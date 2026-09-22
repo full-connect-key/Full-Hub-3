@@ -98,8 +98,14 @@ export async function enviarParaAprovacao(
     if (!subtarefa.requer_aprovacao) {
       return falha("Esta subtarefa não exige aprovação — ela se conclui direto.");
     }
-    if (subtarefa.responsavel_id !== sessao.usuarioId) {
-      return falha("Só o responsável pela subtarefa envia para aprovação.");
+    // O responsável envia a dele. A gestão também pode, para destravar quando
+    // a pessoa está fora — é o que o trigger `validar_nova_rodada` já permite,
+    // e a tela oferece o botão nos dois casos. Recusar aqui deixaria um botão
+    // que só dá erro.
+    const souOResponsavel = subtarefa.responsavel_id === sessao.usuarioId;
+    const souGestor = sessao.profile.role === "desenvolvedor" || sessao.profile.role === "socio";
+    if (!souOResponsavel && !souGestor) {
+      return falha("Só o responsável pela subtarefa, ou a gestão, envia para aprovação.");
     }
 
     const situacao = situacaoDasRodadas(ctx.rodadas, subtarefa.tipo_aprovacao);
@@ -128,7 +134,10 @@ export async function enviarParaAprovacao(
         subtask_id: subtaskId,
         numero_rodada: numero,
         escopo: "interna",
-        solicitado_por: sessao.usuarioId,
+        // Quem consta como solicitante é sempre quem PRODUZIU: é dele a
+        // entrega, e é a ele que a decisão volta. A gestão apertar o botão no
+        // lugar dele não muda de quem é o trabalho.
+        solicitado_por: subtarefa.responsavel_id ?? sessao.usuarioId,
       })
       .select("id")
       .single();
