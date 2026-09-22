@@ -198,3 +198,163 @@ select
   (select count(*) from public.clients where not ativo)               as empresas_desativadas,
   (select count(*) from public.client_users)                          as acessos_ao_portal,
   (select count(*) from public.team_members where funcao = 'Atendimento') as no_atendimento;
+
+
+-- ---------------------------------------------------------------------------
+-- PARTE 3 - Demandas de exemplo (Sprint 3B)
+--
+-- Tres demandas cobrindo os casos que as telas precisam saber mostrar:
+--
+--   1. Campanha de Instagram  etapa concluida, etapa esperando aprovacao
+--                             interna na SEGUNDA rodada, etapa bloqueada por
+--                             dependencia;
+--   2. Reels institucional    etapa com aval interno esperando o envio ao
+--                             cliente -- a segunda lista da fila do
+--                             desenvolvedor;
+--   3. Plano de midia         tudo concluido, para a Task aparecer em
+--                             "Concluido" sem ninguem ter digitado isso.
+--
+-- O status de cada Task nao e escrito aqui: o trigger recalcular_status_task
+-- resolve sozinho a partir das subtarefas e das rodadas. Se voce mudar uma
+-- subtarefa pelo SQL Editor, a Task acompanha na mesma transacao.
+--
+-- Roda mais de uma vez sem duplicar.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  mundo_verde   uuid;
+  optica        uuid;
+  carla         uuid := 'a0000000-0000-0000-0000-000000000003';  -- Atendimento
+  bruno         uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
+  marina        uuid := 'a0000000-0000-0000-0000-000000000006';  -- Social Media
+  diego         uuid := 'a0000000-0000-0000-0000-000000000002';  -- Desenvolvedor
+  campanha      uuid;
+  reels         uuid;
+  midia         uuid;
+  conceito      uuid;
+  kv            uuid;
+  adaptacoes    uuid;
+  roteiro       uuid;
+  gravacao      uuid;
+  levantamento  uuid;
+  rodada        uuid;
+begin
+  select id into mundo_verde from public.clients where nome_empresa = 'Mundo Verde' limit 1;
+  select id into optica      from public.clients where nome_empresa = 'Óptica Visão' limit 1;
+
+  if mundo_verde is null or optica is null then
+    raise notice 'Rode a PARTE 2 antes: as empresas de exemplo ainda nao existem.';
+    return;
+  end if;
+
+  -- Ja rodou? Entao nao faz de novo.
+  if exists (select 1 from public.tasks where titulo = 'Campanha de Instagram — linha de verão') then
+    raise notice 'As demandas de exemplo ja existem.';
+    return;
+  end if;
+
+  -- 1. Campanha de Instagram -------------------------------------------------
+  insert into public.tasks (client_id, titulo, briefing_texto, prioridade, data_inicio, data_fim, criado_por)
+  values (mundo_verde, 'Campanha de Instagram — linha de verão',
+          'Anunciar a nova linha de verão com foco em conversão direta.',
+          'alta', current_date - 6, current_date + 8, carla)
+  returning id into campanha;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)
+  values (campanha, 'Criar conceito', 1, current_date - 1, marina, false, null, 120, 150, 'concluida')
+  returning id into conceito;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos)
+  values (campanha, 'Criar KV', 2, current_date + 1, bruno, true, 'cliente', 240)
+  returning id into kv;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos)
+  values (campanha, 'Adaptar formatos', 3, current_date + 4, marina, false, null, 90)
+  returning id into adaptacoes;
+
+  insert into public.subtask_dependencies (subtask_id, depende_de_id) values
+    (kv, conceito),
+    (adaptacoes, kv);
+
+  -- Rodada 1: o desenvolvedor pediu ajustes. Ela FICA no historico -- rodada
+  -- fechada nunca e reescrita nem apagada, e e disso que o acordeao e feito.
+  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
+  values (kv, 1, 'interna', 'pendente', bruno)
+  returning id into rodada;
+
+  update public.approval_rounds
+     set status = 'ajustes_solicitados', decidido_por = diego,
+         decidido_em = now() - interval '2 days',
+         comentario = 'Trocar a cor do fundo para o azul da marca.'
+   where id = rodada;
+
+  -- Rodada 2: refeita e enviada de novo, esperando decisao.
+  insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por)
+  values (kv, 'link', 'https://www.figma.com/file/exemplo', 'KV v2', bruno);
+
+  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
+  values (kv, 2, 'interna', 'pendente', bruno);
+
+  update public.subtasks set status = 'enviada_aprovacao' where id = kv;
+
+  -- 2. Reels institucional ---------------------------------------------------
+  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por)
+  values (optica, 'Reels institucional', 'urgente', current_date - 10, current_date + 5, carla)
+  returning id into reels;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos)
+  values (reels, 'Roteiro do reels', 1, current_date - 2, carla, true, 'cliente', 180, 210)
+  returning id into roteiro;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos)
+  values (reels, 'Gravação', 2, current_date + 5, bruno, false, null, 300)
+  returning id into gravacao;
+
+  insert into public.subtask_dependencies (subtask_id, depende_de_id) values (gravacao, roteiro);
+
+  insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por)
+  values (roteiro, 'link', 'https://docs.google.com/document/exemplo', 'Roteiro v1', carla);
+
+  -- A ordem importa, e o banco cobra: a subtarefa so entra em
+  -- `enviada_aprovacao` enquanto a rodada esta PENDENTE. Aprovar vem depois --
+  -- e nao mexe no status dela, porque o tipo e "cliente": ela fica esperando o
+  -- ENVIO, que e um ato deliberado do desenvolvedor.
+  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
+  values (roteiro, 1, 'interna', 'pendente', carla)
+  returning id into rodada;
+
+  update public.subtasks set status = 'enviada_aprovacao' where id = roteiro;
+
+  update public.approval_rounds
+     set status = 'aprovada', decidido_por = diego, decidido_em = now() - interval '4 hours'
+   where id = rodada;
+
+  -- 3. Plano de midia --------------------------------------------------------
+  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por)
+  values (optica, 'Plano de mídia do trimestre', 'baixa', current_date - 30, current_date - 8, carla)
+  returning id into midia;
+
+  insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)
+  values (midia, 'Levantamento de verbas', 1, current_date - 9, diego, false, null, 480, 600, 'concluida')
+  returning id into levantamento;
+
+  raise notice 'Demandas de exemplo criadas.';
+end
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- Conferencia das demandas
+-- ---------------------------------------------------------------------------
+select
+  t.titulo,
+  t.status                                                              as status_calculado,
+  count(s.id)                                                           as subtarefas,
+  count(*) filter (where s.status = 'concluida')                        as concluidas,
+  (select count(*) from public.approval_rounds r
+    join public.subtasks s2 on s2.id = r.subtask_id
+   where s2.task_id = t.id and r.status = 'pendente')                   as rodadas_pendentes
+from public.tasks t
+left join public.subtasks s on s.task_id = t.id
+group by t.id, t.titulo, t.status
+order by t.titulo;

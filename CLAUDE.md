@@ -77,6 +77,110 @@ RPC. Assim o botão "Nova task" e a policy `tasks_insert` nunca divergem.
 Quem não é do Atendimento **recebe** demanda, não abre: cria subtarefa dentro
 de uma task que é dele, comenta e atualiza o próprio andamento.
 
+## A Task e a subtarefa
+
+**A Task é o agrupador da demanda. A SUBTAREFA é a unidade de trabalho.** Quem
+tem responsável, prazo, tempo e regra de aprovação é ela — a Task tem período
+(início → fim), prioridade e um status que ninguém digita.
+
+É assim porque é assim que a agência trabalha: uma campanha envolve conceito,
+KV, adaptações e subida de mídia, cada uma com uma pessoa e uma data. Um
+responsável único por task não tinha como representar isso.
+
+Consequências que valem para todo módulo novo:
+
+- `tasks` **não tem** `responsavel_id`, `prazo`, `estimativa_horas` nem
+  `tempo_real_horas`. Nenhuma consulta pode ressuscitar essas colunas.
+- "Minhas tasks" quer dizer "as tasks onde eu tenho subtarefa".
+- O que a Task mostra de tempo é a **soma** das subtarefas.
+- Atraso é da subtarefa. Uma demanda está atrasada quando alguma etapa em
+  aberto passou da data.
+
+### O status da Task é calculado
+
+`recalcular_status_task()` roda por trigger a cada escrita em `subtasks` e em
+`approval_rounds`. A precedência, na ordem:
+
+`em_ajustes` → `em_aprovacao` → `concluido` → `aguardando_informacoes` →
+`em_andamento` → `nao_iniciada`.
+
+**`entregue` e `cancelada` são os únicos manuais.** "Entregue" diz que o
+material saiu; não diz que foi aprovado, e a interface precisa manter essa
+diferença no texto. O cálculo respeita o que foi marcado à mão até aparecer
+rodada pendente, ajuste ou conclusão — qualquer um dos três reassume e zera
+`status_manual`.
+
+No board, arrastar só é aceito para esses status manuais. Qualquer outro
+arrasto é recusado com o motivo por extenso, porque o recálculo desfaria a
+mudança um milissegundo depois.
+
+### A aprovação
+
+Quem executa produz e envia. Quem valida internamente é a gestão. Quem envia ao
+cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
+
+- **Subtarefa com `requer_aprovacao = true` nunca chega a `concluida` pela mão
+  do responsável.** A única porta é uma rodada aprovada, e quem recusa é o
+  trigger `subtasks_bloqueia_conclusao_sem_aprovacao` — não a tela.
+- **Toda aprovação abre primeiro uma rodada interna**, mesmo quando o tipo é
+  `cliente`. O tipo diz o destino final, não o caminho.
+- **Ninguém aprova a própria entrega.** `pode_aprovar_subtarefa()` e o trigger
+  `approval_rounds_sem_autoaprovacao` cobrem os dois lados.
+- **Aprovar não envia.** Aprovar diz que o material está bom; enviar diz que é
+  agora. São duas decisões, e juntá-las já mandou peça errada para cliente em
+  muita agência.
+- **Rodada fechada nunca é reescrita nem apagada.** Cada ciclo de ajuste cria
+  uma rodada nova, com número maior, e as anteriores continuam no banco com o
+  que foi pedido e decidido.
+- Pedir ajustes **exige** comentário, na action e no banco.
+
+O botão que cada pessoa vê sai de `lib/tasks/state-machine.ts`, e é o mesmo
+componente (`components/shared/acoes-da-subtarefa.tsx`) no detalhe da Task, em
+Minhas Tasks e na fila de aprovações. Três telas respondendo a mesma pergunta
+por conta própria acabariam oferecendo "Concluir" onde o banco recusa.
+
+> **Decisão em aberto, e onde revertê-la:** aprovar e enviar ao cliente está em
+> `is_gestor()` — desenvolvedor **e** sócio. A regra-mestra fala só do
+> Desenvolvedor; o sócio entrou porque tem acesso total ao painel e travá-lo
+> fora da fila pararia a agência num dia de folga. Para restringir, troque
+> `is_gestor()` por `auth_role() = 'desenvolvedor'` em
+> `pode_aprovar_subtarefa()` (migration 0007) e `exigirGestorNaAcao` por uma
+> checagem de role em `gestao-tasks/acoes-de-aprovacao.ts`. São os dois pontos.
+
+### Dependências
+
+Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não
+estiver `concluida`, ela não sai de `nao_iniciada` — o trigger recusa, e a tela
+mostra o cadeado com o que está faltando. Ciclo (A → B → A) é recusado na
+criação, com mensagem explicando por quê.
+
+Bloqueio **não é status**: é derivado das dependências. Guardar como status
+criaria dois lugares para a mesma verdade.
+
+### Tipos de tarefa e workflows
+
+Workflow é o fluxo fixo de subtarefas de um tipo de trabalho. O tipo de tarefa
+é o atalho que a pessoa escolhe — ela não precisa saber que existe um objeto
+chamado workflow.
+
+- O prazo da etapa é `prazo_offset_dias`, contado do início da Task. Data fixa
+  num modelo reutilizável faria toda demanda nova nascer vencida.
+- A etapa guarda a **função** ("Design"), não só a pessoa: modelo amarrado a um
+  nome envelhece na primeira troca de equipe.
+- **Snapshot:** ao aplicar, as subtarefas são materializadas e uma cópia do
+  fluxo vai para `tasks.workflow_snapshot`. Editar o workflow depois não muda
+  nenhuma Task existente.
+- Criar Task sem tipo e montar as etapas à mão é caminho de primeira classe,
+  não plano B.
+
+### Tempo, sempre em minutos
+
+`estimativa_minutos` e `tempo_real_minutos`, inteiros. A tela mostra "2h 30min"
+e aceita `2h30`, `2,5h`, `150` e `90min` — a conversão é de
+`lib/dominio/tempo.ts`. Hora decimal é uma conta que a pessoa faz de cabeça
+antes de digitar, e arredondamento transformava "vinte minutos" em 0,33 e de
+volta em 19,8.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -151,17 +255,22 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   aconteceu (admissão, cadastro, último acesso) — ou prazo de item já
   concluído — se formata com date-fns, senão o passado aparece em vermelho
   como se fosse atraso.
-- **O que é "meu" inclui a subtarefa dentro da task de outra pessoa.** É como
-  a produção funciona: o redator escreve dentro de uma task do social media.
-  Minhas Tasks conta ITENS (task + subtarefa), e é por isso que o contador
-  bate com a lista — os dois passam por `situacaoDoPrazo()` e
-  `combinaComFoco()`, em `lib/dominio/tasks.ts`.
+- **O que é "meu" são as minhas subtarefas.** A Task aparece uma vez só, como
+  cabeçalho, com as etapas dos outros em cinza ao lado — ver que a arte não
+  saiu é o que explica por que o agendamento está parado. Os contadores usam o
+  prazo das minhas subtarefas, e é por isso que batem com a lista: os dois
+  passam por `situacaoDoPrazo()` e `combinaComFoco()`, em `lib/dominio/tasks.ts`.
 - **Hoje e fim da semana são calculados no servidor e passados adiante.** Se
   cada tela lesse o relógio, o navegador em outro fuso classificaria um prazo
   de forma diferente do contador.
 - **Concluir pergunta o tempo real, e dá para pular.** Pergunta obrigatória
   vira número inventado, que é pior que campo vazio — entra no relatório como
-  se fosse medição. O componente é `DialogoDeTempo`.
+  se fosse medição. O componente é `DialogoDeTempo`, e o valor sai em minutos.
+- **Regra de transição mora na máquina de estados, não no componente.**
+  `lib/tasks/state-machine.ts` diz o que pode e qual botão aparece; os triggers
+  da 0007 dizem a mesma coisa para quem chamar a API direto. As duas existem de
+  propósito: a primeira escreve a mensagem que a pessoa lê, a segunda é a que
+  vale.
 - **Função não atravessa a fronteira servidor/cliente.** Uma função pura que
   os dois lados usam vai para `lib/dominio/`; `lib/dados/` é `server-only` e o
   que sai de lá são dados, nunca funções.
@@ -200,9 +309,11 @@ src/
   components/shared/          Componentes do produto
   hooks/
   lib/auth/                   roles, DAL, actions, esquemas zod
+  lib/tasks/                  máquina de estados da subtarefa e da Task
   lib/acoes/                  contrato das Server Actions, guardas e contas
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
+supabase/testes/              bateria de RLS e de fluxo, rodando como gente
 supabase/seed.sql             9 usuários de teste, 3 empresas (uma desativada)
 scripts/                      Verificação de conexão e geradores de protótipo
 ```
@@ -224,6 +335,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
 | Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |
+| Sprint 3B | A subtarefa vira a unidade de trabalho: a Task perde responsável, prazo e tempo próprios e ganha período; migration preservando toda atribuição existente como subtarefa "Execução"; máquina de estados no banco (conclusão bloqueada sem aprovação, dependência travando o início, ninguém aprovando a si mesmo, ciclo recusado); status da Task calculado por trigger com `entregue` e `cancelada` como únicos manuais; fluxo de aprovação em rodadas que nunca se sobrescrevem, com aval interno sempre antes do envio ao cliente; tipos de tarefa e workflows com snapshot; tela `/painel/workflows`, fila `/painel/aprovacoes-internas` e aprovação do cliente no Portal; tempo em minutos com entrada flexível; e 61 cenários de RLS em `supabase/testes/`. |
 | Sprint 4 | Minhas Tasks: visão pessoal em `/painel/minhas-tasks` para todo perfil interno, mostrando as tasks onde a pessoa é responsável **e** as subtarefas dela dentro de tasks alheias; três contadores clicáveis (atrasadas, para hoje, esta semana) que filtram e batem com as listas; widget "Meu dia" com conclusão em um clique; board, lista e calendário reaproveitados por parâmetro (clique abre painel lateral, card de task alheia não arrasta); calendário com barra colorida por situação, rótulo Entrega/Etapa, chip do cliente e legenda; detalhe em painel lateral sem trocar de página; criação de task restrita a `is_atendimento()` na interface e na policy; e registro de tempo ao concluir task ou subtarefa, com a estimativa sugerida e opção de pular. |
 | Sprint 3 | Gestão de Tasks: tabelas `tasks` / `subtasks` / `task_referencias` / `task_comentarios` com RLS por `pode_editar_task()`, board com arrastar e soltar otimista, lista com edição inline e ações em massa, calendário mensal e semanal mostrando prazo de task e de subtarefa separados, editor rico TipTap no briefing, detalhe em duas colunas com comentários e referências em bucket privado, filtros na URL e atalhos N e /. |
 | Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários no servidor com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |

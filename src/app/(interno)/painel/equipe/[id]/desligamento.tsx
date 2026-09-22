@@ -37,7 +37,7 @@ export type Vinculos = {
  * Primeira: explica o que acontece e lista o que está preso ao nome da pessoa.
  * Segunda: exige digitar o nome completo.
  *
- * Quando há tasks em aberto, a transferência é obrigatória — senão o trabalho
+ * Quando há subtarefas em aberto, a transferência é obrigatória — senão o trabalho
  * fica sem dono no dia seguinte.
  *
  * O que acontece NÃO é exclusão: a pessoa é desativada, o acesso é revogado e
@@ -121,7 +121,7 @@ export function Desligamento({
             <div className="rounded-lg border p-3">
               <p className="mb-2 text-sm font-medium">O que está no nome dela hoje:</p>
               <ul className="text-muted-foreground space-y-1 text-sm">
-                <li>{vinculos.tasksAbertas} task(s) em aberto</li>
+                <li>{vinculos.tasksAbertas} subtarefa(s) em aberto</li>
                 <li>{vinculos.solicitacoesPendentes} solicitação(ões) pendente(s)</li>
                 <li>{vinculos.clientesSobResponsabilidade} cliente(s) sob responsabilidade</li>
               </ul>

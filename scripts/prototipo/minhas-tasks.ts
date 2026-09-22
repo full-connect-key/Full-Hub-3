@@ -1,13 +1,14 @@
 /**
  * Versao de prototipo de src/lib/dados/minhas-tasks.ts.
  *
- * Reaproveita as tasks e subtarefas ficticias de ./tasks.ts, e aplica a mesma
- * regra do modulo real: e meu o que esta no meu nome, seja a task inteira ou
- * so uma subtarefa dentro da task de outra pessoa. As funcoes puras vem de
- * lib/dominio, entao o filtro e os contadores se comportam igual ao app.
+ * Reaproveita as demandas de scripts/prototipo/tasks.ts e recorta o que e da
+ * pessoa logada -- pelas SUBTAREFAS dela, como no modelo real. A Task aparece
+ * uma vez so, com as etapas dos outros ao lado, em cinza.
+ *
+ * Quem e a pessoa logada sai de PROTOTIPO_ROLE: o socio ve as demandas da Ana,
+ * o colaborador as do Bruno. E o que faz uma imagem do prototipo mostrar
+ * contadores diferentes de outra.
  */
-import { endOfWeek, format } from "date-fns";
-
 import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "../../src/lib/dominio/tasks";
 import type {
   ItemDoDia as ItemDoDiaReal,
@@ -17,34 +18,57 @@ import type {
 } from "../../src/lib/dados/minhas-tasks";
 import type { ItemDeCalendario } from "../../src/lib/dados/tasks";
 
-import { SUBTAREFAS, TASKS } from "./tasks";
+import { SUBTAREFAS, TASKS, ANA, BRUNO, CARLA, DIEGO, MARINA } from "./tasks";
 
-export type MinhaSubtarefa = MinhaSubtarefaReal;
 export type MinhaTask = MinhaTaskReal;
-export type Prazos = PrazosReais;
+export type MinhaSubtarefa = MinhaSubtarefaReal;
 export type ItemDoDia = ItemDoDiaReal;
+export type Prazos = PrazosReais;
 
 export function prazosDeHoje(): Prazos {
   const agora = new Date();
+  const fim = new Date(agora);
+  // Domingo como fim de semana, igual ao calendario do modulo.
+  fim.setDate(fim.getDate() + ((7 - fim.getDay()) % 7));
   return {
-    hoje: format(agora, "yyyy-MM-dd"),
-    fimDaSemana: format(endOfWeek(agora, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    hoje: agora.toISOString().slice(0, 10),
+    fimDaSemana: fim.toISOString().slice(0, 10),
   };
 }
 
-function carregar(userId: string): MinhaTask[] {
-  const minhasSubs = SUBTAREFAS.filter((sub) => sub.responsavel_id === userId);
-  const idsDeMaes = new Set(minhasSubs.map((sub) => sub.task_id));
+/**
+ * Quem esta olhando o prototipo.
+ *
+ * Bruno e colaborador e tem a etapa que esta esperando aprovacao; Ana e socia.
+ * Escolher pelo papel e o que faz a tela mostrar botoes diferentes na mesma
+ * imagem.
+ */
+function usuarioDoPrototipo(): string {
+  const papel = process.env.PROTOTIPO_ROLE ?? "socio";
+  if (papel === "socio") return ANA.id;
+  if (papel === "desenvolvedor") return DIEGO.id;
+  const funcao = process.env.PROTOTIPO_FUNCAO ?? "";
+  if (funcao === "Atendimento") return CARLA.id;
+  if (funcao === "Social Media") return MARINA.id;
+  return BRUNO.id;
+}
 
-  return TASKS.filter((task) => task.responsavel_id === userId || idsDeMaes.has(task.id)).map(
-    (task) => ({
-      ...task,
-      souResponsavel: task.responsavel_id === userId,
-      minhasSubtarefas: minhasSubs.filter(
-        (sub) => sub.task_id === task.id,
-      ) as unknown as MinhaSubtarefa[],
-    }),
-  );
+function carregar(userId: string): MinhaTask[] {
+  const minhas = SUBTAREFAS.filter((s) => s.responsavel_id === userId);
+  const ids = [...new Set(minhas.map((s) => s.task_id))];
+
+  return TASKS.filter((t) => ids.includes(t.id)).map((task) => ({
+    ...task,
+    minhasSubtarefas: minhas.filter((s) => s.task_id === task.id).sort((a, b) => a.ordem - b.ordem),
+    outrasSubtarefas: SUBTAREFAS.filter(
+      (s) => s.task_id === task.id && s.responsavel_id !== userId,
+    ).map((s) => ({
+      id: s.id,
+      titulo: s.titulo,
+      status: s.status,
+      responsavel: s.responsavel,
+    })),
+  }));
 }
 
 function aplicarFoco(tasks: MinhaTask[], foco: FocoDoDia | null, prazos: Prazos): MinhaTask[] {
@@ -52,66 +76,39 @@ function aplicarFoco(tasks: MinhaTask[], foco: FocoDoDia | null, prazos: Prazos)
 
   const resultado: MinhaTask[] = [];
   for (const task of tasks) {
-    const daTask =
-      task.souResponsavel &&
+    const combinam = task.minhasSubtarefas.filter((sub) =>
       combinaComFoco(
-        situacaoDoPrazo(
-          task.prazo,
-          task.status === "concluida" || task.status === "cancelada",
-          prazos.hoje,
-          prazos.fimDaSemana,
-        ),
-        foco,
-      );
-
-    const subs = task.minhasSubtarefas.filter((sub) =>
-      combinaComFoco(
-        situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana),
+        situacaoDoPrazo(sub.prazo, sub.status === "concluida", prazos.hoje, prazos.fimDaSemana),
         foco,
       ),
     );
-
-    if (daTask || subs.length > 0) {
-      resultado.push({ ...task, minhasSubtarefas: daTask ? task.minhasSubtarefas : subs });
-    }
+    if (combinam.length > 0) resultado.push({ ...task, minhasSubtarefas: combinam });
   }
   return resultado;
 }
 
 export async function minhasTasks(
-  userId: string,
+  _userId: string,
   foco: FocoDoDia | null = null,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<MinhaTask[]> {
-  return aplicarFoco(carregar(userId), foco, prazos).sort((a, b) =>
-    (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"),
-  );
+  return aplicarFoco(carregar(usuarioDoPrototipo()), foco, prazos);
 }
 
 export async function contadoresPessoais(
-  userId: string,
+  _userId: string,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<Record<FocoDoDia, number>> {
   const contagem: Record<FocoDoDia, number> = { atrasadas: 0, hoje: 0, semana: 0 };
 
-  for (const task of carregar(userId)) {
-    const situacoes = [
-      ...(task.souResponsavel
-        ? [
-            situacaoDoPrazo(
-              task.prazo,
-              task.status === "concluida" || task.status === "cancelada",
-              prazos.hoje,
-              prazos.fimDaSemana,
-            ),
-          ]
-        : []),
-      ...task.minhasSubtarefas.map((sub) =>
-        situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana),
-      ),
-    ];
-
-    for (const situacao of situacoes) {
+  for (const task of carregar(usuarioDoPrototipo())) {
+    for (const sub of task.minhasSubtarefas) {
+      const situacao = situacaoDoPrazo(
+        sub.prazo,
+        sub.status === "concluida",
+        prazos.hoje,
+        prazos.fimDaSemana,
+      );
       if (combinaComFoco(situacao, "atrasadas")) contagem.atrasadas += 1;
       if (combinaComFoco(situacao, "hoje")) contagem.hoje += 1;
       if (combinaComFoco(situacao, "semana")) contagem.semana += 1;
@@ -129,20 +126,6 @@ export async function itensPessoaisDoCalendario(
   const itens: ItemDeCalendario[] = [];
 
   for (const task of tasks) {
-    if (task.souResponsavel && task.prazo) {
-      itens.push({
-        chave: `task-${task.id}`,
-        tipo: "task",
-        taskId: task.id,
-        titulo: task.titulo,
-        prazo: task.prazo,
-        prioridade: task.prioridade,
-        status: task.status,
-        concluida: task.status === "concluida",
-        responsavel: task.responsavel,
-        cliente: task.cliente?.nome_empresa ?? null,
-      });
-    }
     for (const sub of task.minhasSubtarefas) {
       if (!sub.prazo) continue;
       itens.push({
@@ -151,9 +134,9 @@ export async function itensPessoaisDoCalendario(
         taskId: task.id,
         titulo: sub.titulo,
         prazo: sub.prazo,
-        prioridade: task.prioridade,
+        prioridade: sub.prioridade,
         status: task.status,
-        concluida: sub.concluida,
+        concluida: sub.status === "concluida",
         responsavel: sub.responsavel,
         cliente: task.cliente?.nome_empresa ?? null,
       });
@@ -163,36 +146,22 @@ export async function itensPessoaisDoCalendario(
 }
 
 export async function meuDia(
-  userId: string,
+  _userId: string,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<ItemDoDia[]> {
   const itens: ItemDoDia[] = [];
 
-  for (const task of carregar(userId)) {
-    const viva = task.status !== "concluida" && task.status !== "cancelada";
-    const daTask = situacaoDoPrazo(task.prazo, !viva, prazos.hoje, prazos.fimDaSemana);
-
-    if (task.souResponsavel && (daTask === "atrasada" || daTask === "hoje")) {
-      itens.push({
-        chave: `task-${task.id}`,
-        tipo: "task",
-        id: task.id,
-        taskId: task.id,
-        titulo: task.titulo,
-        tituloDaMae: null,
-        cliente: task.cliente?.nome_empresa ?? null,
-        prazo: task.prazo,
-        atrasada: daTask === "atrasada",
-        estimativa: task.estimativa_horas,
-      });
-    }
-
+  for (const task of carregar(usuarioDoPrototipo())) {
     for (const sub of task.minhasSubtarefas) {
-      const situacao = situacaoDoPrazo(sub.prazo, sub.concluida, prazos.hoje, prazos.fimDaSemana);
+      const situacao = situacaoDoPrazo(
+        sub.prazo,
+        sub.status === "concluida",
+        prazos.hoje,
+        prazos.fimDaSemana,
+      );
       if (situacao !== "atrasada" && situacao !== "hoje") continue;
       itens.push({
         chave: `subtarefa-${sub.id}`,
-        tipo: "subtarefa",
         id: sub.id,
         taskId: task.id,
         titulo: sub.titulo,
@@ -200,7 +169,11 @@ export async function meuDia(
         cliente: task.cliente?.nome_empresa ?? null,
         prazo: sub.prazo,
         atrasada: situacao === "atrasada",
-        estimativa: sub.estimativa_horas,
+        estimativaMinutos: sub.estimativa_minutos,
+        requerAprovacao: sub.requer_aprovacao,
+        tipoAprovacao: sub.tipo_aprovacao,
+        dependenciasAbertas: sub.dependenciasAbertas,
+        status: sub.status,
       });
     }
   }
@@ -211,12 +184,9 @@ export async function meuDia(
   });
 }
 
-/**
- * No app isto pergunta ao banco com `is_atendimento()`. Aqui a resposta vem do
- * ambiente, para as capturas mostrarem os dois lados da regra.
- */
+/** No protótipo, Atendimento e gestão criam task — a mesma regra do banco. */
 export async function souDoAtendimento(): Promise<boolean> {
-  const role = process.env["PROTOTIPO_ROLE"];
-  if (role === "socio" || role === "desenvolvedor") return true;
-  return process.env["PROTOTIPO_FUNCAO"] === "Atendimento";
+  const papel = process.env.PROTOTIPO_ROLE ?? "socio";
+  if (papel === "socio" || papel === "desenvolvedor") return true;
+  return (process.env.PROTOTIPO_FUNCAO ?? "") === "Atendimento";
 }

@@ -1,4 +1,4 @@
-import { Home, Megaphone, Settings, Share2, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Home, Megaphone, Settings, Share2, type LucideIcon } from "lucide-react";
 
 /**
  * Navegação do Portal do Cliente.
@@ -21,6 +21,12 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     href: "/portal",
     icon: Home,
     description: "O panorama do que está acontecendo na sua conta.",
+  },
+  {
+    label: "Aprovações",
+    href: "/portal/aprovacoes",
+    icon: BadgeCheck,
+    description: "O que a agência enviou para a sua aprovação.",
   },
   {
     label: "Social Media",
