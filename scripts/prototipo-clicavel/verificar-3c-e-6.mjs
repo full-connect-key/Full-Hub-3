@@ -51,119 +51,104 @@ async function ir(rota) {
 await ir("/painel");
 
 const saudacao = await pagina.locator("h1").first().textContent();
-saudacao?.includes("Olá,")
-  ? ok("A tela inicial saúda pelo primeiro nome", saudacao.trim())
-  : falha("A tela inicial saúda pelo primeiro nome", saudacao ?? "sem h1");
+if (saudacao?.includes("Olá,")) ok("A tela inicial saúda pelo primeiro nome", saudacao.trim());
+else falha("A tela inicial saúda pelo primeiro nome", saudacao ?? "sem h1");
 
 const atalhos = await pagina.locator('a[href^="/painel/"]:has-text("Minhas Tasks")').count();
-atalhos > 0
-  ? ok("Acesso Rápido leva a Minhas Tasks")
-  : falha("Acesso Rápido leva a Minhas Tasks");
+if (atalhos > 0) ok("Acesso Rápido leva a Minhas Tasks");
+else falha("Acesso Rápido leva a Minhas Tasks");
 
 const portais = await pagina.locator('a:has-text("Abrir Portal")').count();
-portais >= 2
-  ? ok("A grade de Portais de Clientes lista os clientes ativos", `${portais} portais`)
-  : falha("A grade de Portais de Clientes lista os clientes ativos", `${portais}`);
+if (portais >= 2) ok("A grade de Portais de Clientes lista os clientes ativos", `${portais} portais`);
+else falha("A grade de Portais de Clientes lista os clientes ativos", `${portais}`);
 
 const abreEmAba = await pagina
   .locator('a:has-text("Abrir Portal")')
   .first()
   .getAttribute("target");
-abreEmAba === "_blank"
-  ? ok("Abrir Portal abre em aba nova")
-  : falha("Abrir Portal abre em aba nova", `target=${abreEmAba}`);
+if (abreEmAba === "_blank") ok("Abrir Portal abre em aba nova");
+else falha("Abrir Portal abre em aba nova", `target=${abreEmAba}`);
 
 // --- O menu ----------------------------------------------------------------
 
 const selo = await pagina.locator('nav:has-text("Gestão") >> text=Admin').count();
-selo > 0 ? ok("A seção Gestão tem o selo Admin") : falha("A seção Gestão tem o selo Admin");
+if (selo > 0) ok("A seção Gestão tem o selo Admin");
+else falha("A seção Gestão tem o selo Admin");
 
 const cortado = await pagina.evaluate(() => {
   const itens = [...document.querySelectorAll('nav[aria-label="Módulos do painel"] a span')];
   return itens.some((el) => el.scrollWidth > el.clientWidth + 1);
 });
-cortado
-  ? falha("Nenhum item do menu fica cortado")
-  : ok("Nenhum item do menu fica cortado");
+if (cortado) falha("Nenhum item do menu fica cortado");
+else ok("Nenhum item do menu fica cortado");
 
 // --- O sino ----------------------------------------------------------------
 
 await pagina.locator('button[aria-label^="Notificações"]').click();
 await pagina.waitForTimeout(400);
 const avisos = await pagina.locator('[data-slot="popover-content"] li').count();
-avisos > 0
-  ? ok("O sino abre a lista de notificações", `${avisos} avisos`)
-  : falha("O sino abre a lista de notificações");
+if (avisos > 0) ok("O sino abre a lista de notificações", `${avisos} avisos`);
+else falha("O sino abre a lista de notificações");
 await pagina.keyboard.press("Escape");
 
 // --- Resumo Semanal --------------------------------------------------------
 
 await ir("/painel/resumo-semanal");
 const entregas = await pagina.locator("main li").count();
-entregas > 0
-  ? ok("O Resumo Semanal abre na semana corrente com entregas", `${entregas}`)
-  : falha("O Resumo Semanal abre na semana corrente com entregas");
+if (entregas > 0) ok("O Resumo Semanal abre na semana corrente com entregas", `${entregas}`);
+else falha("O Resumo Semanal abre na semana corrente com entregas");
 
 await ir("/painel/resumo-semanal?nova=1");
 await pagina.waitForTimeout(500);
 const dialogoAberto = await pagina.locator('[role="dialog"]').count();
-dialogoAberto > 0
-  ? ok("O botão da tela inicial já abre o formulário de entrega")
-  : falha("O botão da tela inicial já abre o formulário de entrega");
+if (dialogoAberto > 0) ok("O botão da tela inicial já abre o formulário de entrega");
+else falha("O botão da tela inicial já abre o formulário de entrega");
 
 // --- Full Days -------------------------------------------------------------
 
 await ir("/painel/full-days?aba=matriz");
 
 const roxos = await pagina.locator("td .bg-ferias").count();
-roxos > 0
-  ? ok("A matriz mostra o período aprovado em roxo", `${roxos} dias`)
-  : falha("A matriz mostra o período aprovado em roxo", "nenhum dia roxo");
+if (roxos > 0) ok("A matriz mostra o período aprovado em roxo", `${roxos} dias`);
+else falha("A matriz mostra o período aprovado em roxo", "nenhum dia roxo");
 
 const mes = await pagina.locator("main p.first-letter\\:uppercase").first().textContent();
-mes && !/ De /.test(mes)
-  ? ok("O mês não sai com “De” maiúsculo", mes.trim())
-  : falha("O mês não sai com “De” maiúsculo", mes ?? "");
+if (mes && !/ De /.test(mes)) ok("O mês não sai com “De” maiúsculo", mes.trim());
+else falha("O mês não sai com “De” maiúsculo", mes ?? "");
 
 // Dia que veio de pedido aprovado nao pode abrir menu de edicao.
 const feriasEditavel = await pagina
   .locator("td button .bg-ferias")
   .count();
-feriasEditavel === 0
-  ? ok("Dia de férias aprovado não abre menu na matriz")
-  : falha("Dia de férias aprovado não abre menu na matriz", `${feriasEditavel} clicáveis`);
+if (feriasEditavel === 0) ok("Dia de férias aprovado não abre menu na matriz");
+else falha("Dia de férias aprovado não abre menu na matriz", `${feriasEditavel} clicáveis`);
 
 await ir("/painel/full-days?aba=relatorio");
 const alerta = await pagina.locator("text=Férias vencendo").count();
-alerta > 0
-  ? ok("O relatório destaca quem está com férias vencendo")
-  : falha("O relatório destaca quem está com férias vencendo");
+if (alerta > 0) ok("O relatório destaca quem está com férias vencendo");
+else falha("O relatório destaca quem está com férias vencendo");
 
 await ir("/painel/full-days?aba=aprovacoes");
 const contexto = await pagina.locator("text=Da mesma área").count();
-contexto > 0
-  ? ok("A fila mostra quem mais da área está fora no período")
-  : falha("A fila mostra quem mais da área está fora no período");
+if (contexto > 0) ok("A fila mostra quem mais da área está fora no período");
+else falha("A fila mostra quem mais da área está fora no período");
 
 await ir("/painel/full-days");
 const bloqueados = await pagina.locator("button[disabled].bg-danger-soft").count();
-bloqueados > 0
-  ? ok("O calendário bloqueia os dias de colega da mesma área", `${bloqueados} dias`)
-  : falha("O calendário bloqueia os dias de colega da mesma área");
+if (bloqueados > 0) ok("O calendário bloqueia os dias de colega da mesma área", `${bloqueados} dias`);
+else falha("O calendário bloqueia os dias de colega da mesma área");
 
 const comNome = await pagina
   .locator('button[aria-label*="fora"]')
   .first()
   .getAttribute("aria-label");
-comNome && /Marina/.test(comNome)
-  ? ok("E diz de quem é o bloqueio", comNome)
-  : falha("E diz de quem é o bloqueio", comNome ?? "sem rótulo");
+if (comNome && /Marina/.test(comNome)) ok("E diz de quem é o bloqueio", comNome);
+else falha("E diz de quem é o bloqueio", comNome ?? "sem rótulo");
 
 // --- Erro de runtime -------------------------------------------------------
 
-erros.length === 0
-  ? ok("Nenhum erro de runtime nas telas visitadas")
-  : falha("Nenhum erro de runtime nas telas visitadas", erros[0]);
+if (erros.length === 0) ok("Nenhum erro de runtime nas telas visitadas");
+else falha("Nenhum erro de runtime nas telas visitadas", erros[0]);
 
 await navegador.close();
 

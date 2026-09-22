@@ -63,6 +63,8 @@ export type NotificationTipo =
   | "cliente"
   | "sistema";
 
+export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
+
 export type HrTipo = "ferias" | "licenca" | "ausencia";
 export type HrStatus = "pendente" | "aprovada" | "reprovada" | "cancelada";
 export type PresencaStatus =
@@ -299,6 +301,104 @@ export interface Database {
         Row: { id: string; data: string; nome: string };
         Insert: { id?: string; data: string; nome: string };
         Update: { data?: string; nome?: string };
+        Relationships: [];
+      };
+      /** Catalogo compartilhado de skills (migration 0012). */
+      skills: {
+        Row: {
+          id: string;
+          nome: string;
+          categoria: string | null;
+          descricao: string | null;
+          ativa: boolean;
+          sugerida_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          categoria?: string | null;
+          descricao?: string | null;
+          ativa?: boolean;
+          sugerida_por?: string | null;
+        };
+        Update: {
+          nome?: string;
+          categoria?: string | null;
+          descricao?: string | null;
+          ativa?: boolean;
+          sugerida_por?: string | null;
+        };
+        Relationships: [];
+      };
+      /** O que cada pessoa sabe. Escrita so pela propria pessoa. */
+      user_skills: {
+        Row: {
+          id: string;
+          user_id: string;
+          skill_id: string;
+          nivel: SkillNivel;
+          quer_desenvolver: boolean;
+          anos_experiencia: number | null;
+          observacao: string | null;
+          atualizado_em: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          skill_id: string;
+          nivel?: SkillNivel;
+          quer_desenvolver?: boolean;
+          anos_experiencia?: number | null;
+          observacao?: string | null;
+        };
+        Update: {
+          nivel?: SkillNivel;
+          quer_desenvolver?: boolean;
+          anos_experiencia?: number | null;
+          observacao?: string | null;
+        };
+        Relationships: [];
+      };
+      /** A observacao da gestao. O avaliado le. */
+      skill_avaliacoes: {
+        Row: {
+          id: string;
+          user_id: string;
+          autor_id: string;
+          texto: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { id?: string; user_id: string; autor_id: string; texto: string };
+        Update: { texto?: string };
+        Relationships: [];
+      };
+      /** Texto livre sobre a semana. Privado (migration 0012). */
+      weekly_notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          semana: string;
+          conteudo_rico: Json | null;
+          conteudo_texto: string | null;
+          humor: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          semana: string;
+          conteudo_rico?: Json | null;
+          conteudo_texto?: string | null;
+          humor?: string | null;
+        };
+        Update: {
+          conteudo_rico?: Json | null;
+          conteudo_texto?: string | null;
+          humor?: string | null;
+        };
         Relationships: [];
       };
       client_users: {
@@ -733,6 +833,7 @@ export interface Database {
       hr_tipo: HrTipo;
       hr_status: HrStatus;
       presenca_status: PresencaStatus;
+      skill_nivel: SkillNivel;
     };
     CompositeTypes: Record<string, never>;
   };
@@ -757,3 +858,7 @@ export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 export type HrRequest = Database["public"]["Tables"]["hr_requests"]["Row"];
 export type TeamPresence = Database["public"]["Tables"]["team_presence"]["Row"];
 export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
+export type Skill = Database["public"]["Tables"]["skills"]["Row"];
+export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
+export type SkillAvaliacao = Database["public"]["Tables"]["skill_avaliacoes"]["Row"];
+export type WeeklyNote = Database["public"]["Tables"]["weekly_notes"]["Row"];
