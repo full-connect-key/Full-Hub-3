@@ -11,7 +11,7 @@ export type { AprovacaoDoCliente };
 const AGORA = Date.now();
 const diasAtras = (d: number) => new Date(AGORA - d * 86400_000).toISOString();
 
-export async function minhasAprovacoes(_usuarioId: string): Promise<{
+export async function minhasAprovacoes(): Promise<{
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
 }> {

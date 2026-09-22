@@ -14,7 +14,7 @@ export type { FilaDeAprovacoes, ItemDaFila };
 const AGORA = Date.now();
 const horasAtras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
 
-export async function filaDeAprovacoes(_usuarioId: string): Promise<FilaDeAprovacoes> {
+export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const kv = SUBTAREFAS.find((s) => s.titulo === "Criar KV")!;
   const landing = SUBTAREFAS.find((s) => s.titulo === "Desenvolver landing")!;
   const roteiro = SUBTAREFAS.find((s) => s.titulo === "Roteiro do reels")!;
