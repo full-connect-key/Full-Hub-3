@@ -284,6 +284,8 @@ const NAO_E_COR = new Set([
   // borda
   "t", "r", "b", "l", "x", "y", "s", "e",
   "solid", "dashed", "dotted", "double", "hidden", "collapse", "separate",
+  "spacing",   // border-spacing-*, de tabela
+  "reveal",    // text-reveal-*
   // fundo
   "fixed", "local", "scroll", "clip-text", "clip-border", "clip-padding", "clip-content",
   "cover", "contain", "repeat", "no-repeat", "repeat-x", "repeat-y", "repeat-round",
