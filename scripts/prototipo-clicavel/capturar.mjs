@@ -45,7 +45,6 @@ const PAGINAS = {
   "portal-campanhas": "/portal/campanhas",
   "portal-config": "/portal/configuracoes",
   "modulo-home": "/painel",
-  "modulo-minhas-tasks": "/painel/minhas-tasks",
   "modulo-calendario": "/painel/calendario",
   "modulo-aprovacoes": "/painel/aprovacoes",
   "modulo-clientes": "/painel/clientes",
@@ -65,6 +64,9 @@ const PAGINAS = {
 
 /** Telas com <Suspense>: precisam do DOM final, nao do HTML inicial. */
 const COM_SUSPENSE = {
+  "modulo-minhas-tasks": "/painel/minhas-tasks",
+  "minhas-visao-board": "/painel/minhas-tasks?visao=board",
+  "minhas-visao-calendario": "/painel/minhas-tasks?visao=calendario",
   "modulo-gestao-tasks": "/painel/gestao-tasks",
   "visao-lista": "/painel/gestao-tasks?visao=lista",
   "visao-calendario": "/painel/gestao-tasks?visao=calendario",
@@ -100,6 +102,11 @@ const DIALOGOS = [
     ],
   },
   { nome: "task-nova", rota: "/painel/gestao-tasks", passos: ['button:has-text("Nova task")'] },
+  {
+    nome: "concluir-com-tempo",
+    rota: "/painel/minhas-tasks",
+    passos: ['button[aria-label^="Concluir"]'],
+  },
 ];
 
 await mkdir(SAIDA, { recursive: true });

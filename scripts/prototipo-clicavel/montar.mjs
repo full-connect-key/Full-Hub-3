@@ -77,7 +77,7 @@ const TELAS = {
 
 const MODULOS = {
   "/painel": miolo("modulo-home"),
-  "/painel/minhas-tasks": miolo("modulo-minhas-tasks"),
+  "/painel/minhas-tasks": pelaPagina["modulo-minhas-tasks"],
   "/painel/gestao-tasks": pelaPagina["modulo-gestao-tasks"],
   "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111": pelaPagina["modulo-gestao-tasks-detalhe"],
   "/painel/calendario": miolo("modulo-calendario"),
@@ -104,6 +104,11 @@ const telasHtml = Object.entries(TELAS)
 // As tres visualizacoes de tasks sao trocadas por botao, nao por link: cada
 // uma foi capturada na propria URL e entra no mesmo mecanismo das abas.
 const VISOES = {
+  "/painel/minhas-tasks": {
+    Board: pelaPagina["minhas-visao-board"],
+    Lista: pelaPagina["modulo-minhas-tasks"],
+    "Calendário": pelaPagina["minhas-visao-calendario"],
+  },
   "/painel/gestao-tasks": {
     Board: pelaPagina["modulo-gestao-tasks"],
     Lista: pelaPagina["visao-lista"],

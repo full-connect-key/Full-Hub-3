@@ -628,7 +628,9 @@ ${telasHtml}
     { rota: CLIENTE_EXEMPLO,       texto: "Convidar usuário",        dialogo: "usuario-convidar" },
     { rota: PESSOA_EXEMPLO,        texto: "Desativar acesso",        dialogo: "pessoa-desativar" },
     { rota: PESSOA_EXEMPLO,        texto: "Desligar da equipe",      dialogo: "pessoa-desligar" },
-    { rota: "/painel/gestao-tasks", texto: "Nova task",              dialogo: "task-nova" }
+    { rota: "/painel/gestao-tasks", texto: "Nova task",              dialogo: "task-nova" },
+    { rota: "/painel/minhas-tasks", texto: "Nova task",              dialogo: "task-nova" },
+    { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" }
   ];
 
   var camadaDeDialogo = document.createElement("div");
@@ -857,6 +859,9 @@ ${telasHtml}
     "task-nova": function () {
       if (valorDe("#task-titulo").length < 2) return { erro: "Dê um título para a task." };
       return { ok: "Task criada." };
+    },
+    "concluir-com-tempo": function () {
+      return { ok: "Feito. Menos uma para hoje." };
     }
   };
 
@@ -882,7 +887,8 @@ ${telasHtml}
 
   var CONFIRMACOES = [
     "Criar e enviar convite", "Cadastrar cliente", "Salvar alterações", "Desativar",
-    "Reativar", "Enviar convite", "Continuar", "Criar task", "Desligar Carla Nunes"
+    "Reativar", "Enviar convite", "Continuar", "Criar task", "Desligar Carla Nunes",
+    "Concluir", "Pular"
   ];
 
   // --- cliques dentro da camada de diálogo ---------------------------------

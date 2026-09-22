@@ -7,10 +7,15 @@ import { EQUIPE_EXEMPLO } from "./dados-exemplo";
 
 export type MembroDaEquipe = Profile & { membro: TeamMember | null };
 
-// O parametro existe para a assinatura bater com a do modulo real; aqui o
-// conjunto de exemplo e sempre o mesmo.
-export async function listarEquipe(): Promise<MembroDaEquipe[]> {
-  return EQUIPE_EXEMPLO as unknown as MembroDaEquipe[];
+/**
+ * A assinatura precisa bater com a do modulo real, que a pagina de Equipe
+ * chama com `true` para tambem trazer quem foi desligado. No conjunto de
+ * exemplo ninguem esta desligado, entao o filtro nao muda o resultado -- mas
+ * ele existe para o exemplo nao mentir sobre o comportamento.
+ */
+export async function listarEquipe(incluirDesligados = false): Promise<MembroDaEquipe[]> {
+  const todos = EQUIPE_EXEMPLO as unknown as MembroDaEquipe[];
+  return incluirDesligados ? todos : todos.filter((pessoa) => pessoa.ativo);
 }
 
 export async function obterColaborador(id: string): Promise<MembroDaEquipe | null> {
