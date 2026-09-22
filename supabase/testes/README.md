@@ -25,6 +25,7 @@ psql -d fullhub -f supabase/testes/02_status_da_task.sql
 psql -d fullhub -f supabase/testes/03_ciclos_e_cliente.sql
 psql -d fullhub -f supabase/testes/04_portais_de_clientes.sql
 psql -d fullhub -f supabase/testes/05_full_days.sql
+psql -d fullhub -f supabase/testes/06_skills_e_desenvolvimento.sql
 psql -d fullhub -c "select * from teste.resultado where situacao = 'FALHOU'"
 ```
 
@@ -72,4 +73,11 @@ desenvolvedor** — só o sócio. Aprovar pinta os dias úteis na matriz na mesm
 transação, e um dia que veio de pedido aprovado não se edita na mão. Fecha com
 o sino: ninguém forja uma notificação, nem para si mesmo.
 
-São 148 cenários no total.
+`06_skills_e_desenvolvimento.sql` — o catálogo compartilhado (a equipe
+**sugere**, a gestão aprova, e skill não se apaga), o perfil de cada pessoa
+(**ninguém edita a skill de outra, nem o sócio** — nível é autoavaliação), a
+observação da gestão (que o **avaliado lê**, e que um gestor não reescreve por
+cima do outro) e o registro semanal privado: nem o sócio alcança, semana futura
+é recusada, e a semana tem que começar numa segunda.
+
+São 185 cenários no total.
