@@ -174,7 +174,8 @@ export function Solicitar({
             <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
               <ChevronLeft aria-hidden />
             </Button>
-            <p className="flex-1 text-center text-sm font-medium capitalize">
+            {/* first-letter, e não capitalize — veja o calendário de tasks. */}
+            <p className="flex-1 text-center text-sm font-medium first-letter:uppercase">
               {format(inicioDoMes, "MMMM 'de' yyyy", { locale: ptBR })}
             </p>
             <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>

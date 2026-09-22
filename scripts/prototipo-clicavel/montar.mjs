@@ -89,15 +89,20 @@ const MODULOS = {
   "/painel/clientes/c0000000-0000-0000-0000-00000000000a": miolo("modulo-clientes-detalhe"),
   "/painel/equipe": miolo("modulo-equipe"),
   "/painel/equipe/a0000000-0000-0000-0000-000000000003": miolo("modulo-equipe-detalhe"),
-  "/painel/full-days": miolo("modulo-full-days"),
+  "/painel/full-days": pelaPagina["modulo-full-days"],
+  "/painel/full-days?aba=matriz": pelaPagina["full-days-matriz"],
+  "/painel/full-days?aba=relatorio": pelaPagina["full-days-relatorio"],
+  "/painel/full-days?aba=aprovacoes": pelaPagina["full-days-aprovacoes"],
   "/painel/financeiro": miolo("modulo-financeiro"),
-  "/painel/minhas-skills": miolo("modulo-minhas-skills"),
-  "/painel/diario": miolo("modulo-diario"),
+  "/painel/meu-desenvolvimento": miolo("modulo-meu-desenvolvimento"),
+  "/painel/resumo-semanal": pelaPagina["modulo-resumo-semanal"],
+  "/painel/notas-fiscais": pelaPagina["modulo-notas-fiscais"],
   "/painel/academy": miolo("modulo-academy"),
   "/painel/recomendacoes": miolo("modulo-recomendacoes"),
   "/painel/financeiro-pessoal": miolo("modulo-financeiro-pessoal"),
   "/painel/perfil": miolo("modulo-perfil"),
   "/painel/dev/componentes": miolo("modulo-dev-componentes"),
+  "/portal/mundo-verde": pelaPagina["portal-do-cliente-pela-equipe"],
 };
 
 const telasHtml = Object.entries(TELAS)

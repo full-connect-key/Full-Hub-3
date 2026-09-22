@@ -52,7 +52,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t1", user_id: "a0000000-0000-0000-0000-000000000001",
       cargo: "Sócia-diretora", area: "Direção", funcao: "Gestao" as const,
-      data_admissao: "2021-03-01", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2021-03-01", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2021-03-01T10:00:00.000Z",
     },
   },
@@ -67,7 +67,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t2", user_id: "a0000000-0000-0000-0000-000000000002",
       cargo: "Desenvolvedor", area: "Tecnologia", funcao: "Desenvolvimento" as const,
-      data_admissao: "2023-08-14", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2023-08-14", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2023-08-14T10:00:00.000Z",
     },
   },
@@ -82,7 +82,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t3", user_id: "a0000000-0000-0000-0000-000000000003",
       cargo: "Analista de contas", area: "Atendimento", funcao: "Atendimento" as const,
-      data_admissao: "2024-02-05", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2024-02-05", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2024-02-05T10:00:00.000Z",
     },
   },
@@ -97,7 +97,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t4", user_id: "a0000000-0000-0000-0000-000000000005",
       cargo: "Designer", area: "Criação", funcao: "Design" as const,
-      data_admissao: "2024-06-10", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2024-06-10", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2024-06-10T10:00:00.000Z",
     },
   },
@@ -112,7 +112,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t5", user_id: "a0000000-0000-0000-0000-000000000006",
       cargo: "Social media", area: "Criação", funcao: "Social Media" as const,
-      data_admissao: "2025-01-20", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2025-01-20", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2025-01-20T10:00:00.000Z",
     },
   },
@@ -127,7 +127,7 @@ export const EQUIPE_EXEMPLO = [
     membro: {
       id: "t6", user_id: "a0000000-0000-0000-0000-000000000007",
       cargo: "Analista de tráfego", area: "Mídia", funcao: "Trafego" as const,
-      data_admissao: "2025-04-02", dias_ferias_ano: 30, ativo: true,
+      data_admissao: "2025-04-02", dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: true,
       desligado_em: null, created_at: "2025-04-02T10:00:00.000Z",
     },
   },

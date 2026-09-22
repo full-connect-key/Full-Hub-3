@@ -52,10 +52,8 @@ const PAGINAS = {
   "modulo-clientes-detalhe": CLIENTE,
   "modulo-equipe": "/painel/equipe",
   "modulo-equipe-detalhe": PESSOA,
-  "modulo-full-days": "/painel/full-days",
   "modulo-financeiro": "/painel/financeiro",
-  "modulo-minhas-skills": "/painel/minhas-skills",
-  "modulo-diario": "/painel/diario",
+  "modulo-meu-desenvolvimento": "/painel/meu-desenvolvimento",
   "modulo-academy": "/painel/academy",
   "modulo-recomendacoes": "/painel/recomendacoes",
   "modulo-financeiro-pessoal": "/painel/financeiro-pessoal",
@@ -75,10 +73,18 @@ const COM_SUSPENSE = {
   "modulo-gestao-tasks-detalhe": TASK,
   "modulo-aprovacoes-internas": "/painel/aprovacoes-internas",
   "modulo-workflows": "/painel/workflows",
+  "modulo-resumo-semanal": "/painel/resumo-semanal",
+  "modulo-notas-fiscais": "/painel/notas-fiscais",
+  "modulo-full-days": "/painel/full-days",
+  "full-days-matriz": "/painel/full-days?aba=matriz",
+  "full-days-relatorio": "/painel/full-days?aba=relatorio",
+  "full-days-aprovacoes": "/painel/full-days?aba=aprovacoes",
+  "portal-do-cliente-pela-equipe": "/portal/mundo-verde",
 };
 
 const ABAS = [
   { rota: CLIENTE, abas: ["Dados", "Usuários com acesso", "Configurações do fluxo", "Atividade"] },
+  { rota: "/painel/perfil", abas: ["Meus dados", "Financeiro Pessoal"] },
   { rota: PESSOA, abas: ["Dados", "Skills", "Full Days"] },
   { rota: TASK, abas: ["Trabalho", "Histórico"] },
 ];
@@ -134,6 +140,16 @@ const DIALOGOS = [
     nome: "tipo-novo",
     rota: "/painel/workflows",
     passos: ['button:has-text("Novo tipo de tarefa")'],
+  },
+  {
+    nome: "entrega-nova",
+    rota: "/painel/resumo-semanal",
+    passos: ['button:has-text("Adicionar Entrega")'],
+  },
+  {
+    nome: "full-days-reprovar",
+    rota: "/painel/full-days?aba=aprovacoes",
+    passos: ['button:has-text("Reprovar")'],
   },
   {
     nome: "cliente-pedir-ajustes",

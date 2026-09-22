@@ -140,7 +140,9 @@ export function MatrizDaEquipe({
         <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
           <ChevronLeft aria-hidden />
         </Button>
-        <p className="text-sm font-medium capitalize">
+        {/* first-letter, e não capitalize: este maiúsculiza cada palavra e
+            produziria "Setembro De 2026". */}
+        <p className="text-sm font-medium first-letter:uppercase">
           {format(parseISO(inicio), "MMMM 'de' yyyy", { locale: ptBR })}
         </p>
         <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>
@@ -395,7 +397,13 @@ function Legenda() {
     <ul className="text-text-secondary flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
       {ordem.map((status) => (
         <li key={status} className="inline-flex items-center gap-1.5">
-          <span aria-hidden className={cn("size-3 rounded-sm", CORES_DE_PRESENCA[status])} />
+          {/* A borda existe para o feriado: o padrão listrado é claro demais
+              para se distinguir do cartão branco num quadrado de 12px. Nas
+              outras a borda some sob a cor cheia. */}
+          <span
+            aria-hidden
+            className={cn("size-3 rounded-sm border", CORES_DE_PRESENCA[status])}
+          />
           {ROTULOS_DE_PRESENCA[status]}
         </li>
       ))}

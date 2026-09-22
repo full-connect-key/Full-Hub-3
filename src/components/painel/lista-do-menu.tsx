@@ -84,7 +84,14 @@ export function ListaDoMenu({
                     />
                   ) : null}
                   <item.icon aria-hidden className="size-4 shrink-0" />
-                  <span className="recolhido:lg:hidden truncate">{item.label}</span>
+                  {/* Quebra em duas linhas em vez de cortar. "Recomendações
+                      da Semana" não cabe numa linha, e "Recomendações da
+                      Sema…" obriga a pessoa a passar o mouse para saber onde
+                      está clicando — num menu, isso é o oposto do que ele
+                      serve. */}
+                  <span className="recolhido:lg:hidden leading-tight text-balance">
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}

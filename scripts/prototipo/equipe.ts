@@ -50,3 +50,15 @@ export async function vinculosDoColaborador(userId: string) {
     total: tasksAbertas + clientesSobResponsabilidade,
   };
 }
+
+/**
+ * A ficha de RH de quem esta "logado" no prototipo.
+ *
+ * Quem e a pessoa vem de PROTOTIPO_ROLE, entao a ficha tem que acompanhar: com
+ * um cargo fixo, o cartao do menu diria "Socia-diretora" tambem quando o
+ * prototipo esta rodando como colaborador.
+ */
+export async function obterMinhaFicha(): Promise<TeamMember | null> {
+  const eu = EQUIPE_EXEMPLO.find((pessoa) => pessoa.role === (process.env.PROTOTIPO_ROLE ?? "socio"));
+  return ((eu ?? EQUIPE_EXEMPLO[0]).membro as unknown as TeamMember) ?? null;
+}

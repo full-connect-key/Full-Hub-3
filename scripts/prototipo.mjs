@@ -83,13 +83,33 @@ const TELAS = [
   { nome: "40-aprovacoes-internas", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
   { nome: "41-aprovacoes-internas-socio", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
   { nome: "42-aprovacoes-ajustes", rota: "/painel/aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
-  { nome: "43-workflows-tipos", rota: "/painel/workflows", largura: 1440, altura: 900, role: "socio" },
-  { nome: "44-workflows-fluxos", rota: "/painel/workflows", largura: 1440, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Workflows")' },
+  { nome: "43-tipos-de-tarefa", rota: "/painel/workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-tipo-de-tarefa-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo tipo de tarefa")' },
   { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Enviar para aprovação")' },
   { nome: "49-aprovacao-propria", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
+
+  // --- Sprint 3C: identidade, tela inicial e portais de clientes ---------
+  { nome: "50-inicio-socio", rota: "/painel", largura: 1600, altura: 1100, role: "socio" },
+  { nome: "51-inicio-colaborador", rota: "/painel", largura: 1600, altura: 900, role: "colaborador" },
+  { nome: "52-inicio-escuro", rota: "/painel", largura: 1600, altura: 1100, role: "socio", tema: "escuro" },
+  { nome: "53-inicio-celular", rota: "/painel", largura: 390, altura: 1100, role: "socio" },
+  { nome: "54-sino", rota: "/painel", largura: 1600, altura: 900, role: "socio", clicar: 'button[aria-label^="Notificações"]' },
+  { nome: "55-resumo-semanal", rota: "/painel/resumo-semanal", largura: 1440, altura: 900, role: "socio" },
+  { nome: "56-resumo-nova-entrega", rota: "/painel/resumo-semanal", largura: 1200, altura: 900, role: "socio", clicar: 'button:has-text("Adicionar Entrega")' },
+  { nome: "57-notas-fiscais", rota: "/painel/notas-fiscais", largura: 1440, altura: 700, role: "colaborador" },
+  { nome: "58-perfil-financeiro", rota: "/painel/perfil", largura: 1440, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Financeiro Pessoal")' },
+  { nome: "59-portal-do-cliente-pela-equipe", rota: "/portal/mundo-verde", largura: 1400, altura: 1000, role: "socio" },
+
+  // --- Sprint 6: Full Days -----------------------------------------------
+  { nome: "60-full-days-solicitar", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "socio" },
+  { nome: "61-full-days-matriz", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio" },
+  { nome: "62-full-days-relatorio", rota: "/painel/full-days?aba=relatorio", largura: 1600, altura: 1300, role: "socio" },
+  { nome: "63-full-days-aprovacoes", rota: "/painel/full-days?aba=aprovacoes", largura: 1500, altura: 900, role: "socio" },
+  { nome: "64-full-days-reprovar", rota: "/painel/full-days?aba=aprovacoes", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Reprovar")' },
+  { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
+  { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
 
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
@@ -129,6 +149,10 @@ const SUBSTITUICOES = {
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],
   "@/lib/dados/aprovacoes": ["./scripts/prototipo/aprovacoes.ts"],
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
+  "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
+  "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
+  "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],
+  "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

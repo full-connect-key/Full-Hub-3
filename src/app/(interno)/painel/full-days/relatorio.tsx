@@ -107,7 +107,9 @@ export function RelatorioGerencial({
         <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
           <ChevronLeft aria-hidden />
         </Button>
-        <p className="text-sm font-medium capitalize">
+        {/* first-letter, e não capitalize: este maiúsculiza cada palavra e
+            produziria "Setembro De 2026". */}
+        <p className="text-sm font-medium first-letter:uppercase">
           {format(parseISO(inicio), "MMMM 'de' yyyy", { locale: ptBR })}
         </p>
         <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>

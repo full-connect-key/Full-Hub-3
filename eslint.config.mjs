@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+
+    // Saida do gerador de prototipo, nao fonte. `.prototipo` e uma copia
+    // inteira do projeto com o `.next` dentro: sem ignorar, o lint demora
+    // minutos e acusa erros de codigo gerado que ninguem escreveu nem vai
+    // corrigir. O .gitignore ja os ignora; o ESLint tem a lista dele.
+    ".prototipo/**",
+    ".captura/**",
+    "prototipos/**",
   ]),
 ]);
 
