@@ -1,17 +1,12 @@
-import { Layers } from "lucide-react";
+import { Logo } from "@/components/shared/logo";
 
 export default function LayoutAutenticacao({ children }: LayoutProps<"/">) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
+    <main className="from-muted/60 via-background to-muted/40 flex min-h-dvh flex-col items-center justify-center bg-gradient-to-br px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-brand text-brand-contraste">
-            <Layers aria-hidden className="size-5" />
-          </span>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Full Hub</h1>
-            <p className="text-sm text-texto-suave">Painel interno da agência</p>
-          </div>
+          <Logo tamanho="lg" className="flex-col gap-3" />
+          <p className="text-muted-foreground text-sm">Plataforma interna da Full Connect Key</p>
         </div>
         {children}
       </div>

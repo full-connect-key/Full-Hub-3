@@ -77,7 +77,7 @@ if (!CHAVE_ANON) faltando.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 if (faltando.length > 0) {
   falha(
     `Variaveis faltando: ${faltando.join(", ")}`,
-    "Rode `cp .env.example .env.local` e preencha com os dados do projeto no painel do Supabase.",
+    "Rode `cp .env.local.example .env.local` e preencha com os dados do projeto no painel do Supabase.",
   );
   console.log("");
   process.exit(1);
@@ -113,24 +113,24 @@ try {
 
 // 3. A migration foi aplicada? --------------------------------------------
 try {
-  const resposta = await fetch(`${URL_SUPABASE}/rest/v1/perfis?select=id&limit=1`, {
+  const resposta = await fetch(`${URL_SUPABASE}/rest/v1/profiles?select=id&limit=1`, {
     headers: { apikey: CHAVE_ANON, Authorization: `Bearer ${CHAVE_ANON}` },
     signal: AbortSignal.timeout(8000),
   });
 
   if (resposta.ok) {
-    ok("Tabela public.perfis", "encontrada, com RLS ativo");
+    ok("Tabela public.profiles", "encontrada, com RLS ativo");
   } else if (resposta.status === 404) {
     alerta(
-      "Tabela public.perfis ainda nao existe",
-      "Cole supabase/migrations/0001_perfis.sql no SQL Editor do Supabase e clique em Run.",
+      "Tabela public.profiles ainda nao existe",
+      "Cole supabase/migrations/0002_estrutura_base.sql no SQL Editor do Supabase e clique em Run.",
     );
   } else {
     const corpo = await resposta.text();
-    alerta(`Tabela public.perfis respondeu HTTP ${resposta.status}`, corpo.slice(0, 160));
+    alerta(`Tabela public.profiles respondeu HTTP ${resposta.status}`, corpo.slice(0, 160));
   }
 } catch (erro) {
-  alerta("Nao foi possivel checar a tabela perfis", erro.message);
+  alerta("Nao foi possivel checar a tabela profiles", erro.message);
 }
 
 // 4. Chave de servico (opcional) ------------------------------------------

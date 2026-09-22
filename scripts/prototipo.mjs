@@ -18,6 +18,9 @@
  * A CADA SPRINT
  *   1. acrescente os dados ficticios em scripts/prototipo/dados-exemplo.ts
  *   2. acrescente a tela nova na lista TELAS logo abaixo
+ *   3. se a tela so existe para o prototipo (como a de 403), crie a rota em
+ *      scripts/prototipo/extras/ -- ela e copiada para dentro de src/app/ da
+ *      copia e nunca vai para o app publicado
  */
 
 import { spawn } from "node:child_process";
@@ -29,11 +32,18 @@ import path from "node:path";
 // Telas capturadas. Acrescente uma linha por pagina nova.
 // ---------------------------------------------------------------------------
 const TELAS = [
-  { nome: "login", rota: "/login", largura: 900, altura: 700 },
-  { nome: "dashboard", rota: "/dashboard", largura: 1440, altura: 1000 },
-  { nome: "configuracoes", rota: "/configuracoes", largura: 1440, altura: 900 },
-  { nome: "status", rota: "/status", largura: 1000, altura: 900 },
-  { nome: "dashboard-celular", rota: "/dashboard", largura: 390, altura: 844 },
+  { nome: "01-login", rota: "/login", largura: 900, altura: 760 },
+  { nome: "02-login-escuro", rota: "/login", largura: 900, altura: 760, tema: "escuro" },
+  { nome: "03-login-sessao-expirada", rota: "/login?motivo=inatividade", largura: 900, altura: 800 },
+  { nome: "04-esqueci-senha", rota: "/esqueci-senha", largura: 900, altura: 760 },
+  { nome: "05-redefinir-senha", rota: "/redefinir-senha", largura: 900, altura: 800 },
+  { nome: "06-painel", rota: "/painel", largura: 1440, altura: 800 },
+  { nome: "07-painel-escuro", rota: "/painel", largura: 1440, altura: 800, tema: "escuro" },
+  { nome: "08-portal", rota: "/portal", largura: 1440, altura: 800 },
+  { nome: "09-acesso-negado-403", rota: "/403-exemplo", largura: 900, altura: 700 },
+  { nome: "10-status-da-conexao", rota: "/status", largura: 1000, altura: 1000 },
+  { nome: "11-painel-celular", rota: "/painel", largura: 390, altura: 844 },
+  { nome: "12-portal-celular", rota: "/portal", largura: 390, altura: 844 },
 ];
 
 const PORTA = 3100;
@@ -50,7 +60,6 @@ const COPIA = path.join(RAIZ, ".prototipo");
 const SUBSTITUICOES = {
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
   "@/lib/supabase/diagnostico": ["./scripts/prototipo/diagnostico.ts"],
-  "@/lib/supabase/proxy": ["./scripts/prototipo/proxy-supabase.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -119,15 +128,33 @@ try {
     await cp(path.join(RAIZ, item), path.join(temporaria, item), { recursive: true });
   }
 
+  // Rotas que existem so no prototipo, como a que dispara a tela de 403.
+  await cp(
+    path.join(RAIZ, "scripts", "prototipo", "extras"),
+    path.join(temporaria, "src", "app"),
+    { recursive: true },
+  );
+
+  // O proxy e carregado pelo Next por caminho fixo, e nao por apelido, entao a
+  // substituicao dele e uma copia por cima. Sem isso /login redirecionaria
+  // para /painel e as telas publicas nao dariam para fotografar.
+  await cp(
+    path.join(RAIZ, "scripts", "prototipo", "proxy-raiz.ts"),
+    path.join(temporaria, "src", "proxy.ts"),
+  );
+
   // As substituicoes entram como apelidos de caminho do TypeScript.
   const tsconfig = JSON.parse(await readFile(path.join(RAIZ, "tsconfig.json"), "utf8"));
   tsconfig.compilerOptions.paths = { ...SUBSTITUICOES, ...tsconfig.compilerOptions.paths };
   await writeFile(path.join(temporaria, "tsconfig.json"), JSON.stringify(tsconfig, null, 2));
 
   // Credenciais de fachada: nada aqui chega a falar com o Supabase.
+  // O dominio .invalid nunca resolve, e de proposito: as poucas consultas que
+  // escapam das substituicoes falham na hora, em vez de segurar a captura
+  // esperando um servidor que nao existe.
   await writeFile(
     path.join(temporaria, ".env.local"),
-    'NEXT_PUBLIC_SUPABASE_URL="https://exemplo.supabase.co"\n' +
+    'NEXT_PUBLIC_SUPABASE_URL="https://exemplo.invalid"\n' +
       'NEXT_PUBLIC_SUPABASE_ANON_KEY="chave-de-exemplo"\n',
   );
 
@@ -146,10 +173,12 @@ try {
   await rm(SAIDA, { recursive: true, force: true });
   const navegador = await abrirNavegador(chromium);
 
-  for (const { nome, rota, largura, altura } of TELAS) {
+  for (const { nome, rota, largura, altura, tema } of TELAS) {
     const pagina = await navegador.newPage({
       viewport: { width: largura, height: altura },
       deviceScaleFactor: 2,
+      colorScheme: tema === "escuro" ? "dark" : "light",
+      locale: "pt-BR",
     });
     await pagina.goto(`http://localhost:${PORTA}${rota}`, { waitUntil: "networkidle" });
     await pagina.screenshot({ path: path.join(SAIDA, `${nome}.png`), fullPage: true });

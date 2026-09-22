@@ -23,7 +23,7 @@ export async function diagnosticarSupabase(): Promise<Diagnostico> {
         detalhe: "Serviço de autenticação respondeu normalmente.",
       },
       {
-        nome: "Tabela perfis",
+        nome: "Tabela profiles",
         situacao: "ok",
         detalhe: "Tabela encontrada e respondendo com RLS ativo.",
       },

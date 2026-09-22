@@ -1,92 +1,106 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 /* ===========================================================================
-   Tokens de cor
-   ---------------------------------------------------------------------------
-   Todas as cores da interface saem daqui. Para aplicar a identidade visual da
-   agencia, troque os valores de --brand-* neste bloco: o dashboard inteiro
-   acompanha, sem precisar cacar codigo de cor espalhado pelos componentes.
+   Tema neutro do shadcn/ui, em modo claro e escuro.
+   O modo escuro e ativado pela classe .dark no <html>, controlada pelo
+   next-themes (src/components/shared/provedor-de-tema.tsx).
    =========================================================================== */
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --fundo: #f6f7f9;
-  --superficie: #ffffff;
-  --superficie-suave: #f1f3f7;
-  --borda: #e3e7ee;
-  --texto: #111827;
-  --texto-suave: #5b6472;
-  --texto-tenue: #8a93a2;
+  --radius: 0.625rem;
 
-  --brand: #4338ca;
-  --brand-forte: #3730a3;
-  --brand-suave: #eef0ff;
-  --brand-contraste: #ffffff;
-
-  --positivo: #047857;
-  --positivo-suave: #e7f6ef;
-  --atencao: #b45309;
-  --atencao-suave: #fdf3e3;
-  --negativo: #b91c1c;
-  --negativo-suave: #fdecec;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.52 0.12 158);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.62 0.13 70);
+  --warning-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fundo: #0b0e14;
-    --superficie: #141922;
-    --superficie-suave: #1b212c;
-    --borda: #262e3b;
-    --texto: #eef1f6;
-    --texto-suave: #a3adbd;
-    --texto-tenue: #78828f;
-
-    --brand: #8b8bf7;
-    --brand-forte: #a5a5fa;
-    --brand-suave: #1e2140;
-    --brand-contraste: #0b0e14;
-
-    --positivo: #4ade80;
-    --positivo-suave: #10251c;
-    --atencao: #fbbf24;
-    --atencao-suave: #2a2012;
-    --negativo: #f87171;
-    --negativo-suave: #2c1618;
-  }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.72 0.15 158);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.78 0.14 75);
+  --warning-foreground: oklch(0.145 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.556 0 0);
 }
 
 @theme inline {
-  --color-fundo: var(--fundo);
-  --color-superficie: var(--superficie);
-  --color-superficie-suave: var(--superficie-suave);
-  --color-borda: var(--borda);
-  --color-texto: var(--texto);
-  --color-texto-suave: var(--texto-suave);
-  --color-texto-tenue: var(--texto-tenue);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-  --color-brand: var(--brand);
-  --color-brand-forte: var(--brand-forte);
-  --color-brand-suave: var(--brand-suave);
-  --color-brand-contraste: var(--brand-contraste);
-
-  --color-positivo: var(--positivo);
-  --color-positivo-suave: var(--positivo-suave);
-  --color-atencao: var(--atencao);
-  --color-atencao-suave: var(--atencao-suave);
-  --color-negativo: var(--negativo);
-  --color-negativo-suave: var(--negativo-suave);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-body {
-  background-color: var(--fundo);
-  color: var(--texto);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-}
-
-/* Foco visivel e consistente em toda a navegacao por teclado. */
-:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-  border-radius: 4px;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

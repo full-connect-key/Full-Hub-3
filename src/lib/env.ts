@@ -37,7 +37,7 @@ export function exigirConfigSupabase(): { url: string; anonKey: string } {
   if (faltando.length > 0) {
     throw new Error(
       `Supabase não configurado. Faltando: ${faltando.join(", ")}. ` +
-        "Copie .env.example para .env.local, preencha os valores do seu projeto " +
+        "Copie .env.local.example para .env.local, preencha os valores do seu projeto " +
         "e rode `npm run check:supabase` para validar.",
     );
   }

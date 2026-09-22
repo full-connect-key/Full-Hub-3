@@ -32,7 +32,7 @@ yarn-error.log*
 
 # env files (nunca comite credenciais reais)
 .env*
-!.env.example
+!.env.local.example
 
 # vercel
 .vercel

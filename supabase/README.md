@@ -1,30 +1,35 @@
 # Banco de dados
 
-Todo o SQL do projeto fica versionado em `migrations/`, em ordem numerica.
+Todo o SQL do projeto fica versionado em `migrations/`, em ordem numérica.
 Assim o banco pode ser recriado do zero a qualquer momento, e qualquer pessoa
-da equipe consegue ver o historico de mudancas do schema.
+da equipe vê o histórico de mudanças do schema.
+
+| Arquivo | O que faz |
+| --- | --- |
+| `0001_perfis.sql` | Primeira versão, com a tabela `perfis`. Mantida só pelo histórico. |
+| `0002_estrutura_base.sql` | Estrutura do produto. Migra o que existir da 0001 e remove a tabela antiga. |
+| `seed.sql` | 4 usuários de teste, 2 empresas e os vínculos. |
+
+Num projeto novo, basta a `0002`.
 
 ## Aplicando uma migration
 
 **Pelo painel (mais simples):** Supabase > SQL Editor > New query > cole o
 arquivo **inteiro** > Run.
 
-> Nao deixe texto selecionado no editor: quando ha uma selecao, o Supabase roda
-> so ela. Rodar um trecho do meio de uma migration produz erros do tipo
-> `relation "public.<tabela>" does not exist`, porque as tabelas sao criadas no
-> inicio do arquivo. As migrations daqui sao idempotentes, entao basta rodar o
+> Não deixe texto selecionado no editor: quando há uma seleção, o Supabase roda
+> só ela. Rodar um trecho do meio produz erros do tipo
+> `relation "public.<tabela>" does not exist`, porque as tabelas são criadas no
+> início do arquivo. As migrations são idempotentes, então basta rodar o
 > arquivo completo de novo.
 
-**Pela CLI (melhor quando houver varias migrations):**
+**Pela CLI:**
 
 ```bash
 npx supabase login
-npx supabase link --project-ref <referencia-do-projeto>
+npx supabase link --project-ref <referência-do-projeto>
 npx supabase db push
 ```
-
-A referencia do projeto e a parte do meio da URL:
-`https://<referencia>.supabase.co`.
 
 Depois de aplicar, regenere os tipos para o TypeScript acompanhar o schema:
 
@@ -32,49 +37,74 @@ Depois de aplicar, regenere os tipos para o TypeScript acompanhar o schema:
 npx supabase gen types typescript --linked > ../src/lib/supabase/database.types.ts
 ```
 
-## O que a 0001 cria
+## O que a 0002 cria
 
 | Objeto | Para que serve |
 | --- | --- |
-| `public.perfis` | Dados da equipe: nome, cargo, papel. Ligada 1-para-1 com `auth.users` |
-| `lidar_com_novo_usuario()` + trigger | Cria o perfil sozinho quando um usuario e cadastrado |
-| `tocar_atualizado_em()` + trigger | Mantem a coluna `atualizado_em` sempre correta |
-| `e_admin()` | Usada pelas policies para saber se quem pediu e administrador |
-| `proteger_papel_do_perfil()` + trigger | Impede que alguem se promova a admin criando ou editando o proprio perfil |
-| 5 policies de RLS | Cada pessoa le, cria e edita o proprio perfil; admin ve e edita todos |
+| `user_role` | Enum com os quatro perfis: cliente, colaborador, desenvolvedor, socio |
+| `profiles` | Uma linha por usuário, ligada 1-para-1 com `auth.users` |
+| `clients` | Empresas atendidas pela agência |
+| `client_users` | Vínculo N:N entre usuários cliente e empresas |
+| `team_members` | Dados de RH da equipe interna |
+| `handle_new_user()` + trigger | Cria o profile sozinho quando alguém é cadastrado |
+| `protect_profile_role()` + trigger | Impede que alguém mude o próprio perfil de acesso |
+| `auth_role()`, `is_staff()`, `is_gestor()`, `is_socio()`, `my_client_ids()` | Base de todo o RLS |
+| 9 policies | Quem lê e quem escreve em cada tabela |
 
-O Supabase ja guarda e-mail e senha em `auth.users`, que e uma tabela dele e
-nao deve ser alterada. Tudo que for "nosso" sobre a pessoa fica em
-`public.perfis`.
+O Supabase guarda e-mail e senha em `auth.users`, que é tabela dele e não deve
+ser alterada. Tudo que é "nosso" sobre a pessoa fica em `public.profiles`.
 
-## Por que `security definer` em algumas funcoes
+## Quem alcança o quê
 
-`e_admin()` consulta a tabela `perfis`. Se ela rodasse com as permissoes de
-quem chamou, o Postgres avaliaria o RLS de `perfis` para responder — e o RLS de
-`perfis` chama `e_admin()`. Loop infinito. `security definer` faz a funcao
-rodar com os privilegios de quem a criou, quebrando o ciclo.
+| Tabela | Leitura | Escrita |
+| --- | --- | --- |
+| `profiles` | o próprio registro; `is_gestor()` lê todos | o próprio registro; `role` e `ativo` só por `is_socio()` |
+| `clients` | `is_staff()`; cliente vê só as de `my_client_ids()` | `is_gestor()` |
+| `client_users` | `is_gestor()`; cliente vê só as próprias linhas | `is_gestor()` |
+| `team_members` | `is_staff()` | `is_gestor()` |
 
-O mesmo vale para `lidar_com_novo_usuario()`: ela roda no instante do cadastro,
-quando ainda nao existe sessao para o RLS avaliar.
+Cliente não alcança `team_members` de forma nenhuma.
 
-## Por que as funcoes sao todas `plpgsql`
+## Por que `security definer` nas funções
 
-O Postgres valida o corpo de uma funcao `language sql` na hora de cria-la. Se a
-funcao mencionar uma tabela que ainda nao existe, o `create function` falha --
-mesmo que a tabela va ser criada logo em seguida. Funcoes `plpgsql` tem o corpo
-verificado so na primeira execucao, o que torna a migration imune a problemas
-de ordem e a execucoes parciais.
+`is_staff()` e as outras consultam `profiles`. Se rodassem com as permissões de
+quem chamou, o Postgres avaliaria o RLS de `profiles` para responder — e o RLS
+de `profiles` chama essas funções. Loop infinito. `security definer` faz a
+função rodar com os privilégios de quem a criou, quebrando o ciclo.
 
-## Promovendo alguem a admin
+O mesmo vale para `handle_new_user()`: ela roda no instante do cadastro, quando
+ainda não existe sessão para o RLS avaliar.
+
+## Por que as funções são todas `plpgsql`
+
+O Postgres valida o corpo de uma função `language sql` na hora de criá-la. Se a
+função mencionar uma tabela que ainda não existe, o `create function` falha —
+mesmo que a tabela venha a ser criada logo em seguida. Funções `plpgsql` têm o
+corpo verificado só na primeira execução, o que torna a migration imune a
+problemas de ordem e a execuções parciais.
+
+## Promovendo alguém
 
 ```sql
-update public.perfis set papel = 'admin' where email = 'pessoa@suaagencia.com.br';
+update public.profiles set role = 'socio'
+where email = 'pessoa@fullconnectkey.com.br';
 ```
 
-Funciona no SQL Editor porque ali nao existe sessao de usuario (`auth.uid()` e
-nulo) e o trigger de protecao libera a mudanca. A mesma linha rodando em nome
-de um usuario logado comum nao teria efeito sobre a coluna `papel` -- que e
-exatamente a intencao.
+Funciona no SQL Editor porque ali não existe sessão de usuário (`auth.uid()` é
+nulo) e o trigger de proteção libera a mudança. A mesma linha rodando em nome
+de um usuário logado comum não teria efeito sobre `role` — que é exatamente a
+intenção.
+
+## Cadastro aberto precisa ficar desligado
+
+O trigger lê o perfil pedido em `raw_user_meta_data`, que é preenchido por quem
+se cadastra. Isso é o que permite criar uma pessoa já com o perfil certo pelo
+painel. Mas, se o cadastro aberto for ligado em **Authentication > Providers**,
+qualquer pessoa poderia pedir `socio` no próprio cadastro.
+
+Mantenha o cadastro desligado. Usuários são criados pela equipe, em
+**Authentication > Users**. `raw_app_meta_data`, que só o admin escreve, tem
+prioridade sobre `raw_user_meta_data` na leitura do perfil.
 
 ## Regra para toda tabela nova
 
@@ -82,26 +112,27 @@ exatamente a intencao.
 alter table public.<tabela> enable row level security;
 ```
 
-Sem isso, a tabela fica legivel por qualquer pessoa que tenha a chave `anon` —
-e essa chave vai no bundle que o navegador baixa, entao considere que todo
-mundo tem. Com RLS ligado e nenhuma policy, ninguem le nada: cada policy abre
-uma excecao especifica. Sempre prefira comecar fechado e abrir o necessario.
+Sem isso, a tabela fica legível por qualquer pessoa que tenha a chave `anon` — e
+essa chave vai no bundle que o navegador baixa, então considere que todo mundo
+tem. Com RLS ligado e nenhuma policy, ninguém lê nada: cada policy abre uma
+exceção específica. Sempre comece fechado e abra o necessário.
 
-Um teste rapido depois de criar a tabela:
+Um teste rápido depois de criar a tabela:
 
 ```bash
-curl -s "https://<referencia>.supabase.co/rest/v1/<tabela>?select=*" \
+curl -s "https://<referência>.supabase.co/rest/v1/<tabela>?select=*" \
   -H "apikey: <chave-anon>"
 ```
 
-Se isso devolver linhas sem voce estar logado, o RLS nao esta protegendo a
+Se isso devolver linhas sem você estar logado, o RLS não está protegendo a
 tabela.
 
-## Convencoes
+## Convenções
 
-- Nomes de tabelas e colunas em portugues, minusculo, com `_` (`nome_completo`).
-- Datas sempre em `timestamptz` — guarda o fuso e evita confusao no horario de
-  verao.
-- Preferir desativar (`ativo = false`) a apagar registros, para nao perder o
-  historico.
-- `criado_em` e `atualizado_em` em toda tabela que representa algo do mundo real.
+- Nomes de tabelas e colunas em inglês (`profiles`, `created_at`); a interface
+  e os identificadores do app em português.
+- `uuid` como chave primária em tudo.
+- Datas em `timestamptz` — guarda o fuso e evita confusão no horário de verão.
+- Preferir desativar (`ativo = false`) a apagar registros, para não perder o
+  histórico.
+- Migrations precisam poder rodar mais de uma vez sem erro.

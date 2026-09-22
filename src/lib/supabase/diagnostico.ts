@@ -48,7 +48,7 @@ function checarVariaveis(): Checagem {
       situacao: "falha",
       detalhe: `Faltando: ${faltando.join(", ")}.`,
       comoResolver:
-        "Copie .env.example para .env.local e preencha com os dados de Supabase > Project Settings > Data API e API Keys.",
+        "Copie .env.local.example para .env.local e preencha com os dados de Supabase > Project Settings > Data API e API Keys.",
     };
   }
 
@@ -124,15 +124,15 @@ async function checarAlcance(): Promise<Checagem> {
   }
 }
 
-/** A migration 0001 ja foi aplicada neste projeto? */
+/** A migration 0002 ja foi aplicada neste projeto? */
 async function checarSchema(): Promise<Checagem> {
   try {
     const supabase = await criarClienteServidor();
-    const { error } = await supabase.from("perfis").select("id", { count: "exact", head: true });
+    const { error } = await supabase.from("profiles").select("id", { count: "exact", head: true });
 
     if (!error) {
       return {
-        nome: "Tabela perfis",
+        nome: "Tabela profiles",
         situacao: "ok",
         detalhe: "Tabela encontrada e respondendo com RLS ativo.",
       };
@@ -141,22 +141,22 @@ async function checarSchema(): Promise<Checagem> {
     // 42P01 = undefined_table no Postgres
     if (error.code === "42P01" || error.message.includes("does not exist")) {
       return {
-        nome: "Tabela perfis",
+        nome: "Tabela profiles",
         situacao: "alerta",
-        detalhe: "A tabela public.perfis ainda não existe.",
+        detalhe: "A tabela public.profiles ainda não existe.",
         comoResolver:
-          "Abra Supabase > SQL Editor, cole o conteúdo de supabase/migrations/0001_perfis.sql e clique em Run.",
+          "Abra Supabase > SQL Editor, cole o conteúdo de supabase/migrations/0002_estrutura_base.sql e clique em Run.",
       };
     }
 
     return {
-      nome: "Tabela perfis",
+      nome: "Tabela profiles",
       situacao: "alerta",
       detalhe: `${error.message} (codigo ${error.code ?? "?"}).`,
     };
   } catch (erro) {
     return {
-      nome: "Tabela perfis",
+      nome: "Tabela profiles",
       situacao: "alerta",
       detalhe: erro instanceof Error ? erro.message : String(erro),
     };

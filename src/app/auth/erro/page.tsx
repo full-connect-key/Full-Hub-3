@@ -1,36 +1,36 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 
-import { Aviso } from "@/components/ui/aviso";
-import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Link inválido" };
 
 export default function PaginaDeErroDeAutenticacao() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">
-        <Card>
-          <div className="space-y-4">
-            <h1 className="text-sm font-semibold text-texto">Não deu para validar o link</h1>
-            <Aviso tipo="erro">
-              O link expirou ou já foi usado. Links de e-mail do Supabase valem uma vez só.
-            </Aviso>
-            <p className="text-sm text-texto-suave">
-              Peça um link novo na tela de recuperação de senha.
-            </p>
-            <div className="flex gap-2 text-sm">
-              <Link href="/recuperar-senha" className="text-brand hover:underline">
-                Pedir novo link
-              </Link>
-              <span className="text-texto-tenue">-</span>
-              <Link href="/login" className="text-brand hover:underline">
-                Voltar ao login
-              </Link>
-            </div>
+    <main className="from-muted/60 via-background to-muted/40 flex min-h-dvh items-center justify-center bg-gradient-to-br px-4 py-12">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Não deu para validar o link</CardTitle>
+          <CardDescription>Links de e-mail do Supabase valem uma vez só.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertDescription>O link expirou ou já foi usado.</AlertDescription>
+          </Alert>
+          <div className="flex gap-2">
+            <Button asChild size="sm">
+              <Link href="/esqueci-senha">Pedir novo link</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/login">Voltar ao login</Link>
+            </Button>
           </div>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </main>
   );
 }

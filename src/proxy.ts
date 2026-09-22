@@ -4,21 +4,25 @@ import { supabaseConfigurado } from "@/lib/env";
 import { renovarSessao } from "@/lib/supabase/proxy";
 
 /**
- * Proxy (nas versoes anteriores do Next chamava-se middleware).
+ * Proxy -- nas versoes anteriores do Next chamava-se middleware.
  *
  * Roda antes de cada requisicao e cuida de duas coisas:
  *   1. renovar o token de sessao do Supabase, para ninguem cair no meio do uso;
- *   2. barrar rotas privadas para quem nao esta logado.
+ *   2. mandar quem nao esta logado para a tela de login.
  *
- * A checagem aqui e a primeira barreira, nao a unica: cada pagina e cada
- * action confere a sessao de novo (src/lib/auth/dal.ts), e o RLS do banco
- * decide o que cada usuario pode ler. Sao tres camadas independentes.
+ * O que NAO e decidido aqui e o perfil de acesso. Saber se alguem e cliente ou
+ * equipe exige consultar o banco, e fazer isso a cada requisicao -- inclusive
+ * para cada imagem e cada arquivo de estilo -- deixaria tudo lento. A checagem
+ * de perfil fica nos layouts de cada area, via exigirEquipe() e
+ * exigirCliente(), que devolvem HTTP 403.
+ *
+ * Sao tres camadas independentes: o proxy, a checagem no servidor de cada
+ * pagina, e o RLS do Postgres, que e quem realmente protege os dados.
  */
 
-/** Rotas que qualquer visitante pode abrir. */
 const ROTAS_PUBLICAS = [
   "/login",
-  "/recuperar-senha",
+  "/esqueci-senha",
   "/redefinir-senha",
   "/status",
   "/api/status",
@@ -32,7 +36,7 @@ function ehRotaPublica(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ainda sem credenciais do Supabase: manda todo mundo para a tela de status,
+  // Ainda sem credenciais do Supabase: todo mundo vai para a tela de status,
   // que lista exatamente quais variaveis faltam.
   if (!supabaseConfigurado()) {
     if (ehRotaPublica(pathname) && pathname !== "/login") {
@@ -40,6 +44,7 @@ export async function proxy(request: NextRequest) {
     }
     const destino = request.nextUrl.clone();
     destino.pathname = "/status";
+    destino.search = "";
     return NextResponse.redirect(destino);
   }
 
@@ -48,15 +53,17 @@ export async function proxy(request: NextRequest) {
   if (!usuario && !ehRotaPublica(pathname)) {
     const destino = request.nextUrl.clone();
     destino.pathname = "/login";
-    // Guarda para onde a pessoa queria ir, e volta pra la depois do login.
-    destino.searchParams.set("redirecionar", pathname);
+    destino.search = "";
+    // Guarda para onde a pessoa queria ir, e volta para la depois do login.
+    if (pathname !== "/") destino.searchParams.set("redirecionar", pathname);
     return NextResponse.redirect(destino);
   }
 
-  // Ja logado nao precisa ver a tela de login.
   if (usuario && pathname === "/login") {
+    // Quem ja esta logado nao precisa da tela de login. A raiz decide a area
+    // certa conforme o perfil, entao mandamos para la.
     const destino = request.nextUrl.clone();
-    destino.pathname = "/dashboard";
+    destino.pathname = "/";
     destino.search = "";
     return NextResponse.redirect(destino);
   }
@@ -67,7 +74,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Tudo, menos os arquivos estaticos -- eles nao precisam de sessao e
+     * Tudo, menos os arquivos estaticos -- eles nao precisam de sessao, e
      * chamar o Supabase para cada icone so deixaria o site lento.
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",

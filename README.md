@@ -1,37 +1,43 @@
 # Full Hub
 
-Dashboard interno da agencia. Next.js (App Router) + Supabase, preparado para
-rodar numa VPS da Hostinger.
+Plataforma interna da agência **Full Connect Key**. Uma única aplicação, um
+único banco, duas áreas:
 
-Esta primeira entrega e a **fundacao**: conexao com o Supabase, login por
-e-mail e senha, protecao de rotas e o layout do painel. Os modulos de conteudo
-entram a cada sprint, sempre pelo mesmo caminho descrito em
-[Adicionando um modulo](#adicionando-um-modulo).
+| Área | Quem usa | Rota |
+| --- | --- | --- |
+| **Painel Interno** | equipe da agência | `/painel` |
+| **Portal do Cliente** | clientes da agência | `/portal` |
+
+Next.js 16 (App Router) + TypeScript + Tailwind + shadcn/ui, sobre Supabase.
+Preparado para rodar numa VPS da Hostinger.
+
+As regras do produto e as convenções de código estão em
+[`CLAUDE.md`](./CLAUDE.md).
 
 ---
 
-## Sumario
+## Sumário
 
-1. [Como rodar na sua maquina](#como-rodar-na-sua-maquina)
+1. [Como rodar na sua máquina](#como-rodar-na-sua-maquina)
 2. [Configurando o Supabase](#configurando-o-supabase)
-3. [Criando o primeiro usuario](#criando-o-primeiro-usuario)
-4. [Conferindo a conexao](#conferindo-a-conexao)
-5. [Como o projeto esta organizado](#como-o-projeto-esta-organizado)
-6. [Adicionando um modulo](#adicionando-um-modulo)
-7. [Gerando prototipos para validacao](#gerando-prototipos-para-validacao)
+3. [Criando usuários](#criando-usuarios)
+4. [Conferindo a conexão](#conferindo-a-conexao)
+5. [Como o projeto está organizado](#como-o-projeto-esta-organizado)
+6. [Adicionando um módulo](#adicionando-um-modulo)
+7. [Gerando protótipos para validação](#gerando-prototipos-para-validacao)
 8. [Deploy na VPS da Hostinger](#deploy-na-vps-da-hostinger)
-9. [Quando o dominio chegar](#quando-o-dominio-chegar)
-10. [Seguranca: o que nunca fazer](#seguranca-o-que-nunca-fazer)
+9. [Quando o domínio chegar](#quando-o-dominio-chegar)
+10. [Segurança: o que nunca fazer](#seguranca-o-que-nunca-fazer)
 
 ---
 
-## Como rodar na sua maquina
+## Como rodar na sua máquina
 
 Precisa de Node.js 22 ou mais novo (`node -v` para conferir).
 
 ```bash
 npm install
-cp .env.example .env.local   # preencha com os dados do seu Supabase
+cp .env.local.example .env.local   # preencha com os dados do seu Supabase
 npm run dev
 ```
 
@@ -82,20 +88,24 @@ A terceira e segredo de verdade: leia [Seguranca](#seguranca-o-que-nunca-fazer).
 
 ### 3. Criar as tabelas
 
-No painel do Supabase, abra **SQL Editor > New query**, cole o conteudo de
-`supabase/migrations/0001_perfis.sql` **inteiro** e clique em **Run**.
+No painel do Supabase, abra **SQL Editor > New query**, cole o conteúdo de
+`supabase/migrations/0002_estrutura_base.sql` **inteiro** e clique em **Run**.
+(Se o projeto for novo, rode a `0001_perfis.sql` antes — mas ela não é
+obrigatória: a 0002 cria tudo do zero e migra o que existir da 0001.)
 
 > **Cole o arquivo todo, sem deixar texto selecionado.** O SQL Editor roda
-> apenas a selecao quando existe uma. Rodar um pedaco do meio do arquivo da o
-> erro `relation "public.perfis" does not exist`, porque a tabela e criada no
-> comeco. Se aparecer esse erro, e so rodar o arquivo completo de novo: o
-> script pode ser executado quantas vezes for preciso.
+> apenas a seleção quando existe uma. Rodar um pedaço do meio do arquivo dá o
+> erro `relation "public.profiles" does not exist`, porque as tabelas são
+> criadas no começo. As migrations podem ser executadas quantas vezes for
+> preciso.
 
-Deu certo quando a ultima linha do resultado mostra `tudo pronto` com a
-contagem de perfis e de policies.
+Deu certo quando a última linha do resultado mostra `tudo pronto` com as
+contagens de profiles, clients, policies e tabelas com RLS (4).
 
-Essa migration cria a tabela `perfis`, liga ela ao sistema de login do Supabase
-e configura o RLS. Detalhes em [`supabase/README.md`](./supabase/README.md).
+A migration cria o tipo `user_role`, as tabelas `profiles`, `clients`,
+`client_users` e `team_members`, as funções de segurança reutilizadas por todo
+o RLS, e as políticas de cada tabela. Detalhes em
+[`supabase/README.md`](./supabase/README.md).
 
 ### 4. Cadastrar as URLs de retorno
 
@@ -110,31 +120,70 @@ links de "esqueci minha senha" voltam com erro.
 
 ---
 
-## Criando o primeiro usuario
+## Criando usuários
 
-O dashboard **nao tem tela de cadastro aberta**, de proposito: e um painel
-interno, e cadastro livre deixaria qualquer pessoa criar conta.
+A plataforma **não tem tela de cadastro aberta**, de propósito: é um sistema
+interno, e cadastro livre deixaria qualquer pessoa criar conta — e, pior,
+escolher o próprio perfil de acesso. Mantenha o cadastro desligado em
+**Authentication > Providers**.
 
-Para cada pessoa da equipe, no painel do Supabase:
+Para cada pessoa, no painel do Supabase:
 
 **Authentication > Users > Add user > Create new user**
 
-Preencha e-mail e senha e marque *Auto Confirm User*. O perfil em
-`public.perfis` e criado sozinho por um trigger.
+Preencha e-mail e senha, marque *Auto Confirm User* e, em **User Metadata**,
+coloque:
 
-Para tornar alguem administrador, rode no SQL Editor:
-
-```sql
-update public.perfis set papel = 'admin' where email = 'pessoa@suaagencia.com.br';
+```json
+{ "nome": "Ana Souza", "role": "socio" }
 ```
 
-> Se um dia quiser cadastro por convite dentro do proprio dashboard, o caminho
-> e uma rota administrativa usando `criarClienteAdmin()` de
-> `src/lib/supabase/admin.ts` — a estrutura ja esta pronta.
+Os valores possíveis de `role` são `cliente`, `colaborador`, `desenvolvedor` e
+`socio`. Sem metadata, a pessoa nasce como `colaborador`. O registro em
+`public.profiles` é criado sozinho por um trigger.
+
+Para mudar o perfil de alguém depois:
+
+```sql
+update public.profiles set role = 'desenvolvedor'
+where email = 'pessoa@fullconnectkey.com.br';
+```
+
+Isso funciona no SQL Editor porque ali não existe sessão de usuário. Dentro da
+plataforma, **só quem é `socio` altera o perfil de outra pessoa** — e ninguém
+altera o próprio.
+
+### Vincular um cliente a uma empresa
+
+Um usuário `cliente` só enxerga as empresas às quais está vinculado:
+
+```sql
+insert into public.client_users (client_id, user_id)
+values (
+  (select id from public.clients where nome_empresa = 'Cliente Alfa'),
+  (select id from public.profiles where email = 'contato@clientealfa.com.br')
+);
+```
+
+### Usuários de teste
+
+`supabase/seed.sql` cria quatro usuários, um de cada perfil, duas empresas e os
+vínculos. **Senha de todos: `FullHub@2026`.**
+
+| E-mail | Perfil | Cai em |
+| --- | --- | --- |
+| socia@fullconnectkey.com.br | socio | `/painel` |
+| dev@fullconnectkey.com.br | desenvolvedor | `/painel` |
+| colab@fullconnectkey.com.br | colaborador | `/painel` |
+| contato@clientealfa.com.br | cliente | `/portal` |
+
+O seed roda sozinho no ambiente local (`npx supabase db reset`). No projeto
+hospedado, crie as pessoas pelo painel e rode só o bloco final do arquivo, que
+cria empresas e vínculos. O próprio arquivo explica isso no topo.
 
 ---
 
-## Conferindo a conexao
+## Conferindo a conexão
 
 Tres formas, da mais rapida para a mais completa:
 
@@ -170,90 +219,102 @@ Supabase respondendo, tabela `perfis` existindo, e chave de servico presente
 
 ---
 
-## Como o projeto esta organizado
+## Como o projeto está organizado
 
 ```
 src/
-  proxy.ts                     Roda antes de cada requisicao: renova a sessao
-                               e barra rota privada sem login
+  proxy.ts                     Roda antes de cada requisição: renova a sessão
+                               e manda quem não está logado para o login
   app/
-    (auth)/                    Login, recuperar senha, nova senha
-    (dashboard)/               Tudo que exige login (tem sidebar e topo)
+    (auth)/                    login, esqueci-senha, redefinir-senha
+    (interno)/painel/          Painel Interno — exige perfil de equipe
+    (cliente)/portal/          Portal do Cliente — exige perfil cliente
     auth/callback/             Chegada dos links enviados por e-mail
-    status/                    Diagnostico da conexao
-    api/status/supabase/       Mesmo diagnostico em JSON
-  components/                  Sidebar, barra superior e componentes de UI
+    forbidden.tsx              Tela do HTTP 403
+    status/                    Diagnóstico da conexão
+    api/status/supabase/       O mesmo diagnóstico em JSON
+  components/ui/               shadcn/ui
+  components/shared/           Componentes do produto
+  hooks/                       Timeout de inatividade
   lib/
-    env.ts                     Leitura das variaveis de ambiente
-    navegacao.ts               Itens do menu lateral
-    auth/
-      dal.ts                   De onde sai "quem esta logado"
-      acoes.ts                 Entrar, sair, recuperar senha
-    supabase/
-      client.ts                Cliente para o navegador
-      server.ts                Cliente para o servidor
-      admin.ts                 Cliente com a chave de servico (so servidor)
-      proxy.ts                 Renovacao da sessao
-      diagnostico.ts           Checagens da conexao
-      database.types.ts        Tipos do banco
+    auth/roles.ts              Os 4 perfis, espelhando as funções SQL
+    auth/dal.ts                De onde sai "quem está logado"
+    auth/acoes.ts              Entrar, sair, recuperar senha
+    auth/esquemas.ts           Validação zod dos formulários
+    supabase/                  Clients, proxy, tipos, diagnóstico
 supabase/migrations/           SQL versionado do banco
+supabase/seed.sql              4 usuários de teste, 2 empresas
 scripts/
-  verificar-supabase.mjs       Testa a conexao pelo terminal
+  verificar-supabase.mjs       Testa a conexão pelo terminal
   prototipo.mjs                Gera as imagens das telas
-  prototipo/                   Dados e modulos de exemplo (nunca vao ao ar)
+  prototipo/                   Dados e módulos de exemplo (nunca vão ao ar)
 ```
 
-### As tres camadas de protecao
+### As três camadas de proteção
 
-Nada depende de uma barreira so:
+Nada depende de uma barreira só:
 
-1. **`src/proxy.ts`** manda para o login quem nao tem sessao. E a primeira
-   barreira, rapida, mas nao e a que garante seguranca.
-2. **`exigirSessao()`** roda dentro de cada pagina privada. Se o filtro do
-   proxy mudar por engano um dia, as paginas continuam protegidas.
-3. **RLS no Postgres** decide o que cada usuario consegue ler e escrever. Esta
-   e a protecao que realmente vale: ela funciona mesmo se alguem falar direto
-   com a API do Supabase, sem passar pelo nosso site.
+1. **`src/proxy.ts`** manda para o login quem não tem sessão. É rápido, mas não
+   é o que garante segurança.
+2. **`exigirEquipe()` / `exigirCliente()`** rodam no servidor, no layout de
+   cada área, e devolvem **HTTP 403** para quem está na área errada. Esconder o
+   link no menu não seria proteção nenhuma.
+3. **RLS no Postgres** decide o que cada pessoa lê e escreve. Esta é a que vale
+   de verdade: funciona mesmo que alguém chame a API do Supabase direto, sem
+   passar pelo nosso site.
 
-### Autenticacao: `getUser()`, nunca `getSession()`
+### Autenticação: `getUser()`, nunca `getSession()`
 
-No servidor, o codigo sempre usa `supabase.auth.getUser()`. Ele valida o token
-com o Supabase. `getSession()` apenas le o cookie, que o navegador pode ter
-adulterado — confiar nele no servidor seria uma falha de seguranca.
+No servidor, o código sempre usa `supabase.auth.getUser()`, que valida o token
+com o Supabase. `getSession()` apenas lê o cookie, que o navegador pode ter
+adulterado — confiar nele no servidor seria uma falha de segurança.
+
+### Timeout de inatividade
+
+Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
+Ele acessa de fora da agência, às vezes de um computador compartilhado. A
+equipe fica o dia todo no sistema e não tem esse timeout.
 
 ---
 
-## Adicionando um modulo
+## Adicionando um módulo
 
-O caminho e sempre o mesmo. Exemplo com um modulo de clientes:
+O caminho é sempre o mesmo. Exemplo com um módulo de tasks:
 
 ### 1. Migration com RLS
 
-Crie `supabase/migrations/0002_clientes.sql`:
+Crie `supabase/migrations/0003_tasks.sql`:
 
 ```sql
-create table public.clientes (
+create table public.tasks (
   id         uuid primary key default gen_random_uuid(),
-  nome       text not null,
-  status     text not null default 'ativo' check (status in ('ativo', 'pausado', 'encerrado')),
-  criado_em  timestamptz not null default now()
+  client_id  uuid not null references public.clients (id) on delete cascade,
+  titulo     text not null,
+  status     text not null default 'aberta'
+             check (status in ('aberta', 'em_andamento', 'concluida')),
+  created_at timestamptz not null default now()
 );
 
-alter table public.clientes enable row level security;
+alter table public.tasks enable row level security;
 
--- Sem policy, ninguem le nada. Esta abre leitura para quem esta logado:
-create policy "clientes: equipe le" on public.clientes
-  for select to authenticated using (true);
+-- A equipe lê tudo; o cliente lê apenas as das empresas dele.
+create policy tasks_select on public.tasks
+  for select to authenticated
+  using (public.is_staff() or client_id in (select public.my_client_ids()));
 
--- E escrita so para admin:
-create policy "clientes: admin escreve" on public.clientes
-  for all to authenticated using (public.e_admin()) with check (public.e_admin());
+-- Escrita para gestores.
+create policy tasks_write on public.tasks
+  for all to authenticated
+  using (public.is_gestor()) with check (public.is_gestor());
 ```
 
 Aplique no SQL Editor do Supabase.
 
-> **Nunca pule o `enable row level security`.** Sem ele, a tabela fica legivel
+> **Nunca pule o `enable row level security`.** Sem ele, a tabela fica legível
 > por qualquer pessoa com a chave anon — que vai no bundle do navegador.
+
+Reaproveite `is_staff()`, `is_gestor()`, `is_socio()` e `my_client_ids()` em
+vez de repetir a consulta em cada policy.
 
 ### 2. Atualizar os tipos
 
@@ -261,61 +322,60 @@ Aplique no SQL Editor do Supabase.
 npx supabase gen types typescript --linked > src/lib/supabase/database.types.ts
 ```
 
-### 3. Criar a pagina
+### 3. Criar a página
 
-`src/app/(dashboard)/clientes/page.tsx`:
+`src/app/(interno)/painel/tasks/page.tsx`:
 
 ```tsx
-import { exigirSessao } from "@/lib/auth/dal";
+import { exigirEquipe } from "@/lib/auth/dal";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
-export default async function PaginaDeClientes() {
-  await exigirSessao();
+export default async function PaginaDeTasks() {
+  await exigirEquipe();
 
   const supabase = await criarClienteServidor();
-  const { data: clientes } = await supabase
-    .from("clientes")
+  const { data: tasks } = await supabase
+    .from("tasks")
     .select("*")
-    .order("nome");
+    .order("created_at", { ascending: false });
 
-  return <pre>{JSON.stringify(clientes, null, 2)}</pre>;
+  return <pre>{JSON.stringify(tasks, null, 2)}</pre>;
 }
 ```
 
-### 4. Adicionar ao menu
+A mesma página no Portal ficaria em `src/app/(cliente)/portal/tasks/`, com
+`exigirCliente()` — e sem filtro por empresa no código, porque o RLS já limita
+o resultado.
 
-Em `src/lib/navegacao.ts`:
+### 4. Acrescentar ao protótipo
 
-```ts
-import { Users } from "lucide-react";
-// ...
-{ rotulo: "Clientes", href: "/clientes", Icone: Users },
-```
-
-Pronto. Item ativo, versao mobile e protecao de rota ja funcionam sozinhos.
+Dados fictícios em `scripts/prototipo/dados-exemplo.ts` e a tela nova na lista
+`TELAS` de `scripts/prototipo.mjs`.
 
 ---
 
-## Gerando prototipos para validacao
+## Gerando protótipos para validação
 
 ```bash
 npm run prototipo
 ```
 
-Gera uma imagem de cada tela em `prototipos/`, para aprovar o visual antes de
-qualquer coisa ir para o ar. Nao precisa de Supabase, de login nem de deploy.
+Gera uma imagem de cada tela em `prototipos/` — login, painel, portal, acesso
+negado, em tema claro e escuro, desktop e celular — para aprovar o visual antes
+de qualquer coisa ir para o ar. Não precisa de Supabase, de login nem de deploy.
 
 ### Como funciona, e por que dessa forma
 
-O projeto e copiado para `.prototipo/`. **So nessa copia**, quatro modulos sao
-trocados por versoes de exemplo que ficam em `scripts/prototipo/`, usando
-apelidos de caminho do TypeScript. Nenhum arquivo de `src/` e alterado, e a
-copia e apagada no fim.
+O projeto é copiado para `.prototipo/`. **Só nessa cópia**, os módulos de
+sessão e de diagnóstico são trocados por versões de exemplo que ficam em
+`scripts/prototipo/`, usando apelidos de caminho do TypeScript, e o `proxy.ts`
+é substituído por um que deixa tudo passar. Nenhum arquivo de `src/` é
+alterado, e a cópia é apagada no fim.
 
 Esse cuidado tem um motivo: gerar as telas exige um modo que pula o login. Se
-esse codigo morasse dentro de `src/`, uma variavel de ambiente errada em
-producao poderia abrir o dashboard inteiro. Do jeito que esta, o codigo que
-pula o login **nao existe** no app publicado.
+esse código morasse dentro de `src/`, uma variável de ambiente errada em
+produção poderia abrir a plataforma inteira. Do jeito que está, o código que
+pula o login **não existe** no app publicado.
 
 Para conferir voce mesmo, depois de um `npm run build` comum:
 
@@ -323,14 +383,16 @@ Para conferir voce mesmo, depois de um `npm run build` comum:
 curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:3000/dashboard
 ```
 
-Sem sessao, precisa responder `307` redirecionando para `/login` (ou `/status`,
-quando o Supabase ainda nao esta configurado).
+Sem sessão, precisa responder `307` redirecionando para `/login` (ou `/status`,
+quando o Supabase ainda não está configurado).
 
 ### A cada sprint
 
-1. Acrescente os dados ficticios do modulo novo em
+1. Acrescente os dados fictícios do módulo novo em
    `scripts/prototipo/dados-exemplo.ts`
 2. Acrescente a tela na lista `TELAS`, no topo de `scripts/prototipo.mjs`
+3. Telas que só existem para o protótipo (como a de 403) viram rotas em
+   `scripts/prototipo/extras/`
 
 Se um dos modulos reais ganhar uma funcao nova, o build do prototipo falha
 avisando qual falta -- e so acrescentar na versao de exemplo correspondente.
@@ -380,7 +442,7 @@ npm ci
 ### 3. Configurar as variaveis
 
 ```bash
-cp .env.example .env.local
+cp .env.local.example .env.local
 nano .env.local
 ```
 
@@ -457,7 +519,7 @@ pm2 restart full-hub  # reiniciar
 
 ---
 
-## Quando o dominio chegar
+## Quando o domínio chegar
 
 Voce consegue desenvolver e ate colocar no ar sem dominio nenhum — o item 4
 acima ja deixa o painel acessivel pelo IP. Quando o dominio existir:
@@ -489,9 +551,9 @@ acima ja deixa o painel acessivel pelo IP. Quando o dominio existir:
 
 ---
 
-## Seguranca: o que nunca fazer
+## Segurança: o que nunca fazer
 
-- **Nao comite o `.env.local`.** O `.gitignore` ja bloqueia; nao force.
+- **Não comite o `.env.local`.** O `.gitignore` ja bloqueia; nao force.
 - **Nunca use a `service_role` no navegador.** Ela ignora todo o RLS: quem tem
   essa chave le e escreve qualquer coisa no banco. Ela so pode ser usada em
   codigo de servidor. `src/lib/supabase/admin.ts` importa `server-only`
