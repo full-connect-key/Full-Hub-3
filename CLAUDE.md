@@ -159,9 +159,17 @@ criaria dois lugares para a mesma verdade.
 
 ### Tipos de tarefa e workflows
 
-Workflow é o fluxo fixo de subtarefas de um tipo de trabalho. O tipo de tarefa
-é o atalho que a pessoa escolhe — ela não precisa saber que existe um objeto
-chamado workflow.
+**Tipo de tarefa e workflow são a mesma coisa para quem usa.** Um tipo — "Post
+de feed", "Campanha" — CARREGA a cadeia fixa de etapas que toda demanda daquele
+tipo percorre. No banco são duas tabelas (`task_types` guarda o nome e o
+alcance, `workflow_templates` + `workflow_steps` guardam as etapas) porque em
+tese dois tipos poderiam compartilhar um fluxo, mas isso é detalhe de
+armazenamento: **a tela nunca mostra a divisão, e as duas são gravadas juntas
+pela mesma ação.**
+
+Eram duas abas até o Sprint 3C, e ninguém entendia por quê — com razão. Dava
+para criar um tipo sem fluxo (a task nascia vazia) ou um fluxo sem tipo
+(ninguém conseguia escolher, porque o formulário de nova task lista tipos).
 
 - O prazo da etapa é `prazo_offset_dias`, contado do início da Task. Data fixa
   num modelo reutilizável faria toda demanda nova nascer vencida.
@@ -172,6 +180,8 @@ chamado workflow.
   nenhuma Task existente.
 - Criar Task sem tipo e montar as etapas à mão é caminho de primeira classe,
   não plano B.
+- "Salvar as subtarefas desta task como tipo de tarefa" cria o **tipo**, não só
+  o fluxo. Criar só o fluxo deixava o modelo inalcançável.
 
 ### Tempo, sempre em minutos
 
@@ -180,6 +190,77 @@ e aceita `2h30`, `2,5h`, `150` e `90min` — a conversão é de
 `lib/dominio/tempo.ts`. Hora decimal é uma conta que a pessoa faz de cabeça
 antes de digitar, e arredondamento transformava "vinte minutos" em 0,33 e de
 volta em 19,8.
+
+### Identidade visual
+
+Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
+`--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
+o único arquivo com cor literal** — os nomes do shadcn (`--primary`, `--muted`,
+`--border`) apontam para os tokens da marca, e é isso que faz a interface
+inteira mudar sem tocar em componente.
+
+**A regra que não se quebra:** texto branco sobre `--brand-blue` dá 1.7:1. Em
+uma frase — *azul claro pede texto escuro; texto branco pede azul escuro.*
+
+- botão primário = fundo `--brand-blue` + texto `--text-primary`;
+- link e ícone em fundo claro = `--accent-strong`, que é "o azul legível no
+  tema de agora": azul escuro no claro, azul da marca no escuro;
+- item ativo na barra lateral escura = `--brand-blue`, que é onde essa cor
+  funciona como texto;
+- fundo cheio de cor + texto branco = `--blue-strong`.
+
+Selo de estado usa o **par nomeado** (`bg-warning-soft text-warning`), nunca
+`bg-warning/10`: opacidade sobre um fundo qualquer dá uma cor que ninguém
+mediu, e no tema escuro dá outra.
+
+Prioridade **Normal é cinza**. Era azul, e azul numa tela cujo destaque é azul
+fazia a prioridade mais comum competir com Alta e Urgente.
+
+`npm run check:cores` é a prova: mede 26 pares texto/fundo nos dois temas
+(mínimo 4.5:1 normal, 3:1 grande e elemento de interface), acusa hex fora do
+arquivo de tokens, e confere se toda classe de cor existe no `@theme inline` —
+no Tailwind v4 um utilitário desconhecido não dá erro, só não gera CSS, e a
+tela fica sem a cor sem ninguém notar.
+
+### Portais de Clientes
+
+A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login
+como cliente:** a sessão continua sendo a da pessoa da agência, com o
+`auth.uid()` dela, nenhum token é trocado. A gestão já podia ler esses dados
+pelo painel — o que a rota acrescenta é o arranjo, ver a informação na tela em
+que o cliente a vê.
+
+Três coisas garantem que seja só leitura, e **só a terceira é trava**: a faixa
+de aviso presa no topo, os botões de decisão desligados, e
+`decidir_rodada_do_cliente` no Postgres, que recusa quem não é o cliente
+daquela rodada. Montar a chamada à mão não adianta.
+
+Cada abertura vira linha em `client_portal_views` — insumo da auditoria do
+Sprint 16. A RLS só aceita a linha em nome de quem está logado, e não existe
+policy de DELETE.
+
+Abaixo de `/portal` há duas entradas com donos diferentes, e por isso a guarda
+não mora no layout de `/portal`: `(meu)/` é do cliente com `exigirCliente()`,
+`[slug]/` é da gestão. Uma guarda única no nível de cima teria que aceitar as
+duas, que é o mesmo que não guardar nenhuma.
+
+O slug sai do nome da empresa e **não pode ser uma palavra que já é rota**
+(`campanhas`, `aprovacoes`, `painel`…): no Next a rota estática ganha da
+dinâmica, então o portal daquele cliente é que nunca abriria.
+
+### O Resumo Semanal é privado
+
+`weekly_entries` fecha em `user_id = auth.uid()` nas quatro operações. **Nem o
+sócio lê o registro de outra pessoa.** É a memória de quem trabalhou, e o
+Sprint 7 vai usá-la na conversa de desenvolvimento individual. Se um dia a
+agência quiser que a gestão leia, que seja decisão explícita com policy nova e
+aviso na tela — não um descuido.
+
+A semana é de **segunda a domingo**, escrito à mão em toda chamada do date-fns
+(`lib/dominio/semanas.ts`): o locale pt-BR começa no domingo, que é a convenção
+de calendário de parede, e aqui a unidade é a semana de trabalho. A semana sai
+da data por cálculo e **nunca é gravada**: coluna de semana ao lado da data é
+um jeito de as duas discordarem.
 
 ### Timeout de sessão
 
@@ -326,6 +407,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run build` | Build de produção |
 | `npm run lint` / `npm run typecheck` | Padrões e tipos |
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
+| `npm run check:cores` | Contraste dos pares texto/fundo e cor literal fora dos tokens |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
@@ -333,6 +415,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 3C | Tela inicial, menu definitivo e Portais de Clientes: identidade visual em tokens com `npm run check:cores` provando 26 pares de contraste e nenhum hex solto; menu em duas seções (Principal / Gestão com selo Admin) com Diário→Resumo Semanal e Minhas Skills→Meu Desenvolvimento redirecionando em 308; barra lateral escura com cartão da pessoa separando nome, cargo e perfil; tela inicial com boas-vindas, Acesso Rápido e a grade de Portais de Clientes; `/portal/{slug}` para a gestão ver o portal de um cliente em modo leitura, com faixa de aviso, registro em `client_portal_views` e a recusa valendo no banco; Resumo Semanal organizado por semana com registro privado; Notas Fiscais como módulo da pessoa; Financeiro Pessoal em aba dentro de Meu perfil. |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
 | Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |
 | Sprint 3B | A subtarefa vira a unidade de trabalho: a Task perde responsável, prazo e tempo próprios e ganha período; migration preservando toda atribuição existente como subtarefa "Execução"; máquina de estados no banco (conclusão bloqueada sem aprovação, dependência travando o início, ninguém aprovando a si mesmo, ciclo recusado); status da Task calculado por trigger com `entregue` e `cancelada` como únicos manuais; fluxo de aprovação em rodadas que nunca se sobrescrevem, com aval interno sempre antes do envio ao cliente; tipos de tarefa e workflows com snapshot; tela `/painel/workflows`, fila `/painel/aprovacoes-internas` e aprovação do cliente no Portal; tempo em minutos com entrada flexível; e 61 cenários de RLS em `supabase/testes/`. |
