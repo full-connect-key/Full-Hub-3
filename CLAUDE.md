@@ -57,7 +57,7 @@ Funções SQL que traduzem isso, reutilizadas por todo o RLS:
 | `is_gestor()` | desenvolvedor, socio |
 | `is_socio()` | socio |
 | `my_client_ids()` | ids das empresas do cliente logado |
-| `is_atendimento()` | quem está no Atendimento, mais a gestão |
+| `is_atendimento()` | quem está no Atendimento, mais a gestão — **é quem cria task** |
 
 ### Regra da função Atendimento
 
@@ -70,7 +70,12 @@ o perfil diz o que a pessoa alcança na plataforma, a função diz o que ela faz
 no dia a dia.
 
 A regra mora na função SQL `is_atendimento()` — verdadeira para quem está no
-Atendimento **ou** para gestão. Nenhum módulo deve repetir essa consulta.
+Atendimento **ou** para gestão. Nenhum módulo deve repetir essa consulta: a
+tela pergunta ao banco com `souDoAtendimento()`, que chama a mesma função por
+RPC. Assim o botão "Nova task" e a policy `tasks_insert` nunca divergem.
+
+Quem não é do Atendimento **recebe** demanda, não abre: cria subtarefa dentro
+de uma task que é dele, comenta e atualiza o próprio andamento.
 
 ### Timeout de sessão
 
@@ -142,9 +147,21 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - **Pessoa e cliente nunca são apagados quando têm histórico.** Desligar é
   `ativo = false` mais revogação do acesso; o nome continua nos registros
   antigos, porque é isso que preserva a autoria do que foi feito.
-- `DateBadge` é para prazo. Data que só registra quando algo aconteceu
-  (admissão, cadastro, último acesso) se formata com date-fns — senão o
-  passado aparece em vermelho como se fosse atraso.
+- `DateBadge` é para prazo **a vencer**. Data que só registra quando algo
+  aconteceu (admissão, cadastro, último acesso) — ou prazo de item já
+  concluído — se formata com date-fns, senão o passado aparece em vermelho
+  como se fosse atraso.
+- **O que é "meu" inclui a subtarefa dentro da task de outra pessoa.** É como
+  a produção funciona: o redator escreve dentro de uma task do social media.
+  Minhas Tasks conta ITENS (task + subtarefa), e é por isso que o contador
+  bate com a lista — os dois passam por `situacaoDoPrazo()` e
+  `combinaComFoco()`, em `lib/dominio/tasks.ts`.
+- **Hoje e fim da semana são calculados no servidor e passados adiante.** Se
+  cada tela lesse o relógio, o navegador em outro fuso classificaria um prazo
+  de forma diferente do contador.
+- **Concluir pergunta o tempo real, e dá para pular.** Pergunta obrigatória
+  vira número inventado, que é pior que campo vazio — entra no relatório como
+  se fosse medição. O componente é `DialogoDeTempo`.
 - **Função não atravessa a fronteira servidor/cliente.** Uma função pura que
   os dois lados usam vai para `lib/dominio/`; `lib/dados/` é `server-only` e o
   que sai de lá são dados, nunca funções.
@@ -207,6 +224,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
 | Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |
+| Sprint 4 | Minhas Tasks: visão pessoal em `/painel/minhas-tasks` para todo perfil interno, mostrando as tasks onde a pessoa é responsável **e** as subtarefas dela dentro de tasks alheias; três contadores clicáveis (atrasadas, para hoje, esta semana) que filtram e batem com as listas; widget "Meu dia" com conclusão em um clique; board, lista e calendário reaproveitados por parâmetro (clique abre painel lateral, card de task alheia não arrasta); calendário com barra colorida por situação, rótulo Entrega/Etapa, chip do cliente e legenda; detalhe em painel lateral sem trocar de página; criação de task restrita a `is_atendimento()` na interface e na policy; e registro de tempo ao concluir task ou subtarefa, com a estimativa sugerida e opção de pular. |
 | Sprint 3 | Gestão de Tasks: tabelas `tasks` / `subtasks` / `task_referencias` / `task_comentarios` com RLS por `pode_editar_task()`, board com arrastar e soltar otimista, lista com edição inline e ações em massa, calendário mensal e semanal mostrando prazo de task e de subtarefa separados, editor rico TipTap no briefing, detalhe em duas colunas com comentários e referências em bucket privado, filtros na URL e atalhos N e /. |
 | Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários no servidor com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |
 | Sprint 1 | Estrutura do dashboard: `lib/auth/permissions.ts` como fonte única do menu e das permissões, menu lateral colapsável com seções e gaveta no celular, topbar com trilha, busca (casca), sino e menu do usuário, 15 rotas placeholder validando o perfil no servidor, cor de marca em variável CSS, 10 componentes compartilhados com vitrine em `/painel/dev/componentes`, e o casco do Portal do Cliente com navegação superior. Nenhuma tabela nova. |

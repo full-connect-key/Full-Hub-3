@@ -11,9 +11,10 @@ da equipe vê o histórico de mudanças do schema.
 | `0003_equipe_e_clientes.sql` | Enum `team_funcao`, colunas de RH e de cliente, `is_atendimento()` e o bucket de avatares. |
 | `0004_tasks.sql` | Tasks, subtarefas, referências e comentários, com `pode_editar_task()` e o bucket privado `task-arquivos`. |
 | `0005_escrita_e_permissoes.sql` | Policies separadas por comando (INSERT/UPDATE/DELETE), DELETE só de sócio, o cliente editando o próprio contato e o trigger de criação de perfil que não derruba mais o cadastro. |
+| `0006_minhas_tasks.sql` | Criar task passa a exigir `is_atendimento()`; quem é responsável por uma subtarefa passa a poder atualizar a dela. |
 | `seed.sql` | 6 pessoas na equipe, 3 usuários de cliente, 3 empresas e os vínculos. |
 
-Rode na ordem: `0002`, `0003`, `0004`, `0005`. A `0001` só interessa a quem
+Rode na ordem: `0002`, `0003`, `0004`, `0005`, `0006`. A `0001` só interessa a quem
 aplicou a primeira versão. Todas podem rodar mais de uma vez.
 
 ## Aplicando uma migration
@@ -55,6 +56,7 @@ npx supabase gen types typescript --linked > ../src/lib/supabase/database.types.
 | `auth_role()`, `is_staff()`, `is_gestor()`, `is_socio()`, `my_client_ids()` | Base de todo o RLS |
 | `is_atendimento()` (0003) | Atendimento mais gestão — quem pode criar tasks |
 | `pode_editar_task(id)` (0004) | Atendimento, gestão ou o responsável pela task |
+| `is_atendimento()` (0006) | Também é quem pode CRIAR task — a policy `tasks_insert` não aceita mais ninguém |
 | policies | Quem lê e quem escreve em cada tabela. A partir da 0005 são uma por comando: `clients_insert`, `clients_update_gestor`, `clients_update_proprio`, `clients_delete`, e assim por diante. Policy de SELECT sozinha bloqueia a escrita sem dar erro — o `update` simplesmente não encontra a linha. |
 | `protect_client_columns()` + trigger (0005) | O usuário cliente edita só `nome_contato`, `email_contato` e `telefone` da própria empresa |
 

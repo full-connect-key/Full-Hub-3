@@ -28,15 +28,40 @@ function roleDoAmbiente(): UserRole {
   return pedido && PERFIS_VALIDOS.includes(pedido) ? pedido : "socio";
 }
 
-const NOMES: Record<string, { nome: string; email: string }> = {
-  socio: { nome: "Ana Souza", email: "socia@fullconnectkey.com.br" },
-  desenvolvedor: { nome: "Diego Reis", email: "dev@fullconnectkey.com.br" },
-  colaborador: { nome: "Carla Nunes", email: "colab@fullconnectkey.com.br" },
+const NOMES: Record<string, { id: string; nome: string; email: string }> = {
+  socio: {
+    id: "a0000000-0000-0000-0000-000000000001",
+    nome: "Ana Souza",
+    email: "socia@fullconnectkey.com.br",
+  },
+  desenvolvedor: {
+    id: "a0000000-0000-0000-0000-000000000002",
+    nome: "Diego Reis",
+    email: "dev@fullconnectkey.com.br",
+  },
+  colaborador: {
+    id: "a0000000-0000-0000-0000-000000000003",
+    nome: "Carla Nunes",
+    email: "colab@fullconnectkey.com.br",
+  },
+  // Mesmo perfil de acesso, outra funcao na agencia: e quem NAO cria task.
+  "colaborador-social": {
+    id: "a0000000-0000-0000-0000-000000000005",
+    nome: "Marina Costa",
+    email: "social@fullconnectkey.com.br",
+  },
 };
+
+/** Colaborador tem duas variantes: a do Atendimento e a de Social Media. */
+function chaveDoUsuario(): string {
+  const role = roleDoAmbiente();
+  if (role !== "colaborador") return role;
+  return process.env["PROTOTIPO_FUNCAO"] === "Atendimento" ? "colaborador" : "colaborador-social";
+}
 
 function profileDaEquipe(): Profile {
   const role = roleDoAmbiente();
-  return { ...PROFILE_EQUIPE, ...NOMES[role], role };
+  return { ...PROFILE_EQUIPE, ...NOMES[chaveDoUsuario()], role };
 }
 
 function sessaoDe(profile: Profile): Sessao {

@@ -63,6 +63,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
             subtarefas={task.subtarefas}
             equipe={equipe}
             podeEditar={podeEditar}
+            usuarioId={sessao.usuarioId}
           />
 
           <Referencias

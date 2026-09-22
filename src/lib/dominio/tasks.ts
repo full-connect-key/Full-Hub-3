@@ -86,3 +86,66 @@ export function ehImagem(nome: string | null): boolean {
   if (!nome) return false;
   return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(nome);
 }
+
+/**
+ * Situação de um prazo, do ponto de vista de quem entrega.
+ *
+ * É o vocabulário de Minhas Tasks: os três contadores do cabeçalho, as cores
+ * do calendário e o filtro rápido saem todos daqui. Ter um lugar só é o que
+ * garante que o número do contador bata com o que a lista mostra — se cada
+ * tela calculasse por conta, um dia divergiriam.
+ *
+ * `hoje` e `fimDaSemana` chegam por parâmetro, em vez de serem lidos do
+ * relógio aqui dentro: o servidor calcula uma vez e passa adiante, e assim o
+ * navegador do usuário não classifica diferente por estar em outro fuso.
+ */
+export type SituacaoDePrazo = "concluida" | "atrasada" | "hoje" | "semana" | "futura" | "sem-prazo";
+
+export function situacaoDoPrazo(
+  prazo: string | null,
+  concluido: boolean,
+  hoje: string,
+  fimDaSemana: string,
+): SituacaoDePrazo {
+  if (concluido) return "concluida";
+  if (!prazo) return "sem-prazo";
+  if (prazo < hoje) return "atrasada";
+  if (prazo === hoje) return "hoje";
+  if (prazo <= fimDaSemana) return "semana";
+  return "futura";
+}
+
+/** Os três focos do cabeçalho. "Esta semana" inclui hoje e o que está atrasado. */
+export type FocoDoDia = "atrasadas" | "hoje" | "semana";
+
+export function combinaComFoco(situacao: SituacaoDePrazo, foco: FocoDoDia | null): boolean {
+  if (!foco) return true;
+  if (foco === "atrasadas") return situacao === "atrasada";
+  if (foco === "hoje") return situacao === "hoje";
+  return situacao === "atrasada" || situacao === "hoje" || situacao === "semana";
+}
+
+export const ROTULOS_DE_FOCO: Record<FocoDoDia, string> = {
+  atrasadas: "Atrasadas",
+  hoje: "Para hoje",
+  semana: "Esta semana",
+};
+
+/**
+ * Cor de cada situação, usada no calendário e na legenda dele.
+ *
+ * Vencido é vermelho e vence hoje é âmbar mesmo quando a prioridade é baixa:
+ * o que aperta é a data, não a importância. Só o que está no futuro usa a cor
+ * da prioridade.
+ */
+export const COR_DA_SITUACAO: Record<Exclude<SituacaoDePrazo, "futura">, string> = {
+  atrasada: "bg-destructive",
+  hoje: "bg-warning",
+  semana: "bg-info",
+  concluida: "bg-muted-foreground/40",
+  "sem-prazo": "bg-muted-foreground/40",
+};
+
+export function corDoPrazo(situacao: SituacaoDePrazo, prioridade: TaskPrioridade): string {
+  return situacao === "futura" ? COR_DA_PRIORIDADE[prioridade] : COR_DA_SITUACAO[situacao];
+}

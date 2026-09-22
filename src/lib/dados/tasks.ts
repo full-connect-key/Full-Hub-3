@@ -40,11 +40,25 @@ export type TaskDaLista = Task & {
   responsavel: Pessoa | null;
   subtarefasTotal: number;
   subtarefasConcluidas: number;
+  /**
+   * Soma do tempo das subtarefas — o real quando existe, senão a estimativa.
+   * É a sugestão que aparece ao concluir a task-mãe: quem tocou as etapas já
+   * registrou o tempo delas, e somar é melhor palpite que estimativa antiga.
+   */
+  tempoDasSubtarefas: number;
 };
 
 const HOJE = () => new Date().toISOString().slice(0, 10);
 
-async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
+/**
+ * Completa as tasks com cliente, responsável e contagem de subtarefas.
+ *
+ * Exportada porque Minhas Tasks monta a própria consulta — ela precisa das
+ * tasks que têm subtarefa minha, e não só das que são minhas — mas o formato
+ * da linha tem de ser exatamente o mesmo, senão board, lista e calendário
+ * precisariam de duas versões.
+ */
+export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   if (tasks.length === 0) return [];
   const supabase = await criarClienteServidor();
 
@@ -60,7 +74,7 @@ async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
       : Promise.resolve({ data: [] as Pessoa[] }),
     supabase
       .from("subtasks")
-      .select("task_id, concluida")
+      .select("task_id, concluida, tempo_real_horas, estimativa_horas")
       .in(
         "task_id",
         tasks.map((t) => t.id),
@@ -70,22 +84,24 @@ async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 
-  const contagem = new Map<string, { total: number; concluidas: number }>();
+  const contagem = new Map<string, { total: number; concluidas: number; tempo: number }>();
   for (const sub of subtarefas ?? []) {
-    const atual = contagem.get(sub.task_id) ?? { total: 0, concluidas: 0 };
+    const atual = contagem.get(sub.task_id) ?? { total: 0, concluidas: 0, tempo: 0 };
     atual.total += 1;
     if (sub.concluida) atual.concluidas += 1;
+    atual.tempo += Number(sub.tempo_real_horas ?? sub.estimativa_horas ?? 0);
     contagem.set(sub.task_id, atual);
   }
 
   return tasks.map((task) => {
-    const resumo = contagem.get(task.id) ?? { total: 0, concluidas: 0 };
+    const resumo = contagem.get(task.id) ?? { total: 0, concluidas: 0, tempo: 0 };
     return {
       ...task,
       cliente: task.client_id ? (porCliente.get(task.client_id) ?? null) : null,
       responsavel: task.responsavel_id ? (porPessoa.get(task.responsavel_id) ?? null) : null,
       subtarefasTotal: resumo.total,
       subtarefasConcluidas: resumo.concluidas,
+      tempoDasSubtarefas: Math.round(resumo.tempo * 100) / 100,
     };
   });
 }

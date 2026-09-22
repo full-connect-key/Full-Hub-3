@@ -4,19 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,17 +48,26 @@ export function LateralDaTask({
   equipe,
   clientes,
   podeEditar,
+  podeGerenciar = podeEditar,
 }: {
   task: TaskCompleta;
   equipe: { id: string; nome: string }[];
   clientes: { id: string; nome_empresa: string }[];
+  /** Status, prioridade, estimativa e tempo real: quem é responsável. */
   podeEditar: boolean;
+  /**
+   * Cliente, responsável e prazo da task-mãe: só quem gerencia.
+   *
+   * Quem apenas executa toca no próprio andamento, não em quem entrega nem
+   * em quando. Sem esta separação, o responsável poderia empurrar o próprio
+   * prazo — e o combinado com o cliente deixaria de valer. Por padrão segue
+   * `podeEditar`, que é o comportamento da Gestão de Tasks.
+   */
+  podeGerenciar?: boolean;
 }) {
   const router = useRouter();
   const [, iniciar] = useTransition();
   const [perguntandoTempo, setPerguntandoTempo] = useState(false);
-  const [tempoReal, setTempoReal] = useState("");
-  const [salvandoTempo, setSalvandoTempo] = useState(false);
 
   const somaDasSubtarefas = task.subtarefas.reduce(
     (total, sub) => total + (sub.tempo_real_horas ?? sub.estimativa_horas ?? 0),
@@ -86,34 +87,29 @@ export function LateralDaTask({
     });
   }
 
+  const sugestaoDeTempo =
+    task.tempo_real_horas ?? (somaDasSubtarefas > 0 ? somaDasSubtarefas : task.estimativa_horas);
+
   function mudarStatus(novo: TaskStatus) {
     if (novo === "concluida") {
-      setTempoReal(
-        task.tempo_real_horas?.toString() ??
-          (somaDasSubtarefas > 0 ? String(somaDasSubtarefas) : ""),
-      );
       setPerguntandoTempo(true);
       return;
     }
     salvar({ status: novo });
   }
 
-  async function concluir(comTempo: boolean) {
-    setSalvandoTempo(true);
-    try {
-      const campos: Record<string, unknown> = { status: "concluida" };
-      if (comTempo && tempoReal !== "") campos.tempo_real_horas = Number(tempoReal);
+  async function concluir(horas: number | null): Promise<boolean> {
+    const campos: Record<string, unknown> = { status: "concluida" };
+    if (horas !== null) campos.tempo_real_horas = horas;
 
-      const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
-      if (!resultado.ok) toast.error(resultado.error);
-      else {
-        toast.success("Task concluída.");
-        setPerguntandoTempo(false);
-        router.refresh();
-      }
-    } finally {
-      setSalvandoTempo(false);
+    const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return false;
     }
+    toast.success("Task concluída.");
+    router.refresh();
+    return true;
   }
 
   return (
@@ -122,7 +118,7 @@ export function LateralDaTask({
         <Campo rotulo="Cliente">
           <Select
             value={task.client_id ?? SEM_VALOR}
-            disabled={!podeEditar}
+            disabled={!podeGerenciar}
             onValueChange={(v) => salvar({ client_id: v === SEM_VALOR ? null : v })}
           >
             <SelectTrigger className="w-full">
@@ -142,7 +138,7 @@ export function LateralDaTask({
         <Campo rotulo="Responsável">
           <Select
             value={task.responsavel_id ?? SEM_VALOR}
-            disabled={!podeEditar}
+            disabled={!podeGerenciar}
             onValueChange={(v) => salvar({ responsavel_id: v === SEM_VALOR ? null : v })}
           >
             <SelectTrigger className="w-full">
@@ -201,7 +197,7 @@ export function LateralDaTask({
           <div className="space-y-1.5">
             <Input
               type="date"
-              disabled={!podeEditar}
+              disabled={!podeGerenciar}
               defaultValue={task.prazo ?? ""}
               onBlur={(e) => e.target.value !== (task.prazo ?? "") && salvar({ prazo: e.target.value || null })}
             />
@@ -271,50 +267,20 @@ export function LateralDaTask({
         </dl>
       </aside>
 
-      <Dialog open={perguntandoTempo} onOpenChange={setPerguntandoTempo}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Quanto tempo levou?</DialogTitle>
-            <DialogDescription>
-              Registrar o tempo real é o que permite comparar com a estimativa depois. Dá para
-              pular e preencher outra hora.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-2">
-            <Label htmlFor="tempo-real">Tempo real (horas)</Label>
-            <Input
-              id="tempo-real"
-              type="number"
-              min={0}
-              step="0.5"
-              value={tempoReal}
-              onChange={(e) => setTempoReal(e.target.value)}
-              autoFocus
-            />
-            {somaDasSubtarefas > 0 ? (
-              <p className="text-muted-foreground text-xs">
-                As subtarefas somam {somaDasSubtarefas}h — é o valor sugerido.
-              </p>
-            ) : null}
-            {task.estimativa_horas ? (
-              <p className="text-muted-foreground text-xs">
-                A estimativa era de {task.estimativa_horas}h.
-              </p>
-            ) : null}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => concluir(false)} disabled={salvandoTempo}>
-              Concluir sem informar
-            </Button>
-            <Button onClick={() => concluir(true)} disabled={salvandoTempo}>
-              {salvandoTempo ? <Loader2 className="animate-spin" /> : null}
-              Concluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DialogoDeTempo
+        aberto={perguntandoTempo}
+        aoFechar={() => setPerguntandoTempo(false)}
+        titulo="Concluir esta task"
+        sugestao={sugestaoDeTempo}
+        origemDaSugestao={
+          somaDasSubtarefas > 0
+            ? `As subtarefas somam ${somaDasSubtarefas}h — é o valor sugerido.`
+            : task.estimativa_horas
+              ? `A estimativa era de ${task.estimativa_horas}h.`
+              : undefined
+        }
+        aoConcluir={concluir}
+      />
     </>
   );
 }

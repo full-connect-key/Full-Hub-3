@@ -7,7 +7,9 @@ import { EQUIPE_EXEMPLO } from "./dados-exemplo";
 
 export type MembroDaEquipe = Profile & { membro: TeamMember | null };
 
-export async function listarEquipe(_incluirDesligados = false): Promise<MembroDaEquipe[]> {
+// O parametro existe para a assinatura bater com a do modulo real; aqui o
+// conjunto de exemplo e sempre o mesmo.
+export async function listarEquipe(): Promise<MembroDaEquipe[]> {
   return EQUIPE_EXEMPLO as unknown as MembroDaEquipe[];
 }
 

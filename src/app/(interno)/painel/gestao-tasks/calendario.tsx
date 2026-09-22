@@ -20,7 +20,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COR_DA_PRIORIDADE, estaVencida } from "@/lib/dominio/tasks";
+import { ROTULOS_DE_PRIORIDADE, corDoPrazo, situacaoDoPrazo } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import { cn } from "@/lib/utils";
 
@@ -31,15 +31,26 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
  * Calendário de prazos.
  *
  * Mostra dois níveis no mesmo dia: o prazo da task e o de cada subtarefa. A
- * subtarefa vem com borda tracejada e um ponto menor, para ninguém confundir
- * uma etapa interna com a entrega final.
+ * subtarefa vem com borda tracejada e o rótulo "Etapa", para ninguém confundir
+ * um passo interno com a entrega final.
+ *
+ * A pergunta que ele tem de responder de relance é "o que entrega em que dia".
+ * Por isso cada item traz três coisas fixas: a barra colorida pela SITUAÇÃO do
+ * prazo (e não pela prioridade — o que aperta é a data), o rótulo Entrega ou
+ * Etapa, e o chip do cliente. A legenda no rodapé fecha a leitura.
  */
 export function CalendarioDeTasks({
   itens,
   equipe,
+  prazos,
+  aoAbrir,
 }: {
   itens: ItemDeCalendario[];
   equipe: { id: string; nome: string }[];
+  /** Régua de datas calculada no servidor, para não classificar por fuso. */
+  prazos: { hoje: string; fimDaSemana: string };
+  /** Quando existe, o item abre isto em vez de navegar para a página. */
+  aoAbrir?: (taskId: string) => void;
 }) {
   const router = useRouter();
   const [referencia, setReferencia] = useState(new Date());
@@ -151,7 +162,7 @@ export function CalendarioDeTasks({
               <div
                 key={chave}
                 className={cn(
-                  "min-h-28 border-r border-b p-1.5 last:border-r-0",
+                  "min-h-32 border-r border-b p-1.5 last:border-r-0",
                   modo === "semana" && "min-h-64",
                   foraDoMes && "bg-muted/30",
                 )}
@@ -170,33 +181,65 @@ export function CalendarioDeTasks({
 
                 <ul className="space-y-1">
                   {doDia.map((item) => {
-                    const vencido = !item.concluida && estaVencida(item.prazo, item.status);
+                    const situacao = situacaoDoPrazo(
+                      item.prazo,
+                      item.concluida,
+                      prazos.hoje,
+                      prazos.fimDaSemana,
+                    );
+                    const cor = corDoPrazo(situacao, item.prioridade);
+                    const rotulo = item.tipo === "task" ? "Entrega" : "Etapa";
+
                     return (
                       <li key={item.chave}>
                         <button
                           type="button"
-                          onClick={() => router.push(`/painel/gestao-tasks/${item.taskId}`)}
-                          title={`${item.tipo === "subtarefa" ? "Subtarefa · " : ""}${item.titulo}${item.cliente ? ` · ${item.cliente}` : ""}`}
+                          onClick={() =>
+                            aoAbrir
+                              ? aoAbrir(item.taskId)
+                              : router.push(`/painel/gestao-tasks/${item.taskId}`)
+                          }
+                          title={`${rotulo}: ${item.titulo}${item.cliente ? ` · ${item.cliente}` : ""} · prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`}
                           className={cn(
-                            "flex w-full items-center gap-1.5 rounded border px-1.5 py-1 text-left text-xs transition-colors",
-                            // Subtarefa: borda tracejada, para não se confundir
-                            // com a entrega final.
+                            "relative w-full overflow-hidden rounded border py-1 pr-1.5 pl-2.5 text-left text-xs transition-colors",
                             item.tipo === "subtarefa"
                               ? "border-dashed bg-transparent"
                               : "bg-card border-transparent shadow-xs",
-                            vencido && "border-destructive/50 text-destructive",
-                            item.concluida && "opacity-55 line-through",
+                            situacao === "atrasada" && "border-destructive/50",
+                            item.concluida && "opacity-55",
                           )}
                         >
-                          <span
-                            aria-hidden
-                            className={cn(
-                              "shrink-0 rounded-full",
-                              item.tipo === "subtarefa" ? "size-1.5" : "size-2",
-                              vencido ? "bg-destructive" : COR_DA_PRIORIDADE[item.prioridade],
-                            )}
-                          />
-                          <span className="min-w-0 flex-1 truncate">{item.titulo}</span>
+                          {/* A barra é o que se lê de longe: cor da situação. */}
+                          <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", cor)} />
+
+                          <span className="flex items-baseline gap-1">
+                            <span
+                              className={cn(
+                                "shrink-0 text-[10px] font-medium uppercase",
+                                situacao === "atrasada"
+                                  ? "text-destructive"
+                                  : situacao === "hoje"
+                                    ? "text-warning"
+                                    : "text-muted-foreground",
+                              )}
+                            >
+                              {rotulo}
+                            </span>
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 truncate",
+                                item.concluida && "line-through",
+                              )}
+                            >
+                              {item.titulo}
+                            </span>
+                          </span>
+
+                          {item.cliente ? (
+                            <span className="text-muted-foreground mt-0.5 block truncate text-[10px]">
+                              {item.cliente}
+                            </span>
+                          ) : null}
                         </button>
                       </li>
                     );
@@ -208,18 +251,34 @@ export function CalendarioDeTasks({
         </div>
       </div>
 
-      <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs">
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2 text-xs">
+        <span className="font-medium">Legenda</span>
         <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-card size-2.5 rounded-full border shadow-xs" />
-          Prazo da task
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="size-2.5 rounded-full border border-dashed" />
-          Prazo de subtarefa
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-destructive size-2.5 rounded-full" />
+          <span aria-hidden className="bg-destructive h-3 w-1 rounded-full" />
           Vencido
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="bg-warning h-3 w-1 rounded-full" />
+          Vence hoje
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="bg-info h-3 w-1 rounded-full" />
+          Esta semana
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="bg-muted-foreground/40 h-3 w-1 rounded-full" />
+          Concluído
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="bg-card size-2.5 rounded border shadow-xs" />
+          <span className="text-[10px] font-medium uppercase">Entrega</span> = prazo da task
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="size-2.5 rounded border border-dashed" />
+          <span className="text-[10px] font-medium uppercase">Etapa</span> = prazo de subtarefa
+        </span>
+        <span className="opacity-80">
+          Mais adiante no tempo, a barra usa a cor da prioridade.
         </span>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,10 +37,23 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  * As colunas chegam por parâmetro, e não de uma lista fixa aqui dentro: neste
  * sprint elas são os status, e no Sprint 5 passam a ser as etapas do fluxo de
  * cada cliente. O componente não precisa saber a diferença.
+ *
+ * O mesmo vale para o que acontece ao clicar e ao arrastar: a Gestão de Tasks
+ * abre a página do detalhe, Minhas Tasks abre o painel lateral, e lá um card
+ * de task alheia não pode ser arrastado. Tudo por parâmetro — um board só.
  */
 
-function Card({ task, arrastando }: { task: TaskDaLista; arrastando?: boolean }) {
+function Card({
+  task,
+  arrastando,
+  marcador,
+}: {
+  task: TaskDaLista;
+  arrastando?: boolean;
+  marcador?: ReactNode;
+}) {
   const vencida = estaVencida(task.prazo, task.status);
+  const encerrada = task.status === "concluida" || task.status === "cancelada";
 
   return (
     <article
@@ -57,6 +72,8 @@ function Card({ task, arrastando }: { task: TaskDaLista; arrastando?: boolean })
       <div className="space-y-2 pl-2">
         <p className="text-sm leading-snug font-medium">{task.titulo}</p>
 
+        {marcador}
+
         {task.cliente ? (
           <Badge variant="outline" className="max-w-full truncate">
             {task.cliente.nome_empresa}
@@ -65,7 +82,17 @@ function Card({ task, arrastando }: { task: TaskDaLista; arrastando?: boolean })
 
         <div className="flex flex-wrap items-center gap-2">
           <PriorityBadge priority={task.prioridade} />
-          {task.prazo ? <DateBadge date={task.prazo} /> : null}
+          {task.prazo ? (
+            // DateBadge é para prazo a vencer. Numa task encerrada ele pintaria
+            // de vermelho uma data que já foi cumprida, como se fosse atraso.
+            encerrada ? (
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {format(parseISO(task.prazo), "dd/MM/yy", { locale: ptBR })}
+              </span>
+            ) : (
+              <DateBadge date={task.prazo} />
+            )
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -90,14 +117,49 @@ function Card({ task, arrastando }: { task: TaskDaLista; arrastando?: boolean })
   );
 }
 
-function CardArrastavel({ task }: { task: TaskDaLista }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+function CardArrastavel({
+  task,
+  aoAbrir,
+  arrastavel,
+  marcador,
+}: {
+  task: TaskDaLista;
+  aoAbrir?: (taskId: string) => void;
+  arrastavel: boolean;
+  marcador?: ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    disabled: !arrastavel,
+  });
+
+  const conteudo = <Card task={task} arrastando={isDragging} marcador={marcador} />;
 
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} className="touch-none">
-      <Link href={`/painel/gestao-tasks/${task.id}`} onClick={(e) => isDragging && e.preventDefault()}>
-        <Card task={task} arrastando={isDragging} />
-      </Link>
+    <div
+      ref={setNodeRef}
+      {...(arrastavel ? attributes : {})}
+      {...(arrastavel ? listeners : {})}
+      className={cn("touch-none", !arrastavel && "cursor-default")}
+    >
+      {aoAbrir ? (
+        <button
+          type="button"
+          className="block w-full text-left"
+          onClick={() => {
+            if (!isDragging) aoAbrir(task.id);
+          }}
+        >
+          {conteudo}
+        </button>
+      ) : (
+        <Link
+          href={`/painel/gestao-tasks/${task.id}`}
+          onClick={(e) => isDragging && e.preventDefault()}
+        >
+          {conteudo}
+        </Link>
+      )}
     </div>
   );
 }
@@ -105,9 +167,15 @@ function CardArrastavel({ task }: { task: TaskDaLista }) {
 function Coluna({
   coluna,
   tasks,
+  aoAbrir,
+  podeArrastar,
+  marcador,
 }: {
   coluna: ColunaDoBoard;
   tasks: TaskDaLista[];
+  aoAbrir?: (taskId: string) => void;
+  podeArrastar: (task: TaskDaLista) => boolean;
+  marcador?: (task: TaskDaLista) => ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: coluna.id });
 
@@ -128,7 +196,15 @@ function Coluna({
         {tasks.length === 0 ? (
           <p className="text-muted-foreground px-1 py-6 text-center text-xs">Nada aqui.</p>
         ) : (
-          tasks.map((task) => <CardArrastavel key={task.id} task={task} />)
+          tasks.map((task) => (
+            <CardArrastavel
+              key={task.id}
+              task={task}
+              aoAbrir={aoAbrir}
+              arrastavel={podeArrastar(task)}
+              marcador={marcador?.(task)}
+            />
+          ))
         )}
       </div>
     </section>
@@ -138,9 +214,17 @@ function Coluna({
 export function BoardDeTasks({
   tasks,
   colunas,
+  aoAbrir,
+  podeArrastar = () => true,
+  marcador,
 }: {
   tasks: TaskDaLista[];
   colunas: ColunaDoBoard[];
+  /** Quando existe, o card abre isto em vez de navegar para a página. */
+  aoAbrir?: (taskId: string) => void;
+  /** Card que não passa aqui fica parado — é o caso da task de outra pessoa. */
+  podeArrastar?: (task: TaskDaLista) => boolean;
+  marcador?: (task: TaskDaLista) => ReactNode;
 }) {
   const router = useRouter();
   const [arrastando, setArrastando] = useState<string | null>(null);
@@ -206,7 +290,14 @@ export function BoardDeTasks({
     <DndContext sensors={sensores} onDragStart={aoComecar} onDragEnd={aoSoltar}>
       <div className="flex gap-3 overflow-x-auto pb-2">
         {colunas.map((coluna) => (
-          <Coluna key={coluna.id} coluna={coluna} tasks={porColuna.get(coluna.id) ?? []} />
+          <Coluna
+            key={coluna.id}
+            coluna={coluna}
+            tasks={porColuna.get(coluna.id) ?? []}
+            aoAbrir={aoAbrir}
+            podeArrastar={podeArrastar}
+            marcador={marcador}
+          />
         ))}
       </div>
 

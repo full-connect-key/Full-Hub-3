@@ -32,11 +32,13 @@ export function PainelDeTasks({
   itensDeCalendario,
   clientes,
   equipe,
+  prazos,
 }: {
   tasks: TaskDaLista[];
   itensDeCalendario: ItemDeCalendario[];
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
+  prazos: { hoje: string; fimDaSemana: string };
 }) {
   const { filtros, definir } = useFiltros();
   const [criando, setCriando] = useState(false);
@@ -118,7 +120,7 @@ export function PainelDeTasks({
       ) : null}
       {filtros.visao === "lista" ? <ListaDeTasks tasks={tasks} equipe={equipe} /> : null}
       {filtros.visao === "calendario" ? (
-        <CalendarioDeTasks itens={itensDeCalendario} equipe={equipe} />
+        <CalendarioDeTasks itens={itensDeCalendario} equipe={equipe} prazos={prazos} />
       ) : null}
 
       <FormularioDeTask

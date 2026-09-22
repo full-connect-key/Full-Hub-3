@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
 import { contadoresDeTasks, itensDoCalendario, listarTasks, type FiltrosDeTask } from "@/lib/dados/tasks";
 import type { TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
 
@@ -60,6 +61,7 @@ async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
         .filter((cliente) => cliente.ativo)
         .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
+      prazos={prazosDeHoje()}
     />
   );
 }

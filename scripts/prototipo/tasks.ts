@@ -29,7 +29,7 @@ const dia = (deslocamento: number) => {
 const ANA: Pessoa = { id: "a0000000-0000-0000-0000-000000000001", nome: "Ana Souza", avatar_url: null };
 const DIEGO: Pessoa = { id: "a0000000-0000-0000-0000-000000000002", nome: "Diego Reis", avatar_url: null };
 const CARLA: Pessoa = { id: "a0000000-0000-0000-0000-000000000003", nome: "Carla Nunes", avatar_url: null };
-const MARINA: Pessoa = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Alves", avatar_url: null };
+const MARINA: Pessoa = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Costa", avatar_url: null };
 
 const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" };
 const BETA = { id: "c0000000-0000-0000-0000-00000000000b", nome_empresa: "Óptica Visão" };
@@ -84,7 +84,7 @@ const BASE = {
   updated_at: "2026-09-19T15:30:00.000Z",
 };
 
-const TASKS: TaskDaLista[] = [
+export const TASKS: TaskDaLista[] = [
   {
     ...BASE,
     id: "11111111-1111-1111-1111-111111111111",
@@ -101,6 +101,7 @@ const TASKS: TaskDaLista[] = [
     responsavel: MARINA,
     subtarefasTotal: 3,
     subtarefasConcluidas: 1,
+    tempoDasSubtarefas: 0,
   },
   {
     ...BASE,
@@ -117,6 +118,7 @@ const TASKS: TaskDaLista[] = [
     responsavel: CARLA,
     subtarefasTotal: 0,
     subtarefasConcluidas: 0,
+    tempoDasSubtarefas: 0,
   },
   {
     ...BASE,
@@ -132,6 +134,7 @@ const TASKS: TaskDaLista[] = [
     responsavel: DIEGO,
     subtarefasTotal: 2,
     subtarefasConcluidas: 2,
+    tempoDasSubtarefas: 0,
   },
   {
     ...BASE,
@@ -149,6 +152,7 @@ const TASKS: TaskDaLista[] = [
     responsavel: ANA,
     subtarefasTotal: 0,
     subtarefasConcluidas: 0,
+    tempoDasSubtarefas: 0,
   },
   {
     ...BASE,
@@ -164,6 +168,7 @@ const TASKS: TaskDaLista[] = [
     responsavel: CARLA,
     subtarefasTotal: 0,
     subtarefasConcluidas: 0,
+    tempoDasSubtarefas: 0,
   },
   {
     ...BASE,
@@ -179,10 +184,11 @@ const TASKS: TaskDaLista[] = [
     responsavel: DIEGO,
     subtarefasTotal: 0,
     subtarefasConcluidas: 0,
+    tempoDasSubtarefas: 0,
   },
 ];
 
-const SUBTAREFAS = [
+export const SUBTAREFAS = [
   {
     id: "s1",
     task_id: "11111111-1111-1111-1111-111111111111",

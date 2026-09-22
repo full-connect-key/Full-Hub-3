@@ -16,6 +16,7 @@ import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
+import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,11 +41,14 @@ function Linha({
   taskId,
   equipe,
   podeEditar,
+  usuarioId,
 }: {
   subtarefa: SubtarefaCompleta;
   taskId: string;
   equipe: { id: string; nome: string }[];
+  /** Manda na task-mãe: pode renomear, reatribuir, mudar prazo e remover. */
   podeEditar: boolean;
+  usuarioId: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: subtarefa.id,
@@ -53,6 +57,15 @@ function Linha({
   const [, iniciar] = useTransition();
   const [titulo, setTitulo] = useState(subtarefa.titulo);
   const [editandoPrazo, setEditandoPrazo] = useState(false);
+  const [perguntandoTempo, setPerguntandoTempo] = useState(false);
+
+  /**
+   * Quem executa a subtarefa manda no andamento dela, mesmo que a task-mãe
+   * seja de outra pessoa — é o redator marcando a etapa dele como pronta
+   * numa task do social media. Espelha a policy subtasks_update da 0006.
+   */
+  const ehMinha = subtarefa.responsavel_id === usuarioId;
+  const podeAndar = podeEditar || ehMinha;
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
@@ -60,6 +73,20 @@ function Linha({
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
+  }
+
+  async function concluir(horas: number | null): Promise<boolean> {
+    const campos: Record<string, unknown> = { concluida: true };
+    if (horas !== null) campos.tempo_real_horas = horas;
+
+    const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return false;
+    }
+    toast.success("Subtarefa concluída.");
+    router.refresh();
+    return true;
   }
 
   return (
@@ -87,8 +114,13 @@ function Linha({
         type="checkbox"
         aria-label={`Concluir ${subtarefa.titulo}`}
         checked={subtarefa.concluida}
-        disabled={!podeEditar}
-        onChange={(e) => salvar({ concluida: e.target.checked })}
+        disabled={!podeAndar}
+        onChange={(e) => {
+          // Concluir pergunta o tempo; desmarcar é direto, porque ali não há
+          // nada a registrar.
+          if (e.target.checked) setPerguntandoTempo(true);
+          else salvar({ concluida: false });
+        }}
         className="accent-brand size-4"
       />
 
@@ -159,7 +191,7 @@ function Linha({
         type="number"
         min={0}
         step="0.5"
-        disabled={!podeEditar}
+        disabled={!podeAndar}
         defaultValue={subtarefa.estimativa_horas ?? ""}
         placeholder="h"
         className="h-8 w-16 border-transparent bg-transparent px-1.5 text-right shadow-none"
@@ -186,6 +218,19 @@ function Linha({
           <Trash2 aria-hidden />
         </Button>
       ) : null}
+
+      <DialogoDeTempo
+        aberto={perguntandoTempo}
+        aoFechar={() => setPerguntandoTempo(false)}
+        titulo="Concluir esta subtarefa"
+        sugestao={subtarefa.tempo_real_horas ?? subtarefa.estimativa_horas}
+        origemDaSugestao={
+          subtarefa.estimativa_horas
+            ? `A estimativa era de ${subtarefa.estimativa_horas}h.`
+            : undefined
+        }
+        aoConcluir={concluir}
+      />
     </li>
   );
 }
@@ -195,11 +240,13 @@ export function Subtarefas({
   subtarefas,
   equipe,
   podeEditar,
+  usuarioId,
 }: {
   taskId: string;
   subtarefas: SubtarefaCompleta[];
   equipe: { id: string; nome: string }[];
   podeEditar: boolean;
+  usuarioId: string;
 }) {
   const router = useRouter();
   const [ordem, setOrdem] = useState(subtarefas.map((s) => s.id));
@@ -277,6 +324,7 @@ export function Subtarefas({
                   taskId={taskId}
                   equipe={equipe}
                   podeEditar={podeEditar}
+                  usuarioId={usuarioId}
                 />
               ))}
             </ul>

@@ -70,6 +70,16 @@ const TELAS = [
   { nome: "24-tasks-nova", rota: "/painel/gestao-tasks", largura: 1400, altura: 1200, role: "socio", clicar: 'button:has-text("Nova task")' },
   { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
+  { nome: "30-minhas-tasks-lista", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio" },
+  { nome: "31-minhas-tasks-board", rota: "/painel/minhas-tasks?visao=board", largura: 1600, altura: 1100, role: "socio" },
+  { nome: "32-minhas-tasks-calendario", rota: "/painel/minhas-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio" },
+  { nome: "33-minhas-tasks-atrasadas", rota: "/painel/minhas-tasks?foco=atrasadas", largura: 1600, altura: 1000, role: "socio" },
+  { nome: "34-minhas-tasks-escuro", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", tema: "escuro" },
+  { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'tbody tr:first-child' },
+  { nome: "36-minhas-tasks-atendimento", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador" },
+  { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
+  { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button[aria-label^="Concluir"]' },
+
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -102,6 +112,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
+  "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -153,12 +164,28 @@ async function abrirNavegador(chromium) {
   }
 }
 
-function subirServidor(role) {
+/**
+ * Perfis usados nas capturas.
+ *
+ * `funcao` existe porque perfil de acesso e funcao na agencia sao coisas
+ * separadas, e o produto depende disso: um colaborador do Atendimento cria
+ * task, um de Social Media nao. Sem os dois, nao daria para mostrar a
+ * diferenca em imagem.
+ */
+const PERFIS = {
+  socio: { role: "socio" },
+  desenvolvedor: { role: "desenvolvedor" },
+  colaborador: { role: "colaborador", funcao: "Atendimento" },
+  "colaborador-social": { role: "colaborador", funcao: "Social Media" },
+};
+
+function subirServidor(perfil) {
+  const { role, funcao } = PERFIS[perfil] ?? PERFIS.socio;
   return spawn("npx", ["next", "start", "--port", String(PORTA)], {
     cwd: COPIA,
     stdio: "ignore",
     detached: true,
-    env: { ...process.env, PROTOTIPO_ROLE: role },
+    env: { ...process.env, PROTOTIPO_ROLE: role, PROTOTIPO_FUNCAO: funcao ?? "" },
   });
 }
 
@@ -221,12 +248,12 @@ try {
   // Agrupa por perfil para reiniciar o servidor o mínimo possível.
   const perfis = [...new Set(TELAS.map((tela) => tela.role ?? "socio"))];
 
-  for (const role of perfis) {
-    log(`subindo o servidor como ${role}...`);
-    servidor = subirServidor(role);
+  for (const perfil of perfis) {
+    log(`subindo o servidor como ${perfil}...`);
+    servidor = subirServidor(perfil);
     await esperarNoAr(`http://localhost:${PORTA}/login`);
 
-    for (const tela of TELAS.filter((t) => (t.role ?? "socio") === role)) {
+    for (const tela of TELAS.filter((t) => (t.role ?? "socio") === perfil)) {
       const pagina = await navegador.newPage({
         viewport: { width: tela.largura, height: tela.altura },
         deviceScaleFactor: 2,
