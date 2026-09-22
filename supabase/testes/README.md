@@ -23,6 +23,7 @@ psql -d fullhub -f supabase/testes/00_ferramenta.sql
 psql -d fullhub -f supabase/testes/01_permissoes_e_fluxo.sql
 psql -d fullhub -f supabase/testes/02_status_da_task.sql
 psql -d fullhub -f supabase/testes/03_ciclos_e_cliente.sql
+psql -d fullhub -f supabase/testes/04_portais_de_clientes.sql
 psql -d fullhub -c "select * from teste.resultado where situacao = 'FALHOU'"
 ```
 
@@ -53,4 +54,12 @@ preservadas e cada comentário no lugar, e o caminho completo de uma aprovação
 de cliente: aval interno que **não** conclui, envio deliberado, decisão pelo
 Portal, histórico e comentário visível ao cliente.
 
-São 71 cenários no total.
+`04_portais_de_clientes.sql` — o slug de cada empresa (sem acento, e
+desempatando nome repetido em vez de derrubar o cadastro), quem registra e quem
+lê uma visita ao portal, e a trava que dá nome ao sprint: **usuário interno não
+decide no lugar do cliente nem chamando o banco direto**. A sócia, o
+desenvolvedor e o cliente da outra empresa são recusados, cada um contra uma
+rodada de fato pendente — aprovar antes faria as três recusas passarem pelo
+motivo errado.
+
+São 92 cenários no total.
