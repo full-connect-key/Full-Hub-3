@@ -1,11 +1,7 @@
 import "server-only";
 
-import {
-  SUPABASE_ANON_KEY,
-  SUPABASE_SERVICE_ROLE_KEY,
-  SUPABASE_URL,
-  variaveisFaltando,
-} from "@/lib/env";
+import { SUPABASE_ANON_KEY, SUPABASE_URL, variaveisFaltando } from "@/lib/env";
+import { servicoConfigurado } from "./admin";
 import { criarClienteServidor } from "./server";
 
 /**
@@ -163,9 +159,15 @@ async function checarSchema(): Promise<Checagem> {
   }
 }
 
-/** A chave de servico esta disponivel? Opcional, por isso nunca e "falha". */
+/**
+ * A chave de servico esta disponivel?
+ *
+ * Sem ela nao da para cadastrar ninguem: criar conta no Auth e operacao
+ * administrativa. Por isso o alerta aqui diz exatamente o que para de
+ * funcionar, em vez de chamar a chave de "opcional".
+ */
 function checarChaveDeServico(): Checagem {
-  if (SUPABASE_SERVICE_ROLE_KEY) {
+  if (servicoConfigurado()) {
     return {
       nome: "Chave de serviço",
       situacao: "ok",
@@ -175,9 +177,12 @@ function checarChaveDeServico(): Checagem {
   return {
     nome: "Chave de serviço",
     situacao: "alerta",
-    detalhe: "SUPABASE_SERVICE_ROLE_KEY não configurada (opcional).",
+    detalhe:
+      "SUPABASE_SERVICE_ROLE_KEY não configurada. Sem ela não é possível adicionar " +
+      "colaboradores nem convidar usuários para o portal do cliente.",
     comoResolver:
-      "Só é necessária para rotinas administrativas, como criar usuários pelo próprio dashboard.",
+      "Pegue a chave em Supabase > Project Settings > API Keys > service_role, coloque no " +
+      ".env.local como SUPABASE_SERVICE_ROLE_KEY (sem o prefixo NEXT_PUBLIC_) e reinicie o servidor.",
   };
 }
 

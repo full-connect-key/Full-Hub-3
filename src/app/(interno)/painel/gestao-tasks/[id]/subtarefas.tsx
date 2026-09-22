@@ -29,6 +29,7 @@ import {
   removerSubtarefa,
   reordenarSubtarefas,
 } from "../acoes-de-itens";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
 
@@ -55,8 +56,8 @@ function Linha({
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
-      const resultado = await atualizarSubtarefa(subtarefa.id, taskId, campos);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
+      if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
   }
@@ -176,8 +177,8 @@ function Linha({
           aria-label={`Remover ${subtarefa.titulo}`}
           onClick={() =>
             iniciar(async () => {
-              const resultado = await removerSubtarefa(subtarefa.id, taskId);
-              if (resultado.erro) toast.error(resultado.erro);
+              const resultado = await chamarAcao(() => removerSubtarefa(subtarefa.id, taskId));
+              if (!resultado.ok) toast.error(resultado.error);
               else router.refresh();
             })
           }
@@ -232,10 +233,10 @@ export function Subtarefas({
     setOrdem(nova);
 
     iniciar(async () => {
-      const resultado = await reordenarSubtarefas(taskId, nova);
-      if (resultado.erro) {
+      const resultado = await chamarAcao(() => reordenarSubtarefas(taskId, nova));
+      if (!resultado.ok) {
         setOrdem(ordem);
-        toast.error(resultado.erro);
+        toast.error(resultado.error);
       }
     });
   }
@@ -243,8 +244,8 @@ export function Subtarefas({
   function adicionar() {
     if (novoTitulo.trim().length === 0) return;
     iniciar(async () => {
-      const resultado = await criarSubtarefa(taskId, novoTitulo);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => criarSubtarefa(taskId, novoTitulo));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
         setNovoTitulo("");
         router.refresh();

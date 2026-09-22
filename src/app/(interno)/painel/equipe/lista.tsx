@@ -18,10 +18,14 @@ export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
   const [area, setArea] = useState(SEM_FILTRO);
   const [funcao, setFuncao] = useState(SEM_FILTRO);
   const [role, setRole] = useState(SEM_FILTRO);
+  const [status, setStatus] = useState("ativos");
 
   const areas = [...new Set(equipe.map((p) => p.membro?.area).filter(Boolean))] as string[];
 
   const filtrados = equipe.filter((pessoa) => {
+    const ativa = pessoa.ativo && pessoa.membro?.ativo !== false;
+    if (status === "ativos" && !ativa) return false;
+    if (status === "desligados" && ativa) return false;
     if (area !== SEM_FILTRO && pessoa.membro?.area !== area) return false;
     if (funcao !== SEM_FILTRO && pessoa.membro?.funcao !== funcao) return false;
     if (role !== SEM_FILTRO && pessoa.role !== role) return false;
@@ -134,6 +138,17 @@ export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
               options: FUNCOES.map((f) => ({ value: f, label: ROTULOS_DE_FUNCAO[f] })),
             },
             {
+              id: "status",
+              label: "Situação",
+              value: status,
+              allLabel: "Todos",
+              onChange: setStatus,
+              options: [
+                { value: "ativos", label: "Ativos" },
+                { value: "desligados", label: "Desligados" },
+              ],
+            },
+            {
               id: "role",
               label: "Acesso",
               value: role,
@@ -147,6 +162,7 @@ export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
             },
           ]}
           onClear={() => {
+            setStatus(SEM_FILTRO);
             setArea(SEM_FILTRO);
             setFuncao(SEM_FILTRO);
             setRole(SEM_FILTRO);

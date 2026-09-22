@@ -18,6 +18,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import { chamarAcao } from "@/lib/acoes/cliente";
+
 import { alternarAtivoDoCliente, excluirCliente } from "../acoes";
 
 /**
@@ -25,7 +27,8 @@ import { alternarAtivoDoCliente, excluirCliente } from "../acoes";
  *
  * Desativar é a ação normal — o histórico da conta precisa sobreviver.
  * Excluir de verdade é exceção: só sócio, em duas etapas, e bloqueada quando
- * há campanhas ou posts presos à empresa.
+ * existe QUALQUER vínculo — acesso ao portal, task, campanha, post ou
+ * lançamento. Sobra para empresa recém-criada e vazia, cadastrada por engano.
  */
 export function ZonaDePerigoDoCliente({
   clienteId,
@@ -38,7 +41,15 @@ export function ZonaDePerigoDoCliente({
   nomeDaEmpresa: string;
   ativo: boolean;
   ehSocio: boolean;
-  vinculos: { usuarios: number; campanhas: number; posts: number; impedeExclusao: boolean };
+  vinculos: {
+    usuarios: number;
+    tasks: number;
+    campanhas: number;
+    posts: number;
+    lancamentos: number;
+    total: number;
+    impedeExclusao: boolean;
+  };
 }) {
   const [, iniciar] = useTransition();
   const [primeiraEtapa, setPrimeiraEtapa] = useState(false);
@@ -46,10 +57,12 @@ export function ZonaDePerigoDoCliente({
 
   function alternar() {
     iniciar(async () => {
-      const resultado = await alternarAtivoDoCliente(clienteId, !ativo);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() =>
+        alternarAtivoDoCliente({ id: clienteId, ativo: !ativo }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Pronto.");
+        toast.success(resultado.mensagem);
         router.refresh();
       }
     });
@@ -57,10 +70,12 @@ export function ZonaDePerigoDoCliente({
 
   function excluir(nomeDigitado: string) {
     iniciar(async () => {
-      const resultado = await excluirCliente(clienteId, nomeDigitado);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() =>
+        excluirCliente({ id: clienteId, nome_digitado: nomeDigitado }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Excluído.");
+        toast.success(resultado.mensagem);
         router.push("/painel/clientes");
       }
     });
@@ -112,24 +127,28 @@ export function ZonaDePerigoDoCliente({
               <div className="space-y-3">
                 <p className="text-sm font-medium">O que está vinculado a esta empresa:</p>
                 <ul className="text-muted-foreground space-y-1 text-sm">
-                  <li>{vinculos.usuarios} acesso(s) ao portal — serão removidos junto</li>
+                  <li>{vinculos.usuarios} acesso(s) ao portal</li>
+                  <li>{vinculos.tasks} task(s)</li>
                   <li>{vinculos.campanhas} campanha(s)</li>
                   <li>{vinculos.posts} post(s)</li>
+                  <li>{vinculos.lancamentos} lançamento(s) financeiro(s)</li>
                 </ul>
 
                 {vinculos.impedeExclusao ? (
                   <Alert variant="destructive">
                     <AlertTriangle />
                     <AlertDescription>
-                      Há campanhas ou posts vinculados. Desative a empresa em vez de excluir — senão
-                      esse histórico se perde.
+                      Existe conteúdo vinculado a esta empresa. Excluir apagaria esse histórico —
+                      desative a empresa em vez de excluir. Ela sai das listas e dos seletores, e
+                      nada é perdido.
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <Alert variant="warning">
                     <AlertTriangle />
                     <AlertDescription>
-                      Na próxima etapa você vai precisar digitar o nome da empresa.
+                      Esta empresa está vazia, então a exclusão é permitida. Na próxima etapa você
+                      vai precisar digitar o nome dela.
                     </AlertDescription>
                   </Alert>
                 )}

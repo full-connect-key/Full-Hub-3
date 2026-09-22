@@ -109,29 +109,43 @@ export const usuariosDoCliente = cache(async (clientId: string) => {
 /**
  * O que impede apagar um cliente de verdade.
  *
- * Hoje só existem os acessos ao portal. Campanhas e posts entram em sprints
- * futuros: acrescente a contagem aqui e a tela de exclusão passa a barrar
- * sozinha, porque ela só olha para este resultado.
+ * Regra: QUALQUER vínculo bloqueia. Um cliente com gente acessando o portal ou
+ * com task no nome dele não pode sumir do banco — o caminho é desativar, que
+ * tira das listas sem perder nada. DELETE só sobra para empresa recém-criada e
+ * vazia, cadastrada por engano.
+ *
+ * Campanhas, posts e lançamentos financeiros chegam em sprints futuros: basta
+ * somar a contagem aqui, e a tela passa a barrar sozinha, porque ela só olha
+ * para este resultado.
  */
 export async function vinculosDoCliente(clientId: string) {
   const supabase = await criarClienteServidor();
 
-  const { count } = await supabase
-    .from("client_users")
-    .select("id", { count: "exact", head: true })
-    .eq("client_id", clientId);
+  const [{ count: acessos }, { count: tasks }] = await Promise.all([
+    supabase
+      .from("client_users")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId),
+  ]);
 
-  const usuarios = count ?? 0;
+  const usuarios = acessos ?? 0;
+  const tasksVinculadas = tasks ?? 0;
 
-  // Sprint 5+: campanhas e posts entram aqui.
+  // Sprint 5+: campanhas, posts e lançamentos financeiros entram aqui.
   const campanhas = 0;
   const posts = 0;
+  const lancamentos = 0;
+
+  const total = usuarios + tasksVinculadas + campanhas + posts + lancamentos;
 
   return {
     usuarios,
+    tasks: tasksVinculadas,
     campanhas,
     posts,
-    total: usuarios + campanhas + posts,
-    impedeExclusao: campanhas + posts > 0,
+    lancamentos,
+    total,
+    impedeExclusao: total > 0,
   };
 }

@@ -13,6 +13,7 @@ import { criarClienteNavegador } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/supabase/database.types";
 
 import { salvarMeuPerfil, trocarMinhaSenha } from "./acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const TAMANHO_MAXIMO = 2 * 1024 * 1024;
 const TIPOS_ACEITOS = ["image/jpeg", "image/png", "image/webp"];
@@ -59,9 +60,9 @@ export function FormularioDoPerfil({ profile }: { profile: Profile }) {
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(caminho);
 
-      const resultado = await salvarMeuPerfil({ nome, avatar_url: publicUrl });
-      if (resultado.erro) {
-        toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => salvarMeuPerfil({ nome, avatar_url: publicUrl }));
+      if (!resultado.ok) {
+        toast.error(resultado.error);
         return;
       }
 
@@ -76,10 +77,10 @@ export function FormularioDoPerfil({ profile }: { profile: Profile }) {
   function salvarNome(evento: React.FormEvent) {
     evento.preventDefault();
     iniciar(async () => {
-      const resultado = await salvarMeuPerfil({ nome });
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => salvarMeuPerfil({ nome }));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Salvo.");
+        toast.success(resultado.mensagem);
         router.refresh();
       }
     });
@@ -146,10 +147,10 @@ export function TrocaDeSenha() {
   function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     iniciar(async () => {
-      const resultado = await trocarMinhaSenha(senha, confirmacao);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => trocarMinhaSenha(senha, confirmacao));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Senha trocada.");
+        toast.success(resultado.mensagem);
         setSenha("");
         setConfirmacao("");
       }

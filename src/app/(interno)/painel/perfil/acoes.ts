@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirSessao } from "@/lib/auth/dal";
+import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
+import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { criarClienteServidor } from "@/lib/supabase/server";
-
-export type Resultado = { ok?: string; erro?: string };
 
 /**
  * Ações do próprio perfil.
@@ -22,46 +21,53 @@ const esquema = z.object({
 });
 
 export async function salvarMeuPerfil(dados: unknown): Promise<Resultado> {
-  const sessao = await exigirSessao();
+  return executarAcao("salvarMeuPerfil", async () => {
+    const sessao = await exigirSessaoNaAcao();
 
-  const validacao = esquema.safeParse(dados);
-  if (!validacao.success) {
-    return { erro: validacao.error.issues[0]?.message ?? "Confira os dados." };
-  }
+    const validacao = esquema.safeParse(dados);
+    if (!validacao.success) {
+      return falha(validacao.error.issues[0]?.message ?? "Confira os dados.");
+    }
 
-  const supabase = await criarClienteServidor();
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      nome: validacao.data.nome.trim(),
-      ...(validacao.data.avatar_url !== undefined
-        ? { avatar_url: validacao.data.avatar_url }
-        : {}),
-    })
-    .eq("id", sessao.usuarioId);
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        nome: validacao.data.nome.trim(),
+        ...(validacao.data.avatar_url !== undefined
+          ? { avatar_url: validacao.data.avatar_url }
+          : {}),
+      })
+      .eq("id", sessao.usuarioId)
+      .select("id")
+      .maybeSingle();
 
-  if (error) return { erro: `Não foi possível salvar: ${error.message}` };
+    if (error) return falha(`Não foi possível salvar: ${error.message}`);
+    if (!data) return falha("O banco recusou a gravação do seu perfil.");
 
-  revalidatePath("/", "layout");
-  return { ok: "Perfil atualizado." };
+    revalidatePath("/", "layout");
+    return sucesso("Perfil atualizado.");
+  });
 }
 
 export async function trocarMinhaSenha(senha: string, confirmacao: string): Promise<Resultado> {
-  await exigirSessao();
+  return executarAcao("trocarMinhaSenha", async () => {
+    await exigirSessaoNaAcao();
 
-  if (senha.length < 8) return { erro: "A senha precisa ter pelo menos 8 caracteres." };
-  if (senha !== confirmacao) return { erro: "As duas senhas não são iguais." };
+    if (senha.length < 8) return falha("A senha precisa ter pelo menos 8 caracteres.");
+    if (senha !== confirmacao) return falha("As duas senhas não são iguais.");
 
-  const supabase = await criarClienteServidor();
-  const { error } = await supabase.auth.updateUser({ password: senha });
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase.auth.updateUser({ password: senha });
 
-  if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("new password should be different")) {
-      return { erro: "A nova senha precisa ser diferente da atual." };
+    if (error) {
+      const m = error.message.toLowerCase();
+      if (m.includes("new password should be different")) {
+        return falha("A nova senha precisa ser diferente da atual.");
+      }
+      return falha(`Não foi possível trocar a senha: ${error.message}`);
     }
-    return { erro: `Não foi possível trocar a senha: ${error.message}` };
-  }
 
-  return { ok: "Senha trocada." };
+    return sucesso("Senha trocada.");
+  });
 }

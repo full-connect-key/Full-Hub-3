@@ -24,6 +24,7 @@ import { criarClienteNavegador } from "@/lib/supabase/client";
 import type { TaskPrioridade } from "@/lib/supabase/database.types";
 
 import { criarTask } from "./acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
 const TAMANHO_MAXIMO = 15 * 1024 * 1024;
@@ -152,7 +153,7 @@ export function FormularioDeTask({
     }
     setSalvando(true);
     try {
-      const resultado = await criarTask({
+      const resultado = await chamarAcao(() => criarTask({
         titulo,
         client_id: cliente === SEM_VALOR ? null : cliente,
         responsavel_id: responsavel === SEM_VALOR ? null : responsavel,
@@ -174,14 +175,13 @@ export function FormularioDeTask({
           titulo: ref.titulo || null,
           arquivo_nome: ref.arquivo_nome ?? null,
         })),
-      });
+      }));
 
-      if (resultado.erro && !resultado.dado) {
-        toast.error(resultado.erro);
+      if (!resultado.ok) {
+        toast.error(resultado.error);
         return;
       }
-      if (resultado.erro) toast.warning(resultado.erro);
-      else toast.success(resultado.ok ?? "Task criada.");
+      toast.success(resultado.mensagem);
 
       limpar();
       aoFechar();

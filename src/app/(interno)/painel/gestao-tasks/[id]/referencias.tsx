@@ -11,6 +11,7 @@ import { criarClienteNavegador } from "@/lib/supabase/client";
 import type { TaskReferencia } from "@/lib/supabase/database.types";
 
 import { adicionarReferencia, removerReferencia, urlDoArquivo } from "../acoes-de-itens";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const TAMANHO_MAXIMO = 15 * 1024 * 1024;
 
@@ -40,19 +41,23 @@ export function Referencias({
 
   function remover(id: string) {
     iniciar(async () => {
-      const resultado = await removerReferencia(id, taskId);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => removerReferencia(id, taskId));
+      if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
   }
 
   async function abrirArquivo(caminho: string) {
-    const resultado = await urlDoArquivo(caminho);
-    if (resultado.erro || !resultado.dado) {
-      toast.error(resultado.erro ?? "Não foi possível abrir.");
+    const resultado = await chamarAcao(() => urlDoArquivo(caminho));
+    if (!resultado.ok) {
+      toast.error(resultado.error);
       return;
     }
-    window.open(resultado.dado, "_blank", "noopener,noreferrer");
+    if (!resultado.dados) {
+      toast.error("O Storage não devolveu o endereço do arquivo.");
+      return;
+    }
+    window.open(resultado.dados, "_blank", "noopener,noreferrer");
   }
 
   function adicionarLink() {
@@ -60,12 +65,12 @@ export function Referencias({
     if (!endereco?.trim()) return;
     const nome = window.prompt("Como chamar este link? (opcional)", "") ?? "";
     iniciar(async () => {
-      const resultado = await adicionarReferencia(taskId, {
+      const resultado = await chamarAcao(() => adicionarReferencia(taskId, {
         tipo: "link",
         url: endereco.trim(),
         titulo: nome.trim(),
-      });
-      if (resultado.erro) toast.error(resultado.erro);
+      }));
+      if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
   }
@@ -88,13 +93,13 @@ export function Referencias({
         return;
       }
 
-      const resultado = await adicionarReferencia(taskId, {
+      const resultado = await chamarAcao(() => adicionarReferencia(taskId, {
         tipo: "arquivo",
         url: caminho,
         titulo: arquivo.name,
         arquivo_nome: arquivo.name,
-      });
-      if (resultado.erro) toast.error(resultado.erro);
+      }));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success("Arquivo anexado.");
         router.refresh();

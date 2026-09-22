@@ -31,6 +31,7 @@ import type { TaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask } from "../acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
 
@@ -79,8 +80,8 @@ export function LateralDaTask({
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
-      const resultado = await atualizarTask(task.id, campos);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
+      if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
   }
@@ -103,8 +104,8 @@ export function LateralDaTask({
       const campos: Record<string, unknown> = { status: "concluida" };
       if (comTempo && tempoReal !== "") campos.tempo_real_horas = Number(tempoReal);
 
-      const resultado = await atualizarTask(task.id, campos);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success("Task concluída.");
         setPerguntandoTempo(false);

@@ -1,7 +1,6 @@
 import "server-only";
 
-import { SUPABASE_SERVICE_ROLE_KEY } from "@/lib/env";
-import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { criarClienteAdmin, servicoConfigurado } from "@/lib/supabase/admin";
 
 /**
  * Data do último acesso de cada pessoa.
@@ -11,7 +10,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
  * acessos continua útil sem essa coluna.
  */
 export async function ultimosAcessos(ids: string[]): Promise<Record<string, string | null>> {
-  if (ids.length === 0 || !SUPABASE_SERVICE_ROLE_KEY) return {};
+  if (ids.length === 0 || !servicoConfigurado()) return {};
 
   try {
     const admin = criarClienteAdmin();

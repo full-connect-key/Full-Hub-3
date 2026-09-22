@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Check, ClipboardList, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { Resultado } from "@/lib/acoes/tipos";
+
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
@@ -28,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
 
@@ -45,12 +48,12 @@ function useSalvamento() {
   const [estado, setEstado] = useState<"parado" | "salvando" | "salvo">("parado");
   const router = useRouter();
 
-  async function salvar(executar: () => Promise<{ ok?: string; erro?: string }>) {
+  async function salvar(executar: () => Promise<Resultado>) {
     setEstado("salvando");
-    const resultado = await executar();
-    if (resultado.erro) {
+    const resultado = await chamarAcao(() => executar());
+    if (!resultado.ok) {
       setEstado("parado");
-      toast.error(resultado.erro);
+      toast.error(resultado.error);
       return;
     }
     setEstado("salvo");
@@ -196,10 +199,10 @@ function BarraDeAcoesEmMassa({
 
   function aplicar(campos: Record<string, unknown>) {
     iniciar(async () => {
-      const resultado = await atualizarTasksEmMassa(selecionadas, campos);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => atualizarTasksEmMassa(selecionadas, campos));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Pronto.");
+        toast.success(resultado.mensagem);
         aoTerminar();
         router.refresh();
       }

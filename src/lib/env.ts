@@ -13,8 +13,10 @@
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-/** Segredo de servidor. Sempre vazio quando lido no navegador. */
-export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// A chave de servico NAO mora aqui de proposito: este arquivo e importado
+// por lib/supabase/client.ts, que roda no navegador. Mesmo que o Next nunca
+// substitua o valor de uma variavel sem NEXT_PUBLIC_, o nome apareceria no
+// bundle. Ela vive em lib/supabase/admin.ts, que tem `import "server-only"`.
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 

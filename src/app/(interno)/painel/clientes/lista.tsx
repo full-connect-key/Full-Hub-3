@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ClienteComResumo } from "@/lib/dados/clientes";
 
+import { chamarAcao } from "@/lib/acoes/cliente";
+
 import { alternarAtivoDoCliente } from "./acoes";
 import { FormularioDeCliente } from "./formulario-de-cliente";
 
@@ -41,9 +43,11 @@ export function ListaDeClientes({
 
   function alternar(cliente: ClienteComResumo) {
     iniciar(async () => {
-      const resultado = await alternarAtivoDoCliente(cliente.id, !cliente.ativo);
-      if (resultado.erro) toast.error(resultado.erro);
-      else toast.success(resultado.ok ?? "Pronto.");
+      const resultado = await chamarAcao(() =>
+        alternarAtivoDoCliente({ id: cliente.id, ativo: !cliente.ativo }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
+      else toast.success(resultado.mensagem);
     });
   }
 

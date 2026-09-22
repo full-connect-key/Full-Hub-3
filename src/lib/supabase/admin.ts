@@ -2,8 +2,20 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
-import { SUPABASE_SERVICE_ROLE_KEY, exigirConfigSupabase } from "@/lib/env";
+import { exigirConfigSupabase } from "@/lib/env";
 import type { Database } from "./database.types";
+
+/**
+ * A chave de servico. Fica neste arquivo, e nao em lib/env.ts, porque
+ * lib/env.ts e importado pelo cliente de navegador -- e nem o nome da
+ * variavel deve aparecer no bundle.
+ */
+export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+/** A chave de servico esta configurada? Usado pelas telas de status. */
+export function servicoConfigurado(): boolean {
+  return SUPABASE_SERVICE_ROLE_KEY.length > 0;
+}
 
 /**
  * Cliente administrativo: ignora TODAS as regras de RLS.

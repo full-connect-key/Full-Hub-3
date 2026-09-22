@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { atualizarTask } from "../acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 /**
  * Título e briefing do detalhe.
@@ -44,9 +45,9 @@ export function PrincipalDaTask({
       return;
     }
     iniciar(async () => {
-      const resultado = await atualizarTask(task.id, { titulo });
-      if (resultado.erro) {
-        toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo }));
+      if (!resultado.ok) {
+        toast.error(resultado.error);
         setTitulo(task.titulo);
       } else router.refresh();
     });
@@ -59,11 +60,11 @@ export function PrincipalDaTask({
     }
     setSalvandoBriefing(true);
     try {
-      const resultado = await atualizarTask(task.id, {
+      const resultado = await chamarAcao(() => atualizarTask(task.id, {
         briefing_rico: rascunho.json,
         briefing_texto: rascunho.texto,
-      });
-      if (resultado.erro) toast.error(resultado.erro);
+      }));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success("Briefing salvo.");
         setEditandoBriefing(false);

@@ -160,26 +160,36 @@ Um usuário `cliente` só enxerga as empresas às quais está vinculado:
 ```sql
 insert into public.client_users (client_id, user_id)
 values (
-  (select id from public.clients where nome_empresa = 'Cliente Alfa'),
-  (select id from public.profiles where email = 'contato@clientealfa.com.br')
+  (select id from public.clients where nome_empresa = 'Mundo Verde'),
+  (select id from public.profiles where email = 'contato@mundoverde.com.br')
 );
 ```
 
 ### Usuários de teste
 
-`supabase/seed.sql` cria quatro usuários, um de cada perfil, duas empresas e os
-vínculos. **Senha de todos: `FullHub@2026`.**
+`supabase/seed.sql` cria seis pessoas na equipe, três usuários de cliente, três
+empresas e os vínculos. **Senha de todos: `FullHub@2026`.**
 
-| E-mail | Perfil | Cai em |
-| --- | --- | --- |
-| socia@fullconnectkey.com.br | socio | `/painel` |
-| dev@fullconnectkey.com.br | desenvolvedor | `/painel` |
-| colab@fullconnectkey.com.br | colaborador | `/painel` |
-| contato@clientealfa.com.br | cliente | `/portal` |
+| E-mail | Perfil | Função na agência | Cai em |
+| --- | --- | --- | --- |
+| socia@fullconnectkey.com.br | socio | Gestão | `/painel` |
+| dev@fullconnectkey.com.br | desenvolvedor | Desenvolvimento | `/painel` |
+| colab@fullconnectkey.com.br | colaborador | Atendimento | `/painel` |
+| design@fullconnectkey.com.br | colaborador | Design | `/painel` |
+| social@fullconnectkey.com.br | colaborador | Social Media | `/painel` |
+| trafego@fullconnectkey.com.br | colaborador | Tráfego | `/painel` |
+| contato@mundoverde.com.br | cliente | — | `/portal` |
+| marketing@mundoverde.com.br | cliente | — | `/portal` |
+| contato@opticavisao.com.br | cliente | — | `/portal` |
+
+As empresas são **Mundo Verde** (dois acessos ao portal), **Óptica Visão** (um
+acesso) e **Academia Corpo Livre**, que nasce desativada e sem ninguém
+vinculado — é o caso de teste de "some das listas sem perder nada" e o único
+cliente que a exclusão definitiva permite apagar.
 
 O seed roda sozinho no ambiente local (`npx supabase db reset`). No projeto
-hospedado, crie as pessoas pelo painel e rode só o bloco final do arquivo, que
-cria empresas e vínculos. O próprio arquivo explica isso no topo.
+hospedado, crie as pessoas pelo painel e rode só a PARTE 2 do arquivo, que cria
+empresas e vínculos. O próprio arquivo explica isso no topo.
 
 ---
 
@@ -243,13 +253,17 @@ src/
     auth/dal.ts                De onde sai "quem está logado"
     auth/acoes.ts              Entrar, sair, recuperar senha
     auth/esquemas.ts           Validação zod dos formulários
-    auth/api.ts                Guardas das Route Handlers
+    acoes/resultado.ts         Contrato { ok, error } de toda Server Action
+    acoes/guardas.ts           Recusa de perfil sem 403 silencioso
+    acoes/contas.ts            Criação de conta no Auth e link de senha
+    acoes/cliente.ts           O lado da tela: chamar e mostrar o erro
     dados/                     Consultas de clientes, equipe e acessos
     dominio/equipe.ts          Funções, áreas e quem concede cada perfil
+    supabase/admin.ts          Chave de serviço (server-only)
     supabase/                  Clients, proxy, tipos, diagnóstico
-  app/api/usuarios/            Criação de usuários (chave de serviço)
+  app/(interno)/painel/_actions/  Criação de usuários (chave de serviço)
 supabase/migrations/           SQL versionado do banco
-supabase/seed.sql              4 usuários de teste, 2 empresas
+supabase/seed.sql              9 usuários de teste, 3 empresas (uma desativada)
 scripts/
   verificar-supabase.mjs       Testa a conexão pelo terminal
   prototipo.mjs                Gera as imagens das telas

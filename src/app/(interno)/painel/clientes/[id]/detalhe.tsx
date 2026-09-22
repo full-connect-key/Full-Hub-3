@@ -32,7 +32,7 @@ export function DetalheDoCliente({
   responsavel: string | null;
   equipe: { id: string; nome: string }[];
   usuarios: UsuarioComAcesso[];
-  vinculos: { usuarios: number; campanhas: number; posts: number; impedeExclusao: boolean };
+  vinculos: React.ComponentProps<typeof ZonaDePerigoDoCliente>["vinculos"];
   ehSocio: boolean;
 }) {
   return (

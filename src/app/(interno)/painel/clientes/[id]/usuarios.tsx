@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { LinkDeSenha } from "@/components/shared/link-de-senha";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +26,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
-import { removerAcessoDoUsuario } from "../acoes";
+import { convidarUsuarioCliente, removerUsuarioCliente } from "../../_actions/usuarios";
 
 export type UsuarioComAcesso = {
   vinculoId: string;
@@ -47,6 +49,9 @@ type Dados = z.infer<typeof esquema>;
 function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeDaEmpresa: string }) {
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [linkDeSenha, setLinkDeSenha] = useState<{ link: string; motivo: string | null } | null>(
+    null,
+  );
   const router = useRouter();
 
   const {
@@ -58,31 +63,44 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
 
   const enviar = handleSubmit(async (dados) => {
     setEnviando(true);
-    try {
-      const resposta = await fetch("/api/usuarios/cliente", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, ...dados }),
-      });
-      const corpo = await resposta.json();
+    setLinkDeSenha(null);
 
-      if (!resposta.ok) {
-        toast.error(corpo.erro ?? "Não foi possível convidar.");
-        return;
-      }
-      toast.success(corpo.mensagem ?? "Convite enviado.");
-      setAberto(false);
-      reset();
-      router.refresh();
-    } catch {
-      toast.error("Não foi possível falar com o servidor.");
-    } finally {
-      setEnviando(false);
+    const resultado = await chamarAcao(() =>
+      convidarUsuarioCliente({ client_id: clientId, ...dados }),
+    );
+    setEnviando(false);
+
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return;
     }
+
+    toast.success(resultado.mensagem);
+    router.refresh();
+
+    // O e-mail não saiu: o diálogo fica aberto mostrando o link, senão a
+    // pessoa é criada e ninguém descobre como ela entra.
+    if (resultado.dados && !resultado.dados.emailEnviado && resultado.dados.linkDeSenha) {
+      setLinkDeSenha({
+        link: resultado.dados.linkDeSenha,
+        motivo: resultado.dados.motivoDoEmail,
+      });
+      reset();
+      return;
+    }
+
+    setAberto(false);
+    reset();
   });
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog
+      open={aberto}
+      onOpenChange={(estaAberto) => {
+        setAberto(estaAberto);
+        if (!estaAberto) setLinkDeSenha(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm">
           <UserPlus aria-hidden />
@@ -97,6 +115,10 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
             portal. Todos os acessos de um cliente são iguais — não há níveis.
           </DialogDescription>
         </DialogHeader>
+
+        {linkDeSenha ? (
+          <LinkDeSenha link={linkDeSenha.link} motivo={linkDeSenha.motivo} />
+        ) : null}
 
         <form onSubmit={enviar} noValidate className="space-y-4">
           <div className="space-y-2">
@@ -144,10 +166,12 @@ export function UsuariosDoCliente({
 
   function remover(vinculoId: string) {
     iniciar(async () => {
-      const resultado = await removerAcessoDoUsuario(vinculoId, clientId);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() =>
+        removerUsuarioCliente({ client_user_id: vinculoId, client_id: clientId }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
       else {
-        toast.success(resultado.ok ?? "Acesso removido.");
+        toast.success(resultado.mensagem);
         router.refresh();
       }
     });

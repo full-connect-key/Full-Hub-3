@@ -27,6 +27,7 @@ import type { TaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask } from "./acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 /**
  * Board no estilo kanban.
@@ -190,12 +191,12 @@ export function BoardDeTasks({
 
     setOtimistas((atual) => ({ ...atual, [id]: coluna.status }));
 
-    const resultado = await atualizarTask(id, { status: coluna.status });
+    const resultado = await chamarAcao(() => atualizarTask(id, { status: coluna.status }));
 
-    if (resultado.erro) {
+    if (!resultado.ok) {
       // Rollback: devolve o card para onde estava e avisa.
       setOtimistas((atual) => ({ ...atual, [id]: statusAnterior }));
-      toast.error(resultado.erro);
+      toast.error(resultado.error);
       return;
     }
     router.refresh();

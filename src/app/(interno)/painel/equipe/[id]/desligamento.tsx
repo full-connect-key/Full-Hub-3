@@ -19,6 +19,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { chamarAcao } from "@/lib/acoes/cliente";
+
+import { desligarColaborador } from "../../_actions/usuarios";
 
 export type Vinculos = {
   tasksAbertas: number;
@@ -69,26 +72,24 @@ export function Desligamento({
 
   async function desligar() {
     setEnviando(true);
-    try {
-      const resposta = await fetch("/api/usuarios/colaborador/desligar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, transferirPara: destino || null }),
-      });
-      const corpo = await resposta.json();
 
-      if (!resposta.ok) {
-        toast.error(corpo.erro ?? "Não foi possível desligar.");
-        return;
-      }
-      toast.success(corpo.mensagem ?? "Pessoa desligada.");
-      fechar();
-      router.push("/painel/equipe");
-    } catch {
-      toast.error("Não foi possível falar com o servidor.");
-    } finally {
-      setEnviando(false);
+    const resultado = await chamarAcao(() =>
+      desligarColaborador({
+        user_id: userId,
+        nome_digitado: nomeDigitado,
+        transferir_para: destino || null,
+      }),
+    );
+    setEnviando(false);
+
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return;
     }
+
+    toast.success(resultado.mensagem);
+    fechar();
+    router.push("/painel/equipe");
   }
 
   return (

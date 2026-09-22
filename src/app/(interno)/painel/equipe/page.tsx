@@ -13,7 +13,9 @@ export const metadata: Metadata = { title: "Equipe e Skills" };
 
 export default async function PaginaDaEquipe() {
   const sessao = await exigirAcessoARota("/painel/equipe");
-  const equipe = await listarEquipe();
+  // Traz também quem está desligado: a lista filtra por padrão para "ativos",
+  // mas gestão precisa alcançar a ficha de quem saiu para reativar o acesso.
+  const equipe = await listarEquipe(true);
 
   return (
     <div className="space-y-6">

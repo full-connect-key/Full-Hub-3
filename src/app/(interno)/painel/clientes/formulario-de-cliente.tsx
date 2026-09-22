@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Client } from "@/lib/supabase/database.types";
 
 import { salvarCliente } from "./acoes";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_RESPONSAVEL = "__sem__";
 
@@ -79,20 +80,20 @@ export function FormularioDeCliente({
 
   const enviar = handleSubmit((dados) => {
     iniciar(async () => {
-      const resultado = await salvarCliente({
+      const resultado = await chamarAcao(() => salvarCliente({
         id: cliente?.id,
         ...dados,
         responsavel_atendimento_id:
           dados.responsavel_atendimento_id === SEM_RESPONSAVEL
             ? null
             : dados.responsavel_atendimento_id,
-      });
+      }));
 
-      if (resultado.erro) {
-        toast.error(resultado.erro);
+      if (!resultado.ok) {
+        toast.error(resultado.error);
         return;
       }
-      toast.success(resultado.ok ?? "Salvo.");
+      toast.success(resultado.mensagem);
       setAberto(false);
       if (!cliente) reset();
     });

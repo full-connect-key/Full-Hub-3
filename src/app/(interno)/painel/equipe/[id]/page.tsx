@@ -8,7 +8,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { ehSocio } from "@/lib/auth/roles";
+import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import { listarEquipeAtiva, obterColaborador, vinculosDoColaborador } from "@/lib/dados/equipe";
 import { rotuloDaFuncao } from "@/lib/dominio/equipe";
 
@@ -57,6 +57,7 @@ export default async function PaginaDoColaborador({ params }: PageProps<"/painel
       <DetalheDoColaborador
         pessoa={pessoa}
         ehSocio={ehSocio(sessao.profile.role)}
+        ehGestor={ehGestor(sessao.profile.role)}
         ehVoceMesmo={sessao.usuarioId === pessoa.id}
         vinculos={vinculos}
         equipeDisponivel={equipe.filter((p) => p.id !== pessoa.id)}

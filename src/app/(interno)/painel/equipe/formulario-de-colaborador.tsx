@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { LinkDeSenha } from "@/components/shared/link-de-senha";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +24,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO, podeConcederRole } from "@/lib/dominio/equipe";
+import { chamarAcao } from "@/lib/acoes/cliente";
 import type { UserRole } from "@/lib/supabase/database.types";
+
+import { criarColaborador } from "../_actions/usuarios";
 
 const esquema = z.object({
   nome: z.string().min(2, "Informe o nome completo."),
@@ -31,7 +35,9 @@ const esquema = z.object({
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().optional(),
   area: z.string().optional(),
-  funcao: z.string().optional(),
+  // Obrigatória: é ela que libera a criação de tasks para quem é do
+  // Atendimento, e sem ela a pessoa entra na equipe sem papel definido.
+  funcao: z.string().min(1, "Escolha a função da pessoa na agência."),
   data_admissao: z.string().optional(),
   // number direto (e não coerce): o input converte com valueAsNumber, e o
   // coerce deixaria o tipo de entrada como unknown para o react-hook-form.
@@ -43,8 +49,9 @@ type Dados = z.infer<typeof esquema>;
 /**
  * Adiciona alguém à equipe.
  *
- * A criação da conta passa pela Route Handler, e não por uma action: ela usa a
- * chave de serviço, que nunca pode chegar ao navegador.
+ * A criação da conta é uma Server Action: ela usa a chave de serviço, que
+ * nunca pode chegar ao navegador. O navegador só manda os campos e recebe a
+ * mensagem de volta.
  *
  * O select de perfil só mostra o que quem está logado pode conceder — e o
  * servidor confere de novo, porque esconder a opção não impede um pedido
@@ -59,6 +66,9 @@ export function FormularioDeColaborador({
 }) {
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [linkDeSenha, setLinkDeSenha] = useState<{ link: string; motivo: string | null } | null>(
+    null,
+  );
   const router = useRouter();
 
   const rolesDisponiveis = (["colaborador", "desenvolvedor", "socio"] as UserRole[]).filter((role) =>
@@ -94,37 +104,49 @@ export function FormularioDeColaborador({
 
   const enviar = handleSubmit(async (dados) => {
     setEnviando(true);
-    try {
-      const resposta = await fetch("/api/usuarios/colaborador", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...dados,
-          cargo: dados.cargo || null,
-          area: dados.area || null,
-          funcao: dados.funcao || null,
-          data_admissao: dados.data_admissao || null,
-        }),
-      });
-      const corpo = await resposta.json();
+    setLinkDeSenha(null);
 
-      if (!resposta.ok) {
-        toast.error(corpo.erro ?? "Não foi possível criar.");
-        return;
-      }
-      toast.success(corpo.mensagem ?? "Convite enviado.");
-      setAberto(false);
-      reset();
-      router.refresh();
-    } catch {
-      toast.error("Não foi possível falar com o servidor.");
-    } finally {
-      setEnviando(false);
+    const resultado = await chamarAcao(() =>
+      criarColaborador({
+        ...dados,
+        cargo: dados.cargo || null,
+        area: dados.area || null,
+        data_admissao: dados.data_admissao || null,
+      }),
+    );
+    setEnviando(false);
+
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return;
     }
+
+    toast.success(resultado.mensagem);
+    router.refresh();
+
+    // Sem e-mail entregue, o diálogo fica aberto com o link: a conta existe e
+    // alguém precisa conseguir passar a senha para a pessoa.
+    if (resultado.dados && !resultado.dados.emailEnviado && resultado.dados.linkDeSenha) {
+      setLinkDeSenha({
+        link: resultado.dados.linkDeSenha,
+        motivo: resultado.dados.motivoDoEmail,
+      });
+      reset();
+      return;
+    }
+
+    setAberto(false);
+    reset();
   });
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog
+      open={aberto}
+      onOpenChange={(estaAberto) => {
+        setAberto(estaAberto);
+        if (!estaAberto) setLinkDeSenha(null);
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -134,6 +156,10 @@ export function FormularioDeColaborador({
             são criados de uma vez.
           </DialogDescription>
         </DialogHeader>
+
+        {linkDeSenha ? (
+          <LinkDeSenha link={linkDeSenha.link} motivo={linkDeSenha.motivo} />
+        ) : null}
 
         <form onSubmit={enviar} noValidate className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -196,9 +222,9 @@ export function FormularioDeColaborador({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="colab-funcao">Função</Label>
-              <Select value={funcao || undefined} onValueChange={(valor) => setValue("funcao", valor)}>
-                <SelectTrigger id="colab-funcao" className="w-full">
+              <Label htmlFor="colab-funcao">Função *</Label>
+              <Select value={funcao || undefined} onValueChange={(valor) => setValue("funcao", valor, { shouldValidate: true })}>
+                <SelectTrigger id="colab-funcao" aria-invalid={!!errors.funcao} className="w-full">
                   <SelectValue placeholder="Escolha a função" />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,9 +235,13 @@ export function FormularioDeColaborador({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-muted-foreground text-xs">
-                Quem está no Atendimento pode criar tasks mesmo sendo colaborador.
-              </p>
+              {errors.funcao ? (
+                <p className="text-destructive text-xs">{errors.funcao.message}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  Quem está no Atendimento pode criar tasks mesmo sendo colaborador.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="colab-admissao">Data de admissão</Label>

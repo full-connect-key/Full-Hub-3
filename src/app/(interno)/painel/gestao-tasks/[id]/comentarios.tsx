@@ -14,6 +14,7 @@ import type { Pessoa } from "@/lib/dados/tasks";
 import type { TaskComentario } from "@/lib/supabase/database.types";
 
 import { comentar, removerComentario } from "../acoes-de-itens";
+import { chamarAcao } from "@/lib/acoes/cliente";
 
 type ComentarioCompleto = TaskComentario & { autor: Pessoa | null };
 
@@ -61,8 +62,8 @@ function Comentario({
 
   function remover(id: string) {
     iniciar(async () => {
-      const resultado = await removerComentario(id, taskId);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => removerComentario(id, taskId));
+      if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
   }
@@ -179,8 +180,8 @@ export function Comentarios({
   function publicar() {
     if (texto.trim().length === 0) return;
     iniciar(async () => {
-      const resultado = await comentar(taskId, texto, respondendo?.id ?? null);
-      if (resultado.erro) toast.error(resultado.erro);
+      const resultado = await chamarAcao(() => comentar(taskId, texto, respondendo?.id ?? null));
+      if (!resultado.ok) toast.error(resultado.error);
       else {
         setTexto("");
         setRespondendo(null);

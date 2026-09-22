@@ -115,10 +115,30 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - No servidor, sempre `supabase.auth.getUser()`, nunca `getSession()`:
   `getSession` só lê o cookie, que o navegador pode ter adulterado.
 - Proteção de rota no servidor, não no menu. Esconder o link não é segurança.
-- **Criar usuário só em Route Handler**, com a chave de serviço
-  (`/api/usuarios/*`). Essa chave ignora todo o RLS e nunca pode chegar ao
-  navegador. O resto usa Server Actions com o cliente do próprio usuário, para
-  o RLS continuar valendo.
+- **Nenhuma escrita pode falhar em silêncio.** Toda Server Action devolve
+  `{ ok: true, mensagem }` ou `{ ok: false, error }` com a mensagem real do
+  Supabase, envolvida por `executarAcao()` de `lib/acoes/resultado.ts`, que
+  loga o erro completo no console do servidor. Na tela, `chamarAcao()` de
+  `lib/acoes/cliente.ts` embrulha a chamada para nem a queda do servidor
+  passar batida. Action **nunca** chama `forbidden()`: dentro de uma action o
+  403 vira promise rejeitada e some — use as guardas de `lib/acoes/guardas.ts`.
+- **Escrita que o RLS pode barrar termina com `.select()`.** Sem isso, um
+  `update` bloqueado volta sem erro e sem linha, e a tela diz "salvo" à toa.
+  Se não voltou linha, é recusa — e a mensagem precisa dizer isso.
+- **Criar usuário só em Server Action do servidor**, com a chave de serviço
+  (`app/(interno)/painel/_actions/usuarios.ts`). Essa chave ignora todo o RLS
+  e nunca pode chegar ao navegador: ela é lida em `lib/supabase/admin.ts`, que
+  tem `import "server-only"` — e não em `lib/env.ts`, que o navegador carrega.
+  O resto usa Server Actions com o cliente do próprio usuário, para o RLS
+  continuar valendo.
+- **Criar conta não depende de e-mail.** `createUser` primeiro, envio do link
+  de senha depois. `inviteUserByEmail` faz o contrário: se o e-mail não sai
+  — e sem SMTP próprio o Supabase entrega pouquíssimo —, a conta não é criada
+  e o cadastro se perde. Quando o envio falha, a tela mostra o link para a
+  equipe passar pela mão.
+- **Criação em vários passos tem rollback.** Se a ficha falha depois da conta
+  criada, a conta é apagada. Cadastro pela metade é pior que nenhum: o e-mail
+  fica ocupado e ninguém entende por quê.
 - **Pessoa e cliente nunca são apagados quando têm histórico.** Desligar é
   `ativo = false` mais revogação do acesso; o nome continua nos registros
   antigos, porque é isso que preserva a autoria do que foi feito.
@@ -163,9 +183,10 @@ src/
   components/shared/          Componentes do produto
   hooks/
   lib/auth/                   roles, DAL, actions, esquemas zod
+  lib/acoes/                  contrato das Server Actions, guardas e contas
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
-supabase/seed.sql             4 usuários de teste, 2 empresas
+supabase/seed.sql             9 usuários de teste, 3 empresas (uma desativada)
 scripts/                      Verificação de conexão e gerador de protótipos
 ```
 
@@ -184,6 +205,7 @@ scripts/                      Verificação de conexão e gerador de protótipos
 | Sprint | Entrega |
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
+| Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |
 | Sprint 3 | Gestão de Tasks: tabelas `tasks` / `subtasks` / `task_referencias` / `task_comentarios` com RLS por `pode_editar_task()`, board com arrastar e soltar otimista, lista com edição inline e ações em massa, calendário mensal e semanal mostrando prazo de task e de subtarefa separados, editor rico TipTap no briefing, detalhe em duas colunas com comentários e referências em bucket privado, filtros na URL e atalhos N e /. |
-| Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários por Route Handler com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |
+| Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários no servidor com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |
 | Sprint 1 | Estrutura do dashboard: `lib/auth/permissions.ts` como fonte única do menu e das permissões, menu lateral colapsável com seções e gaveta no celular, topbar com trilha, busca (casca), sino e menu do usuário, 15 rotas placeholder validando o perfil no servidor, cor de marca em variável CSS, 10 componentes compartilhados com vitrine em `/painel/dev/componentes`, e o casco do Portal do Cliente com navegação superior. Nenhuma tabela nova. |

@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { STATUS_EM_ABERTO } from "@/lib/dominio/tasks";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Profile, TeamMember } from "@/lib/supabase/database.types";
 
@@ -84,24 +85,31 @@ export const listarEquipeAtiva = cache(async () => {
  * O que está preso ao nome de uma pessoa e precisa ser resolvido antes de
  * desligá-la.
  *
- * Hoje devolve zero em tudo: os módulos que geram esses vínculos (tasks, Full
- * Days) são de sprints futuros. Este é o único lugar a mudar quando eles
- * chegarem — a tela de desligamento já exige a transferência sozinha assim que
- * `tasksAbertas` passar de zero.
+ * `tasksAbertas` é contagem real desde o Sprint 3: com qualquer task em aberto
+ * no nome dela, a tela de desligamento passa a exigir para quem transferir.
+ * Full Days entram no Sprint 6 — some a contagem aqui e a tela obedece
+ * sozinha, porque ela só olha para este resultado.
  */
 export async function vinculosDoColaborador(userId: string) {
-  // Sprint 3+: contar tasks em aberto atribuídas a userId.
-  const tasksAbertas = 0;
-  // Sprint 6: contar solicitações de Full Day pendentes.
-  const solicitacoesPendentes = 0;
-
   const supabase = await criarClienteServidor();
-  const { count } = await supabase
-    .from("clients")
-    .select("id", { count: "exact", head: true })
-    .eq("responsavel_atendimento_id", userId);
 
-  const clientesSobResponsabilidade = count ?? 0;
+  const [{ count: tasks }, { count: clientes }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("responsavel_id", userId)
+      .in("status", STATUS_EM_ABERTO),
+    supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("responsavel_atendimento_id", userId),
+  ]);
+
+  const tasksAbertas = tasks ?? 0;
+  const clientesSobResponsabilidade = clientes ?? 0;
+
+  // Sprint 6: solicitações de Full Day pendentes entram aqui.
+  const solicitacoesPendentes = 0;
 
   return {
     tasksAbertas,

@@ -10,9 +10,11 @@ da equipe vê o histórico de mudanças do schema.
 | `0002_estrutura_base.sql` | Estrutura do produto. Migra o que existir da 0001 e remove a tabela antiga. |
 | `0003_equipe_e_clientes.sql` | Enum `team_funcao`, colunas de RH e de cliente, `is_atendimento()` e o bucket de avatares. |
 | `0004_tasks.sql` | Tasks, subtarefas, referências e comentários, com `pode_editar_task()` e o bucket privado `task-arquivos`. |
-| `seed.sql` | 4 usuários de teste, 2 empresas e os vínculos. |
+| `0005_escrita_e_permissoes.sql` | Policies separadas por comando (INSERT/UPDATE/DELETE), DELETE só de sócio, o cliente editando o próprio contato e o trigger de criação de perfil que não derruba mais o cadastro. |
+| `seed.sql` | 6 pessoas na equipe, 3 usuários de cliente, 3 empresas e os vínculos. |
 
-Num projeto novo, basta a `0002`.
+Rode na ordem: `0002`, `0003`, `0004`, `0005`. A `0001` só interessa a quem
+aplicou a primeira versão. Todas podem rodar mais de uma vez.
 
 ## Aplicando uma migration
 
@@ -53,21 +55,26 @@ npx supabase gen types typescript --linked > ../src/lib/supabase/database.types.
 | `auth_role()`, `is_staff()`, `is_gestor()`, `is_socio()`, `my_client_ids()` | Base de todo o RLS |
 | `is_atendimento()` (0003) | Atendimento mais gestão — quem pode criar tasks |
 | `pode_editar_task(id)` (0004) | Atendimento, gestão ou o responsável pela task |
-| 9 policies | Quem lê e quem escreve em cada tabela |
+| policies | Quem lê e quem escreve em cada tabela. A partir da 0005 são uma por comando: `clients_insert`, `clients_update_gestor`, `clients_update_proprio`, `clients_delete`, e assim por diante. Policy de SELECT sozinha bloqueia a escrita sem dar erro — o `update` simplesmente não encontra a linha. |
+| `protect_client_columns()` + trigger (0005) | O usuário cliente edita só `nome_contato`, `email_contato` e `telefone` da própria empresa |
 
 O Supabase guarda e-mail e senha em `auth.users`, que é tabela dele e não deve
 ser alterada. Tudo que é "nosso" sobre a pessoa fica em `public.profiles`.
 
 ## Quem alcança o quê
 
-| Tabela | Leitura | Escrita |
-| --- | --- | --- |
-| `profiles` | o próprio registro; `is_gestor()` lê todos | o próprio registro; `role` e `ativo` só por `is_socio()` |
-| `clients` | `is_staff()`; cliente vê só as de `my_client_ids()` | `is_gestor()` |
-| `client_users` | `is_gestor()`; cliente vê só as próprias linhas | `is_gestor()` |
-| `team_members` | `is_staff()` | `is_gestor()` |
+| Tabela | Leitura | Criar | Editar | Apagar |
+| --- | --- | --- | --- | --- |
+| `profiles` | o próprio registro; `is_gestor()` lê todos | só o trigger de cadastro | o próprio registro ou `is_gestor()`; `role` só por `is_socio()` | ninguém (cai junto com `auth.users`) |
+| `clients` | `is_staff()`; cliente vê só as de `my_client_ids()` | `is_gestor()` | `is_gestor()`; o cliente edita só o contato da própria empresa | `is_socio()` |
+| `client_users` | `is_gestor()`; cliente vê só as próprias linhas | `is_gestor()` | `is_gestor()` | `is_gestor()` |
+| `team_members` | `is_staff()` | `is_gestor()` | `is_gestor()` | `is_socio()` |
 
 Cliente não alcança `team_members` de forma nenhuma.
+
+A diferença entre editar e apagar é de propósito: desativar é o caminho normal
+e a gestão resolve sozinha; apagar destrói histórico e fica só com o sócio — e
+a aplicação ainda barra quando existe qualquer vínculo.
 
 ## Por que `security definer` nas funções
 

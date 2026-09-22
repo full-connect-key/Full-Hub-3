@@ -62,6 +62,12 @@ export const COLUNAS_POR_STATUS: ColunaDoBoard[] = [
   { id: "concluida", titulo: "Concluída", status: "concluida" },
 ];
 
+/**
+ * Status que contam como "em aberto": o trabalho ainda está com alguém.
+ * É o que precisa ser transferido antes de desligar uma pessoa.
+ */
+export const STATUS_EM_ABERTO: TaskStatus[] = ["aberta", "em_andamento", "aguardando_aprovacao"];
+
 /** Uma task vencida é a que passou do prazo e ainda não terminou. */
 export function estaVencida(prazo: string | null, status: TaskStatus): boolean {
   if (!prazo) return false;
