@@ -433,3 +433,149 @@ insert into public.team_presence (user_id, data, status)
 select 'a0000000-0000-0000-0000-000000000003'::uuid, (current_date - 1)::date, 'remoto'
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
 on conflict (user_id, data) do nothing;
+
+
+-- ===========================================================================
+-- SPRINT 8 -- Financeiro da agencia
+--
+-- Dados que fazem a tela contar uma historia em vez de so existir: dois
+-- contratos mensais vivos, um trimestral, um titulo JA VENCIDO (para o
+-- "atrasado" derivado aparecer sem ninguem ter mexido), um recebido, e
+-- despesas espalhadas por seis meses para a serie do grafico nao ser uma
+-- linha reta.
+--
+-- So o socio ve qualquer coisa disto. O seed grava como superusuario, o que
+-- ignora RLS -- e e por isso que a bateria de testes existe: ela roda como
+-- gente de verdade.
+-- ===========================================================================
+
+insert into public.contracts
+  (id, client_id, nome, valor, recorrencia, dia_vencimento, data_inicio, data_fim, ativo)
+values
+  ('c7000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-00000000000a',
+   'Fee mensal — social media', 4800.00, 'mensal', 10, (current_date - interval '8 months')::date, null, true),
+  ('c7000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-00000000000b',
+   'Fee mensal — conteúdo e mídia', 3200.00, 'mensal', 5, (current_date - interval '5 months')::date,
+   (current_date + interval '45 days')::date, true),
+  ('c7000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-00000000000c',
+   'Campanha trimestral', 9000.00, 'trimestral', 20, (current_date - interval '6 months')::date, null, true)
+on conflict (id) do nothing;
+
+-- Receitas dos ultimos seis meses, vindas dos dois contratos mensais.
+insert into public.finance_entries
+  (tipo, client_id, contract_id, category_id, descricao, valor, competencia, vencimento, pagamento, status, criado_por)
+select 'receita',
+       ct.client_id,
+       ct.id,
+       (select id from public.finance_categories where nome = 'Fee mensal' and tipo = 'receita'),
+       ct.nome,
+       ct.valor,
+       (date_trunc('month', current_date) - (n || ' months')::interval)::date,
+       (date_trunc('month', current_date) - (n || ' months')::interval)::date + (ct.dia_vencimento - 1),
+       -- O mes corrente fica EM ABERTO; os anteriores ja foram pagos.
+       case when n = 0 then null
+            else (date_trunc('month', current_date) - (n || ' months')::interval)::date + (ct.dia_vencimento + 1)
+       end,
+       case when n = 0 then 'previsto' else 'pago' end::public.fin_status,
+       'a0000000-0000-0000-0000-000000000001'::uuid
+  from public.contracts ct
+ cross join generate_series(0, 5) as n
+ where ct.id in ('c7000000-0000-0000-0000-000000000001', 'c7000000-0000-0000-0000-000000000002')
+   and exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+-- O `where` repete o predicado do indice PARCIAL da 0013. Sem ele o Postgres
+-- recusa com "no unique or exclusion constraint matching the ON CONFLICT
+-- specification": a inferencia so casa com um indice parcial quando o
+-- predicado e informado.
+on conflict (contract_id, competencia) where contract_id is not null do nothing;
+
+-- Um titulo VENCIDO e nao pago. E ele que faz o cartao "Em atraso" ter numero
+-- e o selo vermelho aparecer na lista, sem ninguem ter gravado "atrasado".
+insert into public.finance_entries
+  (id, tipo, client_id, category_id, descricao, valor, competencia, vencimento, status, criado_por)
+select 'f7000000-0000-0000-0000-000000000001'::uuid,
+       'receita',
+       'c0000000-0000-0000-0000-00000000000c',
+       (select id from public.finance_categories where nome = 'Projeto pontual' and tipo = 'receita'),
+       'Produção de vídeo institucional',
+       6500.00,
+       date_trunc('month', current_date)::date,
+       (current_date - 9)::date,
+       'faturado',
+       'a0000000-0000-0000-0000-000000000001'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (id) do nothing;
+
+-- Um titulo vencendo nos proximos dias, para a lista de alertas ter as duas
+-- caras -- o que ja passou e o que esta por vir.
+insert into public.finance_entries
+  (id, tipo, client_id, category_id, descricao, valor, competencia, vencimento, status, criado_por)
+select 'f7000000-0000-0000-0000-000000000002'::uuid,
+       'receita',
+       'c0000000-0000-0000-0000-00000000000a',
+       (select id from public.finance_categories where nome = 'Verba de mídia' and tipo = 'receita'),
+       'Verba de mídia de outubro',
+       5200.00,
+       date_trunc('month', current_date)::date,
+       (current_date + 4)::date,
+       'faturado',
+       'a0000000-0000-0000-0000-000000000001'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (id) do nothing;
+
+-- Despesas dos mesmos seis meses. Valores variados de proposito: despesa
+-- constante faria o grafico virar uma reta, e uma reta nao mostra se a
+-- ferramenta de visualizacao esta funcionando.
+insert into public.finance_entries
+  (tipo, category_id, descricao, valor, competencia, vencimento, pagamento, status, fornecedor, criado_por)
+select 'despesa',
+       (select id from public.finance_categories where nome = d.categoria and tipo = 'despesa'),
+       d.descricao,
+       d.valor + (n * d.variacao),
+       (date_trunc('month', current_date) - (n || ' months')::interval)::date,
+       (date_trunc('month', current_date) - (n || ' months')::interval)::date + 14,
+       case when n = 0 then null
+            else (date_trunc('month', current_date) - (n || ' months')::interval)::date + 15
+       end,
+       case when n = 0 then 'previsto' else 'pago' end::public.fin_status,
+       d.fornecedor,
+       'a0000000-0000-0000-0000-000000000001'::uuid
+  from (values
+        ('Salários e pró-labore', 'Folha da equipe',        14200.00, 180.00, null),
+        ('Ferramentas e software','Assinaturas e licenças',   890.00,  25.00, 'Adobe, Meta, Google'),
+        ('Estrutura',             'Aluguel e contas',        2400.00,  40.00, null),
+        ('Freelancers',           'Freela de edição',        1800.00, 260.00, 'Studio Ponto')
+       ) as d(categoria, descricao, valor, variacao, fornecedor)
+ cross join generate_series(0, 5) as n
+ where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+   and not exists (
+     select 1 from public.finance_entries fe
+      where fe.descricao = d.descricao
+        and fe.competencia = (date_trunc('month', current_date) - (n || ' months')::interval)::date
+   );
+
+
+-- ===========================================================================
+-- SPRINT 8 -- Financeiro Pessoal da Carla
+--
+-- So a Carla enxerga isto. Esta aqui para a tela dela ter historia ao abrir,
+-- e para a bateria poder provar que nem a socia alcanca.
+-- ===========================================================================
+
+insert into public.personal_finance_entries (user_id, tipo, descricao, categoria, valor, data, recorrente)
+select 'a0000000-0000-0000-0000-000000000003'::uuid, p.tipo::public.pf_tipo, p.descricao, p.categoria,
+       p.valor, (date_trunc('month', current_date) + (p.dia - 1 || ' days')::interval)::date, p.recorrente
+  from (values
+        ('entrada', 'Salário',            'Renda',       5800.00,  5, true),
+        ('saida',   'Aluguel',            'Moradia',     1650.00, 10, true),
+        ('saida',   'Mercado do mês',     'Alimentação',  820.00, 12, true),
+        ('saida',   'Plano de saúde',     'Saúde',        410.00,  8, true),
+        ('saida',   'Transporte',         'Transporte',   260.00, 15, false),
+        ('saida',   'Cinema e jantar',    'Lazer',        180.00, 18, false)
+       ) as p(tipo, descricao, categoria, valor, dia, recorrente)
+ where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
+   and not exists (
+     select 1 from public.personal_finance_entries pf
+      where pf.user_id = 'a0000000-0000-0000-0000-000000000003'
+        and pf.descricao = p.descricao
+        and date_trunc('month', pf.data) = date_trunc('month', current_date)
+   );

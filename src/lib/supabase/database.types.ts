@@ -28,6 +28,20 @@ export type TeamFuncao =
 
 export type TaskPrioridade = "baixa" | "normal" | "alta" | "urgente";
 
+export type FinTipo = "receita" | "despesa";
+
+/**
+ * `atrasado` existe no enum, mas NUNCA é gravado: ele é derivado do
+ * vencimento a cada leitura, por `situacaoDoLancamento()` em
+ * `lib/dominio/financeiro.ts` e por `situacao_do_lancamento()` no Postgres.
+ * Um trigger reescreve para `previsto` quem tentar gravá-lo à mão.
+ */
+export type FinStatus = "previsto" | "faturado" | "pago" | "atrasado" | "cancelado";
+
+export type ContratoRecorrencia = "mensal" | "trimestral" | "anual" | "pontual";
+
+export type PfTipo = "entrada" | "saida";
+
 export type TaskStatus =
   | "nao_iniciada"
   | "em_andamento"
@@ -375,6 +389,133 @@ export interface Database {
         Relationships: [];
       };
       /** Texto livre sobre a semana. Privado (migration 0012). */
+      contracts: {
+        Row: {
+          id: string;
+          client_id: string;
+          nome: string;
+          valor: number;
+          recorrencia: ContratoRecorrencia;
+          dia_vencimento: number | null;
+          data_inicio: string;
+          data_fim: string | null;
+          ativo: boolean;
+          observacoes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          nome: string;
+          valor: number;
+          recorrencia?: ContratoRecorrencia;
+          dia_vencimento?: number | null;
+          data_inicio: string;
+          data_fim?: string | null;
+          ativo?: boolean;
+          observacoes?: string | null;
+        };
+        Update: {
+          client_id?: string;
+          nome?: string;
+          valor?: number;
+          recorrencia?: ContratoRecorrencia;
+          dia_vencimento?: number | null;
+          data_inicio?: string;
+          data_fim?: string | null;
+          ativo?: boolean;
+          observacoes?: string | null;
+        };
+        Relationships: [];
+      };
+      finance_categories: {
+        Row: { id: string; nome: string; tipo: FinTipo };
+        Insert: { id?: string; nome: string; tipo: FinTipo };
+        Update: { nome?: string; tipo?: FinTipo };
+        Relationships: [];
+      };
+      finance_entries: {
+        Row: {
+          id: string;
+          tipo: FinTipo;
+          client_id: string | null;
+          contract_id: string | null;
+          category_id: string | null;
+          descricao: string;
+          valor: number;
+          competencia: string;
+          vencimento: string | null;
+          pagamento: string | null;
+          status: FinStatus;
+          fornecedor: string | null;
+          observacoes: string | null;
+          criado_por: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: FinTipo;
+          client_id?: string | null;
+          contract_id?: string | null;
+          category_id?: string | null;
+          descricao: string;
+          valor: number;
+          competencia: string;
+          vencimento?: string | null;
+          pagamento?: string | null;
+          status?: FinStatus;
+          fornecedor?: string | null;
+          observacoes?: string | null;
+          criado_por: string;
+        };
+        Update: {
+          tipo?: FinTipo;
+          client_id?: string | null;
+          contract_id?: string | null;
+          category_id?: string | null;
+          descricao?: string;
+          valor?: number;
+          competencia?: string;
+          vencimento?: string | null;
+          pagamento?: string | null;
+          status?: FinStatus;
+          fornecedor?: string | null;
+          observacoes?: string | null;
+        };
+        Relationships: [];
+      };
+      personal_finance_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          tipo: PfTipo;
+          descricao: string;
+          categoria: string | null;
+          valor: number;
+          data: string;
+          recorrente: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tipo: PfTipo;
+          descricao: string;
+          categoria?: string | null;
+          valor: number;
+          data: string;
+          recorrente?: boolean;
+        };
+        Update: {
+          tipo?: PfTipo;
+          descricao?: string;
+          categoria?: string | null;
+          valor?: number;
+          data?: string;
+          recorrente?: boolean;
+        };
+        Relationships: [];
+      };
       weekly_notes: {
         Row: {
           id: string;
@@ -834,6 +975,10 @@ export interface Database {
       hr_status: HrStatus;
       presenca_status: PresencaStatus;
       skill_nivel: SkillNivel;
+      fin_tipo: FinTipo;
+      fin_status: FinStatus;
+      contrato_recorrencia: ContratoRecorrencia;
+      pf_tipo: PfTipo;
     };
     CompositeTypes: Record<string, never>;
   };
@@ -862,3 +1007,8 @@ export type Skill = Database["public"]["Tables"]["skills"]["Row"];
 export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
 export type SkillAvaliacao = Database["public"]["Tables"]["skill_avaliacoes"]["Row"];
 export type WeeklyNote = Database["public"]["Tables"]["weekly_notes"]["Row"];
+export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
+export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]["Row"];
+export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
+export type PersonalFinanceEntry =
+  Database["public"]["Tables"]["personal_finance_entries"]["Row"];

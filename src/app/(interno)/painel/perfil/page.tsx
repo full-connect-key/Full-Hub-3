@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 
-import { PiggyBank } from "lucide-react";
 
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { obterColaborador } from "@/lib/dados/equipe";
@@ -25,14 +22,13 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
 }
 
 /**
- * Meu perfil, em duas abas.
+ * Meu perfil.
  *
- * Financeiro Pessoal virou aba daqui no Sprint 3C. Como item solto no menu ele
- * disputava atenção com os módulos de trabalho, e o uso real pela equipe ainda
- * é incerto — mas ele é, literalmente, assunto de quem já está olhando o
- * próprio cadastro. A rota /painel/financeiro-pessoal continua existindo e
- * continua validando o perfil no servidor: o que mudou foi só por onde se
- * chega a ela.
+ * O Financeiro Pessoal foi aba daqui do Sprint 3C ao 8, e voltou a ser item de
+ * menu quando o módulo passou a existir de verdade. Duas portas para a mesma
+ * tela confundem quem procura, e a escolha foi a porta que se acha sem saber
+ * onde está — o item de menu, no fim da seção Principal e com peso visual
+ * reduzido, que é o discreto que o sprint pedia.
  */
 export default async function PaginaDoMeuPerfil() {
   const sessao = await exigirAcessoARota("/painel/perfil");
@@ -46,13 +42,7 @@ export default async function PaginaDoMeuPerfil() {
         actions={<Badge variant="secondary">{ROTULOS_DE_ROLE[sessao.profile.role]}</Badge>}
       />
 
-      <Tabs defaultValue="dados">
-        <TabsList>
-          <TabsTrigger value="dados">Meus dados</TabsTrigger>
-          <TabsTrigger value="financeiro">Financeiro Pessoal</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dados" className="space-y-6 pt-4">
+      <div className="space-y-6">
           <FormularioDoPerfil profile={sessao.profile} />
 
           <section className="rounded-card border p-5">
@@ -69,16 +59,7 @@ export default async function PaginaDoMeuPerfil() {
           </section>
 
           <TrocaDeSenha />
-        </TabsContent>
-
-        <TabsContent value="financeiro" className="pt-4">
-          <EmptyState
-            icon={PiggyBank}
-            title="Controle das suas finanças pessoais"
-            description="Opcional, e só seu: ninguém da agência enxerga. O módulo entra em um dos próximos sprints."
-          />
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

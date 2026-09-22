@@ -131,6 +131,12 @@ const PARES = [
   ["--brand-blue", "--surface-sidebar", NORMAL, "ITEM ATIVO do menu"],
   ["--brand-blue", "--surface-sidebar-2", NORMAL, "item ativo com fundo próprio"],
   ["--text-muted", "--surface-sidebar", GRANDE, "cargo no rodapé do menu"],
+  // O item de menu de módulo OPCIONAL. Ele é mais apagado de propósito, e
+  // por isso precisa ser MEDIDO: o primeiro valor tentado foi
+  // `text-on-dark/45`, que dava 4,05:1 — abaixo do mínimo para texto. Este
+  // par é o motivo de o token existir em vez da opacidade.
+  ["--text-on-dark-muted", "--surface-sidebar", NORMAL, "item discreto do menu"],
+  ["--text-on-dark-muted", "--surface-sidebar-2", NORMAL, "item discreto sobre hover"],
 
   // Estados: cor cheia com texto por cima, e fundo suave com a cor como texto.
   ["--success-foreground", "--success", NORMAL, "texto sobre verde"],
@@ -156,6 +162,49 @@ const PARES = [
   ["--input", "--surface-card", GRANDE, "borda do campo de formulário"],
   ["--input", "--surface-page", GRANDE, "borda do campo sobre a página"],
   ["--ring", "--surface-card", GRANDE, "anel de foco"],
+
+  // As cores de gráfico. Régua de ELEMENTO DE INTERFACE (3:1): uma linha ou
+  // uma barra não é texto, e o que o padrão cobra dela é ser distinguível do
+  // fundo.
+  //
+  // O contraste contra o fundo é só metade do problema, e a outra metade
+  // nenhuma conta de luminância pega: o par precisa ser distinguível para
+  // quem tem daltonismo. Isso foi medido à parte, com o validador de paleta
+  // do skill de visualização — receita/despesa em verde e vermelho dava
+  // ΔE 4,2 em deuteranopia, ou seja, duas linhas idênticas. O par azul/roxo
+  // dá 9,4, e o eixo azul/laranja do saldo dá 20,5.
+  ["--serie-1", "--surface-card", GRANDE, "linha e barra da série 1"],
+  ["--serie-2", "--surface-card", GRANDE, "linha e barra da série 2"],
+  ["--serie-neg", "--surface-card", GRANDE, "coluna de saldo negativo"],
+];
+
+// --- nomes que saíram do produto -------------------------------------------
+//
+// Um critério de aceite do Sprint 8 diz que "Mês a Mês" não existe mais em
+// lugar nenhum. Um critério assim não se verifica uma vez: ele se verifica
+// toda vez, senão o nome volta num texto de ajuda três sprints depois e
+// ninguém percebe.
+//
+// Eles moram aqui, e não num script próprio, porque este já é o verificador
+// que varre o projeto inteiro atrás de coisa que não devia estar lá.
+
+const NOMES_MORTOS = [
+  // O nome antigo do Financeiro Pessoal, varrido do projeto INTEIRO: ele não
+  // pode sobreviver nem numa migration nem num comentário.
+  { nome: "Mês a Mês", onde: "src/ scripts/ supabase/ *.md", porque: "o Financeiro Pessoal se chamou assim até o Sprint 8" },
+  { nome: "Mes a Mes", onde: "src/ scripts/ supabase/ *.md", porque: "a mesma coisa, sem acento" },
+  { nome: "mes-a-mes", onde: "src/ scripts/ supabase/ *.md", porque: "a rota antiga" },
+
+  // A regra-mestra do produto: o Full Hub é o sistema único da agência, e
+  // nunca cita ferramenta externa NA INTERFACE.
+  //
+  // Só `src/` de propósito. O CLAUDE.md precisa nomear as ferramentas para
+  // poder proibi-las — varrer a documentação junto faria a verificação
+  // acusar a própria regra, que foi exatamente o que ela fez na primeira
+  // versão.
+  { nome: "Trello", onde: "src/", porque: "ferramenta externa citada na interface" },
+  { nome: "ClickUp", onde: "src/", porque: "ferramenta externa citada na interface" },
+  { nome: "Asana", onde: "src/", porque: "ferramenta externa citada na interface" },
 ];
 
 // --- execução --------------------------------------------------------------
@@ -167,6 +216,33 @@ const dark = declaracoes(escuro);
 
 let falhas = 0;
 let avisos = 0;
+
+console.log("\nNomes que saíram do produto\n");
+
+for (const { nome, onde, porque } of NOMES_MORTOS) {
+  let achados = "";
+  try {
+    achados = execSync(
+      `grep -rniF ${JSON.stringify(nome)} ${onde} --include=*.ts --include=*.tsx --include=*.mjs --include=*.sql --include=*.md 2>/dev/null || true`,
+      { encoding: "utf8" },
+    ).trim();
+  } catch {
+    achados = "";
+  }
+  // O próprio check-cores.mjs cita os nomes na lista acima: ignorar este
+  // arquivo é o que impede a verificação de acusar a si mesma.
+  const linhas = achados
+    .split("\n")
+    .filter((l) => l && !l.startsWith("scripts/check-cores.mjs"));
+
+  if (linhas.length === 0) {
+    console.log(`  ok      “${nome}” não aparece em lugar nenhum`);
+  } else {
+    falhas++;
+    console.log(`  FALHA   “${nome}” ainda aparece — ${porque}`);
+    for (const linha of linhas.slice(0, 5)) console.log(`          ${linha}`);
+  }
+}
 
 console.log("\nContraste — tema CLARO e tema ESCURO\n");
 

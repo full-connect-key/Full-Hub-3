@@ -216,11 +216,13 @@ mediu, e no tema escuro dá outra.
 Prioridade **Normal é cinza**. Era azul, e azul numa tela cujo destaque é azul
 fazia a prioridade mais comum competir com Alta e Urgente.
 
-`npm run check:cores` é a prova: mede 26 pares texto/fundo nos dois temas
+`npm run check:cores` é a prova: mede 34 pares texto/fundo nos dois temas
 (mínimo 4.5:1 normal, 3:1 grande e elemento de interface), acusa hex fora do
-arquivo de tokens, e confere se toda classe de cor existe no `@theme inline` —
+arquivo de tokens, confere se toda classe de cor existe no `@theme inline` —
 no Tailwind v4 um utilitário desconhecido não dá erro, só não gera CSS, e a
-tela fica sem a cor sem ninguém notar.
+tela fica sem a cor sem ninguém notar — e varre o projeto atrás de nome que
+saiu do produto, porque "esse nome não existe mais" é um critério que precisa
+ser verificado toda vez, não uma vez.
 
 ### Portais de Clientes
 
@@ -327,6 +329,108 @@ pessoa não pode ler é fofoca com carimbo do sistema.
 - "O que as pessoas querem desenvolver" sai de `quer_desenvolver`, marcado por
   elas mesmas. É o insumo do Full Academy, e o jeito mais barato de saber o que
   vale ensinar.
+
+### O Financeiro da agência é só do sócio
+
+`contracts`, `finance_categories` e `finance_entries` fecham em `is_socio()`
+nos quatro comandos. **Não existe "só leitura para o gestor", e a omissão é
+deliberada:** o desenvolvedor é gestão para todo o resto do sistema — cadastra
+cliente, aprova entrega, distribui trabalho — e aqui não. Faturamento por
+cliente, margem e inadimplência são a informação mais sensível da casa; quem
+pode lê-la é quem responde por ela.
+
+Com o Resumo Semanal e o Financeiro Pessoal, são os dois extremos do sigilo no
+produto — lá nem o sócio entra, aqui só ele. Os dois ficam lado a lado na
+migration 0013 de propósito: quem mexer numa dessas policies vê a outra na
+mesma tela.
+
+**A aba de Notas Fiscais que o sprint pedia não existe.** A agência emitir NF
+para cliente ficou fora do Full Hub por decisão do usuário; o módulo de nota
+fiscal que existe é o **da pessoa** (`/painel/notas-fiscais`), a nota que o
+colaborador manda para a agência pagar.
+
+#### Três datas, e elas não são a mesma coisa
+
+`competencia` é o mês **a que** o valor se refere, `vencimento` é quando
+deveria entrar ou sair, `pagamento` é quando entrou ou saiu. Um campo só
+obrigaria a escolher entre "quanto a agência produziu em setembro" e "quanto
+entrou no caixa em setembro", que são as duas perguntas que o sócio faz.
+
+A competência é gravada sempre no dia 1, por trigger: guardar `2026-09-17`
+faria "setembro" depender de qual dia foi digitado.
+
+#### Atraso é derivado, nunca gravado
+
+`atrasado` está no enum, e **nenhuma linha o carrega**: um trigger reescreve
+para `previsto` quem tentar gravá-lo à mão. A situação sai de
+`situacao_do_lancamento()` no Postgres e de `situacaoDoLancamento()` em
+`lib/dominio/financeiro.ts` — as duas existem de propósito, como a máquina de
+estados da subtarefa.
+
+É a mesma razão pela qual bloqueio de subtarefa não é status: atraso depende da
+data de hoje. Uma coluna precisaria de uma rotina noturna para continuar
+verdadeira, e no dia em que ela não rodasse o relatório mentiria sem avisar
+ninguém. Por isso `atrasado` também não é opção no formulário.
+
+#### Gerar lançamentos do mês não duplica
+
+A trava é o índice único `(contract_id, competencia)`, parcial, **não** a
+consulta da action: duas abas abertas clicando ao mesmo tempo passariam pelas
+duas consultas antes de qualquer uma gravar. E não roda sozinho ao virar o mês
+— receita que aparece sem ninguém ter mandado é receita que o sócio confere uma
+por uma antes de confiar no relatório.
+
+A recorrência conta a partir do mês de início, não do calendário: um contrato
+anual assinado em março cobra em março. Dia 31 em fevereiro vira o último dia
+do mês, senão um contrato que vence "no fim" pularia para março.
+
+#### A rentabilidade cruza receita com o tempo das SUBTAREFAS
+
+O sprint pedia `tasks.tempo_real_horas`, que **não existe desde o Sprint 3B**.
+Quem tem tempo é a subtarefa (`tempo_real_minutos`), e ressuscitar a coluna
+antiga contrariaria a regra de que nenhuma consulta pode trazê-la de volta — o
+número sairia zerado de qualquer jeito.
+
+Cliente sem hora lançada aparece com "sem hora registrada", nunca com zero:
+zero é uma afirmação sobre a conta, e o que se quer dizer é que ninguém mediu.
+
+#### Cor de gráfico não é cor de estado
+
+`--serie-1`, `--serie-2` e `--serie-neg` são tokens próprios, e os valores
+foram **medidos, não escolhidos**. Receita em verde e despesa em vermelho é o
+encode óbvio e reprova: o par dá ΔE 4,2 em deuteranopia — as duas linhas ficam
+idênticas para quem tem daltonismo vermelho-verde, que é o mais comum. O par
+azul/roxo dá 9,4; o eixo azul/laranja do saldo dá 20,5.
+
+No tema escuro os valores **não** são os claros invertidos: são passos próprios
+medidos contra o fundo escuro, porque clarear os do tema claro estoura a faixa
+de luminosidade e as marcas perdem croma — viram cinza.
+
+Os gráficos são SVG à mão, sem biblioteca: a cor tem que sair dos tokens (toda
+lib traz a própria paleta, e `check:cores` recusa hex solto), e assim o tema
+escuro funciona sozinho.
+
+### O Financeiro Pessoal é opcional, e o produto trata assim
+
+`personal_finance_entries` fecha em `user_id = auth.uid()` nas quatro
+operações. **Nem o sócio lê**, não existe relatório agregado, e nenhuma
+consulta do painel cruza esta tabela com nada — a mesma regra do Resumo
+Semanal, pela mesma razão: basta um relatório da gestão citando um número daqui
+para a confiança acabar de vez.
+
+- **Fica no fim da seção Principal, com peso visual reduzido** (ícone menor,
+  `--text-on-dark-muted`). Foi aba de Meu Perfil do Sprint 3C ao 8 e voltou ao
+  menu quando o módulo passou a existir — duas portas para a mesma tela
+  confundem quem procura.
+- **Fora da tela inicial, sem notificação e sem selo de pendência.** Quem não
+  quiser usar nunca é lembrado de que ele existe.
+- **"Apagar todos os meus dados", em duas etapas.** Um módulo do qual não se
+  consegue sair não é opcional — e é por isso que existe policy de DELETE.
+- `on delete cascade` no usuário: aqui o histórico **não** é para preservar. Se
+  a pessoa sai da agência, o controle de gastos dela vai junto — o oposto do
+  que vale para autoria de task.
+- A adição é uma linha só, sempre visível: diálogo para cada gasto de padaria
+  mataria o hábito na primeira semana.
 
 ### Full Days: férias, licença e ausência
 
@@ -464,6 +568,19 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - **Função não atravessa a fronteira servidor/cliente.** Uma função pura que
   os dois lados usam vai para `lib/dominio/`; `lib/dados/` é `server-only` e o
   que sai de lá são dados, nunca funções.
+- **Valor exportado de arquivo `"use client"` não vale no servidor.** Um
+  `export const LISTA = [...]` num Client Component chega ao Server Component
+  como referência de cliente, e `LISTA.includes(...)` estoura com *"is not a
+  function"*. É o espelho do `export const` em arquivo `"use server"`, e **o
+  `npm run build` não pega nenhum dos dois** — só aparece pedindo a página.
+  Valor que os dois lados usam vai para um módulo sem diretiva nenhuma
+  (`financeiro/vocabulario.ts` é o exemplo). Tipo pode ficar no arquivo
+  cliente: tipo é apagado na compilação.
+- **`<title>` dentro de `<svg>` quebra a hidratação.** O React 19 trata
+  `<title>` como o título do documento e o iça para o `<head>`, o que faz o
+  HTML do servidor divergir do que o navegador monta. O rótulo acessível de um
+  gráfico vai num `<span className="sr-only">` ao lado, apontado por
+  `aria-labelledby`.
 - Filtro e visualização de tela de listagem moram na URL, não em estado: o
   link precisa ser compartilhável e sobreviver à troca de visualização.
 - Permissão e menu saem de `src/lib/auth/permissions.ts`, e só de lá. Nunca
@@ -516,7 +633,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run build` | Build de produção |
 | `npm run lint` / `npm run typecheck` | Padrões e tipos |
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
-| `npm run check:cores` | Contraste dos pares texto/fundo e cor literal fora dos tokens |
+| `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
@@ -524,6 +641,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
 | Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
 | Sprint 3C | Tela inicial, menu definitivo e Portais de Clientes: identidade visual em tokens com `npm run check:cores` provando 26 pares de contraste e nenhum hex solto; menu em duas seções (Principal / Gestão com selo Admin) com Diário→Resumo Semanal e Minhas Skills→Meu Desenvolvimento redirecionando em 308; barra lateral escura com cartão da pessoa separando nome, cargo e perfil; tela inicial com boas-vindas, Acesso Rápido e a grade de Portais de Clientes; `/portal/{slug}` para a gestão ver o portal de um cliente em modo leitura, com faixa de aviso, registro em `client_portal_views` e a recusa valendo no banco; Resumo Semanal organizado por semana com registro privado; Notas Fiscais como módulo da pessoa; Financeiro Pessoal em aba dentro de Meu perfil. |

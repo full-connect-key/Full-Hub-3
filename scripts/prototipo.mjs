@@ -118,6 +118,16 @@ const TELAS = [
   { nome: "70-resumo-semanal-busca", rota: "/painel/resumo-semanal?busca=campanha", largura: 1440, altura: 900, role: "socio" },
   { nome: "71-meu-desenvolvimento-escuro", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador", tema: "escuro" },
 
+  // --- Sprint 8: Financeiro ----------------------------------------------
+  { nome: "72-financeiro-visao-geral", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio" },
+  { nome: "73-financeiro-lancamentos", rota: "/painel/financeiro?aba=lancamentos", largura: 1700, altura: 1100, role: "socio" },
+  { nome: "74-financeiro-novo-lancamento", rota: "/painel/financeiro?aba=lancamentos", largura: 1300, altura: 1100, role: "socio", clicar: 'button:has-text("Novo lançamento")' },
+  { nome: "75-financeiro-contratos", rota: "/painel/financeiro?aba=contratos", largura: 1700, altura: 800, role: "socio" },
+  { nome: "76-financeiro-relatorios", rota: "/painel/financeiro?aba=relatorios", largura: 1700, altura: 1400, role: "socio" },
+  { nome: "77-financeiro-visao-geral-escuro", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio", tema: "escuro" },
+  { nome: "78-financeiro-pessoal", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador" },
+  { nome: "79-financeiro-pessoal-escuro", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador", tema: "escuro" },
+
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -161,6 +171,8 @@ const SUBSTITUICOES = {
   "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/skills": ["./scripts/prototipo/skills.ts"],
+  "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
+  "@/lib/dados/financeiro-pessoal": ["./scripts/prototipo/financeiro-pessoal.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

@@ -83,6 +83,14 @@ export type MenuItem = {
   description: string;
   /** Fora do menu, mas a rota existe e continua validando o perfil. */
   hiddenFromMenu?: boolean;
+  /**
+   * Item de menu com peso visual reduzido: ícone menor e cor mais apagada.
+   *
+   * Para módulo OPCIONAL, que existe para quem quiser e não deve disputar
+   * atenção com o trabalho. Não é uma permissão — quem vê o item pode abrir
+   * a tela normalmente.
+   */
+  discreto?: boolean;
 };
 
 export const MENU: MenuItem[] = [
@@ -170,6 +178,23 @@ export const MENU: MenuItem[] = [
     section: "principal",
     description: "Seus dados de acesso, foto e preferências.",
   },
+  {
+    // ÚLTIMO da seção, e com peso visual reduzido de propósito.
+    //
+    // Foi aba de Meu Perfil do Sprint 3C ao 8, e voltou ao menu quando o
+    // módulo passou a existir de verdade — duas portas para a mesma tela
+    // confundem quem procura. O que não muda é o posicionamento: ele é
+    // opcional, o uso real pela equipe é incerto, e ele não pode competir
+    // com os módulos do trabalho. Por isso `discreto`, por isso último, e
+    // por isso fora da tela inicial, sem notificação e sem selo.
+    label: "Financeiro Pessoal",
+    href: "/painel/financeiro-pessoal",
+    icon: PiggyBank,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Controle das suas finanças pessoais. Opcional e privado.",
+    discreto: true,
+  },
 
   // --- Gestão --------------------------------------------------------------
   {
@@ -221,12 +246,16 @@ export const MENU: MenuItem[] = [
     description: "Os tipos de tarefa da agência e o fluxo de etapas de cada um.",
   },
   {
+    // SÓ O SÓCIO. O desenvolvedor é gestão para todo o resto do sistema e
+    // aqui não: faturamento por cliente, margem e inadimplência são a
+    // informação mais sensível da casa. Esconder o item não é a proteção —
+    // ela está em `exigirAcessoARota` e, principalmente, na RLS da 0013.
     label: "Financeiro",
     href: "/painel/financeiro",
     icon: CircleDollarSign,
     roles: SOCIO,
     section: "gestao",
-    description: "Faturamento e a saúde financeira da agência.",
+    description: "Contratos, receitas, despesas e a rentabilidade de cada conta.",
   },
 
   // --- Fora do menu --------------------------------------------------------

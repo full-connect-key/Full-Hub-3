@@ -8,6 +8,11 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DateBadge } from "@/components/shared/date-badge";
+import { GraficoDeBarras } from "@/components/shared/grafico-de-barras";
+import { GraficoDeLinhas } from "@/components/shared/grafico-de-linhas";
+import { GraficoDeSaldo } from "@/components/shared/grafico-de-saldo";
+import { SeletorDeMes } from "@/components/shared/seletor-de-mes";
+import { formatarDinheiro, formatarDinheiroCurto } from "@/lib/dominio/financeiro";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar, SEM_FILTRO } from "@/components/shared/filter-bar";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -289,6 +294,63 @@ export function DemonstracaoDeComponentes() {
           <LoadingSkeleton variant="card" rows={3} />
           <LoadingSkeleton variant="list" rows={3} />
         </div>
+      </Secao>
+
+      <Secao
+        titulo="SeletorDeMes"
+        descricao="Navegação por mês, na URL (?mes=2026-09). O link tem que poder ser colado."
+      >
+        <SeletorDeMes competencia="2026-09-01" />
+      </Secao>
+
+      <Secao
+        titulo="GraficoDeLinhas"
+        descricao="Duas séries no tempo. Azul e roxo, e não verde e vermelho: o par verde/vermelho dá ΔE 4,2 em deuteranopia — as duas linhas ficam idênticas para quem tem daltonismo vermelho-verde. Este dá 9,4."
+      >
+        <GraficoDeLinhas
+          pontos={[
+            { rotulo: "abr", valores: [28000, 19000] },
+            { rotulo: "mai", valores: [31000, 21000] },
+            { rotulo: "jun", valores: [29500, 24000] },
+            { rotulo: "jul", valores: [36000, 22500] },
+            { rotulo: "ago", valores: [34000, 26000] },
+            { rotulo: "set", valores: [41000, 25000] },
+          ]}
+          series={["Receita", "Despesa"]}
+          formatarValor={formatarDinheiroCurto}
+        />
+      </Secao>
+
+      <Secao
+        titulo="GraficoDeBarras"
+        descricao="Magnitude por identidade. Horizontal porque os rótulos são nomes, e de uma cor só: o comprimento já codifica a grandeza, e oito cores não diriam nada."
+      >
+        <GraficoDeBarras
+          barras={[
+            { nome: "Mundo Verde", valor: 18400 },
+            { nome: "Óptica Visão", valor: 12250 },
+            { nome: "Padaria do Bairro", valor: 6800 },
+            { nome: "Sem cliente", valor: 3550 },
+          ]}
+          formatarValor={formatarDinheiro}
+        />
+      </Secao>
+
+      <Secao
+        titulo="GraficoDeSaldo"
+        descricao="Colunas que crescem dos dois lados do zero. O trabalho aqui é polaridade, e numa linha o cruzar do zero é fácil de não ver."
+      >
+        <GraficoDeSaldo
+          meses={[
+            { rotulo: "abr", valor: 1200 },
+            { rotulo: "mai", valor: -450 },
+            { rotulo: "jun", valor: 890 },
+            { rotulo: "jul", valor: 2100 },
+            { rotulo: "ago", valor: -320 },
+            { rotulo: "set", valor: 1640 },
+          ]}
+          formatarValor={formatarDinheiro}
+        />
       </Secao>
     </div>
   );

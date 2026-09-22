@@ -68,6 +68,12 @@
   --text-muted: #868C94;
   /* O texto que vai sobre fundo escuro ou sobre cor cheia. */
   --text-on-dark: #F5F6F8;
+  /* O texto APAGADO da barra escura — item de menu de módulo opcional.
+     Token nomeado e não `text-on-dark/45`, porque opacidade dá uma cor que
+     ninguém mediu: aquele 45% resultava em 4,05:1, abaixo do mínimo para
+     texto. Este valor dá 5,27:1 e continua visivelmente mais discreto que o
+     item comum, que fica em 7,66:1. */
+  --text-on-dark-muted: #96989B;
 
   /* --- Estados ------------------------------------------------------------ */
   /* O par é sempre "cor cheia" + "fundo suave". A cor cheia carrega texto
@@ -89,6 +95,22 @@
      marca — é cor de estado, como o verde e o vermelho, e só aparece ali. */
   --ferias: #7E22CE;
   --ferias-soft: #F3E8FF;
+
+  /* --- Cores de gráfico -------------------------------------------------
+     Separadas das cores de estado DE PROPÓSITO. Receita em verde e despesa
+     em vermelho é o encode óbvio e reprova: o par #15803D/#B91C1C dá ΔE 4,2
+     em deuteranopia, ou seja, as duas linhas ficam iguais para quem tem
+     daltonismo vermelho-verde — que é a forma mais comum. O par azul/roxo
+     passa em ΔE 9,4, e o eixo azul-laranja do saldo passa em 20,5.
+
+     Os valores foram medidos, não escolhidos: faixa de luminosidade, piso de
+     croma, separação sob os três tipos de daltonismo e contraste contra o
+     fundo. Trocar qualquer um destes hex exige medir de novo. */
+  --serie-1: #0C75A6;
+  --serie-2: #7E22CE;
+  /* O polo quente do gráfico divergente de saldo. Não é --danger: saldo
+     negativo num mês não é erro nem alerta, é um fato do mês. */
+  --serie-neg: #C2410C;
 
   /* --- A ponte com o shadcn/ui -------------------------------------------
      Os componentes de components/ui/ falam a língua do shadcn (--primary,
@@ -147,6 +169,8 @@
   --text-secondary: #B6BCC4;
   --text-muted: #8B929B;
   --text-on-dark: #F5F6F8;
+  /* A barra lateral é escura nos dois temas, então o apagado dela é o mesmo. */
+  --text-on-dark-muted: #96989B;
 
   /* No escuro as cores de estado clareiam, senão somem no fundo — e passam a
      carregar texto escuro, porque agora são elas as claras. */
@@ -160,6 +184,14 @@
   --neutral-soft: #2C3137;
   --ferias: #C084FC;
   --ferias-soft: #2A1A3D;
+
+  /* No escuro as cores de gráfico NÃO são as claras invertidas: são passos
+     próprios, medidos contra --surface-card do tema escuro. Clarear as do
+     tema claro estouraria a faixa de luminosidade e as marcas perderiam
+     croma — viravam cinza. */
+  --serie-1: #1795D2;
+  --serie-2: #9945E8;
+  --serie-neg: #DE6631;
 
   --brand-foreground: #17191D;
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
@@ -209,6 +241,7 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --color-text-on-dark-muted: var(--text-on-dark-muted);
   --color-text-on-dark: var(--text-on-dark);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -238,6 +271,9 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-ferias: var(--ferias);
   --color-ferias-soft: var(--ferias-soft);
+  --color-serie-1: var(--serie-1);
+  --color-serie-2: var(--serie-2);
+  --color-serie-neg: var(--serie-neg);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
