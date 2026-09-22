@@ -140,6 +140,10 @@ const PARES = [
   ["--warning", "--warning-soft", NORMAL, "selo de atenção"],
   ["--danger", "--danger-soft", NORMAL, "selo de erro"],
   ["--neutral", "--neutral-soft", NORMAL, "selo neutro (prioridade Normal)"],
+  ["--ferias", "--ferias-soft", NORMAL, "selo de férias"],
+  // Na matriz o quadrado de férias é só cor, sem texto: vale a régua de
+  // elemento de interface.
+  ["--ferias", "--surface-card", GRANDE, "quadrado de férias na matriz"],
 
   // Elemento de interface: 3:1.
   //

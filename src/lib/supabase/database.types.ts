@@ -699,6 +699,26 @@ export interface Database {
         Returns: void;
       };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
+
+      // --- Full Days e notificacoes (migration 0011) ----------------------
+      dias_uteis: { Args: { inicio: string; fim: string }; Returns: number };
+      saldo_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
+      parcelas_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
+      decidir_solicitacao: {
+        Args: { p_request_id: string; p_decisao: HrStatus; p_motivo: string | null };
+        Returns: void;
+      };
+      cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
+      notificar: {
+        Args: {
+          p_user_id: string;
+          p_tipo: NotificationTipo;
+          p_titulo: string;
+          p_corpo?: string | null;
+          p_link?: string | null;
+        };
+        Returns: string | null;
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -709,6 +729,10 @@ export interface Database {
       tipo_aprovacao: TipoAprovacao;
       escopo_rodada: EscopoRodada;
       status_rodada: StatusRodada;
+      notification_tipo: NotificationTipo;
+      hr_tipo: HrTipo;
+      hr_status: HrStatus;
+      presenca_status: PresencaStatus;
     };
     CompositeTypes: Record<string, never>;
   };

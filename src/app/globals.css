@@ -83,6 +83,12 @@
      Alta e Urgente, que é onde ele precisa estar. */
   --neutral: #545960;
   --neutral-soft: #F1F3F5;
+  /* Férias, na matriz da equipe. O roxo não estava na paleta e precisou
+     entrar: a matriz tem sete estados no mesmo quadrado pequeno, e sem ele
+     férias e licença cairiam as duas no âmbar. Não é um terceiro tom de
+     marca — é cor de estado, como o verde e o vermelho, e só aparece ali. */
+  --ferias: #7E22CE;
+  --ferias-soft: #F3E8FF;
 
   /* --- A ponte com o shadcn/ui -------------------------------------------
      Os componentes de components/ui/ falam a língua do shadcn (--primary,
@@ -152,6 +158,8 @@
   --danger-soft: #3A1717;
   --neutral: #B6BCC4;
   --neutral-soft: #2C3137;
+  --ferias: #C084FC;
+  --ferias-soft: #2A1A3D;
 
   --brand-foreground: #17191D;
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
@@ -228,6 +236,8 @@
   --color-danger-soft: var(--danger-soft);
   --color-neutral: var(--neutral);
   --color-neutral-soft: var(--neutral-soft);
+  --color-ferias: var(--ferias);
+  --color-ferias-soft: var(--ferias-soft);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
@@ -251,6 +261,24 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ===========================================================================
+   Feriado na matriz da equipe.
+
+   Listras em vez de uma sétima cor sólida. São sete estados no mesmo quadrado
+   de poucos pixels, e a sétima cor já começaria a se confundir com as outras
+   seis — padrão distingue melhor que matiz quando o alvo é pequeno. De quebra,
+   funciona para quem não separa bem as cores.
+   =========================================================================== */
+.listrado {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--neutral-soft),
+    var(--neutral-soft) 3px,
+    var(--border) 3px,
+    var(--border) 6px
+  );
 }
 
 /* ===========================================================================
