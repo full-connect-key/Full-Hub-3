@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -28,6 +28,7 @@ import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { atualizarTask, excluirTask } from "../acoes";
+import { salvarTaskComoWorkflow } from "../../workflows/acoes";
 
 const SEM_VALOR = "__sem__";
 
@@ -57,6 +58,7 @@ export function LateralDaTask({
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
+  const [nomeDoFluxo, setNomeDoFluxo] = useState("");
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
@@ -258,6 +260,44 @@ export function LateralDaTask({
       <p className="text-muted-foreground text-xs">
         Criada por {task.autor?.nome ?? "—"}.
       </p>
+
+      {/* O caminho de volta: uma demanda que deu certo vira modelo para as
+          próximas. O prazo de cada etapa é convertido em dias a partir do
+          início desta Task. */}
+      {podeExcluir && task.subtarefas.length > 0 ? (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <Input
+              value={nomeDoFluxo}
+              onChange={(evento) => setNomeDoFluxo(evento.target.value)}
+              placeholder="Nome do novo fluxo"
+              aria-label="Nome do fluxo a criar a partir desta task"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={salvando || nomeDoFluxo.trim().length < 2}
+              onClick={() =>
+                iniciar(async () => {
+                  const resultado = await chamarAcao(() =>
+                    salvarTaskComoWorkflow(task.id, nomeDoFluxo, null),
+                  );
+                  if (!resultado.ok) toast.error(resultado.error);
+                  else {
+                    toast.success(resultado.mensagem);
+                    setNomeDoFluxo("");
+                  }
+                })
+              }
+            >
+              <Workflow aria-hidden />
+              Salvar as subtarefas como fluxo
+            </Button>
+          </div>
+        </>
+      ) : null}
 
       {podeExcluir ? (
         <>

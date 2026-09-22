@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   BookOpen,
   CalendarDays,
   CircleDollarSign,
@@ -13,6 +14,7 @@ import {
   ThumbsUp,
   UserRound,
   Users,
+  Workflow,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -99,6 +101,14 @@ export const MENU: MenuItem[] = [
     description: "Prazos, publicações e compromissos em uma linha do tempo.",
   },
   {
+    label: "Aprovações internas",
+    href: "/painel/aprovacoes-internas",
+    icon: BadgeCheck,
+    roles: GESTAO,
+    section: "trabalho",
+    description: "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
+  },
+  {
     label: "Aprovações e Conteúdo",
     href: "/painel/aprovacoes",
     icon: FileCheck2,
@@ -108,6 +118,14 @@ export const MENU: MenuItem[] = [
   },
 
   // --- Gestão --------------------------------------------------------------
+  {
+    label: "Workflows",
+    href: "/painel/workflows",
+    icon: Workflow,
+    roles: GESTAO,
+    section: "gestao",
+    description: "Os tipos de tarefa da agência e o fluxo de subtarefas de cada um.",
+  },
   {
     label: "Clientes",
     href: "/painel/clientes",
