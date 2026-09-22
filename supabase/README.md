@@ -6,8 +6,14 @@ da equipe consegue ver o historico de mudancas do schema.
 
 ## Aplicando uma migration
 
-**Pelo painel (mais simples):** Supabase > SQL Editor > cole o arquivo inteiro
-> Run.
+**Pelo painel (mais simples):** Supabase > SQL Editor > New query > cole o
+arquivo **inteiro** > Run.
+
+> Nao deixe texto selecionado no editor: quando ha uma selecao, o Supabase roda
+> so ela. Rodar um trecho do meio de uma migration produz erros do tipo
+> `relation "public.<tabela>" does not exist`, porque as tabelas sao criadas no
+> inicio do arquivo. As migrations daqui sao idempotentes, entao basta rodar o
+> arquivo completo de novo.
 
 **Pela CLI (melhor quando houver varias migrations):**
 
@@ -34,8 +40,8 @@ npx supabase gen types typescript --linked > ../src/lib/supabase/database.types.
 | `lidar_com_novo_usuario()` + trigger | Cria o perfil sozinho quando um usuario e cadastrado |
 | `tocar_atualizado_em()` + trigger | Mantem a coluna `atualizado_em` sempre correta |
 | `e_admin()` | Usada pelas policies para saber se quem pediu e administrador |
-| `proteger_papel_do_perfil()` + trigger | Impede que alguem se promova a admin editando o proprio perfil |
-| 4 policies de RLS | Cada pessoa le e edita o proprio perfil; admin ve e edita todos |
+| `proteger_papel_do_perfil()` + trigger | Impede que alguem se promova a admin criando ou editando o proprio perfil |
+| 5 policies de RLS | Cada pessoa le, cria e edita o proprio perfil; admin ve e edita todos |
 
 O Supabase ja guarda e-mail e senha em `auth.users`, que e uma tabela dele e
 nao deve ser alterada. Tudo que for "nosso" sobre a pessoa fica em
@@ -50,6 +56,25 @@ rodar com os privilegios de quem a criou, quebrando o ciclo.
 
 O mesmo vale para `lidar_com_novo_usuario()`: ela roda no instante do cadastro,
 quando ainda nao existe sessao para o RLS avaliar.
+
+## Por que as funcoes sao todas `plpgsql`
+
+O Postgres valida o corpo de uma funcao `language sql` na hora de cria-la. Se a
+funcao mencionar uma tabela que ainda nao existe, o `create function` falha --
+mesmo que a tabela va ser criada logo em seguida. Funcoes `plpgsql` tem o corpo
+verificado so na primeira execucao, o que torna a migration imune a problemas
+de ordem e a execucoes parciais.
+
+## Promovendo alguem a admin
+
+```sql
+update public.perfis set papel = 'admin' where email = 'pessoa@suaagencia.com.br';
+```
+
+Funciona no SQL Editor porque ali nao existe sessao de usuario (`auth.uid()` e
+nulo) e o trigger de protecao libera a mudanca. A mesma linha rodando em nome
+de um usuario logado comum nao teria efeito sobre a coluna `papel` -- que e
+exatamente a intencao.
 
 ## Regra para toda tabela nova
 

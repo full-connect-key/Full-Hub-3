@@ -80,8 +80,17 @@ A terceira e segredo de verdade: leia [Seguranca](#seguranca-o-que-nunca-fazer).
 
 ### 3. Criar as tabelas
 
-No painel do Supabase, abra **SQL Editor**, cole o conteudo de
-`supabase/migrations/0001_perfis.sql` inteiro e clique em **Run**.
+No painel do Supabase, abra **SQL Editor > New query**, cole o conteudo de
+`supabase/migrations/0001_perfis.sql` **inteiro** e clique em **Run**.
+
+> **Cole o arquivo todo, sem deixar texto selecionado.** O SQL Editor roda
+> apenas a selecao quando existe uma. Rodar um pedaco do meio do arquivo da o
+> erro `relation "public.perfis" does not exist`, porque a tabela e criada no
+> comeco. Se aparecer esse erro, e so rodar o arquivo completo de novo: o
+> script pode ser executado quantas vezes for preciso.
+
+Deu certo quando a ultima linha do resultado mostra `tudo pronto` com a
+contagem de perfis e de policies.
 
 Essa migration cria a tabela `perfis`, liga ela ao sistema de login do Supabase
 e configura o RLS. Detalhes em [`supabase/README.md`](./supabase/README.md).

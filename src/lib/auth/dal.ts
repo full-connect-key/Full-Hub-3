@@ -37,7 +37,29 @@ export const obterSessao = cache(async (): Promise<{ usuario: NonNullable<Awaite
     .eq("id", usuario.id)
     .maybeSingle();
 
-  return { usuario, perfil: perfil ?? null };
+  if (perfil) return { usuario, perfil };
+
+  // Rede de seguranca. Normalmente o perfil ja nasceu junto com o usuario,
+  // pelo trigger ao_criar_usuario. Mas alguns projetos Supabase restringem o
+  // schema auth e nao deixam criar esse trigger -- nesse caso o dashboard
+  // cria o registro que falta no primeiro acesso.
+  //
+  // Nao ha risco de alguem nascer admin por aqui: a policy so aceita o
+  // proprio id, e o trigger perfis_proteger_papel forca papel 'membro'.
+  const metadados = usuario.user_metadata as Record<string, unknown> | undefined;
+  const nomeDosMetadados = metadados?.nome_completo ?? metadados?.full_name;
+
+  const { data: perfilCriado } = await supabase
+    .from("perfis")
+    .insert({
+      id: usuario.id,
+      email: usuario.email ?? null,
+      nome_completo: typeof nomeDosMetadados === "string" ? nomeDosMetadados : null,
+    })
+    .select("*")
+    .maybeSingle();
+
+  return { usuario, perfil: perfilCriado ?? null };
 });
 
 /**
