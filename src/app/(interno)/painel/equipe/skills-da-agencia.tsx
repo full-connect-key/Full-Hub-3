@@ -321,7 +321,12 @@ function Matriz({
                 return (
                   <td key={skill.id} className="border-b p-0 text-center">
                     {nivel ? (
+                      /* `role="img"` e o que faz o `aria-label` valer: num
+                         <span> sem papel, o leitor de tela ignora o rotulo e a
+                         celula fica muda -- e o nivel e a unica informacao que
+                         a matriz carrega. */
                       <span
+                        role="img"
                         title={`${pessoa.nome} — ${skill.nome}: ${ROTULOS_DE_NIVEL[nivel]}`}
                         aria-label={`${pessoa.nome}, ${skill.nome}: ${ROTULOS_DE_NIVEL[nivel]}`}
                         className="bg-accent-strong mx-auto block size-5 rounded-sm"

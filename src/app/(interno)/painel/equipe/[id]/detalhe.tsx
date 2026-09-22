@@ -1,10 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, Loader2, Power, Wrench } from "lucide-react";
+import { CalendarDays, Loader2, Power } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -17,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
+import { DIAS_DE_FERIAS_PADRAO } from "@/lib/dominio/full-days";
 import type { MembroDaEquipe } from "@/lib/dados/equipe";
 
 import { chamarAcao } from "@/lib/acoes/cliente";
@@ -78,7 +80,7 @@ export function DetalheDoColaborador({
       area: pessoa.membro?.area ?? "",
       funcao: pessoa.membro?.funcao ?? "",
       data_admissao: pessoa.membro?.data_admissao ?? "",
-      dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? 30,
+      dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? DIAS_DE_FERIAS_PADRAO,
     },
   });
 
@@ -291,10 +293,18 @@ export function DetalheDoColaborador({
       <TabsContent value="skills">{abaDeSkills}</TabsContent>
 
       <TabsContent value="full-days">
+        {/* O módulo existe desde o Sprint 6; o que ainda não existe é o recorte
+            de uma pessoa só dentro da ficha dela. Até lá, a aba manda para
+            onde a informação está, em vez de prometer um sprint já entregue. */}
         <EmptyState
           icon={CalendarDays}
-          title="Preenchida no Sprint 6"
-          description="O saldo de folgas e o histórico de solicitações."
+          title="O saldo e os pedidos desta pessoa ficam no Full Days"
+          description="A matriz da equipe mostra os dias dela ao lado dos colegas da mesma área, que é o arranjo em que a informação decide alguma coisa."
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/painel/full-days?aba=matriz">Abrir o Full Days</Link>
+            </Button>
+          }
         />
       </TabsContent>
     </Tabs>

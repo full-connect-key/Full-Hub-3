@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { format, parseISO } from "date-fns";
+import type { JSONContent } from "@tiptap/react";
+import { addDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { EntregaDaSemana } from "@/lib/dados/resumo-semanal";
+import type { Humor } from "@/lib/dominio/skills";
 import {
   chaveDaSemana,
   deslocarSemana,
@@ -40,6 +42,7 @@ import {
 } from "@/lib/dominio/semanas";
 
 import { criarEntrega, editarEntrega, excluirEntrega } from "./acoes";
+import { NotaDaSemana } from "./nota-da-semana";
 
 const SEM_VALOR = "__sem__";
 
@@ -64,6 +67,9 @@ export function SemanaDeEntregas({
   inicioISO,
   hojeISO,
   abrirNova,
+  notaInicial,
+  humorInicial,
+  temEntregasParaPuxar,
 }: {
   entregas: EntregaDaSemana[];
   clientes: { id: string; nome_empresa: string }[];
@@ -71,6 +77,9 @@ export function SemanaDeEntregas({
   inicioISO: string;
   hojeISO: string;
   abrirNova: boolean;
+  notaInicial: JSONContent | null;
+  humorInicial: Humor | null;
+  temEntregasParaPuxar: boolean;
 }) {
   const router = useRouter();
   const parametros = useSearchParams();
@@ -197,6 +206,15 @@ export function SemanaDeEntregas({
           Adicionar Entrega
         </Button>
       </div>
+
+      <NotaDaSemana
+        semanaISO={inicioISO}
+        fimISO={format(addDays(inicio, 6), "yyyy-MM-dd")}
+        conteudoInicial={notaInicial}
+        humorInicial={humorInicial}
+        temEntregasParaPuxar={temEntregasParaPuxar}
+        aoMudar={() => router.refresh()}
+      />
 
       {entregas.length === 0 ? (
         <EmptyState

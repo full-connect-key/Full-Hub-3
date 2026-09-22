@@ -77,15 +77,17 @@ export function PulsoAgenciaBlock() {
 }
 
 /**
- * Sprint 15: quem está de Full Day hoje. Depende do módulo Full Days, que é do
- * Sprint 6 — por isso este bloco não tem como buscar nada ainda.
+ * Sprint 15: quem está de Full Day hoje, na tela inicial.
+ *
+ * O módulo Full Days já existe (Sprint 6) e a matriz já responde a pergunta;
+ * o que falta é o recorte de hoje aqui, sem sair da tela inicial.
  */
 export function QuemEstaForaHojeBlock() {
   return (
     <BlocoReservado
       titulo="Quem está fora hoje"
       icone={CalendarOff}
-      frase="Full Days do dia. Depende do módulo Full Days, do Sprint 6."
+      frase="Quem está de férias, licença ou ausente hoje, sem sair daqui. Entra no Sprint 15 — por ora, a matriz do Full Days responde."
     />
   );
 }

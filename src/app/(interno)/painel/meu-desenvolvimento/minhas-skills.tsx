@@ -226,7 +226,11 @@ export function MinhasSkills({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs"
+                        // Largura fixa porque "Observação" é mais larga que
+                        // "Anotar": sem ela, a linha que já tem anotação puxa
+                        // toda a fileira de controles alguns pixels para a
+                        // esquerda, e a coluna de níveis deixa de ser coluna.
+                        className="w-24 text-xs"
                         onClick={() =>
                           setExpandida(expandida === skill.skillId ? null : skill.skillId)
                         }

@@ -226,3 +226,37 @@ select teste.cenario('Um registro por semana, por pessoa', :BRUNO,
     insert into public.weekly_notes (user_id, semana, conteudo_texto)
     values (%L, date_trunc('week', current_date)::date, %L)
   $fmt$, :BRUNO, 'Segundo registro da mesma semana'), 'recusa');
+
+
+-- ---------------------------------------------------------------------------
+-- "Puxar minhas entregas", que e o unico lugar onde a data da entrega nao vem
+-- digitada por gente.
+--
+-- O bug que estes dois cenarios travam: a primeira versao datava toda entrega
+-- puxada no DOMINGO da semana aberta. Na semana corrente o domingo ainda nao
+-- chegou, o trigger recusava -- e como o insert e um so, para todas as etapas
+-- de uma vez, uma unica data futura derrubava o lote inteiro. A tela dizia
+-- "nao foi possivel puxar" sem nunca ter funcionado dentro da semana em curso,
+-- que e justamente quando a pessoa usa o botao.
+-- ---------------------------------------------------------------------------
+
+select teste.cenario('Puxar datando na conclusao funciona na semana em curso', :BRUNO,
+  format($fmt$
+    insert into public.weekly_entries (user_id, data, descricao)
+    values (%L, current_date, %L)
+  $fmt$, :BRUNO, 'Etapa concluida hoje, puxada hoje'), 'ok', 1);
+
+-- O domingo da semana aberta e futuro em seis dos sete dias -- no proprio
+-- domingo, nao. Por isso o cenario anda uma semana quando roda num domingo:
+-- assim ele continua descrevendo a data que a versao antiga calculava para
+-- uma semana ainda em curso, sem afirmar no domingo uma coisa que e falsa.
+select teste.cenario('Puxar datando no domingo da semana aberta seria recusado', :BRUNO,
+  format($fmt$
+    insert into public.weekly_entries (user_id, data, descricao)
+    values (%L,
+      (date_trunc('week', current_date)
+        + interval '6 days'
+        + case when extract(isodow from current_date) = 7 then interval '7 days'
+               else interval '0 days' end)::date,
+      %L)
+  $fmt$, :BRUNO, 'A data que a versao antiga usava'), 'recusa');

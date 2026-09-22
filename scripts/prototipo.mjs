@@ -111,6 +111,13 @@ const TELAS = [
   { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
   { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
 
+  // --- Sprint 7: Desenvolvimento e Skills --------------------------------
+  { nome: "67-meu-desenvolvimento", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador" },
+  { nome: "68-equipe-skills", rota: "/painel/equipe", largura: 1700, altura: 1200, role: "socio", clicar: '[role="tab"]:has-text("Skills")' },
+  { nome: "69-resumo-semanal-nota", rota: "/painel/resumo-semanal", largura: 1440, altura: 1200, role: "socio" },
+  { nome: "70-resumo-semanal-busca", rota: "/painel/resumo-semanal?busca=campanha", largura: 1440, altura: 900, role: "socio" },
+  { nome: "71-meu-desenvolvimento-escuro", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador", tema: "escuro" },
+
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -153,6 +160,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
+  "@/lib/dados/skills": ["./scripts/prototipo/skills.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

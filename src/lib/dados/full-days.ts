@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { DIAS_DE_FERIAS_PADRAO } from "@/lib/dominio/full-days";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   HrRequest,
@@ -87,7 +88,7 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
         avatarUrl: p.avatar_url,
         area: ficha?.area?.trim() || SEM_AREA,
         cargo: ficha?.cargo ?? null,
-        diasFeriasAno: ficha?.dias_ferias_ano ?? 15,
+        diasFeriasAno: ficha?.dias_ferias_ano ?? DIAS_DE_FERIAS_PADRAO,
         maxParcelas: ficha?.max_parcelas_ferias ?? 2,
       };
     });

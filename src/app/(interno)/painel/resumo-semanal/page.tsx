@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { addDays, format } from "date-fns";
+import type { JSONContent } from "@tiptap/react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
-import { entregasDaSemana, subtarefasConcluidasNaSemana } from "@/lib/dados/resumo-semanal";
+import {
+  buscarNoHistorico,
+  entregasDaSemana,
+  notaDaSemana,
+  subtarefasAindaNaoRegistradas,
+  subtarefasConcluidasNaSemana,
+} from "@/lib/dados/resumo-semanal";
+import type { Humor } from "@/lib/dominio/skills";
 import { chaveDaSemana, semanaDaChave } from "@/lib/dominio/semanas";
 
+import { BuscaNoHistorico } from "./busca-no-historico";
+import { ResultadosDaBusca } from "./resultados-da-busca";
 import { SemanaDeEntregas } from "./semana";
 
 export const metadata: Metadata = { title: "Resumo Semanal" };
@@ -26,10 +36,12 @@ async function Conteudo({
 }) {
   const fim = addDays(inicio, 6);
 
-  const [entregas, clientes, subtarefas] = await Promise.all([
+  const [entregas, clientes, subtarefas, nota, pendentes] = await Promise.all([
     entregasDaSemana(inicio, fim),
     listarClientes(),
     subtarefasConcluidasNaSemana(usuarioId, inicio, fim),
+    notaDaSemana(chaveDaSemana(inicio)),
+    subtarefasAindaNaoRegistradas(usuarioId, inicio, fim),
   ]);
 
   return (
@@ -42,8 +54,16 @@ async function Conteudo({
       inicioISO={chaveDaSemana(inicio)}
       hojeISO={format(hoje, "yyyy-MM-dd")}
       abrirNova={abrirNova}
+      notaInicial={(nota?.conteudo_rico as JSONContent | null) ?? null}
+      humorInicial={(nota?.humor as Humor | null) ?? null}
+      temEntregasParaPuxar={pendentes.length > 0}
     />
   );
+}
+
+async function Busca({ termo }: { termo: string }) {
+  const achados = await buscarNoHistorico(termo);
+  return <ResultadosDaBusca termo={termo} achados={achados} />;
 }
 
 /**
@@ -57,6 +77,11 @@ async function Conteudo({
  * HOJE É CALCULADO AQUI, no servidor, e desce pronto para a tela. Se o
  * navegador lesse o próprio relógio, alguém em outro fuso veria a entrega de
  * segunda-feira cair na semana anterior.
+ *
+ * Buscando, a semana some da tela em vez de dividir espaço com os resultados:
+ * quem procura "campanha de outubro" está atrás daquilo, e a semana de hoje ao
+ * lado só competiria por atenção. O termo fica na URL, então fechar a busca
+ * devolve exatamente a semana de onde a pessoa saiu.
  */
 export default async function PaginaDoResumoSemanal({
   searchParams,
@@ -68,6 +93,8 @@ export default async function PaginaDoResumoSemanal({
   const semana = typeof parametros.semana === "string" ? parametros.semana : undefined;
   const inicio = semanaDaChave(semana, hoje);
   const abrirNova = parametros.nova === "1";
+  const busca = typeof parametros.busca === "string" ? parametros.busca.trim() : "";
+  const buscando = busca.length >= 2;
 
   return (
     <div className="space-y-6">
@@ -76,14 +103,25 @@ export default async function PaginaDoResumoSemanal({
         description="O que você entregou, semana a semana. É o seu registro: ninguém mais lê, nem a gestão — e é ele que vira a base da sua conversa de desenvolvimento."
       />
 
-      <Suspense key={chaveDaSemana(inicio)} fallback={<LoadingSkeleton variant="table" rows={4} />}>
-        <Conteudo
-          usuarioId={sessao.usuarioId}
-          inicio={inicio}
-          hoje={hoje}
-          abrirNova={abrirNova}
-        />
-      </Suspense>
+      <BuscaNoHistorico termoInicial={busca} />
+
+      {buscando ? (
+        <Suspense key={busca} fallback={<LoadingSkeleton variant="table" rows={3} />}>
+          <Busca termo={busca} />
+        </Suspense>
+      ) : (
+        <Suspense
+          key={chaveDaSemana(inicio)}
+          fallback={<LoadingSkeleton variant="table" rows={4} />}
+        >
+          <Conteudo
+            usuarioId={sessao.usuarioId}
+            inicio={inicio}
+            hoje={hoje}
+            abrirNova={abrirNova}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

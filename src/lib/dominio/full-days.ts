@@ -9,6 +9,18 @@ import type { HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase/database.t
  * de lugares diferentes, a tela mostraria 5 e o banco gravaria 4.
  */
 
+/**
+ * O contrato padrão da casa: 15 dias por ano, em até duas parcelas.
+ *
+ * É só o PADRÃO — o número que vale é o de `team_members`, coluna por pessoa,
+ * porque contrato muda por pessoa e mudar contrato não pode exigir deploy.
+ * A constante existe para a tela e a camada de dados caírem no mesmo valor
+ * quando a ficha ainda não tem um: dois "senão" com números diferentes foi
+ * como a regra dos 15 dias quase não valeu.
+ */
+export const DIAS_DE_FERIAS_PADRAO = 15;
+export const PARCELAS_DE_FERIAS_PADRAO = 2;
+
 export const ROTULOS_DE_TIPO: Record<HrTipo, string> = {
   ferias: "Férias",
   licenca: "Licença",

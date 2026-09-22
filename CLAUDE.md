@@ -250,17 +250,83 @@ dinâmica, então o portal daquele cliente é que nunca abriria.
 
 ### O Resumo Semanal é privado
 
-`weekly_entries` fecha em `user_id = auth.uid()` nas quatro operações. **Nem o
-sócio lê o registro de outra pessoa.** É a memória de quem trabalhou, e o
-Sprint 7 vai usá-la na conversa de desenvolvimento individual. Se um dia a
-agência quiser que a gestão leia, que seja decisão explícita com policy nova e
-aviso na tela — não um descuido.
+`weekly_entries` e `weekly_notes` fecham em `user_id = auth.uid()` nas quatro
+operações. **Nem o sócio lê o registro de outra pessoa**, e não existe
+relatório, painel nem exportação da gestão que alcance esse texto — a única
+exportação é a da própria pessoa, em `/painel/resumo-semanal/exportar`, que
+não aceita parâmetro de usuário justamente para ninguém tentar.
+
+É a memória de quem trabalhou, e é ela que a pessoa leva para a conversa de
+desenvolvimento. Se um dia a agência quiser que a gestão leia, que seja decisão
+explícita com policy nova e aviso na tela — não um descuido.
 
 A semana é de **segunda a domingo**, escrito à mão em toda chamada do date-fns
 (`lib/dominio/semanas.ts`): o locale pt-BR começa no domingo, que é a convenção
 de calendário de parede, e aqui a unidade é a semana de trabalho. A semana sai
-da data por cálculo e **nunca é gravada**: coluna de semana ao lado da data é
-um jeito de as duas discordarem.
+da data por cálculo e **nunca é gravada** nas entregas: coluna de semana ao
+lado da data é um jeito de as duas discordarem. Em `weekly_notes` a semana *é*
+a chave, e por isso um `check` exige que ela seja uma segunda-feira — duas
+telas com ideias diferentes de onde a semana começa criariam dois registros
+para a mesma semana, e o `unique` não pegaria.
+
+Duas coisas por semana, e elas são diferentes: a **entrega** é uma linha do que
+saiu, e a **nota** é o texto livre de como foi. O editor salva sozinho, com
+1,2 s de espera depois da última tecla — ninguém escreve uma reflexão de uma
+vez só, e um botão "Salvar" é o jeito mais seguro de perder o parágrafo que a
+pessoa estava terminando. "Como foi a semana" é opcional de propósito:
+pergunta obrigatória produz resposta automática, que não diz nada.
+
+A nota é gravada **nos dois formatos** — o JSON do TipTap, que a tela reabre, e
+o texto puro, que a busca varre. Guardar só o JSON obrigaria a busca a
+vasculhar nomes de nó; guardar só o texto perderia a formatação.
+
+- **Registro do que não aconteceu não é registro, é ficção.** Semana futura e
+  entrega com data futura são recusadas por trigger, não pela tela.
+- **"Puxar minhas entregas" data cada linha no dia da conclusão da etapa**, e
+  nunca em hoje nem no fim da semana. A primeira versão datava tudo no domingo
+  da semana aberta, que ainda não chegou: o trigger recusava o lote inteiro, e
+  o botão nunca funcionava dentro da semana em curso — que é quando a pessoa o
+  usa. Os dois cenários que travam isso estão em `06_skills_e_desenvolvimento`.
+- **Puxar não roda sozinho ao abrir a tela.** O registro é a leitura que a
+  pessoa faz do próprio trabalho; lista preenchida por máquina deixa de ser
+  dela. E puxar duas vezes não duplica: o filtro é por `subtask_id`.
+- A busca varre as **duas** coisas, entrega e nota, porque quem procura
+  "campanha de outubro" não lembra em qual das duas escreveu. O termo mora na
+  URL, e enquanto ela está ativa a semana sai da tela em vez de dividir espaço
+  com os resultados.
+- A exportação é **texto puro**, não PDF: o que a pessoa faz com isso é colar
+  num documento, mandar num chat ou guardar. Texto serve para os três e não
+  depende de nada instalado.
+
+### Skills: a pessoa diz o nível, a gestão comenta
+
+`skills` é o catálogo compartilhado — é ele que faz "quem sabe fazer X?" ter
+resposta, o que uma lista de texto livre por pessoa nunca teria.
+
+**`user_skills` só a própria pessoa escreve. Nem o sócio.** Autoavaliação que
+outro pode editar não é autoavaliação, e a tela deixa isso explícito: "o nível
+é seu: ninguém da gestão escreve por você — e é isso que permite dizer
+'iniciante' sem receio". O que a gestão escreve é `skill_avaliacoes`, uma
+observação separada que **a pessoa avaliada lê** — nota sobre alguém que a
+pessoa não pode ler é fofoca com carimbo do sistema.
+
+- **O nível vem com a rubrica.** `DESCRICAO_DO_NIVEL` viaja no rótulo
+  acessível e no `title` de cada segmento: sem régua, o "avançado" de uma
+  pessoa é o "intermediário" de outra e a matriz deixa de comparar.
+- Quatro segmentos e não um `<select>`: o nível é uma escala, e escala se lê de
+  relance quando tem forma. Numa lista de vinte skills, vinte caixas fechadas
+  não deixam ninguém ver o próprio perfil.
+- **`ativa = false` tem dois significados**, e `sugerida_por` distingue:
+  arquivada pela gestão (nulo) ou sugerida por alguém da equipe esperando
+  decisão (preenchido). Sem essa coluna, aprovar uma sugestão e reativar uma
+  skill velha seriam a mesma ação.
+- **Lacuna é onde o trabalho acontece e depende de pouca gente**, não onde o
+  número é zero: skill que ninguém tem em nível nenhum é uma linha do catálogo
+  que a agência não usa. O caso que mais passa batido é o **um** — uma pessoa
+  só, que tira férias.
+- "O que as pessoas querem desenvolver" sai de `quer_desenvolver`, marcado por
+  elas mesmas. É o insumo do Full Academy, e o jeito mais barato de saber o que
+  vale ensinar.
 
 ### Full Days: férias, licença e ausência
 
@@ -458,6 +524,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
 | Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
 | Sprint 3C | Tela inicial, menu definitivo e Portais de Clientes: identidade visual em tokens com `npm run check:cores` provando 26 pares de contraste e nenhum hex solto; menu em duas seções (Principal / Gestão com selo Admin) com Diário→Resumo Semanal e Minhas Skills→Meu Desenvolvimento redirecionando em 308; barra lateral escura com cartão da pessoa separando nome, cargo e perfil; tela inicial com boas-vindas, Acesso Rápido e a grade de Portais de Clientes; `/portal/{slug}` para a gestão ver o portal de um cliente em modo leitura, com faixa de aviso, registro em `client_portal_views` e a recusa valendo no banco; Resumo Semanal organizado por semana com registro privado; Notas Fiscais como módulo da pessoa; Financeiro Pessoal em aba dentro de Meu perfil. |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
