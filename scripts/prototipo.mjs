@@ -51,7 +51,15 @@ const TELAS = [
   { nome: "08-painel-colaborador", rota: "/painel", largura: 1440, altura: 860, role: "colaborador" },
   { nome: "09-painel-desenvolvedor", rota: "/painel", largura: 1440, altura: 860, role: "desenvolvedor" },
 
-  { nome: "10-modulo-clientes", rota: "/painel/clientes", largura: 1440, altura: 800, role: "socio" },
+  { nome: "10-clientes-lista", rota: "/painel/clientes", largura: 1440, altura: 900, role: "socio" },
+  { nome: "10b-clientes-novo", rota: "/painel/clientes", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Novo cliente")' },
+  { nome: "10c-cliente-dados", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "10d-cliente-usuarios", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Usuários com acesso")' },
+  { nome: "10e-equipe-lista", rota: "/painel/equipe", largura: 1440, altura: 900, role: "socio" },
+  { nome: "10f-colaborador-dados", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1100, role: "socio" },
+  { nome: "10g-desligamento", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
+  { nome: "10h-meu-perfil", rota: "/painel/perfil", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "10i-equipe-desenvolvedor", rota: "/painel/equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -81,6 +89,8 @@ const SUBSTITUICOES = {
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
   "@/lib/supabase/diagnostico": ["./scripts/prototipo/diagnostico.ts"],
   "@/lib/dados/clientes": ["./scripts/prototipo/clientes.ts"],
+  "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
+  "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -221,6 +231,14 @@ try {
       }
 
       await pagina.goto(`http://localhost:${PORTA}${tela.rota}`, { waitUntil: "networkidle" });
+
+      // Algumas telas só aparecem depois de um clique -- uma aba, um diálogo.
+      // O app roda de verdade aqui, então o Radix responde normalmente.
+      if (tela.clicar) {
+        await pagina.click(tela.clicar);
+        await pagina.waitForTimeout(400);
+      }
+
       await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
       await pagina.close();
       log(`  ${tela.nome}.png`);

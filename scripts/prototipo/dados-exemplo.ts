@@ -38,3 +38,110 @@ export const USUARIO_EXEMPLO = {
 export const EMPRESAS_EXEMPLO = [
   { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Cliente Alfa" },
 ];
+
+/** Equipe fictícia usada nas telas de Equipe e nos seletores. */
+export const EQUIPE_EXEMPLO = [
+  {
+    id: "a0000000-0000-0000-0000-000000000001",
+    email: "socia@fullconnectkey.com.br",
+    nome: "Ana Souza",
+    role: "socio" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2021-03-01T10:00:00.000Z",
+    membro: {
+      id: "t1", user_id: "a0000000-0000-0000-0000-000000000001",
+      cargo: "Sócia-diretora", area: "Direção", funcao: "Atendimento" as const,
+      data_admissao: "2021-03-01", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2021-03-01T10:00:00.000Z",
+    },
+  },
+  {
+    id: "a0000000-0000-0000-0000-000000000002",
+    email: "dev@fullconnectkey.com.br",
+    nome: "Diego Reis",
+    role: "desenvolvedor" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2023-08-14T10:00:00.000Z",
+    membro: {
+      id: "t2", user_id: "a0000000-0000-0000-0000-000000000002",
+      cargo: "Desenvolvedor", area: "Tecnologia", funcao: "Desenvolvimento" as const,
+      data_admissao: "2023-08-14", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2023-08-14T10:00:00.000Z",
+    },
+  },
+  {
+    id: "a0000000-0000-0000-0000-000000000003",
+    email: "colab@fullconnectkey.com.br",
+    nome: "Carla Nunes",
+    role: "colaborador" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2024-02-05T10:00:00.000Z",
+    membro: {
+      id: "t3", user_id: "a0000000-0000-0000-0000-000000000003",
+      cargo: "Analista de contas", area: "Atendimento", funcao: "Atendimento" as const,
+      data_admissao: "2024-02-05", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2024-02-05T10:00:00.000Z",
+    },
+  },
+  {
+    id: "a0000000-0000-0000-0000-000000000005",
+    email: "marina@fullconnectkey.com.br",
+    nome: "Marina Alves",
+    role: "colaborador" as const,
+    avatar_url: null,
+    ativo: true,
+    created_at: "2025-01-20T10:00:00.000Z",
+    membro: {
+      id: "t4", user_id: "a0000000-0000-0000-0000-000000000005",
+      cargo: "Designer", area: "Criação", funcao: "Design" as const,
+      data_admissao: "2025-01-20", dias_ferias_ano: 30, ativo: true,
+      desligado_em: null, created_at: "2025-01-20T10:00:00.000Z",
+    },
+  },
+];
+
+/** Clientes fictícios, já com responsável e contagem de acessos. */
+export const CLIENTES_EXEMPLO = [
+  {
+    id: "c0000000-0000-0000-0000-00000000000a",
+    nome_empresa: "Cliente Alfa",
+    nome_contato: "Caio Alves",
+    email_contato: "contato@clientealfa.com.br",
+    telefone: "(11) 98888-0001",
+    drive_folder_id: null,
+    segmento: "Varejo",
+    responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000003",
+    observacoes: "Conta com dois contatos ativos. Reunião mensal na primeira terça.",
+    ativo: true,
+    created_at: "2024-03-10T10:00:00.000Z",
+  },
+  {
+    id: "c0000000-0000-0000-0000-00000000000b",
+    nome_empresa: "Cliente Beta",
+    nome_contato: "Bianca Prado",
+    email_contato: "contato@clientebeta.com.br",
+    telefone: "(11) 98888-0002",
+    drive_folder_id: null,
+    segmento: "Saúde",
+    responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000001",
+    observacoes: null,
+    ativo: true,
+    created_at: "2024-06-02T10:00:00.000Z",
+  },
+  {
+    id: "c0000000-0000-0000-0000-00000000000c",
+    nome_empresa: "Cliente Gama",
+    nome_contato: null,
+    email_contato: null,
+    telefone: null,
+    drive_folder_id: null,
+    segmento: "Educação",
+    responsavel_atendimento_id: null,
+    observacoes: null,
+    ativo: false,
+    created_at: "2023-11-18T10:00:00.000Z",
+  },
+];

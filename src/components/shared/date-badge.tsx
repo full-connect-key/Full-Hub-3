@@ -11,8 +11,12 @@ import { cn } from "@/lib/utils";
  *   hoje ou amanhã    âmbar
  *   depois disso      neutro
  *
- * Toda exibição de prazo no projeto passa por aqui. Assim "vence hoje" tem a
+ * Toda exibição de PRAZO no projeto passa por aqui. Assim "vence hoje" tem a
  * mesma cara na lista de tasks, no calendário e na aprovação de conteúdo.
+ *
+ * Não use para data que só registra quando algo aconteceu -- admissão,
+ * cadastro, último acesso. Passado, nesses casos, é o normal, e o vermelho
+ * diria que há algo errado onde não há. Para essas, formate com date-fns.
  */
 
 export type ToneDeData = "vencida" | "proxima" | "neutra";

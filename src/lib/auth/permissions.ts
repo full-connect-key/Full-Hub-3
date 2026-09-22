@@ -189,7 +189,7 @@ export const MENU: MenuItem[] = [
   // --- Fora do menu --------------------------------------------------------
   {
     label: "Meu perfil",
-    href: "/painel/meu-perfil",
+    href: "/painel/perfil",
     icon: UserRound,
     roles: EQUIPE,
     section: "pessoal",

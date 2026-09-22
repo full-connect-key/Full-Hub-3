@@ -46,7 +46,7 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
                 nome={profile.nome}
                 email={email}
                 role={profile.role}
-                hrefDoPerfil="/painel/meu-perfil"
+                hrefDoPerfil="/painel/perfil"
               />
             </div>
           </header>

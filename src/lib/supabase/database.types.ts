@@ -14,6 +14,18 @@
 
 export type UserRole = "cliente" | "colaborador" | "desenvolvedor" | "socio";
 
+/** O que a pessoa faz na agência. Diferente de UserRole, que é o acesso. */
+export type TeamFuncao =
+  | "Atendimento"
+  | "Social Media"
+  | "Redator"
+  | "Design"
+  | "Audiovisual"
+  | "Trafego"
+  | "Desenvolvimento"
+  | "Gestao"
+  | "Outro";
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
@@ -55,6 +67,9 @@ export interface Database {
           email_contato: string | null;
           telefone: string | null;
           drive_folder_id: string | null;
+          segmento: string | null;
+          responsavel_atendimento_id: string | null;
+          observacoes: string | null;
           ativo: boolean;
           created_at: string;
         };
@@ -65,6 +80,9 @@ export interface Database {
           email_contato?: string | null;
           telefone?: string | null;
           drive_folder_id?: string | null;
+          segmento?: string | null;
+          responsavel_atendimento_id?: string | null;
+          observacoes?: string | null;
           ativo?: boolean;
           created_at?: string;
         };
@@ -74,6 +92,9 @@ export interface Database {
           email_contato?: string | null;
           telefone?: string | null;
           drive_folder_id?: string | null;
+          segmento?: string | null;
+          responsavel_atendimento_id?: string | null;
+          observacoes?: string | null;
           ativo?: boolean;
         };
         Relationships: [];
@@ -90,8 +111,11 @@ export interface Database {
           user_id: string;
           cargo: string | null;
           area: string | null;
-          funcao: string | null;
+          funcao: TeamFuncao | null;
           data_admissao: string | null;
+          dias_ferias_ano: number;
+          ativo: boolean;
+          desligado_em: string | null;
           created_at: string;
         };
         Insert: {
@@ -99,15 +123,21 @@ export interface Database {
           user_id: string;
           cargo?: string | null;
           area?: string | null;
-          funcao?: string | null;
+          funcao?: TeamFuncao | null;
           data_admissao?: string | null;
+          dias_ferias_ano?: number;
+          ativo?: boolean;
+          desligado_em?: string | null;
           created_at?: string;
         };
         Update: {
           cargo?: string | null;
           area?: string | null;
-          funcao?: string | null;
+          funcao?: TeamFuncao | null;
           data_admissao?: string | null;
+          dias_ferias_ano?: number;
+          ativo?: boolean;
+          desligado_em?: string | null;
         };
         Relationships: [];
       };
@@ -118,9 +148,10 @@ export interface Database {
       is_staff: { Args: Record<string, never>; Returns: boolean };
       is_socio: { Args: Record<string, never>; Returns: boolean };
       is_gestor: { Args: Record<string, never>; Returns: boolean };
+      is_atendimento: { Args: Record<string, never>; Returns: boolean };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
     };
-    Enums: { user_role: UserRole };
+    Enums: { user_role: UserRole; team_funcao: TeamFuncao };
     CompositeTypes: Record<string, never>;
   };
 }
@@ -128,3 +159,4 @@ export interface Database {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
+export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];

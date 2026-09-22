@@ -243,7 +243,11 @@ src/
     auth/dal.ts                De onde sai "quem está logado"
     auth/acoes.ts              Entrar, sair, recuperar senha
     auth/esquemas.ts           Validação zod dos formulários
+    auth/api.ts                Guardas das Route Handlers
+    dados/                     Consultas de clientes, equipe e acessos
+    dominio/equipe.ts          Funções, áreas e quem concede cada perfil
     supabase/                  Clients, proxy, tipos, diagnóstico
+  app/api/usuarios/            Criação de usuários (chave de serviço)
 supabase/migrations/           SQL versionado do banco
 supabase/seed.sql              4 usuários de teste, 2 empresas
 scripts/

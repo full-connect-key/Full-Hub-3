@@ -8,6 +8,7 @@ da equipe vê o histórico de mudanças do schema.
 | --- | --- |
 | `0001_perfis.sql` | Primeira versão, com a tabela `perfis`. Mantida só pelo histórico. |
 | `0002_estrutura_base.sql` | Estrutura do produto. Migra o que existir da 0001 e remove a tabela antiga. |
+| `0003_equipe_e_clientes.sql` | Enum `team_funcao`, colunas de RH e de cliente, `is_atendimento()` e o bucket de avatares. |
 | `seed.sql` | 4 usuários de teste, 2 empresas e os vínculos. |
 
 Num projeto novo, basta a `0002`.
@@ -49,6 +50,7 @@ npx supabase gen types typescript --linked > ../src/lib/supabase/database.types.
 | `handle_new_user()` + trigger | Cria o profile sozinho quando alguém é cadastrado |
 | `protect_profile_role()` + trigger | Impede que alguém mude o próprio perfil de acesso |
 | `auth_role()`, `is_staff()`, `is_gestor()`, `is_socio()`, `my_client_ids()` | Base de todo o RLS |
+| `is_atendimento()` (0003) | Atendimento mais gestão — quem pode criar tasks |
 | 9 policies | Quem lê e quem escreve em cada tabela |
 
 O Supabase guarda e-mail e senha em `auth.users`, que é tabela dele e não deve

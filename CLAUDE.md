@@ -57,16 +57,20 @@ Funções SQL que traduzem isso, reutilizadas por todo o RLS:
 | `is_gestor()` | desenvolvedor, socio |
 | `is_socio()` | socio |
 | `my_client_ids()` | ids das empresas do cliente logado |
+| `is_atendimento()` | quem está no Atendimento, mais a gestão |
 
 ### Regra da função Atendimento
 
-`team_members.funcao` guarda a função de quem é da equipe: Atendimento, Social
-Media, Redator, Design, Dev.
+`team_members.funcao` é o enum `team_funcao`: Atendimento, Social Media,
+Redator, Design, Audiovisual, Trafego, Desenvolvimento, Gestao, Outro.
 
 **Quem tem `funcao = 'Atendimento'` pode criar tasks mesmo sendo
 `colaborador`.** Perfil de acesso e função na agência são coisas diferentes:
 o perfil diz o que a pessoa alcança na plataforma, a função diz o que ela faz
-no dia a dia. O módulo de tasks (sprint futuro) precisa checar as duas.
+no dia a dia.
+
+A regra mora na função SQL `is_atendimento()` — verdadeira para quem está no
+Atendimento **ou** para gestão. Nenhum módulo deve repetir essa consulta.
 
 ### Timeout de sessão
 
@@ -111,6 +115,16 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - No servidor, sempre `supabase.auth.getUser()`, nunca `getSession()`:
   `getSession` só lê o cookie, que o navegador pode ter adulterado.
 - Proteção de rota no servidor, não no menu. Esconder o link não é segurança.
+- **Criar usuário só em Route Handler**, com a chave de serviço
+  (`/api/usuarios/*`). Essa chave ignora todo o RLS e nunca pode chegar ao
+  navegador. O resto usa Server Actions com o cliente do próprio usuário, para
+  o RLS continuar valendo.
+- **Pessoa e cliente nunca são apagados quando têm histórico.** Desligar é
+  `ativo = false` mais revogação do acesso; o nome continua nos registros
+  antigos, porque é isso que preserva a autoria do que foi feito.
+- `DateBadge` é para prazo. Data que só registra quando algo aconteceu
+  (admissão, cadastro, último acesso) se formata com date-fns — senão o
+  passado aparece em vermelho como se fosse atraso.
 - Permissão e menu saem de `src/lib/auth/permissions.ts`, e só de lá. Nunca
   escreva `if (role === "socio")` numa tela: acrescentar um módulo é
   acrescentar uma linha em `MENU`.
@@ -165,4 +179,5 @@ scripts/                      Verificação de conexão e gerador de protótipos
 | Sprint | Entrega |
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
+| Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários por Route Handler com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |
 | Sprint 1 | Estrutura do dashboard: `lib/auth/permissions.ts` como fonte única do menu e das permissões, menu lateral colapsável com seções e gaveta no celular, topbar com trilha, busca (casca), sino e menu do usuário, 15 rotas placeholder validando o perfil no servidor, cor de marca em variável CSS, 10 componentes compartilhados com vitrine em `/painel/dev/componentes`, e o casco do Portal do Cliente com navegação superior. Nenhuma tabela nova. |
