@@ -627,6 +627,7 @@ ${telasHtml}
   var CLIENTE_EXEMPLO = "/painel/clientes/c0000000-0000-0000-0000-00000000000a";
   var PESSOA_EXEMPLO = "/painel/equipe/a0000000-0000-0000-0000-000000000003";
   var TASK_EXEMPLO = "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111";
+  var VITRINE_EXEMPLO = "/painel/gestao-tasks/77777777-7777-7777-7777-777777777777";
 
   var GATILHOS = [
     { rota: "/painel/equipe",      texto: "Adicionar colaborador",   dialogo: "colaborador-novo" },
@@ -643,6 +644,7 @@ ${telasHtml}
     { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" },
     { rota: "/painel/minhas-tasks", aria: "Concluir",                dialogo: "concluir-com-tempo" },
     { rota: "/painel/minhas-tasks", texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
+    { rota: VITRINE_EXEMPLO,       texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
     { rota: TASK_EXEMPLO,          texto: "Criar KV",                dialogo: "subtarefa-painel" },
     { rota: "/painel/aprovacoes-internas", texto: "Solicitar ajustes", dialogo: "aprovacao-ajustes" },
     { rota: "/painel/workflows",   texto: "Novo fluxo",              dialogo: "workflow-novo" },

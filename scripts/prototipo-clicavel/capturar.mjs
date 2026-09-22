@@ -119,8 +119,11 @@ const DIALOGOS = [
     passos: ['button:has-text("Criar KV")'],
   },
   {
+    // A Vitrine tem uma etapa em andamento que exige aprovacao interna. Em
+    // Minhas Tasks a socia nao tem nenhuma assim -- o botao mora onde a etapa
+    // esta.
     nome: "enviar-aprovacao",
-    rota: "/painel/minhas-tasks",
+    rota: "/painel/gestao-tasks/77777777-7777-7777-7777-777777777777",
     passos: ['button:has-text("Enviar para aprovação")'],
   },
   {

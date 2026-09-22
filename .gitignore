@@ -47,3 +47,6 @@ next-env.d.ts
 # imagens geradas por `npm run prototipo`
 /prototipos
 /.prototipo
+# a captura e a pagina unica do prototipo clicavel: saida, nao fonte
+/.captura
+/prototipo-full-hub.html
