@@ -99,7 +99,6 @@ const TELAS = [
   { nome: "55-resumo-semanal", rota: "/painel/resumo-semanal", largura: 1440, altura: 900, role: "socio" },
   { nome: "56-resumo-nova-entrega", rota: "/painel/resumo-semanal", largura: 1200, altura: 900, role: "socio", clicar: 'button:has-text("Adicionar Entrega")' },
   { nome: "57-notas-fiscais", rota: "/painel/notas-fiscais", largura: 1440, altura: 700, role: "colaborador" },
-  { nome: "58-perfil-financeiro", rota: "/painel/perfil", largura: 1440, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Financeiro Pessoal")' },
   { nome: "59-portal-do-cliente-pela-equipe", rota: "/portal/mundo-verde", largura: 1400, altura: 1000, role: "socio" },
 
   // --- Sprint 6: Full Days -----------------------------------------------
@@ -208,14 +207,24 @@ async function esperarNoAr(url, tentativas = 60) {
  * executavel na mao.
  */
 async function abrirNavegador(chromium) {
+  // O `locale: "pt-BR"` do newPage NAO alcanca o <input type="date">: o campo
+  // e pintado pelo proprio Chromium, que le o formato do ambiente do processo,
+  // nao da pagina. Sem isto a data sai 09/22/2026 nas imagens -- formato
+  // americano numa tela que o usuario revisa para aprovar, o que faz parecer
+  // bug do produto quando e so da captura. No navegador de quem usa, no
+  // Brasil, o campo ja sai 22/09/2026.
+  const ambiente = { ...process.env, LANG: "pt_BR.UTF-8", LC_ALL: "pt_BR.UTF-8" };
+
   try {
-    return await chromium.launch();
+    return await chromium.launch({ env: ambiente });
   } catch (erro) {
     const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
     if (base && existsSync(base)) {
       for (const pasta of readdirSync(base)) {
         const candidato = path.join(base, pasta, "chrome-linux", "chrome");
-        if (existsSync(candidato)) return chromium.launch({ executablePath: candidato });
+        if (existsSync(candidato)) {
+          return chromium.launch({ executablePath: candidato, env: ambiente });
+        }
       }
     }
     throw new Error(
@@ -303,10 +312,14 @@ try {
   await executar("npx", ["next", "build"], { cwd: COPIA });
 
   await rm(SAIDA, { recursive: true, force: true });
-  const navegador = await abrirNavegador(chromium);
+  let navegador = await abrirNavegador(chromium);
 
   // Agrupa por perfil para reiniciar o servidor o mínimo possível.
   const perfis = [...new Set(TELAS.map((tela) => tela.role ?? "socio"))];
+
+  // Telas que nao sairam. A rodada segue mesmo assim -- e o resumo no fim diz
+  // quais faltaram, para ninguem achar que `prototipos/` esta completo.
+  const perdidas = [];
 
   for (const perfil of perfis) {
     log(`subindo o servidor como ${perfil}...`);
@@ -314,6 +327,31 @@ try {
     await esperarNoAr(`http://localhost:${PORTA}/login`);
 
     for (const tela of TELAS.filter((t) => (t.role ?? "socio") === perfil)) {
+      // Uma tela que estoura NAO derruba a rodada inteira, pela mesma razao
+      // que um seletor que nao casa nao derruba: a rodada leva dez minutos, e
+      // perde-la na tela 78 de 90 joga fora as 77 que ja tinham saido. O que
+      // falhou vai para `perdidas` e aparece no resumo do fim, com codigo de
+      // saida diferente de zero -- falta em silencio seria pior que a queda.
+      try {
+        await capturar(tela);
+      } catch (erro) {
+        perdidas.push(`${tela.nome}: ${erro.message.split("\n")[0]}`);
+        log(`  ${tela.nome}.png  NAO SAIU (${erro.message.split("\n")[0]})`);
+        // "Target page, context or browser has been closed" e o Chromium
+        // morrendo (memoria, quase sempre). Sem reabrir, todas as telas
+        // seguintes falhariam pelo mesmo motivo e o resumo culparia as
+        // erradas.
+        if (!navegador.isConnected()) {
+          log("  o Chromium caiu; reabrindo...");
+          navegador = await abrirNavegador(chromium);
+        }
+      }
+    }
+
+    encerrar(servidor);
+    servidor = undefined;
+
+    async function capturar(tela) {
       const pagina = await navegador.newPage({
         viewport: { width: tela.largura, height: tela.altura },
         deviceScaleFactor: 2,
@@ -353,17 +391,28 @@ try {
         await pagina.waitForTimeout(400);
       }
 
-      await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
-      await pagina.close();
+      try {
+        await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
+      } finally {
+        // Fecha mesmo quando o screenshot estoura. Sem isso, cada falha deixa
+        // uma aba viva -- e memoria e justamente o que costuma derrubar o
+        // Chromium no meio de uma rodada de noventa telas.
+        await pagina.close().catch(() => {});
+      }
       log(faltou ? `  ${tela.nome}.png  (sem o clique: ${faltou})` : `  ${tela.nome}.png`);
     }
-
-    encerrar(servidor);
-    servidor = undefined;
   }
 
   await navegador.close();
-  console.log(`\n  Pronto. As imagens estao em prototipos/\n`);
+
+  if (perdidas.length > 0) {
+    console.error(`\n  ${perdidas.length} tela(s) nao sairam:`);
+    for (const linha of perdidas) console.error(`    ${linha}`);
+    console.error("\n  As demais estao em prototipos/.\n");
+    process.exitCode = 1;
+  } else {
+    console.log(`\n  Pronto. As imagens estao em prototipos/\n`);
+  }
 } catch (erro) {
   console.error(`\n  Falhou: ${erro.message}\n`);
   process.exitCode = 1;
