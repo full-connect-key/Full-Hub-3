@@ -118,7 +118,7 @@ export function PainelPessoal({
               onClick={() => navegar({ foco: ativo ? null : id })}
               className={cn(
                 "rounded-lg border px-3.5 py-2 text-left transition-colors",
-                ativo ? "border-brand bg-brand/5" : "hover:bg-accent",
+                ativo ? "border-accent-strong bg-accent" : "hover:bg-accent",
               )}
             >
               <p

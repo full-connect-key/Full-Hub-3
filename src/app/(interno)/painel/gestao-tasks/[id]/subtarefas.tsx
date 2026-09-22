@@ -98,7 +98,7 @@ export function Subtarefas({
 
               <button
                 type="button"
-                className="hover:text-brand min-w-0 flex-1 text-left text-sm font-medium"
+                className="hover:text-accent-strong min-w-0 flex-1 text-left text-sm font-medium"
                 onClick={() => setAberta(sub.id)}
               >
                 <span className="truncate">{sub.titulo}</span>

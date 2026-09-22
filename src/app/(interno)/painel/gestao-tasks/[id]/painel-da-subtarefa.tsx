@@ -103,7 +103,7 @@ export function PainelDaSubtarefa({
 
         <div className="space-y-6 px-4 pb-6">
           {subtarefa.dependenciasAbertas.length > 0 ? (
-            <p className="bg-warning/10 text-warning border-warning/25 rounded-md border px-3 py-2 text-sm">
+            <p className="bg-warning-soft text-warning border-transparent rounded-md border px-3 py-2 text-sm">
               Aguardando: {subtarefa.dependenciasAbertas.join(", ")}. Enquanto isso, ela não inicia.
             </p>
           ) : null}
@@ -316,7 +316,7 @@ export function PainelDaSubtarefa({
                       href={entrega.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="hover:text-brand min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+                      className="hover:text-accent-strong min-w-0 flex-1 truncate underline-offset-2 hover:underline"
                     >
                       {entrega.nome ?? entrega.url}
                     </a>

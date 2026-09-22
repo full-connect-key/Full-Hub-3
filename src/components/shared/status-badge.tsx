@@ -47,13 +47,22 @@ export type Status = StatusConteudo | StatusTask | StatusSubtarefa;
 
 type Tom = "neutro" | "marca" | "info" | "atencao" | "positivo" | "negativo" | "pausado";
 
+/**
+ * Cada tom é um PAR de tokens: fundo suave mais a cor cheia como texto. Os
+ * pares vêm prontos do arquivo de identidade e passaram pelo `npm run
+ * check:cores` nos dois temas.
+ *
+ * Nada de `bg-warning/10`: opacidade sobre um fundo qualquer dá uma cor que
+ * ninguém mediu, e no tema escuro dá outra. O par nomeado é o que se pode
+ * verificar.
+ */
 const TONS: Record<Tom, string> = {
-  neutro: "bg-secondary text-secondary-foreground border-transparent",
-  marca: "bg-brand/10 text-brand border-brand/20",
-  info: "bg-info/10 text-info border-info/20",
-  atencao: "bg-warning/10 text-warning border-warning/25",
-  positivo: "bg-success/10 text-success border-success/25",
-  negativo: "bg-destructive/10 text-destructive border-destructive/25",
+  neutro: "bg-neutral-soft text-neutral border-transparent",
+  marca: "bg-accent text-accent-foreground border-blue-muted",
+  info: "bg-accent text-accent-foreground border-blue-muted",
+  atencao: "bg-warning-soft text-warning border-transparent",
+  positivo: "bg-success-soft text-success border-transparent",
+  negativo: "bg-danger-soft text-danger border-transparent",
   pausado: "bg-transparent text-muted-foreground border-border border-dashed",
 };
 

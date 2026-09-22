@@ -229,7 +229,7 @@ export function TiposDeTarefa({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className="hover:text-brand text-sm font-semibold"
+                  className="hover:text-accent-strong text-sm font-semibold"
                   onClick={() => abrir(tipo)}
                 >
                   {tipo.nome}

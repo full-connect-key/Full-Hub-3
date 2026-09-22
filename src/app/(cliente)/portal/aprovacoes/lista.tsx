@@ -137,7 +137,7 @@ function CartaoPendente({ item }: { item: AprovacaoDoCliente }) {
                 href={entrega.url}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-brand inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+                className="hover:text-accent-strong inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
               >
                 <Paperclip className="size-3.5" aria-hidden />
                 {entrega.nome ?? "Abrir material"}

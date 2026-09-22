@@ -61,7 +61,7 @@ export function MinhaLista({
             <div key={linha.chave} className="bg-muted/40 flex flex-wrap items-center gap-2 p-3">
               <button
                 type="button"
-                className="hover:text-brand text-left text-sm font-semibold"
+                className="hover:text-accent-strong text-left text-sm font-semibold"
                 onClick={() => aoAbrir(linha.taskId)}
               >
                 {linha.titulo}
@@ -119,11 +119,11 @@ export function MinhaLista({
               situacao === "atrasada" && "bg-destructive/5",
             )}
           >
-            <CornerDownRight className="text-brand size-3.5 shrink-0" aria-hidden />
+            <CornerDownRight className="text-accent-strong size-3.5 shrink-0" aria-hidden />
 
             <button
               type="button"
-              className="hover:text-brand min-w-0 flex-1 truncate text-left text-sm font-medium"
+              className="hover:text-accent-strong min-w-0 flex-1 truncate text-left text-sm font-medium"
               onClick={() => aoAbrir(linha.taskId)}
             >
               {sub.titulo}

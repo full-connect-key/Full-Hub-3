@@ -106,7 +106,7 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         {item.cliente ? <Badge variant="outline">{item.cliente}</Badge> : null}
         <Link
           href={`/painel/gestao-tasks/${item.taskId}`}
-          className="hover:text-brand text-sm font-medium"
+          className="hover:text-accent-strong text-sm font-medium"
         >
           {item.subtarefa}
         </Link>
@@ -140,7 +140,7 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
                 href={entrega.url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-muted-foreground hover:text-brand inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
+                className="text-muted-foreground hover:text-accent-strong inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
               >
                 <Paperclip className="size-3" aria-hidden />
                 {entrega.nome ?? "Entrega"}

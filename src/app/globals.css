@@ -2,13 +2,34 @@
 @import "tw-animate-css";
 
 /* ===========================================================================
-   Tema do Full Hub: neutro do shadcn/ui com a cor de marca da agência.
+   IDENTIDADE VISUAL DO FULL HUB — este é o único arquivo com cor literal.
 
-   PARA TROCAR A COR DA MARCA, mexa só em --brand e --brand-foreground, nos
-   dois blocos (:root e .dark). Botões primários, item ativo do menu e a marca
-   no topo acompanham sozinhos, porque --primary aponta para --brand.
-   O modo escuro e ativado pela classe .dark no <html>, controlada pelo
-   next-themes (src/components/shared/provedor-de-tema.tsx).
+   Duas cores de marca da Full Connect Key, e só:
+
+     --brand-gray  #545960   o cinza
+     --brand-blue  #7FCFF5   o azul claro
+
+   Todo o resto é derivado delas ou neutro. Nenhum componente escreve um hex:
+   procurar por "#7FCFF5" fora daqui tem que voltar vazio, e é isso que
+   `npm run check:cores` confere.
+
+   A REGRA DE CONTRASTE QUE NÃO SE QUEBRA
+   --------------------------------------
+   Texto branco sobre --brand-blue dá 1.7:1. É ilegível, e é o erro que uma
+   paleta com azul claro convida a cometer. Em uma frase:
+
+       azul claro pede texto escuro; texto branco pede azul escuro.
+
+   Na prática:
+     · botão primário  = fundo --brand-blue  + texto --text-primary   (8.9:1)
+     · link em fundo claro                   = --blue-strong          (5.2:1)
+     · ícone em quadrado claro = fundo --blue-soft + ícone --blue-strong
+     · item ativo na barra escura            = --brand-blue           (9.6:1)
+     · botão com texto branco                = fundo --blue-strong
+
+   No escuro, --blue-strong fica escuro demais sobre o fundo escuro: lá o
+   destaque e o link são --brand-blue. Por isso --accent-strong existe — é o
+   "azul que dá para ler no tema atual", e troca sozinho.
    =========================================================================== */
 @custom-variant dark (&:is(.dark *));
 
@@ -19,75 +40,168 @@
 
 :root {
   --radius: 0.625rem;
+  /* Cartão e bloco de conteúdo são um pouco mais redondos que controle. */
+  --radius-card: 12px;
 
-  /* Cor da marca: um petróleo sóbrio, que funciona nos dois temas. */
-  --brand: oklch(0.47 0.075 217);
-  --brand-foreground: oklch(0.985 0 0);
+  /* --- As duas cores da marca ------------------------------------------- */
+  --brand-blue: #7FCFF5;
+  --brand-gray: #545960;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.52 0.12 158);
-  --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.62 0.13 70);
-  --warning-foreground: oklch(0.985 0 0);
-  /* Azul de informação. Separado da marca de propósito: cor semântica não
-     pode se confundir com a identidade visual. */
-  --info: oklch(0.55 0.15 255);
-  --info-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* --- A escala do azul -------------------------------------------------- */
+  /* Fundo de destaque leve: quadrado de ícone, pill, linha selecionada. */
+  --blue-soft: #E3F5FD;
+  /* Borda e preenchimento intermediário. Nunca texto. */
+  --blue-muted: #BCE4F9;
+  /* O azul legível: link, ícone sobre claro, fundo de botão com texto branco. */
+  --blue-strong: #0C75A6;
+  --blue-strong-hover: #095C83;
+
+  /* --- Superfícies -------------------------------------------------------- */
+  --surface-sidebar: #22262A;
+  --surface-sidebar-2: #2C3137;
+  --surface-page: #F5F6F8;
+  --surface-card: #FFFFFF;
+
+  /* --- Texto -------------------------------------------------------------- */
+  --text-primary: #1C1F24;
+  --text-secondary: #545960;
+  --text-muted: #868C94;
+  /* O texto que vai sobre fundo escuro ou sobre cor cheia. */
+  --text-on-dark: #F5F6F8;
+
+  /* --- Estados ------------------------------------------------------------ */
+  /* O par é sempre "cor cheia" + "fundo suave". A cor cheia carrega texto
+     branco; o fundo suave carrega a cor cheia como texto. */
+  --success: #15803D;
+  --success-soft: #DCFCE7;
+  --warning: #B45309;
+  --warning-soft: #FEF3C7;
+  --danger: #B91C1C;
+  --danger-soft: #FEE2E2;
+  /* Prioridade Normal é NEUTRA, não azul: azul chamava atenção para o caso
+     que, por definição, não tem nada de especial — e roubava o destaque de
+     Alta e Urgente, que é onde ele precisa estar. */
+  --neutral: #545960;
+  --neutral-soft: #F1F3F5;
+
+  /* --- A ponte com o shadcn/ui -------------------------------------------
+     Os componentes de components/ui/ falam a língua do shadcn (--primary,
+     --muted, --border). Aqui cada um desses nomes aponta para um token da
+     marca, e é isso que faz a interface inteira mudar de cara sem tocar em
+     componente nenhum. */
+  --brand: var(--brand-blue);
+  --brand-foreground: var(--text-primary);
+  /* "O azul que dá para ler no tema de agora": --blue-strong no claro,
+     --brand-blue no escuro. Link e ícone usam este. */
+  --accent-strong: var(--blue-strong);
+  --accent-strong-hover: var(--blue-strong-hover);
+
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+  --card: var(--surface-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-card);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-blue);
+  --primary-foreground: var(--text-primary);
+  --secondary: var(--neutral-soft);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--neutral-soft);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--blue-soft);
+  --accent-foreground: var(--blue-strong);
+  --destructive: var(--danger);
+  --destructive-foreground: #FFFFFF;
+  --success-foreground: #FFFFFF;
+  --warning-foreground: #FFFFFF;
+  /* Azul de informação: o mesmo azul legível. Cor semântica e identidade
+     coincidem aqui porque a marca já é azul — separar criaria dois azuis
+     brigando na mesma tela. */
+  --info: var(--blue-strong);
+  --info-foreground: #FFFFFF;
+  --border: #E4E7EB;
+  /* A borda do CAMPO é mais escura que a do cartão, de propósito. A do cartão
+     só separa blocos e pode ser discreta; a do campo é o que diz onde se
+     clica para digitar, e o padrão pede 3:1 para isso. Com o mesmo cinza
+     claro dos dois, o formulário ficava com campos quase invisíveis. */
+  --input: #868C94;
+  --ring: var(--blue-strong);
 }
 
 .dark {
-  /* No escuro a marca clareia, senão sumiria no fundo. */
-  --brand: oklch(0.72 0.095 212);
-  --brand-foreground: oklch(0.17 0.02 217);
+  --blue-soft: #16303D;
+  --blue-muted: #1E4C66;
 
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.269 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.72 0.15 158);
-  --success-foreground: oklch(0.145 0 0);
-  --warning: oklch(0.78 0.14 75);
-  --warning-foreground: oklch(0.145 0 0);
-  --info: oklch(0.72 0.12 250);
-  --info-foreground: oklch(0.145 0 0);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.556 0 0);
+  --surface-sidebar: #1B1E22;
+  --surface-sidebar-2: #2C3137;
+  --surface-page: #17191D;
+  --surface-card: #1F2227;
+
+  --text-primary: #F5F6F8;
+  --text-secondary: #B6BCC4;
+  --text-muted: #8B929B;
+  --text-on-dark: #F5F6F8;
+
+  /* No escuro as cores de estado clareiam, senão somem no fundo — e passam a
+     carregar texto escuro, porque agora são elas as claras. */
+  --success: #4ADE80;
+  --success-soft: #14321F;
+  --warning: #FBBF24;
+  --warning-soft: #37280A;
+  --danger: #F87171;
+  --danger-soft: #3A1717;
+  --neutral: #B6BCC4;
+  --neutral-soft: #2C3137;
+
+  --brand-foreground: #17191D;
+  /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
+     legível é o próprio azul da marca. */
+  --accent-strong: var(--brand-blue);
+  --accent-strong-hover: #A9DFF8;
+
+  --background: var(--surface-page);
+  --foreground: var(--text-primary);
+  --card: var(--surface-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-card);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-blue);
+  --primary-foreground: #17191D;
+  --secondary: var(--neutral-soft);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--neutral-soft);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-sidebar-2);
+  --accent-foreground: var(--brand-blue);
+  --destructive: var(--danger);
+  --destructive-foreground: #17191D;
+  --success-foreground: #17191D;
+  --warning-foreground: #17191D;
+  --info: var(--brand-blue);
+  --info-foreground: #17191D;
+  --border: #2C3137;
+  --input: #6E757E;
+  --ring: var(--brand-blue);
 }
 
 @theme inline {
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-gray: var(--brand-gray);
+  --color-blue-soft: var(--blue-soft);
+  --color-blue-muted: var(--blue-muted);
+  --color-blue-strong: var(--blue-strong);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-strong-hover: var(--accent-strong-hover);
+  --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-sidebar-2: var(--surface-sidebar-2);
+  --color-surface-page: var(--surface-page);
+  --color-surface-card: var(--surface-card);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-on-dark: var(--text-on-dark);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -106,8 +220,14 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-neutral: var(--neutral);
+  --color-neutral-soft: var(--neutral-soft);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
@@ -118,6 +238,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: var(--radius-card);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -156,7 +277,7 @@
   color: var(--muted-foreground);
 }
 .conteudo-rico a {
-  color: var(--brand);
+  color: var(--accent-strong);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

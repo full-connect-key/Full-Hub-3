@@ -37,8 +37,8 @@ export function toneDaData(valor: string | Date, referencia = new Date()): ToneD
 }
 
 const TONS: Record<ToneDeData, string> = {
-  vencida: "bg-destructive/10 text-destructive border-destructive/25",
-  proxima: "bg-warning/10 text-warning border-warning/25",
+  vencida: "bg-danger-soft text-danger border-transparent",
+  proxima: "bg-warning-soft text-warning border-transparent",
   neutra: "bg-transparent text-muted-foreground border-border",
 };
 

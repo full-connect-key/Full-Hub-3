@@ -30,7 +30,7 @@ function ComTexto({ texto }: { texto: string }) {
     <p className="text-sm whitespace-pre-wrap">
       {partes.map((parte, indice) =>
         parte.startsWith("@") ? (
-          <span key={indice} className="bg-brand/10 text-brand rounded px-1 font-medium">
+          <span key={indice} className="bg-accent text-accent-strong rounded px-1 font-medium">
             {parte}
           </span>
         ) : (

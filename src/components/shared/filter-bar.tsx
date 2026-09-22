@@ -80,7 +80,7 @@ export function FilterBar({
           className={cn(
             "focus-visible:ring-ring/50 inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:ring-[3px] focus-visible:outline-none",
             chip.active
-              ? "border-brand/30 bg-brand/10 text-brand"
+              ? "border-blue-muted bg-accent text-accent-strong"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           )}
         >

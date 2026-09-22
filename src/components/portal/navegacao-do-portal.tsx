@@ -32,7 +32,7 @@ export function NavegacaoDoPortal() {
                 className={cn(
                   "flex items-center gap-2 border-b-2 px-3 py-3 text-sm transition-colors",
                   ativo
-                    ? "border-brand text-foreground font-medium"
+                    ? "border-accent-strong text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground border-transparent",
                 )}
               >

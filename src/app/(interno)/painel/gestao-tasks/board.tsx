@@ -193,7 +193,7 @@ function Coluna({
       ref={setNodeRef}
       className={cn(
         "bg-muted/40 flex w-72 shrink-0 flex-col rounded-xl border transition-colors",
-        isOver && "border-brand bg-brand/5",
+        isOver && "border-accent-strong bg-accent",
       )}
     >
       <header className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
