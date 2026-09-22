@@ -75,7 +75,7 @@ const TELAS = [
   { nome: "32-minhas-tasks-calendario", rota: "/painel/minhas-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio" },
   { nome: "33-minhas-tasks-atrasadas", rota: "/painel/minhas-tasks?foco=atrasadas", largura: 1600, altura: 1000, role: "socio" },
   { nome: "34-minhas-tasks-escuro", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", tema: "escuro" },
-  { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'tbody tr:first-child' },
+  { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'button:has-text("Revisar o manual")' },
   { nome: "36-minhas-tasks-atendimento", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador" },
   { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
   { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button:has-text("Concluir")' },
@@ -84,10 +84,13 @@ const TELAS = [
   { nome: "41-aprovacoes-internas-socio", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
   { nome: "42-aprovacoes-ajustes", rota: "/painel/aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "43-workflows-tipos", rota: "/painel/workflows", largura: 1440, altura: 900, role: "socio" },
-  { nome: "44-workflows-fluxos", rota: "/painel/workflows", largura: 1440, altura: 900, role: "socio", clicar: 'button:has-text("Workflows")' },
-  { nome: "45-workflow-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo fluxo")' },
+  { nome: "44-workflows-fluxos", rota: "/painel/workflows", largura: 1440, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Workflows")' },
+  { nome: "45-workflow-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: ['[role="tab"]:has-text("Workflows")', 'button:has-text("Novo fluxo")'] },
+  { nome: "45b-tipo-novo", rota: "/painel/workflows", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Novo tipo")' },
+  { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Enviar para aprovação")' },
+  { nome: "49-aprovacao-propria", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
-  { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: 'button:has-text("Histórico")' },
+  { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
@@ -286,14 +289,30 @@ try {
 
       // Algumas telas só aparecem depois de um clique -- uma aba, um diálogo.
       // O app roda de verdade aqui, então o Radix responde normalmente.
+      let faltou = null;
       if (tela.clicar) {
-        await pagina.click(tela.clicar);
+        // Uma lista de seletores quando a tela precisa de mais de um clique --
+        // abrir a aba antes do dialogo, por exemplo.
+        //
+        // Um seletor que nao casa NAO derruba a geracao inteira: ele espera 8
+        // segundos, avisa e a tela sai sem o clique. Uma rodada completa leva
+        // dez minutos, e perde-la por causa de um nome de botao que mudou
+        // custa caro demais.
+        for (const passo of Array.isArray(tela.clicar) ? tela.clicar : [tela.clicar]) {
+          try {
+            await pagina.click(passo, { timeout: 8000 });
+            await pagina.waitForTimeout(250);
+          } catch {
+            faltou = passo;
+            break;
+          }
+        }
         await pagina.waitForTimeout(400);
       }
 
       await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
       await pagina.close();
-      log(`  ${tela.nome}.png`);
+      log(faltou ? `  ${tela.nome}.png  (sem o clique: ${faltou})` : `  ${tela.nome}.png`);
     }
 
     encerrar(servidor);

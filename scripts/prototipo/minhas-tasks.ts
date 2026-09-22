@@ -5,9 +5,10 @@
  * pessoa logada -- pelas SUBTAREFAS dela, como no modelo real. A Task aparece
  * uma vez so, com as etapas dos outros ao lado, em cinza.
  *
- * Quem e a pessoa logada sai de PROTOTIPO_ROLE: o socio ve as demandas da Ana,
- * o colaborador as do Bruno. E o que faz uma imagem do prototipo mostrar
- * contadores diferentes de outra.
+ * Quem e a pessoa logada vem da sessao do prototipo (scripts/prototipo/dal.ts),
+ * que segue PROTOTIPO_ROLE. Os ids batem com os daqui, entao o socio ve as
+ * etapas da Ana e o social media as da Marina -- e o que faz uma imagem do
+ * prototipo mostrar contadores e botoes diferentes de outra.
  */
 import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "../../src/lib/dominio/tasks";
 import type {
@@ -18,7 +19,7 @@ import type {
 } from "../../src/lib/dados/minhas-tasks";
 import type { ItemDeCalendario } from "../../src/lib/dados/tasks";
 
-import { SUBTAREFAS, TASKS, ANA, BRUNO, CARLA, DIEGO, MARINA } from "./tasks";
+import { SUBTAREFAS, TASKS } from "./tasks";
 
 export type MinhaTask = MinhaTaskReal;
 export type MinhaSubtarefa = MinhaSubtarefaReal;
@@ -34,23 +35,6 @@ export function prazosDeHoje(): Prazos {
     hoje: agora.toISOString().slice(0, 10),
     fimDaSemana: fim.toISOString().slice(0, 10),
   };
-}
-
-/**
- * Quem esta olhando o prototipo.
- *
- * Bruno e colaborador e tem a etapa que esta esperando aprovacao; Ana e socia.
- * Escolher pelo papel e o que faz a tela mostrar botoes diferentes na mesma
- * imagem.
- */
-function usuarioDoPrototipo(): string {
-  const papel = process.env.PROTOTIPO_ROLE ?? "socio";
-  if (papel === "socio") return ANA.id;
-  if (papel === "desenvolvedor") return DIEGO.id;
-  const funcao = process.env.PROTOTIPO_FUNCAO ?? "";
-  if (funcao === "Atendimento") return CARLA.id;
-  if (funcao === "Social Media") return MARINA.id;
-  return BRUNO.id;
 }
 
 function carregar(userId: string): MinhaTask[] {
@@ -88,20 +72,20 @@ function aplicarFoco(tasks: MinhaTask[], foco: FocoDoDia | null, prazos: Prazos)
 }
 
 export async function minhasTasks(
-  _userId: string,
+  userId: string,
   foco: FocoDoDia | null = null,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<MinhaTask[]> {
-  return aplicarFoco(carregar(usuarioDoPrototipo()), foco, prazos);
+  return aplicarFoco(carregar(userId), foco, prazos);
 }
 
 export async function contadoresPessoais(
-  _userId: string,
+  userId: string,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<Record<FocoDoDia, number>> {
   const contagem: Record<FocoDoDia, number> = { atrasadas: 0, hoje: 0, semana: 0 };
 
-  for (const task of carregar(usuarioDoPrototipo())) {
+  for (const task of carregar(userId)) {
     for (const sub of task.minhasSubtarefas) {
       const situacao = situacaoDoPrazo(
         sub.prazo,
@@ -146,12 +130,12 @@ export async function itensPessoaisDoCalendario(
 }
 
 export async function meuDia(
-  _userId: string,
+  userId: string,
   prazos: Prazos = prazosDeHoje(),
 ): Promise<ItemDoDia[]> {
   const itens: ItemDoDia[] = [];
 
-  for (const task of carregar(usuarioDoPrototipo())) {
+  for (const task of carregar(userId)) {
     for (const sub of task.minhasSubtarefas) {
       const situacao = situacaoDoPrazo(
         sub.prazo,

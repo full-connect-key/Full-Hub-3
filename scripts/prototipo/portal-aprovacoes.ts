@@ -11,10 +11,13 @@ export type { AprovacaoDoCliente };
 const AGORA = Date.now();
 const diasAtras = (d: number) => new Date(AGORA - d * 86400_000).toISOString();
 
-export async function minhasAprovacoes(): Promise<{
+export async function minhasAprovacoes(usuarioId: string): Promise<{
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
 }> {
+  // O prototipo nao filtra por pessoa: estes dados ja sao os de um cliente so.
+  void usuarioId;
+
   return {
     esperando: [
       {

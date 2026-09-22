@@ -14,12 +14,14 @@ export type { FilaDeAprovacoes, ItemDaFila };
 const AGORA = Date.now();
 const horasAtras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
 
-export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
+export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovacoes> {
   const kv = SUBTAREFAS.find((s) => s.titulo === "Criar KV")!;
   const landing = SUBTAREFAS.find((s) => s.titulo === "Desenvolver landing")!;
   const roteiro = SUBTAREFAS.find((s) => s.titulo === "Roteiro do reels")!;
 
-  const souODesenvolvedor = (process.env.PROTOTIPO_ROLE ?? "socio") === "desenvolvedor";
+  // Quando quem olha e o proprio Diego, o item dele aparece marcado e sem
+  // botoes -- ninguem aprova a propria entrega.
+  const souODesenvolvedor = usuarioId === DIEGO.id;
 
   return {
     esperando: [
@@ -49,8 +51,6 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         tipoAprovacao: "interna",
         desde: horasAtras(5),
         entregas: landing.entregas,
-        // Quando quem olha e o proprio Diego, o item aparece marcado e sem
-        // botoes: ninguem aprova a propria entrega.
         souOAutor: souODesenvolvedor,
       },
     ],

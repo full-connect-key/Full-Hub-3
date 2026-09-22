@@ -72,8 +72,10 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
 
   const [{ data: tasks }, { data: pessoas }] = await Promise.all([
     idsDeTasks.length
-      ? supabase.from("tasks").select("id, titulo, client_id").in("id", idsDeTasks)
-      : Promise.resolve({ data: [] as { id: string; titulo: string; client_id: string }[] }),
+      ? supabase.from("tasks").select("id, titulo, client_id, status").in("id", idsDeTasks)
+      : Promise.resolve({
+          data: [] as { id: string; titulo: string; client_id: string; status: string }[],
+        }),
     supabase
       .from("profiles")
       .select("id, nome, avatar_url")
@@ -83,12 +85,16 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       ),
   ]);
 
-  const idsDeClientes = [...new Set((tasks ?? []).map((t) => t.client_id))];
+  // Demanda cancelada sai da fila: ninguem precisa decidir sobre o que foi
+  // desligado. A rodada continua no banco, para o historico.
+  const vivas = (tasks ?? []).filter((t) => t.status !== "cancelada");
+
+  const idsDeClientes = [...new Set(vivas.map((t) => t.client_id))];
   const { data: clientes } = idsDeClientes.length
     ? await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
     : { data: [] as { id: string; nome_empresa: string }[] };
 
-  const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
+  const porTask = new Map(vivas.map((t) => [t.id, t]));
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 

@@ -327,6 +327,11 @@ export function podeMoverTaskPara(ctx: ContextoDaTask, destino: TaskStatus): Ver
     );
   }
 
+  // Cancelar é a exceção: dá para cancelar justamente quando a demanda
+  // travou. Bloquear o cancelamento por causa de uma aprovação pendente
+  // deixaria a Task presa no lugar exato em que ninguém quer mais mexer.
+  if (destino === "cancelada") return SIM;
+
   if (ctx.aprovacaoPendenteEm) {
     return nao(`Existe aprovação pendente na subtarefa ${ctx.aprovacaoPendenteEm}.`);
   }

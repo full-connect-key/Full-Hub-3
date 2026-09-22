@@ -60,6 +60,7 @@ const PAGINAS = {
   "modulo-recomendacoes": "/painel/recomendacoes",
   "modulo-financeiro-pessoal": "/painel/financeiro-pessoal",
   "modulo-perfil": "/painel/perfil",
+  "portal-aprovacoes": "/portal/aprovacoes",
   "modulo-dev-componentes": "/painel/dev/componentes",
 };
 
@@ -72,11 +73,15 @@ const COM_SUSPENSE = {
   "visao-lista": "/painel/gestao-tasks?visao=lista",
   "visao-calendario": "/painel/gestao-tasks?visao=calendario",
   "modulo-gestao-tasks-detalhe": TASK,
+  "modulo-aprovacoes-internas": "/painel/aprovacoes-internas",
+  "modulo-workflows": "/painel/workflows",
 };
 
 const ABAS = [
   { rota: CLIENTE, abas: ["Dados", "Usuários com acesso", "Configurações do fluxo", "Atividade"] },
   { rota: PESSOA, abas: ["Dados", "Skills", "Full Days"] },
+  { rota: TASK, abas: ["Trabalho", "Histórico"] },
+  { rota: "/painel/workflows", abas: ["Tipos de tarefa", "Workflows"] },
 ];
 
 const DIALOGOS = [
@@ -106,7 +111,37 @@ const DIALOGOS = [
   {
     nome: "concluir-com-tempo",
     rota: "/painel/minhas-tasks",
-    passos: ['button[aria-label^="Concluir"]'],
+    passos: ['button:has-text("Concluir")'],
+  },
+  {
+    nome: "subtarefa-painel",
+    rota: TASK,
+    passos: ['button:has-text("Criar KV")'],
+  },
+  {
+    nome: "enviar-aprovacao",
+    rota: "/painel/minhas-tasks",
+    passos: ['button:has-text("Enviar para aprovação")'],
+  },
+  {
+    nome: "aprovacao-ajustes",
+    rota: "/painel/aprovacoes-internas",
+    passos: ['button:has-text("Solicitar ajustes")'],
+  },
+  {
+    nome: "workflow-novo",
+    rota: "/painel/workflows",
+    passos: ['[role="tab"]:has-text("Workflows")', 'button:has-text("Novo fluxo")'],
+  },
+  {
+    nome: "tipo-novo",
+    rota: "/painel/workflows",
+    passos: ['button:has-text("Novo tipo")'],
+  },
+  {
+    nome: "cliente-pedir-ajustes",
+    rota: "/portal/aprovacoes",
+    passos: ['button:has-text("Solicitar ajustes")'],
   },
 ];
 
