@@ -510,10 +510,18 @@ ${telasHtml}
 
     var textoDoBotao = rotuloDoBotao(botao);
 
+    var rotuloAria = botao.getAttribute("aria-label") || "";
     for (var g = 0; g < GATILHOS.length; g++) {
-      if (GATILHOS[g].rota === estado.rota && GATILHOS[g].texto === textoDoBotao) {
+      var gatilho = GATILHOS[g];
+      if (gatilho.rota !== estado.rota) continue;
+
+      var casou =
+        (gatilho.texto && gatilho.texto === textoDoBotao) ||
+        (gatilho.aria && rotuloAria.indexOf(gatilho.aria) === 0);
+
+      if (casou) {
         evento.preventDefault();
-        abrirDialogo(GATILHOS[g].dialogo);
+        abrirDialogo(gatilho.dialogo);
         return;
       }
     }
@@ -630,7 +638,9 @@ ${telasHtml}
     { rota: PESSOA_EXEMPLO,        texto: "Desligar da equipe",      dialogo: "pessoa-desligar" },
     { rota: "/painel/gestao-tasks", texto: "Nova task",              dialogo: "task-nova" },
     { rota: "/painel/minhas-tasks", texto: "Nova task",              dialogo: "task-nova" },
-    { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" }
+    // Na lista o botao de concluir e so icone: casa pelo aria-label.
+    { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" },
+    { rota: "/painel/minhas-tasks", aria: "Concluir",                dialogo: "concluir-com-tempo" }
   ];
 
   var camadaDeDialogo = document.createElement("div");

@@ -16,6 +16,7 @@
  * Por isso essas quatro coisas sao capturadas com um navegador de verdade.
  */
 import { chromium } from "playwright";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -113,10 +114,34 @@ await mkdir(SAIDA, { recursive: true });
 const gravar = (nome, texto) => writeFile(path.join(SAIDA, nome), texto);
 const gravarJson = (nome, valor) => gravar(nome, JSON.stringify(valor));
 
-const navegador = await chromium.launch({
-  executablePath: process.env.CHROMIUM_EXECUTABLE || undefined,
-  args: ["--no-sandbox"],
-});
+/**
+ * Abre o Chromium que ja esta instalado.
+ *
+ * Sem executablePath, o Playwright procura o "headless shell" na versao dele,
+ * que pode nao existir nesta maquina -- e a mensagem que ele da ("rode npx
+ * playwright install") leva a baixar navegador a toa. Procurar em
+ * PLAYWRIGHT_BROWSERS_PATH resolve com o que ja esta la.
+ */
+async function abrirNavegador() {
+  const explicito = process.env.CHROMIUM_EXECUTABLE;
+  if (explicito && existsSync(explicito)) {
+    return chromium.launch({ executablePath: explicito, args: ["--no-sandbox"] });
+  }
+
+  const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (base && existsSync(base)) {
+    for (const pasta of readdirSync(base)) {
+      const candidato = path.join(base, pasta, "chrome-linux", "chrome");
+      if (existsSync(candidato)) {
+        return chromium.launch({ executablePath: candidato, args: ["--no-sandbox"] });
+      }
+    }
+  }
+
+  return chromium.launch({ args: ["--no-sandbox"] });
+}
+
+const navegador = await abrirNavegador();
 const pagina = await navegador.newPage({ viewport: { width: 1500, height: 1000 }, locale: "pt-BR" });
 pagina.setDefaultTimeout(10000);
 
