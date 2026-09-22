@@ -12,7 +12,7 @@ export function NavegacaoLateral() {
   const [abertoNoMobile, setAbertoNoMobile] = useState(false);
 
   const links = (
-    <nav className="flex flex-col gap-1" aria-label="Secoes do dashboard">
+    <nav className="flex flex-col gap-1" aria-label="Seções do dashboard">
       {MENU.map(({ rotulo, href, Icone }) => {
         const ativo = itemAtivo(pathname, href);
         return (

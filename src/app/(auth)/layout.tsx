@@ -10,7 +10,7 @@ export default function LayoutAutenticacao({ children }: LayoutProps<"/">) {
           </span>
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Full Hub</h1>
-            <p className="text-sm text-texto-suave">Painel interno da agencia</p>
+            <p className="text-sm text-texto-suave">Painel interno da agência</p>
           </div>
         </div>
         {children}

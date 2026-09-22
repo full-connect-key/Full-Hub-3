@@ -7,20 +7,20 @@ import { Card, CardTitulo } from "@/components/ui/card";
 import { exigirSessao, nomeDeExibicao } from "@/lib/auth/dal";
 import { diagnosticarSupabase, type Situacao } from "@/lib/supabase/diagnostico";
 
-export const metadata: Metadata = { title: "Visao geral" };
+export const metadata: Metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
 
 const selo: Record<Situacao, { Icone: typeof CheckCircle2; tom: "positivo" | "atencao" | "negativo"; texto: string }> = {
   ok: { Icone: CheckCircle2, tom: "positivo", texto: "Conectado" },
-  alerta: { Icone: AlertTriangle, tom: "atencao", texto: "Conectado com pendencias" },
-  falha: { Icone: XCircle, tom: "negativo", texto: "Sem conexao" },
+  alerta: { Icone: AlertTriangle, tom: "atencao", texto: "Conectado com pendências" },
+  falha: { Icone: XCircle, tom: "negativo", texto: "Sem conexão" },
 };
 
 const PROXIMOS_PASSOS = [
   "Definir com a equipe quais indicadores entram no primeiro sprint",
-  "Criar a migration das tabelas desse modulo em supabase/migrations/",
-  "Adicionar a pagina em src/app/(dashboard)/ e o item em src/lib/navegacao.ts",
-  "Contratar o dominio na Hostinger e apontar para a VPS",
+  "Criar a migration das tabelas desse módulo em supabase/migrations/",
+  "Adicionar a página em src/app/(dashboard)/ e o item em src/lib/navegacao.ts",
+  "Contratar o domínio na Hostinger e apontar para a VPS",
 ];
 
 export default async function PaginaDoDashboard() {
@@ -35,10 +35,10 @@ export default async function PaginaDoDashboard() {
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">
-          Ola, {nomeDeExibicao(perfil, usuario.email)}
+          Olá, {nomeDeExibicao(perfil, usuario.email)}
         </h1>
         <p className="mt-1 text-sm text-texto-suave">
-          A base do dashboard esta no ar. Os modulos entram a cada sprint.
+          A base do dashboard está no ar. Os módulos entram a cada sprint.
         </p>
       </header>
 
@@ -84,7 +84,7 @@ export default async function PaginaDoDashboard() {
       </Card>
 
       <Card>
-        <CardTitulo>Proximos passos</CardTitulo>
+        <CardTitulo>Próximos passos</CardTitulo>
         <ol className="space-y-2.5">
           {PROXIMOS_PASSOS.map((passo, indice) => (
             <li key={passo} className="flex items-start gap-3 text-sm text-texto-suave">
@@ -98,12 +98,12 @@ export default async function PaginaDoDashboard() {
       </Card>
 
       <Card>
-        <CardTitulo>Como adicionar um modulo</CardTitulo>
+        <CardTitulo>Como adicionar um módulo</CardTitulo>
         <p className="text-sm text-texto-suave">
-          Cada modulo novo segue sempre o mesmo caminho: migration com RLS no banco, pagina
+          Cada módulo novo segue sempre o mesmo caminho: migration com RLS no banco, página
           dentro de <code className="font-mono text-xs text-texto">src/app/(dashboard)/</code> e
           uma linha em <code className="font-mono text-xs text-texto">src/lib/navegacao.ts</code>.
-          O passo a passo com exemplo de codigo esta no README do projeto.
+          O passo a passo com exemplo de código está no README do projeto.
         </p>
         <Link
           href="/configuracoes"

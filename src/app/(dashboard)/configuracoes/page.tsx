@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/auth/dal";
 
 import { FormularioDePerfil } from "./formulario";
 
-export const metadata: Metadata = { title: "Configuracoes" };
+export const metadata: Metadata = { title: "Configurações" };
 
 export default async function PaginaDeConfiguracoes() {
   const { usuario, perfil } = await exigirSessao();
@@ -15,7 +15,7 @@ export default async function PaginaDeConfiguracoes() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight">Configuracoes</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Configurações</h1>
         <p className="mt-1 text-sm text-texto-suave">Seus dados dentro do painel.</p>
       </header>
 
@@ -34,9 +34,9 @@ export default async function PaginaDeConfiguracoes() {
           />
         ) : (
           <Aviso tipo="erro">
-            Nao encontramos um registro em <code className="font-mono">public.perfis</code> para
+            Não encontramos um registro em <code className="font-mono">public.perfis</code> para
             este usuario. Aplique a migration <code className="font-mono">0001_perfis.sql</code> no
-            SQL Editor do Supabase -- ela cria a tabela e preenche os usuarios que ja existiam.
+            SQL Editor do Supabase — ela cria a tabela e preenche os usuários que já existiam.
           </Aviso>
         )}
       </Card>

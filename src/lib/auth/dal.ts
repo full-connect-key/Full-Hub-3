@@ -76,5 +76,5 @@ export async function exigirSessao() {
 export function nomeDeExibicao(perfil: Perfil | null, email: string | undefined): string {
   const completo = perfil?.nome_completo?.trim();
   if (completo) return completo.split(/\s+/)[0];
-  return email?.split("@")[0] ?? "usuario";
+  return email?.split("@")[0] ?? "usuário";
 }

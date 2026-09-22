@@ -22,7 +22,7 @@ export async function salvarPerfil(
   const cargo = String(formData.get("cargo") ?? "").trim();
 
   if (nomeCompleto.length > 120 || cargo.length > 120) {
-    return { erro: "Nome e cargo devem ter no maximo 120 caracteres." };
+    return { erro: "Nome e cargo devem ter no máximo 120 caracteres." };
   }
 
   const supabase = await criarClienteServidor();
@@ -30,7 +30,7 @@ export async function salvarPerfil(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { erro: "Sua sessao expirou. Entre de novo." };
+  if (!user) return { erro: "Sua sessão expirou. Entre de novo." };
 
   const { error } = await supabase
     .from("perfis")
@@ -41,7 +41,7 @@ export async function salvarPerfil(
     .eq("id", user.id);
 
   if (error) {
-    return { erro: `Nao foi possivel salvar: ${error.message}` };
+    return { erro: `Não foi possível salvar: ${error.message}` };
   }
 
   revalidatePath("/", "layout");

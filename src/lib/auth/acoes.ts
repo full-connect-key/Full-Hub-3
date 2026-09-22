@@ -24,8 +24,8 @@ function traduzirErro(mensagem: string): string {
   if (m.includes("new password should be different"))
     return "A nova senha precisa ser diferente da atual.";
   if (m.includes("fetch failed") || m.includes("network"))
-    return "Nao foi possivel falar com o Supabase. Confira a conexao e as variaveis de ambiente.";
-  return "Nao foi possivel concluir. Tente novamente em instantes.";
+    return "Não foi possível falar com o Supabase. Confira a conexão e as variáveis de ambiente.";
+  return "Não foi possível concluir. Tente novamente em instantes.";
 }
 
 /** So aceita caminhos internos: bloqueia redirecionamento para outro site. */
@@ -86,7 +86,7 @@ export async function enviarLinkDeRecuperacao(
   // Resposta identica com e-mail existente ou nao: nao entregamos a quem
   // tenta adivinhar a informacao de quais contas existem.
   return {
-    sucesso: "Se houver uma conta com esse e-mail, o link de redefinicao chega em instantes.",
+    sucesso: "Se houver uma conta com esse e-mail, o link de redefinição chega em instantes.",
   };
 }
 
@@ -98,7 +98,7 @@ export async function definirNovaSenha(
   const confirmacao = String(formData.get("confirmacao") ?? "");
 
   if (senha.length < 8) return { erro: "A senha precisa ter pelo menos 8 caracteres." };
-  if (senha !== confirmacao) return { erro: "As duas senhas nao sao iguais." };
+  if (senha !== confirmacao) return { erro: "As duas senhas não são iguais." };
 
   const supabase = await criarClienteServidor();
 
@@ -108,7 +108,7 @@ export async function definirNovaSenha(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { erro: "Link expirado ou invalido. Peca um novo link de redefinicao." };
+    return { erro: "Link expirado ou inválido. Peça um novo link de redefinição." };
   }
 
   const { error } = await supabase.auth.updateUser({ password: senha });

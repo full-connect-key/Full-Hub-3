@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Aviso } from "@/components/ui/aviso";
 import { Card } from "@/components/ui/card";
 
-export const metadata: Metadata = { title: "Link invalido" };
+export const metadata: Metadata = { title: "Link inválido" };
 
 export default function PaginaDeErroDeAutenticacao() {
   return (
@@ -12,12 +12,12 @@ export default function PaginaDeErroDeAutenticacao() {
       <div className="w-full max-w-sm">
         <Card>
           <div className="space-y-4">
-            <h1 className="text-sm font-semibold text-texto">Nao deu para validar o link</h1>
+            <h1 className="text-sm font-semibold text-texto">Não deu para validar o link</h1>
             <Aviso tipo="erro">
-              O link expirou ou ja foi usado. Links de e-mail do Supabase valem uma vez so.
+              O link expirou ou já foi usado. Links de e-mail do Supabase valem uma vez só.
             </Aviso>
             <p className="text-sm text-texto-suave">
-              Peca um link novo na tela de recuperacao de senha.
+              Peça um link novo na tela de recuperação de senha.
             </p>
             <div className="flex gap-2 text-sm">
               <Link href="/recuperar-senha" className="text-brand hover:underline">

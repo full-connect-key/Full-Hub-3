@@ -26,12 +26,12 @@ export function FormularioDePerfil({
       {estado.erro ? <Aviso tipo="erro">{estado.erro}</Aviso> : null}
       {estado.sucesso ? <Aviso tipo="sucesso">{estado.sucesso}</Aviso> : null}
 
-      <Campo rotulo="E-mail" dica="O e-mail de acesso e alterado pelo painel do Supabase.">
+      <Campo rotulo="E-mail" dica="O e-mail de acesso é alterado pelo painel do Supabase.">
         <Entrada value={email} disabled readOnly />
       </Campo>
 
       <Campo rotulo="Nome completo">
-        <Entrada name="nome_completo" defaultValue={nomeCompleto} maxLength={120} placeholder="Como voce quer ser chamado" />
+        <Entrada name="nome_completo" defaultValue={nomeCompleto} maxLength={120} placeholder="Como você quer ser chamado" />
       </Campo>
 
       <Campo rotulo="Cargo">
@@ -39,7 +39,7 @@ export function FormularioDePerfil({
       </Campo>
 
       <Botao type="submit" disabled={salvando}>
-        {salvando ? "Salvando..." : "Salvar alteracoes"}
+        {salvando ? "Salvando..." : "Salvar alterações"}
       </Botao>
     </form>
   );

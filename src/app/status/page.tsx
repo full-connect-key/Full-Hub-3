@@ -5,14 +5,14 @@ import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { diagnosticarSupabase, type Situacao } from "@/lib/supabase/diagnostico";
 
-export const metadata: Metadata = { title: "Status da conexao" };
+export const metadata: Metadata = { title: "Status da conexão" };
 
 // Diagnostico so faz sentido ao vivo: nunca servir uma versao em cache.
 export const dynamic = "force-dynamic";
 
 const aparencia: Record<Situacao, { Icone: typeof CheckCircle2; cor: string; rotulo: string }> = {
   ok: { Icone: CheckCircle2, cor: "text-positivo", rotulo: "Tudo certo" },
-  alerta: { Icone: AlertTriangle, cor: "text-atencao", rotulo: "Atencao" },
+  alerta: { Icone: AlertTriangle, cor: "text-atencao", rotulo: "Atenção" },
   falha: { Icone: XCircle, cor: "text-negativo", rotulo: "Com falha" },
 };
 
@@ -23,9 +23,9 @@ export default async function PaginaDeStatus() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-12">
       <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">Status da conexao</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Status da conexão</h1>
         <p className="mt-1 text-sm text-texto-suave">
-          Verificacao ao vivo da ligacao entre o dashboard e o Supabase.
+          Verificação ao vivo da ligação entre o dashboard e o Supabase.
         </p>
       </header>
 
@@ -36,7 +36,7 @@ export default async function PaginaDeStatus() {
             <div>
               <p className="text-sm font-semibold">{geral.rotulo}</p>
               <p className="text-xs text-texto-tenue">
-                {diagnostico.host ? `Projeto: ${diagnostico.host}` : "Projeto ainda nao configurado"}
+                {diagnostico.host ? `Projeto: ${diagnostico.host}` : "Projeto ainda não configurado"}
               </p>
             </div>
           </div>

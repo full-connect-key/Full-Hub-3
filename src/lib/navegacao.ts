@@ -17,8 +17,8 @@ export type ItemDeMenu = {
  *   { rotulo: "Clientes", href: "/clientes", Icone: Users },
  */
 export const MENU: ItemDeMenu[] = [
-  { rotulo: "Visao geral", href: "/dashboard", Icone: LayoutDashboard },
-  { rotulo: "Configuracoes", href: "/configuracoes", Icone: Settings },
+  { rotulo: "Visão geral", href: "/dashboard", Icone: LayoutDashboard },
+  { rotulo: "Configurações", href: "/configuracoes", Icone: Settings },
 ];
 
 /** Marca o item ativo, considerando tambem as sub-rotas (/clientes/123). */

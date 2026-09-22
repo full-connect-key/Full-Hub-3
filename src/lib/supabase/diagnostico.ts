@@ -44,7 +44,7 @@ function checarVariaveis(): Checagem {
 
   if (faltando.length > 0) {
     return {
-      nome: "Variaveis de ambiente",
+      nome: "Variáveis de ambiente",
       situacao: "falha",
       detalhe: `Faltando: ${faltando.join(", ")}.`,
       comoResolver:
@@ -56,23 +56,23 @@ function checarVariaveis(): Checagem {
     const url = new URL(SUPABASE_URL);
     if (url.protocol !== "https:") {
       return {
-        nome: "Variaveis de ambiente",
+        nome: "Variáveis de ambiente",
         situacao: "alerta",
         detalhe: `A URL usa ${url.protocol} em vez de https.`,
-        comoResolver: "Em producao a URL do Supabase precisa comecar com https://.",
+        comoResolver: "Em produção a URL do Supabase precisa começar com https://.",
       };
     }
   } catch {
     return {
-      nome: "Variaveis de ambiente",
+      nome: "Variáveis de ambiente",
       situacao: "falha",
-      detalhe: "NEXT_PUBLIC_SUPABASE_URL nao e uma URL valida.",
-      comoResolver: "O formato correto e https://<referencia-do-projeto>.supabase.co (sem barra no final).",
+      detalhe: "NEXT_PUBLIC_SUPABASE_URL não é uma URL válida.",
+      comoResolver: "O formato correto é https://<referência-do-projeto>.supabase.co (sem barra no final).",
     };
   }
 
   return {
-    nome: "Variaveis de ambiente",
+    nome: "Variáveis de ambiente",
     situacao: "ok",
     detalhe: "URL e chave anon preenchidas.",
   };
@@ -89,37 +89,37 @@ async function checarAlcance(): Promise<Checagem> {
 
     if (resposta.ok) {
       return {
-        nome: "Conexao com o Supabase",
+        nome: "Conexão com o Supabase",
         situacao: "ok",
-        detalhe: "Servico de autenticacao respondeu normalmente.",
+        detalhe: "Serviço de autenticação respondeu normalmente.",
       };
     }
 
     if (resposta.status === 401) {
       return {
-        nome: "Conexao com o Supabase",
+        nome: "Conexão com o Supabase",
         situacao: "falha",
         detalhe: "O projeto respondeu, mas recusou a chave (401).",
         comoResolver:
-          "A NEXT_PUBLIC_SUPABASE_ANON_KEY nao confere com o projeto da URL. Copie as duas do mesmo projeto.",
+          "A NEXT_PUBLIC_SUPABASE_ANON_KEY não confere com o projeto da URL. Copie as duas do mesmo projeto.",
       };
     }
 
     return {
-      nome: "Conexao com o Supabase",
+      nome: "Conexão com o Supabase",
       situacao: "falha",
       detalhe: `Resposta inesperada: HTTP ${resposta.status}.`,
       comoResolver:
-        "Confira em supabase.com se o projeto esta ativo -- projetos gratuitos hibernam depois de um periodo sem uso.",
+        "Confira em supabase.com se o projeto está ativo — projetos gratuitos hibernam depois de um período sem uso.",
     };
   } catch (erro) {
     const motivo = erro instanceof Error ? erro.message : String(erro);
     return {
-      nome: "Conexao com o Supabase",
+      nome: "Conexão com o Supabase",
       situacao: "falha",
-      detalhe: `Nao foi possivel alcancar o servidor (${motivo}).`,
+      detalhe: `Não foi possível alcançar o servidor (${motivo}).`,
       comoResolver:
-        "Verifique a URL e se a maquina tem saida para a internet. Na VPS, confira o firewall para saidas HTTPS.",
+        "Verifique a URL e se a máquina tem saída para a internet. Na VPS, confira o firewall para saídas HTTPS.",
     };
   }
 }
@@ -143,9 +143,9 @@ async function checarSchema(): Promise<Checagem> {
       return {
         nome: "Tabela perfis",
         situacao: "alerta",
-        detalhe: "A tabela public.perfis ainda nao existe.",
+        detalhe: "A tabela public.perfis ainda não existe.",
         comoResolver:
-          "Abra Supabase > SQL Editor, cole o conteudo de supabase/migrations/0001_perfis.sql e clique em Run.",
+          "Abra Supabase > SQL Editor, cole o conteúdo de supabase/migrations/0001_perfis.sql e clique em Run.",
       };
     }
 
@@ -167,17 +167,17 @@ async function checarSchema(): Promise<Checagem> {
 function checarChaveDeServico(): Checagem {
   if (SUPABASE_SERVICE_ROLE_KEY) {
     return {
-      nome: "Chave de servico",
+      nome: "Chave de serviço",
       situacao: "ok",
-      detalhe: "Configurada e disponivel apenas no servidor.",
+      detalhe: "Configurada e disponível apenas no servidor.",
     };
   }
   return {
-    nome: "Chave de servico",
+    nome: "Chave de serviço",
     situacao: "alerta",
-    detalhe: "SUPABASE_SERVICE_ROLE_KEY nao configurada (opcional).",
+    detalhe: "SUPABASE_SERVICE_ROLE_KEY não configurada (opcional).",
     comoResolver:
-      "So e necessaria para rotinas administrativas, como criar usuarios pelo proprio dashboard.",
+      "Só é necessária para rotinas administrativas, como criar usuários pelo próprio dashboard.",
   };
 }
 

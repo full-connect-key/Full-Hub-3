@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: "Full Hub",
     template: "%s | Full Hub",
   },
-  description: "Dashboard interno da agencia.",
+  description: "Dashboard interno da agência.",
   robots: { index: false, follow: false },
 };
 
