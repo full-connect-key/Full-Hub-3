@@ -52,11 +52,9 @@ const PAGINAS = {
   "modulo-clientes-detalhe": CLIENTE,
   "modulo-equipe": "/painel/equipe",
   "modulo-equipe-detalhe": PESSOA,
-  "modulo-financeiro": "/painel/financeiro",
   "modulo-meu-desenvolvimento": "/painel/meu-desenvolvimento",
   "modulo-academy": "/painel/academy",
   "modulo-recomendacoes": "/painel/recomendacoes",
-  "modulo-financeiro-pessoal": "/painel/financeiro-pessoal",
   "modulo-perfil": "/painel/perfil",
   "portal-aprovacoes": "/portal/aprovacoes",
   "modulo-dev-componentes": "/painel/dev/componentes",
@@ -80,11 +78,17 @@ const COM_SUSPENSE = {
   "full-days-relatorio": "/painel/full-days?aba=relatorio",
   "full-days-aprovacoes": "/painel/full-days?aba=aprovacoes",
   "portal-do-cliente-pela-equipe": "/portal/mundo-verde",
+  // As abas do Financeiro sao ROTAS, nao abas do Radix: cada uma carrega so a
+  // propria consulta, entao cada uma e uma captura.
+  "modulo-financeiro": "/painel/financeiro",
+  "financeiro-lancamentos": "/painel/financeiro?aba=lancamentos",
+  "financeiro-contratos": "/painel/financeiro?aba=contratos",
+  "financeiro-relatorios": "/painel/financeiro?aba=relatorios",
+  "modulo-financeiro-pessoal": "/painel/financeiro-pessoal",
 };
 
 const ABAS = [
   { rota: CLIENTE, abas: ["Dados", "Usuários com acesso", "Configurações do fluxo", "Atividade"] },
-  { rota: "/painel/perfil", abas: ["Meus dados", "Financeiro Pessoal"] },
   { rota: PESSOA, abas: ["Dados", "Skills", "Full Days"] },
   { rota: TASK, abas: ["Trabalho", "Histórico"] },
 ];
@@ -155,6 +159,31 @@ const DIALOGOS = [
     nome: "cliente-pedir-ajustes",
     rota: "/portal/aprovacoes",
     passos: ['button:has-text("Solicitar ajustes")'],
+  },
+  {
+    nome: "lancamento-novo",
+    rota: "/painel/financeiro?aba=lancamentos",
+    passos: ['button:has-text("Novo lançamento")'],
+  },
+  {
+    nome: "lancamento-importar",
+    rota: "/painel/financeiro?aba=lancamentos",
+    passos: ['button:has-text("Importar CSV")'],
+  },
+  {
+    nome: "contrato-novo",
+    rota: "/painel/financeiro?aba=contratos",
+    passos: ['button:has-text("Novo contrato")'],
+  },
+  {
+    // A saida do modulo e em DUAS etapas: o primeiro clique abre a zona, o
+    // segundo pede a confirmacao. Sao os dois passos aqui.
+    nome: "pessoal-apagar-tudo",
+    rota: "/painel/financeiro-pessoal",
+    passos: [
+      'button:has-text("Quero sair deste módulo")',
+      'button:has-text("Apagar tudo")',
+    ],
   },
 ];
 

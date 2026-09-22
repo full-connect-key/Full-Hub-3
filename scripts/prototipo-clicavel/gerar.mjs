@@ -648,7 +648,12 @@ ${telasHtml}
     { rota: TASK_EXEMPLO,          texto: "Criar KV",                dialogo: "subtarefa-painel" },
     { rota: "/painel/aprovacoes-internas", texto: "Solicitar ajustes", dialogo: "aprovacao-ajustes" },
     { rota: "/painel/workflows",   texto: "Novo tipo de tarefa",     dialogo: "tipo-novo" },
-    { rota: "/portal/aprovacoes",  texto: "Solicitar ajustes",       dialogo: "cliente-pedir-ajustes" }
+    { rota: "/portal/aprovacoes",  texto: "Solicitar ajustes",       dialogo: "cliente-pedir-ajustes" },
+    { rota: "/painel/financeiro?aba=lancamentos", texto: "Novo lançamento", dialogo: "lancamento-novo" },
+    { rota: "/painel/financeiro?aba=lancamentos", texto: "Importar CSV",    dialogo: "lancamento-importar" },
+    { rota: "/painel/financeiro?aba=contratos",   texto: "Novo contrato",   dialogo: "contrato-novo" },
+    { rota: "/painel/financeiro-pessoal", texto: "Apagar tudo",             dialogo: "pessoal-apagar-tudo" },
+    { rota: "/painel/full-days?aba=aprovacoes", texto: "Reprovar",          dialogo: "full-days-reprovar" }
   ];
 
   var camadaDeDialogo = document.createElement("div");
