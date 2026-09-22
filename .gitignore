@@ -43,3 +43,7 @@ next-env.d.ts
 
 # logs do PM2 na VPS
 /logs
+
+# imagens geradas por `npm run prototipo`
+/prototipos
+/.prototipo

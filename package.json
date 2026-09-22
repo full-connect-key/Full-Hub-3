@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "check:supabase": "node scripts/verificar-supabase.mjs"
+    "check:supabase": "node scripts/verificar-supabase.mjs",
+    "prototipo": "node scripts/prototipo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -26,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

@@ -18,9 +18,10 @@ entram a cada sprint, sempre pelo mesmo caminho descrito em
 4. [Conferindo a conexao](#conferindo-a-conexao)
 5. [Como o projeto esta organizado](#como-o-projeto-esta-organizado)
 6. [Adicionando um modulo](#adicionando-um-modulo)
-7. [Deploy na VPS da Hostinger](#deploy-na-vps-da-hostinger)
-8. [Quando o dominio chegar](#quando-o-dominio-chegar)
-9. [Seguranca: o que nunca fazer](#seguranca-o-que-nunca-fazer)
+7. [Gerando prototipos para validacao](#gerando-prototipos-para-validacao)
+8. [Deploy na VPS da Hostinger](#deploy-na-vps-da-hostinger)
+9. [Quando o dominio chegar](#quando-o-dominio-chegar)
+10. [Seguranca: o que nunca fazer](#seguranca-o-que-nunca-fazer)
 
 ---
 
@@ -50,6 +51,7 @@ no layout antes de ter o Supabase pronto.
 | `npm run lint` | Verifica os padroes de codigo |
 | `npm run typecheck` | Confere os tipos sem gerar build |
 | `npm run check:supabase` | Testa a conexao com o Supabase pelo terminal |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, sem precisar de Supabase |
 
 ---
 
@@ -195,7 +197,10 @@ src/
       diagnostico.ts           Checagens da conexao
       database.types.ts        Tipos do banco
 supabase/migrations/           SQL versionado do banco
-scripts/                       Utilitarios de terminal
+scripts/
+  verificar-supabase.mjs       Testa a conexao pelo terminal
+  prototipo.mjs                Gera as imagens das telas
+  prototipo/                   Dados e modulos de exemplo (nunca vao ao ar)
 ```
 
 ### As tres camadas de protecao
@@ -288,6 +293,60 @@ import { Users } from "lucide-react";
 ```
 
 Pronto. Item ativo, versao mobile e protecao de rota ja funcionam sozinhos.
+
+---
+
+## Gerando prototipos para validacao
+
+```bash
+npm run prototipo
+```
+
+Gera uma imagem de cada tela em `prototipos/`, para aprovar o visual antes de
+qualquer coisa ir para o ar. Nao precisa de Supabase, de login nem de deploy.
+
+### Como funciona, e por que dessa forma
+
+O projeto e copiado para `.prototipo/`. **So nessa copia**, quatro modulos sao
+trocados por versoes de exemplo que ficam em `scripts/prototipo/`, usando
+apelidos de caminho do TypeScript. Nenhum arquivo de `src/` e alterado, e a
+copia e apagada no fim.
+
+Esse cuidado tem um motivo: gerar as telas exige um modo que pula o login. Se
+esse codigo morasse dentro de `src/`, uma variavel de ambiente errada em
+producao poderia abrir o dashboard inteiro. Do jeito que esta, o codigo que
+pula o login **nao existe** no app publicado.
+
+Para conferir voce mesmo, depois de um `npm run build` comum:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:3000/dashboard
+```
+
+Sem sessao, precisa responder `307` redirecionando para `/login` (ou `/status`,
+quando o Supabase ainda nao esta configurado).
+
+### A cada sprint
+
+1. Acrescente os dados ficticios do modulo novo em
+   `scripts/prototipo/dados-exemplo.ts`
+2. Acrescente a tela na lista `TELAS`, no topo de `scripts/prototipo.mjs`
+
+Se um dos modulos reais ganhar uma funcao nova, o build do prototipo falha
+avisando qual falta -- e so acrescentar na versao de exemplo correspondente.
+
+### Na primeira vez
+
+O gerador usa o Chromium do Playwright. Se ele reclamar que nao achou o
+navegador:
+
+```bash
+npx playwright install chromium
+```
+
+> As imagens sao um retrato do visual, nao um teste do sistema. Elas mostram
+> layout, texto e espacamento -- nao mostram se a consulta ao banco traz os
+> dados certos. Isso so aparece usando o dashboard de verdade.
 
 ---
 

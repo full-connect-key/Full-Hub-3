@@ -1,6 +1,6 @@
 import { LogOut } from "lucide-react";
 
-import { NavegacaoLateral } from "@/components/navegacao-lateral";
+import { MenuMobile } from "@/components/navegacao-lateral";
 import { sair } from "@/lib/auth/acoes";
 
 export function BarraSuperior({ nome, email }: { nome: string; email: string }) {
@@ -8,10 +8,7 @@ export function BarraSuperior({ nome, email }: { nome: string; email: string }) 
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-borda bg-superficie/90 px-4 backdrop-blur lg:px-6">
-      {/* No mobile este componente vira o botao da gaveta. */}
-      <div className="lg:hidden">
-        <NavegacaoLateral />
-      </div>
+      <MenuMobile />
 
       <div className="ml-auto flex items-center gap-3">
         <div className="hidden text-right sm:block">
