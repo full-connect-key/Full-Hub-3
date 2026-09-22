@@ -1,83 +1,62 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { AlertTriangle } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { DateBadge } from "@/components/shared/date-badge";
-import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { TaskCompleta } from "@/lib/dados/tasks";
 import {
-  PRIORIDADES,
-  ROTULOS_DE_PRIORIDADE,
-  ROTULOS_DE_STATUS,
-  STATUS_DE_TASK,
-} from "@/lib/dominio/tasks";
-import type { TaskStatus } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
-
-import { atualizarTask } from "../acoes";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import { formatarMinutos } from "@/lib/dominio/tempo";
+import { EXPLICACAO_DO_STATUS, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
+import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
+import type { TaskCompleta } from "@/lib/dados/tasks";
 
-const SEM_VALOR = "__nenhum__";
+import { atualizarTask, excluirTask } from "../acoes";
 
-function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-muted-foreground text-xs">{rotulo}</Label>
-      {children}
-    </div>
-  );
-}
+const SEM_VALOR = "__sem__";
 
 /**
- * Coluna lateral do detalhe.
+ * A coluna da direita do detalhe: o que a Task é.
  *
- * Ao mover para concluída, abre o diálogo pedindo o Tempo Real, já sugerindo a
- * soma das subtarefas. Dá para pular: travar a conclusão por causa de um
- * número faria a equipe deixar a task aberta, que é pior.
+ * Não existe campo de "responsável da task", e isso é o ponto do modelo: a
+ * Task agrupa a demanda, quem tem dono é cada subtarefa. O que aparece aqui no
+ * lugar é a EQUIPE — as pessoas que têm etapa dentro dela.
+ *
+ * O status também não se edita livremente: ele é calculado pelas subtarefas e
+ * pelas rodadas de aprovação. O seletor oferece apenas os estados que não têm
+ * como ser derivados, e o tooltip explica por que a Task está onde está.
  */
 export function LateralDaTask({
   task,
-  equipe,
   clientes,
+  tipos,
   podeEditar,
-  podeGerenciar = podeEditar,
+  podeExcluir,
 }: {
   task: TaskCompleta;
-  equipe: { id: string; nome: string }[];
   clientes: { id: string; nome_empresa: string }[];
-  /** Status, prioridade, estimativa e tempo real: quem é responsável. */
+  tipos: { id: string; nome: string }[];
   podeEditar: boolean;
-  /**
-   * Cliente, responsável e prazo da task-mãe: só quem gerencia.
-   *
-   * Quem apenas executa toca no próprio andamento, não em quem entrega nem
-   * em quando. Sem esta separação, o responsável poderia empurrar o próprio
-   * prazo — e o combinado com o cliente deixaria de valer. Por padrão segue
-   * `podeEditar`, que é o comportamento da Gestão de Tasks.
-   */
-  podeGerenciar?: boolean;
+  podeExcluir: boolean;
 }) {
   const router = useRouter();
-  const [, iniciar] = useTransition();
-  const [perguntandoTempo, setPerguntandoTempo] = useState(false);
-
-  const somaDasSubtarefas = task.subtarefas.reduce(
-    (total, sub) => total + (sub.tempo_real_horas ?? sub.estimativa_horas ?? 0),
-    0,
-  );
-
-  const estourou =
-    task.estimativa_horas !== null &&
-    task.tempo_real_horas !== null &&
-    task.tempo_real_horas > task.estimativa_horas;
+  const [salvando, iniciar] = useTransition();
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
@@ -87,99 +66,164 @@ export function LateralDaTask({
     });
   }
 
-  const sugestaoDeTempo =
-    task.tempo_real_horas ?? (somaDasSubtarefas > 0 ? somaDasSubtarefas : task.estimativa_horas);
-
-  function mudarStatus(novo: TaskStatus) {
-    if (novo === "concluida") {
-      setPerguntandoTempo(true);
-      return;
-    }
-    salvar({ status: novo });
-  }
-
-  async function concluir(horas: number | null): Promise<boolean> {
-    const campos: Record<string, unknown> = { status: "concluida" };
-    if (horas !== null) campos.tempo_real_horas = horas;
-
-    const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
-    if (!resultado.ok) {
-      toast.error(resultado.error);
-      return false;
-    }
-    toast.success("Task concluída.");
-    router.refresh();
-    return true;
-  }
-
   return (
-    <>
-      <aside className="space-y-4 rounded-xl border p-4">
-        <Campo rotulo="Cliente">
-          <Select
-            value={task.client_id ?? SEM_VALOR}
-            disabled={!podeGerenciar}
-            onValueChange={(v) => salvar({ client_id: v === SEM_VALOR ? null : v })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Sem cliente" />
+    <aside className="h-fit space-y-4 rounded-lg border p-4">
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Status</Label>
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <StatusBadge status={task.status} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              {EXPLICACAO_DO_STATUS[task.status]}
+              {task.status_manual ? " Marcado à mão." : " Calculado pelas subtarefas."}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        {podeEditar ? (
+          <Select value={SEM_VALOR} onValueChange={(valor) => salvar({ status: valor })}>
+            <SelectTrigger className="w-full" aria-label="Marcar status à mão">
+              <SelectValue placeholder="Marcar à mão…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={SEM_VALOR}>Sem cliente (interna)</SelectItem>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome_empresa}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Campo>
-
-        <Campo rotulo="Responsável">
-          <Select
-            value={task.responsavel_id ?? SEM_VALOR}
-            disabled={!podeGerenciar}
-            onValueChange={(v) => salvar({ responsavel_id: v === SEM_VALOR ? null : v })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Sem responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-              {equipe.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Campo>
-
-        <Campo rotulo="Status">
-          <Select
-            value={task.status}
-            disabled={!podeEditar}
-            onValueChange={(v) => mudarStatus(v as TaskStatus)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_DE_TASK.map((s) => (
+              <SelectItem value={SEM_VALOR} disabled>
+                Marcar à mão…
+              </SelectItem>
+              {STATUS_MANUAIS_DA_TASK.map((s) => (
                 <SelectItem key={s} value={s}>
                   {ROTULOS_DE_STATUS[s]}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </Campo>
+        ) : null}
+        <p className="text-muted-foreground text-xs">
+          Os outros status vêm das subtarefas — mova as etapas e a Task acompanha.
+        </p>
+      </div>
 
-        <Campo rotulo="Prioridade">
+      <Separator />
+
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Progresso</Label>
+        <p className="text-sm">
+          {task.subtarefasConcluidas} de {task.subtarefasTotal} subtarefa
+          {task.subtarefasTotal === 1 ? "" : "s"} concluída
+          {task.subtarefasConcluidas === 1 ? "" : "s"}
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Equipe</Label>
+        {task.equipe.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nenhuma etapa atribuída ainda.</p>
+        ) : (
+          <UserAvatarGroup
+            users={task.equipe.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+            size="sm"
+          />
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Cliente</Label>
+        {podeEditar ? (
+          <Select value={task.client_id} onValueChange={(valor) => salvar({ client_id: valor })}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {clientes.map((cliente) => (
+                <SelectItem key={cliente.id} value={cliente.id}>
+                  {cliente.nome_empresa}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-sm">{task.cliente?.nome_empresa ?? "—"}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Tipo de tarefa</Label>
+        {podeEditar ? (
           <Select
-            value={task.prioridade}
-            disabled={!podeEditar}
-            onValueChange={(v) => salvar({ prioridade: v })}
+            value={task.task_type_id ?? SEM_VALOR}
+            onValueChange={(valor) =>
+              salvar({ task_type_id: valor === SEM_VALOR ? null : valor })
+            }
           >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SEM_VALOR}>Sem tipo</SelectItem>
+              {tipos.map((tipo) => (
+                <SelectItem key={tipo.id} value={tipo.id}>
+                  {tipo.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-sm">{task.tipo?.nome ?? "—"}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="data-inicio" className="text-muted-foreground text-xs">
+            Início
+          </Label>
+          {podeEditar ? (
+            <Input
+              id="data-inicio"
+              type="date"
+              defaultValue={task.data_inicio}
+              onBlur={(evento) => {
+                if (evento.target.value && evento.target.value !== task.data_inicio) {
+                  salvar({ data_inicio: evento.target.value });
+                }
+              }}
+            />
+          ) : (
+            <p className="text-sm">{task.data_inicio.split("-").reverse().join("/")}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="data-fim" className="text-muted-foreground text-xs">
+            Fim
+          </Label>
+          {podeEditar ? (
+            <Input
+              id="data-fim"
+              type="date"
+              defaultValue={task.data_fim ?? ""}
+              onBlur={(evento) => {
+                if (evento.target.value !== (task.data_fim ?? "")) {
+                  salvar({ data_fim: evento.target.value });
+                }
+              }}
+            />
+          ) : (
+            <p className="text-sm">
+              {task.data_fim ? task.data_fim.split("-").reverse().join("/") : "—"}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Prioridade</Label>
+        {podeEditar ? (
+          <Select value={task.prioridade} onValueChange={(valor) => salvar({ prioridade: valor })}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -191,96 +235,55 @@ export function LateralDaTask({
               ))}
             </SelectContent>
           </Select>
-        </Campo>
+        ) : (
+          <p className="text-sm">{ROTULOS_DE_PRIORIDADE[task.prioridade]}</p>
+        )}
+      </div>
 
-        <Campo rotulo="Prazo">
-          <div className="space-y-1.5">
-            <Input
-              type="date"
-              disabled={!podeGerenciar}
-              defaultValue={task.prazo ?? ""}
-              onBlur={(e) => e.target.value !== (task.prazo ?? "") && salvar({ prazo: e.target.value || null })}
-            />
-            {task.prazo ? <DateBadge date={task.prazo} showIcon /> : null}
-          </div>
-        </Campo>
+      <Separator />
 
-        <div className="grid grid-cols-2 gap-3 border-t pt-4">
-          <Campo rotulo="Estimativa">
-            <Input
-              type="number"
-              min={0}
-              step="0.5"
-              disabled={!podeEditar}
-              defaultValue={task.estimativa_horas ?? ""}
-              placeholder="—"
-              onBlur={(e) => {
-                const valor = e.target.value === "" ? null : Number(e.target.value);
-                if (valor !== task.estimativa_horas) salvar({ estimativa_horas: valor });
-              }}
-            />
-          </Campo>
+      {/* A Task não tem tempo próprio: o que aparece é a soma das subtarefas. */}
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Tempo</Label>
+        <p className="text-sm">
+          {formatarMinutos(task.tempoRealMinutos)} realizado
+          <span className="text-muted-foreground">
+            {" "}
+            de {formatarMinutos(task.estimativaMinutos)} estimado
+          </span>
+        </p>
+        <p className="text-muted-foreground text-xs">Soma das subtarefas.</p>
+      </div>
 
-          <Campo rotulo="Tempo real">
-            <Input
-              type="number"
-              min={0}
-              step="0.5"
-              disabled={!podeEditar}
-              defaultValue={task.tempo_real_horas ?? ""}
-              placeholder="—"
-              className={cn(estourou && "border-destructive text-destructive font-medium")}
-              onBlur={(e) => {
-                const valor = e.target.value === "" ? null : Number(e.target.value);
-                if (valor !== task.tempo_real_horas) salvar({ tempo_real_horas: valor });
-              }}
-            />
-          </Campo>
-        </div>
+      <p className="text-muted-foreground text-xs">
+        Criada por {task.autor?.nome ?? "—"}.
+      </p>
 
-        {estourou ? (
-          <p className="text-destructive flex items-center gap-1.5 text-xs">
-            <AlertTriangle aria-hidden className="size-3.5" />
-            Passou {(task.tempo_real_horas! - task.estimativa_horas!).toFixed(1)}h da estimativa.
-          </p>
-        ) : null}
-
-        <dl className="text-muted-foreground space-y-1 border-t pt-4 text-xs">
-          <div className="flex justify-between gap-2">
-            <dt>Criada por</dt>
-            <dd className="text-foreground">{task.autor?.nome ?? "—"}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Criada em</dt>
-            <dd>{format(parseISO(task.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Atualizada</dt>
-            <dd>{format(parseISO(task.updated_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</dd>
-          </div>
-          {task.concluida_em ? (
-            <div className="flex justify-between gap-2">
-              <dt>Concluída em</dt>
-              <dd>{format(parseISO(task.concluida_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}</dd>
-            </div>
-          ) : null}
-        </dl>
-      </aside>
-
-      <DialogoDeTempo
-        aberto={perguntandoTempo}
-        aoFechar={() => setPerguntandoTempo(false)}
-        titulo="Concluir esta task"
-        sugestao={sugestaoDeTempo}
-        origemDaSugestao={
-          somaDasSubtarefas > 0
-            ? `As subtarefas somam ${somaDasSubtarefas}h — é o valor sugerido.`
-            : task.estimativa_horas
-              ? `A estimativa era de ${task.estimativa_horas}h.`
-              : undefined
-        }
-        aoConcluir={concluir}
-      />
-    </>
+      {podeExcluir ? (
+        <>
+          <Separator />
+          <ConfirmDialog
+            title="Excluir esta task?"
+            description="A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
+            confirmLabel="Excluir"
+            destructive
+            onConfirm={async () => {
+              const resultado = await chamarAcao(() => excluirTask(task.id));
+              if (!resultado.ok) toast.error(resultado.error);
+              else {
+                toast.success("Task excluída.");
+                router.push("/painel/gestao-tasks");
+              }
+            }}
+            trigger={
+              <Button variant="ghost" size="sm" className="text-destructive" disabled={salvando}>
+                <Trash2 aria-hidden />
+                Excluir task
+              </Button>
+            }
+          />
+        </>
+      ) : null}
+    </aside>
   );
 }

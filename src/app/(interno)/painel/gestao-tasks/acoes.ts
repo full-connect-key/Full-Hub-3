@@ -7,6 +7,7 @@ import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
+import { etapasDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
@@ -404,5 +405,39 @@ export async function excluirTask(id: string): Promise<Resultado> {
     if (!data) return falha(RECUSA_DO_BANCO);
     revalidatePath(ROTA);
     return sucesso("Task excluída.");
+  });
+}
+
+/**
+ * As etapas que um tipo de tarefa sugere, já com os prazos calculados.
+ *
+ * Isto é leitura, não escrita: o que volta é uma sugestão para o formulário,
+ * que a pessoa ainda edita, reordena e completa antes de confirmar. Nada é
+ * gravado até ela clicar em Criar.
+ *
+ * O snapshot volta junto e é guardado na Task: alterar o workflow depois não
+ * muda nenhuma demanda já criada, e o snapshot é o que diz qual versão do
+ * fluxo gerou aquelas subtarefas.
+ */
+export async function sugerirEtapasDoTipo(
+  tipoId: string,
+  dataInicio: string,
+): Promise<Resultado<{ etapas: EtapaAplicada[]; snapshot: unknown } | null>> {
+  return executarAcao("sugerirEtapasDoTipo", async () => {
+    await exigirRotaNaAcao(ROTA);
+
+    const supabase = await criarClienteServidor();
+    const { data: tipo } = await supabase
+      .from("task_types")
+      .select("workflow_template_id")
+      .eq("id", tipoId)
+      .maybeSingle();
+
+    if (!tipo?.workflow_template_id) {
+      return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
+    }
+
+    const aplicado = await etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
+    return sucesso("Fluxo aplicado.", aplicado);
   });
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
-import { Link2, Loader2, Paperclip, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Link2, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { EditorRico } from "@/components/shared/editor-rico";
@@ -21,15 +21,28 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { criarClienteNavegador } from "@/lib/supabase/client";
-import type { TaskPrioridade } from "@/lib/supabase/database.types";
+import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
 
-import { criarTask } from "./acoes";
+import { criarTask, sugerirEtapasDoTipo } from "./acoes";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
 const TAMANHO_MAXIMO = 15 * 1024 * 1024;
 
-type SubtarefaNova = { chave: string; titulo: string; responsavel_id: string; prazo: string };
+const HOJE = () => new Date().toISOString().slice(0, 10);
+
+type SubtarefaNova = {
+  chave: string;
+  titulo: string;
+  responsavel_id: string;
+  prazo: string;
+  prioridade: TaskPrioridade;
+  /** SEM_VALOR = não precisa de aprovação. */
+  aprovacao: string;
+  estimativa: string;
+  /** Chave da subtarefa de que esta depende, no próprio formulário. */
+  depende_de: string;
+};
 type ReferenciaNova = {
   chave: string;
   tipo: "link" | "arquivo";
@@ -58,43 +71,125 @@ export function FormularioDeTask({
   aoFechar,
   clientes,
   equipe,
+  tipos,
 }: {
   aberto: boolean;
   aoFechar: () => void;
   clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
+  equipe: { id: string; nome: string; funcao?: TeamFuncao | null }[];
+  /** Tipos de tarefa: os globais e os de cada cliente. */
+  tipos: { id: string; nome: string; client_id: string | null }[];
 }) {
   const router = useRouter();
   const [salvando, setSalvando] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [aplicando, iniciarAplicacao] = useTransition();
 
   const [titulo, setTitulo] = useState("");
   const [cliente, setCliente] = useState(SEM_VALOR);
-  const [responsavel, setResponsavel] = useState(SEM_VALOR);
-  const [prazo, setPrazo] = useState("");
+  const [tipo, setTipo] = useState(SEM_VALOR);
+  const [dataInicio, setDataInicio] = useState(HOJE);
+  const [dataFim, setDataFim] = useState("");
   const [prioridade, setPrioridade] = useState<TaskPrioridade>("normal");
-  const [estimativa, setEstimativa] = useState("");
   const [briefing, setBriefing] = useState<{ json: JSONContent; texto: string } | null>(null);
   const [subtarefas, setSubtarefas] = useState<SubtarefaNova[]>([]);
+  const [snapshot, setSnapshot] = useState<unknown>(null);
   const [referencias, setReferencias] = useState<ReferenciaNova[]>([]);
+
+  // Um tipo específico de cliente só aparece para aquele cliente; os globais
+  // valem para todos.
+  const tiposVisiveis = tipos.filter(
+    (t) => t.client_id === null || (cliente !== SEM_VALOR && t.client_id === cliente),
+  );
 
   function limpar() {
     setTitulo("");
     setCliente(SEM_VALOR);
-    setResponsavel(SEM_VALOR);
-    setPrazo("");
+    setTipo(SEM_VALOR);
+    setDataInicio(HOJE());
+    setDataFim("");
     setPrioridade("normal");
-    setEstimativa("");
     setBriefing(null);
     setSubtarefas([]);
+    setSnapshot(null);
     setReferencias([]);
   }
 
+  function subtarefaVazia(): SubtarefaNova {
+    return {
+      chave: novaChave(),
+      titulo: "",
+      responsavel_id: SEM_VALOR,
+      prazo: "",
+      prioridade: "normal",
+      aprovacao: SEM_VALOR,
+      estimativa: "",
+      depende_de: SEM_VALOR,
+    };
+  }
+
   function adicionarSubtarefa() {
-    setSubtarefas((atual) => [
-      ...atual,
-      { chave: novaChave(), titulo: "", responsavel_id: SEM_VALOR, prazo: "" },
-    ]);
+    setSubtarefas((atual) => [...atual, subtarefaVazia()]);
+  }
+
+  /** Reordenar é o que permite ajustar um fluxo aplicado antes de salvar. */
+  function mover(chave: string, direcao: -1 | 1) {
+    setSubtarefas((atual) => {
+      const indice = atual.findIndex((s) => s.chave === chave);
+      const destino = indice + direcao;
+      if (indice < 0 || destino < 0 || destino >= atual.length) return atual;
+      const copia = [...atual];
+      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+      return copia;
+    });
+  }
+
+  /**
+   * Aplica o fluxo do tipo escolhido.
+   *
+   * As etapas viram subtarefas comuns do formulário: dá para trocar o
+   * responsável, mexer no prazo, acrescentar, remover e reordenar antes de
+   * salvar. Escolher um tipo é um atalho, não uma camisa de força.
+   */
+  function aplicarTipo(novoTipo: string) {
+    setTipo(novoTipo);
+    if (novoTipo === SEM_VALOR) {
+      setSnapshot(null);
+      return;
+    }
+    iniciarAplicacao(async () => {
+      const resultado = await chamarAcao(() => sugerirEtapasDoTipo(novoTipo, dataInicio));
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      const aplicado = resultado.dados;
+      if (!aplicado) {
+        toast.info(resultado.mensagem);
+        return;
+      }
+
+      const chaves = aplicado.etapas.map(() => novaChave());
+      setSnapshot(aplicado.snapshot);
+      setSubtarefas(
+        aplicado.etapas.map((etapa, indice) => ({
+          chave: chaves[indice],
+          titulo: etapa.titulo,
+          // O modelo diz a FUNÇÃO ("Design"); a pessoa daquela função entra
+          // como sugestão, e quem abre a demanda confirma ou troca.
+          responsavel_id:
+            etapa.responsavel_id ??
+            equipe.find((p) => etapa.funcao_padrao && p.funcao === etapa.funcao_padrao)?.id ??
+            SEM_VALOR,
+          prazo: etapa.prazo ?? "",
+          prioridade: etapa.prioridade,
+          aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : SEM_VALOR,
+          estimativa: "",
+          depende_de: etapa.depende_de ? chaves[etapa.depende_de - 1] : SEM_VALOR,
+        })),
+      );
+      toast.success(`${aplicado.etapas.length} etapa(s) sugeridas. Ajuste como quiser.`);
+    });
   }
 
   function mudarSubtarefa(chave: string, campos: Partial<SubtarefaNova>) {
@@ -151,24 +246,35 @@ export function FormularioDeTask({
       toast.error("Informe o título da task.");
       return;
     }
+    if (cliente === SEM_VALOR) {
+      toast.error("Toda task pertence a um cliente. Escolha de quem é esta demanda.");
+      return;
+    }
     setSalvando(true);
     try {
+      const validas = subtarefas.filter((sub) => sub.titulo.trim().length > 0);
+      const posicao = new Map(validas.map((sub, indice) => [sub.chave, indice + 1]));
+
       const resultado = await chamarAcao(() => criarTask({
         titulo,
-        client_id: cliente === SEM_VALOR ? null : cliente,
-        responsavel_id: responsavel === SEM_VALOR ? null : responsavel,
-        prazo: prazo || null,
+        client_id: cliente,
+        task_type_id: tipo === SEM_VALOR ? null : tipo,
+        workflow_snapshot: snapshot,
+        data_inicio: dataInicio,
+        data_fim: dataFim || null,
         prioridade,
-        estimativa_horas: estimativa || null,
         briefing_rico: briefing?.json ?? null,
         briefing_texto: briefing?.texto ?? null,
-        subtarefas: subtarefas
-          .filter((sub) => sub.titulo.trim().length > 0)
-          .map((sub) => ({
-            titulo: sub.titulo,
-            prazo: sub.prazo || null,
-            responsavel_id: sub.responsavel_id === SEM_VALOR ? null : sub.responsavel_id,
-          })),
+        subtarefas: validas.map((sub) => ({
+          titulo: sub.titulo,
+          prazo: sub.prazo || null,
+          responsavel_id: sub.responsavel_id === SEM_VALOR ? null : sub.responsavel_id,
+          prioridade: sub.prioridade,
+          requer_aprovacao: sub.aprovacao !== SEM_VALOR,
+          tipo_aprovacao: sub.aprovacao === SEM_VALOR ? null : (sub.aprovacao as "interna" | "cliente"),
+          estimativa: sub.estimativa || null,
+          depende_de: posicao.get(sub.depende_de) ?? null,
+        })),
         referencias: referencias.map((ref) => ({
           tipo: ref.tipo,
           url: ref.url,
@@ -197,7 +303,8 @@ export function FormularioDeTask({
         <DialogHeader>
           <DialogTitle>Nova task</DialogTitle>
           <DialogDescription>
-            Só o título é obrigatório. Subtarefas podem ter prazo e responsável próprios.
+            A Task agrupa a demanda; quem tem dono, prazo e aprovação é cada subtarefa. Escolher um
+            tipo já traz as etapas daquele tipo de trabalho — e elas continuam editáveis aqui.
           </DialogDescription>
         </DialogHeader>
 
@@ -215,13 +322,22 @@ export function FormularioDeTask({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="task-cliente">Cliente</Label>
-              <Select value={cliente} onValueChange={setCliente}>
+              <Label htmlFor="task-cliente">Cliente *</Label>
+              <Select
+                value={cliente}
+                onValueChange={(v) => {
+                  setCliente(v);
+                  // Um tipo do cliente anterior não vale para o novo.
+                  if (tipo !== SEM_VALOR) {
+                    const escolhido = tipos.find((t) => t.id === tipo);
+                    if (escolhido?.client_id && escolhido.client_id !== v) setTipo(SEM_VALOR);
+                  }
+                }}
+              >
                 <SelectTrigger id="task-cliente" className="w-full">
                   <SelectValue placeholder="Escolha o cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SEM_VALOR}>Sem cliente (interna)</SelectItem>
                   {clientes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.nome_empresa}
@@ -232,16 +348,17 @@ export function FormularioDeTask({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="task-responsavel">Responsável</Label>
-              <Select value={responsavel} onValueChange={setResponsavel}>
-                <SelectTrigger id="task-responsavel" className="w-full">
-                  <SelectValue placeholder="Escolha o responsável" />
+              <Label htmlFor="task-tipo">Tipo de tarefa</Label>
+              <Select value={tipo} onValueChange={aplicarTipo} disabled={aplicando}>
+                <SelectTrigger id="task-tipo" className="w-full">
+                  <SelectValue placeholder="Sem tipo — monto as etapas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-                  {equipe.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome}
+                  <SelectItem value={SEM_VALOR}>Sem tipo — monto as etapas</SelectItem>
+                  {tiposVisiveis.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
+                      {t.client_id ? " (deste cliente)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -256,12 +373,21 @@ export function FormularioDeTask({
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="task-prazo">Prazo</Label>
+              <Label htmlFor="task-inicio">Início *</Label>
               <Input
-                id="task-prazo"
+                id="task-inicio"
                 type="date"
-                value={prazo}
-                onChange={(e) => setPrazo(e.target.value)}
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-fim">Fim</Label>
+              <Input
+                id="task-fim"
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -281,17 +407,6 @@ export function FormularioDeTask({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="task-estimativa">Estimativa (horas)</Label>
-              <Input
-                id="task-estimativa"
-                type="number"
-                min={0}
-                step="0.5"
-                value={estimativa}
-                onChange={(e) => setEstimativa(e.target.value)}
-              />
             </div>
           </div>
 
@@ -367,53 +482,135 @@ export function FormularioDeTask({
 
             {subtarefas.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Cada subtarefa tem prazo e responsável próprios, e aparece no calendário no dia
-                dela.
+                A subtarefa é a unidade de trabalho: é nela que entra o responsável, o prazo e a
+                regra de aprovação. Criar a demanda sem tipo e montar as etapas à mão é um caminho
+                normal.
               </p>
             ) : (
               <ul className="space-y-2">
-                {subtarefas.map((sub) => (
-                  <li key={sub.chave} className="grid gap-2 rounded-md border p-3 sm:grid-cols-12">
-                    <Input
-                      className="sm:col-span-5"
-                      placeholder="Título da subtarefa"
-                      value={sub.titulo}
-                      onChange={(e) => mudarSubtarefa(sub.chave, { titulo: e.target.value })}
-                    />
-                    <Select
-                      value={sub.responsavel_id}
-                      onValueChange={(v) => mudarSubtarefa(sub.chave, { responsavel_id: v })}
-                    >
-                      <SelectTrigger className="w-full sm:col-span-4">
-                        <SelectValue placeholder="Responsável" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-                        {equipe.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      className="sm:col-span-2"
-                      type="date"
-                      value={sub.prazo}
-                      onChange={(e) => mudarSubtarefa(sub.chave, { prazo: e.target.value })}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Remover subtarefa"
-                      className="sm:col-span-1"
-                      onClick={() =>
-                        setSubtarefas((atual) => atual.filter((s) => s.chave !== sub.chave))
-                      }
-                    >
-                      <X aria-hidden />
-                    </Button>
+                {subtarefas.map((sub, indice) => (
+                  <li key={sub.chave} className="space-y-2 rounded-md border p-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-muted-foreground w-5 shrink-0 pt-2 text-xs tabular-nums">
+                        {indice + 1}
+                      </span>
+                      <Input
+                        className="flex-1"
+                        placeholder="Título da subtarefa"
+                        value={sub.titulo}
+                        onChange={(e) => mudarSubtarefa(sub.chave, { titulo: e.target.value })}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Subir"
+                        disabled={indice === 0}
+                        onClick={() => mover(sub.chave, -1)}
+                      >
+                        <ChevronUp aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Descer"
+                        disabled={indice === subtarefas.length - 1}
+                        onClick={() => mover(sub.chave, 1)}
+                      >
+                        <ChevronDown aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remover subtarefa"
+                        onClick={() =>
+                          setSubtarefas((atual) => atual.filter((s) => s.chave !== sub.chave))
+                        }
+                      >
+                        <X aria-hidden />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-2 pl-7 sm:grid-cols-5">
+                      <Select
+                        value={sub.responsavel_id}
+                        onValueChange={(v) => mudarSubtarefa(sub.chave, { responsavel_id: v })}
+                      >
+                        <SelectTrigger className="w-full" aria-label="Responsável">
+                          <SelectValue placeholder="Responsável" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
+                          {equipe.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Input
+                        type="date"
+                        aria-label="Prazo da subtarefa"
+                        value={sub.prazo}
+                        onChange={(e) => mudarSubtarefa(sub.chave, { prazo: e.target.value })}
+                      />
+
+                      <Select
+                        value={sub.prioridade}
+                        onValueChange={(v) =>
+                          mudarSubtarefa(sub.chave, { prioridade: v as TaskPrioridade })
+                        }
+                      >
+                        <SelectTrigger className="w-full" aria-label="Prioridade da subtarefa">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PRIORIDADES.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {ROTULOS_DE_PRIORIDADE[p]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Aprovação: o tipo diz para onde ela vai no fim. Toda
+                          aprovação passa primeiro pela validação interna. */}
+                      <Select
+                        value={sub.aprovacao}
+                        onValueChange={(v) => mudarSubtarefa(sub.chave, { aprovacao: v })}
+                      >
+                        <SelectTrigger className="w-full" aria-label="Aprovação">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SEM_VALOR}>Sem aprovação</SelectItem>
+                          <SelectItem value="interna">Aprovação interna</SelectItem>
+                          <SelectItem value="cliente">Aprovação do cliente</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={sub.depende_de}
+                        onValueChange={(v) => mudarSubtarefa(sub.chave, { depende_de: v })}
+                      >
+                        <SelectTrigger className="w-full" aria-label="Depende de">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SEM_VALOR}>Não depende de nada</SelectItem>
+                          {subtarefas
+                            .filter((outra, i) => outra.chave !== sub.chave && i < indice)
+                            .map((outra, i) => (
+                              <SelectItem key={outra.chave} value={outra.chave}>
+                                Depende de {i + 1}. {outra.titulo || "(sem título)"}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </li>
                 ))}
               </ul>

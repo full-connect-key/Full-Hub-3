@@ -30,13 +30,14 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 /**
  * Calendário de prazos.
  *
- * Mostra dois níveis no mesmo dia: o prazo da task e o de cada subtarefa. A
+ * Mostra dois níveis no mesmo dia: o fim do período da demanda e o prazo de
+ * cada subtarefa. A
  * subtarefa vem com borda tracejada e o rótulo "Etapa", para ninguém confundir
  * um passo interno com a entrega final.
  *
  * A pergunta que ele tem de responder de relance é "o que entrega em que dia".
  * Por isso cada item traz três coisas fixas: a barra colorida pela SITUAÇÃO do
- * prazo (e não pela prioridade — o que aperta é a data), o rótulo Entrega ou
+ * prazo (e não pela prioridade — o que aperta é a data), o rótulo Demanda ou
  * Etapa, e o chip do cliente. A legenda no rodapé fecha a leitura.
  */
 export function CalendarioDeTasks({
@@ -188,7 +189,9 @@ export function CalendarioDeTasks({
                       prazos.fimDaSemana,
                     );
                     const cor = corDoPrazo(situacao, item.prioridade);
-                    const rotulo = item.tipo === "task" ? "Entrega" : "Etapa";
+                    // A linha da Task marca o FIM DO PERÍODO da demanda; a da subtarefa,
+                    // o prazo de uma etapa. São coisas diferentes e o rótulo diz qual é.
+                    const rotulo = item.tipo === "task" ? "Demanda" : "Etapa";
 
                     return (
                       <li key={item.chave}>
@@ -271,7 +274,7 @@ export function CalendarioDeTasks({
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden className="bg-card size-2.5 rounded border shadow-xs" />
-          <span className="text-[10px] font-medium uppercase">Entrega</span> = prazo da task
+          <span className="text-[10px] font-medium uppercase">Demanda</span> = fim do período da task
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden className="size-2.5 rounded border border-dashed" />

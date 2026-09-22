@@ -180,7 +180,7 @@ export function Comentarios({
   function publicar() {
     if (texto.trim().length === 0) return;
     iniciar(async () => {
-      const resultado = await chamarAcao(() => comentar(taskId, texto, respondendo?.id ?? null));
+      const resultado = await chamarAcao(() => comentar(taskId, texto, { respostaA: respondendo?.id ?? null }));
       if (!resultado.ok) toast.error(resultado.error);
       else {
         setTexto("");

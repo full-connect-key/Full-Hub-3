@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
-import { Check, Loader2, Pencil, X } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { EditorRico, VisualizadorRico } from "@/components/shared/editor-rico";
@@ -17,26 +17,24 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 /**
  * Título e briefing do detalhe.
  *
- * Os dois são editáveis no lugar, sem sair da tela. O briefing entra em modo
- * de edição por botão em vez de ao clicar: o texto tem links, e clicar num
- * link não pode virar "começar a editar".
+ * O briefing é um editor só, sempre no lugar: o que a pessoa vê é o que está
+ * salvo. Antes havia um botão "Editar" que trocava o texto formatado por uma
+ * caixa de edição — e alternar entre editor e pré-visualização faz a pessoa
+ * duvidar de qual dos dois é o conteúdo de verdade.
+ *
+ * O salvamento é explícito, num botão que só aparece quando há alteração
+ * pendente: salvar a cada tecla mandaria uma escrita por letra digitada.
  */
-export function PrincipalDaTask({
-  task,
-  podeEditar,
-}: {
-  task: TaskCompleta;
-  podeEditar: boolean;
-}) {
+export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; podeEditar: boolean }) {
   const router = useRouter();
   const [, iniciar] = useTransition();
 
   const [titulo, setTitulo] = useState(task.titulo);
   const [editandoTitulo, setEditandoTitulo] = useState(false);
 
-  const [editandoBriefing, setEditandoBriefing] = useState(false);
-  const [rascunho, setRascunho] = useState<{ json: JSONContent; texto: string } | null>(null);
-  const [salvandoBriefing, setSalvandoBriefing] = useState(false);
+  const rascunho = useRef<{ json: JSONContent; texto: string } | null>(null);
+  const [temMudanca, setTemMudanca] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   function salvarTitulo() {
     setEditandoTitulo(false);
@@ -54,24 +52,23 @@ export function PrincipalDaTask({
   }
 
   async function salvarBriefing() {
-    if (!rascunho) {
-      setEditandoBriefing(false);
-      return;
-    }
-    setSalvandoBriefing(true);
+    if (!rascunho.current) return;
+    setSalvando(true);
     try {
-      const resultado = await chamarAcao(() => atualizarTask(task.id, {
-        briefing_rico: rascunho.json,
-        briefing_texto: rascunho.texto,
-      }));
+      const resultado = await chamarAcao(() =>
+        atualizarTask(task.id, {
+          briefing_rico: rascunho.current!.json,
+          briefing_texto: rascunho.current!.texto,
+        }),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success("Briefing salvo.");
-        setEditandoBriefing(false);
+        setTemMudanca(false);
         router.refresh();
       }
     } finally {
-      setSalvandoBriefing(false);
+      setSalvando(false);
     }
   }
 
@@ -105,47 +102,28 @@ export function PrincipalDaTask({
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Briefing</h2>
-          {podeEditar && !editandoBriefing ? (
-            <Button variant="ghost" size="sm" onClick={() => setEditandoBriefing(true)}>
-              <Pencil aria-hidden />
-              Editar
+          {podeEditar && temMudanca ? (
+            <Button size="sm" onClick={salvarBriefing} disabled={salvando}>
+              {salvando ? <Loader2 className="animate-spin" /> : <Check aria-hidden />}
+              Salvar briefing
             </Button>
           ) : null}
         </div>
 
-        {editandoBriefing ? (
-          <div className="space-y-2">
-            <EditorRico
-              conteudo={(task.briefing_rico as JSONContent | null) ?? null}
-              onChange={setRascunho}
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setRascunho(null);
-                  setEditandoBriefing(false);
-                }}
-                disabled={salvandoBriefing}
-              >
-                <X aria-hidden />
-                Cancelar
-              </Button>
-              <Button size="sm" onClick={salvarBriefing} disabled={salvandoBriefing}>
-                {salvandoBriefing ? <Loader2 className="animate-spin" /> : <Check aria-hidden />}
-                Salvar briefing
-              </Button>
-            </div>
-          </div>
+        {podeEditar ? (
+          <EditorRico
+            conteudo={(task.briefing_rico as JSONContent | null) ?? null}
+            onChange={(dados) => {
+              rascunho.current = dados;
+              if (!temMudanca) setTemMudanca(true);
+            }}
+          />
         ) : task.briefing_rico ? (
           <div className="rounded-lg border p-4">
             <VisualizadorRico conteudo={task.briefing_rico as JSONContent} />
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
-            Sem briefing. {podeEditar ? "Use Editar para descrever o que precisa ser feito." : null}
-          </p>
+          <p className="text-muted-foreground text-sm">Sem briefing.</p>
         )}
       </section>
     </div>

@@ -12,7 +12,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,15 +24,25 @@ import {
   PRIORIDADES,
   ROTULOS_DE_PRIORIDADE,
   ROTULOS_DE_STATUS,
-  STATUS_DE_TASK,
-  estaVencida,
 } from "@/lib/dominio/tasks";
+import { formatarMinutos } from "@/lib/dominio/tempo";
+import { STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";
+
+/**
+ * Atraso é da subtarefa: a Task não tem prazo. Uma demanda está atrasada
+ * quando alguma etapa em aberto passou da data.
+ */
+function vencida(task: TaskDaLista): boolean {
+  if (task.status === "concluido" || task.status === "cancelada") return false;
+  if (!task.proximoPrazo) return false;
+  return task.proximoPrazo < new Date().toISOString().slice(0, 10);
+}
 
 /**
  * Visão em lista.
@@ -105,49 +115,33 @@ function PrioridadeInline({ task }: { task: TaskDaLista }) {
   );
 }
 
-function ResponsavelInline({
-  task,
-  equipe,
-}: {
-  task: TaskDaLista;
-  equipe: { id: string; nome: string }[];
-}) {
-  const { estado, salvar } = useSalvamento();
+/**
+ * Quem está na demanda.
+ *
+ * Não é editável, e não é um esquecimento: a Task não tem responsável desde o
+ * Sprint 3B. Estes avatares são os donos das subtarefas, e trocar um deles se
+ * faz na etapa, não na linha da Task.
+ */
+function EquipeDaTask({ task }: { task: TaskDaLista }) {
+  if (task.equipe.length === 0) {
+    return <span className="text-muted-foreground text-sm">Ninguém ainda</span>;
+  }
   return (
-    <div className="flex items-center gap-1.5">
-      <Select
-        value={task.responsavel_id ?? SEM_VALOR}
-        onValueChange={(valor) =>
-          salvar(() =>
-            atualizarTask(task.id, { responsavel_id: valor === SEM_VALOR ? null : valor }),
-          )
-        }
-      >
-        <SelectTrigger size="sm" className="h-7 border-none px-1 shadow-none">
-          {task.responsavel ? (
-            <span className="flex items-center gap-2">
-              <UserAvatar name={task.responsavel.nome} src={task.responsavel.avatar_url} size="sm" />
-              <span className="truncate text-sm">{task.responsavel.nome}</span>
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-sm">Sem responsável</span>
-          )}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-          {equipe.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Indicador estado={estado} />
-    </div>
+    <UserAvatarGroup
+      users={task.equipe.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+      max={3}
+      size="sm"
+    />
   );
 }
 
-function PrazoInline({ task }: { task: TaskDaLista }) {
+/**
+ * O fim do período da demanda, editável no lugar.
+ *
+ * Ao lado, em texto menor, o prazo que de fato corre: o da próxima subtarefa
+ * em aberto. São coisas diferentes — a janela da demanda e a data que aperta.
+ */
+function PeriodoInline({ task }: { task: TaskDaLista }) {
   const { estado, salvar } = useSalvamento();
   const [editando, setEditando] = useState(false);
 
@@ -156,29 +150,35 @@ function PrazoInline({ task }: { task: TaskDaLista }) {
       <Input
         type="date"
         autoFocus
-        defaultValue={task.prazo ?? ""}
+        defaultValue={task.data_fim ?? ""}
         className="h-7 w-36"
         onBlur={(e) => {
           setEditando(false);
-          if (e.target.value !== (task.prazo ?? "")) {
-            void salvar(() => atualizarTask(task.id, { prazo: e.target.value || null }));
+          if (e.target.value !== (task.data_fim ?? "")) {
+            void salvar(() => atualizarTask(task.id, { data_fim: e.target.value || null }));
           }
         }}
       />
     );
   }
 
+  const encerrada = task.status === "concluido" || task.status === "cancelada";
+
   return (
     <button
       type="button"
       onClick={() => setEditando(true)}
       className="flex items-center gap-1.5"
-      title="Clique para alterar o prazo"
+      title="Clique para alterar o fim do período"
     >
-      {task.prazo ? (
-        <DateBadge date={task.prazo} />
+      {task.proximoPrazo && !encerrada ? (
+        <DateBadge date={task.proximoPrazo} />
+      ) : task.data_fim ? (
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {task.data_fim.split("-").reverse().join("/")}
+        </span>
       ) : (
-        <span className="text-muted-foreground text-sm">Sem prazo</span>
+        <span className="text-muted-foreground text-sm">Sem data</span>
       )}
       <Indicador estado={estado} />
     </button>
@@ -215,20 +215,6 @@ function BarraDeAcoesEmMassa({
         {selecionadas.length} selecionada(s)
       </span>
 
-      <Select onValueChange={(v) => aplicar({ responsavel_id: v === SEM_VALOR ? null : v })}>
-        <SelectTrigger size="sm" className="w-44">
-          <SelectValue placeholder="Responsável" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-          {equipe.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
       <Select onValueChange={(v) => aplicar({ prioridade: v })}>
         <SelectTrigger size="sm" className="w-36">
           <SelectValue placeholder="Prioridade" />
@@ -242,12 +228,14 @@ function BarraDeAcoesEmMassa({
         </SelectContent>
       </Select>
 
+      {/* Só os status manuais: os outros são calculados pelas subtarefas, e
+          oferecê-los aqui seria prometer o que o banco desfaz em seguida. */}
       <Select onValueChange={(v) => aplicar({ status: v })}>
         <SelectTrigger size="sm" className="w-44">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          {STATUS_DE_TASK.map((s) => (
+          {STATUS_MANUAIS_DA_TASK.map((s) => (
             <SelectItem key={s} value={s}>
               {ROTULOS_DE_STATUS[s]}
             </SelectItem>
@@ -315,7 +303,7 @@ export function ListaDeTasks({
           href={`/painel/gestao-tasks/${task.id}`}
           className={cn(
             "font-medium hover:underline",
-            estaVencida(task.prazo, task.status) && "text-destructive",
+            vencida(task) && "text-destructive",
           )}
         >
           {task.titulo}
@@ -337,17 +325,17 @@ export function ListaDeTasks({
       searchValue: (task) => task.cliente?.nome_empresa ?? "",
     },
     {
-      id: "responsavel",
-      header: "Responsável",
-      cell: (task) => <ResponsavelInline task={task} equipe={equipe} />,
-      sortValue: (task) => task.responsavel?.nome ?? null,
-      searchValue: (task) => task.responsavel?.nome ?? "",
+      id: "equipe",
+      header: "Equipe",
+      cell: (task) => <EquipeDaTask task={task} />,
+      sortValue: (task) => task.equipe[0]?.nome ?? null,
+      searchValue: (task) => task.equipe.map((p) => p.nome).join(" "),
     },
     {
       id: "prazo",
-      header: "Prazo",
-      cell: (task) => <PrazoInline task={task} />,
-      sortValue: (task) => task.prazo,
+      header: "Próximo prazo",
+      cell: (task) => <PeriodoInline task={task} />,
+      sortValue: (task) => task.proximoPrazo ?? task.data_fim,
     },
     {
       id: "prioridade",
@@ -361,27 +349,28 @@ export function ListaDeTasks({
       cell: (task) => <StatusBadge status={task.status} />,
       sortValue: (task) => task.status,
     },
+    // A Task não tem tempo próprio: as duas colunas somam as subtarefas.
     {
       id: "estimativa",
       header: "Estimativa",
-      cell: (task) => (task.estimativa_horas ? `${task.estimativa_horas}h` : "—"),
-      sortValue: (task) => task.estimativa_horas,
+      cell: (task) => formatarMinutos(task.estimativaMinutos),
+      sortValue: (task) => task.estimativaMinutos,
       align: "right",
     },
     {
       id: "real",
       header: "Tempo real",
       cell: (task) => {
-        if (!task.tempo_real_horas) return "—";
+        if (task.tempoRealMinutos === null) return "—";
         const estourou =
-          task.estimativa_horas !== null && task.tempo_real_horas > task.estimativa_horas;
+          task.estimativaMinutos !== null && task.tempoRealMinutos > task.estimativaMinutos;
         return (
           <span className={cn("tabular-nums", estourou && "text-destructive font-medium")}>
-            {task.tempo_real_horas}h
+            {formatarMinutos(task.tempoRealMinutos)}
           </span>
         );
       },
-      sortValue: (task) => task.tempo_real_horas,
+      sortValue: (task) => task.tempoRealMinutos,
       align: "right",
     },
     {
@@ -408,7 +397,7 @@ export function ListaDeTasks({
       const chave =
         agrupamento === "cliente"
           ? (task.cliente?.nome_empresa ?? "Sem cliente")
-          : (task.responsavel?.nome ?? "Sem responsável");
+          : (task.equipe[0]?.nome ?? "Sem ninguém");
       mapa.set(chave, [...(mapa.get(chave) ?? []), task]);
     }
     return [...mapa.entries()]

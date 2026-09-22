@@ -6,6 +6,7 @@ import { CalendarDays, Columns3, List, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { COLUNAS_POR_STATUS } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
+import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { BoardDeTasks } from "./board";
@@ -32,12 +33,14 @@ export function PainelDeTasks({
   itensDeCalendario,
   clientes,
   equipe,
+  tipos,
   prazos,
 }: {
   tasks: TaskDaLista[];
   itensDeCalendario: ItemDeCalendario[];
   clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
+  equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
+  tipos: { id: string; nome: string; client_id: string | null }[];
   prazos: { hoje: string; fimDaSemana: string };
 }) {
   const { filtros, definir } = useFiltros();
@@ -128,6 +131,7 @@ export function PainelDeTasks({
         aoFechar={() => setCriando(false)}
         clientes={clientes}
         equipe={equipe}
+        tipos={tipos}
       />
     </div>
   );

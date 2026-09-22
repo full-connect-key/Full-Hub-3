@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AJUDA_DE_TEMPO, interpretarTempo, tempoParaCampo } from "@/lib/dominio/tempo";
 
 /**
  * Registro do tempo real, na hora de concluir.
@@ -27,9 +28,13 @@ import { Label } from "@/components/ui/label";
  *   - **Dá para pular.** Uma pergunta obrigatória vira número inventado, e
  *     número inventado é pior do que campo vazio: ele entra nos relatórios
  *     como se fosse medição.
- *   - **Vem sugerido.** A estimativa (ou a soma do que já foi registrado nas
- *     subtarefas) já chega preenchida, então o caminho comum é conferir e
- *     apertar Enter.
+ *   - **Vem sugerido.** A estimativa já chega preenchida, então o caminho
+ *     comum é conferir e apertar Enter.
+ *   - **Entrada livre.** `2h30`, `2,5h`, `150` e `90min` são a mesma coisa.
+ *     Obrigar a pessoa a converter para decimal é pedir erro de digitação em
+ *     troca de nada.
+ *
+ * O valor sai daqui em MINUTOS, que é como o banco guarda.
  */
 export function DialogoDeTempo({
   aberto,
@@ -44,14 +49,17 @@ export function DialogoDeTempo({
   aoFechar: () => void;
   titulo: string;
   descricao?: string;
-  /** Pré-preenchido no campo. Null deixa vazio. */
+  /** Pré-preenchido no campo, em minutos. Null deixa vazio. */
   sugestao: number | null;
   /** De onde veio o número, dito em uma linha para a pessoa confiar nele. */
   origemDaSugestao?: string;
-  /** Recebe null quando a pessoa pula. Deve devolver true se deu certo. */
-  aoConcluir: (horas: number | null) => Promise<boolean>;
+  /** Recebe os minutos, ou null quando a pessoa pula. True se deu certo. */
+  aoConcluir: (minutos: number | null) => Promise<boolean>;
+  /** O rótulo do botão que confirma. "Concluir" na maioria dos casos. */
+  rotuloDeConfirmar?: string;
 }) {
-  const [horas, setHoras] = useState("");
+  const [tempo, setTempo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   // Repõe o valor sugerido no instante em que o diálogo abre, ajustando o
@@ -62,18 +70,28 @@ export function DialogoDeTempo({
   const [abertoAntes, setAbertoAntes] = useState(aberto);
   if (aberto !== abertoAntes) {
     setAbertoAntes(aberto);
-    if (aberto) setHoras(sugestao !== null ? String(sugestao) : "");
+    if (aberto) {
+      setTempo(tempoParaCampo(sugestao));
+      setErro(null);
+    }
   }
 
   async function concluir(comTempo: boolean) {
-    setSalvando(true);
-    try {
-      const valor = comTempo && horas.trim() !== "" ? Number(horas) : null;
-      if (valor !== null && (!Number.isFinite(valor) || valor < 0)) {
-        setSalvando(false);
+    let minutos: number | null = null;
+
+    if (comTempo) {
+      const lido = interpretarTempo(tempo);
+      if (lido === undefined) {
+        setErro(`Não entendi "${tempo.trim()}". ${AJUDA_DE_TEMPO}`);
         return;
       }
-      const deuCerto = await aoConcluir(valor);
+      minutos = lido;
+    }
+
+    setErro(null);
+    setSalvando(true);
+    try {
+      const deuCerto = await aoConcluir(minutos);
       if (deuCerto) aoFechar();
     } finally {
       setSalvando(false);
@@ -97,20 +115,20 @@ export function DialogoDeTempo({
             void concluir(true);
           }}
         >
-          <Label htmlFor="tempo-real">Tempo real (horas)</Label>
+          <Label htmlFor="tempo-real">Tempo real</Label>
           <Input
             id="tempo-real"
-            type="number"
-            min={0}
-            step="0.5"
             autoFocus
-            value={horas}
-            onChange={(evento) => setHoras(evento.target.value)}
-            placeholder="—"
+            inputMode="text"
+            value={tempo}
+            onChange={(evento) => setTempo(evento.target.value)}
+            placeholder="2h30"
+            aria-invalid={erro ? true : undefined}
+            aria-describedby="ajuda-de-tempo"
           />
-          {origemDaSugestao ? (
-            <p className="text-muted-foreground text-xs">{origemDaSugestao}</p>
-          ) : null}
+          <p id="ajuda-de-tempo" className="text-muted-foreground text-xs">
+            {erro ?? origemDaSugestao ?? AJUDA_DE_TEMPO}
+          </p>
         </form>
 
         <DialogFooter>
@@ -119,7 +137,7 @@ export function DialogoDeTempo({
           </Button>
           <Button onClick={() => void concluir(true)} disabled={salvando}>
             {salvando ? <Loader2 className="animate-spin" /> : null}
-            Concluir
+            {rotuloDeConfirmar ?? "Concluir"}
           </Button>
         </DialogFooter>
       </DialogContent>

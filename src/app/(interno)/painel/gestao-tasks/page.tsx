@@ -7,6 +7,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
+import { listarTiposDeTarefa } from "@/lib/dados/workflows";
 import { contadoresDeTasks, itensDoCalendario, listarTasks, type FiltrosDeTask } from "@/lib/dados/tasks";
 import type { TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
 
@@ -36,6 +37,7 @@ function filtrosDaUrl(params: Record<string, string | string[] | undefined>): Fi
 
   return {
     cliente: texto("cliente"),
+    tipo: texto("tipo"),
     responsavel: texto("responsavel"),
     prioridade: texto("prioridade") as TaskPrioridade | undefined,
     status: texto("status") as TaskStatus | undefined,
@@ -46,11 +48,12 @@ function filtrosDaUrl(params: Record<string, string | string[] | undefined>): Fi
 }
 
 async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
-  const [tasks, itens, clientes, equipe] = await Promise.all([
+  const [tasks, itens, clientes, equipe, tipos] = await Promise.all([
     listarTasks(filtros),
     itensDoCalendario(filtros),
     listarClientes(),
     listarEquipeAtiva(),
+    listarTiposDeTarefa(),
   ]);
 
   return (
@@ -61,6 +64,7 @@ async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
         .filter((cliente) => cliente.ativo)
         .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
+      tipos={tipos.map((t) => ({ id: t.id, nome: t.nome, client_id: t.client_id }))}
       prazos={prazosDeHoje()}
     />
   );

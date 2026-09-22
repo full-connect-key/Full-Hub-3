@@ -78,7 +78,13 @@ export const listarEquipeAtiva = cache(async () => {
   const equipe = await listarEquipe(false);
   return equipe
     .filter((pessoa) => pessoa.membro?.ativo !== false)
-    .map((pessoa) => ({ id: pessoa.id, nome: pessoa.nome, email: pessoa.email }));
+    .map((pessoa) => ({
+      id: pessoa.id,
+      nome: pessoa.nome,
+      email: pessoa.email,
+      avatar_url: pessoa.avatar_url,
+      funcao: pessoa.membro?.funcao ?? null,
+    }));
 });
 
 /**

@@ -2,299 +2,69 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Link2, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { DateBadge } from "@/components/shared/date-badge";
-import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
+import { PriorityBadge } from "@/components/shared/priority-badge";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Pessoa } from "@/lib/dados/tasks";
-import type { Subtask } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
-
-import {
-  atualizarSubtarefa,
-  criarSubtarefa,
-  removerSubtarefa,
-  reordenarSubtarefas,
-} from "../acoes-de-itens";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { formatarMinutos } from "@/lib/dominio/tempo";
+import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
+import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 
-const SEM_VALOR = "__nenhum__";
+import { criarSubtarefa, removerSubtarefa } from "../acoes-de-itens";
+import { PainelDaSubtarefa } from "./painel-da-subtarefa";
 
-type SubtarefaCompleta = Subtask & { responsavel: Pessoa | null };
-
-function Linha({
-  subtarefa,
-  taskId,
-  equipe,
-  podeEditar,
-  usuarioId,
-}: {
-  subtarefa: SubtarefaCompleta;
-  taskId: string;
-  equipe: { id: string; nome: string }[];
-  /** Manda na task-mãe: pode renomear, reatribuir, mudar prazo e remover. */
-  podeEditar: boolean;
-  usuarioId: string;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: subtarefa.id,
-  });
-  const router = useRouter();
-  const [, iniciar] = useTransition();
-  const [titulo, setTitulo] = useState(subtarefa.titulo);
-  const [editandoPrazo, setEditandoPrazo] = useState(false);
-  const [perguntandoTempo, setPerguntandoTempo] = useState(false);
-
-  /**
-   * Quem executa a subtarefa manda no andamento dela, mesmo que a task-mãe
-   * seja de outra pessoa — é o redator marcando a etapa dele como pronta
-   * numa task do social media. Espelha a policy subtasks_update da 0006.
-   */
-  const ehMinha = subtarefa.responsavel_id === usuarioId;
-  const podeAndar = podeEditar || ehMinha;
-
-  function salvar(campos: Record<string, unknown>) {
-    iniciar(async () => {
-      const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
-      if (!resultado.ok) toast.error(resultado.error);
-      else router.refresh();
-    });
-  }
-
-  async function concluir(horas: number | null): Promise<boolean> {
-    const campos: Record<string, unknown> = { concluida: true };
-    if (horas !== null) campos.tempo_real_horas = horas;
-
-    const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
-    if (!resultado.ok) {
-      toast.error(resultado.error);
-      return false;
-    }
-    toast.success("Subtarefa concluída.");
-    router.refresh();
-    return true;
-  }
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(
-        "bg-card flex flex-wrap items-center gap-2 border-b p-2 last:border-0",
-        isDragging && "opacity-60",
-      )}
-    >
-      {podeEditar ? (
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Reordenar subtarefa"
-          className="text-muted-foreground hover:text-foreground cursor-grab touch-none"
-        >
-          <GripVertical aria-hidden className="size-4" />
-        </button>
-      ) : null}
-
-      <input
-        type="checkbox"
-        aria-label={`Concluir ${subtarefa.titulo}`}
-        checked={subtarefa.concluida}
-        disabled={!podeAndar}
-        onChange={(e) => {
-          // Concluir pergunta o tempo; desmarcar é direto, porque ali não há
-          // nada a registrar.
-          if (e.target.checked) setPerguntandoTempo(true);
-          else salvar({ concluida: false });
-        }}
-        className="accent-brand size-4"
-      />
-
-      <Input
-        value={titulo}
-        disabled={!podeEditar}
-        onChange={(e) => setTitulo(e.target.value)}
-        onBlur={() => titulo !== subtarefa.titulo && salvar({ titulo })}
-        className={cn(
-          "h-8 min-w-40 flex-1 border-transparent bg-transparent px-1.5 shadow-none",
-          subtarefa.concluida && "text-muted-foreground line-through",
-        )}
-      />
-
-      <Select
-        value={subtarefa.responsavel_id ?? SEM_VALOR}
-        disabled={!podeEditar}
-        onValueChange={(v) => salvar({ responsavel_id: v === SEM_VALOR ? null : v })}
-      >
-        <SelectTrigger size="sm" className="w-40 border-transparent shadow-none">
-          <SelectValue placeholder="Sem responsável" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-          {equipe.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {editandoPrazo && podeEditar ? (
-        <Input
-          type="date"
-          autoFocus
-          defaultValue={subtarefa.prazo ?? ""}
-          className="h-8 w-36"
-          onBlur={(e) => {
-            setEditandoPrazo(false);
-            if (e.target.value !== (subtarefa.prazo ?? "")) salvar({ prazo: e.target.value || null });
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => podeEditar && setEditandoPrazo(true)}
-          className="min-w-24"
-          title="Prazo próprio da subtarefa"
-        >
-          {subtarefa.prazo ? (
-            // Concluída não tem prazo "a vencer": o âmbar ali pediria atenção
-            // para algo que já foi entregue.
-            subtarefa.concluida ? (
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {subtarefa.prazo.split("-").reverse().join("/")}
-              </span>
-            ) : (
-              <DateBadge date={subtarefa.prazo} />
-            )
-          ) : (
-            <span className="text-muted-foreground text-xs">Sem prazo</span>
-          )}
-        </button>
-      )}
-
-      <Input
-        type="number"
-        min={0}
-        step="0.5"
-        disabled={!podeAndar}
-        defaultValue={subtarefa.estimativa_horas ?? ""}
-        placeholder="h"
-        className="h-8 w-16 border-transparent bg-transparent px-1.5 text-right shadow-none"
-        onBlur={(e) => {
-          const valor = e.target.value === "" ? null : Number(e.target.value);
-          if (valor !== subtarefa.estimativa_horas) salvar({ estimativa_horas: valor });
-        }}
-      />
-
-      {podeEditar ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          aria-label={`Remover ${subtarefa.titulo}`}
-          onClick={() =>
-            iniciar(async () => {
-              const resultado = await chamarAcao(() => removerSubtarefa(subtarefa.id, taskId));
-              if (!resultado.ok) toast.error(resultado.error);
-              else router.refresh();
-            })
-          }
-        >
-          <Trash2 aria-hidden />
-        </Button>
-      ) : null}
-
-      <DialogoDeTempo
-        aberto={perguntandoTempo}
-        aoFechar={() => setPerguntandoTempo(false)}
-        titulo="Concluir esta subtarefa"
-        sugestao={subtarefa.tempo_real_horas ?? subtarefa.estimativa_horas}
-        origemDaSugestao={
-          subtarefa.estimativa_horas
-            ? `A estimativa era de ${subtarefa.estimativa_horas}h.`
-            : undefined
-        }
-        aoConcluir={concluir}
-      />
-    </li>
-  );
-}
-
+/**
+ * A lista de subtarefas — o centro do detalhe da Task.
+ *
+ * Cada linha responde, de relance: quem faz, para quando, em que pé está, se
+ * precisa passar por aprovação (o cadeado) e se está esperando outra etapa (o
+ * elo). Clicar abre o painel lateral com o resto, sem trocar de página.
+ *
+ * Criar e apagar subtarefa é do Atendimento e da gestão. Trabalhar nela é de
+ * quem é responsável — e é por isso que o botão de ação de cada linha é o
+ * mesmo componente compartilhado: ele pergunta à máquina de estados, não ao
+ * layout.
+ */
 export function Subtarefas({
   taskId,
   subtarefas,
   equipe,
-  podeEditar,
+  podeGerenciar,
+  souGestor,
   usuarioId,
 }: {
   taskId: string;
-  subtarefas: SubtarefaCompleta[];
-  equipe: { id: string; nome: string }[];
-  podeEditar: boolean;
+  subtarefas: SubtarefaDetalhada[];
+  equipe: Pessoa[];
+  /** Atendimento ou gestão: quem pode acrescentar e remover etapas. */
+  podeGerenciar: boolean;
+  souGestor: boolean;
   usuarioId: string;
 }) {
   const router = useRouter();
-  const [ordem, setOrdem] = useState(subtarefas.map((s) => s.id));
-  const [novoTitulo, setNovoTitulo] = useState("");
-  const [, iniciar] = useTransition();
+  const [salvando, iniciar] = useTransition();
+  const [novo, setNovo] = useState("");
+  const [aberta, setAberta] = useState<string | null>(null);
 
-  // A ordem vem do servidor; quando a lista muda (item criado ou removido), a
-  // ordem local acompanha. O ajuste acontece durante a renderização, e não num
-  // efeito: assim não há um quadro intermediário com a ordem antiga na tela.
-  const assinatura = subtarefas.map((s) => s.id).join(",");
-  const [assinaturaAnterior, setAssinaturaAnterior] = useState(assinatura);
-  if (assinaturaAnterior !== assinatura) {
-    setAssinaturaAnterior(assinatura);
-    setOrdem(assinatura ? assinatura.split(",") : []);
-  }
-
-  const sensores = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const porId = new Map(subtarefas.map((s) => [s.id, s]));
-  const emOrdem = ordem.map((id) => porId.get(id)).filter(Boolean) as SubtarefaCompleta[];
-
-  const concluidas = subtarefas.filter((s) => s.concluida).length;
-
-  function aoSoltar(evento: DragEndEvent) {
-    const { active, over } = evento;
-    if (!over || active.id === over.id) return;
-
-    const de = ordem.indexOf(String(active.id));
-    const para = ordem.indexOf(String(over.id));
-    const nova = [...ordem];
-    nova.splice(para, 0, ...nova.splice(de, 1));
-    setOrdem(nova);
-
-    iniciar(async () => {
-      const resultado = await chamarAcao(() => reordenarSubtarefas(taskId, nova));
-      if (!resultado.ok) {
-        setOrdem(ordem);
-        toast.error(resultado.error);
-      }
-    });
-  }
+  const concluidas = subtarefas.filter((s) => s.status === "concluida").length;
+  const emAberto = subtarefas.find((s) => s.id === aberta) ?? null;
 
   function adicionar() {
-    if (novoTitulo.trim().length === 0) return;
+    const titulo = novo.trim();
+    if (titulo.length === 0) return;
     iniciar(async () => {
-      const resultado = await chamarAcao(() => criarSubtarefa(taskId, novoTitulo));
+      const resultado = await chamarAcao(() => criarSubtarefa(taskId, { titulo }));
       if (!resultado.ok) toast.error(resultado.error);
       else {
-        setNovoTitulo("");
+        setNovo("");
         router.refresh();
       }
     });
@@ -302,60 +72,166 @@ export function Subtarefas({
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">
-          Subtarefas{" "}
-          {subtarefas.length > 0 ? (
-            <span className="text-muted-foreground font-normal tabular-nums">
-              {concluidas}/{subtarefas.length}
-            </span>
-          ) : null}
-        </h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold">Subtarefas</h2>
+        <span className="text-muted-foreground text-xs">
+          {subtarefas.length === 0
+            ? "nenhuma etapa"
+            : `${concluidas} de ${subtarefas.length} concluída${subtarefas.length > 1 ? "s" : ""}`}
+        </span>
       </div>
 
-      {subtarefas.length > 0 ? (
-        <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoSoltar}>
-          <SortableContext items={ordem} strategy={verticalListSortingStrategy}>
-            <ul className="overflow-hidden rounded-lg border">
-              {emOrdem.map((subtarefa) => (
-                <Linha
-                  key={subtarefa.id}
-                  subtarefa={subtarefa}
-                  taskId={taskId}
-                  equipe={equipe}
-                  podeEditar={podeEditar}
-                  usuarioId={usuarioId}
-                />
-              ))}
-            </ul>
-          </SortableContext>
-        </DndContext>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          Nenhuma subtarefa. Cada uma tem prazo próprio e aparece no calendário no dia dela.
+      {subtarefas.length === 0 ? (
+        <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+          Esta demanda ainda não tem etapas. A subtarefa é a unidade de trabalho: é nela que entra
+          o responsável, o prazo e a regra de aprovação.
         </p>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {subtarefas.map((sub) => (
+            <li key={sub.id} className="flex flex-wrap items-center gap-2 p-3">
+              {podeGerenciar ? (
+                <GripVertical className="text-muted-foreground/50 size-4 shrink-0" aria-hidden />
+              ) : null}
+
+              <button
+                type="button"
+                className="hover:text-brand min-w-0 flex-1 text-left text-sm font-medium"
+                onClick={() => setAberta(sub.id)}
+              >
+                <span className="truncate">{sub.titulo}</span>
+              </button>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {sub.requer_aprovacao ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-muted-foreground inline-flex">
+                        <Lock className="size-3.5" aria-label="Exige aprovação" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Exige aprovação {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+
+                {sub.dependenciasAbertas.length > 0 ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-warning inline-flex">
+                        <Link2 className="size-3.5" aria-label="Aguardando outra etapa" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Aguardando: {sub.dependenciasAbertas.join(", ")}</TooltipContent>
+                  </Tooltip>
+                ) : null}
+
+                {sub.responsavel ? (
+                  <UserAvatar
+                    name={sub.responsavel.nome}
+                    src={sub.responsavel.avatar_url}
+                    size="sm"
+                  />
+                ) : (
+                  <span className="text-muted-foreground text-xs">sem responsável</span>
+                )}
+
+                <PriorityBadge priority={sub.prioridade} />
+
+                {/* DateBadge é para prazo a vencer. Etapa concluída mostra a
+                    data crua, senão o passado apareceria em vermelho como se
+                    fosse atraso. */}
+                {sub.prazo ? (
+                  sub.status === "concluida" ? (
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {sub.prazo.split("-").reverse().join("/")}
+                    </span>
+                  ) : (
+                    <DateBadge date={sub.prazo} />
+                  )
+                ) : null}
+
+                <StatusBadge status={sub.status} />
+
+                <AcoesDaSubtarefa
+                  subtarefa={sub}
+                  usuarioId={usuarioId}
+                  souGestor={souGestor}
+                  rodadaPendenteId={sub.rodadas.find((r) => r.status === "pendente")?.id ?? null}
+                />
+
+                {podeGerenciar ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label={`Remover ${sub.titulo}`}
+                    onClick={() =>
+                      iniciar(async () => {
+                        const resultado = await chamarAcao(() => removerSubtarefa(sub.id, taskId));
+                        if (!resultado.ok) toast.error(resultado.error);
+                        else router.refresh();
+                      })
+                    }
+                  >
+                    <Trash2 aria-hidden />
+                  </Button>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
-      {podeEditar ? (
-        <div className="flex gap-2">
+      {subtarefas.length > 0 ? (
+        <p className="text-muted-foreground text-xs">
+          Tempo somado: {formatarMinutos(somar(subtarefas, "tempo_real_minutos"))} realizado de{" "}
+          {formatarMinutos(somar(subtarefas, "estimativa_minutos"))} estimado.
+        </p>
+      ) : null}
+
+      {podeGerenciar ? (
+        <form
+          className="flex gap-2"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            adicionar();
+          }}
+        >
           <Input
-            value={novoTitulo}
-            onChange={(e) => setNovoTitulo(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                adicionar();
-              }
-            }}
-            placeholder="Nova subtarefa e Enter"
-            className="h-9"
+            value={novo}
+            onChange={(evento) => setNovo(evento.target.value)}
+            placeholder="Nova subtarefa"
+            aria-label="Título da nova subtarefa"
           />
-          <Button variant="outline" onClick={adicionar} disabled={novoTitulo.trim().length === 0}>
-            <Plus aria-hidden />
+          <Button type="submit" variant="outline" disabled={salvando || novo.trim() === ""}>
+            {salvando ? <Loader2 className="animate-spin" /> : <Plus aria-hidden />}
             Adicionar
           </Button>
-        </div>
+        </form>
+      ) : null}
+
+      {emAberto ? (
+        <PainelDaSubtarefa
+          subtarefa={emAberto}
+          taskId={taskId}
+          equipe={equipe}
+          irmas={subtarefas}
+          podeGerenciar={podeGerenciar}
+          souGestor={souGestor}
+          usuarioId={usuarioId}
+          aoFechar={() => setAberta(null)}
+        />
       ) : null}
     </section>
   );
+}
+
+function somar(
+  subtarefas: SubtarefaDetalhada[],
+  campo: "tempo_real_minutos" | "estimativa_minutos",
+): number | null {
+  const valores = subtarefas.map((s) => s[campo]).filter((v): v is number => v !== null);
+  return valores.length === 0 ? null : valores.reduce((total, v) => total + v, 0);
 }

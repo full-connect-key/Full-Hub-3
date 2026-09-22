@@ -21,9 +21,9 @@ import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
-import { COR_DA_PRIORIDADE, estaVencida, type ColunaDoBoard } from "@/lib/dominio/tasks";
+import { COR_DA_PRIORIDADE, type ColunaDoBoard } from "@/lib/dominio/tasks";
 import type { TaskDaLista } from "@/lib/dados/tasks";
 import type { TaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,8 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  * de task alheia não pode ser arrastado. Tudo por parâmetro — um board só.
  */
 
+const HOJE = () => new Date().toISOString().slice(0, 10);
+
 function Card({
   task,
   arrastando,
@@ -52,8 +54,11 @@ function Card({
   arrastando?: boolean;
   marcador?: ReactNode;
 }) {
-  const vencida = estaVencida(task.prazo, task.status);
-  const encerrada = task.status === "concluida" || task.status === "cancelada";
+  // A Task não tem prazo: o que aperta é o prazo da subtarefa mais próxima
+  // ainda em aberto. É o mesmo número que a lista e os contadores usam.
+  const encerrada = task.status === "concluido" || task.status === "cancelada";
+  const vencida =
+    !encerrada && task.proximoPrazo !== null && task.proximoPrazo < HOJE();
 
   return (
     <article
@@ -82,16 +87,18 @@ function Card({
 
         <div className="flex flex-wrap items-center gap-2">
           <PriorityBadge priority={task.prioridade} />
-          {task.prazo ? (
-            // DateBadge é para prazo a vencer. Numa task encerrada ele pintaria
-            // de vermelho uma data que já foi cumprida, como se fosse atraso.
-            encerrada ? (
+          {/* O período é da demanda; o prazo que corre é o da próxima etapa.
+              DateBadge é para prazo a vencer, então a task encerrada mostra o
+              fim do período cru — senão uma data já cumprida apareceria em
+              vermelho como se fosse atraso. */}
+          {encerrada ? (
+            task.data_fim ? (
               <span className="text-muted-foreground text-xs tabular-nums">
-                {format(parseISO(task.prazo), "dd/MM/yy", { locale: ptBR })}
+                {format(parseISO(task.data_fim), "dd/MM/yy", { locale: ptBR })}
               </span>
-            ) : (
-              <DateBadge date={task.prazo} />
-            )
+            ) : null
+          ) : task.proximoPrazo ? (
+            <DateBadge date={task.proximoPrazo} />
           ) : null}
         </div>
 
@@ -104,10 +111,12 @@ function Card({
           ) : (
             <span />
           )}
-          {task.responsavel ? (
-            <UserAvatar
-              name={task.responsavel.nome}
-              src={task.responsavel.avatar_url}
+          {/* Não existe responsável da Task: quem aparece é a equipe da
+              demanda, montada pelos donos das subtarefas. */}
+          {task.equipe.length > 0 ? (
+            <UserAvatarGroup
+              users={task.equipe.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+              max={3}
               size="sm"
             />
           ) : null}
