@@ -44,6 +44,7 @@ export function DialogoDeTempo({
   sugestao,
   origemDaSugestao,
   aoConcluir,
+  rotuloDeConfirmar,
 }: {
   aberto: boolean;
   aoFechar: () => void;

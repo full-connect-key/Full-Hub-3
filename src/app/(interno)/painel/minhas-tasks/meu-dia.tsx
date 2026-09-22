@@ -1,22 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, CornerDownRight, PartyPopper } from "lucide-react";
-import { toast } from "sonner";
+import { CornerDownRight, Lock, PartyPopper } from "lucide-react";
 
-import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
+import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { chamarAcao } from "@/lib/acoes/cliente";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
 import { cn } from "@/lib/utils";
-
-import { atualizarTask } from "../gestao-tasks/acoes";
-import { atualizarSubtarefa } from "../gestao-tasks/acoes-de-itens";
 
 /**
  * Meu dia.
@@ -25,36 +19,24 @@ import { atualizarSubtarefa } from "../gestao-tasks/acoes-de-itens";
  * eu entrego hoje?". Só o que vence hoje e o que já passou do prazo — nada de
  * "esta semana" aqui, senão a lista cresce e deixa de ser uma decisão rápida.
  *
+ * São subtarefas, sempre: é a unidade de trabalho, e é o que a pessoa
+ * efetivamente entrega. O botão de cada linha vem da máquina de estados — o
+ * que exige aprovação mostra "Enviar para aprovação", não "Concluir".
+ *
  * Fica num componente separado de propósito: a Home do Sprint 15 vai mostrar
  * o mesmo bloco, alimentado pela mesma função `meuDia()`.
  */
-export function MeuDia({ itens, primeiroNome }: { itens: ItemDoDia[]; primeiroNome: string }) {
-  const router = useRouter();
-  const [concluindo, setConcluindo] = useState<ItemDoDia | null>(null);
-
-  async function concluir(horas: number | null): Promise<boolean> {
-    const item = concluindo;
-    if (!item) return false;
-
-    const campos: Record<string, unknown> =
-      item.tipo === "task" ? { status: "concluida" } : { concluida: true };
-    if (horas !== null) campos.tempo_real_horas = horas;
-
-    const resultado = await chamarAcao(() =>
-      item.tipo === "task"
-        ? atualizarTask(item.id, campos)
-        : atualizarSubtarefa(item.id, item.taskId, campos),
-    );
-
-    if (!resultado.ok) {
-      toast.error(resultado.error);
-      return false;
-    }
-    toast.success("Feito. Menos uma para hoje.");
-    router.refresh();
-    return true;
-  }
-
+export function MeuDia({
+  itens,
+  primeiroNome,
+  usuarioId,
+  souGestor,
+}: {
+  itens: ItemDoDia[];
+  primeiroNome: string;
+  usuarioId: string;
+  souGestor: boolean;
+}) {
   const atrasadas = itens.filter((item) => item.atrasada).length;
 
   return (
@@ -92,17 +74,22 @@ export function MeuDia({ itens, primeiroNome }: { itens: ItemDoDia[]; primeiroNo
               />
 
               <div className="min-w-0 flex-1">
-                {item.tituloDaMae ? (
-                  <p className="text-muted-foreground truncate text-xs">{item.tituloDaMae}</p>
-                ) : null}
+                <p className="text-muted-foreground truncate text-xs">{item.tituloDaMae}</p>
                 <p className="flex items-center gap-1.5 truncate text-sm">
-                  {item.tipo === "subtarefa" ? (
-                    <CornerDownRight
-                      aria-hidden
-                      className="text-muted-foreground size-3.5 shrink-0"
-                    />
-                  ) : null}
+                  <CornerDownRight aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
                   {item.titulo}
+                  {item.requerAprovacao ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground inline-flex">
+                          <Lock className="size-3.5" aria-label="Exige aprovação" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Exige aprovação {ROTULO_DA_APROVACAO[item.tipoAprovacao ?? "interna"]}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
                 </p>
               </div>
 
@@ -123,30 +110,30 @@ export function MeuDia({ itens, primeiroNome }: { itens: ItemDoDia[]; primeiroNo
                   : "hoje"}
               </span>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setConcluindo(item)}
-                aria-label={`Concluir ${item.titulo}`}
-              >
-                <CheckCircle2 aria-hidden />
-                Concluir
-              </Button>
+              <AcoesDaSubtarefa
+                subtarefa={{
+                  id: item.id,
+                  task_id: item.taskId,
+                  titulo: item.titulo,
+                  status: item.status,
+                  responsavel_id: usuarioId,
+                  requer_aprovacao: item.requerAprovacao,
+                  tipo_aprovacao: item.tipoAprovacao,
+                  estimativa_minutos: item.estimativaMinutos,
+                  dependenciasAbertas: item.dependenciasAbertas,
+                  rodadaPendente: false,
+                  avalInterno: false,
+                  avalFinal: false,
+                  enviadaAoCliente: false,
+                }}
+                usuarioId={usuarioId}
+                souGestor={souGestor}
+              />
             </li>
           ))}
         </ul>
       )}
 
-      <DialogoDeTempo
-        aberto={concluindo !== null}
-        aoFechar={() => setConcluindo(null)}
-        titulo={concluindo?.tipo === "task" ? "Concluir esta task" : "Concluir esta subtarefa"}
-        sugestao={concluindo?.estimativa ?? null}
-        origemDaSugestao={
-          concluindo?.estimativa ? `A estimativa era de ${concluindo.estimativa}h.` : undefined
-        }
-        aoConcluir={concluir}
-      />
     </section>
   );
 }

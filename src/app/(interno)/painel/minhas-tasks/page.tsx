@@ -4,8 +4,10 @@ import { Suspense } from "react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
+import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { listarTiposDeTarefa } from "@/lib/dados/workflows";
 import {
   contadoresPessoais,
   itensPessoaisDoCalendario,
@@ -34,11 +36,13 @@ function saudacao(): string {
 async function Conteudo({
   usuarioId,
   nome,
+  souGestor,
   visao,
   foco,
 }: {
   usuarioId: string;
   nome: string;
+  souGestor: boolean;
   visao: (typeof VISOES)[number];
   foco: FocoDoDia | null;
 }) {
@@ -46,16 +50,25 @@ async function Conteudo({
   // classificam o mesmo prazo do mesmo jeito.
   const prazos = prazosDeHoje();
 
-  const [tasks, itensDeCalendario, itensDoDia, contadores, clientes, equipe, podeCriarTask] =
-    await Promise.all([
-      minhasTasks(usuarioId, foco, prazos),
-      itensPessoaisDoCalendario(usuarioId, foco, prazos),
-      meuDia(usuarioId, prazos),
-      contadoresPessoais(usuarioId, prazos),
-      listarClientes(),
-      listarEquipeAtiva(),
-      souDoAtendimento(),
-    ]);
+  const [
+    tasks,
+    itensDeCalendario,
+    itensDoDia,
+    contadores,
+    clientes,
+    equipe,
+    tipos,
+    podeCriarTask,
+  ] = await Promise.all([
+    minhasTasks(usuarioId, foco, prazos),
+    itensPessoaisDoCalendario(usuarioId, foco, prazos),
+    meuDia(usuarioId, prazos),
+    contadoresPessoais(usuarioId, prazos),
+    listarClientes(),
+    listarEquipeAtiva(),
+    listarTiposDeTarefa(),
+    souDoAtendimento(),
+  ]);
 
   return (
     <PainelPessoal
@@ -68,8 +81,10 @@ async function Conteudo({
         .filter((cliente) => cliente.ativo)
         .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
+      tipos={tipos.map((t) => ({ id: t.id, nome: t.nome, client_id: t.client_id }))}
       prazos={prazos}
       usuarioId={usuarioId}
+      souGestor={souGestor}
       primeiroNome={nome}
       podeCriarTask={podeCriarTask}
       visao={visao}
@@ -100,11 +115,17 @@ export default async function PaginaDeMinhasTasks({
     <div className="space-y-6">
       <PageHeader
         title={`${saudacao()}, ${nome}`}
-        description="O que está no seu nome hoje — incluindo as subtarefas dentro de tasks de outras pessoas."
+        description="As suas subtarefas — a demanda aparece uma vez só, com o que é seu em destaque."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-        <Conteudo usuarioId={sessao.usuarioId} nome={nome} visao={visao} foco={foco} />
+        <Conteudo
+          usuarioId={sessao.usuarioId}
+          nome={nome}
+          souGestor={ehGestor(sessao.profile.role)}
+          visao={visao}
+          foco={foco}
+        />
       </Suspense>
     </div>
   );

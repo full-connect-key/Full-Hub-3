@@ -121,7 +121,7 @@ export function PainelDeTasks({
       {filtros.visao === "board" ? (
         <BoardDeTasks tasks={tasks} colunas={COLUNAS_POR_STATUS} />
       ) : null}
-      {filtros.visao === "lista" ? <ListaDeTasks tasks={tasks} equipe={equipe} /> : null}
+      {filtros.visao === "lista" ? <ListaDeTasks tasks={tasks} /> : null}
       {filtros.visao === "calendario" ? (
         <CalendarioDeTasks itens={itensDeCalendario} equipe={equipe} prazos={prazos} />
       ) : null}

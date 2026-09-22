@@ -5,6 +5,8 @@ import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/r
 import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
+import { listarTiposDeTarefa } from "@/lib/dados/workflows";
 import { obterTask, urlsDosArquivos, type TaskCompleta } from "@/lib/dados/tasks";
 
 /**
@@ -18,14 +20,14 @@ import { obterTask, urlsDosArquivos, type TaskCompleta } from "@/lib/dados/tasks
 export type DetalheParaOPainel = {
   task: TaskCompleta;
   clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
+  equipe: { id: string; nome: string; avatar_url: string | null }[];
+  tipos: { id: string; nome: string }[];
   urls: Record<string, string>;
   usuarioId: string;
-  /** Status, prioridade, subtarefas, comentários, tempo real. */
-  podeEditar: boolean;
-  /** Cliente, responsável e prazo da task-mãe. */
+  /** Atendimento ou gestão: mexe na demanda e nas etapas. */
   podeGerenciar: boolean;
-  podeModerar: boolean;
+  /** Desenvolvedor ou sócio: decide aprovação e exclui a demanda. */
+  souGestor: boolean;
 };
 
 export async function carregarDetalheDaTask(
@@ -41,28 +43,34 @@ export async function carregarDetalheDaTask(
     const task = await obterTask(taskId);
     if (!task) throw new ErroDeAcao("Task não encontrada, ou seu perfil não alcança ela.");
 
-    const [clientes, equipe] = await Promise.all([listarClientes(), listarEquipeAtiva()]);
+    const [clientes, equipe, tipos, ehDoAtendimento] = await Promise.all([
+      listarClientes(),
+      listarEquipeAtiva(),
+      listarTiposDeTarefa(task.client_id),
+      souDoAtendimento(),
+    ]);
 
     const urls = await urlsDosArquivos(
       task.referencias.filter((r) => r.tipo === "arquivo").map((r) => r.url),
     );
 
     // Espelha o RLS, para a tela não oferecer controle que o banco vai negar.
-    // Quem gerencia é a gestão; quem executa mexe no próprio andamento.
+    // Mexer na Task é do Atendimento e da gestão; trabalhar na subtarefa é de
+    // quem é responsável por ela, e isso o componente de ações resolve linha a
+    // linha. Ver é aberto para toda a equipe.
     const gestor = ehGestor(sessao.profile.role);
-    const souResponsavel = task.responsavel_id === sessao.usuarioId;
 
     return sucesso("Detalhe carregado.", {
       task,
       clientes: clientes
         .filter((c) => c.ativo)
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa })),
-      equipe,
+      equipe: equipe.map((p) => ({ id: p.id, nome: p.nome, avatar_url: p.avatar_url })),
+      tipos: tipos.map((t) => ({ id: t.id, nome: t.nome })),
       urls,
       usuarioId: sessao.usuarioId,
-      podeEditar: gestor || souResponsavel,
-      podeGerenciar: gestor,
-      podeModerar: gestor,
+      podeGerenciar: ehDoAtendimento || gestor,
+      souGestor: gestor,
     });
   });
 }

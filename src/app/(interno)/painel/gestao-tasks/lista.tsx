@@ -32,8 +32,6 @@ import { cn } from "@/lib/utils";
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-const SEM_VALOR = "__nenhum__";
-
 /**
  * Atraso é da subtarefa: a Task não tem prazo. Uma demanda está atrasada
  * quando alguma etapa em aberto passou da data.
@@ -187,11 +185,9 @@ function PeriodoInline({ task }: { task: TaskDaLista }) {
 
 function BarraDeAcoesEmMassa({
   selecionadas,
-  equipe,
   aoTerminar,
 }: {
   selecionadas: string[];
-  equipe: { id: string; nome: string }[];
   aoTerminar: () => void;
 }) {
   const [aplicando, iniciar] = useTransition();
@@ -264,15 +260,9 @@ function BarraDeAcoesEmMassa({
   );
 }
 
-export function ListaDeTasks({
-  tasks,
-  equipe,
-}: {
-  tasks: TaskDaLista[];
-  equipe: { id: string; nome: string }[];
-}) {
+export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
-  const [agrupamento, setAgrupamento] = useState<"nenhum" | "cliente" | "responsavel">("nenhum");
+  const [agrupamento, setAgrupamento] = useState<"nenhum" | "cliente" | "equipe">("nenhum");
 
   function alternar(id: string) {
     setSelecionadas((atual) =>
@@ -413,7 +403,7 @@ export function ListaDeTasks({
       <SelectContent>
         <SelectItem value="nenhum">Sem agrupamento</SelectItem>
         <SelectItem value="cliente">Agrupar por cliente</SelectItem>
-        <SelectItem value="responsavel">Agrupar por responsável</SelectItem>
+        <SelectItem value="equipe">Agrupar por quem está na demanda</SelectItem>
       </SelectContent>
     </Select>
   );
@@ -421,11 +411,7 @@ export function ListaDeTasks({
   return (
     <div className="space-y-4">
       {selecionadas.length > 0 ? (
-        <BarraDeAcoesEmMassa
-          selecionadas={selecionadas}
-          equipe={equipe}
-          aoTerminar={() => setSelecionadas([])}
-        />
+        <BarraDeAcoesEmMassa selecionadas={selecionadas} aoTerminar={() => setSelecionadas([])} />
       ) : null}
 
       {grupos.map((grupo, indice) => (

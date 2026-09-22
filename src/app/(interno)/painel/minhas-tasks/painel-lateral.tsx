@@ -92,9 +92,9 @@ export function PainelLateralDaTask({
             <SheetHeader className="border-b">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={detalhe.task.status} />
-                {!detalhe.podeEditar ? (
+                {!detalhe.podeGerenciar ? (
                   <span className="text-muted-foreground text-xs">
-                    Somente leitura: esta task é de {detalhe.task.responsavel?.nome ?? "outra pessoa"}.
+                    Você vê a demanda inteira; edita as subtarefas que são suas.
                   </span>
                 ) : null}
                 <Button asChild variant="ghost" size="sm" className="ml-auto">
@@ -111,21 +111,22 @@ export function PainelLateralDaTask({
             </SheetHeader>
 
             <div className="space-y-8 p-4 sm:p-6">
-              <PrincipalDaTask task={detalhe.task} podeEditar={detalhe.podeEditar} />
+              <PrincipalDaTask task={detalhe.task} podeEditar={detalhe.podeGerenciar} />
 
               <LateralDaTask
                 task={detalhe.task}
-                equipe={detalhe.equipe}
                 clientes={detalhe.clientes}
-                podeEditar={detalhe.podeEditar}
-                podeGerenciar={detalhe.podeGerenciar}
+                tipos={detalhe.tipos}
+                podeEditar={detalhe.podeGerenciar}
+                podeExcluir={detalhe.souGestor}
               />
 
               <Subtarefas
                 taskId={detalhe.task.id}
                 subtarefas={detalhe.task.subtarefas}
                 equipe={detalhe.equipe}
-                podeEditar={detalhe.podeEditar}
+                podeGerenciar={detalhe.podeGerenciar}
+                souGestor={detalhe.souGestor}
                 usuarioId={detalhe.usuarioId}
               />
 
@@ -133,14 +134,14 @@ export function PainelLateralDaTask({
                 taskId={detalhe.task.id}
                 referencias={detalhe.task.referencias}
                 urls={detalhe.urls}
-                podeEditar={detalhe.podeEditar}
+                podeEditar={detalhe.podeGerenciar}
               />
 
               <Comentarios
                 taskId={detalhe.task.id}
                 comentarios={detalhe.task.comentarios}
                 usuarioId={detalhe.usuarioId}
-                podeModerar={detalhe.podeModerar}
+                podeModerar={detalhe.souGestor}
               />
             </div>
           </>

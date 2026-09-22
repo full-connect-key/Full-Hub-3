@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { COLUNAS_POR_STATUS, ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
+import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { BoardDeTasks } from "../gestao-tasks/board";
@@ -21,6 +22,11 @@ import { PainelLateralDaTask } from "./painel-lateral";
 
 type Visao = "board" | "lista" | "calendario";
 
+/** Quantas etapas desta demanda são minhas — é o que o card do board diz. */
+function contarMinhas(taskId: string, linhas: LinhaPessoal[]): number {
+  return linhas.filter((l) => l.tipo === "minha" && l.taskId === taskId).length;
+}
+
 const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
   { id: "board", rotulo: "Board", Icone: Columns3 },
   { id: "lista", rotulo: "Lista", Icone: List },
@@ -32,11 +38,14 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
 /**
  * Minhas Tasks.
  *
- * O board, o calendário e o formulário de nova task são os mesmos do Sprint 3,
- * recebendo parâmetros diferentes: aqui o clique abre o painel lateral em vez
- * de trocar de página, e um card de task que não é minha não pode ser
- * arrastado — a policy do banco recusaria a mudança de status de qualquer
- * forma, e um card que volta sozinho é pior que um card parado.
+ * O board, o calendário e o formulário de nova task são os mesmos da Gestão de
+ * Tasks, recebendo parâmetros diferentes: aqui o clique abre o painel lateral
+ * em vez de trocar de página.
+ *
+ * No board, nenhum card é arrastável — e não é uma limitação da visão pessoal.
+ * O status da Task é calculado pelas subtarefas: mover o card aqui prometeria
+ * uma mudança que o recálculo desfaria em seguida. Quem avança o trabalho é a
+ * etapa, na Lista ou no painel.
  *
  * Visualização e foco moram na URL. Além de o link ficar compartilhável, é o
  * que faz o contador clicável funcionar sem estado duplicado: clicar em
@@ -51,8 +60,10 @@ export function PainelPessoal({
   contadores,
   clientes,
   equipe,
+  tipos,
   prazos,
   usuarioId,
+  souGestor,
   primeiroNome,
   podeCriarTask,
   visao,
@@ -64,9 +75,11 @@ export function PainelPessoal({
   itensDoDia: ItemDoDia[];
   contadores: Record<FocoDoDia, number>;
   clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
+  equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
+  tipos: { id: string; nome: string; client_id: string | null }[];
   prazos: { hoje: string; fimDaSemana: string };
   usuarioId: string;
+  souGestor: boolean;
   primeiroNome: string;
   podeCriarTask: boolean;
   visao: Visao;
@@ -132,7 +145,12 @@ export function PainelPessoal({
         ) : null}
       </div>
 
-      <MeuDia itens={itensDoDia} primeiroNome={primeiroNome} />
+      <MeuDia
+          itens={itensDoDia}
+          primeiroNome={primeiroNome}
+          usuarioId={usuarioId}
+          souGestor={souGestor}
+        />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
@@ -174,19 +192,25 @@ export function PainelPessoal({
           tasks={tasks}
           colunas={COLUNAS_POR_STATUS}
           aoAbrir={setTaskAberta}
-          podeArrastar={(task) => task.responsavel_id === usuarioId}
-          marcador={(task) =>
-            task.responsavel_id === usuarioId ? null : (
-              <Badge variant="secondary" className="text-[10px]">
-                Sua subtarefa · task de {task.responsavel?.nome ?? "outra pessoa"}
-              </Badge>
-            )
-          }
+          podeArrastar={() => false}
+          marcador={(task) => (
+            <Badge variant="secondary" className="text-[10px]">
+              {contarMinhas(task.id, linhas)} subtarefa
+              {contarMinhas(task.id, linhas) === 1 ? "" : "s"} sua
+              {contarMinhas(task.id, linhas) === 1 ? "" : "s"}
+            </Badge>
+          )}
         />
       ) : null}
 
       {visao === "lista" ? (
-        <MinhaLista linhas={linhas} prazos={prazos} aoAbrir={setTaskAberta} />
+        <MinhaLista
+          linhas={linhas}
+          prazos={prazos}
+          usuarioId={usuarioId}
+          souGestor={souGestor}
+          aoAbrir={setTaskAberta}
+        />
       ) : null}
 
       {visao === "calendario" ? (
@@ -206,6 +230,7 @@ export function PainelPessoal({
           aoFechar={() => setCriando(false)}
           clientes={clientes}
           equipe={equipe}
+          tipos={tipos}
         />
       ) : null}
     </div>
