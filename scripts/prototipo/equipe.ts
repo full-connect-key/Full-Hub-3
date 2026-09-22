@@ -29,6 +29,8 @@ export async function listarEquipeAtiva() {
     id: pessoa.id,
     nome: pessoa.nome,
     email: pessoa.email,
+    avatar_url: pessoa.avatar_url ?? null,
+    funcao: pessoa.membro?.funcao ?? null,
   }));
 }
 

@@ -342,6 +342,11 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
     if (ctx.subtarefa.tipo_aprovacao !== "cliente") {
       return falha("Esta subtarefa não é de aprovação do cliente.");
     }
+    if (ctx.subtarefa.responsavel_id === sessao.usuarioId) {
+      return falha(
+        "Ninguém envia ao cliente a própria entrega. Quem aprovou internamente é quem envia.",
+      );
+    }
 
     const situacao = situacaoDasRodadas(ctx.rodadas, ctx.subtarefa.tipo_aprovacao);
     if (!situacao.avalInterno) {

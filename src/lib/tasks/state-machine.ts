@@ -247,8 +247,13 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
   }
 
   // "Enviar para o cliente" é do Desenvolvedor, e só depois do aval interno.
+  //
+  // `!souOResponsavel` não é excesso de zelo: quem produziu não manda material
+  // ao cliente em circunstância nenhuma, nem sendo desenvolvedor. Quem deu o
+  // aval interno já foi outra pessoa — é ela quem envia.
   if (
     ctx.souGestor &&
+    !ctx.souOResponsavel &&
     ctx.requerAprovacao &&
     ctx.tipoAprovacao === "cliente" &&
     ctx.avalInterno &&

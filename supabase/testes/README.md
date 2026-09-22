@@ -22,6 +22,7 @@ psql -d fullhub -f supabase/migrations/0007*.sql          # a migração, sobre 
 psql -d fullhub -f supabase/testes/00_ferramenta.sql
 psql -d fullhub -f supabase/testes/01_permissoes_e_fluxo.sql
 psql -d fullhub -f supabase/testes/02_status_da_task.sql
+psql -d fullhub -f supabase/testes/03_ciclos_e_cliente.sql
 psql -d fullhub -c "select * from teste.resultado where situacao = 'FALHOU'"
 ```
 
@@ -46,3 +47,10 @@ própria entrega, e o isolamento por cliente: a Mundo Verde não aparece para a
 `02_status_da_task.sql` — a precedência do cálculo do status da Task, o
 `entregue` marcado à mão e o momento em que o cálculo retoma o controle, a
 regra da última subtarefa, e `cancelada` resistindo ao recálculo.
+
+`03_ciclos_e_cliente.sql` — dois ciclos de ajuste com as duas rodadas
+preservadas e cada comentário no lugar, e o caminho completo de uma aprovação
+de cliente: aval interno que **não** conclui, envio deliberado, decisão pelo
+Portal, histórico e comentário visível ao cliente.
+
+São 71 cenários no total.

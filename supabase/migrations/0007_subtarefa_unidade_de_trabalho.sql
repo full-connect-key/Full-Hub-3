@@ -1061,6 +1061,16 @@ begin
         hint    = 'O responsável pela subtarefa nunca envia material ao cliente.';
     end if;
 
+    -- E nem sendo da gestao: quem produziu nao manda a propria entrega ao
+    -- cliente em circunstancia nenhuma. Quem deu o aval interno ja foi outra
+    -- pessoa -- e ela quem envia.
+    if new.solicitado_por = dono then
+      raise exception using
+        errcode = 'check_violation',
+        message = 'Ninguém envia ao cliente a própria entrega.',
+        hint    = 'Quem aprovou internamente é quem envia.';
+    end if;
+
     if not exists (
       select 1 from public.approval_rounds r
        where r.subtask_id = new.subtask_id
