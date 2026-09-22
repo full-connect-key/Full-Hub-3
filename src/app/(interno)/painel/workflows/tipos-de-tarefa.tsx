@@ -2,7 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Loader2, Pencil, Plus, RotateCcw } from "lucide-react";
+import {
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Loader2,
+  Lock,
+  Plus,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,57 +34,166 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import type { TipoDeTarefa } from "@/lib/dados/workflows";
+import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import type { TipoComFluxo } from "@/lib/dados/workflows";
+import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
 
-import { arquivarTipoDeTarefa, salvarTipoDeTarefa } from "./acoes";
+import { arquivarTipoDeTarefa, duplicarTipoDeTarefa, salvarTipoDeTarefa } from "./acoes";
 
 const GLOBAL = "__todos__";
-const SEM_FLUXO = "__sem__";
+const SEM_VALOR = "__sem__";
+
+const FUNCOES: TeamFuncao[] = [
+  "Atendimento",
+  "Social Media",
+  "Redator",
+  "Design",
+  "Audiovisual",
+  "Trafego",
+  "Desenvolvimento",
+  "Gestao",
+  "Outro",
+];
+
+type EtapaEmEdicao = {
+  chave: string;
+  nome: string;
+  funcao: string;
+  responsavel: string;
+  prioridade: TaskPrioridade;
+  offset: string;
+  aprovacao: string;
+  dependeDe: string;
+};
+
+function novaChave() {
+  return Math.random().toString(36).slice(2);
+}
+
+function etapaVazia(): EtapaEmEdicao {
+  return {
+    chave: novaChave(),
+    nome: "",
+    funcao: SEM_VALOR,
+    responsavel: SEM_VALOR,
+    prioridade: "normal",
+    offset: "",
+    aprovacao: SEM_VALOR,
+    dependeDe: SEM_VALOR,
+  };
+}
 
 /**
- * Tipos de tarefa.
+ * Tipos de tarefa — uma tela só.
  *
- * É o atalho que a pessoa escolhe ao abrir uma demanda: "Post de feed" traz as
- * etapas de um post de feed. Ela não precisa saber que existe um objeto
- * chamado workflow — por isso o tipo vem primeiro, e o fluxo aparece como uma
- * coluna dele.
+ * Aqui cadastra-se "Post de feed" E as etapas de um post de feed, na mesma
+ * caixa. Eram duas abas, "Tipos de tarefa" e "Workflows", e a divisão só fazia
+ * sentido para quem conhecia o banco: na prática ninguém cadastra um fluxo sem
+ * um tipo, nem um tipo sem fluxo.
  *
- * Um tipo pode valer para todos os clientes ou ser de um só. É assim que uma
- * conta com processo próprio ganha o fluxo dela sem duplicar o resto.
+ * Duas decisões de desenho que valem explicar:
+ *
+ *   **A etapa tem FUNÇÃO, e não só pessoa.** "Arte — Design" continua fazendo
+ *   sentido quando o designer muda; "Arte — Bruno" vira um modelo errado no
+ *   dia em que o Bruno sai. A pessoa entra como padrão opcional, e na hora de
+ *   aplicar a tela sugere quem está naquela função hoje.
+ *
+ *   **O prazo é em DIAS a partir do início da Task**, nunca uma data. Data
+ *   fixa num modelo reutilizável faria toda demanda nova nascer vencida.
+ *
+ * Editar um tipo não altera nenhuma Task já criada: a demanda guarda as
+ * subtarefas materializadas e uma cópia do fluxo que as gerou.
  */
 export function TiposDeTarefa({
   tipos,
   clientes,
-  workflows,
+  equipe,
 }: {
-  tipos: TipoDeTarefa[];
+  tipos: TipoComFluxo[];
   clientes: { id: string; nome_empresa: string }[];
-  workflows: { id: string; nome: string; client_id: string | null; ativo: boolean }[];
+  equipe: { id: string; nome: string }[];
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
-  const [editando, setEditando] = useState<TipoDeTarefa | "novo" | null>(null);
+  const [editando, setEditando] = useState<TipoComFluxo | "novo" | null>(null);
 
   const [nome, setNome] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [cliente, setCliente] = useState(GLOBAL);
-  const [fluxo, setFluxo] = useState(SEM_FLUXO);
+  const [etapas, setEtapas] = useState<EtapaEmEdicao[]>([]);
 
-  function abrir(tipo: TipoDeTarefa | "novo") {
+  function abrir(tipo: TipoComFluxo | "novo") {
     setEditando(tipo);
-    setNome(tipo === "novo" ? "" : tipo.nome);
-    setCliente(tipo === "novo" ? GLOBAL : (tipo.client_id ?? GLOBAL));
-    setFluxo(tipo === "novo" ? SEM_FLUXO : (tipo.workflow_template_id ?? SEM_FLUXO));
+    if (tipo === "novo") {
+      setNome("");
+      setDescricao("");
+      setCliente(GLOBAL);
+      // Um tipo novo já nasce com uma etapa em branco: a caixa vazia não
+      // deixava claro que é aqui dentro que o fluxo se monta.
+      setEtapas([etapaVazia()]);
+      return;
+    }
+    setNome(tipo.nome);
+    setDescricao(tipo.descricao ?? "");
+    setCliente(tipo.client_id ?? GLOBAL);
+    const chaves = tipo.etapas.map(() => novaChave());
+    setEtapas(
+      tipo.etapas.map((etapa, indice) => ({
+        chave: chaves[indice],
+        nome: etapa.nome,
+        funcao: etapa.funcao_padrao ?? SEM_VALOR,
+        responsavel: etapa.responsavel_padrao_id ?? SEM_VALOR,
+        prioridade: etapa.prioridade,
+        offset: etapa.prazo_offset_dias === null ? "" : String(etapa.prazo_offset_dias),
+        aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : SEM_VALOR,
+        dependeDe:
+          etapa.depende_de_ordem === null
+            ? SEM_VALOR
+            : (chaves[tipo.etapas.findIndex((e) => e.ordem === etapa.depende_de_ordem)] ??
+              SEM_VALOR),
+      })),
+    );
+  }
+
+  function mudar(chave: string, campos: Partial<EtapaEmEdicao>) {
+    setEtapas((atual) => atual.map((e) => (e.chave === chave ? { ...e, ...campos } : e)));
+  }
+
+  function mover(chave: string, direcao: -1 | 1) {
+    setEtapas((atual) => {
+      const indice = atual.findIndex((e) => e.chave === chave);
+      const destino = indice + direcao;
+      if (indice < 0 || destino < 0 || destino >= atual.length) return atual;
+      const copia = [...atual];
+      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
+      return copia;
+    });
   }
 
   function salvar() {
+    const validas = etapas.filter((e) => e.nome.trim().length > 0);
+    const ordemPorChave = new Map(validas.map((e, indice) => [e.chave, indice + 1]));
+
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
         salvarTipoDeTarefa(editando === "novo" || editando === null ? null : editando.id, {
           nome,
+          descricao: descricao.trim() === "" ? null : descricao.trim(),
           client_id: cliente === GLOBAL ? null : cliente,
-          workflow_template_id: fluxo === SEM_FLUXO ? null : fluxo,
+          ativo: editando === "novo" || editando === null ? true : editando.ativo,
+          etapas: validas.map((etapa, indice) => ({
+            nome: etapa.nome,
+            ordem: indice + 1,
+            funcao_padrao: etapa.funcao === SEM_VALOR ? null : (etapa.funcao as TeamFuncao),
+            responsavel_padrao_id: etapa.responsavel === SEM_VALOR ? null : etapa.responsavel,
+            prioridade: etapa.prioridade,
+            prazo_offset_dias: etapa.offset === "" ? null : Number(etapa.offset),
+            requer_aprovacao: etapa.aprovacao !== SEM_VALOR,
+            tipo_aprovacao:
+              etapa.aprovacao === SEM_VALOR ? null : (etapa.aprovacao as "interna" | "cliente"),
+            depende_de_ordem: ordemPorChave.get(etapa.dependeDe) ?? null,
+          })),
         }),
       );
       if (!resultado.ok) toast.error(resultado.error);
@@ -91,63 +210,58 @@ export function TiposDeTarefa({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => abrir("novo")}>
           <Plus aria-hidden />
-          Novo tipo
+          Novo tipo de tarefa
         </Button>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Fluxo</TableHead>
-            <TableHead className="w-24" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tipos.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="text-muted-foreground text-center">
-                Nenhum tipo cadastrado.
-              </TableCell>
-            </TableRow>
-          ) : (
-            tipos.map((tipo) => (
-              <TableRow key={tipo.id} className={tipo.ativo ? undefined : "opacity-50"}>
-                <TableCell>
-                  <span className="font-medium">{tipo.nome}</span>
-                  {tipo.descricao ? (
-                    <p className="text-muted-foreground text-xs">{tipo.descricao}</p>
-                  ) : null}
-                </TableCell>
-                <TableCell>
-                  {tipo.cliente ? (
-                    <Badge variant="outline">{tipo.cliente.nome_empresa}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Todos</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {tipo.workflow ? (
-                    <span className="text-sm">
-                      {tipo.workflow.nome}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {tipo.workflow.etapas} etapa{tipo.workflow.etapas === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Sem fluxo</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
+      {tipos.length === 0 ? (
+        <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
+          Nenhum tipo de tarefa cadastrado. Comece por um: &ldquo;Post de feed&rdquo;,
+          &ldquo;Campanha&rdquo;, &ldquo;Vídeo&rdquo;.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {tipos.map((tipo) => (
+            <li
+              key={tipo.id}
+              className={`rounded-lg border p-4 ${tipo.ativo ? "" : "opacity-50"}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="hover:text-brand text-sm font-semibold"
+                  onClick={() => abrir(tipo)}
+                >
+                  {tipo.nome}
+                </button>
+                {tipo.cliente ? (
+                  <Badge variant="outline">{tipo.cliente.nome_empresa}</Badge>
+                ) : (
+                  <Badge variant="secondary">Todos os clientes</Badge>
+                )}
+                {tipo.ativo ? null : <Badge variant="outline">Arquivado</Badge>}
+                <span className="text-muted-foreground text-xs">
+                  {tipo.etapas.length} etapa{tipo.etapas.length === 1 ? "" : "s"}
+                </span>
+
+                <div className="ml-auto flex gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Editar ${tipo.nome}`}
-                    onClick={() => abrir(tipo)}
+                    aria-label={`Duplicar ${tipo.nome}`}
+                    disabled={salvando}
+                    onClick={() =>
+                      iniciar(async () => {
+                        const r = await chamarAcao(() => duplicarTipoDeTarefa(tipo.id, null));
+                        if (!r.ok) toast.error(r.error);
+                        else {
+                          toast.success(r.mensagem);
+                          router.refresh();
+                        }
+                      })
+                    }
                   >
-                    <Pencil aria-hidden />
+                    <Copy aria-hidden />
                   </Button>
                   <Button
                     variant="ghost"
@@ -156,7 +270,9 @@ export function TiposDeTarefa({
                     disabled={salvando}
                     onClick={() =>
                       iniciar(async () => {
-                        const r = await chamarAcao(() => arquivarTipoDeTarefa(tipo.id, !tipo.ativo));
+                        const r = await chamarAcao(() =>
+                          arquivarTipoDeTarefa(tipo.id, !tipo.ativo),
+                        );
                         if (!r.ok) toast.error(r.error);
                         else {
                           toast.success(r.mensagem);
@@ -167,73 +283,262 @@ export function TiposDeTarefa({
                   >
                     {tipo.ativo ? <Archive aria-hidden /> : <RotateCcw aria-hidden />}
                   </Button>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                </div>
+              </div>
+
+              {tipo.descricao ? (
+                <p className="text-muted-foreground mt-1 text-xs">{tipo.descricao}</p>
+              ) : null}
+
+              {/* A cadeia, em uma linha: é como as etapas se encaixam. */}
+              {tipo.etapas.length > 0 ? (
+                <p className="text-muted-foreground mt-2 flex flex-wrap items-center gap-1 text-xs">
+                  {tipo.etapas.map((etapa, indice) => (
+                    <span key={etapa.id} className="inline-flex items-center gap-1">
+                      {indice > 0 ? <span aria-hidden>→</span> : null}
+                      <span>{etapa.nome}</span>
+                      {etapa.funcao_padrao ? (
+                        <span className="opacity-70">({etapa.funcao_padrao})</span>
+                      ) : null}
+                      {etapa.requer_aprovacao ? (
+                        <Lock className="size-3" aria-label="Exige aprovação" />
+                      ) : null}
+                    </span>
+                  ))}
+                </p>
+              ) : (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  Sem etapas — uma task deste tipo nasce vazia.
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Dialog open={editando !== null} onOpenChange={(aberto) => !aberto && setEditando(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editando === "novo" ? "Novo tipo de tarefa" : "Editar tipo"}</DialogTitle>
+            <DialogTitle>
+              {editando === "novo" ? "Novo tipo de tarefa" : "Editar tipo de tarefa"}
+            </DialogTitle>
             <DialogDescription>
-              O tipo é o que a pessoa escolhe ao abrir a demanda. O fluxo vinculado vira as
-              subtarefas dela.
+              Cada etapa vira uma subtarefa quando alguém abre uma task deste tipo. O prazo da
+              etapa é em dias depois do início da task — assim o modelo serve para qualquer
+              demanda. Alterar aqui não muda nenhuma task já criada.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="tipo-nome">Nome</Label>
+                <Input
+                  id="tipo-nome"
+                  value={nome}
+                  autoFocus
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Post de feed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tipo-cliente">Vale para</Label>
+                <Select value={cliente} onValueChange={setCliente}>
+                  <SelectTrigger id="tipo-cliente" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={GLOBAL}>Todos os clientes</SelectItem>
+                    {clientes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome_empresa}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="tipo-nome">Nome</Label>
+              <Label htmlFor="tipo-descricao">Descrição (opcional)</Label>
               <Input
-                id="tipo-nome"
-                value={nome}
-                autoFocus
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Post de feed"
+                id="tipo-descricao"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Quando usar este tipo"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tipo-cliente">Vale para</Label>
-              <Select value={cliente} onValueChange={setCliente}>
-                <SelectTrigger id="tipo-cliente" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={GLOBAL}>Todos os clientes</SelectItem>
-                  {clientes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome_empresa}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Etapas</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEtapas((atual) => [...atual, etapaVazia()])}
+                >
+                  <Plus aria-hidden />
+                  Etapa
+                </Button>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tipo-fluxo">Fluxo</Label>
-              <Select value={fluxo} onValueChange={setFluxo}>
-                <SelectTrigger id="tipo-fluxo" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SEM_FLUXO}>Sem fluxo — etapas à mão</SelectItem>
-                  {workflows
-                    .filter(
-                      (w) =>
-                        w.ativo && (w.client_id === null || w.client_id === (cliente === GLOBAL ? null : cliente)),
-                    )
-                    .map((w) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        {w.nome}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {etapas.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Sem etapas ainda. Cada uma vira uma subtarefa da demanda.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {etapas.map((etapa, indice) => (
+                    <li key={etapa.chave} className="space-y-2 rounded-md border p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground w-5 shrink-0 pt-2 text-xs tabular-nums">
+                          {indice + 1}
+                        </span>
+                        <Input
+                          className="flex-1"
+                          placeholder="Nome da etapa"
+                          value={etapa.nome}
+                          onChange={(e) => mudar(etapa.chave, { nome: e.target.value })}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Subir"
+                          disabled={indice === 0}
+                          onClick={() => mover(etapa.chave, -1)}
+                        >
+                          <ChevronUp aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Descer"
+                          disabled={indice === etapas.length - 1}
+                          onClick={() => mover(etapa.chave, 1)}
+                        >
+                          <ChevronDown aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Remover etapa"
+                          onClick={() =>
+                            setEtapas((atual) => atual.filter((e) => e.chave !== etapa.chave))
+                          }
+                        >
+                          <X aria-hidden />
+                        </Button>
+                      </div>
+
+                      <div className="grid gap-2 pl-7 sm:grid-cols-3">
+                        <Select
+                          value={etapa.funcao}
+                          onValueChange={(v) => mudar(etapa.chave, { funcao: v })}
+                        >
+                          <SelectTrigger className="w-full" aria-label="Função">
+                            <SelectValue placeholder="Função" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SEM_VALOR}>Sem função definida</SelectItem>
+                            {FUNCOES.map((f) => (
+                              <SelectItem key={f} value={f}>
+                                {f}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={etapa.responsavel}
+                          onValueChange={(v) => mudar(etapa.chave, { responsavel: v })}
+                        >
+                          <SelectTrigger className="w-full" aria-label="Responsável padrão">
+                            <SelectValue placeholder="Responsável padrão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SEM_VALOR}>Sem pessoa fixa</SelectItem>
+                            {equipe.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            aria-label="Dias após o início"
+                            value={etapa.offset}
+                            onChange={(e) => mudar(etapa.chave, { offset: e.target.value })}
+                            placeholder="0"
+                          />
+                          <span className="text-muted-foreground shrink-0 text-xs">
+                            dias após o início
+                          </span>
+                        </div>
+
+                        <Select
+                          value={etapa.prioridade}
+                          onValueChange={(v) =>
+                            mudar(etapa.chave, { prioridade: v as TaskPrioridade })
+                          }
+                        >
+                          <SelectTrigger className="w-full" aria-label="Prioridade">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PRIORIDADES.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {ROTULOS_DE_PRIORIDADE[p]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={etapa.aprovacao}
+                          onValueChange={(v) => mudar(etapa.chave, { aprovacao: v })}
+                        >
+                          <SelectTrigger className="w-full" aria-label="Aprovação">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SEM_VALOR}>Sem aprovação</SelectItem>
+                            <SelectItem value="interna">Aprovação interna</SelectItem>
+                            <SelectItem value="cliente">Aprovação do cliente</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={etapa.dependeDe}
+                          onValueChange={(v) => mudar(etapa.chave, { dependeDe: v })}
+                        >
+                          <SelectTrigger className="w-full" aria-label="Depende de">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SEM_VALOR}>Não depende de nada</SelectItem>
+                            {etapas
+                              .filter((outra, i) => i < indice)
+                              .map((outra, i) => (
+                                <SelectItem key={outra.chave} value={outra.chave}>
+                                  Depende de {i + 1}. {outra.nome || "(sem nome)"}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
 
           <DialogFooter>
@@ -242,7 +547,7 @@ export function TiposDeTarefa({
             </Button>
             <Button onClick={salvar} disabled={salvando || nome.trim().length < 2}>
               {salvando ? <Loader2 className="animate-spin" /> : null}
-              Salvar
+              Salvar tipo de tarefa
             </Button>
           </DialogFooter>
         </DialogContent>

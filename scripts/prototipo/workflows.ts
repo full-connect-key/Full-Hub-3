@@ -6,20 +6,33 @@
  */
 import type {
   EtapaAplicada,
+  TipoComFluxo as TipoComFluxoReal,
   TipoDeTarefa as TipoReal,
-  WorkflowCompleto as WorkflowReal,
 } from "../../src/lib/dados/workflows";
 
 export type TipoDeTarefa = TipoReal;
 export type { EtapaAplicada };
-export type WorkflowCompleto = WorkflowReal;
+export type TipoComFluxo = TipoComFluxoReal;
 
 const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" };
+
+/** So o par (modelo, etapas): a tela unificada nao mostra mais o fluxo solto. */
+type FluxoDeExemplo = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  client_id: string | null;
+  ativo: boolean;
+  criado_por: string | null;
+  created_at: string;
+  cliente: { id: string; nome_empresa: string } | null;
+  etapas: TipoComFluxo["etapas"];
+};
 
 const POST = "w0000000-0000-0000-0000-000000000001";
 const LANDING = "w0000000-0000-0000-0000-000000000002";
 
-export const WORKFLOWS: WorkflowCompleto[] = [
+const FLUXOS: FluxoDeExemplo[] = [
   {
     id: POST,
     nome: "Post de feed",
@@ -29,7 +42,6 @@ export const WORKFLOWS: WorkflowCompleto[] = [
     criado_por: null,
     created_at: "2026-09-01T10:00:00.000Z",
     cliente: null,
-    tiposQueUsam: 1,
     etapas: [
       etapa(POST, "e1", "Pauta", 1, "Social Media", 1, true, "interna", null),
       etapa(POST, "e2", "Conteúdo", 2, "Redator", 3, false, null, 1),
@@ -46,7 +58,6 @@ export const WORKFLOWS: WorkflowCompleto[] = [
     criado_por: null,
     created_at: "2026-09-05T10:00:00.000Z",
     cliente: ALFA,
-    tiposQueUsam: 1,
     etapas: [
       etapa(LANDING, "e5", "Texto", 1, "Redator", 3, true, "interna", null),
       etapa(LANDING, "e6", "Layout", 2, "Design", 7, true, "cliente", 1),
@@ -61,12 +72,12 @@ function etapa(
   id: string,
   nome: string,
   ordem: number,
-  funcao: WorkflowCompleto["etapas"][number]["funcao_padrao"],
+  funcao: TipoComFluxo["etapas"][number]["funcao_padrao"],
   offset: number,
   aprovacao: boolean,
-  tipo: WorkflowCompleto["etapas"][number]["tipo_aprovacao"],
+  tipo: TipoComFluxo["etapas"][number]["tipo_aprovacao"],
   depende: number | null,
-): WorkflowCompleto["etapas"][number] {
+): TipoComFluxo["etapas"][number] {
   return {
     id,
     template_id: template,
@@ -125,8 +136,11 @@ export async function listarTiposDeTarefa(clienteId?: string | null): Promise<Ti
   return TIPOS.filter((t) => t.client_id === null || t.client_id === clienteId);
 }
 
-export async function listarWorkflows(): Promise<WorkflowCompleto[]> {
-  return WORKFLOWS;
+export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
+  return TIPOS.map((tipo) => ({
+    ...tipo,
+    etapas: FLUXOS.find((f) => f.id === tipo.workflow_template_id)?.etapas ?? [],
+  }));
 }
 
 export async function fluxoDoTipoDeTarefa(
@@ -142,7 +156,7 @@ export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
 ): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
-  const modelo = WORKFLOWS.find((w) => w.id === templateId);
+  const modelo = FLUXOS.find((w) => w.id === templateId);
   if (!modelo) return null;
 
   // A dependencia e gravada pela ORDEM dentro do modelo; o formulario pensa em

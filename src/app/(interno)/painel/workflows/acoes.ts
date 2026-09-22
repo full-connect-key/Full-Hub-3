@@ -8,16 +8,23 @@ import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/result
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
- * Tipos de tarefa e workflows.
+ * Tipos de tarefa.
  *
- * Gestão só — é `workflow_templates_write` e `task_types_write` no banco, as
+ * Gestão só — é `task_types_write` e `workflow_templates_write` no banco, as
  * duas presas a `is_gestor()`.
  *
- * A regra que atravessa tudo aqui é o SNAPSHOT: editar um workflow nunca mexe
- * numa Task existente. Ao aplicar um fluxo, as subtarefas são materializadas e
- * uma cópia da configuração vai para `tasks.workflow_snapshot`. A partir dali,
- * as subtarefas são a fonte da verdade daquela demanda — mudar o modelo muda
- * as próximas, e só.
+ * O TIPO E O FLUXO SÃO GRAVADOS JUNTOS. Cadastrar "Post de feed" e cadastrar
+ * as etapas de um post de feed eram, até aqui, duas telas e dois objetos —
+ * e ninguém entendia por quê, com razão: no uso real é uma coisa só. As duas
+ * tabelas continuam existindo (`workflow_templates` pode, em tese, ser
+ * compartilhado por dois tipos), mas quem usa o Full Hub nunca mais precisa
+ * saber disso.
+ *
+ * A regra que atravessa tudo aqui é o SNAPSHOT: editar um tipo nunca mexe numa
+ * Task existente. Ao aplicar um tipo, as subtarefas são materializadas e uma
+ * cópia da configuração vai para `tasks.workflow_snapshot`. A partir dali, as
+ * subtarefas são a fonte da verdade daquela demanda — mudar o modelo muda as
+ * próximas, e só.
  */
 
 const ROTA = "/painel/workflows";
@@ -46,21 +53,66 @@ const esquemaDeEtapa = z.object({
   depende_de_ordem: z.number().int().positive().nullable().optional(),
 });
 
-const esquemaDeWorkflow = z.object({
-  nome: z.string().min(2, "Dê um nome ao fluxo."),
+const esquemaDeTipo = z.object({
+  nome: z.string().min(2, "Dê um nome ao tipo de tarefa."),
   descricao: z.string().nullable().optional(),
   client_id: z.string().uuid().nullable().optional(),
   ativo: z.boolean().default(true),
   etapas: z.array(esquemaDeEtapa).default([]),
 });
 
-export async function salvarWorkflow(id: string | null, dados: unknown): Promise<Resultado<string>> {
-  return executarAcao("salvarWorkflow", async () => {
+type Etapa = z.infer<typeof esquemaDeEtapa>;
+
+/**
+ * Grava as etapas de um fluxo, substituindo as que estavam lá.
+ *
+ * Elas não têm vida própria fora do modelo, e nenhuma Task aponta para elas —
+ * o que a Task guarda é a cópia materializada nas subtarefas dela. Por isso
+ * reescrever inteiro é mais honesto que tentar casar linha a linha.
+ */
+async function regravarEtapas(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  templateId: string,
+  etapas: Etapa[],
+): Promise<string | null> {
+  await supabase.from("workflow_steps").delete().eq("template_id", templateId);
+  if (etapas.length === 0) return null;
+
+  const { error } = await supabase.from("workflow_steps").insert(
+    etapas.map((etapa) => ({
+      template_id: templateId,
+      nome: etapa.nome.trim(),
+      ordem: etapa.ordem,
+      funcao_padrao: etapa.funcao_padrao ?? null,
+      responsavel_padrao_id: etapa.responsavel_padrao_id ?? null,
+      prioridade: etapa.prioridade,
+      prazo_offset_dias: etapa.prazo_offset_dias ?? null,
+      requer_aprovacao: etapa.requer_aprovacao,
+      tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
+      depende_de_ordem: etapa.depende_de_ordem ?? null,
+    })),
+  );
+  return error ? error.message : null;
+}
+
+/**
+ * Cria ou atualiza um tipo de tarefa junto com as etapas dele.
+ *
+ * Num cadastro novo, o fluxo nasce antes do tipo e o tipo já aponta para ele.
+ * Se as etapas falharem, o fluxo recém-criado é apagado: modelo pela metade é
+ * pior que nenhum — a pessoa escolheria "Post de feed" e não viria etapa
+ * nenhuma, sem entender por quê.
+ */
+export async function salvarTipoDeTarefa(
+  id: string | null,
+  dados: unknown,
+): Promise<Resultado<string>> {
+  return executarAcao("salvarTipoDeTarefa", async () => {
     const sessao = await exigirGestorNaAcao();
 
-    const validacao = esquemaDeWorkflow.safeParse(dados);
+    const validacao = esquemaDeTipo.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do fluxo.");
+      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do tipo de tarefa.");
     }
     const entrada = validacao.data;
 
@@ -71,65 +123,103 @@ export async function salvarWorkflow(id: string | null, dados: unknown): Promise
     }
 
     const supabase = await criarClienteServidor();
+    const nome = entrada.nome.trim();
+    const clientId = entrada.client_id ?? null;
 
-    let workflowId = id;
-    if (workflowId) {
-      const { data, error } = await supabase
-        .from("workflow_templates")
+    if (id) {
+      const { data: tipo, error } = await supabase
+        .from("task_types")
         .update({
-          nome: entrada.nome.trim(),
+          nome,
           descricao: entrada.descricao ?? null,
-          client_id: entrada.client_id ?? null,
+          client_id: clientId,
           ativo: entrada.ativo,
         })
-        .eq("id", workflowId)
-        .select("id")
+        .eq("id", id)
+        .select("id, workflow_template_id")
         .maybeSingle();
 
       if (error) return falha(`Não foi possível salvar: ${error.message}`);
-      if (!data) return falha("O banco recusou. Editar fluxo é da gestão.");
-    } else {
-      const { data, error } = await supabase
-        .from("workflow_templates")
-        .insert({
-          nome: entrada.nome.trim(),
-          descricao: entrada.descricao ?? null,
-          client_id: entrada.client_id ?? null,
-          ativo: entrada.ativo,
-          criado_por: sessao.usuarioId,
-        })
-        .select("id")
-        .single();
+      if (!tipo) return falha("O banco recusou. Editar tipo de tarefa é da gestão.");
 
-      if (error || !data) return falha(`Não foi possível criar: ${error?.message ?? "erro"}`);
-      workflowId = data.id;
+      // Um tipo antigo pode não ter fluxo ainda. Nesse caso ele ganha um agora,
+      // em vez de as etapas se perderem em silêncio.
+      let templateId = tipo.workflow_template_id;
+      if (!templateId) {
+        const { data: novo, error: erroDoFluxo } = await supabase
+          .from("workflow_templates")
+          .insert({ nome, client_id: clientId, criado_por: sessao.usuarioId })
+          .select("id")
+          .single();
+        if (erroDoFluxo || !novo) {
+          return falha(`Não foi possível criar o fluxo: ${erroDoFluxo?.message ?? "erro"}`);
+        }
+        templateId = novo.id;
+        await supabase
+          .from("task_types")
+          .update({ workflow_template_id: templateId })
+          .eq("id", id);
+      } else {
+        // O fluxo acompanha o nome e o alcance do tipo: eles são a mesma coisa
+        // para quem usa, e um nome divergente só confundiria quem for ler o
+        // banco depois.
+        await supabase
+          .from("workflow_templates")
+          .update({ nome, client_id: clientId, ativo: entrada.ativo })
+          .eq("id", templateId);
+      }
+
+      const erroDasEtapas = await regravarEtapas(supabase, templateId, entrada.etapas);
+      if (erroDasEtapas) return falha(`As etapas falharam: ${erroDasEtapas}`);
+
+      revalidatePath(ROTA);
+      return sucesso("Tipo salvo. As Tasks já criadas não mudam.", id);
     }
 
-    // As etapas são reescritas inteiras: elas não têm vida própria fora do
-    // modelo, e nenhuma Task aponta para elas — o que a Task guarda é a cópia
-    // materializada nas subtarefas dela.
-    await supabase.from("workflow_steps").delete().eq("template_id", workflowId);
+    const { data: fluxo, error: erroDoFluxo } = await supabase
+      .from("workflow_templates")
+      .insert({
+        nome,
+        descricao: entrada.descricao ?? null,
+        client_id: clientId,
+        ativo: entrada.ativo,
+        criado_por: sessao.usuarioId,
+      })
+      .select("id")
+      .single();
 
-    if (entrada.etapas.length > 0) {
-      const { error } = await supabase.from("workflow_steps").insert(
-        entrada.etapas.map((etapa) => ({
-          template_id: workflowId!,
-          nome: etapa.nome.trim(),
-          ordem: etapa.ordem,
-          funcao_padrao: etapa.funcao_padrao ?? null,
-          responsavel_padrao_id: etapa.responsavel_padrao_id ?? null,
-          prioridade: etapa.prioridade,
-          prazo_offset_dias: etapa.prazo_offset_dias ?? null,
-          requer_aprovacao: etapa.requer_aprovacao,
-          tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
-          depende_de_ordem: etapa.depende_de_ordem ?? null,
-        })),
-      );
-      if (error) return falha(`As etapas falharam: ${error.message}`);
+    if (erroDoFluxo || !fluxo) {
+      return falha(`Não foi possível criar: ${erroDoFluxo?.message ?? "erro"}`);
+    }
+
+    const erroDasEtapas = await regravarEtapas(supabase, fluxo.id, entrada.etapas);
+    if (erroDasEtapas) {
+      await supabase.from("workflow_templates").delete().eq("id", fluxo.id);
+      return falha(`As etapas falharam, então o tipo não foi criado: ${erroDasEtapas}`);
+    }
+
+    const { data: tipo, error } = await supabase
+      .from("task_types")
+      .insert({
+        nome,
+        descricao: entrada.descricao ?? null,
+        client_id: clientId,
+        workflow_template_id: fluxo.id,
+        ativo: entrada.ativo,
+      })
+      .select("id")
+      .single();
+
+    if (error || !tipo) {
+      await supabase.from("workflow_templates").delete().eq("id", fluxo.id);
+      return falha(`Não foi possível criar: ${error?.message ?? "erro"}`);
     }
 
     revalidatePath(ROTA);
-    return sucesso("Fluxo salvo. As Tasks já criadas não mudam.", workflowId!);
+    return sucesso(
+      `Tipo "${nome}" criado com ${entrada.etapas.length} etapa(s). Já dá para escolher ao abrir uma task.`,
+      tipo.id,
+    );
   });
 }
 
@@ -137,31 +227,35 @@ export async function salvarWorkflow(id: string | null, dados: unknown): Promise
  * Duplicar — o caminho para dar a um cliente uma variação do fluxo global sem
  * refazer tudo.
  */
-export async function duplicarWorkflow(
+export async function duplicarTipoDeTarefa(
   id: string,
   paraCliente: string | null,
 ): Promise<Resultado<string>> {
-  return executarAcao("duplicarWorkflow", async () => {
+  return executarAcao("duplicarTipoDeTarefa", async () => {
     const sessao = await exigirGestorNaAcao();
     const supabase = await criarClienteServidor();
 
     const { data: original } = await supabase
-      .from("workflow_templates")
+      .from("task_types")
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (!original) return falha("Fluxo não encontrado.");
+    if (!original) return falha("Tipo de tarefa não encontrado.");
 
-    const { data: etapas } = await supabase
-      .from("workflow_steps")
-      .select("*")
-      .eq("template_id", id)
-      .order("ordem");
+    const { data: etapas } = original.workflow_template_id
+      ? await supabase
+          .from("workflow_steps")
+          .select("*")
+          .eq("template_id", original.workflow_template_id)
+          .order("ordem")
+      : { data: null };
 
-    const { data: copia, error } = await supabase
+    const nome = `${original.nome} (cópia)`;
+
+    const { data: fluxo, error: erroDoFluxo } = await supabase
       .from("workflow_templates")
       .insert({
-        nome: `${original.nome} (cópia)`,
+        nome,
         descricao: original.descricao,
         client_id: paraCliente,
         criado_por: sessao.usuarioId,
@@ -169,12 +263,14 @@ export async function duplicarWorkflow(
       .select("id")
       .single();
 
-    if (error || !copia) return falha(`Não foi possível duplicar: ${error?.message ?? "erro"}`);
+    if (erroDoFluxo || !fluxo) {
+      return falha(`Não foi possível duplicar: ${erroDoFluxo?.message ?? "erro"}`);
+    }
 
     if (etapas && etapas.length > 0) {
       await supabase.from("workflow_steps").insert(
         etapas.map((etapa) => ({
-          template_id: copia.id,
+          template_id: fluxo.id,
           nome: etapa.nome,
           ordem: etapa.ordem,
           funcao_padrao: etapa.funcao_padrao,
@@ -188,110 +284,77 @@ export async function duplicarWorkflow(
       );
     }
 
-    revalidatePath(ROTA);
-    return sucesso("Fluxo duplicado.", copia.id);
-  });
-}
-
-export async function arquivarWorkflow(id: string, ativo: boolean): Promise<Resultado> {
-  return executarAcao("arquivarWorkflow", async () => {
-    await exigirGestorNaAcao();
-    const supabase = await criarClienteServidor();
-    const { data, error } = await supabase
-      .from("workflow_templates")
-      .update({ ativo })
-      .eq("id", id)
+    const { data: copia, error } = await supabase
+      .from("task_types")
+      .insert({
+        nome,
+        descricao: original.descricao,
+        client_id: paraCliente,
+        workflow_template_id: fluxo.id,
+      })
       .select("id")
-      .maybeSingle();
-    if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Arquivar fluxo é da gestão.");
+      .single();
+
+    if (error || !copia) {
+      await supabase.from("workflow_templates").delete().eq("id", fluxo.id);
+      return falha(`Não foi possível duplicar: ${error?.message ?? "erro"}`);
+    }
+
     revalidatePath(ROTA);
-    return sucesso(ativo ? "Fluxo reativado." : "Fluxo arquivado.");
+    return sucesso("Tipo duplicado.", copia.id);
   });
 }
 
-const esquemaDeTipo = z.object({
-  nome: z.string().min(2, "Dê um nome ao tipo."),
-  descricao: z.string().nullable().optional(),
-  client_id: z.string().uuid().nullable().optional(),
-  workflow_template_id: z.string().uuid().nullable().optional(),
-  ativo: z.boolean().default(true),
-});
-
-export async function salvarTipoDeTarefa(
-  id: string | null,
-  dados: unknown,
-): Promise<Resultado<string>> {
-  return executarAcao("salvarTipoDeTarefa", async () => {
-    await exigirGestorNaAcao();
-
-    const validacao = esquemaDeTipo.safeParse(dados);
-    if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do tipo.");
-    }
-    const entrada = validacao.data;
-    const supabase = await criarClienteServidor();
-
-    const campos = {
-      nome: entrada.nome.trim(),
-      descricao: entrada.descricao ?? null,
-      client_id: entrada.client_id ?? null,
-      workflow_template_id: entrada.workflow_template_id ?? null,
-      ativo: entrada.ativo,
-    };
-
-    if (id) {
-      const { data, error } = await supabase
-        .from("task_types")
-        .update(campos)
-        .eq("id", id)
-        .select("id")
-        .maybeSingle();
-      if (error) return falha(`Não foi possível salvar: ${error.message}`);
-      if (!data) return falha("O banco recusou. Editar tipo de tarefa é da gestão.");
-      revalidatePath(ROTA);
-      return sucesso("Tipo salvo.", id);
-    }
-
-    const { data, error } = await supabase.from("task_types").insert(campos).select("id").single();
-    if (error || !data) return falha(`Não foi possível criar: ${error?.message ?? "erro"}`);
-    revalidatePath(ROTA);
-    return sucesso("Tipo criado.", data.id);
-  });
-}
-
+/**
+ * Arquivar em vez de apagar: Tasks antigas apontam para o tipo, e o nome
+ * precisa continuar legível no histórico delas.
+ */
 export async function arquivarTipoDeTarefa(id: string, ativo: boolean): Promise<Resultado> {
   return executarAcao("arquivarTipoDeTarefa", async () => {
     await exigirGestorNaAcao();
     const supabase = await criarClienteServidor();
+
     const { data, error } = await supabase
       .from("task_types")
       .update({ ativo })
       .eq("id", id)
-      .select("id")
+      .select("id, workflow_template_id")
       .maybeSingle();
+
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Arquivar tipo é da gestão.");
+    if (!data) return falha("O banco recusou. Arquivar tipo de tarefa é da gestão.");
+
+    if (data.workflow_template_id) {
+      await supabase
+        .from("workflow_templates")
+        .update({ ativo })
+        .eq("id", data.workflow_template_id);
+    }
+
     revalidatePath(ROTA);
     return sucesso(ativo ? "Tipo reativado." : "Tipo arquivado.");
   });
 }
 
 /**
- * "Salvar as subtarefas desta Task como workflow."
+ * "Salvar as subtarefas desta Task como tipo de tarefa."
  *
  * O caminho de volta: uma demanda que deu certo vira modelo. O prazo de cada
  * etapa é convertido em dias a partir do início da Task — data fixa num modelo
  * reutilizável faria toda Task nova nascer vencida.
+ *
+ * Cria o TIPO, não só o fluxo. Antes criava só o fluxo, e o resultado era um
+ * beco sem saída: o modelo existia, aparecia na tela de gestão e nunca podia
+ * ser escolhido ao abrir uma task, porque o formulário lista tipos.
  */
-export async function salvarTaskComoWorkflow(
+export async function salvarTaskComoTipo(
   taskId: string,
   nome: string,
   paraCliente: string | null,
 ): Promise<Resultado<string>> {
-  return executarAcao("salvarTaskComoWorkflow", async () => {
+  return executarAcao("salvarTaskComoTipo", async () => {
     const sessao = await exigirGestorNaAcao();
-    if (nome.trim().length < 2) return falha("Dê um nome ao fluxo.");
+    if (nome.trim().length < 2) return falha("Dê um nome ao tipo de tarefa.");
 
     const supabase = await criarClienteServidor();
 
@@ -304,12 +367,14 @@ export async function salvarTaskComoWorkflow(
 
     const { data: subtarefas } = await supabase
       .from("subtasks")
-      .select("id, titulo, ordem, prazo, responsavel_id, prioridade, requer_aprovacao, tipo_aprovacao")
+      .select(
+        "id, titulo, ordem, prazo, responsavel_id, prioridade, requer_aprovacao, tipo_aprovacao",
+      )
       .eq("task_id", taskId)
       .order("ordem");
 
     if (!subtarefas || subtarefas.length === 0) {
-      return falha("Esta task não tem subtarefas para virar fluxo.");
+      return falha("Esta task não tem subtarefas para virar modelo.");
     }
 
     const { data: dependencias } = await supabase
@@ -320,7 +385,7 @@ export async function salvarTaskComoWorkflow(
         subtarefas.map((s) => s.id),
       );
 
-    const { data: modelo, error } = await supabase
+    const { data: fluxo, error: erroDoFluxo } = await supabase
       .from("workflow_templates")
       .insert({
         nome: nome.trim(),
@@ -331,7 +396,9 @@ export async function salvarTaskComoWorkflow(
       .select("id")
       .single();
 
-    if (error || !modelo) return falha(`Não foi possível criar: ${error?.message ?? "erro"}`);
+    if (erroDoFluxo || !fluxo) {
+      return falha(`Não foi possível criar: ${erroDoFluxo?.message ?? "erro"}`);
+    }
 
     const ordemPorId = new Map(subtarefas.map((s, indice) => [s.id, indice + 1]));
 
@@ -339,7 +406,7 @@ export async function salvarTaskComoWorkflow(
       subtarefas.map((sub, indice) => {
         const dependencia = (dependencias ?? []).find((d) => d.subtask_id === sub.id);
         return {
-          template_id: modelo.id,
+          template_id: fluxo.id,
           nome: sub.titulo,
           ordem: indice + 1,
           responsavel_padrao_id: sub.responsavel_id,
@@ -355,12 +422,31 @@ export async function salvarTaskComoWorkflow(
     );
 
     if (erroDasEtapas) {
-      await supabase.from("workflow_templates").delete().eq("id", modelo.id);
-      return falha(`As etapas falharam, então o fluxo não foi criado: ${erroDasEtapas.message}`);
+      await supabase.from("workflow_templates").delete().eq("id", fluxo.id);
+      return falha(`As etapas falharam, então o tipo não foi criado: ${erroDasEtapas.message}`);
+    }
+
+    const { data: tipo, error } = await supabase
+      .from("task_types")
+      .insert({
+        nome: nome.trim(),
+        descricao: "Criado a partir de uma task existente.",
+        client_id: paraCliente,
+        workflow_template_id: fluxo.id,
+      })
+      .select("id")
+      .single();
+
+    if (error || !tipo) {
+      await supabase.from("workflow_templates").delete().eq("id", fluxo.id);
+      return falha(`Não foi possível criar: ${error?.message ?? "erro"}`);
     }
 
     revalidatePath(ROTA);
-    return sucesso(`Fluxo "${nome.trim()}" criado com ${subtarefas.length} etapa(s).`, modelo.id);
+    return sucesso(
+      `Tipo "${nome.trim()}" criado com ${subtarefas.length} etapa(s).`,
+      tipo.id,
+    );
   });
 }
 

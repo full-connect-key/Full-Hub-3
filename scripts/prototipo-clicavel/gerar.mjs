@@ -647,8 +647,7 @@ ${telasHtml}
     { rota: VITRINE_EXEMPLO,       texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
     { rota: TASK_EXEMPLO,          texto: "Criar KV",                dialogo: "subtarefa-painel" },
     { rota: "/painel/aprovacoes-internas", texto: "Solicitar ajustes", dialogo: "aprovacao-ajustes" },
-    { rota: "/painel/workflows",   texto: "Novo fluxo",              dialogo: "workflow-novo" },
-    { rota: "/painel/workflows",   texto: "Novo tipo",               dialogo: "tipo-novo" },
+    { rota: "/painel/workflows",   texto: "Novo tipo de tarefa",     dialogo: "tipo-novo" },
     { rota: "/portal/aprovacoes",  texto: "Solicitar ajustes",       dialogo: "cliente-pedir-ajustes" }
   ];
 
@@ -825,15 +824,10 @@ ${telasHtml}
       if (!motivo) return { erro: "Diga o que precisa mudar." };
       return { ok: "Pedido de ajustes enviado." };
     },
-    "workflow-novo": function () {
-      var nome = valorDe("#fluxo-nome");
-      if (nome.length < 2) return { erro: "Dê um nome ao fluxo." };
-      return { ok: "Fluxo salvo. As Tasks já criadas não mudam." };
-    },
     "tipo-novo": function () {
       var nome = valorDe("#tipo-nome");
-      if (nome.length < 2) return { erro: "Dê um nome ao tipo." };
-      return { ok: "Tipo criado." };
+      if (nome.length < 2) return { erro: "Dê um nome ao tipo de tarefa." };
+      return { ok: 'Tipo "' + nome + '" criado. Já dá para escolher ao abrir uma task.' };
     },
     "colaborador-novo": function () {
       var nome = valorDe("#colab-nome");
@@ -942,7 +936,7 @@ ${telasHtml}
     "Concluir", "Pular",
     // Sprint 3B
     "Enviar", "Enviar ao cliente", "Solicitar ajustes", "Esta etapa não gera arquivo",
-    "Salvar fluxo", "Salvar", "Enviar pedido", "Aprovar"
+    "Salvar tipo de tarefa", "Salvar", "Enviar pedido", "Aprovar"
   ];
 
   // --- cliques dentro da camada de diálogo ---------------------------------

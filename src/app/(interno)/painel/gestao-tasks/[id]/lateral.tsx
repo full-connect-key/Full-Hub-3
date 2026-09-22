@@ -30,7 +30,7 @@ import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { atualizarTask, excluirTask } from "../acoes";
-import { salvarTaskComoWorkflow } from "../../workflows/acoes";
+import { salvarTaskComoTipo } from "../../workflows/acoes";
 
 const SEM_VALOR = "__sem__";
 
@@ -268,8 +268,10 @@ export function LateralDaTask({
       </p>
 
       {/* O caminho de volta: uma demanda que deu certo vira modelo para as
-          próximas. O prazo de cada etapa é convertido em dias a partir do
-          início desta Task. */}
+          próximas. Cria um TIPO DE TAREFA, que é o que o formulário de nova
+          task oferece — criar só o fluxo deixaria o modelo inalcançável. O
+          prazo de cada etapa é convertido em dias a partir do início desta
+          Task. */}
       {podeExcluir && task.subtarefas.length > 0 ? (
         <>
           <Separator />
@@ -277,8 +279,8 @@ export function LateralDaTask({
             <Input
               value={nomeDoFluxo}
               onChange={(evento) => setNomeDoFluxo(evento.target.value)}
-              placeholder="Nome do novo fluxo"
-              aria-label="Nome do fluxo a criar a partir desta task"
+              placeholder="Nome do novo tipo de tarefa"
+              aria-label="Nome do tipo de tarefa a criar a partir desta task"
             />
             <Button
               variant="outline"
@@ -288,7 +290,7 @@ export function LateralDaTask({
               onClick={() =>
                 iniciar(async () => {
                   const resultado = await chamarAcao(() =>
-                    salvarTaskComoWorkflow(task.id, nomeDoFluxo, null),
+                    salvarTaskComoTipo(task.id, nomeDoFluxo, null),
                   );
                   if (!resultado.ok) toast.error(resultado.error);
                   else {
@@ -299,7 +301,7 @@ export function LateralDaTask({
               }
             >
               <Workflow aria-hidden />
-              Salvar as subtarefas como fluxo
+              Salvar as subtarefas como tipo de tarefa
             </Button>
           </div>
         </>

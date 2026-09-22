@@ -1,15 +1,21 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { TaskType, WorkflowStep, WorkflowTemplate } from "@/lib/supabase/database.types";
+import type { TaskType, WorkflowStep } from "@/lib/supabase/database.types";
 
 /**
- * Tipos de tarefa e workflows.
+ * Tipos de tarefa.
  *
- * Workflow é o fluxo fixo de subtarefas de um tipo de trabalho — todo "Post de
- * feed" nasce com as mesmas etapas. O tipo de tarefa é o atalho que a pessoa
- * escolhe na criação da Task; ela não precisa saber que existe um objeto
- * chamado workflow.
+ * Um tipo de tarefa é um jeito de trabalho da agência — "Post de feed",
+ * "Campanha" — e ele CARREGA a cadeia fixa de etapas que toda demanda daquele
+ * tipo percorre. É o que a pessoa escolhe ao abrir uma Task, e é o que faz as
+ * subtarefas nascerem prontas.
+ *
+ * No banco isso mora em duas tabelas: `task_types` guarda o nome e o alcance,
+ * `workflow_templates` + `workflow_steps` guardam as etapas. A divisão existe
+ * porque dois tipos podem, em tese, compartilhar o mesmo fluxo — mas ela é
+ * detalhe de armazenamento, e a tela nunca a mostra: quem usa o Full Hub
+ * cadastra "um tipo de tarefa com suas etapas", uma coisa só.
  *
  * Um tipo pode ser global (`client_id` nulo) ou de um cliente só. É assim que
  * uma conta com processo próprio ganha o fluxo dela sem duplicar o resto.
@@ -24,11 +30,10 @@ export type EtapaDeWorkflow = WorkflowStep & {
   responsavelPadrao: { id: string; nome: string } | null;
 };
 
-export type WorkflowCompleto = WorkflowTemplate & {
+/** Um tipo de tarefa com as etapas que ele gera. É a unidade da tela. */
+export type TipoComFluxo = TaskType & {
   cliente: { id: string; nome_empresa: string } | null;
   etapas: EtapaDeWorkflow[];
-  /** Quantos tipos de tarefa apontam para ele. */
-  tiposQueUsam: number;
 };
 
 /**
@@ -83,26 +88,37 @@ export async function listarTiposDeTarefa(clienteId?: string | null): Promise<Ti
   });
 }
 
-export async function listarWorkflows(): Promise<WorkflowCompleto[]> {
+/**
+ * Os tipos de tarefa com a cadeia de etapas inteira — o que a tela de gestão
+ * mostra e edita.
+ *
+ * Diferente de `listarTiposDeTarefa`, traz os arquivados junto (com `ativo`
+ * dizendo qual é qual) porque quem administra precisa enxergar e reativar o
+ * que saiu de circulação.
+ */
+export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
   const supabase = await criarClienteServidor();
 
-  const { data: modelos } = await supabase
-    .from("workflow_templates")
+  const { data: tipos } = await supabase
+    .from("task_types")
     .select("*")
     .order("ativo", { ascending: false })
     .order("nome");
 
-  if (!modelos || modelos.length === 0) return [];
+  if (!tipos || tipos.length === 0) return [];
 
-  const ids = modelos.map((m) => m.id);
-  const idsDeClientes = [...new Set(modelos.map((m) => m.client_id).filter(Boolean))] as string[];
+  const idsDeClientes = [...new Set(tipos.map((t) => t.client_id).filter(Boolean))] as string[];
+  const idsDeFluxos = [
+    ...new Set(tipos.map((t) => t.workflow_template_id).filter(Boolean)),
+  ] as string[];
 
-  const [{ data: etapas }, { data: clientes }, { data: tipos }] = await Promise.all([
-    supabase.from("workflow_steps").select("*").in("template_id", ids).order("ordem"),
+  const [{ data: clientes }, { data: etapas }] = await Promise.all([
     idsDeClientes.length
       ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
       : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
-    supabase.from("task_types").select("workflow_template_id").in("workflow_template_id", ids),
+    idsDeFluxos.length
+      ? supabase.from("workflow_steps").select("*").in("template_id", idsDeFluxos).order("ordem")
+      : Promise.resolve({ data: [] as WorkflowStep[] }),
   ]);
 
   const idsDePessoas = [
@@ -116,18 +132,11 @@ export async function listarWorkflows(): Promise<WorkflowCompleto[]> {
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
 
-  const usos = new Map<string, number>();
-  for (const tipo of tipos ?? []) {
-    if (!tipo.workflow_template_id) continue;
-    usos.set(tipo.workflow_template_id, (usos.get(tipo.workflow_template_id) ?? 0) + 1);
-  }
-
-  return modelos.map((modelo) => ({
-    ...modelo,
-    cliente: modelo.client_id ? (porCliente.get(modelo.client_id) ?? null) : null,
-    tiposQueUsam: usos.get(modelo.id) ?? 0,
+  return tipos.map((tipo) => ({
+    ...tipo,
+    cliente: tipo.client_id ? (porCliente.get(tipo.client_id) ?? null) : null,
     etapas: (etapas ?? [])
-      .filter((e) => e.template_id === modelo.id)
+      .filter((e) => e.template_id === tipo.workflow_template_id)
       .map((etapa) => ({
         ...etapa,
         responsavelPadrao: etapa.responsavel_padrao_id

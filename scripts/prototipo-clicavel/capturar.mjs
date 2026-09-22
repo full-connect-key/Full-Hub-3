@@ -81,7 +81,6 @@ const ABAS = [
   { rota: CLIENTE, abas: ["Dados", "Usuários com acesso", "Configurações do fluxo", "Atividade"] },
   { rota: PESSOA, abas: ["Dados", "Skills", "Full Days"] },
   { rota: TASK, abas: ["Trabalho", "Histórico"] },
-  { rota: "/painel/workflows", abas: ["Tipos de tarefa", "Workflows"] },
 ];
 
 const DIALOGOS = [
@@ -132,14 +131,9 @@ const DIALOGOS = [
     passos: ['button:has-text("Solicitar ajustes")'],
   },
   {
-    nome: "workflow-novo",
-    rota: "/painel/workflows",
-    passos: ['[role="tab"]:has-text("Workflows")', 'button:has-text("Novo fluxo")'],
-  },
-  {
     nome: "tipo-novo",
     rota: "/painel/workflows",
-    passos: ['button:has-text("Novo tipo")'],
+    passos: ['button:has-text("Novo tipo de tarefa")'],
   },
   {
     nome: "cliente-pedir-ajustes",
