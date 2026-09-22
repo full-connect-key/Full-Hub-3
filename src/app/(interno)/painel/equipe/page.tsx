@@ -9,7 +9,7 @@ import { listarEquipe } from "@/lib/dados/equipe";
 import { FormularioDeColaborador } from "./formulario-de-colaborador";
 import { ListaDaEquipe } from "./lista";
 
-export const metadata: Metadata = { title: "Equipe e Skills" };
+export const metadata: Metadata = { title: "Equipe & Skills" };
 
 export default async function PaginaDaEquipe() {
   const sessao = await exigirAcessoARota("/painel/equipe");
@@ -20,7 +20,7 @@ export default async function PaginaDaEquipe() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Equipe e Skills"
+        title="Equipe & Skills"
         description="Quem é da casa, o que cada um faz e o que alcança na plataforma."
         actions={
           <FormularioDeColaborador

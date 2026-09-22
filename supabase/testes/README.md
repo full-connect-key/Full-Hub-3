@@ -60,6 +60,7 @@ lê uma visita ao portal, e a trava que dá nome ao sprint: **usuário interno n
 decide no lugar do cliente nem chamando o banco direto**. A sócia, o
 desenvolvedor e o cliente da outra empresa são recusados, cada um contra uma
 rodada de fato pendente — aprovar antes faria as três recusas passarem pelo
-motivo errado.
+motivo errado. Fecha com o Resumo Semanal, que é privado: nem a sócia lê o
+registro de outra pessoa, e ninguém escreve no nome de ninguém.
 
-São 92 cenários no total.
+São 102 cenários no total.

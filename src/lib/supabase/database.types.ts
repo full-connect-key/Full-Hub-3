@@ -161,6 +161,34 @@ export interface Database {
         Update: { encerrado_em?: string | null };
         Relationships: [];
       };
+      /** O Resumo Semanal. Privado: so o dono le e escreve (migration 0010). */
+      weekly_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          data: string;
+          descricao: string;
+          client_id: string | null;
+          subtask_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          data?: string;
+          descricao: string;
+          client_id?: string | null;
+          subtask_id?: string | null;
+        };
+        Update: {
+          data?: string;
+          descricao?: string;
+          client_id?: string | null;
+          subtask_id?: string | null;
+        };
+        Relationships: [];
+      };
       client_users: {
         Row: { id: string; client_id: string; user_id: string; created_at: string };
         Insert: { id?: string; client_id: string; user_id: string; created_at?: string };
