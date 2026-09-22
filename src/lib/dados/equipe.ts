@@ -88,6 +88,34 @@ export const listarEquipeAtiva = cache(async () => {
 });
 
 /**
+ * A ficha de equipe de quem está logado.
+ *
+ * O CARGO vem daqui, e não de `profiles`, porque cargo e perfil de acesso são
+ * coisas diferentes: "Social Media" é o que a pessoa faz na agência,
+ * "Desenvolvedor" é o que ela alcança na plataforma. O menu e a tela inicial
+ * mostram os dois lado a lado justamente para não deixar confundir.
+ *
+ * Devolve null para quem não tem ficha — acontece com uma conta criada antes
+ * do cadastro de equipe ficar pronto, e a interface simplesmente omite a linha
+ * do cargo em vez de quebrar.
+ */
+export const obterMinhaFicha = cache(async (): Promise<TeamMember | null> => {
+  const supabase = await criarClienteServidor();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("team_members")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return data ?? null;
+});
+
+/**
  * O que está preso ao nome de uma pessoa e precisa ser resolvido antes de
  * desligá-la.
  *

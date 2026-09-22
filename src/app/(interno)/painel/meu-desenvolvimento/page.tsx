@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 import { PlaceholderDeModulo } from "@/components/shared/placeholder-de-modulo";
 
-export const metadata: Metadata = { title: "Minhas Skills" };
+export const metadata: Metadata = { title: "Meu Desenvolvimento" };
 
 export default function Pagina() {
-  return <PlaceholderDeModulo href="/painel/minhas-skills" />;
+  return <PlaceholderDeModulo href="/painel/meu-desenvolvimento" />;
 }

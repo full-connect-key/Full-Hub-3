@@ -3,16 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { SECTION_LABELS, getMenuForRole, type MenuItem } from "@/lib/auth/permissions";
+import {
+  SECTION_LABELS,
+  SECTION_PILLS,
+  getMenuForRole,
+  type MenuItem,
+} from "@/lib/auth/permissions";
 import type { UserRole } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-/** /painel só fica ativo na própria Home; os demais valem para suas sub-rotas. */
+/** /painel só fica ativo na própria Início; os demais valem para suas sub-rotas. */
 function estaAtivo(pathname: string, item: MenuItem): boolean {
   if (item.href === "/painel") return pathname === "/painel";
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+/**
+ * Os módulos, na barra escura.
+ *
+ * O item ativo é marcado de três jeitos ao mesmo tempo — fundo mais claro,
+ * texto e ícone em azul da marca, e um risco de 3px na borda esquerda. Parece
+ * redundante e não é: recolhido, o menu mostra só o ícone, e o risco é a única
+ * marca que continua legível. Quem enxerga mal a diferença de tom também
+ * continua enxergando o risco.
+ *
+ * Azul da marca sobre a barra escura dá 8.8:1. É o lugar onde essa cor
+ * funciona como texto — sobre branco ela daria 1.7:1, e é por isso que no
+ * conteúdo claro o azul é outro (--accent-strong).
+ */
 export function ListaDoMenu({
   role,
   aoNavegar,
@@ -25,39 +43,54 @@ export function ListaDoMenu({
   const secoes = getMenuForRole(role);
 
   return (
-    <nav className="flex flex-col gap-5" aria-label="Módulos do painel">
-      {secoes.map(({ section, items }) => (
-        <div key={section} className="flex flex-col gap-1">
-          <p className="text-muted-foreground recolhido:lg:hidden px-3 text-[11px] font-medium tracking-wide uppercase">
-            {SECTION_LABELS[section]}
-          </p>
+    <nav className="flex flex-col gap-6" aria-label="Módulos do painel">
+      {secoes.map(({ section, items }) => {
+        const pill = SECTION_PILLS[section];
+        return (
+          <div key={section} className="flex flex-col gap-0.5">
+            <div className="recolhido:lg:hidden flex items-center gap-2 px-3 pb-1">
+              <p className="text-text-muted text-[11px] font-semibold tracking-wider uppercase">
+                {SECTION_LABELS[section]}
+              </p>
+              {pill ? (
+                <span className="bg-brand-blue/15 text-brand-blue rounded px-1.5 py-px text-[10px] font-semibold tracking-wide uppercase">
+                  {pill}
+                </span>
+              ) : null}
+            </div>
 
-          {items.map((item) => {
-            const ativo = estaAtivo(pathname, item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={aoNavegar}
-                title={item.label}
-                aria-current={ativo ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  "recolhido:lg:justify-center recolhido:lg:px-0",
-                  ativo
-                    ? "bg-accent text-accent-strong font-medium"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  // Módulo opcional: presente, mas sem disputar atenção.
-                  item.muted && !ativo && "text-muted-foreground/70",
-                )}
-              >
-                <item.icon aria-hidden className="size-4 shrink-0" />
-                <span className="recolhido:lg:hidden truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+            {items.map((item) => {
+              const ativo = estaAtivo(pathname, item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={aoNavegar}
+                  title={item.label}
+                  aria-current={ativo ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-md py-2 pr-3 pl-3 text-sm transition-colors",
+                    "recolhido:lg:justify-center recolhido:lg:px-0",
+                    "focus-visible:ring-brand-blue/60 focus-visible:ring-2 focus-visible:outline-none",
+                    ativo
+                      ? "bg-surface-sidebar-2 text-brand-blue font-medium"
+                      : "text-text-on-dark/70 hover:bg-surface-sidebar-2/60 hover:text-text-on-dark",
+                  )}
+                >
+                  {ativo ? (
+                    <span
+                      aria-hidden
+                      className="bg-brand-blue absolute top-1 bottom-1 left-0 w-[3px] rounded-r"
+                    />
+                  ) : null}
+                  <item.icon aria-hidden className="size-4 shrink-0" />
+                  <span className="recolhido:lg:hidden truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        );
+      })}
     </nav>
   );
 }

@@ -16,7 +16,12 @@ import {
 } from "@/components/ui/sheet";
 import type { UserRole } from "@/lib/supabase/database.types";
 
-/** Abaixo de 1024px o menu lateral vira gaveta. */
+/**
+ * Abaixo de 1024px o menu lateral vira gaveta.
+ *
+ * Mesmo fundo escuro da barra do desktop: os itens do menu foram escritos para
+ * ler sobre escuro, e uma gaveta clara os deixaria quase invisíveis.
+ */
 export function MenuGaveta({ role }: { role: UserRole }) {
   const [aberto, setAberto] = useState(false);
 
@@ -27,10 +32,10 @@ export function MenuGaveta({ role }: { role: UserRole }) {
           <Menu aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="bg-surface-sidebar w-72 border-none p-0">
         <SheetHeader className="px-4 pt-4 pb-0">
           <SheetTitle className="text-left">
-            <Logo tamanho="sm" />
+            <Logo tamanho="sm" sobreEscuro />
           </SheetTitle>
           <SheetDescription className="sr-only">Módulos do painel interno</SheetDescription>
         </SheetHeader>

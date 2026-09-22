@@ -9,13 +9,14 @@ import {
   ListChecks,
   NotebookPen,
   PiggyBank,
+  Receipt,
   Sparkles,
   Sun,
   ThumbsUp,
+  TrendingUp,
   UserRound,
   Users,
   Workflow,
-  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,15 +43,35 @@ export const EQUIPE: UserRole[] = ["colaborador", "desenvolvedor", "socio"];
 export const GESTAO: UserRole[] = ["desenvolvedor", "socio"];
 export const SOCIO: UserRole[] = ["socio"];
 
-export type MenuSection = "trabalho" | "gestao" | "pessoal";
+/**
+ * Duas seções, e a divisão é sobre a PESSOA, não sobre o assunto.
+ *
+ * PRINCIPAL é o que todo mundo da casa usa no dia: as próprias tarefas, o
+ * próprio registro da semana, a própria folga, a própria nota fiscal. GESTÃO é
+ * o que se faz sobre os outros — distribuir trabalho, aprovar, cadastrar
+ * gente, ver dinheiro.
+ *
+ * A separação antiga era por tema (Trabalho / Gestão / Pessoal), e por isso
+ * "Full Days" caía em Gestão sendo o pedido de folga de quem clica, e "Minhas
+ * Skills" caía em Pessoal ao lado do controle de finanças pessoais.
+ */
+export type MenuSection = "principal" | "gestao";
 
 export const SECTION_LABELS: Record<MenuSection, string> = {
-  trabalho: "Trabalho",
+  principal: "Principal",
   gestao: "Gestão",
-  pessoal: "Pessoal",
 };
 
-export const SECTION_ORDER: MenuSection[] = ["trabalho", "gestao", "pessoal"];
+/**
+ * O selo ao lado do nome da seção. Só GESTÃO tem um: ele avisa, para quem
+ * enxerga a seção, que dali para baixo o que se faz alcança a agência inteira.
+ * Quem não é da gestão nunca vê nem a seção nem o selo.
+ */
+export const SECTION_PILLS: Partial<Record<MenuSection, string>> = {
+  gestao: "Admin",
+};
+
+export const SECTION_ORDER: MenuSection[] = ["principal", "gestao"];
 
 export type MenuItem = {
   label: string;
@@ -62,69 +83,126 @@ export type MenuItem = {
   description: string;
   /** Fora do menu, mas a rota existe e continua validando o perfil. */
   hiddenFromMenu?: boolean;
-  /** Peso visual reduzido no menu. */
-  muted?: boolean;
 };
 
 export const MENU: MenuItem[] = [
-  // --- Trabalho ------------------------------------------------------------
+  // --- Principal -----------------------------------------------------------
   {
-    label: "Home",
+    label: "Início",
     href: "/painel",
     icon: LayoutDashboard,
     roles: EQUIPE,
-    section: "trabalho",
-    description: "A visão geral do seu dia na agência.",
+    section: "principal",
+    description: "Seus atalhos e o que precisa da sua atenção hoje.",
   },
   {
     label: "Minhas Tasks",
     href: "/painel/minhas-tasks",
     icon: ListChecks,
     roles: EQUIPE,
-    section: "trabalho",
+    section: "principal",
     description: "As tarefas atribuídas a você, com prazo e prioridade.",
   },
+  {
+    label: "Resumo Semanal",
+    href: "/painel/resumo-semanal",
+    icon: NotebookPen,
+    roles: EQUIPE,
+    section: "principal",
+    description: "O que você entregou em cada semana, na sua letra.",
+  },
+  {
+    label: "Full Days",
+    href: "/painel/full-days",
+    icon: Sun,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Solicitação e aprovação de folgas.",
+  },
+  {
+    label: "Meu Desenvolvimento",
+    href: "/painel/meu-desenvolvimento",
+    icon: TrendingUp,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Suas habilidades registradas e o que você quer desenvolver.",
+  },
+  {
+    label: "Full Academy",
+    href: "/painel/academy",
+    icon: BookOpen,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Trilhas e materiais de formação da agência.",
+  },
+  {
+    label: "Calendário Full",
+    href: "/painel/calendario",
+    icon: CalendarDays,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Prazos, publicações e compromissos em uma linha do tempo.",
+  },
+  {
+    label: "Recomendações da Semana",
+    href: "/painel/recomendacoes",
+    icon: ThumbsUp,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Reconhecimento entre colegas.",
+  },
+  {
+    // A nota fiscal DA PESSOA, não o financeiro da agência. Cada um envia a
+    // sua e acompanha o pagamento. O financeiro da casa é outro módulo, na
+    // Gestão, e só o sócio alcança.
+    label: "Notas Fiscais",
+    href: "/painel/notas-fiscais",
+    icon: Receipt,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Envie sua nota fiscal e acompanhe o pagamento.",
+  },
+  {
+    label: "Meu Perfil",
+    href: "/painel/perfil",
+    icon: UserRound,
+    roles: EQUIPE,
+    section: "principal",
+    description: "Seus dados de acesso, foto e preferências.",
+  },
+
+  // --- Gestão --------------------------------------------------------------
   {
     label: "Gestão de Tasks",
     href: "/painel/gestao-tasks",
     icon: ClipboardList,
     roles: GESTAO,
-    section: "trabalho",
+    section: "gestao",
     description: "Distribuição e acompanhamento das tarefas de toda a equipe.",
   },
   {
-    label: "Calendário",
-    href: "/painel/calendario",
-    icon: CalendarDays,
-    roles: EQUIPE,
-    section: "trabalho",
-    description: "Prazos, publicações e compromissos em uma linha do tempo.",
-  },
-  {
-    label: "Aprovações internas",
+    label: "Aprovações Internas",
     href: "/painel/aprovacoes-internas",
     icon: BadgeCheck,
     roles: GESTAO,
-    section: "trabalho",
+    section: "gestao",
     description: "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
   },
   {
-    label: "Aprovações e Conteúdo",
+    label: "Aprovações & Conteúdo",
     href: "/painel/aprovacoes",
     icon: FileCheck2,
     roles: GESTAO,
-    section: "trabalho",
+    section: "gestao",
     description: "Fluxo de aprovação dos conteúdos, do briefing ao aprovado.",
   },
-
-  // --- Gestão --------------------------------------------------------------
   {
-    label: "Workflows",
-    href: "/painel/workflows",
-    icon: Workflow,
+    label: "Equipe & Skills",
+    href: "/painel/equipe",
+    icon: Users,
     roles: GESTAO,
     section: "gestao",
-    description: "Os tipos de tarefa da agência e o fluxo de subtarefas de cada um.",
+    description: "Quem é da casa, função, área e as habilidades de cada um.",
   },
   {
     label: "Clientes",
@@ -135,83 +213,33 @@ export const MENU: MenuItem[] = [
     description: "As empresas atendidas, contatos e acessos ao portal.",
   },
   {
-    label: "Equipe e Skills",
-    href: "/painel/equipe",
-    icon: UserRound,
+    label: "Workflows",
+    href: "/painel/workflows",
+    icon: Workflow,
     roles: GESTAO,
     section: "gestao",
-    description: "Quem é da casa, função, área e as habilidades de cada um.",
+    description: "Os tipos de tarefa da agência e o fluxo de etapas de cada um.",
   },
   {
-    label: "Full Days",
-    href: "/painel/full-days",
-    icon: Sun,
-    roles: EQUIPE,
-    section: "gestao",
-    description: "Solicitação e aprovação de folgas.",
-  },
-  {
-    label: "Financeiro e NFs",
+    label: "Financeiro",
     href: "/painel/financeiro",
     icon: CircleDollarSign,
     roles: SOCIO,
     section: "gestao",
-    description: "Faturamento, notas fiscais e a saúde financeira da agência.",
-  },
-
-  // --- Pessoal -------------------------------------------------------------
-  {
-    label: "Minhas Skills",
-    href: "/painel/minhas-skills",
-    icon: Wrench,
-    roles: EQUIPE,
-    section: "pessoal",
-    description: "Suas habilidades registradas e o que você quer desenvolver.",
-  },
-  {
-    label: "Diário",
-    href: "/painel/diario",
-    icon: NotebookPen,
-    roles: EQUIPE,
-    section: "pessoal",
-    description: "Seu registro do dia a dia de trabalho.",
-  },
-  {
-    label: "Academy",
-    href: "/painel/academy",
-    icon: BookOpen,
-    roles: EQUIPE,
-    section: "pessoal",
-    description: "Trilhas e materiais de formação da agência.",
-  },
-  {
-    label: "Recomendações",
-    href: "/painel/recomendacoes",
-    icon: ThumbsUp,
-    roles: EQUIPE,
-    section: "pessoal",
-    description: "Reconhecimento entre colegas.",
-  },
-  {
-    // Módulo opcional: o uso real pela equipe ainda é incerto, então entra no
-    // fim da seção e com peso visual reduzido. Não destacar nem no onboarding.
-    label: "Financeiro Pessoal",
-    href: "/painel/financeiro-pessoal",
-    icon: PiggyBank,
-    roles: EQUIPE,
-    section: "pessoal",
-    description: "Controle das suas finanças pessoais. Opcional.",
-    muted: true,
+    description: "Faturamento e a saúde financeira da agência.",
   },
 
   // --- Fora do menu --------------------------------------------------------
   {
-    label: "Meu perfil",
-    href: "/painel/perfil",
-    icon: UserRound,
+    // Saiu do menu no Sprint 3C: é assunto de quem já está dentro do perfil,
+    // e como item solto competia com módulos do trabalho. Chega-se a ele por
+    // uma aba dentro de Meu Perfil.
+    label: "Financeiro Pessoal",
+    href: "/painel/financeiro-pessoal",
+    icon: PiggyBank,
     roles: EQUIPE,
-    section: "pessoal",
-    description: "Seus dados de acesso e preferências.",
+    section: "principal",
+    description: "Controle das suas finanças pessoais. Opcional.",
     hiddenFromMenu: true,
   },
   {
@@ -222,20 +250,36 @@ export const MENU: MenuItem[] = [
     href: "/painel/dev/componentes",
     icon: Sparkles,
     roles: GESTAO,
-    section: "pessoal",
+    section: "gestao",
     description: "Demonstração dos componentes compartilhados.",
     hiddenFromMenu: true,
   },
 ];
 
 /**
+ * As rotas que mudaram de nome no Sprint 3C.
+ *
+ * O redirecionamento permanente vive em next.config.ts, e sai desta mesma
+ * lista: link salvo no favorito de alguém não pode virar 404 porque o módulo
+ * ganhou um nome melhor.
+ */
+export const ROTAS_RENOMEADAS: { de: string; para: string }[] = [
+  { de: "/painel/diario", para: "/painel/resumo-semanal" },
+  { de: "/painel/minhas-skills", para: "/painel/meu-desenvolvimento" },
+];
+
+/**
  * Rotas que entram em sprints futuros. Ficam registradas para ninguém
  * reaproveitar o caminho por engano, e não são criadas agora.
  *
- *   /painel/metricas   e  /painel/resumo    -> Sprint 15
- *   /painel/auditoria  (somente socio)      -> Sprint 16
+ *   /painel/metricas  e  /painel/resumo-agencia  -> Sprint 15
+ *   /painel/auditoria (somente socio)            -> Sprint 16
  */
-export const ROTAS_FUTURAS = ["/painel/metricas", "/painel/resumo", "/painel/auditoria"];
+export const ROTAS_FUTURAS = [
+  "/painel/metricas",
+  "/painel/resumo-agencia",
+  "/painel/auditoria",
+];
 
 /**
  * Acha o item de menu de uma rota, considerando sub-rotas.
