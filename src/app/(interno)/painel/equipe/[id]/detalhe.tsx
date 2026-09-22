@@ -45,6 +45,7 @@ export function DetalheDoColaborador({
   vinculos,
   equipeDisponivel,
   ehVoceMesmo,
+  abaDeSkills,
 }: {
   pessoa: MembroDaEquipe;
   ehSocio: boolean;
@@ -52,6 +53,12 @@ export function DetalheDoColaborador({
   vinculos: Vinculos;
   equipeDisponivel: { id: string; nome: string }[];
   ehVoceMesmo: boolean;
+  /**
+   * Vem pronta do servidor porque depende de duas consultas com RLS. Passar
+   * como nó em vez de buscar aqui mantém este componente sendo só a casca das
+   * abas — ele já é cliente por causa do formulário.
+   */
+  abaDeSkills: React.ReactNode;
 }) {
   const [salvando, iniciar] = useTransition();
   const router = useRouter();
@@ -281,13 +288,7 @@ export function DetalheDoColaborador({
         ) : null}
       </TabsContent>
 
-      <TabsContent value="skills">
-        <EmptyState
-          icon={Wrench}
-          title="Preenchida no Sprint 7"
-          description="As habilidades desta pessoa, o nível de cada uma e o que ela quer desenvolver."
-        />
-      </TabsContent>
+      <TabsContent value="skills">{abaDeSkills}</TabsContent>
 
       <TabsContent value="full-days">
         <EmptyState

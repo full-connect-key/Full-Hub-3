@@ -306,10 +306,15 @@ function valorConhecido(nome) {
   return false;
 }
 
+// O ponto antes do \\b captura UM caractere de contexto. Sem ele,
+// `[text-orientation:mixed]` -- propriedade CSS arbitrária do Tailwind --
+// entrega `text-orientation` ao detector, que reclama de um utilitário que
+// nunca existiu. Com o contexto dá para descartar o que vem logo depois de
+// `[`, `-` ou `:`.
 let classes = "";
 try {
   classes = execSync(
-    `grep -rhoE '\\b(${PREFIXOS.join("|")})-[a-z][a-z0-9-]*' src/ --include=*.tsx --include=*.ts || true`,
+    `grep -rhoE '.?\\b(${PREFIXOS.join("|")})-[a-z][a-z0-9-]*' src/ --include=*.tsx --include=*.ts || true`,
     { encoding: "utf8" },
   );
 } catch {
@@ -317,7 +322,16 @@ try {
 }
 
 const desconhecidas = new Map();
-for (const bruta of new Set(classes.split("\n").filter(Boolean))) {
+for (const comContexto of new Set(classes.split("\n").filter(Boolean))) {
+  // Descarta o que estava dentro de um valor arbitrário ou colado noutra
+  // palavra: `[text-orientation:…]`, `--text-sm`, `algo:text-xs` já tratado
+  // pelo prefixo de variante.
+  const anterior = comContexto.length > 0 && !/^[a-z]/.test(comContexto[0])
+    ? comContexto[0]
+    : "";
+  if (anterior === "[" || anterior === "-") continue;
+
+  const bruta = anterior ? comContexto.slice(1) : comContexto;
   const corte = bruta.indexOf("-");
   const prefixo = bruta.slice(0, corte);
   const nome = bruta.slice(corte + 1);
