@@ -59,6 +59,8 @@ export function DataTable<T>({
   columns,
   getRowId,
   searchPlaceholder = "Buscar…",
+  /** Id do campo de busca, para atalhos de teclado conseguirem focá-lo. */
+  searchId,
   pageSize = 10,
   initialSort,
   emptyIcon,
@@ -73,6 +75,7 @@ export function DataTable<T>({
   columns: Column<T>[];
   getRowId: (row: T) => string;
   searchPlaceholder?: string;
+  searchId?: string;
   pageSize?: number;
   initialSort?: Ordenacao;
   emptyIcon?: LucideIcon;
@@ -135,6 +138,7 @@ export function DataTable<T>({
               className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
             />
             <Input
+              id={searchId}
               value={busca}
               onChange={(evento) => {
                 setBusca(evento.target.value);

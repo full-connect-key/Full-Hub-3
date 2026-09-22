@@ -125,6 +125,11 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - `DateBadge` é para prazo. Data que só registra quando algo aconteceu
   (admissão, cadastro, último acesso) se formata com date-fns — senão o
   passado aparece em vermelho como se fosse atraso.
+- **Função não atravessa a fronteira servidor/cliente.** Uma função pura que
+  os dois lados usam vai para `lib/dominio/`; `lib/dados/` é `server-only` e o
+  que sai de lá são dados, nunca funções.
+- Filtro e visualização de tela de listagem moram na URL, não em estado: o
+  link precisa ser compartilhável e sobreviver à troca de visualização.
 - Permissão e menu saem de `src/lib/auth/permissions.ts`, e só de lá. Nunca
   escreva `if (role === "socio")` numa tela: acrescentar um módulo é
   acrescentar uma linha em `MENU`.
@@ -179,5 +184,6 @@ scripts/                      Verificação de conexão e gerador de protótipos
 | Sprint | Entrega |
 | --- | --- |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
+| Sprint 3 | Gestão de Tasks: tabelas `tasks` / `subtasks` / `task_referencias` / `task_comentarios` com RLS por `pode_editar_task()`, board com arrastar e soltar otimista, lista com edição inline e ações em massa, calendário mensal e semanal mostrando prazo de task e de subtarefa separados, editor rico TipTap no briefing, detalhe em duas colunas com comentários e referências em bucket privado, filtros na URL e atalhos N e /. |
 | Sprint 2 | Cadastro base: módulos Clientes e Equipe completos, criação de usuários por Route Handler com chave de serviço, convite de acesso ao portal, enum `team_funcao` com `is_atendimento()`, desligamento em duas etapas com transferência, exclusão de cliente em duas etapas bloqueada por vínculos, e Meu perfil com avatar no Storage. |
 | Sprint 1 | Estrutura do dashboard: `lib/auth/permissions.ts` como fonte única do menu e das permissões, menu lateral colapsável com seções e gaveta no celular, topbar com trilha, busca (casca), sino e menu do usuário, 15 rotas placeholder validando o perfil no servidor, cor de marca em variável CSS, 10 componentes compartilhados com vitrine em `/painel/dev/componentes`, e o casco do Portal do Cliente com navegação superior. Nenhuma tabela nova. |

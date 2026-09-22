@@ -116,11 +116,22 @@ select 'c0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-00000000
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000004')
 on conflict (client_id, user_id) do nothing;
 
+-- Um insert por pessoa, e nao um VALUES com varias linhas: no formato
+-- "insert ... select * from (values ...)" o Postgres nao consegue inferir que
+-- 'Atendimento' e do tipo team_funcao, e o insert falha assim que a migration
+-- 0003 transforma a coluna em enum. Assim o literal e convertido direto para o
+-- tipo da coluna, seja ele texto (antes da 0003) ou enum (depois).
 insert into public.team_members (user_id, cargo, area, funcao, data_admissao)
-select * from (values
-  ('a0000000-0000-0000-0000-000000000001'::uuid, 'Sócia-diretora',    'Direção',    'Atendimento',  date '2021-03-01'),
-  ('a0000000-0000-0000-0000-000000000002'::uuid, 'Desenvolvedor',     'Tecnologia', 'Dev',          date '2023-08-14'),
-  ('a0000000-0000-0000-0000-000000000003'::uuid, 'Analista de contas','Atendimento','Atendimento',  date '2024-02-05')
-) as v(user_id, cargo, area, funcao, data_admissao)
-where exists (select 1 from public.profiles p where p.id = v.user_id)
+select 'a0000000-0000-0000-0000-000000000001'::uuid, 'Sócia-diretora', 'Direção', 'Atendimento', date '2021-03-01'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (user_id) do nothing;
+
+insert into public.team_members (user_id, cargo, area, funcao, data_admissao)
+select 'a0000000-0000-0000-0000-000000000002'::uuid, 'Desenvolvedor', 'Tecnologia', 'Desenvolvimento', date '2023-08-14'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000002')
+on conflict (user_id) do nothing;
+
+insert into public.team_members (user_id, cargo, area, funcao, data_admissao)
+select 'a0000000-0000-0000-0000-000000000003'::uuid, 'Analista de contas', 'Atendimento', 'Atendimento', date '2024-02-05'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
 on conflict (user_id) do nothing;

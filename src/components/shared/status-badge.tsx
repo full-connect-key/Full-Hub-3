@@ -17,10 +17,15 @@ export type StatusConteudo =
   | "stand_by";
 
 /**
- * Status de task. Provisórios: o módulo de tasks é de um sprint futuro e pode
- * ajustar a lista. Mexer aqui é o bastante — nenhuma tela repete esses nomes.
+ * Status de task. Espelham o enum task_status do banco (migration 0004) --
+ * mudar um sem mudar o outro faz o selo aparecer cru na tela.
  */
-export type StatusTask = "aberta" | "em_andamento" | "em_revisao" | "concluida" | "cancelada";
+export type StatusTask =
+  | "aberta"
+  | "em_andamento"
+  | "aguardando_aprovacao"
+  | "concluida"
+  | "cancelada";
 
 export type Status = StatusConteudo | StatusTask;
 
@@ -48,7 +53,7 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // Task
   aberta: { label: "Aberta", tom: "neutro" },
   em_andamento: { label: "Em andamento", tom: "marca" },
-  em_revisao: { label: "Em revisão", tom: "info" },
+  aguardando_aprovacao: { label: "Aguardando aprovação", tom: "info" },
   concluida: { label: "Concluída", tom: "positivo" },
   cancelada: { label: "Cancelada", tom: "pausado" },
 };
@@ -99,7 +104,7 @@ export const STATUS_DE_CONTEUDO: StatusConteudo[] = [
 export const STATUS_DE_TASK: StatusTask[] = [
   "aberta",
   "em_andamento",
-  "em_revisao",
+  "aguardando_aprovacao",
   "concluida",
   "cancelada",
 ];

@@ -26,6 +26,15 @@ export type TeamFuncao =
   | "Gestao"
   | "Outro";
 
+export type TaskPrioridade = "baixa" | "normal" | "alta" | "urgente";
+
+export type TaskStatus =
+  | "aberta"
+  | "em_andamento"
+  | "aguardando_aprovacao"
+  | "concluida"
+  | "cancelada";
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
@@ -141,6 +150,137 @@ export interface Database {
         };
         Relationships: [];
       };
+      tasks: {
+        Row: {
+          id: string;
+          client_id: string | null;
+          titulo: string;
+          briefing_rico: Json | null;
+          briefing_texto: string | null;
+          prioridade: TaskPrioridade;
+          status: TaskStatus;
+          prazo: string | null;
+          estimativa_horas: number | null;
+          tempo_real_horas: number | null;
+          responsavel_id: string | null;
+          criado_por: string;
+          etapa_atual_id: string | null;
+          concluida_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id?: string | null;
+          titulo: string;
+          briefing_rico?: Json | null;
+          briefing_texto?: string | null;
+          prioridade?: TaskPrioridade;
+          status?: TaskStatus;
+          prazo?: string | null;
+          estimativa_horas?: number | null;
+          tempo_real_horas?: number | null;
+          responsavel_id?: string | null;
+          criado_por: string;
+          etapa_atual_id?: string | null;
+          concluida_em?: string | null;
+        };
+        Update: {
+          client_id?: string | null;
+          titulo?: string;
+          briefing_rico?: Json | null;
+          briefing_texto?: string | null;
+          prioridade?: TaskPrioridade;
+          status?: TaskStatus;
+          prazo?: string | null;
+          estimativa_horas?: number | null;
+          tempo_real_horas?: number | null;
+          responsavel_id?: string | null;
+          etapa_atual_id?: string | null;
+          concluida_em?: string | null;
+        };
+        Relationships: [];
+      };
+      subtasks: {
+        Row: {
+          id: string;
+          task_id: string;
+          titulo: string;
+          prazo: string | null;
+          responsavel_id: string | null;
+          estimativa_horas: number | null;
+          tempo_real_horas: number | null;
+          concluida: boolean;
+          concluida_em: string | null;
+          ordem: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          titulo: string;
+          prazo?: string | null;
+          responsavel_id?: string | null;
+          estimativa_horas?: number | null;
+          tempo_real_horas?: number | null;
+          concluida?: boolean;
+          concluida_em?: string | null;
+          ordem?: number;
+        };
+        Update: {
+          titulo?: string;
+          prazo?: string | null;
+          responsavel_id?: string | null;
+          estimativa_horas?: number | null;
+          tempo_real_horas?: number | null;
+          concluida?: boolean;
+          concluida_em?: string | null;
+          ordem?: number;
+        };
+        Relationships: [];
+      };
+      task_referencias: {
+        Row: {
+          id: string;
+          task_id: string;
+          tipo: "link" | "arquivo";
+          url: string;
+          titulo: string | null;
+          arquivo_nome: string | null;
+          adicionado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          tipo: "link" | "arquivo";
+          url: string;
+          titulo?: string | null;
+          arquivo_nome?: string | null;
+          adicionado_por?: string | null;
+        };
+        Update: { titulo?: string | null };
+        Relationships: [];
+      };
+      task_comentarios: {
+        Row: {
+          id: string;
+          task_id: string;
+          autor_id: string;
+          texto: string;
+          resposta_a: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          autor_id: string;
+          texto: string;
+          resposta_a?: string | null;
+        };
+        Update: { texto?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -149,9 +289,15 @@ export interface Database {
       is_socio: { Args: Record<string, never>; Returns: boolean };
       is_gestor: { Args: Record<string, never>; Returns: boolean };
       is_atendimento: { Args: Record<string, never>; Returns: boolean };
+      pode_editar_task: { Args: { p_task_id: string }; Returns: boolean };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
     };
-    Enums: { user_role: UserRole; team_funcao: TeamFuncao };
+    Enums: {
+      user_role: UserRole;
+      team_funcao: TeamFuncao;
+      task_prioridade: TaskPrioridade;
+      task_status: TaskStatus;
+    };
     CompositeTypes: Record<string, never>;
   };
 }
@@ -160,3 +306,7 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
+export type Task = Database["public"]["Tables"]["tasks"]["Row"];
+export type Subtask = Database["public"]["Tables"]["subtasks"]["Row"];
+export type TaskReferencia = Database["public"]["Tables"]["task_referencias"]["Row"];
+export type TaskComentario = Database["public"]["Tables"]["task_comentarios"]["Row"];

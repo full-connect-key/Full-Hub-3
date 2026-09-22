@@ -131,3 +131,49 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===========================================================================
+   Conteúdo vindo do editor rico (TipTap).
+
+   O projeto não usa o plugin de tipografia do Tailwind: são poucos elementos,
+   e escrevê-los aqui mantém o briefing com a mesma escala de texto do resto
+   da interface, em vez de uma escala própria de artigo.
+   =========================================================================== */
+.conteudo-rico {
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.conteudo-rico > * + * { margin-top: 0.75em; }
+.conteudo-rico h1 { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; }
+.conteudo-rico h2 { font-size: 1.125rem; font-weight: 600; }
+.conteudo-rico h3 { font-size: 1rem; font-weight: 600; }
+.conteudo-rico ul { list-style: disc; padding-left: 1.25rem; }
+.conteudo-rico ol { list-style: decimal; padding-left: 1.25rem; }
+.conteudo-rico li > * + * { margin-top: 0.35em; }
+.conteudo-rico blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.875rem;
+  color: var(--muted-foreground);
+}
+.conteudo-rico a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.conteudo-rico code {
+  background: var(--muted);
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85em;
+}
+.conteudo-rico hr { border-top: 1px solid var(--border); }
+
+/* Placeholder do editor vazio. */
+.conteudo-rico p.esta-vazio:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

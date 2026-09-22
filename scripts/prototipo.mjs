@@ -60,6 +60,14 @@ const TELAS = [
   { nome: "10g-desligamento", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
   { nome: "10h-meu-perfil", rota: "/painel/perfil", largura: 1440, altura: 1000, role: "socio" },
   { nome: "10i-equipe-desenvolvedor", rota: "/painel/equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
+
+  { nome: "20-tasks-board", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio" },
+  { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },
+  { nome: "22-tasks-lista", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio" },
+  { nome: "23-tasks-calendario", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1100, role: "socio" },
+  { nome: "24-tasks-nova", rota: "/painel/gestao-tasks", largura: 1400, altura: 1200, role: "socio", clicar: 'button:has-text("Nova task")' },
+  { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
+  { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -91,6 +99,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/clientes": ["./scripts/prototipo/clientes.ts"],
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
+  "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
