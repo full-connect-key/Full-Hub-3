@@ -78,7 +78,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
           {task.data_fim ? ` → ${format(parseISO(task.data_fim), "dd/MM/yy", { locale: ptBR })}` : ""}
           {" · "}
           {task.subtarefasConcluidas} de {task.subtarefasTotal} concluída
-          {task.subtarefasConcluidas === 1 ? "" : "s"}
+          {task.subtarefasTotal === 1 ? "" : "s"}
         </span>
 
         {!podeGerenciar ? (

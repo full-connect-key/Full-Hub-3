@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Trash2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 
@@ -114,7 +116,7 @@ export function LateralDaTask({
         <p className="text-sm">
           {task.subtarefasConcluidas} de {task.subtarefasTotal} subtarefa
           {task.subtarefasTotal === 1 ? "" : "s"} concluída
-          {task.subtarefasConcluidas === 1 ? "" : "s"}
+          {task.subtarefasTotal === 1 ? "" : "s"}
         </p>
       </div>
 
@@ -195,7 +197,9 @@ export function LateralDaTask({
               }}
             />
           ) : (
-            <p className="text-sm">{task.data_inicio.split("-").reverse().join("/")}</p>
+            <p className="text-sm">
+              {format(parseISO(task.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
+            </p>
           )}
         </div>
 
@@ -216,7 +220,9 @@ export function LateralDaTask({
             />
           ) : (
             <p className="text-sm">
-              {task.data_fim ? task.data_fim.split("-").reverse().join("/") : "—"}
+              {task.data_fim
+                ? format(parseISO(task.data_fim), "dd/MM/yyyy", { locale: ptBR })
+                : "—"}
             </p>
           )}
         </div>

@@ -626,6 +626,7 @@ ${telasHtml}
 
   var CLIENTE_EXEMPLO = "/painel/clientes/c0000000-0000-0000-0000-00000000000a";
   var PESSOA_EXEMPLO = "/painel/equipe/a0000000-0000-0000-0000-000000000003";
+  var TASK_EXEMPLO = "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111";
 
   var GATILHOS = [
     { rota: "/painel/equipe",      texto: "Adicionar colaborador",   dialogo: "colaborador-novo" },
@@ -640,7 +641,13 @@ ${telasHtml}
     { rota: "/painel/minhas-tasks", texto: "Nova task",              dialogo: "task-nova" },
     // Na lista o botao de concluir e so icone: casa pelo aria-label.
     { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" },
-    { rota: "/painel/minhas-tasks", aria: "Concluir",                dialogo: "concluir-com-tempo" }
+    { rota: "/painel/minhas-tasks", aria: "Concluir",                dialogo: "concluir-com-tempo" },
+    { rota: "/painel/minhas-tasks", texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
+    { rota: TASK_EXEMPLO,          texto: "Criar KV",                dialogo: "subtarefa-painel" },
+    { rota: "/painel/aprovacoes-internas", texto: "Solicitar ajustes", dialogo: "aprovacao-ajustes" },
+    { rota: "/painel/workflows",   texto: "Novo fluxo",              dialogo: "workflow-novo" },
+    { rota: "/painel/workflows",   texto: "Novo tipo",               dialogo: "tipo-novo" },
+    { rota: "/portal/aprovacoes",  texto: "Solicitar ajustes",       dialogo: "cliente-pedir-ajustes" }
   ];
 
   var camadaDeDialogo = document.createElement("div");
@@ -803,6 +810,29 @@ ${telasHtml}
 
   // --- o que cada confirmação faz -----------------------------------------
   var ACOES = {
+    "enviar-aprovacao": function () {
+      return { ok: "Enviada para aprovação — rodada 1. A gestão foi avisada." };
+    },
+    "aprovacao-ajustes": function () {
+      var motivo = textoDaArea();
+      if (!motivo) return { erro: "Diga o que precisa ser ajustado." };
+      return { ok: "Ajustes solicitados. O responsável foi avisado." };
+    },
+    "cliente-pedir-ajustes": function () {
+      var motivo = textoDaArea();
+      if (!motivo) return { erro: "Diga o que precisa mudar." };
+      return { ok: "Pedido de ajustes enviado." };
+    },
+    "workflow-novo": function () {
+      var nome = valorDe("#fluxo-nome");
+      if (nome.length < 2) return { erro: "Dê um nome ao fluxo." };
+      return { ok: "Fluxo salvo. As Tasks já criadas não mudam." };
+    },
+    "tipo-novo": function () {
+      var nome = valorDe("#tipo-nome");
+      if (nome.length < 2) return { erro: "Dê um nome ao tipo." };
+      return { ok: "Tipo criado." };
+    },
     "colaborador-novo": function () {
       var nome = valorDe("#colab-nome");
       var email = valorDe("#colab-email");
@@ -880,8 +910,17 @@ ${telasHtml}
   // transferir, e o desligamento só libera com o nome completo digitado.
   var TRAVAS = {
     "pessoa-desligar": function () { return !!escolhaDe("#destino-da-transferencia"); },
-    "pessoa-desligar-2": function () { return valorDe("#confirmacao-do-nome") === "Carla Nunes"; }
+    "pessoa-desligar-2": function () { return valorDe("#confirmacao-do-nome") === "Carla Nunes"; },
+    // Pedir ajustes sem dizer o que ajustar nao ajuda ninguem -- e o banco
+    // recusa a rodada sem comentario. A trava aqui reproduz a regra.
+    "aprovacao-ajustes": function () { return textoDaArea().length > 0; },
+    "cliente-pedir-ajustes": function () { return textoDaArea().length > 0; }
   };
+
+  function textoDaArea() {
+    var area = camadaDeDialogo.querySelector("textarea");
+    return area ? area.value.trim() : "";
+  }
 
   function atualizarTravas() {
     var trava = TRAVAS[dialogoAtual];
@@ -898,7 +937,10 @@ ${telasHtml}
   var CONFIRMACOES = [
     "Criar e enviar convite", "Cadastrar cliente", "Salvar alterações", "Desativar",
     "Reativar", "Enviar convite", "Continuar", "Criar task", "Desligar Carla Nunes",
-    "Concluir", "Pular"
+    "Concluir", "Pular",
+    // Sprint 3B
+    "Enviar", "Enviar ao cliente", "Solicitar ajustes", "Esta etapa não gera arquivo",
+    "Salvar fluxo", "Salvar", "Enviar pedido", "Aprovar"
   ];
 
   // --- cliques dentro da camada de diálogo ---------------------------------

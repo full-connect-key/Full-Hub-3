@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { GripVertical, Link2, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,7 +79,7 @@ export function Subtarefas({
         <span className="text-muted-foreground text-xs">
           {subtarefas.length === 0
             ? "nenhuma etapa"
-            : `${concluidas} de ${subtarefas.length} concluída${subtarefas.length > 1 ? "s" : ""}`}
+            : `${concluidas} de ${subtarefas.length} concluída${subtarefas.length === 1 ? "" : "s"}`}
         </span>
       </div>
 
@@ -145,7 +147,7 @@ export function Subtarefas({
                 {sub.prazo ? (
                   sub.status === "concluida" ? (
                     <span className="text-muted-foreground text-xs tabular-nums">
-                      {sub.prazo.split("-").reverse().join("/")}
+                      {format(parseISO(sub.prazo), "dd/MM/yy", { locale: ptBR })}
                     </span>
                   ) : (
                     <DateBadge date={sub.prazo} />

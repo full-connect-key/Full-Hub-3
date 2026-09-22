@@ -74,7 +74,8 @@ export function MinhaLista({
                   ? ` → ${format(parseISO(linha.dataFim), "dd/MM", { locale: ptBR })}`
                   : ""}
                 {" · "}
-                {linha.subtarefasConcluidas}/{linha.subtarefasTotal} concluídas
+                {linha.subtarefasConcluidas} de {linha.subtarefasTotal} concluída
+                {linha.subtarefasTotal === 1 ? "" : "s"}
                 {" · "}
                 {linha.minhasQuantas} minha{linha.minhasQuantas === 1 ? "" : "s"}
               </span>
