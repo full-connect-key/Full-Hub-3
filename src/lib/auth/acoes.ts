@@ -14,8 +14,19 @@ export type EstadoFormulario = { erro?: string; sucesso?: string };
  * O Supabase responde em ingles e, em alguns casos, de forma generica de
  * proposito (para nao revelar se um e-mail existe). Traduzimos mantendo essa
  * discricao.
+ *
+ * SEMPRE LOGA A MENSAGEM ORIGINAL. A regra do projeto é que nenhuma falha
+ * pode sumir em silêncio, e o login estava fora dela: quem via a tela recebia
+ * uma frase que não dizia nada e o motivo real não ficava em lugar nenhum.
+ * Agora ele está no `pm2 logs full-hub`, que é onde alguém vai procurar.
+ *
+ * As três últimas traduções são problemas de CONFIGURAÇÃO, não de quem está
+ * digitando. A diferença importa na tela: "tente novamente em instantes"
+ * manda a pessoa insistir num erro que nunca vai passar sozinho.
  */
-function traduzirErro(mensagem: string): string {
+function traduzirErro(mensagem: string, contexto: string): string {
+  console.error(`[auth:${contexto}] Supabase respondeu: ${mensagem}`);
+
   const m = mensagem.toLowerCase();
   if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
   if (m.includes("email not confirmed"))
@@ -28,7 +39,22 @@ function traduzirErro(mensagem: string): string {
     return "A nova senha precisa ser diferente da atual.";
   if (m.includes("fetch failed") || m.includes("network"))
     return "Não foi possível falar com o Supabase. Confira a conexão e as variáveis de ambiente.";
-  return "Não foi possível concluir. Tente novamente em instantes.";
+
+  // Login por e-mail desligado no projeto. Acontece ao desmarcar "Enable
+  // Email provider" querendo desmarcar "Enable Sign Ups" — são dois
+  // interruptores na mesma tela, e um deles mata o login de todo mundo.
+  if (m.includes("logins are disabled") || m.includes("provider is disabled"))
+    return "O login por e-mail está desligado no Supabase. Em Authentication → Sign In / Providers, religue o provedor Email — o que fecha o cadastro é “Enable Sign Ups”, não o provedor.";
+
+  // Chave anon errada, trocada ou revogada.
+  if (m.includes("invalid api key") || m.includes("invalid jwt"))
+    return "A chave do Supabase não foi aceita. Confira NEXT_PUBLIC_SUPABASE_ANON_KEY no servidor e reconstrua — o valor é embutido no build.";
+
+  // Schema de auth incompleto, ou a migration não rodou inteira.
+  if (m.includes("database error"))
+    return "O banco recusou a consulta de autenticação. Abra /status para o diagnóstico.";
+
+  return "Não foi possível entrar, e não foi por causa da senha. Isto é configuração: abra /status para o diagnóstico, ou veja o motivo exato no log do servidor.";
 }
 
 /**
@@ -70,7 +96,7 @@ export async function entrar(
   });
 
   if (error || !data.user) {
-    return { erro: error ? traduzirErro(error.message) : "E-mail ou senha incorretos." };
+    return { erro: error ? traduzirErro(error.message, "entrar") : "E-mail ou senha incorretos." };
   }
 
   const { data: profile } = await supabase
@@ -126,7 +152,7 @@ export async function enviarLinkDeRecuperacao(
     redirectTo: `${SITE_URL}/auth/callback?proximo=/redefinir-senha`,
   });
 
-  if (error) return { erro: traduzirErro(error.message) };
+  if (error) return { erro: traduzirErro(error.message, "recuperar-senha") };
 
   // Resposta identica havendo conta ou nao: nao entregamos a quem tenta
   // adivinhar a informacao de quais e-mails existem.
@@ -161,7 +187,7 @@ export async function definirNovaSenha(
   }
 
   const { error } = await supabase.auth.updateUser({ password: validacao.data.senha });
-  if (error) return { erro: traduzirErro(error.message) };
+  if (error) return { erro: traduzirErro(error.message, "definir-senha") };
 
   const { data: profile } = await supabase
     .from("profiles")
