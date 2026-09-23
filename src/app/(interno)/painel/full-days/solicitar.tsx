@@ -321,7 +321,7 @@ export function Solicitar({
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Minhas solicitações</h2>
+        <h2 className="text-sm font-semibold">Meus períodos</h2>
 
         {solicitacoes.length === 0 ? (
           <EmptyState

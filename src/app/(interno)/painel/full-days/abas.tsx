@@ -8,26 +8,32 @@ import { cn } from "@/lib/utils";
 
 export type Aba = "matriz" | "relatorio" | "solicitar" | "aprovacoes";
 
+/**
+ * As CHAVES continuam `solicitar` e `aprovacoes` porque estão na URL, e link
+ * antigo que quebra é pior que nome antigo em código. Os RÓTULOS mudaram: a
+ * equipe é PJ, e uma aba chamada "Aprovações" contradiria, na mesma tela, o
+ * "De acordo" / "Preciso remarcar" dos botões logo abaixo dela.
+ */
 const ROTULOS: Record<Aba, { label: string; icone: typeof Grid3x3 }> = {
   matriz: { label: "Matriz da Equipe", icone: Grid3x3 },
   relatorio: { label: "Relatório Gerencial", icone: ChartColumn },
-  solicitar: { label: "Solicitar", icone: CalendarRange },
-  aprovacoes: { label: "Aprovações", icone: BadgeCheck },
+  solicitar: { label: "Propor período", icone: CalendarRange },
+  aprovacoes: { label: "Pedidos da equipe", icone: BadgeCheck },
 };
 
 /**
  * As abas, na URL.
  *
- * Link e não estado: o sócio precisa poder mandar "olha a fila de aprovações"
- * por mensagem, e a notificação do sino aponta direto para
- * `?aba=aprovacoes`. Com estado interno, os dois links cairiam na aba padrão.
+ * Link e não estado: o sócio precisa poder mandar "olha a fila" por mensagem,
+ * e a notificação do sino aponta direto para `?aba=aprovacoes`. Com estado
+ * interno, os dois links cairiam na aba padrão.
  *
  * Trocar de aba troca a página no servidor, e é por isso que cada aba carrega
  * só a própria consulta — a matriz do mês inteiro não é buscada por quem abriu
  * para combinar um dia fora.
  *
- * Com uma aba só, a barra some: para o colaborador, que enxerga apenas
- * Solicitar, uma "navegação" de um item é moldura sem função.
+ * Com uma aba só, a barra some: para quem só propõe o próprio período, uma
+ * "navegação" de um item é moldura sem função.
  */
 export function AbasDoFullDays({ atual, visiveis }: { atual: Aba; visiveis: Aba[] }) {
   const pathname = usePathname();
