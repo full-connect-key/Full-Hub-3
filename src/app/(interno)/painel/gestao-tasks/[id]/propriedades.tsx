@@ -12,7 +12,6 @@ import {
   Clock,
   Flag,
   FolderOpen,
-  ShieldCheck,
   Users,
   Workflow,
 } from "lucide-react";
@@ -31,13 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import {
-  EXIGENCIAS_DE_APROVACAO,
-  EXPLICACAO_DA_EXIGENCIA,
-  PRIORIDADES,
-  ROTULOS_DE_EXIGENCIA,
-  ROTULOS_DE_PRIORIDADE,
-} from "@/lib/dominio/tasks";
+import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
@@ -215,34 +208,6 @@ export function PropriedadesDaTask({
           ) : (
             <p className="text-sm">{task.tipo?.nome ?? "—"}</p>
           )}
-        </Campo>
-
-        {/* A regra que decide se o "entregue" vai ser aceito. Fica junto do
-            resto de propósito: descobrir isso só na hora de encerrar é
-            descobrir tarde. */}
-        <Campo icone={ShieldCheck} rotulo="Exigência">
-          {podeEditar ? (
-            <Select
-              value={task.exigencia_aprovacao}
-              onValueChange={(valor) => salvar({ exigencia_aprovacao: valor })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EXIGENCIAS_DE_APROVACAO.map((e) => (
-                  <SelectItem key={e} value={e}>
-                    {ROTULOS_DE_EXIGENCIA[e]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <p className="text-sm">{ROTULOS_DE_EXIGENCIA[task.exigencia_aprovacao]}</p>
-          )}
-          <p className="text-text-muted text-xs">
-            {EXPLICACAO_DA_EXIGENCIA[task.exigencia_aprovacao]}
-          </p>
         </Campo>
 
         {/* Um só, e separado das referências: o que alguém procura semanas

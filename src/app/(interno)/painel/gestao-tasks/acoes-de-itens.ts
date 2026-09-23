@@ -57,6 +57,9 @@ function minutosOuNulo(valor: unknown): number | null {
 // --- subtarefas -------------------------------------------------------------
 
 const esquemaDeSubtarefa = z.object({
+  /** A etapa de cima, quando esta é uma sub-etapa (migration 0022). Só na
+   *  criação: mudar de mãe é arrastar, e ainda não existe essa tela. */
+  parent_id: z.string().uuid().nullable().optional(),
   titulo: z.string().min(1).optional(),
   descricao_rica: z.unknown().optional(),
   descricao_texto: z.string().nullable().optional(),
@@ -91,10 +94,14 @@ export async function criarSubtarefa(
 
     const supabase = await criarClienteServidor();
 
-    const { data: ultima } = await supabase
-      .from("subtasks")
-      .select("ordem")
-      .eq("task_id", taskId)
+    // A ordem é contada DENTRO da etapa de cima quando há uma: a sub-etapa é
+    // a primeira da mãe dela, não a oitava da demanda. Contar sobre a task
+    // inteira faria a lista de cada mãe começar num número qualquer.
+    const consultaDaOrdem = supabase.from("subtasks").select("ordem").eq("task_id", taskId);
+    const { data: ultima } = await (entrada.parent_id
+      ? consultaDaOrdem.eq("parent_id", entrada.parent_id)
+      : consultaDaOrdem.is("parent_id", null)
+    )
       .order("ordem", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -103,6 +110,7 @@ export async function criarSubtarefa(
       .from("subtasks")
       .insert({
         task_id: taskId,
+        parent_id: entrada.parent_id || null,
         titulo: entrada.titulo.trim(),
         prazo: vazioParaNulo(entrada.prazo),
         responsavel_id: entrada.responsavel_id || null,

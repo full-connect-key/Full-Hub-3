@@ -9,7 +9,13 @@ import {
   type SubtarefaDetalhada,
   type TaskDaLista,
 } from "./tasks";
-import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "@/lib/dominio/tasks";
+import {
+  agrupadoras,
+  combinaComFoco,
+  folhas,
+  situacaoDoPrazo,
+  type FocoDoDia,
+} from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ApprovalRound, Subtask, Task } from "@/lib/supabase/database.types";
@@ -68,19 +74,27 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
     .select("*")
     .eq("responsavel_id", userId);
 
-  const subtarefas = (minhasSubs ?? []) as Subtask[];
-  if (subtarefas.length === 0) return [];
+  const candidatas = (minhasSubs ?? []) as Subtask[];
+  if (candidatas.length === 0) return [];
 
-  const idsDeTasks = [...new Set(subtarefas.map((s) => s.task_id))];
+  const idsDeTasks = [...new Set(candidatas.map((s) => s.task_id))];
 
   const [{ data: tasks }, { data: todasAsSubs }] = await Promise.all([
     supabase.from("tasks").select("*").in("id", idsDeTasks),
     supabase
       .from("subtasks")
-      .select("id, task_id, titulo, status, responsavel_id, ordem")
+      .select("id, task_id, parent_id, titulo, status, responsavel_id, ordem")
       .in("task_id", idsDeTasks)
       .order("ordem"),
   ]);
+
+  // O MEU TRABALHO SÃO AS FOLHAS. Uma etapa minha que ganhou sub-etapas deixou
+  // de ser trabalho meu: quem executa são as filhas, e cada uma tem o próprio
+  // dono. Ela sair daqui é o que faz o contador bater com a lista — a
+  // agrupadora não tem prazo nem tempo próprios para contar.
+  const ehAgrupadora = agrupadoras(todasAsSubs ?? []);
+  const subtarefas = candidatas.filter((s) => !ehAgrupadora.has(s.id));
+  if (subtarefas.length === 0) return [];
 
   const [{ data: rodadas }, { data: dependencias }] = await Promise.all([
     supabase
@@ -100,7 +114,10 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
       ),
   ]);
 
-  const outras = (todasAsSubs ?? []).filter((s) => s.responsavel_id !== userId);
+  // As dos outros, como contexto — também só as folhas: ver "Arte" em cinza
+  // ao lado de "Conceito" e "Layout", que são o que ela agrupa, é ver a mesma
+  // coisa três vezes.
+  const outras = folhas(todasAsSubs ?? []).filter((s) => s.responsavel_id !== userId);
   const idsDePessoas = [...new Set(outras.map((s) => s.responsavel_id).filter(Boolean))] as string[];
 
   const { data: pessoas } = idsDePessoas.length
@@ -144,7 +161,9 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
     minhasPorTask.set(sub.task_id, [...(minhasPorTask.get(sub.task_id) ?? []), detalhada]);
   }
 
-  return enriquecidas.map((task) => ({
+  return enriquecidas
+    .filter((task) => (minhasPorTask.get(task.id) ?? []).length > 0)
+    .map((task) => ({
     ...task,
     minhasSubtarefas: (minhasPorTask.get(task.id) ?? []).sort((a, b) => a.ordem - b.ordem),
     outrasSubtarefas: outras
@@ -155,7 +174,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
         status: s.status,
         responsavel: s.responsavel_id ? (porPessoa.get(s.responsavel_id) ?? null) : null,
       })),
-  }));
+    }));
 }
 
 /**

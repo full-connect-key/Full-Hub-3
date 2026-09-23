@@ -1,5 +1,4 @@
 import type {
-  ExigenciaAprovacao,
   SubtaskStatus,
   TaskPrioridade,
   TaskStatus,
@@ -63,37 +62,6 @@ export const ROTULOS_DE_STATUS: Record<TaskStatus, string> = {
   entregue: "Entregue",
   concluido: "Concluído",
   cancelada: "Cancelada",
-};
-
-/**
- * O que a demanda inteira exige antes de ser dada por entregue.
- *
- * TRÊS OPÇÕES, NÃO QUATRO. "Cliente" já passa pela interna — é a regra "toda
- * aprovação abre primeiro uma rodada interna, mesmo quando o tipo é cliente".
- * Uma quarta opção "dupla" seria um segundo botão com exatamente o mesmo
- * efeito do terceiro, e é assim que nascem duas verdades sobre a mesma coisa.
- *
- * Quem recusa o encerramento sem a aprovação é o trigger
- * `tasks_exige_aprovacao_para_entregue` (migration 0014). Isto aqui é o
- * vocabulário que a tela lê.
- */
-export const EXIGENCIAS_DE_APROVACAO: ExigenciaAprovacao[] = ["nenhuma", "interna", "cliente"];
-
-export const ROTULOS_DE_EXIGENCIA: Record<ExigenciaAprovacao, string> = {
-  nenhuma: "Sem aprovação",
-  interna: "Interna",
-  cliente: "Do cliente",
-};
-
-/** O que cada escolha significa, por extenso. Vai embaixo dos botões: sem
- *  isso, "Interna" e "Do cliente" parecem alternativas quando uma contém a
- *  outra. */
-export const EXPLICACAO_DA_EXIGENCIA: Record<ExigenciaAprovacao, string> = {
-  nenhuma: "A demanda encerra quando o Atendimento disser que encerrou. Serve para o que não passa por validação — subida de mídia, relatório interno.",
-  interna:
-    "A gestão precisa ter aprovado alguma etapa desta demanda antes de ela virar “entregue”. O cliente não é consultado.",
-  cliente:
-    "O cliente precisa ter aprovado. E isso já inclui a validação interna: nenhuma peça vai ao cliente sem alguém da casa ter olhado antes.",
 };
 
 export const PRIORIDADES: TaskPrioridade[] = ["baixa", "normal", "alta", "urgente"];
@@ -239,4 +207,71 @@ export const COR_DA_SITUACAO: Record<Exclude<SituacaoDePrazo, "futura">, string>
 
 export function corDoPrazo(situacao: SituacaoDePrazo, prioridade: TaskPrioridade): string {
   return situacao === "futura" ? COR_DA_PRIORIDADE[prioridade] : COR_DA_SITUACAO[situacao];
+}
+
+// ---------------------------------------------------------------------------
+// Os três níveis: demanda → etapa → sub-etapa (migration 0022)
+// ---------------------------------------------------------------------------
+
+/** O mínimo que estas funções precisam saber de uma subtarefa. */
+type ComPai = { id: string; parent_id: string | null };
+
+/**
+ * Quais etapas têm sub-etapa dentro.
+ *
+ * **QUEM TEM FILHA É AGRUPADORA**, e agrupadora não é unidade de trabalho — é
+ * a mesma regra que a Task já seguia, um nível abaixo. Ela não mede tempo, não
+ * tem status próprio, não exige aval e **não entra em nenhuma soma**: quem
+ * soma é a folha.
+ *
+ * Existe aqui, em `lib/dominio/`, porque os dois lados perguntam a mesma
+ * coisa — a tela para decidir o que desenhar, o servidor para decidir o que
+ * contar. No Postgres o par é `subtask_eh_agrupadora()`, como
+ * `situacaoDoLancamento()` no Financeiro.
+ */
+export function agrupadoras(subtarefas: ComPai[]): Set<string> {
+  const comFilha = new Set<string>();
+  for (const sub of subtarefas) {
+    if (sub.parent_id) comFilha.add(sub.parent_id);
+  }
+  return comFilha;
+}
+
+/**
+ * Só as folhas — o que de fato é trabalho.
+ *
+ * É o filtro que impede a contagem dobrada: sem ele, uma demanda com "Arte" e
+ * três sub-etapas contaria quatro etapas, somaria o tempo da mãe mais o das
+ * filhas, e "3 de 4 concluídas" ficaria parada para sempre esperando a mãe —
+ * que só conclui depois das três.
+ */
+export function folhas<T extends ComPai>(subtarefas: T[]): T[] {
+  const mae = agrupadoras(subtarefas);
+  return subtarefas.filter((sub) => !mae.has(sub.id));
+}
+
+/** Uma etapa de primeiro nível com as sub-etapas dela, na ordem. */
+export type EtapaComFilhas<T> = { etapa: T; filhas: T[] };
+
+/**
+ * A lista plana vira a árvore que a tela desenha.
+ *
+ * Sub-etapa órfã — cuja mãe não veio na consulta — sobe para o primeiro
+ * nível em vez de sumir. Some seria pior: a etapa existe, tem responsável e
+ * prazo, e desaparecer da tela é o jeito mais silencioso de perder trabalho.
+ */
+export function emArvore<T extends ComPai & { ordem: number }>(
+  subtarefas: T[],
+): EtapaComFilhas<T>[] {
+  const existe = new Set(subtarefas.map((s) => s.id));
+  const porOrdem = (a: T, b: T) => a.ordem - b.ordem;
+
+  const raizes = subtarefas
+    .filter((s) => !s.parent_id || !existe.has(s.parent_id))
+    .sort(porOrdem);
+
+  return raizes.map((etapa) => ({
+    etapa,
+    filhas: subtarefas.filter((s) => s.parent_id === etapa.id).sort(porOrdem),
+  }));
 }

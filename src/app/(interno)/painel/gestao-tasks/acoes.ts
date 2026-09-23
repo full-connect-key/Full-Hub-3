@@ -70,6 +70,10 @@ function minutosOuNulo(valor: unknown): number | null {
 
 const esquemaDeSubtarefa = z.object({
   titulo: z.string().min(1, "A subtarefa precisa de um título."),
+  /** A etapa de cima, quando esta é uma sub-etapa. Quem recusa o neto é o
+   *  trigger `subtasks_agrupadora` (migration 0022) — aqui o campo só existe
+   *  para a ação poder passá-lo adiante. */
+  parent_id: z.string().uuid().optional().nullable(),
   prazo: z.string().optional().nullable(),
   responsavel_id: z.string().uuid().optional().nullable(),
   prioridade: prioridade.default("normal"),
@@ -97,7 +101,6 @@ const esquemaDeTask = z.object({
   data_inicio: z.string().min(1, "Informe a data de início."),
   data_fim: z.string().optional().nullable(),
   prioridade: prioridade.default("normal"),
-  exigencia_aprovacao: z.enum(["nenhuma", "interna", "cliente"]).default("nenhuma"),
   // O mesmo formato que o check `tasks_link_entrega_http` cobra no banco. Os
   // dois existem de propósito: aqui sai a mensagem que a pessoa lê, lá é o que
   // vale para quem chamar a API direto.
@@ -131,7 +134,6 @@ const ROTULOS_DA_TASK = {
   data_inicio: "data de início",
   data_fim: "data de encerramento",
   prioridade: "prioridade",
-  exigencia_aprovacao: "exigência de aprovação",
   link_entrega: "pasta de entrega",
   briefing_texto: "briefing",
   subtarefas: "subtarefa",
@@ -178,7 +180,6 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
         data_inicio: entrada.data_inicio,
         data_fim: vazioParaNulo(entrada.data_fim),
         prioridade: entrada.prioridade,
-        exigencia_aprovacao: entrada.exigencia_aprovacao,
         link_entrega: entrada.link_entrega,
         criado_por: sessao.usuarioId,
       })
@@ -280,7 +281,6 @@ const esquemaDeEdicao = z.object({
   data_fim: z.string().nullable().optional(),
   prioridade: prioridade.optional(),
   status: statusDeTask.optional(),
-  exigencia_aprovacao: z.enum(["nenhuma", "interna", "cliente"]).optional(),
   // Na edição dá para TROCAR, nunca para esvaziar: apagar o endereço deixa o
   // material sem paradeiro conhecido, e é uma perda que só aparece quando
   // alguém vai procurar. Quem recusa de verdade é o trigger da 0015.
@@ -321,8 +321,6 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
     if (entrada.data_inicio !== undefined) mudancas.data_inicio = entrada.data_inicio;
     if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
-    if (entrada.exigencia_aprovacao !== undefined)
-      mudancas.exigencia_aprovacao = entrada.exigencia_aprovacao;
     if (entrada.link_entrega !== undefined) mudancas.link_entrega = entrada.link_entrega;
 
     const supabase = await criarClienteServidor();

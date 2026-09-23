@@ -88,6 +88,8 @@ const BRIEFING_RICO = {
 type Semente = {
   id: string;
   task_id: string;
+  /** A etapa de cima, quando esta é uma sub-etapa. */
+  parent_id?: string;
   titulo: string;
   ordem: number;
   prazo: string | null;
@@ -275,6 +277,7 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
   return {
     id: semente.id,
     task_id: semente.task_id,
+    parent_id: semente.parent_id ?? null,
     titulo: semente.titulo,
     descricao_rica: null,
     descricao_texto: null,
@@ -337,7 +340,6 @@ const BASE = {
   // A exigencia de aprovacao e o link de entrega vem do Sprint 9. O padrao e
   // "nenhuma", que e o mesmo do banco: demanda que nao exige aval encerra
   // quando o Atendimento disser.
-  exigencia_aprovacao: "nenhuma" as const,
   link_entrega: null,
   task_type_id: null,
   workflow_snapshot: null,

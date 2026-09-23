@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { folhas } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
@@ -71,6 +72,7 @@ type LinhaDeSubtarefa = Pick<
   Subtask,
   | "id"
   | "task_id"
+  | "parent_id"
   | "titulo"
   | "prazo"
   | "responsavel_id"
@@ -98,12 +100,19 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     supabase
       .from("subtasks")
       .select(
-        "id, task_id, titulo, prazo, responsavel_id, status, estimativa_minutos, tempo_real_minutos",
+        "id, task_id, parent_id, titulo, prazo, responsavel_id, status, estimativa_minutos, tempo_real_minutos",
       )
       .in("task_id", ids),
   ]);
 
-  const linhas = (subtarefas ?? []) as LinhaDeSubtarefa[];
+  // SÓ AS FOLHAS ENTRAM NA CONTA. Uma etapa que virou agrupadora deixou de
+  // ser unidade de trabalho: o tempo dela é o das filhas, e contá-la junto
+  // somaria o mesmo trabalho duas vezes — no total de etapas, no tempo e no
+  // "x de y concluídas", que nunca fecharia.
+  //
+  // As linhas das agrupadoras ainda são lidas de propósito: `folhas()`
+  // precisa da lista inteira para saber quem tem filha.
+  const linhas = folhas((subtarefas ?? []) as LinhaDeSubtarefa[]);
 
   // Quais subtarefas têm rodada esperando decisão. É o que o board precisa
   // saber para recusar um arrasto com o motivo certo.
@@ -428,17 +437,24 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
 
   const supabase = await criarClienteServidor();
 
-  const { data: subtarefas } = await supabase
+  // Sem o filtro de prazo na consulta, de propósito: para saber quem é
+  // agrupadora é preciso ver as filhas, e filha sem prazo não voltaria. O
+  // filtro entra depois, em `comPrazo`.
+  const { data: todas } = await supabase
     .from("subtasks")
     .select("*")
     .in(
       "task_id",
       tasks.map((t) => t.id),
-    )
-    .not("prazo", "is", null);
+    );
+
+  // A agrupadora fica FORA do calendário. O prazo dela, quando existe, é o que
+  // sobrou de quando ela era folha — mostrar os dois poria a mesma entrega
+  // duas vezes no mesmo mês, uma delas com uma data que ninguém mais usa.
+  const subtarefas = folhas(todas ?? []).filter((s) => s.prazo !== null);
 
   const idsDePessoas = [
-    ...new Set((subtarefas ?? []).map((s) => s.responsavel_id).filter(Boolean)),
+    ...new Set(subtarefas.map((s) => s.responsavel_id).filter(Boolean)),
   ] as string[];
 
   const { data: pessoas } = idsDePessoas.length

@@ -32,13 +32,11 @@ import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import type {
-  ExigenciaAprovacao,
   TaskPrioridade,
   TeamFuncao,
 } from "@/lib/supabase/database.types";
 
 import { criarTask, sugerirEtapasDoTipo } from "./acoes";
-import { EscolhaDaExigencia } from "./escolha-da-exigencia";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
@@ -107,7 +105,6 @@ export function FormularioDeTask({
   const [dataInicio, setDataInicio] = useState(HOJE);
   const [dataFim, setDataFim] = useState("");
   const [prioridade, setPrioridade] = useState<TaskPrioridade>("normal");
-  const [exigencia, setExigencia] = useState<ExigenciaAprovacao>("nenhuma");
   const [linkEntrega, setLinkEntrega] = useState("");
   const [briefing, setBriefing] = useState<{ json: JSONContent; texto: string } | null>(null);
   const [subtarefas, setSubtarefas] = useState<SubtarefaNova[]>([]);
@@ -129,7 +126,6 @@ export function FormularioDeTask({
     setDataInicio(HOJE());
     setDataFim("");
     setPrioridade("normal");
-    setExigencia("nenhuma");
     setLinkEntrega("");
     setBriefing(null);
     setSubtarefas([]);
@@ -301,22 +297,11 @@ export function FormularioDeTask({
       return;
     }
 
-    // A exigência é uma promessa que alguém vai ter que cumprir. Se nenhuma
-    // etapa pede a aprovação que a demanda exige, o banco recusa o "entregue"
-    // lá na frente — e quem descobre é quem for encerrar, semanas depois. O
-    // aviso é aqui, e não bloqueia: dá para montar as etapas depois.
-    const etapasValidas = subtarefas.filter((sub) => sub.titulo.trim().length > 0);
-    if (
-      exigencia !== "nenhuma" &&
-      etapasValidas.length > 0 &&
-      !etapasValidas.some((sub) => sub.aprovacao === exigencia)
-    ) {
-      toast.warning(
-        exigencia === "cliente"
-          ? "Esta demanda exige aprovação do cliente, mas nenhuma etapa pede essa aprovação. Dá para ajustar depois — só não vai dar para encerrar sem isso."
-          : "Esta demanda exige aprovação interna, mas nenhuma etapa pede essa aprovação. Dá para ajustar depois — só não vai dar para encerrar sem isso.",
-      );
-    }
+    // A exigência de aprovação é de CADA ETAPA desde a 0023 — a demanda
+    // inteira não tem mais uma. Quem exige aval segura o "entregue" dela
+    // própria, então não há mais como abrir uma demanda com uma promessa que
+    // nenhuma etapa vai cumprir: o aviso que ficava aqui deixou de existir
+    // junto com a pergunta que o produzia.
     setSalvando(true);
     try {
       const validas = subtarefas.filter((sub) => sub.titulo.trim().length > 0);
@@ -330,7 +315,6 @@ export function FormularioDeTask({
         data_inicio: dataInicio,
         data_fim: dataFim || null,
         prioridade,
-        exigencia_aprovacao: exigencia,
         link_entrega: linkEntrega.trim() || null,
         briefing_rico: briefing?.json ?? null,
         briefing_texto: briefing?.texto ?? null,
@@ -493,20 +477,10 @@ export function FormularioDeTask({
           </SecaoDoFormulario>
 
           {/* ----------------------------------------------------------------
-              3. O que a demanda inteira precisa antes de sair.
+              3. O atalho: um workflow traz as etapas prontas.
              ---------------------------------------------------------------- */}
           <SecaoDoFormulario
             numero={3}
-            titulo="Exigência de aprovação da demanda"
-          >
-            <EscolhaDaExigencia valor={exigencia} aoMudar={setExigencia} />
-          </SecaoDoFormulario>
-
-          {/* ----------------------------------------------------------------
-              4. O atalho: um workflow traz as etapas prontas.
-             ---------------------------------------------------------------- */}
-          <SecaoDoFormulario
-            numero={4}
             titulo="Workflow (opcional)"
           >
             <Select value={tipo} onValueChange={aplicarTipo} disabled={aplicando}>
@@ -526,10 +500,10 @@ export function FormularioDeTask({
           </SecaoDoFormulario>
 
           {/* ----------------------------------------------------------------
-              5. A unidade de trabalho de verdade.
+              4. A unidade de trabalho de verdade.
              ---------------------------------------------------------------- */}
           <SecaoDoFormulario
-            numero={5}
+            numero={4}
             titulo="Subtarefas e entregas"
             acao={
               <Button type="button" variant="outline" size="sm" onClick={adicionarSubtarefa}>
@@ -691,14 +665,14 @@ export function FormularioDeTask({
           </SecaoDoFormulario>
 
           {/* ----------------------------------------------------------------
-              6. Onde o material vive.
+              5. Onde o material vive.
 
               O link de ENTREGA é um só, e é separado das referências: o que
               alguém procura semanas depois é a pasta do material final, e
               achá-la no meio de oito links de apoio é o mesmo que não tê-la.
              ---------------------------------------------------------------- */}
           <SecaoDoFormulario
-            numero={6}
+            numero={5}
             titulo="Materiais e links"
           >
             <div className="space-y-4">

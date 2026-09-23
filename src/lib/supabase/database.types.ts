@@ -67,11 +67,6 @@ export type TipoAprovacao = "interna" | "cliente";
 
 export type EscopoRodada = "interna" | "cliente";
 
-/** O que a DEMANDA inteira exige para ser dada por entregue — outra pergunta
- *  que a da subtarefa. `cliente` inclui a interna, porque toda rodada de
- *  cliente nasce depois de uma interna aprovada. */
-export type ExigenciaAprovacao = "nenhuma" | "interna" | "cliente";
-
 /** O que o material É. O ícone e o jeito de abrir saem daqui. */
 export type MaterialTipo =
   | "video"
@@ -788,7 +783,6 @@ export interface Database {
           data_fim: string | null;
           task_type_id: string | null;
           workflow_snapshot: Json | null;
-          exigencia_aprovacao: ExigenciaAprovacao;
           link_entrega: string | null;
           criado_por: string;
           concluida_em: string | null;
@@ -808,7 +802,6 @@ export interface Database {
           data_fim?: string | null;
           task_type_id?: string | null;
           workflow_snapshot?: Json | null;
-          exigencia_aprovacao?: ExigenciaAprovacao;
           link_entrega?: string | null;
           criado_por: string;
         };
@@ -824,7 +817,6 @@ export interface Database {
           data_fim?: string | null;
           task_type_id?: string | null;
           workflow_snapshot?: Json | null;
-          exigencia_aprovacao?: ExigenciaAprovacao;
           link_entrega?: string | null;
         };
         Relationships: [];
@@ -833,6 +825,9 @@ export interface Database {
         Row: {
           id: string;
           task_id: string;
+          // A etapa de cima (migration 0022). Null = etapa da Task; preenchido
+          // = sub-etapa. Nunca um terceiro nível: o trigger recusa o neto.
+          parent_id: string | null;
           titulo: string;
           descricao_rica: Json | null;
           descricao_texto: string | null;
@@ -858,6 +853,7 @@ export interface Database {
         Insert: {
           id?: string;
           task_id: string;
+          parent_id?: string | null;
           titulo: string;
           descricao_rica?: Json | null;
           descricao_texto?: string | null;
@@ -872,6 +868,7 @@ export interface Database {
           ordem?: number;
         };
         Update: {
+          parent_id?: string | null;
           titulo?: string;
           descricao_rica?: Json | null;
           descricao_texto?: string | null;
@@ -1188,7 +1185,6 @@ export interface Database {
       subtask_status: SubtaskStatus;
       tipo_aprovacao: TipoAprovacao;
       escopo_rodada: EscopoRodada;
-      exigencia_aprovacao: ExigenciaAprovacao;
       material_tipo: MaterialTipo;
       rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
