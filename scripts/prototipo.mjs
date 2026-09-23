@@ -347,11 +347,40 @@ try {
   log("compilando...");
   await executar("npx", ["next", "build"], { cwd: COPIA });
 
-  await rm(SAIDA, { recursive: true, force: true });
+  // Com filtro, a pasta e preservada: apagar levaria junto as telas que nao
+  // foram pedidas, e o filtro existe justamente para nao regerar aquelas.
+  if (!process.env.PROTOTIPO_SO) {
+    await rm(SAIDA, { recursive: true, force: true });
+  }
   let navegador = await abrirNavegador(chromium);
 
+  // PROTOTIPO_SO=45,64 regera so as telas cujo nome contem um desses pedacos.
+  //
+  // Existe porque um seletor que morreu custa uma rodada inteira para ser
+  // reconferido: dez minutos para ver duas imagens. Sem o filtro, a saida
+  // barata e nao reconferir -- e foi assim que um seletor obsoleto sobreviveu
+  // um sprint.
+  //
+  // A SAIDA NAO E APAGADA quando o filtro esta ligado: o `rm` de
+  // `prototipos/` levaria junto as oitenta e poucas que nao foram pedidas.
+  const filtro = (process.env.PROTOTIPO_SO ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const TELAS_A_TIRAR = filtro.length
+    ? TELAS.filter((t) => filtro.some((p) => t.nome.includes(p)))
+    : TELAS;
+
+  if (filtro.length) {
+    if (TELAS_A_TIRAR.length === 0) {
+      throw new Error(`PROTOTIPO_SO=${filtro.join(",")} nao casou com nenhuma tela.`);
+    }
+    log(`so ${TELAS_A_TIRAR.length} tela(s): ${TELAS_A_TIRAR.map((t) => t.nome).join(", ")}`);
+  }
+
   // Agrupa por perfil para reiniciar o servidor o mínimo possível.
-  const perfis = [...new Set(TELAS.map((tela) => tela.role ?? "socio"))];
+  const perfis = [...new Set(TELAS_A_TIRAR.map((tela) => tela.role ?? "socio"))];
 
   // Telas que nao sairam. A rodada segue mesmo assim -- e o resumo no fim diz
   // quais faltaram, para ninguem achar que `prototipos/` esta completo.
@@ -367,7 +396,7 @@ try {
     servidor = subirServidor(perfil);
     await esperarNoAr(`http://localhost:${PORTA}/login`, 60, servidor);
 
-    for (const tela of TELAS.filter((t) => (t.role ?? "socio") === perfil)) {
+    for (const tela of TELAS_A_TIRAR.filter((t) => (t.role ?? "socio") === perfil)) {
       // Uma tela que estoura NAO derruba a rodada inteira, pela mesma razao
       // que um seletor que nao casa nao derruba: a rodada leva dez minutos, e
       // perde-la na tela 78 de 90 joga fora as 77 que ja tinham saido. O que
