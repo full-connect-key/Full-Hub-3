@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -85,6 +85,10 @@ export function Solicitar({
   const [de, setDe] = useState<string | null>(null);
   const [ate, setAte] = useState<string | null>(null);
   const [arrastando, setArrastando] = useState(false);
+  // O intervalo começou e ainda espera a ponta final — ou pelo segundo
+  // clique, ou por soltar o botão depois de arrastar.
+  const [aberta, setAberta] = useState(false);
+  const arrastou = useRef(false);
   const [tipo, setTipo] = useState<HrTipo>("ferias");
   const [motivo, setMotivo] = useState("");
 
@@ -125,6 +129,35 @@ export function Solicitar({
     router.push(`?${destino.toString()}`);
   }
 
+  /**
+   * SOLTAR O PONTEIRO ENCERRA O ARRASTO, e o ouvinte é da JANELA porque a
+   * pessoa solta onde quiser — fora da grade, fora da página.
+   *
+   * Sem ele, `arrastando` continuava verdadeiro depois de o botão subir: o
+   * simples passar do mouse seguia mexendo na seleção, e o clique seguinte
+   * — que deveria fechar o intervalo — encontrava `ate` já preenchido e
+   * caía no ramo que recomeça do zero. O efeito na tela era o relatado:
+   * clicar nos dias e a seleção nunca fechar.
+   *
+   * Quem soltou SEM ter arrastado deu um clique, e o intervalo continua
+   * aberto esperando o segundo — é por aí que passa quem usa toque, onde
+   * `pointerenter` não chega a disparar nos dias vizinhos.
+   */
+  useEffect(() => {
+    if (!arrastando) return;
+    function soltou() {
+      setArrastando(false);
+      if (arrastou.current) setAberta(false);
+      arrastou.current = false;
+    }
+    window.addEventListener("pointerup", soltou);
+    window.addEventListener("pointercancel", soltou);
+    return () => {
+      window.removeEventListener("pointerup", soltou);
+      window.removeEventListener("pointercancel", soltou);
+    };
+  }, [arrastando]);
+
   function clicar(dia: string) {
     // O dia em si. A recusa DIZ POR QUE: um clique que não faz nada e não
     // explica manda a pessoa clicar de novo, mais forte, e desistir.
@@ -134,23 +167,28 @@ export function Solicitar({
       return;
     }
 
-    if (!de || (de && ate)) {
-      setDe(dia);
-      setAte(null);
-      setArrastando(true);
-      return;
-    }
-
     // O segundo clique fecha o intervalo, e é aqui que o período pode
     // atravessar um bloqueio sem que nenhuma das pontas esteja bloqueada.
-    const noIntervalo = recusaDoIntervalo(de, dia);
-    if (noIntervalo) {
-      toast.error(noIntervalo);
+    if (aberta && de) {
+      const noIntervalo = recusaDoIntervalo(de, dia);
+      if (noIntervalo) {
+        toast.error(noIntervalo);
+        return;
+      }
+      setAte(dia);
+      setAberta(false);
+      setArrastando(false);
       return;
     }
 
+    // O primeiro clique ancora — e já vale como um dia só, em vez de deixar
+    // a seleção sem ponta final até a pessoa descobrir que falta clicar de
+    // novo.
+    setDe(dia);
     setAte(dia);
-    setArrastando(false);
+    setAberta(true);
+    setArrastando(true);
+    arrastou.current = false;
   }
 
   function passarPor(dia: string) {
@@ -160,12 +198,14 @@ export function Solicitar({
     // antes de a pessoa soltar o botão — quem larga em cima do dia bloqueado
     // recebe a explicação pelo clique.
     if (recusaDoIntervalo(de, dia)) return;
+    if (dia !== de) arrastou.current = true;
     setAte(dia);
   }
 
   function limpar() {
     setDe(null);
     setAte(null);
+    setAberta(false);
     setArrastando(false);
     setMotivo("");
   }
@@ -245,7 +285,7 @@ export function Solicitar({
             </Button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1" onMouseLeave={() => setArrastando(false)}>
+          <div className="grid grid-cols-7 gap-1 select-none">
             {["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((nome) => (
               <div key={nome} className="text-text-muted pb-1 text-center text-[11px] font-medium">
                 {nome}
@@ -290,7 +330,7 @@ export function Solicitar({
               quem nunca usou clica num dia, vê um quadrado azul e não
               descobre que falta o segundo clique. */}
           <p className="text-text-muted mt-3 border-t pt-3 text-xs">
-            Clique na data inicial e depois na final.
+            Clique na data inicial e depois na final — ou arraste de uma até a outra.
           </p>
         </section>
         </SecaoDoFormulario>
@@ -469,9 +509,22 @@ function Dia({
   const botao = (
     <button
       type="button"
-      disabled={bloqueado}
-      onMouseDown={() => aoClicar(dia)}
-      onMouseEnter={() => aoPassar(dia)}
+      // NÃO É `disabled`. Um botão desabilitado não recebe evento nenhum:
+      // nem o clique que explica a recusa, nem o ponteiro que abre o
+      // tooltip com o nome de quem está fora. O dia bloqueado virava um
+      // quadrado morto — que é justamente o "clique que não faz nada e não
+      // explica" que `motivoDoBloqueio()` existe para evitar.
+      aria-disabled={bloqueado}
+      onPointerDown={() => aoClicar(dia)}
+      onPointerEnter={() => aoPassar(dia)}
+      // Ponteiro não é o único jeito de chegar num dia. Sem isto, quem
+      // navega pelo teclado abre o calendário e não consegue escolher nada.
+      onKeyDown={(evento) => {
+        if (evento.key === "Enter" || evento.key === " ") {
+          evento.preventDefault();
+          aoClicar(dia);
+        }
+      }}
       aria-label={`${format(parseISO(dia), "d 'de' MMMM", { locale: ptBR })}${
         feriado ? ` — ${feriado}` : ""
       }${bloqueado ? ` — ${bloqueadoPor.join(", ")} fora` : ""}`}
