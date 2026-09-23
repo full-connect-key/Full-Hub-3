@@ -834,6 +834,10 @@ export interface Database {
           titulo: string;
           descricao_rica: Json | null;
           descricao_texto: string | null;
+          // O PERÍODO da etapa (migration 0027). O fim continua se chamando
+          // `prazo`: é ele que define atraso, e o nome já diz que é a ponta
+          // final. Os dois são opcionais — etapa sem data é caso normal.
+          data_inicio: string | null;
           prazo: string | null;
           responsavel_id: string | null;
           prioridade: TaskPrioridade;
@@ -860,6 +864,7 @@ export interface Database {
           titulo: string;
           descricao_rica?: Json | null;
           descricao_texto?: string | null;
+          data_inicio?: string | null;
           prazo?: string | null;
           responsavel_id?: string | null;
           prioridade?: TaskPrioridade;
@@ -875,6 +880,7 @@ export interface Database {
           titulo?: string;
           descricao_rica?: Json | null;
           descricao_texto?: string | null;
+          data_inicio?: string | null;
           prazo?: string | null;
           responsavel_id?: string | null;
           prioridade?: TaskPrioridade;

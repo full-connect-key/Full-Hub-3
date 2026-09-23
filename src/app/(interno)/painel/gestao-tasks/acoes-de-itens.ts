@@ -61,6 +61,7 @@ const esquemaDeSubtarefa = z.object({
    *  criação: mudar de mãe é arrastar, e ainda não existe essa tela. */
   parent_id: z.string().uuid().nullable().optional(),
   titulo: z.string().min(1).optional(),
+  data_inicio: z.string().nullable().optional(),
   descricao_rica: z.unknown().optional(),
   descricao_texto: z.string().nullable().optional(),
   prazo: z.string().nullable().optional(),
@@ -112,6 +113,7 @@ export async function criarSubtarefa(
         task_id: taskId,
         parent_id: entrada.parent_id || null,
         titulo: entrada.titulo.trim(),
+        data_inicio: vazioParaNulo(entrada.data_inicio),
         prazo: vazioParaNulo(entrada.prazo),
         responsavel_id: entrada.responsavel_id || null,
         prioridade: entrada.prioridade ?? "normal",
@@ -161,6 +163,8 @@ export async function atualizarSubtarefa(
     if (entrada.descricao_rica !== undefined)
       mudancas.descricao_rica = (entrada.descricao_rica ?? null) as Json | null;
     if (entrada.descricao_texto !== undefined) mudancas.descricao_texto = entrada.descricao_texto;
+    if (entrada.data_inicio !== undefined)
+      mudancas.data_inicio = vazioParaNulo(entrada.data_inicio);
     if (entrada.prazo !== undefined) mudancas.prazo = vazioParaNulo(entrada.prazo);
     if (entrada.responsavel_id !== undefined) mudancas.responsavel_id = entrada.responsavel_id;
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;

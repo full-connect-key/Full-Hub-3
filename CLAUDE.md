@@ -208,8 +208,20 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   trigger `subtasks_bloqueia_conclusao_sem_aprovacao` — não a tela.
 - **Toda aprovação abre primeiro uma rodada interna**, mesmo quando o tipo é
   `cliente`. O tipo diz o destino final, não o caminho.
-- **Ninguém aprova a própria entrega.** `pode_aprovar_subtarefa()` e o trigger
-  `approval_rounds_sem_autoaprovacao` cobrem os dois lados.
+- **Ninguém aprova o próprio trabalho — e são TRÊS perguntas, não uma.** Quem
+  decide não pode ser quem executa (`responsavel_id`), nem quem pediu a rodada
+  (`solicitado_por`), nem quem anexou o material (`subtask_entregas`). Até a
+  migration 0026 só a primeira era feita, e as outras duas eram caminhos
+  reais: etapa sem responsável, a rodada que a própria pessoa abriu "para
+  destravar", e a etapa entregue antes de passar para outro nome — quatro
+  passos todos permitidos um a um. Cada um dos três é um registro diferente de
+  "fui eu que fiz", e cada um sobrevive onde os outros se perdem. O par na
+  tela é `impedimentoParaDecidir()`; quem vale é o trigger
+  `bloquear_autoaprovacao`, e a mensagem dele diz **qual** dos três impede.
+- **O que continua aberto, e é decisão em suspenso:** qualquer gestor aprova a
+  etapa de qualquer cliente. Não existe no produto a noção de "este
+  desenvolvedor atende esta conta". Se for para existir, é decisão explícita e
+  migration própria — não um `if` a mais na tela.
 - **Aprovar não envia.** Aprovar diz que o material está bom; enviar diz que é
   agora. São duas decisões, e juntá-las já mandou peça errada para cliente em
   muita agência.
@@ -408,6 +420,26 @@ para criar o modelo sem a cadeia (a task nascia vazia) ou a cadeia sem o modelo
   classe, não plano B.
 - "Salvar as subtarefas desta task como workflow" grava o **modelo** junto com
   a cadeia. Gravar só a cadeia deixava o resultado inalcançável.
+
+### A etapa tem período, e não só prazo
+
+`subtasks.data_inicio` + `subtasks.prazo` (migration 0027). Duas etapas com o
+mesmo prazo podem ser uma de três dias e uma de três horas — sem o início,
+quem monta a agenda da semana tem metade da informação.
+
+**O fim continua se chamando `prazo`**, e não virou `data_fim` por simetria
+com `tasks`: ele é lido em consulta, trigger, tela e relatório, e renomear
+coluna em uso é migration arriscada sem nada em troca. Período invertido é
+recusado pelo check `subtasks_periodo`.
+
+**Os dois são opcionais**, e é caso normal: quem abre a demanda costuma saber
+a data de entrega e ainda não saber quando cada etapa começa. Exigir as duas
+faria a pessoa inventar uma.
+
+**Atraso continua sendo do `prazo`**, e o calendário continua mostrando só
+ele. Começar tarde não é atrasar; entregar tarde é. E uma barra por data
+dobraria os itens do mês — o início aparece no detalhe da etapa, que é onde
+alguém pergunta "quando isso começa?".
 
 ### Tempo, sempre em minutos
 

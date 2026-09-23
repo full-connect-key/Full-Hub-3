@@ -49,6 +49,7 @@ type SubtarefaNova = {
   chave: string;
   titulo: string;
   responsavel_id: string;
+  data_inicio: string;
   prazo: string;
   prioridade: TaskPrioridade;
   /** SEM_VALOR = não precisa de aprovação. */
@@ -140,6 +141,7 @@ export function FormularioDeTask({
       chave: novaChave(),
       titulo: "",
       responsavel_id: SEM_VALOR,
+      data_inicio: "",
       prazo: "",
       prioridade: "normal",
       aprovacao: SEM_VALOR,
@@ -201,6 +203,7 @@ export function FormularioDeTask({
             etapa.responsavel_id ??
             equipe.find((p) => etapa.funcao_padrao && p.funcao === etapa.funcao_padrao)?.id ??
             SEM_VALOR,
+          data_inicio: "",
           prazo: etapa.prazo ?? "",
           prioridade: etapa.prioridade,
           aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : SEM_VALOR,
@@ -320,6 +323,7 @@ export function FormularioDeTask({
         briefing_texto: briefing?.texto ?? null,
         subtarefas: validas.map((sub) => ({
           titulo: sub.titulo,
+          data_inicio: sub.data_inicio || null,
           prazo: sub.prazo || null,
           responsavel_id: sub.responsavel_id === SEM_VALOR ? null : sub.responsavel_id,
           prioridade: sub.prioridade,
@@ -583,12 +587,26 @@ export function FormularioDeTask({
                         </SelectContent>
                       </Select>
 
-                      <Input
-                        type="date"
-                        aria-label="Data de entrega"
-                        value={sub.prazo}
-                        onChange={(e) => mudarSubtarefa(sub.chave, { prazo: e.target.value })}
-                      />
+                      {/* O PERÍODO da etapa (migration 0027). As duas datas
+                          lado a lado no mesmo espaço de uma: são as pontas da
+                          mesma coisa, e separá-las em linhas faria parecerem
+                          dois campos sem relação. */}
+                      <div className="grid grid-cols-2 gap-1">
+                        <Input
+                          type="date"
+                          aria-label="Início da etapa"
+                          value={sub.data_inicio}
+                          onChange={(e) =>
+                            mudarSubtarefa(sub.chave, { data_inicio: e.target.value })
+                          }
+                        />
+                        <Input
+                          type="date"
+                          aria-label="Data de entrega"
+                          value={sub.prazo}
+                          onChange={(e) => mudarSubtarefa(sub.chave, { prazo: e.target.value })}
+                        />
+                      </div>
 
                       {/* A estimativa aceita "2h30", "2,5h", "150" e "90min".
                           Hora decimal é uma conta que a pessoa faz de cabeça

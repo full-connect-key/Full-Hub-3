@@ -327,3 +327,48 @@ select teste.cenario('Apagar a agrupadora leva as sub-etapas', :CARLA,
 select teste.conferir('A sub-etapa foi junto',
   (select count(*)::text from public.subtasks where id = 'c0000000-0000-0000-0000-000000000003'),
   '0');
+
+-- ===========================================================================
+-- O PERIODO DA ETAPA (migration 0027)
+--
+-- A etapa passou a ter `data_inicio` alem de `prazo`. Os dois continuam
+-- opcionais -- etapa sem data e caso normal --, e o que nao se aceita e
+-- periodo invertido.
+-- ===========================================================================
+
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('a0000000-0000-0000-0000-00000000000d', :VERDE, 'Periodo da etapa', :CARLA, '2026-10-01',
+        'https://drive.google.com/drive/folders/periodo');
+
+select teste.cenario('Etapa com inicio e fim entra', :CARLA,
+  $$insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, data_inicio, prazo)
+    values ('d0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000d',
+            'Com periodo', 1, '55555555-5555-5555-5555-555555555555', '2026-10-05', '2026-10-09')$$,
+  'ok', 1);
+
+select teste.cenario('Etapa sem data nenhuma continua entrando', :CARLA,
+  $$insert into public.subtasks (task_id, titulo, ordem, responsavel_id)
+    values ('a0000000-0000-0000-0000-00000000000d', 'Sem data', 2,
+            '55555555-5555-5555-5555-555555555555')$$, 'ok', 1);
+
+select teste.cenario('So o prazo, sem inicio, tambem', :CARLA,
+  $$insert into public.subtasks (task_id, titulo, ordem, responsavel_id, prazo)
+    values ('a0000000-0000-0000-0000-00000000000d', 'So prazo', 3,
+            '55555555-5555-5555-5555-555555555555', '2026-10-09')$$, 'ok', 1);
+
+select teste.recusa_com('Periodo invertido e recusado', :CARLA,
+  $$insert into public.subtasks (task_id, titulo, ordem, responsavel_id, data_inicio, prazo)
+    values ('a0000000-0000-0000-0000-00000000000d', 'De tras para frente', 4,
+            '55555555-5555-5555-5555-555555555555', '2026-10-20', '2026-10-05')$$,
+  'subtasks_periodo');
+
+-- E nao da para inverter depois, editando so uma das pontas.
+select teste.recusa_com('Nem inverter depois, mexendo numa ponta so', :CARLA,
+  $$update public.subtasks set prazo = '2026-10-01'
+     where id = 'd0000000-0000-0000-0000-000000000001'$$,
+  'subtasks_periodo');
+
+-- Comecar e terminar no mesmo dia vale: etapa de um dia e a mais comum.
+select teste.cenario('Comecar e terminar no mesmo dia vale', :CARLA,
+  $$update public.subtasks set data_inicio = '2026-10-09', prazo = '2026-10-09'
+     where id = 'd0000000-0000-0000-0000-000000000001'$$, 'ok', 1);

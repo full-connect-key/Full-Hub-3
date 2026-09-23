@@ -177,10 +177,40 @@ export function PainelDaSubtarefa({
               )}
             </Campo>
 
+{/* O PERÍODO da etapa (migration 0027), e não só o prazo. Duas etapas
+                com o mesmo prazo podem ser uma de três dias e uma de três
+                horas — sem o início, quem monta a agenda da semana tem
+                metade da informação.
+
+                Os dois continuam opcionais: quem abre a demanda costuma
+                saber a data de entrega e ainda não saber quando cada etapa
+                começa, e exigir as duas faria a pessoa inventar uma. */}
+            <Campo rotulo="Início">
+              {podeGerenciar ? (
+                <Input
+                  type="date"
+                  aria-label="Data de início da etapa"
+                  defaultValue={subtarefa.data_inicio ?? ""}
+                  onBlur={(evento) => {
+                    if (evento.target.value !== (subtarefa.data_inicio ?? "")) {
+                      salvar({ data_inicio: evento.target.value });
+                    }
+                  }}
+                />
+              ) : (
+                <span className="text-sm">
+                  {subtarefa.data_inicio
+                    ? format(parseISO(subtarefa.data_inicio), "dd/MM/yyyy", { locale: ptBR })
+                    : "—"}
+                </span>
+              )}
+            </Campo>
+
             <Campo rotulo="Prazo">
               {podeGerenciar ? (
                 <Input
                   type="date"
+                  aria-label="Prazo da etapa"
                   defaultValue={subtarefa.prazo ?? ""}
                   onBlur={(evento) => {
                     if (evento.target.value !== (subtarefa.prazo ?? "")) {

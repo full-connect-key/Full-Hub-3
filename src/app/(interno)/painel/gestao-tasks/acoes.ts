@@ -74,6 +74,7 @@ const esquemaDeSubtarefa = z.object({
    *  trigger `subtasks_agrupadora` (migration 0022) — aqui o campo só existe
    *  para a ação poder passá-lo adiante. */
   parent_id: z.string().uuid().optional().nullable(),
+  data_inicio: z.string().optional().nullable(),
   prazo: z.string().optional().nullable(),
   responsavel_id: z.string().uuid().optional().nullable(),
   prioridade: prioridade.default("normal"),

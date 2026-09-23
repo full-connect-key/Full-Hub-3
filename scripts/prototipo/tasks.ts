@@ -91,6 +91,8 @@ type Semente = {
   task_id: string;
   /** A etapa de cima, quando esta é uma sub-etapa. */
   parent_id?: string;
+  /** O começo do período da etapa; `prazo` é o fim. */
+  data_inicio?: string;
   titulo: string;
   ordem: number;
   prazo: string | null;
@@ -314,6 +316,7 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     task_id: semente.task_id,
     parent_id: semente.parent_id ?? null,
     titulo: semente.titulo,
+    data_inicio: semente.data_inicio ?? null,
     descricao_rica: null,
     descricao_texto: null,
     prazo: semente.prazo,
