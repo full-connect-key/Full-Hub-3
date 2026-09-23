@@ -38,6 +38,8 @@ import path from "node:path";
 //   role  -> perfil usado (padrao: socio). Telas do portal ignoram.
 //   tema  -> "escuro" para capturar no modo escuro.
 //   menu  -> "recolhido" para capturar com o menu lateral fechado.
+//   semRolagem -> captura so a janela. Necessario para lista suspensa aberta:
+//                 `fullPage` rola a pagina, e o Select do Radix fecha ao rolar.
 // ---------------------------------------------------------------------------
 const TELAS = [
   { nome: "01-login", rota: "/login", largura: 900, altura: 760 },
@@ -70,6 +72,10 @@ const TELAS = [
   { nome: "24-tasks-nova", rota: "/painel/gestao-tasks", largura: 1400, altura: 2100, role: "socio", clicar: 'button:has-text("Nova task")' },
   { nome: "24b-tasks-nova-com-etapa", rota: "/painel/gestao-tasks", largura: 1400, altura: 2300, role: "socio", clicar: ['button:has-text("Nova task")', 'button:has-text("Subtarefa")'] },
   { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
+  // O seletor ABERTO. Os sete status com os calculados desligados so se veem
+  // com a lista aberta -- fechada, a tela mostra um campo e nada prova que
+  // os outros cinco estao la.
+  { nome: "25b-task-status-aberto", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1100, role: "socio", clicar: '[aria-label="Status da demanda"]', semRolagem: true },
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
   { nome: "30-minhas-tasks-lista", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio" },
   { nome: "31-minhas-tasks-board", rota: "/painel/minhas-tasks?visao=board", largura: 1600, altura: 1100, role: "socio" },
@@ -520,7 +526,21 @@ try {
       }
 
       try {
-        await pagina.screenshot({ path: path.join(SAIDA, `${tela.nome}.png`), fullPage: true });
+        // `semRolagem` captura SO a janela, sem costurar a pagina inteira.
+        //
+        // POR QUE ISSO PRECISA EXISTIR: `fullPage` ROLA a pagina para montar a
+        // imagem, e o Select do Radix FECHA AO ROLAR. O clique acontecia, a
+        // lista abria, a rolagem fechava, e a imagem saia com o campo fechado
+        // -- sem aviso nenhum, porque o clique tinha dado certo. Toda tela de
+        // lista suspensa aberta era impossivel de conferir, e dava para olhar
+        // a imagem e concluir que o componente estava quebrado.
+        //
+        // Dialogo nao sofre disso (nao fecha ao rolar), e por isso so as telas
+        // de lista suspensa precisam da marca.
+        await pagina.screenshot({
+          path: path.join(SAIDA, `${tela.nome}.png`),
+          fullPage: !tela.semRolagem,
+        });
       } finally {
         // Fecha mesmo quando o screenshot estoura. Sem isso, cada falha deixa
         // uma aba viva -- e memoria e justamente o que costuma derrubar o

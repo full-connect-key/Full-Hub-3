@@ -8,7 +8,7 @@ import { FolderOpen, Trash2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { ComoOStatusAnda, SeletorDeStatus } from "@/components/shared/seletor-de-status";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,7 @@ import {
   ROTULOS_DE_PRIORIDADE,
 } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
-import { EXPLICACAO_DO_STATUS, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
-import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
+import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { atualizarTask, excluirTask } from "../acoes";
@@ -80,39 +79,26 @@ export function LateralDaTask({
     <aside className="h-fit space-y-4 rounded-lg border p-4">
       <div className="space-y-1.5">
         <Label className="text-muted-foreground text-xs">Status</Label>
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <StatusBadge status={task.status} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              {EXPLICACAO_DO_STATUS[task.status]}
-              {task.status_manual ? " Marcado à mão." : " Calculado pelas subtarefas."}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        {podeEditar ? (
-          <Select value={SEM_VALOR} onValueChange={(valor) => salvar({ status: valor })}>
-            <SelectTrigger className="w-full" aria-label="Marcar status à mão">
-              <SelectValue placeholder="Marcar à mão…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SEM_VALOR} disabled>
-                Marcar à mão…
-              </SelectItem>
-              {STATUS_MANUAIS_DA_TASK.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {ROTULOS_DE_STATUS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-        <p className="text-muted-foreground text-xs">
-          Os outros status vêm das subtarefas — mova as etapas e a Task acompanha.
-        </p>
+
+        {/* O seletor mostra OS SETE, com os calculados desligados e o motivo.
+            Antes eram dois, atrás de um "Marcar à mão…", e quem abria a lista
+            concluía que o produto tinha dois status. */}
+        <SeletorDeStatus
+          status={task.status}
+          podeEditar={podeEditar}
+          aoMudar={(novo) => salvar({ status: novo })}
+        />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-text-secondary inline-flex cursor-help text-xs">
+              {task.status_manual ? "Marcado à mão." : "Calculado pelas subtarefas."}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">{EXPLICACAO_DO_STATUS[task.status]}</TooltipContent>
+        </Tooltip>
+
+        <ComoOStatusAnda />
       </div>
 
       <Separator />

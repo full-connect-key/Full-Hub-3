@@ -60,6 +60,27 @@ type Tom = "neutro" | "marca" | "info" | "atencao" | "positivo" | "negativo" | "
  * ninguém mediu, e no tema escuro dá outra. O par nomeado é o que se pode
  * verificar.
  */
+/**
+ * A bolinha de cor do status, para quando o selo inteiro não cabe.
+ *
+ * Sai do MESMO `tom` do selo, e não de um mapa paralelo: dois mapas de cor
+ * para os mesmos estados divergem na primeira vez que alguém acrescenta um
+ * status e só lembra de um deles.
+ */
+const PONTO: Record<Tom, string> = {
+  neutro: "bg-neutral",
+  marca: "bg-accent-strong",
+  info: "bg-accent-strong",
+  atencao: "bg-warning",
+  positivo: "bg-success",
+  negativo: "bg-danger",
+  pausado: "bg-neutral",
+};
+
+export function corDoPontoDeStatus(status: Status): string {
+  return PONTO[STATUS[status]?.tom ?? "neutro"];
+}
+
 const TONS: Record<Tom, string> = {
   neutro: "bg-neutral-soft text-neutral border-transparent",
   marca: "bg-accent text-accent-foreground border-blue-muted",
