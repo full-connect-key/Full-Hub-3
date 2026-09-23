@@ -171,6 +171,95 @@ up ligado, qualquer pessoa com o endereço do painel cria conta no seu banco.
 > mundo. Ela só vai existir no `.env.local` da VPS. Nunca a cole em chat, em
 > ticket, ou num arquivo que vá para o repositório.
 
+### 1.5 SMTP: os e-mails de senha
+
+**Sem isto, "Esqueci minha senha" não funciona.** O Supabase tem um serviço de
+e-mail embutido, mas ele é limitado a poucos envios por hora e existe para
+teste — não para uma equipe usando o sistema.
+
+É por isso que o Full Hub foi construído para **não depender de e-mail**:
+"Adicionar colaborador" cria a conta e mostra o link na tela para alguém
+passar pela mão. Isso continua valendo como plano B. O SMTP é o que faz o
+caminho normal funcionar.
+
+#### Onde configurar
+
+**Authentication → Emails → SMTP Settings** (o Supabase já moveu isso de
+lugar; se não achar, procure por SMTP em Project Settings → Authentication).
+Ligue **Enable Custom SMTP** e preencha:
+
+| Campo | O que é |
+| --- | --- |
+| Sender email | a caixa que vai aparecer como remetente |
+| Sender name | `Full Hub` |
+| Host | o servidor de saída do seu provedor |
+| Port | `465` (SSL) ou `587` (TLS) |
+| Username | quase sempre o próprio e-mail |
+| Password | a senha daquela caixa |
+
+#### Qual provedor usar
+
+A agência já tem e-mail em `@fullconnectkey.com.br` — **use esse**. Remetente
+no domínio da casa chega melhor que qualquer outro, e não custa nada a mais.
+
+Os dados de saída estão no painel de onde o e-mail é hospedado. Confirme lá
+em vez de confiar nesta tabela, porque esses valores mudam:
+
+| Onde o e-mail está | Host de saída, normalmente |
+| --- | --- |
+| E-mail da Hostinger | `smtp.hostinger.com`, porta 465 |
+| Titan (parceiro da Hostinger) | `smtp.titan.email`, porta 465 |
+| Google Workspace | `smtp.gmail.com`, porta 587, com **senha de app** |
+
+> **Google Workspace não aceita a senha normal.** Precisa de uma *senha de
+> app*, que só existe com a verificação em duas etapas ligada. A senha da
+> pessoa colada ali é recusada, e o erro não diz isso.
+
+Se preferir um serviço transacional (Resend, Brevo, Amazon SES), funciona
+igual — a diferença é que eles exigem verificar o domínio antes.
+
+#### Duas coisas que fazem o e-mail cair em spam
+
+1. **O remetente tem que ser uma caixa real do domínio.** Inventar
+   `nao-responda@fullconnectkey.com.br` sem que ela exista faz o e-mail ser
+   recusado por vários destinatários.
+2. **SPF e DKIM precisam estar no DNS do domínio.** Quem hospeda o e-mail
+   fornece os dois registros. Sem eles o e-mail sai, mas cai na caixa de spam
+   — e ninguém vai procurar o link de senha lá.
+
+#### O limite de envio continua existindo
+
+Em **Authentication → Rate Limits**, o limite de e-mails por hora vem baixo
+por padrão. Com SMTP próprio, suba para um número que caiba na equipe. Sem
+isso, cadastrar cinco pessoas seguidas trava no meio, e a mensagem que aparece
+é sobre limite de tentativas — não sobre e-mail.
+
+#### E o endereço de retorno, que é onde isso costuma quebrar
+
+O link do e-mail traz a pessoa de volta para `/auth/callback`. Se esse
+endereço não estiver liberado, o e-mail sai, a pessoa clica, e cai num erro.
+
+Em **Authentication → URL Configuration**:
+
+| Campo | Valor |
+| --- | --- |
+| Site URL | `https://dashboard.suaagencia.com.br` |
+| Redirect URLs | `https://dashboard.suaagencia.com.br/auth/callback` |
+
+E confira que `NEXT_PUBLIC_SITE_URL` no servidor é **o mesmo endereço**. É
+dela que sai o link que vai no e-mail: se ela ainda estiver em `localhost`, o
+e-mail chega com um link que só funciona na máquina de quem desenvolveu.
+
+#### Os textos vêm em inglês
+
+**Authentication → Emails → Templates.** O produto inteiro é em português, e o
+e-mail de recuperação de senha chegaria em inglês. Traduza pelo menos o
+*Reset Password* e o *Invite user* — são os dois que a equipe vai receber.
+
+**Como saber que deu certo:** na tela de login, clique em "Esqueci minha
+senha", use um e-mail que existe, e veja se a mensagem chega. Se chegar e o
+link abrir a tela de nova senha, está inteiro.
+
 ---
 
 ## Parte 2 — A máquina
