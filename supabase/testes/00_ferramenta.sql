@@ -115,3 +115,44 @@ begin
   end;
 end;
 $$;
+
+
+-- Recusa com a DICA certa.
+--
+-- `recusa_com` le so a mensagem, e a mensagem diz o problema. Quem diz a
+-- SAIDA e o `hint` do Postgres -- e e ele que a tela mostra, porque
+-- `atualizarTask` concatena os dois. Uma trava cuja mensagem esta certa e
+-- cuja dica sumiu deixa a pessoa com um "nao pode" sem caminho, e passaria
+-- por `recusa_com` sem nenhum sinal.
+create or replace function teste.recusa_com_dica(
+  p_descricao text,
+  p_uid uuid,
+  p_comando text,
+  p_trecho text               -- precisa aparecer no HINT do erro
+) returns void
+language plpgsql
+as $$
+declare
+  dica text;
+begin
+  begin
+    execute 'set local role authenticated';
+    perform set_config('request.jwt.claim.sub', p_uid::text, true);
+    execute p_comando;
+    execute 'reset role';
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'FALHOU', 'passou quando devia ser recusado');
+  exception when others then
+    execute 'reset role';
+    get stacked diagnostics dica = pg_exception_hint;
+    if position(lower(p_trecho) in lower(coalesce(dica, ''))) > 0 then
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'passou', left(dica, 90));
+    else
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'FALHOU',
+              format('recusou sem essa dica. dica: %s', left(coalesce(dica, '(vazia)'), 100)));
+    end if;
+  end;
+end;
+$$;

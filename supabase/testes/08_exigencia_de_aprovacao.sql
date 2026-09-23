@@ -133,13 +133,18 @@ select teste.recusa_com('Exigencia sem subtarefa que a cumpra: a mensagem aponta
 -- ---------------------------------------------------------------------------
 -- O que a trava NAO alcanca
 --
--- Ela olha uma transicao para `entregue`, e so. Cancelar uma demanda,
--- corrigir o titulo de uma ja entregue e o recalculo automatico do status
--- seguem funcionando -- do contrario a trava teria virado um freio em tudo.
+-- Ela olha uma transicao para `entregue`, e so. Corrigir o titulo de uma ja
+-- entregue, marcar que a demanda esta esperando informacao e o recalculo
+-- automatico do status seguem funcionando -- do contrario a trava teria
+-- virado um freio em tudo.
+--
+-- Ate a migration 0020 quem provava isso era `cancelada`, o outro status
+-- manual. Ela saiu do produto, e `aguardando_informacoes` ocupou o lugar:
+-- e o unico outro status que alguem ainda escreve a mao.
 -- ---------------------------------------------------------------------------
 
-select teste.cenario('Cancelar nao passa pela exigencia', :ANA,
-  $$update public.tasks set status = 'cancelada', status_manual = true
+select teste.cenario('Aguardando informacoes nao passa pela exigencia', :ANA,
+  $$update public.tasks set status = 'aguardando_informacoes', status_manual = true
      where id = 'dddddddd-0000-0000-0000-00000000000d'$$, 'ok', 1);
 
 select teste.cenario('Editar o titulo de uma task ja entregue continua valendo', :ANA,
@@ -147,7 +152,8 @@ select teste.cenario('Editar o titulo de uma task ja entregue continua valendo',
      where id = 'dddddddd-0000-0000-0000-00000000000c'$$, 'ok', 1);
 
 -- O recalculo escreve status sem passar pela exigencia -- e nao ha conflito,
--- porque ele NAO escreve `entregue` (so `entregue` e `cancelada` sao manuais).
+-- porque ele NAO escreve `entregue` (os manuais sao `entregue` e
+-- `aguardando_informacoes`).
 --
 -- E o `entregue` marcado a mao resiste: so rodada pendente, ajuste ou
 -- conclusao reassumem. Uma subtarefa nova em andamento NAO e nenhum dos tres.

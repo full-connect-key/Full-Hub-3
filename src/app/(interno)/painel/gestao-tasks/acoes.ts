@@ -51,7 +51,6 @@ const statusDeTask = z.enum([
   "em_aprovacao",
   "em_ajustes",
   "concluido",
-  "cancelada",
 ]);
 const tipoDeAprovacao = z.enum(["interna", "cliente"]);
 
@@ -415,8 +414,8 @@ export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Pro
     if (entrada.status !== undefined) {
       if (!STATUS_MANUAIS_DA_TASK.includes(entrada.status)) {
         return falha(
-          "Em massa só dá para marcar os status manuais (Entregue, Aguardando informações, " +
-            "Cancelada). Os outros são calculados pelas subtarefas.",
+          "Em massa só dá para marcar os status manuais (Entregue, Aguardando " +
+            "informações). Os outros são calculados pelas subtarefas.",
         );
       }
       mudancas.status = entrada.status;

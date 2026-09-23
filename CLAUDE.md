@@ -104,15 +104,32 @@ Consequências que valem para todo módulo novo:
 `em_ajustes` → `em_aprovacao` → `concluido` → `aguardando_informacoes` →
 `em_andamento` → `nao_iniciada`.
 
-**`entregue` e `cancelada` são os únicos manuais.** "Entregue" diz que o
-material saiu; não diz que foi aprovado, e a interface precisa manter essa
-diferença no texto. O cálculo respeita o que foi marcado à mão até aparecer
-rodada pendente, ajuste ou conclusão — qualquer um dos três reassume e zera
-`status_manual`.
+**`entregue` e `aguardando_informacoes` são os únicos manuais.** "Entregue"
+diz que o material saiu; não diz que foi aprovado, e a interface precisa
+manter essa diferença no texto. O cálculo respeita o que foi marcado à mão até
+aparecer rodada pendente, ajuste ou conclusão — qualquer um dos três reassume
+e zera `status_manual`.
 
 No board, arrastar só é aceito para esses status manuais. Qualquer outro
 arrasto é recusado com o motivo por extenso, porque o recálculo desfaria a
 mudança um milissegundo depois.
+
+**São sete status, e `cancelada` não é um deles.** Ela era o terceiro manual e
+saiu na migration 0020: uma demanda que não vai mais acontecer se apaga, em
+Gestão de Tasks. Parada em `cancelada` ela ficava para sempre no board de quem
+não quer vê-la, e o board ganhava uma coluna que só acumula.
+
+A trava é o trigger `tasks_sem_cancelada`, e é trigger porque `alter type ...
+drop value` não existe no Postgres: o valor continua no enum, e sem o trigger
+uma escrita montada à mão passaria calada. A recusa diz o que fazer no lugar —
+apagar, ou deixar o status que as subtarefas calcularem —, e a bateria confere
+a **dica** e não só a mensagem, com `teste.recusa_com_dica`: é o `hint` que
+`atualizarTask` mostra na tela, e uma trava com a dica apagada passaria por
+uma checagem que só lê a mensagem.
+
+O rótulo de `nao_iniciada` é **"Iniciar"**: no board ele é a coluna de onde a
+demanda sai, e "Não iniciada" descrevia um estado onde a pessoa procura uma
+ação.
 
 ### A aprovação
 
@@ -187,14 +204,15 @@ marcar `not null` seria pior: inventaria um endereço, e alguém clicaria nele.
 `/painel/gestao-tasks` → "Nova task". Informações gerais, período e
 prioridade, exigência de aprovação, workflow, subtarefas e entregas,
 materiais e links. O número dá à conversa um jeito de apontar ("faltou a 5")
-sem descrever onde o campo fica, e cada seção carrega uma linha de explicação
-porque todas respondem a uma pergunta que a agência já errou.
+sem descrever onde o campo fica. A linha de explicação que cada seção carregava
+saiu junto com as dos títulos de página: o campo diz o que é pelo rótulo, e a
+legenda embaixo de tudo empurrava o formulário para baixo sem acrescentar.
 
 **Não existe seletor de "Status Geral", e a ausência é deliberada.** O status
 da Task é calculado por trigger; um status digitado na abertura seria desfeito
 pelo recálculo um milissegundo depois, e a pessoa veria a própria escolha
-sumir. Os dois manuais — `entregue` e `cancelada` — não fazem sentido numa
-demanda que está nascendo.
+sumir. Os dois manuais — `entregue` e `aguardando_informacoes` — não fazem
+sentido numa demanda que está nascendo.
 
 Link de referência entra num campo da tela, **nunca num `window.prompt`**: o
 prompt não dá para colar no teclado do celular, não valida nada, some ao

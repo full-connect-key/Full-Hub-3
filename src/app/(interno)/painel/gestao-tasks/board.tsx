@@ -56,7 +56,7 @@ function Card({
 }) {
   // A Task não tem prazo: o que aperta é o prazo da subtarefa mais próxima
   // ainda em aberto. É o mesmo número que a lista e os contadores usam.
-  const encerrada = task.status === "concluido" || task.status === "cancelada";
+  const encerrada = task.status === "concluido";
   const vencida =
     !encerrada && task.proximoPrazo !== null && task.proximoPrazo < HOJE();
 

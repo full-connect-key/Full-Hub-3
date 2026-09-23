@@ -15,6 +15,11 @@
 
 # next.js
 /.next/
+# Os builds em pasta separada: `.next-novo` e do deploy (que constroi ao lado
+# e so troca no fim) e `.next-teste` e o build de conferencia. Sao saida de
+# build, como o `.next` -- e sem esta linha o primeiro `git add -A` depois de
+# um deles arrasta o diretorio inteiro para dentro do commit.
+/.next-*/
 /out/
 
 # production

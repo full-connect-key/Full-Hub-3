@@ -17,24 +17,44 @@ import type {
  * vocabulário — rótulo, ordem, cor.
  */
 
+/**
+ * Os status que o produto usa, na ordem em que a demanda anda.
+ *
+ * **`cancelada` NÃO está aqui, e a ausência é deliberada.** Ela saiu do
+ * produto por decisão do usuário; o valor continua no enum do Postgres porque
+ * apagar valor de enum em uso é migration arriscada, e um trigger (migration
+ * 0020) recusa quem tentar gravá-lo. É o mesmo arranjo do `atrasado` no
+ * Financeiro: existe no tipo, nenhuma linha o carrega.
+ *
+ * Demanda que morreu se apaga — e apagar leva junto as subtarefas, as rodadas
+ * e o histórico. Se um dia isso doer, o caminho é um "Arquivada" novo, não
+ * ressuscitar este.
+ */
 export const STATUS_DE_TASK: TaskStatus[] = [
   "nao_iniciada",
   "em_andamento",
   "aguardando_informacoes",
-  "entregue",
   "em_aprovacao",
   "em_ajustes",
+  "entregue",
   "concluido",
-  "cancelada",
 ];
 
+/**
+ * O rótulo de cada status.
+ *
+ * `cancelada` continua no mapa porque o tipo vem do enum do banco e o
+ * `Record` exige a chave — não porque a tela a mostre. Nenhuma lista do
+ * produto a inclui, e o trigger da 0020 recusa gravá-la. Se uma linha antiga
+ * aparecer com ela, o rótulo evita a tela mostrar a chave crua.
+ */
 export const ROTULOS_DE_STATUS: Record<TaskStatus, string> = {
-  nao_iniciada: "Não iniciada",
+  nao_iniciada: "Iniciar",
   em_andamento: "Em andamento",
   aguardando_informacoes: "Aguardando informações",
+  em_aprovacao: "Aguardando aprovação",
+  em_ajustes: "Em ajuste",
   entregue: "Entregue",
-  em_aprovacao: "Em aprovação",
-  em_ajustes: "Em ajustes",
   concluido: "Concluído",
   cancelada: "Cancelada",
 };
@@ -96,19 +116,17 @@ export const COR_DA_PRIORIDADE: Record<TaskPrioridade, string> = {
 };
 
 /**
- * Colunas do board da Gestão de Tasks.
- *
- * Cancelada fica de fora: ela polui a visão do dia a dia, e quem precisa ver
- * o cancelado usa o filtro de status na Lista.
+ * Colunas do board da Gestão de Tasks — uma por status, na ordem em que a
+ * demanda anda.
  */
 export type ColunaDoBoard = { id: string; titulo: string; status: TaskStatus };
 
 export const COLUNAS_POR_STATUS: ColunaDoBoard[] = [
-  { id: "nao_iniciada", titulo: "Não iniciada", status: "nao_iniciada" },
+  { id: "nao_iniciada", titulo: "Iniciar", status: "nao_iniciada" },
   { id: "em_andamento", titulo: "Em andamento", status: "em_andamento" },
   { id: "aguardando_informacoes", titulo: "Aguardando informações", status: "aguardando_informacoes" },
-  { id: "em_aprovacao", titulo: "Em aprovação", status: "em_aprovacao" },
-  { id: "em_ajustes", titulo: "Em ajustes", status: "em_ajustes" },
+  { id: "em_aprovacao", titulo: "Aguardando aprovação", status: "em_aprovacao" },
+  { id: "em_ajustes", titulo: "Em ajuste", status: "em_ajustes" },
   { id: "entregue", titulo: "Entregue", status: "entregue" },
   { id: "concluido", titulo: "Concluído", status: "concluido" },
 ];

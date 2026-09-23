@@ -34,7 +34,7 @@ export const STATUS_DE_SUBTAREFA: SubtaskStatus[] = [
 ];
 
 export const ROTULOS_DE_SUBTAREFA: Record<SubtaskStatus, string> = {
-  nao_iniciada: "Não iniciada",
+  nao_iniciada: "Iniciar",
   em_andamento: "Em andamento",
   aguardando_informacoes: "Aguardando informações",
   enviada_aprovacao: "Enviada para aprovação",
@@ -55,7 +55,10 @@ export const EXPLICACAO_DO_STATUS: Record<TaskStatus, string> = {
   em_aprovacao: "Existe uma rodada de aprovação esperando decisão.",
   em_ajustes: "Alguma subtarefa voltou com pedido de ajustes.",
   concluido: "Todas as subtarefas concluídas e nenhuma aprovação pendente.",
-  cancelada: "A demanda foi cancelada.",
+  // Saiu do produto na 0020. Fica aqui só para o `Record` fechar e para uma
+  // linha antiga ter tooltip em vez de vazio — nenhuma lista a oferece, e o
+  // trigger recusa gravá-la.
+  cancelada: "Status retirado do produto.",
 };
 
 export const ROTULO_DA_APROVACAO: Record<TipoAprovacao, string> = {
@@ -292,7 +295,6 @@ export const DESTINO_DA_ACAO: Partial<Record<IdDeAcao, SubtaskStatus>> = {
 export const STATUS_MANUAIS_DA_TASK: TaskStatus[] = [
   "entregue",
   "aguardando_informacoes",
-  "cancelada",
 ];
 
 export type ContextoDaTask = {
@@ -316,21 +318,12 @@ export function podeMoverTaskPara(ctx: ContextoDaTask, destino: TaskStatus): Ver
     return nao("Mudar o status da Task é da gestão ou do Atendimento.");
   }
 
-  if (ctx.status === "cancelada" && destino !== "nao_iniciada") {
-    return nao("Task cancelada volta pelo início, não direto para outro status.");
-  }
-
   if (!STATUS_MANUAIS_DA_TASK.includes(destino)) {
     return nao(
       `"${ROTULOS_DE_STATUS[destino]}" é calculado pelas subtarefas — não dá para marcar à mão. ` +
         "Mova as subtarefas, e a Task acompanha.",
     );
   }
-
-  // Cancelar é a exceção: dá para cancelar justamente quando a demanda
-  // travou. Bloquear o cancelamento por causa de uma aprovação pendente
-  // deixaria a Task presa no lugar exato em que ninguém quer mais mexer.
-  if (destino === "cancelada") return SIM;
 
   if (ctx.aprovacaoPendenteEm) {
     return nao(`Existe aprovação pendente na subtarefa ${ctx.aprovacaoPendenteEm}.`);

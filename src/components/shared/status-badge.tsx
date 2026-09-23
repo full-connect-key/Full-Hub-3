@@ -33,6 +33,10 @@ export type StatusTask =
   | "em_aprovacao"
   | "em_ajustes"
   | "concluido"
+  // Saiu do produto na 0020, e o valor continua no enum do Postgres porque
+  // apagar valor de enum em uso e migration arriscada. Fica no TIPO e no mapa
+  // de rotulos para uma linha antiga renderizar em vez de quebrar a tela --
+  // mas nao entra em `STATUS_DE_TASK`, que e o que alimenta selo e filtro.
   | "cancelada";
 
 export type StatusSubtarefa =
@@ -70,18 +74,18 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // Conteúdo
   aguardando_informacoes: { label: "Aguardando informações", tom: "neutro" },
   em_producao: { label: "Em produção", tom: "marca" },
-  em_aprovacao: { label: "Em aprovação", tom: "info" },
+  em_aprovacao: { label: "Aguardando aprovação", tom: "info" },
   ajustes: { label: "Ajustes", tom: "atencao" },
   aprovado: { label: "Aprovado", tom: "positivo" },
   rejeitado: { label: "Rejeitado", tom: "negativo" },
   stand_by: { label: "Stand by", tom: "pausado" },
   // Task
-  nao_iniciada: { label: "Não iniciada", tom: "neutro" },
+  nao_iniciada: { label: "Iniciar", tom: "neutro" },
   em_andamento: { label: "Em andamento", tom: "marca" },
   // "Entregue" e "Aprovado" nao sao a mesma coisa: o material saiu, ninguem
   // disse que esta certo. Por isso tom de atencao, e nao o verde de aprovado.
   entregue: { label: "Entregue", tom: "atencao" },
-  em_ajustes: { label: "Em ajustes", tom: "atencao" },
+  em_ajustes: { label: "Em ajuste", tom: "atencao" },
   concluido: { label: "Concluído", tom: "positivo" },
   cancelada: { label: "Cancelada", tom: "pausado" },
   // Subtarefa
@@ -140,7 +144,6 @@ export const STATUS_DE_TASK: StatusTask[] = [
   "em_aprovacao",
   "em_ajustes",
   "concluido",
-  "cancelada",
 ];
 
 export const STATUS_DE_SUBTAREFA: StatusSubtarefa[] = [

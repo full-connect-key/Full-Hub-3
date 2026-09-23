@@ -65,7 +65,7 @@ export type TaskDaLista = Task & {
 
 const HOJE = () => new Date().toISOString().slice(0, 10);
 
-const CONCLUIDAS: TaskStatus[] = ["concluido", "cancelada"];
+const CONCLUIDAS: TaskStatus[] = ["concluido"];
 
 type LinhaDeSubtarefa = Pick<
   Subtask,
@@ -230,7 +230,7 @@ export const contadoresDeTasks = cache(async () => {
     supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })
-      .not("status", "in", "(concluido,cancelada)"),
+      .not("status", "in", "(concluido)"),
     supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })

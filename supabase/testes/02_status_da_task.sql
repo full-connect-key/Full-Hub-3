@@ -95,9 +95,50 @@ select teste.conferir('Todas concluidas e nenhuma rodada pendente: concluido',
 select teste.conferir('concluida_em foi carimbado',
   (select (concluida_em is not null)::text from public.tasks where id = 'eeeeeeee-0000-0000-0000-00000000000a'), 'true');
 
--- Cancelada e decisao humana e nao e desfeita pelo calculo
-update public.tasks set status = 'cancelada', status_manual = true
- where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+-- ---------------------------------------------------------------------------
+-- Cancelada saiu dos status da Task (migration 0020)
+--
+-- Ela era o terceiro status manual. Saiu porque uma demanda que nao vai mais
+-- acontecer se apaga, e uma Task parada em `cancelada` ficava para sempre no
+-- board de quem nao quer ve-la.
+--
+-- O valor continua no enum do Postgres -- `alter type ... drop value` nao
+-- existe --, e e por isso que a trava precisa ser um trigger. Sem ele, o
+-- enum aceitaria a escrita calada.
+-- ---------------------------------------------------------------------------
+select teste.recusa_com('Marcar cancelada a mao e recusado', :ANA,
+  $$update public.tasks set status = 'cancelada', status_manual = true
+     where id = 'eeeeeeee-0000-0000-0000-00000000000a'$$,
+  'Cancelada saiu dos status da Task');
+
+-- A recusa aponta a saida. "Nao pode" sem caminho manda a pessoa procurar
+-- outro jeito -- ou abandonar a demanda aberta no board.
+select teste.recusa_com_dica('E a recusa diz o que fazer no lugar', :ANA,
+  $$update public.tasks set status = 'cancelada', status_manual = true
+     where id = 'eeeeeeee-0000-0000-0000-00000000000a'$$,
+  'se apaga, em Gestao de Tasks');
+
+-- Nascer cancelada tambem nao passa: o trigger cobre insert e update.
+select teste.recusa_com('Nascer cancelada tambem e recusado', :ANA,
+  $$insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega, status, status_manual)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', 'Ja nasce morta', $$ || quote_literal(:ANA) || $$,
+            '2026-10-01', 'https://drive.google.com/drive/folders/teste', 'cancelada', true)$$,
+  'Cancelada saiu dos status da Task');
+
+-- E a Task segue viva: a recusa nao deixou meio caminho gravado.
 update public.subtasks set status = 'em_andamento' where id = 'ffffffff-0000-0000-0000-000000000001';
-select teste.conferir('Cancelada nao e desfeita pelo recalculo',
-  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'cancelada');
+select teste.conferir('Depois da recusa a task continua sendo calculada',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_andamento');
+
+-- ---------------------------------------------------------------------------
+-- Os dois que sobraram continuam manuais
+--
+-- Sem `cancelada`, `entregue` e `aguardando_informacoes` sao os unicos que
+-- alguem escreve a mao. Se a 0020 tivesse levado o resisto do calculo junto,
+-- este cenario cairia.
+-- ---------------------------------------------------------------------------
+update public.tasks set status = 'entregue', status_manual = true
+ where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+update public.subtasks set status = 'em_andamento' where id = 'ffffffff-0000-0000-0000-000000000002';
+select teste.conferir('Entregue a mao resiste ao recalculo',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');

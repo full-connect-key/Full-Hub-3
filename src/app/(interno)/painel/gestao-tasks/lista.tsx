@@ -37,7 +37,7 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  * quando alguma etapa em aberto passou da data.
  */
 function vencida(task: TaskDaLista): boolean {
-  if (task.status === "concluido" || task.status === "cancelada") return false;
+  if (task.status === "concluido") return false;
   if (!task.proximoPrazo) return false;
   return task.proximoPrazo < new Date().toISOString().slice(0, 10);
 }
@@ -160,7 +160,7 @@ function PeriodoInline({ task }: { task: TaskDaLista }) {
     );
   }
 
-  const encerrada = task.status === "concluido" || task.status === "cancelada";
+  const encerrada = task.status === "concluido";
 
   return (
     <button

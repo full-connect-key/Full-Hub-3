@@ -443,9 +443,9 @@ export function FormularioDeTask({
               das rodadas de aprovação. Um "Status Geral" digitado na abertura
               seria desfeito pelo recálculo um milissegundo depois de salvar,
               e a pessoa veria a própria escolha sumir sem explicação. Os
-              únicos status que alguém marca à mão são "entregue" e
-              "cancelada", e nenhum dos dois faz sentido numa demanda que está
-              nascendo.
+              únicos status que alguém marca à mão são "Entregue" e
+              "Aguardando informações", e nenhum dos dois faz sentido numa
+              demanda que está nascendo.
              ---------------------------------------------------------------- */}
           <SecaoDoFormulario
             numero={2}
