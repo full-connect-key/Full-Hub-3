@@ -475,29 +475,110 @@ tela de login.
 
 ## Parte 7 — A primeira pessoa
 
-Não existe tela de cadastro, então a primeira conta nasce pelo Supabase.
+Não existe tela de cadastro, de propósito: cadastro aberto deixaria qualquer
+um criar conta e — pior — escolher o próprio perfil de acesso. Então a
+**primeira** conta nasce pelo painel do Supabase. Da segunda em diante, use a
+própria plataforma (**Equipe → Adicionar colaborador**), que cria a conta e
+manda um link para a pessoa escolher a senha dela.
 
-**Authentication → Users → Add user → Create new user**
+### 7.1 Criar a conta
 
-- e-mail e senha
-- marque **Auto Confirm User**
-- em **User Metadata**:
+No painel do Supabase: **Authentication → Users → Add user → Create new
+user**.
+
+| Campo | O que pôr |
+| --- | --- |
+| **Email** | o e-mail da pessoa |
+| **Password** | uma senha temporária, mínimo 6 caracteres |
+| **Auto Confirm User** | **marque** |
+
+> **Marcar "Auto Confirm User" não é opcional.** Sem isso o Supabase deixa a
+> conta pendente de confirmação por e-mail — e sem SMTP próprio esse e-mail
+> quase nunca chega. A conta existiria e o login recusaria, sem dizer por quê.
+
+Ainda na mesma tela, em **User Metadata**, cole:
 
 ```json
-{ "nome": "Ana Souza", "role": "socio" }
+{ "nome": "Nome Sobrenome", "role": "socio" }
 ```
 
-O registro em `public.profiles` é criado sozinho por um trigger.
+**A primeira pessoa tem que ser `socio`.** É o único perfil que altera o
+acesso de outra pessoa — sem um `socio`, ninguém consegue promover ninguém, e
+você teria que voltar ao SQL Editor para consertar.
 
-Crie **pelo menos um `socio`** — é o único perfil que altera o acesso de outra
-pessoa, e sem ele ninguém consegue promover ninguém. Daí em diante, o resto da
-equipe entra pela própria plataforma, em **Equipe → Adicionar colaborador**.
+Os valores aceitos são `cliente`, `colaborador`, `desenvolvedor` e `socio`.
+Qualquer outra coisa — ou metadata vazia — vira `colaborador` em silêncio.
+
+> **"Enable Sign Ups" desmarcado (item 1.3) não atrapalha aqui.** Aquilo
+> desliga o cadastro público; criar usuário pelo painel é operação
+> administrativa e continua funcionando.
+
+### 7.2 Conferir que o perfil nasceu junto
+
+**Esta etapa não é zelo.** Um trigger (`handle_new_user`) cria a linha em
+`public.profiles` quando a conta aparece em `auth.users` — e desde a migration
+0005 ele **engole o próprio erro de propósito**, para que uma falha ali não
+derrube o cadastro inteiro. O efeito colateral é que, quando ele falha, você
+não fica sabendo: a conta existe no Auth, o perfil não, e o login recusa sem
+explicar.
+
+No **SQL Editor**:
+
+```sql
+select p.email, p.nome, p.role, p.ativo
+from public.profiles p
+where p.email = 'pessoa@fullconnectkey.com.br';
+```
+
+**Como saber que deu certo:** volta uma linha, com `role = socio` e
+`ativo = true`.
+
+**Se não voltar nada**, crie a linha à mão — a conta no Auth já existe e não
+precisa ser refeita:
+
+```sql
+insert into public.profiles (id, email, nome, role, ativo)
+select u.id, u.email, 'Nome Sobrenome', 'socio', true
+from auth.users u
+where u.email = 'pessoa@fullconnectkey.com.br'
+on conflict (id) do update
+  set role = excluded.role, ativo = true;
+```
+
+**Se voltar com `role = colaborador`** quando você queria `socio`, a metadata
+não foi lida. Corrija direto:
+
+```sql
+update public.profiles set role = 'socio'
+where email = 'pessoa@fullconnectkey.com.br';
+```
+
+Isso funciona no SQL Editor porque ali não existe sessão de usuário e a RLS
+não se aplica. Dentro da plataforma, só quem é `socio` muda o perfil de outra
+pessoa — e ninguém muda o próprio.
+
+### 7.3 Entrar
+
+Abra `https://seu-dominio/login` e use o e-mail e a senha temporária.
+
+**Como saber que deu certo:** você cai em `/painel`, e o menu lateral mostra
+a seção **Gestão** com o selo **Admin**. Se a seção não aparecer, o perfil não
+é `socio` — volte à 7.2.
+
+Troque a senha em **Meu Perfil**. Senha temporária que você digitou e mandou
+para alguém não deve continuar valendo.
+
+### 7.4 O resto da equipe
+
+Daqui em diante **não repita este processo**. Use **Equipe → Adicionar
+colaborador** na própria plataforma: ela cria a conta, cria a ficha e devolve
+um link para a pessoa definir a própria senha — que aparece na tela quando o
+e-mail não é entregue, e sem SMTP próprio conte com isso.
+
+Assim ninguém precisa saber a senha de ninguém, nem você.
 
 > **Não rode o `supabase/seed.sql`** no projeto de produção. Ele cria nove
-> contas de teste com a senha `FullHub@2026`, e elas ficariam lá.
-
-**Como saber que deu certo:** entre no painel com esse e-mail e senha. Você
-cai em `/painel`, com a seção **Gestão** e o selo **Admin** no menu.
+> contas de teste com uma senha conhecida, e elas ficariam lá.
 
 ---
 
