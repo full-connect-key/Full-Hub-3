@@ -775,7 +775,9 @@ export interface Database {
       tasks: {
         Row: {
           id: string;
-          client_id: string;
+          // NULO enquanto é rascunho (migration 0028): a pessoa escolhe o
+          // cliente na própria tela. A exigência passou para a publicação.
+          client_id: string | null;
           titulo: string;
           briefing_rico: Json | null;
           briefing_texto: string | null;
@@ -789,13 +791,19 @@ export interface Database {
           link_entrega: string | null;
           criado_por: string;
           concluida_em: string | null;
+          // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
+          // dela conta em lista, contador, notificação ou portal.
+          publicada_em: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          client_id: string;
+          client_id?: string | null;
           titulo: string;
+          // Omitido, a demanda nasce PUBLICADA (o default do banco é now()).
+          // Rascunho se pede explicitamente, com null.
+          publicada_em?: string | null;
           briefing_rico?: Json | null;
           briefing_texto?: string | null;
           prioridade?: TaskPrioridade;
@@ -810,14 +818,17 @@ export interface Database {
         };
         Update: {
           titulo?: string;
-          client_id?: string;
+          client_id?: string | null;
+          publicada_em?: string | null;
           briefing_rico?: Json | null;
           briefing_texto?: string | null;
           prioridade?: TaskPrioridade;
           status?: TaskStatus;
           status_manual?: boolean;
-          data_inicio?: string;
-          data_fim?: string | null;
+          // `data_inicio` e `data_fim` ficam FORA do Update: desde a 0028 o
+          // período da Task é derivado das etapas, escrito por trigger.
+          // Tentar gravá-los é erro de tipo aqui, antes de virar duas
+          // verdades sobre a mesma demanda.
           task_type_id?: string | null;
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
@@ -1164,6 +1175,12 @@ export interface Database {
         Returns: void;
       };
       cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
+      // Os rascunhos DE QUEM ESTA LOGADO que somem amanha (migration 0028).
+      rascunhos_a_expirar: {
+        Args: Record<string, never>;
+        Returns: { id: string; titulo: string; updated_at: string }[];
+      };
+      limpar_rascunhos_abandonados: { Args: Record<string, never>; Returns: number };
       notificar: {
         Args: {
           p_user_id: string;

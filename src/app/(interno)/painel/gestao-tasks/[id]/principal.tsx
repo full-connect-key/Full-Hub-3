@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
 import { Check, Loader2 } from "lucide-react";
@@ -91,57 +91,92 @@ export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; pode
 }
 
 /**
- * O título da demanda, editável em dois cliques.
+ * O título da demanda, sempre editável, salvando sozinho.
+ *
+ * Era um `h1` que virava input em dois cliques. Com o rascunho (migration
+ * 0028) a tela abre com o título VAZIO e o cursor dentro dele — um `h1` em
+ * branco esperando dois cliques seria uma tela que não diz o que fazer.
+ *
+ * SALVA APÓS UMA PAUSA de 600 ms e também ao sair do campo. A pausa é para
+ * não gravar letra a letra; o blur é para não perder o que foi digitado quem
+ * fecha a aba logo depois. Os dois juntos, porque cada um cobre o que o outro
+ * deixa passar.
  *
  * Componente separado porque mora FORA das abas: ele nomeia a Task inteira, e
  * o que troca entre Trabalho e Histórico é o conteúdo, não o assunto.
  */
-export function TituloDaTask({ task, podeEditar }: { task: TaskCompleta; podeEditar: boolean }) {
+export function TituloDaTask({
+  task,
+  podeEditar,
+  aoSalvar,
+}: {
+  task: TaskCompleta;
+  podeEditar: boolean;
+  /** Avisa a barra de estado: "salvando" e depois "salvo", ou o erro. */
+  aoSalvar?: (estado: "salvando" | "salvo" | { erro: string }) => void;
+}) {
   const router = useRouter();
   const [titulo, setTitulo] = useState(task.titulo);
-  const [editando, setEditando] = useState(false);
+  const pendente = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function salvar() {
-    setEditando(false);
-    if (titulo.trim() === task.titulo || titulo.trim().length < 2) {
-      setTitulo(task.titulo);
-      return;
-    }
-    void (async () => {
-      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo }));
+  const gravar = useCallback(
+    async (valor: string) => {
+      if (valor === task.titulo) return;
+      aoSalvar?.("salvando");
+      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo: valor }));
       if (!resultado.ok) {
+        // O VALOR DIGITADO FICA NA TELA. Devolver o título antigo apagaria o
+        // que a pessoa escreveu por causa de uma falha de rede — e ela não
+        // tem como saber que perdeu.
+        aoSalvar?.({ erro: resultado.error });
         toast.error(resultado.error);
-        setTitulo(task.titulo);
-      } else router.refresh();
-    })();
+        return;
+      }
+      aoSalvar?.("salvo");
+      router.refresh();
+    },
+    [task.id, task.titulo, aoSalvar, router],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (pendente.current) clearTimeout(pendente.current);
+    };
+  }, []);
+
+  function digitou(valor: string) {
+    setTitulo(valor);
+    if (pendente.current) clearTimeout(pendente.current);
+    pendente.current = setTimeout(() => void gravar(valor), 600);
   }
 
-  if (editando && podeEditar) {
+  function saiu() {
+    if (pendente.current) clearTimeout(pendente.current);
+    void gravar(titulo);
+  }
+
+  if (!podeEditar) {
     return (
-      <Input
-        value={titulo}
-        autoFocus
-        className="h-auto py-1 text-xl font-semibold md:text-xl"
-        onChange={(e) => setTitulo(e.target.value)}
-        onBlur={salvar}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") {
-            setTitulo(task.titulo);
-            setEditando(false);
-          }
-        }}
-      />
+      <h1 className="text-xl font-semibold tracking-tight text-balance">
+        {task.titulo || "Sem título"}
+      </h1>
     );
   }
 
   return (
-    <h1
-      className="text-xl font-semibold tracking-tight text-balance"
-      onDoubleClick={() => podeEditar && setEditando(true)}
-      title={podeEditar ? "Clique duas vezes para renomear" : undefined}
-    >
-      {task.titulo}
-    </h1>
+    <Input
+      value={titulo}
+      // O cursor começa aqui quando a demanda acabou de nascer. Numa que já
+      // tem nome, roubar o foco atrapalharia quem veio ler o briefing.
+      autoFocus={task.titulo === ""}
+      placeholder="Nome da task"
+      aria-label="Título da demanda"
+      className="h-auto border-transparent px-2 py-1 text-xl font-semibold shadow-none md:text-xl"
+      onChange={(e) => digitou(e.target.value)}
+      onBlur={saiu}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+    />
   );
 }

@@ -105,7 +105,8 @@ export async function subtarefasConcluidasNaSemana(
   const { data: tasks } = await supabase
     .from("tasks")
     .select("id, client_id")
-    .in("id", idsDeTasks);
+    .in("id", idsDeTasks)
+    .not("publicada_em", "is", null);
 
   const idsDeClientes = [
     ...new Set((tasks ?? []).map((t) => t.client_id).filter(Boolean)),

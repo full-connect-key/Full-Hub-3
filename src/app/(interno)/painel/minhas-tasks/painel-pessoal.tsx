@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Columns3, List, Plus } from "lucide-react";
+import { CalendarDays, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
 import { COLUNAS_POR_STATUS, ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 
 import { BoardDeTasks } from "../gestao-tasks/board";
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
-import { FormularioDeTask } from "../gestao-tasks/formulario-de-task";
 import type { LinhaPessoal } from "./linhas";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
@@ -59,9 +58,7 @@ export function PainelPessoal({
   itensDeCalendario,
   itensDoDia,
   contadores,
-  clientes,
   equipe,
-  tipos,
   prazos,
   usuarioId,
   souGestor,
@@ -75,9 +72,7 @@ export function PainelPessoal({
   itensDeCalendario: ItemDeCalendario[];
   itensDoDia: ItemDoDia[];
   contadores: Record<FocoDoDia, number>;
-  clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
-  tipos: { id: string; nome: string; client_id: string | null }[];
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
@@ -90,7 +85,6 @@ export function PainelPessoal({
   const pathname = usePathname();
   const parametros = useSearchParams();
 
-  const [criando, setCriando] = useState(false);
   const [taskAberta, setTaskAberta] = useState<string | null>(null);
 
   function navegar(mudancas: Record<string, string | null>) {
@@ -181,10 +175,7 @@ export function PainelPessoal({
         {/* Só aparece para quem faz Atendimento. A policy tasks_insert é quem
             recusa de verdade — isto evita oferecer um caminho sem saída. */}
         {podeCriarTask ? (
-          <Button className="ml-auto" onClick={() => setCriando(true)}>
-            <Plus aria-hidden />
-            Nova task
-          </Button>
+          <BotaoDeNovaTask className="ml-auto" />
         ) : null}
       </div>
 
@@ -225,15 +216,6 @@ export function PainelPessoal({
 
       <PainelLateralDaTask taskId={taskAberta} aoFechar={() => setTaskAberta(null)} />
 
-      {podeCriarTask ? (
-        <FormularioDeTask
-          aberto={criando}
-          aoFechar={() => setCriando(false)}
-          clientes={clientes}
-          equipe={equipe}
-          tipos={tipos}
-        />
-      ) : null}
     </div>
   );
 }

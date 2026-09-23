@@ -7,8 +7,13 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
-import { listarWorkflows } from "@/lib/dados/workflows";
-import { contadoresDeTasks, itensDoCalendario, listarTasks, type FiltrosDeTask } from "@/lib/dados/tasks";
+import {
+  contadoresDeTasks,
+  itensDoCalendario,
+  listarTasks,
+  meusRascunhos,
+  type FiltrosDeTask,
+} from "@/lib/dados/tasks";
 import type { TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
 
 import { PainelDeTasks } from "./painel-de-tasks";
@@ -48,23 +53,25 @@ function filtrosDaUrl(params: Record<string, string | string[] | undefined>): Fi
 }
 
 async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
-  const [tasks, itens, clientes, equipe, tipos] = await Promise.all([
+  // Os workflows saíram daqui junto com o diálogo de criação: quem escolhe o
+  // workflow agora é a tela de detalhe, e é ela que os carrega.
+  const [tasks, itens, clientes, equipe, rascunhos] = await Promise.all([
     listarTasks(filtros),
     itensDoCalendario(filtros),
     listarClientes(),
     listarEquipeAtiva(),
-    listarWorkflows(),
+    meusRascunhos(),
   ]);
 
   return (
     <PainelDeTasks
       tasks={tasks}
+      rascunhos={rascunhos}
       itensDeCalendario={itens}
       clientes={clientes
         .filter((cliente) => cliente.ativo)
         .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
-      tipos={tipos.map((t) => ({ id: t.id, nome: t.nome, client_id: t.client_id }))}
       prazos={prazosDeHoje()}
     />
   );

@@ -126,7 +126,11 @@ export async function vinculosDoCliente(clientId: string) {
       .from("client_users")
       .select("id", { count: "exact", head: true })
       .eq("client_id", clientId),
-    supabase.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId),
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .not("publicada_em", "is", null),
   ]);
 
   const usuarios = acessos ?? 0;

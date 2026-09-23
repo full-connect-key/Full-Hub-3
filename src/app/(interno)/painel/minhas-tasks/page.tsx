@@ -5,9 +5,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
-import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
-import { listarWorkflows } from "@/lib/dados/workflows";
 import {
   contadoresPessoais,
   itensPessoaisDoCalendario,
@@ -50,23 +48,13 @@ async function Conteudo({
   // classificam o mesmo prazo do mesmo jeito.
   const prazos = prazosDeHoje();
 
-  const [
-    tasks,
-    itensDeCalendario,
-    itensDoDia,
-    contadores,
-    clientes,
-    equipe,
-    tipos,
-    podeCriarTask,
-  ] = await Promise.all([
+  const [tasks, itensDeCalendario, itensDoDia, contadores, equipe, podeCriarTask] =
+    await Promise.all([
     minhasTasks(usuarioId, foco, prazos),
     itensPessoaisDoCalendario(usuarioId, foco, prazos),
     meuDia(usuarioId, prazos),
     contadoresPessoais(usuarioId, prazos),
-    listarClientes(),
     listarEquipeAtiva(),
-    listarWorkflows(),
     souDoAtendimento(),
   ]);
 
@@ -77,11 +65,7 @@ async function Conteudo({
       itensDeCalendario={itensDeCalendario}
       itensDoDia={itensDoDia}
       contadores={contadores}
-      clientes={clientes
-        .filter((cliente) => cliente.ativo)
-        .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
-      tipos={tipos.map((t) => ({ id: t.id, nome: t.nome, client_id: t.client_id }))}
       prazos={prazos}
       usuarioId={usuarioId}
       souGestor={souGestor}

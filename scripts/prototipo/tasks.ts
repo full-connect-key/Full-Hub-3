@@ -524,6 +524,9 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     id: semente.id,
     client_id: semente.client_id,
     titulo: semente.titulo,
+    // No protótipo tudo já nasce publicado: rascunho é a tela de quem está
+    // montando, e nenhuma das imagens mostra esse momento.
+    publicada_em: "2026-09-10T09:00:00.000Z",
     briefing_rico: (semente.briefing_rico ?? null) as TaskDaLista["briefing_rico"],
     briefing_texto: semente.briefing_texto ?? null,
     prioridade: semente.prioridade,

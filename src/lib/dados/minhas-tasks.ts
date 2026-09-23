@@ -86,7 +86,9 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
   const idsDeTasks = [...new Set(candidatas.map((s) => s.task_id))];
 
   const [{ data: tasks }, { data: todasAsSubs }] = await Promise.all([
-    supabase.from("tasks").select("*").in("id", idsDeTasks),
+    // Rascunho fora, inclusive o meu: a etapa que eu rascunhei no nome de
+    // alguém ainda não é trabalho de ninguém (migration 0028).
+    supabase.from("tasks").select("*").in("id", idsDeTasks).not("publicada_em", "is", null),
     supabase
       .from("subtasks")
       .select("id, task_id, parent_id, titulo, status, responsavel_id, ordem")

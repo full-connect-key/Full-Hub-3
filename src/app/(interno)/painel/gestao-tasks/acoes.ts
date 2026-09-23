@@ -273,13 +273,20 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
 }
 
 const esquemaDeEdicao = z.object({
-  titulo: z.string().min(2).optional(),
+  // SEM `min(2)`, e é por causa do rascunho (migration 0028): ele nasce sem
+  // título e a pessoa digita letra a letra, com o campo salvando sozinho. Um
+  // mínimo aqui recusaria o primeiro caractere e a pessoa veria "erro ao
+  // salvar" no meio de uma palavra.
+  //
+  // Quem cobra o título é a PUBLICAÇÃO, no banco: enquanto é rascunho ele
+  // pode estar vazio, e a lista o chama de "Sem título".
+  titulo: z.string().optional(),
   client_id: z.string().uuid().optional(),
   task_type_id: z.string().uuid().nullable().optional(),
   briefing_rico: z.unknown().optional(),
   briefing_texto: z.string().nullable().optional(),
-  data_inicio: z.string().optional(),
-  data_fim: z.string().nullable().optional(),
+  // `data_inicio` e `data_fim` saíram: o período é derivado das etapas desde
+  // a 0028, e aceitá-los de volta recriaria a segunda verdade.
   prioridade: prioridade.optional(),
   status: statusDeTask.optional(),
   // Na edição dá para TROCAR, nunca para esvaziar: apagar o endereço deixa o
@@ -319,8 +326,10 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
     if (entrada.briefing_rico !== undefined)
       mudancas.briefing_rico = (entrada.briefing_rico ?? null) as Json | null;
     if (entrada.briefing_texto !== undefined) mudancas.briefing_texto = entrada.briefing_texto;
-    if (entrada.data_inicio !== undefined) mudancas.data_inicio = entrada.data_inicio;
-    if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
+    // O PERÍODO NÃO ENTRA MAIS AQUI. Desde a 0028 ele é derivado das etapas
+    // e escrito por trigger; aceitar as duas datas de volta recriaria a
+    // segunda verdade que a migration acabou de eliminar — a que a pessoa
+    // digitou no topo contra a que as etapas dizem.
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
     if (entrada.link_entrega !== undefined) mudancas.link_entrega = entrada.link_entrega;
 
@@ -453,7 +462,6 @@ export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Pro
     const entrada = validacao.data;
     const mudancas: EdicaoDeTask = {};
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
-    if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.status !== undefined) {
       mudancas.status = entrada.status;
       mudancas.status_manual = true;
@@ -516,5 +524,241 @@ export async function sugerirEtapasDoTipo(
     if (!aplicado) return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
 
     return sucesso("Fluxo aplicado.", aplicado);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// O ciclo de vida do rascunho (migration 0028)
+// ---------------------------------------------------------------------------
+
+/**
+ * "+ Nova Task" cria a demanda AGORA, vazia, e devolve o id.
+ *
+ * A tela que abre em seguida é a de detalhe de verdade — a mesma da edição.
+ * Não é atalho: subtarefa, referência e comentário precisam de um `task_id`
+ * para serem gravados, e sem a linha no banco a tela de criação teria que
+ * guardar tudo em memória e reimplementar cada comportamento. Seriam dois
+ * componentes que divergem na primeira semana.
+ *
+ * Nasce sem título, sem cliente e sem pasta de entrega, e é por isso que o
+ * rascunho existe: exigir qualquer um dos três aqui traria de volta a etapa a
+ * mais que este sprint elimina. Quem cobra os três é a publicação.
+ */
+export async function criarRascunho(): Promise<Resultado<string>> {
+  return executarAcao("criarRascunho", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        titulo: "",
+        client_id: null,
+        criado_por: sessao.usuarioId,
+        // O explícito que faz dela um rascunho. O default do banco é
+        // publicada: esquecer aqui criaria uma demanda visível, não uma
+        // demanda invisível — que é o erro seguro dos dois.
+        publicada_em: null,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      return falha(
+        `Não foi possível abrir a demanda: ${error?.message ?? "o banco recusou a criação."}`,
+      );
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("Rascunho aberto.", data.id);
+  });
+}
+
+/**
+ * O rascunho passa a existir para a equipe.
+ *
+ * A validação do mínimo — título, cliente e pasta — é do banco
+ * (`tasks_publicar_exige_minimo`), e a mensagem dele vem pronta com o `hint`
+ * dizendo que o rascunho continua salvo. Aqui não se repete a checagem: duas
+ * listas do que é obrigatório divergiriam no dia em que uma mudasse.
+ *
+ * **E É AQUI QUE AS NOTIFICAÇÕES SAEM.** Enquanto era rascunho ninguém foi
+ * avisado, nem os responsáveis já atribuídos às etapas — montar a demanda é
+ * pensar em voz alta, e avisar a cada etapa rascunhada seria transformar o
+ * sino em ruído. Notificar acontece uma vez, no instante em que a demanda
+ * vira real.
+ */
+export async function publicarTask(id: string): Promise<Resultado> {
+  return executarAcao("publicarTask", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .update({ publicada_em: new Date().toISOString() })
+      .eq("id", id)
+      .is("publicada_em", null)
+      .select("id, titulo");
+
+    if (error) {
+      // A recusa do banco vem com `hint`: "o rascunho continua salvo — é só
+      // dar um nome a ele". Descartá-lo deixaria a pessoa achando que perdeu
+      // o que escreveu.
+      // O `hint` vem junto de propósito: é ele que diz "o rascunho continua
+      // salvo — é só dar um nome a ele". Descartá-lo deixaria a pessoa com um
+      // "não pode" e a impressão de ter perdido o que escreveu.
+      return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    }
+    if (!data || data.length === 0) {
+      return falha("Este rascunho não existe mais, ou já foi criado.");
+    }
+
+    const { data: etapas } = await supabase
+      .from("subtasks")
+      .select("responsavel_id")
+      .eq("task_id", id);
+
+    const aAvisar = [
+      ...new Set(
+        (etapas ?? [])
+          .map((e) => e.responsavel_id)
+          .filter((quem): quem is string => Boolean(quem) && quem !== sessao.usuarioId),
+      ),
+    ];
+
+    // Uma chamada por pessoa, e não por etapa: quem tem três etapas na mesma
+    // demanda recebe um aviso, não três.
+    for (const quem of aAvisar) {
+      await supabase.rpc("notificar", {
+        p_user_id: quem,
+        p_tipo: "task",
+        p_titulo: "Você tem etapa numa demanda nova",
+        p_corpo: data[0].titulo,
+        p_link: `/painel/gestao-tasks/${id}`,
+      });
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath(`${ROTA}/${id}`);
+    return sucesso(
+      aAvisar.length === 0
+        ? "Demanda criada."
+        : `Demanda criada, e ${aAvisar.length} pessoa${aAvisar.length === 1 ? " foi avisada" : "s foram avisadas"}.`,
+    );
+  });
+}
+
+/**
+ * Descartar o rascunho.
+ *
+ * Confirmação simples, e não dupla: nada foi publicado, ninguém foi avisado,
+ * não há o que preservar. O `is("publicada_em", null)` é a trava: esta ação
+ * nunca apaga uma demanda que já existe para a equipe, mesmo que alguém
+ * mande o id dela.
+ */
+export async function descartarRascunho(id: string): Promise<Resultado> {
+  return executarAcao("descartarRascunho", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", id)
+      .is("publicada_em", null)
+      .select("id");
+
+    if (error) return falha(`Não foi possível descartar: ${error.message}`);
+    if (!data || data.length === 0) {
+      return falha("Este rascunho não existe mais, ou já virou uma demanda.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("Rascunho descartado.");
+  });
+}
+
+/**
+ * Escolher o workflow MATERIALIZA as etapas na hora.
+ *
+ * Antes isso só acontecia no diálogo de criação, que montava as etapas em
+ * memória e gravava tudo junto ao salvar. Com a tela única a demanda já
+ * existe, então o workflow se aplica direto: as subtarefas entram no banco,
+ * editáveis, e uma cópia do fluxo vai para `workflow_snapshot`.
+ *
+ * **O SNAPSHOT É O PONTO.** Editar o workflow depois não muda nenhuma Task
+ * existente — o que ficou gravado é o que valia no dia em que a demanda
+ * nasceu. Sem ele, mexer num modelo reescreveria o passado de todas as
+ * campanhas que o usaram.
+ *
+ * **SUBSTITUI as etapas que estiverem lá**, e por isso a tela pergunta antes:
+ * trocar de workflow com trabalho já montado dentro apagaria o trabalho. O
+ * `replace` só acontece porque a pessoa disse que pode.
+ */
+export async function aplicarWorkflowNaTask(
+  taskId: string,
+  tipoId: string | null,
+): Promise<Resultado> {
+  return executarAcao("aplicarWorkflowNaTask", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    if (tipoId === null) {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ task_type_id: null, workflow_snapshot: null })
+        .eq("id", taskId);
+      if (error) return falha(`Não foi possível salvar: ${error.message}`);
+      revalidatePath(`${ROTA}/${taskId}`);
+      return sucesso("Workflow removido. As etapas que estavam lá continuam onde estão.");
+    }
+
+    const { data: task } = await supabase
+      .from("tasks")
+      .select("data_inicio")
+      .eq("id", taskId)
+      .maybeSingle();
+    if (!task) return falha("Task não encontrada.");
+
+    const aplicado = await fluxoDoWorkflow(tipoId, task.data_inicio);
+
+    const { error: erroDaTask } = await supabase
+      .from("tasks")
+      .update({
+        task_type_id: tipoId,
+        workflow_snapshot: (aplicado?.snapshot ?? null) as Json,
+      })
+      .eq("id", taskId);
+    if (erroDaTask) return falha(`Não foi possível salvar: ${erroDaTask.message}`);
+
+    if (!aplicado || aplicado.etapas.length === 0) {
+      revalidatePath(`${ROTA}/${taskId}`);
+      return sucesso("Este workflow não tem etapas — monte-as à mão.");
+    }
+
+    // Fora as antigas. A pergunta já foi feita na tela; aqui só se executa.
+    await supabase.from("subtasks").delete().eq("task_id", taskId);
+
+    const { error: erroDasEtapas } = await supabase.from("subtasks").insert(
+      aplicado.etapas.map((etapa, indice) => ({
+        task_id: taskId,
+        titulo: etapa.titulo,
+        prazo: etapa.prazo,
+        responsavel_id: etapa.responsavel_id,
+        prioridade: etapa.prioridade,
+        requer_aprovacao: etapa.requer_aprovacao,
+        tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
+        ordem: indice + 1,
+      })),
+    );
+
+    if (erroDasEtapas) {
+      return falha(`As etapas não entraram: ${erroDasEtapas.message}`);
+    }
+
+    revalidatePath(`${ROTA}/${taskId}`);
+    return sucesso(
+      `${aplicado.etapas.length} etapa${aplicado.etapas.length === 1 ? "" : "s"} do workflow ${aplicado.etapas.length === 1 ? "entrou" : "entraram"}. Dá para editar tudo.`,
+    );
   });
 }

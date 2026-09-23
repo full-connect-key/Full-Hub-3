@@ -342,23 +342,66 @@ compartilhado quando o pedido do Full Days passou a usá-lo — duas telas
 desenhando o mesmo cabeçalho por conta própria acabariam com dois tamanhos de
 círculo e dois pesos de título.
 
-#### O formulário de abertura tem cinco seções numeradas
+#### "+ Nova task" ABRE A TELA DE DETALHE, e não um formulário
 
-`/painel/gestao-tasks` → "Nova task". Informações gerais, período e
-prioridade, workflow, subtarefas e entregas, materiais e links. O número dá à
-conversa um jeito de apontar ("faltou a 4") sem descrever onde o campo fica. A
-linha de explicação que cada seção carregava saiu junto com as dos títulos de
-página: o campo diz o que é pelo rótulo, e a legenda embaixo de tudo empurrava
-o formulário para baixo sem acrescentar.
+A demanda nasce como **rascunho** no instante do clique (`publicada_em is
+null`, migration 0028) e a pessoa cai na tela completa, com o cursor no
+título. **Não existe um componente de criação separado do de edição** — é uma
+tela só, e é isso que faz as duas nunca divergirem.
 
-Eram seis até a 0023. A que saiu era "Exigência de aprovação da demanda" — a
-exigência passou a ser de cada etapa, e o campo por etapa, que já existia na
-seção das subtarefas, virou o único lugar onde isso se decide.
+**Por que criar a linha antes de a pessoa digitar:** subtarefa, referência e
+comentário precisam de um `task_id` para serem gravados. Sem a linha no
+banco, a tela de criação teria que guardar tudo em memória e reimplementar
+cada comportamento — e a divergência apareceria na primeira semana.
 
-**Não existe seletor de "Status Geral", e a ausência é deliberada.** Os sete
-status se marcam à mão desde a 0025, mas numa demanda que está nascendo
-nenhum deles diz nada: ela começa em `nao_iniciada` porque é o que é verdade,
-e quem quiser marcar outra coisa marca depois, no detalhe.
+**O rascunho é de quem o criou, e de mais ninguém.** Nem o sócio: um rascunho
+é um pensamento pela metade, não um documento da agência. A trava é RLS
+**restritiva**, uma por tabela — e é restritiva porque permissiva é OR:
+acrescentar uma policy que esconde ao lado de uma que mostra tudo não esconde
+nada. Foi assim que a primeira versão deixou outra pessoa *apagar* a
+referência de um rascunho que não conseguia enxergar: `task_referencias_write`
+é `for all`, e um DELETE passa por ela, não pela de SELECT.
+
+Rascunho não entra em lista, board, calendário, Minhas Tasks, contador,
+relatório, notificação nem portal — e o filtro existe nos dois lugares: a RLS
+esconde o dos outros, a consulta esconde o meu.
+
+**Tudo salva sozinho**, campo a campo, com 600 ms de pausa no que é texto. O
+botão **Criar task** não salva nada: ele muda uma coisa só, a demanda passa a
+existir para a equipe. É aí, e só aí, que os responsáveis das etapas são
+notificados — avisar a cada etapa rascunhada transformaria o sino em ruído.
+
+**Publicar exige título, cliente e pasta de entrega**, os três numa trava só
+(`tasks_publicar_exige_minimo`). Subtarefa **não** entra: publicar sem etapa
+avisa e deixa seguir, porque uma demanda pode nascer antes de alguém saber
+como ela se divide.
+
+**Rascunho sem alteração há 7 dias é apagado**, com aviso na Home no sexto
+dia. A limpeza **não roda sozinha** — o agendamento é do Sprint 16; até lá,
+chamar `limpar_rascunhos_abandonados()` é ato de alguém.
+
+**`rascunho` não é valor de enum, e a escolha é deliberada.** O pedido trazia
+`alter type task_status add value 'rascunho'`. Três razões contra: o SQL
+Editor do Supabase roda o arquivo colado como uma transação só, e um valor de
+enum não pode ser *usado* na mesma transação em que nasce — a migration
+falharia na hora de aplicar; `rascunho` é estado do ciclo de vida e não do
+trabalho, então entraria no seletor dos sete status e viraria coluna no
+board; e `publicada_em` responde duas perguntas de uma vez. O **default é
+publicada**: esquecer o campo cria uma demanda visível, e o erro contrário —
+uma task que some para a equipe inteira — ninguém descobre.
+
+#### O formulário de abertura tinha cinco seções numeradas
+
+**Ele não existe mais**, e o histórico fica registrado porque a ideia pode
+voltar: eram seis seções numeradas até a 0023, cinco depois que a exigência de
+aprovação virou de cada etapa, e zero depois da 0028 — o diálogo inteiro deu
+lugar à tela de detalhe. As seções numeradas continuam vivas no Full Days
+(`components/shared/secao-do-formulario.tsx`), que é de onde o padrão saiu.
+
+**No rascunho o status não se escolhe**, e a ausência é deliberada: ele ainda
+não faz parte do trabalho de ninguém, e oferecer os sete seria oferecer uma
+escolha sobre uma demanda que não existe para a equipe. Ela começa em
+"Iniciar" no instante em que for criada.
 
 Link de referência entra num campo da tela, **nunca num `window.prompt`**: o
 prompt não dá para colar no teclado do celular, não valida nada, some ao

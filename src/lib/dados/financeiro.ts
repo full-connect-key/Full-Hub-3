@@ -420,7 +420,11 @@ export async function relatorioDoPeriodo(
   const idsDeTasks = [...new Set(listaDeSubtarefas.map((s) => s.task_id))];
 
   const { data: tasks } = idsDeTasks.length
-    ? await supabase.from("tasks").select("id, client_id").in("id", idsDeTasks)
+    ? await supabase
+        .from("tasks")
+        .select("id, client_id")
+        .in("id", idsDeTasks)
+        .not("publicada_em", "is", null)
     : { data: [] as { id: string; client_id: string | null }[] };
   const clienteDaTask = new Map((tasks ?? []).map((t) => [t.id, t.client_id]));
 

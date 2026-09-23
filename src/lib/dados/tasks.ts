@@ -93,7 +93,9 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   const supabase = await criarClienteServidor();
 
   const ids = tasks.map((t) => t.id);
-  const idsDeClientes = [...new Set(tasks.map((t) => t.client_id))];
+  // O rascunho ainda não tem cliente (0028) — ele só aparece na tela de quem
+  // o criou, e é ali que a pessoa escolhe.
+  const idsDeClientes = [...new Set(tasks.map((t) => t.client_id).filter(Boolean))] as string[];
 
   const [{ data: clientes }, { data: subtarefas }] = await Promise.all([
     supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
@@ -160,7 +162,7 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     const r = resumos.get(task.id) ?? resumoVazio();
     return {
       ...task,
-      cliente: porCliente.get(task.client_id) ?? null,
+      cliente: task.client_id ? (porCliente.get(task.client_id) ?? null) : null,
       equipe: r.equipe,
       subtarefasTotal: r.total,
       subtarefasConcluidas: r.concluidas,
@@ -201,7 +203,11 @@ export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLi
     if (idsPorPessoa.length === 0) return [];
   }
 
-  let consulta = supabase.from("tasks").select("*");
+  // RASCUNHO NÃO ENTRA EM LISTA NENHUMA (migration 0028). A RLS já esconde o
+  // rascunho DOS OUTROS; este filtro esconde o MEU — ele tem a tela própria,
+  // no grupo Rascunhos, e no board ou no calendário seria uma demanda que a
+  // equipe vê na minha tela e não vê na dela.
+  let consulta = supabase.from("tasks").select("*").not("publicada_em", "is", null);
 
   if (idsPorPessoa) consulta = consulta.in("id", idsPorPessoa);
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
@@ -236,13 +242,17 @@ export const contadoresDeTasks = cache(async () => {
   const primeiroDoMes = `${hoje.slice(0, 7)}-01`;
 
   const [abertas, concluidas, atrasadas] = await Promise.all([
+    // Os contadores também ignoram rascunho: um número que só existe na tela
+    // de quem rascunhou não é um indicador da agência.
     supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })
+      .not("publicada_em", "is", null)
       .not("status", "in", "(concluido)"),
     supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })
+      .not("publicada_em", "is", null)
       .eq("status", "concluido")
       .gte("concluida_em", `${primeiroDoMes}T00:00:00Z`),
     // Atrasada conta pela subtarefa vencida, e cada task conta uma vez.
@@ -523,4 +533,80 @@ export async function urlsDosArquivos(caminhos: string[]): Promise<Record<string
     if (item.path && item.signedUrl) mapa[item.path] = item.signedUrl;
   }
   return mapa;
+}
+
+// ---------------------------------------------------------------------------
+// Os rascunhos (migration 0028)
+// ---------------------------------------------------------------------------
+
+export type RascunhoDaLista = {
+  id: string;
+  titulo: string;
+  cliente: string | null;
+  subtarefas: number;
+  /** Quando foi mexido pela última vez — é por ela que os 7 dias contam. */
+  updated_at: string;
+};
+
+/**
+ * Os MEUS rascunhos, do mais recente para o mais antigo.
+ *
+ * Não precisa filtrar por autor: a RLS já devolve só os meus (`tasks_select`
+ * mais a regra restritiva da 0028). O filtro aqui é o contrário — pegar
+ * **apenas** os rascunhos, que é o que nenhuma outra consulta do produto faz.
+ *
+ * O título vem como está, inclusive vazio: quem decide que um rascunho sem
+ * nome se chama "Sem título" é a tela, e é lá que a frase mora.
+ */
+export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
+  const supabase = await criarClienteServidor();
+
+  const { data: rascunhos } = await supabase
+    .from("tasks")
+    .select("id, titulo, client_id, updated_at")
+    .is("publicada_em", null)
+    .order("updated_at", { ascending: false });
+
+  const lista = rascunhos ?? [];
+  if (lista.length === 0) return [];
+
+  const idsDeClientes = [...new Set(lista.map((r) => r.client_id).filter(Boolean))] as string[];
+
+  const [{ data: clientes }, { data: etapas }] = await Promise.all([
+    idsDeClientes.length
+      ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
+      : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
+    supabase
+      .from("subtasks")
+      .select("task_id")
+      .in(
+        "task_id",
+        lista.map((r) => r.id),
+      ),
+  ]);
+
+  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+
+  return lista.map((r) => ({
+    id: r.id,
+    titulo: r.titulo,
+    cliente: r.client_id ? (porCliente.get(r.client_id) ?? null) : null,
+    subtarefas: (etapas ?? []).filter((e) => e.task_id === r.id).length,
+    updated_at: r.updated_at,
+  }));
+}
+
+/**
+ * Os meus rascunhos que somem amanhã — os que passaram de seis dias.
+ *
+ * A pergunta é do banco (`rascunhos_a_expirar`), e não uma consulta montada
+ * aqui, porque o prazo é o mesmo que `limpar_rascunhos_abandonados()` usa
+ * para apagar. Dois lugares com a mesma contagem de dias divergiriam no dia
+ * em que alguém mudasse um dos dois — e o resultado seria avisar de um
+ * rascunho que não vai sumir, ou apagar um que ninguém foi avisado.
+ */
+export async function rascunhosAExpirar(): Promise<{ id: string; titulo: string }[]> {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.rpc("rascunhos_a_expirar");
+  return (data ?? []).map((r) => ({ id: r.id, titulo: r.titulo }));
 }

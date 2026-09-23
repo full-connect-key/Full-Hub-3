@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarDays, Columns3, List, Plus } from "lucide-react";
+import { useEffect } from "react";
+import { CalendarDays, Columns3, List } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
+import { GrupoDeRascunhos } from "./rascunhos";
+import type { RascunhoDaLista } from "@/lib/dados/tasks";
 import { COLUNAS_POR_STATUS } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
@@ -12,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { BoardDeTasks } from "./board";
 import { CalendarioDeTasks } from "./calendario";
 import { BarraDeFiltrosDeTask, useFiltros, type Visao } from "./filtros";
-import { FormularioDeTask } from "./formulario-de-task";
 import { ListaDeTasks } from "./lista";
 
 const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
@@ -30,21 +31,20 @@ const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
  */
 export function PainelDeTasks({
   tasks,
+  rascunhos,
   itensDeCalendario,
   clientes,
   equipe,
-  tipos,
   prazos,
 }: {
+  rascunhos: RascunhoDaLista[];
   tasks: TaskDaLista[];
   itensDeCalendario: ItemDeCalendario[];
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
-  tipos: { id: string; nome: string; client_id: string | null }[];
   prazos: { hoje: string; fimDaSemana: string };
 }) {
   const { filtros, definir } = useFiltros();
-  const [criando, setCriando] = useState(false);
 
   /**
    * Atalhos no estilo das ferramentas de produtividade: N abre nova task e /
@@ -65,9 +65,11 @@ export function PainelDeTasks({
         alvo?.isContentEditable;
       if (digitando) return;
 
+      // O ATALHO N ABRE O RASCUNHO, e não mais um diálogo: ele clica o mesmo
+      // botão, para os dois caminhos nunca fazerem coisas diferentes.
       if (evento.key === "n" || evento.key === "N") {
         evento.preventDefault();
-        setCriando(true);
+        document.getElementById("nova-task")?.click();
         return;
       }
 
@@ -107,13 +109,7 @@ export function PainelDeTasks({
           ))}
         </div>
 
-        <Button className="ml-auto" onClick={() => setCriando(true)}>
-          <Plus aria-hidden />
-          Nova task
-          <kbd className="bg-primary-foreground/15 ml-1 hidden rounded px-1.5 py-0.5 text-[10px] sm:inline">
-            N
-          </kbd>
-        </Button>
+        <BotaoDeNovaTask id="nova-task" className="ml-auto" atalho="N" />
       </div>
 
       <BarraDeFiltrosDeTask clientes={clientes} equipe={equipe} />
@@ -121,18 +117,19 @@ export function PainelDeTasks({
       {filtros.visao === "board" ? (
         <BoardDeTasks tasks={tasks} colunas={COLUNAS_POR_STATUS} />
       ) : null}
-      {filtros.visao === "lista" ? <ListaDeTasks tasks={tasks} /> : null}
+      {filtros.visao === "lista" ? (
+        <div className="space-y-3">
+          {/* O grupo dos MEUS rascunhos, no topo e recolhido. Só na Lista: no
+              board ele viraria uma coluna que a equipe não tem, e no
+              calendário uma barra numa data que ninguém combinou. */}
+          <GrupoDeRascunhos rascunhos={rascunhos} />
+          <ListaDeTasks tasks={tasks} />
+        </div>
+      ) : null}
       {filtros.visao === "calendario" ? (
         <CalendarioDeTasks itens={itensDeCalendario} equipe={equipe} prazos={prazos} />
       ) : null}
 
-      <FormularioDeTask
-        aberto={criando}
-        aoFechar={() => setCriando(false)}
-        clientes={clientes}
-        equipe={equipe}
-        tipos={tipos}
-      />
     </div>
   );
 }

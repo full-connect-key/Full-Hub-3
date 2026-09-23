@@ -8,6 +8,7 @@ import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { BoasVindas, BotaoDeEntrega } from "./_blocos/boas-vindas";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
+import { RascunhosAExpirar } from "./_blocos/rascunhos-a-expirar";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -33,6 +34,8 @@ export default async function PaginaInicialDoPainel() {
 
   return (
     <div className="space-y-8">
+      <RascunhosAExpirar />
+
       <BoasVindas
         primeiroNome={primeiroNome(profile.nome)}
         role={profile.role}

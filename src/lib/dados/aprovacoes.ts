@@ -79,7 +79,11 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
 
   const [{ data: tasks }, { data: pessoas }] = await Promise.all([
     idsDeTasks.length
-      ? supabase.from("tasks").select("id, titulo, client_id, status").in("id", idsDeTasks)
+      ? supabase
+          .from("tasks")
+          .select("id, titulo, client_id, status")
+          .in("id", idsDeTasks)
+          .not("publicada_em", "is", null)
       : Promise.resolve({
           data: [] as { id: string; titulo: string; client_id: string; status: string }[],
         }),
@@ -92,7 +96,9 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       ),
   ]);
 
-  const idsDeClientes = [...new Set((tasks ?? []).map((t) => t.client_id))];
+  const idsDeClientes = [
+    ...new Set((tasks ?? []).map((t) => t.client_id).filter(Boolean)),
+  ] as string[];
   const { data: clientes } = idsDeClientes.length
     ? await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
     : { data: [] as { id: string; nome_empresa: string }[] };
@@ -115,7 +121,7 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       taskId: sub.task_id,
       subtarefa: sub.titulo,
       task: task.titulo,
-      cliente: porCliente.get(task.client_id)?.nome_empresa ?? null,
+      cliente: task.client_id ? (porCliente.get(task.client_id)?.nome_empresa ?? null) : null,
       responsavel: sub.responsavel_id ? (porPessoa.get(sub.responsavel_id) ?? null) : null,
       tipoAprovacao: (sub.tipo_aprovacao ?? "interna") as TipoAprovacao,
       entregas: (entregas ?? []).filter((e) => e.subtask_id === sub.id),

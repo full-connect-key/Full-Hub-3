@@ -28,14 +28,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
-import { atualizarTask, voltarACalcularStatus } from "../acoes";
+import { aplicarWorkflowNaTask, atualizarTask, voltarACalcularStatus } from "../acoes";
 
 const SEM_VALOR = "__sem__";
 
@@ -60,9 +64,13 @@ const SEM_VALOR = "__sem__";
  *
  *   **Tempo próprio.** O que a Task mostra é a SOMA das subtarefas.
  *
- * O status também não se digita: ele é calculado pelas subtarefas e pelas
- * rodadas de aprovação. O seletor mostra os sete e desliga os cinco que o
- * recálculo controla.
+ *   **Período.** Sai das etapas desde a migration 0028 — a primeira que
+ *   começa e a última que termina. Eram dois campos de data editáveis, e
+ *   isso criava duas verdades sobre a mesma demanda.
+ *
+ * Período, Equipe e Tempo são desenhados como DERIVADOS: sem borda de input,
+ * com a explicação embaixo. Com cara de campo, a primeira reação é tentar
+ * digitar neles.
  */
 export function PropriedadesDaTask({
   task,
@@ -75,8 +83,20 @@ export function PropriedadesDaTask({
   tipos: { id: string; nome: string }[];
   podeEditar: boolean;
 }) {
+  const temEtapas = task.subtarefas.length > 0;
   const router = useRouter();
   const [, iniciar] = useTransition();
+
+  function aplicarWorkflow(tipoId: string | null) {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() => aplicarWorkflowNaTask(task.id, tipoId));
+      if (!resultado.ok) toast.error(resultado.error);
+      else {
+        toast.success(resultado.mensagem);
+        router.refresh();
+      }
+    });
+  }
 
   function voltarAoCalculo() {
     iniciar(async () => {
@@ -98,29 +118,45 @@ export function PropriedadesDaTask({
     <section className="bg-surface-card rounded-card border p-4">
       <dl className="grid gap-x-10 gap-y-4 lg:grid-cols-2">
         <Campo icone={CircleDot} rotulo="Status">
-          <SeletorDeStatus
-            status={task.status}
-            podeEditar={podeEditar}
-            aoMudar={(novo) => salvar({ status: novo })}
-            calculado={!task.status_manual}
-            aoCalcular={() => voltarAoCalculo()}
-          />
+          {task.publicada_em === null ? (
+            // NO RASCUNHO O STATUS NÃO SE ESCOLHE. Ele ainda não faz parte do
+            // trabalho de ninguém, e oferecer os sete aqui seria oferecer uma
+            // escolha sobre uma demanda que não existe para a equipe. Ela
+            // nasce em "Iniciar" no instante em que for criada.
+            <Derivado
+              vazio={false}
+              explicacao="Enquanto for rascunho não há status. Ao criar a task, ele passa a sair do andamento das etapas."
+              quandoVazio=""
+            >
+              Rascunho
+            </Derivado>
+          ) : (
+            <SeletorDeStatus
+              status={task.status}
+              podeEditar={podeEditar}
+              aoMudar={(novo) => salvar({ status: novo })}
+              calculado={!task.status_manual}
+              aoCalcular={() => voltarAoCalculo()}
+            />
+          )}
           {/* A linha diz de ONDE veio o status que está ali. Sem ela, quem
               marcou à mão e quem viu o cálculo trabalhar olham para a mesma
               tela e não têm como distinguir — e a pergunta seguinte ("por que
               essa task está em Aguardando aprovação?") fica sem resposta. */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-text-secondary mt-1 inline-flex cursor-help text-xs">
-                {task.status_manual
-                  ? "Marcado à mão — o cálculo não mexe mais nele."
-                  : "Calculado pelo andamento das etapas."}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              {EXPLICACAO_DO_STATUS[task.status]}
-            </TooltipContent>
-          </Tooltip>
+          {task.publicada_em === null ? null : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-text-secondary mt-1 inline-flex cursor-help text-xs">
+                  {task.status_manual
+                    ? "Marcado à mão — o cálculo não mexe mais nele."
+                    : "Calculado pelo andamento das etapas."}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                {EXPLICACAO_DO_STATUS[task.status]}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </Campo>
 
         <Campo icone={Flag} rotulo="Prioridade">
@@ -145,47 +181,41 @@ export function PropriedadesDaTask({
           )}
         </Campo>
 
+        {/* O PERÍODO É DERIVADO DAS ETAPAS (migration 0028), e por isso não
+            é mais um par de campos de data. Eram dois inputs no topo, e isso
+            criava duas verdades sobre a mesma demanda: a que a pessoa digitou
+            e a que as etapas dizem. Quem escreve agora é o trigger.
+
+            E campo derivado precisa PARECER derivado — sem borda de input,
+            com a explicação embaixo. Com cara de campo, a primeira reação é
+            tentar digitar nele. */}
         <Campo icone={CalendarRange} rotulo="Período">
-          <div className="grid grid-cols-2 gap-2">
-            {podeEditar ? (
-              <>
-                <Input
-                  type="date"
-                  defaultValue={task.data_inicio}
-                  aria-label="Data de início"
-                  onBlur={(evento) => {
-                    if (evento.target.value && evento.target.value !== task.data_inicio) {
-                      salvar({ data_inicio: evento.target.value });
-                    }
-                  }}
-                />
-                <Input
-                  type="date"
-                  defaultValue={task.data_fim ?? ""}
-                  aria-label="Data de encerramento"
-                  onBlur={(evento) => {
-                    if (evento.target.value !== (task.data_fim ?? "")) {
-                      salvar({ data_fim: evento.target.value });
-                    }
-                  }}
-                />
-              </>
-            ) : (
-              <p className="col-span-2 text-sm">
-                {format(parseISO(task.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
-                {task.data_fim
-                  ? ` → ${format(parseISO(task.data_fim), "dd/MM/yyyy", { locale: ptBR })}`
-                  : ""}
-              </p>
-            )}
-          </div>
+          <Derivado
+            vazio={task.data_fim === null}
+            explicacao="Sai das datas das etapas — a primeira que começa e a última que termina."
+            quandoVazio="Definido pelas subtarefas."
+          >
+            {format(parseISO(task.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
+            {task.data_fim
+              ? ` → ${format(parseISO(task.data_fim), "dd/MM/yyyy", { locale: ptBR })}`
+              : ""}
+          </Derivado>
         </Campo>
 
         <Campo icone={Building2} rotulo="Cliente">
           {podeEditar ? (
-            <Select value={task.client_id} onValueChange={(valor) => salvar({ client_id: valor })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
+            <Select
+              value={task.client_id ?? ""}
+              onValueChange={(valor) => salvar({ client_id: valor })}
+            >
+              <SelectTrigger
+                className="w-full"
+                // O rascunho nasce sem cliente, e é o campo que a publicação
+                // aponta primeiro. O anel marca onde olhar sem precisar de um
+                // aviso em vermelho antes de a pessoa ter errado alguma coisa.
+                data-falta={task.client_id === null ? "" : undefined}
+              >
+                <SelectValue placeholder="Escolha o cliente" />
               </SelectTrigger>
               <SelectContent>
                 {clientes.map((cliente) => (
@@ -200,13 +230,30 @@ export function PropriedadesDaTask({
           )}
         </Campo>
 
+        {/* ESCOLHER O WORKFLOW GERA AS ETAPAS AQUI MESMO. Antes isso só
+            acontecia no diálogo de criação, e na tela de detalhe o campo era
+            um rótulo que não fazia nada — quem quisesse a cadeia pronta tinha
+            que abrir outra demanda.
+
+            Com etapas já montadas, pergunta antes: trocar de workflow
+            substitui o que está lá, e ninguém espera perder trabalho ao
+            trocar um campo de um seletor. */}
         <Campo icone={Workflow} rotulo="Workflow">
           {podeEditar ? (
             <Select
               value={task.task_type_id ?? SEM_VALOR}
-              onValueChange={(valor) =>
-                salvar({ task_type_id: valor === SEM_VALOR ? null : valor })
-              }
+              onValueChange={(valor) => {
+                const novo = valor === SEM_VALOR ? null : valor;
+                if (
+                  temEtapas &&
+                  !window.confirm(
+                    "Aplicar este workflow substitui as subtarefas que já estão nesta demanda. Continuar?",
+                  )
+                ) {
+                  return;
+                }
+                aplicarWorkflow(novo);
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -255,27 +302,33 @@ export function PropriedadesDaTask({
         </Campo>
 
         <Campo icone={Users} rotulo="Equipe">
-          {task.equipe.length === 0 ? (
-            <p className="text-text-muted text-sm">Nenhuma etapa atribuída ainda.</p>
-          ) : (
+          <Derivado
+            vazio={task.equipe.length === 0}
+            explicacao="São as pessoas com etapa nesta demanda. Muda quando as etapas mudam."
+            quandoVazio="Nenhuma etapa atribuída ainda."
+          >
             <UserAvatarGroup
-              users={task.equipe.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+              users={task.equipe.map((p) => ({
+                name: p.nome,
+                src: p.avatar_url,
+              }))}
               size="sm"
             />
-          )}
+          </Derivado>
         </Campo>
 
         <Campo icone={Clock} rotulo="Tempo">
-          <p className="text-sm">
+          <Derivado
+            vazio={false}
+            explicacao="Soma das subtarefas — a Task não tem tempo próprio."
+            quandoVazio=""
+          >
             {formatarMinutos(task.tempoRealMinutos)} realizado
             <span className="text-text-muted">
               {" "}
               de {formatarMinutos(task.estimativaMinutos)} estimado
             </span>
-          </p>
-          <p className="text-text-muted text-xs">
-            Soma das subtarefas — a Task não tem tempo próprio.
-          </p>
+          </Derivado>
         </Campo>
       </dl>
 
@@ -283,6 +336,43 @@ export function PropriedadesDaTask({
         Criada por {task.autor?.nome ?? "—"}.
       </p>
     </section>
+  );
+}
+
+/**
+ * Um valor que a demanda NÃO tem, e sim calcula.
+ *
+ * Período, Equipe e Tempo saem das etapas. Desenhá-los como input convida a
+ * digitar, e digitar ali criaria a segunda verdade que os triggers existem
+ * para impedir — então eles não têm borda, não têm fundo de campo, e trazem
+ * embaixo a frase que diz de onde o número veio.
+ *
+ * Quando ainda não há de onde calcular, a frase ocupa o lugar do valor: "—"
+ * diria que o valor é vazio, e o que se quer dizer é que ele ainda não tem
+ * origem.
+ */
+function Derivado({
+  vazio,
+  explicacao,
+  quandoVazio,
+  children,
+}: {
+  vazio: boolean;
+  explicacao: string;
+  quandoVazio: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-0.5">
+      {vazio ? (
+        <p className="text-text-muted py-2 text-sm italic">{quandoVazio}</p>
+      ) : (
+        <p className="py-2 text-sm">{children}</p>
+      )}
+      {explicacao ? (
+        <p className="text-text-muted text-xs">{explicacao}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -306,7 +396,9 @@ function Campo({
     <div className="grid grid-cols-[8rem_1fr] items-start gap-x-3">
       <dt className="flex items-center gap-1.5 pt-2">
         <Icone aria-hidden className="text-text-muted size-3.5 shrink-0" />
-        <Label className="text-text-secondary text-xs font-normal">{rotulo}</Label>
+        <Label className="text-text-secondary text-xs font-normal">
+          {rotulo}
+        </Label>
       </dt>
       <dd className="min-w-0 space-y-1">{children}</dd>
     </div>

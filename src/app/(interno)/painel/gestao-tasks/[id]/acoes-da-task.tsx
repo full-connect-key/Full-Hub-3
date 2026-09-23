@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
-import { excluirTask } from "../acoes";
+import { descartarRascunho, excluirTask } from "../acoes";
 import { salvarTaskComoTipo } from "../../workflows/acoes";
 
 /**
@@ -34,7 +34,11 @@ export function AcoesDaTask({
   const [salvando, iniciar] = useTransition();
   const [nomeDoFluxo, setNomeDoFluxo] = useState("");
 
-  if (!podeExcluir) return null;
+  const ehRascunho = task.publicada_em === null;
+
+  // Quem criou o rascunho descarta o próprio rascunho, mesmo sem ser gestão:
+  // é dele, e ninguém mais o vê.
+  if (!podeExcluir && !ehRascunho) return null;
 
   return (
     <section className="space-y-4 border-t pt-6">
@@ -75,26 +79,54 @@ export function AcoesDaTask({
         </div>
       ) : null}
 
-      <ConfirmDialog
-        title="Excluir esta task?"
-        description="A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
-        confirmLabel="Excluir"
-        destructive
-        onConfirm={async () => {
-          const resultado = await chamarAcao(() => excluirTask(task.id));
-          if (!resultado.ok) toast.error(resultado.error);
-          else {
-            toast.success("Task excluída.");
-            router.push("/painel/gestao-tasks");
+      {/* NO RASCUNHO É "DESCARTAR", e a confirmação é simples.
+          Não há o que preservar: nada foi publicado, ninguém foi avisado,
+          nenhuma aprovação existiu. Uma confirmação dupla aqui trataria de
+          igual para igual jogar fora um bloco de notas e apagar uma campanha
+          com três meses de histórico. */}
+      {ehRascunho ? (
+        <ConfirmDialog
+          title="Descartar este rascunho?"
+          description="Ele some com o que você escreveu até agora. Ninguém chegou a vê-lo."
+          confirmLabel="Descartar"
+          destructive
+          onConfirm={async () => {
+            const resultado = await chamarAcao(() => descartarRascunho(task.id));
+            if (!resultado.ok) toast.error(resultado.error);
+            else {
+              toast.success(resultado.mensagem);
+              router.push("/painel/gestao-tasks");
+            }
+          }}
+          trigger={
+            <Button variant="ghost" size="sm" className="text-destructive" disabled={salvando}>
+              <Trash2 aria-hidden />
+              Descartar rascunho
+            </Button>
           }
-        }}
-        trigger={
-          <Button variant="ghost" size="sm" className="text-destructive" disabled={salvando}>
-            <Trash2 aria-hidden />
-            Excluir task
-          </Button>
-        }
-      />
+        />
+      ) : (
+        <ConfirmDialog
+          title="Excluir esta task?"
+          description="A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
+          confirmLabel="Excluir"
+          destructive
+          onConfirm={async () => {
+            const resultado = await chamarAcao(() => excluirTask(task.id));
+            if (!resultado.ok) toast.error(resultado.error);
+            else {
+              toast.success("Task excluída.");
+              router.push("/painel/gestao-tasks");
+            }
+          }}
+          trigger={
+            <Button variant="ghost" size="sm" className="text-destructive" disabled={salvando}>
+              <Trash2 aria-hidden />
+              Excluir task
+            </Button>
+          }
+        />
+      )}
     </section>
   );
 }

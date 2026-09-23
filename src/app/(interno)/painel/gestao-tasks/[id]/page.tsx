@@ -6,6 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,7 +23,8 @@ import { Comentarios } from "./comentarios";
 import { HistoricoDaTask } from "./historico";
 import { AcoesDaTask } from "./acoes-da-task";
 import { PropriedadesDaTask } from "./propriedades";
-import { PrincipalDaTask, TituloDaTask } from "./principal";
+import { PrincipalDaTask } from "./principal";
+import { CabecalhoDaTask } from "./cabecalho-da-task";
 import { Referencias } from "./referencias";
 import { Subtarefas } from "./subtarefas";
 
@@ -48,11 +50,26 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
 
   const souGestor = ehGestor(sessao.profile.role);
 
+  // Rascunho é `publicada_em is null` (migration 0028). A RLS já garante que
+  // só quem criou chega até aqui; esta linha decide o que a TELA mostra.
+  const ehRascunho = task.publicada_em === null;
+
   // Espelha a regra do RLS: mexer na Task é do Atendimento e da gestão.
   // Trabalhar nas subtarefas é de quem é responsável por elas — e isso o
   // componente de ações resolve linha a linha. Ver é aberto para toda a
   // equipe; o banco é quem barra de verdade.
   const podeGerenciar = ehDoAtendimento || souGestor;
+
+  // A linha de contexto, montada só com o que existe.
+  const contexto = [
+    task.cliente?.nome_empresa,
+    task.data_fim
+      ? `${format(parseISO(task.data_inicio), "dd/MM/yy", { locale: ptBR })} → ${format(parseISO(task.data_fim), "dd/MM/yy", { locale: ptBR })}`
+      : null,
+    task.subtarefasTotal > 0
+      ? `${task.subtarefasConcluidas} de ${task.subtarefasTotal} concluída${task.subtarefasTotal === 1 ? "" : "s"}`
+      : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="space-y-6">
@@ -64,23 +81,29 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
           </Link>
         </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <StatusBadge status={task.status} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs">{EXPLICACAO_DO_STATUS[task.status]}</TooltipContent>
-        </Tooltip>
+        {ehRascunho ? (
+          <Badge variant="outline" className="uppercase">
+            Rascunho
+          </Badge>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <StatusBadge status={task.status} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              {EXPLICACAO_DO_STATUS[task.status]}
+            </TooltipContent>
+          </Tooltip>
+        )}
 
-        <span className="text-muted-foreground text-sm">
-          {task.cliente?.nome_empresa ?? "—"} ·{" "}
-          {format(parseISO(task.data_inicio), "dd/MM/yy", { locale: ptBR })}
-          {task.data_fim ? ` → ${format(parseISO(task.data_fim), "dd/MM/yy", { locale: ptBR })}` : ""}
-          {" · "}
-          {task.subtarefasConcluidas} de {task.subtarefasTotal} concluída
-          {task.subtarefasTotal === 1 ? "" : "s"}
-        </span>
+        {/* OS PEDAÇOS VAZIOS NÃO APARECEM. Num rascunho recém-aberto não há
+            cliente, não há período e não há etapa — e "— · — · 0 de 0" é uma
+            linha que só informa que a tela não tem o que dizer. */}
+        {contexto.length > 0 ? (
+          <span className="text-muted-foreground text-sm">{contexto.join(" · ")}</span>
+        ) : null}
 
         {!podeGerenciar ? (
           <span className="text-muted-foreground text-xs">
@@ -89,7 +112,11 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
         ) : null}
       </div>
 
-      <TituloDaTask task={task} podeEditar={podeGerenciar} />
+      <CabecalhoDaTask
+        task={task}
+        podeEditar={podeGerenciar}
+        temEtapas={task.subtarefas.length > 0}
+      />
 
       {/* As propriedades vêm ANTES das abas, e fora delas.
           Elas descrevem a demanda inteira — trocar para o Histórico e perder
