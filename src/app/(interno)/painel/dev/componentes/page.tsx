@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
+import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
 
 import { DemonstracaoDeComponentes } from "./demonstracao";
 
@@ -24,7 +25,9 @@ export default async function PaginaDeComponentes() {
       <PageHeader
         title="Componentes compartilhados"
       />
-      <DemonstracaoDeComponentes />
+      {/* O agora sai do servidor, como em toda tela: o Cronômetro da vitrine
+          começa do mesmo instante no HTML entregue e na hidratação. */}
+      <DemonstracaoDeComponentes agoraDoServidor={prazosDeHoje().agora} />
     </div>
   );
 }

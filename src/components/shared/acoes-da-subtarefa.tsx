@@ -24,6 +24,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import {
+  formatarMinutos,
+  medidaSuspeita,
+  minutosMedidos,
+  HORAS_ATE_DESCONFIAR,
+} from "@/lib/dominio/tempo";
 import { acoesDaSubtarefa, DESTINO_DA_ACAO, type IdDeAcao } from "@/lib/tasks/state-machine";
 import type { SubtaskStatus, TipoAprovacao } from "@/lib/supabase/database.types";
 
@@ -59,6 +65,13 @@ export type SubtarefaParaAcao = {
   requer_aprovacao: boolean;
   tipo_aprovacao: TipoAprovacao | null;
   estimativa_minutos: number | null;
+  /**
+   * O cronômetro (migration 0021). Opcionais porque nem toda tela carrega a
+   * linha inteira da subtarefa — "Meu dia" monta a sua a partir de um resumo.
+   * Sem eles, o diálogo cai na estimativa, que é o que ele fazia antes.
+   */
+  tempo_medido_segundos?: number;
+  andando_desde?: string | null;
   dependenciasAbertas: string[];
   rodadaPendente: boolean;
   avalInterno: boolean;
@@ -85,7 +98,12 @@ export function AcoesDaSubtarefa({
   const router = useRouter();
   const [executando, iniciar] = useTransition();
 
+  // O medido é calculado no CLIQUE, não no render: ler `Date.now()` durante
+  // o render faria o HTML do servidor divergir do que o navegador monta. Num
+  // manipulador de evento não há esse risco — e é o instante certo, porque é
+  // quando a contagem para.
   const [pedindoTempo, setPedindoTempo] = useState(false);
+  const [medido, setMedido] = useState<number | null>(null);
   const [pedindoMotivo, setPedindoMotivo] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [confirmando, setConfirmando] = useState<null | "enviar_aprovacao" | "enviar_cliente">(null);
@@ -127,9 +145,12 @@ export function AcoesDaSubtarefa({
 
   function executar(id: IdDeAcao) {
     switch (id) {
-      case "concluir":
+      case "concluir": {
+        const doRelogio = medidoAteAgora(subtarefa);
+        setMedido(doRelogio > 0 ? doRelogio : null);
         setPedindoTempo(true);
         return;
+      }
       case "enviar_aprovacao":
         setConfirmando("enviar_aprovacao");
         return;
@@ -194,9 +215,12 @@ export function AcoesDaSubtarefa({
         aberto={pedindoTempo}
         aoFechar={() => setPedindoTempo(false)}
         titulo={`Concluir "${subtarefa.titulo}"`}
-        sugestao={subtarefa.estimativa_minutos}
-        origemDaSugestao={
-          subtarefa.estimativa_minutos !== null ? "Sugerido pela estimativa da subtarefa." : undefined
+        sugestao={medido ?? subtarefa.estimativa_minutos}
+        origemDaSugestao={origemDoNumero(medido, subtarefa.estimativa_minutos)}
+        alerta={
+          medidaSuspeita(medido)
+            ? `O relógio contou mais de ${HORAS_ATE_DESCONFIAR}h nesta etapa. Se a subtarefa ficou em andamento de um dia para o outro, o número inclui esse tempo — corrija antes de confirmar.`
+            : undefined
         }
         aoConcluir={async (minutos) => {
           const resultado = await chamarAcao(() =>
@@ -343,4 +367,40 @@ function BotaoComMotivo({
       <TooltipContent>{motivo}</TooltipContent>
     </Tooltip>
   );
+}
+
+
+/**
+ * Os minutos que o cronômetro contou, incluindo a passagem em curso.
+ *
+ * Fora do componente de propósito: ler o relógio é efeito, e o compilador do
+ * React recusa uma chamada impura dentro do corpo de um componente. Aqui é
+ * uma função de módulo, chamada só no clique — que é, aliás, o instante certo
+ * para perguntar, porque é quando a contagem para.
+ */
+function medidoAteAgora(subtarefa: SubtarefaParaAcao): number {
+  return minutosMedidos(
+    {
+      tempo_medido_segundos: subtarefa.tempo_medido_segundos ?? 0,
+      andando_desde: subtarefa.andando_desde ?? null,
+    },
+    Date.now(),
+  );
+}
+
+/**
+ * De onde saiu o número que já está no campo.
+ *
+ * A pessoa precisa saber: um valor pré-preenchido sem origem é um valor que
+ * se confirma sem pensar. E são duas origens diferentes — o cronômetro é
+ * medição, a estimativa é palpite de quem abriu a demanda.
+ */
+function origemDoNumero(medido: number | null, estimativa: number | null): string | undefined {
+  if (medido !== null) {
+    const comparacao =
+      estimativa !== null ? ` A estimativa era ${formatarMinutos(estimativa)}.` : "";
+    return `Medido pelo cronômetro, que corre enquanto a etapa está em andamento.${comparacao}`;
+  }
+  if (estimativa !== null) return "Sugerido pela estimativa da subtarefa — o cronômetro não contou nada nesta etapa.";
+  return undefined;
 }

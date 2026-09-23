@@ -8,6 +8,7 @@ import { GripVertical, Link2, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
+import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -42,6 +43,7 @@ export function Subtarefas({
   podeGerenciar,
   souGestor,
   usuarioId,
+  agoraDoServidor,
 }: {
   taskId: string;
   subtarefas: SubtarefaDetalhada[];
@@ -50,6 +52,8 @@ export function Subtarefas({
   podeGerenciar: boolean;
   souGestor: boolean;
   usuarioId: string;
+  /** O instante medido no servidor, para o cronômetro começar de lá. */
+  agoraDoServidor: number;
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
@@ -155,6 +159,12 @@ export function Subtarefas({
                 ) : null}
 
                 <StatusBadge status={sub.status} />
+
+                {/* O relógio à vista. Um cronômetro que ninguém vê é um número
+                    que aparece pronto no diálogo de conclusão, sem a pessoa
+                    ter como saber de onde veio — e sem reparar que esqueceu a
+                    etapa em andamento de um dia para o outro. */}
+                <Cronometro dados={sub} agoraDoServidor={agoraDoServidor} />
 
                 <AcoesDaSubtarefa
                   subtarefa={sub}

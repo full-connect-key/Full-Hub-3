@@ -28,6 +28,13 @@ export type DetalheParaOPainel = {
   podeGerenciar: boolean;
   /** Desenvolvedor ou sócio: decide aprovação e exclui a demanda. */
   souGestor: boolean;
+  /**
+   * O instante do SERVIDOR, para o cronômetro das subtarefas começar de lá.
+   * Não é o `Date.now()` do navegador de propósito: o relógio que mede é o do
+   * Postgres, e um navegador adiantado mostraria a etapa com mais tempo do
+   * que ela tem.
+   */
+  agora: number;
 };
 
 export async function carregarDetalheDaTask(
@@ -71,6 +78,7 @@ export async function carregarDetalheDaTask(
       usuarioId: sessao.usuarioId,
       podeGerenciar: ehDoAtendimento || gestor,
       souGestor: gestor,
+      agora: Date.now(),
     });
   });
 }

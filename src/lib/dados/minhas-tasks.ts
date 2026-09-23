@@ -35,7 +35,12 @@ export type MinhaTask = TaskDaLista & {
   outrasSubtarefas: { id: string; titulo: string; status: Subtask["status"]; responsavel: Pessoa | null }[];
 };
 
-export type Prazos = { hoje: string; fimDaSemana: string };
+export type Prazos = {
+  hoje: string;
+  fimDaSemana: string;
+  /** O instante do servidor, para o cronômetro das subtarefas começar de lá. */
+  agora: number;
+};
 
 /**
  * A régua de datas, calculada uma vez no servidor.
@@ -50,6 +55,7 @@ export function prazosDeHoje(): Prazos {
   return {
     hoje: format(agora, "yyyy-MM-dd"),
     fimDaSemana: format(endOfWeek(agora, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    agora: agora.getTime(),
   };
 }
 
@@ -281,6 +287,13 @@ export type ItemDoDia = {
   prazo: string | null;
   atrasada: boolean;
   estimativaMinutos: number | null;
+  /**
+   * O cronômetro, para "Meu dia" oferecer o mesmo número medido que o detalhe
+   * da Task. Sem eles, concluir daqui cairia na estimativa e a mesma etapa
+   * sugeriria dois tempos diferentes conforme a tela de onde foi concluída.
+   */
+  tempoMedidoSegundos: number;
+  andandoDesde: string | null;
   /** O que fazer com ela — vem da máquina de estados, não do palpite da tela. */
   requerAprovacao: boolean;
   tipoAprovacao: "interna" | "cliente" | null;
@@ -317,6 +330,8 @@ export async function meuDia(userId: string, prazos: Prazos = prazosDeHoje()): P
         prazo: sub.prazo,
         atrasada: situacao === "atrasada",
         estimativaMinutos: sub.estimativa_minutos,
+        tempoMedidoSegundos: sub.tempo_medido_segundos,
+        andandoDesde: sub.andando_desde,
         requerAprovacao: sub.requer_aprovacao,
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,

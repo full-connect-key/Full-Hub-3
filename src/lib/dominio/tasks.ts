@@ -49,6 +49,12 @@ export const STATUS_DE_TASK: TaskStatus[] = [
  * aparecer com ela, o rótulo evita a tela mostrar a chave crua.
  */
 export const ROTULOS_DE_STATUS: Record<TaskStatus, string> = {
+  // "Iniciar", e não "Não iniciada": este mapa alimenta o CABEÇALHO DA COLUNA
+  // do board e o filtro de status, onde a palavra nomeia a coluna de onde a
+  // demanda sai. O SELO da linha (`StatusBadge`) diz "Não iniciada", porque
+  // lá ele fica ao lado de um botão chamado "Iniciar" — e a mesma palavra
+  // duas vezes na mesma linha, uma como estado e outra como ação, foi o que
+  // a imagem do protótipo mostrou.
   nao_iniciada: "Iniciar",
   em_andamento: "Em andamento",
   aguardando_informacoes: "Aguardando informações",

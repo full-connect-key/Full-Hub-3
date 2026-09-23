@@ -289,6 +289,13 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     ordem: semente.ordem,
     iniciada_em: null,
     concluida_em: semente.status === "concluida" ? "2026-09-20T11:00:00.000Z" : null,
+    // O cronometro. Fixo, porque a imagem do prototipo precisa sair igual a
+    // cada rodada -- um relogio correndo daria um PNG diferente por captura.
+    // A etapa em andamento comeca 47 minutos atras para o selo aparecer
+    // rodando; as outras mostram so o acumulado.
+    andando_desde:
+      semente.status === "em_andamento" ? new Date(Date.now() - 47 * 60 * 1000).toISOString() : null,
+    tempo_medido_segundos: semente.status === "nao_iniciada" ? 0 : 95 * 60,
     created_at: "2026-09-10T09:05:00.000Z",
     updated_at: "2026-09-19T15:30:00.000Z",
     responsavel: semente.responsavel,

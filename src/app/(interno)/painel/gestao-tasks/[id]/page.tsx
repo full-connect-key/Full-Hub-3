@@ -13,7 +13,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
-import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
+import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { obterTask, urlsDosArquivos } from "@/lib/dados/tasks";
 import { listarWorkflows } from "@/lib/dados/workflows";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
@@ -106,6 +106,14 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                 podeGerenciar={podeGerenciar}
                 souGestor={souGestor}
                 usuarioId={sessao.usuarioId}
+                /* Hoje e agora saem do SERVIDOR e descem prontos, como em
+                   toda tela do produto: se cada navegador lesse o próprio
+                   relógio, o cronômetro renderizado aqui e o hidratado lá
+                   começariam de números diferentes. É a mesma régua que
+                   Minhas Tasks usa — e ela mora na camada de dados porque
+                   ler o relógio é efeito, e o compilador do React recusa uma
+                   chamada dessas no corpo de um componente. */
+                agoraDoServidor={prazosDeHoje().agora}
               />
 
               <Referencias

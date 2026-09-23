@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { COLUNAS_POR_STATUS, ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
+import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ export function PainelPessoal({
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
   tipos: { id: string; nome: string; client_id: string | null }[];
-  prazos: { hoje: string; fimDaSemana: string };
+  prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
   primeiroNome: string;

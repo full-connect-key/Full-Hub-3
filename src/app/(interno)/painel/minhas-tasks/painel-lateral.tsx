@@ -128,6 +128,7 @@ export function PainelLateralDaTask({
                 podeGerenciar={detalhe.podeGerenciar}
                 souGestor={detalhe.souGestor}
                 usuarioId={detalhe.usuarioId}
+                agoraDoServidor={detalhe.agora}
               />
 
               <Referencias

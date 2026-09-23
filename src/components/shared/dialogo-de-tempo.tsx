@@ -28,8 +28,11 @@ import { AJUDA_DE_TEMPO, interpretarTempo, tempoParaCampo } from "@/lib/dominio/
  *   - **Dá para pular.** Uma pergunta obrigatória vira número inventado, e
  *     número inventado é pior do que campo vazio: ele entra nos relatórios
  *     como se fosse medição.
- *   - **Vem sugerido.** A estimativa já chega preenchida, então o caminho
- *     comum é conferir e apertar Enter.
+ *   - **Vem sugerido.** O número chega preenchido pelo CRONÔMETRO (migration
+ *     0021), que corre enquanto a etapa está em andamento — e cai na
+ *     estimativa quando o relógio não contou nada. O caminho comum é conferir
+ *     e apertar Enter. O medido nunca é gravado sozinho: ele é um fato sobre
+ *     o relógio, e o que entra no relatório é o que a pessoa afirma.
  *   - **Entrada livre.** `2h30`, `2,5h`, `150` e `90min` são a mesma coisa.
  *     Obrigar a pessoa a converter para decimal é pedir erro de digitação em
  *     troca de nada.
@@ -43,6 +46,7 @@ export function DialogoDeTempo({
   descricao,
   sugestao,
   origemDaSugestao,
+  alerta,
   aoConcluir,
   rotuloDeConfirmar,
 }: {
@@ -54,6 +58,13 @@ export function DialogoDeTempo({
   sugestao: number | null;
   /** De onde veio o número, dito em uma linha para a pessoa confiar nele. */
   origemDaSugestao?: string;
+  /**
+   * Um aviso acima do campo, quando o número sugerido merece desconfiança —
+   * um cronômetro que atravessou a noite, por exemplo. Fica separado de
+   * `origemDaSugestao` de propósito: a origem é informação, o aviso é para
+   * interromper quem ia confirmar sem ler.
+   */
+  alerta?: string;
   /** Recebe os minutos, ou null quando a pessoa pula. True se deu certo. */
   aoConcluir: (minutos: number | null) => Promise<boolean>;
   /** O rótulo do botão que confirma. "Concluir" na maioria dos casos. */
@@ -108,6 +119,10 @@ export function DialogoDeTempo({
             {descricao ?? "Quanto tempo isso levou de verdade? Dá para pular."}
           </DialogDescription>
         </DialogHeader>
+
+        {alerta ? (
+          <p className="bg-warning-soft text-warning rounded-md px-3 py-2 text-xs">{alerta}</p>
+        ) : null}
 
         <form
           className="space-y-2"

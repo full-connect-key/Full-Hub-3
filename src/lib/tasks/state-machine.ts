@@ -33,8 +33,18 @@ export const STATUS_DE_SUBTAREFA: SubtaskStatus[] = [
   "concluida",
 ];
 
+/**
+ * O rótulo do ESTADO da subtarefa, que não é o rótulo do BOTÃO.
+ *
+ * "Não iniciada" e não "Iniciar", ao contrário do status da Task: aqui o selo
+ * fica ao lado do botão de ação, e o botão dessa etapa se chama exatamente
+ * "Iniciar". Os dois com a mesma palavra viravam duas vezes a mesma coisa na
+ * mesma linha — foi a imagem do protótipo que mostrou. Na Task o rótulo é
+ * "Iniciar" porque lá ele é o CABEÇALHO DA COLUNA do board: a coluna de onde
+ * a demanda sai, sem botão nenhum concorrendo ao lado.
+ */
 export const ROTULOS_DE_SUBTAREFA: Record<SubtaskStatus, string> = {
-  nao_iniciada: "Iniciar",
+  nao_iniciada: "Não iniciada",
   em_andamento: "Em andamento",
   aguardando_informacoes: "Aguardando informações",
   enviada_aprovacao: "Enviada para aprovação",

@@ -120,6 +120,8 @@ export function MeuDia({
                   requer_aprovacao: item.requerAprovacao,
                   tipo_aprovacao: item.tipoAprovacao,
                   estimativa_minutos: item.estimativaMinutos,
+                  tempo_medido_segundos: item.tempoMedidoSegundos,
+                  andando_desde: item.andandoDesde,
                   dependenciasAbertas: item.dependenciasAbertas,
                   rodadaPendente: false,
                   avalInterno: false,

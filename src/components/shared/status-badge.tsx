@@ -80,7 +80,16 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   rejeitado: { label: "Rejeitado", tom: "negativo" },
   stand_by: { label: "Stand by", tom: "pausado" },
   // Task
-  nao_iniciada: { label: "Iniciar", tom: "neutro" },
+  //
+  // "Nao iniciada" e nao "Iniciar": esta chave e a MESMA para a Task e para a
+  // subtarefa, e na linha da subtarefa o selo fica ao lado de um botao que se
+  // chama exatamente "Iniciar" -- duas vezes a mesma palavra na mesma linha,
+  // uma dizendo estado e a outra acao. Foi a imagem do prototipo que mostrou.
+  //
+  // Onde o produto diz "Iniciar" e no CABECALHO DA COLUNA do board, que sai de
+  // `COLUNAS_POR_STATUS` em `lib/dominio/tasks.ts`: la e a coluna de onde a
+  // demanda sai, e nao ha botao nenhum concorrendo ao lado.
+  nao_iniciada: { label: "Não iniciada", tom: "neutro" },
   em_andamento: { label: "Em andamento", tom: "marca" },
   // "Entregue" e "Aprovado" nao sao a mesma coisa: o material saiu, ninguem
   // disse que esta certo. Por isso tom de atencao, e nao o verde de aprovado.
@@ -136,24 +145,18 @@ export const STATUS_DE_CONTEUDO: StatusConteudo[] = [
   "stand_by",
 ];
 
-export const STATUS_DE_TASK: StatusTask[] = [
-  "nao_iniciada",
-  "em_andamento",
-  "aguardando_informacoes",
-  "entregue",
-  "em_aprovacao",
-  "em_ajustes",
-  "concluido",
-];
-
-export const STATUS_DE_SUBTAREFA: StatusSubtarefa[] = [
-  "nao_iniciada",
-  "em_andamento",
-  "aguardando_informacoes",
-  "enviada_aprovacao",
-  "em_ajustes",
-  "concluida",
-];
+// A LISTA dos status da Task NAO mora aqui, e nem a da subtarefa.
+//
+// Havia uma copia de cada neste arquivo, e elas envelheceram: a de Task ficou
+// numa ordem diferente da que o board e o filtro usam, e ninguem tinha como
+// notar, porque so a vitrine de componentes lia esta. Duas listas com o mesmo
+// nome e ordens diferentes e como nascem duas verdades sobre a mesma coisa.
+//
+// Quem tem a lista e quem tem a ordem:
+//   Task       -> `STATUS_DE_TASK` em `lib/dominio/tasks.ts`
+//   subtarefa  -> `STATUS_DE_SUBTAREFA` em `lib/tasks/state-machine.ts`
+//
+// Aqui fica so o mapa de rotulo e tom, que e o trabalho do selo.
 
 export function rotuloDoStatus(status: Status): string {
   return STATUS[status]?.label ?? status;

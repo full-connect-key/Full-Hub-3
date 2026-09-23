@@ -5,7 +5,9 @@ import { addDays, formatISO } from "date-fns";
 import { FolderOpen, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { STATUS_DE_TASK } from "@/lib/dominio/tasks";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Cronometro } from "@/components/shared/cronometro";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DateBadge } from "@/components/shared/date-badge";
 import { GraficoDeBarras } from "@/components/shared/grafico-de-barras";
@@ -25,7 +27,6 @@ import {
 import {
   StatusBadge,
   STATUS_DE_CONTEUDO,
-  STATUS_DE_TASK,
   rotuloDoStatus,
   type Status,
 } from "@/components/shared/status-badge";
@@ -45,6 +46,9 @@ type Exemplo = {
 
 const hoje = new Date();
 const emDias = (dias: number) => formatISO(addDays(hoje, dias), { representation: "date" });
+
+/** Um instante relativo ao `hoje` da vitrine, para o Cronômetro ter o que contar. */
+const emMinutos = (minutos: number) => new Date(hoje.getTime() + minutos * 60_000).toISOString();
 
 const EXEMPLOS: Exemplo[] = [
   { id: "1", titulo: "Carrossel de lançamento", cliente: "Cliente Alfa", responsavel: "Carla Nunes", status: "em_producao", prioridade: "alta", prazo: emDias(-2) },
@@ -83,7 +87,12 @@ function Secao({
   );
 }
 
-export function DemonstracaoDeComponentes() {
+export function DemonstracaoDeComponentes({
+  agoraDoServidor,
+}: {
+  /** O instante medido no servidor, para o Cronômetro da vitrine. */
+  agoraDoServidor: number;
+}) {
   const [statusFiltrado, setStatusFiltrado] = useState(SEM_FILTRO);
   const [prioridadeFiltrada, setPrioridadeFiltrada] = useState(SEM_FILTRO);
   const [somenteAtrasadas, setSomenteAtrasadas] = useState(false);
@@ -153,6 +162,29 @@ export function DemonstracaoDeComponentes() {
           {STATUS_DE_TASK.map((status) => (
             <StatusBadge key={status} status={status} />
           ))}
+        </div>
+      </Secao>
+
+      <Secao
+        titulo="Cronômetro"
+        descricao="O relógio da subtarefa. Corre enquanto a etapa está em andamento (azul), e fica discreto quando parou. Quem mede é o Postgres — este componente só mostra, e some quando não há nada medido."
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <Cronometro
+            dados={{ tempo_medido_segundos: 7 * 60 + 12, andando_desde: emMinutos(-38) }}
+            agoraDoServidor={agoraDoServidor}
+          />
+          <Cronometro
+            dados={{ tempo_medido_segundos: 2 * 3600 + 22 * 60, andando_desde: null }}
+            agoraDoServidor={agoraDoServidor}
+          />
+          <span className="text-muted-foreground text-xs">
+            (sem nada medido, o componente não renderiza nada)
+          </span>
+          <Cronometro
+            dados={{ tempo_medido_segundos: 0, andando_desde: null }}
+            agoraDoServidor={agoraDoServidor}
+          />
         </div>
       </Secao>
 

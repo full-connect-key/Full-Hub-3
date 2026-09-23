@@ -283,6 +283,47 @@ e aceita `2h30`, `2,5h`, `150` e `90min` — a conversão é de
 antes de digitar, e arredondamento transformava "vinte minutos" em 0,33 e de
 volta em 19,8.
 
+#### O cronômetro mede; a pessoa declara
+
+**São dois números e duas colunas, e juntá-los estraga os dois.**
+`tempo_medido_segundos` + `andando_desde` (migration 0021) são o relógio;
+`tempo_real_minutos` é o que a pessoa afirma ao concluir. O diálogo abre
+**pré-preenchido com o medido** para conferir ou corrigir — o medido nunca é
+gravado sozinho, porque um relógio não sabe a diferença entre oito horas de
+trabalho e a noite em que alguém esqueceu a etapa em andamento.
+
+**O relógio só corre em `em_andamento`.** Pausa em "Aguardando informações" —
+esperar não é trabalhar —, para em "Enviada para aprovação" e em "Concluída", e
+volta a correr quando a etapa volta depois de um pedido de ajustes. Contar de
+ponta a ponta somaria as noites, os fins de semana e os dias parados esperando
+o cliente.
+
+**Quem escreve as duas colunas é o trigger `subtasks_cronometro`, nunca o
+cliente.** Policy não limita coluna: sem ele, um PATCH no PostgREST diria que a
+etapa levou oito horas. O trigger reescreve as duas a partir do que já estava
+gravado e do relógio do servidor, e descarta o que vier no pedido — e por isso
+as duas ficam **fora** de `Insert` e de `Update` em `database.types.ts`, para
+tentar gravá-las ser erro de tipo antes de ser recusa do banco.
+
+**Em segundos, e não em minutos como o resto da casa.** A regra dos minutos
+vale para o que a pessoa digita e para o que a tela mostra. Esta coluna é
+escrita por máquina, e arredondar cada passagem para o minuto perderia as
+sobras: dez idas e voltas de 40 segundos viram zero ou dez minutos conforme o
+arredondamento.
+
+`tempo_medido_da_subtarefa()` no Postgres e `minutosMedidos()` em
+`lib/dominio/tempo.ts` são o mesmo cálculo nos dois lados, como
+`situacaoDoLancamento()` no Financeiro: a tela precisa do número andando a cada
+segundo, e não dá para perguntar ao banco a cada segundo.
+
+**O relógio fica à vista** (`components/shared/cronometro.tsx`), no detalhe da
+Task e em Minhas Tasks. Um cronômetro que ninguém vê é um número que aparece
+pronto no diálogo de conclusão, sem a pessoa ter como saber de onde veio — e
+sem reparar que esqueceu a etapa aberta. O primeiro valor sai do relógio do
+**servidor** e o navegador continua dali; acima de
+`HORAS_ATE_DESCONFIAR` (8h) o diálogo avisa antes de alguém confirmar por
+reflexo.
+
 ### Identidade visual
 
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro

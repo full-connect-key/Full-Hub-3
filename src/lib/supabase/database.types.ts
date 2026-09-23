@@ -847,6 +847,11 @@ export interface Database {
           ordem: number;
           iniciada_em: string | null;
           concluida_em: string | null;
+          // O cronômetro (migration 0021). Só o trigger escreve, e por isso
+          // as duas ficam FORA de Insert e de Update: assim tentar gravá-las
+          // é erro de tipo aqui, muito antes de o banco descartar o valor.
+          andando_desde: string | null;
+          tempo_medido_segundos: number;
           created_at: string;
           updated_at: string;
         };
@@ -1133,6 +1138,12 @@ export interface Database {
         Returns: void;
       };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
+
+      // --- Cronometro da subtarefa (migration 0021) -----------------------
+      // O gemeo em TypeScript e `minutosMedidos()`, em `lib/dominio/tempo.ts`.
+      // Esta aqui serve a consulta e ao relatorio; a tela usa a de la, que
+      // corre a cada segundo sem ir ao banco.
+      tempo_medido_da_subtarefa: { Args: { p_subtask_id: string }; Returns: number | null };
 
       // --- Full Days e notificacoes (migration 0011) ----------------------
       dias_uteis: { Args: { inicio: string; fim: string }; Returns: number };

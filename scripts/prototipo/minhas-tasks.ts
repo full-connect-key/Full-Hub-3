@@ -34,6 +34,7 @@ export function prazosDeHoje(): Prazos {
   return {
     hoje: agora.toISOString().slice(0, 10),
     fimDaSemana: fim.toISOString().slice(0, 10),
+    agora: agora.getTime(),
   };
 }
 
@@ -154,6 +155,8 @@ export async function meuDia(
         prazo: sub.prazo,
         atrasada: situacao === "atrasada",
         estimativaMinutos: sub.estimativa_minutos,
+        tempoMedidoSegundos: sub.tempo_medido_segundos,
+        andandoDesde: sub.andando_desde,
         requerAprovacao: sub.requer_aprovacao,
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,

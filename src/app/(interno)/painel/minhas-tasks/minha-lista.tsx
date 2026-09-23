@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { CornerDownRight, ListChecks, Lock, Link2 } from "lucide-react";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
+import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PriorityBadge } from "@/components/shared/priority-badge";
@@ -15,6 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { situacaoDoPrazo } from "@/lib/dominio/tasks";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import { cn } from "@/lib/utils";
+
+import type { Prazos } from "@/lib/dados/minhas-tasks";
 
 import type { LinhaPessoal } from "./linhas";
 
@@ -38,7 +41,7 @@ export function MinhaLista({
   aoAbrir,
 }: {
   linhas: LinhaPessoal[];
-  prazos: { hoje: string; fimDaSemana: string };
+  prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
   aoAbrir: (taskId: string) => void;
@@ -170,6 +173,12 @@ export function MinhaLista({
             )}
 
             <StatusBadge status={sub.status} />
+
+            {/* O relógio corre enquanto a etapa está em andamento. Fica à
+                vista para a pessoa reparar que esqueceu a etapa aberta — é o
+                que impede o número de chegar pronto e estranho no diálogo de
+                conclusão. */}
+            <Cronometro dados={sub} agoraDoServidor={prazos.agora} />
 
             <AcoesDaSubtarefa
               subtarefa={sub}
