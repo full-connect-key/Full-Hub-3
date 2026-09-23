@@ -230,14 +230,42 @@ que aparecem: **eles só são mostrados uma vez**.
 
 O Google exibe com espaços, para ficar legível. **Cole sem os espaços.**
 
-> **Se a página disser que a opção não está disponível**, é uma destas três,
-> nesta ordem de probabilidade:
-> 1. a verificação em duas etapas não está ligada nessa conta (passo 2);
-> 2. o **admin do Workspace desligou senhas de app** para a organização. No
->    Admin Console, procure por *app passwords* — fica em **Segurança →
->    Autenticação**. É uma permissão da organização, não da pessoa;
-> 3. a conta está em *Proteção Avançada*, que bloqueia senhas de app sem
->    exceção. Aí o caminho é outra conta, ou o relay do passo 7.
+##### 3b. "A configuração que você está procurando não está disponível para sua conta"
+
+É a mensagem do Google quando senha de app não está liberada. Ela não diz o
+motivo, e são três — confira **nesta ordem**, porque a primeira é a mais
+comum e a mais fácil de confundir com "já fiz":
+
+**1. A verificação em duas etapas está LIGADA nessa conta?**
+
+Não basta estar permitida pela organização: tem que estar ligada naquela
+conta. Confira em `myaccount.google.com/security`. Se estiver desligada, a
+página de senhas de app não existe — não aparece cinza, não aparece com
+aviso: some.
+
+**2. A organização permite que as pessoas liguem o 2FA?**
+
+Esta é a pegadinha: se o admin **não** marcou essa permissão, ninguém da
+organização consegue ligar o 2FA, e sem 2FA não há senha de app. O erro que
+a pessoa vê é o da senha de app — dois passos adiante da causa.
+
+No Admin Console, abra direto **`admin.google.com/ac/security/2sv`** e
+confira se **"Permitir que os usuários ativem a verificação em duas etapas"**
+está marcado. Confira também em qual **unidade organizacional** a marcação
+está: ligada na raiz e desligada na UO da pessoa dá exatamente o mesmo erro.
+
+Depois de marcar, volte ao passo 2 e ligue o 2FA na conta. A liberação pode
+levar alguns minutos para valer.
+
+**3. A conta está em Proteção Avançada?**
+
+O programa de Proteção Avançada bloqueia senha de app sem exceção, e não há
+configuração que contorne. Se for o caso, use outra caixa — ou o passo 7.
+
+> **Se você não é o administrador do Workspace**, os passos 2 e 3 não estão
+> ao seu alcance: quem mexe neles é quem administra o domínio. Vale medir se
+> compensa esperar — a alternativa do passo 8 resolve em dez minutos e não
+> depende de ninguém.
 
 ##### 4. Preencha no Supabase
 
@@ -283,6 +311,21 @@ Encaminhamento SMTP**, e serve quando a organização não permite senha de app.
 
 Dá mais trabalho e só vale a pena nesse caso — autenticação por IP quer dizer
 prender o envio ao endereço do servidor, que muda quando a hospedagem muda.
+
+##### 8. Quando o Workspace não colabora: um serviço transacional
+
+Se as senhas de app estiverem bloqueadas e você não administra o domínio,
+**não insista**. Um serviço transacional (Resend, Brevo, Amazon SES) faz o
+mesmo trabalho, é feito exatamente para isto, e sai do caminho da política do
+Workspace.
+
+O caminho é o mesmo do passo 4, com os dados que o serviço fornecer — a única
+diferença é que eles exigem **verificar o domínio** antes, publicando dois ou
+três registros no DNS. É o mesmo tipo de registro do DKIM do passo 5, e tem a
+vantagem de deixar a entregabilidade configurada de uma vez.
+
+Continue enviando de `@fullconnectkey.com.br`: o domínio é o mesmo, o que
+muda é quem despacha.
 
 #### Outros provedores
 
