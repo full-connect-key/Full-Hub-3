@@ -905,6 +905,16 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   banco num estado que o próximo deploy não conserta, e ninguém estava
   olhando. As migrations continuam indo à mão, na ordem, por quem decidiu
   aplicá-las — o script avisa no fim quando o deploy trouxe alguma.
+
+  **A consequência disso aparece como bug, e é sempre o mesmo bug:** o código
+  sobe, a coluna não existe ainda, e a tela devolve *"Could not find the 'x'
+  column of 'y' in the schema cache"*. Não é cache errado — é a migration que
+  não rodou. `scripts/migrations-pendentes.sh 0019 0020` junta as que faltam
+  num arquivo para colar no SQL Editor de uma vez, na ordem, com um
+  `notify pgrst, 'reload schema'` no fim para o caso de o Supabase não avisar
+  a API sozinho. **Toda entrega que traz SQL novo precisa dizer quais
+  migrations ficaram pendentes** — quem lê a mensagem de erro não tem como
+  saber que a resposta é um `alter table` que nunca rodou.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a
@@ -978,6 +988,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
+| `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 

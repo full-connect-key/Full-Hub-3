@@ -49,6 +49,12 @@ next-env.d.ts
 # logs do PM2 na VPS
 /logs
 
+# a colagem de migrations para o SQL Editor: saida de
+# scripts/migrations-pendentes.sh, e copia do que ja esta versionado em
+# supabase/migrations/. Copia de SQL versionado dentro do repositorio e a
+# receita para alguem editar a copia.
+/pendentes
+
 # imagens geradas por `npm run prototipo`
 /prototipos
 /.prototipo
