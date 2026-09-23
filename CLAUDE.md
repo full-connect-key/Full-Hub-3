@@ -754,11 +754,32 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   tem `import "server-only"` — e não em `lib/env.ts`, que o navegador carrega.
   O resto usa Server Actions com o cliente do próprio usuário, para o RLS
   continuar valendo.
-- **Criar conta não depende de e-mail.** `createUser` primeiro, envio do link
-  de senha depois. `inviteUserByEmail` faz o contrário: se o e-mail não sai
-  — e sem SMTP próprio o Supabase entrega pouquíssimo —, a conta não é criada
-  e o cadastro se perde. Quando o envio falha, a tela mostra o link para a
-  equipe passar pela mão.
+- **Criar conta não depende de e-mail.** A conta nasce com uma **senha
+  provisória**, mostrada UMA VEZ na tela de quem cadastrou, e com
+  `deve_trocar_senha = true`. Nada é enviado por e-mail na criação: sem SMTP
+  próprio o Supabase entrega pouquíssimo, e um cadastro que depende de um
+  e-mail sair é um cadastro que trava.
+- **A senha provisória é sorteada POR PESSOA. Nunca uma "senha padrão".** Uma
+  string fixa para todo mundo seria chave-mestra: quem a soubesse entraria em
+  qualquer conta recém-criada até a pessoa fazer o primeiro acesso, e numa
+  conta que ninguém usasse ela valeria para sempre. `gerarSenhaProvisoria()`
+  usa `randomInt` do `node:crypto` — `Math.random()` é previsível a partir de
+  algumas saídas, e o que está em jogo é acesso a uma conta. O formato é feito
+  para ser **ditado por telefone**: três blocos com hífen, sem `0/O`, `1/l/I`
+  nem `5/S`, e um bloco de dígitos para passar em qualquer regra de "precisa
+  ter número".
+- **`deve_trocar_senha` só cai pela chave de serviço**, e só dentro da action
+  que acabou de trocar a senha de verdade. O trigger `protect_profile_role`
+  (migration 0019) devolve o valor antigo para qualquer escrita de alguém
+  logado — **nem o sócio baixa a bandeira de outra pessoa**, porque isso
+  devolveria acesso com a provisória, que ele também conhece. Sem essa trava,
+  um PATCH no PostgREST marcaria a senha como trocada sem ter trocado nada.
+- **A trava mora em `exigirSessao()`, não no login.** Login não é a única
+  porta: quem já tivesse cookie válido entraria direto numa rota interna sem
+  passar pela tela de login. Em `exigirSessao` passam as duas áreas e todas as
+  rotas. A única função que não trava é `exigirSessaoParaTrocarSenha()`, usada
+  por uma tela só — a de `/trocar-senha`, que senão se redirecionaria para si
+  mesma.
 - **Criação em vários passos tem rollback.** Se a ficha falha depois da conta
   criada, a conta é apagada. Cadastro pela metade é pior que nenhum: o e-mail
   fica ocupado e ninguém entende por quê.

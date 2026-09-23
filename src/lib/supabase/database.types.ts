@@ -129,6 +129,7 @@ export interface Database {
           role: UserRole;
           avatar_url: string | null;
           ativo: boolean;
+          deve_trocar_senha: boolean;
           created_at: string;
         };
         Insert: {
@@ -138,6 +139,7 @@ export interface Database {
           role?: UserRole;
           avatar_url?: string | null;
           ativo?: boolean;
+          deve_trocar_senha?: boolean;
           created_at?: string;
         };
         Update: {
@@ -146,6 +148,7 @@ export interface Database {
           role?: UserRole;
           avatar_url?: string | null;
           ativo?: boolean;
+          deve_trocar_senha?: boolean;
         };
         Relationships: [];
       };

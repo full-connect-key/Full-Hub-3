@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { LinkDeSenha } from "@/components/shared/link-de-senha";
+import { SenhaDoPrimeiroAcesso } from "@/components/shared/senha-do-primeiro-acesso";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -66,9 +66,7 @@ export function FormularioDeColaborador({
 }) {
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [linkDeSenha, setLinkDeSenha] = useState<{ link: string; motivo: string | null } | null>(
-    null,
-  );
+  const [senhaProvisoria, setSenhaProvisoria] = useState<string | null>(null);
   const router = useRouter();
 
   const rolesDisponiveis = (["colaborador", "desenvolvedor", "socio"] as UserRole[]).filter((role) =>
@@ -104,7 +102,7 @@ export function FormularioDeColaborador({
 
   const enviar = handleSubmit(async (dados) => {
     setEnviando(true);
-    setLinkDeSenha(null);
+    setSenhaProvisoria(null);
 
     const resultado = await chamarAcao(() =>
       criarColaborador({
@@ -124,13 +122,11 @@ export function FormularioDeColaborador({
     toast.success(resultado.mensagem);
     router.refresh();
 
-    // Sem e-mail entregue, o diálogo fica aberto com o link: a conta existe e
-    // alguém precisa conseguir passar a senha para a pessoa.
-    if (resultado.dados && !resultado.dados.emailEnviado && resultado.dados.linkDeSenha) {
-      setLinkDeSenha({
-        link: resultado.dados.linkDeSenha,
-        motivo: resultado.dados.motivoDoEmail,
-      });
+    // O diálogo fica aberto mostrando a senha provisória. Fechar aqui seria
+    // criar a pessoa e sumir com a única cópia do texto da senha — ela não
+    // fica guardada em lugar nenhum além do hash do Auth.
+    if (resultado.dados?.senhaProvisoria) {
+      setSenhaProvisoria(resultado.dados.senhaProvisoria);
       reset();
       return;
     }
@@ -144,7 +140,7 @@ export function FormularioDeColaborador({
       open={aberto}
       onOpenChange={(estaAberto) => {
         setAberto(estaAberto);
-        if (!estaAberto) setLinkDeSenha(null);
+        if (!estaAberto) setSenhaProvisoria(null);
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -157,8 +153,8 @@ export function FormularioDeColaborador({
           </DialogDescription>
         </DialogHeader>
 
-        {linkDeSenha ? (
-          <LinkDeSenha link={linkDeSenha.link} motivo={linkDeSenha.motivo} />
+        {senhaProvisoria ? (
+          <SenhaDoPrimeiroAcesso senha={senhaProvisoria} />
         ) : null}
 
         <form onSubmit={enviar} noValidate className="space-y-4">

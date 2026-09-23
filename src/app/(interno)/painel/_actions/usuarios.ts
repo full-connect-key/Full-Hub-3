@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { adminOuErro, criarConta, desfazerConta, enviarConviteDeSenha } from "@/lib/acoes/contas";
+import { adminOuErro, criarConta, desfazerConta } from "@/lib/acoes/contas";
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { podeConcederRole } from "@/lib/dominio/equipe";
@@ -21,10 +21,20 @@ import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
  * cadastro nenhum, porque o e-mail fica ocupado e ninguém entende por quê.
  */
 
+/**
+ * O que a tela recebe depois de criar uma conta.
+ *
+ * A senha provisória vem aqui e é mostrada UMA VEZ, para quem cadastrou
+ * passar adiante. Ela não fica guardada em lugar nenhum além do hash do Auth:
+ * se a tela for fechada sem copiar, o caminho é "Esqueci minha senha".
+ *
+ * Antes deste campo, a porta era um link de recuperação por e-mail. O e-mail
+ * deixou de ser enviado na criação de propósito — com os dois caminhos vivos
+ * ao mesmo tempo, quem clicasse no link definiria uma senha e ainda assim
+ * cairia na tela de troca obrigatória no primeiro acesso, sem entender por quê.
+ */
 export type ResultadoDeConvite = {
-  emailEnviado: boolean;
-  linkDeSenha: string | null;
-  motivoDoEmail: string | null;
+  senhaProvisoria: string | null;
 };
 
 const FUNCOES_VALIDAS = [
@@ -72,7 +82,7 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
 
     const admin = adminOuErro();
 
-    const { usuarioId, jaExistia } = await criarConta(admin, {
+    const { usuarioId, jaExistia, senhaProvisoria } = await criarConta(admin, {
       email: pedido.email,
       nome: pedido.nome,
       role: pedido.role,
@@ -102,15 +112,13 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
       );
     }
 
-    const convite = await enviarConviteDeSenha(admin, pedido.email);
-
     revalidatePath("/painel/equipe");
 
     return sucesso(
-      convite.emailEnviado
-        ? `${pedido.nome} foi criada e recebeu o e-mail para definir a senha.`
-        : `${pedido.nome} foi criada, mas o e-mail não saiu. Copie o link abaixo e envie para ela.`,
-      convite,
+      jaExistia
+        ? `${pedido.nome} já tinha conta, e ela foi mantida com a senha que já usava.`
+        : `${pedido.nome} foi criada. Passe a senha provisória abaixo — ela troca no primeiro acesso.`,
+      { senhaProvisoria },
     );
   });
 }
@@ -157,7 +165,7 @@ export async function convidarUsuarioCliente(
       );
     }
 
-    const { usuarioId, jaExistia } = await criarConta(admin, {
+    const { usuarioId, jaExistia, senhaProvisoria } = await criarConta(admin, {
       email: pedido.email,
       nome: pedido.nome,
       role: "cliente",
@@ -180,17 +188,13 @@ export async function convidarUsuarioCliente(
     if (jaExistia) {
       return sucesso(
         `${existente?.nome ?? pedido.nome} já tinha conta no Full Hub e agora enxerga ${empresa.nome_empresa}. Nenhuma conta nova foi criada.`,
-        { emailEnviado: false, linkDeSenha: null, motivoDoEmail: null },
+        { senhaProvisoria: null },
       );
     }
 
-    const convite = await enviarConviteDeSenha(admin, pedido.email);
-
     return sucesso(
-      convite.emailEnviado
-        ? `${pedido.nome} foi convidada e recebeu o e-mail para definir a senha.`
-        : `${pedido.nome} foi criada, mas o e-mail não saiu. Copie o link abaixo e envie para ela.`,
-      convite,
+      `${pedido.nome} foi criada. Passe a senha provisória abaixo — ela troca no primeiro acesso.`,
+      { senhaProvisoria },
     );
   });
 }

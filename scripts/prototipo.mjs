@@ -129,6 +129,10 @@ const TELAS = [
   { nome: "79-financeiro-pessoal-escuro", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador", tema: "escuro" },
 
   // --- Sprint 9: Academy e Recomendacoes ---------------------------------
+  // A troca obrigatoria do primeiro acesso. Mora em (auth), entao nao passa
+  // pelo login do prototipo -- e por isso e uma tela avulsa na lista.
+  { nome: "05b-primeiro-acesso", rota: "/trocar-senha", largura: 900, altura: 700, role: "colaborador-primeiro-acesso" },
+
   { nome: "80-academy", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio" },
   { nome: "81-academy-colaborador", rota: "/painel/academy", largura: 1600, altura: 1200, role: "colaborador" },
   { nome: "82-academy-trilha", rota: "/painel/academy/t1", largura: 1500, altura: 1200, role: "colaborador" },
@@ -275,10 +279,18 @@ const PERFIS = {
   desenvolvedor: { role: "desenvolvedor" },
   colaborador: { role: "colaborador", funcao: "Atendimento" },
   "colaborador-social": { role: "colaborador", funcao: "Social Media" },
+  // Quem acabou de ser cadastrado e ainda nao trocou a senha provisoria. E um
+  // PERFIL e nao um parametro de tela porque o gerador ja sobe um servidor por
+  // perfil -- assim nao inventa um mecanismo novo para uma tela so.
+  "colaborador-primeiro-acesso": {
+    role: "colaborador",
+    funcao: "Atendimento",
+    senhaProvisoria: true,
+  },
 };
 
 function subirServidor(perfil) {
-  const { role, funcao } = PERFIS[perfil] ?? PERFIS.socio;
+  const { role, funcao, senhaProvisoria } = PERFIS[perfil] ?? PERFIS.socio;
 
   // O binario pelo caminho, e nao `npx`: numa rodada de noventa telas, com o
   // Chromium e o servidor disputando memoria, o `spawn("npx", ...)` falhou com
@@ -301,7 +313,12 @@ function subirServidor(perfil) {
     cwd: COPIA,
     stdio: "ignore",
     detached: true,
-    env: { ...process.env, PROTOTIPO_ROLE: role, PROTOTIPO_FUNCAO: funcao ?? "" },
+    env: {
+      ...process.env,
+      PROTOTIPO_ROLE: role,
+      PROTOTIPO_FUNCAO: funcao ?? "",
+      PROTOTIPO_SENHA_PROVISORIA: senhaProvisoria ? "1" : "",
+    },
   });
 
   // SEM ISTO, um `spawn` que falha derruba a rodada inteira por um caminho que

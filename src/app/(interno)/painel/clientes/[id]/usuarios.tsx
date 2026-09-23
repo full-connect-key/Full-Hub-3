@@ -12,7 +12,7 @@ import { z } from "zod";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LinkDeSenha } from "@/components/shared/link-de-senha";
+import { SenhaDoPrimeiroAcesso } from "@/components/shared/senha-do-primeiro-acesso";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,9 +49,7 @@ type Dados = z.infer<typeof esquema>;
 function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeDaEmpresa: string }) {
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [linkDeSenha, setLinkDeSenha] = useState<{ link: string; motivo: string | null } | null>(
-    null,
-  );
+  const [senhaProvisoria, setSenhaProvisoria] = useState<string | null>(null);
   const router = useRouter();
 
   const {
@@ -63,7 +61,7 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
 
   const enviar = handleSubmit(async (dados) => {
     setEnviando(true);
-    setLinkDeSenha(null);
+    setSenhaProvisoria(null);
 
     const resultado = await chamarAcao(() =>
       convidarUsuarioCliente({ client_id: clientId, ...dados }),
@@ -78,13 +76,11 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
     toast.success(resultado.mensagem);
     router.refresh();
 
-    // O e-mail não saiu: o diálogo fica aberto mostrando o link, senão a
-    // pessoa é criada e ninguém descobre como ela entra.
-    if (resultado.dados && !resultado.dados.emailEnviado && resultado.dados.linkDeSenha) {
-      setLinkDeSenha({
-        link: resultado.dados.linkDeSenha,
-        motivo: resultado.dados.motivoDoEmail,
-      });
+    // O diálogo fica aberto mostrando a senha provisória. Fechar aqui seria
+    // criar a pessoa e sumir com a única cópia do texto da senha — ela não
+    // fica guardada em lugar nenhum além do hash do Auth.
+    if (resultado.dados?.senhaProvisoria) {
+      setSenhaProvisoria(resultado.dados.senhaProvisoria);
       reset();
       return;
     }
@@ -98,7 +94,7 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
       open={aberto}
       onOpenChange={(estaAberto) => {
         setAberto(estaAberto);
-        if (!estaAberto) setLinkDeSenha(null);
+        if (!estaAberto) setSenhaProvisoria(null);
       }}
     >
       <DialogTrigger asChild>
@@ -116,8 +112,8 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
           </DialogDescription>
         </DialogHeader>
 
-        {linkDeSenha ? (
-          <LinkDeSenha link={linkDeSenha.link} motivo={linkDeSenha.motivo} />
+        {senhaProvisoria ? (
+          <SenhaDoPrimeiroAcesso senha={senhaProvisoria} />
         ) : null}
 
         <form onSubmit={enviar} noValidate className="space-y-4">

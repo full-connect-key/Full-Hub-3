@@ -10,6 +10,7 @@
  */
 import { headers } from "next/headers";
 import { forbidden } from "next/navigation";
+import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
 import { canAccess } from "@/lib/auth/permissions";
@@ -88,9 +89,36 @@ export async function obterSessao(): Promise<Sessao | null> {
   return sessaoDe(profileDaEquipe());
 }
 
+/** A bandeira do primeiro acesso, ligada por ambiente como o resto. */
+function deveTrocarSenha(): boolean {
+  return process.env["PROTOTIPO_SENHA_PROVISORIA"] === "1";
+}
+
+/** A sessao com a bandeira que o ambiente pedir. */
+function sessaoComBandeira(): Sessao {
+  const sessao = sessaoDe(profileDaEquipe());
+  return {
+    ...sessao,
+    profile: { ...sessao.profile, deve_trocar_senha: deveTrocarSenha() },
+  };
+}
+
+/**
+ * Espelha a trava da real: com a bandeira de pe, todo caminho leva para
+ * /trocar-senha. Sem isso a captura da tela do primeiro acesso seria a unica
+ * que nao passa pelo mesmo desvio do app.
+ */
 export async function exigirSessao(): Promise<Sessao> {
   await marcarComoDinamica();
-  return sessaoDe(profileDaEquipe());
+  const sessao = sessaoComBandeira();
+  if (sessao.profile.deve_trocar_senha) redirect("/trocar-senha");
+  return sessao;
+}
+
+/** A sessao sem a trava — so a propria tela de /trocar-senha usa. */
+export async function exigirSessaoParaTrocarSenha(): Promise<Sessao> {
+  await marcarComoDinamica();
+  return sessaoComBandeira();
 }
 
 export async function exigirEquipe(): Promise<Sessao> {

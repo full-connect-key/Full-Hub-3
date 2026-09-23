@@ -48,8 +48,33 @@ export const obterSessao = cache(async (): Promise<Sessao | null> => {
   return { usuarioId: usuario.id, email: usuario.email ?? profile.email, profile };
 });
 
-/** Use no topo de qualquer pagina privada. Sem sessao, manda para o login. */
+/**
+ * Use no topo de qualquer pagina privada. Sem sessao, manda para o login.
+ *
+ * E QUEM ESTA COM SENHA PROVISORIA NAO PASSA DAQUI. A conta nasce com uma
+ * senha sorteada, que a pessoa da agencia ditou ou colou num chat -- ou seja,
+ * ela ja passou por um canal que nao e secreto. Enquanto `deve_trocar_senha`
+ * estiver de pe, todo caminho do sistema leva para /trocar-senha.
+ *
+ * A trava mora AQUI, e nao no `entrar`, porque login nao e a unica porta:
+ * quem ja tivesse cookie de sessao valido entraria direto numa rota interna
+ * sem passar pela tela de login. Aqui passam as duas areas e todas as rotas.
+ */
 export async function exigirSessao(): Promise<Sessao> {
+  const sessao = await obterSessao();
+  if (!sessao) redirect("/login");
+  if (sessao.profile.deve_trocar_senha) redirect("/trocar-senha");
+  return sessao;
+}
+
+/**
+ * A sessao sem a trava da senha provisoria.
+ *
+ * Existe para UM lugar so: a propria tela de /trocar-senha, que precisa saber
+ * quem esta logado sem ser mandada de volta para si mesma. Qualquer outro uso
+ * fura a trava.
+ */
+export async function exigirSessaoParaTrocarSenha(): Promise<Sessao> {
   const sessao = await obterSessao();
   if (!sessao) redirect("/login");
   return sessao;

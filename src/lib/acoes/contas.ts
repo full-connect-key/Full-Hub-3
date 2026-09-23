@@ -1,6 +1,6 @@
 import "server-only";
 
-import { SITE_URL } from "@/lib/env";
+import { gerarSenhaProvisoria } from "./senha-provisoria";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import type { UserRole } from "@/lib/supabase/database.types";
 
@@ -72,51 +72,23 @@ export function adminOuErro(): ClienteAdmin {
   }
 }
 
-const DESTINO_DA_SENHA = `${SITE_URL}/auth/callback?proximo=/redefinir-senha`;
-
-/**
- * Manda o e-mail de definição de senha. Se não der, gera o link para a tela
- * mostrar — o importante é a pessoa conseguir entrar de algum jeito.
- */
-export async function enviarConviteDeSenha(
-  admin: ClienteAdmin,
-  email: string,
-): Promise<{ emailEnviado: boolean; linkDeSenha: string | null; motivoDoEmail: string | null }> {
-  const { error } = await admin.auth.resetPasswordForEmail(email, {
-    redirectTo: DESTINO_DA_SENHA,
-  });
-
-  if (!error) return { emailEnviado: true, linkDeSenha: null, motivoDoEmail: null };
-
-  console.error("[contas] nao foi possivel enviar o e-mail de senha:", error);
-
-  // Gerar o link invalida o token do e-mail anterior, então só fazemos isso
-  // quando o envio já falhou.
-  const { data, error: erroDoLink } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo: DESTINO_DA_SENHA },
-  });
-
-  return {
-    emailEnviado: false,
-    linkDeSenha: data?.properties?.action_link ?? null,
-    motivoDoEmail: traduzirErroDeAuth(erroDoLink?.message ?? error.message),
-  };
-}
-
 /**
  * Cria a conta no Auth e garante a linha em `profiles`.
  *
- * `email_confirm: true` não é descuido: quem cria a conta é a agência, o
- * endereço já é conhecido, e é o link de senha que faz o papel de porta. Com
- * `false` o Supabase recusa gerar o link de recuperação e a pessoa fica sem
- * nenhum caminho para entrar. A conta nasce sem senha de qualquer forma.
+ * `email_confirm: true` não é descuido: quem cria a conta é a agência e o
+ * endereço já é conhecido. Com `false` o Supabase recusaria o login até uma
+ * confirmação por e-mail que, sem SMTP próprio, quase nunca chega.
+ *
+ * A CONTA NASCE COM SENHA PROVISÓRIA, sorteada por pessoa, e com
+ * `deve_trocar_senha = true`. Antes ela nascia sem senha nenhuma e a porta
+ * era um link de recuperação — o que fazia a entrada de alguém novo depender
+ * de um e-mail sair. A senha volta desta função para a tela mostrar UMA VEZ a
+ * quem cadastrou; não é guardada em lugar nenhum além do hash do Auth.
  */
 export async function criarConta(
   admin: ClienteAdmin,
   { email, nome, role }: { email: string; nome: string; role: UserRole },
-): Promise<{ usuarioId: string; jaExistia: boolean }> {
+): Promise<{ usuarioId: string; jaExistia: boolean; senhaProvisoria: string | null }> {
   const enderecoNormalizado = email.trim().toLowerCase();
 
   const { data: existente } = await admin
@@ -125,11 +97,14 @@ export async function criarConta(
     .eq("email", enderecoNormalizado)
     .maybeSingle();
 
-  if (existente) return { usuarioId: existente.id, jaExistia: true };
+  if (existente) return { usuarioId: existente.id, jaExistia: true, senhaProvisoria: null };
+
+  const senhaProvisoria = gerarSenhaProvisoria();
 
   const { data, error } = await admin.auth.admin.createUser({
     email: enderecoNormalizado,
     email_confirm: true,
+    password: senhaProvisoria,
     user_metadata: { nome, role },
   });
 
@@ -144,7 +119,17 @@ export async function criarConta(
   // conferimos e criamos a linha na mão se precisar.
   const { error: erroDoPerfil } = await admin
     .from("profiles")
-    .upsert({ id: usuarioId, email: enderecoNormalizado, nome, role, ativo: true }, { onConflict: "id" });
+    .upsert(
+      {
+        id: usuarioId,
+        email: enderecoNormalizado,
+        nome,
+        role,
+        ativo: true,
+        deve_trocar_senha: true,
+      },
+      { onConflict: "id" },
+    );
 
   if (erroDoPerfil) {
     await admin.auth.admin.deleteUser(usuarioId).catch(() => undefined);
@@ -153,7 +138,7 @@ export async function criarConta(
     );
   }
 
-  return { usuarioId, jaExistia: false };
+  return { usuarioId, jaExistia: false, senhaProvisoria };
 }
 
 /** Desfaz uma conta recém-criada quando um passo seguinte falha. */

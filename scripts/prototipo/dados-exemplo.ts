@@ -16,6 +16,7 @@ export const PROFILE_EQUIPE: Profile = {
   role: "socio",
   avatar_url: null,
   ativo: true,
+  deve_trocar_senha: false,
   created_at: "2026-01-15T10:00:00.000Z",
 };
 
@@ -26,6 +27,7 @@ export const PROFILE_CLIENTE: Profile = {
   role: "cliente",
   avatar_url: null,
   ativo: true,
+  deve_trocar_senha: false,
   created_at: "2026-01-15T10:00:00.000Z",
 };
 
@@ -48,6 +50,7 @@ export const EQUIPE_EXEMPLO = [
     role: "socio" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2021-03-01T10:00:00.000Z",
     membro: {
       id: "t1", user_id: "a0000000-0000-0000-0000-000000000001",
@@ -63,6 +66,7 @@ export const EQUIPE_EXEMPLO = [
     role: "desenvolvedor" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2023-08-14T10:00:00.000Z",
     membro: {
       id: "t2", user_id: "a0000000-0000-0000-0000-000000000002",
@@ -78,6 +82,7 @@ export const EQUIPE_EXEMPLO = [
     role: "colaborador" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2024-02-05T10:00:00.000Z",
     membro: {
       id: "t3", user_id: "a0000000-0000-0000-0000-000000000003",
@@ -93,6 +98,7 @@ export const EQUIPE_EXEMPLO = [
     role: "colaborador" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2025-01-20T10:00:00.000Z",
     membro: {
       id: "t4", user_id: "a0000000-0000-0000-0000-000000000005",
@@ -108,6 +114,7 @@ export const EQUIPE_EXEMPLO = [
     role: "colaborador" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2025-01-20T10:00:00.000Z",
     membro: {
       id: "t5", user_id: "a0000000-0000-0000-0000-000000000006",
@@ -123,6 +130,7 @@ export const EQUIPE_EXEMPLO = [
     role: "colaborador" as const,
     avatar_url: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2025-04-02T10:00:00.000Z",
     membro: {
       id: "t6", user_id: "a0000000-0000-0000-0000-000000000007",
@@ -146,6 +154,7 @@ export const CLIENTES_EXEMPLO = [
     responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000003",
     observacoes: "Conta com dois contatos ativos. Reunião mensal na primeira terça.",
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2024-03-10T10:00:00.000Z",
   },
   {
@@ -159,6 +168,7 @@ export const CLIENTES_EXEMPLO = [
     responsavel_atendimento_id: "a0000000-0000-0000-0000-000000000001",
     observacoes: null,
     ativo: true,
+    deve_trocar_senha: false,
     created_at: "2024-06-02T10:00:00.000Z",
   },
   {
