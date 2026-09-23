@@ -312,9 +312,9 @@ begin
 
   -- 2. Reels institucional ---------------------------------------------------
   insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por,
-                            exigencia_aprovacao)
+                            exigencia_aprovacao, link_entrega)
   values (optica, 'Reels institucional', 'urgente', current_date - 10, current_date + 5, carla,
-          'interna')
+          'interna', 'https://drive.google.com/drive/folders/reels-institucional')
   returning id into reels;
 
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos)
@@ -345,8 +345,10 @@ begin
    where id = rodada;
 
   -- 3. Plano de midia --------------------------------------------------------
-  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por)
-  values (optica, 'Plano de mídia do trimestre', 'baixa', current_date - 30, current_date - 8, carla)
+  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por,
+                            link_entrega)
+  values (optica, 'Plano de mídia do trimestre', 'baixa', current_date - 30, current_date - 8, carla,
+          'https://drive.google.com/drive/folders/plano-de-midia')
   returning id into midia;
 
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)

@@ -161,7 +161,7 @@ export function LateralDaTask({
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-muted-foreground text-xs">Tipo de tarefa</Label>
+        <Label className="text-muted-foreground text-xs">Workflow</Label>
         {podeEditar ? (
           <Select
             value={task.task_type_id ?? SEM_VALOR}
@@ -338,10 +338,10 @@ export function LateralDaTask({
       </p>
 
       {/* O caminho de volta: uma demanda que deu certo vira modelo para as
-          próximas. Cria um TIPO DE TAREFA, que é o que o formulário de nova
-          task oferece — criar só o fluxo deixaria o modelo inalcançável. O
-          prazo de cada etapa é convertido em dias a partir do início desta
-          Task. */}
+          próximas. Cria um WORKFLOW, que é o que o formulário de nova task
+          oferece — gravar só a cadeia de etapas, sem o modelo que a carrega,
+          deixaria o resultado inalcançável. O prazo de cada etapa é convertido
+          em dias a partir do início desta Task. */}
       {podeExcluir && task.subtarefas.length > 0 ? (
         <>
           <Separator />
@@ -349,8 +349,8 @@ export function LateralDaTask({
             <Input
               value={nomeDoFluxo}
               onChange={(evento) => setNomeDoFluxo(evento.target.value)}
-              placeholder="Nome do novo tipo de tarefa"
-              aria-label="Nome do tipo de tarefa a criar a partir desta task"
+              placeholder="Nome do novo workflow"
+              aria-label="Nome do workflow a criar a partir desta task"
             />
             <Button
               variant="outline"
@@ -371,7 +371,7 @@ export function LateralDaTask({
               }
             >
               <Workflow aria-hidden />
-              Salvar as subtarefas como tipo de tarefa
+              Salvar as subtarefas como workflow
             </Button>
           </div>
         </>

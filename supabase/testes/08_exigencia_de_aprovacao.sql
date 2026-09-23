@@ -25,8 +25,8 @@ select teste.limpar();
 -- tambem faz "recusou quando devia" virar verdade.
 -- ---------------------------------------------------------------------------
 
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio)
-values ('dddddddd-0000-0000-0000-00000000000a', :VERDE, 'Sem exigencia', :CARLA, '2026-10-01');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('dddddddd-0000-0000-0000-00000000000a', :VERDE, 'Sem exigencia', :CARLA, '2026-10-01', 'https://drive.google.com/drive/folders/teste');
 
 select teste.conferir('Exigencia nasce em "nenhuma"',
   (select exigencia_aprovacao::text from public.tasks where id = 'dddddddd-0000-0000-0000-00000000000a'),
@@ -40,8 +40,8 @@ select teste.cenario('Sem exigencia: socia marca entregue', :ANA,
 -- Exigencia interna
 -- ---------------------------------------------------------------------------
 
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao)
-values ('dddddddd-0000-0000-0000-00000000000b', :VERDE, 'Exige interna', :CARLA, '2026-10-01', 'interna');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao, link_entrega)
+values ('dddddddd-0000-0000-0000-00000000000b', :VERDE, 'Exige interna', :CARLA, '2026-10-01', 'interna', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
 values ('cccccccc-0000-0000-0000-00000000000b', 'dddddddd-0000-0000-0000-00000000000b',
@@ -78,8 +78,8 @@ select teste.cenario('Rodada interna aprovada: entregue passa', :ANA,
 -- passaria, e peca iria por entregue com o cliente sem ter visto.
 -- ---------------------------------------------------------------------------
 
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao)
-values ('dddddddd-0000-0000-0000-00000000000c', :VERDE, 'Exige cliente', :CARLA, '2026-10-01', 'cliente');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao, link_entrega)
+values ('dddddddd-0000-0000-0000-00000000000c', :VERDE, 'Exige cliente', :CARLA, '2026-10-01', 'cliente', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
 values ('cccccccc-0000-0000-0000-00000000000c', 'dddddddd-0000-0000-0000-00000000000c',
@@ -118,8 +118,8 @@ select teste.cenario('Rodada do cliente aprovada: entregue passa', :ANA,
 -- isso que este cenario verifica.
 -- ---------------------------------------------------------------------------
 
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao)
-values ('dddddddd-0000-0000-0000-00000000000d', :VERDE, 'Exige sem quem cumpra', :CARLA, '2026-10-01', 'cliente');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, exigencia_aprovacao, link_entrega)
+values ('dddddddd-0000-0000-0000-00000000000d', :VERDE, 'Exige sem quem cumpra', :CARLA, '2026-10-01', 'cliente', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
 values ('cccccccc-0000-0000-0000-00000000000d', 'dddddddd-0000-0000-0000-00000000000d',
@@ -191,9 +191,8 @@ select teste.recusa_com('Link de entrega que nao e endereco: recusa', :CARLA,
      where id = 'dddddddd-0000-0000-0000-00000000000a'$$,
   'tasks_link_entrega_http');
 
-select teste.cenario('Link de entrega vazio continua valendo', :CARLA,
-  $$update public.tasks set link_entrega = null
-     where id = 'dddddddd-0000-0000-0000-00000000000a'$$, 'ok', 1);
+-- Ate a 0014 dava para deixar a task sem link. A 0015 fechou essa porta, e a
+-- prova de que ela fechou esta na secao da pasta obrigatoria, mais abaixo.
 
 -- ---------------------------------------------------------------------------
 -- Quem pode mexer nisso
@@ -209,3 +208,52 @@ select teste.cenario('Atendimento define a exigencia da propria demanda', :CARLA
 select teste.cenario('Quem nao edita a task nao afrouxa a exigencia dela', :MARINA,
   $$update public.tasks set exigencia_aprovacao = 'nenhuma'
      where id = 'dddddddd-0000-0000-0000-00000000000c'$$, 'recusa');
+
+-- ---------------------------------------------------------------------------
+-- A pasta de entrega e obrigatoria (migration 0015)
+--
+-- Toda demanda nova diz onde o material final vai ficar. Sem a trava, o campo
+-- vira aquele que ninguem preenche: quem abre esta com pressa, quem procura o
+-- material esta semanas depois, e raramente sao a mesma pessoa.
+-- ---------------------------------------------------------------------------
+
+select teste.recusa_com('Demanda nova sem pasta de entrega: recusa', :CARLA,
+  $$insert into public.tasks (client_id, titulo, criado_por, data_inicio)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', 'Sem pasta',
+            '33333333-3333-3333-3333-333333333333', current_date)$$,
+  'precisa da pasta de entrega');
+
+select teste.recusa_com('Pasta de entrega em branco tambem e recusada', :CARLA,
+  $$insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega)
+    values ('aaaaaaaa-0000-0000-0000-000000000001', 'Pasta vazia',
+            '33333333-3333-3333-3333-333333333333', current_date, '   ')$$,
+  'precisa da pasta de entrega');
+
+select teste.cenario('Demanda nova COM pasta de entrega entra', :CARLA,
+  $$insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+    values ('dddddddd-0000-0000-0000-00000000000e', 'aaaaaaaa-0000-0000-0000-000000000001',
+            'Com pasta', '33333333-3333-3333-3333-333333333333', current_date,
+            'https://figma.com/arquivo/xyz')$$, 'ok', 1);
+
+-- A pasta de quem ja tem nao se apaga: apagar deixa o material sem paradeiro,
+-- e e uma perda que so aparece quando alguem vai procurar.
+select teste.recusa_com('A pasta de entrega nao se apaga', :CARLA,
+  $$update public.tasks set link_entrega = null
+     where id = 'dddddddd-0000-0000-0000-00000000000e'$$,
+  'não se apaga');
+
+select teste.recusa_com('Nem esvaziando com espacos', :CARLA,
+  $$update public.tasks set link_entrega = '  '
+     where id = 'dddddddd-0000-0000-0000-00000000000e'$$,
+  'não se apaga');
+
+-- Trocar continua valendo: pasta muda de lugar.
+select teste.cenario('Trocar a pasta por outra vale', :CARLA,
+  $$update public.tasks set link_entrega = 'https://drive.google.com/drive/folders/nova'
+     where id = 'dddddddd-0000-0000-0000-00000000000e'$$, 'ok', 1);
+
+-- E continua tendo que ser um endereco: as duas travas convivem.
+select teste.recusa_com('A pasta trocada continua tendo que ser endereco', :CARLA,
+  $$update public.tasks set link_entrega = 'pergunta pro Bruno'
+     where id = 'dddddddd-0000-0000-0000-00000000000e'$$,
+  'tasks_link_entrega_http');

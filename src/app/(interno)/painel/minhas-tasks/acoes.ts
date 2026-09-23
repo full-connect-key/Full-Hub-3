@@ -6,7 +6,7 @@ import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
-import { listarTiposDeTarefa } from "@/lib/dados/workflows";
+import { listarWorkflows } from "@/lib/dados/workflows";
 import { obterTask, urlsDosArquivos, type TaskCompleta } from "@/lib/dados/tasks";
 
 /**
@@ -46,7 +46,7 @@ export async function carregarDetalheDaTask(
     const [clientes, equipe, tipos, ehDoAtendimento] = await Promise.all([
       listarClientes(),
       listarEquipeAtiva(),
-      listarTiposDeTarefa(task.client_id),
+      listarWorkflows(task.client_id),
       souDoAtendimento(),
     ]);
 

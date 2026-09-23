@@ -202,6 +202,16 @@ const NOMES_MORTOS = [
   // poder proibi-las — varrer a documentação junto faria a verificação
   // acusar a própria regra, que foi exatamente o que ela fez na primeira
   // versão.
+  // "Tipo de tarefa" e "workflow" eram dois nomes para a MESMA coisa, e o
+  // produto falava os dois: o menu e a rota diziam Workflows, o formulário de
+  // abertura e a tela de gestão diziam tipo de tarefa. Quem usava tinha que
+  // descobrir sozinho que era a mesma coisa. Ficou Workflow.
+  //
+  // Só `src/`, pela razão de sempre: o CLAUDE.md precisa nomear o nome antigo
+  // para registrar por que ele saiu.
+  { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
+  { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
+
   { nome: "Trello", onde: "src/", porque: "ferramenta externa citada na interface" },
   { nome: "ClickUp", onde: "src/", porque: "ferramenta externa citada na interface" },
   { nome: "Asana", onde: "src/", porque: "ferramenta externa citada na interface" },

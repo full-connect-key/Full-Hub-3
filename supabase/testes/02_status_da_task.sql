@@ -7,8 +7,8 @@
 select teste.limpar();
 
 -- Task com 4 subtarefas; a ultima exige aprovacao interna.
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio)
-values ('eeeeeeee-0000-0000-0000-00000000000a', :VERDE, 'Regra da última subtarefa', :CARLA, '2026-10-01');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('eeeeeeee-0000-0000-0000-00000000000a', :VERDE, 'Regra da última subtarefa', :CARLA, '2026-10-01', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao) values
   ('ffffffff-0000-0000-0000-000000000001','eeeeeeee-0000-0000-0000-00000000000a','Uma',   1,:MARINA,false,null),

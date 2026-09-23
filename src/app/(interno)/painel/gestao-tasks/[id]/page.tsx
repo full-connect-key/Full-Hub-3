@@ -15,7 +15,7 @@ import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { obterTask, urlsDosArquivos } from "@/lib/dados/tasks";
-import { listarTiposDeTarefa } from "@/lib/dados/workflows";
+import { listarWorkflows } from "@/lib/dados/workflows";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 
 import { Comentarios } from "./comentarios";
@@ -37,7 +37,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   const [clientes, equipe, tipos, ehDoAtendimento] = await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
-    listarTiposDeTarefa(task.client_id),
+    listarWorkflows(task.client_id),
     souDoAtendimento(),
   ]);
 

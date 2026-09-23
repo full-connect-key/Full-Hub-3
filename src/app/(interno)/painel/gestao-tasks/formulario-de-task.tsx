@@ -93,7 +93,7 @@ export function FormularioDeTask({
   aoFechar: () => void;
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; funcao?: TeamFuncao | null }[];
-  /** Tipos de tarefa: os globais e os de cada cliente. */
+  /** Workflows: os globais e os de cada cliente. */
   tipos: { id: string; nome: string; client_id: string | null }[];
 }) {
   const router = useRouter();
@@ -286,8 +286,14 @@ export function FormularioDeTask({
       toast.error("Toda task pertence a um cliente. Escolha de quem é esta demanda.");
       return;
     }
-    if (linkEntrega.trim() && !/^https?:\/\/\S+$/.test(linkEntrega.trim())) {
-      toast.error("O link de entrega precisa começar com http:// ou https://.");
+    if (!linkEntrega.trim()) {
+      toast.error(
+        "Informe a pasta de entrega: onde o material final vai ficar. É a seção 6.",
+      );
+      return;
+    }
+    if (!/^https?:\/\/\S+$/.test(linkEntrega.trim())) {
+      toast.error("A pasta de entrega precisa começar com http:// ou https://.");
       return;
     }
     if (dataFim && dataFim < dataInicio) {
@@ -500,19 +506,19 @@ export function FormularioDeTask({
           </SecaoDoFormulario>
 
           {/* ----------------------------------------------------------------
-              4. O atalho: um tipo de tarefa traz as etapas prontas.
+              4. O atalho: um workflow traz as etapas prontas.
              ---------------------------------------------------------------- */}
           <SecaoDoFormulario
             numero={4}
-            titulo="Tipo de tarefa (opcional)"
-            explicacao="Escolher um tipo já traz as etapas daquele tipo de trabalho. É atalho, não camisa de força: as etapas continuam editáveis aqui embaixo."
+            titulo="Workflow (opcional)"
+            explicacao="Escolher um workflow já traz as etapas dele prontas, com função e prazo. Você só preenche os nomes e o que falta em cada subtarefa. É atalho, não camisa de força: tudo continua editável aqui embaixo."
           >
             <Select value={tipo} onValueChange={aplicarTipo} disabled={aplicando}>
               <SelectTrigger id="task-tipo" className="w-full sm:max-w-md">
-                <SelectValue placeholder="Sem tipo — monto as etapas à mão" />
+                <SelectValue placeholder="Sem workflow — monto as etapas à mão" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SEM_VALOR}>Sem tipo — monto as etapas à mão</SelectItem>
+                <SelectItem value={SEM_VALOR}>Sem workflow — monto as etapas à mão</SelectItem>
                 {tiposVisiveis.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.nome}
@@ -540,7 +546,7 @@ export function FormularioDeTask({
             {subtarefas.length === 0 ? (
               <p className="text-text-muted rounded-card border border-dashed px-4 py-6 text-center text-sm">
                 Nenhuma subtarefa ainda. Acrescente pelo menos uma, com responsável e data de
-                entrega, para a equipe ter o que executar — ou escolha um tipo de tarefa acima e
+                entrega, para a equipe ter o que executar — ou escolha um workflow acima e
                 ajuste as etapas que vierem.
               </p>
             ) : (
@@ -699,11 +705,11 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={6}
             titulo="Materiais e links"
-            explicacao="Onde o material final vai ficar, e o que a equipe precisa consultar para produzir."
+            explicacao="A pasta de entrega é obrigatória: é o endereço do material pronto. As referências de apoio são o que a equipe consulta para produzir."
           >
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="task-link-entrega">Link de entrega</Label>
+                <Label htmlFor="task-link-entrega">Pasta de entrega *</Label>
                 <div className="relative">
                   <FolderOpen
                     aria-hidden
@@ -718,7 +724,8 @@ export function FormularioDeTask({
                   />
                 </div>
                 <p className="text-text-muted text-xs">
-                  A pasta ou o arquivo onde o material final vai ficar. Pode entrar depois.
+                  Onde o material final vai ficar. Quem procura a peça pronta procura aqui — e
+                  costuma ser outra pessoa, semanas depois.
                 </p>
               </div>
 

@@ -170,10 +170,22 @@ achá-la no meio de oito links de apoio é o mesmo que não tê-la. Um `check` n
 banco exige `http://` ou `https://`: sem ele, "ver com a Ana" digitado ali vira
 um link quebrado na tela de quem for buscar.
 
+**A pasta de entrega é obrigatória, e a pasta de quem já tem não se apaga.**
+`tasks_exige_pasta_de_entrega` (migration 0015) recusa demanda nova sem ela e
+recusa esvaziar a de uma task existente — trocar por outro endereço continua
+valendo, porque pasta muda de lugar. Sem a trava o campo vira aquele que
+ninguém preenche: quem abre a demanda está com pressa, quem procura o material
+está semanas depois, e as duas pessoas raramente são a mesma.
+
+É trigger e não `not null` porque `not null` quebraria a migration em qualquer
+ambiente com task anterior a esta regra, e migration que não roda no próximo
+ambiente não é migration. Preencher as antigas com um valor qualquer para poder
+marcar `not null` seria pior: inventaria um endereço, e alguém clicaria nele.
+
 #### O formulário de abertura tem seis seções numeradas
 
 `/painel/gestao-tasks` → "Nova task". Informações gerais, período e
-prioridade, exigência de aprovação, tipo de tarefa, subtarefas e entregas,
+prioridade, exigência de aprovação, workflow, subtarefas e entregas,
 materiais e links. O número dá à conversa um jeito de apontar ("faltou a 5")
 sem descrever onde o campo fica, e cada seção carrega uma linha de explicação
 porque todas respondem a uma pergunta que a agência já errou.
@@ -212,19 +224,25 @@ criação, com mensagem explicando por quê.
 Bloqueio **não é status**: é derivado das dependências. Guardar como status
 criaria dois lugares para a mesma verdade.
 
-### Tipos de tarefa e workflows
+### Workflows
 
-**Tipo de tarefa e workflow são a mesma coisa para quem usa.** Um tipo — "Post
-de feed", "Campanha" — CARREGA a cadeia fixa de etapas que toda demanda daquele
-tipo percorre. No banco são duas tabelas (`task_types` guarda o nome e o
-alcance, `workflow_templates` + `workflow_steps` guardam as etapas) porque em
-tese dois tipos poderiam compartilhar um fluxo, mas isso é detalhe de
-armazenamento: **a tela nunca mostra a divisão, e as duas são gravadas juntas
-pela mesma ação.**
+**Chama-se WORKFLOW, e só isso.** Um workflow — "Post de feed", "Campanha" —
+CARREGA a cadeia fixa de etapas que toda demanda daquele tipo de trabalho
+percorre. No banco são duas tabelas (`task_types` guarda o nome e o alcance,
+`workflow_templates` + `workflow_steps` guardam as etapas) porque em tese dois
+modelos poderiam compartilhar uma cadeia, mas isso é detalhe de armazenamento:
+**a tela nunca mostra a divisão, e as duas são gravadas juntas pela mesma
+ação.**
+
+O produto falou dois nomes para a mesma coisa até o Sprint 9: o menu e a rota
+diziam Workflows, o formulário de abertura e a tela de gestão diziam "tipo de
+tarefa". Quem usava tinha que descobrir sozinho que era a mesma coisa.
+`npm run check:cores` varre `src/` atrás do nome antigo para ele não voltar —
+os nomes de tabela ficam como estão, porque são a camada em inglês.
 
 Eram duas abas até o Sprint 3C, e ninguém entendia por quê — com razão. Dava
-para criar um tipo sem fluxo (a task nascia vazia) ou um fluxo sem tipo
-(ninguém conseguia escolher, porque o formulário de nova task lista tipos).
+para criar o modelo sem a cadeia (a task nascia vazia) ou a cadeia sem o modelo
+(ninguém conseguia escolher, porque o formulário de nova task lista modelos).
 
 - O prazo da etapa é `prazo_offset_dias`, contado do início da Task. Data fixa
   num modelo reutilizável faria toda demanda nova nascer vencida.
@@ -233,10 +251,10 @@ para criar um tipo sem fluxo (a task nascia vazia) ou um fluxo sem tipo
 - **Snapshot:** ao aplicar, as subtarefas são materializadas e uma cópia do
   fluxo vai para `tasks.workflow_snapshot`. Editar o workflow depois não muda
   nenhuma Task existente.
-- Criar Task sem tipo e montar as etapas à mão é caminho de primeira classe,
-  não plano B.
-- "Salvar as subtarefas desta task como tipo de tarefa" cria o **tipo**, não só
-  o fluxo. Criar só o fluxo deixava o modelo inalcançável.
+- Criar Task sem workflow e montar as etapas à mão é caminho de primeira
+  classe, não plano B.
+- "Salvar as subtarefas desta task como workflow" grava o **modelo** junto com
+  a cadeia. Gravar só a cadeia deixava o resultado inalcançável.
 
 ### Tempo, sempre em minutos
 
@@ -696,7 +714,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
-| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. 19 cenários novos de RLS e de trigger, 250 no total. |
+| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. 26 cenários novos, 256 no total. |
 | Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
 | Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |

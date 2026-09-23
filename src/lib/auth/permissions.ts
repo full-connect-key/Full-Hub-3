@@ -243,7 +243,7 @@ export const MENU: MenuItem[] = [
     icon: Workflow,
     roles: GESTAO,
     section: "gestao",
-    description: "Os tipos de tarefa da agência e o fluxo de etapas de cada um.",
+    description: "Os workflows da agência e a cadeia de etapas de cada um.",
   },
   {
     // SÓ O SÓCIO. O desenvolvedor é gestão para todo o resto do sistema e

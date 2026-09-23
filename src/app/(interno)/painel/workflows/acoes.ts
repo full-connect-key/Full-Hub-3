@@ -8,7 +8,7 @@ import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/result
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
- * Tipos de tarefa.
+ * Workflows.
  *
  * Gestão só — é `task_types_write` e `workflow_templates_write` no banco, as
  * duas presas a `is_gestor()`.
@@ -54,7 +54,7 @@ const esquemaDeEtapa = z.object({
 });
 
 const esquemaDeTipo = z.object({
-  nome: z.string().min(2, "Dê um nome ao tipo de tarefa."),
+  nome: z.string().min(2, "Dê um nome ao workflow."),
   descricao: z.string().nullable().optional(),
   client_id: z.string().uuid().nullable().optional(),
   ativo: z.boolean().default(true),
@@ -96,23 +96,23 @@ async function regravarEtapas(
 }
 
 /**
- * Cria ou atualiza um tipo de tarefa junto com as etapas dele.
+ * Cria ou atualiza um workflow junto com as etapas dele.
  *
  * Num cadastro novo, o fluxo nasce antes do tipo e o tipo já aponta para ele.
  * Se as etapas falharem, o fluxo recém-criado é apagado: modelo pela metade é
  * pior que nenhum — a pessoa escolheria "Post de feed" e não viria etapa
  * nenhuma, sem entender por quê.
  */
-export async function salvarTipoDeTarefa(
+export async function salvarWorkflow(
   id: string | null,
   dados: unknown,
 ): Promise<Resultado<string>> {
-  return executarAcao("salvarTipoDeTarefa", async () => {
+  return executarAcao("salvarWorkflow", async () => {
     const sessao = await exigirGestorNaAcao();
 
     const validacao = esquemaDeTipo.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do tipo de tarefa.");
+      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do workflow.");
     }
     const entrada = validacao.data;
 
@@ -140,7 +140,7 @@ export async function salvarTipoDeTarefa(
         .maybeSingle();
 
       if (error) return falha(`Não foi possível salvar: ${error.message}`);
-      if (!tipo) return falha("O banco recusou. Editar tipo de tarefa é da gestão.");
+      if (!tipo) return falha("O banco recusou. Editar workflow é da gestão.");
 
       // Um tipo antigo pode não ter fluxo ainda. Nesse caso ele ganha um agora,
       // em vez de as etapas se perderem em silêncio.
@@ -227,11 +227,11 @@ export async function salvarTipoDeTarefa(
  * Duplicar — o caminho para dar a um cliente uma variação do fluxo global sem
  * refazer tudo.
  */
-export async function duplicarTipoDeTarefa(
+export async function duplicarWorkflow(
   id: string,
   paraCliente: string | null,
 ): Promise<Resultado<string>> {
-  return executarAcao("duplicarTipoDeTarefa", async () => {
+  return executarAcao("duplicarWorkflow", async () => {
     const sessao = await exigirGestorNaAcao();
     const supabase = await criarClienteServidor();
 
@@ -240,7 +240,7 @@ export async function duplicarTipoDeTarefa(
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (!original) return falha("Tipo de tarefa não encontrado.");
+    if (!original) return falha("Workflow não encontrado.");
 
     const { data: etapas } = original.workflow_template_id
       ? await supabase
@@ -309,8 +309,8 @@ export async function duplicarTipoDeTarefa(
  * Arquivar em vez de apagar: Tasks antigas apontam para o tipo, e o nome
  * precisa continuar legível no histórico delas.
  */
-export async function arquivarTipoDeTarefa(id: string, ativo: boolean): Promise<Resultado> {
-  return executarAcao("arquivarTipoDeTarefa", async () => {
+export async function arquivarWorkflow(id: string, ativo: boolean): Promise<Resultado> {
+  return executarAcao("arquivarWorkflow", async () => {
     await exigirGestorNaAcao();
     const supabase = await criarClienteServidor();
 
@@ -322,7 +322,7 @@ export async function arquivarTipoDeTarefa(id: string, ativo: boolean): Promise<
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Arquivar tipo de tarefa é da gestão.");
+    if (!data) return falha("O banco recusou. Arquivar workflow é da gestão.");
 
     if (data.workflow_template_id) {
       await supabase
@@ -337,7 +337,7 @@ export async function arquivarTipoDeTarefa(id: string, ativo: boolean): Promise<
 }
 
 /**
- * "Salvar as subtarefas desta Task como tipo de tarefa."
+ * "Salvar as subtarefas desta Task como workflow."
  *
  * O caminho de volta: uma demanda que deu certo vira modelo. O prazo de cada
  * etapa é convertido em dias a partir do início da Task — data fixa num modelo
@@ -354,7 +354,7 @@ export async function salvarTaskComoTipo(
 ): Promise<Resultado<string>> {
   return executarAcao("salvarTaskComoTipo", async () => {
     const sessao = await exigirGestorNaAcao();
-    if (nome.trim().length < 2) return falha("Dê um nome ao tipo de tarefa.");
+    if (nome.trim().length < 2) return falha("Dê um nome ao workflow.");
 
     const supabase = await criarClienteServidor();
 

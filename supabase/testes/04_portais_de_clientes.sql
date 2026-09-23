@@ -115,8 +115,8 @@ delete from public.approval_rounds;
 delete from public.subtasks;
 delete from public.tasks;
 
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio)
-values ('eeeeeeee-0000-0000-0000-00000000000a', :VERDE, 'Campanha de outubro', :CARLA, '2026-10-01');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('eeeeeeee-0000-0000-0000-00000000000a', :VERDE, 'Campanha de outubro', :CARLA, '2026-10-01', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao, status)
 values ('ffffffff-0000-0000-0000-00000000000a', 'eeeeeeee-0000-0000-0000-00000000000a',

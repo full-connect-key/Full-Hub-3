@@ -7,7 +7,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
-import { listarTiposDeTarefa } from "@/lib/dados/workflows";
+import { listarWorkflows } from "@/lib/dados/workflows";
 import { contadoresDeTasks, itensDoCalendario, listarTasks, type FiltrosDeTask } from "@/lib/dados/tasks";
 import type { TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
 
@@ -53,7 +53,7 @@ async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
     itensDoCalendario(filtros),
     listarClientes(),
     listarEquipeAtiva(),
-    listarTiposDeTarefa(),
+    listarWorkflows(),
   ]);
 
   return (

@@ -10,8 +10,8 @@ select teste.limpar();
 -- Dois ciclos de ajuste: as duas rodadas continuam no banco, com o que foi
 -- pedido em cada uma. Nada e sobrescrito para "limpar" o estado atual.
 -- ===========================================================================
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio)
-values ('abababab-0000-0000-0000-00000000000a', :VERDE, 'Duas voltas de ajuste', :CARLA, current_date);
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('abababab-0000-0000-0000-00000000000a', :VERDE, 'Duas voltas de ajuste', :CARLA, current_date, 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao, status)
 values ('bcbcbcbc-0000-0000-0000-000000000001','abababab-0000-0000-0000-00000000000a','Peça-chave',1,:BRUNO,true,'interna','em_andamento');

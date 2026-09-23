@@ -7,7 +7,7 @@ import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
-import { listarTiposDeTarefa } from "@/lib/dados/workflows";
+import { listarWorkflows } from "@/lib/dados/workflows";
 import {
   contadoresPessoais,
   itensPessoaisDoCalendario,
@@ -66,7 +66,7 @@ async function Conteudo({
     contadoresPessoais(usuarioId, prazos),
     listarClientes(),
     listarEquipeAtiva(),
-    listarTiposDeTarefa(),
+    listarWorkflows(),
     souDoAtendimento(),
   ]);
 

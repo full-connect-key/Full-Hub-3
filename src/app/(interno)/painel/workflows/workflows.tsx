@@ -39,7 +39,7 @@ import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import type { TipoComFluxo } from "@/lib/dados/workflows";
 import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
 
-import { arquivarTipoDeTarefa, duplicarTipoDeTarefa, salvarTipoDeTarefa } from "./acoes";
+import { arquivarWorkflow, duplicarWorkflow, salvarWorkflow } from "./acoes";
 
 const GLOBAL = "__todos__";
 const SEM_VALOR = "__sem__";
@@ -85,12 +85,18 @@ function etapaVazia(): EtapaEmEdicao {
 }
 
 /**
- * Tipos de tarefa — uma tela só.
+ * Workflows — uma tela só.
  *
  * Aqui cadastra-se "Post de feed" E as etapas de um post de feed, na mesma
- * caixa. Eram duas abas, "Tipos de tarefa" e "Workflows", e a divisão só fazia
- * sentido para quem conhecia o banco: na prática ninguém cadastra um fluxo sem
- * um tipo, nem um tipo sem fluxo.
+ * caixa. Eram duas abas até o Sprint 3C — uma para o modelo, outra para a
+ * cadeia de etapas —, e a divisão só fazia sentido para quem conhecia o banco:
+ * na prática ninguém cadastra uma cadeia de etapas sem o modelo que a carrega,
+ * nem o contrário.
+ *
+ * O NOME também era dois até o Sprint 9: o menu e a rota diziam Workflows, o
+ * formulário de abertura e esta tela diziam outra coisa. Quem usava tinha que
+ * descobrir sozinho que era a mesma coisa. Ficou Workflow, e `check:cores`
+ * varre `src/` atrás do nome antigo para ele não voltar.
  *
  * Duas decisões de desenho que valem explicar:
  *
@@ -105,7 +111,7 @@ function etapaVazia(): EtapaEmEdicao {
  * Editar um tipo não altera nenhuma Task já criada: a demanda guarda as
  * subtarefas materializadas e uma cópia do fluxo que as gerou.
  */
-export function TiposDeTarefa({
+export function Workflows({
   tipos,
   clientes,
   equipe,
@@ -177,7 +183,7 @@ export function TiposDeTarefa({
 
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        salvarTipoDeTarefa(editando === "novo" || editando === null ? null : editando.id, {
+        salvarWorkflow(editando === "novo" || editando === null ? null : editando.id, {
           nome,
           descricao: descricao.trim() === "" ? null : descricao.trim(),
           client_id: cliente === GLOBAL ? null : cliente,
@@ -210,13 +216,13 @@ export function TiposDeTarefa({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => abrir("novo")}>
           <Plus aria-hidden />
-          Novo tipo de tarefa
+          Novo workflow
         </Button>
       </div>
 
       {tipos.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-          Nenhum tipo de tarefa cadastrado. Comece por um: &ldquo;Post de feed&rdquo;,
+          Nenhum workflow cadastrado. Comece por um: &ldquo;Post de feed&rdquo;,
           &ldquo;Campanha&rdquo;, &ldquo;Vídeo&rdquo;.
         </p>
       ) : (
@@ -252,7 +258,7 @@ export function TiposDeTarefa({
                     disabled={salvando}
                     onClick={() =>
                       iniciar(async () => {
-                        const r = await chamarAcao(() => duplicarTipoDeTarefa(tipo.id, null));
+                        const r = await chamarAcao(() => duplicarWorkflow(tipo.id, null));
                         if (!r.ok) toast.error(r.error);
                         else {
                           toast.success(r.mensagem);
@@ -271,7 +277,7 @@ export function TiposDeTarefa({
                     onClick={() =>
                       iniciar(async () => {
                         const r = await chamarAcao(() =>
-                          arquivarTipoDeTarefa(tipo.id, !tipo.ativo),
+                          arquivarWorkflow(tipo.id, !tipo.ativo),
                         );
                         if (!r.ok) toast.error(r.error);
                         else {
@@ -320,7 +326,7 @@ export function TiposDeTarefa({
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {editando === "novo" ? "Novo tipo de tarefa" : "Editar tipo de tarefa"}
+              {editando === "novo" ? "Novo workflow" : "Editar workflow"}
             </DialogTitle>
             <DialogDescription>
               Cada etapa vira uma subtarefa quando alguém abre uma task deste tipo. O prazo da
@@ -547,7 +553,7 @@ export function TiposDeTarefa({
             </Button>
             <Button onClick={salvar} disabled={salvando || nome.trim().length < 2}>
               {salvando ? <Loader2 className="animate-spin" /> : null}
-              Salvar tipo de tarefa
+              Salvar workflow
             </Button>
           </DialogFooter>
         </DialogContent>

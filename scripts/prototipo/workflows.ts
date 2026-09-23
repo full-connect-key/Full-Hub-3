@@ -7,10 +7,10 @@
 import type {
   EtapaAplicada,
   TipoComFluxo as TipoComFluxoReal,
-  TipoDeTarefa as TipoReal,
+  WorkflowDaAgencia as TipoReal,
 } from "../../src/lib/dados/workflows";
 
-export type TipoDeTarefa = TipoReal;
+export type WorkflowDaAgencia = TipoReal;
 export type { EtapaAplicada };
 export type TipoComFluxo = TipoComFluxoReal;
 
@@ -95,7 +95,7 @@ function etapa(
   };
 }
 
-export const TIPOS: TipoDeTarefa[] = [
+export const TIPOS: WorkflowDaAgencia[] = [
   {
     id: "t0000000-0000-0000-0000-000000000001",
     nome: "Post de feed",
@@ -131,7 +131,7 @@ export const TIPOS: TipoDeTarefa[] = [
   },
 ];
 
-export async function listarTiposDeTarefa(clienteId?: string | null): Promise<TipoDeTarefa[]> {
+export async function listarWorkflows(clienteId?: string | null): Promise<WorkflowDaAgencia[]> {
   if (!clienteId) return TIPOS;
   return TIPOS.filter((t) => t.client_id === null || t.client_id === clienteId);
 }
@@ -143,7 +143,7 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
   }));
 }
 
-export async function fluxoDoTipoDeTarefa(
+export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
 ): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {

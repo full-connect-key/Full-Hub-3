@@ -7,7 +7,7 @@ import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
-import { fluxoDoTipoDeTarefa, type EtapaAplicada } from "@/lib/dados/workflows";
+import { fluxoDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
@@ -101,14 +101,16 @@ const esquemaDeTask = z.object({
   // O mesmo formato que o check `tasks_link_entrega_http` cobra no banco. Os
   // dois existem de propósito: aqui sai a mensagem que a pessoa lê, lá é o que
   // vale para quem chamar a API direto.
+  // Obrigatória na criação. O trigger `tasks_exige_pasta_de_entrega`
+  // (migration 0015) recusa do mesmo jeito para quem chamar a API direto --
+  // aqui sai a mensagem que a pessoa lê, lá é o que vale.
   link_entrega: z
     .string()
     .trim()
-    .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), {
-      message: "O link de entrega precisa ser um endereço começando com http:// ou https://.",
-    })
-    .optional()
-    .nullable(),
+    .min(1, "Informe a pasta de entrega: onde o material final vai ficar.")
+    .regex(/^https?:\/\/\S+$/, {
+      message: "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
+    }),
   subtarefas: z.array(esquemaDeSubtarefa).default([]),
   referencias: z.array(esquemaDeReferencia).default([]),
 });
@@ -151,7 +153,7 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
         data_fim: vazioParaNulo(entrada.data_fim),
         prioridade: entrada.prioridade,
         exigencia_aprovacao: entrada.exigencia_aprovacao,
-        link_entrega: vazioParaNulo(entrada.link_entrega),
+        link_entrega: entrada.link_entrega,
         criado_por: sessao.usuarioId,
       })
       .select("id")
@@ -253,13 +255,16 @@ const esquemaDeEdicao = z.object({
   prioridade: prioridade.optional(),
   status: statusDeTask.optional(),
   exigencia_aprovacao: z.enum(["nenhuma", "interna", "cliente"]).optional(),
+  // Na edição dá para TROCAR, nunca para esvaziar: apagar o endereço deixa o
+  // material sem paradeiro conhecido, e é uma perda que só aparece quando
+  // alguém vai procurar. Quem recusa de verdade é o trigger da 0015.
   link_entrega: z
     .string()
     .trim()
-    .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), {
-      message: "O link de entrega precisa ser um endereço começando com http:// ou https://.",
+    .min(1, "A pasta de entrega não se apaga — dá para trocar por outro endereço.")
+    .regex(/^https?:\/\/\S+$/, {
+      message: "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
     })
-    .nullable()
     .optional(),
 });
 
@@ -292,8 +297,7 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
     if (entrada.exigencia_aprovacao !== undefined)
       mudancas.exigencia_aprovacao = entrada.exigencia_aprovacao;
-    if (entrada.link_entrega !== undefined)
-      mudancas.link_entrega = vazioParaNulo(entrada.link_entrega);
+    if (entrada.link_entrega !== undefined) mudancas.link_entrega = entrada.link_entrega;
 
     const supabase = await criarClienteServidor();
 
@@ -455,7 +459,7 @@ export async function excluirTask(id: string): Promise<Resultado> {
 }
 
 /**
- * As etapas que um tipo de tarefa sugere, já com os prazos calculados.
+ * As etapas que um workflow sugere, já com os prazos calculados.
  *
  * Isto é leitura, não escrita: o que volta é uma sugestão para o formulário,
  * que a pessoa ainda edita, reordena e completa antes de confirmar. Nada é
@@ -472,7 +476,7 @@ export async function sugerirEtapasDoTipo(
   return executarAcao("sugerirEtapasDoTipo", async () => {
     await exigirRotaNaAcao(ROTA);
 
-    const aplicado = await fluxoDoTipoDeTarefa(tipoId, dataInicio);
+    const aplicado = await fluxoDoWorkflow(tipoId, dataInicio);
     if (!aplicado) return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
 
     return sucesso("Fluxo aplicado.", aplicado);

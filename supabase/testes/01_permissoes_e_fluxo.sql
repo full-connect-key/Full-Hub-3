@@ -19,9 +19,9 @@ truncate teste.resultado;
 --   3 Landing     Diego    aprovacao INTERNA      (o proprio desenvolvedor)
 --   4 Agendamento Marina   sem aprovacao          depende de 2
 -- ===========================================================================
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, data_fim)
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, data_fim, link_entrega)
 values ('cccccccc-0000-0000-0000-00000000000a', :VERDE, 'Campanha de Instagram',
-        :CARLA, '2026-10-01', '2026-10-30');
+        :CARLA, '2026-10-01', '2026-10-30', 'https://drive.google.com/drive/folders/teste');
 
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, prazo, requer_aprovacao, tipo_aprovacao) values
   ('dddddddd-0000-0000-0000-000000000001','cccccccc-0000-0000-0000-00000000000a','Criar conceito',1,:MARINA,'2026-10-05',false,null),
@@ -34,8 +34,8 @@ insert into public.subtask_dependencies (subtask_id, depende_de_id) values
   ('dddddddd-0000-0000-0000-000000000004','dddddddd-0000-0000-0000-000000000002');
 
 -- Uma task da OUTRA empresa, para o teste de isolamento.
-insert into public.tasks (id, client_id, titulo, criado_por, data_inicio)
-values ('cccccccc-0000-0000-0000-00000000000b', :OPTICA, 'Vitrine da Óptica', :CARLA, '2026-10-01');
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('cccccccc-0000-0000-0000-00000000000b', :OPTICA, 'Vitrine da Óptica', :CARLA, '2026-10-01', 'https://drive.google.com/drive/folders/teste');
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
 values ('dddddddd-0000-0000-0000-00000000000b','cccccccc-0000-0000-0000-00000000000b','Arte da vitrine',1,:BRUNO,true,'cliente');
 
@@ -44,11 +44,11 @@ values ('dddddddd-0000-0000-0000-00000000000b','cccccccc-0000-0000-0000-00000000
 -- QUEM CRIA O QUE
 -- ---------------------------------------------------------------------------
 select teste.cenario('Colaborador fora do Atendimento NAO cria task', :MARINA,
-  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio) values (%L, %L, %L, current_date)', :VERDE, 'Tentativa', :MARINA),
+  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega) values (%L, %L, %L, current_date, ''https://drive.google.com/drive/folders/teste'')', :VERDE, 'Tentativa', :MARINA),
   'recusa');
 
 select teste.cenario('Carla (colaboradora do Atendimento) cria task', :CARLA,
-  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio) values (%L, %L, %L, current_date)', :VERDE, 'Task da Carla', :CARLA),
+  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega) values (%L, %L, %L, current_date, ''https://drive.google.com/drive/folders/teste'')', :VERDE, 'Task da Carla', :CARLA),
   'ok', 1);
 
 select teste.cenario('Colaborador fora do Atendimento NAO cria subtarefa', :MARINA,
@@ -56,7 +56,7 @@ select teste.cenario('Colaborador fora do Atendimento NAO cria subtarefa', :MARI
   'recusa');
 
 select teste.cenario('Task sem cliente e recusada pelo banco', :CARLA,
-  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio) values (null, %L, %L, current_date)', 'Sem dono', :CARLA),
+  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega) values (null, %L, %L, current_date, ''https://drive.google.com/drive/folders/teste'')', 'Sem dono', :CARLA),
   'recusa');
 
 

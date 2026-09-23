@@ -4,9 +4,9 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import type { TaskType, WorkflowStep } from "@/lib/supabase/database.types";
 
 /**
- * Tipos de tarefa.
+ * Workflows.
  *
- * Um tipo de tarefa é um jeito de trabalho da agência — "Post de feed",
+ * Um workflow é um jeito de trabalho da agência — "Post de feed",
  * "Campanha" — e ele CARREGA a cadeia fixa de etapas que toda demanda daquele
  * tipo percorre. É o que a pessoa escolhe ao abrir uma Task, e é o que faz as
  * subtarefas nascerem prontas.
@@ -15,13 +15,13 @@ import type { TaskType, WorkflowStep } from "@/lib/supabase/database.types";
  * `workflow_templates` + `workflow_steps` guardam as etapas. A divisão existe
  * porque dois tipos podem, em tese, compartilhar o mesmo fluxo — mas ela é
  * detalhe de armazenamento, e a tela nunca a mostra: quem usa o Full Hub
- * cadastra "um tipo de tarefa com suas etapas", uma coisa só.
+ * cadastra "um workflow com suas etapas", uma coisa só.
  *
  * Um tipo pode ser global (`client_id` nulo) ou de um cliente só. É assim que
  * uma conta com processo próprio ganha o fluxo dela sem duplicar o resto.
  */
 
-export type TipoDeTarefa = TaskType & {
+export type WorkflowDaAgencia = TaskType & {
   cliente: { id: string; nome_empresa: string } | null;
   workflow: { id: string; nome: string; etapas: number } | null;
 };
@@ -30,7 +30,7 @@ export type EtapaDeWorkflow = WorkflowStep & {
   responsavelPadrao: { id: string; nome: string } | null;
 };
 
-/** Um tipo de tarefa com as etapas que ele gera. É a unidade da tela. */
+/** Um workflow com as etapas que ele gera. É a unidade da tela. */
 export type TipoComFluxo = TaskType & {
   cliente: { id: string; nome_empresa: string } | null;
   etapas: EtapaDeWorkflow[];
@@ -41,7 +41,7 @@ export type TipoComFluxo = TaskType & {
  *
  * Sem `clienteId`, devolve todos — é o que a tela de gestão precisa.
  */
-export async function listarTiposDeTarefa(clienteId?: string | null): Promise<TipoDeTarefa[]> {
+export async function listarWorkflows(clienteId?: string | null): Promise<WorkflowDaAgencia[]> {
   const supabase = await criarClienteServidor();
 
   let consulta = supabase.from("task_types").select("*").eq("ativo", true);
@@ -89,10 +89,10 @@ export async function listarTiposDeTarefa(clienteId?: string | null): Promise<Ti
 }
 
 /**
- * Os tipos de tarefa com a cadeia de etapas inteira — o que a tela de gestão
+ * Os workflows com a cadeia de etapas inteira — o que a tela de gestão
  * mostra e edita.
  *
- * Diferente de `listarTiposDeTarefa`, traz os arquivados junto (com `ativo`
+ * Diferente de `listarWorkflows`, traz os arquivados junto (com `ativo`
  * dizendo qual é qual) porque quem administra precisa enxergar e reativar o
  * que saiu de circulação.
  */
@@ -147,14 +147,14 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
 }
 
 /**
- * O fluxo de um TIPO de tarefa, já traduzido em etapas.
+ * As etapas de um WORKFLOW, já traduzidas em subtarefas.
  *
  * Mora aqui, e não na Server Action, porque é leitura: a action só orquestra.
  * E porque é aqui que o gerador de protótipo consegue trocar a fonte por dados
  * de exemplo — uma consulta solta dentro da action deixaria a tela do protótipo
  * sem as etapas, que é exatamente o que ela precisa mostrar.
  */
-export async function fluxoDoTipoDeTarefa(
+export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
 ): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
