@@ -32,16 +32,22 @@ export const ROTULOS_DE_CATEGORIA: Record<RecCategoria, string> = {
 /**
  * A cor do selo de categoria.
  *
- * PAR NOMEADO, nunca `bg-x/10`: opacidade sobre um fundo qualquer dá uma cor
- * que ninguém mediu, e no tema escuro dá outra. São oito categorias e cinco
- * pares — categorias próximas compartilham par de propósito, porque oito
- * cores distintas num feed viram confete e nenhuma delas significa nada.
+ * PAR NOMEADO, sempre. Opacidade sobre um fundo qualquer dá uma cor que
+ * ninguém mediu, e no tema escuro dá outra — a regra vale aqui como vale no
+ * `StatusBadge`. A primeira versão disto usava um tom com opacidade para
+ * livro e curso, e passou pelo `check:cores` porque a varredura só conferia
+ * se a classe EXISTIA; agora ela confere isto também.
+ *
+ * São oito categorias e quatro pares: categorias próximas compartilham par de
+ * propósito, porque oito cores distintas num feed viram confete e nenhuma
+ * delas significa nada. O que o selo precisa dizer é "isto é conteúdo de
+ * assistir / de ler / de usar / outro" — e isso cabe em quatro.
  */
 export const COR_DA_CATEGORIA: Record<RecCategoria, string> = {
   filme: "bg-ferias-soft text-ferias",
   serie: "bg-ferias-soft text-ferias",
-  livro: "bg-info/10 text-info",
-  curso: "bg-info/10 text-info",
+  livro: "bg-blue-soft text-accent-strong",
+  curso: "bg-blue-soft text-accent-strong",
   ferramenta: "bg-success-soft text-success",
   podcast: "bg-warning-soft text-warning",
   referencia: "bg-neutral-soft text-neutral",

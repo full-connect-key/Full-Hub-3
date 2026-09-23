@@ -141,7 +141,7 @@ export const MENU: MenuItem[] = [
     icon: BookOpen,
     roles: EQUIPE,
     section: "principal",
-    description: "Trilhas e materiais de formação da agência.",
+    description: "Trilhas de formação da agência, com o seu progresso.",
   },
   {
     label: "Calendário Full",
@@ -152,12 +152,16 @@ export const MENU: MenuItem[] = [
     description: "Prazos, publicações e compromissos em uma linha do tempo.",
   },
   {
-    label: "Recomendações da Semana",
+    // "Recomendações da SEMANA" com "reconhecimento entre colegas" era outro
+    // módulo: elogio a quem trabalhou bem. O que o Sprint 9 entregou é um feed
+    // de indicações — filme, curso, ferramenta, referência. Dois nomes para
+    // coisas diferentes na mesma linha do menu confundem quem procura.
+    label: "Recomendações",
     href: "/painel/recomendacoes",
     icon: ThumbsUp,
     roles: EQUIPE,
     section: "principal",
-    description: "Reconhecimento entre colegas.",
+    description: "O que a equipe anda indicando: filme, curso, ferramenta, referência.",
   },
   {
     // A nota fiscal DA PESSOA, não o financeiro da agência. Cada um envia a

@@ -307,6 +307,49 @@ for (const [frente, fundo, minimo, descricao] of PARES) {
   }
 }
 
+// --- opacidade em cor de ESTADO ---------------------------------------------
+//
+// A regra do produto: selo de estado usa o PAR NOMEADO (`bg-warning-soft
+// text-warning`), nunca `bg-warning/10`. Opacidade sobre um fundo qualquer dá
+// uma cor que ninguém mediu -- e no tema escuro dá outra, porque o fundo é
+// outro.
+//
+// A regra estava escrita no CLAUDE.md e em dois comentários de código, e
+// nunca tinha sido VERIFICADA. No Sprint 9 eu mesmo escrevi `bg-info/10` num
+// selo de categoria e passei por esta varredura sem um aviso: ela só conferia
+// se a classe existia, e `bg-info/10` existe.
+//
+// Só os tokens de estado que TÊM par suave entram. `bg-muted/40` e
+// `bg-primary/90` são do shadcn e não são selo de estado -- varrê-los daria
+// um alarme que toca sempre, e alarme que toca sempre ninguém escuta.
+
+console.log("\nOpacidade onde o par nomeado é a regra\n");
+
+const COM_PAR_SUAVE = ["warning", "success", "danger", "neutral", "ferias", "info", "brand"];
+
+{
+  let achados = "";
+  try {
+    const alvo = COM_PAR_SUAVE.map((t) => `(bg|text|border)-${t}/[0-9]`).join("|");
+    achados = execSync(
+      `grep -rnE ${JSON.stringify(alvo)} src/ --include=*.ts --include=*.tsx | grep -v "^[^:]*:[0-9]*: *\\*" | grep -v "nunca" || true`,
+      { encoding: "utf8" },
+    ).trim();
+  } catch {
+    achados = "";
+  }
+
+  if (achados) {
+    falhas++;
+    console.log("  FALHA   opacidade num token de estado — use o par nomeado");
+    for (const linha of achados.split("\n").slice(0, 10)) {
+      console.log(`          ${linha.trim()}`);
+    }
+  } else {
+    console.log("  ok      nenhum token de estado usado com opacidade");
+  }
+}
+
 // --- hex fora do arquivo de tokens -----------------------------------------
 
 console.log("\nCor literal fora de globals.css\n");
