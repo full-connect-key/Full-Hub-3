@@ -255,3 +255,105 @@ select teste.cenario('Ninguem edita o historico', :ANA,
 select teste.cenario('Ninguem apaga uma rodada de aprovacao', :ANA,
   'delete from public.approval_rounds',
   'ok', 0);
+
+-- ===========================================================================
+-- NINGUEM APROVA O PROPRIO TRABALHO (migration 0026)
+--
+-- Reportado pelo usuario: "qualquer desenvolvedor pode aprovar qualquer task,
+-- mesmo que a task seja dele mesmo". Era verdade por tres caminhos, e o
+-- cenario que existia mais acima -- "Bruno NAO aprova a propria entrega" --
+-- testava exatamente o unico que ja funcionava: quem decide sendo o
+-- `responsavel_id` da etapa.
+--
+-- Estes tres cobrem o resto. Cada um monta o estado com a pessoa certa, e nao
+-- como postgres: a metade deles depende de `is_gestor()` ser verdadeiro na
+-- hora de abrir a rodada, e como superusuario a montagem passaria por cima da
+-- regra que se quer testar.
+-- ===========================================================================
+
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('dddddddd-0000-0000-0000-0000000000f0', :VERDE, 'Demanda do proprio Diego', :DIEGO,
+        '2026-10-01', 'https://drive.google.com/drive/folders/auto');
+
+insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao) values
+  ('dddddddd-0000-0000-0000-0000000000f1', 'dddddddd-0000-0000-0000-0000000000f0',
+   'Etapa sem dono', 1, null, true, 'interna'),
+  ('dddddddd-0000-0000-0000-0000000000f2', 'dddddddd-0000-0000-0000-0000000000f0',
+   'Etapa da Marina', 2, :MARINA, true, 'interna'),
+  ('dddddddd-0000-0000-0000-0000000000f3', 'dddddddd-0000-0000-0000-0000000000f0',
+   'Etapa que o Diego entregou', 3, :DIEGO, true, 'interna');
+
+-- --- Furo 1: etapa SEM responsavel -----------------------------------------
+-- Ninguem e "o proprio", entao a pergunta antiga nao tinha a quem comparar.
+select teste.cenario('Diego abre a rodada de uma etapa sem responsavel', :DIEGO,
+  format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
+    values ('eeeeeeee-0000-0000-0000-0000000000f1', 'dddddddd-0000-0000-0000-0000000000f1',
+            1, 'interna', %L)$fmt$, :DIEGO), 'ok', 1);
+
+select teste.recusa_com('E NAO decide a rodada da etapa sem dono', :DIEGO,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f1'$fmt$, :DIEGO),
+  'Ninguém aprova o próprio trabalho');
+
+-- --- Furo 2: quem PEDIU decidia ---------------------------------------------
+-- A etapa esta no nome da Marina, e a gestao pode abrir a rodada dela "para
+-- destravar". O que ninguem notou e que quem destravava decidia em seguida.
+select teste.cenario('Diego destrava a etapa da Marina abrindo a rodada', :DIEGO,
+  format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
+    values ('eeeeeeee-0000-0000-0000-0000000000f2', 'dddddddd-0000-0000-0000-0000000000f2',
+            1, 'interna', %L)$fmt$, :DIEGO), 'ok', 1);
+
+select teste.recusa_com('Mas NAO decide a rodada que ele mesmo abriu', :DIEGO,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f2'$fmt$, :DIEGO),
+  'foi você quem mandou esta rodada para aprovação');
+
+-- E a socia decide essa mesma rodada sem problema: a trava barra a pessoa
+-- errada, nao a rodada. Sem este, "recusar tudo" passaria por correto.
+select teste.cenario('E a socia decide a mesma rodada normalmente', :ANA,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f2'$fmt$, :ANA), 'ok', 1);
+
+-- --- Furo 3: entregou, trocou o responsavel, aprovou ------------------------
+-- Quatro passos, todos permitidos um a um, terminando na propria entrega
+-- aprovada. E o unico dos tres que sobrevive a `responsavel_id` mudar.
+select teste.cenario('Diego anexa a entrega da etapa dele', :DIEGO,
+  format($fmt$insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por)
+    values ('dddddddd-0000-0000-0000-0000000000f3', 'link', 'https://figma.com/arte', 'Arte v1', %L)$fmt$,
+    :DIEGO), 'ok', 1);
+
+-- A ORDEM IMPORTA no cenario: ele precisa passar a etapa para a Marina ANTES
+-- de a rodada nascer. Se o Diego abrir a rodada, a recusa vem pelo motivo 2
+-- (foi ele quem pediu) e o motivo 3 nao chega a ser testado -- e era
+-- exatamente isso que acontecia na primeira versao deste cenario.
+select teste.cenario('E passa a etapa para o nome da Marina', :DIEGO,
+  format($fmt$update public.subtasks set responsavel_id = %L
+     where id = 'dddddddd-0000-0000-0000-0000000000f3'$fmt$, :MARINA), 'ok', 1);
+
+select teste.cenario('A Marina, agora responsavel, abre a rodada', :MARINA,
+  format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
+    values ('eeeeeeee-0000-0000-0000-0000000000f3', 'dddddddd-0000-0000-0000-0000000000f3',
+            1, 'interna', %L)$fmt$, :MARINA), 'ok', 1);
+
+-- Agora `responsavel_id` nao aponta mais para o Diego e a rodada nao e dele.
+-- So a ENTREGA ainda aponta -- e e so ela que barra.
+select teste.recusa_com('E mesmo assim NAO aprova: a entrega e dele', :DIEGO,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f3'$fmt$, :DIEGO),
+  'o material desta etapa foi enviado por você');
+
+-- --- A funcao que a tela pergunta ------------------------------------------
+-- `pode_decidir_rodada()` responde a mesma pergunta para desligar o botao
+-- antes do clique. Se ela e a trava discordassem, a fila ofereceria um botao
+-- que o banco recusa -- ou esconderia um que funciona.
+select teste.conferir('pode_decidir_rodada diz NAO para quem entregou',
+  (select public.pode_decidir_rodada('eeeeeeee-0000-0000-0000-0000000000f3')::text
+     from (select set_config('request.jwt.claim.sub',
+                             '22222222-2222-2222-2222-222222222222', true)) _),
+  'false');
+
+select teste.conferir('E diz SIM para a socia',
+  (select public.pode_decidir_rodada('eeeeeeee-0000-0000-0000-0000000000f3')::text
+     from (select set_config('request.jwt.claim.sub',
+                             '11111111-1111-1111-1111-111111111111', true)) _),
+  'true');

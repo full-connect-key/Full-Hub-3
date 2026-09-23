@@ -37,7 +37,7 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "cliente",
         desde: horasAtras(26),
         entregas: kv.entregas,
-        souOAutor: false,
+        impedimento: null,
       },
       {
         rodadaId: "rod-landing",
@@ -51,7 +51,9 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "interna",
         desde: horasAtras(5),
         entregas: landing.entregas,
-        souOAutor: souODesenvolvedor,
+        impedimento: souODesenvolvedor
+          ? "Ninguém aprova o próprio trabalho: esta etapa está no seu nome."
+          : null,
       },
     ],
     prontasParaOCliente: [
@@ -67,7 +69,7 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "cliente",
         desde: horasAtras(4),
         entregas: roteiro.entregas,
-        souOAutor: false,
+        impedimento: null,
       },
     ],
   };

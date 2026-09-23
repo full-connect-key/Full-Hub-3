@@ -72,6 +72,18 @@ export type SubtarefaParaAcao = {
    */
   tempo_medido_segundos?: number;
   andando_desde?: string | null;
+  /**
+   * Os outros dois registros de "fui eu que fiz" (migration 0026): a rodada
+   * que a própria pessoa abriu e o material que ela anexou.
+   *
+   * OPCIONAIS pela mesma razão das duas colunas do cronômetro acima — nem
+   * toda tela carrega a linha inteira. Quando faltam, o componente assume
+   * que não sou nenhum dos dois; e nas telas que não os carregam o botão de
+   * decidir não aparece de qualquer forma. Quem vale é o trigger
+   * `bloquear_autoaprovacao`, não isto.
+   */
+  rodadas?: { status: string; solicitado_por: string }[];
+  entregas?: { enviado_por: string }[];
   dependenciasAbertas: string[];
   rodadaPendente: boolean;
   avalInterno: boolean;
@@ -113,6 +125,13 @@ export function AcoesDaSubtarefa({
     requerAprovacao: subtarefa.requer_aprovacao,
     tipoAprovacao: subtarefa.tipo_aprovacao,
     souOResponsavel: subtarefa.responsavel_id === usuarioId,
+    // Os outros dois registros de "fui eu que fiz" (migration 0026): a rodada
+    // que eu mesmo abri, e o material que eu mesmo anexei. Sem eles o botão
+    // aparecia ligado e o banco recusava depois do clique.
+    souQuemPediu: (subtarefa.rodadas ?? []).some(
+      (r) => r.status === "pendente" && r.solicitado_por === usuarioId,
+    ),
+    souQuemEntregou: (subtarefa.entregas ?? []).some((e) => e.enviado_por === usuarioId),
     souGestor,
     dependenciasAbertas: subtarefa.dependenciasAbertas,
     rodadaPendente: subtarefa.rodadaPendente,

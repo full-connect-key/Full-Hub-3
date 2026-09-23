@@ -1,7 +1,7 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
+import { impedimentoParaDecidir, situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import type { ApprovalRound, SubtaskEntrega, TipoAprovacao } from "@/lib/supabase/database.types";
 
 import type { Pessoa } from "./tasks";
@@ -35,8 +35,15 @@ export type ItemDaFila = {
   /** Desde quando espera. */
   desde: string;
   entregas: SubtaskEntrega[];
-  /** Eu sou o responsável — outra pessoa da gestão precisa decidir. */
-  souOAutor: boolean;
+  /**
+    * Por que EU não posso decidir esta rodada — ou null, se posso.
+    *
+    * São três perguntas e não uma (migration 0026): a etapa está no meu nome,
+    * fui eu quem abriu a rodada, ou fui eu quem anexou o material. Antes só a
+    * primeira era feita, e as outras duas eram caminhos por onde alguém
+    * aprovava o próprio trabalho.
+    */
+   impedimento: string | null;
 };
 
 export type FilaDeAprovacoes = {
@@ -112,7 +119,15 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       responsavel: sub.responsavel_id ? (porPessoa.get(sub.responsavel_id) ?? null) : null,
       tipoAprovacao: (sub.tipo_aprovacao ?? "interna") as TipoAprovacao,
       entregas: (entregas ?? []).filter((e) => e.subtask_id === sub.id),
-      souOAutor: sub.responsavel_id === usuarioId,
+      impedimento: impedimentoParaDecidir({
+        souOResponsavel: sub.responsavel_id === usuarioId,
+        souQuemPediu: minhas.some(
+          (r) => r.status === "pendente" && r.solicitado_por === usuarioId,
+        ),
+        souQuemEntregou: (entregas ?? []).some(
+          (e) => e.subtask_id === sub.id && e.enviado_por === usuarioId,
+        ),
+      }),
     };
 
     const pendenteInterna = minhas.find((r) => r.status === "pendente" && r.escopo === "interna");

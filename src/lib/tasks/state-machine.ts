@@ -104,6 +104,10 @@ export type ContextoDaSubtarefa = {
   tipoAprovacao: TipoAprovacao | null;
   /** Quem está olhando é o responsável por ela? */
   souOResponsavel: boolean;
+  /** Foi quem está olhando que mandou a rodada pendente para aprovação? */
+  souQuemPediu: boolean;
+  /** Foi quem está olhando que anexou alguma entrega desta etapa? */
+  souQuemEntregou: boolean;
   /** Quem está olhando é desenvolvedor ou sócio? */
   souGestor: boolean;
   /** Títulos das dependências que ainda não terminaram. Vazio = liberada. */
@@ -119,6 +123,38 @@ export type ContextoDaSubtarefa = {
 };
 
 export type Veredito = { ok: true } | { ok: false; motivo: string };
+
+/**
+ * Por que esta pessoa não pode decidir esta rodada — ou null, se pode.
+ *
+ * **SÃO TRÊS PERGUNTAS, e não uma.** Até a migration 0026 o produto só sabia
+ * perguntar "você é o responsável pela etapa?", e isso deixava passar três
+ * caminhos reais: etapa sem responsável, a rodada que a própria pessoa abriu
+ * para destravar, e a etapa que ela entregou antes de passar para outro nome.
+ *
+ * Cada um é um registro diferente de "fui eu que fiz", e cada um sobrevive
+ * onde os outros dois se perdem.
+ *
+ * O par no Postgres é o trigger `bloquear_autoaprovacao`, que é quem vale —
+ * esta função existe para o botão já aparecer desligado com o motivo, em vez
+ * de a pessoa clicar e levar a recusa.
+ */
+export function impedimentoParaDecidir(ctx: {
+  souOResponsavel: boolean;
+  souQuemPediu: boolean;
+  souQuemEntregou: boolean;
+}): string | null {
+  if (ctx.souOResponsavel) {
+    return "Ninguém aprova o próprio trabalho: esta etapa está no seu nome.";
+  }
+  if (ctx.souQuemPediu) {
+    return "Ninguém aprova o próprio trabalho: foi você quem mandou esta rodada para aprovação.";
+  }
+  if (ctx.souQuemEntregou) {
+    return "Ninguém aprova o próprio trabalho: o material desta etapa foi enviado por você.";
+  }
+  return null;
+}
 
 const SIM: Veredito = { ok: true };
 const nao = (motivo: string): Veredito => ({ ok: false, motivo });
@@ -239,21 +275,21 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
 
   // Decisão: da gestão, e nunca de quem produziu.
   if (ctx.status === "enviada_aprovacao" && ctx.rodadaPendente) {
-    const souOAutor = ctx.souOResponsavel;
+    const impedido = impedimentoParaDecidir(ctx);
     if (ctx.souGestor) {
       acoes.push({
         id: "aprovar",
         rotulo: "Aprovar",
         principal: true,
-        desabilitada: souOAutor,
-        motivo: souOAutor ? "Ninguém aprova a própria entrega." : undefined,
+        desabilitada: impedido !== null,
+        motivo: impedido ?? undefined,
       });
       acoes.push({
         id: "solicitar_ajustes",
         rotulo: "Solicitar ajustes",
         principal: false,
-        desabilitada: souOAutor,
-        motivo: souOAutor ? "Ninguém decide a própria entrega." : undefined,
+        desabilitada: impedido !== null,
+        motivo: impedido ?? undefined,
       });
     }
   }

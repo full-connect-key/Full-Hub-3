@@ -166,9 +166,13 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
     <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
       <Cabecalho item={item} />
 
-      {item.souOAutor ? (
+      {/* A frase vem pronta da camada de dados, e diz QUAL dos três motivos
+          impede: a etapa é minha, a rodada foi eu quem abri, ou o material
+          foi eu quem anexei. "Você é o responsável" numa etapa que está no
+          nome de outra pessoa parecia engano do sistema. */}
+      {item.impedimento ? (
         <p className="text-muted-foreground bg-muted/60 rounded-md px-3 py-2 text-xs">
-          Você é o responsável — outro desenvolvedor precisa aprovar.
+          {item.impedimento} Outra pessoa da gestão precisa decidir.
         </p>
       ) : (
         <div className="flex shrink-0 gap-2">
