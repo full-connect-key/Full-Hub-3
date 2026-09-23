@@ -24,7 +24,7 @@ const ROTULOS: Record<Aba, { label: string; icone: typeof Grid3x3 }> = {
  *
  * Trocar de aba troca a página no servidor, e é por isso que cada aba carrega
  * só a própria consulta — a matriz do mês inteiro não é buscada por quem abriu
- * para pedir um dia de folga.
+ * para combinar um dia fora.
  *
  * Com uma aba só, a barra some: para o colaborador, que enxerga apenas
  * Solicitar, uma "navegação" de um item é moldura sem função.

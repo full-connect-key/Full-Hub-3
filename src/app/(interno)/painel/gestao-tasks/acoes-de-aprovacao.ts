@@ -18,7 +18,7 @@ import type { Database } from "@/lib/supabase/database.types";
  *   A regra-mestra diz que aprovar e enviar ao cliente é do Desenvolvedor. O
  *   Sócio também aprova aqui (`exigirGestorNaAcao`, que é desenvolvedor ou
  *   sócio), porque ele tem acesso total ao painel e travá-lo fora da fila
- *   deixaria a agência parada quando o desenvolvedor está de folga. O que não
+ *   deixaria a agência parada quando o desenvolvedor está fora. O que não
  *   muda em hipótese nenhuma: ninguém aprova a própria entrega.
  *   Para restringir só ao desenvolvedor, troque `exigirGestorNaAcao` por uma
  *   checagem de `role === "desenvolvedor"` aqui e `is_gestor()` por

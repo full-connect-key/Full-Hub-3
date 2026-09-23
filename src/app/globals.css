@@ -89,10 +89,11 @@
      Alta e Urgente, que é onde ele precisa estar. */
   --neutral: #545960;
   --neutral-soft: #F1F3F5;
-  /* Férias, na matriz da equipe. O roxo não estava na paleta e precisou
+  /* Recesso, na matriz da equipe. O roxo não estava na paleta e precisou
      entrar: a matriz tem sete estados no mesmo quadrado pequeno, e sem ele
-     férias e licença cairiam as duas no âmbar. Não é um terceiro tom de
-     marca — é cor de estado, como o verde e o vermelho, e só aparece ali. */
+     recesso e indisponibilidade cairiam os dois no âmbar. Não é um terceiro
+     tom de marca — é cor de estado, como o verde e o vermelho, e só aparece
+     ali. O nome do token é anterior à troca de vocabulário (migration 0016). */
   --ferias: #7E22CE;
   --ferias-soft: #F3E8FF;
 

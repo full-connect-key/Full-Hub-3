@@ -67,7 +67,7 @@ const TODAS = "__todas__";
  *
  * As lacunas são a mesma pergunta ao contrário — "o que ninguém sabe fazer?"
  * —, e o caso que mais passa batido não é o zero: é o UM. A skill existe, o
- * trabalho sai, e no dia em que aquela pessoa tira férias ninguém tinha
+ * trabalho sai, e no dia em que aquela pessoa entra em recesso ninguém tinha
  * percebido que era ela sozinha.
  */
 export function SkillsDaAgencia({

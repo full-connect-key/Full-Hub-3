@@ -18,29 +18,66 @@ import type { HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase/database.t
  * quando a ficha ainda não tem um: dois "senão" com números diferentes foi
  * como a regra dos 15 dias quase não valeu.
  */
-export const DIAS_DE_FERIAS_PADRAO = 15;
-export const PARCELAS_DE_FERIAS_PADRAO = 2;
+export const DIAS_DE_RECESSO_PADRAO = 15;
+export const PARCELAS_DE_RECESSO_PADRAO = 2;
 
+/**
+ * O VOCABULÁRIO, e por que ele é este.
+ *
+ * A equipe da Full Connect Key é toda PJ, e o produto não usa vocabulário de
+ * direito trabalhista: num pedido de reconhecimento de vínculo, o sistema da
+ * própria contratante falando a língua da CLT é o que se junta aos autos. A
+ * regra inteira, com as palavras que saíram e por quê, está no CLAUDE.md e no
+ * cabeçalho da migration 0016 — fora de `src/`, porque `npm run check:cores`
+ * varre `src/` atrás delas e acusaria o texto que as proíbe.
+ *
+ * O produto fala de DISPONIBILIDADE, não de direito:
+ *
+ *   recesso programado  — o período longo previsto em contrato
+ *   indisponibilidade   — o afastamento sem previsão
+ *   ausência pontual    — um dia ou dois
+ *
+ * `feriado` fica, e a diferença importa: feriado é data do calendário
+ * nacional, um fato sobre o dia. Não é direito concedido a ninguém.
+ *
+ * As chaves do enum no banco continuam como estão, por decisão do usuário:
+ * renomear valor de enum em uso é migration arriscada, e ninguém que usa o
+ * sistema vê esses nomes. É este mapa que a pessoa lê — e é por ele passar
+ * TODO rótulo da tela que a troca cabe num lugar só.
+ */
 export const ROTULOS_DE_TIPO: Record<HrTipo, string> = {
-  ferias: "Férias",
-  licenca: "Licença",
-  ausencia: "Ausência",
+  ferias: "Recesso programado",
+  licenca: "Indisponibilidade",
+  ausencia: "Ausência pontual",
 };
 
+/**
+ * O que aconteceu com o pedido.
+ *
+ * "Aprovada" e "reprovada" saíram pela mesma razão das outras palavras:
+ * hierarquia de aprovação é um dos indícios de subordinação, e subordinação é
+ * o coração do reconhecimento de vínculo. O que acontece aqui é um combinado
+ * entre duas partes — quem presta serviço informa o período, a agência
+ * confirma que consegue cobrir ou pede para remarcar.
+ *
+ * As chaves continuam `aprovada` / `reprovada` no banco, como o resto.
+ */
 export const ROTULOS_DE_STATUS: Record<HrStatus, string> = {
-  pendente: "Pendente",
-  aprovada: "Aprovada",
-  reprovada: "Reprovada",
+  pendente: "Aguardando retorno",
+  aprovada: "De acordo",
+  reprovada: "Remarcar",
   cancelada: "Cancelada",
 };
 
 export const ROTULOS_DE_PRESENCA: Record<PresencaStatus, string> = {
-  presente: "Presente",
+  presente: "Disponível",
   remoto: "Remoto",
-  ferias: "Férias",
-  licenca: "Licença",
+  ferias: "Recesso",
+  licenca: "Indisponível",
   ausente: "Ausente",
-  folga: "Folga",
+  // "Folga" pressupõe jornada, e jornada pressupõe vínculo. O que este estado
+  // diz de verdade é que ninguém contou com a pessoa naquele dia.
+  folga: "Sem alocação",
   feriado: "Feriado",
 };
 
@@ -127,7 +164,7 @@ export function diasEntre(inicioISO: string, fimISO: string): string[] {
  * Data ISO -> Date local, sem fuso.
  *
  * `new Date("2026-03-02")` é interpretado como UTC e, a oeste de Greenwich,
- * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de férias é
+ * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de recesso é
  * a diferença entre o pedido certo e o errado.
  */
 export function lerData(iso: string): Date | null {

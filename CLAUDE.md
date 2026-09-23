@@ -209,7 +209,8 @@ por conta própria acabariam oferecendo "Concluir" onde o banco recusa.
 > **Decisão em aberto, e onde revertê-la:** aprovar e enviar ao cliente está em
 > `is_gestor()` — desenvolvedor **e** sócio. A regra-mestra fala só do
 > Desenvolvedor; o sócio entrou porque tem acesso total ao painel e travá-lo
-> fora da fila pararia a agência num dia de folga. Para restringir, troque
+> fora da fila pararia a agência num dia em que ele estivesse fora. Para
+> restringir, troque
 > `is_gestor()` por `auth_role() = 'desenvolvedor'` em
 > `pode_aprovar_subtarefa()` (migration 0007) e `exigirGestorNaAcao` por uma
 > checagem de role em `gestao-tasks/acoes-de-aprovacao.ts`. São os dois pontos.
@@ -398,7 +399,7 @@ pessoa não pode ler é fofoca com carimbo do sistema.
 - **Lacuna é onde o trabalho acontece e depende de pouca gente**, não onde o
   número é zero: skill que ninguém tem em nível nenhum é uma linha do catálogo
   que a agência não usa. O caso que mais passa batido é o **um** — uma pessoa
-  só, que tira férias.
+  só, que entra em recesso.
 - "O que as pessoas querem desenvolver" sai de `quer_desenvolver`, marcado por
   elas mesmas. É o insumo do Full Academy, e o jeito mais barato de saber o que
   vale ensinar.
@@ -505,31 +506,87 @@ para a confiança acabar de vez.
 - A adição é uma linha só, sempre visível: diálogo para cada gasto de padaria
   mataria o hábito na primeira semana.
 
-### Full Days: férias, licença e ausência
+### Full Days: recesso, indisponibilidade e ausência
 
-**15 dias de férias por ano, em até duas parcelas.** Os dois números são
-colunas de `team_members` (`dias_ferias_ano`, `max_parcelas_ferias`), não
-constantes no código: contrato muda por pessoa, e mudar contrato não pode
-exigir deploy.
+#### O vocabulário não é de direito trabalhista, e isso é regra
 
-- **Pendente conta como usado.** Sem isso a pessoa pediria 15 dias duas vezes
-  enquanto o primeiro pedido espera decisão, e o sócio aprovaria os dois sem
-  ver o problema.
-- **Só o sócio decide.** O desenvolvedor é gestão para todo o resto do sistema
-  e aqui não — está escrito na primeira linha de `decidir_solicitacao()`.
-- **Aprovar é transacional, e por isso mora no banco.** Aprovar muda o status,
-  pinta os dias úteis em `team_presence` e avisa o solicitante; três chamadas
+**A equipe da Full Connect Key é toda PJ.** Palavra da CLT num sistema da
+própria contratante — férias, licença, folga, abono, afastamento — não é
+impropriedade de linguagem: é prova documental. Num pedido de reconhecimento
+de vínculo, o que se junta aos autos é exatamente isto — o sistema da empresa
+concedendo férias e registrando folga.
+
+O produto fala de **disponibilidade**, não de direito:
+
+| Era | É | Por quê |
+| --- | --- | --- |
+| Férias | **Recesso programado** | o período longo previsto em contrato |
+| Licença | **Indisponibilidade** | o afastamento sem previsão |
+| Ausência | **Ausência pontual** | um dia ou dois |
+| Folga | **Sem alocação** | "folga" pressupõe jornada, e jornada pressupõe vínculo |
+| Aprovar / Reprovar | **De acordo / Preciso remarcar** | hierarquia de aprovação é indício de subordinação |
+
+**"Feriado" fica**, e a diferença importa: feriado é data do calendário
+nacional, um fato sobre o dia. Não é direito concedido a ninguém.
+
+Onde a regra é aplicada, e onde ela **não** é:
+
+- `ROTULOS_DE_TIPO`, `ROTULOS_DE_STATUS` e `ROTULOS_DE_PRESENCA` em
+  `lib/dominio/full-days.ts` são o mapa por onde passa todo rótulo de tela.
+  É por existir esse lugar único que a troca coube num arquivo.
+- As mensagens que **nascem no Postgres** não passam por esse mapa: chegam
+  prontas. A migration 0016 reescreve as frases de `validar_solicitacao`,
+  `decidir_solicitacao` e `proteger_presenca_de_pedido`, e
+  `05_full_days.sql` varre o corpo dessas funções atrás das frases antigas
+  **e** confere que as novas estão lá — apagar a mensagem inteira passaria
+  por uma varredura que só procurasse o que saiu.
+- **Nome de coluna, valor de enum e nome de função continuam como estavam**
+  (`hr_tipo` com `ferias`/`licenca`, `dias_ferias_ano`, `saldo_de_ferias()`,
+  o token `--ferias`). Decisão explícita: renomear valor de enum em uso é
+  migration arriscada, e ninguém que usa o sistema vê esses nomes. A
+  consequência aceita é que quem ler o schema vê o vocabulário antigo.
+- `npm run check:cores` varre `src/` atrás de "férias" e "licença"
+  **acentuados** — as formas sem acento são justamente as chaves de enum que
+  ficaram. E varre sem exceção de arquivo: a explicação da regra mora aqui e
+  no cabeçalho da 0016, fora de `src/`, senão a varredura acusaria o texto
+  que a proíbe.
+
+**O alerta do relatório mudou de natureza, não só de palavra.** Ele dizia em
+tela que "passados 12 meses sem descanso a empresa passa a dever em dobro" —
+o art. 137 da CLT escrito dentro do produto. Agora aponta quem está há mais de
+um ano sem parar, como risco de entrega e de esgotamento. O fato é o mesmo; a
+afirmação, não.
+
+> **O que trocar palavra não resolve:** saldo anual de dias, pedido que um
+> superior responde e controle de presença diária continuam sendo o desenho da
+> CLT. O vocabulário reduz o risco; a estrutura é o que uma perícia olha. Se um
+> dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
+
+
+**15 dias de recesso por ano, em até duas parcelas.** Os dois números são
+colunas de `team_members` (`dias_ferias_ano`, `max_parcelas_ferias` — nomes
+anteriores à troca de vocabulário), não constantes no código: contrato muda
+por pessoa, e mudar contrato não pode exigir deploy.
+
+- **Pendente conta como usado.** Sem isso a pessoa proporia 15 dias duas
+  vezes enquanto o primeiro espera retorno, e o sócio concordaria com os dois
+  sem ver o problema.
+- **Só o sócio responde.** O desenvolvedor é gestão para todo o resto do
+  sistema e aqui não — está escrito na primeira linha de
+  `decidir_solicitacao()`.
+- **A resposta é transacional, e por isso mora no banco.** Ela muda o status,
+  pinta os dias úteis em `team_presence` e avisa quem propôs; três chamadas
   pelo PostgREST seriam três transações, e a segunda falhando deixaria um
-  pedido "aprovada" sem nenhum dia pintado.
-- **Dia que veio de pedido aprovado não se edita na matriz.** Um clique
-  apagaria as férias de alguém e o pedido continuaria dizendo "aprovada" —
+  pedido já combinado sem nenhum dia pintado.
+- **Dia que veio de período combinado não se edita na matriz.** Um clique
+  apagaria o recesso de alguém e o pedido continuaria dizendo "de acordo" —
   duas verdades sobre o mesmo dia.
-- Licença e ausência **não** descontam do saldo; entram na matriz e no
-  relatório.
+- Indisponibilidade e ausência pontual **não** descontam do saldo; entram na
+  matriz e no relatório.
 - Os dias úteis gravados saem de `public.dias_uteis()`, não da conta da tela.
   A tela conta para mostrar o número enquanto a pessoa seleciona; se o gravado
   viesse dali, bastaria alterar o corpo da requisição.
-- A **área** é o agrupamento que importa: quem decide precisa saber quem mais
+- A **área** é o agrupamento que importa: quem responde precisa saber quem mais
   do mesmo time está fora. É por isso que o calendário bloqueia dias de colegas
   da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
   uma recusa que ninguém tem como contornar nem entender.
@@ -714,10 +771,10 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
-| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. 26 cenários novos, 256 no total. |
+| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. E o **vocabulário do Full Days saiu do direito trabalhista** — a equipe é toda PJ, e palavra da CLT num sistema da própria contratante é prova documental: recesso programado, indisponibilidade, ausência pontual, "sem alocação", e "de acordo" / "preciso remarcar" no lugar de aprovar e reprovar. O alerta do relatório deixou de afirmar que a empresa passa a dever em dobro (art. 137 da CLT escrito dentro do produto) e passou a apontar quem está há mais de um ano sem parar. A migration 0016 reescreve as frases que nascem no Postgres, `check:cores` varre `src/` atrás das formas acentuadas, e a bateria confere o corpo das funções nos dois sentidos — as antigas fora, as novas dentro. 34 cenários novos, 264 no total. |
 | Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
-| Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
+| Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; recesso de 15 dias em até duas parcelas com as regras em trigger (o módulo nasceu falando a língua da CLT; o vocabulário saiu no Sprint 9); `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de quem está há muito tempo sem parar, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
 | Sprint 3C | Tela inicial, menu definitivo e Portais de Clientes: identidade visual em tokens com `npm run check:cores` provando 26 pares de contraste e nenhum hex solto; menu em duas seções (Principal / Gestão com selo Admin) com Diário→Resumo Semanal e Minhas Skills→Meu Desenvolvimento redirecionando em 308; barra lateral escura com cartão da pessoa separando nome, cargo e perfil; tela inicial com boas-vindas, Acesso Rápido e a grade de Portais de Clientes; `/portal/{slug}` para a gestão ver o portal de um cliente em modo leitura, com faixa de aviso, registro em `client_portal_views` e a recusa valendo no banco; Resumo Semanal organizado por semana com registro privado; Notas Fiscais como módulo da pessoa; Financeiro Pessoal em aba dentro de Meu perfil. |
 | Sprint 0 | Esqueleto: shadcn/ui com tema claro/escuro, login por e-mail e senha, recuperação de senha, os 4 perfis de acesso, tabelas `profiles` / `clients` / `client_users` / `team_members` com RLS, proteção de rota por perfil com HTTP 403, timeout de inatividade do portal, seed de desenvolvimento e homes vazias das duas áreas. |
 | Correção do Sprint 2 | Gravação dos cadastros: criação de usuário virou Server Action com `createUser` + link de senha (não depende mais de SMTP) e rollback; policies de `clients`, `client_users` e `team_members` separadas por comando, com DELETE só de sócio; `profiles` passou a aceitar edição da gestão; usuário cliente ganhou UPDATE das próprias três colunas de contato, com trigger travando o resto; contrato `{ ok, error }` em todas as actions com erro real na tela e no log; exclusão de cliente bloqueada por qualquer vínculo; desligamento transferindo tasks em aberto de verdade; ativar/desativar colaborador pela gestão; seed com 6 colaboradores, 3 empresas e 3 acessos ao portal. |

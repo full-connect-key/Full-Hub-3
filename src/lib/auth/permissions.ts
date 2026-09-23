@@ -47,12 +47,12 @@ export const SOCIO: UserRole[] = ["socio"];
  * Duas seções, e a divisão é sobre a PESSOA, não sobre o assunto.
  *
  * PRINCIPAL é o que todo mundo da casa usa no dia: as próprias tarefas, o
- * próprio registro da semana, a própria folga, a própria nota fiscal. GESTÃO é
+ * próprio registro da semana, o próprio recesso, a própria nota fiscal. GESTÃO é
  * o que se faz sobre os outros — distribuir trabalho, aprovar, cadastrar
  * gente, ver dinheiro.
  *
  * A separação antiga era por tema (Trabalho / Gestão / Pessoal), e por isso
- * "Full Days" caía em Gestão sendo o pedido de folga de quem clica, e "Minhas
+ * "Full Days" caía em Gestão sendo o período fora de quem clica, e "Minhas
  * Skills" caía em Pessoal ao lado do controle de finanças pessoais.
  */
 export type MenuSection = "principal" | "gestao";
@@ -125,7 +125,7 @@ export const MENU: MenuItem[] = [
     icon: Sun,
     roles: EQUIPE,
     section: "principal",
-    description: "Solicitação e aprovação de folgas.",
+    description: "Combinar períodos fora e responder a quem combinou.",
   },
   {
     label: "Meu Desenvolvimento",

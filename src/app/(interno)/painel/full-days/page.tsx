@@ -69,7 +69,7 @@ export default async function PaginaDoFullDays({
 
   // Hoje, o início e o fim do período são calculados AQUI e descem prontos.
   // Se cada componente lesse o próprio relógio, o navegador em outro fuso
-  // classificaria um dia de férias num mês diferente do que o contador soma.
+  // classificaria um dia de recesso num mês diferente do que o contador soma.
   const hoje = new Date();
   const hojeISO = format(hoje, "yyyy-MM-dd");
   const mes = typeof parametros.mes === "string" ? parametros.mes : format(hoje, "yyyy-MM");
@@ -82,7 +82,7 @@ export default async function PaginaDoFullDays({
     <div className="space-y-6">
       <PageHeader
         title="Full Days"
-        description="Férias, licenças e ausências da equipe — quem está onde, quem pediu o quê, e o que ainda espera decisão."
+        description="Recesso, indisponibilidade e ausência da equipe — quem está onde, quem combinou o quê, e o que ainda espera retorno."
       />
 
       <AbasDoFullDays atual={aba} visiveis={visiveis} />

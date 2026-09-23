@@ -40,7 +40,7 @@ import { cancelarSolicitacao, solicitar } from "./acoes";
  * O calendário de seleção.
  *
  * Substituiu a lista de datas do módulo antigo por um motivo simples: pedir
- * férias é escolher um pedaço do calendário, e digitar duas datas num campo
+ * recesso é escolher um pedaço do calendário, e digitar duas datas num campo
  * obriga a pessoa a abrir um calendário de verdade em outra janela para saber
  * se o dia 14 cai numa sexta.
  *
@@ -234,8 +234,8 @@ export function Solicitar({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ferias">Férias</SelectItem>
-                <SelectItem value="licenca">Licença</SelectItem>
+                <SelectItem value="ferias">Recesso programado</SelectItem>
+                <SelectItem value="licenca">Indisponibilidade</SelectItem>
                 <SelectItem value="ausencia">Ausência</SelectItem>
               </SelectContent>
             </Select>
@@ -278,7 +278,7 @@ export function Solicitar({
 
           {semParcela ? (
             <Aviso tom="erro">
-              As férias podem ser partidas em até {maxParcelas} vezes por ano, e você já usou as{" "}
+              O recesso pode ser partido em até {maxParcelas} vezes por ano, e você já usou as{" "}
               {maxParcelas}.
             </Aviso>
           ) : null}
@@ -286,7 +286,7 @@ export function Solicitar({
           {colegasNoPeriodo.length > 0 ? (
             <Aviso tom="atencao">
               {colegasNoPeriodo.join(", ")} do {minhaArea} {colegasNoPeriodo.length === 1 ? "está" : "estão"}{" "}
-              fora em parte desse período. Dá para pedir, mas o sócio vai ver isso ao decidir.
+              fora em parte desse período. Dá para propor assim mesmo, mas o sócio vai ver isso ao responder.
             </Aviso>
           ) : null}
 

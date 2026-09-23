@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
-import { DIAS_DE_FERIAS_PADRAO } from "@/lib/dominio/full-days";
+import { DIAS_DE_RECESSO_PADRAO } from "@/lib/dominio/full-days";
 import type { MembroDaEquipe } from "@/lib/dados/equipe";
 
 import { chamarAcao } from "@/lib/acoes/cliente";
@@ -80,7 +80,7 @@ export function DetalheDoColaborador({
       area: pessoa.membro?.area ?? "",
       funcao: pessoa.membro?.funcao ?? "",
       data_admissao: pessoa.membro?.data_admissao ?? "",
-      dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? DIAS_DE_FERIAS_PADRAO,
+      dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? DIAS_DE_RECESSO_PADRAO,
     },
   });
 
@@ -217,7 +217,7 @@ export function DetalheDoColaborador({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dias_ferias_ano">Dias de férias por ano</Label>
+              <Label htmlFor="dias_ferias_ano">Dias de recesso por ano</Label>
               <Input
                 id="dias_ferias_ano"
                 type="number"

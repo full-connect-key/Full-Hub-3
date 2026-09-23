@@ -277,3 +277,154 @@ select teste.cenario('Mas reescrever o titulo do proprio aviso e recusado', :BRU
   format($fmt$
     update public.notifications set titulo = %L
   $fmt$, 'Outro texto'), 'recusa');
+
+-- ===========================================================================
+-- O VOCABULARIO (migration 0016)
+--
+-- A equipe e toda PJ. Palavra de direito trabalhista numa mensagem do proprio
+-- sistema e prova documental num pedido de reconhecimento de vinculo -- o
+-- sistema da contratante concedendo ferias e registrando folga e exatamente o
+-- que se junta aos autos.
+--
+-- Estes cenarios existem porque a tela NAO alcanca estas frases: elas nascem
+-- no Postgres e chegam prontas. Trocar `ROTULOS_DE_TIPO` no TypeScript nao
+-- mexe em nenhuma delas, e e assim que o vocabulario velho voltaria sem
+-- ninguem notar.
+-- ===========================================================================
+
+delete from public.team_presence;
+delete from public.hr_requests;
+delete from public.notifications;
+
+-- Bruno tem 15 dias. Pedir 20 estoura o contrato, e a recusa precisa falar de
+-- RECESSO EM CONTRATO, nao de ferias por ano.
+select teste.recusa_com('A recusa por saldo fala de recesso, nao de ferias', :BRUNO,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
+  $fmt$, :BRUNO),
+  'dias de recesso por ano em contrato');
+
+-- Periodo atravessando o ano.
+select teste.recusa_com('A recusa de periodo entre anos fala de recesso', :BRUNO,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ferias', '2027-12-27', '2028-01-05', 6)
+  $fmt$, :BRUNO),
+  'recesso que atravessa o ano');
+
+-- Quem responde continua sendo so o socio -- o que mudou foi como a recusa
+-- diz isso. "Aprovar e reprovar" saiu porque hierarquia de aprovacao e um dos
+-- indicios de subordinacao.
+insert into public.hr_requests (id, user_id, tipo, data_inicio, data_fim, dias_uteis)
+values ('dadadada-0000-0000-0000-00000000000a', :BRUNO, 'ferias', '2027-05-03', '2027-05-07', 5);
+
+select teste.recusa_com('Nem o desenvolvedor responde, e a recusa nao diz "aprovar"', :DIEGO,
+  $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
+  'So o socio responde aos periodos fora');
+
+-- E o aviso do sino: "Ferias aprovada" virou "Recesso combinado".
+select teste.cenario('A socia responde, de acordo', :ANA,
+  $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
+  'ok');
+
+select teste.conferir('O sino diz "Recesso combinado", nunca "Ferias aprovada"',
+  (select titulo from public.notifications
+    where user_id = '44444444-4444-4444-4444-444444444444'
+      and tipo = 'full_days'
+    order by created_at desc limit 1),
+  'Recesso combinado');
+
+-- E a matriz recusa editar o dia sem falar de solicitacao aprovada.
+select teste.recusa_com('A matriz fala de periodo combinado', :ANA,
+  $$update public.team_presence set status = 'presente'
+     where user_id = '44444444-4444-4444-4444-444444444444'
+       and hr_request_id = 'dadadada-0000-0000-0000-00000000000a'
+       and data = '2027-05-03'$$,
+  'periodo ja combinado');
+
+-- A VARREDURA: nenhuma das frases antigas pode sobreviver no corpo das
+-- funcoes. E o mesmo espirito do `check:cores`, que varre `src/` atras de nome
+-- que saiu do produto -- aqui a varredura e no corpo das funcoes, que e onde a
+-- tela nao alcanca.
+--
+-- Por FRASE e nao por palavra, de proposito: `dias_ferias_ano` e nome de
+-- coluna e continua como esta por decisao do usuario, enquanto "dias de ferias
+-- por ano" era a frase que a pessoa lia. Uma varredura por palavra confundiria
+-- as duas -- e confundiu, na primeira versao deste cenario.
+do $$
+declare
+  frase   text;
+  achados text[] := '{}';
+  antigas text[] := array[
+    'dias de ferias por ano',
+    'As ferias podem ser partidas',
+    'Ferias que atravessam',
+    'Aprovar e reprovar',
+    'A decisao e aprovar',
+    'solicitacao aprovada',
+    'Esta solicitacao ja foi decidida',
+    'Solicitacao nao encontrada',
+    'then ''Ferias''',
+    'then ''Licenca''',
+    '%s aprovada',
+    '%s reprovada'
+  ];
+begin
+  foreach frase in array antigas loop
+    if exists (
+      select 1 from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname in ('validar_solicitacao', 'decidir_solicitacao',
+                           'proteger_presenca_de_pedido')
+         and position(frase in p.prosrc) > 0
+    ) then
+      achados := achados || frase;
+    end if;
+  end loop;
+
+  insert into teste.resultado (descricao, situacao, detalhe)
+  values ('Nenhuma funcao do Full Days carrega as frases antigas',
+          case when cardinality(achados) = 0 then 'passou' else 'FALHOU' end,
+          case when cardinality(achados) = 0
+               then format('%s frases conferidas', cardinality(antigas))
+               else array_to_string(achados, ' | ') end);
+end
+$$;
+
+-- E o outro lado: as frases NOVAS precisam estar la. Sem este, apagar a
+-- mensagem inteira passaria pela varredura acima.
+do $$
+declare
+  frase   text;
+  faltam  text[] := '{}';
+  novas   text[] := array[
+    'dias de recesso por ano em contrato',
+    'O recesso pode ser partido',
+    'So o socio responde aos periodos fora',
+    'then ''Recesso''',
+    'periodo ja combinado'
+  ];
+begin
+  foreach frase in array novas loop
+    if not exists (
+      select 1 from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname in ('validar_solicitacao', 'decidir_solicitacao',
+                           'proteger_presenca_de_pedido')
+         and position(frase in p.prosrc) > 0
+    ) then
+      faltam := faltam || frase;
+    end if;
+  end loop;
+
+  insert into teste.resultado (descricao, situacao, detalhe)
+  values ('As frases novas do Full Days estao no lugar',
+          case when cardinality(faltam) = 0 then 'passou' else 'FALHOU' end,
+          case when cardinality(faltam) = 0
+               then format('%s frases conferidas', cardinality(novas))
+               else array_to_string(faltam, ' | ') end);
+end
+$$;

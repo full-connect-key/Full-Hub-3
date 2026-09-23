@@ -25,10 +25,21 @@ const TODAS = "__todas__";
 /**
  * O relatório gerencial.
  *
- * O ALERTA DE FÉRIAS VENCENDO vem antes da tabela, e não como mais uma coluna
- * dentro dela: passados 12 meses da admissão (ou das últimas férias) sem o
- * descanso, a empresa passa a dever em dobro. É risco trabalhista, não
- * organização — uma coluna a mais numa tabela de nove colunas não seria lida.
+ * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM RECESSO vem antes da tabela, e não
+ * como mais uma coluna dentro dela: alguém que não para há mais de um ano é
+ * um problema de capacidade e de saúde, e uma coluna a mais numa tabela de
+ * nove colunas não seria lida.
+ *
+ * ESTE TEXTO JÁ FOI OUTRO, e a versão anterior era o problema. Ela afirmava
+ * na tela que, passados 12 meses sem descanso, a empresa passava a dever em
+ * dobro — o art. 137 da CLT escrito dentro de um produto usado por uma equipe
+ * toda PJ. Um sistema da própria empresa afirmando dever verba trabalhista a
+ * prestador de serviço é prova pronta num processo de reconhecimento de
+ * vínculo. O vocabulário desta tela está em `lib/dominio/full-days.ts`.
+ *
+ * O alerta continua, porque o fato que ele aponta é real e útil. O que mudou é
+ * o que ele afirma: ninguém para há muito tempo, e isso é risco de entrega e
+ * de esgotamento — não uma dívida da empresa.
  */
 export function RelatorioGerencial({
   linhas,
@@ -83,7 +94,7 @@ export function RelatorioGerencial({
   function exportar() {
     const cabecalho = [
       "Pessoa", "Área", "Dias no ano", "Tiradas", "Agendadas", "Pendentes",
-      "Saldo", "Ausências no período", "Licenças no período", "Meses sem férias",
+      "Saldo", "Ausências no período", "Indisponibilidades no período", "Meses sem recesso",
     ];
     const corpo = visiveis.map((l) => [
       l.nome, l.area, l.diasFeriasAno, l.tiradas, l.agendadas, l.pendentes,
@@ -138,9 +149,9 @@ export function RelatorioGerencial({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Indicador
-          titulo="Férias no ano"
+          titulo="Recesso no ano"
           valor={`${tiradas} de ${contratadas}`}
-          apoio="dias tirados, do total contratado"
+          apoio="dias usados, do total previsto em contrato"
         />
         <Indicador
           titulo="Taxa de ausência"
@@ -153,9 +164,9 @@ export function RelatorioGerencial({
           apoio={pendentes === 1 ? "solicitação" : "solicitações"}
         />
         <Indicador
-          titulo="Licenças no período"
+          titulo="Indisponibilidades"
           valor={String(licencas)}
-          apoio={`e ${foraHoje} pessoa(s) em férias agora`}
+          apoio={`e ${foraHoje} pessoa(s) em recesso agora`}
         />
       </div>
 
@@ -165,20 +176,20 @@ export function RelatorioGerencial({
             <AlertTriangle aria-hidden className="text-danger mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-danger text-sm font-semibold">
-                Férias vencendo — {vencendo.length} pessoa(s)
+                Há mais de um ano sem recesso — {vencendo.length} pessoa(s)
               </h2>
               <p className="text-text-secondary mt-0.5 text-sm">
-                Passados 12 meses sem descanso, a empresa passa a dever as férias em dobro. Não é
-                uma questão de organização.
+                Ninguém entrega no mesmo ritmo por doze meses seguidos. Vale combinar um período
+                com cada uma antes que a conta chegue como queda de qualidade ou saída.
               </p>
               <ul className="mt-2 space-y-0.5">
                 {vencendo.map((l) => (
                   <li key={l.id} className="text-text-primary text-sm">
                     <strong>{l.nome}</strong> — {l.mesesSemFerias} meses desde{" "}
                     {l.ultimasFerias
-                      ? `as últimas férias (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
+                      ? `o último recesso (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
                       : l.admissao
-                        ? `a admissão (${format(parseISO(l.admissao), "dd/MM/yyyy")})`
+                        ? `o início do contrato (${format(parseISO(l.admissao), "dd/MM/yyyy")})`
                         : "o início"}
                   </li>
                 ))}
@@ -200,7 +211,7 @@ export function RelatorioGerencial({
               <TableHead className="text-right">Saldo</TableHead>
               <TableHead className="w-32">Consumo</TableHead>
               <TableHead className="text-right">Ausências</TableHead>
-              <TableHead className="text-right">Licenças</TableHead>
+              <TableHead className="text-right">Indisp.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -244,7 +255,7 @@ export function RelatorioGerencial({
                       <div
                         className="bg-neutral-soft h-2 w-full overflow-hidden rounded-full"
                         role="img"
-                        aria-label={`${proporcao}% das férias comprometidas`}
+                        aria-label={`${proporcao}% do recesso comprometido`}
                       >
                         <div
                           className={cn("h-full rounded-full", proporcao >= 100 ? "bg-warning" : "bg-ferias")}

@@ -209,6 +209,33 @@ const NOMES_MORTOS = [
   //
   // Só `src/`, pela razão de sempre: o CLAUDE.md precisa nomear o nome antigo
   // para registrar por que ele saiu.
+  // VOCABULÁRIO TRABALHISTA. A equipe é toda PJ, e palavra de direito
+  // trabalhista num sistema da própria empresa não é impropriedade de
+  // linguagem: é prova documental num pedido de reconhecimento de vínculo.
+  //
+  // SÓ AS FORMAS ACENTUADAS, e a escolha é o que faz esta varredura valer
+  // alguma coisa. `ferias`, `licenca` e `folga` sem acento continuam no
+  // projeto de propósito: são valor de enum (`hr_tipo`, `presenca_status`) e
+  // nome de token de cor, que ninguém que usa o sistema vê e que o usuário
+  // decidiu manter. Varrer os dois juntos acusaria essas linhas toda vez, e um
+  // alarme que sempre toca é um alarme que ninguém escuta.
+  //
+  // O que a pessoa LÊ passa por `ROTULOS_DE_TIPO` e `ROTULOS_DE_PRESENCA`, e
+  // lá está escrito recesso, indisponibilidade e "sem alocação".
+  //
+  // E SEM EXCEÇÃO DE ARQUIVO. A primeira versão isentava o módulo de
+  // vocabulário, que precisava nomear as palavras para proibi-las — a mesma
+  // situação do Trello logo abaixo. Só que o `--exclude` do grep não filtrou
+  // nada aqui, e a varredura acusava a si mesma. A saída foi melhor que a
+  // exceção: a regra saiu de `src/` e foi para o CLAUDE.md e para o cabeçalho
+  // da migration 0016, que é onde ela já devia estar. `src/` ficou limpo de
+  // verdade, e a varredura não precisa acreditar em ninguém.
+  //
+  // "feriado" NÃO entra: é data do calendário nacional, um fato sobre o dia, e
+  // não direito concedido a ninguém.
+  { nome: "férias", onde: "src/", porque: "vocabulário da CLT — a equipe é PJ; use recesso" },
+  { nome: "licença", onde: "src/", porque: "vocabulário da CLT; use indisponibilidade" },
+
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
 

@@ -30,23 +30,29 @@ import { aprovarEmLote, decidir } from "./acoes";
 
 const FILTROS: { chave: HrStatus; label: string }[] = [
   { chave: "pendente", label: "Pendentes" },
-  { chave: "aprovada", label: "Aprovadas" },
-  { chave: "reprovada", label: "Reprovadas" },
+  { chave: "aprovada", label: "De acordo" },
+  { chave: "reprovada", label: "A remarcar" },
 ];
 
 /**
  * A fila do sócio.
  *
  * O que faz esta tela valer mais que uma lista: **cada cartão mostra quem mais
- * da mesma área já está fora naquele período.** Aprovar duas designers na
- * mesma semana é o erro que este módulo existe para evitar, e ninguém percebe
- * isso olhando um pedido de cada vez — o conflito só aparece quando os dois
- * períodos estão lado a lado.
+ * da mesma área já está fora naquele período.** Dizer "de acordo" para duas
+ * designers na mesma semana é o erro que este módulo existe para evitar, e
+ * ninguém percebe isso olhando um pedido de cada vez — o conflito só aparece
+ * quando os dois períodos estão lado a lado.
  *
- * Reprovar pede o motivo. Ele não é obrigatório no banco, mas a caixa abre
- * assim mesmo e o texto do diálogo explica por quê: um "reprovado" sem
- * explicação volta como pergunta, e a conversa acontece de qualquer forma —
- * só que fora do sistema.
+ * NÃO SE CHAMA APROVAR, e a escolha das palavras aqui não é estética. A equipe
+ * é toda PJ, e hierarquia de aprovação é um dos indícios de subordinação que
+ * sustentam um pedido de reconhecimento de vínculo. O que acontece nesta tela
+ * é um combinado entre duas partes: quem presta serviço informa o período, a
+ * agência confirma que consegue cobrir ou pede para remarcar.
+ *
+ * Pedir para remarcar pede o motivo. Ele não é obrigatório no banco, mas a
+ * caixa abre assim mesmo e o texto do diálogo explica por quê: um "remarca"
+ * sem explicação volta como pergunta, e a conversa acontece de qualquer forma
+ * — só que fora do sistema.
  */
 export function Aprovacoes({
   fila,
@@ -123,7 +129,7 @@ export function Aprovacoes({
         {filaAtual === "pendente" && selecionados.length > 0 ? (
           <Button size="sm" className="ml-auto" disabled={executando} onClick={aprovarSelecionados}>
             {executando ? <Loader2 className="animate-spin" /> : <CheckCheck aria-hidden />}
-            Aprovar {selecionados.length} selecionado(s)
+            De acordo com {selecionados.length} selecionado(s)
           </Button>
         ) : null}
       </div>
@@ -134,7 +140,7 @@ export function Aprovacoes({
           title={filaAtual === "pendente" ? "Nada esperando você" : "Nenhuma nesta lista"}
           description={
             filaAtual === "pendente"
-              ? "Quando alguém pedir férias, licença ou ausência, o pedido aparece aqui."
+              ? "Quando alguém informar um recesso, uma indisponibilidade ou uma ausência, o pedido aparece aqui."
               : "Troque o filtro acima para ver as outras."
           }
         />
@@ -207,14 +213,14 @@ export function Aprovacoes({
 
                   {pedido.status === "reprovada" && pedido.motivo_reprovacao ? (
                     <p className="text-text-secondary text-sm">
-                      Reprovado: {pedido.motivo_reprovacao}
+                      Remarcar: {pedido.motivo_reprovacao}
                     </p>
                   ) : null}
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-text-muted text-xs tabular-nums">
-                    pedido em {format(parseISO(pedido.created_at), "dd/MM/yy", { locale: ptBR })}
+                    informado em {format(parseISO(pedido.created_at), "dd/MM/yy", { locale: ptBR })}
                   </span>
 
                   {pedido.status === "pendente" ? (
@@ -228,10 +234,10 @@ export function Aprovacoes({
                           setReprovando(pedido);
                         }}
                       >
-                        Reprovar
+                        Preciso remarcar
                       </Button>
                       <Button size="sm" disabled={executando} onClick={() => aprovar(pedido.id)}>
-                        Aprovar
+                        De acordo
                       </Button>
                     </div>
                   ) : null}
@@ -245,9 +251,9 @@ export function Aprovacoes({
       <Dialog open={reprovando !== null} onOpenChange={(aberto) => !aberto && setReprovando(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reprovar o pedido de {reprovando?.pessoa?.nome ?? "—"}?</DialogTitle>
+            <DialogTitle>Pedir para {reprovando?.pessoa?.nome ?? "—"} remarcar?</DialogTitle>
             <DialogDescription>
-              O motivo não é obrigatório, mas vale escrever: um &ldquo;reprovado&rdquo; sem
+              O motivo não é obrigatório, mas vale escrever: um &ldquo;remarca&rdquo; sem
               explicação volta como pergunta, e a conversa acontece de qualquer forma — só que
               fora do sistema.
             </DialogDescription>
@@ -267,7 +273,7 @@ export function Aprovacoes({
             </Button>
             <Button variant="destructive" disabled={executando} onClick={confirmarReprovacao}>
               {executando ? <Loader2 className="animate-spin" /> : null}
-              Reprovar
+              Pedir para remarcar
             </Button>
           </DialogFooter>
         </DialogContent>
