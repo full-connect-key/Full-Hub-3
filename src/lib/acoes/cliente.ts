@@ -5,6 +5,26 @@ import { toast } from "sonner";
 import type { Resultado } from "./tipos";
 
 /**
+ * A página aberta é de um build que já saiu do ar?
+ *
+ * Cada Server Action é identificada por um id calculado no build. Uma versão
+ * nova gera ids novos — e quem estava com a aba aberta desde antes continua
+ * chamando o id velho, que o servidor não conhece mais. O Next devolve
+ * "Failed to find Server Action", em inglês e com link para a documentação
+ * dele, numa tela que é toda em português.
+ *
+ * Não é erro de quem está usando, e recarregar resolve. Os docs do Next
+ * pedem exatamente isto: mostrar um caminho de volta em vez de uma falha
+ * seca. Por isso vira mensagem própria, com o que fazer.
+ */
+function ehAcaoDeOutroBuild(mensagem: string): boolean {
+  return (
+    mensagem.includes("Failed to find Server Action") ||
+    mensagem.includes("was not found on the server")
+  );
+}
+
+/**
  * O outro lado da regra "nada falha em silêncio": a tela.
  *
  * Mesmo com toda action devolvendo `{ ok: false, error }`, uma chamada pode
@@ -22,6 +42,15 @@ export async function chamarAcao<T>(
   } catch (erro) {
     console.error("[acao] a chamada não chegou ao fim:", erro);
     const detalhe = erro instanceof Error ? erro.message : String(erro);
+
+    if (ehAcaoDeOutroBuild(detalhe)) {
+      return {
+        ok: false,
+        error:
+          "Esta página é de uma versão que saiu do ar. Recarregue (Ctrl+Shift+R) e refaça — nada foi gravado.",
+      };
+    }
+
     return {
       ok: false,
       error: `Não foi possível falar com o servidor: ${detalhe}`,
