@@ -40,7 +40,16 @@ export function CartaoDeItem({
   aoAbrir?: (item: ItemDoPortal) => void;
 }) {
   const Icone = ICONE[item.tipo];
-  const vencido = estaVencendo(item.prazo, hoje);
+
+  // PRAZO VENCIDO SÓ VALE PARA O QUE AINDA ESPERA DECISÃO.
+  //
+  // A primeira versão pintava de vermelho qualquer prazo no passado, e a
+  // imagem em 375px mostrou o resultado: um material APROVADO com "Vence
+  // hoje" em vermelho. O prazo de algo já resolvido é registro, não cobrança
+  // — é a mesma regra do `DateBadge` no painel interno, e eu a repeti errado
+  // aqui antes de olhar a tela.
+  const encerrado = item.status === "aprovado" || item.status === "rejeitado";
+  const vencido = !encerrado && estaVencendo(item.prazo, hoje);
 
   const conteudo = (
     <article
@@ -83,6 +92,7 @@ export function CartaoDeItem({
               variant="outline"
               className={cn(
                 "tabular-nums",
+                encerrado && "text-text-muted",
                 // Vencido ou vencendo hoje, no vermelho. É o único uso de cor
                 // forte no cartão, e é de propósito: se tudo chamar atenção,
                 // nada chama.
@@ -92,7 +102,7 @@ export function CartaoDeItem({
                 vencido && "bg-danger-soft text-danger border-transparent",
               )}
             >
-              {vencido ? "Vence hoje · " : "Prazo · "}
+              {encerrado ? "" : vencido ? "Vence hoje · " : "Prazo · "}
               {format(parseISO(item.prazo), "dd 'de' MMMM", { locale: ptBR })}
             </Badge>
           ) : (
