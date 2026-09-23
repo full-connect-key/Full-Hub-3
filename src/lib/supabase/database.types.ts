@@ -72,11 +72,32 @@ export type EscopoRodada = "interna" | "cliente";
  *  cliente nasce depois de uma interna aprovada. */
 export type ExigenciaAprovacao = "nenhuma" | "interna" | "cliente";
 
+/** O que o material É. O ícone e o jeito de abrir saem daqui. */
+export type MaterialTipo =
+  | "video"
+  | "artigo"
+  | "pdf"
+  | "curso_externo"
+  | "template"
+  | "aula_interna";
+
+export type RecCategoria =
+  | "filme"
+  | "serie"
+  | "livro"
+  | "curso"
+  | "ferramenta"
+  | "podcast"
+  | "referencia"
+  | "outro";
+
 export type StatusRodada = "pendente" | "aprovada" | "ajustes_solicitados";
 
 export type NotificationTipo =
   | "task"
   | "aprovacao"
+  | "academy"
+  | "recomendacao"
   | "full_days"
   | "equipe"
   | "cliente"
@@ -592,6 +613,164 @@ export interface Database {
         };
         Relationships: [];
       };
+      academy_tracks: {
+        Row: {
+          id: string;
+          titulo: string;
+          descricao: string | null;
+          area: string | null;
+          capa_url: string | null;
+          obrigatoria: boolean;
+          publicada: boolean;
+          ordem: number;
+          criado_por: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          titulo: string;
+          descricao?: string | null;
+          area?: string | null;
+          capa_url?: string | null;
+          obrigatoria?: boolean;
+          publicada?: boolean;
+          ordem?: number;
+          criado_por: string;
+        };
+        Update: {
+          titulo?: string;
+          descricao?: string | null;
+          area?: string | null;
+          capa_url?: string | null;
+          obrigatoria?: boolean;
+          publicada?: boolean;
+          ordem?: number;
+        };
+        Relationships: [];
+      };
+      academy_materials: {
+        Row: {
+          id: string;
+          track_id: string;
+          titulo: string;
+          descricao: string | null;
+          tipo: MaterialTipo;
+          url: string | null;
+          arquivo_url: string | null;
+          duracao_minutos: number | null;
+          ordem: number;
+          skill_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          track_id: string;
+          titulo: string;
+          descricao?: string | null;
+          tipo: MaterialTipo;
+          url?: string | null;
+          arquivo_url?: string | null;
+          duracao_minutos?: number | null;
+          ordem?: number;
+          skill_id?: string | null;
+        };
+        Update: {
+          titulo?: string;
+          descricao?: string | null;
+          tipo?: MaterialTipo;
+          url?: string | null;
+          arquivo_url?: string | null;
+          duracao_minutos?: number | null;
+          ordem?: number;
+          skill_id?: string | null;
+        };
+        Relationships: [];
+      };
+      academy_progress: {
+        Row: {
+          id: string;
+          user_id: string;
+          material_id: string;
+          concluido: boolean;
+          concluido_em: string | null;
+          anotacoes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          material_id: string;
+          concluido?: boolean;
+          anotacoes?: string | null;
+        };
+        Update: {
+          concluido?: boolean;
+          anotacoes?: string | null;
+        };
+        Relationships: [];
+      };
+      recommendations: {
+        Row: {
+          id: string;
+          autor_id: string;
+          categoria: RecCategoria;
+          titulo: string;
+          descricao: string | null;
+          url: string | null;
+          imagem_url: string | null;
+          tags: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          autor_id: string;
+          categoria: RecCategoria;
+          titulo: string;
+          descricao?: string | null;
+          url?: string | null;
+          imagem_url?: string | null;
+          tags?: string[] | null;
+        };
+        Update: {
+          categoria?: RecCategoria;
+          titulo?: string;
+          descricao?: string | null;
+          url?: string | null;
+          imagem_url?: string | null;
+          tags?: string[] | null;
+        };
+        Relationships: [];
+      };
+      recommendation_likes: {
+        Row: {
+          id: string;
+          recommendation_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: { id?: string; recommendation_id: string; user_id: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      recommendation_comments: {
+        Row: {
+          id: string;
+          recommendation_id: string;
+          autor_id: string;
+          texto: string;
+          resposta_a: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recommendation_id: string;
+          autor_id: string;
+          texto: string;
+          resposta_a?: string | null;
+        };
+        Update: { texto?: string };
+        Relationships: [];
+      };
       tasks: {
         Row: {
           id: string;
@@ -935,8 +1114,8 @@ export interface Database {
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
     Functions: {
+      academy_reordenar: { Args: { p_track_id: string; p_ids: string[] }; Returns: number };
       auth_role: { Args: Record<string, never>; Returns: UserRole };
       is_staff: { Args: Record<string, never>; Returns: boolean };
       is_socio: { Args: Record<string, never>; Returns: boolean };
@@ -972,6 +1151,21 @@ export interface Database {
         Returns: string | null;
       };
     };
+    Views: {
+      /** Progresso SEM a coluna `anotacoes`. É por aqui que a aba
+       *  Acompanhamento lê — policy não limita coluna, e a anotação é
+       *  privada. Veja a migration 0017. */
+      academy_progresso_da_equipe: {
+        Row: {
+          user_id: string;
+          track_id: string;
+          material_id: string;
+          concluido: boolean;
+          concluido_em: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Enums: {
       user_role: UserRole;
       team_funcao: TeamFuncao;
@@ -981,6 +1175,8 @@ export interface Database {
       tipo_aprovacao: TipoAprovacao;
       escopo_rodada: EscopoRodada;
       exigencia_aprovacao: ExigenciaAprovacao;
+      material_tipo: MaterialTipo;
+      rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
       notification_tipo: NotificationTipo;
       hr_tipo: HrTipo;
@@ -997,6 +1193,12 @@ export interface Database {
 }
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type AcademyTrack = Database["public"]["Tables"]["academy_tracks"]["Row"];
+export type AcademyMaterial = Database["public"]["Tables"]["academy_materials"]["Row"];
+export type AcademyProgress = Database["public"]["Tables"]["academy_progress"]["Row"];
+export type Recomendacao = Database["public"]["Tables"]["recommendations"]["Row"];
+export type RecomendacaoComentario =
+  Database["public"]["Tables"]["recommendation_comments"]["Row"];
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];

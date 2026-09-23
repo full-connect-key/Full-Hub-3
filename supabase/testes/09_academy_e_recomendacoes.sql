@@ -407,3 +407,74 @@ select teste.cenario('O cliente NAO posta no feed', :JOANA,
     insert into public.recommendations (autor_id, categoria, titulo)
     values (%L, 'outro', 'Oi')
   $fmt$, :JOANA), 'recusa');
+
+-- ---------------------------------------------------------------------------
+-- REORDENAR NAO E PORTA LATERAL
+--
+-- `academy_reordenar` existe porque arrastar dez materiais sao dez UPDATEs, e
+-- pelo PostgREST seriam dez transacoes -- a quinta falhando deixaria a trilha
+-- numa ordem que nunca existiu na tela.
+--
+-- Mas uma funcao que roda no banco e o lugar classico onde uma regra vaza: um
+-- `security definer` distraido faria qualquer pessoa reordenar a trilha de
+-- todo mundo. Ela NAO e security definer de proposito, e estes dois cenarios
+-- sao o que prova isso -- sem eles, trocar a funcao por uma versao com
+-- `security definer` passaria na bateria inteira.
+-- ---------------------------------------------------------------------------
+
+-- Repoe a trilha publicada num estado conhecido.
+delete from public.academy_materials
+ where track_id = 'a1a1a1a1-0000-0000-0000-00000000000a';
+
+insert into public.academy_materials (id, track_id, titulo, tipo, url, ordem) values
+  ('b2b2b2b2-0000-0000-0000-000000000001', 'a1a1a1a1-0000-0000-0000-00000000000a',
+   'Primeiro', 'artigo', 'https://exemplo.invalid/1', 1),
+  ('b2b2b2b2-0000-0000-0000-000000000002', 'a1a1a1a1-0000-0000-0000-00000000000a',
+   'Segundo', 'artigo', 'https://exemplo.invalid/2', 2);
+
+select teste.cenario('A gestao reordena os materiais', :DIEGO,
+  $$select public.academy_reordenar(
+      'a1a1a1a1-0000-0000-0000-00000000000a',
+      array['b2b2b2b2-0000-0000-0000-000000000002',
+            'b2b2b2b2-0000-0000-0000-000000000001']::uuid[])$$, 'ok');
+
+select teste.conferir('E a ordem mudou mesmo',
+  (select titulo from public.academy_materials
+    where track_id = 'a1a1a1a1-0000-0000-0000-00000000000a' order by ordem limit 1),
+  'Segundo');
+
+-- O colaborador chama a mesma funcao. Ela NAO estoura -- a policy de UPDATE
+-- simplesmente nao casa nenhuma linha --, e por isso a prova nao e "deu erro":
+-- e que NADA mudou. Um cenario que so esperasse excecao passaria mesmo com a
+-- funcao aberta.
+select teste.cenario('O colaborador chama a funcao e ela nao muda nada', :CARLA,
+  $$select public.academy_reordenar(
+      'a1a1a1a1-0000-0000-0000-00000000000a',
+      array['b2b2b2b2-0000-0000-0000-000000000001',
+            'b2b2b2b2-0000-0000-0000-000000000002']::uuid[])$$, 'ok');
+
+select teste.conferir('A ordem continua a que a gestao deixou',
+  (select titulo from public.academy_materials
+    where track_id = 'a1a1a1a1-0000-0000-0000-00000000000a' order by ordem limit 1),
+  'Segundo');
+
+-- E a funcao nao atravessa trilhas: o `where track_id` amarra a operacao a
+-- uma so. Sem ele, uma lista com ids de trilhas diferentes reordenaria as
+-- duas ao mesmo tempo.
+insert into public.academy_tracks (id, titulo, criado_por, publicada)
+values ('a2a2a2a2-0000-0000-0000-00000000000a', 'Outra trilha', :DIEGO, true);
+
+insert into public.academy_materials (id, track_id, titulo, tipo, url, ordem)
+values ('b3b3b3b3-0000-0000-0000-000000000001', 'a2a2a2a2-0000-0000-0000-00000000000a',
+        'De outra trilha', 'artigo', 'https://exemplo.invalid/3', 7);
+
+select teste.cenario('Reordenar uma trilha nao toca na outra', :DIEGO,
+  $$select public.academy_reordenar(
+      'a1a1a1a1-0000-0000-0000-00000000000a',
+      array['b3b3b3b3-0000-0000-0000-000000000001',
+            'b2b2b2b2-0000-0000-0000-000000000001']::uuid[])$$, 'ok');
+
+select teste.conferir('O material da outra trilha ficou onde estava',
+  (select ordem::text from public.academy_materials
+    where id = 'b3b3b3b3-0000-0000-0000-000000000001'),
+  '7');

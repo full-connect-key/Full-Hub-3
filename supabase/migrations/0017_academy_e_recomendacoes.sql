@@ -513,6 +513,46 @@ comment on view public.academy_progresso_da_equipe is
   'Progresso sem a coluna anotacoes. E por aqui que a aba Acompanhamento le -- policy nao limita coluna, e a anotacao e privada.';
 
 -- -------------------------------------------------------------------------
+-- 6b. Reordenar os materiais, numa transacao so
+--
+-- Arrastar dez materiais e dez UPDATEs. Pelo PostgREST seriam dez requisicoes
+-- e dez transacoes -- e a quinta falhando deixaria a trilha numa ordem que
+-- nunca existiu na tela de ninguem.
+--
+-- A funcao NAO e `security definer`: quem chamar sem ser gestao esbarra na
+-- policy de UPDATE de `academy_materials`, que e onde a regra ja mora. Fazer
+-- a funcao pular a RLS seria abrir uma porta lateral para o que a policy
+-- fecha.
+--
+-- O `where track_id` amarra a operacao a UMA trilha: sem ele, uma lista de
+-- ids de trilhas diferentes reordenaria as duas ao mesmo tempo.
+-- -------------------------------------------------------------------------
+
+create or replace function public.academy_reordenar(
+  p_track_id uuid,
+  p_ids      uuid[]
+) returns integer
+language plpgsql
+set search_path = public
+as $$
+declare
+  mexidos integer;
+begin
+  update public.academy_materials m
+     set ordem = pos.indice
+    from unnest(p_ids) with ordinality as pos(id, indice)
+   where m.id = pos.id
+     and m.track_id = p_track_id;
+
+  get diagnostics mexidos = row_count;
+  return mexidos;
+end;
+$$;
+
+comment on function public.academy_reordenar is
+  'Reordena os materiais de uma trilha numa transacao so. Sem security definer: a policy de UPDATE e que decide quem pode.';
+
+-- -------------------------------------------------------------------------
 -- 7. Os buckets
 -- -------------------------------------------------------------------------
 
