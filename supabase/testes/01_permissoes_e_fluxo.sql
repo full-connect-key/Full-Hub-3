@@ -128,7 +128,12 @@ select teste.cenario('Rafael (colaborador) NAO aprova rodada nenhuma', :RAFAEL,
   format('update public.approval_rounds set status = ''aprovada'', decidido_por = %L where subtask_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :RAFAEL),
   'recusa');
 
-select teste.cenario('Bruno NAO aprova a propria entrega', :BRUNO,
+-- Bruno e colaborador, e depois da 0029 e isso -- e so isso -- que o barra.
+-- Ate a 0029 ele era recusado DUAS vezes (por nao ser gestao e por ser o dono
+-- da entrega), e o cenario nao distinguia uma da outra. Agora a unica trava
+-- que sobra e `pode_aprovar_subtarefa` = `is_gestor()`, e a recusa vem como
+-- zero linhas da policy, nao como excecao.
+select teste.cenario('Bruno (colaborador) NAO decide rodada nenhuma, nem a dele', :BRUNO,
   format('update public.approval_rounds set status = ''aprovada'', decidido_por = %L where subtask_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :BRUNO),
   'recusa');
 
@@ -175,19 +180,26 @@ select teste.cenario('Desenvolvedor envia ao cliente (rodada 2, escopo cliente)'
 
 
 -- ---------------------------------------------------------------------------
--- NINGUEM APROVA A SI MESMO, NEM SENDO DESENVOLVEDOR
+-- A GESTAO APROVA A SI MESMA (migration 0029)
+--
+-- Era o cenario "Diego (desenvolvedor) NAO aprova a propria subtarefa", e ele
+-- virou do avesso por decisao do usuario. O bloco maior mais abaixo cobre os
+-- tres estados em que essa trava aparecia; este cobre o caminho comum -- a
+-- etapa e dele, a rodada e dele, ele decide.
 -- ---------------------------------------------------------------------------
 select teste.cenario('Diego pede aprovacao da subtarefa dele', :DIEGO,
   format('insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por) values (''dddddddd-0000-0000-0000-000000000003'', 1, ''interna'', %L)', :DIEGO),
   'ok', 1);
 
-select teste.cenario('Diego (desenvolvedor) NAO aprova a propria subtarefa', :DIEGO,
+select teste.cenario('Diego (desenvolvedor) aprova a propria subtarefa', :DIEGO,
   format('update public.approval_rounds set status = ''aprovada'', decidido_por = %L where subtask_id = ''dddddddd-0000-0000-0000-000000000003'' and numero_rodada = 1', :DIEGO),
-  'recusa');
-
-select teste.cenario('Ana (socia) aprova a subtarefa do Diego', :ANA,
-  format('update public.approval_rounds set status = ''aprovada'', decidido_por = %L where subtask_id = ''dddddddd-0000-0000-0000-000000000003'' and numero_rodada = 1', :ANA),
   'ok', 1);
+
+-- E o que a 0029 NAO afrouxou: rodada decidida continua fechada, nem para a
+-- socia. Sem este, "a gestao pode tudo" passaria por correto aqui.
+select teste.recusa_com('E nem a socia reescreve a rodada ja decidida', :ANA,
+  format('update public.approval_rounds set status = ''ajustes_solicitados'', decidido_por = %L, comentario = ''mudei de ideia'' where subtask_id = ''dddddddd-0000-0000-0000-000000000003'' and numero_rodada = 1', :ANA),
+  'já decidida não muda de resultado');
 
 select teste.cenario('Com aval interno, a de tipo interna conclui', :DIEGO,
   'update public.subtasks set status = ''concluida'' where id = ''dddddddd-0000-0000-0000-000000000003''',
@@ -262,18 +274,22 @@ select teste.cenario('Ninguem apaga uma rodada de aprovacao', :ANA,
   'ok', 0);
 
 -- ===========================================================================
--- NINGUEM APROVA O PROPRIO TRABALHO (migration 0026)
+-- A GESTAO APROVA, INCLUSIVE O PROPRIO TRABALHO (migration 0029)
 --
--- Reportado pelo usuario: "qualquer desenvolvedor pode aprovar qualquer task,
--- mesmo que a task seja dele mesmo". Era verdade por tres caminhos, e o
--- cenario que existia mais acima -- "Bruno NAO aprova a propria entrega" --
--- testava exatamente o unico que ja funcionava: quem decide sendo o
--- `responsavel_id` da etapa.
+-- DECISAO DO USUARIO, e ela desfaz a 0026: "se uma task precisar de
+-- aprovacao, qualquer pessoa com acesso de desenvolvedor, consegue aprovar".
 --
--- Estes tres cobrem o resto. Cada um monta o estado com a pessoa certa, e nao
--- como postgres: a metade deles depende de `is_gestor()` ser verdadeiro na
--- hora de abrir a rodada, e como superusuario a montagem passaria por cima da
--- regra que se quer testar.
+-- Estes cenarios eram os tres furos que a 0026 fechou. Ficam aqui, virados do
+-- avesso: os mesmos tres caminhos, agora provando que PASSAM. Eles nao sao
+-- redundantes entre si nem depois da virada -- cada um monta um estado
+-- diferente (etapa sem dono, rodada aberta pela propria pessoa, entrega
+-- anexada antes da troca de responsavel), e e exatamente nesses tres estados
+-- que a trava antiga aparecia. Se alguem reintroduzir qualquer uma das tres
+-- perguntas, um destes falha e diz qual.
+--
+-- O QUE CONTINUA RECUSADO, e por isso os dois ultimos existem: colaborador
+-- nao decide nada (a policy), e a rodada de cliente continua sendo do
+-- cliente.
 -- ===========================================================================
 
 insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
@@ -288,77 +304,85 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
   ('dddddddd-0000-0000-0000-0000000000f3', 'dddddddd-0000-0000-0000-0000000000f0',
    'Etapa que o Diego entregou', 3, :DIEGO, true, 'interna');
 
--- --- Furo 1: etapa SEM responsavel -----------------------------------------
--- Ninguem e "o proprio", entao a pergunta antiga nao tinha a quem comparar.
+-- --- Caminho 1: etapa SEM responsavel ---------------------------------------
 select teste.cenario('Diego abre a rodada de uma etapa sem responsavel', :DIEGO,
   format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
     values ('eeeeeeee-0000-0000-0000-0000000000f1', 'dddddddd-0000-0000-0000-0000000000f1',
             1, 'interna', %L)$fmt$, :DIEGO), 'ok', 1);
 
-select teste.recusa_com('E NAO decide a rodada da etapa sem dono', :DIEGO,
+select teste.cenario('E decide a rodada da etapa sem dono', :DIEGO,
   format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
-     where id = 'eeeeeeee-0000-0000-0000-0000000000f1'$fmt$, :DIEGO),
-  'Ninguém aprova o próprio trabalho');
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f1'$fmt$, :DIEGO), 'ok', 1);
 
--- --- Furo 2: quem PEDIU decidia ---------------------------------------------
--- A etapa esta no nome da Marina, e a gestao pode abrir a rodada dela "para
--- destravar". O que ninguem notou e que quem destravava decidia em seguida.
+-- --- Caminho 2: quem PEDIU decide -------------------------------------------
+-- A etapa esta no nome da Marina, e a gestao pode abrir a rodada dela para
+-- destravar. Abrir e decidir viraram dois cliques da mesma pessoa, e e o que
+-- o usuario pediu.
 select teste.cenario('Diego destrava a etapa da Marina abrindo a rodada', :DIEGO,
   format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
     values ('eeeeeeee-0000-0000-0000-0000000000f2', 'dddddddd-0000-0000-0000-0000000000f2',
             1, 'interna', %L)$fmt$, :DIEGO), 'ok', 1);
 
-select teste.recusa_com('Mas NAO decide a rodada que ele mesmo abriu', :DIEGO,
+select teste.cenario('E decide a rodada que ele mesmo abriu', :DIEGO,
   format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
-     where id = 'eeeeeeee-0000-0000-0000-0000000000f2'$fmt$, :DIEGO),
-  'foi você quem mandou esta rodada para aprovação');
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f2'$fmt$, :DIEGO), 'ok', 1);
 
--- E a socia decide essa mesma rodada sem problema: a trava barra a pessoa
--- errada, nao a rodada. Sem este, "recusar tudo" passaria por correto.
-select teste.cenario('E a socia decide a mesma rodada normalmente', :ANA,
-  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
-     where id = 'eeeeeeee-0000-0000-0000-0000000000f2'$fmt$, :ANA), 'ok', 1);
-
--- --- Furo 3: entregou, trocou o responsavel, aprovou ------------------------
--- Quatro passos, todos permitidos um a um, terminando na propria entrega
--- aprovada. E o unico dos tres que sobrevive a `responsavel_id` mudar.
+-- --- Caminho 3: entregou, e a etapa e dele -----------------------------------
+-- E o caso que o usuario relatou de dentro do produto: "nao estou conseguindo
+-- aprovar minha propria task". A etapa esta no nome dele, a entrega e dele, a
+-- rodada e dele -- os tres de uma vez.
 select teste.cenario('Diego anexa a entrega da etapa dele', :DIEGO,
   format($fmt$insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por)
     values ('dddddddd-0000-0000-0000-0000000000f3', 'link', 'https://figma.com/arte', 'Arte v1', %L)$fmt$,
     :DIEGO), 'ok', 1);
 
--- A ORDEM IMPORTA no cenario: ele precisa passar a etapa para a Marina ANTES
--- de a rodada nascer. Se o Diego abrir a rodada, a recusa vem pelo motivo 2
--- (foi ele quem pediu) e o motivo 3 nao chega a ser testado -- e era
--- exatamente isso que acontecia na primeira versao deste cenario.
-select teste.cenario('E passa a etapa para o nome da Marina', :DIEGO,
-  format($fmt$update public.subtasks set responsavel_id = %L
-     where id = 'dddddddd-0000-0000-0000-0000000000f3'$fmt$, :MARINA), 'ok', 1);
-
-select teste.cenario('A Marina, agora responsavel, abre a rodada', :MARINA,
+select teste.cenario('E abre a rodada da propria etapa', :DIEGO,
   format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
     values ('eeeeeeee-0000-0000-0000-0000000000f3', 'dddddddd-0000-0000-0000-0000000000f3',
-            1, 'interna', %L)$fmt$, :MARINA), 'ok', 1);
+            1, 'interna', %L)$fmt$, :DIEGO), 'ok', 1);
 
--- Agora `responsavel_id` nao aponta mais para o Diego e a rodada nao e dele.
--- So a ENTREGA ainda aponta -- e e so ela que barra.
-select teste.recusa_com('E mesmo assim NAO aprova: a entrega e dele', :DIEGO,
+select teste.cenario('E aprova a propria entrega: e a regra nova', :DIEGO,
   format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
-     where id = 'eeeeeeee-0000-0000-0000-0000000000f3'$fmt$, :DIEGO),
-  'o material desta etapa foi enviado por você');
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f3'$fmt$, :DIEGO), 'ok', 1);
 
--- --- A funcao que a tela pergunta ------------------------------------------
--- `pode_decidir_rodada()` responde a mesma pergunta para desligar o botao
--- antes do clique. Se ela e a trava discordassem, a fila ofereceria um botao
--- que o banco recusa -- ou esconderia um que funciona.
-select teste.conferir('pode_decidir_rodada diz NAO para quem entregou',
-  (select public.pode_decidir_rodada('eeeeeeee-0000-0000-0000-0000000000f3')::text
-     from (select set_config('request.jwt.claim.sub',
-                             '22222222-2222-2222-2222-222222222222', true)) _),
-  'false');
+-- --- E o que NAO caiu junto --------------------------------------------------
+-- Sem estes, "liberar tudo" passaria por correto. A regra mudou de "a gestao
+-- menos quem fez" para "a gestao", e nao para "todo mundo".
+insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
+values ('dddddddd-0000-0000-0000-0000000000f4', 'dddddddd-0000-0000-0000-0000000000f0',
+        'Etapa do Rafael', 4, :RAFAEL, true, 'interna');
 
-select teste.conferir('E diz SIM para a socia',
-  (select public.pode_decidir_rodada('eeeeeeee-0000-0000-0000-0000000000f3')::text
-     from (select set_config('request.jwt.claim.sub',
-                             '11111111-1111-1111-1111-111111111111', true)) _),
-  'true');
+select teste.cenario('Rafael abre a rodada da etapa dele', :RAFAEL,
+  format($fmt$insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
+    values ('eeeeeeee-0000-0000-0000-0000000000f4', 'dddddddd-0000-0000-0000-0000000000f4',
+            1, 'interna', %L)$fmt$, :RAFAEL), 'ok', 1);
+
+select teste.cenario('E NAO aprova: colaborador nao decide, nem a propria', :RAFAEL,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f4'$fmt$, :RAFAEL), 'recusa');
+
+-- Pedir ajustes sem dizer o que ajustar continua recusado, e a frase continua
+-- a mesma. A 0029 mexeu em QUEM decide, nao em COMO se decide.
+select teste.recusa_com('E o gestor ainda nao pede ajustes sem comentario', :DIEGO,
+  format($fmt$update public.approval_rounds set status = 'ajustes_solicitados', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f4'$fmt$, :DIEGO),
+  'Pedir ajustes exige um comentário');
+
+-- E a socia decide a rodada de outra pessoa, que e o caso de sempre. A 0029
+-- acrescentou um caminho; nao tirou este.
+select teste.cenario('E a socia decide a rodada do Rafael', :ANA,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where id = 'eeeeeeee-0000-0000-0000-0000000000f4'$fmt$, :ANA), 'ok', 1);
+
+-- A trava saiu do banco INTEIRA, e nao virou um corpo que devolve `new`
+-- calado. Um trigger com o nome antigo parado na tabela e a separacao que
+-- alguem vai jurar que existe.
+select teste.conferir('O trigger de autoaprovacao nao existe mais',
+  (select count(*)::text from pg_trigger
+    where tgname = 'approval_rounds_sem_autoaprovacao' and not tgisinternal),
+  '0');
+
+select teste.conferir('E a funcao dele tambem nao',
+  (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'bloquear_autoaprovacao'),
+  '0');

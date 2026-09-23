@@ -1,8 +1,12 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { impedimentoParaDecidir, situacaoDasRodadas } from "@/lib/tasks/state-machine";
-import type { ApprovalRound, SubtaskEntrega, TipoAprovacao } from "@/lib/supabase/database.types";
+import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
+import type {
+  ApprovalRound,
+  SubtaskEntrega,
+  TipoAprovacao,
+} from "@/lib/supabase/database.types";
 
 import type { Pessoa } from "./tasks";
 
@@ -35,15 +39,6 @@ export type ItemDaFila = {
   /** Desde quando espera. */
   desde: string;
   entregas: SubtaskEntrega[];
-  /**
-    * Por que EU não posso decidir esta rodada — ou null, se posso.
-    *
-    * São três perguntas e não uma (migration 0026): a etapa está no meu nome,
-    * fui eu quem abriu a rodada, ou fui eu quem anexou o material. Antes só a
-    * primeira era feita, e as outras duas eram caminhos por onde alguém
-    * aprovava o próprio trabalho.
-    */
-   impedimento: string | null;
 };
 
 export type FilaDeAprovacoes = {
@@ -51,7 +46,7 @@ export type FilaDeAprovacoes = {
   prontasParaOCliente: ItemDaFila[];
 };
 
-export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovacoes> {
+export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const supabase = await criarClienteServidor();
 
   // Toda rodada de escopo interna das subtarefas que ainda não fecharam o
@@ -70,9 +65,14 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
   const [{ data: subtarefas }, { data: entregas }] = await Promise.all([
     supabase
       .from("subtasks")
-      .select("id, task_id, titulo, responsavel_id, tipo_aprovacao, requer_aprovacao, status")
+      .select(
+        "id, task_id, titulo, responsavel_id, tipo_aprovacao, requer_aprovacao, status",
+      )
       .in("id", idsDeSubtarefas),
-    supabase.from("subtask_entregas").select("*").in("subtask_id", idsDeSubtarefas),
+    supabase
+      .from("subtask_entregas")
+      .select("*")
+      .in("subtask_id", idsDeSubtarefas),
   ]);
 
   const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
@@ -85,22 +85,31 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
           .in("id", idsDeTasks)
           .not("publicada_em", "is", null)
       : Promise.resolve({
-          data: [] as { id: string; titulo: string; client_id: string; status: string }[],
+          data: [] as {
+            id: string;
+            titulo: string;
+            client_id: string;
+            status: string;
+          }[],
         }),
     supabase
       .from("profiles")
       .select("id, nome, avatar_url")
-      .in(
-        "id",
-        [...new Set((subtarefas ?? []).map((s) => s.responsavel_id).filter(Boolean))] as string[],
-      ),
+      .in("id", [
+        ...new Set(
+          (subtarefas ?? []).map((s) => s.responsavel_id).filter(Boolean),
+        ),
+      ] as string[]),
   ]);
 
   const idsDeClientes = [
     ...new Set((tasks ?? []).map((t) => t.client_id).filter(Boolean)),
   ] as string[];
   const { data: clientes } = idsDeClientes.length
-    ? await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
+    ? await supabase
+        .from("clients")
+        .select("id, nome_empresa")
+        .in("id", idsDeClientes)
     : { data: [] as { id: string; nome_empresa: string }[] };
 
   const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
@@ -121,22 +130,19 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       taskId: sub.task_id,
       subtarefa: sub.titulo,
       task: task.titulo,
-      cliente: task.client_id ? (porCliente.get(task.client_id)?.nome_empresa ?? null) : null,
-      responsavel: sub.responsavel_id ? (porPessoa.get(sub.responsavel_id) ?? null) : null,
+      cliente: task.client_id
+        ? (porCliente.get(task.client_id)?.nome_empresa ?? null)
+        : null,
+      responsavel: sub.responsavel_id
+        ? (porPessoa.get(sub.responsavel_id) ?? null)
+        : null,
       tipoAprovacao: (sub.tipo_aprovacao ?? "interna") as TipoAprovacao,
       entregas: (entregas ?? []).filter((e) => e.subtask_id === sub.id),
-      impedimento: impedimentoParaDecidir({
-        souOResponsavel: sub.responsavel_id === usuarioId,
-        souQuemPediu: minhas.some(
-          (r) => r.status === "pendente" && r.solicitado_por === usuarioId,
-        ),
-        souQuemEntregou: (entregas ?? []).some(
-          (e) => e.subtask_id === sub.id && e.enviado_por === usuarioId,
-        ),
-      }),
     };
 
-    const pendenteInterna = minhas.find((r) => r.status === "pendente" && r.escopo === "interna");
+    const pendenteInterna = minhas.find(
+      (r) => r.status === "pendente" && r.escopo === "interna",
+    );
     if (pendenteInterna) {
       esperando.push({
         ...base,
@@ -154,20 +160,25 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
       sub.status !== "concluida"
     ) {
       const interna = minhas.find(
-        (r) => r.numero_rodada === situacao.rodadaAtual && r.escopo === "interna",
+        (r) =>
+          r.numero_rodada === situacao.rodadaAtual && r.escopo === "interna",
       );
       prontasParaOCliente.push({
         ...base,
         rodadaId: null,
         numeroRodada: situacao.rodadaAtual,
-        desde: interna?.decidido_em ?? interna?.solicitado_em ?? new Date().toISOString(),
+        desde:
+          interna?.decidido_em ??
+          interna?.solicitado_em ??
+          new Date().toISOString(),
       });
     }
   }
 
   // Quem espera há mais tempo vem primeiro: é a fila justa, e é a que evita
   // uma entrega ficar esquecida no fim da lista.
-  const maisAntigoPrimeiro = (a: ItemDaFila, b: ItemDaFila) => a.desde.localeCompare(b.desde);
+  const maisAntigoPrimeiro = (a: ItemDaFila, b: ItemDaFila) =>
+    a.desde.localeCompare(b.desde);
 
   return {
     esperando: esperando.sort(maisAntigoPrimeiro),

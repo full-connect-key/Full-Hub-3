@@ -10,13 +10,13 @@ import { Fila } from "./fila";
 
 export const metadata: Metadata = { title: "Aprovações internas" };
 
-async function Conteudo({ usuarioId }: { usuarioId: string }) {
-  const fila = await filaDeAprovacoes(usuarioId);
+async function Conteudo() {
+  const fila = await filaDeAprovacoes();
   return <Fila fila={fila} />;
 }
 
 export default async function PaginaDeAprovacoesInternas() {
-  const sessao = await exigirAcessoARota("/painel/aprovacoes-internas");
+  await exigirAcessoARota("/painel/aprovacoes-internas");
 
   return (
     <div className="space-y-6">
@@ -25,7 +25,7 @@ export default async function PaginaDeAprovacoesInternas() {
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={5} />}>
-        <Conteudo usuarioId={sessao.usuarioId} />
+        <Conteudo />
       </Suspense>
     </div>
   );

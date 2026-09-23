@@ -22,7 +22,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   formatarMinutos,
@@ -30,8 +34,15 @@ import {
   minutosMedidos,
   HORAS_ATE_DESCONFIAR,
 } from "@/lib/dominio/tempo";
-import { acoesDaSubtarefa, DESTINO_DA_ACAO, type IdDeAcao } from "@/lib/tasks/state-machine";
-import type { SubtaskStatus, TipoAprovacao } from "@/lib/supabase/database.types";
+import {
+  acoesDaSubtarefa,
+  DESTINO_DA_ACAO,
+  type IdDeAcao,
+} from "@/lib/tasks/state-machine";
+import type {
+  SubtaskStatus,
+  TipoAprovacao,
+} from "@/lib/supabase/database.types";
 
 import {
   aprovarInterna,
@@ -72,18 +83,6 @@ export type SubtarefaParaAcao = {
    */
   tempo_medido_segundos?: number;
   andando_desde?: string | null;
-  /**
-   * Os outros dois registros de "fui eu que fiz" (migration 0026): a rodada
-   * que a própria pessoa abriu e o material que ela anexou.
-   *
-   * OPCIONAIS pela mesma razão das duas colunas do cronômetro acima — nem
-   * toda tela carrega a linha inteira. Quando faltam, o componente assume
-   * que não sou nenhum dos dois; e nas telas que não os carregam o botão de
-   * decidir não aparece de qualquer forma. Quem vale é o trigger
-   * `bloquear_autoaprovacao`, não isto.
-   */
-  rodadas?: { status: string; solicitado_por: string }[];
-  entregas?: { enviado_por: string }[];
   dependenciasAbertas: string[];
   rodadaPendente: boolean;
   avalInterno: boolean;
@@ -118,20 +117,15 @@ export function AcoesDaSubtarefa({
   const [medido, setMedido] = useState<number | null>(null);
   const [pedindoMotivo, setPedindoMotivo] = useState(false);
   const [motivo, setMotivo] = useState("");
-  const [confirmando, setConfirmando] = useState<null | "enviar_aprovacao" | "enviar_cliente">(null);
+  const [confirmando, setConfirmando] = useState<
+    null | "enviar_aprovacao" | "enviar_cliente"
+  >(null);
 
   const acoes = acoesDaSubtarefa({
     status: subtarefa.status,
     requerAprovacao: subtarefa.requer_aprovacao,
     tipoAprovacao: subtarefa.tipo_aprovacao,
     souOResponsavel: subtarefa.responsavel_id === usuarioId,
-    // Os outros dois registros de "fui eu que fiz" (migration 0026): a rodada
-    // que eu mesmo abri, e o material que eu mesmo anexei. Sem eles o botão
-    // aparecia ligado e o banco recusava depois do clique.
-    souQuemPediu: (subtarefa.rodadas ?? []).some(
-      (r) => r.status === "pendente" && r.solicitado_por === usuarioId,
-    ),
-    souQuemEntregou: (subtarefa.entregas ?? []).some((e) => e.enviado_por === usuarioId),
     souGestor,
     dependenciasAbertas: subtarefa.dependenciasAbertas,
     rodadaPendente: subtarefa.rodadaPendente,
@@ -145,7 +139,11 @@ export function AcoesDaSubtarefa({
   const principal = acoes.find((a) => a.principal) ?? acoes[0];
   const secundarias = acoes.filter((a) => a !== principal);
 
-  function terminar(resultado: { ok: boolean; mensagem?: string; error?: string }) {
+  function terminar(resultado: {
+    ok: boolean;
+    mensagem?: string;
+    error?: string;
+  }) {
     if (!resultado.ok) {
       toast.error(resultado.error ?? "Não foi possível.");
       return false;
@@ -158,7 +156,11 @@ export function AcoesDaSubtarefa({
 
   function mover(destino: SubtaskStatus, minutos?: number | null) {
     iniciar(async () => {
-      terminar(await chamarAcao(() => moverSubtarefa(subtarefa.id, subtarefa.task_id, destino, minutos)));
+      terminar(
+        await chamarAcao(() =>
+          moverSubtarefa(subtarefa.id, subtarefa.task_id, destino, minutos),
+        ),
+      );
     });
   }
 
@@ -182,7 +184,9 @@ export function AcoesDaSubtarefa({
         return;
       case "aprovar":
         if (!rodadaPendenteId) {
-          toast.error("Esta rodada não está mais esperando decisão. Atualize a tela.");
+          toast.error(
+            "Esta rodada não está mais esperando decisão. Atualize a tela.",
+          );
           return;
         }
         iniciar(async () => {
@@ -211,7 +215,12 @@ export function AcoesDaSubtarefa({
         {secundarias.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8" aria-label="Mais ações">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Mais ações"
+              >
                 <ChevronDown aria-hidden />
               </Button>
             </DropdownMenuTrigger>
@@ -243,7 +252,12 @@ export function AcoesDaSubtarefa({
         }
         aoConcluir={async (minutos) => {
           const resultado = await chamarAcao(() =>
-            moverSubtarefa(subtarefa.id, subtarefa.task_id, "concluida", minutos),
+            moverSubtarefa(
+              subtarefa.id,
+              subtarefa.task_id,
+              "concluida",
+              minutos,
+            ),
           );
           return terminar(resultado);
         }}
@@ -251,13 +265,16 @@ export function AcoesDaSubtarefa({
 
       {/* Pedir ajustes sem dizer o que ajustar não ajuda ninguém — e o banco
           recusa a rodada sem comentário, então o campo é obrigatório aqui. */}
-      <Dialog open={pedindoMotivo} onOpenChange={(aberto) => !aberto && setPedindoMotivo(false)}>
+      <Dialog
+        open={pedindoMotivo}
+        onOpenChange={(aberto) => !aberto && setPedindoMotivo(false)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O que precisa ser ajustado?</DialogTitle>
             <DialogDescription>
-              O texto vai para quem produziu, junto com a rodada. É o que ele vai ler para saber o
-              que refazer.
+              O texto vai para quem produziu, junto com a rodada. É o que ele
+              vai ler para saber o que refazer.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -277,7 +294,9 @@ export function AcoesDaSubtarefa({
                 if (!rodadaPendenteId) return;
                 iniciar(async () => {
                   const ok = terminar(
-                    await chamarAcao(() => solicitarAjustesInterna(rodadaPendenteId, motivo)),
+                    await chamarAcao(() =>
+                      solicitarAjustesInterna(rodadaPendenteId, motivo),
+                    ),
                   );
                   if (ok) setPedindoMotivo(false);
                 });
@@ -290,11 +309,16 @@ export function AcoesDaSubtarefa({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={confirmando !== null} onOpenChange={(aberto) => !aberto && setConfirmando(null)}>
+      <Dialog
+        open={confirmando !== null}
+        onOpenChange={(aberto) => !aberto && setConfirmando(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {confirmando === "enviar_cliente" ? "Enviar para o cliente" : "Enviar para aprovação"}
+              {confirmando === "enviar_cliente"
+                ? "Enviar para o cliente"
+                : "Enviar para aprovação"}
             </DialogTitle>
             <DialogDescription>
               {confirmando === "enviar_cliente"
@@ -310,7 +334,9 @@ export function AcoesDaSubtarefa({
                 onClick={() =>
                   iniciar(async () => {
                     const ok = terminar(
-                      await chamarAcao(() => enviarParaAprovacao(subtarefa.id, { semArquivo: true })),
+                      await chamarAcao(() =>
+                        enviarParaAprovacao(subtarefa.id, { semArquivo: true }),
+                      ),
                     );
                     if (ok) setConfirmando(null);
                   })
@@ -339,7 +365,9 @@ export function AcoesDaSubtarefa({
                 }
               >
                 {executando ? <Loader2 className="animate-spin" /> : null}
-                {confirmando === "enviar_cliente" ? "Enviar ao cliente" : "Enviar"}
+                {confirmando === "enviar_cliente"
+                  ? "Enviar ao cliente"
+                  : "Enviar"}
               </Button>
             </div>
           </DialogFooter>
@@ -388,7 +416,6 @@ function BotaoComMotivo({
   );
 }
 
-
 /**
  * Os minutos que o cronômetro contou, incluindo a passagem em curso.
  *
@@ -414,12 +441,18 @@ function medidoAteAgora(subtarefa: SubtarefaParaAcao): number {
  * se confirma sem pensar. E são duas origens diferentes — o cronômetro é
  * medição, a estimativa é palpite de quem abriu a demanda.
  */
-function origemDoNumero(medido: number | null, estimativa: number | null): string | undefined {
+function origemDoNumero(
+  medido: number | null,
+  estimativa: number | null,
+): string | undefined {
   if (medido !== null) {
     const comparacao =
-      estimativa !== null ? ` A estimativa era ${formatarMinutos(estimativa)}.` : "";
+      estimativa !== null
+        ? ` A estimativa era ${formatarMinutos(estimativa)}.`
+        : "";
     return `Medido pelo cronômetro, que corre enquanto a etapa está em andamento.${comparacao}`;
   }
-  if (estimativa !== null) return "Sugerido pela estimativa da subtarefa — o cronômetro não contou nada nesta etapa.";
+  if (estimativa !== null)
+    return "Sugerido pela estimativa da subtarefa — o cronômetro não contou nada nesta etapa.";
   return undefined;
 }

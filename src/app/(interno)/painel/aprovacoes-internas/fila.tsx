@@ -79,14 +79,16 @@ export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
       {fila.prontasParaOCliente.length > 0 ? (
         <section className="space-y-3">
           <div className="flex items-baseline gap-2">
-            <h2 className="text-sm font-semibold">Prontas para enviar ao cliente</h2>
+            <h2 className="text-sm font-semibold">
+              Prontas para enviar ao cliente
+            </h2>
             <span className="text-muted-foreground text-xs tabular-nums">
               {fila.prontasParaOCliente.length}
             </span>
           </div>
           <p className="text-muted-foreground text-xs">
-            Já passaram pelo aval interno. Aprovar diz que o material está bom; enviar diz que é
-            agora — e é uma decisão sua.
+            Já passaram pelo aval interno. Aprovar diz que o material está bom;
+            enviar diz que é agora — e é uma decisão sua.
           </p>
           <ul className="space-y-2">
             {fila.prontasParaOCliente.map((item) => (
@@ -111,7 +113,9 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
           {item.subtarefa}
         </Link>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
-        <Badge variant="secondary">{ROTULO_DA_APROVACAO[item.tipoAprovacao]}</Badge>
+        <Badge variant="secondary">
+          {ROTULO_DA_APROVACAO[item.tipoAprovacao]}
+        </Badge>
       </div>
 
       <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
@@ -128,7 +132,10 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         ) : null}
         <span>
           espera há{" "}
-          {formatDistanceToNowStrict(parseISO(item.desde), { locale: ptBR, addSuffix: false })}
+          {formatDistanceToNowStrict(parseISO(item.desde), {
+            locale: ptBR,
+            addSuffix: false,
+          })}
         </span>
       </p>
 
@@ -150,7 +157,9 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground pt-1 text-xs italic">Sem arquivo anexado.</p>
+        <p className="text-muted-foreground pt-1 text-xs italic">
+          Sem arquivo anexado.
+        </p>
       )}
     </div>
   );
@@ -166,55 +175,53 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
     <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
       <Cabecalho item={item} />
 
-      {/* A frase vem pronta da camada de dados, e diz QUAL dos três motivos
-          impede: a etapa é minha, a rodada foi eu quem abri, ou o material
-          foi eu quem anexei. "Você é o responsável" numa etapa que está no
-          nome de outra pessoa parecia engano do sistema. */}
-      {item.impedimento ? (
-        <p className="text-muted-foreground bg-muted/60 rounded-md px-3 py-2 text-xs">
-          {item.impedimento} Outra pessoa da gestão precisa decidir.
-        </p>
-      ) : (
-        <div className="flex shrink-0 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={executando}
-            onClick={() => {
-              setMotivo("");
-              setPedindoMotivo(true);
-            }}
-          >
-            Solicitar ajustes
-          </Button>
-          <Button
-            size="sm"
-            disabled={executando}
-            onClick={() =>
-              iniciar(async () => {
-                if (!item.rodadaId) return;
-                const resultado = await chamarAcao(() => aprovarInterna(item.rodadaId!));
-                if (!resultado.ok) toast.error(resultado.error);
-                else {
-                  toast.success(resultado.mensagem);
-                  router.refresh();
-                }
-              })
-            }
-          >
-            {executando ? <Loader2 className="animate-spin" /> : null}
-            Aprovar
-          </Button>
-        </div>
-      )}
+      {/* Quem chega nesta fila é gestão, e desde a migration 0029 a gestão
+          decide qualquer rodada — inclusive a da etapa que está no próprio
+          nome. Não há mais motivo para desligar botão nenhum aqui. */}
+      <div className="flex shrink-0 gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={executando}
+          onClick={() => {
+            setMotivo("");
+            setPedindoMotivo(true);
+          }}
+        >
+          Solicitar ajustes
+        </Button>
+        <Button
+          size="sm"
+          disabled={executando}
+          onClick={() =>
+            iniciar(async () => {
+              if (!item.rodadaId) return;
+              const resultado = await chamarAcao(() =>
+                aprovarInterna(item.rodadaId!),
+              );
+              if (!resultado.ok) toast.error(resultado.error);
+              else {
+                toast.success(resultado.mensagem);
+                router.refresh();
+              }
+            })
+          }
+        >
+          {executando ? <Loader2 className="animate-spin" /> : null}
+          Aprovar
+        </Button>
+      </div>
 
-      <Dialog open={pedindoMotivo} onOpenChange={(aberto) => !aberto && setPedindoMotivo(false)}>
+      <Dialog
+        open={pedindoMotivo}
+        onOpenChange={(aberto) => !aberto && setPedindoMotivo(false)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O que precisa ser ajustado?</DialogTitle>
             <DialogDescription>
-              Vai junto com a rodada, para quem produziu. É o que ele vai ler para saber o que
-              refazer.
+              Vai junto com a rodada, para quem produziu. É o que ele vai ler
+              para saber o que refazer.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -267,7 +274,9 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
         disabled={executando}
         onClick={() =>
           iniciar(async () => {
-            const resultado = await chamarAcao(() => enviarParaCliente(item.subtaskId));
+            const resultado = await chamarAcao(() =>
+              enviarParaCliente(item.subtaskId),
+            );
             if (!resultado.ok) toast.error(resultado.error);
             else {
               toast.success(resultado.mensagem);
@@ -276,7 +285,11 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
           })
         }
       >
-        {executando ? <Loader2 className="animate-spin" /> : <Send aria-hidden />}
+        {executando ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <Send aria-hidden />
+        )}
         Enviar para o cliente
       </Button>
     </li>

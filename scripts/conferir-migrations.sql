@@ -27,9 +27,9 @@ from (
     ('tasks_volta_a_calcular (os sete status a mao)',
      exists (select 1 from pg_trigger where tgname = 'tasks_volta_a_calcular'), '0025'),
 
-    ('pode_decidir_rodada() (ninguem aprova o proprio trabalho)',
-     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-              where n.nspname = 'public' and p.proname = 'pode_decidir_rodada'), '0026'),
+    -- A 0026 criou `pode_decidir_rodada()` e a 0029 apagou junto com o resto
+    -- da trava. Como as duas se anulam, o que se confere aqui e o estado
+    -- FINAL: a trava fora. Um banco parado na 0026 acusa este item.
 
     ('subtasks.data_inicio (periodo da etapa)',
      exists (select 1 from information_schema.columns
@@ -37,6 +37,11 @@ from (
 
     ('tasks.publicada_em (rascunho)',
      exists (select 1 from information_schema.columns
-              where table_name = 'tasks' and column_name = 'publicada_em'), '0028')
+              where table_name = 'tasks' and column_name = 'publicada_em'), '0028'),
+
+    ('trava de autoaprovacao FORA (a gestao aprova o proprio)',
+     not exists (select 1 from pg_trigger
+                  where tgname = 'approval_rounds_sem_autoaprovacao'
+                    and not tgisinternal), '0029')
 ) as t(item, existe, migration)
 order by migration;

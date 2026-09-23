@@ -1,9 +1,10 @@
 /**
  * Versao de prototipo de src/lib/dados/aprovacoes.ts.
  *
- * A fila do desenvolvedor com os tres casos que ela precisa mostrar: um item
+ * A fila do desenvolvedor com os casos que ela precisa mostrar: um item
  * esperando decisao, um ja com aval interno esperando o envio, e um em que o
- * proprio desenvolvedor e o responsavel -- esse aparece sem botoes.
+ * proprio desenvolvedor e o responsavel -- que desde a migration 0029 aparece
+ * COM os botoes, porque a gestao decide inclusive o proprio trabalho.
  */
 import type { FilaDeAprovacoes, ItemDaFila } from "../../src/lib/dados/aprovacoes";
 
@@ -14,14 +15,10 @@ export type { FilaDeAprovacoes, ItemDaFila };
 const AGORA = Date.now();
 const horasAtras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
 
-export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovacoes> {
+export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const kv = SUBTAREFAS.find((s) => s.titulo === "Criar KV")!;
   const landing = SUBTAREFAS.find((s) => s.titulo === "Desenvolver landing")!;
   const roteiro = SUBTAREFAS.find((s) => s.titulo === "Roteiro do reels")!;
-
-  // Quando quem olha e o proprio Diego, o item dele aparece marcado e sem
-  // botoes -- ninguem aprova a propria entrega.
-  const souODesenvolvedor = usuarioId === DIEGO.id;
 
   return {
     esperando: [
@@ -37,7 +34,6 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "cliente",
         desde: horasAtras(26),
         entregas: kv.entregas,
-        impedimento: null,
       },
       {
         rodadaId: "rod-landing",
@@ -51,9 +47,6 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "interna",
         desde: horasAtras(5),
         entregas: landing.entregas,
-        impedimento: souODesenvolvedor
-          ? "Ninguém aprova o próprio trabalho: esta etapa está no seu nome."
-          : null,
       },
     ],
     prontasParaOCliente: [
@@ -69,7 +62,6 @@ export async function filaDeAprovacoes(usuarioId: string): Promise<FilaDeAprovac
         tipoAprovacao: "cliente",
         desde: horasAtras(4),
         entregas: roteiro.entregas,
-        impedimento: null,
       },
     ],
   };

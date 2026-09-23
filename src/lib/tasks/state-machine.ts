@@ -59,7 +59,8 @@ export const ROTULOS_DE_SUBTAREFA: Record<SubtaskStatus, string> = {
 export const EXPLICACAO_DO_STATUS: Record<TaskStatus, string> = {
   nao_iniciada: "Nenhuma subtarefa começou.",
   em_andamento: "Alguma subtarefa está em andamento ou já foi concluída.",
-  aguardando_informacoes: "Alguma subtarefa está parada esperando informação, e nenhuma está andando.",
+  aguardando_informacoes:
+    "Alguma subtarefa está parada esperando informação, e nenhuma está andando.",
   entregue: "Marcado à mão: o material saiu. Não quer dizer que foi aprovado.",
   em_aprovacao: "Existe uma rodada de aprovação esperando decisão.",
   em_ajustes: "Alguma subtarefa voltou com pedido de ajustes.",
@@ -91,7 +92,12 @@ export const ROTULO_DO_ESCOPO: Record<EscopoRodada, string> = {
  */
 const DESTINOS: Record<SubtaskStatus, SubtaskStatus[]> = {
   nao_iniciada: ["em_andamento", "aguardando_informacoes"],
-  em_andamento: ["aguardando_informacoes", "enviada_aprovacao", "concluida", "nao_iniciada"],
+  em_andamento: [
+    "aguardando_informacoes",
+    "enviada_aprovacao",
+    "concluida",
+    "nao_iniciada",
+  ],
   aguardando_informacoes: ["em_andamento"],
   enviada_aprovacao: ["concluida", "em_ajustes"],
   em_ajustes: ["em_andamento"],
@@ -104,10 +110,6 @@ export type ContextoDaSubtarefa = {
   tipoAprovacao: TipoAprovacao | null;
   /** Quem está olhando é o responsável por ela? */
   souOResponsavel: boolean;
-  /** Foi quem está olhando que mandou a rodada pendente para aprovação? */
-  souQuemPediu: boolean;
-  /** Foi quem está olhando que anexou alguma entrega desta etapa? */
-  souQuemEntregou: boolean;
   /** Quem está olhando é desenvolvedor ou sócio? */
   souGestor: boolean;
   /** Títulos das dependências que ainda não terminaram. Vazio = liberada. */
@@ -124,38 +126,6 @@ export type ContextoDaSubtarefa = {
 
 export type Veredito = { ok: true } | { ok: false; motivo: string };
 
-/**
- * Por que esta pessoa não pode decidir esta rodada — ou null, se pode.
- *
- * **SÃO TRÊS PERGUNTAS, e não uma.** Até a migration 0026 o produto só sabia
- * perguntar "você é o responsável pela etapa?", e isso deixava passar três
- * caminhos reais: etapa sem responsável, a rodada que a própria pessoa abriu
- * para destravar, e a etapa que ela entregou antes de passar para outro nome.
- *
- * Cada um é um registro diferente de "fui eu que fiz", e cada um sobrevive
- * onde os outros dois se perdem.
- *
- * O par no Postgres é o trigger `bloquear_autoaprovacao`, que é quem vale —
- * esta função existe para o botão já aparecer desligado com o motivo, em vez
- * de a pessoa clicar e levar a recusa.
- */
-export function impedimentoParaDecidir(ctx: {
-  souOResponsavel: boolean;
-  souQuemPediu: boolean;
-  souQuemEntregou: boolean;
-}): string | null {
-  if (ctx.souOResponsavel) {
-    return "Ninguém aprova o próprio trabalho: esta etapa está no seu nome.";
-  }
-  if (ctx.souQuemPediu) {
-    return "Ninguém aprova o próprio trabalho: foi você quem mandou esta rodada para aprovação.";
-  }
-  if (ctx.souQuemEntregou) {
-    return "Ninguém aprova o próprio trabalho: o material desta etapa foi enviado por você.";
-  }
-  return null;
-}
-
 const SIM: Veredito = { ok: true };
 const nao = (motivo: string): Veredito => ({ ok: false, motivo });
 
@@ -165,7 +135,10 @@ const nao = (motivo: string): Veredito => ({ ok: false, motivo });
  * Espelha, uma a uma, as quatro regras invioláveis que o trigger
  * `validar_transicao_de_subtarefa` aplica no banco.
  */
-export function podeIrPara(ctx: ContextoDaSubtarefa, destino: SubtaskStatus): Veredito {
+export function podeIrPara(
+  ctx: ContextoDaSubtarefa,
+  destino: SubtaskStatus,
+): Veredito {
   if (destino === ctx.status) return nao("A subtarefa já está nesse status.");
 
   if (!DESTINOS[ctx.status].includes(destino)) {
@@ -180,7 +153,9 @@ export function podeIrPara(ctx: ContextoDaSubtarefa, destino: SubtaskStatus): Ve
 
   if (destino === "concluida" && ctx.requerAprovacao && !ctx.avalFinal) {
     const tipo = ctx.tipoAprovacao === "cliente" ? "do cliente" : "interna";
-    return nao(`Esta subtarefa exige aprovação ${tipo} e não pode ser concluída direto.`);
+    return nao(
+      `Esta subtarefa exige aprovação ${tipo} e não pode ser concluída direto.`,
+    );
   }
 
   if (destino === "enviada_aprovacao" && !ctx.rodadaPendente) {
@@ -234,7 +209,9 @@ export type AcaoDeSubtarefa = {
 export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
   const acoes: AcaoDeSubtarefa[] = [];
   const bloqueada = ctx.dependenciasAbertas.length > 0;
-  const motivoDoBloqueio = bloqueada ? `Aguardando: ${ctx.dependenciasAbertas.join(", ")}` : undefined;
+  const motivoDoBloqueio = bloqueada
+    ? `Aguardando: ${ctx.dependenciasAbertas.join(", ")}`
+    : undefined;
 
   const podeAgir = ctx.souOResponsavel || ctx.souGestor;
 
@@ -249,8 +226,16 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
       });
     }
 
-    if (ctx.status === "em_ajustes" || ctx.status === "aguardando_informacoes") {
-      acoes.push({ id: "retomar", rotulo: "Retomar", principal: true, desabilitada: false });
+    if (
+      ctx.status === "em_ajustes" ||
+      ctx.status === "aguardando_informacoes"
+    ) {
+      acoes.push({
+        id: "retomar",
+        rotulo: "Retomar",
+        principal: true,
+        desabilitada: false,
+      });
     }
 
     if (ctx.status === "em_andamento") {
@@ -262,7 +247,12 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
           desabilitada: false,
         });
       } else {
-        acoes.push({ id: "concluir", rotulo: "Concluir", principal: true, desabilitada: false });
+        acoes.push({
+          id: "concluir",
+          rotulo: "Concluir",
+          principal: true,
+          desabilitada: false,
+        });
       }
       acoes.push({
         id: "aguardar_informacoes",
@@ -273,25 +263,31 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
     }
   }
 
-  // Decisão: da gestão, e nunca de quem produziu.
-  if (ctx.status === "enviada_aprovacao" && ctx.rodadaPendente) {
-    const impedido = impedimentoParaDecidir(ctx);
-    if (ctx.souGestor) {
-      acoes.push({
-        id: "aprovar",
-        rotulo: "Aprovar",
-        principal: true,
-        desabilitada: impedido !== null,
-        motivo: impedido ?? undefined,
-      });
-      acoes.push({
-        id: "solicitar_ajustes",
-        rotulo: "Solicitar ajustes",
-        principal: false,
-        desabilitada: impedido !== null,
-        motivo: impedido ?? undefined,
-      });
-    }
+  // Decisão: da gestão, e de mais ninguém.
+  //
+  // **INCLUSIVE do próprio responsável** (migration 0029, decisão do
+  // usuário). Era a única pergunta que sobrava depois de `souGestor`, e ela
+  // saiu: numa equipe em que o desenvolvedor é quem executa e quem valida,
+  // exigir outra pessoa parava o trabalho. O que se perde está escrito no
+  // cabeçalho da 0029 — a rodada deixa de ser checagem independente e passa a
+  // ser registro de quem decidiu, quando e com que comentário.
+  if (
+    ctx.status === "enviada_aprovacao" &&
+    ctx.rodadaPendente &&
+    ctx.souGestor
+  ) {
+    acoes.push({
+      id: "aprovar",
+      rotulo: "Aprovar",
+      principal: true,
+      desabilitada: false,
+    });
+    acoes.push({
+      id: "solicitar_ajustes",
+      rotulo: "Solicitar ajustes",
+      principal: false,
+      desabilitada: false,
+    });
   }
 
   // "Enviar para o cliente" é do Desenvolvedor, e só depois do aval interno.
@@ -332,7 +328,6 @@ export const DESTINO_DA_ACAO: Partial<Record<IdDeAcao, SubtaskStatus>> = {
 // A Task
 // ---------------------------------------------------------------------------
 
-
 export type ContextoDaTask = {
   status: TaskStatus;
   souGestorOuAtendimento: boolean;
@@ -344,7 +339,10 @@ export type ContextoDaTask = {
  * Recusa com o motivo por extenso — "Existe aprovação pendente na subtarefa
  * Criar KV" diz o que fazer; "transição inválida" não diz nada.
  */
-export function podeMoverTaskPara(ctx: ContextoDaTask, destino: TaskStatus): Veredito {
+export function podeMoverTaskPara(
+  ctx: ContextoDaTask,
+  destino: TaskStatus,
+): Veredito {
   if (destino === ctx.status) return nao("A Task já está nesse status.");
 
   if (!ctx.souGestorOuAtendimento) {
@@ -423,7 +421,8 @@ export function situacaoDasRodadas(
   const doCliente = daAtual.find((r) => r.escopo === "cliente");
 
   const avalInterno = interna?.status === "aprovada";
-  const avalFinal = tipo === "cliente" ? doCliente?.status === "aprovada" : avalInterno;
+  const avalFinal =
+    tipo === "cliente" ? doCliente?.status === "aprovada" : avalInterno;
 
   return {
     rodadaAtual,
