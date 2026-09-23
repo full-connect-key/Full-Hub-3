@@ -77,6 +77,30 @@ de runtime invisível ao build. Já apanhou um `export const` num arquivo
 `"use server"`, que derrubava todas as Server Actions da Gestão de Tasks sem
 o `npm run build` reclamar.
 
+Cada sprint com regra de tela tem o seu:
+
+| Script | Perfis |
+| --- | --- |
+| `verificar-fluxo.mjs` | `socio` |
+| `verificar-formulario-de-task.mjs` | `socio` |
+| `verificar-3c-e-6.mjs` | `socio` |
+| `verificar-7.mjs` | `socio` |
+| `verificar-8.mjs` e `verificar-8-desenvolvedor.mjs` | `socio`, depois `desenvolvedor` |
+| `verificar-9.mjs` | `socio`, **depois `colaborador`** |
+
+O `verificar-9.mjs` roda duas vezes de propósito, e é a segunda que interessa:
+metade dos critérios do Sprint 9 é sobre o que a equipe **não** alcança — a
+trilha em rascunho, a aba de gestão, remover post alheio. Rodando só como
+sócio, todos esses cenários passariam sem nunca ter sido testados.
+
+Passe o mesmo perfil no ambiente do script, senão ele confere contra o papel
+errado e reprova por engano:
+
+```bash
+cd .prototipo && PROTOTIPO_ROLE=colaborador npx next start -p 3600 &
+PROTOTIPO_ROLE=colaborador node scripts/prototipo-clicavel/verificar-9.mjs
+```
+
 ## Armadilha conhecida
 
 O `<script>` da página final é escrito dentro de um template literal do

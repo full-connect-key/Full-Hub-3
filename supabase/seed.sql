@@ -589,3 +589,135 @@ select 'a0000000-0000-0000-0000-000000000003'::uuid, p.tipo::public.pf_tipo, p.d
         and pf.descricao = p.descricao
         and date_trunc('month', pf.data) = date_trunc('month', current_date)
    );
+
+
+-- ===========================================================================
+-- SPRINT 9 -- Full Academy e Recomendacoes
+--
+-- Duas trilhas e alguns posts, para as telas terem historia ao abrir. A
+-- segunda trilha fica em RASCUNHO de proposito: e o unico jeito de a tela de
+-- gestao mostrar a diferenca entre "publicada" e "so a gestao ve".
+-- ===========================================================================
+
+do $$
+declare
+  ana      uuid := 'a0000000-0000-0000-0000-000000000001';
+  diego    uuid := 'a0000000-0000-0000-0000-000000000002';
+  carla    uuid := 'a0000000-0000-0000-0000-000000000003';
+  bruno    uuid := 'a0000000-0000-0000-0000-000000000004';
+  marina   uuid := 'a0000000-0000-0000-0000-000000000005';
+  onboarding uuid;
+  briefing   uuid;
+  rascunho   uuid;
+  kv         uuid;
+  post       uuid;
+  skill_copy uuid;
+begin
+  if not exists (select 1 from public.profiles where id = carla) then
+    raise notice 'Sem equipe no seed; a Academy nao foi populada.';
+    return;
+  end if;
+
+  if exists (select 1 from public.academy_tracks where titulo = 'Onboarding da casa') then
+    raise notice 'A Academy de exemplo ja existe.';
+    return;
+  end if;
+
+  select id into skill_copy from public.skills where nome ilike '%copy%' limit 1;
+
+  -- 1. Trilha obrigatoria, publicada, com tres tipos diferentes de material
+  insert into public.academy_tracks (titulo, descricao, area, obrigatoria, publicada, ordem, criado_por)
+  values ('Onboarding da casa',
+          'Como a agencia trabalha: o fluxo de uma demanda, quem aprova o que, e onde cada coisa mora.',
+          'Processos', true, true, 1, diego)
+  returning id into onboarding;
+
+  insert into public.academy_materials (track_id, titulo, descricao, tipo, url, duracao_minutos, ordem)
+  values
+    (onboarding, 'Boas-vindas da Ana', 'O que a Full Connect Key faz e para quem.',
+     'video', 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', 12, 1),
+    (onboarding, 'O caminho de uma demanda', 'Da abertura da task a entrega aprovada.',
+     'artigo', 'https://exemplo.invalid/fluxo-da-demanda', 20, 2),
+    (onboarding, 'Modelo de briefing', 'O que todo briefing precisa responder.',
+     'template', null, null, 3);
+
+  -- 2. Trilha ligada a uma skill -- e a ponte com o Sprint 7
+  insert into public.academy_tracks (titulo, descricao, area, obrigatoria, publicada, ordem, criado_por)
+  values ('Escrita para redes',
+          'Copy que funciona em feed, em story e em legenda.',
+          'Conteudo', false, true, 2, diego)
+  returning id into briefing;
+
+  insert into public.academy_materials (track_id, titulo, descricao, tipo, url, duracao_minutos, ordem, skill_id)
+  values
+    (briefing, 'Copy que para o dedo', 'Os tres primeiros segundos de uma legenda.',
+     'video', 'https://vimeo.com/76979871', 18, 1, skill_copy),
+    (briefing, 'Guia de tom de voz', 'Como cada cliente fala, e como nao falar por ele.',
+     'pdf', null, 25, 2, skill_copy);
+
+  -- 3. Trilha em RASCUNHO: a equipe nao enxerga, nem por endereco direto
+  insert into public.academy_tracks (titulo, descricao, area, obrigatoria, publicada, ordem, criado_por)
+  values ('Midia paga do zero',
+          'Em producao. So a gestao ve esta enquanto nao for publicada.',
+          'Midia', false, false, 3, diego)
+  returning id into rascunho;
+
+  insert into public.academy_materials (track_id, titulo, tipo, url, duracao_minutos, ordem)
+  values (rascunho, 'Estrutura de campanha', 'artigo', 'https://exemplo.invalid/midia', 30, 1);
+
+  -- Progresso: a Carla comecou o onboarding e anotou algo. A anotacao e dela.
+  insert into public.academy_progress (user_id, material_id, concluido, anotacoes)
+  select carla, m.id, m.ordem = 1,
+         case when m.ordem = 1 then 'Rever a parte de quem aprova o que.' end
+    from public.academy_materials m
+   where m.track_id = onboarding and m.ordem <= 2;
+
+  -- O Bruno terminou a obrigatoria: e o que da a aba Acompanhamento algo a
+  -- mostrar alem de zeros.
+  insert into public.academy_progress (user_id, material_id, concluido)
+  select bruno, m.id, true from public.academy_materials m where m.track_id = onboarding;
+
+  -- E a Marina quer desenvolver a skill de copy, entao "Escrita para redes"
+  -- aparece na vitrine dela.
+  if skill_copy is not null then
+    insert into public.user_skills (user_id, skill_id, nivel, quer_desenvolver)
+    values (marina, skill_copy, 'iniciante', true)
+    on conflict (user_id, skill_id) do update set quer_desenvolver = true;
+  end if;
+
+  -- 4. O feed
+  insert into public.recommendations (autor_id, categoria, titulo, descricao, url, tags, created_at)
+  values (carla, 'ferramenta', 'Figma Slides',
+          'Da para montar apresentacao de campanha sem sair do arquivo do KV.',
+          'https://www.figma.com/slides/', array['design','apresentacao'], now() - interval '2 hours')
+  returning id into post;
+
+  insert into public.recommendation_likes (recommendation_id, user_id) values (post, bruno), (post, marina);
+  insert into public.recommendation_comments (recommendation_id, autor_id, texto)
+  values (post, marina, 'Uso desde a semana passada, economizou meu domingo.')
+  returning id into kv;
+  insert into public.recommendation_comments (recommendation_id, autor_id, texto, resposta_a)
+  values (post, bruno, 'Boa, vou testar no proximo job.', kv);
+
+  insert into public.recommendations (autor_id, categoria, titulo, descricao, url, tags, created_at)
+  values (bruno, 'filme', 'Abstract: The Art of Design',
+          'A temporada sobre design grafico vale por tres cursos.',
+          'https://www.netflix.com/title/80057883', array['design','inspiracao'],
+          now() - interval '2 days')
+  returning id into post;
+  insert into public.recommendation_likes (recommendation_id, user_id) values (post, carla);
+
+  insert into public.recommendations (autor_id, categoria, titulo, descricao, tags, created_at)
+  values (marina, 'podcast', 'Braincast — episodio sobre marcas',
+          'Serve para a conversa de posicionamento com cliente novo.',
+          array['estrategia'], now() - interval '6 days');
+
+  insert into public.recommendations (autor_id, categoria, titulo, descricao, url, tags, created_at)
+  values (ana, 'livro', 'Obviously Awesome',
+          'Posicionamento explicado sem jargao. Curto.',
+          'https://www.aprildunford.com/obviously-awesome',
+          array['estrategia','posicionamento'], now() - interval '20 days');
+
+  raise notice 'Academy e Recomendacoes de exemplo criadas.';
+end
+$$;

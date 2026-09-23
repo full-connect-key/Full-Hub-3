@@ -128,6 +128,27 @@ const TELAS = [
   { nome: "78-financeiro-pessoal", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador" },
   { nome: "79-financeiro-pessoal-escuro", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador", tema: "escuro" },
 
+  // --- Sprint 9: Academy e Recomendacoes ---------------------------------
+  { nome: "80-academy", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio" },
+  { nome: "81-academy-colaborador", rota: "/painel/academy", largura: 1600, altura: 1200, role: "colaborador" },
+  { nome: "82-academy-trilha", rota: "/painel/academy/t1", largura: 1500, altura: 1200, role: "colaborador" },
+  // DUAS capturas para o material aberto, e nao uma com dois cliques: a lista
+  // e sanfona de um so aberto por vez, entao o segundo clique fecha o
+  // primeiro -- foi o que a imagem mostrou. Cada caminho tem a sua:
+  //   83  -- video, que incorpora o player, e ja vem com anotacao escrita
+  //          (campo vazio nao mostra que a anotacao e por material);
+  //   83b -- artigo, o unico que cai no "Abrir em nova aba".
+  { nome: "83-academy-material-aberto", rota: "/painel/academy/t1", largura: 1500, altura: 1500, role: "colaborador", clicar: 'button:has-text("Boas-vindas da Ana")' },
+  { nome: "83b-academy-material-link", rota: "/painel/academy/t1", largura: 1500, altura: 1200, role: "colaborador", clicar: 'button:has-text("O caminho de uma demanda")' },
+  { nome: "84-academy-gestao", rota: "/painel/academy?aba=gestao", largura: 1700, altura: 1400, role: "socio" },
+  { nome: "85-academy-escuro", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio", tema: "escuro" },
+
+  { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
+  { nome: "87-recomendacoes-postar", rota: "/painel/recomendacoes", largura: 1500, altura: 1200, role: "colaborador", clicar: 'button:has-text("O que você recomenda hoje?")' },
+  { nome: "88-recomendacoes-curtidas", rota: "/painel/recomendacoes?ordem=curtidas", largura: 1600, altura: 1200, role: "colaborador" },
+  { nome: "88b-recomendacoes-remover", rota: "/painel/recomendacoes", largura: 1500, altura: 1000, role: "socio", clicar: 'button:has-text("Remover")' },
+  { nome: "89-recomendacoes-escuro", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "colaborador", tema: "escuro" },
+
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -173,6 +194,8 @@ const SUBSTITUICOES = {
   "@/lib/dados/skills": ["./scripts/prototipo/skills.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/financeiro-pessoal": ["./scripts/prototipo/financeiro-pessoal.ts"],
+  "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
+  "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

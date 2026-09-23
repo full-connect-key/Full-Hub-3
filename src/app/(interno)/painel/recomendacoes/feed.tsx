@@ -22,6 +22,15 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -319,7 +328,6 @@ function CartaoDoPost({
   const [comentando, setComentando] = useState(false);
   const [texto, setTexto] = useState("");
   const [respondendo, setRespondendo] = useState<string | null>(null);
-  const [motivo, setMotivo] = useState("");
 
   const meu = post.autor_id === usuarioId;
   const relativo = tempoRelativo(post.created_at, agoraISO);
@@ -438,33 +446,17 @@ function CartaoDoPost({
           // A gestão MODERA APAGANDO, nunca reescrevendo — a RLS de update
           // fecha no autor. E o motivo não é opcional: post que some sem
           // explicação é o jeito mais rápido de a equipe parar de postar.
-          <div className="ml-auto flex items-center gap-1">
-            <Input
-              className="h-8 w-44 text-xs"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Motivo da remoção"
-              aria-label={`Motivo para remover “${post.titulo}”`}
-            />
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-text-secondary"
-                  disabled={executando || motivo.trim().length < 3}
-                >
-                  <Trash2 aria-hidden />
-                  Remover
-                </Button>
-              }
-              title={`Remover “${post.titulo}”?`}
-              description="O autor recebe um aviso com o motivo que você escreveu."
-              confirmLabel="Remover e avisar"
-              destructive
-              onConfirm={() => aoAgir(() => removerComoGestao(post.id, motivo))}
-            />
-          </div>
+          //
+          // O campo do motivo mora DENTRO do diálogo, e isso é o desenho:
+          // a primeira versão deixava um input aberto em cada cartão, e
+          // três caixas de "Motivo da remoção" empilhadas viravam a coisa
+          // mais alta da página — num feed cuja graça é ser leve. Moderar é
+          // exceção; o que fica visível é curtir e comentar.
+          <DialogoDeRemocao
+            titulo={post.titulo}
+            executando={executando}
+            aoRemover={(razao) => aoAgir(() => removerComoGestao(post.id, razao))}
+          />
         ) : null}
       </footer>
 
@@ -531,6 +523,100 @@ function CartaoDoPost({
         </div>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * A remoção pela gestão, com o motivo dentro do diálogo.
+ *
+ * O motivo é obrigatório na tela e na action: o autor recebe um aviso com
+ * ele, e post que some sem explicação é o jeito mais rápido de a equipe
+ * parar de postar. Três caracteres é o piso — não impede um motivo ruim,
+ * impede o campo vazio.
+ *
+ * Não reaproveita o `ConfirmDialog` porque o modo de digitação de lá exige
+ * um texto EXATO para liberar o botão; aqui o texto é livre e vira conteúdo
+ * do aviso.
+ */
+function DialogoDeRemocao({
+  titulo,
+  executando,
+  aoRemover,
+}: {
+  titulo: string;
+  executando: boolean;
+  aoRemover: (motivo: string) => void | Promise<void>;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [removendo, setRemovendo] = useState(false);
+
+  const liberado = motivo.trim().length >= 3;
+
+  async function remover() {
+    if (!liberado || removendo) return;
+    setRemovendo(true);
+    try {
+      await aoRemover(motivo.trim());
+      setAberto(false);
+      setMotivo("");
+    } finally {
+      setRemovendo(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={aberto}
+      onOpenChange={(proximo) => {
+        setAberto(proximo);
+        if (!proximo) setMotivo("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-text-secondary ml-auto"
+          disabled={executando}
+        >
+          <Trash2 aria-hidden />
+          Remover
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Remover “{titulo}”?</DialogTitle>
+          <DialogDescription>
+            A recomendação sai do feed junto com as curtidas e os comentários. Quem postou
+            recebe um aviso com o motivo que você escrever aqui.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          <Label htmlFor={`motivo-${titulo}`}>Motivo</Label>
+          <Textarea
+            id={`motivo-${titulo}`}
+            value={motivo}
+            onChange={(evento) => setMotivo(evento.target.value)}
+            placeholder="O que fez esta recomendação sair do feed."
+            rows={3}
+            autoFocus
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAberto(false)} disabled={removendo}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={remover} disabled={!liberado || removendo}>
+            {removendo ? <Loader2 className="animate-spin" /> : null}
+            Remover e avisar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -591,6 +591,82 @@ por pessoa, e mudar contrato não pode exigir deploy.
   da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
   uma recusa que ninguém tem como contornar nem entender.
 
+### Full Academy: organizar conteúdo, não avaliar gente
+
+`academy_tracks` (a trilha) e `academy_materials` (o que tem dentro), com
+`academy_progress` guardando o que cada pessoa já viu.
+
+**Não existe quiz, certificado, nota nem gamificação, e a ausência é o
+desenho.** O objetivo é organizar o que a agência já sabe, não medir quem
+aprendeu; no dia em que a Academy der nota, ninguém mais marca "não vi" e o
+acompanhamento deixa de dizer a verdade. `verificar-9.mjs` varre a tela atrás
+dessas palavras toda vez, porque critério que diz "não existe" é o tipo que
+volta sem ninguém perceber.
+
+- **Trilha nasce em rascunho.** Enquanto `publicada = false`, ela não volta do
+  banco para quem não é gestão — a policy `academy_tracks_select` fecha em
+  `is_staff() and (publicada or is_gestor())`. A tela **não** repete esse
+  filtro: dois lugares decidindo a mesma coisa é como nascem duas verdades.
+- **O progresso é da pessoa, e a anotação também.** `academy_progress` escreve
+  só em `user_id = auth.uid()`. A gestão lê a conclusão — e só ela: o
+  acompanhamento passa por `academy_progresso_da_equipe`, uma view
+  `security_invoker` que **não tem a coluna `anotacoes`**. Policy não limita
+  coluna, então a separação é a view. A tela diz isso em voz alta nos dois
+  lados ("Só você lê isto" no material, "não aparece aqui" no
+  acompanhamento), porque é a promessa que faz a pessoa escrever de verdade.
+- **Vídeo do YouTube e do Vimeo abre incorporado; o resto abre em aba nova**,
+  e a tela avisa antes do clique. `iframe` em site de terceiro quebra login,
+  cookie e o botão de voltar — quem decide é `modoDeAbrir()`, em
+  `lib/dominio/academy.ts`.
+- **Reordenar material é uma chamada só** (`academy_reordenar`), e ela **não**
+  é `security definer`: a RPC existe para gravar a ordem inteira numa
+  transação, não para furar a RLS. Quem não pode editar a trilha continua não
+  podendo, e a bateria tem cenário provando isso.
+- A trilha aparece em "Recomendadas para você" quando toca uma skill que a
+  pessoa marcou como `quer_desenvolver` — é o que liga a Academy ao Sprint 7.
+  A vitrine sai da tela quando há filtro ativo: "Concluídas" e ainda ver uma
+  vitrine de não iniciadas seria a tela contradizendo o próprio filtro.
+
+### Recomendações: o módulo mais leve, e o desenho respeita isso
+
+`recommendations`, `recommendation_likes` e `recommendation_comments`. Alguém
+posta o que valeu o tempo dela — um filme, um curso, uma ferramenta —, os
+outros curtem e comentam.
+
+**Não há fila, não há aprovação, não há gestor no caminho.** Qualquer
+`is_staff()` publica; a única trava é título vazio, que não é recomendação.
+Um módulo de indicação com aprovação prévia morre na segunda semana.
+
+- **Editar é só do autor. Apagar, do autor ou da gestão.** A policy de UPDATE
+  fecha no autor mesmo para o sócio: a gestão **modera apagando**, nunca
+  reescrevendo o que outra pessoa disse.
+- **Remover post alheio exige motivo, e o autor recebe o aviso.** O campo mora
+  dentro do diálogo. A primeira versão deixava um input aberto em cada cartão,
+  e três caixas de "Motivo da remoção" empilhadas viravam a coisa mais alta de
+  um feed cuja graça é ser leve — foi a imagem do protótipo que mostrou.
+- **A thread tem um nível só.** `rec_comments_um_nivel` recusa resposta de
+  resposta no banco: conversa aninhada em três níveis é conversa que ninguém
+  acompanha, e o feed não é um fórum.
+- **Tag é normalizada nos dois lados** — `normalizarTag()` na tela e o trigger
+  `recomendacoes_normalizar_tags` no banco, como a máquina de estados da
+  subtarefa. Sem a da tela, o chip apareceria "Figma" e a nuvem mostraria
+  "figma": a mesma tag parecendo duas.
+- **O "agora" desce do servidor.** `tempoRelativo()` recebe o instante em vez
+  de ler o relógio, senão o servidor renderiza "há 2 horas" e o navegador,
+  noutro fuso, recalcula outra coisa na hidratação. Acima de uma semana a
+  função devolve `null` e a tela mostra a data seca: "há 34 dias" informa
+  menos que "31/08".
+- Categoria, tag, busca e ordem moram **na URL**, como em toda listagem: "olha
+  o que indicaram de ferramenta" precisa ser um link.
+- São oito categorias e **quatro** pares de cor. Categorias próximas
+  compartilham par de propósito — oito cores distintas num feed viram confete,
+  e o que o selo precisa dizer é "isto é de assistir / de ler / de usar /
+  outro". Par nomeado sempre, nunca opacidade.
+
+**Nem a Academy nem as Recomendações abrem para o Portal do Cliente.** As duas
+rotas moram em `(interno)`, nenhuma entrada do `MENU` aceita `cliente`, e a
+RLS recusa o perfil nas seis tabelas — é o terceiro que vale.
+
 ### O sino
 
 `notifications` **não tem policy de INSERT.** A única porta é a função
@@ -771,7 +847,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
-| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. E o **vocabulário do Full Days saiu do direito trabalhista** — a equipe é toda PJ, e palavra da CLT num sistema da própria contratante é prova documental: recesso programado, indisponibilidade, ausência pontual, "sem alocação", e "de acordo" / "preciso remarcar" no lugar de aprovar e reprovar. O alerta do relatório deixou de afirmar que a empresa passa a dever em dobro (art. 137 da CLT escrito dentro do produto) e passou a apontar quem está há mais de um ano sem parar. A migration 0016 reescreve as frases que nascem no Postgres, `check:cores` varre `src/` atrás das formas acentuadas, e a bateria confere o corpo das funções nos dois sentidos — as antigas fora, as novas dentro. 34 cenários novos, 264 no total. |
+| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. E o **vocabulário do Full Days saiu do direito trabalhista** — a equipe é toda PJ, e palavra da CLT num sistema da própria contratante é prova documental: recesso programado, indisponibilidade, ausência pontual, "sem alocação", e "de acordo" / "preciso remarcar" no lugar de aprovar e reprovar. O alerta do relatório deixou de afirmar que a empresa passa a dever em dobro (art. 137 da CLT escrito dentro do produto) e passou a apontar quem está há mais de um ano sem parar. A migration 0016 reescreve as frases que nascem no Postgres, `check:cores` varre `src/` atrás das formas acentuadas, e a bateria confere o corpo das funções nos dois sentidos — as antigas fora, as novas dentro. 34 cenários novos, 264 no total. E o **Full Academy** e as **Recomendações** (migration 0017): trilhas que nascem em rascunho e só a gestão enxerga enquanto não forem publicadas; progresso e anotação que só a própria pessoa escreve, com o acompanhamento da gestão lendo uma **view sem a coluna de anotação** — policy não limita coluna, então a separação é a view; vídeo do YouTube e do Vimeo incorporado e o resto em aba nova, avisando antes; reordenar material numa RPC transacional que **não** é `security definer`; e um feed de indicações sem fila e sem aprovação, com curtida, thread de um nível só travada por trigger, tag normalizada nos dois lados, filtros na URL e remoção pela gestão exigindo motivo que vai por notificação ao autor — o campo dentro do diálogo, porque um input aberto em cada cartão virava a coisa mais alta de um feed que precisa ser leve. **Sem quiz, certificado, nota ou gamificação**, e `verificar-9.mjs` varre a tela atrás dessas palavras toda vez, nos dois perfis: metade dos critérios é sobre o que a equipe **não** alcança, e rodando só como sócio eles passariam sem nunca ter sido testados. 55 cenários novos, 319 no total. |
 | Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
 | Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; recesso de 15 dias em até duas parcelas com as regras em trigger (o módulo nasceu falando a língua da CLT; o vocabulário saiu no Sprint 9); `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de quem está há muito tempo sem parar, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |
