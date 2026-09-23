@@ -54,13 +54,16 @@ await pagina.waitForSelector('[role="dialog"]');
 const dialogo = pagina.locator('[role="dialog"]');
 const texto = (await dialogo.textContent()) ?? "";
 
-// --- As seis secoes, na ordem ----------------------------------------------
-
+// --- As cinco secoes, na ordem ---------------------------------------------
+//
+// Eram seis ate a migration 0023, quando a exigencia de aprovacao saiu da
+// demanda e passou a ser de cada etapa. E a quarta se chamava "Tipo de
+// tarefa" ate o Sprint 9 -- esta lista estava DESATUALIZADA nos dois pontos,
+// e so apareceu quando alguem foi rodar a verificacao de novo.
 const SECOES = [
   "Informações gerais da demanda",
   "Período e prioridade",
-  "Exigência de aprovação da demanda",
-  "Tipo de tarefa",
+  "Workflow (opcional)",
   "Subtarefas e entregas",
   "Materiais e links",
 ];
@@ -78,8 +81,8 @@ for (const [indice, secao] of SECOES.entries()) {
   if (onde < anterior) emOrdem = false;
   anterior = onde;
 }
-if (emOrdem) ok("As seis seções aparecem na ordem numerada");
-else falha("As seis seções aparecem na ordem numerada");
+if (emOrdem) ok("As cinco seções aparecem na ordem numerada");
+else falha("As cinco seções aparecem na ordem numerada");
 
 // --- Os campos que o desenho pedia ------------------------------------------
 

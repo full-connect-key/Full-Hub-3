@@ -11,6 +11,7 @@
  *   - etapa bloqueada por dependencia.
  */
 import { situacaoDasRodadas } from "../../src/lib/tasks/state-machine";
+import { folhas } from "../../src/lib/dominio/tasks";
 import type {
   ItemDeCalendario,
   FiltrosDeTask as FiltrosReais,
@@ -136,6 +137,11 @@ const SEMENTES: Semente[] = [
       { numero: 2, escopo: "interna", status: "pendente" },
     ],
   },
+  // A ETAPA AGRUPADORA e as sub-etapas dela (migration 0022). Ela existe no
+  // protótipo de propósito: é o único jeito de a imagem mostrar que a linha da
+  // mãe perde responsável, prazo, relógio e botão, e ganha a soma das filhas.
+  // Os campos dela continuam preenchidos aqui — é o que acontece de verdade
+  // quando uma etapa que já tinha dono e data ganha a primeira sub-etapa.
   {
     id: "s3",
     task_id: "11111111-1111-1111-1111-111111111111",
@@ -147,6 +153,35 @@ const SEMENTES: Semente[] = [
     requer_aprovacao: false,
     tipo_aprovacao: null,
     estimativa_minutos: 90,
+    tempo_real_minutos: null,
+  },
+  {
+    id: "s3a",
+    task_id: "11111111-1111-1111-1111-111111111111",
+    parent_id: "s3",
+    titulo: "Feed 1:1",
+    ordem: 1,
+    prazo: dia(4),
+    responsavel: MARINA,
+    status: "em_andamento",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 45,
+    tempo_real_minutos: null,
+    dependeDe: "s2",
+  },
+  {
+    id: "s3b",
+    task_id: "11111111-1111-1111-1111-111111111111",
+    parent_id: "s3",
+    titulo: "Story 9:16",
+    ordem: 2,
+    prazo: dia(5),
+    responsavel: BRUNO,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 45,
     tempo_real_minutos: null,
     dependeDe: "s2",
   },
@@ -329,7 +364,42 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
   };
 }
 
-export const SUBTAREFAS: SubtarefaDetalhada[] = SEMENTES.map(montarSubtarefa);
+/**
+ * O status da agrupadora é CALCULADO pelas filhas, como no Postgres
+ * (`status_calculado_da_subtarefa`, migration 0022).
+ *
+ * Sem isto a imagem do protótipo mentia: "Adaptar formatos" aparecia como
+ * *Não iniciada* com uma sub-etapa em andamento dentro dela. No banco quem
+ * escreve é o trigger; aqui não há trigger, e uma semente com o status
+ * digitado à mão ia direto para a tela.
+ */
+function comStatusCalculado(subs: SubtarefaDetalhada[]): SubtarefaDetalhada[] {
+  return subs.map((sub) => {
+    const filhas = subs.filter((f) => f.parent_id === sub.id);
+    if (filhas.length === 0) return sub;
+
+    const concluidas = filhas.filter((f) => f.status === "concluida").length;
+    const andando = filhas.filter((f) =>
+      ["em_andamento", "enviada_aprovacao", "em_ajustes"].includes(f.status),
+    ).length;
+    const esperando = filhas.filter((f) => f.status === "aguardando_informacoes").length;
+
+    const status =
+      concluidas === filhas.length
+        ? "concluida"
+        : andando > 0
+          ? "em_andamento"
+          : esperando > 0
+            ? "aguardando_informacoes"
+            : concluidas > 0
+              ? "em_andamento"
+              : "nao_iniciada";
+
+    return { ...sub, status };
+  });
+}
+
+export const SUBTAREFAS: SubtarefaDetalhada[] = comStatusCalculado(SEMENTES.map(montarSubtarefa));
 
 // --- tasks ------------------------------------------------------------------
 
@@ -430,7 +500,11 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
 ];
 
 function montarTask(semente: SementeDeTask): TaskDaLista {
-  const minhas = SUBTAREFAS.filter((s) => s.task_id === semente.id);
+  // SÓ AS FOLHAS, como `enriquecer()` faz de verdade. Sem o filtro, a imagem
+  // do protótipo mostrava "1 de 5 concluídas" no cabeçalho e "1 de 4" na
+  // lista de etapas logo abaixo — a agrupadora contada duas vezes, que é
+  // exatamente o que a regra existe para evitar.
+  const minhas = folhas(SUBTAREFAS.filter((s) => s.task_id === semente.id));
   const equipe: Pessoa[] = [];
   for (const sub of minhas) {
     if (sub.responsavel && !equipe.some((p) => p.id === sub.responsavel!.id)) {

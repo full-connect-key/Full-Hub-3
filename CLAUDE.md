@@ -91,28 +91,95 @@ Consequências que valem para todo módulo novo:
 
 - `tasks` **não tem** `responsavel_id`, `prazo`, `estimativa_horas` nem
   `tempo_real_horas`. Nenhuma consulta pode ressuscitar essas colunas.
-- "Minhas tasks" quer dizer "as tasks onde eu tenho subtarefa".
 - O que a Task mostra de tempo é a **soma** das subtarefas.
 - Atraso é da subtarefa. Uma demanda está atrasada quando alguma etapa em
   aberto passou da data.
 
-### O status da Task é calculado
+#### São TRÊS níveis: demanda → etapa → sub-etapa
+
+`subtasks.parent_id` (migration 0022). Uma campanha tem "Arte", e dentro dela
+conceito, KV e adaptações — cada uma com uma pessoa e uma data. Sem o terceiro
+nível havia duas saídas ruins: ou "Arte" era uma etapa só, com um responsável
+para tudo, ou as três viravam etapas soltas no mesmo nível e ninguém mais via
+que são a mesma frente.
+
+**São três e nunca quatro.** O neto é recusado pelo trigger
+`subtasks_agrupadora`, pela mesma razão que a thread das Recomendações tem um
+nível só: árvore de quatro níveis é árvore que ninguém acompanha, e o recuo na
+tela deixa de significar alguma coisa.
+
+**QUEM TEM FILHA VIRA AGRUPADORA**, e é esta regra que organiza todo o resto.
+É a mesma que o produto já aplicava à Task, um nível abaixo: no instante em
+que uma etapa ganha a primeira sub-etapa, ela para de ser unidade de trabalho.
+
+- o relógio dela não corre — quem mede são as sub-etapas;
+- o status dela é **calculado** pelas filhas, e escrito à mão é descartado;
+- ela não exige aprovação, não entra em dependência, não abre rodada;
+- e a soma da Task — tempo, contagem de etapas, "x de y concluídas" — passa a
+  contar **só as folhas**.
+
+Sem isso tudo contaria duas vezes, e a rentabilidade cobraria em dinheiro um
+trabalho que aconteceu uma vez só.
+
+**O que estava gravado na mãe não é apagado**, e é escolha: responsável,
+prazo, estimativa e tempo continuam lá, param de contar enquanto ela tiver
+filha, e voltam se a última sair. Apagar seria destruir dado por causa de um
+clique que a pessoa pode desfazer em seguida — e quem adiciona a primeira
+sub-etapa geralmente está desdobrando a etapa que já tinha dono e data.
+
+**A mãe nunca fica em `enviada_aprovacao` nem em `em_ajustes`.** Esses dois
+afirmam que existe uma rodada dela, e a fila de aprovações vai procurá-la. Com
+filha em aprovação ela fica em `em_andamento`, que é verdade: o trabalho está
+acontecendo dentro dela.
+
+Em TypeScript o par é `folhas()`, `agrupadoras()` e `emArvore()` em
+`lib/dominio/tasks.ts`; no Postgres, `subtask_eh_agrupadora()`. Como
+`situacaoDoLancamento()` no Financeiro: os dois lados fazem a mesma pergunta,
+um para decidir o que desenhar e outro para decidir o que contar.
+
+#### "Minhas Tasks" lista ETAPAS, não demandas
+
+Se "Conteúdo" e "Layout" da mesma demanda são minhas, aparecem **dois itens** —
+são dois trabalhos, com dois prazos, que eu faço em dois momentos. Uma linha
+só obrigava a abrir para descobrir o que havia dentro, e o prazo que ela
+mostrava era o mais apertado dos dois: o outro não aparecia.
+
+A demanda não some — vira a **linhagem** embaixo do título
+(`Cliente · Demanda › Etapa de cima`), e clicar abre o painel com ela inteira,
+onde se vê que as duas são da mesma mãe e o que as outras pessoas estão
+fazendo nela. A ordem é **global**: o que vence amanhã fica no topo mesmo que
+a demanda dele comece semana que vem.
+
+### O status da Task é calculado até alguém pegar o volante
 
 `recalcular_status_task()` roda por trigger a cada escrita em `subtasks` e em
-`approval_rounds`. A precedência, na ordem:
+`approval_rounds`, olhando **só as folhas**. A precedência, na ordem:
 
 `em_ajustes` → `em_aprovacao` → `concluido` → `aguardando_informacoes` →
 `em_andamento` → `nao_iniciada`.
 
-**`entregue` e `aguardando_informacoes` são os únicos manuais.** "Entregue"
-diz que o material saiu; não diz que foi aprovado, e a interface precisa
-manter essa diferença no texto. O cálculo respeita o que foi marcado à mão até
-aparecer rodada pendente, ajuste ou conclusão — qualquer um dos três reassume
-e zera `status_manual`.
+**Os SETE se marcam à mão** (migration 0025). Até ela, só `entregue` e
+`aguardando_informacoes` eram manuais, e a tela recusava os outros cinco com
+"os outros vêm das subtarefas — mova as etapas e a Task acompanha". Decisão do
+usuário: todos são marcáveis.
 
-No board, arrastar só é aceito para esses status manuais. Qualquer outro
-arrasto é recusado com o motivo por extenso, porque o recálculo desfaria a
-mudança um milissegundo depois.
+**Tirar a frase não bastaria, e é por isso que a mudança é de banco.** Liberar
+os sete só na tela daria o pior dos dois mundos: o clique passaria e a escolha
+sumiria na próxima mexida numa etapa. Recusar com explicação é ruim; aceitar e
+desfazer calado é pior. Então `status_manual` passou a travar o recálculo
+**inteiro** — não mais só dois casos, e sem ninguém reassumir.
+
+**E o volante se devolve.** "Deixar o Full Hub calcular", no rodapé do
+seletor, limpa `status_manual`; o trigger `tasks_volta_a_calcular` percebe a
+transição e recalcula **na hora**. Sem ele a Task ficaria parada no último
+valor até alguém mexer numa etapa, e quem clicou concluiria que o botão não
+faz nada.
+
+O que continua de pé é a trava do banco: marcar `entregue` segue exigindo que
+toda etapa que pede aval tenha a rodada aprovada dela. Poder escolher o status
+não é poder afirmar que o cliente aprovou.
+
+No board, arrastar é aceito para os sete.
 
 **São sete status, e `cancelada` não é um deles.** Ela era o terceiro manual e
 saiu na migration 0020: uma demanda que não vai mais acontecer se apaga, em
@@ -122,7 +189,7 @@ não quer vê-la, e o board ganhava uma coluna que só acumula.
 A trava é o trigger `tasks_sem_cancelada`, e é trigger porque `alter type ...
 drop value` não existe no Postgres: o valor continua no enum, e sem o trigger
 uma escrita montada à mão passaria calada. A recusa diz o que fazer no lugar —
-apagar, ou deixar o status que as subtarefas calcularem —, e a bateria confere
+apagar, ou deixar o status que as etapas calcularem —, e a bateria confere
 a **dica** e não só a mensagem, com `teste.recusa_com_dica`: é o `hint` que
 `atualizarTask` mostra na tela, e uma trava com a dica apagada passaria por
 uma checagem que só lê a mensagem.
@@ -151,35 +218,46 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   que foi pedido e decidido.
 - Pedir ajustes **exige** comentário, na action e no banco.
 
-#### A demanda inteira também tem uma exigência
+#### A exigência de aprovação é de CADA ETAPA, e só dela
 
-A subtarefa diz "esta arte precisa de aval". A Task diz "esta campanha pode
-sair sem o cliente ter visto?". São perguntas diferentes, e a segunda é
-`tasks.exigencia_aprovacao`: `nenhuma`, `interna` ou `cliente`.
+Cada subtarefa diz se precisa de aval (`requer_aprovacao`) e de qual
+(`tipo_aprovacao`: `interna` ou `cliente`). **A demanda inteira não tem mais
+uma exigência própria**, e a ausência é decisão do usuário — a migration 0023
+apagou `tasks.exigencia_aprovacao`, que a 0014 tinha criado.
 
-**São três valores e não quatro.** `cliente` já passa pela interna — é a mesma
-regra de sempre, toda aprovação abre primeiro uma rodada interna. Um quarto
-valor "dupla" teria exatamente o efeito do terceiro, e dois jeitos de dizer a
-mesma coisa é como nascem duas verdades sobre a mesma demanda.
+**O que estava errado, e foi ele quem apontou:** a trava antiga aceitava UMA
+rodada aprovada, do escopo exigido, em QUALQUER subtarefa. Uma campanha com
+conceito, layout, revisão e mídia passava com o conceito aprovado e o resto
+nunca visto — e saía como "entregue", com o carimbo do sistema dizendo que a
+aprovação exigida aconteceu. Uma trava que dá por cumprido o que foi cumprido
+em um lugar só é pior que nenhuma: ela produz confiança sem a checagem.
 
-**É regra, não orientação:** `tasks_exige_aprovacao_para_entregue` (migration
-0014) recusa marcar `entregue` enquanto não existir rodada **aprovada** do
-escopo exigido em alguma subtarefa da task. Rodada pendente não conta — pedir
-aprovação não é ter aprovação, e é essa confusão que a trava existe para
-impedir.
+**É regra, não orientação:** `tasks_entregue_exige_cada_etapa` (migration
+0023) recusa marcar `entregue` enquanto alguma etapa que pede aval não tiver a
+rodada **aprovada** dela própria, do escopo que ela pediu. Rodada pendente não
+conta — pedir aprovação não é ter aprovação. A mensagem conta quantas faltam e
+**nomeia cada uma**: "esta demanda tem etapa sem aprovação" manda a pessoa
+abrir uma por uma; dizer quais é a diferença entre uma recusa e uma instrução.
+Por isso `atualizarTask` concatena o `hint` do Postgres na mensagem.
 
-A trava olha só a transição para `entregue`. Cancelar, corrigir o título de
-uma task já entregue e o recálculo automático seguem passando: uma trava que
-freasse tudo seria trocada por outro caminho na primeira semana.
+A trava olha só a transição para `entregue`. Corrigir o título de uma task já
+entregue, marcar que ela está esperando informação e o recálculo automático
+seguem passando: uma trava que freasse tudo seria trocada por outro caminho na
+primeira semana.
 
-**Exigir o que ninguém vai cumprir é beco sem saída, e a mensagem aponta a
-saída.** Se a demanda exige aprovação do cliente e nenhuma subtarefa pede essa
-aprovação, o encerramento trava para sempre. A recusa então tem texto próprio,
-e o `hint` diz o caminho — marcar a etapa que precisa de aval, não aprovar mais
-rápido. Por isso `atualizarTask` concatena o `hint` do Postgres na mensagem:
-descartá-lo deixaria a pessoa com um "não pode" sem saída. O formulário ainda
-avisa na criação, sem bloquear, porque montar as etapas depois é caminho
-normal.
+**A coluna foi apagada, e não aposentada como `cancelada`.** Aquele caso era
+um valor de enum, que o Postgres não deixa remover; aqui era coluna, e coluna
+some. Deixá-la parada manteria na tela de abertura uma pergunta que não decide
+mais nada — o pior tipo de campo, porque quem responde acha que garantiu
+alguma coisa.
+
+**Exigir aval sem dizer qual não exige nada**, e a porta já estava fechada
+desde a 0007: o check `subtasks_tipo_aprovacao_coerente` cobra o par inteiro
+nos dois sentidos. `subtask_tem_aval()` devolve true quando o tipo é nulo — não
+há escopo para procurar —, então uma etapa assim diria "exijo aprovação" e
+passaria por todas as travas. A 0023 não criou trava nova para isso: criar uma
+segunda dizendo a mesma coisa é criar uma segunda verdade esperando divergir.
+O que faltava era o cenário que prova a regra, e ele entrou.
 
 `tasks.link_entrega` é o endereço do material final — um só, separado das
 referências de apoio. O que alguém procura semanas depois é a pasta pronta, e
@@ -220,10 +298,30 @@ Minhas Tasks elas não aparecem — excluir de dentro de um painel que abriu por
 cima de uma lista deixa a pessoa olhando para uma lista que ainda mostra o que
 sumiu.
 
-**O seletor de status mostra os SETE**, agrupados, com os cinco calculados
-desligados e o motivo. Oferecer só os dois manuais fazia quem abria a lista
-concluir que o produto tinha dois status — e deixava sem resposta a pergunta
-seguinte, "então como é que essa task chegou em Aguardando aprovação?".
+#### O seletor de status, nos dois níveis
+
+`components/shared/seletor-de-status.tsx`: popover com **busca**, agrupado
+(Não iniciado / Em andamento / Encerrado) e um ponto colorido por status.
+
+**Nada aparece desligado.** Na Task porque os sete são marcáveis desde a 0025;
+na etapa porque quem recusa passou a ser o banco, e a recusa dele diz o
+caminho — *"A rodada é criada pela ação Enviar para aprovação"* — onde um item
+cinza não dizia nada. As travas da etapa continuam todas de pé: concluir sem
+aprovação, ir para "Enviada para aprovação" sem rodada, estacionar em "Em
+ajustes" sem ninguém ter pedido. Mudou só onde a pessoa descobre.
+
+O grupo dá a leitura de relance — onde a demanda está, não qual das sete
+palavras é. A busca aceita Enter no primeiro resultado, que é o caminho de
+quem já sabe o que quer.
+
+**No detalhe da Task, o selo de status de cada etapa É o seletor**: quem
+executa muda o próprio andamento onde já estava olhando. Na agrupadora
+continua selo, e é honesto — o status dela é calculado pelas filhas e o banco
+descarta o que vier escrito.
+
+Uma checagem no carregamento do módulo estoura se algum status ficar fora de
+todo grupo. Sem ela, um valor novo no enum sumiria do seletor sem erro e sem
+aviso, e só apareceria no dia em que alguém fosse procurar por ele.
 
 #### Formulário longo vai em seções numeradas
 
@@ -232,20 +330,23 @@ compartilhado quando o pedido do Full Days passou a usá-lo — duas telas
 desenhando o mesmo cabeçalho por conta própria acabariam com dois tamanhos de
 círculo e dois pesos de título.
 
-#### O formulário de abertura tem seis seções numeradas
+#### O formulário de abertura tem cinco seções numeradas
 
 `/painel/gestao-tasks` → "Nova task". Informações gerais, período e
-prioridade, exigência de aprovação, workflow, subtarefas e entregas,
-materiais e links. O número dá à conversa um jeito de apontar ("faltou a 5")
-sem descrever onde o campo fica. A linha de explicação que cada seção carregava
-saiu junto com as dos títulos de página: o campo diz o que é pelo rótulo, e a
-legenda embaixo de tudo empurrava o formulário para baixo sem acrescentar.
+prioridade, workflow, subtarefas e entregas, materiais e links. O número dá à
+conversa um jeito de apontar ("faltou a 4") sem descrever onde o campo fica. A
+linha de explicação que cada seção carregava saiu junto com as dos títulos de
+página: o campo diz o que é pelo rótulo, e a legenda embaixo de tudo empurrava
+o formulário para baixo sem acrescentar.
 
-**Não existe seletor de "Status Geral", e a ausência é deliberada.** O status
-da Task é calculado por trigger; um status digitado na abertura seria desfeito
-pelo recálculo um milissegundo depois, e a pessoa veria a própria escolha
-sumir. Os dois manuais — `entregue` e `aguardando_informacoes` — não fazem
-sentido numa demanda que está nascendo.
+Eram seis até a 0023. A que saiu era "Exigência de aprovação da demanda" — a
+exigência passou a ser de cada etapa, e o campo por etapa, que já existia na
+seção das subtarefas, virou o único lugar onde isso se decide.
+
+**Não existe seletor de "Status Geral", e a ausência é deliberada.** Os sete
+status se marcam à mão desde a 0025, mas numa demanda que está nascendo
+nenhum deles diz nada: ela começa em `nao_iniciada` porque é o que é verdade,
+e quem quiser marcar outra coisa marca depois, no detalhe.
 
 Link de referência entra num campo da tela, **nunca num `window.prompt`**: o
 prompt não dá para colar no teclado do celular, não valida nada, some ao
@@ -669,10 +770,30 @@ afirmação, não.
 > dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
 
 
-**15 dias de recesso por ano, em até duas parcelas.** Os dois números são
+**15 dias de descanso por ano, em até duas parcelas.** Os dois números são
 colunas de `team_members` (`dias_ferias_ano`, `max_parcelas_ferias` — nomes
 anteriores à troca de vocabulário), não constantes no código: contrato muda
 por pessoa, e mudar contrato não pode exigir deploy.
+
+**E eles contam CORRIDO** (migration 0024, decisão do usuário). Quinze dias
+são quinze dias de calendário — sai numa segunda, volta na terceira segunda —,
+e não quinze dias úteis, que na prática seriam três semanas inteiras.
+
+**Os outros dois tipos continuam em dias úteis, e não é inconsistência:** eles
+não descontam de saldo nenhum. O número deles diz quantos dias de TRABALHO a
+pessoa ficou fora, e um sábado de ausência pontual não é um dia em que alguém
+deixou de entregar.
+
+Quem responde por qual conta é `dias_do_pedido(tipo, início, fim)` no Postgres
+e `contarDiasDoPedido()` em `lib/dominio/full-days.ts`. E `rotuloDosDias()`
+escreve "4 dias corridos" ou "2 dias úteis" onde a frase aparece — as duas
+telas diziam "dias úteis" fixo, e um descanso de sexta a segunda apareceria
+como "4 dias úteis", que é a tela desmentindo a própria conta.
+
+A coluna continua se chamando `dias_uteis`, como `dias_ferias_ano` e
+`saldo_de_ferias()` continuaram depois da 0016: renomear coluna em uso é
+migration arriscada e ninguém que usa o sistema vê esse nome. Quem diz a
+verdade para quem abrir o schema é o comentário da coluna.
 
 - **Pendente conta como usado.** Sem isso a pessoa proporia 15 dias duas
   vezes enquanto o primeiro espera retorno, e o sócio concordaria com os dois
@@ -681,16 +802,22 @@ por pessoa, e mudar contrato não pode exigir deploy.
   sistema e aqui não — está escrito na primeira linha de
   `decidir_solicitacao()`.
 - **A resposta é transacional, e por isso mora no banco.** Ela muda o status,
-  pinta os dias úteis em `team_presence` e avisa quem propôs; três chamadas
-  pelo PostgREST seriam três transações, e a segunda falhando deixaria um
-  pedido já combinado sem nenhum dia pintado.
+  pinta os dias em `team_presence` e avisa quem propôs; três chamadas pelo
+  PostgREST seriam três transações, e a segunda falhando deixaria um pedido já
+  combinado sem nenhum dia pintado.
+- **O descanso pinta TODOS os dias do período**, fim de semana e feriado
+  inclusive; os outros dois, só os úteis. Antes só os úteis viravam linha,
+  para a contagem visual bater com o número combinado — e agora é o contrário:
+  o número é corrido, então pular o sábado do meio é que faria a matriz
+  mostrar menos dias do que o pedido diz. De quebra a faixa fica inteira, que
+  é como um descanso se parece.
 - **Dia que veio de período combinado não se edita na matriz.** Um clique
   apagaria o recesso de alguém e o pedido continuaria dizendo "de acordo" —
   duas verdades sobre o mesmo dia.
 - Indisponibilidade e ausência pontual **não** descontam do saldo; entram na
   matriz e no relatório.
-- Os dias úteis gravados saem de `public.dias_uteis()`, não da conta da tela.
-  A tela conta para mostrar o número enquanto a pessoa seleciona; se o gravado
+- O número gravado sai de `public.dias_do_pedido()`, não da conta da tela. A
+  tela conta para mostrar o número enquanto a pessoa seleciona; se o gravado
   viesse dali, bastaria alterar o corpo da requisição.
 - A **área** é o agrupamento que importa: quem responde precisa saber quem mais
   do mesmo time está fora. É por isso que o calendário bloqueia dias de colegas
@@ -1072,6 +1199,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 10 | **Os três níveis, e três regras que o usuário mandou mudar.** `subtasks.parent_id` (migration 0022) dá o terceiro nível — demanda → etapa → sub-etapa, **três e nunca quatro**, com o neto recusado por trigger. A decisão que organiza o resto é **quem tem filha vira agrupadora**: a mesma regra que a Task já seguia, um nível abaixo. A mãe para de medir tempo, tem o status calculado pelas filhas, não exige aval, não entra em dependência, não abre rodada — e some de toda soma, que passa a contar **só as folhas**. Sem isso tudo contaria duas vezes, e a rentabilidade cobraria em dinheiro um trabalho que aconteceu uma vez. O que estava gravado na mãe **não** é apagado: para de contar enquanto ela tiver filha e volta se a última sair. A **exigência de aprovação saiu da Task** (0023), e o motivo foi ele quem apontou: a trava da 0014 aceitava UMA rodada aprovada em QUALQUER subtarefa, então uma campanha passava com o conceito aprovado e o resto nunca visto — produzindo confiança sem a checagem. Agora `entregue` só passa quando TODA etapa que pede aval tem a rodada aprovada dela, e a mensagem conta quantas faltam e nomeia cada uma. A coluna foi apagada: um campo que não decide mais nada é o pior tipo de campo. O formulário de abertura voltou a ter **cinco seções**. Os **sete status se marcam à mão** (0025): tirar a frase de recusa não bastaria, porque o recálculo desfaria a escolha na próxima mexida numa etapa — então `status_manual` passou a travar o cálculo inteiro, e o volante se devolve por "deixar o Full Hub calcular", com `tasks_volta_a_calcular` recalculando na hora. O seletor virou popover com **busca, grupos e ponto colorido**, sem nada desligado, e o mesmo componente serve a etapa — onde quem recusa passou a ser o banco, cuja recusa diz o caminho. **Minhas Tasks lista ETAPAS**: "Conteúdo" e "Layout" da mesma demanda são dois itens, com a demanda virando linhagem e a ordem global. E no Full Days o **descanso conta corrido** (0024) — quinze dias de calendário, não quinze úteis —, com os outros dois tipos seguindo em dias úteis porque não descontam saldo; a matriz passou a pintar o período inteiro, fim de semana inclusive. **98 cenários novos, 417 no total**, e três deles nasceram de erro meu que a bateria pegou: uma expectativa de saldo errada, um cenário de tempo medido que passava sem separar a resposta certa da errada, e um `check` que eu ia criar e que já existia desde a 0007. |
 | Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. E o **vocabulário do Full Days saiu do direito trabalhista** — a equipe é toda PJ, e palavra da CLT num sistema da própria contratante é prova documental: recesso programado, indisponibilidade, ausência pontual, "sem alocação", e "de acordo" / "preciso remarcar" no lugar de aprovar e reprovar. O alerta do relatório deixou de afirmar que a empresa passa a dever em dobro (art. 137 da CLT escrito dentro do produto) e passou a apontar quem está há mais de um ano sem parar. A migration 0016 reescreve as frases que nascem no Postgres, `check:cores` varre `src/` atrás das formas acentuadas, e a bateria confere o corpo das funções nos dois sentidos — as antigas fora, as novas dentro. 34 cenários novos, 264 no total. E o **Full Academy** e as **Recomendações** (migration 0017): trilhas que nascem em rascunho e só a gestão enxerga enquanto não forem publicadas; progresso e anotação que só a própria pessoa escreve, com o acompanhamento da gestão lendo uma **view sem a coluna de anotação** — policy não limita coluna, então a separação é a view; vídeo do YouTube e do Vimeo incorporado e o resto em aba nova, avisando antes; reordenar material numa RPC transacional que **não** é `security definer`; e um feed de indicações sem fila e sem aprovação, com curtida, thread de um nível só travada por trigger, tag normalizada nos dois lados, filtros na URL e remoção pela gestão exigindo motivo que vai por notificação ao autor — o campo dentro do diálogo, porque um input aberto em cada cartão virava a coisa mais alta de um feed que precisa ser leve. **Sem quiz, certificado, nota ou gamificação**, e `verificar-9.mjs` varre a tela atrás dessas palavras toda vez, nos dois perfis: metade dos critérios é sobre o que a equipe **não** alcança, e rodando só como sócio eles passariam sem nunca ter sido testados. 55 cenários novos, 319 no total. |
 | Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |

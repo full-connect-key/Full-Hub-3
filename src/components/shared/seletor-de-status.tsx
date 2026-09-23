@@ -229,7 +229,7 @@ function Picker<T extends TaskStatus | SubtaskStatus>({
           />
         </div>
 
-        <div className="max-h-72 overflow-y-auto p-1">
+        <div className="max-h-[26rem] overflow-y-auto p-1">
           {visiveis.length === 0 ? (
             <p className="text-text-muted px-2 py-4 text-center text-xs">
               Nenhum status com esse nome.
