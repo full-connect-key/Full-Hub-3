@@ -42,38 +42,94 @@ jobs:
     environment: producao
 
     steps:
+      # A VPS ainda não está ligada ao GitHub? Então não há o que publicar, e
+      # isso não é uma falha — é um estado legítimo do projeto.
+      #
+      # Sem esta checagem, o primeiro push na `main` já daria X vermelho no
+      # repositório por um motivo que ninguém pediu ainda. E um X vermelho
+      # que significa "você não configurou isso" ensina todo mundo a ignorar
+      # X vermelho, que é o jeito mais rápido de um erro de verdade passar
+      # batido depois.
+      - name: Os segredos da VPS existem?
+        id: configurado
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USUARIO: ${{ secrets.VPS_USER }}
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          CHAVE_DO_HOST: ${{ secrets.VPS_HOST_KEY }}
+        run: |
+          faltando=""
+          [ -n "$HOST" ]          || faltando="$faltando VPS_HOST"
+          [ -n "$USUARIO" ]       || faltando="$faltando VPS_USER"
+          [ -n "$CHAVE" ]         || faltando="$faltando VPS_SSH_KEY"
+          [ -n "$CHAVE_DO_HOST" ] || faltando="$faltando VPS_HOST_KEY"
+
+          if [ -z "$faltando" ]; then
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pronto=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deploy não configurado"
+            echo
+            echo "As verificações passaram, mas a VPS ainda não está ligada"
+            echo "a este repositório. Faltam os segredos:"
+            echo
+            for s in $faltando; do echo "- \`$s\`"; done
+            echo
+            echo "O passo a passo está no README, em **Self deploy**."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Nada a publicar. Faltam:$faltando"
+
+      # Os segredos vão por `env`, e não interpolados na linha de comando.
+      # Interpolado, o valor vira argumento de processo — visível num `ps` de
+      # quem estiver na máquina — e um caractere especial na chave quebraria
+      # o shell de um jeito difícil de entender.
       - name: Abrir o SSH
+        if: steps.configurado.outputs.pronto == 'true'
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          CHAVE_DO_HOST: ${{ secrets.VPS_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           # A chave do HOST vem de um segredo, e não de
           # StrictHostKeyChecking=no. Desligar a checagem faz a Action
           # entregar a chave privada para qualquer servidor que atenda
           # naquele IP — que é exatamente o que um sequestro de DNS precisa.
-          printf '%s\n' "${{ secrets.VPS_HOST_KEY }}" > ~/.ssh/known_hosts
+          printf '%s\n' "$CHAVE_DO_HOST" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Publicar
+        if: steps.configurado.outputs.pronto == 'true'
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USUARIO: ${{ secrets.VPS_USER }}
+          PORTA: ${{ vars.VPS_PORT || '22' }}
         run: |
           ssh -i ~/.ssh/deploy \
-              -p "${{ vars.VPS_PORT || '22' }}" \
+              -p "$PORTA" \
               -o IdentitiesOnly=yes \
-              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              "$USUARIO@$HOST" \
               'bash -lc "/var/www/full-hub/scripts/deploy.sh"'
 
       - name: Está no ar?
+        if: steps.configurado.outputs.pronto == 'true'
+        env:
+          ALVO: ${{ vars.URL_DE_PRODUCAO }}
         run: |
           # Um deploy que termina sem erro e deixa o site fora do ar é o
           # pior resultado possível: ninguém vai olhar. Dez tentativas com
           # 3 s entre elas cobrem o tempo de o PM2 subir de novo.
-          alvo="${{ vars.URL_DE_PRODUCAO }}"
-          if [ -z "$alvo" ]; then
+          if [ -z "$ALVO" ]; then
             echo "Sem URL_DE_PRODUCAO configurada — pulando a conferência."
             exit 0
           fi
           for tentativa in $(seq 1 10); do
-            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$alvo/login" || echo 000)
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$ALVO/login" || echo 000)
             echo "tentativa $tentativa: HTTP $codigo"
             # 200 na tela de login. 000 é "nem respondeu".
             if [ "$codigo" = "200" ]; then
