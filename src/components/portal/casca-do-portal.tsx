@@ -1,4 +1,5 @@
 import { MenuDoCliente } from "@/components/portal/menu-do-cliente";
+import { SeletorDeEmpresa } from "@/components/portal/seletor-de-empresa";
 import { NavegacaoDoPortal } from "@/components/portal/navegacao-do-portal";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { Logo } from "@/components/shared/logo";
@@ -20,6 +21,8 @@ export function CascaDoPortal({
   nome,
   email,
   nomeDaEmpresa,
+  empresas = [],
+  empresaSelecionada = null,
   base = "/portal",
   hrefDosDados = "/portal/configuracoes",
   aviso,
@@ -28,6 +31,9 @@ export function CascaDoPortal({
   nome: string;
   email: string;
   nomeDaEmpresa: string | null;
+  /** Quando há mais de uma, o cabeçalho ganha o seletor no lugar do nome. */
+  empresas?: { id: string; nome_empresa: string }[];
+  empresaSelecionada?: string | null;
   base?: string;
   /** Para onde vai "Meus dados" no menu do canto. */
   hrefDosDados?: string;
@@ -42,18 +48,36 @@ export function CascaDoPortal({
         <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-4 lg:px-8">
           <Logo tamanho="sm" />
 
-          {nomeDaEmpresa ? (
+          {/* Com uma empresa só, o nome é um fato e fica como texto. Com
+              mais de uma, ele vira escolha — e escolha pede um controle. */}
+          {empresas.length > 1 ? (
             <>
               <span aria-hidden className="text-text-muted">
                 |
               </span>
-              <span className="truncate text-sm font-medium">{nomeDaEmpresa}</span>
+              <SeletorDeEmpresa
+                empresas={empresas}
+                selecionada={empresaSelecionada}
+              />
+            </>
+          ) : nomeDaEmpresa ? (
+            <>
+              <span aria-hidden className="text-text-muted">
+                |
+              </span>
+              <span className="truncate text-sm font-medium">
+                {nomeDaEmpresa}
+              </span>
             </>
           ) : null}
 
           <div className="ml-auto flex items-center gap-1">
             <SinoDeNotificacoes />
-            <MenuDoCliente nome={nome} email={email} hrefDosDados={hrefDosDados} />
+            <MenuDoCliente
+              nome={nome}
+              email={email}
+              hrefDosDados={hrefDosDados}
+            />
           </div>
         </div>
 

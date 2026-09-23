@@ -23,7 +23,7 @@ export async function PlaceholderDoPortal({ href }: { href: string }) {
       <EmptyState
         icon={item?.icon ?? Hammer}
         title="Esta área será construída em breve"
-        description="Seu acesso já está ativo. O conteúdo entra em um dos próximos sprints."
+        description="Seu acesso já está ativo. O conteúdo desta área entra em breve."
       />
     </div>
   );
@@ -47,7 +47,7 @@ export function PlaceholderDoPortalDoCliente({ href }: { href: string }) {
       <EmptyState
         icon={item?.icon ?? Hammer}
         title="Esta área do portal será construída em breve"
-        description="A navegação e as permissões já funcionam. O conteúdo entra em um dos próximos sprints."
+        description="A navegação e as permissões já funcionam. O conteúdo desta área entra em breve."
       />
     </div>
   );

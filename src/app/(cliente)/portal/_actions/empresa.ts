@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
-import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  ErroDeAcao,
+  executarAcao,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -20,7 +25,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * qualquer outra COLUNA ao valor anterior. Esta action é a porta de entrada
  * normal; as duas camadas do banco valem mesmo se alguém chamar a API direto.
  *
- * A tela que usa isto é do Sprint 11 (aba Perfil do portal).
+ * Quem usa isto é a seção Dados da empresa, em /portal/configuracoes.
  */
 
 const esquema = z.object({
@@ -37,7 +42,9 @@ function vazioParaNulo(valor: unknown): string | null {
   return texto === "" ? null : texto;
 }
 
-export async function salvarContatoDaMinhaEmpresa(dados: unknown): Promise<Resultado> {
+export async function salvarContatoDaMinhaEmpresa(
+  dados: unknown,
+): Promise<Resultado> {
   return executarAcao("salvarContatoDaMinhaEmpresa", async () => {
     const sessao = await exigirSessaoNaAcao();
     if (!ehCliente(sessao.profile.role)) {
@@ -46,7 +53,14 @@ export async function salvarContatoDaMinhaEmpresa(dados: unknown): Promise<Resul
 
     const validacao = esquema.safeParse(dados);
     if (!validacao.success) {
-      throw new ErroDeAcao(recusaDeValidacao("salvarContatoDaMinhaEmpresa", validacao.error, dados, "Confira os dados informados."));
+      throw new ErroDeAcao(
+        recusaDeValidacao(
+          "salvarContatoDaMinhaEmpresa",
+          validacao.error,
+          dados,
+          "Confira os dados informados.",
+        ),
+      );
     }
     const { client_id: clientId, ...contato } = validacao.data;
 
@@ -62,7 +76,8 @@ export async function salvarContatoDaMinhaEmpresa(dados: unknown): Promise<Resul
       .select("id")
       .maybeSingle();
 
-    if (error) throw new ErroDeAcao(`Não foi possível salvar: ${error.message}`);
+    if (error)
+      throw new ErroDeAcao(`Não foi possível salvar: ${error.message}`);
     if (!data) throw new ErroDeAcao("Você não tem acesso a esta empresa.");
 
     revalidatePath("/portal/configuracoes");

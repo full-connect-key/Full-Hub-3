@@ -191,6 +191,8 @@ export interface Database {
           segmento: string | null;
           responsavel_atendimento_id: string | null;
           observacoes: string | null;
+          /** Enviada pelo proprio cliente, em /portal/configuracoes (0031). */
+          logo_url: string | null;
           ativo: boolean;
           created_at: string;
         };
@@ -206,6 +208,7 @@ export interface Database {
           segmento?: string | null;
           responsavel_atendimento_id?: string | null;
           observacoes?: string | null;
+          logo_url?: string | null;
           ativo?: boolean;
           created_at?: string;
         };
@@ -219,10 +222,75 @@ export interface Database {
           segmento?: string | null;
           responsavel_atendimento_id?: string | null;
           observacoes?: string | null;
+          logo_url?: string | null;
           ativo?: boolean;
         };
         Relationships: [];
       };
+
+      /**
+       * O que cada pessoa do cliente quer receber (migration 0031).
+       *
+       * Sem `user_id` no Update: a linha e' da pessoa, e a policy fecha em
+       * `auth.uid()` nas quatro operacoes. Deixar a coluna editavel seria
+       * oferecer no tipo um caminho que o banco recusa.
+       */
+      client_notification_prefs: {
+        Row: {
+          id: string;
+          user_id: string;
+          novo_conteudo: boolean;
+          novo_comentario: boolean;
+          lembrete_pendencias: boolean;
+          frequencia: "imediato" | "diario" | "nunca";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          novo_conteudo?: boolean;
+          novo_comentario?: boolean;
+          lembrete_pendencias?: boolean;
+          frequencia?: "imediato" | "diario" | "nunca";
+        };
+        Update: {
+          novo_conteudo?: boolean;
+          novo_comentario?: boolean;
+          lembrete_pendencias?: boolean;
+          frequencia?: "imediato" | "diario" | "nunca";
+        };
+        Relationships: [];
+      };
+
+      /**
+       * Quem entrou no portal, quando, e o que abriu (migration 0031).
+       *
+       * SEM Update e SEM Delete, como `client_portal_views`: registro que o
+       * proprio registrado reescreve nao e' registro. O banco tambem nao cria
+       * policy para nenhum dos dois.
+       */
+      client_access_log: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string;
+          acao: "login" | "visualizou_item" | "download";
+          entity_type: string | null;
+          entity_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id: string;
+          acao: "login" | "visualizou_item" | "download";
+          entity_type?: string | null;
+          entity_id?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+
       /**
        * Quem da equipe abriu o portal de qual cliente. Sem Update alem de
        * encerrar, e sem Delete: registro de auditoria nao se apaga pela
@@ -1184,6 +1252,24 @@ export interface Database {
       pode_aprovar_subtarefa: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_liberada: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_pendencias: { Args: { p_subtask_id: string }; Returns: string | null };
+      /**
+       * As pessoas com acesso as empresas de quem pergunta, com a data do
+       * ultimo login (migration 0031).
+       *
+       * `security definer` porque devolve um agregado que a policy de
+       * `client_access_log` nao deixaria montar linha a linha -- ela esconde o
+       * rastro alheio de proposito, e a aba Usuarios precisa da DATA sem
+       * precisar da lista.
+       */
+      usuarios_do_meu_cliente: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string;
+          nome: string;
+          email: string;
+          ultimo_acesso: string | null;
+        }[];
+      };
       decidir_rodada_do_cliente: {
         Args: { p_round_id: string; p_decisao: StatusRodada; p_comentario: string | null };
         Returns: void;

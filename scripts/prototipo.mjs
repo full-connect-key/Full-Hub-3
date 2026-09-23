@@ -165,14 +165,18 @@ const TELAS = [
   { nome: "13-acesso-negado-403", rota: "/403-exemplo", largura: 900, altura: 700 },
   { nome: "14-status-da-conexao", rota: "/status", largura: 1000, altura: 1000 },
 
-  { nome: "15-portal", rota: "/portal", largura: 1280, altura: 800 },
+  { nome: "15-portal", rota: "/portal", largura: 1280, altura: 1100 },
+  { nome: "15b-portal-itens", rota: "/portal/itens", largura: 1280, altura: 1300 },
+  { nome: "15c-portal-itens-urgente", rota: "/portal/itens?prazo=urgente", largura: 1280, altura: 900 },
+  { nome: "15d-portal-configuracoes", rota: "/portal/configuracoes", largura: 1280, altura: 1500 },
   { nome: "16-portal-social-media", rota: "/portal/social-media", largura: 1280, altura: 700 },
   { nome: "16b-portal-aprovacoes", rota: "/portal/aprovacoes", largura: 1280, altura: 1000 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
 
   { nome: "18-painel-celular", rota: "/painel", largura: 390, altura: 844, role: "socio" },
-  { nome: "19-portal-celular", rota: "/portal", largura: 390, altura: 844 },
+  { nome: "19-portal-celular", rota: "/portal", largura: 390, altura: 900 },
+  { nome: "19b-portal-itens-375", rota: "/portal/itens", largura: 375, altura: 1100 },
 ];
 
 const PORTA = 3100;
@@ -197,6 +201,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],
   "@/lib/dados/aprovacoes": ["./scripts/prototipo/aprovacoes.ts"],
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
+  "@/lib/dados/portal": ["./scripts/prototipo/portal.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],

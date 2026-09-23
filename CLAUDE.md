@@ -620,6 +620,101 @@ tela fica sem a cor sem ninguém notar — e varre o projeto atrás de nome que
 saiu do produto, porque "esse nome não existe mais" é um critério que precisa
 ser verificado toda vez, não uma vez.
 
+### O Portal do Cliente
+
+A segunda área. O cliente entra, vê o que a Full enviou, e decide.
+
+**Ele vê apenas o que foi enviado explicitamente.** Rascunho não, conversa
+interna não, outro cliente não. As três camadas de sempre valem, e a que conta
+é a terceira: `tasks_select_cliente`, `subtasks_select_cliente` e
+`approval_rounds_select_cliente` recusam no banco. A consulta de
+`lib/dados/portal.ts` não repete o filtro por empresa para o próprio cliente —
+repetir seria criar um segundo lugar onde a regra pode divergir. O parâmetro
+`clienteId` existe só para a visualização administrativa, onde quem pergunta é
+da equipe e enxerga todos.
+
+**Múltiplos usuários por empresa têm o MESMO acesso.** Não há hierarquia do
+lado do cliente: os dois aprovam, os dois comentam. Quem entra e quem sai é
+decisão da agência, e por isso a aba "Quem tem acesso" não tem botão nenhum —
+só a frase que diz a quem pedir.
+
+#### A rodada de aprovação não é mais só da subtarefa
+
+`approval_rounds` aponta para `(content_type, content_id)` — migration 0030.
+Post e entregável de campanha passam pela mesma decisão que a etapa já passa,
+e a alternativa era um segundo fluxo de aprovação ao lado deste. É a
+duplicação que o produto já desfez uma vez.
+
+**`subtask` é o único tipo que existe hoje, e o banco RECUSA os outros dois.**
+Não por esquecimento: `validar_nova_rodada` e `decidir_rodada_do_cliente`
+param em `subtask_da_rodada()`, e as policies exigem `content_type =
+'subtask'`. Um tipo que nenhuma trava sabe conferir não pode nascer visível ao
+cliente — e `pode_aprovar_subtarefa()` ignora o parâmetro desde a 0029, então
+sem esse filtro uma rodada de post seria decidida por qualquer gestor sem
+checagem nenhuma de a quem ela pertence.
+
+**O cascade foi reposto por trigger.** `subtask_id` tinha `on delete cascade`;
+`content_id` não pode ter chave estrangeira, porque aponta para tabelas
+diferentes conforme o tipo. Sem `subtasks_limpa_rodadas`, apagar uma etapa
+deixaria rodadas órfãs e a fila tentaria mostrar a etapa que não existe mais.
+
+Em TypeScript o par mora em `lib/aprovacoes/conteudo.ts`, e o motor inteiro
+passa por `rodadasDo()` — um lugar só nomeia as colunas.
+
+#### Três vocabulários de status, e não é descuido
+
+`task_status`, `subtask_status` e `content_status` respondem a perguntas
+diferentes. "Em ajustes" para a equipe quer dizer que alguém está mexendo;
+para o cliente, que o pedido dele foi ouvido. A ponte é `statusParaOCliente()`
+em `lib/dominio/portal.ts`, e é a única.
+
+`rejeitado` e `stand_by` estão no enum e **nenhum caminho do produto os
+produz** hoje. Ficam porque os módulos de post e de campanha os usam; inventar
+uma tradução agora seria mostrar ao cliente um estado que a agência não tem
+como alcançar.
+
+#### Nada de jargão interno do lado de lá
+
+"task", "subtarefa", "etapa", "workflow" e "sprint" são palavras da agência. O
+cliente recebe **material**, e ele pertence a uma **demanda**. `check:cores`
+varre `src/app/(cliente)/` e `src/components/portal/` atrás das formas
+portuguesas — `subtask` sem acento continua valendo, porque é valor de enum,
+a camada em inglês.
+
+A varredura pegou duas frases que o cliente lia ("o conteúdo entra em um dos
+próximos sprints") e um campo chamado `task` na tela de aprovações. Critério
+que diz "não existe" é o tipo que volta sem ninguém perceber.
+
+#### O que o cliente edita, e o que ele não edita
+
+Contato, e-mail, telefone e logo. **Nome da empresa e slug, nunca.** A policy
+`clients_update_proprio` deixa a linha inteira passar de propósito; quem separa
+é o trigger `protect_client_columns`.
+
+**E ele não protegia o slug.** A coluna nasceu na 0009, depois da função da
+0005, e ninguém a acrescentou à lista — o cliente trocava o endereço do
+próprio portal por um PATCH, e o `/portal/{slug}` que a gestão usa deixava de
+abrir. A 0031 fechou, e o cenário confere nos dois sentidos: a escrita passa
+(é o desenho) e o valor não muda.
+
+#### Preferências e registro
+
+`client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro
+operações — nem o sócio lê, pela mesma razão do Resumo Semanal. Uma linha por
+**pessoa** e não por empresa: quem responde por duas contas não quer receber
+em dobro. Quem nunca mexeu não tem linha e recebe o padrão; criar a linha na
+leitura seria escrever por causa de um olhar.
+
+`client_access_log` não tem policy de UPDATE nem de DELETE, como
+`client_portal_views`. A aba "Quem tem acesso" precisa da DATA do último login
+sem precisar da lista — e a policy esconde o rastro alheio de propósito —,
+então quem responde é `usuarios_do_meu_cliente()`, `security definer`,
+devolvendo só o agregado.
+
+**O registro de acesso é a única escrita do produto que pode falhar calada.**
+Se a auditoria cair, o cliente não pode ficar sem o portal por causa disso. O
+erro vai para o log do servidor.
+
 ### Portais de Clientes
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login

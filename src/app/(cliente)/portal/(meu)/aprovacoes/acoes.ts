@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -11,7 +16,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * A decisão do cliente.
  *
  * Passa por uma função do banco (`decidir_rodada_do_cliente`) e não por um
- * update direto, por um motivo concreto: aprovar precisa mexer na SUBTAREFA, e
+ * update direto, por um motivo concreto: aprovar precisa mexer no MATERIAL, e
  * o cliente não tem — nem deve ter — permissão de escrita em `subtasks`. A
  * função roda como dona da tabela, mas antes confere que a rodada é de escopo
  * cliente, que está pendente e que pertence a uma empresa dele. Tentar decidir
@@ -33,7 +38,9 @@ export async function decisaoCliente(
     }
 
     if (decisao === "ajustes_solicitados" && comentario.trim().length === 0) {
-      return falha("Diga o que precisa ser ajustado — sem isso a equipe não sabe o que refazer.");
+      return falha(
+        "Diga o que precisa ser ajustado — sem isso a equipe não sabe o que refazer.",
+      );
     }
 
     const supabase = await criarClienteServidor();
@@ -47,7 +54,9 @@ export async function decisaoCliente(
 
     revalidatePath("/portal/aprovacoes");
     return sucesso(
-      decisao === "aprovada" ? "Aprovado. A equipe foi avisada." : "Pedido de ajustes enviado.",
+      decisao === "aprovada"
+        ? "Aprovado. A equipe foi avisada."
+        : "Pedido de ajustes enviado.",
     );
   });
 }

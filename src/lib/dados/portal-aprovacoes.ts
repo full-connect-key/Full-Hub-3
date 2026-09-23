@@ -27,7 +27,8 @@ export type AprovacaoDoCliente = {
   rodadaId: string;
   subtaskId: string;
   titulo: string;
-  task: string;
+  /** A demanda a que o material pertence. */
+  demanda: string;
   numeroRodada: number;
   status: ApprovalRound["status"];
   enviadaEm: string;
@@ -121,7 +122,7 @@ export async function minhasAprovacoes(
       rodadaId: rodada.id,
       subtaskId: sub.id,
       titulo: sub.titulo,
-      task: porTask.get(sub.task_id)?.titulo ?? "",
+      demanda: porTask.get(sub.task_id)?.titulo ?? "",
       numeroRodada: rodada.numero_rodada,
       status: rodada.status,
       enviadaEm: rodada.solicitado_em,

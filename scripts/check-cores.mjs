@@ -263,6 +263,38 @@ const NOMES_MORTOS = [
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
 
+  // O VOCABULARIO INTERNO NAO ATRAVESSA A PAREDE DO PORTAL.
+  //
+  // "task", "subtarefa", "etapa", "workflow" e "sprint" sao palavras da
+  // agencia. O cliente recebe MATERIAL, e ele pertence a uma DEMANDA. A
+  // traducao mora em `lib/dominio/portal.ts`, e e por existir esse lugar unico
+  // que esta varredura consegue exigir que o resto esteja limpo.
+  //
+  // O ALCANCE E SO A AREA DO CLIENTE, e as palavras sao as PORTUGUESAS: o
+  // valor de enum `subtask` e a camada em ingles, como nome de tabela, e
+  // continua valendo. Varrer "task" pegaria "subtask" junto e o alarme tocaria
+  // sempre -- alarme que sempre toca e alarme que ninguem escuta.
+  {
+    nome: "subtarefa",
+    onde: "'src/app/(cliente)' src/components/portal",
+    porque: "jargão interno na tela do cliente; ele vê material, não subtarefa",
+  },
+  {
+    nome: "etapa",
+    onde: "'src/app/(cliente)' src/components/portal",
+    porque: "jargão interno na tela do cliente; use material",
+  },
+  {
+    nome: "workflow",
+    onde: "'src/app/(cliente)' src/components/portal",
+    porque: "jargão interno na tela do cliente",
+  },
+  {
+    nome: "sprint",
+    onde: "'src/app/(cliente)' src/components/portal",
+    porque: "vocabulário do projeto, não do produto — nem em comentário da área do cliente",
+  },
+
   { nome: "Trello", onde: "src/", porque: "ferramenta externa citada na interface" },
   { nome: "ClickUp", onde: "src/", porque: "ferramenta externa citada na interface" },
   { nome: "Asana", onde: "src/", porque: "ferramenta externa citada na interface" },

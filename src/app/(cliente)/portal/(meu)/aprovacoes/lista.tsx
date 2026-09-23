@@ -19,7 +19,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { AprovacaoDoCliente } from "@/lib/dados/portal-aprovacoes";
 
@@ -56,7 +60,9 @@ export function ListaDeAprovacoes({
     return (
       <EmptyState
         icon={BadgeCheck}
-        title={somenteLeitura ? "Nada esperando o cliente" : "Nada esperando você"}
+        title={
+          somenteLeitura ? "Nada esperando o cliente" : "Nada esperando você"
+        }
         description={
           somenteLeitura
             ? "Quando a equipe enviar um material para aprovação, ele aparece aqui."
@@ -98,17 +104,25 @@ export function ListaDeAprovacoes({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{item.titulo}</span>
                   <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
-                  <Badge variant={item.status === "aprovada" ? "default" : "outline"}>
-                    {item.status === "aprovada" ? "Aprovado" : "Ajustes solicitados"}
+                  <Badge
+                    variant={item.status === "aprovada" ? "default" : "outline"}
+                  >
+                    {item.status === "aprovada"
+                      ? "Aprovado"
+                      : "Ajustes solicitados"}
                   </Badge>
                   <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                     {item.decididaEm
-                      ? format(parseISO(item.decididaEm), "dd/MM/yy", { locale: ptBR })
+                      ? format(parseISO(item.decididaEm), "dd/MM/yy", {
+                          locale: ptBR,
+                        })
                       : ""}
                   </span>
                 </div>
                 {item.comentario ? (
-                  <p className="text-muted-foreground mt-1 text-sm">“{item.comentario}”</p>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    “{item.comentario}”
+                  </p>
                 ) : null}
               </li>
             ))}
@@ -133,7 +147,9 @@ function CartaoPendente({
 
   function decidir(decisao: "aprovada" | "ajustes_solicitados", texto: string) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => decisaoCliente(item.rodadaId, decisao, texto));
+      const resultado = await chamarAcao(() =>
+        decisaoCliente(item.rodadaId, decisao, texto),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success(resultado.mensagem);
@@ -149,11 +165,14 @@ function CartaoPendente({
         <span className="font-medium">{item.titulo}</span>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
         <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-          enviado em {format(parseISO(item.enviadaEm), "dd/MM/yy", { locale: ptBR })}
+          enviado em{" "}
+          {format(parseISO(item.enviadaEm), "dd/MM/yy", { locale: ptBR })}
         </span>
       </div>
 
-      {item.task ? <p className="text-muted-foreground text-xs">em {item.task}</p> : null}
+      {item.demanda ? (
+        <p className="text-muted-foreground text-xs">em {item.demanda}</p>
+      ) : null}
 
       {item.entregas.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
@@ -173,7 +192,9 @@ function CartaoPendente({
           ))}
         </ul>
       ) : (
-        <p className="text-muted-foreground text-sm italic">Sem arquivo anexado.</p>
+        <p className="text-muted-foreground text-sm italic">
+          Sem arquivo anexado.
+        </p>
       )}
 
       {item.conversa.length > 0 ? (
@@ -182,7 +203,9 @@ function CartaoPendente({
             <li key={comentario.id} className="text-sm">
               <span className="text-muted-foreground text-xs">
                 {comentario.meu ? "Você" : "Full Connect Key"} ·{" "}
-                {format(parseISO(comentario.created_at), "dd/MM/yy", { locale: ptBR })}
+                {format(parseISO(comentario.created_at), "dd/MM/yy", {
+                  locale: ptBR,
+                })}
               </span>
               <p>{comentario.texto}</p>
             </li>
@@ -206,7 +229,8 @@ function CartaoPendente({
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            A decisão é do cliente. Você está visualizando o portal dele como equipe.
+            A decisão é do cliente. Você está visualizando o portal dele como
+            equipe.
           </TooltipContent>
         </Tooltip>
       ) : (
@@ -222,19 +246,26 @@ function CartaoPendente({
             Solicitar ajustes
           </Button>
           <Button disabled={executando} onClick={() => decidir("aprovada", "")}>
-            {executando ? <Loader2 className="animate-spin" /> : <BadgeCheck aria-hidden />}
+            {executando ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <BadgeCheck aria-hidden />
+            )}
             Aprovar
           </Button>
         </div>
       )}
 
-      <Dialog open={pedindoAjustes} onOpenChange={(aberto) => !aberto && setPedindoAjustes(false)}>
+      <Dialog
+        open={pedindoAjustes}
+        onOpenChange={(aberto) => !aberto && setPedindoAjustes(false)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>O que precisa mudar?</DialogTitle>
             <DialogDescription>
-              Quanto mais específico, menos idas e vindas. A equipe recebe o texto junto com o
-              pedido.
+              Quanto mais específico, menos idas e vindas. A equipe recebe o
+              texto junto com o pedido.
             </DialogDescription>
           </DialogHeader>
           <Textarea

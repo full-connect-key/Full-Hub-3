@@ -40,9 +40,16 @@ export function MenuDoCliente({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu do usuário">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          aria-label="Menu do usuário"
+        >
           <Avatar className="size-8">
-            <AvatarFallback className="text-xs font-medium">{iniciaisDe(nome)}</AvatarFallback>
+            <AvatarFallback className="text-xs font-medium">
+              {iniciaisDe(nome)}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

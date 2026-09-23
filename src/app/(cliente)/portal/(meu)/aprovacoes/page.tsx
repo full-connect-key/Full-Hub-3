@@ -20,9 +20,7 @@ export default async function PaginaDeAprovacoesDoCliente() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Aprovações"
-      />
+      <PageHeader title="Aprovações" />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
         <Conteudo usuarioId={sessao.usuarioId} />

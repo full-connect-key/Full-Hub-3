@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Portal do cliente" };
 /**
  * A tela inicial do portal de um cliente, vista pela equipe.
  *
- * Mostra o que o cliente vê. Quando as áreas do portal entrarem (Sprints
+ * Mostra o que o cliente vê. Quando as áreas do portal entrarem (os módulos
  * 11–13), esta página passa a reaproveitar os mesmos blocos da tela do cliente
  * em vez de ter conteúdo próprio — é o único jeito de a visualização continuar
  * fiel ao que ele enxerga.
@@ -23,13 +23,11 @@ export default async function PaginaDoPortalDoCliente({
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title={cliente?.nome_empresa ?? "Portal do cliente"}
-      />
+      <PageHeader title={cliente?.nome_empresa ?? "Portal do cliente"} />
       <EmptyState
         icon={Home}
         title="O acompanhamento do cliente aparece aqui"
-        description="Conteúdos para aprovar, campanhas em andamento e os resultados do período. As áreas entram nos próximos sprints."
+        description="Conteúdos para aprovar, campanhas em andamento e os resultados do período."
       />
     </div>
   );
