@@ -37,10 +37,9 @@ import {
  * Ordenada por tempo de espera, porque é a fila justa: o que está parado há
  * mais tempo aparece primeiro, e nada some no fim da lista.
  *
- * Item em que quem está olhando é o próprio responsável aparece marcado e sem
- * botões. Não é só a tela escondendo: o trigger `approval_rounds_sem_
- * autoaprovacao` recusa a mesma coisa no banco. Ninguém aprova a própria
- * entrega.
+ * **Todo item aparece com os botões**, inclusive o da etapa que está no nome
+ * de quem olha: a migration 0029 tirou a trava de autoaprovação, aqui e no
+ * banco. Quem chega nesta fila é gestão, e gestão decide.
  */
 export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
   if (fila.esperando.length === 0 && fila.prontasParaOCliente.length === 0) {

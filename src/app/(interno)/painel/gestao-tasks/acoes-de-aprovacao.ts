@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
@@ -18,11 +23,18 @@ import type { Database } from "@/lib/supabase/database.types";
  *   A regra-mestra diz que aprovar e enviar ao cliente é do Desenvolvedor. O
  *   Sócio também aprova aqui (`exigirGestorNaAcao`, que é desenvolvedor ou
  *   sócio), porque ele tem acesso total ao painel e travá-lo fora da fila
- *   deixaria a agência parada quando o desenvolvedor está fora. O que não
- *   muda em hipótese nenhuma: ninguém aprova a própria entrega.
+ *   deixaria a agência parada quando o desenvolvedor está fora.
  *   Para restringir só ao desenvolvedor, troque `exigirGestorNaAcao` por uma
  *   checagem de `role === "desenvolvedor"` aqui e `is_gestor()` por
- *   `auth_role() = 'desenvolvedor'` em `pode_aprovar_subtarefa()`, na 0007.
+ *   `auth_role() = 'desenvolvedor'` em `pode_aprovar_subtarefa()`, na 0029.
+ *
+ * NOTA DE DECISÃO — a gestão aprova o próprio trabalho (migration 0029)
+ *   Este arquivo recusava, em TypeScript, quem fosse o `responsavel_id` da
+ *   etapa. Saiu por decisão do usuário, junto com o trigger
+ *   `bloquear_autoaprovacao`; o cabeçalho da 0029 diz o que se ganha e o que
+ *   se perde. **Aprovar e enviar são duas decisões, e só a primeira mudou:**
+ *   `enviarParaOCliente` mais abaixo continua recusando quem produziu, como o
+ *   `validar_nova_rodada` da 0007.
  *
  * Toda regra abaixo existe também no banco, em trigger. Não é redundância
  * inútil: aqui a recusa vira uma frase que a pessoa entende; lá ela vale
@@ -56,13 +68,23 @@ type Contexto = {
     tipo_aprovacao: "interna" | "cliente" | null;
     status: Database["public"]["Enums"]["subtask_status"];
   };
-  rodadas: { id: string; numero_rodada: number; escopo: "interna" | "cliente"; status: Database["public"]["Enums"]["status_rodada"] }[];
+  rodadas: {
+    id: string;
+    numero_rodada: number;
+    escopo: "interna" | "cliente";
+    status: Database["public"]["Enums"]["status_rodada"];
+  }[];
 };
 
-async function lerSubtarefa(supabase: ClienteSupabase, id: string): Promise<Contexto | null> {
+async function lerSubtarefa(
+  supabase: ClienteSupabase,
+  id: string,
+): Promise<Contexto | null> {
   const { data: subtarefa } = await supabase
     .from("subtasks")
-    .select("id, task_id, titulo, responsavel_id, requer_aprovacao, tipo_aprovacao, status")
+    .select(
+      "id, task_id, titulo, responsavel_id, requer_aprovacao, tipo_aprovacao, status",
+    )
     .eq("id", id)
     .maybeSingle();
   if (!subtarefa) return null;
@@ -96,16 +118,22 @@ export async function enviarParaAprovacao(
     const { subtarefa } = ctx;
 
     if (!subtarefa.requer_aprovacao) {
-      return falha("Esta subtarefa não exige aprovação — ela se conclui direto.");
+      return falha(
+        "Esta subtarefa não exige aprovação — ela se conclui direto.",
+      );
     }
     // O responsável envia a dele. A gestão também pode, para destravar quando
     // a pessoa está fora — é o que o trigger `validar_nova_rodada` já permite,
     // e a tela oferece o botão nos dois casos. Recusar aqui deixaria um botão
     // que só dá erro.
     const souOResponsavel = subtarefa.responsavel_id === sessao.usuarioId;
-    const souGestor = sessao.profile.role === "desenvolvedor" || sessao.profile.role === "socio";
+    const souGestor =
+      sessao.profile.role === "desenvolvedor" ||
+      sessao.profile.role === "socio";
     if (!souOResponsavel && !souGestor) {
-      return falha("Só o responsável pela subtarefa, ou a gestão, envia para aprovação.");
+      return falha(
+        "Só o responsável pela subtarefa, ou a gestão, envia para aprovação.",
+      );
     }
 
     const situacao = situacaoDasRodadas(ctx.rodadas, subtarefa.tipo_aprovacao);
@@ -142,7 +170,8 @@ export async function enviarParaAprovacao(
       .select("id")
       .single();
 
-    if (error || !rodada) return falha(error?.message ?? "Não foi possível abrir a rodada.");
+    if (error || !rodada)
+      return falha(error?.message ?? "Não foi possível abrir a rodada.");
 
     // As entregas soltas passam a pertencer a esta rodada: é o que amarra o
     // arquivo ao ciclo em que ele foi avaliado.
@@ -163,7 +192,9 @@ export async function enviarParaAprovacao(
       // A rodada sem a subtarefa correspondente deixaria a fila mostrando um
       // item que não existe. Desfaz.
       await supabase.from("approval_rounds").delete().eq("id", rodada.id);
-      return falha(erroDoStatus?.message ?? "Não foi possível mover a subtarefa.");
+      return falha(
+        erroDoStatus?.message ?? "Não foi possível mover a subtarefa.",
+      );
     }
 
     await registrar(supabase, {
@@ -181,7 +212,10 @@ export async function enviarParaAprovacao(
 }
 
 /** A gestão aprova a rodada interna. */
-export async function aprovarInterna(roundId: string, comentario?: string): Promise<Resultado> {
+export async function aprovarInterna(
+  roundId: string,
+  comentario?: string,
+): Promise<Resultado> {
   return executarAcao("aprovarInterna", async () => {
     const sessao = await exigirGestorNaAcao();
     const supabase = await criarClienteServidor();
@@ -193,16 +227,17 @@ export async function aprovarInterna(roundId: string, comentario?: string): Prom
       .maybeSingle();
 
     if (!rodada) return falha("Rodada não encontrada.");
-    if (rodada.status !== "pendente") return falha("Esta rodada já foi decidida.");
-    if (rodada.escopo !== "interna") return falha("Esta rodada é a do cliente, não a interna.");
+    if (rodada.status !== "pendente")
+      return falha("Esta rodada já foi decidida.");
+    if (rodada.escopo !== "interna")
+      return falha("Esta rodada é a do cliente, não a interna.");
 
     const ctx = await lerSubtarefa(supabase, rodada.subtask_id);
     if (!ctx) return falha("Subtarefa não encontrada.");
 
-    if (ctx.subtarefa.responsavel_id === sessao.usuarioId) {
-      return falha("Ninguém aprova a própria entrega — outra pessoa da gestão precisa decidir.");
-    }
-
+    // Aqui havia a trava de autoaprovação, e ela saiu na migration 0029 por
+    // decisão do usuário: a gestão decide qualquer rodada interna, inclusive
+    // a da etapa que está no próprio nome.
     const { data, error } = await supabase
       .from("approval_rounds")
       .update({
@@ -216,7 +251,10 @@ export async function aprovarInterna(roundId: string, comentario?: string): Prom
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou a aprovação. Só a gestão decide, e nunca a própria entrega.");
+    if (!data)
+      return falha(
+        "O banco recusou a aprovação: só a gestão decide rodada interna.",
+      );
 
     // Tipo interna: acabou, a subtarefa conclui.
     // Tipo cliente: ela FICA esperando. O envio ao cliente é um ato
@@ -231,7 +269,8 @@ export async function aprovarInterna(roundId: string, comentario?: string): Prom
       if (erroDoStatus) return falha(erroDoStatus.message);
       mensagem = "Aprovada — subtarefa concluída.";
     } else {
-      mensagem = 'Aprovada internamente. Agora dá para usar "Enviar para o cliente".';
+      mensagem =
+        'Aprovada internamente. Agora dá para usar "Enviar para o cliente".';
     }
 
     await registrar(supabase, {
@@ -268,7 +307,9 @@ export async function solicitarAjustesInterna(
     const sessao = await exigirGestorNaAcao();
 
     if (!comentario?.trim()) {
-      return falha("Diga o que precisa ser ajustado — pedido sem motivo não ajuda ninguém.");
+      return falha(
+        "Diga o que precisa ser ajustado — pedido sem motivo não ajuda ninguém.",
+      );
     }
 
     const supabase = await criarClienteServidor();
@@ -280,14 +321,11 @@ export async function solicitarAjustesInterna(
       .maybeSingle();
 
     if (!rodada) return falha("Rodada não encontrada.");
-    if (rodada.status !== "pendente") return falha("Esta rodada já foi decidida.");
+    if (rodada.status !== "pendente")
+      return falha("Esta rodada já foi decidida.");
 
     const ctx = await lerSubtarefa(supabase, rodada.subtask_id);
     if (!ctx) return falha("Subtarefa não encontrada.");
-    if (ctx.subtarefa.responsavel_id === sessao.usuarioId) {
-      return falha("Ninguém decide a própria entrega.");
-    }
-
     const { data, error } = await supabase
       .from("approval_rounds")
       .update({
@@ -301,7 +339,10 @@ export async function solicitarAjustesInterna(
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou a decisão. Só a gestão decide, e nunca a própria entrega.");
+    if (!data)
+      return falha(
+        "O banco recusou a decisão: só a gestão decide rodada interna.",
+      );
 
     const { error: erroDoStatus } = await supabase
       .from("subtasks")
@@ -357,7 +398,10 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
       );
     }
 
-    const situacao = situacaoDasRodadas(ctx.rodadas, ctx.subtarefa.tipo_aprovacao);
+    const situacao = situacaoDasRodadas(
+      ctx.rodadas,
+      ctx.subtarefa.tipo_aprovacao,
+    );
     if (!situacao.avalInterno) {
       return falha("Esta rodada ainda não passou pela aprovação interna.");
     }
@@ -376,7 +420,8 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
       .select("id")
       .single();
 
-    if (error || !rodada) return falha(error?.message ?? "Não foi possível enviar.");
+    if (error || !rodada)
+      return falha(error?.message ?? "Não foi possível enviar.");
 
     await registrar(supabase, {
       task_id: ctx.subtarefa.task_id,

@@ -232,6 +232,15 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   própria pessoa, entrega anexada antes da troca de responsável), virados do
   avesso: se alguém reintroduzir qualquer uma das perguntas, um deles falha e
   diz qual.
+
+  **A trava estava em DOIS lugares, e desfazer um só não desfez nada.** Além
+  do trigger, `acoes-de-aprovacao.ts` tinha um `if` que recusava antes de
+  chamar o banco. A bateria roda contra o Postgres e ficou verde com a action
+  ainda recusando — quem encontrou foi o usuário, clicando em Aprovar. Por
+  isso a varredura de `check:cores` passou a procurar as frases da trava em
+  `src/`: o que faltava não era um cenário de SQL a mais, era alguém
+  perguntando se a regra ainda existe do lado de fora do banco. Vale para
+  toda regra que mora nos dois lados — e são várias, por desenho.
 - **O que continua aberto, e é decisão em suspenso:** qualquer gestor aprova a
   etapa de qualquer cliente. Não existe no produto a noção de "este
   desenvolvedor atende esta conta". Se for para existir, é decisão explícita e

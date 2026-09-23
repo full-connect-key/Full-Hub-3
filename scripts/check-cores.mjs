@@ -243,6 +243,23 @@ const NOMES_MORTOS = [
   { nome: "recesso", onde: "src/", porque: "vocabulário anterior à 0018; use descanso" },
   { nome: "indisponibilidade", onde: "src/", porque: "vocabulário anterior à 0018; use afastamento" },
 
+  // A TRAVA DE AUTOAPROVAÇÃO, que saiu na 0029 por decisão do usuário.
+  //
+  // Ela estava em DOIS lugares, e eu só desfiz um: o trigger no Postgres e um
+  // `if` em `acoes-de-aprovacao.ts`, que recusava antes de o banco ser
+  // chamado. A bateria roda contra o Postgres e passou verde com a action
+  // ainda recusando — foi o usuário quem encontrou, clicando em Aprovar.
+  //
+  // Por isso a varredura, e não um cenário: o que faltava não era um teste de
+  // SQL a mais, era alguém perguntando se a frase ainda existe em `src/`. A
+  // explicação mora no cabeçalho da 0029 e no CLAUDE.md, fora de `src/`, pela
+  // mesma razão do vocabulário do Full Days acima.
+  //
+  // "envia ao cliente a própria entrega" NÃO entra: essa trava continua de
+  // pé. Aprovar e enviar são duas decisões, e o usuário mudou uma.
+  { nome: "aprova a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão aprova o próprio trabalho" },
+  { nome: "decide a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão decide a própria rodada" },
+
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
 
