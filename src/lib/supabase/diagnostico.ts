@@ -50,6 +50,24 @@ function checarVariaveis(): Checagem {
 
   try {
     const url = new URL(SUPABASE_URL);
+
+    // Barra no final, ou qualquer caminho depois do dominio. E invisivel na
+    // tela e quebra toda chamada montada por concatenacao -- o supabase-js
+    // guarda a URL como recebeu, sem tirar a barra.
+    const temBarraFinal = SUPABASE_URL.trimEnd().endsWith("/");
+    if (url.pathname !== "/" || temBarraFinal) {
+      return {
+        nome: "Variáveis de ambiente",
+        situacao: "falha",
+        detalhe:
+          url.pathname === "/"
+            ? "A URL termina com uma barra. Ela é invisível na tela e quebra as chamadas."
+            : `A URL tem um caminho depois do domínio: "${url.pathname}".`,
+        comoResolver:
+          "NEXT_PUBLIC_SUPABASE_URL precisa terminar no .co, sem barra no final e sem caminho. Corrija no .env.local e rode `npm run build` — o valor é embutido no build.",
+      };
+    }
+
     if (url.protocol !== "https:") {
       return {
         nome: "Variáveis de ambiente",
@@ -74,26 +92,68 @@ function checarVariaveis(): Checagem {
   };
 }
 
-/** O servidor do Supabase responde? */
+/**
+ * O servico de autenticacao responde -- e o login por e-mail esta ligado?
+ *
+ * Pergunta a `/auth/v1/settings` e nao a `/auth/v1/health`. As duas dizem se
+ * o servico esta de pe, mas so `settings` responde a PERGUNTA SEGUINTE, que e
+ * a que interessa: quais provedores de login estao habilitados.
+ *
+ * A troca veio de um caso real. O diagnostico acusava "HTTP 404" no
+ * `/health` e sugeria que o projeto estivesse hibernando -- enquanto a
+ * checagem da tabela `profiles`, logo abaixo, passava. Projeto hibernado nao
+ * serve `profiles`, entao a dica estava errada e mandava procurar no lugar
+ * errado. Duas checagens na mesma tela dizendo coisas incompativeis e pior
+ * que uma checagem a menos.
+ *
+ * A URL e normalizada antes de concatenar porque aqui o `fetch` e cru: o
+ * cliente do supabase-js NAO tira a barra final, entao uma barra sobrando no
+ * .env.local vira `//auth/v1/...` e o gateway devolve 404 -- um 404 que nao
+ * tem nada a ver com o servidor estar no ar.
+ */
 async function checarAlcance(): Promise<Checagem> {
+  const base = SUPABASE_URL.replace(/\/+$/, "");
+
   try {
-    const resposta = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+    const resposta = await fetch(`${base}/auth/v1/settings`, {
       headers: { apikey: SUPABASE_ANON_KEY },
       cache: "no-store",
       signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
     });
 
     if (resposta.ok) {
+      const config = (await resposta.json()) as {
+        external?: Record<string, boolean>;
+        disable_signup?: boolean;
+      };
+
+      // O provedor de e-mail desligado e a causa mais silenciosa de "criei o
+      // usuario e nao consigo entrar": a conta existe, a senha esta certa, e
+      // o Supabase recusa o login inteiro. Na tela do Supabase o interruptor
+      // fica ao lado do "Enable Sign Ups", que e o que a gente de fato quer
+      // desmarcar -- dai a troca.
+      if (config.external?.email === false) {
+        return {
+          nome: "Login por e-mail",
+          situacao: "falha",
+          detalhe: "O serviço respondeu, mas o provedor Email está DESLIGADO.",
+          comoResolver:
+            "Em Supabase > Authentication > Sign In / Providers, religue o provedor Email. O que fecha o cadastro público é “Enable Sign Ups”, e ele pode continuar desmarcado.",
+        };
+      }
+
       return {
-        nome: "Conexão com o Supabase",
+        nome: "Login por e-mail",
         situacao: "ok",
-        detalhe: "Serviço de autenticação respondeu normalmente.",
+        detalhe: config.disable_signup
+          ? "Provedor Email ligado, e o cadastro público fechado — como deve ser."
+          : "Provedor Email ligado. Atenção: o cadastro público está ABERTO.",
       };
     }
 
     if (resposta.status === 401) {
       return {
-        nome: "Conexão com o Supabase",
+        nome: "Login por e-mail",
         situacao: "falha",
         detalhe: "O projeto respondeu, mas recusou a chave (401).",
         comoResolver:
@@ -102,16 +162,16 @@ async function checarAlcance(): Promise<Checagem> {
     }
 
     return {
-      nome: "Conexão com o Supabase",
+      nome: "Login por e-mail",
       situacao: "falha",
-      detalhe: `Resposta inesperada: HTTP ${resposta.status}.`,
+      detalhe: `O serviço de autenticação respondeu HTTP ${resposta.status} em ${base}/auth/v1/settings.`,
       comoResolver:
-        "Confira em supabase.com se o projeto está ativo — projetos gratuitos hibernam depois de um período sem uso.",
+        "Se a checagem da tabela profiles passou, o projeto está no ar e a chave vale — então o problema é o endereço. Confira se NEXT_PUBLIC_SUPABASE_URL é exatamente https://<referência>.supabase.co, sem barra no final e sem nada depois do .co.",
     };
   } catch (erro) {
     const motivo = erro instanceof Error ? erro.message : String(erro);
     return {
-      nome: "Conexão com o Supabase",
+      nome: "Login por e-mail",
       situacao: "falha",
       detalhe: `Não foi possível alcançar o servidor (${motivo}).`,
       comoResolver:
