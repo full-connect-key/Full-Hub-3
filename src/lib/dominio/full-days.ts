@@ -18,8 +18,8 @@ import type { HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase/database.t
  * quando a ficha ainda não tem um: dois "senão" com números diferentes foi
  * como a regra dos 15 dias quase não valeu.
  */
-export const DIAS_DE_RECESSO_PADRAO = 15;
-export const PARCELAS_DE_RECESSO_PADRAO = 2;
+export const DIAS_DE_DESCANSO_PADRAO = 15;
+export const PARCELAS_DE_DESCANSO_PADRAO = 2;
 
 /**
  * O VOCABULÁRIO, e por que ele é este.
@@ -33,9 +33,14 @@ export const PARCELAS_DE_RECESSO_PADRAO = 2;
  *
  * O produto fala de DISPONIBILIDADE, não de direito:
  *
- *   recesso programado  — o período longo previsto em contrato
- *   indisponibilidade   — o afastamento sem previsão
- *   ausência pontual    — um dia ou dois
+ *   descanso         — o período longo previsto em contrato
+ *   afastamento      — o período sem previsão de volta
+ *   ausência pontual — um dia ou dois
+ *
+ * Estas palavras são a SEGUNDA rodada de vocabulário. A primeira, e por que
+ * ela foi substituída, está no cabeçalho da migration 0018 — fora de `src/`,
+ * pela mesma razão de sempre: `npm run check:cores` varre `src/` atrás das
+ * palavras que saíram, e acusaria o texto que as proíbe.
  *
  * `feriado` fica, e a diferença importa: feriado é data do calendário
  * nacional, um fato sobre o dia. Não é direito concedido a ninguém.
@@ -46,8 +51,8 @@ export const PARCELAS_DE_RECESSO_PADRAO = 2;
  * TODO rótulo da tela que a troca cabe num lugar só.
  */
 export const ROTULOS_DE_TIPO: Record<HrTipo, string> = {
-  ferias: "Recesso programado",
-  licenca: "Indisponibilidade",
+  ferias: "Descanso",
+  licenca: "Afastamento",
   ausencia: "Ausência pontual",
 };
 
@@ -72,8 +77,8 @@ export const ROTULOS_DE_STATUS: Record<HrStatus, string> = {
 export const ROTULOS_DE_PRESENCA: Record<PresencaStatus, string> = {
   presente: "Disponível",
   remoto: "Remoto",
-  ferias: "Recesso",
-  licenca: "Indisponível",
+  ferias: "Descanso",
+  licenca: "Afastado",
   ausente: "Ausente",
   // "Folga" pressupõe jornada, e jornada pressupõe vínculo. O que este estado
   // diz de verdade é que ninguém contou com a pessoa naquele dia.
@@ -164,7 +169,7 @@ export function diasEntre(inicioISO: string, fimISO: string): string[] {
  * Data ISO -> Date local, sem fuso.
  *
  * `new Date("2026-03-02")` é interpretado como UTC e, a oeste de Greenwich,
- * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de recesso é
+ * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de descanso é
  * a diferença entre o pedido certo e o errado.
  */
 export function lerData(iso: string): Date | null {

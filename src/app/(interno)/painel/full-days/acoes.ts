@@ -78,7 +78,7 @@ export async function solicitar(dados: unknown): Promise<Resultado<string>> {
       .select("id")
       .single();
 
-    // Os triggers do recesso devolvem a mensagem já escrita para gente ler —
+    // Os triggers do descanso devolvem a mensagem já escrita para gente ler —
     // "são 15 dias por ano, você já tem 10 comprometidos". Repassar o texto do
     // banco é melhor que traduzir aqui e arriscar as duas versões divergirem.
     if (error) return falha(error.message);
@@ -121,7 +121,7 @@ async function avisarOsSocios(
       .maybeSingle();
 
     const rotulo =
-      tipo === "ferias" ? "recesso" : tipo === "licenca" ? "indisponibilidade" : "ausência";
+      tipo === "ferias" ? "descanso" : tipo === "licenca" ? "afastamento" : "ausência";
 
     for (const socio of socios ?? []) {
       await supabase.rpc("notificar", {
@@ -224,7 +224,7 @@ const esquemaDePresenca = z.object({
  * Trocar o status de um dia na matriz.
  *
  * Gestão. O dia que veio de pedido aprovado é recusado pelo trigger
- * `team_presence_proteger` — sem ele, um clique apagaria o recesso de alguém e
+ * `team_presence_proteger` — sem ele, um clique apagaria o descanso de alguém e
  * o pedido continuaria dizendo "aprovada", duas verdades sobre o mesmo dia.
  */
 export async function marcarPresenca(dados: unknown): Promise<Resultado> {

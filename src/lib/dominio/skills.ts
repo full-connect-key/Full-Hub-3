@@ -67,7 +67,7 @@ export function ehSenior(nivel: SkillNivel): boolean {
  *
  * `risco` quando ninguém é sênior nela, ou quando há uma pessoa só. O segundo
  * caso é o que costuma passar batido: a skill existe, o trabalho sai, e no dia
- * em que essa pessoa entra em recesso ninguém percebeu que era ela sozinha.
+ * em que essa pessoa entra em descanso ninguém percebeu que era ela sozinha.
  */
 export type Dependencia = "sem_ninguem" | "uma_pessoa" | "coberta";
 
@@ -79,7 +79,7 @@ export function dependenciaDaSkill(quantosSeniores: number): Dependencia {
 
 export const EXPLICACAO_DA_DEPENDENCIA: Record<Dependencia, string> = {
   sem_ninguem: "Ninguém da casa é avançado nisso.",
-  uma_pessoa: "Uma pessoa só. Se ela sair ou entrar em recesso, a agência para.",
+  uma_pessoa: "Uma pessoa só. Se ela sair ou entrar em descanso, a agência para.",
   coberta: "Mais de uma pessoa cobre.",
 };
 

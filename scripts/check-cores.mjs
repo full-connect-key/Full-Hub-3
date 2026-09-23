@@ -233,8 +233,15 @@ const NOMES_MORTOS = [
   //
   // "feriado" NÃO entra: é data do calendário nacional, um fato sobre o dia, e
   // não direito concedido a ninguém.
-  { nome: "férias", onde: "src/", porque: "vocabulário da CLT — a equipe é PJ; use recesso" },
-  { nome: "licença", onde: "src/", porque: "vocabulário da CLT; use indisponibilidade" },
+  { nome: "férias", onde: "src/", porque: "vocabulário da CLT — a equipe é PJ; use descanso" },
+  { nome: "licença", onde: "src/", porque: "vocabulário da CLT; use afastamento" },
+  // Segunda rodada. "Recesso programado" e "indisponibilidade" foram o
+  // vocabulário entre a 0016 e a 0018, e saíram por decisão do usuário. A
+  // lista CRESCE em vez de ser substituída: nenhuma geração de palavra pode
+  // voltar, não só a última — senão alguém copiando uma tela antiga
+  // ressuscita a penúltima sem ninguém notar.
+  { nome: "recesso", onde: "src/", porque: "vocabulário anterior à 0018; use descanso" },
+  { nome: "indisponibilidade", onde: "src/", porque: "vocabulário anterior à 0018; use afastamento" },
 
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },

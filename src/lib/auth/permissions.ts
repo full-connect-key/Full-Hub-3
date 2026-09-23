@@ -47,7 +47,7 @@ export const SOCIO: UserRole[] = ["socio"];
  * Duas seções, e a divisão é sobre a PESSOA, não sobre o assunto.
  *
  * PRINCIPAL é o que todo mundo da casa usa no dia: as próprias tarefas, o
- * próprio registro da semana, o próprio recesso, a própria nota fiscal. GESTÃO é
+ * próprio registro da semana, o próprio descanso, a própria nota fiscal. GESTÃO é
  * o que se faz sobre os outros — distribuir trabalho, aprovar, cadastrar
  * gente, ver dinheiro.
  *

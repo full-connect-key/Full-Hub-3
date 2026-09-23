@@ -140,7 +140,7 @@ export function Aprovacoes({
           title={filaAtual === "pendente" ? "Nada esperando você" : "Nenhuma nesta lista"}
           description={
             filaAtual === "pendente"
-              ? "Quando alguém informar um recesso, uma indisponibilidade ou uma ausência, o pedido aparece aqui."
+              ? "Quando alguém informar um descanso, uma afastamento ou uma ausência, o pedido aparece aqui."
               : "Troque o filtro acima para ver as outras."
           }
         />

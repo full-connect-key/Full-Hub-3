@@ -40,11 +40,11 @@ import { cancelarSolicitacao, solicitar } from "./acoes";
  * O calendário de seleção.
  *
  * Substituiu a lista de datas do módulo antigo por um motivo simples: pedir
- * recesso é escolher um pedaço do calendário, e digitar duas datas num campo
+ * descanso é escolher um pedaço do calendário, e digitar duas datas num campo
  * obriga a pessoa a abrir um calendário de verdade em outra janela para saber
  * se o dia 14 cai numa sexta.
  *
- * **Dia bloqueado mostra de QUEM é o bloqueio.** "Indisponível" sem nome é uma
+ * **Dia bloqueado mostra de QUEM é o bloqueio.** "Afastado" sem nome é uma
  * recusa que a pessoa não tem como contornar nem entender — com o nome, ela
  * fala com o colega e os dois se organizam, que é o resultado que interessa.
  *
@@ -234,8 +234,8 @@ export function Solicitar({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ferias">Recesso programado</SelectItem>
-                <SelectItem value="licenca">Indisponibilidade</SelectItem>
+                <SelectItem value="ferias">Descanso</SelectItem>
+                <SelectItem value="licenca">Afastamento</SelectItem>
                 <SelectItem value="ausencia">Ausência</SelectItem>
               </SelectContent>
             </Select>
@@ -278,7 +278,7 @@ export function Solicitar({
 
           {semParcela ? (
             <Aviso tom="erro">
-              O recesso pode ser partido em até {maxParcelas} vezes por ano, e você já usou as{" "}
+              O descanso pode ser partido em até {maxParcelas} vezes por ano, e você já usou as{" "}
               {maxParcelas}.
             </Aviso>
           ) : null}

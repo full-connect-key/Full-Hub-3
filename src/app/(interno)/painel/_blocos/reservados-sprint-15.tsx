@@ -87,7 +87,7 @@ export function QuemEstaForaHojeBlock() {
     <BlocoReservado
       titulo="Quem está fora hoje"
       icone={CalendarOff}
-      frase="Quem está em recesso, indisponível ou ausente hoje, sem sair daqui. Entra no Sprint 15 — por ora, a matriz do Full Days responde."
+      frase="Quem está em descanso, afastado ou ausente hoje, sem sair daqui. Entra no Sprint 15 — por ora, a matriz do Full Days responde."
     />
   );
 }

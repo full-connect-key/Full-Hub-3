@@ -297,21 +297,21 @@ delete from public.hr_requests;
 delete from public.notifications;
 
 -- Bruno tem 15 dias. Pedir 20 estoura o contrato, e a recusa precisa falar de
--- RECESSO EM CONTRATO, nao de ferias por ano.
-select teste.recusa_com('A recusa por saldo fala de recesso, nao de ferias', :BRUNO,
+-- DESCANSO EM CONTRATO, nao de ferias por ano.
+select teste.recusa_com('A recusa por saldo fala de descanso, nao de ferias', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
   $fmt$, :BRUNO),
-  'dias de recesso por ano em contrato');
+  'dias de descanso por ano em contrato');
 
 -- Periodo atravessando o ano.
-select teste.recusa_com('A recusa de periodo entre anos fala de recesso', :BRUNO,
+select teste.recusa_com('A recusa de periodo entre anos fala de descanso', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-12-27', '2028-01-05', 6)
   $fmt$, :BRUNO),
-  'recesso que atravessa o ano');
+  'descanso que atravessa o ano');
 
 -- Quem responde continua sendo so o socio -- o que mudou foi como a recusa
 -- diz isso. "Aprovar e reprovar" saiu porque hierarquia de aprovacao e um dos
@@ -323,17 +323,18 @@ select teste.recusa_com('Nem o desenvolvedor responde, e a recusa nao diz "aprov
   $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
   'So o socio responde aos periodos fora');
 
--- E o aviso do sino: "Ferias aprovada" virou "Recesso combinado".
+-- E o aviso do sino. Ja mudou duas vezes: "Ferias aprovada" virou "Recesso
+-- combinado" na 0016, e "Descanso combinado" na 0018.
 select teste.cenario('A socia responde, de acordo', :ANA,
   $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
   'ok');
 
-select teste.conferir('O sino diz "Recesso combinado", nunca "Ferias aprovada"',
+select teste.conferir('O sino diz "Descanso combinado", nunca "Ferias aprovada"',
   (select titulo from public.notifications
     where user_id = '44444444-4444-4444-4444-444444444444'
       and tipo = 'full_days'
     order by created_at desc limit 1),
-  'Recesso combinado');
+  'Descanso combinado');
 
 -- E a matriz recusa editar o dia sem falar de solicitacao aprovada.
 select teste.recusa_com('A matriz fala de periodo combinado', :ANA,
@@ -368,7 +369,16 @@ declare
     'then ''Ferias''',
     'then ''Licenca''',
     '%s aprovada',
-    '%s reprovada'
+    '%s reprovada',
+    -- Segunda rodada (0018). O vocabulario da 0016 tambem saiu, e a lista
+    -- cresce em vez de ser substituida: nenhuma geracao de palavra pode
+    -- voltar, nao so a ultima.
+    'dias de recesso por ano',
+    'O recesso pode ser partido',
+    'Um recesso que atravessa',
+    'then ''Recesso''',
+    'then ''Indisponibilidade''',
+    'recesso programado, indisponibilidade'
   ];
 begin
   foreach frase in array antigas loop
@@ -400,10 +410,11 @@ declare
   frase   text;
   faltam  text[] := '{}';
   novas   text[] := array[
-    'dias de recesso por ano em contrato',
-    'O recesso pode ser partido',
+    'dias de descanso por ano em contrato',
+    'O descanso pode ser partido',
     'So o socio responde aos periodos fora',
-    'then ''Recesso''',
+    'then ''Descanso''',
+    'then ''Afastamento''',
     'periodo ja combinado'
   ];
 begin

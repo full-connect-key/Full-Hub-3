@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { DIAS_DE_RECESSO_PADRAO } from "@/lib/dominio/full-days";
+import { DIAS_DE_DESCANSO_PADRAO } from "@/lib/dominio/full-days";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   HrRequest,
@@ -15,7 +15,7 @@ import type {
  * As consultas do Full Days.
  *
  * O que atravessa todas elas: **a área é o agrupamento que importa.** Quem
- * decide o recesso precisa saber quem mais do mesmo time está fora, porque duas
+ * decide o descanso precisa saber quem mais do mesmo time está fora, porque duas
  * designers fora na mesma semana param a produção — e dois redatores fora não
  * se notam se o time de redação tem cinco pessoas. Por isso quase toda consulta
  * aqui devolve a área junto.
@@ -88,7 +88,7 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
         avatarUrl: p.avatar_url,
         area: ficha?.area?.trim() || SEM_AREA,
         cargo: ficha?.cargo ?? null,
-        diasFeriasAno: ficha?.dias_ferias_ano ?? DIAS_DE_RECESSO_PADRAO,
+        diasFeriasAno: ficha?.dias_ferias_ano ?? DIAS_DE_DESCANSO_PADRAO,
         maxParcelas: ficha?.max_parcelas_ferias ?? 2,
       };
     });
@@ -301,7 +301,7 @@ export async function diasBloqueadosDaArea(
  * dezembro tem saldo zero, mas a agência ainda vai ficar sem essa pessoa uma
  * semana. Um número só esconderia isso.
  *
- * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM RECESSO é risco de entrega e de
+ * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DESCANSO é risco de entrega e de
  * esgotamento: ninguém entrega no mesmo ritmo por doze meses seguidos. Por
  * isso ele não é mais uma coluna da tabela — aparece em destaque próprio.
  *
@@ -316,7 +316,7 @@ export type LinhaDoRelatorio = PessoaDoTime & {
   saldo: number;
   ausencias: number;
   licencas: number;
-  /** Null quando nunca houve recesso: aí a conta é desde o início do contrato. */
+  /** Null quando nunca houve descanso: aí a conta é desde o início do contrato. */
   ultimasFerias: string | null;
   admissao: string | null;
   /** Meses desde o último descanso. Null quando não há admissão cadastrada. */
@@ -351,7 +351,7 @@ export async function relatorioDoPeriodo(
     );
 
     // Usada é a que já começou; agendada é a combinada que ainda vem. A régua
-    // é a data de início comparada com hoje, e não o status: um recesso
+    // é a data de início comparada com hoje, e não o status: um descanso
     // combinado em janeiro para dezembro não foi "usado".
     const tiradas = feriasDoAno
       .filter((p) => p.status === "aprovada" && p.data_inicio <= hojeISO)

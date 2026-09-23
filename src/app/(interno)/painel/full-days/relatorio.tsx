@@ -25,7 +25,7 @@ const TODAS = "__todas__";
 /**
  * O relatório gerencial.
  *
- * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM RECESSO vem antes da tabela, e não
+ * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DESCANSO vem antes da tabela, e não
  * como mais uma coluna dentro dela: alguém que não para há mais de um ano é
  * um problema de capacidade e de saúde, e uma coluna a mais numa tabela de
  * nove colunas não seria lida.
@@ -94,7 +94,7 @@ export function RelatorioGerencial({
   function exportar() {
     const cabecalho = [
       "Pessoa", "Área", "Dias no ano", "Tiradas", "Agendadas", "Pendentes",
-      "Saldo", "Ausências no período", "Indisponibilidades no período", "Meses sem recesso",
+      "Saldo", "Ausências no período", "Afastamentos no período", "Meses sem descanso",
     ];
     const corpo = visiveis.map((l) => [
       l.nome, l.area, l.diasFeriasAno, l.tiradas, l.agendadas, l.pendentes,
@@ -149,7 +149,7 @@ export function RelatorioGerencial({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Indicador
-          titulo="Recesso no ano"
+          titulo="Descanso no ano"
           valor={`${tiradas} de ${contratadas}`}
           apoio="dias usados, do total previsto em contrato"
         />
@@ -164,9 +164,9 @@ export function RelatorioGerencial({
           apoio={pendentes === 1 ? "solicitação" : "solicitações"}
         />
         <Indicador
-          titulo="Indisponibilidades"
+          titulo="Afastamentos"
           valor={String(licencas)}
-          apoio={`e ${foraHoje} pessoa(s) em recesso agora`}
+          apoio={`e ${foraHoje} pessoa(s) em descanso agora`}
         />
       </div>
 
@@ -176,7 +176,7 @@ export function RelatorioGerencial({
             <AlertTriangle aria-hidden className="text-danger mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-danger text-sm font-semibold">
-                Há mais de um ano sem recesso — {vencendo.length} pessoa(s)
+                Há mais de um ano sem descanso — {vencendo.length} pessoa(s)
               </h2>
               <p className="text-text-secondary mt-0.5 text-sm">
                 Ninguém entrega no mesmo ritmo por doze meses seguidos. Vale combinar um período
@@ -187,7 +187,7 @@ export function RelatorioGerencial({
                   <li key={l.id} className="text-text-primary text-sm">
                     <strong>{l.nome}</strong> — {l.mesesSemFerias} meses desde{" "}
                     {l.ultimasFerias
-                      ? `o último recesso (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
+                      ? `o último descanso (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
                       : l.admissao
                         ? `o início do contrato (${format(parseISO(l.admissao), "dd/MM/yyyy")})`
                         : "o início"}
@@ -211,7 +211,7 @@ export function RelatorioGerencial({
               <TableHead className="text-right">Saldo</TableHead>
               <TableHead className="w-32">Consumo</TableHead>
               <TableHead className="text-right">Ausências</TableHead>
-              <TableHead className="text-right">Indisp.</TableHead>
+              <TableHead className="text-right">Afast.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -255,7 +255,7 @@ export function RelatorioGerencial({
                       <div
                         className="bg-neutral-soft h-2 w-full overflow-hidden rounded-full"
                         role="img"
-                        aria-label={`${proporcao}% do recesso comprometido`}
+                        aria-label={`${proporcao}% do descanso comprometido`}
                       >
                         <div
                           className={cn("h-full rounded-full", proporcao >= 100 ? "bg-warning" : "bg-ferias")}

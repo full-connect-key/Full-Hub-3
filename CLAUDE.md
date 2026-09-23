@@ -511,8 +511,8 @@ para a confiança acabar de vez.
 #### O vocabulário não é de direito trabalhista, e isso é regra
 
 **A equipe da Full Connect Key é toda PJ.** Palavra da CLT num sistema da
-própria contratante — férias, licença, folga, abono, afastamento — não é
-impropriedade de linguagem: é prova documental. Num pedido de reconhecimento
+própria contratante — férias, licença, folga, abono — não é impropriedade de
+linguagem: é prova documental. Num pedido de reconhecimento
 de vínculo, o que se junta aos autos é exatamente isto — o sistema da empresa
 concedendo férias e registrando folga.
 
@@ -520,11 +520,20 @@ O produto fala de **disponibilidade**, não de direito:
 
 | Era | É | Por quê |
 | --- | --- | --- |
-| Férias | **Recesso programado** | o período longo previsto em contrato |
-| Licença | **Indisponibilidade** | o afastamento sem previsão |
+| Férias | **Descanso** | o período longo previsto em contrato |
+| Licença | **Afastamento** | o período sem previsão de volta |
 | Ausência | **Ausência pontual** | um dia ou dois |
 | Folga | **Sem alocação** | "folga" pressupõe jornada, e jornada pressupõe vínculo |
 | Aprovar / Reprovar | **De acordo / Preciso remarcar** | hierarquia de aprovação é indício de subordinação |
+
+**Duas rodadas, e a segunda foi decisão explícita.** A migration 0016 trocou
+por "recesso programado" e "indisponibilidade"; a **0018** trocou de novo, para
+as palavras da tabela. Ficou registrado no cabeçalho da 0018, e vale repetir
+aqui para não ser desfeito como se fosse descuido: **foi observado que
+"afastamento" é palavra corrente na CLT e na previdência** — afastamento por
+doença, afastamento previdenciário — e que por isso ela é mais carregada que
+"indisponibilidade", não menos. A decisão foi mantida por quem responde pela
+exposição. Quem for mexer nisso de novo, mexa sabendo disso.
 
 **"Feriado" fica**, e a diferença importa: feriado é data do calendário
 nacional, um fato sobre o dia. Não é direito concedido a ninguém.
@@ -542,12 +551,17 @@ Onde a regra é aplicada, e onde ela **não** é:
   por uma varredura que só procurasse o que saiu.
 - **Nome de coluna, valor de enum e nome de função continuam como estavam**
   (`hr_tipo` com `ferias`/`licenca`, `dias_ferias_ano`, `saldo_de_ferias()`,
-  o token `--ferias`). Decisão explícita: renomear valor de enum em uso é
+  o token `--ferias`). As constantes em TypeScript, essas sim, acompanharam:
+  `DIAS_DE_DESCANSO_PADRAO` e `PARCELAS_DE_DESCANSO_PADRAO` — identificador em
+  português é a camada que a convenção manda traduzir. Decisão explícita: renomear valor de enum em uso é
   migration arriscada, e ninguém que usa o sistema vê esses nomes. A
   consequência aceita é que quem ler o schema vê o vocabulário antigo.
 - `npm run check:cores` varre `src/` atrás de "férias" e "licença"
   **acentuados** — as formas sem acento são justamente as chaves de enum que
-  ficaram. E varre sem exceção de arquivo: a explicação da regra mora aqui e
+  ficaram — **e também atrás de "recesso" e "indisponibilidade"**, que foram o
+  vocabulário entre a 0016 e a 0018. A lista **cresce** em vez de ser
+  substituída: nenhuma geração de palavra pode voltar, não só a última, senão
+  alguém copiando uma tela antiga ressuscita a penúltima sem ninguém notar. E varre sem exceção de arquivo: a explicação da regra mora aqui e
   no cabeçalho da 0016, fora de `src/`, senão a varredura acusaria o texto
   que a proíbe.
 
