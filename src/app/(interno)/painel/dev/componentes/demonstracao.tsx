@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { STATUS_DE_TASK } from "@/lib/dominio/tasks";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Cronometro } from "@/components/shared/cronometro";
+import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { DateBadge } from "@/components/shared/date-badge";
 import { GraficoDeBarras } from "@/components/shared/grafico-de-barras";
@@ -162,6 +163,31 @@ export function DemonstracaoDeComponentes({
           {STATUS_DE_TASK.map((status) => (
             <StatusBadge key={status} status={status} />
           ))}
+        </div>
+      </Secao>
+
+      <Secao
+        titulo="SecaoDoFormulario"
+        descricao="O cabeçalho numerado de formulário longo. O número dá à conversa um jeito de apontar (“faltou a 2”) sem descrever onde o campo fica. Usado no Nova Task e no pedido do Full Days — por isso mora aqui, e não dentro de um dos dois."
+      >
+        <div className="max-w-md space-y-6">
+          <SecaoDoFormulario numero={1} titulo="Informações gerais">
+            <p className="text-text-secondary text-sm">O conteúdo da seção entra aqui.</p>
+          </SecaoDoFormulario>
+          <SecaoDoFormulario
+            numero={2}
+            titulo="Com ação no canto"
+            acao={
+              <Button variant="outline" size="sm">
+                <Plus aria-hidden />
+                Adicionar
+              </Button>
+            }
+          >
+            <p className="text-text-secondary text-sm">
+              A prop <code>acao</code> é para o botão do cabeçalho.
+            </p>
+          </SecaoDoFormulario>
         </div>
       </Secao>
 

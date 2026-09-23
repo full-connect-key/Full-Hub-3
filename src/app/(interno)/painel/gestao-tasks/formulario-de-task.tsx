@@ -39,7 +39,7 @@ import type {
 
 import { criarTask, sugerirEtapasDoTipo } from "./acoes";
 import { EscolhaDaExigencia } from "./escolha-da-exigencia";
-import { SecaoDoFormulario } from "./secao-do-formulario";
+import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
 const SEM_VALOR = "__nenhum__";

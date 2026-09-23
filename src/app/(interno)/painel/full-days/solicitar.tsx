@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -168,7 +169,45 @@ export function Solicitar({
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      {/* O SALDO ABRE A TELA, e não fica no painel da direita.
+          É a primeira coisa que quem entra aqui quer saber, e era preciso
+          varrer o olho até a coluna lateral para achar. Para quem pede
+          afastamento ou ausência pontual ele não conta, e some. */}
+      {tipo === "ferias" ? (
+        <p className="text-text-secondary text-sm">
+          Você tem <strong className="text-text-primary tabular-nums">{saldo} dias</strong> de{" "}
+          {diasFeriasAno} disponíveis este ano, em até {maxParcelas} vezes — você já usou{" "}
+          {parcelasUsadas} de {maxParcelas}.
+        </p>
+      ) : (
+        <p className="text-text-secondary text-sm">
+          {ROTULOS_DE_TIPO[tipo]} não desconta do seu saldo. Entra na matriz da equipe e no
+          relatório.
+        </p>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <SecaoDoFormulario
+          numero={1}
+          titulo="Escolha as datas"
+          acao={
+            <div className="flex items-center gap-2">
+              <Label htmlFor="fd-tipo" className="text-text-secondary text-xs font-normal">
+                Tipo de pedido
+              </Label>
+              <Select value={tipo} onValueChange={(v) => setTipo(v as HrTipo)}>
+                <SelectTrigger id="fd-tipo" size="sm" className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ferias">Descanso</SelectItem>
+                  <SelectItem value="licenca">Afastamento</SelectItem>
+                  <SelectItem value="ausencia">Ausência pontual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        >
         <section className="bg-surface-card rounded-card border p-4">
           <div className="mb-3 flex items-center gap-2">
             <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
@@ -222,30 +261,20 @@ export function Solicitar({
               Feriado ou fim de semana
             </li>
           </ul>
+
+          {/* A instrução fica NO PÉ DO CALENDÁRIO, onde a mão está.
+              Um calendário de seleção por intervalo não se explica sozinho:
+              quem nunca usou clica num dia, vê um quadrado azul e não
+              descobre que falta o segundo clique. */}
+          <p className="text-text-muted mt-3 border-t pt-3 text-xs">
+            Clique na data inicial e depois na final.
+          </p>
         </section>
+        </SecaoDoFormulario>
 
+        <div className="space-y-6">
+        <SecaoDoFormulario numero={2} titulo="Período selecionado">
         <aside className="bg-surface-card rounded-card h-fit space-y-4 border p-4">
-          <h2 className="text-sm font-semibold">Seu pedido</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="fd-tipo">Tipo</Label>
-            <Select value={tipo} onValueChange={(v) => setTipo(v as HrTipo)}>
-              <SelectTrigger id="fd-tipo" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ferias">Descanso</SelectItem>
-                <SelectItem value="licenca">Afastamento</SelectItem>
-                <SelectItem value="ausencia">Ausência</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-text-muted text-xs">
-              {tipo === "ferias"
-                ? "Desconta do seu saldo do ano."
-                : "Não desconta do saldo — entra na matriz e no relatório."}
-            </p>
-          </div>
-
           <dl className="space-y-1.5 text-sm">
             <Campo rotulo="De" valor={inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"} />
             <Campo rotulo="Até" valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"} />
@@ -263,10 +292,9 @@ export function Solicitar({
             ) : null}
           </dl>
 
-          {tipo === "ferias" ? (
+          {!inicioSel ? (
             <p className="text-text-muted text-xs">
-              São {diasFeriasAno} dias por ano, em até {maxParcelas} vezes. Você já usou{" "}
-              {parcelasUsadas} de {maxParcelas}.
+              Nenhum período escolhido ainda. Use o calendário ao lado.
             </p>
           ) : null}
 
@@ -290,14 +318,21 @@ export function Solicitar({
             </Aviso>
           ) : null}
 
+        </aside>
+        </SecaoDoFormulario>
+
+        <SecaoDoFormulario numero={3} titulo="Observação (opcional)">
+        <aside className="bg-surface-card rounded-card h-fit space-y-4 border p-4">
           <div className="space-y-2">
-            <Label htmlFor="fd-motivo">Justificativa (opcional)</Label>
+            <Label htmlFor="fd-motivo" className="sr-only">
+              Observação
+            </Label>
             <Textarea
               id="fd-motivo"
               rows={3}
               value={motivo}
               onChange={(evento) => setMotivo(evento.target.value)}
-              placeholder="Viagem marcada, consulta médica…"
+              placeholder="Algo que o sócio deva saber sobre este período?"
             />
           </div>
 
@@ -318,6 +353,8 @@ export function Solicitar({
             </Button>
           </div>
         </aside>
+        </SecaoDoFormulario>
+        </div>
       </div>
 
       <section className="space-y-3">

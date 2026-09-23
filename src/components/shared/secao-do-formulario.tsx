@@ -3,12 +3,17 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Uma seção numerada do formulário de abertura de demanda.
+ * Uma seção numerada de formulário longo.
  *
- * O formulário de Nova Task pede muita coisa, e isso não é acidente: uma
- * demanda mal aberta custa uma semana de idas e vindas. Mas uma coluna de
- * quinze campos soltos faz a pessoa preencher no piloto automático e errar
- * justamente no que importa.
+ * Nasceu no formulário de Nova Task e virou compartilhada quando o Full Days
+ * passou a usá-la — duas telas desenhando o mesmo cabeçalho numerado por
+ * conta própria acabariam com dois tamanhos de círculo e dois pesos de
+ * título.
+ *
+ * Formulário longo não é acidente onde existe: uma demanda mal aberta custa
+ * uma semana de idas e vindas, e um pedido de descanso sem período claro
+ * volta para quem pediu. Mas uma coluna de quinze campos soltos faz a pessoa
+ * preencher no piloto automático e errar justamente no que importa.
  *
  * O número não é enfeite: ele dá à conversa um jeito de apontar ("faltou a
  * 5") sem que ninguém precise descrever onde o campo fica na tela.

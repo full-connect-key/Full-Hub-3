@@ -199,6 +199,13 @@ ambiente com task anterior a esta regra, e migration que não roda no próximo
 ambiente não é migration. Preencher as antigas com um valor qualquer para poder
 marcar `not null` seria pior: inventaria um endereço, e alguém clicaria nele.
 
+#### Formulário longo vai em seções numeradas
+
+`components/shared/secao-do-formulario.tsx`. Nasceu no Nova Task e virou
+compartilhado quando o pedido do Full Days passou a usá-lo — duas telas
+desenhando o mesmo cabeçalho por conta própria acabariam com dois tamanhos de
+círculo e dois pesos de título.
+
 #### O formulário de abertura tem seis seções numeradas
 
 `/painel/gestao-tasks` → "Nova task". Informações gerais, período e
@@ -663,6 +670,21 @@ por pessoa, e mudar contrato não pode exigir deploy.
   do mesmo time está fora. É por isso que o calendário bloqueia dias de colegas
   da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
   uma recusa que ninguém tem como contornar nem entender.
+
+**A tela de pedido é três seções numeradas**, como a de Nova Task: escolher as
+datas (com o tipo de pedido no cabeçalho da seção, porque ele muda o que o
+resto significa), o período selecionado, e a observação. O **saldo abre a
+tela** em vez de ficar no painel lateral: é a primeira coisa que quem entra
+ali quer saber, e era preciso varrer o olho até a coluna da direita para
+achar. Quem pede afastamento ou ausência pontual não vê saldo nenhum — não
+desconta.
+
+> **Ponto em aberto, e é decisão de produto:** clicar num dia em que um colega
+> da área está fora não faz nada — nem seleciona, nem explica. Mas escolher um
+> período que *atravessa* esses dias é aceito, com aviso. São duas respostas
+> para a mesma situação, conforme o caminho do clique. Resolver é escolher um
+> dos dois: bloquear de verdade (e dizer por que, no clique) ou marcar o dia
+> como conflito e deixar passar com o aviso, que é o que o aviso já diz.
 
 ### Full Academy: organizar conteúdo, não avaliar gente
 
