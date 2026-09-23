@@ -39,7 +39,6 @@ export default async function PaginaDeWorkflows() {
     <div className="space-y-6">
       <PageHeader
         title="Workflows"
-        description="Cada workflow da agência com a cadeia fixa de etapas que ele gera. É o que a pessoa escolhe ao abrir uma task — e o que faz as subtarefas nascerem prontas. Editar um workflow não muda nenhuma task já criada."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>

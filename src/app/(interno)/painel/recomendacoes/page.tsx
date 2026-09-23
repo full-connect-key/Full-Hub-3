@@ -42,7 +42,6 @@ export default async function PaginaDeRecomendacoes({
     <div className="space-y-6">
       <PageHeader
         title="Recomendações"
-        description="O que a equipe anda indicando: filme, curso, ferramenta, referência. Poste o que valeu o seu tempo."
       />
 
       <Suspense

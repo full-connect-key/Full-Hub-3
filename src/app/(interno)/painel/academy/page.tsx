@@ -36,7 +36,6 @@ export default async function PaginaDaAcademy({
     <div className="space-y-6">
       <PageHeader
         title="Full Academy"
-        description="As trilhas de formação da agência. Marque o que já viu — o progresso é seu, e a anotação de cada material também."
       />
 
       {gestor ? <AbasDaAcademy atual={aba} /> : null}

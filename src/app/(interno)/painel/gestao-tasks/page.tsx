@@ -83,7 +83,6 @@ export default async function PaginaDeGestaoDeTasks({
     <div className="space-y-6">
       <PageHeader
         title="Gestão de Tasks"
-        description="Todas as demandas da agência, em três formas de olhar."
         actions={
           <div className="flex gap-2">
             <Contador valor={contadores.abertas} rotulo="abertas" />

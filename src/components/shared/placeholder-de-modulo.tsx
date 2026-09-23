@@ -19,7 +19,7 @@ export async function PlaceholderDeModulo({ href }: { href: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={item?.label ?? "Módulo"} description={item?.description} />
+      <PageHeader title={item?.label ?? "Módulo"} />
       <EmptyState
         icon={item?.icon ?? Hammer}
         title="Este módulo será construído em breve"

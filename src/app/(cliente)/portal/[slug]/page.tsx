@@ -25,7 +25,6 @@ export default async function PaginaDoPortalDoCliente({
     <div className="space-y-8">
       <PageHeader
         title={cliente?.nome_empresa ?? "Portal do cliente"}
-        description="Esta é a tela que o cliente vê ao entrar no portal."
       />
       <EmptyState
         icon={Home}

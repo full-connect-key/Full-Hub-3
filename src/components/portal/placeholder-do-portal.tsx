@@ -19,7 +19,7 @@ export async function PlaceholderDoPortal({ href }: { href: string }) {
 
   return (
     <div className="space-y-8">
-      <PageHeader title={item?.label ?? "Seção"} description={item?.description} />
+      <PageHeader title={item?.label ?? "Seção"} />
       <EmptyState
         icon={item?.icon ?? Hammer}
         title="Esta área será construída em breve"
@@ -43,7 +43,7 @@ export function PlaceholderDoPortalDoCliente({ href }: { href: string }) {
 
   return (
     <div className="space-y-8">
-      <PageHeader title={item?.label ?? "Seção"} description={item?.description} />
+      <PageHeader title={item?.label ?? "Seção"} />
       <EmptyState
         icon={item?.icon ?? Hammer}
         title="Esta área do portal será construída em breve"

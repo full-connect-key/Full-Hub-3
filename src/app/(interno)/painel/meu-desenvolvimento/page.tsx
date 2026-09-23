@@ -46,7 +46,6 @@ export default async function PaginaDoMeuDesenvolvimento() {
     <div className="space-y-6">
       <PageHeader
         title="Meu Desenvolvimento"
-        description="O que você sabe fazer e o que quer aprender. O nível é seu: ninguém da gestão escreve por você — e é isso que permite dizer “iniciante” sem receio."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>

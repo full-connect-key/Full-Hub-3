@@ -21,7 +21,6 @@ export default async function PaginaDeClientes() {
     <div className="space-y-6">
       <PageHeader
         title="Clientes"
-        description="As empresas atendidas, quem responde por cada uma e quem tem acesso ao portal."
         actions={
           <FormularioDeCliente
             equipe={equipe}

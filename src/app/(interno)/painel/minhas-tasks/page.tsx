@@ -115,7 +115,6 @@ export default async function PaginaDeMinhasTasks({
     <div className="space-y-6">
       <PageHeader
         title={`${saudacao()}, ${nome}`}
-        description="As suas subtarefas — a demanda aparece uma vez só, com o que é seu em destaque."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>

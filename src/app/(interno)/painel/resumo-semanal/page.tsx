@@ -100,7 +100,6 @@ export default async function PaginaDoResumoSemanal({
     <div className="space-y-6">
       <PageHeader
         title="Resumo Semanal"
-        description="O que você entregou, semana a semana. É o seu registro: ninguém mais lê, nem a gestão — e é ele que vira a base da sua conversa de desenvolvimento."
       />
 
       <BuscaNoHistorico termoInicial={busca} />

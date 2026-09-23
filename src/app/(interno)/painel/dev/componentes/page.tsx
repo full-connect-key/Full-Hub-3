@@ -23,7 +23,6 @@ export default async function PaginaDeComponentes() {
     <div className="space-y-10">
       <PageHeader
         title="Componentes compartilhados"
-        description="Os blocos que todos os módulos reaproveitam. Alterar um destes muda o projeto inteiro."
       />
       <DemonstracaoDeComponentes />
     </div>

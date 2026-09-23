@@ -11,7 +11,6 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import { listarEquipeAtiva, obterColaborador, vinculosDoColaborador } from "@/lib/dados/equipe";
 import { avaliacoesDaPessoa, skillsDaPessoa } from "@/lib/dados/skills";
-import { rotuloDaFuncao } from "@/lib/dominio/equipe";
 
 import { DetalheDoColaborador } from "./detalhe";
 import { SkillsDaPessoa } from "./skills-da-pessoa";
@@ -46,11 +45,6 @@ export default async function PaginaDoColaborador({ params }: PageProps<"/painel
         <PageHeader
           className="flex-1"
           title={pessoa.nome}
-          description={
-            [pessoa.membro?.cargo, rotuloDaFuncao(pessoa.membro?.funcao ?? null)]
-              .filter((parte) => parte && parte !== "—")
-              .join(" · ") || pessoa.email
-          }
           actions={
             pessoa.ativo && pessoa.membro?.ativo !== false ? (
               <Badge variant="success">Ativo</Badge>

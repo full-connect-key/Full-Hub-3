@@ -38,7 +38,6 @@ export default async function PaginaDoMeuPerfil() {
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <PageHeader
         title="Meu perfil"
-        description="Seus dados de acesso. Cargo, área e função são definidos pela gestão."
         actions={<Badge variant="secondary">{ROTULOS_DE_ROLE[sessao.profile.role]}</Badge>}
       />
 

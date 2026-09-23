@@ -82,7 +82,6 @@ export default async function PaginaDoFullDays({
     <div className="space-y-6">
       <PageHeader
         title="Full Days"
-        description="Recesso, indisponibilidade e ausência da equipe — quem está onde, quem combinou o quê, e o que ainda espera retorno."
       />
 
       <AbasDoFullDays atual={aba} visiveis={visiveis} />

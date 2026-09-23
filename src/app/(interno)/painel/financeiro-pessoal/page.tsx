@@ -44,7 +44,6 @@ export default async function PaginaDoFinanceiroPessoal({
     <div className="space-y-6">
       <PageHeader
         title="Financeiro Pessoal"
-        description="Suas entradas e saídas do mês. É seu e só seu — nem a gestão enxerga, e dá para apagar tudo quando quiser."
       />
 
       <Suspense key={competencia} fallback={<LoadingSkeleton variant="table" rows={5} />}>

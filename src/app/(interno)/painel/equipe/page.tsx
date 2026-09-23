@@ -38,7 +38,6 @@ export default async function PaginaDaEquipe() {
     <div className="space-y-6">
       <PageHeader
         title="Equipe & Skills"
-        description="Quem é da casa, o que cada um faz e o que alcança na plataforma."
         actions={
           <FormularioDeColaborador
             roleDeQuemCria={sessao.profile.role}

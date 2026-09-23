@@ -59,7 +59,6 @@ export default async function PaginaDoFinanceiro({
     <div className="space-y-6">
       <PageHeader
         title="Financeiro"
-        description="Contratos, receitas, despesas e a rentabilidade de cada conta. Só o sócio alcança este módulo."
       />
 
       <AbasDoFinanceiro atual={aba} />

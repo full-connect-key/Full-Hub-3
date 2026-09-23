@@ -13,21 +13,20 @@ import { cn } from "@/lib/utils";
  * O número não é enfeite: ele dá à conversa um jeito de apontar ("faltou a
  * 5") sem que ninguém precise descrever onde o campo fica na tela.
  *
- * A linha de explicação é obrigatória de propósito. Toda seção aqui responde
- * a uma pergunta que a agência já errou alguma vez — de quem é a demanda,
- * quando ela vence, quem precisa aprovar. Um título sozinho não diz isso.
+ * **NÃO TEM `explicacao`, e a ausência é deliberada.** A linha embaixo de
+ * cada título saiu por decisão do produto. A prop foi removida junto com as
+ * chamadas, e não só as chamadas: prop opcional que ninguém usa volta na
+ * primeira seção nova que alguém escrever copiando outra.
  */
 export function SecaoDoFormulario({
   numero,
   titulo,
-  explicacao,
   acao,
   children,
   className,
 }: {
   numero: number;
   titulo: string;
-  explicacao: string;
   /** Botão do canto direito do cabeçalho, quando a seção tem um. */
   acao?: ReactNode;
   children: ReactNode;
@@ -36,7 +35,7 @@ export function SecaoDoFormulario({
   return (
     <section className={cn("space-y-3", className)}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0">
           <h3 className="text-text-primary flex items-center gap-2 text-sm font-semibold">
             <span
               aria-hidden
@@ -46,7 +45,6 @@ export function SecaoDoFormulario({
             </span>
             {titulo}
           </h3>
-          <p className="text-text-muted text-xs leading-relaxed">{explicacao}</p>
         </div>
         {acao ? <div className="shrink-0">{acao}</div> : null}
       </div>

@@ -45,7 +45,6 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/cli
 
       <PageHeader
         title={cliente.nome_empresa}
-        description={cliente.segmento ?? "Sem segmento informado."}
         actions={
           <Badge variant={cliente.ativo ? "success" : "secondary"}>
             {cliente.ativo ? "Ativo" : "Inativo"}

@@ -31,7 +31,6 @@ export default async function AprovacoesDoClienteVistasPelaEquipe({
     <div className="space-y-8">
       <PageHeader
         title="Aprovações"
-        description="O que a equipe enviou para este cliente olhar, e o que ele já decidiu."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>

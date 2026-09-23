@@ -22,7 +22,6 @@ export default async function PaginaDeAprovacoesInternas() {
     <div className="space-y-6">
       <PageHeader
         title="Aprovações internas"
-        description="O que a equipe produziu e está esperando validação — e o que já tem aval para ir ao cliente."
       />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={5} />}>

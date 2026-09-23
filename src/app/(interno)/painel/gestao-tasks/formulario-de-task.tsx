@@ -383,7 +383,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={1}
             titulo="Informações gerais da demanda"
-            explicacao="De quem é a demanda e o que ela é. O briefing é o que evita a primeira rodada de perguntas."
           >
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[1fr_16rem]">
@@ -451,7 +450,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={2}
             titulo="Período e prioridade"
-            explicacao="O status da demanda não se digita: ele sai do andamento das subtarefas e das aprovações. Toda task nova nasce em “não iniciada”."
           >
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
@@ -500,7 +498,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={3}
             titulo="Exigência de aprovação da demanda"
-            explicacao="Quem abre a demanda decide o que ela precisa para ser dada por entregue. Quem recusa o encerramento sem isso é o banco, não a tela."
           >
             <EscolhaDaExigencia valor={exigencia} aoMudar={setExigencia} />
           </SecaoDoFormulario>
@@ -511,7 +508,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={4}
             titulo="Workflow (opcional)"
-            explicacao="Escolher um workflow já traz as etapas dele prontas, com função e prazo. Você só preenche os nomes e o que falta em cada subtarefa. É atalho, não camisa de força: tudo continua editável aqui embaixo."
           >
             <Select value={tipo} onValueChange={aplicarTipo} disabled={aplicando}>
               <SelectTrigger id="task-tipo" className="w-full sm:max-w-md">
@@ -535,7 +531,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={5}
             titulo="Subtarefas e entregas"
-            explicacao="Responsável, prazo, tempo e regra de aprovação moram aqui — é a subtarefa que alguém executa. Uma demanda sem etapa nenhuma não chega a ninguém."
             acao={
               <Button type="button" variant="outline" size="sm" onClick={adicionarSubtarefa}>
                 <Plus aria-hidden />
@@ -705,7 +700,6 @@ export function FormularioDeTask({
           <SecaoDoFormulario
             numero={6}
             titulo="Materiais e links"
-            explicacao="A pasta de entrega é obrigatória: é o endereço do material pronto. As referências de apoio são o que a equipe consulta para produzir."
           >
             <div className="space-y-4">
               <div className="space-y-2">
