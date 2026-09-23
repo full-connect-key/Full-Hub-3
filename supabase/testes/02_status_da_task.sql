@@ -44,10 +44,28 @@ update public.subtasks set status = 'concluida' where id in
 select teste.conferir('Tres concluidas e a quarta parada: em_andamento',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_andamento');
 
--- Gestor marca "entregue" a mao
+-- A etapa "Quatro" pede aval interno e nao tem rodada nenhuma. Desde a 0023 o
+-- `entregue` para aqui: a demanda so e dada por entregue quando TODA etapa que
+-- pediu aval tiver a rodada aprovada dela.
+select teste.recusa_com('Entregue e recusado com etapa sem aprovacao', :ANA,
+  $$update public.tasks set status = 'entregue', status_manual = true
+     where id = 'eeeeeeee-0000-0000-0000-00000000000a'$$,
+  '"Quatro"');
+
+select teste.conferir('E a task fica no status calculado',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_andamento');
+
+-- Sem etapa pedindo aval, o gestor marca a mao e o calculo respeita. E o que
+-- este trecho sempre testou; a exigencia sai e volta para provar so isso.
+update public.subtasks set requer_aprovacao = false, tipo_aprovacao = null
+ where id = 'ffffffff-0000-0000-0000-000000000004';
 update public.tasks set status = 'entregue', status_manual = true
  where id = 'eeeeeeee-0000-0000-0000-00000000000a';
 select teste.conferir('Gestor marca entregue a mao, e fica',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
+update public.subtasks set requer_aprovacao = true, tipo_aprovacao = 'interna'
+ where id = 'ffffffff-0000-0000-0000-000000000004';
+select teste.conferir('E o entregue resiste a exigencia voltar',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
 
 -- A quarta vai para aprovacao: a rodada pendente toma o controle de volta
