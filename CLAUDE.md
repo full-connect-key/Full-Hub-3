@@ -732,10 +732,46 @@ Cada abertura vira linha em `client_portal_views` — insumo da auditoria do
 Sprint 16. A RLS só aceita a linha em nome de quem está logado, e não existe
 policy de DELETE.
 
+**A gestão entra pelo `/portal` também, e vê a escolha.** Sócio e
+desenvolvedor abriam `/portal` e levavam 403 — e digitar `/portal` é
+exatamente o que quem é da agência faz. Decisão do usuário: liberar. Mas
+liberar não é deixar entrar no portal do cliente: a equipe não tem empresa
+(não há linha em `client_users` para ninguém da agência, e `my_client_ids()`
+devolve vazio), então a tela do cliente sairia zerada — pior que a recusa.
+`/portal` para a gestão é a **escolha de qual portal abrir**, com uma casca
+simples e sem a navegação do cliente, e o destino continua sendo
+`/portal/{slug}`: com a faixa, sem decisão nenhuma, com rastro. As telas de
+dentro de `(meu)` não recusam a gestão — mandam para `/portal`, porque quem
+digitou `/portal/configuracoes` estava procurando o portal de algum cliente.
+
+**Isso desfez um 403 que ninguém tinha notado**, e ele vinha do Sprint 0: o
+layout de `(cliente)` chamava `exigirCliente()` e envolve TUDO abaixo de
+`/portal` — inclusive `[slug]/`. A visualização administrativa existia desde o
+Sprint 3C, com a guarda certa no layout dela, e a recusa acontecia um nível
+acima, antes. Foi o que o usuário encontrou ao tentar abrir o portal como
+sócio.
+
 Abaixo de `/portal` há duas entradas com donos diferentes, e por isso a guarda
-não mora no layout de `/portal`: `(meu)/` é do cliente com `exigirCliente()`,
-`[slug]/` é da gestão. Uma guarda única no nível de cima teria que aceitar as
-duas, que é o mesmo que não guardar nenhuma.
+de verdade não mora no layout de `/portal`: `(meu)/` é do cliente,
+`[slug]/` é da gestão. O que o nível de cima faz é estreitar —
+`exigirAreaDoCliente()` deixa passar cliente e gestão e recusa colaborador —,
+e **não** decidir: uma guarda única lá em cima teria que aceitar as duas, que é
+o mesmo que não guardar nenhuma.
+
+**E as duas telas são o MESMO componente, com outro parâmetro.** Início e
+Materiais vêm de `components/portal/telas/`, e o que muda é `clienteId`
+(obrigatório para a equipe, que enxerga todos os clientes pelo RLS),
+`comoEquipe` (desliga o registro de acesso e troca as frases: "Você aprovou"
+vira "O cliente aprovou") e `base` (o prefixo dos links). Uma segunda tela
+parecida divergiria na primeira mudança, e a visualização existe justamente
+para conferir o que ele enxerga.
+
+**Configurações é a única exceção, e é por causa de uma regra.** As
+preferências de aviso são de cada pessoa — `client_notification_prefs` fecha em
+`auth.uid()` nas quatro operações —, então nem a gestão as lê. A tela diz isso
+em uma frase, em vez de mostrar campos vazios; e "Quem tem acesso" é montado
+por `usuariosDoPortal()`, com as policies de `is_staff()`, porque
+`usuarios_do_meu_cliente()` fecha em `my_client_ids()` e devolveria nada.
 
 O slug sai do nome da empresa e **não pode ser uma palavra que já é rota**
 (`campanhas`, `aprovacoes`, `painel`…): no Next a rota estática ganha da

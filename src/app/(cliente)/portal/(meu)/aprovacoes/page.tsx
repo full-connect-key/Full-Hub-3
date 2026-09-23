@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
-import { exigirCliente } from "@/lib/auth/dal";
+import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
 import { minhasAprovacoes } from "@/lib/dados/portal-aprovacoes";
 
 import { ListaDeAprovacoes } from "./lista";
@@ -16,7 +16,7 @@ async function Conteudo({ usuarioId }: { usuarioId: string }) {
 }
 
 export default async function PaginaDeAprovacoesDoCliente() {
-  const sessao = await exigirCliente();
+  const sessao = await exigirClienteNaTela();
 
   return (
     <div className="space-y-8">

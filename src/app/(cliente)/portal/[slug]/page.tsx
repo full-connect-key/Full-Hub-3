@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Home } from "lucide-react";
+import { Suspense } from "react";
 
-import { EmptyState } from "@/components/shared/empty-state";
-import { PageHeader } from "@/components/shared/page-header";
+import { InicioDoPortal } from "@/components/portal/telas/inicio-do-portal";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { obterClientePeloSlug } from "@/lib/dados/portais-de-clientes";
 
 export const metadata: Metadata = { title: "Portal do cliente" };
@@ -10,10 +10,13 @@ export const metadata: Metadata = { title: "Portal do cliente" };
 /**
  * A tela inicial do portal de um cliente, vista pela equipe.
  *
- * Mostra o que o cliente vê. Quando as áreas do portal entrarem (os módulos
- * 11–13), esta página passa a reaproveitar os mesmos blocos da tela do cliente
- * em vez de ter conteúdo próprio — é o único jeito de a visualização continuar
- * fiel ao que ele enxerga.
+ * **É o mesmo componente que o cliente vê**, com outro parâmetro — não uma
+ * versão parecida. Uma segunda tela "equivalente" divergiria na primeira
+ * mudança, e a visualização existe justamente para conferir o que ele enxerga
+ * antes de uma reunião.
+ *
+ * A guarda e o registro da visita estão no layout de /portal/[slug]: chegar
+ * aqui já significa ter passado por eles.
  */
 export default async function PaginaDoPortalDoCliente({
   params,
@@ -23,12 +26,23 @@ export default async function PaginaDoPortalDoCliente({
 
   return (
     <div className="space-y-8">
-      <PageHeader title={cliente?.nome_empresa ?? "Portal do cliente"} />
-      <EmptyState
-        icon={Home}
-        title="O acompanhamento do cliente aparece aqui"
-        description="Conteúdos para aprovar, campanhas em andamento e os resultados do período."
-      />
+      <div>
+        <h1 className="text-2xl font-semibold">
+          {cliente?.nome_empresa ?? "Portal do cliente"}
+        </h1>
+        <p className="text-text-muted mt-1">
+          O que este cliente vê ao entrar no portal.
+        </p>
+      </div>
+
+      <Suspense fallback={<LoadingSkeleton variant="table" rows={5} />}>
+        <InicioDoPortal
+          base={`/portal/${slug}`}
+          clienteId={cliente?.id ?? ""}
+          comoEquipe
+          nome=""
+        />
+      </Suspense>
     </div>
   );
 }

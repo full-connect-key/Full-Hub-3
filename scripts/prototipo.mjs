@@ -106,7 +106,10 @@ const TELAS = [
   { nome: "55-resumo-semanal", rota: "/painel/resumo-semanal", largura: 1440, altura: 900, role: "socio" },
   { nome: "56-resumo-nova-entrega", rota: "/painel/resumo-semanal", largura: 1200, altura: 900, role: "socio", clicar: 'button:has-text("Adicionar Entrega")' },
   { nome: "57-notas-fiscais", rota: "/painel/notas-fiscais", largura: 1440, altura: 700, role: "colaborador" },
-  { nome: "59-portal-do-cliente-pela-equipe", rota: "/portal/mundo-verde", largura: 1400, altura: 1000, role: "socio" },
+  { nome: "59-portal-do-cliente-pela-equipe", rota: "/portal/mundo-verde", largura: 1400, altura: 1200, role: "socio-no-portal" },
+  { nome: "59b-portal-escolha-pela-equipe", rota: "/portal", largura: 1400, altura: 700, role: "socio-no-portal" },
+  { nome: "59c-portal-itens-pela-equipe", rota: "/portal/mundo-verde/itens", largura: 1400, altura: 1100, role: "socio-no-portal" },
+  { nome: "59d-portal-configuracoes-pela-equipe", rota: "/portal/mundo-verde/configuracoes", largura: 1400, altura: 900, role: "socio-no-portal" },
 
   // --- Sprint 6: Full Days -----------------------------------------------
   { nome: "60-full-days-solicitar", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "socio" },
@@ -192,6 +195,7 @@ const COPIA = path.join(RAIZ, ".prototipo");
 // Modulos reais -> versoes de exemplo, aplicados so na copia temporaria.
 const SUBSTITUICOES = {
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
+  "@/lib/auth/portal-administrativo": ["./scripts/prototipo/portal-administrativo.ts"],
   "@/lib/supabase/diagnostico": ["./scripts/prototipo/diagnostico.ts"],
   "@/lib/dados/clientes": ["./scripts/prototipo/clientes.ts"],
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
@@ -298,10 +302,15 @@ const PERFIS = {
     funcao: "Atendimento",
     senhaProvisoria: true,
   },
+  // A gestao abrindo /portal: ve a escolha de qual portal abrir, e nao o
+  // portal do proprio cliente. Entra como PERFIL pela mesma razao do primeiro
+  // acesso -- o gerador ja sobe um servidor por perfil.
+  "socio-no-portal": { role: "socio", portalComoEquipe: true },
 };
 
 function subirServidor(perfil) {
-  const { role, funcao, senhaProvisoria } = PERFIS[perfil] ?? PERFIS.socio;
+  const { role, funcao, senhaProvisoria, portalComoEquipe } =
+    PERFIS[perfil] ?? PERFIS.socio;
 
   // O binario pelo caminho, e nao `npx`: numa rodada de noventa telas, com o
   // Chromium e o servidor disputando memoria, o `spawn("npx", ...)` falhou com
@@ -329,6 +338,7 @@ function subirServidor(perfil) {
       PROTOTIPO_ROLE: role,
       PROTOTIPO_FUNCAO: funcao ?? "",
       PROTOTIPO_SENHA_PROVISORIA: senhaProvisoria ? "1" : "",
+      PROTOTIPO_PORTAL_EQUIPE: portalComoEquipe ? "1" : "",
     },
   });
 

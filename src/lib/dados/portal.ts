@@ -150,8 +150,23 @@ const ACOES_VISIVEIS: Record<string, string> = {
   cliente_pediu_ajustes: "Você pediu ajustes",
 };
 
+/**
+ * As mesmas ações, contadas para quem NÃO é o cliente.
+ *
+ * Na visualização administrativa "Você aprovou" seria falso — quem aprovou foi
+ * o cliente, e quem está lendo é da agência. Duas listas e não uma frase
+ * montada com `voce ? "Você" : "O cliente"`: o texto muda inteiro, não só o
+ * sujeito.
+ */
+const ACOES_PARA_A_EQUIPE: Record<string, string> = {
+  enviada_ao_cliente: "Enviado para a aprovação do cliente",
+  cliente_aprovou: "O cliente aprovou",
+  cliente_pediu_ajustes: "O cliente pediu ajustes",
+};
+
 export async function atividadeRecente(
   clienteId?: string,
+  comoEquipe = false,
 ): Promise<Atividade[]> {
   const supabase = await criarClienteServidor();
 
@@ -190,7 +205,8 @@ export async function atividadeRecente(
     .slice(0, 8)
     .map((l) => ({
       id: l.id,
-      acao: ACOES_VISIVEIS[l.acao] ?? l.acao,
+      acao:
+        (comoEquipe ? ACOES_PARA_A_EQUIPE : ACOES_VISIVEIS)[l.acao] ?? l.acao,
       quando: l.created_at,
       sobre:
         (l.subtask_id ? porSub.get(l.subtask_id)?.titulo : null) ??

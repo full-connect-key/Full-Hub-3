@@ -1,9 +1,9 @@
 import "server-only";
 
-import { forbidden, notFound } from "next/navigation";
+import { forbidden, notFound, redirect } from "next/navigation";
 
-import { exigirEquipe } from "@/lib/auth/dal";
-import { ehGestor } from "@/lib/auth/roles";
+import { exigirEquipe, exigirSessao, type Sessao } from "@/lib/auth/dal";
+import { ehCliente, ehGestor } from "@/lib/auth/roles";
 import { obterClientePeloSlug } from "@/lib/dados/portais-de-clientes";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Client, Profile } from "@/lib/supabase/database.types";
@@ -57,9 +57,54 @@ async function registrarVisita(clientId: string, staffUserId: string) {
     // o problema aparece — em silêncio total, a auditoria ficaria vazia e
     // ninguém descobriria antes de precisar dela.
     if (error) {
-      console.error("[portal administrativo] visita não registrada:", error.message);
+      console.error(
+        "[portal administrativo] visita não registrada:",
+        error.message,
+      );
     }
   } catch (erro) {
     console.error("[portal administrativo] visita não registrada:", erro);
   }
+}
+
+/**
+ * A guarda de /portal, o grupo `(meu)`.
+ *
+ * **A área do cliente passou a abrir para a gestão, e foi decisão do usuário.**
+ * Até aqui `exigirCliente()` devolvia 403 para todo perfil interno, inclusive o
+ * sócio: quem é da agência entrava só por /portal/{slug}. O problema prático é
+ * que /portal é o endereço que a pessoa digita, e um 403 ali não ensina que o
+ * caminho existe com outro nome.
+ *
+ * Então a gestão entra — e entra no lugar certo. Ela não tem empresa: não há
+ * linha em `client_users` para ninguém da equipe, e `my_client_ids()` devolve
+ * vazio. Um portal aberto assim mostraria uma tela zerada, que é pior que a
+ * recusa. Por isso /portal, para quem é da gestão, é a ESCOLHA de qual portal
+ * abrir, e a tela do cliente continua sendo /portal/{slug}: com a faixa de
+ * aviso, sem nenhuma ação em nome dele, e deixando rastro em
+ * `client_portal_views`.
+ *
+ * Colaborador continua recebendo 403, pela mesma razão de sempre: o portal é a
+ * conta inteira de um cliente, e não o trabalho que cabe a ele.
+ */
+export type QuemOlhaOPortal = { sessao: Sessao; comoEquipe: boolean };
+
+export async function exigirAreaDoCliente(): Promise<QuemOlhaOPortal> {
+  const sessao = await exigirSessao();
+  if (ehCliente(sessao.profile.role)) return { sessao, comoEquipe: false };
+  if (ehGestor(sessao.profile.role)) return { sessao, comoEquipe: true };
+  forbidden();
+}
+
+/**
+ * As telas de dentro de /portal que são do cliente e só dele.
+ *
+ * A gestão não recebe 403 aqui: recebe o caminho. Quem é da equipe e digitou
+ * /portal/configuracoes está procurando o portal de um cliente, e a escolha
+ * dele fica em /portal. Recusar seria tecnicamente correto e inútil.
+ */
+export async function exigirClienteNaTela(): Promise<Sessao> {
+  const { sessao, comoEquipe } = await exigirAreaDoCliente();
+  if (comoEquipe) redirect("/portal");
+  return sessao;
 }

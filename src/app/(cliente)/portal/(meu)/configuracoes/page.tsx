@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { Info } from "lucide-react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { exigirCliente } from "@/lib/auth/dal";
+import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import { minhasPreferencias, usuariosDoMeuCliente } from "@/lib/dados/portal";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -117,7 +117,7 @@ async function Conteudo() {
 }
 
 export default async function PaginaDeConfiguracoesDoPortal() {
-  await exigirCliente();
+  await exigirClienteNaTela();
 
   return (
     <div className="space-y-8">

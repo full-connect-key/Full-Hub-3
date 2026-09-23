@@ -17,10 +17,14 @@ export async function listarPortaisDeClientes(): Promise<
     }));
 }
 
-export async function obterClientePeloSlug(slug: string): Promise<Client | null> {
+export async function obterClientePeloSlug(
+  slug: string,
+): Promise<Client | null> {
   const lista = CLIENTES_EXEMPLO as unknown as Client[];
   return (
-    lista.find((c) => (c.slug ?? gerarSlug(c.nome_empresa)) === slug) ?? lista[0] ?? null
+    lista.find((c) => (c.slug ?? gerarSlug(c.nome_empresa)) === slug) ??
+    lista[0] ??
+    null
   );
 }
 
@@ -32,4 +36,33 @@ function gerarSlug(nome: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+export async function usuariosDoPortal(
+  _clienteId: string,
+): Promise<
+  {
+    user_id: string;
+    nome: string;
+    email: string;
+    ultimo_acesso: string | null;
+  }[]
+> {
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+
+  return [
+    {
+      user_id: "c1",
+      nome: "Joana Prado",
+      email: "joana@mundoverde.com.br",
+      ultimo_acesso: ontem.toISOString(),
+    },
+    {
+      user_id: "c2",
+      nome: "Rafael Lima",
+      email: "rafael@mundoverde.com.br",
+      ultimo_acesso: null,
+    },
+  ];
 }

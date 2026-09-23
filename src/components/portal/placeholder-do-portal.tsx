@@ -2,19 +2,23 @@ import { Hammer } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
-import { exigirCliente } from "@/lib/auth/dal";
+import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
 import { acharItemDoPortal } from "@/lib/navegacao-do-portal";
 
 /**
  * Seção do portal que ainda não existe, vista pelo CLIENTE.
  *
- * Chama `exigirCliente()` de novo, embora o layout de (meu) já tenha chamado.
- * É de propósito: a guarda anda junto da tela, e não depende de alguém lembrar
- * de envolvê-la no layout certo. `obterSessao` é memoizada por requisição,
- * então a conferência repetida não custa uma ida a mais ao banco.
+ * Chama a guarda de novo, embora o layout de (meu) já tenha chamado. É de
+ * propósito: a guarda anda junto da tela, e não depende de alguém lembrar de
+ * envolvê-la no layout certo. `obterSessao` é memoizada por requisição, então a
+ * conferência repetida não custa uma ida a mais ao banco.
+ *
+ * `exigirClienteNaTela()` e não `exigirCliente()`: quem é da gestão e caiu aqui
+ * volta para /portal, onde escolhe o portal de um cliente, em vez de levar um
+ * 403 numa tela que existe para ela em outro endereço.
  */
 export async function PlaceholderDoPortal({ href }: { href: string }) {
-  await exigirCliente();
+  await exigirClienteNaTela();
   const item = acharItemDoPortal(href);
 
   return (
@@ -32,8 +36,8 @@ export async function PlaceholderDoPortal({ href }: { href: string }) {
 /**
  * A mesma seção, vista pela EQUIPE em /portal/{slug}.
  *
- * Separada porque a guarda é outra — quem entra aqui é da gestão, e
- * `exigirCliente()` daria 403 nela — e porque a frase muda: "seu acesso já
+ * Separada porque a guarda é outra — quem entra aqui é da gestão, e a guarda
+ * do cliente a mandaria de volta para /portal — e porque a frase muda: "seu acesso já
  * está ativo" não faz sentido para quem está olhando o portal de outra pessoa.
  * A guarda desta fica no layout de /portal/[slug], que também registra a
  * visita; repeti-la aqui registraria a mesma visita duas vezes.

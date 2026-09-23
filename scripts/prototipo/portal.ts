@@ -21,7 +21,11 @@ const dia = (deslocamento: number) => {
   return data.toISOString().slice(0, 10);
 };
 
-const VERDE = "aaaaaaaa-0000-0000-0000-000000000001";
+// O MESMO id de CLIENTES_EXEMPLO, e nao um inventado: /portal/{slug} resolve a
+// empresa pelo slug e filtra os materiais por id. Com dois ids diferentes a
+// visualizacao da equipe saia zerada -- e uma tela vazia nao mostra nada do que
+// se quer conferir na imagem.
+const VERDE = "c0000000-0000-0000-0000-00000000000a";
 
 export function prazosDoPortal() {
   const fim = new Date(HOJE);
@@ -95,23 +99,26 @@ export async function itensDoPortal(
 
 export async function atividadeRecente(
   _clienteId?: string,
+  comoEquipe = false,
 ): Promise<Atividade[]> {
   return [
     {
       id: "a1",
-      acao: "Enviado para a sua aprovação",
+      acao: comoEquipe
+        ? "Enviado para a aprovação do cliente"
+        : "Enviado para a sua aprovação",
       quando: dia(-1),
       sobre: "KV da campanha de verão",
     },
     {
       id: "a2",
-      acao: "Você aprovou",
+      acao: comoEquipe ? "O cliente aprovou" : "Você aprovou",
       quando: dia(-3),
       sobre: "Landing page da promoção",
     },
     {
       id: "a3",
-      acao: "Você pediu ajustes",
+      acao: comoEquipe ? "O cliente pediu ajustes" : "Você pediu ajustes",
       quando: dia(-6),
       sobre: "Roteiro do reels institucional",
     },
