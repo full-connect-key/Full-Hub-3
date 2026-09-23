@@ -260,9 +260,15 @@ function subirServidor(perfil) {
   // O binario pelo caminho, e nao `npx`: numa rodada de noventa telas, com o
   // Chromium e o servidor disputando memoria, o `spawn("npx", ...)` falhou com
   // ENOENT no quinto reinicio -- o npx precisa se resolver no PATH toda vez, e
-  // sob pressao isso nao e garantido. O arquivo esta la desde o `npm install`.
-  const proprio = path.join(COPIA, "node_modules", ".bin", "next");
-  const binario = existsSync(proprio) ? proprio : "npx";
+  // sob pressao isso nao e garantido.
+  //
+  // O binario mora no node_modules do PROJETO, nao no da copia: a copia nao
+  // instala nada, e resolve subindo um nivel (ela vive dentro da raiz, e e por
+  // isso que funciona). Procurar dentro dela deixava esta busca sempre vazia e
+  // o `npx` de volta -- um conserto que nao consertava nada.
+  const daRaiz = path.join(RAIZ, "node_modules", ".bin", "next");
+  const daCopia = path.join(COPIA, "node_modules", ".bin", "next");
+  const binario = existsSync(daCopia) ? daCopia : existsSync(daRaiz) ? daRaiz : "npx";
   const argumentos =
     binario === "npx"
       ? ["next", "start", "--port", String(PORTA)]
