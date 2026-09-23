@@ -171,16 +171,29 @@ up ligado, qualquer pessoa com o endereço do painel cria conta no seu banco.
 > mundo. Ela só vai existir no `.env.local` da VPS. Nunca a cole em chat, em
 > ticket, ou num arquivo que vá para o repositório.
 
-### 1.5 SMTP: os e-mails de senha
+### 1.5 SMTP: o e-mail de "Esqueci minha senha"
 
-**Sem isto, "Esqueci minha senha" não funciona.** O Supabase tem um serviço de
-e-mail embutido, mas ele é limitado a poucos envios por hora e existe para
-teste — não para uma equipe usando o sistema.
+#### Antes de configurar: saiba o que o SMTP compra
 
-É por isso que o Full Hub foi construído para **não depender de e-mail**:
-"Adicionar colaborador" cria a conta e mostra o link na tela para alguém
-passar pela mão. Isso continua valendo como plano B. O SMTP é o que faz o
-caminho normal funcionar.
+**Não existe "e-mail de login".** Entrar no Full Hub é e-mail mais senha, e
+nenhum e-mail é disparado nisso. Criar conta também não envia nada: desde a
+senha provisória, `createUser` roda com `email_confirm: true` e a senha
+aparece na tela de quem cadastrou, para ser passada pela mão.
+
+O Full Hub dispara e-mail em **um lugar só**:
+
+| Quando | O que é enviado | Sem SMTP |
+| --- | --- | --- |
+| Entrar no sistema | nada | — |
+| Criar colaborador ou acesso de cliente | nada; a senha provisória aparece na tela | funciona igual |
+| **"Esqueci minha senha"** | o link de redefinição | **não funciona** |
+
+Ou seja: configurar SMTP resolve exatamente um problema — a pessoa que
+esqueceu a senha conseguir se virar sozinha. Sem ele, o caminho é alguém da
+equipe criar uma senha nova para ela, o que significa que mais alguém conhece
+a senha até a troca.
+
+Vale a pena configurar. Só não é o que está travando o acesso de ninguém hoje.
 
 #### Onde configurar
 
@@ -238,6 +251,20 @@ isso, cadastrar cinco pessoas seguidas trava no meio, e a mensagem que aparece
 
 O link do e-mail traz a pessoa de volta para `/auth/callback`. Se esse
 endereço não estiver liberado, o e-mail sai, a pessoa clica, e cai num erro.
+
+**São dois lugares, e os dois precisam estar certos:**
+
+1. **No Supabase**, em *Authentication → URL Configuration*: o domínio
+   precisa estar em **Redirect URLs** (`https://SEU-DOMINIO/auth/callback`), e
+   o **Site URL** precisa ser o domínio de verdade.
+2. **Na aplicação**, a variável `NEXT_PUBLIC_SITE_URL`. É ela que monta o
+   `redirectTo` do link. O padrão é `http://localhost:3000` — se ela não
+   estiver preenchida em produção, **o e-mail sai com um link para a máquina
+   de quem clicar**, que obviamente não abre nada.
+
+   E `NEXT_PUBLIC_*` é **congelada no build**: mudar a variável e reiniciar o
+   processo não muda nada: tem que reconstruir. É o mesmo tropeço do endereço
+   do Supabase, na Parte 3.
 
 Em **Authentication → URL Configuration**:
 
@@ -568,7 +595,8 @@ Não existe tela de cadastro, de propósito: cadastro aberto deixaria qualquer
 um criar conta e — pior — escolher o próprio perfil de acesso. Então a
 **primeira** conta nasce pelo painel do Supabase. Da segunda em diante, use a
 própria plataforma (**Equipe → Adicionar colaborador**), que cria a conta e
-manda um link para a pessoa escolher a senha dela.
+mostra na tela uma **senha provisória** para você passar à pessoa. Ela troca
+essa senha obrigatoriamente no primeiro acesso.
 
 ### 7.1 Criar a conta
 
@@ -650,6 +678,11 @@ pessoa — e ninguém muda o próprio.
 
 Abra `https://seu-dominio/login` e use o e-mail e a senha temporária.
 
+> Esta primeira conta é a única que **não** cai na tela de troca obrigatória:
+> a senha foi você que escolheu, no painel do Supabase, e ninguém mais a
+> conhece. As contas criadas pela plataforma nascem com
+> `deve_trocar_senha = true` e passam pela troca antes de qualquer outra tela.
+
 **Como saber que deu certo:** você cai em `/painel`, e o menu lateral mostra
 a seção **Gestão** com o selo **Admin**. Se a seção não aparecer, o perfil não
 é `socio` — volte à 7.2.
@@ -660,11 +693,18 @@ para alguém não deve continuar valendo.
 ### 7.4 O resto da equipe
 
 Daqui em diante **não repita este processo**. Use **Equipe → Adicionar
-colaborador** na própria plataforma: ela cria a conta, cria a ficha e devolve
-um link para a pessoa definir a própria senha — que aparece na tela quando o
-e-mail não é entregue, e sem SMTP próprio conte com isso.
+colaborador** na própria plataforma: ela cria a conta, cria a ficha e mostra
+uma **senha provisória**, sorteada só para aquela pessoa. Não depende de
+e-mail nenhum.
 
-Assim ninguém precisa saber a senha de ninguém, nem você.
+A senha aparece **uma vez**, na tela de quem cadastrou. Ela não fica guardada
+em lugar nenhum além do hash do Auth — se o diálogo fechar antes de você
+copiar, o caminho é "Esqueci minha senha". O formato é feito para ser ditado
+por telefone: três blocos com hífen, sem `0/O`, `1/l/I` nem `5/S`.
+
+Quem entra com ela **não chega a nenhuma tela do sistema antes de trocá-la**.
+É a única coisa que a senha provisória permite fazer, e é de propósito: até a
+troca, o acesso não é só de quem está logado — mais alguém conhece a senha.
 
 > **Não rode o `supabase/seed.sql`** no projeto de produção. Ele cria nove
 > contas de teste com uma senha conhecida, e elas ficariam lá.
