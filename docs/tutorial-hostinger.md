@@ -195,57 +195,127 @@ a senha até a troca.
 
 Vale a pena configurar. Só não é o que está travando o acesso de ninguém hoje.
 
-#### Onde configurar
+#### Google Workspace, passo a passo
 
-**Authentication → Emails → SMTP Settings** (o Supabase já moveu isso de
-lugar; se não achar, procure por SMTP em Project Settings → Authentication).
-Ligue **Enable Custom SMTP** e preencha:
+A agência usa Google Workspace em `@fullconnectkey.com.br`. Remetente no
+domínio da casa chega melhor que qualquer alternativa, e não custa nada a
+mais.
 
-| Campo | O que é |
+**A senha normal da conta NÃO funciona.** O Google removeu o acesso por senha
+comum em maio de 2025: o único caminho é uma **senha de app**, de 16
+caracteres, e ela só existe em conta com **verificação em duas etapas**
+ligada. Colar a senha da pessoa ali dá erro de autenticação, e a mensagem não
+explica o motivo.
+
+##### 1. Escolha a caixa que vai enviar
+
+Uma caixa **real** do Workspace — não um alias inventado. O remetente que o
+Supabase usar precisa ser a mesma conta que autentica, senão o Google
+reescreve ou recusa o envio.
+
+Se não quiser usar a caixa de uma pessoa, crie um usuário só para isso
+(`sistema@fullconnectkey.com.br`, por exemplo). Ocupa uma licença — é o preço
+de não amarrar os e-mails do sistema a alguém que pode sair da agência.
+
+##### 2. Ligue a verificação em duas etapas nessa conta
+
+Entre com ela em `myaccount.google.com` → **Segurança** → *Verificação em duas
+etapas*. Sem isso o passo 3 nem aparece.
+
+##### 3. Gere a senha de app
+
+Com a mesma conta logada, abra **`myaccount.google.com/apppasswords`**. Dê um
+nome que identifique o uso (`Supabase — Full Hub`) e guarde os 16 caracteres
+que aparecem: **eles só são mostrados uma vez**.
+
+O Google exibe com espaços, para ficar legível. **Cole sem os espaços.**
+
+> **Se a página disser que a opção não está disponível**, é uma destas três,
+> nesta ordem de probabilidade:
+> 1. a verificação em duas etapas não está ligada nessa conta (passo 2);
+> 2. o **admin do Workspace desligou senhas de app** para a organização. No
+>    Admin Console, procure por *app passwords* — fica em **Segurança →
+>    Autenticação**. É uma permissão da organização, não da pessoa;
+> 3. a conta está em *Proteção Avançada*, que bloqueia senhas de app sem
+>    exceção. Aí o caminho é outra conta, ou o relay do passo 7.
+
+##### 4. Preencha no Supabase
+
+Em **Authentication → Emails → SMTP Settings** (o Supabase já mudou isso de
+lugar mais de uma vez; se não achar, procure por *SMTP* em Project Settings →
+Authentication), ligue **Enable Custom SMTP** e preencha:
+
+| Campo | Valor |
 | --- | --- |
-| Sender email | a caixa que vai aparecer como remetente |
+| Host | `smtp.gmail.com` |
+| Port | `587` |
+| Username | o endereço completo da caixa do passo 1 |
+| Password | os 16 caracteres do passo 3, **sem espaços** |
+| Sender email | **o mesmo endereço do Username** |
 | Sender name | `Full Hub` |
-| Host | o servidor de saída do seu provedor |
-| Port | `465` (SSL) ou `587` (TLS) |
-| Username | quase sempre o próprio e-mail |
-| Password | a senha daquela caixa |
 
-#### Qual provedor usar
+Porta `465` também funciona. Use `587` como primeira tentativa: é a que passa
+em mais rede.
 
-A agência já tem e-mail em `@fullconnectkey.com.br` — **use esse**. Remetente
-no domínio da casa chega melhor que qualquer outro, e não custa nada a mais.
+##### 5. Ligue o DKIM — ele NÃO vem ligado
 
-Os dados de saída estão no painel de onde o e-mail é hospedado. Confirme lá
-em vez de confiar nesta tabela, porque esses valores mudam:
+O Workspace já publica o SPF, mas o **DKIM vem desligado por padrão** e
+precisa ser ligado à mão. Sem ele o e-mail sai e cai em spam, e ninguém vai
+procurar link de senha lá.
+
+No Admin Console: **Apps → Google Workspace → Gmail → Autenticar e-mail**.
+Gere a chave, publique o registro TXT que ele mostrar no DNS do domínio, e
+volte para clicar em *Iniciar autenticação*. O DNS leva até algumas horas
+para propagar — se o botão recusar, é isso.
+
+##### 6. O limite de envio, para não ser surpresa
+
+Pelo `smtp.gmail.com` são **2.000 destinatários por dia** numa conta paga do
+Workspace (500 em teste ou conta legada), mais limites por hora que o Google
+não publica. Para e-mail de "esqueci minha senha" numa agência, sobra muito.
+
+##### 7. Se as senhas de app estiverem bloqueadas: o relay
+
+O Workspace tem um segundo caminho, o **SMTP relay**
+(`smtp-relay.gmail.com`), com 10.000 destinatários por dia e autenticação por
+IP. É configurado no Admin Console em **Apps → Google Workspace → Gmail →
+Encaminhamento SMTP**, e serve quando a organização não permite senha de app.
+
+Dá mais trabalho e só vale a pena nesse caso — autenticação por IP quer dizer
+prender o envio ao endereço do servidor, que muda quando a hospedagem muda.
+
+#### Outros provedores
+
+Se um dia o e-mail sair do Workspace, o resto desta seção continua valendo —
+só mudam host, porta e usuário. Confirme os valores no painel de quem
+hospeda, porque eles mudam:
 
 | Onde o e-mail está | Host de saída, normalmente |
 | --- | --- |
 | E-mail da Hostinger | `smtp.hostinger.com`, porta 465 |
 | Titan (parceiro da Hostinger) | `smtp.titan.email`, porta 465 |
-| Google Workspace | `smtp.gmail.com`, porta 587, com **senha de app** |
 
-> **Google Workspace não aceita a senha normal.** Precisa de uma *senha de
-> app*, que só existe com a verificação em duas etapas ligada. A senha da
-> pessoa colada ali é recusada, e o erro não diz isso.
-
-Se preferir um serviço transacional (Resend, Brevo, Amazon SES), funciona
-igual — a diferença é que eles exigem verificar o domínio antes.
+Serviço transacional (Resend, Brevo, Amazon SES) funciona igual — a diferença
+é que eles exigem verificar o domínio antes.
 
 #### Duas coisas que fazem o e-mail cair em spam
 
 1. **O remetente tem que ser uma caixa real do domínio.** Inventar
    `nao-responda@fullconnectkey.com.br` sem que ela exista faz o e-mail ser
    recusado por vários destinatários.
-2. **SPF e DKIM precisam estar no DNS do domínio.** Quem hospeda o e-mail
-   fornece os dois registros. Sem eles o e-mail sai, mas cai na caixa de spam
-   — e ninguém vai procurar o link de senha lá.
+2. **SPF e DKIM precisam estar no DNS do domínio.** No Workspace o SPF já
+   vem; o DKIM não — veja o passo 5 acima. Sem ele o e-mail sai, mas cai na
+   caixa de spam, e ninguém vai procurar o link de senha lá.
 
-#### O limite de envio continua existindo
+#### O limite do SUPABASE, que é outro
 
-Em **Authentication → Rate Limits**, o limite de e-mails por hora vem baixo
-por padrão. Com SMTP próprio, suba para um número que caiba na equipe. Sem
-isso, cadastrar cinco pessoas seguidas trava no meio, e a mensagem que aparece
-é sobre limite de tentativas — não sobre e-mail.
+Além do limite do Google (passo 6), o Supabase tem o dele: em
+**Authentication → Rate Limits**, o número de e-mails por hora vem baixo por
+padrão, pensado para o serviço de teste. Com SMTP próprio, suba para um número
+que caiba na equipe.
+
+Este é o que trava primeiro, e o mais difícil de reconhecer: a mensagem que
+aparece fala em limite de **tentativas**, não em e-mail.
 
 #### E o endereço de retorno, que é onde isso costuma quebrar
 
