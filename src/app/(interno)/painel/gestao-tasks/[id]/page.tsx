@@ -20,8 +20,9 @@ import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 
 import { Comentarios } from "./comentarios";
 import { HistoricoDaTask } from "./historico";
-import { LateralDaTask } from "./lateral";
-import { PrincipalDaTask } from "./principal";
+import { AcoesDaTask } from "./acoes-da-task";
+import { PropriedadesDaTask } from "./propriedades";
+import { PrincipalDaTask, TituloDaTask } from "./principal";
 import { Referencias } from "./referencias";
 import { Subtarefas } from "./subtarefas";
 
@@ -88,8 +89,22 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
         ) : null}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <div className="min-w-0">
+      <TituloDaTask task={task} podeEditar={podeGerenciar} />
+
+      {/* As propriedades vêm ANTES das abas, e fora delas.
+          Elas descrevem a demanda inteira — trocar para o Histórico e perder
+          de vista o cliente e o prazo é perder o contexto do que se está
+          lendo. Só o CONTEÚDO (trabalho / histórico) troca. */}
+      <PropriedadesDaTask
+        task={task}
+        clientes={clientes
+          .filter((c) => c.ativo)
+          .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
+        tipos={tipos.map((t) => ({ id: t.id, nome: t.nome }))}
+        podeEditar={podeGerenciar}
+      />
+
+      <div className="min-w-0">
           <Tabs defaultValue="trabalho">
             <TabsList>
               <TabsTrigger value="trabalho">Trabalho</TabsTrigger>
@@ -129,23 +144,14 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                 usuarioId={sessao.usuarioId}
                 podeModerar={souGestor}
               />
+
+              <AcoesDaTask task={task} podeExcluir={souGestor} />
             </TabsContent>
 
             <TabsContent value="historico" className="pt-4">
               <HistoricoDaTask eventos={task.historico} />
             </TabsContent>
           </Tabs>
-        </div>
-
-        <LateralDaTask
-          task={task}
-          clientes={clientes
-            .filter((c) => c.ativo)
-            .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
-          tipos={tipos.map((t) => ({ id: t.id, nome: t.nome }))}
-          podeEditar={podeGerenciar}
-          podeExcluir={souGestor}
-        />
       </div>
     </div>
   );

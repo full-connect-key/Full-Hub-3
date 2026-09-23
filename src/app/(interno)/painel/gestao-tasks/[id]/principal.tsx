@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
 import { Check, Loader2 } from "lucide-react";
@@ -27,29 +27,10 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  */
 export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; podeEditar: boolean }) {
   const router = useRouter();
-  const [, iniciar] = useTransition();
-
-  const [titulo, setTitulo] = useState(task.titulo);
-  const [editandoTitulo, setEditandoTitulo] = useState(false);
 
   const rascunho = useRef<{ json: JSONContent; texto: string } | null>(null);
   const [temMudanca, setTemMudanca] = useState(false);
   const [salvando, setSalvando] = useState(false);
-
-  function salvarTitulo() {
-    setEditandoTitulo(false);
-    if (titulo.trim() === task.titulo || titulo.trim().length < 2) {
-      setTitulo(task.titulo);
-      return;
-    }
-    iniciar(async () => {
-      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo }));
-      if (!resultado.ok) {
-        toast.error(resultado.error);
-        setTitulo(task.titulo);
-      } else router.refresh();
-    });
-  }
 
   async function salvarBriefing() {
     if (!rascunho.current) return;
@@ -74,31 +55,10 @@ export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; pode
 
   return (
     <div className="space-y-6">
-      {editandoTitulo && podeEditar ? (
-        <Input
-          value={titulo}
-          autoFocus
-          className="h-auto py-1 text-xl font-semibold md:text-xl"
-          onChange={(e) => setTitulo(e.target.value)}
-          onBlur={salvarTitulo}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setTitulo(task.titulo);
-              setEditandoTitulo(false);
-            }
-          }}
-        />
-      ) : (
-        <h1
-          className="text-xl font-semibold tracking-tight text-balance"
-          onDoubleClick={() => podeEditar && setEditandoTitulo(true)}
-          title={podeEditar ? "Clique duas vezes para renomear" : undefined}
-        >
-          {task.titulo}
-        </h1>
-      )}
-
+      {/* O TÍTULO SAIU DAQUI e virou `TituloDaTask`, acima das propriedades.
+          Ele nomeia a demanda inteira: deixá-lo dentro da aba Trabalho fazia
+          a tela abrir com a grade de campos antes do nome do que se está
+          lendo — e sumir com o nome ao trocar para o Histórico. */}
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Briefing</h2>
@@ -127,5 +87,61 @@ export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; pode
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * O título da demanda, editável em dois cliques.
+ *
+ * Componente separado porque mora FORA das abas: ele nomeia a Task inteira, e
+ * o que troca entre Trabalho e Histórico é o conteúdo, não o assunto.
+ */
+export function TituloDaTask({ task, podeEditar }: { task: TaskCompleta; podeEditar: boolean }) {
+  const router = useRouter();
+  const [titulo, setTitulo] = useState(task.titulo);
+  const [editando, setEditando] = useState(false);
+
+  function salvar() {
+    setEditando(false);
+    if (titulo.trim() === task.titulo || titulo.trim().length < 2) {
+      setTitulo(task.titulo);
+      return;
+    }
+    void (async () => {
+      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo }));
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        setTitulo(task.titulo);
+      } else router.refresh();
+    })();
+  }
+
+  if (editando && podeEditar) {
+    return (
+      <Input
+        value={titulo}
+        autoFocus
+        className="h-auto py-1 text-xl font-semibold md:text-xl"
+        onChange={(e) => setTitulo(e.target.value)}
+        onBlur={salvar}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            setTitulo(task.titulo);
+            setEditando(false);
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <h1
+      className="text-xl font-semibold tracking-tight text-balance"
+      onDoubleClick={() => podeEditar && setEditando(true)}
+      title={podeEditar ? "Clique duas vezes para renomear" : undefined}
+    >
+      {task.titulo}
+    </h1>
   );
 }

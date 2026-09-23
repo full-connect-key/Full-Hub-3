@@ -199,6 +199,32 @@ ambiente com task anterior a esta regra, e migration que não roda no próximo
 ambiente não é migration. Preencher as antigas com um valor qualquer para poder
 marcar `not null` seria pior: inventaria um endereço, e alguém clicaria nele.
 
+#### O detalhe da Task: título, propriedades em grade, conteúdo
+
+Título → grade de propriedades → abas (Trabalho / Histórico) → briefing,
+subtarefas, referências, comentários, e as ações da demanda no fim.
+
+**As propriedades ficam numa GRADE no topo, não numa coluna à direita.** A
+coluna estreita cobrava dos dois lados: os campos espremidos num terço da
+largura (o link de entrega cortado, as duas datas sem caber) e o briefing e as
+subtarefas — que são o conteúdo — abrindo mão de um terço da tela para eles.
+
+**Título e propriedades ficam FORA das abas.** Eles descrevem a demanda
+inteira; trocar para o Histórico e perder de vista o nome, o cliente e o prazo
+é perder o contexto do que se está lendo. Só o conteúdo troca.
+
+**Excluir e "salvar como workflow" não são propriedades**, são ações sobre a
+demanda: no meio dos campos pareciam mais dois campos. Vão para o fim da
+página, que é onde se procura o que encerra alguma coisa. No painel lateral de
+Minhas Tasks elas não aparecem — excluir de dentro de um painel que abriu por
+cima de uma lista deixa a pessoa olhando para uma lista que ainda mostra o que
+sumiu.
+
+**O seletor de status mostra os SETE**, agrupados, com os cinco calculados
+desligados e o motivo. Oferecer só os dois manuais fazia quem abria a lista
+concluir que o produto tinha dois status — e deixava sem resposta a pergunta
+seguinte, "então como é que essa task chegou em Aguardando aprovação?".
+
 #### Formulário longo vai em seções numeradas
 
 `components/shared/secao-do-formulario.tsx`. Nasceu no Nova Task e virou

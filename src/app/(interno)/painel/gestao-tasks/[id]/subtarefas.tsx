@@ -78,13 +78,31 @@ export function Subtarefas({
 
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold">Subtarefas</h2>
-        <span className="text-muted-foreground text-xs">
-          {subtarefas.length === 0
-            ? "nenhuma etapa"
-            : `${concluidas} de ${subtarefas.length} concluída${subtarefas.length === 1 ? "" : "s"}`}
-        </span>
+
+        {/* A BARRA, e não só o número. "8 de 24" é uma conta que a pessoa
+            faz; a barra é uma resposta que ela lê. As duas juntas porque a
+            barra sozinha não diz quantas faltam. */}
+        {subtarefas.length > 0 ? (
+          <>
+            <span className="text-text-secondary text-xs tabular-nums">
+              {concluidas} de {subtarefas.length} concluída
+              {subtarefas.length === 1 ? "" : "s"}
+            </span>
+            <span
+              aria-hidden
+              className="bg-neutral-soft h-1.5 w-24 overflow-hidden rounded-full"
+            >
+              <span
+                className="bg-success block h-full rounded-full"
+                style={{ width: `${Math.round((concluidas / subtarefas.length) * 100)}%` }}
+              />
+            </span>
+          </>
+        ) : (
+          <span className="text-text-muted text-xs">nenhuma etapa</span>
+        )}
       </div>
 
       {subtarefas.length === 0 ? (

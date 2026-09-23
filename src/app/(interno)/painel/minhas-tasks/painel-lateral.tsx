@@ -11,8 +11,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { chamarAcao } from "@/lib/acoes/cliente";
 
 import { Comentarios } from "../gestao-tasks/[id]/comentarios";
-import { LateralDaTask } from "../gestao-tasks/[id]/lateral";
-import { PrincipalDaTask } from "../gestao-tasks/[id]/principal";
+import { PropriedadesDaTask } from "../gestao-tasks/[id]/propriedades";
+import { PrincipalDaTask, TituloDaTask } from "../gestao-tasks/[id]/principal";
 import { Referencias } from "../gestao-tasks/[id]/referencias";
 import { Subtarefas } from "../gestao-tasks/[id]/subtarefas";
 import { carregarDetalheDaTask, type DetalheParaOPainel } from "./acoes";
@@ -111,15 +111,21 @@ export function PainelLateralDaTask({
             </SheetHeader>
 
             <div className="space-y-8 p-4 sm:p-6">
-              <PrincipalDaTask task={detalhe.task} podeEditar={detalhe.podeGerenciar} />
+              <TituloDaTask task={detalhe.task} podeEditar={detalhe.podeGerenciar} />
 
-              <LateralDaTask
+              {/* Sem as ações da demanda inteira: excluir a task de dentro
+                  de um painel que abriu por cima de uma lista deixa a pessoa
+                  olhando para uma lista que ainda mostra o que acabou de
+                  sumir. Quem quer excluir abre a página cheia — o link está
+                  no cabeçalho deste painel. */}
+              <PropriedadesDaTask
                 task={detalhe.task}
                 clientes={detalhe.clientes}
                 tipos={detalhe.tipos}
                 podeEditar={detalhe.podeGerenciar}
-                podeExcluir={detalhe.souGestor}
               />
+
+              <PrincipalDaTask task={detalhe.task} podeEditar={detalhe.podeGerenciar} />
 
               <Subtarefas
                 taskId={detalhe.task.id}
