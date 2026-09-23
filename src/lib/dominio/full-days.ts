@@ -144,6 +144,52 @@ export function contarDiasUteis(
   return total;
 }
 
+/**
+ * Quantos dias o pedido consome, por tipo.
+ *
+ * **O DESCANSO CONTA CORRIDO**: quinze dias são quinze dias de calendário —
+ * sai numa segunda, volta na terceira segunda —, e não quinze dias úteis, que
+ * na prática seriam três semanas inteiras.
+ *
+ * Os outros dois continuam em dias úteis, e não é inconsistência: eles não
+ * descontam de saldo nenhum. O número deles diz quantos dias de TRABALHO a
+ * pessoa ficou fora, e um sábado de ausência pontual não é um dia em que
+ * alguém deixou de entregar.
+ *
+ * Espelha `public.dias_do_pedido()` do Postgres. As duas existem de propósito:
+ * esta escreve o número que a pessoa vê enquanto seleciona, aquela é a que o
+ * banco grava.
+ */
+export function contarDiasDoPedido(
+  tipo: HrTipo,
+  inicioISO: string,
+  fimISO: string,
+  feriados: Set<string>,
+): number {
+  if (tipo !== "ferias") return contarDiasUteis(inicioISO, fimISO, feriados);
+
+  const inicio = lerData(inicioISO);
+  const fim = lerData(fimISO);
+  if (!inicio || !fim || fim < inicio) return 0;
+
+  return diasEntre(inicioISO, fimISO).length;
+}
+
+/**
+ * "4 dias corridos" ou "2 dias úteis", conforme o tipo.
+ *
+ * Existe porque a frase aparece na fila do sócio e na lista de pedidos da
+ * própria pessoa, e as duas precisam dizer a mesma coisa. Escrever "dias
+ * úteis" em cima de um número corrido é a tela desmentindo a conta — quem
+ * pediu de sexta a segunda veria "4 dias úteis" e concluiria que o sistema
+ * errou.
+ */
+export function rotuloDosDias(tipo: HrTipo, dias: number): string {
+  const plural = dias === 1 ? "dia" : "dias";
+  if (tipo === "ferias") return `${dias} ${plural} corrido${dias === 1 ? "" : "s"}`;
+  return `${dias} ${plural} ${dias === 1 ? "útil" : "úteis"}`;
+}
+
 export function ehDiaUtil(data: Date, feriados: Set<string>): boolean {
   const semana = data.getDay();
   if (semana === 0 || semana === 6) return false;

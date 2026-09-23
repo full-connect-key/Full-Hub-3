@@ -27,7 +27,8 @@ import {
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
   bloqueiosNoIntervalo,
-  contarDiasUteis,
+  contarDiasDoPedido,
+  rotuloDosDias,
   diasEntre,
   lerData,
   motivoDoBloqueio,
@@ -51,9 +52,10 @@ import { cancelarSolicitacao, solicitar } from "./acoes";
  * recusa que a pessoa não tem como contornar nem entender — com o nome, ela
  * fala com o colega e os dois se organizam, que é o resultado que interessa.
  *
- * A seleção conta dias úteis aqui, para mostrar o número enquanto se arrasta.
- * O número GRAVADO sai do banco: se viesse desta conta, bastaria alterar o
- * corpo da requisição para pedir 15 dias dizendo que são 3.
+ * A seleção conta aqui para mostrar o número enquanto se arrasta — corrido no
+ * descanso, dias úteis nos outros dois (migration 0024). O número GRAVADO sai
+ * do banco: se viesse desta conta, bastaria alterar o corpo da requisição para
+ * pedir 15 dias dizendo que são 3.
  */
 export function Solicitar({
   solicitacoes,
@@ -100,13 +102,16 @@ export function Solicitar({
   const fimDoMes = endOfMonth(referencia);
 
   const [inicioSel, fimSel] = de && ate ? ordenar(de, ate) : de ? [de, de] : [null, null];
-  const uteisSelecionados =
-    inicioSel && fimSel ? contarDiasUteis(inicioSel, fimSel, conjuntoDeFeriados) : 0;
+  // A conta MUDA COM O TIPO: o descanso é corrido, os outros dois contam dias
+  // úteis. Trocar o tipo com um período já selecionado troca o número na hora,
+  // que é onde a pessoa percebe a diferença sem ninguém precisar explicar.
+  const diasSelecionados =
+    inicioSel && fimSel ? contarDiasDoPedido(tipo, inicioSel, fimSel, conjuntoDeFeriados) : 0;
 
   const saldo = diasFeriasAno - usadosNoAno;
-  const saldoDepois = tipo === "ferias" ? saldo - uteisSelecionados : saldo;
+  const saldoDepois = tipo === "ferias" ? saldo - diasSelecionados : saldo;
 
-  const excedeSaldo = tipo === "ferias" && uteisSelecionados > saldo;
+  const excedeSaldo = tipo === "ferias" && diasSelecionados > saldo;
   const semParcela = tipo === "ferias" && parcelasUsadas >= maxParcelas;
 
   /**
@@ -238,9 +243,11 @@ export function Solicitar({
           afastamento ou ausência pontual ele não conta, e some. */}
       {tipo === "ferias" ? (
         <p className="text-text-secondary text-sm">
-          Você tem <strong className="text-text-primary tabular-nums">{saldo} dias</strong> de{" "}
+          Você tem{" "}
+          <strong className="text-text-primary tabular-nums">{saldo} dias corridos</strong> de{" "}
           {diasFeriasAno} disponíveis este ano, em até {maxParcelas} vezes — você já usou{" "}
-          {parcelasUsadas} de {maxParcelas}.
+          {parcelasUsadas} de {maxParcelas}. O descanso conta corrido: sair numa sexta e voltar
+          na segunda são quatro dias.
         </p>
       ) : (
         <p className="text-text-secondary text-sm">
@@ -342,8 +349,8 @@ export function Solicitar({
             <Campo rotulo="De" valor={inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"} />
             <Campo rotulo="Até" valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"} />
             <Campo
-              rotulo="Dias úteis"
-              valor={inicioSel ? String(uteisSelecionados) : "—"}
+              rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
+              valor={inicioSel ? String(diasSelecionados) : "—"}
               destaque
             />
             {tipo === "ferias" ? (
@@ -363,7 +370,8 @@ export function Solicitar({
 
           {excedeSaldo ? (
             <Aviso tom="erro">
-              São {uteisSelecionados} dias e você tem {saldo} de saldo. Escolha um período menor.
+              São {diasSelecionados} dias corridos e você tem {saldo} de saldo. Escolha um período
+              menor.
             </Aviso>
           ) : null}
 
@@ -401,7 +409,7 @@ export function Solicitar({
             ) : null}
             <Button
               className="flex-1"
-              disabled={enviando || !inicioSel || uteisSelecionados === 0 || excedeSaldo || semParcela}
+              disabled={enviando || !inicioSel || diasSelecionados === 0 || excedeSaldo || semParcela}
               onClick={enviar}
             >
               {enviando ? <Loader2 className="animate-spin" /> : null}
@@ -437,8 +445,7 @@ export function Solicitar({
                 </span>
 
                 <span className="text-text-muted text-xs">
-                  {pedido.dias_uteis} dia{pedido.dias_uteis === 1 ? "" : "s"} útil
-                  {pedido.dias_uteis === 1 ? "" : "eis"}
+                  {rotuloDosDias(pedido.tipo, pedido.dias_uteis)}
                 </span>
 
                 <SeloDeStatus status={pedido.status} />

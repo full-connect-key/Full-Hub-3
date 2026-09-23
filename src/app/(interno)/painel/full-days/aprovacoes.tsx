@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { SolicitacaoNaTela } from "@/lib/dados/full-days";
-import { ROTULOS_DE_TIPO } from "@/lib/dominio/full-days";
+import { ROTULOS_DE_TIPO, rotuloDosDias } from "@/lib/dominio/full-days";
 import type { HrStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
@@ -181,10 +181,7 @@ export function Aprovacoes({
                   <p className="text-sm tabular-nums">
                     {format(parseISO(pedido.data_inicio), "dd/MM/yyyy")} a{" "}
                     {format(parseISO(pedido.data_fim), "dd/MM/yyyy")} ·{" "}
-                    <strong>
-                      {pedido.dias_uteis} dia{pedido.dias_uteis === 1 ? "" : "s"} útil
-                      {pedido.dias_uteis === 1 ? "" : "eis"}
-                    </strong>
+                    <strong>{rotuloDosDias(pedido.tipo, pedido.dias_uteis)}</strong>
                   </p>
 
                   {pedido.motivo ? (

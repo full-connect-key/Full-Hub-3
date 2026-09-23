@@ -52,13 +52,17 @@ export async function solicitar(dados: unknown): Promise<Resultado<string>> {
 
     const supabase = await criarClienteServidor();
 
-    // Os dias úteis saem do BANCO, não da conta que a tela fez. A tela conta
-    // para mostrar o número enquanto a pessoa seleciona; se o gravado viesse
-    // dali, bastaria alterar o corpo da requisição para pedir 15 dias
-    // dizendo que são 3.
-    const { data: dias, error: erroDosDias } = await supabase.rpc("dias_uteis", {
-      inicio: entrada.data_inicio,
-      fim: entrada.data_fim,
+    // O número sai do BANCO, não da conta que a tela fez. A tela conta para
+    // mostrar o número enquanto a pessoa seleciona; se o gravado viesse dali,
+    // bastaria alterar o corpo da requisição para pedir 15 dias dizendo que
+    // são 3.
+    //
+    // E quem decide a REGRA da contagem é o tipo: o descanso conta corrido,
+    // os outros dois em dias úteis (migration 0024).
+    const { data: dias, error: erroDosDias } = await supabase.rpc("dias_do_pedido", {
+      p_tipo: entrada.tipo,
+      p_inicio: entrada.data_inicio,
+      p_fim: entrada.data_fim,
     });
 
     if (erroDosDias) return falha(`Não foi possível contar os dias: ${erroDosDias.message}`);

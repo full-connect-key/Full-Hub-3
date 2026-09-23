@@ -279,6 +279,9 @@ export interface Database {
           tipo: HrTipo;
           data_inicio: string;
           data_fim: string;
+          // CORRIDOS quando o tipo é descanso (`ferias`), dias úteis nos
+          // outros dois — que não descontam saldo (migration 0024). O nome
+          // ficou de antes, como `dias_ferias_ano`.
           dias_uteis: number;
           motivo: string | null;
           status: HrStatus;
@@ -1144,6 +1147,10 @@ export interface Database {
 
       // --- Full Days e notificacoes (migration 0011) ----------------------
       dias_uteis: { Args: { inicio: string; fim: string }; Returns: number };
+      dias_do_pedido: {
+        Args: { p_tipo: HrTipo; p_inicio: string; p_fim: string };
+        Returns: number;
+      };
       saldo_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
       parcelas_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
       decidir_solicitacao: {

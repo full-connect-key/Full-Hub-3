@@ -159,10 +159,11 @@ select teste.conferir('O pedido ficou aprovado',
     where user_id = '44444444-4444-4444-4444-444444444444' and data_inicio = '2026-03-02'),
   'aprovada');
 
--- 2 a 6 de marco de 2026 e uma semana cheia sem feriado: 5 dias uteis, 5
--- linhas. Sabado e domingo nao viram linha -- pintar fim de semana de "ferias"
--- faria a matriz discordar do numero de dias uteis pedido.
-select teste.conferir('Aprovar pintou os 5 dias uteis na matriz',
+-- 2 a 6 de marco de 2026 e uma semana cheia de segunda a sexta: 5 dias
+-- corridos e 5 uteis, entao 5 linhas pelas duas contas. O caso que separa as
+-- duas -- um descanso atravessando o fim de semana -- esta na secao dos dias
+-- corridos, no fim deste arquivo.
+select teste.conferir('Aprovar pintou os 5 dias na matriz',
   (select count(*)::text from public.team_presence
     where user_id = '44444444-4444-4444-4444-444444444444'
       and status = 'ferias'),
@@ -439,3 +440,83 @@ begin
                else array_to_string(faltam, ' | ') end);
 end
 $$;
+
+
+-- ===========================================================================
+-- O DESCANSO CONTA CORRIDO (migration 0024)
+--
+-- Decisao do usuario: quinze dias de descanso sao quinze dias de calendario.
+-- Os outros dois tipos continuam em dias uteis -- eles nao descontam saldo, e
+-- o numero deles serve para dizer quantos dias de TRABALHO a pessoa ficou
+-- fora.
+--
+-- 10 de julho de 2026 e uma sexta; 13 e a segunda seguinte. Quatro dias
+-- corridos, dois uteis. E o intervalo que separa as duas contas -- com uma
+-- semana de segunda a sexta os dois numeros batem, e o cenario passaria sem
+-- provar nada.
+-- ===========================================================================
+
+select teste.conferir('Descanso de sexta a segunda: 4 dias corridos',
+  public.dias_do_pedido('ferias', '2026-07-10', '2026-07-13')::text, '4');
+
+select teste.conferir('Ausencia no mesmo intervalo: 2 dias uteis',
+  public.dias_do_pedido('ausencia', '2026-07-10', '2026-07-13')::text, '2');
+
+select teste.conferir('Afastamento tambem continua em dias uteis',
+  public.dias_do_pedido('licenca', '2026-07-10', '2026-07-13')::text, '2');
+
+select teste.conferir('Periodo invertido nao vira numero negativo',
+  public.dias_do_pedido('ferias', '2026-07-13', '2026-07-10')::text, '0');
+
+-- E a pintura da matriz acompanha: o descanso ocupa o fim de semana do meio,
+-- senao a matriz mostraria menos dias do que o pedido diz que sao.
+select teste.cenario('Bruno combina o descanso de sexta a segunda', :BRUNO,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, motivo)
+    values (%L, 'ferias', '2026-07-10', '2026-07-13',
+            public.dias_do_pedido('ferias', '2026-07-10', '2026-07-13'), 'Prolongado')
+  $fmt$, :BRUNO), 'ok', 1);
+
+select teste.cenario('A socia responde de acordo', :ANA,
+  format($fmt$
+    select public.decidir_solicitacao(
+      (select id from public.hr_requests where user_id = %L and data_inicio = '2026-07-10'),
+      'aprovada', null)
+  $fmt$, :BRUNO), 'ok');
+
+select teste.conferir('Os quatro dias foram pintados, sabado e domingo inclusive',
+  (select count(*)::text from public.team_presence
+    where user_id = '44444444-4444-4444-4444-444444444444'
+      and data between '2026-07-10' and '2026-07-13'
+      and status = 'ferias'),
+  '4');
+
+select teste.conferir('E o sabado esta la',
+  (select status::text from public.team_presence
+    where user_id = '44444444-4444-4444-4444-444444444444' and data = '2026-07-11'),
+  'ferias');
+
+-- O saldo desconta os corridos. Chegando aqui, o unico descanso de 2026 que
+-- o Bruno ainda tem de pe e o de julho -- o de marco saiu junto com o pedido
+-- desfeito, mais acima. Quatro corridos de 15 deixam 11.
+select teste.conferir('O saldo desconta os dias corridos',
+  public.saldo_de_ferias('44444444-4444-4444-4444-444444444444', 2026)::text, '11');
+
+-- Vinte dias corridos com 11 de saldo: estoura. E a recusa DIZ que a conta e
+-- corrida -- sem isso, quem levar o "nao" vai conferir no calendario de dias
+-- uteis, achar que cabia, e concluir que o sistema errou. (Em dias uteis esse
+-- mesmo periodo seriam 14, que tambem estouraria; o que o cenario prova e a
+-- frase, e o numero de corridos esta no cenario da funcao, acima.)
+select teste.recusa_com('Estourar o saldo diz que a conta e corrida', :BRUNO,
+  $$insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, motivo)
+    values ('44444444-4444-4444-4444-444444444444', 'ferias', '2026-09-01', '2026-09-20',
+            public.dias_do_pedido('ferias', '2026-09-01', '2026-09-20'), 'Longo demais')$$,
+  'contados corridos');
+
+-- A ausencia pontual num sabado continua sendo recusada: para ela o numero e
+-- de dias uteis, e um sabado nao e um dia em que alguem deixou de entregar.
+select teste.recusa_com('Ausencia so no fim de semana continua recusada', :CARLA,
+  $$insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values ('33333333-3333-3333-3333-333333333333', 'ausencia', '2026-07-11', '2026-07-12',
+            public.dias_do_pedido('ausencia', '2026-07-11', '2026-07-12'))$$,
+  'nenhum dia util');
