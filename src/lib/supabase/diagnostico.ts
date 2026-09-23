@@ -56,6 +56,12 @@ function checarVariaveis(): Checagem {
     // guarda a URL como recebeu, sem tirar a barra.
     const temBarraFinal = SUPABASE_URL.trimEnd().endsWith("/");
     if (url.pathname !== "/" || temBarraFinal) {
+      // A URL certa sai da errada: o que sobra tirando o caminho. Mostrar o
+      // valor pronto poupa a viagem ao painel do Supabase -- e é lá que o
+      // erro nasce, porque a tela do Data API mostra o "Project URL" e o
+      // endereço REST (`.../rest/v1`) um do lado do outro.
+      const correta = `${url.protocol}//${url.host}`;
+
       return {
         nome: "Variáveis de ambiente",
         situacao: "falha",
@@ -64,7 +70,9 @@ function checarVariaveis(): Checagem {
             ? "A URL termina com uma barra. Ela é invisível na tela e quebra as chamadas."
             : `A URL tem um caminho depois do domínio: "${url.pathname}".`,
         comoResolver:
-          "NEXT_PUBLIC_SUPABASE_URL precisa terminar no .co, sem barra no final e sem caminho. Corrija no .env.local e rode `npm run build` — o valor é embutido no build.",
+          `O valor correto é exatamente ${correta} — sem caminho e sem barra no final. ` +
+          "Se você copiou o endereço REST (terminado em /rest/v1), pegue o campo “Project URL” em Supabase > Project Settings > Data API. " +
+          "Depois de corrigir, RECONSTRUA: este valor é embutido no build, e só reiniciar não muda nada.",
       };
     }
 
