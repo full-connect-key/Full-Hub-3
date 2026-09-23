@@ -1,7 +1,10 @@
 import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { ApprovalRound, SubtaskEntrega } from "@/lib/supabase/database.types";
+import type {
+  ApprovalRound,
+  SubtaskEntrega,
+} from "@/lib/supabase/database.types";
 
 /**
  * O que o cliente vê no Portal.
@@ -65,19 +68,33 @@ export async function minhasAprovacoes(
     if (idsPermitidos.length === 0) return { esperando: [], decididas: [] };
   }
 
-  let consulta = supabase.from("approval_rounds").select("*").eq("escopo", "cliente");
-  if (idsPermitidos) consulta = consulta.in("subtask_id", idsPermitidos);
+  let consulta = supabase
+    .from("approval_rounds")
+    .select("*")
+    .eq("escopo", "cliente")
+    // Idem: esta tela monta cada item a partir de uma subtarefa. Post e
+    // entregável entram nos Sprints 12 e 13, com a consulta deles.
+    .eq("content_type", "subtask");
+  if (idsPermitidos) consulta = consulta.in("content_id", idsPermitidos);
 
-  const { data: rodadas } = await consulta.order("solicitado_em", { ascending: false });
+  const { data: rodadas } = await consulta.order("solicitado_em", {
+    ascending: false,
+  });
 
   const todas = (rodadas ?? []) as ApprovalRound[];
   if (todas.length === 0) return { esperando: [], decididas: [] };
 
-  const idsDeSubtarefas = [...new Set(todas.map((r) => r.subtask_id))];
+  const idsDeSubtarefas = [...new Set(todas.map((r) => r.content_id))];
 
   const [{ data: subtarefas }, { data: entregas }] = await Promise.all([
-    supabase.from("subtasks").select("id, task_id, titulo").in("id", idsDeSubtarefas),
-    supabase.from("subtask_entregas").select("*").in("subtask_id", idsDeSubtarefas),
+    supabase
+      .from("subtasks")
+      .select("id, task_id, titulo")
+      .in("id", idsDeSubtarefas),
+    supabase
+      .from("subtask_entregas")
+      .select("*")
+      .in("subtask_id", idsDeSubtarefas),
   ]);
 
   const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
@@ -98,7 +115,7 @@ export async function minhasAprovacoes(
   const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
 
   const montar = (rodada: ApprovalRound): AprovacaoDoCliente | null => {
-    const sub = porSubtarefa.get(rodada.subtask_id);
+    const sub = porSubtarefa.get(rodada.content_id);
     if (!sub) return null;
     return {
       rodadaId: rodada.id,

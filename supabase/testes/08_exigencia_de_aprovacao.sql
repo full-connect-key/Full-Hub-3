@@ -73,7 +73,7 @@ select teste.recusa_com('E a recusa nomeia a etapa que falta', :ANA,
 
 -- A rodada existe mas esta pendente: continua recusando. Pedir aprovacao nao e
 -- ter aprovacao, e esta e a confusao que a trava existe para impedir.
-insert into public.approval_rounds (id, subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (id, content_id, numero_rodada, escopo, solicitado_por)
 values ('bbbbbbbb-0000-0000-0000-00000000000b', 'cccccccc-0000-0000-0000-00000000000b', 1, 'interna', :MARINA);
 
 select teste.recusa_com('Rodada interna PENDENTE nao serve: recusa', :ANA,
@@ -107,7 +107,7 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
   ('cccccccc-0000-0000-0000-000000000010', 'dddddddd-0000-0000-0000-000000000010', 'Conceito', 1, :MARINA, true, 'interna'),
   ('cccccccc-0000-0000-0000-000000000011', 'dddddddd-0000-0000-0000-000000000010', 'Layout',   2, :MARINA, true, 'interna');
 
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
 values ('cccccccc-0000-0000-0000-000000000010', 1, 'interna', :MARINA, 'aprovada', :DIEGO, now());
 
 select teste.recusa_com('Uma etapa aprovada nao responde pela outra', :ANA,
@@ -122,7 +122,7 @@ select teste.recusa_com('E nao acusa a etapa que ja tem aval', :ANA,
      where id = 'dddddddd-0000-0000-0000-000000000010'$$,
   'Uma etapa desta demanda');
 
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
 values ('cccccccc-0000-0000-0000-000000000011', 1, 'interna', :MARINA, 'aprovada', :DIEGO, now());
 
 select teste.cenario('Com as duas aprovadas, entregue passa', :ANA,
@@ -165,7 +165,7 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
 values ('cccccccc-0000-0000-0000-00000000000c', 'dddddddd-0000-0000-0000-00000000000c',
         'KV da campanha', 1, :MARINA, true, 'cliente');
 
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
 values ('cccccccc-0000-0000-0000-00000000000c', 1, 'interna', :MARINA, 'aprovada', :DIEGO, now());
 
 select teste.recusa_com('Etapa de cliente com so a interna aprovada: recusa', :ANA,
@@ -179,7 +179,7 @@ select teste.recusa_com('Etapa de cliente com so a interna aprovada: recusa', :A
 -- fixture estaria provando a trava contra um estado que o produto nao produz.
 select teste.cenario('So a gestao abre a rodada do cliente', :DIEGO,
   $$insert into public.approval_rounds
-      (subtask_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
+      (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
     values ('cccccccc-0000-0000-0000-00000000000c', 1, 'cliente',
             '22222222-2222-2222-2222-222222222222', 'aprovada',
             '77777777-7777-7777-7777-777777777777', now())$$, 'ok', 1);
@@ -262,7 +262,7 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
 values ('cccccccc-0000-0000-0000-00000000000f', 'dddddddd-0000-0000-0000-00000000000b',
         'Segunda arte', 3, :MARINA, true, 'interna');
 
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('cccccccc-0000-0000-0000-00000000000f', 1, 'interna', :MARINA);
 
 select teste.conferir('Nem a rodada pendente desfaz o entregue marcado a mao',

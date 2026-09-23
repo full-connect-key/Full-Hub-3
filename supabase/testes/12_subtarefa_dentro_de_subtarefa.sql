@@ -121,7 +121,7 @@ select teste.conferir('Status escrito a mao na agrupadora e descartado',
 -- que existe uma rodada DELA, e a fila de aprovacoes iria procura-la.
 update public.subtasks set requer_aprovacao = true, tipo_aprovacao = 'interna', status = 'em_andamento'
  where id = 'c0000000-0000-0000-0000-000000000001';
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('c0000000-0000-0000-0000-000000000001', 1, 'interna', :MARINA);
 update public.subtasks set status = 'enviada_aprovacao' where id = 'c0000000-0000-0000-0000-000000000001';
 
@@ -130,14 +130,14 @@ select teste.conferir('Filha em aprovacao: a mae fica em_andamento, nao enviada_
 
 update public.approval_rounds set status = 'ajustes_solicitados', decidido_por = :DIEGO,
        comentario = 'Refazer o conceito'
- where subtask_id = 'c0000000-0000-0000-0000-000000000001';
+ where content_id = 'c0000000-0000-0000-0000-000000000001';
 update public.subtasks set status = 'em_ajustes' where id = 'c0000000-0000-0000-0000-000000000001';
 
 select teste.conferir('Filha em ajustes: a mae tambem fica em_andamento',
   teste.status_da_sub('b0000000-0000-0000-0000-00000000000a'), 'em_andamento');
 
 -- Fecha as duas filhas: a mae conclui sozinha.
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
 values ('c0000000-0000-0000-0000-000000000001', 2, 'interna', :MARINA, 'aprovada', :DIEGO, now());
 update public.subtasks set status = 'concluida' where id = 'c0000000-0000-0000-0000-000000000001';
 update public.subtasks set status = 'concluida' where id = 'c0000000-0000-0000-0000-000000000002';
@@ -252,7 +252,7 @@ select teste.recusa_com('Dependencia COM agrupadora do lado esperado: recusa', :
   'ela agrupa sub-etapas');
 
 select teste.recusa_com('Rodada de aprovacao na agrupadora: recusa', :DIEGO,
-  $$insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+  $$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
     values ('b0000000-0000-0000-0000-00000000000c', 1, 'interna',
             '22222222-2222-2222-2222-222222222222')$$,
   'não é ela que vai para aprovação');

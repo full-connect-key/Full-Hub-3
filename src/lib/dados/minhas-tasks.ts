@@ -108,8 +108,9 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
     supabase
       .from("approval_rounds")
       .select("*")
+      .eq("content_type", "subtask")
       .in(
-        "subtask_id",
+        "content_id",
         subtarefas.map((s) => s.id),
       )
       .order("numero_rodada", { ascending: false }),
@@ -145,7 +146,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
   const minhasPorTask = new Map<string, MinhaSubtarefa[]>();
   for (const sub of subtarefas) {
     const minhasRodadas = ((rodadas ?? []) as ApprovalRound[]).filter(
-      (r) => r.subtask_id === sub.id,
+      (r) => r.content_id === sub.id,
     );
     const dependeDe = (dependencias ?? [])
       .filter((d) => d.subtask_id === sub.id)

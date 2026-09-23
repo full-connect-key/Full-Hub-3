@@ -121,15 +121,16 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   const { data: pendentes } = linhas.length
     ? await supabase
         .from("approval_rounds")
-        .select("subtask_id")
+        .select("content_id")
+        .eq("content_type", "subtask")
         .eq("status", "pendente")
         .in(
-          "subtask_id",
+          "content_id",
           linhas.map((s) => s.id),
         )
-    : { data: [] as { subtask_id: string }[] };
+    : { data: [] as { content_id: string }[] };
 
-  const comRodadaPendente = new Set((pendentes ?? []).map((r) => r.subtask_id));
+  const comRodadaPendente = new Set((pendentes ?? []).map((r) => r.content_id));
 
   const idsDePessoas = [...new Set(linhas.map((s) => s.responsavel_id).filter(Boolean))] as string[];
   const { data: pessoas } = idsDePessoas.length
@@ -330,7 +331,8 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       ? supabase
           .from("approval_rounds")
           .select("*")
-          .in("subtask_id", idsDeSubtarefas)
+          .eq("content_type", "subtask")
+          .in("content_id", idsDeSubtarefas)
           .order("numero_rodada", { ascending: false })
       : Promise.resolve({ data: [] as ApprovalRound[] }),
     idsDeSubtarefas.length
@@ -375,7 +377,7 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const [enriquecida] = await enriquecer([task]);
 
   const detalhadas: SubtarefaDetalhada[] = (subtarefas ?? []).map((sub) => {
-    const minhasRodadas = (rodadas ?? []).filter((r) => r.subtask_id === sub.id);
+    const minhasRodadas = (rodadas ?? []).filter((r) => r.content_id === sub.id);
     const situacao = situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao);
 
     const dependeDe = (dependencias ?? [])

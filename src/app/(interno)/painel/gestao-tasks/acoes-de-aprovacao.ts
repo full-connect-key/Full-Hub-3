@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import {
+  aindaNaoTratado,
+  colunasDoConteudo,
+  daSubtarefa,
+  type Conteudo,
+} from "@/lib/aprovacoes/conteudo";
+import {
   executarAcao,
   falha,
   sucesso,
@@ -89,13 +95,41 @@ async function lerSubtarefa(
     .maybeSingle();
   if (!subtarefa) return null;
 
-  const { data: rodadas } = await supabase
+  return { subtarefa, rodadas: await rodadasDo(supabase, daSubtarefa(id)) };
+}
+
+/**
+ * A etapa de uma rodada — ou null, quando a rodada é de outro tipo.
+ *
+ * O `null` não é um detalhe: depois da 0030 uma rodada pode ser de post ou de
+ * entregável, e o resto desta ação lê `subtasks`. Seguir com o id de um post
+ * procuraria em `subtasks` um id que não está lá, e a ação devolveria
+ * "Subtarefa não encontrada" — uma mensagem verdadeira sobre a pergunta
+ * errada. Quem chama recusa com `aindaNaoTratado`, que diz o que está
+ * acontecendo.
+ */
+function etapaDaRodada(rodada: {
+  content_type: string;
+  content_id: string;
+}): string | null {
+  return rodada.content_type === "subtask" ? rodada.content_id : null;
+}
+
+/**
+ * As rodadas de um conteúdo, da mais nova para a mais antiga.
+ *
+ * É o único lugar do motor que nomeia as colunas da 0030. Todas as cinco
+ * ações passam por aqui, e é isso que faz post e entregável (Sprints 12 e 13)
+ * entrarem sem um segundo fluxo ao lado deste.
+ */
+async function rodadasDo(supabase: ClienteSupabase, conteudo: Conteudo) {
+  const { data } = await supabase
     .from("approval_rounds")
     .select("id, numero_rodada, escopo, status")
-    .eq("subtask_id", id)
+    .eq("content_type", conteudo.tipo)
+    .eq("content_id", conteudo.id)
     .order("numero_rodada", { ascending: false });
-
-  return { subtarefa, rodadas: rodadas ?? [] };
+  return data ?? [];
 }
 
 /**
@@ -159,7 +193,7 @@ export async function enviarParaAprovacao(
     const { data: rodada, error } = await supabase
       .from("approval_rounds")
       .insert({
-        subtask_id: subtaskId,
+        ...colunasDoConteudo(daSubtarefa(subtaskId)),
         numero_rodada: numero,
         escopo: "interna",
         // Quem consta como solicitante é sempre quem PRODUZIU: é dele a
@@ -222,7 +256,7 @@ export async function aprovarInterna(
 
     const { data: rodada } = await supabase
       .from("approval_rounds")
-      .select("id, subtask_id, numero_rodada, escopo, status")
+      .select("id, content_type, content_id, numero_rodada, escopo, status")
       .eq("id", roundId)
       .maybeSingle();
 
@@ -232,7 +266,14 @@ export async function aprovarInterna(
     if (rodada.escopo !== "interna")
       return falha("Esta rodada é a do cliente, não a interna.");
 
-    const ctx = await lerSubtarefa(supabase, rodada.subtask_id);
+    const alvo = etapaDaRodada(rodada);
+    if (!alvo) {
+      return falha(
+        aindaNaoTratado({ tipo: rodada.content_type, id: rodada.content_id }),
+      );
+    }
+
+    const ctx = await lerSubtarefa(supabase, alvo);
     if (!ctx) return falha("Subtarefa não encontrada.");
 
     // Aqui havia a trava de autoaprovação, e ela saiu na migration 0029 por
@@ -264,7 +305,7 @@ export async function aprovarInterna(
       const { error: erroDoStatus } = await supabase
         .from("subtasks")
         .update({ status: "concluida" })
-        .eq("id", rodada.subtask_id)
+        .eq("id", alvo)
         .select("id");
       if (erroDoStatus) return falha(erroDoStatus.message);
       mensagem = "Aprovada — subtarefa concluída.";
@@ -275,7 +316,7 @@ export async function aprovarInterna(
 
     await registrar(supabase, {
       task_id: ctx.subtarefa.task_id,
-      subtask_id: rodada.subtask_id,
+      subtask_id: alvo,
       approval_round_id: roundId,
       acao: "aprovacao_interna",
       para_valor: `Rodada ${rodada.numero_rodada}`,
@@ -285,7 +326,7 @@ export async function aprovarInterna(
     if (comentario?.trim()) {
       await supabase.from("task_comentarios").insert({
         task_id: ctx.subtarefa.task_id,
-        subtask_id: rodada.subtask_id,
+        subtask_id: alvo,
         approval_round_id: roundId,
         autor_id: sessao.usuarioId,
         texto: comentario.trim(),
@@ -316,7 +357,7 @@ export async function solicitarAjustesInterna(
 
     const { data: rodada } = await supabase
       .from("approval_rounds")
-      .select("id, subtask_id, numero_rodada, escopo, status")
+      .select("id, content_type, content_id, numero_rodada, escopo, status")
       .eq("id", roundId)
       .maybeSingle();
 
@@ -324,7 +365,14 @@ export async function solicitarAjustesInterna(
     if (rodada.status !== "pendente")
       return falha("Esta rodada já foi decidida.");
 
-    const ctx = await lerSubtarefa(supabase, rodada.subtask_id);
+    const alvo = etapaDaRodada(rodada);
+    if (!alvo) {
+      return falha(
+        aindaNaoTratado({ tipo: rodada.content_type, id: rodada.content_id }),
+      );
+    }
+
+    const ctx = await lerSubtarefa(supabase, alvo);
     if (!ctx) return falha("Subtarefa não encontrada.");
     const { data, error } = await supabase
       .from("approval_rounds")
@@ -347,13 +395,13 @@ export async function solicitarAjustesInterna(
     const { error: erroDoStatus } = await supabase
       .from("subtasks")
       .update({ status: "em_ajustes" })
-      .eq("id", rodada.subtask_id)
+      .eq("id", alvo)
       .select("id");
     if (erroDoStatus) return falha(erroDoStatus.message);
 
     await supabase.from("task_comentarios").insert({
       task_id: ctx.subtarefa.task_id,
-      subtask_id: rodada.subtask_id,
+      subtask_id: alvo,
       approval_round_id: roundId,
       autor_id: sessao.usuarioId,
       texto: comentario.trim(),
@@ -362,7 +410,7 @@ export async function solicitarAjustesInterna(
 
     await registrar(supabase, {
       task_id: ctx.subtarefa.task_id,
-      subtask_id: rodada.subtask_id,
+      subtask_id: alvo,
       approval_round_id: roundId,
       acao: "ajustes_solicitados",
       para_valor: `Rodada ${rodada.numero_rodada}`,
@@ -412,7 +460,7 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
     const { data: rodada, error } = await supabase
       .from("approval_rounds")
       .insert({
-        subtask_id: subtaskId,
+        ...colunasDoConteudo(daSubtarefa(subtaskId)),
         numero_rodada: situacao.rodadaAtual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,

@@ -67,6 +67,32 @@ export type TipoAprovacao = "interna" | "cliente";
 
 export type EscopoRodada = "interna" | "cliente";
 
+/**
+ * O que passa por uma rodada de aprovação (migration 0030).
+ *
+ * `subtask` é o único que existe hoje. `post` e `deliverable` entram com as
+ * tabelas deles, nos Sprints 12 e 13 — e até lá o banco RECUSA rodada desses
+ * tipos, em vez de aceitar uma aprovação que nenhuma trava sabe conferir.
+ */
+export type TipoDeConteudo = "subtask" | "post" | "deliverable";
+
+/**
+ * Os sete estados de um conteúdo do cliente (`content_status` no Postgres).
+ *
+ * Três chaves se escrevem igual às de task e de subtarefa
+ * (`aguardando_informacoes`, `em_aprovacao`), e é de propósito: o cliente e a
+ * equipe usam a mesma palavra para a mesma coisa, e um selo só evita dois
+ * amarelos diferentes na mesma tela.
+ */
+export type ContentStatus =
+  | "aguardando_informacoes"
+  | "em_producao"
+  | "em_aprovacao"
+  | "ajustes"
+  | "aprovado"
+  | "rejeitado"
+  | "stand_by";
+
 /** O que o material É. O ícone e o jeito de abrir saem daqui. */
 export type MaterialTipo =
   | "video"
@@ -918,7 +944,10 @@ export interface Database {
       approval_rounds: {
         Row: {
           id: string;
-          subtask_id: string;
+          /** subtask | post | deliverable (migration 0030). */
+          content_type: TipoDeConteudo;
+          /** O id na tabela que `content_type` nomeia. Sem chave estrangeira. */
+          content_id: string;
           numero_rodada: number;
           escopo: EscopoRodada;
           status: StatusRodada;
@@ -931,7 +960,12 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          subtask_id: string;
+          // OBRIGATORIO no tipo, embora o banco tenha default 'subtask'. O
+          // default existe para a migration converter as linhas antigas; o
+          // codigo novo diz de que conteudo esta falando, senao a
+          // generalizacao vira uma coluna que ninguem preenche.
+          content_type: TipoDeConteudo;
+          content_id: string;
           numero_rodada: number;
           escopo: EscopoRodada;
           status?: StatusRodada;

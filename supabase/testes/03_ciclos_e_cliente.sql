@@ -17,31 +17,31 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
 values ('bcbcbcbc-0000-0000-0000-000000000001','abababab-0000-0000-0000-00000000000a','Peça-chave',1,:BRUNO,true,'interna','em_andamento');
 
 -- Rodada 1 -> ajustes
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('bcbcbcbc-0000-0000-0000-000000000001', 1, 'interna', :BRUNO);
 update public.subtasks set status = 'enviada_aprovacao' where id = 'bcbcbcbc-0000-0000-0000-000000000001';
 update public.approval_rounds set status = 'ajustes_solicitados', decidido_por = :DIEGO,
        comentario = 'Primeira volta: trocar a cor.'
- where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 1;
+ where content_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 1;
 update public.subtasks set status = 'em_ajustes' where id = 'bcbcbcbc-0000-0000-0000-000000000001';
 
 -- Rodada 2 -> ajustes de novo
 update public.subtasks set status = 'em_andamento' where id = 'bcbcbcbc-0000-0000-0000-000000000001';
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('bcbcbcbc-0000-0000-0000-000000000001', 2, 'interna', :BRUNO);
 update public.subtasks set status = 'enviada_aprovacao' where id = 'bcbcbcbc-0000-0000-0000-000000000001';
 update public.approval_rounds set status = 'ajustes_solicitados', decidido_por = :DIEGO,
        comentario = 'Segunda volta: a tipografia.'
- where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 2;
+ where content_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 2;
 update public.subtasks set status = 'em_ajustes' where id = 'bcbcbcbc-0000-0000-0000-000000000001';
 
 select teste.conferir('As duas rodadas continuam no banco',
   (select count(*)::text from public.approval_rounds
-    where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000001'), '2');
+    where content_id = 'bcbcbcbc-0000-0000-0000-000000000001'), '2');
 
 select teste.conferir('A rodada 1 preservou o comentario dela',
   (select comentario from public.approval_rounds
-    where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 1),
+    where content_id = 'bcbcbcbc-0000-0000-0000-000000000001' and numero_rodada = 1),
   'Primeira volta: trocar a cor.');
 
 select teste.conferir('A task ficou em em_ajustes',
@@ -53,11 +53,11 @@ select teste.conferir('A task ficou em em_ajustes',
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao, status)
 values ('bcbcbcbc-0000-0000-0000-000000000002','abababab-0000-0000-0000-00000000000a','KV final',2,:BRUNO,true,'cliente','em_andamento');
 
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('bcbcbcbc-0000-0000-0000-000000000002', 1, 'interna', :BRUNO);
 update public.subtasks set status = 'enviada_aprovacao' where id = 'bcbcbcbc-0000-0000-0000-000000000002';
 update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO
- where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000002' and escopo = 'interna';
+ where content_id = 'bcbcbcbc-0000-0000-0000-000000000002' and escopo = 'interna';
 
 select teste.conferir('Aval interno nao conclui a de tipo cliente',
   (select status::text from public.subtasks where id = 'bcbcbcbc-0000-0000-0000-000000000002'),
@@ -69,21 +69,21 @@ select teste.conferir('Aval interno nao conclui a de tipo cliente',
 -- Diego e gestor, mas se a entrega fosse DELE nem ele poderia enviar.
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao, status)
 values ('bcbcbcbc-0000-0000-0000-000000000003','abababab-0000-0000-0000-00000000000a','Entrega do proprio Diego',3,:DIEGO,true,'cliente','em_andamento');
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
 values ('bcbcbcbc-0000-0000-0000-000000000003', 1, 'interna', 'pendente', :DIEGO, null, null);
 update public.approval_rounds set status = 'aprovada', decidido_por = :ANA, decidido_em = now()
- where subtask_id = 'bcbcbcbc-0000-0000-0000-000000000003';
+ where content_id = 'bcbcbcbc-0000-0000-0000-000000000003';
 
 select teste.cenario('Nem o gestor envia ao cliente a propria entrega', :DIEGO,
-  format('insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000003'', 1, ''cliente'', %L)', :DIEGO),
+  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000003'', 1, ''cliente'', %L)', :DIEGO),
   'recusa');
 
 select teste.cenario('Desenvolvedor abre a rodada do cliente', :DIEGO,
-  format('insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000002'', 1, ''cliente'', %L)', :DIEGO),
+  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000002'', 1, ''cliente'', %L)', :DIEGO),
   'ok', 1);
 
 select teste.cenario('Cliente aprova pela funcao do banco', '77777777-7777-7777-7777-777777777777',
-  '(select public.decidir_rodada_do_cliente((select id from public.approval_rounds where subtask_id = ''bcbcbcbc-0000-0000-0000-000000000002'' and escopo = ''cliente''), ''aprovada'', ''Pode publicar.''))',
+  '(select public.decidir_rodada_do_cliente((select id from public.approval_rounds where content_id = ''bcbcbcbc-0000-0000-0000-000000000002'' and escopo = ''cliente''), ''aprovada'', ''Pode publicar.''))',
   'ok');
 
 select teste.conferir('A decisao do cliente concluiu a subtarefa',

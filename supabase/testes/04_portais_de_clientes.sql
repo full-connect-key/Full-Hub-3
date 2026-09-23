@@ -125,19 +125,19 @@ values ('ffffffff-0000-0000-0000-00000000000a', 'eeeeeeee-0000-0000-0000-0000000
 -- O caminho inteiro, porque o banco nao deixa pular etapa: o Bruno pede o aval
 -- interno, o Diego aprova, e SO ENTAO a rodada do cliente pode nascer. Montar
 -- o cenario ja e uma prova de que a cadeia esta de pe.
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-00000000000a', 1, 'interna', '44444444-4444-4444-4444-444444444444');
 update public.subtasks set status = 'enviada_aprovacao'
  where id = 'ffffffff-0000-0000-0000-00000000000a';
 update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO, decidido_em = now()
- where subtask_id = 'ffffffff-0000-0000-0000-00000000000a' and escopo = 'interna';
+ where content_id = 'ffffffff-0000-0000-0000-00000000000a' and escopo = 'interna';
 
 -- A rodada de cliente so nasce pela mao do Desenvolvedor: o gatilho
 -- validar_nova_rodada le auth.uid(), que como superusuario e nulo. Por isso o
 -- preparo se identifica como o Diego.
 select set_config('request.jwt.claim.sub', :DIEGO, false);
 
-insert into public.approval_rounds (id, subtask_id, escopo, numero_rodada, status, solicitado_por)
+insert into public.approval_rounds (id, content_id, escopo, numero_rodada, status, solicitado_por)
 values ('ffffffff-0000-0000-0000-0000000000c1', 'ffffffff-0000-0000-0000-00000000000a',
         'cliente', 1, 'pendente', :DIEGO);
 

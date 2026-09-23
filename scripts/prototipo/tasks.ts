@@ -293,7 +293,10 @@ const SEMENTES: Semente[] = [
 function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
   const rodadas = (semente.rodadas ?? []).map((r, indice) => ({
     id: `${semente.id}-r${indice}`,
-    subtask_id: semente.id,
+    // (tipo, id) desde a migration 0030. No protótipo tudo e' etapa; post e
+    // entregavel chegam com os Sprints 12 e 13.
+    content_type: "subtask" as const,
+    content_id: semente.id,
     numero_rodada: r.numero,
     escopo: r.escopo,
     status: r.status,

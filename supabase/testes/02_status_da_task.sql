@@ -78,7 +78,7 @@ select teste.conferir('E o entregue resiste a exigencia voltar',
 --
 -- A quarta vai para aprovacao, e a Task NAO se mexe.
 -- ---------------------------------------------------------------------------
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-000000000004', 1, 'interna', :MARINA);
 select teste.conferir('Rodada pendente NAO desfaz o marcado a mao',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
@@ -105,26 +105,26 @@ select teste.conferir('A task continua em em_aprovacao',
 -- Ajustes solicitados vencem a rodada pendente na precedencia
 update public.subtasks set requer_aprovacao = true, tipo_aprovacao = 'interna', status = 'nao_iniciada'
  where id = 'ffffffff-0000-0000-0000-000000000003';
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-000000000003', 1, 'interna', :MARINA);
 select teste.cenario('em_ajustes sem rodada que pediu ajuste e recusado', :MARINA,
   'update public.subtasks set status = ''em_ajustes'' where id = ''ffffffff-0000-0000-0000-000000000003''',
   'recusa');
 update public.approval_rounds set status = 'ajustes_solicitados', decidido_por = :DIEGO,
        comentario = 'Refazer a terceira'
- where subtask_id = 'ffffffff-0000-0000-0000-000000000003';
+ where content_id = 'ffffffff-0000-0000-0000-000000000003';
 update public.subtasks set status = 'em_ajustes' where id = 'ffffffff-0000-0000-0000-000000000003';
 select teste.conferir('em_ajustes vence em_aprovacao na precedencia',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_ajustes');
 
 -- Fecha tudo: a task conclui (e ela esta no calculo, nao marcada a mao)
-insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
+insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-000000000003', 2, 'interna', :MARINA);
 update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO
- where subtask_id = 'ffffffff-0000-0000-0000-000000000003' and numero_rodada = 2;
+ where content_id = 'ffffffff-0000-0000-0000-000000000003' and numero_rodada = 2;
 update public.subtasks set status = 'concluida' where id = 'ffffffff-0000-0000-0000-000000000003';
 update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO
- where subtask_id = 'ffffffff-0000-0000-0000-000000000004';
+ where content_id = 'ffffffff-0000-0000-0000-000000000004';
 update public.subtasks set status = 'concluida' where id = 'ffffffff-0000-0000-0000-000000000004';
 select teste.conferir('Todas concluidas e nenhuma rodada pendente: concluido',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'concluido');

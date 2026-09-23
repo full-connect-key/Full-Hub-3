@@ -55,12 +55,17 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const { data: rodadas } = await supabase
     .from("approval_rounds")
     .select("*")
+    // SÓ AS DE ETAPA, e é a 0030 que torna isso necessário: a rodada deixou
+    // de apontar para `subtask_id` e passou a apontar para (tipo, id). Sem o
+    // filtro, uma rodada de post cairia nesta fila e a consulta seguinte
+    // procuraria o id dela em `subtasks`, onde ele não está.
+    .eq("content_type", "subtask")
     .order("numero_rodada", { ascending: false });
 
   const todas = (rodadas ?? []) as ApprovalRound[];
   if (todas.length === 0) return { esperando: [], prontasParaOCliente: [] };
 
-  const idsDeSubtarefas = [...new Set(todas.map((r) => r.subtask_id))];
+  const idsDeSubtarefas = [...new Set(todas.map((r) => r.content_id))];
 
   const [{ data: subtarefas }, { data: entregas }] = await Promise.all([
     supabase
@@ -120,7 +125,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const prontasParaOCliente: ItemDaFila[] = [];
 
   for (const sub of subtarefas ?? []) {
-    const minhas = todas.filter((r) => r.subtask_id === sub.id);
+    const minhas = todas.filter((r) => r.content_id === sub.id);
     const situacao = situacaoDasRodadas(minhas, sub.tipo_aprovacao);
     const task = porTask.get(sub.task_id);
     if (!task) continue;
