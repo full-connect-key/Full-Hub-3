@@ -189,8 +189,13 @@ function executar(comando, args, opcoes = {}) {
   });
 }
 
-async function esperarNoAr(url, tentativas = 60) {
+async function esperarNoAr(url, tentativas = 60, servidor) {
   for (let i = 0; i < tentativas; i++) {
+    // Se o processo nem chegou a subir, esperar sessenta segundos so atrasa a
+    // noticia. O motivo real esta aqui, e e ele que precisa aparecer.
+    if (servidor?.falhouAoSubir) {
+      throw new Error(`O servidor nao subiu: ${servidor.falhouAoSubir.message}`);
+    }
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (r.status < 500) return;
@@ -251,12 +256,36 @@ const PERFIS = {
 
 function subirServidor(perfil) {
   const { role, funcao } = PERFIS[perfil] ?? PERFIS.socio;
-  return spawn("npx", ["next", "start", "--port", String(PORTA)], {
+
+  // O binario pelo caminho, e nao `npx`: numa rodada de noventa telas, com o
+  // Chromium e o servidor disputando memoria, o `spawn("npx", ...)` falhou com
+  // ENOENT no quinto reinicio -- o npx precisa se resolver no PATH toda vez, e
+  // sob pressao isso nao e garantido. O arquivo esta la desde o `npm install`.
+  const proprio = path.join(COPIA, "node_modules", ".bin", "next");
+  const binario = existsSync(proprio) ? proprio : "npx";
+  const argumentos =
+    binario === "npx"
+      ? ["next", "start", "--port", String(PORTA)]
+      : ["start", "--port", String(PORTA)];
+
+  const filho = spawn(binario, argumentos, {
     cwd: COPIA,
     stdio: "ignore",
     detached: true,
     env: { ...process.env, PROTOTIPO_ROLE: role, PROTOTIPO_FUNCAO: funcao ?? "" },
   });
+
+  // SEM ISTO, um `spawn` que falha derruba a rodada inteira por um caminho que
+  // nenhum try alcanca: o 'error' de um ChildProcess sem tratador vira excecao
+  // nao capturada e mata o processo -- o `finally` nao roda, a copia temporaria
+  // fica para tras e as telas que faltavam se perdem sem o resumo dizer quais.
+  // Foi exatamente o que aconteceu. Com o tratador, a falha vira um erro comum
+  // que `esperarNoAr` reporta com o motivo.
+  filho.on("error", (erro) => {
+    filho.falhouAoSubir = erro;
+  });
+
+  return filho;
 }
 
 function encerrar(servidor) {
@@ -322,10 +351,15 @@ try {
   // quais faltaram, para ninguem achar que `prototipos/` esta completo.
   const perdidas = [];
 
+  // Telas que sairam, mas sem o clique que deveriam mostrar. Nao e falha da
+  // rodada -- a imagem existe --, e por isso mesmo some no meio de noventa
+  // linhas de log. Repetido no fim, vira uma lista curta que da para conferir.
+  const semClique = [];
+
   for (const perfil of perfis) {
     log(`subindo o servidor como ${perfil}...`);
     servidor = subirServidor(perfil);
-    await esperarNoAr(`http://localhost:${PORTA}/login`);
+    await esperarNoAr(`http://localhost:${PORTA}/login`, 60, servidor);
 
     for (const tela of TELAS.filter((t) => (t.role ?? "socio") === perfil)) {
       // Uma tela que estoura NAO derruba a rodada inteira, pela mesma razao
@@ -376,15 +410,33 @@ try {
         // Uma lista de seletores quando a tela precisa de mais de um clique --
         // abrir a aba antes do dialogo, por exemplo.
         //
-        // Um seletor que nao casa NAO derruba a geracao inteira: ele espera 8
-        // segundos, avisa e a tela sai sem o clique. Uma rodada completa leva
-        // dez minutos, e perde-la por causa de um nome de botao que mudou
-        // custa caro demais.
+        // Um seletor que nao casa NAO derruba a geracao inteira: ele avisa e a
+        // tela sai sem o clique. Uma rodada completa leva dez minutos, e
+        // perde-la por causa de um nome de botao que mudou custa caro demais.
+        //
+        // DUAS TENTATIVAS, E ORCAMENTO LARGO. Com 8 segundos e uma tentativa
+        // so, duas rodadas seguidas falhavam em telas DIFERENTES -- sinal de
+        // que o limite era a maquina, nao o seletor. O servidor serve a rota
+        // pela primeira vez enquanto o Chromium tira um screenshot em escala
+        // 2, e a hidratacao chega depois do prazo. Um aviso que as vezes
+        // aparece e pior que nenhum: ensina a ignorar todos, e foi assim que
+        // um seletor morto de verdade (a aba "Financeiro Pessoal" de Meu
+        // Perfil) sobreviveu um sprint inteiro.
         for (const passo of Array.isArray(tela.clicar) ? tela.clicar : [tela.clicar]) {
-          try {
-            await pagina.click(passo, { timeout: 8000 });
-            await pagina.waitForTimeout(250);
-          } catch {
+          let deu = false;
+          for (const tentativa of [1, 2]) {
+            try {
+              await pagina.click(passo, { timeout: 15000 });
+              await pagina.waitForTimeout(250);
+              deu = true;
+              break;
+            } catch {
+              // Entre as duas, deixa a pagina assentar: o que costuma faltar e
+              // hidratacao, e ela chega sozinha.
+              if (tentativa === 1) await pagina.waitForTimeout(1500);
+            }
+          }
+          if (!deu) {
             faltou = passo;
             break;
           }
@@ -400,11 +452,20 @@ try {
         // Chromium no meio de uma rodada de noventa telas.
         await pagina.close().catch(() => {});
       }
+      if (faltou) semClique.push(`${tela.nome}: ${faltou}`);
       log(faltou ? `  ${tela.nome}.png  (sem o clique: ${faltou})` : `  ${tela.nome}.png`);
     }
   }
 
   await navegador.close();
+
+  if (semClique.length > 0) {
+    console.error(`\n  ${semClique.length} tela(s) sairam SEM o clique:`);
+    for (const linha of semClique) console.error(`    ${linha}`);
+    console.error(
+      "\n  Se o mesmo seletor falha em duas rodadas seguidas, ele morreu --\n  a tela mudou e a lista TELAS nao acompanhou.",
+    );
+  }
 
   if (perdidas.length > 0) {
     console.error(`\n  ${perdidas.length} tela(s) nao sairam:`);
