@@ -60,7 +60,6 @@ async function Conteudo({
 
   return (
     <PainelPessoal
-      tasks={tasks}
       linhas={montarLinhas(tasks)}
       itensDeCalendario={itensDeCalendario}
       itensDoDia={itensDoDia}

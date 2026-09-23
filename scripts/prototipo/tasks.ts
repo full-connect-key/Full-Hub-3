@@ -16,6 +16,7 @@ import type {
   ItemDeCalendario,
   FiltrosDeTask as FiltrosReais,
   Pessoa as PessoaReal,
+  RascunhoDaLista as RascunhoReal,
   SubtarefaDetalhada as SubtarefaReal,
   TaskCompleta as TaskCompletaReal,
   TaskDaLista as TaskDaListaReal,
@@ -27,6 +28,7 @@ export type Pessoa = PessoaReal;
 export type TaskDaLista = TaskDaListaReal;
 export type TaskCompleta = TaskCompletaReal;
 export type SubtarefaDetalhada = SubtarefaReal;
+export type RascunhoDaLista = RascunhoReal;
 export type { ItemDeCalendario };
 
 const HOJE = new Date();
@@ -715,4 +717,33 @@ export async function urlsDosArquivos(caminhos: string[]): Promise<Record<string
   const mapa: Record<string, string> = {};
   for (const caminho of caminhos) mapa[caminho] = "#";
   return mapa;
+}
+
+/**
+ * Os rascunhos, na versao de prototipo (migration 0028).
+ *
+ * Um, e nao zero: a Gestao de Tasks ganhou o grupo RASCUNHOS, e um prototipo
+ * sem nenhum nao mostraria que ele existe.
+ */
+export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
+  return [
+    {
+      id: "cccccccc-0000-0000-0000-0000000000r1",
+      titulo: "Campanha de fim de ano — Mundo Verde",
+      cliente: "Mundo Verde",
+      subtarefas: 2,
+      updated_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    },
+  ];
+}
+
+/**
+ * O aviso do sexto dia — vazio de proposito.
+ *
+ * O prototipo desenha as telas do produto em uso, e rascunho prestes a expirar
+ * e estado de excecao. Quem quiser a imagem desse aviso troca o array por uma
+ * linha; e por isso que a funcao existe em vez de o bloco ser recortado.
+ */
+export async function rascunhosAExpirar(): Promise<{ id: string; titulo: string }[]> {
+  return [];
 }

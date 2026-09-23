@@ -6,26 +6,21 @@ import { CalendarDays, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
-import { COLUNAS_POR_STATUS, ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
-import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
+import { ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
+import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-import { BoardDeTasks } from "../gestao-tasks/board";
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
+import { BoardDeEtapas } from "./board-de-etapas";
 import type { LinhaPessoal } from "./linhas";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
 import { PainelLateralDaTask } from "./painel-lateral";
 
 type Visao = "board" | "lista" | "calendario";
-
-/** Quantas etapas desta demanda são minhas — é o que o card do board diz. */
-function contarMinhas(taskId: string, linhas: LinhaPessoal[]): number {
-  return linhas.filter((l) => l.taskId === taskId).length;
-}
 
 const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
   { id: "board", rotulo: "Board", Icone: Columns3 },
@@ -38,14 +33,17 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
 /**
  * Minhas Tasks.
  *
- * O board, o calendário e o formulário de nova task são os mesmos da Gestão de
- * Tasks, recebendo parâmetros diferentes: aqui o clique abre o painel lateral
- * em vez de trocar de página.
+ * AS TRÊS VISÕES MOSTRAM ETAPAS, e é isto que faz elas concordarem. A Lista
+ * já listava uma linha por etapa; o board listava um card por DEMANDA, com um
+ * selo dizendo "5 subtarefas suas" — cinco trabalhos, cinco prazos e cinco
+ * andamentos espremidos num card só, numa coluna decidida pelo status da
+ * demanda. Agora ele é `BoardDeEtapas`, com um card por etapa e as colunas dos
+ * status da etapa.
  *
- * No board, nenhum card é arrastável — e não é uma limitação da visão pessoal.
- * O status da Task é calculado pelas subtarefas: mover o card aqui prometeria
- * uma mudança que o recálculo desfaria em seguida. Quem avança o trabalho é a
- * etapa, na Lista ou no painel.
+ * O calendário e o formulário de nova task continuam sendo os mesmos da Gestão
+ * de Tasks, recebendo parâmetros diferentes: aqui o clique abre o painel
+ * lateral em vez de trocar de página. O board não dá para reaproveitar porque
+ * o que ele desenha é outra entidade, com outro enum de status.
  *
  * Visualização e foco moram na URL. Além de o link ficar compartilhável, é o
  * que faz o contador clicável funcionar sem estado duplicado: clicar em
@@ -53,7 +51,6 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
  * função que produziu o número.
  */
 export function PainelPessoal({
-  tasks,
   linhas,
   itensDeCalendario,
   itensDoDia,
@@ -67,12 +64,16 @@ export function PainelPessoal({
   visao,
   foco,
 }: {
-  tasks: TaskDaLista[];
   linhas: LinhaPessoal[];
   itensDeCalendario: ItemDeCalendario[];
   itensDoDia: ItemDoDia[];
   contadores: Record<FocoDoDia, number>;
-  equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
+  equipe: {
+    id: string;
+    nome: string;
+    avatar_url: string | null;
+    funcao: TeamFuncao | null;
+  }[];
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
@@ -124,7 +125,9 @@ export function PainelPessoal({
               >
                 {valor}
               </p>
-              <p className="text-muted-foreground text-xs">{ROTULOS_DE_FOCO[id]}</p>
+              <p className="text-muted-foreground text-xs">
+                {ROTULOS_DE_FOCO[id]}
+              </p>
             </button>
           );
         })}
@@ -141,11 +144,11 @@ export function PainelPessoal({
       </div>
 
       <MeuDia
-          itens={itensDoDia}
-          primeiroNome={primeiroNome}
-          usuarioId={usuarioId}
-          souGestor={souGestor}
-        />
+        itens={itensDoDia}
+        primeiroNome={primeiroNome}
+        usuarioId={usuarioId}
+        souGestor={souGestor}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
@@ -169,7 +172,9 @@ export function PainelPessoal({
         </div>
 
         {foco ? (
-          <Badge variant="secondary">Filtrando por {ROTULOS_DE_FOCO[foco].toLowerCase()}</Badge>
+          <Badge variant="secondary">
+            Filtrando por {ROTULOS_DE_FOCO[foco].toLowerCase()}
+          </Badge>
         ) : null}
 
         {/* Só aparece para quem faz Atendimento. A policy tasks_insert é quem
@@ -180,18 +185,12 @@ export function PainelPessoal({
       </div>
 
       {visao === "board" ? (
-        <BoardDeTasks
-          tasks={tasks}
-          colunas={COLUNAS_POR_STATUS}
+        <BoardDeEtapas
+          linhas={linhas}
+          prazos={prazos}
+          usuarioId={usuarioId}
+          souGestor={souGestor}
           aoAbrir={setTaskAberta}
-          podeArrastar={() => false}
-          marcador={(task) => (
-            <Badge variant="secondary" className="text-[10px]">
-              {contarMinhas(task.id, linhas)} subtarefa
-              {contarMinhas(task.id, linhas) === 1 ? "" : "s"} sua
-              {contarMinhas(task.id, linhas) === 1 ? "" : "s"}
-            </Badge>
-          )}
         />
       ) : null}
 

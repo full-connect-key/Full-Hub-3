@@ -150,6 +150,34 @@ onde se vê que as duas são da mesma mãe e o que as outras pessoas estão
 fazendo nela. A ordem é **global**: o que vence amanhã fica no topo mesmo que
 a demanda dele comece semana que vem.
 
+**E vale nas TRÊS visões, não só na Lista.** O board era o da Gestão de Tasks
+reaproveitado: um card por demanda com um selo dizendo "5 subtarefas suas".
+Cinco trabalhos, cinco prazos e cinco andamentos num card só, numa coluna
+escolhida pelo status da *demanda* — quem tinha as cinco etapas espalhadas
+entre "em andamento", "em ajustes" e "concluída" via um card que não estava
+certo para nenhuma das cinco. Agora é `minhas-tasks/board-de-etapas.tsx`, um
+card por etapa.
+
+**As colunas são os SEIS status da etapa**, não os sete da Task: são enums
+diferentes no banco, e um de-para entre os dois seria o lugar onde as duas
+verdades começam a divergir. O rótulo de `nao_iniciada` volta a ser **"Não
+iniciada"** e não "Iniciar" — na Task ele é "Iniciar" porque o cabeçalho da
+coluna é a única coisa escrita ali; aqui cada card carrega o botão de ação, e
+o primeiro deles se chama exatamente "Iniciar".
+
+**E aqui o card ARRASTA**, ao contrário do board de demandas que estava nesta
+mesma tela. É a mesma razão invertida: o status da Task é calculado pelas
+subtarefas, então mover aquele card prometia uma mudança que o recálculo
+desfazia em seguida; o status da etapa é escrito por quem a faz, e mover o
+card é a própria ação. Transição impossível é recusada pelo banco, o card
+volta sozinho, e a mensagem diz o caminho — a mesma decisão do seletor de
+status.
+
+O board não dá para reaproveitar da Gestão de Tasks: lá a pergunta é "onde
+está cada demanda da agência?" e a entidade é a Task. Aqui a pergunta é "o que
+eu faço agora?", e a resposta não é uma demanda. O calendário, esse continua
+sendo o mesmo componente com outros parâmetros.
+
 ### O status da Task é calculado até alguém pegar o volante
 
 `recalcular_status_task()` roda por trigger a cada escrita em `subtasks` e em
