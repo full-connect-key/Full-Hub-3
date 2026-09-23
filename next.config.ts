@@ -1,8 +1,46 @@
+import { execFileSync } from "node:child_process";
+
 import type { NextConfig } from "next";
 
 import { ROTAS_RENOMEADAS } from "./src/lib/auth/permissions";
 
+/**
+ * De qual commit este build saiu.
+ *
+ * Lido AQUI, no build, e congelado no bundle — não consultado em tempo de
+ * execução. O que está no ar é uma pasta `.next` já compilada; se alguém
+ * puxasse código sem reconstruir, uma consulta ao git do servidor devolveria
+ * um commit que não é o que está rodando, que é pior que não mostrar nada.
+ *
+ * A variável de ambiente ganha do git para o caso de o build sair de um
+ * lugar sem clone (um tarball, uma imagem). Se nenhum dos dois responder,
+ * o rodapé diz "versão local" — e quem vê isso sabe na hora que não está
+ * olhando uma versão publicada.
+ */
+function lerDoGit(...args: string[]): string {
+  try {
+    return execFileSync("git", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
+const COMMIT = process.env.NEXT_PUBLIC_COMMIT || lerDoGit("rev-parse", "--short", "HEAD");
+const COMMIT_EM =
+  process.env.NEXT_PUBLIC_COMMIT_EM || lerDoGit("log", "-1", "--format=%cI");
+
 const nextConfig: NextConfig = {
+  // `env` embute o valor no código que vai para o navegador, do mesmo jeito
+  // que um NEXT_PUBLIC_ do .env.local — a diferença é que este é calculado
+  // no build em vez de digitado num arquivo que alguém esqueceria de trocar.
+  env: {
+    NEXT_PUBLIC_COMMIT: COMMIT,
+    NEXT_PUBLIC_COMMIT_EM: COMMIT_EM,
+  },
+
   /**
    * Onde o build é gravado.
    *

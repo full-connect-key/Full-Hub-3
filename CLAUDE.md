@@ -824,6 +824,20 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   ninguém vai olhar.
 - `scripts/deploy.sh --reverter` volta para o build anterior sem esperar um
   commit de correção.
+- **O rodapé do painel diz de qual commit saiu o que está na tela**, e o valor
+  é **congelado no build**, nunca consultado em tempo de execução. O que está
+  servindo é uma pasta `.next` já compilada; se alguém puxasse código sem
+  reconstruir, ler o git do servidor devolveria um commit que não é o que está
+  rodando — e um rótulo de versão que mente é pior que nenhum, porque é
+  consultado justamente por quem está em dúvida se a mudança subiu.
+  `next.config.ts` lê o git no build e embute em `NEXT_PUBLIC_COMMIT`; o
+  `deploy.sh` passa o valor **explícito**, porque o git recusa ler repositório
+  de outro dono ("dubious ownership") e aí a leitura falharia calada. Sem
+  nenhum dos dois, o rodapé diz "versão local" — quem vê isso sabe na hora que
+  não está olhando uma versão publicada.
+- **O commit fica só no painel, não no Portal do Cliente.** Para a equipe é a
+  resposta de "já subiu?"; para o cliente seria uma sigla sem significado no
+  rodapé da tela dele.
 
 **Três camadas de proteção, e elas são independentes**
 

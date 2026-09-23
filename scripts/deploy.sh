@@ -103,7 +103,24 @@ npm ci --no-audit --no-fund
 # ---------------------------------------------------------------------------
 dizer "Construindo em $NOVO"
 rm -rf "$NOVO"
-NEXT_DIST_DIR="$NOVO" npm run build
+
+# O commit vai EXPLICITO para o build, e nao so pelo git que o
+# next.config.ts sabe ler sozinho.
+#
+# O `lerDoGit` de la e o caminho de desenvolvimento e funciona na VPS na
+# maioria das vezes -- mas quando nao funciona, falha calado: o git recusa
+# ler um repositorio cujo dono nao e quem esta rodando ("dubious
+# ownership"), a funcao devolve string vazia, e o rodape passa a dizer
+# "versao local" numa maquina de producao. Um rotulo de versao que mente e
+# pior que nenhum, porque e consultado justamente quando alguem esta em
+# duvida se a mudanca subiu.
+#
+# Aqui o git ja foi lido com sucesso duas vezes (o fetch e o reset), entao
+# este valor e confiavel.
+NEXT_DIST_DIR="$NOVO" \
+  NEXT_PUBLIC_COMMIT="$(git rev-parse --short HEAD)" \
+  NEXT_PUBLIC_COMMIT_EM="$(git log -1 --format=%cI)" \
+  npm run build
 
 if [ ! -d "$NOVO" ]; then
   echo "O build terminou sem erro mas nao gerou $NOVO. Abortando."
@@ -151,6 +168,9 @@ pm2 save --force > /dev/null
 dizer "Deploy concluido"
 echo "  de   $(git --no-pager log -1 --format=%h%x20%s "$ANTES" 2>/dev/null || echo "$ANTES")"
 echo "  para $(git --no-pager log -1 --format=%h%x20%s HEAD)"
+echo
+echo "  O rodape do painel agora diz: $(git rev-parse --short HEAD)"
+echo "  E como conferir da tela que foi esta versao que subiu."
 echo
 echo "Se alguma migration nova entrou neste deploy, ela AINDA NAO FOI"
 echo "aplicada -- rode no SQL Editor do Supabase, na ordem."

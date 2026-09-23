@@ -7,6 +7,7 @@ import { Trilha } from "@/components/painel/trilha";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
+import { quandoFoiPublicado, rotuloDaVersao } from "@/lib/versao";
 
 /**
  * Lê a preferência do menu antes de qualquer pintura.
@@ -25,6 +26,13 @@ const SCRIPT_DO_MENU = `
   }
 })();
 `;
+
+// Fora do componente: o valor e fixo desde o build, entao calcular a cada
+// render seria trabalho repetido para sempre dar a mesma string.
+const publicadoEm = quandoFoiPublicado();
+const tituloDaVersao = publicadoEm
+  ? `Versão no ar desde ${publicadoEm}`
+  : "Build local, fora de um clone do repositório";
 
 export default async function LayoutDoPainel({ children }: LayoutProps<"/painel">) {
   const { email, profile } = await exigirEquipe();
@@ -65,6 +73,16 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
 
           <footer className="text-text-muted px-4 py-6 text-center text-xs lg:px-8">
             Full Hub — Full Connect Key
+            {/* De qual commit saiu o que você está vendo.
+                Fica só no painel, e não no Portal do Cliente: para a equipe
+                é a resposta de "já subiu?"; para o cliente seria uma sigla
+                sem significado no rodapé da tela dele. */}
+            <span aria-hidden className="mx-1.5 opacity-50">
+              ·
+            </span>
+            <span title={tituloDaVersao} className="font-mono">
+              {rotuloDaVersao()}
+            </span>
           </footer>
         </div>
       </div>

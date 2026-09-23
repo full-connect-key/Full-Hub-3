@@ -587,6 +587,14 @@ confere se o painel respondeu.
 
 **Como saber que deu certo:** a Action fica verde e o último passo diz `No ar.`
 
+E, para conferir da tela: o **rodapé do painel mostra o commit** que gerou o
+que você está vendo. Se ele bate com o último commit da `main`, a atualização
+subiu. Passe o mouse em cima para ver a data e a hora da publicação.
+
+Se o rodapé disser **"versão local"**, o build saiu de fora de um clone do
+repositório — nesse caso o que está no ar não é rastreável, e vale rodar o
+deploy de novo.
+
 ### 8.6 Aprovação antes de publicar (opcional)
 
 **Settings → Environments → producao → Required reviewers.** O deploy fica
