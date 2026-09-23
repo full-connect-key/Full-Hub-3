@@ -287,7 +287,6 @@ export function Subtarefas({
           equipe={equipe}
           irmas={subtarefas}
           podeGerenciar={podeGerenciar}
-          souGestor={souGestor}
           usuarioId={usuarioId}
           aoFechar={() => setAberta(null)}
         />

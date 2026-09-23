@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
+import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,11 +28,13 @@ import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { AJUDA_DE_TEMPO, formatarMinutos, tempoParaCampo } from "@/lib/dominio/tempo";
 import { ROTULO_DA_APROVACAO, ROTULO_DO_ESCOPO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
+import type { SubtaskStatus } from "@/lib/supabase/database.types";
 
 import {
   anexarEntrega,
   atualizarSubtarefa,
   desvincularDependencia,
+  moverSubtarefa,
   removerEntrega,
   vincularDependencia,
 } from "../acoes-de-itens";
@@ -55,7 +57,6 @@ export function PainelDaSubtarefa({
   equipe,
   irmas,
   podeGerenciar,
-  souGestor,
   usuarioId,
   aoFechar,
 }: {
@@ -65,7 +66,6 @@ export function PainelDaSubtarefa({
   /** As outras subtarefas da mesma Task, para montar dependência. */
   irmas: SubtarefaDetalhada[];
   podeGerenciar: boolean;
-  souGestor: boolean;
   usuarioId: string;
   aoFechar: () => void;
 }) {
@@ -75,7 +75,14 @@ export function PainelDaSubtarefa({
 
   const souOResponsavel = subtarefa.responsavel_id === usuarioId;
   const podeMexer = podeGerenciar || souOResponsavel;
-  const rodadaPendente = subtarefa.rodadas.find((r) => r.status === "pendente");
+
+  function trocarStatus(destino: SubtaskStatus) {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() => moverSubtarefa(subtarefa.id, taskId, destino));
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
@@ -91,7 +98,16 @@ export function PainelDaSubtarefa({
         <SheetHeader>
           <SheetTitle className="text-balance">{subtarefa.titulo}</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={subtarefa.status} />
+            {/* O SELO É O SELETOR, como na linha do detalhe da Task. Era um
+                selo morto com um botão "Iniciar" logo abaixo dizendo a mesma
+                coisa por outro caminho — dois controles para um andamento só,
+                um deles ocupando uma linha inteira do painel. */}
+            <SeletorDeStatusDaSubtarefa
+              status={subtarefa.status}
+              podeEditar={podeMexer}
+              aoMudar={trocarStatus}
+              compacto
+            />
             {subtarefa.requer_aprovacao ? (
               <Badge variant="outline" className="gap-1">
                 <Lock className="size-3" aria-hidden />
@@ -107,18 +123,6 @@ export function PainelDaSubtarefa({
               Aguardando: {subtarefa.dependenciasAbertas.join(", ")}. Enquanto isso, ela não inicia.
             </p>
           ) : null}
-
-          <div className="flex justify-end">
-            <AcoesDaSubtarefa
-              subtarefa={subtarefa}
-              usuarioId={usuarioId}
-              souGestor={souGestor}
-              rodadaPendenteId={rodadaPendente?.id ?? null}
-              tamanho="default"
-            />
-          </div>
-
-          <Separator />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo rotulo="Responsável">
