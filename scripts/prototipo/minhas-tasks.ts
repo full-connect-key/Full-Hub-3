@@ -44,7 +44,15 @@ function carregar(userId: string): MinhaTask[] {
 
   return TASKS.filter((t) => ids.includes(t.id)).map((task) => ({
     ...task,
-    minhasSubtarefas: minhas.filter((s) => s.task_id === task.id).sort((a, b) => a.ordem - b.ordem),
+    minhasSubtarefas: minhas
+      .filter((s) => s.task_id === task.id)
+      .sort((a, b) => a.ordem - b.ordem)
+      .map((s) => ({
+        ...s,
+        etapaDeCima: s.parent_id
+          ? (SUBTAREFAS.find((m) => m.id === s.parent_id)?.titulo ?? null)
+          : null,
+      })),
     outrasSubtarefas: SUBTAREFAS.filter(
       (s) => s.task_id === task.id && s.responsavel_id !== userId,
     ).map((s) => ({

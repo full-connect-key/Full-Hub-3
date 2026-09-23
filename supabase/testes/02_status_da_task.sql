@@ -68,14 +68,32 @@ update public.subtasks set requer_aprovacao = true, tipo_aprovacao = 'interna'
 select teste.conferir('E o entregue resiste a exigencia voltar',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
 
--- A quarta vai para aprovacao: a rodada pendente toma o controle de volta
+-- ---------------------------------------------------------------------------
+-- MARCADO A MAO E MARCADO A MAO (migration 0025)
+--
+-- Ate a 0025, ajuste, rodada pendente ou conclusao REASSUMIAM o controle e
+-- desfaziam o que a pessoa tinha marcado. Decisao do usuario: os sete status
+-- se marcam a mao, e marcar a mao tem que durar -- aceitar o clique e
+-- desfaze-lo um instante depois e pior que recusa-lo com explicacao.
+--
+-- A quarta vai para aprovacao, e a Task NAO se mexe.
+-- ---------------------------------------------------------------------------
 insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-000000000004', 1, 'interna', :MARINA);
-select teste.conferir('Rodada pendente reassume o controle: em_aprovacao',
-  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_aprovacao');
+select teste.conferir('Rodada pendente NAO desfaz o marcado a mao',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
 
-select teste.conferir('status_manual foi zerado',
-  (select status_manual::text from public.tasks where id = 'eeeeeeee-0000-0000-0000-00000000000a'), 'false');
+select teste.conferir('E o status_manual continua de pe',
+  (select status_manual::text from public.tasks where id = 'eeeeeeee-0000-0000-0000-00000000000a'), 'true');
+
+-- O VOLANTE SE DEVOLVE, e devolver recalcula NA HORA. Sem o trigger
+-- `tasks_volta_a_calcular`, a Task ficaria parada no ultimo valor ate alguem
+-- mexer numa etapa, e quem clicou concluiria que o botao nao faz nada.
+update public.tasks set status_manual = false
+ where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+
+select teste.conferir('Devolver o volante recalcula na hora: em_aprovacao',
+  teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_aprovacao');
 
 -- Com aprovacao pendente, concluir e impossivel: nao existe caminho
 select teste.cenario('Task nao vai a concluido com aprovacao pendente', :ANA,
@@ -99,7 +117,7 @@ update public.subtasks set status = 'em_ajustes' where id = 'ffffffff-0000-0000-
 select teste.conferir('em_ajustes vence em_aprovacao na precedencia',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_ajustes');
 
--- Fecha tudo: a task conclui
+-- Fecha tudo: a task conclui (e ela esta no calculo, nao marcada a mao)
 insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
 values ('ffffffff-0000-0000-0000-000000000003', 2, 'interna', :MARINA);
 update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO
@@ -143,10 +161,47 @@ select teste.recusa_com('Nascer cancelada tambem e recusado', :ANA,
             '2026-10-01', 'https://drive.google.com/drive/folders/teste', 'cancelada', true)$$,
   'Cancelada saiu dos status da Task');
 
--- E a Task segue viva: a recusa nao deixou meio caminho gravado.
+-- E a Task segue viva: a recusa nao deixou meio caminho gravado. Ela acabou
+-- de concluir pelo calculo, entao `status_manual` esta em false e o recalculo
+-- manda de novo.
 update public.subtasks set status = 'em_andamento' where id = 'ffffffff-0000-0000-0000-000000000001';
 select teste.conferir('Depois da recusa a task continua sendo calculada',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'em_andamento');
+
+-- ---------------------------------------------------------------------------
+-- OS SETE SE MARCAM A MAO (migration 0025)
+--
+-- Nao so `entregue` e `aguardando_informacoes`. O cenario percorre os cinco
+-- que eram calculados: cada um entra, fica, e o marcado seguinte substitui o
+-- anterior sem o calculo se meter no meio.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  alvo  public.task_status;
+  achou public.task_status;
+begin
+  foreach alvo in array array['nao_iniciada', 'em_andamento', 'em_aprovacao',
+                              'em_ajustes', 'concluido']::public.task_status[]
+  loop
+    update public.tasks set status = alvo, status_manual = true
+     where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+
+    -- E uma escrita numa etapa logo em seguida, que antes desfaria a escolha.
+    update public.subtasks set status = 'em_andamento'
+     where id = 'ffffffff-0000-0000-0000-000000000002';
+    update public.subtasks set status = 'nao_iniciada'
+     where id = 'ffffffff-0000-0000-0000-000000000002';
+
+    select status into achou from public.tasks
+     where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (format('%s se marca a mao e resiste ao recalculo', alvo),
+            case when achou = alvo then 'passou' else 'FALHOU' end,
+            format('esperado %s, achado %s', alvo, achou));
+  end loop;
+end
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Os dois que sobraram continuam manuais

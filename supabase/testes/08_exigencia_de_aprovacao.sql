@@ -255,7 +255,9 @@ select teste.conferir('Subtarefa em andamento nao desfaz o entregue marcado a ma
   (select status::text from public.tasks where id = 'dddddddd-0000-0000-0000-00000000000b'),
   'entregue');
 
--- Uma rodada PENDENTE, sim: e um dos tres, e reassume zerando status_manual.
+-- Uma rodada PENDENTE tambem nao desfaz, desde a 0025: os sete status se
+-- marcam a mao, e marcar a mao dura ate a pessoa devolver o volante. Antes
+-- ajuste, rodada pendente e conclusao reassumiam.
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
 values ('cccccccc-0000-0000-0000-00000000000f', 'dddddddd-0000-0000-0000-00000000000b',
         'Segunda arte', 3, :MARINA, true, 'interna');
@@ -263,13 +265,17 @@ values ('cccccccc-0000-0000-0000-00000000000f', 'dddddddd-0000-0000-0000-0000000
 insert into public.approval_rounds (subtask_id, numero_rodada, escopo, solicitado_por)
 values ('cccccccc-0000-0000-0000-00000000000f', 1, 'interna', :MARINA);
 
-select teste.conferir('Rodada pendente reassume, mesmo depois de entregue',
+select teste.conferir('Nem a rodada pendente desfaz o entregue marcado a mao',
+  (select status::text from public.tasks where id = 'dddddddd-0000-0000-0000-00000000000b'),
+  'entregue');
+
+-- Devolvendo o volante, o calculo reassume e acha a rodada pendente.
+update public.tasks set status_manual = false
+ where id = 'dddddddd-0000-0000-0000-00000000000b';
+
+select teste.conferir('Devolvido o volante, o calculo acha a rodada pendente',
   (select status::text from public.tasks where id = 'dddddddd-0000-0000-0000-00000000000b'),
   'em_aprovacao');
-
-select teste.conferir('E zera o status_manual',
-  (select status_manual::text from public.tasks where id = 'dddddddd-0000-0000-0000-00000000000b'),
-  'false');
 
 -- ---------------------------------------------------------------------------
 -- Quem pode mexer nisso

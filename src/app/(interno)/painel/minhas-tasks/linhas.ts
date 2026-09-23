@@ -1,67 +1,64 @@
 import type { MinhaSubtarefa, MinhaTask } from "@/lib/dados/minhas-tasks";
-import type { Pessoa } from "@/lib/dados/tasks";
-import type { SubtaskStatus, TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
+import type { TaskStatus } from "@/lib/supabase/database.types";
 
 /**
- * O achatamento de Minhas Tasks: de tasks para linhas.
+ * O achatamento de Minhas Tasks: de tasks para ETAPAS.
  *
- * Desde o Sprint 3B o que é meu são as minhas SUBTAREFAS. A Task entra como
- * cabeçalho — uma vez só, mesmo quando tenho três etapas nela — e serve de
- * contexto: de quem é a demanda, para quando, em que pé está.
+ * **Cada etapa minha é um item por si.** Se a demanda "Post de lançamento"
+ * tem Conteúdo e Layout e as duas são minhas, a lista mostra duas linhas —
+ * porque são dois trabalhos, com dois prazos, que eu faço em dois momentos.
+ * Uma única linha "Post de lançamento" obrigava a abrir para descobrir o que
+ * havia dentro, e o prazo que ela mostrava era o mais apertado dos dois: o
+ * outro simplesmente não aparecia.
  *
- * Abaixo dela vêm, em destaque, as etapas que são minhas; e depois, em cinza,
- * as dos outros. Ver o que o designer ainda não entregou é o que explica por
- * que a minha etapa está parada.
+ * A demanda não some — vira a LINHAGEM do item: `Cliente · Demanda`, e mais
+ * `› Etapa de cima` quando a minha é uma sub-etapa. É o que responde "por que
+ * estou fazendo isto?" sem gastar uma linha inteira da lista, e clicar abre o
+ * painel com a demanda completa, onde se vê que Conteúdo e Layout são da
+ * mesma mãe e o que as outras pessoas estão fazendo nela.
+ *
+ * A ORDEM É GLOBAL, e é o ponto de listar por etapa: o que vence amanhã fica
+ * no topo mesmo que a demanda dele comece semana que vem. Agrupado por
+ * demanda, uma etapa atrasada podia estar em qualquer lugar da rolagem.
  *
  * Função pura, sem acesso a banco, exatamente para que a página (servidor) e a
  * lista (navegador) enxerguem o mesmo conjunto sem uma segunda consulta.
  */
 
-export type LinhaPessoal =
-  | {
-      chave: string;
-      tipo: "task";
-      taskId: string;
-      titulo: string;
-      cliente: string | null;
-      status: TaskStatus;
-      prioridade: TaskPrioridade;
-      dataInicio: string;
-      dataFim: string | null;
-      subtarefasTotal: number;
-      subtarefasConcluidas: number;
-      /** Quantas das etapas desta demanda são minhas. */
-      minhasQuantas: number;
-    }
-  | {
-      chave: string;
-      tipo: "minha";
-      taskId: string;
-      cliente: string | null;
-      subtarefa: MinhaSubtarefa;
-    }
-  | {
-      chave: string;
-      tipo: "outra";
-      taskId: string;
-      titulo: string;
-      status: SubtaskStatus;
-      responsavel: Pessoa | null;
-    };
+export type LinhaPessoal = {
+  chave: string;
+  taskId: string;
+  /** A demanda a que a etapa pertence — o contexto, nunca o item. */
+  demanda: {
+    titulo: string;
+    cliente: string | null;
+    status: TaskStatus;
+    /** Quantas etapas a demanda tem ao todo, e quantas delas são minhas. */
+    total: number;
+    minhas: number;
+  };
+  subtarefa: MinhaSubtarefa;
+};
 
 /**
  * Prazo crescente deixa o atrasado no topo por construção: data menor vem
- * antes. Quem não tem prazo vai para o fim, e não para o começo.
+ * antes. Quem não tem prazo vai para o fim, e não para o começo — etapa sem
+ * data não é etapa urgente, é etapa que ninguém marcou.
  */
-function ordenarSubtarefas(a: MinhaSubtarefa, b: MinhaSubtarefa): number {
-  if (!a.prazo && !b.prazo) return a.ordem - b.ordem;
-  if (!a.prazo) return 1;
-  if (!b.prazo) return -1;
-  if (a.prazo !== b.prazo) return a.prazo.localeCompare(b.prazo);
-  return a.ordem - b.ordem;
+function ordenar(a: LinhaPessoal, b: LinhaPessoal): number {
+  const pa = a.subtarefa.prazo;
+  const pb = b.subtarefa.prazo;
+  if (pa !== pb) {
+    if (!pa) return 1;
+    if (!pb) return -1;
+    return pa.localeCompare(pb);
+  }
+  const demandas = a.demanda.titulo.localeCompare(b.demanda.titulo, "pt-BR");
+  if (demandas !== 0) return demandas;
+  return a.subtarefa.ordem - b.subtarefa.ordem;
 }
 
-/** O prazo que manda no grupo: o da minha etapa em aberto mais próxima. */
+/** O prazo que manda na demanda: o da minha etapa em aberto mais próxima. */
 export function meuPrazoNaTask(task: MinhaTask): string | null {
   const prazos = task.minhasSubtarefas
     .filter((s) => s.status !== "concluida" && s.prazo)
@@ -71,52 +68,20 @@ export function meuPrazoNaTask(task: MinhaTask): string | null {
 }
 
 export function montarLinhas(tasks: MinhaTask[]): LinhaPessoal[] {
-  const ordenadas = [...tasks].sort((a, b) => {
-    const pa = meuPrazoNaTask(a);
-    const pb = meuPrazoNaTask(b);
-    if (pa === pb) return a.titulo.localeCompare(b.titulo, "pt-BR");
-    if (!pa) return 1;
-    if (!pb) return -1;
-    return pa.localeCompare(pb);
-  });
-
-  return ordenadas.flatMap((task): LinhaPessoal[] => {
-    const cliente = task.cliente?.nome_empresa ?? null;
-
-    return [
-      {
-        chave: `task-${task.id}`,
-        tipo: "task",
+  return tasks
+    .flatMap((task): LinhaPessoal[] =>
+      task.minhasSubtarefas.map((sub) => ({
+        chave: `etapa-${sub.id}`,
         taskId: task.id,
-        titulo: task.titulo,
-        cliente,
-        status: task.status,
-        prioridade: task.prioridade,
-        dataInicio: task.data_inicio,
-        dataFim: task.data_fim,
-        subtarefasTotal: task.subtarefasTotal,
-        subtarefasConcluidas: task.subtarefasConcluidas,
-        minhasQuantas: task.minhasSubtarefas.length,
-      },
-      ...[...task.minhasSubtarefas].sort(ordenarSubtarefas).map(
-        (sub): LinhaPessoal => ({
-          chave: `minha-${sub.id}`,
-          tipo: "minha",
-          taskId: task.id,
-          cliente,
-          subtarefa: sub,
-        }),
-      ),
-      ...task.outrasSubtarefas.map(
-        (sub): LinhaPessoal => ({
-          chave: `outra-${sub.id}`,
-          tipo: "outra",
-          taskId: task.id,
-          titulo: sub.titulo,
-          status: sub.status,
-          responsavel: sub.responsavel,
-        }),
-      ),
-    ];
-  });
+        demanda: {
+          titulo: task.titulo,
+          cliente: task.cliente?.nome_empresa ?? null,
+          status: task.status,
+          total: task.subtarefasTotal,
+          minhas: task.minhasSubtarefas.length,
+        },
+        subtarefa: sub,
+      })),
+    )
+    .sort(ordenar);
 }

@@ -7,7 +7,7 @@ import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { interpretarTempo } from "@/lib/dominio/tempo";
-import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
+import { podeMoverTaskPara } from "@/lib/tasks/state-machine";
 import { fluxoDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -325,10 +325,9 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     const supabase = await criarClienteServidor();
 
-    // Mudar o status da Task é o caso especial: ele é calculado, e só os três
-    // estados manuais podem ser fixados à mão. Recusar aqui, com o motivo por
-    // extenso, evita um arrasto que o trigger desfaria em silêncio um
-    // milissegundo depois.
+    // Escolher o status é sempre escolher À MÃO (migration 0025): os sete são
+    // marcáveis, e `status_manual` é o que faz a escolha durar. Sem ele, o
+    // recálculo desfaria tudo na próxima mexida numa etapa.
     if (entrada.status !== undefined) {
       const atual = await lerContextoDaTask(supabase, id, sessao.profile.role);
       if (!atual) return falha("Task não encontrada.");
@@ -337,7 +336,7 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
       if (!veredito.ok) return falha(veredito.motivo);
 
       mudancas.status = entrada.status;
-      mudancas.status_manual = STATUS_MANUAIS_DA_TASK.includes(entrada.status);
+      mudancas.status_manual = true;
     }
 
     if (Object.keys(mudancas).length === 0) return sucesso("Nada a alterar.");
@@ -387,28 +386,9 @@ async function lerContextoDaTask(
 ): Promise<{
   status: Database["public"]["Enums"]["task_status"];
   souGestorOuAtendimento: boolean;
-  aprovacaoPendenteEm: string | null;
-  temSubtarefaEmAjustes: boolean;
 } | null> {
   const { data: task } = await supabase.from("tasks").select("status").eq("id", id).maybeSingle();
   if (!task) return null;
-
-  const { data: subtarefas } = await supabase
-    .from("subtasks")
-    .select("id, titulo, status")
-    .eq("task_id", id);
-
-  const ids = (subtarefas ?? []).map((s) => s.id);
-  const { data: pendentes } = ids.length
-    ? await supabase
-        .from("approval_rounds")
-        .select("subtask_id")
-        .eq("status", "pendente")
-        .in("subtask_id", ids)
-    : { data: [] as { subtask_id: string }[] };
-
-  const comPendencia = new Set((pendentes ?? []).map((r) => r.subtask_id));
-  const bloqueadora = (subtarefas ?? []).find((s) => comPendencia.has(s.id));
 
   // A pessoa do Atendimento pode não ser gestora, e mesmo assim manda na task:
   // é o que `is_atendimento()` diz no banco. Aqui vale a pergunta ao banco.
@@ -418,9 +398,46 @@ async function lerContextoDaTask(
     status: task.status,
     souGestorOuAtendimento:
       ehDoAtendimento === true || role === "desenvolvedor" || role === "socio",
-    aprovacaoPendenteEm: bloqueadora?.titulo ?? null,
-    temSubtarefaEmAjustes: (subtarefas ?? []).some((s) => s.status === "em_ajustes"),
   };
+}
+
+/**
+ * Devolver o volante: o status da Task volta a sair do andamento das etapas.
+ *
+ * É o par de marcar à mão, e por isso é uma ação própria em vez de um campo em
+ * `atualizarTask`: limpar `status_manual` por dentro de uma edição qualquer
+ * deixaria a regra escondida num `if`, e qualquer campo novo poderia zerá-la
+ * por engano.
+ *
+ * O recálculo em si é do banco — o trigger `tasks_volta_a_calcular` (0025)
+ * percebe a transição e roda na hora. Sem ele a Task ficaria no último valor
+ * até alguém mexer numa etapa, e quem clicou concluiria que não funcionou.
+ */
+export async function voltarACalcularStatus(id: string): Promise<Resultado> {
+  return executarAcao("voltarACalcularStatus", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const atual = await lerContextoDaTask(supabase, id, sessao.profile.role);
+    if (!atual) return falha("Task não encontrada.");
+    if (!atual.souGestorOuAtendimento) {
+      return falha("Mudar o status da Task é da gestão ou do Atendimento.");
+    }
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .update({ status_manual: false })
+      .eq("id", id)
+      .select("id");
+
+    if (error) return falha(`Não foi possível salvar: ${error.message}`);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou a mudança — confira se você ainda alcança esta demanda.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("O status voltou a ser calculado pelas etapas.");
+  });
 }
 
 /** Ações em massa da visão Lista. */
@@ -437,12 +454,6 @@ export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Pro
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
     if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.status !== undefined) {
-      if (!STATUS_MANUAIS_DA_TASK.includes(entrada.status)) {
-        return falha(
-          "Em massa só dá para marcar os status manuais (Entregue, Aguardando " +
-            "informações). Os outros são calculados pelas subtarefas.",
-        );
-      }
       mudancas.status = entrada.status;
       mudancas.status_manual = true;
     }

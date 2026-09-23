@@ -20,6 +20,7 @@ import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
+import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -30,9 +31,10 @@ import { emArvore, folhas } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
+import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-import { criarSubtarefa, removerSubtarefa } from "../acoes-de-itens";
+import { criarSubtarefa, moverSubtarefa, removerSubtarefa } from "../acoes-de-itens";
 import { PainelDaSubtarefa } from "./painel-da-subtarefa";
 
 /**
@@ -107,6 +109,22 @@ export function Subtarefas({
     });
   }
 
+  /**
+   * Trocar o status da etapa pelo seletor.
+   *
+   * NADA É PRÉ-BLOQUEADO na lista de status: quem recusa é o banco, e a recusa
+   * dele diz o caminho — "A rodada é criada pela ação Enviar para aprovação",
+   * "exige aprovação interna e não pode ser concluída direto". Um item cinza
+   * não ensina nada; a frase ensina.
+   */
+  function trocarStatus(sub: SubtarefaDetalhada, destino: SubtaskStatus) {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() => moverSubtarefa(sub.id, taskId, destino));
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
+
   function remover(sub: SubtarefaDetalhada, quantasFilhas: number) {
     iniciar(async () => {
       const resultado = await chamarAcao(() => removerSubtarefa(sub.id, taskId));
@@ -174,6 +192,7 @@ export function Subtarefas({
                 usuarioId={usuarioId}
                 agoraDoServidor={agoraDoServidor}
                 aoAbrir={() => setAberta(etapa.id)}
+                aoMudarStatus={(destino) => trocarStatus(etapa, destino)}
                 aoAninhar={() => {
                   setAninhandoEm(aninhandoEm === etapa.id ? null : etapa.id);
                   setNovaFilha("");
@@ -195,6 +214,7 @@ export function Subtarefas({
                         usuarioId={usuarioId}
                         agoraDoServidor={agoraDoServidor}
                         aoAbrir={() => setAberta(filha.id)}
+                        aoMudarStatus={(destino) => trocarStatus(filha, destino)}
                         aoAninhar={null}
                         aoRemover={() => remover(filha, 0)}
                       />
@@ -296,6 +316,7 @@ function Linha({
   usuarioId,
   agoraDoServidor,
   aoAbrir,
+  aoMudarStatus,
   aoAninhar,
   aoRemover,
 }: {
@@ -308,6 +329,7 @@ function Linha({
   usuarioId: string;
   agoraDoServidor: number;
   aoAbrir: () => void;
+  aoMudarStatus: (destino: SubtaskStatus) => void;
   /** Null na sub-etapa: o terceiro nível é o último. */
   aoAninhar: (() => void) | null;
   aoRemover: () => void;
@@ -404,7 +426,17 @@ function Linha({
               )
             ) : null}
 
-            <StatusBadge status={sub.status} />
+            {/* NA FOLHA, O SELO VIRA SELETOR. É o mesmo componente do status
+                da demanda, com os status da etapa: quem executa muda o próprio
+                andamento onde ele já estava olhando, sem abrir o painel. Na
+                agrupadora continua selo, e é honesto — o status dela é
+                calculado pelas filhas e o banco descarta o que vier escrito. */}
+            <SeletorDeStatusDaSubtarefa
+              status={sub.status}
+              podeEditar={podeGerenciar || sub.responsavel_id === usuarioId}
+              aoMudar={aoMudarStatus}
+              compacto
+            />
 
             {/* O relógio à vista. Um cronômetro que ninguém vê é um número que
                 aparece pronto no diálogo de conclusão, sem a pessoa ter como

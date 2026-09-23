@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ComoOStatusAnda, SeletorDeStatus } from "@/components/shared/seletor-de-status";
+import { SeletorDeStatus } from "@/components/shared/seletor-de-status";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,7 @@ import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
-import { atualizarTask } from "../acoes";
+import { atualizarTask, voltarACalcularStatus } from "../acoes";
 
 const SEM_VALOR = "__sem__";
 
@@ -78,6 +78,14 @@ export function PropriedadesDaTask({
   const router = useRouter();
   const [, iniciar] = useTransition();
 
+  function voltarAoCalculo() {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() => voltarACalcularStatus(task.id));
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
+
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
       const resultado = await chamarAcao(() => atualizarTask(task.id, campos));
@@ -94,18 +102,25 @@ export function PropriedadesDaTask({
             status={task.status}
             podeEditar={podeEditar}
             aoMudar={(novo) => salvar({ status: novo })}
+            calculado={!task.status_manual}
+            aoCalcular={() => voltarAoCalculo()}
           />
+          {/* A linha diz de ONDE veio o status que está ali. Sem ela, quem
+              marcou à mão e quem viu o cálculo trabalhar olham para a mesma
+              tela e não têm como distinguir — e a pergunta seguinte ("por que
+              essa task está em Aguardando aprovação?") fica sem resposta. */}
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="text-text-secondary mt-1 inline-flex cursor-help text-xs">
-                {task.status_manual ? "Marcado à mão." : "Calculado pelas subtarefas."}
+                {task.status_manual
+                  ? "Marcado à mão — o cálculo não mexe mais nele."
+                  : "Calculado pelo andamento das etapas."}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               {EXPLICACAO_DO_STATUS[task.status]}
             </TooltipContent>
           </Tooltip>
-          <ComoOStatusAnda />
         </Campo>
 
         <Campo icone={Flag} rotulo="Prioridade">

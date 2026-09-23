@@ -2,7 +2,7 @@
 
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CornerDownRight, ListChecks, Lock, Link2 } from "lucide-react";
+import { ChevronRight, ListChecks, Lock, Link2 } from "lucide-react";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
@@ -10,8 +10,6 @@ import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { situacaoDoPrazo } from "@/lib/dominio/tasks";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
@@ -22,11 +20,13 @@ import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { LinhaPessoal } from "./linhas";
 
 /**
- * Lista de Minhas Tasks.
+ * Lista de Minhas Tasks — uma linha por ETAPA minha.
  *
- * Cada demanda aparece uma vez, como cabeçalho, e abaixo dela vêm as etapas: as
- * minhas em destaque, com o botão da vez, e as dos outros em cinza — ver que a
- * arte ainda não saiu é o que explica por que o agendamento está parado.
+ * "Conteúdo" e "Layout" da mesma demanda são dois itens, porque são dois
+ * trabalhos com dois prazos que eu faço em dois momentos. A demanda vira a
+ * linhagem embaixo do título, e clicar abre o painel com ela inteira: é lá
+ * que se vê que as duas são da mesma mãe e o que as outras pessoas estão
+ * fazendo nela.
  *
  * O botão de cada etapa sai de `AcoesDaSubtarefa`, o mesmo componente do
  * detalhe da Task e da fila de aprovações. Por isso "Concluir" nunca aparece
@@ -51,7 +51,7 @@ export function MinhaLista({
       <EmptyState
         icon={ListChecks}
         title="Nada por aqui"
-        description="Nenhuma subtarefa sua com este filtro. Troque o foco no cabeçalho para ver o resto."
+        description="Nenhuma etapa sua com este filtro. Troque o foco no cabeçalho para ver o resto."
       />
     );
   }
@@ -59,53 +59,6 @@ export function MinhaLista({
   return (
     <div className="divide-y rounded-lg border">
       {linhas.map((linha) => {
-        if (linha.tipo === "task") {
-          return (
-            <div key={linha.chave} className="bg-muted/40 flex flex-wrap items-center gap-2 p-3">
-              <button
-                type="button"
-                className="hover:text-accent-strong text-left text-sm font-semibold"
-                onClick={() => aoAbrir(linha.taskId)}
-              >
-                {linha.titulo}
-              </button>
-              {linha.cliente ? <Badge variant="outline">{linha.cliente}</Badge> : null}
-              <StatusBadge status={linha.status} />
-              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-                {format(parseISO(linha.dataInicio), "dd/MM", { locale: ptBR })}
-                {linha.dataFim
-                  ? ` → ${format(parseISO(linha.dataFim), "dd/MM", { locale: ptBR })}`
-                  : ""}
-                {" · "}
-                {linha.subtarefasConcluidas} de {linha.subtarefasTotal} concluída
-                {linha.subtarefasTotal === 1 ? "" : "s"}
-                {" · "}
-                {linha.minhasQuantas} minha{linha.minhasQuantas === 1 ? "" : "s"}
-              </span>
-            </div>
-          );
-        }
-
-        if (linha.tipo === "outra") {
-          return (
-            <div
-              key={linha.chave}
-              className="text-muted-foreground flex items-center gap-2 py-2 pr-3 pl-10 text-sm"
-            >
-              <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">{linha.titulo}</span>
-              {linha.responsavel ? (
-                <UserAvatar
-                  name={linha.responsavel.nome}
-                  src={linha.responsavel.avatar_url}
-                  size="sm"
-                />
-              ) : null}
-              <StatusBadge status={linha.status} />
-            </div>
-          );
-        }
-
         const sub = linha.subtarefa;
         const situacao = situacaoDoPrazo(
           sub.prazo,
@@ -118,19 +71,45 @@ export function MinhaLista({
           <div
             key={linha.chave}
             className={cn(
-              "flex flex-wrap items-center gap-2 py-2.5 pr-3 pl-10",
+              "flex flex-wrap items-center gap-2 p-3",
               situacao === "atrasada" && "bg-destructive/5",
             )}
           >
-            <CornerDownRight className="text-accent-strong size-3.5 shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                className="hover:text-accent-strong block max-w-full truncate text-left text-sm font-medium"
+                onClick={() => aoAbrir(linha.taskId)}
+              >
+                {sub.titulo}
+              </button>
 
-            <button
-              type="button"
-              className="hover:text-accent-strong min-w-0 flex-1 truncate text-left text-sm font-medium"
-              onClick={() => aoAbrir(linha.taskId)}
-            >
-              {sub.titulo}
-            </button>
+              {/* A LINHAGEM, e não uma linha de cabeçalho por demanda: ela
+                  responde "por que estou fazendo isto?" sem gastar uma linha
+                  inteira da lista, e clicar abre a demanda completa, onde se
+                  vê as etapas das outras pessoas. */}
+              <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+                {linha.demanda.cliente ? (
+                  <>
+                    <span className="truncate">{linha.demanda.cliente}</span>
+                    <span aria-hidden>·</span>
+                  </>
+                ) : null}
+                <span className="truncate">{linha.demanda.titulo}</span>
+                {sub.etapaDeCima ? (
+                  <>
+                    <ChevronRight aria-hidden className="size-3 shrink-0" />
+                    <span className="truncate">{sub.etapaDeCima}</span>
+                  </>
+                ) : null}
+                {linha.demanda.minhas > 1 ? (
+                  <span className="shrink-0">
+                    {" "}
+                    · {linha.demanda.minhas} etapas minhas aqui
+                  </span>
+                ) : null}
+              </p>
+            </div>
 
             {sub.requer_aprovacao ? (
               <Tooltip>

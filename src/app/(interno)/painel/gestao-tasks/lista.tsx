@@ -24,9 +24,9 @@ import {
   PRIORIDADES,
   ROTULOS_DE_PRIORIDADE,
   ROTULOS_DE_STATUS,
+  STATUS_DE_TASK,
 } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
-import { STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
@@ -224,14 +224,15 @@ function BarraDeAcoesEmMassa({
         </SelectContent>
       </Select>
 
-      {/* Só os status manuais: os outros são calculados pelas subtarefas, e
-          oferecê-los aqui seria prometer o que o banco desfaz em seguida. */}
+      {/* OS SETE (migration 0025). Antes só os dois manuais apareciam aqui,
+          porque os outros eram calculados e o banco desfaria a escolha. Agora
+          marcar à mão dura, e em massa vale o mesmo que uma a uma. */}
       <Select onValueChange={(v) => aplicar({ status: v })}>
         <SelectTrigger size="sm" className="w-44">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          {STATUS_MANUAIS_DA_TASK.map((s) => (
+          {STATUS_DE_TASK.map((s) => (
             <SelectItem key={s} value={s}>
               {ROTULOS_DE_STATUS[s]}
             </SelectItem>

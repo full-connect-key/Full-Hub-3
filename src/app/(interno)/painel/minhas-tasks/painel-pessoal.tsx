@@ -25,7 +25,7 @@ type Visao = "board" | "lista" | "calendario";
 
 /** Quantas etapas desta demanda são minhas — é o que o card do board diz. */
 function contarMinhas(taskId: string, linhas: LinhaPessoal[]): number {
-  return linhas.filter((l) => l.tipo === "minha" && l.taskId === taskId).length;
+  return linhas.filter((l) => l.taskId === taskId).length;
 }
 
 const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [

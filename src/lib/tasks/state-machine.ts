@@ -1,4 +1,3 @@
-import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
 import type {
   EscopoRodada,
   StatusRodada,
@@ -297,22 +296,10 @@ export const DESTINO_DA_ACAO: Partial<Record<IdDeAcao, SubtaskStatus>> = {
 // A Task
 // ---------------------------------------------------------------------------
 
-/**
- * O status da Task é calculado pelas subtarefas — arrastar no board não muda
- * isso. Só estes três não têm como ser derivados, e por isso são os únicos que
- * o arrasto aceita.
- */
-export const STATUS_MANUAIS_DA_TASK: TaskStatus[] = [
-  "entregue",
-  "aguardando_informacoes",
-];
 
 export type ContextoDaTask = {
   status: TaskStatus;
   souGestorOuAtendimento: boolean;
-  /** Título da subtarefa com aprovação pendente, se houver. */
-  aprovacaoPendenteEm: string | null;
-  temSubtarefaEmAjustes: boolean;
 };
 
 /**
@@ -328,21 +315,20 @@ export function podeMoverTaskPara(ctx: ContextoDaTask, destino: TaskStatus): Ver
     return nao("Mudar o status da Task é da gestão ou do Atendimento.");
   }
 
-  if (!STATUS_MANUAIS_DA_TASK.includes(destino)) {
-    return nao(
-      `"${ROTULOS_DE_STATUS[destino]}" é calculado pelas subtarefas — não dá para marcar à mão. ` +
-        "Mova as subtarefas, e a Task acompanha.",
-    );
-  }
-
-  if (ctx.aprovacaoPendenteEm) {
-    return nao(`Existe aprovação pendente na subtarefa ${ctx.aprovacaoPendenteEm}.`);
-  }
-
-  if (ctx.temSubtarefaEmAjustes) {
-    return nao("Existe subtarefa em ajustes — a Task volta sozinha para Em ajustes.");
-  }
-
+  // OS SETE SÃO MARCÁVEIS (migration 0025). Antes só `entregue` e
+  // `aguardando_informacoes` passavam, e os outros cinco eram recusados com
+  // "é calculado pelas subtarefas". Decisão do usuário: todos se marcam à
+  // mão, e `status_manual` é o que faz a escolha durar — sem ele, aceitar o
+  // arrasto e desfazê-lo na próxima mexida numa etapa seria pior que recusar.
+  //
+  // As recusas por aprovação pendente e por etapa em ajustes saíram junto,
+  // pela mesma razão: elas existiam porque o recálculo ia desfazer o arrasto.
+  // Não desfaz mais.
+  //
+  // O que CONTINUA de pé é a trava do banco: marcar `entregue` segue exigindo
+  // que toda etapa que pede aval tenha a rodada aprovada dela
+  // (`tasks_entregue_exige_cada_etapa`, 0023). Poder escolher o status não é
+  // poder afirmar que o cliente aprovou.
   return SIM;
 }
 

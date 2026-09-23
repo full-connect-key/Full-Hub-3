@@ -32,7 +32,13 @@ import type { ApprovalRound, Subtask, Task } from "@/lib/supabase/database.types
  * subtarefas, nunca para o período da Task.
  */
 
-export type MinhaSubtarefa = SubtarefaDetalhada;
+export type MinhaSubtarefa = SubtarefaDetalhada & {
+  /** O título da etapa de cima, quando esta é uma sub-etapa. É a linhagem que
+   *  a lista mostra: "Campanha de verão › Arte". Vem daqui e não da tela
+   *  porque a mãe é agrupadora e não entra em nenhuma das duas listas de
+   *  subtarefas — ela deixou de ser trabalho no instante em que teve filha. */
+  etapaDeCima: string | null;
+};
 
 export type MinhaTask = TaskDaLista & {
   /** As subtarefas desta task que estão no meu nome. */
@@ -147,6 +153,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
 
     const detalhada: MinhaSubtarefa = {
       ...sub,
+      etapaDeCima: sub.parent_id ? (porId.get(sub.parent_id)?.titulo ?? null) : null,
       responsavel: (eu as Pessoa | null) ?? null,
       dependeDe,
       dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
