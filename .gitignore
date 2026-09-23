@@ -55,6 +55,11 @@ next-env.d.ts
 # receita para alguem editar a copia.
 /pendentes
 
+# a mesma colagem, copiada para a raiz so para o app conseguir abri-la (ele so
+# enxerga arquivos dentro do diretorio de trabalho). Pela mesma razao acima:
+# copia de SQL versionado nao entra no repositorio.
+/aplicar-no-supabase-*.sql
+
 # imagens geradas por `npm run prototipo`
 /prototipos
 /.prototipo
