@@ -55,8 +55,13 @@ select teste.cenario('Colaborador fora do Atendimento NAO cria subtarefa', :MARI
   'insert into public.subtasks (task_id, titulo, ordem) values (''cccccccc-0000-0000-0000-00000000000a'', ''Puxadinho'', 9)',
   'recusa');
 
-select teste.cenario('Task sem cliente e recusada pelo banco', :CARLA,
-  format('insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega) values (null, %L, %L, current_date, ''https://drive.google.com/drive/folders/teste'')', 'Sem dono', :CARLA),
+-- Cliente deixou de ser `not null` na 0028: o rascunho nasce sem ele, e a
+-- exigencia passou para a PUBLICACAO. Uma demanda publicada sem cliente
+-- continua sendo recusada -- so mudou a porta onde isso e cobrado.
+select teste.cenario('Task PUBLICADA sem cliente e recusada', :CARLA,
+  format($fmt$insert into public.tasks (client_id, titulo, criado_por, data_inicio, link_entrega, publicada_em)
+    values (null, %L, %L, current_date, 'https://drive.google.com/drive/folders/teste', now())$fmt$,
+    'Sem dono', :CARLA),
   'recusa');
 
 
