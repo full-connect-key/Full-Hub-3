@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { subtarefasAindaNaoRegistradas } from "@/lib/dados/resumo-semanal";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -38,7 +39,7 @@ export async function criarEntrega(dados: unknown): Promise<Resultado<string>> {
 
     const validacao = esquema.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da entrega.");
+      return falha(recusaDeValidacao("criarEntrega", validacao.error, dados, "Confira os dados da entrega."));
     }
     const entrada = validacao.data;
 
@@ -68,7 +69,7 @@ export async function editarEntrega(id: string, dados: unknown): Promise<Resulta
 
     const validacao = esquema.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da entrega.");
+      return falha(recusaDeValidacao("editarEntrega", validacao.error, dados, "Confira os dados da entrega."));
     }
     const entrada = validacao.data;
 
@@ -136,7 +137,7 @@ export async function salvarNotaDaSemana(dados: unknown): Promise<Resultado> {
 
     const validacao = esquemaDaNota.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira o registro da semana.");
+      return falha(recusaDeValidacao("salvarNotaDaSemana", validacao.error, dados, "Confira o registro da semana."));
     }
     const entrada = validacao.data;
 

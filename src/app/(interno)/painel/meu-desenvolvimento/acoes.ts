@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -40,7 +41,7 @@ export async function salvarMinhaSkill(dados: unknown): Promise<Resultado> {
 
     const validacao = esquemaDaMinhaSkill.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da skill.");
+      return falha(recusaDeValidacao("salvarMinhaSkill", validacao.error, dados, "Confira os dados da skill."));
     }
     const entrada = validacao.data;
 
@@ -180,7 +181,7 @@ export async function salvarSkillDoCatalogo(
 
     const validacao = esquemaDoCatalogo.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da skill.");
+      return falha(recusaDeValidacao("salvarSkillDoCatalogo", validacao.error, dados, "Confira os dados da skill."));
     }
     const entrada = validacao.data;
 

@@ -807,6 +807,21 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - **Escrita que o RLS pode barrar termina com `.select()`.** Sem isso, um
   `update` bloqueado volta sem erro e sem linha, e a tela diz "salvo" à toa.
   Se não voltou linha, é recusa — e a mensagem precisa dizer isso.
+- **Recusa de validação nunca mostra o texto do zod.** Toda action passa por
+  `recusaDeValidacao()` de `lib/acoes/validacao.ts`, e `npm run check:mensagens`
+  garante que continue assim. O motivo: a mensagem que escrevemos fica
+  pendurada numa refinação (`.min(2, "Informe o título…")`), e refinação só
+  roda **depois** de o valor já ser uma string. Campo faltando não chega lá —
+  e campo em branco é o erro que as pessoas cometem, não valor de tipo errado.
+  O que aparecia era *"Invalid input: expected string, received undefined"*:
+  inglês, sem dizer qual campo, na tela de quem usa o sistema.
+
+  O helper nomeia o campo pelo rótulo da tela (`link_entrega` → "pasta de
+  entrega"), lista **todos** os que faltam de uma vez — um por envio faz a
+  pessoa preencher, mandar, descobrir o próximo e repetir —, e manda o erro
+  inteiro para o log do servidor. O mapa de rótulos mora ao lado do esquema
+  que ele descreve, não num arquivo central: campo novo e rótulo novo na mesma
+  tela do editor.
 - **Criar usuário só em Server Action do servidor**, com a chave de serviço
   (`app/(interno)/painel/_actions/usuarios.ts`). Essa chave ignora todo o RLS
   e nunca pode chegar ao navegador: ela é lida em `lib/supabase/admin.ts`, que
@@ -986,6 +1001,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run lint` / `npm run typecheck` | Padrões e tipos |
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
+| `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |

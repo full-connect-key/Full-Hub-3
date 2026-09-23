@@ -39,6 +39,14 @@ jobs:
       - name: Cores e vocabulário
         run: npm run check:cores
 
+      # A recusa de validação tem que sair legível, em português e nomeando o
+      # campo. O jeito antigo -- devolver `issues[0].message` cru -- mostrou
+      # "Invalid input: expected string, received undefined" na tela de quem
+      # usa o sistema. Voltar a ele é uma linha, e uma linha que parece igual
+      # numa revisão: por isso a varredura roda toda vez.
+      - name: Mensagens de validação
+        run: npm run check:mensagens
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

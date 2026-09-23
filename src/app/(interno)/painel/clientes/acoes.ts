@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { vinculosDoCliente } from "@/lib/dados/clientes";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -44,7 +45,7 @@ export async function salvarCliente(dados: unknown): Promise<Resultado<{ id: str
 
     const validacao = esquemaDeCliente.safeParse(dados);
     if (!validacao.success) {
-      throw new ErroDeAcao(validacao.error.issues[0]?.message ?? "Confira os dados informados.");
+      throw new ErroDeAcao(recusaDeValidacao("salvarCliente", validacao.error, dados, "Confira os dados informados."));
     }
     const { id, ...campos } = validacao.data;
 

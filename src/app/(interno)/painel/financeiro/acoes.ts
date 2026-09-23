@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { contratosSemLancamento } from "@/lib/dados/financeiro";
 import {
   competenciaDe,
@@ -48,7 +49,7 @@ export async function criarLancamento(dados: unknown): Promise<Resultado<string>
 
     const validacao = esquemaDeLancamento.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do lançamento.");
+      return falha(recusaDeValidacao("criarLancamento", validacao.error, dados, "Confira os dados do lançamento."));
     }
     const entrada = validacao.data;
 
@@ -82,7 +83,7 @@ export async function editarLancamento(id: string, dados: unknown): Promise<Resu
 
     const validacao = esquemaDeLancamento.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do lançamento.");
+      return falha(recusaDeValidacao("editarLancamento", validacao.error, dados, "Confira os dados do lançamento."));
     }
     const entrada = validacao.data;
 
@@ -185,7 +186,7 @@ export async function salvarContrato(
 
     const validacao = esquemaDeContrato.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do contrato.");
+      return falha(recusaDeValidacao("salvarContrato", validacao.error, dados, "Confira os dados do contrato."));
     }
     const entrada = validacao.data;
 

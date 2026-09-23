@@ -6,6 +6,7 @@ import { z } from "zod";
 import { adminOuErro, criarConta, desfazerConta } from "@/lib/acoes/contas";
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { podeConcederRole } from "@/lib/dominio/equipe";
 import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
 
@@ -61,6 +62,24 @@ const esquemaDeColaborador = z.object({
   dias_ferias_ano: z.number().int().min(0).max(365).default(30),
 });
 
+/** Como a tela chama cada campo. Mora ao lado do esquema que os valida. */
+const ROTULOS_DO_COLABORADOR = {
+  nome: "nome completo",
+  email: "e-mail",
+  role: "perfil de acesso",
+  cargo: "cargo",
+  area: "área",
+  funcao: "função",
+  data_admissao: "data de admissão",
+  dias_ferias_ano: "dias de descanso por ano",
+};
+
+const ROTULOS_DO_USUARIO_CLIENTE = {
+  client_id: "empresa",
+  nome: "nome",
+  email: "e-mail",
+};
+
 function textoOuNulo(valor: unknown): string | null {
   const texto = typeof valor === "string" ? valor.trim() : "";
   return texto === "" ? null : texto;
@@ -72,7 +91,7 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
 
     const validacao = esquemaDeColaborador.safeParse(dados);
     if (!validacao.success) {
-      throw new ErroDeAcao(validacao.error.issues[0]?.message ?? "Confira os dados informados.");
+      throw new ErroDeAcao(recusaDeValidacao("criarColaborador", validacao.error, dados, "Confira os dados informados.", ROTULOS_DO_COLABORADOR));
     }
     const pedido = validacao.data;
 
@@ -137,7 +156,7 @@ export async function convidarUsuarioCliente(
 
     const validacao = esquemaDeUsuarioCliente.safeParse(dados);
     if (!validacao.success) {
-      throw new ErroDeAcao(validacao.error.issues[0]?.message ?? "Confira os dados informados.");
+      throw new ErroDeAcao(recusaDeValidacao("convidarUsuarioCliente", validacao.error, dados, "Confira os dados informados.", ROTULOS_DO_USUARIO_CLIENTE));
     }
     const pedido = validacao.data;
 

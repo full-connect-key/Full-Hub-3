@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -112,7 +113,7 @@ export async function salvarWorkflow(
 
     const validacao = esquemaDeTipo.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do workflow.");
+      return falha(recusaDeValidacao("salvarWorkflow", validacao.error, dados, "Confira os dados do workflow."));
     }
     const entrada = validacao.data;
 

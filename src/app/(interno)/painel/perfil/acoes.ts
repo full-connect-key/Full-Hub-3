@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -26,7 +27,7 @@ export async function salvarMeuPerfil(dados: unknown): Promise<Resultado> {
 
     const validacao = esquema.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados.");
+      return falha(recusaDeValidacao("salvarMeuPerfil", validacao.error, dados, "Confira os dados."));
     }
 
     const supabase = await criarClienteServidor();

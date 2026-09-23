@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
 import { fluxoDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
@@ -115,6 +116,32 @@ const esquemaDeTask = z.object({
 });
 
 /**
+ * Como a TELA chama cada campo.
+ *
+ * Existe porque a recusa precisa nomear o campo com a palavra que está no
+ * rótulo — "Faltou preencher: pasta de entrega" manda a pessoa a um lugar;
+ * "link_entrega" manda a um nome de coluna que ela nunca viu. Mora ao lado do
+ * esquema de propósito: campo novo aqui embaixo, rótulo novo aqui em cima, na
+ * mesma tela do editor.
+ */
+const ROTULOS_DA_TASK = {
+  titulo: "título da demanda",
+  client_id: "cliente",
+  task_type_id: "workflow",
+  data_inicio: "data de início",
+  data_fim: "data de encerramento",
+  prioridade: "prioridade",
+  exigencia_aprovacao: "exigência de aprovação",
+  link_entrega: "pasta de entrega",
+  briefing_texto: "briefing",
+  subtarefas: "subtarefa",
+  referencias: "material",
+  "subtarefas.titulo": "título da etapa",
+  "subtarefas.prazo": "prazo da etapa",
+  "referencias.url": "endereço do material",
+};
+
+/**
  * Cria a task com as subtarefas de uma vez.
  *
  * Se as subtarefas falharem depois da task criada, a task é apagada: demanda
@@ -127,7 +154,7 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
 
     const validacao = esquemaDeTask.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da task.");
+      return falha(recusaDeValidacao("criarTask", validacao.error, dados, "Confira os dados da task.", ROTULOS_DA_TASK));
     }
     const entrada = validacao.data;
 
@@ -277,7 +304,7 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     const validacao = esquemaDeEdicao.safeParse(campos);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Dados inválidos.");
+      return falha(recusaDeValidacao("atualizarTask", validacao.error, campos, "Confira os dados da task.", ROTULOS_DA_TASK));
     }
 
     const entrada = validacao.data;

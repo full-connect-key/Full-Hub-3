@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -48,7 +49,7 @@ export async function publicarRecomendacao(dados: unknown): Promise<Resultado<st
 
     const validacao = esquemaDoPost.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados.");
+      return falha(recusaDeValidacao("publicarRecomendacao", validacao.error, dados, "Confira os dados."));
     }
     const entrada = validacao.data;
 
@@ -84,7 +85,7 @@ export async function editarRecomendacao(id: string, dados: unknown): Promise<Re
 
     const validacao = esquemaDoPost.partial().safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados.");
+      return falha(recusaDeValidacao("editarRecomendacao", validacao.error, dados, "Confira os dados."));
     }
     const entrada = validacao.data;
 
@@ -155,7 +156,7 @@ export async function removerComoGestao(id: string, motivo: unknown): Promise<Re
       .min(3, "Diga o motivo — o autor vai receber essa frase.")
       .safeParse(motivo);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Informe o motivo.");
+      return falha(recusaDeValidacao("removerComoGestao", validacao.error, motivo, "Informe o motivo."));
     }
 
     const supabase = await criarClienteServidor();
@@ -260,7 +261,7 @@ export async function comentar(
       .safeParse(texto);
 
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Comentário inválido.");
+      return falha(recusaDeValidacao("comentar", validacao.error, texto, "Comentário inválido."));
     }
 
     const supabase = await criarClienteServidor();

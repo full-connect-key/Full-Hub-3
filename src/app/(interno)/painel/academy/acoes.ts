@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -36,7 +37,7 @@ export async function salvarTrilha(id: string | null, dados: unknown): Promise<R
 
     const validacao = esquemaDeTrilha.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados da trilha.");
+      return falha(recusaDeValidacao("salvarTrilha", validacao.error, dados, "Confira os dados da trilha."));
     }
     const entrada = validacao.data;
 
@@ -138,7 +139,7 @@ export async function salvarMaterial(id: string | null, dados: unknown): Promise
 
     const validacao = esquemaDeMaterial.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira os dados do material.");
+      return falha(recusaDeValidacao("salvarMaterial", validacao.error, dados, "Confira os dados do material."));
     }
     const entrada = validacao.data;
 
@@ -308,7 +309,7 @@ export async function salvarAnotacao(
 
     const validacao = z.string().max(5000, "A anotação ficou longa demais.").safeParse(texto);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Anotação inválida.");
+      return falha(recusaDeValidacao("salvarAnotacao", validacao.error, texto, "Anotação inválida."));
     }
 
     const supabase = await criarClienteServidor();

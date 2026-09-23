@@ -9,6 +9,7 @@ import {
   exigirSocioNaAcao,
 } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -41,7 +42,7 @@ export async function solicitar(dados: unknown): Promise<Resultado<string>> {
 
     const validacao = esquemaDeSolicitacao.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira as datas do pedido.");
+      return falha(recusaDeValidacao("solicitar", validacao.error, dados, "Confira as datas do pedido."));
     }
     const entrada = validacao.data;
 
@@ -233,7 +234,7 @@ export async function marcarPresenca(dados: unknown): Promise<Resultado> {
 
     const validacao = esquemaDePresenca.safeParse(dados);
     if (!validacao.success) {
-      return falha(validacao.error.issues[0]?.message ?? "Confira o dia.");
+      return falha(recusaDeValidacao("marcarPresenca", validacao.error, dados, "Confira o dia."));
     }
     const entrada = validacao.data;
 

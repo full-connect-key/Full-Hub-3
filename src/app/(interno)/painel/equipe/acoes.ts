@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { ehSocio } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -57,7 +58,7 @@ export async function salvarColaborador(dados: unknown): Promise<Resultado> {
 
     const validacao = esquema.safeParse(dados);
     if (!validacao.success) {
-      throw new ErroDeAcao(validacao.error.issues[0]?.message ?? "Confira os dados informados.");
+      throw new ErroDeAcao(recusaDeValidacao("salvarColaborador", validacao.error, dados, "Confira os dados informados."));
     }
     const { id, nome, role, ...ficha } = validacao.data;
 
