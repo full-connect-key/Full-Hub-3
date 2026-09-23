@@ -18,17 +18,17 @@ As regras do produto e as convenções de código estão em
 
 ## Sumário
 
-1. [Como rodar na sua máquina](#como-rodar-na-sua-maquina)
+1. [Como rodar na sua máquina](#como-rodar-na-sua-máquina)
 2. [Configurando o Supabase](#configurando-o-supabase)
-3. [Criando usuários](#criando-usuarios)
-4. [Conferindo a conexão](#conferindo-a-conexao)
-5. [Como o projeto está organizado](#como-o-projeto-esta-organizado)
-6. [Adicionando um módulo](#adicionando-um-modulo)
-7. [Gerando protótipos para validação](#gerando-prototipos-para-validacao)
+3. [Criando usuários](#criando-usuários)
+4. [Conferindo a conexão](#conferindo-a-conexão)
+5. [Como o projeto está organizado](#como-o-projeto-está-organizado)
+6. [Adicionando um módulo](#adicionando-um-módulo)
+7. [Gerando protótipos para validação](#gerando-protótipos-para-validação)
 8. [Deploy na VPS da Hostinger](#deploy-na-vps-da-hostinger)
 9. [Self deploy: push na main, no ar sozinho](#self-deploy-push-na-main-no-ar-sozinho)
-10. [Quando o domínio chegar](#quando-o-dominio-chegar)
-11. [Segurança: o que nunca fazer](#seguranca-o-que-nunca-fazer)
+10. [Quando o domínio chegar](#quando-o-domínio-chegar)
+11. [Segurança: o que nunca fazer](#segurança-o-que-nunca-fazer)
 
 ---
 
@@ -87,7 +87,7 @@ No painel do projeto:
 
 Cole no `.env.local`. As duas primeiras sao publicas por natureza e vao para o
 navegador — quem protege os dados e o RLS do banco, nao o sigilo dessas chaves.
-A terceira e segredo de verdade: leia [Seguranca](#seguranca-o-que-nunca-fazer).
+A terceira e segredo de verdade: leia [Seguranca](#segurança-o-que-nunca-fazer).
 
 ### 3. Criar as tabelas
 
@@ -437,7 +437,12 @@ npx playwright install chromium
 
 ## Deploy na VPS da Hostinger
 
-Testado no fluxo padrao de uma VPS Ubuntu da Hostinger. Voce so precisa de
+> **Primeira vez?** Esta secao e **referencia** — boa para consultar depois.
+> O passo a passo linear, com "como saber que deu certo" em cada etapa e o
+> que fazer quando der errado, esta em
+> [`docs/tutorial-hostinger.md`](docs/tutorial-hostinger.md).
+
+Testado no fluxo padrao de uma VPS Ubuntu 24.04 LTS da Hostinger. Voce so precisa de
 acesso SSH — o painel da Hostinger mostra o IP e a senha de root.
 
 ### 1. Preparar a maquina
