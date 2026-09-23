@@ -214,7 +214,13 @@ export async function matrizDoPeriodo(
       }
     }
 
-    return { ...pessoa, dias };
+    // O saldo espelha a mesma regra da camada real: pendente conta como usado.
+    // A Marina tem o descanso combinado, e por isso aparece com menos dias.
+    const usados = PEDIDOS.filter(
+      (p) => p.user_id === pessoa.id && p.tipo === "ferias" && p.status !== "reprovada",
+    ).reduce((total, p) => total + p.dias_uteis, 0);
+
+    return { ...pessoa, dias, saldo: Math.max(0, pessoa.diasFeriasAno - usados) };
   });
 }
 

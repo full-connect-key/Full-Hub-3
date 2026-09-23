@@ -88,7 +88,13 @@ export default async function PaginaDoFullDays({
 
       <Suspense key={`${aba}-${mes}`} fallback={<LoadingSkeleton variant="table" rows={6} />}>
         {aba === "matriz" ? (
-          <ConteudoDaMatriz inicio={inicio} fim={fim} mes={mes} podeEditar={ehGestor(sessao.profile.role)} />
+          <ConteudoDaMatriz
+            inicio={inicio}
+            fim={fim}
+            mes={mes}
+            podeEditar={ehGestor(sessao.profile.role)}
+            quemSouEu={sessao.usuarioId}
+          />
         ) : aba === "relatorio" ? (
           <ConteudoDoRelatorio inicio={inicio} fim={fim} mes={mes} hojeISO={hojeISO} />
         ) : aba === "aprovacoes" ? (
@@ -113,11 +119,13 @@ async function ConteudoDaMatriz({
   fim,
   mes,
   podeEditar,
+  quemSouEu,
 }: {
   inicio: string;
   fim: string;
   mes: string;
   podeEditar: boolean;
+  quemSouEu: string;
 }) {
   const [linhas, feriados] = await Promise.all([
     matrizDoPeriodo(inicio, fim),
@@ -134,6 +142,7 @@ async function ConteudoDaMatriz({
       fim={fim}
       mes={mes}
       podeEditar={podeEditar}
+      quemSouEu={quemSouEu}
     />
   );
 }

@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { toast } from "sonner";
 
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +37,8 @@ type Linha = {
   avatarUrl: string | null;
   area: string;
   cargo: string | null;
+  diasFeriasAno: number;
+  saldo: number;
   dias: Record<string, Dia>;
 };
 
@@ -53,6 +56,16 @@ type Linha = {
  *   designers na mesma semana param a produção; dois nomes quaisquer não
  *   dizem nada.
  *
+ *   **Dias seguidos com o mesmo estado viram UMA faixa.** Vinte quadradinhos
+ *   soltos obrigam a contar de um em um para saber que o descanso foi de
+ *   segunda a sexta; a faixa mostra o período de relance, que é a leitura que
+ *   a grade existe para dar. A junção é só visual — cada dia continua sendo
+ *   seu próprio alvo de clique, senão a gestão perderia a edição por dia.
+ *
+ *   **O saldo fica ao lado do nome.** É a pergunta seguinte de quem viu que
+ *   alguém está fora: quanto ainda resta. Antes estava só no Relatório, uma
+ *   aba adiante.
+ *
  * Um dia que veio de pedido aprovado não se edita aqui. O banco recusa de
  * qualquer forma; a tela nem oferece, e diz por quê.
  */
@@ -63,6 +76,7 @@ export function MatrizDaEquipe({
   fim,
   mes,
   podeEditar,
+  quemSouEu,
 }: {
   linhas: Linha[];
   feriados: { data: string; nome: string }[];
@@ -70,6 +84,8 @@ export function MatrizDaEquipe({
   fim: string;
   mes: string;
   podeEditar: boolean;
+  /** Para a própria linha ficar marcada: numa grade de vinte nomes, achar o seu é o primeiro movimento. */
+  quemSouEu: string;
 }) {
   const router = useRouter();
   const parametros = useSearchParams();
@@ -149,13 +165,16 @@ export function MatrizDaEquipe({
           <ChevronRight aria-hidden />
         </Button>
 
+        {/* A legenda sobe para a mesma linha do navegador. Embaixo, numa
+            linha só dela, ela empurrava a grade para fora da primeira tela —
+            e a grade é o conteúdo. */}
+        <Legenda />
+
         <Button variant="outline" size="sm" className="ml-auto" onClick={exportar}>
           <Download aria-hidden />
           Exportar CSV
         </Button>
       </div>
-
-      <Legenda />
 
       {linhas.length === 0 ? (
         <p className="text-muted-foreground rounded-card border border-dashed p-6 text-center text-sm">
@@ -177,11 +196,17 @@ export function MatrizDaEquipe({
                       key={data}
                       scope="col"
                       className={cn(
-                        "text-text-muted border-b px-0 py-2 text-center text-[10px] font-medium tabular-nums",
+                        "text-text-muted border-b px-0 py-1.5 text-center text-[10px] font-medium tabular-nums",
                         fimDeSemana && "bg-neutral-soft",
                       )}
                     >
-                      {format(parseISO(data), "dd")}
+                      {/* A inicial do dia da semana em cima do número. Sem
+                          ela, achar "a semana que vem" numa fita de 30
+                          números é contar de sete em sete com o dedo. */}
+                      <span className="block text-[9px] leading-none uppercase opacity-70">
+                        {format(parseISO(data), "EEEEE", { locale: ptBR })}
+                      </span>
+                      <span className="block leading-tight">{format(parseISO(data), "dd")}</span>
                     </th>
                   );
                 })}
@@ -203,6 +228,7 @@ export function MatrizDaEquipe({
                   podeEditar={podeEditar}
                   salvando={salvando}
                   trocar={trocar}
+                  quemSouEu={quemSouEu}
                 />
               ))}
             </tbody>
@@ -222,6 +248,7 @@ function Grupo({
   podeEditar,
   salvando,
   trocar,
+  quemSouEu,
 }: {
   area: string;
   pessoas: Linha[];
@@ -231,6 +258,7 @@ function Grupo({
   podeEditar: boolean;
   salvando: boolean;
   trocar: (pessoa: Linha, data: string, status: PresencaStatus) => void;
+  quemSouEu: string;
 }) {
   return (
     <>
@@ -246,31 +274,51 @@ function Grupo({
 
       {pessoas.map((pessoa) => {
         const totais = contarTotais(pessoa, dias, statusDoDia);
+        const souEu = pessoa.id === quemSouEu;
         return (
-          <tr key={pessoa.id}>
+          <tr key={pessoa.id} className={cn(souEu && "bg-accent/40")}>
             <th
               scope="row"
-              className="bg-surface-card sticky left-0 z-10 border-b border-r px-3 py-1.5 text-left font-normal"
+              className={cn(
+                "sticky left-0 z-10 border-b border-r px-3 py-1.5 text-left font-normal",
+                souEu ? "bg-accent" : "bg-surface-card",
+              )}
             >
-              <span className="block truncate text-sm">{pessoa.nome}</span>
-              {pessoa.cargo ? (
-                <span className="text-text-muted block truncate text-[11px]">{pessoa.cargo}</span>
-              ) : null}
+              <div className="flex items-center gap-2">
+                <UserAvatar name={pessoa.nome} src={pessoa.avatarUrl} size="sm" />
+                <div className="min-w-0">
+                  <span className="block truncate text-sm">{pessoa.nome}</span>
+                  {/* O saldo, e não o cargo: quem olha a grade já sabe de que
+                      área é a linha (elas vêm agrupadas por área), e o que
+                      falta saber é quanto a pessoa ainda tem. */}
+                  <span className="text-text-secondary block truncate text-[11px] tabular-nums">
+                    {pessoa.saldo} de {pessoa.diasFeriasAno} dias
+                  </span>
+                </div>
+              </div>
             </th>
 
-            {dias.map((data) => (
-              <Celula
-                key={data}
-                pessoa={pessoa}
-                data={data}
-                status={statusDoDia(pessoa, data)}
-                feriado={feriadoDe.get(data) ?? null}
-                deSolicitacao={pessoa.dias[data]?.deSolicitacao ?? false}
-                podeEditar={podeEditar}
-                salvando={salvando}
-                trocar={trocar}
-              />
-            ))}
+            {dias.map((data, indice) => {
+              const status = statusDoDia(pessoa, data);
+              const anterior = indice > 0 ? statusDoDia(pessoa, dias[indice - 1]) : null;
+              const seguinte =
+                indice < dias.length - 1 ? statusDoDia(pessoa, dias[indice + 1]) : null;
+              return (
+                <Celula
+                  key={data}
+                  pessoa={pessoa}
+                  data={data}
+                  status={status}
+                  abreBloco={status !== anterior}
+                  fechaBloco={status !== seguinte}
+                  feriado={feriadoDe.get(data) ?? null}
+                  deSolicitacao={pessoa.dias[data]?.deSolicitacao ?? false}
+                  podeEditar={podeEditar}
+                  salvando={salvando}
+                  trocar={trocar}
+                />
+              );
+            })}
 
             <td className="text-text-muted border-b border-l px-2 py-1.5 text-center text-[11px] whitespace-nowrap tabular-nums">
               {totais.presente}p · {totais.remoto}r · {totais.ferias}f · {totais.ausente}a
@@ -298,10 +346,21 @@ function contarTotais(
   return totais;
 }
 
+/**
+ * Um dia da grade.
+ *
+ * `abreBloco` e `fechaBloco` são o que faz dias seguidos com o mesmo estado
+ * parecerem UMA faixa: só as pontas ganham canto arredondado e a folga
+ * lateral, e o miolo encosta. A junção é aparência — cada dia continua sendo
+ * seu próprio botão, senão a gestão perderia a edição por dia, que é para o
+ * que a matriz serve.
+ */
 function Celula({
   pessoa,
   data,
   status,
+  abreBloco,
+  fechaBloco,
   feriado,
   deSolicitacao,
   podeEditar,
@@ -311,6 +370,8 @@ function Celula({
   pessoa: Linha;
   data: string;
   status: PresencaStatus;
+  abreBloco: boolean;
+  fechaBloco: boolean;
   feriado: string | null;
   deSolicitacao: boolean;
   podeEditar: boolean;
@@ -323,21 +384,31 @@ function Celula({
     ROTULOS_DE_PRESENCA[status]
   }${feriado ? ` (${feriado})` : ""}${deSolicitacao ? " — de solicitação aprovada" : ""}`;
 
-  const quadrado = (
+  const faixa = (
     <span
       aria-hidden
-      className={cn("block size-full min-h-6", CORES_DE_PRESENCA[status])}
+      className={cn(
+        "block size-full min-h-6",
+        CORES_DE_PRESENCA[status],
+        abreBloco && "rounded-l-md",
+        fechaBloco && "rounded-r-md",
+      )}
     />
   );
+
+  // A folga lateral fica FORA da faixa, e só na ponta: assim o miolo de um
+  // bloco encosta no vizinho e vira uma peça só, enquanto blocos diferentes
+  // continuam separados.
+  const caixa = cn("block h-7", abreBloco && "pl-px", fechaBloco && "pr-px");
 
   // Dia que veio de pedido aprovado, ou feriado: não abre menu. O banco recusa
   // de qualquer forma — a tela só evita oferecer o que vai dar erro.
   if (!podeEditar || deSolicitacao || status === "feriado") {
     return (
-      <td className="border-b p-0">
+      <td className="w-6 border-b p-0">
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="block h-7 w-6 px-px">{quadrado}</span>
+            <span className={caixa}>{faixa}</span>
           </TooltipTrigger>
           <TooltipContent>
             {descricao}
@@ -353,16 +424,16 @@ function Celula({
   }
 
   return (
-    <td className="border-b p-0">
+    <td className="w-6 border-b p-0">
       <DropdownMenu open={aberto} onOpenChange={setAberto}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             disabled={salvando}
             aria-label={descricao}
-            className="block h-7 w-6 px-px disabled:opacity-60"
+            className={cn(caixa, "w-full disabled:opacity-60")}
           >
-            {quadrado}
+            {faixa}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">

@@ -41,6 +41,16 @@ export type DiaDaMatriz = {
 
 export type LinhaDaMatriz = PessoaDoTime & {
   dias: Map<string, DiaDaMatriz>;
+  /**
+   * Dias de descanso que ainda restam no ano.
+   *
+   * Fica ao lado do nome na matriz porque é a pergunta seguinte de quem está
+   * olhando a grade: vi que fulana está fora, e agora quero saber quanto ela
+   * ainda tem. PENDENTE CONTA COMO USADO — é a mesma régua de
+   * `saldo_de_ferias()` no banco, e sem ela a pessoa proporia os 15 dias duas
+   * vezes enquanto o primeiro pedido espera resposta.
+   */
+  saldo: number;
 };
 
 export type SolicitacaoNaTela = HrRequest & {
@@ -134,11 +144,25 @@ export async function matrizDoPeriodo(
   const time = await listarTime();
   if (time.length === 0) return [];
 
-  const { data: presencas } = await supabase
-    .from("team_presence")
-    .select("*")
-    .gte("data", inicio)
-    .lte("data", fim);
+  const ano = inicio.slice(0, 4);
+
+  // Uma consulta para a equipe inteira, e não uma por pessoa: numa agência de
+  // vinte pessoas seriam vinte idas ao banco para pintar uma grade.
+  const [{ data: presencas }, { data: descansos }] = await Promise.all([
+    supabase.from("team_presence").select("*").gte("data", inicio).lte("data", fim),
+    supabase
+      .from("hr_requests")
+      .select("user_id, dias_uteis, status, data_inicio")
+      .eq("tipo", "ferias")
+      .in("status", ["aprovada", "pendente"])
+      .gte("data_inicio", `${ano}-01-01`)
+      .lte("data_inicio", `${ano}-12-31`),
+  ]);
+
+  const usadosDe = new Map<string, number>();
+  for (const pedido of descansos ?? []) {
+    usadosDe.set(pedido.user_id, (usadosDe.get(pedido.user_id) ?? 0) + pedido.dias_uteis);
+  }
 
   const porPessoa = new Map<string, TeamPresence[]>();
   for (const linha of presencas ?? []) {
@@ -149,6 +173,7 @@ export async function matrizDoPeriodo(
 
   return time.map((pessoa) => ({
     ...pessoa,
+    saldo: Math.max(0, pessoa.diasFeriasAno - (usadosDe.get(pessoa.id) ?? 0)),
     dias: new Map(
       (porPessoa.get(pessoa.id) ?? []).map((linha) => [
         linha.data,
