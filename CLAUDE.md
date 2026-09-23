@@ -797,6 +797,34 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - Feedback de ação com `toast` (sonner), nunca `alert()`.
 - Carregamento com `LoadingSkeleton`, nunca tela branca.
 
+**Deploy**
+
+- **O deploy constrói numa pasta separada e só troca no fim.** `NEXT_DIST_DIR`
+  aponta o build para `.next-novo`; o `.next` que está servindo só é
+  substituído quando o build termina bem, e a troca é um `mv` — milissegundos.
+  Sem isso, `npm run build` na VPS reescreve o diretório de que o processo em
+  produção está lendo: quem estiver com o painel aberto leva 404 durante o
+  minuto e meio de build, e um build que falha no meio deixa o site quebrado
+  até alguém perceber.
+- **O deploy NÃO aplica migration, e não é esquecimento.** Schema não se
+  aplica sozinho junto com um push: uma migration que falha no meio deixa o
+  banco num estado que o próximo deploy não conserta, e ninguém estava
+  olhando. As migrations continuam indo à mão, na ordem, por quem decidiu
+  aplicá-las — o script avisa no fim quando o deploy trouxe alguma.
+- **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
+  `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
+  passos. Uma cópia da checagem envelhece em silêncio, e a que protege a
+  produção é justamente a que não pode.
+- **A ordem importa mais do que parece:** o deploy faz `npm ci` na VPS antes
+  de construir, e é nesse instante que o `node_modules` do processo **no ar**
+  é reescrito. Um commit quebrado que chegasse até lá poderia derrubar o
+  painel antes mesmo de o build falhar. Por isso a verificação vem antes.
+- **A Action confere se o painel responde depois de publicar.** Deploy que
+  termina verde e deixa o site fora do ar é o pior resultado possível, porque
+  ninguém vai olhar.
+- `scripts/deploy.sh --reverter` volta para o build anterior sem esperar um
+  commit de correção.
+
 **Três camadas de proteção, e elas são independentes**
 
 1. `src/proxy.ts` manda quem não tem sessão para o login.
@@ -841,6 +869,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
+| `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
+| `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
 ## Histórico de sprints

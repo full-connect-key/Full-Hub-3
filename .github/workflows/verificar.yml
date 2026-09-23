@@ -1,0 +1,81 @@
+# As verificações do projeto, num lugar só.
+#
+# Roda em todo push e em toda pull request — e o deploy CHAMA este mesmo
+# arquivo antes de encostar na VPS. É por isso que ele tem `workflow_call`:
+# um commit que reprova aqui nunca chega ao servidor, e a checagem que
+# protege a produção é literalmente a mesma que roda no dia a dia, não uma
+# cópia que envelhece em silêncio.
+name: Verificar
+
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+jobs:
+  codigo:
+    name: Padrões, tipos e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Padrões
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      # Contraste, cor literal fora dos tokens, classe de cor inexistente e
+      # nome que saiu do produto. O último é o que mais justifica estar aqui:
+      # "esse nome não existe mais" é critério que precisa ser conferido toda
+      # vez, não uma vez.
+      - name: Cores e vocabulário
+        run: npm run check:cores
+
+      # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
+      # não lança no import justamente para o projeto compilar antes de as
+      # credenciais existirem. Se um dia o build passar a exigir credencial,
+      # é aqui que se descobre — e a resposta é consertar o acoplamento, não
+      # colar uma chave de verdade num arquivo que vai para o repositório.
+      - name: Build
+        run: npm run build
+
+  banco:
+    name: Bateria de RLS
+    runs-on: ubuntu-latest
+
+    # Postgres 16 de verdade, não um dublê: a bateria testa RLS, trigger e
+    # função plpgsql, e nada disso existe fora de um Postgres.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: bateria
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cliente do Postgres
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Rodar os cenários
+        run: supabase/testes/rodar.sh
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: bateria

@@ -26,8 +26,9 @@ As regras do produto e as convenções de código estão em
 6. [Adicionando um módulo](#adicionando-um-modulo)
 7. [Gerando protótipos para validação](#gerando-prototipos-para-validacao)
 8. [Deploy na VPS da Hostinger](#deploy-na-vps-da-hostinger)
-9. [Quando o domínio chegar](#quando-o-dominio-chegar)
-10. [Segurança: o que nunca fazer](#seguranca-o-que-nunca-fazer)
+9. [Self deploy: push na main, no ar sozinho](#self-deploy-push-na-main-no-ar-sozinho)
+10. [Quando o domínio chegar](#quando-o-dominio-chegar)
+11. [Segurança: o que nunca fazer](#seguranca-o-que-nunca-fazer)
 
 ---
 
@@ -54,6 +55,8 @@ no layout antes de ter o Supabase pronto.
 | `npm run dev` | Sobe em modo desenvolvimento, com recarga automatica |
 | `npm run build` | Gera a versao de producao |
 | `npm run start` | Roda a versao de producao (usado na VPS) |
+| `supabase/testes/rodar.sh` | Roda os 319 cenarios de RLS contra um Postgres de verdade |
+| `scripts/deploy.sh` | Publica na VPS (roda **na** VPS; o GitHub Actions o chama) |
 | `npm run lint` | Verifica os padroes de codigo |
 | `npm run typecheck` | Confere os tipos sem gerar build |
 | `npm run check:supabase` | Testa a conexao com o Supabase pelo terminal |
@@ -522,12 +525,197 @@ nginx -t && systemctl reload nginx
 ### 6. Atualizar depois de uma mudanca
 
 ```bash
-cd /var/www/full-hub
-git pull
-npm ci
-npm run build
-pm2 restart full-hub
+/var/www/full-hub/scripts/deploy.sh
 ```
+
+O script puxa a `main`, instala as dependencias, **constroi numa pasta
+separada** e so troca o `.next` quando o build termina bem. Se o build falhar
+— e na VPS a causa mais comum e falta de memoria, nao codigo errado —, o
+painel continua servindo a versao anterior.
+
+Para voltar para o build anterior:
+
+```bash
+/var/www/full-hub/scripts/deploy.sh --reverter
+```
+
+> **Migration nao e aplicada pelo deploy, e isso e deliberado.** Schema de
+> banco nao se aplica sozinho junto com um push: uma migration que falha no
+> meio deixa o banco num estado que o proximo deploy nao conserta, e ninguem
+> estava olhando. Quando um deploy trouxer migration nova, aplique no SQL
+> Editor do Supabase, na ordem. O proprio script lembra disso no fim.
+
+### Memoria: o tropeco mais comum da VPS
+
+O build do Full Hub **usa cerca de 850 MB de pico e leva ~85 s** (medido, nao
+estimado). Some a isso o painel que ja esta rodando, uns 250 MB, e o total
+passa de 1 GB.
+
+| Plano | O build passa? |
+| --- | --- |
+| 1 GB de RAM | **Nao.** O Linux mata o processo no meio, sem mensagem clara |
+| 2 GB | Sim, com swap |
+| 4 GB ou mais | Sim, folgado |
+
+Se a sua VPS tem 2 GB, crie um arquivo de swap **antes do primeiro deploy**:
+
+```bash
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab   # sobrevive ao reboot
+```
+
+Sintoma de que faltou memoria: o build morre com `Killed` e nada mais. Para
+confirmar:
+
+```bash
+dmesg | grep -i "killed process"
+```
+
+---
+
+## Self deploy: push na main, no ar sozinho
+
+O repositorio ja traz os dois workflows. Falta so ligar a VPS ao GitHub.
+
+> **Antes de tudo: qual e o ramo de producao?**
+>
+> Os dois arquivos abaixo dizem `main`, e hoje o repositorio **nao tem** esse
+> ramo — o padrao ainda e o ramo de trabalho. Enquanto for assim, o deploy
+> nunca dispara.
+>
+> O certo e criar um ramo estavel e publicar a partir dele: ramo de trabalho
+> recebe commit no meio de uma mudanca, e nao e disso que a agencia quer o
+> painel servindo. Em **Settings > General > Default branch**, renomeie para
+> `main` (ou crie `main` a partir do que esta pronto).
+>
+> Se preferir outro nome, sao **dois lugares**, e os dois precisam concordar:
+> `branches:` em `.github/workflows/deploy.yml` e `FULL_HUB_BRANCH` em
+> `scripts/deploy.sh`.
+
+**A Hostinger nao tem um botao de auto-deploy para Node.** O que o hPanel
+oferece de Git atende site estatico e PHP; para uma aplicacao Next numa VPS,
+quem publica e o GitHub Actions entrando por SSH. E o que esta montado aqui.
+
+### O que acontece a cada push na `main`
+
+1. `Verificar` roda padroes, tipos, `check:cores`, o build, e os **319
+   cenarios da bateria** contra um Postgres 16 de verdade;
+2. so se tudo passar, `Deploy` entra por SSH na VPS e chama `scripts/deploy.sh`;
+3. no fim, a Action confere se o painel responde — um deploy que termina
+   verde e deixa o site fora do ar e o pior resultado possivel, porque
+   ninguem vai olhar.
+
+A ordem e o ponto: o deploy faz `npm ci` na VPS antes de construir, e e nesse
+instante que o `node_modules` do processo que esta **no ar** e reescrito. Um
+commit quebrado que chegasse ate la poderia derrubar o painel antes mesmo de
+o build falhar.
+
+### 1. Um usuario so para o deploy
+
+Nao use `root`. Uma chave que abre o root da maquina inteira guardada num
+segredo do GitHub e um risco que nao precisa existir: o que o deploy faz e
+`git`, `npm` e `pm2` dentro de uma pasta.
+
+```bash
+adduser --disabled-password --gecos "" deploy
+mkdir -p /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
+chown -R deploy:deploy /home/deploy/.ssh
+
+# a pasta do projeto passa a ser dele
+chown -R deploy:deploy /var/www/full-hub
+```
+
+O PM2 e por usuario. Rode uma vez, como `deploy`:
+
+```bash
+su - deploy
+cd /var/www/full-hub
+pm2 start ecosystem.config.cjs
+pm2 save
+exit
+
+# e, de volta como root, para o painel voltar sozinho apos reboot:
+env PATH=$PATH:/usr/bin pm2 startup systemd -u deploy --hp /home/deploy
+```
+
+> Se o PM2 ja estava rodando como `root`, derrube primeiro (`pm2 delete
+> full-hub` como root) — senao ficam dois processos disputando a porta 3000,
+> e o sintoma e o painel respondendo a versao velha de forma intermitente.
+
+### 2. A chave que o GitHub vai usar
+
+**Na sua maquina**, nao na VPS — a chave privada nunca deve tocar o servidor:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/full-hub-deploy -C "deploy full-hub" -N ""
+```
+
+Instale a **publica** na VPS:
+
+```bash
+ssh-copy-id -i ~/.ssh/full-hub-deploy.pub deploy@SEU_IP_DA_VPS
+```
+
+Pegue a **chave do host** (e o que impede a Action de entregar a chave
+privada para um servidor impostor):
+
+```bash
+ssh-keyscan -t ed25519 SEU_IP_DA_VPS
+```
+
+### 3. Os segredos no GitHub
+
+Em **Settings > Secrets and variables > Actions**:
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| Secret | `VPS_HOST` | o IP da VPS |
+| Secret | `VPS_USER` | `deploy` |
+| Secret | `VPS_SSH_KEY` | o conteudo de `~/.ssh/full-hub-deploy` (a **privada**, inteira, com as linhas `BEGIN`/`END`) |
+| Secret | `VPS_HOST_KEY` | a linha que o `ssh-keyscan` devolveu |
+| Variable | `VPS_PORT` | so se o SSH nao estiver na 22 |
+| Variable | `URL_DE_PRODUCAO` | `https://dashboard.suaagencia.com.br` — sem isso a conferencia final e pulada |
+
+### 4. Testar sem esperar um commit
+
+Em **Actions > Deploy > Run workflow**. Ele roda as verificacoes e publica
+igual a um push.
+
+### 5. Exigir aprovacao antes de publicar (opcional)
+
+Em **Settings > Environments > producao > Required reviewers**, coloque quem
+precisa dar o aval. O deploy fica esperando alguem apertar o botao — util se
+mais de uma pessoa comecar a dar push na `main`.
+
+### Quando o deploy falha
+
+| Onde | O que olhar |
+| --- | --- |
+| Na Action, em `Verificar` | e codigo. O log diz o que reprovou; nada foi para a VPS |
+| Na Action, em `Publicar` | `pm2 logs full-hub` na VPS. O `.next` antigo continua no ar |
+| Na Action, em `Esta no ar?` | o deploy passou mas o painel nao responde: `scripts/deploy.sh --reverter` |
+| `Killed` no meio do build | memoria. Veja a secao de swap acima |
+
+### Sobre a indisponibilidade
+
+Com `instances: 1` em modo fork — a configuracao atual —, o `pm2 reload` e um
+restart de verdade: **um ou dois segundos** em que o painel nao responde. Para
+uma ferramenta interna isso e aceitavel.
+
+Se um dia nao for, troque em `ecosystem.config.cjs`:
+
+```js
+exec_mode: "cluster",
+instances: 2,
+```
+
+Em modo cluster o `reload` troca os processos um a um e ninguem ve. O preco e
+dobrar a memoria em uso — o que so cabe a partir de 4 GB.
+
+---
 
 ### Comandos uteis do PM2
 

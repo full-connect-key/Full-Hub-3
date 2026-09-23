@@ -1,0 +1,87 @@
+# O self deploy: push na main → VPS da Hostinger.
+#
+# COMO FUNCIONA
+#   1. roda as mesmas verificações do dia a dia (lint, tipos, cores, build,
+#      e os 319 cenários da bateria contra um Postgres 16 de verdade);
+#   2. só se tudo passar, entra por SSH na VPS e chama scripts/deploy.sh.
+#
+# A ordem é o ponto. O deploy na VPS faz `npm ci` antes de construir, e é
+# nesse instante que o node_modules do processo que está NO AR é reescrito.
+# Um commit quebrado que chegasse até lá poderia derrubar o painel antes
+# mesmo de o build falhar. Verificando antes, isso não acontece.
+#
+# O QUE ELE NÃO FAZ
+#   Não aplica migration. Está explicado em scripts/deploy.sh.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # Para republicar sem precisar de um commit novo — útil depois de mexer no
+  # .env.local da VPS, que o Next só lê quando sobe.
+  workflow_dispatch:
+
+# Um deploy por vez, e sem cancelar o que está no meio: `cancel-in-progress`
+# aqui poderia matar a Action entre o `npm ci` e o build, deixando a VPS com
+# as dependências novas e o build velho.
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    uses: ./.github/workflows/verificar.yml
+
+  publicar:
+    name: Publicar na VPS
+    needs: verificar
+    runs-on: ubuntu-latest
+
+    # Amarre segredos e (se quiser) aprovação manual a este ambiente, em
+    # Settings → Environments → producao.
+    environment: producao
+
+    steps:
+      - name: Abrir o SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          # A chave do HOST vem de um segredo, e não de
+          # StrictHostKeyChecking=no. Desligar a checagem faz a Action
+          # entregar a chave privada para qualquer servidor que atenda
+          # naquele IP — que é exatamente o que um sequestro de DNS precisa.
+          printf '%s\n' "${{ secrets.VPS_HOST_KEY }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Publicar
+        run: |
+          ssh -i ~/.ssh/deploy \
+              -p "${{ vars.VPS_PORT || '22' }}" \
+              -o IdentitiesOnly=yes \
+              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              'bash -lc "/var/www/full-hub/scripts/deploy.sh"'
+
+      - name: Está no ar?
+        run: |
+          # Um deploy que termina sem erro e deixa o site fora do ar é o
+          # pior resultado possível: ninguém vai olhar. Dez tentativas com
+          # 3 s entre elas cobrem o tempo de o PM2 subir de novo.
+          alvo="${{ vars.URL_DE_PRODUCAO }}"
+          if [ -z "$alvo" ]; then
+            echo "Sem URL_DE_PRODUCAO configurada — pulando a conferência."
+            exit 0
+          fi
+          for tentativa in $(seq 1 10); do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$alvo/login" || echo 000)
+            echo "tentativa $tentativa: HTTP $codigo"
+            # 200 na tela de login. 000 é "nem respondeu".
+            if [ "$codigo" = "200" ]; then
+              echo "No ar."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "O painel não respondeu 200 depois do deploy."
+          echo "Para voltar: ssh na VPS e rode scripts/deploy.sh --reverter"
+          exit 1
