@@ -26,9 +26,11 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
+  bloqueiosNoIntervalo,
   contarDiasUteis,
   diasEntre,
   lerData,
+  motivoDoBloqueio,
   ordenar,
   paraISO,
 } from "@/lib/dominio/full-days";
@@ -103,16 +105,17 @@ export function Solicitar({
   const excedeSaldo = tipo === "ferias" && uteisSelecionados > saldo;
   const semParcela = tipo === "ferias" && parcelasUsadas >= maxParcelas;
 
-  // Aviso, não bloqueio: a agência pode decidir que vale a pena. Quem decide é
-  // o sócio, e é ele que vê "quem mais da área está fora" na fila.
-  const colegasNoPeriodo = useMemo(() => {
-    if (!inicioSel || !fimSel) return [] as string[];
-    const nomes = new Set<string>();
-    for (const dia of diasEntre(inicioSel, fimSel)) {
-      for (const nome of bloqueados[dia] ?? []) nomes.add(nome);
-    }
-    return [...nomes];
-  }, [inicioSel, fimSel, bloqueados]);
+  /**
+   * A recusa por colega da área, ou string vazia.
+   *
+   * A PERGUNTA É SOBRE O INTERVALO. Antes a tela olhava dia a dia, e por isso
+   * clicar no dia 8 não fazia nada enquanto escolher de 5 a 20 — que passa
+   * por cima do 8 — era aceito. Eram duas respostas para a mesma situação,
+   * conforme o caminho do clique.
+   */
+  function recusaDoIntervalo(de: string, ate: string): string {
+    return motivoDoBloqueio(bloqueiosNoIntervalo(de, ate, bloqueados), minhaArea);
+  }
 
   function irParaMes(passo: number) {
     const [ano, mesNumero] = mes.split("-").map(Number);
@@ -123,20 +126,40 @@ export function Solicitar({
   }
 
   function clicar(dia: string) {
-    if (bloqueados[dia]?.length) return;
+    // O dia em si. A recusa DIZ POR QUE: um clique que não faz nada e não
+    // explica manda a pessoa clicar de novo, mais forte, e desistir.
+    const noDia = recusaDoIntervalo(dia, dia);
+    if (noDia) {
+      toast.error(noDia);
+      return;
+    }
+
     if (!de || (de && ate)) {
       setDe(dia);
       setAte(null);
       setArrastando(true);
       return;
     }
+
+    // O segundo clique fecha o intervalo, e é aqui que o período pode
+    // atravessar um bloqueio sem que nenhuma das pontas esteja bloqueada.
+    const noIntervalo = recusaDoIntervalo(de, dia);
+    if (noIntervalo) {
+      toast.error(noIntervalo);
+      return;
+    }
+
     setAte(dia);
     setArrastando(false);
   }
 
   function passarPor(dia: string) {
     if (!arrastando || !de) return;
-    if (bloqueados[dia]?.length) return;
+    // Arrastando, a recusa é SILENCIOSA: a seleção simplesmente não passa do
+    // bloqueio. Um toast por movimento do mouse empilharia dez avisos iguais
+    // antes de a pessoa soltar o botão — quem larga em cima do dia bloqueado
+    // recebe a explicação pelo clique.
+    if (recusaDoIntervalo(de, dia)) return;
     setAte(dia);
   }
 
@@ -254,7 +277,7 @@ export function Solicitar({
             </li>
             <li className="inline-flex items-center gap-1.5">
               <span aria-hidden className="bg-danger-soft border-danger size-3 rounded-sm border" />
-              Alguém da sua área já está fora
+              Bloqueado: alguém da sua área está fora
             </li>
             <li className="inline-flex items-center gap-1.5">
               <span aria-hidden className="listrado size-3 rounded-sm" />
@@ -308,13 +331,6 @@ export function Solicitar({
             <Aviso tom="erro">
               O descanso pode ser partido em até {maxParcelas} vezes por ano, e você já usou as{" "}
               {maxParcelas}.
-            </Aviso>
-          ) : null}
-
-          {colegasNoPeriodo.length > 0 ? (
-            <Aviso tom="atencao">
-              {colegasNoPeriodo.join(", ")} do {minhaArea} {colegasNoPeriodo.length === 1 ? "está" : "estão"}{" "}
-              fora em parte desse período. Dá para propor assim mesmo, mas o sócio vai ver isso ao responder.
             </Aviso>
           ) : null}
 

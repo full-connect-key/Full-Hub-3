@@ -679,12 +679,24 @@ ali quer saber, e era preciso varrer o olho até a coluna da direita para
 achar. Quem pede afastamento ou ausência pontual não vê saldo nenhum — não
 desconta.
 
-> **Ponto em aberto, e é decisão de produto:** clicar num dia em que um colega
-> da área está fora não faz nada — nem seleciona, nem explica. Mas escolher um
-> período que *atravessa* esses dias é aceito, com aviso. São duas respostas
-> para a mesma situação, conforme o caminho do clique. Resolver é escolher um
-> dos dois: bloquear de verdade (e dizer por que, no clique) ou marcar o dia
-> como conflito e deixar passar com o aviso, que é o que o aviso já diz.
+**O bloqueio por área pergunta sobre o INTERVALO, nunca sobre o dia solto.**
+A tela olhava dia a dia, e o resultado eram duas respostas para a mesma
+situação: clicar no dia 8 não fazia nada, mas escolher de 5 a 20 — que passa
+por cima do 8 — era aceito, com um aviso dizendo "dá para propor assim mesmo".
+Decisão do usuário: bloquear de verdade. `bloqueiosNoIntervalo()` responde
+pelo período inteiro, e os dois caminhos de seleção passam por ela.
+
+**E a recusa nomeia quem está fora e em que dia.** Um clique que não faz nada
+e não explica manda a pessoa clicar de novo, mais forte, e desistir —
+`motivoDoBloqueio()` escreve a frase. Arrastando, a recusa é silenciosa: a
+seleção não passa do bloqueio, porque um toast por movimento do mouse
+empilharia dez avisos iguais antes de a pessoa soltar o botão.
+
+**Isto é guarda de tela, e não vale como trava.** Quem chamar a API direto
+grava o pedido do mesmo jeito — não existe regra de área no banco. O que
+impede a demanda de seguir é o sócio, que vê "quem mais da área está fora" na
+fila antes de responder. Se um dia isso precisar ser trava, é trigger em
+`validar_solicitacao`, não mais `if` na tela.
 
 ### Full Academy: organizar conteúdo, não avaliar gente
 

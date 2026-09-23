@@ -190,3 +190,74 @@ export function paraISO(data: Date): string {
 export function ordenar(a: string, b: string): [string, string] {
   return a <= b ? [a, b] : [b, a];
 }
+
+// ---------------------------------------------------------------------------
+// O bloqueio por área
+//
+// Quem responde ao pedido precisa saber quem mais do mesmo time está fora:
+// duas designers na mesma semana param a produção, dois nomes quaisquer não
+// dizem nada. Por isso o calendário bloqueia os dias em que um colega da área
+// já está fora.
+//
+// A PERGUNTA É SOBRE O INTERVALO, NUNCA SOBRE O DIA SOLTO. Antes a tela
+// recusava dia a dia, e o resultado era que clicar no dia 8 não fazia nada,
+// mas escolher de 5 a 20 — que passa por cima do 8 — era aceito. Duas
+// respostas para a mesma situação, conforme o caminho do clique.
+//
+// Isto é guarda de TELA, e não vale como trava: quem chamar a API direto
+// consegue gravar o pedido do mesmo jeito. O que impede a demanda de seguir é
+// o sócio, que vê "quem mais da área está fora" na fila antes de responder.
+// ---------------------------------------------------------------------------
+
+export type BloqueioDeArea = { dia: string; nomes: string[] };
+
+/** Os dias do intervalo em que alguém da área já está fora, na ordem. */
+export function bloqueiosNoIntervalo(
+  inicio: string,
+  fim: string,
+  bloqueados: Record<string, string[]>,
+): BloqueioDeArea[] {
+  const [de, ate] = ordenar(inicio, fim);
+  const encontrados: BloqueioDeArea[] = [];
+  for (const dia of diasEntre(de, ate)) {
+    const nomes = bloqueados[dia];
+    if (nomes && nomes.length > 0) encontrados.push({ dia, nomes });
+  }
+  return encontrados;
+}
+
+/**
+ * A frase da recusa.
+ *
+ * NOMEIA QUEM ESTÁ FORA, sempre. "Indisponível" sem nome é uma recusa que a
+ * pessoa não tem como contornar nem entender — com o nome, ela fala com o
+ * colega e os dois se organizam, que é o resultado que interessa.
+ *
+ * E diz o DIA, porque num intervalo de duas semanas saber que "alguém está
+ * fora" não ajuda a escolher outro período.
+ */
+export function motivoDoBloqueio(bloqueios: BloqueioDeArea[], area: string): string {
+  if (bloqueios.length === 0) return "";
+
+  const nomes = [...new Set(bloqueios.flatMap((b) => b.nomes))];
+  const quem =
+    nomes.length === 1
+      ? `${nomes[0]} já está fora`
+      : `${nomes.slice(0, -1).join(", ")} e ${nomes.at(-1)} já estão fora`;
+
+  const dias = bloqueios.map((b) => formatarDiaMes(b.dia));
+  const quando =
+    dias.length === 1
+      ? `em ${dias[0]}`
+      : dias.length <= 3
+        ? `em ${dias.slice(0, -1).join(", ")} e ${dias.at(-1)}`
+        : `em ${dias.length} dias desse período, a partir de ${dias[0]}`;
+
+  return `${quem} ${quando}. Você e ${nomes.length === 1 ? "essa pessoa" : "essas pessoas"} são do ${area} — escolha outro período ou combine com ${nomes.length === 1 ? "ela" : "elas"}.`;
+}
+
+/** "08/09". Sem date-fns para esta função continuar pura e sem locale. */
+function formatarDiaMes(iso: string): string {
+  const [, mes, dia] = iso.split("-");
+  return `${dia}/${mes}`;
+}
