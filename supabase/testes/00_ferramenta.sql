@@ -78,3 +78,40 @@ begin
           case when p_achado is not distinct from p_esperado then 'passou' else 'FALHOU' end,
           format('esperado %s, achado %s', p_esperado, p_achado));
 end $$;
+
+-- Recusa com a mensagem certa.
+--
+-- `teste.cenario(..., 'recusa')` da por passado QUALQUER excecao, o que basta
+-- quando a pergunta e "o RLS achou a linha?". Nao basta quando a mesma escrita
+-- pode ser recusada por dois motivos diferentes e a mensagem e que diz qual:
+-- uma trava que recusa pelo motivo errado esta quebrada e passaria assim
+-- mesmo. Aqui o texto da recusa faz parte do que se verifica.
+create or replace function teste.recusa_com(
+  p_descricao text,
+  p_uid uuid,
+  p_comando text,
+  p_trecho text               -- precisa aparecer na mensagem de erro
+) returns void
+language plpgsql
+as $$
+begin
+  begin
+    execute 'set local role authenticated';
+    perform set_config('request.jwt.claim.sub', p_uid::text, true);
+    execute p_comando;
+    execute 'reset role';
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'FALHOU', 'passou quando devia ser recusado');
+  exception when others then
+    execute 'reset role';
+    if position(lower(p_trecho) in lower(sqlerrm)) > 0 then
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'passou', left(sqlerrm, 90));
+    else
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'FALHOU',
+              format('recusou por outro motivo: %s', left(sqlerrm, 100)));
+    end if;
+  end;
+end;
+$$;

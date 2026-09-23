@@ -134,6 +134,61 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   que foi pedido e decidido.
 - Pedir ajustes **exige** comentário, na action e no banco.
 
+#### A demanda inteira também tem uma exigência
+
+A subtarefa diz "esta arte precisa de aval". A Task diz "esta campanha pode
+sair sem o cliente ter visto?". São perguntas diferentes, e a segunda é
+`tasks.exigencia_aprovacao`: `nenhuma`, `interna` ou `cliente`.
+
+**São três valores e não quatro.** `cliente` já passa pela interna — é a mesma
+regra de sempre, toda aprovação abre primeiro uma rodada interna. Um quarto
+valor "dupla" teria exatamente o efeito do terceiro, e dois jeitos de dizer a
+mesma coisa é como nascem duas verdades sobre a mesma demanda.
+
+**É regra, não orientação:** `tasks_exige_aprovacao_para_entregue` (migration
+0014) recusa marcar `entregue` enquanto não existir rodada **aprovada** do
+escopo exigido em alguma subtarefa da task. Rodada pendente não conta — pedir
+aprovação não é ter aprovação, e é essa confusão que a trava existe para
+impedir.
+
+A trava olha só a transição para `entregue`. Cancelar, corrigir o título de
+uma task já entregue e o recálculo automático seguem passando: uma trava que
+freasse tudo seria trocada por outro caminho na primeira semana.
+
+**Exigir o que ninguém vai cumprir é beco sem saída, e a mensagem aponta a
+saída.** Se a demanda exige aprovação do cliente e nenhuma subtarefa pede essa
+aprovação, o encerramento trava para sempre. A recusa então tem texto próprio,
+e o `hint` diz o caminho — marcar a etapa que precisa de aval, não aprovar mais
+rápido. Por isso `atualizarTask` concatena o `hint` do Postgres na mensagem:
+descartá-lo deixaria a pessoa com um "não pode" sem saída. O formulário ainda
+avisa na criação, sem bloquear, porque montar as etapas depois é caminho
+normal.
+
+`tasks.link_entrega` é o endereço do material final — um só, separado das
+referências de apoio. O que alguém procura semanas depois é a pasta pronta, e
+achá-la no meio de oito links de apoio é o mesmo que não tê-la. Um `check` no
+banco exige `http://` ou `https://`: sem ele, "ver com a Ana" digitado ali vira
+um link quebrado na tela de quem for buscar.
+
+#### O formulário de abertura tem seis seções numeradas
+
+`/painel/gestao-tasks` → "Nova task". Informações gerais, período e
+prioridade, exigência de aprovação, tipo de tarefa, subtarefas e entregas,
+materiais e links. O número dá à conversa um jeito de apontar ("faltou a 5")
+sem descrever onde o campo fica, e cada seção carrega uma linha de explicação
+porque todas respondem a uma pergunta que a agência já errou.
+
+**Não existe seletor de "Status Geral", e a ausência é deliberada.** O status
+da Task é calculado por trigger; um status digitado na abertura seria desfeito
+pelo recálculo um milissegundo depois, e a pessoa veria a própria escolha
+sumir. Os dois manuais — `entregue` e `cancelada` — não fazem sentido numa
+demanda que está nascendo.
+
+Link de referência entra num campo da tela, **nunca num `window.prompt`**: o
+prompt não dá para colar no teclado do celular, não valida nada, some ao
+clicar fora, e em alguns navegadores simplesmente não abre — o botão vira um
+botão que não faz nada.
+
 O botão que cada pessoa vê sai de `lib/tasks/state-machine.ts`, e é o mesmo
 componente (`components/shared/acoes-da-subtarefa.tsx`) no detalhe da Task, em
 Minhas Tasks e na fila de aprovações. Três telas respondendo a mesma pergunta
@@ -641,6 +696,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. 19 cenários novos de RLS e de trigger, 250 no total. |
 | Sprint 8 | Financeiro: módulo da agência só para `socio` — `contracts`, `finance_categories` e `finance_entries` com RLS fechada em `is_socio()` nos quatro comandos, sem exceção para o desenvolvedor; competência, vencimento e pagamento como três datas distintas; atraso **derivado** da data em vez de gravado, com trigger recusando quem tentar gravá-lo; "gerar lançamentos do mês" travado por índice único parcial, que não duplica nem com duas abas; quatro abas em `/painel/financeiro` (Visão Geral com cartões previsto × realizado, série de 12 meses e alertas; Lançamentos com filtros na URL, CSV nos dois sentidos e "marcar pago"; Contratos com recorrência contada do mês de início; Relatórios com DRE por categoria e rentabilidade cruzando receita com o tempo das **subtarefas**); três gráficos em SVG com paleta medida contra daltonismo; e o Financeiro Pessoal de volta ao menu como módulo opcional e privado, com replicar recorrentes e apagar tudo em duas etapas. 44 cenários novos de RLS. |
 | Sprint 7 | Desenvolvimento e Skills: catálogo compartilhado de 20 skills com sugestão da equipe esperando a gestão; `user_skills` que só a própria pessoa escreve, com o nível em quatro segmentos carregando a rubrica; `skill_avaliacoes` escrita pela gestão e lida por quem foi avaliado; `/painel/meu-desenvolvimento` salvando sozinho; aba Skills em Equipe com busca de quem sabe, matriz pessoa × skill, lacunas da agência pelo critério do **um** e o que cada um quer aprender; e o Resumo Semanal ganhando texto rico por semana, humor opcional, "puxar minhas entregas" datado na conclusão, busca no próprio histórico pela URL e exportação em texto puro — tudo privado, sem porta para a gestão. 38 cenários novos de RLS. |
 | Sprint 6 | Full Days: tabela `notifications` com a escrita só por `notificar()`, e o sino da topbar deixando de ser casca; férias de 15 dias em até duas parcelas com as regras em trigger; `hr_requests`, `team_presence` e `holidays` com os feriados de 2026 e 2027 e `dias_uteis()`; decisão do sócio numa função transacional que pinta a matriz junto; quatro abas em `/painel/full-days` (Matriz da Equipe agrupada por área com CSV, Relatório Gerencial com alerta de férias vencendo, Solicitar com calendário de seleção e bloqueio por área nomeando quem está fora, e Aprovações só do sócio, com lote); e 46 cenários novos de RLS. |

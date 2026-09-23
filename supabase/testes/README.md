@@ -80,4 +80,20 @@ observação da gestão (que o **avaliado lê**, e que um gestor não reescreve 
 cima do outro) e o registro semanal privado: nem o sócio alcança, semana futura
 é recusada, e a semana tem que começar numa segunda.
 
-São 185 cenários no total.
+`07_financeiro.sql` — o módulo que **só o sócio** alcança, nos quatro
+comandos e sem exceção para o desenvolvedor; as três datas (competência,
+vencimento, pagamento) que não são a mesma coisa; `atrasado` que ninguém grava
+porque é derivado da data de hoje; o índice único parcial que impede gerar os
+lançamentos do mês duas vezes; e o Financeiro Pessoal no extremo oposto do
+sigilo — nem o sócio lê, e existe policy de DELETE porque um módulo do qual
+não se consegue sair não é opcional.
+
+`08_exigencia_de_aprovacao.sql` — a exigência da demanda inteira: `entregue`
+recusado enquanto não houver rodada **aprovada** do escopo exigido (pendente
+não conta — pedir aprovação não é ter aprovação); a interna que **não**
+satisfaz a exigência do cliente; o beco sem saída (exigir o que nenhuma etapa
+cumpre) e a mensagem que aponta a saída; e o que a trava NÃO alcança —
+cancelar, editar uma task já entregue, e o recálculo automático seguem
+passando.
+
+São 250 cenários no total.

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Trash2, Workflow } from "lucide-react";
+import { FolderOpen, Trash2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -23,7 +23,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import {
+  EXIGENCIAS_DE_APROVACAO,
+  EXPLICACAO_DA_EXIGENCIA,
+  PRIORIDADES,
+  ROTULOS_DE_EXIGENCIA,
+  ROTULOS_DE_PRIORIDADE,
+} from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS, STATUS_MANUAIS_DA_TASK } from "@/lib/tasks/state-machine";
 import { ROTULOS_DE_STATUS } from "@/lib/dominio/tasks";
@@ -245,6 +251,70 @@ export function LateralDaTask({
           </Select>
         ) : (
           <p className="text-sm">{ROTULOS_DE_PRIORIDADE[task.prioridade]}</p>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* O que a demanda exige para ser dada por entregue.
+          Fica ao lado do status de propósito: é a regra que decide se o
+          "entregue" vai ser aceito, e descobrir isso só na hora de encerrar é
+          descobrir tarde. */}
+      <div className="space-y-1.5">
+        <Label className="text-muted-foreground text-xs">Exigência de aprovação</Label>
+        {podeEditar ? (
+          <Select
+            value={task.exigencia_aprovacao}
+            onValueChange={(valor) => salvar({ exigencia_aprovacao: valor })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EXIGENCIAS_DE_APROVACAO.map((e) => (
+                <SelectItem key={e} value={e}>
+                  {ROTULOS_DE_EXIGENCIA[e]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-sm">{ROTULOS_DE_EXIGENCIA[task.exigencia_aprovacao]}</p>
+        )}
+        <p className="text-muted-foreground text-xs">
+          {EXPLICACAO_DA_EXIGENCIA[task.exigencia_aprovacao]}
+        </p>
+      </div>
+
+      {/* O link de entrega: um só, e separado das referências. O que alguém
+          procura semanas depois é a pasta do material final. */}
+      <div className="space-y-1.5">
+        <Label htmlFor="link-entrega" className="text-muted-foreground text-xs">
+          Link de entrega
+        </Label>
+        {podeEditar ? (
+          <Input
+            id="link-entrega"
+            defaultValue={task.link_entrega ?? ""}
+            placeholder="https://figma.com/… ou https://drive.google.com/…"
+            onBlur={(evento) => {
+              if (evento.target.value !== (task.link_entrega ?? "")) {
+                salvar({ link_entrega: evento.target.value });
+              }
+            }}
+          />
+        ) : task.link_entrega ? (
+          <a
+            href={task.link_entrega}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-strong flex items-center gap-1.5 text-sm hover:underline"
+          >
+            <FolderOpen aria-hidden className="size-4 shrink-0" />
+            <span className="min-w-0 truncate">{task.link_entrega}</span>
+          </a>
+        ) : (
+          <p className="text-sm">—</p>
         )}
       </div>
 

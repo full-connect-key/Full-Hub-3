@@ -261,10 +261,16 @@ begin
   end if;
 
   -- 1. Campanha de Instagram -------------------------------------------------
-  insert into public.tasks (client_id, titulo, briefing_texto, prioridade, data_inicio, data_fim, criado_por)
+  -- Esta demanda EXIGE aprovacao do cliente para ser dada por entregue, e a
+  -- etapa "Criar KV" logo abaixo e quem cumpre essa exigencia. Serve para o
+  -- ambiente de desenvolvimento ter um caso onde a trava da 0014 esta em
+  -- vigor de verdade -- e nao so tasks que encerram sem passar por ela.
+  insert into public.tasks (client_id, titulo, briefing_texto, prioridade, data_inicio, data_fim, criado_por,
+                            exigencia_aprovacao, link_entrega)
   values (mundo_verde, 'Campanha de Instagram — linha de verão',
           'Anunciar a nova linha de verão com foco em conversão direta.',
-          'alta', current_date - 6, current_date + 8, carla)
+          'alta', current_date - 6, current_date + 8, carla,
+          'cliente', 'https://drive.google.com/drive/folders/campanha-verao')
   returning id into campanha;
 
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)
@@ -305,8 +311,10 @@ begin
   update public.subtasks set status = 'enviada_aprovacao' where id = kv;
 
   -- 2. Reels institucional ---------------------------------------------------
-  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por)
-  values (optica, 'Reels institucional', 'urgente', current_date - 10, current_date + 5, carla)
+  insert into public.tasks (client_id, titulo, prioridade, data_inicio, data_fim, criado_por,
+                            exigencia_aprovacao)
+  values (optica, 'Reels institucional', 'urgente', current_date - 10, current_date + 5, carla,
+          'interna')
   returning id into reels;
 
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos)

@@ -327,6 +327,11 @@ const BASE = {
   briefing_rico: null,
   briefing_texto: null,
   status_manual: false,
+  // A exigencia de aprovacao e o link de entrega vem do Sprint 9. O padrao e
+  // "nenhuma", que e o mesmo do banco: demanda que nao exige aval encerra
+  // quando o Atendimento disser.
+  exigencia_aprovacao: "nenhuma" as const,
+  link_entrega: null,
   task_type_id: null,
   workflow_snapshot: null,
   concluida_em: null,

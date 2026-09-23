@@ -97,6 +97,18 @@ const esquemaDeTask = z.object({
   data_inicio: z.string().min(1, "Informe a data de início."),
   data_fim: z.string().optional().nullable(),
   prioridade: prioridade.default("normal"),
+  exigencia_aprovacao: z.enum(["nenhuma", "interna", "cliente"]).default("nenhuma"),
+  // O mesmo formato que o check `tasks_link_entrega_http` cobra no banco. Os
+  // dois existem de propósito: aqui sai a mensagem que a pessoa lê, lá é o que
+  // vale para quem chamar a API direto.
+  link_entrega: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), {
+      message: "O link de entrega precisa ser um endereço começando com http:// ou https://.",
+    })
+    .optional()
+    .nullable(),
   subtarefas: z.array(esquemaDeSubtarefa).default([]),
   referencias: z.array(esquemaDeReferencia).default([]),
 });
@@ -138,6 +150,8 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
         data_inicio: entrada.data_inicio,
         data_fim: vazioParaNulo(entrada.data_fim),
         prioridade: entrada.prioridade,
+        exigencia_aprovacao: entrada.exigencia_aprovacao,
+        link_entrega: vazioParaNulo(entrada.link_entrega),
         criado_por: sessao.usuarioId,
       })
       .select("id")
@@ -238,6 +252,15 @@ const esquemaDeEdicao = z.object({
   data_fim: z.string().nullable().optional(),
   prioridade: prioridade.optional(),
   status: statusDeTask.optional(),
+  exigencia_aprovacao: z.enum(["nenhuma", "interna", "cliente"]).optional(),
+  link_entrega: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^https?:\/\/\S+$/.test(v), {
+      message: "O link de entrega precisa ser um endereço começando com http:// ou https://.",
+    })
+    .nullable()
+    .optional(),
 });
 
 /**
@@ -267,6 +290,10 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
     if (entrada.data_inicio !== undefined) mudancas.data_inicio = entrada.data_inicio;
     if (entrada.data_fim !== undefined) mudancas.data_fim = vazioParaNulo(entrada.data_fim);
     if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
+    if (entrada.exigencia_aprovacao !== undefined)
+      mudancas.exigencia_aprovacao = entrada.exigencia_aprovacao;
+    if (entrada.link_entrega !== undefined)
+      mudancas.link_entrega = vazioParaNulo(entrada.link_entrega);
 
     const supabase = await criarClienteServidor();
 
@@ -296,7 +323,16 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
       .select("id, status")
       .maybeSingle();
 
-    if (error) return falha(`Não foi possível salvar: ${error.message}`);
+    // O `hint` do Postgres é onde mora a SAÍDA, não o problema: a trava de
+    // `entregue` (migration 0014) recusa dizendo o que falta, e o hint diz o
+    // que fazer a respeito. Descartá-lo deixaria a pessoa com um "não pode"
+    // sem caminho — e o caminho aqui não é óbvio: às vezes é marcar a etapa
+    // que precisa de aval, não aprovar mais rápido.
+    if (error) {
+      return falha(
+        `Não foi possível salvar: ${error.message}${error.hint ? ` ${error.hint}` : ""}`,
+      );
+    }
     if (!data) return falha(RECUSA_DO_BANCO);
 
     if (entrada.status !== undefined) {

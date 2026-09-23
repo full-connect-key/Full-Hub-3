@@ -1,4 +1,5 @@
 import type {
+  ExigenciaAprovacao,
   SubtaskStatus,
   TaskPrioridade,
   TaskStatus,
@@ -36,6 +37,37 @@ export const ROTULOS_DE_STATUS: Record<TaskStatus, string> = {
   em_ajustes: "Em ajustes",
   concluido: "Concluído",
   cancelada: "Cancelada",
+};
+
+/**
+ * O que a demanda inteira exige antes de ser dada por entregue.
+ *
+ * TRÊS OPÇÕES, NÃO QUATRO. "Cliente" já passa pela interna — é a regra "toda
+ * aprovação abre primeiro uma rodada interna, mesmo quando o tipo é cliente".
+ * Uma quarta opção "dupla" seria um segundo botão com exatamente o mesmo
+ * efeito do terceiro, e é assim que nascem duas verdades sobre a mesma coisa.
+ *
+ * Quem recusa o encerramento sem a aprovação é o trigger
+ * `tasks_exige_aprovacao_para_entregue` (migration 0014). Isto aqui é o
+ * vocabulário que a tela lê.
+ */
+export const EXIGENCIAS_DE_APROVACAO: ExigenciaAprovacao[] = ["nenhuma", "interna", "cliente"];
+
+export const ROTULOS_DE_EXIGENCIA: Record<ExigenciaAprovacao, string> = {
+  nenhuma: "Sem aprovação",
+  interna: "Interna",
+  cliente: "Do cliente",
+};
+
+/** O que cada escolha significa, por extenso. Vai embaixo dos botões: sem
+ *  isso, "Interna" e "Do cliente" parecem alternativas quando uma contém a
+ *  outra. */
+export const EXPLICACAO_DA_EXIGENCIA: Record<ExigenciaAprovacao, string> = {
+  nenhuma: "A demanda encerra quando o Atendimento disser que encerrou. Serve para o que não passa por validação — subida de mídia, relatório interno.",
+  interna:
+    "A gestão precisa ter aprovado alguma etapa desta demanda antes de ela virar “entregue”. O cliente não é consultado.",
+  cliente:
+    "O cliente precisa ter aprovado. E isso já inclui a validação interna: nenhuma peça vai ao cliente sem alguém da casa ter olhado antes.",
 };
 
 export const PRIORIDADES: TaskPrioridade[] = ["baixa", "normal", "alta", "urgente"];
