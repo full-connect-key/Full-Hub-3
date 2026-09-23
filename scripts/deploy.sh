@@ -110,6 +110,13 @@ if [ ! -d "$NOVO" ]; then
   exit 1
 fi
 
+# O Next reescreve o tsconfig.json durante o build, acrescentando o caminho
+# de tipos do distDir da vez -- entao depois desta linha a arvore esta suja
+# com uma referencia a "$NOVO". Nao e problema: o proximo deploy comeca com
+# `reset --hard`. Mas e por isso que `git status` na VPS nunca aparece limpo,
+# e nao ha nada para consertar ai.
+git checkout -- tsconfig.json 2>/dev/null || true
+
 # ---------------------------------------------------------------------------
 # 4. A troca
 #
