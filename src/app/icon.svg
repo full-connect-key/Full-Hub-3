@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <!--
+    O ícone da aba. É o ÚNICO arquivo de interface fora do globals.css com cor
+    literal, e não é descuido: um favicon é servido sozinho, sem a folha de
+    estilo do app, então não existe var(--marca-disco) para ele ler. Os
+    valores são os mesmos do arquivo da agência e os mesmos tokens
+    (#15242C, #7FCFF5, #545960).
+
+    A troca por prefers-color-scheme é o mesmo raciocínio da tela: o disco
+    escuro desaparece numa barra de abas escura, então lá entra o disco azul.
+    Navegador que ignora a media query fica com a versão escura, que é a
+    principal.
+  -->
+  <style>
+    .disco { fill: #15242C }
+    .ponto { fill: #7FCFF5 }
+    .traco { stroke: #FFFFFF }
+    @media (prefers-color-scheme: dark) {
+      .disco { fill: #7FCFF5 }
+      .ponto { fill: #FFFFFF }
+      .traco { stroke: #545960 }
+    }
+  </style>
+  <circle class="disco" cx="540" cy="540" r="540"/>
+  <circle class="ponto" cx="544.5" cy="320.4" r="88.6"/>
+  <path class="traco" d="M539 518.3 L731.8 860.5 L346.2 860.5 Z" fill="none" stroke-width="19" stroke-linejoin="miter"/>
+</svg>

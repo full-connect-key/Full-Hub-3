@@ -589,6 +589,50 @@ reflexo.
 
 ### Identidade visual
 
+#### A marca é o arquivo da agência, não um desenho parecido
+
+O símbolo — disco, ponto e triângulo — vive em `components/shared/logo.tsx`
+como **SVG à mão**, e a geometria foi *medida* no PNG original: disco de raio
+inteiro, ponto em (544,5 / 320,4) com raio 88,6, triângulo de traço 19 com os
+vértices calculados a partir da caixa externa e do recuo de esquadria. A
+conferência não é de olho: o SVG foi rasterizado no Chromium e comparado pixel
+a pixel com o arquivo entregue — as três formas batem dentro de 1px, e o que
+diverge é serrilhado de borda. Os quatro arquivos que a agência mandou ficam
+em `public/marca/`, e é lá que se confere.
+
+**É SVG e não PNG pelo mesmo motivo dos gráficos:** a cor precisa sair dos
+tokens. Um PNG traria três cores literais para dentro da interface e
+congelaria a versão — e a marca tem **duas**, disco escuro com ponto azul e
+triângulo branco, e disco azul com ponto branco e triângulo cinza. Qual delas
+aparece é decisão de fundo, e decisão de fundo mora no `globals.css`:
+`--marca-disco`, `--marca-ponto` e `--marca-traco` trocam juntas no tema
+escuro, onde o disco #15242C sobre #1F2227 daria 1,1:1 e sumiria. A barra
+lateral é escura nos **dois** temas e não acompanha a página, então ela marca
+`data-marca="azul"` e as mesmas três variáveis trocam — um seletor, não uma
+terceira versão do símbolo.
+
+**"Full Hub" continua tipográfico, e é de propósito:** o símbolo é da Full
+Connect Key, "Full Hub" é o nome do produto. Não existe wordmark de Full Hub,
+e desenhar um seria pôr no ar uma marca que a agência não fez.
+
+**O wordmark "full connect key" aparece uma vez, no pé da tela de login.** Ele
+é um lockup fechado — três linhas que se encaixam, com o próprio símbolo
+dentro —, não uma linha de assinatura: embaixo de "Full Hub" ele repetia o
+disco que estava logo acima e disputava o mesmo espaço, e abaixo de uns 24px
+de altura as linhas fecham e ele vira um borrão. Nos lockups pequenos a
+assinatura é "FULL CONNECT KEY" em caixa alta espaçada, que se lê a 9px. São
+duas imagens e não um filtro CSS: a versão branca é arquivo próprio, e
+clarear a colorida por `filter` daria cinza lavado no lugar do branco e
+apagaria o azul junto.
+
+**`src/app/icon.svg` é o TERCEIRO arquivo com cor literal**, e a exceção está
+registrada em `check:cores` — que passou a varrer `.svg` dentro de `src/` por
+causa dele. O navegador serve o ícone da aba sozinho, sem a folha de estilo do
+app, então não existe `var(--marca-disco)` para ele ler; a troca por tema vive
+num `prefers-color-scheme` dentro do próprio arquivo. Deixá-lo fora da
+varredura faria a regra dizer que só há dois lugares com cor literal, e o
+terceiro ficaria invisível.
+
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
 o único arquivo com cor literal** — os nomes do shadcn (`--primary`, `--muted`,

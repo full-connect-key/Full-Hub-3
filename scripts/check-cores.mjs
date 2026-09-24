@@ -35,6 +35,15 @@ const EXCECOES = [
       "theme-color do navegador: vai numa meta tag, que só aceita cor literal — " +
       "var() não resolve lá.",
   },
+  {
+    arquivo: "src/app/icon.svg",
+    motivo:
+      "ícone da aba: o navegador serve o arquivo sozinho, sem a folha de estilo do " +
+      "app, então não existe var(--marca-disco) para ele ler. São os mesmos três " +
+      "valores do símbolo, e é por isso que o .svg entrou na varredura — fora dela, " +
+      "a regra diria que só há dois lugares com cor literal e ninguém saberia do " +
+      "terceiro.",
+  },
 ];
 
 // --- leitura dos tokens ----------------------------------------------------
@@ -434,7 +443,7 @@ const permitidos = new Set(EXCECOES.map((e) => e.arquivo));
 let saida = "";
 try {
   saida = execSync(
-    `grep -rnoiE '#[0-9a-f]{3,8}\\b' src/ --include=*.tsx --include=*.ts --include=*.css || true`,
+    `grep -rnoiE '#[0-9a-f]{3,8}\\b' src/ --include=*.tsx --include=*.ts --include=*.css --include=*.svg || true`,
     { encoding: "utf8" },
   );
 } catch {

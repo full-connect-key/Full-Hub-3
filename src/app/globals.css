@@ -47,6 +47,25 @@
   --brand-blue: #7FCFF5;
   --brand-gray: #545960;
 
+  /* O disco do símbolo, medido no arquivo que a agência entregou. É a única
+     cor literal daqui que NÃO deriva das duas de cima, e não serve de
+     superfície nem de texto em lugar nenhum — só o disco da marca. */
+  --brand-navy: #15242C;
+
+  /* --- O símbolo da marca ------------------------------------------------
+     A agência entregou DUAS versões do disco, e as duas são a mesma marca:
+     disco escuro com ponto azul e triângulo branco, e disco azul com ponto
+     branco e triângulo cinza. Não é uma escolha feita aqui — é o arquivo
+     original, e os três valores foram lidos dele.
+
+     O que este bloco decide é QUAL das duas aparece, e a regra é a de
+     sempre: a que se enxerga contra o fundo atrás dela. No tema claro, o
+     disco escuro. No escuro ele desapareceria (#15242C sobre #1F2227 dá
+     1,1:1), então lá entra o disco azul. */
+  --marca-disco: var(--brand-navy);
+  --marca-ponto: var(--brand-blue);
+  --marca-traco: #FFFFFF;
+
   /* --- A escala do azul -------------------------------------------------- */
   /* Fundo de destaque leve: quadrado de ícone, pill, linha selecionada. */
   --blue-soft: #E3F5FD;
@@ -195,6 +214,13 @@
   --serie-neg: #DE6631;
 
   --brand-foreground: #17191D;
+
+  /* O disco escuro sumiria contra a página escura. Aqui a marca é a outra
+     versão do mesmo arquivo — disco azul, ponto branco, triângulo cinza. */
+  --marca-disco: var(--brand-blue);
+  --marca-ponto: #FFFFFF;
+  --marca-traco: var(--brand-gray);
+
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
      legível é o próprio azul da marca. */
   --accent-strong: var(--brand-blue);
@@ -225,11 +251,26 @@
   --ring: var(--brand-blue);
 }
 
+/* A barra lateral tem fundo escuro NOS DOIS temas — ela não acompanha a
+   página. Um seletor, e não uma terceira versão do símbolo: o componente
+   marca o `data-marca` e as três variáveis acima trocam juntas, como trocam
+   no tema escuro. Sem isso a marca sairia com o disco escuro sobre a barra
+   escura no tema claro, que é o único fundo onde ela não se enxerga. */
+[data-marca="azul"] {
+  --marca-disco: var(--brand-blue);
+  --marca-ponto: #FFFFFF;
+  --marca-traco: var(--brand-gray);
+}
+
 @theme inline {
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-blue: var(--brand-blue);
   --color-brand-gray: var(--brand-gray);
+  --color-brand-navy: var(--brand-navy);
+  --color-marca-disco: var(--marca-disco);
+  --color-marca-ponto: var(--marca-ponto);
+  --color-marca-traco: var(--marca-traco);
   --color-blue-soft: var(--blue-soft);
   --color-blue-muted: var(--blue-muted);
   --color-blue-strong: var(--blue-strong);
