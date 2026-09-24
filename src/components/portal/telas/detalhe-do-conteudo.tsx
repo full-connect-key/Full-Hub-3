@@ -9,7 +9,10 @@ import { LegendaDoPost } from "@/components/portal/legenda-do-post";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
 import { VisualizadorDeArte } from "@/components/portal/visualizador-de-arte";
 import { StatusBadge } from "@/components/shared/status-badge";
-import type { ComentarioDoPost, VersaoDoPost } from "@/lib/dados/posts";
+import type {
+  ComentarioDoConteudo,
+  VersaoDoConteudo,
+} from "@/lib/dados/conteudo";
 import type { Conteudo } from "@/lib/aprovacoes/conteudo";
 import type { ContentStatus } from "@/lib/supabase/database.types";
 
@@ -62,8 +65,8 @@ export function DetalheDoConteudo({
   comoEquipe,
 }: {
   modelo: ModeloDoConteudo;
-  versoes: VersaoDoPost[];
-  comentarios: ComentarioDoPost[];
+  versoes: VersaoDoConteudo[];
+  comentarios: ComentarioDoConteudo[];
   /** Endereços já assinados, por caminho. */
   artes: Record<string, string>;
   agora: string;
@@ -147,6 +150,7 @@ export function DetalheDoConteudo({
           versoes={versoes}
           artes={artes}
           versaoAtual={modelo.versaoAtual}
+          rotuloDoTexto={modelo.texto.titulo}
         />
       </section>
 

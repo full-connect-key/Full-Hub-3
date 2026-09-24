@@ -7,9 +7,8 @@ import {
   type ModeloDoConteudo,
 } from "@/components/portal/telas/detalhe-do-conteudo";
 import { doPost } from "@/lib/aprovacoes/conteudo";
+import { comentariosDe, enderecoDaArte } from "@/lib/dados/conteudo";
 import {
-  comentariosDoPost,
-  enderecoDaArte,
   obterPost,
   postsDoMes,
   urlsDasArtes,
@@ -62,7 +61,7 @@ export async function DetalheDoPost({
 
   const [versoes, comentarios, doMes] = await Promise.all([
     versoesDoPost(post.id),
-    comentariosDoPost(post.id),
+    comentariosDe(doPost(post.id)),
     postsDoMes(mesDe(post.dataPublicacao), clienteId ?? undefined),
   ]);
 

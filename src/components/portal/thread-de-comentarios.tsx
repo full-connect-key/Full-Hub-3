@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { Conteudo } from "@/lib/aprovacoes/conteudo";
-import type { ComentarioDoPost } from "@/lib/dados/posts";
+import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { tempoRelativo } from "@/lib/dominio/recomendacoes";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export function ThreadDeComentarios({
 }: {
   /** O material a que a conversa pertence — post ou entregável. */
   conteudo: Conteudo;
-  comentarios: ComentarioDoPost[];
+  comentarios: ComentarioDoConteudo[];
   agora: string;
   nomeDaEmpresa: string;
   somenteLeitura?: boolean;
@@ -160,7 +160,7 @@ function Comentario({
   nomeDaEmpresa,
   aoResponder,
 }: {
-  comentario: ComentarioDoPost;
+  comentario: ComentarioDoConteudo;
   agora: string;
   nomeDaEmpresa: string;
   aoResponder?: () => void;

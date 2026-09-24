@@ -11,10 +11,11 @@ import type { TipoDeConteudo } from "@/lib/supabase/database.types";
  * vez: duas implementações da mesma pergunta divergem, e a que diverge em
  * silêncio é a que decide se o material foi ao cliente.
  *
- * **`subtask` e `post` existem; `deliverable` ainda não.** O banco RECUSA
- * rodada de entregável (`validar_nova_rodada`) em vez de aceitar uma aprovação
- * que nenhuma trava sabe conferir — e a 0032 acrescentou a regra do post junto
- * com o tipo, que é o que aquela frase pedia.
+ * **Os três existem, e cada um chegou com a trava dele.** A 0030 criou o par
+ * e recusou `post` e `deliverable` de propósito, com a frase "quem
+ * acrescentar o tipo acrescenta a regra na mesma migration"; a 0032 cumpriu
+ * isso para o post e a 0033 para o entregável. A frase fica de pé assim
+ * mesmo: ela é a regra para o quarto tipo, se um dia existir.
  *
  * Módulo sem diretiva: o tipo atravessa servidor e navegador.
  */
@@ -23,6 +24,8 @@ export type Conteudo = { tipo: TipoDeConteudo; id: string };
 export const daSubtarefa = (id: string): Conteudo => ({ tipo: "subtask", id });
 
 export const doPost = (id: string): Conteudo => ({ tipo: "post", id });
+
+export const doEntregavel = (id: string): Conteudo => ({ tipo: "deliverable", id });
 
 /**
  * O par, pronto para `insert`. Existe para o nome da coluna aparecer em um
@@ -42,5 +45,5 @@ export function colunasDoConteudo(conteudo: Conteudo): {
  * resposta é a mesma nas cinco.
  */
 export function aindaNaoTratado(conteudo: Conteudo): string {
-  return `Aprovação de ${conteudo.tipo} chega com o módulo dela — hoje só etapa de demanda e post passam por aqui.`;
+  return `Aprovação de ${conteudo.tipo} chega com o módulo dela — hoje passam por aqui etapa de demanda, post e entregável de campanha.`;
 }

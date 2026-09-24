@@ -102,23 +102,65 @@ const arquivos = [...new Set(grep("recusaDeValidacao(").map((l) => l.split(":")[
   (a) => a !== "src/lib/acoes/validacao.ts",
 );
 
+/**
+ * O nome pode estar na linha de baixo, e essa foi a falha desta varredura.
+ *
+ * A versão anterior lia linha a linha, com /recusaDeValidacao\("([^"]+)"/. Um
+ * formatador que quebrasse a chamada em várias linhas --
+ *
+ *     recusaDeValidacao(
+ *       "criarCampanha",
+ *
+ * -- deixava o nome fora da linha do `(`, e aí a chamada não era contada: não
+ * dava FALHOU, dava silêncio. Uma action podia registrar o nome errado no log
+ * e passar verde aqui, que é exatamente o que esta varredura existe para
+ * impedir. Por isso agora ela varre o ARQUIVO inteiro, por posição, e o nome é
+ * a primeira string depois do parêntese, esteja ela onde estiver.
+ */
+function chamadas(texto, funcao) {
+  const achados = [];
+  const marca = `${funcao}(`;
+
+  for (let i = texto.indexOf(marca); i !== -1; i = texto.indexOf(marca, i + 1)) {
+    // A primeira aspa depois do parêntese, pulando espaço e quebra de linha.
+    const resto = texto.slice(i + marca.length);
+    const nome = resto.match(/^\s*"([^"]*)"/);
+    achados.push({
+      pos: i,
+      nome: nome ? nome[1] : null,
+      linha: texto.slice(0, i).split("\n").length,
+    });
+  }
+
+  return achados;
+}
+
 let conferidas = 0;
 for (const arquivo of arquivos) {
-  const linhas = readFileSync(arquivo, "utf-8").split("\n");
-  let atual = null;
-  linhas.forEach((linha, i) => {
-    const abre = linha.match(/executarAcao\("([^"]+)"/);
-    if (abre) atual = abre[1];
-    const usa = linha.match(/recusaDeValidacao\("([^"]+)"/);
-    if (!usa) return;
+  const texto = readFileSync(arquivo, "utf-8");
+  const aberturas = chamadas(texto, "executarAcao");
+
+  for (const usa of chamadas(texto, "recusaDeValidacao")) {
     conferidas++;
-    if (atual !== usa[1]) {
+
+    // Sem nome literal, não há como conferir -- e um nome montado por variável
+    // é justamente o que faz o log apontar para a action errada.
+    if (usa.nome === null) {
       problemas++;
       console.log(
-        `  FALHOU  ${arquivo}:${i + 1} diz "${usa[1]}" e está dentro de "${atual ?? "nenhuma"}"`,
+        `  FALHOU  ${arquivo}:${usa.linha} não passa o nome da action como texto literal`,
+      );
+      continue;
+    }
+
+    const dentroDe = aberturas.filter((a) => a.pos < usa.pos).pop();
+    if (dentroDe?.nome !== usa.nome) {
+      problemas++;
+      console.log(
+        `  FALHOU  ${arquivo}:${usa.linha} diz "${usa.nome}" e está dentro de "${dentroDe?.nome ?? "nenhuma"}"`,
       );
     }
-  });
+  }
 }
 
 if (conferidas === 0) {

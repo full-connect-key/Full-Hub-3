@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { VersaoDoPost } from "@/lib/dados/posts";
+import type { VersaoDoConteudo } from "@/lib/dados/conteudo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,19 +30,26 @@ import { cn } from "@/lib/utils";
  * isso com o comando cru. Quem acrescentar um botão aqui vai descobrir pela
  * recusa do banco, que é onde se quer descobrir.
  *
- * **A comparação é lado a lado, e a legenda vem junto.** Ver duas artes sem o
- * texto não responde a pergunta mais comum depois de um pedido de ajuste —
- * "mudou a legenda também?".
+ * **A comparação é lado a lado, e o texto vem junto.** Ver duas artes sem ele
+ * não responde a pergunta mais comum depois de um pedido de ajuste — "mudou a
+ * legenda também?" no post, "é o arquivo novo?" no entregável de campanha.
  */
 export function HistoricoDeVersoes({
   versoes,
   artes,
   versaoAtual,
+  rotuloDoTexto,
 }: {
-  versoes: VersaoDoPost[];
+  versoes: VersaoDoConteudo[];
   /** Endereços já assinados, por caminho. */
   artes: Record<string, string>;
   versaoAtual: number;
+  /**
+   * Como se chama o texto que acompanha a arte: "Legenda" no post, "Arquivo"
+   * no entregável de campanha. Quem sabe disso é a tela, porque é ela que
+   * sabe de que material se trata.
+   */
+  rotuloDoTexto: string;
 }) {
   const [comparando, setComparando] = useState<number | null>(null);
 
@@ -112,21 +119,21 @@ export function HistoricoDeVersoes({
                   frase é explícita quando não existe: "igual" é informação, e
                   um espaço em branco não é. */}
               <div className="space-y-2 text-sm">
-                {outra.legenda === atual.legenda ? (
-                  <p className="text-text-muted">A legenda não mudou.</p>
+                {outra.texto === atual.texto ? (
+                  <p className="text-text-muted">{rotuloDoTexto} não mudou.</p>
                 ) : (
                   <>
                     <p className="text-text-muted text-xs">
-                      Legenda da versão {outra.numero}
+                      {rotuloDoTexto} da versão {outra.numero}
                     </p>
                     <p className="bg-neutral-soft rounded-lg p-2 whitespace-pre-wrap">
-                      {outra.legenda || "—"}
+                      {outra.texto || "—"}
                     </p>
                     <p className="text-text-muted text-xs">
-                      Legenda da versão {atual.numero}
+                      {rotuloDoTexto} da versão {atual.numero}
                     </p>
                     <p className="bg-blue-soft text-text-primary rounded-lg p-2 whitespace-pre-wrap">
-                      {atual.legenda || "—"}
+                      {atual.texto || "—"}
                     </p>
                   </>
                 )}

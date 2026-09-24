@@ -6,10 +6,10 @@
  * `urlsDasArtes` nao assina caminho que comeca com "/", entao eles chegam a
  * tela iguais aqui e no app de verdade.
  */
-import type { ComentarioDoPost, VersaoDoPost } from "../../src/lib/dados/posts";
+import type { VersaoDoConteudo } from "../../src/lib/dados/conteudo";
 import type { PostDoPortal } from "../../src/lib/dominio/posts";
 
-export type { ComentarioDoPost, VersaoDoPost };
+export type { VersaoDoConteudo };
 
 const HOJE = new Date();
 const MES = `${HOJE.getFullYear()}-${String(HOJE.getMonth() + 1).padStart(2, "0")}`;
@@ -197,7 +197,7 @@ export async function obterPost(
   return POSTS.find((p) => p.id === id) ?? POSTS[0] ?? null;
 }
 
-export async function versoesDoPost(postId: string): Promise<VersaoDoPost[]> {
+export async function versoesDoPost(postId: string): Promise<VersaoDoConteudo[]> {
   if (postId !== "p1" && postId !== "p5") return [];
 
   return [
@@ -205,7 +205,7 @@ export async function versoesDoPost(postId: string): Promise<VersaoDoPost[]> {
       id: "v2",
       numero: 2,
       arteUrl: "/exemplos/arte-1.svg",
-      legenda: "Corre que acaba! Toda a linha de granolas com 20% até domingo.",
+      texto: "Corre que acaba! Toda a linha de granolas com 20% até domingo.",
       notas: "Logo maior e tempo de preparo na legenda",
       quando: new Date(HOJE.getTime() - 2 * 864e5).toISOString(),
       quem: "Bruno Lima",
@@ -214,39 +214,10 @@ export async function versoesDoPost(postId: string): Promise<VersaoDoPost[]> {
       id: "v1",
       numero: 1,
       arteUrl: "/exemplos/arte-3.svg",
-      legenda: "Corre que acaba!",
+      texto: "Corre que acaba!",
       notas: "Primeira arte",
       quando: new Date(HOJE.getTime() - 5 * 864e5).toISOString(),
       quem: "Bruno Lima",
-    },
-  ];
-}
-
-export async function comentariosDoPost(
-  postId: string,
-): Promise<ComentarioDoPost[]> {
-  if (postId !== "p1") return [];
-
-  return [
-    {
-      id: "c1",
-      texto: "Dá para trocar a foto do fundo pela da loja nova?",
-      quando: new Date(HOJE.getTime() - 3600e3 * 5).toISOString(),
-      autorId: "cliente",
-      autor: "Joana Prado",
-      daAgencia: false,
-      interno: false,
-      respostaA: null,
-    },
-    {
-      id: "c2",
-      texto: "Dá sim. Já pedimos para o Bruno.",
-      quando: new Date(HOJE.getTime() - 3600e3 * 3).toISOString(),
-      autorId: "marina",
-      autor: "Marina Costa",
-      daAgencia: true,
-      interno: false,
-      respostaA: "c1",
     },
   ];
 }

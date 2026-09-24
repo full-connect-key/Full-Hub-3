@@ -212,6 +212,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
   "@/lib/dados/portal": ["./scripts/prototipo/portal.ts"],
   "@/lib/dados/posts": ["./scripts/prototipo/posts.ts"],
+  "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],

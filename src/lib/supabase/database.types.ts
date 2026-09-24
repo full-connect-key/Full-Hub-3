@@ -70,9 +70,11 @@ export type EscopoRodada = "interna" | "cliente";
 /**
  * O que passa por uma rodada de aprovação (migration 0030).
  *
- * `subtask` é o único que existe hoje. `post` e `deliverable` entram com as
- * tabelas deles, nos Sprints 12 e 13 — e até lá o banco RECUSA rodada desses
- * tipos, em vez de aceitar uma aprovação que nenhuma trava sabe conferir.
+ * **Os três têm dono.** A 0030 criou o par e recusou `post` e `deliverable`
+ * de propósito, com a frase "quem acrescentar o tipo acrescenta a regra na
+ * mesma migration"; a 0032 cumpriu isso para o post e a 0033 para o
+ * entregável. A frase fica de pé assim mesmo: ela é a regra para o quarto
+ * tipo, se um dia existir.
  */
 export type TipoDeConteudo = "subtask" | "post" | "deliverable";
 
@@ -115,11 +117,13 @@ export type RecCategoria =
 /**
  * O desfecho de uma rodada.
  *
- * **`rejeitada` entrou na migration 0032, e só vale para post.** O Portal tem
+ * **`rejeitada` entrou na migration 0032, e vale para MATERIAL.** O Portal tem
  * três botões — Aprovar, Rejeitar, Solicitar ajustes — e os dois últimos não
- * são a mesma decisão: um diz "mude isto e volte", o outro diz "não". Etapa
- * de demanda continua com dois desfechos, e o banco recusa `rejeitada` nela:
- * não existe `subtask_status` que signifique recusada.
+ * são a mesma decisão: um diz "mude isto e volte", o outro diz "não". Post e
+ * entregável de campanha aceitam os três, porque os dois usam
+ * `content_status`, que tem `rejeitado`. Etapa de demanda continua com dois
+ * desfechos, e o banco recusa `rejeitada` nela: não existe `subtask_status`
+ * que signifique recusada.
  */
 export type StatusRodada =
   | "pendente"
@@ -136,6 +140,36 @@ export type PlataformaSocial =
   | "youtube"
   | "twitter"
   | "pinterest";
+
+/**
+ * O ciclo de vida da campanha como PROJETO (`campaign_status`, 0033).
+ *
+ * Distinto de `ContentStatus`, e de propósito: aquele é o estado de uma peça
+ * no fluxo de aprovação, este é o da campanha inteira. "Em aprovação" não quer
+ * dizer nada sobre uma campanha; "finalizada" não quer dizer nada sobre um
+ * arquivo.
+ */
+export type CampaignStatus =
+  | "planejamento"
+  | "ativa"
+  | "finalizada"
+  | "cancelada";
+
+/**
+ * Um nó da árvore que o template guarda em `estrutura_json`.
+ *
+ * `itens` presente e vazio, com `quantidade`, é o caso do Feed/Storys: quantos
+ * são se decide na criação da campanha, porque muda a cada mês. A tela lê esse
+ * número como sugestão e gera "Feed/Story 1", "Feed/Story 2" — escrever quinze
+ * linhas iguais no template seria fixar um número que nunca é o mesmo.
+ */
+export type NoDoTemplate = {
+  nome: string;
+  itens?: NoDoTemplate[];
+  quantidade?: number;
+};
+
+export type EstruturaDeTemplate = NoDoTemplate[];
 
 export type NotificationTipo =
   | "task"
@@ -1394,6 +1428,186 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+
+      /**
+       * O formato de campanha da casa -- a Wave e o que mais vier.
+       *
+       * `estrutura_json` e uma arvore em `jsonb`, e nao um par de tabelas como
+       * o workflow de task. A diferenca e o que se faz com cada um: o workflow
+       * guarda funcao, prazo relativo e responsavel por etapa, coisas que se
+       * consultam; isto aqui e uma lista de nomes que alguem edita inteira
+       * antes de salvar. Normalizar seria criar duas tabelas para servir um
+       * `select * where id = ?`.
+       *
+       * `client_id` nulo e template da casa, que serve a todo cliente.
+       */
+      campaign_templates: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          estrutura_json: EstruturaDeTemplate;
+          client_id: string | null;
+          ativo: boolean;
+          criado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          descricao?: string | null;
+          estrutura_json: EstruturaDeTemplate;
+          client_id?: string | null;
+          ativo?: boolean;
+          criado_por?: string | null;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          estrutura_json?: EstruturaDeTemplate;
+          ativo?: boolean;
+        };
+        Relationships: [];
+      };
+
+      campaigns: {
+        Row: {
+          id: string;
+          client_id: string;
+          nome: string;
+          descricao: string | null;
+          data_inicio: string;
+          data_fim: string;
+          template_id: string | null;
+          status: CampaignStatus;
+          drive_folder_id: string | null;
+          criado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          nome: string;
+          descricao?: string | null;
+          data_inicio: string;
+          data_fim: string;
+          template_id?: string | null;
+          status?: CampaignStatus;
+          drive_folder_id?: string | null;
+          criado_por?: string | null;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          data_inicio?: string;
+          data_fim?: string;
+          status?: CampaignStatus;
+          drive_folder_id?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /**
+       * Um entregavel da campanha. `parent_id` nulo e item de topo.
+       *
+       * **`status` esta no Update, e no grupo ele e descartado.** Quem tem
+       * filho para de ser unidade de trabalho -- a mesma regra da Task com as
+       * subtarefas e da etapa com as sub-etapas --, e o status que o grupo
+       * mostra sai de `status_do_entregavel()`. Descartar em vez de recusar e
+       * escolha: quem edita um grupo quase sempre esta mexendo no nome, na
+       * ordem ou no prazo, e recusar o update inteiro por causa de um campo
+       * que a tela nem mostra travaria o trabalho para proteger um valor que
+       * ninguem le.
+       *
+       * **`enviado_em` fica fora dos dois.** Quem carimba e o trigger
+       * `approval_rounds_marca_conteudo`, no instante em que a rodada de
+       * escopo cliente nasce: enviar E abrir a rodada. Separados, daria para
+       * ter rodada de um material que o cliente nao enxerga.
+       */
+      deliverables: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          parent_id: string | null;
+          subtask_id: string | null;
+          nome: string;
+          descricao: string | null;
+          ordem: number;
+          status: ContentStatus;
+          prazo: string | null;
+          arte_url: string | null;
+          thumbnail_url: string | null;
+          arquivo_nome: string | null;
+          versao_atual: number;
+          responsavel_id: string | null;
+          enviado_em: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          parent_id?: string | null;
+          subtask_id?: string | null;
+          nome: string;
+          descricao?: string | null;
+          ordem?: number;
+          status?: ContentStatus;
+          prazo?: string | null;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          arquivo_nome?: string | null;
+          responsavel_id?: string | null;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          ordem?: number;
+          status?: ContentStatus;
+          prazo?: string | null;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          arquivo_nome?: string | null;
+          responsavel_id?: string | null;
+          subtask_id?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /**
+       * O historico de arquivos de um entregavel.
+       *
+       * `numero_versao` fica fora de Insert pela mesma razao de
+       * `post_versions`: quem numera e o trigger, para duas abas salvando ao
+       * mesmo tempo nao baterem no `unique`.
+       *
+       * Sem Update nem Delete do lado do cliente -- e a ausencia de policy de
+       * escrita e a trava, nao a ausencia do botao: reverter muda o que vai
+       * ao ar, e quem responde por isso e a agencia.
+       */
+      deliverable_versions: {
+        Row: {
+          id: string;
+          deliverable_id: string;
+          numero_versao: number;
+          arte_url: string | null;
+          thumbnail_url: string | null;
+          arquivo_nome: string | null;
+          notas_mudanca: string | null;
+          criado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          deliverable_id: string;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          arquivo_nome?: string | null;
+          notas_mudanca?: string | null;
+          criado_por?: string | null;
+        };
+        Update: { notas_mudanca?: string | null };
+        Relationships: [];
+      };
     };
     Functions: {
       academy_reordenar: { Args: { p_track_id: string; p_ids: string[] }; Returns: number };
@@ -1493,6 +1707,7 @@ export interface Database {
       rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
       plataforma_social: PlataformaSocial;
+      campaign_status: CampaignStatus;
       notification_tipo: NotificationTipo;
       hr_tipo: HrTipo;
       hr_status: HrStatus;
