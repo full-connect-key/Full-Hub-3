@@ -185,23 +185,38 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $corpo$
 declare
-  avo uuid;
+  v_raiz uuid;
 begin
   if new.resposta_a is null then
     return new;
   end if;
 
-  select resposta_a into avo from public.comments where id = new.resposta_a;
+  -- ATRIBUICAO, E NAO `select ... into`, de proposito.
+  --
+  -- As duas formas fazem a mesma coisa no plpgsql. A diferenca aparece quando
+  -- o corpo da funcao NAO chega inteiro ao servidor: com `select x into y`, o
+  -- `y` ocupa a posicao em que um parser espera um nome de tabela, e o erro
+  -- que sai e "relation "y" does not exist" -- uma mensagem que aponta para
+  -- uma tabela que nunca existiu e manda quem le procurar no lugar errado.
+  -- Foi exatamente o que o SQL Editor do Supabase devolveu nesta linha. Com
+  -- `y := (select ...)` nao ha essa leitura possivel: ou o corpo chega
+  -- inteiro, ou o erro fala da funcao.
+  --
+  -- E a variavel tem prefixo: `avo` e curto o bastante para colidir com
+  -- qualquer coisa que apareca no schema depois.
+  v_raiz := (
+    select c.resposta_a from public.comments c where c.id = new.resposta_a
+  );
 
-  if avo is not null then
-    new.resposta_a := avo;
+  if v_raiz is not null then
+    new.resposta_a := v_raiz;
   end if;
 
   return new;
 end;
-$$;
+$corpo$;
 
 drop trigger if exists comments_um_nivel on public.comments;
 create trigger comments_um_nivel
