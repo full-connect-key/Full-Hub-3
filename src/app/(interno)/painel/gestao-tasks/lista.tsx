@@ -1,14 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ClipboardList, Loader2 } from "lucide-react";
+import { Check, ClipboardList, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Resultado } from "@/lib/acoes/tipos";
 
-import { DataTable, type Column } from "@/components/shared/data-table";
+import {
+  casaComBusca,
+  DataTable,
+  type Column,
+} from "@/components/shared/data-table";
+import { EmptyState } from "@/components/shared/empty-state";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -20,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { TaskDaLista } from "@/lib/dados/tasks";
 import {
+  COLUNAS_POR_STATUS,
   PESO_DA_PRIORIDADE,
   PRIORIDADES,
   ROTULOS_DE_PRIORIDADE,
@@ -47,7 +53,7 @@ function vencida(task: TaskDaLista): boolean {
  *
  * Três coisas a mais do que uma tabela comum, e é o que faz o dia a dia render:
  * edição inline de prioridade, responsável e prazo direto na linha; seleção
- * múltipla com ação em massa; e agrupamento opcional por cliente ou por
+ * múltipla com ação em massa; e agrupamento por status, cliente ou por
  * responsável.
  */
 
@@ -263,7 +269,23 @@ function BarraDeAcoesEmMassa({
 
 export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
-  const [agrupamento, setAgrupamento] = useState<"nenhum" | "cliente" | "equipe">("nenhum");
+  // AGRUPADO POR STATUS por padrão.
+  //
+  // A pergunta da Gestão de Tasks é "onde está cada demanda da agência", e
+  // uma lista corrida obriga a ler a coluna de status linha a linha para
+  // respondê-la. Agrupado, a resposta é a forma da tela: o tamanho de cada
+  // bloco já diz onde o trabalho está represado.
+  const [agrupamento, setAgrupamento] = useState<
+    "status" | "nenhum" | "cliente" | "equipe"
+  >("status");
+
+  // UMA BUSCA PARA A TELA INTEIRA quando há grupos.
+  //
+  // Cada grupo é uma `DataTable`, e cada uma desenhava a própria caixa: a
+  // tela ficava com quatro buscas, e cada uma filtrava só o próprio bloco.
+  // Quem digita "Mundo Verde" quer a lista inteira, não o que casa dentro de
+  // "Em andamento".
+  const [busca, setBusca] = useState("");
 
   function alternar(id: string) {
     setSelecionadas((atual) =>
@@ -380,11 +402,40 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     },
   ];
 
-  const grupos = useMemo(() => {
-    if (agrupamento === "nenhum") return [{ titulo: "", tasks }];
+  const agrupado = agrupamento !== "nenhum";
+
+  // SEM `useMemo`, e de propósito.
+  //
+  // Ele dependia de `colunas`, que é reconstruída a cada render — o memo
+  // nunca reaproveitava nada e ainda prometia que reaproveitava. O trabalho
+  // real é um filtro e um agrupamento sobre a lista já filtrada pelo
+  // servidor: some no meio de qualquer render.
+  const grupos = (() => {
+    // Filtra ANTES de agrupar: assim um grupo que ficou sem nada some, em vez
+    // de virar um cabeçalho com uma tabela vazia embaixo.
+    const visiveis = agrupado
+      ? tasks.filter((t) => casaComBusca(t, colunas, busca))
+      : tasks;
+
+    if (!agrupado) return [{ titulo: "", tasks }];
+
+    // O STATUS NÃO ORDENA EM ALFABÉTICA, e é o motivo de ele sair antes.
+    //
+    // A ordem que importa é a do fluxo — "Iniciar" primeiro, "Concluído" no
+    // fim —, e ela já está em `COLUNAS_POR_STATUS`, que é a mesma do board.
+    // Ordenar por nome poria "Aguardando aprovação" antes de "Em andamento" e
+    // faria a lista contar a história fora de ordem. E é o mesmo mapa do
+    // board de propósito: dois de-paras entre status e rótulo divergem na
+    // primeira vez que alguém mexe num só.
+    if (agrupamento === "status") {
+      return COLUNAS_POR_STATUS.map((coluna) => ({
+        titulo: coluna.titulo,
+        tasks: visiveis.filter((t) => t.status === coluna.status),
+      })).filter((grupo) => grupo.tasks.length > 0);
+    }
 
     const mapa = new Map<string, TaskDaLista[]>();
-    for (const task of tasks) {
+    for (const task of visiveis) {
       const chave =
         agrupamento === "cliente"
           ? (task.cliente?.nome_empresa ?? "Sem cliente")
@@ -394,7 +445,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     return [...mapa.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
       .map(([titulo, itens]) => ({ titulo, tasks: itens }));
-  }, [agrupamento, tasks]);
+  })();
 
   const seletorDeAgrupamento = (
     <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as typeof agrupamento)}>
@@ -402,6 +453,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value="status">Agrupar por status</SelectItem>
         <SelectItem value="nenhum">Sem agrupamento</SelectItem>
         <SelectItem value="cliente">Agrupar por cliente</SelectItem>
         <SelectItem value="equipe">Agrupar por quem está na demanda</SelectItem>
@@ -413,6 +465,37 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     <div className="space-y-4">
       {selecionadas.length > 0 ? (
         <BarraDeAcoesEmMassa selecionadas={selecionadas} aoTerminar={() => setSelecionadas([])} />
+      ) : null}
+
+      {/* A BUSCA E O SELETOR, UMA VEZ SÓ, acima de tudo — e só no modo
+          agrupado. Sem grupo quem desenha os dois é a própria tabela, que é
+          onde eles sempre estiveram. */}
+      {agrupado ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-52 flex-1 sm:max-w-xs">
+            <Search
+              aria-hidden
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+            />
+            <Input
+              id="busca-de-tasks"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por título, briefing, cliente ou responsável…"
+              aria-label="Buscar por título, briefing, cliente ou responsável"
+              className="h-8 pl-8"
+            />
+          </div>
+          {seletorDeAgrupamento}
+        </div>
+      ) : null}
+
+      {agrupado && grupos.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title="Nenhuma task com esses filtros"
+          description="Ajuste ou limpe os filtros, ou crie a primeira task com a tecla N."
+        />
       ) : null}
 
       {grupos.map((grupo, indice) => (
@@ -427,13 +510,14 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
             data={grupo.tasks}
             columns={colunas}
             getRowId={(task) => task.id}
-            pageSize={agrupamento === "nenhum" ? 15 : 50}
-            searchId={indice === 0 ? "busca-de-tasks" : undefined}
+            pageSize={agrupado ? 50 : 15}
+            semBusca={agrupado}
+            searchId={agrupado ? undefined : "busca-de-tasks"}
             searchPlaceholder="Buscar por título, briefing, cliente ou responsável…"
             emptyIcon={ClipboardList}
             emptyTitle="Nenhuma task com esses filtros"
             emptyDescription="Ajuste ou limpe os filtros, ou crie a primeira task com a tecla N."
-            toolbar={indice === 0 ? seletorDeAgrupamento : undefined}
+            toolbar={agrupado || indice > 0 ? undefined : seletorDeAgrupamento}
           />
         </div>
       ))}

@@ -54,6 +54,26 @@ function comparar(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" });
 }
 
+/**
+ * A linha casa com o termo?
+ *
+ * A mesma regra que a `DataTable` usa por dentro, exportada para quem
+ * desliga a caixa dela e busca por fora. As duas pontas passam pelas mesmas
+ * `columns`, entao acrescentar uma coluna pesquisavel vale nos dois lugares
+ * de uma vez.
+ */
+export function casaComBusca<T>(
+  linha: T,
+  columns: { searchValue?: (linha: T) => string }[],
+  termo: string,
+): boolean {
+  const limpo = termo.trim().toLowerCase();
+  if (!limpo) return true;
+  return columns.some((coluna) =>
+    coluna.searchValue?.(linha).toLowerCase().includes(limpo),
+  );
+}
+
 export function DataTable<T>({
   data,
   columns,
@@ -68,6 +88,7 @@ export function DataTable<T>({
   emptyDescription,
   emptyAction,
   toolbar,
+  semBusca = false,
   onRowClick,
   className,
 }: {
@@ -84,6 +105,8 @@ export function DataTable<T>({
   emptyAction?: ReactNode;
   /** Espaço à direita da busca, para filtros da tela. */
   toolbar?: ReactNode;
+  /** Desliga a caixa de busca desta tabela. Veja `casaComBusca`. */
+  semBusca?: boolean;
   onRowClick?: (row: T) => void;
   className?: string;
 }) {
@@ -91,15 +114,22 @@ export function DataTable<T>({
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(initialSort ?? null);
   const [pagina, setPagina] = useState(0);
 
-  const temBusca = columns.some((coluna) => coluna.searchValue);
+  // `semBusca` desliga a caixa desta tabela, e nao a busca do produto.
+  //
+  // Serve para a tela AGRUPADA: cada grupo e uma DataTable, e sem isto a
+  // Gestao de Tasks desenhava uma caixa de busca por grupo -- quatro na mesma
+  // tela, cada uma filtrando so o proprio bloco. Quem busca "Mundo Verde"
+  // quer o termo na lista inteira, nao dentro de "Em andamento".
+  //
+  // Quem desliga a caixa assume a busca por fora, e usa `casaComBusca` com as
+  // MESMAS colunas -- e por isso que ela e exportada em vez de ficar aqui
+  // dentro: duas regras de "o que casa" divergiriam na primeira coluna nova.
+  const temBusca = !semBusca && columns.some((coluna) => coluna.searchValue);
 
   const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    if (!termo) return data;
-    return data.filter((linha) =>
-      columns.some((coluna) => coluna.searchValue?.(linha).toLowerCase().includes(termo)),
-    );
-  }, [busca, columns, data]);
+    if (semBusca) return data;
+    return data.filter((linha) => casaComBusca(linha, columns, busca));
+  }, [busca, columns, data, semBusca]);
 
   const ordenados = useMemo(() => {
     if (!ordenacao) return filtrados;
