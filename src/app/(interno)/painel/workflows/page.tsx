@@ -6,34 +6,100 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
+import {
+  buscarRecorrencia,
+  feriadosParaAPrevia,
+  listarRecorrencias,
+} from "@/lib/dados/recorrencias";
 import { listarTiposComFluxo } from "@/lib/dados/workflows";
 
+import { AbasDeWorkflows, type AbaDeWorkflows } from "./abas";
+import { EditorDeRecorrencia } from "./recorrencias/editor";
+import { ListaDeRecorrencias } from "./recorrencias/lista";
 import { Workflows } from "./workflows";
 
 export const metadata: Metadata = { title: "Workflows" };
 
-async function Conteudo() {
+async function clientesAtivos() {
+  const clientes = await listarClientes();
+  return clientes
+    .filter((c) => c.ativo)
+    .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa, slug: c.slug }));
+}
+
+async function AbaDeFluxos() {
   const [tipos, clientes, equipe] = await Promise.all([
     listarTiposComFluxo(),
-    listarClientes(),
+    clientesAtivos(),
     listarEquipeAtiva(),
   ]);
-
-  const ativos = clientes
-    .filter((c) => c.ativo)
-    .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }));
 
   return (
     <Workflows
       tipos={tipos}
-      clientes={ativos}
+      clientes={clientes.map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
       equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
     />
   );
 }
 
-export default async function PaginaDeWorkflows() {
+async function AbaDeRecorrencias({ regra }: { regra: string | undefined }) {
+  // O EDITOR E A LISTA NÃO SÃO DUAS ROTAS, e sim um parâmetro: `?regra=nova`
+  // ou `?regra={id}`. É a mesma decisão do painel lateral de Minhas Tasks —
+  // quem fecha o editor volta para a lista com os filtros que tinha, e não
+  // para uma lista recarregada do zero.
+  if (regra) {
+    const [clientes, equipe, tipos, feriados, atual] = await Promise.all([
+      clientesAtivos(),
+      listarEquipeAtiva(),
+      listarTiposComFluxo(),
+      feriadosParaAPrevia(),
+      regra === "nova" ? Promise.resolve(null) : buscarRecorrencia(regra),
+    ]);
+
+    return (
+      <EditorDeRecorrencia
+        regra={atual}
+        clientes={clientes}
+        equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
+        workflows={tipos.map((t) => ({
+          id: t.id,
+          nome: t.nome,
+          etapas: t.etapas?.length ?? 0,
+        }))}
+        feriados={feriados}
+        hojeISO={new Date().toISOString().slice(0, 10)}
+      />
+    );
+  }
+
+  const [regras, clientes, atendimento] = await Promise.all([
+    listarRecorrencias(),
+    clientesAtivos(),
+    souDoAtendimento(),
+  ]);
+
+  return (
+    <ListaDeRecorrencias
+      regras={regras}
+      clientes={clientes.map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
+      podeConfigurar={atendimento}
+    />
+  );
+}
+
+export default async function PaginaDeWorkflows({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await exigirAcessoARota("/painel/workflows");
+
+  const parametros = await searchParams;
+  const aba: AbaDeWorkflows =
+    parametros.aba === "recorrencias" ? "recorrencias" : "workflows";
+  const regra = typeof parametros.regra === "string" ? parametros.regra : undefined;
 
   return (
     <div className="space-y-6">
@@ -41,8 +107,17 @@ export default async function PaginaDeWorkflows() {
         title="Workflows"
       />
 
-      <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-        <Conteudo />
+      <AbasDeWorkflows atual={aba} />
+
+      <Suspense
+        key={`${aba}:${regra ?? ""}`}
+        fallback={<LoadingSkeleton variant="table" rows={6} />}
+      >
+        {aba === "recorrencias" ? (
+          <AbaDeRecorrencias regra={regra} />
+        ) : (
+          <AbaDeFluxos />
+        )}
       </Suspense>
     </div>
   );
