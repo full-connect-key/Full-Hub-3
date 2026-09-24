@@ -71,7 +71,7 @@ export function FormularioDeLogin({
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="voce@fullconnectkey.com.br"
+              placeholder="seu@email.com"
               aria-invalid={!!errors.email}
               autoFocus
               {...register("email")}

@@ -8,8 +8,17 @@ export default function LayoutAutenticacao({ children }: LayoutProps<"/">) {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <Logo tamanho="lg" assinatura="nenhuma" className="flex-col gap-3" />
+          {/* A FRASE SERVE AOS DOIS, e isso é correção de um defeito real: ela
+              dizia "Plataforma interna da Full Connect Key" e o campo de
+              e-mail sugeria um endereço @fullconnectkey.com.br. O cliente que
+              abrisse esta tela tinha todo motivo para achar que errou o
+              endereço — e ela é a tela dele também. Não há porta separada
+              porque não precisa haver: quem decide o destino é o perfil
+              gravado em `profiles`, e `rotaInicialDoRole()` manda o cliente
+              para /portal. Um seletor de "sou cliente / sou da equipe" não
+              decidiria nada, e mentiria dizendo que decide. */}
           <p className="text-muted-foreground text-sm">
-            Plataforma interna da Full Connect Key
+            Equipe e clientes da Full Connect Key entram por aqui
           </p>
         </div>
         {children}
