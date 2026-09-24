@@ -147,6 +147,12 @@ const PARES = [
   ["--text-on-dark-muted", "--surface-sidebar", NORMAL, "item discreto do menu"],
   ["--text-on-dark-muted", "--surface-sidebar-2", NORMAL, "item discreto sobre hover"],
 
+  // O painel da marca na tela de login. Fundo próprio, escuro nos DOIS temas
+  // como a barra lateral — então o texto em cima dele precisa ser medido
+  // aqui, e não herdar a conta de nenhuma superfície que troca com o tema.
+  ["--text-on-dark", "--brand-navy", NORMAL, "nome do produto no painel da marca"],
+  ["--text-on-dark-muted", "--brand-navy", NORMAL, "frase de apoio no painel da marca"],
+
   // Estados: cor cheia com texto por cima, e fundo suave com a cor como texto.
   ["--success-foreground", "--success", NORMAL, "texto sobre verde"],
   ["--warning-foreground", "--warning", NORMAL, "texto sobre âmbar"],

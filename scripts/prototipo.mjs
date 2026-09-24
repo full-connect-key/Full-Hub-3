@@ -42,10 +42,11 @@ import path from "node:path";
 //                 `fullPage` rola a pagina, e o Select do Radix fecha ao rolar.
 // ---------------------------------------------------------------------------
 const TELAS = [
-  { nome: "01-login", rota: "/login", largura: 900, altura: 760 },
-  { nome: "02-login-escuro", rota: "/login", largura: 900, altura: 760, tema: "escuro" },
-  { nome: "03-login-sessao-expirada", rota: "/login?motivo=inatividade", largura: 900, altura: 800 },
-  { nome: "04-esqueci-senha", rota: "/esqueci-senha", largura: 900, altura: 760 },
+  { nome: "01-login", rota: "/login", largura: 1280, altura: 800 },
+  { nome: "01b-login-375", rota: "/login", largura: 375, altura: 900 },
+  { nome: "02-login-escuro", rota: "/login", largura: 1280, altura: 800, tema: "escuro" },
+  { nome: "03-login-sessao-expirada", rota: "/login?motivo=inatividade", largura: 1280, altura: 800 },
+  { nome: "04-esqueci-senha", rota: "/esqueci-senha", largura: 1280, altura: 800 },
 
   { nome: "05-painel-socio", rota: "/painel", largura: 1440, altura: 860, role: "socio" },
   { nome: "06-painel-socio-escuro", rota: "/painel", largura: 1440, altura: 860, role: "socio", tema: "escuro" },

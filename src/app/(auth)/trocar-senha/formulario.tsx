@@ -7,7 +7,6 @@ import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { esquemaDeNovaSenha, type DadosDeNovaSenha } from "@/lib/auth/esquemas";
@@ -29,7 +28,10 @@ const ESTADO_INICIAL: EstadoDaTroca = {};
  * não é só de quem está logado.
  */
 export function FormularioDeTroca({ nome }: { nome: string }) {
-  const [estado, acao, enviando] = useActionState(trocarSenhaDoPrimeiroAcesso, ESTADO_INICIAL);
+  const [estado, acao, enviando] = useActionState(
+    trocarSenhaDoPrimeiroAcesso,
+    ESTADO_INICIAL,
+  );
 
   const {
     register,
@@ -50,63 +52,68 @@ export function FormularioDeTroca({ nome }: { nome: string }) {
   const primeiroNome = nome.trim().split(/\s+/)[0] ?? nome;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck aria-hidden className="text-accent-strong size-4 shrink-0" />
-          Olá, {primeiroNome}. Escolha a sua senha
-        </CardTitle>
-        <CardDescription>
-          Você entrou com uma senha provisória, que alguém da equipe passou para você. Escolha
-          agora uma senha que só você conhece — a provisória deixa de valer.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={enviar} noValidate className="space-y-4">
-          {estado.erro ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertDescription>{estado.erro}</AlertDescription>
-            </Alert>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <ShieldCheck
+            aria-hidden
+            className="text-accent-strong size-5 shrink-0"
+          />
+          Olá, {primeiroNome}
+        </h1>
+        <p className="text-text-muted text-sm">
+          Você entrou com uma senha provisória, que alguém da equipe passou para
+          você. Escolha agora uma senha que só você conhece — a provisória deixa
+          de valer.
+        </p>
+      </div>
+
+      <form onSubmit={enviar} noValidate className="space-y-4">
+        {estado.erro ? (
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertDescription>{estado.erro}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="senha">Sua nova senha</Label>
+          <Input
+            id="senha"
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={!!errors.senha}
+            autoFocus
+            {...register("senha")}
+          />
+          {errors.senha ? (
+            <p className="text-destructive text-xs">{errors.senha.message}</p>
+          ) : (
+            <p className="text-text-muted text-xs">Pelo menos 8 caracteres.</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmacao">Confirme a nova senha</Label>
+          <Input
+            id="confirmacao"
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={!!errors.confirmacao}
+            {...register("confirmacao")}
+          />
+          {errors.confirmacao ? (
+            <p className="text-destructive text-xs">
+              {errors.confirmacao.message}
+            </p>
           ) : null}
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="senha">Sua nova senha</Label>
-            <Input
-              id="senha"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={!!errors.senha}
-              autoFocus
-              {...register("senha")}
-            />
-            {errors.senha ? (
-              <p className="text-destructive text-xs">{errors.senha.message}</p>
-            ) : (
-              <p className="text-text-muted text-xs">Pelo menos 8 caracteres.</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmacao">Confirme a nova senha</Label>
-            <Input
-              id="confirmacao"
-              type="password"
-              autoComplete="new-password"
-              aria-invalid={!!errors.confirmacao}
-              {...register("confirmacao")}
-            />
-            {errors.confirmacao ? (
-              <p className="text-destructive text-xs">{errors.confirmacao.message}</p>
-            ) : null}
-          </div>
-
-          <Button type="submit" className="w-full" disabled={enviando}>
-            {enviando ? <Loader2 className="animate-spin" /> : null}
-            {enviando ? "Salvando..." : "Salvar e entrar"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        <Button type="submit" className="w-full" disabled={enviando}>
+          {enviando ? <Loader2 className="animate-spin" /> : null}
+          {enviando ? "Salvando..." : "Salvar e entrar"}
+        </Button>
+      </form>
+    </div>
   );
 }

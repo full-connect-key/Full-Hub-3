@@ -615,15 +615,24 @@ terceira versão do símbolo.
 Connect Key, "Full Hub" é o nome do produto. Não existe wordmark de Full Hub,
 e desenhar um seria pôr no ar uma marca que a agência não fez.
 
-**O wordmark "full connect key" aparece uma vez, no pé da tela de login.** Ele
-é um lockup fechado — três linhas que se encaixam, com o próprio símbolo
-dentro —, não uma linha de assinatura: embaixo de "Full Hub" ele repetia o
-disco que estava logo acima e disputava o mesmo espaço, e abaixo de uns 24px
-de altura as linhas fecham e ele vira um borrão. Nos lockups pequenos a
-assinatura é "FULL CONNECT KEY" em caixa alta espaçada, que se lê a 9px. São
-duas imagens e não um filtro CSS: a versão branca é arquivo próprio, e
-clarear a colorida por `filter` daria cinza lavado no lugar do branco e
-apagaria o azul junto.
+**O wordmark "full connect key" aparece uma vez, no painel escuro da tela de
+login.** Ele é um lockup fechado — três linhas que se encaixam, com o próprio
+símbolo dentro —, não uma linha de assinatura: embaixo de "Full Hub" ele
+repetia o disco que estava logo acima e disputava o mesmo espaço, e abaixo de
+uns 24px de altura as linhas fecham e ele vira um borrão. Nos lockups pequenos
+a assinatura é "FULL CONNECT KEY" em caixa alta espaçada, que se lê a 9px. A
+coluna escura do login existe justamente para dar a ele a largura em que as
+três linhas se leem.
+
+**A versão branca veio cortada na primeira entrega**, e foi o usuário quem
+viu: 833 × 428 contra 833 × 454 da colorida — 26px a menos embaixo, o "y" e o
+triângulo pela metade. O arquivo certo tem a mesma proporção da colorida, e é
+assim que se confere um: pela caixa do conteúdo, não de olho.
+
+**No painel escuro usa-se só a branca**, sem troca por tema: o fundo é
+`--brand-navy` nos dois temas, como a barra lateral. Onde as duas versões
+convivessem seriam duas imagens e não um filtro CSS — clarear a colorida por
+`filter` daria cinza lavado no lugar do branco e apagaria o azul junto.
 
 **`src/app/icon.svg` é o TERCEIRO arquivo com cor literal**, e a exceção está
 registrada em `check:cores` — que passou a varrer `.svg` dentro de `src/` por
@@ -632,6 +641,36 @@ app, então não existe `var(--marca-disco)` para ele ler; a troca por tema vive
 num `prefers-color-scheme` dentro do próprio arquivo. Deixá-lo fora da
 varredura faria a regra dizer que só há dois lugares com cor literal, e o
 terceiro ficaria invisível.
+
+#### A tela de login: painel da marca, formulário, e dois botões que não decidem
+
+`components/auth/casca-de-autenticacao.tsx` envolve as quatro telas de
+`(auth)` — login, esqueci-senha, redefinir-senha e trocar-senha. Coluna escura
+à esquerda com o símbolo, o nome do produto e o wordmark; formulário à
+direita, sem cartão, porque o painel já é o enquadramento. Em 375px a coluna
+vira uma faixa curta no topo: metade de uma tela de celular gasta com marca é
+meia tela a menos para digitar.
+
+**O seletor "Cliente / Colaborador" NÃO decide o login, e é decisão do
+usuário que exista assim mesmo.** Quem decide para onde a pessoa vai é o
+perfil gravado em `profiles` — `rotaInicialDoRole()` manda `cliente` para
+`/portal` e o resto para `/painel`, qualquer que tenha sido o botão clicado.
+Fazer o seletor valer de verdade criaria um jeito novo de falhar na porta
+("opção errada") e contaria a quem estivesse tentando se um e-mail é de
+cliente ou da equipe.
+
+**O que ele faz de verdade é trocar a frase do painel**, e é isso que o separa
+de um enfeite: quem chega vê, antes de digitar, o que aquela porta abre para
+ele. E a linha embaixo dos botões diz o resto em voz alta — *"os dois entram
+pelo mesmo formulário: o Full Hub reconhece você pelo e-mail"*. Sem ela, quem
+clicasse em "Colaborador" e caísse no portal concluiria que o sistema errou, e
+a agência responderia a essa pergunta toda semana.
+
+O seletor mora ao lado do painel que ele muda, num arquivo só, e a tela de
+login o posiciona por um contexto: são as duas metades da mesma decisão, e
+separadas divergiriam na primeira mudança de texto. A escolha **não** é
+lembrada no navegador — o cliente costuma entrar de computador compartilhado,
+e a tela abriria com a frase do outro público.
 
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
