@@ -501,3 +501,51 @@ export async function lancamentosDaGestao(): Promise<LancamentoNaTela[]> {
       : null,
   }));
 }
+
+export type DescansoDoCiclo = {
+  /** Quando começou o ciclo de 12 meses em que a pessoa está. */
+  inicioDoCiclo: string | null;
+  ciclos: number;
+  diasConcedidos: number;
+  diasUsados: number;
+  saldo: number;
+  parcelasConcedidas: number;
+  parcelasUsadas: number;
+};
+
+/**
+ * O saldo de descanso, perguntado ao banco.
+ *
+ * **A TELA NÃO SOMA MAIS ISTO SOZINHA**, e não é preferência de estilo. Até a
+ * 0039 o saldo era `15 - (soma dos pedidos deste ano)`, uma conta que o
+ * navegador conseguia fazer com a lista de pedidos na mão. O ciclo de 12 meses
+ * depende da **data de entrada da pessoa**, que a lista de pedidos não carrega
+ * — e a trava do banco depende dela também. Duas contas com entradas
+ * diferentes é o começo de duas verdades, e elas divergiriam no pior lugar: a
+ * tela prometendo dias que o `insert` recusa.
+ *
+ * É a mesma decisão de `situacaoDoLancamento()` no Financeiro, pelo avesso:
+ * lá os dois lados calculam porque a tela precisa da resposta a cada segundo;
+ * aqui um lado pergunta porque o outro é quem sabe.
+ */
+export async function descansoDoCiclo(
+  usuarioId: string,
+): Promise<DescansoDoCiclo | null> {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.rpc("descanso_do_ciclo", {
+    p_user_id: usuarioId,
+  });
+
+  const linha = data?.[0];
+  if (!linha) return null;
+
+  return {
+    inicioDoCiclo: linha.inicio_do_ciclo,
+    ciclos: linha.ciclos,
+    diasConcedidos: linha.dias_concedidos,
+    diasUsados: linha.dias_usados,
+    saldo: linha.saldo,
+    parcelasConcedidas: linha.parcelas_concedidas,
+    parcelasUsadas: linha.parcelas_usadas,
+  };
+}

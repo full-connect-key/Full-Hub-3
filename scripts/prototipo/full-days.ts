@@ -123,7 +123,6 @@ const PEDIDOS: HrRequest[] = [
     aprovado_por: TIME[0].id,
     decidido_em: new Date().toISOString(),
     origem: "solicitacao",
-    ano_referencia: null,
     lancado_por: null,
     lancado_em: null,
     created_at: new Date(Date.now() - 6 * 864e5).toISOString(),
@@ -141,7 +140,6 @@ const PEDIDOS: HrRequest[] = [
     aprovado_por: null,
     decidido_em: null,
     origem: "solicitacao",
-    ano_referencia: null,
     lancado_por: null,
     lancado_em: null,
     created_at: new Date(Date.now() - 864e5).toISOString(),
@@ -159,7 +157,6 @@ const PEDIDOS: HrRequest[] = [
     aprovado_por: TIME[0].id,
     decidido_em: new Date(Date.now() - 38 * 864e5).toISOString(),
     origem: "solicitacao",
-    ano_referencia: null,
     lancado_por: null,
     lancado_em: null,
     created_at: new Date(Date.now() - 45 * 864e5).toISOString(),
@@ -361,7 +358,6 @@ export async function lancamentosDaGestao(): Promise<
       aprovado_por: TIME[0].id,
       decidido_em: new Date(Date.now() - 30 * 864e5).toISOString(),
       origem: "lancamento_retroativo",
-      ano_referencia: anoPassado,
       lancado_por: TIME[0].id,
       lancado_em: new Date(Date.now() - 30 * 864e5).toISOString(),
       created_at: new Date(Date.now() - 30 * 864e5).toISOString(),
@@ -381,7 +377,6 @@ export async function lancamentosDaGestao(): Promise<
       aprovado_por: TIME[0].id,
       decidido_em: new Date(Date.now() - 8 * 864e5).toISOString(),
       origem: "lancamento_retroativo",
-      ano_referencia: new Date().getFullYear(),
       lancado_por: TIME[0].id,
       lancado_em: new Date(Date.now() - 8 * 864e5).toISOString(),
       created_at: new Date(Date.now() - 8 * 864e5).toISOString(),
@@ -389,4 +384,30 @@ export async function lancamentosDaGestao(): Promise<
       lancadoPor: TIME[0].nome,
     },
   ];
+}
+
+export type { DescansoDoCiclo } from "../../src/lib/dados/full-days";
+
+/**
+ * O saldo do ciclo de 12 meses, para o prototipo.
+ *
+ * A Ana (socia) esta ha mais de um ano na agencia, entao o exemplo mostra o
+ * caso que so existe depois da 0039: DOIS ciclos, 30 dias concedidos, e o que
+ * sobrou do primeiro continuando no segundo. Com um ciclo so, a imagem nao
+ * mostraria a diferenca entre o modelo novo e o antigo.
+ */
+export async function descansoDoCiclo(
+  _usuarioId: string,
+): Promise<import("../../src/lib/dados/full-days").DescansoDoCiclo | null> {
+  const inicio = new Date();
+  inicio.setFullYear(inicio.getFullYear() - 1);
+  return {
+    inicioDoCiclo: inicio.toISOString().slice(0, 10),
+    ciclos: 2,
+    diasConcedidos: 30,
+    diasUsados: 10,
+    saldo: 20,
+    parcelasConcedidas: 4,
+    parcelasUsadas: 2,
+  };
 }

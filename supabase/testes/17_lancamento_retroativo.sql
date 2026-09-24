@@ -24,9 +24,16 @@ delete from public.team_presence;
 delete from public.hr_requests;
 delete from public.notifications;
 
--- A admissao fica longe, para os cenarios de 2025 passarem. O cenario que
--- prova a trava de admissao muda a dela na hora, e devolve depois.
-update public.team_members set data_admissao = '2024-01-01'
+-- A admissao fica em 1 de janeiro de 2025, que e a primeira data que o
+-- calendario alcanca: os cenarios lancam periodos de 2025, e lancar antes da
+-- entrada e recusado. O cenario que prova essa trava muda a dela na hora, e
+-- devolve depois.
+--
+-- E ELA MANDA NO SALDO desde a 0039: cada 12 meses contados daqui somam 15
+-- dias. Por isso os numeros esperados abaixo saem de `ciclos_de_descanso()` em
+-- vez de serem 15 escritos a mao -- com o numero fixo, a bateria passaria hoje
+-- e comecaria a falhar sozinha no aniversario da data.
+update public.team_members set data_admissao = '2025-01-01'
  where user_id in (:BRUNO, :MARINA, :CARLA);
 
 
@@ -49,7 +56,7 @@ select teste.recusa_com('Cliente nao registra periodo de ninguem', :JOANA,
   'da gestao');
 
 select teste.cenario('A SOCIA registra o periodo do Bruno', :ANA,
-  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-03-03', '2025-03-07', 2025, 'Planilha de 2025') $fmt$,
+  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-03-03', '2025-03-07', 'Planilha de 2025') $fmt$,
     :BRUNO), 'ok');
 
 -- E `is_gestor()`, NAO `is_socio()` como a fila de pedidos. Responder a um
@@ -57,7 +64,7 @@ select teste.cenario('A SOCIA registra o periodo do Bruno', :ANA,
 -- socio; registrar o que ja aconteceu e lancar historico, e travar isso numa
 -- pessoa so para a agencia no dia em que ela estiver fora.
 select teste.cenario('O DESENVOLVEDOR tambem registra -- aqui ele e gestao', :DIEGO,
-  format($fmt$ select public.lancar_periodo(%L, 'ausencia', '2025-04-14', '2025-04-14', null, 'Avisou por mensagem') $fmt$,
+  format($fmt$ select public.lancar_periodo(%L, 'ausencia', '2025-04-14', '2025-04-14', 'Avisou por mensagem') $fmt$,
     :MARINA), 'ok');
 
 
@@ -89,28 +96,42 @@ select teste.conferir('O registro pinta os cinco dias na matriz',
     where r.user_id = :BRUNO and r.data_inicio = '2025-03-03'), '5');
 
 -- E O PONTO INTEIRO DO MODULO: sem descontar, quem tirou dez dias em janeiro
--- aparece com os quinze disponiveis em outubro.
-select teste.conferir('O saldo de 2025 do Bruno caiu de 15 para 10',
-  public.saldo_de_ferias(:BRUNO, 2025)::text, '10');
+-- aparece com o saldo cheio em outubro.
+select teste.conferir('O saldo do Bruno caiu cinco dias',
+  public.saldo_de_ferias(:BRUNO)::text,
+  (15 * public.ciclos_de_descanso(:BRUNO) - 5)::text);
 
-select teste.conferir('E o saldo de 2026 nao foi tocado',
-  public.saldo_de_ferias(:BRUNO, 2026)::text, '15');
+-- O QUE MUDOU COM A 0039, e o cenario existe para marcar isso: nao ha "saldo
+-- de 2026" separado. O periodo de 2025 desconta do numero corrido, e continua
+-- descontando no ciclo seguinte -- porque os dias do outro lado da conta
+-- tambem continuam somados.
+select teste.conferir('E nao existe mais um saldo por ano ao lado deste',
+  (select count(*)::text from pg_proc
+    where proname = 'saldo_de_ferias' and pronargs = 2), '0');
 
 
--- --- O ano de referencia ---------------------------------------------------
+-- --- A virada de ano deixou de ser um caso ---------------------------------
 
--- UM PERIODO PODE ATRAVESSAR O ANO, e e exatamente para isso que a coluna
--- existe: um descanso de 28/12 a 03/01 e do ano que acabou, nao do que
--- comecou. Sem `ano_referencia`, o saldo se partiria entre dois anos.
-select teste.cenario('Descanso de virada de ano, com o ano dito na chamada', :ANA,
-  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-12-28', '2026-01-01', 2025, 'Virada') $fmt$,
+-- ELA ERA O MOTIVO DE `ano_referencia` EXISTIR. Com uma conta por ano, um
+-- descanso de 28/12 a 03/01 precisava dizer a que ano pertencia, senao o saldo
+-- se partia entre dois. Com o saldo corrido nao ha atribuicao a fazer: os
+-- cinco dias sao cinco dias, e o ciclo em que caem nao muda nada.
+--
+-- A COLUNA FOI APAGADA, e nao aposentada -- mesma decisao da 0023 com
+-- `tasks.exigencia_aprovacao`. Este cenario e o que acusaria alguem
+-- ressuscitando-a achando que ainda significa alguma coisa.
+select teste.conferir('A coluna ano_referencia nao existe mais',
+  (select count(*)::text from information_schema.columns
+    where table_schema = 'public' and table_name = 'hr_requests'
+      and column_name = 'ano_referencia'), '0');
+
+select teste.cenario('Descanso atravessando o ano, sem nada a declarar', :ANA,
+  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-12-28', '2026-01-01', 'Virada') $fmt$,
     :MARINA), 'ok');
 
-select teste.conferir('Os cinco dias da virada contam em 2025',
-  public.saldo_de_ferias(:MARINA, 2025)::text, '10');
-
-select teste.conferir('E nao em 2026, onde o saldo segue inteiro',
-  public.saldo_de_ferias(:MARINA, 2026)::text, '15');
+select teste.conferir('Os cinco dias descontam do saldo corrido dela',
+  public.saldo_de_ferias(:MARINA)::text,
+  (15 * public.ciclos_de_descanso(:MARINA) - 5)::text);
 
 
 -- --- O que o lancamento recusa ---------------------------------------------
@@ -151,7 +172,7 @@ update public.team_members set data_admissao = '2024-01-01' where user_id = :CAR
 -- `lancar_periodo` NAO e a porta do pedido normal. Sem esta recusa, ela seria
 -- um jeito de a gestao criar pedido ja aprovado sem passar pela fila.
 select teste.recusa_com('A funcao de lancar nao cria pedido normal', :ANA,
-  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-08-04', '2025-08-08', null, null, 'solicitacao') $fmt$,
+  format($fmt$ select public.lancar_periodo(%L, 'ferias', '2025-08-04', '2025-08-08', null, 'solicitacao') $fmt$,
     :BRUNO), 'aba Solicitar');
 
 -- SOBREPOSICAO: a mensagem muda de pessoa. No pedido ela diz "Voce ja tem";
@@ -168,8 +189,8 @@ select teste.recusa_com('Lancar em cima de periodo ja combinado e recusado', :AN
 -- prova que a segunda camada existe.
 select teste.cenario('Colaborador nao grava origem de lancamento no insert cru', :BRUNO,
   format($fmt$
-    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem, ano_referencia)
-    values (%L, 'ferias', '2025-09-01', '2025-09-05', 5, 'aprovada', 'lancamento_retroativo', 2025)
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem)
+    values (%L, 'ferias', '2025-09-01', '2025-09-05', 5, 'aprovada', 'lancamento_retroativo')
   $fmt$, :BRUNO), 'recusa');
 
 -- DATAS DIFERENTES DO CENARIO ACIMA, e nao por variedade. Com as mesmas, se
@@ -179,8 +200,8 @@ select teste.cenario('Colaborador nao grava origem de lancamento no insert cru',
 -- ela mordeu num cenario e passou no outro.
 select teste.cenario('Nem com origem de importacao', :BRUNO,
   format($fmt$
-    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem, ano_referencia)
-    values (%L, 'ferias', '2025-10-06', '2025-10-10', 5, 'aprovada', 'importacao', 2025)
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem)
+    values (%L, 'ferias', '2025-10-06', '2025-10-10', 5, 'aprovada', 'importacao')
   $fmt$, :BRUNO), 'recusa');
 
 -- A POLICY E UMA SO COM DOIS RAMOS, e este cenario e o que acusaria se alguem
@@ -207,7 +228,7 @@ select teste.cenario('A gestao encurta o periodo de cinco para quatro dias', :DI
   format($fmt$
     select public.corrigir_lancamento(
       (select id from public.hr_requests where user_id = %L and data_inicio = '2025-03-03'),
-      '2025-03-03', '2025-03-06', 2025, 'Planilha conferida')
+      '2025-03-03', '2025-03-06', 'Planilha conferida')
   $fmt$, :BRUNO), 'ok');
 
 select teste.conferir('O numero foi RECALCULADO, nao aceito do parametro',
@@ -222,7 +243,9 @@ select teste.conferir('E a matriz perdeu o quinto dia junto',
     where r.user_id = :BRUNO and r.data_inicio = '2025-03-03'), '4');
 
 select teste.conferir('O saldo acompanhou a correcao',
-  public.saldo_de_ferias(:BRUNO, 2025)::text, '11');
+  public.saldo_de_ferias(:BRUNO)::text,
+  (15 * public.ciclos_de_descanso(:BRUNO) - 4)::text);
+
 
 -- PEDIDO DECIDIDO NAO SE REESCREVE. Corrigir por fora um periodo que a pessoa
 -- propos e o socio respondeu apagaria a decisao dele sem deixar marca.
@@ -267,8 +290,12 @@ select teste.conferir('E os dias saem da matriz junto',
   (select count(*)::text from public.team_presence
     where user_id = :BRUNO and data between '2025-03-03' and '2025-03-07'), '0');
 
-select teste.conferir('O saldo do Bruno voltou inteiro',
-  public.saldo_de_ferias(:BRUNO, 2025)::text, '15');
+-- "Inteiro" MENOS OS CINCO DO PEDIDO DE VERDADE, que continua pendente logo
+-- acima. Pendente conta como usado -- sem isso a pessoa proporia o mesmo
+-- periodo duas vezes enquanto o primeiro espera retorno.
+select teste.conferir('O saldo do Bruno voltou, menos o pedido que segue de pe',
+  public.saldo_de_ferias(:BRUNO)::text,
+  (15 * public.ciclos_de_descanso(:BRUNO) - 5)::text);
 
 -- O DELETE CRU tambem e barrado, e por outra policy: a de delete exige gestao
 -- E origem de lancamento. Sem o segundo pedaco, a gestao apagaria pedido

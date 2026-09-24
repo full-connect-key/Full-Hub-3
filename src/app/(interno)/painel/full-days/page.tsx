@@ -13,6 +13,7 @@ import {
 } from "@/lib/dominio/full-days";
 import {
   contarPorStatus,
+  descansoDoCiclo,
   diasBloqueadosDaArea,
   feriadosComNome,
   feriadosEntre,
@@ -255,40 +256,29 @@ async function ConteudoDeSolicitar({
   const janelaInicio = `${PRIMEIRO_MES_DO_CALENDARIO}-01`;
   const janelaFim = `${ULTIMO_MES_DO_CALENDARIO}-31`;
 
-  const [time, solicitacoes, feriados, bloqueados] = await Promise.all([
+  const [time, solicitacoes, feriados, bloqueados, descanso] = await Promise.all([
     listarTime(),
     minhasSolicitacoes(usuarioId),
     feriadosComNome(janelaInicio, janelaFim),
     diasBloqueadosDaArea(usuarioId, janelaInicio, janelaFim),
+    descansoDoCiclo(usuarioId),
   ]);
 
   const eu = time.find((p) => p.id === usuarioId);
-  const usadosNoAno = solicitacoes
-    .filter(
-      (s) =>
-        s.tipo === "ferias" &&
-        (s.status === "aprovada" || s.status === "pendente") &&
-        s.data_inicio.slice(0, 4) === hojeISO.slice(0, 4),
-    )
-    .reduce((total, s) => total + s.dias_uteis, 0);
 
-  const parcelasUsadas = solicitacoes.filter(
-    (s) =>
-      s.tipo === "ferias" &&
-      (s.status === "aprovada" || s.status === "pendente") &&
-      s.data_inicio.slice(0, 4) === hojeISO.slice(0, 4),
-  ).length;
-
+  // O SALDO VEM DO BANCO, e a tela não o recalcula. Ele depende do ciclo de
+  // 12 meses contado da entrada da pessoa (migration 0039), e a data de
+  // entrada não viaja na lista de pedidos — somar aqui daria um número que a
+  // trava do `insert` não cumpre.
   return (
     <Solicitar
       solicitacoes={solicitacoes}
       feriados={feriados}
       bloqueados={Object.fromEntries(bloqueados)}
       hojeISO={hojeISO}
-      diasFeriasAno={eu?.diasFeriasAno ?? 15}
-      maxParcelas={eu?.maxParcelas ?? 2}
-      usadosNoAno={usadosNoAno}
-      parcelasUsadas={parcelasUsadas}
+      diasPorCiclo={eu?.diasFeriasAno ?? 15}
+      parcelasPorCiclo={eu?.maxParcelas ?? 2}
+      descanso={descanso}
       minhaArea={eu?.area ?? "Sem área"}
     />
   );

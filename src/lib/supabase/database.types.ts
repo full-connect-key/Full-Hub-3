@@ -422,7 +422,6 @@ export interface Database {
           aprovado_por: string | null;
           decidido_em: string | null;
           origem: HrOrigem;
-          ano_referencia: number | null;
           lancado_por: string | null;
           lancado_em: string | null;
           created_at: string;
@@ -1591,8 +1590,40 @@ export interface Database {
         Args: { p_tipo: HrTipo; p_inicio: string; p_fim: string };
         Returns: number;
       };
-      saldo_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
-      parcelas_de_ferias: { Args: { p_user_id: string; p_ano: number }; Returns: number };
+      /**
+       * Saldo de descanso: tudo o que os ciclos de 12 meses ja concederam,
+       * menos tudo o que a pessoa ja tirou (migration 0039).
+       *
+       * SEM O ANO, e e a mudanca inteira: era `(p_user_id, p_ano)`. O nome
+       * ficou no vocabulario antigo pela decisao da 0016 -- nome de funcao e
+       * de coluna nao se renomeia em uso, e ninguem que usa o sistema os ve.
+       */
+      saldo_de_ferias: { Args: { p_user_id: string }; Returns: number };
+      parcelas_de_ferias: { Args: { p_user_id: string }; Returns: number };
+      parcelas_concedidas: { Args: { p_user_id: string }; Returns: number };
+      ciclos_de_descanso: { Args: { p_user_id: string }; Returns: number };
+      inicio_do_ciclo: { Args: { p_user_id: string }; Returns: string | null };
+      /**
+       * Tudo o que a tela do saldo precisa, numa chamada so.
+       *
+       * A tela somava no navegador a partir da lista de pedidos e o banco
+       * calculava a mesma coisa por outro caminho para validar. No modelo de
+       * ciclo a conta depende da data de entrada, que a lista de pedidos nem
+       * carrega -- entao ou a tela pergunta, ou mostra um numero que a trava
+       * nao cumpre.
+       */
+      descanso_do_ciclo: {
+        Args: { p_user_id: string };
+        Returns: {
+          inicio_do_ciclo: string | null;
+          ciclos: number;
+          dias_concedidos: number;
+          dias_usados: number;
+          saldo: number;
+          parcelas_concedidas: number;
+          parcelas_usadas: number;
+        }[];
+      };
       decidir_solicitacao: {
         Args: { p_request_id: string; p_decisao: HrStatus; p_motivo: string | null };
         Returns: void;
@@ -1612,7 +1643,6 @@ export interface Database {
           p_tipo: HrTipo;
           p_data_inicio: string;
           p_data_fim: string;
-          p_ano_referencia?: number | null;
           p_observacao?: string | null;
         };
         Returns: string;
@@ -1630,7 +1660,6 @@ export interface Database {
           p_request_id: string;
           p_data_inicio: string;
           p_data_fim: string;
-          p_ano_referencia?: number | null;
           p_observacao?: string | null;
         };
         Returns: void;

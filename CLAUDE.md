@@ -1262,10 +1262,48 @@ afirmação, não.
 > dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
 
 
-**15 dias de descanso por ano, em até duas parcelas.** Os dois números são
-colunas de `team_members` (`dias_ferias_ano`, `max_parcelas_ferias` — nomes
-anteriores à troca de vocabulário), não constantes no código: contrato muda
-por pessoa, e mudar contrato não pode exigir deploy.
+**15 dias de descanso a CADA CICLO DE 12 MESES, em até duas parcelas por
+ciclo.** Os dois números são colunas de `team_members` (`dias_ferias_ano`,
+`max_parcelas_ferias` — nomes anteriores à troca de vocabulário), não
+constantes no código: contrato muda por pessoa, e mudar contrato não pode
+exigir deploy.
+
+**O ciclo é contado da ENTRADA da pessoa, não do calendário** (migration 0039,
+decisão do usuário). O saldo deixou de zerar em 1º de janeiro e virou um
+número corrido: cada ciclo **soma** 15 dias e 2 parcelas, e o que sobrou de um
+ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 60 dias
+— quatro ciclos, porque o primeiro começa na entrada e os outros três nos
+aniversários.
+
+- `ciclos_de_descanso()` conta os ciclos, `inicio_do_ciclo()` diz quando o
+  atual começou, e `saldo_de_ferias()` **perdeu o parâmetro de ano**. A âncora
+  é `data_admissao`; sem ela, `created_at` da ficha — uma ficha incompleta não
+  pode deixar a pessoa com zero dias.
+- **Os 15 chegam no COMEÇO do ciclo**, e é o `+ 1` em `ciclos_de_descanso()`.
+  A outra leitura possível — conceder só quando o ciclo se completa — é a
+  regra do período aquisitivo da CLT, e deixaria quem entrou ontem doze meses
+  sem descansar. Para inverter, é aquela linha, e a bateria tem o cenário que
+  avisa.
+- **`tasks.ano_referencia` foi apagada**, e ela tinha nascido na 0037 para
+  keyar o saldo por ano. Sem conta anual não há atribuição a fazer — os dias
+  contam, e o ciclo em que caem não muda nada. Apagar e não aposentar, como a
+  0023 fez com `tasks.exigencia_aprovacao`.
+- **A trava do descanso atravessando o ano saiu junto.** Ela existia porque
+  28/12 a 03/01 viravam duas contas de saldo para o mesmo pedido. Agora são
+  cinco dias. O cenário que provava a recusa ficou na bateria, virado do
+  avesso.
+- **A tela não soma mais o saldo sozinha.** Ela pergunta a
+  `descanso_do_ciclo()`, que é a mesma conta que a trava do `insert` usa — o
+  ciclo depende da data de entrada, que a lista de pedidos nem carrega. Duas
+  contas com entradas diferentes divergiriam no pior lugar: a tela prometendo
+  dias que o banco recusa.
+
+> **O que isto custa, e foi dito a quem decidiu:** ciclo de 12 meses contado
+> da entrada da pessoa é, **estruturalmente**, o desenho do período aquisitivo
+> da CLT — mais parecido com ele que o ano civil, não menos. A nota do fim
+> desta seção já dizia que o vocabulário reduz o risco e a estrutura é o que
+> uma perícia olha. A decisão foi seguir assim mesmo. Quem for mexer nisso de
+> novo, mexa sabendo disso.
 
 **E eles contam CORRIDO** (migration 0024, decisão do usuário). Quinze dias
 são quinze dias de calendário — sai numa segunda, volta na terceira segunda —,

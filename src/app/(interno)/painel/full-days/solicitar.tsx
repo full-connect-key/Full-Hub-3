@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import type { DescansoDoCiclo } from "@/lib/dados/full-days";
 import {
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
@@ -49,20 +50,20 @@ export function Solicitar({
   feriados,
   bloqueados,
   hojeISO,
-  diasFeriasAno,
-  maxParcelas,
-  usadosNoAno,
-  parcelasUsadas,
+  diasPorCiclo,
+  parcelasPorCiclo,
+  descanso,
   minhaArea,
 }: {
   solicitacoes: HrRequest[];
   feriados: { data: string; nome: string }[];
   bloqueados: Record<string, string[]>;
   hojeISO: string;
-  diasFeriasAno: number;
-  maxParcelas: number;
-  usadosNoAno: number;
-  parcelasUsadas: number;
+  /** O que o contrato dá a cada ciclo de 12 meses. */
+  diasPorCiclo: number;
+  parcelasPorCiclo: number;
+  /** O saldo já calculado pelo banco, ou null se a ficha não respondeu. */
+  descanso: DescansoDoCiclo | null;
   minhaArea: string;
 }) {
   const router = useRouter();
@@ -93,11 +94,21 @@ export function Solicitar({
       ? contarDiasDoPedido(tipo, inicioSel, fimSel, conjuntoDeFeriados)
       : 0;
 
-  const saldo = diasFeriasAno - usadosNoAno;
+  // O SALDO NÃO É CALCULADO AQUI. Ele vem de `descanso_do_ciclo()`, que é a
+  // mesma conta que a trava do `insert` usa — ver `lib/dados/full-days.ts`. O
+  // fallback existe só para a ficha que não respondeu: mostrar um ciclo cheio
+  // é melhor que mostrar zero, que pareceria uma pessoa sem direito nenhum.
+  const concedidos = descanso?.diasConcedidos ?? diasPorCiclo;
+  const usados = descanso?.diasUsados ?? 0;
+  const parcelasConcedidas = descanso?.parcelasConcedidas ?? parcelasPorCiclo;
+  const parcelasUsadas = descanso?.parcelasUsadas ?? 0;
+  const ciclos = descanso?.ciclos ?? 1;
+
+  const saldo = descanso?.saldo ?? diasPorCiclo;
   const saldoDepois = tipo === "ferias" ? saldo - diasSelecionados : saldo;
 
   const excedeSaldo = tipo === "ferias" && diasSelecionados > saldo;
-  const semParcela = tipo === "ferias" && parcelasUsadas >= maxParcelas;
+  const semParcela = tipo === "ferias" && parcelasUsadas >= parcelasConcedidas;
   const retroativo = Boolean(inicioSel && inicioSel < hojeISO);
 
   /**
@@ -173,39 +184,43 @@ export function Solicitar({
         <section className="bg-blue-soft flex flex-wrap items-center justify-between gap-6 rounded-xl p-6">
           <div className="min-w-0 space-y-1.5">
             <p className="text-accent-strong text-xs font-semibold tracking-widest uppercase">
-              Saldo de descanso do ano
+              Saldo de descanso
             </p>
             <p className="text-text-primary text-3xl font-semibold tracking-tight">
-              Você tem {saldo} de {diasFeriasAno} dias disponíveis
+              Você tem {saldo} de {concedidos} dias disponíveis
             </p>
+            {/* DE QUANDO O NÚMERO ESTÁ CONTANDO. Ele não zera mais em 1 de
+                janeiro: soma 15 a cada 12 meses desde a entrada da pessoa, e
+                o que sobrou de um ciclo continua no seguinte. Sem esta linha,
+                quem viu 15 no ano passado e vê 30 agora não tem como saber de
+                onde veio o número — e número que não se explica é número em
+                que ninguém confia. */}
             <p className="text-accent-strong text-sm">
-              O descanso conta corrido: sair numa sexta e voltar na segunda são
-              quatro dias.
+              {ciclos > 1
+                ? `São ${diasPorCiclo} dias a cada 12 meses na sua ficha, e você já passou por ${ciclos} ciclos — o que sobra de um continua no seguinte.`
+                : `São ${diasPorCiclo} dias a cada 12 meses na sua ficha. O descanso conta corrido: sair numa sexta e voltar na segunda são quatro dias.`}
             </p>
           </div>
 
           <div className="bg-surface-card w-full max-w-xs shrink-0 rounded-lg p-4">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-text-secondary text-sm">Usado no ano</span>
+              <span className="text-text-secondary text-sm">Já usado</span>
               <span className="text-sm font-semibold tabular-nums">
-                {diasFeriasAno > 0
-                  ? Math.round((usadosNoAno / diasFeriasAno) * 100)
-                  : 0}
-                %
+                {concedidos > 0 ? Math.round((usados / concedidos) * 100) : 0}%
               </span>
             </div>
             <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
               <div
                 className="bg-accent-strong h-full rounded-full"
                 style={{
-                  width: `${diasFeriasAno > 0 ? Math.min(100, Math.round((usadosNoAno / diasFeriasAno) * 100)) : 0}%`,
+                  width: `${concedidos > 0 ? Math.min(100, Math.round((usados / concedidos) * 100)) : 0}%`,
                 }}
               />
             </div>
             <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
-              {usadosNoAno} {usadosNoAno === 1 ? "dia" : "dias"} em{" "}
-              {parcelasUsadas} de {maxParcelas}{" "}
-              {maxParcelas === 1 ? "parcela" : "parcelas"}
+              {usados} {usados === 1 ? "dia" : "dias"} em {parcelasUsadas} de{" "}
+              {parcelasConcedidas}{" "}
+              {parcelasConcedidas === 1 ? "parcela" : "parcelas"}
             </p>
           </div>
         </section>
@@ -254,7 +269,7 @@ export function Solicitar({
             >
               {(
                 [
-                  ["ferias", `desconta (${diasFeriasAno}d)`],
+                  ["ferias", `desconta (${saldo}d livres)`],
                   ["licenca", "não desconta"],
                   ["ausencia", "não desconta"],
                 ] as const
@@ -312,7 +327,7 @@ export function Solicitar({
             {tipo === "ferias" ? (
               <Campo
                 rotulo="Saldo depois"
-                valor={`${saldoDepois} de ${diasFeriasAno}`}
+                valor={`${saldoDepois} de ${concedidos}`}
                 destaque={saldoDepois < 0}
               />
             ) : null}
@@ -338,10 +353,13 @@ export function Solicitar({
             </Aviso>
           ) : null}
 
+          {/* A FRASE É A MESMA DO BANCO, de propósito: quem vê o aviso aqui e
+              quem levar a recusa do `insert` precisa ler a mesma coisa. A
+              contagem é a dos ciclos — duas por ciclo, somando. */}
           {semParcela ? (
             <Aviso tom="erro">
-              O descanso pode ser partido em até {maxParcelas} vezes por ano, e
-              você já usou as {maxParcelas}.
+              O descanso pode ser partido em até {parcelasPorCiclo} vezes a
+              cada 12 meses, e você já usou as {parcelasConcedidas} que tem.
             </Aviso>
           ) : null}
 
