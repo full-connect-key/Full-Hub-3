@@ -7,9 +7,9 @@ import { ptBR } from "date-fns/locale";
 import { Check, MessageSquareWarning, X } from "lucide-react";
 
 import {
-  decidirPost,
+  decidirConteudo,
   type DecisaoDoCliente,
-} from "@/app/(cliente)/portal/_actions/posts";
+} from "@/app/(cliente)/portal/_actions/conteudo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,10 +21,10 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import type { PostDoPortal } from "@/lib/dominio/posts";
+import type { ContentStatus } from "@/lib/supabase/database.types";
 
 /**
- * As três decisões do cliente.
+ * As três decisões do cliente, sobre qualquer material.
  *
  * **"Solicitar ajustes" fica à vista, e não escondido dentro de "Comentar".**
  * Na prática é a ação mais comum — aprovar de primeira é a exceção —, e uma
@@ -62,11 +62,26 @@ const DIALOGO: Record<
   },
 };
 
-export function DecisoesDoPost({
-  post,
+export function DecisoesDoConteudo({
+  rodadaPendenteId,
+  status,
+  decididoPor,
+  decididoEm,
   somenteLeitura = false,
 }: {
-  post: PostDoPortal;
+  /**
+   * A rodada aberta agora, e só ela.
+   *
+   * **O tipo do material não entra aqui de propósito.** A decisão é a mesma
+   * para post e para entregável — quem sabe de que tipo é a rodada é o banco,
+   * por `content_type`, e é lá que a recusa acontece. Passar o tipo para cá
+   * criaria um segundo lugar dizendo a mesma coisa, e um `if tipo ===` neste
+   * componente é justamente a divergência que a tela única existe para evitar.
+   */
+  rodadaPendenteId: string | null;
+  status: ContentStatus;
+  decididoPor: string | null;
+  decididoEm: string | null;
   /** Na visualização administrativa os botões existem, mas não decidem. */
   somenteLeitura?: boolean;
 }) {
@@ -81,7 +96,7 @@ export function DecisoesDoPost({
   function decidir(decisao: DecisaoDoCliente, comentario: string) {
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        decidirPost(post.rodadaPendenteId!, decisao, comentario),
+        decidirConteudo(rodadaPendenteId!, decisao, comentario),
       );
       if (resultado.ok) {
         setPedindo(null);
@@ -94,21 +109,21 @@ export function DecisoesDoPost({
   // JÁ DECIDIDO: os botões somem e fica o registro. Manter um "Aprovar"
   // desligado ao lado de "Aprovado por Joana" seria oferecer de novo uma
   // decisão que já foi tomada.
-  if (!post.rodadaPendenteId) {
-    if (!post.decididoEm) return null;
+  if (!rodadaPendenteId) {
+    if (!decididoEm) return null;
 
     const verbo =
-      post.status === "aprovado"
+      status === "aprovado"
         ? "Aprovado"
-        : post.status === "rejeitado"
+        : status === "rejeitado"
           ? "Recusado"
           : "Ajustes pedidos";
 
     return (
       <p className="bg-surface-card text-text-muted rounded-xl border p-4 text-sm">
         {verbo}
-        {post.decididoPor ? ` por ${post.decididoPor}` : ""} em{" "}
-        {format(parseISO(post.decididoEm), "dd/MM/yyyy 'às' HH:mm", {
+        {decididoPor ? ` por ${decididoPor}` : ""} em{" "}
+        {format(parseISO(decididoEm), "dd/MM/yyyy 'às' HH:mm", {
           locale: ptBR,
         })}
         .

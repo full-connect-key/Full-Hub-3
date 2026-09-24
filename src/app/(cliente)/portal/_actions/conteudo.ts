@@ -11,9 +11,10 @@ import {
 } from "@/lib/acoes/resultado";
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { colunasDoConteudo, type Conteudo } from "@/lib/aprovacoes/conteudo";
 
 /**
- * As ações do cliente sobre um post.
+ * As ações do cliente sobre um material — post ou entregável de campanha.
  *
  * **Nenhuma delas escreve `posts.status`**, e não é estilo: o cliente não tem
  * policy de UPDATE naquela tabela (migration 0032), e a bateria prova isso com
@@ -40,12 +41,12 @@ const CONFIRMACAO: Record<DecisaoDoCliente, string> = {
   rejeitada: "Material recusado. A equipe foi avisada.",
 };
 
-export async function decidirPost(
+export async function decidirConteudo(
   rodadaId: string,
   decisao: DecisaoDoCliente,
   comentario: string,
 ): Promise<Resultado> {
-  return executarAcao("decidirPost", async () => {
+  return executarAcao("decidirConteudo", async () => {
     const sessao = await exigirSessaoNaAcao();
 
     if (!ehCliente(sessao.profile.role)) {
@@ -68,25 +69,29 @@ export async function decidirPost(
 
     if (error) return falha(error.message);
 
+    // As DUAS telas, porque a decisão vale nas duas e a action não sabe de
+    // qual veio. Revalidar a errada deixaria o cliente olhando um "aguardando
+    // aprovação" que ele acabou de resolver.
     revalidatePath("/portal/social-media");
+    revalidatePath("/portal/campanhas");
     return sucesso(CONFIRMACAO[decisao]);
   });
 }
 
 /**
- * Comentar no post.
+ * Comentar num material.
  *
  * `interno` não é parâmetro. Quem escreve por aqui é o cliente, e o comentário
  * dele é sempre público — o trigger `comments_normaliza` garante isso mesmo se
  * alguém montar o insert à mão, mas oferecer a opção na assinatura já seria
  * prometer uma escolha que ele não tem.
  */
-export async function comentarNoPost(
-  postId: string,
+export async function comentarNoConteudo(
+  conteudo: Conteudo,
   texto: string,
   respostaA: string | null,
 ): Promise<Resultado> {
-  return executarAcao("comentarNoPost", async () => {
+  return executarAcao("comentarNoConteudo", async () => {
     const sessao = await exigirSessaoNaAcao();
 
     if (texto.trim().length === 0) {
@@ -97,8 +102,7 @@ export async function comentarNoPost(
     const { data, error } = await supabase
       .from("comments")
       .insert({
-        content_type: "post",
-        content_id: postId,
+        ...colunasDoConteudo(conteudo),
         autor_id: sessao.usuarioId,
         texto: texto.trim(),
         resposta_a: respostaA,
@@ -115,6 +119,7 @@ export async function comentarNoPost(
     }
 
     revalidatePath("/portal/social-media");
+    revalidatePath("/portal/campanhas");
     return sucesso("Comentário enviado.");
   });
 }

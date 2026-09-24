@@ -4,17 +4,22 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownRight, Send } from "lucide-react";
 
-import { comentarNoPost } from "@/app/(cliente)/portal/_actions/posts";
+import { comentarNoConteudo } from "@/app/(cliente)/portal/_actions/conteudo";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import type { Conteudo } from "@/lib/aprovacoes/conteudo";
 import type { ComentarioDoPost } from "@/lib/dados/posts";
 import { tempoRelativo } from "@/lib/dominio/recomendacoes";
 import { cn } from "@/lib/utils";
 
 /**
- * A conversa sobre o material.
+ * A conversa sobre o material — a mesma, para post e para entregável.
+ *
+ * **Cada material tem a thread dele**, e no caso da campanha isso quer dizer
+ * cada SUB-ITEM: comentar na lâmina não escreve no precificador. É o que faz a
+ * conversa sobre uma peça ficar com ela.
  *
  * **Um nível de resposta, e o banco garante isso** — `comments_um_nivel`
  * reescreve resposta de resposta como resposta da raiz. Aqui a tela só não
@@ -30,13 +35,14 @@ import { cn } from "@/lib/utils";
  * fuso, recalcula outra coisa na hidratação.
  */
 export function ThreadDeComentarios({
-  postId,
+  conteudo,
   comentarios,
   agora,
   nomeDaEmpresa,
   somenteLeitura = false,
 }: {
-  postId: string;
+  /** O material a que a conversa pertence — post ou entregável. */
+  conteudo: Conteudo;
   comentarios: ComentarioDoPost[];
   agora: string;
   nomeDaEmpresa: string;
@@ -54,7 +60,7 @@ export function ThreadDeComentarios({
   function enviar() {
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        comentarNoPost(postId, texto, respondendo),
+        comentarNoConteudo(conteudo, texto, respondendo),
       );
       if (resultado.ok) {
         setTexto("");
