@@ -11,15 +11,18 @@ import type { TipoDeConteudo } from "@/lib/supabase/database.types";
  * vez: duas implementações da mesma pergunta divergem, e a que diverge em
  * silêncio é a que decide se o material foi ao cliente.
  *
- * **Hoje só `subtask` existe.** O banco RECUSA rodada de post e de entregável
- * (`validar_nova_rodada`, 0030) em vez de aceitar uma aprovação que nenhuma
- * trava sabe conferir. Quem acrescentar o tipo acrescenta a regra junto.
+ * **`subtask` e `post` existem; `deliverable` ainda não.** O banco RECUSA
+ * rodada de entregável (`validar_nova_rodada`) em vez de aceitar uma aprovação
+ * que nenhuma trava sabe conferir — e a 0032 acrescentou a regra do post junto
+ * com o tipo, que é o que aquela frase pedia.
  *
  * Módulo sem diretiva: o tipo atravessa servidor e navegador.
  */
 export type Conteudo = { tipo: TipoDeConteudo; id: string };
 
 export const daSubtarefa = (id: string): Conteudo => ({ tipo: "subtask", id });
+
+export const doPost = (id: string): Conteudo => ({ tipo: "post", id });
 
 /**
  * O par, pronto para `insert`. Existe para o nome da coluna aparecer em um
@@ -39,5 +42,5 @@ export function colunasDoConteudo(conteudo: Conteudo): {
  * resposta é a mesma nas cinco.
  */
 export function aindaNaoTratado(conteudo: Conteudo): string {
-  return `Aprovação de ${conteudo.tipo} chega com o módulo dela — hoje só etapa de demanda passa por aqui.`;
+  return `Aprovação de ${conteudo.tipo} chega com o módulo dela — hoje só etapa de demanda e post passam por aqui.`;
 }

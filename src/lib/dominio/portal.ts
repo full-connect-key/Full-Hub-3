@@ -1,5 +1,6 @@
 import type {
   ContentStatus,
+  StatusRodada,
   TipoDeConteudo,
 } from "@/lib/supabase/database.types";
 
@@ -68,13 +69,17 @@ export type ItemDoPortal = {
  * não tem como alcançar.
  */
 export function statusParaOCliente(entrada: {
-  rodada: "pendente" | "aprovada" | "ajustes_solicitados" | null;
+  rodada: StatusRodada | null;
   etapaConcluida: boolean;
   aguardandoInformacoes: boolean;
 }): ContentStatus {
   if (entrada.rodada === "pendente") return "em_aprovacao";
   if (entrada.rodada === "ajustes_solicitados") return "ajustes";
   if (entrada.rodada === "aprovada") return "aprovado";
+  // `rejeitada` entrou na 0032 e só nasce em post. Está aqui porque o tipo
+  // passou a permiti-la, e um `default` silencioso mostraria "em produção"
+  // para um material que o cliente recusou.
+  if (entrada.rodada === "rejeitada") return "rejeitado";
   if (entrada.etapaConcluida) return "aprovado";
   if (entrada.aguardandoInformacoes) return "aguardando_informacoes";
   return "em_producao";

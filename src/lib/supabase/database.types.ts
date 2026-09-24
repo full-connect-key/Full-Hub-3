@@ -112,7 +112,30 @@ export type RecCategoria =
   | "referencia"
   | "outro";
 
-export type StatusRodada = "pendente" | "aprovada" | "ajustes_solicitados";
+/**
+ * O desfecho de uma rodada.
+ *
+ * **`rejeitada` entrou na migration 0032, e só vale para post.** O Portal tem
+ * três botões — Aprovar, Rejeitar, Solicitar ajustes — e os dois últimos não
+ * são a mesma decisão: um diz "mude isto e volte", o outro diz "não". Etapa
+ * de demanda continua com dois desfechos, e o banco recusa `rejeitada` nela:
+ * não existe `subtask_status` que signifique recusada.
+ */
+export type StatusRodada =
+  | "pendente"
+  | "aprovada"
+  | "ajustes_solicitados"
+  | "rejeitada";
+
+/** As redes em que um post é publicado (`plataforma_social`, 0032). */
+export type PlataformaSocial =
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "tiktok"
+  | "youtube"
+  | "twitter"
+  | "pinterest";
 
 export type NotificationTipo =
   | "task"
@@ -1240,6 +1263,137 @@ export interface Database {
         Update: { texto?: string };
         Relationships: [];
       };
+
+      /**
+       * Post de social media.
+       *
+       * **O cliente só enxerga o que tem `enviado_em` preenchido**, e quem
+       * decide isso é a policy `posts_select_cliente` (0032) — nenhuma
+       * consulta do produto repete o filtro. `enviado_em` e `status` ficam
+       * FORA de Insert e de Update: quem os escreve são o trigger
+       * `approval_rounds_marca_post` e a função `decidir_rodada_do_cliente`,
+       * a partir da rodada. Tentar gravá-los é erro de tipo antes de ser
+       * recusa do banco — a mesma decisão do cronômetro da subtarefa.
+       */
+      posts: {
+        Row: {
+          id: string;
+          client_id: string;
+          subtask_id: string | null;
+          tema: string;
+          legenda: string | null;
+          data_publicacao: string;
+          horario: string | null;
+          plataforma: PlataformaSocial;
+          formato: string | null;
+          status: ContentStatus;
+          arte_url: string | null;
+          thumbnail_url: string | null;
+          versao_atual: number;
+          prazo_aprovacao: string | null;
+          enviado_em: string | null;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          subtask_id?: string | null;
+          tema: string;
+          legenda?: string | null;
+          data_publicacao: string;
+          horario?: string | null;
+          plataforma: PlataformaSocial;
+          formato?: string | null;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          prazo_aprovacao?: string | null;
+          criado_por?: string | null;
+        };
+        Update: {
+          tema?: string;
+          legenda?: string | null;
+          data_publicacao?: string;
+          horario?: string | null;
+          plataforma?: PlataformaSocial;
+          formato?: string | null;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          prazo_aprovacao?: string | null;
+          subtask_id?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /**
+       * O histórico de artes e legendas de um post.
+       *
+       * `numero_versao` fica fora de Insert: quem numera é o trigger
+       * `post_versions_numera`, para duas abas salvando ao mesmo tempo não
+       * baterem no `unique`.
+       */
+      post_versions: {
+        Row: {
+          id: string;
+          post_id: string;
+          numero_versao: number;
+          arte_url: string | null;
+          thumbnail_url: string | null;
+          legenda: string | null;
+          notas_mudanca: string | null;
+          criado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          arte_url?: string | null;
+          thumbnail_url?: string | null;
+          legenda?: string | null;
+          notas_mudanca?: string | null;
+          criado_por?: string | null;
+        };
+        Update: { notas_mudanca?: string | null };
+        Relationships: [];
+      };
+
+      /**
+       * Comentário de post ou de entregável.
+       *
+       * `interno` está no Insert de propósito: a equipe escolhe. O que impede
+       * o cliente de escolher não é o tipo — é o trigger `comments_normaliza`,
+       * que reescreve para `false` quem não é da equipe. Policy não limita
+       * coluna, e tipo muito menos.
+       *
+       * Sem Update: comentário preso a uma rodada é o registro do que foi
+       * pedido e do que foi respondido, e não se reescreve.
+       */
+      comments: {
+        Row: {
+          id: string;
+          content_type: TipoDeConteudo;
+          content_id: string;
+          approval_round_id: string | null;
+          autor_id: string;
+          texto: string;
+          resposta_a: string | null;
+          interno: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          content_type: TipoDeConteudo;
+          content_id: string;
+          approval_round_id?: string | null;
+          autor_id: string;
+          texto: string;
+          resposta_a?: string | null;
+          interno?: boolean;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Functions: {
       academy_reordenar: { Args: { p_track_id: string; p_ids: string[] }; Returns: number };
@@ -1338,6 +1492,7 @@ export interface Database {
       material_tipo: MaterialTipo;
       rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
+      plataforma_social: PlataformaSocial;
       notification_tipo: NotificationTipo;
       hr_tipo: HrTipo;
       hr_status: HrStatus;
@@ -1386,3 +1541,6 @@ export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
 export type PersonalFinanceEntry =
   Database["public"]["Tables"]["personal_finance_entries"]["Row"];
+export type Post = Database["public"]["Tables"]["posts"]["Row"];
+export type PostVersion = Database["public"]["Tables"]["post_versions"]["Row"];
+export type Comentario = Database["public"]["Tables"]["comments"]["Row"];
