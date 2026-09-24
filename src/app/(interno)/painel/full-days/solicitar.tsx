@@ -9,17 +9,9 @@ import { toast } from "sonner";
 import { CalendarioRolavel } from "@/components/shared/calendario-rolavel";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
@@ -166,38 +158,244 @@ export function Solicitar({
   }
 
   return (
-    <div className="space-y-8">
-      {/* O SALDO ABRE A TELA, e não fica no painel da direita.
-          É a primeira coisa que quem entra aqui quer saber, e era preciso
-          varrer o olho até a coluna lateral para achar. Para quem pede
-          afastamento ou ausência pontual ele não conta, e some. */}
+    <div className="space-y-6">
+      {/* O SALDO ABRE A TELA NUM BANNER, e não numa frase corrida.
+          Ele já abria a tela — a decisão anterior foi tirá-lo da coluna
+          lateral, porque era preciso varrer o olho até a direita para achar.
+          O que muda agora é o peso: o número é a primeira coisa que quem
+          entra aqui quer saber, e um parágrafo o escondia no meio de uma
+          explicação sobre dias corridos. A barra dá a mesma resposta pelo
+          formato, para quem não lê o número.
+
+          Quem pede afastamento ou ausência pontual não vê saldo nenhum: não
+          desconta, e mostrar um número que não muda ensina a ignorá-lo. */}
       {tipo === "ferias" ? (
-        <p className="text-text-secondary text-sm">
-          Você tem{" "}
-          <strong className="text-text-primary tabular-nums">
-            {saldo} dias corridos
-          </strong>{" "}
-          de {diasFeriasAno} disponíveis este ano, em até {maxParcelas} vezes —
-          você já usou {parcelasUsadas} de {maxParcelas}. O descanso conta
-          corrido: sair numa sexta e voltar na segunda são quatro dias.
-        </p>
+        <section className="bg-blue-soft flex flex-wrap items-center justify-between gap-6 rounded-xl p-6">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-accent-strong text-xs font-semibold tracking-widest uppercase">
+              Saldo de descanso do ano
+            </p>
+            <p className="text-text-primary text-3xl font-semibold tracking-tight">
+              Você tem {saldo} de {diasFeriasAno} dias disponíveis
+            </p>
+            <p className="text-accent-strong text-sm">
+              O descanso conta corrido: sair numa sexta e voltar na segunda são
+              quatro dias.
+            </p>
+          </div>
+
+          <div className="bg-surface-card w-full max-w-xs shrink-0 rounded-lg p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-text-secondary text-sm">Usado no ano</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {diasFeriasAno > 0
+                  ? Math.round((usadosNoAno / diasFeriasAno) * 100)
+                  : 0}
+                %
+              </span>
+            </div>
+            <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
+              <div
+                className="bg-accent-strong h-full rounded-full"
+                style={{
+                  width: `${diasFeriasAno > 0 ? Math.min(100, Math.round((usadosNoAno / diasFeriasAno) * 100)) : 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
+              {usadosNoAno} {usadosNoAno === 1 ? "dia" : "dias"} em{" "}
+              {parcelasUsadas} de {maxParcelas}{" "}
+              {maxParcelas === 1 ? "parcela" : "parcelas"}
+            </p>
+          </div>
+        </section>
       ) : (
-        <p className="text-text-secondary text-sm">
-          {ROTULOS_DE_TIPO[tipo]} não desconta do seu saldo. Entra na matriz da
-          equipe e no relatório.
-        </p>
+        <section className="bg-surface-card rounded-xl border p-5">
+          <p className="text-text-secondary text-sm">
+            <strong className="text-text-primary font-medium">
+              {ROTULOS_DE_TIPO[tipo]}
+            </strong>{" "}
+            não desconta do seu saldo. Entra na matriz da equipe e no relatório.
+          </p>
+        </section>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
-        <SecaoDoFormulario numero={1} titulo="Escolha as datas">
+      {/* CONFIGURAR À ESQUERDA, CALENDÁRIO À DIREITA — a ordem da versão A.
+          A inversão não é gosto: o tipo de pedido muda o que o calendário
+          significa (descanso conta corrido, os outros contam útil) e muda
+          quais dias o passado aceita. Com o seletor à direita, a pessoa
+          escolhia as datas primeiro e descobria a regra depois.
+
+          As seções perderam a numeração que a tela tinha. Ela vinha do Nova
+          Task, onde as seções são etapas de um formulário que se percorre de
+          cima para baixo; aqui são duas colunas lado a lado, e numerar dois
+          blocos simultâneos promete uma ordem que a tela não tem. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[22rem_1fr]">
+        <aside className="bg-surface-card rounded-card space-y-4 border p-5">
+          <h2 className="text-base font-semibold">Configurar pedido</h2>
+
+          {/* TRÊS BOTÕES À VISTA, e não uma lista suspensa. São três opções e
+              nunca mais, e cada uma carrega a informação que decide a escolha:
+              se desconta do saldo ou não. Dentro de um `select` isso só
+              aparecia depois de abrir — e a diferença entre descanso e
+              ausência pontual é exatamente essa.
+
+              `radiogroup` e não três botões soltos: o leitor de tela anuncia
+              "1 de 3" e a seta move entre eles, que é o comportamento certo
+              para escolha única. */}
+          <div className="space-y-2">
+            <span className="text-text-muted text-xs font-semibold tracking-wider uppercase">
+              Tipo de pedido
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Tipo de pedido"
+              className="grid grid-cols-3 gap-2"
+            >
+              {(
+                [
+                  ["ferias", `desconta (${diasFeriasAno}d)`],
+                  ["licenca", "não desconta"],
+                  ["ausencia", "não desconta"],
+                ] as const
+              ).map(([valor, nota]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={tipo === valor}
+                  onClick={() => setTipo(valor)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2.5 text-center transition-colors",
+                    tipo === valor
+                      ? "border-accent-strong bg-blue-soft"
+                      : "hover:bg-accent",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "block text-[13px]",
+                      tipo === valor ? "font-semibold" : "font-medium",
+                    )}
+                  >
+                    {ROTULOS_DE_TIPO[valor]}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-0.5 block text-[11px]",
+                      tipo === valor ? "text-accent-strong" : "text-text-muted",
+                    )}
+                  >
+                    {nota}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <dl className="space-y-1.5 border-t pt-3 text-sm">
+            <Campo
+              rotulo="De"
+              valor={
+                inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"
+              }
+            />
+            <Campo
+              rotulo="Até"
+              valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"}
+            />
+            <Campo
+              rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
+              valor={inicioSel ? String(diasSelecionados) : "—"}
+              destaque
+            />
+            {tipo === "ferias" ? (
+              <Campo
+                rotulo="Saldo depois"
+                valor={`${saldoDepois} de ${diasFeriasAno}`}
+                destaque={saldoDepois < 0}
+              />
+            ) : null}
+          </dl>
+
+          {!inicioSel ? (
+            <p className="text-text-muted text-xs">
+              Nenhum período escolhido ainda. Use o calendário ao lado.
+            </p>
+          ) : null}
+
+          {retroativo ? (
+            <Aviso tom="atencao">
+              Este período já começou. Registro do que passou é para ausência
+              pontual — o sócio vai ver a data ao responder.
+            </Aviso>
+          ) : null}
+
+          {excedeSaldo ? (
+            <Aviso tom="erro">
+              São {diasSelecionados} dias corridos e você tem {saldo} de saldo.
+              Escolha um período menor.
+            </Aviso>
+          ) : null}
+
+          {semParcela ? (
+            <Aviso tom="erro">
+              O descanso pode ser partido em até {maxParcelas} vezes por ano, e
+              você já usou as {maxParcelas}.
+            </Aviso>
+          ) : null}
+
+          <div className="space-y-2 border-t pt-3">
+            <Label htmlFor="fd-motivo" className="text-text-secondary text-xs">
+              Observação (opcional)
+            </Label>
+            <Textarea
+              id="fd-motivo"
+              rows={3}
+              value={motivo}
+              onChange={(evento) => setMotivo(evento.target.value)}
+              placeholder="Algo que o sócio deva saber sobre este período?"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            {inicioSel ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={limpar}
+                disabled={enviando}
+              >
+                <X aria-hidden />
+                Limpar
+              </Button>
+            ) : null}
+            <Button
+              className="flex-1"
+              disabled={
+                enviando ||
+                !inicioSel ||
+                diasSelecionados === 0 ||
+                excedeSaldo ||
+                semParcela
+              }
+              onClick={enviar}
+            >
+              {enviando ? <Loader2 className="animate-spin" /> : null}
+              Enviar pedido
+            </Button>
+          </div>
+        </aside>
+
+        <section className="min-w-0">
           {/* A instrução fica COLADA NO CALENDÁRIO, onde a mão está: seleção
-              por intervalo não se explica sozinha, e quem nunca usou clica
-              num dia, vê um quadrado azul e não descobre que falta o segundo
-              clique. A segunda frase é nova e responde à pergunta que gerou
-              este ajuste — sim, dá para atravessar o mês. */}
+            por intervalo não se explica sozinha, e quem nunca usou clica
+            num dia, vê um quadrado azul e não descobre que falta o segundo
+            clique. A segunda frase é nova e responde à pergunta que gerou
+            este ajuste — sim, dá para atravessar o mês. */}
           <p className="text-text-muted mb-3 text-xs">
-            Clique na data inicial e depois na final — ou arraste de uma até a outra. Role para
-            alcançar os outros meses: a seleção não se perde.
+            Clique na data inicial e depois na final — ou arraste de uma até a
+            outra. Role para alcançar os outros meses: a seleção não se perde.
           </p>
 
           <CalendarioRolavel
@@ -231,131 +429,7 @@ export function Solicitar({
               Alguém da sua área está fora
             </li>
           </ul>
-        </SecaoDoFormulario>
-
-        {/* O PAINEL FICA GRUDADO enquanto se escolhe as datas, e em 375px ele
-            não precisa virar rodapé fixo: quem rola é o calendário, dentro da
-            própria caixa, e não a página. O resumo continua na tela sem
-            nenhuma barra flutuante cobrindo conteúdo. */}
-        <SecaoDoFormulario
-          numero={2}
-          titulo="Confirme e envie"
-          className="lg:sticky lg:top-6"
-        >
-          <aside className="bg-surface-card rounded-card space-y-4 border p-4">
-            <div className="space-y-2">
-              <Label htmlFor="fd-tipo" className="text-text-secondary text-xs">
-                Tipo de pedido
-              </Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as HrTipo)}>
-                <SelectTrigger id="fd-tipo" size="sm" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ferias">Descanso</SelectItem>
-                  <SelectItem value="licenca">Afastamento</SelectItem>
-                  <SelectItem value="ausencia">Ausência pontual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <dl className="space-y-1.5 border-t pt-3 text-sm">
-              <Campo
-                rotulo="De"
-                valor={
-                  inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"
-                }
-              />
-              <Campo
-                rotulo="Até"
-                valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"}
-              />
-              <Campo
-                rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
-                valor={inicioSel ? String(diasSelecionados) : "—"}
-                destaque
-              />
-              {tipo === "ferias" ? (
-                <Campo
-                  rotulo="Saldo depois"
-                  valor={`${saldoDepois} de ${diasFeriasAno}`}
-                  destaque={saldoDepois < 0}
-                />
-              ) : null}
-            </dl>
-
-            {!inicioSel ? (
-              <p className="text-text-muted text-xs">
-                Nenhum período escolhido ainda. Use o calendário ao lado.
-              </p>
-            ) : null}
-
-            {retroativo ? (
-              <Aviso tom="atencao">
-                Este período já começou. Registro do que passou é para ausência
-                pontual — o sócio vai ver a data ao responder.
-              </Aviso>
-            ) : null}
-
-            {excedeSaldo ? (
-              <Aviso tom="erro">
-                São {diasSelecionados} dias corridos e você tem {saldo} de
-                saldo. Escolha um período menor.
-              </Aviso>
-            ) : null}
-
-            {semParcela ? (
-              <Aviso tom="erro">
-                O descanso pode ser partido em até {maxParcelas} vezes por ano,
-                e você já usou as {maxParcelas}.
-              </Aviso>
-            ) : null}
-
-            <div className="space-y-2 border-t pt-3">
-              <Label
-                htmlFor="fd-motivo"
-                className="text-text-secondary text-xs"
-              >
-                Observação (opcional)
-              </Label>
-              <Textarea
-                id="fd-motivo"
-                rows={3}
-                value={motivo}
-                onChange={(evento) => setMotivo(evento.target.value)}
-                placeholder="Algo que o sócio deva saber sobre este período?"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              {inicioSel ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={limpar}
-                  disabled={enviando}
-                >
-                  <X aria-hidden />
-                  Limpar
-                </Button>
-              ) : null}
-              <Button
-                className="flex-1"
-                disabled={
-                  enviando ||
-                  !inicioSel ||
-                  diasSelecionados === 0 ||
-                  excedeSaldo ||
-                  semParcela
-                }
-                onClick={enviar}
-              >
-                {enviando ? <Loader2 className="animate-spin" /> : null}
-                Enviar pedido
-              </Button>
-            </div>
-          </aside>
-        </SecaoDoFormulario>
+        </section>
       </div>
 
       <section className="space-y-3">

@@ -322,8 +322,12 @@ export function CalendarioRolavel({
       )}
     >
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        {/* Faixa de CONTEXTO, e não um segundo título: cada mês já carrega o
+            nome dele dentro da rolagem, e os dois em tamanho igual, colados,
+            liam como o mesmo título repetido. Aqui ele responde "onde eu
+            estou" enquanto se rola, que é outra pergunta. */}
         <p
-          className="text-sm font-medium first-letter:uppercase"
+          className="text-text-secondary text-xs font-semibold tracking-wider uppercase"
           aria-live="polite"
         >
           {format(parseISO(`${mesEmVista}-01`), "MMMM 'de' yyyy", {
@@ -337,24 +341,35 @@ export function CalendarioRolavel({
 
       {/* Os nomes dos dias ficam FORA da rolagem: dentro, eles se repetiriam a
           cada mês e a pessoa leria "seg ter qua" quinze vezes descendo. */}
-      <div className="text-text-muted grid grid-cols-7 gap-1 border-b px-4 py-2 text-center text-xs lg:grid-cols-14">
-        {["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-        {["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((d) => (
-          <div key={`${d}-2`} className="hidden lg:block">
-            {d}
-          </div>
-        ))}
-      </div>
+      {/* Os nomes dos dias moram no cabeçalho de CADA MÊS, e não aqui.
+          Fixos no topo eles teriam que adivinhar quantos meses cabem na
+          linha, e desalinhavam no instante em que a largura mudasse. */}
 
       <div
         ref={rolagem}
         onKeyDown={porTeclado}
         onScroll={medir}
-        className="max-h-[26rem] overflow-y-auto overscroll-contain px-4 py-3"
+        className="max-h-[32rem] overflow-y-auto overscroll-contain px-4 py-3"
       >
-        <div className="grid gap-x-6 gap-y-5 lg:grid-cols-2">
+        {/* DOIS MESES SÓ QUANDO CABEM DOIS. `repeat(auto-fill, minmax(...))`
+            pergunta pela largura em vez de pelo breakpoint: a coluna do
+            calendário muda de tamanho com o painel ao lado, e um `lg:` fixo
+            dava 60px por célula — onde "Marina" virava "Ma…", que não
+            identifica ninguém e ainda ocupa a linha. Abaixo de 420px por mês,
+            um mês por linha.
+
+            O `min(420px, 100%)` é a parte que não dá para tirar. `minmax(420px,
+            1fr)` cria uma faixa que NUNCA encolhe abaixo de 420, então num
+            celular de 375 o mês fica mais largo que a tela: sábado e domingo
+            saem para fora da borda e os dias 10, 17, 24 e 31 aparecem cortados
+            pela metade — um calendário sem fim de semana, sem nada avisando.
+            Foi assim que ele saiu na imagem de 375px. */}
+        <div
+          className="grid gap-x-6 gap-y-5"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(420px, 100%), 1fr))",
+          }}
+        >
           {meses.map((mes) => (
             <Mes
               key={mes}
@@ -413,7 +428,13 @@ function Mes({
         {format(inicio, "MMMM 'de' yyyy", { locale: ptBR })}
       </h3>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="text-text-muted grid grid-cols-7 gap-1.5 text-center text-[11px] font-medium">
+        {["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: vazios }, (_, i) => (
           <div key={`vazio-${i}`} />
         ))}
@@ -478,6 +499,12 @@ function Dia({
     .filter(Boolean)
     .join(" · ");
 
+  // O PRIMEIRO NOME BASTA, e a lista inteira fica no título. "Gabriela" cabe
+  // numa célula; "Gabriela Oliveira, Rafael Antunes" não cabe em nenhuma, e
+  // truncar dois nomes no meio não identifica nenhum dos dois.
+  const primeiroNome = quemEstaFora?.[0]?.trim().split(/\s+/)[0] ?? "";
+  const maisDeUm = (quemEstaFora?.length ?? 0) > 1;
+
   return (
     <button
       type="button"
@@ -491,21 +518,55 @@ function Dia({
       }}
       onPointerEnter={() => aoPassar(dia)}
       className={cn(
-        "relative flex h-9 items-center justify-center rounded-md border border-transparent text-sm tabular-nums transition-colors",
+        // A CÉLULA É ALTA E TEM DUAS LINHAS, e não é decoração: a de baixo
+        // carrega o NOME de quem está fora. Antes isso vivia só no `title`, e
+        // um tooltip não existe para quem usa toque nem para quem varre a
+        // tela com o olho — a pessoa via um quadrado âmbar, não sabia de quem
+        // era, e clicava para descobrir.
+        "relative flex min-h-14 flex-col items-start justify-between gap-0.5 rounded-lg border px-2 py-1.5 text-left text-sm tabular-nums transition-colors",
         // Fim de semana e feriado continuam PINTADOS dentro do intervalo: a
-        // pessoa está fora neles também. O listrado só aparece fora dela.
-        (fimDeSemana || feriado) && !dentroDaSelecao && "text-text-muted",
+        // pessoa está fora neles também. O cinza só aparece fora dela.
+        !dentroDaSelecao && "bg-surface-card border-border",
+        (fimDeSemana || feriado) &&
+          !dentroDaSelecao &&
+          !bloqueado &&
+          "bg-surface-page text-text-muted",
         recusa &&
           !dentroDaSelecao &&
           "text-text-muted cursor-not-allowed opacity-60",
-        bloqueado && !dentroDaSelecao && "bg-warning-soft text-warning",
+        bloqueado &&
+          !dentroDaSelecao &&
+          "bg-warning-soft border-warning text-warning",
         dentroDaSelecao && "bg-accent-strong border-accent-strong text-white",
-        dentroDaSelecao && (pontaInicial || pontaFinal) && "font-semibold",
         !dentroDaSelecao && !recusa && !bloqueado && "hover:bg-accent",
         hoje && !dentroDaSelecao && "ring-ring ring-2",
       )}
     >
-      {numero}
+      <span
+        className={cn(
+          dentroDaSelecao && (pontaInicial || pontaFinal) && "font-semibold",
+        )}
+      >
+        {numero}
+      </span>
+
+      {/* A legenda da célula responde "e daí?" sem clicar: quem está fora,
+          que feriado é, ou onde o período começa e acaba. */}
+      {dentroDaSelecao && pontaInicial ? (
+        <span className="text-[11px] leading-tight opacity-90">início</span>
+      ) : dentroDaSelecao && pontaFinal ? (
+        <span className="text-[11px] leading-tight opacity-90">fim</span>
+      ) : bloqueado && !dentroDaSelecao ? (
+        <span className="w-full truncate text-[11px] leading-tight">
+          {maisDeUm
+            ? `${primeiroNome} +${quemEstaFora!.length - 1}`
+            : primeiroNome}
+        </span>
+      ) : feriado && !dentroDaSelecao ? (
+        <span className="text-text-muted w-full truncate text-[11px] leading-tight">
+          {feriado}
+        </span>
+      ) : null}
     </button>
   );
 }

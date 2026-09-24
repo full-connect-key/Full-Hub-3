@@ -1316,13 +1316,52 @@ verdade para quem abrir o schema é o comentário da coluna.
   da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
   uma recusa que ninguém tem como contornar nem entender.
 
-**A tela de pedido é três seções numeradas**, como a de Nova Task: escolher as
-datas (com o tipo de pedido no cabeçalho da seção, porque ele muda o que o
-resto significa), o período selecionado, e a observação. O **saldo abre a
-tela** em vez de ficar no painel lateral: é a primeira coisa que quem entra
-ali quer saber, e era preciso varrer o olho até a coluna da direita para
-achar. Quem pede afastamento ou ausência pontual não vê saldo nenhum — não
-desconta.
+**A tela de pedido é uma faixa de saldo, um painel de configuração e o
+calendário** — e não mais as três seções numeradas que ela teve até aqui. A
+escolha é de layout entre três propostas, e é a A. Ela deixou de ser
+formulário e virou ferramenta: quem entra ali não está preenchendo campos na
+ordem, está escolhendo dias num calendário e olhando o que isso faz com o
+saldo.
+
+- **O saldo ABRE a tela, numa faixa de `--blue-soft` com a frase inteira**
+  ("Você tem 5 de 15 dias disponíveis") e a barra de uso ao lado. Ele era um
+  cartão no painel lateral, e era preciso varrer o olho até a coluna da
+  direita para achar a primeira coisa que quem entra ali quer saber. Quem pede
+  afastamento ou ausência pontual não vê saldo nenhum — não desconta.
+- **A configuração fica à ESQUERDA e o calendário à direita**, invertendo as
+  colunas. O calendário é a peça grande e é onde a mão trabalha; o painel é o
+  resumo do que ela fez. Em 375px a ordem de leitura vira a de cima para
+  baixo, e o painel é o primeiro — no celular o calendário rola dentro de si
+  mesmo, e um resumo embaixo dele fica longe do polegar.
+- **O tipo de pedido é um `radiogroup` de três cartões**, cada um dizendo
+  embaixo do nome se desconta e quanto (`desconta (15d)` / `não desconta`). Um
+  `<select>` escondia exatamente a informação que faz a pessoa escolher entre
+  os três, e ela é diferente por tipo.
+- **As abas viraram pílulas.** A barra sublinhada funciona quando as abas
+  ficam grudadas no conteúdo delas; aqui elas ficam acima da faixa de saldo,
+  que já tem fundo próprio, e duas linhas horizontais seguidas — a borda da
+  aba e a borda da faixa — liam como duas divisões sem nada no meio.
+- **"Quem responde: Sócio" fica no cabeçalho**, em `PageHeader actions`. É a
+  resposta de "para quem estou mandando isto", e ela não pode estar no fim da
+  página, depois de a pessoa já ter escolhido tudo.
+
+**A célula do calendário é ALTA e tem duas linhas**, e a de baixo carrega o
+nome de quem está fora ("Marina", ou "Marina +2"). Antes isso vivia só no
+`title`, e tooltip não existe para quem usa toque nem para quem varre a tela
+com o olho: a pessoa via um quadrado âmbar, não sabia de quem era, e clicava
+para descobrir. A lista inteira continua no `title` e no rótulo acessível —
+truncar dois nomes no meio não identifica nenhum dos dois.
+
+**Quantos meses cabem na linha é pergunta de largura, não de breakpoint:**
+`repeat(auto-fill, minmax(min(420px, 100%), 1fr))`. A coluna do calendário
+muda de tamanho com o painel ao lado, e um `lg:` fixo dava 60px por célula,
+onde "Marina" virava "Ma…" — que não identifica ninguém e ainda ocupa a linha.
+O `min(420px, 100%)` é a parte que não dá para tirar: `minmax(420px, 1fr)`
+cria uma faixa que **nunca** encolhe abaixo de 420, então num celular de 375 o
+mês fica mais largo que a tela — sábado e domingo saem para fora da borda e os
+dias 10, 17, 24 e 31 aparecem cortados pela metade. Um calendário sem fim de
+semana, sem nada avisando. Foi assim que ele saiu na primeira imagem de 375px,
+e é por isso que a conferência dessa tela é a imagem e não o build.
 
 **O bloqueio por área pergunta sobre o INTERVALO, nunca sobre o dia solto.**
 A tela olhava dia a dia, e o resultado eram duas respostas para a mesma

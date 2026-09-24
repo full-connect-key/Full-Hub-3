@@ -35,7 +35,13 @@ const ROTULOS: Record<Aba, { label: string; icone: typeof Grid3x3 }> = {
  * Com uma aba só, a barra some: para quem só propõe o próprio período, uma
  * "navegação" de um item é moldura sem função.
  */
-export function AbasDoFullDays({ atual, visiveis }: { atual: Aba; visiveis: Aba[] }) {
+export function AbasDoFullDays({
+  atual,
+  visiveis,
+}: {
+  atual: Aba;
+  visiveis: Aba[];
+}) {
   const pathname = usePathname();
   const parametros = useSearchParams();
 
@@ -51,8 +57,13 @@ export function AbasDoFullDays({ atual, visiveis }: { atual: Aba; visiveis: Aba[
   }
 
   return (
-    <nav aria-label="Seções do Full Days" className="border-b">
-      <ul className="-mb-px flex min-w-max gap-1 overflow-x-auto">
+    // PÍLULA, E NÃO SUBLINHADO. A barra sublinhada é do começo do projeto e
+    // funciona quando as abas ficam grudadas no conteúdo delas; aqui elas
+    // ficam acima do painel de saldo, que já é um bloco com fundo próprio, e
+    // duas linhas horizontais seguidas (a borda da aba e a borda do painel)
+    // liam como duas divisões sem nada entre elas.
+    <nav aria-label="Seções do Full Days">
+      <ul className="bg-muted inline-flex min-w-max gap-1 overflow-x-auto rounded-xl p-1">
         {visiveis.map((aba) => {
           const { label, icone: Icone } = ROTULOS[aba];
           const ativo = aba === atual;
@@ -62,10 +73,10 @@ export function AbasDoFullDays({ atual, visiveis }: { atual: Aba; visiveis: Aba[
                 href={href(aba)}
                 aria-current={ativo ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
+                  "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
                   ativo
-                    ? "border-accent-strong text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground border-transparent",
+                    ? "bg-surface-card text-text-primary font-medium shadow-sm"
+                    : "text-text-secondary hover:text-text-primary",
                 )}
               >
                 <Icone aria-hidden className="size-4" />

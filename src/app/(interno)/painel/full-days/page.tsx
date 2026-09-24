@@ -46,7 +46,9 @@ const PADRAO: Aba = "solicitar";
 
 function lerAba(valor: string | string[] | undefined): Aba {
   const texto = typeof valor === "string" ? valor : PADRAO;
-  return (["matriz", "relatorio", "solicitar", "aprovacoes"] as Aba[]).includes(texto as Aba)
+  return (["matriz", "relatorio", "solicitar", "aprovacoes"] as Aba[]).includes(
+    texto as Aba,
+  )
     ? (texto as Aba)
     : PADRAO;
 }
@@ -72,7 +74,10 @@ export default async function PaginaDoFullDays({
   // classificaria um dia de descanso num mês diferente do que o contador soma.
   const hoje = new Date();
   const hojeISO = format(hoje, "yyyy-MM-dd");
-  const mes = typeof parametros.mes === "string" ? parametros.mes : format(hoje, "yyyy-MM");
+  const mes =
+    typeof parametros.mes === "string"
+      ? parametros.mes
+      : format(hoje, "yyyy-MM");
   const referencia = new Date(`${mes}-01T12:00:00`);
   const valida = Number.isNaN(referencia.getTime()) ? hoje : referencia;
   const inicio = format(startOfMonth(valida), "yyyy-MM-dd");
@@ -80,8 +85,21 @@ export default async function PaginaDoFullDays({
 
   return (
     <div className="space-y-6">
+      {/* QUEM RESPONDE FICA NO CABEÇALHO, e é informação e não enfeite: o
+          Full Days é o único módulo em que o desenvolvedor NÃO é gestão — a
+          primeira linha de `decidir_solicitacao()` exige sócio. Sem essa
+          linha, o desenvolvedor abre a tela, não acha a aba de pedidos da
+          equipe e conclui que falta permissão a ele. */}
       <PageHeader
         title="Full Days"
+        actions={
+          <div className="bg-surface-card rounded-card border px-4 py-2.5">
+            <p className="text-text-muted text-[11px]">Quem responde</p>
+            <p className="text-sm font-medium">
+              Sócio — retorno final dos pedidos
+            </p>
+          </div>
+        }
       />
 
       <AbasDoFullDays atual={aba} visiveis={visiveis} />
@@ -93,7 +111,10 @@ export default async function PaginaDoFullDays({
           não usa mais `mes` (o calendário rola), e as outras duas leem o mês
           por propriedade — o esqueleto reaparecer a cada mês custava a
           seleção de quem estava no meio de um pedido. */}
-      <Suspense key={aba} fallback={<LoadingSkeleton variant="table" rows={6} />}>
+      <Suspense
+        key={aba}
+        fallback={<LoadingSkeleton variant="table" rows={6} />}
+      >
         {aba === "matriz" ? (
           <ConteudoDaMatriz
             inicio={inicio}
@@ -103,7 +124,12 @@ export default async function PaginaDoFullDays({
             quemSouEu={sessao.usuarioId}
           />
         ) : aba === "relatorio" ? (
-          <ConteudoDoRelatorio inicio={inicio} fim={fim} mes={mes} hojeISO={hojeISO} />
+          <ConteudoDoRelatorio
+            inicio={inicio}
+            fim={fim}
+            mes={mes}
+            hojeISO={hojeISO}
+          />
         ) : aba === "aprovacoes" ? (
           <ConteudoDasAprovacoes status={lerStatus(parametros.fila)} />
         ) : (
@@ -116,7 +142,9 @@ export default async function PaginaDoFullDays({
 
 function lerStatus(valor: string | string[] | undefined): HrStatus {
   const texto = typeof valor === "string" ? valor : "pendente";
-  return (["pendente", "aprovada", "reprovada"] as HrStatus[]).includes(texto as HrStatus)
+  return (["pendente", "aprovada", "reprovada"] as HrStatus[]).includes(
+    texto as HrStatus,
+  )
     ? (texto as HrStatus)
     : "pendente";
 }
@@ -185,7 +213,10 @@ async function ConteudoDoRelatorio({
 }
 
 async function ConteudoDasAprovacoes({ status }: { status: HrStatus }) {
-  const [fila, contagem] = await Promise.all([filaDeAprovacoes(status), contarPorStatus()]);
+  const [fila, contagem] = await Promise.all([
+    filaDeAprovacoes(status),
+    contarPorStatus(),
+  ]);
   return <Aprovacoes fila={fila} contagem={contagem} filaAtual={status} />;
 }
 
