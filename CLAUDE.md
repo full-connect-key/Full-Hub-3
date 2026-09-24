@@ -1544,6 +1544,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/conferir-migrations.sql` | Cola no SQL Editor e diz, migration por migration, o que já entrou e o que falta. Não muda nada |
+| `scripts/enviar-post-a-mao.sql` | **Paliativo.** Cria um post e o envia ao cliente sem a tela interna, que é de outro sprint. Sai do repositório quando ela existir |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
