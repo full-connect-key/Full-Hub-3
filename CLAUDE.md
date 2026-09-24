@@ -881,7 +881,7 @@ abrir. A 0031 fechou, e o cenário confere nos dois sentidos: a escrita passa
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro
-operações — nem o sócio lê, pela mesma razão do Resumo Semanal. Uma linha por
+operações — nem o sócio lê. Uma linha por
 **pessoa** e não por empresa: quem responde por duas contas não quer receber
 em dobro. Quem nunca mexeu não tem linha e recebe o padrão; criar a linha na
 leitura seria escrever por causa de um olhar.
@@ -958,55 +958,45 @@ O slug sai do nome da empresa e **não pode ser uma palavra que já é rota**
 (`campanhas`, `aprovacoes`, `painel`…): no Next a rota estática ganha da
 dinâmica, então o portal daquele cliente é que nunca abriria.
 
-### O Resumo Semanal é privado
+### Dois módulos que saíram: Resumo Semanal e Financeiro Pessoal
 
-`weekly_entries` e `weekly_notes` fecham em `user_id = auth.uid()` nas quatro
-operações. **Nem o sócio lê o registro de outra pessoa**, e não existe
-relatório, painel nem exportação da gestão que alcance esse texto — a única
-exportação é a da própria pessoa, em `/painel/resumo-semanal/exportar`, que
-não aceita parâmetro de usuário justamente para ninguém tentar.
+Apagados na migration 0034, por decisão do usuário: tela, rota, dados e
+tabelas. **O módulo pessoal que FICA é o de Notas Fiscais** — a nota que o
+colaborador manda para a agência pagar. O Financeiro da casa
+(`contracts`, `finance_categories`, `finance_entries`) também fica: é outro
+módulo, na Gestão, e só o sócio alcança.
 
-É a memória de quem trabalhou, e é ela que a pessoa leva para a conversa de
-desenvolvimento. Se um dia a agência quiser que a gestão leia, que seja decisão
-explícita com policy nova e aviso na tela — não um descuido.
+**Eles eram os dois extremos do sigilo do produto**, e é por isso que a
+remoção merece registro em vez de silêncio. `weekly_entries`, `weekly_notes` e
+`personal_finance_entries` fechavam em `user_id = auth.uid()` nas quatro
+operações — nem o sócio lia. Consequência prática: **ninguém sabia o que havia
+dentro delas sem consultar o banco como dono**, e foi por isso que a 0034 veio
+com `scripts/exportar-antes-da-0034.sql`, que põe o conteúdo na tela para ser
+entregue a quem escreveu. O script não exporta para lugar nenhum de propósito:
+gravar aquele texto em outra tabela seria contornar a promessa que ele
+carregava.
 
-A semana é de **segunda a domingo**, escrito à mão em toda chamada do date-fns
-(`lib/dominio/semanas.ts`): o locale pt-BR começa no domingo, que é a convenção
-de calendário de parede, e aqui a unidade é a semana de trabalho. A semana sai
-da data por cálculo e **nunca é gravada** nas entregas: coluna de semana ao
-lado da data é um jeito de as duas discordarem. Em `weekly_notes` a semana *é*
-a chave, e por isso um `check` exige que ela seja uma segunda-feira — duas
-telas com ideias diferentes de onde a semana começa criariam dois registros
-para a mesma semana, e o `unique` não pegaria.
+**Apagar, e não aposentar.** É a mesma decisão da 0023, que apagou
+`tasks.exigencia_aprovacao` em vez de deixá-la parada. Tabela que nenhuma tela
+lê é schema que alguém reaproveita errado três sprints depois, achando que
+ainda significa alguma coisa.
 
-Duas coisas por semana, e elas são diferentes: a **entrega** é uma linha do que
-saiu, e a **nota** é o texto livre de como foi. O editor salva sozinho, com
-1,2 s de espera depois da última tecla — ninguém escreve uma reflexão de uma
-vez só, e um botão "Salvar" é o jeito mais seguro de perder o parágrafo que a
-pessoa estava terminando. "Como foi a semana" é opcional de propósito:
-pergunta obrigatória produz resposta automática, que não diz nada.
+O que sobrou de propósito: o enum `pf_tipo`, órfão e inofensivo — `alter type
+... drop value` não existe no Postgres, e é a mesma situação de `cancelada` em
+`task_status` desde a 0020.
 
-A nota é gravada **nos dois formatos** — o JSON do TipTap, que a tela reabre, e
-o texto puro, que a busca varre. Guardar só o JSON obrigaria a busca a
-vasculhar nomes de nó; guardar só o texto perderia a formatação.
+**E os dois nomes entraram na varredura de `check:cores`.** A lista de nomes
+mortos **cresce**, como a do vocabulário do Full Days: um módulo apagado volta
+sozinho de um jeito específico — alguém copia uma tela antiga, um atalho fica
+no menu, um texto de ajuda cita a "letra de cada semana" — e aí o link existe
+e a rota devolve 404. A varredura cobre `src/`, e a explicação mora aqui e no
+cabeçalho da 0034, fora de `src/`, senão ela acusaria o próprio texto que a
+justifica.
 
-- **Registro do que não aconteceu não é registro, é ficção.** Semana futura e
-  entrega com data futura são recusadas por trigger, não pela tela.
-- **"Puxar minhas entregas" data cada linha no dia da conclusão da etapa**, e
-  nunca em hoje nem no fim da semana. A primeira versão datava tudo no domingo
-  da semana aberta, que ainda não chegou: o trigger recusava o lote inteiro, e
-  o botão nunca funcionava dentro da semana em curso — que é quando a pessoa o
-  usa. Os dois cenários que travam isso estão em `06_skills_e_desenvolvimento`.
-- **Puxar não roda sozinho ao abrir a tela.** O registro é a leitura que a
-  pessoa faz do próprio trabalho; lista preenchida por máquina deixa de ser
-  dela. E puxar duas vezes não duplica: o filtro é por `subtask_id`.
-- A busca varre as **duas** coisas, entrega e nota, porque quem procura
-  "campanha de outubro" não lembra em qual das duas escreveu. O termo mora na
-  URL, e enquanto ela está ativa a semana sai da tela em vez de dividir espaço
-  com os resultados.
-- A exportação é **texto puro**, não PDF: o que a pessoa faz com isso é colar
-  num documento, mandar num chat ou guardar. Texto serve para os três e não
-  depende de nada instalado.
+Junto saiu a bandeira `discreto` do `MenuItem`: ela existia para o Financeiro
+Pessoal ter ícone menor e cor mais apagada, e sem ele virou um campo que
+nenhuma linha do `MENU` liga. Se um dia houver outro módulo opcional, ela
+volta com ele.
 
 ### Skills: a pessoa diz o nível, a gestão comenta
 
@@ -1047,10 +1037,10 @@ cliente, aprova entrega, distribui trabalho — e aqui não. Faturamento por
 cliente, margem e inadimplência são a informação mais sensível da casa; quem
 pode lê-la é quem responde por ela.
 
-Com o Resumo Semanal e o Financeiro Pessoal, são os dois extremos do sigilo no
-produto — lá nem o sócio entra, aqui só ele. Os dois ficam lado a lado na
-migration 0013 de propósito: quem mexer numa dessas policies vê a outra na
-mesma tela.
+**Ele é o extremo do sigilo que sobrou.** Houve o outro — dois módulos onde
+nem o sócio entrava —, e eles saíram do produto na 0034. Aqui é o inverso: só
+ele entra. O que continua valendo é a razão de a policy ser por comando e não
+por tabela: quem mexer numa delas vê as outras três na mesma tela.
 
 **A aba de Notas Fiscais que o sprint pedia não existe.** A agência emitir NF
 para cliente ficou fora do Full Hub por decisão do usuário; o módulo de nota
@@ -1117,28 +1107,6 @@ de luminosidade e as marcas perdem croma — viram cinza.
 Os gráficos são SVG à mão, sem biblioteca: a cor tem que sair dos tokens (toda
 lib traz a própria paleta, e `check:cores` recusa hex solto), e assim o tema
 escuro funciona sozinho.
-
-### O Financeiro Pessoal é opcional, e o produto trata assim
-
-`personal_finance_entries` fecha em `user_id = auth.uid()` nas quatro
-operações. **Nem o sócio lê**, não existe relatório agregado, e nenhuma
-consulta do painel cruza esta tabela com nada — a mesma regra do Resumo
-Semanal, pela mesma razão: basta um relatório da gestão citando um número daqui
-para a confiança acabar de vez.
-
-- **Fica no fim da seção Principal, com peso visual reduzido** (ícone menor,
-  `--text-on-dark-muted`). Foi aba de Meu Perfil do Sprint 3C ao 8 e voltou ao
-  menu quando o módulo passou a existir — duas portas para a mesma tela
-  confundem quem procura.
-- **Fora da tela inicial, sem notificação e sem selo de pendência.** Quem não
-  quiser usar nunca é lembrado de que ele existe.
-- **"Apagar todos os meus dados", em duas etapas.** Um módulo do qual não se
-  consegue sair não é opcional — e é por isso que existe policy de DELETE.
-- `on delete cascade` no usuário: aqui o histórico **não** é para preservar. Se
-  a pessoa sai da agência, o controle de gastos dela vai junto — o oposto do
-  que vale para autoria de task.
-- A adição é uma linha só, sempre visível: diálogo para cada gasto de padaria
-  mataria o hábito na primeira semana.
 
 ### Full Days: recesso, indisponibilidade e ausência
 
@@ -1647,6 +1615,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
+| `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `scripts/conferir-migrations.sql` | Cola no SQL Editor e diz, migration por migration, o que já entrou e o que falta. Não muda nada |
 | `scripts/enviar-post-a-mao.sql` | **Paliativo.** Cria um post e o envia ao cliente sem a tela interna, que é de outro sprint. Sai do repositório quando ela existir |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
@@ -1656,6 +1625,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Depois do 13 | **Dois módulos saíram do produto**, por decisão do usuário: o Resumo Semanal e o Financeiro Pessoal. Tela, rota, dados e tabelas — `weekly_entries`, `weekly_notes` e `personal_finance_entries` apagadas na migration 0034. O módulo pessoal que **fica** é o de Notas Fiscais; o Financeiro da casa também fica, que é outro módulo e só do sócio. **A migration apaga dado de pessoa e não tem volta**, e as três tabelas fechavam em `auth.uid()` — ninguém sabia o que havia dentro sem consultar o banco como dono. Por isso ela vem com `scripts/exportar-antes-da-0034.sql`, que põe o conteúdo na tela para ser entregue a quem escreveu, e não exporta para lugar nenhum de propósito: gravar aquele texto em outra tabela contornaria a promessa que ele carregava. Apagar e não aposentar, como a 0023 fez com `tasks.exigencia_aprovacao`. Os dois nomes entraram na varredura de `check:cores` — a lista **cresce**, como a do vocabulário do Full Days —, e ela pegou sete lugares que ainda os citavam, **um deles texto de tela**: as configurações do portal diziam "é a mesma regra do Resumo Semanal" para a gestão ler. Junto saiu a bandeira `discreto` do `MenuItem`, que sem o único módulo que a ligava virou campo que não decide nada. **597 cenários, todos passando** (31 saíram com os módulos). |
 | Sprint 13 | **Campanhas: a Wave, a árvore e a decisão de cada peça.** Migration 0033, o terceiro ato da 0030 — com `deliverable`, os três tipos do enum passam a ter dono. `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions`, com a árvore em **dois níveis e nunca três** e o **status do grupo derivado**, sem coluna: `status_do_entregavel()` e `statusDoGrupo()` fazem a mesma conta nos dois lados, e o valor escrito à mão num grupo é descartado em vez de recusado. `rejeitado` num filho deixa o grupo em `ajustes`, não em `rejeitado` — ninguém recusou o grupo, e vermelho num grupo com catorze de quinze aprovados afirma outra coisa. Toda conta olha **só as folhas**. O cliente enxerga a **campanha desde o planejamento** e o **entregável só depois de enviado**, e essa assimetria mora nas duas policies, não na consulta. O template é uma **árvore em `jsonb`** e não um par de tabelas, porque é uma lista de nomes que alguém edita inteira antes de salvar; na abertura ele é **ponto de partida, não contrato** — a árvore editada é o que viaja para a action, e os filhos casam com os pais **por posição**, porque "Feed/story site" aparece duas vezes na Wave. A linha de cada item **muda por status** (quem aprovou, há quantos dias espera, o motivo da recusa, o prazo), e o grupo abre sozinho quando tem pendência. O alerta de 7 dias fala de "não aprovados" e não de "esperando você" — são contas diferentes, e as duas frases mostravam números diferentes na mesma campanha até a imagem em 375px pô-las lado a lado. **A tela de detalhe do material é uma só**: post e entregável montam o mesmo `ModeloDoConteudo`, e o que é compartilhado é a casca, não a leitura. Campanhas e entregáveis entram nas pendências do Portal, no bloco "Campanhas ativas" e no calendário da agência — a campanha pelo **encerramento**, não como faixa de trinta células. De quebra, três erros meus que a verificação pegou: o seed carimbando `enviado_em` em item que ninguém enviou (o cliente via doze "Em produção"), o título encolhido a "Feed/…" em 375px porque o selo não cede largura, e o "Copiar legenda" que sobrou na seção "Descrição". E um furo no `check:mensagens`: ele lia linha a linha, então uma chamada quebrada em várias linhas não era contada — nem falha, nem aviso. Agora varre por posição, e achou duas que vinham sendo puladas. |
 | Sprint 12 | **Social Media: o calendário e a decisão do post.** Migration 0032, que é o segundo ato da 0030 — ela generalizou a rodada e deixou `post` recusado de propósito, com a frase "quem acrescentar o tipo acrescenta a regra na mesma migration"; é o que este sprint faz, e `deliverable` continua recusado. `posts`, `post_versions` e `comments`, com o cliente enxergando só o que tem `enviado_em` preenchido — e essa linha mora na policy, não na consulta, que é o que faz um post em produção não existir para ele nem pelo id na mão. **Enviar É abrir a rodada de escopo cliente**: o carimbo é consequência dela, por trigger, porque separados dariam rodada num post invisível e post carimbado sem onde decidir. `status_rodada` ganhou **`rejeitada`** — rejeitar não é pedir ajuste, e reaproveitar o mesmo valor faria a rodada dizer uma coisa e o post outra; os dois desfechos negativos exigem motivo, na ação e no banco; e `rejeitada` **não** vale para etapa de demanda, que tem dois desfechos desde a 0007. `comments.interno` e o autor são forçados por trigger, porque policy não limita coluna. O calendário é de **servidor inteiro** — mês, visão, dia e filtros na URL —, vira lista por dia em 375px, e a rede aparece como **sigla de duas letras**: o lucide tirou os ícones de marca, ícone genérico não distingue uma rede da outra, e os logos trariam marca registrada e cor literal. A legenda **agrupa os status que dividem a mesma cor** em vez de mostrar sete linhas e cinco cores, e o nome exato vai no `title` e no rótulo acessível. No detalhe, a ordem é a da decisão: arte com zoom de verdade, informações, legenda, e só então os botões; "solicitar ajustes" fica à vista, que é a ação mais comum. O histórico de versões **não tem reverter**, e a trava é a policy. Posts entram nas pendências da tela inicial do Portal e no calendário da agência. **66 cenários novos, 574 no total**, e dois erros meus que eles pegaram: o trigger de autor apagando o que o seed informou, e um cenário que passava pelo motivo errado. De quebra, o **seed estava quebrado desde o Sprint 11** — ainda escrevia em `approval_rounds.subtask_id`, coluna que a 0030 apagou. |
 | Sprint 10 | **Os três níveis, e três regras que o usuário mandou mudar.** `subtasks.parent_id` (migration 0022) dá o terceiro nível — demanda → etapa → sub-etapa, **três e nunca quatro**, com o neto recusado por trigger. A decisão que organiza o resto é **quem tem filha vira agrupadora**: a mesma regra que a Task já seguia, um nível abaixo. A mãe para de medir tempo, tem o status calculado pelas filhas, não exige aval, não entra em dependência, não abre rodada — e some de toda soma, que passa a contar **só as folhas**. Sem isso tudo contaria duas vezes, e a rentabilidade cobraria em dinheiro um trabalho que aconteceu uma vez. O que estava gravado na mãe **não** é apagado: para de contar enquanto ela tiver filha e volta se a última sair. A **exigência de aprovação saiu da Task** (0023), e o motivo foi ele quem apontou: a trava da 0014 aceitava UMA rodada aprovada em QUALQUER subtarefa, então uma campanha passava com o conceito aprovado e o resto nunca visto — produzindo confiança sem a checagem. Agora `entregue` só passa quando TODA etapa que pede aval tem a rodada aprovada dela, e a mensagem conta quantas faltam e nomeia cada uma. A coluna foi apagada: um campo que não decide mais nada é o pior tipo de campo. O formulário de abertura voltou a ter **cinco seções**. Os **sete status se marcam à mão** (0025): tirar a frase de recusa não bastaria, porque o recálculo desfaria a escolha na próxima mexida numa etapa — então `status_manual` passou a travar o cálculo inteiro, e o volante se devolve por "deixar o Full Hub calcular", com `tasks_volta_a_calcular` recalculando na hora. O seletor virou popover com **busca, grupos e ponto colorido**, sem nada desligado, e o mesmo componente serve a etapa — onde quem recusa passou a ser o banco, cuja recusa diz o caminho. **Minhas Tasks lista ETAPAS**: "Conteúdo" e "Layout" da mesma demanda são dois itens, com a demanda virando linhagem e a ordem global. E no Full Days o **descanso conta corrido** (0024) — quinze dias de calendário, não quinze úteis —, com os outros dois tipos seguindo em dias úteis porque não descontam saldo; a matriz passou a pintar o período inteiro, fim de semana inclusive. A etapa ganhou **período** (0027): `data_inicio` ao lado de `prazo`, os dois opcionais, com o fim guardando o nome antigo porque renomear coluna em uso é migration arriscada sem nada em troca. E **"+ Nova task" passou a abrir a tela de detalhe** (0028): a demanda nasce como rascunho no clique, tudo salva sozinho, e o botão Criar task muda uma coisa só — a demanda passa a existir para a equipe. O rascunho é de quem o criou e de mais ninguém, por RLS **restritiva**, uma por tabela: a primeira versão usou permissiva, e permissiva é OR — dava para *apagar* a referência de um rascunho que não se conseguia enxergar. E a **trava de autoaprovação saiu** (0029), desfazendo a 0026: eu tinha lido "qualquer desenvolvedor pode aprovar qualquer task, mesmo que a task seja dele mesmo" como relato de furo, e era a descrição do que ele queria — a 0026 fechou um furo que não existia. Agora quem decide rodada interna é `is_gestor()`, e mais nenhuma pergunta; os três cenários que provavam a trava ficaram, virados do avesso, para o dia em que alguém reintroduzir uma das perguntas. **145 cenários novos, 464 no total**, e quatro deles nasceram de erro meu que a bateria pegou: uma expectativa de saldo errada, um cenário de tempo medido que passava sem separar a resposta certa da errada, um `check` que eu ia criar e que já existia desde a 0007, e a policy permissiva da 0028. |

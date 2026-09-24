@@ -207,7 +207,6 @@ ${telasHtml}
     "/painel/diario": "Diário",
     "/painel/academy": "Academy",
     "/painel/recomendacoes": "Recomendações",
-    "/painel/financeiro-pessoal": "Financeiro Pessoal",
     "/painel/perfil": "Meu perfil",
     "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111": "Gestão de Tasks",
     "/painel/clientes/c0000000-0000-0000-0000-00000000000a": "Clientes",
@@ -652,7 +651,6 @@ ${telasHtml}
     { rota: "/painel/financeiro?aba=lancamentos", texto: "Novo lançamento", dialogo: "lancamento-novo" },
     { rota: "/painel/financeiro?aba=lancamentos", texto: "Importar CSV",    dialogo: "lancamento-importar" },
     { rota: "/painel/financeiro?aba=contratos",   texto: "Novo contrato",   dialogo: "contrato-novo" },
-    { rota: "/painel/financeiro-pessoal", texto: "Apagar tudo",             dialogo: "pessoal-apagar-tudo" },
     { rota: "/painel/full-days?aba=aprovacoes", texto: "Reprovar",          dialogo: "full-days-reprovar" }
   ];
 

@@ -24,11 +24,10 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
 /**
  * Meu perfil.
  *
- * O Financeiro Pessoal foi aba daqui do Sprint 3C ao 8, e voltou a ser item de
- * menu quando o módulo passou a existir de verdade. Duas portas para a mesma
- * tela confundem quem procura, e a escolha foi a porta que se acha sem saber
- * onde está — o item de menu, no fim da seção Principal e com peso visual
- * reduzido, que é o discreto que o sprint pedia.
+ * Só os dados da pessoa: foto, contato e senha. Já houve um módulo opcional
+ * pendurado aqui como aba, e a lição que ficou é a razão de não haver
+ * nenhuma: duas portas para a mesma tela confundem quem procura, e quem tem
+ * tela própria merece entrada própria no menu.
  */
 export default async function PaginaDoMeuPerfil() {
   const sessao = await exigirAcessoARota("/painel/perfil");

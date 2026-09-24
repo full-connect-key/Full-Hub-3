@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ListChecks, NotebookPen, UserRound } from "lucide-react";
+import { ArrowRight, ListChecks, Receipt, UserRound } from "lucide-react";
 
 /**
  * Os três caminhos que a equipe percorre todo dia.
@@ -15,10 +15,13 @@ const ATALHOS = [
     icone: ListChecks,
   },
   {
-    label: "Resumo Semanal",
-    frase: "Status de entregas",
-    href: "/painel/resumo-semanal",
-    icone: NotebookPen,
+    // O terceiro atalho é sempre uma tarefa PESSOAL e recorrente — daquelas
+    // que se lembram ao chegar e se esquecem depois. É o critério, e é por
+    // ele que o ocupante mudou quando o anterior saiu do produto.
+    label: "Notas Fiscais",
+    frase: "Envio e pagamento",
+    href: "/painel/notas-fiscais",
+    icone: Receipt,
   },
   {
     label: "Meu Perfil",

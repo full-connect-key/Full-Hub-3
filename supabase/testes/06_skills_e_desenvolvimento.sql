@@ -15,8 +15,6 @@
 
 delete from public.skill_avaliacoes;
 delete from public.user_skills;
-delete from public.weekly_notes;
-delete from public.weekly_entries;
 delete from public.skills where sugerida_por is not null;
 
 
@@ -169,94 +167,3 @@ select teste.cenario('A socia nao reescreve a observacao do desenvolvedor', :ANA
 select teste.cenario('O autor corrige o proprio texto', :DIEGO,
   format('update public.skill_avaliacoes set texto = %L', 'Evoluiu muito em motion.'),
   'ok', 1);
-
-
--- --- O registro semanal e privado ------------------------------------------
---
--- Criterio de aceite: "o diario de uma pessoa nao e acessivel por outra, nem
--- pelo socio (testar via API)".
-
-select teste.cenario('Bruno escreve sobre a semana', :BRUNO,
-  format($fmt$
-    insert into public.weekly_notes (user_id, semana, conteudo_texto, humor)
-    values (%L, date_trunc('week', current_date)::date, %L, 'bom')
-  $fmt$, :BRUNO, 'Semana puxada, mas a campanha saiu.'), 'ok', 1);
-
-select teste.cenario('E le o proprio', :BRUNO,
-  'select 1 from public.weekly_notes', 'ok', 1);
-
-select teste.cenario('A SOCIA nao le o registro do Bruno', :ANA,
-  'select 1 from public.weekly_notes', 'ok', 0);
-
-select teste.cenario('O desenvolvedor tambem nao', :DIEGO,
-  'select 1 from public.weekly_notes', 'ok', 0);
-
-select teste.cenario('Ninguem escreve no registro de outra pessoa', :ANA,
-  format($fmt$
-    insert into public.weekly_notes (user_id, semana, conteudo_texto)
-    values (%L, date_trunc('week', current_date)::date, %L)
-  $fmt$, :BRUNO, 'Texto que a Ana inventou'), 'recusa');
-
-select teste.cenario('Nem apaga', :ANA, 'delete from public.weekly_notes', 'recusa');
-
--- Registro do que ainda nao aconteceu nao e registro, e ficcao.
-select teste.cenario('Semana futura e recusada', :BRUNO,
-  format($fmt$
-    insert into public.weekly_notes (user_id, semana, conteudo_texto)
-    values (%L, (date_trunc('week', current_date) + interval '7 days')::date, %L)
-  $fmt$, :BRUNO, 'Na semana que vem eu vou...'), 'recusa');
-
-select teste.cenario('Entrega com data futura tambem', :BRUNO,
-  format($fmt$
-    insert into public.weekly_entries (user_id, data, descricao)
-    values (%L, current_date + 3, %L)
-  $fmt$, :BRUNO, 'Entrega que ainda nao aconteceu'), 'recusa');
-
--- A semana e sempre a segunda-feira. Sem essa trava, duas telas com ideias
--- diferentes de onde a semana comeca criariam dois registros para a mesma
--- semana, e o `unique` nao pegaria.
-select teste.cenario('Semana que nao comeca numa segunda e recusada', :BRUNO,
-  format($fmt$
-    insert into public.weekly_notes (user_id, semana, conteudo_texto)
-    values (%L, (date_trunc('week', current_date) - interval '1 day')::date, %L)
-  $fmt$, :BRUNO, 'Domingo nao e comeco de semana aqui'), 'recusa');
-
-select teste.cenario('Um registro por semana, por pessoa', :BRUNO,
-  format($fmt$
-    insert into public.weekly_notes (user_id, semana, conteudo_texto)
-    values (%L, date_trunc('week', current_date)::date, %L)
-  $fmt$, :BRUNO, 'Segundo registro da mesma semana'), 'recusa');
-
-
--- ---------------------------------------------------------------------------
--- "Puxar minhas entregas", que e o unico lugar onde a data da entrega nao vem
--- digitada por gente.
---
--- O bug que estes dois cenarios travam: a primeira versao datava toda entrega
--- puxada no DOMINGO da semana aberta. Na semana corrente o domingo ainda nao
--- chegou, o trigger recusava -- e como o insert e um so, para todas as etapas
--- de uma vez, uma unica data futura derrubava o lote inteiro. A tela dizia
--- "nao foi possivel puxar" sem nunca ter funcionado dentro da semana em curso,
--- que e justamente quando a pessoa usa o botao.
--- ---------------------------------------------------------------------------
-
-select teste.cenario('Puxar datando na conclusao funciona na semana em curso', :BRUNO,
-  format($fmt$
-    insert into public.weekly_entries (user_id, data, descricao)
-    values (%L, current_date, %L)
-  $fmt$, :BRUNO, 'Etapa concluida hoje, puxada hoje'), 'ok', 1);
-
--- O domingo da semana aberta e futuro em seis dos sete dias -- no proprio
--- domingo, nao. Por isso o cenario anda uma semana quando roda num domingo:
--- assim ele continua descrevendo a data que a versao antiga calculava para
--- uma semana ainda em curso, sem afirmar no domingo uma coisa que e falsa.
-select teste.cenario('Puxar datando no domingo da semana aberta seria recusado', :BRUNO,
-  format($fmt$
-    insert into public.weekly_entries (user_id, data, descricao)
-    values (%L,
-      (date_trunc('week', current_date)
-        + interval '6 days'
-        + case when extract(isodow from current_date) = 7 then interval '7 days'
-               else interval '0 days' end)::date,
-      %L)
-  $fmt$, :BRUNO, 'A data que a versao antiga usava'), 'recusa');

@@ -19,16 +19,17 @@ const falha = (d, extra = "") => resultados.push(["FALHOU", d, extra]);
 
 const painel = await (await fetch(`${BASE}/painel`)).text();
 
-// O modulo da agencia chama-se "Financeiro". O pessoal chama-se "Financeiro
-// Pessoal" e ESSE ele ve -- e de todo mundo. A busca precisa distinguir os
-// dois, senao passa pelo motivo errado.
+// Com o Financeiro Pessoal fora do produto, `/painel/financeiro` e o UNICO
+// modulo financeiro que existe -- e ele e so do socio. A checagem ficou mais
+// simples e mais forte: antes precisava distinguir os dois nomes para nao
+// passar pelo motivo errado; agora qualquer link `/painel/financeiro` no menu
+// do desenvolvedor e uma falha.
 const links = [...painel.matchAll(/href="(\/painel\/financeiro[^"]*)"/g)].map((m) => m[1]);
-const soPessoal = links.every((l) => l.startsWith("/painel/financeiro-pessoal"));
 
-if (links.length > 0 && soPessoal) {
-  ok("O desenvolvedor NÃO vê Financeiro no menu", `só ${[...new Set(links)].join(", ")}`);
+if (links.length === 0) {
+  ok("O desenvolvedor NÃO vê Financeiro no menu");
 } else {
-  falha("O desenvolvedor NÃO vê Financeiro no menu", links.join(", ") || "nenhum link");
+  falha("O desenvolvedor NÃO vê Financeiro no menu", links.join(", "));
 }
 
 const financeiro = await fetch(`${BASE}/painel/financeiro`, { redirect: "manual" });
@@ -38,20 +39,15 @@ if (financeiro.status === 403) {
   falha("E recebe 403 digitando o endereço", `HTTP ${financeiro.status}`);
 }
 
-// Esconder o item nao e protecao, e o Financeiro Pessoal prova o outro lado:
-// ele aparece para todo perfil interno e abre normalmente.
-const pessoal = await fetch(`${BASE}/painel/financeiro-pessoal`, { redirect: "manual" });
-if (pessoal.status === 200) {
-  ok("Mas o Financeiro Pessoal abre normalmente para ele");
+// Esconder o item nao e protecao, e Notas Fiscais prova o outro lado: ele
+// aparece para todo perfil interno e abre normalmente. (Era o Financeiro
+// Pessoal que provava isto; ele saiu do produto, e Notas Fiscais e o modulo
+// pessoal que ficou.)
+const notas = await fetch(`${BASE}/painel/notas-fiscais`, { redirect: "manual" });
+if (notas.status === 200) {
+  ok("Mas Notas Fiscais abre normalmente para ele");
 } else {
-  falha("Mas o Financeiro Pessoal abre normalmente para ele", `HTTP ${pessoal.status}`);
-}
-
-// O peso visual reduzido chega no HTML servido, e nao so depois da hidratacao.
-if (/text-text-on-dark-muted[^"]*"[^>]*href="\/painel\/financeiro-pessoal"/.test(painel)) {
-  ok("E o item já chega discreto no HTML do servidor");
-} else {
-  falha("E o item já chega discreto no HTML do servidor");
+  falha("Mas Notas Fiscais abre normalmente para ele", `HTTP ${notas.status}`);
 }
 
 for (const [situacao, descricao, extra] of resultados) {

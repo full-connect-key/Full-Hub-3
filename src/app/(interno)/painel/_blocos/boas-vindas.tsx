@@ -1,6 +1,3 @@
-import { Plus } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/supabase/database.types";
 
@@ -13,24 +10,23 @@ import type { UserRole } from "@/lib/supabase/database.types";
  * perfil — e é exatamente por isso que os dois aparecem lado a lado, separados
  * por um ponto, em vez de um só campo chamado "função".
  *
- * O botão de entrega fica aqui, e não no Resumo Semanal, porque registrar o
- * que se entregou é coisa que se lembra ao chegar — não ao ir procurar a tela
- * do registro.
+ * **Houve um botão de ação aqui, e ele saiu com o módulo que o recebia.** A
+ * lição que fica é a razão de o cartão não ter um slot reservado: um canto
+ * esperando uma ação que não vem é pior que um cartão sem ação nenhuma. Se um
+ * dia houver o que oferecer na chegada, o botão volta junto com o destino.
  */
 export function BoasVindas({
   primeiroNome,
   role,
   cargo,
-  acaoDeEntrega,
 }: {
   primeiroNome: string;
   role: UserRole;
   cargo: string | null;
-  acaoDeEntrega: React.ReactNode;
 }) {
   return (
-    <section className="bg-surface-card rounded-card flex flex-wrap items-start gap-4 border p-6">
-      <div className="min-w-0 flex-1 space-y-2">
+    <section className="bg-surface-card rounded-card border p-6">
+      <div className="min-w-0 space-y-2">
         <p className="flex flex-wrap items-center gap-1.5">
           <span className="bg-accent text-accent-foreground rounded px-2 py-0.5 text-xs font-medium">
             {ROTULOS_DE_ROLE[role]}
@@ -52,24 +48,10 @@ export function BoasVindas({
         </h1>
 
         <p className="text-text-secondary text-sm">
-          Bem-vindo ao Full Hub da Full Connect Key. Acesse suas tarefas, consulte o resumo semanal
-          ou gerencie seu perfil nos atalhos abaixo.
+          Bem-vindo ao Full Hub da Full Connect Key. Acesse suas tarefas,
+          acompanhe as campanhas ou gerencie seu perfil nos atalhos abaixo.
         </p>
       </div>
-
-      <div className="shrink-0">{acaoDeEntrega}</div>
     </section>
-  );
-}
-
-/** O botão, separado, porque abre um diálogo e precisa ser componente cliente. */
-export function BotaoDeEntrega({ href }: { href: string }) {
-  return (
-    <Button asChild>
-      <a href={href}>
-        <Plus aria-hidden />
-        Adicionar Entrega
-      </a>
-    </Button>
   );
 }

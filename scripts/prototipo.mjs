@@ -103,8 +103,6 @@ const TELAS = [
   { nome: "52-inicio-escuro", rota: "/painel", largura: 1600, altura: 1100, role: "socio", tema: "escuro" },
   { nome: "53-inicio-celular", rota: "/painel", largura: 390, altura: 1100, role: "socio" },
   { nome: "54-sino", rota: "/painel", largura: 1600, altura: 900, role: "socio", clicar: 'button[aria-label^="Notificações"]' },
-  { nome: "55-resumo-semanal", rota: "/painel/resumo-semanal", largura: 1440, altura: 900, role: "socio" },
-  { nome: "56-resumo-nova-entrega", rota: "/painel/resumo-semanal", largura: 1200, altura: 900, role: "socio", clicar: 'button:has-text("Adicionar Entrega")' },
   { nome: "57-notas-fiscais", rota: "/painel/notas-fiscais", largura: 1440, altura: 700, role: "colaborador" },
   { nome: "59-portal-do-cliente-pela-equipe", rota: "/portal/mundo-verde", largura: 1400, altura: 1200, role: "socio-no-portal" },
   { nome: "59b-portal-escolha-pela-equipe", rota: "/portal", largura: 1400, altura: 700, role: "socio-no-portal" },
@@ -123,8 +121,6 @@ const TELAS = [
   // --- Sprint 7: Desenvolvimento e Skills --------------------------------
   { nome: "67-meu-desenvolvimento", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador" },
   { nome: "68-equipe-skills", rota: "/painel/equipe", largura: 1700, altura: 1200, role: "socio", clicar: '[role="tab"]:has-text("Skills")' },
-  { nome: "69-resumo-semanal-nota", rota: "/painel/resumo-semanal", largura: 1440, altura: 1200, role: "socio" },
-  { nome: "70-resumo-semanal-busca", rota: "/painel/resumo-semanal?busca=campanha", largura: 1440, altura: 900, role: "socio" },
   { nome: "71-meu-desenvolvimento-escuro", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador", tema: "escuro" },
 
   // --- Sprint 8: Financeiro ----------------------------------------------
@@ -134,8 +130,6 @@ const TELAS = [
   { nome: "75-financeiro-contratos", rota: "/painel/financeiro?aba=contratos", largura: 1700, altura: 800, role: "socio" },
   { nome: "76-financeiro-relatorios", rota: "/painel/financeiro?aba=relatorios", largura: 1700, altura: 1400, role: "socio" },
   { nome: "77-financeiro-visao-geral-escuro", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio", tema: "escuro" },
-  { nome: "78-financeiro-pessoal", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador" },
-  { nome: "79-financeiro-pessoal-escuro", rota: "/painel/financeiro-pessoal", largura: 1600, altura: 1400, role: "colaborador", tema: "escuro" },
 
   // --- Sprint 9: Academy e Recomendacoes ---------------------------------
   // A troca obrigatoria do primeiro acesso. Mora em (auth), entao nao passa
@@ -222,11 +216,9 @@ const SUBSTITUICOES = {
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
-  "@/lib/dados/resumo-semanal": ["./scripts/prototipo/resumo-semanal.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/skills": ["./scripts/prototipo/skills.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
-  "@/lib/dados/financeiro-pessoal": ["./scripts/prototipo/financeiro-pessoal.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
 };

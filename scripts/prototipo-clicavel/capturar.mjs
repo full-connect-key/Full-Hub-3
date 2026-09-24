@@ -71,7 +71,6 @@ const COM_SUSPENSE = {
   "modulo-gestao-tasks-detalhe": TASK,
   "modulo-aprovacoes-internas": "/painel/aprovacoes-internas",
   "modulo-workflows": "/painel/workflows",
-  "modulo-resumo-semanal": "/painel/resumo-semanal",
   "modulo-notas-fiscais": "/painel/notas-fiscais",
   "modulo-full-days": "/painel/full-days",
   "full-days-matriz": "/painel/full-days?aba=matriz",
@@ -84,7 +83,6 @@ const COM_SUSPENSE = {
   "financeiro-lancamentos": "/painel/financeiro?aba=lancamentos",
   "financeiro-contratos": "/painel/financeiro?aba=contratos",
   "financeiro-relatorios": "/painel/financeiro?aba=relatorios",
-  "modulo-financeiro-pessoal": "/painel/financeiro-pessoal",
 };
 
 const ABAS = [
@@ -146,11 +144,6 @@ const DIALOGOS = [
     passos: ['button:has-text("Novo tipo de tarefa")'],
   },
   {
-    nome: "entrega-nova",
-    rota: "/painel/resumo-semanal",
-    passos: ['button:has-text("Adicionar Entrega")'],
-  },
-  {
     nome: "full-days-reprovar",
     rota: "/painel/full-days?aba=aprovacoes",
     passos: ['button:has-text("Reprovar")'],
@@ -174,16 +167,6 @@ const DIALOGOS = [
     nome: "contrato-novo",
     rota: "/painel/financeiro?aba=contratos",
     passos: ['button:has-text("Novo contrato")'],
-  },
-  {
-    // A saida do modulo e em DUAS etapas: o primeiro clique abre a zona, o
-    // segundo pede a confirmacao. Sao os dois passos aqui.
-    nome: "pessoal-apagar-tudo",
-    rota: "/painel/financeiro-pessoal",
-    passos: [
-      'button:has-text("Quero sair deste módulo")',
-      'button:has-text("Apagar tudo")',
-    ],
   },
 ];
 

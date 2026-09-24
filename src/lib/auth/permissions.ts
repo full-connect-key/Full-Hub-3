@@ -7,8 +7,6 @@ import {
   FileCheck2,
   LayoutDashboard,
   ListChecks,
-  NotebookPen,
-  PiggyBank,
   Receipt,
   Sparkles,
   Sun,
@@ -83,14 +81,6 @@ export type MenuItem = {
   description: string;
   /** Fora do menu, mas a rota existe e continua validando o perfil. */
   hiddenFromMenu?: boolean;
-  /**
-   * Item de menu com peso visual reduzido: ícone menor e cor mais apagada.
-   *
-   * Para módulo OPCIONAL, que existe para quem quiser e não deve disputar
-   * atenção com o trabalho. Não é uma permissão — quem vê o item pode abrir
-   * a tela normalmente.
-   */
-  discreto?: boolean;
 };
 
 export const MENU: MenuItem[] = [
@@ -110,14 +100,6 @@ export const MENU: MenuItem[] = [
     roles: EQUIPE,
     section: "principal",
     description: "As tarefas atribuídas a você, com prazo e prioridade.",
-  },
-  {
-    label: "Resumo Semanal",
-    href: "/painel/resumo-semanal",
-    icon: NotebookPen,
-    roles: EQUIPE,
-    section: "principal",
-    description: "O que você entregou em cada semana, na sua letra.",
   },
   {
     label: "Full Days",
@@ -181,23 +163,6 @@ export const MENU: MenuItem[] = [
     roles: EQUIPE,
     section: "principal",
     description: "Seus dados de acesso, foto e preferências.",
-  },
-  {
-    // ÚLTIMO da seção, e com peso visual reduzido de propósito.
-    //
-    // Foi aba de Meu Perfil do Sprint 3C ao 8, e voltou ao menu quando o
-    // módulo passou a existir de verdade — duas portas para a mesma tela
-    // confundem quem procura. O que não muda é o posicionamento: ele é
-    // opcional, o uso real pela equipe é incerto, e ele não pode competir
-    // com os módulos do trabalho. Por isso `discreto`, por isso último, e
-    // por isso fora da tela inicial, sem notificação e sem selo.
-    label: "Financeiro Pessoal",
-    href: "/painel/financeiro-pessoal",
-    icon: PiggyBank,
-    roles: EQUIPE,
-    section: "principal",
-    description: "Controle das suas finanças pessoais. Opcional e privado.",
-    discreto: true,
   },
 
   // --- Gestão --------------------------------------------------------------
@@ -264,18 +229,6 @@ export const MENU: MenuItem[] = [
 
   // --- Fora do menu --------------------------------------------------------
   {
-    // Saiu do menu no Sprint 3C: é assunto de quem já está dentro do perfil,
-    // e como item solto competia com módulos do trabalho. Chega-se a ele por
-    // uma aba dentro de Meu Perfil.
-    label: "Financeiro Pessoal",
-    href: "/painel/financeiro-pessoal",
-    icon: PiggyBank,
-    roles: EQUIPE,
-    section: "principal",
-    description: "Controle das suas finanças pessoais. Opcional.",
-    hiddenFromMenu: true,
-  },
-  {
     label: "Componentes",
     // Sem underline no começo da pasta: no App Router, um diretório iniciado
     // por "_" é privado e não vira rota. O sprint sugeria /painel/_dev/, que
@@ -297,7 +250,10 @@ export const MENU: MenuItem[] = [
  * ganhou um nome melhor.
  */
 export const ROTAS_RENOMEADAS: { de: string; para: string }[] = [
-  { de: "/painel/diario", para: "/painel/resumo-semanal" },
+  // `/painel/diario` saiu daqui quando o módulo de destino saiu do produto.
+  // Um 308 apontando para uma rota que não existe mais é pior que um 404
+  // direto: ele faz a pessoa dar dois saltos para chegar ao mesmo lugar
+  // nenhum.
   { de: "/painel/minhas-skills", para: "/painel/meu-desenvolvimento" },
 ];
 

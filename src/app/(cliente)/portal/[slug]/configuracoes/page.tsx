@@ -18,10 +18,10 @@ export const metadata: Metadata = { title: "Configurações do cliente" };
  *
  * **Aqui a tela NÃO é a mesma que o cliente vê, e é o único caso.** O bloco de
  * avisos é preferência PESSOAL de cada usuário do cliente —
- * `client_notification_prefs` fecha em `auth.uid()` nas quatro operações,
- * exatamente como o Resumo Semanal —, então ele não tem como aparecer aqui, e
- * inventar um valor de exemplo seria mentir sobre o que a pessoa escolheu. A
- * tela diz isso em uma frase em vez de mostrar campos vazios.
+ * `client_notification_prefs` fecha em `auth.uid()` nas quatro operações, e
+ * nem o sócio lê —, então ele não tem como aparecer aqui, e inventar um valor
+ * de exemplo seria mentir sobre o que a pessoa escolheu. A tela diz isso em
+ * uma frase em vez de mostrar campos vazios.
  *
  * O resto é o mesmo conteúdo, só leitura: os dados de contato e quem entra.
  * Editar cliente continua sendo em /painel/clientes, que é onde a gestão faz
@@ -48,8 +48,8 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
 
         <p className="text-text-muted bg-surface-card flex items-start gap-2 rounded-xl border p-4 text-sm">
           <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />A preferência
-          de avisos é de cada pessoa, e só ela lê. Nem a gestão enxerga — é a
-          mesma regra do Resumo Semanal.
+          de avisos é de cada pessoa, e só ela lê. Nem a gestão enxerga, e isso
+          vale no banco: a policy fecha no usuário nas quatro operações.
         </p>
       </section>
 

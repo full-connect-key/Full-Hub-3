@@ -91,19 +91,6 @@ if (avisos > 0) ok("O sino abre a lista de notificações", `${avisos} avisos`);
 else falha("O sino abre a lista de notificações");
 await pagina.keyboard.press("Escape");
 
-// --- Resumo Semanal --------------------------------------------------------
-
-await ir("/painel/resumo-semanal");
-const entregas = await pagina.locator("main li").count();
-if (entregas > 0) ok("O Resumo Semanal abre na semana corrente com entregas", `${entregas}`);
-else falha("O Resumo Semanal abre na semana corrente com entregas");
-
-await ir("/painel/resumo-semanal?nova=1");
-await pagina.waitForTimeout(500);
-const dialogoAberto = await pagina.locator('[role="dialog"]').count();
-if (dialogoAberto > 0) ok("O botão da tela inicial já abre o formulário de entrega");
-else falha("O botão da tela inicial já abre o formulário de entrega");
-
 // --- Full Days -------------------------------------------------------------
 
 await ir("/painel/full-days?aba=matriz");

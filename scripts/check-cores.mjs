@@ -260,6 +260,26 @@ const NOMES_MORTOS = [
   { nome: "aprova a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão aprova o próprio trabalho" },
   { nome: "decide a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão decide a própria rodada" },
 
+  // DOIS MÓDULOS QUE SAÍRAM DO PRODUTO, por decisão do usuário.
+  //
+  // O Resumo Semanal e o Financeiro Pessoal foram apagados: tela, rota, dados
+  // e tabelas. Um módulo apagado volta sozinho de um jeito específico — alguém
+  // copia uma tela antiga, um atalho fica no menu, um texto de ajuda cita a
+  // "letra de cada semana" — e aí o link existe e a rota devolve 404.
+  //
+  // Só `src/`, pela razão de sempre: o CLAUDE.md e o cabeçalho da 0034
+  // precisam nomear os dois para registrar por que saíram, e varrer a
+  // documentação junto faria a verificação acusar a própria regra.
+  //
+  // "Notas Fiscais" NÃO entra: é o módulo pessoal que ficou.
+  { nome: "Resumo Semanal", onde: "src/", porque: "o módulo saiu do produto na 0034" },
+  { nome: "resumo-semanal", onde: "src/", porque: "a rota saiu do produto na 0034" },
+  { nome: "Financeiro Pessoal", onde: "src/", porque: "o módulo saiu do produto na 0034" },
+  { nome: "financeiro-pessoal", onde: "src/", porque: "a rota saiu do produto na 0034" },
+  { nome: "weekly_entries", onde: "src/", porque: "a tabela foi apagada na 0034" },
+  { nome: "weekly_notes", onde: "src/", porque: "a tabela foi apagada na 0034" },
+  { nome: "personal_finance_entries", onde: "src/", porque: "a tabela foi apagada na 0034" },
+
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
 

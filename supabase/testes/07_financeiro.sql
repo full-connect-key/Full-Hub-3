@@ -17,7 +17,6 @@
 -- roda como cada pessoa de verdade e pergunta ao Postgres.
 -- ===========================================================================
 
-delete from public.personal_finance_entries;
 delete from public.finance_entries;
 delete from public.contracts;
 
@@ -234,64 +233,3 @@ select teste.cenario('Dois avulsos na mesma competencia convivem', :ANA,
     values ('despesa', 'Cafe', 50.00, date_trunc('month', current_date)::date, %L),
            ('despesa', 'Papelaria', 80.00, date_trunc('month', current_date)::date, %L)
   $fmt$, :ANA, :ANA), 'ok', 2);
-
-
--- ---------------------------------------------------------------------------
--- Financeiro Pessoal: o outro extremo
---
--- Aqui nem a socia entra. E a mesma regra do Resumo Semanal, pela mesma
--- razao: o modulo so serve se a pessoa confiar nele.
--- ---------------------------------------------------------------------------
-
-select teste.cenario('Bruno lanca uma entrada dele', :BRUNO,
-  format($fmt$
-    insert into public.personal_finance_entries (user_id, tipo, descricao, categoria, valor, data)
-    values (%L, 'entrada', 'Salário', 'Renda', 6500.00, current_date)
-  $fmt$, :BRUNO), 'ok', 1);
-
-select teste.cenario('E uma saida', :BRUNO,
-  format($fmt$
-    insert into public.personal_finance_entries
-      (user_id, tipo, descricao, categoria, valor, data, recorrente)
-    values (%L, 'saida', 'Aluguel', 'Moradia', 1800.00, current_date, true)
-  $fmt$, :BRUNO), 'ok', 1);
-
-select teste.cenario('Bruno le os proprios lancamentos', :BRUNO,
-  'select 1 from public.personal_finance_entries', 'ok', 2);
-
-select teste.cenario('A SOCIA nao le o financeiro pessoal de Bruno', :ANA,
-  'select 1 from public.personal_finance_entries', 'ok', 0);
-
-select teste.cenario('O desenvolvedor tambem nao', :DIEGO,
-  'select 1 from public.personal_finance_entries', 'ok', 0);
-
-select teste.cenario('Nem um colega', :CARLA,
-  'select 1 from public.personal_finance_entries', 'ok', 0);
-
-select teste.cenario('Nem o cliente', :JOANA,
-  'select 1 from public.personal_finance_entries', 'ok', 0);
-
-select teste.cenario('A socia nao altera o lancamento de Bruno', :ANA,
-  'update public.personal_finance_entries set valor = 1.00', 'recusa');
-
-select teste.cenario('A socia nao apaga o lancamento de Bruno', :ANA,
-  'delete from public.personal_finance_entries', 'recusa');
-
--- Escrever no nome de outra pessoa e recusado pelo `with check`. Sem ele,
--- daria para lancar uma despesa no controle pessoal de um colega.
-select teste.cenario('Carla nao lanca no nome de Bruno', :CARLA,
-  format($fmt$
-    insert into public.personal_finance_entries (user_id, tipo, descricao, valor, data)
-    values (%L, 'saida', 'Lancamento forjado', 999.00, current_date)
-  $fmt$, :BRUNO), 'recusa');
-
--- "Apagar todos os meus dados" tem que funcionar de verdade: um modulo
--- opcional do qual nao se consegue sair nao e opcional.
-select teste.cenario('Bruno apaga tudo o que e dele', :BRUNO,
-  format($fmt$delete from public.personal_finance_entries where user_id = %L$fmt$, :BRUNO),
-  'ok', 2);
-
-select teste.conferir('E nao sobrou nada dele',
-  (select count(*)::text from public.personal_finance_entries
-    where user_id = '44444444-4444-4444-4444-444444444444'),
-  '0');

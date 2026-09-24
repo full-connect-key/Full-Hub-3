@@ -6,7 +6,7 @@ import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { AcessoRapido } from "./_blocos/acesso-rapido";
-import { BoasVindas, BotaoDeEntrega } from "./_blocos/boas-vindas";
+import { BoasVindas } from "./_blocos/boas-vindas";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
 import { RascunhosAExpirar } from "./_blocos/rascunhos-a-expirar";
 
@@ -40,7 +40,6 @@ export default async function PaginaInicialDoPainel() {
         primeiroNome={primeiroNome(profile.nome)}
         role={profile.role}
         cargo={ficha?.cargo ?? null}
-        acaoDeEntrega={<BotaoDeEntrega href="/painel/resumo-semanal?nova=1" />}
       />
 
       <AcessoRapido />

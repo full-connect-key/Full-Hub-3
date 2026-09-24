@@ -371,34 +371,6 @@ export interface Database {
         Update: { encerrado_em?: string | null };
         Relationships: [];
       };
-      /** O Resumo Semanal. Privado: so o dono le e escreve (migration 0010). */
-      weekly_entries: {
-        Row: {
-          id: string;
-          user_id: string;
-          data: string;
-          descricao: string;
-          client_id: string | null;
-          subtask_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          data?: string;
-          descricao: string;
-          client_id?: string | null;
-          subtask_id?: string | null;
-        };
-        Update: {
-          data?: string;
-          descricao?: string;
-          client_id?: string | null;
-          subtask_id?: string | null;
-        };
-        Relationships: [];
-      };
       /**
        * Avisos in-app (migration 0011).
        *
@@ -659,64 +631,6 @@ export interface Database {
           status?: FinStatus;
           fornecedor?: string | null;
           observacoes?: string | null;
-        };
-        Relationships: [];
-      };
-      personal_finance_entries: {
-        Row: {
-          id: string;
-          user_id: string;
-          tipo: PfTipo;
-          descricao: string;
-          categoria: string | null;
-          valor: number;
-          data: string;
-          recorrente: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          tipo: PfTipo;
-          descricao: string;
-          categoria?: string | null;
-          valor: number;
-          data: string;
-          recorrente?: boolean;
-        };
-        Update: {
-          tipo?: PfTipo;
-          descricao?: string;
-          categoria?: string | null;
-          valor?: number;
-          data?: string;
-          recorrente?: boolean;
-        };
-        Relationships: [];
-      };
-      weekly_notes: {
-        Row: {
-          id: string;
-          user_id: string;
-          semana: string;
-          conteudo_rico: Json | null;
-          conteudo_texto: string | null;
-          humor: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          semana: string;
-          conteudo_rico?: Json | null;
-          conteudo_texto?: string | null;
-          humor?: string | null;
-        };
-        Update: {
-          conteudo_rico?: Json | null;
-          conteudo_texto?: string | null;
-          humor?: string | null;
         };
         Relationships: [];
       };
@@ -1750,12 +1664,9 @@ export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
 export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
 export type SkillAvaliacao = Database["public"]["Tables"]["skill_avaliacoes"]["Row"];
-export type WeeklyNote = Database["public"]["Tables"]["weekly_notes"]["Row"];
 export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
 export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]["Row"];
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
-export type PersonalFinanceEntry =
-  Database["public"]["Tables"]["personal_finance_entries"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type PostVersion = Database["public"]["Tables"]["post_versions"]["Row"];
 export type Comentario = Database["public"]["Tables"]["comments"]["Row"];

@@ -432,8 +432,8 @@ function FormularioDeLancamento({
   const [salvando, iniciar] = useTransition();
 
   // `key` no Dialog remonta o formulário a cada abertura, e é por isso que o
-  // estado pode nascer dos props sem um efeito de sincronização — o mesmo
-  // caminho que evitou o setState-em-efeito no Resumo Semanal.
+  // estado pode nascer dos props sem um efeito de sincronização — remontar é
+  // o caminho que evita o setState-dentro-de-efeito.
   const chave = lancamento?.id ?? `novo-${competencia}`;
 
   return (

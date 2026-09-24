@@ -31,10 +31,12 @@ function estaAtivo(pathname: string, item: MenuItem): boolean {
  * funciona como texto — sobre branco ela daria 1.7:1, e é por isso que no
  * conteúdo claro o azul é outro (--accent-strong).
  *
- * Item `discreto` (hoje só o Financeiro Pessoal) vem com ícone menor e texto
- * mais apagado: é módulo opcional, e não pode disputar a mesma atenção que
- * Minhas Tasks. O que ele NÃO perde é o contraste quando está ativo — item
- * discreto continua sendo um item, e quem está nele precisa ver que está.
+ * **Houve um peso visual reduzido, e ele saiu junto com o último módulo que o
+ * usava.** Era ícone menor e texto mais apagado, para módulo opcional não
+ * disputar atenção com o trabalho. Com o módulo fora do produto, a bandeira
+ * virou um campo que nenhuma linha do `MENU` liga — e campo que não decide
+ * mais nada é o pior tipo de campo. Se um dia voltar a existir módulo
+ * opcional, ela volta com ele.
  */
 export function ListaDoMenu({
   role,
@@ -79,9 +81,7 @@ export function ListaDoMenu({
                     "focus-visible:ring-brand-blue/60 focus-visible:ring-2 focus-visible:outline-none",
                     ativo
                       ? "bg-surface-sidebar-2 text-brand-blue font-medium"
-                      : item.discreto
-                        ? "text-text-on-dark-muted hover:bg-surface-sidebar-2/60 hover:text-text-on-dark"
-                        : "text-text-on-dark/70 hover:bg-surface-sidebar-2/60 hover:text-text-on-dark",
+                      : "text-text-on-dark/70 hover:bg-surface-sidebar-2/60 hover:text-text-on-dark",
                   )}
                 >
                   {ativo ? (
@@ -90,21 +90,13 @@ export function ListaDoMenu({
                       className="bg-brand-blue absolute top-1 bottom-1 left-0 w-[3px] rounded-r"
                     />
                   ) : null}
-                  <item.icon
-                    aria-hidden
-                    className={cn("shrink-0", item.discreto && !ativo ? "size-3.5" : "size-4")}
-                  />
+                  <item.icon aria-hidden className="size-4 shrink-0" />
                   {/* Quebra em duas linhas em vez de cortar. "Recomendações
                       da Semana" não cabe numa linha, e "Recomendações da
                       Sema…" obriga a pessoa a passar o mouse para saber onde
                       está clicando — num menu, isso é o oposto do que ele
                       serve. */}
-                  <span
-                    className={cn(
-                      "recolhido:lg:hidden leading-tight text-balance",
-                      item.discreto && !ativo && "text-[13px]",
-                    )}
-                  >
+                  <span className="recolhido:lg:hidden leading-tight text-balance">
                     {item.label}
                   </span>
                 </Link>
