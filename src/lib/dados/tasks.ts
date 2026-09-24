@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { folhas } from "@/lib/dominio/tasks";
+import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
@@ -491,8 +491,14 @@ export type ItemDeCalendario = {
    * NÃO é uma demanda nem uma etapa dela. A agência precisava de um lugar só
    * para a pergunta "o que sai em que dia" — e um post agendado para o dia 15
    * ocupa a equipe no dia 15 exatamente como uma entrega.
+   *
+   * `campanha` e `entregavel` chegaram depois, com o mesmo raciocínio. A
+   * campanha entra pela data de ENCERRAMENTO, e não como faixa cobrindo o
+   * período inteiro: uma Wave de trinta dias pintaria trinta células e
+   * empurraria para baixo tudo o que acontece em cada uma delas. O que a
+   * equipe precisa ver é o dia em que ela fecha.
    */
-  tipo: "task" | "subtarefa" | "post";
+  tipo: TipoDeItemDeCalendario;
   taskId: string;
   titulo: string;
   prazo: string;
@@ -602,8 +608,104 @@ export async function itensDoCalendario(
   }
 
   itens.push(...(await postsNoCalendario(filtros)));
+  itens.push(...(await campanhasNoCalendario(filtros)));
 
   return itens.sort((a, b) => a.prazo.localeCompare(b.prazo));
+}
+
+/**
+ * As campanhas e os entregáveis, no mesmo calendário.
+ *
+ * **A campanha entra pelo ENCERRAMENTO, não como faixa do período.** Uma Wave
+ * de trinta dias pintaria trinta células e empurraria para baixo tudo o que
+ * acontece em cada uma — e o que a equipe precisa ver é o dia em que ela
+ * fecha. O começo aparece no detalhe da campanha, que é onde alguém pergunta
+ * "quando isso começou?". É a mesma decisão que o calendário já toma com o
+ * período da etapa, que mostra só o prazo.
+ *
+ * **O entregável entra pelo prazo DELE**, e o sem prazo fica de fora: item
+ * sem data não ocupa dia nenhum, e colocá-lo em algum dia seria inventar a
+ * data que ninguém definiu.
+ */
+async function campanhasNoCalendario(
+  filtros: FiltrosDeTask,
+): Promise<ItemDeCalendario[]> {
+  // Com "pauta da Marina" selecionado, campanha e entregável somem em vez de
+  // aparecerem todos: mostrar tudo seria a tela desmentindo o próprio filtro.
+  // Eles não têm responsável — `deliverables.responsavel_id` existe, mas
+  // ninguém o preenche até a tela interna de produção existir.
+  if (filtros.responsavel) return [];
+
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("campaigns")
+    .select("id, client_id, nome, data_fim, status")
+    .order("data_fim");
+
+  if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
+
+  const { data } = await consulta;
+  const campanhas = (data ?? []).filter((c) => c.status !== "cancelada");
+  if (campanhas.length === 0) return [];
+
+  const [{ data: clientes }, { data: entregaveis }] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, nome_empresa, slug")
+      .in("id", [...new Set(campanhas.map((c) => c.client_id))]),
+    supabase
+      .from("deliverables")
+      .select("id, campaign_id, nome, prazo, status")
+      .in(
+        "campaign_id",
+        campanhas.map((c) => c.id),
+      )
+      .not("prazo", "is", null),
+  ]);
+
+  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const porCampanha = new Map(campanhas.map((c) => [c.id, c]));
+
+  const destino = (clienteId: string, resto: string) => {
+    const slug = porCliente.get(clienteId)?.slug;
+    return slug ? `/portal/${slug}/campanhas/${resto}` : undefined;
+  };
+
+  const itens: ItemDeCalendario[] = campanhas.map((campanha) => ({
+    chave: `campanha-${campanha.id}`,
+    tipo: "campanha" as const,
+    taskId: campanha.id,
+    titulo: campanha.nome,
+    prazo: campanha.data_fim,
+    prioridade: "normal" as TaskPrioridade,
+    status: "em_andamento" as TaskStatus,
+    concluida: campanha.status === "finalizada",
+    responsavel: null,
+    cliente: porCliente.get(campanha.client_id)?.nome_empresa ?? null,
+    href: destino(campanha.client_id, campanha.id),
+  }));
+
+  for (const item of entregaveis ?? []) {
+    const campanha = porCampanha.get(item.campaign_id);
+    if (!campanha || !item.prazo) continue;
+
+    itens.push({
+      chave: `entregavel-${item.id}`,
+      tipo: "entregavel",
+      taskId: item.id,
+      titulo: item.nome,
+      prazo: item.prazo,
+      prioridade: "normal",
+      status: "em_andamento",
+      concluida: item.status === "aprovado",
+      responsavel: null,
+      cliente: porCliente.get(campanha.client_id)?.nome_empresa ?? null,
+      href: destino(campanha.client_id, `${campanha.id}/${item.id}`),
+    });
+  }
+
+  return itens;
 }
 
 /**

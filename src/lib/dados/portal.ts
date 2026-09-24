@@ -3,6 +3,7 @@ import "server-only";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
+import type { StatusRodada } from "@/lib/supabase/database.types";
 
 /**
  * O que o cliente enxerga no Portal.
@@ -125,10 +126,17 @@ export async function itensDoPortal(
           (e) =>
             e.subtask_id === sub.id && /\.(png|jpe?g|webp|gif)$/i.test(e.url),
         )?.url ?? null,
+      // O material que vem de uma demanda se decide na própria fila de
+      // aprovações: não há tela de detalhe para ele.
+      caminho: null,
     });
   }
 
-  return [...itens, ...(await postsComoItens(clienteId))];
+  return [
+    ...itens,
+    ...(await postsComoItens(clienteId)),
+    ...(await entregaveisComoItens(clienteId)),
+  ];
 }
 
 /**
@@ -212,7 +220,121 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
     prazo: post.prazo_aprovacao ?? post.data_publicacao,
     enviadoEm: post.enviado_em,
     miniatura: post.thumbnail_url ?? post.arte_url,
+    caminho: `/social-media/${post.id}`,
   }));
+}
+
+/**
+ * Os entregáveis de campanha, no mesmo formato dos outros materiais.
+ *
+ * Pelo mesmo motivo do post: **"o que está esperando por mim" é uma pergunta
+ * só**, e a resposta não pode depender de o cliente lembrar de abrir três
+ * telas. Aqui o entregável entra na mesma lista, no mesmo contador, com a
+ * mesma ordenação por urgência.
+ *
+ * **O GRUPO NÃO ENTRA, e é a regra de sempre.** Quem tem filho para de ser
+ * unidade de trabalho: o grupo não tem rodada, não tem decisão e não tem
+ * arquivo. Listá-lo faria o contador de pendências contar uma coisa a mais
+ * que não dá para resolver — e o cartão levaria a uma tela que só repete os
+ * filhos.
+ *
+ * O status não passa por `statusParaOCliente()`: `deliverables.status` já é
+ * `content_status`, como o do post. Traduzir de novo seria traduzir duas
+ * vezes.
+ */
+async function entregaveisComoItens(
+  clienteId?: string,
+): Promise<ItemDoPortal[]> {
+  const supabase = await criarClienteServidor();
+
+  // Sem filtro de `enviado_em`: `deliverables_select_cliente` já recusa o que
+  // não foi enviado, e repetir a regra aqui criaria um segundo lugar onde ela
+  // pode divergir.
+  let consulta = supabase
+    .from("campaigns")
+    .select("id, client_id, nome")
+    .order("data_fim");
+
+  if (clienteId) consulta = consulta.eq("client_id", clienteId);
+
+  const { data: campanhas } = await consulta;
+  if (!campanhas || campanhas.length === 0) return [];
+
+  const { data: entregaveis } = await supabase
+    .from("deliverables")
+    .select(
+      "id, campaign_id, parent_id, nome, prazo, status, thumbnail_url, arte_url, enviado_em",
+    )
+    .in(
+      "campaign_id",
+      campanhas.map((c) => c.id),
+    )
+    .order("ordem");
+
+  const linhas = entregaveis ?? [];
+  if (linhas.length === 0) return [];
+
+  const comFilho = new Set(
+    linhas.map((d) => d.parent_id).filter(Boolean) as string[],
+  );
+  const folhasDaArvore = linhas.filter((d) => !comFilho.has(d.id));
+  if (folhasDaArvore.length === 0) return [];
+
+  const { data: rodadas } = await supabase
+    .from("approval_rounds")
+    .select("id, content_id, status, numero_rodada, solicitado_em")
+    .eq("content_type", "deliverable")
+    .eq("escopo", "cliente")
+    .in(
+      "content_id",
+      folhasDaArvore.map((d) => d.id),
+    )
+    .order("numero_rodada", { ascending: false });
+
+  const atual = new Map<string, { id: string; status: StatusRodada }>();
+  for (const r of rodadas ?? []) {
+    // A de maior número é a que vale; as anteriores são o histórico de um
+    // ciclo que já fechou.
+    if (!atual.has(r.content_id)) atual.set(r.content_id, r);
+  }
+
+  const porCampanha = new Map(campanhas.map((c) => [c.id, c]));
+
+  const idsDeClientes = [...new Set(campanhas.map((c) => c.client_id))];
+  const { data: clientes } = await supabase
+    .from("clients")
+    .select("id, nome_empresa")
+    .in("id", idsDeClientes);
+  const porCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
+
+  return folhasDaArvore.flatMap((item) => {
+    const campanha = porCampanha.get(item.campaign_id);
+    if (!campanha) return [];
+
+    const rodada = atual.get(item.id);
+
+    return [
+      {
+        rodadaId: rodada?.status === "pendente" ? rodada.id : null,
+        tipo: "deliverable" as const,
+        conteudoId: item.id,
+        titulo: item.nome,
+        // A DEMANDA DE UM ENTREGÁVEL É A CAMPANHA. É o que situa a peça, e é
+        // o nome que o cliente reconhece — "Wave Outubro Rosa" diz muito
+        // mais que o nome do grupo onde ela está pendurada.
+        demanda: campanha.nome,
+        clienteId: campanha.client_id,
+        cliente: porCliente.get(campanha.client_id) ?? "",
+        status: item.status,
+        prazo: item.prazo,
+        enviadoEm: item.enviado_em,
+        miniatura: item.thumbnail_url ?? item.arte_url,
+        caminho: `/campanhas/${campanha.id}/${item.id}`,
+      },
+    ];
+  });
 }
 
 /**

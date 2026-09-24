@@ -94,11 +94,12 @@ export async function MateriaisDoPortal({
               key={item.conteudoId}
               item={item}
               hoje={hoje}
-              href={
-                item.tipo === "post"
-                  ? `${base}/social-media/${item.conteudoId}`
-                  : undefined
-              }
+              // O CAMINHO VEM COM O ITEM, e não de um `if` por tipo. A
+              // tela cola o prefixo da área; quem sabe onde cada material se
+              // decide é quem o leu. Com o `if`, acrescentar o entregável
+              // seria acrescentar um ramo aqui e outro na tela inicial — e um
+              // dos dois ficaria para trás.
+              href={item.caminho ? `${base}${item.caminho}` : undefined}
             />
           ))}
         </div>

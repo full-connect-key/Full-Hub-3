@@ -52,6 +52,18 @@ export type ItemDoPortal = {
   /** Quando foi enviado para decisão. */
   enviadoEm: string | null;
   miniatura: string | null;
+  /**
+   * Onde o material se decide, a partir do prefixo da área.
+   *
+   * **Relativo, e não absoluto**, porque o mesmo item é lido pelas duas
+   * entradas: `/portal` para o cliente e `/portal/{slug}` para a equipe. Quem
+   * cola o prefixo é a tela, que é quem sabe de onde está sendo olhada.
+   *
+   * `null` para o material que vem de uma demanda: ele se decide na própria
+   * fila de aprovações, e um link para uma tela que não existe é pior que
+   * nenhum link.
+   */
+  caminho: string | null;
 };
 
 /**

@@ -4,6 +4,11 @@ import { ptBR } from "date-fns/locale";
 import { ArrowRight, PartyPopper } from "lucide-react";
 
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
+import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import {
+  campanhasDoCliente,
+  entregaveisDaCampanha,
+} from "@/lib/dados/campanhas";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import {
   atividadeRecente,
@@ -11,6 +16,13 @@ import {
   prazosDoPortal,
   registrarAcesso,
 } from "@/lib/dados/portal";
+import {
+  emArvore,
+  esperandoOCliente,
+  folhas,
+  periodoCurto,
+  progresso,
+} from "@/lib/dominio/campanhas";
 import { ordenarPorUrgencia } from "@/lib/dominio/portal";
 
 /**
@@ -42,10 +54,29 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
-  const [itens, atividade] = await Promise.all([
+  const [itens, atividade, campanhas] = await Promise.all([
     itensDoPortal(clienteId ?? undefined),
     atividadeRecente(clienteId ?? undefined, comoEquipe),
+    campanhasDoCliente(clienteId ?? undefined),
   ]);
+
+  // Só as ATIVAS, e no máximo três: o bloco é um atalho, não a listagem. Quem
+  // quer a lista inteira clica em "Ver todas", que é o que o link abaixo faz.
+  const ativas = campanhas
+    .filter((c) => c.status === "ativa")
+    .sort((a, b) => a.dataFim.localeCompare(b.dataFim))
+    .slice(0, 3);
+
+  const comProgresso = await Promise.all(
+    ativas.map(async (campanha) => {
+      const itensDela = folhas(emArvore(await entregaveisDaCampanha(campanha.id)));
+      return {
+        campanha,
+        conta: progresso(itensDela),
+        esperando: esperandoOCliente(itensDela),
+      };
+    }),
+  );
 
   // O acesso fica registrado por empresa: quem responde por duas contas entrou
   // nas duas. A equipe NÃO registra aqui — a visita dela vira linha em
@@ -146,11 +177,7 @@ export async function InicioDoPortal({
                 key={item.conteudoId}
                 item={item}
                 hoje={hoje}
-                href={
-                  item.tipo === "post"
-                    ? `${base}/social-media/${item.conteudoId}`
-                    : undefined
-                }
+                href={item.caminho ? `${base}${item.caminho}` : undefined}
               />
             ))}
             {pendentes.length > 5 ? (
@@ -187,9 +214,59 @@ export async function InicioDoPortal({
         </section>
       ) : null}
 
-      {/* Campanhas ativas com barra de progresso chegam junto com a tela que
-          as define. Um bloco vazio prometendo isso agora seria espaço ocupado
-          por nada. */}
+      {/* CAMPANHAS ATIVAS. O bloco só existe quando há campanha ativa: um
+          quadro vazio dizendo "nenhuma campanha" ocupa a altura de um bloco
+          para não informar nada, e o cliente que não tem campanha nunca
+          precisa saber que o módulo existe. */}
+      {comProgresso.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold">Campanhas ativas</h2>
+            <Link
+              href={`${base}/campanhas`}
+              className="text-accent-strong inline-flex items-center gap-1 text-sm hover:underline"
+            >
+              Ver todas
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </div>
+
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {comProgresso.map(({ campanha, conta, esperando }) => (
+              <li key={campanha.id}>
+                <Link
+                  href={`${base}/campanhas/${campanha.id}`}
+                  className="bg-surface-card hover:border-accent-strong block space-y-2 rounded-xl border p-4 transition-colors"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="min-w-0 font-medium">{campanha.nome}</p>
+                    {esperando > 0 ? (
+                      <span className="bg-warning-soft text-warning rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap">
+                        {esperando} para decidir
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="text-text-muted text-sm tabular-nums">
+                    {periodoCurto(campanha.dataInicio, campanha.dataFim)}
+                  </p>
+
+                  {conta.total > 0 ? (
+                    <BarraDeProgresso
+                      valor={conta.aprovados}
+                      total={conta.total}
+                      tom={
+                        conta.aprovados === conta.total ? "sucesso" : "marca"
+                      }
+                      rotulo={`${conta.aprovados} de ${conta.total} aprovados`}
+                    />
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <p className="sr-only" aria-live="polite">
         {pendentes.length} materiais aguardando aprovação.

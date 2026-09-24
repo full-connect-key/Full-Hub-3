@@ -275,3 +275,38 @@ export function emArvore<T extends ComPai & { ordem: number }>(
     filhas: subtarefas.filter((s) => s.parent_id === etapa.id).sort(porOrdem),
   }));
 }
+
+/**
+ * O que pode ocupar um dia no calendário da agência.
+ *
+ * **Está aqui, e não em `lib/dados/tasks.ts`, por causa do rótulo.** O tipo
+ * mora junto do mapa que o traduz, e o mapa é um `Record` sobre a união — um
+ * valor novo sem rótulo vira erro de tipo no `npm run build`, em vez de
+ * aparecer na tela como o último ramo de um `? :` aninhado. Foi assim que
+ * `entregavel` quase renderizou como "Etapa".
+ */
+export type TipoDeItemDeCalendario =
+  | "task"
+  | "subtarefa"
+  | "post"
+  | "campanha"
+  | "entregavel";
+
+/**
+ * Cada linha marca uma coisa diferente, e o rótulo diz qual.
+ *
+ * A da Task marca o fim do período da demanda; a da subtarefa, o prazo de uma
+ * etapa; a do post, o dia em que ele vai ao ar; a da campanha, o dia em que
+ * ela fecha; a do entregável, o prazo daquela peça. Sem o rótulo, cinco
+ * significados dividiriam a mesma célula sem nada que os separasse.
+ */
+export const ROTULO_DO_ITEM_DE_CALENDARIO: Record<
+  TipoDeItemDeCalendario,
+  string
+> = {
+  task: "Demanda",
+  subtarefa: "Etapa",
+  post: "Post",
+  campanha: "Campanha",
+  entregavel: "Entregável",
+};

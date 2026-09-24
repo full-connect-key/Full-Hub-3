@@ -46,6 +46,7 @@ const ITENS: ItemDoPortal[] = [
     prazo: dia(0),
     enviadoEm: dia(-1),
     miniatura: null,
+    caminho: null,
   },
   {
     rodadaId: "r2",
@@ -59,6 +60,7 @@ const ITENS: ItemDoPortal[] = [
     prazo: dia(3),
     enviadoEm: dia(-2),
     miniatura: null,
+    caminho: null,
   },
   {
     rodadaId: null,
@@ -72,6 +74,7 @@ const ITENS: ItemDoPortal[] = [
     prazo: dia(-9),
     enviadoEm: dia(-12),
     miniatura: null,
+    caminho: null,
   },
   {
     rodadaId: null,
@@ -85,6 +88,7 @@ const ITENS: ItemDoPortal[] = [
     prazo: dia(8),
     enviadoEm: dia(-1),
     miniatura: null,
+    caminho: null,
   },
 ];
 

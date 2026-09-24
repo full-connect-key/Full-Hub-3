@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  ROTULO_DO_ITEM_DE_CALENDARIO,
   ROTULOS_DE_PRIORIDADE,
   corDoPrazo,
   situacaoDoPrazo,
@@ -217,24 +218,21 @@ export function CalendarioDeTasks({
                       prazos.fimDaSemana,
                     );
                     const cor = corDoPrazo(situacao, item.prioridade);
-                    // A linha da Task marca o FIM DO PERÍODO da demanda; a da subtarefa,
-                    // o prazo de uma etapa; a do post, o dia em que ele vai ao
-                    // ar. São três coisas diferentes e o rótulo diz qual é.
-                    const rotulo =
-                      item.tipo === "task"
-                        ? "Demanda"
-                        : item.tipo === "post"
-                          ? "Post"
-                          : "Etapa";
+                    // Cada linha marca uma coisa diferente, e o rótulo diz
+                    // qual. O mapa é um `Record` sobre a união justamente para
+                    // um tipo novo não cair calado no último ramo de um `? :`
+                    // — foi assim que "entregável" quase virou "Etapa".
+                    const rotulo = ROTULO_DO_ITEM_DE_CALENDARIO[item.tipo];
 
                     return (
                       <li key={item.chave}>
                         <button
                           type="button"
                           onClick={() =>
-                            // O post tem destino próprio e não abre o painel
-                            // lateral de demanda: ele não é uma, e o painel
-                            // mostraria campos que ele não tem.
+                            // Post, campanha e entregável têm destino
+                            // próprio e não abrem o painel lateral de demanda:
+                            // não são uma, e o painel mostraria campos que
+                            // eles não têm.
                             item.href
                               ? router.push(item.href)
                               : aoAbrir
@@ -249,7 +247,12 @@ export function CalendarioDeTasks({
                             item.tipo === "subtarefa"
                               ? "border-dashed bg-transparent"
                               : "bg-card border-transparent shadow-xs",
-                            item.tipo === "post" &&
+                            // Pontilhado para o que não é demanda nem etapa:
+                            // post, campanha e entregável vivem em outro
+                            // módulo, e o traço diz isso sem ocupar espaço.
+                            (item.tipo === "post" ||
+                              item.tipo === "campanha" ||
+                              item.tipo === "entregavel") &&
                               "border-border border-dotted",
                             situacao === "atrasada" && "border-destructive/50",
                             item.concluida && "opacity-55",
