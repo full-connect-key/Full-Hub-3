@@ -112,6 +112,57 @@ from (
     -- O bucket das artes. Pode faltar sozinho: ele nasce num bloco que so
     -- roda se o schema `storage` existir.
     ('bucket posts-artes',
-     exists (select 1 from storage.buckets where id = 'posts-artes'), '0032')
+     exists (select 1 from storage.buckets where id = 'posts-artes'), '0032'),
+
+    -- 0033: campanhas e entregaveis.
+    ('campaigns (a campanha)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'campaigns'), '0033'),
+
+    ('deliverables (a arvore de entregaveis)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'deliverables'), '0033'),
+
+    ('deliverable_versions (historico de arquivos)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'deliverable_versions'), '0033'),
+
+    ('campaign_templates (os modelos de Wave)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'campaign_templates'), '0033'),
+
+    -- O status do grupo e calculado, e esta funcao e quem calcula. Sem ela a
+    -- arvore mostra o valor gravado, que no grupo nao quer dizer nada.
+    ('status_do_entregavel() (o status calculado do grupo)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'status_do_entregavel'), '0033'),
+
+    -- A policy que segura este sprint, como a do post seguro o anterior:
+    -- entregavel em producao nao existe para o cliente. Confere a CONDICAO,
+    -- e nao so o nome.
+    ('deliverables_select_cliente exige enviado_em',
+     exists (select 1 from pg_policies
+              where schemaname = 'public' and tablename = 'deliverables'
+                and policyname = 'deliverables_select_cliente'
+                and qual like '%enviado_em IS NOT NULL%'), '0033'),
+
+    -- O motor aprendeu o terceiro tipo. Sem isto, rodada de entregavel e
+    -- recusada e o Portal de campanhas nao decide nada.
+    ('entregavel_da_rodada() (o motor aceita deliverable)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'entregavel_da_rodada'), '0033'),
+
+    -- O trigger que carimba `enviado_em` mudou de nome junto com a funcao:
+    -- um trigger chamado "marca post" que carimba entregavel e pista falsa.
+    ('trigger approval_rounds_marca_conteudo',
+     exists (select 1 from pg_trigger
+              where tgname = 'approval_rounds_marca_conteudo'), '0033'),
+
+    ('template Wave Outubro Rosa',
+     exists (select 1 from public.campaign_templates
+              where nome = 'Wave Outubro Rosa' and client_id is null), '0033'),
+
+    ('bucket campanhas-arquivos',
+     exists (select 1 from storage.buckets where id = 'campanhas-arquivos'), '0033')
 ) as t(item, existe, migration)
 order by migration;
