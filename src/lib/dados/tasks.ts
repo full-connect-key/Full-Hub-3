@@ -95,7 +95,9 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   const ids = tasks.map((t) => t.id);
   // O rascunho ainda não tem cliente (0028) — ele só aparece na tela de quem
   // o criou, e é ali que a pessoa escolhe.
-  const idsDeClientes = [...new Set(tasks.map((t) => t.client_id).filter(Boolean))] as string[];
+  const idsDeClientes = [
+    ...new Set(tasks.map((t) => t.client_id).filter(Boolean)),
+  ] as string[];
 
   const [{ data: clientes }, { data: subtarefas }] = await Promise.all([
     supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
@@ -132,9 +134,14 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
 
   const comRodadaPendente = new Set((pendentes ?? []).map((r) => r.content_id));
 
-  const idsDePessoas = [...new Set(linhas.map((s) => s.responsavel_id).filter(Boolean))] as string[];
+  const idsDePessoas = [
+    ...new Set(linhas.map((s) => s.responsavel_id).filter(Boolean)),
+  ] as string[];
   const { data: pessoas } = idsDePessoas.length
-    ? await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas)
+    ? await supabase
+        .from("profiles")
+        .select("id, nome, avatar_url")
+        .in("id", idsDePessoas)
     : { data: [] as Pessoa[] };
 
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
@@ -149,13 +156,19 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     if (comRodadaPendente.has(sub.id) && !atual.aprovacaoPendenteEm) {
       atual.aprovacaoPendenteEm = sub.titulo;
     }
-    if (sub.estimativa_minutos !== null) atual.estimativa += sub.estimativa_minutos;
-    if (sub.tempo_real_minutos !== null) atual.tempoReal += sub.tempo_real_minutos;
+    if (sub.estimativa_minutos !== null)
+      atual.estimativa += sub.estimativa_minutos;
+    if (sub.tempo_real_minutos !== null)
+      atual.tempoReal += sub.tempo_real_minutos;
     if (sub.status !== "concluida" && sub.prazo) {
-      if (!atual.proximoPrazo || sub.prazo < atual.proximoPrazo) atual.proximoPrazo = sub.prazo;
+      if (!atual.proximoPrazo || sub.prazo < atual.proximoPrazo)
+        atual.proximoPrazo = sub.prazo;
     }
-    const pessoa = sub.responsavel_id ? porPessoa.get(sub.responsavel_id) : null;
-    if (pessoa && !atual.equipe.some((p) => p.id === pessoa.id)) atual.equipe.push(pessoa);
+    const pessoa = sub.responsavel_id
+      ? porPessoa.get(sub.responsavel_id)
+      : null;
+    if (pessoa && !atual.equipe.some((p) => p.id === pessoa.id))
+      atual.equipe.push(pessoa);
     resumos.set(sub.task_id, atual);
   }
 
@@ -189,7 +202,9 @@ function resumoVazio() {
   };
 }
 
-export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLista[]> {
+export async function listarTasks(
+  filtros: FiltrosDeTask = {},
+): Promise<TaskDaLista[]> {
   const supabase = await criarClienteServidor();
 
   // O filtro por pessoa casa pelas SUBTAREFAS: o "responsável da task" não
@@ -208,19 +223,27 @@ export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLi
   // rascunho DOS OUTROS; este filtro esconde o MEU — ele tem a tela própria,
   // no grupo Rascunhos, e no board ou no calendário seria uma demanda que a
   // equipe vê na minha tela e não vê na dela.
-  let consulta = supabase.from("tasks").select("*").not("publicada_em", "is", null);
+  let consulta = supabase
+    .from("tasks")
+    .select("*")
+    .not("publicada_em", "is", null);
 
   if (idsPorPessoa) consulta = consulta.in("id", idsPorPessoa);
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
-  if (filtros.prioridade) consulta = consulta.eq("prioridade", filtros.prioridade);
+  if (filtros.prioridade)
+    consulta = consulta.eq("prioridade", filtros.prioridade);
   if (filtros.status) consulta = consulta.eq("status", filtros.status);
   if (filtros.tipo) consulta = consulta.eq("task_type_id", filtros.tipo);
 
   // O período da Task é uma janela: entra tudo que cruza o intervalo pedido.
-  if (filtros.de) consulta = consulta.or(`data_fim.gte.${filtros.de},data_fim.is.null`);
+  if (filtros.de)
+    consulta = consulta.or(`data_fim.gte.${filtros.de},data_fim.is.null`);
   if (filtros.ate) consulta = consulta.lte("data_inicio", filtros.ate);
 
-  const { data } = await consulta.order("data_fim", { ascending: true, nullsFirst: false });
+  const { data } = await consulta.order("data_fim", {
+    ascending: true,
+    nullsFirst: false,
+  });
   const tasks = await enriquecer(data ?? []);
 
   if (filtros.soAtrasadas) {
@@ -229,7 +252,9 @@ export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLi
     const hoje = HOJE();
     return tasks.filter(
       (t) =>
-        !CONCLUIDAS.includes(t.status) && t.proximoPrazo !== null && t.proximoPrazo < hoje,
+        !CONCLUIDAS.includes(t.status) &&
+        t.proximoPrazo !== null &&
+        t.proximoPrazo < hoje,
     );
   }
 
@@ -309,46 +334,65 @@ export type TaskCompleta = TaskDaLista & {
 export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const supabase = await criarClienteServidor();
 
-  const { data: task } = await supabase.from("tasks").select("*").eq("id", id).maybeSingle();
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
   if (!task) return null;
 
-  const [{ data: subtarefas }, { data: referencias }, { data: comentarios }, { data: historico }] =
-    await Promise.all([
-      supabase.from("subtasks").select("*").eq("task_id", id).order("ordem"),
-      supabase.from("task_referencias").select("*").eq("task_id", id).order("created_at"),
-      supabase.from("task_comentarios").select("*").eq("task_id", id).order("created_at"),
-      supabase
-        .from("task_history")
-        .select("*")
-        .eq("task_id", id)
-        .order("created_at", { ascending: false }),
-    ]);
+  const [
+    { data: subtarefas },
+    { data: referencias },
+    { data: comentarios },
+    { data: historico },
+  ] = await Promise.all([
+    supabase.from("subtasks").select("*").eq("task_id", id).order("ordem"),
+    supabase
+      .from("task_referencias")
+      .select("*")
+      .eq("task_id", id)
+      .order("created_at"),
+    supabase
+      .from("task_comentarios")
+      .select("*")
+      .eq("task_id", id)
+      .order("created_at"),
+    supabase
+      .from("task_history")
+      .select("*")
+      .eq("task_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const idsDeSubtarefas = (subtarefas ?? []).map((s) => s.id);
 
-  const [{ data: rodadas }, { data: entregas }, { data: dependencias }] = await Promise.all([
-    idsDeSubtarefas.length
-      ? supabase
-          .from("approval_rounds")
-          .select("*")
-          .eq("content_type", "subtask")
-          .in("content_id", idsDeSubtarefas)
-          .order("numero_rodada", { ascending: false })
-      : Promise.resolve({ data: [] as ApprovalRound[] }),
-    idsDeSubtarefas.length
-      ? supabase
-          .from("subtask_entregas")
-          .select("*")
-          .in("subtask_id", idsDeSubtarefas)
-          .order("created_at")
-      : Promise.resolve({ data: [] as SubtaskEntrega[] }),
-    idsDeSubtarefas.length
-      ? supabase
-          .from("subtask_dependencies")
-          .select("subtask_id, depende_de_id")
-          .in("subtask_id", idsDeSubtarefas)
-      : Promise.resolve({ data: [] as { subtask_id: string; depende_de_id: string }[] }),
-  ]);
+  const [{ data: rodadas }, { data: entregas }, { data: dependencias }] =
+    await Promise.all([
+      idsDeSubtarefas.length
+        ? supabase
+            .from("approval_rounds")
+            .select("*")
+            .eq("content_type", "subtask")
+            .in("content_id", idsDeSubtarefas)
+            .order("numero_rodada", { ascending: false })
+        : Promise.resolve({ data: [] as ApprovalRound[] }),
+      idsDeSubtarefas.length
+        ? supabase
+            .from("subtask_entregas")
+            .select("*")
+            .in("subtask_id", idsDeSubtarefas)
+            .order("created_at")
+        : Promise.resolve({ data: [] as SubtaskEntrega[] }),
+      idsDeSubtarefas.length
+        ? supabase
+            .from("subtask_dependencies")
+            .select("subtask_id, depende_de_id")
+            .in("subtask_id", idsDeSubtarefas)
+        : Promise.resolve({
+            data: [] as { subtask_id: string; depende_de_id: string }[],
+          }),
+    ]);
 
   const ids = [
     ...new Set(
@@ -368,7 +412,11 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       ? supabase.from("profiles").select("id, nome, avatar_url").in("id", ids)
       : Promise.resolve({ data: [] as Pessoa[] }),
     task.task_type_id
-      ? supabase.from("task_types").select("id, nome").eq("id", task.task_type_id).maybeSingle()
+      ? supabase
+          .from("task_types")
+          .select("id, nome")
+          .eq("id", task.task_type_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -377,24 +425,36 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const [enriquecida] = await enriquecer([task]);
 
   const detalhadas: SubtarefaDetalhada[] = (subtarefas ?? []).map((sub) => {
-    const minhasRodadas = (rodadas ?? []).filter((r) => r.content_id === sub.id);
+    const minhasRodadas = (rodadas ?? []).filter(
+      (r) => r.content_id === sub.id,
+    );
     const situacao = situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao);
 
     const dependeDe = (dependencias ?? [])
       .filter((d) => d.subtask_id === sub.id)
       .map((d) => porSubtarefa.get(d.depende_de_id))
       .filter(Boolean)
-      .map((dep) => ({ id: dep!.id, titulo: dep!.titulo, status: dep!.status }));
+      .map((dep) => ({
+        id: dep!.id,
+        titulo: dep!.titulo,
+        status: dep!.status,
+      }));
 
     return {
       ...sub,
-      responsavel: sub.responsavel_id ? (porPessoa.get(sub.responsavel_id) ?? null) : null,
+      responsavel: sub.responsavel_id
+        ? (porPessoa.get(sub.responsavel_id) ?? null)
+        : null,
       dependeDe,
-      dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
+      dependenciasAbertas: dependeDe
+        .filter((d) => d.status !== "concluida")
+        .map((d) => d.titulo),
       rodadas: minhasRodadas.map((r) => ({
         ...r,
         solicitante: porPessoa.get(r.solicitado_por) ?? null,
-        decisor: r.decidido_por ? (porPessoa.get(r.decidido_por) ?? null) : null,
+        decisor: r.decidido_por
+          ? (porPessoa.get(r.decidido_por) ?? null)
+          : null,
       })),
       entregas: (entregas ?? [])
         .filter((e) => e.subtask_id === sub.id)
@@ -426,7 +486,13 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
 
 export type ItemDeCalendario = {
   chave: string;
-  tipo: "task" | "subtarefa";
+  /**
+   * O post entrou aqui no Sprint 12, e é o primeiro item do calendário que
+   * NÃO é uma demanda nem uma etapa dela. A agência precisava de um lugar só
+   * para a pergunta "o que sai em que dia" — e um post agendado para o dia 15
+   * ocupa a equipe no dia 15 exatamente como uma entrega.
+   */
+  tipo: "task" | "subtarefa" | "post";
   taskId: string;
   titulo: string;
   prazo: string;
@@ -435,6 +501,15 @@ export type ItemDeCalendario = {
   concluida: boolean;
   responsavel: Pessoa | null;
   cliente: string | null;
+  /**
+   * Para onde o item leva, quando não é o detalhe de uma demanda.
+   *
+   * O post abre na visualização do portal daquele cliente — que é a tela que
+   * existe hoje, e é só leitura. A tela interna de produção de posts é de
+   * outro sprint; enquanto ela não existe, mandar para um lugar que não
+   * existe seria pior que mandar para o portal.
+   */
+  href?: string;
 };
 
 /**
@@ -443,8 +518,14 @@ export type ItemDeCalendario = {
  * 25 costuma ter roteiro no 21 e arte no 23, e quem gerencia precisa ver isso
  * separado.
  */
-export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<ItemDeCalendario[]> {
-  const tasks = await listarTasks({ ...filtros, de: undefined, ate: undefined });
+export async function itensDoCalendario(
+  filtros: FiltrosDeTask = {},
+): Promise<ItemDeCalendario[]> {
+  const tasks = await listarTasks({
+    ...filtros,
+    de: undefined,
+    ate: undefined,
+  });
   if (tasks.length === 0) return [];
 
   const supabase = await criarClienteServidor();
@@ -470,7 +551,10 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
   ] as string[];
 
   const { data: pessoas } = idsDePessoas.length
-    ? await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas)
+    ? await supabase
+        .from("profiles")
+        .select("id, nome, avatar_url")
+        .in("id", idsDePessoas)
     : { data: [] as Pessoa[] };
 
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
@@ -499,7 +583,8 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
     if (!mae || !sub.prazo) continue;
     // O filtro de pessoa vale pelo responsável da SUBTAREFA: é a pauta dela
     // que se quer enxergar, não a da demanda inteira.
-    if (filtros.responsavel && sub.responsavel_id !== filtros.responsavel) continue;
+    if (filtros.responsavel && sub.responsavel_id !== filtros.responsavel)
+      continue;
     itens.push({
       chave: `subtarefa-${sub.id}`,
       tipo: "subtarefa",
@@ -509,12 +594,75 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
       prioridade: sub.prioridade,
       status: mae.status,
       concluida: sub.status === "concluida",
-      responsavel: sub.responsavel_id ? (porPessoa.get(sub.responsavel_id) ?? null) : null,
+      responsavel: sub.responsavel_id
+        ? (porPessoa.get(sub.responsavel_id) ?? null)
+        : null,
       cliente: mae.cliente?.nome_empresa ?? null,
     });
   }
 
+  itens.push(...(await postsNoCalendario(filtros)));
+
   return itens.sort((a, b) => a.prazo.localeCompare(b.prazo));
+}
+
+/**
+ * Os posts agendados, no mesmo calendário das demandas.
+ *
+ * **A data que conta aqui é a de PUBLICAÇÃO**, e não a de aprovação: o
+ * calendário da agência responde "o que vai ao ar quando". O prazo de decidir
+ * é do cliente, e aparece no portal dele.
+ *
+ * O post não tem prioridade nem responsável — as duas colunas não existem na
+ * tabela. `normal` é o que o calendário usa para a cor, e é honesto: um post
+ * não é mais nem menos urgente que outro por natureza.
+ */
+async function postsNoCalendario(
+  filtros: FiltrosDeTask,
+): Promise<ItemDeCalendario[]> {
+  // O filtro por pessoa esvazia a lista de posts em vez de ignorá-la: com
+  // "pauta da Marina" selecionado, mostrar todos os posts da agência seria a
+  // tela desmentindo o próprio filtro.
+  if (filtros.responsavel) return [];
+
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("posts")
+    .select("id, client_id, tema, data_publicacao, status")
+    .order("data_publicacao");
+
+  if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
+
+  const { data } = await consulta;
+  const posts = data ?? [];
+  if (posts.length === 0) return [];
+
+  const { data: clientes } = await supabase
+    .from("clients")
+    .select("id, nome_empresa, slug")
+    .in("id", [...new Set(posts.map((p) => p.client_id))]);
+
+  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+
+  return posts.map((post) => {
+    const cliente = porCliente.get(post.client_id);
+    return {
+      chave: `post-${post.id}`,
+      tipo: "post" as const,
+      taskId: post.id,
+      titulo: post.tema,
+      prazo: post.data_publicacao,
+      prioridade: "normal" as TaskPrioridade,
+      status: "em_andamento" as TaskStatus,
+      concluida: post.status === "aprovado",
+      responsavel: null,
+      cliente: cliente?.nome_empresa ?? null,
+      href: cliente?.slug
+        ? `/portal/${cliente.slug}/social-media/${post.id}`
+        : undefined,
+    };
+  });
 }
 
 /**
@@ -524,11 +672,15 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
  * cru. As URLs valem uma hora e são geradas sob a sessão de quem pediu — o RLS
  * do Storage continua valendo.
  */
-export async function urlsDosArquivos(caminhos: string[]): Promise<Record<string, string>> {
+export async function urlsDosArquivos(
+  caminhos: string[],
+): Promise<Record<string, string>> {
   if (caminhos.length === 0) return {};
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.storage.from("task-arquivos").createSignedUrls(caminhos, 3600);
+  const { data } = await supabase.storage
+    .from("task-arquivos")
+    .createSignedUrls(caminhos, 3600);
 
   const mapa: Record<string, string> = {};
   for (const item of data ?? []) {
@@ -572,11 +724,16 @@ export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
   const lista = rascunhos ?? [];
   if (lista.length === 0) return [];
 
-  const idsDeClientes = [...new Set(lista.map((r) => r.client_id).filter(Boolean))] as string[];
+  const idsDeClientes = [
+    ...new Set(lista.map((r) => r.client_id).filter(Boolean)),
+  ] as string[];
 
   const [{ data: clientes }, { data: etapas }] = await Promise.all([
     idsDeClientes.length
-      ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
+      ? supabase
+          .from("clients")
+          .select("id, nome_empresa")
+          .in("id", idsDeClientes)
       : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
     supabase
       .from("subtasks")
@@ -587,7 +744,9 @@ export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
       ),
   ]);
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const porCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
 
   return lista.map((r) => ({
     id: r.id,
@@ -607,7 +766,9 @@ export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
  * em que alguém mudasse um dos dois — e o resultado seria avisar de um
  * rascunho que não vai sumir, ou apagar um que ninguém foi avisado.
  */
-export async function rascunhosAExpirar(): Promise<{ id: string; titulo: string }[]> {
+export async function rascunhosAExpirar(): Promise<
+  { id: string; titulo: string }[]
+> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase.rpc("rascunhos_a_expirar");
   return (data ?? []).map((r) => ({ id: r.id, titulo: r.titulo }));

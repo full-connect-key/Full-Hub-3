@@ -142,7 +142,16 @@ export async function InicioDoPortal({
         ) : (
           <div className="space-y-3">
             {pendentes.slice(0, 5).map((item) => (
-              <CartaoDeItem key={item.conteudoId} item={item} hoje={hoje} />
+              <CartaoDeItem
+                key={item.conteudoId}
+                item={item}
+                hoje={hoje}
+                href={
+                  item.tipo === "post"
+                    ? `${base}/social-media/${item.conteudoId}`
+                    : undefined
+                }
+              />
             ))}
             {pendentes.length > 5 ? (
               <Link

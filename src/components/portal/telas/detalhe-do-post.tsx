@@ -131,7 +131,9 @@ export async function DetalheDoPost({
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Informações</h2>
         <dl className="bg-surface-card grid gap-x-8 gap-y-3 rounded-xl border p-4 sm:grid-cols-2">
-          <Linha rotulo="Tema" valor={post.tema} />
+          {/* O tema NÃO se repete aqui: ele é o título da página, logo acima.
+              Um campo que repete o cabeçalho ocupa a linha que o formato ou o
+              prazo poderiam ocupar. */}
           <Linha
             rotulo="Plataforma"
             valor={ROTULO_DA_PLATAFORMA[post.plataforma]}

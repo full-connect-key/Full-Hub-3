@@ -32,6 +32,7 @@ export default async function PaginaDeItensDoPortal({
           filtros={filtros}
           clienteId={empresa}
           comoEquipe={false}
+          base="/portal"
         />
       </Suspense>
     </div>

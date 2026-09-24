@@ -4,7 +4,10 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { SeloDaRede } from "@/components/portal/selo-da-rede";
-import { corDoPontoDeStatus } from "@/components/shared/status-badge";
+import {
+  corDoPontoDeStatus,
+  rotuloDoStatus,
+} from "@/components/shared/status-badge";
 import {
   gradeDoMes,
   mesDe,
@@ -182,6 +185,7 @@ function Miniatura({
   return (
     <Link
       href={`${base}/social-media/${post.id}`}
+      title={`${post.tema} · ${rotuloDoStatus(post.status)}`}
       className={cn(
         "hover:bg-accent flex items-center gap-1.5 rounded p-1 transition-colors",
         larga && "bg-surface-card border p-2",

@@ -19,8 +19,18 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ROTULOS_DE_PRIORIDADE, corDoPrazo, situacaoDoPrazo } from "@/lib/dominio/tasks";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ROTULOS_DE_PRIORIDADE,
+  corDoPrazo,
+  situacaoDoPrazo,
+} from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import { cn } from "@/lib/utils";
 
@@ -102,13 +112,27 @@ export function CalendarioDeTasks({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" onClick={() => navegar(-1)} aria-label="Anterior">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navegar(-1)}
+            aria-label="Anterior"
+          >
             <ChevronLeft aria-hidden />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navegar(1)} aria-label="Próximo">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navegar(1)}
+            aria-label="Próximo"
+          >
             <ChevronRight aria-hidden />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setReferencia(new Date())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setReferencia(new Date())}
+          >
             Hoje
           </Button>
         </div>
@@ -132,7 +156,10 @@ export function CalendarioDeTasks({
             </SelectContent>
           </Select>
 
-          <Select value={modo} onValueChange={(v) => setModo(v as "mes" | "semana")}>
+          <Select
+            value={modo}
+            onValueChange={(v) => setModo(v as "mes" | "semana")}
+          >
             <SelectTrigger size="sm" className="w-28">
               <SelectValue />
             </SelectTrigger>
@@ -173,7 +200,8 @@ export function CalendarioDeTasks({
                     className={cn(
                       "inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
                       foraDoMes && "text-muted-foreground/60",
-                      isToday(dia) && "bg-brand text-brand-foreground font-medium",
+                      isToday(dia) &&
+                        "bg-brand text-brand-foreground font-medium",
                     )}
                   >
                     {format(dia, "d")}
@@ -190,17 +218,30 @@ export function CalendarioDeTasks({
                     );
                     const cor = corDoPrazo(situacao, item.prioridade);
                     // A linha da Task marca o FIM DO PERÍODO da demanda; a da subtarefa,
-                    // o prazo de uma etapa. São coisas diferentes e o rótulo diz qual é.
-                    const rotulo = item.tipo === "task" ? "Demanda" : "Etapa";
+                    // o prazo de uma etapa; a do post, o dia em que ele vai ao
+                    // ar. São três coisas diferentes e o rótulo diz qual é.
+                    const rotulo =
+                      item.tipo === "task"
+                        ? "Demanda"
+                        : item.tipo === "post"
+                          ? "Post"
+                          : "Etapa";
 
                     return (
                       <li key={item.chave}>
                         <button
                           type="button"
                           onClick={() =>
-                            aoAbrir
-                              ? aoAbrir(item.taskId)
-                              : router.push(`/painel/gestao-tasks/${item.taskId}`)
+                            // O post tem destino próprio e não abre o painel
+                            // lateral de demanda: ele não é uma, e o painel
+                            // mostraria campos que ele não tem.
+                            item.href
+                              ? router.push(item.href)
+                              : aoAbrir
+                                ? aoAbrir(item.taskId)
+                                : router.push(
+                                    `/painel/gestao-tasks/${item.taskId}`,
+                                  )
                           }
                           title={`${rotulo}: ${item.titulo}${item.cliente ? ` · ${item.cliente}` : ""} · prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`}
                           className={cn(
@@ -208,12 +249,17 @@ export function CalendarioDeTasks({
                             item.tipo === "subtarefa"
                               ? "border-dashed bg-transparent"
                               : "bg-card border-transparent shadow-xs",
+                            item.tipo === "post" &&
+                              "border-border border-dotted",
                             situacao === "atrasada" && "border-destructive/50",
                             item.concluida && "opacity-55",
                           )}
                         >
                           {/* A barra é o que se lê de longe: cor da situação. */}
-                          <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", cor)} />
+                          <span
+                            aria-hidden
+                            className={cn("absolute inset-y-0 left-0 w-1", cor)}
+                          />
 
                           <span className="flex items-baseline gap-1">
                             <span
@@ -269,16 +315,24 @@ export function CalendarioDeTasks({
           Esta semana
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-muted-foreground/40 h-3 w-1 rounded-full" />
+          <span
+            aria-hidden
+            className="bg-muted-foreground/40 h-3 w-1 rounded-full"
+          />
           Concluído
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-card size-2.5 rounded border shadow-xs" />
-          <span className="text-[10px] font-medium uppercase">Demanda</span> = fim do período da task
+          <span
+            aria-hidden
+            className="bg-card size-2.5 rounded border shadow-xs"
+          />
+          <span className="text-[10px] font-medium uppercase">Demanda</span> =
+          fim do período da task
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span aria-hidden className="size-2.5 rounded border border-dashed" />
-          <span className="text-[10px] font-medium uppercase">Etapa</span> = prazo de subtarefa
+          <span className="text-[10px] font-medium uppercase">Etapa</span> =
+          prazo de subtarefa
         </span>
         <span className="opacity-80">
           Mais adiante no tempo, a barra usa a cor da prioridade.

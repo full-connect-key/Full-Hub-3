@@ -292,8 +292,8 @@ begin
 
   -- Rodada 1: o desenvolvedor pediu ajustes. Ela FICA no historico -- rodada
   -- fechada nunca e reescrita nem apagada, e e disso que o acordeao e feito.
-  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
-  values (kv, 1, 'interna', 'pendente', bruno)
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por)
+  values ('subtask', kv, 1, 'interna', 'pendente', bruno)
   returning id into rodada;
 
   update public.approval_rounds
@@ -306,8 +306,8 @@ begin
   insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por)
   values (kv, 'link', 'https://www.figma.com/file/exemplo', 'KV v2', bruno);
 
-  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
-  values (kv, 2, 'interna', 'pendente', bruno);
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por)
+  values ('subtask', kv, 2, 'interna', 'pendente', bruno);
 
   update public.subtasks set status = 'enviada_aprovacao' where id = kv;
 
@@ -335,8 +335,8 @@ begin
   -- `enviada_aprovacao` enquanto a rodada esta PENDENTE. Aprovar vem depois --
   -- e nao mexe no status dela, porque o tipo e "cliente": ela fica esperando o
   -- ENVIO, que e um ato deliberado do desenvolvedor.
-  insert into public.approval_rounds (subtask_id, numero_rodada, escopo, status, solicitado_por)
-  values (roteiro, 1, 'interna', 'pendente', carla)
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por)
+  values ('subtask', roteiro, 1, 'interna', 'pendente', carla)
   returning id into rodada;
 
   update public.subtasks set status = 'enviada_aprovacao' where id = roteiro;
@@ -370,7 +370,8 @@ select
   count(s.id)                                                           as subtarefas,
   count(*) filter (where s.status = 'concluida')                        as concluidas,
   (select count(*) from public.approval_rounds r
-    join public.subtasks s2 on s2.id = r.subtask_id
+    join public.subtasks s2
+      on s2.id = r.content_id and r.content_type = 'subtask'
    where s2.task_id = t.id and r.status = 'pendente')                   as rodadas_pendentes
 from public.tasks t
 left join public.subtasks s on s.task_id = t.id
@@ -720,5 +721,269 @@ begin
           array['estrategia','posicionamento'], now() - interval '20 days');
 
   raise notice 'Academy e Recomendacoes de exemplo criadas.';
+end
+$$;
+
+
+-- ===========================================================================
+-- SPRINT 12 - Um mes de social para o cliente piloto
+--
+-- Doze posts na Mundo Verde, com as sete redes representadas, os sete status
+-- do fluxo de conteudo, versoes e comentarios. Existe para a tela ter o que
+-- mostrar antes de a producao interna existir -- ela e de outro sprint.
+--
+-- ESTE BLOCO FALA COMO ALGUEM, e nao como dono do banco. `validar_nova_rodada`
+-- pergunta quem esta pedindo: escopo 'cliente' so passa para `is_gestor()`, e
+-- `is_gestor()` responde a partir de `auth.uid()`. Rodando como postgres, sem
+-- sessao, `auth.uid()` e nulo e o trigger recusa -- corretamente. Entao o seed
+-- assume a identidade do Diego pelo mesmo caminho que o PostgREST usa, e a
+-- devolve no fim.
+--
+-- A alternativa seria desligar o trigger durante o seed. Seria pior: o seed
+-- passaria a produzir linhas que o produto nao consegue produzir, e um dia
+-- alguem olharia para uma delas tentando entender por que a tela nao faz
+-- aquilo.
+-- ===========================================================================
+do $$
+declare
+  verde    uuid;
+  -- Os MESMOS ids do bloco de demandas, mais acima neste arquivo. Escrevi
+  -- outros na primeira versao e a chave estrangeira recusou na hora -- que e
+  -- onde se quer descobrir.
+  diego    uuid := 'a0000000-0000-0000-0000-000000000002';  -- Desenvolvedor
+  bruno    uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
+  marina   uuid := 'a0000000-0000-0000-0000-000000000006';  -- Social Media
+  joana    uuid;
+  primeiro date := date_trunc('month', current_date)::date;
+  p        uuid;
+  rodada   uuid;
+begin
+  select id into verde from public.clients where slug = 'mundo-verde' limit 1;
+  if verde is null then
+    select id into verde from public.clients order by created_at limit 1;
+  end if;
+  if verde is null then
+    raise notice 'Sem cliente para semear posts.';
+    return;
+  end if;
+
+  select cu.user_id into joana
+    from public.client_users cu
+    join public.profiles pr on pr.id = cu.user_id
+   where cu.client_id = verde and pr.role = 'cliente'
+   limit 1;
+
+  delete from public.posts where client_id = verde;
+
+  perform set_config('request.jwt.claim.sub', diego::text, true);
+
+  -- --------------------------------------------------------------------- 1 --
+  -- Em producao: NAO aparece para o cliente. E o caso mais importante do seed,
+  -- porque e o unico que so da para conferir tentando ver e nao vendo.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+  values (verde, 'Bastidores da colheita',
+          'A gente acompanha de perto quem planta. (rascunho da legenda)',
+          primeiro + 2, '09:00', 'instagram', 'reels',
+          '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', bruno);
+
+  insert into public.posts (client_id, tema, data_publicacao, horario,
+                            plataforma, formato, criado_por)
+  values (verde, 'Teaser da linha de verao', primeiro + 4, '11:30',
+          'tiktok', 'video', bruno);
+
+  -- --------------------------------------------------------------------- 2 --
+  -- Aguardando informacoes: a agencia esperando material do cliente.
+  insert into public.posts (client_id, tema, legenda, data_publicacao,
+                            plataforma, formato, criado_por)
+  values (verde, 'Depoimento de cliente',
+          'Falta o video que a loja ia mandar.', primeiro + 6,
+          'youtube', 'video', bruno)
+  returning id into p;
+  update public.posts set status = 'aguardando_informacoes' where id = p;
+
+  -- --------------------------------------------------------------------- 3 --
+  -- Esperando a decisao do cliente. Tres deles, que e o que faz o contador da
+  -- tela inicial ter um numero de verdade.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url,
+                            prazo_aprovacao, criado_por)
+  values (verde, 'Promocao de outubro',
+          'Corre que acaba! Toda a linha de granolas com 20% ate domingo. ' ||
+          'Aproveite para experimentar os sabores novos — tem castanha, tem cacau, ' ||
+          'e tem aquele de coco que sai voando toda semana.',
+          primeiro + 9, '12:00', 'instagram', 'carrossel',
+          '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', primeiro + 7, bruno)
+  returning id into p;
+
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
+          'Corre que acaba! Toda a linha de granolas com 20% ate domingo.',
+          'Primeira arte', bruno);
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '2 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
+  values ('post', p, 1, 'cliente', diego);
+
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+  values (verde, 'Post institucional do mes',
+          'Quinze anos escolhendo fornecedor por fornecedor.',
+          primeiro + 12, '18:30', 'linkedin', 'feed',
+          '/exemplos/arte-3.svg', '/exemplos/arte-3.svg', bruno)
+  returning id into p;
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '1 day');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
+  values ('post', p, 1, 'cliente', diego)
+  returning id into rodada;
+
+  if joana is not null then
+    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+    values ('post', p, rodada, joana, 'Dá para trocar a foto do fundo pela da loja nova?');
+    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+    values ('post', p, rodada, marina, 'Dá sim. Já pedimos para o Bruno.');
+  end if;
+
+  insert into public.comments (content_type, content_id, autor_id, texto, interno)
+  values ('post', p, marina, 'Cliente sempre pede foto da loja. Já deixar na próxima.', true);
+
+  insert into public.posts (client_id, tema, legenda, data_publicacao,
+                            plataforma, formato, criado_por)
+  values (verde, 'Enquete de sabores', 'Qual entra na linha do ano que vem?',
+          primeiro + 14, 'twitter', 'story', bruno)
+  returning id into p;
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '6 hours');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
+  values ('post', p, 1, 'cliente', diego);
+
+  -- --------------------------------------------------------------------- 4 --
+  -- Ajustes pedidos pelo cliente: duas versoes, e a rodada 1 fechada com o
+  -- motivo. Rodada fechada nunca e reescrita -- e por isso a proxima e a 2.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+  values (verde, 'Receita da semana',
+          'Panqueca de banana com granola. Cinco minutos.',
+          primeiro + 16, '08:00', 'instagram', 'feed',
+          '/exemplos/arte-3.svg', '/exemplos/arte-3.svg', bruno)
+  returning id into p;
+
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
+          'Panqueca de banana com granola.', 'Primeira arte', bruno);
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
+          'Panqueca de banana com granola. Cinco minutos.',
+          'Logo maior e tempo de preparo na legenda', bruno);
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '5 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+          now() - interval '4 days', 'O logo ficou pequeno demais.');
+  update public.posts set status = 'ajustes' where id = p;
+
+  insert into public.posts (client_id, tema, data_publicacao,
+                            plataforma, formato, criado_por)
+  values (verde, 'Card de horario de feriado', primeiro + 18,
+          'facebook', 'feed', bruno)
+  returning id into p;
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '3 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+          now() - interval '2 days', 'O horário de sábado está errado.');
+  update public.posts set status = 'ajustes' where id = p;
+
+  -- --------------------------------------------------------------------- 5 --
+  -- Aprovado, com DUAS rodadas de cliente: ajuste na primeira, aprovacao na
+  -- segunda. E o caminho completo do modulo, e o unico jeito de conferir que o
+  -- historico nao some quando o ciclo fecha.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+  values (verde, 'Lancamento da granola de cacau',
+          'Chegou. E sim, tem pedaco de cacau de verdade.',
+          primeiro + 20, '19:00', 'instagram', 'carrossel',
+          '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', bruno)
+  returning id into p;
+
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
+          'Chegou a granola de cacau.', 'Primeira arte', bruno);
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
+          'Chegou. E tem cacau de verdade.', 'Fundo mais claro', bruno);
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-2.svg', '/exemplos/arte-2.svg',
+          'Chegou. E sim, tem pedaco de cacau de verdade.',
+          'Legenda mais solta, como o cliente pediu', bruno);
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '9 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+          now() - interval '8 days', 'A legenda ficou dura. Solta mais.')
+  returning id into rodada;
+
+  if joana is not null then
+    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+    values ('post', p, rodada, joana, 'A legenda ficou dura. Solta mais.');
+  end if;
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 2, 'interna', 'aprovada', bruno, diego, now() - interval '7 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 2, 'cliente', 'aprovada', diego, joana,
+          now() - interval '6 days', 'Agora sim. Pode subir.');
+  update public.posts set status = 'aprovado' where id = p;
+
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+  values (verde, 'Guia de receitas no Pinterest',
+          'Salvou, fez. E simples assim.', primeiro + 22, '15:00',
+          'pinterest', 'feed', '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', bruno)
+  returning id into p;
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '11 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'cliente', 'aprovada', diego, joana, now() - interval '10 days');
+  update public.posts set status = 'aprovado' where id = p;
+
+  -- --------------------------------------------------------------------- 6 --
+  -- Recusado: o desfecho que a 0032 acrescentou. Motivo obrigatorio, e ele
+  -- fica na rodada.
+  insert into public.posts (client_id, tema, legenda, data_publicacao,
+                            plataforma, formato, criado_por)
+  values (verde, 'Comparativo com concorrente',
+          'A gente sabe quem faz melhor.', primeiro + 24,
+          'instagram', 'feed', bruno)
+  returning id into p;
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '13 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', 'rejeitada', diego, joana, now() - interval '12 days',
+          'Não vamos falar de concorrente. Esse não entra.');
+  update public.posts set status = 'rejeitado' where id = p;
+
+  -- --------------------------------------------------------------------- 7 --
+  -- Stand by. NENHUM CAMINHO DO PRODUTO PRODUZ ESTE STATUS hoje -- ele esta no
+  -- enum desde a 0030 e nada o alcanca. Entra aqui por `update` direto, e so
+  -- para o selo e o filtro terem o setimo caso para desenhar. Se um dia o
+  -- produto souber pausar um post, este update sai.
+  insert into public.posts (client_id, tema, legenda, data_publicacao,
+                            plataforma, formato, criado_por)
+  values (verde, 'Acao de fim de ano',
+          'Esperando o calendario comercial fechar.', primeiro + 27,
+          'facebook', 'feed', bruno)
+  returning id into p;
+  update public.posts set status = 'stand_by' where id = p;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  raise notice 'Sprint 12: 12 posts de exemplo criados para o cliente piloto.';
 end
 $$;

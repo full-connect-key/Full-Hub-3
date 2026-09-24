@@ -2,6 +2,7 @@ import "server-only";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
+import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
 
 /**
  * O que o cliente enxerga no Portal.
@@ -127,7 +128,91 @@ export async function itensDoPortal(
     });
   }
 
-  return itens;
+  return [...itens, ...(await postsComoItens(clienteId))];
+}
+
+/**
+ * Os posts, no mesmo formato dos outros materiais.
+ *
+ * **A tela inicial não sabe que existe um módulo de social**, e é esse o
+ * ponto: "o que está esperando por mim" é uma pergunta só, e a resposta não
+ * pode depender de o cliente lembrar de abrir duas telas. Aqui o post é
+ * traduzido para `ItemDoPortal` e entra na mesma lista, no mesmo contador, com
+ * a mesma ordenação por urgência.
+ *
+ * O status NÃO passa por `statusParaOCliente()`: `posts.status` já é
+ * `content_status` — o post nasce no vocabulário do cliente, e a etapa de
+ * demanda é que precisa de tradução. Traduzir de novo seria traduzir duas
+ * vezes.
+ */
+async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
+  const supabase = await criarClienteServidor();
+
+  // Sem filtro de `enviado_em`: `posts_select_cliente` já recusa o que não foi
+  // enviado, e repetir a regra aqui criaria um segundo lugar onde ela pode
+  // divergir. O `clienteId` é outra coisa — ele existe para a visualização
+  // administrativa, onde quem pergunta é da equipe e enxerga todas as
+  // empresas.
+  let consulta = supabase
+    .from("posts")
+    .select(
+      "id, client_id, tema, data_publicacao, prazo_aprovacao, status, thumbnail_url, arte_url, enviado_em, plataforma, subtask_id",
+    )
+    .order("data_publicacao");
+
+  if (clienteId) consulta = consulta.eq("client_id", clienteId);
+
+  const { data } = await consulta;
+  const posts = data ?? [];
+  if (posts.length === 0) return [];
+
+  const { data: rodadas } = await supabase
+    .from("approval_rounds")
+    .select("id, content_id, status, numero_rodada")
+    .eq("content_type", "post")
+    .eq("escopo", "cliente")
+    .in(
+      "content_id",
+      posts.map((p) => p.id),
+    )
+    .order("numero_rodada", { ascending: false });
+
+  const pendentePorPost = new Map<string, string>();
+  const vistos = new Set<string>();
+  for (const r of rodadas ?? []) {
+    if (vistos.has(r.content_id)) continue;
+    vistos.add(r.content_id);
+    if (r.status === "pendente") pendentePorPost.set(r.content_id, r.id);
+  }
+
+  const idsDeClientes = [...new Set(posts.map((p) => p.client_id))];
+  const { data: clientes } = await supabase
+    .from("clients")
+    .select("id, nome_empresa")
+    .in("id", idsDeClientes);
+  const porCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
+
+  return posts.map((post) => ({
+    rodadaId: pendentePorPost.get(post.id) ?? null,
+    tipo: "post" as const,
+    conteudoId: post.id,
+    titulo: post.tema,
+    // A DEMANDA DE UM POST É A REDE EM QUE ELE VAI AO AR. Ele pode ter nascido
+    // de uma etapa de campanha, mas o nome dela é vocabulário interno — e
+    // muitos posts não têm etapa nenhuma, que é caso normal e não exceção.
+    demanda: ROTULO_DA_PLATAFORMA[post.plataforma],
+    clienteId: post.client_id,
+    cliente: porCliente.get(post.client_id) ?? "",
+    status: post.status,
+    // O prazo que conta para o cliente é o de DECIDIR, e não o de publicação:
+    // é o único dos dois que depende dele. Sem prazo de decisão, a data de
+    // publicação serve de referência — depois dela não adianta mais aprovar.
+    prazo: post.prazo_aprovacao ?? post.data_publicacao,
+    enviadoEm: post.enviado_em,
+    miniatura: post.thumbnail_url ?? post.arte_url,
+  }));
 }
 
 /**

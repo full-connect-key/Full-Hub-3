@@ -52,10 +52,13 @@ export async function MateriaisDoPortal({
   filtros,
   clienteId,
   comoEquipe,
+  base,
 }: {
   filtros: FiltrosDoPortal;
   clienteId: string | null;
   comoEquipe: boolean;
+  /** Prefixo dos links, para o post abrir no portal certo. */
+  base: string;
 }) {
   const { hoje, fimDaSemana } = prazosDoPortal();
   const itens = await itensDoPortal(clienteId ?? undefined);
@@ -87,7 +90,16 @@ export async function MateriaisDoPortal({
       ) : (
         <div className="space-y-3">
           {encontrados.map((item) => (
-            <CartaoDeItem key={item.conteudoId} item={item} hoje={hoje} />
+            <CartaoDeItem
+              key={item.conteudoId}
+              item={item}
+              hoje={hoje}
+              href={
+                item.tipo === "post"
+                  ? `${base}/social-media/${item.conteudoId}`
+                  : undefined
+              }
+            />
           ))}
         </div>
       )}

@@ -43,6 +43,7 @@ export default async function MateriaisDoClienteVistosPelaEquipe({
           filtros={filtros}
           clienteId={cliente?.id ?? ""}
           comoEquipe
+          base={`/portal/${slug}`}
         />
       </Suspense>
     </div>

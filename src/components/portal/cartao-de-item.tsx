@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FileImage, Megaphone, Paperclip } from "lucide-react";
@@ -34,10 +35,19 @@ export function CartaoDeItem({
   item,
   hoje,
   aoAbrir,
+  href,
 }: {
   item: ItemDoPortal;
   hoje: string;
   aoAbrir?: (item: ItemDoPortal) => void;
+  /**
+   * Quando o material tem tela própria, o cartão vira link.
+   *
+   * Hoje só o post tem — o material que vem de uma demanda é decidido na
+   * própria fila de aprovações, e um link para lugar nenhum é pior que
+   * nenhum link.
+   */
+  href?: string;
 }) {
   const Icone = ICONE[item.tipo];
 
@@ -55,7 +65,7 @@ export function CartaoDeItem({
     <article
       className={cn(
         "bg-surface-card flex gap-4 rounded-xl border p-4 text-left transition-colors sm:p-5",
-        aoAbrir && "hover:border-accent-strong",
+        (aoAbrir || href) && "hover:border-accent-strong",
       )}
     >
       {/* A miniatura é opcional e some no celular: 96px de imagem valem menos
@@ -112,6 +122,14 @@ export function CartaoDeItem({
       </div>
     </article>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {conteudo}
+      </Link>
+    );
+  }
 
   if (!aoAbrir) return conteudo;
 

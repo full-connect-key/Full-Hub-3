@@ -116,7 +116,12 @@ export function VisualizadorDeArte({
       <div
         ref={quadro}
         className={cn(
-          "bg-neutral-soft relative aspect-square w-full touch-none overflow-hidden rounded-xl border select-none",
+          // A altura é LIMITADA, e a largura não. Um quadrado de largura
+          // inteira no desktop dá mais de 900px de altura e empurra as
+          // informações e os botões para fora da primeira tela — quem abriu
+          // para decidir precisa ver os dois. No celular o teto nem é
+          // alcançado: lá o quadrado tem a largura da tela.
+          "bg-neutral-soft relative aspect-square max-h-[min(70vh,600px)] w-full touch-none overflow-hidden rounded-xl border select-none",
           escala > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in",
         )}
         onDoubleClick={() => (escala > 1 ? reiniciar() : aproximar(1.5))}

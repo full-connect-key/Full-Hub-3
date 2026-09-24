@@ -192,23 +192,37 @@ export async function SocialDoPortal({
 /**
  * A legenda fica FIXA abaixo do calendário, e não num tooltip.
  *
- * A faixa colorida da miniatura é a única coisa que diz o status na grade, e
- * uma cor sem legenda é uma cor que cada pessoa interpreta do seu jeito — no
- * celular não há para onde apontar o mouse.
+ * A faixa colorida da miniatura é o que se lê de longe, e uma cor sem legenda
+ * é uma cor que cada pessoa interpreta do seu jeito — no celular não há para
+ * onde apontar o mouse.
+ *
+ * **E ela AGRUPA os status que dividem a mesma cor, em vez de fingir que são
+ * sete cores.** Os sete estados cabem em cinco tons medidos: "em produção" e
+ * "aguardando aprovação" são o mesmo azul, "aguardando informações" e "stand
+ * by" o mesmo cinza. Uma legenda com sete linhas e cinco cores manda a pessoa
+ * comparar dois azuis idênticos e concluir que errou a leitura. O nome exato
+ * de cada post está no cartão dele — no `title` e no rótulo acessível.
  */
 function Legenda() {
+  // Agrupa pelo que a tela realmente mostra: a classe de cor. A ordem dentro
+  // de cada grupo é a de `STATUS_DE_CONTEUDO`, que é a ordem do fluxo.
+  const grupos = new Map<string, ContentStatus[]>();
+  for (const status of STATUS_DE_CONTEUDO) {
+    const cor = corDoPontoDeStatus(status);
+    const lista = grupos.get(cor);
+    if (lista) lista.push(status);
+    else grupos.set(cor, [status]);
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-4">
-      {STATUS_DE_CONTEUDO.map((status) => (
+      {[...grupos.entries()].map(([cor, status]) => (
         <span
-          key={status}
+          key={cor}
           className="text-text-muted flex items-center gap-1.5 text-xs"
         >
-          <span
-            aria-hidden
-            className={`size-2 rounded-full ${corDoPontoDeStatus(status)}`}
-          />
-          {rotuloDoStatus(status)}
+          <span aria-hidden className={`size-2 rounded-full ${cor}`} />
+          {status.map(rotuloDoStatus).join(" · ")}
         </span>
       ))}
     </div>
