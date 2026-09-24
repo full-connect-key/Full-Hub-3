@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { CalendarRange, ChevronLeft, ChevronRight, Loader2, TriangleAlert, X } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { CalendarRange, Loader2, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { CalendarioRolavel } from "@/components/shared/calendario-rolavel";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
@@ -21,19 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
   bloqueiosNoIntervalo,
   contarDiasDoPedido,
-  rotuloDosDias,
-  diasEntre,
-  lerData,
   motivoDoBloqueio,
-  ordenar,
-  paraISO,
+  rotuloDosDias,
 } from "@/lib/dominio/full-days";
 import type { HrRequest, HrTipo } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -41,28 +36,27 @@ import { cn } from "@/lib/utils";
 import { cancelarSolicitacao, solicitar } from "./acoes";
 
 /**
- * O calendário de seleção.
+ * A aba Solicitar: calendário rolável à esquerda, painel de confirmação à
+ * direita.
  *
- * Substituiu a lista de datas do módulo antigo por um motivo simples: pedir
- * descanso é escolher um pedaço do calendário, e digitar duas datas num campo
- * obriga a pessoa a abrir um calendário de verdade em outra janela para saber
- * se o dia 14 cai numa sexta.
+ * **A SELEÇÃO MORA AQUI, e é a correção do bug relatado.** Antes o mês vivia
+ * na URL e entrava no `key` do `<Suspense>` da página: trocar de mês
+ * desmontava a subárvore e o componente novo nascia com `de` e `ate` em null.
+ * Pedir de 28/10 a 03/11 era impossível — a primeira ponta sumia ao virar o
+ * mês. Agora não existe virar o mês: `CalendarioRolavel` empilha os meses e
+ * rola, recebe a seleção por propriedade e devolve por callback, e nunca é
+ * remontado.
  *
- * **Dia bloqueado mostra de QUEM é o bloqueio.** "Afastado" sem nome é uma
- * recusa que a pessoa não tem como contornar nem entender — com o nome, ela
- * fala com o colega e os dois se organizam, que é o resultado que interessa.
- *
- * A seleção conta aqui para mostrar o número enquanto se arrasta — corrido no
- * descanso, dias úteis nos outros dois (migration 0024). O número GRAVADO sai
- * do banco: se viesse desta conta, bastaria alterar o corpo da requisição para
- * pedir 15 dias dizendo que são 3.
+ * A conta aparece aqui para mostrar o número enquanto se escolhe — corrido no
+ * descanso, dias úteis nos outros dois. O número GRAVADO sai do banco: se
+ * viesse desta conta, bastaria alterar o corpo da requisição para pedir 15
+ * dias dizendo que são 3.
  */
 export function Solicitar({
   solicitacoes,
   feriados,
   bloqueados,
   hojeISO,
-  mes,
   diasFeriasAno,
   maxParcelas,
   usadosNoAno,
@@ -73,7 +67,6 @@ export function Solicitar({
   feriados: { data: string; nome: string }[];
   bloqueados: Record<string, string[]>;
   hojeISO: string;
-  mes: string;
   diasFeriasAno: number;
   maxParcelas: number;
   usadosNoAno: number;
@@ -81,38 +74,60 @@ export function Solicitar({
   minhaArea: string;
 }) {
   const router = useRouter();
-  const parametros = useSearchParams();
   const [enviando, iniciar] = useTransition();
 
   const [de, setDe] = useState<string | null>(null);
   const [ate, setAte] = useState<string | null>(null);
-  const [arrastando, setArrastando] = useState(false);
-  // O intervalo começou e ainda espera a ponta final — ou pelo segundo
-  // clique, ou por soltar o botão depois de arrastar.
-  const [aberta, setAberta] = useState(false);
-  const arrastou = useRef(false);
   const [tipo, setTipo] = useState<HrTipo>("ferias");
   const [motivo, setMotivo] = useState("");
 
-  const feriadoDe = useMemo(() => new Map(feriados.map((f) => [f.data, f.nome])), [feriados]);
-  const conjuntoDeFeriados = useMemo(() => new Set(feriados.map((f) => f.data)), [feriados]);
+  const feriadoDe = useMemo(
+    () => new Map(feriados.map((f) => [f.data, f.nome])),
+    [feriados],
+  );
+  const conjuntoDeFeriados = useMemo(
+    () => new Set(feriados.map((f) => f.data)),
+    [feriados],
+  );
 
-  const referencia = parseISO(`${mes}-01`);
-  const inicioDoMes = startOfMonth(referencia);
-  const fimDoMes = endOfMonth(referencia);
+  const inicioSel = de;
+  const fimSel = ate;
 
-  const [inicioSel, fimSel] = de && ate ? ordenar(de, ate) : de ? [de, de] : [null, null];
   // A conta MUDA COM O TIPO: o descanso é corrido, os outros dois contam dias
   // úteis. Trocar o tipo com um período já selecionado troca o número na hora,
   // que é onde a pessoa percebe a diferença sem ninguém precisar explicar.
   const diasSelecionados =
-    inicioSel && fimSel ? contarDiasDoPedido(tipo, inicioSel, fimSel, conjuntoDeFeriados) : 0;
+    inicioSel && fimSel
+      ? contarDiasDoPedido(tipo, inicioSel, fimSel, conjuntoDeFeriados)
+      : 0;
 
   const saldo = diasFeriasAno - usadosNoAno;
   const saldoDepois = tipo === "ferias" ? saldo - diasSelecionados : saldo;
 
   const excedeSaldo = tipo === "ferias" && diasSelecionados > saldo;
   const semParcela = tipo === "ferias" && parcelasUsadas >= maxParcelas;
+  const retroativo = Boolean(inicioSel && inicioSel < hojeISO);
+
+  /**
+   * Por que este dia não pode ser escolhido, ou null.
+   *
+   * **O PASSADO DEPENDE DO TIPO**, e essa é a regra que o calendário não tem
+   * como saber sozinho: descanso e afastamento são combinados antes, então
+   * para trás não faz sentido; ausência pontual é registrada DEPOIS de
+   * acontecer — foi ontem que a pessoa faltou.
+   */
+  function recusaDoDia(dia: string): string | null {
+    const fora = bloqueados[dia];
+    if (fora?.length) {
+      return `${fora.join(", ")} ${fora.length === 1 ? "está" : "estão"} fora neste dia, e ${
+        fora.length === 1 ? "é" : "são"
+      } da sua área.`;
+    }
+    if (dia < hojeISO && tipo !== "ausencia") {
+      return `${ROTULOS_DE_TIPO[tipo]} se combina antes. Para registrar um dia que já passou, escolha Ausência pontual.`;
+    }
+    return null;
+  }
 
   /**
    * A recusa por colega da área, ou string vazia.
@@ -122,96 +137,16 @@ export function Solicitar({
    * por cima do 8 — era aceito. Eram duas respostas para a mesma situação,
    * conforme o caminho do clique.
    */
-  function recusaDoIntervalo(de: string, ate: string): string {
-    return motivoDoBloqueio(bloqueiosNoIntervalo(de, ate, bloqueados), minhaArea);
-  }
-
-  function irParaMes(passo: number) {
-    const [ano, mesNumero] = mes.split("-").map(Number);
-    const destinoData = new Date(ano, mesNumero - 1 + passo, 1);
-    const destino = new URLSearchParams(parametros.toString());
-    destino.set("mes", format(destinoData, "yyyy-MM"));
-    router.push(`?${destino.toString()}`);
-  }
-
-  /**
-   * SOLTAR O PONTEIRO ENCERRA O ARRASTO, e o ouvinte é da JANELA porque a
-   * pessoa solta onde quiser — fora da grade, fora da página.
-   *
-   * Sem ele, `arrastando` continuava verdadeiro depois de o botão subir: o
-   * simples passar do mouse seguia mexendo na seleção, e o clique seguinte
-   * — que deveria fechar o intervalo — encontrava `ate` já preenchido e
-   * caía no ramo que recomeça do zero. O efeito na tela era o relatado:
-   * clicar nos dias e a seleção nunca fechar.
-   *
-   * Quem soltou SEM ter arrastado deu um clique, e o intervalo continua
-   * aberto esperando o segundo — é por aí que passa quem usa toque, onde
-   * `pointerenter` não chega a disparar nos dias vizinhos.
-   */
-  useEffect(() => {
-    if (!arrastando) return;
-    function soltou() {
-      setArrastando(false);
-      if (arrastou.current) setAberta(false);
-      arrastou.current = false;
-    }
-    window.addEventListener("pointerup", soltou);
-    window.addEventListener("pointercancel", soltou);
-    return () => {
-      window.removeEventListener("pointerup", soltou);
-      window.removeEventListener("pointercancel", soltou);
-    };
-  }, [arrastando]);
-
-  function clicar(dia: string) {
-    // O dia em si. A recusa DIZ POR QUE: um clique que não faz nada e não
-    // explica manda a pessoa clicar de novo, mais forte, e desistir.
-    const noDia = recusaDoIntervalo(dia, dia);
-    if (noDia) {
-      toast.error(noDia);
-      return;
-    }
-
-    // O segundo clique fecha o intervalo, e é aqui que o período pode
-    // atravessar um bloqueio sem que nenhuma das pontas esteja bloqueada.
-    if (aberta && de) {
-      const noIntervalo = recusaDoIntervalo(de, dia);
-      if (noIntervalo) {
-        toast.error(noIntervalo);
-        return;
-      }
-      setAte(dia);
-      setAberta(false);
-      setArrastando(false);
-      return;
-    }
-
-    // O primeiro clique ancora — e já vale como um dia só, em vez de deixar
-    // a seleção sem ponta final até a pessoa descobrir que falta clicar de
-    // novo.
-    setDe(dia);
-    setAte(dia);
-    setAberta(true);
-    setArrastando(true);
-    arrastou.current = false;
-  }
-
-  function passarPor(dia: string) {
-    if (!arrastando || !de) return;
-    // Arrastando, a recusa é SILENCIOSA: a seleção simplesmente não passa do
-    // bloqueio. Um toast por movimento do mouse empilharia dez avisos iguais
-    // antes de a pessoa soltar o botão — quem larga em cima do dia bloqueado
-    // recebe a explicação pelo clique.
-    if (recusaDoIntervalo(de, dia)) return;
-    if (dia !== de) arrastou.current = true;
-    setAte(dia);
+  function recusaDoIntervalo(inicio: string, fim: string): string {
+    return motivoDoBloqueio(
+      bloqueiosNoIntervalo(inicio, fim, bloqueados),
+      minhaArea,
+    );
   }
 
   function limpar() {
     setDe(null);
     setAte(null);
-    setAberta(false);
-    setArrastando(false);
     setMotivo("");
   }
 
@@ -230,11 +165,6 @@ export function Solicitar({
     });
   }
 
-  const dias = diasEntre(paraISO(inicioDoMes), paraISO(fimDoMes));
-  // Quantos quadrados em branco antes do dia 1, para a coluna bater com o dia
-  // da semana. Segunda é a primeira coluna.
-  const vazios = (inicioDoMes.getDay() + 6) % 7;
-
   return (
     <div className="space-y-8">
       {/* O SALDO ABRE A TELA, e não fica no painel da direita.
@@ -244,29 +174,81 @@ export function Solicitar({
       {tipo === "ferias" ? (
         <p className="text-text-secondary text-sm">
           Você tem{" "}
-          <strong className="text-text-primary tabular-nums">{saldo} dias corridos</strong> de{" "}
-          {diasFeriasAno} disponíveis este ano, em até {maxParcelas} vezes — você já usou{" "}
-          {parcelasUsadas} de {maxParcelas}. O descanso conta corrido: sair numa sexta e voltar
-          na segunda são quatro dias.
+          <strong className="text-text-primary tabular-nums">
+            {saldo} dias corridos
+          </strong>{" "}
+          de {diasFeriasAno} disponíveis este ano, em até {maxParcelas} vezes —
+          você já usou {parcelasUsadas} de {maxParcelas}. O descanso conta
+          corrido: sair numa sexta e voltar na segunda são quatro dias.
         </p>
       ) : (
         <p className="text-text-secondary text-sm">
-          {ROTULOS_DE_TIPO[tipo]} não desconta do seu saldo. Entra na matriz da equipe e no
-          relatório.
+          {ROTULOS_DE_TIPO[tipo]} não desconta do seu saldo. Entra na matriz da
+          equipe e no relatório.
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
+        <SecaoDoFormulario numero={1} titulo="Escolha as datas">
+          {/* A instrução fica COLADA NO CALENDÁRIO, onde a mão está: seleção
+              por intervalo não se explica sozinha, e quem nunca usou clica
+              num dia, vê um quadrado azul e não descobre que falta o segundo
+              clique. A segunda frase é nova e responde à pergunta que gerou
+              este ajuste — sim, dá para atravessar o mês. */}
+          <p className="text-text-muted mb-3 text-xs">
+            Clique na data inicial e depois na final — ou arraste de uma até a outra. Role para
+            alcançar os outros meses: a seleção não se perde.
+          </p>
+
+          <CalendarioRolavel
+            de={de}
+            ate={ate}
+            aoSelecionar={(novoDe, novoAte) => {
+              setDe(novoDe);
+              setAte(novoAte);
+            }}
+            hojeISO={hojeISO}
+            feriados={feriadoDe}
+            bloqueados={bloqueados}
+            recusaDoDia={recusaDoDia}
+            recusaDoIntervalo={recusaDoIntervalo}
+            aoRecusar={(frase) => toast.error(frase)}
+          />
+
+          <ul className="text-text-secondary mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-accent-strong size-3 rounded-sm"
+              />
+              Selecionado
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-warning-soft border-warning size-3 rounded-sm border"
+              />
+              Alguém da sua área está fora
+            </li>
+          </ul>
+        </SecaoDoFormulario>
+
+        {/* O PAINEL FICA GRUDADO enquanto se escolhe as datas, e em 375px ele
+            não precisa virar rodapé fixo: quem rola é o calendário, dentro da
+            própria caixa, e não a página. O resumo continua na tela sem
+            nenhuma barra flutuante cobrindo conteúdo. */}
         <SecaoDoFormulario
-          numero={1}
-          titulo="Escolha as datas"
-          acao={
-            <div className="flex items-center gap-2">
-              <Label htmlFor="fd-tipo" className="text-text-secondary text-xs font-normal">
+          numero={2}
+          titulo="Confirme e envie"
+          className="lg:sticky lg:top-6"
+        >
+          <aside className="bg-surface-card rounded-card space-y-4 border p-4">
+            <div className="space-y-2">
+              <Label htmlFor="fd-tipo" className="text-text-secondary text-xs">
                 Tipo de pedido
               </Label>
               <Select value={tipo} onValueChange={(v) => setTipo(v as HrTipo)}>
-                <SelectTrigger id="fd-tipo" size="sm" className="w-44">
+                <SelectTrigger id="fd-tipo" size="sm" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -276,149 +258,104 @@ export function Solicitar({
                 </SelectContent>
               </Select>
             </div>
-          }
-        >
-        <section className="bg-surface-card rounded-card border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
-              <ChevronLeft aria-hidden />
-            </Button>
-            {/* first-letter, e não capitalize — veja o calendário de tasks. */}
-            <p className="flex-1 text-center text-sm font-medium first-letter:uppercase">
-              {format(inicioDoMes, "MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
-            <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>
-              <ChevronRight aria-hidden />
-            </Button>
-          </div>
 
-          <div className="grid grid-cols-7 gap-1 select-none">
-            {["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((nome) => (
-              <div key={nome} className="text-text-muted pb-1 text-center text-[11px] font-medium">
-                {nome}
-              </div>
-            ))}
-
-            {Array.from({ length: vazios }, (_, i) => (
-              <div key={`vazio-${i}`} />
-            ))}
-
-            {dias.map((dia) => (
-              <Dia
-                key={dia}
-                dia={dia}
-                hojeISO={hojeISO}
-                feriado={feriadoDe.get(dia) ?? null}
-                bloqueadoPor={bloqueados[dia] ?? []}
-                dentroDaSelecao={Boolean(inicioSel && fimSel && dia >= inicioSel && dia <= fimSel)}
-                aoClicar={clicar}
-                aoPassar={passarPor}
-              />
-            ))}
-          </div>
-
-          <ul className="text-text-secondary mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-            <li className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="bg-accent-strong size-3 rounded-sm" />
-              Selecionado
-            </li>
-            <li className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="bg-danger-soft border-danger size-3 rounded-sm border" />
-              Bloqueado: alguém da sua área está fora
-            </li>
-            <li className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="listrado size-3 rounded-sm" />
-              Feriado ou fim de semana
-            </li>
-          </ul>
-
-          {/* A instrução fica NO PÉ DO CALENDÁRIO, onde a mão está.
-              Um calendário de seleção por intervalo não se explica sozinho:
-              quem nunca usou clica num dia, vê um quadrado azul e não
-              descobre que falta o segundo clique. */}
-          <p className="text-text-muted mt-3 border-t pt-3 text-xs">
-            Clique na data inicial e depois na final — ou arraste de uma até a outra.
-          </p>
-        </section>
-        </SecaoDoFormulario>
-
-        <div className="space-y-6">
-        <SecaoDoFormulario numero={2} titulo="Período selecionado">
-        <aside className="bg-surface-card rounded-card h-fit space-y-4 border p-4">
-          <dl className="space-y-1.5 text-sm">
-            <Campo rotulo="De" valor={inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"} />
-            <Campo rotulo="Até" valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"} />
-            <Campo
-              rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
-              valor={inicioSel ? String(diasSelecionados) : "—"}
-              destaque
-            />
-            {tipo === "ferias" ? (
+            <dl className="space-y-1.5 border-t pt-3 text-sm">
               <Campo
-                rotulo="Saldo depois"
-                valor={`${saldoDepois} de ${diasFeriasAno}`}
-                destaque={saldoDepois < 0}
+                rotulo="De"
+                valor={
+                  inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"
+                }
               />
+              <Campo
+                rotulo="Até"
+                valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"}
+              />
+              <Campo
+                rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
+                valor={inicioSel ? String(diasSelecionados) : "—"}
+                destaque
+              />
+              {tipo === "ferias" ? (
+                <Campo
+                  rotulo="Saldo depois"
+                  valor={`${saldoDepois} de ${diasFeriasAno}`}
+                  destaque={saldoDepois < 0}
+                />
+              ) : null}
+            </dl>
+
+            {!inicioSel ? (
+              <p className="text-text-muted text-xs">
+                Nenhum período escolhido ainda. Use o calendário ao lado.
+              </p>
             ) : null}
-          </dl>
 
-          {!inicioSel ? (
-            <p className="text-text-muted text-xs">
-              Nenhum período escolhido ainda. Use o calendário ao lado.
-            </p>
-          ) : null}
+            {retroativo ? (
+              <Aviso tom="atencao">
+                Este período já começou. Registro do que passou é para ausência
+                pontual — o sócio vai ver a data ao responder.
+              </Aviso>
+            ) : null}
 
-          {excedeSaldo ? (
-            <Aviso tom="erro">
-              São {diasSelecionados} dias corridos e você tem {saldo} de saldo. Escolha um período
-              menor.
-            </Aviso>
-          ) : null}
+            {excedeSaldo ? (
+              <Aviso tom="erro">
+                São {diasSelecionados} dias corridos e você tem {saldo} de
+                saldo. Escolha um período menor.
+              </Aviso>
+            ) : null}
 
-          {semParcela ? (
-            <Aviso tom="erro">
-              O descanso pode ser partido em até {maxParcelas} vezes por ano, e você já usou as{" "}
-              {maxParcelas}.
-            </Aviso>
-          ) : null}
+            {semParcela ? (
+              <Aviso tom="erro">
+                O descanso pode ser partido em até {maxParcelas} vezes por ano,
+                e você já usou as {maxParcelas}.
+              </Aviso>
+            ) : null}
 
-        </aside>
-        </SecaoDoFormulario>
+            <div className="space-y-2 border-t pt-3">
+              <Label
+                htmlFor="fd-motivo"
+                className="text-text-secondary text-xs"
+              >
+                Observação (opcional)
+              </Label>
+              <Textarea
+                id="fd-motivo"
+                rows={3}
+                value={motivo}
+                onChange={(evento) => setMotivo(evento.target.value)}
+                placeholder="Algo que o sócio deva saber sobre este período?"
+              />
+            </div>
 
-        <SecaoDoFormulario numero={3} titulo="Observação (opcional)">
-        <aside className="bg-surface-card rounded-card h-fit space-y-4 border p-4">
-          <div className="space-y-2">
-            <Label htmlFor="fd-motivo" className="sr-only">
-              Observação
-            </Label>
-            <Textarea
-              id="fd-motivo"
-              rows={3}
-              value={motivo}
-              onChange={(evento) => setMotivo(evento.target.value)}
-              placeholder="Algo que o sócio deva saber sobre este período?"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {inicioSel ? (
-              <Button variant="outline" size="sm" onClick={limpar} disabled={enviando}>
-                <X aria-hidden />
-                Limpar
+            <div className="flex gap-2">
+              {inicioSel ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={limpar}
+                  disabled={enviando}
+                >
+                  <X aria-hidden />
+                  Limpar
+                </Button>
+              ) : null}
+              <Button
+                className="flex-1"
+                disabled={
+                  enviando ||
+                  !inicioSel ||
+                  diasSelecionados === 0 ||
+                  excedeSaldo ||
+                  semParcela
+                }
+                onClick={enviar}
+              >
+                {enviando ? <Loader2 className="animate-spin" /> : null}
+                Enviar pedido
               </Button>
-            ) : null}
-            <Button
-              className="flex-1"
-              disabled={enviando || !inicioSel || diasSelecionados === 0 || excedeSaldo || semParcela}
-              onClick={enviar}
-            >
-              {enviando ? <Loader2 className="animate-spin" /> : null}
-              Enviar pedido
-            </Button>
-          </div>
-        </aside>
+            </div>
+          </aside>
         </SecaoDoFormulario>
-        </div>
       </div>
 
       <section className="space-y-3">
@@ -466,7 +403,9 @@ export function Solicitar({
                     confirmLabel="Cancelar pedido"
                     destructive
                     onConfirm={async () => {
-                      const resultado = await chamarAcao(() => cancelarSolicitacao(pedido.id));
+                      const resultado = await chamarAcao(() =>
+                        cancelarSolicitacao(pedido.id),
+                      );
                       if (!resultado.ok) toast.error(resultado.error);
                       else {
                         toast.success(resultado.mensagem);
@@ -490,82 +429,6 @@ export function Solicitar({
   );
 }
 
-function Dia({
-  dia,
-  hojeISO,
-  feriado,
-  bloqueadoPor,
-  dentroDaSelecao,
-  aoClicar,
-  aoPassar,
-}: {
-  dia: string;
-  hojeISO: string;
-  feriado: string | null;
-  bloqueadoPor: string[];
-  dentroDaSelecao: boolean;
-  aoClicar: (dia: string) => void;
-  aoPassar: (dia: string) => void;
-}) {
-  const data = lerData(dia);
-  const fimDeSemana = data?.getDay() === 0 || data?.getDay() === 6;
-  const naoUtil = fimDeSemana || feriado !== null;
-  const bloqueado = bloqueadoPor.length > 0;
-  const hoje = dia === hojeISO;
-
-  const botao = (
-    <button
-      type="button"
-      // NÃO É `disabled`. Um botão desabilitado não recebe evento nenhum:
-      // nem o clique que explica a recusa, nem o ponteiro que abre o
-      // tooltip com o nome de quem está fora. O dia bloqueado virava um
-      // quadrado morto — que é justamente o "clique que não faz nada e não
-      // explica" que `motivoDoBloqueio()` existe para evitar.
-      aria-disabled={bloqueado}
-      onPointerDown={() => aoClicar(dia)}
-      onPointerEnter={() => aoPassar(dia)}
-      // Ponteiro não é o único jeito de chegar num dia. Sem isto, quem
-      // navega pelo teclado abre o calendário e não consegue escolher nada.
-      onKeyDown={(evento) => {
-        if (evento.key === "Enter" || evento.key === " ") {
-          evento.preventDefault();
-          aoClicar(dia);
-        }
-      }}
-      aria-label={`${format(parseISO(dia), "d 'de' MMMM", { locale: ptBR })}${
-        feriado ? ` — ${feriado}` : ""
-      }${bloqueado ? ` — ${bloqueadoPor.join(", ")} fora` : ""}`}
-      aria-pressed={dentroDaSelecao}
-      className={cn(
-        "relative flex aspect-square items-center justify-center rounded-md border text-sm tabular-nums transition-colors",
-        naoUtil && !dentroDaSelecao && "listrado text-text-muted",
-        bloqueado && "bg-danger-soft border-danger text-danger cursor-not-allowed",
-        dentroDaSelecao && "bg-accent-strong border-accent-strong text-white font-medium",
-        !dentroDaSelecao && !bloqueado && !naoUtil && "hover:bg-accent",
-        hoje && !dentroDaSelecao && "ring-ring ring-2",
-      )}
-    >
-      {format(parseISO(dia), "d")}
-    </button>
-  );
-
-  if (!feriado && !bloqueado) return botao;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{botao}</TooltipTrigger>
-      <TooltipContent>
-        {feriado ? <span className="block">{feriado}</span> : null}
-        {bloqueado ? (
-          <span className="block">
-            {bloqueadoPor.join(", ")} {bloqueadoPor.length === 1 ? "está" : "estão"} fora
-          </span>
-        ) : null}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 function Campo({
   rotulo,
   valor,
@@ -578,17 +441,27 @@ function Campo({
   return (
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-text-muted text-xs">{rotulo}</dt>
-      <dd className={cn("tabular-nums", destaque && "font-semibold")}>{valor}</dd>
+      <dd className={cn("tabular-nums", destaque && "font-semibold")}>
+        {valor}
+      </dd>
     </div>
   );
 }
 
-function Aviso({ tom, children }: { tom: "erro" | "atencao"; children: React.ReactNode }) {
+function Aviso({
+  tom,
+  children,
+}: {
+  tom: "erro" | "atencao";
+  children: React.ReactNode;
+}) {
   return (
     <p
       className={cn(
         "flex items-start gap-2 rounded-md p-2.5 text-xs",
-        tom === "erro" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning",
+        tom === "erro"
+          ? "bg-danger-soft text-danger"
+          : "bg-warning-soft text-warning",
       )}
     >
       <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" />

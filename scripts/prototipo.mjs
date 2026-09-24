@@ -117,6 +117,15 @@ const TELAS = [
   { nome: "63-full-days-aprovacoes", rota: "/painel/full-days?aba=aprovacoes", largura: 1500, altura: 900, role: "socio" },
   { nome: "64-full-days-remarcar", rota: "/painel/full-days?aba=aprovacoes", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Preciso remarcar")' },
   { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
+  // A PROVA DO AJUSTE 03, e não uma tela bonita: clicar em 28/10, alcançar
+  // novembro e clicar em 03/11. O Playwright rola sozinho para chegar no
+  // segundo dia, que é o gesto exato que perdia a seleção quando o mês vivia
+  // na URL e entrava no `key` do Suspense. Se a seleção não sobreviver, a
+  // imagem sai com um dia só pintado — dá para ver.
+  { nome: "65b-full-days-selecao-atravessa-mes", rota: "/painel/full-days", largura: 1600, altura: 1100, role: "colaborador",
+    clicar: ['[data-dia="2026-10-28"]', '[data-dia="2026-11-03"]'] },
+  { nome: "65c-full-days-375", rota: "/painel/full-days", largura: 375, altura: 1500, role: "colaborador",
+    clicar: ['[data-dia="2026-10-28"]', '[data-dia="2026-11-03"]'] },
   { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
 
   // --- Sprint 7: Desenvolvimento e Skills --------------------------------

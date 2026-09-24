@@ -57,6 +57,9 @@ jobs:
       - name: Migrations que sobrevivem ao separador de comandos
         run: npm run check:migrations
 
+      - name: Contagem de dias do Full Days
+        run: npm run check:dias
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

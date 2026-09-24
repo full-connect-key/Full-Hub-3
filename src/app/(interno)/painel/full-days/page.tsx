@@ -86,7 +86,14 @@ export default async function PaginaDoFullDays({
 
       <AbasDoFullDays atual={aba} visiveis={visiveis} />
 
-      <Suspense key={`${aba}-${mes}`} fallback={<LoadingSkeleton variant="table" rows={6} />}>
+      {/* O `key` é DA ABA, e nunca do mês — era o mês nele que zerava a
+          seleção do calendário. Trocar `?mes=` remontava esta subárvore
+          inteira, e o `Solicitar` novo nascia sem `de` nem `ate`: escolher
+          28/10, virar o mês e clicar em 03/11 era impossível. A aba Solicitar
+          não usa mais `mes` (o calendário rola), e as outras duas leem o mês
+          por propriedade — o esqueleto reaparecer a cada mês custava a
+          seleção de quem estava no meio de um pedido. */}
+      <Suspense key={aba} fallback={<LoadingSkeleton variant="table" rows={6} />}>
         {aba === "matriz" ? (
           <ConteudoDaMatriz
             inicio={inicio}
@@ -100,7 +107,7 @@ export default async function PaginaDoFullDays({
         ) : aba === "aprovacoes" ? (
           <ConteudoDasAprovacoes status={lerStatus(parametros.fila)} />
         ) : (
-          <ConteudoDeSolicitar usuarioId={sessao.usuarioId} hojeISO={hojeISO} mes={mes} />
+          <ConteudoDeSolicitar usuarioId={sessao.usuarioId} hojeISO={hojeISO} />
         )}
       </Suspense>
     </div>
@@ -185,16 +192,17 @@ async function ConteudoDasAprovacoes({ status }: { status: HrStatus }) {
 async function ConteudoDeSolicitar({
   usuarioId,
   hojeISO,
-  mes,
 }: {
   usuarioId: string;
   hojeISO: string;
-  mes: string;
 }) {
-  // O calendário navega por mês, mas a janela de consulta é maior: quem olha
-  // dezembro precisa ver o bloqueio que começou em novembro e atravessa.
+  // OS BLOQUEIOS VÊM DA JANELA INTEIRA, de uma vez. Buscá-los um mês de cada
+  // vez faria o bug voltar de outra forma: a pessoa rolaria até março e veria
+  // um mês sem bloqueio nenhum, porque a consulta dele ainda não aconteceu.
+  // O calendário alcança três meses para trás e doze para frente, e a janela
+  // aqui cobre isso com folga.
   const janelaInicio = `${hojeISO.slice(0, 4)}-01-01`;
-  const janelaFim = `${Number(hojeISO.slice(0, 4)) + 1}-12-31`;
+  const janelaFim = `${Number(hojeISO.slice(0, 4)) + 2}-12-31`;
 
   const [time, solicitacoes, feriados, bloqueados] = await Promise.all([
     listarTime(),
@@ -226,7 +234,6 @@ async function ConteudoDeSolicitar({
       feriados={feriados}
       bloqueados={Object.fromEntries(bloqueados)}
       hojeISO={hojeISO}
-      mes={mes}
       diasFeriasAno={eu?.diasFeriasAno ?? 15}
       maxParcelas={eu?.maxParcelas ?? 2}
       usadosNoAno={usadosNoAno}
