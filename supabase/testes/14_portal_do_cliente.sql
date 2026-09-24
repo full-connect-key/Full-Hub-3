@@ -70,7 +70,12 @@ select teste.conferir('E nenhuma ficou sem conteudo',
 -- 'post' e 'deliverable' estao no check porque a coluna precisa deles, e as
 -- tabelas chegam nos Sprints 12 e 13. Ate la, abrir rodada de um deles seria
 -- abrir uma aprovacao que nenhuma trava sabe conferir.
--- ---------------------------------------------------------------------------
+--
+-- O SPRINT 12 CHEGOU, e este cenario mudou de dono por causa disso: 'post'
+-- agora TEM regra (migration 0032), entao quem prova a frase e 'deliverable'.
+-- O cenario nao foi apagado porque a frase que ele guarda continua valendo --
+-- so o tipo que a exemplifica e que mudou. As regras do post estao em
+-- 15_posts_e_comentarios.sql.
 insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
 values ('cccccccc-0000-0000-0000-0000000000b0', :VERDE, 'Demanda do Sprint 11', :DIEGO,
         '2026-10-01', 'https://drive.google.com/drive/folders/s11');
@@ -79,9 +84,9 @@ insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_
 values ('dddddddd-0000-0000-0000-0000000000b1', 'cccccccc-0000-0000-0000-0000000000b0',
         'Etapa do Sprint 11', 1, :BRUNO, true, 'interna');
 
-select teste.recusa_com('Rodada de post ainda nao tem regra, e e recusada', :DIEGO,
+select teste.recusa_com('Rodada de entregavel ainda nao tem regra, e e recusada', :DIEGO,
   format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', 'dddddddd-0000-0000-0000-0000000000b1', 1, 'interna', %L)$fmt$, :DIEGO),
+    values ('deliverable', 'dddddddd-0000-0000-0000-0000000000b1', 1, 'interna', %L)$fmt$, :DIEGO),
   'ainda não tem regra');
 
 -- SAO DUAS TRAVAS, E O TRIGGER CHEGA PRIMEIRO. Um BEFORE INSERT roda antes do
