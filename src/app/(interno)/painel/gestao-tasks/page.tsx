@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
-import { prazosDeHoje } from "@/lib/dados/minhas-tasks";
+import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
   contadoresDeTasks,
   itensDoCalendario,
@@ -55,13 +55,18 @@ function filtrosDaUrl(params: Record<string, string | string[] | undefined>): Fi
 async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
   // Os workflows saíram daqui junto com o diálogo de criação: quem escolhe o
   // workflow agora é a tela de detalhe, e é ela que os carrega.
-  const [tasks, itens, clientes, equipe, rascunhos] = await Promise.all([
-    listarTasks(filtros),
-    itensDoCalendario(filtros),
-    listarClientes(),
-    listarEquipeAtiva(),
-    meusRascunhos(),
-  ]);
+  const [tasks, itens, clientes, equipe, rascunhos, ehDoAtendimento] =
+    await Promise.all([
+      listarTasks(filtros),
+      itensDoCalendario(filtros),
+      listarClientes(),
+      listarEquipeAtiva(),
+      meusRascunhos(),
+      // A MESMA PERGUNTA QUE A POLICY FAZ, por RPC — nunca um `if (role ===`
+      // na tela. É o que faz "Nova recorrente" e `tasks_insert` não
+      // divergirem, como já acontece com "Nova task".
+      souDoAtendimento(),
+    ]);
 
   return (
     <PainelDeTasks
@@ -73,6 +78,7 @@ async function Conteudo({ filtros }: { filtros: FiltrosDeTask }) {
         .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
       equipe={equipe}
       prazos={prazosDeHoje()}
+      podeConfigurarRecorrencia={ehDoAtendimento}
     />
   );
 }

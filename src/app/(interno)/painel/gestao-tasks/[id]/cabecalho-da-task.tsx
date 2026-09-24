@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Repeat } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
@@ -41,6 +45,22 @@ export function CabecalhoDaTask({
         <div className="min-w-0 flex-1">
           <TituloDaTask task={task} podeEditar={podeEditar} aoSalvar={setEstado} />
         </div>
+        {/* O SELO "RECORRENTE" É UM LINK, e não um rótulo. Quem abre uma
+            demanda que nasceu sozinha tem uma pergunta só — "de onde veio
+            isto, e quando vem a próxima?" —, e a resposta está na regra.
+            `recurrence_id` é escrito por `gerar_ocorrencia()` e fica fora de
+            Insert e Update: uma task marcada à mão mentiria sobre a origem. */}
+        {task.recurrence_id ? (
+          <Badge variant="outline" className="shrink-0" asChild>
+            <Link
+              href={`/painel/workflows?aba=recorrencias&regra=${task.recurrence_id}`}
+              title="Esta demanda nasceu de uma regra. Abrir a regra."
+            >
+              <Repeat aria-hidden className="size-3" />
+              Recorrente
+            </Link>
+          </Badge>
+        ) : null}
         {ehRascunho ? null : <EstadoDoSalvamentoNaTela estado={estado} />}
       </div>
     </div>

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Workflow } from "lucide-react";
+import Link from "next/link";
+import { Repeat, Trash2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -26,9 +27,18 @@ import { salvarTaskComoTipo } from "../../workflows/acoes";
 export function AcoesDaTask({
   task,
   podeExcluir,
+  podeConfigurarRecorrencia,
 }: {
   task: TaskCompleta;
   podeExcluir: boolean;
+  /**
+   * `is_atendimento()`, e não `is_gestor()`.
+   *
+   * Configurar recorrência é de quem ABRE demanda — e desde a 0006 isso
+   * inclui o colaborador que está no Atendimento. Pendurá-la em `podeExcluir`
+   * esconderia o botão exatamente de quem mais o usaria.
+   */
+  podeConfigurarRecorrencia: boolean;
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
@@ -36,9 +46,12 @@ export function AcoesDaTask({
 
   const ehRascunho = task.publicada_em === null;
 
+  const mostraRecorrencia =
+    podeConfigurarRecorrencia && !ehRascunho && task.recurrence_id === null;
+
   // Quem criou o rascunho descarta o próprio rascunho, mesmo sem ser gestão:
   // é dele, e ninguém mais o vê.
-  if (!podeExcluir && !ehRascunho) return null;
+  if (!podeExcluir && !ehRascunho && !mostraRecorrencia) return null;
 
   return (
     <section className="space-y-4 border-t pt-6">
@@ -79,12 +92,40 @@ export function AcoesDaTask({
         </div>
       ) : null}
 
+      {/* "TRANSFORMAR EM RECORRENTE" ABRE O EDITOR PRÉ-PREENCHIDO, e não
+          grava nada. É obrigatório que seja assim: uma task não sabe a
+          cadência dela. Ela tem um período, não uma frequência, e "toda
+          segunda" ou "todo dia 5" é exatamente a informação que não está
+          aqui — uma ação que salvasse direto teria que inventá-la, e a regra
+          passaria a gerar sozinha, de madrugada, no ritmo que o sistema
+          chutou.
+
+          Some no rascunho: uma demanda que ainda não existe para a equipe não
+          é candidata a virar a rotina de todo mês. */}
+      {mostraRecorrencia ? (
+        <div>
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              href={`/painel/workflows?aba=recorrencias&regra=nova&deTask=${task.id}`}
+            >
+              <Repeat aria-hidden />
+              Transformar em recorrente
+            </Link>
+          </Button>
+          <p className="text-text-muted mt-1 text-xs">
+            Abre a configuração com o título, o cliente, a pasta e as etapas
+            desta demanda. Você escolhe a cadência antes de salvar — nada é
+            gerado até lá.
+          </p>
+        </div>
+      ) : null}
+
       {/* NO RASCUNHO É "DESCARTAR", e a confirmação é simples.
           Não há o que preservar: nada foi publicado, ninguém foi avisado,
           nenhuma aprovação existiu. Uma confirmação dupla aqui trataria de
           igual para igual jogar fora um bloco de notas e apagar uma campanha
           com três meses de histórico. */}
-      {ehRascunho ? (
+      {!podeExcluir && !ehRascunho ? null : ehRascunho ? (
         <ConfirmDialog
           title="Descartar este rascunho?"
           description="Ele some com o que você escreveu até agora. Ninguém chegou a vê-lo."

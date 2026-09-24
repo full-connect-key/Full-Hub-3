@@ -88,6 +88,7 @@ export function EditorDeRecorrencia({
   clientes,
   equipe,
   workflows,
+  partirDe,
   feriados,
   hojeISO,
 }: {
@@ -95,6 +96,18 @@ export function EditorDeRecorrencia({
   clientes: { id: string; nome_empresa: string; slug: string | null }[];
   equipe: { id: string; nome: string }[];
   workflows: { id: string; nome: string; etapas: number }[];
+  /**
+   * "Transformar em recorrente": o que uma task existente já respondia.
+   *
+   * Ele preenche e NÃO salva, e é obrigatório que seja assim — uma task não
+   * sabe a cadência dela. Ela tem um período, não uma frequência, e "toda
+   * segunda" é exatamente a informação que não está lá. Gravar direto faria a
+   * regra passar a gerar sozinha no ritmo que o sistema chutou.
+   */
+  partirDe: {
+    clienteId: string | null;
+    modelo: ModeloDaRecorrencia;
+  } | null;
   feriados: string[];
   /** O hoje do SERVIDOR. Se a prévia lesse o relógio do navegador, quem está
    *  noutro fuso veria a primeira ocorrência num dia e a rotina geraria noutro. */
@@ -103,11 +116,22 @@ export function EditorDeRecorrencia({
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
 
-  const modeloInicial = (regra?.modelo as unknown as ModeloDaRecorrencia) ?? modeloVazio();
+  const modeloInicial =
+    (regra?.modelo as unknown as ModeloDaRecorrencia) ?? partirDe?.modelo ?? modeloVazio();
 
   const [nome, setNome] = useState(regra?.nome ?? "");
-  const [clienteId, setClienteId] = useState<string | null>(regra?.client_id ?? null);
-  const [modo, setModo] = useState<RecorrenciaModo>(regra?.modo ?? "mensal_agrupada");
+  const [clienteId, setClienteId] = useState<string | null>(
+    regra?.client_id ?? partirDe?.clienteId ?? null,
+  );
+  const [modo, setModo] = useState<RecorrenciaModo>(
+    regra?.modo ??
+      // VINDO DE UMA TASK COM ETAPAS, o modo certo é o outro: as etapas
+      // copiadas só existem em "task por ocorrência". Abrir no padrão faria a
+      // pessoa ver a seção das etapas sumir e concluir que a cópia se perdeu.
+      (partirDe && partirDe.modelo.subtarefas.length > 0
+        ? "task_por_ocorrencia"
+        : "mensal_agrupada"),
+  );
   const [frequencia, setFrequencia] = useState<RecorrenciaFrequencia>(
     regra?.frequencia ?? "diaria",
   );
@@ -230,6 +254,9 @@ export function EditorDeRecorrencia({
             </Link>
           </Button>
           {regra ? <Badge variant="outline">Editando</Badge> : null}
+          {!regra && partirDe ? (
+            <Badge variant="outline">A partir de uma demanda</Badge>
+          ) : null}
         </div>
 
         <SecaoDoFormulario numero={1} titulo="A regra">

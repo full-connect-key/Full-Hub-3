@@ -11,6 +11,7 @@ import {
   buscarRecorrencia,
   feriadosParaAPrevia,
   listarRecorrencias,
+  modeloDeUmaTask,
 } from "@/lib/dados/recorrencias";
 import { listarTiposComFluxo } from "@/lib/dados/workflows";
 
@@ -44,18 +45,26 @@ async function AbaDeFluxos() {
   );
 }
 
-async function AbaDeRecorrencias({ regra }: { regra: string | undefined }) {
+async function AbaDeRecorrencias({
+  regra,
+  deTask,
+}: {
+  regra: string | undefined;
+  /** "Transformar em recorrente": o id da task que preenche o editor. */
+  deTask: string | undefined;
+}) {
   // O EDITOR E A LISTA NÃO SÃO DUAS ROTAS, e sim um parâmetro: `?regra=nova`
   // ou `?regra={id}`. É a mesma decisão do painel lateral de Minhas Tasks —
   // quem fecha o editor volta para a lista com os filtros que tinha, e não
   // para uma lista recarregada do zero.
   if (regra) {
-    const [clientes, equipe, tipos, feriados, atual] = await Promise.all([
+    const [clientes, equipe, tipos, feriados, atual, daTask] = await Promise.all([
       clientesAtivos(),
       listarEquipeAtiva(),
       listarTiposComFluxo(),
       feriadosParaAPrevia(),
       regra === "nova" ? Promise.resolve(null) : buscarRecorrencia(regra),
+      regra === "nova" && deTask ? modeloDeUmaTask(deTask) : Promise.resolve(null),
     ]);
 
     return (
@@ -68,6 +77,7 @@ async function AbaDeRecorrencias({ regra }: { regra: string | undefined }) {
           nome: t.nome,
           etapas: t.etapas?.length ?? 0,
         }))}
+        partirDe={daTask}
         feriados={feriados}
         hojeISO={new Date().toISOString().slice(0, 10)}
       />
@@ -100,6 +110,7 @@ export default async function PaginaDeWorkflows({
   const aba: AbaDeWorkflows =
     parametros.aba === "recorrencias" ? "recorrencias" : "workflows";
   const regra = typeof parametros.regra === "string" ? parametros.regra : undefined;
+  const deTask = typeof parametros.deTask === "string" ? parametros.deTask : undefined;
 
   return (
     <div className="space-y-6">
@@ -110,11 +121,11 @@ export default async function PaginaDeWorkflows({
       <AbasDeWorkflows atual={aba} />
 
       <Suspense
-        key={`${aba}:${regra ?? ""}`}
+        key={`${aba}:${regra ?? ""}:${deTask ?? ""}`}
         fallback={<LoadingSkeleton variant="table" rows={6} />}
       >
         {aba === "recorrencias" ? (
-          <AbaDeRecorrencias regra={regra} />
+          <AbaDeRecorrencias regra={regra} deTask={deTask} />
         ) : (
           <AbaDeFluxos />
         )}

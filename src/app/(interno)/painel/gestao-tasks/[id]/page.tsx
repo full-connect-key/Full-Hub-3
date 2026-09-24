@@ -172,7 +172,11 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                 podeModerar={souGestor}
               />
 
-              <AcoesDaTask task={task} podeExcluir={souGestor} />
+              <AcoesDaTask
+                task={task}
+                podeExcluir={souGestor}
+                podeConfigurarRecorrencia={podeGerenciar}
+              />
             </TabsContent>
 
             <TabsContent value="historico" className="pt-4">

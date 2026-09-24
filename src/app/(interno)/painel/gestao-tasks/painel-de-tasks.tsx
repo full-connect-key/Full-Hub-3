@@ -3,6 +3,10 @@
 import { useEffect } from "react";
 import { CalendarDays, Columns3, List } from "lucide-react";
 
+import Link from "next/link";
+import { Repeat } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
 import { GrupoDeRascunhos } from "./rascunhos";
 import type { RascunhoDaLista } from "@/lib/dados/tasks";
@@ -36,6 +40,7 @@ export function PainelDeTasks({
   clientes,
   equipe,
   prazos,
+  podeConfigurarRecorrencia,
 }: {
   rascunhos: RascunhoDaLista[];
   tasks: TaskDaLista[];
@@ -43,6 +48,8 @@ export function PainelDeTasks({
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
   prazos: { hoje: string; fimDaSemana: string };
+  /** `is_atendimento()` — quem abre demanda é quem configura a rotina. */
+  podeConfigurarRecorrencia: boolean;
 }) {
   const { filtros, definir } = useFiltros();
 
@@ -109,7 +116,23 @@ export function PainelDeTasks({
           ))}
         </div>
 
-        <BotaoDeNovaTask id="nova-task" className="ml-auto" atalho="N" />
+        <div className="ml-auto flex items-center gap-2">
+          {/* "NOVA RECORRENTE" AO LADO DE "NOVA TASK", e não escondida em
+              Workflows: quem abre a demanda de hoje é quem percebe que ela se
+              repete, e é aqui que ele está quando percebe. O botão leva para
+              a configuração — uma recorrência não é uma task, e criá-la a
+              partir deste botão sem cadência seria criar a regra que gera no
+              ritmo errado. */}
+          {podeConfigurarRecorrencia ? (
+            <Button variant="outline" asChild>
+              <Link href="/painel/workflows?aba=recorrencias&regra=nova">
+                <Repeat aria-hidden />
+                Nova recorrente
+              </Link>
+            </Button>
+          ) : null}
+          <BotaoDeNovaTask id="nova-task" atalho="N" />
+        </div>
       </div>
 
       <BarraDeFiltrosDeTask clientes={clientes} equipe={equipe} />
