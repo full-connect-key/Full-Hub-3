@@ -8,11 +8,16 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import {
+  PRIMEIRO_MES_DO_CALENDARIO,
+  ULTIMO_MES_DO_CALENDARIO,
+} from "@/lib/dominio/full-days";
+import {
   contarPorStatus,
   diasBloqueadosDaArea,
   feriadosComNome,
   feriadosEntre,
   filaDeAprovacoes,
+  lancamentosDaGestao,
   listarTime,
   matrizDoPeriodo,
   minhasSolicitacoes,
@@ -22,6 +27,7 @@ import type { HrStatus, UserRole } from "@/lib/supabase/database.types";
 
 import { AbasDoFullDays, type Aba } from "./abas";
 import { Aprovacoes } from "./aprovacoes";
+import { Lancamentos } from "./lancamentos";
 import { MatrizDaEquipe } from "./matriz";
 import { RelatorioGerencial } from "./relatorio";
 import { Solicitar } from "./solicitar";
@@ -40,13 +46,22 @@ const QUEM_VE: Record<Aba, (role: UserRole) => boolean> = {
   relatorio: ehGestor,
   solicitar: () => true,
   aprovacoes: ehSocio,
+  // DESENVOLVEDOR E SÓCIO, e não só o sócio como a fila de pedidos. Responder
+  // a um pedido é decidir sobre o trabalho de alguém, e essa é a decisão que
+  // o produto reserva ao sócio; registrar o que já aconteceu é lançar
+  // histórico, e trava-lo numa pessoa só é parar o trabalho no dia em que ela
+  // estiver fora. É o mesmo `is_gestor()` que a policy de INSERT de
+  // `hr_requests` exige para qualquer origem que não seja `solicitacao`.
+  lancamentos: ehGestor,
 };
 
 const PADRAO: Aba = "solicitar";
 
 function lerAba(valor: string | string[] | undefined): Aba {
   const texto = typeof valor === "string" ? valor : PADRAO;
-  return (["matriz", "relatorio", "solicitar", "aprovacoes"] as Aba[]).includes(
+  return (
+    ["matriz", "relatorio", "solicitar", "aprovacoes", "lancamentos"] as Aba[]
+  ).includes(
     texto as Aba,
   )
     ? (texto as Aba)
@@ -132,6 +147,8 @@ export default async function PaginaDoFullDays({
           />
         ) : aba === "aprovacoes" ? (
           <ConteudoDasAprovacoes status={lerStatus(parametros.fila)} />
+        ) : aba === "lancamentos" ? (
+          <ConteudoDosLancamentos hojeISO={hojeISO} />
         ) : (
           <ConteudoDeSolicitar usuarioId={sessao.usuarioId} hojeISO={hojeISO} />
         )}
@@ -230,10 +247,13 @@ async function ConteudoDeSolicitar({
   // OS BLOQUEIOS VÊM DA JANELA INTEIRA, de uma vez. Buscá-los um mês de cada
   // vez faria o bug voltar de outra forma: a pessoa rolaria até março e veria
   // um mês sem bloqueio nenhum, porque a consulta dele ainda não aconteceu.
-  // O calendário alcança três meses para trás e doze para frente, e a janela
-  // aqui cobre isso com folga.
-  const janelaInicio = `${hojeISO.slice(0, 4)}-01-01`;
-  const janelaFim = `${Number(hojeISO.slice(0, 4)) + 2}-12-31`;
+  //
+  // E a janela é EXATAMENTE a do calendário, pelas mesmas duas constantes.
+  // Uma janela menor que ele não recusa nada nem avisa: a pessoa rola até um
+  // mês que existe na tela e o vê sem feriado e sem ninguém fora — o que não
+  // parece uma consulta curta, parece um mês vazio.
+  const janelaInicio = `${PRIMEIRO_MES_DO_CALENDARIO}-01`;
+  const janelaFim = `${ULTIMO_MES_DO_CALENDARIO}-31`;
 
   const [time, solicitacoes, feriados, bloqueados] = await Promise.all([
     listarTime(),
@@ -270,6 +290,35 @@ async function ConteudoDeSolicitar({
       usadosNoAno={usadosNoAno}
       parcelasUsadas={parcelasUsadas}
       minhaArea={eu?.area ?? "Sem área"}
+    />
+  );
+}
+
+/**
+ * Os dados da aba de lançamentos.
+ *
+ * A janela de feriados é a MESMA do calendário, pelas duas constantes de
+ * `lib/dominio/full-days.ts`. Ela serve à conta de dias úteis dos outros dois
+ * tipos: um ano sem feriado na tabela não aparece vazio, aparece normal — o
+ * Natal de 2029 viraria um dia útil qualquer e um afastamento de três dias em
+ * cima dele sairia com três no lugar de dois.
+ */
+async function ConteudoDosLancamentos({ hojeISO }: { hojeISO: string }) {
+  const [lancamentos, time, feriados] = await Promise.all([
+    lancamentosDaGestao(),
+    listarTime(),
+    feriadosComNome(
+      `${PRIMEIRO_MES_DO_CALENDARIO}-01`,
+      `${ULTIMO_MES_DO_CALENDARIO}-31`,
+    ),
+  ]);
+
+  return (
+    <Lancamentos
+      lancamentos={lancamentos}
+      time={time}
+      feriados={feriados}
+      hojeISO={hojeISO}
     />
   );
 }

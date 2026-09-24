@@ -265,3 +265,144 @@ export async function marcarPresenca(dados: unknown): Promise<Resultado> {
     return sucesso("Dia atualizado.");
   });
 }
+
+/* ------------------------------------------------------------------------ *
+ * Lançamento retroativo — da gestão, e só dela
+ * ------------------------------------------------------------------------ */
+
+const esquemaDeLancamento = z.object({
+  user_id: z.string().uuid("Escolha de quem é o período."),
+  tipo: z.enum(["ferias", "licenca", "ausencia"]),
+  data_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data inicial."),
+  data_fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data final."),
+  ano_referencia: z.number().int().min(2000).max(2100).nullable().optional(),
+  observacao: z.string().trim().max(1000).nullable().optional(),
+});
+
+/**
+ * Registrar um período que JÁ ACONTECEU, em nome de outra pessoa.
+ *
+ * **Isto não é um pedido, e por isso não passa pela fila.** O período já
+ * ocorreu — perguntar "de acordo?" sobre a semana passada é teatro: não há
+ * decisão a tomar, há um fato a registrar. `lancar_periodo()` grava direto
+ * como `aprovada`, com `origem = 'lancamento_retroativo'`, e pinta a matriz
+ * na mesma transação.
+ *
+ * **Quem pode é a gestão, e quem recusa é o banco.** A guarda daqui escreve a
+ * frase em português; a primeira linha de `lancar_periodo()` confere
+ * `is_gestor()` de novo, e a policy de INSERT de `hr_requests` exige
+ * `is_gestor()` para qualquer `origem` que não seja `solicitacao`. São as
+ * três camadas de sempre, e quem montar a chamada à mão esbarra na terceira.
+ *
+ * **O colaborador não lança nem o próprio passado.** Não é desconfiança: um
+ * registro que a pessoa cria para si mesma, já aprovado, sem ninguém
+ * respondendo, é o saldo dela virando campo editável. O caminho dela continua
+ * sendo a aba Propor período — e ausência pontual, que é o tipo que se
+ * registra depois de acontecer, aceita data passada por lá.
+ */
+export async function lancarPeriodo(dados: unknown): Promise<Resultado<string>> {
+  return executarAcao("lancarPeriodo", async () => {
+    await exigirGestorNaAcao();
+
+    const validacao = esquemaDeLancamento.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao("lancarPeriodo", validacao.error, dados, "Confira os dados do lançamento."),
+      );
+    }
+    const entrada = validacao.data;
+
+    if (entrada.data_fim < entrada.data_inicio) {
+      return falha("A data final não pode ser antes da inicial.");
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase.rpc("lancar_periodo", {
+      p_user_id: entrada.user_id,
+      p_tipo: entrada.tipo,
+      p_data_inicio: entrada.data_inicio,
+      p_data_fim: entrada.data_fim,
+      p_ano_referencia: entrada.ano_referencia ?? null,
+      p_observacao: entrada.observacao ?? null,
+    });
+
+    if (error) return falha(error.message);
+    if (!data) return falha("O banco não devolveu o lançamento.");
+
+    revalidatePath(ROTA);
+    return sucesso("Período registrado.", data as string);
+  });
+}
+
+const esquemaDeCorrecao = esquemaDeLancamento
+  .omit({ user_id: true })
+  .extend({ id: z.string().uuid() });
+
+/**
+ * Corrigir um lançamento.
+ *
+ * **Só o que foi lançado, nunca um pedido.** `corrigir_lancamento()` recusa
+ * quem tem `origem = 'solicitacao'`: reescrever por fora um período que a
+ * pessoa propôs e o sócio respondeu apagaria a decisão dele sem deixar marca.
+ * Esse caminho continua sendo cancelar e propor de novo.
+ *
+ * A função REPINTA a presença na mesma transação. Sem isso, corrigir as datas
+ * deixaria os dias antigos pintados na matriz — o saldo dizendo uma coisa e o
+ * mapa da equipe outra.
+ */
+export async function corrigirLancamento(dados: unknown): Promise<Resultado> {
+  return executarAcao("corrigirLancamento", async () => {
+    await exigirGestorNaAcao();
+
+    const validacao = esquemaDeCorrecao.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao("corrigirLancamento", validacao.error, dados, "Confira os dados do lançamento."),
+      );
+    }
+    const entrada = validacao.data;
+
+    if (entrada.data_fim < entrada.data_inicio) {
+      return falha("A data final não pode ser antes da inicial.");
+    }
+
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase.rpc("corrigir_lancamento", {
+      p_request_id: entrada.id,
+      p_tipo: entrada.tipo,
+      p_data_inicio: entrada.data_inicio,
+      p_data_fim: entrada.data_fim,
+      p_ano_referencia: entrada.ano_referencia ?? null,
+      p_observacao: entrada.observacao ?? null,
+    });
+
+    if (error) return falha(error.message);
+
+    revalidatePath(ROTA);
+    return sucesso("Lançamento corrigido.");
+  });
+}
+
+/**
+ * Apagar um lançamento, e despintar os dias dele.
+ *
+ * Apagar e não desativar, ao contrário de pessoa e cliente: aqui não há
+ * histórico a preservar — um lançamento errado é um fato que não aconteceu, e
+ * deixá-lo marcado como "cancelado" na matriz de alguém é deixar um dia
+ * pintado que não foi.
+ */
+export async function apagarLancamento(id: string): Promise<Resultado> {
+  return executarAcao("apagarLancamento", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase.rpc("apagar_lancamento", {
+      p_request_id: id,
+    });
+
+    if (error) return falha(error.message);
+
+    revalidatePath(ROTA);
+    return sucesso("Lançamento apagado.");
+  });
+}

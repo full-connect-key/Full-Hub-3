@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   addMonths,
+  differenceInCalendarMonths,
   endOfMonth,
   format,
   parseISO,
@@ -18,7 +19,14 @@ import {
 import { ptBR } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
-import { diasEntre, lerData, ordenar, paraISO } from "@/lib/dominio/full-days";
+import {
+  PRIMEIRO_MES_DO_CALENDARIO,
+  ULTIMO_MES_DO_CALENDARIO,
+  diasEntre,
+  lerData,
+  ordenar,
+  paraISO,
+} from "@/lib/dominio/full-days";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,13 +56,14 @@ export type RecusaDeDia = (dia: string) => string | null;
 
 const PASSO_DA_JANELA = 3;
 
+
 export function CalendarioRolavel({
   de,
   ate,
   aoSelecionar,
   hojeISO,
-  mesesAdiante = 12,
-  mesesAtras = 3,
+  primeiroMes = PRIMEIRO_MES_DO_CALENDARIO,
+  ultimoMes = ULTIMO_MES_DO_CALENDARIO,
   feriados,
   bloqueados,
   recusaDoDia,
@@ -66,10 +75,10 @@ export function CalendarioRolavel({
   ate: string | null;
   aoSelecionar: (de: string | null, ate: string | null) => void;
   hojeISO: string;
-  /** Quantos meses depois do corrente a rolagem alcança. */
-  mesesAdiante?: number;
-  /** Quantos meses antes. Três no pedido; vinte e quatro no lançamento. */
-  mesesAtras?: number;
+  /** Primeiro mês que a rolagem alcança, `yyyy-MM`. */
+  primeiroMes?: string;
+  /** Último mês que a rolagem alcança, `yyyy-MM`. */
+  ultimoMes?: string;
   /** Data ISO → nome do feriado. */
   feriados: Map<string, string>;
   /** Data ISO → nomes de quem está fora naquele dia. */
@@ -90,29 +99,57 @@ export function CalendarioRolavel({
   const arrastou = useRef(false);
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
 
-  // Quantos meses, para frente e para trás do corrente, estão montados. Cresce
-  // conforme a pessoa chega na ponta: montar trinta e sete meses de uma vez
-  // são mil e quinhentos botões que ninguém vai olhar.
-  //
-  // ABRE EM ZERO, no mês corrente. A primeira versão abria em -1 e a sentinela
-  // de cima já nascia visível: o calendário crescia para trás sozinho na
-  // montagem e a tela abria em julho, três meses antes de hoje. Quem entra
-  // para pedir descanso quer ver o mês que vem, não o que passou.
-  const [janela, setJanela] = useState({ primeiro: 0, ultimo: 2 });
-  const [mesEmVista, setMesEmVista] = useState(hojeISO.slice(0, 7));
+  /**
+   * A ÂNCORA É O MÊS CORRENTE, e a janela é contada a partir dela.
+   *
+   * O intervalo é fixo (janeiro de 2025 a dezembro de 2030) mas a tela ABRE
+   * NO DIA DE HOJE: quem entra não quer rolar setenta e dois meses para achar
+   * esta semana. A conta converte as duas bordas fixas em "quantos meses para
+   * trás" e "quantos para frente" a partir de hoje, que é o que a janela de
+   * montagem já sabia usar.
+   *
+   * **A âncora é GRAMPEADA dentro do intervalo.** Passado dezembro de 2030,
+   * abrir "no mês corrente" seria abrir num mês que o calendário não oferece —
+   * uma tela com um dia de hoje que não existe em lugar nenhum da lista. Aí
+   * ela abre na borda, e o botão Hoje some: não há para onde ir, e um botão
+   * que não faz nada é pior que um botão a menos. Quando 2031 chegar, o que
+   * muda é a constante — e ela está a duas linhas daqui.
+   */
+  const { ancora, mesesAtras, mesesAdiante, hojeNoIntervalo } = useMemo(() => {
+    const primeiro = startOfMonth(parseISO(`${primeiroMes}-01`));
+    const ultimo = startOfMonth(parseISO(`${ultimoMes}-01`));
+    const corrente = startOfMonth(parseISO(`${hojeISO.slice(0, 7)}-01`));
+    const dentro = corrente >= primeiro && corrente <= ultimo;
+    const base = dentro ? corrente : corrente < primeiro ? primeiro : ultimo;
+    return {
+      ancora: base,
+      mesesAtras: Math.max(0, differenceInCalendarMonths(base, primeiro)),
+      mesesAdiante: Math.max(0, differenceInCalendarMonths(ultimo, base)),
+      hojeNoIntervalo: dentro,
+    };
+  }, [hojeISO, primeiroMes, ultimoMes]);
 
-  const hoje = useMemo(
-    () => startOfMonth(parseISO(`${hojeISO.slice(0, 7)}-01`)),
-    [hojeISO],
-  );
+  // Quantos meses, para frente e para trás da âncora, estão montados. Cresce
+  // conforme a pessoa chega na ponta: montar os setenta e dois meses de uma
+  // vez são mais de dois mil botões que ninguém vai olhar.
+  //
+  // ABRE EM ZERO, no mês da âncora. A primeira versão abria em -1 e a
+  // sentinela de cima já nascia visível: o calendário crescia para trás
+  // sozinho na montagem e a tela abria três meses antes de hoje. Quem entra
+  // para combinar um período quer ver esta semana, não o que passou.
+  const [janela, setJanela] = useState(() => ({
+    primeiro: 0,
+    ultimo: Math.min(2, mesesAdiante),
+  }));
+  const [mesEmVista, setMesEmVista] = useState(format(ancora, "yyyy-MM"));
 
   const meses = useMemo(() => {
     const lista: string[] = [];
     for (let i = janela.primeiro; i <= janela.ultimo; i++) {
-      lista.push(format(addMonths(hoje, i), "yyyy-MM"));
+      lista.push(format(addMonths(ancora, i), "yyyy-MM"));
     }
     return lista;
-  }, [hoje, janela]);
+  }, [ancora, janela]);
 
   // O intervalo só está DE FATO esperando a segunda ponta se houver primeira.
   // Derivado, e não sincronizado por efeito: quem limpa a seleção por fora
@@ -334,9 +371,13 @@ export function CalendarioRolavel({
             locale: ptBR,
           })}
         </p>
-        <Button variant="outline" size="sm" onClick={irParaHoje}>
-          Hoje
-        </Button>
+        {/* Sem hoje dentro do intervalo não há para onde ir, e um botão que
+            não faz nada é pior que um botão a menos. */}
+        {hojeNoIntervalo && (
+          <Button variant="outline" size="sm" onClick={irParaHoje}>
+            Hoje
+          </Button>
+        )}
       </div>
 
       {/* Os nomes dos dias ficam FORA da rolagem: dentro, eles se repetiriam a

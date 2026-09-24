@@ -127,6 +127,11 @@ const TELAS = [
   { nome: "65c-full-days-375", rota: "/painel/full-days", largura: 375, altura: 1500, role: "colaborador",
     clicar: ['[data-dia="2026-10-28"]', '[data-dia="2026-11-03"]'] },
   { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
+  // A aba de registrar periodo, e a PROVA de que ela e da gestao: a mesma
+  // rota como colaborador tem que devolver 403. Uma imagem so mostraria a
+  // tela existindo; sao as duas juntas que mostram quem a alcanca.
+  { nome: "67a-full-days-registrar-periodo", rota: "/painel/full-days?aba=lancamentos", largura: 1600, altura: 1300, role: "socio" },
+  { nome: "67b-full-days-registrar-403", rota: "/painel/full-days?aba=lancamentos", largura: 1200, altura: 700, role: "colaborador" },
 
   // --- Sprint 7: Desenvolvimento e Skills --------------------------------
   { nome: "67-meu-desenvolvimento", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador" },

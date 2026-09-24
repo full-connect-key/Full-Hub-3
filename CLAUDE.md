@@ -1352,6 +1352,36 @@ com o olho: a pessoa via um quadrado âmbar, não sabia de quem era, e clicava
 para descobrir. A lista inteira continua no `title` e no rótulo acessível —
 truncar dois nomes no meio não identifica nenhum dos dois.
 
+**O calendário vai de JANEIRO DE 2025 A DEZEMBRO DE 2030, e abre no dia de
+hoje.** As duas bordas são fixas — `PRIMEIRO_MES_DO_CALENDARIO` e
+`ULTIMO_MES_DO_CALENDARIO`, em `lib/dominio/full-days.ts` —, e a janela de
+meses montados é contada a partir do mês corrente, que é onde a rolagem
+começa. Quem entra não rola setenta e dois meses para achar esta semana.
+
+**Era relativo, e a borda ANDAVA.** Com "três meses para trás e doze para
+frente", em setembro de 2026 a pessoa alcançava junho daquele ano e em outubro
+não alcançava mais: o mesmo dia deixava de existir na tela de um mês para o
+outro, sem nada avisando. Uma data fixa não anda.
+
+**As constantes moram no módulo de domínio e não no componente, porque quem
+pergunta são DOIS.** O calendário monta os meses com elas; a página busca
+feriados e dias de colega com elas. Divergindo os dois números, a pessoa rola
+até 2025 e vê um ano inteiro sem feriado e sem ninguém fora — e essa tela não
+parece quebrada, parece um ano vazio. E não podiam morar no componente por
+mecânica, não por gosto: `calendario-rolavel.tsx` é `"use client"`, e valor
+exportado de arquivo cliente não vale no servidor.
+
+**A âncora é grampeada dentro do intervalo, e o botão "Hoje" some com ela.**
+Passado dezembro de 2030, abrir "no mês corrente" seria abrir num mês que o
+calendário não oferece. Ele abre na borda, e o botão desaparece: não há para
+onde ir, e um botão que não faz nada é pior que um botão a menos.
+
+**A tabela de feriados foi atrás do calendário** (migration 0038): a 0011
+cobria 2026 e 2027, que eram os anos que o calendário de então alcançava. Um
+ano sem feriado na tabela não aparece vazio — aparece **normal**: o Natal de
+2029 vira um dia útil qualquer e um afastamento de três dias em cima dele sai
+com três no lugar de dois. Ninguém desconfia olhando a tela.
+
 **Quantos meses cabem na linha é pergunta de largura, não de breakpoint:**
 `repeat(auto-fill, minmax(min(420px, 100%), 1fr))`. A coluna do calendário
 muda de tamanho com o painel ao lado, e um `lg:` fixo dava 60px por célula,
@@ -1375,6 +1405,63 @@ e não explica manda a pessoa clicar de novo, mais forte, e desistir —
 `motivoDoBloqueio()` escreve a frase. Arrastando, a recusa é silenciosa: a
 seleção não passa do bloqueio, porque um toast por movimento do mouse
 empilharia dez avisos iguais antes de a pessoa soltar o botão.
+
+#### Registrar período que já aconteceu — da gestão, e só dela
+
+A aba **Registrar período** (`?aba=lancamentos`) é onde a gestão grava o
+histórico: o descanso que a pessoa tirou antes de o Full Hub existir, o dia
+combinado por mensagem. Nasce `aprovada`, com `origem =
+'lancamento_retroativo'`, pinta a matriz na mesma transação e **desconta o
+saldo do ano** — que é o ponto inteiro: sem isto, quem tirou dez dias em
+janeiro aparece com os quinze disponíveis em outubro.
+
+**É `is_gestor()`, e não `is_socio()` como a fila.** Responder a um pedido é
+decidir sobre o trabalho de alguém, e essa decisão o produto reserva ao sócio;
+registrar o que já aconteceu é lançar histórico, e travá-lo numa pessoa só
+para a agência no dia em que ela estiver fora. **O colaborador não alcança**:
+`QUEM_VE` em `page.tsx` esconde a aba e devolve 403 para quem digitar a URL,
+`lancar_periodo()` confere `is_gestor()` na primeira linha, e a policy de
+INSERT de `hr_requests` exige `is_gestor()` para qualquer `origem` que não
+seja `solicitacao`. São as três camadas de sempre, e a terceira é a que vale.
+
+**Ele não passa pela fila, e a ausência é o desenho.** O período já ocorreu —
+perguntar "de acordo?" sobre a semana passada é teatro: não há decisão a
+tomar, há um fato a registrar.
+
+**O calendário desta aba recusa o FUTURO**, espelhando a de propor, onde o
+passado é que é recusado para descanso e afastamento. O motivo não é simetria:
+para um período que ainda não aconteceu a decisão AINDA EXISTE — cobrir a
+ausência, remarcar — e ela é do sócio, na fila. **É guarda de tela:**
+`lancar_periodo()` não olha data, e quem chamar a função direto grava um
+período futuro do mesmo jeito. Se precisar ser trava, é um `if` dentro da
+função.
+
+**Corrigir e apagar só alcançam o que foi lançado.** `corrigir_lancamento()` e
+`apagar_lancamento()` recusam `origem = 'solicitacao'`: reescrever por fora um
+período que a pessoa propôs e o sócio respondeu apagaria a decisão dele sem
+deixar marca. E a lista desta aba filtra `origem <> 'solicitacao'` — misturar
+as duas faria a gestão procurar, entre trinta linhas, as três que ela pode
+corrigir, porque o banco nega as outras e a tela ofereceria um botão que não
+funciona.
+
+**A pessoa não troca na correção**, e a função nem aceita o parâmetro: mudar o
+dono seria apagar os dias de um e pintar os de outro numa ação chamada
+"corrigir". Trocou de pessoa, apaga e lança de novo.
+
+**Apagar e não desativar**, ao contrário de pessoa e de cliente: aqui não há
+histórico a preservar. Um registro errado é um fato que não aconteceu, e
+deixá-lo marcado como cancelado é deixar um dia pintado na matriz de alguém
+que trabalhou naquele dia.
+
+**Importar planilha ficou de fora, e é decisão do usuário.** O histórico que a
+agência tem cabe em algumas dezenas de linhas, e uma importação sem
+pré-visualização grava trinta registros errados de uma vez. Se vier, vem com a
+tela de conferência junto.
+
+**A aba se chama "Registrar período", e a chave na URL é `lancamentos`.** A
+chave é o nome do que o banco faz; o rótulo diz o que a pessoa vai fazer.
+"Lançamento" é palavra do Financeiro neste produto, e a mesma palavra em dois
+módulos para duas coisas diferentes é como se aprende a ler errado as duas.
 
 **Isto é guarda de tela, e não vale como trava.** Quem chamar a API direto
 grava o pedido do mesmo jeito — não existe regra de área no banco. O que

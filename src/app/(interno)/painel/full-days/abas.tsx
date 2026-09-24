@@ -2,11 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BadgeCheck, CalendarRange, ChartColumn, Grid3x3 } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarRange,
+  ChartColumn,
+  Grid3x3,
+  History,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type Aba = "matriz" | "relatorio" | "solicitar" | "aprovacoes";
+export type Aba =
+  | "matriz"
+  | "relatorio"
+  | "solicitar"
+  | "aprovacoes"
+  | "lancamentos";
 
 /**
  * As CHAVES continuam `solicitar` e `aprovacoes` porque estão na URL, e link
@@ -19,6 +30,12 @@ const ROTULOS: Record<Aba, { label: string; icone: typeof Grid3x3 }> = {
   relatorio: { label: "Relatório Gerencial", icone: ChartColumn },
   solicitar: { label: "Propor período", icone: CalendarRange },
   aprovacoes: { label: "Pedidos da equipe", icone: BadgeCheck },
+  // "REGISTRAR PERÍODO", e não "Lançamentos". A chave na URL ficou
+  // `lancamentos` porque é o nome do que o banco faz; o rótulo diz o que a
+  // pessoa vai fazer ali. "Lançamento" é palavra do Financeiro neste produto,
+  // e a mesma palavra em dois módulos para duas coisas diferentes é como se
+  // aprende a ler errado as duas.
+  lancamentos: { label: "Registrar período", icone: History },
 };
 
 /**

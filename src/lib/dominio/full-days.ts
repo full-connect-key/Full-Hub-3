@@ -22,6 +22,31 @@ export const DIAS_DE_DESCANSO_PADRAO = 15;
 export const PARCELAS_DE_DESCANSO_PADRAO = 2;
 
 /**
+ * Até onde o calendário vai, nas duas pontas.
+ *
+ * **BORDAS DE CALENDÁRIO, e não "tantos meses a partir de hoje".** Janeiro de
+ * 2025 é o começo do histórico que a agência quer poder registrar para trás;
+ * dezembro de 2030 é longe o bastante para ninguém esbarrar na ponta
+ * combinando um período. Com um intervalo relativo a borda ANDAVA: em
+ * setembro de 2026 a pessoa alcançava junho daquele ano, em outubro não
+ * alcançava mais — o mesmo dia deixava de existir na tela de um mês para o
+ * outro, sem nada avisando.
+ *
+ * **ELAS MORAM AQUI, e não no componente, porque QUEM PERGUNTA SÃO DOIS.** O
+ * calendário monta os meses com elas; a página busca feriados e dias de
+ * colega com elas. Se os dois números divergirem, a pessoa rola até 2025 e vê
+ * um ano inteiro sem feriado e sem ninguém fora — e essa tela não parece
+ * quebrada, parece um ano vazio.
+ *
+ * E não podiam morar no componente por uma razão de mecânica, não de gosto:
+ * `calendario-rolavel.tsx` é `"use client"`, e valor exportado de arquivo
+ * cliente não vale no servidor — a página o receberia como referência e a
+ * conta estouraria pedindo a rota, não no build.
+ */
+export const PRIMEIRO_MES_DO_CALENDARIO = "2025-01";
+export const ULTIMO_MES_DO_CALENDARIO = "2030-12";
+
+/**
  * O VOCABULÁRIO, e por que ele é este.
  *
  * A equipe da Full Connect Key é toda PJ, e o produto não usa vocabulário de

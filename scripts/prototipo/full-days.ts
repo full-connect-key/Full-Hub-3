@@ -122,6 +122,10 @@ const PEDIDOS: HrRequest[] = [
     motivo_reprovacao: null,
     aprovado_por: TIME[0].id,
     decidido_em: new Date().toISOString(),
+    origem: "solicitacao",
+    ano_referencia: null,
+    lancado_por: null,
+    lancado_em: null,
     created_at: new Date(Date.now() - 6 * 864e5).toISOString(),
   },
   {
@@ -136,6 +140,10 @@ const PEDIDOS: HrRequest[] = [
     motivo_reprovacao: null,
     aprovado_por: null,
     decidido_em: null,
+    origem: "solicitacao",
+    ano_referencia: null,
+    lancado_por: null,
+    lancado_em: null,
     created_at: new Date(Date.now() - 864e5).toISOString(),
   },
   {
@@ -150,6 +158,10 @@ const PEDIDOS: HrRequest[] = [
     motivo_reprovacao: "A semana já tinha duas pessoas do Atendimento fora.",
     aprovado_por: TIME[0].id,
     decidido_em: new Date(Date.now() - 38 * 864e5).toISOString(),
+    origem: "solicitacao",
+    ano_referencia: null,
+    lancado_por: null,
+    lancado_em: null,
     created_at: new Date(Date.now() - 45 * 864e5).toISOString(),
   },
 ];
@@ -319,4 +331,62 @@ export async function foraHoje(hojeISO: string): Promise<
 > {
   void hojeISO;
   return [];
+}
+
+export type { LancamentoNaTela } from "../../src/lib/dados/full-days";
+
+/**
+ * Dois registros lancados pela gestao, para a aba nascer com o que ela
+ * existe para mostrar: um descanso do ANO PASSADO (o caso real -- historico
+ * anterior ao Full Hub) e uma ausencia pontual de um dia, combinada por fora.
+ *
+ * Nenhum deles e `solicitacao`: esta lista e justamente o que a fila de
+ * pedidos NAO mostra, e um pedido aqui faria a aba parecer uma segunda fila.
+ */
+export async function lancamentosDaGestao(): Promise<
+  import("../../src/lib/dados/full-days").LancamentoNaTela[]
+> {
+  const anoPassado = new Date().getFullYear() - 1;
+  return [
+    {
+      id: "lanc1",
+      user_id: MARINA.id,
+      tipo: "ferias",
+      data_inicio: `${anoPassado}-12-20`,
+      data_fim: `${anoPassado}-12-29`,
+      dias_uteis: 10,
+      motivo: "Planilha de 2025, fechamento do ano.",
+      status: "aprovada",
+      motivo_reprovacao: null,
+      aprovado_por: TIME[0].id,
+      decidido_em: new Date(Date.now() - 30 * 864e5).toISOString(),
+      origem: "lancamento_retroativo",
+      ano_referencia: anoPassado,
+      lancado_por: TIME[0].id,
+      lancado_em: new Date(Date.now() - 30 * 864e5).toISOString(),
+      created_at: new Date(Date.now() - 30 * 864e5).toISOString(),
+      pessoa: MARINA,
+      lancadoPor: TIME[0].nome,
+    },
+    {
+      id: "lanc2",
+      user_id: BRUNO.id,
+      tipo: "ausencia",
+      data_inicio: emDias(-9),
+      data_fim: emDias(-9),
+      dias_uteis: 1,
+      motivo: "Avisou por mensagem na hora, entrou depois.",
+      status: "aprovada",
+      motivo_reprovacao: null,
+      aprovado_por: TIME[0].id,
+      decidido_em: new Date(Date.now() - 8 * 864e5).toISOString(),
+      origem: "lancamento_retroativo",
+      ano_referencia: new Date().getFullYear(),
+      lancado_por: TIME[0].id,
+      lancado_em: new Date(Date.now() - 8 * 864e5).toISOString(),
+      created_at: new Date(Date.now() - 8 * 864e5).toISOString(),
+      pessoa: BRUNO,
+      lancadoPor: TIME[0].nome,
+    },
+  ];
 }

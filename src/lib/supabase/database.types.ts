@@ -185,6 +185,16 @@ export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especiali
 
 export type HrTipo = "ferias" | "licenca" | "ausencia";
 export type HrStatus = "pendente" | "aprovada" | "reprovada" | "cancelada";
+/**
+ * De onde veio o registro (migration 0037).
+ *
+ * `solicitacao` é o caminho de sempre: a pessoa propõe, o sócio responde.
+ * `lancamento_retroativo` é a gestão registrando um período que já aconteceu,
+ * que nasce aprovado e não passa por fila nenhuma. `importacao` é o mesmo
+ * fato vindo de um arquivo, e existe separado para a auditoria saber
+ * distinguir os dois.
+ */
+export type HrOrigem = "solicitacao" | "lancamento_retroativo" | "importacao";
 export type PresencaStatus =
   | "presente"
   | "remoto"
@@ -411,8 +421,18 @@ export interface Database {
           motivo_reprovacao: string | null;
           aprovado_por: string | null;
           decidido_em: string | null;
+          origem: HrOrigem;
+          ano_referencia: number | null;
+          lancado_por: string | null;
+          lancado_em: string | null;
           created_at: string;
         };
+        // `origem` FICA DE FORA do Insert, e não é esquecimento: gravar
+        // qualquer coisa diferente de `solicitacao` é o lançamento
+        // retroativo, e ele passa por `lancar_periodo()`, que confere
+        // `is_gestor()` e preenche `lancado_por` sozinha. Deixá-la aqui
+        // convidaria a montar o insert à mão — a policy recusaria, mas só na
+        // hora de rodar, e o erro sairia como "nenhuma linha voltou".
         Insert: {
           id?: string;
           user_id: string;
@@ -423,7 +443,8 @@ export interface Database {
           motivo?: string | null;
         };
         // Decidir e cancelar passam pelas funcoes do banco, nao por update.
-        // O update direto e so do dono e so enquanto pendente.
+        // O update direto e so do dono e so enquanto pendente. Corrigir um
+        // lancamento passa por `corrigir_lancamento()`, pelo mesmo motivo.
         Update: {
           tipo?: HrTipo;
           data_inicio?: string;
@@ -1577,6 +1598,39 @@ export interface Database {
         Returns: void;
       };
       cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
+      /**
+       * Registra um periodo que ja aconteceu, em nome de outra pessoa
+       * (migration 0037). Nasce `aprovada`, pinta a presenca na mesma
+       * transacao, e recusa quem nao e `is_gestor()` na primeira linha.
+       *
+       * `p_origem` nao entra aqui: a tela lanca, e importar arquivo e outro
+       * caminho. O default da funcao e `lancamento_retroativo`.
+       */
+      lancar_periodo: {
+        Args: {
+          p_user_id: string;
+          p_tipo: HrTipo;
+          p_data_inicio: string;
+          p_data_fim: string;
+          p_ano_referencia?: number | null;
+          p_observacao?: string | null;
+        };
+        Returns: string;
+      };
+      /** Corrige um lancamento e REPINTA a presenca. Recusa `solicitacao`. */
+      corrigir_lancamento: {
+        Args: {
+          p_request_id: string;
+          p_tipo: HrTipo;
+          p_data_inicio: string;
+          p_data_fim: string;
+          p_ano_referencia?: number | null;
+          p_observacao?: string | null;
+        };
+        Returns: void;
+      };
+      /** Apaga um lancamento e despinta os dias dele. Recusa `solicitacao`. */
+      apagar_lancamento: { Args: { p_request_id: string }; Returns: void };
       // Os rascunhos DE QUEM ESTA LOGADO que somem amanha (migration 0028).
       rascunhos_a_expirar: {
         Args: Record<string, never>;
@@ -1625,6 +1679,7 @@ export interface Database {
       notification_tipo: NotificationTipo;
       hr_tipo: HrTipo;
       hr_status: HrStatus;
+      hr_origem: HrOrigem;
       presenca_status: PresencaStatus;
       skill_nivel: SkillNivel;
       fin_tipo: FinTipo;

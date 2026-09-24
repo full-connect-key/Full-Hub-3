@@ -458,3 +458,46 @@ export async function foraHoje(hojeISO: string): Promise<
     })
     .filter(Boolean) as { nome: string; area: string; status: PresencaStatus }[];
 }
+
+export type LancamentoNaTela = HrRequest & {
+  pessoa: PessoaDoTime | null;
+  /** Quem registrou. Nome, não id — a tela mostra "por Ana Souza". */
+  lancadoPor: string | null;
+};
+
+/**
+ * Os períodos que a gestão REGISTROU, e não os que alguém propôs.
+ *
+ * O filtro é `origem <> 'solicitacao'`, e é o que separa as duas coisas na
+ * mesma tabela: um pedido tem uma decisão por trás, um lançamento tem um fato.
+ * Misturá-los numa lista só faria a gestão procurar, entre trinta linhas, as
+ * três que ela pode corrigir — porque `corrigir_lancamento()` recusa as
+ * outras, e a tela ofereceria um botão que o banco nega.
+ *
+ * A ordem é por data de início, do mais recente para o mais antigo: quem abre
+ * esta aba acabou de lançar alguma coisa, ou veio conferir o que lançou.
+ *
+ * **Não repete filtro de permissão**, e a ausência é a regra da casa: a
+ * policy de SELECT de `hr_requests` já decide quem enxerga o quê. Repetir
+ * aqui criaria o segundo lugar onde a regra pode divergir — e é sempre o
+ * segundo que esquece.
+ */
+export async function lancamentosDaGestao(): Promise<LancamentoNaTela[]> {
+  const supabase = await criarClienteServidor();
+  const time = await listarTime();
+  const porPessoa = new Map(time.map((p) => [p.id, p]));
+
+  const { data } = await supabase
+    .from("hr_requests")
+    .select("*")
+    .neq("origem", "solicitacao")
+    .order("data_inicio", { ascending: false });
+
+  return (data ?? []).map((pedido) => ({
+    ...pedido,
+    pessoa: porPessoa.get(pedido.user_id) ?? null,
+    lancadoPor: pedido.lancado_por
+      ? (porPessoa.get(pedido.lancado_por)?.nome ?? null)
+      : null,
+  }));
+}
