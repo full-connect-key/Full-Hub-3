@@ -12,9 +12,7 @@ import {
 } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { colunasDoConteudo, doEntregavel } from "@/lib/aprovacoes/conteudo";
-import { entregaveisDoTemplate } from "@/lib/dominio/campanhas";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { EstruturaDeTemplate } from "@/lib/supabase/database.types";
 
 /**
  * Criar a campanha, enviar o entregável, registrar a versão.
@@ -40,6 +38,16 @@ const CAMPOS = {
 };
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha uma data.");
+const dataOpcional = z.union([data, z.literal(""), z.null()]).optional();
+
+const esquemaDoItem = z.object({
+  nome: z.string().trim().min(1, "Todo item precisa de um nome."),
+  prazo: dataOpcional,
+});
+
+const esquemaDoNo = esquemaDoItem.extend({
+  filhos: z.array(esquemaDoItem).default([]),
+});
 
 const esquemaDaCampanha = z
   .object({
@@ -48,14 +56,17 @@ const esquemaDaCampanha = z
     descricao: z.string().trim().optional(),
     dataInicio: data,
     dataFim: data,
+    /** De onde a estrutura saiu. Guardado como procedência, não como regra. */
     templateId: z.string().uuid().nullable().optional(),
     /**
-     * Quantos itens gerar num grupo que o template deixou em aberto — o caso
-     * do Feed/Storys, que muda a cada mês. Chave é o nome do grupo.
+     * A ÁRVORE COMO A PESSOA A DEIXOU, e não o modelo de onde ela saiu.
+     *
+     * Quem expande o template é a tela, no instante em que ele é escolhido —
+     * e daí em diante o Atendimento acrescenta, remove e datilografa prazos.
+     * Se a action reexpandisse o modelo, tudo isso seria desfeito no clique
+     * de salvar: a pessoa veria uma árvore e gravaria outra.
      */
-    quantidades: z
-      .record(z.string(), z.number().int().min(0).max(200))
-      .optional(),
+    estrutura: z.array(esquemaDoNo).default([]),
   })
   .refine((v) => v.dataFim >= v.dataInicio, {
     path: ["dataFim"],
@@ -65,7 +76,7 @@ const esquemaDaCampanha = z
 export type NovaCampanha = z.input<typeof esquemaDaCampanha>;
 
 /**
- * Cria a campanha e, quando há template, a árvore inteira de entregáveis.
+ * Cria a campanha e materializa a árvore de entregáveis.
  *
  * **Os entregáveis nascem em `aguardando_informacoes` e SEM `enviado_em`.** A
  * estrutura existe para a equipe se organizar; o cliente só passa a enxergar
@@ -73,8 +84,8 @@ export type NovaCampanha = z.input<typeof esquemaDaCampanha>;
  * com quarenta linhas vazias faria a tela dele prometer material que ninguém
  * começou.
  *
- * Os filhos entram depois dos pais, e não juntos: `parent_id` aponta para uma
- * linha que precisa existir. Dois `insert` em vez de um só — e é o mínimo,
+ * Os filhos entram DEPOIS dos pais, e não juntos: `parent_id` aponta para uma
+ * linha que precisa existir. Dois `insert` em vez de um — e é o mínimo,
  * porque a árvore tem dois níveis e nunca três.
  */
 export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
@@ -110,12 +121,8 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
       );
     }
 
-    if (dados.templateId) {
-      const erro = await materializar(
-        criada.id,
-        dados.templateId,
-        dados.quantidades ?? {},
-      );
+    if (dados.estrutura.length > 0) {
+      const erro = await materializar(criada.id, dados.estrutura);
       if (erro) return falha(erro);
     }
 
@@ -125,62 +132,53 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
   });
 }
 
+type NoParaGravar = z.output<typeof esquemaDoNo>;
+
 /**
- * Transforma a árvore do template em linhas de `deliverables`.
+ * Transforma a árvore em linhas de `deliverables`.
  *
  * A campanha JÁ EXISTE quando isto roda, e se a estrutura falhar no meio ela
  * fica lá com o que deu certo. É diferente da criação de usuário, que tem
  * rollback: lá o cadastro pela metade ocupa um e-mail e ninguém entende por
  * quê; aqui a campanha é uma linha visível, com nome e período, e a equipe
  * acrescenta o que faltar pela própria tela. Apagá-la perderia mais.
+ *
+ * **Os pais voltam com o id, e o casamento é por POSIÇÃO.** Casar por nome
+ * quebraria em silêncio na campanha que tem dois grupos chamados igual — e
+ * "Feed/Story site" aparece duas vezes na Wave, uma no Enxoval e outra no
+ * Deskfy. O `insert` do PostgREST devolve as linhas na ordem em que foram
+ * mandadas, e é dela que o `parent_id` de cada filho sai.
  */
 async function materializar(
   campanhaId: string,
-  templateId: string,
-  quantidades: Record<string, number>,
+  estrutura: NoParaGravar[],
 ): Promise<string | null> {
   const supabase = await criarClienteServidor();
-
-  const { data: template } = await supabase
-    .from("campaign_templates")
-    .select("estrutura_json")
-    .eq("id", templateId)
-    .maybeSingle();
-
-  if (!template) return "O modelo escolhido não foi encontrado.";
-
-  const estrutura = template.estrutura_json as EstruturaDeTemplate;
-
-  // A quantidade que a pessoa digitou ganha da sugestão do modelo: o número do
-  // Feed/Storys muda todo mês, e é por isso que o modelo o deixa em aberto.
-  const comQuantidade: EstruturaDeTemplate = estrutura.map((no) =>
-    no.nome in quantidades ? { ...no, quantidade: quantidades[no.nome] } : no,
-  );
-
-  const topo = entregaveisDoTemplate(comQuantidade);
 
   const { data: criados, error } = await supabase
     .from("deliverables")
     .insert(
-      topo.map((no, i) => ({
+      estrutura.map((no, i) => ({
         campaign_id: campanhaId,
         nome: no.nome,
         ordem: i,
+        prazo: no.prazo || null,
       })),
     )
-    .select("id, nome");
+    .select("id");
 
   if (error) return error.message;
-  if (!criados) return "O banco recusou a estrutura da campanha.";
+  if (!criados || criados.length !== estrutura.length) {
+    return "O banco recusou a estrutura da campanha.";
+  }
 
-  const porNome = new Map(criados.map((d) => [d.nome, d.id]));
-
-  const filhos = topo.flatMap((no) =>
-    no.filhos.map((nome, i) => ({
+  const filhos = estrutura.flatMap((no, i) =>
+    no.filhos.map((filho, j) => ({
       campaign_id: campanhaId,
-      parent_id: porNome.get(no.nome)!,
-      nome,
-      ordem: i,
+      parent_id: criados[i].id,
+      nome: filho.nome,
+      ordem: j,
+      prazo: filho.prazo || null,
     })),
   );
 
