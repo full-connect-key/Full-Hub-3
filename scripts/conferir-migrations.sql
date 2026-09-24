@@ -42,6 +42,76 @@ from (
     ('trava de autoaprovacao FORA (a gestao aprova o proprio)',
      not exists (select 1 from pg_trigger
                   where tgname = 'approval_rounds_sem_autoaprovacao'
-                    and not tgisinternal), '0029')
+                    and not tgisinternal), '0029'),
+
+    -- 0030: a rodada deixou de ser so da subtarefa. Sao DOIS itens porque a
+    -- migration faz duas coisas que podem falhar separado -- a coluna nova
+    -- entra e a velha sai --, e um banco que parou no meio mostra so uma.
+    ('approval_rounds.content_id (rodada generica)',
+     exists (select 1 from information_schema.columns
+              where table_name = 'approval_rounds' and column_name = 'content_id'), '0030'),
+
+    ('approval_rounds.subtask_id APAGADA',
+     not exists (select 1 from information_schema.columns
+                  where table_name = 'approval_rounds' and column_name = 'subtask_id'), '0030'),
+
+    -- 0031: o Portal do Cliente.
+    ('client_access_log (registro de acesso)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'client_access_log'), '0031'),
+
+    ('client_notification_prefs (preferencias de aviso)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'client_notification_prefs'), '0031'),
+
+    -- O furo que a 0031 fechou: o cliente trocava o endereco do proprio
+    -- portal por um PATCH. Quem separa e o trigger, e o que se confere e a
+    -- linha dentro dele -- a coluna existe desde a 0009 de qualquer jeito.
+    ('protect_client_columns protege o slug',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'protect_client_columns'
+                -- Regex e nao `like`: o corpo da funcao alinha o `:=` com
+                -- espacos, e um `like` com um espaco so devolve FALTA num
+                -- banco que esta certo. Foi o que aconteceu ao escrever isto
+                -- -- e um item que acusa falta sem faltar nada e pior que
+                -- item nenhum, porque manda rodar de novo o que ja rodou.
+                and pg_get_functiondef(p.oid) ~ 'new\.slug\s*:=\s*old\.slug'), '0031'),
+
+    -- 0032: posts de social media.
+    ('posts (calendario de social)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'posts'), '0032'),
+
+    ('post_versions (historico de arte e legenda)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'post_versions'), '0032'),
+
+    ('comments (comentario de post)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'comments'), '0032'),
+
+    -- O terceiro desfecho da rodada. Valor de enum entra sozinho: um banco
+    -- que aplicou a 0032 pela metade pode ter as tabelas e nao ter este.
+    ('status_rodada tem rejeitada',
+     exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+              where t.typname = 'status_rodada' and e.enumlabel = 'rejeitada'), '0032'),
+
+    ('post_visivel_ao_cliente() (a RLS do post)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'post_visivel_ao_cliente'), '0032'),
+
+    -- A policy que segura o sprint inteiro: post em producao nao existe para
+    -- o cliente. Confere a CONDICAO, e nao so o nome -- uma policy com a
+    -- clausula errada passaria por uma checagem que so procura o nome.
+    ('posts_select_cliente exige enviado_em',
+     exists (select 1 from pg_policies
+              where schemaname = 'public' and tablename = 'posts'
+                and policyname = 'posts_select_cliente'
+                and qual like '%enviado_em IS NOT NULL%'), '0032'),
+
+    -- O bucket das artes. Pode faltar sozinho: ele nasce num bloco que so
+    -- roda se o schema `storage` existir.
+    ('bucket posts-artes',
+     exists (select 1 from storage.buckets where id = 'posts-artes'), '0032')
 ) as t(item, existe, migration)
 order by migration;
