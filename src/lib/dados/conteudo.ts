@@ -27,6 +27,9 @@ export type RodadaDoConteudo = {
   numero_rodada: number;
   decidido_por: string | null;
   decidido_em: string | null;
+  /** O motivo, quando a decisão foi "ajustes" ou "rejeitada". */
+  comentario: string | null;
+  solicitado_em: string;
 };
 
 /**
@@ -46,7 +49,9 @@ export async function rodadasDo(
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("approval_rounds")
-    .select("id, content_id, status, numero_rodada, decidido_por, decidido_em")
+    .select(
+      "id, content_id, status, numero_rodada, decidido_por, decidido_em, comentario, solicitado_em",
+    )
     .eq("content_type", tipo)
     .eq("escopo", "cliente")
     .in("content_id", ids)

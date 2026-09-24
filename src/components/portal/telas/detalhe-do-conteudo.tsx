@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
 
 import { DecisoesDoConteudo } from "@/components/portal/decisoes-do-conteudo";
 import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
@@ -49,6 +49,15 @@ export type ModeloDoConteudo = {
   rodadaPendenteId: string | null;
   decididoPor: string | null;
   decididoEm: string | null;
+  /**
+   * O arquivo para baixar, quando existe um.
+   *
+   * **A escolha de resolução não está aqui, e não é esquecimento** — ela é de
+   * outro momento do produto. O que existe hoje é o arquivo como ele foi
+   * enviado, que é o que resolve o caso mais comum: a pessoa quer mandar a
+   * arte para alguém que não tem acesso ao portal.
+   */
+  download: { href: string; nome: string } | null;
   voltar: { href: string; rotulo: string };
   vizinhos: { anterior: string | null; proximo: string | null };
   /** O rótulo acessível da navegação entre irmãos. */
@@ -146,6 +155,17 @@ export function DetalheDoConteudo({
           decididoEm={modelo.decididoEm}
           somenteLeitura={comoEquipe}
         />
+        {modelo.download ? (
+          <a
+            href={modelo.download.href}
+            download={modelo.download.nome}
+            className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
+          >
+            <Download aria-hidden className="size-4" />
+            Baixar arquivo
+          </a>
+        ) : null}
+
         <HistoricoDeVersoes
           versoes={versoes}
           artes={artes}

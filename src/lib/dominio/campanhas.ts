@@ -46,6 +46,16 @@ export type EntregavelDoPortal = {
   /** Quem decidiu a última rodada fechada, e quando. */
   decididoPor: string | null;
   decididoEm: string | null;
+  /**
+   * O que o cliente escreveu ao recusar ou pedir ajuste.
+   *
+   * **Ele aparece na LISTA, e não só no detalhe.** "Rejeitado" sozinho manda
+   * a pessoa abrir o item para descobrir por quê — e quem olha a árvore está
+   * justamente procurando o que falta resolver.
+   */
+  motivo: string | null;
+  /** Quando a rodada aberta começou a esperar. */
+  esperandoDesde: string | null;
 };
 
 export type CampanhaDoPortal = {
@@ -270,4 +280,117 @@ export function entregaveisDoTemplate(
 /** "Feed/Storys" → "Feed/Story"; "Vídeos TV" → "Vídeo TV". */
 function singularDoGrupo(nome: string): string {
   return nome.replace(/(\p{L}+?)s\b/gu, "$1");
+}
+
+/**
+ * A linha de informação que cada status pede — e ela MUDA por status.
+ *
+ * Um selo que diz só "Aguardando aprovação" não responde a pergunta que a
+ * pessoa tem na frente da árvore, que é sempre alguma variação de "e daí?".
+ * O que resolve é diferente em cada estado: aprovado quer dizer quem e quando;
+ * esperando quer dizer há quanto tempo; recusado quer dizer por quê; em
+ * produção quer dizer para quando.
+ *
+ * Devolve `null` quando não há o que acrescentar — e aí a tela mostra só o
+ * selo, em vez de uma linha vazia ocupando altura.
+ */
+export function linhaDoEntregavel(
+  item: EntregavelDoPortal,
+  hoje: string,
+): string | null {
+  switch (item.status) {
+    case "aprovado":
+      if (!item.decididoEm) return null;
+      return item.decididoPor
+        ? `Aprovado por ${item.decididoPor} em ${porExtenso(item.decididoEm)}`
+        : `Aprovado em ${porExtenso(item.decididoEm)}`;
+
+    case "em_aprovacao": {
+      if (!item.esperandoDesde) return "Aguardando sua decisão";
+      const dias = -diasAte(item.esperandoDesde.slice(0, 10), hoje);
+      if (dias <= 0) return "Aguardando sua decisão desde hoje";
+      return `Aguardando sua decisão há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+    }
+
+    case "ajustes":
+    case "rejeitado":
+      return item.motivo;
+
+    case "em_producao":
+      return item.prazo ? `Previsto para ${porExtenso(item.prazo)}` : null;
+
+    default:
+      return null;
+  }
+}
+
+/** "2026-10-07" → "07/10/2026". Sem date-fns: é texto, e texto não tem fuso. */
+function porExtenso(iso: string): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+/** Os três recortes da listagem. "Ativas" é o padrão. */
+export type FiltroDeCampanha = "ativas" | "finalizadas" | "planejamento";
+
+export const ROTULOS_DO_FILTRO: Record<FiltroDeCampanha, string> = {
+  ativas: "Ativas",
+  finalizadas: "Finalizadas",
+  planejamento: "Em planejamento",
+};
+
+export const FILTROS_DE_CAMPANHA: FiltroDeCampanha[] = [
+  "ativas",
+  "finalizadas",
+  "planejamento",
+];
+
+/**
+ * **`cancelada` não aparece em recorte nenhum**, e é decisão.
+ *
+ * Uma campanha cancelada não é trabalho que o cliente possa acompanhar nem
+ * decisão que ele possa tomar — é uma linha que a agência encerrou. Deixá-la
+ * num dos três recortes faria o contador de "finalizadas" misturar o que
+ * terminou com o que não aconteceu.
+ */
+export function combinaComFiltro(
+  campanha: CampanhaDoPortal,
+  filtro: FiltroDeCampanha,
+): boolean {
+  if (campanha.status === "cancelada") return false;
+  if (filtro === "ativas") return campanha.status === "ativa";
+  if (filtro === "finalizadas") return campanha.status === "finalizada";
+  return campanha.status === "planejamento";
+}
+
+export function lerFiltroDeCampanha(valor: unknown): FiltroDeCampanha {
+  return FILTROS_DE_CAMPANHA.includes(valor as FiltroDeCampanha)
+    ? (valor as FiltroDeCampanha)
+    : "ativas";
+}
+
+/** Quantos itens ainda dependem de uma decisão do cliente ou da agência. */
+export function pendentes(itens: EntregavelDoPortal[]): number {
+  return itens.filter(
+    (i) =>
+      i.status === "em_aprovacao" ||
+      i.status === "ajustes" ||
+      i.status === "rejeitado",
+  ).length;
+}
+
+/** Quantos esperam a decisão DELE agora — é o que merece destaque na lista. */
+export function esperandoOCliente(itens: EntregavelDoPortal[]): number {
+  return itens.filter(esperaDecisao).length;
+}
+
+/** "01/10 a 11/10", como o cartão mostra. */
+export function periodoCurto(inicio: string, fim: string): string {
+  const curto = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  return `${curto(inicio)} a ${curto(fim)}`;
+}
+
+/** A duração do período, contada em dias de calendário e incluindo os dois. */
+export function duracaoEmDias(inicio: string, fim: string): number {
+  return diasAte(fim, inicio) + 1;
 }

@@ -98,6 +98,10 @@ export async function DetalheDoPost({
     texto: { titulo: "Legenda", corpo: post.legenda },
     arte: enderecoDaArte(post.arteUrl, artes),
     versaoAtual: post.versaoAtual,
+    // O post ainda não oferece download: quem publica é a agência, e o
+    // arquivo do cliente é o que vai ao ar, não o que ele guarda. Se um dia
+    // fizer sentido, é preencher este campo — a casca já sabe desenhar.
+    download: null,
     rodadaPendenteId: post.rodadaPendenteId,
     decididoPor: post.decididoPor,
     decididoEm: post.decididoEm,

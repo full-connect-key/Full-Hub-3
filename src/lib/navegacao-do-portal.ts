@@ -38,7 +38,7 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     label: "Campanhas",
     href: "/portal/campanhas",
     icon: Megaphone,
-    description: "Suas campanhas em andamento e os resultados de cada uma.",
+    description: "Suas campanhas, o que já foi aprovado e o que espera você.",
   },
   {
     label: "Configurações",

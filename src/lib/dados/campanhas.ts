@@ -119,6 +119,9 @@ function montarEntregavel(
       ? (nomes.get(rodada.decidido_por) ?? null)
       : null,
     decididoEm: rodada?.decidido_em ?? null,
+    motivo: rodada?.comentario ?? null,
+    esperandoDesde:
+      rodada?.status === "pendente" ? (rodada.solicitado_em ?? null) : null,
   };
 }
 
