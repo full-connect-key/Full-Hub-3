@@ -1,6 +1,7 @@
 \set ANA     '''11111111-1111-1111-1111-111111111111'''
 \set DIEGO   '''22222222-2222-2222-2222-222222222222'''
 \set CARLA   '''33333333-3333-3333-3333-333333333333'''
+\set BRUNO   '''44444444-4444-4444-4444-444444444444'''
 \set MARINA  '''55555555-5555-5555-5555-555555555555'''
 \set VERDE   '''aaaaaaaa-0000-0000-0000-000000000001'''
 
@@ -215,3 +216,60 @@ update public.tasks set status = 'entregue', status_manual = true
 update public.subtasks set status = 'em_andamento' where id = 'ffffffff-0000-0000-0000-000000000002';
 select teste.conferir('Entregue a mao resiste ao recalculo',
   teste.status_da_task('eeeeeeee-0000-0000-0000-00000000000a'), 'entregue');
+
+
+-- ---------------------------------------------------------------------------
+-- Apagar um workflow (0036)
+--
+-- Ate a 0036 nao havia policy de DELETE em `task_types`: o botao podia
+-- existir na tela que o banco devolveria zero linha, CALADO. Por isso o
+-- primeiro cenario e o do colaborador -- se alguem tirar a policy, e ele que
+-- volta a passar por engano, e a recusa some sem barulho.
+-- ---------------------------------------------------------------------------
+insert into public.task_types (id, nome, ativo)
+values ('77770000-0000-0000-0000-000000000001', 'Modelo descartavel', true)
+on conflict (id) do nothing;
+
+select teste.cenario('Colaborador NAO apaga workflow', :BRUNO,
+  $$delete from public.task_types where id = '77770000-0000-0000-0000-000000000001'$$,
+  'recusa');
+
+select teste.conferir('E o workflow continua la',
+  (select count(*)::text from public.task_types
+    where id = '77770000-0000-0000-0000-000000000001'), '1');
+
+select teste.cenario('O desenvolvedor apaga', :DIEGO,
+  $$delete from public.task_types where id = '77770000-0000-0000-0000-000000000001'$$,
+  'ok', 1);
+
+select teste.conferir('E ele sumiu',
+  (select count(*)::text from public.task_types
+    where id = '77770000-0000-0000-0000-000000000001'), '0');
+
+-- A DEMANDA NAO VAI JUNTO, e e a razao de apagar nao ser bloqueado por uso
+-- como a exclusao de cliente e. `tasks.task_type_id` e `on delete set null`
+-- desde a 0007, e as etapas ja foram materializadas como subtarefas -- elas
+-- nao dependem do modelo para existir.
+insert into public.task_types (id, nome, ativo)
+values ('77770000-0000-0000-0000-000000000002', 'Modelo em uso', true)
+on conflict (id) do nothing;
+
+update public.tasks set task_type_id = '77770000-0000-0000-0000-000000000002'
+ where id = 'eeeeeeee-0000-0000-0000-00000000000a';
+
+select teste.cenario('Apagar um workflow EM USO passa', :DIEGO,
+  $$delete from public.task_types where id = '77770000-0000-0000-0000-000000000002'$$,
+  'ok', 1);
+
+select teste.conferir('A demanda continua de pe',
+  (select count(*)::text from public.tasks
+    where id = 'eeeeeeee-0000-0000-0000-00000000000a'), '1');
+
+select teste.conferir('E so perdeu o rotulo do modelo',
+  (select coalesce(task_type_id::text, 'sem modelo') from public.tasks
+    where id = 'eeeeeeee-0000-0000-0000-00000000000a'), 'sem modelo');
+
+select teste.conferir('As etapas dela ficaram',
+  (select case when count(*) > 0 then 'tem etapa' else 'vazia' end
+     from public.subtasks where task_id = 'eeeeeeee-0000-0000-0000-00000000000a'),
+  'tem etapa');

@@ -34,6 +34,14 @@ export type EtapaDeWorkflow = WorkflowStep & {
 export type TipoComFluxo = TaskType & {
   cliente: { id: string; nome_empresa: string } | null;
   etapas: EtapaDeWorkflow[];
+  /**
+   * Quantas demandas usaram este workflow.
+   *
+   * A tela mostra antes de apagar. Elas NÃO se perdem — as etapas foram
+   * materializadas como subtarefas e o fluxo ficou no `workflow_snapshot` da
+   * Task —, mas quem vai apagar merece saber o tamanho do que está mexendo.
+   */
+  demandas: number;
 };
 
 /**
@@ -112,14 +120,30 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
     ...new Set(tipos.map((t) => t.workflow_template_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: etapas }] = await Promise.all([
+  const [{ data: clientes }, { data: etapas }, { data: usos }] = await Promise.all([
     idsDeClientes.length
       ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
       : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
     idsDeFluxos.length
       ? supabase.from("workflow_steps").select("*").in("template_id", idsDeFluxos).order("ordem")
       : Promise.resolve({ data: [] as WorkflowStep[] }),
+    // Uma consulta para TODOS os tipos, e não uma por cartão: a tela lista
+    // dezenas, e contar demanda por cartão seria dezenas de idas ao banco
+    // por um número que aparece só na confirmação.
+    supabase
+      .from("tasks")
+      .select("task_type_id")
+      .in(
+        "task_type_id",
+        tipos.map((t) => t.id),
+      ),
   ]);
+
+  const porTipo = new Map<string, number>();
+  for (const linha of usos ?? []) {
+    if (!linha.task_type_id) continue;
+    porTipo.set(linha.task_type_id, (porTipo.get(linha.task_type_id) ?? 0) + 1);
+  }
 
   const idsDePessoas = [
     ...new Set((etapas ?? []).map((e) => e.responsavel_padrao_id).filter(Boolean)),
@@ -134,6 +158,7 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
 
   return tipos.map((tipo) => ({
     ...tipo,
+    demandas: porTipo.get(tipo.id) ?? 0,
     cliente: tipo.client_id ? (porCliente.get(tipo.client_id) ?? null) : null,
     etapas: (etapas ?? [])
       .filter((e) => e.template_id === tipo.workflow_template_id)

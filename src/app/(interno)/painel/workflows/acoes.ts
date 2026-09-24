@@ -338,6 +338,68 @@ export async function arquivarWorkflow(id: string, ativo: boolean): Promise<Resu
 }
 
 /**
+ * Apagar o workflow de vez.
+ *
+ * **Arquivar continua sendo o caminho normal**, e a tela diz isso. Isto aqui é
+ * para o modelo que nasceu errado — o duplicado, o de teste, o com o nome
+ * trocado. Um modelo em uso se arquiva: ele sai da lista de quem abre demanda
+ * e continua explicando as demandas antigas.
+ *
+ * **Nada do trabalho se perde, e é por isso que não existe bloqueio por uso.**
+ * Aplicar um workflow MATERIALIZA as etapas como linhas de `subtasks`, com
+ * responsável, prazo e tempo, e grava uma cópia do fluxo em
+ * `tasks.workflow_snapshot`. As demandas ficam inteiras; o que elas perdem é
+ * o rótulo do modelo, porque `tasks.task_type_id` é `on delete set null`.
+ *
+ * É diferente de apagar um cliente, que o produto bloqueia quando há vínculo:
+ * lá o histórico ia junto.
+ *
+ * Duas escritas e não uma: `task_types` guarda o nome e o alcance,
+ * `workflow_templates` guarda a cadeia, e as etapas somem por cascade. A
+ * ordem importa — o tipo aponta para o template, então ele sai primeiro.
+ */
+export async function excluirWorkflow(id: string): Promise<Resultado> {
+  return executarAcao("excluirWorkflow", async () => {
+    await exigirGestorNaAcao();
+    const supabase = await criarClienteServidor();
+
+    // O id do template ANTES de apagar o tipo: depois do delete não há de
+    // onde lê-lo, e o template ficaria órfão na tabela para sempre.
+    const { data: tipo } = await supabase
+      .from("task_types")
+      .select("id, nome, workflow_template_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!tipo) return falha("Este workflow não existe mais.");
+
+    const { data, error } = await supabase
+      .from("task_types")
+      .delete()
+      .eq("id", id)
+      .select("id");
+
+    if (error) return falha(error.message);
+
+    // `.select()` porque uma exclusão barrada pelo RLS volta sem erro e sem
+    // linha: sem isto a tela diria "apagado" para um workflow que continua lá.
+    if (!data || data.length === 0) {
+      return falha("O banco recusou. Apagar workflow é da gestão.");
+    }
+
+    if (tipo.workflow_template_id) {
+      await supabase
+        .from("workflow_templates")
+        .delete()
+        .eq("id", tipo.workflow_template_id);
+    }
+
+    revalidatePath(ROTA);
+    return sucesso(`Workflow "${tipo.nome}" apagado.`);
+  });
+}
+
+/**
  * "Salvar as subtarefas desta Task como workflow."
  *
  * O caminho de volta: uma demanda que deu certo vira modelo. O prazo de cada

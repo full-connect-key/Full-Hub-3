@@ -11,6 +11,7 @@ import {
   Lock,
   Plus,
   RotateCcw,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,12 +35,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import type { TipoComFluxo } from "@/lib/dados/workflows";
 import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
 
-import { arquivarWorkflow, duplicarWorkflow, salvarWorkflow } from "./acoes";
+import {
+  arquivarWorkflow,
+  duplicarWorkflow,
+  excluirWorkflow,
+  salvarWorkflow,
+} from "./acoes";
 
 const GLOBAL = "__todos__";
 const SEM_VALOR = "__sem__";
@@ -289,6 +296,57 @@ export function Workflows({
                   >
                     {tipo.ativo ? <Archive aria-hidden /> : <RotateCcw aria-hidden />}
                   </Button>
+
+                  {/* APAGAR FICA AO LADO DE ARQUIVAR, e o diálogo diz a
+                      diferença. Arquivar é o caminho normal — o modelo sai da
+                      lista de quem abre demanda e continua explicando as
+                      antigas. Apagar é para o que nasceu errado.
+
+                      A confirmação NOMEIA o que acontece com as demandas que
+                      usaram o workflow, e o número vem junto: "tem certeza?"
+                      sem dizer o que se perde é confirmação que ninguém lê. */}
+                  <ConfirmDialog
+                    destructive
+                    title={`Apagar o workflow "${tipo.nome}"?`}
+                    description={
+                      tipo.demandas > 0 ? (
+                        <>
+                          {tipo.demandas === 1
+                            ? "1 demanda usou este workflow, e ela "
+                            : `${tipo.demandas} demandas usaram este workflow, e elas `}
+                          <strong>não perdem nada</strong>: as etapas viraram
+                          subtarefas de verdade e o fluxo ficou guardado em cada
+                          uma. O que somem é o nome do modelo na ficha delas.
+                          <br />
+                          <br />
+                          Se a ideia é só tirá-lo da lista de quem abre demanda,
+                          arquivar faz isso e mantém a explicação.
+                        </>
+                      ) : (
+                        "Nenhuma demanda usou este workflow ainda. Não há o que se perder."
+                      )
+                    }
+                    confirmLabel="Apagar workflow"
+                    confirmationText={tipo.demandas > 0 ? tipo.nome : undefined}
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Apagar ${tipo.nome}`}
+                        disabled={salvando}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    }
+                    onConfirm={async () => {
+                      const r = await chamarAcao(() => excluirWorkflow(tipo.id));
+                      if (!r.ok) toast.error(r.error);
+                      else {
+                        toast.success(r.mensagem);
+                        router.refresh();
+                      }
+                    }}
+                  />
                 </div>
               </div>
 

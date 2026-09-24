@@ -137,9 +137,12 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
 }
 
 export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
-  return TIPOS.map((tipo) => ({
+  return TIPOS.map((tipo, i) => ({
     ...tipo,
     etapas: FLUXOS.find((f) => f.id === tipo.workflow_template_id)?.etapas ?? [],
+    // Um usado e um nao usado, para a confirmacao de apagar aparecer nas
+    // duas formas na imagem do prototipo.
+    demandas: i === 0 ? 7 : 0,
   }));
 }
 
