@@ -738,6 +738,110 @@ PUBLICAÇÃO — lá a pergunta é "o que vai ao ar quando". Ele abre a visualiz
 do portal daquele cliente, que é a tela que existe hoje; a de produção é de
 outro sprint.
 
+#### Campanhas: a Wave, a árvore e a decisão de cada peça
+
+`campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions` —
+migration 0033, que é o **terceiro ato da 0030**: com `deliverable`, os três
+tipos do enum passam a ter dono e a frase "tipo sem regra é tipo recusado"
+deixa de ter exemplo. Ela fica de pé assim mesmo — é a regra para o quarto.
+
+O post é uma peça solta com uma data; a campanha é um conjunto com começo, fim
+e **estrutura**: entregáveis de topo, alguns deles grupos com sub-itens, cada
+um decidido por conta própria.
+
+**São DOIS níveis, e nunca três.** O neto é recusado pelo trigger
+`deliverables_dois_niveis`, pela mesma razão da sub-etapa e da thread das
+Recomendações: árvore que passa de dois níveis na tela do cliente é árvore que
+ninguém acompanha, e o recuo deixa de significar alguma coisa.
+
+**O status do grupo é DERIVADO, e não existe coluna para ele.** É a mesma
+regra que a Task já segue com as subtarefas e a etapa com as sub-etapas: quem
+tem filho para de ser unidade de trabalho. `status_do_entregavel()` no
+Postgres e `statusDoGrupo()` em `lib/dominio/campanhas.ts` fazem a mesma conta
+nos dois lados. O status escrito à mão num grupo é **descartado** em vez de
+recusado — quem edita um grupo quase sempre está mexendo no nome, na ordem ou
+no prazo, e recusar o update inteiro por causa de um campo que a tela nem
+mostra travaria o trabalho para proteger um valor que ninguém lê.
+
+**`rejeitado` num filho NÃO faz o grupo ficar rejeitado**, e é escolha:
+ninguém recusou o grupo — recusaram uma peça dentro dele, e o que ele precisa
+dizer é "tem coisa para refazer aqui". `ajustes` é exatamente isso, e é o tom
+de atenção; `rejeitado` é o de erro, e pintaria de vermelho um grupo em que
+catorze de quinze itens estão aprovados.
+
+**Toda conta olha só as FOLHAS.** Um grupo com quinze sub-itens é uma linha na
+tela e quinze entregas no trabalho; contar o grupo também faria "16 de 16"
+onde há quinze coisas, e a barra andaria sozinha quando o último filho fosse
+aprovado.
+
+**O cliente só enxerga entregável ENVIADO, e a linha mora na policy.**
+`deliverables_select_cliente` exige `enviado_em is not null` — item em
+produção não existe para ele, nem na árvore, nem pela URL direta, nem pela API
+com o id na mão. A consulta de `lib/dados/campanhas.ts` não repete o filtro.
+**A campanha, essa ele vê desde o planejamento:** ela tem nome, período e
+progresso, e é isso que responde "o que a Full está fazendo para mim este
+mês". Esconder até o primeiro envio faria a lista de campanhas ativas contar
+menos do que existe — e ele já sabe que ela existe, foi ele quem pediu.
+
+**Sub-item órfão sobe para o topo em vez de sumir.** Se o pai não veio porque
+não foi enviado, o filho que FOI enviado continua aparecendo: descartá-lo por
+causa do pai deixaria um material aprovável fora da tela, sem nada dizendo que
+ele existe.
+
+**O TEMPLATE é uma árvore em `jsonb`, e não um par de tabelas** como o
+workflow de task. A diferença é o que se faz com cada um: o workflow guarda
+função, prazo relativo e responsável por etapa, coisas que se consultam; o
+template de campanha guarda uma lista de nomes que alguém edita inteira antes
+de salvar. Normalizar seria criar duas tabelas para servir um `select * where
+id = ?`. `itens` vazio com `quantidade` é o caso do Feed/Storys — quantos são
+se decide na criação, porque muda a cada mês.
+
+**O modelo é ponto de partida, não contrato.** Escolhê-lo expande a árvore na
+tela de abertura, e daí em diante o Atendimento acrescenta, remove e
+datilografa prazos — e o que viaja para a action é a **árvore**, não o id do
+modelo. A primeira versão mandava o id e reexpandia no servidor, o que
+desfaria cada ajuste no clique de salvar: a pessoa veria uma árvore e gravaria
+outra. Os filhos casam com os pais **por posição**, não por nome: "Feed/story
+site" aparece duas vezes na Wave, uma no Enxoval e outra no Deskfy.
+
+**A linha de cada item MUDA por status**, e é o que faz a árvore responder
+"e daí?": aprovado diz quem e quando, esperando diz há quantos dias, recusado
+diz o motivo — na lista, não só no detalhe —, em produção diz para quando. O
+grupo abre por padrão quando tem pendência, e só então: abrir tudo vira uma
+lista de quarenta linhas com o que importa no meio, abrir nada esconde o que a
+pessoa veio ver.
+
+**O alerta de 7 dias fala de "não aprovados", e não de "esperando você".** São
+contas diferentes — o cartão da listagem destaca o que espera a decisão DELE,
+e o material recusado espera a agência refazer. As duas frases diziam
+"esperando você" e mostravam números diferentes na mesma campanha; foi a
+imagem em 375px que mostrou as duas lado a lado. E ele é `--warning`, nunca
+`--danger`: vermelho num portal que a pessoa abre uma vez por semana treina o
+hábito de ignorar vermelho.
+
+**A tela de detalhe do material é UMA SÓ**, em
+`components/portal/telas/detalhe-do-conteudo.tsx`. Post e entregável leem
+tabelas diferentes e montam o mesmo `ModeloDoConteudo`; o que é compartilhado
+é a casca, não a leitura — compartilhar a consulta levaria a um `if tipo ===`
+no meio de cada `select`, que é a duplicação de volta com outro nome. Duas
+telas divergiriam na primeira mudança, e a divergência apareceria no lugar
+mais caro: o botão de aprovar.
+
+O texto que acompanha a arte é a **legenda** no post e a **descrição** no
+entregável, e o rótulo viaja no modelo — com a palavra fixa no componente, a
+tela do entregável mostrava a seção "Descrição" e, logo abaixo, um botão
+dizendo "Copiar legenda".
+
+**No calendário da agência a campanha entra pelo ENCERRAMENTO**, não como
+faixa do período: uma Wave de trinta dias pintaria trinta células e empurraria
+para baixo tudo o que acontece em cada uma. É a mesma decisão que o calendário
+já toma com o período da etapa. O entregável entra pelo prazo dele; sem prazo
+fica de fora.
+
+**O cliente não edita estrutura, prazo nem arquivo**, e não existe botão de
+reverter versão em lugar nenhum do portal — ele não tem policy de escrita em
+`deliverable_versions`, e a trava é essa, não a ausência do botão.
+
 #### Três vocabulários de status, e não é descuido
 
 `task_status`, `subtask_status` e `content_status` respondem a perguntas
@@ -1552,6 +1656,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 13 | **Campanhas: a Wave, a árvore e a decisão de cada peça.** Migration 0033, o terceiro ato da 0030 — com `deliverable`, os três tipos do enum passam a ter dono. `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions`, com a árvore em **dois níveis e nunca três** e o **status do grupo derivado**, sem coluna: `status_do_entregavel()` e `statusDoGrupo()` fazem a mesma conta nos dois lados, e o valor escrito à mão num grupo é descartado em vez de recusado. `rejeitado` num filho deixa o grupo em `ajustes`, não em `rejeitado` — ninguém recusou o grupo, e vermelho num grupo com catorze de quinze aprovados afirma outra coisa. Toda conta olha **só as folhas**. O cliente enxerga a **campanha desde o planejamento** e o **entregável só depois de enviado**, e essa assimetria mora nas duas policies, não na consulta. O template é uma **árvore em `jsonb`** e não um par de tabelas, porque é uma lista de nomes que alguém edita inteira antes de salvar; na abertura ele é **ponto de partida, não contrato** — a árvore editada é o que viaja para a action, e os filhos casam com os pais **por posição**, porque "Feed/story site" aparece duas vezes na Wave. A linha de cada item **muda por status** (quem aprovou, há quantos dias espera, o motivo da recusa, o prazo), e o grupo abre sozinho quando tem pendência. O alerta de 7 dias fala de "não aprovados" e não de "esperando você" — são contas diferentes, e as duas frases mostravam números diferentes na mesma campanha até a imagem em 375px pô-las lado a lado. **A tela de detalhe do material é uma só**: post e entregável montam o mesmo `ModeloDoConteudo`, e o que é compartilhado é a casca, não a leitura. Campanhas e entregáveis entram nas pendências do Portal, no bloco "Campanhas ativas" e no calendário da agência — a campanha pelo **encerramento**, não como faixa de trinta células. De quebra, três erros meus que a verificação pegou: o seed carimbando `enviado_em` em item que ninguém enviou (o cliente via doze "Em produção"), o título encolhido a "Feed/…" em 375px porque o selo não cede largura, e o "Copiar legenda" que sobrou na seção "Descrição". E um furo no `check:mensagens`: ele lia linha a linha, então uma chamada quebrada em várias linhas não era contada — nem falha, nem aviso. Agora varre por posição, e achou duas que vinham sendo puladas. |
 | Sprint 12 | **Social Media: o calendário e a decisão do post.** Migration 0032, que é o segundo ato da 0030 — ela generalizou a rodada e deixou `post` recusado de propósito, com a frase "quem acrescentar o tipo acrescenta a regra na mesma migration"; é o que este sprint faz, e `deliverable` continua recusado. `posts`, `post_versions` e `comments`, com o cliente enxergando só o que tem `enviado_em` preenchido — e essa linha mora na policy, não na consulta, que é o que faz um post em produção não existir para ele nem pelo id na mão. **Enviar É abrir a rodada de escopo cliente**: o carimbo é consequência dela, por trigger, porque separados dariam rodada num post invisível e post carimbado sem onde decidir. `status_rodada` ganhou **`rejeitada`** — rejeitar não é pedir ajuste, e reaproveitar o mesmo valor faria a rodada dizer uma coisa e o post outra; os dois desfechos negativos exigem motivo, na ação e no banco; e `rejeitada` **não** vale para etapa de demanda, que tem dois desfechos desde a 0007. `comments.interno` e o autor são forçados por trigger, porque policy não limita coluna. O calendário é de **servidor inteiro** — mês, visão, dia e filtros na URL —, vira lista por dia em 375px, e a rede aparece como **sigla de duas letras**: o lucide tirou os ícones de marca, ícone genérico não distingue uma rede da outra, e os logos trariam marca registrada e cor literal. A legenda **agrupa os status que dividem a mesma cor** em vez de mostrar sete linhas e cinco cores, e o nome exato vai no `title` e no rótulo acessível. No detalhe, a ordem é a da decisão: arte com zoom de verdade, informações, legenda, e só então os botões; "solicitar ajustes" fica à vista, que é a ação mais comum. O histórico de versões **não tem reverter**, e a trava é a policy. Posts entram nas pendências da tela inicial do Portal e no calendário da agência. **66 cenários novos, 574 no total**, e dois erros meus que eles pegaram: o trigger de autor apagando o que o seed informou, e um cenário que passava pelo motivo errado. De quebra, o **seed estava quebrado desde o Sprint 11** — ainda escrevia em `approval_rounds.subtask_id`, coluna que a 0030 apagou. |
 | Sprint 10 | **Os três níveis, e três regras que o usuário mandou mudar.** `subtasks.parent_id` (migration 0022) dá o terceiro nível — demanda → etapa → sub-etapa, **três e nunca quatro**, com o neto recusado por trigger. A decisão que organiza o resto é **quem tem filha vira agrupadora**: a mesma regra que a Task já seguia, um nível abaixo. A mãe para de medir tempo, tem o status calculado pelas filhas, não exige aval, não entra em dependência, não abre rodada — e some de toda soma, que passa a contar **só as folhas**. Sem isso tudo contaria duas vezes, e a rentabilidade cobraria em dinheiro um trabalho que aconteceu uma vez. O que estava gravado na mãe **não** é apagado: para de contar enquanto ela tiver filha e volta se a última sair. A **exigência de aprovação saiu da Task** (0023), e o motivo foi ele quem apontou: a trava da 0014 aceitava UMA rodada aprovada em QUALQUER subtarefa, então uma campanha passava com o conceito aprovado e o resto nunca visto — produzindo confiança sem a checagem. Agora `entregue` só passa quando TODA etapa que pede aval tem a rodada aprovada dela, e a mensagem conta quantas faltam e nomeia cada uma. A coluna foi apagada: um campo que não decide mais nada é o pior tipo de campo. O formulário de abertura voltou a ter **cinco seções**. Os **sete status se marcam à mão** (0025): tirar a frase de recusa não bastaria, porque o recálculo desfaria a escolha na próxima mexida numa etapa — então `status_manual` passou a travar o cálculo inteiro, e o volante se devolve por "deixar o Full Hub calcular", com `tasks_volta_a_calcular` recalculando na hora. O seletor virou popover com **busca, grupos e ponto colorido**, sem nada desligado, e o mesmo componente serve a etapa — onde quem recusa passou a ser o banco, cuja recusa diz o caminho. **Minhas Tasks lista ETAPAS**: "Conteúdo" e "Layout" da mesma demanda são dois itens, com a demanda virando linhagem e a ordem global. E no Full Days o **descanso conta corrido** (0024) — quinze dias de calendário, não quinze úteis —, com os outros dois tipos seguindo em dias úteis porque não descontam saldo; a matriz passou a pintar o período inteiro, fim de semana inclusive. A etapa ganhou **período** (0027): `data_inicio` ao lado de `prazo`, os dois opcionais, com o fim guardando o nome antigo porque renomear coluna em uso é migration arriscada sem nada em troca. E **"+ Nova task" passou a abrir a tela de detalhe** (0028): a demanda nasce como rascunho no clique, tudo salva sozinho, e o botão Criar task muda uma coisa só — a demanda passa a existir para a equipe. O rascunho é de quem o criou e de mais ninguém, por RLS **restritiva**, uma por tabela: a primeira versão usou permissiva, e permissiva é OR — dava para *apagar* a referência de um rascunho que não se conseguia enxergar. E a **trava de autoaprovação saiu** (0029), desfazendo a 0026: eu tinha lido "qualquer desenvolvedor pode aprovar qualquer task, mesmo que a task seja dele mesmo" como relato de furo, e era a descrição do que ele queria — a 0026 fechou um furo que não existia. Agora quem decide rodada interna é `is_gestor()`, e mais nenhuma pergunta; os três cenários que provavam a trava ficaram, virados do avesso, para o dia em que alguém reintroduzir uma das perguntas. **145 cenários novos, 464 no total**, e quatro deles nasceram de erro meu que a bateria pegou: uma expectativa de saldo errada, um cenário de tempo medido que passava sem separar a resposta certa da errada, um `check` que eu ia criar e que já existia desde a 0007, e a policy permissiva da 0028. |
 | Sprint 9 | A abertura da demanda: o formulário de Nova Task em seis seções numeradas, cada uma com a linha que diz a que pergunta ela responde; `tasks.exigencia_aprovacao` (nenhuma / interna / cliente — **três valores, não quatro**, porque `cliente` já passa pela interna) travada por `tasks_exige_aprovacao_para_entregue`, que recusa `entregue` sem rodada **aprovada** do escopo exigido e cujo `hint` aponta a saída quando nenhuma etapa cumpre a exigência; `tasks.link_entrega` com `check` de http/https, separado das referências de apoio; a estimativa de tempo da subtarefa ganhando input (existia no estado e ia para a action, sem campo nenhum na tela); link de referência por campo em vez de `window.prompt`; o select de Cliente voltando a mostrar o placeholder; e **nenhum seletor de "Status Geral"**, porque o status é calculado e a escolha seria desfeita no mesmo instante. A pasta de entrega virou **obrigatória** (`tasks_exige_pasta_de_entrega`, migration 0015 — trigger e não `not null`, para a migration rodar em ambiente com task antiga), e ela não se apaga, só se troca. E **"tipo de tarefa" virou Workflow** em toda a interface: o produto falava dois nomes para a mesma coisa, o menu dizia um e o formulário dizia outro. E o **vocabulário do Full Days saiu do direito trabalhista** — a equipe é toda PJ, e palavra da CLT num sistema da própria contratante é prova documental: recesso programado, indisponibilidade, ausência pontual, "sem alocação", e "de acordo" / "preciso remarcar" no lugar de aprovar e reprovar. O alerta do relatório deixou de afirmar que a empresa passa a dever em dobro (art. 137 da CLT escrito dentro do produto) e passou a apontar quem está há mais de um ano sem parar. A migration 0016 reescreve as frases que nascem no Postgres, `check:cores` varre `src/` atrás das formas acentuadas, e a bateria confere o corpo das funções nos dois sentidos — as antigas fora, as novas dentro. 34 cenários novos, 264 no total. E o **Full Academy** e as **Recomendações** (migration 0017): trilhas que nascem em rascunho e só a gestão enxerga enquanto não forem publicadas; progresso e anotação que só a própria pessoa escreve, com o acompanhamento da gestão lendo uma **view sem a coluna de anotação** — policy não limita coluna, então a separação é a view; vídeo do YouTube e do Vimeo incorporado e o resto em aba nova, avisando antes; reordenar material numa RPC transacional que **não** é `security definer`; e um feed de indicações sem fila e sem aprovação, com curtida, thread de um nível só travada por trigger, tag normalizada nos dois lados, filtros na URL e remoção pela gestão exigindo motivo que vai por notificação ao autor — o campo dentro do diálogo, porque um input aberto em cada cartão virava a coisa mais alta de um feed que precisa ser leve. **Sem quiz, certificado, nota ou gamificação**, e `verificar-9.mjs` varre a tela atrás dessas palavras toda vez, nos dois perfis: metade dos critérios é sobre o que a equipe **não** alcança, e rodando só como sócio eles passariam sem nunca ter sido testados. 55 cenários novos, 319 no total. |

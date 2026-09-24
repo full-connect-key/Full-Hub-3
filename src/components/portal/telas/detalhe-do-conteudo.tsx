@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
 
 import { DecisoesDoConteudo } from "@/components/portal/decisoes-do-conteudo";
 import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
-import { LegendaDoPost } from "@/components/portal/legenda-do-post";
+import { TextoDoConteudo } from "@/components/portal/texto-do-conteudo";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
 import { VisualizadorDeArte } from "@/components/portal/visualizador-de-arte";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -42,8 +42,14 @@ export type ModeloDoConteudo = {
   /** Um selo antes do status — a rede social, no caso do post. */
   selo?: React.ReactNode;
   propriedades: { rotulo: string; valor: string }[];
-  /** "Legenda" no post, "Descrição" no entregável. */
-  texto: { titulo: string; corpo: string | null };
+  /**
+   * "Legenda" no post, "Descrição" no entregável.
+   *
+   * `titulo` é o cabeçalho da seção e o rótulo do histórico de versões;
+   * `rotulo` é a mesma palavra em minúscula, que entra no meio das frases
+   * ("Copiar legenda", "Ler a descrição inteira").
+   */
+  texto: { titulo: string; rotulo: string; corpo: string | null };
   arte: string | null;
   versaoAtual: number;
   rodadaPendenteId: string | null;
@@ -144,7 +150,10 @@ export function DetalheDoConteudo({
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{modelo.texto.titulo}</h2>
-        <LegendaDoPost legenda={modelo.texto.corpo} />
+        <TextoDoConteudo
+          texto={modelo.texto.corpo}
+          rotulo={modelo.texto.rotulo}
+        />
       </section>
 
       <section className="space-y-4">

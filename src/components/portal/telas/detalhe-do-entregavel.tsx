@@ -106,7 +106,7 @@ export async function DetalheDoEntregavel({
     // "Descrição" e não "Legenda": um entregável de campanha não vai para uma
     // rede social. O rótulo também vira o do histórico de versões, onde o
     // texto comparado é o nome do arquivo.
-    texto: { titulo: "Descrição", corpo: item.descricao },
+    texto: { titulo: "Descrição", rotulo: "a descrição", corpo: item.descricao },
     arte: arquivo,
     versaoAtual: item.versaoAtual,
     download: arquivo

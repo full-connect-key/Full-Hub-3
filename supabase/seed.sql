@@ -987,3 +987,259 @@ begin
   raise notice 'Sprint 12: 12 posts de exemplo criados para o cliente piloto.';
 end
 $$;
+
+
+-- ---------------------------------------------------------------------------
+-- SPRINT 13 - A Wave Outubro Rosa do cliente piloto
+--
+-- Uma campanha inteira, a partir do template da casa, com os status que a
+-- agencia realmente ve no meio de uma Wave: o KV ja aprovado, o Enxoval em
+-- aprovacao com uma peca recusada, o Feed/Storys pela metade, os videos ainda
+-- em producao e o Deskfy sem nada enviado.
+--
+-- O CASO QUE SO DA PARA CONFERIR TENTANDO VER E NAO VENDO e o Deskfy: os
+-- sub-itens dele nascem sem `enviado_em`, e `deliverables_select_cliente`
+-- recusa. Se um dia alguem apagar aquela linha da policy, e por este grupo
+-- que se percebe -- ele passa a aparecer no portal.
+--
+-- Roda mais de uma vez: apaga a campanha anterior do cliente antes.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  verde    uuid;
+  -- Os MESMOS ids dos blocos acima. Escrever outros faz a chave estrangeira
+  -- recusar na hora -- que e onde se quer descobrir.
+  diego    uuid := 'a0000000-0000-0000-0000-000000000002';  -- Desenvolvedor
+  bruno    uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
+  joana    uuid;
+  primeiro date := date_trunc('month', current_date)::date;
+  campanha uuid;
+  grupo    uuid;
+  item     uuid;
+  i        integer;
+  peca     record;
+begin
+  select id into verde from public.clients where slug = 'mundo-verde' limit 1;
+  if verde is null then
+    select id into verde from public.clients order by created_at limit 1;
+  end if;
+  if verde is null then
+    raise notice 'Sem cliente para semear a campanha.';
+    return;
+  end if;
+
+  select cu.user_id into joana
+    from public.client_users cu
+    join public.profiles pr on pr.id = cu.user_id
+   where cu.client_id = verde and pr.role = 'cliente'
+   limit 1;
+
+  delete from public.campaigns where client_id = verde;
+
+  perform set_config('request.jwt.claim.sub', diego::text, true);
+
+  -- A campanha termina em 6 DIAS, e nao e numero solto: e o que faz o alerta
+  -- de prazo aparecer na tela do cliente. Com 8 ele nao apareceria, e o
+  -- cenario mais interessante do sprint ficaria sem exemplo.
+  insert into public.campaigns (client_id, nome, descricao, data_inicio, data_fim,
+                                status, criado_por)
+  values (verde, 'Wave Outubro Rosa',
+          'A campanha de outubro: KV, enxoval de pecas, feed, videos e os arquivos do Deskfy.',
+          primeiro, current_date + 6, 'ativa', diego)
+  returning id into campanha;
+
+  -- ------------------------------------------------------------------- KV --
+  -- Aprovado: a rodada existe, e e ela que explica o status. Escrever
+  -- `status = 'aprovado'` sem rodada daria um item aprovado que a tela de
+  -- detalhe nao sabe justificar -- ela procura quem decidiu e quando.
+  insert into public.deliverables (campaign_id, nome, descricao, ordem, prazo,
+                                   arte_url, thumbnail_url, arquivo_nome,
+                                   responsavel_id, enviado_em)
+  values (campanha, 'KV', 'A chave visual da campanha.', 0, primeiro + 5,
+          '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', 'kv-outubro-rosa.pdf',
+          bruno, now() - interval '20 days')
+  returning id into item;
+
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '21 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '19 days',
+          'Ficou ótimo. Pode seguir.');
+  update public.deliverables set status = 'aprovado' where id = item;
+
+  -- -------------------------------------------------------------- Enxoval --
+  -- O GRUPO NAO RECEBE STATUS NEM RODADA, e nao e esquecimento: quem tem
+  -- filho para de ser unidade de trabalho, e `status_do_entregavel()` calcula
+  -- o dele pelas filhas. Gravar um valor aqui seria gravar a segunda verdade
+  -- que o produto inteiro evita.
+  insert into public.deliverables (campaign_id, nome, ordem, prazo, enviado_em)
+  values (campanha, 'Enxoval', 1, primeiro + 12, now() - interval '10 days')
+  returning id into grupo;
+
+  -- Tres pecas aprovadas, uma recusada com motivo, uma esperando decisao e o
+  -- resto em producao. E o retrato de um enxoval no meio do caminho.
+  i := 0;
+  for peca in
+    select *
+      from (values
+        ('Lâmina customizável A5', 0),
+        ('Precificador editável', 1),
+        ('Precificador não editável', 2),
+        ('Banner A5 editável', 3),
+        ('Banner A5 não editável', 4),
+        ('Display produto A3', 5),
+        ('Banner portal do franqueado', 6),
+        ('Capa YouTube', 7),
+        ('Capa Facebook', 8),
+        ('Avatar perfil', 9),
+        ('Feed/story site', 10),
+        ('Feed/story iFood', 11),
+        ('Capa iFood', 12),
+        ('Banner blog', 13),
+        ('Adesivo KV A0', 14),
+        ('Adesivo KV A1', 15),
+        ('Adesivo vitrine', 16)
+      ) as t(nome, ordem)
+  loop
+    i := i + 1;
+
+    -- ENVIADO SO O QUE FOI MESMO ENVIADO. As cinco primeiras pecas passaram
+    -- pelo cliente; as doze restantes estao em producao e NAO tem
+    -- `enviado_em` -- que e o que as esconde dele. Na primeira versao deste
+    -- seed todas levavam o carimbo, e o resultado era o cliente vendo doze
+    -- itens marcados "Em produção": uma promessa de material que ninguem
+    -- mandou. Foi rodando o seed e olhando o que o cliente enxerga que
+    -- apareceu.
+    insert into public.deliverables (campaign_id, parent_id, nome, ordem, prazo,
+                                     arte_url, thumbnail_url, enviado_em)
+    values (campanha, grupo, peca.nome, peca.ordem, primeiro + 12,
+            '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
+            case when i <= 5 then now() - interval '10 days' end)
+    returning id into item;
+
+    -- TODA rodada de cliente exige uma interna APROVADA antes -- e nao e
+    -- detalhe do seed: `validar_nova_rodada` recusa, e foi rodando este
+    -- arquivo contra o Postgres que a recusa apareceu. O tipo diz o destino
+    -- final, nao o caminho.
+    if i <= 5 then
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '9 days');
+    end if;
+
+    if i <= 3 then
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '8 days');
+      update public.deliverables set status = 'aprovado' where id = item;
+
+    elsif i = 4 then
+      -- RECUSADO COM MOTIVO. O motivo mora na rodada e a arvore o mostra na
+      -- propria lista: "Rejeitado" sozinho manda a pessoa abrir o item para
+      -- descobrir por que.
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
+      values ('deliverable', item, 1, 'cliente', 'rejeitada', diego, joana, now() - interval '7 days',
+              'O logo ficou pequeno demais no rodapé. Não dá para usar assim.');
+      update public.deliverables set status = 'rejeitado' where id = item;
+
+    elsif i = 5 then
+      -- Esperando decisao do cliente: a rodada fica PENDENTE, e e ela que faz
+      -- o item entrar nas pendencias do portal e no destaque do cartao.
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, solicitado_em)
+      values ('deliverable', item, 1, 'cliente', 'pendente', diego, now() - interval '3 days');
+
+    else
+      update public.deliverables set status = 'em_producao' where id = item;
+    end if;
+  end loop;
+
+  -- --------------------------------------------------------- Feed/Storys --
+  -- O grupo de quantidade variavel: o numero muda a cada mes, e e por isso
+  -- que o template o deixa em aberto em vez de trazer quinze linhas fixas.
+  insert into public.deliverables (campaign_id, nome, ordem, prazo, enviado_em)
+  values (campanha, 'Feed/Storys', 2, primeiro + 20, now() - interval '9 days')
+  returning id into grupo;
+
+  for i in 1..15 loop
+    -- Mesma regra do Enxoval: so as seis primeiras foram enviadas.
+    insert into public.deliverables (campaign_id, parent_id, nome, ordem,
+                                     prazo, arte_url, thumbnail_url, enviado_em)
+    values (campanha, grupo, 'Feed/Story ' || i, i - 1, primeiro + 20,
+            '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
+            case when i <= 6 then now() - interval '9 days' end)
+    returning id into item;
+
+    if i <= 6 then
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '7 days');
+    end if;
+
+    if i <= 4 then
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '6 days');
+      update public.deliverables set status = 'aprovado' where id = item;
+    elsif i <= 6 then
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, solicitado_em)
+      values ('deliverable', item, 1, 'cliente', 'pendente', diego, now() - interval '2 days');
+    else
+      update public.deliverables set status = 'em_producao' where id = item;
+    end if;
+  end loop;
+
+  -- ------------------------------------------------------------ Videos TV --
+  -- O GRUPO TAMBEM NAO VAI: com os tres filhos em producao, um grupo
+  -- carimbado apareceria vazio na arvore do cliente -- uma linha prometendo
+  -- conteudo que a policy esconde logo abaixo.
+  insert into public.deliverables (campaign_id, nome, ordem, prazo)
+  values (campanha, 'Vídeos TV', 3, current_date + 4)
+  returning id into grupo;
+
+  for peca in
+    select * from (values ('Vertical', 0), ('Horizontal', 1), ('Tombado', 2)) as t(nome, ordem)
+  loop
+    insert into public.deliverables (campaign_id, parent_id, nome, ordem, prazo,
+                                     status)
+    values (campanha, grupo, peca.nome, peca.ordem, current_date + 4,
+            'em_producao');
+  end loop;
+
+  -- ------------------------------------------------------------- Tabloide --
+  insert into public.deliverables (campaign_id, nome, ordem, prazo,
+                                   arte_url, thumbnail_url, arquivo_nome, enviado_em)
+  values (campanha, 'Tabloide', 4, primeiro + 15,
+          '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', 'tabloide-outubro.pdf',
+          now() - interval '14 days')
+  returning id into item;
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '12 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
+  values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '11 days');
+  update public.deliverables set status = 'aprovado' where id = item;
+
+  -- ------------------------------------------------------- Arquivos Deskfy --
+  -- SEM `enviado_em` EM NENHUM SUB-ITEM: este grupo inteiro NAO aparece para
+  -- o cliente. E o caso que so da para conferir tentando ver e nao vendo --
+  -- se a linha `enviado_em is not null` sair da policy, e por aqui que se
+  -- percebe.
+  insert into public.deliverables (campaign_id, nome, ordem, prazo)
+  values (campanha, 'Arquivos Deskfy', 5, current_date + 5)
+  returning id into grupo;
+
+  for peca in
+    select *
+      from (values
+        ('Adesivo A0', 0), ('Adesivo A1', 1), ('Banner A5', 2),
+        ('Feed/story site', 3), ('Feed/story iFood', 4),
+        ('Precificador editável', 5), ('Display produto A3', 6),
+        ('Selo campanha', 7), ('Lâmina A5', 8)
+      ) as t(nome, ordem)
+  loop
+    -- `enviado_em` fica NULO de proposito, e por omissao: e o default da
+    -- coluna, e escrever `null` aqui daria a entender que alguem o apagou.
+    insert into public.deliverables (campaign_id, parent_id, nome, ordem, prazo)
+    values (campanha, grupo, peca.nome, peca.ordem, current_date + 5);
+  end loop;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  raise notice 'Sprint 13: Wave Outubro Rosa criada para o cliente piloto.';
+end
+$$;

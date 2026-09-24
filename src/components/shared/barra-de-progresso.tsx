@@ -18,6 +18,7 @@ export function BarraDeProgresso({
   rotulo,
   className,
   tom = "marca",
+  rotuloOculto = false,
 }: {
   valor: number;
   total: number;
@@ -26,6 +27,16 @@ export function BarraDeProgresso({
   className?: string;
   /** `sucesso` quando está completa — o verde diz "acabou" sem precisar ler. */
   tom?: "marca" | "sucesso";
+  /**
+   * Esconde o texto, e SÓ o texto — o `aria-valuetext` continua lá.
+   *
+   * Serve para onde a contagem já está escrita ao lado, como no cabeçalho de
+   * um grupo de entregáveis: "Enxoval (3 de 5 aprovados)" com "60% aprovado"
+   * logo abaixo são duas formas do mesmo número empilhadas, e a segunda só
+   * ocupa altura. Quem lê por leitor de tela continua recebendo a contagem,
+   * que é o motivo de o rótulo ser obrigatório.
+   */
+  rotuloOculto?: boolean;
 }) {
   // Total zero daria NaN, que o navegador renderiza como largura inválida.
   const percentual = total > 0 ? Math.round((valor / total) * 100) : 0;
@@ -48,7 +59,9 @@ export function BarraDeProgresso({
           style={{ width: `${percentual}%` }}
         />
       </div>
-      <p className="text-text-muted text-xs tabular-nums">{rotulo}</p>
+      {rotuloOculto ? null : (
+        <p className="text-text-muted text-xs tabular-nums">{rotulo}</p>
+      )}
     </div>
   );
 }

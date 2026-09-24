@@ -95,7 +95,7 @@ export async function DetalheDoPost({
           : "Sem prazo definido",
       },
     ],
-    texto: { titulo: "Legenda", corpo: post.legenda },
+    texto: { titulo: "Legenda", rotulo: "a legenda", corpo: post.legenda },
     arte: enderecoDaArte(post.arteUrl, artes),
     versaoAtual: post.versaoAtual,
     // O post ainda não oferece download: quem publica é a agência, e o

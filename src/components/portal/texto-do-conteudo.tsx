@@ -9,9 +9,15 @@ import { cn } from "@/lib/utils";
 const LIMITE = 320;
 
 /**
- * A legenda, inteira, com botão de copiar.
+ * O texto que acompanha a arte, inteiro, com botão de copiar.
  *
- * **Copiar é a razão de a legenda estar aqui.** Quem aprova um post é quem
+ * **O RÓTULO VEM DE FORA**, e não está escrito aqui: é a "legenda" no post e a
+ * "descrição" no entregável de campanha. Com a palavra fixa, a tela do
+ * entregável mostrava a seção "Descrição" e, logo abaixo, um botão dizendo
+ * "Copiar legenda" — foi a imagem do protótipo que mostrou, depois de a tela
+ * passar a servir os dois módulos.
+ *
+ * **Copiar é a razão de o texto estar aqui.** Quem aprova um post é quem
  * muitas vezes vai publicá-lo, e selecionar um parágrafo longo no celular sem
  * disparar o menu de seleção é uma luta. Um clique resolve.
  *
@@ -19,14 +25,21 @@ const LIMITE = 320;
  * por isso a recusa é tratada: dizer "copiado" sem ter copiado é pior que não
  * ter o botão.
  */
-export function LegendaDoPost({ legenda }: { legenda: string | null }) {
+export function TextoDoConteudo({
+  texto: legenda,
+  rotulo,
+}: {
+  texto: string | null;
+  /** Em minúscula: ele entra no meio de frases ("Copiar legenda"). */
+  rotulo: string;
+}) {
   const [aberta, setAberta] = useState(false);
   const [copiou, setCopiou] = useState<boolean | null>(null);
 
   if (!legenda) {
     return (
       <p className="text-text-muted text-sm">
-        Este material ainda não tem legenda.
+        Este material ainda não tem {rotulo}.
       </p>
     );
   }
@@ -54,7 +67,7 @@ export function LegendaDoPost({ legenda }: { legenda: string | null }) {
             onClick={() => setAberta((a) => !a)}
             className="text-accent-strong text-sm hover:underline"
           >
-            {aberta ? "Mostrar menos" : "Ler a legenda inteira"}
+            {aberta ? "Mostrar menos" : `Ler ${rotulo} inteira`}
           </button>
         ) : null}
 
@@ -64,7 +77,7 @@ export function LegendaDoPost({ legenda }: { legenda: string | null }) {
           ) : (
             <Copy aria-hidden className="size-4" />
           )}
-          {copiou ? "Copiado" : "Copiar legenda"}
+          {copiou ? "Copiado" : `Copiar ${rotulo}`}
         </Button>
 
         {copiou === false ? (

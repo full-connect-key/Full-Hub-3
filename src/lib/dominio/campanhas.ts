@@ -209,10 +209,15 @@ export function diasAte(data: string, hoje: string): number {
 /**
  * O aviso de que a campanha está acabando.
  *
- * **Sete dias, e só enquanto sobrar coisa por aprovar.** Uma campanha que
- * termina sexta com tudo aprovado não precisa de aviso nenhum — o aviso existe
- * para quem ainda tem decisão na mão, e um alerta que aparece de qualquer
- * jeito é o que faz a pessoa parar de ler os alertas.
+ * **Sete dias, e só enquanto sobrar coisa não aprovada.** Uma campanha que
+ * termina sexta com tudo aprovado não precisa de aviso nenhum — e um alerta
+ * que aparece de qualquer jeito é o que faz a pessoa parar de ler os alertas.
+ *
+ * **Ele fala de "não aprovados", e não de "esperando você".** São contas
+ * diferentes: o cartão da listagem destaca o que espera a decisão DELE, e o
+ * material recusado espera a agência refazer. As duas frases diziam "esperando
+ * você" e mostravam números diferentes na mesma campanha — 3 no cartão, 4 no
+ * alerta. Foi a imagem em 375px que mostrou as duas lado a lado.
  *
  * Campanha já vencida também avisa: "terminou" com peça pendente é mais
  * urgente que "termina em 2 dias", não menos.
@@ -230,15 +235,14 @@ export function alertaDePrazo(
   const dias = diasAte(campanha.dataFim, hoje);
   if (dias > 7) return null;
 
-  const material = pendentes === 1 ? "1 material" : `${pendentes} materiais`;
+  const material =
+    pendentes === 1
+      ? "1 material ainda não aprovado"
+      : `${pendentes} materiais ainda não aprovados`;
 
-  if (dias < 0) {
-    return `Esta campanha terminou e ainda há ${material} esperando sua decisão.`;
-  }
-  if (dias === 0) {
-    return `Esta campanha termina hoje e ainda há ${material} esperando sua decisão.`;
-  }
-  return `Esta campanha termina em ${dias} ${dias === 1 ? "dia" : "dias"} e ainda há ${material} esperando sua decisão.`;
+  if (dias < 0) return `Esta campanha terminou e há ${material}.`;
+  if (dias === 0) return `Esta campanha termina hoje e há ${material}.`;
+  return `Faltam ${dias} ${dias === 1 ? "dia" : "dias"} para o fim da campanha e há ${material}.`;
 }
 
 /**

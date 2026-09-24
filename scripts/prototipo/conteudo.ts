@@ -9,10 +9,31 @@
 import type { Conteudo } from "../../src/lib/aprovacoes/conteudo";
 import type {
   ComentarioDoConteudo,
+  RodadaDoConteudo,
   VersaoDoConteudo,
 } from "../../src/lib/dados/conteudo";
 
-export type { ComentarioDoConteudo, VersaoDoConteudo };
+export type { ComentarioDoConteudo, RodadaDoConteudo, VersaoDoConteudo };
+
+/**
+ * A assinatura inteira, e nao so o que o prototipo usa.
+ *
+ * O modulo real continua no projeto e continua sendo checado: uma versao de
+ * exemplo com menos exports quebra o `tsc` do proprio gerador de imagens --
+ * que foi como este arquivo cresceu.
+ */
+export async function rodadasDo(
+  _tipo: Conteudo["tipo"],
+  _ids: string[],
+): Promise<Map<string, RodadaDoConteudo>> {
+  return new Map();
+}
+
+export async function nomesDe(
+  _ids: (string | null)[],
+): Promise<Map<string, string>> {
+  return new Map();
+}
 
 const HOJE = new Date();
 

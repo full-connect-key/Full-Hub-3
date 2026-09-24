@@ -15,7 +15,6 @@ import {
   type EntregavelDoPortal,
   type NoDaArvore,
 } from "@/lib/dominio/campanhas";
-import { cn } from "@/lib/utils";
 
 /**
  * A árvore de materiais da campanha, em dois níveis.
@@ -100,33 +99,42 @@ function Grupo({
         type="button"
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
-        className="hover:bg-accent flex w-full items-center gap-3 p-3 text-left transition-colors"
+        className="hover:bg-accent flex w-full items-start gap-3 p-3 text-left transition-colors"
       >
         {aberto ? (
-          <ChevronDown aria-hidden className="size-4 shrink-0" />
+          <ChevronDown aria-hidden className="mt-0.5 size-4 shrink-0" />
         ) : (
-          <ChevronRight aria-hidden className="size-4 shrink-0" />
+          <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0" />
         )}
 
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="font-medium">
-            {no.item.nome}{" "}
-            <span className="text-text-muted font-normal tabular-nums">
-              ({contagemDoGrupo(no.filhos)})
-            </span>
-          </p>
+          {/* O SELO ENTRA NA MESMA LINHA DO TÍTULO E QUEBRA COM ELE. Preso na
+              coluna da direita ele mantinha a largura e espremia o nome: em
+              375px "Feed/Storys" virava "Feed/…", que não identifica nada. */}
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            <p className="min-w-0 font-medium">
+              {no.item.nome}{" "}
+              <span className="text-text-muted font-normal tabular-nums">
+                ({contagemDoGrupo(no.filhos)})
+              </span>
+            </p>
+
+            {/* O selo do grupo é CALCULADO pelos filhos — não existe coluna
+                para ele. Quem tem filho para de ser unidade de trabalho, e o
+                status escrito à mão num grupo é descartado pelo banco. */}
+            <StatusBadge status={statusDoNo(no)} />
+          </div>
+
           <BarraDeProgresso
             valor={conta.aprovados}
             total={conta.total}
             tom={conta.aprovados === conta.total ? "sucesso" : "marca"}
-            rotulo={`${conta.percentual}% aprovado`}
+            // A contagem já está no título, entre parênteses. O texto da barra
+            // repetiria o mesmo número noutra forma, uma linha abaixo.
+            rotulo={contagemDoGrupo(no.filhos)}
+            rotuloOculto
           />
         </div>
-
-        {/* O selo do grupo é CALCULADO pelos filhos — não existe coluna para
-            ele. Quem tem filho para de ser unidade de trabalho, e o status
-            escrito à mão num grupo é descartado pelo banco. */}
-        <StatusBadge status={statusDoNo(no)} />
       </button>
 
       {aberto ? (
@@ -166,9 +174,7 @@ function Item({
   return (
     <Link
       href={`${base}/${item.id}`}
-      className={cn(
-        "bg-surface-card hover:border-accent-strong flex items-center gap-3 rounded-xl border p-3 transition-colors",
-      )}
+      className="bg-surface-card hover:border-accent-strong flex items-start gap-3 rounded-xl border p-3 transition-colors"
     >
       <div className="bg-neutral-soft size-12 shrink-0 overflow-hidden rounded-lg border">
         {miniatura ? (
@@ -183,14 +189,22 @@ function Item({
       </div>
 
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="truncate font-medium">{item.nome}</p>
+        {/* O SELO QUEBRA JUNTO COM O TÍTULO, e é o que conserta 375px.
+            Numa coluna própria à direita ele não encolhe — `StatusBadge` é
+            `whitespace-nowrap` de propósito —, então quem encolhia era o
+            nome: "Banner A5 não editável" virava "Banne…" e a linha de
+            status quebrava em quatro. Com `flex-wrap`, o selo desce para a
+            linha de baixo quando não cabe e o nome fica inteiro. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <p className="min-w-0 font-medium">{item.nome}</p>
+          <StatusBadge status={item.status} />
+        </div>
+
         {/* A LINHA MUDA POR STATUS: quem aprovou e quando, há quantos dias
             espera, o motivo da recusa, o prazo previsto. Um selo sozinho não
             responde "e daí?", que é a pergunta de quem olha a árvore. */}
         {linha ? <p className="text-text-muted text-sm">{linha}</p> : null}
       </div>
-
-      <StatusBadge status={item.status} />
     </Link>
   );
 }
