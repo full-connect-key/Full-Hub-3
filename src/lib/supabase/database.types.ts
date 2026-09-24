@@ -195,6 +195,17 @@ export type HrStatus = "pendente" | "aprovada" | "reprovada" | "cancelada";
  * distinguir os dois.
  */
 export type HrOrigem = "solicitacao" | "lancamento_retroativo" | "importacao";
+
+/**
+ * Como uma demanda recorrente se materializa (migration 0040).
+ *
+ * `mensal_agrupada`: uma task por mês, com uma etapa por ocorrência dentro
+ * dela — o modo certo para trabalho diário, porque o board mostra uma linha
+ * por mês e não trinta. `task_por_ocorrencia`: uma task inteira a cada
+ * repetição, com as etapas do modelo dentro.
+ */
+export type RecorrenciaModo = "mensal_agrupada" | "task_por_ocorrencia";
+export type RecorrenciaFrequencia = "diaria" | "semanal" | "quinzenal" | "mensal";
 export type PresencaStatus =
   | "presente"
   | "remoto"
@@ -405,6 +416,88 @@ export interface Database {
         Relationships: [];
       };
       /** Pedidos de ferias, licenca e ausencia (migration 0011). */
+      /** Uma regra de demanda recorrente (migration 0040). */
+      task_recurrences: {
+        Row: {
+          id: string;
+          client_id: string;
+          nome: string;
+          modo: RecorrenciaModo;
+          frequencia: RecorrenciaFrequencia;
+          dias_semana: number[] | null;
+          dia_mes: number | null;
+          pular_feriados: boolean;
+          data_inicio: string;
+          data_fim: string | null;
+          antecedencia_dias: number;
+          gerar_como_rascunho: boolean;
+          modelo: Json;
+          task_type_id: string | null;
+          ativo: boolean;
+          ultima_geracao_em: string | null;
+          // Escrita pelo trigger `task_recurrences_recalcula` a cada mudanca
+          // no QUANDO da regra. Fica fora de Insert e de Update: uma data
+          // gravada a mao seria desfeita pelo trigger no mesmo instante.
+          proxima_geracao_em: string | null;
+          criado_por: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          nome: string;
+          modo?: RecorrenciaModo;
+          frequencia?: RecorrenciaFrequencia;
+          dias_semana?: number[] | null;
+          dia_mes?: number | null;
+          pular_feriados?: boolean;
+          data_inicio: string;
+          data_fim?: string | null;
+          antecedencia_dias?: number;
+          gerar_como_rascunho?: boolean;
+          modelo: Json;
+          task_type_id?: string | null;
+          ativo?: boolean;
+          criado_por: string;
+        };
+        Update: {
+          nome?: string;
+          modo?: RecorrenciaModo;
+          frequencia?: RecorrenciaFrequencia;
+          dias_semana?: number[] | null;
+          dia_mes?: number | null;
+          pular_feriados?: boolean;
+          data_inicio?: string;
+          data_fim?: string | null;
+          antecedencia_dias?: number;
+          gerar_como_rascunho?: boolean;
+          modelo?: Json;
+          task_type_id?: string | null;
+          ativo?: boolean;
+        };
+        Relationships: [];
+      };
+      /**
+       * Uma linha por ocorrencia tentada. NAO TEM Insert nem Update: a unica
+       * porta e `gerar_ocorrencia()`, como `notifications` so se escreve por
+       * `notificar()`. Sem isso daria para forjar uma chave de ocorrencia e,
+       * com ela, impedir para sempre que aquele mes fosse gerado.
+       */
+      recurrence_runs: {
+        Row: {
+          id: string;
+          recurrence_id: string;
+          chave_ocorrencia: string;
+          task_id: string | null;
+          status: "gerada" | "pulada" | "erro";
+          detalhes: Json | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       hr_requests: {
         Row: {
           id: string;
@@ -874,6 +967,11 @@ export interface Database {
           task_type_id: string | null;
           workflow_snapshot: Json | null;
           link_entrega: string | null;
+          // De qual regra recorrente esta task saiu (migration 0040). Fica
+          // FORA de Insert e de Update: quem preenche é `gerar_ocorrencia()`,
+          // e uma task marcada à mão como recorrente mentiria sobre a origem
+          // dela no selo que a tela mostra.
+          recurrence_id: string | null;
           criado_por: string;
           concluida_em: string | null;
           // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
@@ -930,6 +1028,10 @@ export interface Database {
           titulo: string;
           descricao_rica: Json | null;
           descricao_texto: string | null;
+          // Aviso escrito pela geração automática (migration 0040):
+          // responsável fora na data, responsável desligado. Só a geração
+          // escreve; a tela mostra e a pessoa resolve.
+          aviso_geracao: string | null;
           // O PERÍODO da etapa (migration 0027). O fim continua se chamando
           // `prazo`: é ele que define atraso, e o nome já diz que é a ponta
           // final. Os dois são opcionais — etapa sem data é caso normal.
@@ -1630,6 +1732,31 @@ export interface Database {
       };
       cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
       /**
+       * Gera UMA ocorrencia e devolve o id da task, ou null quando outra
+       * execucao chegou primeiro (a idempotencia e o indice unico, nao uma
+       * consulta). `security definer`: escreve em `recurrence_runs`, que nao
+       * tem policy de escrita nenhuma.
+       */
+      gerar_ocorrencia: {
+        Args: { p_recurrence_id: string; p_periodo: string };
+        Returns: string | null;
+      };
+      /** A rotina diaria. Erro numa regra nao impede as outras. */
+      gerar_recorrencias: {
+        Args: Record<string, never>;
+        Returns: {
+          recurrence_id: string;
+          regra: string;
+          geradas: number;
+          erro: string | null;
+        }[];
+      };
+      /** O inicio do proximo periodo que a regra ainda vai gerar, ou null. */
+      proximo_periodo_da_recorrencia: {
+        Args: { p_recurrence_id: string };
+        Returns: string | null;
+      };
+      /**
        * Registra um periodo que ja aconteceu, em nome de outra pessoa
        * (migration 0037). Nasce `aprovada`, pinta a presenca na mesma
        * transacao, e recusa quem nao e `is_gestor()` na primeira linha.
@@ -1715,6 +1842,8 @@ export interface Database {
       hr_tipo: HrTipo;
       hr_status: HrStatus;
       hr_origem: HrOrigem;
+      recorrencia_modo: RecorrenciaModo;
+      recorrencia_frequencia: RecorrenciaFrequencia;
       presenca_status: PresencaStatus;
       skill_nivel: SkillNivel;
       fin_tipo: FinTipo;
@@ -1737,6 +1866,10 @@ export type Client = Database["public"]["Tables"]["clients"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];
+export type TaskRecurrence =
+  Database["public"]["Tables"]["task_recurrences"]["Row"];
+export type RecurrenceRun =
+  Database["public"]["Tables"]["recurrence_runs"]["Row"];
 export type Subtask = Database["public"]["Tables"]["subtasks"]["Row"];
 export type TaskReferencia = Database["public"]["Tables"]["task_referencias"]["Row"];
 export type TaskComentario = Database["public"]["Tables"]["task_comentarios"]["Row"];

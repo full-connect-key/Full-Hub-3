@@ -5,6 +5,8 @@ import { canAccess } from "@/lib/auth/permissions";
 import { ehEquipe, ehGestor, ehSocio } from "@/lib/auth/roles";
 import type { Sessao } from "@/lib/auth/dal";
 
+import { criarClienteServidor } from "@/lib/supabase/server";
+
 import { ErroDeAcao } from "./resultado";
 
 /**
@@ -44,6 +46,31 @@ export async function exigirGestorNaAcao(): Promise<Sessao> {
   const sessao = await exigirEquipeNaAcao();
   if (!ehGestor(sessao.profile.role)) {
     throw new ErroDeAcao("Apenas gestão (desenvolvedor ou sócio) pode fazer isso.");
+  }
+  return sessao;
+}
+
+/**
+ * Quem cria demanda — o Atendimento, mais a gestão.
+ *
+ * **PERGUNTA AO BANCO, com `is_atendimento()`, em vez de repetir a regra em
+ * TypeScript.** É a mesma decisão de `souDoAtendimento()` no lado da leitura:
+ * perfil de acesso e função na agência são coisas diferentes, e a função mora
+ * em `team_members.funcao`. Uma cópia da pergunta aqui divergiria da policy na
+ * primeira vez que alguém mexesse numa das duas.
+ *
+ * E a guarda não é a proteção: a policy é. Isto escreve a frase em português
+ * antes de a pessoa levar um "nenhuma linha voltou".
+ */
+export async function exigirAtendimentoNaAcao(): Promise<Sessao> {
+  const sessao = await exigirEquipeNaAcao();
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("is_atendimento");
+
+  if (error || data !== true) {
+    throw new ErroDeAcao(
+      "Configurar demanda recorrente é de quem abre demanda: o Atendimento e a gestão.",
+    );
   }
   return sessao;
 }
