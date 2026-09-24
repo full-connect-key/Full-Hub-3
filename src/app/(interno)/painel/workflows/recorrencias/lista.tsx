@@ -292,19 +292,25 @@ export function ListaDeRecorrencias({
                   <div className="flex shrink-0 flex-wrap items-center gap-1">
                     {podeConfigurar ? (
                       <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={ocupada}
-                          onClick={() => gerar(regra)}
-                        >
-                          {ocupada ? (
-                            <Loader2 aria-hidden className="size-4 animate-spin" />
-                          ) : (
-                            <Zap aria-hidden className="size-4" />
-                          )}
-                          Gerar agora
-                        </Button>
+                        {/* SOME NA REGRA PAUSADA, e o banco recusa junto
+                            (0041): oferecer "Gerar agora" ao lado de "Nada
+                            mais é gerado até você retomar" é a tela
+                            desmentindo a si mesma. */}
+                        {regra.ativo ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={ocupada}
+                            onClick={() => gerar(regra)}
+                          >
+                            {ocupada ? (
+                              <Loader2 aria-hidden className="size-4 animate-spin" />
+                            ) : (
+                              <Zap aria-hidden className="size-4" />
+                            )}
+                            Gerar agora
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="sm"

@@ -49,6 +49,9 @@ const esquemaDeRecorrencia = z.object({
   task_type_id: z.string().uuid().nullable().optional(),
   modelo: z.object({
     titulo: z.string().trim().min(1, "Escreva o título das demandas."),
+    // Fallback da etapa sem dono (0041). Opcional: uma regra pode distribuir
+    // etapa por etapa e não precisar dele.
+    responsavel_padrao: z.string().uuid().nullable().optional(),
     briefing_rico: z.unknown().nullable().optional(),
     prioridade: z.enum(["baixa", "normal", "alta", "urgente"]),
     pasta_entrega: z

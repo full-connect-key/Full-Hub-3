@@ -618,3 +618,170 @@ select teste.conferir('Em fevereiro de 2027 ela cai no dia 28, nao pula o mes',
   (select min(x)::text from public.datas_da_recorrencia(
      (select id from public.task_recurrences where nome = 'Dia 31'),
      '2027-02-01', '2027-02-28') x), '2027-02-28');
+
+
+-- ===========================================================================
+-- O RESPONSAVEL PADRAO DA REGRA (migration 0041)
+--
+-- Decisao do usuario. O modelo ja guardava um responsavel POR ETAPA; o buraco
+-- eram os dois caminhos em que ninguem preenche etapa por etapa -- a regra que
+-- parte de um workflow e a montada as pressas. Nos dois, a demanda nascia com
+-- as etapas orfas, e etapa sem dono nao aparece no "Minhas Tasks" de ninguem.
+--
+-- OS QUATRO CENARIOS SAO OS QUATRO SENTIDOS DA REGRA, e nenhum deles e
+-- decorativo: sem o terceiro, trocar o `coalesce` de ordem passaria -- e e
+-- exatamente a inversao que transforma o campo numa arma, apagando a
+-- distribuicao que alguem montou etapa por etapa.
+-- ===========================================================================
+
+select teste.cenario('Uma regra com responsavel padrao e uma etapa sem dono', :ANA,
+  format($fmt$
+    insert into public.task_recurrences
+      (client_id, nome, modo, frequencia, dia_mes, pular_feriados,
+       data_inicio, modelo, criado_por)
+    values (%L, 'Com padrao', 'task_por_ocorrencia', 'mensal', 10, false,
+            current_date,
+            jsonb_build_object(
+              'titulo', 'Padrao {DATA}',
+              'pasta_entrega', 'https://drive.google.com/p',
+              'responsavel_padrao', %L,
+              'subtarefas', jsonb_build_array(
+                -- SEM dono: e ela que o padrao preenche.
+                jsonb_build_object('titulo', 'Orfa', 'prazo_offset_dias', 0),
+                -- COM dono: e ela que prova que o padrao nao substitui.
+                jsonb_build_object('titulo', 'Com dono', 'prazo_offset_dias', 1,
+                                   'responsavel_id', %L))),
+            %L)
+  $fmt$, :OPTICA, :MARINA, :BRUNO, :ANA), 'ok', 1);
+
+do $$
+declare regra uuid; periodo date; nova uuid;
+begin
+  select id into regra from public.task_recurrences where nome = 'Com padrao';
+  select public.proximo_periodo_da_recorrencia(regra) into periodo;
+  select public.gerar_ocorrencia(regra, periodo) into nova;
+  perform set_config('teste.task_do_padrao', nova::text, false);
+end
+$$;
+
+select teste.conferir('A etapa sem dono fica com o responsavel padrao',
+  (select s.responsavel_id::text from public.subtasks s
+    where s.task_id = current_setting('teste.task_do_padrao')::uuid
+      and s.titulo = 'Orfa'),
+  '55555555-5555-5555-5555-555555555555');
+
+-- O CENARIO QUE IMPEDE A INVERSAO. Trocar `coalesce(etapa, padrao)` por
+-- `coalesce(padrao, etapa)` passaria por todos os outros e falharia aqui.
+select teste.conferir('A etapa com dono NAO e sobrescrita pelo padrao',
+  (select s.responsavel_id::text from public.subtasks s
+    where s.task_id = current_setting('teste.task_do_padrao')::uuid
+      and s.titulo = 'Com dono'),
+  '44444444-4444-4444-4444-444444444444');
+
+-- O MODO MENSAL AGRUPADA TAMBEM, e nao e repeticao: sao dois blocos
+-- diferentes dentro de `gerar_ocorrencia()`, e consertar um so foi exatamente
+-- o erro que a 0029 cometeu do outro lado da casa -- desfazer a trava no
+-- trigger e deixa-la na action.
+select teste.cenario('Uma regra mensal agrupada com padrao e sem dono na diaria', :ANA,
+  format($fmt$
+    insert into public.task_recurrences
+      (client_id, nome, modo, frequencia, dias_semana, pular_feriados,
+       data_inicio, modelo, criado_por)
+    values (%L, 'Agrupada com padrao', 'mensal_agrupada', 'semanal',
+            array[1], false, current_date,
+            jsonb_build_object(
+              'titulo', 'Semana {MES}',
+              'pasta_entrega', 'https://drive.google.com/a',
+              'responsavel_padrao', %L,
+              'subtarefa_diaria', jsonb_build_object('titulo', 'Dia {DATA}')),
+            %L)
+  $fmt$, :OPTICA, :MARINA, :ANA), 'ok', 1);
+
+do $$
+declare regra uuid; periodo date; nova uuid;
+begin
+  select id into regra from public.task_recurrences where nome = 'Agrupada com padrao';
+  select public.proximo_periodo_da_recorrencia(regra) into periodo;
+  select public.gerar_ocorrencia(regra, periodo) into nova;
+  perform set_config('teste.task_agrupada_padrao', nova::text, false);
+end
+$$;
+
+select teste.conferir('No modo agrupado a etapa diaria tambem recebe o padrao',
+  (select count(*)::text from public.subtasks s
+    where s.task_id = current_setting('teste.task_agrupada_padrao')::uuid
+      and s.responsavel_id is null),
+  '0');
+
+-- PESSOA DESLIGADA NAO VIRA PADRAO, pela mesma razao que nao vira responsavel
+-- de etapa: a regra sobrevive a saida de quem estava nela. As demandas
+-- continuam nascendo, e sem dono -- que e visivel. Travar a geracao deixaria o
+-- cliente sem entrega por causa de um desligamento.
+update public.profiles set ativo = false where id = :TRAFEGO;
+
+select teste.cenario('Uma regra cujo padrao e alguem que saiu', :ANA,
+  format($fmt$
+    insert into public.task_recurrences
+      (client_id, nome, modo, frequencia, dia_mes, pular_feriados,
+       data_inicio, modelo, criado_por)
+    values (%L, 'Padrao que saiu', 'task_por_ocorrencia', 'mensal', 12, false,
+            current_date,
+            jsonb_build_object(
+              'titulo', 'Saiu {DATA}',
+              'pasta_entrega', 'https://drive.google.com/s',
+              'responsavel_padrao', %L,
+              'subtarefas', jsonb_build_array(
+                jsonb_build_object('titulo', 'Orfa de novo', 'prazo_offset_dias', 0))),
+            %L)
+  $fmt$, :OPTICA, :TRAFEGO, :ANA), 'ok', 1);
+
+do $$
+declare regra uuid; periodo date; nova uuid;
+begin
+  select id into regra from public.task_recurrences where nome = 'Padrao que saiu';
+  select public.proximo_periodo_da_recorrencia(regra) into periodo;
+  select public.gerar_ocorrencia(regra, periodo) into nova;
+  perform set_config('teste.task_padrao_que_saiu', nova::text, false);
+end
+$$;
+
+select teste.conferir('A etapa nasce SEM dono, e a geracao nao trava',
+  (select coalesce(s.responsavel_id::text, 'sem dono') from public.subtasks s
+    where s.task_id = current_setting('teste.task_padrao_que_saiu')::uuid),
+  'sem dono');
+
+update public.profiles set ativo = true where id = :TRAFEGO;
+
+-- --- Regra pausada nao gera, nem pelo botao (0041) -------------------------
+--
+-- A rotina da madrugada ja filtrava por `ativo`; `gerar_ocorrencia()` nao, e
+-- "Gerar agora" a chama direto. Foi a imagem do prototipo que mostrou o botao
+-- ao lado da frase "Nada mais e gerado ate voce retomar".
+
+update public.task_recurrences set ativo = false where nome = 'Com padrao';
+
+do $$
+declare regra uuid; periodo date; nova uuid;
+begin
+  select id into regra from public.task_recurrences where nome = 'Com padrao';
+  select public.proximo_periodo_da_recorrencia(regra) into periodo;
+  select public.gerar_ocorrencia(regra, periodo) into nova;
+  perform set_config('teste.pausada_gerou', coalesce(nova::text, 'nada'), false);
+  perform set_config('teste.pausada_periodo', periodo::text, false);
+end
+$$;
+
+select teste.conferir('Pausada, "Gerar agora" nao cria nada',
+  current_setting('teste.pausada_gerou'), 'nada');
+
+-- E O PERIODO CONTINUA DISPONIVEL. Gravar a recusa como execucao 'pulada'
+-- consumiria a chave de idempotencia, e ao retomar a regra aquele periodo
+-- apareceria como ja gerado -- pausar teria apagado o futuro.
+select teste.conferir('E a ocorrencia recusada continua por gerar',
+  (select count(*)::text from public.recurrence_runs r
+     join public.task_recurrences t on t.id = r.recurrence_id
+    where t.nome = 'Com padrao'
+      and r.chave_ocorrencia = current_setting('teste.pausada_periodo')),
+  '0');
+
+update public.task_recurrences set ativo = true where nome = 'Com padrao';

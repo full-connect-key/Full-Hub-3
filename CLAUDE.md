@@ -518,6 +518,145 @@ para criar o modelo sem a cadeia (a task nascia vazia) ou a cadeia sem o modelo
 - "Salvar as subtarefas desta task como workflow" grava o **modelo** junto com
   a cadeia. Gravar só a cadeia deixava o resultado inalcançável.
 
+### Demandas recorrentes
+
+`task_recurrences` guarda a regra, `recurrence_runs` guarda cada execução —
+migration 0040. É o que faz o stories de toda segunda e o relatório de todo
+dia 5 nascerem sozinhos, em vez de alguém abrir a mesma demanda doze vezes
+por ano.
+
+**A aba mora em `/painel/workflows`, ao lado dos workflows**, e a proximidade
+é o argumento: um workflow é a cadeia de etapas que a demanda percorre; uma
+recorrência é a regra que abre essa demanda na data — e no modo "task por
+ocorrência" ela escolhe um workflow como modelo. Em rotas separadas, a pessoa
+montaria a cadeia num lugar e procuraria onde ligá-la noutro.
+
+**Quem configura é `is_atendimento()`**, a mesma pergunta que `tasks_insert`
+faz desde a 0006: uma recorrência é uma demanda que ainda não aconteceu, e se
+o Atendimento abre a de hoje, configura a de todo mês.
+
+#### São DOIS modos, e a diferença é o que vira uma task
+
+| Modo | O que nasce | Para quê |
+| --- | --- | --- |
+| `mensal_agrupada` | uma task por mês, com uma etapa por dia | trabalho diário |
+| `task_por_ocorrencia` | uma task inteira a cada repetição | quando cada repetição tem etapas próprias |
+
+O primeiro existe porque sem ele o board da agência teria vinte e duas linhas
+do mesmo trabalho por mês, por cliente — e o andamento de "stories de
+outubro" não caberia em nenhuma delas.
+
+#### A idempotência é o ÍNDICE ÚNICO, nunca uma consulta
+
+`recurrence_runs (recurrence_id, chave_ocorrencia)` é único, e
+`gerar_ocorrencia()` **insere a execução primeiro**, com `on conflict do
+nothing returning id`. Sem linha de volta, outra execução chegou antes e esta
+desiste sem tocar em nada.
+
+Um `select` antes do `insert` teria passado nos mesmos cenários e falhado na
+vida real: duas abas clicando em "Gerar agora" ao mesmo tempo passam pelas
+duas consultas antes de qualquer uma gravar. **A bateria mede o índice, e não
+só o resultado** — chamadas sequenciais passam pelas duas implementações, e um
+teste que não separa a certa da errada é um teste que afirma sem provar.
+
+**Pausar não apaga o futuro**, e é por isso que a recusa de regra pausada
+(0041) vem **antes** do insert da execução. Gravá-la como `pulada` consumiria
+a chave, e ao retomar a regra aquele período apareceria como já gerado.
+
+#### Nunca retroativo, e a geração não roda sozinha
+
+`proximo_periodo_da_recorrencia()` conta do período corrente para a frente —
+criar ou reativar uma regra não faz nascer o que não aconteceu. E
+`gerar_recorrencias()` é chamada por alguém: o agendamento é de outro sprint,
+como a limpeza de rascunhos.
+
+**O `exception` fica DENTRO do laço.** Uma regra que falha não pode levar
+junto as outras dezenove daquela madrugada — o erro vira linha no histórico
+dela, e a próxima regra continua.
+
+#### O responsável padrão é FALLBACK, nunca substituição
+
+`modelo->>'responsavel_padrao'` (migration 0041, decisão do usuário) preenche
+a etapa que não tem dono — `coalesce(etapa, padrão)`, nessa ordem. Quem
+escreveu o nome na etapa mandou.
+
+Ele existe por causa de dois caminhos em que ninguém preenche etapa por etapa:
+a regra que parte de um workflow, cujos passos podem não ter responsável
+padrão, e a regra montada às pressas. Nos dois, a rotina criava a demanda com
+as etapas órfãs — e **etapa sem dono não aparece no "Minhas Tasks" de
+ninguém**: ela existe no board da agência e mais nada. É o pior tipo de
+trabalho gerado automaticamente, o que ninguém sabe que nasceu.
+
+A ordem invertida transformaria o campo numa arma: preencher a regra apagaria
+a distribuição que alguém montou etapa por etapa. **A bateria guarda o
+cenário que impede a inversão** — ele é o único que falha se o `coalesce`
+trocar de lado.
+
+E **mora no banco e não na tela**: a tela poderia copiar o padrão para cada
+etapa ao salvar, e o resultado pareceria o mesmo. Mas aí o modelo gravaria o
+nome repetido, e trocar de responsável exigiria mexer numa etapa por vez —
+quando o que a pessoa quer dizer é "a partir de agora, é a Marina".
+
+#### A prévia das cinco próximas é a razão do formulário ter este formato
+
+Uma recorrência é a **única coisa no produto que cria trabalho sozinha**, de
+madrugada, sem ninguém olhando — e quem a configura não tem outro jeito de
+conferir o que escolheu antes de salvar. Sem a prévia, o primeiro retorno de
+uma regra torta chega no dia em que alguém abre o board e vê doze demandas com
+o mesmo título.
+
+Ela recalcula **a cada tecla**, no navegador, e é por isso que
+`proximasOcorrencias()` existe em TypeScript ao lado de
+`datas_da_recorrencia()` no Postgres — como `situacaoDoLancamento()` no
+Financeiro. Uma chamada por tecla não é pré-visualização, é latência.
+
+**Em 375px a prévia vem ANTES dos botões**, e por isso as ações são o terceiro
+filho da grade em vez do fim da coluna do formulário: empilhadas, o "Criar
+recorrência" ficava acima dela e dava para salvar sem nunca ver as cinco
+próximas. Foi a imagem de 375px que mostrou — no 1440 as duas colunas
+escondiam o problema.
+
+**E o editor não salva sozinho**, ao contrário da tela de task. Lá o rascunho
+é de quem o criou e não existe para mais ninguém; aqui cada salvamento parcial
+mexe no que a rotina vai gerar na madrugada seguinte, e uma das configurações
+intermediárias pode ser a que ela encontra.
+
+#### "Transformar em recorrente" abre o editor, e não grava nada
+
+É obrigatório que seja assim: **uma task não sabe a cadência dela.** Ela tem
+um período, não uma frequência, e "toda segunda" ou "todo dia 5" é exatamente
+a informação que não está lá. Uma ação que salvasse direto teria que
+inventá-la, e a regra passaria a gerar no ritmo que o sistema chutou.
+
+`modeloDeUmaTask()` copia **só as folhas** — a agrupadora é o agrupador de
+quem tem filha, e copiá-la criaria no modelo uma etapa que nasce sem trabalho
+e conta duas vezes no tempo. A dependência não viaja: ela aponta para uuid e o
+modelo grava posição, numa tela em que a pessoa ainda vai mexer na ordem.
+
+#### O que a regra NÃO faz, e é decisão
+
+- **Não propaga edição de volta.** Editar a task gerada não muda a regra, e
+  editar a regra não muda o que já saiu.
+- **Não reatribui responsável por causa de recesso.** `aviso_do_responsavel()`
+  escreve no histórico que a pessoa está fora; quem decide a troca é o
+  Atendimento.
+- **Não apaga o que já gerou.** `recurrence_id` é `on delete set null`: as
+  demandas são trabalho de verdade, com comentário, tempo lançado e aprovação.
+  Apagar a regra apaga o que ainda não aconteceu.
+- **Não gera pausada, nem pelo botão** (0041). "Gerar agora" some da regra
+  pausada e o banco recusa junto — oferecê-lo ao lado de *"nada mais é gerado
+  até você retomar"* é a tela desmentindo a si mesma.
+
+**A pessoa desligada não vira responsável, e a geração não trava por isso.** A
+regra sobrevive à saída de quem estava nela: as demandas continuam nascendo, e
+sem dono, que é visível. Travar deixaria o cliente sem entrega por causa de um
+desligamento.
+
+**O limite por task corta e não recusa.** Um período com mais ocorrências que
+o limite gera as primeiras e diz no histórico que cortou — recusar a
+ocorrência inteira deixaria o mês sem nada, que é pior que um mês incompleto
+e anotado.
+
 ### A etapa tem período, e não só prazo
 
 `subtasks.data_inicio` + `subtasks.prazo` (migration 0027). Duas etapas com o
@@ -1902,7 +2041,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
-| `scripts/conferir-migrations.sql` | Cola no SQL Editor e diz, migration por migration, o que já entrou e o que falta. Não muda nada |
+| `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
+| `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
 | `scripts/enviar-post-a-mao.sql` | **Paliativo.** Cria um post e o envia ao cliente sem a tela interna, que é de outro sprint. Sai do repositório quando ela existir |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
@@ -1911,6 +2051,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 3D | **Demandas recorrentes.** Migrations 0040 e 0041: `task_recurrences` com a regra e `recurrence_runs` com cada execução, em **dois modos** -- uma task por mês com uma etapa por dia (trabalho diário, senão o board teria vinte e duas linhas do mesmo trabalho) ou uma task inteira a cada repetição (quando cada uma tem etapas próprias). **A idempotência é o índice único e não uma consulta**: a execução é inserida primeiro, com `on conflict do nothing returning id`, e sem linha de volta a chamada desiste -- duas abas clicando em "Gerar agora" passariam pelas duas consultas antes de qualquer uma gravar. **Nunca retroativo**, e a geração **não roda sozinha**: o agendamento é de outro sprint. O `exception` fica dentro do laço, senão uma regra quebrada levaria junto as outras dezenove da madrugada. Na tela, a aba mora em `/painel/workflows` ao lado dos workflows, e **a prévia das cinco próximas é a razão do formulário ter este formato** -- uma recorrência é a única coisa no produto que cria trabalho sozinha, de madrugada, e sem a prévia o primeiro retorno de uma regra torta chega quando alguém vê doze demandas iguais no board; ela recalcula a cada tecla, o que é por que `proximasOcorrencias()` existe ao lado de `datas_da_recorrencia()`. Três pontos de entrada: "Nova recorrente" em Gestão de Tasks, o selo **Recorrente** na task gerada (um link para a regra) e **"Transformar em recorrente"** no fim do detalhe -- que **abre o editor pré-preenchido e não grava nada**, porque uma task não sabe a cadência dela: ela tem um período, não uma frequência. A 0041 veio por decisão do usuário e acrescentou o **responsável padrão da regra**, `coalesce(etapa, padrão)` nessa ordem: o buraco eram os dois caminhos em que ninguém preenche etapa por etapa, e etapa sem dono não aparece no "Minhas Tasks" de ninguém. **77 cenários novos, 753 no total**, e três erros meus que a verificação pegou: o rótulo "semana de" numa regra mensal (o seed mostrou), uma checagem de `pessoa_desligada()` duplicada que o teste de mutação provou ser uma segunda verdade, e **"Gerar agora" gerando numa regra pausada** -- a imagem do protótipo mostrou o botão ao lado da frase que diz que nada mais é gerado. De quebra, dois erros de layout que só a imagem pega: o `SelectTrigger` nasce `w-fit` e o de Cliente saiu como um botão sem rótulo, e em 375px o "Criar recorrência" ficava acima da prévia. |
 | Depois do 13 | **Dois módulos saíram do produto**, por decisão do usuário: o Resumo Semanal e o Financeiro Pessoal. Tela, rota, dados e tabelas — `weekly_entries`, `weekly_notes` e `personal_finance_entries` apagadas na migration 0034. O módulo pessoal que **fica** é o de Notas Fiscais; o Financeiro da casa também fica, que é outro módulo e só do sócio. **A migration apaga dado de pessoa e não tem volta**, e as três tabelas fechavam em `auth.uid()` — ninguém sabia o que havia dentro sem consultar o banco como dono. Por isso ela vem com `scripts/exportar-antes-da-0034.sql`, que põe o conteúdo na tela para ser entregue a quem escreveu, e não exporta para lugar nenhum de propósito: gravar aquele texto em outra tabela contornaria a promessa que ele carregava. Apagar e não aposentar, como a 0023 fez com `tasks.exigencia_aprovacao`. Os dois nomes entraram na varredura de `check:cores` — a lista **cresce**, como a do vocabulário do Full Days —, e ela pegou sete lugares que ainda os citavam, **um deles texto de tela**: as configurações do portal diziam "é a mesma regra do Resumo Semanal" para a gestão ler. Junto saiu a bandeira `discreto` do `MenuItem`, que sem o único módulo que a ligava virou campo que não decide nada. **597 cenários, todos passando** (31 saíram com os módulos). |
 | Sprint 13 | **Campanhas: a Wave, a árvore e a decisão de cada peça.** Migration 0033, o terceiro ato da 0030 — com `deliverable`, os três tipos do enum passam a ter dono. `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions`, com a árvore em **dois níveis e nunca três** e o **status do grupo derivado**, sem coluna: `status_do_entregavel()` e `statusDoGrupo()` fazem a mesma conta nos dois lados, e o valor escrito à mão num grupo é descartado em vez de recusado. `rejeitado` num filho deixa o grupo em `ajustes`, não em `rejeitado` — ninguém recusou o grupo, e vermelho num grupo com catorze de quinze aprovados afirma outra coisa. Toda conta olha **só as folhas**. O cliente enxerga a **campanha desde o planejamento** e o **entregável só depois de enviado**, e essa assimetria mora nas duas policies, não na consulta. O template é uma **árvore em `jsonb`** e não um par de tabelas, porque é uma lista de nomes que alguém edita inteira antes de salvar; na abertura ele é **ponto de partida, não contrato** — a árvore editada é o que viaja para a action, e os filhos casam com os pais **por posição**, porque "Feed/story site" aparece duas vezes na Wave. A linha de cada item **muda por status** (quem aprovou, há quantos dias espera, o motivo da recusa, o prazo), e o grupo abre sozinho quando tem pendência. O alerta de 7 dias fala de "não aprovados" e não de "esperando você" — são contas diferentes, e as duas frases mostravam números diferentes na mesma campanha até a imagem em 375px pô-las lado a lado. **A tela de detalhe do material é uma só**: post e entregável montam o mesmo `ModeloDoConteudo`, e o que é compartilhado é a casca, não a leitura. Campanhas e entregáveis entram nas pendências do Portal, no bloco "Campanhas ativas" e no calendário da agência — a campanha pelo **encerramento**, não como faixa de trinta células. De quebra, três erros meus que a verificação pegou: o seed carimbando `enviado_em` em item que ninguém enviou (o cliente via doze "Em produção"), o título encolhido a "Feed/…" em 375px porque o selo não cede largura, e o "Copiar legenda" que sobrou na seção "Descrição". E um furo no `check:mensagens`: ele lia linha a linha, então uma chamada quebrada em várias linhas não era contada — nem falha, nem aviso. Agora varre por posição, e achou duas que vinham sendo puladas. |
 | Sprint 12 | **Social Media: o calendário e a decisão do post.** Migration 0032, que é o segundo ato da 0030 — ela generalizou a rodada e deixou `post` recusado de propósito, com a frase "quem acrescentar o tipo acrescenta a regra na mesma migration"; é o que este sprint faz, e `deliverable` continua recusado. `posts`, `post_versions` e `comments`, com o cliente enxergando só o que tem `enviado_em` preenchido — e essa linha mora na policy, não na consulta, que é o que faz um post em produção não existir para ele nem pelo id na mão. **Enviar É abrir a rodada de escopo cliente**: o carimbo é consequência dela, por trigger, porque separados dariam rodada num post invisível e post carimbado sem onde decidir. `status_rodada` ganhou **`rejeitada`** — rejeitar não é pedir ajuste, e reaproveitar o mesmo valor faria a rodada dizer uma coisa e o post outra; os dois desfechos negativos exigem motivo, na ação e no banco; e `rejeitada` **não** vale para etapa de demanda, que tem dois desfechos desde a 0007. `comments.interno` e o autor são forçados por trigger, porque policy não limita coluna. O calendário é de **servidor inteiro** — mês, visão, dia e filtros na URL —, vira lista por dia em 375px, e a rede aparece como **sigla de duas letras**: o lucide tirou os ícones de marca, ícone genérico não distingue uma rede da outra, e os logos trariam marca registrada e cor literal. A legenda **agrupa os status que dividem a mesma cor** em vez de mostrar sete linhas e cinco cores, e o nome exato vai no `title` e no rótulo acessível. No detalhe, a ordem é a da decisão: arte com zoom de verdade, informações, legenda, e só então os botões; "solicitar ajustes" fica à vista, que é a ação mais comum. O histórico de versões **não tem reverter**, e a trava é a policy. Posts entram nas pendências da tela inicial do Portal e no calendário da agência. **66 cenários novos, 574 no total**, e dois erros meus que eles pegaram: o trigger de autor apagando o que o seed informou, e um cenário que passava pelo motivo errado. De quebra, o **seed estava quebrado desde o Sprint 11** — ainda escrevia em `approval_rounds.subtask_id`, coluna que a 0030 apagou. |

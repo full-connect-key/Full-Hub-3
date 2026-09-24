@@ -93,6 +93,11 @@ const TELAS = [
   { nome: "42-aprovacoes-ajustes", rota: "/painel/aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "43-workflows", rota: "/painel/workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-workflow-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
+  { nome: "44-recorrencias", rota: "/painel/workflows?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "44b-recorrencia-editor", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },
+  // 375px: a previa vai para BAIXO do formulario no celular, e a grade de
+  // chips das variaveis e o que primeiro estoura a largura.
+  { nome: "44c-recorrencia-375", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 375, altura: 1600, role: "socio" },
   { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Enviar para aprovação")' },
   { nome: "49-aprovacao-propria", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
@@ -223,6 +228,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],
+  "@/lib/dados/recorrencias": ["./scripts/prototipo/recorrencias.ts"],
   "@/lib/dados/aprovacoes": ["./scripts/prototipo/aprovacoes.ts"],
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
   "@/lib/dados/portal": ["./scripts/prototipo/portal.ts"],

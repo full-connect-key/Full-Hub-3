@@ -224,7 +224,7 @@ export function datasDaRecorrencia(
 export type OcorrenciaPrevista = {
   /** `2026-10` no modo mensal agrupada, `2026-10-05` no outro. */
   chave: string;
-  /** Como a pessoa lê: "Outubro/2026" ou "semana de 05/10". */
+  /** Como a pessoa lê: "Outubro/2026", "semana de 05/10" ou "05/10". */
   rotulo: string;
   titulo: string;
   inicio: Date;
@@ -302,7 +302,14 @@ export function proximasOcorrencias(
 
   return datas.map((data, i) => ({
     chave: format(data, "yyyy-MM-dd"),
-    rotulo: `semana de ${format(data, "dd/MM")}`,
+    // "SEMANA DE" SÓ VALE PARA QUEM REPETE POR SEMANA. Numa regra mensal a
+    // ocorrência é um dia, e chamá-la de semana descreve outra coisa — foi o
+    // seed que mostrou, com um "Relatório de mídia" mensal saindo como
+    // "semana de 05/10".
+    rotulo:
+      regra.frequencia === "semanal" || regra.frequencia === "quinzenal"
+        ? `semana de ${format(data, "dd/MM")}`
+        : format(data, "dd/MM/yyyy"),
     titulo: resolverVariaveis(titulo, { cliente, sigla, data, sequencia: i + 1 }),
     inicio: data,
     fim: data,
@@ -325,6 +332,21 @@ export type EtapaDoModelo = {
 
 export type ModeloDaRecorrencia = {
   titulo: string;
+  /**
+   * Quem fica com a etapa que não tem dono (migration 0041).
+   *
+   * **É fallback, nunca substituição.** Quem escreveu o nome na etapa mandou;
+   * o padrão só entra onde não há ninguém. O contrário transformaria o campo
+   * numa arma — preencher a regra apagaria a distribuição que alguém montou
+   * etapa por etapa.
+   *
+   * Ele existe porque há dois caminhos em que ninguém preenche etapa por
+   * etapa: a regra que parte de um workflow (cujos passos podem não ter
+   * responsável padrão) e a regra montada às pressas. Nos dois, a rotina da
+   * madrugada criava a demanda com as etapas órfãs — e etapa sem dono não
+   * aparece no "Minhas Tasks" de ninguém.
+   */
+  responsavel_padrao: string | null;
   briefing_rico: unknown | null;
   prioridade: TaskPrioridade;
   pasta_entrega: string;
@@ -336,6 +358,7 @@ export type ModeloDaRecorrencia = {
 export function modeloVazio(): ModeloDaRecorrencia {
   return {
     titulo: "",
+    responsavel_padrao: null,
     briefing_rico: null,
     prioridade: "normal",
     pasta_entrega: "",

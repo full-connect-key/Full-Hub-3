@@ -1216,3 +1216,154 @@ begin
   raise notice 'Sprint 13: Wave Outubro Rosa criada para o cliente piloto.';
 end
 $$;
+
+
+-- ===========================================================================
+-- SPRINT 3D - Demandas recorrentes
+--
+-- Duas regras, uma de cada modo, e as ocorrencias geradas pela FUNCAO e nao
+-- por inserts a mao. E deliberado: o seed que monta a task no bracao nao
+-- exercita `gerar_ocorrencia()`, e o que se quer aqui e justamente ver o que
+-- a rotina da madrugada produz -- inclusive o historico que ela grava.
+-- ===========================================================================
+do $$
+declare
+  verde     uuid;
+  otica     uuid;
+  carla     uuid := 'a0000000-0000-0000-0000-000000000003';  -- Atendimento
+  marina    uuid := 'a0000000-0000-0000-0000-000000000006';  -- Social Media
+  bruno     uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
+  regra     uuid;
+  periodo   date;
+  gerada    uuid;
+begin
+  select id into verde from public.clients where slug = 'mundo-verde' limit 1;
+  -- POR NOME, como o resto do seed: o slug sai do gatilho e depende de como
+  -- ele trata o acento, que nao e o que este bloco quer testar.
+  select id into otica from public.clients where nome_empresa = 'Óptica Visão' limit 1;
+  if verde is null then
+    raise notice 'Sem cliente para semear as recorrencias.';
+    return;
+  end if;
+
+  delete from public.task_recurrences where criado_por = carla;
+
+  perform set_config('request.jwt.claim.sub', carla::text, true);
+
+  -- ------------------------------------------------- 1. Mensal agrupada --
+  -- Uma task por mes com uma etapa por dia util. E o caso que justifica o
+  -- modo existir: sem ele, o board da agencia teria vinte e duas linhas do
+  -- mesmo trabalho por mes, por cliente.
+  insert into public.task_recurrences (
+    client_id, nome, modo, frequencia, dias_semana, pular_feriados,
+    data_inicio, antecedencia_dias, criado_por, modelo
+  ) values (
+    verde, 'Stories diarios', 'mensal_agrupada', 'diaria',
+    array[1,2,3,4,5], true,
+    date_trunc('month', current_date)::date, 3, carla,
+    jsonb_build_object(
+      'titulo', 'Stories {MES}/{ANO} — {CLIENTE}',
+      'prioridade', 'normal',
+      'pasta_entrega', 'https://drive.google.com/drive/folders/stories-mundo-verde',
+      -- PELO PADRAO DA REGRA (0041), e nao na etapa: e o caso que o campo
+      -- existe para servir. Trocar quem faz os stories passa a ser um campo
+      -- so, em vez de reabrir a regra e mexer em cada etapa.
+      'responsavel_padrao', marina,
+      'subtarefa_diaria', jsonb_build_object(
+        'titulo', 'Stories {DATA}',
+        'prioridade', 'normal',
+        'requer_aprovacao', false,
+        'tipo_aprovacao', null
+      ),
+      'subtarefas', '[]'::jsonb,
+      'referencias', '[]'::jsonb
+    )
+  ) returning id into regra;
+
+  -- GERADA PELA FUNCAO, com o periodo que ela propria escolhe. Se algum dia
+  -- `proximo_periodo_da_recorrencia()` passar a devolver retroativo, este
+  -- seed produz uma task no mes errado -- e e onde se quer descobrir.
+  select public.proximo_periodo_da_recorrencia(regra) into periodo;
+  if periodo is not null then
+    select public.gerar_ocorrencia(regra, periodo) into gerada;
+    raise notice 'Stories diarios: task % gerada para %.', gerada, periodo;
+  end if;
+
+  -- ---------------------------------------------- 2. Task por ocorrencia --
+  -- Cada repeticao e um trabalho com etapas proprias: coletar, montar,
+  -- revisar. Aqui a cadeia importa, e por isso o outro modo nao serve.
+  if otica is not null then
+    insert into public.task_recurrences (
+      client_id, nome, modo, frequencia, dia_mes, pular_feriados,
+      data_inicio, antecedencia_dias, criado_por, modelo
+    ) values (
+      otica, 'Relatorio mensal de midia', 'task_por_ocorrencia', 'mensal',
+      5, true,
+      date_trunc('month', current_date)::date, 5, carla,
+      jsonb_build_object(
+        'titulo', 'Relatório de mídia — {MES}/{ANO}',
+        'prioridade', 'alta',
+        'pasta_entrega', 'https://drive.google.com/drive/folders/relatorios-optica',
+        'subtarefa_diaria', null,
+        'subtarefas', jsonb_build_array(
+          jsonb_build_object(
+            'titulo', 'Coletar os números', 'responsavel_id', bruno,
+            'prazo_offset_dias', 1, 'prioridade', 'normal',
+            'requer_aprovacao', false, 'tipo_aprovacao', null,
+            'depende_de_ordem', null),
+          jsonb_build_object(
+            'titulo', 'Montar o relatório', 'responsavel_id', bruno,
+            'prazo_offset_dias', 3, 'prioridade', 'normal',
+            'requer_aprovacao', false, 'tipo_aprovacao', null,
+            -- DEPENDE DA PRIMEIRA, por POSICAO e nao por uuid: o modelo e
+            -- reutilizavel, e a etapa de que ela depende so ganha id no
+            -- instante em que a ocorrencia nasce.
+            'depende_de_ordem', 1),
+          jsonb_build_object(
+            'titulo', 'Revisar com o cliente', 'responsavel_id', carla,
+            'prazo_offset_dias', 5, 'prioridade', 'alta',
+            -- ESTA PEDE AVAL, e e de proposito: a demanda gerada entra na
+            -- fila de aprovacoes como qualquer outra. Uma recorrencia que
+            -- nascesse fora do fluxo de aprovacao seria um segundo caminho
+            -- ao lado do que o produto ja tem.
+            'requer_aprovacao', true, 'tipo_aprovacao', 'cliente',
+            'depende_de_ordem', 2)
+        ),
+        'referencias', '[]'::jsonb
+      )
+    ) returning id into regra;
+
+    -- DUAS COISAS APARECEM AQUI, e as duas sao comportamento e nao acidente:
+    --
+    -- 1. o PERIODO DA TASK nao e a data da ocorrencia. A regra diz "todo dia
+    --    5" e a task nasce comecando no dia 6, porque `subtasks_recalcula_
+    --    periodo` (0028) deriva o periodo das folhas e a primeira etapa tem
+    --    offset 1. Quem guarda a data da ocorrencia e `chave_ocorrencia`, na
+    --    execucao -- e e ela que impede a rotina de gerar a mesma duas vezes;
+    -- 2. o HISTORICO traz o aviso de `aviso_do_responsavel()` quando alguem
+    --    esta fora no prazo da etapa. Ele AVISA e nao reatribui: trocar o
+    --    responsavel sozinho por causa de um recesso e exatamente o que o
+    --    sprint pediu para nao fazer.
+    select public.proximo_periodo_da_recorrencia(regra) into periodo;
+    if periodo is not null then
+      select public.gerar_ocorrencia(regra, periodo) into gerada;
+      raise notice 'Relatorio mensal: task % gerada para %.', gerada, periodo;
+    end if;
+
+    -- CHAMAR DE NOVO NAO DUPLICA, e o seed prova isso em vez de afirmar: a
+    -- trava e o indice unico de `recurrence_runs`, nao uma consulta antes do
+    -- insert. Duas abas clicando em "Gerar agora" ao mesmo tempo passariam
+    -- pelas duas consultas antes de qualquer uma gravar.
+    if periodo is not null then
+      select public.gerar_ocorrencia(regra, periodo) into gerada;
+      if gerada is not null then
+        raise exception 'A idempotencia quebrou: a segunda chamada criou a task %.', gerada;
+      end if;
+    end if;
+  end if;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  raise notice 'Sprint 3D: duas regras recorrentes criadas, com a primeira ocorrencia de cada.';
+end
+$$;

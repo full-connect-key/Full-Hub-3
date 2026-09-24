@@ -217,6 +217,10 @@ export async function modeloDeUmaTask(taskId: string) {
     clienteId: task.client_id,
     modelo: {
       titulo: task.titulo,
+      // SEM PADRÃO ao vir de uma task: as etapas dela já têm dono, e um
+      // padrão aqui só cobriria as que não têm — que é o que a pessoa vai
+      // decidir olhando a lista.
+      responsavel_padrao: null,
       briefing_rico: task.briefing_rico,
       prioridade: task.prioridade,
       pasta_entrega: task.link_entrega ?? "",

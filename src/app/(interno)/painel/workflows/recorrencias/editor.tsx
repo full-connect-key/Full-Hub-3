@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, CircleAlert, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CircleAlert,
+  Loader2,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +51,10 @@ import type {
   TaskPrioridade,
 } from "@/lib/supabase/database.types";
 
-import { atualizarRecorrencia, criarRecorrencia } from "../acoes-de-recorrencia";
+import {
+  atualizarRecorrencia,
+  criarRecorrencia,
+} from "../acoes-de-recorrencia";
 
 const SEM_VALOR = "__sem__";
 const VOLTAR = "/painel/workflows?aba=recorrencias";
@@ -117,7 +127,9 @@ export function EditorDeRecorrencia({
   const [salvando, iniciar] = useTransition();
 
   const modeloInicial =
-    (regra?.modelo as unknown as ModeloDaRecorrencia) ?? partirDe?.modelo ?? modeloVazio();
+    (regra?.modelo as unknown as ModeloDaRecorrencia) ??
+    partirDe?.modelo ??
+    modeloVazio();
 
   const [nome, setNome] = useState(regra?.nome ?? "");
   const [clienteId, setClienteId] = useState<string | null>(
@@ -139,12 +151,20 @@ export function EditorDeRecorrencia({
     regra?.dias_semana ?? DIAS_UTEIS_PADRAO,
   );
   const [diaMes, setDiaMes] = useState<string>(String(regra?.dia_mes ?? 5));
-  const [pularFeriados, setPularFeriados] = useState(regra?.pular_feriados ?? true);
+  const [pularFeriados, setPularFeriados] = useState(
+    regra?.pular_feriados ?? true,
+  );
   const [dataInicio, setDataInicio] = useState(regra?.data_inicio ?? hojeISO);
   const [dataFim, setDataFim] = useState(regra?.data_fim ?? "");
-  const [antecedencia, setAntecedencia] = useState(String(regra?.antecedencia_dias ?? 3));
-  const [comoRascunho, setComoRascunho] = useState(regra?.gerar_como_rascunho ?? false);
-  const [workflowId, setWorkflowId] = useState<string | null>(regra?.task_type_id ?? null);
+  const [antecedencia, setAntecedencia] = useState(
+    String(regra?.antecedencia_dias ?? 3),
+  );
+  const [comoRascunho, setComoRascunho] = useState(
+    regra?.gerar_como_rascunho ?? false,
+  );
+  const [workflowId, setWorkflowId] = useState<string | null>(
+    regra?.task_type_id ?? null,
+  );
   const [modelo, setModelo] = useState<ModeloDaRecorrencia>(modeloInicial);
 
   const cliente = clientes.find((c) => c.id === clienteId) ?? null;
@@ -156,7 +176,8 @@ export function EditorDeRecorrencia({
     // NULO SIGNIFICA "TODOS OS DIAS", e não "nenhum". Numa regra mensal a
     // coluna não decide nada, e mandá-la preenchida deixaria na tabela um
     // valor que a próxima leitura teria que aprender a ignorar.
-    diasSemana: frequencia === "mensal" || diasSemana.length === 0 ? null : diasSemana,
+    diasSemana:
+      frequencia === "mensal" || diasSemana.length === 0 ? null : diasSemana,
     diaMes: frequencia === "mensal" ? Number(diaMes) || null : null,
     pularFeriados,
     dataInicio,
@@ -175,10 +196,9 @@ export function EditorDeRecorrencia({
           antecedenciaDias: Number(antecedencia) || 0,
           hoje: new Date(`${hojeISO}T12:00:00`),
           feriados: conjuntoDeFeriados,
-          etapasDoModelo:
-            workflowId
-              ? (workflows.find((w) => w.id === workflowId)?.etapas ?? 0)
-              : modelo.subtarefas.length,
+          etapasDoModelo: workflowId
+            ? (workflows.find((w) => w.id === workflowId)?.etapas ?? 0)
+            : modelo.subtarefas.length,
         },
         5,
       );
@@ -189,23 +209,40 @@ export function EditorDeRecorrencia({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    modo, frequencia, diasSemana, diaMes, pularFeriados, dataInicio, dataFim,
-    antecedencia, modelo.titulo, modelo.subtarefas.length, workflowId,
-    cliente?.nome_empresa, cliente?.slug, hojeISO, conjuntoDeFeriados, workflows,
+    modo,
+    frequencia,
+    diasSemana,
+    diaMes,
+    pularFeriados,
+    dataInicio,
+    dataFim,
+    antecedencia,
+    modelo.titulo,
+    modelo.subtarefas.length,
+    workflowId,
+    cliente?.nome_empresa,
+    cliente?.slug,
+    hojeISO,
+    conjuntoDeFeriados,
+    workflows,
   ]);
 
   const faltam = faltaParaSalvar({ ...regraAtual, nome, clienteId }, modelo);
 
   function alternarDia(valor: number) {
     setDiasSemana((atual) =>
-      atual.includes(valor) ? atual.filter((d) => d !== valor) : [...atual, valor].sort(),
+      atual.includes(valor)
+        ? atual.filter((d) => d !== valor)
+        : [...atual, valor].sort(),
     );
   }
 
   function trocarEtapa(indice: number, mudanca: Partial<EtapaDoModelo>) {
     setModelo((m) => ({
       ...m,
-      subtarefas: m.subtarefas.map((e, i) => (i === indice ? { ...e, ...mudanca } : e)),
+      subtarefas: m.subtarefas.map((e, i) =>
+        i === indice ? { ...e, ...mudanca } : e,
+      ),
     }));
   }
 
@@ -279,7 +316,7 @@ export function EditorDeRecorrencia({
                 value={clienteId ?? SEM_VALOR}
                 onValueChange={(v) => setClienteId(v === SEM_VALOR ? null : v)}
               >
-                <SelectTrigger id="rec-cliente">
+                <SelectTrigger id="rec-cliente" className="w-full">
                   <SelectValue placeholder="Escolha o cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -299,7 +336,11 @@ export function EditorDeRecorrencia({
               modos é o que a pessoa precisa ler para escolher, e um select a
               esconde atrás do clique. É a mesma decisão do tipo de pedido no
               Full Days. */}
-          <div role="radiogroup" aria-label="Modo" className="grid gap-3 sm:grid-cols-2">
+          <div
+            role="radiogroup"
+            aria-label="Modo"
+            className="grid gap-3 sm:grid-cols-2"
+          >
             {MODOS.map((m) => {
               const ativo = m === modo;
               return (
@@ -335,7 +376,7 @@ export function EditorDeRecorrencia({
                 value={frequencia}
                 onValueChange={(v) => setFrequencia(v as RecorrenciaFrequencia)}
               >
-                <SelectTrigger id="rec-frequencia">
+                <SelectTrigger id="rec-frequencia" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -415,7 +456,9 @@ export function EditorDeRecorrencia({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="rec-antecedencia">Gerar com quantos dias de antecedência</Label>
+              <Label htmlFor="rec-antecedencia">
+                Gerar com quantos dias de antecedência
+              </Label>
               <Input
                 id="rec-antecedencia"
                 type="number"
@@ -470,7 +513,9 @@ export function EditorDeRecorrencia({
             <Input
               id="rec-titulo"
               value={modelo.titulo}
-              onChange={(e) => setModelo((m) => ({ ...m, titulo: e.target.value }))}
+              onChange={(e) =>
+                setModelo((m) => ({ ...m, titulo: e.target.value }))
+              }
               placeholder="Stories {MES}/{ANO} — {CLIENTE}"
             />
             {/* AS VARIÁVEIS FICAM AO LADO DO CAMPO, e não num texto de ajuda:
@@ -484,7 +529,10 @@ export function EditorDeRecorrencia({
                   type="button"
                   title={`${v.explicacao} — ex.: ${v.exemplo}`}
                   onClick={() =>
-                    setModelo((m) => ({ ...m, titulo: `${m.titulo}${v.chave}` }))
+                    setModelo((m) => ({
+                      ...m,
+                      titulo: `${m.titulo}${v.chave}`,
+                    }))
                   }
                   className="bg-muted text-text-secondary hover:text-text-primary rounded px-1.5 py-0.5 font-mono text-xs"
                 >
@@ -495,7 +543,7 @@ export function EditorDeRecorrencia({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="rec-pasta">Pasta de entrega</Label>
               <Input
                 id="rec-pasta"
@@ -514,6 +562,40 @@ export function EditorDeRecorrencia({
               </p>
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="rec-responsavel">Responsável</Label>
+              <Select
+                value={modelo.responsavel_padrao ?? SEM_VALOR}
+                onValueChange={(v) =>
+                  setModelo((m) => ({
+                    ...m,
+                    responsavel_padrao: v === SEM_VALOR ? null : v,
+                  }))
+                }
+              >
+                <SelectTrigger id="rec-responsavel" className="w-full">
+                  <SelectValue placeholder="Decidir etapa por etapa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_VALOR}>
+                    Decidir etapa por etapa
+                  </SelectItem>
+                  {equipe.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* FALLBACK, NUNCA SUBSTITUIÇÃO: quem escreveu o nome na etapa
+                  mandou. O contrário faria preencher aqui apagar a
+                  distribuição que alguém montou etapa por etapa. */}
+              <p className="text-text-muted text-xs">
+                Fica com as etapas que não tiverem dono. Onde você escolheu
+                alguém, continua sendo essa pessoa.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="rec-prioridade">Prioridade</Label>
               <Select
                 value={modelo.prioridade}
@@ -521,7 +603,7 @@ export function EditorDeRecorrencia({
                   setModelo((m) => ({ ...m, prioridade: v as TaskPrioridade }))
                 }
               >
-                <SelectTrigger id="rec-prioridade">
+                <SelectTrigger id="rec-prioridade" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -538,14 +620,19 @@ export function EditorDeRecorrencia({
 
         <SecaoDoFormulario
           numero={5}
-          titulo={modo === "mensal_agrupada" ? "A etapa de cada dia" : "As etapas"}
+          titulo={
+            modo === "mensal_agrupada" ? "A etapa de cada dia" : "As etapas"
+          }
           acao={
             modo === "task_por_ocorrencia" && !workflowId ? (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setModelo((m) => ({ ...m, subtarefas: [...m.subtarefas, etapaVazia()] }))
+                  setModelo((m) => ({
+                    ...m,
+                    subtarefas: [...m.subtarefas, etapaVazia()],
+                  }))
                 }
               >
                 <Plus aria-hidden className="size-4" />
@@ -570,7 +657,8 @@ export function EditorDeRecorrencia({
                       setModelo((m) => ({
                         ...m,
                         subtarefa_diaria: {
-                          ...(m.subtarefa_diaria ?? modeloVazio().subtarefa_diaria!),
+                          ...(m.subtarefa_diaria ??
+                            modeloVazio().subtarefa_diaria!),
                           titulo: e.target.value,
                         },
                       }))
@@ -586,13 +674,14 @@ export function EditorDeRecorrencia({
                       setModelo((m) => ({
                         ...m,
                         subtarefa_diaria: {
-                          ...(m.subtarefa_diaria ?? modeloVazio().subtarefa_diaria!),
+                          ...(m.subtarefa_diaria ??
+                            modeloVazio().subtarefa_diaria!),
                           responsavel_id: v === SEM_VALOR ? null : v,
                         },
                       }))
                     }
                   >
-                    <SelectTrigger id="rec-diaria-resp">
+                    <SelectTrigger id="rec-diaria-resp" className="w-full">
                       <SelectValue placeholder="Sem responsável" />
                     </SelectTrigger>
                     <SelectContent>
@@ -613,13 +702,17 @@ export function EditorDeRecorrencia({
                 <Label htmlFor="rec-workflow">Partir de um workflow</Label>
                 <Select
                   value={workflowId ?? SEM_VALOR}
-                  onValueChange={(v) => setWorkflowId(v === SEM_VALOR ? null : v)}
+                  onValueChange={(v) =>
+                    setWorkflowId(v === SEM_VALOR ? null : v)
+                  }
                 >
-                  <SelectTrigger id="rec-workflow">
+                  <SelectTrigger id="rec-workflow" className="w-full">
                     <SelectValue placeholder="Montar as etapas à mão" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={SEM_VALOR}>Montar as etapas à mão</SelectItem>
+                    <SelectItem value={SEM_VALOR}>
+                      Montar as etapas à mão
+                    </SelectItem>
                     {workflows.map((w) => (
                       <SelectItem key={w.id} value={w.id}>
                         {w.nome} ({w.etapas} etapas)
@@ -648,7 +741,9 @@ export function EditorDeRecorrencia({
                         <Input
                           id={`etapa-${i}`}
                           value={etapa.titulo}
-                          onChange={(e) => trocarEtapa(i, { titulo: e.target.value })}
+                          onChange={(e) =>
+                            trocarEtapa(i, { titulo: e.target.value })
+                          }
                           placeholder="Conceito"
                         />
                       </div>
@@ -657,14 +752,21 @@ export function EditorDeRecorrencia({
                         <Select
                           value={etapa.responsavel_id ?? SEM_VALOR}
                           onValueChange={(v) =>
-                            trocarEtapa(i, { responsavel_id: v === SEM_VALOR ? null : v })
+                            trocarEtapa(i, {
+                              responsavel_id: v === SEM_VALOR ? null : v,
+                            })
                           }
                         >
-                          <SelectTrigger id={`etapa-resp-${i}`}>
+                          <SelectTrigger
+                            id={`etapa-resp-${i}`}
+                            className="w-full"
+                          >
                             <SelectValue placeholder="Sem responsável" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
+                            <SelectItem value={SEM_VALOR}>
+                              Sem responsável
+                            </SelectItem>
                             {equipe.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.nome}
@@ -695,7 +797,9 @@ export function EditorDeRecorrencia({
                           onClick={() =>
                             setModelo((m) => ({
                               ...m,
-                              subtarefas: m.subtarefas.filter((_, j) => j !== i),
+                              subtarefas: m.subtarefas.filter(
+                                (_, j) => j !== i,
+                              ),
                             }))
                           }
                         >
@@ -715,23 +819,6 @@ export function EditorDeRecorrencia({
             </>
           )}
         </SecaoDoFormulario>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={salvar} disabled={salvando || faltam.length > 0}>
-            {salvando ? (
-              <Loader2 aria-hidden className="size-4 animate-spin" />
-            ) : (
-              <Save aria-hidden className="size-4" />
-            )}
-            {regra ? "Salvar alterações" : "Criar recorrência"}
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href={VOLTAR}>Cancelar</Link>
-          </Button>
-          {faltam.length > 0 ? (
-            <p className="text-text-secondary text-sm">Falta {faltam.join(", ")}.</p>
-          ) : null}
-        </div>
       </div>
 
       <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -748,15 +835,23 @@ export function EditorDeRecorrencia({
 
           {previa.length === 0 ? (
             <p className="text-text-secondary flex items-start gap-2 text-sm">
-              <CircleAlert aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
+              <CircleAlert
+                aria-hidden
+                className="text-warning mt-0.5 size-4 shrink-0"
+              />
               Com esta configuração nenhuma demanda nasce. Confira a frequência,
               os dias e o período.
             </p>
           ) : (
             <ol className="space-y-2">
               {previa.map((o) => (
-                <li key={o.chave} className="border-border border-t pt-2 first:border-t-0 first:pt-0">
-                  <p className="text-text-primary text-sm font-medium">{o.titulo}</p>
+                <li
+                  key={o.chave}
+                  className="border-border border-t pt-2 first:border-t-0 first:pt-0"
+                >
+                  <p className="text-text-primary text-sm font-medium">
+                    {o.titulo}
+                  </p>
                   <p className="text-text-secondary text-xs">
                     {o.rotulo} ·{" "}
                     {o.subtarefas === 1 ? "1 etapa" : `${o.subtarefas} etapas`}
@@ -770,6 +865,31 @@ export function EditorDeRecorrencia({
           )}
         </div>
       </aside>
+
+      {/* AS AÇÕES SÃO O TERCEIRO FILHO DA GRADE, e não o fim da coluna do
+        formulário. Em 375px a grade vira uma pilha, e com as ações dentro da
+        coluna o botão "Criar recorrência" ficava ACIMA da prévia — dava para
+        salvar sem nunca ver as cinco próximas, que é a razão desta tela ter
+        este formato. Foi a imagem de 375px que mostrou; no 1440 as duas
+        colunas escondiam o problema. */}
+      <div className="flex flex-wrap items-center gap-3 lg:col-start-1">
+        <Button onClick={salvar} disabled={salvando || faltam.length > 0}>
+          {salvando ? (
+            <Loader2 aria-hidden className="size-4 animate-spin" />
+          ) : (
+            <Save aria-hidden className="size-4" />
+          )}
+          {regra ? "Salvar alterações" : "Criar recorrência"}
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link href={VOLTAR}>Cancelar</Link>
+        </Button>
+        {faltam.length > 0 ? (
+          <p className="text-text-secondary text-sm">
+            Falta {faltam.join(", ")}.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
