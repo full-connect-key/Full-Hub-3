@@ -435,9 +435,12 @@ select teste.recusa_com('Etapa de demanda nao e recusada, e a recusa ensina o ca
     'rejeitada', 'Nao gostei')$fmt$,
   'Etapa de demanda não é recusada');
 
+-- 'deliverable' ganhou regra na 0033, entao quem prova a frase aqui tambem
+-- passou a ser um tipo inventado. As regras do entregavel estao em
+-- 16_campanhas.sql.
 select teste.recusa_com('E tipo sem regra continua recusado', :DIEGO,
   format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 1, 'interna', %L)$fmt$, :ENVIADO, :DIEGO),
+    values ('campanha_inteira', %L, 1, 'interna', %L)$fmt$, :ENVIADO, :DIEGO),
   'ainda não tem regra');
 
 
