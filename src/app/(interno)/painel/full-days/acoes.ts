@@ -334,8 +334,13 @@ export async function lancarPeriodo(dados: unknown): Promise<Resultado<string>> 
   });
 }
 
+// SEM `user_id` e SEM `tipo`, e os dois pelo mesmo motivo: `corrigir_lancamento()`
+// não aceita nenhum dos dois. Trocar o dono seria apagar os dias de um e
+// pintar os de outro; trocar o tipo muda a regra de contagem e o que o período
+// desconta. Nos dois casos é outro registro, não uma correção — e o caminho é
+// apagar e lançar de novo.
 const esquemaDeCorrecao = esquemaDeLancamento
-  .omit({ user_id: true })
+  .omit({ user_id: true, tipo: true })
   .extend({ id: z.string().uuid() });
 
 /**
@@ -369,7 +374,6 @@ export async function corrigirLancamento(dados: unknown): Promise<Resultado> {
     const supabase = await criarClienteServidor();
     const { error } = await supabase.rpc("corrigir_lancamento", {
       p_request_id: entrada.id,
-      p_tipo: entrada.tipo,
       p_data_inicio: entrada.data_inicio,
       p_data_fim: entrada.data_fim,
       p_ano_referencia: entrada.ano_referencia ?? null,

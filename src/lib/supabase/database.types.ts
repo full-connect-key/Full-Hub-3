@@ -1617,11 +1617,17 @@ export interface Database {
         };
         Returns: string;
       };
-      /** Corrige um lancamento e REPINTA a presenca. Recusa `solicitacao`. */
+      /**
+       * Corrige um lancamento e REPINTA a presenca. Recusa `solicitacao`.
+       *
+       * NAO TEM `p_tipo`, e nao e esquecimento da migration: trocar o tipo
+       * muda a regra de contagem (corrido x util) e o que o periodo desconta,
+       * o que e outro registro e nao uma correcao. Trocou o tipo: apaga e
+       * lanca de novo.
+       */
       corrigir_lancamento: {
         Args: {
           p_request_id: string;
-          p_tipo: HrTipo;
           p_data_inicio: string;
           p_data_fim: string;
           p_ano_referencia?: number | null;

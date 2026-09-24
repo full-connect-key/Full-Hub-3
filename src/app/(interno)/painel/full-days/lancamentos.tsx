@@ -349,7 +349,7 @@ export function Lancamentos({
         <section className="min-w-0">
           <p className="text-text-muted mb-3 text-xs">
             Clique na data inicial e depois na final — ou arraste de uma até a
-            outra. O calendário vai de janeiro de 2025 até hoje.
+            outra. O calendário vai de janeiro de 2025 até ontem.
           </p>
 
           <CalendarioRolavel
