@@ -129,6 +129,60 @@ export const CORES_DE_PRESENCA: Record<PresencaStatus, string> = {
   feriado: "listrado",
 };
 
+/**
+ * Os estados que significam FORA — a pessoa não está disponível naquele dia.
+ *
+ * **Remoto não entra, e é a distinção inteira.** Quem trabalha de outro lugar
+ * está trabalhando: contá-lo como ausência acenderia alerta onde não há risco
+ * nenhum, e quem vê um alerta falso duas vezes para de olhar para o alerta.
+ *
+ * **"Sem alocação" também não entra**, por um motivo mecânico além do
+ * conceitual: é o estado padrão de sábado e domingo. Com ele na lista, todo
+ * fim de semana apareceria como a área inteira fora.
+ *
+ * Feriado não entra pela mesma razão: ninguém está fora, o dia é que não
+ * existe para o trabalho.
+ */
+export const PRESENCAS_DE_AUSENCIA: PresencaStatus[] = [
+  "ferias",
+  "licenca",
+  "ausente",
+];
+
+export function estaFora(status: PresencaStatus): boolean {
+  return PRESENCAS_DE_AUSENCIA.includes(status);
+}
+
+/**
+ * Quantas pessoas de uma área estão fora em cada dia.
+ *
+ * É a régua que a matriz desenha embaixo do nome de cada área, e ela responde
+ * à pergunta que a grade existe para responder: não "quem está fora", e sim
+ * "a área aguenta?". Com quinze nomes na tela, dois da mesma área na mesma
+ * semana só aparecem para quem for contar linha por linha.
+ *
+ * **O LIMIAR É O MESMO DO CALENDÁRIO DE PEDIDO, de propósito.** Lá, um dia em
+ * que QUALQUER colega da área está fora já é recusado
+ * (`bloqueiosNoIntervalo`). Aqui esse mesmo dia é o âmbar: "o calendário
+ * recusaria um pedido neste dia". O vermelho é o que já passou disso — dois ou
+ * mais fora ao mesmo tempo, que é o estado que a regra existe para evitar e
+ * que só chega até aqui por lançamento retroativo ou por decisão do sócio.
+ *
+ * Duas telas com dois limiares diferentes seriam duas verdades sobre a mesma
+ * equipe, e a pessoa descobriria isso levando um "não" num dia que a matriz
+ * pintou de verde.
+ */
+export function coberturaDaArea(
+  dias: string[],
+  statusPorDia: (dia: string) => PresencaStatus[],
+): Map<string, number> {
+  const contagem = new Map<string, number>();
+  for (const dia of dias) {
+    contagem.set(dia, statusPorDia(dia).filter(estaFora).length);
+  }
+  return contagem;
+}
+
 export const PRESENCAS_EDITAVEIS: PresencaStatus[] = [
   "presente",
   "remoto",

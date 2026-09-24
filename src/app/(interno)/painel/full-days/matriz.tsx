@@ -21,6 +21,7 @@ import {
   CORES_DE_PRESENCA,
   PRESENCAS_EDITAVEIS,
   ROTULOS_DE_PRESENCA,
+  coberturaDaArea,
   diasEntre,
   lerData,
 } from "@/lib/dominio/full-days";
@@ -210,7 +211,10 @@ export function MatrizDaEquipe({
                     </th>
                   );
                 })}
-                <th className="bg-surface-card text-text-muted border-b border-l px-2 py-2 text-center text-[10px] font-medium">
+                <th
+                  title="Por pessoa, os dias de cada estado no mês. Na linha da área, em quantos dias dois ou mais dela estiveram fora ao mesmo tempo."
+                  className="bg-surface-card text-text-muted border-b border-l px-2 py-2 text-center text-[10px] font-medium"
+                >
                   Totais
                 </th>
               </tr>
@@ -260,16 +264,73 @@ function Grupo({
   trocar: (pessoa: Linha, data: string, status: PresencaStatus) => void;
   quemSouEu: string;
 }) {
+  // A RÉGUA DE COBERTURA da área, dia a dia. A conta mora em
+  // `lib/dominio/full-days.ts` porque o limiar precisa ser o MESMO do
+  // calendário de pedido — duas telas com dois limiares seriam duas verdades
+  // sobre a mesma equipe, e a pessoa descobriria isso levando um "não" num dia
+  // que a matriz pintou de verde.
+  const cobertura = coberturaDaArea(dias, (dia) =>
+    pessoas.map((pessoa) => statusDoDia(pessoa, dia)),
+  );
+
   return (
     <>
       <tr>
         <th
-          colSpan={dias.length + 2}
           scope="colgroup"
-          className="bg-neutral-soft text-text-secondary border-b px-3 py-1 text-left text-[11px] font-semibold tracking-wide uppercase"
+          className="bg-neutral-soft text-text-secondary sticky left-0 z-20 border-b border-r px-3 py-1 text-left text-[11px] font-semibold tracking-wide uppercase"
         >
-          {area}
+          {area}{" "}
+          <span className="text-text-muted font-medium normal-case">
+            · {pessoas.length} {pessoas.length === 1 ? "pessoa" : "pessoas"}
+          </span>
         </th>
+
+        {/* UMA CÉLULA POR DIA, com quantos da área estão fora nele. O número
+            em vez de só a cor: "2" diz quantos, e a cor sozinha obrigaria a
+            contar as linhas embaixo para descobrir — que é exatamente o
+            trabalho que esta faixa existe para poupar.
+
+            O dia sem ninguém fora fica com um ponto e não vazio: uma fila de
+            trinta células em branco lê como uma linha quebrada. */}
+        {dias.map((data) => {
+          const fora = cobertura.get(data) ?? 0;
+          const rotulo = `${format(parseISO(data), "dd/MM")}: ${
+            fora === 0
+              ? `ninguém do ${area} fora`
+              : `${fora} do ${area} ${fora === 1 ? "fora" : "fora ao mesmo tempo"}`
+          }`;
+          return (
+            <td
+              key={data}
+              title={rotulo}
+              aria-label={rotulo}
+              className={cn(
+                "bg-neutral-soft border-b px-0 py-0.5 text-center text-[10px] font-semibold tabular-nums",
+                fora === 0 && "text-text-muted/50",
+                fora === 1 && "bg-warning-soft text-warning",
+                // O PAR NOMEADO, e não `bg-danger text-white`: no tema
+                // escuro `--danger` clareia bastante, e branco por cima dele
+                // não chega a 3:1. `--destructive-foreground` acompanha o
+                // fundo — escuro lá, branco aqui —, e é um dos pares que
+                // `check:cores` mede nos DOIS temas.
+                //
+                // (Escrevi o valor escuro aqui dentro na primeira versão e a
+                // varredura acusou o próprio comentário. É a regra de sempre:
+                // a explicação não carrega o que ela proíbe.)
+                fora >= 2 && "bg-destructive text-destructive-foreground",
+              )}
+            >
+              {fora === 0 ? "·" : fora}
+            </td>
+          );
+        })}
+
+        <td className="bg-neutral-soft text-text-muted border-b border-l px-2 py-0.5 text-center text-[10px] font-medium tabular-nums">
+          {[...cobertura.values()].filter((n) => n >= 2).length > 0
+            ? `${[...cobertura.values()].filter((n) => n >= 2).length}d`
+            : "—"}
+        </td>
       </tr>
 
       {pessoas.map((pessoa) => {
@@ -384,12 +445,25 @@ function Celula({
     ROTULOS_DE_PRESENCA[status]
   }${feriado ? ` (${feriado})` : ""}${deSolicitacao ? " — de solicitação aprovada" : ""}`;
 
+  // SÓ A EXCEÇÃO É PINTADA, e é o que torna a grade legível.
+  //
+  // Até aqui todo dia recebia a cor do seu estado, "Disponível" inclusive — e
+  // como quase todo dia de quase todo mundo é disponível, o resultado era uma
+  // parede verde com alguns furos. A pessoa procurava o furo; o desenho
+  // pedia que ela procurasse a informação. Agora o dia normal não tem cor
+  // nenhuma, e o que salta é justamente quem está fora.
+  //
+  // Fim de semana e feriado ficam com um cinza CLARO, e não em branco: eles
+  // não são exceção, mas também não são dia útil — sem a distinção, uma faixa
+  // de descanso de sexta a segunda parece ter um buraco no meio.
+  const discreto = status === "presente";
   const faixa = (
     <span
       aria-hidden
       className={cn(
         "block size-full min-h-6",
-        CORES_DE_PRESENCA[status],
+        discreto ? "bg-transparent" : CORES_DE_PRESENCA[status],
+        status === "folga" && "bg-neutral-soft",
         abreBloco && "rounded-l-md",
         fechaBloco && "rounded-r-md",
       )}
@@ -454,8 +528,11 @@ function Celula({
 }
 
 function Legenda() {
+  // `presente` SAIU DA LEGENDA porque saiu da grade: desde que só a exceção é
+  // pintada, o dia disponível não tem cor nenhuma. Um item de legenda para
+  // uma cor que não aparece é pior que um item a menos — a pessoa procura o
+  // verde, não acha, e passa a desconfiar do resto da legenda.
   const ordem: PresencaStatus[] = [
-    "presente",
     "remoto",
     "ferias",
     "licenca",
@@ -464,8 +541,29 @@ function Legenda() {
     "feriado",
   ];
 
+  // A amostra de "sem alocação" acompanha o tom CLARO que a grade passou a
+  // usar para fim de semana. Com o cinza cheio de `CORES_DE_PRESENCA`, a
+  // legenda mostraria uma cor que a tela não desenha em lugar nenhum.
+  function amostra(status: PresencaStatus) {
+    return status === "folga" ? "bg-neutral-soft" : CORES_DE_PRESENCA[status];
+  }
+
   return (
     <ul className="text-text-secondary flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+      {/* A RÉGUA VEM PRIMEIRO na legenda, e não por ordem de chegada: ela é a
+          única coisa na tela que a pessoa não reconhece de outro lugar. As
+          sete cores de estado ela já viu no calendário e no relatório; um
+          número numa faixa âmbar, não. */}
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden
+          className="bg-destructive text-destructive-foreground inline-flex size-4 items-center justify-center rounded-sm text-[9px] font-semibold"
+        >
+          2
+        </span>
+        quantos da área estão fora no dia — remoto não conta
+      </li>
+      <li aria-hidden className="bg-border h-3.5 w-px" />
       {ordem.map((status) => (
         <li key={status} className="inline-flex items-center gap-1.5">
           {/* A borda existe para o feriado: o padrão listrado é claro demais
@@ -473,7 +571,7 @@ function Legenda() {
               outras a borda some sob a cor cheia. */}
           <span
             aria-hidden
-            className={cn("size-3 rounded-sm border", CORES_DE_PRESENCA[status])}
+            className={cn("size-3 rounded-sm border", amostra(status))}
           />
           {ROTULOS_DE_PRESENCA[status]}
         </li>

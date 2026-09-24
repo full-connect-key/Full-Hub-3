@@ -1354,6 +1354,45 @@ verdade para quem abrir o schema é o comentário da coluna.
   da mesma área **com o nome de quem está fora** — "indisponível" sem nome é
   uma recusa que ninguém tem como contornar nem entender.
 
+#### A Matriz da Equipe: só a exceção é pintada, e a área tem régua
+
+Escolha de layout entre três propostas, e é a B.
+
+**A grade pinta SÓ A EXCEÇÃO.** Até aqui todo dia recebia a cor do seu estado,
+"Disponível" inclusive — e como quase todo dia de quase todo mundo é
+disponível, o resultado era uma parede verde com alguns furos: a pessoa
+procurava o furo, quando o desenho devia fazê-la achar a informação. Agora o
+dia normal não tem cor nenhuma e o que salta é quem está fora. Fim de semana e
+feriado ficam num cinza claro, não em branco: sem a distinção, um descanso de
+sexta a segunda parece ter um buraco no meio.
+
+**Cada ÁREA carrega uma régua de cobertura**: uma célula por dia com quantas
+pessoas dela estão fora naquele dia. Âmbar em 1, vermelho em 2 ou mais, ponto
+quando não há ninguém. É a resposta de "a área aguenta?" sem contar linha por
+linha — com quinze nomes na tela, dois da mesma área na mesma semana só
+aparecem para quem for contar.
+
+**O limiar é o MESMO do calendário de pedido, e isso não é coincidência.** Lá,
+um dia em que qualquer colega da área está fora já é recusado
+(`bloqueiosNoIntervalo`); aqui esse mesmo dia é o âmbar. O vermelho é o que já
+passou disso — dois ou mais fora ao mesmo tempo, estado que só chega até aqui
+por lançamento retroativo ou por decisão do sócio. Duas telas com dois limiares
+seriam duas verdades sobre a mesma equipe, e a pessoa descobriria isso levando
+um "não" num dia que a matriz pintou de verde. A conta é `coberturaDaArea()`
+em `lib/dominio/full-days.ts`, um lugar só.
+
+**Remoto não conta como fora**, e é a distinção inteira: quem trabalha de
+outro lugar está trabalhando. Contá-lo acenderia alerta onde não há risco, e
+quem vê um alerta falso duas vezes para de olhar para o alerta. "Sem alocação"
+também fica de fora, por um motivo mecânico além do conceitual — é o estado
+padrão de sábado e domingo, e com ele na conta todo fim de semana apareceria
+como a área inteira fora.
+
+**A legenda perdeu o "Disponível"** junto com a cor dele. Item de legenda para
+uma cor que não aparece é pior que um item a menos: a pessoa procura o verde,
+não acha, e passa a desconfiar do resto da legenda. E a amostra de "sem
+alocação" acompanhou o tom claro que a grade passou a usar.
+
 **A tela de pedido é uma faixa de saldo, um painel de configuração e o
 calendário** — e não mais as três seções numeradas que ela teve até aqui. A
 escolha é de layout entre três propostas, e é a A. Ela deixou de ser
