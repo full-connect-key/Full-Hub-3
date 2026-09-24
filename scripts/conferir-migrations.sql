@@ -163,6 +163,143 @@ from (
               where nome = 'Wave Outubro Rosa' and client_id is null), '0033'),
 
     ('bucket campanhas-arquivos',
-     exists (select 1 from storage.buckets where id = 'campanhas-arquivos'), '0033')
+     exists (select 1 from storage.buckets where id = 'campanhas-arquivos'), '0033'),
+
+    -- ---- 0034: dois modulos saem do produto ----
+    --
+    -- AQUI O "ok" E A AUSENCIA. As tres tabelas fechavam em `auth.uid()`, e
+    -- a 0034 as apagou com o dado dentro. Rodar `exportar-antes-da-0034.sql`
+    -- ANTES e a unica chance de entregar aquele texto a quem escreveu: depois
+    -- nao ha de onde tirar.
+    ('weekly_entries APAGADA',
+     not exists (select 1 from information_schema.tables
+                  where table_schema = 'public' and table_name = 'weekly_entries'), '0034'),
+
+    ('weekly_notes APAGADA',
+     not exists (select 1 from information_schema.tables
+                  where table_schema = 'public' and table_name = 'weekly_notes'), '0034'),
+
+    ('personal_finance_entries APAGADA',
+     not exists (select 1 from information_schema.tables
+                  where table_schema = 'public' and table_name = 'personal_finance_entries'), '0034'),
+
+    -- ---- 0035: os indicadores ----
+    ('carga_do_dia() (a carga de uma pessoa)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'carga_do_dia'), '0035'),
+
+    -- Sem este trigger nao ha "tempo medio por etapa": ele e quem grava a
+    -- TRANSICAO. Um estado atual sozinho nao diz quanto tempo se passou.
+    ('trigger subtasks_registra_status',
+     exists (select 1 from pg_trigger where tgname = 'subtasks_registra_status'), '0035'),
+
+    ('rentabilidade_do_periodo()',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'rentabilidade_do_periodo'), '0035'),
+
+    -- ---- 0036: apagar workflow ----
+    ('task_types_delete (apagar workflow)',
+     exists (select 1 from pg_policies
+              where schemaname = 'public' and tablename = 'task_types'
+                and policyname = 'task_types_delete'), '0036'),
+
+    ('demandas_do_workflow() (o que o workflow ja gerou)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'demandas_do_workflow'), '0036'),
+
+    -- ---- 0037: lancamento retroativo ----
+    ('hr_requests.origem (pedido x lancamento)',
+     exists (select 1 from information_schema.columns
+              where table_name = 'hr_requests' and column_name = 'origem'), '0037'),
+
+    ('lancar_periodo() (a gestao registra o passado)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'lancar_periodo'), '0037'),
+
+    -- A POLICY E UMA SO COM DOIS RAMOS, e conferir o nome nao bastaria:
+    -- partida em duas permissivas ela vira um OR, e a de pedido sozinha ja
+    -- deixaria o colaborador gravar qualquer origem. Por isso o teste olha a
+    -- expressao.
+    ('hr_requests_insert tem os dois ramos numa policy so',
+     exists (select 1 from pg_policies
+              where schemaname = 'public' and tablename = 'hr_requests'
+                and policyname = 'hr_requests_insert'
+                and with_check like '%lancamento_retroativo%'
+                and with_check like '%solicitacao%'), '0037'),
+
+    -- ---- 0038: os feriados que o calendario passou a alcancar ----
+    --
+    -- Ano sem feriado na tabela nao aparece vazio, aparece NORMAL: o Natal
+    -- vira um dia util qualquer e a contagem sai maior, sem nada avisando.
+    ('feriados de 2025 (13 linhas)',
+     (select count(*) from public.holidays
+       where data between '2025-01-01' and '2025-12-31') >= 13, '0038'),
+
+    ('feriados de 2030 (13 linhas)',
+     (select count(*) from public.holidays
+       where data between '2030-01-01' and '2030-12-31') >= 13, '0038'),
+
+    -- ---- 0039: o descanso por ciclo de 12 meses ----
+    ('ciclos_de_descanso() (o ciclo contado da entrada)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'ciclos_de_descanso'), '0039'),
+
+    -- A ARIDADE E O TESTE, e nao o nome: a funcao existe desde a 0011 com
+    -- dois parametros. Um banco parado na 0038 tem `saldo_de_ferias` e
+    -- responderia "ok" a uma checagem que so procurasse o nome.
+    ('saldo_de_ferias() perdeu o parametro de ano',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'saldo_de_ferias'
+                and p.pronargs = 1), '0039'),
+
+    ('hr_requests.ano_referencia APAGADA',
+     not exists (select 1 from information_schema.columns
+                  where table_name = 'hr_requests' and column_name = 'ano_referencia'), '0039'),
+
+    ('descanso_do_ciclo() (a tela pergunta o saldo ao banco)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'descanso_do_ciclo'), '0039'),
+
+    -- ---- 0040: demandas recorrentes ----
+    ('task_recurrences (a regra)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'task_recurrences'), '0040'),
+
+    ('recurrence_runs (o historico de execucao)',
+     exists (select 1 from information_schema.tables
+              where table_schema = 'public' and table_name = 'recurrence_runs'), '0040'),
+
+    -- A PROTECAO MAIS IMPORTANTE DA MIGRATION. Sem o indice unico, a rotina
+    -- noturna e o botao "Gerar agora" clicados no mesmo segundo criam a
+    -- mesma demanda duas vezes -- e o duplicado aparece como trabalho de
+    -- verdade na fila de alguem.
+    ('indice unico (regra, ocorrencia) -- a idempotencia',
+     exists (select 1 from pg_indexes
+              where schemaname = 'public' and tablename = 'recurrence_runs'
+                and indexdef like '%UNIQUE%'
+                and indexdef like '%recurrence_id%'
+                and indexdef like '%chave_ocorrencia%'), '0040'),
+
+    ('gerar_ocorrencia() (gera uma ocorrencia)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'gerar_ocorrencia'), '0040'),
+
+    ('gerar_recorrencias() (a rotina diaria)',
+     exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'gerar_recorrencias'), '0040'),
+
+    ('tasks.recurrence_id (de que regra a task saiu)',
+     exists (select 1 from information_schema.columns
+              where table_name = 'tasks' and column_name = 'recurrence_id'), '0040'),
+
+    ('subtasks.aviso_geracao (o aviso na etapa gerada)',
+     exists (select 1 from information_schema.columns
+              where table_name = 'subtasks' and column_name = 'aviso_geracao'), '0040'),
+
+    -- Desativar cliente pausa as regras dele. Sem isto, uma conta encerrada
+    -- continua recebendo demanda todo mes -- e ninguem olha o board de um
+    -- cliente que saiu.
+    ('trigger clients_pausa_recorrencias',
+     exists (select 1 from pg_trigger where tgname = 'clients_pausa_recorrencias'), '0040')
 ) as t(item, existe, migration)
 order by migration;
