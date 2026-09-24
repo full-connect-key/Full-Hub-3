@@ -193,19 +193,30 @@ begin
     return new;
   end if;
 
-  -- ATRIBUICAO, E NAO `select ... into`, de proposito.
+  -- ATRIBUICAO, E NAO `select ... into`. NESTE ARQUIVO INTEIRO.
   --
-  -- As duas formas fazem a mesma coisa no plpgsql. A diferenca aparece quando
-  -- o corpo da funcao NAO chega inteiro ao servidor: com `select x into y`, o
-  -- `y` ocupa a posicao em que um parser espera um nome de tabela, e o erro
-  -- que sai e "relation "y" does not exist" -- uma mensagem que aponta para
-  -- uma tabela que nunca existiu e manda quem le procurar no lugar errado.
-  -- Foi exatamente o que o SQL Editor do Supabase devolveu nesta linha. Com
-  -- `y := (select ...)` nao ha essa leitura possivel: ou o corpo chega
-  -- inteiro, ou o erro fala da funcao.
+  -- As duas formas fazem a mesma coisa no plpgsql, e esta migration usava a
+  -- outra. O SQL Editor do Supabase recusou o arquivo com
   --
-  -- E a variavel tem prefixo: `avo` e curto o bastante para colidir com
-  -- qualquer coisa que apareca no schema depois.
+  --     ERROR: 42P01: relation "avo" does not exist
+  --
+  -- onde "avo" era a variavel declarada tres linhas acima. Trocada essa, o
+  -- erro pulou para "proximo" -- a variavel do `select ... into` seguinte.
+  -- Ou seja: sistematico, e nao um pedaco perdido no meio do arquivo.
+  --
+  -- NAO SABEMOS POR QUE, e vale registrar isso em vez de inventar um motivo:
+  -- o arquivo aplica limpo no Postgres 16 aqui, inteiro, numa transacao so, e
+  -- duas vezes seguidas. O que se sabe e que alguma coisa entre o editor e o
+  -- servidor le o alvo do `into` como nome de tabela -- e `select x into y` e
+  -- a unica construcao do plpgsql em que uma variavel ocupa a posicao onde um
+  -- parser espera uma relacao. Tirada ela, nao ha essa leitura possivel.
+  --
+  -- O QUE SE PERDE E `found`, que quem preenche e o proprio `select ... into`.
+  -- Onde ele era usado, a pergunta virou explicita -- `if p.id is null`,
+  -- `if not exists (...)`. Mais longa de escrever, mais facil de ler.
+  --
+  -- E a variavel ganhou prefixo: `avo` e curto o bastante para colidir com
+  -- qualquer coisa que entre no schema depois.
   v_raiz := (
     select c.resposta_a from public.comments c where c.id = new.resposta_a
   );
@@ -287,13 +298,11 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  proximo integer;
 begin
-  select coalesce(max(numero_versao), 0) + 1 into proximo
-    from public.post_versions where post_id = new.post_id;
-
-  new.numero_versao := proximo;
+  new.numero_versao := (
+    select coalesce(max(v.numero_versao), 0) + 1
+      from public.post_versions v where v.post_id = new.post_id
+  );
   new.criado_por := coalesce(new.criado_por, (select auth.uid()));
 
   return new;
@@ -360,16 +369,14 @@ security definer
 set search_path = public
 stable
 as $$
-declare
-  achou boolean;
 begin
-  select true into achou
-    from public.posts p
-   where p.id = p_post_id
-     and p.enviado_em is not null
-     and p.client_id in (select public.my_client_ids());
-
-  return coalesce(achou, false);
+  return exists (
+    select 1
+      from public.posts p
+     where p.id = p_post_id
+       and p.enviado_em is not null
+       and p.client_id in (select public.my_client_ids())
+  );
 end;
 $$;
 
@@ -549,8 +556,11 @@ begin
     return new;
   end if;
 
-  select * into p from public.posts where id = new.content_id;
-  if not found then
+  -- `found` nao vale aqui, e e consequencia da troca: quem o preenche e o
+  -- `select ... into`, que saiu. A pergunta vira explicita, e de quebra fica
+  -- mais legivel que um booleano implicito tres linhas depois.
+  p := (select ps from public.posts ps where ps.id = new.content_id);
+  if p.id is null then
     return new;
   end if;
 
@@ -560,8 +570,10 @@ begin
     return new;
   end if;
 
-  select nome into quem from public.profiles where id = new.autor_id;
-  select responsavel_atendimento_id into atendente from public.clients where id = p.client_id;
+  quem := (select pr.nome from public.profiles pr where pr.id = new.autor_id);
+  atendente := (
+    select c.responsavel_atendimento_id from public.clients c where c.id = p.client_id
+  );
 
   perform public.notificar(
     atendente, 'cliente',
@@ -629,9 +641,13 @@ begin
   end if;
 
   if post is not null then
-    select p.criado_por into dono from public.posts p where p.id = post;
+    dono := (select p.criado_por from public.posts p where p.id = post);
 
-    if not found then
+    -- Sem `select ... into` nao ha `found`, entao a existencia do post e
+    -- perguntada em voz alta. `dono` pode ser nulo num post legitimo (o autor
+    -- saiu da agencia), e e por isso que a pergunta e sobre o POST e nao
+    -- sobre ele.
+    if not exists (select 1 from public.posts p where p.id = post) then
       raise exception using
         errcode = 'check_violation',
         message = 'Post não encontrado.';
@@ -682,8 +698,8 @@ begin
     return new;
   end if;
 
-  select s.responsavel_id, s.requer_aprovacao into dono, exige
-    from public.subtasks s where s.id = alvo;
+  dono  := (select s.responsavel_id   from public.subtasks s where s.id = alvo);
+  exige := (select s.requer_aprovacao from public.subtasks s where s.id = alvo);
 
   if not coalesce(exige, false) then
     raise exception using
@@ -804,9 +820,9 @@ declare
   quem       uuid := (select auth.uid());
   nome_quem  text;
 begin
-  select * into r from public.approval_rounds where id = p_round_id;
+  r := (select ar from public.approval_rounds ar where ar.id = p_round_id);
 
-  if not found then
+  if r.id is null then
     raise exception 'Rodada não encontrada.';
   end if;
 
@@ -871,16 +887,19 @@ begin
                        when 'rejeitada' then 'rejeitado'
                        else 'ajustes'
                      end)::public.content_status
-     where id = post
-    returning * into p;
+     where id = post;
+
+    p := (select ps from public.posts ps where ps.id = post);
 
     if p_comentario is not null and btrim(p_comentario) <> '' then
       insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto, interno)
       values ('post', post, p_round_id, quem, p_comentario, false);
     end if;
 
-    select nome into nome_quem from public.profiles where id = quem;
-    select responsavel_atendimento_id into atendente from public.clients where id = p.client_id;
+    nome_quem := (select pr.nome from public.profiles pr where pr.id = quem);
+    atendente := (
+      select c.responsavel_atendimento_id from public.clients c where c.id = p.client_id
+    );
 
     perform public.notificar(
       atendente, 'aprovacao',
@@ -940,7 +959,7 @@ begin
      set status = (case when p_decisao = 'aprovada' then 'concluida' else 'em_ajustes' end)::public.subtask_status
    where id = alvo;
 
-  select task_id into id_da_task from public.subtasks where id = alvo;
+  id_da_task := (select s.task_id from public.subtasks s where s.id = alvo);
 
   insert into public.task_history (task_id, subtask_id, approval_round_id, acao, para_valor, autor_id)
   values (id_da_task, alvo, p_round_id,
