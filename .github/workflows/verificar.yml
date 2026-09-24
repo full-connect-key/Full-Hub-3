@@ -47,6 +47,16 @@ jobs:
       - name: Mensagens de validação
         run: npm run check:mensagens
 
+      # Um `$$` escrito dentro de um comentário `--` de migration. Para o
+      # Postgres não é nada; para quem separa os comandos antes de mandá-los
+      # -- o SQL Editor do Supabase, um cliente gráfico, um script de deploy --
+      # é a abertura de uma string, e a partir dali a contagem sai de
+      # sincronia: o corpo da próxima função passa a ser lido como SQL solto.
+      # O erro que aparece fala de outra coisa, três telas abaixo. Aconteceu na
+      # 0032 e custou três tentativas de aplicar.
+      - name: Migrations que sobrevivem ao separador de comandos
+        run: npm run check:migrations
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

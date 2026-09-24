@@ -22,7 +22,7 @@
 --    desenho.
 --
 --    O valor entra por `alter type ... add value`, FORA de qualquer bloco: o
---    Postgres recusa esse comando dentro de um `do $$`. E ele nao e USADO em
+--    Postgres recusa esse comando dentro de um bloco `do`. E ele nao e USADO em
 --    lugar nenhum executado por esta migration -- so dentro de corpo de
 --    funcao, que e texto ate alguem chamar --, porque um valor de enum nao
 --    pode ser usado na mesma transacao em que nasce, e o SQL Editor do

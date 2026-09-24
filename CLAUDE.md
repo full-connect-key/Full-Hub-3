@@ -1445,6 +1445,19 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   olhando. As migrations continuam indo à mão, na ordem, por quem decidiu
   aplicá-las — o script avisa no fim quando o deploy trouxe alguma.
 
+  **E tem um segundo bug, que parece outra coisa inteira.** Um `$$` escrito
+  dentro de um comentário `--` de migration não é nada para o Postgres —
+  comentário é comentário. Mas quem SEPARA os comandos antes de mandá-los (o
+  SQL Editor do Supabase, um cliente gráfico, um script de deploy) lê aquilo
+  como abertura de string, e a partir dali a contagem sai de sincronia: o
+  `as $$` da próxima função vira o fechamento daquela string, e o corpo dela
+  passa a ser lido como SQL solto. Os erros que saem falam de outra coisa,
+  três telas abaixo — *relation "avo" does not exist* para um `select ... into
+  avo`, *syntax error at or near "return"* para um `return old;`. Custou três
+  tentativas de aplicar a 0032 até alguém olhar a linha 25. `npm run
+  check:migrations` procura o marcador em comentário e confere a paridade de
+  cada tag, e roda no CI: é critério que precisa ser conferido toda vez.
+
   **A consequência disso aparece como bug, e é sempre o mesmo bug:** o código
   sobe, a coluna não existe ainda, e a tela devolve *"Could not find the 'x'
   column of 'y' in the schema cache"*. Não é cache errado — é a migration que
@@ -1526,6 +1539,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
+| `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário e que todo marcador de dollar quoting abre e fecha |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
