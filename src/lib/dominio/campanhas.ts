@@ -62,6 +62,8 @@ export type CampanhaDoPortal = {
   id: string;
   clienteId: string;
   cliente: string;
+  /** O endereço do portal daquele cliente. Null enquanto o slug não existir. */
+  slug: string | null;
   nome: string;
   descricao: string | null;
   dataInicio: string;

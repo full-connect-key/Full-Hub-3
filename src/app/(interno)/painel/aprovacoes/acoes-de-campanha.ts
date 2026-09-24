@@ -59,6 +59,19 @@ const esquemaDaCampanha = z
     /** De onde a estrutura saiu. Guardado como procedência, não como regra. */
     templateId: z.string().uuid().nullable().optional(),
     /**
+     * O estado da campanha, e ele PRECISA estar aqui.
+     *
+     * A coluna tem default `planejamento` no banco, e a primeira versão desta
+     * tela não oferecia o campo — então toda campanha nascia em planejamento,
+     * e tanto a listagem do portal (que abre em "Ativas") quanto o bloco
+     * "Campanhas ativas" da tela inicial a escondiam. Ela existia e não
+     * aparecia em lugar nenhum, que é o pior desfecho possível para um
+     * "Criar".
+     */
+    status: z
+      .enum(["planejamento", "ativa", "finalizada", "cancelada"])
+      .default("ativa"),
+    /**
      * A ÁRVORE COMO A PESSOA A DEIXOU, e não o modelo de onde ela saiu.
      *
      * Quem expande o template é a tela, no instante em que ele é escolhido —
@@ -108,6 +121,7 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
         descricao: dados.descricao || null,
         data_inicio: dados.dataInicio,
         data_fim: dados.dataFim,
+        status: dados.status,
         template_id: dados.templateId ?? null,
         criado_por: sessao.usuarioId,
       })

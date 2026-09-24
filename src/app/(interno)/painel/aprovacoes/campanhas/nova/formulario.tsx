@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { entregaveisDoTemplate } from "@/lib/dominio/campanhas";
+import {
+  entregaveisDoTemplate,
+  ROTULO_DA_CAMPANHA,
+} from "@/lib/dominio/campanhas";
+import type { CampaignStatus } from "@/lib/supabase/database.types";
 import type { TemplateDeCampanha } from "@/lib/dados/campanhas";
 
 import { criarCampanha } from "../../acoes-de-campanha";
@@ -68,6 +72,12 @@ export function FormularioDeCampanha({
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [templateId, setTemplateId] = useState(SEM_MODELO);
+  // ATIVA por padrão, e não "planejamento" como o banco.
+  //
+  // Quem abre uma campanha está abrindo uma campanha que vai acontecer. Com
+  // o default do banco ela nascia em planejamento e sumia das duas telas que
+  // filtram por ativa — existia sem aparecer.
+  const [status, setStatus] = useState<CampaignStatus>("ativa");
   const [arvore, setArvore] = useState<NoEmEdicao[]>([]);
 
   /**
@@ -139,6 +149,7 @@ export function FormularioDeCampanha({
           nome,
           dataInicio,
           dataFim,
+          status,
           templateId: templateId === SEM_MODELO ? null : templateId,
           estrutura: arvore
             // Linha em branco não vira entregável: quem clicou em "adicionar"
@@ -215,6 +226,33 @@ export function FormularioDeCampanha({
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="status">Estado</Label>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as CampaignStatus)}
+            >
+              <SelectTrigger id="status" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* `cancelada` fica de fora: ninguém abre uma campanha
+                    cancelada, e oferecer o valor aqui seria oferecer um
+                    caminho que só serve para errar. */}
+                {(["ativa", "planejamento", "finalizada"] as const).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {ROTULO_DA_CAMPANHA[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-text-muted text-sm">
+              {status === "ativa"
+                ? "O cliente vê a campanha na lista dele assim que ela existir."
+                : "Fora de “Ativa”, ela fica no filtro correspondente do portal — o cliente precisa trocar o filtro para vê-la."}
+            </p>
           </div>
         </div>
       </SecaoDoFormulario>

@@ -32,6 +32,31 @@ export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
  * contasse por conta própria, as duas dariam números diferentes no dia em que
  * alguém mexesse numa delas.
  */
+/**
+ * A linha da lista: link quando há para onde ir, bloco quando não há.
+ *
+ * Um `<Link href="">` renderiza uma âncora que parece clicável e não vai a
+ * lugar nenhum — pior que um bloco honesto.
+ */
+function ComoLinha({
+  href,
+  children,
+}: {
+  href: string | null;
+  children: React.ReactNode;
+}) {
+  const classe =
+    "bg-surface-card flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4";
+
+  if (!href) return <div className={classe}>{children}</div>;
+
+  return (
+    <Link href={href} className={`${classe} hover:border-accent-strong transition-colors`}>
+      {children}
+    </Link>
+  );
+}
+
 export default async function PaginaDeAprovacoes() {
   await exigirAcessoARota("/painel/aprovacoes");
 
@@ -65,10 +90,15 @@ export default async function PaginaDeAprovacoes() {
             const conta = progresso(folhas(emArvore(arvores[i])));
 
             return (
-              <li
-                key={campanha.id}
-                className="bg-surface-card flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
-              >
+              <li key={campanha.id}>
+                {/* A LINHA ABRE O PORTAL DAQUELE CLIENTE, que é a única tela
+                    de detalhe de campanha que existe hoje. Sem isto a tela
+                    listava a campanha e não levava a lugar nenhum — e quem
+                    acabou de criar uma queria justamente ver como ela ficou.
+
+                    Campanha sem slug não vira link em vez de virar um link
+                    quebrado: o cliente ainda não tem endereço de portal. */}
+                <ComoLinha href={campanha.slug ? `/portal/${campanha.slug}/campanhas/${campanha.id}` : null}>
                 <div className="min-w-0">
                   <p className="font-medium">{campanha.nome}</p>
                   <p className="text-text-muted text-sm tabular-nums">
@@ -83,6 +113,7 @@ export default async function PaginaDeAprovacoes() {
                 <p className="text-text-muted text-sm tabular-nums">
                   {conta.aprovados} de {conta.total} aprovados
                 </p>
+                </ComoLinha>
               </li>
             );
           })}

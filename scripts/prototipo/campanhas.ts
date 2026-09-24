@@ -28,6 +28,7 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     id: "camp-wave",
     clienteId: VERDE,
     cliente: "Mundo Verde",
+    slug: "mundo-verde",
     nome: "Wave Outubro Rosa",
     descricao:
       "A campanha de outubro: KV, enxoval de peças, feed, vídeos e os arquivos do Deskfy.",
@@ -39,6 +40,7 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     id: "camp-verao",
     clienteId: VERDE,
     cliente: "Mundo Verde",
+    slug: "mundo-verde",
     nome: "Linha de Verão",
     descricao: null,
     dataInicio: dia(-90),
@@ -49,6 +51,7 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     id: "camp-natal",
     clienteId: VERDE,
     cliente: "Mundo Verde",
+    slug: "mundo-verde",
     nome: "Natal 2026",
     descricao: null,
     dataInicio: dia(60),

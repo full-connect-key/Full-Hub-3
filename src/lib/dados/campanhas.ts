@@ -66,27 +66,37 @@ type LinhaDeEntregavel = {
   enviado_em: string | null;
 };
 
-async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
+async function nomesDasEmpresas(
+  ids: string[],
+): Promise<Map<string, { nome: string; slug: string | null }>> {
   const limpos = [...new Set(ids)];
   if (limpos.length === 0) return new Map();
 
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("clients")
-    .select("id, nome_empresa")
+    .select("id, nome_empresa, slug")
     .in("id", limpos);
 
-  return new Map((data ?? []).map((c) => [c.id, c.nome_empresa]));
+  return new Map(
+    (data ?? []).map(
+      (c) => [c.id, { nome: c.nome_empresa, slug: c.slug }] as const,
+    ),
+  );
 }
 
 function montarCampanha(
   linha: LinhaDeCampanha,
-  empresas: Map<string, string>,
+  empresas: Map<string, { nome: string; slug: string | null }>,
 ): CampanhaDoPortal {
   return {
     id: linha.id,
     clienteId: linha.client_id,
-    cliente: empresas.get(linha.client_id) ?? "",
+    cliente: empresas.get(linha.client_id)?.nome ?? "",
+    // O slug abre o portal DAQUELE cliente, que é a única tela de detalhe de
+    // campanha que existe hoje. Sem ele a tela da agência lista a campanha e
+    // não leva a lugar nenhum — que foi exatamente o que aconteceu.
+    slug: empresas.get(linha.client_id)?.slug ?? null,
     nome: linha.nome,
     descricao: linha.descricao,
     dataInicio: linha.data_inicio,
