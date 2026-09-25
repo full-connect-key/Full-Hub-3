@@ -1880,6 +1880,18 @@ export interface Database {
        * **Nao e `security definer`:** `campaigns_insert` e `tasks_insert`
        * continuam decidindo quem pode. Devolve o id da campanha.
        */
+      /**
+       * O resumo da tela inicial, num JSON so (0049).
+       *
+       * Os blocos que a pessoa PODE ver, decididos dentro da funcao: quem nao
+       * e gestao recebe `meu_dia`, `precisa_de_mim` e `fora_hoje` e mais
+       * nada. Nao e `security definer` -- `auth.uid()` e quem ela pergunta, e
+       * o RLS continua valendo em cada `select` de dentro.
+       */
+      home_summary: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
       abrir_campanha: {
         Args: {
           p_cliente: string;
