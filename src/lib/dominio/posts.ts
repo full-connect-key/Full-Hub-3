@@ -459,6 +459,47 @@ export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as cons
  * nomes soltos. "Design" sozinho não conta a quem escolhe que essa pessoa vai
  * pegar também os ajustes que o cliente pedir.
  */
+/**
+ * A corrente, na ordem, com o dia que cada etapa costuma pedir (0059).
+ *
+ * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com
+ * estes números preenchidos e a pessoa muda o que quiser. Um formulário com
+ * cinco campos vazios faria quem abre o mês inventar cinco números na hora, e
+ * inventar é o que este produto evita desde a 0044 — o mês abre em branco
+ * justamente para ninguém chutar data.
+ *
+ * Os números são NEGATIVOS porque contam para trás da publicação: a pauta
+ * começa dez dias antes, a programação é no dia. Quem escrever positivo está
+ * dizendo "depois de ir ao ar", que existe e é raro — por isso o campo aceita
+ * e não recusa.
+ *
+ * **A ordem aqui É a ordem da corrente**, e o banco recusa dias que andem para
+ * trás dela (0059): o Layout com prazo antes do Conteúdo é quase sempre um
+ * número trocado, e a corrente já recusa começar o Layout antes de o Conteúdo
+ * fechar — a pessoa veria no calendário uma etapa vencendo num dia em que o
+ * banco ainda não deixa tocá-la.
+ */
+export const ETAPAS_DA_CORRENTE = [
+  { nome: "Pauta", funcao: "Social Media", offsetPadrao: -10 },
+  { nome: "Conteúdo", funcao: "Redator", offsetPadrao: -7 },
+  { nome: "Layout", funcao: "Design", offsetPadrao: -4 },
+  { nome: "Envio", funcao: "Social Media", offsetPadrao: -3 },
+  { nome: "Programar", funcao: "Social Media", offsetPadrao: 0 },
+] as const;
+
+/**
+ * "3 dias antes", "no dia", "2 dias depois".
+ *
+ * A frase existe porque `-3` não é português. O campo aceita o número — é o
+ * que se digita rápido —, e a frase ao lado é o que confere.
+ */
+export function rotuloDoOffset(dias: number): string {
+  if (dias === 0) return "no dia da publicação";
+  const quantos = Math.abs(dias);
+  const plural = quantos === 1 ? "dia" : "dias";
+  return dias < 0 ? `${quantos} ${plural} antes` : `${quantos} ${plural} depois`;
+}
+
 export const ETAPAS_DA_FUNCAO: Record<string, string> = {
   "Social Media": "Pauta e Programar",
   Redator: "Conteúdo",

@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
+import {
+  exigirAtendimentoNaAcao,
+  exigirEquipeNaAcao,
+  exigirGestorNaAcao,
+} from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -402,6 +406,19 @@ const esquemaDoMes = z.object({
   mes: z.string().regex(/^\d{4}-\d{2}$/, "Escolha o mês."),
   quantidades: z.record(z.string(), z.number().int().min(0).max(60)),
   responsaveis: z.record(z.string(), z.string().uuid().nullable()),
+  /**
+   * O dia de cada etapa, em DIAS relativos à publicação (negativo = antes).
+   *
+   * A chave é o NOME da etapa e não a função, ao contrário de `responsaveis`:
+   * Pauta e Programar são as duas de Social Media, e uma chave por função
+   * daria às duas o mesmo dia — a pauta venceria junto com a programação,
+   * que é o fim da corrente.
+   *
+   * O teto de 60 para cada lado é o mesmo do banco. Repetir o número aqui é
+   * o que faz a recusa aparecer antes de a pessoa mandar; quem vale é o
+   * `check` da 0059, e é ele que pega quem chamar a RPC direto.
+   */
+  prazos: z.record(z.string(), z.number().int().min(-60).max(60).nullable()).optional(),
 });
 
 /**
@@ -414,7 +431,17 @@ const esquemaDoMes = z.object({
  */
 export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number>> {
   return executarAcao("abrirMesDeSocial", async () => {
-    await exigirGestorNaAcao();
+    // `exigirAtendimentoNaAcao` E NÃO `exigirGestorNaAcao`, e a troca conserta
+    // uma divergência: a 0046 abriu a função para `is_atendimento()` — "o
+    // ATENDIMENTO abre o mês", decisão do usuário — e esta guarda continuou em
+    // gestão. O banco aceitava e a tela recusava antes, então a pessoa do
+    // Atendimento lia "seu perfil não permite esta ação" numa ação que o
+    // produto diz que é dela.
+    //
+    // É a lição da 0029 de novo, virada: quando a regra mora nos dois lados,
+    // mudar um não muda nada — e aqui o lado que ficou para trás era o de cima,
+    // que é o que a pessoa encontra.
+    await exigirAtendimentoNaAcao();
 
     const lido = esquemaDoMes.safeParse(dados);
     if (!lido.success) {
@@ -433,12 +460,22 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
       if (quem) responsaveis[funcao] = quem;
     }
 
+    // Mesma limpeza dos responsáveis, pelo mesmo motivo: etapa sem dia
+    // escolhido não viaja. Mandar `{"Layout": null}` faria o banco gravar nulo
+    // por cima de nada — inofensivo, e o mapa passaria a dizer que alguém
+    // escolheu "sem dia", que é outra coisa.
+    const prazos: Record<string, number> = {};
+    for (const [etapa, dias] of Object.entries(lido.data.prazos ?? {})) {
+      if (typeof dias === "number") prazos[etapa] = dias;
+    }
+
     const { data, error } = await supabase.rpc("abrir_mes_de_social", {
       p_client_id: lido.data.client_id,
       p_mes: lido.data.mes,
       p_quantidades: lido.data.quantidades,
       p_responsavel_id: null,
       p_responsaveis: responsaveis,
+      p_prazos: prazos,
     });
 
     if (error) {

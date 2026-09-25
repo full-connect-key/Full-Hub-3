@@ -140,7 +140,8 @@ from (
     ('0055', 'view calendar_events',            'tabela',       'calendar_events'),
     ('0056', 'rate_limits',                     'tabela',       'rate_limits'),
     ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal'),
-    ('0058', 'audit_log',                       'tabela',       'audit_log')
+    ('0058', 'audit_log',                       'tabela',       'audit_log'),
+    ('0059', 'post_etapas.prazo_offset_dias',   'coluna',       'post_etapas.prazo_offset_dias')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

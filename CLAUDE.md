@@ -484,9 +484,10 @@ e campanha) e o do Full Days (quem está fora). Nenhum dos dois respondia a
 pergunta que a agência faz toda segunda: **"o que acontece nesta semana, e
 quem está disponível para fazer?"**
 
-**Tudo sai de UMA view, `calendar_events`**, que junta sete origens num
-formato só: demanda, etapa, ausência, evento, post, campanha e entregável.
-Acrescentar a oitava é acrescentar um `union all`. Nenhuma tabela de evento
+**Tudo sai de UMA view, `calendar_events`**, que junta OITO origens num
+formato só: demanda, etapa, ausência, evento, post, **etapa de post**,
+campanha e entregável. A oitava entrou na 0059, e entrou exatamente como este
+parágrafo dizia que entraria: um `union all` a mais. Nenhuma tabela de evento
 agregado: uma tabela que copia prazo de etapa, data de post e período de
 campanha precisa ser reescrita por sete caminhos para continuar verdadeira, e
 no dia em que um deles falhar o calendário mente sem avisar. É a mesma razão
@@ -1334,6 +1335,89 @@ meio do fluxo.
 — aquela função já foi reescrita inteira várias vezes, e cada reescrita é uma
 chance de o trecho ficar para trás. De quebra, o gatilho pega todo caminho que
 põe o post em ajustes, não só o botão do portal.
+
+#### A data de cada etapa, escolhida ao abrir o mês
+
+Migration 0059, decisão do usuário: *"quando eu abra um mês de social, eu
+possa escolher em qual dia cada etapa da task vai ser realizada, para que já
+entre no calendário da pessoa responsável"*.
+
+**O que faltava não era a coluna.** `post_etapas.prazo` existe desde a 0045 e
+nunca era preenchida por ninguém. Faltavam três coisas: de onde a data vem, o
+que acontece quando o post muda de dia, e o **oitavo `union all`** da
+`calendar_events` — sem ele a etapa podia ter dia marcado e não aparecia no
+calendário de pessoa nenhuma. A data existia na tabela e não existia na tela,
+que é o pior dos dois estados.
+
+**É OFFSET e não data fixa.** "Layout três dias antes de ir ao ar" vale para os
+doze posts do mês; data fixa obrigaria a digitar doze vezes e nasceria errada
+no dia em que a publicação mudasse de dia. É a mesma razão de
+`workflow_steps.prazo_offset_dias` desde a 0008.
+
+A diferença é que `post_etapas` é **instância** e não modelo, então ela guarda
+as duas: `prazo_offset_dias` (a regra) e `prazo` (o dia). A regra existe para o
+dia se recalcular sozinho quando o post andar.
+
+**O post abre sem data, e isso não quebra nada — é a parte que encaixa.** A
+0044 decidiu que o mês abre em branco. Com o offset gravado e a publicação
+ainda nula, `prazo` fica nulo também; no instante em que alguém escreve o dia
+do post, as cinco etapas caem no calendário das cinco pessoas de uma vez. A
+regra fica guardada esperando o dia.
+
+**E o volante se pega, como no status da Task.** Datar uma etapa à mão **limpa
+o offset dela** — dali em diante o post pode andar que ela fica onde alguém a
+pôs. É a decisão da 0025: aceitar o clique e deixar o recálculo desfazer em
+seguida é o pior dos dois mundos, porque a escolha some sem ninguém ver. *O
+que não existe é o caminho de volta* ("deixar o Full Hub calcular"): a etapa é
+uma linha num card, não uma tela com rodapé — quem quiser a regra de volta
+abre o mês de novo. A assimetria com a 0025 é consciente.
+
+**O trigger que limpa o offset precisa de duas condições, e não de uma:** só
+quando o `prazo` mudou **e** o offset não. Sem a segunda, mexer no status de
+uma etapa apagaria a regra de data de passagem — e o sintoma seria uma etapa
+que para de andar com o post sem ninguém ter tocado na data.
+
+**E o recálculo usa o GUC de escopo local**, a mesma saída de
+`posts_corrente_do_cliente` (0045): sem ele, o próprio recálculo dispararia o
+trigger e apagaria a regra que acabou de aplicar, na primeira vez que alguém
+trocasse a data do post.
+
+**A chave dos prazos é o NOME da etapa, e não a função** — ao contrário de
+`p_responsaveis`. Pauta e Programar são as **duas** de Social Media, e uma
+chave por função daria às duas o mesmo dia: a pauta venceria junto com a
+programação, que é o fim da corrente.
+
+**A corrente não pode vencer de trás para a frente**, e o banco recusa nomeando
+a etapa. O Layout com prazo antes do Conteúdo é quase sempre um número
+trocado, e o estrago é grande: a corrente já recusa começar o Layout antes de o
+Conteúdo fechar (0045), então a pessoa veria no calendário dela uma etapa
+vencendo num dia em que o banco ainda não deixa tocá-la.
+
+**O diálogo abre com os cinco números preenchidos** (−10, −7, −4, −3, 0), e é
+sugestão e não contrato — como o modelo de campanha. Cinco campos vazios
+fariam quem abre o mês inventar cinco números, e inventar data é o que a 0044
+evita. Ao lado de cada campo vai a frase: `-3` não é português, e "3 dias
+antes" é o que se confere.
+
+**A guarda da action estava mais apertada que o banco, e isso foi consertado
+junto.** A 0046 abriu `abrir_mes_de_social()` para `is_atendimento()` — "o
+Atendimento abre o mês" —, e `abrirMesDeSocial` continuou em
+`exigirGestorNaAcao`. O banco aceitava e a tela recusava antes: a pessoa do
+Atendimento lia "seu perfil não permite esta ação" numa ação que o produto diz
+que é dela. É a lição da 0029 virada — quando a regra mora nos dois lados,
+mudar um não muda nada, e aqui o lado que ficou para trás era o de cima.
+
+**A oitava origem da `calendar_events`** é `etapa_de_post`, e ela é camada
+própria: `post` é o dia em que a peça vai ao ar, `etapa_de_post` é o dia em que
+o trabalho de alguém precisa estar pronto, e as duas datas raramente são a
+mesma. O `client_id` vem do **post** — a etapa não tem cliente, e sem o join o
+filtro por cliente deixaria estas linhas passar sempre, o que parece "sem
+filtro" e é pauta de uma conta aparecendo na tela de quem filtrou por outra.
+
+**`create or replace view` NÃO herda `security_invoker`**, e a cláusula foi
+repetida na 0059 por isso. Sem ela a view voltaria a rodar com os direitos de
+quem a criou e leria as oito tabelas inteiras para qualquer pessoa autenticada
+— e o furo passa despercebido num banco com um cliente só. A bateria mede.
 
 #### O card: quem pega a etapa é quem preenche
 
@@ -3297,6 +3381,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0056_limite_de_tentativas.sql` | **Pendente de aplicação.** Traz `rate_limits` e as funções `consumir_tentativa()` e `perdoar_tentativas()`. Sem ela o login, a recuperação de senha e o comentário voltam a aceitar repetição sem contar — e **sem erro na tela**, porque o limitador falha para o lado aberto |
 | `supabase/migrations/0057_atualizacao_ao_vivo.sql` | **Pendente de aplicação.** A policy que decide quem ouve o canal da equipe. Sem ela o canal é privado e não autorizado: o Painel mostra **"Sem atualização ao vivo"** e nada se atualiza sozinho — visível, não silencioso |
 | `supabase/migrations/0058_trilha_de_auditoria.sql` | **Pendente de aplicação.** Traz `audit_log` e o trigger `registrar_auditoria()` em 13 tabelas. Sem ela, `/painel/auditoria` devolve erro de tabela inexistente — e nada é registrado |
+| `supabase/migrations/0059_a_data_de_cada_etapa_do_social.sql` | **Pendente de aplicação.** Traz `post_etapas.prazo_offset_dias`, o recálculo quando o post muda de dia e a OITAVA origem da `calendar_events`. Sem ela, abrir o mês continua criando etapas sem data e elas não entram no calendário de ninguém |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

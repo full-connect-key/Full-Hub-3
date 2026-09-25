@@ -26,10 +26,12 @@ import {
 } from "@/components/ui/select";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
+  ETAPAS_DA_CORRENTE,
   ETAPAS_DA_FUNCAO,
   FUNCOES_DA_CORRENTE,
   PLATAFORMAS,
   ROTULO_DA_PLATAFORMA,
+  rotuloDoOffset,
 } from "@/lib/dominio/posts";
 
 import { abrirMesDeSocial } from "./acoes";
@@ -88,6 +90,22 @@ export function AbrirOMes({
     [quantidades],
   );
 
+  /**
+   * O dia de cada etapa, em dias relativos à publicação.
+   *
+   * **Começa PREENCHIDO com a sugestão da corrente**, e é a mesma escolha do
+   * modelo de campanha: ponto de partida, não contrato. Cinco campos vazios
+   * fariam quem abre o mês inventar cinco números — e inventar data é o que a
+   * 0044 evita ao abrir o mês em branco.
+   *
+   * Guardado como TEXTO e não como número, como as quantidades logo acima:
+   * apagar o campo precisa deixá-lo vazio em vez de virar zero, e zero aqui
+   * quer dizer "no dia da publicação", que é uma escolha de verdade.
+   */
+  const [prazos, setPrazos] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ETAPAS_DA_CORRENTE.map((e) => [e.nome, String(e.offsetPadrao)])),
+  );
+
   const excede = total > TETO;
   const podeAbrir = !!cliente && total > 0 && !excede;
 
@@ -106,6 +124,12 @@ export function AbrirOMes({
           quantidades: numeros,
           responsaveis: Object.fromEntries(
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
+          ),
+          prazos: Object.fromEntries(
+            Object.entries(prazos).map(([etapa, v]) => {
+              const n = Number.parseInt(v, 10);
+              return [etapa, Number.isFinite(n) ? n : null];
+            }),
           ),
         }),
       );
@@ -261,6 +285,74 @@ export function AbrirOMes({
                   </Select>
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/*
+            QUANDO CADA ETAPA VENCE.
+            
+            Esta seção é o que faz o mês aberto entrar no calendário das
+            pessoas: sem ela as cinco etapas nascem sem dia nenhum, e uma etapa
+            sem data não aparece no Calendário Full de ninguém — existe na
+            tabela e não existe na tela, que é o pior dos dois estados.
+          */}
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">Quando cada etapa vence</h3>
+              <p className="text-text-secondary text-xs">
+                Em dias antes da publicação. Vale para todos os posts deste mês —
+                e como eles ainda não têm data, o dia de cada etapa nasce junto
+                com o dia do post.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              {ETAPAS_DA_CORRENTE.map((etapa) => {
+                const bruto = prazos[etapa.nome] ?? "";
+                const n = Number.parseInt(bruto, 10);
+                return (
+                  // GRADE DE TRÊS COLUNAS, e não `flex-wrap`: em 375px a
+                  // frase do Programar ("no dia da publicação") é mais longa
+                  // que as outras quatro, quebrava para a linha de baixo e
+                  // ficava órfã embaixo do campo, sem alinhamento com nada. Foi
+                  // a imagem de 375px que mostrou. Com a grade, ela quebra
+                  // DENTRO da própria coluna e continua ao lado do número a que
+                  // se refere.
+                  <div
+                    key={etapa.nome}
+                    className="grid grid-cols-[minmax(4.5rem,auto)_5rem_1fr] items-center gap-2"
+                  >
+                    <Label
+                      htmlFor={`prazo-${etapa.nome}`}
+                      className="text-sm font-medium"
+                    >
+                      {etapa.nome}
+                    </Label>
+                    <Input
+                      id={`prazo-${etapa.nome}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={-60}
+                      max={60}
+                      className="w-full"
+                      value={bruto}
+                      onChange={(e) =>
+                        setPrazos((atual) => ({ ...atual, [etapa.nome]: e.target.value }))
+                      }
+                    />
+                    {/*
+                      A FRASE AO LADO DO NÚMERO, porque `-3` não é português.
+                      O campo aceita o número, que é o que se digita rápido; a
+                      frase é o que se confere. É a mesma razão da prévia das
+                      cinco próximas ocorrências da recorrência: quem configura
+                      trabalho em lote não tem outro jeito de ver o que escolheu.
+                    */}
+                    <span className="text-text-secondary text-xs">
+                      {Number.isFinite(n) ? rotuloDoOffset(n) : "sem data"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>

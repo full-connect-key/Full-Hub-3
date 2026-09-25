@@ -227,7 +227,13 @@ export type TipoNoCalendario =
   | "evento"
   | "post"
   | "campanha"
-  | "entregavel";
+  | "entregavel"
+  // A OITAVA ORIGEM (0059): a etapa da corrente de um post. Ela é diferente
+  // de `post` — aquele é o dia em que a peça vai ao ar, este é o dia em que o
+  // trabalho de alguém precisa estar pronto, e as duas datas raramente são a
+  // mesma. Sem esta camada, a etapa do redator tinha prazo na tabela e não
+  // aparecia no calendário de ninguém.
+  | "etapa_de_post";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
 
@@ -2049,6 +2055,12 @@ export interface Database {
           p_quantidades: Record<string, number>;
           p_responsavel_id?: string | null;
           p_responsaveis?: Record<string, string>;
+          /**
+           * O dia de cada etapa, em dias relativos à publicação (0059).
+           * A chave é o NOME da etapa — Pauta e Programar são as duas de
+           * Social Media, e uma chave por função daria às duas o mesmo dia.
+           */
+          p_prazos?: Record<string, number>;
         };
         Returns: number;
       };

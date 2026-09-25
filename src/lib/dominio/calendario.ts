@@ -42,6 +42,7 @@ export const CAMADAS: TipoNoCalendario[] = [
   "ausencia",
   "evento",
   "post",
+  "etapa_de_post",
   "campanha",
   "entregavel",
 ];
@@ -52,6 +53,9 @@ export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
   ausencia: "Quem está fora",
   evento: "Eventos",
   post: "Posts",
+  // "Etapas de post" e não "Produção do social": o rótulo tem que dizer a
+  // ENTIDADE, porque o interruptor liga e desliga exatamente estas linhas.
+  etapa_de_post: "Etapas de post",
   campanha: "Campanhas",
   entregavel: "Materiais de campanha",
 };
@@ -73,6 +77,13 @@ export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
   ausencia: "bg-muted text-text-muted",
   evento: "bg-blue-soft text-blue-strong",
   post: "bg-success-soft text-success",
+  // O MESMO PAR DO POST, e é escolha. A legenda AGRUPA quem divide a cor —
+  // como a do Social Media já faz com as duas mãos que dividem o azul, e a do
+  // portal com os sete status em cinco tons. A etapa é o trabalho por trás da
+  // peça, e a camada tem interruptor próprio: quem quiser separar as duas na
+  // tela desliga uma. Inventar um sexto par aqui seria pintar de cor nova uma
+  // coisa que pertence à mesma família.
+  etapa_de_post: "bg-success-soft text-success",
   campanha: "bg-warning-soft text-warning",
   entregavel: "bg-warning-soft text-warning",
 };
