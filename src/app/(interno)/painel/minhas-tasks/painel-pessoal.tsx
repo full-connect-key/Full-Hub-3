@@ -10,12 +10,14 @@ import { ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
+import type { EtapaDeSocialMinha } from "@/lib/dados/social-media";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
 import { BoardDeEtapas } from "./board-de-etapas";
 import type { LinhaPessoal } from "./linhas";
+import { EtapasDeSocial } from "./etapas-de-social";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
 import { PainelLateralDaTask } from "./painel-lateral";
@@ -52,6 +54,7 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
  */
 export function PainelPessoal({
   linhas,
+  etapasDeSocial,
   itensDeCalendario,
   itensDoDia,
   contadores,
@@ -67,6 +70,7 @@ export function PainelPessoal({
   linhas: LinhaPessoal[];
   itensDeCalendario: ItemDeCalendario[];
   itensDoDia: ItemDoDia[];
+  etapasDeSocial: EtapaDeSocialMinha[];
   contadores: Record<FocoDoDia, number>;
   equipe: {
     id: string;
@@ -149,6 +153,13 @@ export function PainelPessoal({
         usuarioId={usuarioId}
         souGestor={souGestor}
       />
+
+      {/* O SOCIAL FICA ACIMA DAS TRÊS VISÕES, e não dentro delas: board, lista
+          e calendário são as etapas de demanda, e uma quarta coisa dentro de
+          um seletor de visão seria uma visão que some quando a pessoa troca
+          para o calendário. Aqui ela está sempre à vista, e some sozinha para
+          quem não tem etapa de social nenhuma. */}
+      <EtapasDeSocial etapas={etapasDeSocial} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">

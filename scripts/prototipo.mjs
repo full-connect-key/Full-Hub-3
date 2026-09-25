@@ -98,7 +98,17 @@ const TELAS = [
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
   // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.
   { nome: "52-social-colaborador", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "colaborador-social" },
-  { nome: "53-social-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1700, role: "socio" },
+  { nome: "53-social-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
+  // A CORRENTE (0045) E A FAIXA SEM DATA (0044).
+  // O calendario e onde as duas convivem: a grade do mes em cima e os posts que
+  // ninguem datou embaixo. Em 375px e onde se ve se a lista da faixa rola em
+  // vez de estourar a largura -- foi assim que o calendario do Full Days saiu
+  // errado na primeira imagem.
+  { nome: "54-social-sem-data", rota: "/painel/social-media?visao=calendario&post=p1", largura: 1440, altura: 1500, role: "socio" },
+  { nome: "55-social-sem-data-375", rota: "/painel/social-media?visao=calendario", largura: 375, altura: 1600, role: "socio" },
+  { nome: "56-abrir-o-mes", rota: "/painel/social-media", largura: 1440, altura: 1200, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
+  { nome: "57-abrir-o-mes-375", rota: "/painel/social-media", largura: 375, altura: 1500, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
+  { nome: "58-corrente-escuro", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
 
   { nome: "44-recorrencias", rota: "/painel/workflows?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
   { nome: "44b-recorrencia-editor", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },

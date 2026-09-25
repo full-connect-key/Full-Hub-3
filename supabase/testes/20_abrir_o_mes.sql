@@ -26,10 +26,13 @@
 -- policy: `abrir_mes_de_social` e `security definer`, entao a RLS de `posts`
 -- nao e consultada la dentro. Sem o `is_gestor()` explicito, quem produz
 -- abriria o mes inteiro pela API.
-select teste.recusa_com('O colaborador nao abre o mes', :BRUNO,
+-- O BRUNO E `colaborador` E E DESIGN, e e a funcao que decide desde a 0046 --
+-- a Carla, com o MESMO perfil, abre, porque esta no Atendimento. O arquivo 22
+-- guarda os dois lados dessa mesma pergunta.
+select teste.recusa_com('O Design nao abre o mes', :BRUNO,
   format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '{"instagram": 2}'::jsonb)$fmt$,
     :VERDE),
-  'é do desenvolvedor ou do sócio');
+  'é do Atendimento');
 
 select teste.cenario('E o cliente muito menos', :JOANA,
   format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '{"instagram": 2}'::jsonb)$fmt$,

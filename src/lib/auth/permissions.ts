@@ -102,6 +102,34 @@ export const MENU: MenuItem[] = [
     description: "As tarefas atribuídas a você, com prazo e prioridade.",
   },
   {
+    // SOCIAL MEDIA É UMA LINHA SÓ DO MENU, e fica na PRINCIPAL. Decisão do
+    // usuário, depois de ela ter passado por Gestão e por duas entradas ao
+    // mesmo tempo no mesmo dia — o histórico fica registrado porque a ideia
+    // pode voltar.
+    //
+    // O QUE DECIDIU: a tela já muda sozinha por perfil. "Abrir o mês" e
+    // "+ Novo post" só aparecem para quem pode, e quem recusa de verdade é a
+    // RLS e os triggers. Uma segunda entrada não acrescentava trava nenhuma —
+    // só um segundo caminho para o mesmo lugar, com o mesmo nome — que é o
+    // mesmo problema que o produto já desfez uma vez, quando um módulo se
+    // chamava de dois jeitos e quem usava tinha que descobrir sozinho que era
+    // a mesma coisa. O porquê daquela vez está no CLAUDE.md, fora de `src/`:
+    // a varredura de nomes mortos acusaria o próprio texto que a explica, e
+    // acusou — este comentário já citou os dois nomes e foi pego.
+    //
+    // E É NA PRINCIPAL porque a divisão do menu é sobre a PESSOA e não sobre
+    // o assunto: Gestão carrega o selo Admin e significa "o que eu faço sobre
+    // os outros". O redator escrevendo a legenda dele não está fazendo nada
+    // sobre ninguém — é o trabalho do dia dele, como Minhas Tasks.
+    label: "Social Media",
+    href: "/painel/social-media",
+    icon: Images,
+    roles: EQUIPE,
+    section: "principal",
+    description:
+      "Os posts da agência, da pauta ao envio ao cliente.",
+  },
+  {
     label: "Full Days",
     href: "/painel/full-days",
     icon: Sun,
@@ -175,20 +203,6 @@ export const MENU: MenuItem[] = [
     section: "gestao",
     description:
       "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
-  },
-  {
-    // SOCIAL MEDIA É DE `is_staff()` e não da gestão, ao contrário de quase
-    // tudo desta seção: o colaborador que produz precisa chegar ao post que
-    // foi liberado para ele. O que ele NÃO pode — abrir post, liberar,
-    // enviar ao cliente — é a RLS que recusa, e a tela desliga o botão com a
-    // razão escrita. Esconder o módulo dele seria esconder o trabalho dele.
-    label: "Social Media",
-    href: "/painel/social-media",
-    icon: Images,
-    roles: EQUIPE,
-    section: "gestao",
-    description:
-      "O calendário de posts da agência, da abertura ao envio ao cliente.",
   },
   {
     label: "Aprovações & Conteúdo",

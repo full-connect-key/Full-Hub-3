@@ -293,12 +293,26 @@ begin
   --
   -- A RECUSA NOMEIA O QUE FALTA, e todas. "Etapa bloqueada" manda a pessoa
   -- procurar; dizer quais ja diz a quem perguntar.
+  --
+  -- E UMA ETAPA `em_ajustes` NAO BLOQUEIA O QUE VEM DEPOIS DELA. Sem esta
+  -- linha a corrente trava exatamente onde o cliente mexeu: ele pede ajustes,
+  -- o Envio vai para `em_ajustes`, a etapa de Ajustes nasce logo depois dele
+  -- -- e comecar essa etapa e recusado com "vem depois de Envio", que nunca
+  -- vai ficar concluida enquanto o ajuste nao for feito. Um abraco.
+  --
+  -- A leitura e a que a palavra ja diz: uma etapa em ajustes JA DEVOLVEU o
+  -- trabalho. Ela nao esta esperando a anterior; esta esperando alguem DEPOIS
+  -- dela consertar. E o Programar continua travado do jeito certo -- enquanto
+  -- o Ajustes nao fecha ele e o bloqueio, e quando o post volta ao cliente o
+  -- Envio fica `enviada_aprovacao`, que bloqueia de novo. So a aprovacao do
+  -- cliente o libera, que e a regra que importa: ninguem programa o que o
+  -- cliente nao aprovou.
   if travas and old.status = 'nao_iniciada' and new.status <> 'nao_iniciada' then
     select string_agg(e.nome, ', ' order by e.ordem) into pendente
       from public.post_etapas e
      where e.post_id = new.post_id
        and e.ordem < new.ordem
-       and e.status <> 'concluida';
+       and e.status not in ('concluida', 'em_ajustes');
 
     if pendente is not null then
       raise exception using

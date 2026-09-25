@@ -14,6 +14,7 @@ import {
   prazosDeHoje,
   souDoAtendimento,
 } from "@/lib/dados/minhas-tasks";
+import { minhasEtapasDeSocial } from "@/lib/dados/social-media";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
 import { montarLinhas } from "./linhas";
@@ -48,14 +49,22 @@ async function Conteudo({
   // classificam o mesmo prazo do mesmo jeito.
   const prazos = prazosDeHoje();
 
-  const [tasks, itensDeCalendario, itensDoDia, contadores, equipe, podeCriarTask] =
-    await Promise.all([
+  const [
+    tasks,
+    itensDeCalendario,
+    itensDoDia,
+    contadores,
+    equipe,
+    podeCriarTask,
+    etapasDeSocial,
+  ] = await Promise.all([
     minhasTasks(usuarioId, foco, prazos),
     itensPessoaisDoCalendario(usuarioId, foco, prazos),
     meuDia(usuarioId, prazos),
     contadoresPessoais(usuarioId, prazos),
     listarEquipeAtiva(),
     souDoAtendimento(),
+    minhasEtapasDeSocial(usuarioId),
   ]);
 
   return (
@@ -63,6 +72,7 @@ async function Conteudo({
       linhas={montarLinhas(tasks)}
       itensDeCalendario={itensDeCalendario}
       itensDoDia={itensDoDia}
+      etapasDeSocial={etapasDeSocial}
       contadores={contadores}
       equipe={equipe}
       prazos={prazos}

@@ -1334,7 +1334,16 @@ export interface Database {
           subtask_id: string | null;
           tema: string;
           legenda: string | null;
-          data_publicacao: string;
+          /** O que este post vai dizer, escrito na etapa Pauta (0046). É
+           *  CONVERSA INTERNA — a legenda é que vai ao cliente e ao ar, e
+           *  escrever a pauta nela mandaria a pauta junto. */
+          pauta: string | null;
+          // NULA ENQUANTO NINGUEM DEFINIU (0044). O mes de social abre em
+          // branco e quem produz distribui as datas -- "sem data ainda" e um
+          // estado de verdade do trabalho, e a coluna precisa conseguir
+          // representa-lo. Post sem data nao vai ao cliente: quem recusa e
+          // `validar_nova_rodada`, nao a tela.
+          data_publicacao: string | null;
           horario: string | null;
           plataforma: PlataformaSocial;
           formato: string | null;
@@ -1368,7 +1377,8 @@ export interface Database {
           subtask_id?: string | null;
           tema: string;
           legenda?: string | null;
-          data_publicacao: string;
+          pauta?: string | null;
+          data_publicacao?: string | null;
           horario?: string | null;
           plataforma: PlataformaSocial;
           formato?: string | null;
@@ -1383,7 +1393,11 @@ export interface Database {
         Update: {
           tema?: string;
           legenda?: string | null;
-          data_publicacao?: string;
+          pauta?: string | null;
+          // E DE QUEM PRODUZ, desde a 0044 (decisao do usuario): a Social
+          // Media distribui o mes. O trigger `posts_protege_colunas` deixou de
+          // recusar o colaborador aqui.
+          data_publicacao?: string | null;
           horario?: string | null;
           plataforma?: PlataformaSocial;
           formato?: string | null;
@@ -1397,6 +1411,90 @@ export interface Database {
           // Quem libera e a gestao: o trigger `posts_protege_colunas` (0042)
           // recusa o colaborador que tentar, e a recusa diz por que.
           responsavel_id?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /**
+       * As referências de apoio de um post (0046).
+       *
+       * Mesma forma de `task_referencias`, de propósito: quem sabe mexer numa
+       * sabe mexer na outra. `tipo` fica de fora — aqui é sempre link, porque
+       * a arte tem lugar próprio (a versão) e um arquivo solto no meio das
+       * referências seria uma segunda porta para o material final.
+       *
+       * **SEM Update**, e a ausência é a regra: editar o endereço de uma
+       * referência que alguém já abriu é trocar o destino embaixo de quem a
+       * leu. Apaga e põe outra. `adicionado_por` também fica fora — quem
+       * assina é o trigger, porque policy não limita coluna.
+       */
+      post_referencias: {
+        Row: {
+          id: string;
+          post_id: string;
+          url: string;
+          titulo: string | null;
+          adicionado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          url: string;
+          titulo?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+
+      /**
+       * A corrente de trabalho de um post (0045).
+       *
+       * Pauta → Conteúdo → Layout → Envio → Programar, e "Ajustes" entre as
+       * duas últimas quando o cliente pede. Cada etapa tem uma função e uma
+       * pessoa: até a 0044 o post tinha UMA mão por vez, o que descreve quem
+       * pode escrever e não quem faz o quê.
+       *
+       * `concluida_em` fica fora de Insert e de Update: quem carimba é o
+       * trigger `post_etapas_regras`, e uma etapa concluída sem data de
+       * conclusão não serve para relatório nenhum.
+       */
+      post_etapas: {
+        Row: {
+          id: string;
+          post_id: string;
+          /** Com folga entre os números (10,20,30,40,50): a etapa de Ajustes
+           *  nasce ENTRE Envio e Programar, e sequencial ela obrigaria a
+           *  renumerar as seguintes por causa de um pedido do cliente. */
+          ordem: number;
+          nome: string;
+          funcao: TeamFuncao;
+          responsavel_id: string | null;
+          status: SubtaskStatus;
+          prazo: string | null;
+          concluida_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          ordem: number;
+          nome: string;
+          funcao: TeamFuncao;
+          responsavel_id?: string | null;
+          status?: SubtaskStatus;
+          prazo?: string | null;
+        };
+        Update: {
+          /** O que o RESPONSÁVEL troca é o status, e mais nada — o resto o
+           *  trigger recusa para quem não é gestão. Policy não limita
+           *  coluna. */
+          status?: SubtaskStatus;
+          nome?: string;
+          funcao?: TeamFuncao;
+          ordem?: number;
+          responsavel_id?: string | null;
+          prazo?: string | null;
         };
         Relationships: [];
       };
@@ -1743,6 +1841,28 @@ export interface Database {
       };
       cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
       /**
+       * Abre N posts de um cliente para um mês, SEM DATA (0044/0045).
+       *
+       * `p_quantidades` é `{"instagram": 12, "linkedin": 4}` e `p_responsaveis`
+       * é `{"Social Media": uuid, "Redator": uuid, "Design": uuid}` — uma
+       * pessoa por FUNÇÃO e não uma por etapa, porque a Pauta e o Programar do
+       * mesmo post são da mesma social media.
+       *
+       * Transacional: ou nascem todos ou não nasce nenhum. Teto de 60 que
+       * RECUSA em vez de cortar — aqui o número é digitado, e um zero a mais é
+       * erro de digitação.
+       */
+      abrir_mes_de_social: {
+        Args: {
+          p_client_id: string;
+          p_mes: string;
+          p_quantidades: Record<string, number>;
+          p_responsavel_id?: string | null;
+          p_responsaveis?: Record<string, string>;
+        };
+        Returns: number;
+      };
+      /**
        * Gera UMA ocorrencia e devolve o id da task, ou null quando outra
        * execucao chegou primeiro (a idempotencia e o indice unico, nao uma
        * consulta). `security definer`: escreve em `recurrence_runs`, que nao
@@ -1901,4 +2021,6 @@ export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type PostVersion = Database["public"]["Tables"]["post_versions"]["Row"];
+export type PostEtapa = Database["public"]["Tables"]["post_etapas"]["Row"];
+export type PostReferencia = Database["public"]["Tables"]["post_referencias"]["Row"];
 export type Comentario = Database["public"]["Tables"]["comments"]["Row"];

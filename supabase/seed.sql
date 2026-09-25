@@ -723,10 +723,16 @@ declare
   diego    uuid := 'a0000000-0000-0000-0000-000000000002';  -- Desenvolvedor
   bruno    uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
   marina   uuid := 'a0000000-0000-0000-0000-000000000006';  -- Social Media
+  -- A Carla e Atendimento e entra como Redatora da corrente: o mapa diz QUEM
+  -- faz a etapa, e a funcao diz o que a etapa e. Numa agencia deste tamanho as
+  -- duas coisas nem sempre coincidem, e cobrar que coincidam viraria uma trava
+  -- que atrapalha num dia de aperto.
+  carla    uuid := 'a0000000-0000-0000-0000-000000000003';  -- Atendimento
   joana    uuid;
   primeiro date := date_trunc('month', current_date)::date;
   p        uuid;
   rodada   uuid;
+  i        integer;
 begin
   select id into verde from public.clients where slug = 'mundo-verde' limit 1;
   if verde is null then
@@ -952,9 +958,93 @@ begin
   returning id into p;
   update public.posts set status = 'stand_by' where id = p;
 
+  -- --------------------------------------------------------------------- 8 --
+  -- A CORRENTE DE ETAPAS (0045), distribuida e em movimento.
+  --
+  -- Ela ja nasceu com cada post, pelo gatilho `posts_monta_corrente` -- e os
+  -- posts que o cliente mandou ajustar ja ganharam a etapa de Ajustes, porque
+  -- o gatilho `posts_corrente_do_cliente` pegou os `update ... set status =
+  -- 'ajustes'` acima. O que falta e o que nenhum gatilho tem como saber: quem
+  -- faz cada parte.
+  --
+  -- SEM ISSO O SEED MOSTRARIA A CORRENTE INTEIRA SEM DONO, que e justamente o
+  -- estado que a tela existe para evitar -- etapa sem dono nao aparece no
+  -- "Minhas Tasks" de ninguem.
+  update public.post_etapas e
+     set responsavel_id = case e.funcao
+                            when 'Social Media' then marina
+                            when 'Redator'      then carla
+                            when 'Design'       then bruno
+                            else null
+                          end
+    from public.posts ps
+   where ps.id = e.post_id and ps.client_id = verde
+     and e.funcao in ('Social Media', 'Redator', 'Design');
+
+  -- A ETAPA DE AJUSTES HERDA O DONO DO LAYOUT no instante em que o cliente
+  -- decide -- e quando ela nasceu, ali em cima, ninguem tinha Layout ainda.
+  -- Esta linha e o efeito colateral da ORDEM deste arquivo, nao da regra: o
+  -- seed pede ajustes antes de distribuir a corrente, o que nunca acontece na
+  -- vida real. Sem ela o pedido do cliente ficaria sem dono, que e o pior
+  -- estado possivel para um pedido do cliente.
+  --
+  -- E OS POSTS DA OUTRA EMPRESA CONTINUAM SEM DONO de proposito: "etapa sem
+  -- dono" e um estado que a tela precisa saber desenhar, e um seed em que tudo
+  -- tem dono nunca mostra esse desenho a ninguem.
+  update public.post_etapas a
+     set responsavel_id = (select l.responsavel_id from public.post_etapas l
+                            where l.post_id = a.post_id and l.nome = 'Layout')
+    from public.posts ps
+   where ps.id = a.post_id and ps.client_id = verde
+     and a.nome like 'Ajustes%' and a.responsavel_id is null;
+
+  -- E UMA CORRENTE NO MEIO DO CAMINHO, para a tela ter o caso que importa: a
+  -- Pauta e o Conteudo fechados, o Layout na mao do Bruno agora. A ordem dos
+  -- dois `update` e a propria trava: o segundo so passa porque o primeiro
+  -- fechou os anteriores.
+  select id into p from public.posts
+   where client_id = verde and tema = 'Bastidores da colheita' limit 1;
+
+  if p is not null then
+    update public.post_etapas set status = 'concluida'
+     where post_id = p and nome in ('Pauta', 'Conteúdo');
+    update public.post_etapas set status = 'em_andamento'
+     where post_id = p and nome = 'Layout';
+  end if;
+
+  -- --------------------------------------------------------------------- 9 --
+  -- O MES ABERTO EM BRANCO (0044): seis posts sem data nenhuma.
+  --
+  -- E `insert` direto e nao `abrir_mes_de_social`: a funcao cobra
+  -- `is_gestor()` na primeira linha, e o seed roda sem sessao. O resultado na
+  -- tela e o mesmo -- inclusive a corrente, que vem do gatilho.
+  --
+  -- SEIS E NAO UM, porque o que a faixa "sem data ainda" precisa provar e que
+  -- ela aguenta o lote: com um post so, ela pareceria um cartao solto e
+  -- ninguem descobriria que a lista rola.
+  for i in 1..6 loop
+    insert into public.posts (client_id, tema, data_publicacao, plataforma,
+                              midia, criado_por, responsavel_id)
+    values (verde, format('Instagram %s de 6 · mês que vem', i), null,
+            'instagram', 'imagem', diego, marina);
+  end loop;
+
+  update public.post_etapas e
+     set responsavel_id = case e.funcao
+                            when 'Social Media' then marina
+                            when 'Redator'      then carla
+                            when 'Design'       then bruno
+                            else null
+                          end
+    from public.posts ps
+   where ps.id = e.post_id and ps.client_id = verde
+     and ps.data_publicacao is null
+     and e.funcao in ('Social Media', 'Redator', 'Design');
+
   perform set_config('request.jwt.claim.sub', '', true);
 
   raise notice 'Sprint 12: 12 posts de exemplo criados para o cliente piloto.';
+  raise notice '0044/0045: 6 posts sem data e a corrente de etapas distribuida.';
 end
 $$;
 

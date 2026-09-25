@@ -44,9 +44,18 @@ import {
   podeEnviarAoCliente,
   podeProduzir,
   type MaoDoPost,
+  rotuloDaData,
+  type EtapaDoPost,
 } from "@/lib/dominio/posts";
 import { criarClienteNavegador } from "@/lib/supabase/client";
-import type { PostDaAgencia, VersaoDoPost } from "@/lib/dados/social-media";
+
+import { CorrenteDoPost } from "./corrente-do-post";
+import { ReferenciasDoPost } from "./referencias-do-post";
+import type {
+  PostDaAgencia,
+  ReferenciaDoPost,
+  VersaoDoPost,
+} from "@/lib/dados/social-media";
 import type { PlataformaSocial, PostMidia } from "@/lib/supabase/database.types";
 
 import {
@@ -114,6 +123,8 @@ export type QuemLe = { id: string; ehGestor: boolean };
 export function EditorDoPost({
   post,
   versoes,
+  etapas,
+  referencias,
   equipe,
   quemLe,
   compacto = false,
@@ -121,6 +132,8 @@ export function EditorDoPost({
 }: {
   post: PostDaAgencia;
   versoes: VersaoDoPost[];
+  etapas: EtapaDoPost[];
+  referencias: ReferenciaDoPost[];
   equipe: { id: string; nome: string }[];
   quemLe: QuemLe;
   /** No painel lateral do calendário a grade de campos vira uma coluna. */
@@ -129,6 +142,7 @@ export function EditorDoPost({
 }) {
   const [tema, setTema] = useState(post.tema);
   const [legenda, setLegenda] = useState(post.legenda ?? "");
+  const [pauta, setPauta] = useState(post.pauta ?? "");
   const [videoUrl, setVideoUrl] = useState(post.videoUrl ?? "");
   const [subindo, setSubindo] = useState(false);
   const [emAcao, iniciar] = useTransition();
@@ -164,6 +178,11 @@ export function EditorDoPost({
     return salvarDepois({ legenda });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [legenda]);
+  useEffect(() => {
+    if ((post.pauta ?? "") === pauta) return;
+    return salvarDepois({ pauta });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pauta]);
   useEffect(() => {
     if ((post.videoUrl ?? "") === videoUrl) return;
     if (videoUrl && !/^https?:\/\//i.test(videoUrl)) return;
@@ -229,7 +248,11 @@ export function EditorDoPost({
         <div className="min-w-0">
           <p className="text-text-muted text-xs tracking-wide uppercase">
             {post.cliente} ·{" "}
-            {format(parseISO(post.dataPublicacao), "d 'de' MMMM", { locale: ptBR })}
+            {rotuloDaData(
+              post.dataPublicacao
+                ? format(parseISO(post.dataPublicacao), "d 'de' MMMM", { locale: ptBR })
+                : null,
+            )}
           </p>
           <h2 className="text-text-primary mt-0.5 truncate text-lg font-semibold">
             {post.tema}
@@ -372,6 +395,39 @@ export function EditorDoPost({
           disabled={!posso}
         />
       </div>
+
+      {/* A PAUTA VEM ANTES DA LEGENDA, e a ordem é a da corrente: a Pauta é a
+          primeira etapa e a Legenda é a segunda. Depois da legenda ela viraria
+          o campo que se preenche por último — e o que ela diz é justamente o
+          que a legenda precisa dizer. */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`pauta-${post.id}`}>Pauta</Label>
+        <Textarea
+          id={`pauta-${post.id}`}
+          rows={compacto ? 3 : 4}
+          value={pauta}
+          onChange={(e) => setPauta(e.target.value)}
+          disabled={!posso}
+          placeholder="O que este post vai dizer, e por quê."
+        />
+        {/* A FRASE É A TRAVA QUE O BANCO NÃO TEM: nada impede alguém de
+            escrever a pauta e achar que o cliente vai ler. Ele não vai — a
+            coluna é interna, e a policy do portal nem a traz. */}
+        <p className="text-text-muted text-xs">
+          Conversa interna. O cliente lê a legenda, nunca a pauta.
+        </p>
+      </div>
+
+      {/* AS REFERÊNCIAS FICAM COLADAS NA PAUTA, e não no fim da tela junto do
+          histórico: elas são o apoio de quem está escrevendo a pauta e a
+          legenda. No fim, viram um arquivo que ninguém abre na hora em que
+          precisaria. */}
+      <ReferenciasDoPost
+        postId={post.id}
+        referencias={referencias}
+        podeEscrever={posso || quemLe.ehGestor}
+        ehGestao={quemLe.ehGestor}
+      />
 
       <div className="space-y-1.5">
         <Label htmlFor={`legenda-${post.id}`}>Legenda</Label>
@@ -566,6 +622,21 @@ export function EditorDoPost({
         ) : null}
         {faltam.length === 0 && !envio.pode && !quemLe.ehGestor ? null : null}
       </div>
+
+      {/* A CORRENTE FICA ENTRE AS AÇÕES E O HISTÓRICO, e a posição é a mesma
+          decisão do detalhe da Task: primeiro o que se faz com o post agora,
+          depois de quem é cada pedaço do caminho, e só então o que já
+          aconteceu. Acima das ações ela empurraria "Enviar ao cliente" para
+          fora da tela num post com oito etapas. */}
+      {etapas.length > 0 ? (
+        <div className="border-border border-t pt-4">
+          <CorrenteDoPost
+            etapas={etapas}
+            quemSou={quemLe.id}
+            ehGestao={quemLe.ehGestor}
+          />
+        </div>
+      ) : null}
 
       {versoes.length > 0 ? (
         <div className="border-border border-t pt-4">

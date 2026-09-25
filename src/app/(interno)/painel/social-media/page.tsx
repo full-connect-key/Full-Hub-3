@@ -11,6 +11,7 @@ import {
   filaDaAgencia,
   obterPostDaAgencia,
   postsDoMesDaAgencia,
+  postsSemData,
 } from "@/lib/dados/social-media";
 
 import { SocialMedia } from "./social-media";
@@ -36,7 +37,7 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
 
   const filtros = { clienteId, foco, usuarioId: sessao.usuarioId };
 
-  const [posts, clientes, equipe, aberto] = await Promise.all([
+  const [posts, semData, clientes, equipe, aberto] = await Promise.all([
     // CADA VISÃO CARREGA SÓ A PRÓPRIA CONSULTA. O calendário quer um mês; a
     // lista quer a fila dos próximos três, porque quem abre a lista está
     // procurando trabalho e o que tem para fazer hoje quase sempre publica no
@@ -44,6 +45,10 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
     visao === "calendario"
       ? postsDoMesDaAgencia(mes, filtros)
       : filaDaAgencia(filtros),
+    // A FAIXA "SEM DATA AINDA" É SÓ DO CALENDÁRIO. Na lista eles já vêm
+    // misturados na fila, em ordem — e a lista é ordenada por data justamente
+    // para quem não tem data aparecer primeiro.
+    visao === "calendario" ? postsSemData(clienteId) : Promise.resolve([]),
     listarClientes(),
     listarEquipeAtiva(),
     postId ? obterPostDaAgencia(postId) : Promise.resolve(null),
@@ -52,8 +57,11 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
   return (
     <SocialMedia
       posts={posts}
+      semData={semData}
       aberto={aberto?.post ?? null}
       versoes={aberto?.versoes ?? []}
+      etapas={aberto?.etapas ?? []}
+      referencias={aberto?.referencias ?? []}
       clientes={clientes
         .filter((c) => c.ativo)
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}

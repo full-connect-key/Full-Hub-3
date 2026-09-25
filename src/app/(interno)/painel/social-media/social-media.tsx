@@ -23,11 +23,18 @@ import {
   deslocarMes,
   gradeDoMes,
   maoDoPost,
+  rotuloDaData,
 } from "@/lib/dominio/posts";
 import { cn } from "@/lib/utils";
-import type { PostDaAgencia, VersaoDoPost } from "@/lib/dados/social-media";
+import type {
+  PostDaAgencia,
+  ReferenciaDoPost,
+  VersaoDoPost,
+} from "@/lib/dados/social-media";
+import type { EtapaDoPost } from "@/lib/dominio/posts";
 
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
+import { AbrirOMes } from "./abrir-o-mes";
 import { NovoPost } from "./novo-post";
 
 const TODOS = "__todos__";
@@ -90,16 +97,23 @@ function Selo({ post }: { post: PostDaAgencia }) {
  */
 export function SocialMedia({
   posts,
+  semData,
   aberto,
   versoes,
+  etapas,
+  referencias,
   clientes,
   equipe,
   quemLe,
   mes,
 }: {
   posts: PostDaAgencia[];
+  /** Os que ninguém datou ainda. Só o calendário os recebe — ver page.tsx. */
+  semData: PostDaAgencia[];
   aberto: PostDaAgencia | null;
   versoes: VersaoDoPost[];
+  etapas: EtapaDoPost[];
+  referencias: ReferenciaDoPost[];
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
   quemLe: QuemLe;
@@ -150,8 +164,12 @@ export function SocialMedia({
   }, [posts, quemLe.id]);
 
   const porDia = useMemo(() => {
+    // O SEM DATA FICA DE FORA DO CALENDÁRIO, e não numa célula qualquer: não
+    // existe dia onde ele caiba. Ele aparece na faixa abaixo da grade, que é
+    // onde alguém vai buscá-lo justamente para escolher o dia.
     const mapa = new Map<string, PostDaAgencia[]>();
     for (const p of posts) {
+      if (!p.dataPublicacao) continue;
       const atual = mapa.get(p.dataPublicacao) ?? [];
       atual.push(p);
       mapa.set(p.dataPublicacao, atual);
@@ -167,6 +185,8 @@ export function SocialMedia({
       key={aberto.id}
       post={aberto}
       versoes={versoes}
+      etapas={etapas}
+      referencias={referencias}
       equipe={equipe}
       quemLe={quemLe}
       compacto={visao === "calendario"}
@@ -258,7 +278,16 @@ export function SocialMedia({
             </SelectContent>
           </Select>
 
-          {quemLe.ehGestor ? <NovoPost clientes={clientes} equipe={equipe} /> : null}
+          {/* ABRIR O MÊS VEM ANTES DE "+ NOVO POST", e a ordem é a frequência:
+              com dez clientes de social, abrir o mês é o que se faz uma vez por
+              cliente por mês; o post avulso é a exceção — o story que o cliente
+              pediu hoje. */}
+          {quemLe.ehGestor ? (
+            <>
+              <AbrirOMes clientes={clientes} equipe={equipe} />
+              <NovoPost clientes={clientes} equipe={equipe} />
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -309,7 +338,12 @@ export function SocialMedia({
                           </span>
                           <span className="text-text-secondary mt-0.5 flex items-center gap-1.5 text-xs">
                             <Selo post={p} />
-                            {format(parseISO(p.dataPublicacao), "dd/MM")} ·{" "}
+                            {rotuloDaData(
+                              p.dataPublicacao
+                                ? format(parseISO(p.dataPublicacao), "dd/MM")
+                                : null,
+                            )}{" "}
+                            ·{" "}
                             {ROTULO_DA_MAO[maoDoPost(p)].toLowerCase()}
                           </span>
                         </span>
@@ -402,6 +436,53 @@ export function SocialMedia({
                 </li>
               ))}
             </ul>
+
+            {/* A FAIXA "SEM DATA AINDA" (0044).
+                Ela existe porque o mês passou a abrir em branco: doze posts
+                nascem de uma vez e nenhum tem dia. Sem a faixa eles existiriam
+                no banco e não apareceriam em tela nenhuma — o pior resultado
+                possível, porque ninguém desconfia de uma grade vazia.
+                É UMA LISTA ROLÁVEL E NÃO UMA CÉLULA "sem data" NA GRADE: uma
+                sexta coluna quebraria a semana, e sessenta posts numa célula
+                de calendário empurrariam o mês inteiro para baixo. */}
+            {semData.length > 0 ? (
+              <section className="border-border mt-4 border-t pt-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-text-primary text-sm font-semibold">
+                    Sem data ainda
+                  </h3>
+                  <span className="text-text-muted text-xs tabular-nums">
+                    {semData.length}
+                  </span>
+                </div>
+                <p className="text-text-muted mt-0.5 text-xs">
+                  Abertos e esperando alguém escolher o dia. Eles não vão ao
+                  cliente enquanto não tiverem data.
+                </p>
+                <ul className="mt-2 flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
+                  {semData.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => abrir(p.id)}
+                        className="border-border bg-surface-card hover:bg-muted flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors"
+                      >
+                        <span
+                          aria-hidden
+                          className={cn("size-2 rounded-sm", TOM_DA_MAO[maoDoPost(p)])}
+                        />
+                        <span className="text-text-primary max-w-44 truncate">
+                          {p.tema}
+                        </span>
+                        <span className="text-text-muted">
+                          {SIGLA_DA_PLATAFORMA[p.plataforma]}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </div>
 
           {/* O PAINEL EMPURRA, não cobre. Coberto, ele comia sábado e domingo

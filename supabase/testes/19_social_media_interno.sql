@@ -50,9 +50,16 @@ select teste.cenario('O colaborador NAO abre post', :BRUNO,
   format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
     values (%L, 'Aberto pelo Bruno', '2026-11-22', 'instagram')$fmt$, :VERDE), 'recusa');
 
-select teste.cenario('Nem o do Atendimento abre', :CARLA,
+-- E O DO ATENDIMENTO ABRE, desde a 0046 -- cenario VIRADO DO AVESSO, como o
+-- da data. Ate aqui `posts_insert` era `is_gestor()`, e a Carla levava recusa
+-- por ser `colaborador`. Decisao do usuario: "desenvolvedor E ATENDIMENTO
+-- abrem um Social Mensal". Virou `is_atendimento()`, a mesma pergunta que
+-- `tasks_insert` faz desde a 0006 -- perfil de acesso e funcao na agencia sao
+-- coisas diferentes. Se alguem devolver a policy para `is_gestor()`, este
+-- cenario falha e diz que a decisao foi desfeita.
+select teste.cenario('E o do Atendimento ABRE -- decisao da 0046', :CARLA,
   format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Aberto pela Carla', '2026-11-23', 'instagram')$fmt$, :VERDE), 'recusa');
+    values (%L, 'Aberto pela Carla', '2026-11-23', 'instagram')$fmt$, :VERDE), 'ok', 1);
 
 
 -- --- 2. Quem edita ---------------------------------------------------------

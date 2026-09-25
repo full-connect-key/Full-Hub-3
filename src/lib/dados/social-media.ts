@@ -1,7 +1,7 @@
 import "server-only";
 
 import { assinarArquivos, nomesDe, rodadasDo } from "@/lib/dados/conteudo";
-import { deslocarMes } from "@/lib/dominio/posts";
+import { deslocarMes, type EtapaDoPost } from "@/lib/dominio/posts";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   ArquivoDaVersao,
@@ -29,7 +29,7 @@ const BUCKET = "posts-artes";
 // String literal, e nao concatenacao: o supabase-js tipa o retorno a partir do
 // TEXTO do select, e um `+` no meio apaga esse tipo.
 // prettier-ignore
-const COLUNAS = "id, client_id, tema, legenda, data_publicacao, horario, plataforma, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, subtask_id";
+const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataforma, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, subtask_id";
 
 export type PostDaAgencia = {
   id: string;
@@ -37,7 +37,12 @@ export type PostDaAgencia = {
   cliente: string;
   tema: string;
   legenda: string | null;
-  dataPublicacao: string;
+  /** O que o post vai dizer, escrito na etapa Pauta. Conversa interna. */
+  pauta: string | null;
+  /** NULA enquanto ninguém definiu (0044). O mês abre em branco e quem produz
+   *  distribui — e o post sem data aparece na faixa "sem data ainda", não no
+   *  calendário, porque não há célula onde ele caiba. */
+  dataPublicacao: string | null;
   horario: string | null;
   plataforma: PlataformaSocial;
   formato: string | null;
@@ -64,7 +69,8 @@ type Linha = {
   client_id: string;
   tema: string;
   legenda: string | null;
-  data_publicacao: string;
+  pauta: string | null;
+  data_publicacao: string | null;
   horario: string | null;
   plataforma: PlataformaSocial;
   formato: string | null;
@@ -123,6 +129,7 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       cliente: nomeDoCliente.get(l.client_id) ?? "—",
       tema: l.tema,
       legenda: l.legenda,
+      pauta: l.pauta,
       dataPublicacao: l.data_publicacao,
       horario: l.horario ? l.horario.slice(0, 5) : null,
       plataforma: l.plataforma,
@@ -203,12 +210,17 @@ export async function filaDaAgencia(
   const supabase = await criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 7);
 
+  // OS SEM DATA ENTRAM NA FILA, e é `or` e não uma segunda consulta: desde a
+  // 0044 o mês abre em branco, e o post que ninguém datou é exatamente o que
+  // alguém precisa pegar. Deixá-lo de fora faria a lista dizer que não há
+  // trabalho no dia seguinte ao de abrir o mês inteiro.
   let consulta = supabase
     .from("posts")
     .select(COLUNAS)
-    .gte("data_publicacao", `${deslocarMes(hoje, -1)}-01`)
-    .lt("data_publicacao", `${deslocarMes(hoje, 3)}-01`)
-    .order("data_publicacao")
+    .or(
+      `and(data_publicacao.gte.${deslocarMes(hoje, -1)}-01,data_publicacao.lt.${deslocarMes(hoje, 3)}-01),data_publicacao.is.null`,
+    )
+    .order("data_publicacao", { nullsFirst: true })
     .limit(200);
 
   if (filtros.clienteId) consulta = consulta.eq("client_id", filtros.clienteId);
@@ -239,6 +251,8 @@ export type VersaoDoPost = {
 export async function obterPostDaAgencia(id: string): Promise<{
   post: PostDaAgencia;
   versoes: VersaoDoPost[];
+  etapas: EtapaDoPost[];
+  referencias: ReferenciaDoPost[];
 } | null> {
   const supabase = await criarClienteServidor();
 
@@ -266,6 +280,8 @@ export async function obterPostDaAgencia(id: string): Promise<{
 
   return {
     post,
+    etapas: await corrente(id),
+    referencias: await referenciasDoPost(id),
     versoes: versoes.map((v) => ({
       id: v.id,
       numero: v.numero_versao,
@@ -282,4 +298,173 @@ export async function obterPostDaAgencia(id: string): Promise<{
       videoUrl: v.video_url,
     })),
   };
+}
+
+
+/**
+ * A corrente de etapas de um post (0045).
+ *
+ * Consulta própria e não um `join` no `select` do post: a corrente só é lida
+ * no detalhe, e trazê-la no `COLUNAS` faria o calendário do mês carregar seis
+ * linhas por post — cento e oitenta linhas para desenhar trinta cartões que
+ * não mostram etapa nenhuma.
+ */
+export async function corrente(postId: string): Promise<EtapaDoPost[]> {
+  const supabase = await criarClienteServidor();
+
+  const { data } = await supabase
+    .from("post_etapas")
+    .select("id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em")
+    .eq("post_id", postId)
+    .order("ordem");
+
+  const linhas = data ?? [];
+  const nomes = await nomesDe(linhas.map((l) => l.responsavel_id));
+
+  return linhas.map((l) => ({
+    id: l.id,
+    ordem: l.ordem,
+    nome: l.nome,
+    funcao: l.funcao,
+    responsavelId: l.responsavel_id,
+    responsavel: l.responsavel_id ? (nomes.get(l.responsavel_id) ?? null) : null,
+    status: l.status,
+    prazo: l.prazo,
+    concluidaEm: l.concluida_em,
+  }));
+}
+
+/**
+ * As etapas de social que são MINHAS, para Minhas Tasks.
+ *
+ * Elas entram na mesma tela das etapas de demanda porque respondem à mesma
+ * pergunta — "o que eu faço agora?" — e o redator, que não é do social, não
+ * precisa aprender a abrir outra tela para descobrir que tem texto para
+ * escrever. Duas caixas de entrada são uma caixa que alguém deixa de olhar.
+ *
+ * **Só as que já podem começar, mais as que já começaram.** Uma etapa de
+ * Layout de um post cuja Pauta ninguém escreveu ainda não é trabalho meu hoje:
+ * ela apareceria no topo da lista de alguém que não tem o que fazer com ela, e
+ * o banco recusaria o clique de Iniciar.
+ */
+export type EtapaDeSocialMinha = EtapaDoPost & {
+  postId: string;
+  tema: string;
+  cliente: string;
+  dataPublicacao: string | null;
+};
+
+export async function minhasEtapasDeSocial(
+  usuarioId: string,
+): Promise<EtapaDeSocialMinha[]> {
+  const supabase = await criarClienteServidor();
+
+  const { data } = await supabase
+    .from("post_etapas")
+    .select("id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em")
+    .eq("responsavel_id", usuarioId)
+    .neq("status", "concluida")
+    .order("prazo", { nullsFirst: false });
+
+  const minhas = data ?? [];
+  if (minhas.length === 0) return [];
+
+  const idsDePost = [...new Set(minhas.map((e) => e.post_id))];
+
+  // AS IRMÃS DE CADA ETAPA, para saber se a minha já pode começar. É a mesma
+  // conta de `bloqueioDaEtapa`, com a diferença de que aqui ela decide se o
+  // item aparece — e não só como ele é desenhado.
+  const [{ data: posts }, { data: irmas }] = await Promise.all([
+    supabase.from("posts").select("id, tema, client_id, data_publicacao").in("id", idsDePost),
+    supabase.from("post_etapas").select("post_id, ordem, status").in("post_id", idsDePost),
+  ]);
+
+  const { data: clientes } = await supabase
+    .from("clients")
+    .select("id, nome_empresa")
+    .in("id", [...new Set((posts ?? []).map((p) => p.client_id))]);
+
+  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const doPost = new Map((posts ?? []).map((p) => [p.id, p]));
+  const nomes = await nomesDe([usuarioId]);
+
+  return minhas
+    .filter((e) => {
+      if (e.status !== "nao_iniciada") return true;
+      return !(irmas ?? []).some(
+        (i) => i.post_id === e.post_id && i.ordem < e.ordem && i.status !== "concluida",
+      );
+    })
+    .map((e) => {
+      const post = doPost.get(e.post_id);
+      return {
+        id: e.id,
+        postId: e.post_id,
+        ordem: e.ordem,
+        nome: e.nome,
+        funcao: e.funcao,
+        responsavelId: e.responsavel_id,
+        responsavel: nomes.get(usuarioId) ?? null,
+        status: e.status,
+        prazo: e.prazo,
+        concluidaEm: e.concluida_em,
+        tema: post?.tema ?? "—",
+        cliente: post ? (nomeDoCliente.get(post.client_id) ?? "—") : "—",
+        dataPublicacao: post?.data_publicacao ?? null,
+      };
+    });
+}
+
+/** Os posts que ninguém datou ainda — a faixa ao lado da grade do mês. */
+export async function postsSemData(clienteId?: string): Promise<PostDaAgencia[]> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("posts")
+    .select(COLUNAS)
+    .is("data_publicacao", null)
+    .order("created_at")
+    .limit(200);
+
+  if (clienteId) consulta = consulta.eq("client_id", clienteId);
+
+  const { data } = await consulta;
+  return montar((data ?? []) as Linha[]);
+}
+
+
+export type ReferenciaDoPost = {
+  id: string;
+  url: string;
+  titulo: string | null;
+  quem: string | null;
+  quando: string;
+  /** Quem pôs pode apagar, e a gestão também — a mesma regra das
+   *  Recomendações: a gestão modera apagando, nunca reescrevendo. */
+  minha: boolean;
+};
+
+export async function referenciasDoPost(
+  postId: string,
+  usuarioId?: string,
+): Promise<ReferenciaDoPost[]> {
+  const supabase = await criarClienteServidor();
+
+  const { data } = await supabase
+    .from("post_referencias")
+    .select("id, url, titulo, adicionado_por, created_at")
+    .eq("post_id", postId)
+    .order("created_at");
+
+  const linhas = data ?? [];
+  const nomes = await nomesDe(linhas.map((l) => l.adicionado_por));
+
+  return linhas.map((l) => ({
+    id: l.id,
+    url: l.url,
+    titulo: l.titulo,
+    quem: l.adicionado_por ? (nomes.get(l.adicionado_por) ?? null) : null,
+    quando: l.created_at,
+    minha: !!usuarioId && l.adicionado_por === usuarioId,
+  }));
 }

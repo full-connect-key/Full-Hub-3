@@ -26,6 +26,8 @@ const ROTA = "/painel/social-media";
 const ROTULOS = {
   client_id: "cliente",
   tema: "tema",
+  pauta: "pauta",
+  url: "endereço da referência",
   data_publicacao: "data de publicação",
   plataforma: "rede",
   video_url: "link do vídeo",
@@ -94,6 +96,11 @@ export async function abrirPost(dados: unknown): Promise<Resultado<string>> {
 const esquemaDeEdicao = z.object({
   tema: z.string().trim().min(2).optional(),
   legenda: z.string().nullable().optional(),
+  // A PAUTA ENTRA AQUI E NÃO NUMA ACTION PRÓPRIA (0046): ela é conteúdo do
+  // card, como a legenda, e quem a escreve é quem pegou a primeira etapa. Uma
+  // action só para ela daria dois caminhos de gravação para dois campos que
+  // salvam do mesmo jeito, na mesma tela, com o mesmo `debounce`.
+  pauta: z.string().nullable().optional(),
   formato: z.string().trim().nullable().optional(),
   midia: z.enum(["imagem", "carrossel", "video"]).optional(),
   video_url: z
@@ -106,6 +113,14 @@ const esquemaDeEdicao = z.object({
     .enum(["instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest"])
     .optional(),
   horario: z.string().nullable().optional(),
+  // A DATA PASSA POR AQUI DESDE A 0044, e o comentário abaixo mudou junto: a
+  // `posts_protege_colunas` deixou de recusá-la, porque quem produz é quem
+  // decide quando o post vai ao ar. Cliente e responsável continuam de fora.
+  data_publicacao: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha uma data válida.")
+    .nullable()
+    .optional(),
   status: z
     .enum([
       "aguardando_informacoes", "em_producao", "em_aprovacao",
@@ -117,10 +132,14 @@ const esquemaDeEdicao = z.object({
 /**
  * Editar o conteúdo. **Vale para a gestão e para quem recebeu o post.**
  *
- * Cliente, responsável e data de publicação NÃO passam por aqui — elas têm
- * ação própria, e o trigger `posts_protege_colunas` recusa o colaborador que
- * montar a requisição à mão. Deixá-las neste esquema faria a action oferecer
- * um caminho que o banco nega, e a pessoa descobriria isso no toast.
+ * Cliente e responsável NÃO passam por aqui — têm ação própria, e o trigger
+ * `posts_protege_colunas` recusa o colaborador que montar a requisição à mão.
+ * Deixá-los neste esquema faria a action oferecer um caminho que o banco nega,
+ * e a pessoa descobriria isso no toast.
+ *
+ * **A DATA passou a entrar** (0044, decisão do usuário): o mês de social abre
+ * em branco e quem produz distribui os dias. O que continua travado é enviar
+ * um post sem data ao cliente — e quem recusa isso é `validar_nova_rodada`.
  */
 export async function editarPost(id: string, dados: unknown): Promise<Resultado> {
   return executarAcao("editarPost", async () => {
@@ -357,5 +376,222 @@ export async function excluirPost(id: string): Promise<Resultado> {
 
     revalidatePath(ROTA);
     return sucesso("Post excluído.");
+  });
+}
+
+/* ==========================================================================
+ * A CORRENTE (0045)
+ * ========================================================================== */
+
+const esquemaDoMes = z.object({
+  client_id: z.string().uuid("Escolha o cliente."),
+  mes: z.string().regex(/^\d{4}-\d{2}$/, "Escolha o mês."),
+  quantidades: z.record(z.string(), z.number().int().min(0).max(60)),
+  responsaveis: z.record(z.string(), z.string().uuid().nullable()),
+});
+
+/**
+ * Abrir o mês inteiro de um cliente.
+ *
+ * **Uma chamada só, e é `rpc` e não um laço de `insert` aqui.** Doze posts são
+ * doze linhas, e se a décima falhar pelo PostgREST as nove primeiras ficam lá
+ * — um mês aberto pela metade, que ninguém sabe se abriu. `abrir_mes_de_social`
+ * é transacional: ou nascem todos ou não nasce nenhum.
+ */
+export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number>> {
+  return executarAcao("abrirMesDeSocial", async () => {
+    await exigirGestorNaAcao();
+
+    const lido = esquemaDoMes.safeParse(dados);
+    if (!lido.success) {
+      return falha(
+        recusaDeValidacao("abrirMesDeSocial", lido.error, dados, "Confira o mês.", ROTULOS),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+
+    // Só as funções com nome escolhido viajam. Mandar `{"Design": null}` faria
+    // o `coalesce` do banco gravar nulo por cima de nada — inofensivo, mas o
+    // mapa passa a dizer que alguém escolheu "ninguém", que é outra coisa.
+    const responsaveis: Record<string, string> = {};
+    for (const [funcao, quem] of Object.entries(lido.data.responsaveis)) {
+      if (quem) responsaveis[funcao] = quem;
+    }
+
+    const { data, error } = await supabase.rpc("abrir_mes_de_social", {
+      p_client_id: lido.data.client_id,
+      p_mes: lido.data.mes,
+      p_quantidades: lido.data.quantidades,
+      p_responsavel_id: null,
+      p_responsaveis: responsaveis,
+    });
+
+    if (error) {
+      // O `hint` do Postgres é metade da recusa: "o limite é 60" manda a pessoa
+      // adivinhar, e "abra em duas vezes" é a instrução.
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
+    }
+
+    revalidatePath(ROTA);
+    const quantos = Number(data ?? 0);
+    return sucesso(
+      quantos === 1 ? "1 post aberto, sem data." : `${quantos} posts abertos, sem data.`,
+      quantos,
+    );
+  });
+}
+
+const esquemaDaEtapa = z.object({
+  status: z.enum([
+    "nao_iniciada",
+    "em_andamento",
+    "aguardando_informacoes",
+    "enviada_aprovacao",
+    "em_ajustes",
+    "concluida",
+  ]),
+});
+
+/**
+ * Mover uma etapa da corrente.
+ *
+ * Termina com `.select()`: sem ele um `update` que a RLS barra volta sem erro e
+ * sem linha, e a tela diz "salvo" à toa. Se não voltou linha, é recusa — e a
+ * mensagem precisa dizer isso.
+ */
+export async function moverEtapaDoPost(
+  etapaId: string,
+  dados: unknown,
+): Promise<Resultado> {
+  return executarAcao("moverEtapaDoPost", async () => {
+    await exigirEquipeNaAcao();
+
+    const lido = esquemaDaEtapa.safeParse(dados);
+    if (!lido.success) {
+      return falha(
+        recusaDeValidacao("moverEtapaDoPost", lido.error, dados, "Confira o andamento.", {
+          status: "andamento",
+        }),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("post_etapas")
+      .update({ status: lido.data.status })
+      .eq("id", etapaId)
+      .select("id");
+
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (!data || data.length === 0) {
+      return falha("Esta etapa não é sua, e mover a etapa de outra pessoa é da gestão.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("Andamento atualizado.");
+  });
+}
+
+/** Passar uma etapa para alguém. Da gestão — a policy e o trigger recusam o resto. */
+export async function definirDonoDaEtapa(
+  etapaId: string,
+  responsavelId: string | null,
+): Promise<Resultado> {
+  return executarAcao("definirDonoDaEtapa", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("post_etapas")
+      .update({ responsavel_id: responsavelId })
+      .eq("id", etapaId)
+      .select("id");
+
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (!data || data.length === 0) return falha("Não foi possível alterar esta etapa.");
+
+    revalidatePath(ROTA);
+    return sucesso(responsavelId ? "Etapa passada adiante." : "Etapa sem dono.");
+  });
+}
+
+
+const esquemaDaReferencia = z.object({
+  url: z
+    .string()
+    .trim()
+    .regex(/^https?:\/\//i, "O endereço precisa começar com http:// ou https://."),
+  titulo: z.string().trim().nullable().optional(),
+});
+
+/**
+ * Juntar uma referência de apoio ao card (0046).
+ *
+ * É de `is_staff()` e não da gestão, ao contrário de abrir o post: o ponto do
+ * módulo é que quem pega a etapa preenche o card. Quem assina é o trigger —
+ * policy não limita coluna, e sem ele um PATCH poria a referência no nome de
+ * outra pessoa.
+ */
+export async function juntarReferencia(
+  postId: string,
+  dados: unknown,
+): Promise<Resultado> {
+  return executarAcao("juntarReferencia", async () => {
+    await exigirEquipeNaAcao();
+
+    const validacao = esquemaDaReferencia.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "juntarReferencia",
+          validacao.error,
+          dados,
+          "Confira o endereço.",
+          ROTULOS,
+        ),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase.from("post_referencias").insert({
+      post_id: postId,
+      url: validacao.data.url,
+      titulo: validacao.data.titulo || null,
+    });
+
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+
+    revalidatePath(ROTA);
+    return sucesso("Referência adicionada.");
+  });
+}
+
+/**
+ * Apagar uma referência. Quem pôs, ou a gestão.
+ *
+ * `.select()` porque o RLS pode barrar: sem ele um delete recusado volta sem
+ * erro e sem linha, e a tela diz "apagada" à toa. Não existe editar — mudar o
+ * endereço de uma referência que alguém já abriu é trocar o destino embaixo de
+ * quem a leu, e por isso a tabela não tem policy de UPDATE.
+ */
+export async function apagarReferencia(id: string): Promise<Resultado> {
+  return executarAcao("apagarReferencia", async () => {
+    await exigirEquipeNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("post_referencias")
+      .delete()
+      .eq("id", id)
+      .select("id");
+
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (!data || data.length === 0) {
+      return falha("Esta referência é de outra pessoa, e só a gestão apaga a dos outros.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("Referência removida.");
   });
 }

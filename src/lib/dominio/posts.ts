@@ -1,6 +1,7 @@
 import type {
   ContentStatus,
   PlataformaSocial,
+  SubtaskStatus,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -339,4 +340,131 @@ export function podeProduzir(
   quemLe: { id: string; ehGestor: boolean },
 ): boolean {
   return quemLe.ehGestor || post.responsavelId === quemLe.id;
+}
+
+/* ==========================================================================
+ * A CORRENTE DE ETAPAS DO POST (0045)
+ *
+ * Pauta → Conteúdo → Layout → Envio → Programar, e "Ajustes" entre as duas
+ * últimas quando o cliente pede. Decisão do usuário.
+ *
+ * O que mora aqui são as perguntas que a tela faz e o banco também faz — como
+ * `situacaoDoLancamento()` no Financeiro. A tela precisa saber de quem é a vez
+ * para desenhar, e não dá para perguntar ao banco a cada linha de uma lista de
+ * doze posts.
+ * ========================================================================== */
+
+/** A etapa como a tela a recebe: a linha, mais o nome de quem está com ela. */
+export type EtapaDoPost = {
+  id: string;
+  ordem: number;
+  nome: string;
+  funcao: string;
+  responsavelId: string | null;
+  responsavel: string | null;
+  status: SubtaskStatus;
+  prazo: string | null;
+  concluidaEm: string | null;
+};
+
+/**
+ * A etapa em que o post está agora.
+ *
+ * É a PRIMEIRA NÃO CONCLUÍDA, e não a que está `em_andamento`: uma corrente em
+ * que ninguém começou nada ainda também tem uma vez, e ela é da primeira. Sem
+ * isso a tela mostraria "—" justamente no post que ninguém pegou, que é o que
+ * mais precisa aparecer.
+ */
+export function etapaDaVez(etapas: EtapaDoPost[]): EtapaDoPost | null {
+  return (
+    [...etapas].sort((a, b) => a.ordem - b.ordem).find((e) => e.status !== "concluida") ?? null
+  );
+}
+
+/** Quantas já fecharam, de quantas. O "3 de 6" do cabeçalho do post. */
+export function andamentoDaCorrente(etapas: EtapaDoPost[]): {
+  concluidas: number;
+  total: number;
+} {
+  return {
+    concluidas: etapas.filter((e) => e.status === "concluida").length,
+    total: etapas.length,
+  };
+}
+
+/**
+ * Esta etapa já pode começar?
+ *
+ * É a mesma conta do trigger `post_etapas_regras`, e as duas existem de
+ * propósito: esta escreve a frase que a pessoa lê antes de clicar, aquela é a
+ * que vale. Duas telas perguntando por conta própria acabariam oferecendo
+ * "Iniciar" onde o banco recusa.
+ */
+export function bloqueioDaEtapa(
+  etapa: EtapaDoPost,
+  etapas: EtapaDoPost[],
+): string | null {
+  if (etapa.status !== "nao_iniciada") return null;
+
+  // `em_ajustes` NÃO BLOQUEIA o que vem depois: a etapa já devolveu o
+  // trabalho, e quem está esperando é ela. Sem isto a corrente trava
+  // justamente na etapa de Ajustes, que nasce logo depois do Envio — e o
+  // Envio só sai de `em_ajustes` quando o ajuste for feito. Mesma conta do
+  // trigger `post_etapas_regras`, que é a que vale.
+  const antes = etapas
+    .filter(
+      (e) =>
+        e.ordem < etapa.ordem &&
+        e.status !== "concluida" &&
+        e.status !== "em_ajustes",
+    )
+    .sort((a, b) => a.ordem - b.ordem)
+    .map((e) => e.nome);
+
+  if (antes.length === 0) return null;
+  return `Esta etapa vem depois de ${antes.join(", ")}.`;
+}
+
+/**
+ * A etapa Envio não se marca à mão, nem pela gestão.
+ *
+ * Ela é consequência da rodada de escopo cliente, como `posts.enviado_em` é
+ * desde a 0032. A tela mostra o selo em vez do seletor — e a razão escrita,
+ * porque um seletor desligado não diz nada.
+ */
+export const ETAPA_DE_ENVIO = "Envio";
+
+export function etapaSeMarcaAMao(etapa: EtapaDoPost): boolean {
+  return etapa.nome !== ETAPA_DE_ENVIO;
+}
+
+/** As funções da corrente que o diálogo de abrir o mês pergunta. */
+export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as const;
+
+/**
+ * O que cada função faz na corrente, para o diálogo dizer em vez de pedir três
+ * nomes soltos. "Design" sozinho não conta a quem escolhe que essa pessoa vai
+ * pegar também os ajustes que o cliente pedir.
+ */
+export const ETAPAS_DA_FUNCAO: Record<string, string> = {
+  "Social Media": "Pauta e Programar",
+  Redator: "Conteúdo",
+  Design: "Layout e os Ajustes que o cliente pedir",
+};
+
+/**
+ * O rótulo de "quando" — e o que pôr quando ninguém definiu ainda.
+ *
+ * "Sem data" e não "—", e não a data de criação: o traço é o que a tela mostra
+ * quando não sabe, e aqui ela sabe. O post está esperando alguém escolher o
+ * dia, e a frase é a instrução.
+ *
+ * A formatação não vem daqui: quem chama passa a data já formatada, porque o
+ * formato muda por tela (dia e mês no cabeçalho, dd/MM na lista) e este módulo
+ * é o que os dois lados da fronteira carregam.
+ */
+export const SEM_DATA = "Sem data";
+
+export function rotuloDaData(formatada: string | null): string {
+  return formatada ?? SEM_DATA;
 }

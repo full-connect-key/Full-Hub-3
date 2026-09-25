@@ -258,6 +258,25 @@ select teste.conferir('E o Envio voltou para ajustes',
   (select status::text from public.post_etapas
     where post_id = :CORRENTE and nome = 'Envio'), 'em_ajustes');
 
+-- O CENARIO QUE A IMAGEM DO PROTOTIPO ENCONTROU, e que nenhuma das duas
+-- travas sozinha mostrava: a etapa de Ajustes nasce DEPOIS do Envio, e o Envio
+-- fica em `em_ajustes` -- nunca `concluida` enquanto o ajuste nao for feito.
+-- Com a regra da corrente lendo so "concluida", comecar o Ajustes era recusado
+-- com "vem depois de Envio", e o pedido do cliente criava uma etapa que
+-- ninguem conseguia pegar. Um abraco.
+select teste.cenario('E o Bruno CONSEGUE comecar o ajuste', :BRUNO,
+  format($fmt$update public.post_etapas set status = 'em_andamento'
+     where post_id = %L and nome = 'Ajustes'$fmt$, :CORRENTE), 'ok', 1);
+
+-- E O PROGRAMAR CONTINUA TRAVADO, que e a metade que nao pode afrouxar junto:
+-- ninguem programa o que o cliente nao aprovou. Enquanto o Ajustes nao fecha,
+-- ele e o bloqueio; depois, o Envio volta a `enviada_aprovacao` e bloqueia de
+-- novo. So a aprovacao o libera.
+select teste.recusa_com('Mas o Programar nao', :MARINA,
+  format($fmt$update public.post_etapas set status = 'em_andamento'
+     where post_id = %L and nome = 'Programar'$fmt$, :CORRENTE),
+  'vem depois de Ajustes');
+
 select teste.conferir('O Bruno foi avisado do pedido',
   (select count(*)::text from public.notifications
     where user_id = :BRUNO and titulo like 'O cliente pediu ajustes%'), '1');

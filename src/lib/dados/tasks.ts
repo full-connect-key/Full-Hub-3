@@ -729,9 +729,15 @@ async function postsNoCalendario(
 
   const supabase = await criarClienteServidor();
 
+  // POST SEM DATA NAO ENTRA NO CALENDARIO, e o filtro é `not null` e não um
+  // descarte depois: desde a 0044 o mês de social abre em branco, e um post
+  // sem data não tem célula onde caber. Ele existe na tela de Social Media,
+  // na faixa "sem data ainda" — que é onde alguém vai buscá-lo para marcar o
+  // dia.
   let consulta = supabase
     .from("posts")
     .select("id, client_id, tema, data_publicacao, status")
+    .not("data_publicacao", "is", null)
     .order("data_publicacao");
 
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
@@ -754,7 +760,7 @@ async function postsNoCalendario(
       tipo: "post" as const,
       taskId: post.id,
       titulo: post.tema,
-      prazo: post.data_publicacao,
+      prazo: post.data_publicacao as string,
       prioridade: "normal" as TaskPrioridade,
       status: "em_andamento" as TaskStatus,
       concluida: post.status === "aprovado",

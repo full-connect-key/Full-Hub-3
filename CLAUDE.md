@@ -1115,6 +1115,167 @@ estado dentro de um `useEffect` dispara renderização em cascata — e, pior,
 sobrescreveria o que a pessoa acabou de digitar no instante em que o servidor
 revalidasse a página.
 
+#### A corrente de etapas do post, e o card que cada uma preenche
+
+Migrations 0044, 0045 e 0046, todas por decisão do usuário. É o que transforma
+o post de uma linha no calendário no trabalho de quatro pessoas.
+
+**O mês abre em branco, sem datas** (0044). Com mais de dez clientes, todos com
+social, abrir cento e vinte posts um a um é a gestão inventando cento e vinte
+datas que quem produz vai refazer. `abrir_mes_de_social(cliente, mês,
+quantidades, responsáveis)` cria N posts de uma vez, **transacional** — ou
+nascem todos ou nenhum. As quantidades vêm **por rede** (`{"instagram": 12,
+"linkedin": 4}`), que é como um contrato de social é escrito.
+
+- **`data_publicacao` aceita nulo**, e é o que destrava o resto: "sem data
+  ainda" é um estado de verdade do trabalho, e um estado que a coluna não
+  representa vira data inventada. Post sem data não entra no calendário — vai
+  para a faixa **"Sem data ainda"** abaixo da grade, que é onde alguém o busca
+  justamente para marcar o dia.
+- **A data é de quem produz.** A 0042 travava o contrário ("ela foi combinada
+  com o cliente"), certo para aquele fluxo e errado para este. *O que se perde,
+  e foi dito a quem decidiu:* um post já enviado pode ter a data trocada, e o
+  cliente vê outra data sem ninguém avisar.
+- **Mas post sem data não vai ao cliente.** Não contradiz o de cima — não diz
+  quem manda na data, diz que ela existe antes de o material sair da agência.
+  Senão ele abre o portal, vê a arte e decide sem saber quando aquilo vai ao
+  ar. Quem recusa é `validar_nova_rodada`, mesma forma da trava de vídeo sem
+  link.
+- **O teto de 60 RECUSA em vez de cortar**, ao contrário do limite da
+  recorrência: lá o excesso vem de uma regra de calendário; aqui o número é
+  digitado, e um zero a mais é erro de digitação.
+- O mês por extenso sai de um **array** e não de `to_char(..., 'TMMonth')`: o
+  `TM` lê o `lc_time` do servidor, e no Postgres da bateria ele é `C` — o tema
+  saiu "November/2026" numa tela em português. É o `toLocaleDateString` do SQL.
+
+**E cada post carrega uma CORRENTE DE ETAPAS** (0045): Pauta (Social Media) →
+Conteúdo (Redator) → Layout (Design) → Envio → **Ajustes**, se o cliente pedir
+→ Programar (Social Media). Até aqui o post tinha uma mão por vez — a gestão
+abria, um colaborador produzia, a gestão enviava. Isso descreve quem pode
+escrever, não quem faz o quê: pauta, texto e arte são três ofícios, e
+"produzir" tratava os três como um.
+
+**Não é um `workflow_template`, e a recusa tem dois motivos mecânicos.**
+Workflow materializa subtarefa, e subtarefa mora dentro de uma task:
+`tasks_exige_pasta_de_entrega` cobraria cento e vinte pastas por mês que
+ninguém preenche, e o board da agência ganharia cento e vinte linhas mensais —
+o que o modo `mensal_agrupada` da recorrência existe para evitar. A cadeia mora
+em `etapas_padrao_do_social()`; se um dia precisar ser editável por cliente,
+vira tabela de modelo, e é decisão explícita.
+
+**"Diretor de Arte" é a função `Design` do enum**, e a escolha é deliberada:
+acrescentar o nome ao lado criaria dois nomes para o mesmo ofício, e a mesma
+pessoa cadastrada como um não apareceria na busca pelo outro.
+
+**O status é `subtask_status` e não um enum novo**, ao contrário dos três
+vocabulários que o produto mantém separados: esta tabela responde à *mesma*
+pergunta que a etapa de demanda — "em que pé está este trabalho, que é meu?" —,
+e as duas aparecem lado a lado em Minhas Tasks. Um enum com quatro dos seis
+valores obrigaria um de-para ali.
+
+- **A ordem tem folga** (10, 20, 30, 40, 50) porque a etapa de Ajustes nasce
+  *entre* Envio e Programar; sequencial, ela obrigaria a renumerar as seguintes
+  por causa de um pedido do cliente.
+- **Cada pedido cria a sua**, numerada — dois pedidos são dois motivos, e
+  reaproveitar a linha apagaria o primeiro, pela mesma razão que rodada fechada
+  nunca é reescrita. Quem fez o Layout herda o ajuste.
+- **Post RECUSADO não ganha etapa nenhuma.** Rejeitar diz *não*, pedir ajustes
+  diz *mude isto e volte* — criar a etapa nos dois casos afirmaria que um post
+  recusado é para refazer.
+- **A etapa Envio não se marca à mão, nem pela gestão**: é consequência da
+  rodada de escopo cliente, como `posts.enviado_em` desde a 0032.
+- **E uma etapa `em_ajustes` não bloqueia o que vem depois dela.** Sem essa
+  linha a corrente travava exatamente onde o cliente mexeu: o Envio vai para
+  `em_ajustes`, a etapa de Ajustes nasce logo depois, e começá-la era recusado
+  com "vem depois de Envio" — que nunca ficaria concluída enquanto o ajuste não
+  fosse feito. Uma etapa em ajustes já devolveu o trabalho; quem espera é ela.
+  **Foi a imagem do protótipo que mostrou**, e o Programar continua travado do
+  jeito certo: ninguém programa o que o cliente não aprovou.
+
+**A trava mais nova quase quebrou a ação mais antiga do portal.**
+`posts_corrente_do_cliente` move a etapa Envio e roda com o `auth.uid()` **do
+cliente** — `security definer` não troca quem está logado —, então ele cairia em
+"o Envio não se marca à mão" clicando no único botão que tem. A saída é um GUC
+de escopo local, desligado antes de a função devolver: a saída de emergência não
+pode virar porta destrancada. A mesma saída cobre o seed, que monta posts no
+meio do fluxo.
+
+**E o gatilho reativo mora em `posts`, não dentro de `decidir_rodada_do_cliente`**
+— aquela função já foi reescrita inteira várias vezes, e cada reescrita é uma
+chance de o trecho ficar para trás. De quebra, o gatilho pega todo caminho que
+põe o post em ajustes, não só o botão do portal.
+
+#### O card: quem pega a etapa é quem preenche
+
+Migration 0046. **Cada elo da corrente tem um campo do card**, e dois deles não
+existiam:
+
+| Etapa | Preenche |
+| --- | --- |
+| Pauta | `posts.pauta` — **nasce aqui** |
+| Conteúdo | `posts.legenda` |
+| Layout | a versão, com a arte |
+| Envio | a ação Enviar ao cliente |
+| Programar | data e horário |
+
+Sem `pauta`, quem pegava a primeira etapa abria a tela e não tinha onde
+escrever nada — a etapa existia e o trabalho dela não cabia em lugar nenhum.
+Escrever a pauta na legenda seria pior: **a legenda vai ao cliente e ao ar, a
+pauta é conversa interna**, e a tela diz isso em uma frase embaixo do campo.
+
+**As referências são TABELA** (`post_referencias`), como `task_referencias`, e
+não um campo de texto com links colados: são várias, cada uma tem quem a pôs e
+quando, e se apagam uma a uma. Um `text` com links separados por linha vira o
+campo em que ninguém apaga nada com medo de apagar o resto. `tipo` fica de fora
+— aqui é sempre link, porque a arte tem lugar próprio e um arquivo solto no
+meio das referências seria uma segunda porta para o material final.
+
+- O endereço entra **num campo da tela, nunca num `window.prompt`** — mesma
+  decisão do link de referência da Task.
+- **Apagar é de quem pôs, ou da gestão**, como nas Recomendações: a gestão
+  modera apagando.
+- **Não existe editar, e a tabela não tem policy de UPDATE.** Mudar o endereço
+  de uma referência que alguém já abriu é trocar o destino embaixo de quem a
+  leu. Apaga e põe outra.
+- Quem assina é o trigger: policy não limita coluna.
+
+**O ATENDIMENTO ABRE O MÊS**, e não só a gestão — decisão do usuário. É
+`is_atendimento()`, a **mesma** função que `tasks_insert` usa desde a 0006, e
+não uma parecida: uma segunda função dizendo quase isso seria o lugar onde as
+duas verdades começam a divergir. **O que não muda: distribuir a corrente
+continua sendo da gestão.** Abrir trabalho e distribuir trabalho são duas
+decisões.
+
+**"Social Media" é UMA linha do menu, e fica na Principal.** Ela passou por
+Gestão e por duas entradas ao mesmo tempo no mesmo dia; o histórico fica
+registrado porque a ideia pode voltar. O que decidiu: a tela já muda sozinha por
+perfil, e quem recusa é a RLS e os triggers — uma segunda entrada não
+acrescentava trava nenhuma, só um segundo caminho para o mesmo lugar com o
+mesmo nome. E é na Principal porque a divisão do menu é sobre a **pessoa**:
+Gestão carrega o selo Admin e significa "o que eu faço sobre os outros", e o
+redator escrevendo a legenda dele não está fazendo nada sobre ninguém.
+
+#### As etapas de social aparecem em Minhas Tasks
+
+Decisão do usuário. O redator não é do social — se a etapa dele vivesse só na
+tela de Social Media, ele teria duas caixas de entrada e olharia uma. Clicar
+leva ao post, que é onde o card se preenche.
+
+**É bloco próprio e não itens misturados à lista de etapas de demanda**, e a
+razão é o que cada uma carrega: a etapa de demanda é uma `SubtarefaDetalhada` —
+rodada, cronômetro, dependência cadastrada, a máquina de estados que decide
+qual botão aparece. Uma etapa de post não tem nada disso, e fabricar os campos
+para ela caber no mesmo molde faria a tela oferecer "Enviar para aprovação" onde
+o banco responde outra coisa. **O molde errado mente com mais convicção que a
+ausência.**
+
+*O que se perde, e é consequência aceita:* a ordem não é global entre os dois
+tipos. O que se ganha é uma tela só para "o que eu faço hoje".
+
+E a lista traz **só as que já podem começar**: uma etapa de Layout cujo
+Conteúdo ninguém escreveu ainda não é trabalho meu hoje — ela apareceria no topo
+da lista de quem não tem o que fazer com ela, e o banco recusaria o clique.
+
 #### Campanhas: a Wave, a árvore e a decisão de cada peça
 
 `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions` —
