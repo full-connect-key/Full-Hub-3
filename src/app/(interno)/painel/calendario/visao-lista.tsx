@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react";
 
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import {
   COR_DA_CAMADA,
   ROTULOS_DE_CAMADA,
@@ -60,19 +61,10 @@ export function VisaoDeLista({ janela, itens }: { janela: Janela; itens: ItemDoC
       i.pessoa?.nome ?? "",
       i.status ?? "",
     ]);
-    // As aspas dobram, e o campo inteiro vai entre aspas: um título com
-    // ponto e vírgula ou com quebra de linha quebraria a coluna, e o Excel
-    // abriria o arquivo com as colunas trocadas sem avisar.
-    const csv = [cabecalho, ...linhas]
-      .map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-
-    const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `calendario-${janela.inicio}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    // `montarCSV` E NÃO O ARQUIVO MONTADO AQUI: era a sexta cópia da mesma
+    // dezena de linhas no produto, e as cópias já divergiam — o BOM que o
+    // Excel precisa para ler UTF-8 estava em quatro delas e faltava numa.
+    baixarCSV(montarCSV(cabecalho, linhas), `calendario-${janela.inicio}.csv`);
   }
 
   return (

@@ -7,9 +7,9 @@ import { exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { contratosSemLancamento } from "@/lib/dados/financeiro";
+import { lerCSV } from "@/lib/dominio/csv";
 import {
   competenciaDe,
-  lerCSV,
   lerDinheiro,
   vencimentoNaCompetencia,
 } from "@/lib/dominio/financeiro";

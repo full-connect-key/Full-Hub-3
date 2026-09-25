@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { montarCSV } from "@/lib/dominio/financeiro";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import type { LinhaDoAcompanhamento, TrilhaDaGrade } from "@/lib/dados/academy";
 import { cn } from "@/lib/utils";
 
@@ -70,14 +70,7 @@ export function PainelDaGestao({
       ]),
     );
 
-    const endereco = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    const link = document.createElement("a");
-    link.href = endereco;
-    link.download = `academy-acompanhamento-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    URL.revokeObjectURL(endereco);
+    baixarCSV(csv, `academy-acompanhamento-${format(new Date(), "yyyy-MM-dd")}.csv`);
   }
 
   return (

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import {
   CORES_DE_PRESENCA,
   PRESENCAS_EDITAVEIS,
@@ -129,17 +130,7 @@ export function MatrizDaEquipe({
       ...dias.map((d) => ROTULOS_DE_PRESENCA[statusDoDia(linha, d)]),
     ]);
 
-    const texto = [cabecalho, ...corpo]
-      .map((celulas) => celulas.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-
-    const arquivo = new Blob([`﻿${texto}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(arquivo);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `full-days-${mes}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    baixarCSV(montarCSV(cabecalho, corpo), `full-days-${mes}.csv`);
   }
 
   function statusDoDia(linha: Linha, data: string): PresencaStatus {

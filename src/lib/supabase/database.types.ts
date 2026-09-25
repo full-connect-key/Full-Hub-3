@@ -2107,6 +2107,85 @@ export interface Database {
           ausente: boolean;
         }[];
       };
+      /**
+       * A CAMADA DE INDICADORES (0035).
+       *
+       * As cinco são `security definer` e recusam na PRIMEIRA linha quem não
+       * pode: quatro exigem `is_gestor()`, e `rentabilidade_do_periodo`
+       * exige `is_socio()` — faturamento por cliente é a informação mais
+       * sensível da casa, e aqui não existe "só leitura para o gestor". Uma
+       * recusa chega como erro do PostgREST, não como lista vazia: é a
+       * diferença entre "você não pode" e "não há nada".
+       *
+       * Todas contam SÓ FOLHA e ignoram rascunho, e o filtro é
+       * `publicada_em is not null` — `rascunho` não é valor de enum.
+       */
+      tempo_por_status: {
+        Args: { p_de: string; p_ate: string };
+        Returns: { status: string; minutos: number; ocorrencias: number }[];
+      };
+      tempo_de_aprovacao: {
+        Args: { p_de: string; p_ate: string };
+        Returns: {
+          escopo: string;
+          client_id: string | null;
+          horas_media: number;
+          rodadas: number;
+          pendentes: number;
+        }[];
+      };
+      producao_do_periodo: {
+        Args: { p_de: string; p_ate: string; p_client_id?: string | null };
+        Returns: {
+          criadas: number;
+          concluidas: number;
+          atrasadas: number;
+          no_prazo: number;
+          fora_do_prazo: number;
+          sem_prazo: number;
+          minutos_reais: number;
+        }[];
+      };
+      desvio_de_estimativa: {
+        Args: { p_de: string; p_ate: string };
+        Returns: {
+          responsavel_id: string;
+          etapas: number;
+          minutos_estimados: number;
+          minutos_reais: number;
+          desvio_percentual: number;
+        }[];
+      };
+      qualidade_da_entrega: {
+        Args: { p_de: string; p_ate: string };
+        Returns: {
+          client_id: string | null;
+          conteudos: number;
+          aprovados_de_prima: number;
+          rodadas_media: number;
+          rejeitados: number;
+        }[];
+      };
+      /** Só o sócio. `receita_por_hora` vem NULA quando ninguém lançou hora. */
+      rentabilidade_do_periodo: {
+        Args: { p_de: string; p_ate: string };
+        Returns: {
+          client_id: string | null;
+          receita: number;
+          despesa: number;
+          horas: number;
+          receita_por_hora: number | null;
+        }[];
+      };
+      /** A carga de UMA pessoa num dia. A fonte única da conta desde a 0035. */
+      carga_do_dia: {
+        Args: { p_user_id: string; p_data: string };
+        Returns: {
+          minutos_comprometidos: number;
+          etapas: number;
+          etapas_sem_estimativa: number;
+        }[];
+      };
       /** Dias em que um evento com `bloqueia_ferias` atinge esta pessoa (0055). */
       eventos_que_bloqueiam: {
         Args: { p_user_id: string; p_inicio: string; p_fim: string };

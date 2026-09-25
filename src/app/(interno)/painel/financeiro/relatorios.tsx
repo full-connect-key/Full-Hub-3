@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import type { DRE, RentabilidadeDoCliente } from "@/lib/dados/financeiro";
-import { formatarDinheiro, montarCSV } from "@/lib/dominio/financeiro";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
+import { formatarDinheiro } from "@/lib/dominio/financeiro";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { cn } from "@/lib/utils";
 
-import { baixar } from "./lancamentos";
 
 /**
  * DRE simplificado e rentabilidade por cliente.
@@ -61,7 +61,7 @@ export function Relatorios({
         ["Total", "Resultado", dre.resultado.toFixed(2).replace(".", ",")],
       ],
     );
-    baixar(csv, `dre-${de.slice(0, 7)}-a-${ate.slice(0, 7)}.csv`);
+    baixarCSV(csv, `dre-${de.slice(0, 7)}-a-${ate.slice(0, 7)}.csv`);
   }
 
   function exportarRentabilidade() {
@@ -74,7 +74,7 @@ export function Relatorios({
         r.receitaPorHora !== null ? r.receitaPorHora.toFixed(2).replace(".", ",") : "",
       ]),
     );
-    baixar(csv, `rentabilidade-${de.slice(0, 7)}-a-${ate.slice(0, 7)}.csv`);
+    baixarCSV(csv, `rentabilidade-${de.slice(0, 7)}-a-${ate.slice(0, 7)}.csv`);
   }
 
   const comHoras = rentabilidade.filter((r) => r.receitaPorHora !== null);

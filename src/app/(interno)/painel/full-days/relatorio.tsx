@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import { contarDiasUteis } from "@/lib/dominio/full-days";
 import type { LinhaDoRelatorio } from "@/lib/dados/full-days";
 import { cn } from "@/lib/utils";
@@ -100,16 +101,7 @@ export function RelatorioGerencial({
       l.nome, l.area, l.diasFeriasAno, l.tiradas, l.agendadas, l.pendentes,
       l.saldo, l.ausencias, l.licencas, l.mesesSemFerias ?? "—",
     ]);
-    const texto = [cabecalho, ...corpo]
-      .map((celulas) => celulas.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const arquivo = new Blob([`﻿${texto}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(arquivo);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `full-days-relatorio-${mes}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    baixarCSV(montarCSV(cabecalho, corpo), `full-days-relatorio-${mes}.csv`);
   }
 
   return (

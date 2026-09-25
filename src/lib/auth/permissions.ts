@@ -1,21 +1,22 @@
 import {
-  Images,
   BadgeCheck,
   BookOpen,
   CalendarDays,
+  ChartColumn,
   CircleDollarSign,
   ClipboardList,
   FileCheck2,
+  Images,
   LayoutDashboard,
   ListChecks,
   Receipt,
   Sparkles,
   Sun,
   ThumbsUp,
+  type LucideIcon,
   UserRound,
   Users,
   Workflow,
-  type LucideIcon,
 } from "lucide-react";
 
 import type { UserRole } from "@/lib/supabase/database.types";
@@ -265,6 +266,20 @@ export const MENU: MenuItem[] = [
     roles: GESTAO,
     section: "gestao",
     description: "Os workflows da agência e a cadeia de etapas de cada um.",
+  },
+  {
+    // GESTÃO, e não só o sócio — mas a aba de rentabilidade dentro dela é
+    // dele. É o mesmo desenho da 0035: quatro funções exigem `is_gestor()`,
+    // a quinta exige `is_socio()`. O desenvolvedor distribui trabalho e
+    // responde por prazo, então produção, tempo e qualidade são dele; o que
+    // ele não alcança é faturamento por cliente.
+    label: "Métricas",
+    href: "/painel/metricas",
+    icon: ChartColumn,
+    roles: GESTAO,
+    section: "gestao",
+    description:
+      "Produção, onde o tempo vai, estimativa contra real e quanto a entrega volta.",
   },
   {
     // SÓ O SÓCIO. O desenvolvedor é gestão para todo o resto do sistema e

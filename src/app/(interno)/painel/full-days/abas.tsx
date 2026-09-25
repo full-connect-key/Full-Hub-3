@@ -79,8 +79,16 @@ export function AbasDoFullDays({
     // ficam acima do painel de saldo, que já é um bloco com fundo próprio, e
     // duas linhas horizontais seguidas (a borda da aba e a borda do painel)
     // liam como duas divisões sem nada entre elas.
-    <nav aria-label="Seções do Full Days">
-      <ul className="bg-muted inline-flex min-w-max gap-1 overflow-x-auto rounded-xl p-1">
+    <nav aria-label="Seções do Full Days" className="-mx-1 overflow-x-auto px-1">
+    {/* O SCROLL É DO `nav`, E O `min-w-max` É DO `ul`. Os dois na mesma
+        tag não fazem nada: um elemento com `min-w-max` tem exatamente a
+        largura do conteúdo, então nunca overflowa a si mesmo — quem
+        transborda é o PAI. Em 375px a barra de abas empurrava a página
+        inteira para os lados: cabeçalho, conteúdo e rodapé saíam da tela, e
+        a página ganhava rolagem horizontal. Foi a imagem de 375px que
+        mostrou; em qualquer largura de desktop as abas cabem e o erro não
+        aparece. */}
+      <ul className="bg-muted inline-flex min-w-max gap-1 rounded-xl p-1">
         {visiveis.map((aba) => {
           const { label, icone: Icone } = ROTULOS[aba];
           const ativo = aba === atual;

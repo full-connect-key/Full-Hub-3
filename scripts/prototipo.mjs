@@ -210,6 +210,18 @@ const TELAS = [
   // recusa. Bruno e Design no prototipo.
   { nome: "96-calendario-colaborador", rota: "/painel/calendario", largura: 1500, altura: 900, role: "colaborador-social" },
 
+  { nome: "97-metricas-producao", rota: "/painel/metricas", largura: 1500, altura: 1000, role: "socio" },
+  { nome: "97b-metricas-producao-cliente", rota: "/painel/metricas?cliente=c0000000-0000-0000-0000-00000000000a&periodo=trimestre", largura: 1500, altura: 1000, role: "socio" },
+  { nome: "98-metricas-tempo", rota: "/painel/metricas?aba=tempo", largura: 1500, altura: 1300, role: "socio" },
+  { nome: "99-metricas-equipe", rota: "/painel/metricas?aba=equipe", largura: 1400, altura: 800, role: "socio" },
+  { nome: "99b-metricas-qualidade", rota: "/painel/metricas?aba=qualidade", largura: 1400, altura: 700, role: "socio" },
+  // A RENTABILIDADE E DO SOCIO. As duas imagens sao o par que prova a regra:
+  // ele ve a aba, e o desenvolvedor abre a mesma rota e nao tem a aba na
+  // barra. Uma so provaria que a tela desenha, nao que ela separa.
+  { nome: "99c-metricas-rentabilidade", rota: "/painel/metricas?aba=rentabilidade&periodo=ano", largura: 1400, altura: 700, role: "socio" },
+  { nome: "99d-metricas-desenvolvedor", rota: "/painel/metricas", largura: 1400, altura: 900, role: "desenvolvedor" },
+  { nome: "99e-metricas-375", rota: "/painel/metricas?aba=tempo", largura: 375, altura: 1600, role: "socio" },
+
   { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
   // 375px: a grade de tres colunas vira UMA, e e a unica imagem que prova
   // isso -- no 1600 as tres colunas escondem o que acontece no celular, que
@@ -322,6 +334,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/home": ["./scripts/prototipo/home.ts"],
+  "@/lib/dados/metricas": ["./scripts/prototipo/metricas.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],

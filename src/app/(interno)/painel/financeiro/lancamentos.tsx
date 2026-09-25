@@ -27,11 +27,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { LancamentoComRelacoes } from "@/lib/dados/financeiro";
+import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import {
   CORES_DE_STATUS,
   formatarDinheiro,
   lerDinheiro,
-  montarCSV,
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
   STATUS_ESCOLHIVEIS,
@@ -150,7 +150,7 @@ export function Lancamentos({
         ROTULOS_DE_STATUS[l.situacao],
       ]),
     );
-    baixar(csv, `lancamentos-${competencia.slice(0, 7)}.csv`);
+    baixarCSV(csv, `lancamentos-${competencia.slice(0, 7)}.csv`);
   }
 
   const colunas: Column<LancamentoComRelacoes>[] = [
@@ -793,13 +793,3 @@ function ImportadorDeCSV({
   );
 }
 
-/** Baixa um texto como arquivo, sem passar pelo servidor. */
-export function baixar(conteudo: string, nome: string) {
-  const blob = new Blob([conteudo], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nome;
-  link.click();
-  URL.revokeObjectURL(url);
-}
