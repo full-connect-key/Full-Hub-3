@@ -2497,6 +2497,177 @@ Um módulo de indicação com aprovação prévia morre na segunda semana.
 rotas moram em `(interno)`, nenhuma entrada do `MENU` aceita `cliente`, e a
 RLS recusa o perfil nas seis tabelas — é o terceiro que vale.
 
+### A tela inicial, as Métricas e o Resumo da Agência
+
+O Sprint 15 é o que faz o Full Hub responder sobre si mesmo. A camada de
+indicadores já existia — migrations 0035 e 0049 — e nenhuma tela a lia.
+
+#### A Home tem NOVE blocos, e a ordem é a do dia da pessoa
+
+Quem sou eu → o que eu entrego hoje → o que está parado me esperando → quem
+não está aqui → para onde eu vou. E só então, para a gestão, o panorama:
+Pulso, clientes parados, portais. **Quem abre esta tela abre para trabalhar**,
+e o painel de indicadores no topo faria a gestão rolar todo dia por cima dele
+para achar as próprias entregas.
+
+**"Meu dia" é o MESMO componente de Minhas Tasks**, alimentado pela mesma
+função. São duas idas ao banco e não uma — `home_summary()` traz os
+contadores, `meuDia()` traz a lista com máquina de estados, cronômetro e
+dependência em aberto —, e era isso ou desenhar aqui uma segunda lista
+parecida, que divergiria no lugar mais caro: o botão que muda o status de uma
+etapa. O que a Home acrescenta é a linha "e mais N esta semana", porque aqui
+não há contador nenhum acima e sem ela a pessoa leria "dia limpo" sem saber
+que quarta tem cinco entregas.
+
+**Os blocos de exceção somem quando não têm nada a dizer** — rascunho a
+expirar, o que precisa de mim, quem está fora, cliente parado. Uma caixa fixa
+dizendo "nada aqui" ocupa todo dia, na primeira tela de todo mundo, o lugar de
+uma informação que interessa em alguns dias. **O Pulso é a exceção**: zero
+atrasada é a resposta boa, e um bloco que some nos dias bons ensina que ele só
+aparece quando há problema.
+
+**"Precisa de mim" tem TRÊS itens e não quatro.** O quarto que o sprint pede é
+a nota fiscal recusada, e a tabela não existe — a agência emitir NF ficou fora
+do produto por decisão do usuário. A ausência fica escrita no arquivo, porque
+um bloco que entrega três de quatro sem dizer qual falta parece um bloco
+completo.
+
+**O estado de quem está fora passa pelo mapa de rótulos, sempre.** O banco
+devolve o valor de enum, que ficou com o nome anterior à 0016 de propósito;
+desenhá-lo cru poria o vocabulário que a 0016 e a 0018 tiraram do produto na
+primeira tela que a agência abre todo dia — e a varredura de `check:cores`
+**não pegaria**, porque o texto não está em `src/`: vem do banco.
+
+#### `/painel/metricas`: cinco abas, e o período é uma CHAVE
+
+`?aba=` com Produção, Onde o tempo vai, Estimativa × real, Qualidade da
+entrega e Rentabilidade. O recorte é `?periodo=` — `30d`, `90d`, `mes`,
+`trimestre`, `ano`, `livre` —, e só o livre grava as duas datas.
+
+**Gravar as datas de um recorte pronto seria um link que envelhece calado.**
+"Últimos 30 dias" salvo como `de=2026-08-26` é um endereço que, mandado na
+segunda e aberto na sexta, mostra um recorte que já não é o de ninguém. Com a
+chave, o link continua querendo dizer o que a pessoa quis dizer. Período
+livre invertido é **trocado**, não recusado: os dois campos vêm da URL, e uma
+tela em branco manda a pessoa descobrir sozinha qual dos dois está errado.
+
+**O padrão são os últimos 30 dias e não "este mês":** no dia 2, "este mês"
+calcula a taxa de entrega sobre três etapas e mostra um número que parece
+medição e é ruído.
+
+**`QUEM_VE` espelha a primeira linha de cada função da 0035** — quatro exigem
+`is_gestor()`, a rentabilidade exige `is_socio()`. O desenvolvedor é gestão
+para o resto do sistema e aqui não: faturamento por cliente é a informação
+mais sensível da casa, e "só leitura para o gestor" não existe neste produto,
+nem agregado. Esconder a aba não é a proteção: `?aba=rentabilidade` leva 403,
+e a RPC chamada direto leva a recusa do Postgres.
+
+**`ouFalha()` em todas, e aqui ele faz mais que de costume.** A recusa dessas
+funções chega como ERRO e não como lista vazia; sem ele, quem não pode veria
+um painel dizendo que a agência não produziu nada. **Painel zerado não parece
+recusa, parece agência parada.**
+
+**Nenhuma conta é refeita na tela.** A taxa de entrega no prazo usa o mesmo
+denominador do `select` da 0035: etapa sem prazo fica FORA, porque não está no
+prazo nem fora dele — somá-la como acerto faria o número subir quanto mais
+desorganizada a agência ficasse. Ela volta **nula e não zero** quando não há o
+que medir.
+
+**O desvio de estimativa ordena pelo MÓDULO.** Quem entrega em metade do tempo
+estimado erra o planejamento tanto quanto quem leva o dobro, e a segunda conta
+é a que enche a agenda de todo mundo — ordenar pelo número com sinal esconderia
+o subestimador no fim da lista.
+
+#### `/painel/resumo-agencia`: a conversa de segunda-feira
+
+O que saiu, o que ficou para trás, o que espera o cliente, o que vence na
+próxima semana e quem não vai estar. A semana mora na URL (`?semana=`), sempre
+normalizada para a segunda-feira.
+
+**Ele é MÓDULO antes de ser tela** (`lib/reports/weekly.ts`): a mesma função
+serviria um envio automático de segunda. O agendamento é de outro sprint, como
+a limpeza de rascunhos e a geração de recorrências, então ela devolve o resumo
+montado e não manda nada para lugar nenhum.
+
+**O nome não é detalhe.** Um dos nomes mortos que `check:cores` varre junta as
+duas palavras óbvias para esta tela — era um módulo apagado na 0034, o
+registro **privado** de cada pessoa, que nem o sócio lia. Este é o panorama da
+agência para a gestão. São coisas opostas, e a mesma palavra para as duas é
+como se confunde as duas de novo daqui a três sprints.
+
+**Os números saem de `producao_do_periodo()`**, a mesma função das Métricas,
+com a semana como recorte. E **as listas contam só folha**, pelo mesmo motivo
+que ela: a primeira versão mostrava "11 entregues" no cartão e sete na lista
+logo abaixo — dois números para o mesmo fato, um do lado do outro. Foi a
+imagem do protótipo que mostrou. `quemTemFilha()` é `subtask_eh_agrupadora()`
+escrita do jeito que o PostgREST responde, porque ele não chama função do
+Postgres num `where`.
+
+**"O que ficou para trás" é medido HOJE**, e a frase diz isso: é o estado de
+agora, como a situação do lançamento no Financeiro. Sem ela, quem abre a
+semana passada acharia que aquelas etapas venceram naquela semana.
+
+**Etapa sem dono aparece dizendo "sem responsável"**, e não como espaço em
+branco: ela não está no "Minhas Tasks" de ninguém, que é o pior tipo de
+trabalho — o que existe e ninguém sabe que é seu.
+
+**A lista corta em oito e DIZ quantos sobraram.** Um resumo de sessenta linhas
+não é resumo, e cortar calado faz a pessoa concluir que aquilo é tudo.
+
+**Não há exportação aqui**, e a ausência é escolha: este resumo é para ler e
+decidir. Quem precisa da planilha tem as Métricas, com o período livre e o CSV
+de cada ângulo. Dois caminhos para o mesmo arquivo seriam dois formatos do
+mesmo dado.
+
+#### O CSV deixou de ter seis donos
+
+`lib/dominio/csv.ts`. `montarCSV` e `lerCSV` moravam dentro de
+`lib/dominio/financeiro.ts` desde o Sprint 8, e a Academy já importava dali
+para exportar o acompanhamento de uma trilha — **importar do Financeiro é o
+tipo de dependência que ninguém escolhe, só herda.**
+
+As cópias já divergiam: o BOM que faz o Excel entender que o arquivo é UTF-8
+estava em quatro das cinco telas, e o CSV da que faltava abria com
+"Ã“ptica VisÃ£o". E `baixar` estava exportado de um arquivo `"use client"`,
+onde só não tinha estourado porque nenhum Server Component o importava ainda.
+
+#### `CartaoDeNumero`, e por que ele não é o cartão do Financeiro
+
+`components/shared/cartao-de-numero.tsx`, com quatro tons. Aquele
+(`financeiro/visao-geral.tsx`) formata dinheiro dentro de si e tem a barra de
+proporção contra o previsto: generalizá-lo daria um componente com seis props
+em que quatro são nulas em cada uso. **O tom é o par nomeado, nunca
+opacidade** — inclusive a borda, que fica a do tema.
+
+#### O bug que só a imagem de 375px pega, e ele era de dois sprints
+
+`min-w-max` e `overflow-x-auto` na mesma tag não fazem nada: um elemento com
+`min-w-max` tem exatamente a largura do conteúdo, então **nunca transborda a
+si mesmo** — quem transborda é o pai. A barra de abas empurrava a página
+inteira para os lados, e cabeçalho, conteúdo e rodapé saíam da tela. O scroll
+passou para o `nav`. **O Full Days tinha a mesma linha desde o Sprint 6**, e
+foi corrigido junto.
+
+O outro foi em "Meu dia": com `min-w-0`, o título era o único a ceder largura,
+e a linha cabia em qualquer tela encolhendo o nome da etapa até "Re…" para o
+selo do cliente, o prazo e o Concluir continuarem lado a lado. Com um piso, o
+resto quebra para a linha de baixo — que é o que o `flex-wrap` do pai está ali
+para fazer.
+
+#### O seed concluía etapa sem carimbo, e o número saía plausível
+
+Duas etapas nasciam `concluida` por INSERT. **Trigger de UPDATE não roda num
+INSERT**, então `concluida_em` e `iniciada_em` ficavam nulos — e toda conta que
+pergunta "o que foi entregue" respondia ZERO num banco recém-semeado: as
+Métricas, o Pulso da Home e o Resumo da Agência. É exatamente o bug que a 0052
+encontrou no produto, e pelo mesmo motivo: **uma tela lê a coluna, o que ela
+devolve é um número, e zero é uma resposta plausível.**
+
+Agora elas nascem `nao_iniciada` e sobem por dois UPDATEs. São dois e não um
+porque `iniciada_em` vem da entrada em `em_andamento` — e de quebra o gatilho
+da 0035 grava as transições em `task_history`, sem as quais "onde o tempo da
+etapa fica" nasce vazia.
+
 ### O sino
 
 `notifications` **não tem policy de INSERT.** A única porta é a função
@@ -2805,6 +2976,7 @@ src/
   lib/auth/                   roles, DAL, actions, esquemas zod
   lib/tasks/                  máquina de estados da subtarefa e da Task
   lib/acoes/                  contrato das Server Actions, guardas e contas
+  lib/reports/                o resumo da semana da agência, montado para a tela e para o envio que ainda não existe
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
 supabase/testes/              bateria de RLS e de fluxo, rodando como gente
@@ -2839,6 +3011,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 15 | **A agência passou a responder sobre si mesma.** A camada de indicadores existia desde a 0035 e o resumo da Home desde a 0049, e nenhuma tela as lia. A Home ganhou os **nove blocos**, na ordem do dia da pessoa — quem sou eu, o que eu entrego hoje, o que está parado me esperando, quem não está aqui, para onde eu vou, e só então o panorama da gestão: quem abre esta tela abre para trabalhar. "Meu dia" é o **mesmo componente de Minhas Tasks**, que já estava separado desde o Sprint 4 esperando exatamente isto. `/painel/metricas` traz cinco abas com o **período como CHAVE e não como as duas datas** — "últimos 30 dias" salvo como `de=2026-08-26` é um link que envelhece calado —, e `QUEM_VE` espelha a primeira linha de cada função da 0035: quatro de `is_gestor()`, a rentabilidade de `is_socio()`. `ouFalha()` em todas, e aqui ele vale mais que de costume: a recusa dessas funções chega como erro, e sem ele o painel mostraria zeros — **painel zerado não parece recusa, parece agência parada**. `/painel/resumo-agencia` é a conversa de segunda-feira, e é **módulo antes de ser tela** (`lib/reports/weekly.ts`), porque a mesma função serviria o envio automático que ainda não existe. De quebra, o **CSV deixou de ter seis donos**: `montarCSV` morava dentro do Financeiro e a Academy importava dali, e as cópias já divergiam — o BOM que o Excel precisa estava em quatro das cinco telas. **Quatro erros meus, e nenhum o `npm run build` pegaria:** o cartão dizia "11 entregues" e o bloco logo abaixo contava 7, porque `producao_do_periodo()` conta só folha e as listas contavam agrupadora junto (foi a imagem que pôs os dois números lado a lado); em 375px a barra de abas empurrava a página inteira para os lados, e o **Full Days tinha a mesma linha desde o Sprint 6**; o título da etapa em "Meu dia" encolhia até "Re…" no celular; e o meu próprio comentário explicando por que o estado passa pelo mapa de rótulos **citava a palavra que a 0016 proibiu** — sétima vez na mesma armadilha. E o seed concluía duas etapas por INSERT, onde o trigger de UPDATE não roda: `concluida_em` nulo fazia toda conta de entrega responder **zero, que é plausível**. |
 | Sprint 10 | **O Calendário Full**: migration 0055, com `events`, `event_participants` e a view `calendar_events` juntando sete origens num formato só. **A linha mais importante é `security_invoker = true`** — sem ela a view roda com os direitos de quem a criou e lê as sete tabelas inteiras para qualquer pessoa autenticada, num objeto que o PostgREST publica sozinho. E o furo **passa despercebido num banco com um cliente só**: ele vê seis campanhas, que é o total, e "seis de seis" tem a mesma cara com a RLS ligada e desligada; por isso a bateria cria material de duas empresas, e tirando a cláusula seis cenários falham e dizem o que vazaria. **Quatro divergências do texto do sprint**, e a primeira é grave: ele filtra rascunho por `status in ('rascunho','cancelada')` e **nenhum dos dois existe** — `rascunho` nem é valor do enum, e o Postgres recusaria a criação da view com um erro falando de enum; `carga_do_dia()` já existia desde a 0035 e nada aqui recalcula; `capacidade_minutos_dia` não existia e nasce por pessoa; e "não incluir posts e campanhas ainda" está vencido, porque os dois módulos existem. Quatro visões, e a Linha do Tempo é a que responde "a equipe aguenta?" — com a coluna de nomes fixa, que quase não foi: o `overflow-hidden` do invólucro cria um scrollport e quebra o `sticky`, e a imagem mostrou "Carla Nunes" lida como "nes". **A ausência chegava com a chave do enum no título** e ia crua para a tela — a palavra que a 0016 tirou de propósito, e que `check:cores` não pegaria porque ele procura as formas acentuadas. **1000 cenários**, 24 novos, com mutação no `security_invoker`. |
 | Campanhas ponta a ponta | **A campanha virou trabalho de verdade**, em seis migrations e uma sequência de decisões do usuário. **0050 — a capa:** "para ser identificável direto pela imagem qual campanha é". **0051 — a campanha nasce com a DEMANDA**, uma etapa por entregável: a ponte (`deliverables.subtask_id` e `responsavel_id`) existia desde a 0033 e ninguém a atravessava, então a coluna nova é uma só. Tudo numa transação, porque a terceira de cinco escritas falhando deixaria uma campanha ligada a uma demanda com metade das etapas. **E ela se finaliza sozinha, nos dois sentidos** — "só é finalizada quando todas as suas etapas são entregues", e uma peça nova a reabre. **0052 — quem aprova a peça conclui a etapa:** "o responsável entrega, e o cliente conclui". O trigger **nunca derruba a aprovação do cliente**: ele está do outro lado sem ninguém por perto, e o que veria seria a aprovação dele falhando por causa de uma etapa que nem sabe que existe. **0053 — vários arquivos na mesma versão**, porque uma entrega é o PDF, o AI e o JPG; a capa passou a ser a primeira IMAGEM, não o primeiro arquivo. **0054 — o módulo virou "Campanhas", foi para a Principal e abriu para `EQUIPE`**: quem produz precisa chegar ao material dele. Abrir campanha continua sendo de quem abre demanda, e `campaigns_insert` fechou em `is_atendimento()` — a mesma função de `tasks_insert`, não uma parecida. **E a tela onde a equipe sobe o material não é área nova:** `deliverable_versions` já tinha versão, arquivo e justificativa desde a 0033 — faltava a tela, como no Social Media até a 0042. **O bug que abriu tudo isso:** `COLUNAS_DA_CAMPANHA` citava `clients(nome)` e a coluna é `nome_empresa`; o PostgREST recusa o `select` inteiro, o erro era descartado, e a tela dizia "Nenhuma campanha aberta" para quem tinha acabado de criar uma — **uma leitura que falha calada é pior que uma escrita, porque lista vazia é indistinguível da verdade**. Daí `ouFalha()`. **E de quebra, um bug de duas migrations atrás:** a 0030 reescreveu `validar_transicao_de_subtarefa()` a partir das quatro travas e perdeu o bloco de carimbos — desde então nenhuma subtarefa tinha `concluida_em`, e o contador de concluídas do mês respondia zero, que é plausível. **968 cenários**, com mutação em cinco travas. |
 | Depois do 14 | **O terceiro módulo saiu do produto**, por decisão do usuário: o Meu Desenvolvimento. Tela, rota, a aba Skills em Equipe, a vitrine da Academy e duas tabelas -- `user_skills` e `skill_avaliacoes` -- apagadas na migration 0043. **O catálogo `skills` FICA**, e foi a escolha explícita: ele continua com um papel só, o vocabulário de etiquetas do Full Academy, e apagá-lo junto levaria a etiqueta de cada material. **Isto não é a 0034**: lá as tabelas fechavam em `auth.uid()` e o script de exportação era condição para apagar; aqui as duas sempre foram legíveis por `is_gestor()`, e o `exportar-antes-da-0043.sql` é conveniência. **A sugestão de skill saiu junto**, que é a parte que passa batida: a fila que decidia as sugestões morava na tela que saiu, então `sugerida_por` virou coluna que nada preenche e a policy oferecia um caminho inexistente. As abas de Equipe sumiram com a segunda -- uma navegação de um item é moldura sem função --, e o módulo voltou a se chamar **Equipe**. **A varredura de nomes mortos pegou três coisas que o `npm run build` não pegaria**: duas consultas órfãs a `user_skills` que eu tinha deixado em `lib/dados/academy.ts` e que falhariam no banco depois da migration, os tipos das duas tabelas ainda declarados, e os meus próprios comentários explicando a remoção citando os nomes que ela proíbe -- a mesma armadilha da 0016 e da 0034. E a ordem da migration custou uma rodada: `skills_insert` citava `sugerida_por`, e coluna citada em policy não sai enquanto a policy estiver de pé, exatamente como a 0039 já tinha aprendido com um trigger. **770 cenários** (os 27 do módulo viraram 10, virados do avesso: se as tabelas renascerem, o primeiro falha e diz qual). |

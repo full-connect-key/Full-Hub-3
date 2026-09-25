@@ -274,9 +274,28 @@ begin
           'https://drive.google.com/drive/folders/campanha-verao')
   returning id into campanha;
 
+  -- ------------------------------------------------------------------------
+  -- ELA NASCE `em_andamento` E E CONCLUIDA POR UPDATE, e nao inserida pronta.
+  --
+  -- `concluida_em` e `iniciada_em` sao escritos pelo TRIGGER de transicao, e
+  -- trigger de UPDATE nao roda num INSERT. Inserida direto como `concluida`,
+  -- a etapa ficava sem carimbo nenhum -- e toda conta que pergunta "o que foi
+  -- entregue" respondia ZERO num banco recem-semeado: as Metricas, o Pulso da
+  -- Home e o Resumo da Agencia, todos com um numero plausivel e errado. E
+  -- exatamente o bug que a 0052 encontrou no produto.
+  --
+  -- SAO DOIS UPDATES e nao um: `iniciada_em` vem da entrada em
+  -- `em_andamento`, e pular esse passo deixava a etapa concluida sem data de
+  -- inicio. E os dois passos dao ao gatilho da 0035 duas transicoes para
+  -- gravar em `task_history`, sem a qual "onde o tempo da etapa fica" nasce
+  -- vazia.
+  -- ------------------------------------------------------------------------
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)
-  values (campanha, 'Criar conceito', 1, current_date - 1, marina, false, null, 120, 150, 'concluida')
+  values (campanha, 'Criar conceito', 1, current_date - 1, marina, false, null, 120, 150, 'nao_iniciada')
   returning id into conceito;
+
+  update public.subtasks set status = 'em_andamento' where id = conceito;
+  update public.subtasks set status = 'concluida'    where id = conceito;
 
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos)
   values (campanha, 'Criar KV', 2, current_date + 1, bruno, true, 'cliente', 240)
@@ -352,9 +371,13 @@ begin
           'https://drive.google.com/drive/folders/plano-de-midia')
   returning id into midia;
 
+  -- Mesma razao da etapa acima: o carimbo de conclusao vem do trigger.
   insert into public.subtasks (task_id, titulo, ordem, prazo, responsavel_id, requer_aprovacao, tipo_aprovacao, estimativa_minutos, tempo_real_minutos, status)
-  values (midia, 'Levantamento de verbas', 1, current_date - 9, diego, false, null, 480, 600, 'concluida')
+  values (midia, 'Levantamento de verbas', 1, current_date - 9, diego, false, null, 480, 600, 'nao_iniciada')
   returning id into levantamento;
+
+  update public.subtasks set status = 'em_andamento' where id = levantamento;
+  update public.subtasks set status = 'concluida'    where id = levantamento;
 
   raise notice 'Demandas de exemplo criadas.';
 end
