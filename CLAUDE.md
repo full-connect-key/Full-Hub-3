@@ -2570,6 +2570,21 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 
 **Deploy**
 
+- **O deploy sai da `main`, e só dela.** `deploy.yml` dispara em `push:
+  branches: [main]`, e `scripts/deploy.sh` puxa de `main` por padrão. Trabalho
+  em branch não vai ao ar: quando a verificação fecha, a `main` avança e o
+  deploy acontece sozinho.
+
+  **A `main` não existia até aqui, e foi assim que o Full Hub ficou semanas
+  sem receber nada.** O repositório tinha uma branch só, de trabalho; a Action
+  nunca disparou, e o que estava no ar vinha de alguém chamando o
+  `scripts/deploy.sh` na VPS à mão — um script que puxa de uma branch
+  inexistente. O sintoma foi um bug consertado que continuava acontecendo, com
+  um número de erro diferente a cada tentativa: **o `digest` do Next carrega o
+  hash do chunk e muda a cada build**, então o mesmo erro sai com número novo
+  depois de reconstruir. É o rodapé do painel que responde "já subiu?", e é
+  para isso que ele existe.
+
 - **O deploy constrói numa pasta separada e só troca no fim.** `NEXT_DIST_DIR`
   aponta o build para `.next-novo`; o `.next` que está servindo só é
   substituído quando o build termina bem, e a troca é um `mv` — milissegundos.
@@ -2673,7 +2688,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | --- | --- |
 | `npm run dev` | Sobe em desenvolvimento |
 | `npm run build` | Build de produção |
-| `npm run lint` / `npm run typecheck` | Padrões e tipos |
+| `npm run lint` / `npm run typecheck` | Padrões e tipos. O `typecheck` roda `next typegen` **antes** do `tsc`: `PageProps` e `LayoutProps` são tipos que o Next GERA em `.next/types`, e sem eles o `tsc` acusa *"Cannot find name 'PageProps'"* em toda página. Na máquina de quem já construiu uma vez ele passa — o `.next` está lá —, e no CI, que começa do zero, falha |
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |

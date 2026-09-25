@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "check:supabase": "node scripts/verificar-supabase.mjs",
     "prototipo": "node scripts/prototipo.mjs",
     "check:cores": "node scripts/check-cores.mjs",
