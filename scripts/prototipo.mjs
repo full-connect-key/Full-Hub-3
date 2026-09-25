@@ -321,6 +321,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/calendario": ["./scripts/prototipo/calendario.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
+  "@/lib/dados/home": ["./scripts/prototipo/home.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],

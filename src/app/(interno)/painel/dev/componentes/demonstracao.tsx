@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Cronometro } from "@/components/shared/cronometro";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { DataTable, type Column } from "@/components/shared/data-table";
+import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { DateBadge } from "@/components/shared/date-badge";
 import { GraficoDeBarras } from "@/components/shared/grafico-de-barras";
 import { GraficoDeLinhas } from "@/components/shared/grafico-de-linhas";
@@ -211,6 +212,24 @@ export function DemonstracaoDeComponentes({
             dados={{ tempo_medido_segundos: 0, andando_desde: null }}
             agoraDoServidor={agoraDoServidor}
           />
+        </div>
+      </Secao>
+
+      <Secao
+        titulo="CartaoDeNumero"
+        descricao="Um número em destaque, com quatro tons. O tom é o par nomeado (fundo soft + texto), nunca opacidade — e o cartão inteiro vira o alvo quando tem link."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CartaoDeNumero rotulo="Etapas abertas" valor={38} apoio="em demandas publicadas" />
+          <CartaoDeNumero
+            rotulo="Atrasadas"
+            valor={5}
+            apoio="passaram do prazo"
+            tom="alerta"
+            href="/painel/gestao-tasks"
+          />
+          <CartaoDeNumero rotulo="Esperando resposta" valor={2} apoio="há mais de 3 dias" tom="atencao" />
+          <CartaoDeNumero rotulo="Concluídas na semana" valor={17} apoio="nos últimos 7 dias" tom="bom" />
         </div>
       </Secao>
 
