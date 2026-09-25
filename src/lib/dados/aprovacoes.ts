@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import type {
@@ -52,51 +53,52 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   // Toda rodada de escopo interna das subtarefas que ainda não fecharam o
   // ciclo. Trazer as decididas junto é o que permite descobrir quais já têm
   // aval e estão só esperando o envio.
-  const { data: rodadas } = await supabase
-    .from("approval_rounds")
-    .select("*")
+  const rodadas = ouFalha(
+    "a fila de aprovações internas",
+    await supabase
+      .from("approval_rounds")
+      .select("*")
     // SÓ AS DE ETAPA, e é a 0030 que torna isso necessário: a rodada deixou
     // de apontar para `subtask_id` e passou a apontar para (tipo, id). Sem o
     // filtro, uma rodada de post cairia nesta fila e a consulta seguinte
     // procuraria o id dela em `subtasks`, onde ele não está.
-    .eq("content_type", "subtask")
-    .order("numero_rodada", { ascending: false });
+      .eq("content_type", "subtask")
+      .order("numero_rodada", { ascending: false }),
+  );
 
   const todas = (rodadas ?? []) as ApprovalRound[];
   if (todas.length === 0) return { esperando: [], prontasParaOCliente: [] };
 
   const idsDeSubtarefas = [...new Set(todas.map((r) => r.content_id))];
 
-  const [{ data: subtarefas }, { data: entregas }] = await Promise.all([
+  const [subtarefas, entregas] = await Promise.all([
     supabase
       .from("subtasks")
       .select(
         "id, task_id, titulo, responsavel_id, tipo_aprovacao, requer_aprovacao, status",
       )
-      .in("id", idsDeSubtarefas),
+      .in("id", idsDeSubtarefas)
+      .then((r) => ouFalha("as etapas da fila", r)),
     supabase
       .from("subtask_entregas")
       .select("*")
-      .in("subtask_id", idsDeSubtarefas),
+      .in("subtask_id", idsDeSubtarefas)
+      .then((r) => ouFalha("as entregas da fila", r)),
   ]);
 
   const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
 
-  const [{ data: tasks }, { data: pessoas }] = await Promise.all([
-    idsDeTasks.length
-      ? supabase
+  const [tasks, pessoas] = await Promise.all([
+    idsDeTasks.length === 0
+      ? Promise.resolve(
+          [] as { id: string; titulo: string; client_id: string; status: string }[],
+        )
+      : supabase
           .from("tasks")
           .select("id, titulo, client_id, status")
           .in("id", idsDeTasks)
           .not("publicada_em", "is", null)
-      : Promise.resolve({
-          data: [] as {
-            id: string;
-            titulo: string;
-            client_id: string;
-            status: string;
-          }[],
-        }),
+          .then((r) => ouFalha("as demandas da fila", r)),
     supabase
       .from("profiles")
       .select("id, nome, avatar_url")
@@ -104,18 +106,20 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         ...new Set(
           (subtarefas ?? []).map((s) => s.responsavel_id).filter(Boolean),
         ),
-      ] as string[]),
+      ] as string[])
+      .then((r) => ouFalha("os nomes da fila", r)),
   ]);
 
   const idsDeClientes = [
     ...new Set((tasks ?? []).map((t) => t.client_id).filter(Boolean)),
   ] as string[];
-  const { data: clientes } = idsDeClientes.length
-    ? await supabase
-        .from("clients")
-        .select("id, nome_empresa")
-        .in("id", idsDeClientes)
-    : { data: [] as { id: string; nome_empresa: string }[] };
+  const clientes: { id: string; nome_empresa: string }[] =
+    idsDeClientes.length === 0
+      ? []
+      : ouFalha(
+          "os clientes da fila",
+          await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
+        );
 
   const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));

@@ -17,6 +17,7 @@ import {
   type FocoDoDia,
 } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ApprovalRound, Subtask, Task } from "@/lib/supabase/database.types";
 
@@ -75,25 +76,31 @@ export function prazosDeHoje(): Prazos {
 async function carregar(userId: string): Promise<MinhaTask[]> {
   const supabase = await criarClienteServidor();
 
-  const { data: minhasSubs } = await supabase
-    .from("subtasks")
-    .select("*")
-    .eq("responsavel_id", userId);
+  const minhasSubs = ouFalha(
+    "as minhas etapas",
+    await supabase.from("subtasks").select("*").eq("responsavel_id", userId),
+  );
 
   const candidatas = (minhasSubs ?? []) as Subtask[];
   if (candidatas.length === 0) return [];
 
   const idsDeTasks = [...new Set(candidatas.map((s) => s.task_id))];
 
-  const [{ data: tasks }, { data: todasAsSubs }] = await Promise.all([
+  const [tasks, todasAsSubs] = await Promise.all([
     // Rascunho fora, inclusive o meu: a etapa que eu rascunhei no nome de
     // alguém ainda não é trabalho de ninguém (migration 0028).
-    supabase.from("tasks").select("*").in("id", idsDeTasks).not("publicada_em", "is", null),
+    supabase
+      .from("tasks")
+      .select("*")
+      .in("id", idsDeTasks)
+      .not("publicada_em", "is", null)
+      .then((r) => ouFalha("as demandas das minhas etapas", r)),
     supabase
       .from("subtasks")
       .select("id, task_id, parent_id, titulo, status, responsavel_id, ordem")
       .in("task_id", idsDeTasks)
-      .order("ordem"),
+      .order("ordem")
+      .then((r) => ouFalha("as etapas das minhas demandas", r)),
   ]);
 
   // O MEU TRABALHO SÃO AS FOLHAS. Uma etapa minha que ganhou sub-etapas deixou
@@ -104,7 +111,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
   const subtarefas = candidatas.filter((s) => !ehAgrupadora.has(s.id));
   if (subtarefas.length === 0) return [];
 
-  const [{ data: rodadas }, { data: dependencias }] = await Promise.all([
+  const [rodadas, dependencias] = await Promise.all([
     supabase
       .from("approval_rounds")
       .select("*")
@@ -113,14 +120,16 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
         "content_id",
         subtarefas.map((s) => s.id),
       )
-      .order("numero_rodada", { ascending: false }),
+      .order("numero_rodada", { ascending: false })
+      .then((r) => ouFalha("as rodadas das minhas etapas", r)),
     supabase
       .from("subtask_dependencies")
       .select("subtask_id, depende_de_id")
       .in(
         "subtask_id",
         subtarefas.map((s) => s.id),
-      ),
+      )
+      .then((r) => ouFalha("as dependências das minhas etapas", r)),
   ]);
 
   // As dos outros, como contexto — também só as folhas: ver "Arte" em cinza
@@ -129,15 +138,22 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
   const outras = folhas(todasAsSubs ?? []).filter((s) => s.responsavel_id !== userId);
   const idsDePessoas = [...new Set(outras.map((s) => s.responsavel_id).filter(Boolean))] as string[];
 
-  const { data: pessoas } = idsDePessoas.length
-    ? await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas)
-    : { data: [] as Pessoa[] };
+  const pessoas: Pessoa[] =
+    idsDePessoas.length === 0
+      ? []
+      : ouFalha(
+          "os nomes de quem divide a demanda comigo",
+          await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas),
+        );
 
-  const { data: eu } = await supabase
-    .from("profiles")
-    .select("id, nome, avatar_url")
-    .eq("id", userId)
-    .maybeSingle();
+  const eu = ouFalha(
+    "a minha ficha",
+    await supabase
+      .from("profiles")
+      .select("id, nome, avatar_url")
+      .eq("id", userId)
+      .maybeSingle(),
+  );
 
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
   const porId = new Map((todasAsSubs ?? []).map((s) => [s.id, s]));
