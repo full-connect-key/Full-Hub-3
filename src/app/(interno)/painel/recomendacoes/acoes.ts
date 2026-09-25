@@ -7,6 +7,7 @@ import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import type { Resultado } from "@/lib/acoes/resultado";
+import { buscarMetadados, type PreviaDoLink } from "@/lib/link-preview";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -304,5 +305,38 @@ export async function excluirComentario(id: string): Promise<Resultado> {
 
     revalidatePath(ROTA);
     return sucesso("Comentário removido.");
+  });
+}
+
+/**
+ * Os metadados do link, para o formulário se preencher sozinho.
+ *
+ * **É a única ação do produto que faz o servidor buscar um endereço escolhido
+ * por quem está usando.** As cinco travas moram em `lib/link-preview.ts`, e
+ * `npm run check:preview` confere doze endereços internos a cada verificação
+ * — inclusive o `169.254.169.254` dos metadados de nuvem.
+ *
+ * **Ela nunca falha o envio, e é o que o sprint pede:** um site sem Open Graph,
+ * fora do ar, ou que o guarda recusou devolve `{ ok: false }` com a frase, e a
+ * pessoa preenche à mão. O preview é atalho, não requisito — travar o post
+ * porque um blog não tem metatag seria pôr uma porta onde havia um caminho.
+ *
+ * `exigirEquipeNaAcao()` e não só a sessão: quem não é da equipe não tem o que
+ * fazer aqui, e sem a guarda a ação viraria um buscador de URLs aberto a
+ * qualquer pessoa logada — inclusive cliente.
+ */
+export async function buscarPreviaDoLink(
+  url: unknown,
+): Promise<Resultado<PreviaDoLink>> {
+  return executarAcao("buscarPreviaDoLink", async () => {
+    await exigirEquipeNaAcao();
+
+    const validado = z.string().trim().min(1).safeParse(url);
+    if (!validado.success) return falha("Cole um endereço.");
+
+    const r = await buscarMetadados(validado.data);
+    if (!r.ok) return falha(r.motivo);
+
+    return sucesso("Prévia carregada.", r.previa);
   });
 }
