@@ -2952,6 +2952,31 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   a API sozinho. **Toda entrega que traz SQL novo precisa dizer quais
   migrations ficaram pendentes** — quem lê a mensagem de erro não tem como
   saber que a resposta é um `alter table` que nunca rodou.
+
+  **E o segundo sintoma é este, que aconteceu com o Calendário Full:** o
+  código sobe, a migration não roda, e a tela devolve **erro de servidor na
+  abertura** em vez da mensagem sobre a coluna. É o que `ouFalha()` faz de
+  propósito — a view `calendar_events` não existe, o PostgREST recusa, e a
+  leitura estoura em vez de desenhar um calendário vazio. Uma tela em branco
+  seria pior; mas o número que o Next mostra não ajuda ninguém, **porque o
+  `digest` carrega o hash do chunk e muda a cada build** — dois números
+  diferentes podem ser o mesmo erro. Quem responde é o log do servidor, onde
+  `ouFalha()` escreve `[consulta:itens do calendário]` com o erro inteiro.
+
+  **E o script que deveria ter respondido isso em dez segundos respondia
+  "ok".** `onde-esta-o-banco.sql` é escrito à mão, uma linha por migration, e
+  a lista tinha parado na 0054: a 0055 não tinha linha, então todas as trinta
+  e duas que ele conhecia diziam ok e o banco parado na 0054 lia como banco em
+  dia — mandando quem procurava a causa procurá-la no código. **Um script cujo
+  trabalho inteiro é dizer qual migration falta não pode ficar para trás da
+  pasta em silêncio.** Agora quem confere a lista contra
+  `supabase/migrations/` é o `npm run check:migrations`, no CI, e ele achou a
+  segunda falta na primeira rodada: a 0026. Para ela a linha honesta é
+  **nenhuma linha** — a 0029 desfez o que ela fez, e não sobra objeto nem
+  trecho de corpo que diga se ela passou —, então a ausência é **declarada no
+  próprio script** (`-- SEM LINHA: 0026 - …`) com o motivo junto. Quem
+  acrescentar a 0056 escreve a linha dela ou escreve por que ela não dá para
+  conferir; as duas são decisão, esquecer não é.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a
@@ -3025,7 +3050,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:supabase` | Testa a conexão com o Supabase pelo terminal |
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
-| `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário e que todo marcador de dollar quoting abre e fecha |
+| `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele |
 | `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
@@ -3033,10 +3058,10 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
-| `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` devolve erro de coluna inexistente |
+| `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` **devolve erro de servidor na abertura** — e devolve só ela: nenhuma outra tela lê esses objetos. `scripts/migrations-pendentes.sh 0055` monta a colagem |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
-| `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
-| `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
+| `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
+| `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 

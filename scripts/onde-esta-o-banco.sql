@@ -78,6 +78,14 @@ from (
            and p.prosrc like '%' || split_part(v.nome, '|', 2) || '%')
     end as ok
   from (values
+    -- SEM LINHA: 0026 - ela nao deixa rastro. A 0026 reescreveu
+    -- `pode_aprovar_subtarefa()` para fazer tres perguntas, e a 0029
+    -- reescreveu de novo tirando as tres. Num banco em dia nao sobra objeto
+    -- nem trecho de corpo que diga se a 0026 passou por aqui, e a linha da
+    -- 0029 logo abaixo ja cobre o estado final. Inventar uma checagem que
+    -- responde "ok" sempre seria pior que a ausencia: ela afirmaria sem
+    -- conferir. Quem estiver parado na 0025 le a 0027 dizendo FALTA e aplica
+    -- da 0026 em diante, que e a ordem certa de qualquer jeito.
     ('0022', 'subtasks.parent_id',              'coluna',       'subtasks.parent_id'),
     ('0023', 'exigencia_aprovacao apagada',     'sem_coluna',   'tasks.exigencia_aprovacao'),
     ('0024', 'dias_do_pedido()',                'funcao',       'dias_do_pedido'),
@@ -112,7 +120,15 @@ from (
     -- que nunca a aplicou -- o trecho no corpo e o que distingue.
     ('0052', 'carimbos de data de volta',       'no_corpo',     'validar_transicao_de_subtarefa|concluida_em'),
     ('0053', 'deliverable_versions.arquivos',   'coluna',       'deliverable_versions.arquivos'),
-    ('0054', 'campaigns_insert e atendimento',  'policy',       'campaigns|campaigns_insert|is_atendimento')
+    ('0054', 'campaigns_insert e atendimento',  'policy',       'campaigns|campaigns_insert|is_atendimento'),
+    -- A 0055 e a que faltava nesta lista, e a falta apareceu do pior jeito:
+    -- o /painel/calendario devolvia erro de servidor e ESTE script respondia
+    -- "ok" em todas as linhas, porque a ultima que ele conhecia era a 0054.
+    -- Um script cujo trabalho inteiro e dizer qual migration falta nao pode
+    -- ficar para tras da pasta em silencio: quem o rodasse concluiria que o
+    -- banco estava em dia e iria procurar o problema no codigo.
+    -- Hoje quem confere a lista e o `npm run check:migrations`, no CI.
+    ('0055', 'view calendar_events',            'tabela',       'calendar_events')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

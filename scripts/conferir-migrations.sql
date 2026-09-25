@@ -5,6 +5,14 @@
 --
 -- Cada linha e uma coisa que uma das migrations novas cria. "FALTA" quer
 -- dizer que aquela migration ainda nao rodou neste banco.
+--
+-- ATE ONDE ELE VAI: da 0019 a 0040, e nao mais. Ele e o LONGO -- item por
+-- item, para quando alguma coisa ja parece errada --, e ficou onde estava
+-- enquanto o `onde-esta-o-banco.sql` seguia em frente. Isto esta escrito aqui
+-- porque a alternativa e pior: sem a linha, quem o rodasse num banco parado na
+-- 0054 leria tudo "ok" e concluiria que o banco esta em dia. Para saber em que
+-- migration o banco esta, o script e o `onde-esta-o-banco.sql`, cuja lista o
+-- `npm run check:migrations` confere contra a pasta a cada rodada.
 -- ---------------------------------------------------------------------------
 select
   item,
