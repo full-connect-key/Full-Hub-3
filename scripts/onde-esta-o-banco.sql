@@ -15,6 +15,10 @@
 -- ANTES DE APLICAR A 0034: ela apaga o Resumo Semanal e o Financeiro Pessoal,
 -- que eram privados de cada pessoa. Rode `scripts/exportar-antes-da-0034.sql`
 -- primeiro e entregue o conteudo a quem escreveu. Nao tem volta.
+--
+-- ANTES DA 0043: ela apaga a autoavaliacao e as observacoes de skill.
+-- `scripts/exportar-antes-da-0043.sql` e CONVENIENCIA e nao condicao -- ao
+-- contrario do da 0034, estas tabelas a gestao ja lia.
 -- ---------------------------------------------------------------------------
 select
   migration,
@@ -50,6 +54,23 @@ from (
       -- TIRA a pergunta de dentro de `pode_aprovar_subtarefa()`. Procurar um
       -- objeto que sumiu diria "ok" tambem para um banco que nunca teve a
       -- 0026 -- o trecho no corpo distingue os tres estados.
+      -- O ESPELHO DO `sem_no_corpo`: a migration que ACRESCENTA um trecho a
+      -- uma funcao que ja existia. Sem ele, a unica pergunta possivel seria
+      -- "a funcao existe?" -- e ela existe desde muito antes.
+      when 'no_corpo' then exists (
+        select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public'
+           and p.proname = split_part(v.nome, '|', 1)
+           and p.prosrc like '%' || split_part(v.nome, '|', 2) || '%')
+      -- POLICY QUE MUDOU DE REGRA, e nao policy que nasceu: a `campaigns_insert`
+      -- existe desde a 0033 com outra pergunta dentro. O que se confere e o
+      -- CORPO dela -- `tabela|policy|trecho`.
+      when 'policy' then exists (
+        select 1 from pg_policies pl
+         where pl.schemaname = 'public'
+           and pl.tablename = split_part(v.nome, '|', 1)
+           and pl.policyname = split_part(v.nome, '|', 2)
+           and coalesce(pl.with_check, pl.qual) like '%' || split_part(v.nome, '|', 3) || '%')
       when 'sem_no_corpo' then not exists (
         select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public'
@@ -74,7 +95,24 @@ from (
     ('0037', 'hr_requests.origem',              'coluna',       'hr_requests.origem'),
     ('0038', 'Natal de 2030 na tabela',         'feriado',      '2030-12-25'),
     ('0039', 'ciclos_de_descanso()',            'funcao',       'ciclos_de_descanso'),
-    ('0040', 'task_recurrences',                'tabela',       'task_recurrences')
+    ('0040', 'task_recurrences',                'tabela',       'task_recurrences'),
+    ('0041', 'responsavel padrao da regra',     'no_corpo',     'gerar_ocorrencia|responsavel_padrao'),
+    ('0042', 'posts.midia',                     'coluna',       'posts.midia'),
+    ('0043', 'user_skills APAGADA',             'sem_tabela',   'user_skills'),
+    ('0044', 'abrir_mes_de_social()',           'funcao',       'abrir_mes_de_social'),
+    ('0045', 'post_etapas',                     'tabela',       'post_etapas'),
+    ('0046', 'post_referencias',                'tabela',       'post_referencias'),
+    ('0047', 'tenho_etapa_no_post()',           'funcao',       'tenho_etapa_no_post'),
+    ('0048', 'post_versions.removeu_arquivos',  'coluna',       'post_versions.removeu_arquivos'),
+    ('0049', 'home_summary()',                  'funcao',       'home_summary'),
+    ('0050', 'campaigns.capa_url',              'coluna',       'campaigns.capa_url'),
+    ('0051', 'abrir_campanha()',                'funcao',       'abrir_campanha'),
+    -- A 0052 e a unica das seis que nao cria objeto: ela devolve o bloco de
+    -- carimbos que a 0030 perdeu. Procurar uma funcao diria "ok" para um banco
+    -- que nunca a aplicou -- o trecho no corpo e o que distingue.
+    ('0052', 'carimbos de data de volta',       'no_corpo',     'validar_transicao_de_subtarefa|concluida_em'),
+    ('0053', 'deliverable_versions.arquivos',   'coluna',       'deliverable_versions.arquivos'),
+    ('0054', 'campaigns_insert e atendimento',  'policy',       'campaigns|campaigns_insert|is_atendimento')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
