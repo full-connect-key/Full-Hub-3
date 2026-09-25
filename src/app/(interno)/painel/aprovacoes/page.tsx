@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
@@ -22,7 +23,7 @@ import {
 import { ApagarCampanha } from "./apagar-campanha";
 import { CapaDaCampanha } from "./capa-da-campanha";
 
-export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
+export const metadata: Metadata = { title: "Campanhas" };
 
 /**
  * A entrada das campanhas pelo lado da agência, na versão mínima.
@@ -57,6 +58,15 @@ export default async function PaginaDeAprovacoes() {
   // mesma pergunta escrita na tela.
   const podeApagar = ehGestor(sessao.profile.role);
 
+  // ABRIR CAMPANHA É DE QUEM ABRE DEMANDA, e a pergunta vai ao BANCO com
+  // `is_atendimento()` — a mesma que `campaigns_insert` faz desde a 0054 e
+  // que `tasks_insert` faz desde a 0006. Repetir a regra em TypeScript
+  // ("desenvolvedor ou sócio") divergiria da policy na primeira vez que
+  // alguém mexesse numa das duas: perfil de acesso e função na agência são
+  // coisas diferentes, e quem é do Atendimento abre demanda sendo
+  // colaborador.
+  const podeAbrir = await souDoAtendimento();
+
   const campanhas = await campanhasDoCliente();
   const arvores = await Promise.all(
     campanhas.map((c) => entregaveisDaCampanha(c.id)),
@@ -65,21 +75,27 @@ export default async function PaginaDeAprovacoes() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Aprovações & Conteúdo"
+        title="Campanhas"
         actions={
-          <Button asChild>
-            <Link href="/painel/aprovacoes/campanhas/nova">
-              <Plus aria-hidden className="size-4" />
-              Nova campanha
-            </Link>
-          </Button>
+          podeAbrir ? (
+            <Button asChild>
+              <Link href="/painel/aprovacoes/campanhas/nova">
+                <Plus aria-hidden className="size-4" />
+                Nova campanha
+              </Link>
+            </Button>
+          ) : null
         }
       />
 
       {campanhas.length === 0 ? (
         <EmptyState
           title="Nenhuma campanha aberta"
-          description="Abra a primeira e a estrutura de entregáveis nasce junto, a partir de um modelo."
+          description={
+            podeAbrir
+              ? "Abra a primeira e a estrutura de entregáveis nasce junto, a partir de um modelo."
+              : "Quando o Atendimento abrir uma campanha, as peças que forem suas aparecem aqui."
+          }
         />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

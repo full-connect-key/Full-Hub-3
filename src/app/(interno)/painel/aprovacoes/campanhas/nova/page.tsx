@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { forbidden } from "next/navigation";
+
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { templatesDeCampanha } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 
 import { FormularioDeCampanha } from "./formulario";
 
@@ -23,6 +26,17 @@ export const metadata: Metadata = { title: "Nova campanha" };
  */
 export default async function PaginaDeNovaCampanha() {
   await exigirAcessoARota("/painel/aprovacoes");
+
+  // A GUARDA DA ROTA NÃO BASTA MAIS AQUI. Desde a 0054 o módulo é de
+  // `EQUIPE` — o colaborador entra para subir a arte da peça dele —, e abrir
+  // campanha continua sendo de quem abre demanda. Sem este 403, ele chegaria
+  // ao formulário inteiro e levaria a recusa no clique de salvar, depois de
+  // ter datilografado a árvore.
+  //
+  // E não é a proteção: `campaigns_insert` e `tasks_insert` exigem
+  // `is_atendimento()` no banco, e é essa que vale para quem chamar a API
+  // direto.
+  if (!(await souDoAtendimento())) forbidden();
 
   const [clientes, templates, pessoas] = await Promise.all([
     listarClientes(),

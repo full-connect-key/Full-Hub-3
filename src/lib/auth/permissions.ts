@@ -130,6 +130,30 @@ export const MENU: MenuItem[] = [
       "Os posts da agência, da pauta ao envio ao cliente.",
   },
   {
+    // DE `GESTAO` PARA `EQUIPE`, e da seção Gestão para a Principal — decisão
+    // do usuário, e é palavra por palavra o argumento do Social Media: quem
+    // sobe a arte e escreve a justificativa é o responsável pela peça, não o
+    // Atendimento. Esconder o módulo dele seria esconder o trabalho dele.
+    //
+    // **E o nome mudou junto.** "Aprovações & Conteúdo" ficava ao lado de
+    // "Aprovações Internas" na mesma seção, e as duas telas não são a mesma
+    // coisa: uma é a fila de validação da gestão, a outra é onde o material
+    // da campanha é produzido. Dois rótulos parecidos para telas diferentes
+    // é como se aprende a procurar na errada. O módulo tem campanhas dentro,
+    // e é assim que o cliente já o chama no portal dele.
+    //
+    // **Abrir campanha continua sendo do Atendimento**, e quem recusa é o
+    // banco: `campaigns_insert` e `tasks_insert` (0054). Ver o módulo e abrir
+    // trabalho nele são duas decisões — a segunda não acompanha a primeira.
+    label: "Campanhas",
+    href: "/painel/aprovacoes",
+    icon: FileCheck2,
+    roles: EQUIPE,
+    section: "principal",
+    description:
+      "As campanhas da agência: o material de cada peça, versão a versão.",
+  },
+  {
     label: "Full Days",
     href: "/painel/full-days",
     icon: Sun,
@@ -203,14 +227,6 @@ export const MENU: MenuItem[] = [
     section: "gestao",
     description:
       "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
-  },
-  {
-    label: "Aprovações & Conteúdo",
-    href: "/painel/aprovacoes",
-    icon: FileCheck2,
-    roles: GESTAO,
-    section: "gestao",
-    description: "Fluxo de aprovação dos conteúdos, do briefing ao aprovado.",
   },
   {
     // ERAM DOIS ITENS — "Equipe" e "Clientes" — e viraram um, por decisão do

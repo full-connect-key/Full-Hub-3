@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirGestorNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
+import {
+  exigirAtendimentoNaAcao,
+  exigirGestorNaAcao,
+  exigirRotaNaAcao,
+} from "@/lib/acoes/guardas";
 import {
   executarAcao,
   falha,
@@ -117,6 +121,11 @@ export type NovaCampanha = z.input<typeof esquemaDaCampanha>;
  */
 export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
   return executarAcao("criarCampanha", async () => {
+    // `exigirAtendimentoNaAcao` E NÃO `exigirRotaNaAcao`: desde a 0054 a rota
+    // é de `EQUIPE` — o colaborador entra para subir a arte da peça dele —, e
+    // abrir campanha continua sendo de quem abre demanda. A guarda que nomeia
+    // a regra sobrevive à mudança de menu; a que depende dele, não.
+    await exigirAtendimentoNaAcao();
     await exigirRotaNaAcao(ROTA);
 
     const validado = esquemaDaCampanha.safeParse(entrada);

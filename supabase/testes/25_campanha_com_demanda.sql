@@ -424,3 +424,62 @@ select teste.conferir('A segunda versao e a v2',
 select teste.cenario('Joana nao grava versao de entregavel', :JOANA,
   format($fmt$insert into public.deliverable_versions (deliverable_id, arquivos)
     values (%L, '[]'::jsonb)$fmt$, :D53), 'recusa');
+
+
+-- ===========================================================================
+-- 0054 - VER A CAMPANHA E ABRIR UMA CAMPANHA SAO DUAS DECISOES
+--
+-- "Essa area deve ser visivel para os colaboradores (...) ja que quem vao
+-- upar e fazer os conteudos sao os responsaveis e NAO O ATENDIMENTO."
+-- Decisao do usuario -- e a frase separa as duas coisas na mesma linha.
+--
+-- Estes cenarios sao o que avisa se alguem abrir a segunda junto com a
+-- primeira, achando que uma acompanha a outra.
+-- ===========================================================================
+
+-- 1. O COLABORADOR VE A CAMPANHA. E o ponto inteiro da mudanca: o modulo
+--    aparece para ele porque o material e dele.
+select teste.cenario('O colaborador enxerga as campanhas', :BRUNO,
+  format('select 1 from public.campaigns where id = %L', :C53), 'ok', 1);
+
+-- 2. E SOBE ARQUIVO NELA. Gravar versao sempre foi `is_staff()` desde a 0033
+--    -- o que faltava era a tela.
+select teste.cenario('E grava versao do entregavel', :BRUNO,
+  format($fmt$insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+    values (%L, '[{"url":"verde/e/a.pdf","nome":"a.pdf"}]'::jsonb, %L)$fmt$, :D53, :BRUNO),
+  'ok', 1);
+
+-- 3. MAS NAO ABRE CAMPANHA.
+--
+-- Antes da 0054 `campaigns_insert` era `is_staff()`, e com o modulo aberto
+-- ela passaria a valer para ele -- a guarda de tela seria a unica coisa entre
+-- o colaborador e uma campanha aberta por engano.
+select teste.cenario('O colaborador nao abre campanha', :BRUNO,
+  format($fmt$insert into public.campaigns (client_id, nome, data_inicio, data_fim, criado_por)
+    values (%L, 'Campanha minha', current_date, current_date + 5, %L)$fmt$, :VERDE, :BRUNO),
+  'recusa');
+
+-- 4. NEM PELA RPC, que e por onde a tela abre.
+select teste.cenario('Nem pela funcao que a tela usa', :BRUNO,
+  format($fmt$select public.abrir_campanha(
+    %L, 'Campanha minha', null, current_date, current_date + 5, 'ativa',
+    'https://exemplo/pasta', null, null, null, '[]'::jsonb)$fmt$, :VERDE),
+  'recusa');
+
+-- 5. E O ATENDIMENTO ABRE SENDO COLABORADOR.
+--
+-- ESTE E O CENARIO QUE SEPARA `is_atendimento()` DE `is_gestor()`. Marina e
+-- colaboradora e e do Atendimento: perfil de acesso e funcao na agencia sao
+-- coisas diferentes, e uma checagem de role na tela ("desenvolvedor ou
+-- socio") a deixaria de fora do trabalho que e dela.
+update public.team_members set funcao = 'Atendimento' where user_id = :MARINA;
+
+select teste.cenario('Marina, do Atendimento, abre campanha sendo colaboradora', :MARINA,
+  format($fmt$insert into public.campaigns (client_id, nome, data_inicio, data_fim, criado_por)
+    values (%L, 'Campanha do Atendimento', current_date, current_date + 5, %L)$fmt$,
+    :VERDE, :MARINA),
+  'ok', 1);
+
+-- 6. E APAGAR CONTINUA SENDO DA GESTAO, mesmo com o modulo aberto.
+select teste.cenario('O colaborador continua sem apagar campanha', :BRUNO,
+  format('delete from public.campaigns where id = %L', :C53), 'recusa');
