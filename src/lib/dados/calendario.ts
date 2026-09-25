@@ -3,12 +3,15 @@ import "server-only";
 import { cache } from "react";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import { ROTULOS_DE_TIPO } from "@/lib/dominio/full-days";
 import type {
   CargaDeUmDia,
+  EventoDetalhado,
   ItemDoCalendario,
+  PessoaDaLinha,
 } from "@/lib/dominio/calendario";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { EventoTipo, TipoNoCalendario } from "@/lib/supabase/database.types";
+import type { TipoNoCalendario } from "@/lib/supabase/database.types";
 
 /**
  * As consultas do Calendário Full.
@@ -93,7 +96,23 @@ export const itensDoCalendario = cache(
     const itens: ItemDoCalendario[] = linhas.map((l) => ({
       id: l.id,
       tipo: l.tipo,
-      titulo: l.titulo,
+      // A AUSÊNCIA CHEGA COM A CHAVE DO ENUM NO TÍTULO, e a tela não pode
+      // mostrá-la crua.
+      //
+      // A view escreve `h.tipo::text`, que é `ferias` | `licenca` |
+      // `ausencia` — a camada em inglês, sem acento, que ficou como estava
+      // quando a 0016 trocou o vocabulário. Desenhar isso na grade colocaria
+      // a palavra que o produto tirou de propósito de volta na tela, e
+      // `check:cores` não pegaria: ele procura as formas ACENTUADAS, porque
+      // as sem acento são justamente as chaves de enum que ficaram.
+      //
+      // A tradução passa por `ROTULOS_DE_TIPO`, que é o mapa único por onde
+      // todo rótulo do Full Days passa. Um segundo mapa aqui seria a segunda
+      // verdade que a troca de vocabulário custou uma migration para evitar.
+      titulo:
+        l.tipo === "ausencia"
+          ? (ROTULOS_DE_TIPO[l.titulo as keyof typeof ROTULOS_DE_TIPO] ?? l.titulo)
+          : l.titulo,
       dataInicio: l.data_inicio,
       dataFim: l.data_fim,
       clientId: l.client_id,
@@ -118,24 +137,6 @@ export const itensDoCalendario = cache(
     );
   },
 );
-
-export type EventoDetalhado = {
-  id: string;
-  nome: string;
-  descricao: string | null;
-  tipo: EventoTipo;
-  clientId: string | null;
-  cliente: string | null;
-  dataInicio: string;
-  dataFim: string;
-  diaInteiro: boolean;
-  horaInicio: string | null;
-  horaFim: string | null;
-  local: string | null;
-  link: string | null;
-  bloqueiaFerias: boolean;
-  participantes: { id: string; nome: string; avatar_url: string | null }[];
-};
 
 export const obterEvento = cache(
   async (id: string): Promise<EventoDetalhado | null> => {
@@ -228,14 +229,6 @@ export const cargaDaEquipe = cache(
     }));
   },
 );
-
-export type PessoaDaLinha = {
-  id: string;
-  nome: string;
-  avatar_url: string | null;
-  area: string | null;
-  capacidadeMinutos: number;
-};
 
 /**
  * As linhas da Linha do Tempo: quem é da equipe, agrupado por área.

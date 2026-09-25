@@ -194,6 +194,22 @@ const TELAS = [
   { nome: "84-academy-gestao", rota: "/painel/academy?aba=gestao", largura: 1700, altura: 1400, role: "socio" },
   { nome: "85-academy-escuro", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio", tema: "escuro" },
 
+  // O CALENDARIO FULL. A grade do mes e a Linha do Tempo sao o par que prova
+  // o `diaNaGrade()`: a MESMA campanha de trinta dias aparece num dia so na
+  // primeira e como barra longa na segunda. Uma imagem so nao mostraria isso.
+  { nome: "90-calendario-mes", rota: "/painel/calendario", largura: 1600, altura: 1400, role: "socio" },
+  { nome: "90b-calendario-mes-375", rota: "/painel/calendario", largura: 375, altura: 1500, role: "socio" },
+  { nome: "91-calendario-linha", rota: "/painel/calendario?visao=linha", largura: 1700, altura: 1000, role: "socio" },
+  { nome: "92-calendario-semana", rota: "/painel/calendario?visao=semana", largura: 1600, altura: 900, role: "socio" },
+  { nome: "93-calendario-lista", rota: "/painel/calendario?visao=lista", largura: 1400, altura: 1300, role: "socio" },
+  { nome: "94-calendario-evento", rota: "/painel/calendario?evento=ev-convencao", largura: 1600, altura: 1000, role: "socio" },
+  { nome: "95-calendario-novo-evento", rota: "/painel/calendario", largura: 1500, altura: 1400, role: "socio",
+    clicar: 'button:has-text("Novo evento")' },
+  // O COLABORADOR FORA DO ATENDIMENTO nao tem "Novo evento": a imagem e o que
+  // prova que a tela some com o botao em vez de oferecer um que o banco
+  // recusa. Bruno e Design no prototipo.
+  { nome: "96-calendario-colaborador", rota: "/painel/calendario", largura: 1500, altura: 900, role: "colaborador-social" },
+
   { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
   // 375px: a grade de tres colunas vira UMA, e e a unica imagem que prova
   // isso -- no 1600 as tres colunas escondem o que acontece no celular, que
@@ -302,6 +318,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/social-media": ["./scripts/prototipo/social-media.ts"],
   "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],
+  "@/lib/dados/calendario": ["./scripts/prototipo/calendario.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],

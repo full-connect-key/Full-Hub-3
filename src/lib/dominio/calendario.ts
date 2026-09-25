@@ -77,6 +77,25 @@ export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
   entregavel: "bg-warning-soft text-warning",
 };
 
+/**
+ * A cor da barra de uma ETAPA, pela prioridade.
+ *
+ * É a exceção do mapa acima, e está escrita lá: dar cor de camada à etapa
+ * apagaria a informação que decide o que fazer primeiro. Só o FUNDO, sem
+ * texto — a barra é uma faixa de 8px e não carrega palavra nenhuma; o nome
+ * vai no `title` e no rótulo acessível.
+ */
+export const COR_DA_PRIORIDADE: Record<string, string> = {
+  urgente: "bg-danger",
+  alta: "bg-warning",
+  normal: "bg-neutral",
+  baixa: "bg-neutral-soft",
+};
+
+export function corDaEtapa(prioridade: string | null): string {
+  return COR_DA_PRIORIDADE[prioridade ?? "normal"] ?? COR_DA_PRIORIDADE.normal;
+}
+
 // ---------------------------------------------------------------------------
 // OS TIPOS DE EVENTO
 // ---------------------------------------------------------------------------
@@ -176,6 +195,41 @@ export function ehFaixa(item: ItemDoCalendario): boolean {
 // ---------------------------------------------------------------------------
 // A CARGA
 // ---------------------------------------------------------------------------
+
+/**
+ * Uma pessoa na Linha do Tempo.
+ *
+ * **Mora aqui e não em `lib/dados/`**, junto com todo tipo que a tela usa: os
+ * quatro desenhos são cliente, `lib/dados/` é `server-only`, e o gerador de
+ * protótipo TROCA aquele módulo por um de exemplo. Com o tipo lá, a troca
+ * levava a declaração junto e a compilação do protótipo quebrava — que foi
+ * exatamente o que aconteceu.
+ */
+export type PessoaDaLinha = {
+  id: string;
+  nome: string;
+  avatar_url: string | null;
+  area: string | null;
+  capacidadeMinutos: number;
+};
+
+export type EventoDetalhado = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipo: EventoTipo;
+  clientId: string | null;
+  cliente: string | null;
+  dataInicio: string;
+  dataFim: string;
+  diaInteiro: boolean;
+  horaInicio: string | null;
+  horaFim: string | null;
+  local: string | null;
+  link: string | null;
+  bloqueiaFerias: boolean;
+  participantes: { id: string; nome: string; avatar_url: string | null }[];
+};
 
 export type CargaDeUmDia = {
   userId: string;

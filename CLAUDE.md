@@ -476,6 +476,125 @@ por conta própria acabariam oferecendo "Concluir" onde o banco recusa.
 > `pode_aprovar_subtarefa()` (migration 0007) e `exigirGestorNaAcao` por uma
 > checagem de role em `gestao-tasks/acoes-de-aprovacao.ts`. São os dois pontos.
 
+### O Calendário Full
+
+`/painel/calendario` — migration 0055. Até ele o produto tinha DOIS
+calendários parciais: o de Gestão de Tasks (prazo de demanda e de etapa, post
+e campanha) e o do Full Days (quem está fora). Nenhum dos dois respondia a
+pergunta que a agência faz toda segunda: **"o que acontece nesta semana, e
+quem está disponível para fazer?"**
+
+**Tudo sai de UMA view, `calendar_events`**, que junta sete origens num
+formato só: demanda, etapa, ausência, evento, post, campanha e entregável.
+Acrescentar a oitava é acrescentar um `union all`. Nenhuma tabela de evento
+agregado: uma tabela que copia prazo de etapa, data de post e período de
+campanha precisa ser reescrita por sete caminhos para continuar verdadeira, e
+no dia em que um deles falhar o calendário mente sem avisar. É a mesma razão
+pela qual bloqueio de subtarefa não é status e atraso do Financeiro não é
+coluna.
+
+**`security_invoker = true` é a linha mais importante da migration.** Uma
+view comum no Postgres roda com os direitos de QUEM A CRIOU — o superusuário
+da migration —, e sem essa cláusula a `calendar_events` lê as sete tabelas
+inteiras para qualquer pessoa autenticada, furando a RLS de todas de uma vez
+num objeto que o PostgREST publica sozinho. **E o furo passa despercebido num
+banco com um cliente só:** ele vê seis campanhas, que é o total, e "seis de
+seis" tem a mesma cara com a RLS ligada e desligada. Por isso a bateria cria
+material de DUAS empresas — tirando a cláusula, seis cenários falham e dizem
+o que vazaria.
+
+**O rascunho é filtrado nos dois lugares**, como manda a regra: a RLS
+restritiva esconde o dos outros, e `publicada_em is not null` na view esconde
+o meu. E **`rascunho` e `cancelada` não existem como status** — o sprint
+filtrava por eles, e `rascunho` nem é valor do enum: o Postgres recusaria a
+criação da view, com um erro falando de enum e não de rascunho.
+
+#### As quatro visões, e o que cada uma responde
+
+| Visão | A pergunta |
+| --- | --- |
+| Mês | o que acontece quando |
+| Semana | a mesma coisa, com espaço para o texto caber |
+| Linha do tempo | **a equipe aguenta?** |
+| Lista | me manda isso (CSV) |
+
+**A campanha entra pelo ENCERRAMENTO na grade do mês e como BARRA na Linha do
+Tempo**, e a view carrega o período inteiro. São as duas metades da mesma
+decisão: a view guarda a verdade, e `diaNaGrade()` em
+`lib/dominio/calendario.ts` é o único lugar onde a escolha de desenho mora.
+Com ela espalhada, a grade e a lista discordariam sobre em que dia a mesma
+campanha está.
+
+**O que atravessa dias vira faixa no topo da semana**, e não item da lista de
+cada dia: uma feira de três dias listada dia a dia são três linhas que a
+pessoa junta de cabeça, competindo com os prazos daquele dia. E **sempre seis
+semanas**, senão a grade muda de altura ao trocar de mês e a página pula.
+
+**Na Linha do Tempo a coluna de nomes é fixa**, e ela quase não foi: o
+invólucro tinha `overflow-hidden` para arredondar as pontas, e `overflow:
+hidden` cria um novo scrollport — o `sticky` passa a se medir por ele e a
+coluna sai da tela junto com os dias. Foi a imagem que mostrou, com "Carla
+Nunes" lida como "nes".
+
+**A cor da célula ali é OCUPAÇÃO, não camada**, e por isso a visão tem
+legenda própria. `carga_da_equipe()` percorre e CHAMA `carga_do_dia()`, que é
+a fonte única desde a 0035 — uma chamada por célula seriam trezentas idas ao
+banco para desenhar uma tela, e uma segunda conta daria dois números para a
+mesma pessoa no mesmo dia. A capacidade é `team_members.capacidade_minutos_dia`,
+por pessoa: meio período existe, e mudar contrato não pode exigir deploy.
+
+**A ausência chega com a chave do enum no título**, e a tela não pode
+mostrá-la crua: a view escreve `h.tipo::text`, que é `ferias` — a camada em
+inglês que ficou como estava quando a 0016 trocou o vocabulário. Desenhar
+isso poria na tela a palavra que o produto tirou de propósito, e
+`check:cores` não pegaria, porque ele procura as formas ACENTUADAS. A
+tradução passa por `ROTULOS_DE_TIPO`, o mesmo mapa do Full Days.
+
+#### Eventos
+
+`events` e `event_participants`: convenção, feira, lançamento, reunião,
+treinamento, feriado de cliente. **Quem abre é `is_atendimento()`**, a mesma
+função que `tasks_insert` usa desde a 0006 e que `campaigns_insert` passou a
+usar na 0054 — quem abre a demanda de hoje é quem sabe que a feira é semana
+que vem.
+
+**Sem participante, o evento é da agência inteira** — e não de ninguém. Ler
+"sem participantes" como "ninguém" é o erro natural, e deixaria a convenção
+sem bloquear nada; a bateria guarda os dois sentidos.
+
+**A lista de participantes é de quem organiza, não de quem participa:** sem
+essa trava, quem não quer ir se tira da convenção apagando a própria linha, e
+o evento passa a valer só para os que sobraram.
+
+**`bloqueia_ferias` entra pela mesma porta do bloqueio por área no Full
+Days**, devolvendo a mesma forma — dia e nome. Duas listas de bloqueio com
+dois formatos dariam duas frases de recusa diferentes na mesma tela.
+
+**O cliente não alcança evento nenhum**, nem o da própria empresa: o Portal
+mostra material enviado, não a agenda interna da agência.
+
+#### O que cada perfil vê, e o arrasto
+
+**O colaborador abre em "só minha pauta"; a gestão, na agência inteira.** O
+padrão vem do perfil, mas **o valor vai para a URL nos dois sentidos** — sem
+isso, o mesmo link mostraria coisas diferentes para o sócio e para o redator,
+que é a pior forma de um link mentir.
+
+**"Só minha pauta" inclui o que é da agência.** Ele responde "o que eu
+preciso saber hoje", e a convenção da semana que vem é parte disso mesmo não
+tendo o meu nome.
+
+**Arrastar uma etapa muda o prazo dela, com desfazer.** Só a etapa arrasta: o
+período da demanda é derivado e se recalcula sozinho, a campanha tem período
+combinado, e a ausência é decisão do sócio — oferecer o arrasto neles
+prometeria uma mudança que o banco desfaz ou recusa. **É arrasto nativo e não
+dnd-kit, com o custo dito:** ele não responde a toque, e no celular a data se
+muda abrindo a etapa.
+
+**As camadas são links, e não caixas com estado no `localStorage`.** Com as
+duas fontes, a tela abriria com a camada que o link diz e trocaria sozinha um
+instante depois para a que o navegador lembrava.
+
 ### Dependências
 
 Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não
@@ -2710,6 +2829,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
+| `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` devolve erro de coluna inexistente |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
 | `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
@@ -2719,6 +2839,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 10 | **O Calendário Full**: migration 0055, com `events`, `event_participants` e a view `calendar_events` juntando sete origens num formato só. **A linha mais importante é `security_invoker = true`** — sem ela a view roda com os direitos de quem a criou e lê as sete tabelas inteiras para qualquer pessoa autenticada, num objeto que o PostgREST publica sozinho. E o furo **passa despercebido num banco com um cliente só**: ele vê seis campanhas, que é o total, e "seis de seis" tem a mesma cara com a RLS ligada e desligada; por isso a bateria cria material de duas empresas, e tirando a cláusula seis cenários falham e dizem o que vazaria. **Quatro divergências do texto do sprint**, e a primeira é grave: ele filtra rascunho por `status in ('rascunho','cancelada')` e **nenhum dos dois existe** — `rascunho` nem é valor do enum, e o Postgres recusaria a criação da view com um erro falando de enum; `carga_do_dia()` já existia desde a 0035 e nada aqui recalcula; `capacidade_minutos_dia` não existia e nasce por pessoa; e "não incluir posts e campanhas ainda" está vencido, porque os dois módulos existem. Quatro visões, e a Linha do Tempo é a que responde "a equipe aguenta?" — com a coluna de nomes fixa, que quase não foi: o `overflow-hidden` do invólucro cria um scrollport e quebra o `sticky`, e a imagem mostrou "Carla Nunes" lida como "nes". **A ausência chegava com a chave do enum no título** e ia crua para a tela — a palavra que a 0016 tirou de propósito, e que `check:cores` não pegaria porque ele procura as formas acentuadas. **1000 cenários**, 24 novos, com mutação no `security_invoker`. |
 | Campanhas ponta a ponta | **A campanha virou trabalho de verdade**, em seis migrations e uma sequência de decisões do usuário. **0050 — a capa:** "para ser identificável direto pela imagem qual campanha é". **0051 — a campanha nasce com a DEMANDA**, uma etapa por entregável: a ponte (`deliverables.subtask_id` e `responsavel_id`) existia desde a 0033 e ninguém a atravessava, então a coluna nova é uma só. Tudo numa transação, porque a terceira de cinco escritas falhando deixaria uma campanha ligada a uma demanda com metade das etapas. **E ela se finaliza sozinha, nos dois sentidos** — "só é finalizada quando todas as suas etapas são entregues", e uma peça nova a reabre. **0052 — quem aprova a peça conclui a etapa:** "o responsável entrega, e o cliente conclui". O trigger **nunca derruba a aprovação do cliente**: ele está do outro lado sem ninguém por perto, e o que veria seria a aprovação dele falhando por causa de uma etapa que nem sabe que existe. **0053 — vários arquivos na mesma versão**, porque uma entrega é o PDF, o AI e o JPG; a capa passou a ser a primeira IMAGEM, não o primeiro arquivo. **0054 — o módulo virou "Campanhas", foi para a Principal e abriu para `EQUIPE`**: quem produz precisa chegar ao material dele. Abrir campanha continua sendo de quem abre demanda, e `campaigns_insert` fechou em `is_atendimento()` — a mesma função de `tasks_insert`, não uma parecida. **E a tela onde a equipe sobe o material não é área nova:** `deliverable_versions` já tinha versão, arquivo e justificativa desde a 0033 — faltava a tela, como no Social Media até a 0042. **O bug que abriu tudo isso:** `COLUNAS_DA_CAMPANHA` citava `clients(nome)` e a coluna é `nome_empresa`; o PostgREST recusa o `select` inteiro, o erro era descartado, e a tela dizia "Nenhuma campanha aberta" para quem tinha acabado de criar uma — **uma leitura que falha calada é pior que uma escrita, porque lista vazia é indistinguível da verdade**. Daí `ouFalha()`. **E de quebra, um bug de duas migrations atrás:** a 0030 reescreveu `validar_transicao_de_subtarefa()` a partir das quatro travas e perdeu o bloco de carimbos — desde então nenhuma subtarefa tinha `concluida_em`, e o contador de concluídas do mês respondia zero, que é plausível. **968 cenários**, com mutação em cinco travas. |
 | Depois do 14 | **O terceiro módulo saiu do produto**, por decisão do usuário: o Meu Desenvolvimento. Tela, rota, a aba Skills em Equipe, a vitrine da Academy e duas tabelas -- `user_skills` e `skill_avaliacoes` -- apagadas na migration 0043. **O catálogo `skills` FICA**, e foi a escolha explícita: ele continua com um papel só, o vocabulário de etiquetas do Full Academy, e apagá-lo junto levaria a etiqueta de cada material. **Isto não é a 0034**: lá as tabelas fechavam em `auth.uid()` e o script de exportação era condição para apagar; aqui as duas sempre foram legíveis por `is_gestor()`, e o `exportar-antes-da-0043.sql` é conveniência. **A sugestão de skill saiu junto**, que é a parte que passa batida: a fila que decidia as sugestões morava na tela que saiu, então `sugerida_por` virou coluna que nada preenche e a policy oferecia um caminho inexistente. As abas de Equipe sumiram com a segunda -- uma navegação de um item é moldura sem função --, e o módulo voltou a se chamar **Equipe**. **A varredura de nomes mortos pegou três coisas que o `npm run build` não pegaria**: duas consultas órfãs a `user_skills` que eu tinha deixado em `lib/dados/academy.ts` e que falhariam no banco depois da migration, os tipos das duas tabelas ainda declarados, e os meus próprios comentários explicando a remoção citando os nomes que ela proíbe -- a mesma armadilha da 0016 e da 0034. E a ordem da migration custou uma rodada: `skills_insert` citava `sugerida_por`, e coluna citada em policy não sai enquanto a policy estiver de pé, exatamente como a 0039 já tinha aprendido com um trigger. **770 cenários** (os 27 do módulo viraram 10, virados do avesso: se as tabelas renascerem, o primeiro falha e diz qual). |
 | Sprint 14 | **O Social Media ganhou o lado da agência.** Migration 0042. O Portal estava pronto desde o Sprint 12 e o lado de cá não existia: para um post chegar ao cliente, alguém colava SQL no Supabase por um script que o próprio cabeçalho mandava apagar no dia em que a tela existisse -- e ele foi apagado neste commit. **São três mãos**, por decisão do usuário: a gestão abre o briefing, o colaborador liberado produz, a gestão revisa e envia. `posts_insert` passou de `is_staff()` a `is_gestor()`, entrou `responsavel_id`, e a mão é **derivada e nunca gravada**, como bloqueio de subtarefa e atraso do Financeiro. **E o sprint quase virou do avesso a trava que protege o cliente**: `validar_nova_rodada` perguntava quem produziu olhando `criado_por`, que agora é a gestão -- o colaborador não conseguiria pedir o aval interno, e o responsável que produziu poderia mandar a própria entrega. Entrou `dono_do_post()`, e a bateria guarda o cenário virado do avesso. **A pergunta "por onde se escolhe vídeo, carrossel, estático ou stories" eram duas perguntas**: `midia` é o que a tela desenha e virou enum (decide qual editor aparece); `formato` é onde vai ao ar e continua texto, porque Reels e Shorts são de uma safra e a próxima vem aí -- a 0032 já tinha decidido isso e estava certa. Carrossel são `post_versions.arquivos` em jsonb, e **`posts.arte_url` continua sendo a capa**, o que faz o calendário, o card e a miniatura do portal não saberem que carrossel existe. **Vídeo é por link** (decisão do usuário, com o custo dito: o cliente decide longe do botão de aprovar), e o banco recusa enviar vídeo sem o link. Na tela, **duas visões na mesma rota** -- lista + editor e calendário + painel, escolhidas entre três propostas -- com **um editor só** nas duas, a lista agrupada por **quem está segurando** e não por status, e o **"Enviar ao cliente" desligado com a razão escrita** em vez de sumir. **32 cenários novos, 785 no total**, com mutação em três travas. **Seis erros meus**, e vale a lista porque quatro são de família: montei `validar_nova_rodada` a partir da 0032 quando a 0033 já a tinha reescrito (apaguei o `deliverable`, e o sintoma saiu três arquivos adiante); pus o bloco do vídeo no ramo do entregável em vez do post; criei um **segundo** trigger para a mesma função, quebrando o teste que sabia desligá-la; ressincronizei estado do editor num `useEffect` em vez de `key`; dei à Revisão um azul que no tema claro **é** o mesmo da Produção, deixando duas entradas de legenda com uma cor só; e os posts antigos precisavam de conversão de `formato` para `midia`, sem a qual um carrossel abriria no editor de arte única -- quem mostrou foi o seed. |
