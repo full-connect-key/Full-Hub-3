@@ -9,7 +9,8 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipe, listarEquipeAtiva } from "@/lib/dados/equipe";
 
-import { AbasDePessoas, ehAba, type Aba } from "./abas";
+import { AbasDePessoas } from "./abas";
+import { ehAba, type Aba } from "./vocabulario";
 import { FormularioDeCliente } from "./clientes/formulario-de-cliente";
 import { ListaDeClientes } from "./clientes/lista";
 import { FormularioDeColaborador } from "./equipe/formulario-de-colaborador";

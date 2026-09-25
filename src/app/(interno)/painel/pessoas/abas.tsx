@@ -6,18 +6,19 @@ import { Building2, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type Aba = "clientes" | "equipe";
+// `Aba`, `ABAS` e `ehAba` moram em `vocabulario.ts`, sem diretiva: este
+// arquivo e "use client", e o `page.tsx` -- que e de servidor -- chama
+// `ehAba`. Valor exportado daqui chega la como referencia de cliente, e a
+// chamada estoura em tempo de requisicao. O cabecalho de `vocabulario.ts`
+// conta a historia inteira.
+import { ABAS, type Aba } from "./vocabulario";
 
-export const ABAS: Aba[] = ["clientes", "equipe"];
+export type { Aba };
 
 const ROTULOS: Record<Aba, { label: string; icone: typeof Users }> = {
   clientes: { label: "Clientes", icone: Building2 },
   equipe: { label: "Equipe", icone: Users },
 };
-
-export function ehAba(valor: unknown): valor is Aba {
-  return typeof valor === "string" && (ABAS as string[]).includes(valor);
-}
 
 /**
  * As duas abas de Gestão de Pessoas, na URL.

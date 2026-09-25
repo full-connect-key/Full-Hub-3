@@ -66,3 +66,4 @@ next-env.d.ts
 # a captura e a pagina unica do prototipo clicavel: saida, nao fonte
 /.captura
 /prototipo-full-hub.html
+prototipos/servidor.log

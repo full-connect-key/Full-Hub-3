@@ -12,6 +12,7 @@
     "prototipo": "node scripts/prototipo.mjs",
     "check:cores": "node scripts/check-cores.mjs",
     "check:mensagens": "node scripts/check-mensagens.mjs",
+    "check:fronteira": "node scripts/check-fronteira.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:preview": "npx --yes tsx scripts/check-preview.mjs",
     "check:dias": "node scripts/check-dias.mjs"

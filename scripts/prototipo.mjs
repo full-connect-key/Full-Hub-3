@@ -30,7 +30,7 @@
 
 import { spawn } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, openSync, statSync, readSync, closeSync, rmSync } from "node:fs";
 import path from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -279,6 +279,10 @@ const SAIDA = path.join(RAIZ, "prototipos");
 // compilador. A pasta e apagada no fim, e esta no .gitignore.
 const COPIA = path.join(RAIZ, ".prototipo");
 
+// O erro do servidor, acumulado. Fica FORA da copia, que e apagada no fim --
+// o log de uma tela que quebrou e justamente o que se quer ler depois.
+const LOG_DO_SERVIDOR = path.join(RAIZ, "prototipos", "servidor.log");
+
 // Modulos reais -> versoes de exemplo, aplicados so na copia temporaria.
 const SUBSTITUICOES = {
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
@@ -420,7 +424,17 @@ function subirServidor(perfil, extra = {}) {
 
   const filho = spawn(binario, argumentos, {
     cwd: COPIA,
-    stdio: "ignore",
+    // O ERRO DO SERVIDOR VAI PARA UM ARQUIVO, e nao para /dev/null.
+    //
+    // Com "ignore", uma pagina que estoura no servidor vira uma imagem da
+    // tela "This page couldn't load" e mais nada -- a rodada termina verde,
+    // a imagem sai, e o rastro que diria QUAL linha quebrou foi jogado fora.
+    // Foi exatamente o que aconteceu com Gestao de Pessoas: o usuario levou
+    // o 500 na producao e a imagem daqui mostrava o mesmo erro, sem causa.
+    //
+    // O `capturar` le a ponta deste arquivo quando a pagina volta 500, e o
+    // resumo do fim imprime junto com o nome da tela.
+    stdio: ["ignore", "ignore", openSync(LOG_DO_SERVIDOR, "a")],
     detached: true,
     env: {
       ...process.env,
@@ -448,6 +462,36 @@ function subirServidor(perfil, extra = {}) {
   return filho;
 }
 
+/** O tamanho atual do log, para ler so o que vier depois. */
+function tamanhoDoLog() {
+  try {
+    return statSync(LOG_DO_SERVIDOR).size;
+  } catch {
+    return 0;
+  }
+}
+
+/** As primeiras linhas uteis escritas no log a partir de `desde`. */
+function rastroDesde(desde) {
+  let texto = "";
+  try {
+    const fd = openSync(LOG_DO_SERVIDOR, "r");
+    const tamanho = Math.max(0, tamanhoDoLog() - desde);
+    const buffer = Buffer.alloc(tamanho);
+    readSync(fd, buffer, 0, tamanho, desde);
+    closeSync(fd);
+    texto = buffer.toString("utf8");
+  } catch {
+    return "(sem log)";
+  }
+
+  // As linhas que interessam sao as do erro, nao o cabecalho do Next nem as
+  // de requisicao. A primeira linha com "Error" ancora o resto.
+  const linhas = texto.split("\n").filter((l) => l.trim());
+  const inicio = linhas.findIndex((l) => /Error|error:|\bat\s/.test(l));
+  return (inicio >= 0 ? linhas.slice(inicio) : linhas).slice(0, 12).join("\n      ");
+}
+
 function encerrar(servidor) {
   if (!servidor?.pid) return;
   try {
@@ -465,6 +509,8 @@ try {
   const { chromium } = await import("playwright");
 
   log("preparando a copia temporaria do projeto...");
+  // O log comeca vazio: um rastro da rodada passada leria como desta.
+  rmSync(LOG_DO_SERVIDOR, { force: true });
   await rm(COPIA, { recursive: true, force: true });
   await mkdir(COPIA, { recursive: true });
 
@@ -551,6 +597,10 @@ try {
   // linhas de log. Repetido no fim, vira uma lista curta que da para conferir.
   const semClique = [];
 
+  // Telas que responderam 500. A imagem sai, e e a da pagina de erro -- por
+  // isso elas viram lista propria, com o rastro do servidor junto.
+  const quebradas = [];
+
   for (const grupo of grupos) {
     const doGrupo = TELAS_A_TIRAR.filter((t) => chaveDo(t) === grupo);
     const perfil = doGrupo[0].role ?? "socio";
@@ -603,7 +653,19 @@ try {
         );
       }
 
-      await pagina.goto(`http://localhost:${PORTA}${tela.rota}`, { waitUntil: "networkidle" });
+      const antesDoLog = tamanhoDoLog();
+      const resposta = await pagina.goto(`http://localhost:${PORTA}${tela.rota}`, {
+        waitUntil: "networkidle",
+      });
+
+      // UMA TELA QUE ESTOURA NO SERVIDOR NAO PODE SAIR VERDE. Ela vira uma
+      // imagem da pagina "This page couldn't load", e sem esta checagem a
+      // rodada termina dizendo "Pronto" -- com noventa imagens, ninguem abre
+      // a que quebrou. O rastro sai do log do servidor, so a parte escrita
+      // DEPOIS deste goto: o arquivo acumula a rodada inteira.
+      if ((resposta?.status() ?? 200) >= 500) {
+        quebradas.push({ nome: tela.nome, rastro: rastroDesde(antesDoLog) });
+      }
 
       // Algumas telas só aparecem depois de um clique -- uma aba, um diálogo.
       // O app roda de verdade aqui, então o Radix responde normalmente.
@@ -681,6 +743,13 @@ try {
     console.error(
       "\n  Se o mesmo seletor falha em duas rodadas seguidas, ele morreu --\n  a tela mudou e a lista TELAS nao acompanhou.",
     );
+  }
+
+  if (quebradas.length > 0) {
+    console.error(`\n  ${quebradas.length} tela(s) responderam 500 -- a imagem e da pagina de erro:`);
+    for (const q of quebradas) console.error(`    ${q.nome}\n      ${q.rastro}`);
+    console.error(`\n  Log completo: ${path.relative(RAIZ, LOG_DO_SERVIDOR)}`);
+    process.exitCode = 1;
   }
 
   if (perdidas.length > 0) {

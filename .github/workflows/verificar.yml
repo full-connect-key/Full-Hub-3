@@ -57,6 +57,13 @@ jobs:
       - name: Migrations que sobrevivem ao separador de comandos
         run: npm run check:migrations
 
+      # Valor exportado de arquivo "use client" chamado por Server Component.
+      # O build, o lint e o tsc passam os tres -- o erro so nasce quando
+      # alguem PEDE a pagina, e a resposta e um 500 seco. Foi assim que a
+      # Gestao de Pessoas ficou fora do ar, e quem encontrou foi o usuario.
+      - name: A fronteira servidor/cliente
+        run: npm run check:fronteira
+
       - name: Contagem de dias do Full Days
         run: npm run check:dias
 

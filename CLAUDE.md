@@ -2537,6 +2537,22 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   Valor que os dois lados usam vai para um módulo sem diretiva nenhuma
   (`financeiro/vocabulario.ts` é o exemplo). Tipo pode ficar no arquivo
   cliente: tipo é apagado na compilação.
+
+  **E isso derrubou a Gestão de Pessoas.** `ehAba` morava em `pessoas/abas.tsx`,
+  que é `"use client"`, e o `page.tsx` a chamava para ler a aba da URL — a
+  página inteira devolvia 500, nas duas abas, com *"Attempted to call ehAba()
+  from the server but ehAba is on the client"*. Quem encontrou foi o usuário,
+  clicando no menu. Agora o valor mora em `pessoas/vocabulario.ts`.
+
+  **Duas travas nasceram daí, e as duas faltavam.** `npm run check:fronteira`
+  varre `src/` atrás de valor de arquivo cliente importado por arquivo de
+  servidor — **componente não conta**, que é o padrão certo e o projeto faz em
+  toda página; o que quebra é o servidor CHAMAR uma função ou LER uma
+  constante, e a distinção é a convenção de nome. E o gerador de protótipo
+  passou a gravar o **log do servidor** e a reprovar a rodada quando uma tela
+  responde 500: até aqui ele mandava o erro para `/dev/null`, a imagem da
+  página de erro saía como se fosse a tela, e a rodada terminava dizendo
+  "Pronto" — com noventa imagens, ninguém abre a que quebrou.
 - **`<title>` dentro de `<svg>` quebra a hidratação.** O React 19 trata
   `<title>` como o título do documento e o iça para o `<head>`, o que faz o
   HTML do servidor divergir do que o navegador monta. O rótulo acessível de um
@@ -2662,6 +2678,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário e que todo marcador de dollar quoting abre e fecha |
+| `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
