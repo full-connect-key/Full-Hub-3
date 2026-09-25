@@ -56,7 +56,8 @@ export function ListaDoMenu({
         return (
           <div key={section} className="flex flex-col gap-0.5">
             <div className="recolhido:lg:hidden flex items-center gap-2 px-3 pb-1">
-              <p className="text-text-muted text-[11px] font-semibold tracking-wider uppercase">
+              {/* Fundo escuro nos dois temas: o token é o `on-dark`. */}
+              <p className="text-text-on-dark-muted text-[11px] font-semibold tracking-wider uppercase">
                 {SECTION_LABELS[section]}
               </p>
               {pill ? (

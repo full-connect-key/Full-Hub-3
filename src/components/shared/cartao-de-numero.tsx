@@ -38,6 +38,31 @@ const COR_DO_VALOR = {
   bom: "text-success",
 } as const;
 
+/**
+ * O RÓTULO TAMBÉM MUDA COM O TOM, e antes não mudava.
+ *
+ * Ele era `--text-muted` nos quatro casos — certo sobre o cartão branco e
+ * errado sobre os três fundos tingidos, onde dá 4,42:1, 4,03:1 e 4,49:1 a
+ * 12px. O par existia em três combinações que ninguém tinha medido: a lista do
+ * `check:cores` tinha `--text-muted` sobre o cartão e sobre a página, e um
+ * fundo `*-soft` não é nenhum dos dois.
+ *
+ * `--text-secondary` passa nos três com folga (5,78 a 6,43) e é o tom certo
+ * também por leitura: um cartão tingido já está chamando atenção, e o rótulo
+ * dele não é a informação mais apagada da tela.
+ *
+ * Quem achou foi a varredura de acessibilidade do gerador de protótipo, na
+ * mesma rodada em que a assinatura da barra lateral foi corrigida — e só
+ * apareceu porque a lista passou a mostrar VÁRIOS exemplos por regra. Com um
+ * exemplo só, esta causa ficava escondida atrás da primeira.
+ */
+const COR_DO_ROTULO = {
+  neutro: "text-text-muted",
+  atencao: "text-text-secondary",
+  alerta: "text-text-secondary",
+  bom: "text-text-secondary",
+} as const;
+
 export function CartaoDeNumero({
   rotulo,
   valor,
@@ -53,9 +78,9 @@ export function CartaoDeNumero({
 }) {
   const conteudo = (
     <>
-      <p className="text-text-muted text-xs">{rotulo}</p>
+      <p className={cn("text-xs", COR_DO_ROTULO[tom])}>{rotulo}</p>
       <p className={cn("mt-1 text-2xl font-semibold tabular-nums", COR_DO_VALOR[tom])}>{valor}</p>
-      {apoio ? <p className="text-text-muted mt-1 text-xs">{apoio}</p> : null}
+      {apoio ? <p className={cn("mt-1 text-xs", COR_DO_ROTULO[tom])}>{apoio}</p> : null}
     </>
   );
 

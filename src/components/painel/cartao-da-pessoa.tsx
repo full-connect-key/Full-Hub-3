@@ -47,7 +47,16 @@ export function CartaoDaPessoa({
 
       <span className="recolhido:lg:hidden flex min-w-0 flex-col leading-tight">
         <span className="text-text-on-dark truncate text-sm font-medium">{nome}</span>
-        {cargo ? <span className="text-text-muted truncate text-xs">{cargo}</span> : null}
+        {/*
+          `on-dark-muted` E NÃO `muted`, e é o token que existe para isto: a
+          barra lateral é escura nos DOIS temas, então o token do tema claro
+          nunca foi o certo aqui. A 12px o mínimo é 4,5:1, e o par antigo dava
+          4,49 — dois centésimos, invisíveis numa lista escrita à mão e óbvios
+          para a varredura que lê o estilo calculado.
+        */}
+        {cargo ? (
+          <span className="text-text-on-dark-muted truncate text-xs">{cargo}</span>
+        ) : null}
         <span className="text-brand-blue truncate text-[11px] font-medium">
           {ROTULOS_DE_ROLE[role]}
         </span>

@@ -323,6 +323,21 @@ const SAIDA = path.join(RAIZ, "prototipos");
 // -- e criterio que diz "esta palavra nao aparece na tela" precisa de texto.
 const SAIDA_HTML = path.join(SAIDA, "html");
 
+/**
+ * O MOTOR DA VARREDURA DE ACESSIBILIDADE (Sprint 16, Parte F).
+ *
+ * `axe-core` e dependencia DIRETA de desenvolvimento, e isso foi de proposito:
+ * ele ja estava em `node_modules` como dependencia transitiva do
+ * `eslint-plugin-jsx-a11y`, e uma checagem cujo motor chega por tabela de
+ * outro pacote some no dia em que o `eslint-config-next` subir de versao --
+ * sem erro, porque a checagem simplesmente nao encontra o arquivo.
+ *
+ * Por isso ela FALHA quando nao acha, em vez de pular. Uma varredura que nao
+ * encontra o que rodar e termina verde afirma sobre telas que ninguem olhou --
+ * a mesma regra do `verificar-9.mjs` sem os dumps.
+ */
+const AXE = path.join(RAIZ, "node_modules", "axe-core", "axe.min.js");
+
 // A copia fica DENTRO do projeto, e nao em /tmp, por um motivo pratico: assim
 // o Node acha node_modules subindo um nivel, do jeito que ele sempre resolve
 // dependencias. Um link simbolico apontando para fora da raiz e recusado pelo
@@ -674,6 +689,20 @@ try {
   // ------------------------------------------------------------------------
   const violacoes = [];
 
+  // ------------------------------------------------------------------------
+  // ACESSIBILIDADE (Sprint 16, Parte F).
+  //
+  // O `eslint-plugin-jsx-a11y` ja roda no lint, e ele le JSX: pega o `img`
+  // sem `alt` e o `onClick` numa `div`. O que ele NAO ve e a arvore montada --
+  // dois elementos com o mesmo `id` vindos de componentes diferentes, um campo
+  // cujo `label` aponta para um `id` que a renderizacao mudou, um botao que so
+  // tem icone porque o texto ficou em `hidden`.
+  //
+  // Isso so existe com a pagina de pe, e a pagina de pe e exatamente o que
+  // este gerador ja tem -- noventa vezes por rodada, nos cinco perfis.
+  // ------------------------------------------------------------------------
+  const acessibilidade = [];
+
   for (const grupo of grupos) {
     const doGrupo = TELAS_A_TIRAR.filter((t) => chaveDo(t) === grupo);
     const perfil = doGrupo[0].role ?? "socio";
@@ -827,6 +856,49 @@ try {
           await pagina.content(),
           "utf8",
         );
+
+        // ------------------------------------------------------------------
+        // A VARREDURA, na pagina viva e DEPOIS do clique.
+        //
+        // Depois e o ponto: metade das telas so mostra o que interessa com um
+        // dialogo aberto ou uma aba trocada, e e justamente em dialogo que os
+        // problemas de foco e de rotulo aparecem. Varrer antes do clique seria
+        // conferir a tela fechada e dizer que o dialogo esta bem.
+        //
+        // SO `serious` E `critical`. O corte existe para a lista ser lida: com
+        // `moderate` junto, uma rodada traz dezenas de avisos de ordem de
+        // titulo e a pessoa aprende a passar o olho -- e aprender a ignorar
+        // esta lista e perder o `critical` que vier junto no mes que vem.
+        // ------------------------------------------------------------------
+        await pagina.addScriptTag({ content: await readFile(AXE, "utf8") });
+        const achados = await pagina.evaluate(async () => {
+          const r = await window.axe.run(document, {
+            resultTypes: ["violations"],
+            // O `region` reclama de todo conteudo fora de uma landmark, e o
+            // que ele pega aqui e o portal do Radix -- o dialogo vive num
+            // `div` no fim do `body`, por desenho da biblioteca. Um aviso que
+            // a gente nao pode consertar e um aviso que ensina a ignorar.
+            rules: { region: { enabled: false } },
+          });
+          return r.violations.flatMap((v) =>
+            // UM ACHADO POR NÓ, até três por regra e por tela. Com um nó só,
+            // duas causas na mesma tela viravam uma — e a segunda só aparecia
+            // depois de a primeira ser consertada, numa rodada seguinte.
+            v.nodes.slice(0, 3).map((n) => ({
+              id: v.id,
+              impacto: v.impact,
+              descricao: v.help,
+              quantos: v.nodes.length,
+              exemplo: n.html?.slice(0, 120) ?? "",
+            })),
+          );
+        });
+
+        for (const a of achados) {
+          if (a.impacto === "serious" || a.impacto === "critical") {
+            acessibilidade.push({ tela: tela.nome, ...a });
+          }
+        }
       } finally {
         // Fecha mesmo quando o screenshot estoura. Sem isso, cada falha deixa
         // uma aba viva -- e memoria e justamente o que costuma derrubar o
@@ -846,6 +918,41 @@ try {
     console.error(
       "\n  Se o mesmo seletor falha em duas rodadas seguidas, ele morreu --\n  a tela mudou e a lista TELAS nao acompanhou.",
     );
+  }
+
+  // ------------------------------------------------------------------------
+  // O RESULTADO DA ACESSIBILIDADE, agrupado por REGRA e não por tela.
+  //
+  // É a mesma razão do agrupamento das violações de CSP: um rótulo que falta
+  // num componente compartilhado falta nas noventa telas, e noventa linhas
+  // iguais escondem a nonagésima primeira — que é outra coisa.
+  // ------------------------------------------------------------------------
+  if (acessibilidade.length > 0) {
+    const porRegra = new Map();
+    for (const a of acessibilidade) {
+      if (!porRegra.has(a.id)) porRegra.set(a.id, { ...a, telas: [], exemplos: new Set() });
+      const r = porRegra.get(a.id);
+      r.telas.push(a.tela);
+      // ATÉ TRÊS EXEMPLOS DISTINTOS, e não um. Uma regra só pode ter várias
+      // causas diferentes -- `color-contrast` acusou primeiro a assinatura da
+      // barra lateral e, depois de consertada, uma frase da tela de login com
+      // outro par de cores. Com um exemplo só, a segunda causa fica escondida
+      // atrás da primeira e a pessoa conserta uma achando que acabou.
+      if (a.exemplo) r.exemplos.add(a.exemplo);
+    }
+
+    console.error(`\n  ${porRegra.size} problema(s) de acessibilidade:`);
+    for (const [id, a] of porRegra) {
+      console.error(`    [${a.impacto}] ${id} — ${a.descricao}`);
+      console.error(`      ${a.telas.length} tela(s): ${a.telas.slice(0, 6).join(", ")}${a.telas.length > 6 ? ", …" : ""}`);
+      for (const ex of [...a.exemplos].slice(0, 3)) console.error(`      ex.: ${ex}`);
+      if (a.exemplos.size > 3) console.error(`      (e mais ${a.exemplos.size - 3} trecho(s) diferentes)`);
+    }
+    console.error(
+      "\n  Só `serious` e `critical` entram nesta lista. O corte existe para\n" +
+        "  ela ser lida: com os avisos leves junto, ninguém lê nenhum.",
+    );
+    process.exitCode = 1;
   }
 
   if (violacoes.length > 0) {

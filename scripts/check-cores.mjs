@@ -121,8 +121,24 @@ const PARES = [
   ["--text-primary", "--surface-card", NORMAL, "texto principal no cartão"],
   ["--text-secondary", "--surface-page", NORMAL, "texto de apoio na página"],
   ["--text-secondary", "--surface-card", NORMAL, "texto de apoio no cartão"],
-  ["--text-muted", "--surface-card", GRANDE, "texto discreto (rótulo, legenda)"],
-  ["--text-muted", "--surface-page", GRANDE, "texto discreto na página"],
+  // NORMAL E NAO GRANDE, e a troca é a correção de um furo desta lista.
+  //
+  // `--text-muted` tem 330 usos na interface, e quase todos são `text-xs` ou
+  // `text-[11px]` — texto NORMAL para a WCAG, que só chama de grande a partir
+  // de 24px (ou 18,7px em negrito). Medi-lo a 3:1 era abençoar o par no limite
+  // errado, e ele passava com 3,39:1.
+  ["--text-muted", "--surface-card", NORMAL, "texto discreto (rótulo, legenda)"],
+  ["--text-muted", "--surface-page", NORMAL, "texto discreto na página"],
+
+  // O RÓTULO DO CARTÃO DE NÚMERO SOBRE OS TRÊS FUNDOS TINGIDOS.
+  //
+  // Um fundo `*-soft` não é o cartão nem a página, e a lista só tinha essas
+  // duas — então o rótulo em `--text-muted` sobre eles (4,03 a 4,49:1 a 12px)
+  // passava sem nada conferir. O componente usa `--text-secondary` nos três
+  // desde o Sprint 16, e estas linhas são o que impede a volta.
+  ["--text-secondary", "--warning-soft", NORMAL, "rótulo do cartão de atenção"],
+  ["--text-secondary", "--danger-soft", NORMAL, "rótulo do cartão de alerta"],
+  ["--text-secondary", "--success-soft", NORMAL, "rótulo do cartão bom"],
 
   // A regra da casa: azul claro pede texto escuro.
   ["--primary-foreground", "--primary", NORMAL, "BOTÃO PRIMÁRIO — a regra da casa"],
@@ -139,7 +155,14 @@ const PARES = [
   ["--text-on-dark", "--surface-sidebar-2", NORMAL, "item do menu em destaque"],
   ["--brand-blue", "--surface-sidebar", NORMAL, "ITEM ATIVO do menu"],
   ["--brand-blue", "--surface-sidebar-2", NORMAL, "item ativo com fundo próprio"],
-  ["--text-muted", "--surface-sidebar", GRANDE, "cargo no rodapé do menu"],
+  // O PAR `--text-muted` SOBRE A BARRA LATERAL SAIU DAQUI, e a ausência é a
+  // correção: nenhuma tela usa mais essa combinação. A barra é escura nos dois
+  // temas, então o token dela é `--text-on-dark-muted`, medido logo abaixo.
+  //
+  // Ele estava aqui como TEXTO GRANDE, por causa do cargo no rodapé do menu —
+  // e o cargo é `text-xs`. A linha dizia "ok" em 4,49:1 enquanto o mínimo do
+  // uso real era 4,5:1. Medir um par que ninguém usa é pior que não medir: a
+  // lista fica com uma linha verde que não protege tela nenhuma.
   // O item de menu de módulo OPCIONAL. Ele é mais apagado de propósito, e
   // por isso precisa ser MEDIDO: o primeiro valor tentado foi
   // `text-on-dark/45`, que dava 4,05:1 — abaixo do mínimo para texto. Este

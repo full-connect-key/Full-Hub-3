@@ -100,8 +100,25 @@ export function Logo({
         {assinatura === "texto" ? (
           <span
             className={cn(
-              "text-text-muted font-medium tracking-widest uppercase",
+              "font-medium tracking-widest uppercase",
               medidas.assinatura,
+              // ESPELHA A LINHA DE CIMA, e não espelhava: o nome do produto já
+              // trocava de token sobre fundo escuro e a assinatura ficou com o
+              // do tema claro. Sobre a barra lateral isso dá **4,49:1** — dois
+              // centésimos abaixo do mínimo, a 9px, que é onde a folga faz mais
+              // falta. Com `--text-on-dark-muted`, 5,27:1.
+              //
+              // QUEM ENCONTROU FOI O `axe` DENTRO DO GERADOR DE PROTÓTIPO, e o
+              // `check:cores` não pegaria — e o motivo é o mais interessante
+              // daqui: o par `--text-muted` sobre `--surface-sidebar` ESTÁ na
+              // lista dos medidos, mas como TEXTO GRANDE (3:1), porque o uso
+              // que alguém escreveu ali foi o cargo no rodapé do menu.
+              //
+              // **A lista mede pares, e o limite depende do USO.** O mesmo par
+              // a 9px precisa de 4,5:1 e não tinha nada conferindo isso. A
+              // varredura da página viva sabe o tamanho da letra porque lê o
+              // estilo calculado; a lista escrita à mão, não.
+              sobreEscuro ? "text-text-on-dark-muted" : "text-text-muted",
             )}
           >
             Full Connect Key

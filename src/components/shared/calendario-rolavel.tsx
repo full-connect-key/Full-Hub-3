@@ -572,9 +572,19 @@ function Dia({
           !dentroDaSelecao &&
           !bloqueado &&
           "bg-surface-page text-text-muted",
-        recusa &&
-          !dentroDaSelecao &&
-          "text-text-muted cursor-not-allowed opacity-60",
+        // SEM `opacity`, e é a regra do projeto aplicada a texto: opacidade
+        // sobre um token dá uma cor que ninguém mediu, e no tema escuro dá
+        // outra. Com os 60% o dia recusado ficava abaixo do mínimo de
+        // contraste; sem eles, o par é `--text-muted` sobre o cartão, que está
+        // medido e passa.
+        //
+        // E o botão CONTINUA CLICÁVEL de propósito: `disabled` faria o
+        // contraste sair da conta da WCAG e calaria a recusa junto — e a
+        // decisão deste calendário é que a recusa NOMEIA quem está fora. Um
+        // clique que não faz nada e não explica manda a pessoa clicar de novo,
+        // mais forte, e desistir. O motivo já viaja no `title` e no
+        // `aria-label`.
+        recusa && !dentroDaSelecao && "text-text-muted cursor-not-allowed",
         bloqueado &&
           !dentroDaSelecao &&
           "bg-warning-soft border-warning text-warning",

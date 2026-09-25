@@ -84,7 +84,18 @@
   /* --- Texto -------------------------------------------------------------- */
   --text-primary: #1C1F24;
   --text-secondary: #545960;
-  --text-muted: #868C94;
+  /* ESCURECIDO NO SPRINT 16 / PARTE F, de #868C94 para cá.
+     O valor antigo dava 3,39:1 sobre o cartão branco e 3,14:1 sobre a página
+     — abaixo do mínimo para texto normal. E ele é o token de 330 usos na
+     interface, quase todos em `text-xs` e `text-[11px]`, que são texto normal
+     para a WCAG (grande é 24px, ou 18,7px em negrito).
+     O `check:cores` vinha dizendo "ok" porque media este par como TEXTO
+     GRANDE, com o limite de 3:1 — a lista mede PARES, e o limite depende do
+     USO. Agora as duas linhas dele são NORMAL, e quem achou o problema foi a
+     varredura de acessibilidade da página viva, que lê o tamanho da letra.
+     Fica em 4,93:1 no cartão e 4,56:1 na página, e continua claramente mais
+     claro que `--text-secondary` (7,06:1) — a hierarquia não se perde. */
+  --text-muted: #6B7179;
   /* O texto que vai sobre fundo escuro ou sobre cor cheia. */
   --text-on-dark: #F5F6F8;
   /* O texto APAGADO da barra escura — item de menu de módulo opcional.

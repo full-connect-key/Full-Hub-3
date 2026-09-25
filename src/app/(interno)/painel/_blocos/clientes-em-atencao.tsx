@@ -48,7 +48,13 @@ export function ClientesEmAtencao({ clientes }: { clientes: ResumoDaHome["client
               {cliente.paradas} etapa{cliente.paradas === 1 ? "" : "s"} parada
               {cliente.paradas === 1 ? "" : "s"}
             </span>
-            <span className="text-text-muted text-xs tabular-nums">
+            {/*
+              `secondary` E NÃO `muted`: este bloco tem fundo `--warning-soft`,
+              e o par apagado sobre ele dá 4,42:1 a 12px. É o mesmo caso do
+              rótulo do cartão de número — um fundo tingido não é o cartão nem
+              a página, que eram os dois únicos pares medidos.
+            */}
+            <span className="text-text-secondary text-xs tabular-nums">
               a mais antiga há {cliente.dias} dias
             </span>
           </li>
