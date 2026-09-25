@@ -358,3 +358,107 @@ export async function apagarCampanha(campanhaId: string): Promise<Resultado> {
     return sucesso("Campanha apagada.");
   });
 }
+
+const ARQUIVO = z.object({
+  url: z.string().trim().min(1),
+  nome: z.string().trim().min(1),
+});
+
+const esquemaDaVersao = z.object({
+  arquivos: z.array(ARQUIVO).min(1, "Suba pelo menos um arquivo."),
+  notas: z.string().trim().optional(),
+});
+
+/**
+ * Grava uma VERSÃO do entregável — os arquivos e a justificativa.
+ *
+ * **Toda subida é uma versão nova, e nenhuma reescreve a anterior.** É a
+ * regra do módulo desde a 0033, e é ela que faz o histórico valer: a v2 conta
+ * o que mudou em relação à v1, e a v1 continua lá com o arquivo que o cliente
+ * viu quando pediu o ajuste. Reescrever a corrente seria a única forma de uma
+ * troca sumir do histórico.
+ *
+ * `numero_versao` é do trigger `deliverable_versions_numera`, e a capa e o
+ * nome saem de `sincronizar_entregavel_com_a_versao` — não desta action.
+ * Escrever os três aqui seria a segunda verdade sobre a mesma coisa, e a que
+ * diverge no dia em que alguém gravar uma versão por outro caminho.
+ *
+ * **O binário sobe pelo navegador**, com a sessão de quem está clicando, e
+ * para cá vem só o caminho: a policy `"campanhas: equipe escreve"` continua
+ * valendo, e mandar o arquivo por Server Action o faria atravessar o servidor
+ * do Next sem ganhar checagem nenhuma no caminho.
+ */
+export async function gravarVersaoDoEntregavel(
+  entregavelId: string,
+  entrada: { arquivos: { url: string; nome: string }[]; notas?: string },
+): Promise<Resultado> {
+  return executarAcao("gravarVersaoDoEntregavel", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+
+    const validado = esquemaDaVersao.safeParse(entrada);
+    if (!validado.success) {
+      return falha(
+        recusaDeValidacao("gravarVersaoDoEntregavel", validado.error, entrada, "Confira os arquivos.", {
+          arquivos: "arquivos",
+          notas: "o que mudou",
+        }),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("deliverable_versions")
+      .insert({
+        deliverable_id: entregavelId,
+        arquivos: validado.data.arquivos as unknown as Json,
+        notas_mudanca: validado.data.notas || null,
+        criado_por: sessao.usuarioId,
+      })
+      .select("id, numero_versao");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha(
+        "O banco recusou a versão. Subir material da campanha é da equipe interna.",
+      );
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath("/portal/campanhas");
+    return sucesso(`Versão ${data[0].numero_versao} gravada.`);
+  });
+}
+
+/**
+ * Troca o status do entregável dentro da agência.
+ *
+ * **`aprovado` e `rejeitado` NÃO passam por aqui**, e a ausência é a regra:
+ * quem aprova é o cliente, pela rodada dele. Oferecer os dois na tela da
+ * agência seria oferecer um jeito de carimbar a aprovação sem o cliente ter
+ * visto nada — e o `content_status` gravado assim ficaria dizendo que ele
+ * decidiu.
+ */
+export async function moverEntregavel(
+  entregavelId: string,
+  status: "aguardando_informacoes" | "em_producao" | "stand_by",
+): Promise<Resultado> {
+  return executarAcao("moverEntregavel", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("deliverables")
+      .update({ status })
+      .eq("id", entregavelId)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou. Mexer no entregável é da equipe interna.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso("Entregável atualizado.");
+  });
+}

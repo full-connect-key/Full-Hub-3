@@ -230,6 +230,11 @@ const TELAS = [
   // campanha aberta" com campanha criada. A tela que o usuário olhou é
   // justamente esta, e sem ela no protótipo a correção ficava sem prova.
   { nome: "20g-aprovacoes-campanhas", rota: "/painel/aprovacoes", largura: 1280, altura: 900, role: "socio" },
+  // A TELA DE PRODUCAO, com uma peca aberta: e onde a equipe sobe arquivo,
+  // escreve a justificativa e manda ao cliente. Sem o clique, a imagem mostra
+  // so a arvore fechada -- que e justamente o que ja existia.
+  { nome: "20l-campanha-producao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "socio" },
+  { nome: "20m-campanha-peca-aberta", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1700, role: "socio", clicar: 'button:has-text("KV")' },
   { nome: "20h-aprovacoes-campanhas-375", rota: "/painel/aprovacoes", largura: 375, altura: 1400, role: "socio" },
   // O DIALOGO DE APAGAR, aberto: a contagem do que vai junto e o campo que
   // exige o nome digitado so aparecem na imagem -- e e o que faz alguem parar.

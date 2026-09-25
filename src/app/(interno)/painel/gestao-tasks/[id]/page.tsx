@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Megaphone } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
+import { campanhaDaTask } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
@@ -59,6 +60,12 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   // componente de ações resolve linha a linha. Ver é aberto para toda a
   // equipe; o banco é quem barra de verdade.
   const podeGerenciar = ehDoAtendimento || souGestor;
+
+  // A CAMPANHA DESTA DEMANDA, quando ela veio de uma (0051). É o outro lado
+  // do "Abrir a demanda" que a tela da campanha oferece: quem clica numa
+  // etapa em Minhas Tasks chega aqui, e daqui precisa alcançar o lugar onde
+  // se sobe a arte. Sem este botão, o caminho era o menu e uma busca na lista.
+  const campanha = await campanhaDaTask(task.id);
 
   // A linha de contexto, montada só com o que existe.
   const contexto = [
@@ -109,6 +116,15 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
           <span className="text-muted-foreground text-xs">
             Você vê a demanda inteira; edita as subtarefas que são suas.
           </span>
+        ) : null}
+
+        {campanha ? (
+          <Button asChild variant="outline" size="sm" className="ml-auto">
+            <Link href={`/painel/aprovacoes/campanhas/${campanha.id}`}>
+              <Megaphone aria-hidden className="size-4" />
+              Ver campanha
+            </Link>
+          </Button>
         ) : null}
       </div>
 

@@ -265,6 +265,18 @@ export async function obterEntregavel(
   return montarEntregavel(linha, rodadas.get(linha.id), nomes);
 }
 
+/**
+ * O que o navegador desenha, pela extensão.
+ *
+ * É a mesma pergunta que `imagem_do_arquivo()` faz no Postgres (0053), e as
+ * duas existem de propósito: lá ela escolhe a capa que o trigger grava, aqui
+ * ela separa o que vai para o visualizador do que vai para a lista de
+ * download. `svg` fica de fora nos dois lados — SVG de terceiro dentro de
+ * `<img>` é vetor de script, e material de campanha vem de fora com
+ * frequência.
+ */
+const EH_IMAGEM = /\.(png|jpe?g|gif|webp|avif)$/i;
+
 /** O histórico de arquivos, do mais novo para o mais antigo. */
 export async function versoesDoEntregavel(
   entregavelId: string,
@@ -274,7 +286,7 @@ export async function versoesDoEntregavel(
   const { data } = await supabase
     .from("deliverable_versions")
     .select(
-      "id, numero_versao, arte_url, arquivo_nome, notas_mudanca, criado_por, created_at",
+      "id, numero_versao, arte_url, arquivo_nome, arquivos, notas_mudanca, criado_por, created_at",
     )
     .eq("deliverable_id", entregavelId)
     .order("numero_versao", { ascending: false });
@@ -286,9 +298,13 @@ export async function versoesDoEntregavel(
     id: l.id,
     numero: l.numero_versao,
     arteUrl: l.arte_url,
-    // O entregável não tem slides: a peça dele é um arquivo só. A lista vazia
-    // é o que faz a casca compartilhada não precisar perguntar o tipo.
-    arquivos: [],
+    // OS ARQUIVOS DA VERSÃO (0053). Só as IMAGENS entram aqui: quem lê esta
+    // lista é o visualizador, que desenha `<img>` — um PSD ali apareceria
+    // como moldura quebrada. Os outros aparecem como arquivo para baixar, e
+    // quem os lista é a tela da agência.
+    arquivos: (Array.isArray(l.arquivos) ? l.arquivos : [])
+      .map((a) => (a as { url?: string }).url)
+      .filter((url): url is string => Boolean(url) && EH_IMAGEM.test(url!)),
     // No post o texto é a legenda; aqui é o nome do arquivo. É o que muda
     // junto com a arte e o que a pessoa confere depois de pedir ajuste.
     texto: l.arquivo_nome,
@@ -345,4 +361,29 @@ export async function templatesDeCampanha(
     estrutura: t.estrutura_json,
     clienteId: t.client_id,
   }));
+}
+
+/**
+ * A campanha desta demanda, se houver — para a Task levar até ela.
+ *
+ * **A pergunta é feita pela demanda, e não pela etapa.** Daria para chegar
+ * pelo caminho longo (`subtask -> deliverable -> campaign`), e a demanda sem
+ * etapa nenhuma ficaria sem campanha — justamente a que foi aberta primeiro e
+ * ainda vai ganhar as peças.
+ *
+ * Devolve null nas demandas que não vieram de campanha, que são a maioria, e
+ * nas campanhas anteriores à 0051 — que não têm demanda nenhuma.
+ */
+export async function campanhaDaTask(
+  taskId: string,
+): Promise<{ id: string; nome: string } | null> {
+  const supabase = await criarClienteServidor();
+
+  const { data } = await supabase
+    .from("campaigns")
+    .select("id, nome")
+    .eq("task_id", taskId)
+    .maybeSingle();
+
+  return data ?? null;
 }

@@ -351,3 +351,76 @@ select teste.conferir('Mas a peca ficou aprovada',
   'aprovado');
 
 drop table alvo52;
+
+
+-- ===========================================================================
+-- 0053 - A ENTREGA TEM VARIOS ARQUIVOS, E NEM TODOS SAO IMAGEM
+--
+-- "Algumas artes eu devo poder upar mais de uma versao. E ate mesmo arquivos
+-- -- ja que algumas entregas sao em PDF, PSD ou AI." Decisao do usuario.
+--
+-- Mais de uma versao ja funcionava desde a 0033. O que faltava era mais de um
+-- ARQUIVO na mesma versao: "Lamina A5" e o PDF de impressao, o AI aberto e o
+-- JPG de conferencia -- tres arquivos, uma entrega, uma decisao do cliente.
+-- ===========================================================================
+\set C53  '''c0530000-0000-0000-0000-000000000001'''
+\set D53  '''d0530000-0000-0000-0000-000000000001'''
+
+insert into public.campaigns (id, client_id, nome, data_inicio, data_fim, criado_por, status)
+values (:C53, :VERDE, 'Wave dos arquivos', current_date, current_date + 10, :DIEGO, 'ativa');
+
+insert into public.deliverables (id, campaign_id, nome, ordem)
+values (:D53, :C53, 'Lamina A5', 0);
+
+-- 1. A CAPA E A PRIMEIRA IMAGEM, E NAO O PRIMEIRO ARQUIVO
+--
+-- O PSD vem primeiro na lista de proposito: e a ordem em que o designer sobe
+-- (o arquivo aberto, depois o fechado, depois a previa). Com "o primeiro" como
+-- capa, o cartao e a miniatura do portal ficariam com uma moldura quebrada --
+-- e ninguem ligaria uma coisa a outra.
+insert into public.deliverable_versions (deliverable_id, arquivos, notas_mudanca, criado_por)
+values (:D53,
+  '[{"url":"verde/entregaveis/lamina.psd","nome":"lamina.psd"},
+    {"url":"verde/entregaveis/lamina.pdf","nome":"lamina.pdf"},
+    {"url":"verde/entregaveis/lamina.jpg","nome":"lamina.jpg"}]'::jsonb,
+  'Primeira leva', :BRUNO);
+
+select teste.conferir('A capa e a primeira IMAGEM da lista, e nao o PSD',
+  (select arte_url from public.deliverables where id = :D53),
+  'verde/entregaveis/lamina.jpg');
+
+-- 2. E O NOME CONTA QUANTOS SAO
+--
+-- Mostrar o nome do primeiro e sumir com os outros dois e a mesma mentira que
+-- a lista de slides do carrossel ja tinha contado uma vez.
+select teste.conferir('Com tres arquivos, o cartao diz quantos sao',
+  (select arquivo_nome from public.deliverables where id = :D53), '3 arquivos');
+
+-- 3. COM UM SO, O NOME E O DO ARQUIVO
+insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+values (:D53, '[{"url":"verde/entregaveis/final.pdf","nome":"lamina-final.pdf"}]'::jsonb, :BRUNO);
+
+select teste.conferir('Com um arquivo so, o cartao mostra o nome dele',
+  (select arquivo_nome from public.deliverables where id = :D53), 'lamina-final.pdf');
+
+-- 4. E A CAPA ANTIGA NAO E APAGADA POR UMA VERSAO SEM IMAGEM
+--
+-- O `coalesce` e o que segura isso: subir so o PDF final nao pode apagar a
+-- previa que o cliente esta vendo. Este cenario e o unico que falha se alguem
+-- trocar o `coalesce` por atribuicao direta.
+select teste.conferir('Versao sem imagem nao apaga a capa',
+  (select arte_url from public.deliverables where id = :D53),
+  'verde/entregaveis/lamina.jpg');
+
+-- 5. A VERSAO CONTINUA SENDO NUMERADA PELO BANCO
+select teste.conferir('A segunda versao e a v2',
+  (select max(numero_versao)::text from public.deliverable_versions
+    where deliverable_id = :D53), '2');
+
+-- 6. E O CLIENTE NAO ESCREVE VERSAO NENHUMA
+--
+-- Nao existe botao de reverter em lugar nenhum do portal, e a trava e esta --
+-- nao a ausencia do botao.
+select teste.cenario('Joana nao grava versao de entregavel', :JOANA,
+  format($fmt$insert into public.deliverable_versions (deliverable_id, arquivos)
+    values (%L, '[]'::jsonb)$fmt$, :D53), 'recusa');

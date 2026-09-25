@@ -247,10 +247,13 @@ export async function versoesDoEntregavel(
     {
       id: "v2",
       numero: 2,
-      arquivos: [],
+      // TRES ARQUIVOS NA MESMA VERSAO (0053): o JPG de conferencia e os dois
+      // que o navegador nao desenha. E o caso que a imagem precisa mostrar --
+      // uma entrega de campanha raramente e um arquivo so.
+      arquivos: ["/exemplos/arte-1.svg"],
       arteUrl: "/exemplos/arte-1.svg",
-      texto: "kv-outubro-rosa.pdf",
-      notas: "Logo maior e a faixa rosa mais alta",
+      texto: "3 arquivos",
+      notas: "Logo maior e a faixa rosa mais alta. O AI vai com as fontes convertidas.",
       quando: new Date(HOJE.getTime() - 20 * 864e5).toISOString(),
       quem: "Bruno Lima",
     },
@@ -268,9 +271,24 @@ export async function versoesDoEntregavel(
 }
 
 export async function urlsDosArquivos(
-  _caminhos: (string | null)[],
+  caminhos: (string | null)[],
 ): Promise<Record<string, string>> {
-  return {};
+  // O PROTOTIPO NAO ASSINA NADA -- devolve o proprio caminho, que na tela vira
+  // o arquivo de exemplo em `public/`. Um mapa vazio faria a tela cair no
+  // `?? url` e dar no mesmo; devolver explicitamente e o que mantem a imagem
+  // igual a do app quando alguem trocar esse fallback.
+  const mapa: Record<string, string> = {};
+  for (const c of caminhos) if (c) mapa[c] = c;
+  return mapa;
+}
+
+/** A campanha desta demanda -- a Wave e a unica com demanda no exemplo. */
+export async function campanhaDaTask(
+  taskId: string,
+): Promise<{ id: string; nome: string } | null> {
+  return taskId === "11111111-1111-1111-1111-111111111111"
+    ? { id: "camp-wave", nome: "Wave Outubro Rosa" }
+    : null;
 }
 
 export type TemplateDeCampanha = {

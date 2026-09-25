@@ -1749,6 +1749,9 @@ export interface Database {
           deliverable_id: string;
           numero_versao: number;
           arte_url: string | null;
+          // Os arquivos desta versao, ordenados (0053). Mesma forma de
+          // `post_versions.arquivos`: a capa e a primeira IMAGEM da lista.
+          arquivos: Json;
           thumbnail_url: string | null;
           arquivo_nome: string | null;
           notas_mudanca: string | null;
@@ -1759,6 +1762,7 @@ export interface Database {
           id?: string;
           deliverable_id: string;
           arte_url?: string | null;
+          arquivos?: Json;
           thumbnail_url?: string | null;
           arquivo_nome?: string | null;
           notas_mudanca?: string | null;

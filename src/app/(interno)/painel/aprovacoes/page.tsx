@@ -85,11 +85,11 @@ export default async function PaginaDeAprovacoes() {
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {campanhas.map((campanha, i) => {
             const conta = progresso(folhas(emArvore(arvores[i])));
-            // Campanha sem slug não vira link em vez de virar um link
-            // quebrado: o cliente ainda não tem endereço de portal.
-            const href = campanha.slug
-              ? `/portal/${campanha.slug}/campanhas/${campanha.id}`
-              : null;
+            // O TÍTULO ABRE A TELA DE PRODUÇÃO, e não mais o portal daquele
+            // cliente. Era o portal porque a tela de cá não existia; agora
+            // existe, e é onde a equipe sobe arquivo, escreve a justificativa
+            // e envia. O portal continua a um clique, no topo de lá.
+            const href = `/painel/aprovacoes/campanhas/${campanha.id}`;
 
             return (
               <li
@@ -106,16 +106,12 @@ export default async function PaginaDeAprovacoes() {
                 />
 
                 <div className="min-w-0 flex-1 space-y-1">
-                  {href ? (
-                    <Link
-                      href={href}
-                      className="hover:text-accent-strong font-medium transition-colors"
-                    >
-                      {campanha.nome}
-                    </Link>
-                  ) : (
-                    <p className="font-medium">{campanha.nome}</p>
-                  )}
+                  <Link
+                    href={href}
+                    className="hover:text-accent-strong font-medium transition-colors"
+                  >
+                    {campanha.nome}
+                  </Link>
 
                   <p className="text-text-muted text-sm tabular-nums">
                     {campanha.cliente}
