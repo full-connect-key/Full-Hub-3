@@ -5,7 +5,7 @@
  *   npm run check:supabase
  *
  * Roda sem subir o Next e sem dependencia extra. Serve tanto na maquina de
- * desenvolvimento quanto na VPS, antes do primeiro deploy -- que e justamente
+ * desenvolvimento quanto no servidor, antes do primeiro deploy -- que e justamente
  * quando ainda nao ha dominio nem navegador para testar.
  *
  * Sai com codigo 1 se algo essencial falhar, entao tambem pode ser usado em
@@ -44,8 +44,9 @@ function lerArquivoEnv(caminho) {
   }
 }
 
-// Precedencia: o que ja esta no ambiente real ganha do arquivo (na VPS as
-// variaveis costumam vir do PM2 ou do systemd, nao de um .env).
+// Precedencia: o que ja esta no ambiente real ganha do arquivo (num servidor as
+// variaveis costumam vir do gerenciador de processo ou da hospedagem, nao de um
+// .env).
 const doArquivo = lerArquivoEnv(".env.local") ?? lerArquivoEnv(".env") ?? {};
 const env = { ...doArquivo, ...process.env };
 

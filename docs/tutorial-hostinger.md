@@ -1,5 +1,17 @@
 # Subir o Full Hub na Hostinger, do zero
 
+> ## Este roteiro está fora de uso
+>
+> **A agência não tem mais essa VPS**, por decisão dela. Este arquivo fica como
+> registro: ele descreve como o Full Hub era publicado, e não onde ele roda
+> hoje. Se um dia houver outra máquina, o roteiro volta a valer da Parte 2 em
+> diante — a Parte 1, que é o Supabase, nunca dependeu de VPS e continua certa.
+>
+> O que ficou inerte junto: o job `publicar` do `.github/workflows/deploy.yml`,
+> o `scripts/deploy.sh` e os quatro segredos de SSH. A `verificar.yml` continua
+> rodando em cada push. A lista completa está na seção **Deploy** do
+> `CLAUDE.md`.
+
 Este é o passo a passo linear, para quem está fazendo pela primeira vez. Do
 momento em que a VPS existe até a agência usando o painel com HTTPS e deploy
 automático.

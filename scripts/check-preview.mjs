@@ -5,7 +5,7 @@
  * `lib/link-preview.ts` é a ÚNICA parte do produto que faz o servidor buscar
  * um endereço escolhido por um usuário. Toda outra escrita sai de um
  * formulário e vai para o Postgres; ali o texto colado vira uma requisição que
- * parte de dentro da VPS, com o IP e o acesso dela. É a família de falha
+ * parte de dentro do servidor, com o IP e o acesso dele. É a família de falha
  * conhecida como SSRF.
  *
  * **E ela não quebra com erro — ela passa a funcionar.** Um `ehInterno` que
@@ -25,7 +25,7 @@
  * devolve "O site não respondeu". Recusado pela rede, não pela trava. Verde
  * pelo motivo errado.
  *
- * Na VPS, onde `169.254.169.254` responde de verdade, essa mesma checagem
+ * Num servidor onde `169.254.169.254` responde de verdade, essa mesma checagem
  * continuaria verde no dia em que o furo existisse. É o mesmo erro que o
  * produto já pagou duas vezes: um teste que não separa a resposta certa da
  * errada afirma sem provar.

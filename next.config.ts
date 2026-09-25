@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
    * padrão. O DEPLOY passa `NEXT_DIST_DIR=.next-novo`, constrói ali e só
    * troca a pasta quando o build termina bem.
    *
-   * Sem isso, `npm run build` na VPS reescreve o `.next` de que o processo
+   * Sem isso, `npm run build` no servidor reescreve o `.next` de que o processo
    * em produção está servindo. Durante o minuto e meio de build a pessoa que
    * estiver com o painel aberto pede um arquivo que já não existe e leva 404
    * — e se o build falhar no meio, o site fica quebrado até alguém perceber.

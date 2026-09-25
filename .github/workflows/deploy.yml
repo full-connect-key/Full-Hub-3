@@ -1,6 +1,21 @@
 # O self deploy: push na main → VPS da Hostinger.
 #
-# COMO FUNCIONA
+# ============================================================================
+# A VPS NÃO EXISTE MAIS, e é decisão da agência.
+#
+# O job `verificar` continua valendo e continua rodando: ele é a metade que
+# nunca dependeu de máquina nenhuma. O job `publicar` não faz nada — o passo
+# "Os segredos da VPS existem?" não os encontra, escreve no resumo e termina
+# em 0, de propósito, para a Action não ficar vermelha por um motivo que
+# ninguém pediu.
+#
+# O arquivo fica em vez de ser apagado: um deploy apagado não volta de graça
+# no dia em que houver outra máquina, e o que está escrito aqui é por que cada
+# passo está nesta ordem. A lista do que ficou inerte está na seção Deploy do
+# CLAUDE.md.
+# ============================================================================
+#
+# COMO FUNCIONAVA
 #   1. roda as mesmas verificações do dia a dia (lint, tipos, cores, build,
 #      e os 319 cenários da bateria contra um Postgres 16 de verdade);
 #   2. só se tudo passar, entra por SSH na VPS e chama scripts/deploy.sh.
@@ -73,12 +88,16 @@ jobs:
           {
             echo "### Deploy não configurado"
             echo
-            echo "As verificações passaram, mas a VPS ainda não está ligada"
-            echo "a este repositório. Faltam os segredos:"
+            echo "As verificações passaram, e não há para onde publicar:"
+            echo "a agência não tem mais a VPS. Isto **não é uma falha**."
+            echo
+            echo "Faltam os segredos:"
             echo
             for s in $faltando; do echo "- \`$s\`"; done
             echo
-            echo "O passo a passo está no README, em **Self deploy**."
+            echo "Se um dia houver outra máquina, o roteiro é o README, em"
+            echo "**Self deploy** — e a seção Deploy do \`CLAUDE.md\` diz o que"
+            echo "mais ficou inerte junto (o rodapé com o commit, entre outros)."
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "Nada a publicar. Faltam:$faltando"

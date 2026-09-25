@@ -1,7 +1,7 @@
 # As verificações do projeto, num lugar só.
 #
 # Roda em todo push e em toda pull request — e o deploy CHAMA este mesmo
-# arquivo antes de encostar na VPS. É por isso que ele tem `workflow_call`:
+# arquivo antes de publicar. É por isso que ele tem `workflow_call`:
 # um commit que reprova aqui nunca chega ao servidor, e a checagem que
 # protege a produção é literalmente a mesma que roda no dia a dia, não uma
 # cópia que envelhece em silêncio.

@@ -61,7 +61,7 @@ export const ROTULOS_DE_SITUACAO: Record<Situacao, string> = {
  *
  * "Semanal" sozinho não diz em que dia, e é justamente o que alguém abre a
  * lista para conferir — uma regra configurada no domingo errado só aparece na
- * madrugada seguinte.
+ * próxima geração.
  */
 export function descreverCadencia(regra: RecorrenciaNaTela): string {
   if (regra.frequencia === "mensal") {
@@ -90,8 +90,8 @@ export function ListaDeRecorrencias({
   clientes: { id: string; nome_empresa: string }[];
   /**
    * `is_atendimento()`, respondido pelo servidor. A lista é de `is_staff()` —
-   * quem não configura ainda precisa saber que a demanda de amanhã nasce
-   * sozinha, senão vai abri-la à mão.
+   * quem não configura ainda precisa saber que aquela demanda tem regra, senão
+   * vai abrir uma igual à mão.
    */
   podeConfigurar: boolean;
 }) {
@@ -241,6 +241,29 @@ export function ListaDeRecorrencias({
         ) : null}
       </div>
 
+      {/*
+        A GERAÇÃO NÃO RODA SOZINHA, E A TELA PRECISA DIZER.
+
+        `gerar_recorrencias()` existe e funciona desde a 0040, e nunca teve
+        quem a chamasse: o agendamento era a parte do Sprint 16 que saiu do
+        produto junto com a VPS. Sem esta faixa, quem configura o stories de
+        toda segunda vai embora achando que segunda ele nasce — e segunda não
+        nasce nada. O aviso fica aqui e não no editor porque é sobre a lista
+        inteira, e porque é onde o "Gerar agora" de cada regra está à mão.
+
+        É faixa fixa e não bloco que some, ao contrário dos blocos de exceção
+        da Home: aqui o normal É a ausência da rotina, e um aviso que só
+        aparecesse de vez em quando ensinaria que o resto do tempo ela está
+        rodando.
+      */}
+      <div className="bg-warning-soft rounded-card border p-3">
+        <p className="text-sm">
+          <strong className="font-semibold">A geração é manual por enquanto.</strong> A regra guarda
+          a cadência e calcula as próximas datas, mas nada nasce de madrugada: quem gera é o{" "}
+          <span className="font-medium">Gerar agora</span> de cada regra. Nada é gerado para trás.
+        </p>
+      </div>
+
       {visiveis.length === 0 ? (
         <EmptyState
           icon={Repeat}
@@ -248,7 +271,7 @@ export function ListaDeRecorrencias({
           description={
             temFiltro
               ? "Tire um filtro para ver o resto."
-              : "Uma recorrência abre a demanda sozinha, na data — o stories de toda segunda, o relatório de todo dia 5. Nada é gerado para trás: a primeira sai da próxima data que a regra alcançar."
+              : "Uma recorrência guarda a cadência da demanda que se repete — o stories de toda segunda, o relatório de todo dia 5 — e calcula as datas. Enquanto a geração for manual, é o Gerar agora de cada regra que abre a demanda."
           }
         />
       ) : (

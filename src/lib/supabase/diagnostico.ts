@@ -183,7 +183,7 @@ async function checarAlcance(): Promise<Checagem> {
       situacao: "falha",
       detalhe: `Não foi possível alcançar o servidor (${motivo}).`,
       comoResolver:
-        "Verifique a URL e se a máquina tem saída para a internet. Na VPS, confira o firewall para saídas HTTPS.",
+        "Verifique a URL e se a máquina tem saída para a internet. Num servidor, confira o firewall para saídas HTTPS.",
     };
   }
 }

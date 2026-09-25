@@ -430,9 +430,12 @@ notificados — avisar a cada etapa rascunhada transformaria o sino em ruído.
 avisa e deixa seguir, porque uma demanda pode nascer antes de alguém saber
 como ela se divide.
 
-**Rascunho sem alteração há 7 dias é apagado**, com aviso na Home no sexto
-dia. A limpeza **não roda sozinha** — o agendamento é do Sprint 16; até lá,
-chamar `limpar_rascunhos_abandonados()` é ato de alguém.
+**Rascunho sem alteração há 7 dias É PARA SER apagado**, com aviso na Home no
+sexto dia — e **não é**, porque a limpeza não roda sozinha e o agendamento que
+ia ligá-la saiu do produto junto com a VPS. `limpar_rascunhos_abandonados()`
+existe e funciona; chamá-la é ato de alguém. O aviso do sexto dia continua
+certo sobre a regra e errado sobre o prazo, e é assim de propósito: ele é o
+único lugar onde a pessoa vê que aquele rascunho está esquecido.
 
 **`rascunho` não é valor de enum, e a escolha é deliberada.** O pedido trazia
 `alter type task_status add value 'rascunho'`. Três razões contra: o SQL
@@ -1908,8 +1911,10 @@ de aviso presa no topo, os botões de decisão desligados, e
 `decidir_rodada_do_cliente` no Postgres, que recusa quem não é o cliente
 daquela rodada. Montar a chamada à mão não adianta.
 
-Cada abertura vira linha em `client_portal_views` — insumo da auditoria do
-Sprint 16. A RLS só aceita a linha em nome de quem está logado, e não existe
+Cada abertura vira linha em `client_portal_views`, e **nada lê essa tabela
+ainda**: a trilha de auditoria existe desde a 0058 e responde por outras treze
+tabelas, não por esta. O rastro está gravado e a tela que o mostra é decisão
+própria. A RLS só aceita a linha em nome de quem está logado, e não existe
 policy de DELETE.
 
 **A gestão entra pelo `/portal` também, e vê a escolha.** Sócio e
@@ -2967,6 +2972,52 @@ projeto reprova.
 > resposta quase sempre é a 0057 — canal privado sem policy é
 > `CHANNEL_ERROR`.
 
+### O que o Sprint 16 NÃO vai entregar, e por quê
+
+Três partes saíram do sprint por decisão do usuário, e a razão que ele deu é
+uma só: **a agência não tem mais a VPS.**
+
+| Parte | O que era | O que fica no lugar |
+| --- | --- | --- |
+| B | e-mail transacional por Resend | nada sai por e-mail — e nunca saiu |
+| C | material no Google Drive | o link colado à mão, como já é hoje |
+| G | as rotinas agendadas | quem chama continua sendo uma pessoa |
+
+**A B e a C não precisavam da VPS, e isso fica dito sem discussão:** as duas
+são chamada de API e rodariam de dentro do próprio Next ou de uma Edge
+Function do Supabase. A decisão de tirá-las é de quem responde pelo produto e
+está tomada — o que não pode acontecer é alguém três sprints adiante ler esta
+tabela e concluir que elas saíram por impossibilidade técnica.
+
+**A G é a que realmente perdeu a máquina**: não existe mais onde pendurar um
+cron. E é ela que deixa de pé, até alguém decidir outra coisa, três frases que
+o produto já dizia com prazo:
+
+- `limpar_rascunhos_abandonados()` (0028) **não** roda sozinha. O rascunho de
+  7 dias não é apagado por ninguém; o aviso do sexto dia continua aparecendo
+  na Home, e quem apaga é quem clica.
+- `gerar_recorrencias()` (0040) **não** roda sozinha. O stories de toda
+  segunda não nasce de madrugada — nasce quando alguém abre a regra e clica em
+  "Gerar agora". É a única coisa do produto que se anunciava como automática, e
+  não é.
+- O **disparo** das preferências de aviso do portal (`client_notification_prefs`,
+  0031) nunca existiu. A preferência está gravada, e não há quem a leia para
+  mandar coisa alguma.
+
+**O sino continua funcionando**, e a distinção é o que separa um do outro:
+`notificar()` grava em `notifications` na mesma transação de quem causou o
+aviso, e nunca dependeu de rotina nem de e-mail. O que não existe é aviso que
+**sai** do Full Hub.
+
+**Duas das frases erradas moram em migration aplicada, e por isso ficam
+erradas.** Os comentários da 0028 e da 0031 são `comment on function` e
+`comment on table` — texto gravado no banco, que só sai por migration nova.
+Uma migration cujo único efeito é reescrever comentário é uma migration que
+alguém aplica por engano achando que muda alguma coisa, e o custo de errar
+nisso é maior que o de um comentário datado. **O tempo verbal certo mora
+aqui**, que é onde se procura o que vale hoje — a mesma razão pela qual a
+explicação de um nome morto mora fora de `src/`.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -3123,16 +3174,28 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   que confiar.
 
   **`x-real-ip` primeiro, e `x-forwarded-for` só pela ÚLTIMA entrada.** É a
-  linha que separa o limite de um enfeite: o nginx escreve `X-Real-IP
-  $remote_addr` — o endereço do soquete, que o cliente não escolhe — e
-  `X-Forwarded-For $proxy_add_x_forwarded_for`, que **acrescenta** ao que o
-  cliente mandou. O trecho que aparece em todo lugar,
-  `x-forwarded-for.split(",")[0]`, lê justamente a parte que a pessoa do outro
-  lado escreveu: um cabeçalho diferente a cada requisição dá uma chave nova a
-  cada requisição, e o contador nunca chega a dois. A trava continuaria lá,
-  verde, contando nada. Sem nenhum dos dois cabeçalhos o limite por IP **não
-  é aplicado** — um proxy mal configurado tem que degradar para "conta só por
-  e-mail", nunca para "tranca a agência inteira junto".
+  linha que separa o limite de um enfeite. Quem está na frente do Node escreve
+  `x-real-ip` com o endereço do soquete — o único que o cliente não escolhe —,
+  e **acrescenta** o mesmo endereço ao fim do `x-forwarded-for` que o cliente
+  mandou. Quer dizer que o COMEÇO daquela lista é texto de quem está do outro
+  lado. O trecho que aparece em todo lugar,
+  `x-forwarded-for.split(",")[0]`, lê justamente essa parte: um cabeçalho
+  diferente a cada requisição dá uma chave nova a cada requisição, e o
+  contador nunca chega a dois. A trava continuaria lá, verde, contando nada.
+  Sem nenhum dos dois cabeçalhos o limite por IP **não é aplicado** — um proxy
+  mal configurado tem que degradar para "conta só por e-mail", nunca para
+  "tranca a agência inteira junto".
+
+  **O primeiro caminho vale em qualquer hospedagem; o segundo é que depende
+  dela.** `x-real-ip` é o que todo proxy reverso na frente de um Node escreve,
+  e é por onde esta função sai em quase toda requisição. A regra da "última
+  entrada" é a que assume um proxy só, acrescentando no fim: com um CDN na
+  frente (ou uma hospedagem que empilhe as próprias camadas depois do
+  cliente), a última passa a ser o endereço dele e o valor certo é o cabeçalho
+  que ele assina. `enderecoDeQuemChama()` é o único lugar a mexer, e o
+  comentário dela diz isso em vez de nomear um servidor — **a VPS que o nomeava
+  não existe mais**, e regra escrita em cima de uma máquina que saiu é regra
+  que ninguém sabe se ainda vale.
 
   **Ele falha para o lado ABERTO, e com barulho.** Se o Postgres não responder
   ou a chave de serviço faltar, a tentativa passa. O lado ruim está dito: o
@@ -3221,7 +3284,37 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 
 **Deploy**
 
-- **O deploy sai da `main`, e só dela.** `deploy.yml` dispara em `push:
+- **A VPS NÃO EXISTE MAIS, e é decisão do usuário.** O que ficou inerte de uma
+  vez: o job `publicar` do `deploy.yml`, o `scripts/deploy.sh` inteiro (com o
+  `--reverter`, o `NEXT_DIST_DIR` e o `NEXT_PUBLIC_COMMIT` explícito), os
+  quatro segredos da VPS e o `docs/tutorial-hostinger.md`. Os parágrafos que
+  falam de **publicar** — a branch, a troca de pasta, o `npm ci` antes do
+  build, a conferência de HTTP no fim, o rodapé com o commit — passaram a
+  descrever como era. O que **continua valendo palavra por palavra** é a parte
+  que é sobre migration e sobre verificação: a `verificar.yml`, o
+  `check:migrations`, o `onde-esta-o-banco.sql`, o `$$` em comentário e o
+  `digest` que muda a cada build não dependiam de máquina nenhuma.
+
+  **Os arquivos ficam, e não é indecisão.** Um deploy apagado não volta de
+  graça no dia em que houver outra máquina, e o que está escrito neles é a
+  explicação de por que cada passo está naquela ordem — que é justamente a
+  parte que não se reconstrói lendo o script de outra pessoa. O que se corrige
+  é o tempo verbal, aqui, porque é aqui que se procura o que vale.
+
+  **E a Action não fica vermelha por isso**, que é o primeiro medo de quem lê
+  isto. O `publicar` começa perguntando se os quatro segredos existem; sem
+  eles escreve no resumo do passo e **termina em 0**. A `verificar.yml`
+  continua rodando em cada push, que é a metade que nunca dependeu de máquina
+  nenhuma — e é a metade que protege o código.
+
+  **O que NÃO dá para dizer daqui é onde o site roda agora**, e uma coisa do
+  produto depende disso: a detecção de IP do limite de tentativas, logo acima.
+  O caminho principal (`x-real-ip`) está certo em qualquer hospedagem; a volta
+  é que foi escrita para um nginx. **Sem saber o que ficou no lugar, o rodapé
+  do painel também não responde mais "já subiu?"** — sem o `deploy.sh`
+  passando o commit, ele diz "versão local".
+
+- **O deploy saía da `main`, e só dela.** `deploy.yml` dispara em `push:
   branches: [main]`, e `scripts/deploy.sh` puxa de `main` por padrão. Trabalho
   em branch não vai ao ar: quando a verificação fecha, a `main` avança e o
   deploy acontece sozinho.
@@ -3385,7 +3478,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |
-| `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
+| `scripts/deploy.sh` | **Fora de uso — a VPS não existe mais.** Publicava na VPS, rodando **nela**, chamado pelo GitHub Actions por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 
 ## Histórico de sprints

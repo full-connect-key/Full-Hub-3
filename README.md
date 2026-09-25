@@ -9,7 +9,11 @@ Plataforma interna da agência **Full Connect Key**. Uma única aplicação, um
 | **Portal do Cliente** | clientes da agência | `/portal` |
 
 Next.js 16 (App Router) + TypeScript + Tailwind + shadcn/ui, sobre Supabase.
-Preparado para rodar numa VPS da Hostinger.
+
+> **A VPS nao existe mais**, por decisao da agencia. A secao de deploy e o
+> `docs/tutorial-hostinger.md` continuam aqui como registro de como era feito,
+> e nao descrevem onde o site roda hoje. Detalhe do que ficou inerte: a secao
+> **Deploy** do `CLAUDE.md`.
 
 As regras do produto e as convenções de código estão em
 [`CLAUDE.md`](./CLAUDE.md).
@@ -56,7 +60,7 @@ no layout antes de ter o Supabase pronto.
 | `npm run build` | Gera a versao de producao |
 | `npm run start` | Roda a versao de producao (usado na VPS) |
 | `supabase/testes/rodar.sh` | Roda os 319 cenarios de RLS contra um Postgres de verdade |
-| `scripts/deploy.sh` | Publica na VPS (roda **na** VPS; o GitHub Actions o chama) |
+| `scripts/deploy.sh` | **Fora de uso** — publicava na VPS, que a agencia nao tem mais |
 | `npm run lint` | Verifica os padroes de codigo |
 | `npm run typecheck` | Confere os tipos sem gerar build |
 | `npm run check:supabase` | Testa a conexao com o Supabase pelo terminal |
@@ -435,7 +439,15 @@ npx playwright install chromium
 
 ---
 
-## Deploy na VPS da Hostinger
+## Deploy na VPS da Hostinger (historico)
+
+> **A AGENCIA NAO TEM MAIS ESSA VPS.** Nada desta secao esta em uso: o job
+> `publicar` do `deploy.yml` sai em verde sem fazer nada quando os quatro
+> segredos faltam, e o `scripts/deploy.sh` nao e chamado por ninguem. Fica
+> escrito porque e o registro de por que cada passo esta nessa ordem — e
+> porque valeria de novo no dia em que houver outra maquina. O que continua
+> valendo em qualquer hospedagem e a parte de **migration**: elas nunca foram
+> aplicadas pelo deploy, e continuam indo a mao.
 
 > **Primeira vez?** Esta secao e **referencia** — boa para consultar depois.
 > O passo a passo linear, com "como saber que deu certo" em cada etapa e o

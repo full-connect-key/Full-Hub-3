@@ -11,7 +11,7 @@ import { isIP } from "node:net";
  *
  * E é a única coisa no produto que faz isso. Toda outra escrita sai de um
  * formulário e vai para o Postgres; aqui o texto que a pessoa cola vira uma
- * requisição que **parte de dentro da VPS**, com o IP dela e o acesso que ela
+ * requisição que **parte de dentro do servidor**, com o IP dele e o acesso que ele
  * tem. É a família de falha conhecida como SSRF, e ela não precisa de nada
  * sofisticado para doer: `http://localhost:3000`, o IP interno do Postgres, ou
  * o endereço de metadados que quase todo provedor de nuvem serve em

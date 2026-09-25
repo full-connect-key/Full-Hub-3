@@ -4,14 +4,30 @@ import { FileEdit } from "lucide-react";
 import { rascunhosAExpirar } from "@/lib/dados/tasks";
 
 /**
- * O aviso do sexto dia.
+ * O rascunho que ficou parado.
  *
- * Rascunho sem alteração some no sétimo dia. Apagar sem avisar seria apagar
- * de surpresa — e o que some é justamente o que alguém começou e não
- * terminou, que é o tipo de coisa cuja falta só se percebe tarde.
+ * ---------------------------------------------------------------------------
+ * **ELE NÃO SOME MAIS, E O TEXTO PRECISOU MUDAR POR ISSO.**
  *
- * **Não aparece quando não há nada a avisar**, e é o normal: um bloco fixo
- * dizendo "nenhum rascunho para expirar" ocuparia todo dia o lugar de uma
+ * A 0028 desenhou este bloco como o aviso do sexto dia: `publicada_em is
+ * null` sem alteração há 7 dias, e `limpar_rascunhos_abandonados()` apagando
+ * na madrugada seguinte. **A rotina nunca foi agendada** — a parte do sprint
+ * que ia agendá-la saiu do produto com a VPS —, então o texto antigo ("um
+ * rascunho seu some amanhã") afirmava na primeira tela de todo dia uma coisa
+ * que não acontece.
+ *
+ * Prometer um apagamento que não vem é pior que não avisar nada: a pessoa
+ * confia que o Full Hub limpa por ela, para de olhar, e um ano depois o
+ * "Minhas Tasks" dela tem trinta pensamentos pela metade que ela acha que já
+ * foram embora. Então o bloco continua, dizendo o que é verdade — aquele
+ * rascunho está parado — e quem apaga é quem clica.
+ *
+ * A função do banco fica de pé e funciona; ela só não tem quem a chame. Está
+ * registrado na seção "O que o Sprint 16 NÃO vai entregar" do CLAUDE.md.
+ * ---------------------------------------------------------------------------
+ *
+ * **Não aparece quando não há nada a dizer**, e é o normal: um bloco fixo
+ * dizendo "nenhum rascunho parado" ocuparia todo dia o lugar de uma
  * informação que interessa em raríssimos dias.
  */
 export async function RascunhosAExpirar() {
@@ -23,13 +39,13 @@ export async function RascunhosAExpirar() {
       <h2 className="flex items-center gap-2 text-sm font-semibold">
         <FileEdit aria-hidden className="size-4" />
         {rascunhos.length === 1
-          ? "Um rascunho seu some amanhã"
-          : `${rascunhos.length} rascunhos seus somem amanhã`}
+          ? "Um rascunho seu está parado há uma semana"
+          : `${rascunhos.length} rascunhos seus estão parados há uma semana`}
       </h2>
 
       <p className="text-text-secondary mt-1 text-sm">
-        Rascunho sem alteração há 7 dias é apagado. Abrir e mexer em qualquer campo já reinicia a
-        contagem.
+        Ninguém mais vê um rascunho além de você, e o Full Hub não apaga sozinho. Termine e clique
+        em Criar task, ou apague pelo fim da página.
       </p>
 
       <ul className="mt-3 space-y-1">

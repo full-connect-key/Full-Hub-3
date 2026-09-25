@@ -2,6 +2,20 @@
 #
 # Deploy do Full Hub na VPS.
 #
+# =============================================================================
+# FORA DE USO: A VPS NAO EXISTE MAIS, e e decisao da agencia.
+#
+# Ninguem chama este script hoje -- o job `publicar` do deploy.yml sai em
+# verde sem fazer nada, porque os quatro segredos de SSH nao existem. Ele fica
+# porque um deploy apagado nao volta de graca no dia em que houver outra
+# maquina, e porque o que esta escrito aqui e por que cada passo esta nesta
+# ordem.
+#
+# O que continua valendo em qualquer hospedagem: o aviso do fim sobre
+# migration pendente. Elas nunca foram aplicadas por este script, e continuam
+# indo a mao. A lista do que ficou inerte esta na secao Deploy do CLAUDE.md.
+# =============================================================================
+#
 # Roda NA VPS, chamado pelo GitHub Actions por SSH -- ou na mao, se preferir:
 #
 #   /var/www/full-hub/scripts/deploy.sh

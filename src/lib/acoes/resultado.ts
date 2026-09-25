@@ -63,7 +63,8 @@ export function mensagemDeErro(erro: unknown): string {
  * Invólucro de toda action.
  *
  * O erro completo (com stack) vai para o console do servidor, para o log do
- * PM2 na VPS; a pessoa na tela recebe a mensagem legível.
+ * gerenciador de processo do servidor; a pessoa na tela recebe a mensagem
+ * legível.
  */
 export async function executarAcao<T = undefined>(
   rotulo: string,

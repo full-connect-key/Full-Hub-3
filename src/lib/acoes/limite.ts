@@ -81,20 +81,27 @@ let avisouQueEstaDesligado = false;
  * ---------------------------------------------------------------------------
  * **`x-real-ip` PRIMEIRO, e `x-forwarded-for` só pela ÚLTIMA entrada.**
  *
- * É a linha que separa um limite de um enfeite. O nginx da VPS escreve
- * `X-Real-IP $remote_addr` — o endereço do soquete, que o cliente não
- * escolhe — e `X-Forwarded-For $proxy_add_x_forwarded_for`, que **acrescenta**
- * o `$remote_addr` ao que o cliente mandou. Quer dizer que o começo daquela
- * lista é texto que a pessoa do outro lado escreveu.
+ * É a linha que separa um limite de um enfeite. Quem está na frente do Node
+ * escreve `x-real-ip` com o endereço do soquete — o único que o cliente não
+ * escolhe — e **acrescenta** esse mesmo endereço ao fim do `x-forwarded-for`
+ * que o cliente mandou. Quer dizer que o começo daquela lista é texto que a
+ * pessoa do outro lado escreveu.
  *
  * O trecho que aparece em todo lugar — `x-forwarded-for.split(",")[0]` — lê
  * exatamente essa parte. Com ele, um cabeçalho diferente a cada requisição dá
  * uma chave nova a cada requisição, e o contador nunca chega a dois. A trava
  * continuaria lá, verde, contando nada.
  *
- * **Se um dia entrar um CDN na frente** (Cloudflare, por exemplo), a última
- * entrada passa a ser o endereço do CDN e não o de quem chamou: aí o valor
- * certo é o cabeçalho que ele assina, e esta função é o único lugar a mexer.
+ * **O primeiro caminho não depende da hospedagem; o segundo depende.**
+ * `x-real-ip` é o que qualquer proxy reverso na frente de um Node escreve, e é
+ * por onde esta função sai em quase toda requisição. A regra da "última
+ * entrada" assume UM proxy, acrescentando no fim — o desenho de nginx, que era
+ * onde isto rodava. Com um CDN na frente (Cloudflare, por exemplo), ou com uma
+ * hospedagem que empilhe as próprias camadas depois do cliente, a última passa
+ * a ser o endereço dela e o valor certo é o cabeçalho que ela assina. **Esta
+ * função é o único lugar a mexer**, e o comentário não nomeia mais um servidor
+ * de propósito: a máquina que ele nomeava saiu, e regra escrita em cima de uma
+ * máquina que saiu é regra que ninguém sabe se ainda vale.
  * ---------------------------------------------------------------------------
  *
  * Devolve `null` quando não dá para saber, e aí o limite por IP **não é
