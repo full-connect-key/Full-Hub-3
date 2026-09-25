@@ -1,4 +1,5 @@
 import {
+  Images,
   BadgeCheck,
   BookOpen,
   CalendarDays,
@@ -143,7 +144,8 @@ export const MENU: MenuItem[] = [
     icon: ThumbsUp,
     roles: EQUIPE,
     section: "principal",
-    description: "O que a equipe anda indicando: filme, curso, ferramenta, referência.",
+    description:
+      "O que a equipe anda indicando: filme, curso, ferramenta, referência.",
   },
   {
     // A nota fiscal DA PESSOA, não o financeiro da agência. Cada um envia a
@@ -180,7 +182,22 @@ export const MENU: MenuItem[] = [
     icon: BadgeCheck,
     roles: GESTAO,
     section: "gestao",
-    description: "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
+    description:
+      "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
+  },
+  {
+    // SOCIAL MEDIA É DE `is_staff()` e não da gestão, ao contrário de quase
+    // tudo desta seção: o colaborador que produz precisa chegar ao post que
+    // foi liberado para ele. O que ele NÃO pode — abrir post, liberar,
+    // enviar ao cliente — é a RLS que recusa, e a tela desliga o botão com a
+    // razão escrita. Esconder o módulo dele seria esconder o trabalho dele.
+    label: "Social Media",
+    href: "/painel/social-media",
+    icon: Images,
+    roles: EQUIPE,
+    section: "gestao",
+    description:
+      "O calendário de posts da agência, da abertura ao envio ao cliente.",
   },
   {
     label: "Aprovações & Conteúdo",
@@ -224,7 +241,8 @@ export const MENU: MenuItem[] = [
     icon: CircleDollarSign,
     roles: SOCIO,
     section: "gestao",
-    description: "Contratos, receitas, despesas e a rentabilidade de cada conta.",
+    description:
+      "Contratos, receitas, despesas e a rentabilidade de cada conta.",
   },
 
   // --- Fora do menu --------------------------------------------------------
@@ -295,11 +313,16 @@ export function canAccess(role: UserRole, href: string): boolean {
 }
 
 /** Os itens visíveis no menu deste perfil, agrupados por seção e em ordem. */
-export function getMenuForRole(role: UserRole): { section: MenuSection; items: MenuItem[] }[] {
+export function getMenuForRole(
+  role: UserRole,
+): { section: MenuSection; items: MenuItem[] }[] {
   return SECTION_ORDER.map((section) => ({
     section,
     items: MENU.filter(
-      (item) => item.section === section && !item.hiddenFromMenu && item.roles.includes(role),
+      (item) =>
+        item.section === section &&
+        !item.hiddenFromMenu &&
+        item.roles.includes(role),
     ),
   })).filter((grupo) => grupo.items.length > 0);
 }

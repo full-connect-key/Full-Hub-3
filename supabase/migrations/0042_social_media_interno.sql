@@ -98,6 +98,27 @@ comment on column public.posts.midia is
 comment on column public.posts.video_url is
   'Video e por LINK e nao por upload (0042, decisao do usuario). O visualizador do portal desenha <img>; player e poster sao entrega propria.';
 
+-- O QUE JA ESTAVA GRAVADO, e este passo nao e opcional. Ate aqui `formato`
+-- carregava OS DOIS SENTIDOS: ha post com `formato = 'carrossel'` e outro com
+-- `formato = 'video'`, escritos quando nao havia onde dizer o que a tela
+-- desenha. Sem esta conversao eles nascem `midia = 'imagem'` -- o default --,
+-- e um carrossel de cinco slides abriria no editor de arte unica, com quatro
+-- arquivos invisiveis.
+--
+-- REELS E SHORTS SAO VIDEO, e e por isso que a lista tem sinonimos em vez de
+-- igualdade: o nome comercial e justamente o que muda, e o que nao muda e que
+-- aquilo toca.
+--
+-- `where midia = 'imagem'` faz a migration rodar duas vezes sem desfazer uma
+-- escolha feita a mao depois dela.
+update public.posts
+   set midia = case
+     when lower(coalesce(formato, '')) in ('carrossel', 'carousel') then 'carrossel'
+     when lower(coalesce(formato, '')) in ('video', 'vídeo', 'reels', 'reel', 'shorts', 'short') then 'video'
+     else 'imagem'
+   end::public.post_midia
+ where midia = 'imagem';
+
 -- Link quebrado digitado a mao e pior que campo vazio: alguem clica.
 alter table public.posts drop constraint if exists posts_video_url_http;
 alter table public.posts

@@ -132,6 +132,26 @@ export type StatusRodada =
   | "rejeitada";
 
 /** As redes em que um post é publicado (`plataforma_social`, 0032). */
+/**
+ * O que a tela DESENHA (migration 0042).
+ *
+ * **Não confundir com `posts.formato`**, que é onde o material vai ao ar —
+ * Feed, Stories, Reels — e continua texto porque nome comercial de plataforma
+ * muda a cada temporada. Estes três não mudam: ou é uma imagem, ou são várias
+ * em ordem, ou toca.
+ *
+ * É enum e não texto porque decide qual editor aparece: um `"Carrossel"` com
+ * C maiúsculo faria a faixa de slides sumir sem erro nenhum.
+ */
+export type PostMidia = "imagem" | "carrossel" | "video";
+
+/** Um slide de carrossel, dentro de `post_versions.arquivos`. */
+export type ArquivoDaVersao = {
+  url: string;
+  thumbnail_url?: string | null;
+  nome?: string | null;
+};
+
 export type PlataformaSocial =
   | "instagram"
   | "facebook"
@@ -1356,12 +1376,26 @@ export interface Database {
           horario: string | null;
           plataforma: PlataformaSocial;
           formato: string | null;
+          midia: PostMidia;
+          // Video e por LINK e nao por upload (0042, decisao do usuario): o
+          // visualizador do portal desenha <img>, e player e poster sao
+          // entrega propria.
+          video_url: string | null;
           status: ContentStatus;
+          // A CAPA. Num carrossel e o primeiro slide, escrito pelo trigger
+          // `post_versions_sincroniza` -- e por isso que o calendario, o card
+          // e a miniatura do portal nao sabem que carrossel existe.
           arte_url: string | null;
           thumbnail_url: string | null;
           versao_atual: number;
           prazo_aprovacao: string | null;
+          // Escrito pelo trigger `approval_rounds_marca_post` (0032), nunca a
+          // mao: enviar E abrir a rodada de escopo cliente.
           enviado_em: string | null;
+          // Para quem a gestao liberou a producao (0042). Nulo = ninguem
+          // pegou. NAO e `criado_por`: depois da 0042 quem cria e a gestao,
+          // que abre o briefing, e quem produz e esta pessoa.
+          responsavel_id: string | null;
           criado_por: string | null;
           created_at: string;
           updated_at: string;
@@ -1376,9 +1410,12 @@ export interface Database {
           horario?: string | null;
           plataforma: PlataformaSocial;
           formato?: string | null;
+          midia?: PostMidia;
+          video_url?: string | null;
           arte_url?: string | null;
           thumbnail_url?: string | null;
           prazo_aprovacao?: string | null;
+          responsavel_id?: string | null;
           criado_por?: string | null;
         };
         Update: {
@@ -1388,10 +1425,16 @@ export interface Database {
           horario?: string | null;
           plataforma?: PlataformaSocial;
           formato?: string | null;
+          midia?: PostMidia;
+          video_url?: string | null;
           arte_url?: string | null;
           thumbnail_url?: string | null;
           prazo_aprovacao?: string | null;
           subtask_id?: string | null;
+          status?: ContentStatus;
+          // Quem libera e a gestao: o trigger `posts_protege_colunas` (0042)
+          // recusa o colaborador que tentar, e a recusa diz por que.
+          responsavel_id?: string | null;
         };
         Relationships: [];
       };
@@ -1410,6 +1453,10 @@ export interface Database {
           numero_versao: number;
           arte_url: string | null;
           thumbnail_url: string | null;
+          // Os slides desta versao, em ordem. A CAPA continua em
+          // `posts.arte_url`, alimentada pelo primeiro slide.
+          arquivos: ArquivoDaVersao[];
+          video_url: string | null;
           legenda: string | null;
           notas_mudanca: string | null;
           criado_por: string | null;
@@ -1420,6 +1467,8 @@ export interface Database {
           post_id: string;
           arte_url?: string | null;
           thumbnail_url?: string | null;
+          arquivos?: ArquivoDaVersao[];
+          video_url?: string | null;
           legenda?: string | null;
           notas_mudanca?: string | null;
           criado_por?: string | null;

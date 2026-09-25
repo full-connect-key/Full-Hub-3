@@ -190,3 +190,153 @@ export function gradeDoMes(mes: string): string[] {
 
   return dias;
 }
+
+/* ===========================================================================
+ * A CORRENTE DE MÃO EM MÃO (migration 0042)
+ *
+ * A gestão abre o briefing, libera para quem produz, revisa e envia. Este
+ * bloco é o que os dois lados leem para saber em que mão o post está e qual é
+ * o próximo passo — como `lib/tasks/state-machine.ts` faz com a subtarefa.
+ *
+ * **O BANCO É QUEM RECUSA, e isto aqui é quem escreve a frase.** As duas
+ * existem de propósito, e é a mesma dupla do resto do produto: `validar_nova_
+ * rodada` diz não a quem chamar a API direto; estas funções fazem o botão
+ * aparecer desligado com a razão escrita, em vez de sumir.
+ * ======================================================================== */
+
+import type { PostMidia } from "@/lib/supabase/database.types";
+
+export const MIDIAS: PostMidia[] = ["imagem", "carrossel", "video"];
+
+export const ROTULO_DA_MIDIA: Record<PostMidia, string> = {
+  imagem: "Imagem única",
+  carrossel: "Carrossel",
+  video: "Vídeo",
+};
+
+/**
+ * O que cada mídia muda na tela.
+ *
+ * Fica ao lado da escolha, e não num texto de ajuda: a mídia decide qual
+ * editor aparece, e quem escolhe errado só descobre depois de subir o arquivo.
+ */
+export const EXPLICACAO_DA_MIDIA: Record<PostMidia, string> = {
+  imagem: "Uma arte só.",
+  carrossel: "Várias artes em ordem — a primeira é a capa.",
+  video: "Por link do Drive ou do YouTube; o cliente assiste fora do portal.",
+};
+
+/**
+ * Os formatos sugeridos por rede.
+ *
+ * **É sugestão e não trava**, e a diferença importa: `formato` é texto
+ * justamente porque nome comercial de plataforma muda a cada temporada (a
+ * 0032 decidiu assim, e o Reels e o Shorts são dessa safra). Uma lista fechada
+ * aqui obrigaria um deploy no dia em que a Meta inventar o próximo nome — o
+ * campo aceita o que a pessoa digitar.
+ */
+export const FORMATOS_SUGERIDOS: Record<string, string[]> = {
+  instagram: ["Feed", "Stories", "Reels", "Carrossel"],
+  facebook: ["Feed", "Stories", "Reels"],
+  linkedin: ["Feed", "Artigo", "Documento"],
+  tiktok: ["Vídeo", "Stories"],
+  youtube: ["Vídeo", "Shorts"],
+  twitter: ["Post", "Thread"],
+  pinterest: ["Pin", "Idea Pin"],
+};
+
+/** Em que mão o post está. */
+export type MaoDoPost =
+  | "briefing"
+  | "producao"
+  | "revisao"
+  | "com_cliente"
+  | "encerrado";
+
+export const ROTULO_DA_MAO: Record<MaoDoPost, string> = {
+  briefing: "Briefing",
+  producao: "Produção",
+  revisao: "Revisão",
+  com_cliente: "Cliente",
+  encerrado: "Encerrado",
+};
+
+export type EstadoDoPost = {
+  responsavelId: string | null;
+  enviadoEm: string | null;
+  status: string;
+  midia: PostMidia;
+  videoUrl: string | null;
+  arteUrl: string | null;
+  /** Há rodada interna aprovada nesta versão? */
+  avalInterno: boolean;
+};
+
+/**
+ * Onde o post está na corrente.
+ *
+ * **Derivado, nunca gravado** — é a mesma razão pela qual bloqueio de
+ * subtarefa não é status e atraso do Financeiro não é coluna: a mão depende do
+ * responsável, do carimbo de envio e da rodada, e uma coluna precisaria ser
+ * reescrita por três caminhos diferentes para continuar verdadeira.
+ */
+export function maoDoPost(post: EstadoDoPost): MaoDoPost {
+  if (post.status === "aprovado" || post.status === "rejeitado") return "encerrado";
+  if (post.enviadoEm) return "com_cliente";
+  if (post.avalInterno) return "revisao";
+  if (post.responsavelId) return "producao";
+  return "briefing";
+}
+
+/**
+ * O que falta para o post poder ir ao cliente.
+ *
+ * Devolve a lista vazia quando dá. **A tela mostra a frase no lugar de esconder
+ * o botão:** um botão que some ensina que não existe; um botão desligado que
+ * diz por quê ensina a regra — e a regra aqui é de banco, não de tela.
+ */
+export function faltaParaEnviar(post: EstadoDoPost): string[] {
+  const faltam: string[] = [];
+
+  if (post.midia === "video") {
+    if (!post.videoUrl?.trim()) faltam.push("o link do vídeo");
+  } else if (!post.arteUrl) {
+    faltam.push("a arte");
+  }
+
+  if (!post.avalInterno) faltam.push("o aval interno");
+  if (post.enviadoEm) faltam.push("nada — ele já está com o cliente");
+
+  return faltam;
+}
+
+/**
+ * Quem está lendo pode enviar este post ao cliente?
+ *
+ * **As duas perguntas juntas**, porque separá-las foi o furo que a 0042
+ * fechou: é preciso ser gestão E não ter sido quem produziu. `validar_nova_
+ * rodada` recusa as duas no banco; aqui a resposta serve para desligar o botão
+ * com a frase certa.
+ */
+export function podeEnviarAoCliente(
+  post: EstadoDoPost,
+  quemLe: { id: string; ehGestor: boolean },
+): { pode: boolean; porque: string | null } {
+  if (!quemLe.ehGestor) {
+    return { pode: false, porque: "Enviar ao cliente é do desenvolvedor ou do sócio." };
+  }
+  if (post.responsavelId === quemLe.id) {
+    return { pode: false, porque: "Ninguém envia ao cliente a própria entrega." };
+  }
+  const faltam = faltaParaEnviar(post);
+  if (faltam.length > 0) return { pode: false, porque: `Falta ${faltam.join(" e ")}.` };
+  return { pode: true, porque: null };
+}
+
+/** Quem edita a arte e a legenda: a gestão, ou quem recebeu o post. */
+export function podeProduzir(
+  post: EstadoDoPost,
+  quemLe: { id: string; ehGestor: boolean },
+): boolean {
+  return quemLe.ehGestor || post.responsavelId === quemLe.id;
+}

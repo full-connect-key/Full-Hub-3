@@ -2043,7 +2043,6 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
 | `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
-| `scripts/enviar-post-a-mao.sql` | **Paliativo.** Cria um post e o envia ao cliente sem a tela interna, que é de outro sprint. Sai do repositório quando ela existir |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |
 

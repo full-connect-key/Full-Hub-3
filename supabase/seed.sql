@@ -1367,3 +1367,99 @@ begin
   raise notice 'Sprint 3D: duas regras recorrentes criadas, com a primeira ocorrencia de cada.';
 end
 $$;
+
+
+-- ===========================================================================
+-- 0042 - A CORRENTE DE MAO EM MAO DO SOCIAL MEDIA
+--
+-- Os posts do Sprint 12 nasceram todos com `criado_por = bruno` e sem
+-- responsavel -- o modelo de antes, em que quem abria era quem produzia. Este
+-- bloco poe a corrente neles: a GESTAO abre, e a producao fica com quem faz.
+--
+-- E acrescenta os dois casos que o sprint existe para desenhar e que nao
+-- havia como representar antes: o CARROSSEL, com os slides, e o VIDEO POR
+-- LINK.
+-- ===========================================================================
+do $$
+declare
+  verde   uuid;
+  ana     uuid := 'a0000000-0000-0000-0000-000000000001';  -- Socia
+  diego   uuid := 'a0000000-0000-0000-0000-000000000002';  -- Desenvolvedor
+  bruno   uuid := 'a0000000-0000-0000-0000-000000000005';  -- Design
+  marina  uuid := 'a0000000-0000-0000-0000-000000000006';  -- Social Media
+  primeiro date := date_trunc('month', current_date)::date;
+  p       uuid;
+begin
+  select id into verde from public.clients where slug = 'mundo-verde' limit 1;
+  if verde is null then
+    raise notice 'Sem cliente para semear o Social Media interno.';
+    return;
+  end if;
+
+  -- A CORRENTE NOS POSTS QUE JA EXISTIAM. Quem abriu passa a ser a gestao, e
+  -- quem produz fica no `responsavel_id`. Sem isto, `dono_do_post()` devolve
+  -- o Bruno em todos e a tela mostra a gestao como produtora.
+  update public.posts
+     set criado_por = ana,
+         responsavel_id = coalesce(responsavel_id, bruno)
+   where client_id = verde and criado_por = bruno;
+
+  -- E A MIDIA DELES, pela mesma conversao que a 0042 faz em producao. O seed
+  -- do Sprint 12 gravava `formato = 'carrossel'` e `formato = 'video'` porque
+  -- nao havia onde dizer o que a tela desenha; sem esta linha o ambiente local
+  -- fica diferente do que a migration produz no banco de verdade -- e o bug de
+  -- um carrossel abrindo no editor de arte unica so apareceria la.
+  update public.posts
+     set midia = case
+       when lower(coalesce(formato, '')) in ('carrossel', 'carousel') then 'carrossel'
+       when lower(coalesce(formato, '')) in ('video', 'vídeo', 'reels', 'reel', 'shorts', 'short') then 'video'
+       else 'imagem'
+     end::public.post_midia
+   where client_id = verde and midia = 'imagem';
+
+  perform set_config('request.jwt.claim.sub', ana::text, true);
+
+  -- ------------------------------------------------------------ CARROSSEL --
+  -- Cinco slides, e a CAPA sai do primeiro pelo trigger
+  -- `post_versions_sincroniza`. E o caso que prova que o calendario, o card e
+  -- a miniatura do portal nao precisam saber que carrossel existe.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, midia, criado_por, responsavel_id)
+  values (verde, 'Carrossel de dicas',
+          'Cinco dicas para manter a horta viva no calor. Arrasta pro lado.',
+          primeiro + 18, '12:00', 'instagram', 'Carrossel', 'carrossel', ana, bruno)
+  returning id into p;
+
+  insert into public.post_versions (post_id, arquivos, legenda, criado_por)
+  values (p, jsonb_build_array(
+            jsonb_build_object('url', '/exemplos/arte-1.svg', 'thumbnail_url', '/exemplos/arte-1.svg', 'nome', 'slide-1.png'),
+            jsonb_build_object('url', '/exemplos/arte-2.svg', 'thumbnail_url', '/exemplos/arte-2.svg', 'nome', 'slide-2.png'),
+            jsonb_build_object('url', '/exemplos/arte-1.svg', 'thumbnail_url', '/exemplos/arte-1.svg', 'nome', 'slide-3.png'),
+            jsonb_build_object('url', '/exemplos/arte-2.svg', 'thumbnail_url', '/exemplos/arte-2.svg', 'nome', 'slide-4.png'),
+            jsonb_build_object('url', '/exemplos/arte-1.svg', 'thumbnail_url', '/exemplos/arte-1.svg', 'nome', 'slide-5.png')),
+          'Cinco dicas para manter a horta viva no calor. Arrasta pro lado.', bruno);
+
+  -- ---------------------------------------------------------- VIDEO POR LINK --
+  -- Decisao do usuario, com o custo dito: o cliente assiste fora do portal.
+  -- `validar_nova_rodada` recusa enviar sem o link, e o seed traz o link
+  -- preenchido de proposito -- o caso SEM link e da bateria, nao daqui.
+  insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
+                            plataforma, formato, midia, video_url,
+                            criado_por, responsavel_id)
+  values (verde, 'Reels da receita',
+          'A receita que a nutricionista mandou, em 30 segundos.',
+          primeiro + 21, '18:00', 'instagram', 'Reels', 'video',
+          'https://drive.google.com/file/d/exemplo-reels/view', ana, marina);
+
+  -- -------------------------------------------------- BRIEFING SEM DONO --
+  -- O estado que a lista destaca em "Esperando alguem", e que no calendario
+  -- fica cinza: a gestao abriu e ninguem pegou.
+  insert into public.posts (client_id, tema, data_publicacao,
+                            plataforma, formato, midia, criado_por)
+  values (verde, 'Fim de mes', primeiro + 27, 'instagram', 'Feed', 'imagem', diego);
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  raise notice 'Sprint 14: corrente do Social Media, carrossel de 5 slides e video por link.';
+end
+$$;

@@ -93,6 +93,13 @@ const TELAS = [
   { nome: "42-aprovacoes-ajustes", rota: "/painel/aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "43-workflows", rota: "/painel/workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-workflow-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
+  { nome: "50-social-lista", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "socio" },
+  { nome: "51-social-calendario", rota: "/painel/social-media?visao=calendario&post=p1", largura: 1600, altura: 1100, role: "socio" },
+  // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
+  // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.
+  { nome: "52-social-colaborador", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "colaborador-social" },
+  { nome: "53-social-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1700, role: "socio" },
+
   { nome: "44-recorrencias", rota: "/painel/workflows?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
   { nome: "44b-recorrencia-editor", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },
   // 375px: a previa vai para BAIXO do formulario no celular, e a grade de
@@ -233,6 +240,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
   "@/lib/dados/portal": ["./scripts/prototipo/portal.ts"],
   "@/lib/dados/posts": ["./scripts/prototipo/posts.ts"],
+  "@/lib/dados/social-media": ["./scripts/prototipo/social-media.ts"],
   "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
