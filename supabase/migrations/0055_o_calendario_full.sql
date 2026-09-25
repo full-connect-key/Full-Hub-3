@@ -515,3 +515,63 @@ drop trigger if exists event_participants_avisa on public.event_participants;
 create trigger event_participants_avisa
   after insert on public.event_participants
   for each row execute function public.evento_avisa_participante();
+
+
+-- ---------------------------------------------------------------------------
+-- PASSO 7 - A carga da equipe inteira, no periodo inteiro
+--
+-- A Linha do Tempo desenha uma linha por pessoa e uma celula por dia: com dez
+-- pessoas e um mes, sao trezentas perguntas. Uma chamada de `carga_do_dia()`
+-- por celula seria trezentas idas ao banco para montar uma tela.
+--
+-- ESTA FUNCAO NAO RECALCULA NADA. Ela percorre e CHAMA `carga_do_dia()`, que
+-- e a fonte unica de carga do produto desde a 0035. Reescrever a conta aqui
+-- daria dois numeros para a mesma pessoa no mesmo dia -- e a tela de
+-- sobrecarga e exatamente onde isso vira discussao.
+--
+-- SO DIA UTIL. Sabado e domingo nao tem capacidade para comparar, e pintar a
+-- celula do fim de semana de "vazio" faria a barra de ocupacao da semana
+-- parecer sempre folgada.
+-- ---------------------------------------------------------------------------
+create or replace function public.carga_da_equipe(p_inicio date, p_fim date)
+returns table (
+  user_id               uuid,
+  dia                   date,
+  minutos_comprometidos integer,
+  etapas                integer,
+  etapas_sem_estimativa integer,
+  ausente               boolean
+)
+language plpgsql
+stable
+set search_path = public
+as $funcao$
+begin
+  -- O TETO DE 62 DIAS e proposital: a tela busca o mes visivel com uma semana
+  -- de folga em cada ponta, e nunca o ano. Sem o teto, um parametro errado na
+  -- URL viraria uma varredura de trezentos e sessenta e cinco dias por pessoa.
+  if p_fim - p_inicio > 62 then
+    raise exception 'Período longo demais para a carga: % dias.', p_fim - p_inicio
+      using hint = 'O calendário busca o mês visível, com uma semana de folga em cada ponta.';
+  end if;
+
+  return query
+  select
+    p.id,
+    d::date,
+    c.minutos_comprometidos,
+    c.etapas,
+    c.etapas_sem_estimativa,
+    c.ausente
+  from public.profiles p
+  join public.team_members tm on tm.user_id = p.id
+  cross join generate_series(p_inicio, p_fim, interval '1 day') as d
+  cross join lateral public.carga_do_dia(p.id, d::date) c
+  where p.ativo
+    and tm.ativo
+    and extract(isodow from d) < 6;
+end
+$funcao$;
+
+comment on function public.carga_da_equipe is
+  'A carga de cada pessoa ativa em cada dia util do periodo. Percorre e CHAMA carga_do_dia() -- nao recalcula (0055).';

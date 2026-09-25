@@ -199,7 +199,35 @@ export type NotificationTipo =
   | "full_days"
   | "equipe"
   | "cliente"
-  | "sistema";
+  | "sistema"
+  // 0055: o aviso de que você entrou num evento.
+  | "evento";
+
+/** O que o evento é. Decide a cor quando `events.cor` não diz outra coisa. */
+export type EventoTipo =
+  | "convencao"
+  | "feira"
+  | "lancamento"
+  | "reuniao"
+  | "treinamento"
+  | "feriado_cliente"
+  | "outro";
+
+/**
+ * As sete origens da `calendar_events`.
+ *
+ * O nome de cada uma é o que a view escreve na coluna `tipo`, e é por isso
+ * que ele fica em INGLÊS de um lado e em português do outro: aqui é valor de
+ * dado, e o rótulo que a pessoa lê sai de `ROTULOS_DE_CAMADA`.
+ */
+export type TipoNoCalendario =
+  | "task"
+  | "subtarefa"
+  | "ausencia"
+  | "evento"
+  | "post"
+  | "campanha"
+  | "entregavel";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
 
@@ -748,6 +776,8 @@ export interface Database {
           ativo: boolean;
           desligado_em: string | null;
           created_at: string;
+          // 0055: minutos de trabalho por dia útil desta pessoa. 480 = 8h.
+          capacidade_minutos_dia: number;
         };
         Insert: {
           id?: string;
@@ -761,6 +791,7 @@ export interface Database {
           ativo?: boolean;
           desligado_em?: string | null;
           created_at?: string;
+          capacidade_minutos_dia?: number;
         };
         Update: {
           cargo?: string | null;
@@ -771,6 +802,7 @@ export interface Database {
           max_parcelas_ferias?: number;
           ativo?: boolean;
           desligado_em?: string | null;
+          capacidade_minutos_dia?: number;
         };
         Relationships: [];
       };
@@ -1771,6 +1803,77 @@ export interface Database {
         Update: { notas_mudanca?: string | null };
         Relationships: [];
       };
+      /**
+       * Convenções, feiras, lançamentos, reuniões e feriados de cliente
+       * (migration 0055).
+       *
+       * `client_id` nulo = evento da agência inteira, e é por isso que a
+       * coluna aceita nulo em vez de exigir um cliente: reunião de equipe e
+       * treinamento interno não pertencem a conta nenhuma.
+       */
+      events: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          tipo: EventoTipo;
+          client_id: string | null;
+          data_inicio: string;
+          data_fim: string;
+          dia_inteiro: boolean;
+          hora_inicio: string | null;
+          hora_fim: string | null;
+          local: string | null;
+          link: string | null;
+          cor: string | null;
+          bloqueia_ferias: boolean;
+          criado_por: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          descricao?: string | null;
+          tipo?: EventoTipo;
+          client_id?: string | null;
+          data_inicio: string;
+          data_fim: string;
+          dia_inteiro?: boolean;
+          hora_inicio?: string | null;
+          hora_fim?: string | null;
+          local?: string | null;
+          link?: string | null;
+          cor?: string | null;
+          bloqueia_ferias?: boolean;
+          criado_por: string;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          tipo?: EventoTipo;
+          client_id?: string | null;
+          data_inicio?: string;
+          data_fim?: string;
+          dia_inteiro?: boolean;
+          hora_inicio?: string | null;
+          hora_fim?: string | null;
+          local?: string | null;
+          link?: string | null;
+          cor?: string | null;
+          bloqueia_ferias?: boolean;
+        };
+        Relationships: [];
+      };
+      /**
+       * Quem vai. VAZIO QUER DIZER TODO MUNDO — e não "ninguém": um evento da
+       * agência não lista as dez pessoas uma a uma (migration 0055).
+       */
+      event_participants: {
+        Row: { id: string; event_id: string; user_id: string };
+        Insert: { id?: string; event_id: string; user_id: string };
+        Update: never;
+        Relationships: [];
+      };
     };
     Functions: {
       academy_reordenar: { Args: { p_track_id: string; p_ids: string[] }; Returns: number };
@@ -1986,6 +2089,29 @@ export interface Database {
         Returns: { id: string; titulo: string; updated_at: string }[];
       };
       limpar_rascunhos_abandonados: { Args: Record<string, never>; Returns: number };
+      /**
+       * A carga de cada pessoa ativa em cada dia útil do período (0055).
+       *
+       * Ela PERCORRE e chama `carga_do_dia()`, que é a fonte única desde a
+       * 0035 — não recalcula. Recusa período acima de 62 dias: a tela busca
+       * o mês visível com uma semana de folga, e nunca o ano.
+       */
+      carga_da_equipe: {
+        Args: { p_inicio: string; p_fim: string };
+        Returns: {
+          user_id: string;
+          dia: string;
+          minutos_comprometidos: number;
+          etapas: number;
+          etapas_sem_estimativa: number;
+          ausente: boolean;
+        }[];
+      };
+      /** Dias em que um evento com `bloqueia_ferias` atinge esta pessoa (0055). */
+      eventos_que_bloqueiam: {
+        Args: { p_user_id: string; p_inicio: string; p_fim: string };
+        Returns: { dia: string; nome: string }[];
+      };
       notificar: {
         Args: {
           p_user_id: string;
@@ -2001,6 +2127,29 @@ export interface Database {
       /** Progresso SEM a coluna `anotacoes`. É por aqui que a aba
        *  Acompanhamento lê — policy não limita coluna, e a anotação é
        *  privada. Veja a migration 0017. */
+      /**
+       * Tudo o que tem data, num formato só (migration 0055).
+       *
+       * `security_invoker`: a RLS de cada tabela de origem continua valendo
+       * por baixo. É SÓ LEITURA — não existe Insert nem Update, e é a forma
+       * de dizer em tipo o que o banco diz em estrutura: escrever no
+       * calendário é escrever na tabela de origem.
+       */
+      calendar_events: {
+        Row: {
+          id: string;
+          tipo: TipoNoCalendario;
+          titulo: string;
+          data_inicio: string;
+          data_fim: string;
+          client_id: string | null;
+          user_id: string | null;
+          prioridade: string | null;
+          status: string | null;
+          link: string;
+        };
+        Relationships: [];
+      };
       academy_progresso_da_equipe: {
         Row: {
           user_id: string;
@@ -2026,6 +2175,7 @@ export interface Database {
       plataforma_social: PlataformaSocial;
       campaign_status: CampaignStatus;
       notification_tipo: NotificationTipo;
+      evento_tipo: EventoTipo;
       hr_tipo: HrTipo;
       hr_status: HrStatus;
       hr_origem: HrOrigem;
