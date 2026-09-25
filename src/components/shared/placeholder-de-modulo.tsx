@@ -12,8 +12,28 @@ import { findMenuItem } from "@/lib/auth/permissions";
  * mesmo digitando a rota direto) e desenha o cabeçalho a partir do cadastro em
  * permissions.ts. Por isso cada rota placeholder tem uma linha só, e o título
  * nunca sai do mesmo lugar que alimenta o menu.
+ *
+ * **E NÃO TEM CAMPO, TABELA NEM BOTÃO** — nem desligado, nem com dado de
+ * exemplo. Espaço reservado honesto é melhor que protótipo que engana: um
+ * formulário que não salva ensina a pessoa a mandar a nota por aqui, e ela
+ * descobre que não chegou no dia do pagamento.
  */
-export async function PlaceholderDeModulo({ href }: { href: string }) {
+export async function PlaceholderDeModulo({
+  href,
+  frase,
+}: {
+  href: string;
+  /**
+   * O que a pessoa vai poder fazer aqui, em uma frase.
+   *
+   * **Sem ela a tela diz que o módulo existirá, e não o que ele fará** — e é a
+   * diferença entre quem fecha a aba e quem volta. A frase padrão descreve o
+   * estado da OBRA ("a navegação já funciona"), que interessa a quem a
+   * constrói; a frase de cada módulo descreve o que ele resolve, que é o que
+   * interessa a quem o esperou.
+   */
+  frase?: string;
+}) {
   await exigirAcessoARota(href);
   const item = findMenuItem(href);
 
@@ -22,8 +42,11 @@ export async function PlaceholderDeModulo({ href }: { href: string }) {
       <PageHeader title={item?.label ?? "Módulo"} />
       <EmptyState
         icon={item?.icon ?? Hammer}
-        title="Este módulo será construído em breve"
-        description="A navegação e as permissões já estão funcionando. O conteúdo entra em um dos próximos sprints."
+        title="Módulo em construção"
+        description={
+          frase ??
+          "A navegação e as permissões já estão funcionando. O conteúdo entra em breve."
+        }
       />
     </div>
   );

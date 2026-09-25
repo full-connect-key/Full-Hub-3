@@ -1,12 +1,10 @@
-import Link from "next/link";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { iniciaisDe } from "@/components/shared/user-avatar";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/supabase/database.types";
 
 /**
- * Quem está logado, no pé da barra lateral.
+ * Quem está logado, no pé da barra lateral — e SÓ isso.
  *
  * Três linhas com papéis diferentes: o NOME é quem você é, o CARGO é o que
  * você faz na agência, e o PERFIL é o que você alcança na plataforma. As duas
@@ -30,10 +28,16 @@ export function CartaoDaPessoa({
   avatarUrl: string | null;
 }) {
   return (
-    <Link
-      href="/painel/perfil"
-      className="bg-surface-sidebar-2 hover:bg-surface-sidebar-2/70 focus-visible:ring-brand-blue/60 recolhido:lg:justify-center recolhido:lg:px-2 flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-    >
+    // NÃO É MAIS UM LINK, e a mudança é o ponto — decisão do usuário: o cartão
+    // "mostra quem está logado e nada mais". Ele levava a `/painel/perfil`, que
+    // é para onde o menu do avatar leva; eram dois caminhos para a mesma tela,
+    // e o de baixo era o que ninguém encontrava.
+    //
+    // **O cartão fica**, em vez de sumir com o item de menu: recolhida, a
+    // barra lateral vira uma coluna de ícones, e este avatar é a única coisa
+    // que diz de quem é a sessão. Num produto em que a mesma pessoa abre o
+    // painel da agência e o portal de um cliente, isso não é decoração.
+    <div className="bg-surface-sidebar-2 recolhido:lg:justify-center recolhido:lg:px-2 flex items-center gap-3 rounded-lg px-3 py-2.5">
       <Avatar className="size-8 shrink-0">
         {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
         <AvatarFallback className="bg-brand-blue text-brand-foreground text-xs font-semibold">
@@ -48,6 +52,6 @@ export function CartaoDaPessoa({
           {ROTULOS_DE_ROLE[role]}
         </span>
       </span>
-    </Link>
+    </div>
   );
 }

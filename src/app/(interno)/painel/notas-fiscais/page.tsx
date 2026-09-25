@@ -14,5 +14,10 @@ export const metadata: Metadata = { title: "Notas Fiscais" };
  * onde mandar a nota dele.
  */
 export default function Pagina() {
-  return <PlaceholderDeModulo href="/painel/notas-fiscais" />;
+  return (
+    <PlaceholderDeModulo
+      href="/painel/notas-fiscais"
+      frase="Em breve você poderá enviar sua nota fiscal do mês e acompanhar o pagamento por aqui."
+    />
+  );
 }

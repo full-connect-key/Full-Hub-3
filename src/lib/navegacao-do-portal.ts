@@ -13,6 +13,13 @@ export type ItemDoPortal = {
   href: string;
   icon: LucideIcon;
   description: string;
+  /**
+   * Fora da barra de seções, mas a rota existe e a trilha continua achando o
+   * nome dela. É o espelho do `hiddenFromMenu` do painel: quem sai é a
+   * entrada, não a tela — e `acharItemDoPortal()` precisa dela para escrever
+   * "Configurações" no cabeçalho de quem chegou pelo menu do avatar.
+   */
+  foraDaBarra?: boolean;
 };
 
 export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
@@ -41,10 +48,19 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     description: "Suas campanhas, o que já foi aprovado e o que espera você.",
   },
   {
+    // FORA DA NAVEGAÇÃO, e a rota de pé — decisão do usuário: "um caminho só
+    // para o perfil, no canto superior direito". Ela estava aqui, como aba, E
+    // no menu do avatar como "Meus dados": a mesma tela em dois lugares.
+    //
+    // Ficou a do canto porque é onde o cliente já procura — é o único item
+    // desta barra que fala DELE e não do trabalho da agência, e no meio de
+    // Início, Aprovações, Social Media e Campanhas ele lia como mais uma
+    // seção de material.
     label: "Configurações",
     href: "/portal/configuracoes",
     icon: Settings,
     description: "Seus dados de contato e preferências de acesso.",
+    foraDaBarra: true,
   },
 ];
 

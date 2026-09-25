@@ -201,13 +201,26 @@ export const MENU: MenuItem[] = [
     section: "principal",
     description: "Envie sua nota fiscal e acompanhe o pagamento.",
   },
+
   {
+    // FORA DO MENU, E A ROTA DE PÉ — decisão do usuário: Meu Perfil estava na
+    // barra lateral E no avatar do canto superior direito, que é onde todo
+    // produto com login o coloca. Dois caminhos para a mesma tela não são
+    // duas formas de chegar: são dois lugares onde alguém procura, e um deles
+    // está sempre errado para quem procurou no outro.
+    //
+    // **E é `hiddenFromMenu` e não a linha apagada**, porque `canAccess()`
+    // responde pelo `MENU`: sem a entrada, `/painel/perfil` viraria rota
+    // desconhecida e `exigirAcessoARota` devolveria 403 — a tela que o sprint
+    // manda manter. A bandeira existe exatamente para isto, e já servia à
+    // vitrine de componentes.
     label: "Meu Perfil",
     href: "/painel/perfil",
     icon: UserRound,
     roles: EQUIPE,
     section: "principal",
     description: "Seus dados de acesso, foto e preferências.",
+    hiddenFromMenu: true,
   },
 
   // --- Gestão --------------------------------------------------------------
