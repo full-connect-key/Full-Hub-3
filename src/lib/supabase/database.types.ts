@@ -1633,6 +1633,10 @@ export interface Database {
           template_id: string | null;
           status: CampaignStatus;
           capa_url: string | null;
+          // A DEMANDA da campanha (0051). Fica FORA de Insert e de Update:
+          // quem liga as duas e `abrir_campanha()`, numa transacao so. Ligar
+          // a mao daria campanha apontando para demanda de outro cliente.
+          task_id: string | null;
           drive_folder_id: string | null;
           criado_por: string | null;
           created_at: string;
@@ -1862,6 +1866,32 @@ export interface Database {
        * RECUSA em vez de cortar — aqui o número é digitado, e um zero a mais é
        * erro de digitação.
        */
+      /**
+       * Abre a campanha COM a demanda e as etapas, numa transacao so (0051).
+       *
+       * Cada entregavel vira uma etapa da Task da campanha; um grupo vira
+       * etapa agrupadora, com os sub-itens como sub-etapas -- os mesmos tres
+       * niveis que a demanda ja tinha.
+       *
+       * **Nao e `security definer`:** `campaigns_insert` e `tasks_insert`
+       * continuam decidindo quem pode. Devolve o id da campanha.
+       */
+      abrir_campanha: {
+        Args: {
+          p_cliente: string;
+          p_nome: string;
+          p_descricao: string | null;
+          p_data_inicio: string;
+          p_data_fim: string;
+          p_status: CampaignStatus;
+          p_link_entrega: string | null;
+          p_briefing_rico: Json | null;
+          p_briefing_texto: string | null;
+          p_template: string | null;
+          p_estrutura: Json;
+        };
+        Returns: string;
+      };
       abrir_mes_de_social: {
         Args: {
           p_client_id: string;

@@ -72,6 +72,8 @@ export type CampanhaDoPortal = {
   /** O caminho da capa no bucket. Null quando ninguém pôs uma — o cartão cai
    *  no desenho de texto, que continua valendo. */
   capaUrl: string | null;
+  /** A demanda da campanha (0051). Null nas campanhas anteriores a ela. */
+  taskId: string | null;
   /** A capa já assinada, quando a consulta a assinou. O bucket é privado. */
   capaAssinada: string | null;
 };

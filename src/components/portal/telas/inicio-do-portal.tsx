@@ -5,6 +5,7 @@ import { ArrowRight, PartyPopper } from "lucide-react";
 
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
@@ -60,12 +61,21 @@ export async function InicioDoPortal({
     campanhasDoCliente(clienteId ?? undefined),
   ]);
 
-  // Só as ATIVAS, e no máximo três: o bloco é um atalho, não a listagem. Quem
-  // quer a lista inteira clica em "Ver todas", que é o que o link abaixo faz.
+  // TODAS AS ATIVAS, e não as três primeiras — decisão do usuário: "as
+  // campanhas devem aparecer na página inicial do Portal do Cliente, para ele
+  // ver todas as campanhas ativas, assim que entrar".
+  //
+  // O corte em três fazia sentido quando o bloco era um atalho para a
+  // listagem. Mas "ativa" aqui quer dizer EM PRODUÇÃO — o trabalho que a Full
+  // está fazendo para ele agora —, e esse conjunto é pequeno por natureza:
+  // uma campanha sai dele sozinha no instante em que a última peça é
+  // aprovada. Um corte num conjunto que já se limita sozinho só esconde.
+  //
+  // A ordem é o FIM e não o começo, como na listagem: a pergunta de quem abre
+  // é "o que preciso decidir antes que acabe".
   const ativas = campanhas
     .filter((c) => c.status === "ativa")
-    .sort((a, b) => a.dataFim.localeCompare(b.dataFim))
-    .slice(0, 3);
+    .sort((a, b) => a.dataFim.localeCompare(b.dataFim));
 
   const comProgresso = await Promise.all(
     ativas.map(async (campanha) => {
@@ -192,41 +202,37 @@ export async function InicioDoPortal({
         )}
       </section>
 
-      {atividade.length > 0 ? (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Atividade recente</h2>
-          <ul className="bg-surface-card divide-y rounded-xl border">
-            {atividade.map((linha) => (
-              <li
-                key={linha.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 p-4"
-              >
-                <span className="text-sm font-medium">{linha.acao}</span>
-                <span className="text-text-muted min-w-0 flex-1 truncate text-sm">
-                  {linha.sobre}
-                </span>
-                <span className="text-text-muted text-xs tabular-nums">
-                  {format(parseISO(linha.quando), "dd/MM", { locale: ptBR })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {/* CAMPANHAS ATIVAS, ANTES DA ATIVIDADE RECENTE — decisão do usuário:
+          ele precisa ver as campanhas em produção "assim que entrar". Embaixo
+          do histórico elas ficavam atrás de uma rolagem, e quem abre o portal
+          uma vez por semana não rola até o fim.
 
-      {/* CAMPANHAS ATIVAS. O bloco só existe quando há campanha ativa: um
-          quadro vazio dizendo "nenhuma campanha" ocupa a altura de um bloco
-          para não informar nada, e o cliente que não tem campanha nunca
-          precisa saber que o módulo existe. */}
+          A ordem da tela é a da pergunta: o que espera a decisão DELE, o que
+          a Full está produzindo, e só então o que já aconteceu.
+
+          O bloco só existe quando há campanha ativa: um quadro vazio dizendo
+          "nenhuma campanha" ocupa a altura de um bloco para não informar
+          nada, e o cliente que não tem campanha nunca precisa saber que o
+          módulo existe. */}
       {comProgresso.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-lg font-semibold">Campanhas ativas</h2>
+            <div>
+              {/* O NOME CONTINUA "ativas", e não "em produção": é o mesmo
+                  nome da aba da listagem. Duas palavras para o mesmo conjunto
+                  é como se aprende a ler errado as duas — o produto já pagou
+                  esse preço uma vez, com dois nomes para o mesmo módulo. Quem
+                  diz o que "ativa" significa é a linha embaixo. */}
+              <h2 className="text-lg font-semibold">Campanhas ativas</h2>
+              <p className="text-text-muted text-sm">
+                O que a Full está produzindo para você agora.
+              </p>
+            </div>
             <Link
               href={`${base}/campanhas`}
-              className="text-accent-strong inline-flex items-center gap-1 text-sm hover:underline"
+              className="text-accent-strong inline-flex shrink-0 items-center gap-1 text-sm hover:underline"
             >
-              Ver todas
+              Ver finalizadas
               <ArrowRight aria-hidden className="size-4" />
             </Link>
           </div>
@@ -238,6 +244,11 @@ export async function InicioDoPortal({
                   href={`${base}/campanhas/${campanha.id}`}
                   className="bg-surface-card hover:border-accent-strong block space-y-2 rounded-xl border p-4 transition-colors"
                 >
+                  {/* A CAPA AQUI TAMBÉM (0050), e no mesmo componente do
+                      cartão da listagem: é a mesma campanha em duas telas, e
+                      duas proporções fariam a pessoa achar que são outras. */}
+                  <CapaDoCartao url={campanha.capaAssinada} alt={campanha.nome} />
+
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <p className="min-w-0 font-medium">{campanha.nome}</p>
                     {esperando > 0 ? (
@@ -260,8 +271,38 @@ export async function InicioDoPortal({
                       }
                       rotulo={`${conta.aprovados} de ${conta.total} aprovados`}
                     />
-                  ) : null}
+                  ) : (
+                    // SEM "0 de 0", que parece conta errada. A campanha existe
+                    // e ainda não teve material enviado — é a mesma frase do
+                    // cartão da listagem, e sem ela o cartão terminava no
+                    // período, parecendo cortado.
+                    <p className="text-text-muted text-sm">
+                      Os materiais desta campanha ainda estão em produção.
+                    </p>
+                  )}
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {atividade.length > 0 ? (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Atividade recente</h2>
+          <ul className="bg-surface-card divide-y rounded-xl border">
+            {atividade.map((linha) => (
+              <li
+                key={linha.id}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 p-4"
+              >
+                <span className="text-sm font-medium">{linha.acao}</span>
+                <span className="text-text-muted min-w-0 flex-1 truncate text-sm">
+                  {linha.sobre}
+                </span>
+                <span className="text-text-muted text-xs tabular-nums">
+                  {format(parseISO(linha.quando), "dd/MM", { locale: ptBR })}
+                </span>
               </li>
             ))}
           </ul>

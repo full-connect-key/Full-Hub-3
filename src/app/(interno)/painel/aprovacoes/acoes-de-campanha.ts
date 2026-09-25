@@ -13,6 +13,7 @@ import {
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { colunasDoConteudo, doEntregavel } from "@/lib/aprovacoes/conteudo";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 
 /**
  * Criar a campanha, enviar o entregável, registrar a versão.
@@ -43,6 +44,7 @@ const dataOpcional = z.union([data, z.literal(""), z.null()]).optional();
 const esquemaDoItem = z.object({
   nome: z.string().trim().min(1, "Todo item precisa de um nome."),
   prazo: dataOpcional,
+  responsavelId: z.string().uuid().nullable().optional(),
 });
 
 const esquemaDoNo = esquemaDoItem.extend({
@@ -71,6 +73,10 @@ const esquemaDaCampanha = z
     status: z
       .enum(["planejamento", "ativa", "finalizada", "cancelada"])
       .default("ativa"),
+    /** A pasta de entrega da Task da campanha. */
+    linkEntrega: z.string().trim().optional(),
+    /** O briefing da Task, em JSON do TipTap. */
+    briefing: z.unknown().nullable().optional(),
     /**
      * A ÁRVORE COMO A PESSOA A DEIXOU, e não o modelo de onde ela saiu.
      *
@@ -89,21 +95,29 @@ const esquemaDaCampanha = z
 export type NovaCampanha = z.input<typeof esquemaDaCampanha>;
 
 /**
- * Cria a campanha e materializa a árvore de entregáveis.
+ * Cria a campanha, a DEMANDA dela e a árvore — numa transação só.
+ *
+ * **Quem grava é `abrir_campanha()` no Postgres** (migration 0051), e não
+ * cinco chamadas daqui. São cinco escritas encadeadas — a demanda, a
+ * campanha, uma etapa por entregável, o entregável apontando para a etapa, e
+ * as sub-etapas —, e pelo PostgREST seriam cinco transações: a terceira
+ * falhando deixaria uma campanha ligada a uma demanda com metade das etapas,
+ * sem nada na tela dizendo o que faltou. É a mesma razão de `decidir_solicitacao()`
+ * e de `lancar_periodo()` viverem no banco.
+ *
+ * A RPC **não** é `security definer`: quem não pode abrir campanha
+ * (`campaigns_insert`) e quem não pode abrir demanda (`tasks_insert`)
+ * continua não podendo.
  *
  * **Os entregáveis nascem em `aguardando_informacoes` e SEM `enviado_em`.** A
  * estrutura existe para a equipe se organizar; o cliente só passa a enxergar
  * cada peça quando ela for enviada, uma a uma. Criar a campanha já visível
  * com quarenta linhas vazias faria a tela dele prometer material que ninguém
  * começou.
- *
- * Os filhos entram DEPOIS dos pais, e não juntos: `parent_id` aponta para uma
- * linha que precisa existir. Dois `insert` em vez de um — e é o mínimo,
- * porque a árvore tem dois níveis e nunca três.
  */
 export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
   return executarAcao("criarCampanha", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    await exigirRotaNaAcao(ROTA);
 
     const validado = esquemaDaCampanha.safeParse(entrada);
     if (!validado.success) {
@@ -113,97 +127,65 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
 
     const supabase = await criarClienteServidor();
 
-    const { data: criada, error } = await supabase
-      .from("campaigns")
-      .insert({
-        client_id: dados.clienteId,
-        nome: dados.nome,
-        descricao: dados.descricao || null,
-        data_inicio: dados.dataInicio,
-        data_fim: dados.dataFim,
-        status: dados.status,
-        template_id: dados.templateId ?? null,
-        criado_por: sessao.usuarioId,
-      })
-      .select("id")
-      .single();
+    const { data, error } = await supabase.rpc("abrir_campanha", {
+      p_cliente: dados.clienteId,
+      p_nome: dados.nome,
+      p_descricao: dados.descricao ?? null,
+      p_data_inicio: dados.dataInicio,
+      p_data_fim: dados.dataFim,
+      p_status: dados.status,
+      p_link_entrega: dados.linkEntrega ?? null,
+      p_briefing_rico: (dados.briefing ?? null) as Json,
+      // O TEXTO PURO É PARA A BUSCA, e sai do próprio JSON: a task guarda os
+      // dois desde a 0004 porque o JSON preserva a formatação e o texto é o
+      // que um `ilike` consegue varrer.
+      p_briefing_texto: textoDoBriefing(dados.briefing),
+      p_template: dados.templateId ?? null,
+      p_estrutura: dados.estrutura.map((no) => ({
+        nome: no.nome,
+        prazo: no.prazo || null,
+        responsavel: no.responsavelId ?? null,
+        filhos: no.filhos.map((f) => ({
+          nome: f.nome,
+          prazo: f.prazo || null,
+          responsavel: f.responsavelId ?? null,
+        })),
+      })) as unknown as Json,
+    });
 
     if (error) return falha(error.message);
-    if (!criada) {
+    if (!data) {
       return falha(
         "O banco recusou a criação. Normalmente é o RLS: abrir campanha é da equipe interna.",
       );
     }
 
-    if (dados.estrutura.length > 0) {
-      const erro = await materializar(criada.id, dados.estrutura);
-      if (erro) return falha(erro);
-    }
-
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
-    return sucesso("Campanha criada.");
+    return sucesso("Campanha criada, com a demanda e as etapas.");
   });
 }
 
-type NoParaGravar = z.output<typeof esquemaDoNo>;
-
 /**
- * Transforma a árvore em linhas de `deliverables`.
+ * O briefing em texto puro, para a busca.
  *
- * A campanha JÁ EXISTE quando isto roda, e se a estrutura falhar no meio ela
- * fica lá com o que deu certo. É diferente da criação de usuário, que tem
- * rollback: lá o cadastro pela metade ocupa um e-mail e ninguém entende por
- * quê; aqui a campanha é uma linha visível, com nome e período, e a equipe
- * acrescenta o que faltar pela própria tela. Apagá-la perderia mais.
- *
- * **Os pais voltam com o id, e o casamento é por POSIÇÃO.** Casar por nome
- * quebraria em silêncio na campanha que tem dois grupos chamados igual — e
- * "Feed/Story site" aparece duas vezes na Wave, uma no Enxoval e outra no
- * Deskfy. O `insert` do PostgREST devolve as linhas na ordem em que foram
- * mandadas, e é dela que o `parent_id` de cada filho sai.
+ * Anda o JSON do TipTap juntando os nós de texto. Não existe biblioteca disso
+ * no servidor sem arrastar o editor inteiro para o bundle — e o editor é
+ * `"use client"`, então ele não atravessa a fronteira de qualquer jeito.
  */
-async function materializar(
-  campanhaId: string,
-  estrutura: NoParaGravar[],
-): Promise<string | null> {
-  const supabase = await criarClienteServidor();
+function textoDoBriefing(conteudo: unknown): string | null {
+  const pedacos: string[] = [];
 
-  const { data: criados, error } = await supabase
-    .from("deliverables")
-    .insert(
-      estrutura.map((no, i) => ({
-        campaign_id: campanhaId,
-        nome: no.nome,
-        ordem: i,
-        prazo: no.prazo || null,
-      })),
-    )
-    .select("id");
-
-  if (error) return error.message;
-  if (!criados || criados.length !== estrutura.length) {
-    return "O banco recusou a estrutura da campanha.";
+  function andar(no: unknown) {
+    if (!no || typeof no !== "object") return;
+    const atual = no as { type?: string; text?: string; content?: unknown[] };
+    if (typeof atual.text === "string") pedacos.push(atual.text);
+    if (Array.isArray(atual.content)) atual.content.forEach(andar);
   }
 
-  const filhos = estrutura.flatMap((no, i) =>
-    no.filhos.map((filho, j) => ({
-      campaign_id: campanhaId,
-      parent_id: criados[i].id,
-      nome: filho.nome,
-      ordem: j,
-      prazo: filho.prazo || null,
-    })),
-  );
-
-  if (filhos.length === 0) return null;
-
-  const { error: erroDosFilhos } = await supabase
-    .from("deliverables")
-    .insert(filhos)
-    .select("id");
-
-  return erroDosFilhos ? erroDosFilhos.message : null;
+  andar(conteudo);
+  const texto = pedacos.join(" ").trim();
+  return texto.length > 0 ? texto : null;
 }
 
 /**

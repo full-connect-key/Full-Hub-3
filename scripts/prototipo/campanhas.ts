@@ -40,6 +40,24 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     // duas pelo titulo.
     capaUrl: "capas/wave.png",
     capaAssinada: "/exemplos/capa-1.svg",
+    taskId: "t-wave",
+  },
+  {
+    // UMA SEGUNDA ATIVA, para a imagem mostrar o que o corte em três escondia:
+    // o bloco da tela inicial e uma GRADE, e com uma campanha so ele parece
+    // uma linha.
+    id: "camp-black",
+    clienteId: VERDE,
+    cliente: "Mundo Verde",
+    slug: "mundo-verde",
+    nome: "Black Friday",
+    descricao: null,
+    dataInicio: dia(-6),
+    dataFim: dia(21),
+    status: "ativa",
+    capaUrl: null,
+    capaAssinada: null,
+    taskId: null,
   },
   {
     id: "camp-verao",
@@ -53,6 +71,7 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     status: "finalizada",
     capaUrl: null,
     capaAssinada: null,
+    taskId: null,
   },
   {
     id: "camp-natal",
@@ -66,6 +85,7 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     status: "planejamento",
     capaUrl: null,
     capaAssinada: null,
+    taskId: null,
   },
 ];
 

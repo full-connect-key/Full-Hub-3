@@ -218,7 +218,14 @@ const TELAS = [
   { nome: "20c-portal-entregavel", rota: "/portal/campanhas/camp-wave/d-kv", largura: 1280, altura: 2000 },
   { nome: "20d-portal-campanhas-375", rota: "/portal/campanhas", largura: 375, altura: 1200 },
   { nome: "20e-portal-campanha-375", rota: "/portal/campanhas/camp-wave", largura: 375, altura: 2000 },
-  { nome: "20f-nova-campanha", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1200, role: "socio" },
+  { nome: "20f-nova-campanha", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1500, role: "socio" },
+  // COM A ARVORE POVOADA: a secao 4 vazia nao mostra o que este sprint muda
+  // -- o responsavel e o prazo de cada peca, que e o que faz a campanha virar
+  // uma demanda com etapas. Tres cliques em "Entregavel" e um em "Sub-item".
+  { nome: "20k-nova-campanha-arvore", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1900, role: "socio",
+    clicar: ['button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
+  { nome: "20j-nova-campanha-375", rota: "/painel/aprovacoes/campanhas/nova", largura: 375, altura: 1900, role: "socio",
+    clicar: ['button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
   // A LISTA DA AGÊNCIA não tinha imagem, e foi onde o bug morava: "Nenhuma
   // campanha aberta" com campanha criada. A tela que o usuário olhou é
   // justamente esta, e sem ela no protótipo a correção ficava sem prova.

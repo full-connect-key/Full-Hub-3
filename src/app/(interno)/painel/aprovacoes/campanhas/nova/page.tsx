@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { templatesDeCampanha } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
+import { listarEquipeAtiva } from "@/lib/dados/equipe";
 
 import { FormularioDeCampanha } from "./formulario";
 
@@ -23,9 +24,10 @@ export const metadata: Metadata = { title: "Nova campanha" };
 export default async function PaginaDeNovaCampanha() {
   await exigirAcessoARota("/painel/aprovacoes");
 
-  const [clientes, templates] = await Promise.all([
+  const [clientes, templates, pessoas] = await Promise.all([
     listarClientes(),
     templatesDeCampanha(),
+    listarEquipeAtiva(),
   ]);
 
   return (
@@ -33,8 +35,10 @@ export default async function PaginaDeNovaCampanha() {
       <div>
         <PageHeader title="Nova campanha" />
         <p className="text-text-muted mt-1">
-          Escolha o cliente, o período e de que modelo a lista de entregáveis
-          parte. Dá para ajustar a lista antes de salvar.
+          A campanha nasce com uma <strong>demanda</strong> junto, e cada
+          entregável vira uma <strong>etapa</strong> dela — com responsável e
+          prazo. É por isso que esta tela pede briefing e pasta de entrega: são
+          os campos da demanda.
         </p>
       </div>
 
@@ -43,6 +47,11 @@ export default async function PaginaDeNovaCampanha() {
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome: c.nome_empresa }))}
         templates={templates}
+        pessoas={pessoas.map((p) => ({
+          id: p.id,
+          nome: p.nome,
+          funcao: p.funcao,
+        }))}
       />
     </div>
   );

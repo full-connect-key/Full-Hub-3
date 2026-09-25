@@ -45,7 +45,7 @@ import type { EstruturaDeTemplate } from "@/lib/supabase/database.types";
 // E ela nem era usada: `LinhaDeCampanha` não declara o embutido, e o nome da
 // empresa sempre veio de `nomesDasEmpresas()`, logo abaixo. Um pedaço de
 // consulta que ninguém lê e que quebra tudo.
-const COLUNAS_DA_CAMPANHA = "id, client_id, nome, descricao, data_inicio, data_fim, status, capa_url";
+const COLUNAS_DA_CAMPANHA = "id, client_id, nome, descricao, data_inicio, data_fim, status, capa_url, task_id";
 
 // prettier-ignore
 const COLUNAS_DO_ENTREGAVEL = "id, campaign_id, parent_id, nome, descricao, ordem, status, prazo, arte_url, thumbnail_url, arquivo_nome, versao_atual, enviado_em";
@@ -54,6 +54,7 @@ type LinhaDeCampanha = {
   id: string;
   client_id: string;
   capa_url: string | null;
+  task_id: string | null;
   nome: string;
   descricao: string | null;
   data_inicio: string;
@@ -114,6 +115,7 @@ function montarCampanha(
     dataFim: linha.data_fim,
     status: linha.status,
     capaUrl: linha.capa_url,
+    taskId: linha.task_id,
     // ASSINADA POR QUEM LISTA, e não aqui: `montarCampanha` é síncrona e
     // assinar é ida à rede. Uma lista de oito campanhas faria oito idas em
     // série — a listagem inteira paga o preço de uma.

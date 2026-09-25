@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { EditorRico } from "@/components/shared/editor-rico";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
   ROTULO_DA_CAMPANHA,
 } from "@/lib/dominio/campanhas";
 import type { CampaignStatus } from "@/lib/supabase/database.types";
+import type { JSONContent } from "@tiptap/react";
 import type { TemplateDeCampanha } from "@/lib/dados/campanhas";
 
 import { criarCampanha } from "../../acoes-de-campanha";
@@ -46,23 +48,39 @@ import { criarCampanha } from "../../acoes-de-campanha";
 
 const SEM_MODELO = "__vazio__";
 
-type ItemEmEdicao = { chave: string; nome: string; prazo: string };
+/**
+ * Cada entregável carrega RESPONSÁVEL e PRAZO, porque cada um vira uma ETAPA
+ * da Task da campanha (decisão do usuário). Sem responsável, a etapa nasce
+ * órfã: ela existe no board da agência e não aparece no "Minhas Tasks" de
+ * ninguém — é o pior tipo de trabalho, o que ninguém sabe que nasceu, e a
+ * recorrência já tinha aprendido isso com o responsável padrão.
+ */
+type ItemEmEdicao = {
+  chave: string;
+  nome: string;
+  prazo: string;
+  responsavelId: string;
+};
 type NoEmEdicao = ItemEmEdicao & { filhos: ItemEmEdicao[] };
+
+const SEM_DONO = "__sem_dono__";
 
 function chave() {
   return Math.random().toString(36).slice(2);
 }
 
 function item(nome = ""): ItemEmEdicao {
-  return { chave: chave(), nome, prazo: "" };
+  return { chave: chave(), nome, prazo: "", responsavelId: SEM_DONO };
 }
 
 export function FormularioDeCampanha({
   clientes,
   templates,
+  pessoas,
 }: {
   clientes: { id: string; nome: string }[];
   templates: TemplateDeCampanha[];
+  pessoas: { id: string; nome: string; funcao: string | null }[];
 }) {
   const router = useRouter();
   const [salvando, salvar] = useTransition();
@@ -78,6 +96,12 @@ export function FormularioDeCampanha({
   // o default do banco ela nascia em planejamento e sumia das duas telas que
   // filtram por ativa — existia sem aparecer.
   const [status, setStatus] = useState<CampaignStatus>("ativa");
+  // A PASTA DE ENTREGA é da Task, e é obrigatória lá desde a 0015
+  // (`tasks_exige_pasta_de_entrega`). Como a campanha passa a nascer com uma
+  // Task, o campo precisa estar aqui: sem ele o banco recusa a demanda e a
+  // campanha nasceria sem o trabalho dela.
+  const [linkEntrega, setLinkEntrega] = useState("");
+  const [briefing, setBriefing] = useState<JSONContent | null>(null);
   const [arvore, setArvore] = useState<NoEmEdicao[]>([]);
 
   /**
@@ -150,6 +174,8 @@ export function FormularioDeCampanha({
           dataInicio,
           dataFim,
           status,
+          linkEntrega,
+          briefing,
           templateId: templateId === SEM_MODELO ? null : templateId,
           estrutura: arvore
             // Linha em branco não vira entregável: quem clicou em "adicionar"
@@ -158,9 +184,15 @@ export function FormularioDeCampanha({
             .map((no) => ({
               nome: no.nome,
               prazo: no.prazo || null,
+              responsavelId: no.responsavelId === SEM_DONO ? null : no.responsavelId,
               filhos: no.filhos
                 .filter((f) => f.nome.trim().length > 0)
-                .map((f) => ({ nome: f.nome, prazo: f.prazo || null })),
+                .map((f) => ({
+                  nome: f.nome,
+                  prazo: f.prazo || null,
+                  responsavelId:
+                    f.responsavelId === SEM_DONO ? null : f.responsavelId,
+                })),
             })),
         }),
       );
@@ -207,7 +239,10 @@ export function FormularioDeCampanha({
         </div>
       </SecaoDoFormulario>
 
-      <SecaoDoFormulario numero={2} titulo="Quando começa e quando termina">
+      <SecaoDoFormulario
+        numero={2}
+        titulo="Quando acontece, e onde o material vai ficar"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="inicio">Início</Label>
@@ -250,16 +285,49 @@ export function FormularioDeCampanha({
             </Select>
             <p className="text-text-muted text-sm">
               {status === "ativa"
-                ? "O cliente vê a campanha na lista dele assim que ela existir."
+                ? "O cliente vê a campanha na tela inicial dele assim que ela existir."
                 : "Fora de “Ativa”, ela fica no filtro correspondente do portal — o cliente precisa trocar o filtro para vê-la."}
+            </p>
+          </div>
+
+          {/* A PASTA DE ENTREGA É OBRIGATÓRIA, e a trava é da Task: o trigger
+              `tasks_exige_pasta_de_entrega` recusa demanda nova sem ela desde
+              a 0015. O motivo vale igual aqui — quem abre a campanha está com
+              pressa, quem procura o material está semanas depois, e as duas
+              pessoas raramente são a mesma. */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="entrega">Pasta de entrega</Label>
+            <Input
+              id="entrega"
+              value={linkEntrega}
+              onChange={(e) => setLinkEntrega(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              inputMode="url"
+            />
+            <p className="text-text-muted text-sm">
+              O endereço do material final. É o que alguém vai procurar semanas
+              depois — e é obrigatório.
             </p>
           </div>
         </div>
       </SecaoDoFormulario>
 
+      {/* O BRIEFING É O DA TASK, e não uma coluna nova em `campaigns`. A
+          campanha nasce com uma demanda; a demanda já tem onde guardar o que
+          precisa ser feito. Uma segunda caixa de texto com o mesmo papel em
+          outra tabela seria o lugar onde as duas versões do briefing
+          divergem. */}
+      <SecaoDoFormulario numero={3} titulo="O briefing da campanha">
+        <EditorRico
+          conteudo={briefing}
+          onChange={({ json }) => setBriefing(json)}
+          placeholder="O conceito, o que o cliente pediu, o que não pode faltar…"
+        />
+      </SecaoDoFormulario>
+
       <SecaoDoFormulario
-        numero={3}
-        titulo="O que a campanha entrega"
+        numero={4}
+        titulo="O que a campanha entrega, e quem faz cada peça"
         acao={
           <Button
             variant="outline"
@@ -307,6 +375,7 @@ export function FormularioDeCampanha({
               <Linha
                 item={no}
                 placeholder="Nome do entregável"
+                pessoas={pessoas}
                 aoMudar={(m) => mudarNo(no.chave, m)}
                 aoRemover={() =>
                   setArvore((atual) =>
@@ -322,6 +391,7 @@ export function FormularioDeCampanha({
                       <Linha
                         item={filho}
                         placeholder="Nome do sub-item"
+                        pessoas={pessoas}
                         aoMudar={(m) => mudarFilho(no.chave, filho.chave, m)}
                         aoRemover={() =>
                           setArvore((atual) =>
@@ -387,17 +457,33 @@ export function FormularioDeCampanha({
   );
 }
 
+/**
+ * Uma linha da árvore: nome, quem faz, até quando.
+ *
+ * **Os três controles ficam NA MESMA LINHA**, e não num painel que abre ao
+ * clicar. Quem monta uma Wave está distribuindo quinze peças entre quatro
+ * pessoas de uma vez: um painel por item seriam quinze aberturas, e a
+ * pergunta "quem está com o quê" — que é a razão de a tela existir — só se
+ * responde vendo a coluna inteira.
+ *
+ * Em 375px eles empilham (`flex-wrap`), e o nome fica sozinho na primeira
+ * linha porque é `flex-1`.
+ */
 function Linha({
   item: valor,
   placeholder,
+  pessoas,
   aoMudar,
   aoRemover,
 }: {
   item: ItemEmEdicao;
   placeholder: string;
+  pessoas: { id: string; nome: string; funcao: string | null }[];
   aoMudar: (mudanca: Partial<ItemEmEdicao>) => void;
   aoRemover: () => void;
 }) {
+  const nome = valor.nome || placeholder;
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Input
@@ -405,20 +491,42 @@ function Linha({
         onChange={(e) => aoMudar({ nome: e.target.value })}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="min-w-0 flex-1"
+        className="min-w-[10rem] flex-1"
       />
+
+      <Select
+        value={valor.responsavelId}
+        onValueChange={(v) => aoMudar({ responsavelId: v })}
+      >
+        <SelectTrigger aria-label={`Responsável por ${nome}`} className="w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {/* "Sem responsável" É UMA OPÇÃO, e fica no topo. Nem toda peça tem
+              dono na abertura — obrigar a escolher faria a pessoa pôr o nome
+              de quem estiver mais à mão, que é pior que vazio: um nome errado
+              ninguém corrige, um vazio aparece. */}
+          <SelectItem value={SEM_DONO}>Sem responsável</SelectItem>
+          {pessoas.map((pessoa) => (
+            <SelectItem key={pessoa.id} value={pessoa.id}>
+              {pessoa.funcao ? `${pessoa.nome} · ${pessoa.funcao}` : pessoa.nome}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       <Input
         type="date"
         value={valor.prazo}
         onChange={(e) => aoMudar({ prazo: e.target.value })}
-        aria-label={`Prazo de ${valor.nome || placeholder}`}
+        aria-label={`Prazo de ${nome}`}
         className="w-auto"
       />
       <Button
         variant="ghost"
         size="icon"
         onClick={aoRemover}
-        aria-label={`Remover ${valor.nome || placeholder}`}
+        aria-label={`Remover ${nome}`}
       >
         <X aria-hidden className="size-4" />
       </Button>
