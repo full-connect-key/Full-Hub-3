@@ -1451,6 +1451,165 @@ fica de fora.
 reverter versão em lugar nenhum do portal — ele não tem policy de escrita em
 `deliverable_versions`, e a trava é essa, não a ausência do botão.
 
+#### A campanha nasce com a DEMANDA, e cada peça é uma etapa dela
+
+Migration 0051, decisão do usuário: *"cada material da campanha é basicamente
+uma subtarefa de uma tarefa mãe"*. Abrir a campanha cria a demanda junto, com
+uma etapa por entregável — grupo vira etapa agrupadora, sub-item vira
+sub-etapa, os mesmos três níveis que a demanda já tinha.
+
+**A ponte já existia e ninguém a atravessava.** `deliverables.subtask_id` e
+`deliverables.responsavel_id` nasceram na 0033; a coluna nova é uma só,
+`campaigns.task_id`. Daria para chegar à demanda pelo caminho longo
+(`deliverable → subtask → task`), e a campanha aberta sem entregável nenhum
+ficaria sem nenhum — justamente o caso de quem abre primeiro e monta a lista
+depois.
+
+**Tudo numa função só, porque é uma transação só.** `abrir_campanha()` faz
+cinco escritas encadeadas; pelo PostgREST seriam cinco transações, e a
+terceira falhando deixaria uma campanha ligada a uma demanda com metade das
+etapas, sem nada na tela dizendo o que faltou. **Não é `security definer`:**
+`campaigns_insert` e `tasks_insert` continuam decidindo quem pode.
+
+**A demanda nasce publicada**, e não como rascunho: a tela de task abre um
+rascunho no clique (0028) porque a pessoa vai digitar o título ali dentro;
+aqui ela preencheu tudo antes, e rascunho é de quem o criou — esconderia da
+equipe as etapas que ela acabou de distribuir.
+
+**O briefing e a pasta de entrega são da DEMANDA**, não colunas novas em
+`campaigns`. Uma segunda caixa de texto com o mesmo papel em outra tabela
+seria o lugar onde as duas versões do briefing divergem. E a pasta é
+obrigatória porque `tasks_exige_pasta_de_entrega` recusa demanda nova sem ela
+desde a 0015.
+
+#### A campanha se finaliza sozinha, e se reabre sozinha
+
+Decisão do usuário: *"uma campanha só é finalizada quando todas as suas etapas
+são entregues e finalizadas"* — e a frase vale nos **dois** sentidos. Uma
+campanha com peça em produção não está finalizada, então o trigger também
+devolve para `ativa`.
+
+**Só as FOLHAS contam**, como toda conta deste módulo. `planejamento` e
+`cancelada` não são tocados — promover a finalizada uma campanha que nem
+começou seria afirmar que acabou o que não começou. E campanha **sem**
+entregável nunca finaliza: `count(*) = 0` e `count(*) filter (where aprovado)
+= 0` são iguais, e sem a guarda toda campanha recém-aberta nasceria na aba que
+o cliente só abre para ver o que já acabou.
+
+#### Quem aprova a peça conclui a etapa
+
+Migration 0052, decisão do usuário: *"o responsável entrega, e o cliente
+conclui, quando aprova"*. Sem isto a etapa ficava aberta para sempre, e quem a
+fez tinha que voltar ao Minhas Tasks para marcar concluída uma peça que o
+cliente já tinha aprovado — duas mãos para o mesmo fato, e a segunda é a que
+ninguém lembra de dar. Pedir ajustes devolve a etapa para `em_andamento`.
+
+**O trigger NUNCA derruba a aprovação do cliente**, e é a parte que importa.
+Ele está do outro lado, sem ninguém por perto: se a conclusão da etapa fosse
+recusada, o que ele veria era a aprovação *dele* falhando, com uma mensagem
+sobre uma etapa que ele nem sabe que existe. A conclusão é **tentada**, e só
+acontece quando as travas da etapa já deixam — não é agrupadora, não exige
+aval próprio sem ter um, não está presa por dependência. Nos três casos a
+etapa fica aberta, que é a verdade.
+
+**O tempo real fica vazio nessas etapas**, e foi dito a quem decidiu: o
+cliente não sabe quanto a peça levou, então não há quem perguntar. O
+cronômetro continua medindo; o que falta é alguém afirmar que o número é o
+certo.
+
+#### A capa do cartão
+
+Migration 0050, decisão do usuário: *"para ser identificável direto pela
+imagem qual campanha é"*. Coluna opcional, no mesmo bucket privado dos
+entregáveis, com a pasta do cliente na frente do caminho — senão a capa
+aparece para a equipe e some no portal dele. `CapaDoCartao` é o mesmo
+componente nas quatro telas: a capa existe para a campanha ser reconhecida de
+relance, e duas proporções fariam a mesma campanha parecer outra em cada uma.
+Tirar a capa é `null` e não apagar o arquivo.
+
+#### Onde a equipe sobe o material: a própria campanha
+
+`/painel/aprovacoes/campanhas/[id]` — e **não é área nova, nem precisava
+ser.** `deliverable_versions` nasceu na 0033 com número de versão, arquivo,
+justificativa e autor; o bucket privado e as quatro policies também. Mais de
+uma versão já funcionava e a justificativa já tinha coluna — o que nunca
+existiu foi a tela. É a mesma situação em que o Social Media estava até a
+0042.
+
+Um módulo separado de arquivos criaria um segundo lugar para procurar a mesma
+arte — e o entregável, que é quem o cliente decide, continuaria apontando para
+o primeiro.
+
+- **A peça abre NO LUGAR**, e um item por vez: quem produz sobe arte de quatro
+  peças seguidas, e três abertos empilham três históricos até a árvore sair do
+  campo de visão.
+- **A justificativa fica ACIMA do botão de subir.** Escrita depois, ela seria
+  de uma versão já gravada — o histórico diria que a v3 mudou o que mudou na
+  v4.
+- **Não existe reverter, nem do lado de cá.** O caminho é subir de novo, o que
+  grava uma versão a mais em vez de apagar duas.
+- **A ligação com a Task vai nos dois sentidos:** a campanha tem "Abrir a
+  demanda", a demanda tem "Ver campanha". `campanhaDaTask()` pergunta pela
+  demanda e não pela etapa — pelo caminho longo, a demanda sem etapa ficaria
+  sem campanha.
+
+#### Vários arquivos na mesma versão, e nem todos são imagem
+
+Migration 0053, decisão do usuário: *"algumas entregas são em PDF, PSD ou
+AI"*. "Lâmina A5" é o PDF de impressão, o AI aberto e o JPG de conferência —
+três arquivos, uma entrega, uma decisão do cliente. Com uma coluna só, subir o
+segundo apagava o primeiro, ou virava uma versão por arquivo: um histórico em
+que "v4" não quer dizer quarta rodada de ajuste, quer dizer quarto arquivo.
+
+`arquivos jsonb` é a **mesma forma** de `post_versions.arquivos`, e é de
+propósito: duas listas de arquivo com dois formatos no mesmo produto seriam
+dois jeitos de ler a mesma coisa.
+
+**A capa é a primeira IMAGEM da lista**, não o primeiro arquivo: o designer
+sobe o aberto, o fechado e a prévia nessa ordem, e um PSD como capa daria
+moldura quebrada no cartão e na miniatura do portal. `imagem_do_arquivo()` no
+Postgres e `EH_IMAGEM` em `lib/dados/campanhas.ts` fazem a mesma pergunta nos
+dois lados — lá para escolher a capa, aqui para separar o que vai para o
+visualizador do que vai para a lista de download. `svg` fica de fora nos dois:
+SVG de terceiro dentro de `<img>` é vetor de script, e material de campanha
+vem de fora com frequência.
+
+#### O módulo chama-se Campanhas, e é de quem produz
+
+Decisão do usuário: *"essa área deve ser visível para os colaboradores (…) já
+que quem vão upar e fazer os conteúdos são os responsáveis e não o
+atendimento"*. `roles` passou de `GESTAO` para `EQUIPE`, e é palavra por
+palavra o argumento que moveu o Social Media: esconder o módulo de quem produz
+é esconder o trabalho dele.
+
+**E foi para a seção Principal**, porque a divisão do menu é sobre a PESSOA:
+Gestão carrega o selo Admin e quer dizer "o que eu faço sobre os outros", e o
+designer subindo o PDF da lâmina dele não está fazendo nada sobre ninguém.
+
+**O nome mudou junto.** Ele ficava ao lado de "Aprovações Internas" na mesma
+seção, e as duas telas não são a mesma coisa — uma é a fila de validação da
+gestão, a outra é onde o material é produzido. Dois rótulos parecidos para
+telas diferentes é como se aprende a procurar na errada. A rota continua
+`/painel/aprovacoes`.
+
+**Mas abrir campanha continua sendo de quem abre demanda**, e a frase do
+usuário separa as duas coisas na mesma linha. `campaigns_insert` era
+`is_staff()` desde a 0033, quando a tela só existia para a gestão e a policy
+nunca era exercida por mais ninguém; a 0054 fechou em `is_atendimento()` — a
+**mesma** função que `tasks_insert` usa desde a 0006, e não uma parecida.
+
+**E o banco já recusava pela metade, que é pior que recusar:**
+`abrir_campanha()` insere a demanda primeiro, e `tasks_insert` já exigia
+`is_atendimento()` — o colaborador levava a recusa da *demanda*, com uma
+mensagem sobre tasks, numa tela de campanha.
+
+**Apagar campanha é de sócio e desenvolvedor** (`campaigns_delete`, que é
+`is_gestor()` desde a 0033 — a 0050 não criou policy nenhuma, só a tela). O
+diálogo exige o nome digitado e **conta o que vai junto**: "13 materiais, 9 já
+aprovados pelo cliente, com as versões, os comentários e o registro de cada
+aprovação". "Apagar esta campanha?" não informa nada; a contagem é a única
+coisa que faz alguém parar.
+
 #### Três vocabulários de status, e não é descuido
 
 `task_status`, `subtask_status` e `content_status` respondem a perguntas
@@ -2246,6 +2405,15 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   citada ainda não existir.
 - `uuid` como chave primária, `created_at timestamptz not null default now()`.
 - Migrations precisam poder rodar mais de uma vez sem erro.
+- **`create or replace function` se reescreve a partir da versão MAIS NOVA, e
+  ele não avisa quando a nova tem menos coisa que a velha.** A 0007 criou
+  `validar_transicao_de_subtarefa()` com quatro travas **e** um bloco de
+  carimbos de data; a 0030 a reescreveu para trocar `r.subtask_id` pelo par
+  `(content_type, content_id)`, partindo do texto das quatro travas — e o
+  bloco ficou para trás. Desde então nenhuma subtarefa tinha `concluida_em`
+  nem `iniciada_em`, e **não apareceu como bug porque uma tela só lê a coluna
+  e o que ela devolve é um número**: o contador de concluídas do mês vinha
+  respondendo zero, que é uma resposta plausível. A 0052 devolveu o bloco.
 
 **Código**
 
@@ -2275,6 +2443,16 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - **Escrita que o RLS pode barrar termina com `.select()`.** Sem isso, um
   `update` bloqueado volta sem erro e sem linha, e a tela diz "salvo" à toa.
   Se não voltou linha, é recusa — e a mensagem precisa dizer isso.
+- **E a LEITURA que falha calada é pior que a escrita.** A escrita sem
+  `.select()` ao menos diz "salvo" numa tela em que a pessoa desconfia; a
+  leitura devolve lista vazia, que é **indistinguível da verdade**. Foi assim
+  que uma campanha recém-criada não aparecia em lugar nenhum: o `select`
+  citava um embutido com nome de coluna errado, o PostgREST recusou a consulta
+  inteira, e `const { data } = await consulta` jogou o erro fora — a tela
+  dizia "Nenhuma campanha aberta" para quem tinha acabado de abrir uma.
+  `ouFalha()` de `lib/dados/consulta.ts` estoura em vez de devolver vazio, com
+  o nome do lugar no log. `lib/dados/` ainda tem dezenas de
+  `const { data } = await`, e a migração é por etapas — registrada lá.
 - **Recusa de validação nunca mostra o texto do zod.** Toda action passa por
   `recusaDeValidacao()` de `lib/acoes/validacao.ts`, e `npm run check:mensagens`
   garante que continue assim. O motivo: a mensagem que escrevemos fica
@@ -2498,6 +2676,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Campanhas ponta a ponta | **A campanha virou trabalho de verdade**, em seis migrations e uma sequência de decisões do usuário. **0050 — a capa:** "para ser identificável direto pela imagem qual campanha é". **0051 — a campanha nasce com a DEMANDA**, uma etapa por entregável: a ponte (`deliverables.subtask_id` e `responsavel_id`) existia desde a 0033 e ninguém a atravessava, então a coluna nova é uma só. Tudo numa transação, porque a terceira de cinco escritas falhando deixaria uma campanha ligada a uma demanda com metade das etapas. **E ela se finaliza sozinha, nos dois sentidos** — "só é finalizada quando todas as suas etapas são entregues", e uma peça nova a reabre. **0052 — quem aprova a peça conclui a etapa:** "o responsável entrega, e o cliente conclui". O trigger **nunca derruba a aprovação do cliente**: ele está do outro lado sem ninguém por perto, e o que veria seria a aprovação dele falhando por causa de uma etapa que nem sabe que existe. **0053 — vários arquivos na mesma versão**, porque uma entrega é o PDF, o AI e o JPG; a capa passou a ser a primeira IMAGEM, não o primeiro arquivo. **0054 — o módulo virou "Campanhas", foi para a Principal e abriu para `EQUIPE`**: quem produz precisa chegar ao material dele. Abrir campanha continua sendo de quem abre demanda, e `campaigns_insert` fechou em `is_atendimento()` — a mesma função de `tasks_insert`, não uma parecida. **E a tela onde a equipe sobe o material não é área nova:** `deliverable_versions` já tinha versão, arquivo e justificativa desde a 0033 — faltava a tela, como no Social Media até a 0042. **O bug que abriu tudo isso:** `COLUNAS_DA_CAMPANHA` citava `clients(nome)` e a coluna é `nome_empresa`; o PostgREST recusa o `select` inteiro, o erro era descartado, e a tela dizia "Nenhuma campanha aberta" para quem tinha acabado de criar uma — **uma leitura que falha calada é pior que uma escrita, porque lista vazia é indistinguível da verdade**. Daí `ouFalha()`. **E de quebra, um bug de duas migrations atrás:** a 0030 reescreveu `validar_transicao_de_subtarefa()` a partir das quatro travas e perdeu o bloco de carimbos — desde então nenhuma subtarefa tinha `concluida_em`, e o contador de concluídas do mês respondia zero, que é plausível. **968 cenários**, com mutação em cinco travas. |
 | Depois do 14 | **O terceiro módulo saiu do produto**, por decisão do usuário: o Meu Desenvolvimento. Tela, rota, a aba Skills em Equipe, a vitrine da Academy e duas tabelas -- `user_skills` e `skill_avaliacoes` -- apagadas na migration 0043. **O catálogo `skills` FICA**, e foi a escolha explícita: ele continua com um papel só, o vocabulário de etiquetas do Full Academy, e apagá-lo junto levaria a etiqueta de cada material. **Isto não é a 0034**: lá as tabelas fechavam em `auth.uid()` e o script de exportação era condição para apagar; aqui as duas sempre foram legíveis por `is_gestor()`, e o `exportar-antes-da-0043.sql` é conveniência. **A sugestão de skill saiu junto**, que é a parte que passa batida: a fila que decidia as sugestões morava na tela que saiu, então `sugerida_por` virou coluna que nada preenche e a policy oferecia um caminho inexistente. As abas de Equipe sumiram com a segunda -- uma navegação de um item é moldura sem função --, e o módulo voltou a se chamar **Equipe**. **A varredura de nomes mortos pegou três coisas que o `npm run build` não pegaria**: duas consultas órfãs a `user_skills` que eu tinha deixado em `lib/dados/academy.ts` e que falhariam no banco depois da migration, os tipos das duas tabelas ainda declarados, e os meus próprios comentários explicando a remoção citando os nomes que ela proíbe -- a mesma armadilha da 0016 e da 0034. E a ordem da migration custou uma rodada: `skills_insert` citava `sugerida_por`, e coluna citada em policy não sai enquanto a policy estiver de pé, exatamente como a 0039 já tinha aprendido com um trigger. **770 cenários** (os 27 do módulo viraram 10, virados do avesso: se as tabelas renascerem, o primeiro falha e diz qual). |
 | Sprint 14 | **O Social Media ganhou o lado da agência.** Migration 0042. O Portal estava pronto desde o Sprint 12 e o lado de cá não existia: para um post chegar ao cliente, alguém colava SQL no Supabase por um script que o próprio cabeçalho mandava apagar no dia em que a tela existisse -- e ele foi apagado neste commit. **São três mãos**, por decisão do usuário: a gestão abre o briefing, o colaborador liberado produz, a gestão revisa e envia. `posts_insert` passou de `is_staff()` a `is_gestor()`, entrou `responsavel_id`, e a mão é **derivada e nunca gravada**, como bloqueio de subtarefa e atraso do Financeiro. **E o sprint quase virou do avesso a trava que protege o cliente**: `validar_nova_rodada` perguntava quem produziu olhando `criado_por`, que agora é a gestão -- o colaborador não conseguiria pedir o aval interno, e o responsável que produziu poderia mandar a própria entrega. Entrou `dono_do_post()`, e a bateria guarda o cenário virado do avesso. **A pergunta "por onde se escolhe vídeo, carrossel, estático ou stories" eram duas perguntas**: `midia` é o que a tela desenha e virou enum (decide qual editor aparece); `formato` é onde vai ao ar e continua texto, porque Reels e Shorts são de uma safra e a próxima vem aí -- a 0032 já tinha decidido isso e estava certa. Carrossel são `post_versions.arquivos` em jsonb, e **`posts.arte_url` continua sendo a capa**, o que faz o calendário, o card e a miniatura do portal não saberem que carrossel existe. **Vídeo é por link** (decisão do usuário, com o custo dito: o cliente decide longe do botão de aprovar), e o banco recusa enviar vídeo sem o link. Na tela, **duas visões na mesma rota** -- lista + editor e calendário + painel, escolhidas entre três propostas -- com **um editor só** nas duas, a lista agrupada por **quem está segurando** e não por status, e o **"Enviar ao cliente" desligado com a razão escrita** em vez de sumir. **32 cenários novos, 785 no total**, com mutação em três travas. **Seis erros meus**, e vale a lista porque quatro são de família: montei `validar_nova_rodada` a partir da 0032 quando a 0033 já a tinha reescrito (apaguei o `deliverable`, e o sintoma saiu três arquivos adiante); pus o bloco do vídeo no ramo do entregável em vez do post; criei um **segundo** trigger para a mesma função, quebrando o teste que sabia desligá-la; ressincronizei estado do editor num `useEffect` em vez de `key`; dei à Revisão um azul que no tema claro **é** o mesmo da Produção, deixando duas entradas de legenda com uma cor só; e os posts antigos precisavam de conversão de `formato` para `midia`, sem a qual um carrossel abriria no editor de arte única -- quem mostrou foi o seed. |
 | Sprint 3D | **Demandas recorrentes.** Migrations 0040 e 0041: `task_recurrences` com a regra e `recurrence_runs` com cada execução, em **dois modos** -- uma task por mês com uma etapa por dia (trabalho diário, senão o board teria vinte e duas linhas do mesmo trabalho) ou uma task inteira a cada repetição (quando cada uma tem etapas próprias). **A idempotência é o índice único e não uma consulta**: a execução é inserida primeiro, com `on conflict do nothing returning id`, e sem linha de volta a chamada desiste -- duas abas clicando em "Gerar agora" passariam pelas duas consultas antes de qualquer uma gravar. **Nunca retroativo**, e a geração **não roda sozinha**: o agendamento é de outro sprint. O `exception` fica dentro do laço, senão uma regra quebrada levaria junto as outras dezenove da madrugada. Na tela, a aba mora em `/painel/workflows` ao lado dos workflows, e **a prévia das cinco próximas é a razão do formulário ter este formato** -- uma recorrência é a única coisa no produto que cria trabalho sozinha, de madrugada, e sem a prévia o primeiro retorno de uma regra torta chega quando alguém vê doze demandas iguais no board; ela recalcula a cada tecla, o que é por que `proximasOcorrencias()` existe ao lado de `datas_da_recorrencia()`. Três pontos de entrada: "Nova recorrente" em Gestão de Tasks, o selo **Recorrente** na task gerada (um link para a regra) e **"Transformar em recorrente"** no fim do detalhe -- que **abre o editor pré-preenchido e não grava nada**, porque uma task não sabe a cadência dela: ela tem um período, não uma frequência. A 0041 veio por decisão do usuário e acrescentou o **responsável padrão da regra**, `coalesce(etapa, padrão)` nessa ordem: o buraco eram os dois caminhos em que ninguém preenche etapa por etapa, e etapa sem dono não aparece no "Minhas Tasks" de ninguém. **77 cenários novos, 753 no total**, e três erros meus que a verificação pegou: o rótulo "semana de" numa regra mensal (o seed mostrou), uma checagem de `pessoa_desligada()` duplicada que o teste de mutação provou ser uma segunda verdade, e **"Gerar agora" gerando numa regra pausada** -- a imagem do protótipo mostrou o botão ao lado da frase que diz que nada mais é gerado. De quebra, dois erros de layout que só a imagem pega: o `SelectTrigger` nasce `w-fit` e o de Cliente saiu como um botão sem rótulo, e em 375px o "Criar recorrência" ficava acima da prévia. |
