@@ -647,6 +647,22 @@ try {
   // isso elas viram lista propria, com o rastro do servidor junto.
   const quebradas = [];
 
+  // ------------------------------------------------------------------------
+  // VIOLACAO DE CSP, e ela e a razao de esta captura existir.
+  //
+  // Um Content-Security-Policy errado NAO derruba o build, nao aparece no
+  // lint e nao quebra a pagina de um jeito obvio: ele bloqueia um recurso, o
+  // navegador escreve uma linha no console, e a tela sai sem a fonte, sem o
+  // estilo ou sem o websocket do Realtime. A imagem parece certa para quem
+  // nao sabe o que deveria estar ali.
+  //
+  // E o mesmo modo de falha da classe de cor que o Tailwind nao conhece. A
+  // diferenca e que aquela o `check:cores` pega lendo o codigo, e esta so
+  // existe com um navegador de verdade carregando a pagina de verdade -- que
+  // e exatamente o que este gerador ja faz noventa vezes por rodada.
+  // ------------------------------------------------------------------------
+  const violacoes = [];
+
   for (const grupo of grupos) {
     const doGrupo = TELAS_A_TIRAR.filter((t) => chaveDo(t) === grupo);
     const perfil = doGrupo[0].role ?? "socio";
@@ -698,6 +714,19 @@ try {
           tela.menu,
         );
       }
+
+      // O console do navegador, so o que interessa. `pageerror` pega excecao
+      // que escapou; `console` com type "error" pega a linha que o Chromium
+      // escreve quando o CSP bloqueia alguma coisa.
+      const doConsole = (texto) => {
+        if (/Content Security Policy|Refused to (load|connect|execute|apply)/i.test(texto)) {
+          violacoes.push({ tela: tela.nome, linha: texto.split("\n")[0].slice(0, 200) });
+        }
+      };
+      pagina.on("console", (m) => {
+        if (m.type() === "error") doConsole(m.text());
+      });
+      pagina.on("pageerror", (e) => doConsole(String(e.message ?? e)));
 
       const antesDoLog = tamanhoDoLog();
       const resposta = await pagina.goto(`http://localhost:${PORTA}${tela.rota}`, {
@@ -806,6 +835,26 @@ try {
     console.error(
       "\n  Se o mesmo seletor falha em duas rodadas seguidas, ele morreu --\n  a tela mudou e a lista TELAS nao acompanhou.",
     );
+  }
+
+  if (violacoes.length > 0) {
+    // AGRUPA POR LINHA, e nao por tela: um CSP que bloqueia a fonte bloqueia
+    // em todas as noventa, e noventa linhas iguais escondem a nonagesima
+    // primeira, que e outra coisa.
+    const porLinha = new Map();
+    for (const v of violacoes) {
+      if (!porLinha.has(v.linha)) porLinha.set(v.linha, []);
+      porLinha.get(v.linha).push(v.tela);
+    }
+    console.error(`\n  ${porLinha.size} violacao(oes) de CSP no navegador:`);
+    for (const [linha, telas] of porLinha) {
+      console.error(`    ${linha}`);
+      console.error(`      em ${telas.length} tela(s): ${telas.slice(0, 3).join(", ")}${telas.length > 3 ? "..." : ""}`);
+    }
+    console.error(
+      "\n  O CSP vive em next.config.ts. Uma diretiva faltando nao quebra o\n  build -- ela apaga um recurso da tela e escreve isto no console.",
+    );
+    process.exitCode = 1;
   }
 
   if (quebradas.length > 0) {
