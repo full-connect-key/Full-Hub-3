@@ -18,6 +18,7 @@ import {
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { anunciar } from "@/lib/acoes/ao-vivo";
 
 /**
  * O fluxo de aprovação.
@@ -58,6 +59,7 @@ function revalidar(taskId: string) {
   revalidatePath(`${ROTA}/${taskId}`);
   revalidatePath(FILA);
   revalidatePath("/painel/minhas-tasks");
+  anunciar("aprovacao");
 }
 
 async function registrar(supabase: ClienteSupabase, evento: EventoDeHistorico) {

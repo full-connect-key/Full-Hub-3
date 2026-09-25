@@ -8,6 +8,7 @@ import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/result
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
+import { anunciar } from "@/lib/acoes/ao-vivo";
 
 /**
  * As ações do Social Media interno.
@@ -22,6 +23,19 @@ import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
  */
 
 const ROTA = "/painel/social-media";
+
+/**
+ * Revalida a minha tela e avisa a dos outros.
+ *
+ * Aqui isto vale mais que nas demais: a corrente do post passa de mão em mão
+ * — Pauta, Conteúdo, Layout, Envio, Programar —, e quem recebe a etapa
+ * costuma estar com a tela aberta esperando. Sem o aviso, a pessoa fica
+ * olhando um post que já é dela e não sabe.
+ */
+function revalidar() {
+  revalidatePath(ROTA);
+  anunciar("post");
+}
 
 const ROTULOS = {
   client_id: "cliente",
@@ -83,7 +97,7 @@ export async function abrirPost(dados: unknown): Promise<Resultado<string>> {
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou. Abrir post é do desenvolvedor ou do sócio.");
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso(
       entrada.responsavel_id
         ? "Post aberto e liberado. A pessoa foi avisada."
@@ -167,7 +181,7 @@ export async function editarPost(id: string, dados: unknown): Promise<Resultado>
       return falha("O banco recusou. Este post está com outra pessoa — só quem recebeu edita.");
     }
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Salvo.");
   });
 }
@@ -195,7 +209,7 @@ export async function liberarPost(
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou. Liberar post é do desenvolvedor ou do sócio.");
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso(
       responsavelId ? "Liberado. A pessoa foi avisada." : "O post voltou a não ter dono.",
     );
@@ -271,7 +285,7 @@ export async function gravarVersao(postId: string, dados: unknown): Promise<Resu
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou a versão.");
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso(`Versão ${data.numero_versao} gravada.`);
   });
 }
@@ -303,7 +317,7 @@ export async function pedirAvalInterno(postId: string): Promise<Resultado> {
 
     if (error) return falha(error.message);
 
-    revalidatePath(ROTA);
+    revalidar();
     revalidatePath("/painel/aprovacoes-internas");
     return sucesso("Enviado para o aval interno. A gestão decide e depois manda ao cliente.");
   });
@@ -353,7 +367,7 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
 
     if (error) return falha(error.message);
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Enviado. O cliente já vê o post no portal dele.");
   });
 }
@@ -374,7 +388,7 @@ export async function excluirPost(id: string): Promise<Resultado> {
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou. Excluir post é do desenvolvedor ou do sócio.");
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Post excluído.");
   });
 }
@@ -433,7 +447,7 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
       return falha([error.message, error.hint].filter(Boolean).join(" "));
     }
 
-    revalidatePath(ROTA);
+    revalidar();
     const quantos = Number(data ?? 0);
     return sucesso(
       quantos === 1 ? "1 post aberto, sem data." : `${quantos} posts abertos, sem data.`,
@@ -488,7 +502,7 @@ export async function moverEtapaDoPost(
       return falha("Esta etapa não é sua, e mover a etapa de outra pessoa é da gestão.");
     }
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Andamento atualizado.");
   });
 }
@@ -511,7 +525,7 @@ export async function definirDonoDaEtapa(
     if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
     if (!data || data.length === 0) return falha("Não foi possível alterar esta etapa.");
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso(responsavelId ? "Etapa passada adiante." : "Etapa sem dono.");
   });
 }
@@ -562,7 +576,7 @@ export async function juntarReferencia(
 
     if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Referência adicionada.");
   });
 }
@@ -591,7 +605,7 @@ export async function apagarReferencia(id: string): Promise<Resultado> {
       return falha("Esta referência é de outra pessoa, e só a gestão apaga a dos outros.");
     }
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso("Referência removida.");
   });
 }
@@ -671,7 +685,7 @@ export async function removerArquivoDaVersao(
       return falha("Não foi possível gravar a remoção — este post não é seu.");
     }
 
-    revalidatePath(ROTA);
+    revalidar();
     return sucesso(`${nota}. Ficou na versão ${data.numero_versao}.`);
   });
 }

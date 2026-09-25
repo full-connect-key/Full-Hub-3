@@ -2713,6 +2713,96 @@ fizeram.
 Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
 vezes fecha para resolver depois.
 
+### A tela se atualiza quando outra pessoa mexe
+
+`components/shared/atualizacao-ao-vivo.tsx` no layout do Painel,
+`lib/acoes/ao-vivo.ts` no servidor, e a policy da migration 0057 decidindo
+quem ouve. O nome do canal mora em `lib/dominio/ao-vivo.ts`, que é módulo sem
+diretiva nenhuma — os dois lados precisam dele, e é o caso que a convenção
+cobre.
+
+**O QUE VIAJA É O SINAL, NUNCA A LINHA, e essa é a decisão inteira.** O
+caminho óbvio do Supabase é `postgres_changes`: a tabela entra na publicação
+`supabase_realtime` e o servidor empurra **a linha inteira** para cada
+navegador inscrito. Aqui o Painel e o Portal do Cliente leem as mesmas
+tabelas, então isso poria a correção de um filtro do outro lado de um serviço
+que a bateria não alcança — e o modo de falha é o mesmo do `security_invoker`
+da view `calendar_events`: **num banco com um cliente só, vazar tudo e mostrar
+o certo têm exatamente a mesma cara.** Nenhuma tabela entra em publicação
+nenhuma, e a bateria tem o cenário que conta quantas entraram, para o dia em
+que alguém acrescentar a linha.
+
+O que vai no fio é `{ motivo: "task" }` — uma palavra. Quem recebe **não lê a
+mensagem**: chama `router.refresh()`, e a tela é remontada no servidor, onde o
+RLS vale como em qualquer visita. O sinal diz "olhe de novo"; quem decide o
+que a pessoa vê continua sendo o Postgres. *O que se perde, e é consequência
+aceita:* não há atualização otimista nem diff — a tela recarrega inteira do
+servidor. Para nove pessoas num board é troca boa; para um cursor
+compartilhado não seria.
+
+**É por isso que ele pode morar no layout.** `router.refresh()` preserva o
+estado dos componentes de cliente — o que está digitado, o diálogo aberto, a
+aba escolhida. Sem essa propriedade, o texto de um comentário sumiria porque
+outra pessoa mudou uma etapa do outro lado da agência.
+
+**Quem envia é o servidor, com a chave de serviço, por `httpSend()`** — um
+POST, sem websocket pendurado por processo. E enviar daqui em vez do navegador
+de quem clicou tem duas consequências: o aviso sai mesmo quando a ação veio de
+um lugar sem tela, e **nenhum navegador consegue forjar um aviso**. A 0057 não
+tem policy de INSERT, e a ausência é a regra: com ela, qualquer pessoa com a
+chave anon mandaria "mudou" em laço e poria a tela de todo mundo recarregando
+sem parar.
+
+**O aviso pega carona na revalidação**, e não em cada action. As duas
+respondem à mesma pergunta — "isto mudou, quem estiver olhando precisa ver de
+novo" —, e a única diferença é de quem é a tela: a revalidação é da minha, o
+aviso é da dos outros. Espalhá-lo por vinte actions seria garantir que a
+vigésima primeira esqueça.
+
+**O cliente não ouve o canal da equipe**, e quem garante é `is_staff()` na
+policy — nunca o nome do canal, que é uma palavra e viaja no bundle. O aviso
+não carrega dado, mas carrega **ritmo**: quantas mexidas por hora, em que
+horário, em que dia não teve nenhuma. Ele contratou o resultado. O caminho
+inverso existe e é só um: quando o cliente decide uma aprovação, a agência é
+avisada — é do lado de cá que alguém está com a fila aberta esperando.
+
+**UM SINAL VISÍVEL QUANDO NÃO ESTÁ LIGADO.** Uma inscrição que cai não avisa
+ninguém: a tela para de se atualizar, e "não mudou nada" é indistinguível de
+"parou de chegar" — o mesmo modo de falha da leitura que devolve lista vazia.
+Por isso o ponto aparece **também quando funciona**: um indicador que só nasce
+quando quebra ensina que a ausência dele é boa notícia, e aí o dia em que o
+componente sumir de um layout por engano passa por "está tudo bem".
+
+**São quatro estados e não três**, e a diferença entre os dois primeiros é o
+que evita uma mentira: `desligado` é "este ambiente não tem Supabase" — o
+gerador de protótipo, que troca a camada de dados por exemplos —, e aí não se
+desenha nada, porque um aviso de conexão numa tela de dados de exemplo afirma
+coisa errada sobre outra coisa. `caiu` é "as credenciais existem e a inscrição
+não ficou de pé", e esse precisa aparecer.
+
+**A pausa junta os avisos** (1,2 s): concluir uma etapa mexe em subtarefa, em
+task e em rodada, e cada uma anuncia a sua — sem juntar, um clique de uma
+pessoa viraria três recarregamentos na tela das outras oito. E **aba escondida
+não recarrega**: fica marcado e sai quando a pessoa volta, senão dez abas
+paradas num board seriam dez idas ao banco para desenhar o que ninguém está
+olhando.
+
+**O estado inicial sai do inicializador do `useState`, não de um efeito.**
+`setSituacao` no corpo do efeito dispara renderização em cascata — a mesma
+armadilha do editor de post, que virou `key` no Sprint 14 — e o `lint` do
+projeto reprova.
+
+> **O que NÃO foi verificado aqui, e é a primeira coisa deste sprint que não
+> dá para conferir nesta máquina:** a bateria roda contra um Postgres de
+> verdade e testa a **policy** do canal (quem ouve, quem não ouve, quem não
+> publica), com `realtime.messages` simulado em `_fixture_supabase.sql` — mas
+> não existe servidor de Realtime aqui. Que a mensagem realmente chegue
+> depende do Realtime estar ligado no projeto e da 0057 aplicada. **É para
+> isso que o indicador serve:** abra o Painel em duas janelas, mova um card
+> numa e veja a outra acompanhar. Se aparecer "Sem atualização ao vivo", a
+> resposta quase sempre é a 0057 — canal privado sem policy é
+> `CHANNEL_ERROR`.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -3125,6 +3215,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` **devolve erro de servidor na abertura** — e devolve só ela: nenhuma outra tela lê esses objetos. `scripts/migrations-pendentes.sh 0055` monta a colagem |
 | `supabase/migrations/0056_limite_de_tentativas.sql` | **Pendente de aplicação.** Traz `rate_limits` e as funções `consumir_tentativa()` e `perdoar_tentativas()`. Sem ela o login, a recuperação de senha e o comentário voltam a aceitar repetição sem contar — e **sem erro na tela**, porque o limitador falha para o lado aberto |
+| `supabase/migrations/0057_atualizacao_ao_vivo.sql` | **Pendente de aplicação.** A policy que decide quem ouve o canal da equipe. Sem ela o canal é privado e não autorizado: o Painel mostra **"Sem atualização ao vivo"** e nada se atualiza sozinho — visível, não silencioso |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

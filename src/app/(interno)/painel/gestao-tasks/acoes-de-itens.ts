@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { anunciar } from "@/lib/acoes/ao-vivo";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -40,6 +41,13 @@ const ROTA = "/painel/gestao-tasks";
 function revalidar(taskId: string) {
   revalidatePath(ROTA);
   revalidatePath(`${ROTA}/${taskId}`);
+  // O AVISO PEGA CARONA NA REVALIDAÇÃO, e não em cada action.
+  //
+  // As duas respondem à mesma pergunta — "isto mudou, quem estiver olhando
+  // precisa ver de novo" —, e a única diferença é de quem é a tela: a
+  // revalidação é da minha, o aviso é da dos outros. Espalhá-lo pelas vinte
+  // actions deste arquivo seria garantir que a vigésima primeira esqueça.
+  anunciar("task");
 }
 
 function vazioParaNulo(valor: unknown): string | null {

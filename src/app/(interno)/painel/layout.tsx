@@ -4,6 +4,7 @@ import { MenuGaveta } from "@/components/painel/menu-gaveta";
 import { MenuLateral } from "@/components/painel/menu-lateral";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { Trilha } from "@/components/painel/trilha";
+import { AtualizacaoAoVivo } from "@/components/shared/atualizacao-ao-vivo";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
@@ -56,6 +57,19 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
             <Trilha />
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
+              {/*
+                NO LAYOUT, e não em cada tela.
+
+                O que o aviso faz é `router.refresh()`, que remonta os Server
+                Components da rota atual e preserva o estado do cliente. Como
+                não há nada específico de tela nisso, uma cópia por tela seria
+                vinte lugares para esquecer um — e a tela esquecida não
+                pareceria quebrada, só não se atualizaria.
+
+                Só o Painel. O Portal do Cliente não ouve este canal, e a
+                policy da 0057 é o que garante.
+              */}
+              <AtualizacaoAoVivo className="mr-1" />
               <BuscaGlobal />
               <SinoDeNotificacoes notificacoes={avisos.lista} naoLidas={avisos.naoLidas} />
               <MenuDoUsuario

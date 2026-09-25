@@ -71,6 +71,15 @@ from (
            and pl.tablename = split_part(v.nome, '|', 1)
            and pl.policyname = split_part(v.nome, '|', 2)
            and coalesce(pl.with_check, pl.qual) like '%' || split_part(v.nome, '|', 3) || '%')
+      -- POLICY FORA DO SCHEMA `public`. A 0057 escreve em
+      -- `realtime.messages`, que e do Supabase -- o `policy` acima fecha em
+      -- `schemaname = 'public'` e responderia FALTA para sempre.
+      -- `schema|tabela|policy`.
+      when 'policy_fora' then exists (
+        select 1 from pg_policies pl
+         where pl.schemaname = split_part(v.nome, '|', 1)
+           and pl.tablename  = split_part(v.nome, '|', 2)
+           and pl.policyname = split_part(v.nome, '|', 3))
       when 'sem_no_corpo' then not exists (
         select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public'
@@ -129,7 +138,8 @@ from (
     -- banco estava em dia e iria procurar o problema no codigo.
     -- Hoje quem confere a lista e o `npm run check:migrations`, no CI.
     ('0055', 'view calendar_events',            'tabela',       'calendar_events'),
-    ('0056', 'rate_limits',                     'tabela',       'rate_limits')
+    ('0056', 'rate_limits',                     'tabela',       'rate_limits'),
+    ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

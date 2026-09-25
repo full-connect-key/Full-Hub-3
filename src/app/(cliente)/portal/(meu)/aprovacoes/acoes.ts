@@ -11,6 +11,7 @@ import {
 } from "@/lib/acoes/resultado";
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { anunciar } from "@/lib/acoes/ao-vivo";
 
 /**
  * A decisão do cliente.
@@ -53,6 +54,12 @@ export async function decisaoCliente(
     if (error) return falha(error.message);
 
     revalidatePath("/portal/aprovacoes");
+    // O CLIENTE DECIDIU, E QUEM PRECISA SABER É A AGÊNCIA. O aviso sai no
+    // canal da equipe — que é o único que existe — porque é do lado de cá que
+    // alguém está com a fila aberta esperando esta resposta. O caminho
+    // inverso, avisar o cliente do que a equipe faz, não existe de propósito:
+    // ele recebe material enviado, não o ritmo da produção.
+    anunciar("aprovacao");
     return sucesso(
       decisao === "aprovada"
         ? "Aprovado. A equipe foi avisada."

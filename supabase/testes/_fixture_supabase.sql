@@ -89,6 +89,45 @@ language sql immutable as $$
   select (string_to_array(name, '/'))[1 : array_length(string_to_array(name, '/'), 1) - 1]
 $$;
 
+-- ---------------------------------------------------------------------------
+-- O `realtime` que a 0057 configura.
+--
+-- Num projeto Supabase de verdade este schema ja vem pronto: `realtime.messages`
+-- e a tabela por onde passa toda mensagem de canal PRIVADO, e a RLS dela e o
+-- que decide quem pode ouvir cada canal. `realtime.topic()` devolve o nome do
+-- canal da inscricao que esta sendo autorizada.
+--
+-- O STUB EXISTE PARA A BATERIA PODER TESTAR A POLICY, e nao so para a migration
+-- rodar. Sem ele a autorizacao do canal seria a unica regra do produto que
+-- ninguem confere -- e a pergunta "o cliente ouve o canal da equipe?" e
+-- exatamente do tipo que nao se responde de olho.
+--
+-- `realtime.topic()` aqui le um GUC, do mesmo jeito que `auth.uid()` acima le
+-- o `sub`. No Supabase ele le o topico da requisicao de inscricao; o que
+-- importa para a policy e que devolva o nome do canal.
+-- ---------------------------------------------------------------------------
+create schema if not exists realtime;
+
+create table if not exists realtime.messages (
+  id         uuid primary key default gen_random_uuid(),
+  topic      text not null,
+  extension  text not null,
+  payload    jsonb,
+  event      text,
+  private    boolean default true,
+  inserted_at timestamptz not null default now()
+);
+alter table realtime.messages enable row level security;
+
+create or replace function realtime.topic() returns text
+language sql stable as $$
+  select nullif(current_setting('realtime.topic', true), '')
+$$;
+
+grant usage on schema realtime to anon, authenticated, service_role;
+grant select, insert on realtime.messages to anon, authenticated, service_role;
+grant execute on function realtime.topic() to anon, authenticated, service_role;
+
 grant usage on schema public, auth, storage to anon, authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
