@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
+import { ehGestor } from "@/lib/auth/roles";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
@@ -18,6 +19,7 @@ import {
   ROTULO_DA_CAMPANHA,
 } from "@/lib/dominio/campanhas";
 
+import { ApagarCampanha } from "./apagar-campanha";
 import { CapaDaCampanha } from "./capa-da-campanha";
 
 export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
@@ -45,7 +47,15 @@ export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
  * acessibilidade. Quem leva ao portal é o título.
  */
 export default async function PaginaDeAprovacoes() {
-  await exigirAcessoARota("/painel/aprovacoes");
+  const sessao = await exigirAcessoARota("/painel/aprovacoes");
+
+  // A ROTA JÁ É DE GESTÃO, e a pergunta é feita mesmo assim: o dia em que
+  // `/painel/aprovacoes` abrir para o colaborador — como o Social Media
+  // abriu, pelo argumento de que quem produz precisa chegar ao trabalho dele
+  // —, a rota deixa de responder por quem apaga. Quem responde é a policy
+  // `campaigns_delete`, que é `is_gestor()` desde a 0033, e esta linha é a
+  // mesma pergunta escrita na tela.
+  const podeApagar = ehGestor(sessao.profile.role);
 
   const campanhas = await campanhasDoCliente();
   const arvores = await Promise.all(
@@ -116,13 +126,27 @@ export default async function PaginaDeAprovacoes() {
                   </p>
                 </div>
 
-                {/* `mt-auto` gruda a contagem no pé do cartão: sem ele, o
-                    cartão cujo período quebra em duas linhas empurra a conta
-                    para baixo e a grade fica com três números em três alturas
-                    diferentes — que é justamente o que se compara. */}
-                <p className="text-text-muted mt-auto text-sm tabular-nums">
-                  {conta.aprovados} de {conta.total} aprovados
-                </p>
+                {/* `mt-auto` gruda o pé no fim do cartão: sem ele, o cartão
+                    cujo período quebra em duas linhas empurra a conta para
+                    baixo e a grade fica com três números em três alturas
+                    diferentes — que é justamente o que se compara.
+
+                    E APAGAR FICA NO PÉ, longe do título que abre o portal:
+                    ação que encerra alguma coisa vai para o fim, como as da
+                    demanda no detalhe da Task. */}
+                <div className="mt-auto flex items-center justify-between gap-2">
+                  <p className="text-text-muted text-sm tabular-nums">
+                    {conta.aprovados} de {conta.total} aprovados
+                  </p>
+                  {podeApagar ? (
+                    <ApagarCampanha
+                      campanhaId={campanha.id}
+                      nome={campanha.nome}
+                      materiais={conta.total}
+                      aprovados={conta.aprovados}
+                    />
+                  ) : null}
+                </div>
               </li>
             );
           })}

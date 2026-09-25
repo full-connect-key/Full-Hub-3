@@ -224,6 +224,9 @@ const TELAS = [
   // justamente esta, e sem ela no protótipo a correção ficava sem prova.
   { nome: "20g-aprovacoes-campanhas", rota: "/painel/aprovacoes", largura: 1280, altura: 900, role: "socio" },
   { nome: "20h-aprovacoes-campanhas-375", rota: "/painel/aprovacoes", largura: 375, altura: 1400, role: "socio" },
+  // O DIALOGO DE APAGAR, aberto: a contagem do que vai junto e o campo que
+  // exige o nome digitado so aparecem na imagem -- e e o que faz alguem parar.
+  { nome: "20i-apagar-campanha", rota: "/painel/aprovacoes", largura: 1280, altura: 900, role: "socio", clicar: 'button:has-text("Apagar")' },
   { nome: "16b-portal-aprovacoes", rota: "/portal/aprovacoes", largura: 1280, altura: 1000 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
+import { exigirGestorNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import {
   executarAcao,
   falha,
@@ -318,5 +318,61 @@ export async function trocarCapaDaCampanha(
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
     return sucesso(caminho ? "Capa trocada." : "Capa retirada.");
+  });
+}
+
+/**
+ * Apaga a campanha — sócio e desenvolvedor, e mais ninguém.
+ *
+ * **A trava já existia, e é `campaigns_delete` desde a 0033:** `is_gestor()`,
+ * que é exatamente desenvolvedor e sócio. Não houve migration nova aqui, e
+ * essa é a resposta certa — criar uma segunda policy dizendo a mesma coisa é
+ * criar o lugar onde as duas verdades divergem. O que faltava era a tela.
+ *
+ * **`exigirGestorNaAcao()` e não só `exigirRotaNaAcao()`**, apesar de a rota
+ * já ser de gestão: o dia em que `/painel/aprovacoes` for aberta ao
+ * colaborador — e o módulo de Social Media já foi, pelo mesmo argumento de
+ * "quem produz precisa chegar ao trabalho dele" — a rota deixa de responder
+ * por quem apaga. A guarda que nomeia a regra sobrevive à mudança; a que
+ * depende do menu, não.
+ *
+ * **APAGAR LEVA A ÁRVORE INTEIRA**, por chave estrangeira: entregáveis, os
+ * filhos deles, versões, comentários e rodadas de aprovação. Isso inclui o
+ * que o cliente já aprovou. É por isso que a tela exige o nome digitado e
+ * conta o que vai junto, em vez de um "tem certeza?" — a contagem é a única
+ * coisa que faz alguém parar.
+ *
+ * **E é apagar de verdade, não desativar**, ao contrário de pessoa e de
+ * cliente. Lá o nome preserva a autoria do que foi feito; aqui `campaigns`
+ * não assina nada — quem assina uma aprovação é `approval_rounds`, e a
+ * campanha some com ela junto. Uma campanha "cancelada" parada na lista do
+ * portal seria o que `cancelada` era no board da Task: uma linha que só
+ * acumula, na tela de quem não quer vê-la.
+ */
+export async function apagarCampanha(campanhaId: string): Promise<Resultado> {
+  return executarAcao("apagarCampanha", async () => {
+    await exigirGestorNaAcao();
+    await exigirRotaNaAcao(ROTA);
+
+    const supabase = await criarClienteServidor();
+
+    // `.select()` porque o RLS recusa em silêncio: um delete barrado volta sem
+    // erro e sem linha, e a tela diria "apagada" com ela ainda lá.
+    const { data, error } = await supabase
+      .from("campaigns")
+      .delete()
+      .eq("id", campanhaId)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha(
+        "O banco recusou. Apagar campanha é de sócio ou desenvolvedor — e a campanha precisa existir.",
+      );
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath("/portal/campanhas");
+    return sucesso("Campanha apagada.");
   });
 }

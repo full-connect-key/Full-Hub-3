@@ -123,3 +123,52 @@ select teste.cenario('A gestao tira a capa', :DIEGO,
 
 select teste.conferir('A campanha continua existindo, sem capa',
   (select (capa_url is null)::text from public.campaigns where id = :CAPACAMP), 'true');
+
+
+-- ===========================================================================
+-- APAGAR A CAMPANHA -- SOCIO E DESENVOLVEDOR, E MAIS NINGUEM
+--
+-- Decisao do usuario: "preciso que seja possivel deletar uma campanha, apenas
+-- para Socios e desenvolvedores".
+--
+-- **NAO HOUVE MIGRATION NOVA, e essa e a resposta certa.**
+-- `campaigns_delete` e `is_gestor()` desde a 0033 -- exatamente desenvolvedor
+-- e socio. Uma policy nova dizendo a mesma coisa seria o lugar onde as duas
+-- verdades divergem. O que faltava era a tela.
+--
+-- Os cenarios entram mesmo assim, e nao sao redundantes: eles sao o que avisa
+-- se alguem trocar `is_gestor()` por `is_staff()` ali no dia em que a rota
+-- abrir para o colaborador -- que foi exatamente o que o Social Media fez com
+-- o modulo dele.
+-- ===========================================================================
+\set APAGAR '''c0500000-0000-0000-0000-000000000002'''
+\set ITEM   '''d0500000-0000-0000-0000-000000000001'''
+
+insert into public.campaigns (id, client_id, nome, data_inicio, data_fim, criado_por, status)
+values (:APAGAR, :VERDE, 'Wave que vai embora', current_date, current_date + 10, :DIEGO, 'ativa');
+
+insert into public.deliverables (id, campaign_id, nome, ordem, responsavel_id)
+values (:ITEM, :APAGAR, 'Peca', 0, :BRUNO);
+
+-- O COLABORADOR NAO APAGA. Ele produz o material da campanha e chega ao
+-- modulo por causa disso; apagar a campanha inteira nao e trabalho dele.
+select teste.cenario('O colaborador nao apaga a campanha', :BRUNO,
+  format('delete from public.campaigns where id = %L', :APAGAR), 'recusa');
+
+select teste.conferir('E ela continua la',
+  (select count(*)::text from public.campaigns where id = :APAGAR), '1');
+
+-- O CLIENTE MUITO MENOS. Ele nem tem policy de delete em `campaigns`.
+select teste.cenario('Joana nao apaga a campanha dela', :JOANA,
+  format('delete from public.campaigns where id = %L', :APAGAR), 'recusa');
+
+-- O DESENVOLVEDOR APAGA. O `1` de linhas e o que separa "apagou" de "o RLS
+-- nao achou a linha": as duas voltam sem erro.
+select teste.cenario('O desenvolvedor apaga', :DIEGO,
+  format('delete from public.campaigns where id = %L', :APAGAR), 'ok', 1);
+
+-- E A ARVORE VAI JUNTO, por chave estrangeira. E o que a tela conta na
+-- confirmacao, e o que faz o dialogo exigir o nome digitado em vez de um
+-- "tem certeza?".
+select teste.conferir('Os entregaveis foram junto',
+  (select count(*)::text from public.deliverables where campaign_id = :APAGAR), '0');
