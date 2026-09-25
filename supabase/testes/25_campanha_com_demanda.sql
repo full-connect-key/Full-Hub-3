@@ -236,3 +236,118 @@ select teste.conferir('Campanha em planejamento nao vira finalizada',
   (select status::text from public.campaigns where id = :PLAN), 'planejamento');
 
 drop table alvo;
+
+
+-- ===========================================================================
+-- 0052 - QUEM APROVA A PECA CONCLUI A ETAPA
+--
+-- "O responsavel entrega, e o cliente conclui, quando aprova" -- decisao do
+-- usuario. E o fecho do fio que a 0051 comecou: sem isto a etapa ficava
+-- aberta para sempre, e quem a fez tinha que voltar ao Minhas Tasks para
+-- marcar concluida uma peca que o cliente ja tinha aprovado.
+--
+-- O CENARIO QUE NAO DA PARA TIRAR e o quarto: o trigger nunca pode derrubar a
+-- aprovacao do cliente. Ele esta do outro lado, sem ninguem por perto, e o
+-- que veria seria a aprovacao dele falhando com uma mensagem sobre uma etapa
+-- que ele nem sabe que existe.
+-- ===========================================================================
+\set C52  '''c0520000-0000-0000-0000-000000000001'''
+
+create temporary table alvo52 (id uuid);
+grant all on alvo52 to authenticated;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :DIEGO, true);
+insert into alvo52
+select public.abrir_campanha(
+  :VERDE, 'Wave que o cliente fecha', null,
+  current_date, current_date + 20, 'ativa',
+  'https://drive.google.com/pasta', null, null, null,
+  '[{"nome":"Cartaz","prazo":null,"responsavel":"44444444-4444-4444-4444-444444444444","filhos":[]},
+    {"nome":"Folder","prazo":null,"responsavel":"44444444-4444-4444-4444-444444444444","filhos":[]}]'::jsonb
+);
+commit;
+reset role;
+
+select teste.conferir('A etapa nasce nao iniciada',
+  (select s.status::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Cartaz'),
+  'nao_iniciada');
+
+-- 1. O CLIENTE APROVA, E A ETAPA FECHA
+update public.deliverables set status = 'aprovado'
+ where campaign_id = (select id from alvo52) and nome = 'Cartaz';
+
+select teste.conferir('Aprovar a peca concluiu a etapa',
+  (select s.status::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Cartaz'),
+  'concluida');
+
+-- O CARIMBO VEM DE `validar_transicao_de_subtarefa`, e nao do trigger novo:
+-- ele ja preenchia `concluida_em` desde a 0007. Escrever a data aqui tambem
+-- seria a segunda verdade sobre a mesma coisa.
+select teste.conferir('E com a data de conclusao carimbada',
+  (select (s.concluida_em is not null)::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Cartaz'),
+  'true');
+
+-- E SO A DELA. Aprovar o Cartaz nao fecha o Folder -- o criterio de aceite
+-- que mais teria como passar batido numa tela: ver o contador subir nao prova
+-- que a etapa irma ficou parada.
+select teste.conferir('A etapa do Folder nao se mexeu',
+  (select s.status::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Folder'),
+  'nao_iniciada');
+
+-- 2. PEDIR AJUSTES REABRE
+update public.deliverables set status = 'ajustes'
+ where campaign_id = (select id from alvo52) and nome = 'Cartaz';
+
+select teste.conferir('Pedir ajustes devolve a etapa ao trabalho',
+  (select s.status::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Cartaz'),
+  'em_andamento');
+
+select teste.conferir('E a data de conclusao foi apagada',
+  (select (s.concluida_em is null)::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Cartaz'),
+  'true');
+
+-- 3. A ETAPA QUE EXIGE AVAL PROPRIO FICA ABERTA
+--
+-- `requer_aprovacao = true` e alguem dizendo "isto precisa de validacao
+-- interna antes de fechar", e a aprovacao do cliente no entregavel nao e essa
+-- validacao. A etapa continua aberta -- que e a verdade, e e o que a pessoa
+-- ve em Minhas Tasks.
+update public.subtasks set requer_aprovacao = true, tipo_aprovacao = 'interna'
+ where id = (select d.subtask_id from public.deliverables d
+              where d.campaign_id = (select id from alvo52) and d.nome = 'Folder');
+
+update public.deliverables set status = 'aprovado'
+ where campaign_id = (select id from alvo52) and nome = 'Folder';
+
+select teste.conferir('Etapa que exige aval proprio nao fecha pela aprovacao do cliente',
+  (select s.status::text
+     from public.deliverables d join public.subtasks s on s.id = d.subtask_id
+    where d.campaign_id = (select id from alvo52) and d.nome = 'Folder'),
+  'nao_iniciada');
+
+-- 4. E A APROVACAO DO CLIENTE PASSA ASSIM MESMO
+--
+-- ESTE E O CENARIO QUE PROTEGE QUEM ESTA DO OUTRO LADO. Se o trigger
+-- levantasse excecao no caso acima, o que o cliente veria era a aprovacao
+-- dele falhando com uma mensagem sobre uma etapa que ele nem sabe que existe
+-- -- e a peca continuaria esperando por ele, para sempre.
+select teste.conferir('Mas a peca ficou aprovada',
+  (select status::text from public.deliverables
+    where campaign_id = (select id from alvo52) and nome = 'Folder'),
+  'aprovado');
+
+drop table alvo52;
