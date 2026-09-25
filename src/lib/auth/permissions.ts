@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Receipt,
+  ScrollText,
   Sparkles,
   Sun,
   ThumbsUp,
@@ -307,6 +308,23 @@ export const MENU: MenuItem[] = [
     section: "gestao",
     description:
       "Contratos, receitas, despesas e a rentabilidade de cada conta.",
+  },
+  {
+    // SÓ O SÓCIO, e pelo mesmo motivo do Financeiro — na verdade POR CAUSA
+    // dele. A auditoria copia o trecho que mudou de `finance_entries` e de
+    // `contracts`, que fecham em `is_socio()` desde a 0013. Um log legível
+    // pela gestão seria a porta dos fundos daquela regra: o desenvolvedor não
+    // lê a tabela e leria o valor no `depois`.
+    //
+    // Um log é tão sensível quanto a coisa mais sensível que tem dentro dele.
+    // Esconder o item não é a proteção — ela está em `exigirAcessoARota` e,
+    // principalmente, na policy da 0058.
+    label: "Auditoria",
+    href: "/painel/auditoria",
+    icon: ScrollText,
+    roles: SOCIO,
+    section: "gestao",
+    description: "Quem mexeu em acesso, gente, dinheiro e o que foi apagado.",
   },
 
   // --- Fora do menu --------------------------------------------------------

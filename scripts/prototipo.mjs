@@ -220,6 +220,15 @@ const TELAS = [
   // barra. Uma so provaria que a tela desenha, nao que ela separa.
   { nome: "99c-metricas-rentabilidade", rota: "/painel/metricas?aba=rentabilidade&periodo=ano", largura: 1400, altura: 700, role: "socio" },
   { nome: "99d-metricas-desenvolvedor", rota: "/painel/metricas", largura: 1400, altura: 900, role: "desenvolvedor" },
+
+  // A AUDITORIA, E ELA VEM EM PAR -- como as telas de perfil do Sprint 9.
+  //
+  // A primeira prova que a trilha aparece para o socio; a segunda prova que ela
+  // NAO aparece no menu do desenvolvedor. So a primeira passaria numa tela que
+  // parou de mostrar o item para todo mundo, e so a segunda passaria numa tela
+  // que nunca existiu. O criterio e de mao dupla.
+  { nome: "99e-auditoria-socio", rota: "/painel/auditoria", largura: 1500, altura: 1000, role: "socio" },
+  { nome: "99f-painel-desenvolvedor-sem-auditoria", rota: "/painel", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "99e-metricas-375", rota: "/painel/metricas?aba=tempo", largura: 375, altura: 1600, role: "socio" },
 
   { nome: "99f-resumo-agencia", rota: "/painel/resumo-agencia", largura: 1500, altura: 1700, role: "socio" },
@@ -348,6 +357,8 @@ const SUBSTITUICOES = {
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/home": ["./scripts/prototipo/home.ts"],
   "@/lib/dados/metricas": ["./scripts/prototipo/metricas.ts"],
+  "@/lib/dados/auditoria": ["./scripts/prototipo/auditoria.ts"],
+  "@/components/shared/atualizacao-ao-vivo": ["./scripts/prototipo/atualizacao-ao-vivo.tsx"],
   "@/lib/reports/weekly": ["./scripts/prototipo/weekly.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],

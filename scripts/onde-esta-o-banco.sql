@@ -139,7 +139,8 @@ from (
     -- Hoje quem confere a lista e o `npm run check:migrations`, no CI.
     ('0055', 'view calendar_events',            'tabela',       'calendar_events'),
     ('0056', 'rate_limits',                     'tabela',       'rate_limits'),
-    ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal')
+    ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal'),
+    ('0058', 'audit_log',                       'tabela',       'audit_log')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

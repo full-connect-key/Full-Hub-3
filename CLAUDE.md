@@ -2713,6 +2713,86 @@ fizeram.
 Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
 vezes fecha para resolver depois.
 
+### A trilha de auditoria
+
+`/painel/auditoria`, só do sócio. `audit_log` mais o trigger
+`registrar_auditoria()` (migration 0058), com os rótulos em
+`lib/dominio/auditoria.ts`.
+
+**O sprint pede `activity_log`, e ela não existe.** Três cabeçalhos de
+migration já registram isso — a 0035, a 0037 e a 0040. O que existe é
+`task_history`, e ela responde a outra pergunta: em que pé esteve cada etapa e
+quando.
+
+**A auditoria não entra nela**, e a razão é a mesma que manteve Equipe e
+Clientes em duas tabelas: na mesma tabela a linha passa a significar duas
+coisas e metade das colunas fica vazia em cada metade das linhas. Pior aqui,
+porque `task_history` é **lida por conta** — `producao_do_periodo()` e "onde o
+tempo da etapa vai". Uma linha de "o sócio mudou o perfil da Joana" no meio
+dela ou entra no número de produção da agência, ou obriga toda consulta
+existente a ganhar um filtro — e a que esquecer o filtro mente sem avisar.
+
+**Quem escreve é o trigger, nunca a action.** Uma auditoria escrita pela
+camada de aplicação registra o que passou pela tela e ignora o resto: um PATCH
+montado à mão no PostgREST, um `update` colado no SQL Editor, um trigger
+interno. Ou seja, registra exatamente os casos em que ninguém duvidava e perde
+os que motivam a auditoria. E seria um segundo lugar para lembrar: a action
+nova que esquecesse de registrar não pareceria quebrada.
+
+**Ela FALHA a escrita, e é o contrário do limite de tentativas.** A 0056
+libera a tentativa quando o contador quebra, porque um limitador quebrado que
+recusa tranca a agência inteira para fora do próprio sistema. Aqui é o
+inverso: se não dá para registrar, não se faz. Uma auditoria que aceita a
+escrita e perde o registro **produz a confiança sem a checagem** — o mesmo
+erro da trava de aprovação que a 0023 desfez.
+
+**SÓ O SÓCIO LÊ, e isso não é escolha de tela.** A trilha copia o trecho que
+mudou de `finance_entries` e de `contracts`, que fecham em `is_socio()` desde
+a 0013. Um log legível pela gestão seria a porta dos fundos daquela regra: o
+desenvolvedor não lê a tabela e leria o valor no `depois`. **Um log é tão
+sensível quanto a coisa mais sensível que tem dentro dele.**
+
+**Sem policy de INSERT, de UPDATE nem de DELETE**, e as três ausências são a
+regra: a única porta é o trigger, e nem o sócio reescreve nem apaga uma linha.
+É a mesma forma de `client_access_log` e de `client_portal_views`, e a mesma
+razão de `notifications` não ter insert — um registro que a própria pessoa
+pode consertar não registra nada.
+
+**O que ela guarda:** acesso, gente, dinheiro e decisão — oito tabelas com as
+quatro operações. **E só o apagamento** de demanda, etapa, campanha, post e
+material: cada mexida numa etapa viraria uma linha, e uma tela com trezentas
+linhas por dia é uma tela que ninguém abre. O que não dá para reconstruir
+depois é o apagamento — uma demanda que sai leva comentário, tempo e aprovação
+com ela.
+
+**E ela NÃO guarda o que o produto já registra de forma imutável.**
+`approval_rounds` fica de fora: rodada fechada nunca é reescrita nem apagada,
+e já carrega quem decidiu, quando e com que comentário. Uma cópia disso seria
+uma segunda verdade sobre o mesmo fato. A bateria guarda o cenário, para o dia
+em que alguém acrescentar a tabela achando que faltava.
+
+**Só as colunas que mudaram**, e não a linha inteira duas vezes: dois objetos
+de vinte campos para dizer que um mudou é uma tela em que ninguém acha a
+diferença. `updated_at` fica fora do diff, senão todo `update` geraria uma
+linha dizendo que mudou o `updated_at`. E **update que regrava o mesmo valor
+não vira linha** — a tela de task salva sozinha campo a campo, e sem isso
+clicar fora de um campo sem digitar geraria um registro por clique.
+
+**Nulo vira "(vazio)" e pessoa ausente vira "sistema".** O seed, uma rotina e
+a chave de serviço escrevem sem sessão; inventar um nome seria pior, e deixar
+em branco parece defeito da tela.
+
+**"Apagou" é o único selo em tom de erro.** Pintar os três de vermelho
+treinaria o hábito de ignorar vermelho — a mesma razão pela qual o alerta de 7
+dias do portal é `--warning`. E "Mudou" é o neutro, como Prioridade Normal é
+cinza: é o mais comum, e dar cor a ele faria o corriqueiro competir com o que
+importa.
+
+**O `check:sprint9` ganhou a checagem de mão dupla desta tela**: "Auditoria"
+tem que aparecer no painel do sócio **e** faltar no do desenvolvedor. Só a
+primeira metade passaria numa tela que parou de mostrar o item para todo
+mundo; só a segunda passaria numa tela que nunca existiu.
+
 ### A tela se atualiza quando outra pessoa mexe
 
 `components/shared/atualizacao-ao-vivo.tsx` no layout do Painel,
@@ -3216,6 +3296,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` **devolve erro de servidor na abertura** — e devolve só ela: nenhuma outra tela lê esses objetos. `scripts/migrations-pendentes.sh 0055` monta a colagem |
 | `supabase/migrations/0056_limite_de_tentativas.sql` | **Pendente de aplicação.** Traz `rate_limits` e as funções `consumir_tentativa()` e `perdoar_tentativas()`. Sem ela o login, a recuperação de senha e o comentário voltam a aceitar repetição sem contar — e **sem erro na tela**, porque o limitador falha para o lado aberto |
 | `supabase/migrations/0057_atualizacao_ao_vivo.sql` | **Pendente de aplicação.** A policy que decide quem ouve o canal da equipe. Sem ela o canal é privado e não autorizado: o Painel mostra **"Sem atualização ao vivo"** e nada se atualiza sozinho — visível, não silencioso |
+| `supabase/migrations/0058_trilha_de_auditoria.sql` | **Pendente de aplicação.** Traz `audit_log` e o trigger `registrar_auditoria()` em 13 tabelas. Sem ela, `/painel/auditoria` devolve erro de tabela inexistente — e nada é registrado |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

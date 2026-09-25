@@ -122,6 +122,21 @@ const POR_PERFIL = [
     porque:
       "é a promessa que faz a pessoa escrever de verdade na anotação — sem a frase na tela, ela não tem por que acreditar",
   },
+  {
+    // A AUDITORIA (Sprint 16, Parte D). O arquivo nasceu para o Sprint 9 e a
+    // lista cresce com o produto: o que ele confere é "o que cada perfil
+    // alcança", e isso não é de um sprint só.
+    //
+    // A metade negativa é a que importa aqui. A trilha guarda o valor que
+    // mudou no Financeiro, que fecha em `is_socio()` desde a 0013 — o item no
+    // menu do desenvolvedor seria a porta dos fundos daquela regra, e um
+    // caminho que termina em 403.
+    frase: "Auditoria",
+    tem: "99e-auditoria-socio",
+    naoTem: "99f-painel-desenvolvedor-sem-auditoria",
+    porque:
+      "a trilha copia o trecho que mudou do Financeiro, e quem lê o log lê o Financeiro",
+  },
 ];
 
 /** O texto que a pessoa lê, sem marcação, sem script e sem estilo. */
@@ -190,7 +205,27 @@ if (!existsSync(DUMPS)) {
 console.log("\nVocabulário que o Full Academy não tem\n");
 
 const arquivos = (await readdir(DUMPS)).filter((f) => f.endsWith(".html"));
-const faltando = DO_SPRINT_9.filter((t) => !arquivos.includes(`${t}.html`));
+// AS TELAS QUE CADA CHECAGEM PRECISA, e não uma lista só.
+//
+// `DO_SPRINT_9` é a varredura de vocabulário; `POR_PERFIL` cresceu além do
+// Sprint 9 e traz telas próprias — a Auditoria entrou no Sprint 16. Sem esta
+// união a checagem de perfil lia `undefined` para a tela que não estivesse na
+// primeira lista, `?? ""` virava texto vazio, e ela reprovava dizendo que a
+// palavra "sumiu da tela" — quando o que faltava era o dump.
+//
+// **Um erro de diagnóstico é quase tão caro quanto um erro de resultado:** ele
+// manda a pessoa procurar no lugar errado. Foi o que aconteceu ao acrescentar
+// a Auditoria, e por isso as duas listas se juntam aqui em vez de a segunda
+// ser copiada para dentro da primeira — o que poria as telas da Auditoria na
+// varredura de palavras do Full Academy, que não é sobre elas.
+const NECESSARIAS = [
+  ...new Set([
+    ...DO_SPRINT_9,
+    ...POR_PERFIL.flatMap(({ tem, naoTem }) => (naoTem ? [tem, naoTem] : [tem])),
+  ]),
+];
+
+const faltando = NECESSARIAS.filter((t) => !arquivos.includes(`${t}.html`));
 
 if (faltando.length > 0) {
   problemas.push(
@@ -202,13 +237,18 @@ if (faltando.length > 0) {
 }
 
 const textos = new Map();
-for (const tela of DO_SPRINT_9) {
+for (const tela of NECESSARIAS) {
   textos.set(tela, textoDe(await readFile(path.join(DUMPS, `${tela}.html`), "utf8")));
 }
 
 for (const [palavra, porque] of PROIBIDAS) {
   const onde = [];
-  for (const [tela, texto] of textos) {
+  // SÓ AS TELAS DO SPRINT 9 na varredura de vocabulário: o que ela procura é o
+  // que o Full Academy não tem (quiz, certificado, nota, gamificação), e
+  // passar a tela da Auditoria por ela seria perguntar do Academy numa tela
+  // que não é dele.
+  for (const tela of DO_SPRINT_9) {
+    const texto = textos.get(tela) ?? "";
     // A casca sai do texto antes da busca, e não da lista de palavras: tirar
     // `notas` da lista deixaria a Academy livre para dar nota desde que a
     // escrevesse no plural.

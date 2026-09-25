@@ -841,6 +841,37 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * A TRILHA DE AUDITORIA (0058).
+       *
+       * Só `Row`. Não existe `Insert` nem `Update` de propósito, e é a mesma
+       * decisão de `tempo_medido_segundos` ficar fora dos dois em `subtasks`:
+       * quem escreve aqui é o trigger `registrar_auditoria()`, e a tabela não
+       * tem policy de insert, de update nem de delete. Tentar gravar pelo
+       * cliente tipado vira erro de tipo antes de virar recusa do banco.
+       */
+      audit_log: {
+        Row: {
+          id: string;
+          tabela: string;
+          registro_id: string | null;
+          operacao: "INSERT" | "UPDATE" | "DELETE";
+          quem: string | null;
+          quando: string;
+          antes: Record<string, unknown> | null;
+          depois: Record<string, unknown> | null;
+        };
+        // `never` NOS DOIS, e não a ausência das chaves: o tipo `Database` do
+        // supabase-js exige as três, e sem elas o schema inteiro degrada — o
+        // `tsc` passou a acusar `nome_empresa does not exist on type never`
+        // em `weekly.ts`, três arquivos longe daqui. Com `never`, qualquer
+        // `.insert()` ou `.update()` nesta tabela é erro de tipo, que é o que
+        // se queria: quem escreve é o trigger.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+
       academy_materials: {
         Row: {
           id: string;
