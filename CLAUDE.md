@@ -1255,6 +1255,77 @@ mesmo nome. E é na Principal porque a divisão do menu é sobre a **pessoa**:
 Gestão carrega o selo Admin e significa "o que eu faço sobre os outros", e o
 redator escrevendo a legenda dele não está fazendo nada sobre ninguém.
 
+#### Quem tem etapa na corrente escreve no card
+
+Migration 0047, e é um furo que a 0046 deixou — encontrado pelo usuário
+tentando trocar a data de um post do mês que acabara de abrir.
+
+`posts_update` fechava em `is_gestor() or responsavel_id = auth.uid()` desde a
+0042, quando o post tinha uma mão só. A 0045 partiu a produção em cinco etapas
+com cinco donos e a 0046 escreveu que "quem pega a etapa preenche o card" — **em
+português, não em SQL**. A redatora é dona da etapa Conteúdo e não é
+`posts.responsavel_id`: ela não escrevia legenda, nem pauta, nem data. E como
+`post_referencias` já era `is_staff()`, metade do card aceitava escrita e a
+outra metade voltava sem erro e sem linha.
+
+**E a data estava travada em dois lugares.** A 0044 tirou a trava do trigger,
+mas a policy barrava antes — desfazer a de cima não adianta enquanto a de baixo
+segura, que é a mesma lição da 0029.
+
+A porta é `tenho_etapa_no_post()` e **não `is_staff()` solto**: com dez
+clientes, `is_staff()` deixaria o designer de outra conta trocar a data de um
+post que ele nunca viu. Cliente e responsável continuam da gestão — a policy diz
+quem entra, o trigger diz o que se mexe depois de entrar. Em TypeScript,
+`podeProduzir()` faz a mesma pergunta, senão a tela desligaria os campos para
+quem o banco passou a aceitar.
+
+**E o campo de data não existia na tela.** A 0044 abriu o mês em branco e a data
+só aparecia no cabeçalho, como texto. Doze posts sem data e nenhum lugar onde
+escrevê-la é o mês inteiro parado.
+
+#### Apagar um arquivo grava uma versão
+
+Migration 0048, decisão do usuário: poder apagar uma imagem errada e subir
+outra, **"sempre registrando no histórico"**.
+
+Remover **grava uma versão nova** com o que restou, e não reescreve a atual —
+é a regra do módulo desde a 0032 vista do avesso. Editar a versão corrente
+seria a única forma de a remoção sumir do histórico, que é exatamente o que ele
+pediu que não acontecesse. **O arquivo continua no bucket**: a versão anterior
+aponta para ele, e apagar o objeto deixaria a v1 com uma moldura cinza onde
+havia uma arte.
+
+**O sinal é uma coluna (`removeu_arquivos`), e não o array vazio** — que foi a
+primeira tentativa, derrubada pela bateria na mesma rodada. `arquivos` é
+`not null default '[]'` desde a 0042, então vazio quer dizer "esta versão não
+falou de arquivo": o caso de toda versão que só mexe na legenda. Com o vazio
+como sinal, gravar um ajuste de texto apagava a arte. A outra saída — tirar o
+`not null` e fazer nulo ser "não mexi" — funcionaria daqui para a frente e
+reinterpretaria o passado, porque toda versão já gravada passaria a dizer
+"esvaziei".
+
+Removendo o slide 3 de 5, a versão nova tem quatro arquivos e o sinal **não**
+vai: a capa sai do primeiro deles, pela mesma linha que já escolhia o primeiro
+slide desde a 0042. Remover o primeiro promove o segundo a capa.
+
+#### O carrossel anda, nos dois lados
+
+Decisão do usuário: *"atualmente ele não permite ir de uma imagem para outra,
+quero que as imagens apareçam em sequência, como um carrossel mesmo"*.
+
+**No editor**, a tira de miniaturas de 48px virou `carrossel-do-editor.tsx`: a
+imagem corrente no quadro inteiro, setas, contador sempre visível, a tira
+embaixo como régua de onde se está, e teclado. E cada slide se apaga do próprio
+quadro. A arte única passa pelo mesmo componente com uma imagem só — dois
+desenhos para a mesma coisa divergiriam no dia em que o botão de remover
+mudasse.
+
+**No portal o visualizador já sabia andar** desde o Sprint 12; quem mandava só
+a capa era quem o chamava. `ModeloDoConteudo.arte` virou `artes`, e o post
+passa os slides da versão corrente. A capa entra uma vez só: ela É o primeiro
+slide, e mandá-la à frente da lista mostraria a mesma imagem duas vezes — o
+cliente contaria seis onde há cinco.
+
 #### As etapas de social aparecem em Minhas Tasks
 
 Decisão do usuário. O redator não é do social — se a etapa dele vivesse só na
@@ -1495,6 +1566,29 @@ por `usuariosDoPortal()`, com as policies de `is_staff()`, porque
 O slug sai do nome da empresa e **não pode ser uma palavra que já é rota**
 (`campanhas`, `aprovacoes`, `painel`…): no Next a rota estática ganha da
 dinâmica, então o portal daquele cliente é que nunca abriria.
+
+### Gestão de Pessoas: Equipe e Clientes numa aba só
+
+`/painel/pessoas`, com a aba na URL. Eram dois itens de menu e viraram um, por
+decisão do usuário, escolhida entre três propostas de layout. As duas listas
+são as mesmas de antes.
+
+**Não foram fundidas numa tabela só**, e essa era a proposta B: "Mundo Verde" é
+uma empresa e "Joana Prado" é gente. Na mesma tabela, a linha passa a
+significar duas coisas e as colunas Cargo e Área ficam vazias em metade delas.
+Elas continuam separadas no banco porque são coisas separadas; o que mudou é
+que a tela reflete isso com duas abas em vez de dois módulos.
+
+**A proposta C — por conta, com quem da agência atende cada cliente — ficou de
+fora porque essa relação não existe no produto.** É a decisão em suspenso
+registrada acima ("qualquer gestor aprova a etapa de qualquer cliente"): se for
+para existir, é migration própria.
+
+As fichas moram em `/painel/pessoas/clientes/[id]` e `.../equipe/[id]`, e não
+têm entrada própria no `MENU` — `findMenuItem` casa por prefixo. Os caminhos
+antigos viram 308 em `ROTAS_RENOMEADAS`, e **as fichas vêm primeiro na lista**:
+o Next casa na ordem, e `/painel/clientes/:id` precisa ser testado antes de
+`/painel/clientes`, senão a ficha cai na lista e o id se perde no caminho.
 
 ### Dois módulos que saíram: Resumo Semanal e Financeiro Pessoal
 

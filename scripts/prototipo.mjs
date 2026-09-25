@@ -111,6 +111,11 @@ const TELAS = [
   { nome: "55-social-sem-data-375", rota: "/painel/social-media?visao=calendario", largura: 375, altura: 1600, role: "socio" },
   { nome: "56-abrir-o-mes", rota: "/painel/social-media", largura: 1440, altura: 1200, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
   { nome: "57-abrir-o-mes-375", rota: "/painel/social-media", largura: 375, altura: 1500, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
+  // O CARROSSEL NAVEGÁVEL (0048): a imagem precisa mostrar o slide 2, e não o
+  // primeiro — é o clique na seta que prova que ele anda, e uma imagem do
+  // estado inicial pareceria igual à tira antiga.
+  { nome: "59-carrossel", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", clicar: 'button[aria-label="Próximo slide"]' },
+  { nome: "60-carrossel-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
   { nome: "58-corrente-escuro", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
 
   { nome: "44-recorrencias", rota: "/painel/workflows?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },

@@ -268,3 +268,106 @@ select teste.cenario('O cliente nao edita post', :JOANA,
 select teste.cenario('E nao se poe como responsavel de nada', :JOANA,
   format($fmt$update public.posts set responsavel_id = %L where id = %L$fmt$,
     :JOANA, :BRIEFING), 'recusa');
+
+
+-- ===========================================================================
+-- 0048 -- APAGAR UM ARQUIVO GRAVA UMA VERSAO
+--
+-- Decisao do usuario: poder apagar uma imagem errada e subir outra, "sempre
+-- registrando no historico".
+--
+-- O QUE A 0048 CONSERTA e uma linha que estava CERTA e nao cobria um caso:
+-- `arte_url = coalesce(capa, arte_url)` faz versao que nao mexeu em arquivo
+-- nao apagar a arte -- e fazia tambem uma versao SEM arquivo nenhum nao
+-- apagar. A remocao entrava no historico e nao aparecia na tela.
+-- ===========================================================================
+
+\set SOZINHO '''50580000-0000-0000-0000-000000000009'''
+
+insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+                          midia, criado_por, responsavel_id)
+values (:SOZINHO, :VERDE, 'Arte que saiu errada', '2026-12-20', 'instagram',
+        'imagem', :ANA, :BRUNO);
+
+select teste.cenario('Sobe a arte', :BRUNO,
+  format($fmt$insert into public.post_versions (post_id, arte_url, thumbnail_url, notas_mudanca)
+    values (%L, 'a/errada.png', 'a/errada-t.png', 'Primeira arte')$fmt$, :SOZINHO),
+  'ok', 1);
+
+select teste.conferir('E ela virou a capa do post',
+  (select arte_url from public.posts where id = :SOZINHO), 'a/errada.png');
+
+-- `removeu_arquivos` E O SINAL, e nao o array vazio: `arquivos` e
+-- `not null default '[]'`, entao vazio e o estado de TODA versao que so mexeu
+-- na legenda. Foi o cenario "versao so de legenda nao apaga a arte", mais
+-- abaixo, que derrubou a primeira tentativa desta migration.
+select teste.cenario('Apaga a arte gravando uma versao nova', :BRUNO,
+  format($fmt$insert into public.post_versions (post_id, removeu_arquivos, notas_mudanca)
+    values (%L, true, 'Arte removida')$fmt$, :SOZINHO), 'ok', 1);
+
+select teste.conferir('O post ficou sem capa',
+  (select coalesce(arte_url, '(sem)') from public.posts where id = :SOZINHO), '(sem)');
+
+select teste.conferir('E a miniatura tambem',
+  (select coalesce(thumbnail_url, '(sem)') from public.posts where id = :SOZINHO), '(sem)');
+
+-- O HISTORICO E O PONTO INTEIRO: a v1 continua mostrando a arte que saiu, e e
+-- por isso que o arquivo nao e apagado do bucket junto.
+select teste.conferir('Mas a versao 1 continua com ela',
+  (select arte_url from public.post_versions
+    where post_id = :SOZINHO and numero_versao = 1), 'a/errada.png');
+
+select teste.conferir('E sao duas versoes, nao uma reescrita',
+  (select count(*)::text from public.post_versions where post_id = :SOZINHO), '2');
+
+select teste.cenario('E sobe a arte certa por cima', :BRUNO,
+  format($fmt$insert into public.post_versions (post_id, arte_url, notas_mudanca)
+    values (%L, 'a/certa.png', 'Arte nova')$fmt$, :SOZINHO), 'ok', 1);
+
+select teste.conferir('A capa voltou, com a arte nova',
+  (select arte_url from public.posts where id = :SOZINHO), 'a/certa.png');
+
+-- O CENARIO QUE DERRUBOU A PRIMEIRA VERSAO DA 0048, e por isso ele fica aqui
+-- em destaque. A razao de a 0042 ter posto o `coalesce` continua valendo: quem
+-- grava so a legenda nao pode zerar a arte. Com o array vazio como sinal, este
+-- `insert` -- que nao fala de arquivo nenhum -- apagava a capa.
+select teste.cenario('Versao so de legenda nao apaga a arte', :BRUNO,
+  format($fmt$insert into public.post_versions (post_id, legenda, notas_mudanca)
+    values (%L, 'Só mexi no texto.', 'Ajuste de legenda')$fmt$, :SOZINHO), 'ok', 1);
+
+select teste.conferir('E a arte continua de pe',
+  (select arte_url from public.posts where id = :SOZINHO), 'a/certa.png');
+
+-- --- Um slide sai do meio do carrossel ------------------------------------
+
+\set CINCO '''50580000-0000-0000-0000-00000000000a'''
+
+insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+                          midia, criado_por, responsavel_id)
+values (:CINCO, :VERDE, 'Carrossel com slide errado', '2026-12-22', 'instagram',
+        'carrossel', :ANA, :BRUNO);
+
+insert into public.post_versions (post_id, arquivos, notas_mudanca, criado_por)
+values (:CINCO, jsonb_build_array(
+          jsonb_build_object('url', 'c/1.png'),
+          jsonb_build_object('url', 'c/2.png'),
+          jsonb_build_object('url', 'c/3.png')), 'Tres slides', :BRUNO);
+
+select teste.conferir('A capa e o primeiro slide',
+  (select arte_url from public.posts where id = :CINCO), 'c/1.png');
+
+-- REMOVER O PRIMEIRO promove o segundo a capa, e isso NAO e trava nova: e a
+-- mesma linha que ja escolhia o primeiro slide desde a 0042.
+select teste.cenario('Remove o primeiro slide', :BRUNO,
+  format($fmt$insert into public.post_versions (post_id, arquivos, notas_mudanca)
+    values (%L, jsonb_build_array(
+             jsonb_build_object('url', 'c/2.png'),
+             jsonb_build_object('url', 'c/3.png')), 'Slide 1 removido')$fmt$,
+    :CINCO), 'ok', 1);
+
+select teste.conferir('E o segundo virou a capa',
+  (select arte_url from public.posts where id = :CINCO), 'c/2.png');
+
+select teste.conferir('A versao anterior continua com os tres',
+  (select jsonb_array_length(arquivos)::text from public.post_versions
+    where post_id = :CINCO and numero_versao = 1), '3');

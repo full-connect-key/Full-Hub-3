@@ -49,6 +49,7 @@ import {
 } from "@/lib/dominio/posts";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 
+import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
 import { ReferenciasDoPost } from "./referencias-do-post";
 import type {
@@ -303,42 +304,24 @@ export function EditorDoPost({
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="bg-muted grid aspect-[4/5] max-h-72 place-items-center overflow-hidden rounded-lg">
-            {post.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.thumbnailUrl}
-                alt={`Arte de ${post.tema}`}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <span className="text-text-muted text-sm">sem arte ainda</span>
-            )}
-          </div>
-
-          {/* A FAIXA DE SLIDES só existe no carrossel, e a capa é o primeiro —
-              é ele que o calendário, o card e o portal mostram. */}
-          {post.midia === "carrossel" && slides.length > 0 ? (
-            <ol className="flex flex-wrap gap-1.5">
-              {slides.map((s, i) => (
-                <li key={s.url} className="relative">
-                  <span className="bg-muted block size-12 overflow-hidden rounded-md">
-                    {s.assinada ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={s.assinada}
-                        alt={`Slide ${i + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
-                  </span>
-                  <span className="bg-surface-card text-text-secondary absolute right-0.5 bottom-0.5 rounded px-1 text-[10px]">
-                    {i + 1}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : null}
+          {/* O CARROSSEL, e não uma tira de miniaturas (0048). A tira de 48px
+              não deixava ir de uma imagem para outra — era só isso que ela
+              fazia, e quem produz precisa conferir slide a slide antes de
+              mandar. A arte única passa pelo mesmo componente com uma imagem
+              só: dois desenhos para a mesma coisa divergiriam no dia em que o
+              botão de remover mudasse. */}
+          <CarrosselDoEditor
+            postId={post.id}
+            slides={
+              slides.length > 0
+                ? slides
+                : post.thumbnailUrl
+                  ? [{ url: post.arteUrl ?? "capa", assinada: post.thumbnailUrl }]
+                  : []
+            }
+            alt={`Arte de ${post.tema}`}
+            podeEditar={posso}
+          />
 
           {posso ? (
             <>

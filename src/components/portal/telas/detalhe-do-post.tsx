@@ -65,10 +65,23 @@ export async function DetalheDoPost({
     postsDoMes(mesDe(post.dataPublicacao), clienteId ?? undefined),
   ]);
 
+  // OS SLIDES DA VERSÃO CORRENTE, e não só a capa: é o que o cliente percorre
+  // antes de decidir. `versoes` já vem da mais nova para a mais velha.
+  const daVersao = versoes[0]?.arquivos ?? [];
+
   const artes = await urlsDasArtes([
     post.arteUrl,
+    ...daVersao,
     ...versoes.map((v) => v.arteUrl),
   ]);
+
+  // A CAPA ENTRA UMA VEZ SÓ. Ela é o primeiro slide, então mandá-la à frente
+  // da lista mostraria a mesma imagem duas vezes no carrossel — e o cliente
+  // contaria seis onde há cinco.
+  const doCarrossel = daVersao
+    .map((caminho) => enderecoDaArte(caminho, artes))
+    .filter((u): u is string => !!u);
+  const capa = enderecoDaArte(post.arteUrl, artes);
 
   const { anterior, proximo } = vizinhosDe(post, doMes);
 
@@ -96,7 +109,7 @@ export async function DetalheDoPost({
       },
     ],
     texto: { titulo: "Legenda", rotulo: "a legenda", corpo: post.legenda },
-    arte: enderecoDaArte(post.arteUrl, artes),
+    artes: doCarrossel.length > 0 ? doCarrossel : capa ? [capa] : [],
     versaoAtual: post.versaoAtual,
     // O post ainda não oferece download: quem publica é a agência, e o
     // arquivo do cliente é o que vai ao ar, não o que ele guarda. Se um dia

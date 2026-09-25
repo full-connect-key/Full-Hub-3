@@ -204,6 +204,7 @@ export async function versoesDoPost(postId: string): Promise<VersaoDoConteudo[]>
     {
       id: "v2",
       numero: 2,
+      arquivos: ["/exemplos/arte-1.svg", "/exemplos/arte-2.svg", "/exemplos/arte-3.svg"],
       arteUrl: "/exemplos/arte-1.svg",
       texto: "Corre que acaba! Toda a linha de granolas com 20% até domingo.",
       notas: "Logo maior e tempo de preparo na legenda",
@@ -213,6 +214,7 @@ export async function versoesDoPost(postId: string): Promise<VersaoDoConteudo[]>
     {
       id: "v1",
       numero: 1,
+      arquivos: [],
       arteUrl: "/exemplos/arte-3.svg",
       texto: "Corre que acaba!",
       notas: "Primeira arte",

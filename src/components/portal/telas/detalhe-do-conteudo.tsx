@@ -50,7 +50,10 @@ export type ModeloDoConteudo = {
    * ("Copiar legenda", "Ler a descrição inteira").
    */
   texto: { titulo: string; rotulo: string; corpo: string | null };
-  arte: string | null;
+  /** A peça, em ordem. Um entregável tem uma; um carrossel tem as que o
+   *  cliente vai percorrer antes de decidir — e decidir sobre a primeira,
+   *  quando há cinco, é decidir sobre um quinto do material. */
+  artes: string[];
   versaoAtual: number;
   rodadaPendenteId: string | null;
   decididoPor: string | null;
@@ -129,7 +132,7 @@ export function DetalheDoConteudo({
       </div>
 
       <VisualizadorDeArte
-        imagens={modelo.arte ? [modelo.arte] : []}
+        imagens={modelo.artes}
         alt={`Arte de ${modelo.titulo}`}
       />
 

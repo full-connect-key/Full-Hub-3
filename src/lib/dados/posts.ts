@@ -8,6 +8,7 @@ import {
   type VersaoDoConteudo,
 } from "@/lib/dados/conteudo";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
 import { deslocarMes, type PostDoPortal } from "@/lib/dominio/posts";
 
 /**
@@ -134,7 +135,7 @@ export async function versoesDoPost(
   const { data } = await supabase
     .from("post_versions")
     .select(
-      "id, numero_versao, arte_url, legenda, notas_mudanca, criado_por, created_at",
+      "id, numero_versao, arte_url, arquivos, legenda, notas_mudanca, criado_por, created_at",
     )
     .eq("post_id", postId)
     .order("numero_versao", { ascending: false });
@@ -146,6 +147,9 @@ export async function versoesDoPost(
     id: l.id,
     numero: l.numero_versao,
     arteUrl: l.arte_url,
+    // OS SLIDES DA VERSÃO, e não só a capa: é o que permite o cliente andar
+    // pelo carrossel em vez de decidir sobre a primeira imagem.
+    arquivos: ((l.arquivos ?? []) as ArquivoDaVersao[]).map((a) => a.url),
     texto: l.legenda,
     notas: l.notas_mudanca,
     quando: l.created_at,

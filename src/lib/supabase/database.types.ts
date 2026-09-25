@@ -1516,6 +1516,12 @@ export interface Database {
           // Os slides desta versao, em ordem. A CAPA continua em
           // `posts.arte_url`, alimentada pelo primeiro slide.
           arquivos: ArquivoDaVersao[];
+          /** Esta versão APAGOU o material do post (0048).
+           *
+           *  É coluna e não array vazio porque `arquivos` é `not null default
+           *  '[]'`: vazio quer dizer "esta versão não falou de arquivo", que é
+           *  o caso de toda versão que só mexe na legenda. */
+          removeu_arquivos: boolean;
           video_url: string | null;
           legenda: string | null;
           notas_mudanca: string | null;
@@ -1528,6 +1534,7 @@ export interface Database {
           arte_url?: string | null;
           thumbnail_url?: string | null;
           arquivos?: ArquivoDaVersao[];
+          removeu_arquivos?: boolean;
           video_url?: string | null;
           legenda?: string | null;
           notas_mudanca?: string | null;

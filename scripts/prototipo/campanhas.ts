@@ -218,6 +218,7 @@ export async function versoesDoEntregavel(
     {
       id: "v2",
       numero: 2,
+      arquivos: [],
       arteUrl: "/exemplos/arte-1.svg",
       texto: "kv-outubro-rosa.pdf",
       notas: "Logo maior e a faixa rosa mais alta",
@@ -227,6 +228,7 @@ export async function versoesDoEntregavel(
     {
       id: "v1",
       numero: 1,
+      arquivos: [],
       arteUrl: "/exemplos/arte-3.svg",
       texto: "kv-outubro-rosa-v1.pdf",
       notas: "Primeira proposta",

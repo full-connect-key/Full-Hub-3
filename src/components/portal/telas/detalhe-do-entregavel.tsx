@@ -107,7 +107,7 @@ export async function DetalheDoEntregavel({
     // rede social. O rótulo também vira o do histórico de versões, onde o
     // texto comparado é o nome do arquivo.
     texto: { titulo: "Descrição", rotulo: "a descrição", corpo: item.descricao },
-    arte: arquivo,
+    artes: arquivo ? [arquivo] : [],
     versaoAtual: item.versaoAtual,
     download: arquivo
       ? { href: arquivo, nome: item.arquivoNome ?? item.nome }

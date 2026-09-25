@@ -595,3 +595,83 @@ export async function apagarReferencia(id: string): Promise<Resultado> {
     return sucesso("Referência removida.");
   });
 }
+
+
+/**
+ * Apagar a arte, ou um slide do carrossel (0048).
+ *
+ * **GRAVA UMA VERSÃO NOVA, e não reescreve a atual.** "Sempre registrando no
+ * histórico" foi o pedido, e é a regra do módulo desde a 0032: cada subida é
+ * uma versão, e as anteriores continuam lá — é por isso que o portal não tem
+ * botão de reverter. Remover é a mesma operação vista do avesso.
+ *
+ * **O arquivo continua no bucket.** A versão anterior aponta para ele, e o
+ * histórico existe para ser aberto: apagar o objeto deixaria a v1 com uma
+ * moldura cinza no lugar de uma arte, e ninguém saberia se ela nunca existiu
+ * ou se alguém a removeu.
+ */
+export async function removerArquivoDaVersao(
+  postId: string,
+  /** O índice do slide, ou `null` para a arte única. */
+  indice: number | null,
+): Promise<Resultado> {
+  return executarAcao("removerArquivoDaVersao", async () => {
+    const sessao = await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const { data: post } = await supabase
+      .from("posts")
+      .select("versao_atual")
+      .eq("id", postId)
+      .maybeSingle();
+    if (!post) return falha("Post não encontrado.");
+
+    const { data: versao } = await supabase
+      .from("post_versions")
+      .select("arquivos, arte_url, thumbnail_url")
+      .eq("post_id", postId)
+      .order("numero_versao", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const atuais = ((versao?.arquivos ?? []) as ArquivoDaVersao[]).slice();
+
+    // A ARTE ÚNICA E O SLIDE SÃO O MESMO CAMINHO quando sobra zero: os dois
+    // gravam uma versão que diz "não há mais material". O que muda é a frase
+    // do histórico, porque é ela que alguém vai ler daqui a três semanas.
+    let restantes: ArquivoDaVersao[] = [];
+    let nota = "Arte removida";
+
+    if (indice !== null) {
+      if (indice < 0 || indice >= atuais.length) {
+        return falha("Este slide não existe mais — recarregue a tela.");
+      }
+      nota = `Slide ${indice + 1} de ${atuais.length} removido`;
+      restantes = atuais.filter((_, i) => i !== indice);
+    }
+
+    const { data, error } = await supabase
+      .from("post_versions")
+      .insert({
+        post_id: postId,
+        arquivos: restantes,
+        // O SINAL SÓ VAI QUANDO NÃO SOBROU NADA. Removendo o slide 3 de 5, a
+        // versão nova tem quatro arquivos e a capa sai do primeiro deles —
+        // mandar o sinal aqui apagaria a capa de um carrossel que ainda tem
+        // arte.
+        removeu_arquivos: restantes.length === 0,
+        notas_mudanca: nota,
+        criado_por: sessao.usuarioId,
+      })
+      .select("numero_versao")
+      .maybeSingle();
+
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (!data) {
+      return falha("Não foi possível gravar a remoção — este post não é seu.");
+    }
+
+    revalidatePath(ROTA);
+    return sucesso(`${nota}. Ficou na versão ${data.numero_versao}.`);
+  });
+}

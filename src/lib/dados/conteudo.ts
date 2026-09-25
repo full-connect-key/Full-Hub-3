@@ -93,6 +93,9 @@ export type VersaoDoConteudo = {
   id: string;
   numero: number;
   arteUrl: string | null;
+  /** Os slides desta versão, em ordem — vazio quando a peça é uma arte só.
+   *  A capa continua em `arteUrl`, e é o primeiro deles. */
+  arquivos: string[];
   texto: string | null;
   notas: string | null;
   quando: string;

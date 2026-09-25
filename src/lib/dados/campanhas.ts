@@ -253,6 +253,9 @@ export async function versoesDoEntregavel(
     id: l.id,
     numero: l.numero_versao,
     arteUrl: l.arte_url,
+    // O entregável não tem slides: a peça dele é um arquivo só. A lista vazia
+    // é o que faz a casca compartilhada não precisar perguntar o tipo.
+    arquivos: [],
     // No post o texto é a legenda; aqui é o nome do arquivo. É o que muda
     // junto com a arte e o que a pessoa confere depois de pedir ajuste.
     texto: l.arquivo_nome,
