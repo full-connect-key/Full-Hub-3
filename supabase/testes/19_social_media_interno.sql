@@ -93,10 +93,14 @@ select teste.recusa_com('Nem passa o post para outra pessoa', :BRUNO,
     :MARINA, :CARROSSEL),
   'Passar o post para outra pessoa');
 
-select teste.recusa_com('Nem muda a data combinada com o cliente', :BRUNO,
+-- A DATA SAIU DESTA LISTA na 0044, e este cenario esta VIRADO DO AVESSO de
+-- proposito: ate a 0044 ele recusava, porque a data tinha sido "combinada com o
+-- cliente". Decisao do usuario: quem produz decide quando o post vai ao ar --
+-- o mes abre sem data nenhuma e e a Social Media que distribui. Se alguem
+-- recolocar a data no trigger, este cenario falha e diz que a regra voltou.
+select teste.cenario('E A DATA, essa ele troca -- decisao da 0044', :BRUNO,
   format($fmt$update public.posts set data_publicacao = '2026-12-01' where id = %L$fmt$,
-    :CARROSSEL),
-  'data de publicação');
+    :CARROSSEL), 'ok', 1);
 
 select teste.recusa_com('E nao carimba o envio a mao', :BRUNO,
   format($fmt$update public.posts set enviado_em = now() where id = %L$fmt$, :CARROSSEL),
