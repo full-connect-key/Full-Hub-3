@@ -24,14 +24,8 @@ import { cn } from "@/lib/utils";
  * compartilhável ("olha as obrigatórias que faltam") e sobreviver ao voltar do
  * navegador.
  *
- * "RECOMENDADAS PARA VOCÊ" VEM ANTES DE TUDO, e é a razão de a Academy e as
- * Skills valerem juntas mais do que separadas: são as trilhas que tocam uma
- * skill que a pessoa marcou como "quero desenvolver" no Sprint 7. Sem essa
- * faixa, a Academy seria um catálogo que ninguém sabe por onde começar.
- *
- * Ela só aparece com o filtro em "Todas": filtrar por "Concluídas" e ainda ver
- * uma vitrine de recomendações no topo seria a tela ignorando o que a pessoa
- * acabou de pedir.
+ * A vitrine que esta tela teve no topo saiu na 0043 — o comentário dentro do
+ * componente diz por quê, e não repete o nome dela.
  */
 export function GradeDeTrilhas({
   trilhas,

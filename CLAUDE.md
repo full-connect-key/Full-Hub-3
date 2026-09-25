@@ -834,6 +834,17 @@ mediu, e no tema escuro dá outra.
 Prioridade **Normal é cinza**. Era azul, e azul numa tela cujo destaque é azul
 fazia a prioridade mais comum competir com Alta e Urgente.
 
+**A busca de nome morto não passa pelo `grep -i`, e a razão é um furo que ela
+teve desde que a lista ganhou palavra com acento.** `grep -i` faz case-fold
+pelo **locale**: com `LC_CTYPE=POSIX` — o padrão de muito container — ele
+dobra só ASCII, então "VOCÊ" nunca casava com "você" e metade da lista
+passava em branco. O sintoma foi o pior possível: a varredura dizia "ok, não
+aparece em lugar nenhum" numa máquina e **falhava no CI para o mesmo
+commit**. Hoje quem compara é `toLowerCase()` do JavaScript, que dobra acento
+pelo Unicode em qualquer sistema; o `grep` só acha os arquivos. Uma checagem
+cujo trabalho inteiro é afirmar que um nome não existe não pode depender de
+variável de ambiente para saber ler.
+
 `npm run check:cores` é a prova: mede 34 pares texto/fundo nos dois temas
 (mínimo 4.5:1 normal, 3:1 grande e elemento de interface), acusa hex fora do
 arquivo de tokens, confere se toda classe de cor existe no `@theme inline` —

@@ -364,16 +364,58 @@ let avisos = 0;
 
 console.log("\nNomes que saíram do produto\n");
 
-for (const { nome, onde, porque } of NOMES_MORTOS) {
-  let achados = "";
+/**
+ * A BUSCA DE NOME MORTO NAO PASSA MAIS PELO `grep -i`, e a razao e um furo
+ * que esta varredura teve desde que a lista ganhou palavra com acento.
+ *
+ * `grep -i` faz case-fold pelo LOCALE. Numa maquina com `LC_CTYPE=POSIX` --
+ * o padrao de muito container, inclusive o desta sessao -- ele dobra so
+ * ASCII: "VOCE" casa com "voce", e "VOCÊ" NAO casa com "você". Metade da
+ * lista de nomes mortos e acentuada, e todos eles vinham passando em branco.
+ *
+ * O sintoma foi o pior possivel: a varredura respondia "ok, nao aparece em
+ * lugar nenhum" na minha maquina e FALHA no CI, para o mesmo commit. Uma
+ * checagem cujo trabalho inteiro e afirmar que um nome nao existe nao pode
+ * depender de variavel de ambiente para saber ler.
+ *
+ * `toLowerCase()` do JavaScript dobra acento pelo Unicode, igual em qualquer
+ * sistema. O `grep` continua fazendo o que ele faz bem -- achar os arquivos.
+ */
+function ondeAparece(nome, onde) {
+  let arquivos = "";
   try {
-    achados = execSync(
-      `grep -rniF ${JSON.stringify(nome)} ${onde} --include=*.ts --include=*.tsx --include=*.mjs --include=*.sql --include=*.md 2>/dev/null || true`,
-      { encoding: "utf8" },
+    arquivos = execSync(
+      `grep -rl "" ${onde} --include=*.ts --include=*.tsx --include=*.mjs --include=*.sql --include=*.md 2>/dev/null || true`,
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     ).trim();
   } catch {
-    achados = "";
+    return [];
   }
+
+  const alvo = nome.toLowerCase();
+  const linhas = [];
+
+  for (const arquivo of arquivos.split("\n").filter(Boolean)) {
+    let texto;
+    try {
+      texto = readFileSync(arquivo, "utf8");
+    } catch {
+      continue;
+    }
+    if (!texto.toLowerCase().includes(alvo)) continue;
+
+    texto.split("\n").forEach((linha, i) => {
+      if (linha.toLowerCase().includes(alvo)) {
+        linhas.push(`${arquivo}:${i + 1}: ${linha.trim()}`);
+      }
+    });
+  }
+
+  return linhas;
+}
+
+for (const { nome, onde, porque } of NOMES_MORTOS) {
+  const achados = ondeAparece(nome, onde).join("\n");
   // O próprio check-cores.mjs cita os nomes na lista acima: ignorar este
   // arquivo é o que impede a verificação de acusar a si mesma.
   const linhas = achados
