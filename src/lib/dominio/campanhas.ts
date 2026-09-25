@@ -69,6 +69,11 @@ export type CampanhaDoPortal = {
   dataInicio: string;
   dataFim: string;
   status: CampaignStatus;
+  /** O caminho da capa no bucket. Null quando ninguém pôs uma — o cartão cai
+   *  no desenho de texto, que continua valendo. */
+  capaUrl: string | null;
+  /** A capa já assinada, quando a consulta a assinou. O bucket é privado. */
+  capaAssinada: string | null;
 };
 
 /** Um item de topo com os sub-itens dele. */

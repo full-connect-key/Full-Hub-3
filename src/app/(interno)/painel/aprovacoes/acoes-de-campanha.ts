@@ -258,3 +258,65 @@ export async function enviarEntregavelAoCliente(
     return sucesso("Enviado ao cliente.");
   });
 }
+
+/**
+ * Troca — ou tira — a capa do cartão da campanha.
+ *
+ * **O arquivo sobe pelo navegador, e aqui só entra o CAMINHO.** É a mesma
+ * divisão do editor de post: quem sobe é a sessão da própria pessoa, então a
+ * policy do Storage continua valendo; mandar o binário por Server Action o
+ * faria atravessar o servidor do Next sem ganhar nenhuma checagem.
+ *
+ * **O caminho precisa começar pela pasta do cliente**, senão a capa aparece
+ * para a equipe e some para quem ela foi feita: `"campanhas: cliente le"`
+ * compara `(storage.foldername(name))[1]` com as empresas de quem pede. Quem
+ * monta o caminho é a tela, e esta checagem é a segunda leitura da mesma
+ * regra — barata, e o sintoma dela é uma imagem quebrada no portal.
+ *
+ * **Tirar a capa é `null`, e não apagar o arquivo.** O cartão volta ao
+ * desenho de texto na hora; o arquivo fica no bucket, que é onde ele não
+ * incomoda ninguém. Apagar junto transformaria um clique de "não era esta" em
+ * perda de arquivo.
+ */
+export async function trocarCapaDaCampanha(
+  campanhaId: string,
+  caminho: string | null,
+): Promise<Resultado> {
+  return executarAcao("trocarCapaDaCampanha", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data: campanha } = await supabase
+      .from("campaigns")
+      .select("client_id")
+      .eq("id", campanhaId)
+      .maybeSingle();
+
+    if (!campanha) {
+      return falha("Esta campanha não existe, ou o seu acesso não a alcança.");
+    }
+
+    if (caminho && !caminho.startsWith(`${campanha.client_id}/`)) {
+      return falha(
+        "A capa precisa ficar na pasta do cliente, senão ela não aparece no portal dele.",
+      );
+    }
+
+    // `.select()` porque o RLS pode recusar em silêncio: sem ele, um update
+    // barrado volta sem erro e sem linha, e a tela diz "pronto" à toa.
+    const { data, error } = await supabase
+      .from("campaigns")
+      .update({ capa_url: caminho })
+      .eq("id", campanhaId)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou a troca da capa. Trocar capa é da equipe interna.");
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath("/portal/campanhas");
+    return sucesso(caminho ? "Capa trocada." : "Capa retirada.");
+  });
+}

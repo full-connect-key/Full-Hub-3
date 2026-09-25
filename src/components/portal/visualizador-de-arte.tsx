@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
   ImageOff,
   Maximize2,
   Minus,
@@ -11,6 +9,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+import { FaixaDaComposicao } from "@/components/shared/faixa-da-composicao";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +39,8 @@ export function VisualizadorDeArte({
   imagens,
   alt,
 }: {
-  /** Uma por enquanto; o carrossel com várias chega com a tela de produção. */
+  /** As artes em ordem. Num carrossel, todas — a faixa abaixo do quadro as
+   *  mostra lado a lado, e o quadro é onde se aproxima a escolhida. */
   imagens: string[];
   alt: string;
 }) {
@@ -219,32 +219,24 @@ export function VisualizadorDeArte({
         </Button>
       </div>
 
+      {/* A COMPOSIÇÃO INTEIRA, e não um paginador (decisão do usuário).
+          Carrossel é uma peça só que o dedo atravessa: a arte vaza de um
+          slide para o outro, e a frase começa no três e termina no quatro.
+          Com um de cada vez, o cliente decidia sobre um quinto do material
+          cinco vezes, e o emendado — que é o que mais sai errado — não
+          aparecia em nenhuma das cinco.
+
+          O quadro grande acima continua sendo onde se aproxima: clicar numa
+          arte da faixa a leva para lá. Zoom de verdade num slide de um terço
+          da largura não serviria para ler o rodapé pequeno, que é o pedido de
+          ajuste mais comum. */}
       {imagens.length > 1 ? (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Imagem anterior"
-            onClick={() => irPara(Math.max(0, indice - 1))}
-            disabled={indice === 0}
-          >
-            <ChevronLeft aria-hidden />
-          </Button>
-          <span className="text-text-muted text-sm tabular-nums">
-            {indice + 1} de {imagens.length}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Próxima imagem"
-            onClick={() =>
-              setIndice((i) => Math.min(imagens.length - 1, i + 1))
-            }
-            disabled={indice === imagens.length - 1}
-          >
-            <ChevronRight aria-hidden />
-          </Button>
-        </div>
+        <FaixaDaComposicao
+          imagens={imagens}
+          rotulo={alt}
+          atual={indice}
+          aoEscolher={irPara}
+        />
       ) : null}
     </div>
   );

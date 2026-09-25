@@ -156,3 +156,55 @@ begin
   end;
 end;
 $$;
+
+
+-- ---------------------------------------------------------------------------
+-- O VALOR QUE UMA PESSOA VE
+--
+-- `teste.conferir` compara um valor avaliado como dono do banco, e por isso
+-- nenhuma policy se aplica a ele: ele responde "o que esta gravado", que e a
+-- pergunta certa para um trigger e a errada para um indicador.
+--
+-- Uma metrica e outra coisa: ela devolve NUMEROS DIFERENTES conforme quem
+-- pergunta, e e justamente isso que precisa ser provado -- que o pulso da
+-- agencia nao vem para o colaborador, que a fila de aprovacao e zero para quem
+-- nao decide. Sem este auxiliar, o unico jeito seria contar linhas, e uma
+-- metrica nao devolve linhas: devolve um `jsonb` com sete chaves.
+--
+-- E UMA METRICA ERRADA NAO ESTOURA -- ela mostra outro numero. E o tipo de
+-- erro que so um valor esperado, escrito a mao, encontra.
+-- ---------------------------------------------------------------------------
+create or replace function teste.conferir_como(
+  p_descricao text,
+  p_uid       uuid,
+  p_expressao text,     -- um `select` que devolve UM valor
+  p_esperado  text
+) returns void
+language plpgsql
+as $$
+declare
+  achado text;
+begin
+  begin
+    execute 'set local role authenticated';
+    perform set_config('request.jwt.claim.sub', p_uid::text, true);
+    execute p_expressao into achado;
+    execute 'reset role';
+  exception when others then
+    execute 'reset role';
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'FALHOU', sqlerrm);
+    return;
+  end;
+
+  if achado is not distinct from p_esperado then
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'passou', null);
+  else
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'FALHOU',
+            format('esperado %s, achado %s',
+                   coalesce(p_esperado, '(nulo)'), coalesce(achado, '(nulo)')));
+  end if;
+end;
+$$;

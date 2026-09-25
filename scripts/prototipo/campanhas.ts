@@ -35,6 +35,11 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     dataInicio: dia(-24),
     dataFim: dia(6),
     status: "ativa",
+    // A capa existe numa das tres de proposito: e o lado a lado que mostra
+    // o que ela resolve -- na grade, a Wave se acha pela imagem e as outras
+    // duas pelo titulo.
+    capaUrl: "capas/wave.png",
+    capaAssinada: "/exemplos/capa-1.svg",
   },
   {
     id: "camp-verao",
@@ -46,6 +51,8 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     dataInicio: dia(-90),
     dataFim: dia(-30),
     status: "finalizada",
+    capaUrl: null,
+    capaAssinada: null,
   },
   {
     id: "camp-natal",
@@ -57,6 +64,8 @@ const CAMPANHAS: CampanhaDoPortal[] = [
     dataInicio: dia(60),
     dataFim: dia(95),
     status: "planejamento",
+    capaUrl: null,
+    capaAssinada: null,
   },
 ];
 

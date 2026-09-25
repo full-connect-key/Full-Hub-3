@@ -4,6 +4,7 @@ import { ArrowLeft, TriangleAlert } from "lucide-react";
 
 import { ArvoreDeEntregaveis } from "@/components/portal/arvore-de-entregaveis";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   entregaveisDaCampanha,
@@ -70,6 +71,21 @@ export async function DetalheDaCampanha({
           <ArrowLeft aria-hidden className="size-4" />
           Voltar às campanhas
         </Link>
+
+        {/* A MESMA CAPA DO CARTÃO (0050). Quem clicou no cartão clicou na
+            imagem: chegar a uma tela sem ela é perder a confirmação de que
+            abriu a campanha certa.
+
+            **Aqui ela é mais BAIXA, e não é capricho.** Em 1280px a mesma
+            faixa 16/6 dá 310px de altura, e o título, o período e a barra de
+            progresso caem abaixo da dobra — numa tela cuja primeira pergunta
+            é "quanto falta". No cartão ela é o que identifica; aqui é só a
+            confirmação de que se chegou na campanha certa. */}
+        <CapaDoCartao
+          url={campanha.capaAssinada}
+          alt={campanha.nome}
+          className="max-h-48"
+        />
 
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold">{campanha.nome}</h1>

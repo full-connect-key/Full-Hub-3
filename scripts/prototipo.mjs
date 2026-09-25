@@ -219,6 +219,11 @@ const TELAS = [
   { nome: "20d-portal-campanhas-375", rota: "/portal/campanhas", largura: 375, altura: 1200 },
   { nome: "20e-portal-campanha-375", rota: "/portal/campanhas/camp-wave", largura: 375, altura: 2000 },
   { nome: "20f-nova-campanha", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1200, role: "socio" },
+  // A LISTA DA AGÊNCIA não tinha imagem, e foi onde o bug morava: "Nenhuma
+  // campanha aberta" com campanha criada. A tela que o usuário olhou é
+  // justamente esta, e sem ela no protótipo a correção ficava sem prova.
+  { nome: "20g-aprovacoes-campanhas", rota: "/painel/aprovacoes", largura: 1280, altura: 900, role: "socio" },
+  { nome: "20h-aprovacoes-campanhas-375", rota: "/painel/aprovacoes", largura: 375, altura: 1400, role: "socio" },
   { nome: "16b-portal-aprovacoes", rota: "/portal/aprovacoes", largura: 1280, altura: 1000 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },

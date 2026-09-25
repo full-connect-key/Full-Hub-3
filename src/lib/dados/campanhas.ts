@@ -2,11 +2,13 @@ import "server-only";
 
 import {
   assinarArquivos,
+  enderecoDaArte,
   nomesDe,
   rodadasDo,
   type RodadaDoConteudo,
   type VersaoDoConteudo,
 } from "@/lib/dados/conteudo";
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   CampanhaDoPortal,
@@ -35,7 +37,15 @@ import type { EstruturaDeTemplate } from "@/lib/supabase/database.types";
  */
 
 // prettier-ignore
-const COLUNAS_DA_CAMPANHA = "id, client_id, nome, descricao, data_inicio, data_fim, status, clients(nome)";
+// `clients(nome)` ESTAVA AQUI, E DERRUBAVA A CONSULTA INTEIRA. A coluna da
+// tabela é `nome_empresa`; o PostgREST recusa o `select` quando o embutido
+// cita coluna que não existe, e o erro descartado virava "Nenhuma campanha
+// aberta" na tela de quem tinha acabado de criar uma.
+//
+// E ela nem era usada: `LinhaDeCampanha` não declara o embutido, e o nome da
+// empresa sempre veio de `nomesDasEmpresas()`, logo abaixo. Um pedaço de
+// consulta que ninguém lê e que quebra tudo.
+const COLUNAS_DA_CAMPANHA = "id, client_id, nome, descricao, data_inicio, data_fim, status, capa_url";
 
 // prettier-ignore
 const COLUNAS_DO_ENTREGAVEL = "id, campaign_id, parent_id, nome, descricao, ordem, status, prazo, arte_url, thumbnail_url, arquivo_nome, versao_atual, enviado_em";
@@ -43,6 +53,7 @@ const COLUNAS_DO_ENTREGAVEL = "id, campaign_id, parent_id, nome, descricao, orde
 type LinhaDeCampanha = {
   id: string;
   client_id: string;
+  capa_url: string | null;
   nome: string;
   descricao: string | null;
   data_inicio: string;
@@ -102,6 +113,11 @@ function montarCampanha(
     dataInicio: linha.data_inicio,
     dataFim: linha.data_fim,
     status: linha.status,
+    capaUrl: linha.capa_url,
+    // ASSINADA POR QUEM LISTA, e não aqui: `montarCampanha` é síncrona e
+    // assinar é ida à rede. Uma lista de oito campanhas faria oito idas em
+    // série — a listagem inteira paga o preço de uma.
+    capaAssinada: null,
   };
 }
 
@@ -154,11 +170,22 @@ export async function campanhasDoCliente(
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta;
-  const linhas = (data ?? []) as LinhaDeCampanha[];
+  const linhas = (ouFalha("campanhas do cliente", await consulta) ??
+    []) as LinhaDeCampanha[];
   const empresas = await nomesDasEmpresas(linhas.map((l) => l.client_id));
 
-  return linhas.map((linha) => montarCampanha(linha, empresas));
+  // UMA ASSINATURA PARA A LISTA INTEIRA. O bucket é privado, e a URL vale uma
+  // hora — assinar campanha a campanha seriam oito idas à rede para desenhar
+  // oito cartões.
+  const capas = await urlsDosArquivos(linhas.map((l) => l.capa_url));
+
+  return linhas.map((linha) => ({
+    ...montarCampanha(linha, empresas),
+    // `enderecoDaArte` e NAO `capas[...]`: nem toda capa mora no bucket. A do
+    // seed e um caminho do proprio site, e assinar um endereco que nao e do
+    // Storage devolve erro — a imagem sumiria da tela sem nada avisando.
+    capaAssinada: enderecoDaArte(linha.capa_url, capas),
+  }));
 }
 
 /** Uma campanha, ou null quando o RLS não deixa ver. */
@@ -174,11 +201,15 @@ export async function obterCampanha(
     .eq("id", id);
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta.maybeSingle();
+  const data = ouFalha("a campanha", await consulta.maybeSingle());
   if (!data) return null;
 
   const linha = data as LinhaDeCampanha;
-  return montarCampanha(linha, await nomesDasEmpresas([linha.client_id]));
+  const capas = await urlsDosArquivos([linha.capa_url]);
+  return {
+    ...montarCampanha(linha, await nomesDasEmpresas([linha.client_id])),
+    capaAssinada: enderecoDaArte(linha.capa_url, capas),
+  };
 }
 
 /**

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarRange } from "lucide-react";
 
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
   periodoCurto,
@@ -46,6 +47,13 @@ export function CartaoDeCampanha({
         esperando > 0 && "border-warning",
       )}
     >
+      {/* A CAPA VEM ANTES DO NOME, e só quando existe (0050). O cliente abre
+          esta lista uma vez por semana e tem três ou quatro campanhas do mesmo
+          período: a imagem é o que ele reconhece antes de ler. Sem capa o
+          cartão fica como sempre foi — moldura vazia numa grade em que quase
+          nenhuma tem imagem é uma lista de buracos. */}
+      <CapaDoCartao url={campanha.capaAssinada} alt={campanha.nome} />
+
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h3 className="min-w-0 font-medium">{campanha.nome}</h3>
         {esperando > 0 ? (

@@ -11,3 +11,8 @@ o que se quer aqui é justamente um arquivo de imagem — não um componente.
 
 Nenhum deles é material de cliente. Se um dia aparecerem numa tela de
 produção, é bug.
+
+`capa-1.svg` é a quarta, e é larga (16/6) em vez de quadrada: ela existe para
+a **capa da campanha** (0050), que é uma faixa. Uma quadrada ali entraria em
+`object-cover` e mostraria só a tira do meio — o protótipo pareceria um
+recorte errado, e o que se quer ver na imagem é o desenho do cartão.

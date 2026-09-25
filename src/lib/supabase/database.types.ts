@@ -1632,6 +1632,7 @@ export interface Database {
           data_fim: string;
           template_id: string | null;
           status: CampaignStatus;
+          capa_url: string | null;
           drive_folder_id: string | null;
           criado_por: string | null;
           created_at: string;
@@ -1645,6 +1646,7 @@ export interface Database {
           data_fim: string;
           template_id?: string | null;
           status?: CampaignStatus;
+          capa_url?: string | null;
           drive_folder_id?: string | null;
           criado_por?: string | null;
         };
@@ -1654,6 +1656,7 @@ export interface Database {
           data_inicio?: string;
           data_fim?: string;
           status?: CampaignStatus;
+          capa_url?: string | null;
           drive_folder_id?: string | null;
         };
         Relationships: [];

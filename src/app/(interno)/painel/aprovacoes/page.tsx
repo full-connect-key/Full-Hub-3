@@ -18,6 +18,8 @@ import {
   ROTULO_DA_CAMPANHA,
 } from "@/lib/dominio/campanhas";
 
+import { CapaDaCampanha } from "./capa-da-campanha";
+
 export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
 
 /**
@@ -25,38 +27,23 @@ export const metadata: Metadata = { title: "Aprovações & Conteúdo" };
  *
  * **Isto NÃO é o gerenciador**, que é de outro momento: não dá para editar a
  * estrutura, subir arquivo nem enviar entregável por aqui. O que existe é a
- * lista do que foi aberto e o caminho para abrir mais — o suficiente para uma
- * campanha nascer com a árvore certa e chegar ao Portal.
+ * lista do que foi aberto, a capa de cada uma e o caminho para abrir mais.
  *
  * A contagem é a MESMA do portal, pela mesma função: se a tela da agência
  * contasse por conta própria, as duas dariam números diferentes no dia em que
  * alguém mexesse numa delas.
- */
-/**
- * A linha da lista: link quando há para onde ir, bloco quando não há.
  *
- * Um `<Link href="">` renderiza uma âncora que parece clicável e não vai a
- * lugar nenhum — pior que um bloco honesto.
+ * **ERA UMA LISTA DE LINHAS, e virou uma grade de cartões** por causa da
+ * capa (0050): "identificável direto pela imagem qual campanha é" não cabe
+ * numa linha de 56px de altura, e a imagem que coubesse ali seria pequena
+ * demais para reconhecer.
+ *
+ * **O cartão inteiro não é um link**, e não é descuido: a capa carrega os
+ * botões de trocar e tirar, e botão dentro de âncora é elemento interativo
+ * dentro de elemento interativo — o clique vai para um dos dois conforme o
+ * navegador, e o teclado tabula para um controle que não existe na árvore de
+ * acessibilidade. Quem leva ao portal é o título.
  */
-function ComoLinha({
-  href,
-  children,
-}: {
-  href: string | null;
-  children: React.ReactNode;
-}) {
-  const classe =
-    "bg-surface-card flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4";
-
-  if (!href) return <div className={classe}>{children}</div>;
-
-  return (
-    <Link href={href} className={`${classe} hover:border-accent-strong transition-colors`}>
-      {children}
-    </Link>
-  );
-}
-
 export default async function PaginaDeAprovacoes() {
   await exigirAcessoARota("/painel/aprovacoes");
 
@@ -85,22 +72,41 @@ export default async function PaginaDeAprovacoes() {
           description="Abra a primeira e a estrutura de entregáveis nasce junto, a partir de um modelo."
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {campanhas.map((campanha, i) => {
             const conta = progresso(folhas(emArvore(arvores[i])));
+            // Campanha sem slug não vira link em vez de virar um link
+            // quebrado: o cliente ainda não tem endereço de portal.
+            const href = campanha.slug
+              ? `/portal/${campanha.slug}/campanhas/${campanha.id}`
+              : null;
 
             return (
-              <li key={campanha.id}>
-                {/* A LINHA ABRE O PORTAL DAQUELE CLIENTE, que é a única tela
-                    de detalhe de campanha que existe hoje. Sem isto a tela
-                    listava a campanha e não levava a lugar nenhum — e quem
-                    acabou de criar uma queria justamente ver como ela ficou.
+              <li
+                key={campanha.id}
+                className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4"
+              >
+                <CapaDaCampanha
+                  campanhaId={campanha.id}
+                  clienteId={campanha.clienteId}
+                  nome={campanha.nome}
+                  capaAssinada={campanha.capaAssinada}
+                  temCapa={Boolean(campanha.capaUrl)}
+                  podeTrocar
+                />
 
-                    Campanha sem slug não vira link em vez de virar um link
-                    quebrado: o cliente ainda não tem endereço de portal. */}
-                <ComoLinha href={campanha.slug ? `/portal/${campanha.slug}/campanhas/${campanha.id}` : null}>
-                <div className="min-w-0">
-                  <p className="font-medium">{campanha.nome}</p>
+                <div className="min-w-0 flex-1 space-y-1">
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="hover:text-accent-strong font-medium transition-colors"
+                    >
+                      {campanha.nome}
+                    </Link>
+                  ) : (
+                    <p className="font-medium">{campanha.nome}</p>
+                  )}
+
                   <p className="text-text-muted text-sm tabular-nums">
                     {campanha.cliente}
                     <span aria-hidden> · </span>
@@ -110,10 +116,13 @@ export default async function PaginaDeAprovacoes() {
                   </p>
                 </div>
 
-                <p className="text-text-muted text-sm tabular-nums">
+                {/* `mt-auto` gruda a contagem no pé do cartão: sem ele, o
+                    cartão cujo período quebra em duas linhas empurra a conta
+                    para baixo e a grade fica com três números em três alturas
+                    diferentes — que é justamente o que se compara. */}
+                <p className="text-text-muted mt-auto text-sm tabular-nums">
                   {conta.aprovados} de {conta.total} aprovados
                 </p>
-                </ComoLinha>
               </li>
             );
           })}

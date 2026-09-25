@@ -1101,11 +1101,15 @@ begin
   -- A campanha termina em 6 DIAS, e nao e numero solto: e o que faz o alerta
   -- de prazo aparecer na tela do cliente. Com 8 ele nao apareceria, e o
   -- cenario mais interessante do sprint ficaria sem exemplo.
+  -- A CAPA E UM CAMINHO QUE NAO PASSA PELO STORAGE, como as artes dos
+  -- entregaveis logo abaixo: `assinarArquivos()` deixa passar direto o que ja
+  -- comeca com `/` ou `http`, e assinar um endereco que nao e do bucket
+  -- devolveria erro e apagaria a imagem da tela. O seed nao sobe arquivo.
   insert into public.campaigns (client_id, nome, descricao, data_inicio, data_fim,
-                                status, criado_por)
+                                status, capa_url, criado_por)
   values (verde, 'Wave Outubro Rosa',
           'A campanha de outubro: KV, enxoval de pecas, feed, videos e os arquivos do Deskfy.',
-          primeiro, current_date + 6, 'ativa', diego)
+          primeiro, current_date + 6, 'ativa', '/exemplos/capa-1.svg', diego)
   returning id into campanha;
 
   -- ------------------------------------------------------------------- KV --
