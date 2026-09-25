@@ -7,6 +7,7 @@ import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import type { Resultado } from "@/lib/acoes/resultado";
+import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { buscarMetadados, type PreviaDoLink } from "@/lib/link-preview";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -264,6 +265,8 @@ export async function comentar(
     if (!validacao.success) {
       return falha(recusaDeValidacao("comentar", validacao.error, texto, "Comentário inválido."));
     }
+
+    await exigirCotaDeComentario(sessao.usuarioId);
 
     const supabase = await criarClienteServidor();
 

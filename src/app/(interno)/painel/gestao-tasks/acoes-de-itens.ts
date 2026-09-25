@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json, SubtaskStatus } from "@/lib/supabase/database.types";
@@ -425,6 +426,7 @@ export async function comentar(
   return executarAcao("comentar", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
     if (texto.trim().length === 0) return falha("Escreva alguma coisa.");
+    await exigirCotaDeComentario(sessao.usuarioId);
 
     const supabase = await criarClienteServidor();
     const { error } = await supabase.from("task_comentarios").insert({

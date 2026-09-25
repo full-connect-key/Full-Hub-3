@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { SITE_URL } from "@/lib/env";
+import {
+  consumirTentativa,
+  enderecoDeQuemChama,
+  esperePor,
+  LIMITES,
+  perdoarTentativas,
+} from "@/lib/acoes/limite";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { ehCliente, rotaInicialDoRole } from "./roles";
 import { esquemaDeLogin, esquemaDeNovaSenha, esquemaDeRecuperacao } from "./esquemas";
@@ -89,6 +96,41 @@ export async function entrar(
     return { erro: validacao.error.issues[0]?.message ?? "Confira os dados informados." };
   }
 
+  // ------------------------------------------------------------------------
+  // O LIMITE VEM ANTES DE FALAR COM O SUPABASE, e a ordem é o ponto: depois
+  // dele, cada tentativa recusada já teria custado uma ida ao servidor de
+  // autenticação. O que se está limitando é justamente isso.
+  //
+  // São DUAS contas, e nenhuma das duas sozinha resolve. Por IP barra a
+  // máquina que varre a lista de e-mails da agência; por e-mail barra quem
+  // tem botnet e troca de endereço a cada tentativa. O teto por e-mail é o
+  // mais folgado de propósito — veja `LIMITES`: trancar por e-mail é o que
+  // deixaria um estranho trancar o sócio para fora.
+  //
+  // A MENSAGEM É A MESMA NOS DOIS CASOS, e não diz qual dos dois estourou.
+  // "Esse e-mail atingiu o limite" seria confirmar que o e-mail existe, na
+  // única tela do produto que se recusa a confirmar isso.
+  // ------------------------------------------------------------------------
+  const email = validacao.data.email.toLowerCase();
+  const ip = await enderecoDeQuemChama();
+  const chaveDoEmail = `login:email:${email}`;
+
+  const porEmail = await consumirTentativa(chaveDoEmail, LIMITES.loginPorEmail);
+  const porIp = ip
+    ? await consumirTentativa(`login:ip:${ip}`, LIMITES.loginPorIp)
+    : { permitido: true, espereSegundos: 0 };
+
+  if (!porEmail.permitido || !porIp.permitido) {
+    const espere = Math.max(
+      porEmail.permitido ? 0 : porEmail.espereSegundos,
+      porIp.permitido ? 0 : porIp.espereSegundos,
+    );
+    console.error(`[auth:entrar] limite de tentativas atingido (ip=${ip ?? "?"})`);
+    return {
+      erro: `Muitas tentativas seguidas. Aguarde ${esperePor(espere)} e tente de novo.`,
+    };
+  }
+
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: validacao.data.email,
@@ -116,6 +158,13 @@ export async function entrar(
     await supabase.auth.signOut();
     return { erro: "Esta conta está desativada. Fale com a equipe interna." };
   }
+
+  // ENTROU: a cota do e-mail volta. Sem isto o contador conta tentativa e não
+  // erro, e quem entra e sai várias vezes num dia — trocando de navegador,
+  // abrindo o portal de um cliente — levaria a recusa no meio do expediente
+  // sem ter errado nada. A do IP não volta: um endereço pode ter mais de uma
+  // pessoa atrás, e o acerto de uma não fala pelas outras.
+  await perdoarTentativas(chaveDoEmail);
 
   const destino = destinoDepoisDoLogin(
     profile.role,
@@ -145,6 +194,39 @@ export async function enviarLinkDeRecuperacao(
 
   if (!validacao.success) {
     return { erro: validacao.error.issues[0]?.message ?? "Confira o e-mail informado." };
+  }
+
+  // CADA TENTATIVA AQUI MANDA UMA MENSAGEM DE VERDADE PARA UMA PESSOA DE
+  // VERDADE, e é isso que este limite protege: sem ele, o formulário de
+  // "esqueci a senha" é um botão de encher a caixa de entrada de qualquer
+  // e-mail da agência, hospedado pela própria agência.
+  //
+  // E AQUI NÃO SE PERDOA NADA. No login existe um "deu certo" em que confiar;
+  // aqui a resposta é idêntica havendo conta ou não — de propósito, para não
+  // entregar quais e-mails existem. Sem um sinal de sucesso confiável, devolver
+  // cota seria devolver com base em nada.
+  const emailPedido = validacao.data.email.toLowerCase();
+  const enderecoIp = await enderecoDeQuemChama();
+
+  const cotaEmail = await consumirTentativa(
+    `recuperacao:email:${emailPedido}`,
+    LIMITES.recuperacaoPorEmail,
+  );
+  const cotaIp = enderecoIp
+    ? await consumirTentativa(`recuperacao:ip:${enderecoIp}`, LIMITES.recuperacaoPorIp)
+    : { permitido: true, espereSegundos: 0 };
+
+  if (!cotaEmail.permitido || !cotaIp.permitido) {
+    const espere = Math.max(
+      cotaEmail.permitido ? 0 : cotaEmail.espereSegundos,
+      cotaIp.permitido ? 0 : cotaIp.espereSegundos,
+    );
+    console.error(
+      `[auth:recuperar-senha] limite atingido (ip=${enderecoIp ?? "?"})`,
+    );
+    return {
+      erro: `Muitos pedidos seguidos. Aguarde ${esperePor(espere)} e tente de novo.`,
+    };
   }
 
   const supabase = await criarClienteServidor();

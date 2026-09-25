@@ -233,6 +233,13 @@ async function checarSchema(): Promise<Checagem> {
  * Sem ela nao da para cadastrar ninguem: criar conta no Auth e operacao
  * administrativa. Por isso o alerta aqui diz exatamente o que para de
  * funcionar, em vez de chamar a chave de "opcional".
+ *
+ * E A LISTA DO QUE PARA CRESCEU, o que e a razao de ela ser escrita por
+ * extenso: o limite de tentativas (0056) passou a depender desta mesma chave,
+ * porque o login acontece antes de existir sessao e nao ha cliente do usuario
+ * para usar. Um alerta que diz "sem ela nao da para cadastrar ninguem" estaria
+ * certo e incompleto -- e o que ele deixaria de fora e justamente o que
+ * ninguem descobre sozinho, porque um limite desligado nao muda nada na tela.
  */
 function checarChaveDeServico(): Checagem {
   if (servicoConfigurado()) {
@@ -247,7 +254,9 @@ function checarChaveDeServico(): Checagem {
     situacao: "alerta",
     detalhe:
       "SUPABASE_SERVICE_ROLE_KEY não configurada. Sem ela não é possível adicionar " +
-      "colaboradores nem convidar usuários para o portal do cliente.",
+      "colaboradores nem convidar usuários para o portal do cliente — e o LIMITE DE " +
+      "TENTATIVAS fica desligado: login e recuperação de senha passam a aceitar " +
+      "repetição sem contar.",
     comoResolver:
       "Pegue a chave em Supabase > Project Settings > API Keys > service_role, coloque no " +
       ".env.local como SUPABASE_SERVICE_ROLE_KEY (sem o prefixo NEXT_PUBLIC_) e reinicie o servidor.",

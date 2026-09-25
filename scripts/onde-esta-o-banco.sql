@@ -128,7 +128,8 @@ from (
     -- ficar para tras da pasta em silencio: quem o rodasse concluiria que o
     -- banco estava em dia e iria procurar o problema no codigo.
     -- Hoje quem confere a lista e o `npm run check:migrations`, no CI.
-    ('0055', 'view calendar_events',            'tabela',       'calendar_events')
+    ('0055', 'view calendar_events',            'tabela',       'calendar_events'),
+    ('0056', 'rate_limits',                     'tabela',       'rate_limits')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

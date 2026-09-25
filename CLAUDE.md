@@ -2832,6 +2832,71 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   rotas. A única função que não trava é `exigirSessaoParaTrocarSenha()`, usada
   por uma tela só — a de `/trocar-senha`, que senão se redirecionaria para si
   mesma.
+- **O limite de tentativas é do banco, e é chamado pela chave de serviço.**
+  `rate_limits` mais `consumir_tentativa()` e `perdoar_tentativas()`
+  (migration 0056), com `lib/acoes/limite.ts` de um lado só. Um contador em
+  memória do processo parece a solução óbvia e tem dois furos que não aparecem
+  em teste nenhum: ele **zera a cada deploy** — e deploy é `pm2 reload`, que é
+  o que alguém faz quando o site está sob carga — e não existe para o segundo
+  processo no dia em que houver dois. Limite que some sozinho é limite que
+  ninguém percebe ter sumido.
+
+  **Quem chama é a chave de serviço, e isso é metade da proteção.** O login
+  acontece antes de existir sessão, então não há cliente do usuário para usar
+  — e a alternativa seria abrir a função para `anon`, o que entregaria a arma
+  junto com a trava: qualquer navegador com a chave anon (que é pública, vai
+  no bundle) chamaria `consumir_tentativa` com a chave de **outra pessoa** até
+  estourar a cota dela. O limite que protege o login viraria o jeito mais
+  fácil de trancar alguém para fora. Por isso o `revoke` explícito — o
+  Supabase concede `execute` de toda função nova para `anon` e
+  `authenticated` sozinho —, e por isso `rate_limits` tem RLS ligada **sem
+  policy nenhuma**: são duas travas independentes, e a bateria mede as duas
+  pelo privilégio, não só pela mensagem de recusa.
+
+  **São duas contas no login, por IP e por e-mail**, e nenhuma resolve
+  sozinha: por IP barra a máquina que varre a lista de e-mails da agência, por
+  e-mail barra quem troca de endereço a cada tentativa. **O teto por e-mail é
+  o mais folgado de propósito:** o e-mail de quem trabalha aqui está no site
+  da agência, então um teto apertado daria a qualquer pessoa o poder de
+  trancar o sócio para fora gastando a cota dele. E **a mensagem não diz qual
+  dos dois estourou** — "esse e-mail atingiu o limite" seria confirmar que o
+  e-mail existe, na única tela do produto que se recusa a confirmar isso.
+
+  **O login que dá certo devolve a cota do e-mail**, e é o que separa contar
+  tentativa de contar erro. A do IP não volta: um endereço pode ter mais de
+  uma pessoa atrás. A recuperação de senha **não perdoa nada** — a resposta
+  dela é idêntica havendo conta ou não, então não existe ali um "deu certo" em
+  que confiar.
+
+  **`x-real-ip` primeiro, e `x-forwarded-for` só pela ÚLTIMA entrada.** É a
+  linha que separa o limite de um enfeite: o nginx escreve `X-Real-IP
+  $remote_addr` — o endereço do soquete, que o cliente não escolhe — e
+  `X-Forwarded-For $proxy_add_x_forwarded_for`, que **acrescenta** ao que o
+  cliente mandou. O trecho que aparece em todo lugar,
+  `x-forwarded-for.split(",")[0]`, lê justamente a parte que a pessoa do outro
+  lado escreveu: um cabeçalho diferente a cada requisição dá uma chave nova a
+  cada requisição, e o contador nunca chega a dois. A trava continuaria lá,
+  verde, contando nada. Sem nenhum dos dois cabeçalhos o limite por IP **não
+  é aplicado** — um proxy mal configurado tem que degradar para "conta só por
+  e-mail", nunca para "tranca a agência inteira junto".
+
+  **Ele falha para o lado ABERTO, e com barulho.** Se o Postgres não responder
+  ou a chave de serviço faltar, a tentativa passa. O lado ruim está dito: o
+  limite pode ficar semanas desligado. O outro lado é pior — um limitador
+  quebrado que recusa tranca a agência inteira para fora do próprio sistema,
+  inclusive quem iria consertar, e ele quebra justamente quando o banco já
+  está com problema. O que sobra é não deixar calado: o erro vai inteiro para
+  o log, a falta da chave é avisada **uma** vez (repetir a cada tentativa
+  esconderia o aviso dentro do próprio ruído), e `/status` passou a dizer que
+  o limite fica desligado sem ela — a lista do que para de funcionar sem a
+  chave de serviço cresceu, e um alerta certo e incompleto é o que ninguém
+  descobre sozinho, porque limite desligado não muda nada na tela.
+
+  **O comentário também tem cota, e ela não finge ser segurança:** quem
+  comenta já entrou. É guarda de enxurrada — o clique repetido, a aba que
+  reenvia, o laço esquecido —, e as três telas que comentam passam pela mesma
+  `exigirCotaDeComentario()`, senão seriam três tetos diferentes no dia em que
+  alguém mexesse num.
 - **Criação em vários passos tem rollback.** Se a ficha falha depois da conta
   criada, a conta é apagada. Cadastro pela metade é pior que nenhum: o e-mail
   fica ocupado e ninguém entende por quê.
@@ -3059,6 +3124,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` **devolve erro de servidor na abertura** — e devolve só ela: nenhuma outra tela lê esses objetos. `scripts/migrations-pendentes.sh 0055` monta a colagem |
+| `supabase/migrations/0056_limite_de_tentativas.sql` | **Pendente de aplicação.** Traz `rate_limits` e as funções `consumir_tentativa()` e `perdoar_tentativas()`. Sem ela o login, a recuperação de senha e o comentário voltam a aceitar repetição sem contar — e **sem erro na tela**, porque o limitador falha para o lado aberto |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

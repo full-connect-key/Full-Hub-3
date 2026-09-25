@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
+import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import {
   executarAcao,
   falha,
@@ -97,6 +98,8 @@ export async function comentarNoConteudo(
     if (texto.trim().length === 0) {
       return falha("Escreva o comentário antes de enviar.");
     }
+
+    await exigirCotaDeComentario(sessao.usuarioId);
 
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase

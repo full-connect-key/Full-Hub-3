@@ -2090,6 +2090,28 @@ export interface Database {
       };
       limpar_rascunhos_abandonados: { Args: Record<string, never>; Returns: number };
       /**
+       * O LIMITE DE TENTATIVAS (0056).
+       *
+       * As duas só são chamáveis pela CHAVE DE SERVIÇO: a migration revoga o
+       * `execute` de `anon` e de `authenticated`, que o Supabase concede
+       * sozinho a toda função nova. Sem isso, qualquer navegador com a chave
+       * anon — que é pública, vai no bundle — chamaria `consumir_tentativa`
+       * com a chave de OUTRA pessoa até estourar a cota dela: o limite que
+       * protege o login viraria o jeito mais fácil de trancar alguém fora.
+       *
+       * **A tabela `rate_limits` NÃO tem tipo aqui, e é de propósito.**
+       * Ninguém a lê pelo cliente tipado — a conta inteira mora nas duas
+       * funções, e uma consulta direta seria uma segunda forma de contar.
+       * É a mesma decisão de deixar `tempo_medido_segundos` fora de `Insert`
+       * e de `Update`: tentar usar o caminho errado vira erro de tipo antes
+       * de virar recusa do banco.
+       */
+      consumir_tentativa: {
+        Args: { p_chave: string; p_max: number; p_janela: string };
+        Returns: { permitido: boolean; tentativas: number; espere_segundos: number }[];
+      };
+      perdoar_tentativas: { Args: { p_chave: string }; Returns: undefined };
+      /**
        * A carga de cada pessoa ativa em cada dia útil do período (0055).
        *
        * Ela PERCORRE e chama `carga_do_dia()`, que é a fonte única desde a
