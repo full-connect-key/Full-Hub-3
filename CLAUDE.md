@@ -1375,35 +1375,72 @@ Pessoal ter ícone menor e cor mais apagada, e sem ele virou um campo que
 nenhuma linha do `MENU` liga. Se um dia houver outro módulo opcional, ela
 volta com ele.
 
-### Skills: a pessoa diz o nível, a gestão comenta
+### O terceiro módulo que saiu: Meu Desenvolvimento
 
-`skills` é o catálogo compartilhado — é ele que faz "quem sabe fazer X?" ter
-resposta, o que uma lista de texto livre por pessoa nunca teria.
+Apagado na migration 0043, por decisão do usuário: tela, rota, a aba Skills em
+Equipe, a vitrine da Academy e duas tabelas — `user_skills`, a autoavaliação de
+cada pessoa, e `skill_avaliacoes`, a observação que a gestão escrevia sobre
+alguém.
 
-**`user_skills` só a própria pessoa escreve. Nem o sócio.** Autoavaliação que
-outro pode editar não é autoavaliação, e a tela deixa isso explícito: "o nível
-é seu: ninguém da gestão escreve por você — e é isso que permite dizer
-'iniciante' sem receio". O que a gestão escreve é `skill_avaliacoes`, uma
-observação separada que **a pessoa avaliada lê** — nota sobre alguém que a
-pessoa não pode ler é fofoca com carimbo do sistema.
+**O CATÁLOGO FICA, e é a escolha explícita.** `skills` continua, agora com um
+papel só: o vocabulário de etiquetas do Full Academy, por
+`academy_materials.skill_id`. Apagá-lo junto levaria a etiqueta de cada
+material — e a Academy perderia a única coisa que organiza o que ela guarda.
 
-- **O nível vem com a rubrica.** `DESCRICAO_DO_NIVEL` viaja no rótulo
-  acessível e no `title` de cada segmento: sem régua, o "avançado" de uma
-  pessoa é o "intermediário" de outra e a matriz deixa de comparar.
-- Quatro segmentos e não um `<select>`: o nível é uma escala, e escala se lê de
-  relance quando tem forma. Numa lista de vinte skills, vinte caixas fechadas
-  não deixam ninguém ver o próprio perfil.
-- **`ativa = false` tem dois significados**, e `sugerida_por` distingue:
-  arquivada pela gestão (nulo) ou sugerida por alguém da equipe esperando
-  decisão (preenchido). Sem essa coluna, aprovar uma sugestão e reativar uma
-  skill velha seriam a mesma ação.
-- **Lacuna é onde o trabalho acontece e depende de pouca gente**, não onde o
-  número é zero: skill que ninguém tem em nível nenhum é uma linha do catálogo
-  que a agência não usa. O caso que mais passa batido é o **um** — uma pessoa
-  só, que entra em recesso.
-- "O que as pessoas querem desenvolver" sai de `quer_desenvolver`, marcado por
-  elas mesmas. É o insumo do Full Academy, e o jeito mais barato de saber o que
-  vale ensinar.
+**Por que isto não é a 0034.** Lá as três tabelas fechavam em
+`user_id = auth.uid()` nas quatro operações, e **ninguém** — nem o sócio —
+sabia o que havia dentro sem consultar o banco como dono: o script de
+exportação era *condição* para apagar. Aqui as duas sempre foram legíveis por
+`is_gestor()`, porque a matriz da agência lia `user_skills` inteira e a
+observação a própria pessoa lia. `scripts/exportar-antes-da-0043.sql` existe
+como **conveniência**, não como condição.
+
+**E a sugestão de skill saiu junto**, que é a parte que passa batida. O
+catálogo tinha dois caminhos de entrada: a gestão cria, e qualquer pessoa da
+equipe **sugere** — a sugestão nascia com `ativa = false` e `sugerida_por`
+preenchido, e a fila de aprovação ficava na tela que saiu. Sem ela,
+`sugerida_por` vira coluna que nenhum caminho preenche e nenhuma tela lê, e a
+policy oferece uma porta que só quem monta requisição à mão encontra. As duas
+somem: quem decide o vocabulário de etiqueta da Academy é quem cuida da
+Academy.
+
+`ativa` **fica**: é como a gestão tira do ar uma etiqueta que a agência não usa
+mais sem apagar a que já está em material antigo — e apagar continua recusado
+para todo mundo, inclusive o sócio.
+
+**A vitrine "sugeridas para você" da Academy saiu com a origem do sinal.** Ela
+lia o que a pessoa marcava como "quero desenvolver", e sem isso não há o que
+sugerir: manter a seção lendo outra coisa seria inventar uma preferência que
+ninguém declarou, e uma sugestão inventada gasta a credibilidade da seção
+inteira.
+
+**A lista de nomes mortos do `check:cores` cresceu de novo**, e agora tem três
+gerações — o Financeiro Pessoal (Sprint 8), o Resumo Semanal (0034) e este.
+**Ela cresce em vez de ser substituída**, pela mesma razão do vocabulário do
+Full Days: nenhuma geração pode voltar, não só a última.
+
+`skills` e `skill_id` **não entram na lista**, e a distinção é o ponto: o que
+saiu foi a autoavaliação, não a etiqueta.
+
+**A varredura pegou três coisas de verdade nesta remoção**, e as três teriam
+passado no `npm run build`: duas consultas órfãs a `user_skills` em
+`lib/dados/academy.ts`, que falhariam no banco depois da migration; os tipos
+das duas tabelas ainda declarados; e os meus próprios comentários explicando a
+remoção **citando os nomes que ela proíbe**. O último é a mesma armadilha da
+0016 e da 0034: a explicação não pode carregar o que ela proíbe — ela mora no
+cabeçalho da migration e aqui, fora de `src/`.
+
+**A ordem da migration também não é estilo.** `skills_insert` citava
+`sugerida_por` no `with check`, e o `drop column` estourou com *"cannot drop
+column because other objects depend on it"* — a policy vem primeiro. É a mesma
+pegadinha que a 0039 teve com `ano_referencia`, onde a dependência vinha do
+`update of <colunas>` de um trigger: coluna citada em policy ou em trigger não
+sai enquanto quem a cita estiver de pé.
+
+**E as abas de Equipe sumiram junto com a segunda.** Uma barra de navegação com
+um item é moldura sem função — a mesma razão pela qual as abas do Full Days
+somem para quem só propõe o próprio período. O módulo voltou a se chamar
+**Equipe**.
 
 ### O Financeiro da agência é só do sócio
 
@@ -2195,6 +2232,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run prototipo` | Gera imagens das telas em `prototipos/` |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
+| `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
 | `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
@@ -2205,6 +2243,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Depois do 14 | **O terceiro módulo saiu do produto**, por decisão do usuário: o Meu Desenvolvimento. Tela, rota, a aba Skills em Equipe, a vitrine da Academy e duas tabelas -- `user_skills` e `skill_avaliacoes` -- apagadas na migration 0043. **O catálogo `skills` FICA**, e foi a escolha explícita: ele continua com um papel só, o vocabulário de etiquetas do Full Academy, e apagá-lo junto levaria a etiqueta de cada material. **Isto não é a 0034**: lá as tabelas fechavam em `auth.uid()` e o script de exportação era condição para apagar; aqui as duas sempre foram legíveis por `is_gestor()`, e o `exportar-antes-da-0043.sql` é conveniência. **A sugestão de skill saiu junto**, que é a parte que passa batida: a fila que decidia as sugestões morava na tela que saiu, então `sugerida_por` virou coluna que nada preenche e a policy oferecia um caminho inexistente. As abas de Equipe sumiram com a segunda -- uma navegação de um item é moldura sem função --, e o módulo voltou a se chamar **Equipe**. **A varredura de nomes mortos pegou três coisas que o `npm run build` não pegaria**: duas consultas órfãs a `user_skills` que eu tinha deixado em `lib/dados/academy.ts` e que falhariam no banco depois da migration, os tipos das duas tabelas ainda declarados, e os meus próprios comentários explicando a remoção citando os nomes que ela proíbe -- a mesma armadilha da 0016 e da 0034. E a ordem da migration custou uma rodada: `skills_insert` citava `sugerida_por`, e coluna citada em policy não sai enquanto a policy estiver de pé, exatamente como a 0039 já tinha aprendido com um trigger. **770 cenários** (os 27 do módulo viraram 10, virados do avesso: se as tabelas renascerem, o primeiro falha e diz qual). |
 | Sprint 14 | **O Social Media ganhou o lado da agência.** Migration 0042. O Portal estava pronto desde o Sprint 12 e o lado de cá não existia: para um post chegar ao cliente, alguém colava SQL no Supabase por um script que o próprio cabeçalho mandava apagar no dia em que a tela existisse -- e ele foi apagado neste commit. **São três mãos**, por decisão do usuário: a gestão abre o briefing, o colaborador liberado produz, a gestão revisa e envia. `posts_insert` passou de `is_staff()` a `is_gestor()`, entrou `responsavel_id`, e a mão é **derivada e nunca gravada**, como bloqueio de subtarefa e atraso do Financeiro. **E o sprint quase virou do avesso a trava que protege o cliente**: `validar_nova_rodada` perguntava quem produziu olhando `criado_por`, que agora é a gestão -- o colaborador não conseguiria pedir o aval interno, e o responsável que produziu poderia mandar a própria entrega. Entrou `dono_do_post()`, e a bateria guarda o cenário virado do avesso. **A pergunta "por onde se escolhe vídeo, carrossel, estático ou stories" eram duas perguntas**: `midia` é o que a tela desenha e virou enum (decide qual editor aparece); `formato` é onde vai ao ar e continua texto, porque Reels e Shorts são de uma safra e a próxima vem aí -- a 0032 já tinha decidido isso e estava certa. Carrossel são `post_versions.arquivos` em jsonb, e **`posts.arte_url` continua sendo a capa**, o que faz o calendário, o card e a miniatura do portal não saberem que carrossel existe. **Vídeo é por link** (decisão do usuário, com o custo dito: o cliente decide longe do botão de aprovar), e o banco recusa enviar vídeo sem o link. Na tela, **duas visões na mesma rota** -- lista + editor e calendário + painel, escolhidas entre três propostas -- com **um editor só** nas duas, a lista agrupada por **quem está segurando** e não por status, e o **"Enviar ao cliente" desligado com a razão escrita** em vez de sumir. **32 cenários novos, 785 no total**, com mutação em três travas. **Seis erros meus**, e vale a lista porque quatro são de família: montei `validar_nova_rodada` a partir da 0032 quando a 0033 já a tinha reescrito (apaguei o `deliverable`, e o sintoma saiu três arquivos adiante); pus o bloco do vídeo no ramo do entregável em vez do post; criei um **segundo** trigger para a mesma função, quebrando o teste que sabia desligá-la; ressincronizei estado do editor num `useEffect` em vez de `key`; dei à Revisão um azul que no tema claro **é** o mesmo da Produção, deixando duas entradas de legenda com uma cor só; e os posts antigos precisavam de conversão de `formato` para `midia`, sem a qual um carrossel abriria no editor de arte única -- quem mostrou foi o seed. |
 | Sprint 3D | **Demandas recorrentes.** Migrations 0040 e 0041: `task_recurrences` com a regra e `recurrence_runs` com cada execução, em **dois modos** -- uma task por mês com uma etapa por dia (trabalho diário, senão o board teria vinte e duas linhas do mesmo trabalho) ou uma task inteira a cada repetição (quando cada uma tem etapas próprias). **A idempotência é o índice único e não uma consulta**: a execução é inserida primeiro, com `on conflict do nothing returning id`, e sem linha de volta a chamada desiste -- duas abas clicando em "Gerar agora" passariam pelas duas consultas antes de qualquer uma gravar. **Nunca retroativo**, e a geração **não roda sozinha**: o agendamento é de outro sprint. O `exception` fica dentro do laço, senão uma regra quebrada levaria junto as outras dezenove da madrugada. Na tela, a aba mora em `/painel/workflows` ao lado dos workflows, e **a prévia das cinco próximas é a razão do formulário ter este formato** -- uma recorrência é a única coisa no produto que cria trabalho sozinha, de madrugada, e sem a prévia o primeiro retorno de uma regra torta chega quando alguém vê doze demandas iguais no board; ela recalcula a cada tecla, o que é por que `proximasOcorrencias()` existe ao lado de `datas_da_recorrencia()`. Três pontos de entrada: "Nova recorrente" em Gestão de Tasks, o selo **Recorrente** na task gerada (um link para a regra) e **"Transformar em recorrente"** no fim do detalhe -- que **abre o editor pré-preenchido e não grava nada**, porque uma task não sabe a cadência dela: ela tem um período, não uma frequência. A 0041 veio por decisão do usuário e acrescentou o **responsável padrão da regra**, `coalesce(etapa, padrão)` nessa ordem: o buraco eram os dois caminhos em que ninguém preenche etapa por etapa, e etapa sem dono não aparece no "Minhas Tasks" de ninguém. **77 cenários novos, 753 no total**, e três erros meus que a verificação pegou: o rótulo "semana de" numa regra mensal (o seed mostrou), uma checagem de `pessoa_desligada()` duplicada que o teste de mutação provou ser uma segunda verdade, e **"Gerar agora" gerando numa regra pausada** -- a imagem do protótipo mostrou o botão ao lado da frase que diz que nada mais é gerado. De quebra, dois erros de layout que só a imagem pega: o `SelectTrigger` nasce `w-fit` e o de Cliente saiu como um botão sem rótulo, e em 375px o "Criar recorrência" ficava acima da prévia. |
 | Depois do 13 | **Dois módulos saíram do produto**, por decisão do usuário: o Resumo Semanal e o Financeiro Pessoal. Tela, rota, dados e tabelas — `weekly_entries`, `weekly_notes` e `personal_finance_entries` apagadas na migration 0034. O módulo pessoal que **fica** é o de Notas Fiscais; o Financeiro da casa também fica, que é outro módulo e só do sócio. **A migration apaga dado de pessoa e não tem volta**, e as três tabelas fechavam em `auth.uid()` — ninguém sabia o que havia dentro sem consultar o banco como dono. Por isso ela vem com `scripts/exportar-antes-da-0034.sql`, que põe o conteúdo na tela para ser entregue a quem escreveu, e não exporta para lugar nenhum de propósito: gravar aquele texto em outra tabela contornaria a promessa que ele carregava. Apagar e não aposentar, como a 0023 fez com `tasks.exigencia_aprovacao`. Os dois nomes entraram na varredura de `check:cores` — a lista **cresce**, como a do vocabulário do Full Days —, e ela pegou sete lugares que ainda os citavam, **um deles texto de tela**: as configurações do portal diziam "é a mesma regra do Resumo Semanal" para a gestão ler. Junto saiu a bandeira `discreto` do `MenuItem`, que sem o único módulo que a ligava virou campo que não decide nada. **597 cenários, todos passando** (31 saíram com os módulos). |

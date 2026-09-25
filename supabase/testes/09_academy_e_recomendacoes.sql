@@ -182,11 +182,17 @@ end
 $$;
 
 -- ---------------------------------------------------------------------------
--- A PONTE COM O SPRINT 7
+-- A ETIQUETA DO MATERIAL FICA; A PONTE COM O SPRINT 7 SAIU
 --
--- "Recomendadas para voce" sao as trilhas cujos materiais tocam uma skill que
--- a pessoa marcou como `quer_desenvolver`. Sem esta coluna, o campo do Sprint
--- 7 continuaria sendo um dado que ninguem le.
+-- Ate a 0043 havia aqui "Recomendadas para voce": as trilhas cujos materiais
+-- tocavam uma skill que a pessoa marcou como `quer_desenvolver`. A tabela que
+-- guardava essa marca saiu do produto com o Meu Desenvolvimento, e a vitrine
+-- saiu junto -- sem a origem do sinal nao ha o que recomendar.
+--
+-- O QUE FICA, E E DECISAO DO USUARIO: o catalogo `skills` continua, agora como
+-- vocabulario de etiquetas do Academy. Os cenarios abaixo sao os de antes
+-- VIRADOS DO AVESSO: se alguem ressuscitar `user_skills`, o primeiro falha e
+-- diz qual.
 -- ---------------------------------------------------------------------------
 
 insert into public.skills (id, nome, categoria)
@@ -197,31 +203,28 @@ update public.academy_materials
    set skill_id = (select id from public.skills where nome = 'Motion graphics')
  where id = 'b1b1b1b1-0000-0000-0000-000000000001';
 
-insert into public.user_skills (user_id, skill_id, nivel, quer_desenvolver)
-values ('44444444-4444-4444-4444-444444444444',
-        (select id from public.skills where nome = 'Motion graphics'),
-        'iniciante', true)
-on conflict (user_id, skill_id) do update set quer_desenvolver = true;
-
-select teste.conferir('A trilha aparece para quem quer desenvolver a skill',
-  (select count(distinct t.id)::text
-     from public.academy_tracks t
-     join public.academy_materials m on m.track_id = t.id
-     join public.user_skills us on us.skill_id = m.skill_id
-    where us.user_id = '44444444-4444-4444-4444-444444444444'
-      and us.quer_desenvolver
-      and t.publicada),
-  '1');
-
-select teste.conferir('E NAO aparece para quem nao marcou nada',
-  (select count(distinct t.id)::text
-     from public.academy_tracks t
-     join public.academy_materials m on m.track_id = t.id
-     join public.user_skills us on us.skill_id = m.skill_id
-    where us.user_id = '55555555-5555-5555-5555-555555555555'
-      and us.quer_desenvolver
-      and t.publicada),
+select teste.conferir('A tabela da autoavaliacao nao existe mais',
+  (select count(*)::text from information_schema.tables
+    where table_schema = 'public' and table_name in ('user_skills', 'skill_avaliacoes')),
   '0');
+
+select teste.conferir('Mas o catalogo continua, e o material segue etiquetado',
+  (select s.nome from public.academy_materials m
+     join public.skills s on s.id = m.skill_id
+    where m.id = 'b1b1b1b1-0000-0000-0000-000000000001'),
+  'Motion graphics');
+
+-- A SUGESTAO DE SKILL SAIU JUNTO, e e a parte que passa batida: o catalogo
+-- tinha dois caminhos de entrada, e o segundo -- qualquer pessoa da equipe
+-- sugerindo -- tinha a fila de aprovacao em Meu Desenvolvimento. Sem aquela
+-- tela, a policy oferecia um caminho que nao existe.
+select teste.cenario('O colaborador nao cria skill no catalogo', :BRUNO,
+  $fmt$insert into public.skills (nome, categoria) values ('Sugerida a mao', 'Design')$fmt$,
+  'recusa');
+
+select teste.cenario('A gestao cria', :DIEGO,
+  $fmt$insert into public.skills (nome, categoria) values ('Criada pela gestao', 'Design')$fmt$,
+  'ok', 1);
 
 -- ---------------------------------------------------------------------------
 -- O FEED

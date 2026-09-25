@@ -10,10 +10,8 @@ import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import { listarEquipeAtiva, obterColaborador, vinculosDoColaborador } from "@/lib/dados/equipe";
-import { avaliacoesDaPessoa, skillsDaPessoa } from "@/lib/dados/skills";
 
 import { DetalheDoColaborador } from "./detalhe";
-import { SkillsDaPessoa } from "./skills-da-pessoa";
 
 export const metadata: Metadata = { title: "Colaborador" };
 
@@ -24,11 +22,9 @@ export default async function PaginaDoColaborador({ params }: PageProps<"/painel
   const pessoa = await obterColaborador(id);
   if (!pessoa || pessoa.role === "cliente") notFound();
 
-  const [vinculos, equipe, skills, avaliacoes] = await Promise.all([
+  const [vinculos, equipe] = await Promise.all([
     vinculosDoColaborador(id),
     listarEquipeAtiva(),
-    skillsDaPessoa(id),
-    avaliacoesDaPessoa(id),
   ]);
 
   return (
@@ -56,14 +52,6 @@ export default async function PaginaDoColaborador({ params }: PageProps<"/painel
       </div>
 
       <DetalheDoColaborador
-        abaDeSkills={
-          <SkillsDaPessoa
-            pessoaId={pessoa.id}
-            nome={pessoa.nome}
-            skills={skills}
-            avaliacoes={avaliacoes}
-          />
-        }
         pessoa={pessoa}
         ehSocio={ehSocio(sessao.profile.role)}
         ehGestor={ehGestor(sessao.profile.role)}

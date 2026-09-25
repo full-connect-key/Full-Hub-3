@@ -628,50 +628,12 @@ export interface Database {
         };
         Relationships: [];
       };
-      /** O que cada pessoa sabe. Escrita so pela propria pessoa. */
-      user_skills: {
-        Row: {
-          id: string;
-          user_id: string;
-          skill_id: string;
-          nivel: SkillNivel;
-          quer_desenvolver: boolean;
-          anos_experiencia: number | null;
-          observacao: string | null;
-          atualizado_em: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          skill_id: string;
-          nivel?: SkillNivel;
-          quer_desenvolver?: boolean;
-          anos_experiencia?: number | null;
-          observacao?: string | null;
-        };
-        Update: {
-          nivel?: SkillNivel;
-          quer_desenvolver?: boolean;
-          anos_experiencia?: number | null;
-          observacao?: string | null;
-        };
-        Relationships: [];
-      };
-      /** A observacao da gestao. O avaliado le. */
-      skill_avaliacoes: {
-        Row: {
-          id: string;
-          user_id: string;
-          autor_id: string;
-          texto: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: { id?: string; user_id: string; autor_id: string; texto: string };
-        Update: { texto?: string };
-        Relationships: [];
-      };
-      /** Texto livre sobre a semana. Privado (migration 0012). */
+      /**
+       * O CATALOGO FICOU, e o que saiu na 0043 foram as duas tabelas que
+       * moravam aqui: a autoavaliacao de cada pessoa e a observacao da
+       * gestao. `skills` continua, agora como vocabulario de etiquetas do
+       * Full Academy -- decisao do usuario.
+       */
       contracts: {
         Row: {
           id: string;
@@ -1934,8 +1896,6 @@ export type HrRequest = Database["public"]["Tables"]["hr_requests"]["Row"];
 export type TeamPresence = Database["public"]["Tables"]["team_presence"]["Row"];
 export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
-export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
-export type SkillAvaliacao = Database["public"]["Tables"]["skill_avaliacoes"]["Row"];
 export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
 export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]["Row"];
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];

@@ -109,7 +109,6 @@ type SementeDeTrilha = {
   area: string;
   obrigatoria: boolean;
   publicada: boolean;
-  recomendada: boolean;
 };
 
 const TRILHAS: SementeDeTrilha[] = [
@@ -121,7 +120,6 @@ const TRILHAS: SementeDeTrilha[] = [
     area: "Processos",
     obrigatoria: true,
     publicada: true,
-    recomendada: false,
   },
   {
     id: "t2",
@@ -130,7 +128,6 @@ const TRILHAS: SementeDeTrilha[] = [
     area: "Conteúdo",
     obrigatoria: false,
     publicada: true,
-    recomendada: true,
   },
   {
     id: "t3",
@@ -139,7 +136,6 @@ const TRILHAS: SementeDeTrilha[] = [
     area: "Mídia",
     obrigatoria: false,
     publicada: false,
-    recomendada: false,
   },
 ];
 
@@ -192,7 +188,6 @@ function montar(semente: SementeDeTrilha): TrilhaDaGrade {
           : "nao_iniciada",
     percentual:
       materiais.length > 0 ? Math.round((concluidos / materiais.length) * 100) : 0,
-    recomendada: semente.recomendada,
   };
 }
 

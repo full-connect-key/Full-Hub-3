@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Clock, Sparkles } from "lucide-react";
+import { BookOpen, Clock } from "lucide-react";
 
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -60,33 +60,17 @@ export function GradeDeTrilhas({
       (!area || t.area === area),
   );
 
-  const recomendadas = trilhas.filter((t) => t.recomendada);
-  const mostrarVitrine = filtro === "todas" && !area && recomendadas.length > 0;
+  /*
+   * A GRADE NÃO TEM MAIS VITRINE DE SUGESTÃO (migration 0043): o sinal que a
+   * alimentava saiu do produto com o módulo que o coletava, e sem origem não
+   * há o que sugerir — inventar uma preferência que a pessoa nunca declarou
+   * gastaria a credibilidade da seção inteira. O porquê está no cabeçalho da
+   * 0043 e no CLAUDE.md; aqui não, porque a varredura de nomes mortos
+   * acusaria o próprio texto que explica.
+   */
 
   return (
     <div className="space-y-6">
-      {mostrarVitrine ? (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2">
-            <Sparkles aria-hidden className="text-accent-strong mt-0.5 size-4 shrink-0" />
-            <div>
-              <h2 className="text-text-primary text-sm font-semibold">
-                Recomendadas para você
-              </h2>
-              <p className="text-text-muted text-xs">
-                Trilhas que tocam o que você marcou como “quero desenvolver” em Meu
-                Desenvolvimento.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {recomendadas.map((trilha) => (
-              <CartaoDaTrilha key={trilha.id} trilha={trilha} destacada />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <div className="flex flex-wrap items-center gap-2">
         {FILTROS_DE_TRILHA.map((chave) => (
           <button
@@ -163,13 +147,7 @@ export function GradeDeTrilhas({
   );
 }
 
-function CartaoDaTrilha({
-  trilha,
-  destacada = false,
-}: {
-  trilha: TrilhaDaGrade;
-  destacada?: boolean;
-}) {
+function CartaoDaTrilha({ trilha }: { trilha: TrilhaDaGrade }) {
   const concluida = trilha.situacao === "concluida";
 
   return (
@@ -178,7 +156,6 @@ function CartaoDaTrilha({
       className={cn(
         "rounded-card bg-surface-card flex flex-col gap-3 border p-4 transition-shadow hover:shadow-sm",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-        destacada && "border-accent-strong",
       )}
     >
       <div className="flex items-start justify-between gap-2">

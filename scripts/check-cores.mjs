@@ -295,6 +295,23 @@ const NOMES_MORTOS = [
   { nome: "weekly_notes", onde: "src/", porque: "a tabela foi apagada na 0034" },
   { nome: "personal_finance_entries", onde: "src/", porque: "a tabela foi apagada na 0034" },
 
+  // E O TERCEIRO, na 0043: o Meu Desenvolvimento.
+  //
+  // A LISTA CRESCE, como a do vocabulário do Full Days: nenhuma geração de
+  // nome pode voltar, não só a última. Alguém copiando uma tela antiga
+  // ressuscita a penúltima sem ninguém notar.
+  //
+  // `skills` e `skill_id` NÃO entram, e a distinção é o ponto: o catálogo
+  // FICOU, agora como vocabulário de etiquetas do Full Academy — decisão do
+  // usuário. O que saiu foi a autoavaliação e a observação da gestão.
+  { nome: "Meu Desenvolvimento", onde: "src/", porque: "o módulo saiu do produto na 0043" },
+  { nome: "meu-desenvolvimento", onde: "src/", porque: "a rota saiu do produto na 0043" },
+  { nome: "minhas-skills", onde: "src/", porque: "a rota antiga dele, e o 308 saiu junto na 0043" },
+  { nome: "user_skills", onde: "src/", porque: "a tabela foi apagada na 0043" },
+  { nome: "skill_avaliacoes", onde: "src/", porque: "a tabela foi apagada na 0043" },
+  { nome: "quer_desenvolver", onde: "src/", porque: "a coluna foi apagada com user_skills na 0043" },
+  { nome: "Recomendadas para você", onde: "src/", porque: "a vitrine saiu com a origem do sinal, na 0043" },
+
   { nome: "tipo de tarefa", onde: "src/", porque: "virou Workflow — um nome só para a mesma coisa" },
   { nome: "tipos de tarefa", onde: "src/", porque: "virou Workflows" },
 

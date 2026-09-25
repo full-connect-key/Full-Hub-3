@@ -652,13 +652,10 @@ begin
   insert into public.academy_progress (user_id, material_id, concluido)
   select bruno, m.id, true from public.academy_materials m where m.track_id = onboarding;
 
-  -- E a Marina quer desenvolver a skill de copy, entao "Escrita para redes"
-  -- aparece na vitrine dela.
-  if skill_copy is not null then
-    insert into public.user_skills (user_id, skill_id, nivel, quer_desenvolver)
-    values (marina, skill_copy, 'iniciante', true)
-    on conflict (user_id, skill_id) do update set quer_desenvolver = true;
-  end if;
+  -- A VITRINE "RECOMENDADAS PARA VOCE" SAIU COM O MODULO (0043). Havia aqui
+  -- um `insert` em `user_skills` para a Marina, que fazia "Escrita para redes"
+  -- aparecer na vitrine dela. A tabela foi apagada; a etiqueta do material
+  -- continua, e e o que o Academy usa hoje.
 
   -- 4. O feed
   insert into public.recommendations (autor_id, categoria, titulo, descricao, url, tags, created_at)

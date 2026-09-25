@@ -145,10 +145,6 @@ const TELAS = [
   { nome: "67a-full-days-registrar-periodo", rota: "/painel/full-days?aba=lancamentos", largura: 1600, altura: 1300, role: "socio" },
   { nome: "67b-full-days-registrar-403", rota: "/painel/full-days?aba=lancamentos", largura: 1200, altura: 700, role: "colaborador" },
 
-  // --- Sprint 7: Desenvolvimento e Skills --------------------------------
-  { nome: "67-meu-desenvolvimento", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador" },
-  { nome: "68-equipe-skills", rota: "/painel/equipe", largura: 1700, altura: 1200, role: "socio", clicar: '[role="tab"]:has-text("Skills")' },
-  { nome: "71-meu-desenvolvimento-escuro", rota: "/painel/meu-desenvolvimento", largura: 1500, altura: 1300, role: "colaborador", tema: "escuro" },
 
   // --- Sprint 8: Financeiro ----------------------------------------------
   { nome: "72-financeiro-visao-geral", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio" },
@@ -246,7 +242,6 @@ const SUBSTITUICOES = {
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
-  "@/lib/dados/skills": ["./scripts/prototipo/skills.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],

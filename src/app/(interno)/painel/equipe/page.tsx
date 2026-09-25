@@ -1,32 +1,23 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { UserPlus } from "lucide-react";
 
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarEquipe } from "@/lib/dados/equipe";
-import { listarCatalogoCompleto, panoramaDeSkills } from "@/lib/dados/skills";
 
 import { FormularioDeColaborador } from "./formulario-de-colaborador";
 import { ListaDaEquipe } from "./lista";
-import { SkillsDaAgencia } from "./skills-da-agencia";
 
 /**
- * A aba Skills carrega o panorama inteiro numa consulta só.
+ * A tela é UMA LISTA, e não mais duas abas.
  *
- * Matriz, busca, lacunas e interesses são quatro arranjos dos mesmos dados.
- * Com quatro consultas, eles poderiam discordar entre si sobre quem é
- * avançado em quê.
+ * A segunda era Skills, e o módulo saiu do produto na 0043 (decisão do
+ * usuário). As abas saíram junto: uma barra de navegação com um item é moldura
+ * sem função — a mesma razão pela qual as abas do Full Days somem para quem só
+ * propõe o próprio período.
  */
-async function ConteudoDeSkills() {
-  const [panorama, catalogo] = await Promise.all([panoramaDeSkills(), listarCatalogoCompleto()]);
-  return <SkillsDaAgencia panorama={panorama} catalogo={catalogo} />;
-}
-
-export const metadata: Metadata = { title: "Equipe & Skills" };
+export const metadata: Metadata = { title: "Equipe" };
 
 export default async function PaginaDaEquipe() {
   const sessao = await exigirAcessoARota("/painel/equipe");
@@ -37,7 +28,7 @@ export default async function PaginaDaEquipe() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Equipe & Skills"
+        title="Equipe"
         actions={
           <FormularioDeColaborador
             roleDeQuemCria={sessao.profile.role}
@@ -50,22 +41,7 @@ export default async function PaginaDaEquipe() {
           />
         }
       />
-      <Tabs defaultValue="pessoas">
-        <TabsList>
-          <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
-          <TabsTrigger value="skills">Skills</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pessoas" className="pt-4">
-          <ListaDaEquipe equipe={equipe} />
-        </TabsContent>
-
-        <TabsContent value="skills" className="pt-4">
-          <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-            <ConteudoDeSkills />
-          </Suspense>
-        </TabsContent>
-      </Tabs>
+      <ListaDaEquipe equipe={equipe} />
     </div>
   );
 }

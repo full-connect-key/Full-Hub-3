@@ -12,7 +12,6 @@ import {
   Sparkles,
   Sun,
   ThumbsUp,
-  TrendingUp,
   UserRound,
   Users,
   Workflow,
@@ -111,14 +110,6 @@ export const MENU: MenuItem[] = [
     description: "Combinar períodos fora e responder a quem combinou.",
   },
   {
-    label: "Meu Desenvolvimento",
-    href: "/painel/meu-desenvolvimento",
-    icon: TrendingUp,
-    roles: EQUIPE,
-    section: "principal",
-    description: "Suas habilidades registradas e o que você quer desenvolver.",
-  },
-  {
     label: "Full Academy",
     href: "/painel/academy",
     icon: BookOpen,
@@ -208,12 +199,12 @@ export const MENU: MenuItem[] = [
     description: "Fluxo de aprovação dos conteúdos, do briefing ao aprovado.",
   },
   {
-    label: "Equipe & Skills",
+    label: "Equipe",
     href: "/painel/equipe",
     icon: Users,
     roles: GESTAO,
     section: "gestao",
-    description: "Quem é da casa, função, área e as habilidades de cada um.",
+    description: "Quem é da casa, função, área e o acesso de cada um.",
   },
   {
     label: "Clientes",
@@ -268,11 +259,15 @@ export const MENU: MenuItem[] = [
  * ganhou um nome melhor.
  */
 export const ROTAS_RENOMEADAS: { de: string; para: string }[] = [
-  // `/painel/diario` saiu daqui quando o módulo de destino saiu do produto.
+  // ESTA LISTA ESTÁ VAZIA, e não é descuido: as duas entradas que havia
+  // apontavam para módulos que saíram do produto (migrations 0034 e 0043), e
+  // saíram junto com eles.
+  //
   // Um 308 apontando para uma rota que não existe mais é pior que um 404
   // direto: ele faz a pessoa dar dois saltos para chegar ao mesmo lugar
-  // nenhum.
-  { de: "/painel/minhas-skills", para: "/painel/meu-desenvolvimento" },
+  // nenhum. Os nomes dos módulos não aparecem aqui de propósito — a varredura
+  // de `check:cores` acusaria o próprio comentário. Eles estão no CLAUDE.md e
+  // no cabeçalho das migrations.
 ];
 
 /**

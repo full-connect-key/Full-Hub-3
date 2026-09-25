@@ -25,10 +25,21 @@ export type TrilhaDaGrade = AcademyTrack & {
   duracaoMinutos: number | null;
   situacao: SituacaoDaTrilha;
   percentual: number;
-  /** Verdadeiro quando algum material da trilha toca uma skill que a pessoa
-   *  marcou como "quero desenvolver". É a ponte com o Sprint 7. */
-  recomendada: boolean;
 };
+
+/*
+ * **A TRILHA NÃO TEM MAIS VITRINE DE SUGESTÃO** (migration 0043).
+ *
+ * O sinal que a alimentava saiu do produto junto com o módulo que o coletava,
+ * e sem origem não há o que sugerir: manter a seção lendo outra coisa seria
+ * inventar uma preferência que a pessoa nunca declarou, e uma sugestão
+ * inventada gasta a credibilidade da seção inteira. O porquê está no cabeçalho
+ * da 0043 e no CLAUDE.md — não aqui, porque a varredura de nomes mortos
+ * acusaria o próprio texto que a explica.
+ *
+ * `academy_materials.skill_id` CONTINUA, e é decisão do usuário: o catálogo
+ * fica como vocabulário de etiquetas.
+ */
 
 /**
  * A grade de trilhas, já com o progresso de quem está pedindo.
@@ -50,7 +61,7 @@ export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGr
 
   const ids = trilhas.map((t) => t.id);
 
-  const [{ data: materiais }, { data: progresso }, { data: querDesenvolver }] =
+  const [{ data: materiais }, { data: progresso }] =
     await Promise.all([
       supabase
         .from("academy_materials")
@@ -61,15 +72,9 @@ export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGr
         .select("material_id, concluido")
         .eq("user_id", usuarioId)
         .eq("concluido", true),
-      supabase
-        .from("user_skills")
-        .select("skill_id")
-        .eq("user_id", usuarioId)
-        .eq("quer_desenvolver", true),
     ]);
 
   const concluidos = new Set((progresso ?? []).map((p) => p.material_id));
-  const skillsDesejadas = new Set((querDesenvolver ?? []).map((s) => s.skill_id));
 
   return trilhas.map((trilha) => {
     const meus = (materiais ?? []).filter((m) => m.track_id === trilha.id);
@@ -83,13 +88,6 @@ export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGr
       duracaoMinutos: duracaoDaTrilha(meus.map((m) => m.duracao_minutos)),
       situacao,
       percentual: percentual(quantosConcluidos, meus.length),
-      // A ponte com o Sprint 7: a trilha é recomendada quando ALGUM material
-      // dela toca uma skill que a pessoa marcou como "quero desenvolver".
-      // Trilha já concluída sai da vitrine — recomendar o que a pessoa
-      // terminou é o jeito mais rápido de a seção perder a credibilidade.
-      recomendada:
-        situacao !== "concluida" &&
-        meus.some((m) => m.skill_id !== null && skillsDesejadas.has(m.skill_id)),
     };
   });
 });
@@ -136,7 +134,7 @@ export const obterTrilha = cache(
       ...new Set(listaDeMateriais.map((m) => m.skill_id).filter((s): s is string => !!s)),
     ];
 
-    const [{ data: progresso }, { data: skills }, { data: querDesenvolver }] =
+    const [{ data: progresso }, { data: skills }] =
       await Promise.all([
         idsDeMaterial.length > 0
           ? supabase
@@ -148,17 +146,11 @@ export const obterTrilha = cache(
         idsDeSkill.length > 0
           ? supabase.from("skills").select("id, nome").in("id", idsDeSkill)
           : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
-        supabase
-          .from("user_skills")
-          .select("skill_id")
-          .eq("user_id", usuarioId)
-          .eq("quer_desenvolver", true),
       ]);
 
     const porMaterial = new Map((progresso ?? []).map((p) => [p.material_id, p]));
     const nomeDaSkill = new Map((skills ?? []).map((s) => [s.id, s.nome]));
-    const skillsDesejadas = new Set((querDesenvolver ?? []).map((s) => s.skill_id));
-
+  
     const comProgresso: MaterialComProgresso[] = listaDeMateriais.map((material) => {
       const meu = porMaterial.get(material.id);
       return {
@@ -181,9 +173,6 @@ export const obterTrilha = cache(
       duracaoMinutos: duracaoDaTrilha(comProgresso.map((m) => m.duracao_minutos)),
       situacao,
       percentual: percentual(quantosConcluidos, comProgresso.length),
-      recomendada:
-        situacao !== "concluida" &&
-        comProgresso.some((m) => m.skill_id !== null && skillsDesejadas.has(m.skill_id)),
     };
   },
 );
