@@ -1101,6 +1101,10 @@ declare
   item     uuid;
   i        integer;
   peca     record;
+  a_demanda uuid;
+  a_etapa   uuid;
+  a_sub_etapa uuid;
+  sub      record;
 begin
   select id into verde from public.clients where slug = 'mundo-verde' limit 1;
   if verde is null then
@@ -1325,9 +1329,76 @@ begin
     values (campanha, grupo, peca.nome, peca.ordem, current_date + 5);
   end loop;
 
+  -- ------------------------------------------------------------------------
+  -- A DEMANDA DA CAMPANHA (0051)
+  --
+  -- Sem este bloco o seed reproduzia, em todo ambiente de desenvolvimento, o
+  -- estado ANTERIOR a 0051: campanha com `task_id` nulo, entregavel sem
+  -- etapa, nenhuma linha no board da agencia e o botao "Abrir a demanda"
+  -- levando a lugar nenhum. E o pior tipo de dado de exemplo -- o que mostra
+  -- o produto como ele NAO e mais, sem nada avisando.
+  --
+  -- ELE NAO CHAMA `abrir_campanha()`, e a razao e o que veio acima: aquela
+  -- funcao monta a arvore a partir de uma estrutura simples, e este seed
+  -- monta cada peca com estado proprio -- rodada aprovada, recusada com
+  -- motivo, pendente, em producao, com e sem `enviado_em`. Passar por ela
+  -- significaria montar tudo de novo por fora depois. O que este bloco faz e
+  -- a outra metade da mesma funcao: uma etapa por entregavel de topo, uma
+  -- sub-etapa por filho, e o entregavel apontando para a sua.
+  --
+  -- `scripts/campanhas-sem-demanda.sql` faz exatamente isto para as campanhas
+  -- de verdade que ficaram para tras.
+  -- ------------------------------------------------------------------------
+  insert into public.tasks (client_id, titulo, briefing_texto, data_inicio, data_fim,
+                            link_entrega, criado_por)
+  values (verde, 'Wave Outubro Rosa',
+          'A campanha de outubro: KV, enxoval de pecas, feed, videos e os arquivos do Deskfy.',
+          primeiro, current_date + 6,
+          'https://drive.google.com/drive/folders/wave-outubro-rosa', diego)
+  returning id into a_demanda;
+
+  update public.campaigns set task_id = a_demanda where id = campanha;
+
+  for peca in
+    select d.id, d.nome, d.prazo, d.responsavel_id, d.ordem
+      from public.deliverables d
+     where d.campaign_id = campanha and d.parent_id is null
+     order by d.ordem
+  loop
+    insert into public.subtasks (task_id, titulo, prazo, responsavel_id, ordem)
+    values (a_demanda, peca.nome, peca.prazo, peca.responsavel_id, peca.ordem)
+    returning id into a_etapa;
+
+    update public.deliverables set subtask_id = a_etapa where id = peca.id;
+
+    -- A SUB-ETAPA FAZ DA MAE UMA AGRUPADORA, como na 0051: o relogio dela
+    -- para, o status passa a ser calculado pelas filhas, e a soma da demanda
+    -- conta so as folhas -- que e o que o grupo de entregaveis ja era do lado
+    -- da campanha.
+    -- UM LACO, E NAO UM `insert ... select` seguido de `update ... from`.
+    -- Aquele casaria etapa com entregavel por nome e ordem, e "Feed/story
+    -- site" aparece duas vezes nesta campanha -- uma no Enxoval e outra no
+    -- Deskfy. Aqui funcionaria (a ordem difere), mas e o tipo de casamento
+    -- por texto que da certo ate o dia em que nao da, e nesse dia liga a
+    -- etapa de um grupo ao entregavel de outro sem erro nenhum. O `returning`
+    -- nao tem como errar de quem e a linha.
+    for sub in
+      select f.id, f.nome, f.prazo, f.responsavel_id, f.ordem
+        from public.deliverables f
+       where f.parent_id = peca.id
+       order by f.ordem
+    loop
+      insert into public.subtasks (task_id, parent_id, titulo, prazo, responsavel_id, ordem)
+      values (a_demanda, a_etapa, sub.nome, sub.prazo, sub.responsavel_id, sub.ordem)
+      returning id into a_sub_etapa;
+
+      update public.deliverables set subtask_id = a_sub_etapa where id = sub.id;
+    end loop;
+  end loop;
+
   perform set_config('request.jwt.claim.sub', '', true);
 
-  raise notice 'Sprint 13: Wave Outubro Rosa criada para o cliente piloto.';
+  raise notice 'Sprint 13: Wave Outubro Rosa criada para o cliente piloto, com a demanda da 0051.';
 end
 $$;
 

@@ -1606,6 +1606,23 @@ rascunho no clique (0028) porque a pessoa vai digitar o título ali dentro;
 aqui ela preencheu tudo antes, e rascunho é de quem o criou — esconderia da
 equipe as etapas que ela acabou de distribuir.
 
+**As campanhas abertas ANTES dela ficaram para trás**, e a ausência não
+aparece como erro: a campanha abre, a árvore aparece, e o que falta é o botão
+"Abrir a demanda" e o trabalho no board da agência. Quem liga é
+`scripts/campanhas-sem-demanda.sql`, e ele é **script e não migration** porque
+uma migration teria que inventar a pasta de entrega — a 0015 recusa demanda
+sem ela justamente para ninguém preencher as antigas com um valor qualquer.
+Então a pasta vem de quem sabe qual é: o PASSO 1 lista as campanhas e já
+escreve as linhas do PASSO 2 prontas para colar, e o PASSO 2 **recusa** a
+campanha cuja pasta ficou com o texto de exemplo em vez de gravá-lo.
+
+**E o seed reproduzia esse estado em todo ambiente de desenvolvimento.** Ele
+inseria a campanha direto em `campaigns`, sem demanda — o pior tipo de dado de
+exemplo, o que mostra o produto como ele não é mais, sem nada avisando. Ele
+não chama `abrir_campanha()` porque monta cada peça com estado próprio (rodada
+aprovada, recusada com motivo, pendente, em produção), que aquela função não
+recebe; o que ele faz é a outra metade dela.
+
 **O briefing e a pasta de entrega são da DEMANDA**, não colunas novas em
 `campaigns`. Uma segunda caixa de texto com o mesmo papel em outra tabela
 seria o lugar onde as duas versões do briefing divergem. E a pasta é
@@ -3017,6 +3034,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
 | `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` devolve erro de coluna inexistente |
+| `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar |
 | `scripts/conferir-migrations.sql` | O longo: item por item, 54 linhas de resultado, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima |
 | `scripts/deploy.sh` | Publica na VPS. Roda **na** VPS; o GitHub Actions o chama por SSH |
