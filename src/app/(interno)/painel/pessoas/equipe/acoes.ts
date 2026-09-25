@@ -118,8 +118,8 @@ export async function salvarColaborador(dados: unknown): Promise<Resultado> {
     if (erroDaFicha) throw new ErroDeAcao(`Não foi possível salvar a ficha: ${erroDaFicha.message}`);
     if (!fichaSalva) throw new ErroDeAcao("O banco recusou a gravação da ficha de RH.");
 
-    revalidatePath("/painel/equipe");
-    revalidatePath(`/painel/equipe/${id}`);
+    revalidatePath("/painel/pessoas");
+    revalidatePath(`/painel/pessoas/equipe/${id}`);
     return sucesso("Dados salvos.");
   });
 }

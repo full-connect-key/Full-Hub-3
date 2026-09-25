@@ -27,7 +27,7 @@ import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO, podeConcederRole } from "@
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { UserRole } from "@/lib/supabase/database.types";
 
-import { criarColaborador } from "../_actions/usuarios";
+import { criarColaborador } from "../../_actions/usuarios";
 
 const esquema = z.object({
   nome: z.string().min(2, "Informe o nome completo."),

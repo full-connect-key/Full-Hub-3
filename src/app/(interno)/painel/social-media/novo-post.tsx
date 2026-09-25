@@ -176,10 +176,6 @@ export function NovoPost({
                 </button>
               ))}
             </div>
-            <p className="text-text-muted text-xs">
-              Ela decide o editor. Dá para trocar depois, mas não com slides já
-              subidos.
-            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

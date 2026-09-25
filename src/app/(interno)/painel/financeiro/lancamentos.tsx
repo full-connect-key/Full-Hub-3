@@ -776,10 +776,6 @@ function ImportadorDeCSV({
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
             />
-            <p className="text-text-muted text-xs">
-              Linha sem competência entra no mês aberto. Linha que não dá para entender é recusada
-              sozinha, e as outras entram — a mensagem diz quais ficaram de fora.
-            </p>
           </div>
         </div>
 

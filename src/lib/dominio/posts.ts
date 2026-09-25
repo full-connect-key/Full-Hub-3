@@ -338,8 +338,21 @@ export function podeEnviarAoCliente(
 export function podeProduzir(
   post: EstadoDoPost,
   quemLe: { id: string; ehGestor: boolean },
+  /** A corrente, quando a tela a tem. Ver abaixo por que ela entra aqui. */
+  etapas: { responsavelId: string | null }[] = [],
 ): boolean {
-  return quemLe.ehGestor || post.responsavelId === quemLe.id;
+  // QUEM TEM ETAPA NA CORRENTE ESCREVE NO CARD (0047), e é a mesma pergunta
+  // que `tenho_etapa_no_post()` faz no Postgres — a que vale.
+  //
+  // Sem este ramo, a redatora dona da etapa Conteúdo abriria o post com todos
+  // os campos DESLIGADOS, embora o banco aceite a escrita dela. É o espelho do
+  // erro que a 0047 conserta: lá a regra estava escrita em português e não em
+  // SQL; aqui estaria em SQL e não na tela.
+  return (
+    quemLe.ehGestor ||
+    post.responsavelId === quemLe.id ||
+    etapas.some((e) => e.responsavelId === quemLe.id)
+  );
 }
 
 /* ==========================================================================

@@ -199,8 +199,8 @@ ${telasHtml}
     "/painel/gestao-tasks": "Gestão de Tasks",
     "/painel/calendario": "Calendário",
     "/painel/aprovacoes": "Aprovações e Conteúdo",
-    "/painel/clientes": "Clientes",
-    "/painel/equipe": "Equipe e Skills",
+    "/painel/pessoas?aba=clientes": "Gestão de Pessoas",
+    "/painel/pessoas?aba=equipe": "Gestão de Pessoas",
     "/painel/full-days": "Full Days",
     "/painel/financeiro": "Financeiro e NFs",
     "/painel/minhas-skills": "Minhas Skills",
@@ -209,8 +209,8 @@ ${telasHtml}
     "/painel/recomendacoes": "Recomendações",
     "/painel/perfil": "Meu perfil",
     "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111": "Gestão de Tasks",
-    "/painel/clientes/c0000000-0000-0000-0000-00000000000a": "Clientes",
-    "/painel/equipe/a0000000-0000-0000-0000-000000000003": "Equipe e Skills",
+    "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a": "Gestão de Pessoas",
+    "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003": "Gestão de Pessoas",
     "/painel/dev/componentes": "Componentes"
   };
 
@@ -283,7 +283,7 @@ ${telasHtml}
     if (principal) principal.innerHTML = MODULOS[href];
     estado.rota = href;
 
-    // Numa sub-rota (/painel/clientes/<id>) quem fica ativo no menu é o módulo
+    // Numa sub-rota (/painel/pessoas/clientes/<id>) quem fica ativo no menu é o módulo
     // pai, como no app.
     var hrefDoMenu = href;
     Object.keys(MODULOS).forEach(function (rota) {
@@ -623,14 +623,14 @@ ${telasHtml}
   // caminho e os textos, não o funcionamento.
   // =======================================================================
 
-  var CLIENTE_EXEMPLO = "/painel/clientes/c0000000-0000-0000-0000-00000000000a";
-  var PESSOA_EXEMPLO = "/painel/equipe/a0000000-0000-0000-0000-000000000003";
+  var CLIENTE_EXEMPLO = "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a";
+  var PESSOA_EXEMPLO = "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003";
   var TASK_EXEMPLO = "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111";
   var VITRINE_EXEMPLO = "/painel/gestao-tasks/77777777-7777-7777-7777-777777777777";
 
   var GATILHOS = [
-    { rota: "/painel/equipe",      texto: "Adicionar colaborador",   dialogo: "colaborador-novo" },
-    { rota: "/painel/clientes",    texto: "Novo cliente",            dialogo: "cliente-novo" },
+    { rota: "/painel/pessoas?aba=equipe",      texto: "Adicionar colaborador",   dialogo: "colaborador-novo" },
+    { rota: "/painel/pessoas?aba=clientes",    texto: "Novo cliente",            dialogo: "cliente-novo" },
     { rota: CLIENTE_EXEMPLO,       texto: "Editar",                  dialogo: "cliente-editar" },
     { rota: CLIENTE_EXEMPLO,       texto: "Desativar cliente",       dialogo: "cliente-desativar" },
     { rota: CLIENTE_EXEMPLO,       texto: "Excluir definitivamente", dialogo: "cliente-excluir" },

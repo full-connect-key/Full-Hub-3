@@ -40,7 +40,7 @@ export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
         <div className="flex min-w-0 items-center gap-3">
           <UserAvatar name={pessoa.nome} src={pessoa.avatar_url} size="sm" />
           <div className="min-w-0">
-            <Link href={`/painel/equipe/${pessoa.id}`} className="font-medium hover:underline">
+            <Link href={`/painel/pessoas/equipe/${pessoa.id}`} className="font-medium hover:underline">
               {pessoa.nome}
             </Link>
             <p className="text-muted-foreground truncate text-xs">{pessoa.email}</p>

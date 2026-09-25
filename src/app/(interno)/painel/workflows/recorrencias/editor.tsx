@@ -400,10 +400,6 @@ export function EditorDeRecorrencia({
                   value={diaMes}
                   onChange={(e) => setDiaMes(e.target.value)}
                 />
-                <p className="text-text-muted text-xs">
-                  Dia 31 cai no último dia do mês curto — nunca pula para o mês
-                  seguinte.
-                </p>
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -429,9 +425,6 @@ export function EditorDeRecorrencia({
                     );
                   })}
                 </div>
-                <p className="text-text-muted text-xs">
-                  Nenhum dia marcado quer dizer todos os dias.
-                </p>
               </div>
             )}
           </div>
@@ -553,13 +546,6 @@ export function EditorDeRecorrencia({
                 }
                 placeholder="https://drive.google.com/..."
               />
-              {/* OBRIGATÓRIA AQUI, e não só na task: a pasta é exigida desde a
-                  0015, e uma regra sem ela erraria toda madrugada — em
-                  silêncio, num histórico que ninguém abre. */}
-              <p className="text-text-muted text-xs">
-                Sem ela a geração falha todo dia, e o erro fica só no histórico
-                da regra.
-              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rec-responsavel">Responsável</Label>
@@ -586,13 +572,6 @@ export function EditorDeRecorrencia({
                   ))}
                 </SelectContent>
               </Select>
-              {/* FALLBACK, NUNCA SUBSTITUIÇÃO: quem escreveu o nome na etapa
-                  mandou. O contrário faria preencher aqui apagar a
-                  distribuição que alguém montou etapa por etapa. */}
-              <p className="text-text-muted text-xs">
-                Fica com as etapas que não tiverem dono. Onde você escolheu
-                alguém, continua sendo essa pessoa.
-              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -720,13 +699,6 @@ export function EditorDeRecorrencia({
                     ))}
                   </SelectContent>
                 </Select>
-                {/* SNAPSHOT NA HORA DE GERAR, como toda aplicação de workflow:
-                    editar o workflow depois muda as PRÓXIMAS demandas desta
-                    regra, e nenhuma das que já saíram. */}
-                <p className="text-text-muted text-xs">
-                  O workflow é lido no momento de gerar. Editá-lo muda as
-                  próximas demandas, nunca as que já saíram.
-                </p>
               </div>
 
               {workflowId ? null : (
@@ -827,10 +799,6 @@ export function EditorDeRecorrencia({
             <h2 className="text-text-primary text-sm font-medium">
               As 5 próximas
             </h2>
-            <p className="text-text-muted text-xs">
-              Nada é gerado para trás: a primeira sai da próxima data que a
-              regra alcançar.
-            </p>
           </div>
 
           {previa.length === 0 ? (

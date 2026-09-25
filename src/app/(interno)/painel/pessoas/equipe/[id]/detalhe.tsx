@@ -23,7 +23,7 @@ import type { MembroDaEquipe } from "@/lib/dados/equipe";
 
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-import { alternarAtivoDoColaborador } from "../../_actions/usuarios";
+import { alternarAtivoDoColaborador } from "../../../_actions/usuarios";
 import { salvarColaborador } from "../acoes";
 import { Desligamento, type Vinculos } from "./desligamento";
 

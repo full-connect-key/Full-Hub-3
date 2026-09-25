@@ -262,10 +262,6 @@ export function AbrirOMes({
                 </div>
               ))}
             </div>
-            <p className="text-text-muted text-xs">
-              O Envio é sempre da gestão, e a etapa fica sem dono até alguém
-              mandar o post ao cliente.
-            </p>
           </section>
         </div>
 

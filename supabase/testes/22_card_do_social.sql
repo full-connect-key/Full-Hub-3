@@ -197,3 +197,76 @@ select teste.cenario('A gestao apaga o post', :ANA,
 
 select teste.conferir('E as referencias foram com ele',
   (select count(*)::text from public.post_referencias where post_id = :CARD), '0');
+
+
+-- ===========================================================================
+-- 0047 -- QUEM TEM ETAPA NA CORRENTE EDITA O CARD
+--
+-- O FURO QUE ESTE ARQUIVO NAO PEGOU DA PRIMEIRA VEZ, e e a licao: os cenarios
+-- da 0046 testaram quem ABRE o post e quem DISTRIBUI a corrente, e nenhum
+-- testou a pessoa para quem o modulo inteiro existe -- a redatora escrevendo.
+-- A bateria ficou verde com o card fechado para ela, e quem encontrou foi o
+-- usuario, tentando trocar a data de um post do mes que acabara de abrir.
+-- ===========================================================================
+
+\set CARD2 '''50600000-0000-0000-0000-000000000002'''
+
+insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+                          midia, criado_por, responsavel_id)
+values (:CARD2, :VERDE, 'Card da corrente', null, 'instagram',
+        'imagem', :ANA, :MARINA);
+
+-- A Carla tem a etapa Conteudo e NAO e `posts.responsavel_id` -- que e a
+-- Marina. Ate a 0047, `posts_update` so aceitava gestao ou o dono do post.
+update public.post_etapas set responsavel_id = :CARLA
+ where post_id = :CARD2 and nome = 'Conteúdo';
+
+select teste.cenario('A redatora escreve a legenda do post que nao e dela', :CARLA,
+  format($fmt$update public.posts set legenda = 'Cinco dicas para o calor.'
+     where id = %L$fmt$, :CARD2), 'ok', 1);
+
+-- O PEDIDO DO USUARIO, palavra por palavra: "a data do post e funcao da social
+-- media e da redatora". Este e o cenario que ele tentou na tela e nao passou.
+select teste.cenario('E define a data, que e o que faltava', :CARLA,
+  format($fmt$update public.posts set data_publicacao = '2026-12-10'
+     where id = %L$fmt$, :CARD2), 'ok', 1);
+
+select teste.cenario('E a pauta tambem', :CARLA,
+  format($fmt$update public.posts set pauta = 'Angulo de quem mora em apartamento.'
+     where id = %L$fmt$, :CARD2), 'ok', 1);
+
+-- MAS A CORRENTE DE COLUNAS CONTINUA DE PE: a policy diz quem ENTRA, e o
+-- trigger diz o que se mexe depois de entrar. A 0047 mexeu so na primeira.
+select teste.recusa_com('Mas nao troca o cliente do post', :CARLA,
+  format($fmt$update public.posts set client_id = %L where id = %L$fmt$,
+    'aaaaaaaa-0000-0000-0000-000000000002', :CARD2),
+  'Trocar o cliente');
+
+select teste.recusa_com('Nem passa o post para outra pessoa', :CARLA,
+  format($fmt$update public.posts set responsavel_id = %L where id = %L$fmt$,
+    :CARLA, :CARD2),
+  'Passar o post para outra pessoa');
+
+-- E QUEM NAO TEM ETAPA NENHUMA CONTINUA DE FORA. E o que separa
+-- `tenho_etapa_no_post()` de um `is_staff()` solto: com dez clientes, o
+-- designer de outra conta trocaria a data de um post que nunca viu.
+select teste.cenario('Quem nao esta na corrente nao escreve', :BRUNO,
+  format($fmt$update public.posts set legenda = 'eu passei por aqui'
+     where id = %L$fmt$, :CARD2), 'ok', 0);
+
+select teste.cenario('Nem define a data', :BRUNO,
+  format($fmt$update public.posts set data_publicacao = '2026-12-31'
+     where id = %L$fmt$, :CARD2), 'ok', 0);
+
+-- E o Bruno passa a escrever no instante em que ganha uma etapa. E a mesma
+-- linha da policy vista do outro lado.
+update public.post_etapas set responsavel_id = :BRUNO
+ where post_id = :CARD2 and nome = 'Layout';
+
+select teste.cenario('Com a etapa na mao, ele escreve', :BRUNO,
+  format($fmt$update public.posts set legenda = 'Agora sim.'
+     where id = %L$fmt$, :CARD2), 'ok', 1);
+
+select teste.cenario('E o cliente continua sem escrever nada', :JOANA,
+  format($fmt$update public.posts set data_publicacao = '2027-01-01'
+     where id = %L$fmt$, :CARD2), 'ok', 0);

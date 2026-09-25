@@ -54,17 +54,20 @@ const TELAS = [
   { nome: "08-painel-colaborador", rota: "/painel", largura: 1440, altura: 860, role: "colaborador" },
   { nome: "09-painel-desenvolvedor", rota: "/painel", largura: 1440, altura: 860, role: "desenvolvedor" },
 
-  { nome: "10-clientes-lista", rota: "/painel/clientes", largura: 1440, altura: 900, role: "socio" },
-  { nome: "10b-clientes-novo", rota: "/painel/clientes", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Novo cliente")' },
-  { nome: "10c-cliente-dados", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1000, role: "socio" },
-  { nome: "10d-cliente-usuarios", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Usuários com acesso")' },
-  { nome: "10e-equipe-lista", rota: "/painel/equipe", largura: 1440, altura: 900, role: "socio" },
-  { nome: "10f-colaborador-dados", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
-  { nome: "10g-desligamento", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
-  { nome: "10j-colaborador-desativar", rota: "/painel/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Desativar acesso")' },
-  { nome: "10k-cliente-exclusao-barrada", rota: "/painel/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 900, role: "socio", clicar: 'button:has-text("Excluir definitivamente")' },
+  // GESTÃO DE PESSOAS: as duas listas que eram dois módulos, agora em abas.
+  // As duas imagens da lista existem para a barra de abas ser conferida nas
+  // duas — com uma só, ninguém repara que a aba ativa não trocou.
+  { nome: "10-clientes-lista", rota: "/painel/pessoas?aba=clientes", largura: 1440, altura: 900, role: "socio" },
+  { nome: "10b-clientes-novo", rota: "/painel/pessoas?aba=clientes", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Novo cliente")' },
+  { nome: "10c-cliente-dados", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "10d-cliente-usuarios", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Usuários com acesso")' },
+  { nome: "10e-equipe-lista", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "socio" },
+  { nome: "10f-colaborador-dados", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
+  { nome: "10g-desligamento", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
+  { nome: "10j-colaborador-desativar", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Desativar acesso")' },
+  { nome: "10k-cliente-exclusao-barrada", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 900, role: "socio", clicar: 'button:has-text("Excluir definitivamente")' },
   { nome: "10h-meu-perfil", rota: "/painel/perfil", largura: 1440, altura: 1000, role: "socio" },
-  { nome: "10i-equipe-desenvolvedor", rota: "/painel/equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
+  { nome: "10i-equipe-desenvolvedor", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
 
   { nome: "20-tasks-board", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio" },
   { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },

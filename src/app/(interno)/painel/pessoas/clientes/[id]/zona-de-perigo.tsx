@@ -76,7 +76,7 @@ export function ZonaDePerigoDoCliente({
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success(resultado.mensagem);
-        router.push("/painel/clientes");
+        router.push("/painel/pessoas?aba=clientes");
       }
     });
   }

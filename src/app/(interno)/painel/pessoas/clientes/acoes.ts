@@ -75,8 +75,8 @@ export async function salvarCliente(dados: unknown): Promise<Resultado<{ id: str
       );
     }
 
-    revalidatePath("/painel/clientes");
-    if (id) revalidatePath(`/painel/clientes/${id}`);
+    revalidatePath("/painel/pessoas");
+    if (id) revalidatePath(`/painel/pessoas/clientes/${id}`);
 
     return sucesso(id ? "Cliente atualizado." : "Cliente cadastrado.", { id: data.id });
   });
@@ -105,8 +105,8 @@ export async function alternarAtivoDoCliente(dados: unknown): Promise<Resultado>
     if (error) throw new ErroDeAcao(`Não foi possível alterar: ${error.message}`);
     if (!data) throw new ErroDeAcao("O banco recusou a alteração. Confira seu perfil de acesso.");
 
-    revalidatePath("/painel/clientes");
-    revalidatePath(`/painel/clientes/${id}`);
+    revalidatePath("/painel/pessoas");
+    revalidatePath(`/painel/pessoas/clientes/${id}`);
 
     return sucesso(
       ativo
@@ -168,7 +168,7 @@ export async function excluirCliente(dados: unknown): Promise<Resultado> {
     if (error) throw new ErroDeAcao(`Não foi possível excluir: ${error.message}`);
     if (!data) throw new ErroDeAcao("O banco recusou a exclusão. Apenas sócios podem excluir.");
 
-    revalidatePath("/painel/clientes");
+    revalidatePath("/painel/pessoas");
     return sucesso(`${cliente.nome_empresa} foi excluída.`);
   });
 }

@@ -16,8 +16,8 @@ import { DetalheDoCliente } from "./detalhe";
 
 export const metadata: Metadata = { title: "Cliente" };
 
-export default async function PaginaDoCliente({ params }: PageProps<"/painel/clientes/[id]">) {
-  const sessao = await exigirAcessoARota("/painel/clientes");
+export default async function PaginaDoCliente({ params }: PageProps<"/painel/pessoas/clientes/[id]">) {
+  const sessao = await exigirAcessoARota("/painel/pessoas");
   const { id } = await params;
 
   const cliente = await obterCliente(id);
@@ -37,7 +37,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/cli
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/painel/clientes">
+        <Link href="/painel/pessoas?aba=clientes">
           <ArrowLeft aria-hidden />
           Clientes
         </Link>

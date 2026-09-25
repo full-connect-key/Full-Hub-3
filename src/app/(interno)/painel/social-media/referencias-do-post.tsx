@@ -83,12 +83,6 @@ export function ReferenciasDoPost({
         ) : null}
       </div>
 
-      {referencias.length === 0 && !abrindo ? (
-        <p className="text-text-muted text-xs">
-          O moodboard, o post que foi bem, o link que o cliente mandou.
-        </p>
-      ) : null}
-
       {referencias.length > 0 ? (
         <ul className="space-y-1">
           {referencias.map((r) => (

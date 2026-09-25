@@ -29,8 +29,8 @@ if (!SAIDA) {
   process.exit(1);
 }
 
-const CLIENTE = "/painel/clientes/c0000000-0000-0000-0000-00000000000a";
-const PESSOA = "/painel/equipe/a0000000-0000-0000-0000-000000000003";
+const CLIENTE = "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a";
+const PESSOA = "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003";
 const TASK = "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111";
 
 /** Rotas cujo HTML inicial ja vem completo. */
@@ -48,9 +48,9 @@ const PAGINAS = {
   "modulo-home": "/painel",
   "modulo-calendario": "/painel/calendario",
   "modulo-aprovacoes": "/painel/aprovacoes",
-  "modulo-clientes": "/painel/clientes",
+  "modulo-clientes": "/painel/pessoas?aba=clientes",
   "modulo-clientes-detalhe": CLIENTE,
-  "modulo-equipe": "/painel/equipe",
+  "modulo-equipe": "/painel/pessoas?aba=equipe",
   "modulo-equipe-detalhe": PESSOA,
   "modulo-meu-desenvolvimento": "/painel/meu-desenvolvimento",
   "modulo-academy": "/painel/academy",
@@ -92,8 +92,8 @@ const ABAS = [
 ];
 
 const DIALOGOS = [
-  { nome: "colaborador-novo", rota: "/painel/equipe", passos: ['button:has-text("Adicionar colaborador")'] },
-  { nome: "cliente-novo", rota: "/painel/clientes", passos: ['button:has-text("Novo cliente")'] },
+  { nome: "colaborador-novo", rota: "/painel/pessoas?aba=equipe", passos: ['button:has-text("Adicionar colaborador")'] },
+  { nome: "cliente-novo", rota: "/painel/pessoas?aba=clientes", passos: ['button:has-text("Novo cliente")'] },
   { nome: "cliente-editar", rota: CLIENTE, passos: ['button:has-text("Editar")'] },
   { nome: "cliente-desativar", rota: CLIENTE, passos: ['button:has-text("Desativar cliente")'] },
   { nome: "cliente-excluir", rota: CLIENTE, passos: ['button:has-text("Excluir definitivamente")'] },

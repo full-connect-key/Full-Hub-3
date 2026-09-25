@@ -307,9 +307,6 @@ function CamposDoContrato({
             onChange={(e) => setNome(e.target.value)}
             placeholder="Fee mensal — social media"
           />
-          <p className="text-text-muted text-xs">
-            É este nome que vira a descrição de cada lançamento gerado.
-          </p>
         </div>
 
         <div className="space-y-2">
@@ -380,9 +377,6 @@ function CamposDoContrato({
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
           />
-          <p className="text-text-muted text-xs">
-            Em branco, o contrato não tem prazo. Com data, ele entra no aviso 60 dias antes.
-          </p>
         </div>
 
         <div className="flex items-center gap-2 sm:col-span-2">

@@ -150,10 +150,6 @@ export function Relatorios({
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="text-text-primary text-sm font-semibold">Rentabilidade por cliente</h2>
-            <p className="text-text-muted text-xs">
-              Receita do período dividida pelas horas registradas nas etapas concluídas daquele
-              cliente.
-            </p>
           </div>
           <Button variant="outline" size="sm" onClick={exportarRentabilidade}>
             <Download aria-hidden />

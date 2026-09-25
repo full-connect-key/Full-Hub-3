@@ -12,7 +12,7 @@
 -- Aqui as duas tabelas sempre foram legiveis por `is_gestor()`: a matriz da
 -- agencia lia `user_skills` inteira, e a observacao a propria pessoa lia. Este
 -- script e CONVENIENCIA -- poe numa tela so o que a gestao ja alcancava por
--- `/painel/equipe`, para quem quiser guardar antes.
+-- a aba Equipe de Gestão de Pessoas, para quem quiser guardar antes.
 --
 -- O que sai do produto:
 --   - `user_skills`      -- a autoavaliacao de cada pessoa

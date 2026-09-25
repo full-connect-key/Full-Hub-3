@@ -498,10 +498,6 @@ function FormularioDeMaterial({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-text-primary text-sm font-semibold">Novo material</h3>
-          <p className="text-text-muted text-xs">
-            Vincular a uma skill é o que faz esta trilha aparecer em “Recomendadas para
-            você” de quem quer desenvolvê-la.
-          </p>
         </div>
         <Button variant="ghost" size="icon" aria-label="Fechar" onClick={aoFechar}>
           <X aria-hidden />

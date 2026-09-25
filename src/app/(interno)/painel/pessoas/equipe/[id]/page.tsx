@@ -15,8 +15,8 @@ import { DetalheDoColaborador } from "./detalhe";
 
 export const metadata: Metadata = { title: "Colaborador" };
 
-export default async function PaginaDoColaborador({ params }: PageProps<"/painel/equipe/[id]">) {
-  const sessao = await exigirAcessoARota("/painel/equipe");
+export default async function PaginaDoColaborador({ params }: PageProps<"/painel/pessoas/equipe/[id]">) {
+  const sessao = await exigirAcessoARota("/painel/pessoas");
   const { id } = await params;
 
   const pessoa = await obterColaborador(id);
@@ -30,7 +30,7 @@ export default async function PaginaDoColaborador({ params }: PageProps<"/painel
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/painel/equipe">
+        <Link href="/painel/pessoas?aba=equipe">
           <ArrowLeft aria-hidden />
           Equipe
         </Link>

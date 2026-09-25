@@ -56,7 +56,7 @@ export function ListaDeClientes({
       id: "empresa",
       header: "Empresa",
       cell: (cliente) => (
-        <Link href={`/painel/clientes/${cliente.id}`} className="font-medium hover:underline">
+        <Link href={`/painel/pessoas/clientes/${cliente.id}`} className="font-medium hover:underline">
           {cliente.nome_empresa}
         </Link>
       ),

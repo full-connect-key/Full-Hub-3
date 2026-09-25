@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-import { convidarUsuarioCliente, removerUsuarioCliente } from "../../_actions/usuarios";
+import { convidarUsuarioCliente, removerUsuarioCliente } from "../../../_actions/usuarios";
 
 export type UsuarioComAcesso = {
   vinculoId: string;

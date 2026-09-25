@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-import { desligarColaborador } from "../../_actions/usuarios";
+import { desligarColaborador } from "../../../_actions/usuarios";
 
 export type Vinculos = {
   tasksAbertas: number;
@@ -89,7 +89,7 @@ export function Desligamento({
 
     toast.success(resultado.mensagem);
     fechar();
-    router.push("/painel/equipe");
+    router.push("/painel/pessoas?aba=equipe");
   }
 
   return (

@@ -213,20 +213,21 @@ export const MENU: MenuItem[] = [
     description: "Fluxo de aprovação dos conteúdos, do briefing ao aprovado.",
   },
   {
-    label: "Equipe",
-    href: "/painel/equipe",
+    // ERAM DOIS ITENS — "Equipe" e "Clientes" — e viraram um, por decisão do
+    // usuário, escolhida entre três propostas de layout. As duas listas são as
+    // mesmas; o que mudou é que dividem uma rota e uma barra de abas.
+    //
+    // As fichas moram em `/painel/pessoas/clientes/[id]` e
+    // `/painel/pessoas/equipe/[id]`, e não precisam de entrada própria aqui:
+    // `findMenuItem` casa por prefixo, então as duas caem nesta linha e
+    // `canAccess` responde por elas. Os caminhos antigos viram 308 em
+    // ROTAS_RENOMEADAS, logo abaixo.
+    label: "Gestão de Pessoas",
+    href: "/painel/pessoas",
     icon: Users,
     roles: GESTAO,
     section: "gestao",
-    description: "Quem é da casa, função, área e o acesso de cada um.",
-  },
-  {
-    label: "Clientes",
-    href: "/painel/clientes",
-    icon: Users,
-    roles: GESTAO,
-    section: "gestao",
-    description: "As empresas atendidas, contatos e acessos ao portal.",
+    description: "Quem é da casa e quem é cliente: função, área e acessos.",
   },
   {
     label: "Workflows",
@@ -273,15 +274,16 @@ export const MENU: MenuItem[] = [
  * ganhou um nome melhor.
  */
 export const ROTAS_RENOMEADAS: { de: string; para: string }[] = [
-  // ESTA LISTA ESTÁ VAZIA, e não é descuido: as duas entradas que havia
-  // apontavam para módulos que saíram do produto (migrations 0034 e 0043), e
-  // saíram junto com eles.
+  // Equipe e Clientes viraram as duas abas de Gestão de Pessoas.
   //
-  // Um 308 apontando para uma rota que não existe mais é pior que um 404
-  // direto: ele faz a pessoa dar dois saltos para chegar ao mesmo lugar
-  // nenhum. Os nomes dos módulos não aparecem aqui de propósito — a varredura
-  // de `check:cores` acusaria o próprio comentário. Eles estão no CLAUDE.md e
-  // no cabeçalho das migrations.
+  // AS FICHAS VÊM PRIMEIRO, e a ordem não é estilo: o Next casa os redirects
+  // na ordem da lista, e `/painel/clientes/:id` precisa ser testado antes de
+  // `/painel/clientes` — invertido, a ficha de um cliente cairia na lista e o
+  // id se perderia no caminho.
+  { de: "/painel/clientes/:id", para: "/painel/pessoas/clientes/:id" },
+  { de: "/painel/equipe/:id", para: "/painel/pessoas/equipe/:id" },
+  { de: "/painel/clientes", para: "/painel/pessoas?aba=clientes" },
+  { de: "/painel/equipe", para: "/painel/pessoas?aba=equipe" },
 ];
 
 /**
@@ -300,7 +302,7 @@ export const ROTAS_FUTURAS = [
 /**
  * Acha o item de menu de uma rota, considerando sub-rotas.
  *
- * `/painel/clientes/123` cai em `/painel/clientes`. A busca é do caminho mais
+ * `/painel/pessoas/clientes/123` cai em `/painel/pessoas`. A busca é do caminho mais
  * longo para o mais curto, senão `/painel` (que é prefixo de tudo) responderia
  * por todo mundo.
  */

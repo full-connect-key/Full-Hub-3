@@ -292,13 +292,6 @@ export function EditorDoPost({
             placeholder="https://drive.google.com/..."
             disabled={!posso}
           />
-          {/* O CUSTO DITO EM VOZ ALTA. Vídeo é por link e não por upload
-              (decisão do usuário): o cliente sai do portal para assistir, e
-              decide longe do botão de aprovar. */}
-          <p className="text-text-muted text-xs">
-            O cliente assiste fora do portal, numa aba nova. Sem o link, o banco
-            recusa o envio.
-          </p>
           {videoUrl ? (
             <Button variant="outline" size="sm" asChild>
               <a href={videoUrl} target="_blank" rel="noopener noreferrer">
@@ -377,10 +370,6 @@ export function EditorDoPost({
                     ? "Trocar a arte"
                     : "Subir a arte"}
               </Button>
-              <p className="text-text-muted text-xs">
-                Cada subida grava uma versão nova. As anteriores continuam no
-                histórico.
-              </p>
             </>
           ) : null}
         </div>
@@ -410,12 +399,6 @@ export function EditorDoPost({
           disabled={!posso}
           placeholder="O que este post vai dizer, e por quê."
         />
-        {/* A FRASE É A TRAVA QUE O BANCO NÃO TEM: nada impede alguém de
-            escrever a pauta e achar que o cliente vai ler. Ele não vai — a
-            coluna é interna, e a policy do portal nem a traz. */}
-        <p className="text-text-muted text-xs">
-          Conversa interna. O cliente lê a legenda, nunca a pauta.
-        </p>
       </div>
 
       {/* AS REFERÊNCIAS FICAM COLADAS NA PAUTA, e não no fim da tela junto do
@@ -527,6 +510,53 @@ export function EditorDoPost({
               <option key={f} value={f} />
             ))}
           </datalist>
+        </div>
+
+        {/* A DATA E O HORÁRIO (0044/0047).
+            O campo NÃO EXISTIA, e foi o usuário quem encontrou: a 0044 abriu o
+            mês em branco e liberou a data para quem produz, mas a tela nunca
+            ganhou onde escrevê-la — ela só aparecia no cabeçalho, como texto.
+            Abrir doze posts sem data e não ter onde pôr nenhuma é o mês
+            inteiro parado.
+
+            E fica aqui, no meio dos campos, e não no cabeçalho: o cabeçalho é
+            o que descreve o post, e o que se edita mora na grade. */}
+        <div className="space-y-1.5">
+          <Label htmlFor={`data-${post.id}`}>Data de publicação</Label>
+          <Input
+            id={`data-${post.id}`}
+            type="date"
+            defaultValue={post.dataPublicacao ?? ""}
+            disabled={!posso}
+            onChange={(e) =>
+              e.target.value !== (post.dataPublicacao ?? "") &&
+              iniciar(() =>
+                agir(() =>
+                  chamarAcao(() =>
+                    editarPost(post.id, { data_publicacao: e.target.value || null }),
+                  ),
+                ),
+              )
+            }
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`horario-${post.id}`}>Horário</Label>
+          <Input
+            id={`horario-${post.id}`}
+            type="time"
+            defaultValue={post.horario ?? ""}
+            disabled={!posso}
+            onChange={(e) =>
+              e.target.value !== (post.horario ?? "") &&
+              iniciar(() =>
+                agir(() =>
+                  chamarAcao(() => editarPost(post.id, { horario: e.target.value || null })),
+                ),
+              )
+            }
+          />
         </div>
 
         {quemLe.ehGestor ? (

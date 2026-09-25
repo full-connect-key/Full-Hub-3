@@ -131,7 +131,7 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
       );
     }
 
-    revalidatePath("/painel/equipe");
+    revalidatePath("/painel/pessoas");
 
     return sucesso(
       jaExistia
@@ -202,7 +202,7 @@ export async function convidarUsuarioCliente(
       );
     }
 
-    revalidatePath(`/painel/clientes/${pedido.client_id}`);
+    revalidatePath(`/painel/pessoas/clientes/${pedido.client_id}`);
 
     if (jaExistia) {
       return sucesso(
@@ -237,7 +237,7 @@ export async function removerUsuarioCliente(dados: unknown): Promise<Resultado> 
     if (error) throw new ErroDeAcao(`Não foi possível remover o acesso: ${error.message}`);
     if (!count) throw new ErroDeAcao("Esse acesso já tinha sido removido.");
 
-    revalidatePath(`/painel/clientes/${validacao.data.client_id}`);
+    revalidatePath(`/painel/pessoas/clientes/${validacao.data.client_id}`);
     return sucesso("Acesso removido. A conta continua existindo.");
   });
 }
@@ -294,8 +294,8 @@ export async function alternarAtivoDoColaborador(dados: unknown): Promise<Result
       ban_duration: ativo ? "none" : CEM_ANOS_EM_HORAS,
     });
 
-    revalidatePath("/painel/equipe");
-    revalidatePath(`/painel/equipe/${userId}`);
+    revalidatePath("/painel/pessoas");
+    revalidatePath(`/painel/pessoas/equipe/${userId}`);
 
     if (erroDoAuth) {
       return sucesso(
@@ -429,9 +429,9 @@ export async function desligarColaborador(dados: unknown): Promise<Resultado> {
       ban_duration: CEM_ANOS_EM_HORAS,
     });
 
-    revalidatePath("/painel/equipe");
-    revalidatePath(`/painel/equipe/${userId}`);
-    revalidatePath("/painel/clientes");
+    revalidatePath("/painel/pessoas");
+    revalidatePath(`/painel/pessoas/equipe/${userId}`);
+    revalidatePath("/painel/pessoas");
     revalidatePath("/painel/gestao-tasks");
 
     if (erroDoAuth) {

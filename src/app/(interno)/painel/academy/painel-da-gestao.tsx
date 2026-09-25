@@ -86,10 +86,6 @@ export function PainelDaGestao({
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-text-primary text-sm font-semibold">Trilhas</h2>
-            <p className="text-text-muted text-xs">
-              Trilha nasce em rascunho. Enquanto não for publicada, ninguém da equipe a
-              enxerga — nem por endereço direto.
-            </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setCriando(true)}>
             <Plus aria-hidden />

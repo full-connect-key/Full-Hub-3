@@ -24,7 +24,7 @@ export const metadata: Metadata = { title: "Configurações do cliente" };
  * uma frase em vez de mostrar campos vazios.
  *
  * O resto é o mesmo conteúdo, só leitura: os dados de contato e quem entra.
- * Editar cliente continua sendo em /painel/clientes, que é onde a gestão faz
+ * Editar cliente continua sendo em Gestão de Pessoas, que é onde a gestão faz
  * isso — e não dentro de uma visualização que promete não mexer em nada.
  */
 async function Conteudo({ cliente }: { cliente: Client | null }) {
