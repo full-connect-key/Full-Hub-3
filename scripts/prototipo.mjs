@@ -242,7 +242,12 @@ const TELAS = [
   { nome: "86e-recomendacoes-vazio", rota: "/painel/recomendacoes", largura: 1500, altura: 900, role: "socio", env: { PROTOTIPO_FEED_VAZIO: "1" } },
   { nome: "87-recomendacoes-postar", rota: "/painel/recomendacoes", largura: 1500, altura: 1200, role: "colaborador", clicar: 'button:has-text("O que você recomenda hoje?")' },
   { nome: "88-recomendacoes-curtidas", rota: "/painel/recomendacoes?ordem=curtidas", largura: 1600, altura: 1200, role: "colaborador" },
-  { nome: "88b-recomendacoes-remover", rota: "/painel/recomendacoes", largura: 1500, altura: 1000, role: "socio", clicar: 'button:has-text("Remover")' },
+  // DOIS CLIQUES, e o primeiro nao e enfeite: "Remover" so existe DENTRO do
+  // painel do post -- o cartao fechado mostra curtir e mais nada. Com um
+  // clique so, esta tela saia ha sprints como o feed fechado, avisando "sem o
+  // clique" no fim de uma rodada de noventa telas que ninguem le inteira.
+  { nome: "88b-recomendacoes-remover", rota: "/painel/recomendacoes", largura: 1500, altura: 1100, role: "socio",
+    clicar: ['button:has-text("Figma Slides")', 'button:has-text("Remover")'] },
   { nome: "89-recomendacoes-escuro", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "colaborador", tema: "escuro" },
 
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
@@ -303,6 +308,11 @@ const TELAS = [
 const PORTA = 3100;
 const RAIZ = path.resolve(import.meta.dirname, "..");
 const SAIDA = path.join(RAIZ, "prototipos");
+
+// O HTML renderizado de cada tela, ao lado das imagens. E o que
+// `scripts/verificar-9.mjs` le: a imagem prova o layout, o HTML prova o TEXTO
+// -- e criterio que diz "esta palavra nao aparece na tela" precisa de texto.
+const SAIDA_HTML = path.join(SAIDA, "html");
 
 // A copia fica DENTRO do projeto, e nao em /tmp, por um motivo pratico: assim
 // o Node acha node_modules subindo um nivel, do jeito que ele sempre resolve
@@ -548,6 +558,7 @@ try {
   rmSync(LOG_DO_SERVIDOR, { force: true });
   await rm(COPIA, { recursive: true, force: true });
   await mkdir(COPIA, { recursive: true });
+  await mkdir(SAIDA_HTML, { recursive: true });
 
   for (const item of ["src", "public", "scripts", "next.config.ts", "postcss.config.mjs", "package.json"]) {
     await cp(path.join(RAIZ, item), path.join(COPIA, item), { recursive: true });
@@ -759,6 +770,23 @@ try {
           path: path.join(SAIDA, `${tela.nome}.png`),
           fullPage: !tela.semRolagem,
         });
+
+        // O HTML SAI JUNTO, e nao e sobra de depuracao.
+        //
+        // A imagem prova o layout e nada mais: ninguem le noventa PNGs atras
+        // de uma palavra. Metade dos criterios do Sprint 9 diz o que a tela
+        // NAO pode mostrar -- quiz, certificado, pontuacao --, e criterio que
+        // diz "nao existe" so vale se alguem conferir toda vez.
+        //
+        // Com o HTML no disco, `scripts/verificar-9.mjs` varre o TEXTO
+        // RENDERIZADO, nos dois perfis, sem subir servidor nenhum. E ele le o
+        // que a pessoa ve: um `DateBadge` no codigo nao vira "badge" na tela,
+        // e uma varredura de fonte acusaria o nome do componente.
+        await writeFile(
+          path.join(SAIDA_HTML, `${tela.nome}.html`),
+          await pagina.content(),
+          "utf8",
+        );
       } finally {
         // Fecha mesmo quando o screenshot estoura. Sem isso, cada falha deixa
         // uma aba viva -- e memoria e justamente o que costuma derrubar o
@@ -794,6 +822,26 @@ try {
     process.exitCode = 1;
   } else {
     console.log(`\n  Pronto. As imagens estao em prototipos/\n`);
+  }
+
+  // ------------------------------------------------------------------------
+  // A VERIFICACAO DO SPRINT 9 RODA AQUI, e so na rodada COMPLETA.
+  //
+  // Ela le o HTML que acabou de sair, entao este e o unico instante em que os
+  // dumps existem e estao frescos. Deixa-la como comando separado seria
+  // deixa-la para quem lembrar -- e criterio que diz "esta palavra nao
+  // aparece" so vale se alguem conferir toda vez.
+  //
+  // Numa rodada parcial (PROTOTIPO_SO) os dumps das outras telas sao de
+  // antes, e a checagem estouraria por uma tela que ninguem pediu. Ela sabe
+  // recusar isso; o que nao pode e virar aviso que a pessoa aprende a ignorar.
+  // ------------------------------------------------------------------------
+  if (!process.env.PROTOTIPO_SO) {
+    const verificacao = spawn(process.execPath, [path.join(RAIZ, "scripts", "verificar-9.mjs")], {
+      stdio: "inherit",
+    });
+    const codigo = await new Promise((resolve) => verificacao.on("close", resolve));
+    if (codigo !== 0) process.exitCode = 1;
   }
 } catch (erro) {
   console.error(`\n  Falhou: ${erro.message}\n`);

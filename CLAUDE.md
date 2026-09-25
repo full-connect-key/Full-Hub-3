@@ -2429,9 +2429,23 @@ fila antes de responder. Se um dia isso precisar ser trava, é trigger em
 **Não existe quiz, certificado, nota nem gamificação, e a ausência é o
 desenho.** O objetivo é organizar o que a agência já sabe, não medir quem
 aprendeu; no dia em que a Academy der nota, ninguém mais marca "não vi" e o
-acompanhamento deixa de dizer a verdade. `verificar-9.mjs` varre a tela atrás
-dessas palavras toda vez, porque critério que diz "não existe" é o tipo que
-volta sem ninguém perceber.
+acompanhamento deixa de dizer a verdade.
+
+**`scripts/verificar-9.mjs` varre o TEXTO RENDERIZADO, e não o código-fonte.**
+Uma busca no fonte acusaria `DateBadge` por conter "badge" e o comentário que
+explica a regra por citar o que ela proíbe — a mesma armadilha que a lista de
+nomes mortos já pagou três vezes. O que importa é o que a pessoa lê, então o
+gerador de protótipo grava o HTML de cada tela ao lado da imagem e a checagem
+lê dali. **Sem os dumps ela FALHA**, nunca passa em branco: uma checagem que
+não encontra o que conferir e termina verde afirma sobre telas que ninguém
+olhou.
+
+**E as checagens de perfil são de MÃO DUPLA.** A aba de gestão tem que estar
+na tela do sócio **e** faltar na do colaborador — só a segunda metade passaria
+numa tela que parou de mostrar a aba para todo mundo. **O que ela não prova:**
+os dumps saem do protótipo, que troca `lib/dados/` por dados de exemplo, então
+isto não testa RLS. Quem testa é `supabase/testes/09_academy_e_recomendacoes.sql`,
+contra um Postgres de verdade. Uma é propriedade de tela, a outra é do banco.
 
 - **Trilha nasce em rascunho.** Enquanto `publicada = false`, ela não volta do
   banco para quem não é gestão — a policy `academy_tracks_select` fecha em
@@ -2996,7 +3010,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário e que todo marcador de dollar quoting abre e fecha |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
-| `npm run prototipo` | Gera imagens das telas em `prototipos/` |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele |
+| `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
