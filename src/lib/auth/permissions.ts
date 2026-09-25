@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   BookOpen,
+  CalendarCheck,
   CalendarDays,
   ChartColumn,
   CircleDollarSign,
@@ -273,6 +274,19 @@ export const MENU: MenuItem[] = [
     // a quinta exige `is_socio()`. O desenvolvedor distribui trabalho e
     // responde por prazo, então produção, tempo e qualidade são dele; o que
     // ele não alcança é faturamento por cliente.
+    // AO LADO DAS MÉTRICAS, e a diferença entre as duas é o que cada uma
+    // serve: as Métricas respondem "como a agência vai" num recorte que a
+    // pessoa escolhe; este responde "o que aconteceu nesta semana e o que vem
+    // na próxima". Um é análise, o outro é a conversa de segunda-feira.
+    label: "Resumo da Agência",
+    href: "/painel/resumo-agencia",
+    icon: CalendarCheck,
+    roles: GESTAO,
+    section: "gestao",
+    description:
+      "O que saiu, o que ficou para trás, o que espera o cliente e o que vence na próxima semana.",
+  },
+  {
     label: "Métricas",
     href: "/painel/metricas",
     icon: ChartColumn,

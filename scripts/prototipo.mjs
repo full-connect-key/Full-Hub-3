@@ -222,6 +222,9 @@ const TELAS = [
   { nome: "99d-metricas-desenvolvedor", rota: "/painel/metricas", largura: 1400, altura: 900, role: "desenvolvedor" },
   { nome: "99e-metricas-375", rota: "/painel/metricas?aba=tempo", largura: 375, altura: 1600, role: "socio" },
 
+  { nome: "99f-resumo-agencia", rota: "/painel/resumo-agencia", largura: 1500, altura: 1700, role: "socio" },
+  { nome: "99g-resumo-agencia-375", rota: "/painel/resumo-agencia", largura: 375, altura: 2000, role: "socio" },
+
   { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
   // 375px: a grade de tres colunas vira UMA, e e a unica imagem que prova
   // isso -- no 1600 as tres colunas escondem o que acontece no celular, que
@@ -335,6 +338,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/home": ["./scripts/prototipo/home.ts"],
   "@/lib/dados/metricas": ["./scripts/prototipo/metricas.ts"],
+  "@/lib/reports/weekly": ["./scripts/prototipo/weekly.ts"],
   "@/lib/dados/full-days": ["./scripts/prototipo/full-days.ts"],
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
