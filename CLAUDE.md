@@ -960,6 +960,161 @@ PUBLICAÇÃO — lá a pergunta é "o que vai ao ar quando". Ele abre a visualiz
 do portal daquele cliente, que é a tela que existe hoje; a de produção é de
 outro sprint.
 
+#### O lado da agência: a corrente de mão em mão
+
+`/painel/social-media` — migration 0042. Até ela o Portal estava pronto e o
+lado de cá não existia: para um post chegar ao cliente, alguém colava SQL no
+Supabase por um script que o próprio cabeçalho mandava apagar no dia em que a
+tela existisse. Ela existe, e ele foi apagado.
+
+**São TRÊS mãos, e é decisão do usuário:** *"essa aba de social media tem que
+ser criada por um desenvolvedor ou sócio, liberada para o colaborador que for
+fazer o conteúdo e os layouts, e quando finalizada enviada para o cliente"*.
+
+| Mão | Quem | O que faz |
+| --- | --- | --- |
+| Briefing | gestão | abre o post: cliente, data, rede, mídia |
+| Produção | o colaborador liberado | arte, slides, legenda |
+| Revisão | gestão | o aval interno |
+| Cliente | ele | aprova, pede ajustes ou rejeita |
+
+A mão é **derivada, nunca gravada** — `maoDoPost()` em `lib/dominio/posts.ts`,
+pela mesma razão que bloqueio de subtarefa não é status e atraso do Financeiro
+não é coluna: ela depende do responsável, do carimbo de envio e da rodada, e
+uma coluna precisaria ser reescrita por três caminhos para continuar
+verdadeira.
+
+**O módulo é de `is_staff()` e não da gestão**, ao contrário de quase tudo na
+seção Gestão do menu: quem produz precisa chegar ao post que foi liberado para
+ele. O que ele não pode é a RLS que recusa — esconder o módulo dele seria
+esconder o trabalho dele.
+
+##### O SPRINT QUASE VIROU DO AVESSO A TRAVA QUE PROTEGE O CLIENTE
+
+`validar_nova_rodada` recusa desde a 0032 que o dono do post o envie ao
+cliente, e perguntava quem é o dono olhando **`posts.criado_por`**. Com a
+gestão abrindo o briefing, `criado_por` passa a ser ela — e as duas travas
+ficariam invertidas:
+
+- *"Só quem produziu o post envia para aprovação"* passaria a olhar a gestão, e
+  o colaborador que fez não conseguiria pedir o aval interno;
+- *"Ninguém envia ao cliente a própria entrega"* compararia com a gestão, e o
+  responsável que produziu **poderia** mandar a própria entrega.
+
+Por isso a 0042 traz `dono_do_post()`, que é
+`coalesce(responsavel_id, criado_por)`. O `coalesce` é o que mantém de pé o
+post aberto antes dela, em que quem criou foi quem produziu. **A bateria guarda
+o cenário virado do avesso**: se alguém devolver `criado_por` ali, "Quem
+produziu pede o aval interno" falha e diz qual.
+
+##### A MÍDIA não é o `formato`, e a pergunta eram duas
+
+*"Por onde a pessoa seleciona se é vídeo, carrossel, post estático ou
+stories?"* — e a lista mistura duas perguntas:
+
+- **`midia`** (`imagem` / `carrossel` / `video`) é **o que a tela desenha**;
+- **`formato`** (Feed, Stories, Reels, Shorts) é **onde vai ao ar**.
+
+Stories não é irmão de carrossel: um story é imagem **ou** vídeo, e cinco
+stories em sequência são um carrossel de stories.
+
+`formato` **continua texto, e a 0032 estava certa** — o comentário dela diz que
+esses nomes "mudam a cada temporada de produto das plataformas, e um enum
+obrigaria uma migration a cada nome novo". Reels e Shorts são dessa safra. No
+editor ele é um `input` com `datalist` por rede: sugestão, nunca lista fechada.
+
+`midia` **é enum**, e precisa ser: é ele que decide qual editor aparece, e um
+`"Carrossel"` com C maiúsculo faria a faixa de slides sumir sem erro nenhum.
+**Escolhe-se na abertura**, porque trocar no meio significa trocar a tela
+debaixo de quem está trabalhando — e a tela recusa a troca enquanto houver mais
+de um slide, senão ficariam arquivos no bucket sem tela que os mostre.
+
+**A conversão do que já estava gravado não é opcional.** Havia post com
+`formato = 'carrossel'` e `formato = 'video'`, escritos quando não havia onde
+dizer o que a tela desenha. Sem o `update` da 0042 eles nasceriam
+`midia = 'imagem'` — o default —, e um carrossel de cinco slides abriria no
+editor de arte única, com quatro arquivos invisíveis. Foi o seed que mostrou.
+
+##### O carrossel, e por que `arte_url` continua sendo a capa
+
+Os slides são `post_versions.arquivos`, um `jsonb` ordenado. É `jsonb` e não
+tabela pelo mesmo critério que separa o template de campanha do workflow de
+task: a versão é escrita de uma vez e lida inteira, nunca consultada slide a
+slide. Normalizar criaria uma tabela para servir um `select * where id = ?`.
+
+**`posts.arte_url` continua sendo a CAPA** — o primeiro slide, escrito pelo
+trigger `post_versions_sincroniza`. É isso que faz o calendário, o card da
+lista e a miniatura do portal **não saberem que carrossel existe**. Sem essa
+linha, subir cinco slides deixaria o card sem imagem nenhuma, e ninguém ligaria
+uma coisa à outra.
+
+##### Vídeo é por LINK, e o custo foi dito a quem decidiu
+
+`posts.video_url` guarda o endereço no Drive ou no YouTube — decisão do
+usuário. O visualizador do portal desenha `<img>`, com zoom de roda e pinça; um
+`.mp4` ali apareceria quebrado, e player, poster e limite de tamanho no bucket
+são entrega própria.
+
+**O que se perde:** o cliente sai do portal para assistir, e decide longe do
+botão de aprovar — que é exatamente o que o Sprint 12 evitou ao pôr a arte
+grande antes dos botões. A tela avisa que o link abre fora.
+
+**E o banco recusa enviar vídeo sem o link.** Sem a trava, o cliente abriria a
+tela para decidir sobre uma arte que não existe — e decidiria, porque o botão
+de aprovar estaria lá.
+
+##### O que o colaborador NÃO troca
+
+Cliente, responsável e data de publicação. **Policy não limita coluna**, então
+quem segura é o trigger `posts_protege_colunas` — a mesma razão de
+`protect_client_columns` e de `comments_normaliza`.
+
+**E ele RECUSA em vez de reescrever**, ao contrário do `comments_normaliza`:
+lá o campo nem aparece na tela do cliente, e devolver o valor certo em silêncio
+é correto; aqui os três campos aparecem, e um colaborador que tenta mudar a
+data precisa ouvir que não pode — senão ele salva, vê a data antiga voltar e
+conclui que a tela está quebrada.
+
+##### As duas visões, o editor único e o botão desligado
+
+**Lista + editor e calendário + painel, na mesma rota por `?visao=`** (decisão
+do usuário, entre três propostas). A fila por colunas ficou de fora: arrastar
+valeria em quatro colunas e não na quinta, porque enviar ao cliente não se
+desfaz — uma exceção que a pessoa aprende errando.
+
+**O editor é UM componente nas duas**, e `compacto` é a única diferença. Duas
+telas parecidas divergiriam na primeira mudança, e a divergência apareceria no
+lugar mais caro: o botão que manda material para fora da agência.
+
+**A lista agrupa por QUEM ESTÁ SEGURANDO** — Comigo / Esperando alguém / Fora
+das minhas mãos —, e não por status. É o que faz a mesma tela servir aos três
+perfis internos: o colaborador abre e a primeira seção é a dele. Agrupar por
+status daria cinco caixas em que ele procuraria o próprio nome.
+
+**"Enviar ao cliente" aparece DESLIGADO com a razão escrita**, em vez de sumir.
+Um botão que some ensina que não existe; um desligado que diz *"falta o aval
+interno"* ou *"ninguém envia ao cliente a própria entrega"* ensina a regra — e
+a regra é do banco. `podeEnviarAoCliente()` em `lib/dominio/posts.ts` responde
+a mesma pergunta que `validar_nova_rodada` faz, e existe só para escrever a
+frase.
+
+**A legenda do calendário agrupa as duas mãos que dividem o azul**, como a do
+portal já fazia com os sete status. A primeira versão dava `--accent-strong` à
+Revisão achando que era outro azul: no tema claro ele **é** `--blue-strong` —
+o token existe justamente para dizer "o azul legível no tema de agora". Duas
+entradas de legenda com a mesma cor são piores que uma, porque a pessoa procura
+a diferença, não acha, e passa a desconfiar do resto. **E a cor nunca é o único
+sinal:** cada card carrega o passo exato no `title` e no rótulo acessível.
+
+**Liberar avisa quem recebeu, e o aviso é do banco** — `posts_avisa_responsavel`
+chama `notificar()`, que nunca avisa quem causou o aviso. A gestão que libera um
+post para si mesma não recebe nada, e está certo.
+
+**Trocar de post remonta o editor por `key`, nunca por efeito.** Ressincronizar
+estado dentro de um `useEffect` dispara renderização em cascata — e, pior,
+sobrescreveria o que a pessoa acabou de digitar no instante em que o servidor
+revalidasse a página.
+
 #### Campanhas: a Wave, a árvore e a decisão de cada peça
 
 `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions` —
@@ -2050,6 +2205,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 14 | **O Social Media ganhou o lado da agência.** Migration 0042. O Portal estava pronto desde o Sprint 12 e o lado de cá não existia: para um post chegar ao cliente, alguém colava SQL no Supabase por um script que o próprio cabeçalho mandava apagar no dia em que a tela existisse -- e ele foi apagado neste commit. **São três mãos**, por decisão do usuário: a gestão abre o briefing, o colaborador liberado produz, a gestão revisa e envia. `posts_insert` passou de `is_staff()` a `is_gestor()`, entrou `responsavel_id`, e a mão é **derivada e nunca gravada**, como bloqueio de subtarefa e atraso do Financeiro. **E o sprint quase virou do avesso a trava que protege o cliente**: `validar_nova_rodada` perguntava quem produziu olhando `criado_por`, que agora é a gestão -- o colaborador não conseguiria pedir o aval interno, e o responsável que produziu poderia mandar a própria entrega. Entrou `dono_do_post()`, e a bateria guarda o cenário virado do avesso. **A pergunta "por onde se escolhe vídeo, carrossel, estático ou stories" eram duas perguntas**: `midia` é o que a tela desenha e virou enum (decide qual editor aparece); `formato` é onde vai ao ar e continua texto, porque Reels e Shorts são de uma safra e a próxima vem aí -- a 0032 já tinha decidido isso e estava certa. Carrossel são `post_versions.arquivos` em jsonb, e **`posts.arte_url` continua sendo a capa**, o que faz o calendário, o card e a miniatura do portal não saberem que carrossel existe. **Vídeo é por link** (decisão do usuário, com o custo dito: o cliente decide longe do botão de aprovar), e o banco recusa enviar vídeo sem o link. Na tela, **duas visões na mesma rota** -- lista + editor e calendário + painel, escolhidas entre três propostas -- com **um editor só** nas duas, a lista agrupada por **quem está segurando** e não por status, e o **"Enviar ao cliente" desligado com a razão escrita** em vez de sumir. **32 cenários novos, 785 no total**, com mutação em três travas. **Seis erros meus**, e vale a lista porque quatro são de família: montei `validar_nova_rodada` a partir da 0032 quando a 0033 já a tinha reescrito (apaguei o `deliverable`, e o sintoma saiu três arquivos adiante); pus o bloco do vídeo no ramo do entregável em vez do post; criei um **segundo** trigger para a mesma função, quebrando o teste que sabia desligá-la; ressincronizei estado do editor num `useEffect` em vez de `key`; dei à Revisão um azul que no tema claro **é** o mesmo da Produção, deixando duas entradas de legenda com uma cor só; e os posts antigos precisavam de conversão de `formato` para `midia`, sem a qual um carrossel abriria no editor de arte única -- quem mostrou foi o seed. |
 | Sprint 3D | **Demandas recorrentes.** Migrations 0040 e 0041: `task_recurrences` com a regra e `recurrence_runs` com cada execução, em **dois modos** -- uma task por mês com uma etapa por dia (trabalho diário, senão o board teria vinte e duas linhas do mesmo trabalho) ou uma task inteira a cada repetição (quando cada uma tem etapas próprias). **A idempotência é o índice único e não uma consulta**: a execução é inserida primeiro, com `on conflict do nothing returning id`, e sem linha de volta a chamada desiste -- duas abas clicando em "Gerar agora" passariam pelas duas consultas antes de qualquer uma gravar. **Nunca retroativo**, e a geração **não roda sozinha**: o agendamento é de outro sprint. O `exception` fica dentro do laço, senão uma regra quebrada levaria junto as outras dezenove da madrugada. Na tela, a aba mora em `/painel/workflows` ao lado dos workflows, e **a prévia das cinco próximas é a razão do formulário ter este formato** -- uma recorrência é a única coisa no produto que cria trabalho sozinha, de madrugada, e sem a prévia o primeiro retorno de uma regra torta chega quando alguém vê doze demandas iguais no board; ela recalcula a cada tecla, o que é por que `proximasOcorrencias()` existe ao lado de `datas_da_recorrencia()`. Três pontos de entrada: "Nova recorrente" em Gestão de Tasks, o selo **Recorrente** na task gerada (um link para a regra) e **"Transformar em recorrente"** no fim do detalhe -- que **abre o editor pré-preenchido e não grava nada**, porque uma task não sabe a cadência dela: ela tem um período, não uma frequência. A 0041 veio por decisão do usuário e acrescentou o **responsável padrão da regra**, `coalesce(etapa, padrão)` nessa ordem: o buraco eram os dois caminhos em que ninguém preenche etapa por etapa, e etapa sem dono não aparece no "Minhas Tasks" de ninguém. **77 cenários novos, 753 no total**, e três erros meus que a verificação pegou: o rótulo "semana de" numa regra mensal (o seed mostrou), uma checagem de `pessoa_desligada()` duplicada que o teste de mutação provou ser uma segunda verdade, e **"Gerar agora" gerando numa regra pausada** -- a imagem do protótipo mostrou o botão ao lado da frase que diz que nada mais é gerado. De quebra, dois erros de layout que só a imagem pega: o `SelectTrigger` nasce `w-fit` e o de Cliente saiu como um botão sem rótulo, e em 375px o "Criar recorrência" ficava acima da prévia. |
 | Depois do 13 | **Dois módulos saíram do produto**, por decisão do usuário: o Resumo Semanal e o Financeiro Pessoal. Tela, rota, dados e tabelas — `weekly_entries`, `weekly_notes` e `personal_finance_entries` apagadas na migration 0034. O módulo pessoal que **fica** é o de Notas Fiscais; o Financeiro da casa também fica, que é outro módulo e só do sócio. **A migration apaga dado de pessoa e não tem volta**, e as três tabelas fechavam em `auth.uid()` — ninguém sabia o que havia dentro sem consultar o banco como dono. Por isso ela vem com `scripts/exportar-antes-da-0034.sql`, que põe o conteúdo na tela para ser entregue a quem escreveu, e não exporta para lugar nenhum de propósito: gravar aquele texto em outra tabela contornaria a promessa que ele carregava. Apagar e não aposentar, como a 0023 fez com `tasks.exigencia_aprovacao`. Os dois nomes entraram na varredura de `check:cores` — a lista **cresce**, como a do vocabulário do Full Days —, e ela pegou sete lugares que ainda os citavam, **um deles texto de tela**: as configurações do portal diziam "é a mesma regra do Resumo Semanal" para a gestão ler. Junto saiu a bandeira `discreto` do `MenuItem`, que sem o único módulo que a ligava virou campo que não decide nada. **597 cenários, todos passando** (31 saíram com os módulos). |
 | Sprint 13 | **Campanhas: a Wave, a árvore e a decisão de cada peça.** Migration 0033, o terceiro ato da 0030 — com `deliverable`, os três tipos do enum passam a ter dono. `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions`, com a árvore em **dois níveis e nunca três** e o **status do grupo derivado**, sem coluna: `status_do_entregavel()` e `statusDoGrupo()` fazem a mesma conta nos dois lados, e o valor escrito à mão num grupo é descartado em vez de recusado. `rejeitado` num filho deixa o grupo em `ajustes`, não em `rejeitado` — ninguém recusou o grupo, e vermelho num grupo com catorze de quinze aprovados afirma outra coisa. Toda conta olha **só as folhas**. O cliente enxerga a **campanha desde o planejamento** e o **entregável só depois de enviado**, e essa assimetria mora nas duas policies, não na consulta. O template é uma **árvore em `jsonb`** e não um par de tabelas, porque é uma lista de nomes que alguém edita inteira antes de salvar; na abertura ele é **ponto de partida, não contrato** — a árvore editada é o que viaja para a action, e os filhos casam com os pais **por posição**, porque "Feed/story site" aparece duas vezes na Wave. A linha de cada item **muda por status** (quem aprovou, há quantos dias espera, o motivo da recusa, o prazo), e o grupo abre sozinho quando tem pendência. O alerta de 7 dias fala de "não aprovados" e não de "esperando você" — são contas diferentes, e as duas frases mostravam números diferentes na mesma campanha até a imagem em 375px pô-las lado a lado. **A tela de detalhe do material é uma só**: post e entregável montam o mesmo `ModeloDoConteudo`, e o que é compartilhado é a casca, não a leitura. Campanhas e entregáveis entram nas pendências do Portal, no bloco "Campanhas ativas" e no calendário da agência — a campanha pelo **encerramento**, não como faixa de trinta células. De quebra, três erros meus que a verificação pegou: o seed carimbando `enviado_em` em item que ninguém enviou (o cliente via doze "Em produção"), o título encolhido a "Feed/…" em 375px porque o selo não cede largura, e o "Copiar legenda" que sobrou na seção "Descrição". E um furo no `check:mensagens`: ele lia linha a linha, então uma chamada quebrada em várias linhas não era contada — nem falha, nem aviso. Agora varre por posição, e achou duas que vinham sendo puladas. |
