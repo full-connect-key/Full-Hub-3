@@ -70,16 +70,38 @@ async function Conteudo({
   agoraISO: string;
   filtros: Parameters<typeof listarFeed>[1];
 }) {
-  const [posts, alta, todasAsTags] = await Promise.all([
+  // OS DESTAQUES SAEM DE UMA SEGUNDA LEITURA, sem filtro nenhum: eles
+  // respondem "o que a equipe achou bom este mês", e uma fatia da lista
+  // filtrada responderia "o que a equipe achou bom entre as ferramentas que
+  // você está olhando agora" — que é outra pergunta.
+  //
+  // São duas idas ao banco para uma tela, e é aceito: o feed de uma agência
+  // de dez pessoas não tem volume que justifique uma view materializada. Com
+  // a tabela grande, o caminho é uma coluna `quantas_curtidas` por trigger — e
+  // aí a conta muda de lugar, não de dono.
+  const [posts, alta, tudo, todasAsTags] = await Promise.all([
     listarFeed(usuarioId, filtros),
-    emAltaNoMes(agoraISO),
+    emAltaNoMes(agoraISO, 3),
+    listarFeed(usuarioId, {
+      categoria: null,
+      tag: null,
+      busca: null,
+      ordem: "curtidas",
+    }),
     tagsDoFeed(),
   ]);
+
+  // O CARTÃO DOS DESTAQUES É O MESMO DA GRADE, então eles precisam ser posts
+  // inteiros. `emAltaNoMes` decide QUAIS (ela é quem sabe a janela de 30 dias
+  // e a contagem); esta linha só vai buscar o resto de cada um.
+  const destaques = alta
+    .map(({ id }) => tudo.find((p) => p.id === id))
+    .filter((p): p is (typeof tudo)[number] => Boolean(p));
 
   return (
     <Feed
       posts={posts}
-      emAlta={alta}
+      destaques={destaques}
       // A nuvem conta em `lib/dominio/`, que é onde os dois lados leem a mesma
       // conta — a camada de dados só traz a coluna.
       nuvem={nuvemDeTags(todasAsTags)}

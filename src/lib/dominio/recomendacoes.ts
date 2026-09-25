@@ -1,3 +1,15 @@
+import {
+  Bookmark,
+  BookOpen,
+  Clapperboard,
+  GraduationCap,
+  Mic,
+  Sparkles,
+  Tv,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+
 import type { RecCategoria } from "@/lib/supabase/database.types";
 
 /**
@@ -52,6 +64,30 @@ export const COR_DA_CATEGORIA: Record<RecCategoria, string> = {
   podcast: "bg-warning-soft text-warning",
   referencia: "bg-neutral-soft text-neutral",
   outro: "bg-neutral-soft text-neutral",
+};
+
+/**
+ * O ícone de cada categoria, para a capa de quem não tem imagem.
+ *
+ * **Cartão sem imagem não pode ficar feio**, e o caminho não é uma moldura
+ * cinza dizendo que a imagem não carregou: é uma capa própria, com a cor da
+ * categoria e o ícone dela. Uma recomendação de livro sem capa continua
+ * parecendo um livro.
+ *
+ * Os ícones seguem o mesmo agrupamento das cores — assistir, ler, usar,
+ * outro — sem serem os mesmos quatro: a cor diz a família de relance, o
+ * ícone diz qual das duas. Com os dois iguais, filme e série ficariam
+ * indistinguíveis também de perto.
+ */
+export const ICONE_DA_CATEGORIA: Record<RecCategoria, LucideIcon> = {
+  filme: Clapperboard,
+  serie: Tv,
+  livro: BookOpen,
+  curso: GraduationCap,
+  ferramenta: Wrench,
+  podcast: Mic,
+  referencia: Bookmark,
+  outro: Sparkles,
 };
 
 export const ORDENS = ["recentes", "curtidas"] as const;

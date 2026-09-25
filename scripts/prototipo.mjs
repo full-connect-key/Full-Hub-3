@@ -36,6 +36,9 @@ import path from "node:path";
 // ---------------------------------------------------------------------------
 // Telas capturadas.
 //   role  -> perfil usado (padrao: socio). Telas do portal ignoram.
+//   env   -> variaveis de ambiente do servidor desta tela. Ela sobe um
+//            servidor so para si -- use apenas quando o estado nao der para
+//            alcancar pela rota, como um feed vazio.
 //   tema  -> "escuro" para capturar no modo escuro.
 //   menu  -> "recolhido" para capturar com o menu lateral fechado.
 //   semRolagem -> captura so a janela. Necessario para lista suspensa aberta:
@@ -192,6 +195,20 @@ const TELAS = [
   { nome: "85-academy-escuro", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio", tema: "escuro" },
 
   { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
+  // 375px: a grade de tres colunas vira UMA, e e a unica imagem que prova
+  // isso -- no 1600 as tres colunas escondem o que acontece no celular, que
+  // e onde a maior parte do feed e lida.
+  { nome: "86b-recomendacoes-375", rota: "/painel/recomendacoes", largura: 375, altura: 1900, role: "socio" },
+  // O PAINEL LATERAL, que e o que substituiu a pagina de detalhe. So clicando
+  // se ve que o cartao inteiro abre o post com arte grande, comentarios e
+  // thread -- a grade sozinha nao mostra onde a conversa foi parar.
+  { nome: "86c-recomendacoes-painel", rota: "/painel/recomendacoes", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Figma Slides")' },
+  // OS DOIS VAZIOS, que sao telas diferentes e nao uma so: com filtro a saida
+  // e "Limpar os filtros", sem filtro e o convite para postar. Um vazio que
+  // manda limpar um filtro que ninguem pos e uma tela dando uma instrucao
+  // impossivel.
+  { nome: "86d-recomendacoes-sem-resultado", rota: "/painel/recomendacoes?busca=motion", largura: 1500, altura: 900, role: "socio" },
+  { nome: "86e-recomendacoes-vazio", rota: "/painel/recomendacoes", largura: 1500, altura: 900, role: "socio", env: { PROTOTIPO_FEED_VAZIO: "1" } },
   { nome: "87-recomendacoes-postar", rota: "/painel/recomendacoes", largura: 1500, altura: 1200, role: "colaborador", clicar: 'button:has-text("O que você recomenda hoje?")' },
   { nome: "88-recomendacoes-curtidas", rota: "/painel/recomendacoes?ordem=curtidas", largura: 1600, altura: 1200, role: "colaborador" },
   { nome: "88b-recomendacoes-remover", rota: "/painel/recomendacoes", largura: 1500, altura: 1000, role: "socio", clicar: 'button:has-text("Remover")' },
@@ -380,7 +397,7 @@ const PERFIS = {
   "socio-no-portal": { role: "socio", portalComoEquipe: true },
 };
 
-function subirServidor(perfil) {
+function subirServidor(perfil, extra = {}) {
   const { role, funcao, senhaProvisoria, portalComoEquipe } =
     PERFIS[perfil] ?? PERFIS.socio;
 
@@ -407,6 +424,10 @@ function subirServidor(perfil) {
     detached: true,
     env: {
       ...process.env,
+      // O `extra` da tela vem DEPOIS do ambiente herdado, e e o que permite
+      // uma tela pedir um estado que os dados de prototipo nao mostram por
+      // conta propria -- o feed vazio das Recomendacoes e o primeiro caso.
+      ...extra,
       PROTOTIPO_ROLE: role,
       PROTOTIPO_FUNCAO: funcao ?? "",
       PROTOTIPO_SENHA_PROVISORIA: senhaProvisoria ? "1" : "",
@@ -512,8 +533,14 @@ try {
     log(`so ${TELAS_A_TIRAR.length} tela(s): ${TELAS_A_TIRAR.map((t) => t.nome).join(", ")}`);
   }
 
-  // Agrupa por perfil para reiniciar o servidor o mínimo possível.
-  const perfis = [...new Set(TELAS_A_TIRAR.map((tela) => tela.role ?? "socio"))];
+  // Agrupa por perfil E PELO AMBIENTE PEDIDO, para reiniciar o servidor o
+  // mínimo possível. O ambiente entra na chave porque ele muda o que o
+  // servidor serve: duas telas do mesmo perfil com `env` diferente precisam
+  // de dois servidores, e uma chave só de perfil daria a segunda imagem com
+  // os dados da primeira -- sem erro nenhum.
+  const chaveDo = (tela) =>
+    `${tela.role ?? "socio"}|${JSON.stringify(tela.env ?? {})}`;
+  const grupos = [...new Set(TELAS_A_TIRAR.map(chaveDo))];
 
   // Telas que nao sairam. A rodada segue mesmo assim -- e o resumo no fim diz
   // quais faltaram, para ninguem achar que `prototipos/` esta completo.
@@ -524,12 +551,19 @@ try {
   // linhas de log. Repetido no fim, vira uma lista curta que da para conferir.
   const semClique = [];
 
-  for (const perfil of perfis) {
-    log(`subindo o servidor como ${perfil}...`);
-    servidor = subirServidor(perfil);
+  for (const grupo of grupos) {
+    const doGrupo = TELAS_A_TIRAR.filter((t) => chaveDo(t) === grupo);
+    const perfil = doGrupo[0].role ?? "socio";
+    const extra = doGrupo[0].env ?? {};
+    const comEnv = Object.keys(extra).length
+      ? ` (${Object.keys(extra).join(", ")})`
+      : "";
+
+    log(`subindo o servidor como ${perfil}${comEnv}...`);
+    servidor = subirServidor(perfil, extra);
     await esperarNoAr(`http://localhost:${PORTA}/login`, 60, servidor);
 
-    for (const tela of TELAS_A_TIRAR.filter((t) => (t.role ?? "socio") === perfil)) {
+    for (const tela of doGrupo) {
       // Uma tela que estoura NAO derruba a rodada inteira, pela mesma razao
       // que um seletor que nao casa nao derruba: a rodada leva dez minutos, e
       // perde-la na tela 78 de 90 joga fora as 77 que ja tinham saido. O que

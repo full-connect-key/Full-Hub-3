@@ -10,6 +10,7 @@ import {
   Heart,
   Loader2,
   MessageCircle,
+  Plus,
   Search,
   Send,
   Sparkles,
@@ -20,6 +21,12 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,12 +60,15 @@ import {
   lerTags,
   tempoRelativo,
 } from "@/lib/dominio/recomendacoes";
-import type { EmAlta, PostDoFeed } from "@/lib/dados/recomendacoes";
+import type { PostDoFeed } from "@/lib/dados/recomendacoes";
+
+import { Cartao } from "./cartao";
 import type { RecCategoria } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import {
   alternarCurtida,
+  buscarPreviaDoLink,
   comentar,
   excluirComentario,
   excluirRecomendacao,
@@ -68,7 +78,7 @@ import {
 
 export function Feed({
   posts,
-  emAlta,
+  destaques,
   nuvem,
   usuarioId,
   gestor,
@@ -76,7 +86,10 @@ export function Feed({
   filtros,
 }: {
   posts: PostDoFeed[];
-  emAlta: EmAlta[];
+  /** O que foi curtido no último mês, já como post inteiro — o cartão dos
+   *  Destaques é o MESMO da grade, com `destaque`, e um cartão diferente ali
+   *  divergiria do outro na primeira mudança. */
+  destaques: PostDoFeed[];
   nuvem: { tag: string; quantas: number }[];
   usuarioId: string;
   gestor: boolean;
@@ -89,6 +102,41 @@ export function Feed({
   const [executando, iniciar] = useTransition();
   const [postando, setPostando] = useState(false);
   const [termo, setTermo] = useState(filtros.busca ?? "");
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  // O PAINEL LÊ DA LISTA, e não guarda uma cópia do post: curtir com ele
+  // aberto atualiza a grade, e um estado próprio mostraria o coração vazio ao
+  // lado do cheio. Se o post sumir da lista (filtro trocado, post apagado), o
+  // painel fecha sozinho — melhor que ficar aberto sobre o que não existe.
+  const emFoco =
+    posts.find((p) => p.id === aberto) ??
+    destaques.find((p) => p.id === aberto) ??
+    null;
+
+  const temFiltro = Boolean(filtros.categoria || filtros.tag || filtros.busca);
+
+  // OS DESTAQUES SÓ APARECEM SEM FILTRO, e a grade NÃO REPETE o que está
+  // neles.
+  //
+  // Foi a imagem do protótipo que mostrou: quatro recomendações viravam seis
+  // cartões na tela, duas delas idênticas a um palmo de distância. "Destaque"
+  // que aparece de novo logo abaixo não destaca nada — vira a suspeita de que
+  // a tela duplicou.
+  //
+  // A alternativa era deixar a grade inteira e diferenciar os destaques só
+  // pelo tamanho. Num feed de agência, com quatro ou cinco posts por mês, o
+  // mesmo cartão em dois tamanhos na mesma dobra é pior que a repetição
+  // óbvia: parece defeito.
+  const emDestaque = temFiltro ? [] : destaques;
+  const idsEmDestaque = new Set(emDestaque.map((p) => p.id));
+  const naGrade = posts.filter((p) => !idsEmDestaque.has(p.id));
+  /** O feed que nunca teve nada — não o que um filtro esvaziou. */
+  const semNada = posts.length === 0 && !temFiltro;
+
+  function limparFiltros() {
+    setTermo("");
+    router.replace(pathname, { scroll: false });
+  }
 
   function navegar(chave: string, valor: string | null) {
     const destino = new URLSearchParams(parametros.toString());
@@ -107,193 +155,291 @@ export function Feed({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_16rem]">
-      <div className="min-w-0 space-y-4">
-        {postando ? (
-          <FormularioDePost
-            executando={executando}
-            aoFechar={() => setPostando(false)}
-            aoPublicar={(dados) =>
-              iniciar(async () => {
-                const r = await chamarAcao(() => publicarRecomendacao(dados));
-                responder(r);
-                if (r.ok) setPostando(false);
-              })
-            }
+    <div className="space-y-5">
+      {postando ? (
+        <FormularioDePost
+          executando={executando}
+          aoFechar={() => setPostando(false)}
+          aoPublicar={(dados) =>
+            iniciar(async () => {
+              const r = await chamarAcao(() => publicarRecomendacao(dados));
+              responder(r);
+              if (r.ok) setPostando(false);
+            })
+          }
+        />
+      ) : (
+        // O campo fechado é um convite, não um formulário: abrir oito campos
+        // de uma vez num módulo leve é o jeito mais rápido de ninguém postar.
+        <button
+          type="button"
+          onClick={() => setPostando(true)}
+          className="rounded-card bg-surface-card text-text-muted hover:border-accent-strong w-full border px-4 py-3 text-left text-sm transition-colors"
+        >
+          O que você recomenda hoje?
+        </button>
+      )}
+
+      {/* BUSCA E CHIPS SOMEM NO FEED VAZIO DE VERDADE (sem post e sem filtro),
+          e é a imagem do primeiro dia que pede isso: uma busca e nove
+          categorias sobre um convite para postar são nove filtros de nada.
+          Com filtro ativo eles FICAM, senão quem buscou "motion" e não achou
+          perderia o caminho de volta. */}
+      {semNada ? null : (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] flex-1">
+          <Search
+            aria-hidden
+            className="text-text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
           />
-        ) : (
-          // O campo fechado é um convite, não um formulário: abrir oito campos
-          // de uma vez num módulo leve é o jeito mais rápido de ninguém postar.
-          <button
-            type="button"
-            onClick={() => setPostando(true)}
-            className="rounded-card bg-surface-card text-text-muted hover:border-accent-strong w-full border px-4 py-3 text-left text-sm transition-colors"
-          >
-            O que você recomenda hoje?
-          </button>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[12rem] flex-1">
-            <Search
-              aria-hidden
-              className="text-text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-            />
-            <Input
-              className="pl-9"
-              value={termo}
-              placeholder="Buscar no feed"
-              aria-label="Buscar no feed"
-              onChange={(e) => setTermo(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") navegar("busca", termo.trim() || null);
-              }}
-            />
-          </div>
-
-          <Select
-            value={filtros.categoria ?? "todas"}
-            onValueChange={(v) => navegar("categoria", v === "todas" ? null : v)}
-          >
-            <SelectTrigger className="w-40" aria-label="Categoria">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas as categorias</SelectItem>
-              {CATEGORIAS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {ROTULOS_DE_CATEGORIA[c]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="flex gap-1">
-            {ORDENS.map((o) => (
-              <button
-                key={o}
-                type="button"
-                onClick={() => navegar("ordem", o === "recentes" ? null : o)}
-                aria-pressed={filtros.ordem === o}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs",
-                  filtros.ordem === o
-                    ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
-                    : "text-text-secondary hover:bg-muted",
-                )}
-              >
-                {ROTULOS_DE_ORDEM[o]}
-              </button>
-            ))}
-          </div>
+          <Input
+            className="pl-9"
+            value={termo}
+            placeholder="Buscar no feed"
+            aria-label="Buscar no feed"
+            onChange={(e) => setTermo(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") navegar("busca", termo.trim() || null);
+            }}
+          />
         </div>
 
-        {filtros.tag || filtros.busca ? (
-          <div className="text-text-secondary flex flex-wrap items-center gap-2 text-xs">
-            {filtros.tag ? (
-              <Chip aoLimpar={() => navegar("tag", null)}>#{filtros.tag}</Chip>
-            ) : null}
-            {filtros.busca ? (
-              <Chip
-                aoLimpar={() => {
-                  setTermo("");
-                  navegar("busca", null);
-                }}
-              >
-                “{filtros.busca}”
-              </Chip>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex gap-1">
+          {ORDENS.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => navegar("ordem", o === "recentes" ? null : o)}
+              aria-pressed={filtros.ordem === o}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs",
+                filtros.ordem === o
+                  ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
+                  : "text-text-secondary hover:bg-muted",
+              )}
+            >
+              {ROTULOS_DE_ORDEM[o]}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {posts.length === 0 ? (
-          <EmptyState
-            icon={Sparkles}
-            title="Nada por aqui ainda"
-            description={
-              filtros.categoria || filtros.tag || filtros.busca
-                ? "Nenhuma recomendação combina com esse filtro."
-                : "Seja a primeira pessoa a indicar alguma coisa. Um filme, um curso, uma ferramenta que economizou seu dia."
-            }
-          />
-        ) : (
-          <ul className="space-y-3">
-            {posts.map((post) => (
+      )}
+
+      {/* AS CATEGORIAS VIRARAM CHIPS, e não um `<select>`: são oito, cabem numa
+          linha, e o que se faz com elas é trocar de uma para outra até achar.
+          Num select, cada troca são dois cliques e a lista fechada esconde
+          quais existem. */}
+      {semNada ? null : (
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <ChipDeFiltro
+          ativo={filtros.categoria === null}
+          onClick={() => navegar("categoria", null)}
+        >
+          Todas
+        </ChipDeFiltro>
+        {CATEGORIAS.map((c) => (
+          <ChipDeFiltro
+            key={c}
+            ativo={filtros.categoria === c}
+            onClick={() => navegar("categoria", filtros.categoria === c ? null : c)}
+          >
+            {ROTULOS_DE_CATEGORIA[c]}
+          </ChipDeFiltro>
+        ))}
+      </div>
+      )}
+
+      {filtros.tag || filtros.busca ? (
+        <div className="text-text-secondary flex flex-wrap items-center gap-2 text-xs">
+          {filtros.tag ? (
+            <Chip aoLimpar={() => navegar("tag", null)}>#{filtros.tag}</Chip>
+          ) : null}
+          {filtros.busca ? (
+            <Chip
+              aoLimpar={() => {
+                setTermo("");
+                navegar("busca", null);
+              }}
+            >
+              “{filtros.busca}”
+            </Chip>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* DESTAQUES: o que foi curtido no último mês, em cartões maiores.
+          Aparece com UM item ou mais — decisão do usuário. A regra original
+          pedia três, e numa agência de nove pessoas uma semana com três posts
+          curtidos não é o caso comum: o bloco passaria a maior parte do tempo
+          invisível, que é o mesmo que não existir.
+
+          **E ele some quando há filtro ativo.** "Destaques" ao lado de uma
+          grade filtrada por Ferramenta seria a tela contradizendo o próprio
+          filtro — a mesma decisão que a vitrine da Academy já tinha tomado. */}
+      {emDestaque.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-text-primary flex items-center gap-1.5 text-sm font-semibold">
+            <Flame aria-hidden className="text-warning size-4" />
+            Destaques do mês
+          </h2>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {emDestaque.map((post) => (
               <li key={post.id}>
-                <CartaoDoPost
+                <Cartao
                   post={post}
-                  usuarioId={usuarioId}
-                  gestor={gestor}
                   agoraISO={agoraISO}
-                  executando={executando}
-                  aoFiltrarTag={(tag) => navegar("tag", tag)}
-                  aoAgir={(fn) => iniciar(async () => responder(await chamarAcao(fn)))}
+                  destaque
+                  curtindo={executando}
+                  aoAbrir={() => setAberto(post.id)}
+                  aoCurtir={() =>
+                    iniciar(async () =>
+                      responder(await chamarAcao(() => alternarCurtida(post.id))),
+                    )
+                  }
                 />
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </section>
+      ) : null}
 
-      <aside className="space-y-6">
-        <section className="space-y-2">
-          <h2 className="text-text-primary flex items-center gap-1.5 text-sm font-semibold">
-            <Flame aria-hidden className="text-warning size-4" />
-            Em alta este mês
+      {posts.length === 0 ? (
+        <EmptyState
+          icon={Sparkles}
+          // O TITULO TROCA COM O CORPO. "Nada por aqui ainda" diz que o feed
+          // nunca teve nada -- sobre uma busca por "motion" ele afirma o
+          // contrario do que aconteceu: tem coisa, so nao essa.
+          title={temFiltro ? "Nenhum resultado" : "Nada por aqui ainda"}
+          description={
+            temFiltro
+              ? "Nenhuma recomendação combina com esse filtro."
+              : "Um filme, um curso, uma ferramenta que economizou seu dia."
+          }
+          action={
+            temFiltro ? (
+              <Button variant="outline" onClick={() => limparFiltros()}>
+                Limpar os filtros
+              </Button>
+            ) : (
+              // O VAZIO CONVIDA em vez de constatar: "nenhum resultado" é o
+              // fim da conversa; um botão é a continuação dela.
+              <Button onClick={() => setPostando(true)}>
+                <Plus aria-hidden className="size-4" />
+                Fazer a primeira recomendação
+              </Button>
+            )
+          }
+        />
+      ) : (
+        /* GRADE DE CARTÕES, três colunas no desktop.
+           É `grid` e não colunas CSS: com `columns`, a ordem de leitura desce
+           a primeira coluna inteira antes de voltar ao topo — num feed
+           ordenado por "recentes", o segundo post mais novo apareceria no meio
+           da tela. A altura desigual dos cartões é resolvida por
+           `items-start`, e não por mosaico. */
+        <ul className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {naGrade.map((post) => (
+            <li key={post.id}>
+              <Cartao
+                post={post}
+                agoraISO={agoraISO}
+                curtindo={executando}
+                aoAbrir={() => setAberto(post.id)}
+                aoCurtir={() =>
+                  iniciar(async () =>
+                    responder(await chamarAcao(() => alternarCurtida(post.id))),
+                  )
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {nuvem.length > 0 ? (
+        <section className="space-y-2 border-t pt-4">
+          <h2 className="text-text-muted text-xs font-medium tracking-wide uppercase">
+            Tags mais usadas
           </h2>
-          {emAlta.length === 0 ? (
-            <p className="text-text-muted text-xs">
-              Ainda sem curtidas nos últimos 30 dias.
-            </p>
-          ) : (
-            <ol className="space-y-1.5">
-              {emAlta.map((item, indice) => (
-                <li key={item.id} className="flex items-start gap-2 text-xs">
-                  <span className="text-text-muted w-4 shrink-0 tabular-nums">
-                    {indice + 1}.
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="text-text-primary block leading-snug">
-                      {item.titulo}
-                    </span>
-                    <span className="text-text-muted">
-                      {ROTULOS_DE_CATEGORIA[item.categoria]} · {item.quantas}{" "}
-                      {item.quantas === 1 ? "curtida" : "curtidas"}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
+          <div className="flex flex-wrap gap-1.5">
+            {nuvem.map(({ tag, quantas }) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => navegar("tag", tag)}
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs transition-colors",
+                  filtros.tag === tag
+                    ? "border-accent-strong bg-blue-soft text-accent-strong"
+                    : "text-text-secondary hover:bg-muted",
+                )}
+              >
+                #{tag}
+                <span className="text-text-muted ml-1 tabular-nums">{quantas}</span>
+              </button>
+            ))}
+          </div>
         </section>
+      ) : null}
 
-        <section className="space-y-2">
-          <h2 className="text-text-primary text-sm font-semibold">Tags mais usadas</h2>
-          {nuvem.length === 0 ? (
-            <p className="text-text-muted text-xs">Nenhuma tag ainda.</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {nuvem.map(({ tag, quantas }) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => navegar("tag", tag)}
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-xs transition-colors",
-                    filtros.tag === tag
-                      ? "border-accent-strong bg-blue-soft text-accent-strong"
-                      : "text-text-secondary hover:bg-muted",
-                  )}
-                >
-                  #{tag}
-                  <span className="text-text-muted ml-1 tabular-nums">{quantas}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      </aside>
+      {/* O DETALHE ABRE EM PAINEL LATERAL, e não em página nova: quem está
+          varrendo o feed volta para o mesmo ponto da grade, com o mesmo
+          filtro, sem recarregar nada. É a mesma decisão de Minhas Tasks. */}
+      <Sheet open={emFoco !== null} onOpenChange={(v) => !v && setAberto(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          {emFoco ? (
+            <>
+              <SheetHeader className="sr-only">
+                <SheetTitle>{emFoco.titulo}</SheetTitle>
+              </SheetHeader>
+              <div className="p-4">
+                <CartaoDoPost
+                  post={emFoco}
+                  usuarioId={usuarioId}
+                  gestor={gestor}
+                  agoraISO={agoraISO}
+                  executando={executando}
+                  semMoldura
+                  aoFiltrarTag={(tag) => {
+                    setAberto(null);
+                    navegar("tag", tag);
+                  }}
+                  aoAgir={(fn) => iniciar(async () => responder(await chamarAcao(fn)))}
+                />
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+/** Um chip de filtro: ativo em `--blue-soft` com texto `--blue-strong`. */
+function ChipDeFiltro({
+  ativo,
+  onClick,
+  children,
+}: {
+  ativo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={ativo}
+      className={cn(
+        "shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap transition-colors",
+        ativo
+          ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
+          : "text-text-secondary hover:bg-muted",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -314,6 +460,7 @@ function CartaoDoPost({
   gestor,
   agoraISO,
   executando,
+  semMoldura = false,
   aoFiltrarTag,
   aoAgir,
 }: {
@@ -322,10 +469,24 @@ function CartaoDoPost({
   gestor: boolean;
   agoraISO: string;
   executando: boolean;
+  /**
+   * Dentro do painel lateral, sem borda nem fundo próprios.
+   *
+   * O painel JÁ É a moldura — um cartão com borda dentro de uma gaveta com
+   * borda lê como duas caixas, e a de dentro parece um item de uma lista que
+   * não existe ali.
+   */
+  semMoldura?: boolean;
   aoFiltrarTag: (tag: string) => void;
   aoAgir: (fn: () => Promise<Resultado<unknown>>) => void;
 }) {
-  const [comentando, setComentando] = useState(false);
+  // NO PAINEL O CAMPO JA NASCE ABERTO, e na grade nao. Sao duas perguntas
+  // diferentes: quem varre a grade quer ver o que tem; quem abriu o painel
+  // ja escolheu este post -- responder e uma das duas coisas que se faz ali,
+  // e obrigar um clique a mais para achar a caixa de texto e pôr uma porta
+  // onde havia um caminho. Foi a imagem do painel que mostrou: a thread
+  // terminava no ultimo comentario, sem onde escrever o proximo.
+  const [comentando, setComentando] = useState(semMoldura);
   const [texto, setTexto] = useState("");
   const [respondendo, setRespondendo] = useState<string | null>(null);
 
@@ -336,7 +497,24 @@ function CartaoDoPost({
   const raizes = post.comentarios.filter((c) => !c.respostaA);
 
   return (
-    <article className="rounded-card bg-surface-card space-y-3 border p-4">
+    <article
+      className={cn(
+        "space-y-3",
+        !semMoldura && "rounded-card bg-surface-card border p-4",
+      )}
+    >
+      {/* A ARTE GRANDE ABRE O PAINEL, e só nele: na grade ela já é a capa do
+          cartão, e repeti-la aqui seria mostrar a mesma imagem duas vezes na
+          mesma tela. */}
+      {semMoldura && post.imagem_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={post.imagem_url}
+          alt=""
+          className="aspect-video w-full rounded-lg border object-cover"
+        />
+      ) : null}
+
       <header className="flex items-start gap-3">
         <UserAvatar name={post.autor?.nome ?? "—"} src={post.autor?.avatar_url} size="sm" />
         <div className="min-w-0 flex-1">
@@ -738,6 +916,41 @@ function FormularioDePost({
   const [descricao, setDescricao] = useState("");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
+  const [imagem, setImagem] = useState<string | null>(null);
+  const [buscando, setBuscando] = useState(false);
+
+  /**
+   * Colar o link preenche o resto.
+   *
+   * **E só preenche o que está VAZIO.** Quem digitou o título e colou o link
+   * depois não pode ver o próprio texto ser trocado pelo do site — é a mesma
+   * regra do responsável padrão da recorrência, `coalesce(o que a pessoa
+   * escreveu, o que veio de fora)`, nessa ordem.
+   *
+   * **E nada trava.** Um site sem Open Graph, fora do ar, ou recusado pelo
+   * guarda de rede interna devolve o motivo num toast discreto e os campos
+   * continuam manuais. O preview é atalho, não requisito.
+   */
+  async function puxar(endereco: string) {
+    const limpo = endereco.trim();
+    if (!/^https?:\/\//i.test(limpo)) return;
+
+    setBuscando(true);
+    try {
+      const r = await chamarAcao(() => buscarPreviaDoLink(limpo));
+      if (!r.ok) {
+        toast.message("Sem prévia deste link", { description: r.error });
+        return;
+      }
+      const previa = r.dados;
+      if (!previa) return;
+      if (previa.titulo && !titulo.trim()) setTitulo(previa.titulo);
+      if (previa.descricao && !descricao.trim()) setDescricao(previa.descricao);
+      if (previa.imagem) setImagem(previa.imagem);
+    } finally {
+      setBuscando(false);
+    }
+  }
 
   return (
     <section className="rounded-card bg-surface-card space-y-3 border p-4">
@@ -787,17 +1000,43 @@ function FormularioDePost({
           />
         </div>
 
-        <div className="space-y-1.5">
+        {/* LINK E TAGS OCUPAM A LARGURA INTEIRA, e nao meia coluna cada.
+            A grade e `[10rem_1fr]`: com um em cada lado, o endereco -- que e
+            o valor mais longo do formulario -- caia na coluna de 10rem, e a
+            linha de ajuda embaixo dele quebrava em duas. Foi a imagem que
+            mostrou. */}
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="rec-url">Link</Label>
-          <Input
-            id="rec-url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://…"
-          />
+          <div className="relative">
+            <Input
+              id="rec-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              // NO `paste` E NO `blur`: colar é o caminho de quem veio do
+              // navegador, sair do campo é o de quem digitou. Buscar a cada
+              // tecla seria uma requisição por letra.
+              onPaste={(e) => {
+                const colado = e.clipboardData.getData("text");
+                if (colado) void puxar(colado);
+              }}
+              onBlur={(e) => void puxar(e.target.value)}
+              placeholder="https://…"
+            />
+            {buscando ? (
+              <Loader2
+                aria-hidden
+                className="text-text-muted absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin"
+              />
+            ) : null}
+          </div>
+          <p className="text-text-muted text-xs">
+            {buscando
+              ? "Buscando título e imagem…"
+              : "Colar um link preenche o resto. Tudo continua editável."}
+          </p>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="rec-tags">Tags</Label>
           <Input
             id="rec-tags"
@@ -806,6 +1045,26 @@ function FormularioDePost({
             placeholder="design, apresentação"
           />
         </div>
+
+        {/* A IMAGEM ACHADA, com o botão de tirar. Ela aparece porque é o que
+            vai virar a capa do cartão — sem mostrá-la, a pessoa só descobre
+            qual imagem o site deu depois de publicar. */}
+        {imagem ? (
+          <div className="flex items-center gap-3 sm:col-span-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagem}
+              alt=""
+              className="h-16 w-28 shrink-0 rounded-md border object-cover"
+            />
+            <div className="min-w-0">
+              <p className="text-text-secondary text-sm">Capa encontrada no link.</p>
+              <Button variant="ghost" size="sm" onClick={() => setImagem(null)}>
+                Usar sem imagem
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex justify-end gap-2">
@@ -815,7 +1074,14 @@ function FormularioDePost({
         <Button
           disabled={executando || titulo.trim().length < 2}
           onClick={() =>
-            aoPublicar({ categoria, titulo, descricao, url, tags: lerTags(tags) })
+            aoPublicar({
+              categoria,
+              titulo,
+              descricao,
+              url,
+              imagem_url: imagem,
+              tags: lerTags(tags),
+            })
           }
         >
           {executando ? <Loader2 className="animate-spin" /> : null}
