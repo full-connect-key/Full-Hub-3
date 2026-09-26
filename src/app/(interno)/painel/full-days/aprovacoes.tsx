@@ -121,7 +121,7 @@ export function Aprovacoes({
               )}
             >
               {filtro.label}
-              <span className="tabular-nums opacity-70">{contagem[filtro.chave]}</span>
+              <span className="tabular-nums">{contagem[filtro.chave]}</span>
             </button>
           );
         })}

@@ -195,7 +195,7 @@ export function MatrizDaEquipe({
                       {/* A inicial do dia da semana em cima do número. Sem
                           ela, achar "a semana que vem" numa fita de 30
                           números é contar de sete em sete com o dedo. */}
-                      <span className="block text-[9px] leading-none uppercase opacity-70">
+                      <span className="block text-[9px] leading-none uppercase">
                         {format(parseISO(data), "EEEEE", { locale: ptBR })}
                       </span>
                       <span className="block leading-tight">{format(parseISO(data), "dd")}</span>
@@ -478,7 +478,7 @@ function Celula({
           <TooltipContent>
             {descricao}
             {deSolicitacao ? (
-              <span className="mt-0.5 block text-[11px] opacity-80">
+              <span className="mt-0.5 block text-[11px]">
                 Desfaça a solicitação para mudar.
               </span>
             ) : null}

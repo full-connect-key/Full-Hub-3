@@ -34,7 +34,6 @@ import {
   VEZES_POR_ANO,
 } from "@/lib/dominio/financeiro";
 import type { ContratoRecorrencia } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
 
 import { excluirContrato, gerarLancamentosDoMes, salvarContrato } from "./acoes";
 
@@ -131,7 +130,9 @@ export function Contratos({
           {contratos.map((contrato) => (
             <li
               key={contrato.id}
-              className={cn("flex flex-wrap items-center gap-3 p-4", !contrato.ativo && "opacity-60")}
+              // O selo "Inativo" desta linha já diz isto, e por escrito. A
+              // opacidade só acrescentava uma cor que ninguém mediu.
+              className="flex flex-wrap items-center gap-3 p-4"
             >
               <div className="min-w-48 flex-1">
                 <p className="text-text-primary text-sm font-medium">{contrato.nome}</p>

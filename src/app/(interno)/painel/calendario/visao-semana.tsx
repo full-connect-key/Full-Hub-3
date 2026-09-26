@@ -87,7 +87,7 @@ export function VisaoDeSemana({
                     >
                       <span className="block truncate font-medium">{item.titulo}</span>
                       {item.cliente ? (
-                        <span className="block truncate opacity-80">{item.cliente}</span>
+                        <span className="block truncate">{item.cliente}</span>
                       ) : null}
                     </button>
                   </li>

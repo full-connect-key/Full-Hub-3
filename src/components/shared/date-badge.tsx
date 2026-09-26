@@ -81,7 +81,7 @@ export function DateBadge({
       {showIcon ? <CalendarClock aria-hidden className="size-3" /> : null}
       {format(data, "dd/MM/yy", { locale: ptBR })}
       {tone !== "neutra" ? (
-        <span className="font-normal opacity-80">· {textoRelativo(dias)}</span>
+        <span className="font-normal">· {textoRelativo(dias)}</span>
       ) : null}
     </span>
   );

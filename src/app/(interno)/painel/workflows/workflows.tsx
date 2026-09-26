@@ -237,7 +237,11 @@ export function Workflows({
           {tipos.map((tipo) => (
             <li
               key={tipo.id}
-              className={`rounded-lg border p-4 ${tipo.ativo ? "" : "opacity-50"}`}
+              // SEM `opacity-50` no arquivado: opacidade sobre um fundo
+              // qualquer dá uma cor que ninguém mediu, e a 50% o nome do
+              // workflow reprova o contraste. O selo "Arquivado" logo abaixo já
+              // diz o mesmo, e diz por escrito.
+              className="rounded-lg border p-4"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -362,7 +366,7 @@ export function Workflows({
                       {indice > 0 ? <span aria-hidden>→</span> : null}
                       <span>{etapa.nome}</span>
                       {etapa.funcao_padrao ? (
-                        <span className="opacity-70">({etapa.funcao_padrao})</span>
+                        <span>({etapa.funcao_padrao})</span>
                       ) : null}
                       {etapa.requer_aprovacao ? (
                         <Lock className="size-3" aria-label="Exige aprovação" />

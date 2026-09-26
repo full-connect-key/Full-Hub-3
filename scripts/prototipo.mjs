@@ -922,6 +922,13 @@ try {
               descricao: v.help,
               quantos: v.nodes.length,
               exemplo: n.html?.slice(0, 120) ?? "",
+              // SÓ PARA O ARQUIVO, nunca para o terminal. O `failureSummary`
+              // do axe é o que responde "por que" — no `color-contrast` ele
+              // traz as duas cores e a razão medida, que é a diferença entre
+              // saber que a tela reprova e saber onde mexer. No terminal ele
+              // seriam seis linhas por nó.
+              resumo: n.failureSummary ?? "",
+              alvo: Array.isArray(n.target) ? n.target.join(" ") : "",
             })),
           );
         });
@@ -984,6 +991,39 @@ try {
       "\n  Só `serious` e `critical` entram nesta lista. O corte existe para\n" +
         "  ela ser lida: com os avisos leves junto, ninguém lê nenhum.",
     );
+
+    // ----------------------------------------------------------------------
+    // E A LISTA INTEIRA VAI PARA UM ARQUIVO.
+    //
+    // O terminal corta em três exemplos por regra e diz "e mais 32 trechos
+    // diferentes" — o que é a decisão certa para ser lido e a errada para ser
+    // consertado: quem vai atrás da causa precisa dos 32. Foi exatamente o
+    // que aconteceu com o `color-contrast`: 131 nós, três exemplos na tela, e
+    // a única forma de ver o resto era editar este arquivo.
+    //
+    // É a mesma razão pela qual o `check:sprint9` lê os dumps de HTML: a
+    // imagem responde "está errado", o arquivo responde "onde".
+    // ----------------------------------------------------------------------
+    const relatorio = path.join(SAIDA, "acessibilidade.json");
+    await writeFile(
+      relatorio,
+      JSON.stringify(
+        [...porRegra].map(([id, a]) => ({
+          regra: id,
+          impacto: a.impacto,
+          descricao: a.descricao,
+          telas: a.telas,
+          nos: acessibilidade
+            .filter((x) => x.id === id)
+            .map((x) => ({ tela: x.tela, alvo: x.alvo, html: x.exemplo, porque: x.resumo })),
+        })),
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    console.error(`  A lista inteira, com o motivo de cada nó: ${path.relative(RAIZ, relatorio)}`);
+
     process.exitCode = 1;
   }
 

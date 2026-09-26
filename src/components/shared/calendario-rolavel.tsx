@@ -604,9 +604,9 @@ function Dia({
       {/* A legenda da célula responde "e daí?" sem clicar: quem está fora,
           que feriado é, ou onde o período começa e acaba. */}
       {dentroDaSelecao && pontaInicial ? (
-        <span className="text-[11px] leading-tight opacity-90">início</span>
+        <span className="text-[11px] leading-tight">início</span>
       ) : dentroDaSelecao && pontaFinal ? (
-        <span className="text-[11px] leading-tight opacity-90">fim</span>
+        <span className="text-[11px] leading-tight">fim</span>
       ) : bloqueado && !dentroDaSelecao ? (
         <span className="w-full truncate text-[11px] leading-tight">
           {maisDeUm

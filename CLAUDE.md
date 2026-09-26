@@ -3478,6 +3478,103 @@ projeto reprova.
 > resposta quase sempre é a 0057 — canal privado sem policy é
 > `CHANNEL_ERROR`.
 
+### A acessibilidade, e o que só a rodada COMPLETA do protótipo mostra
+
+O `npm run prototipo` roda o **axe-core** em cada tela viva, depois do clique —
+e só `serious` e `critical` entram na lista, porque com os avisos leves junto
+ninguém lê nenhum. A rodada filtrada (`PROTOTIPO_SO=…`) varre as telas que se
+pediu; a **completa** varre as cento e cinquenta, e é ela que mostra o tamanho
+de verdade: sete famílias de achado, uma delas em 98 nós.
+
+**Nada disso era regressão de um sprint.** Era dívida do produto inteiro, e a
+razão de ela ter durado tanto é mecânica: a rodada completa leva quinze minutos
+e **não está no CI**, então quem trabalha numa tela roda a filtrada e vê as
+famílias da tela dela. É a mesma família do `check:prototipo` — uma verificação
+que só funciona no modo que ninguém usa é uma verificação que ninguém faz.
+
+**E o terminal cortava em três exemplos por regra**, dizendo "e mais 32 trechos
+diferentes". Isso é a decisão certa para ser lido e a errada para ser
+consertado: quem vai atrás da causa precisa dos 32. Agora a lista inteira, com
+o `failureSummary` do axe em cada nó — no contraste ele traz as duas cores e a
+razão medida —, vai para `prototipos/acessibilidade.json`. A imagem responde
+"está errado"; o arquivo responde "onde".
+
+#### `<label for>` NÃO nomeia um `<button>`
+
+É a regra que explica 27 dos nós, e ela se esquece porque parece resolvida: o
+`SelectTrigger` do shadcn é um `<button role="combobox">` com um `<Label
+htmlFor>` do lado, e um `<label>` só nomeia campo de formulário — nunca um
+botão. Então **todo Select com o valor vazio não tem nome nenhum**, e quando
+tem valor o nome passa a ser o valor, que também está errado: um combobox se
+nomeia pelo que ele escolhe, não pelo que está escolhido.
+
+Por isso os **52** `SelectTrigger` do produto ganharam `aria-label`, e não só os
+três que o axe acusou: os outros passavam por acaso, porque naquele instante
+havia um valor selecionado. Conserto por nó aqui seria voltar na próxima rodada
+com dados diferentes.
+
+#### O `<input type="file">` escondido continua existindo
+
+Sete deles moram atrás de um `Button` que os aciona por `ref`, com
+`className="sr-only"`. **Visualmente escondido não é ausente da árvore de
+acessibilidade** — `sr-only` é justamente o contrário —, então cada um era um
+campo de arquivo anunciado como "editar" e mais nada.
+
+#### O dnd-kit devolve `role="button"`, e isso cria botão dentro de botão
+
+`attributes` traz `role` e `tabIndex`. Espalhá-los num `<div>` em volta de um
+`<button>` de verdade dá duas paradas de Tab para o mesmo cartão, o leitor de
+tela anunciando "botão" duas vezes, e a de fora não fazendo nada no Enter.
+
+**No board de demandas o conserto não muda nada na tela:** os ouvintes passaram
+para o próprio `<button>`/`<a>` clicável, sem o `role` e sem o `tabIndex` — os
+dois já nascem focáveis e com o papel certo. O `aria-roledescription` e o
+`aria-describedby` das instruções de teclado ficam.
+
+**No board de etapas o cartão não embrulha um clicável, ele CARREGA os botões de
+ação**, então lá saem só o `role` e o `tabIndex`. *O que se perde, e é
+consequência aceita:* o arrasto por teclado. E não se perde nada — o caminho de
+teclado para mudar o andamento é exatamente o botão "Iniciar" dentro do cartão,
+que é o que esse board existe para oferecer.
+
+#### O contraste tinha DUAS causas, e as duas são a mesma regra do produto
+
+A primeira era **uma linha**: `--muted-foreground` apontava para
+`--text-muted`. Ele é o apelido do shadcn para todo texto discreto — selo
+secundário, cabeçalho de tabela, placeholder, botão não selecionado de controle
+segmentado — e em boa parte desses lugares o fundo é `--muted`, que é o mesmo
+`--neutral-soft`. O par dava **4,43:1**, abaixo do mínimo de 4,5. Apontando para
+`--neutral` dá 6,35:1 no claro e 6,86:1 no escuro.
+
+**A medição entrou no `check:cores` ANTES da correção**, e falhou: sem isso a
+troca seria uma afirmação sobre um número que ninguém mediu. E ela vale para
+todo componente do shadcn de uma vez — classe por classe seriam 131 telas, e a
+132ª ficaria para trás.
+
+A segunda era **`opacity-` em texto**, e é a regra que o produto já tinha
+escrita para fundo: *opacidade sobre um fundo qualquer dá uma cor que ninguém
+mediu, e no tema escuro dá outra.* Ela valia para o selo de estado e não estava
+sendo aplicada ao texto — `opacity-80` no "· hoje" do `DateBadge` aparecia em
+quase toda tela do produto. O calendário do Sprint 10 já tinha pagado esse
+preço uma vez, e o comentário dele estava lá dizendo isso.
+
+**Onde a opacidade servia para dizer "inativo", ela era o segundo sinal e não o
+primeiro:** o workflow arquivado já tem o selo "Arquivado", o contrato inativo
+já tem "Inativo", e o item concluído do calendário já tem `line-through`. A
+opacidade não acrescentava informação — só levava o texto ao redor abaixo do
+mínimo.
+
+#### O que NÃO foi feito, e é decisão de quem lê isto
+
+**Não há teste E2E nem teste de carga.** Os dois estavam na mesma parte do
+sprint e ficam de fora: E2E pede um Postgres com Auth de verdade — a bateria
+roda contra o Postgres mas fala SQL, não navega —, e carga pede uma máquina
+onde medir, que é a mesma que saiu com a VPS. O que existe no lugar é
+específico: o protótipo prova propriedade de tela em cento e cinquenta telas e
+seis perfis, e `supabase/testes/` prova regra de banco com gente de verdade.
+Nenhum dos dois cobre "o fluxo inteiro num navegador", e essa lacuna fica
+escrita aqui em vez de ser contada como coberta.
+
 ### A parte G saiu do Sprint 16, e a B e a C voltaram
 
 **Só a G saiu**, e a razão é a única que a decisão do usuário deu: *"não temos
@@ -4014,7 +4111,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
-| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado |
 | `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |

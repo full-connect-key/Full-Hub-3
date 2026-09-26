@@ -51,7 +51,7 @@ export function SenhaDoPrimeiroAcesso({ senha }: { senha: string }) {
           Passe para a pessoa. No primeiro acesso, o sistema pede que ela escolha a senha dela — e
           esta deixa de valer.
         </p>
-        <p className="text-xs opacity-80">
+        <p className="text-xs">
           Ela aparece só desta vez. Se esta tela fechar antes de você copiar, use “Esqueci minha
           senha” na tela de login.
         </p>

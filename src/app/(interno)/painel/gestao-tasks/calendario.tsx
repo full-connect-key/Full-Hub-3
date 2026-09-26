@@ -255,7 +255,9 @@ export function CalendarioDeTasks({
                               item.tipo === "entregavel") &&
                               "border-border border-dotted",
                             situacao === "atrasada" && "border-destructive/50",
-                            item.concluida && "opacity-55",
+                            // O `line-through` do título já diz "concluída".
+                            // A opacidade em cima dele levava o rótulo e o
+                            // nome do cliente abaixo do contraste mínimo.
                           )}
                         >
                           {/* A barra é o que se lê de longe: cor da situação. */}
@@ -337,7 +339,7 @@ export function CalendarioDeTasks({
           <span className="text-[10px] font-medium uppercase">Etapa</span> =
           prazo de subtarefa
         </span>
-        <span className="opacity-80">
+        <span>
           Mais adiante no tempo, a barra usa a cor da prioridade.
         </span>
       </div>
