@@ -62,6 +62,26 @@ export type PostDaAgencia = {
   avalInterno: boolean;
   /** Há rodada de cliente esperando decisão. */
   esperandoCliente: boolean;
+  /**
+   * O post já foi programado? (decisão do usuário)
+   *
+   * ---------------------------------------------------------------------
+   * **É DERIVADO DA ETAPA "Programar", e não uma coluna nova.**
+   *
+   * O pedido foi *"que o social media possa marcar em algum lugar dentro da
+   * parte interna de social, se o post já foi programado ou não"* — e o
+   * lugar já existia desde a 0045: concluir a etapa Programar é exatamente
+   * isso. O que faltava era ela ser um FATO VISÍVEL sobre o post, e não uma
+   * linha dentro de um painel que só abre quando alguém clica nele.
+   *
+   * Uma coluna `programado` ao lado da etapa criaria duas verdades sobre o
+   * mesmo fato, e elas divergiriam no primeiro pedido de ajustes do cliente
+   * — que reabre a corrente e não teria como reabrir a coluna. É a mesma
+   * razão pela qual bloqueio de subtarefa não é status, atraso do
+   * Financeiro não é coluna e a mão do post não é gravada.
+   * ---------------------------------------------------------------------
+   */
+  programado: boolean;
 };
 
 type Linha = {
@@ -93,7 +113,13 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
   const supabase = await criarClienteServidor();
   const ids = linhas.map((l) => l.id);
 
-  const [{ data: clientes }, nomes, assinadas, { data: rodadas }] = await Promise.all([
+  const [
+    { data: clientes },
+    nomes,
+    assinadas,
+    { data: rodadas },
+    { data: etapasDeProgramar },
+  ] = await Promise.all([
     supabase
       .from("clients")
       .select("id, nome_empresa")
@@ -110,9 +136,24 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       .select("content_id, escopo, status, numero_rodada")
       .eq("content_type", "post")
       .in("content_id", ids),
+    // A ETAPA "Programar" DE TODOS OS POSTS, na mesma ida. Uma consulta por
+    // post seria uma por linha do calendário — o mesmo argumento das rodadas
+    // logo acima. Só a dela: as outras quatro interessam ao painel do post
+    // aberto, e trazer a corrente inteira de trinta posts para desenhar um
+    // selo é pagar caro por um booleano.
+    supabase
+      .from("post_etapas")
+      .select("post_id, status")
+      .eq("nome", "Programar")
+      .in("post_id", ids),
   ]);
 
   const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const programados = new Set(
+    (etapasDeProgramar ?? [])
+      .filter((e) => e.status === "concluida")
+      .map((e) => e.post_id),
+  );
   const porPost = new Map<string, { escopo: string; status: string; numero_rodada: number }[]>();
   for (const r of rodadas ?? []) {
     const atual = porPost.get(r.content_id) ?? [];
@@ -156,6 +197,7 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       esperandoCliente: minhas.some(
         (r) => r.escopo === "cliente" && r.status === "pendente",
       ),
+      programado: programados.has(l.id),
     };
   });
 }

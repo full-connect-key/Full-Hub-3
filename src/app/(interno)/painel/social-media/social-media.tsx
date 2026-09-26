@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, List } from "lucide-react";
+import { CalendarCheck, CalendarDays, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -85,6 +85,41 @@ function Selo({ post }: { post: PostDaAgencia }) {
 }
 
 /**
+ * "Programado" — e ele só aparece quando é verdade (decisão do usuário).
+ *
+ * ---------------------------------------------------------------------------
+ * **A MARCA JÁ EXISTIA, e o que faltava era ela ser visível.**
+ *
+ * Concluir a etapa "Programar" da corrente é marcar o post como programado
+ * desde a 0045 — mas a corrente mora no painel do post aberto, e a lista
+ * mostrava a mesma linha para o post aprovado que ainda não foi agendado e
+ * para o que já está na fila da rede. Duas situações opostas com a mesma cara,
+ * na tela em que o Social Media confere o mês.
+ *
+ * **E o par "A programar" NÃO existe**, de propósito: um selo cinza dizendo
+ * "a programar" em trinta linhas de um mês recém-aberto é trinta selos que não
+ * informam nada. O que se procura aqui é o que JÁ SAIU da fila — a ausência do
+ * selo é a resposta para o resto, e é a mesma decisão da matriz do Full Days,
+ * que pinta só a exceção.
+ * ---------------------------------------------------------------------------
+ */
+function SeloProgramado({ horario }: { horario: string | null }) {
+  return (
+    <span
+      className="bg-success-soft text-success inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+      title={
+        horario
+          ? `Programado para as ${horario}`
+          : "Programado — a etapa Programar está concluída"
+      }
+    >
+      <CalendarCheck aria-hidden className="size-3" />
+      Programado
+    </span>
+  );
+}
+
+/**
  * O Social Media da agência, nas duas visões.
  *
  * **Lista e calendário são a MESMA rota, e a escolha mora na URL** — como toda
@@ -126,7 +161,8 @@ export function SocialMedia({
   const pathname = usePathname();
   const parametros = useSearchParams();
 
-  const visao = parametros.get("visao") === "calendario" ? "calendario" : "lista";
+  const visao =
+    parametros.get("visao") === "calendario" ? "calendario" : "lista";
   const cliente = parametros.get("cliente") ?? TODOS;
   const foco = parametros.get("foco") ?? "todos";
 
@@ -193,7 +229,9 @@ export function SocialMedia({
       equipe={equipe}
       quemLe={quemLe}
       compacto={visao === "calendario"}
-      aoFechar={() => router.push(comParametro({ post: null }), { scroll: false })}
+      aoFechar={() =>
+        router.push(comParametro({ post: null }), { scroll: false })
+      }
     />
   ) : null;
 
@@ -230,15 +268,23 @@ export function SocialMedia({
         {visao === "calendario" ? (
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" asChild>
-              <Link href={comParametro({ mes: deslocarMes(mes, -1) })} aria-label="Mês anterior">
+              <Link
+                href={comParametro({ mes: deslocarMes(mes, -1) })}
+                aria-label="Mês anterior"
+              >
                 ‹
               </Link>
             </Button>
             <span className="min-w-36 text-center text-sm font-semibold">
-              {format(parseISO(`${mes}-01`), "MMMM 'de' yyyy", { locale: ptBR })}
+              {format(parseISO(`${mes}-01`), "MMMM 'de' yyyy", {
+                locale: ptBR,
+              })}
             </span>
             <Button variant="ghost" size="sm" asChild>
-              <Link href={comParametro({ mes: deslocarMes(mes, 1) })} aria-label="Próximo mês">
+              <Link
+                href={comParametro({ mes: deslocarMes(mes, 1) })}
+                aria-label="Próximo mês"
+              >
                 ›
               </Link>
             </Button>
@@ -249,7 +295,9 @@ export function SocialMedia({
           <Select
             value={cliente}
             onValueChange={(v) =>
-              router.push(comParametro({ cliente: v === TODOS ? null : v }), { scroll: false })
+              router.push(comParametro({ cliente: v === TODOS ? null : v }), {
+                scroll: false,
+              })
             }
           >
             <SelectTrigger className="w-44" aria-label="Cliente">
@@ -268,7 +316,9 @@ export function SocialMedia({
           <Select
             value={foco}
             onValueChange={(v) =>
-              router.push(comParametro({ foco: v === "todos" ? null : v }), { scroll: false })
+              router.push(comParametro({ foco: v === "todos" ? null : v }), {
+                scroll: false,
+              })
             }
           >
             <SelectTrigger className="w-40" aria-label="Foco">
@@ -287,7 +337,11 @@ export function SocialMedia({
               pediu hoje. */}
           {quemLe.ehGestor ? (
             <>
-              <AbrirOMes clientes={clientes} equipe={equipe} driveLigado={driveLigado} />
+              <AbrirOMes
+                clientes={clientes}
+                equipe={equipe}
+                driveLigado={driveLigado}
+              />
               <NovoPost clientes={clientes} equipe={equipe} />
             </>
           ) : null}
@@ -322,7 +376,9 @@ export function SocialMedia({
                         aria-current={aberto?.id === p.id ? "true" : undefined}
                         className={cn(
                           "border-border flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left",
-                          aberto?.id === p.id ? "bg-blue-soft" : "hover:bg-muted",
+                          aberto?.id === p.id
+                            ? "bg-blue-soft"
+                            : "hover:bg-muted",
                         )}
                       >
                         <span className="bg-muted size-10 shrink-0 overflow-hidden rounded-md">
@@ -346,8 +402,10 @@ export function SocialMedia({
                                 ? format(parseISO(p.dataPublicacao), "dd/MM")
                                 : null,
                             )}{" "}
-                            ·{" "}
-                            {ROTULO_DA_MAO[maoDoPost(p)].toLowerCase()}
+                            · {ROTULO_DA_MAO[maoDoPost(p)].toLowerCase()}
+                            {p.programado ? (
+                              <SeloProgramado horario={p.horario} />
+                            ) : null}
                           </span>
                         </span>
                       </button>
@@ -403,21 +461,36 @@ export function SocialMedia({
                           <button
                             type="button"
                             onClick={() => abrir(p.id)}
-                            title={`${p.tema} — ${p.cliente} · ${ROTULO_DA_MAO[maoDoPost(p)]}${p.responsavel ? ` · com ${p.responsavel}` : ""}`}
+                            title={`${p.tema} — ${p.cliente} · ${ROTULO_DA_MAO[maoDoPost(p)]}${p.responsavel ? ` · com ${p.responsavel}` : ""}${p.programado ? " · programado" : ""}`}
                             className="border-border hover:bg-muted flex w-full items-center gap-1.5 rounded-md border px-1 py-0.5 text-left"
                           >
                             <span
                               aria-hidden
-                              className={cn("h-5 w-1 shrink-0 rounded-sm", TOM_DA_MAO[maoDoPost(p)])}
+                              className={cn(
+                                "h-5 w-1 shrink-0 rounded-sm",
+                                TOM_DA_MAO[maoDoPost(p)],
+                              )}
                             />
                             <span className="text-text-primary truncate text-[11px]">
                               {p.tema}
                             </span>
+                            {/* NO CALENDÁRIO O SELO VIRA UM ÍCONE, e não a
+                                palavra: a célula de um dia com três posts tem
+                                onze pixels de sobra, e "Programado" escrito
+                                empurraria o tema para fora. O nome inteiro
+                                está no `title` e no rótulo acessível. */}
+                            {p.programado ? (
+                              <CalendarCheck
+                                aria-hidden
+                                className="text-success ml-auto size-3 shrink-0"
+                              />
+                            ) : null}
                             {/* O PASSO EXATO, para quem não distingue as cores
                                 e para quem usa leitor de tela. A barra diz o
                                 grupo; isto diz qual dos dois. */}
                             <span className="sr-only">
                               {p.cliente}, {ROTULO_DA_MAO[maoDoPost(p)]}
+                              {p.programado ? ", programado" : ""}
                               {p.responsavel ? `, com ${p.responsavel}` : ""}
                             </span>
                           </button>
@@ -434,7 +507,10 @@ export function SocialMedia({
             <ul className="text-text-secondary mt-3 flex flex-wrap gap-3 text-xs">
               {LEGENDA.map((item) => (
                 <li key={item.rotulo} className="flex items-center gap-1.5">
-                  <span aria-hidden className={cn("size-2.5 rounded-sm", item.tom)} />
+                  <span
+                    aria-hidden
+                    className={cn("size-2.5 rounded-sm", item.tom)}
+                  />
                   {item.rotulo}
                 </li>
               ))}
@@ -472,7 +548,10 @@ export function SocialMedia({
                       >
                         <span
                           aria-hidden
-                          className={cn("size-2 rounded-sm", TOM_DA_MAO[maoDoPost(p)])}
+                          className={cn(
+                            "size-2 rounded-sm",
+                            TOM_DA_MAO[maoDoPost(p)],
+                          )}
                         />
                         <span className="text-text-primary max-w-44 truncate">
                           {p.tema}

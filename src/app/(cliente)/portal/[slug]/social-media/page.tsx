@@ -34,7 +34,11 @@ export default async function SocialDoClienteVistaPelaEquipe({
     typeof valores.mes === "string" && /^\d{4}-\d{2}$/.test(valores.mes)
       ? valores.mes
       : mesDe(hoje);
-  const visao = valores.visao === "lista" ? "lista" : "calendario";
+  // A VISÃO VEM DA URL, e o que não é uma das três cai no calendário.
+  const visao =
+    valores.visao === "lista" || valores.visao === "feed"
+      ? valores.visao
+      : "calendario";
   const dia =
     typeof valores.dia === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valores.dia)
       ? valores.dia

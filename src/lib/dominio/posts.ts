@@ -1,6 +1,7 @@
 import type {
   ContentStatus,
   PlataformaSocial,
+  PostMidia,
   SubtaskStatus,
 } from "@/lib/supabase/database.types";
 
@@ -69,6 +70,16 @@ export type PostDoPortal = {
   horario: string | null;
   plataforma: PlataformaSocial;
   formato: string | null;
+  /**
+   * O QUE A TELA DESENHA — imagem, carrossel ou vídeo (0042).
+   *
+   * Ele entrou no modelo do portal com a grade do feed: numa miniatura
+   * quadrada, a capa de um carrossel é idêntica à de um post único, e o canto
+   * de cima é a única coisa que distingue os dois. `formato` não serve para
+   * isso — ele diz ONDE vai ao ar (Feed, Stories, Reels), e é texto livre
+   * justamente porque esses nomes mudam de temporada.
+   */
+  midia: PostMidia;
   status: ContentStatus;
   arteUrl: string | null;
   thumbnailUrl: string | null;
@@ -205,7 +216,6 @@ export function gradeDoMes(mes: string): string[] {
  * aparecer desligado com a razão escrita, em vez de sumir.
  * ======================================================================== */
 
-import type { PostMidia } from "@/lib/supabase/database.types";
 
 export const MIDIAS: PostMidia[] = ["imagem", "carrossel", "video"];
 

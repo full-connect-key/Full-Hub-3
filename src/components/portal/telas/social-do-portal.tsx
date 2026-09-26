@@ -5,6 +5,7 @@ import { CalendarX } from "lucide-react";
 import { CalendarioDePosts } from "@/components/portal/calendario-de-posts";
 import { CartaoDePost } from "@/components/portal/cartao-de-post";
 import { FiltrosDePosts } from "@/components/portal/filtros-de-post";
+import { GradeDoFeed } from "@/components/portal/grade-do-feed";
 import { NavegacaoDoMes } from "@/components/portal/navegacao-do-mes";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
@@ -70,7 +71,7 @@ export async function SocialDoPortal({
   clienteId: string | null;
   comoEquipe: boolean;
   mes: string;
-  visao: "calendario" | "lista";
+  visao: "calendario" | "lista" | "feed";
   dia: string | null;
   filtros: FiltrosDePost;
 }) {
@@ -123,6 +124,18 @@ export async function SocialDoPortal({
                 ? "Este cliente ainda não recebeu material deste mês."
                 : "Quando a Full enviar algo para este mês, ele aparece aqui."
           }
+        />
+      ) : visao === "feed" ? (
+        /* A GRADE, como o feed da rede vai ficar (decisão do usuário).
+           
+           Ela recebe as redes PRESENTES no que está na tela, e não o enum
+           inteiro: a linha de aviso só existe quando a grade realmente
+           mistura, e com o filtro de rede aplicado ela some sozinha. */
+        <GradeDoFeed
+          posts={posts}
+          artes={artes}
+          base={base}
+          redes={[...new Set(posts.map((p) => p.plataforma))]}
         />
       ) : visao === "lista" ? (
         <div className="space-y-3">

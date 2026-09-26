@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, List } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Grid3x3,
+  List,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { deslocarMes } from "@/lib/dominio/posts";
@@ -27,7 +33,7 @@ export function NavegacaoDoMes({
 }: {
   mes: string;
   mesDeHoje: string;
-  visao: "calendario" | "lista";
+  visao: "calendario" | "lista" | "feed";
   base: string;
 }) {
   const href = (mudancas: Record<string, string | null>) => {
@@ -73,6 +79,7 @@ export function NavegacaoDoMes({
         {(
           [
             ["calendario", "Calendário", CalendarDays],
+            ["feed", "Feed", Grid3x3],
             ["lista", "Lista", List],
           ] as const
         ).map(([chave, rotulo, Icone]) => (

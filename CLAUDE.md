@@ -1090,6 +1090,26 @@ informações" e "stand by" dividem o cinza. A legenda do calendário AGRUPA os
 que dividem a cor, em vez de mostrar sete linhas e cinco cores, e o nome exato
 vai no `title` e no rótulo acessível de cada card.
 
+**E há uma TERCEIRA visão, o Feed** — decisão do usuário: *"quero que o
+cliente tenha uma visualização do social, em blocos, desse jeito, para ele
+visualizar como vai ficar futuramente no feed do instagram, e que ao clicar,
+ele acesse as informações do post"*. Grade de três colunas, quadrada, do mais
+novo para o mais antigo, com dois pixels entre as peças — os números do
+Instagram, porque é a composição entre as artes que ele está conferindo.
+Quatro colunas mostrariam um arranjo que não vai existir.
+
+**É uma grade por REDE, e nunca escolhida em silêncio.** Um feed é de uma rede
+só: misturar Instagram e LinkedIn na mesma grade mostra uma composição que não
+existe em lugar nenhum. Quando o mês tem mais de uma e ninguém filtrou, a linha
+acima da grade diz quais são e manda para o filtro que já existe — escolher uma
+sozinho esconderia os outros posts do mês de quem veio conferir o mês.
+
+O status entra como PONTO no canto e não como faixa: a faixa do calendário
+cobre a miniatura, e aqui a miniatura é o conteúdo da tela. O canto de cima diz
+o que a miniatura não mostra — carrossel ou vídeo —, pelo mesmo motivo que a
+rede faz: a capa de um carrossel é idêntica à de um post único. Sem arte, o
+tema entra no lugar: numa grade, um buraco parece imagem que não carregou.
+
 **O calendário é de servidor inteiro.** Mês, visão (calendário ou lista), dia
 aberto e filtros moram na URL, como em toda listagem do produto — "olha o dia
 15" precisa ser um link. Em 375px a grade vira lista por dia, por CSS e não
@@ -1259,6 +1279,27 @@ o token existe justamente para dizer "o azul legível no tema de agora". Duas
 entradas de legenda com a mesma cor são piores que uma, porque a pessoa procura
 a diferença, não acha, e passa a desconfiar do resto. **E a cor nunca é o único
 sinal:** cada card carrega o passo exato no `title` e no rótulo acessível.
+
+**"Programado" é um SELO, e o que faltava não era onde marcar.** Decisão do
+usuário: *"quero que o social media possa marcar em algum lugar dentro da parte
+interna de social, se o post já foi programado ou não"*. O lugar existe desde a
+0045 — concluir a etapa Programar é exatamente isso —, e o que faltava era ela
+ser um fato visível: a corrente mora no painel do post aberto, e a lista
+mostrava a mesma linha para o post aprovado que ninguém agendou e para o que já
+está na fila da rede. Duas situações opostas com a mesma cara, na tela em que o
+Social Media confere o mês.
+
+Ele é **derivado**, como a mão do post: uma coluna `programado` ao lado da etapa
+criaria duas verdades sobre o mesmo fato, e elas divergiriam no primeiro pedido
+de ajustes do cliente — que reabre a corrente e não teria como reabrir a coluna.
+A consulta traz a etapa Programar de todos os posts do mês numa ida só, como já
+faz com as rodadas.
+
+**E o par "A programar" não existe**, de propósito: um selo cinza em trinta
+linhas de um mês recém-aberto é trinta selos que não informam nada. A ausência
+é a resposta para o resto — a mesma decisão da matriz do Full Days, que pinta só
+a exceção. No calendário ele vira ícone: a célula de um dia com três posts não
+tem onze pixels para a palavra, e o nome inteiro está no `title`.
 
 **Liberar avisa quem recebeu, e o aviso é do banco** — `posts_avisa_responsavel`
 chama `notificar()`, que nunca avisa quem causou o aviso. A gestão que libera um

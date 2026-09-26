@@ -267,6 +267,8 @@ const TELAS = [
 
   { nome: "15-portal", rota: "/portal", largura: 1280, altura: 1100 },
   { nome: "15a-portal-375", rota: "/portal", largura: 375, altura: 1700 },
+  { nome: "16i-portal-feed", rota: "/portal/social-media?visao=feed", largura: 1280, altura: 1100 },
+  { nome: "16j-portal-feed-375", rota: "/portal/social-media?visao=feed", largura: 375, altura: 900 },
   { nome: "15b-portal-itens", rota: "/portal/itens", largura: 1280, altura: 1300 },
   { nome: "15c-portal-itens-urgente", rota: "/portal/itens?prazo=urgente", largura: 1280, altura: 900 },
   { nome: "15d-portal-configuracoes", rota: "/portal/configuracoes", largura: 1280, altura: 1500 },

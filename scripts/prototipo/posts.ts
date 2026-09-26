@@ -28,6 +28,7 @@ const POSTS: PostDoPortal[] = [
     horario: "12:00",
     plataforma: "instagram",
     formato: "carrossel",
+    midia: "carrossel",
     status: "em_aprovacao",
     arteUrl: "/exemplos/arte-1.svg",
     thumbnailUrl: "/exemplos/arte-1.svg",
@@ -46,6 +47,7 @@ const POSTS: PostDoPortal[] = [
     horario: "18:30",
     plataforma: "linkedin",
     formato: "feed",
+    midia: "imagem",
     status: "em_aprovacao",
     arteUrl: "/exemplos/arte-3.svg",
     thumbnailUrl: "/exemplos/arte-3.svg",
@@ -64,6 +66,7 @@ const POSTS: PostDoPortal[] = [
     horario: "09:00",
     plataforma: "twitter",
     formato: "story",
+    midia: "video",
     status: "em_aprovacao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -82,6 +85,7 @@ const POSTS: PostDoPortal[] = [
     horario: "08:00",
     plataforma: "instagram",
     formato: "feed",
+    midia: "imagem",
     status: "ajustes",
     arteUrl: "/exemplos/arte-3.svg",
     thumbnailUrl: "/exemplos/arte-3.svg",
@@ -100,6 +104,7 @@ const POSTS: PostDoPortal[] = [
     horario: "19:00",
     plataforma: "instagram",
     formato: "carrossel",
+    midia: "carrossel",
     status: "aprovado",
     arteUrl: "/exemplos/arte-2.svg",
     thumbnailUrl: "/exemplos/arte-2.svg",
@@ -118,6 +123,7 @@ const POSTS: PostDoPortal[] = [
     horario: "15:00",
     plataforma: "pinterest",
     formato: "feed",
+    midia: "imagem",
     status: "aprovado",
     arteUrl: "/exemplos/arte-1.svg",
     thumbnailUrl: "/exemplos/arte-1.svg",
@@ -136,6 +142,7 @@ const POSTS: PostDoPortal[] = [
     horario: null,
     plataforma: "instagram",
     formato: "feed",
+    midia: "imagem",
     status: "rejeitado",
     arteUrl: null,
     thumbnailUrl: null,
@@ -154,6 +161,7 @@ const POSTS: PostDoPortal[] = [
     horario: null,
     plataforma: "facebook",
     formato: "feed",
+    midia: "imagem",
     status: "ajustes",
     arteUrl: null,
     thumbnailUrl: null,
@@ -172,6 +180,7 @@ const POSTS: PostDoPortal[] = [
     horario: null,
     plataforma: "facebook",
     formato: "feed",
+    midia: "imagem",
     status: "stand_by",
     arteUrl: null,
     thumbnailUrl: null,
@@ -197,14 +206,20 @@ export async function obterPost(
   return POSTS.find((p) => p.id === id) ?? POSTS[0] ?? null;
 }
 
-export async function versoesDoPost(postId: string): Promise<VersaoDoConteudo[]> {
+export async function versoesDoPost(
+  postId: string,
+): Promise<VersaoDoConteudo[]> {
   if (postId !== "p1" && postId !== "p5") return [];
 
   return [
     {
       id: "v2",
       numero: 2,
-      arquivos: ["/exemplos/arte-1.svg", "/exemplos/arte-2.svg", "/exemplos/arte-3.svg"],
+      arquivos: [
+        "/exemplos/arte-1.svg",
+        "/exemplos/arte-2.svg",
+        "/exemplos/arte-3.svg",
+      ],
       arteUrl: "/exemplos/arte-1.svg",
       texto: "Corre que acaba! Toda a linha de granolas com 20% até domingo.",
       notas: "Logo maior e tempo de preparo na legenda",

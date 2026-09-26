@@ -30,7 +30,12 @@ export default async function PaginaDeSocialDoPortal({
     typeof params.mes === "string" && /^\d{4}-\d{2}$/.test(params.mes)
       ? params.mes
       : mesDe(hoje);
-  const visao = params.visao === "lista" ? "lista" : "calendario";
+  // A VISÃO VEM DA URL, e o que não é uma das três cai no calendário. Ler o
+  // valor cru daria uma tela em branco para quem colou `?visao=grade`.
+  const visao =
+    params.visao === "lista" || params.visao === "feed"
+      ? params.visao
+      : "calendario";
   const dia =
     typeof params.dia === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.dia)
       ? params.dia
