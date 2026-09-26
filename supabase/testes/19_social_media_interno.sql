@@ -129,8 +129,31 @@ select teste.cenario('Quem produziu pede o aval interno', :BRUNO,
 -- post envia para aprovacao" -- o produtor barrado por nao ter aberto o
 -- briefing.
 
-update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO
- where content_type = 'post' and content_id = :CARROSSEL and escopo = 'interna';
+-- QUEM DECIDE A RODADA INTERNA DO POST, e estes dois cenarios faltavam.
+--
+-- A linha que vinha aqui era um `update` solto, rodando como DONO DA TABELA
+-- -- fora do RLS. Ele deixava o post com aval para os cenarios seguintes e
+-- nao provava nada sobre quem consegue dar esse aval de verdade. E foi por
+-- isso que ninguem percebeu: a policy `approval_rounds_decide` aceita post
+-- desde a 0033, mas nenhuma tela do produto chamava, e a bateria tambem nao
+-- -- entao o post ficava em "Revisao" para sempre e o furo era invisivel dos
+-- dois lados.
+--
+-- Um `update` que a bateria faz como dono e conveniencia de fixture. Ele nao
+-- pode ficar no lugar do cenario.
+select teste.cenario('O colaborador nao decide a rodada interna do post', :BRUNO,
+  format($fmt$update public.approval_rounds
+     set status = 'aprovada', decidido_por = %L, decidido_em = now()
+   where content_type = 'post' and content_id = %L and escopo = 'interna'$fmt$,
+   :BRUNO, :CARROSSEL),
+  'recusa');
+
+select teste.cenario('A gestao decide a rodada interna do post', :DIEGO,
+  format($fmt$update public.approval_rounds
+     set status = 'aprovada', decidido_por = %L, decidido_em = now()
+   where content_type = 'post' and content_id = %L and escopo = 'interna'$fmt$,
+   :DIEGO, :CARROSSEL),
+  'ok', 1);
 
 select teste.recusa_com('O colaborador nao envia ao cliente', :BRUNO,
   format($fmt$insert into public.approval_rounds

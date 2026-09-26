@@ -271,6 +271,14 @@ export async function aprovarInterna(
     if (rodada.escopo !== "interna")
       return falha("Esta rodada é a do cliente, não a interna.");
 
+    // O POST DECIDE POR AQUI TAMBÉM, e antes disto ele não decidia por lugar
+    // nenhum: esta função parava em `aindaNaoTratado` e a tela de Social não
+    // tinha botão de aprovar. O post ficava em "Revisão" para sempre e, como
+    // `podeEnviarAoCliente()` exige o aval, nunca chegava ao cliente.
+    if (rodada.content_type === "post") {
+      return decidirRodadaDePost(supabase, sessao.usuarioId, rodada, "aprovada", comentario);
+    }
+
     const alvo = etapaDaRodada(rodada);
     if (!alvo) {
       return falha(
@@ -369,6 +377,16 @@ export async function solicitarAjustesInterna(
     if (!rodada) return falha("Rodada não encontrada.");
     if (rodada.status !== "pendente")
       return falha("Esta rodada já foi decidida.");
+
+    if (rodada.content_type === "post") {
+      return decidirRodadaDePost(
+        supabase,
+        sessao.usuarioId,
+        rodada,
+        "ajustes_solicitados",
+        comentario,
+      );
+    }
 
     const alvo = etapaDaRodada(rodada);
     if (!alvo) {
@@ -510,4 +528,91 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
     revalidar(ctx.subtarefa.task_id);
     return sucesso("Enviada ao cliente. Ela já aparece no Portal.");
   });
+}
+
+/**
+ * A decisão da gestão sobre a rodada interna de um POST.
+ *
+ * ---------------------------------------------------------------------------
+ * **O QUE ELA NÃO FAZ É O QUE MAIS IMPORTA: ela não mexe em `posts.status`.**
+ *
+ * A tentação, no pedido de ajustes, é marcar o post como `ajustes` — parece o
+ * espelho do `em_ajustes` que a etapa recebe. Seria errado por um caminho que
+ * ninguém veria no código desta função: `posts_corrente_do_cliente` (0045)
+ * dispara nesse status e faz duas coisas que aqui são mentira — cria uma etapa
+ * **"Ajustes"** na corrente e manda uma notificação dizendo *"o cliente pediu
+ * ajustes"*. O cliente não pediu nada; ele nem viu o post ainda.
+ *
+ * O aval interno é um passo ANTES do cliente. A rodada recusada já devolve o
+ * post para produção sozinha: `avalInterno` volta a ser falso, e
+ * `maoDoPost()` responde "produção" de novo — a mão volta para quem fez, que
+ * é exatamente o que se quer dizer.
+ * ---------------------------------------------------------------------------
+ *
+ * **Quem produziu precisa SABER, e por isso o aviso é explícito.** A etapa de
+ * demanda tem `task_comentarios` e o histórico da task; o post não tem nada
+ * equivalente do lado interno — o comentário fica na rodada, e a rodada não
+ * aparece na tela dele. Sem o sino, um pedido de ajustes escrito na sexta
+ * espera a pessoa abrir o Social por acaso.
+ *
+ * `notificar()` nunca avisa quem causou o aviso, então a gestão que decide o
+ * próprio post não recebe nada — e está certo.
+ */
+async function decidirRodadaDePost(
+  supabase: ClienteSupabase,
+  usuarioId: string,
+  rodada: { id: string; content_id: string; numero_rodada: number },
+  decisao: "aprovada" | "ajustes_solicitados",
+  comentario?: string,
+): Promise<Resultado> {
+  const { data: post } = await supabase
+    .from("posts")
+    .select("id, tema, responsavel_id")
+    .eq("id", rodada.content_id)
+    .maybeSingle();
+
+  if (!post) return falha("Post não encontrado.");
+
+  const { data, error } = await supabase
+    .from("approval_rounds")
+    .update({
+      status: decisao,
+      decidido_por: usuarioId,
+      decidido_em: new Date().toISOString(),
+      comentario: comentario?.trim() || null,
+    })
+    .eq("id", rodada.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return falha(error.message);
+  // `.select()` porque uma escrita barrada pelo RLS volta sem erro e sem
+  // linha. Quem barraria aqui é `approval_rounds_decide`, que desde a 0033 já
+  // aceita post — por `pode_aprovar_post()`, que é `is_gestor()`.
+  if (!data) {
+    return falha("O banco recusou a decisão: só a gestão decide rodada interna.");
+  }
+
+  if (post.responsavel_id) {
+    await supabase.rpc("notificar", {
+      p_user_id: post.responsavel_id,
+      p_tipo: "aprovacao",
+      p_titulo:
+        decisao === "aprovada"
+          ? `Aval interno aprovado: "${post.tema}"`
+          : `Ajustes pedidos em "${post.tema}"`,
+      p_corpo: comentario?.trim() || null,
+      p_link: "/painel/social-media",
+    });
+  }
+
+  revalidatePath("/painel/social-media");
+  revalidatePath("/painel/aprovacoes-internas");
+  anunciar("post");
+
+  return sucesso(
+    decisao === "aprovada"
+      ? 'Aval interno dado. Agora dá para usar "Enviar ao cliente".'
+      : "Ajustes pedidos. O post voltou para quem produziu.",
+  );
 }

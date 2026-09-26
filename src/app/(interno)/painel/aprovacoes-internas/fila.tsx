@@ -30,6 +30,7 @@ import {
   enviarParaCliente,
   solicitarAjustesInterna,
 } from "../gestao-tasks/acoes-de-aprovacao";
+import { enviarAoCliente } from "../social-media/acoes";
 
 /**
  * A fila do Desenvolvedor.
@@ -37,9 +38,21 @@ import {
  * Ordenada por tempo de espera, porque é a fila justa: o que está parado há
  * mais tempo aparece primeiro, e nada some no fim da lista.
  *
- * **Todo item aparece com os botões**, inclusive o da etapa que está no nome
- * de quem olha: a migration 0029 tirou a trava de autoaprovação, aqui e no
- * banco. Quem chega nesta fila é gestão, e gestão decide.
+ * **Todo item aparece com os botões**, inclusive o que está no nome de quem
+ * olha: a 0029 tirou a trava de autoaprovação e a 0060 tirou a de envio, as
+ * duas aqui e no banco. Quem chega nesta fila é gestão, e gestão decide.
+ *
+ * ---------------------------------------------------------------------------
+ * **A FILA TEM DOIS TIPOS: etapa de demanda e POST.** O post entrou porque
+ * não saía de lugar nenhum — `pedirAvalInterno()` abria a rodada e nada no
+ * produto conseguia decidi-la, então ele ficava parado antes do cliente para
+ * sempre. O banco já aceitava desde a 0033; faltava a tela ler.
+ *
+ * **O selo diz qual é qual**, e não é enfeite: os dois têm botões iguais e
+ * consequências diferentes — a etapa que só pede aval interno CONCLUI ao ser
+ * aprovada, o post nunca conclui, ele passa para "prontas para enviar". Sem o
+ * selo, a mesma linha significaria duas coisas.
+ * ---------------------------------------------------------------------------
  */
 export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
   if (fila.esperando.length === 0 && fila.prontasParaOCliente.length === 0) {
@@ -47,7 +60,7 @@ export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
       <EmptyState
         icon={Send}
         title="Fila vazia"
-        description="Nenhuma entrega esperando validação. Quando alguém enviar uma subtarefa para aprovação, ela aparece aqui."
+        description="Nenhuma entrega esperando validação. Quando alguém pedir o aval interno de uma etapa ou de um post, ele aparece aqui."
       />
     );
   }
@@ -91,7 +104,10 @@ export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
           </p>
           <ul className="space-y-2">
             {fila.prontasParaOCliente.map((item) => (
-              <ItemProntaParaOCliente key={item.subtaskId} item={item} />
+              <ItemProntaParaOCliente
+                key={`${item.tipo}:${item.contentId}`}
+                item={item}
+              />
             ))}
           </ul>
         </section>
@@ -105,12 +121,15 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
         {item.cliente ? <Badge variant="outline">{item.cliente}</Badge> : null}
-        <Link
-          href={`/painel/gestao-tasks/${item.taskId}`}
-          className="hover:text-accent-strong text-sm font-medium"
-        >
-          {item.subtarefa}
+        <Link href={item.rota} className="hover:text-accent-strong text-sm font-medium">
+          {item.titulo}
         </Link>
+        {/* DE QUE TIPO É ESTA LINHA. Os botões são os mesmos e o que acontece
+            depois não: a etapa de aval interno conclui, o post segue para o
+            envio. */}
+        <Badge variant={item.tipo === "post" ? "default" : "secondary"}>
+          {item.tipo === "post" ? "Post" : "Etapa"}
+        </Badge>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
         <Badge variant="secondary">
           {ROTULO_DA_APROVACAO[item.tipoAprovacao]}
@@ -118,7 +137,7 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
       </div>
 
       <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-        <span>em {item.task}</span>
+        <span>{item.contexto}</span>
         {item.responsavel ? (
           <span className="inline-flex items-center gap-1.5">
             <UserAvatar
@@ -138,18 +157,22 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         </span>
       </p>
 
-      {item.entregas.length > 0 ? (
+      {/* O MATERIAL PARA OLHAR ANTES DE DECIDIR. Aprovar sem ver é o que o
+          Sprint 12 evitou ao pôr a arte antes dos botões no portal, e um
+          "Aprovar" numa linha sem nada para abrir convida ao mesmo erro do
+          lado de cá. */}
+      {item.anexos.length > 0 ? (
         <ul className="flex flex-wrap gap-2 pt-1">
-          {item.entregas.map((entrega) => (
-            <li key={entrega.id}>
+          {item.anexos.map((anexo) => (
+            <li key={anexo.id}>
               <a
-                href={entrega.url}
+                href={anexo.url}
                 target="_blank"
                 rel="noreferrer"
                 className="text-muted-foreground hover:text-accent-strong inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
               >
                 <Paperclip className="size-3" aria-hidden />
-                {entrega.nome ?? "Entrega"}
+                {anexo.nome}
                 <ExternalLink className="size-3" aria-hidden />
               </a>
             </li>
@@ -157,7 +180,9 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         </ul>
       ) : (
         <p className="text-muted-foreground pt-1 text-xs italic">
-          Sem arquivo anexado.
+          {item.tipo === "post"
+            ? "Sem arte ainda — abra o post antes de decidir."
+            : "Sem arquivo anexado."}
         </p>
       )}
     </div>
@@ -273,8 +298,15 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
         disabled={executando}
         onClick={() =>
           iniciar(async () => {
+            // CADA TIPO TEM A SUA AÇÃO DE ENVIO, e não dá para unificar:
+            // no post, enviar É abrir a rodada de cliente e o carimbo
+            // `enviado_em` sai do trigger da 0032; na etapa, a ação ainda
+            // registra a linha no histórico da demanda. São dois caminhos
+            // porque são dois fluxos, não por falta de refatoração.
             const resultado = await chamarAcao(() =>
-              enviarParaCliente(item.subtaskId),
+              item.tipo === "post"
+                ? enviarAoCliente(item.contentId)
+                : enviarParaCliente(item.contentId),
             );
             if (!resultado.ok) toast.error(resultado.error);
             else {

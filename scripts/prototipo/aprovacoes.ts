@@ -20,48 +20,90 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const landing = SUBTAREFAS.find((s) => s.titulo === "Desenvolver landing")!;
   const roteiro = SUBTAREFAS.find((s) => s.titulo === "Roteiro do reels")!;
 
+  const anexosDe = (entregas: { id: string; nome: string | null; url: string }[]) =>
+    entregas.map((e) => ({ id: e.id, nome: e.nome ?? "Entrega", url: e.url }));
+
   return {
     esperando: [
       {
         rodadaId: "rod-kv",
-        subtaskId: kv.id,
-        taskId: kv.task_id,
+        tipo: "subtask",
+        contentId: kv.id,
         numeroRodada: 2,
-        subtarefa: kv.titulo,
-        task: "Campanha de Instagram — linha de verão",
+        titulo: kv.titulo,
+        contexto: "em Campanha de Instagram — linha de verão",
+        rota: `/painel/gestao-tasks/${kv.task_id}`,
         cliente: "Mundo Verde",
         responsavel: BRUNO,
         tipoAprovacao: "cliente",
         desde: horasAtras(26),
-        entregas: kv.entregas,
+        anexos: anexosDe(kv.entregas),
+      },
+      // O POST NA FILA, e ele precisa estar no protótipo: a imagem é onde se
+      // confere que as duas linhas convivem sem o selo virar enfeite.
+      {
+        rodadaId: "rod-post",
+        tipo: "post",
+        contentId: "post-carrossel",
+        numeroRodada: 3,
+        titulo: "Carrossel: 5 pontos da COF",
+        contexto: "instagram · 14/10",
+        rota: "/painel/social-media?post=post-carrossel",
+        cliente: "Óptica Visão",
+        responsavel: CARLA,
+        tipoAprovacao: "cliente",
+        desde: horasAtras(9),
+        anexos: [
+          { id: "arte-carrossel", nome: "Arte", url: "https://exemplo.invalid/arte.png" },
+        ],
       },
       {
         rodadaId: "rod-landing",
-        subtaskId: landing.id,
-        taskId: landing.task_id,
+        tipo: "subtask",
+        contentId: landing.id,
         numeroRodada: 1,
-        subtarefa: landing.titulo,
-        task: "Landing page da promoção",
+        titulo: landing.titulo,
+        contexto: "em Landing page da promoção",
+        rota: `/painel/gestao-tasks/${landing.task_id}`,
         cliente: "Mundo Verde",
         responsavel: DIEGO,
         tipoAprovacao: "interna",
         desde: horasAtras(5),
-        entregas: landing.entregas,
+        anexos: anexosDe(landing.entregas),
       },
     ],
     prontasParaOCliente: [
       {
         rodadaId: null,
-        subtaskId: roteiro.id,
-        taskId: roteiro.task_id,
+        tipo: "subtask",
+        contentId: roteiro.id,
         numeroRodada: 1,
-        subtarefa: roteiro.titulo,
-        task: "Reels institucional",
+        titulo: roteiro.titulo,
+        contexto: "em Reels institucional",
+        rota: `/painel/gestao-tasks/${roteiro.task_id}`,
         cliente: "Óptica Visão",
         responsavel: CARLA,
         tipoAprovacao: "cliente",
         desde: horasAtras(4),
-        entregas: roteiro.entregas,
+        anexos: anexosDe(roteiro.entregas),
+      },
+      // UM POST JÁ COM AVAL, esperando só o envio -- que é o estado que nunca
+      // era alcançável antes desta mudança.
+      {
+        rodadaId: null,
+        tipo: "post",
+        contentId: "post-estatico",
+        numeroRodada: 1,
+        titulo: "Antes de assinar: o que entender",
+        contexto: "linkedin · 17/10",
+        rota: "/painel/social-media?post=post-estatico",
+        cliente: "Mundo Verde",
+        responsavel: BRUNO,
+        tipoAprovacao: "cliente",
+        desde: horasAtras(2),
+        anexos: [
+          { id: "arte-estatico", nome: "Arte", url: "https://exemplo.invalid/arte2.png" },
+        ],
       },
     ],
   };

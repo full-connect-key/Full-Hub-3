@@ -1269,6 +1269,66 @@ estado dentro de um `useEffect` dispara renderização em cascata — e, pior,
 sobrescreveria o que a pessoa acabou de digitar no instante em que o servidor
 revalidasse a página.
 
+##### O post entra na FILA DE APROVAÇÕES INTERNAS, e antes disso não saía de lugar nenhum
+
+Decisão do usuário, e o que ela destravou é maior do que parece: **o aval
+interno do post não tinha como ser dado.**
+
+`pedirAvalInterno()` abre a rodada de escopo interna desde a 0042 — e nada no
+produto conseguia decidi-la. A consulta da fila filtrava `content_type =
+'subtask'`, `aprovarInterna()` parava em `aindaNaoTratado`, e a tela de Social
+Media não tinha botão de aprovar. O post ficava em "Revisão" para sempre; e
+como `podeEnviarAoCliente()` exige o aval, **ele nunca chegava ao cliente**.
+
+**O banco nunca foi o problema.** `approval_rounds_decide` aceita post desde a
+**0033**, por `pode_aprovar_post()` — que é `is_gestor()`. O próprio
+`pedirAvalInterno` já chamava `revalidatePath("/painel/aprovacoes-internas")`,
+esperando o post aparecer lá. A ponte estava construída e ninguém a
+atravessava: é a **terceira** do produto, junto com `deliverables.subtask_id`
+antes da 0051 e `clients.drive_folder_id` antes da integração com o Drive. Por
+isso a mudança não tem migration.
+
+**E a bateria não pegou porque ela mesma pulava o RLS.** O arquivo do Social
+deixava o post com aval por um `update` solto, rodando como dono da tabela —
+conveniência de fixture ocupando o lugar do cenário. Ele deixava o estado
+certo para os testes seguintes e não afirmava nada sobre quem consegue dar
+aquele aval. Agora são dois cenários: a gestão decide, o colaborador não.
+
+**Duas funções separadas, e não um `if` no meio de uma.** `etapasNaFila()` e
+`postsNaFila()` leem tabelas diferentes, com nomes diferentes para a mesma
+coisa — `titulo` na etapa, `tema` no post — e levam a telas diferentes.
+Juntas, cada `select` ganharia um `if tipo ===` no meio, que é a duplicação de
+volta com outro nome. É a mesma decisão do detalhe do material no portal: o
+que se compartilha é a casca, não a leitura.
+
+**A ordenação é feita depois de juntar**, e não dentro de cada uma. Ordenar
+separado e concatenar daria uma fila em que todo post vem atrás de toda etapa
+— inclusive o post parado há uma semana atrás da etapa de hoje. A fila justa é
+a que não deixa nada esquecido no fim, e ela é uma só.
+
+**O selo diz qual é qual**, porque os botões são iguais e o que acontece
+depois não: a etapa que só pede aval interno **conclui** ao ser aprovada; o
+post nunca conclui, ele passa para "prontas para enviar". Sem o selo, a mesma
+linha significaria duas coisas.
+
+**A arte vem assinada na linha**, para a gestão olhar antes de decidir. É a
+mesma razão pela qual o Sprint 12 pôs a arte antes dos botões no portal: um
+"Aprovar" numa linha sem nada para abrir convida ao mesmo erro do lado de cá.
+
+**Pedir ajustes no post NÃO mexe em `posts.status`**, e é a parte que pede
+cuidado. Marcar `ajustes` parece o espelho do `em_ajustes` da etapa, e
+dispararia `posts_corrente_do_cliente` (0045): uma etapa **"Ajustes"** nasceria
+na corrente e sairia uma notificação dizendo *"o cliente pediu ajustes"* — o
+cliente não pediu nada, nem viu o post. A rodada recusada já devolve o post
+para produção sozinha: `avalInterno` volta a ser falso e `maoDoPost()` responde
+"produção" de novo.
+
+**Quem produziu recebe o aviso, e aqui ele é explícito.** A etapa de demanda
+tem `task_comentarios` e o histórico da task; o post não tem nada equivalente
+do lado interno — o comentário fica na rodada, que a tela dele não mostra. Sem
+o sino, um pedido de ajustes escrito na sexta espera a pessoa abrir o Social
+por acaso.
+
 #### A corrente de etapas do post, e o card que cada uma preenche
 
 Migrations 0044, 0045 e 0046, todas por decisão do usuário. É o que transforma
