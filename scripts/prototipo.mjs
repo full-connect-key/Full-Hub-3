@@ -640,6 +640,21 @@ try {
   // foram pedidas, e o filtro existe justamente para nao regerar aquelas.
   if (!process.env.PROTOTIPO_SO) {
     await rm(SAIDA, { recursive: true, force: true });
+    // E A PASTA VOLTA NA MESMA LINHA DE PENSAMENTO, senao a rodada COMPLETA
+    // morre aqui -- e morre de um jeito que a filtrada nunca reproduz.
+    //
+    // O `rm` acima leva `prototipos/` inteira, inclusive o `html/` que a
+    // preparacao criou vinte linhas atras e o `servidor.log` que o proximo
+    // passo abre com `openSync(..., "a")`. `openSync` nao cria diretorio: o
+    // servidor subia e estourava com um ENOENT falando de um arquivo de log,
+    // tres passos depois da causa.
+    //
+    // E SO A RODADA COMPLETA PASSA POR AQUI -- com `PROTOTIPO_SO` a pasta e
+    // preservada de proposito. Entao o defeito sobreviveu a todas as rodadas
+    // filtradas, que sao as que se faz no dia a dia, e so aparecia em quem
+    // pedisse as noventa e poucas telas de uma vez. Uma verificacao que so
+    // funciona no modo que ninguem usa e uma verificacao que ninguem faz.
+    await mkdir(SAIDA_HTML, { recursive: true });
   }
   let navegador = await abrirNavegador(chromium);
 
