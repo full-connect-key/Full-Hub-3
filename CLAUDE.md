@@ -2802,6 +2802,107 @@ fizeram.
 Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
 vezes fecha para resolver depois.
 
+### O e-mail que sai do Full Hub
+
+`lib/email/`, e ele é o **segundo** caminho de aviso do produto — o primeiro é
+o sino. Os dois respondem à mesma pergunta e falham de jeitos opostos, e é
+essa diferença que decide o que vai em cada um.
+
+**O SINO NUNCA PERDE UM AVISO; O E-MAIL PERDE TUDO O QUE NÃO PASSAR POR UMA
+ACTION.** `notificar()` é função do Postgres, chamada de dentro de trigger:
+ela vê o `update` colado no SQL Editor, o PATCH montado à mão, a escrita de
+outro trigger. O Resend é HTTP, e o Postgres não fala HTTP — então o e-mail
+sai da camada de aplicação, e só do que passa por ela. É a mesma assimetria
+que a trilha de auditoria resolveu para o outro lado, e aqui não há escolha:
+a alternativa seria um `pg_net` chamando uma API externa de dentro de uma
+transação, o que põe a latência do Resend dentro do `commit` de quem clicou.
+
+**A trava de sandbox é POSITIVA, e é a linha que mais importa do módulo.**
+`destinoDoEnvio()` em `lib/email/config.ts` só deixa um endereço de verdade
+passar quando `EMAIL_AO_VIVO` vale exatamente `"true"`. Não é `NODE_ENV`, e o
+motivo é concreto: **`NODE_ENV` é `production` em todo build** — num
+`npm start` local, numa cópia de homologação, no gerador de protótipo. Quem
+copia o `.env` de produção para reproduzir um bug, que é exatamente o que se
+faz para reproduzir um bug, mandaria e-mail para cliente de verdade sem ter
+decidido isso em lugar nenhum. A pergunta certa não é "é produção?", é
+**"alguém digitou que pode sair?"**.
+
+**E desviar é melhor que engolir.** Fora de produção a mensagem vai inteira
+para `EMAIL_DESVIO` — `delivered@resend.dev` por padrão, o sumidouro do
+próprio Resend — com o destinatário pretendido no assunto. Não enviar nada
+faria o assunto quebrado e o link errado aparecerem primeiro para o cliente.
+
+**`npm run check:email` é a prova, e ela mede os DOIS sentidos.** Só a metade
+"desviou" passaria numa função que desvia sempre — que não é a trava certa, é
+uma trava quebrada em que **ninguém** recebe em produção e ninguém descobre,
+porque e-mail que não chega não avisa. É a mesma família de
+`check:preview`: uma trava que, quando some, faz o programa fazer MAIS coisas
+não derruba build, não derruba tipo e não derruba teste de tela. A primeira
+notícia seria um cliente respondendo um e-mail de teste, e e-mail enviado não
+volta.
+
+**Nenhuma cor no HTML da mensagem**, e é decisão registrada em
+`lib/email/mensagens.ts`: `var()` não existe do lado de lá, o tema escuro do
+Gmail reescreve a cor por conta própria, e um hex ali seria a quarta exceção
+de `check:cores` — que cresceria uma por mensagem.
+
+#### Quem recebe o quê
+
+| Evento | Quem recebe | Governado por |
+| --- | --- | --- |
+| a agência enviou material | as pessoas da empresa | `novo_conteudo` |
+| alguém comentou no material | as outras pessoas da empresa, e quem o produziu | `novo_comentario` |
+| o cliente decidiu | quem enviou e quem produziu | nada — do lado de cá não há preferência |
+
+**A preferência é lida com a chave de serviço, e é a única porta.**
+`client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro
+operações desde a 0031 — nem o sócio lê, e isso continua de pé. Só que quem
+precisa dela é justamente quem não é a pessoa, num instante em que não há
+sessão nenhuma (o envio acontece dentro de `after()`). Com o cliente do
+usuário a consulta volta vazia, e **vazia quer dizer "ninguém quer receber"**
+— o mesmo modo de falha de sempre. O limite é o recorte:
+`lib/email/destinatarios.ts` lê a preferência, devolve endereços, e não
+mostra a linha em tela nenhuma.
+
+**Quem nunca mexeu recebe o padrão**, porque a 0031 decidiu que a linha nasce
+quando a pessoa mexe. E **quem causou o aviso não recebe**, que é a mesma
+regra de `notificar()`.
+
+**Duas escolhas da tela ainda não produzem e-mail, e a tela diz isso NELAS.**
+`frequencia = 'diario'` e `lembrete_pendencias` dependem de uma varredura
+diária, que é a parte que saiu do sprint com a VPS. A caixa continua ligável —
+a escolha vale no dia em que a rotina existir —, mas escolher "uma vez por
+dia" e não receber nada é, para quem escolheu, idêntico a ter escolhido
+"nunca". A frase fica em `--warning`, junto de cada opção e não num aviso no
+topo, porque **uma** das três caixas e **uma** das três frequências funcionam
+normalmente.
+
+**`novo_comentario` tem um produtor só, e é o portal.** A agência não tem hoje
+de onde comentar um material do lado de lá — os comentários da demanda são
+outra tabela e não chegam ao cliente. Então o evento nasce em
+`comentarNoConteudo`, e o aviso vai para os dois lados: as outras pessoas da
+empresa e quem está com o material na mão aqui. Sem a segunda metade, uma
+dúvida escrita na sexta esperaria alguém abrir a tela para ser lida.
+
+**O texto do comentário NÃO vai no e-mail.** Ele viajaria por uma caixa de
+entrada, que é um lugar fora do portal — e o portal é onde o produto decide o
+que cada empresa enxerga. O que sai é que há conversa nova, e onde ela está.
+
+**E a empresa sai do CONTEÚDO, nunca de quem escreveu.** O atalho seria
+perguntar em `client_users` de quem comentou, uma consulta a menos; o furo
+aparece com quem responde por duas contas, e é o pior tipo: o título do
+material da empresa A no assunto de um e-mail para a empresa B.
+
+**Uma requisição por destinatário, e não um `to` com a lista.** Três endereços
+no mesmo envio mostram a cada cliente quem mais recebeu.
+
+**Sem `RESEND_API_KEY` nada quebra, e é isso que precisa estar escrito**: o
+sino continua, o material continua no portal, e o que se perde é o aviso de
+que ele está lá. `/status` diz as duas coisas separadamente — se a chave
+existe, e se o envio está desviado —, porque "Resend configurado" é uma
+resposta incompleta: com o desvio ligado o Resend responde 200 e ninguém
+recebe.
+
 ### A trilha de auditoria
 
 `/painel/auditoria`, só do sócio. `audit_log` mais o trigger
@@ -2972,42 +3073,32 @@ projeto reprova.
 > resposta quase sempre é a 0057 — canal privado sem policy é
 > `CHANNEL_ERROR`.
 
-### O que o Sprint 16 NÃO vai entregar, e por quê
+### A parte G saiu do Sprint 16, e a B e a C voltaram
 
-Três partes saíram do sprint por decisão do usuário, e a razão que ele deu é
-uma só: **a agência não tem mais a VPS.**
+**Só a G saiu**, e a razão é a única que a decisão do usuário deu: *"não temos
+mais o VPS"*. Ela é a que realmente perdeu a máquina — não existe mais onde
+pendurar um cron.
 
-| Parte | O que era | O que fica no lugar |
-| --- | --- | --- |
-| B | e-mail transacional por Resend | nada sai por e-mail — e nunca saiu |
-| C | material no Google Drive | o link colado à mão, como já é hoje |
-| G | as rotinas agendadas | quem chama continua sendo uma pessoa |
+**A B e a C voltaram na mesma conversa**, e o registro da ida e da volta fica
+porque foi o argumento que as trouxe: **elas nunca precisaram da VPS.** As
+duas são chamada de API e rodam de dentro do próprio Next, em Server Action,
+onde a credencial já é `server-only`. Quem ler isto daqui a três sprints não
+vai concluir que elas saíram por impossibilidade técnica, nem que voltaram por
+capricho.
 
-**A B e a C não precisavam da VPS, e isso fica dito sem discussão:** as duas
-são chamada de API e rodariam de dentro do próprio Next ou de uma Edge
-Function do Supabase. A decisão de tirá-las é de quem responde pelo produto e
-está tomada — o que não pode acontecer é alguém três sprints adiante ler esta
-tabela e concluir que elas saíram por impossibilidade técnica.
-
-**A G é a que realmente perdeu a máquina**: não existe mais onde pendurar um
-cron. E é ela que deixa de pé, até alguém decidir outra coisa, três frases que
-o produto já dizia com prazo:
+**O que a ausência da G deixa de pé**, até alguém decidir outra coisa:
 
 - `limpar_rascunhos_abandonados()` (0028) **não** roda sozinha. O rascunho de
-  7 dias não é apagado por ninguém; o aviso do sexto dia continua aparecendo
-  na Home, e quem apaga é quem clica.
+  7 dias não é apagado por ninguém; o bloco da Home passou a dizer que o
+  rascunho está parado, e não que ele some amanhã.
 - `gerar_recorrencias()` (0040) **não** roda sozinha. O stories de toda
-  segunda não nasce de madrugada — nasce quando alguém abre a regra e clica em
-  "Gerar agora". É a única coisa do produto que se anunciava como automática, e
-  não é.
-- O **disparo** das preferências de aviso do portal (`client_notification_prefs`,
-  0031) nunca existiu. A preferência está gravada, e não há quem a leia para
-  mandar coisa alguma.
-
-**O sino continua funcionando**, e a distinção é o que separa um do outro:
-`notificar()` grava em `notifications` na mesma transação de quem causou o
-aviso, e nunca dependeu de rotina nem de e-mail. O que não existe é aviso que
-**sai** do Full Hub.
+  segunda nasce quando alguém abre a regra e clica em "Gerar agora", e a tela
+  de Recorrências diz isso numa faixa fixa.
+- **`frequencia = 'diario'` das preferências do portal não sai**, e é o mesmo
+  buraco visto do lado do e-mail. Está escrito na tela, pela mesma razão: a
+  pessoa escolheu uma coisa e receberia outra — ou nada, calada.
+- **`lembrete_pendencias` também não**, e pelo mesmo motivo: um lembrete é uma
+  varredura diária, não uma consequência de alguém ter clicado.
 
 **Duas das frases erradas moram em migration aplicada, e por isso ficam
 erradas.** Os comentários da 0028 e da 0031 são `comment on function` e
@@ -3445,6 +3536,7 @@ src/
   lib/tasks/                  máquina de estados da subtarefa e da Task
   lib/acoes/                  contrato das Server Actions, guardas e contas
   lib/reports/                o resumo da semana da agência, montado para a tela e para o envio que ainda não existe
+  lib/email/                  o e-mail que sai: a trava de sandbox, os destinatários, as mensagens
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
 supabase/testes/              bateria de RLS e de fluxo, rodando como gente

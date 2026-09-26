@@ -67,6 +67,14 @@ jobs:
       - name: Contagem de dias do Full Days
         run: npm run check:dias
 
+      # A trava que impede o Full Hub de mandar e-mail para cliente de
+      # verdade fora de produção. Ela não quebra com erro quando some: ela
+      # passa a FUNCIONAR — o build fica verde, o protótipo fica bonito, e a
+      # primeira notícia é um cliente respondendo um e-mail de teste. E-mail
+      # enviado não volta.
+      - name: A trava do e-mail
+        run: npm run check:email
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

@@ -2,6 +2,7 @@ import "server-only";
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL, variaveisFaltando } from "@/lib/env";
 import { servicoConfigurado } from "./admin";
+import { emailConfigurado, enderecoDeDesvio, envioAoVivo } from "@/lib/email/config";
 import { criarClienteServidor } from "./server";
 
 /**
@@ -263,6 +264,55 @@ function checarChaveDeServico(): Checagem {
   };
 }
 
+/**
+ * O e-mail sai, e sai para quem? (Sprint 16, Parte B)
+ *
+ * SAO DUAS PERGUNTAS E NAO UMA, e a segunda e a que interessa aqui. "Resend
+ * configurado" e uma resposta incompleta: sem `EMAIL_AO_VIVO` o envio
+ * acontece, o Resend responde 200 e **nada chega ao cliente** -- e nao ha
+ * nada na tela de ninguem dizendo isso. E exatamente o modo de falha do
+ * limite de tentativas desligado, que ja esta descrito na checagem acima.
+ *
+ * Por isso o estado bom aqui e "ao vivo", o desvio e ALERTA e nao ok, e a
+ * frase nomeia o endereco que esta recebendo tudo.
+ */
+function checarEmail(): Checagem {
+  if (!emailConfigurado()) {
+    return {
+      nome: "E-mail (Resend)",
+      situacao: "alerta",
+      detalhe:
+        "RESEND_API_KEY não configurada. Nenhum e-mail sai do Full Hub: o cliente não " +
+        "é avisado quando a agência envia material, e a agência não é avisada quando " +
+        "ele decide. O sino continua funcionando — ele é do banco.",
+      comoResolver:
+        "Crie uma chave em resend.com > API Keys, coloque no .env.local como RESEND_API_KEY " +
+        "e reinicie o servidor.",
+    };
+  }
+
+  if (!envioAoVivo()) {
+    return {
+      nome: "E-mail (Resend)",
+      situacao: "alerta",
+      detalhe:
+        `Configurado, mas TODO envio está sendo desviado para ${enderecoDeDesvio()} — ` +
+        "nenhum cliente recebe nada. É o padrão, e é de propósito: só vai para endereço " +
+        "de verdade quem ligar EMAIL_AO_VIVO.",
+      comoResolver:
+        "No ambiente que publica, e só nele, defina EMAIL_AO_VIVO=\"true\". " +
+        "Em desenvolvimento, deixe como está e ponha o seu endereço em EMAIL_DESVIO " +
+        "para ver as mensagens.",
+    };
+  }
+
+  return {
+    nome: "E-mail (Resend)",
+    situacao: "ok",
+    detalhe: "Configurado e enviando para os destinatários de verdade.",
+  };
+}
+
 function consolidar(checagens: Checagem[]): Situacao {
   if (checagens.some((c) => c.situacao === "falha")) return "falha";
   if (checagens.some((c) => c.situacao === "alerta")) return "alerta";
@@ -283,7 +333,7 @@ export async function diagnosticarSupabase(): Promise<Diagnostico> {
   }
 
   const [alcance, schema] = await Promise.all([checarAlcance(), checarSchema()]);
-  const checagens = [variaveis, alcance, schema, checarChaveDeServico()];
+  const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail()];
 
   return {
     situacaoGeral: consolidar(checagens),

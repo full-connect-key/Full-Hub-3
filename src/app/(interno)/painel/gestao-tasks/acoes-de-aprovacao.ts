@@ -19,6 +19,9 @@ import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { anunciar } from "@/lib/acoes/ao-vivo";
+import { clientesQueQueremReceber } from "@/lib/email/destinatarios";
+import { despacharEmail } from "@/lib/email/enviar";
+import { materialParaAprovar } from "@/lib/email/mensagens";
 
 /**
  * O fluxo de aprovação.
@@ -481,6 +484,31 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
       para_valor: `Rodada ${situacao.rodadaAtual}`,
       autor_id: sessao.usuarioId,
     });
+
+    // O MESMO DISPARO DO POST, e de propósito a mesma mensagem: para quem
+    // recebe, um post e uma etapa de demanda são a mesma coisa — material
+    // esperando a decisão dele. Duas mensagens diferentes para o mesmo fato
+    // seriam duas vozes da agência na caixa de entrada do cliente.
+    //
+    // `task_id` está em mãos e `client_id` não: `lerSubtarefa` lê a etapa, e
+    // a empresa é da demanda. Uma consulta a mais aqui é mais barata que
+    // engordar um `select` que outras quatro ações usam sem precisar dele.
+    const { data: demanda } = await supabase
+      .from("tasks")
+      .select("client_id")
+      .eq("id", ctx.subtarefa.task_id)
+      .maybeSingle();
+
+    if (demanda?.client_id) {
+      despacharEmail(
+        await clientesQueQueremReceber(demanda.client_id, "novo_conteudo"),
+        materialParaAprovar({
+          titulo: ctx.subtarefa.titulo,
+          oQueE: "um material",
+          rota: "/portal/aprovacoes",
+        }),
+      );
+    }
 
     revalidar(ctx.subtarefa.task_id);
     return sucesso("Enviada ao cliente. Ela já aparece no Portal.");

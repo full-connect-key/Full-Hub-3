@@ -12,6 +12,7 @@ import {
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { anunciar } from "@/lib/acoes/ao-vivo";
+import { avisarAgenciaDaDecisao } from "@/lib/email/decisao-do-cliente";
 
 /**
  * A decisão do cliente.
@@ -60,6 +61,16 @@ export async function decisaoCliente(
     // inverso, avisar o cliente do que a equipe faz, não existe de propósito:
     // ele recebe material enviado, não o ritmo da produção.
     anunciar("aprovacao");
+    // E O E-MAIL VAI JUNTO, pela mesma razão do aviso ao vivo: é do lado de
+    // cá que alguém está com a fila aberta esperando. A diferença é que o
+    // aviso só alcança quem está com a tela aberta agora, e esta resposta
+    // costuma chegar quando não há ninguém olhando.
+    await avisarAgenciaDaDecisao(
+      roundId,
+      decisao,
+      comentario.trim() || null,
+      sessao.usuarioId,
+    );
     return sucesso(
       decisao === "aprovada"
         ? "Aprovado. A equipe foi avisada."

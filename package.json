@@ -16,6 +16,7 @@
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:preview": "npx --yes tsx scripts/check-preview.mjs",
     "check:dias": "node scripts/check-dias.mjs",
+    "check:email": "node scripts/check-email.mjs",
     "check:sprint9": "node scripts/verificar-9.mjs"
   },
   "dependencies": {

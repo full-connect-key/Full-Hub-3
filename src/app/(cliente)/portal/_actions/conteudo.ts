@@ -13,6 +13,11 @@ import {
 import { ehCliente } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { colunasDoConteudo, type Conteudo } from "@/lib/aprovacoes/conteudo";
+import { empresaDoConteudo, titularDoConteudo } from "@/lib/email/conteudo";
+import { avisarAgenciaDaDecisao } from "@/lib/email/decisao-do-cliente";
+import { clientesQueQueremReceber, emailsDaEquipe } from "@/lib/email/destinatarios";
+import { despacharEmail } from "@/lib/email/enviar";
+import { comentarioNovo } from "@/lib/email/mensagens";
 
 /**
  * As ações do cliente sobre um material — post ou entregável de campanha.
@@ -75,6 +80,15 @@ export async function decidirConteudo(
     // aprovação" que ele acabou de resolver.
     revalidatePath("/portal/social-media");
     revalidatePath("/portal/campanhas");
+    // A AGÊNCIA PRECISA SABER, e aqui mais que na fila de aprovações: um post
+    // recusado na sexta sem ninguém avisado é um post que só aparece na
+    // segunda, com a data de publicação já passada.
+    await avisarAgenciaDaDecisao(
+      rodadaId,
+      decisao,
+      comentario.trim() || null,
+      sessao.usuarioId,
+    );
     return sucesso(CONFIRMACAO[decisao]);
   });
 }
@@ -121,8 +135,63 @@ export async function comentarNoConteudo(
       return falha("Não foi possível comentar neste material.");
     }
 
+    await avisarDoComentario(conteudo, sessao.usuarioId, sessao.profile.nome);
+
     revalidatePath("/portal/social-media");
     revalidatePath("/portal/campanhas");
     return sucesso("Comentário enviado.");
   });
+}
+
+/**
+ * O aviso de comentário novo.
+ *
+ * ---------------------------------------------------------------------------
+ * **ESTA É A ÚNICA PORTA DE COMENTÁRIO DO PRODUTO, e é o que torna a caixa
+ * `novo_comentario` honesta.**
+ *
+ * `client_notification_prefs` tem essa coluna desde a 0031, e a tela do portal
+ * a oferece desde então com a frase *"quando alguém responder em um material
+ * seu"*. Quem produz o evento é esta ação — a agência não tem, hoje, um lugar
+ * de onde comentar um material do lado de lá; o painel tem os comentários da
+ * demanda, que são outra tabela e não chegam ao cliente.
+ *
+ * Então quem recebe são as OUTRAS pessoas da mesma empresa mais quem está
+ * com o material na mão do lado de cá. Sem essa segunda metade, uma dúvida
+ * escrita no portal na sexta esperaria alguém abrir a tela para ser lida.
+ * ---------------------------------------------------------------------------
+ *
+ * **Nunca derruba o comentário.** Ele já está gravado; o que falha aqui é o
+ * aviso. É a mesma decisão de `anunciar()` e o oposto da trilha de auditoria.
+ */
+async function avisarDoComentario(
+  conteudo: Conteudo,
+  autorId: string,
+  autorNome: string,
+): Promise<void> {
+  try {
+    const titular = await titularDoConteudo(conteudo.tipo, conteudo.id);
+    if (!titular) return;
+
+    const empresa = await empresaDoConteudo(conteudo.tipo, conteudo.id);
+
+    const [daEmpresa, daAgencia] = await Promise.all([
+      empresa
+        ? clientesQueQueremReceber(empresa, "novo_comentario", autorId)
+        : Promise.resolve([]),
+      emailsDaEquipe([titular.responsavelId], autorId),
+    ]);
+
+    // O MESMO TEXTO PARA OS DOIS LADOS, e ENDEREÇOS DIFERENTES. A mensagem
+    // não conta o comentário, então não há nela nada que sirva a um e não ao
+    // outro; o link, sim — mandar o cliente para `/painel/...` é mandá-lo
+    // para um 403, e ele conclui que o portal dele quebrou.
+    const texto = (rota: string) =>
+      comentarioNovo({ autor: autorNome, titulo: titular.titulo, rota });
+
+    despacharEmail(daEmpresa, texto(titular.rotaNoPortal));
+    despacharEmail(daAgencia, texto(titular.rota));
+  } catch (erro) {
+    console.error("[email:comentario] não deu para avisar:", erro);
+  }
 }

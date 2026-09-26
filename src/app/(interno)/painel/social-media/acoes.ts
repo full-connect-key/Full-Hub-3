@@ -13,6 +13,9 @@ import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
 import { anunciar } from "@/lib/acoes/ao-vivo";
+import { clientesQueQueremReceber } from "@/lib/email/destinatarios";
+import { despacharEmail } from "@/lib/email/enviar";
+import { materialParaAprovar } from "@/lib/email/mensagens";
 
 /**
  * As ações do Social Media interno.
@@ -346,7 +349,7 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
 
     const { data: post } = await supabase
       .from("posts")
-      .select("versao_atual, responsavel_id")
+      .select("versao_atual, responsavel_id, client_id, tema")
       .eq("id", postId)
       .maybeSingle();
     if (!post) return falha("Post não encontrado.");
@@ -370,6 +373,20 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
     });
 
     if (error) return falha(error.message);
+
+    // O E-MAIL SAI DAQUI, e não de um trigger, pela razão mecânica de sempre:
+    // o Postgres não fala com o Resend. A consequência está dita no CLAUDE.md
+    // — o sino nunca perde um aviso porque é do banco, e o e-mail perde tudo
+    // o que não passar por uma action. Este caminho passa: enviar ao cliente
+    // É abrir a rodada, e a rodada nasce aqui.
+    despacharEmail(
+      await clientesQueQueremReceber(post.client_id, "novo_conteudo"),
+      materialParaAprovar({
+        titulo: post.tema,
+        oQueE: "um post",
+        rota: `/portal/social-media/${postId}`,
+      }),
+    );
 
     revalidar();
     return sucesso("Enviado. O cliente já vê o post no portal dele.");
