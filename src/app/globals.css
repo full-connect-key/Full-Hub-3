@@ -93,9 +93,20 @@
      GRANDE, com o limite de 3:1 — a lista mede PARES, e o limite depende do
      USO. Agora as duas linhas dele são NORMAL, e quem achou o problema foi a
      varredura de acessibilidade da página viva, que lê o tamanho da letra.
-     Fica em 4,93:1 no cartão e 4,56:1 na página, e continua claramente mais
-     claro que `--text-secondary` (7,06:1) — a hierarquia não se perde. */
-  --text-muted: #6B7179;
+     E DEPOIS ELE FOI ESCURECIDO DE NOVO, por uma razão que a lista já tinha
+     escrito e que as telas não seguiram: `--text-muted` só era seguro sobre o
+     cartão e a página. Sobre os CINCO fundos `*-soft` ele dava 4,03 a 4,49:1
+     — a lista mandava usar `--text-secondary` ali, e o `CartaoDeNumero` era o
+     único lugar que usava. A varredura da página viva achou 53 nós: selo de
+     mão do post, cabeçalho de tabela das Métricas, a lista do cartão de
+     atenção do Resumo da Agência, o dia da semana da matriz.
+
+     Corrigir os 53 seria a quarta vez que essa regra mora no lugar de chamada
+     — e são 330 usos, então a 54ª ficaria para trás. Com #626870 o pior par
+     passa a ser 4,60:1 (sobre `--danger-soft`), e o token deixa de ter fundo
+     onde não pode ir. Continua claramente mais claro que `--text-secondary`:
+     5,62:1 contra 7,06:1 no cartão. */
+  --text-muted: #626870;
   /* O texto que vai sobre fundo escuro ou sobre cor cheia. */
   --text-on-dark: #F5F6F8;
   /* O texto APAGADO da barra escura — item de menu de módulo opcional.
@@ -206,7 +217,11 @@
 
   --text-primary: #F5F6F8;
   --text-secondary: #B6BCC4;
-  --text-muted: #8B929B;
+  /* Clareado junto com o do tema claro, e pelo mesmo motivo: sobre
+     `--neutral-soft` do escuro o #8B929B dava 4,17:1. Com #9299A2 o pior par
+     é 4,56:1. E NÃO é o valor claro invertido — são passos próprios medidos
+     contra os fundos do escuro, como as cores de série do Financeiro. */
+  --text-muted: #9299A2;
   --text-on-dark: #F5F6F8;
   /* A barra lateral é escura nos dois temas, então o apagado dela é o mesmo. */
   --text-on-dark-muted: #96989B;

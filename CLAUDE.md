@@ -3558,6 +3558,40 @@ sendo aplicada ao texto — `opacity-80` no "· hoje" do `DateBadge` aparecia em
 quase toda tela do produto. O calendário do Sprint 10 já tinha pagado esse
 preço uma vez, e o comentário dele estava lá dizendo isso.
 
+E havia uma **terceira**, que só a segunda rodada mostrou: **`--text-muted` só
+era seguro sobre o cartão e a página.** Sobre os cinco fundos `*-soft` ele dava
+4,03 a 4,49:1 — e a própria lista do `check:cores` dizia isso, doze linhas
+abaixo, recomendando `--text-secondary` ali. A recomendação valia para **um**
+componente (`CartaoDeNumero`) e o token tem **330 usos**: a varredura achou 53
+nós, em selo de mão do post, cabeçalho de tabela das Métricas, lista do cartão
+de atenção do Resumo da Agência e dia da semana da matriz.
+
+**Corrigir os 53 seria a quarta vez que a regra mora no lugar de chamada**, e a
+54ª ficaria para trás. Então o token foi escurecido — #626870 no claro, #9299A2
+no escuro — e **as cinco medições entraram na lista**: elas conferem o token
+contra todo fundo em que ele pode cair, e não contra os dois em que ele já
+passava. O pior par passou de 4,03 para 4,60:1.
+
+Os valores do escuro **não são os do claro invertidos**, e é a mesma decisão
+das cores de série do Financeiro: são passos próprios medidos contra os fundos
+do tema escuro, onde o pior par era outro (`--neutral-soft`, a 4,17:1).
+
+> **Decisão em suspenso, com os números:** a paleta de cor do editor rico é o
+> único lugar do produto em que a cor **não pode** sair de um token — ela é
+> gravada DENTRO do documento do TipTap, e é por isso que
+> `components/shared/editor-rico.tsx` é exceção registrada no `check:cores`. A
+> consequência é que a regra de contraste não tem como valer ali, e medindo:
+> no tema claro, o pior caso de cada cor sobre os cinco fundos é 4,31 (vermelho),
+> 3,18 (laranja), 3,36 (verde), 4,61 (azul) e 5,09 (roxo) — **três das cinco
+> reprovam**; no tema escuro **as cinco reprovam**, de 2,30 a 3,68, porque um
+> tom escuro o bastante para o fundo claro é claro demais para o escuro.
+> **Não existe hex que resolva os dois**, e escurecer a paleta nem corrige o
+> texto já gravado, que carrega o valor antigo. As saídas são escolher o tema
+> claro e piorar o escuro, ou tirar o controle de cor do editor e ficar com
+> negrito, itálico e realce. As duas são decisão de quem usa o editor, então
+> ficou como está — e o achado continua aparecendo no relatório, nomeado, em
+> vez de ser silenciado por uma exceção.
+
 **Onde a opacidade servia para dizer "inativo", ela era o segundo sinal e não o
 primeiro:** o workflow arquivado já tem o selo "Arquivado", o contrato inativo
 já tem "Inativo", e o item concluído do calendário já tem `line-through`. A

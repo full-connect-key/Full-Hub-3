@@ -200,7 +200,10 @@ export function CalendarioDeTasks({
                   <span
                     className={cn(
                       "inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
-                      foraDoMes && "text-muted-foreground/60",
+                      // `text-muted-foreground` inteiro, sem o `/60`: a 60%
+                      // sobre `bg-muted/30` o número do dia dava 2,68:1. O dia
+                      // de outro mês já se distingue pelo fundo da célula.
+                      foraDoMes && "text-muted-foreground",
                       isToday(dia) &&
                         "bg-brand text-brand-foreground font-medium",
                     )}

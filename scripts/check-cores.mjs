@@ -130,6 +130,23 @@ const PARES = [
   ["--text-muted", "--surface-card", NORMAL, "texto discreto (rótulo, legenda)"],
   ["--text-muted", "--surface-page", NORMAL, "texto discreto na página"],
 
+  // E SOBRE OS CINCO FUNDOS TINGIDOS, que é onde ele estava reprovando.
+  //
+  // A lista dizia, doze linhas abaixo, que `--text-muted` sobre um `*-soft`
+  // dá 4,03 a 4,49:1 — e resolvia isso mandando usar `--text-secondary` ali.
+  // A recomendação valia para UM componente e a interface tem 330 usos do
+  // token: a varredura da página viva achou 53 nós em selo de post, cabeçalho
+  // de tabela, lista de cartão de atenção e dia da semana da matriz.
+  //
+  // Então o token foi escurecido, e estas cinco linhas são o que tira a regra
+  // do lugar de chamada: elas medem o token contra TODO fundo em que ele pode
+  // cair, e não contra os dois em que ele já passava.
+  ["--text-muted", "--muted", NORMAL, "texto discreto sobre o selo neutro"],
+  ["--text-muted", "--blue-soft", NORMAL, "texto discreto no bloco azul"],
+  ["--text-muted", "--warning-soft", NORMAL, "texto discreto no bloco de atenção"],
+  ["--text-muted", "--danger-soft", NORMAL, "texto discreto no bloco de alerta"],
+  ["--text-muted", "--success-soft", NORMAL, "texto discreto no bloco bom"],
+
   // O RÓTULO DO CARTÃO DE NÚMERO SOBRE OS TRÊS FUNDOS TINGIDOS.
   //
   // Um fundo `*-soft` não é o cartão nem a página, e a lista só tinha essas
