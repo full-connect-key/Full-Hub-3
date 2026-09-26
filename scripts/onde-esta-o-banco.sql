@@ -154,7 +154,13 @@ from (
     -- consequencia de nao ter e o cliente sem conseguir aprovar nada nas
     -- empresas sem responsavel de atendimento.
     ('0062', 'notificar sem ninguem a avisar',  'no_corpo',     'notificar|p_user_id is null'),
-    ('0063', 'clients.capa_url',                'coluna',       'clients.capa_url')
+    ('0063', 'clients.capa_url',                'coluna',       'clients.capa_url'),
+    -- A 0064 CRIA DUAS TABELAS, e a que se confere e a das FUNCOES: a outra
+    -- (`client_flow_defaults`) guarda tres colunas, e um banco pode ter a
+    -- primeira sem a segunda se alguem aplicar o arquivo pela metade. A de
+    -- funcoes e a que faz o workflow global servir todos os clientes, entao e
+    -- ela que responde "o resolvedor esta de pe?".
+    ('0064', 'client_function_defaults',        'tabela',       'client_function_defaults')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
