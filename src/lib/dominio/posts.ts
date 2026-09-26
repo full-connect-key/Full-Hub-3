@@ -314,10 +314,21 @@ export function faltaParaEnviar(post: EstadoDoPost): string[] {
 /**
  * Quem está lendo pode enviar este post ao cliente?
  *
- * **As duas perguntas juntas**, porque separá-las foi o furo que a 0042
- * fechou: é preciso ser gestão E não ter sido quem produziu. `validar_nova_
- * rodada` recusa as duas no banco; aqui a resposta serve para desligar o botão
- * com a frase certa.
+ * **É UMA PERGUNTA SÓ desde a 0060: ser gestão.** Eram duas — gestão E não
+ * ter produzido —, e a segunda saiu por decisão do usuário, que está citada
+ * no cabeçalho daquela migration. Aqui ela não se repete porque
+ * `check:cores` varre `src/` atrás da frase que saiu: a explicação de um
+ * nome morto não pode carregar o nome, e foi a varredura que pegou esta
+ * mesma linha na primeira rodada.
+ *
+ * A regra pedida continua inteira, e sempre esteve: a pergunta que ficou já
+ * recusa todo colaborador, dono do material ou não. A que saiu só alcançava
+ * desenvolvedor e sócio, que são exatamente quem ele acabou de liberar.
+ *
+ * `validar_nova_rodada` recusa no banco; aqui a resposta serve para desligar
+ * o botão com a frase certa — e as duas saíram no mesmo commit, que é a lição
+ * cara da 0029: a bateria ficou verde com a action ainda recusando, e quem
+ * encontrou foi o usuário clicando no botão.
  */
 export function podeEnviarAoCliente(
   post: EstadoDoPost,
@@ -325,9 +336,6 @@ export function podeEnviarAoCliente(
 ): { pode: boolean; porque: string | null } {
   if (!quemLe.ehGestor) {
     return { pode: false, porque: "Enviar ao cliente é do desenvolvedor ou do sócio." };
-  }
-  if (post.responsavelId === quemLe.id) {
-    return { pode: false, porque: "Ninguém envia ao cliente a própria entrega." };
   }
   const faltam = faltaParaEnviar(post);
   if (faltam.length > 0) return { pode: false, porque: `Falta ${faltam.join(" e ")}.` };

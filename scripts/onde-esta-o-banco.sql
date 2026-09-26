@@ -141,7 +141,12 @@ from (
     ('0056', 'rate_limits',                     'tabela',       'rate_limits'),
     ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal'),
     ('0058', 'audit_log',                       'tabela',       'audit_log'),
-    ('0059', 'post_etapas.prazo_offset_dias',   'coluna',       'post_etapas.prazo_offset_dias')
+    ('0059', 'post_etapas.prazo_offset_dias',   'coluna',       'post_etapas.prazo_offset_dias'),
+    -- A 0060 TIRA UMA TRAVA, entao a checagem e pela AUSENCIA -- a mesma
+    -- forma da 0029, que tambem desfez uma. Um banco parado na 0059 ainda tem
+    -- a frase no corpo de `validar_nova_rodada` e diz FALTA; depois de
+    -- aplicada, nao tem.
+    ('0060', 'trava de enviar o proprio fora',  'sem_no_corpo', 'validar_nova_rodada|a própria entrega')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

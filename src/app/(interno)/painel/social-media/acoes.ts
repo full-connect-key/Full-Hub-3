@@ -24,7 +24,7 @@ import { materialParaAprovar } from "@/lib/email/mensagens";
  * Nenhuma guarda daqui é a trava: `posts_insert` fecha em `is_gestor()`,
  * `posts_update` em gestão ou responsável, `posts_protege_colunas` recusa o
  * colaborador que tenta trocar cliente, responsável ou data, e
- * `validar_nova_rodada` recusa quem produziu enviar a própria entrega. As
+ * `validar_nova_rodada` decide quem envia ao cliente. As
  * guardas daqui existem para a recusa chegar em português e antes da viagem —
  * é a mesma dupla de `lib/tasks/state-machine.ts` com os triggers da 0007.
  */
@@ -354,14 +354,14 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
       .maybeSingle();
     if (!post) return falha("Post não encontrado.");
 
-    // A MESMA PERGUNTA QUE O BANCO FAZ, antes da viagem. Ela não substitui a
-    // trava — `validar_nova_rodada` recusa de qualquer jeito —, mas a recusa
-    // dele chega como exceção de constraint, e esta chega como frase.
-    if (post.responsavel_id === sessao.usuarioId) {
-      return falha(
-        "Ninguém envia ao cliente a própria entrega. Peça a outra pessoa da gestão.",
-      );
-    }
+    // A TRAVA DE "PRÓPRIA ENTREGA" SAIU DAQUI NA 0060, e sair dos dois lados
+    // no mesmo commit é o ponto: um `if` esquecido aqui continuaria recusando
+    // com o banco já aceitando, que foi exatamente o que aconteceu na 0029 —
+    // a bateria verde e o usuário clicando em Aprovar para descobrir.
+    //
+    // O que continua de pé é a guarda de perfil, logo acima: `enviarAoCliente`
+    // é de `exigirGestorNaAcao`, e `validar_nova_rodada` faz a mesma pergunta
+    // no banco.
 
     const { error } = await supabase.from("approval_rounds").insert({
       content_type: "post",

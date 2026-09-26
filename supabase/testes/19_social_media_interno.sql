@@ -138,17 +138,28 @@ select teste.recusa_com('O colaborador nao envia ao cliente', :BRUNO,
     values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :BRUNO),
   'Enviar para o cliente');
 
--- O OUTRO LADO DA MESMA MOEDA, e o que a 0042 tinha virado do avesso: se
--- `dono_do_post()` voltar a ser `criado_por`, o Bruno DEIXA de ser dono e este
--- cenario passa a aceitar -- quem produziu mandando a propria entrega.
-select teste.recusa_com('E nem a gestao envia se foi ela quem produziu', :DIEGO,
-  format($fmt$
-    update public.posts set responsavel_id = %L where id = %L;
-    insert into public.approval_rounds
-      (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-      values ('post', %L, 1, 'cliente', %L, 'pendente')
-  $fmt$, :DIEGO, :CARROSSEL, :CARROSSEL, :DIEGO),
-  'própria entrega');
+-- VIRADO DO AVESSO NA 0060, e o cenario fica por isso. Ate ela o banco
+-- recusava a gestao que tinha produzido; agora aceita, por decisao do
+-- usuario -- "se a pessoa for Desenvolvedor, ou socio, ela pode enviar".
+--
+-- Se alguem reintroduzir a trava, este cenario falha e diz qual: e a mesma
+-- forma dos tres que a 0029 deixou para tras quando a autoaprovacao saiu.
+--
+-- E repare no que ele NAO prova: que qualquer um envia. O cenario de cima --
+-- o Bruno, colaborador -- continua recusado, e e ele que guarda a metade da
+-- regra que ficou de pe.
+update public.posts set responsavel_id = :DIEGO where id = :CARROSSEL;
+
+select teste.cenario('A gestao envia inclusive o que ela mesma produziu', :DIEGO,
+  format($fmt$insert into public.approval_rounds
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
+    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :DIEGO),
+  'ok', 1);
+
+-- E a rodada de cima precisa sair antes da proxima: o cenario seguinte insere
+-- outra igual, e duas rodadas de cliente na mesma versao sao dois pedidos.
+delete from public.approval_rounds
+ where content_type = 'post' and content_id = :CARROSSEL and escopo = 'cliente';
 
 -- E a gestao que NAO produziu envia.
 update public.posts set responsavel_id = :BRUNO where id = :CARROSSEL;

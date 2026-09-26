@@ -275,10 +275,30 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   migration própria — não um `if` a mais na tela.
 - **Aprovar não envia.** Aprovar diz que o material está bom; enviar diz que é
   agora. São duas decisões, e juntá-las já mandou peça errada para cliente em
-  muita agência. **E a segunda continua travada:** `validar_nova_rodada`
-  recusa *"Ninguém envia ao cliente a própria entrega"*, desde a 0007. A 0029
-  mexeu em quem aprova, não em quem envia — são duas decisões, e o usuário
-  mudou uma.
+  muita agência. **Continuam duas**, e é o que sobra de pé depois da 0060.
+
+  **Quem envia ao cliente é `is_gestor()`, e mais nenhuma pergunta** (migration
+  0060, decisão do usuário). Até ela havia uma segunda, logo abaixo: quem tinha
+  produzido não enviava, nem sendo da gestão.
+
+  **A segunda nunca teve a quem recusar, e é o ponto.** A primeira já barra
+  todo colaborador — dono do material ou não —, então a de baixo só alcançava
+  desenvolvedor e sócio, que são exatamente as duas pessoas que o usuário
+  liberou. A regra que ele pediu, *nenhum colaborador envia o que produziu*,
+  continua inteira e sempre esteve: quem a garante é a pergunta de cima.
+
+  **É a 0026 de novo, com a outra metade do par.** Lá eu li a frase dele como
+  relato de furo e fechei um furo que não existia; a 0029 desfez. A 0007
+  decidiu que aprovar e enviar eram duas travas, o usuário desfez a de aprovar
+  na 0029 e a de enviar agora. **E os dois lados saíram no mesmo commit** — a
+  lição cara da 0029, onde a bateria ficou verde com a action ainda recusando
+  e quem encontrou foi ele, clicando no botão. Por isso a frase entrou na
+  varredura de `check:cores`, ao lado das duas da 0029; ela pegou, na primeira
+  rodada, o meu próprio comentário explicando a remoção.
+
+  Os dois cenários que provavam a trava ficaram na bateria, **virados do
+  avesso**: se alguém a reintroduzir, um deles falha e diz qual. Medidos com
+  duas mutações, uma por ramo.
 - **Rodada fechada nunca é reescrita nem apagada.** Cada ciclo de ajuste cria
   uma rodada nova, com número maior, e as anteriores continuam no banco com o
   que foi pedido e decidido.
@@ -3664,6 +3684,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0057_atualizacao_ao_vivo.sql` | **Pendente de aplicação.** A policy que decide quem ouve o canal da equipe. Sem ela o canal é privado e não autorizado: o Painel mostra **"Sem atualização ao vivo"** e nada se atualiza sozinho — visível, não silencioso |
 | `supabase/migrations/0058_trilha_de_auditoria.sql` | **Pendente de aplicação.** Traz `audit_log` e o trigger `registrar_auditoria()` em 13 tabelas. Sem ela, `/painel/auditoria` devolve erro de tabela inexistente — e nada é registrado |
 | `supabase/migrations/0059_a_data_de_cada_etapa_do_social.sql` | **Pendente de aplicação.** Traz `post_etapas.prazo_offset_dias`, o recálculo quando o post muda de dia e a OITAVA origem da `calendar_events`. Sem ela, abrir o mês continua criando etapas sem data e elas não entram no calendário de ninguém |
+| `supabase/migrations/0060_a_gestao_envia_o_que_produziu.sql` | **Pendente de aplicação.** Tira de `validar_nova_rodada` a trava que recusava quem produziu enviar ao cliente — ela só alcançava desenvolvedor e sócio, que são quem o usuário liberou. Sem ela aplicada, a gestão continua levando a recusa num envio que o produto diz que é dela |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

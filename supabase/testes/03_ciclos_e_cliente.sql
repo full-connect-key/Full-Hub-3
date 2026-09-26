@@ -64,9 +64,18 @@ select teste.conferir('Aval interno nao conclui a de tipo cliente',
   'enviada_aprovacao');
 
 -- O envio ao cliente precisa rodar COMO o desenvolvedor: o trigger
--- validar_nova_rodada exige is_gestor(), e num SQL solto auth.uid() e nulo.
--- Ou seja: nem por SQL direto o responsavel manda material ao cliente.
--- Diego e gestor, mas se a entrega fosse DELE nem ele poderia enviar.
+-- A ETAPA DO PROPRIO DIEGO, e este cenario esta VIRADO DO AVESSO desde a
+-- 0060. Ate ela o banco recusava: "ninguem envia ao cliente" valia inclusive
+-- para a gestao. Agora aceita, por decisao do usuario -- nenhum colaborador
+-- envia o que produziu, mas desenvolvedor e socio enviam.
+--
+-- A trava que sobrou e a de cima, `is_gestor()`, e ela ja recusava todo
+-- colaborador. A que saiu so alcancava quem o usuario acabou de liberar --
+-- pela mesma razao que a 0029 desfez a de autoaprovacao.
+--
+-- Se alguem reintroduzir a trava, este cenario falha e diz qual. O que ele
+-- NAO prova e que qualquer um envia: o colaborador continua recusado pelo
+-- cenario de is_gestor(), e e la que mora a metade da regra que ficou.
 insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao, status)
 values ('bcbcbcbc-0000-0000-0000-000000000003','abababab-0000-0000-0000-00000000000a','Entrega do proprio Diego',3,:DIEGO,true,'cliente','em_andamento');
 insert into public.approval_rounds (content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
@@ -74,9 +83,9 @@ values ('bcbcbcbc-0000-0000-0000-000000000003', 1, 'interna', 'pendente', :DIEGO
 update public.approval_rounds set status = 'aprovada', decidido_por = :ANA, decidido_em = now()
  where content_id = 'bcbcbcbc-0000-0000-0000-000000000003';
 
-select teste.cenario('Nem o gestor envia ao cliente a propria entrega', :DIEGO,
+select teste.cenario('A gestao envia ao cliente a etapa que ela mesma produziu', :DIEGO,
   format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000003'', 1, ''cliente'', %L)', :DIEGO),
-  'recusa');
+  'ok', 1);
 
 select teste.cenario('Desenvolvedor abre a rodada do cliente', :DIEGO,
   format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000002'', 1, ''cliente'', %L)', :DIEGO),

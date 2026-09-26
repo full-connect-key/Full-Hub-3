@@ -206,7 +206,7 @@ function textoDoBriefing(conteudo: unknown): string | null {
  * material carimbado sem rodada nenhuma.
  *
  * Quem recusa o resto é `validar_nova_rodada`: aval interno antes do envio,
- * e *"ninguém envia ao cliente a própria entrega"*.
+ * e, até a 0060, quem tinha produzido a peça.
  */
 export async function enviarEntregavelAoCliente(
   entregavelId: string,

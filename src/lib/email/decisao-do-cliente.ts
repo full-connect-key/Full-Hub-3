@@ -60,10 +60,10 @@ export function avisarAgenciaDaDecisao(
     const conteudo = await titularDoConteudo(rodada.content_type, rodada.content_id);
     if (!conteudo) return;
 
-    // QUEM ENVIOU E QUEM FEZ. São quase sempre duas pessoas — desde a 0007
-    // ninguém envia ao cliente a própria entrega —, e as duas estão esperando
+    // QUEM ENVIOU E QUEM FEZ. Costumam ser duas pessoas, e estão esperando
     // esta resposta por motivos diferentes: uma para seguir, outra para
-    // refazer.
+    // refazer. Podem ser a mesma desde a 0060 — `emailsDaEquipe` deduplica,
+    // senão ela receberia o aviso duas vezes.
     const destinos = await emailsDaEquipe(
       [rodada.solicitado_por, conteudo.responsavelId],
       quemDecidiu,

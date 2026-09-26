@@ -293,10 +293,17 @@ const NOMES_MORTOS = [
   // explicação mora no cabeçalho da 0029 e no CLAUDE.md, fora de `src/`, pela
   // mesma razão do vocabulário do Full Days acima.
   //
-  // "envia ao cliente a própria entrega" NÃO entra: essa trava continua de
-  // pé. Aprovar e enviar são duas decisões, e o usuário mudou uma.
+  // E A SEGUNDA METADE DO PAR ENTROU AGORA. Até a 0060 esta lista dizia, aqui
+  // mesmo, que "envia ao cliente a própria entrega" NÃO entrava — porque
+  // aprovar e enviar são duas decisões e o usuário tinha mudado só uma. Ele
+  // mudou a outra: a gestão envia inclusive o que produziu.
+  //
+  // A trava de envio nunca teve a quem recusar, e é o que a 0060 explica: a
+  // linha de cima (`is_gestor()`) já barra todo colaborador, então a de baixo
+  // só alcançava desenvolvedor e sócio — as duas pessoas que agora podem.
   { nome: "aprova a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão aprova o próprio trabalho" },
   { nome: "decide a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão decide a própria rodada" },
+  { nome: "envia ao cliente a própria entrega", onde: "src/", porque: "a trava saiu na 0060 — a gestão envia inclusive o que produziu" },
 
   // DOIS MÓDULOS QUE SAÍRAM DO PRODUTO, por decisão do usuário.
   //
