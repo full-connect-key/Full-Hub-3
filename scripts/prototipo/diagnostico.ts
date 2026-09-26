@@ -10,7 +10,9 @@ export type { Situacao, Checagem, Diagnostico } from "../../src/lib/supabase/dia
 
 import type { Diagnostico } from "../../src/lib/supabase/diagnostico";
 
-export async function diagnosticarSupabase(): Promise<Diagnostico> {
+export async function diagnosticarSupabase(
+  _opcoes: { completo?: boolean } = {},
+): Promise<Diagnostico> {
   return {
     situacaoGeral: "ok",
     host: "seu-projeto.supabase.co",

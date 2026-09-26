@@ -150,8 +150,22 @@ export function VisaoDeMes({
                           // mês seguinte — que é a diferença entre "ninguém
                           // trabalha" e "isto não é deste mês".
                           alvo === dia && "ring-accent-strong ring-2 ring-inset",
+                          // `opacity-60` SAIU, e ele era o bug: opacidade no
+                          // contêiner desbota TUDO o que está dentro, inclusive
+                          // o texto — e o axe reprovou o número do dia por
+                          // contraste em todas as visões do mês. É a mesma
+                          // regra que o produto já aplica aos selos de estado:
+                          // opacidade sobre um fundo qualquer dá uma cor que
+                          // ninguém mediu, e no tema escuro dá outra.
+                          //
+                          // O que o dia de outro mês precisa é ser MAIS claro
+                          // que o fim de semana, não mais apagado: o par
+                          // `bg-muted/text-text-muted` já diz "não é aqui", e o
+                          // que distingue os dois passa a ser a borda pontilhada
+                          // — uma diferença de forma, que sobrevive ao tema e ao
+                          // daltonismo, em vez de uma diferença de lavagem.
                           !ehDoMes(dia, mes)
-                            ? "bg-muted opacity-60"
+                            ? "bg-muted border-border border-dashed"
                             : ehFimDeSemana(dia)
                               ? "bg-muted"
                               : "bg-surface-card",
@@ -183,7 +197,7 @@ export function VisaoDeMes({
                                 ? "bg-brand-blue text-text-primary rounded-full px-1.5 font-semibold"
                                 : ehDoMes(dia, mes)
                                   ? "text-text-secondary"
-                                  : "text-text-muted",
+                                  : "text-neutral",
                             )}
                           >
                             {Number(dia.slice(8, 10))}

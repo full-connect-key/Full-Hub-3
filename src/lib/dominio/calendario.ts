@@ -74,7 +74,13 @@ export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
 export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
   subtarefa: "bg-muted text-text-secondary",
   task: "bg-blue-soft text-blue-strong",
-  ausencia: "bg-muted text-text-muted",
+  // `text-neutral` E NAO `text-text-muted`: o par
+  // `--text-muted` sobre `--muted` dá 4,43:1 — passa raspando POR BAIXO do
+  // mínimo de 4.5, e o axe reprovou nas três visões do mês. `--neutral` é o
+  // primeiro-plano nomeado de `--neutral-soft`, que é o que `--muted` aponta,
+  // e dá 6,3:1. O par nomeado existe justamente para isto não depender de
+  // quem escolhe a classe.
+  ausencia: "bg-muted text-neutral",
   evento: "bg-blue-soft text-blue-strong",
   post: "bg-success-soft text-success",
   // O MESMO PAR DO POST, e é escolha. A legenda AGRUPA quem divide a cor —

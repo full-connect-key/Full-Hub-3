@@ -187,7 +187,7 @@ export function VisaoDeLinha({
                   é o TEXTO e não ela: `sticky` numa caixa de 72rem não
                   segura nada — ela já está toda dentro da tela, e o rótulo
                   no canto esquerdo dela sai junto com a rolagem. */}
-                <div className="bg-muted text-text-muted py-1 text-xs font-medium tracking-wide uppercase">
+                <div className="bg-muted text-neutral py-1 text-xs font-medium tracking-wide uppercase">
                   <span className="sticky left-0 inline-block px-3">
                     {area}
                   </span>

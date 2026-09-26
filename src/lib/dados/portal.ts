@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
@@ -170,8 +171,7 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta;
-  const posts = data ?? [];
+  const posts = ouFalha("os materiais do portal", await consulta) ?? [];
   if (posts.length === 0) return [];
 
   const { data: rodadas } = await supabase
@@ -377,12 +377,15 @@ export async function atividadeRecente(
 ): Promise<Atividade[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("task_history")
-    .select("id, task_id, subtask_id, acao, created_at")
-    .in("acao", Object.keys(ACOES_VISIVEIS))
-    .order("created_at", { ascending: false })
-    .limit(30);
+  const data = ouFalha(
+    "a atividade recente do portal",
+    await supabase
+      .from("task_history")
+      .select("id, task_id, subtask_id, acao, created_at")
+      .in("acao", Object.keys(ACOES_VISIVEIS))
+      .order("created_at", { ascending: false })
+      .limit(30),
+  );
 
   const linhas = data ?? [];
   if (linhas.length === 0) return [];
@@ -461,7 +464,15 @@ export type UsuarioDoCliente = {
 
 export async function usuariosDoMeuCliente(): Promise<UsuarioDoCliente[]> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.rpc("usuarios_do_meu_cliente");
+  // `ouFalha` NUMA RPC também: `usuarios_do_meu_cliente` é `security definer`
+  // e fecha em `my_client_ids()`, então lista vazia é resposta legítima para
+  // quem não tem empresa — mas ERRO de função inexistente (a migration que
+  // não rodou) voltava como a mesma lista vazia, e a aba "Quem tem acesso"
+  // dizia que ninguém tem acesso.
+  const data = ouFalha(
+    "os usuários do portal",
+    await supabase.rpc("usuarios_do_meu_cliente"),
+  );
   return (data ?? []) as UsuarioDoCliente[];
 }
 

@@ -15,6 +15,30 @@ import { criarClienteServidor } from "./server";
  *
  * Nenhuma chave e devolvida: so o host do projeto (que ja vai no bundle do
  * navegador de qualquer forma) e o resultado de cada checagem.
+ *
+ * ---------------------------------------------------------------------------
+ * **DUAS PROFUNDIDADES, e a rasa e a que qualquer um alcanca.**
+ *
+ * `/status` e `/api/status/supabase` sao rotas PUBLICAS de proposito: o
+ * `proxy.ts` manda todo mundo para la quando nao ha credenciais do Supabase --
+ * e travar a tela atras de um login e travar o diagnostico exatamente no
+ * unico momento em que ele importa, porque nesse estado ninguem consegue
+ * entrar.
+ *
+ * O que nao precisa ser publico e o RESTO: o host do projeto, se a chave de
+ * servico existe, se o Resend esta configurado, se o envio esta ao vivo, e
+ * quais variaveis do Google faltam. Juntas, essas linhas sao o mapa de
+ * infraestrutura da agencia servido a quem digitar a URL -- e nenhuma delas
+ * ajuda quem esta do lado de fora a entender por que a porta nao abre.
+ *
+ * Entao `completo` decide: sem ele sai o veredito e as duas checagens da
+ * porta (variaveis e login), que e o que responde "e o sistema ou sou eu"; com
+ * ele sai tudo. Quem passa `completo` e quem ja provou ser da equipe.
+ *
+ * **NAO E "esconder o botao".** O que a versao rasa faz e nao CALCULAR as
+ * outras checagens -- elas nao viajam pela rede nem existem no HTML. Esconder
+ * na tela deixaria o texto no bundle.
+ * ---------------------------------------------------------------------------
  */
 
 export type Situacao = "ok" | "alerta" | "falha";
@@ -350,7 +374,9 @@ function consolidar(checagens: Checagem[]): Situacao {
   return "ok";
 }
 
-export async function diagnosticarSupabase(): Promise<Diagnostico> {
+export async function diagnosticarSupabase(
+  { completo = false }: { completo?: boolean } = {},
+): Promise<Diagnostico> {
   const variaveis = checarVariaveis();
 
   // Sem credenciais validas as outras checagens nao teriam o que testar.
@@ -364,6 +390,24 @@ export async function diagnosticarSupabase(): Promise<Diagnostico> {
   }
 
   const [alcance, schema] = await Promise.all([checarAlcance(), checarSchema()]);
+
+  // AS DUAS DA PORTA, sempre. Elas respondem "é o sistema ou sou eu", que é a
+  // pergunta de quem chegou aqui sem conseguir entrar -- e nenhuma das duas
+  // diz nada sobre a infraestrutura que não esteja no bundle do navegador.
+  const daPorta = [variaveis, alcance];
+
+  if (!completo) {
+    return {
+      situacaoGeral: consolidar(daPorta),
+      // O HOST FICA DE FORA da versão rasa. Ele já viaja no bundle para quem
+      // abre a aplicação de verdade — mas repeti-lo aqui é entregá-lo a quem
+      // só digitou /status, sem nem carregar o app.
+      host: null,
+      verificadoEm: new Date().toISOString(),
+      checagens: daPorta,
+    };
+  }
+
   const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail(), checarDrive()];
 
   return {

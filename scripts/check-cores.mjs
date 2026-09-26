@@ -140,6 +140,22 @@ const PARES = [
   ["--text-secondary", "--danger-soft", NORMAL, "rótulo do cartão de alerta"],
   ["--text-secondary", "--success-soft", NORMAL, "rótulo do cartão bom"],
 
+  // O PAR NEUTRO, e ele é a terceira vez que esta lista fica para trás da
+  // interface.
+  //
+  // `--muted` aponta para `--neutral-soft`, e é o fundo dos selos neutros — a
+  // camada "quem está fora" do calendário, o cabeçalho de mês da linha do
+  // tempo, o dia de outro mês na grade. Sobre ele, `--text-muted` dá
+  // **4,43:1**: passa raspando POR BAIXO do mínimo, e nenhuma linha desta
+  // lista media a combinação. Quem pegou foi o axe-core, na imagem do
+  // protótipo, em três lugares de uma vez.
+  //
+  // `--neutral` é o primeiro-plano nomeado de `--neutral-soft` e dá 6,3:1. As
+  // duas linhas ficam: a de baixo é o que impede alguém de voltar ao
+  // `--text-muted` achando que só a cor mudou.
+  ["--neutral", "--muted", NORMAL, "texto sobre o selo neutro"],
+  ["--text-secondary", "--muted", NORMAL, "texto de apoio sobre o selo neutro"],
+
   // A regra da casa: azul claro pede texto escuro.
   ["--primary-foreground", "--primary", NORMAL, "BOTÃO PRIMÁRIO — a regra da casa"],
   ["--brand-foreground", "--brand", NORMAL, "texto sobre a cor da marca"],

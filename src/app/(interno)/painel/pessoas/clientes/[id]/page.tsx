@@ -7,8 +7,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { ehSocio } from "@/lib/auth/roles";
-import { ultimosAcessos } from "@/lib/dados/acessos";
+import { ehGestor, ehSocio } from "@/lib/auth/roles";
+import { ultimosAcessos, visitasAoPortal } from "@/lib/dados/acessos";
 import {
   identidadeDoPortal,
   obterCliente,
@@ -19,6 +19,7 @@ import { listarEquipeAtiva } from "@/lib/dados/equipe";
 
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
+import { VisitasAoPortal } from "./visitas-ao-portal";
 
 export const metadata: Metadata = { title: "Cliente" };
 
@@ -37,6 +38,11 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
   ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
+  // A CONSULTA SÓ ACONTECE PARA A GESTÃO. Chamá-la sempre e esconder o bloco
+  // depois gastaria duas idas ao banco para desenhar nada — e a lista voltaria
+  // vazia pelo RLS de qualquer forma.
+  const ehDaGestao = ehGestor(sessao.profile.role);
+  const visitas = ehDaGestao ? await visitasAoPortal(id) : [];
   const responsavel = cliente.responsavel_atendimento_id
     ? (equipe.find((p) => p.id === cliente.responsavel_atendimento_id)?.nome ?? null)
     : null;
@@ -70,6 +76,8 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
         temCapa={!!cliente.capa_url}
         temFoto={!!cliente.logo_url}
       />
+
+      {ehDaGestao ? <VisitasAoPortal visitas={visitas} /> : null}
 
       <DetalheDoCliente
         cliente={cliente}

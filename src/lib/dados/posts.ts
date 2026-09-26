@@ -7,6 +7,7 @@ import {
   type RodadaDoConteudo,
   type VersaoDoConteudo,
 } from "@/lib/dados/conteudo";
+import { ouFalha } from "./consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
 import { deslocarMes, type PostDoPortal } from "@/lib/dominio/posts";
@@ -98,11 +99,14 @@ export async function postsDoMes(
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta;
-  const linhas = (data ?? []) as LinhaDePost[];
+  const linhas = (ouFalha("os posts do mês", await consulta) ??
+    []) as LinhaDePost[];
   if (linhas.length === 0) return [];
 
-  const rodadas = await rodadasDo("post", linhas.map((l) => l.id));
+  const rodadas = await rodadasDo(
+    "post",
+    linhas.map((l) => l.id),
+  );
   const nomes = await nomesDe([...rodadas.values()].map((r) => r.decidido_por));
 
   return linhas.map((linha) => montar(linha, rodadas.get(linha.id), nomes));
@@ -118,7 +122,12 @@ export async function obterPost(
   let consulta = supabase.from("posts").select(COLUNAS).eq("id", id);
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta.maybeSingle();
+  // `ouFalha` E DEPOIS `if (!data)`: as duas respostas são diferentes e a
+  // primeira versão as confundia. Sem linha é a RLS dizendo "este post não é
+  // seu", e a tela mostra 404 — que é o certo. Erro é o `select` recusado
+  // inteiro, e antes ele virava o mesmo 404: o cliente via "não encontrado"
+  // para um post que existe.
+  const data = ouFalha("o post", await consulta.maybeSingle());
   if (!data) return null;
 
   const linha = data as LinhaDePost;
@@ -134,15 +143,17 @@ export async function versoesDoPost(
 ): Promise<VersaoDoConteudo[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("post_versions")
-    .select(
-      "id, numero_versao, arte_url, arquivos, legenda, notas_mudanca, criado_por, created_at",
-    )
-    .eq("post_id", postId)
-    .order("numero_versao", { ascending: false });
-
-  const linhas = data ?? [];
+  const linhas =
+    ouFalha(
+      "as versões do post",
+      await supabase
+        .from("post_versions")
+        .select(
+          "id, numero_versao, arte_url, arquivos, legenda, notas_mudanca, criado_por, created_at",
+        )
+        .eq("post_id", postId)
+        .order("numero_versao", { ascending: false }),
+    ) ?? [];
   const nomes = await nomesDe(linhas.map((l) => l.criado_por));
 
   return linhas.map((l) => ({

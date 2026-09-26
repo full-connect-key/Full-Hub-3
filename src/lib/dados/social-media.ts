@@ -2,6 +2,7 @@ import "server-only";
 
 import { assinarArquivos, nomesDe } from "@/lib/dados/conteudo";
 import { deslocarMes, type EtapaDoPost } from "@/lib/dominio/posts";
+import { ouFalha } from "./consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   ArquivoDaVersao,
@@ -128,7 +129,10 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       ...linhas.map((l) => l.responsavel_id),
       ...linhas.map((l) => l.criado_por),
     ]),
-    assinarArquivos(BUCKET, linhas.map((l) => l.thumbnail_url ?? l.arte_url)),
+    assinarArquivos(
+      BUCKET,
+      linhas.map((l) => l.thumbnail_url ?? l.arte_url),
+    ),
     // AS RODADAS DE TODOS OS POSTS NUMA CONSULTA SÓ. Uma por post seria uma
     // consulta por linha do calendário — e o mês cheio tem trinta.
     supabase
@@ -148,13 +152,18 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       .in("post_id", ids),
   ]);
 
-  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const nomeDoCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
   const programados = new Set(
     (etapasDeProgramar ?? [])
       .filter((e) => e.status === "concluida")
       .map((e) => e.post_id),
   );
-  const porPost = new Map<string, { escopo: string; status: string; numero_rodada: number }[]>();
+  const porPost = new Map<
+    string,
+    { escopo: string; status: string; numero_rodada: number }[]
+  >();
   for (const r of rodadas ?? []) {
     const atual = porPost.get(r.content_id) ?? [];
     atual.push(r);
@@ -185,7 +194,9 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       versaoAtual: l.versao_atual,
       enviadoEm: l.enviado_em,
       responsavelId: l.responsavel_id,
-      responsavel: l.responsavel_id ? (nomes.get(l.responsavel_id) ?? null) : null,
+      responsavel: l.responsavel_id
+        ? (nomes.get(l.responsavel_id) ?? null)
+        : null,
       criadoPor: l.criado_por,
       criadorNome: l.criado_por ? (nomes.get(l.criado_por) ?? null) : null,
       avalInterno: minhas.some(
@@ -232,9 +243,10 @@ export async function postsDoMesDaAgencia(
   if (filtros.foco === "meus" && filtros.usuarioId) {
     consulta = consulta.eq("responsavel_id", filtros.usuarioId);
   }
-  if (filtros.foco === "sem_dono") consulta = consulta.is("responsavel_id", null);
+  if (filtros.foco === "sem_dono")
+    consulta = consulta.is("responsavel_id", null);
 
-  const { data } = await consulta;
+  const data = ouFalha("os posts do social", await consulta);
   return montar((data ?? []) as Linha[]);
 }
 
@@ -269,9 +281,10 @@ export async function filaDaAgencia(
   if (filtros.foco === "meus" && filtros.usuarioId) {
     consulta = consulta.eq("responsavel_id", filtros.usuarioId);
   }
-  if (filtros.foco === "sem_dono") consulta = consulta.is("responsavel_id", null);
+  if (filtros.foco === "sem_dono")
+    consulta = consulta.is("responsavel_id", null);
 
-  const { data } = await consulta;
+  const data = ouFalha("os posts do mês no social", await consulta);
   return montar((data ?? []) as Linha[]);
 }
 
@@ -298,7 +311,14 @@ export async function obterPostDaAgencia(id: string): Promise<{
 } | null> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase.from("posts").select(COLUNAS).eq("id", id).maybeSingle();
+  // A ORDEM IMPORTA: `ouFalha` primeiro, `if (!data)` depois. Sem linha é a
+  // RLS dizendo "este post não é seu" e a tela responde 404; erro é o `select`
+  // recusado, que virava o mesmo 404 — e aí "post não encontrado" aparecia
+  // para um post que existe.
+  const data = ouFalha(
+    "o post do social",
+    await supabase.from("posts").select(COLUNAS).eq("id", id).maybeSingle(),
+  );
   if (!data) return null;
 
   const [post] = await montar([data as Linha]);
@@ -333,7 +353,8 @@ export async function obterPostDaAgencia(id: string): Promise<{
       quando: v.created_at,
       arquivos: ((v.arquivos ?? []) as ArquivoDaVersao[]).map((a) => ({
         ...a,
-        assinada: assinadas[a.thumbnail_url ?? a.url] ?? assinadas[a.url] ?? null,
+        assinada:
+          assinadas[a.thumbnail_url ?? a.url] ?? assinadas[a.url] ?? null,
       })),
       arteUrl: v.arte_url,
       arteAssinada: v.arte_url ? (assinadas[v.arte_url] ?? null) : null,
@@ -341,7 +362,6 @@ export async function obterPostDaAgencia(id: string): Promise<{
     })),
   };
 }
-
 
 /**
  * A corrente de etapas de um post (0045).
@@ -354,11 +374,16 @@ export async function obterPostDaAgencia(id: string): Promise<{
 export async function corrente(postId: string): Promise<EtapaDoPost[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("post_etapas")
-    .select("id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em")
-    .eq("post_id", postId)
-    .order("ordem");
+  const data = ouFalha(
+    "a corrente do post",
+    await supabase
+      .from("post_etapas")
+      .select(
+        "id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em",
+      )
+      .eq("post_id", postId)
+      .order("ordem"),
+  );
 
   const linhas = data ?? [];
   const nomes = await nomesDe(linhas.map((l) => l.responsavel_id));
@@ -369,7 +394,9 @@ export async function corrente(postId: string): Promise<EtapaDoPost[]> {
     nome: l.nome,
     funcao: l.funcao,
     responsavelId: l.responsavel_id,
-    responsavel: l.responsavel_id ? (nomes.get(l.responsavel_id) ?? null) : null,
+    responsavel: l.responsavel_id
+      ? (nomes.get(l.responsavel_id) ?? null)
+      : null,
     status: l.status,
     prazo: l.prazo,
     concluidaEm: l.concluida_em,
@@ -401,12 +428,17 @@ export async function minhasEtapasDeSocial(
 ): Promise<EtapaDeSocialMinha[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("post_etapas")
-    .select("id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em")
-    .eq("responsavel_id", usuarioId)
-    .neq("status", "concluida")
-    .order("prazo", { nullsFirst: false });
+  const data = ouFalha(
+    "as minhas etapas de post",
+    await supabase
+      .from("post_etapas")
+      .select(
+        "id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em",
+      )
+      .eq("responsavel_id", usuarioId)
+      .neq("status", "concluida")
+      .order("prazo", { nullsFirst: false }),
+  );
 
   const minhas = data ?? [];
   if (minhas.length === 0) return [];
@@ -417,8 +449,14 @@ export async function minhasEtapasDeSocial(
   // conta de `bloqueioDaEtapa`, com a diferença de que aqui ela decide se o
   // item aparece — e não só como ele é desenhado.
   const [{ data: posts }, { data: irmas }] = await Promise.all([
-    supabase.from("posts").select("id, tema, client_id, data_publicacao").in("id", idsDePost),
-    supabase.from("post_etapas").select("post_id, ordem, status").in("post_id", idsDePost),
+    supabase
+      .from("posts")
+      .select("id, tema, client_id, data_publicacao")
+      .in("id", idsDePost),
+    supabase
+      .from("post_etapas")
+      .select("post_id, ordem, status")
+      .in("post_id", idsDePost),
   ]);
 
   const { data: clientes } = await supabase
@@ -426,7 +464,9 @@ export async function minhasEtapasDeSocial(
     .select("id, nome_empresa")
     .in("id", [...new Set((posts ?? []).map((p) => p.client_id))]);
 
-  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const nomeDoCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
   const doPost = new Map((posts ?? []).map((p) => [p.id, p]));
   const nomes = await nomesDe([usuarioId]);
 
@@ -434,7 +474,10 @@ export async function minhasEtapasDeSocial(
     .filter((e) => {
       if (e.status !== "nao_iniciada") return true;
       return !(irmas ?? []).some(
-        (i) => i.post_id === e.post_id && i.ordem < e.ordem && i.status !== "concluida",
+        (i) =>
+          i.post_id === e.post_id &&
+          i.ordem < e.ordem &&
+          i.status !== "concluida",
       );
     })
     .map((e) => {
@@ -458,7 +501,9 @@ export async function minhasEtapasDeSocial(
 }
 
 /** Os posts que ninguém datou ainda — a faixa ao lado da grade do mês. */
-export async function postsSemData(clienteId?: string): Promise<PostDaAgencia[]> {
+export async function postsSemData(
+  clienteId?: string,
+): Promise<PostDaAgencia[]> {
   const supabase = await criarClienteServidor();
 
   let consulta = supabase
@@ -470,10 +515,9 @@ export async function postsSemData(clienteId?: string): Promise<PostDaAgencia[]>
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data } = await consulta;
+  const data = ouFalha("os posts sem data", await consulta);
   return montar((data ?? []) as Linha[]);
 }
-
 
 export type ReferenciaDoPost = {
   id: string;
@@ -492,11 +536,14 @@ export async function referenciasDoPost(
 ): Promise<ReferenciaDoPost[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("post_referencias")
-    .select("id, url, titulo, adicionado_por, created_at")
-    .eq("post_id", postId)
-    .order("created_at");
+  const data = ouFalha(
+    "as referências do post",
+    await supabase
+      .from("post_referencias")
+      .select("id, url, titulo, adicionado_por, created_at")
+      .eq("post_id", postId)
+      .order("created_at"),
+  );
 
   const linhas = data ?? [];
   const nomes = await nomesDe(linhas.map((l) => l.adicionado_por));

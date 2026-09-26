@@ -4,6 +4,8 @@ import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { obterSessao } from "@/lib/auth/dal";
+import { ehEquipe } from "@/lib/auth/roles";
 import { diagnosticarSupabase, type Situacao } from "@/lib/supabase/diagnostico";
 
 export const metadata: Metadata = { title: "Status da conexão" };
@@ -18,7 +20,27 @@ const aparencia: Record<Situacao, { Icone: typeof CheckCircle2; cor: string; rot
 };
 
 export default async function PaginaDeStatus() {
-  const diagnostico = await diagnosticarSupabase();
+  /**
+   * A TELA CONTINUA PÚBLICA, e o que muda é o quanto ela conta.
+   *
+   * Travá-la atrás de um login travaria o diagnóstico no único momento em que
+   * ele importa: o `proxy.ts` manda todo mundo para cá justamente quando não
+   * há credenciais do Supabase — e nesse estado ninguém consegue entrar para
+   * ver por quê.
+   *
+   * Então quem não é da equipe recebe o veredito e as duas checagens da porta,
+   * que respondem "é o sistema ou sou eu". O host do projeto, a chave de
+   * serviço, o Resend e o Google ficam para quem já provou ser da casa — e não
+   * são escondidos na tela, **não são calculados**: eles não viajam pela rede
+   * nem existem no HTML de quem não pode vê-los.
+   *
+   * `obterSessao()` e não `exigirSessao()`: aquela redireciona, e redirecionar
+   * daqui devolveria a pessoa para a tela de login que talvez seja justamente
+   * a que não funciona.
+   */
+  const sessao = await obterSessao();
+  const completo = !!sessao && ehEquipe(sessao.profile.role);
+  const diagnostico = await diagnosticarSupabase({ completo });
   const geral = aparencia[diagnostico.situacaoGeral];
 
   return (
@@ -49,6 +71,17 @@ export default async function PaginaDeStatus() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* A AUSÊNCIA É DITA, e não escondida: quem é da equipe e abriu sem
+          estar logado precisa saber que existe mais para ver, senão conclui
+          que as outras checagens sumiram do produto. */}
+      {completo ? null : (
+        <p className="text-text-muted mb-4 text-xs">
+          Esta é a versão pública: ela responde se a porta está de pé. As
+          checagens de infraestrutura — chave de serviço, e-mail, Google Drive —
+          aparecem para quem entra com uma conta da agência.
+        </p>
+      )}
 
       <ul className="space-y-3">
         {diagnostico.checagens.map((checagem) => {

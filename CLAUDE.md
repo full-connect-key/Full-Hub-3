@@ -2163,11 +2163,26 @@ de aviso presa no topo, os botões de decisão desligados, e
 `decidir_rodada_do_cliente` no Postgres, que recusa quem não é o cliente
 daquela rodada. Montar a chamada à mão não adianta.
 
-Cada abertura vira linha em `client_portal_views`, e **nada lê essa tabela
-ainda**: a trilha de auditoria existe desde a 0058 e responde por outras treze
-tabelas, não por esta. O rastro está gravado e a tela que o mostra é decisão
-própria. A RLS só aceita a linha em nome de quem está logado, e não existe
-policy de DELETE.
+Cada abertura vira linha em `client_portal_views`, e **agora ela é lida**: na
+ficha do cliente, num bloco que diz quem da agência abriu o portal dele e
+quando. Ela era gravada desde a 0009 e nenhuma tela a consultava — um rastro
+que ninguém lê não é auditoria, é um `insert` que custa uma ida ao banco por
+visita e não responde pergunta nenhuma. A pergunta que ele responde aparece na
+conversa em que o cliente diz "vocês viram o que eu comentei?".
+
+**Ela NÃO entra em `/painel/auditoria`**, e a 0058 já dizia por quê: aquela
+trilha é do sócio, e esta é operacional — `client_portal_views_select` fecha em
+`is_gestor()` desde a 0009. Juntar as duas obrigaria a abrir a trilha do sócio
+para o desenvolvedor, que é a porta dos fundos do Financeiro.
+
+**E o bloco só é desenhado para a gestão**, porque quem não é recebe lista
+vazia pelo RLS — e "ninguém abriu o portal deste cliente" dito a um colaborador
+é uma afirmação falsa com toda a confiança. A trava continua sendo a policy;
+não desenhar é só não mentir. O bloco também some quando não houve visita
+nenhuma, como os blocos de exceção da Home.
+
+A RLS só aceita a linha em nome de quem está logado, e não existe policy de
+DELETE.
 
 **A gestão entra pelo `/portal` também, e vê a escolha.** Sócio e
 desenvolvedor abriam `/portal` e levavam 403 — e digitar `/portal` é
@@ -3569,8 +3584,17 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   inteira, e `const { data } = await consulta` jogou o erro fora — a tela
   dizia "Nenhuma campanha aberta" para quem tinha acabado de abrir uma.
   `ouFalha()` de `lib/dados/consulta.ts` estoura em vez de devolver vazio, com
-  o nome do lugar no log. `lib/dados/` ainda tem dezenas de
-  `const { data } = await`, e a migração é por etapas — registrada lá.
+  o nome do lugar no log. A migração é por etapas, e a ordem não é alfabética:
+  **primeiro o que o cliente lê** — `portal.ts`, `posts.ts` e `social-media.ts`
+  saíram juntos, porque o Portal é a área em que a equipe nunca entra e uma
+  lista vazia lá pode durar meses sem ninguém desconfiar. `lib/dados/` ainda
+  tem `const { data } = await` em módulos do painel, onde quem olha a tela
+  também sabe o que deveria estar nela.
+
+  **E `ouFalha` vem ANTES do `if (!data)`**, nas consultas de um item só. As
+  duas respostas são diferentes: sem linha é a RLS dizendo "isto não é seu", e
+  a tela responde 404 — que é o certo; erro é o `select` recusado inteiro, e
+  juntá-los fazia "post não encontrado" aparecer para um post que existe.
 - **Recusa de validação nunca mostra o texto do zod.** Toda action passa por
   `recusaDeValidacao()` de `lib/acoes/validacao.ts`, e `npm run check:mensagens`
   garante que continue assim. O motivo: a mensagem que escrevemos fica
@@ -3898,6 +3922,38 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   resposta de "já subiu?"; para o cliente seria uma sigla sem significado no
   rodapé da tela dele.
 
+### O `/status` é público, e conta duas coisas diferentes
+
+Ele **precisa** ser público: `src/proxy.ts` manda todo mundo para lá quando não
+há credenciais do Supabase, e travá-lo atrás de um login trava o diagnóstico no
+único momento em que ele importa — nesse estado ninguém consegue entrar para
+ver por quê.
+
+O que não precisava ser público era o resto. Ele contava, a quem digitasse a
+URL: o host do projeto Supabase, se o cadastro estava desligado, se a chave de
+serviço existia, se o Resend estava configurado e se o envio estava ao vivo, e
+**quais variáveis do Google faltavam, pelo nome**. Juntas, essas linhas são o
+mapa de infraestrutura da agência — e nenhuma delas ajuda quem está do lado de
+fora a entender por que a porta não abre.
+
+**Então são duas profundidades.** Sem sessão de equipe sai o veredito e as duas
+checagens da porta — variáveis e alcance —, que respondem *"é o sistema ou sou
+eu"*. Com ela sai tudo. `/api/status/supabase` segue a mesma regra, senão ela
+seria a porta dos fundos da tela.
+
+**E a versão rasa não CALCULA o resto**, em vez de escondê-lo na tela: as
+outras checagens não viajam pela rede nem existem no HTML. Esconder deixaria o
+texto no bundle — é a mesma distinção entre não mostrar o botão e o banco
+recusar.
+
+**A ausência é dita.** Quem é da equipe e abriu sem estar logado lê uma linha
+explicando que há mais para ver — senão conclui que as checagens sumiram do
+produto e vai procurar o que não quebrou.
+
+`obterSessao()` e não `exigirSessao()`: aquela redireciona, e redirecionar daqui
+devolveria a pessoa para a tela de login que talvez seja justamente a que não
+funciona.
+
 **Três camadas de proteção, e elas são independentes**
 
 1. `src/proxy.ts` manda quem não tem sessão para o login.
@@ -3917,8 +3973,8 @@ src/
     (cliente)/portal/         Portal do Cliente — exige cliente
     auth/callback/            Chegada dos links enviados por e-mail
     forbidden.tsx             Tela do HTTP 403
-    status/                   Diagnóstico da conexão com o Supabase
-    api/status/supabase/      O mesmo diagnóstico em JSON
+    status/                   Diagnóstico da conexão com o Supabase (público em duas profundidades)
+    api/status/supabase/      O mesmo diagnóstico em JSON, com a mesma regra
   components/ui/              shadcn/ui
   components/shared/          Componentes do produto
   hooks/

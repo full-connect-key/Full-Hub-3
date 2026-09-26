@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { obterSessao } from "@/lib/auth/dal";
+import { ehEquipe } from "@/lib/auth/roles";
 import { diagnosticarSupabase } from "@/lib/supabase/diagnostico";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +16,12 @@ export const dynamic = "force-dynamic";
  * serve como health check de monitoramento.
  */
 export async function GET() {
-  const diagnostico = await diagnosticarSupabase();
+  // A MESMA REGRA DA TELA, e é ela que faz a rota não ser a porta dos fundos
+  // dela: sem sessão de equipe sai o veredito e as duas checagens da porta.
+  const sessao = await obterSessao();
+  const diagnostico = await diagnosticarSupabase({
+    completo: !!sessao && ehEquipe(sessao.profile.role),
+  });
   return NextResponse.json(diagnostico, {
     status: diagnostico.situacaoGeral === "falha" ? 503 : 200,
     headers: { "Cache-Control": "no-store" },
