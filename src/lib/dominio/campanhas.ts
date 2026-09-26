@@ -371,7 +371,21 @@ export function combinaComFiltro(
   filtro: FiltroDeCampanha,
 ): boolean {
   if (campanha.status === "cancelada") return false;
-  if (filtro === "ativas") return campanha.status === "ativa";
+  // "ATIVAS" INCLUI `planejamento`, e é o conserto de uma contradição.
+  //
+  // A regra do produto diz que *"a campanha ele vê desde o planejamento"* — e
+  // `campaigns_select_cliente` de fato não exige carimbo nenhum. Mas a aba que
+  // abre por padrão mostrava só `ativa`, então uma campanha nascida com o
+  // default do banco (0033) abria uma tela vazia para quem tinha acabado de
+  // ser avisado de que ela existe.
+  //
+  // "Em planejamento" continua existindo como recorte MAIS ESTREITO, e não
+  // como o outro lado de "ativas": a pergunta dela é "o que ainda não
+  // começou", que é legítima e é a de quem está conferindo o mês. Duas abas
+  // que se sobrepõem são melhores que uma aba padrão que esconde.
+  if (filtro === "ativas") {
+    return campanha.status === "ativa" || campanha.status === "planejamento";
+  }
   if (filtro === "finalizadas") return campanha.status === "finalizada";
   return campanha.status === "planejamento";
 }

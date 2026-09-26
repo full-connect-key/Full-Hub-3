@@ -323,8 +323,19 @@ export interface Database {
           segmento: string | null;
           responsavel_atendimento_id: string | null;
           observacoes: string | null;
-          /** Enviada pelo proprio cliente, em /portal/configuracoes (0031). */
+          /**
+           * A foto de perfil da empresa no portal (0031, desenhada desde a
+           * 0063). Continua editável pelo cliente, ao contrário da capa: o
+           * logo é a marca dele.
+           */
           logo_url: string | null;
+          /**
+           * A capa do portal daquele cliente (0063). Caminho no bucket
+           * `campanhas-arquivos`, com o id do cliente na frente. **Só a
+           * agência escreve** — `protect_client_columns` devolve o valor
+           * antigo para o cliente.
+           */
+          capa_url: string | null;
           ativo: boolean;
           created_at: string;
         };
@@ -341,6 +352,7 @@ export interface Database {
           responsavel_atendimento_id?: string | null;
           observacoes?: string | null;
           logo_url?: string | null;
+          capa_url?: string | null;
           ativo?: boolean;
           created_at?: string;
         };
@@ -355,6 +367,7 @@ export interface Database {
           responsavel_atendimento_id?: string | null;
           observacoes?: string | null;
           logo_url?: string | null;
+          capa_url?: string | null;
           ativo?: boolean;
         };
         Relationships: [];
@@ -1023,6 +1036,12 @@ export interface Database {
           // e uma task marcada à mão como recorrente mentiria sobre a origem
           // dela no selo que a tela mostra.
           recurrence_id: string | null;
+          // O mês de social que esta demanda agrupa, sempre no dia 1
+          // (migration 0061). Nulo = demanda comum. Fica FORA de Insert e de
+          // Update pela mesma razão de `recurrence_id`: quem a preenche é
+          // `abrir_mes_de_social()`, e uma demanda marcada à mão como o social
+          // de um mês mentiria no selo que a tela mostra.
+          social_do_mes: string | null;
           criado_por: string;
           concluida_em: string | null;
           // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
@@ -2061,8 +2080,22 @@ export interface Database {
            * Social Media, e uma chave por função daria às duas o mesmo dia.
            */
           p_prazos?: Record<string, number>;
+          /**
+           * A pasta de entrega da DEMANDA do mês (0061). Obrigatória quando
+           * ela nasce; ignorada quando o mês já tem demanda — abrir o mesmo
+           * mês duas vezes acrescenta etapas à que existe.
+           */
+          p_link_entrega?: string | null;
         };
         Returns: number;
+      };
+      /**
+       * Esta etapa e o agrupador de um post de social? Se sim: sem dono, sem
+       * prazo, relogio parado e status calculado pela corrente (0061).
+       */
+      subtarefa_de_post: {
+        Args: { p_subtask_id: string };
+        Returns: boolean;
       };
       /**
        * Gera UMA ocorrencia e devolve o id da task, ou null quando outra

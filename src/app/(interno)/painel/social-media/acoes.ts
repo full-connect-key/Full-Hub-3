@@ -10,6 +10,8 @@ import {
 } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { nomeDaPastaDoMes } from "@/lib/dominio/posts";
+import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { ArquivoDaVersao } from "@/lib/supabase/database.types";
 import { anunciar } from "@/lib/acoes/ao-vivo";
@@ -436,6 +438,22 @@ const esquemaDoMes = z.object({
    * `check` da 0059, e é ele que pega quem chamar a RPC direto.
    */
   prazos: z.record(z.string(), z.number().int().min(-60).max(60).nullable()).optional(),
+  /**
+   * A pasta de entrega da DEMANDA do mês (0061).
+   *
+   * Ela é pedida aqui porque o mês de social deixou de ser N posts soltos e
+   * passou a ser uma demanda com um post em cada etapa — e
+   * `tasks_exige_pasta_de_entrega` (0015) recusa demanda nova sem pasta desde
+   * o Sprint 9. Não há exceção a abrir: uma trava com exceção para o módulo
+   * que abre sessenta demandas por mês é uma trava desligada.
+   *
+   * **Opcional aqui e obrigatória lá**, e não é descuido: abrir o mesmo mês em
+   * duas vezes — doze no Instagram hoje, quatro no LinkedIn amanhã —
+   * acrescenta etapas à demanda que já existe, e aí não há pasta a pedir. Quem
+   * sabe se a demanda já existe é o banco; repetir essa pergunta aqui seria
+   * criar o segundo lugar onde as duas respostas divergem.
+   */
+  link_entrega: z.string().trim().url("A pasta precisa ser um endereço.").optional(),
 });
 
 /**
@@ -493,6 +511,7 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
       p_responsavel_id: null,
       p_responsaveis: responsaveis,
       p_prazos: prazos,
+      p_link_entrega: lido.data.link_entrega ?? null,
     });
 
     if (error) {
@@ -503,8 +522,13 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
 
     revalidar();
     const quantos = Number(data ?? 0);
+    // A FRASE DIZ QUE NASCEU UMA DEMANDA, e não só quantos posts. Quem abre o
+    // mês não está pensando em Gestão de Tasks, e vai encontrar a demanda lá
+    // no dia seguinte sem saber de onde ela veio.
     return sucesso(
-      quantos === 1 ? "1 post aberto, sem data." : `${quantos} posts abertos, sem data.`,
+      quantos === 1
+        ? "1 post aberto, sem data, na demanda do mês."
+        : `${quantos} posts abertos, sem data, na demanda do mês.`,
       quantos,
     );
   });
@@ -741,5 +765,52 @@ export async function removerArquivoDaVersao(
 
     revalidar();
     return sucesso(`${nota}. Ficou na versão ${data.numero_versao}.`);
+  });
+}
+
+/**
+ * A pasta do mês no Drive, para o diálogo de abrir o mês (0061).
+ *
+ * **Irmã de `criarPastaDeEntrega` em Gestão de Tasks, e não a mesma função**,
+ * porque a pergunta é outra: lá a demanda já existe e a pasta nasce com o
+ * título dela; aqui a demanda ainda não existe — é justamente a pasta que
+ * falta para ela poder nascer. Passar um id de task que não existe seria
+ * inventar um parâmetro para reaproveitar quinze linhas.
+ *
+ * O que as duas compartilham é `pastaDaEntregaDaDemanda()`, que é onde mora a
+ * decisão de verdade: achar ou criar a pasta do cliente, gravar o id dela na
+ * ficha, e pendurar a do mês embaixo.
+ *
+ * **NÃO é `after()`**, ao contrário do e-mail: a pessoa está esperando o
+ * endereço, que é o que ela veio buscar. O e-mail é aviso; isto é o trabalho.
+ */
+export async function criarPastaDoMesDeSocial(
+  clienteId: string,
+  mes: string,
+): Promise<Resultado<string>> {
+  return executarAcao("criarPastaDoMesDeSocial", async () => {
+    // A MESMA GUARDA DE ABRIR O MÊS, e não `exigirGestorNaAcao`: quem abre o
+    // mês é o Atendimento desde a 0046, e uma guarda mais apertada aqui faria
+    // a pessoa do Atendimento levar "seu perfil não permite" no botão que
+    // existe só para ela conseguir abrir o mês.
+    await exigirAtendimentoNaAcao();
+
+    if (!/^\d{4}-\d{2}$/.test(mes)) return falha("Escolha o mês antes.");
+    if (!clienteId) return falha("Escolha o cliente antes — a pasta nasce dentro da dele.");
+
+    const { url, clienteNasceuAgora } = await pastaDaEntregaDaDemanda(
+      clienteId,
+      nomeDaPastaDoMes(mes),
+    );
+
+    // NADA É GRAVADO AQUI. A demanda do mês ainda não existe, e quem grava o
+    // endereço nela é `abrir_mes_de_social()`, na mesma transação em que ela
+    // nasce. O que volta é o endereço, para o campo do diálogo.
+    return sucesso(
+      clienteNasceuAgora
+        ? "Pasta do mês criada. O cliente também ganhou a dele, no Drive da agência."
+        : "Pasta do mês criada dentro da pasta do cliente.",
+      url,
+    );
   });
 }

@@ -58,7 +58,15 @@ export function PainelDaGestao({
 
   function exportar() {
     const csv = montarCSV(
-      ["Pessoa", "Trilha", "Obrigatória", "Concluídos", "Total", "%", "Concluída em"],
+      [
+        "Pessoa",
+        "Trilha",
+        "Obrigatória",
+        "Concluídos",
+        "Total",
+        "%",
+        "Concluída em",
+      ],
       visiveis.map((l) => [
         l.nome,
         l.trilha,
@@ -70,7 +78,10 @@ export function PainelDaGestao({
       ]),
     );
 
-    baixarCSV(csv, `academy-acompanhamento-${format(new Date(), "yyyy-MM-dd")}.csv`);
+    baixarCSV(
+      csv,
+      `academy-acompanhamento-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
   }
 
   return (
@@ -156,10 +167,12 @@ export function PainelDaGestao({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-text-primary text-sm font-semibold">Acompanhamento</h2>
+            <h2 className="text-text-primary text-sm font-semibold">
+              Acompanhamento
+            </h2>
             <p className="text-text-muted text-xs">
-              Quem concluiu o quê. A anotação pessoal de cada material não aparece aqui —
-              ela é de quem a escreveu.
+              Quem concluiu o quê. A anotação pessoal de cada material não
+              aparece aqui — ela é de quem a escreveu.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -186,7 +199,11 @@ export function PainelDaGestao({
 
         {visiveis.length === 0 ? (
           <EmptyState
-            title={soObrigatorias ? "Nenhuma trilha obrigatória publicada" : "Nada a acompanhar"}
+            title={
+              soObrigatorias
+                ? "Nenhuma trilha obrigatória publicada"
+                : "Nada a acompanhar"
+            }
             description={
               soObrigatorias
                 ? "Marque uma trilha como obrigatória para acompanhar quem já fez."
@@ -220,9 +237,12 @@ export function PainelDaGestao({
                     </TableCell>
                     <TableCell>
                       <BarraDeProgresso
+                        nome="Materiais concluídos"
                         valor={linha.concluidos}
                         total={linha.total}
-                        tom={linha.concluidos >= linha.total ? "sucesso" : "marca"}
+                        tom={
+                          linha.concluidos >= linha.total ? "sucesso" : "marca"
+                        }
                         rotulo={`${linha.concluidos} de ${linha.total}`}
                       />
                     </TableCell>
@@ -231,7 +251,9 @@ export function PainelDaGestao({
                           isso sai com date-fns e não com DateBadge — o badge
                           pinta o passado de vermelho como se fosse atraso. */}
                       {linha.concluidaEm
-                        ? format(parseISO(linha.concluidaEm), "dd/MM/yyyy", { locale: ptBR })
+                        ? format(parseISO(linha.concluidaEm), "dd/MM/yyyy", {
+                            locale: ptBR,
+                          })
                         : "—"}
                     </TableCell>
                   </TableRow>

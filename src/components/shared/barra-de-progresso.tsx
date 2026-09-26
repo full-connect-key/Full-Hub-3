@@ -19,6 +19,7 @@ export function BarraDeProgresso({
   className,
   tom = "marca",
   rotuloOculto = false,
+  nome,
 }: {
   valor: number;
   total: number;
@@ -37,6 +38,18 @@ export function BarraDeProgresso({
    * que é o motivo de o rótulo ser obrigatório.
    */
   rotuloOculto?: boolean;
+  /**
+   * O NOME do que está progredindo — e ele é o rótulo acessível.
+   *
+   * `aria-valuetext` NÃO é nome: ele é o valor por extenso. Sem `aria-label`
+   * o leitor de tela anuncia "barra de progresso, 9 de 13 aprovados" sem
+   * dizer de quê — e o axe-core reprova com `aria-progressbar-name`, que foi
+   * como isto apareceu, na imagem do protótipo.
+   *
+   * O padrão é genérico de propósito: quem tem um nome melhor passa um, e
+   * quem não passa continua com um rótulo válido em vez de nenhum.
+   */
+  nome?: string;
 }) {
   // Total zero daria NaN, que o navegador renderiza como largura inválida.
   const percentual = total > 0 ? Math.round((valor / total) * 100) : 0;
@@ -45,6 +58,7 @@ export function BarraDeProgresso({
     <div className={cn("space-y-1", className)}>
       <div
         role="progressbar"
+        aria-label={nome ?? "Progresso"}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={valor}

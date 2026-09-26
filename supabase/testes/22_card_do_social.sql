@@ -42,7 +42,8 @@ update public.post_etapas set responsavel_id = :BRUNO
 -- A CARLA E `colaborador` E ESTA NO ATENDIMENTO. Este cenario e o que separa
 -- perfil de acesso de funcao na agencia: ate a 0046 ela levava "é da gestão".
 select teste.cenario('O Atendimento abre o mes, sendo colaborador', :CARLA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '{"instagram": 2}'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$,
     :VERDE), 'ok', 1);
 
 select teste.cenario('E abre post avulso tambem', :CARLA,

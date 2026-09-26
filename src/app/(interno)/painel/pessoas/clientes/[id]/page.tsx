@@ -9,10 +9,16 @@ import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehSocio } from "@/lib/auth/roles";
 import { ultimosAcessos } from "@/lib/dados/acessos";
-import { obterCliente, usuariosDoCliente, vinculosDoCliente } from "@/lib/dados/clientes";
+import {
+  identidadeDoPortal,
+  obterCliente,
+  usuariosDoCliente,
+  vinculosDoCliente,
+} from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 
 import { DetalheDoCliente } from "./detalhe";
+import { IdentidadeDoPortal } from "./identidade-do-portal";
 
 export const metadata: Metadata = { title: "Cliente" };
 
@@ -23,10 +29,11 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
   const cliente = await obterCliente(id);
   if (!cliente) notFound();
 
-  const [usuarios, equipe, vinculos] = await Promise.all([
+  const [usuarios, equipe, vinculos, identidade] = await Promise.all([
     usuariosDoCliente(id),
     listarEquipeAtiva(),
     vinculosDoCliente(id),
+    identidadeDoPortal(id),
   ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
@@ -50,6 +57,18 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
             {cliente.ativo ? "Ativo" : "Inativo"}
           </Badge>
         }
+      />
+
+      {/* A IDENTIDADE DO PORTAL FICA NO TOPO, antes dos campos: ela é o que o
+          cliente vê, e os campos são o que a agência anota. Entre as
+          observações e a zona de perigo ela pareceria mais um campo. */}
+      <IdentidadeDoPortal
+        clienteId={cliente.id}
+        nome={cliente.nome_empresa}
+        capaAssinada={identidade?.capaAssinada ?? null}
+        fotoAssinada={identidade?.fotoAssinada ?? null}
+        temCapa={!!cliente.capa_url}
+        temFoto={!!cliente.logo_url}
       />
 
       <DetalheDoCliente

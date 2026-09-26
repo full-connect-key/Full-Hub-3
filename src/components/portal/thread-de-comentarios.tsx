@@ -8,7 +8,7 @@ import { comentarNoConteudo } from "@/app/(cliente)/portal/_actions/conteudo";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { chamarAcao } from "@/lib/acoes/cliente";
+import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { Conteudo } from "@/lib/aprovacoes/conteudo";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { tempoRelativo } from "@/lib/dominio/recomendacoes";
@@ -57,9 +57,13 @@ export function ThreadDeComentarios({
   const respostas = (id: string) =>
     comentarios.filter((c) => c.respostaA === id);
 
+  // `chamarEMostrar` e não `chamarAcao`: a recusa precisa virar toast. Ver a
+  // explicação em `decisoes-do-conteudo.tsx` — os dois componentes tinham o
+  // mesmo silêncio, e um comentário que some sem dizer nada faz a pessoa
+  // escrever de novo, e de novo.
   function enviar() {
     iniciar(async () => {
-      const resultado = await chamarAcao(() =>
+      const resultado = await chamarEMostrar(() =>
         comentarNoConteudo(conteudo, texto, respondendo),
       );
       if (resultado.ok) {

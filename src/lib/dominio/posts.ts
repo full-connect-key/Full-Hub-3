@@ -508,6 +508,32 @@ export function rotuloDoOffset(dias: number): string {
   return dias < 0 ? `${quantos} ${plural} antes` : `${quantos} ${plural} depois`;
 }
 
+/**
+ * O nome da pasta do mês no Drive — "Social · Junho de 2027".
+ *
+ * **Ele NÃO é o título da demanda, e a diferença é onde cada um aparece.** No
+ * board da agência convivem os meses de dez clientes, então a demanda precisa
+ * dizer de quem é — `Social · Junho/2027 de Mundo Verde`, montado pela
+ * `abrir_mes_de_social()`. A pasta nasce DENTRO da pasta do cliente, onde o
+ * nome da empresa já é o nível de cima: repeti-lo daria
+ * "Mundo Verde › Social · Junho/2027 de Mundo Verde".
+ *
+ * E sem a barra, que `nomeDePasta()` trocaria por hífen: `/` é legal num nome
+ * de pasta do Drive e faz "Junho/2027" se ler como dois níveis que não
+ * existem — a mesma razão pela qual "Feed/story site" da Wave vira
+ * "Feed-story site".
+ */
+export function nomeDaPastaDoMes(mes: string): string {
+  const [ano, m] = mes.split("-").map(Number);
+  const nomes = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  ];
+  const nome = nomes[m - 1];
+  if (!nome || !Number.isFinite(ano)) return "Social";
+  return `Social · ${nome} de ${ano}`;
+}
+
 export const ETAPAS_DA_FUNCAO: Record<string, string> = {
   "Social Media": "Pauta e Programar",
   Redator: "Conteúdo",

@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { chamarAcao } from "@/lib/acoes/cliente";
+import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { ContentStatus } from "@/lib/supabase/database.types";
 
 /**
@@ -93,9 +93,26 @@ export function DecisoesDoConteudo({
   const [motivo, setMotivo] = useState("");
   const [enviando, iniciar] = useTransition();
 
+  /**
+   * ---------------------------------------------------------------------
+   * **`chamarEMostrar` E NÃO `chamarAcao`, e a troca conserta o bug mais caro
+   * que este produto teve.**
+   *
+   * Com `chamarAcao` sozinho, o `if (resultado.ok)` engolia toda recusa: o
+   * cliente clicava em Aprovar, nada acontecia, e nada era dito. Foi assim
+   * que a falha da 0062 — `notificar()` estourando o `not null` de
+   * `notifications.user_id` quando a empresa não tem responsável de
+   * atendimento — ficou invisível até alguém relatar "não consigo aprovar".
+   *
+   * A regra do produto é "nenhuma escrita pode falhar em silêncio", e ela
+   * estava quebrada nos dois únicos componentes do Portal do Cliente que
+   * escrevem. **O Portal é a área que a equipe nunca abre**, e é por isso
+   * que justamente ali o silêncio durou.
+   * ---------------------------------------------------------------------
+   */
   function decidir(decisao: DecisaoDoCliente, comentario: string) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() =>
+      const resultado = await chamarEMostrar(() =>
         decidirConteudo(rodadaPendenteId!, decisao, comentario),
       );
       if (resultado.ok) {

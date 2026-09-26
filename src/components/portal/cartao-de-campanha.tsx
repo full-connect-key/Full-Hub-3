@@ -37,7 +37,8 @@ export function CartaoDeCampanha({
   esperando: number;
   href: string;
 }) {
-  const completa = progresso.total > 0 && progresso.aprovados === progresso.total;
+  const completa =
+    progresso.total > 0 && progresso.aprovados === progresso.total;
 
   return (
     <Link
@@ -74,6 +75,7 @@ export function CartaoDeCampanha({
 
       {progresso.total > 0 ? (
         <BarraDeProgresso
+          nome="Materiais aprovados"
           valor={progresso.aprovados}
           total={progresso.total}
           tom={completa ? "sucesso" : "marca"}

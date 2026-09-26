@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ImageOff,
-  Maximize2,
-  Minus,
-  Plus,
-  RotateCcw,
-} from "lucide-react";
+import { ImageOff, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
 
 import { FaixaDaComposicao } from "@/components/shared/faixa-da-composicao";
 import { Button } from "@/components/ui/button";

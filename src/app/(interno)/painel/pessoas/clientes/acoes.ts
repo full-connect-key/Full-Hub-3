@@ -172,3 +172,86 @@ export async function excluirCliente(dados: unknown): Promise<Resultado> {
     return sucesso(`${cliente.nome_empresa} foi excluída.`);
   });
 }
+
+/**
+ * A capa e a foto de perfil do portal daquele cliente (0063).
+ *
+ * ---------------------------------------------------------------------------
+ * **UMA AÇÃO PARA AS DUAS, e o campo é parâmetro.**
+ *
+ * São a mesma decisão — trocar uma imagem de identidade do portal — e as duas
+ * gravam uma coluna de `clients` pela mesma policy. Duas actions gêmeas
+ * divergiriam na primeira mudança, e a divergência apareceria no lugar em que
+ * ninguém olha: a capa aceitando um caminho que a foto recusa.
+ *
+ * O `z.enum` é o que impede o parâmetro de virar buraco: sem ele, `campo`
+ * seria o nome de qualquer coluna de `clients` vindo do navegador.
+ * ---------------------------------------------------------------------------
+ *
+ * **`null` TIRA A IMAGEM E NÃO APAGA O ARQUIVO**, como a capa da campanha
+ * (0050): o objeto continua no bucket. Apagar não é desfazer — quem tirou a
+ * capa errada não tem como pô-la de volta, e o custo de um arquivo parado é
+ * menor que o de uma imagem perdida.
+ */
+const esquemaDaIdentidade = z.object({
+  id: z.string().uuid(),
+  campo: z.enum(["capa_url", "logo_url"]),
+  caminho: z.string().max(400).nullable(),
+});
+
+const NOME_DO_CAMPO: Record<"capa_url" | "logo_url", string> = {
+  capa_url: "capa",
+  logo_url: "foto de perfil",
+};
+
+export async function trocarIdentidadeDoPortal(dados: unknown): Promise<Resultado> {
+  return executarAcao("trocarIdentidadeDoPortal", async () => {
+    await exigirGestorNaAcao();
+
+    const lido = esquemaDaIdentidade.safeParse(dados);
+    if (!lido.success) {
+      throw new ErroDeAcao(
+        recusaDeValidacao(
+          "trocarIdentidadeDoPortal",
+          lido.error,
+          dados,
+          "Confira a imagem.",
+          { id: "cliente", campo: "imagem", caminho: "arquivo" },
+        ),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("clients")
+      // O OBJETO É MONTADO EXPLICITAMENTE, e não por chave computada: com
+      // `{ [campo]: valor }` o TypeScript perde o nome da coluna e o `Update`
+      // de `clients` deixa de conferir nada — o `z.enum` acima passaria a ser
+      // a única coisa entre o navegador e um `update` de coluna arbitrária.
+      .update(
+        lido.data.campo === "capa_url"
+          ? { capa_url: lido.data.caminho }
+          : { logo_url: lido.data.caminho },
+      )
+      .eq("id", lido.data.id)
+      .select("id");
+
+    if (error) throw new ErroDeAcao(error.message);
+    // `.select()` porque uma escrita barrada pelo RLS volta sem erro e sem
+    // linha: sem isto a tela diria "capa trocada" e a imagem continuaria a
+    // mesma depois do refresh.
+    if (!data || data.length === 0) {
+      throw new ErroDeAcao(
+        "O banco recusou. Trocar a identidade do portal é do desenvolvedor ou do sócio.",
+      );
+    }
+
+    revalidatePath(`/painel/pessoas/clientes/${lido.data.id}`);
+    revalidatePath("/portal");
+    return sucesso(
+      lido.data.caminho
+        ? `A ${NOME_DO_CAMPO[lido.data.campo]} do portal foi trocada.`
+        : `A ${NOME_DO_CAMPO[lido.data.campo]} foi tirada do portal.`,
+    );
+  });
+}

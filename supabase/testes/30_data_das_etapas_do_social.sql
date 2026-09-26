@@ -241,7 +241,7 @@ select teste.conferir(
   (select string_agg(pg_get_function_identity_arguments(p.oid), ' | ')
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'abrir_mes_de_social'),
-  'p_client_id uuid, p_mes text, p_quantidades jsonb, p_responsavel_id uuid, p_responsaveis jsonb, p_prazos jsonb');
+  'p_client_id uuid, p_mes text, p_quantidades jsonb, p_responsavel_id uuid, p_responsaveis jsonb, p_prazos jsonb, p_link_entrega text');
 
 -- E A VIEW CONTINUA COM `security_invoker`. O `create or replace view` da 0059
 -- teve que repetir a clausula: ele NAO herda a do objeto que substitui, e sem

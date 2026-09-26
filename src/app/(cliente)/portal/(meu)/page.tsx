@@ -49,13 +49,10 @@ export default async function PaginaInicialDoPortal({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Olá, {nome}</h1>
-        <p className="text-text-muted mt-1">
-          Aqui está o que a Full preparou para você.
-        </p>
-      </div>
-
+      {/* A SAUDAÇÃO FOI PARA DENTRO DA IDENTIDADE (0063). Ela estava aqui, e
+          a capa entrava embaixo dela — o cliente via o próprio nome de empresa
+          duas vezes na mesma dobra, e a peça de identidade começava no meio da
+          tela em vez de abri-la. */}
       <Suspense fallback={<LoadingSkeleton variant="table" rows={5} />}>
         {/* `empresa` é o seletor do cabeçalho, e só aparece para quem responde
             por mais de uma. Sem ele, a tela soma as duas contas — que é o que

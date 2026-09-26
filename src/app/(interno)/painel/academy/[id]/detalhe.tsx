@@ -92,9 +92,15 @@ export function DetalheDaTrilha({
   const [aberto, setAberto] = useState<string | null>(null);
   const [editandoMaterial, setEditandoMaterial] = useState(false);
 
-  const concluida = trilha.quantosMateriais > 0 && trilha.quantosConcluidos >= trilha.quantosMateriais;
+  const concluida =
+    trilha.quantosMateriais > 0 &&
+    trilha.quantosConcluidos >= trilha.quantosMateriais;
 
-  function responder(resultado: { ok: boolean; mensagem?: string; error?: string }) {
+  function responder(resultado: {
+    ok: boolean;
+    mensagem?: string;
+    error?: string;
+  }) {
     if (resultado.ok) {
       toast.success(resultado.mensagem ?? "Pronto.");
       router.refresh();
@@ -106,7 +112,9 @@ export function DetalheDaTrilha({
   function alternar(material: MaterialComProgresso) {
     iniciar(async () =>
       responder(
-        await chamarAcao(() => marcarMaterial(material.id, !material.concluido, trilha.id)),
+        await chamarAcao(() =>
+          marcarMaterial(material.id, !material.concluido, trilha.id),
+        ),
       ),
     );
   }
@@ -129,7 +137,9 @@ export function DetalheDaTrilha({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-text-primary text-xl font-semibold">{trilha.titulo}</h1>
+              <h1 className="text-text-primary text-xl font-semibold">
+                {trilha.titulo}
+              </h1>
               {trilha.obrigatoria ? (
                 <span className="bg-warning-soft text-warning rounded-full px-2 py-0.5 text-[11px] font-medium">
                   Obrigatória
@@ -141,7 +151,9 @@ export function DetalheDaTrilha({
                 </span>
               ) : null}
             </div>
-            {trilha.area ? <p className="text-text-muted text-sm">{trilha.area}</p> : null}
+            {trilha.area ? (
+              <p className="text-text-muted text-sm">{trilha.area}</p>
+            ) : null}
             {trilha.descricao ? (
               <p className="text-text-secondary max-w-2xl text-sm leading-relaxed">
                 {trilha.descricao}
@@ -157,7 +169,9 @@ export function DetalheDaTrilha({
               onClick={() =>
                 iniciar(async () =>
                   responder(
-                    await chamarAcao(() => publicarTrilha(trilha.id, !trilha.publicada)),
+                    await chamarAcao(() =>
+                      publicarTrilha(trilha.id, !trilha.publicada),
+                    ),
                   ),
                 )
               }
@@ -168,12 +182,15 @@ export function DetalheDaTrilha({
         </div>
 
         <BarraDeProgresso
+          nome="Materiais concluídos"
           className="max-w-md"
           valor={trilha.quantosConcluidos}
           total={trilha.quantosMateriais}
           tom={concluida ? "sucesso" : "marca"}
           rotulo={`${trilha.quantosConcluidos} de ${trilha.quantosMateriais} concluídos${
-            trilha.duracaoMinutos !== null ? ` · ${formatarMinutos(trilha.duracaoMinutos)}` : ""
+            trilha.duracaoMinutos !== null
+              ? ` · ${formatarMinutos(trilha.duracaoMinutos)}`
+              : ""
           }`}
         />
       </header>
@@ -183,12 +200,17 @@ export function DetalheDaTrilha({
           precisa poder mostrar que acabou. */}
       {concluida ? (
         <div className="bg-success-soft rounded-card flex items-start gap-2 border p-4">
-          <PartyPopper aria-hidden className="text-success mt-0.5 size-4 shrink-0" />
+          <PartyPopper
+            aria-hidden
+            className="text-success mt-0.5 size-4 shrink-0"
+          />
           <div>
-            <p className="text-success text-sm font-semibold">Trilha concluída</p>
+            <p className="text-success text-sm font-semibold">
+              Trilha concluída
+            </p>
             <p className="text-text-secondary text-sm">
-              Você viu os {trilha.quantosMateriais} materiais desta trilha. A data de
-              conclusão ficou registrada.
+              Você viu os {trilha.quantosMateriais} materiais desta trilha. A
+              data de conclusão ficou registrada.
             </p>
           </div>
         </div>
@@ -229,13 +251,17 @@ export function DetalheDaTrilha({
                   aberto={aberto === material.id}
                   podeEditar={podeEditar}
                   executando={executando}
-                  onAbrir={() => setAberto(aberto === material.id ? null : material.id)}
+                  onAbrir={() =>
+                    setAberto(aberto === material.id ? null : material.id)
+                  }
                   onAlternar={() => alternar(material)}
                   onMover={(direcao) => mover(indice, direcao)}
                   onExcluir={() =>
                     iniciar(async () =>
                       responder(
-                        await chamarAcao(() => excluirMaterial(material.id, trilha.id)),
+                        await chamarAcao(() =>
+                          excluirMaterial(material.id, trilha.id),
+                        ),
                       ),
                     )
                   }
@@ -270,7 +296,6 @@ export function DetalheDaTrilha({
           executando={executando}
         />
       ) : null}
-
     </div>
   );
 }
@@ -306,7 +331,9 @@ function LinhaDoMaterial({
   const endereco = material.url ?? material.arquivo_url;
   const modo = modoDeAbrir(material.tipo, material.url);
   const incorporacao =
-    modo === "embutido" && material.url ? enderecoDeIncorporacao(material.url) : null;
+    modo === "embutido" && material.url
+      ? enderecoDeIncorporacao(material.url)
+      : null;
 
   return (
     <div className="rounded-card bg-surface-card border">
@@ -436,7 +463,8 @@ function LinhaDoMaterial({
             </a>
           ) : (
             <p className="text-text-muted text-sm">
-              Este material não tem endereço — é a descrição de um padrão a reproduzir.
+              Este material não tem endereço — é a descrição de um padrão a
+              reproduzir.
             </p>
           )}
 
@@ -453,8 +481,8 @@ function LinhaDoMaterial({
             />
             <div className="flex items-center justify-between gap-2">
               <p className="text-text-muted text-xs">
-                Só você lê isto. Nem a gestão — ela acompanha a conclusão, não o que
-                você escreveu.
+                Só você lê isto. Nem a gestão — ela acompanha a conclusão, não o
+                que você escreveu.
               </p>
               <Button
                 type="button"
@@ -497,9 +525,16 @@ function FormularioDeMaterial({
     <section className="rounded-card bg-surface-card space-y-4 border p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-text-primary text-sm font-semibold">Novo material</h3>
+          <h3 className="text-text-primary text-sm font-semibold">
+            Novo material
+          </h3>
         </div>
-        <Button variant="ghost" size="icon" aria-label="Fechar" onClick={aoFechar}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Fechar"
+          onClick={aoFechar}
+        >
           <X aria-hidden />
         </Button>
       </div>
@@ -518,7 +553,10 @@ function FormularioDeMaterial({
 
         <div className="space-y-1.5">
           <Label htmlFor="material-tipo">Tipo</Label>
-          <Select value={tipo} onValueChange={(v) => setTipo(v as MaterialTipo)}>
+          <Select
+            value={tipo}
+            onValueChange={(v) => setTipo(v as MaterialTipo)}
+          >
             <SelectTrigger id="material-tipo" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -554,7 +592,9 @@ function FormularioDeMaterial({
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="material-skill">Skill que este material desenvolve</Label>
+          <Label htmlFor="material-skill">
+            Skill que este material desenvolve
+          </Label>
           <Select value={skill} onValueChange={setSkill}>
             <SelectTrigger id="material-skill" className="w-full">
               <SelectValue placeholder="Nenhuma" />

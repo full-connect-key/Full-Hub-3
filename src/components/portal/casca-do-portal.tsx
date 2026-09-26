@@ -26,6 +26,7 @@ export function CascaDoPortal({
   base = "/portal",
   hrefDosDados = "/portal/configuracoes",
   aviso,
+  fotoDaEmpresa = null,
   children,
 }: {
   nome: string;
@@ -38,6 +39,16 @@ export function CascaDoPortal({
   /** Para onde vai "Meus dados" no menu do canto. */
   hrefDosDados?: string;
   aviso?: React.ReactNode;
+  /**
+   * A foto de perfil da empresa, assinada (0063).
+   *
+   * **Ela aparece no cabeçalho de TODA tela, e a peça grande só no Início.**
+   * A identidade precisa ser constante — o cliente entra no portal dele e
+   * não num painel genérico —, mas repetir a capa de 200px em cada visita
+   * gastaria a primeira dobra de toda tela com a mesma imagem. Aqui são
+   * 28px ao lado do nome que já estava lá.
+   */
+  fotoDaEmpresa?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -65,6 +76,18 @@ export function CascaDoPortal({
               <span aria-hidden className="text-text-muted">
                 |
               </span>
+              {/* A foto ANTES do nome, e `alt=""`: ela não acrescenta
+                  informação nenhuma ao texto que vem logo ao lado, e um
+                  leitor de tela que anuncia "Mundo Verde, Mundo Verde" lê
+                  duas vezes a mesma coisa. */}
+              {fotoDaEmpresa ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fotoDaEmpresa}
+                  alt=""
+                  className="size-7 shrink-0 rounded-full object-cover"
+                />
+              ) : null}
               <span className="truncate text-sm font-medium">
                 {nomeDaEmpresa}
               </span>

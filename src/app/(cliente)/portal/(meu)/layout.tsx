@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { CascaDoPortal } from "@/components/portal/casca-do-portal";
 import { Logo } from "@/components/shared/logo";
 import { exigirAreaDoCliente } from "@/lib/auth/portal-administrativo";
-import { obterMinhasEmpresas } from "@/lib/dados/clientes";
+import { identidadeDoPortal, obterMinhasEmpresas } from "@/lib/dados/clientes";
 
 /**
  * O portal da pessoa cliente — e, para a gestão, a escolha de qual portal abrir.
@@ -53,6 +53,9 @@ export default async function LayoutDoMeuPortal({
   }
 
   const empresas = await obterMinhasEmpresas();
+  // SÓ COM UMA EMPRESA. Com duas, o cabeçalho troca o nome pelo seletor, e uma
+  // foto ao lado de um controle que lista N empresas diria que ela é de todas.
+  const identidade = empresas.length === 1 ? await identidadeDoPortal(empresas[0].id) : null;
   const nomeDaEmpresa = empresas
     .map((empresa) => empresa.nome_empresa)
     .join(", ");
@@ -62,6 +65,7 @@ export default async function LayoutDoMeuPortal({
       nome={sessao.profile.nome}
       email={sessao.email}
       nomeDaEmpresa={nomeDaEmpresa || null}
+      fotoDaEmpresa={identidade?.fotoAssinada ?? null}
       empresas={empresas}
     >
       {children}

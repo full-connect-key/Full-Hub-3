@@ -68,7 +68,9 @@ export async function CampanhasDoPortal({
     <div className="space-y-6">
       <nav aria-label="Filtrar campanhas" className="flex flex-wrap gap-2">
         {FILTROS_DE_CAMPANHA.map((opcao) => {
-          const quantas = todas.filter((c) => combinaComFiltro(c, opcao)).length;
+          const quantas = todas.filter((c) =>
+            combinaComFiltro(c, opcao),
+          ).length;
           const ativo = opcao === filtro;
 
           return (

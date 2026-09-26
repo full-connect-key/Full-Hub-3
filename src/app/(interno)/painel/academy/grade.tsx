@@ -204,6 +204,7 @@ function CartaoDaTrilha({ trilha }: { trilha: TrilhaDaGrade }) {
       </div>
 
       <BarraDeProgresso
+        nome="Materiais concluídos"
         valor={trilha.quantosConcluidos}
         total={trilha.quantosMateriais}
         tom={concluida ? "sucesso" : "marca"}

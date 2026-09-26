@@ -1552,6 +1552,82 @@ mesmo nome. E é na Principal porque a divisão do menu é sobre a **pessoa**:
 Gestão carrega o selo Admin e significa "o que eu faço sobre os outros", e o
 redator escrevendo a legenda dele não está fazendo nada sobre ninguém.
 
+#### O mês de social é UMA demanda, e cada post é uma etapa dela
+
+Migration 0061, decisão do usuário: *"atualmente quando abro o mês de social,
+ele abre tasks individuais, quero que mude o fluxo para Uma task do Social do
+mês em questão, e uma subtarefa, para cada um dos posts"*.
+
+**A ponte já existia, e é a quarta.** `posts.subtask_id` nasceu na 0032, com o
+comentário dizendo em quantas palavras o que ela é para — *"quando existe, é o
+que faz a Gestão de Tasks e o Portal contarem a mesma história"* — e em cinco
+migrations de social nenhuma linha a escreveu. Por isso a coluna nova é uma só,
+`tasks.social_do_mes`.
+
+**É o modo `mensal_agrupada` da recorrência outra vez.** A 0040 já tinha a
+conta escrita: sem ele o board teria vinte e duas linhas do mesmo trabalho por
+mês, por cliente. Agora ele tem doze linhas dentro de uma, e o andamento de
+"Social de Outubro" cabe em algum lugar — o status da Task é calculado pelas
+folhas desde a 0007, então a demanda do mês anda sozinha conforme os posts
+andam.
+
+**A SUBTAREFA DO POST É AGRUPADORA EM TUDO, MENOS NO `parent_id`.** Ela é o
+post no board, e nada mais:
+
+- **não tem responsável.** O trabalho de um post tem CINCO donos, e as cinco
+  etapas da corrente já aparecem em Minhas Tasks em bloco próprio. Escrever um
+  dos cinco aqui poria o mesmo trabalho duas vezes na mesma lista, numa linha
+  cujo dono seria um dos cinco escolhido a esmo;
+- **não tem prazo.** O dia do post já aparece duas vezes no calendário — a
+  sexta origem (o post) e a oitava (a etapa da corrente, 0059). Uma terceira
+  linha no mesmo dia é a conta que o produto já recusou duas vezes, e o resumo
+  da semana ganharia cinquenta linhas dizendo "sem responsável";
+- **o relógio não corre nela**, que é a linha da 0022 para a agrupadora;
+- **o status é calculado pela corrente**, nunca escrito à mão.
+
+O que ela NÃO herda é a contagem: ela **conta como folha** na soma da Task,
+porque ela é o post — e o progresso do mês é quantos posts andaram. A pergunta
+mora num lugar só, `subtarefa_de_post()`, como `subtask_eh_agrupadora()`.
+
+**O mirror não tem de-para, e é por isso que ele pode existir.**
+`post_etapas.status` é `subtask_status` desde a 0045, exatamente porque
+responde à mesma pergunta — então o mirror copia valor para valor. **Menos em
+dois casos:** a mãe nunca fica em `enviada_aprovacao` nem em `em_ajustes`,
+porque os dois afirmam uma rodada dela própria e a fila de aprovações iria
+procurá-la. Com a corrente em aprovação, ela fica em `em_andamento`, que é
+verdade.
+
+E o mirror **não precisa de saída de emergência**, ao contrário da 0045 e da
+0059: ele escreve pelo caminho normal e as três travas de
+`validar_transicao_de_subtarefa` deixam passar — a subtarefa não exige
+aprovação, não tem dependência, e os dois status que pedem rodada são
+justamente os dois que ele não escreve. É a forma da 0052: perguntar antes, em
+vez de embrulhar num `exception when others` que engole também o erro que
+ninguém previu.
+
+**A pasta de entrega é obrigatória, e não há exceção a abrir.**
+`tasks_exige_pasta_de_entrega` (0015) recusa demanda nova sem ela, e uma trava
+com exceção para o módulo que abre sessenta demandas por mês é uma trava
+desligada. `abrir_mes_de_social()` recebe `p_link_entrega`, o diálogo pede a
+pasta, e o botão "Criar no Drive" do Sprint 16 cria a do mês. Ela é pedida **só
+quando a demanda nasce**: abrir o mesmo mês em duas vezes acrescenta etapas à
+que já existe.
+
+**O nome da pasta NÃO é o título da demanda.** No board convivem os meses de
+dez clientes, então a demanda diz de quem é — `Social · Outubro/2027 de Mundo
+Verde`. A pasta nasce dentro da pasta do cliente, onde o nome da empresa já é o
+nível de cima: `nomeDaPastaDoMes()` devolve `Social · Outubro de 2027`, sem a
+barra que `nomeDePasta()` trocaria por hífen.
+
+**A idempotência é o ÍNDICE ÚNICO**, `(client_id, social_do_mes)`, e não o
+`select` que a função faz antes — duas abas clicando ao mesmo tempo passam
+pelas duas consultas antes de qualquer uma gravar. É a decisão da 0040.
+
+**Apagar o post apaga a linha dele**, por trigger: deste lado não existe chave
+estrangeira, e sem ele a demanda continuaria contando um post que não existe
+mais — "11 de 12" nunca fecharia. E **o título da etapa acompanha o tema**,
+senão o board mostraria o nome de fábrica para sempre.
+
 #### Quem tem etapa na corrente escreve no card
 
 Migration 0047, e é um furo que a 0046 deixou — encontrado pelo usuário
@@ -1686,7 +1762,13 @@ produção não existe para ele, nem na árvore, nem pela URL direta, nem pela A
 com o id na mão. A consulta de `lib/dados/campanhas.ts` não repete o filtro.
 **A campanha, essa ele vê desde o planejamento:** ela tem nome, período e
 progresso, e é isso que responde "o que a Full está fazendo para mim este
-mês". Esconder até o primeiro envio faria a lista de campanhas ativas contar
+mês". **E a aba "Ativas" inclui `planejamento`** — ela abria só com
+`status = 'ativa'`, e como o default da coluna é `planejamento` (0033) uma
+campanha nascida por qualquer caminho que não passe pelo formulário existia, o
+cliente podia abri-la pela listagem, e o bloco da tela inicial a escondia. Foi
+o que o usuário encontrou. "Em planejamento" continua existindo como recorte
+mais estreito, e não como o outro lado de "ativas": duas abas que se sobrepõem
+são melhores que uma aba padrão que esconde. Esconder até o primeiro envio faria a lista de campanhas ativas contar
 menos do que existe — e ele já sabe que ela existe, foi ele quem pediu.
 
 **Sub-item órfão sobe para o topo em vez de sumir.** Se o pai não veio porque
@@ -1947,6 +2029,55 @@ a camada em inglês.
 A varredura pegou duas frases que o cliente lia ("o conteúdo entra em um dos
 próximos sprints") e um campo chamado `task` na tela de aprovações. Critério
 que diz "não existe" é o tipo que volta sem ninguém perceber.
+
+#### A capa e a foto de perfil de cada cliente
+
+Migration 0063, decisão do usuário, escolhida entre três propostas de layout:
+**capa larga com a foto sobreposta**, no desenho de perfil de rede social.
+
+**A metade que já existia é `clients.logo_url`, e ela é a quinta ponte.**
+Nasceu na 0031, está na lista de colunas que o cliente pode escrever desde
+então, e **nenhuma linha da interface a desenhava** — nem no painel, nem no
+portal. Em doze sprints ela foi um campo de anotação, como
+`clients.drive_folder_id` até o Sprint 16 e `posts.subtask_id` até a 0061. Por
+isso a coluna nova é uma só: a capa.
+
+**A capa é da agência; o logo continua do cliente.** As duas ao mesmo tempo
+pareceriam incoerência, e são duas perguntas: o logo é a marca da empresa dele,
+e a regra escrita desde a 0005 é que contato, e-mail, telefone e logo são dele;
+a capa é enquadramento — é como a Full apresenta aquele portal, como a coluna
+escura do login e a capa da campanha. `capa_url` entra em
+`protect_client_columns` e `logo_url` não sai de onde está. Quem sobe as duas é
+a agência, na ficha do cliente.
+
+**A peça grande só no Início; a foto pequena em toda tela.** A proposta que
+punha a capa atrás do cabeçalho de todas as telas custava o inverso: numa faixa
+de 88px a imagem se lê como textura e não como imagem. Aqui ela tem 200px para
+ser uma imagem de verdade, e as outras telas ficam com a foto de 28px ao lado
+do nome — identidade constante sem repetir a peça grande em cada visita. Em
+375px a capa cai para 120px, que é a única concessão: metade da primeira dobra
+de um celular gasta com marca é meia tela a menos para o que a pessoa veio ver.
+
+**Ela é ALINHADA AO CONTEÚDO, e não sangra para fora dele.** A primeira versão
+usava `-mx-4 lg:-mx-8` para escapar do respiro da página, e a imagem do
+protótipo mostrou por que não funciona: `main` é `mx-auto max-w-5xl`, então
+tirar o padding deixa a faixa 32px mais larga que os cartões e ainda longe da
+borda da janela — nem alinhada nem de ponta a ponta, que é a única das três que
+parece erro.
+
+**A saudação mora dentro da identidade.** Ela estava num bloco acima, e o
+resultado era "Olá, Ana" em cima, a capa embaixo, e o nome da empresa duas
+vezes na mesma dobra — no cabeçalho e no bloco. Juntas, as duas linhas dizem de
+uma vez de quem é o portal e quem está lendo.
+
+**O nome nunca vai EM CIMA da imagem.** Texto sobre foto é contraste que
+ninguém mediu: a capa vem de fora e pode ser clara, escura, ou as duas coisas
+na mesma imagem. É a mesma razão pela qual o produto usa par nomeado em vez de
+opacidade.
+
+Sem capa, a faixa cai para `--brand-navy` — o mesmo fundo da barra lateral e do
+painel do login, escuro nos dois temas. Sem foto, o ícone genérico. **Tirar
+não apaga o arquivo**, como na capa da campanha: apagar não é desfazer.
 
 #### O que o cliente edita, e o que ele não edita
 
@@ -2879,6 +3010,49 @@ que nenhum sino. Um trigger também impede reescrever o título do próprio avis
 A função nunca notifica quem causou o aviso. O sino é para o que os **outros**
 fizeram.
 
+**E ela não avisa NINGUÉM quando não há ninguém** (migration 0062). Até ali
+`notificar()` ia direto ao `insert`, e `notifications.user_id` é `not null`:
+passar uma coluna nulável — `clients.responsavel_atendimento_id`,
+`posts.criado_por`, `subtasks.responsavel_id` — estourava a restrição e
+**levava junto a escrita que chamou**.
+
+**Isso quebrou as quatro ações do cliente no Portal, e quem encontrou foi o
+usuário.** Numa empresa sem responsável de atendimento preenchido — estado
+normal, porque o campo é opcional desde o Sprint 2 —, `decidir_rodada_do_cliente`
+e o trigger `comments_avisa_a_equipe` morriam os dois no mesmo `insert`:
+aprovar, recusar, pedir ajustes e comentar voltavam recusados. E `on delete set
+null` transforma isso em bomba com relógio: no dia em que a pessoa do
+atendimento sai da agência, todo cliente dela para de conseguir aprovar
+qualquer coisa, sem nada mudando na tela.
+
+**O conserto é na função, e não nos 23 lugares que a chamam.** Pôr um
+`if ... is not null` em cada chamada seria criar 23 lugares para lembrar, e a
+24ª esqueceria — a mesma razão pela qual a auditoria é trigger e não action.
+E o retorno certo é `null`, não exceção: "não há ninguém para avisar" não é
+falha de nada, é a resposta — como já era o caso de quem seria avisado ser
+quem causou o aviso.
+
+**A bateria não pegou porque a montagem escondia.**
+`15_posts_e_comentarios.sql` abria com
+`update public.clients set responsavel_atendimento_id = :MARINA`, uma linha de
+fixture que garantia — sem querer — a única condição em que o bug não acontece.
+Mil e tantos cenários verdes com o produto quebrado. É a mesma armadilha do
+Sprint 16 em `19_social_media_interno.sql`: **conveniência de fixture ocupando
+o lugar do cenário**. A montagem ficou, e ao lado dela entraram os cenários da
+empresa que não tem atendente. **E o seed também mudou**: a Óptica Visão passou
+a nascer sem responsável de atendimento, porque um ambiente de desenvolvimento
+em que toda empresa tem um mostra o produto no único estado em que o bug não
+aparece.
+
+**E a tela engolia a recusa, que é a outra metade.**
+`components/portal/decisoes-do-conteudo.tsx` e `thread-de-comentarios.tsx`
+chamavam `chamarAcao()` e nunca mostravam o resultado: o clique não fazia nada
+e não dizia nada. Eram **os dois únicos componentes do produto** com esse
+silêncio, e os dois no Portal do Cliente — a área que a equipe nunca abre. A
+regra "nenhuma escrita pode falhar em silêncio" estava quebrada exatamente no
+lugar mais caro, e é por isso que o erro do banco levou meses para virar
+relato. Os dois passaram a usar `chamarEMostrar()`.
+
 Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
 vezes fecha para resolver depois.
 
@@ -3745,6 +3919,9 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0058_trilha_de_auditoria.sql` | **Pendente de aplicação.** Traz `audit_log` e o trigger `registrar_auditoria()` em 13 tabelas. Sem ela, `/painel/auditoria` devolve erro de tabela inexistente — e nada é registrado |
 | `supabase/migrations/0059_a_data_de_cada_etapa_do_social.sql` | **Pendente de aplicação.** Traz `post_etapas.prazo_offset_dias`, o recálculo quando o post muda de dia e a OITAVA origem da `calendar_events`. Sem ela, abrir o mês continua criando etapas sem data e elas não entram no calendário de ninguém |
 | `supabase/migrations/0060_a_gestao_envia_o_que_produziu.sql` | **Pendente de aplicação.** Tira de `validar_nova_rodada` a trava que recusava quem produziu enviar ao cliente — ela só alcançava desenvolvedor e sócio, que são quem o usuário liberou. Sem ela aplicada, a gestão continua levando a recusa num envio que o produto diz que é dela |
+| `supabase/migrations/0061_o_mes_de_social_e_uma_demanda.sql` | **Pendente de aplicação.** Traz `tasks.social_do_mes`, `subtarefa_de_post()`, o mirror da corrente e o `p_link_entrega` de `abrir_mes_de_social()`. Sem ela, abrir o mês continua criando posts soltos — e a tela, que passou a mandar a pasta, leva *"Could not find the function"* |
+| `supabase/migrations/0062_notificar_ninguem_nao_e_erro.sql` | **Pendente de aplicação, e é a que conserta o bug relatado.** Faz `notificar()` devolver null quando não há a quem avisar. Sem ela, numa empresa **sem responsável de atendimento** o cliente não consegue aprovar, recusar, pedir ajustes nem comentar: o `not null` de `notifications.user_id` derruba a transação inteira |
+| `supabase/migrations/0063_a_capa_e_a_foto_do_portal.sql` | **Pendente de aplicação.** Traz `clients.capa_url` e põe a capa na lista de `protect_client_columns`. Sem ela, a ficha do cliente devolve erro de coluna inexistente ao trocar a capa |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

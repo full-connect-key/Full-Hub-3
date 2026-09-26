@@ -14,6 +14,7 @@ import {
   postsSemData,
 } from "@/lib/dados/social-media";
 
+import { driveConfigurado } from "@/lib/drive/config";
 import { SocialMedia } from "./social-media";
 
 export const metadata: Metadata = { title: "Social Media" };
@@ -66,6 +67,10 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
         .filter((c) => c.ativo)
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
       equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
+      // `driveConfigurado()` é `server-only` e desce como prop: valor
+      // exportado de arquivo cliente não vale no servidor, e o contrário
+      // também não atravessa — a checagem mora aqui e o booleano viaja.
+      driveLigado={driveConfigurado()}
       quemLe={{ id: sessao.usuarioId, ehGestor: souGestor }}
       mes={mes}
     />

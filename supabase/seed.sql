@@ -132,6 +132,32 @@ values
    'contato@corpolivre.com.br', '(11) 98888-0003')
 on conflict (id) do nothing;
 
+-- A CAPA E A FOTO DO PORTAL (0063), com um caminho do proprio site e nao do
+-- bucket -- `assinarArquivos()` deixa passar direto o que ja comeca com `/`,
+-- e assinar um endereco que nao e do Storage devolveria erro e apagaria a
+-- imagem da tela. O seed nao sobe arquivo.
+--
+-- SO A MUNDO VERDE tem as duas: a Optica fica sem nenhuma, que e como toda
+-- empresa nasce -- e e a faixa da cor da marca com o icone generico que
+-- precisa ser conferida, nao a versao com imagem bonita.
+update public.clients
+set capa_url = '/exemplos/capa-1.svg',
+    logo_url = '/exemplos/arte-1.svg'
+where id = 'c0000000-0000-0000-0000-00000000000a';
+
+-- A OPTICA VISAO FICA SEM RESPONSAVEL DE ATENDIMENTO, e e de proposito.
+--
+-- O campo e opcional no cadastro desde o Sprint 2, entao empresa sem atendente
+-- e estado normal -- e com `on delete set null` ela vira esse estado sozinha
+-- no dia em que a pessoa sai da agencia. Ate a 0062 esse estado quebrava as
+-- QUATRO acoes do cliente no portal (aprovar, recusar, pedir ajustes,
+-- comentar), porque `notificar()` estourava o `not null` de
+-- `notifications.user_id` e levava a transacao inteira junto.
+--
+-- O seed anterior punha atendente nas duas empresas ativas, entao o ambiente
+-- de desenvolvimento mostrava o produto no unico estado em que o bug nao
+-- acontece -- o pior tipo de dado de exemplo, o que esconde sem avisar. Agora
+-- uma tem e a outra nao, que e o que uma agencia de verdade parece.
 update public.clients
 set segmento = v.segmento,
     responsavel_atendimento_id = v.responsavel,
@@ -140,7 +166,7 @@ from (values
   ('c0000000-0000-0000-0000-00000000000a'::uuid, 'Alimentação saudável',
    'a0000000-0000-0000-0000-000000000003'::uuid, true),
   ('c0000000-0000-0000-0000-00000000000b'::uuid, 'Varejo óptico',
-   'a0000000-0000-0000-0000-000000000003'::uuid, true),
+   null::uuid, true),
   ('c0000000-0000-0000-0000-00000000000c'::uuid, 'Academia',
    null, false)
 ) as v(id, segmento, responsavel, ativo)

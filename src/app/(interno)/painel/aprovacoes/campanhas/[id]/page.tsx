@@ -106,7 +106,9 @@ export default async function PaginaDaCampanha({
             ) : null}
             {campanha.slug ? (
               <Button variant="outline" asChild>
-                <Link href={`/portal/${campanha.slug}/campanhas/${campanha.id}`}>
+                <Link
+                  href={`/portal/${campanha.slug}/campanhas/${campanha.id}`}
+                >
                   <ExternalLink aria-hidden className="size-4" />
                   Ver como o cliente vê
                 </Link>
@@ -132,6 +134,7 @@ export default async function PaginaDaCampanha({
 
         {conta.total > 0 ? (
           <BarraDeProgresso
+            nome="Materiais aprovados"
             valor={conta.aprovados}
             total={conta.total}
             tom={conta.aprovados === conta.total ? "sucesso" : "marca"}

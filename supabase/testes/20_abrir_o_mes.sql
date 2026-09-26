@@ -40,7 +40,8 @@ select teste.cenario('E o cliente muito menos', :JOANA,
 
 select teste.cenario('A gestao abre tres no Instagram e dois no LinkedIn', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2026-11', '{"instagram": 3, "linkedin": 2}'::jsonb)$fmt$, :VERDE), 'ok', 1);
+    %L, '2026-11', '{"instagram": 3, "linkedin": 2}'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$, :VERDE), 'ok', 1);
 
 select teste.conferir('Nasceram cinco posts',
   (select count(*)::text from public.posts
@@ -114,7 +115,8 @@ select teste.conferir('Nenhuma recusa deixou post pela metade',
 
 select teste.cenario('A gestao abre dois ja no nome do Bruno', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2026-12', '{"tiktok": 2}'::jsonb, %L)$fmt$, :VERDE, :BRUNO), 'ok', 1);
+    %L, '2026-12', '{"tiktok": 2}'::jsonb, %L,
+    p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$, :VERDE, :BRUNO), 'ok', 1);
 
 select teste.conferir('Os dois sairam com dono',
   (select count(*)::text from public.posts

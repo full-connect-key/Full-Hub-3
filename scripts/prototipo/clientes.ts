@@ -26,6 +26,28 @@ export async function obterMinhasEmpresas() {
   return EMPRESAS_EXEMPLO;
 }
 
+/**
+ * A identidade do portal (0063), com uma capa de exemplo do proprio site.
+ *
+ * O caminho e um arquivo de `public/` e nao do bucket, como a capa da campanha
+ * do seed: `enderecoDaArte` ja sabe distinguir os dois -- assinar um endereco
+ * que nao e do Storage devolve erro, e a imagem sumiria da tela sem nada
+ * avisando.
+ */
+export async function identidadeDoPortal(clienteId?: string) {
+  const alvo = clienteId ?? EMPRESAS_EXEMPLO[0]?.id;
+  const empresa = CLIENTES_EXEMPLO.find((c) => c.id === alvo);
+  if (!empresa) return null;
+  return {
+    nome: empresa.nome_empresa,
+    capaAssinada: "/exemplos/capa-1.svg",
+    // A foto fica NULA de propósito: é o estado do dia um de todo cliente, e
+    // é o que precisa ser conferido na imagem — a capa com foto é o caso
+    // fácil; o círculo vazio sobre a faixa é o que quebra.
+    fotoAssinada: null,
+  };
+}
+
 export async function listarClientes(): Promise<ClienteComResumo[]> {
   return CLIENTES_EXEMPLO.map((cliente) => ({
     ...(cliente as Client),

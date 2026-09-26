@@ -105,6 +105,7 @@ export async function DetalheDaCampanha({
       <section className="bg-surface-card space-y-3 rounded-xl border p-4">
         {conta.total > 0 ? (
           <BarraDeProgresso
+            nome="Materiais aprovados"
             valor={conta.aprovados}
             total={conta.total}
             tom={conta.aprovados === conta.total ? "sucesso" : "marca"}

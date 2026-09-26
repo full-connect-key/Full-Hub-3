@@ -104,6 +104,7 @@ export function SocialMedia({
   referencias,
   clientes,
   equipe,
+  driveLigado = false,
   quemLe,
   mes,
 }: {
@@ -116,6 +117,8 @@ export function SocialMedia({
   referencias: ReferenciaDoPost[];
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
+  /** A integração com o Drive está ligada? Decide o botão "Criar no Drive". */
+  driveLigado?: boolean;
   quemLe: QuemLe;
   mes: string;
 }) {
@@ -284,7 +287,7 @@ export function SocialMedia({
               pediu hoje. */}
           {quemLe.ehGestor ? (
             <>
-              <AbrirOMes clientes={clientes} equipe={equipe} />
+              <AbrirOMes clientes={clientes} equipe={equipe} driveLigado={driveLigado} />
               <NovoPost clientes={clientes} equipe={equipe} />
             </>
           ) : null}

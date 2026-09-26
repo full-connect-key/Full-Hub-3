@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { CalendarPlus, FolderPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -31,10 +31,11 @@ import {
   FUNCOES_DA_CORRENTE,
   PLATAFORMAS,
   ROTULO_DA_PLATAFORMA,
+  nomeDaPastaDoMes,
   rotuloDoOffset,
 } from "@/lib/dominio/posts";
 
-import { abrirMesDeSocial } from "./acoes";
+import { abrirMesDeSocial, criarPastaDoMesDeSocial } from "./acoes";
 
 const SEM_VALOR = "__sem__";
 const TETO = 60;
@@ -60,9 +61,19 @@ const TETO = 60;
 export function AbrirOMes({
   clientes,
   equipe,
+  driveLigado = false,
 }: {
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
+  /**
+   * A integração com o Drive está configurada?
+   *
+   * Vem de cima porque `lib/drive/config.ts` é `server-only` — e o botão
+   * some quando ela está desligada, em vez de aparecer e responder "não
+   * configurado": um botão que ensina a não clicar nele é pior que um botão
+   * a menos. É a mesma decisão de "Criar no Drive" no detalhe da demanda.
+   */
+  driveLigado?: boolean;
 }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -79,6 +90,8 @@ export function AbrirOMes({
     return d.toISOString().slice(0, 7);
   });
   const [quantidades, setQuantidades] = useState<Record<string, string>>({});
+  const [pasta, setPasta] = useState("");
+  const [criandoPasta, criarPasta] = useTransition();
   const [responsaveis, setResponsaveis] = useState<Record<string, string>>({});
 
   const total = useMemo(
@@ -107,7 +120,26 @@ export function AbrirOMes({
   );
 
   const excede = total > TETO;
-  const podeAbrir = !!cliente && total > 0 && !excede;
+  // A PASTA ENTRA NA CONDIÇÃO, e é o que muda desde a 0061: o mês deixou de
+  // ser N posts soltos e virou uma DEMANDA com um post em cada etapa — e
+  // `tasks_exige_pasta_de_entrega` recusa demanda nova sem pasta desde a 0015.
+  //
+  // A tela cobra antes para a recusa não chegar depois de sete campos
+  // preenchidos; quem vale é o banco, e é ele que pega quem chamar a RPC
+  // direto.
+  const podeAbrir = !!cliente && total > 0 && !excede && pasta.trim().length > 0;
+
+  function criarNoDrive() {
+    criarPasta(async () => {
+      const r = await chamarAcao(() => criarPastaDoMesDeSocial(cliente, mes));
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      setPasta(r.dados ?? "");
+      toast.success(r.mensagem);
+    });
+  }
 
   function enviarFormulario() {
     const numeros: Record<string, number> = {};
@@ -125,6 +157,7 @@ export function AbrirOMes({
           responsaveis: Object.fromEntries(
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
           ),
+          link_entrega: pasta.trim(),
           prazos: Object.fromEntries(
             Object.entries(prazos).map(([etapa, v]) => {
               const n = Number.parseInt(v, 10);
@@ -142,6 +175,7 @@ export function AbrirOMes({
       toast.success(r.mensagem);
       setAberto(false);
       setQuantidades({});
+      setPasta("");
       router.refresh();
     });
   }
@@ -193,6 +227,54 @@ export function AbrirOMes({
                 onChange={(e) => setMes(e.target.value)}
               />
             </div>
+          </div>
+
+          {/*
+            A PASTA DE ENTREGA DO MÊS.
+
+            Ela aparece aqui, logo abaixo de cliente e mês, porque é deles que
+            o nome dela sai — e porque é o campo que decide se o botão do fim
+            funciona. No fim da tela ela seria a surpresa depois de sete campos
+            preenchidos.
+          */}
+          <div className="space-y-1.5">
+            <Label htmlFor="mes-pasta">Pasta de entrega do mês</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="mes-pasta"
+                type="url"
+                inputMode="url"
+                className="min-w-48 flex-1"
+                placeholder="https://drive.google.com/..."
+                value={pasta}
+                onChange={(e) => setPasta(e.target.value)}
+              />
+              {/* O BOTÃO SOME QUANDO JÁ HÁ ENDEREÇO, como no detalhe da
+                  demanda: "Criar no Drive" ao lado de um campo preenchido
+                  convida a criar a segunda pasta do mesmo mês — e o Drive
+                  aceita duas irmãs homônimas sem reclamar, o que espalha o
+                  material entre as duas. */}
+              {driveLigado && pasta.trim().length === 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={criarNoDrive}
+                  disabled={!cliente || criandoPasta}
+                >
+                  {criandoPasta ? (
+                    <Loader2 aria-hidden className="size-4 animate-spin" />
+                  ) : (
+                    <FolderPlus aria-hidden className="size-4" />
+                  )}
+                  Criar no Drive
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-text-secondary text-xs">
+              O mês inteiro é uma demanda só — “{nomeDaPastaDoMes(mes)}” —, com um
+              post em cada etapa. Toda demanda precisa da pasta onde o material
+              final vai ficar.
+            </p>
           </div>
 
           <section className="space-y-2">

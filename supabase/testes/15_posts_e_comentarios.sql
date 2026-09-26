@@ -445,6 +445,70 @@ select teste.recusa_com('E tipo sem regra continua recusado', :DIEGO,
 
 
 -- ---------------------------------------------------------------------------
+-- 11B. A EMPRESA SEM RESPONSAVEL DE ATENDIMENTO -- E O BUG QUE ESTA MONTAGEM
+--      ESCONDEU
+--
+-- O arquivo abre com `update public.clients set responsavel_atendimento_id =
+-- :MARINA where id = :VERDE`, e aquela linha garantia -- sem querer -- a unica
+-- condicao em que o bug da 0062 nao acontece. Os 1069 cenarios ficavam verdes
+-- com o cliente sem conseguir aprovar nada em producao.
+--
+-- A Optica Visao NUNCA recebe esse `update`, e e de proposito: a coluna e
+-- opcional no cadastro desde o Sprint 2, entao empresa sem atendente e estado
+-- normal -- e `on delete set null` transforma isso em bomba com relogio, no
+-- dia em que a pessoa do atendimento sai da agencia.
+--
+-- Estes quatro cenarios estao VIRADOS DO AVESSO: se alguem tirar de
+-- `notificar()` a linha que devolve null sem ninguem a avisar, eles falham e
+-- dizem qual. O sintoma sem eles e o pior possivel -- *null value in column
+-- "user_id" violates not-null constraint* numa tela que nao mostra erro
+-- nenhum, e a decisao do cliente voltando calada.
+-- ---------------------------------------------------------------------------
+select teste.conferir('A Optica nao tem responsavel de atendimento',
+  (select (responsavel_atendimento_id is null)::text from public.clients where id = :OPTICA),
+  'true');
+
+select teste.cenario('Bruno manda o post da Optica para aprovacao interna', :BRUNO,
+  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('post', %L, 1, 'interna', %L)$fmt$, :DA_OPTICA, :BRUNO),
+  'ok', 1);
+
+select teste.cenario('Diego aprova a interna da Optica', :DIEGO,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L, decidido_em = now()
+     where content_type = 'post' and content_id = %L and escopo = 'interna'$fmt$, :DIEGO, :DA_OPTICA),
+  'ok', 1);
+
+select teste.cenario('Diego envia ao cliente da Optica', :DIEGO,
+  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('post', %L, 1, 'cliente', %L)$fmt$, :DA_OPTICA, :DIEGO),
+  'ok', 1);
+
+-- O CENARIO QUE O USUARIO ENCONTROU CLICANDO. Sem a 0062 isto recusa com o
+-- `not null` de `notifications.user_id`, e o post fica em aprovacao para
+-- sempre.
+select teste.cenario('Otto comenta no post de uma empresa sem atendente', :OTTO,
+  format($fmt$insert into public.comments (content_type, content_id, autor_id, texto)
+    values ('post', %L, %L, 'A arte ficou boa, mas o telefone esta errado.')$fmt$,
+    :DA_OPTICA, :OTTO),
+  'ok', 1);
+
+select teste.cenario('E Otto aprova, que e a decisao que ele nao conseguia tomar', :OTTO,
+  format($fmt$select public.decidir_rodada_do_cliente(
+    (select id from public.approval_rounds where content_type = 'post' and content_id = %L and escopo = 'cliente'),
+    'aprovada', null)$fmt$, :DA_OPTICA),
+  'ok');
+
+select teste.conferir('O post da Optica ficou aprovado',
+  (select status::text from public.posts where id = :DA_OPTICA), 'aprovado');
+
+-- E O AVISO NAO NASCEU, que e a outra metade: `notificar()` devolve null sem
+-- escrever, em vez de estourar. Um aviso para ninguem seria uma linha em
+-- `notifications` que nenhuma caixa de entrada mostra.
+select teste.conferir('E nenhum aviso foi criado para ninguem',
+  (select count(*)::text from public.notifications where user_id is null), '0');
+
+
+-- ---------------------------------------------------------------------------
 -- 12. APAGAR O POST LEVA JUNTO O QUE APONTAVA PARA ELE
 --
 -- `content_id` nao tem chave estrangeira -- ela aponta para tabelas diferentes

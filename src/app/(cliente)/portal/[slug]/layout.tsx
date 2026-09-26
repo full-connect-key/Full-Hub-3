@@ -1,5 +1,6 @@
 import { AvisoDeVisualizacao } from "@/components/portal/aviso-de-visualizacao";
 import { CascaDoPortal } from "@/components/portal/casca-do-portal";
+import { identidadeDoPortal } from "@/lib/dados/clientes";
 import { exigirVisualizacaoDoPortal } from "@/lib/auth/portal-administrativo";
 
 /**
@@ -21,12 +22,14 @@ export default async function LayoutDaVisualizacao({
 }: LayoutProps<"/portal/[slug]">) {
   const { slug } = await params;
   const { cliente, profile, email } = await exigirVisualizacaoDoPortal(slug);
+  const identidade = await identidadeDoPortal(cliente.id);
 
   return (
     <CascaDoPortal
       nome={profile.nome}
       email={email}
       nomeDaEmpresa={cliente.nome_empresa}
+      fotoDaEmpresa={identidade?.fotoAssinada ?? null}
       base={`/portal/${slug}`}
       // Quem está logado é da equipe: "Meus dados" é o perfil dela no painel,
       // não as configurações do cliente.

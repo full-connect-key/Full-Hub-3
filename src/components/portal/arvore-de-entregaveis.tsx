@@ -126,6 +126,7 @@ function Grupo({
           </div>
 
           <BarraDeProgresso
+            nome="Materiais aprovados"
             valor={conta.aprovados}
             total={conta.total}
             tom={conta.aprovados === conta.total ? "sucesso" : "marca"}

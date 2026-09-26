@@ -89,9 +89,7 @@ export async function DetalheDoEntregavel({
     titulo: item.nome,
     // A LINHAGEM, e não a data: um entregável não tem data de publicação, e o
     // que situa a pessoa é de que campanha e de que frente ele veio.
-    linhaDeContexto: grupo
-      ? `${campanha.nome} › ${grupo.nome}`
-      : campanha.nome,
+    linhaDeContexto: grupo ? `${campanha.nome} › ${grupo.nome}` : campanha.nome,
     status: item.status,
     propriedades: [
       { rotulo: "Campanha", valor: campanha.nome },
@@ -106,7 +104,11 @@ export async function DetalheDoEntregavel({
     // "Descrição" e não "Legenda": um entregável de campanha não vai para uma
     // rede social. O rótulo também vira o do histórico de versões, onde o
     // texto comparado é o nome do arquivo.
-    texto: { titulo: "Descrição", rotulo: "a descrição", corpo: item.descricao },
+    texto: {
+      titulo: "Descrição",
+      rotulo: "a descrição",
+      corpo: item.descricao,
+    },
     artes: arquivo ? [arquivo] : [],
     versaoAtual: item.versaoAtual,
     download: arquivo

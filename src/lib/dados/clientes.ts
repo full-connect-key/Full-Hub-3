@@ -2,6 +2,8 @@ import "server-only";
 
 import { cache } from "react";
 
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Client } from "@/lib/supabase/database.types";
 
@@ -151,5 +153,59 @@ export async function vinculosDoCliente(clientId: string) {
     lancamentos,
     total,
     impedeExclusao: total > 0,
+  };
+}
+
+/**
+ * A identidade visual do portal de uma empresa: capa e foto, assinadas (0063).
+ *
+ * ---------------------------------------------------------------------------
+ * **`clienteId` OPCIONAL, como em todo o resto do Portal.**
+ *
+ * Para o cliente ele é nulo e quem filtra é o RLS — repetir o filtro aqui
+ * seria criar o segundo lugar onde a regra pode divergir, que é a decisão
+ * registrada de `lib/dados/portal.ts`. Ele existe para a visualização
+ * administrativa, onde quem pergunta é da equipe e enxerga todas.
+ * ---------------------------------------------------------------------------
+ *
+ * **As duas assinadas numa ida só.** O bucket é privado e a URL vale uma hora;
+ * duas chamadas seriam duas idas à rede para desenhar um cabeçalho.
+ *
+ * `enderecoDaArte` e não o mapa direto: nem toda imagem mora no bucket — a do
+ * seed é um caminho do próprio site, e assinar um endereço que não é do
+ * Storage devolve erro, o que faria a imagem sumir da tela sem nada avisando.
+ * É a mesma linha da capa da campanha.
+ */
+export async function identidadeDoPortal(
+  clienteId?: string,
+): Promise<{ nome: string; capaAssinada: string | null; fotoAssinada: string | null } | null> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("clients")
+    .select("id, nome_empresa, capa_url, logo_url")
+    .eq("ativo", true)
+    .order("nome_empresa")
+    .limit(1);
+
+  if (clienteId) consulta = consulta.eq("id", clienteId);
+
+  // A LISTA E O PRIMEIRO, e não `maybeSingle()`: sem `clienteId` — que é o
+  // caso do cliente, onde quem filtra é o RLS — a pessoa pode responder por
+  // duas empresas, e `maybeSingle()` estoura com "mais de uma linha" em vez
+  // de devolver alguma. O `limit(1)` já escolheu; aqui só se lê.
+  const linhas = ouFalha("a identidade do portal", await consulta) ?? [];
+  const linha = linhas[0];
+  if (!linha) return null;
+
+  const assinadas = await assinarArquivos("campanhas-arquivos", [
+    linha.capa_url,
+    linha.logo_url,
+  ]);
+
+  return {
+    nome: linha.nome_empresa,
+    capaAssinada: enderecoDaArte(linha.capa_url, assinadas),
+    fotoAssinada: enderecoDaArte(linha.logo_url, assinadas),
   };
 }

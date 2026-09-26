@@ -6,6 +6,8 @@ import { ArrowRight, PartyPopper } from "lucide-react";
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
+import { identidadeDoPortal } from "@/lib/dados/clientes";
+import { IdentidadeDoCliente } from "@/components/portal/identidade-do-cliente";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
@@ -55,10 +57,11 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
-  const [itens, atividade, campanhas] = await Promise.all([
+  const [itens, atividade, campanhas, identidade] = await Promise.all([
     itensDoPortal(clienteId ?? undefined),
     atividadeRecente(clienteId ?? undefined, comoEquipe),
     campanhasDoCliente(clienteId ?? undefined),
+    identidadeDoPortal(clienteId ?? undefined),
   ]);
 
   // TODAS AS ATIVAS, e não as três primeiras — decisão do usuário: "as
@@ -73,13 +76,32 @@ export async function InicioDoPortal({
   //
   // A ordem é o FIM e não o começo, como na listagem: a pergunta de quem abre
   // é "o que preciso decidir antes que acabe".
+  // ATIVA **E EM PLANEJAMENTO**, e o `planejamento` estava faltando.
+  //
+  // A regra do produto é explícita, e está escrita no CLAUDE.md: a campanha o
+  // cliente vê desde o planejamento — ela tem nome, período e progresso, e é
+  // isso que responde "o que a Full está fazendo para mim este mês". É por
+  // isso que `campaigns_select_cliente` não exige carimbo de envio nenhum, ao
+  // contrário de `deliverables_select_cliente`.
+  //
+  // Este filtro dizia outra coisa. O default da coluna é `planejamento`
+  // (0033), então uma campanha aberta por qualquer caminho que não passe pelo
+  // formulário — o seed, um `insert` colado no SQL Editor, uma campanha
+  // anterior ao conserto do formulário — existia, o cliente podia abri-la pela
+  // listagem, e **o bloco da tela inicial a escondia**. Foi o que o usuário
+  // encontrou: "não está aparecendo a área de campanhas na tela inicial".
+  //
+  // `finalizada` e `cancelada` continuam fora, e é o que o bloco quer dizer:
+  // o trabalho que a Full está fazendo agora.
   const ativas = campanhas
-    .filter((c) => c.status === "ativa")
+    .filter((c) => c.status === "ativa" || c.status === "planejamento")
     .sort((a, b) => a.dataFim.localeCompare(b.dataFim));
 
   const comProgresso = await Promise.all(
     ativas.map(async (campanha) => {
-      const itensDela = folhas(emArvore(await entregaveisDaCampanha(campanha.id)));
+      const itensDela = folhas(
+        emArvore(await entregaveisDaCampanha(campanha.id)),
+      );
       return {
         campanha,
         conta: progresso(itensDela),
@@ -111,6 +133,23 @@ export async function InicioDoPortal({
 
   return (
     <div className="space-y-10">
+      {/* A IDENTIDADE ABRE A TELA, e só esta (0063): a capa tem altura para
+          ser uma imagem de verdade aqui, e nas outras telas a empresa aparece
+          na foto pequena do cabeçalho. Sem empresa — que é o caso da equipe
+          antes de escolher um portal — não se desenha nada. */}
+      {identidade ? (
+        <IdentidadeDoCliente
+          nome={identidade.nome}
+          capaAssinada={identidade.capaAssinada}
+          fotoAssinada={identidade.fotoAssinada}
+          saudacao={
+            comoEquipe
+              ? undefined
+              : `Olá, ${nome} — aqui está o que a Full preparou para você.`
+          }
+        />
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
         {/* O CARTÃO GRANDE, e o número em tamanho de manchete. */}
         <div className="bg-blue-soft border-blue-muted rounded-xl border p-6">
@@ -247,7 +286,10 @@ export async function InicioDoPortal({
                   {/* A CAPA AQUI TAMBÉM (0050), e no mesmo componente do
                       cartão da listagem: é a mesma campanha em duas telas, e
                       duas proporções fariam a pessoa achar que são outras. */}
-                  <CapaDoCartao url={campanha.capaAssinada} alt={campanha.nome} />
+                  <CapaDoCartao
+                    url={campanha.capaAssinada}
+                    alt={campanha.nome}
+                  />
 
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <p className="min-w-0 font-medium">{campanha.nome}</p>
@@ -264,6 +306,7 @@ export async function InicioDoPortal({
 
                   {conta.total > 0 ? (
                     <BarraDeProgresso
+                      nome="Materiais aprovados"
                       valor={conta.aprovados}
                       total={conta.total}
                       tom={

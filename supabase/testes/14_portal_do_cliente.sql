@@ -316,6 +316,27 @@ select teste.conferir('Mas o slug continua o que era',
     where id = :VERDE and slug = 'mundo-verde-hackeado'),
   '0');
 
+-- A CAPA DO PORTAL E DA AGENCIA (0063), E O LOGO CONTINUA DELE.
+--
+-- A assimetria e decisao, e sao dois cenarios porque um so provaria metade: o
+-- de cima passaria numa funcao que protege tudo, e o de baixo numa que nao
+-- protege nada.
+select teste.cenario('Joana manda trocar a capa do portal, e a escrita passa', :JOANA,
+  format('update public.clients set capa_url = ''minha-capa.jpg'' where id = %L', :VERDE),
+  'ok', 1);
+
+select teste.conferir('Mas a capa continua a que era',
+  (select count(*)::text from public.clients
+    where id = :VERDE and capa_url = 'minha-capa.jpg'),
+  '0');
+
+select teste.cenario('Joana troca o proprio logo, e esse muda mesmo', :JOANA,
+  format('update public.clients set logo_url = ''logo-novo.png'' where id = %L', :VERDE),
+  'ok', 1);
+
+select teste.conferir('O logo e dele, e mudou',
+  (select logo_url from public.clients where id = :VERDE), 'logo-novo.png');
+
 select teste.cenario('Joana manda renomear a empresa, e a escrita passa', :JOANA,
   format('update public.clients set nome_empresa = ''Outra Empresa'' where id = %L', :VERDE),
   'ok', 1);

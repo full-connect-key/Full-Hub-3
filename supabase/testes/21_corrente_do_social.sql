@@ -76,7 +76,8 @@ select teste.conferir('E nenhuma etapa de Ajustes ainda',
 select teste.cenario('A gestao abre dois posts distribuindo a corrente', :ANA,
   format($fmt$select public.abrir_mes_de_social(
     %L, '2027-01', '{"instagram": 2}'::jsonb, null,
-    jsonb_build_object('Social Media', %L::text, 'Redator', %L::text, 'Design', %L::text))$fmt$,
+    jsonb_build_object('Social Media', %L::text, 'Redator', %L::text, 'Design', %L::text),
+    '{}'::jsonb, 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$,
     :VERDE, :MARINA, :CARLA, :BRUNO), 'ok', 1);
 
 select teste.conferir('A Pauta e o Programar sairam na mesma social media',

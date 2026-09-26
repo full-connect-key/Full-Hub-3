@@ -146,7 +146,15 @@ from (
     -- forma da 0029, que tambem desfez uma. Um banco parado na 0059 ainda tem
     -- a frase no corpo de `validar_nova_rodada` e diz FALTA; depois de
     -- aplicada, nao tem.
-    ('0060', 'trava de enviar o proprio fora',  'sem_no_corpo', 'validar_nova_rodada|a própria entrega')
+    ('0060', 'trava de enviar o proprio fora',  'sem_no_corpo', 'validar_nova_rodada|a própria entrega'),
+    ('0061', 'tasks.social_do_mes',             'coluna',       'tasks.social_do_mes'),
+    -- A 0062 ACRESCENTA UMA GUARDA dentro de uma funcao que ja existia desde a
+    -- 0011, entao nao ha objeto novo a procurar: a checagem e pelo TRECHO no
+    -- corpo. Um banco parado na 0061 tem a funcao e nao tem a linha -- e a
+    -- consequencia de nao ter e o cliente sem conseguir aprovar nada nas
+    -- empresas sem responsavel de atendimento.
+    ('0062', 'notificar sem ninguem a avisar',  'no_corpo',     'notificar|p_user_id is null'),
+    ('0063', 'clients.capa_url',                'coluna',       'clients.capa_url')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
