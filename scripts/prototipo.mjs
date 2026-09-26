@@ -610,10 +610,24 @@ try {
   // O dominio .invalid nunca resolve, e de proposito: as poucas consultas que
   // escapam das substituicoes falham na hora, em vez de segurar a captura
   // esperando um servidor que nao existe.
+  //
+  // AS TRES DO DRIVE SAO DE MENTIRA E PRECISAM ESTAR AQUI. O botao "Criar no
+  // Drive" so aparece quando `driveConfigurado()` responde sim, e ele nao
+  // olha o conteudo -- so se as tres existem. Sem elas, a imagem do detalhe
+  // da demanda sairia sem o botao e a conferencia visual seria de uma tela
+  // que ninguem vai ver.
+  //
+  // Nada aqui chega ao Google: o clique nao e exercitado, e a chave nao e uma
+  // chave. A de e-mail fica DE FORA de proposito -- `RESEND_API_KEY`
+  // preenchida faria o envio ser tentado de verdade, e a trava que impede
+  // isso e a do proximo bloco, nao esta.
   await writeFile(
     path.join(COPIA, ".env.local"),
     'NEXT_PUBLIC_SUPABASE_URL="https://exemplo.invalid"\n' +
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY="chave-de-exemplo"\n',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY="chave-de-exemplo"\n' +
+      'GOOGLE_SERVICE_ACCOUNT_EMAIL="exemplo@exemplo.invalid"\n' +
+      'GOOGLE_PRIVATE_KEY="nao-e-uma-chave"\n' +
+      'GOOGLE_DRIVE_ID="pasta-de-exemplo"\n',
   );
 
   log("compilando...");

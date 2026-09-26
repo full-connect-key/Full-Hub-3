@@ -12,6 +12,8 @@ import {
   Clock,
   Flag,
   FolderOpen,
+  FolderPlus,
+  Loader2,
   Users,
   Workflow,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import { toast } from "sonner";
 
 import { SeletorDeStatus } from "@/components/shared/seletor-de-status";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,7 +42,12 @@ import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
-import { aplicarWorkflowNaTask, atualizarTask, voltarACalcularStatus } from "../acoes";
+import {
+  aplicarWorkflowNaTask,
+  atualizarTask,
+  criarPastaDeEntrega,
+  voltarACalcularStatus,
+} from "../acoes";
 
 const SEM_VALOR = "__sem__";
 
@@ -77,11 +85,22 @@ export function PropriedadesDaTask({
   clientes,
   tipos,
   podeEditar,
+  driveLigado,
 }: {
   task: TaskCompleta;
   clientes: { id: string; nome_empresa: string }[];
   tipos: { id: string; nome: string }[];
   podeEditar: boolean;
+  /**
+   * A integração com o Drive está configurada?
+   *
+   * **Vem de cima, respondida no servidor.** `lib/drive/config.ts` é
+   * `server-only` — tem a chave privada da conta de serviço dentro —, e um
+   * valor exportado de lá não vale aqui. É a mesma fronteira que derrubou a
+   * Gestão de Pessoas, e a convenção é esta: o servidor pergunta, o cliente
+   * recebe a resposta como prop.
+   */
+  driveLigado: boolean;
 }) {
   const temEtapas = task.subtarefas.length > 0;
   const router = useRouter();
@@ -103,6 +122,27 @@ export function PropriedadesDaTask({
       const resultado = await chamarAcao(() => voltarACalcularStatus(task.id));
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
+    });
+  }
+
+  /**
+   * Cria a pasta no Drive.
+   *
+   * Tem transição própria e não usa `iniciar`: esta é a única ação da tela
+   * que fala com um sistema de fora, e pode levar dois segundos. Com a
+   * transição compartilhada, o campo inteiro ficaria desabilitado enquanto o
+   * Google responde — e quem está digitando o título perderia o que digitou.
+   */
+  const [criandoPasta, criarPasta] = useTransition();
+
+  function pastaNoDrive() {
+    criarPasta(async () => {
+      const resultado = await chamarAcao(() => criarPastaDeEntrega(task.id));
+      if (!resultado.ok) toast.error(resultado.error);
+      else {
+        toast.success(resultado.mensagem);
+        router.refresh();
+      }
     });
   }
 
@@ -276,16 +316,48 @@ export function PropriedadesDaTask({
             depois é a pasta do material final. */}
         <Campo icone={FolderOpen} rotulo="Pasta de entrega">
           {podeEditar ? (
-            <Input
-              defaultValue={task.link_entrega ?? ""}
-              aria-label="Pasta de entrega"
-              placeholder="https://figma.com/… ou https://drive.google.com/…"
-              onBlur={(evento) => {
-                if (evento.target.value !== (task.link_entrega ?? "")) {
-                  salvar({ link_entrega: evento.target.value });
-                }
-              }}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                key={task.link_entrega ?? ""}
+                defaultValue={task.link_entrega ?? ""}
+                aria-label="Pasta de entrega"
+                placeholder="https://figma.com/… ou https://drive.google.com/…"
+                className="min-w-48 flex-1"
+                onBlur={(evento) => {
+                  if (evento.target.value !== (task.link_entrega ?? "")) {
+                    salvar({ link_entrega: evento.target.value });
+                  }
+                }}
+              />
+              {/*
+                O BOTÃO SÓ APARECE QUANDO HÁ ONDE CRIAR, e some quando já há
+                pasta. Um "Criar no Drive" ao lado de um endereço preenchido
+                convida a criar a segunda pasta da mesma demanda — e o Drive
+                aceita duas irmãs com o mesmo nome sem reclamar, o que espalha
+                o material entre as duas. Trocar de pasta continua sendo
+                possível pelo campo, que é o que a 0015 pede: pasta muda de
+                lugar.
+
+                Com o Drive desligado ele não aparece: um botão que responde
+                "não configurado" ensina a não clicar nele.
+              */}
+              {driveLigado && !task.link_entrega ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={criandoPasta}
+                  onClick={pastaNoDrive}
+                >
+                  {criandoPasta ? (
+                    <Loader2 aria-hidden className="size-4 animate-spin" />
+                  ) : (
+                    <FolderPlus aria-hidden className="size-4" />
+                  )}
+                  Criar no Drive
+                </Button>
+              ) : null}
+            </div>
           ) : task.link_entrega ? (
             <a
               href={task.link_entrega}

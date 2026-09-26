@@ -9,6 +9,7 @@ import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara } from "@/lib/tasks/state-machine";
 import { fluxoDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
+import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
@@ -759,6 +760,82 @@ export async function aplicarWorkflowNaTask(
     revalidatePath(`${ROTA}/${taskId}`);
     return sucesso(
       `${aplicado.etapas.length} etapa${aplicado.etapas.length === 1 ? "" : "s"} do workflow ${aplicado.etapas.length === 1 ? "entrou" : "entraram"}. Dá para editar tudo.`,
+    );
+  });
+}
+
+/**
+ * Cria a pasta desta demanda no Drive e grava o endereço (Sprint 16, Parte C).
+ *
+ * ---------------------------------------------------------------------------
+ * **É UM BOTÃO, E NÃO ACONTECE SOZINHO.** A tentação é criar a pasta no
+ * instante em que o cliente é escolhido — o campo fica preenchido e ninguém
+ * precisa pensar nele. Três coisas desaconselham:
+ *
+ * 1. **É escrita num sistema de fora.** Toda demanda rascunhada criaria uma
+ *    pasta, e a 0028 já diz que rascunho é pensamento pela metade: o Drive da
+ *    agência encheria de pasta de demanda que ninguém publicou.
+ * 2. **A pasta já pode existir.** Quem abre uma demanda de um cliente antigo
+ *    costuma ter o endereço na mão, e a 0015 diz em quantas palavras que
+ *    pasta muda de lugar — o campo continua editável de propósito.
+ * 3. **O título ainda está sendo digitado.** A tela de task salva sozinha,
+ *    campo a campo; criar a pasta no primeiro salvamento a nomearia com o
+ *    título pela metade, e o Drive não desfaz isso sozinho.
+ * ---------------------------------------------------------------------------
+ *
+ * **Não é `after()`, ao contrário do e-mail.** Aqui a pessoa está esperando o
+ * resultado: o endereço da pasta é o que ela veio buscar, e uma ação que
+ * responde "pronto" sem ter criado nada mandaria ela procurar no Drive uma
+ * pasta que talvez não exista. O e-mail é aviso; isto é o trabalho.
+ */
+export async function criarPastaDeEntrega(id: string): Promise<Resultado<string>> {
+  return executarAcao("criarPastaDeEntrega", async () => {
+    await exigirRotaNaAcao(ROTA);
+
+    const supabase = await criarClienteServidor();
+    const { data: task, error } = await supabase
+      .from("tasks")
+      .select("titulo, client_id, link_entrega")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) return falha(error.message);
+    if (!task) return falha("Task não encontrada.");
+    if (!task.client_id) {
+      return falha("Escolha o cliente antes — a pasta nasce dentro da pasta dele.");
+    }
+    if (!task.titulo.trim()) {
+      return falha("Dê um título à demanda antes: é ele que nomeia a pasta.");
+    }
+
+    const { url, clienteNasceuAgora } = await pastaDaEntregaDaDemanda(
+      task.client_id,
+      task.titulo,
+    );
+
+    // A ESCRITA VEM DEPOIS DA CRIAÇÃO, e é o que fecha o ciclo: sem ela a
+    // pasta existiria no Drive e o campo continuaria vazio, que é o pior dos
+    // dois estados — o trabalho feito e nenhum sinal dele.
+    const { data: gravado, error: erroGravar } = await supabase
+      .from("tasks")
+      .update({ link_entrega: url })
+      .eq("id", id)
+      .select("id");
+
+    if (erroGravar) return falha(erroGravar.message);
+    if (!gravado || gravado.length === 0) {
+      return falha(
+        `A pasta foi criada (${url}), mas não deu para gravá-la nesta demanda. ` +
+          "Cole o endereço no campo.",
+      );
+    }
+
+    revalidatePath(`${ROTA}/${id}`);
+    return sucesso(
+      clienteNasceuAgora
+        ? "Pasta criada. O cliente também ganhou a dele, no Drive da agência."
+        : "Pasta criada dentro da pasta do cliente.",
+      url,
     );
   });
 }

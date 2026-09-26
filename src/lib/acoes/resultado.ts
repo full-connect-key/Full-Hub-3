@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Resultado } from "./tipos";
+import { traduzirErroDoBanco } from "./migration-pendente";
 
 /**
  * Contrato de toda Server Action do Full Hub.
@@ -20,8 +21,20 @@ export function sucesso<T = undefined>(mensagem: string, dados?: T): Resultado<T
   return { ok: true, mensagem, dados };
 }
 
+/**
+ * A recusa que a pessoa lê.
+ *
+ * **Passa por `traduzirErroDoBanco()`, e é a única coisa que ela faz.** A
+ * mensagem do Postgres e a do PostgREST chegam aqui cruas de propósito — é o
+ * que faz a tela dizer *"esta demanda tem etapa sem aprovação"* com os nomes
+ * que o `hint` do banco escreveu. O que a tradução cobre é a única família em
+ * que a mensagem crua é exata E inútil: o schema desatualizado. Ali o texto
+ * fala de cache e de listas de parâmetros, e a resposta é rodar uma migration
+ * — duas coisas que não se ligam sozinhas na cabeça de quem está do lado de
+ * fora do repositório.
+ */
 export function falha<T = undefined>(error: string): Resultado<T> {
-  return { ok: false, error };
+  return { ok: false, error: traduzirErroDoBanco(error) };
 }
 
 /**

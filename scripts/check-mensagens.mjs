@@ -25,6 +25,10 @@
  */
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 /**
  * Onde a mensagem crua ainda é aceitável, e por quê.
@@ -168,6 +172,67 @@ if (conferidas === 0) {
   console.log("  FALHOU  nenhuma chamada encontrada. Isto é erro, não sucesso.");
 } else if (problemas === 0) {
   console.log(`  ok      ${conferidas} chamada(s), todas com o nome da própria action`);
+}
+
+// ---------------------------------------------------------------------------
+// A TRADUCAO DE "SCHEMA DESATUALIZADO" NAO PODE ENGOLIR RECUSA DE VERDADE
+//
+// `falha()` passou a trocar a mensagem do PostgREST -- "Could not find the
+// function ... in the schema cache" -- por uma frase que diz que a migration
+// nao rodou. A mensagem crua e exata e inutil, e foi o que o usuario leu
+// tentando abrir um mes de social.
+//
+// O risco nao e ela deixar de casar: aí a pessoa volta a ver o texto em
+// ingles, que e ruim e visivel. O risco e ela casar DEMAIS -- e aí uma recusa
+// de verdade ("esta demanda tem etapa sem aprovacao", que carrega os nomes que
+// o `hint` do banco escreveu) some e vira "rode uma migration". Uma tela que
+// manda a pessoa mexer no banco por causa de uma regra de negocio e pior que
+// uma mensagem em ingles.
+//
+// Por isso os dois sentidos, e por isso as recusas de verdade sao as REAIS,
+// copiadas das travas do produto.
+// ---------------------------------------------------------------------------
+console.log("\nA traducao de schema desatualizado casa com o certo, e so com ele\n");
+
+const fonteDaTraducao = await readFile("src/lib/acoes/migration-pendente.ts", "utf8");
+const pastaT = await mkdtemp(join(tmpdir(), "fh-mig-"));
+const copiaT = join(pastaT, "mp.ts");
+await writeFile(copiaT, fonteDaTraducao.replace(/^import "server-only";\n/, ""));
+
+try {
+  const { ehMigrationPendente } = await import(pathToFileURL(copiaT).href);
+
+  const TEM_QUE_CASAR = [
+    "Could not find the function public.abrir_mes_de_social(p_client_id, p_mes, p_prazos, p_quantidades, p_responsaveis, p_responsavel_id) in the schema cache",
+    "Could not find the 'prazo_offset_dias' column of 'post_etapas' in the schema cache",
+  ];
+
+  const NAO_PODE_CASAR = [
+    "Esta demanda tem 3 etapas sem aprovação: Conceito, Layout, Revisão.",
+    "Ninguém envia ao cliente a própria entrega.",
+    "A rodada é criada pela ação Enviar para aprovação",
+    "Task não encontrada.",
+    "new row violates row-level security policy for table \"tasks\"",
+    "Cliente não encontrado.",
+    // O CASO QUE SEPARA AS DUAS METADES DO MATCHER: fala de cache e nao e
+    // schema desatualizado. So "schema cache" casaria; so "could not find"
+    // tambem.
+    "Não foi possível limpar o cache desta tela.",
+    "Could not find the client in the list.",
+  ];
+
+  for (const m of TEM_QUE_CASAR) {
+    const certo = ehMigrationPendente(m);
+    if (!certo) problemas++;
+    console.log(`  ${certo ? "ok     " : "FALHOU "} casa: ${m.slice(0, 70)}…`);
+  }
+  for (const m of NAO_PODE_CASAR) {
+    const certo = !ehMigrationPendente(m);
+    if (!certo) problemas++;
+    console.log(`  ${certo ? "ok     " : "FALHOU "} NAO casa: ${m.slice(0, 70)}`);
+  }
+} finally {
+  await rm(pastaT, { recursive: true, force: true });
 }
 
 console.log("");

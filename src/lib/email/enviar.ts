@@ -147,3 +147,31 @@ export function despacharEmail(paraQuem: string | string[], mensagem: Mensagem):
     }
   });
 }
+
+/**
+ * Faz o trabalho de descobrir PARA QUEM avisar depois da resposta.
+ *
+ * ---------------------------------------------------------------------------
+ * **`despacharEmail()` sozinho não bastava, e o motivo é latência.**
+ *
+ * Ele já manda depois da resposta — mas quem o chama precisa antes descobrir
+ * os destinatários, e isso são três ou quatro idas ao banco: o dono do
+ * conteúdo, a empresa dele, as preferências, os endereços. Feitas antes do
+ * `return`, elas entram no caminho crítico de quem clicou. No comentário, que
+ * é a ação mais repetida do portal, isso é meio segundo a mais por clique
+ * para mandar um e-mail que a pessoa nem sabe que existe.
+ *
+ * Aqui dentro, a resposta já saiu. O custo é que um erro na descoberta não
+ * tem mais como virar mensagem na tela — e está certo que não tenha: a
+ * escrita deu certo, e é dela que a pessoa precisa saber.
+ * ---------------------------------------------------------------------------
+ */
+export function avisarDepois(rotulo: string, trabalho: () => Promise<void>): void {
+  after(async () => {
+    try {
+      await trabalho();
+    } catch (erro) {
+      console.error(`[email:${rotulo}] não deu para avisar:`, erro);
+    }
+  });
+}

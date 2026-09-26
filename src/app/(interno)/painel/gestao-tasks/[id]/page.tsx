@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { exigirAcessoARota } from "@/lib/auth/dal";
+import { driveConfigurado } from "@/lib/drive/config";
 import { ehGestor } from "@/lib/auth/roles";
 import { campanhaDaTask } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
@@ -145,6 +146,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
           .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
         tipos={tipos.map((t) => ({ id: t.id, nome: t.nome }))}
         podeEditar={podeGerenciar}
+        driveLigado={driveConfigurado()}
       />
 
       <div className="min-w-0">

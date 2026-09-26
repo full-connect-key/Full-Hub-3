@@ -3,6 +3,7 @@ import "server-only";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, variaveisFaltando } from "@/lib/env";
 import { servicoConfigurado } from "./admin";
 import { emailConfigurado, enderecoDeDesvio, envioAoVivo } from "@/lib/email/config";
+import { driveConfigurado, faltandoNoDrive } from "@/lib/drive/config";
 import { criarClienteServidor } from "./server";
 
 /**
@@ -313,6 +314,36 @@ function checarEmail(): Checagem {
   };
 }
 
+/**
+ * A pasta de entrega nasce sozinha no Drive? (Sprint 16, Parte C)
+ *
+ * ALERTA E NAO FALHA: sem a integracao nada quebra. O campo "Pasta de
+ * entrega" continua aceitando um endereco colado a mao, que e como o produto
+ * funcionou ate aqui -- o que some e o botao.
+ */
+function checarDrive(): Checagem {
+  if (driveConfigurado()) {
+    return {
+      nome: "Google Drive",
+      situacao: "ok",
+      detalhe: "Conta de serviço configurada. A pasta de entrega nasce no Drive da agência.",
+    };
+  }
+
+  return {
+    nome: "Google Drive",
+    situacao: "alerta",
+    detalhe:
+      `Faltando: ${faltandoNoDrive().join(", ")}. Sem isso o botão "Criar no Drive" não ` +
+      "aparece, e a pasta de entrega continua sendo um endereço colado à mão — que é " +
+      "como sempre foi. Nada mais depende disto.",
+    comoResolver:
+      "Crie uma conta de serviço no Google Cloud, habilite a Drive API, dê acesso a ela ao " +
+      "Drive Compartilhado da agência e preencha GOOGLE_SERVICE_ACCOUNT_EMAIL, " +
+      "GOOGLE_PRIVATE_KEY e GOOGLE_DRIVE_ID no .env.local.",
+  };
+}
+
 function consolidar(checagens: Checagem[]): Situacao {
   if (checagens.some((c) => c.situacao === "falha")) return "falha";
   if (checagens.some((c) => c.situacao === "alerta")) return "alerta";
@@ -333,7 +364,7 @@ export async function diagnosticarSupabase(): Promise<Diagnostico> {
   }
 
   const [alcance, schema] = await Promise.all([checarAlcance(), checarSchema()]);
-  const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail()];
+  const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail(), checarDrive()];
 
   return {
     situacaoGeral: consolidar(checagens),

@@ -123,6 +123,7 @@ export function PainelLateralDaTask({
                 clientes={detalhe.clientes}
                 tipos={detalhe.tipos}
                 podeEditar={detalhe.podeGerenciar}
+                driveLigado={detalhe.driveLigado}
               />
 
               <PrincipalDaTask task={detalhe.task} podeEditar={detalhe.podeGerenciar} />

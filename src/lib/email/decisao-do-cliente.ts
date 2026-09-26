@@ -4,7 +4,7 @@ import { criarClienteAdmin, servicoConfigurado } from "@/lib/supabase/admin";
 
 import { titularDoConteudo } from "./conteudo";
 import { emailsDaEquipe } from "./destinatarios";
-import { despacharEmail } from "./enviar";
+import { avisarDepois, despacharEmail } from "./enviar";
 import { clienteDecidiu } from "./mensagens";
 
 /**
@@ -33,15 +33,15 @@ import { clienteDecidiu } from "./mensagens";
  * aconteceu seria pior que não avisar.
  */
 
-export async function avisarAgenciaDaDecisao(
+export function avisarAgenciaDaDecisao(
   rodadaId: string,
   decisao: string,
   comentario: string | null,
   quemDecidiu: string,
-): Promise<void> {
+): void {
   if (!servicoConfigurado()) return;
 
-  try {
+  avisarDepois("decisao", async () => {
     const admin = criarClienteAdmin();
 
     const { data: rodada } = await admin
@@ -80,9 +80,8 @@ export async function avisarAgenciaDaDecisao(
         rota: conteudo.rota,
       }),
     );
-  } catch (erro) {
-    // NUNCA DERRUBA A DECISÃO. Ela já está gravada; o que falha aqui é o
-    // aviso, e o sino continua de pé porque é do banco.
-    console.error("[email:decisao] não deu para avisar a agência:", erro);
-  }
+    // NUNCA DERRUBA A DECISÃO. Ela já está gravada, a resposta já saiu, e o
+    // que falha aqui vira linha de log — o sino continua de pé porque é do
+    // banco.
+  });
 }

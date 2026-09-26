@@ -61,6 +61,7 @@ no layout antes de ter o Supabase pronto.
 | `npm run start` | Roda a versao de producao (usado na VPS) |
 | `supabase/testes/rodar.sh` | Roda os 319 cenarios de RLS contra um Postgres de verdade |
 | `npm run check:email` | Prova que, sem `EMAIL_AO_VIVO=true`, nenhum e-mail chega a endereco de verdade |
+| `npm run check:drive` | Prova que o nome digitado nao alcanca a consulta do Google Drive |
 | `scripts/deploy.sh` | **Fora de uso** — publicava na VPS, que a agencia nao tem mais |
 | `npm run lint` | Verifica os padroes de codigo |
 | `npm run typecheck` | Confere os tipos sem gerar build |

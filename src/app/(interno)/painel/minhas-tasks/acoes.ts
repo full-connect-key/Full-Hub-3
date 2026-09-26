@@ -3,6 +3,7 @@
 import { exigirEquipeNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { ehGestor } from "@/lib/auth/roles";
+import { driveConfigurado } from "@/lib/drive/config";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
@@ -28,6 +29,14 @@ export type DetalheParaOPainel = {
   podeGerenciar: boolean;
   /** Desenvolvedor ou sócio: decide aprovação e exclui a demanda. */
   souGestor: boolean;
+  /**
+   * A integração com o Drive está configurada?
+   *
+   * Vem daqui, e não de `lib/drive/config.ts` direto: aquele arquivo é
+   * `server-only` — tem a chave privada dentro —, e o painel é um componente
+   * de cliente. É a mesma fronteira de sempre.
+   */
+  driveLigado: boolean;
   /**
    * O instante do SERVIDOR, para o cronômetro das subtarefas começar de lá.
    * Não é o `Date.now()` do navegador de propósito: o relógio que mede é o do
@@ -78,6 +87,7 @@ export async function carregarDetalheDaTask(
       usuarioId: sessao.usuarioId,
       podeGerenciar: ehDoAtendimento || gestor,
       souGestor: gestor,
+      driveLigado: driveConfigurado(),
       agora: Date.now(),
     });
   });

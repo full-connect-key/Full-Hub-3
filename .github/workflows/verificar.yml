@@ -75,6 +75,13 @@ jobs:
       - name: A trava do e-mail
         run: npm run check:email
 
+      # O nome da empresa e o título da demanda vão para dentro de uma
+      # consulta do Google Drive. Um cliente chamado `Bar do Zé's` já quebra
+      # a consulta; um nome montado de propósito faz a busca procurar outra
+      # coisa e o produto gravar a pasta errada.
+      - name: O escape da consulta do Drive
+        run: npm run check:drive
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

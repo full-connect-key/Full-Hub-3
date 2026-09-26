@@ -2903,6 +2903,101 @@ existe, e se o envio está desviado —, porque "Resend configurado" é uma
 resposta incompleta: com o desvio ligado o Resend responde 200 e ninguém
 recebe.
 
+### A pasta de entrega nasce no Drive
+
+`lib/drive/`, e **não traz migration nenhuma** — que é a primeira coisa a
+dizer sobre esta parte.
+
+**A COLUNA JÁ EXISTIA, E NINGUÉM A ATRAVESSAVA.** `clients.drive_folder_id`
+nasceu na **0002**, aparece no formulário e na ficha do cliente desde o Sprint
+2, é protegida contra escrita do cliente desde a 0005 e foi relembrada por
+nome na 0031, quando o slug entrou na mesma lista. Em vinte e tantos sprints
+nenhuma linha de código a **leu**: ela era um campo de anotação. É a mesma
+situação de `deliverables.subtask_id` antes da 0051 e de
+`deliverable_versions` antes da tela de Campanhas — a ponte estava construída
+e faltava alguém atravessar.
+
+**Conta de serviço num Drive Compartilhado**, e as duas metades importam. A
+conta de serviço não é uma pessoa: não recebe e-mail, não sai da agência e
+**não tem cota de armazenamento** — o Google não dá "Meu Drive" a ela. Num
+Drive Compartilhado o dono do espaço é a unidade, então a pasta nasce lá
+dentro já visível para todo mundo que tem acesso, sem nenhuma chamada de
+compartilhamento. O caminho contrário funcionaria e tem um custo que só
+aparece depois: a pasta ficaria pendurada na conta de uma pessoa, e some com
+ela no dia em que sair.
+
+**O escopo é `drive.file`, e não `drive`.** `drive.file` dá acesso só ao que
+esta aplicação criou — ela não enxerga nem toca em nada que já estava lá. O
+escopo largo funcionaria igual e entregaria, junto, a chave de tudo o que a
+agência guarda. *A consequência aceita:* uma pasta criada à mão não é achada
+pela busca; para um cliente que já tem pasta, alguém cola o id dela na ficha —
+no campo que existe desde a 0002 — e o Full Hub passa a criar as demandas lá
+dentro.
+
+**Nada apaga, move ou renomeia.** As duas coisas que o módulo sabe fazer são
+procurar e criar. Uma integração que pode apagar precisa de uma pergunta antes
+de cada chamada, e o que ela apagaria é o material entregue de um cliente.
+
+**São dois níveis, Cliente › Demanda.** A tentação é o ano no meio, e ela é
+forte — mas quem procura material procura pelo nome da demanda, e um nível a
+mais é um clique a mais em toda visita para organizar o que ninguém navega. É
+a mesma conta da árvore de entregáveis.
+
+#### É um BOTÃO, e não acontece sozinho
+
+Três razões, e as três são mecânicas:
+
+- **rascunho criaria pasta.** A 0028 abre uma demanda no clique de "+ Nova
+  task", e criar a pasta ali encheria o Drive de demanda que ninguém publicou;
+- **a pasta já pode existir.** Quem abre demanda de cliente antigo tem o
+  endereço na mão, e a 0015 diz em quantas palavras que pasta muda de lugar —
+  o campo continua editável de propósito;
+- **o título ainda está sendo digitado.** A tela salva sozinha campo a campo;
+  a pasta nasceria com o título pela metade, e o Drive não desfaz isso.
+
+**O botão some quando já há pasta.** Um "Criar no Drive" ao lado de um
+endereço preenchido convida a criar a segunda pasta da mesma demanda — e o
+Drive aceita duas irmãs homônimas sem reclamar, o que espalha o material entre
+as duas. Com a integração desligada ele também não aparece: um botão que
+responde "não configurado" ensina a não clicar nele.
+
+**E não é `after()`, ao contrário do e-mail.** Aqui a pessoa está esperando o
+resultado — o endereço é o que ela veio buscar. O e-mail é aviso; isto é o
+trabalho.
+
+**Procurar antes de criar**, sempre, e o custo está dito: não é atômico. Dois
+cliques ao mesmo tempo passam pelas duas buscas antes de qualquer uma criar —
+é o furo que a recorrência resolveu com índice único e que aqui não tem como
+resolver, porque quem guardaria a unicidade é o Drive e ele não oferece uma. O
+estrago é uma pasta vazia a mais; o caminho oposto espalharia o material.
+
+#### O nome digitado não pode alcançar a consulta
+
+`files.list` recebe um `q` que é uma **linguagem de consulta**:
+`name = 'Mundo Verde' and '<id>' in parents`. O nome da empresa e o título da
+demanda vêm de campos que alguém digita, e vão para dentro daquelas aspas.
+
+**O caso benigno já basta para doer, e é comum:** um cliente chamado
+`Bar do Zé's` quebra a consulta, o Drive responde 400 e ninguém liga uma coisa
+à outra. O maligno é o mesmo mecanismo com intenção — um nome montado para
+fechar a aspa faz a busca procurar outra coisa, e o produto grava o id do
+primeiro resultado como se fosse a pasta daquele cliente.
+
+São **duas travas independentes**: `nomeDePasta()` tira a aspa antes de o nome
+virar pasta, e `escaparParaBusca()` escapa o que sobrar. A primeira sozinha não
+bastaria — o id da pasta-mãe também vai para o `q` e não passa por ela.
+`npm run check:drive` mede as duas, e mede a ordem: contrabarra antes de aspa,
+porque invertido o escape da aspa seria escapado de novo e a aspa voltaria a
+fechar a string.
+
+**A barra também vira hífen**, e não é frescura: `/` é legal num nome de pasta
+do Drive, e faz "Feed/story site" — que já existe como nome de entregável na
+Wave — se ler como dois níveis que não existem.
+
+**Sem credencial nada quebra.** O campo continua aceitando endereço colado à
+mão, que é como o produto funcionou até aqui; o que some é o botão. `/status`
+diz o que falta.
+
 ### A trilha de auditoria
 
 `/painel/auditoria`, só do sócio. `audit_log` mais o trigger
@@ -3537,6 +3632,7 @@ src/
   lib/acoes/                  contrato das Server Actions, guardas e contas
   lib/reports/                o resumo da semana da agência, montado para a tela e para o envio que ainda não existe
   lib/email/                  o e-mail que sai: a trava de sandbox, os destinatários, as mensagens
+  lib/drive/                  a pasta de entrega no Google Drive: conta de serviço, achar ou criar
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
 supabase/testes/              bateria de RLS e de fluxo, rodando como gente
@@ -3555,6 +3651,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
+| `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele |
 | `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
