@@ -266,6 +266,7 @@ function Peca({
             <input
               ref={arquivoRef}
               type="file"
+              aria-label="Escolher os arquivos desta entrega"
               multiple
               className="sr-only"
               onChange={(e) => subir(e.target.files)}

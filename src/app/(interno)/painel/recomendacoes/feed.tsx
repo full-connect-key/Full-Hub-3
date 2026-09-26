@@ -965,7 +965,7 @@ function FormularioDePost({
         <div className="space-y-1.5">
           <Label htmlFor="rec-categoria">Categoria</Label>
           <Select value={categoria} onValueChange={(v) => setCategoria(v as RecCategoria)}>
-            <SelectTrigger id="rec-categoria" className="w-full">
+            <SelectTrigger aria-label="Categoria" id="rec-categoria" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -284,8 +284,20 @@ function CardArrastavel(props: {
     id: props.linha.subtarefa.id,
   });
 
+  // SEM o `role` e o `tabIndex` que o dnd-kit acrescenta, e aqui a razão é
+  // outra: este cartão não embrulha um clicável, ele CARREGA os botões de ação
+  // ("Iniciar", "Concluir"). Com o `role="button"` do dnd-kit por fora, cada
+  // cartão virava um botão contendo botões — uma parada de Tab que anunciava
+  // "botão" e não fazia nada no Enter, na frente das que fazem.
+  //
+  // O que se perde é o arrasto por teclado, e não se perde nada: o caminho de
+  // teclado para mudar o andamento é justamente o botão de ação dentro do
+  // cartão, que é o que o board desta tela existe para oferecer. O arrasto
+  // continua inteiro no ponteiro.
+  const { role: _papel, tabIndex: _parada, ...aria } = attributes;
+
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} className="touch-none">
+    <div ref={setNodeRef} {...aria} {...listeners} className="touch-none">
       <Card {...props} arrastando={isDragging} />
     </div>
   );

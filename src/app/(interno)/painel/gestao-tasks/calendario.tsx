@@ -144,7 +144,7 @@ export function CalendarioDeTasks({
 
         <div className="ml-auto flex items-center gap-2">
           <Select value={responsavel} onValueChange={setResponsavel}>
-            <SelectTrigger size="sm" className="w-48">
+            <SelectTrigger aria-label="Responsável" size="sm" className="w-48">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -161,7 +161,7 @@ export function CalendarioDeTasks({
             value={modo}
             onValueChange={(v) => setModo(v as "mes" | "semana")}
           >
-            <SelectTrigger size="sm" className="w-28">
+            <SelectTrigger aria-label="Visualização" size="sm" className="w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

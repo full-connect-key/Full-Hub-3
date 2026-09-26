@@ -204,7 +204,9 @@ function Picker<T extends TaskStatus | SubtaskStatus>({
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>{gatilho}</PopoverTrigger>
 
-      <PopoverContent align="start" className="w-64 p-0">
+      {/* O popover do Radix e um role="dialog", e dialogo sem nome e uma caixa
+          que o leitor de tela anuncia como "dialogo" e mais nada. */}
+      <PopoverContent align="start" aria-label="Escolher o status" className="w-64 p-0">
         <div className="relative border-b p-2">
           <Search
             aria-hidden

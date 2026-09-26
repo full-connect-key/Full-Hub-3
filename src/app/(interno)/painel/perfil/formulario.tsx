@@ -94,6 +94,7 @@ export function FormularioDoPerfil({ profile }: { profile: Profile }) {
           <input
             ref={entradaDeArquivo}
             type="file"
+            aria-label="Escolher a sua foto de perfil"
             accept={TIPOS_ACEITOS.join(",")}
             className="sr-only"
             onChange={(evento) => {

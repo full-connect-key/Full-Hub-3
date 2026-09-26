@@ -328,6 +328,7 @@ export function EditorDoPost({
               <input
                 ref={arquivoRef}
                 type="file"
+                aria-label="Escolher a arte do post"
                 accept="image/*"
                 multiple={post.midia === "carrossel"}
                 className="sr-only"
@@ -426,7 +427,7 @@ export function EditorDoPost({
               )
             }
           >
-            <SelectTrigger id={`midia-${post.id}`} className="w-full">
+            <SelectTrigger aria-label="Mídia" id={`midia-${post.id}`} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -457,7 +458,7 @@ export function EditorDoPost({
               )
             }
           >
-            <SelectTrigger id={`rede-${post.id}`} className="w-full">
+            <SelectTrigger aria-label="Rede" id={`rede-${post.id}`} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -553,7 +554,7 @@ export function EditorDoPost({
                 )
               }
             >
-              <SelectTrigger id={`resp-${post.id}`} className="w-full">
+              <SelectTrigger aria-label="Responsável" id={`resp-${post.id}`} className="w-full">
                 <SelectValue placeholder="Liberar para…" />
               </SelectTrigger>
               <SelectContent>
@@ -619,7 +620,12 @@ export function EditorDoPost({
                 aoFechar?.();
               }}
               trigger={
-                <Button variant="ghost" size="sm" className="text-destructive ml-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Excluir este post"
+                  className="text-destructive ml-auto"
+                >
                   <Trash2 aria-hidden className="size-4" />
                 </Button>
               }

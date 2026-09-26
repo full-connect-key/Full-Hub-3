@@ -84,7 +84,7 @@ export function BarraDePeriodo({
               )
             }
           >
-            <SelectTrigger id="periodo" size="sm" className="w-52">
+            <SelectTrigger aria-label="Período" id="periodo" size="sm" className="w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -135,7 +135,7 @@ export function BarraDePeriodo({
               value={clienteId ?? TODOS}
               onValueChange={(valor) => trocar({ cliente: valor === TODOS ? null : valor })}
             >
-              <SelectTrigger id="cliente" size="sm" className="w-56">
+              <SelectTrigger aria-label="Cliente" id="cliente" size="sm" className="w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

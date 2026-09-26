@@ -56,7 +56,7 @@ export function FiltrosDaAuditoria({
           value={parametros.get("tabela") ?? TODAS}
           onValueChange={(v) => trocar("tabela", v)}
         >
-          <SelectTrigger className="w-52">
+          <SelectTrigger aria-label="Tabela" className="w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -76,7 +76,7 @@ export function FiltrosDaAuditoria({
           value={parametros.get("quem") ?? TODAS}
           onValueChange={(v) => trocar("quem", v)}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger aria-label="Quem mexeu" className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

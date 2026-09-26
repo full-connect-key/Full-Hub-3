@@ -103,7 +103,7 @@ function PrioridadeInline({ task }: { task: TaskDaLista }) {
         value={task.prioridade}
         onValueChange={(valor) => salvar(() => atualizarTask(task.id, { prioridade: valor }))}
       >
-        <SelectTrigger size="sm" className="h-7 border-none px-1 shadow-none">
+        <SelectTrigger aria-label="Prioridade da demanda" size="sm" className="h-7 border-none px-1 shadow-none">
           <PriorityBadge priority={task.prioridade} />
         </SelectTrigger>
         <SelectContent>
@@ -218,7 +218,7 @@ function BarraDeAcoesEmMassa({
       </span>
 
       <Select onValueChange={(v) => aplicar({ prioridade: v })}>
-        <SelectTrigger size="sm" className="w-36">
+        <SelectTrigger aria-label="Prioridade das selecionadas" size="sm" className="w-36">
           <SelectValue placeholder="Prioridade" />
         </SelectTrigger>
         <SelectContent>
@@ -234,7 +234,7 @@ function BarraDeAcoesEmMassa({
           porque os outros eram calculados e o banco desfaria a escolha. Agora
           marcar à mão dura, e em massa vale o mesmo que uma a uma. */}
       <Select onValueChange={(v) => aplicar({ status: v })}>
-        <SelectTrigger size="sm" className="w-44">
+        <SelectTrigger aria-label="Status das selecionadas" size="sm" className="w-44">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -449,7 +449,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
 
   const seletorDeAgrupamento = (
     <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as typeof agrupamento)}>
-      <SelectTrigger size="sm" className="w-44">
+      <SelectTrigger aria-label="Agrupar por" size="sm" className="w-44">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

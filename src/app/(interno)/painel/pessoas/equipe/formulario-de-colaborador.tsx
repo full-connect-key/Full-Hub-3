@@ -179,7 +179,7 @@ export function FormularioDeColaborador({
           <div className="space-y-2">
             <Label htmlFor="colab-role">Perfil de acesso *</Label>
             <Select value={role} onValueChange={(valor) => setValue("role", valor as Dados["role"])}>
-              <SelectTrigger id="colab-role" className="w-full">
+              <SelectTrigger aria-label="Perfil de acesso" id="colab-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -205,7 +205,7 @@ export function FormularioDeColaborador({
             <div className="space-y-2">
               <Label htmlFor="colab-area">Área</Label>
               <Select value={area || undefined} onValueChange={(valor) => setValue("area", valor)}>
-                <SelectTrigger id="colab-area" className="w-full">
+                <SelectTrigger aria-label="Área" id="colab-area" className="w-full">
                   <SelectValue placeholder="Escolha a área" />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,7 +220,7 @@ export function FormularioDeColaborador({
             <div className="space-y-2">
               <Label htmlFor="colab-funcao">Função *</Label>
               <Select value={funcao || undefined} onValueChange={(valor) => setValue("funcao", valor, { shouldValidate: true })}>
-                <SelectTrigger id="colab-funcao" aria-invalid={!!errors.funcao} className="w-full">
+                <SelectTrigger aria-label="Função" id="colab-funcao" aria-invalid={!!errors.funcao} className="w-full">
                   <SelectValue placeholder="Escolha a função" />
                 </SelectTrigger>
                 <SelectContent>

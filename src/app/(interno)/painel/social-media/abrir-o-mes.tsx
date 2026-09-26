@@ -205,7 +205,7 @@ export function AbrirOMes({
               <Select value={cliente} onValueChange={setCliente}>
                 {/* `w-full`: o SelectTrigger nasce `w-fit` e num grid vira um
                     botão só com a setinha. */}
-                <SelectTrigger id="mes-cliente" className="w-full">
+                <SelectTrigger aria-label="Cliente" id="mes-cliente" className="w-full">
                   <SelectValue placeholder="Escolha a empresa" />
                 </SelectTrigger>
                 <SelectContent>
@@ -353,7 +353,7 @@ export function AbrirOMes({
                       setResponsaveis((atual) => ({ ...atual, [funcao]: v }))
                     }
                   >
-                    <SelectTrigger id={`resp-${funcao}`} className="w-full">
+                    <SelectTrigger aria-label="Responsável da etapa" id={`resp-${funcao}`} className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

@@ -133,7 +133,7 @@ export function PainelDaSubtarefa({
                     salvar({ responsavel_id: valor === SEM_VALOR ? null : valor })
                   }
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Responsável" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -165,7 +165,7 @@ export function PainelDaSubtarefa({
                   value={subtarefa.prioridade}
                   onValueChange={(valor) => salvar({ prioridade: valor })}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Prioridade" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -236,6 +236,10 @@ export function PainelDaSubtarefa({
                 <Input
                   defaultValue={tempoParaCampo(subtarefa.estimativa_minutos)}
                   placeholder="2h30"
+                  // O rotulo do Campo e texto solto, nao um <label for>: sem isto o
+                  // unico nome do campo seria o title, que so existe para quem
+                  // tem mouse e paira sobre ele.
+                  aria-label="Estimativa"
                   title={AJUDA_DE_TEMPO}
                   onBlur={(evento) => {
                     const atual = tempoParaCampo(subtarefa.estimativa_minutos);

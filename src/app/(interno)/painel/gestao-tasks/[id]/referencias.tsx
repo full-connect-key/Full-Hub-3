@@ -125,6 +125,7 @@ export function Referencias({
                 Arquivo
                 <input
                   type="file"
+                  aria-label="Escolher um arquivo para anexar como referência"
                   className="sr-only"
                   onChange={(e) => {
                     const arquivo = e.target.files?.[0];

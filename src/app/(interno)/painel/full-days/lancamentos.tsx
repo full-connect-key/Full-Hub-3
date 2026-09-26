@@ -221,7 +221,7 @@ export function Lancamentos({
                 onValueChange={setPessoa}
                 disabled={Boolean(editando)}
               >
-                <SelectTrigger id="lanc-pessoa" className="w-full">
+                <SelectTrigger aria-label="De quem é o período" id="lanc-pessoa" className="w-full">
                   <SelectValue placeholder="Escolha alguém da equipe" />
                 </SelectTrigger>
                 <SelectContent>

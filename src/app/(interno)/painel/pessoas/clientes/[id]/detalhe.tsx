@@ -71,10 +71,13 @@ export function DetalheDoCliente({
           </dl>
 
           {cliente.observacoes ? (
-            <div className="mt-5 border-t pt-5">
+            /* <dl> e nao <div>: um <dt> solto fora de uma lista de definicao nao
+               descreve coisa nenhuma para quem le por leitor de tela — o par
+               rotulo/valor perde o vinculo e sobram dois textos soltos. */
+            <dl className="mt-5 border-t pt-5">
               <dt className="text-muted-foreground text-xs">Observações</dt>
               <dd className="mt-1 text-sm whitespace-pre-wrap">{cliente.observacoes}</dd>
-            </div>
+            </dl>
           ) : null}
         </div>
 

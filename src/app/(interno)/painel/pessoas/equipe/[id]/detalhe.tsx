@@ -137,7 +137,7 @@ export function DetalheDoColaborador({
               <Label htmlFor="role">Perfil de acesso</Label>
               {ehSocio ? (
                 <Select value={role} onValueChange={(valor) => setValue("role", valor as Dados["role"])}>
-                  <SelectTrigger id="role" className="w-full">
+                  <SelectTrigger aria-label="Perfil de acesso" id="role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -164,7 +164,7 @@ export function DetalheDoColaborador({
             <div className="space-y-2">
               <Label htmlFor="area">Área</Label>
               <Select value={area || undefined} onValueChange={(valor) => setValue("area", valor)}>
-                <SelectTrigger id="area" className="w-full">
+                <SelectTrigger aria-label="Área" id="area" className="w-full">
                   <SelectValue placeholder="Escolha a área" />
                 </SelectTrigger>
                 <SelectContent>
@@ -183,7 +183,7 @@ export function DetalheDoColaborador({
                 value={funcao || undefined}
                 onValueChange={(valor) => setValue("funcao", valor, { shouldValidate: true })}
               >
-                <SelectTrigger id="funcao" aria-invalid={!!errors.funcao} className="w-full">
+                <SelectTrigger aria-label="Função" id="funcao" aria-invalid={!!errors.funcao} className="w-full">
                   <SelectValue placeholder="Escolha a função" />
                 </SelectTrigger>
                 <SelectContent>

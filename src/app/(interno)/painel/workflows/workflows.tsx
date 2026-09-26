@@ -408,7 +408,7 @@ export function Workflows({
               <div className="space-y-2">
                 <Label htmlFor="tipo-cliente">Vale para</Label>
                 <Select value={cliente} onValueChange={setCliente}>
-                  <SelectTrigger id="tipo-cliente" className="w-full">
+                  <SelectTrigger aria-label="Vale para" id="tipo-cliente" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -153,6 +153,7 @@ const PARES = [
   // `--neutral` é o primeiro-plano nomeado de `--neutral-soft` e dá 6,3:1. As
   // duas linhas ficam: a de baixo é o que impede alguém de voltar ao
   // `--text-muted` achando que só a cor mudou.
+  ["--muted-foreground", "--muted", NORMAL, "o apelido do shadcn sobre o selo neutro"],
   ["--neutral", "--muted", NORMAL, "texto sobre o selo neutro"],
   ["--text-secondary", "--muted", NORMAL, "texto de apoio sobre o selo neutro"],
 

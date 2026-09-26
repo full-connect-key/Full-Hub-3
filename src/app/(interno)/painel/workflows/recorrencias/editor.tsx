@@ -316,7 +316,7 @@ export function EditorDeRecorrencia({
                 value={clienteId ?? SEM_VALOR}
                 onValueChange={(v) => setClienteId(v === SEM_VALOR ? null : v)}
               >
-                <SelectTrigger id="rec-cliente" className="w-full">
+                <SelectTrigger aria-label="Cliente" id="rec-cliente" className="w-full">
                   <SelectValue placeholder="Escolha o cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -376,7 +376,7 @@ export function EditorDeRecorrencia({
                 value={frequencia}
                 onValueChange={(v) => setFrequencia(v as RecorrenciaFrequencia)}
               >
-                <SelectTrigger id="rec-frequencia" className="w-full">
+                <SelectTrigger aria-label="Frequência" id="rec-frequencia" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -558,7 +558,7 @@ export function EditorDeRecorrencia({
                   }))
                 }
               >
-                <SelectTrigger id="rec-responsavel" className="w-full">
+                <SelectTrigger aria-label="Responsável" id="rec-responsavel" className="w-full">
                   <SelectValue placeholder="Decidir etapa por etapa" />
                 </SelectTrigger>
                 <SelectContent>
@@ -582,7 +582,7 @@ export function EditorDeRecorrencia({
                   setModelo((m) => ({ ...m, prioridade: v as TaskPrioridade }))
                 }
               >
-                <SelectTrigger id="rec-prioridade" className="w-full">
+                <SelectTrigger aria-label="Prioridade" id="rec-prioridade" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -660,7 +660,7 @@ export function EditorDeRecorrencia({
                       }))
                     }
                   >
-                    <SelectTrigger id="rec-diaria-resp" className="w-full">
+                    <SelectTrigger aria-label="Responsável da etapa diária" id="rec-diaria-resp" className="w-full">
                       <SelectValue placeholder="Sem responsável" />
                     </SelectTrigger>
                     <SelectContent>
@@ -685,7 +685,7 @@ export function EditorDeRecorrencia({
                     setWorkflowId(v === SEM_VALOR ? null : v)
                   }
                 >
-                  <SelectTrigger id="rec-workflow" className="w-full">
+                  <SelectTrigger aria-label="Partir de um workflow" id="rec-workflow" className="w-full">
                     <SelectValue placeholder="Montar as etapas à mão" />
                   </SelectTrigger>
                   <SelectContent>
@@ -730,6 +730,7 @@ export function EditorDeRecorrencia({
                           }
                         >
                           <SelectTrigger
+                            aria-label="Responsável"
                             id={`etapa-resp-${i}`}
                             className="w-full"
                           >

@@ -144,32 +144,41 @@ function CardArrastavel({
 
   const conteudo = <Card task={task} arrastando={isDragging} marcador={marcador} />;
 
-  return (
-    <div
+  // O ARRASTO VAI NO PRÓPRIO ELEMENTO CLICÁVEL, e não num <div> em volta dele.
+  //
+  // O dnd-kit devolve em `attributes` um `role="button"` mais um `tabIndex`, e
+  // espalhá-los num <div> que embrulha um <button> de verdade criava um botão
+  // dentro de outro: dois pontos de parada do Tab para o mesmo cartão, o leitor
+  // de tela anunciando "botão" duas vezes, e o de fora não fazendo nada no
+  // Enter. Os dois de dentro — o <button> e o <a> — já nascem focáveis e com o
+  // papel certo, então o que se aproveita de `attributes` é só o que sobra: o
+  // `aria-roledescription` e o `aria-describedby` das instruções de teclado.
+  const { role: _papel, tabIndex: _parada, ...aria } = attributes;
+  const doArrasto = arrastavel ? { ...aria, ...listeners } : {};
+  const classe = cn("block w-full text-left touch-none", !arrastavel && "cursor-default");
+
+  return aoAbrir ? (
+    <button
       ref={setNodeRef}
-      {...(arrastavel ? attributes : {})}
-      {...(arrastavel ? listeners : {})}
-      className={cn("touch-none", !arrastavel && "cursor-default")}
+      {...doArrasto}
+      type="button"
+      className={classe}
+      onClick={() => {
+        if (!isDragging) aoAbrir(task.id);
+      }}
     >
-      {aoAbrir ? (
-        <button
-          type="button"
-          className="block w-full text-left"
-          onClick={() => {
-            if (!isDragging) aoAbrir(task.id);
-          }}
-        >
-          {conteudo}
-        </button>
-      ) : (
-        <Link
-          href={`/painel/gestao-tasks/${task.id}`}
-          onClick={(e) => isDragging && e.preventDefault()}
-        >
-          {conteudo}
-        </Link>
-      )}
-    </div>
+      {conteudo}
+    </button>
+  ) : (
+    <Link
+      ref={setNodeRef}
+      {...doArrasto}
+      href={`/painel/gestao-tasks/${task.id}`}
+      className={classe}
+      onClick={(e) => isDragging && e.preventDefault()}
+    >
+      {conteudo}
+    </Link>
   );
 }
 

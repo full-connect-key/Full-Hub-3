@@ -547,7 +547,7 @@ function Campos({
               setCategoria(SEM_VALOR);
             }}
           >
-            <SelectTrigger id="lanc-tipo" className="w-full">
+            <SelectTrigger aria-label="Tipo" id="lanc-tipo" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -603,7 +603,7 @@ function Campos({
         <div className="space-y-2">
           <Label htmlFor="lanc-cliente">Cliente</Label>
           <Select value={cliente} onValueChange={setCliente}>
-            <SelectTrigger id="lanc-cliente" className="w-full">
+            <SelectTrigger aria-label="Cliente" id="lanc-cliente" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -620,7 +620,7 @@ function Campos({
         <div className="space-y-2">
           <Label htmlFor="lanc-categoria">Categoria</Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger id="lanc-categoria" className="w-full">
+            <SelectTrigger aria-label="Categoria" id="lanc-categoria" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -652,7 +652,7 @@ function Campos({
             disabled={!!pagamento}
             onValueChange={(v) => setStatus(v as FinStatus)}
           >
-            <SelectTrigger id="lanc-status" className="w-full">
+            <SelectTrigger aria-label="Situação" id="lanc-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

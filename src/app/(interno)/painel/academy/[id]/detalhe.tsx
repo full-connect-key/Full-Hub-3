@@ -557,7 +557,7 @@ function FormularioDeMaterial({
             value={tipo}
             onValueChange={(v) => setTipo(v as MaterialTipo)}
           >
-            <SelectTrigger id="material-tipo" className="w-full">
+            <SelectTrigger aria-label="Tipo" id="material-tipo" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -596,7 +596,7 @@ function FormularioDeMaterial({
             Skill que este material desenvolve
           </Label>
           <Select value={skill} onValueChange={setSkill}>
-            <SelectTrigger id="material-skill" className="w-full">
+            <SelectTrigger aria-label="Skill que este material desenvolve" id="material-skill" className="w-full">
               <SelectValue placeholder="Nenhuma" />
             </SelectTrigger>
             <SelectContent>

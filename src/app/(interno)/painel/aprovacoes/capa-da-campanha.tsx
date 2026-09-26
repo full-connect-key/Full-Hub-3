@@ -99,6 +99,7 @@ export function CapaDaCampanha({
           <input
             ref={arquivoRef}
             type="file"
+            aria-label="Escolher a capa da campanha"
             accept="image/*"
             className="sr-only"
             onChange={(e) => subir(e.target.files?.[0])}

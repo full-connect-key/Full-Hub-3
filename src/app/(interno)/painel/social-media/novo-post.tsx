@@ -125,7 +125,7 @@ export function NovoPost({
             <div className="space-y-1.5">
               <Label htmlFor="np-cliente">Cliente</Label>
               <Select value={clienteId ?? SEM_VALOR} onValueChange={(v) => setClienteId(v)}>
-                <SelectTrigger id="np-cliente" className="w-full">
+                <SelectTrigger aria-label="Cliente" id="np-cliente" className="w-full">
                   <SelectValue placeholder="Escolha o cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -185,7 +185,7 @@ export function NovoPost({
                 value={plataforma}
                 onValueChange={(v) => setPlataforma(v as PlataformaSocial)}
               >
-                <SelectTrigger id="np-rede" className="w-full">
+                <SelectTrigger aria-label="Rede" id="np-rede" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,7 +239,7 @@ export function NovoPost({
                 value={responsavel ?? SEM_VALOR}
                 onValueChange={(v) => setResponsavel(v === SEM_VALOR ? null : v)}
               >
-                <SelectTrigger id="np-resp" className="w-full">
+                <SelectTrigger aria-label="Liberar para" id="np-resp" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

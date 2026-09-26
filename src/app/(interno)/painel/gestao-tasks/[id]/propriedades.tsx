@@ -205,7 +205,7 @@ export function PropriedadesDaTask({
               value={task.prioridade}
               onValueChange={(valor) => salvar({ prioridade: valor })}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Prioridade" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -249,6 +249,7 @@ export function PropriedadesDaTask({
               onValueChange={(valor) => salvar({ client_id: valor })}
             >
               <SelectTrigger
+                aria-label="Cliente"
                 className="w-full"
                 // O rascunho nasce sem cliente, e é o campo que a publicação
                 // aponta primeiro. O anel marca onde olhar sem precisar de um
@@ -295,7 +296,7 @@ export function PropriedadesDaTask({
                 aplicarWorkflow(novo);
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Workflow" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

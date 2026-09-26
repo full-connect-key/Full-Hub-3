@@ -141,6 +141,7 @@ export function IdentidadeDoPortal({
         <input
           ref={capaRef}
           type="file"
+          aria-label="Escolher a imagem de capa do portal"
           accept="image/*"
           className="sr-only"
           onChange={(e) => subir("capa_url", e.target.files?.[0])}
@@ -162,6 +163,7 @@ export function IdentidadeDoPortal({
         <input
           ref={fotoRef}
           type="file"
+          aria-label="Escolher a foto de perfil do portal"
           accept="image/*"
           className="sr-only"
           onChange={(e) => subir("logo_url", e.target.files?.[0])}

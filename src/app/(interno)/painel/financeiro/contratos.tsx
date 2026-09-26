@@ -286,7 +286,7 @@ function CamposDoContrato({
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="ct-cliente">Cliente *</Label>
           <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger id="ct-cliente" className="w-full">
+            <SelectTrigger aria-label="Cliente" id="ct-cliente" className="w-full">
               <SelectValue placeholder="Escolha a empresa" />
             </SelectTrigger>
             <SelectContent>
@@ -327,7 +327,7 @@ function CamposDoContrato({
             value={recorrencia}
             onValueChange={(v) => setRecorrencia(v as ContratoRecorrencia)}
           >
-            <SelectTrigger id="ct-recorrencia" className="w-full">
+            <SelectTrigger aria-label="Recorrência" id="ct-recorrencia" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

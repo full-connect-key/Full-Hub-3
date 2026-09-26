@@ -152,7 +152,7 @@ export function FormularioDeCliente({
               value={responsavel}
               onValueChange={(valor) => setValue("responsavel_atendimento_id", valor)}
             >
-              <SelectTrigger id="responsavel" className="w-full">
+              <SelectTrigger aria-label="Responsável de atendimento" id="responsavel" className="w-full">
                 <SelectValue placeholder="Escolha alguém da equipe" />
               </SelectTrigger>
               <SelectContent>

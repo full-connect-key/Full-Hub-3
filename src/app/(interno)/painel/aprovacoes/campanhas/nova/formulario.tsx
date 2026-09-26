@@ -214,7 +214,7 @@ export function FormularioDeCampanha({
           <div className="space-y-1.5">
             <Label htmlFor="cliente">Cliente</Label>
             <Select value={clienteId} onValueChange={setClienteId}>
-              <SelectTrigger id="cliente" className="w-full">
+              <SelectTrigger aria-label="Cliente" id="cliente" className="w-full">
                 <SelectValue placeholder="Escolha o cliente" />
               </SelectTrigger>
               <SelectContent>
@@ -269,7 +269,7 @@ export function FormularioDeCampanha({
               value={status}
               onValueChange={(v) => setStatus(v as CampaignStatus)}
             >
-              <SelectTrigger id="status" className="w-full">
+              <SelectTrigger aria-label="Estado" id="status" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -344,7 +344,7 @@ export function FormularioDeCampanha({
         <div className="space-y-1.5">
           <Label htmlFor="modelo">Partir de um modelo</Label>
           <Select value={templateId} onValueChange={escolherModelo}>
-            <SelectTrigger id="modelo" className="w-full sm:max-w-sm">
+            <SelectTrigger aria-label="Partir de um modelo" id="modelo" className="w-full sm:max-w-sm">
               <SelectValue placeholder="Escolha um modelo" />
             </SelectTrigger>
             <SelectContent>

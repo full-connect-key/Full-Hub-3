@@ -141,7 +141,7 @@ export function Desligamento({
                 Transferir para {vinculos.exigeTransferencia ? "*" : "(opcional)"}
               </Label>
               <Select value={destino} onValueChange={setDestino}>
-                <SelectTrigger id="destino-da-transferencia" className="w-full">
+                <SelectTrigger aria-label="Para quem transferir" id="destino-da-transferencia" className="w-full">
                   <SelectValue placeholder="Escolha quem assume" />
                 </SelectTrigger>
                 <SelectContent>

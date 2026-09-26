@@ -166,7 +166,15 @@
   --secondary: var(--neutral-soft);
   --secondary-foreground: var(--text-primary);
   --muted: var(--neutral-soft);
-  --muted-foreground: var(--text-muted);
+  /* --neutral e nao --text-muted, e a troca vale mais que parece.
+     --muted-foreground e o apelido do shadcn para TODO texto discreto: selo
+     secundario, cabecalho de tabela, placeholder, botao nao selecionado de um
+     controle segmentado. Em muitos desses lugares o fundo e --muted, que e o
+     mesmo --neutral-soft -- e o par --text-muted sobre --neutral-soft da
+     4,43:1, abaixo do minimo de 4,5. Com --neutral da 6,35:1.
+     Trocar aqui vale para todo componente do shadcn de uma vez; trocar classe
+     por classe seriam 131 telas e a 132a ficaria para tras. */
+  --muted-foreground: var(--neutral);
   --accent: var(--blue-soft);
   --accent-foreground: var(--blue-strong);
   --destructive: var(--danger);
@@ -248,7 +256,15 @@
   --secondary: var(--neutral-soft);
   --secondary-foreground: var(--text-primary);
   --muted: var(--neutral-soft);
-  --muted-foreground: var(--text-muted);
+  /* --neutral e nao --text-muted, e a troca vale mais que parece.
+     --muted-foreground e o apelido do shadcn para TODO texto discreto: selo
+     secundario, cabecalho de tabela, placeholder, botao nao selecionado de um
+     controle segmentado. Em muitos desses lugares o fundo e --muted, que e o
+     mesmo --neutral-soft -- e o par --text-muted sobre --neutral-soft da
+     4,43:1, abaixo do minimo de 4,5. Com --neutral da 6,35:1.
+     Trocar aqui vale para todo componente do shadcn de uma vez; trocar classe
+     por classe seriam 131 telas e a 132a ficaria para tras. */
+  --muted-foreground: var(--neutral);
   --accent: var(--surface-sidebar-2);
   --accent-foreground: var(--brand-blue);
   --destructive: var(--danger);
