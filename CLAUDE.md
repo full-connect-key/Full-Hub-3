@@ -3591,6 +3591,11 @@ do tema escuro, onde o pior par era outro (`--neutral-soft`, a 4,17:1).
 > negrito, itálico e realce. As duas são decisão de quem usa o editor, então
 > ficou como está — e o achado continua aparecendo no relatório, nomeado, em
 > vez de ser silenciado por uma exceção.
+>
+> **Por isso a rodada completa termina em 1, com três nós.** São as sete
+> famílias reduzidas a esta, e o vermelho que sobra não é ruído: ele é esta
+> decisão esperando resposta. Silenciá-la por exceção deixaria a lista verde e
+> a decisão esquecida — e a lista verde é a que ninguém confere.
 
 **Onde a opacidade servia para dizer "inativo", ela era o segundo sinal e não o
 primeiro:** o workflow arquivado já tem o selo "Arquivado", o contrato inativo
