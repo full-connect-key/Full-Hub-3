@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "@/lib/dados/consulta";
+
 import { cache } from "react";
 
 import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
@@ -120,32 +122,38 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
 
   // Quais subtarefas têm rodada esperando decisão. É o que o board precisa
   // saber para recusar um arrasto com o motivo certo.
-  const { data: pendentes } = linhas.length
-    ? await supabase
-        .from("approval_rounds")
-        .select("content_id")
-        .eq("content_type", "subtask")
-        .eq("status", "pendente")
-        .in(
-          "content_id",
-          linhas.map((s) => s.id),
-        )
-    : { data: [] as { content_id: string }[] };
+  const pendentes = linhas.length
+    ? ouFalha(
+        "as rodadas pendentes das etapas",
+        await supabase
+          .from("approval_rounds")
+          .select("content_id")
+          .eq("content_type", "subtask")
+          .eq("status", "pendente")
+          .in(
+            "content_id",
+            linhas.map((s) => s.id),
+          ),
+      )
+    : [];
 
-  const comRodadaPendente = new Set((pendentes ?? []).map((r) => r.content_id));
+  const comRodadaPendente = new Set(pendentes.map((r) => r.content_id));
 
   const idsDePessoas = [
     ...new Set(linhas.map((s) => s.responsavel_id).filter(Boolean)),
   ] as string[];
-  const { data: pessoas } = idsDePessoas.length
-    ? await supabase
-        .from("profiles")
-        .select("id, nome, avatar_url")
-        .in("id", idsDePessoas)
-    : { data: [] as Pessoa[] };
+  const pessoas = idsDePessoas.length
+    ? ouFalha(
+        "as pessoas das etapas",
+        await supabase
+          .from("profiles")
+          .select("id, nome, avatar_url")
+          .in("id", idsDePessoas),
+      )
+    : [];
 
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
-  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
+  const porPessoa = new Map(pessoas.map((p) => [p.id, p]));
 
   const resumos = new Map<string, ReturnType<typeof resumoVazio>>();
   for (const sub of linhas) {
@@ -211,11 +219,14 @@ export async function listarTasks(
   // existe mais, e quem trabalha na demanda é quem tem etapa dentro dela.
   let idsPorPessoa: string[] | null = null;
   if (filtros.responsavel) {
-    const { data } = await supabase
-      .from("subtasks")
-      .select("task_id")
-      .eq("responsavel_id", filtros.responsavel);
-    idsPorPessoa = [...new Set((data ?? []).map((s) => s.task_id))];
+    const suas = ouFalha(
+      "as demandas em que a pessoa tem etapa",
+      await supabase
+        .from("subtasks")
+        .select("task_id")
+        .eq("responsavel_id", filtros.responsavel),
+    );
+    idsPorPessoa = [...new Set(suas.map((s) => s.task_id))];
     if (idsPorPessoa.length === 0) return [];
   }
 
@@ -240,11 +251,14 @@ export async function listarTasks(
     consulta = consulta.or(`data_fim.gte.${filtros.de},data_fim.is.null`);
   if (filtros.ate) consulta = consulta.lte("data_inicio", filtros.ate);
 
-  const { data } = await consulta.order("data_fim", {
-    ascending: true,
-    nullsFirst: false,
-  });
-  const tasks = await enriquecer(data ?? []);
+  const linhasDeTask = ouFalha(
+    "a lista de demandas",
+    await consulta.order("data_fim", {
+      ascending: true,
+      nullsFirst: false,
+    }),
+  );
+  const tasks = await enriquecer(linhasDeTask);
 
   if (filtros.soAtrasadas) {
     // Atraso é da SUBTAREFA: a Task não tem prazo próprio. Uma demanda está
@@ -334,19 +348,22 @@ export type TaskCompleta = TaskDaLista & {
 export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const supabase = await criarClienteServidor();
 
-  const { data: task } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  // `ouFalha` ANTES do `if (!task)`, e a ordem é a regra: sem linha é a RLS
+  // dizendo "isto não é seu", e a tela responde 404 — que é o certo. Erro é o
+  // `select` recusado inteiro, e juntar os dois faria "demanda não encontrada"
+  // aparecer para uma demanda que existe.
+  // O `<Task>` explícito não é enfeite: `maybeSingle()` devolve uma UNIÃO —
+  // o ramo de sucesso tem `data: Task` e o de erro tem `data: null`. Deixando
+  // o TypeScript inferir, ele casa o parâmetro contra os dois ramos e o `T`
+  // sai `never`, o que faz `task.criado_por` não compilar.
+  const task = ouFalha<Task>(
+    "a demanda",
+    await supabase.from("tasks").select("*").eq("id", id).maybeSingle(),
+  );
   if (!task) return null;
 
-  const [
-    { data: subtarefas },
-    { data: referencias },
-    { data: comentarios },
-    { data: historico },
-  ] = await Promise.all([
+  const [respEtapas, respReferencias, respComentarios, respHistorico] =
+    await Promise.all([
     supabase.from("subtasks").select("*").eq("task_id", id).order("ordem"),
     supabase
       .from("task_referencias")
@@ -363,11 +380,16 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       .select("*")
       .eq("task_id", id)
       .order("created_at", { ascending: false }),
-  ]);
+    ]);
 
-  const idsDeSubtarefas = (subtarefas ?? []).map((s) => s.id);
+  const subtarefas = ouFalha("as etapas da demanda", respEtapas);
+  const referencias = ouFalha("as referências da demanda", respReferencias);
+  const comentarios = ouFalha("os comentários da demanda", respComentarios);
+  const historico = ouFalha("o histórico da demanda", respHistorico);
 
-  const [{ data: rodadas }, { data: entregas }, { data: dependencias }] =
+  const idsDeSubtarefas = subtarefas.map((s) => s.id);
+
+  const [respRodadas, respEntregas, respDependencias] =
     await Promise.all([
       idsDeSubtarefas.length
         ? supabase
@@ -376,14 +398,14 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
             .eq("content_type", "subtask")
             .in("content_id", idsDeSubtarefas)
             .order("numero_rodada", { ascending: false })
-        : Promise.resolve({ data: [] as ApprovalRound[] }),
+        : Promise.resolve({ data: [] as ApprovalRound[], error: null }),
       idsDeSubtarefas.length
         ? supabase
             .from("subtask_entregas")
             .select("*")
             .in("subtask_id", idsDeSubtarefas)
             .order("created_at")
-        : Promise.resolve({ data: [] as SubtaskEntrega[] }),
+        : Promise.resolve({ data: [] as SubtaskEntrega[], error: null }),
       idsDeSubtarefas.length
         ? supabase
             .from("subtask_dependencies")
@@ -391,46 +413,57 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
             .in("subtask_id", idsDeSubtarefas)
         : Promise.resolve({
             data: [] as { subtask_id: string; depende_de_id: string }[],
+            error: null,
           }),
     ]);
+
+  const rodadas = ouFalha("as rodadas da demanda", respRodadas);
+  const entregas = ouFalha("as entregas das etapas", respEntregas);
+  const dependencias = ouFalha("as dependências das etapas", respDependencias);
 
   const ids = [
     ...new Set(
       [
         task.criado_por,
-        ...(subtarefas ?? []).map((s) => s.responsavel_id),
-        ...(comentarios ?? []).map((c) => c.autor_id),
-        ...(historico ?? []).map((h) => h.autor_id),
-        ...(rodadas ?? []).flatMap((r) => [r.solicitado_por, r.decidido_por]),
-        ...(entregas ?? []).map((e) => e.enviado_por),
+        ...subtarefas.map((s) => s.responsavel_id),
+        ...comentarios.map((c) => c.autor_id),
+        ...historico.map((h) => h.autor_id),
+        ...rodadas.flatMap((r) => [r.solicitado_por, r.decidido_por]),
+        ...entregas.map((e) => e.enviado_por),
       ].filter(Boolean),
     ),
   ] as string[];
 
-  const [{ data: pessoas }, { data: tipo }] = await Promise.all([
+  const [respPessoas, respTipo] = await Promise.all([
     ids.length
       ? supabase.from("profiles").select("id, nome, avatar_url").in("id", ids)
-      : Promise.resolve({ data: [] as Pessoa[] }),
+      : Promise.resolve({ data: [] as Pessoa[], error: null }),
     task.task_type_id
       ? supabase
           .from("task_types")
           .select("id, nome")
           .eq("id", task.task_type_id)
           .maybeSingle()
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
-  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
-  const porSubtarefa = new Map((subtarefas ?? []).map((s) => [s.id, s]));
+  const pessoas = ouFalha("as pessoas da demanda", respPessoas);
+  const tipo = ouFalha<{ id: string; nome: string } | null>(
+    "o workflow da demanda",
+    respTipo,
+  );
+
+  const porPessoa = new Map(pessoas.map((p) => [p.id, p]));
+  const porSubtarefa = new Map(subtarefas.map((s) => [s.id, s]));
   const [enriquecida] = await enriquecer([task]);
 
-  const detalhadas: SubtarefaDetalhada[] = (subtarefas ?? []).map((sub) => {
-    const minhasRodadas = (rodadas ?? []).filter(
+  const detalhadas: SubtarefaDetalhada[] = subtarefas.map((sub) => {
+    const minhasRodadas = rodadas.filter(
       (r) => r.content_id === sub.id,
     );
     const situacao = situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao);
 
-    const dependeDe = (dependencias ?? [])
+    const dependeDe = dependencias
       .filter((d) => d.subtask_id === sub.id)
       .map((d) => porSubtarefa.get(d.depende_de_id))
       .filter(Boolean)
@@ -456,7 +489,7 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
           ? (porPessoa.get(r.decidido_por) ?? null)
           : null,
       })),
-      entregas: (entregas ?? [])
+      entregas: entregas
         .filter((e) => e.subtask_id === sub.id)
         .map((e) => ({ ...e, autor: porPessoa.get(e.enviado_por) ?? null })),
       ...situacao,
@@ -469,11 +502,11 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
     tipo: tipo ?? null,
     subtarefas: detalhadas,
     referencias: referencias ?? [],
-    comentarios: (comentarios ?? []).map((comentario) => ({
+    comentarios: comentarios.map((comentario) => ({
       ...comentario,
       autor: porPessoa.get(comentario.autor_id) ?? null,
     })),
-    historico: (historico ?? []).map((evento) => ({
+    historico: historico.map((evento) => ({
       ...evento,
       autor: evento.autor_id ? (porPessoa.get(evento.autor_id) ?? null) : null,
     })),
@@ -539,31 +572,37 @@ export async function itensDoCalendario(
   // Sem o filtro de prazo na consulta, de propósito: para saber quem é
   // agrupadora é preciso ver as filhas, e filha sem prazo não voltaria. O
   // filtro entra depois, em `comPrazo`.
-  const { data: todas } = await supabase
-    .from("subtasks")
-    .select("*")
-    .in(
-      "task_id",
-      tasks.map((t) => t.id),
-    );
+  const todas = ouFalha(
+    "as etapas do calendário",
+    await supabase
+      .from("subtasks")
+      .select("*")
+      .in(
+        "task_id",
+        tasks.map((t) => t.id),
+      ),
+  );
 
   // A agrupadora fica FORA do calendário. O prazo dela, quando existe, é o que
   // sobrou de quando ela era folha — mostrar os dois poria a mesma entrega
   // duas vezes no mesmo mês, uma delas com uma data que ninguém mais usa.
-  const subtarefas = folhas(todas ?? []).filter((s) => s.prazo !== null);
+  const subtarefas = folhas(todas).filter((s) => s.prazo !== null);
 
   const idsDePessoas = [
     ...new Set(subtarefas.map((s) => s.responsavel_id).filter(Boolean)),
   ] as string[];
 
-  const { data: pessoas } = idsDePessoas.length
-    ? await supabase
-        .from("profiles")
-        .select("id, nome, avatar_url")
-        .in("id", idsDePessoas)
-    : { data: [] as Pessoa[] };
+  const pessoas = idsDePessoas.length
+    ? ouFalha(
+        "as pessoas do calendário",
+        await supabase
+          .from("profiles")
+          .select("id, nome, avatar_url")
+          .in("id", idsDePessoas),
+      )
+    : [];
 
-  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
+  const porPessoa = new Map(pessoas.map((p) => [p.id, p]));
   const porTask = new Map(tasks.map((t) => [t.id, t]));
 
   const itens: ItemDeCalendario[] = [];
@@ -645,8 +684,8 @@ async function campanhasNoCalendario(
 
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
 
-  const { data } = await consulta;
-  const campanhas = (data ?? []).filter((c) => c.status !== "cancelada");
+  const linhasDeCampanha = ouFalha("as campanhas do calendário", await consulta);
+  const campanhas = linhasDeCampanha.filter((c) => c.status !== "cancelada");
   if (campanhas.length === 0) return [];
 
   const [{ data: clientes }, { data: entregaveis }] = await Promise.all([
@@ -742,16 +781,18 @@ async function postsNoCalendario(
 
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
 
-  const { data } = await consulta;
-  const posts = data ?? [];
+  const posts = ouFalha("os posts do calendário", await consulta);
   if (posts.length === 0) return [];
 
-  const { data: clientes } = await supabase
-    .from("clients")
-    .select("id, nome_empresa, slug")
-    .in("id", [...new Set(posts.map((p) => p.client_id))]);
+  const clientes = ouFalha(
+    "os clientes dos posts do calendário",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa, slug")
+      .in("id", [...new Set(posts.map((p) => p.client_id))]),
+  );
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
 
   return posts.map((post) => {
     const cliente = porCliente.get(post.client_id);
@@ -786,9 +827,22 @@ export async function urlsDosArquivos(
   if (caminhos.length === 0) return {};
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.storage
+  // O ERRO DO STORAGE NÃO PODE SUMIR, e aqui ele não pode estourar tampouco.
+  //
+  // `ouFalha` não serve: ele fala `PostgrestError`, e o Storage devolve
+  // `StorageError`. E a decisão é outra — uma assinatura que falha deixa a
+  // miniatura sem carregar, e a tela ao redor (nome, autor, data, download)
+  // continua certa. Derrubar a página por causa da imagem seria trocar uma
+  // falha parcial por uma total.
+  //
+  // O que não pode é sumir: sem esta linha, um bucket renomeado ou uma policy
+  // de Storage mexida apaga as artes de todas as telas e a única pista é uma
+  // moldura cinza. A regra é "nenhuma leitura falha calada", e o mínimo para
+  // cumpri-la aqui é o log.
+  const { data, error } = await supabase.storage
     .from("task-arquivos")
     .createSignedUrls(caminhos, 3600);
+  if (error) console.error("[storage:assinar]", error);
 
   const mapa: Record<string, string> = {};
   for (const item of data ?? []) {
@@ -823,13 +877,14 @@ export type RascunhoDaLista = {
 export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
   const supabase = await criarClienteServidor();
 
-  const { data: rascunhos } = await supabase
-    .from("tasks")
-    .select("id, titulo, client_id, updated_at")
-    .is("publicada_em", null)
-    .order("updated_at", { ascending: false });
-
-  const lista = rascunhos ?? [];
+  const lista = ouFalha(
+    "os meus rascunhos",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, client_id, updated_at")
+      .is("publicada_em", null)
+      .order("updated_at", { ascending: false }),
+  );
   if (lista.length === 0) return [];
 
   const idsDeClientes = [
@@ -878,6 +933,9 @@ export async function rascunhosAExpirar(): Promise<
   { id: string; titulo: string }[]
 > {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.rpc("rascunhos_a_expirar");
-  return (data ?? []).map((r) => ({ id: r.id, titulo: r.titulo }));
+  const linhas = ouFalha(
+    "os rascunhos a expirar",
+    await supabase.rpc("rascunhos_a_expirar"),
+  );
+  return linhas.map((r) => ({ id: r.id, titulo: r.titulo }));
 }

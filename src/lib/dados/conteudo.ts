@@ -186,9 +186,22 @@ export async function assinarArquivos(
   if (doBucket.length === 0) return {};
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.storage
+  // O ERRO DO STORAGE NÃO PODE SUMIR, e aqui ele não pode estourar tampouco.
+  //
+  // `ouFalha` não serve: ele fala `PostgrestError`, e o Storage devolve
+  // `StorageError`. E a decisão é outra — uma assinatura que falha deixa a
+  // miniatura sem carregar, e a tela ao redor (nome, autor, data, download)
+  // continua certa. Derrubar a página por causa da imagem seria trocar uma
+  // falha parcial por uma total.
+  //
+  // O que não pode é sumir: sem esta linha, um bucket renomeado ou uma policy
+  // de Storage mexida apaga as artes de todas as telas e a única pista é uma
+  // moldura cinza. A regra é "nenhuma leitura falha calada", e o mínimo para
+  // cumpri-la aqui é o log.
+  const { data, error } = await supabase.storage
     .from(bucket)
     .createSignedUrls(doBucket, 3600);
+  if (error) console.error("[storage:assinar]", error);
 
   const mapa: Record<string, string> = {};
   for (const item of data ?? []) {
