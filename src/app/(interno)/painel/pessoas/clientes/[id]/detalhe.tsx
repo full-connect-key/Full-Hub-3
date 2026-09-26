@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Pencil, Settings2 } from "lucide-react";
+import { Activity, Pencil } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Client } from "@/lib/supabase/database.types";
 
 import { FormularioDeCliente } from "../formulario-de-cliente";
+import { ConfiguracoesDoFluxo, type PessoaDaEquipe } from "./configuracoes-do-fluxo";
 import { UsuariosDoCliente, type UsuarioComAcesso } from "./usuarios";
 import { ZonaDePerigoDoCliente } from "./zona-de-perigo";
 
@@ -27,13 +28,21 @@ export function DetalheDoCliente({
   usuarios,
   vinculos,
   ehSocio,
+  ehGestor,
+  fluxo,
 }: {
   cliente: Client;
   responsavel: string | null;
-  equipe: { id: string; nome: string }[];
+  equipe: PessoaDaEquipe[];
   usuarios: UsuarioComAcesso[];
   vinculos: React.ComponentProps<typeof ZonaDePerigoDoCliente>["vinculos"];
   ehSocio: boolean;
+  ehGestor: boolean;
+  /** O que a aba Configurações do fluxo desenha (migration 0064). */
+  fluxo: Omit<
+    React.ComponentProps<typeof ConfiguracoesDoFluxo>,
+    "clienteId" | "equipe" | "atendimento" | "observacoes" | "ehGestor"
+  >;
 }) {
   return (
     <Tabs defaultValue="dados">
@@ -99,10 +108,13 @@ export function DetalheDoCliente({
       </TabsContent>
 
       <TabsContent value="fluxo">
-        <EmptyState
-          icon={Settings2}
-          title="Configurado no Sprint 5"
-          description="Aqui vai morar o fluxo de aprovação desta conta: quem revisa, quem aprova e em quantas etapas."
+        <ConfiguracoesDoFluxo
+          {...fluxo}
+          clienteId={cliente.id}
+          equipe={equipe}
+          atendimento={responsavel}
+          observacoes={cliente.observacoes}
+          ehGestor={ehGestor}
         />
       </TabsContent>
 

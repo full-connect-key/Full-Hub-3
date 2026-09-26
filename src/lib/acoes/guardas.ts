@@ -62,14 +62,25 @@ export async function exigirGestorNaAcao(): Promise<Sessao> {
  * E a guarda não é a proteção: a policy é. Isto escreve a frase em português
  * antes de a pessoa levar um "nenhuma linha voltou".
  */
-export async function exigirAtendimentoNaAcao(): Promise<Sessao> {
+export async function exigirAtendimentoNaAcao(
+  /**
+   * O que a pessoa estava tentando fazer, para a frase da recusa.
+   *
+   * A pergunta ao banco é sempre a mesma — `is_atendimento()` —, mas a frase
+   * não pode ser: a guarda nasceu na tela de recorrências e a mensagem dizia
+   * "Configurar demanda recorrente", que lida em Configurações do fluxo
+   * descreveria outra tela. Quem recusa é a policy; isto aqui só existe para
+   * escrever em português o que ela vai dizer em silêncio.
+   */
+  oQue = "Configurar demanda recorrente",
+): Promise<Sessao> {
   const sessao = await exigirEquipeNaAcao();
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase.rpc("is_atendimento");
 
   if (error || data !== true) {
     throw new ErroDeAcao(
-      "Configurar demanda recorrente é de quem abre demanda: o Atendimento e a gestão.",
+      `${oQue} é de quem abre demanda: o Atendimento e a gestão.`,
     );
   }
   return sessao;

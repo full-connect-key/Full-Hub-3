@@ -64,6 +64,13 @@ const TELAS = [
   { nome: "10b-clientes-novo", rota: "/painel/pessoas?aba=clientes", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Novo cliente")' },
   { nome: "10c-cliente-dados", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1000, role: "socio" },
   { nome: "10d-cliente-usuarios", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Usuários com acesso")' },
+  // AS DUAS TELAS DA ABA DE FLUXO (0064), e as duas porque elas dizem coisas
+  // opostas: a Mundo Verde esta configurada -- com o aviso do Redator sem dono
+  // nomeando a funcao --, e a Optica nunca foi. A segunda e o caso comum no dia
+  // em que a aba nasce, e sem ela ninguem confere a tela vazia.
+  { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
+  { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
+  { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10e-equipe-lista", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "socio" },
   { nome: "10f-colaborador-dados", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
   { nome: "10g-desligamento", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
@@ -359,6 +366,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/clientes": ["./scripts/prototipo/clientes.ts"],
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
+  "@/lib/dados/fluxo-do-cliente": ["./scripts/prototipo/fluxo-do-cliente.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],

@@ -68,6 +68,10 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   // se sobe a arte. Sem este botão, o caminho era o menu e uma busca na lista.
   const campanha = await campanhaDaTask(task.id);
 
+  const particularidades = task.client_id
+    ? (clientes.find((c) => c.id === task.client_id)?.observacoes?.trim() ?? null)
+    : null;
+
   // A linha de contexto, montada só com o que existe.
   const contexto = [
     task.cliente?.nome_empresa,
@@ -148,6 +152,33 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
         podeEditar={podeGerenciar}
         driveLigado={driveConfigurado()}
       />
+
+      {/* AS PARTICULARIDADES DA CONTA, onde elas decidem alguma coisa (0064).
+          Elas são `clients.observacoes` e existem desde o Sprint 2 — na ficha
+          do cliente, que é uma tela que quem abre a demanda não visita. O que
+          faltava não era a coluna: era ela aparecer aqui, antes das etapas,
+          que é onde "esta conta não aprova arte na sexta" muda o que a pessoa
+          faz em seguida.
+
+          Fica FORA das abas, com as propriedades, porque descreve a conta
+          inteira e não o trabalho; e só aparece quando há o que dizer, como
+          todo bloco de exceção do produto. */}
+      {particularidades ? (
+        <section
+          aria-labelledby="particularidades-da-conta"
+          className="bg-blue-soft rounded-xl p-4"
+        >
+          <h2
+            id="particularidades-da-conta"
+            className="text-text-primary text-xs font-semibold"
+          >
+            Particularidades desta conta
+          </h2>
+          <p className="text-text-secondary mt-1 text-sm whitespace-pre-wrap">
+            {particularidades}
+          </p>
+        </section>
+      ) : null}
 
       <div className="min-w-0">
           <Tabs defaultValue="trabalho">

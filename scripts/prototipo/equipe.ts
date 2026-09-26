@@ -31,6 +31,10 @@ export async function listarEquipeAtiva() {
     email: pessoa.email,
     avatar_url: pessoa.avatar_url ?? null,
     funcao: pessoa.membro?.funcao ?? null,
+    // O PERFIL VIAJA JUNTO desde a 0064: o seletor de aprovador padrao da
+    // conta lista so quem pode decidir uma rodada interna, e sem o role ele
+    // sairia vazio na imagem do prototipo.
+    role: pessoa.role,
   }));
 }
 

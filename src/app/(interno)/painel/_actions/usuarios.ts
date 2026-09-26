@@ -7,7 +7,7 @@ import { adminOuErro, criarConta, desfazerConta } from "@/lib/acoes/contas";
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
-import { podeConcederRole } from "@/lib/dominio/equipe";
+import { FUNCOES, podeConcederRole } from "@/lib/dominio/equipe";
 import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
 
 /**
@@ -38,18 +38,6 @@ export type ResultadoDeConvite = {
   senhaProvisoria: string | null;
 };
 
-const FUNCOES_VALIDAS = [
-  "Atendimento",
-  "Social Media",
-  "Redator",
-  "Design",
-  "Audiovisual",
-  "Trafego",
-  "Desenvolvimento",
-  "Gestao",
-  "Outro",
-] as const;
-
 const esquemaDeColaborador = z.object({
   nome: z.string().min(2, "Informe o nome completo.").max(120),
   email: z.string().email("Esse e-mail não parece válido."),
@@ -57,7 +45,7 @@ const esquemaDeColaborador = z.object({
   cargo: z.string().max(120).optional().nullable(),
   area: z.string().max(120).optional().nullable(),
   // Obrigatória: é a função que libera a criação de tasks para o Atendimento.
-  funcao: z.enum(FUNCOES_VALIDAS, { message: "Escolha a função da pessoa na agência." }),
+  funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
   dias_ferias_ano: z.number().int().min(0).max(365).default(30),
 });

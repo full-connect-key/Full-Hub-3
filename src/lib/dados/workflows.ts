@@ -1,7 +1,8 @@
 import "server-only";
 
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { TaskType, WorkflowStep } from "@/lib/supabase/database.types";
+import type { TaskType, TeamFuncao, WorkflowStep } from "@/lib/supabase/database.types";
 
 /**
  * Workflows.
@@ -182,7 +183,8 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
 export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
-): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  clienteId?: string | null,
+): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
   const { data: tipo } = await supabase
@@ -192,7 +194,7 @@ export async function fluxoDoWorkflow(
     .maybeSingle();
 
   if (!tipo?.workflow_template_id) return null;
-  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId);
 }
 
 export type EtapaAplicada = {
@@ -204,6 +206,21 @@ export type EtapaAplicada = {
   requer_aprovacao: boolean;
   tipo_aprovacao: WorkflowStep["tipo_aprovacao"];
   depende_de: number | null;
+};
+
+export type FluxoAplicado = {
+  etapas: EtapaAplicada[];
+  snapshot: unknown;
+  /**
+   * As funções que ficaram sem ninguém, sem repetição.
+   *
+   * **Isto é aviso e não recusa**, e é decisão registrada: uma etapa sem dono
+   * não aparece no "Minhas Tasks" de ninguém, que é o pior tipo de trabalho —
+   * o que existe e ninguém sabe que é seu. Mas travar a abertura da demanda por
+   * causa de um cadastro deixaria o cliente sem entrega, então quem abre lê
+   * quais faltam e resolve na hora, na própria etapa ou na ficha da conta.
+   */
+  semDono: TeamFuncao[];
 };
 
 /**
@@ -218,7 +235,8 @@ export type EtapaAplicada = {
 export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
-): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  clienteId?: string | null,
+): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
   const { data: modelo } = await supabase
@@ -228,32 +246,52 @@ export async function etapasDoWorkflow(
     .maybeSingle();
   if (!modelo) return null;
 
-  const { data: etapas } = await supabase
-    .from("workflow_steps")
-    .select("*")
-    .eq("template_id", templateId)
-    .order("ordem");
+  /**
+   * QUEM RESOLVE O RESPONSÁVEL É O BANCO, quando há conta (migration 0064).
+   *
+   * `etapas_resolvidas_do_workflow()` aplica a ordem — pessoa escrita na etapa,
+   * depois quem exerce aquela função nesta conta — e é ela que responde, e não
+   * um `coalesce` escrito aqui do lado. Duas contas com a mesma pergunta é
+   * onde as duas verdades começam a divergir, e esta em especial tem um degrau
+   * a mais que a tela não tem como reproduzir sem uma consulta própria: quem
+   * saiu da agência não vira responsável, nem estando gravado na etapa.
+   *
+   * **Sem cliente a resolução não acontece**, e é o caso da tela de workflows
+   * pré-visualizando a cadeia: ali não há conta de quem herdar nada.
+   */
+  const lista = clienteId
+    ? await resolvidasPelaConta(templateId, clienteId)
+    : await cruasDoModelo(templateId);
 
-  const lista = etapas ?? [];
   const posicaoPorOrdem = new Map(lista.map((e, indice) => [e.ordem, indice + 1]));
 
   return {
     // O snapshot é a cópia congelada: mudar o workflow depois não mexe em
     // nenhuma Task já criada, e este JSON é o que diz qual versão gerou estas
-    // subtarefas.
+    // subtarefas. Com conta, ele guarda a cadeia JÁ RESOLVIDA — é essa que
+    // gerou as subtarefas, e guardar a crua faria o registro descrever um
+    // fluxo que não foi o aplicado.
     snapshot: {
       workflow_id: modelo.id,
       nome: modelo.nome,
       copiado_em: new Date().toISOString(),
+      resolvido_para_cliente: clienteId ?? null,
       etapas: lista,
     },
+    semDono: [
+      ...new Set(
+        lista
+          .filter((etapa) => etapa.responsavel_id === null && etapa.funcao_padrao !== null)
+          .map((etapa) => etapa.funcao_padrao as TeamFuncao),
+      ),
+    ],
     etapas: lista.map((etapa) => ({
       titulo: etapa.nome,
       prazo:
         etapa.prazo_offset_dias !== null
           ? somarDias(dataInicio, etapa.prazo_offset_dias)
           : null,
-      responsavel_id: etapa.responsavel_padrao_id,
+      responsavel_id: etapa.responsavel_id,
       funcao_padrao: etapa.funcao_padrao,
       prioridade: etapa.prioridade,
       requer_aprovacao: etapa.requer_aprovacao,
@@ -264,6 +302,61 @@ export async function etapasDoWorkflow(
           : null,
     })),
   };
+}
+
+/** A forma que as duas leituras devolvem, para o resto não precisar saber qual foi. */
+type EtapaDoModelo = {
+  ordem: number;
+  nome: string;
+  responsavel_id: string | null;
+  funcao_padrao: TeamFuncao | null;
+  prioridade: WorkflowStep["prioridade"];
+  prazo_offset_dias: number | null;
+  requer_aprovacao: boolean;
+  tipo_aprovacao: WorkflowStep["tipo_aprovacao"];
+  depende_de_ordem: number | null;
+};
+
+async function resolvidasPelaConta(
+  templateId: string,
+  clienteId: string,
+): Promise<EtapaDoModelo[]> {
+  const supabase = await criarClienteServidor();
+
+  const resolvidas = ouFalha(
+    "as etapas do workflow resolvidas pela conta",
+    await supabase.rpc("etapas_resolvidas_do_workflow", {
+      p_template_id: templateId,
+      p_client_id: clienteId,
+    }),
+  );
+
+  return resolvidas ?? [];
+}
+
+async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
+  const supabase = await criarClienteServidor();
+
+  const etapas = ouFalha(
+    "as etapas do workflow",
+    await supabase
+      .from("workflow_steps")
+      .select("*")
+      .eq("template_id", templateId)
+      .order("ordem"),
+  );
+
+  return (etapas ?? []).map((etapa) => ({
+    ordem: etapa.ordem,
+    nome: etapa.nome,
+    responsavel_id: etapa.responsavel_padrao_id,
+    funcao_padrao: etapa.funcao_padrao,
+    prioridade: etapa.prioridade,
+    prazo_offset_dias: etapa.prazo_offset_dias,
+    requer_aprovacao: etapa.requer_aprovacao,
+    tipo_aprovacao: etapa.tipo_aprovacao,
+    depende_de_ordem: etapa.depende_de_ordem,
+  }));
 }
 
 function somarDias(data: string, dias: number): string {

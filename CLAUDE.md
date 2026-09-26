@@ -2132,6 +2132,82 @@ próprio portal por um PATCH, e o `/portal/{slug}` que a gestão usa deixava de
 abrir. A 0031 fechou, e o cenário confere nos dois sentidos: a escrita passa
 (é o desenho) e o valor não muda.
 
+#### Os padrões da conta: quem faz o quê nesta empresa
+
+`client_flow_defaults` e `client_function_defaults` — migration 0064, decisão
+do usuário. Eles vivem na aba **Configurações do fluxo** da ficha do cliente,
+que até aqui era um espaço reservado.
+
+**O problema é uma frase:** abrir uma demanda para a Mundo Verde e escolher à
+mão, toda vez, a mesma social media e o mesmo redator. O workflow já sabia que
+a etapa é de Design desde a 0008 — `workflow_steps.funcao_padrao` —, e não
+havia onde dizer QUEM é o Design daquela conta. **É a sexta ponte do produto:**
+a coluna existia, a tela a mostrava, e nada a lia.
+
+**A ORDEM É pessoa da etapa → pessoa da função na conta → ninguém**, nessa
+ordem, e ela mora em `etapas_resolvidas_do_workflow()`. Quem escreveu o nome na
+etapa mandou — a inversão transformaria o campo numa arma, que é a lição da
+0041 com o responsável padrão da recorrência. A bateria guarda o cenário que
+impede a inversão: ele é o único que falha se o `case` trocar de lado.
+
+**E quem saiu da agência não vira responsável**, nem estando escrito na etapa.
+`pessoa_desligada()` é a mesma pergunta que a recorrência faz desde a 0041: uma
+etapa no nome de quem não está mais aqui não aparece no "Minhas Tasks" de
+ninguém, e é pior que uma etapa sem dono, porque parece resolvida.
+
+**Função sem dono AVISA, nunca recusa.** A etapa nasce sem responsável — que é
+visível — e a frase **nomeia a função que faltou**, como a recusa da 0023
+nomeia cada etapa sem aprovação: "há etapa sem responsável" manda abrir uma por
+uma; dizer qual é a diferença entre um aviso e uma instrução. Travar a abertura
+da demanda por causa de um cadastro deixaria o cliente sem entrega.
+
+**O aprovador interno padrão não é anotação: ele é chamado.** O trigger
+`approval_rounds_avisa_aprovador` toca o sino dele quando uma rodada interna
+nasce pendente. Sem isso a fila interna continuaria sendo uma tela que alguém
+lembra de abrir, com o prazo do cliente correndo nesse tempo. **É trigger e não
+action** pela razão da auditoria: a rodada nasce por três caminhos, e o aviso
+escrito na camada de aplicação cobre o que passou pela tela. As três recusas
+que importam são de `notificar()` e não se repetem aqui — quem causou o aviso
+não recebe, quem saiu não recebe, e avisar ninguém devolve `null` sem derrubar
+a escrita, que é exatamente a linha da 0062.
+
+**O prazo de resposta é de CADA CONTA**, e é ele que acende o selo "passou do
+prazo desta conta" na fila de aprovações. Uma constante no código faria um
+cliente que combinou dois dias e outro que combinou dez acenderem o alerta no
+mesmo dia. Quem nunca configurou vale três — o `default` da coluna e
+`PRAZO_DE_APROVACAO_PADRAO` existem os dois de propósito: um decide o que fica
+gravado, o outro decide o que a tela conta para a conta que ainda não tem
+linha, que é a maioria no dia em que a aba nasce.
+
+**A pasta padrão PREENCHE, nunca sobrescreve.** Escolher o cliente numa demanda
+sem pasta traz a da conta; numa que já tem, não encosta — trocar o endereço da
+entrega embaixo de quem acabou de colá-lo é o oposto do que a 0015 protege. E
+mora na action, não na tela: a tela salva campo a campo, e um preenchimento
+feito no navegador dependeria de os padrões terem carregado antes.
+
+**Três coisas NÃO viraram coluna nova, e é o que evita duas verdades:**
+
+| O que | Onde mora | Por quê |
+| --- | --- | --- |
+| o atendimento da conta | `clients.responsavel_atendimento_id` | é quem o Portal avisa desde a 0062; uma segunda coluna divergiria calada |
+| as particularidades | `clients.observacoes` | existe desde o Sprint 2 — o que faltava era ela aparecer no detalhe da demanda, que é onde decide algo |
+| as etapas do fluxo | `workflow_steps` | o editor continua em `/painel/workflows`, e a aba leva para lá |
+
+**Não existe estado "só leitura" nesta aba, porque ele não teria a quem
+recusar.** A primeira versão tinha a faixa e os campos desligados — e a ficha
+do cliente mora em `/painel/pessoas`, que é `GESTAO` desde o Sprint 3C, e
+gestão passa em `is_atendimento()`. É a 0060 no mesmo dia: uma segunda pergunta
+embaixo de uma primeira que já barra todo mundo não barra ninguém. *O que fica
+em aberto, e é dito em vez de escondido:* o banco aceita o colaborador do
+Atendimento escrevendo estes padrões, e nenhuma tela o leva até lá.
+
+**E `FUNCOES` virou uma lista só.** As nove funções viviam copiadas em quatro
+arquivos — duas como tupla `as const` para o zod, duas como `TeamFuncao[]` para
+a tela —, e a quinta cópia seria a que esquecesse uma função nova: o enum do
+banco ganharia o valor, uma tela ofereceria, e a action ao lado recusaria com
+uma mensagem sobre escolher a função. Hoje é uma tupla em `lib/dominio/equipe.ts`
+com `satisfies readonly TeamFuncao[]`, que serve aos dois lados.
+
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro
@@ -4204,6 +4280,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0061_o_mes_de_social_e_uma_demanda.sql` | **Pendente de aplicação.** Traz `tasks.social_do_mes`, `subtarefa_de_post()`, o mirror da corrente e o `p_link_entrega` de `abrir_mes_de_social()`. Sem ela, abrir o mês continua criando posts soltos — e a tela, que passou a mandar a pasta, leva *"Could not find the function"* |
 | `supabase/migrations/0062_notificar_ninguem_nao_e_erro.sql` | **Pendente de aplicação, e é a que conserta o bug relatado.** Faz `notificar()` devolver null quando não há a quem avisar. Sem ela, numa empresa **sem responsável de atendimento** o cliente não consegue aprovar, recusar, pedir ajustes nem comentar: o `not null` de `notifications.user_id` derruba a transação inteira |
 | `supabase/migrations/0063_a_capa_e_a_foto_do_portal.sql` | **Pendente de aplicação.** Traz `clients.capa_url` e põe a capa na lista de `protect_client_columns`. Sem ela, a ficha do cliente devolve erro de coluna inexistente ao trocar a capa |
+| `supabase/migrations/0064_os_padroes_da_conta.sql` | **Pendente de aplicação.** Traz `client_flow_defaults`, `client_function_defaults`, `workflow_steps.funcao_padrao` resolvida por conta e o aviso ao aprovador padrão. Sem ela, a aba **Configurações do fluxo** da ficha do cliente devolve erro de tabela inexistente — e aplicar um workflow continua criando etapa sem dono, sem dizer qual função faltou |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

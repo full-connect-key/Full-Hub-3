@@ -6,12 +6,13 @@
  */
 import type {
   EtapaAplicada,
+  FluxoAplicado,
   TipoComFluxo as TipoComFluxoReal,
   WorkflowDaAgencia as TipoReal,
 } from "../../src/lib/dados/workflows";
 
 export type WorkflowDaAgencia = TipoReal;
-export type { EtapaAplicada };
+export type { EtapaAplicada, FluxoAplicado };
 export type TipoComFluxo = TipoComFluxoReal;
 
 const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" };
@@ -149,16 +150,29 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
 export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
-): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  clienteId?: string | null,
+): Promise<FluxoAplicado | null> {
   const tipo = TIPOS.find((t) => t.id === tipoId);
   if (!tipo?.workflow_template_id) return null;
-  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio);
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId);
 }
+
+/**
+ * O PADRAO DA CONTA aparece no prototipo (0064), e a etapa de Redator e a que
+ * fica sem dono: e ela que faz a frase "esta conta nao tem ninguem em Redator"
+ * sair na imagem, que e onde se confere que o aviso nomeia a funcao em vez de
+ * dizer "alguma".
+ */
+const RESPONSAVEL_POR_FUNCAO: Record<string, string> = {
+  "Social Media": "5555-marina",
+  Design: "4444-bruno",
+};
 
 export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
-): Promise<{ etapas: EtapaAplicada[]; snapshot: unknown } | null> {
+  clienteId?: string | null,
+): Promise<FluxoAplicado | null> {
   const modelo = FLUXOS.find((w) => w.id === templateId);
   if (!modelo) return null;
 
@@ -166,13 +180,23 @@ export async function etapasDoWorkflow(
   // posicao na lista. O mapa traduz uma na outra, como a versao real faz.
   const posicaoPorOrdem = new Map(modelo.etapas.map((e, indice) => [e.ordem, indice + 1]));
 
+  const daConta = (funcao: string | null): string | null =>
+    clienteId && funcao ? (RESPONSAVEL_POR_FUNCAO[funcao] ?? null) : null;
+
   return {
     snapshot: { workflow_id: modelo.id, nome: modelo.nome, etapas: modelo.etapas },
+    semDono: [
+      ...new Set(
+        modelo.etapas
+          .filter((e) => e.funcao_padrao !== null && daConta(e.funcao_padrao) === null)
+          .map((e) => e.funcao_padrao!),
+      ),
+    ],
     etapas: modelo.etapas.map((etapa) => ({
       titulo: etapa.nome,
       prazo:
         etapa.prazo_offset_dias === null ? null : somarDias(dataInicio, etapa.prazo_offset_dias),
-      responsavel_id: null,
+      responsavel_id: daConta(etapa.funcao_padrao),
       funcao_padrao: etapa.funcao_padrao,
       prioridade: etapa.prioridade,
       requer_aprovacao: etapa.requer_aprovacao,

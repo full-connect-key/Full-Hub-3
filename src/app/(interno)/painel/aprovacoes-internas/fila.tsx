@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ExternalLink, Loader2, Paperclip, Send } from "lucide-react";
+import { ExternalLink, Loader2, Paperclip, Send, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/shared/empty-state";
@@ -155,6 +155,20 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
             addSuffix: false,
           })}
         </span>
+        {/* O ATRASO É CONTRA O PRAZO DESTA CONTA (migration 0064), e é por isso
+            que ele é um selo e não uma cor no texto do tempo: duas linhas com
+            "espera há 4 dias" podem estar uma em dia e outra atrasada, porque as
+            duas contas combinaram prazos diferentes. Sem o selo, a pessoa
+            compararia os dois números e concluiria que a tela está errada.
+
+            Par nomeado, nunca opacidade — e a palavra vai escrita, porque cor
+            não pode ser o único sinal. */}
+        {item.atrasada ? (
+          <span className="bg-warning-soft text-warning inline-flex items-center gap-1 rounded-md px-1.5 py-0.5">
+            <TriangleAlert aria-hidden className="size-3" />
+            passou do prazo desta conta
+          </span>
+        ) : null}
       </p>
 
       {/* O MATERIAL PARA OLHAR ANTES DE DECIDIR. Aprovar sem ver é o que o

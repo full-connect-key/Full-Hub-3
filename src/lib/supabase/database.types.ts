@@ -441,6 +441,71 @@ export interface Database {
        * encerrar, e sem Delete: registro de auditoria nao se apaga pela
        * aplicacao (migration 0009 nao cria policy de DELETE).
        */
+      /**
+       * Os padroes de fluxo de UM cliente (migration 0064).
+       *
+       * Uma linha por cliente (`client_id` e unico). **O atendimento da conta
+       * e o texto de particularidades NAO moram aqui** — sao
+       * `clients.responsavel_atendimento_id` e `clients.observacoes`, que ja
+       * existiam: uma segunda coluna com o mesmo papel divergiria em silencio
+       * da que o aviso do Portal usa.
+       *
+       * `updated_at` fica fora de `Insert` e de `Update`: quem escreve e o
+       * trigger `client_flow_defaults_touch`.
+       */
+      client_flow_defaults: {
+        Row: {
+          id: string;
+          client_id: string;
+          aprovador_interno_id: string | null;
+          pasta_entrega_url: string | null;
+          prazo_aprovacao_cliente_dias: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          aprovador_interno_id?: string | null;
+          pasta_entrega_url?: string | null;
+          prazo_aprovacao_cliente_dias?: number;
+        };
+        Update: {
+          aprovador_interno_id?: string | null;
+          pasta_entrega_url?: string | null;
+          prazo_aprovacao_cliente_dias?: number;
+        };
+        Relationships: [];
+      };
+      /**
+       * Quem exerce cada funcao nesta conta (migration 0064).
+       *
+       * E o que faz um workflow GLOBAL com etapa apontando para "Redator"
+       * servir todos os clientes. `unique (client_id, funcao)` e o que da UMA
+       * resposta a "quem e o Redator da Mundo Verde?".
+       *
+       * **Sem Update**: trocar a pessoa de uma funcao e um upsert pela chave
+       * `(client_id, funcao)`, e tirar a funcao e um delete. Um Update que
+       * aceitasse `funcao` deixaria renomear a chave de uma linha para uma
+       * funcao que ja tem dono, e a recusa sairia do indice.
+       */
+      client_function_defaults: {
+        Row: {
+          id: string;
+          client_id: string;
+          funcao: TeamFuncao;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          funcao: TeamFuncao;
+          user_id: string;
+        };
+        Update: { user_id?: string };
+        Relationships: [];
+      };
       client_portal_views: {
         Row: {
           id: string;
@@ -1939,6 +2004,35 @@ export interface Database {
       is_gestor: { Args: Record<string, never>; Returns: boolean };
       is_atendimento: { Args: Record<string, never>; Returns: boolean };
       pode_editar_task: { Args: { p_task_id: string }; Returns: boolean };
+      /**
+       * As etapas de um workflow com o responsavel JA RESOLVIDO para uma conta
+       * (migration 0064).
+       *
+       * A ordem e a regra, e mora no banco para a bateria poder fixa-la:
+       * pessoa explicita na etapa, senao a pessoa daquela funcao no cliente,
+       * senao nulo. Pessoa desligada nao entra.
+       *
+       * `funcao_sem_dono` diz QUAL funcao faltou, e existe para a tela poder
+       * nomea-la em vez de dizer "alguma etapa ficou sem dono".
+       *
+       * O prazo NAO vem daqui: ele sai de `data_inicio + prazo_offset_dias`, e
+       * o inicio e da demanda, nao do workflow.
+       */
+      etapas_resolvidas_do_workflow: {
+        Args: { p_template_id: string; p_client_id: string };
+        Returns: {
+          ordem: number;
+          nome: string;
+          responsavel_id: string | null;
+          funcao_padrao: TeamFuncao | null;
+          funcao_sem_dono: TeamFuncao | null;
+          prioridade: TaskPrioridade;
+          prazo_offset_dias: number | null;
+          requer_aprovacao: boolean;
+          tipo_aprovacao: TipoAprovacao | null;
+          depende_de_ordem: number | null;
+        }[];
+      };
       pode_aprovar_subtarefa: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_liberada: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_pendencias: { Args: { p_subtask_id: string }; Returns: string | null };
@@ -2377,6 +2471,10 @@ export type Recomendacao = Database["public"]["Tables"]["recommendations"]["Row"
 export type RecomendacaoComentario =
   Database["public"]["Tables"]["recommendation_comments"]["Row"];
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
+export type ClientFlowDefaults =
+  Database["public"]["Tables"]["client_flow_defaults"]["Row"];
+export type ClientFunctionDefault =
+  Database["public"]["Tables"]["client_function_defaults"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];

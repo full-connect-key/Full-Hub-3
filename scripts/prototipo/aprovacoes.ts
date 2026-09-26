@@ -12,8 +12,25 @@ import { BRUNO, CARLA, DIEGO, SUBTAREFAS } from "./tasks";
 
 export type { FilaDeAprovacoes, ItemDaFila };
 
+/** A linha antes do prazo da conta, igual à do módulo de verdade. */
+type ItemSemPrazo = Omit<ItemDaFila, "diasParada" | "atrasada">;
+
 const AGORA = Date.now();
 const horasAtras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
+
+/**
+ * O prazo combinado com cada conta (0064), e ele é DIFERENTE entre as duas de
+ * propósito: com um prazo só, a imagem não mostraria que o mesmo tempo parado
+ * acende o alerta numa conta e não na outra — que é a razão de o prazo ser por
+ * conta e não uma constante.
+ */
+const PRAZO_DA_CONTA: Record<string, number> = { "cli-verde": 3, "cli-optica": 1 };
+
+function comPrazo<T extends { desde: string; clienteId: string | null }>(item: T) {
+  const dias = Math.floor((AGORA - new Date(item.desde).getTime()) / 86_400_000);
+  const combinado = item.clienteId ? (PRAZO_DA_CONTA[item.clienteId] ?? 3) : 3;
+  return { ...item, diasParada: Math.max(dias, 0), atrasada: dias > combinado };
+}
 
 export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const kv = SUBTAREFAS.find((s) => s.titulo === "Criar KV")!;
@@ -23,7 +40,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const anexosDe = (entregas: { id: string; nome: string | null; url: string }[]) =>
     entregas.map((e) => ({ id: e.id, nome: e.nome ?? "Entrega", url: e.url }));
 
-  return {
+  const fila: { esperando: ItemSemPrazo[]; prontasParaOCliente: ItemSemPrazo[] } = {
     esperando: [
       {
         rodadaId: "rod-kv",
@@ -34,6 +51,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         contexto: "em Campanha de Instagram — linha de verão",
         rota: `/painel/gestao-tasks/${kv.task_id}`,
         cliente: "Mundo Verde",
+        clienteId: "cli-verde",
         responsavel: BRUNO,
         tipoAprovacao: "cliente",
         desde: horasAtras(26),
@@ -50,6 +68,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         contexto: "instagram · 14/10",
         rota: "/painel/social-media?post=post-carrossel",
         cliente: "Óptica Visão",
+        clienteId: "cli-optica",
         responsavel: CARLA,
         tipoAprovacao: "cliente",
         desde: horasAtras(9),
@@ -66,6 +85,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         contexto: "em Landing page da promoção",
         rota: `/painel/gestao-tasks/${landing.task_id}`,
         cliente: "Mundo Verde",
+        clienteId: "cli-verde",
         responsavel: DIEGO,
         tipoAprovacao: "interna",
         desde: horasAtras(5),
@@ -82,6 +102,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         contexto: "em Reels institucional",
         rota: `/painel/gestao-tasks/${roteiro.task_id}`,
         cliente: "Óptica Visão",
+        clienteId: "cli-optica",
         responsavel: CARLA,
         tipoAprovacao: "cliente",
         desde: horasAtras(4),
@@ -98,6 +119,7 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         contexto: "linkedin · 17/10",
         rota: "/painel/social-media?post=post-estatico",
         cliente: "Mundo Verde",
+        clienteId: "cli-verde",
         responsavel: BRUNO,
         tipoAprovacao: "cliente",
         desde: horasAtras(2),
@@ -106,5 +128,10 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         ],
       },
     ],
+  };
+
+  return {
+    esperando: fila.esperando.map(comPrazo),
+    prontasParaOCliente: fila.prontasParaOCliente.map(comPrazo),
   };
 }

@@ -16,6 +16,11 @@ import {
   vinculosDoCliente,
 } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import {
+  fluxosDaConta,
+  padroesDaConta,
+  recorrenciasDaConta,
+} from "@/lib/dados/fluxo-do-cliente";
 
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
@@ -30,12 +35,19 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
   const cliente = await obterCliente(id);
   if (!cliente) notFound();
 
-  const [usuarios, equipe, vinculos, identidade] = await Promise.all([
-    usuariosDoCliente(id),
-    listarEquipeAtiva(),
-    vinculosDoCliente(id),
-    identidadeDoPortal(id),
-  ]);
+  // Os padrões da conta (0064) descem junto com o resto: a aba é uma das
+  // quatro e trocar de aba não recarrega a página, então buscar só quando ela
+  // abrisse exigiria uma rota própria para desenhar o que já está aqui.
+  const [usuarios, equipe, vinculos, identidade, padroes, fluxos, recorrencias] =
+    await Promise.all([
+      usuariosDoCliente(id),
+      listarEquipeAtiva(),
+      vinculosDoCliente(id),
+      identidadeDoPortal(id),
+      padroesDaConta(id),
+      fluxosDaConta(id),
+      recorrenciasDaConta(id),
+    ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
   // A CONSULTA SÓ ACONTECE PARA A GESTÃO. Chamá-la sempre e esconder o bloco
@@ -89,6 +101,8 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
         }))}
         vinculos={vinculos}
         ehSocio={ehSocio(sessao.profile.role)}
+        ehGestor={ehDaGestao}
+        fluxo={{ padroes, fluxos, recorrencias }}
       />
     </div>
   );

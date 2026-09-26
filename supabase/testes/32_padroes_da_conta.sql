@@ -361,3 +361,131 @@ select teste.conferir(
      from public.audit_log
     where tabela = 'client_flow_defaults' and operacao = 'UPDATE' limit 1),
   'so a que mudou');
+
+
+-- ===========================================================================
+-- 11. O APROVADOR PADRAO DA CONTA E CHAMADO
+--
+-- Sem isto o campo seria anotacao: a fila interna existe desde o Sprint 3B e
+-- ninguem era chamado para ela -- quem valida descobria olhando. O material
+-- fica parado enquanto o prazo que a conta combinou com o cliente corre.
+--
+-- Os cinco cenarios sao as cinco respostas do trigger, e tres deles sao
+-- AUSENCIAS: nao avisar quem causou o aviso, nao avisar na rodada do cliente e
+-- nao derrubar a escrita quando nao ha a quem avisar. So o primeiro falha se
+-- alguem apagar o `perform notificar`; os outros falham se alguem "melhorar" o
+-- trigger tirando uma das guardas -- e o quarto e a 0062 outra vez: um trigger
+-- que chama `notificar()` com nulo levava a escrita inteira com ele.
+-- ===========================================================================
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('cccccccc-0064-0000-0000-00000000000a', :VERDE, 'Campanha da Mundo Verde',
+        :CARLA, '2027-03-01', 'https://drive.google.com/drive/folders/padroes');
+
+insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
+values ('dddddddd-0064-0000-0000-000000000001','cccccccc-0064-0000-0000-00000000000a',
+        'Arte do lancamento', 1, :BRUNO, true, 'interna');
+
+-- Uma etapa da OUTRA empresa, que nao tem linha de padroes nenhuma. E o
+-- cenario da 0062 virado para ca: sem aprovador configurado, abrir a rodada
+-- tem que PASSAR.
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('cccccccc-0064-0000-0000-00000000000b', :OPTICA, 'Vitrine da Optica',
+        :CARLA, '2027-03-01', 'https://drive.google.com/drive/folders/padroes');
+
+insert into public.subtasks (id, task_id, titulo, ordem, responsavel_id, requer_aprovacao, tipo_aprovacao)
+values ('dddddddd-0064-0000-0000-00000000000b','cccccccc-0064-0000-0000-00000000000b',
+        'Arte da vitrine', 1, :BRUNO, true, 'interna');
+
+-- A secao 10 deixou ANA como aprovadora da Mundo Verde. A Optica continua sem
+-- linha: `client_flow_defaults` nao nasce na leitura, de propriedade.
+delete from public.notifications;
+
+select teste.cenario('Bruno abre a rodada interna da etapa da Mundo Verde', :BRUNO,
+  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
+          values ('dddddddd-0064-0000-0000-000000000001', 1, 'interna', %L)$fmt$, :BRUNO),
+  'ok', 1);
+
+select teste.conferir(
+  'A aprovadora padrao da conta recebeu o aviso',
+  (select count(*)::text from public.notifications
+    where user_id = :ANA and tipo = 'aprovacao'),
+  '1');
+
+select teste.conferir(
+  'E o aviso nomeia a etapa e leva para a fila',
+  (select case when corpo like 'Arte do lancamento%' and link = '/painel/aprovacoes-internas'
+               then 'nomeia e leva' else coalesce(corpo, '(vazio)') end
+     from public.notifications where user_id = :ANA limit 1),
+  'nomeia e leva');
+
+-- ---------------------------------------------------------------------------
+-- QUEM CAUSOU O AVISO NAO RECEBE, e quem garante e `notificar()` -- o trigger
+-- nao repete a pergunta. A gestao que pede o proprio aval nao toca o sino
+-- dela, que e a regra do sino desde a 0011.
+-- ---------------------------------------------------------------------------
+delete from public.notifications;
+
+select teste.cenario('A propria aprovadora abre a rodada 2', :ANA,
+  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
+          values ('dddddddd-0064-0000-0000-000000000001', 2, 'interna', %L)$fmt$, :ANA),
+  'ok', 1);
+
+select teste.conferir(
+  'Ninguem e avisado do que fez',
+  (select count(*)::text from public.notifications where user_id = :ANA),
+  '0');
+
+-- ---------------------------------------------------------------------------
+-- A RODADA DO CLIENTE NAO CHAMA O APROVADOR INTERNO. Quem decide aquela e ele,
+-- no portal; um aviso aqui poria na fila interna uma decisao que nao e dela.
+-- ---------------------------------------------------------------------------
+-- A rodada 2 interna esta aberta desde o cenario de cima; a de escopo cliente
+-- so nasce depois de ela ser aprovada, e quem aprova e `is_gestor()` desde a
+-- 0029 -- inclusive o proprio trabalho.
+select teste.cenario('Diego aprova a rodada 2 interna', :DIEGO,
+  $$update public.approval_rounds set status = 'aprovada', decidido_por = '22222222-2222-2222-2222-222222222222', decidido_em = now()
+     where content_id = 'dddddddd-0064-0000-0000-000000000001' and numero_rodada = 2 and escopo = 'interna'$$,
+  'ok', 1);
+
+delete from public.notifications;
+
+select teste.cenario('A etapa vai ao cliente numa rodada de escopo cliente', :DIEGO,
+  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
+          values ('dddddddd-0064-0000-0000-000000000001', 2, 'cliente', %L)$fmt$, :DIEGO),
+  'ok', 1);
+
+select teste.conferir(
+  'A rodada de cliente nao chama o aprovador interno da conta',
+  (select count(*)::text from public.notifications where tipo = 'aprovacao'),
+  '0');
+
+-- ---------------------------------------------------------------------------
+-- SEM APROVADOR CONFIGURADO A ESCRITA PASSA, e este e o cenario que a 0062
+-- pagou caro: `notifications.user_id` e `not null`, e um trigger que chamasse
+-- `notificar()` com nulo derrubaria a rodada inteira. A Optica nao tem linha.
+-- ---------------------------------------------------------------------------
+select teste.cenario('A conta sem padroes configurados abre rodada normalmente', :BRUNO,
+  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
+          values ('dddddddd-0064-0000-0000-00000000000b', 1, 'interna', %L)$fmt$, :BRUNO),
+  'ok', 1);
+
+-- ---------------------------------------------------------------------------
+-- QUEM SAIU DA AGENCIA NAO E AVISADO, e a escrita continua passando. E a
+-- mesma pergunta que o resolvedor de etapas faz com `pessoa_desligada()`: um
+-- aviso para quem saiu e um aviso que ninguem le, e o sino do lado de ca fica
+-- dizendo que alguem foi chamado.
+-- ---------------------------------------------------------------------------
+delete from public.notifications;
+update public.profiles set ativo = false where id = :ANA;
+
+select teste.cenario('A rodada passa mesmo com a aprovadora desligada', :BRUNO,
+  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
+          values ('dddddddd-0064-0000-0000-000000000001', 3, 'interna', %L)$fmt$, :BRUNO),
+  'ok', 1);
+
+select teste.conferir(
+  'E a desligada nao recebe aviso nenhum',
+  (select count(*)::text from public.notifications where user_id = :ANA),
+  '0');
+
+update public.profiles set ativo = true where id = :ANA;

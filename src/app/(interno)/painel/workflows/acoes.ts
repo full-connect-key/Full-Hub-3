@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { FUNCOES } from "@/lib/dominio/equipe";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -29,18 +30,6 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  */
 
 const ROTA = "/painel/workflows";
-
-const FUNCOES = [
-  "Atendimento",
-  "Social Media",
-  "Redator",
-  "Design",
-  "Audiovisual",
-  "Trafego",
-  "Desenvolvimento",
-  "Gestao",
-  "Outro",
-] as const;
 
 const esquemaDeEtapa = z.object({
   nome: z.string().min(1, "A etapa precisa de um nome."),

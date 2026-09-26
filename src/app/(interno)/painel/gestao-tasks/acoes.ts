@@ -6,9 +6,10 @@ import { z } from "zod";
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { podeMoverTaskPara } from "@/lib/tasks/state-machine";
-import { fluxoDoWorkflow, type EtapaAplicada } from "@/lib/dados/workflows";
+import { fluxoDoWorkflow, type FluxoAplicado } from "@/lib/dados/workflows";
 import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -336,6 +337,38 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     const supabase = await criarClienteServidor();
 
+    // ---------------------------------------------------------------------
+    // ESCOLHER O CLIENTE TRAZ A PASTA PADRÃO DELE (migration 0064), e só
+    // quando a demanda ainda não tem pasta nenhuma.
+    //
+    // **Só preenche o que está em branco**, que é a mesma ordem do
+    // responsável por função: o que alguém digitou manda. Sobrescrever seria
+    // trocar o endereço da entrega embaixo de quem já o colou — e a 0015 diz
+    // em quantas palavras que pasta muda de lugar.
+    //
+    // **E mora aqui, não na tela.** A pessoa escolhe o cliente num seletor que
+    // salva sozinho; um preenchimento feito no navegador dependeria de a tela
+    // ter carregado os padrões da conta antes, e a primeira demanda de um
+    // cliente novo — que é justamente quando isso serve — nasceria sem nada.
+    // ---------------------------------------------------------------------
+    if (mudancas.client_id && entrada.link_entrega === undefined) {
+      const { data: atual } = await supabase
+        .from("tasks")
+        .select("link_entrega")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (!atual?.link_entrega?.trim()) {
+        const { data: padrao } = await supabase
+          .from("client_flow_defaults")
+          .select("pasta_entrega_url")
+          .eq("client_id", mudancas.client_id)
+          .maybeSingle();
+
+        if (padrao?.pasta_entrega_url) mudancas.link_entrega = padrao.pasta_entrega_url;
+      }
+    }
+
     // Escolher o status é sempre escolher À MÃO (migration 0025): os sete são
     // marcáveis, e `status_manual` é o que faz a escolha durar. Sem ele, o
     // recálculo desfaria tudo na próxima mexida numa etapa.
@@ -504,28 +537,22 @@ export async function excluirTask(id: string): Promise<Resultado> {
 }
 
 /**
- * As etapas que um workflow sugere, já com os prazos calculados.
+ * A frase que quem aplica um fluxo lê.
  *
- * Isto é leitura, não escrita: o que volta é uma sugestão para o formulário,
- * que a pessoa ainda edita, reordena e completa antes de confirmar. Nada é
- * gravado até ela clicar em Criar.
- *
- * O snapshot volta junto e é guardado na Task: alterar o workflow depois não
- * muda nenhuma demanda já criada, e o snapshot é o que diz qual versão do
- * fluxo gerou aquelas subtarefas.
+ * **Nomeia as funções que ficaram sem ninguém**, e é a mesma razão da recusa de
+ * `tasks_entregue_exige_cada_etapa`: "há etapa sem responsável" manda a pessoa
+ * abrir uma por uma para descobrir quais; dizer quais é a diferença entre um
+ * aviso e uma instrução. E ela aparece no lugar onde dá para resolver — a etapa
+ * está na tela, com o seletor de responsável do lado.
  */
-export async function sugerirEtapasDoTipo(
-  tipoId: string,
-  dataInicio: string,
-): Promise<Resultado<{ etapas: EtapaAplicada[]; snapshot: unknown } | null>> {
-  return executarAcao("sugerirEtapasDoTipo", async () => {
-    await exigirRotaNaAcao(ROTA);
+function mensagemDoFluxo(aplicado: FluxoAplicado): string {
+  const quantas = aplicado.etapas.length;
+  const base = `${quantas} etapa${quantas === 1 ? "" : "s"} do fluxo ${quantas === 1 ? "entrou" : "entraram"}.`;
 
-    const aplicado = await fluxoDoWorkflow(tipoId, dataInicio);
-    if (!aplicado) return sucesso("Este tipo não tem fluxo — monte as etapas à mão.", null);
+  if (aplicado.semDono.length === 0) return base;
 
-    return sucesso("Fluxo aplicado.", aplicado);
-  });
+  const nomes = aplicado.semDono.map((funcao) => ROTULOS_DE_FUNCAO[funcao]).join(", ");
+  return `${base} Esta conta não tem ninguém em ${nomes}: estas etapas nasceram sem responsável.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -716,12 +743,14 @@ export async function aplicarWorkflowNaTask(
 
     const { data: task } = await supabase
       .from("tasks")
-      .select("data_inicio")
+      .select("data_inicio, client_id")
       .eq("id", taskId)
       .maybeSingle();
     if (!task) return falha("Task não encontrada.");
 
-    const aplicado = await fluxoDoWorkflow(tipoId, task.data_inicio);
+    // O CLIENTE VAI JUNTO, e é o que liga os padrões da conta (0064): sem ele a
+    // resolução não acontece e a etapa que dependia da função nasce órfã.
+    const aplicado = await fluxoDoWorkflow(tipoId, task.data_inicio, task.client_id);
 
     const { error: erroDaTask } = await supabase
       .from("tasks")
@@ -758,9 +787,7 @@ export async function aplicarWorkflowNaTask(
     }
 
     revalidatePath(`${ROTA}/${taskId}`);
-    return sucesso(
-      `${aplicado.etapas.length} etapa${aplicado.etapas.length === 1 ? "" : "s"} do workflow ${aplicado.etapas.length === 1 ? "entrou" : "entraram"}. Dá para editar tudo.`,
-    );
+    return sucesso(`${mensagemDoFluxo(aplicado)} Dá para editar tudo.`);
   });
 }
 

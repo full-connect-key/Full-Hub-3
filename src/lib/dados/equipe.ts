@@ -84,6 +84,11 @@ export const listarEquipeAtiva = cache(async () => {
       email: pessoa.email,
       avatar_url: pessoa.avatar_url,
       funcao: pessoa.membro?.funcao ?? null,
+      // O PERFIL DE ACESSO VIAJA JUNTO, e não é detalhe: quem decide uma
+      // rodada interna é `is_gestor()` desde a 0029, então um seletor de
+      // aprovador padrão que ofereça colaborador oferece uma escolha que o
+      // banco recusa depois — com a rodada já aberta e ninguém para decidi-la.
+      role: pessoa.role,
     }));
 });
 

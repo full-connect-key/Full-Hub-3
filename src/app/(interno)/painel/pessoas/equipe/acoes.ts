@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { FUNCOES } from "@/lib/dominio/equipe";
 import { ehSocio } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -17,25 +18,13 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * passa pelo RLS como qualquer outra escrita.
  */
 
-const FUNCOES_VALIDAS = [
-  "Atendimento",
-  "Social Media",
-  "Redator",
-  "Design",
-  "Audiovisual",
-  "Trafego",
-  "Desenvolvimento",
-  "Gestao",
-  "Outro",
-] as const;
-
 const esquema = z.object({
   id: z.string().uuid(),
   nome: z.string().min(2, "Informe o nome completo.").max(120),
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().max(120).optional().nullable(),
   area: z.string().max(120).optional().nullable(),
-  funcao: z.enum(FUNCOES_VALIDAS, { message: "Escolha a função da pessoa na agência." }),
+  funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
   dias_ferias_ano: z.number().int().min(0).max(365),
 });

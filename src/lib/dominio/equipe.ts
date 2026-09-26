@@ -8,7 +8,20 @@ import type { TeamFuncao, UserRole } from "@/lib/supabase/database.types";
  * Atendimento cria tasks sem virar gestor de nada.
  */
 
-export const FUNCOES: TeamFuncao[] = [
+/**
+ * As nove funções, em TUPLA e não em array.
+ *
+ * O `as const` é o que faz esta lista servir aos DOIS lados: a tela percorre
+ * com `.map()`, e o zod das actions pede `readonly [string, ...string[]]` —
+ * `TeamFuncao[]` não serve para `z.enum`. Por isso ela vivia copiada em quatro
+ * arquivos, e a quinta cópia seria a que esquecesse uma função nova: o enum do
+ * banco ganharia o valor, uma tela ofereceria, e a action ao lado recusaria com
+ * uma mensagem sobre escolher a função.
+ *
+ * O `satisfies` é a trava: uma função que não exista em `team_funcao` não
+ * compila aqui, em vez de virar recusa do Postgres na tela de quem salvou.
+ */
+export const FUNCOES = [
   "Atendimento",
   "Social Media",
   "Redator",
@@ -18,7 +31,7 @@ export const FUNCOES: TeamFuncao[] = [
   "Desenvolvimento",
   "Gestao",
   "Outro",
-];
+] as const satisfies readonly TeamFuncao[];
 
 /** O banco guarda sem acento (é um enum); a tela mostra com acento. */
 export const ROTULOS_DE_FUNCAO: Record<TeamFuncao, string> = {

@@ -172,6 +172,55 @@ from (values
 ) as v(id, segmento, responsavel, ativo)
 where clients.id = v.id;
 
+-- OS PADROES DA CONTA (0064), e SO A MUNDO VERDE tem.
+--
+-- A Optica fica sem linha nenhuma nas duas tabelas, pela mesma razao que ela
+-- ficou sem responsavel de atendimento: `client_flow_defaults` nao nasce na
+-- leitura, entao "conta nunca configurada" e o estado de toda empresa no dia
+-- em que a aba aparece -- e e o estado em que a tela precisa ser conferida.
+-- Um seed com as duas configuradas mostraria o produto no unico estado em que
+-- a etapa nunca nasce orfa.
+--
+-- E A MUNDO VERDE FICA SEM REDATOR, de proposito: o workflow global "Post de
+-- feed" tem a etapa Conteudo apontando para a funcao Redator, entao a tela e a
+-- abertura da demanda tem que dizer QUAL funcao falta. Com as nove funcoes
+-- preenchidas, esse aviso nunca apareceria em desenvolvimento.
+insert into public.client_flow_defaults
+  (client_id, aprovador_interno_id, pasta_entrega_url, prazo_aprovacao_cliente_dias)
+select 'c0000000-0000-0000-0000-00000000000a'::uuid,
+       'a0000000-0000-0000-0000-000000000002'::uuid,
+       'https://drive.google.com/drive/folders/mundo-verde-entregas',
+       2
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000002')
+on conflict (client_id) do nothing;
+
+insert into public.client_function_defaults (client_id, funcao, user_id)
+select 'c0000000-0000-0000-0000-00000000000a'::uuid, 'Social Media'::public.team_funcao,
+       'a0000000-0000-0000-0000-000000000006'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000006')
+on conflict (client_id, funcao) do nothing;
+
+insert into public.client_function_defaults (client_id, funcao, user_id)
+select 'c0000000-0000-0000-0000-00000000000a'::uuid, 'Design'::public.team_funcao,
+       'a0000000-0000-0000-0000-000000000005'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000005')
+on conflict (client_id, funcao) do nothing;
+
+insert into public.client_function_defaults (client_id, funcao, user_id)
+select 'c0000000-0000-0000-0000-00000000000a'::uuid, 'Atendimento'::public.team_funcao,
+       'a0000000-0000-0000-0000-000000000003'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
+on conflict (client_id, funcao) do nothing;
+
+-- AS PARTICULARIDADES DA CONTA sao `clients.observacoes`, que existe desde o
+-- Sprint 2 e nenhuma tela alem da ficha do cliente lia. Desde a 0064 ela
+-- aparece no detalhe da demanda, que e onde uma frase dessas muda o que a
+-- pessoa faz em seguida -- e sem texto no seed aquele bloco nunca aparece.
+update public.clients
+set observacoes = 'Aprova arte so as segundas e quartas. Nao usa a cor vermelha em peca nenhuma.'
+where id = 'c0000000-0000-0000-0000-00000000000a'
+  and coalesce(observacoes, '') = '';
+
 -- Quem enxerga o que no portal. A Mundo Verde tem dois acessos; a Academia
 -- Corpo Livre nao tem nenhum, para dar para testar a exclusao de uma empresa
 -- vazia e a leitura restrita de quem nao e dela.

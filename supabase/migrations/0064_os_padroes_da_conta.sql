@@ -369,3 +369,93 @@ end;
 $bloco$;
 
 notify pgrst, 'reload schema';
+
+
+-- ---------------------------------------------------------------------------
+-- PASSO 8 - O APROVADOR PADRAO DA CONTA DESCOBRE QUE TEM COISA ESPERANDO
+--
+-- Sem isto o campo seria anotacao: a fila interna existe desde o Sprint 3B e
+-- ninguem e chamado para ela -- quem valida descobre olhando. Numa agencia com
+-- dez contas isso quer dizer que o material fica parado ate alguem lembrar de
+-- abrir a tela, e o prazo que a conta combinou com o cliente corre nesse tempo.
+--
+-- E TRIGGER E NAO ACTION, pela mesma razao da auditoria: `pedirAvalInterno` e
+-- uma porta, e o post e a etapa abrem rodada por caminhos diferentes -- um
+-- `insert` colado no SQL Editor, o gatilho de outro trigger. Aviso escrito na
+-- camada de aplicacao avisa sobre o que passou pela tela e perde o resto.
+--
+-- `notificar()` faz as duas recusas que importam, e nenhuma delas e repetida
+-- aqui: quem causou o aviso nao recebe (a gestao que pede o proprio aval nao
+-- toca o sino dela), e avisar ninguem devolve null sem derrubar a escrita que
+-- chamou -- que e exatamente a linha da 0062, e o que impede este trigger de
+-- virar o bug que ela consertou.
+-- ---------------------------------------------------------------------------
+create or replace function public.avisa_aprovador_da_conta()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $func$
+declare
+  v_cliente   uuid;
+  v_aprovador uuid;
+  v_nome      text;
+begin
+  -- So rodada INTERNA e so pendente. A de escopo cliente e decidida por ele,
+  -- no portal, e o aprovador da conta nao tem nada a fazer com ela.
+  if new.escopo <> 'interna' or new.status <> 'pendente' then
+    return new;
+  end if;
+
+  if new.content_type = 'subtask' then
+    select t.client_id, s.titulo
+      into v_cliente, v_nome
+      from public.subtasks s
+      join public.tasks t on t.id = s.task_id
+     where s.id = new.content_id;
+  elsif new.content_type = 'post' then
+    select p.client_id, p.tema
+      into v_cliente, v_nome
+      from public.posts p
+     where p.id = new.content_id;
+  else
+    return new;
+  end if;
+
+  if v_cliente is null then
+    return new;
+  end if;
+
+  select aprovador_interno_id
+    into v_aprovador
+    from public.client_flow_defaults
+   where client_id = v_cliente;
+
+  -- PESSOA DESLIGADA NAO E AVISADA, e e a mesma pergunta que o resolvedor de
+  -- etapas faz: um aviso para quem saiu da agencia e um aviso que ninguem le,
+  -- e o sino do lado de ca fica dizendo que alguem foi chamado.
+  if v_aprovador is null or public.pessoa_desligada(v_aprovador) then
+    return new;
+  end if;
+
+  perform public.notificar(
+    v_aprovador,
+    'aprovacao',
+    'Tem material esperando seu aval',
+    coalesce(v_nome, 'Um material') || ' entrou na fila de aprovacoes internas.',
+    '/painel/aprovacoes-internas'
+  );
+
+  return new;
+end;
+$func$;
+
+drop trigger if exists approval_rounds_avisa_aprovador on public.approval_rounds;
+create trigger approval_rounds_avisa_aprovador
+  after insert on public.approval_rounds
+  for each row execute function public.avisa_aprovador_da_conta();
+
+comment on function public.avisa_aprovador_da_conta is
+  'Avisa o aprovador interno padrao da conta (0064) quando uma rodada interna nasce pendente. Nao avisa quem causou o aviso nem quem saiu da agencia, e nunca derruba a escrita que chamou -- e `notificar()` quem garante as duas primeiras.';
+
+notify pgrst, 'reload schema';

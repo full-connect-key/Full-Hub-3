@@ -2,6 +2,7 @@ import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
 import { assinarArquivos } from "@/lib/dados/conteudo";
+import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import type {
@@ -78,12 +79,40 @@ export type ItemDaFila = {
   tipoAprovacao: TipoAprovacao;
   /** Desde quando espera. */
   desde: string;
+  /** O cliente da linha, para a conta do prazo combinado com ele. */
+  clienteId: string | null;
+  /**
+   * Quantos dias corridos esta linha está parada, e se passou do combinado.
+   *
+   * **O prazo é DE CADA CONTA** (`client_flow_defaults`, migration 0064), e é
+   * essa a diferença que faz o número valer: um cliente que combinou dois dias
+   * e outro que combinou dez não podem acender o mesmo alerta no mesmo dia. Sem
+   * linha configurada vale o padrão da coluna, três dias — quem nunca abriu a
+   * aba é a maioria no dia em que ela nasce, e um alerta que não aparece para
+   * eles não alerta ninguém.
+   */
+  diasParada: number;
+  atrasada: boolean;
   anexos: AnexoDaFila[];
 };
 
 export type FilaDeAprovacoes = {
   esperando: ItemDaFila[];
   prontasParaOCliente: ItemDaFila[];
+};
+
+/**
+ * A linha antes de saber o prazo da conta.
+ *
+ * As duas leituras não perguntam o prazo, e é de propósito: ele é por cliente, e
+ * perguntá-lo dentro de cada uma daria duas consultas onde uma basta — e duas
+ * chances de as duas contarem os dias de jeitos diferentes.
+ */
+type ItemSemPrazo = Omit<ItemDaFila, "diasParada" | "atrasada">;
+
+type FilaCrua = {
+  esperando: ItemSemPrazo[];
+  prontasParaOCliente: ItemSemPrazo[];
 };
 
 export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
@@ -98,22 +127,56 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
     ...dePosts.prontasParaOCliente,
   ];
 
+  const prazos = await prazosDasContas(
+    [...esperando, ...prontasParaOCliente].map((item) => item.clienteId),
+  );
+
+  const agora = Date.now();
+  const comPrazo = (item: ItemSemPrazo): ItemDaFila => {
+    const dias = Math.floor((agora - new Date(item.desde).getTime()) / 86_400_000);
+    const combinado = item.clienteId
+      ? (prazos.get(item.clienteId) ?? PRAZO_DE_APROVACAO_PADRAO)
+      : PRAZO_DE_APROVACAO_PADRAO;
+    return { ...item, diasParada: Math.max(dias, 0), atrasada: dias > combinado };
+  };
+
   // QUEM ESPERA HÁ MAIS TEMPO VEM PRIMEIRO, e a ordenação é feita depois de
   // juntar as duas origens — não dentro de cada uma. Ordenar separado e
   // concatenar daria uma fila em que todo post vem depois de toda etapa,
   // inclusive o post parado há uma semana atrás da etapa de hoje. A fila
   // justa é a que não deixa nada esquecido no fim da lista, e ela é uma só.
+  //
+  // A ordem continua sendo a do TEMPO PARADO, e não a do atraso: uma linha de
+  // conta folgada parada há duas semanas precisa aparecer antes da de conta
+  // apertada parada há quatro dias, mesmo que só a segunda esteja atrasada.
   const maisAntigoPrimeiro = (a: ItemDaFila, b: ItemDaFila) =>
     a.desde.localeCompare(b.desde);
 
   return {
-    esperando: esperando.sort(maisAntigoPrimeiro),
-    prontasParaOCliente: prontasParaOCliente.sort(maisAntigoPrimeiro),
+    esperando: esperando.map(comPrazo).sort(maisAntigoPrimeiro),
+    prontasParaOCliente: prontasParaOCliente.map(comPrazo).sort(maisAntigoPrimeiro),
   };
 }
 
+/** O prazo combinado com cada conta, só das que aparecem na fila. */
+async function prazosDasContas(ids: (string | null)[]): Promise<Map<string, number>> {
+  const unicos = [...new Set(ids.filter(Boolean))] as string[];
+  if (unicos.length === 0) return new Map();
+
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "os prazos de aprovação das contas",
+    await supabase
+      .from("client_flow_defaults")
+      .select("client_id, prazo_aprovacao_cliente_dias")
+      .in("client_id", unicos),
+  );
+
+  return new Map((linhas ?? []).map((l) => [l.client_id, l.prazo_aprovacao_cliente_dias]));
+}
+
 /** As rodadas internas de ETAPA de demanda. */
-async function etapasNaFila(): Promise<FilaDeAprovacoes> {
+async function etapasNaFila(): Promise<FilaCrua> {
   const supabase = await criarClienteServidor();
 
   // Trazer as decididas junto é o que permite descobrir quais já têm aval e
@@ -186,8 +249,8 @@ async function etapasNaFila(): Promise<FilaDeAprovacoes> {
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 
-  const esperando: ItemDaFila[] = [];
-  const prontasParaOCliente: ItemDaFila[] = [];
+  const esperando: ItemSemPrazo[] = [];
+  const prontasParaOCliente: ItemSemPrazo[] = [];
 
   for (const sub of subtarefas ?? []) {
     const minhas = todas.filter((r) => r.content_id === sub.id);
@@ -204,6 +267,7 @@ async function etapasNaFila(): Promise<FilaDeAprovacoes> {
       cliente: task.client_id
         ? (porCliente.get(task.client_id)?.nome_empresa ?? null)
         : null,
+      clienteId: task.client_id ?? null,
       responsavel: sub.responsavel_id
         ? (porPessoa.get(sub.responsavel_id) ?? null)
         : null,
@@ -269,7 +333,7 @@ async function etapasNaFila(): Promise<FilaDeAprovacoes> {
  * interno: a corrente da 0045 vai até Programar, e o Envio é o elo do meio.
  * Por isso ele nunca "conclui" ao ser aprovado — passa para a segunda lista.
  */
-async function postsNaFila(): Promise<FilaDeAprovacoes> {
+async function postsNaFila(): Promise<FilaCrua> {
   const supabase = await criarClienteServidor();
 
   const rodadas = ouFalha(
@@ -323,8 +387,8 @@ async function postsNaFila(): Promise<FilaDeAprovacoes> {
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 
-  const esperando: ItemDaFila[] = [];
-  const prontasParaOCliente: ItemDaFila[] = [];
+  const esperando: ItemSemPrazo[] = [];
+  const prontasParaOCliente: ItemSemPrazo[] = [];
 
   for (const post of posts) {
     const minhas = todas.filter((r) => r.content_id === post.id);
@@ -340,6 +404,7 @@ async function postsNaFila(): Promise<FilaDeAprovacoes> {
         : `${post.plataforma} · sem data ainda`,
       rota: `/painel/social-media?post=${post.id}`,
       cliente: porCliente.get(post.client_id) ?? null,
+      clienteId: post.client_id,
       responsavel: post.responsavel_id
         ? (porPessoa.get(post.responsavel_id) ?? null)
         : null,

@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { FUNCOES } from "@/lib/dominio/equipe";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import type { TipoComFluxo } from "@/lib/dados/workflows";
 import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
@@ -50,18 +51,6 @@ import {
 
 const GLOBAL = "__todos__";
 const SEM_VALOR = "__sem__";
-
-const FUNCOES: TeamFuncao[] = [
-  "Atendimento",
-  "Social Media",
-  "Redator",
-  "Design",
-  "Audiovisual",
-  "Trafego",
-  "Desenvolvimento",
-  "Gestao",
-  "Outro",
-];
 
 type EtapaEmEdicao = {
   chave: string;
