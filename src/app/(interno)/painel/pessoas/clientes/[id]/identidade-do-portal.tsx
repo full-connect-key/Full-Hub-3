@@ -119,7 +119,12 @@ export function IdentidadeDoPortal({
           ) : null}
         </div>
         <div className="bg-surface-page flex items-end gap-3 px-4 pb-3">
-          <div className="ring-surface-page bg-surface-card -mt-8 size-16 shrink-0 overflow-hidden rounded-full ring-4">
+          {/* `relative z-10` PELA MESMA RAZÃO DO PORTAL, e aqui é preventivo:
+              esta prévia não tinha o bug porque a capa não é `relative` — e
+              essa é uma garantia por ausência, que some no dia em que alguém
+              puser um selo no canto da capa. A prévia precisa desenhar o que o
+              cliente vê; as duas dizem a mesma coisa agora. */}
+          <div className="ring-surface-page bg-surface-card relative z-10 -mt-8 size-16 shrink-0 overflow-hidden rounded-full ring-4">
             {fotoAssinada ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

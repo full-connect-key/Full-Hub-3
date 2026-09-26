@@ -55,7 +55,7 @@ export function IdentidadeDoCliente({
           de verdade exigiria truque de largura de viewport dentro de um
           contêiner centralizado, e o preço dele aparece na primeira barra de
           rolagem. */}
-      <div className="bg-brand-navy relative h-30 w-full overflow-hidden rounded-t-xl sm:h-52">
+      <div className="bg-brand-navy h-30 w-full overflow-hidden rounded-t-xl sm:h-52">
         {capaAssinada ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={capaAssinada} alt="" className="size-full object-cover" />
@@ -65,9 +65,26 @@ export function IdentidadeDoCliente({
       {/* A FOTO SOBREPÕE A BORDA DE BAIXO, e é o que faz o desenho ser um
           perfil e não duas faixas empilhadas. O `-mt-10` é metade da altura
           dela; o anel da cor da página é o que a separa da capa em qualquer
-          imagem, clara ou escura. */}
+          imagem, clara ou escura.
+
+          ---------------------------------------------------------------
+          **O `relative z-10` É O QUE PÕE A FOTO NA FRENTE, e vir depois no
+          HTML não basta.**
+
+          A capa tinha `relative` — sem `z-index`, sem precisar dele para
+          nada — e isso a punha na camada dos elementos POSICIONADOS, que o
+          navegador pinta depois de todos os estáticos do mesmo contexto.
+          Resultado: a capa cobria a metade de cima da foto, e o que se via
+          era um semicírculo saindo da borda de baixo. O `-mt-10` continuava
+          funcionando; quem estava errado era a ordem de pintura.
+
+          Foi o usuário quem viu, na tela dele. A correção é dizer em voz
+          alta quem fica na frente, em vez de depender da ausência de um
+          `relative` que alguém acrescenta de novo no dia em que a capa
+          precisar de um selo no canto — e aí o bug volta calado.
+          --------------------------------------------------------------- */}
       <div className="flex items-end gap-3 px-4">
-        <div className="ring-surface-page bg-surface-card -mt-10 size-20 shrink-0 overflow-hidden rounded-full ring-4 sm:-mt-12 sm:size-24">
+        <div className="ring-surface-page bg-surface-card relative z-10 -mt-10 size-20 shrink-0 overflow-hidden rounded-full ring-4 sm:-mt-12 sm:size-24">
           {fotoAssinada ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
