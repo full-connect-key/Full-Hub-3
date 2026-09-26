@@ -3772,6 +3772,15 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   responde 500: até aqui ele mandava o erro para `/dev/null`, a imagem da
   página de erro saía como se fosse a tela, e a rodada terminava dizendo
   "Pronto" — com noventa imagens, ninguém abre a que quebrou.
+- **O gerador de protótipo troca 28 módulos por stubs, e o `typecheck` não os
+  vê.** Ele checa `src/` contra os módulos de verdade; a troca é um
+  `compilerOptions.paths` aplicado só dentro de `.prototipo/`. Um stub sem um
+  export que a tela importa passa no tipo, no lint e no build, e quebra na
+  compilação do protótipo — quinze minutos depois, no fim de uma rodada. É a
+  mesma família do valor exportado de arquivo cliente: erro que atravessa toda
+  a verificação e só aparece quando alguém pede a tela. `check:prototipo`
+  fecha a janela em menos de um segundo, e está no CI **porque o protótipo não
+  está**.
 - **`<title>` dentro de `<svg>` quebra a hidratação.** O React 19 trata
   `<title>` como o título do documento e o iça para o `<head>`, o que faz o
   HTML do servidor divergir do que o navegador monta. O rótulo acessível de um
@@ -4004,6 +4013,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
+| `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele |
 | `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |

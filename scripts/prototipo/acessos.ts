@@ -13,7 +13,13 @@ export async function ultimosAcessos(ids: string[]): Promise<Record<string, stri
  * Duas linhas e não zero: o bloco some quando a lista é vazia, e um protótipo
  * que nunca desenha a tela nova é um protótipo que não a verifica.
  */
-export async function visitasAoPortal(clienteId: string) {
+export type VisitaAoPortal = {
+  id: string;
+  quem: string;
+  quando: string;
+};
+
+export async function visitasAoPortal(clienteId: string): Promise<VisitaAoPortal[]> {
   if (clienteId !== "c0000000-0000-0000-0000-00000000000a") return [];
   return [
     { id: "v1", quem: "Ana Souza", quando: "2026-09-24T14:22:00.000Z" },

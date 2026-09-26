@@ -17,6 +17,7 @@
     "check:preview": "npx --yes tsx scripts/check-preview.mjs",
     "check:dias": "node scripts/check-dias.mjs",
     "check:email": "node scripts/check-email.mjs",
+    "check:prototipo": "node scripts/check-prototipo.mjs",
     "check:drive": "node scripts/check-drive.mjs",
     "check:sprint9": "node scripts/verificar-9.mjs"
   },

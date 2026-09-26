@@ -79,6 +79,15 @@ jobs:
       # consulta do Google Drive. Um cliente chamado `Bar do Zé's` já quebra
       # a consulta; um nome montado de propósito faz a busca procurar outra
       # coisa e o produto gravar a pasta errada.
+      - name: Os stubs do protótipo acompanham os módulos reais
+        # O `typecheck` NÃO vê os stubs: ele checa `src/` contra os módulos de
+        # verdade, e a troca só acontece dentro da cópia temporária. Um stub
+        # sem um export que a tela importa atravessa build, lint e tipo, e só
+        # quebra dentro do `npm run prototipo` -- que não roda aqui, e que na
+        # prática alguém roda a cada três sprints. Esta checagem leva menos de
+        # um segundo e fecha justamente essa janela.
+        run: npm run check:prototipo
+
       - name: O escape da consulta do Drive
         run: npm run check:drive
 
