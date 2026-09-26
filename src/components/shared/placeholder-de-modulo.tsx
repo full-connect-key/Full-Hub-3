@@ -26,13 +26,16 @@ export async function PlaceholderDeModulo({
   /**
    * O que a pessoa vai poder fazer aqui, em uma frase.
    *
-   * **Sem ela a tela diz que o módulo existirá, e não o que ele fará** — e é a
-   * diferença entre quem fecha a aba e quem volta. A frase padrão descreve o
-   * estado da OBRA ("a navegação já funciona"), que interessa a quem a
-   * constrói; a frase de cada módulo descreve o que ele resolve, que é o que
-   * interessa a quem o esperou.
+   * **OBRIGATÓRIA, e ela já era o argumento deste arquivo.** O texto padrão
+   * que existia aqui — "a navegação e as permissões já estão funcionando" —
+   * descrevia o estado da OBRA, que interessa a quem a constrói e a mais
+   * ninguém. Quem abre a tela quer saber o que ela vai resolver.
+   *
+   * Sendo opcional, a próxima rota placeholder herdava o texto errado de
+   * graça. Sendo obrigatória, ela é uma frase que alguém precisa escrever —
+   * e quem não tem o que escrever descobre que a rota não devia existir.
    */
-  frase?: string;
+  frase: string;
 }) {
   await exigirAcessoARota(href);
   const item = findMenuItem(href);
@@ -40,13 +43,13 @@ export async function PlaceholderDeModulo({
   return (
     <div className="space-y-6">
       <PageHeader title={item?.label ?? "Módulo"} />
+      {/* "Esta área ainda não está pronta" e não "Módulo em construção":
+          módulo é palavra nossa, e obra é assunto de quem constrói. O título
+          diz o estado em português comum; a descrição diz o que vai existir. */}
       <EmptyState
         icon={item?.icon ?? Hammer}
-        title="Módulo em construção"
-        description={
-          frase ??
-          "A navegação e as permissões já estão funcionando. O conteúdo entra em breve."
-        }
+        title="Esta área ainda não está pronta"
+        description={frase}
       />
     </div>
   );

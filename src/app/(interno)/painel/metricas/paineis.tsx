@@ -104,8 +104,9 @@ export function PainelDeProducao({
           recorte. Com a frase ao lado, a linha vira o cabeçalho da aba. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-text-muted max-w-2xl text-sm">
-          Tudo por etapa, nunca por demanda: a Task não tem responsável nem prazo desde o Sprint
-          3B, e um indicador de entrega montado sobre ela mediria o agrupador em vez do trabalho.
+          Tudo por etapa, nunca por demanda: a demanda é o agrupador, e quem tem responsável e
+          prazo é a etapa — um indicador de entrega montado sobre ela mediria o agrupador em vez do
+          trabalho.
         </p>
         <BotaoDeCsv onClick={exportar} />
       </div>

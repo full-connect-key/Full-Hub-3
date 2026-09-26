@@ -17,7 +17,7 @@ export default function Pagina() {
   return (
     <PlaceholderDeModulo
       href="/painel/notas-fiscais"
-      frase="Em breve você poderá enviar sua nota fiscal do mês e acompanhar o pagamento por aqui."
+      frase="Aqui você vai enviar a nota fiscal do mês e acompanhar o pagamento dela."
     />
   );
 }

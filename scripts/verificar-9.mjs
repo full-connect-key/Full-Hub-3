@@ -80,6 +80,45 @@ const PROIBIDAS = [
  */
 const DA_CASCA = ["notas fiscais", "nota fiscal"];
 
+/**
+ * VOCABULÁRIO DE DESENVOLVIMENTO, e esta lista vale em TODA tela.
+ *
+ * As de cima são sobre um módulo — o Full Academy não dá nota. Esta é sobre o
+ * produto inteiro: nenhum texto que a pessoa lê pode citar número de sprint,
+ * nome de arquivo do roteiro ou palavra de quem constrói. Espaço reservado se
+ * explica em português comum ou não existe.
+ *
+ * **Ela nasceu de quatro achados de uma varredura só:** a ficha do cliente
+ * dizia "Configurado no Sprint 5" e "Preenchido no Sprint 14", a busca da
+ * topbar respondia "entra em um sprint futuro", e as Métricas explicavam uma
+ * conta "desde o Sprint 3B". Nenhum dos quatro quebrava build, tipo ou lint —
+ * e os três primeiros apontavam para coisas que não existem mais.
+ *
+ * **Por que aqui e não no `check:cores`:** aquele varre o código-fonte, e
+ * "sprint" aparece em trinta e cinco comentários que EXPLICAM decisões —
+ * inclusive o que explica esta regra. É a armadilha que a lista de nomes
+ * mortos já pagou três vezes. Aqui o que se lê é o texto renderizado, então
+ * comentário não conta e atributo de tag não conta: só o que sai na tela.
+ */
+const DE_DESENVOLVIMENTO = [
+  ["sprint", "número de sprint não diz nada a quem usa, e envelhece junto com o roteiro"],
+  ["placeholder", "é palavra nossa; a tela diz em português o que vai existir"],
+  ["backlog", "é palavra nossa"],
+  ["em construção", "obra é assunto de quem constrói, não de quem abre a tela"],
+  ["lorem ipsum", "texto de exemplo numa tela de verdade é tela que mente"],
+];
+
+/**
+ * `TODO` e `FIXME` entram SEPARADOS, e é por causa do português.
+ *
+ * "todo" é palavra comum — "todo mundo", "todo dia", "em todo lugar" — e a
+ * varredura de cima ignora caixa de propósito, para pegar "Sprint" e "sprint"
+ * de uma vez. Buscando `todo` sem distinguir maiúscula, toda tela do produto
+ * falharia, e a checagem viraria ruído no primeiro dia. Aqui a caixa é o que
+ * separa o marcador de código da palavra.
+ */
+const MARCADORES = ["TODO", "FIXME", "XXX", "HACK"];
+
 /** As telas do sprint, por perfil de quem as capturou. */
 const DO_SPRINT_9 = [
   "80-academy",
@@ -167,6 +206,12 @@ function textoDe(html) {
 function apareceInteira(texto, palavra) {
   const escapada = palavra.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escapada}($|[^\\p{L}\\p{N}])`, "iu").test(texto);
+}
+
+/** A mesma fronteira, olhando a CAIXA — só para `TODO` e companhia. */
+function apareceInteiraComCaixa(texto, palavra) {
+  const escapada = palavra.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escapada}($|[^\\p{L}\\p{N}])`, "u").test(texto);
 }
 
 const problemas = [];
@@ -263,6 +308,51 @@ for (const [palavra, porque] of PROIBIDAS) {
     certo(`“${palavra}” não aparece em tela nenhuma`);
   } else {
     problemas.push(`“${palavra}” aparece na tela — ${porque}\n          ${onde.join(", ")}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// E AGORA EM TODA TELA, não só nas do Full Academy.
+//
+// As outras duas seções perguntam sobre um módulo. Esta pergunta sobre o
+// produto: em cento e cinquenta telas e seis perfis, nenhuma palavra de quem
+// constrói. Por isso ela lê TODOS os dumps, inclusive os que nenhuma outra
+// checagem conhece — um espaço reservado esquecido mora justamente na tela que
+// ninguém lembra de olhar.
+// ---------------------------------------------------------------------------
+console.log("\nVocabulário de desenvolvimento, em toda tela\n");
+
+const TODAS = new Map();
+for (const arquivo of arquivos) {
+  TODAS.set(
+    arquivo.replace(/\.html$/, ""),
+    textoDe(await readFile(path.join(DUMPS, arquivo), "utf8")),
+  );
+}
+
+for (const [palavra, porque] of DE_DESENVOLVIMENTO) {
+  const onde = [...TODAS].filter(([, texto]) => apareceInteira(texto, palavra)).map(([t]) => t);
+  if (onde.length === 0) {
+    certo(`“${palavra}” não aparece em tela nenhuma`);
+  } else {
+    problemas.push(
+      `“${palavra}” aparece em ${onde.length} tela(s) — ${porque}\n` +
+        `          ${onde.slice(0, 8).join(", ")}${onde.length > 8 ? ", …" : ""}`,
+    );
+  }
+}
+
+for (const marcador of MARCADORES) {
+  const onde = [...TODAS]
+    .filter(([, texto]) => apareceInteiraComCaixa(texto, marcador))
+    .map(([t]) => t);
+  if (onde.length === 0) {
+    certo(`“${marcador}” não aparece em tela nenhuma`);
+  } else {
+    problemas.push(
+      `“${marcador}” aparece em ${onde.length} tela(s) — marcador de código não é texto de tela\n` +
+        `          ${onde.slice(0, 8).join(", ")}${onde.length > 8 ? ", …" : ""}`,
+    );
   }
 }
 

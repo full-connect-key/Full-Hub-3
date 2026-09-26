@@ -3922,6 +3922,45 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   HTML do servidor divergir do que o navegador monta. O rótulo acessível de um
   gráfico vai num `<span className="sr-only">` ao lado, apontado por
   `aria-labelledby`.
+- **NENHUM TEXTO VISÍVEL AO USUÁRIO CITA NÚMERO DE SPRINT, nome de arquivo do
+  roteiro ou vocabulário de desenvolvimento.** Espaço reservado se explica em
+  português comum ou não existe.
+
+  A regra nasceu de uma varredura com quatro achados, e três deles apontavam
+  para coisas que **não existem mais**: a ficha do cliente dizia "Configurado
+  no Sprint 5" (descartado) e "Preenchido no Sprint 14" (outra numeração), a
+  busca da topbar respondia *"entra em um sprint futuro"*, e as Métricas
+  explicavam uma conta "desde o Sprint 3B". Nenhum dos quatro quebrava build,
+  tipo ou lint — e o número de sprint envelhece junto com o roteiro, então um
+  texto desses passa de incompreensível a **errado** sem ninguém tocar nele.
+
+  **Quem confere é o `check:sprint9`, e não o `check:cores`**, porque este lê
+  código-fonte e "sprint" aparece em trinta e cinco comentários que EXPLICAM
+  decisões — inclusive o que explica esta regra. É a armadilha que a lista de
+  nomes mortos já pagou três vezes. O `check:sprint9` lê o **texto
+  renderizado** dos dumps do protótipo: comentário não conta, atributo de tag
+  não conta, só o que sai na tela. E ele varre **todos** os dumps, não só os do
+  módulo que o nomeou — um espaço reservado esquecido mora justamente na tela
+  que ninguém lembra de olhar.
+
+  `TODO` e companhia entram numa lista separada, **sensível à caixa**: "todo" é
+  palavra comum em português — "todo mundo", "todo dia" —, e buscá-la ignorando
+  maiúscula faria toda tela do produto falhar.
+
+  **O que a varredura NÃO alcança é a tela que o protótipo não captura.** Ela
+  não pegou os dois textos da ficha do cliente, porque as abas "Configurações
+  do fluxo" e "Atividade" não tinham imagem — quem as achou foi a busca no
+  fonte, à mão. Toda aba com texto próprio precisa de um dump, senão a regra
+  vale só para as telas que alguém já lembrou de fotografar.
+
+- **Espaço reservado é obrigado a dizer o que vai existir.** `frase` em
+  `PlaceholderDeModulo` **não é opcional**, e a razão está no próprio arquivo
+  desde que ele nasceu: o texto padrão descrevia o estado da obra ("a navegação
+  e as permissões já estão funcionando"), que interessa a quem a constrói e a
+  mais ninguém. Sendo opcional, a próxima rota herdava o texto errado de graça;
+  sendo obrigatória, é uma frase que alguém escreve — e quem não tem o que
+  escrever descobre que a rota não devia existir.
+
 - Filtro e visualização de tela de listagem moram na URL, não em estado: o
   link precisa ser compartilhável e sobreviver à troca de visualização.
 - Permissão e menu saem de `src/lib/auth/permissions.ts`, e só de lá. Nunca
@@ -4151,7 +4190,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado |
-| `npm run check:sprint9` | Os critérios do Sprint 9 que dizem o que a tela NÃO mostra: o vocabulário que o Full Academy não tem e o que cada perfil alcança. Lê os dumps do protótipo; **sem eles, FALHA** em vez de passar em branco |
+| `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |

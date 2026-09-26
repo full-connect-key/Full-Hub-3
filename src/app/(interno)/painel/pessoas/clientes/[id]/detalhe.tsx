@@ -109,8 +109,8 @@ export function DetalheDoCliente({
       <TabsContent value="atividade">
         <EmptyState
           icon={Activity}
-          title="Preenchido no Sprint 14"
-          description="O histórico do que aconteceu nesta conta: quem alterou o quê e quando."
+          title="Ainda não há histórico para mostrar"
+          description="O histórico de envios, aprovações e comentários deste cliente aparecerá aqui."
         />
       </TabsContent>
     </Tabs>

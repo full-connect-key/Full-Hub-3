@@ -15,7 +15,9 @@ export function BuscaGlobal() {
     <button
       type="button"
       onClick={() =>
-        toast.info("A busca global entra em um sprint futuro.", {
+        // NENHUM TEXTO DE TELA CITA SPRINT. A frase dizia "entra em um sprint
+        // futuro": vocabulário de quem constrói, numa mensagem de quem usa.
+        toast.info("A busca na plataforma ainda não está pronta.", {
           description: "Por enquanto, use o menu lateral para navegar.",
         })
       }
