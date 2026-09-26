@@ -1,4 +1,6 @@
 import Image from "next/image";
+
+import { enderecoDaArte } from "@/lib/dados/conteudo";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -82,9 +84,12 @@ export function GradeDoFeed({
           arte da outra sem elas virarem uma imagem só. */}
       <ul className="grid grid-cols-3 gap-0.5">
         {emOrdem.map((post) => {
-          const arte = post.thumbnailUrl
-            ? (artes[post.thumbnailUrl] ?? post.thumbnailUrl)
-            : null;
+          // `enderecoDaArte` E NÃO O MAPA DIRETO: um caminho de bucket que não
+          // foi assinado não é endereço de nada, e pôr isso num `src` desenha
+          // a moldura quebrada em vez do estado "sem arte" logo abaixo — que
+          // existe justamente para um buraco na grade não parecer imagem que
+          // não carregou. Era esta linha, repetida em três lugares.
+          const arte = enderecoDaArte(post.thumbnailUrl, artes);
           const estado = rotuloDoStatus(post.status);
           const quando = format(parseISO(post.dataPublicacao), "d 'de' MMMM", {
             locale: ptBR,

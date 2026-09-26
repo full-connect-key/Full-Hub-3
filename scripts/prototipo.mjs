@@ -274,6 +274,11 @@ const TELAS = [
 
   { nome: "15-portal", rota: "/portal", largura: 1280, altura: 1100 },
   { nome: "15a-portal-375", rota: "/portal", largura: 375, altura: 1700 },
+  // O PORTAL NO ESCURO, e ele nunca tinha sido olhado. As doze telas escuras
+  // do gerador eram todas do Painel — e o Portal é a área em que a equipe não
+  // entra, então um defeito de tema escuro ali espera o cliente encontrar. Foi
+  // o que aconteceu: a foto de perfil atrás da capa chegou como relato dele.
+  { nome: "15b-portal-escuro", rota: "/portal", largura: 1280, altura: 1100, tema: "escuro" },
   { nome: "16i-portal-feed", rota: "/portal/social-media?visao=feed", largura: 1280, altura: 1100 },
   { nome: "16j-portal-feed-375", rota: "/portal/social-media?visao=feed", largura: 375, altura: 900 },
   { nome: "15b-portal-itens", rota: "/portal/itens", largura: 1280, altura: 1300 },

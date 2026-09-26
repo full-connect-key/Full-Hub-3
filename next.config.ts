@@ -28,6 +28,21 @@ function lerDoGit(...args: string[]): string {
   }
 }
 
+/**
+ * O host do projeto Supabase, ou vazio quando não há credencial.
+ *
+ * Vazio não é caso a tratar: sem a URL o bundle também não tem a chave anon,
+ * então o app não fala com o Supabase de jeito nenhum e não existe arte
+ * remota para carregar. É a mesma leitura que o CSP faz logo abaixo.
+ */
+function hostDoSupabase(): string {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
+  } catch {
+    return "";
+  }
+}
+
 const COMMIT = process.env.NEXT_PUBLIC_COMMIT || lerDoGit("rev-parse", "--short", "HEAD");
 const COMMIT_EM =
   process.env.NEXT_PUBLIC_COMMIT_EM || lerDoGit("log", "-1", "--format=%cI");
@@ -54,6 +69,41 @@ const nextConfig: NextConfig = {
    * — e se o build falhar no meio, o site fica quebrado até alguém perceber.
    */
   distDir: process.env.NEXT_DIST_DIR || ".next",
+
+  /**
+   * DE ONDE O `next/image` ACEITA CARREGAR, e por que esta lista precisa
+   * existir.
+   *
+   * ---------------------------------------------------------------------
+   * **Sem ela, toda arte do portal sai como moldura quebrada.** O
+   * `next/image` recusa host que não esteja aqui: o navegador pede
+   * `/_next/image?url=…`, o otimizador responde 400, e o que aparece é o
+   * ícone de imagem quebrada. Não é erro de build, não é erro de tipo, não
+   * aparece no lint — é a mesma família do CSP logo abaixo e da classe de
+   * cor que o Tailwind não conhece: passa em tudo e some na tela.
+   *
+   * **E o protótipo não pega**, que é a razão de isto ter durado tanto. Ele
+   * troca a camada de dados por exemplos, e os exemplos apontam para
+   * `/exemplos/arte-1.svg` — caminho local, que o `next/image` serve sem
+   * precisar de permissão nenhuma. As cento e cinquenta imagens do gerador
+   * nunca exercitaram uma URL remota. Quem encontrou foi o usuário, na
+   * visualização de Feed do portal.
+   *
+   * **A lista anda junto com o `img-src` do CSP.** São duas listas para a
+   * mesma pergunta — de onde vem imagem — e elas precisam concordar: o CSP
+   * bloqueia no navegador, o `remotePatterns` bloqueia no servidor, e uma
+   * sem a outra dá o mesmo sintoma por metade do caminho.
+   *
+   * O host sai de `NEXT_PUBLIC_SUPABASE_URL` e é LIDO NO BUILD, como o
+   * commit do rodapé e o CSP: trocar o projeto do Supabase e reiniciar o
+   * processo não troca esta lista — precisa reconstruir.
+   * ---------------------------------------------------------------------
+   */
+  images: {
+    remotePatterns: hostDoSupabase()
+      ? [{ protocol: "https", hostname: hostDoSupabase(), pathname: "/storage/v1/object/**" }]
+      : [],
+  },
 
   experimental: {
     // Habilita forbidden(), que devolve HTTP 403 de verdade quando alguem

@@ -210,11 +210,38 @@ export async function assinarArquivos(
   return mapa;
 }
 
-/** O endereço final de uma arte: o assinado quando existe, o cru quando é link. */
+/**
+ * O endereço final de uma arte: o assinado quando existe, o cru quando é link.
+ *
+ * ---------------------------------------------------------------------------
+ * **O QUE NÃO É ENDEREÇO VIRA NULO, e não `src` de uma imagem quebrada.**
+ *
+ * O `?? caminho` existe para o que já é endereço: um `https://` de fora e um
+ * `/exemplos/arte-1.svg` do próprio site. Mas ele também deixava passar o
+ * caminho CRU do bucket — `clientes/uuid/arte.png` — no caso em que a
+ * assinatura falhou. Aquilo não é URL de nada: o `<img>` pede, o servidor
+ * responde 404, e o que aparece é o ícone de imagem quebrada.
+ *
+ * E quebrada é pior que ausente, porque as telas já têm um estado desenhado
+ * para "sem arte" — na grade do Feed é o tema da peça no lugar da miniatura,
+ * justamente para que um buraco não pareça imagem que não carregou. Devolvendo
+ * nulo, esse estado aparece; devolvendo o caminho, ele nunca é alcançado.
+ *
+ * A pergunta é a mesma de `assinarArquivos`, do outro lado: lá ela decide o
+ * que MANDAR assinar, aqui o que aceitar de volta sem assinatura.
+ * ---------------------------------------------------------------------------
+ */
 export function enderecoDaArte(
   caminho: string | null,
   assinadas: Record<string, string>,
 ): string | null {
   if (!caminho) return null;
-  return assinadas[caminho] ?? caminho;
+  const assinada = assinadas[caminho];
+  if (assinada) return assinada;
+  return ehEndereco(caminho) ? caminho : null;
+}
+
+/** Dá para pôr num `src`? Caminho de bucket não dá — ele precisa ser assinado. */
+function ehEndereco(valor: string): boolean {
+  return /^(https?:\/\/|\/|data:|blob:)/i.test(valor);
 }

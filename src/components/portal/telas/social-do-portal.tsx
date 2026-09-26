@@ -12,6 +12,7 @@ import {
   STATUS_DE_CONTEUDO,
   rotuloDoStatus,
 } from "@/components/shared/status-badge";
+import { enderecoDaArte } from "@/lib/dados/conteudo";
 import { postsDoMes, urlsDasArtes } from "@/lib/dados/posts";
 import { prazosDoPortal } from "@/lib/dados/portal";
 import {
@@ -143,11 +144,7 @@ export async function SocialDoPortal({
             <CartaoDePost
               key={post.id}
               post={post}
-              arte={
-                post.thumbnailUrl
-                  ? (artes[post.thumbnailUrl] ?? post.thumbnailUrl)
-                  : null
-              }
+              arte={enderecoDaArte(post.thumbnailUrl, artes)}
               base={base}
             />
           ))}
@@ -182,11 +179,7 @@ export async function SocialDoPortal({
                     <CartaoDePost
                       key={post.id}
                       post={post}
-                      arte={
-                        post.thumbnailUrl
-                          ? (artes[post.thumbnailUrl] ?? post.thumbnailUrl)
-                          : null
-                      }
+                      arte={enderecoDaArte(post.thumbnailUrl, artes)}
                       base={base}
                     />
                   ))}
