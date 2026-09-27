@@ -39,6 +39,28 @@ export type MinhaSubtarefa = SubtarefaDetalhada & {
    *  porque a mãe é agrupadora e não entra em nenhuma das duas listas de
    *  subtarefas — ela deixou de ser trabalho no instante em que teve filha. */
   etapaDeCima: string | null;
+  /**
+   * A campanha de que esta etapa é a peça, quando ela é uma.
+   *
+   * -------------------------------------------------------------------------
+   * **A PEÇA DE CAMPANHA JÁ ERA UMA ETAPA MINHA, e o que faltava era o
+   * caminho de volta.** A 0051 decidiu que abrir a campanha cria a demanda com
+   * uma etapa por entregável, no nome de quem vai produzi-la — então ela
+   * aparece nesta lista desde então, com prazo, cronômetro e o botão certo. O
+   * que ela não tinha era como dizer que é uma peça de campanha, nem como
+   * levar à tela onde o arquivo sobe: o painel lateral daqui abre a DEMANDA, e
+   * o material mora em `/painel/aprovacoes/campanhas/{id}`.
+   *
+   * Sem isto, quem produz lia "Lâmina A5" na lista, clicava, e caía numa tela
+   * de demanda sem lugar nenhum para subir o PDF.
+   * -------------------------------------------------------------------------
+   *
+   * **A pergunta é por `deliverables.subtask_id`**, a ponte que a 0033 criou e
+   * a 0051 passou a escrever. Pelo caminho longo (`task → campaign`) a etapa
+   * de uma campanha sem entregável responderia "sim" — e ela não é peça de
+   * nada.
+   */
+  campanha: { id: string; nome: string } | null;
 };
 
 export type MinhaTask = TaskDaLista & {
@@ -132,6 +154,45 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
       .then((r) => ouFalha("as dependências das minhas etapas", r)),
   ]);
 
+  // A PEÇA DE CAMPANHA, numa ida só para todas as etapas — e não uma consulta
+  // por linha, que é a diferença entre uma tela e trinta idas ao banco. É o
+  // mesmo formato da consulta que o Social usa para trazer a etapa Programar
+  // do mês inteiro de uma vez.
+  const pecas = ouFalha(
+    "as peças de campanha entre as minhas etapas",
+    await supabase
+      .from("deliverables")
+      .select("subtask_id, campaign_id")
+      .in(
+        "subtask_id",
+        subtarefas.map((s) => s.id),
+      ),
+  );
+
+  // DUAS CONSULTAS, e não um embutido `campaigns(nome)`. O PostgREST recusa o
+  // `select` INTEIRO quando não acha a relação pelo nome que a gente escreveu
+  // — e o erro é jogado fora por quem não usa `ouFalha`, deixando a tela dizer
+  // "nada aqui" com toda a confiança. Foi assim que uma campanha recém-criada
+  // não aparecia em lugar nenhum. Duas idas ao banco custam menos que essa
+  // classe de bug, e `database.types.ts` nem declara essa relação.
+  const idsDeCampanha = [...new Set(((pecas ?? []) as { campaign_id: string }[]).map((p) => p.campaign_id))];
+  const nomesDeCampanha = idsDeCampanha.length
+    ? ouFalha(
+        "os nomes das campanhas das minhas etapas",
+        await supabase.from("campaigns").select("id, nome").in("id", idsDeCampanha),
+      )
+    : [];
+  const nomePorCampanha = new Map((nomesDeCampanha ?? []).map((c) => [c.id, c.nome]));
+
+  const campanhaPorSubtarefa = new Map<string, { id: string; nome: string }>();
+  for (const peca of (pecas ?? []) as { subtask_id: string | null; campaign_id: string }[]) {
+    if (!peca.subtask_id) continue;
+    campanhaPorSubtarefa.set(peca.subtask_id, {
+      id: peca.campaign_id,
+      nome: nomePorCampanha.get(peca.campaign_id) ?? "Campanha",
+    });
+  }
+
   // As dos outros, como contexto — também só as folhas: ver "Arte" em cinza
   // ao lado de "Conceito" e "Layout", que são o que ela agrupa, é ver a mesma
   // coisa três vezes.
@@ -173,6 +234,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
     const detalhada: MinhaSubtarefa = {
       ...sub,
       etapaDeCima: sub.parent_id ? (porId.get(sub.parent_id)?.titulo ?? null) : null,
+      campanha: campanhaPorSubtarefa.get(sub.id) ?? null,
       responsavel: (eu as Pessoa | null) ?? null,
       dependeDe,
       dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),

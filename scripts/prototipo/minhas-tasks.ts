@@ -52,6 +52,13 @@ function carregar(userId: string): MinhaTask[] {
         etapaDeCima: s.parent_id
           ? (SUBTAREFAS.find((m) => m.id === s.parent_id)?.titulo ?? null)
           : null,
+        // UMA das etapas de exemplo e peca de campanha, e o protótipo precisa
+        // dela: sem nenhuma, a imagem nao prova que o selo existe -- prova so
+        // que ele sabe sumir. Escolhida pelo titulo, que e o que o seed da
+        // tela usa para a peca da Wave.
+        campanha: s.titulo.toLowerCase().includes("verbas")
+          ? { id: "camp-wave", nome: "Wave de Verão" }
+          : null,
       })),
     outrasSubtarefas: SUBTAREFAS.filter(
       (s) => s.task_id === task.id && s.responsavel_id !== userId,

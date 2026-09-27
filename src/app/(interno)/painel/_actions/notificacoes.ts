@@ -58,3 +58,42 @@ export async function marcarTodasComoLidas(): Promise<Resultado> {
     );
   });
 }
+
+/**
+ * Marcar como vistos os avisos de uma área — o botão da faixa de novidades em
+ * Minhas Tasks.
+ *
+ * **Ela é a MESMA escrita de `marcarComoLida`, em lote**, e é por isso que o
+ * sinal da faixa e o contador do sino apagam juntos: os dois leem `lida_em`.
+ * Uma coluna `visto_em` separada daria dois números sobre o mesmo fato, e a
+ * pessoa não teria como saber qual dos dois acreditar.
+ *
+ * **Os ids vêm da tela, e não a área**, porque quem decide o recorte é a
+ * consulta que desenhou a faixa: mandar "social" para cá faria o servidor
+ * repetir a regra de qual link é de qual área, e as duas divergiriam no dia em
+ * que uma rota mudasse. E não há risco no que vem do navegador — a RLS de
+ * `notifications` fecha em `auth.uid()`, então um id de outra pessoa não
+ * atualiza linha nenhuma.
+ */
+export async function marcarNovidadesComoVistas(ids: unknown): Promise<Resultado> {
+  return executarAcao("marcarNovidadesComoVistas", async () => {
+    await exigirSessaoNaAcao();
+
+    const lista = Array.isArray(ids) ? ids.filter((i): i is string => typeof i === "string") : [];
+    if (lista.length === 0) return sucesso("Nada por ver.");
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("notifications")
+      .update({ lida_em: new Date().toISOString() })
+      .in("id", lista)
+      .is("lida_em", null)
+      .select("id");
+
+    if (error) return falha(error.message);
+
+    revalidatePath("/painel", "layout");
+    const quantas = data?.length ?? 0;
+    return sucesso(quantas === 0 ? "Já estavam vistas." : "Pronto — marcadas como vistas.");
+  });
+}

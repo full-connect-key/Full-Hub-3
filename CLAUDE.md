@@ -1762,6 +1762,68 @@ E a lista traz **só as que já podem começar**: uma etapa de Layout cujo
 Conteúdo ninguém escreveu ainda não é trabalho meu hoje — ela apareceria no topo
 da lista de quem não tem o que fazer com ela, e o banco recusaria o clique.
 
+#### "Chegou para você": o sinal de novidade em Minhas Tasks
+
+Decisão do usuário: *"quero que passe Social Media e Campanhas para dentro de
+Minhas Tasks, com um sinal de notificação, sempre que o colaborador for
+responsável por algo novo nessas áreas"*.
+
+**AS DUAS ÁREAS JÁ ESTAVAM LÁ, e é isso que faz o sinal ser a entrega.** As
+etapas da corrente do Social têm bloco próprio nesta tela desde o Sprint 14. E
+a peça de campanha é uma SUBTAREFA desde a 0051 — abrir a campanha cria a
+demanda com uma etapa por entregável, no nome de quem vai produzi-la —, então
+ela já aparecia na lista de etapas, com prazo, cronômetro e o botão certo.
+Desenhar um bloco "Campanhas" aqui poria o **mesmo trabalho duas vezes na
+mesma tela**, que é exatamente o que a 0061 recusou para a subtarefa do post.
+
+**O que faltava eram duas coisas, e nenhuma é uma lista nova.**
+
+**1. O caminho de volta para a campanha.** A etapa dizia "Lâmina A5" e clicar
+abria a DEMANDA — e o PDF sobe em `/painel/aprovacoes/campanhas/{id}`. Quem
+produz caía numa tela sem lugar para o arquivo. Agora a linha carrega um selo
+**Campanha** que é um link para lá. A pergunta é por `deliverables.subtask_id`,
+a ponte que a 0033 criou e a 0051 passou a escrever: pelo caminho longo
+(`task → campaign`) a etapa de uma campanha sem entregável responderia "sim", e
+ela não é peça de nada.
+
+**2. O SINAL, e ele é o SINO visto de outro ângulo.** "Algo novo é meu nessas
+áreas" já é fato gravado — `posts_avisa_responsavel` toca o sino quando a
+gestão libera um post, a corrente avisa quem ganhou uma etapa, a decisão do
+cliente avisa quem produziu a peça. O que faltava era isso aparecer na tela em
+que a pessoa trabalha, e não só num sino que se abre por hábito e some no
+primeiro clique.
+
+**Marcar como vistas É marcar como lidas**, a mesma escrita. Um `visto_em`
+próprio daria dois números sobre o mesmo fato, e ninguém saberia qual
+acreditar; assim a faixa e o contador do sino apagam juntos.
+
+**A área sai do `link`, e não do `tipo`.** `notification_tipo` tem oito valores
+e nenhum diz "social" nem "campanha" — `task` e `aprovacao` cobrem os dois e
+mais quatro módulos. E há uma pegadinha que vale escrita:
+**`/painel/aprovacoes-internas` COMEÇA com `/painel/aprovacoes`**, então um
+`startsWith` ingênuo contaria como Campanhas todo aviso da fila de aval
+interno. O número ficaria plausível e errado, que é o pior jeito de um número
+estar errado.
+
+**E `notifications.origem_id` não serve, porque ninguém a escreve.** A coluna
+existe desde a 0011 e `notificar()` não tem parâmetro para ela — **é a sétima
+ponte construída e nunca atravessada**, junto com `clients.drive_folder_id`,
+`posts.subtask_id`, `deliverables.subtask_id`, `deliverable_versions`,
+`clients.logo_url` e `workflow_steps.funcao_padrao`. Com ela preenchida, o
+sinal seria por ITEM ("este post é novo") em vez de por área; é o próximo
+passo barato, e custa um parâmetro em `notificar()` mais os pontos de chamada
+que quiserem usá-lo.
+
+**A faixa devolve lista vazia quando a consulta falha**, ao contrário do
+`ouFalha()` das consultas que SÃO a tela: Minhas Tasks funciona inteira sem
+ela, e derrubar a lista de hoje por causa de um aviso seria trocar uma falha
+parcial por uma total.
+
+**E o nome da campanha vem numa segunda consulta, não num embutido.** O
+PostgREST recusa o `select` INTEIRO quando não acha a relação pelo nome escrito
+— e foi assim que uma campanha recém-criada não aparecia em lugar nenhum. Duas
+idas ao banco custam menos que essa classe de bug.
+
 #### Campanhas: a Wave, a árvore e a decisão de cada peça
 
 `campaign_templates`, `campaigns`, `deliverables` e `deliverable_versions` —

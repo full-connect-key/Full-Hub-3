@@ -2,7 +2,8 @@
 
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, ListChecks, Lock, Link2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, FolderKanban, ListChecks, Lock, Link2 } from "lucide-react";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
@@ -107,6 +108,30 @@ export function MinhaLista({
                     {" "}
                     · {linha.demanda.minhas} etapas minhas aqui
                   </span>
+                ) : null}
+                {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
+                    sobe (0051 + Sprint das Campanhas).
+
+                    A peça de campanha já era uma etapa minha — abrir a
+                    campanha cria a demanda com uma etapa por entregável —, e
+                    o que faltava era o caminho de volta: clicar na linha abre
+                    a DEMANDA, e o PDF da lâmina sobe em
+                    `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
+                    produz lia "Lâmina A5" e caía numa tela sem lugar para o
+                    arquivo.
+
+                    `stopPropagation` porque a linha inteira abre o painel
+                    lateral: sem ele o clique no selo abriria os dois. */}
+                {sub.campanha ? (
+                  <Link
+                    href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-blue-soft text-accent-strong ms-1 inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                    title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
+                  >
+                    <FolderKanban aria-hidden className="size-3" />
+                    Campanha
+                  </Link>
                 ) : null}
               </p>
             </div>

@@ -384,6 +384,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
   "@/lib/dados/fluxo-do-cliente": ["./scripts/prototipo/fluxo-do-cliente.ts"],
   "@/lib/dados/notas-fiscais": ["./scripts/prototipo/notas-fiscais.ts"],
+  "@/lib/dados/novidades": ["./scripts/prototipo/novidades.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],

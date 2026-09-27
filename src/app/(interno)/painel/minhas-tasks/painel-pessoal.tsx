@@ -11,6 +11,7 @@ import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
 import type { EtapaDeSocialMinha } from "@/lib/dados/social-media";
+import type { NovidadeDeArea } from "@/lib/dados/novidades";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ import { CalendarioDeTasks } from "../gestao-tasks/calendario";
 import { BoardDeEtapas } from "./board-de-etapas";
 import type { LinhaPessoal } from "./linhas";
 import { EtapasDeSocial } from "./etapas-de-social";
+import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
 import { PainelLateralDaTask } from "./painel-lateral";
@@ -55,6 +57,7 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
 export function PainelPessoal({
   linhas,
   etapasDeSocial,
+  novidades,
   itensDeCalendario,
   itensDoDia,
   contadores,
@@ -71,6 +74,7 @@ export function PainelPessoal({
   itensDeCalendario: ItemDeCalendario[];
   itensDoDia: ItemDoDia[];
   etapasDeSocial: EtapaDeSocialMinha[];
+  novidades: NovidadeDeArea[];
   contadores: Record<FocoDoDia, number>;
   equipe: {
     id: string;
@@ -146,6 +150,13 @@ export function PainelPessoal({
           </button>
         ) : null}
       </div>
+
+      {/* A FAIXA FICA ACIMA DE "MEU DIA", e é o único lugar em que ela cabe:
+          ela diz que chegou trabalho que ainda NÃO está em nenhuma das listas
+          abaixo — o post que a gestão acabou de liberar não tem prazo próprio,
+          e a peça de campanha só vira linha depois de alguém abrir a demanda.
+          Embaixo, ela seria a resposta depois da pergunta. */}
+      <Novidades novidades={novidades} />
 
       <MeuDia
         itens={itensDoDia}

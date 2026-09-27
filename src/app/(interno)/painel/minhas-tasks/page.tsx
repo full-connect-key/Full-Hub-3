@@ -14,6 +14,7 @@ import {
   prazosDeHoje,
   souDoAtendimento,
 } from "@/lib/dados/minhas-tasks";
+import { minhasNovidades } from "@/lib/dados/novidades";
 import { minhasEtapasDeSocial } from "@/lib/dados/social-media";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
@@ -57,6 +58,7 @@ async function Conteudo({
     equipe,
     podeCriarTask,
     etapasDeSocial,
+    novidades,
   ] = await Promise.all([
     minhasTasks(usuarioId, foco, prazos),
     itensPessoaisDoCalendario(usuarioId, foco, prazos),
@@ -65,6 +67,10 @@ async function Conteudo({
     listarEquipeAtiva(),
     souDoAtendimento(),
     minhasEtapasDeSocial(usuarioId),
+    // O SINAL DE "CHEGOU COISA NOVA" (decisão do usuário). Ele lê as
+    // notificações por ler desta pessoa e as separa por área pelo endereço —
+    // é o sino visto de outro ângulo, e não um estado novo ao lado dele.
+    minhasNovidades(),
   ]);
 
   return (
@@ -73,6 +79,7 @@ async function Conteudo({
       itensDeCalendario={itensDeCalendario}
       itensDoDia={itensDoDia}
       etapasDeSocial={etapasDeSocial}
+      novidades={novidades}
       contadores={contadores}
       equipe={equipe}
       prazos={prazos}
