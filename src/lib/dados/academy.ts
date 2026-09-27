@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import { duracaoDaTrilha, percentual, situacaoDaTrilha } from "@/lib/dominio/academy";
@@ -51,18 +53,20 @@ export type TrilhaDaGrade = AcademyTrack & {
 export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGrade[]> => {
   const supabase = await criarClienteServidor();
 
-  const { data: trilhas } = await supabase
-    .from("academy_tracks")
-    .select("*")
-    .order("ordem")
-    .order("created_at");
+  const trilhas = ouFalha(
+    "as trilhas do Full Academy",
+    await supabase
+      .from("academy_tracks")
+      .select("*")
+      .order("ordem")
+      .order("created_at"),
+  );
 
   if (!trilhas || trilhas.length === 0) return [];
 
   const ids = trilhas.map((t) => t.id);
 
-  const [{ data: materiais }, { data: progresso }] =
-    await Promise.all([
+  const [resposta0, resposta1] = await Promise.all([
       supabase
         .from("academy_materials")
         .select("id, track_id, duracao_minutos, skill_id")
@@ -73,11 +77,13 @@ export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGr
         .eq("user_id", usuarioId)
         .eq("concluido", true),
     ]);
+  const materiais = ouFalha("os materiais das trilhas", resposta0);
+  const progresso = ouFalha("o meu progresso nas trilhas", resposta1);
 
-  const concluidos = new Set((progresso ?? []).map((p) => p.material_id));
+  const concluidos = new Set(progresso.map((p) => p.material_id));
 
   return trilhas.map((trilha) => {
-    const meus = (materiais ?? []).filter((m) => m.track_id === trilha.id);
+    const meus = materiais.filter((m) => m.track_id === trilha.id);
     const quantosConcluidos = meus.filter((m) => concluidos.has(m.id)).length;
     const situacao = situacaoDaTrilha(quantosConcluidos, meus.length);
 
@@ -109,11 +115,14 @@ export const obterTrilha = cache(
   async (id: string, usuarioId: string): Promise<TrilhaCompleta | null> => {
     const supabase = await criarClienteServidor();
 
-    const { data: trilha } = await supabase
-      .from("academy_tracks")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    // `limit(1)` E NÃO `maybeSingle()`, e não é estilo: a resposta de
+    // `maybeSingle()` é uma UNIÃO de duas formas, e o genérico de `ouFalha`
+    // resolve a união para `never`. O erro não sai aqui — sai no `...trilha` do
+    // `return`, setenta linhas abaixo, dizendo que não se espalha `never`.
+    const [trilha] = ouFalha(
+      "a trilha pedida",
+      await supabase.from("academy_tracks").select("*").eq("id", id).limit(1),
+    );
 
     // Null aqui pode ser "não existe" ou "a RLS recusou" — e a tela trata os
     // dois como 404 de propósito. Dizer "existe, mas você não pode ver"
@@ -121,36 +130,48 @@ export const obterTrilha = cache(
     // contar.
     if (!trilha) return null;
 
-    const { data: materiais } = await supabase
-      .from("academy_materials")
-      .select("*")
-      .eq("track_id", id)
-      .order("ordem")
-      .order("created_at");
+    const materiais = ouFalha(
+      "os materiais da trilha",
+      await supabase
+        .from("academy_materials")
+        .select("*")
+        .eq("track_id", id)
+        .order("ordem")
+        .order("created_at"),
+    );
 
-    const listaDeMateriais = materiais ?? [];
+    const listaDeMateriais = materiais;
     const idsDeMaterial = listaDeMateriais.map((m) => m.id);
     const idsDeSkill = [
       ...new Set(listaDeMateriais.map((m) => m.skill_id).filter((s): s is string => !!s)),
     ];
 
-    const [{ data: progresso }, { data: skills }] =
-      await Promise.all([
-        idsDeMaterial.length > 0
-          ? supabase
-              .from("academy_progress")
-              .select("material_id, concluido, concluido_em, anotacoes")
-              .eq("user_id", usuarioId)
-              .in("material_id", idsDeMaterial)
-          : Promise.resolve({ data: [] as never[] }),
-        idsDeSkill.length > 0
-          ? supabase.from("skills").select("id, nome").in("id", idsDeSkill)
-          : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
-      ]);
+    // O VAZIO SAI FORA DO `Promise.all`, e não como um `Promise.resolve({ data:
+    // [] })` dentro dele. O ramo falso levava um `[] as never[]`, e aí o tipo
+    // que `ouFalha` devolve é a UNIÃO dos dois ramos — o TypeScript resolve para
+    // `never`, e o erro sai três blocos abaixo, num `...material` que não tem
+    // nada a ver com progresso.
+    const [progresso, skills] = await Promise.all([
+      idsDeMaterial.length > 0
+        ? supabase
+            .from("academy_progress")
+            .select("material_id, concluido, concluido_em, anotacoes")
+            .eq("user_id", usuarioId)
+            .in("material_id", idsDeMaterial)
+            .then((r) => ouFalha("o meu progresso na trilha", r))
+        : Promise.resolve([]),
+      idsDeSkill.length > 0
+        ? supabase
+            .from("skills")
+            .select("id, nome")
+            .in("id", idsDeSkill)
+            .then((r) => ouFalha("as etiquetas da trilha", r))
+        : Promise.resolve([]),
+    ]);
 
-    const porMaterial = new Map((progresso ?? []).map((p) => [p.material_id, p]));
-    const nomeDaSkill = new Map((skills ?? []).map((s) => [s.id, s.nome]));
-  
+    const porMaterial = new Map(progresso.map((p) => [p.material_id, p]));
+    const nomeDaSkill = new Map(skills.map((s) => [s.id, s.nome]));
+
     const comProgresso: MaterialComProgresso[] = listaDeMateriais.map((material) => {
       const meu = porMaterial.get(material.id);
       return {
@@ -206,24 +227,27 @@ export const acompanhamentoDaEquipe = cache(
   async (): Promise<LinhaDoAcompanhamento[]> => {
     const supabase = await criarClienteServidor();
 
-    const [{ data: trilhas }, { data: pessoas }, { data: materiais }, { data: progresso }] =
-      await Promise.all([
+    const [resposta0, resposta1, resposta2, resposta3] = await Promise.all([
         supabase.from("academy_tracks").select("id, titulo, obrigatoria").eq("publicada", true),
         supabase.from("profiles").select("id, nome").eq("ativo", true).neq("role", "cliente"),
         supabase.from("academy_materials").select("id, track_id"),
         supabase.from("academy_progresso_da_equipe").select("*").eq("concluido", true),
       ]);
+    const trilhas = ouFalha("as trilhas do acompanhamento", resposta0);
+    const pessoas = ouFalha("a equipe do acompanhamento", resposta1);
+    const materiais = ouFalha("os materiais do acompanhamento", resposta2);
+    const progresso = ouFalha("o progresso da equipe", resposta3);
 
     if (!trilhas || !pessoas) return [];
 
     const linhas: LinhaDoAcompanhamento[] = [];
 
     for (const trilha of trilhas) {
-      const total = (materiais ?? []).filter((m) => m.track_id === trilha.id).length;
+      const total = materiais.filter((m) => m.track_id === trilha.id).length;
       if (total === 0) continue;
 
       for (const pessoa of pessoas) {
-        const meus = (progresso ?? []).filter(
+        const meus = progresso.filter(
           (p) => p.track_id === trilha.id && p.user_id === pessoa.id,
         );
         const concluidos = meus.length;
@@ -260,10 +284,13 @@ export const acompanhamentoDaEquipe = cache(
 /** O catálogo de skills, para vincular material a skill na tela de gestão. */
 export const skillsParaVincular = cache(async () => {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("skills")
-    .select("id, nome")
-    .eq("ativa", true)
-    .order("nome");
-  return data ?? [];
+  const data = ouFalha(
+    "as trilhas recomendadas",
+    await supabase
+      .from("skills")
+      .select("id, nome")
+      .eq("ativa", true)
+      .order("nome"),
+  );
+  return data;
 });

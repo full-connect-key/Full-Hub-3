@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Json, TaskRecurrence } from "@/lib/supabase/database.types";
 
@@ -28,7 +30,7 @@ export type RecorrenciaNaTela = TaskRecurrence & {
 export async function listarRecorrencias(): Promise<RecorrenciaNaTela[]> {
   const supabase = await criarClienteServidor();
 
-  const [{ data: regras }, { data: clientes }, { data: pessoas }] =
+  const [respostaDeRegras, respostaDeClientes, respostaDePessoas] =
     await Promise.all([
       supabase
         .from("task_recurrences")
@@ -39,24 +41,29 @@ export async function listarRecorrencias(): Promise<RecorrenciaNaTela[]> {
       supabase.from("clients").select("id, nome_empresa"),
       supabase.from("profiles").select("id, nome"),
     ]);
+  const lista = ouFalha("as regras de recorrência", respostaDeRegras);
+  const clientes = ouFalha("as empresas das regras", respostaDeClientes);
+  const pessoas = ouFalha("as pessoas das regras", respostaDePessoas);
 
-  const lista = regras ?? [];
   if (lista.length === 0) return [];
 
-  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
-  const nomeDaPessoa = new Map((pessoas ?? []).map((p) => [p.id, p.nome]));
+  const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
+  const nomeDaPessoa = new Map(pessoas.map((p) => [p.id, p.nome]));
 
   // AS EXECUÇÕES VÊM DE UMA CONSULTA SÓ, para todas as regras. Uma por regra
   // seria uma consulta por linha da lista — o problema clássico, e numa tela
   // que a agência abre para conferir vinte regras de uma vez.
-  const { data: execucoes } = await supabase
-    .from("recurrence_runs")
-    .select("recurrence_id, status, created_at")
-    .in("recurrence_id", lista.map((r) => r.id))
-    .order("created_at", { ascending: false });
+  const execucoes = ouFalha(
+    "as execuções de cada regra",
+    await supabase
+      .from("recurrence_runs")
+      .select("recurrence_id, status, created_at")
+      .in("recurrence_id", lista.map((r) => r.id))
+      .order("created_at", { ascending: false }),
+  );
 
   const porRegra = new Map<string, { status: string }[]>();
-  for (const linha of execucoes ?? []) {
+  for (const linha of execucoes) {
     const atual = porRegra.get(linha.recurrence_id) ?? [];
     atual.push({ status: linha.status });
     porRegra.set(linha.recurrence_id, atual);
@@ -92,21 +99,25 @@ export async function execucoesDaRecorrencia(
 ): Promise<ExecucaoNaTela[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("recurrence_runs")
-    .select("*")
-    .eq("recurrence_id", recurrenceId)
-    .order("created_at", { ascending: false })
-    .limit(60);
-
-  const linhas = data ?? [];
+  const linhas = ouFalha(
+    "o histórico da regra",
+    await supabase
+      .from("recurrence_runs")
+      .select("*")
+      .eq("recurrence_id", recurrenceId)
+      .order("created_at", { ascending: false })
+      .limit(60),
+  );
   if (linhas.length === 0) return [];
 
   const ids = linhas.map((l) => l.task_id).filter((id): id is string => Boolean(id));
-  const { data: tasks } = ids.length
-    ? await supabase.from("tasks").select("id, titulo").in("id", ids)
-    : { data: [] };
-  const tituloDe = new Map((tasks ?? []).map((t) => [t.id, t.titulo]));
+  const tasks = ids.length
+    ? ouFalha(
+        "as demandas geradas pela regra",
+        await supabase.from("tasks").select("id, titulo").in("id", ids),
+      )
+    : [];
+  const tituloDe = new Map(tasks.map((t) => [t.id, t.titulo]));
 
   return linhas.map((linha) => {
     const detalhes = (linha.detalhes ?? {}) as Record<string, Json>;
@@ -132,24 +143,28 @@ export async function execucoesDaRecorrencia(
 /** As tasks que saíram de uma regra, para a aba "Geradas". */
 export async function tasksDaRecorrencia(recurrenceId: string) {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("tasks")
-    .select("id, titulo, status, data_inicio, data_fim, publicada_em, created_at")
-    .eq("recurrence_id", recurrenceId)
-    .order("data_inicio", { ascending: false })
-    .limit(60);
-  return data ?? [];
+  return ouFalha(
+    "as demandas que a regra já gerou",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, status, data_inicio, data_fim, publicada_em, created_at")
+      .eq("recurrence_id", recurrenceId)
+      .order("data_inicio", { ascending: false })
+      .limit(60),
+  );
 }
 
 /** Uma regra só, para a tela de edição. */
 export async function buscarRecorrencia(id: string) {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("task_recurrences")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  return data;
+  // `limit(1)` E NÃO `maybeSingle()`: a resposta dele é uma união de duas
+  // formas, e o genérico de `ouFalha` resolve a união para `never` — o erro não
+  // sai aqui, sai em quem lê um campo da regra.
+  const [regra] = ouFalha(
+    "a regra de recorrência",
+    await supabase.from("task_recurrences").select("*").eq("id", id).limit(1),
+  );
+  return regra ?? null;
 }
 
 /**
@@ -164,12 +179,15 @@ export async function feriadosParaAPrevia(): Promise<string[]> {
   const supabase = await criarClienteServidor();
   const hoje = new Date();
   const fim = new Date(hoje.getFullYear() + 3, 11, 31);
-  const { data } = await supabase
-    .from("holidays")
-    .select("data")
-    .gte("data", hoje.toISOString().slice(0, 10))
-    .lte("data", fim.toISOString().slice(0, 10));
-  return (data ?? []).map((f) => f.data);
+  const feriados = ouFalha(
+    "os feriados da prévia",
+    await supabase
+      .from("holidays")
+      .select("data")
+      .gte("data", hoje.toISOString().slice(0, 10))
+      .lte("data", fim.toISOString().slice(0, 10)),
+  );
+  return feriados.map((f) => f.data);
 }
 
 /**
@@ -194,20 +212,24 @@ export async function feriadosParaAPrevia(): Promise<string[]> {
 export async function modeloDeUmaTask(taskId: string) {
   const supabase = await criarClienteServidor();
 
-  const { data: task } = await supabase
-    .from("tasks")
-    .select("id, titulo, client_id, prioridade, link_entrega, briefing_rico, data_inicio")
-    .eq("id", taskId)
-    .maybeSingle();
+  const [task] = ouFalha(
+    "a demanda que vai virar recorrente",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, client_id, prioridade, link_entrega, briefing_rico, data_inicio")
+      .eq("id", taskId)
+      .limit(1),
+  );
   if (!task) return null;
 
-  const { data: etapas } = await supabase
-    .from("subtasks")
-    .select("id, parent_id, titulo, responsavel_id, prazo, prioridade, estimativa_minutos, requer_aprovacao, tipo_aprovacao, ordem")
-    .eq("task_id", taskId)
-    .order("ordem");
-
-  const todas = etapas ?? [];
+  const todas = ouFalha(
+    "as etapas da demanda",
+    await supabase
+      .from("subtasks")
+      .select("id, parent_id, titulo, responsavel_id, prazo, prioridade, estimativa_minutos, requer_aprovacao, tipo_aprovacao, ordem")
+      .eq("task_id", taskId)
+      .order("ordem"),
+  );
   const temFilha = new Set(todas.map((e) => e.parent_id).filter(Boolean));
   const folhas = todas.filter((e) => !temFilha.has(e.id));
 

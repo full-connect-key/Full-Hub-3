@@ -56,7 +56,10 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
   let consulta = supabase.from("task_types").select("*").eq("ativo", true);
   if (clienteId) consulta = consulta.or(`client_id.is.null,client_id.eq.${clienteId}`);
 
-  const { data: tipos } = await consulta.order("nome");
+  const tipos = ouFalha(
+    "os workflows da agência",
+    await consulta.order("nome"),
+  );
   if (!tipos || tipos.length === 0) return [];
 
   const idsDeClientes = [...new Set(tipos.map((t) => t.client_id).filter(Boolean))] as string[];
@@ -64,22 +67,25 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
     ...new Set(tipos.map((t) => t.workflow_template_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: workflows }, { data: etapas }] = await Promise.all([
+  const [resposta0, resposta1, resposta2] = await Promise.all([
     idsDeClientes.length
       ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
-      : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
+      : Promise.resolve({ error: null, data: [] as { id: string; nome_empresa: string }[] }),
     idsDeWorkflows.length
       ? supabase.from("workflow_templates").select("id, nome").in("id", idsDeWorkflows)
-      : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+      : Promise.resolve({ error: null, data: [] as { id: string; nome: string }[] }),
     idsDeWorkflows.length
       ? supabase.from("workflow_steps").select("template_id").in("template_id", idsDeWorkflows)
-      : Promise.resolve({ data: [] as { template_id: string }[] }),
+      : Promise.resolve({ error: null, data: [] as { template_id: string }[] }),
   ]);
+  const clientes = ouFalha("as empresas dos workflows", resposta0);
+  const workflows = ouFalha("os workflows", resposta1);
+  const etapas = ouFalha("as etapas dos workflows", resposta2);
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
-  const porWorkflow = new Map((workflows ?? []).map((w) => [w.id, w]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
+  const porWorkflow = new Map(workflows.map((w) => [w.id, w]));
   const contagem = new Map<string, number>();
-  for (const etapa of etapas ?? []) {
+  for (const etapa of etapas) {
     contagem.set(etapa.template_id, (contagem.get(etapa.template_id) ?? 0) + 1);
   }
 
@@ -108,11 +114,14 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
 export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
   const supabase = await criarClienteServidor();
 
-  const { data: tipos } = await supabase
-    .from("task_types")
-    .select("*")
-    .order("ativo", { ascending: false })
-    .order("nome");
+  const tipos = ouFalha(
+    "as pessoas das etapas",
+    await supabase
+      .from("task_types")
+      .select("*")
+      .order("ativo", { ascending: false })
+      .order("nome"),
+  );
 
   if (!tipos || tipos.length === 0) return [];
 
@@ -121,13 +130,13 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
     ...new Set(tipos.map((t) => t.workflow_template_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: etapas }, { data: usos }] = await Promise.all([
+  const [resposta0, resposta1, resposta2] = await Promise.all([
     idsDeClientes.length
       ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
-      : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
+      : Promise.resolve({ error: null, data: [] as { id: string; nome_empresa: string }[] }),
     idsDeFluxos.length
       ? supabase.from("workflow_steps").select("*").in("template_id", idsDeFluxos).order("ordem")
-      : Promise.resolve({ data: [] as WorkflowStep[] }),
+      : Promise.resolve({ error: null, data: [] as WorkflowStep[] }),
     // Uma consulta para TODOS os tipos, e não uma por cartão: a tela lista
     // dezenas, e contar demanda por cartão seria dezenas de idas ao banco
     // por um número que aparece só na confirmação.
@@ -139,29 +148,38 @@ export async function listarTiposComFluxo(): Promise<TipoComFluxo[]> {
         tipos.map((t) => t.id),
       ),
   ]);
+  const clientes = ouFalha("as empresas do workflow", resposta0);
+  const etapas = ouFalha("as etapas do workflow", resposta1);
+  const usos = ouFalha("as demandas que usam o workflow", resposta2);
 
   const porTipo = new Map<string, number>();
-  for (const linha of usos ?? []) {
+  for (const linha of usos) {
     if (!linha.task_type_id) continue;
     porTipo.set(linha.task_type_id, (porTipo.get(linha.task_type_id) ?? 0) + 1);
   }
 
   const idsDePessoas = [
-    ...new Set((etapas ?? []).map((e) => e.responsavel_padrao_id).filter(Boolean)),
+    ...new Set(etapas.map((e) => e.responsavel_padrao_id).filter(Boolean)),
   ] as string[];
 
-  const { data: pessoas } = idsDePessoas.length
-    ? await supabase.from("profiles").select("id, nome").in("id", idsDePessoas)
-    : { data: [] as { id: string; nome: string }[] };
+  const pessoas = idsDePessoas.length
+    ? ouFalha(
+        "as pessoas padrão das etapas",
+        await supabase
+          .from("profiles")
+          .select("id, nome")
+          .in("id", idsDePessoas),
+      )
+    : [];
 
-  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const porPessoa = new Map(pessoas.map((p) => [p.id, p]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
 
   return tipos.map((tipo) => ({
     ...tipo,
     demandas: porTipo.get(tipo.id) ?? 0,
     cliente: tipo.client_id ? (porCliente.get(tipo.client_id) ?? null) : null,
-    etapas: (etapas ?? [])
+    etapas: etapas
       .filter((e) => e.template_id === tipo.workflow_template_id)
       .map((etapa) => ({
         ...etapa,
@@ -187,11 +205,17 @@ export async function fluxoDoWorkflow(
 ): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
-  const { data: tipo } = await supabase
-    .from("task_types")
-    .select("workflow_template_id")
-    .eq("id", tipoId)
-    .maybeSingle();
+  // `limit(1)` E NÃO `maybeSingle()`: o genérico de `ouFalha` resolve a união de
+  // duas formas que ele devolve para `never`, e o erro sai na linha de baixo
+  // dizendo que a propriedade não existe em `never`.
+  const [tipo] = ouFalha(
+    "o workflow do modelo de task",
+    await supabase
+      .from("task_types")
+      .select("workflow_template_id")
+      .eq("id", tipoId)
+      .limit(1),
+  );
 
   if (!tipo?.workflow_template_id) return null;
   return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId);
@@ -239,11 +263,14 @@ export async function etapasDoWorkflow(
 ): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
-  const { data: modelo } = await supabase
-    .from("workflow_templates")
-    .select("*")
-    .eq("id", templateId)
-    .maybeSingle();
+  const [modelo] = ouFalha(
+    "o workflow pedido",
+    await supabase
+      .from("workflow_templates")
+      .select("*")
+      .eq("id", templateId)
+      .limit(1),
+  );
   if (!modelo) return null;
 
   /**
@@ -331,7 +358,7 @@ async function resolvidasPelaConta(
     }),
   );
 
-  return resolvidas ?? [];
+  return resolvidas;
 }
 
 async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
@@ -346,7 +373,7 @@ async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
       .order("ordem"),
   );
 
-  return (etapas ?? []).map((etapa) => ({
+  return etapas.map((etapa) => ({
     ordem: etapa.ordem,
     nome: etapa.nome,
     responsavel_id: etapa.responsavel_padrao_id,

@@ -85,13 +85,16 @@ async function nomesDasEmpresas(
   if (limpos.length === 0) return new Map();
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("clients")
-    .select("id, nome_empresa, slug")
-    .in("id", limpos);
+  const data = ouFalha(
+    "as empresas das campanhas",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa, slug")
+      .in("id", limpos),
+  );
 
   return new Map(
-    (data ?? []).map(
+    data.map(
       (c) => [c.id, { nome: c.nome_empresa, slug: c.slug }] as const,
     ),
   );
@@ -226,13 +229,16 @@ export async function entregaveisDaCampanha(
 ): Promise<EntregavelDoPortal[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("deliverables")
-    .select(COLUNAS_DO_ENTREGAVEL)
-    .eq("campaign_id", campanhaId)
-    .order("ordem");
+  const data = ouFalha(
+    "os materiais da campanha",
+    await supabase
+      .from("deliverables")
+      .select(COLUNAS_DO_ENTREGAVEL)
+      .eq("campaign_id", campanhaId)
+      .order("ordem"),
+  );
 
-  const linhas = (data ?? []) as LinhaDeEntregavel[];
+  const linhas = data as LinhaDeEntregavel[];
   if (linhas.length === 0) return [];
 
   const rodadas = await rodadasDo(
@@ -250,11 +256,16 @@ export async function obterEntregavel(
 ): Promise<EntregavelDoPortal | null> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("deliverables")
-    .select(COLUNAS_DO_ENTREGAVEL)
-    .eq("id", id)
-    .maybeSingle();
+  // `limit(1)` E NÃO `maybeSingle()`: o genérico de `ouFalha` resolve a união de
+  // duas formas que ele devolve para `never`.
+  const [data] = ouFalha(
+    "o material da campanha",
+    await supabase
+      .from("deliverables")
+      .select(COLUNAS_DO_ENTREGAVEL)
+      .eq("id", id)
+      .limit(1),
+  );
 
   if (!data) return null;
 
@@ -283,15 +294,16 @@ export async function versoesDoEntregavel(
 ): Promise<VersaoDoConteudo[]> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("deliverable_versions")
-    .select(
-      "id, numero_versao, arte_url, arquivo_nome, arquivos, notas_mudanca, criado_por, created_at",
-    )
-    .eq("deliverable_id", entregavelId)
-    .order("numero_versao", { ascending: false });
-
-  const linhas = data ?? [];
+  const linhas = ouFalha(
+    "as versões do material",
+    await supabase
+      .from("deliverable_versions")
+      .select(
+        "id, numero_versao, arte_url, arquivo_nome, arquivos, notas_mudanca, criado_por, created_at",
+      )
+      .eq("deliverable_id", entregavelId)
+      .order("numero_versao", { ascending: false }),
+  );
   const nomes = await nomesDe(linhas.map((l) => l.criado_por));
 
   return linhas.map((l) => ({
@@ -352,9 +364,9 @@ export async function templatesDeCampanha(
   if (clienteId)
     consulta = consulta.or(`client_id.is.null,client_id.eq.${clienteId}`);
 
-  const { data } = await consulta;
+  const data = ouFalha("os modelos de campanha", await consulta);
 
-  return (data ?? []).map((t) => ({
+  return data.map((t) => ({
     id: t.id,
     nome: t.nome,
     descricao: t.descricao,
@@ -379,11 +391,14 @@ export async function campanhaDaTask(
 ): Promise<{ id: string; nome: string } | null> {
   const supabase = await criarClienteServidor();
 
-  const { data } = await supabase
-    .from("campaigns")
-    .select("id, nome")
-    .eq("task_id", taskId)
-    .maybeSingle();
+  const [campanha] = ouFalha(
+    "a campanha desta demanda",
+    await supabase
+      .from("campaigns")
+      .select("id, nome")
+      .eq("task_id", taskId)
+      .limit(1),
+  );
 
-  return data ?? null;
+  return campanha ?? null;
 }

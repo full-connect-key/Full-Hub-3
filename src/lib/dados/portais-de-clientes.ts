@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -23,13 +25,16 @@ export const listarPortaisDeClientes = cache(
   async (): Promise<{ id: string; nome_empresa: string; slug: string }[]> => {
     const supabase = await criarClienteServidor();
 
-    const { data } = await supabase
-      .from("clients")
-      .select("id, nome_empresa, slug")
-      .eq("ativo", true)
-      .order("nome_empresa");
+    const data = ouFalha(
+      "os clientes com portal",
+      await supabase
+        .from("clients")
+        .select("id, nome_empresa, slug")
+        .eq("ativo", true)
+        .order("nome_empresa"),
+    );
 
-    return (data ?? []).filter(
+    return data.filter(
       (c): c is { id: string; nome_empresa: string; slug: string } =>
         Boolean(c.slug),
     );
@@ -41,11 +46,14 @@ export const obterClientePeloSlug = cache(
   async (slug: string): Promise<Client | null> => {
     const supabase = await criarClienteServidor();
 
-    const { data } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("slug", slug)
-      .maybeSingle();
+    const data = ouFalha(
+      "as visitas ao portal de cada cliente",
+      await supabase
+        .from("clients")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle(),
+    );
 
     return data ?? null;
   },
@@ -72,15 +80,18 @@ export async function usuariosDoPortal(
 > {
   const supabase = await criarClienteServidor();
 
-  const { data: vinculos } = await supabase
-    .from("client_users")
-    .select("user_id")
-    .eq("client_id", clienteId);
+  const vinculos = ouFalha(
+    "os vínculos de acesso ao portal",
+    await supabase
+      .from("client_users")
+      .select("user_id")
+      .eq("client_id", clienteId),
+  );
 
-  const ids = [...new Set((vinculos ?? []).map((v) => v.user_id))];
+  const ids = [...new Set(vinculos.map((v) => v.user_id))];
   if (ids.length === 0) return [];
 
-  const [{ data: pessoas }, { data: acessos }] = await Promise.all([
+  const [resposta0, resposta1] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, nome, email")
@@ -93,14 +104,16 @@ export async function usuariosDoPortal(
       .in("user_id", ids)
       .order("created_at", { ascending: false }),
   ]);
+  const pessoas = ouFalha("as pessoas com acesso ao portal", resposta0);
+  const acessos = ouFalha("o último acesso de cada pessoa", resposta1);
 
   // O último login de cada pessoa é a primeira linha dela na lista ordenada.
   const ultimo = new Map<string, string>();
-  for (const linha of acessos ?? []) {
+  for (const linha of acessos) {
     if (!ultimo.has(linha.user_id)) ultimo.set(linha.user_id, linha.created_at);
   }
 
-  return (pessoas ?? []).map((pessoa) => ({
+  return pessoas.map((pessoa) => ({
     user_id: pessoa.id,
     nome: pessoa.nome,
     email: pessoa.email,

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import {
@@ -53,21 +55,37 @@ async function comRelacoes(
     ...new Set(entradas.map((e) => e.contract_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: categorias }, { data: contratos }] = await Promise.all([
+  // O RAMO VAZIO FICA FORA DO `Promise.all` e não como um `Promise.resolve({
+  // data: [] })` dentro dele: o tipo que `ouFalha` devolveria é a UNIÃO dos dois
+  // ramos, e o TypeScript a resolve para `never` — com o erro saindo blocos
+  // abaixo, num lugar que não tem nada a ver com a consulta.
+  const [clientes, categorias, contratos] = await Promise.all([
     idsDeClientes.length
-      ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
-      : Promise.resolve({ data: [] as { id: string; nome_empresa: string }[] }),
+      ? supabase
+          .from("clients")
+          .select("id, nome_empresa")
+          .in("id", idsDeClientes)
+          .then((r) => ouFalha("as empresas dos lançamentos", r))
+      : Promise.resolve([]),
     idsDeCategorias.length
-      ? supabase.from("finance_categories").select("id, nome").in("id", idsDeCategorias)
-      : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+      ? supabase
+          .from("finance_categories")
+          .select("id, nome")
+          .in("id", idsDeCategorias)
+          .then((r) => ouFalha("as categorias dos lançamentos", r))
+      : Promise.resolve([]),
     idsDeContratos.length
-      ? supabase.from("contracts").select("id, nome").in("id", idsDeContratos)
-      : Promise.resolve({ data: [] as { id: string; nome: string }[] }),
+      ? supabase
+          .from("contracts")
+          .select("id, nome")
+          .in("id", idsDeContratos)
+          .then((r) => ouFalha("os contratos dos lançamentos", r))
+      : Promise.resolve([]),
   ]);
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
-  const porCategoria = new Map((categorias ?? []).map((c) => [c.id, c]));
-  const porContrato = new Map((contratos ?? []).map((c) => [c.id, c]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
+  const porCategoria = new Map(categorias.map((c) => [c.id, c]));
+  const porContrato = new Map(contratos.map((c) => [c.id, c]));
 
   return entradas.map((entrada) => ({
     ...entrada,
@@ -80,12 +98,14 @@ async function comRelacoes(
 
 export const listarCategorias = cache(async (): Promise<FinanceCategory[]> => {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("finance_categories")
-    .select("*")
-    .order("tipo")
-    .order("nome");
-  return data ?? [];
+  return ouFalha(
+    "as categorias do Financeiro",
+    await supabase
+      .from("finance_categories")
+      .select("*")
+      .order("tipo")
+      .order("nome"),
+  );
 });
 
 export type ContratoComCliente = Contract & {
@@ -94,21 +114,25 @@ export type ContratoComCliente = Contract & {
 
 export const listarContratos = cache(async (): Promise<ContratoComCliente[]> => {
   const supabase = await criarClienteServidor();
-  const { data: contratos } = await supabase
-    .from("contracts")
-    .select("*")
-    .order("ativo", { ascending: false })
-    .order("nome");
-
-  const lista = contratos ?? [];
+  const lista = ouFalha(
+    "os contratos",
+    await supabase
+      .from("contracts")
+      .select("*")
+      .order("ativo", { ascending: false })
+      .order("nome"),
+  );
   if (lista.length === 0) return [];
 
-  const { data: clientes } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .in("id", [...new Set(lista.map((c) => c.client_id))]);
+  const clientes = ouFalha(
+    "as empresas dos contratos",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", [...new Set(lista.map((c) => c.client_id))]),
+  );
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
   return lista.map((contrato) => ({
     ...contrato,
     cliente: porCliente.get(contrato.client_id) ?? null,
@@ -121,13 +145,16 @@ export async function lancamentosDaCompetencia(
   hojeISO: string,
 ): Promise<LancamentoComRelacoes[]> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("finance_entries")
-    .select("*")
-    .eq("competencia", competencia)
-    .order("vencimento", { ascending: true, nullsFirst: false })
-    .order("created_at");
-  return comRelacoes(data ?? [], hojeISO);
+  const data = ouFalha(
+    "os lançamentos da competência",
+    await supabase
+      .from("finance_entries")
+      .select("*")
+      .eq("competencia", competencia)
+      .order("vencimento", { ascending: true, nullsFirst: false })
+      .order("created_at"),
+  );
+  return comRelacoes(data, hojeISO);
 }
 
 /**
@@ -143,14 +170,17 @@ export async function lancamentosDoPeriodo(
   hojeISO: string,
 ): Promise<LancamentoComRelacoes[]> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("finance_entries")
-    .select("*")
-    .gte("competencia", deCompetencia)
-    .lte("competencia", ateCompetencia)
-    .order("competencia", { ascending: false })
-    .order("vencimento", { ascending: true, nullsFirst: false });
-  return comRelacoes(data ?? [], hojeISO);
+  const data = ouFalha(
+    "os lançamentos do intervalo",
+    await supabase
+      .from("finance_entries")
+      .select("*")
+      .gte("competencia", deCompetencia)
+      .lte("competencia", ateCompetencia)
+      .order("competencia", { ascending: false })
+      .order("vencimento", { ascending: true, nullsFirst: false }),
+  );
+  return comRelacoes(data, hojeISO);
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +231,7 @@ export async function visaoGeralDoMes(
 
   const inicioDaSerie = deslocarCompetencia(competencia, -11);
 
-  const [{ data: doPeriodo }, { data: emAberto }, contratos] = await Promise.all([
+  const [respostaDoPeriodo, respostaEmAberto, contratos] = await Promise.all([
     // Doze meses para a série, e o mês escolhido está dentro dela.
     supabase
       .from("finance_entries")
@@ -218,8 +248,9 @@ export async function visaoGeralDoMes(
       .not("vencimento", "is", null),
     listarContratos(),
   ]);
+  const periodo = ouFalha("os lançamentos da série", respostaDoPeriodo);
+  const emAberto = ouFalha("os títulos em aberto", respostaEmAberto);
 
-  const periodo = doPeriodo ?? [];
   const doMes = periodo.filter((e) => e.competencia === competencia && e.status !== "cancelado");
 
   const somar = (lista: FinanceEntry[]) => lista.reduce((total, e) => total + Number(e.valor), 0);
@@ -245,10 +276,16 @@ export async function visaoGeralDoMes(
 
   // --- Receita por cliente no mês
   const idsDeClientes = [...new Set(receitas.map((e) => e.client_id).filter(Boolean))] as string[];
-  const { data: clientes } = idsDeClientes.length
-    ? await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
-    : { data: [] as { id: string; nome_empresa: string }[] };
-  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const clientes = idsDeClientes.length
+    ? ouFalha(
+        "as empresas da receita",
+        await supabase
+          .from("clients")
+          .select("id, nome_empresa")
+          .in("id", idsDeClientes),
+      )
+    : [];
+  const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
 
   const acumuladoPorCliente = new Map<string, number>();
   for (const receita of receitas) {
@@ -264,13 +301,13 @@ export async function visaoGeralDoMes(
     .sort((a, b) => b.valor - a.valor);
 
   // --- Inadimplência e alertas
-  const vencidos = (emAberto ?? []).filter(
+  const vencidos = emAberto.filter(
     (e) => e.vencimento !== null && e.vencimento < hojeISO && e.tipo === "receita",
   );
   const inadimplencia = somar(vencidos);
 
   const daquiA7 = somarDias(hojeISO, 7);
-  const vencendo = (emAberto ?? []).filter(
+  const vencendo = emAberto.filter(
     (e) => e.vencimento !== null && e.vencimento >= hojeISO && e.vencimento <= daquiA7,
   );
 
@@ -376,7 +413,7 @@ export async function relatorioDoPeriodo(
   // O fim do intervalo em DIAS é o último dia do mês da competência final.
   const fimEmDias = ultimoDiaDoMes(ateCompetencia);
 
-  const [{ data: entradas }, { data: categorias }] = await Promise.all([
+  const [respostaDeEntradas, respostaDeCategorias] = await Promise.all([
     supabase
       .from("finance_entries")
       .select("*")
@@ -385,9 +422,10 @@ export async function relatorioDoPeriodo(
       .neq("status", "cancelado"),
     supabase.from("finance_categories").select("id, nome"),
   ]);
+  const lista = ouFalha("os lançamentos do relatório", respostaDeEntradas);
+  const categorias = ouFalha("as categorias do relatório", respostaDeCategorias);
 
-  const lista = entradas ?? [];
-  const nomeDaCategoria = new Map((categorias ?? []).map((c) => [c.id, c.nome]));
+  const nomeDaCategoria = new Map(categorias.map((c) => [c.id, c.nome]));
 
   const agrupar = (tipo: "receita" | "despesa"): LinhaDoDRE[] => {
     const mapa = new Map<string, number>();
@@ -408,25 +446,30 @@ export async function relatorioDoPeriodo(
   const totalDespesas = despesas.reduce((t, l) => t + l.valor, 0);
 
   // --- As horas gastas em cada cliente no período
-  const { data: subtarefas } = await supabase
-    .from("subtasks")
-    .select("task_id, tempo_real_minutos, updated_at")
-    .eq("status", "concluida")
-    .not("tempo_real_minutos", "is", null)
-    .gte("updated_at", inicio)
-    .lte("updated_at", `${fimEmDias}T23:59:59`);
+  const listaDeSubtarefas = ouFalha(
+    "o tempo lançado nas etapas",
+    await supabase
+      .from("subtasks")
+      .select("task_id, tempo_real_minutos, updated_at")
+      .eq("status", "concluida")
+      .not("tempo_real_minutos", "is", null)
+      .gte("updated_at", inicio)
+      .lte("updated_at", `${fimEmDias}T23:59:59`),
+  );
 
-  const listaDeSubtarefas = subtarefas ?? [];
   const idsDeTasks = [...new Set(listaDeSubtarefas.map((s) => s.task_id))];
 
-  const { data: tasks } = idsDeTasks.length
-    ? await supabase
-        .from("tasks")
-        .select("id, client_id")
-        .in("id", idsDeTasks)
-        .not("publicada_em", "is", null)
-    : { data: [] as { id: string; client_id: string | null }[] };
-  const clienteDaTask = new Map((tasks ?? []).map((t) => [t.id, t.client_id]));
+  const tasks = idsDeTasks.length
+    ? ouFalha(
+        "as demandas do tempo lançado",
+        await supabase
+          .from("tasks")
+          .select("id, client_id")
+          .in("id", idsDeTasks)
+          .not("publicada_em", "is", null),
+      )
+    : [];
+  const clienteDaTask = new Map(tasks.map((t) => [t.id, t.client_id]));
 
   const minutosPorCliente = new Map<string, number>();
   for (const subtarefa of listaDeSubtarefas) {
@@ -450,10 +493,16 @@ export async function relatorioDoPeriodo(
   const idsEnvolvidos = [
     ...new Set([...receitaPorCliente.keys(), ...minutosPorCliente.keys()]),
   ];
-  const { data: clientes } = idsEnvolvidos.length
-    ? await supabase.from("clients").select("id, nome_empresa").in("id", idsEnvolvidos)
-    : { data: [] as { id: string; nome_empresa: string }[] };
-  const nomeDoCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const clientes = idsEnvolvidos.length
+    ? ouFalha(
+        "as empresas da rentabilidade",
+        await supabase
+          .from("clients")
+          .select("id, nome_empresa")
+          .in("id", idsEnvolvidos),
+      )
+    : [];
+  const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
 
   const rentabilidade: RentabilidadeDoCliente[] = idsEnvolvidos
     .map((clientId) => {
@@ -489,7 +538,7 @@ export async function contratosSemLancamento(
 ): Promise<ContratoComCliente[]> {
   const supabase = await criarClienteServidor();
 
-  const [contratos, { data: jaGerados }] = await Promise.all([
+  const [contratos, respostaDosGerados] = await Promise.all([
     listarContratos(),
     supabase
       .from("finance_entries")
@@ -497,8 +546,9 @@ export async function contratosSemLancamento(
       .eq("competencia", competencia)
       .not("contract_id", "is", null),
   ]);
+  const jaGerados = ouFalha("os lançamentos já gerados do mês", respostaDosGerados);
 
-  const gerados = new Set((jaGerados ?? []).map((e) => e.contract_id));
+  const gerados = new Set(jaGerados.map((e) => e.contract_id));
 
   return contratos.filter(
     (contrato) => contratoCobraEm(contrato, competencia) && !gerados.has(contrato.id),

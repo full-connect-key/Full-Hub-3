@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
@@ -41,31 +43,42 @@ export const listarEquipe = cache(async (incluirDesligados = false): Promise<Mem
     .neq("role", "cliente")
     .order("nome");
 
-  const { data: perfis } = incluirDesligados ? await consulta : await consulta.eq("ativo", true);
-  if (!perfis || perfis.length === 0) return [];
+  const perfis = ouFalha(
+    "os perfis da equipe",
+    incluirDesligados ? await consulta : await consulta.eq("ativo", true),
+  );
+  if (perfis.length === 0) return [];
 
-  const { data: membros } = await supabase
-    .from("team_members")
-    .select("*")
-    .in(
-      "user_id",
-      perfis.map((p) => p.id),
-    );
+  const membros = ouFalha(
+    "os perfis da equipe",
+    await supabase
+      .from("team_members")
+      .select("*")
+      .in(
+        "user_id",
+        perfis.map((p) => p.id),
+      ),
+  );
 
-  return juntarPerfisComMembros(perfis, membros ?? []);
+  return juntarPerfisComMembros(perfis, membros);
 });
 
 export const obterColaborador = cache(async (id: string): Promise<MembroDaEquipe | null> => {
   const supabase = await criarClienteServidor();
 
-  const { data: perfil } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+  // `limit(1)` E NÃO `maybeSingle()`: a resposta dele é uma união de duas
+  // formas, e o genérico de `ouFalha` resolve a união para `never` — o erro não
+  // sai aqui, sai no `...perfil` do `return`.
+  const [perfil] = ouFalha(
+    "o perfil da pessoa",
+    await supabase.from("profiles").select("*").eq("id", id).limit(1),
+  );
   if (!perfil) return null;
 
-  const { data: membro } = await supabase
-    .from("team_members")
-    .select("*")
-    .eq("user_id", id)
-    .maybeSingle();
+  const [membro] = ouFalha(
+    "a ficha da pessoa",
+    await supabase.from("team_members").select("*").eq("user_id", id).limit(1),
+  );
 
   return { ...perfil, membro: membro ?? null };
 });
@@ -111,11 +124,14 @@ export const obterMinhaFicha = cache(async (): Promise<TeamMember | null> => {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
-    .from("team_members")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const data = ouFalha(
+    "a ficha da pessoa",
+    await supabase
+      .from("team_members")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  );
 
   return data ?? null;
 });

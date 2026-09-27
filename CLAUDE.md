@@ -5050,12 +5050,33 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   inteira, e `const { data } = await consulta` jogou o erro fora — a tela
   dizia "Nenhuma campanha aberta" para quem tinha acabado de abrir uma.
   `ouFalha()` de `lib/dados/consulta.ts` estoura em vez de devolver vazio, com
-  o nome do lugar no log. A migração é por etapas, e a ordem não é alfabética:
-  **primeiro o que o cliente lê** — `portal.ts`, `posts.ts` e `social-media.ts`
-  saíram juntos, porque o Portal é a área em que a equipe nunca entra e uma
-  lista vazia lá pode durar meses sem ninguém desconfiar. `lib/dados/` ainda
-  tem `const { data } = await` em módulos do painel, onde quem olha a tela
-  também sabe o que deveria estar nela.
+  o nome do lugar no log. **A MIGRAÇÃO ACABOU**, e foi feita por etapas, na
+  ordem que importa: **primeiro o que o cliente lê** — o Portal é a área em que
+  a equipe nunca entra, e uma lista vazia lá pode durar meses sem ninguém
+  desconfiar. `portal.ts` tinha catorze leituras cruas apesar de a documentação
+  dizer que ele já havia saído: só a listagem de campanhas tinha sido
+  convertida, e é o tipo de coisa que uma frase em prosa afirma e nenhuma
+  varredura confere.
+
+  **O que sobrou de `const { data } = await` não é leitura de tabela:** é
+  `auth.admin`, é `storage.createSignedUrls`, e são as RPC que tratam o erro na
+  mão de propósito — `home_summary` (a Home não cai por causa do resumo),
+  `is_atendimento` (falha para o lado fechado), e a faixa de pedidos de nota,
+  que devolve vazio porque Notas Fiscais funciona inteira sem ela.
+
+  **Três coisas a conversão ensinou, e valem para a próxima:**
+
+  - **`ouFalha(... .maybeSingle())` COLAPSA PARA `never`.** A resposta dele é
+    uma união de duas formas, o genérico resolve a união para `never`, e o erro
+    não sai na linha da consulta — sai no `...linha` de um `return` setenta
+    linhas abaixo. O caminho é `.limit(1)` e pegar o primeiro; foram seis
+    lugares.
+  - **`Promise.resolve({ data: [] })` dentro de um `Promise.all` faz o mesmo**,
+    pelo mesmo motivo. O ramo vazio sai de dentro do `Promise.all`.
+  - **O `?? []` sai junto.** Ele afirma que a leitura pode devolver nulo, e
+    depois de `ouFalha` ela não pode — é a razão pela qual `atrasado` não é
+    coluna: não se guarda uma segunda resposta para uma pergunta que já tem
+    uma.
 
   **E `ouFalha` vem ANTES do `if (!data)`**, nas consultas de um item só. As
   duas respostas são diferentes: sem linha é a RLS dizendo "isto não é seu", e

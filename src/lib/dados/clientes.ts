@@ -28,36 +28,45 @@ export type ClienteComResumo = Client & {
 /** Empresas que a pessoa logada enxerga. Usada pelo Portal. */
 export const obterMinhasEmpresas = cache(async () => {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .eq("ativo", true)
-    .order("nome_empresa");
+  const data = ouFalha(
+    "os clientes",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .eq("ativo", true)
+      .order("nome_empresa"),
+  );
 
-  return data ?? [];
+  return data;
 });
 
 export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
   const supabase = await criarClienteServidor();
 
-  const [{ data: clientes }, { data: vinculos }] = await Promise.all([
+  const [resposta0, resposta1] = await Promise.all([
     supabase.from("clients").select("*").order("nome_empresa"),
     supabase.from("client_users").select("client_id, user_id"),
   ]);
-
-  if (!clientes) return [];
+  const clientes = ouFalha("as empresas", resposta0);
+  const vinculos = ouFalha("os vínculos de acesso", resposta1);
 
   const idsDeResponsaveis = [
     ...new Set(clientes.map((c) => c.responsavel_atendimento_id).filter(Boolean)),
   ] as string[];
 
-  const { data: responsaveis } = idsDeResponsaveis.length
-    ? await supabase.from("profiles").select("id, nome").in("id", idsDeResponsaveis)
-    : { data: [] };
+  const responsaveis = idsDeResponsaveis.length
+    ? ouFalha(
+        "os responsáveis de atendimento",
+        await supabase
+          .from("profiles")
+          .select("id, nome")
+          .in("id", idsDeResponsaveis),
+      )
+    : [];
 
-  const porId = new Map((responsaveis ?? []).map((p) => [p.id, p]));
+  const porId = new Map(responsaveis.map((p) => [p.id, p]));
   const contagem = new Map<string, number>();
-  for (const vinculo of vinculos ?? []) {
+  for (const vinculo of vinculos) {
     contagem.set(vinculo.client_id, (contagem.get(vinculo.client_id) ?? 0) + 1);
   }
 
@@ -72,7 +81,12 @@ export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
 
 export const obterCliente = cache(async (id: string): Promise<Client | null> => {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.from("clients").select("*").eq("id", id).maybeSingle();
+  // `limit(1)` E NÃO `maybeSingle()`: a união de duas formas que ele devolve
+  // faz o genérico de `ouFalha` resolver para `never`.
+  const [data] = ouFalha(
+    "a ficha do cliente",
+    await supabase.from("clients").select("*").eq("id", id).limit(1),
+  );
   return data ?? null;
 });
 
@@ -80,22 +94,28 @@ export const obterCliente = cache(async (id: string): Promise<Client | null> => 
 export const usuariosDoCliente = cache(async (clientId: string) => {
   const supabase = await criarClienteServidor();
 
-  const { data: vinculos } = await supabase
-    .from("client_users")
-    .select("id, user_id, created_at")
-    .eq("client_id", clientId);
+  const vinculos = ouFalha(
+    "os vínculos da empresa",
+    await supabase
+      .from("client_users")
+      .select("id, user_id, created_at")
+      .eq("client_id", clientId),
+  );
 
   if (!vinculos || vinculos.length === 0) return [];
 
-  const { data: perfis } = await supabase
-    .from("profiles")
-    .select("id, nome, email, ativo")
-    .in(
-      "id",
-      vinculos.map((v) => v.user_id),
-    );
+  const perfis = ouFalha(
+    "os vínculos da empresa",
+    await supabase
+      .from("profiles")
+      .select("id, nome, email, ativo")
+      .in(
+        "id",
+        vinculos.map((v) => v.user_id),
+      ),
+  );
 
-  const porId = new Map((perfis ?? []).map((p) => [p.id, p]));
+  const porId = new Map(perfis.map((p) => [p.id, p]));
 
   return vinculos
     .map((vinculo) => {
@@ -194,7 +214,7 @@ export async function identidadeDoPortal(
   // caso do cliente, onde quem filtra é o RLS — a pessoa pode responder por
   // duas empresas, e `maybeSingle()` estoura com "mais de uma linha" em vez
   // de devolver alguma. O `limit(1)` já escolheu; aqui só se lê.
-  const linhas = ouFalha("a identidade do portal", await consulta) ?? [];
+  const linhas = ouFalha("a identidade do portal", await consulta);
   const linha = linhas[0];
   if (!linha) return null;
 

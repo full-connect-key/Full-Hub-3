@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
@@ -75,13 +77,16 @@ export const listarFeed = cache(
       consulta = consulta.or(`titulo.ilike.${termo},descricao.ilike.${termo}`);
     }
 
-    const { data: posts } = await consulta.order("created_at", { ascending: false });
+    const posts = ouFalha(
+      "o feed de recomendações",
+      await consulta.order("created_at", { ascending: false }),
+    );
     if (!posts || posts.length === 0) return [];
 
     const ids = posts.map((p) => p.id);
     const idsDeAutor = [...new Set(posts.map((p) => p.autor_id))];
 
-    const [{ data: curtidas }, { data: comentarios }] = await Promise.all([
+    const [resposta0, resposta1] = await Promise.all([
       supabase.from("recommendation_likes").select("recommendation_id, user_id").in(
         "recommendation_id",
         ids,
@@ -92,16 +97,21 @@ export const listarFeed = cache(
         .in("recommendation_id", ids)
         .order("created_at"),
     ]);
+    const curtidas = ouFalha("as curtidas do feed", resposta0);
+    const comentarios = ouFalha("os comentários do feed", resposta1);
 
     const todosOsAutores = [
-      ...new Set([...idsDeAutor, ...(comentarios ?? []).map((c) => c.autor_id)]),
+      ...new Set([...idsDeAutor, ...comentarios.map((c) => c.autor_id)]),
     ];
-    const { data: perfis } = await supabase
-      .from("profiles")
-      .select("id, nome, avatar_url")
-      .in("id", todosOsAutores);
+    const perfis = ouFalha(
+      "quem escreveu cada recomendação",
+      await supabase
+        .from("profiles")
+        .select("id, nome, avatar_url")
+        .in("id", todosOsAutores),
+    );
 
-    const porId = new Map((perfis ?? []).map((p) => [p.id, p]));
+    const porId = new Map(perfis.map((p) => [p.id, p]));
 
     // AS CAPAS SÃO ASSINADAS EM BLOCO, uma ida para o feed inteiro. Uma por
     // cartão seriam quarenta chamadas ao Storage para desenhar uma tela.
@@ -115,14 +125,14 @@ export const listarFeed = cache(
     );
 
     const montados: PostDoFeed[] = posts.map((post) => {
-      const minhas = (curtidas ?? []).filter((c) => c.recommendation_id === post.id);
+      const minhas = curtidas.filter((c) => c.recommendation_id === post.id);
       return {
         ...post,
         autor: porId.get(post.autor_id) ?? null,
         quantasCurtidas: minhas.length,
         euCurti: minhas.some((c) => c.user_id === usuarioId),
         capa: enderecoDaArte(post.imagem_url, capas),
-        comentarios: (comentarios ?? [])
+        comentarios: comentarios
           .filter((c) => c.recommendation_id === post.id)
           .map((c) => ({
             id: c.id,
@@ -165,20 +175,26 @@ export const emAltaNoMes = cache(
     const desde = new Date(hojeISO);
     desde.setDate(desde.getDate() - 30);
 
-    const { data: posts } = await supabase
-      .from("recommendations")
-      .select("id, titulo, categoria")
-      .gte("created_at", desde.toISOString());
+    const posts = ouFalha(
+      "as minhas recomendações",
+      await supabase
+        .from("recommendations")
+        .select("id, titulo, categoria")
+        .gte("created_at", desde.toISOString()),
+    );
 
     if (!posts || posts.length === 0) return [];
 
-    const { data: curtidas } = await supabase
-      .from("recommendation_likes")
-      .select("recommendation_id")
-      .in(
-        "recommendation_id",
-        posts.map((p) => p.id),
-      );
+    const curtidas = ouFalha(
+      "as minhas curtidas",
+      await supabase
+        .from("recommendation_likes")
+        .select("recommendation_id")
+        .in(
+          "recommendation_id",
+          posts.map((p) => p.id),
+        ),
+    );
 
     const conta = new Map<string, number>();
     for (const c of curtidas ?? []) {
@@ -198,6 +214,9 @@ export const emAltaNoMes = cache(
  *  conta. */
 export const tagsDoFeed = cache(async (): Promise<{ tags: string[] | null }[]> => {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.from("recommendations").select("tags");
-  return data ?? [];
+  const data = ouFalha(
+    "as etiquetas do feed",
+    await supabase.from("recommendations").select("tags"),
+  );
+  return data;
 });
