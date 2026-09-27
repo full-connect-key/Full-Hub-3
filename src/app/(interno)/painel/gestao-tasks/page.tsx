@@ -8,6 +8,7 @@ import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes"
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
+import { rotinasAgendadas } from "@/lib/dados/rotinas";
 import {
   buscarRecorrencia,
   feriadosParaAPrevia,
@@ -183,10 +184,14 @@ async function AbaDeRecorrencias({
     );
   }
 
-  const [regras, clientes, atendimento] = await Promise.all([
+  const [regras, clientes, atendimento, agendadas] = await Promise.all([
     listarRecorrencias(),
     clientesAtivos(),
     souDoAtendimento(),
+    // A FAIXA PERGUNTA AO BANCO em vez de a tela afirmar: qual das duas frases
+    // verdadeiras aparece depende de o agendamento estar ligado, e isso é
+    // decisão de operação — ninguém edita código para agendar.
+    rotinasAgendadas(),
   ]);
 
   return (
@@ -194,6 +199,7 @@ async function AbaDeRecorrencias({
       regras={regras}
       clientes={clientes.map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
       podeConfigurar={atendimento}
+      agendadas={agendadas}
     />
   );
 }

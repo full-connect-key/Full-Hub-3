@@ -85,6 +85,7 @@ export function ListaDeRecorrencias({
   regras,
   clientes,
   podeConfigurar,
+  agendadas,
 }: {
   regras: RecorrenciaNaTela[];
   clientes: { id: string; nome_empresa: string }[];
@@ -94,6 +95,12 @@ export function ListaDeRecorrencias({
    * vai abrir uma igual à mão.
    */
   podeConfigurar: boolean;
+  /**
+   * As rotinas estão agendadas? Decide qual das DUAS FRASES VERDADEIRAS a
+   * faixa mostra — e vem do banco (`rotinas_agendadas()`, 0072) em vez de ser
+   * um texto que alguém troca à mão.
+   */
+  agendadas: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -242,44 +249,59 @@ export function ListaDeRecorrencias({
       </div>
 
       {/*
-        A GERAÇÃO NÃO RODA SOZINHA, E A TELA PRECISA DIZER.
+        SÃO DUAS FRASES VERDADEIRAS, E QUEM ESCOLHE É O BANCO.
 
-        `gerar_recorrencias()` existe e funciona desde a 0040, e nunca teve
-        quem a chamasse: o agendamento era a parte do Sprint 16 que saiu do
-        produto junto com a VPS. Sem esta faixa, quem configura o stories de
-        toda segunda vai embora achando que segunda ele nasce — e segunda não
-        nasce nada. O aviso fica aqui e não no editor porque é sobre a lista
-        inteira, e porque é onde o "Gerar agora" de cada regra está à mão.
+        `gerar_recorrencias()` existe e funciona desde a 0040, e por muito tempo
+        não teve quem a chamasse: o agendamento era a parte do Sprint 16 que saiu
+        do produto junto com a VPS. Sem uma faixa aqui, quem configura o stories
+        de toda segunda ia embora achando que segunda ele nasce — e segunda não
+        nascia nada. O lugar é este e não o editor porque é sobre a lista
+        inteira, e porque é aqui que o "Gerar agora" de cada regra está à mão.
 
-        É faixa fixa e não bloco que some, ao contrário dos blocos de exceção
-        da Home: aqui o normal É a ausência da rotina, e um aviso que só
-        aparecesse de vez em quando ensinaria que o resto do tempo ela está
-        rodando.
+        A rotina voltou (`pg_cron`, por `scripts/agendar-rotinas.sql`), e se ela
+        está LIGADA é decisão de operação — ninguém edita código para agendar.
+        Então o texto **pergunta**, por `rotinas_agendadas()` (0072), em vez de
+        afirmar.
 
-        -----------------------------------------------------------------------
-        AGORA EXISTE UM CHAMADOR, E O TEXTO CONTINUA ESTE. A rotina diária
-        (`.github/workflows/rotinas.yml`, chamando `scripts/rodar-rotinas.sh`)
-        pede a geração toda madrugada — e ela só acontece de verdade quando as
-        duas credenciais do repositório estiverem preenchidas. Enquanto isso não
-        for confirmado, esta tela NÃO pode dizer que a demanda nasce sozinha:
-        das duas afirmações erradas possíveis, esta é a caríssima. "Ela roda" faz
-        a pessoa parar de clicar em Gerar agora, e o cliente descobre no dia da
-        entrega; "ela não roda" faz alguém clicar sem precisar, e o índice único
-        da 0040 recusa a segunda geração do mesmo período.
+        **MANTER ISTO À MÃO SERIA A ARMADILHA QUE O PRODUTO JÁ PAGOU**, na tabela
+        de migrations pendentes do CLAUDE.md: prosa que envelhece no dia em que
+        alguém muda o mundo e esquece o texto, lida justamente por quem está em
+        dúvida. E aqui um dos dois erros é caríssimo — "ela roda" faz a pessoa
+        parar de clicar em Gerar agora, e o cliente descobre no dia da entrega.
+        O outro faz alguém clicar sem precisar, e o índice único da 0040 recusa
+        a geração repetida do mesmo período.
 
-        **O QUE MUDAR QUANDO AS CREDENCIAIS ESTIVEREM LÁ:** esta faixa vira
-        informativa — "a demanda nasce de madrugada; o Gerar agora existe para
-        quem não quer esperar" — e o tom passa de `--warning` para neutro. O que
-        ela NUNCA pode fazer é citar a mecânica: credencial, repositório e
-        agendamento são vocabulário de desenvolvimento, e nenhum texto visível
-        ao usuário carrega isso.
-        -----------------------------------------------------------------------
+        **O TOM ACOMPANHA**: `--warning` quando a geração depende de alguém
+        lembrar, neutro quando ela acontece sozinha. Um aviso âmbar permanente
+        sobre algo que está funcionando é o que ensina a ignorar âmbar.
+
+        E nenhuma das duas cita a mecânica: agendamento, extensão e rotina são
+        vocabulário de desenvolvimento, e nenhum texto visível ao usuário
+        carrega isso.
       */}
-      <div className="bg-warning-soft rounded-card border p-3">
+      <div
+        className={
+          agendadas
+            ? "bg-surface-card rounded-card border p-3"
+            : "bg-warning-soft rounded-card border p-3"
+        }
+      >
         <p className="text-sm">
-          <strong className="font-semibold">A geração é manual por enquanto.</strong> A regra guarda
-          a cadência e calcula as próximas datas, mas nada nasce de madrugada: quem gera é o{" "}
-          <span className="font-medium">Gerar agora</span> de cada regra. Nada é gerado para trás.
+          {agendadas ? (
+            <>
+              <strong className="font-semibold">A demanda nasce de madrugada.</strong> Cada regra
+              abre sozinha o que venceu, e o{" "}
+              <span className="font-medium">Gerar agora</span> existe para quem não quer esperar até
+              amanhã. Nada é gerado para trás.
+            </>
+          ) : (
+            <>
+              <strong className="font-semibold">A geração é manual por enquanto.</strong> A regra
+              guarda a cadência e calcula as próximas datas, mas nada nasce de madrugada: quem gera
+              é o <span className="font-medium">Gerar agora</span> de cada regra. Nada é gerado para
+              trás.
+            </>
+          )}
         </p>
       </div>
 

@@ -465,6 +465,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/novidades": ["./scripts/prototipo/novidades.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
+  "@/lib/dados/rotinas": ["./scripts/prototipo/rotinas.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],
   "@/lib/dados/recorrencias": ["./scripts/prototipo/recorrencias.ts"],
   "@/lib/dados/aprovacoes": ["./scripts/prototipo/aprovacoes.ts"],

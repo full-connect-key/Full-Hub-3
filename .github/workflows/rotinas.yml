@@ -1,33 +1,36 @@
-# As rotinas diárias do Full Hub.
+# As rotinas diárias do Full Hub, para rodar À MÃO.
 #
 # ---------------------------------------------------------------------------
-# NADA NO PRODUTO RODAVA SOZINHO. `gerar_recorrencias()` e
-# `limpar_rascunhos_abandonados()` existem desde 2026 e nunca tiveram quem as
-# chamasse: o agendamento era de um sprint que perdeu a VPS antes de acontecer,
-# e o que ficou escrito em CLAUDE.md foi "chamá-la é ato de alguém".
+# **QUEM AGENDA É O `pg_cron`, E NÃO ESTE ARQUIVO** — decisão do usuário. O
+# `schedule:` que estava aqui saiu, e o motivo é o custo que ele cobrava: a
+# chave de serviço teria que morar num secret do repositório, e ela IGNORA TODO
+# O RLS. Quem tem permissão de escrita aqui poderia lê-la escrevendo um
+# workflow — é um push. Com o `pg_cron` o agendamento mora dentro do banco, a
+# chamada nunca sai dele, e nenhuma chave é criada para isso.
 #
-# **O AGENDAMENTO NÃO PRECISAVA DA VPS**, e é por isso que ele volta sem ela: é
-# uma chamada HTTP ao PostgREST, e o `schedule:` do GitHub Actions é um relógio
-# que a agência já tem. A parte B e a parte C do Sprint 16 voltaram pelo mesmo
-# argumento — o que perdeu a máquina foi só o que precisava de máquina.
+# Quem liga é `scripts/agendar-rotinas.sql`, colado no SQL Editor uma vez. E o
+# produto passou a SABER se ele está ligado: `rotinas_agendadas()` (0072) lê
+# `cron.job`, e é ela que decide qual das duas frases a faixa de Recorrências e
+# o bloco de rascunho da Home mostram. Pelo Actions isso não existiria — um
+# secret de repositório é invisível para o Postgres.
 #
-# O QUE ELE CUSTA, e precisa estar escrito: a chave de serviço passa a morar num
-# secret do repositório, e a chave de serviço IGNORA TODO O RLS. Quem tem
-# permissão de escrita aqui pode lê-la escrevendo um workflow — é um push. A
-# alternativa sem esse custo é o `pg_cron`, que mantém o agendamento DENTRO do
-# banco e não cria chave nenhuma; o PASSO 3 da migration 0071 traz as duas
-# linhas para colar e o que apagar daqui.
+# **E ESTE ARQUIVO FICA, sem o relógio.** Ele responde "ela rodou?" no dia em
+# que alguém desconfiar, sem esperar a madrugada seguinte, e é o caminho de
+# quem quer gerar as recorrências do dia agora. Apagá-lo custaria o
+# `rodar-rotinas.sh` junto, que é onde está escrito como ler o HTTP 200 com o
+# estrago dentro.
+#
+# Ele **continua pedindo os dois secrets** — é uma chamada HTTP ao PostgREST,
+# como sempre foi. Sem eles termina em 0 dizendo o que falta, e o agendamento
+# de madrugada não depende deles: aquele é do `pg_cron`.
 # ---------------------------------------------------------------------------
 name: Rotinas
 
 on:
-  schedule:
-    # 06:23 UTC = 03:23 em São Paulo — a madrugada da agência, e um minuto que
-    # não é :00 de propósito: o GitHub atrasa o disparo na hora cheia, onde
-    # cabe a fila do mundo inteiro.
-    - cron: "23 6 * * *"
-  # PARA RODAR À MÃO, e não é conveniência: é o que responde "ela rodou?" no dia
-  # em que alguém desconfiar, sem esperar a madrugada seguinte.
+  # SÓ À MÃO. O `schedule:` saiu junto com a decisão de agendar pelo `pg_cron`;
+  # deixá-lo aqui daria DOIS relógios para a mesma rotina, e a idempotência da
+  # 0040 tornaria isso inofensivo e invisível — duas execuções por noite, com
+  # metade dos logs em dois lugares diferentes.
   workflow_dispatch:
 
 # Duas madrugadas não se atropelam. `gerar_ocorrencia()` é idempotente pelo
@@ -55,13 +58,17 @@ jobs:
         run: |
           if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
             {
-              echo "### As rotinas não rodaram"
+              echo "### Esta execução à mão não rodou"
               echo
               echo "Faltam os secrets \`SUPABASE_URL\` e \`SUPABASE_SERVICE_ROLE_KEY\`."
               echo
-              echo "Sem eles: a demanda recorrente só nasce quando alguém abre a regra e clica em"
-              echo "\"Gerar agora\", e o rascunho parado há sete dias não é apagado por ninguém."
-              echo "Nenhuma tela quebra — é justamente por isso que isto passou despercebido."
+              echo "**O agendamento de madrugada NÃO depende disto** — ele é do \`pg_cron\`, por"
+              echo "\`scripts/agendar-rotinas.sql\`. O que falta aqui é só o caminho de rodar as"
+              echo "rotinas agora, sem esperar a noite."
+              echo
+              echo "Para conferir se o agendamento está de pé, rode no SQL Editor:"
+              echo "\`select public.rotinas_agendadas();\` — ou olhe a faixa da aba Recorrências,"
+              echo "que diz a mesma coisa em português."
             } >> "$GITHUB_STEP_SUMMARY"
             echo "tem=nao" >> "$GITHUB_OUTPUT"
           else

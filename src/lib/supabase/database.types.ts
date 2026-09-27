@@ -2864,6 +2864,12 @@ export interface Database {
       };
       limpar_rascunhos_abandonados: { Args: Record<string, never>; Returns: number };
       /**
+       * true quando as duas rotinas diarias estao agendadas e ativas no
+       * pg_cron (0072). E o que faz a faixa de Recorrencias e o bloco de
+       * rascunho da Home dizerem a verdade sem ninguem editar texto.
+       */
+      rotinas_agendadas: { Args: Record<string, never>; Returns: boolean };
+      /**
        * O LIMITE DE TENTATIVAS (0056).
        *
        * As duas só são chamáveis pela CHAVE DE SERVIÇO: a migration revoga o

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileEdit } from "lucide-react";
 
+import { rotinasAgendadas } from "@/lib/dados/rotinas";
 import { rascunhosAExpirar } from "@/lib/dados/tasks";
 
 /**
@@ -22,16 +23,21 @@ import { rascunhosAExpirar } from "@/lib/dados/tasks";
  * foram embora. Então o bloco continua, dizendo o que é verdade — aquele
  * rascunho está parado — e quem apaga é quem clica.
  *
- * **A ROTINA GANHOU UM CHAMADOR, E ESTE TEXTO CONTINUA O MESMO.** A rotina
- * diária pede a limpeza toda madrugada, e ela só apaga de verdade quando as
- * credenciais do repositório estiverem preenchidas — coisa que esta tela não
- * tem como saber. Voltar a prometer "some amanhã" antes disso seria refazer o
- * erro que este comentário registra, com a diferença de que agora a promessa
- * às vezes se cumpre: pior ainda, porque o rascunho sumiria para alguns e não
- * para outros, e ninguém acharia o padrão.
+ * **A ROTINA GANHOU UM CHAMADOR, E O TEXTO PASSOU A PERGUNTAR SE ELE ESTÁ
+ * LIGADO.** São duas frases verdadeiras, e qual delas aparece sai de
+ * `rotinasAgendadas()` — que lê `cron.job` pelo recorte da 0072.
  *
- * Quando a limpeza estiver rodando de verdade, o texto pode voltar a falar do
- * prazo — em português comum, sem citar rotina nem credencial.
+ * **Não é um texto que alguém troca à mão**, e essa é a decisão: mantido à mão,
+ * ele ficaria errado no dia em que o agendamento fosse ligado ou desligado, que
+ * é exatamente o que aconteceu com a tabela de migrations pendentes do
+ * CLAUDE.md. E o erro aqui tem uma direção caríssima — prometer um apagamento
+ * que não vem faz a pessoa confiar que o Full Hub limpa por ela, parar de
+ * olhar, e um ano depois ter trinta pensamentos pela metade que ela acha que
+ * foram embora.
+ *
+ * **Com a rotina ligada o texto fala do prazo; sem ela, do estado.** Nenhum dos
+ * dois cita rotina, agendamento nem credencial: é vocabulário de
+ * desenvolvimento, e nenhuma tela do produto carrega isso.
  * ---------------------------------------------------------------------------
  *
  * **Não aparece quando não há nada a dizer**, e é o normal: um bloco fixo
@@ -39,7 +45,10 @@ import { rascunhosAExpirar } from "@/lib/dados/tasks";
  * informação que interessa em raríssimos dias.
  */
 export async function RascunhosAExpirar() {
-  const rascunhos = await rascunhosAExpirar();
+  const [rascunhos, agendadas] = await Promise.all([
+    rascunhosAExpirar(),
+    rotinasAgendadas(),
+  ]);
   if (rascunhos.length === 0) return null;
 
   return (
@@ -52,8 +61,10 @@ export async function RascunhosAExpirar() {
       </h2>
 
       <p className="text-text-secondary mt-1 text-sm">
-        Ninguém mais vê um rascunho além de você, e o Full Hub não apaga sozinho. Termine e clique
-        em Criar task, ou apague pelo fim da página.
+        Ninguém mais vê um rascunho além de você.{" "}
+        {agendadas
+          ? "Rascunho parado há mais de sete dias é apagado durante a noite — termine e clique em Criar task, se ainda quiser."
+          : "E o Full Hub não apaga sozinho: termine e clique em Criar task, ou apague pelo fim da página."}
       </p>
 
       <ul className="mt-3 space-y-1">

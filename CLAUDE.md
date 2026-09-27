@@ -4887,10 +4887,26 @@ se alguém abrisse a regra e clicasse. O stories de toda segunda dependia de
 alguém lembrar toda segunda, que é exatamente o que a recorrência existe para
 não exigir.
 
-**O agendamento é uma chamada HTTP**, então o `schedule:` do GitHub Actions
-basta: 06:23 UTC, que é 03:23 em São Paulo, num minuto que não é `:00` de
-propósito — o GitHub atrasa o disparo na hora cheia, onde cabe a fila do mundo
-inteiro.
+**QUEM AGENDA É O `pg_cron`, e é decisão do usuário.** 06:20 e 06:35 UTC, que
+são 03:20 e 03:35 em São Paulo. Quem liga é `scripts/agendar-rotinas.sql`,
+colado no SQL Editor uma vez — e é **script e não migration** por duas razões: a
+extensão se habilita no painel do Supabase, então um `create extension` numa
+migration falharia em qualquer ambiente onde ela não esteja disponível; e
+agendamento não é schema, é escolha de operação, como decidir aplicar uma
+migration.
+
+**O caminho por GitHub Actions foi escrito primeiro e recusado**, e o registro
+da ida e da volta fica porque foi o custo que decidiu: pelo Actions a chave de
+serviço — que ignora todo o RLS — teria que virar secret do repositório, e quem
+tem permissão de escrita nele pode ler o secret escrevendo um workflow. Com o
+`pg_cron` a chamada nunca sai do banco e nenhuma chave é criada.
+
+**O `rotinas.yml` FICOU, sem o relógio.** Ele responde "ela rodou?" no dia em
+que alguém desconfiar, sem esperar a madrugada, e é o caminho de quem quer gerar
+as recorrências do dia agora — por **Actions → Rotinas → Run workflow**. Dois
+`schedule:` para a mesma rotina dariam duas execuções por noite, com metade dos
+logs em dois lugares; e a idempotência da 0040 tornaria isso inofensivo e
+invisível, que é a pior combinação.
 
 **O script é um só, e a Action o chama em vez de repetir os `curl`.** É a decisão
 do `verificar.yml` ser chamado pelo deploy: uma cópia da rotina envelhece em
@@ -4904,24 +4920,60 @@ cara do commit. **E o HTTP 200 também é lido**: o `exception` de
 falha devolve 200 com o estrago no corpo — sem essa leitura o Actions ficaria
 verde numa madrugada em que nada nasceu.
 
-**O que ela custa, e está escrito no cabeçalho dela:** a chave de serviço passa a
-morar num secret do repositório, e ela ignora todo o RLS — quem tem permissão de
-escrita pode lê-la escrevendo um workflow. **O `pg_cron` não tem esse custo**: o
-agendamento mora dentro do banco e nenhuma chave é criada. Ele não está ligado
-por migration porque a extensão se habilita no painel do Supabase, e um `create
-extension` falharia em qualquer ambiente onde ela não esteja disponível —
-migration que não roda no próximo ambiente não é migration. As duas linhas para
-colar estão no PASSO 3 da 0071.
+#### E AS DUAS TELAS PERGUNTAM SE ELE ESTÁ LIGADO, em vez de afirmar
 
-**E AS DUAS TELAS CONTINUAM DIZENDO QUE A ROTINA NÃO RODA**, de propósito: se a
-demanda nasce sozinha depende de dois segredos do repositório, e nenhuma tela tem
-como saber se eles estão lá. Das duas afirmações erradas possíveis, "ela roda" é
-a caríssima — a pessoa para de clicar em "Gerar agora" e o cliente descobre no
-dia da entrega; "ela não roda" faz alguém clicar sem precisar, e o índice único
-da 0040 recusa a geração repetida. O que cada faixa vira quando as credenciais
-existirem está escrito ao lado dela, junto com o que ela nunca pode fazer:
-**citar a mecânica** — credencial, repositório e agendamento são vocabulário de
-desenvolvimento, e nenhum texto visível ao usuário carrega isso.
+Migration 0072. Duas faixas do produto falam disso: a da aba Recorrências e o
+bloco de rascunho parado da Home. As duas eram **verdade escrita à mão** — e com
+um chamador existindo, ficariam dependendo de alguém lembrar de trocar o texto no
+dia em que o agendamento fosse ligado, e de trocar de volta no dia em que fosse
+desligado.
+
+**É a armadilha que este arquivo pagou na tabela de migrations pendentes**: prosa
+mantida à mão, lida justamente por quem está em dúvida, que ficou errada no dia
+em que cinco foram aplicadas e ninguém editou o texto. E aqui um dos dois erros é
+caríssimo: *"a demanda nasce de madrugada"* faz a pessoa parar de clicar em
+"Gerar agora", e o cliente descobre no dia da entrega. O outro faz alguém clicar
+sem precisar, e o índice único da 0040 recusa a geração repetida.
+
+**Com o `pg_cron` a pergunta tem resposta no banco, e é isso que destrava a
+mudança:** `cron.job` é uma tabela. `rotinas_agendadas()` a lê pelo recorte de um
+booleano, e `rotinasAgendadas()` em `lib/dados/rotinas.ts` é quem as duas telas
+chamam. **Pelo Actions isso não existiria** — um secret de repositório é
+invisível para o Postgres, e a tela continuaria adivinhando.
+
+- **Ela NÃO pode estourar onde `pg_cron` não existe**, e esse requisito decide a
+  forma dela. São três ambientes sem o schema `cron`: a bateria (um Postgres 16
+  pelado), qualquer cópia nova do banco, e o próprio projeto antes de alguém
+  ligar a extensão. Nos três a resposta certa é `false`, não um erro que derruba a
+  lista de Recorrências e a Home. Por isso `to_regclass` antes de tocar na tabela,
+  e por isso a consulta é montada com `execute`: uma referência direta a
+  `cron.job` no corpo faria o Postgres validar o objeto na criação da função, e a
+  migration falharia de cara. É a razão de toda função deste projeto ser
+  `plpgsql` e não `language sql`, vista de outro ângulo. **A bateria mede com
+  mutação:** tirando a guarda, o cenário cai com *"relation cron.job does not
+  exist"*.
+- **`security definer`**, porque `cron.job` lista TODO agendamento do projeto com
+  o comando dentro, e não se abre para `authenticated`. O que sai daqui é um
+  booleano sobre dois nomes — a forma de `usuarios_do_meu_cliente()` e de
+  `meus_comodatos()`.
+- **`active` importa, e os DOIS têm que estar.** Um agendamento pausado existe na
+  tabela e não roda; e com uma rotina só ligada, uma das duas faixas mentiria.
+  Quem ligar apenas uma vê as duas dizendo que a geração é manual, que é o lado
+  seguro do erro.
+- **A leitura falha para "não está agendado"**, e não usa `ouFalha()`: aqui a
+  consulta decide só qual de duas frases verdadeiras aparece, e derrubar a Home
+  por causa dela seria trocar uma imprecisão por uma falha total — a decisão da
+  faixa de novidades de Minhas Tasks. O erro vai para o log, porque sem ele
+  ninguém saberia por que a tela insiste em dizer "manual" num banco onde o
+  `pg_cron` está ligado.
+- **O tom acompanha a frase**: `--warning` quando a geração depende de alguém
+  lembrar, neutro quando ela acontece sozinha. Um aviso âmbar permanente sobre
+  algo que funciona é o que ensina a ignorar âmbar.
+- **E nenhuma das duas cita a mecânica** — agendamento, extensão e rotina são
+  vocabulário de desenvolvimento, e nenhum texto visível ao usuário carrega isso.
+  O bloco da Home diz "é apagado durante a noite" ou "o Full Hub não apaga
+  sozinho"; a faixa diz "a demanda nasce de madrugada" ou "a geração é manual por
+  enquanto".
 
 #### E ao dar um chamador à limpeza, apareceu quem mais podia chamá-la
 
@@ -5617,6 +5669,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
+| `scripts/agendar-rotinas.sql` | **Liga as rotinas diárias**, por `pg_cron`. Cola no SQL Editor uma vez, depois de habilitar a extensão em Database → Extensions. É **script e não migration** por duas razões: a extensão se habilita no painel, então um `create extension` falharia em qualquer ambiente sem ela; e agendamento não é schema, é escolha de operação. Traz também o `select` que confere e o `cron.job_run_details` que mostra cada execução — o único lugar onde se vê que a rotina rodou e não fez nada por não haver o que fazer, que é o caso normal e é indistinguível de não ter rodado. E o `unschedule` para desligar: aí `rotinas_agendadas()` volta a devolver false e as duas telas voltam a dizer que a geração é manual, sozinhas |
 | `scripts/rodar-rotinas.sh` | As rotinas diárias: gerar as demandas recorrentes que venceram e apagar rascunho parado há mais de 7 dias. **É o mesmo arquivo que a Action chama de madrugada**, e não uma cópia — a decisão do `verificar.yml` ser chamado pelo deploy. Pede `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente; a chave entra pela **entrada padrão** do curl e nunca pela linha de comando, porque `ps` de um processo lê argumento de outro e o log do Actions ecoa o comando que falhou |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |

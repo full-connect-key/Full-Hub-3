@@ -106,4 +106,72 @@ select teste.tem_execute(
   '"Gerar agora" de UMA regra continua sendo do botao da tela',
   'authenticated', 'public.gerar_ocorrencia(uuid, date)', true);
 
+-- ===========================================================================
+-- A TELA PERGUNTA SE A ROTINA RODA (migration 0072)
+--
+-- As duas faixas do produto -- a de Recorrencias e o bloco de rascunho da Home
+-- -- diziam "a geracao e manual" em texto escrito a mao. Com um chamador
+-- existindo e o agendamento sendo decisao de operacao, aquele texto passaria a
+-- depender de alguem lembrar de troca-lo nos dois sentidos: e a armadilha da
+-- tabela de migrations pendentes do CLAUDE.md, num lugar onde um dos dois erros
+-- e caríssimo.
+--
+-- O CENARIO QUE MAIS IMPORTA AQUI E O DA EXTENSAO AUSENTE, e ele e o normal
+-- deste arquivo: a bateria roda num Postgres 16 pelado, sem `pg_cron`. Se a
+-- funcao estourar em vez de devolver false, a lista de Recorrencias e a Home
+-- caem inteiras em todo ambiente onde ninguem habilitou a extensao -- que sao
+-- todos, no primeiro dia.
+-- ===========================================================================
+
+create or replace function teste.responde(
+  p_descricao text,
+  p_papel     text,
+  p_comando   text,
+  p_esperado  text
+) returns void
+language plpgsql
+as $$
+declare
+  achado text;
+begin
+  begin
+    execute format('set local role %I', p_papel);
+    execute p_comando into achado;
+    execute 'reset role';
+  exception when others then
+    execute 'reset role';
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao, 'FALHOU', left(sqlerrm, 120));
+    return;
+  end;
+
+  insert into teste.resultado (descricao, situacao, detalhe)
+  values (p_descricao,
+          case when coalesce(achado, '(nulo)') = p_esperado then 'passou' else 'FALHOU' end,
+          format('esperado %s, achado %s', p_esperado, coalesce(achado, '(nulo)')));
+end;
+$$;
+
+-- Sem `pg_cron` a resposta e "nao esta agendado", e NAO um erro. O `to_regclass`
+-- mais o `execute` dinamico sao o que garante isso: uma referencia direta a
+-- `cron.job` no corpo faria o Postgres validar o objeto na criacao da funcao, e
+-- a propria migration falharia de cara neste banco.
+select teste.responde(
+  'sem a extensao, a rotina nao esta agendada -- e isso e resposta, nao erro',
+  'authenticated', 'select public.rotinas_agendadas()::text', 'false');
+
+-- E a tela que pergunta e do painel, entao quem esta logado precisa alcancar.
+-- Sem este grant as duas faixas cairiam no `console.error` e mostrariam para
+-- sempre a frase de "geracao manual", num banco onde ela e falsa.
+select teste.tem_execute(
+  'a tela do painel consegue perguntar',
+  'authenticated', 'public.rotinas_agendadas()', true);
+
+-- O CLIENTE NAO PERGUNTA. Ela nao carrega dado de ninguem, mas tambem nao
+-- decide nada no Portal -- e o que nao e da area dele fica fora do alcance por
+-- desenho, nao por nao haver o que vazar.
+select teste.tem_execute(
+  'o cliente nao alcanca a configuracao do painel',
+  'anon', 'public.rotinas_agendadas()', false);
+
 select teste.limpar();

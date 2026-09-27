@@ -204,7 +204,11 @@ from (
     -- sem o grant a rotina falha com barulho, no log do Actions; sem o revoke
     -- nada falha nunca, e e por isso que ele durou.
     ('0071', 'anon sem execute em limpar_rascunhos_abandonados', 'sem_execute',
-             'anon|public.limpar_rascunhos_abandonados()')
+             'anon|public.limpar_rascunhos_abandonados()'),
+    -- A 0072 cria UMA funcao, e e ela que as duas faixas do produto consultam
+    -- para dizer se a geracao roda de madrugada. `funcao` e nao `sem_execute`:
+    -- aqui o que nasce e o objeto, e a 0071 ja cobre o lado do revoke.
+    ('0072', 'rotinas_agendadas()',        'funcao',       'rotinas_agendadas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
