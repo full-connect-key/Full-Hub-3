@@ -172,7 +172,12 @@ from (
     -- nao `request_types`: aquela tem `create table if not exists` e sobrevive
     -- a uma aplicacao pela metade, enquanto `client_requests` e a que as
     -- outras tres referenciam -- sem ela, nada do modulo esta de pe.
-    ('0068', 'client_requests',               'tabela',       'client_requests')
+    ('0068', 'client_requests',               'tabela',       'client_requests'),
+    -- A 0069 cria quatro tabelas, e quem responde por ela e `asset_loans`, nao
+    -- `assets`: o catalogo sozinho e um cadastro sem uso, e o emprestimo e o
+    -- que faz o modulo existir. Toda funcao e todo trigger da migration passam
+    -- por ele.
+    ('0069', 'asset_loans',                   'tabela',       'asset_loans')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
