@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { ehDoMes, ehFimDeSemana, semanasDoMes } from "./periodo";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 const DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
@@ -62,7 +63,7 @@ export function VisaoDeMes({
   const [arrastando, setArrastando] = useState<ItemDoCalendario | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
   const semanas = semanasDoMes(mes);
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeNaAgencia();
 
   const faixas = itens.filter(ehFaixa);
   const pontuais = itens.filter((i) => !ehFaixa(i));

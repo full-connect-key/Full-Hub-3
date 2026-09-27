@@ -14,6 +14,7 @@ import {
   type Column,
 } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -37,6 +38,7 @@ import { cn } from "@/lib/utils";
 
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * Atraso é da subtarefa: a Task não tem prazo. Uma demanda está atrasada
@@ -45,7 +47,7 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 function vencida(task: TaskDaLista): boolean {
   if (task.status === "concluido") return false;
   if (!task.proximoPrazo) return false;
-  return task.proximoPrazo < new Date().toISOString().slice(0, 10);
+  return task.proximoPrazo < hojeNaAgencia();
 }
 
 /**
@@ -417,7 +419,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       ? tasks.filter((t) => casaComBusca(t, colunas, busca))
       : tasks;
 
-    if (!agrupado) return [{ titulo: "", tasks }];
+    if (!agrupado) return [{ chave: "", titulo: "", tasks }];
 
     // O STATUS NÃO ORDENA EM ALFABÉTICA, e é o motivo de ele sair antes.
     //
@@ -429,6 +431,10 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     // primeira vez que alguém mexe num só.
     if (agrupamento === "status") {
       return COLUNAS_POR_STATUS.map((coluna) => ({
+        // A CHAVE É O VALOR DO STATUS e não o rótulo, porque é ela que vai
+        // para o link: "Iniciar" pode virar outra palavra amanhã,
+        // `nao_iniciada` não.
+        chave: coluna.status as string,
         titulo: coluna.titulo,
         tasks: visiveis.filter((t) => t.status === coluna.status),
       })).filter((grupo) => grupo.tasks.length > 0);
@@ -444,7 +450,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     }
     return [...mapa.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
-      .map(([titulo, itens]) => ({ titulo, tasks: itens }));
+      .map(([titulo, itens]) => ({ chave: titulo, titulo, tasks: itens }));
   })();
 
   const seletorDeAgrupamento = (
@@ -498,14 +504,8 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
         />
       ) : null}
 
-      {grupos.map((grupo, indice) => (
-        <div key={grupo.titulo || "todas"} className="space-y-2">
-          {grupo.titulo ? (
-            <h3 className="text-muted-foreground px-1 text-xs font-medium tracking-wide uppercase">
-              {grupo.titulo} · {grupo.tasks.length}
-            </h3>
-          ) : null}
-
+      {grupos.map((grupo, indice) => {
+        const tabela = (
           <DataTable
             data={grupo.tasks}
             columns={colunas}
@@ -519,8 +519,24 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
             emptyDescription="Ajuste ou limpe os filtros, ou crie a primeira task com a tecla N."
             toolbar={agrupado || indice > 0 ? undefined : seletorDeAgrupamento}
           />
-        </div>
-      ))}
+        );
+
+        // SEM AGRUPAMENTO NÃO HÁ CABEÇALHO, e sem cabeçalho não há o que
+        // dobrar: a tabela É a tela. É a mesma linha da Lista de Minhas
+        // Tasks quando sobra um grupo só.
+        if (!grupo.titulo) return <div key="todas">{tabela}</div>;
+
+        return (
+          <GrupoDobravel
+            key={grupo.chave}
+            chave={grupo.chave}
+            titulo={grupo.titulo}
+            contagem={grupo.tasks.length}
+          >
+            {tabela}
+          </GrupoDobravel>
+        );
+      })}
     </div>
   );
 }

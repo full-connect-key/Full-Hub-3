@@ -127,13 +127,6 @@ export const SUBTAREFAS_EM_ABERTO: SubtaskStatus[] = [
   "em_ajustes",
 ];
 
-/** Uma subtarefa vencida é a que passou do prazo e ainda não terminou. */
-export function estaVencida(prazo: string | null, status: SubtaskStatus): boolean {
-  if (!prazo) return false;
-  if (status === "concluida") return false;
-  return prazo < new Date().toISOString().slice(0, 10);
-}
-
 /**
  * O arquivo dá para mostrar como miniatura?
  *

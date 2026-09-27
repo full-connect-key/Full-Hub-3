@@ -28,6 +28,7 @@ import type { LinhaDoAcompanhamento, TrilhaDaGrade } from "@/lib/dados/academy";
 import { cn } from "@/lib/utils";
 
 import { salvarTrilha } from "./acoes";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * A gestão da Academy.
@@ -80,7 +81,7 @@ export function PainelDaGestao({
 
     baixarCSV(
       csv,
-      `academy-acompanhamento-${format(new Date(), "yyyy-MM-dd")}.csv`,
+      `academy-acompanhamento-${hojeNaAgencia()}.csv`,
     );
   }
 

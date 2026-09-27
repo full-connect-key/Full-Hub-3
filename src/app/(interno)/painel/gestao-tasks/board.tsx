@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 import { atualizarTask } from "./acoes";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * Board no estilo kanban.
@@ -43,7 +44,7 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  * de task alheia não pode ser arrastado. Tudo por parâmetro — um board só.
  */
 
-const HOJE = () => new Date().toISOString().slice(0, 10);
+const HOJE = () => hojeNaAgencia();
 
 function Card({
   task,

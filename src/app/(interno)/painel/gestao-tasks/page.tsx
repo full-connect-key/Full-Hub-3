@@ -32,6 +32,7 @@ import { lerAba, type Aba } from "./vocabulario";
 import { EditorDeRecorrencia } from "./workflows/recorrencias/editor";
 import { ListaDeRecorrencias } from "./workflows/recorrencias/lista";
 import { Workflows } from "./workflows/workflows";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 export const metadata: Metadata = { title: "Gestão de Tasks" };
 
@@ -175,7 +176,7 @@ async function AbaDeRecorrencias({
         }))}
         partirDe={daTask}
         feriados={feriados}
-        hojeISO={new Date().toISOString().slice(0, 10)}
+        hojeISO={hojeNaAgencia()}
       />
     );
   }

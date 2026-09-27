@@ -1,7 +1,5 @@
 import "server-only";
 
-import { endOfWeek, format } from "date-fns";
-
 import {
   enriquecer,
   type ItemDeCalendario,
@@ -9,6 +7,7 @@ import {
   type SubtarefaDetalhada,
   type TaskDaLista,
 } from "./tasks";
+import { fimDaSemanaNaAgencia, hojeNaAgencia } from "@/lib/dominio/datas";
 import {
   agrupadoras,
   combinaComFoco,
@@ -88,8 +87,11 @@ export type Prazos = {
 export function prazosDeHoje(): Prazos {
   const agora = new Date();
   return {
-    hoje: format(agora, "yyyy-MM-dd"),
-    fimDaSemana: format(endOfWeek(agora, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    // O FUSO É O DA AGÊNCIA, e não o do processo. O porquê está em
+    // `lib/dominio/datas.ts`: com o do processo, das 21h à meia-noite toda
+    // etapa que vence hoje passava a ler atrasada.
+    hoje: hojeNaAgencia(agora),
+    fimDaSemana: fimDaSemanaNaAgencia(agora),
     agora: agora.getTime(),
   };
 }

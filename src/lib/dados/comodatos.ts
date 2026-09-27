@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { ouFalha } from "@/lib/dados/consulta";
 import { assinarArquivos } from "@/lib/dados/conteudo";
@@ -29,7 +30,7 @@ import type {
  * agência não tem equipamento" para quem simplesmente não pode ver.
  */
 
-const HOJE = () => new Date().toISOString().slice(0, 10);
+const HOJE = () => hojeNaAgencia();
 
 export type MeuComodato = {
   loan_id: string;

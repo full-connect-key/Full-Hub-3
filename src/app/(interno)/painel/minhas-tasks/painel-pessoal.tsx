@@ -142,6 +142,18 @@ export function PainelPessoal({
               </p>
               <p className="text-muted-foreground text-xs">
                 {ROTULOS_DE_FOCO[id]}
+                {/* "VER QUAIS" É O QUE TRANSFORMA O NÚMERO EM CAMINHO.
+                    O contador sempre foi clicável e nunca parecia: quem lia
+                    "1 atrasada" varria a lista atrás dela em vez de clicar
+                    no número que já filtra. A Gestão de Tasks resolveu isto
+                    com esta mesma palavra — aqui ela faltava.
+
+                    Só quando há o que ver e o filtro ainda não está ligado:
+                    num zero não há para onde ir, e com o filtro ligado a
+                    lista já é o recorte. */}
+                {valor > 0 && !ativo ? (
+                  <span className="text-accent-strong"> · ver quais</span>
+                ) : null}
               </p>
             </button>
           );

@@ -24,6 +24,7 @@ import { Relatorios } from "./relatorios";
 import { PedirNotas } from "./pedir-notas";
 import { VisaoGeralDoFinanceiro } from "./visao-geral";
 import { lerAba } from "./vocabulario";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 export const metadata: Metadata = { title: "Financeiro" };
 
@@ -53,7 +54,7 @@ export default async function PaginaDoFinanceiro({
   // Hoje e a competência saem daqui e descem prontos. Se cada tela lesse o
   // próprio relógio, o navegador em outro fuso classificaria um vencimento
   // como atrasado enquanto o contador do cartão ainda o daria em dia.
-  const hojeISO = format(new Date(), "yyyy-MM-dd");
+  const hojeISO = hojeNaAgencia();
   const mes = typeof parametros.mes === "string" ? parametros.mes : undefined;
   const competencia = competenciaDaChave(mes, hojeISO);
 

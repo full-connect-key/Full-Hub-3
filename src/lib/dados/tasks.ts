@@ -6,6 +6,7 @@ import { cache } from "react";
 
 import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   ApprovalRound,
@@ -66,7 +67,7 @@ export type TaskDaLista = Task & {
   temSubtarefaEmAjustes: boolean;
 };
 
-const HOJE = () => new Date().toISOString().slice(0, 10);
+const HOJE = () => hojeNaAgencia();
 
 const CONCLUIDAS: TaskStatus[] = ["concluido"];
 

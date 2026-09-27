@@ -1889,6 +1889,50 @@ porque `montarLinhas()` já entrega ordenado e separar não reordena. **E grupo
 vazio some**, como na lista da Gestão de Tasks: quem não tem etapa em ajustes
 não precisa ler todo dia que não tem.
 
+#### E o grupo DOBRA, nas duas listas
+
+Decisão do usuário: *"pode colocar os itens, na visualização de lista,
+separados por status? Tipo, um botão de Iniciar, que ao clicar, aparecem todas
+as minhas tasks para iniciar"*. `components/shared/grupo-dobravel.tsx`, na
+Lista de Minhas Tasks e na de Gestão de Tasks — **as duas, porque duas telas
+que agrupam igual e se comportam diferente é a divergência esperando
+acontecer.**
+
+**TODOS NASCEM ABERTOS, e o botão dobra.** O contrário — abrir a tela com seis
+botões e nenhuma linha — troca a lista por um índice e cobra um clique antes
+de mostrar qualquer trabalho. *A consequência é que o primeiro clique esconde
+em vez de mostrar*, e isso é dito em vez de escondido: quem quiser o grupo
+encerrado fechado por padrão é uma linha, e é decisão de quem usa.
+
+**A CONTAGEM FICA NO CABEÇALHO SEMPRE**, e é ela que faz dobrar ser seguro: o
+grupo fechado continua dizendo quantos tem dentro. É a diferença entre
+recolher e esconder — a mesma razão pela qual a faixa de áreas mostra o zero.
+
+**O QUE ESTÁ FECHADO MORA NA URL**, como todo filtro de listagem, e não em
+estado nem no `localStorage`. Em estado, dobrar um grupo e trocar de visão
+desmonta a lista e devolve tudo aberto — que é exatamente o que a convenção
+quer dizer com *"o link precisa sobreviver à troca de visualização"*. No
+`localStorage`, a tela abriria com o que a URL diz e trocaria sozinha um
+instante depois para o que o navegador lembrava, que é a decisão das camadas
+do Calendário Full. *O custo:* cada dobra é uma navegação, a mesma que os
+contadores desta tela já fazem.
+
+**A chave é o VALOR do status, nunca o rótulo** — "Iniciar" pode virar outra
+palavra amanhã, `nao_iniciada` não, e é a chave que fica no link. E ela é
+escapada antes de entrar na lista separada por vírgula, porque na Gestão de
+Tasks dá para agrupar por cliente: "Mundo Verde, Matriz" partiria a lista em
+dois grupos que não existem.
+
+**É `<button aria-expanded>` e não `<details>`:** com o `open` vindo da URL, o
+toggle nativo e o React brigam — o navegador abre, o React fecha, e o grupo
+pisca. E o conteúdo **sai da árvore** quando fechado, em vez de sumir por CSS:
+`hidden` deixaria os botões de ação de cada etapa alcançáveis pelo Tab dentro
+de um grupo que a pessoa fechou.
+
+**Sem cabeçalho não há o que dobrar**, que é o caso de quem tem tudo no mesmo
+status: a lista é a tela, e um botão que esconde tudo o que existe não é
+organização, é um interruptor de luz.
+
 **O Social fica FORA do seletor de visão, e é mecânico.** O board desenha
 colunas dos status da etapa de demanda e o calendário desenha prazos de
 demanda; nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da
@@ -5074,6 +5118,44 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
 - **Hoje e fim da semana são calculados no servidor e passados adiante.** Se
   cada tela lesse o relógio, o navegador em outro fuso classificaria um prazo
   de forma diferente do contador.
+- **E o "hoje" é o DA AGÊNCIA, não o do processo** — `hojeNaAgencia()` em
+  `lib/dominio/datas.ts`, e é o único lugar que responde isso.
+
+  **Eram QUINZE definições, em dois sabores que não concordavam entre si:**
+  `new Date().toISOString().slice(0, 10)` devolve UTC e
+  `format(new Date(), "yyyy-MM-dd")` devolve o fuso do processo. Os dois
+  estavam em uso, às vezes na mesma pergunta — o board da Gestão de Tasks
+  decidia atraso por um e o contador de Minhas Tasks pelo outro.
+
+  **O sintoma é um número que mente por três horas todo dia**, e foi assim que
+  ele apareceu: *"está aparecendo que tenho uma task atrasada em Minhas Tasks,
+  mesmo sem eu conseguir ver essa task atrasada"*. A agência está em UTC−3;
+  num servidor em UTC, das 21h à meia-noite "hoje" já é amanhã, e toda etapa
+  que vence HOJE passa a ler `prazo < hoje`. O contador cobra uma etapa que a
+  pessoa abre, olha, e com razão não reconhece como atrasada — e de manhã o
+  número some sozinho, que é o pior jeito de um bug se apresentar: ele não é
+  reprodutível no horário em que alguém vai procurá-lo.
+
+  **Calcular no servidor não bastava**, e é o que faltava na regra acima: sem
+  dizer em que fuso, o servidor responde pelo lugar onde a hospedagem estiver.
+  **Não é variável de ambiente** — mais uma é mais um jeito de a hospedagem
+  seguinte nascer errada sem nada na tela dizendo.
+
+  `check:cores` varre as duas formas em `src/` e salva um arquivo só,
+  `lib/dominio/datas.ts`, porque a explicação da regra precisa citar o que ela
+  proíbe — é a exceção de `icon.svg` na lista de cores. Medido com duas
+  mutações: devolver qualquer uma das formas a uma tela derruba a varredura, e
+  devolvê-la ao arquivo salvo não derruba.
+
+- **O CONTADOR PRECISA LEVAR ATÉ A LINHA, e a linha precisa ser achada.** O
+  mesmo relato mostrou as outras duas metades: o contador de Minhas Tasks
+  sempre foi clicável e nunca parecia — quem lia "1 atrasada" varria a lista
+  em vez de clicar no número que já filtra. A Gestão de Tasks resolveu isso
+  com **"ver quais"** ao lado do número, e aqui a palavra faltava. E a linha
+  atrasada era marcada com `bg-destructive/5`: cinco por cento de uma cor
+  sobre o fundo do cartão não distingue nada de nada. Virou par nomeado com
+  borda à esquerda — opacidade em cor de estado é a regra que o produto já
+  tinha escrita para o selo, e que esta linha vinha quebrando.
 - **Concluir pergunta o tempo real, e dá para pular.** Pergunta obrigatória
   vira número inventado, que é pior que campo vazio — entra no relatório como
   se fosse medição. O componente é `DialogoDeTempo`, e o valor sai em minutos.

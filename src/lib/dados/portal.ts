@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ouFalha } from "./consulta";
+import { fimDaSemanaNaAgencia, hojeNaAgencia } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
@@ -24,12 +25,13 @@ import type { StatusRodada } from "@/lib/supabase/database.types";
 export type Prazos = { hoje: string; fimDaSemana: string };
 
 export function prazosDoPortal(): Prazos {
+  // Domingo fecha a semana, como no resto do produto — e as duas datas saem
+  // do fuso da AGÊNCIA, não do processo. A conta antiga misturava os dois:
+  // `getDay()` é local e `toISOString()` é UTC, então num servidor fora de
+  // UTC ela sabia que dia era hoje por um relógio e qual domingo vinha por
+  // outro.
   const agora = new Date();
-  const hoje = agora.toISOString().slice(0, 10);
-  // Domingo fecha a semana, como no resto do produto.
-  const fim = new Date(agora);
-  fim.setDate(fim.getDate() + ((7 - fim.getDay()) % 7));
-  return { hoje, fimDaSemana: fim.toISOString().slice(0, 10) };
+  return { hoje: hojeNaAgencia(agora), fimDaSemana: fimDaSemanaNaAgencia(agora) };
 }
 
 /**

@@ -9,6 +9,7 @@ import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/r
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { FUNCOES, podeConcederRole } from "@/lib/dominio/equipe";
 import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * Criação e remoção de acessos.
@@ -397,7 +398,7 @@ export async function desligarColaborador(dados: unknown): Promise<Resultado> {
       throw new ErroDeAcao(`Não foi possível transferir os clientes: ${erroDosClientes.message}`);
     }
 
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeNaAgencia();
 
     const { error: erroDaFicha } = await admin
       .from("team_members")

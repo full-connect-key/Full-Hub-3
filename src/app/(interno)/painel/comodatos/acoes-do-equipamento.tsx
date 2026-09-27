@@ -37,8 +37,9 @@ import {
 import type { AssetEstado, AssetTipo } from "@/lib/supabase/database.types";
 
 import { darBaixa, devolverEquipamento, emprestarEquipamento, mudarSituacao, salvarEquipamento } from "./acoes";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
-const HOJE = () => new Date().toISOString().slice(0, 10);
+const HOJE = () => hojeNaAgencia();
 
 /**
  * Os diálogos da gestão.

@@ -261,6 +261,24 @@ const SEMENTES: Semente[] = [
     estimativa_minutos: 180,
     tempo_real_minutos: null,
   },
+  // UMA ETAPA ATRASADA DA ANA, e ela existe pela razao do seed que traz
+  // alguem desligada: sem ela o contador "Atrasadas" nasce em zero e o
+  // estado mais caro desta tela -- o que a pessoa precisa achar -- nao
+  // aparece em imagem nenhuma. Era esse o buraco quando o contador dizia
+  // "1 atrasada" e ninguem sabia com que cara ela ficava na lista.
+  {
+    id: "s11",
+    task_id: "55555555-5555-5555-5555-555555555555",
+    titulo: "Conferir os anexos do manual",
+    ordem: 2,
+    prazo: dia(-3),
+    responsavel: ANA,
+    status: "em_andamento",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 60,
+    tempo_real_minutos: null,
+  },
   // Vitrine — as duas etapas que dao a cada perfil um botao diferente
   {
     id: "s9",

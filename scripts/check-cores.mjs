@@ -261,6 +261,35 @@ const PARES = [
 // que varre o projeto inteiro atrás de coisa que não devia estar lá.
 
 const NOMES_MORTOS = [
+  // ---------------------------------------------------------------------
+  // O HOJE DA AGÊNCIA É UM SÓ, e estas são as duas formas que o produto
+  // tinha espalhado por quinze arquivos.
+  //
+  // `toISOString()` devolve UTC e `format(new Date(), …)` devolve o fuso do
+  // PROCESSO — os dois estavam em uso, às vezes na mesma pergunta: o board
+  // da Gestão de Tasks decidia atraso por um e o contador de Minhas Tasks
+  // pelo outro. E nenhum dos dois é o fuso da agência, que é o que decide se
+  // uma etapa venceu: das 21h à meia-noite, num servidor em UTC, tudo o que
+  // vence hoje passa a ler atrasada e o contador cobra uma etapa que a
+  // pessoa olha e não reconhece.
+  //
+  // Quem responde é `hojeNaAgencia()`, em `lib/dominio/datas.ts` — e é ele o
+  // único arquivo salvo da varredura, porque a explicação da regra precisa
+  // citar o que ela proíbe. É a exceção de `icon.svg` na lista de cores, e a
+  // armadilha que a lista de nomes mortos já pagou sete vezes.
+  {
+    nome: "new Date().toISOString().slice(0, 10)",
+    onde: "src/",
+    salvo: "src/lib/dominio/datas.ts",
+    porque: "é a data em UTC, não a da agência — use hojeNaAgencia()",
+  },
+  {
+    nome: 'format(new Date(), "yyyy-MM-dd")',
+    onde: "src/",
+    salvo: "src/lib/dominio/datas.ts",
+    porque: "é a data no fuso do processo, não a da agência — use hojeNaAgencia()",
+  },
+
   // O nome antigo do Financeiro Pessoal, varrido do projeto INTEIRO: ele não
   // pode sobreviver nem numa migration nem num comentário.
   { nome: "Mês a Mês", onde: "src/ scripts/ supabase/ *.md", porque: "o Financeiro Pessoal se chamou assim até o Sprint 8" },
@@ -478,13 +507,20 @@ function ondeAparece(nome, onde) {
   return linhas;
 }
 
-for (const { nome, onde, porque } of NOMES_MORTOS) {
+for (const { nome, onde, porque, salvo } of NOMES_MORTOS) {
   const achados = ondeAparece(nome, onde).join("\n");
   // O próprio check-cores.mjs cita os nomes na lista acima: ignorar este
-  // arquivo é o que impede a verificação de acusar a si mesma.
+  // arquivo é o que impede a verificação de acusar a si mesma. `salvo` é a
+  // mesma ideia declarada caso a caso, para a regra que só pode ser
+  // explicada citando o que ela proíbe.
   const linhas = achados
     .split("\n")
-    .filter((l) => l && !l.startsWith("scripts/check-cores.mjs"));
+    .filter(
+      (l) =>
+        l &&
+        !l.startsWith("scripts/check-cores.mjs") &&
+        !(salvo && l.startsWith(salvo)),
+    );
 
   if (linhas.length === 0) {
     console.log(`  ok      “${nome}” não aparece em lugar nenhum`);

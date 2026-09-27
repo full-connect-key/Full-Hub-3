@@ -8,6 +8,7 @@ import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { horasEMinutos, taxaNoPrazo } from "@/lib/dominio/metricas";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import {
   lerSemana,
   resumoDaAgencia,
@@ -50,7 +51,7 @@ export default async function PaginaDoResumoDaAgencia({
   // HOJE VEM DO SERVIDOR e desce pronto, como em Minhas Tasks e no Full Days.
   // "Atrasada" é medida contra ele; se o navegador noutro fuso recalculasse,
   // a lista teria um item a mais ou a menos que o número acima dela.
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeNaAgencia();
   const semana = lerSemana(parametros.semana, hoje);
 
   const resumo = await resumoDaAgencia(semana, hoje);

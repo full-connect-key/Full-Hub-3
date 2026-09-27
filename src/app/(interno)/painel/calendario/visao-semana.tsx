@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { diasDoPeriodo, ehFimDeSemana, type Janela } from "./periodo";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * A semana: sete colunas, e espaço para o texto caber.
@@ -32,7 +33,7 @@ export function VisaoDeSemana({
   aoAbrir: (item: ItemDoCalendario) => void;
 }) {
   const dias = diasDoPeriodo(janela.inicio, janela.fim);
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeNaAgencia();
 
   return (
     <div className="overflow-x-auto">

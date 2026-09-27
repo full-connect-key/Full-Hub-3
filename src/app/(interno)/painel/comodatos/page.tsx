@@ -18,6 +18,7 @@ import { AbasDosComodatos } from "./abas";
 import { MeusEquipamentos } from "./meus-equipamentos";
 import { PainelDeComodatos } from "./painel-de-comodatos";
 import { lerAba, type Aba } from "./vocabulario";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 export const metadata: Metadata = { title: "Comodatos" };
 
@@ -62,7 +63,7 @@ export default async function Pagina({ searchParams }: PageProps<"/painel/comoda
   // HOJE SAI DO SERVIDOR e desce pronto: se cada cartão lesse o relógio, o
   // navegador num fuso à frente pintaria de vermelho uma devolução que ainda
   // está no prazo — e o contador do painel discordaria dele.
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeNaAgencia();
 
   const [meus, itens, equipe] = await Promise.all([
     meusComodatos(),

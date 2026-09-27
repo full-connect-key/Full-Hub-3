@@ -9,6 +9,7 @@ import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { StatusBadge, corDoPontoDeStatus } from "@/components/shared/status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -91,29 +92,8 @@ export function MinhaLista({
 
   return (
     <div className="space-y-5">
-      {porStatus.map((grupo) => (
-        <section key={grupo.status} className="space-y-2">
-          {agrupar ? (
-            <h2 className="text-text-primary flex items-center gap-2 text-sm font-semibold">
-              {/* O PONTO COLORIDO É O MESMO DO SELETOR DE STATUS e do selo de
-                  cada linha, e não um segundo jeito de pintar a mesma coisa.
-                  Sem ele o cabeçalho é a única parte da tela em que o status
-                  aparece sem cor, e o olho não liga o grupo às linhas que
-                  estão dentro dele. */}
-              <span
-                aria-hidden
-                className={cn(
-                  "size-2 shrink-0 rounded-full",
-                  corDoPontoDeStatus(grupo.status),
-                )}
-              />
-              {grupo.titulo}
-              <span className="text-text-muted font-normal tabular-nums">
-                {grupo.itens.length}
-              </span>
-            </h2>
-          ) : null}
-
+      {porStatus.map((grupo) => {
+        const conteudo = (
           <Linhas
             linhas={grupo.itens}
             prazos={prazos}
@@ -131,8 +111,32 @@ export function MinhaLista({
             // sumiria da tela inteira.
             mostrarStatus={!agrupar}
           />
-        </section>
-      ))}
+        );
+
+        // SEM CABEÇALHO NÃO HÁ O QUE DOBRAR. Com um grupo só a lista é a
+        // tela inteira, e um botão que esconde tudo o que existe não é
+        // organização, é um interruptor de luz.
+        if (!agrupar) return <div key={grupo.status}>{conteudo}</div>;
+
+        return (
+          <GrupoDobravel
+            key={grupo.status}
+            // A CHAVE É O VALOR DO STATUS e não o rótulo: "Iniciar" muda de
+            // palavra, `nao_iniciada` não — e é ela que fica no link.
+            chave={grupo.status}
+            titulo={grupo.titulo}
+            contagem={grupo.itens.length}
+            // O PONTO COLORIDO É O MESMO DO SELETOR DE STATUS e do selo de
+            // cada linha, e não um segundo jeito de pintar a mesma coisa.
+            // Sem ele o cabeçalho é a única parte da tela em que o status
+            // aparece sem cor, e o olho não liga o grupo às linhas que estão
+            // dentro dele.
+            ponto={corDoPontoDeStatus(grupo.status)}
+          >
+            {conteudo}
+          </GrupoDobravel>
+        );
+      })}
     </div>
   );
 }
@@ -168,7 +172,19 @@ function Linhas({
             key={linha.chave}
             className={cn(
               "flex flex-wrap items-center gap-2 p-3",
-              situacao === "atrasada" && "bg-destructive/5",
+              // A LINHA ATRASADA PRECISA SER ACHADA, e `bg-destructive/5`
+              // não achava ninguém: 5% de uma cor sobre o fundo do cartão é
+              // um tom que não se distingue do branco. O contador dizia "1
+              // atrasada" e a pessoa varria a lista sem encontrar qual —
+              // que foi exatamente o relato.
+              //
+              // Par nomeado e não opacidade, que é a regra do produto desde
+              // o selo de estado: opacidade sobre um fundo qualquer dá uma
+              // cor que ninguém mediu, e no tema escuro dá outra. A borda
+              // esquerda é o que sobrevive à varredura do olho numa lista
+              // longa — o fundo sozinho se perde entre dois cartões.
+              situacao === "atrasada" &&
+                "bg-danger-soft border-danger border-l-4 pl-2",
             )}
           >
             <div className="min-w-0 flex-1">

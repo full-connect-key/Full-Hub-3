@@ -23,6 +23,7 @@ import { formatarMinutos } from "@/lib/dominio/tempo";
 import { cn } from "@/lib/utils";
 
 import { diasDoPeriodo, ehFimDeSemana, type Janela } from "./periodo";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * A Linha do Tempo: uma linha por pessoa, uma coluna por dia.
@@ -55,7 +56,7 @@ export function VisaoDeLinha({
   aoAbrir: (item: ItemDoCalendario) => void;
 }) {
   const dias = diasDoPeriodo(janela.inicio, janela.fim);
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeNaAgencia();
 
   const semDono = itens.filter((i) => i.userId === null);
   const porPessoa = new Map<string, ItemDoCalendario[]>();
