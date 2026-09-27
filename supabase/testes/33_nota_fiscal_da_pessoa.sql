@@ -2,6 +2,8 @@
 \set DIEGO   '''22222222-2222-2222-2222-222222222222'''
 \set CARLA   '''33333333-3333-3333-3333-333333333333'''
 \set BRUNO   '''44444444-4444-4444-4444-444444444444'''
+\set MARINA  '''55555555-5555-5555-5555-555555555555'''
+\set RAFAEL  '''66666666-6666-6666-6666-666666666666'''
 \set JOANA   '''77777777-7777-7777-7777-777777777777'''
 
 -- ===========================================================================
@@ -304,3 +306,264 @@ select teste.conferir(
   'Carla recebeu o aviso com o motivo no corpo',
   (select corpo from public.notifications where user_id = :CARLA),
   'Falta o numero da nota.');
+
+
+-- ===========================================================================
+-- 8. SOLICITAR AS NOTAS DO MES (0066)
+--
+-- O que estes cenarios perseguem:
+--
+--   1. QUEM PEDE. So o socio -- pedir a nota de todo mundo e uma acao sobre a
+--      equipe inteira, e a contagem de quem falta diz de quantas pessoas a
+--      agencia deve dinheiro.
+--   2. O PEDIDO NAO VAI PARA QUEM JA MANDOU. E a linha que faz "cobrar de
+--      novo" ser seguro, e o unico cenario que falha se ela sair.
+--   3. A RECUSADA CONTA COMO NAO ENVIADA, porque e exatamente quem precisa
+--      mandar outra.
+--   4. QUEM PEDE NAO SE COBRA.
+--   5. O PRAZO E O MESMO DIA DO PEDIDO, E ELE AVISA EM VEZ DE RECUSAR: a nota
+--      atrasada ENTRA, porque nota recusada por atraso e nota que a agencia
+--      nao recebe. O prazo aparece no corpo do aviso e em
+--      `meus_pedidos_de_nota()`, que e por onde a pessoa o le depois.
+--
+-- ---------------------------------------------------------------------------
+-- ESTA SECAO NAO USA O CALENDARIO DE 2027 DO RESTO DO ARQUIVO, e a razao e
+-- mecanica: `solicitar_notas_do_mes()` recusa mes que ainda nao comecou, e e a
+-- PRIMEIRA funcao deste arquivo a comparar com `current_date`. As sete secoes
+-- de cima datam tudo em 2027 sem problema porque nenhuma trava delas olha o
+-- relogio -- a competencia de uma nota e so uma etiqueta de mes.
+--
+-- Entao aqui o mes de servico e um mes que JA PASSOU, e passado nao volta a
+-- ser futuro: uma data fixa no passado vale em qualquer rodada, hoje e em
+-- 2030. Datar com `current_date` daria o mesmo resultado e exigiria `format()`
+-- em cada cenario, porque psql nao interpola variavel dentro de `$$`.
+-- ---------------------------------------------------------------------------
+\set MES_SERVICO  '''2026-08-01'''
+\set MES_ANTERIOR '''2026-07-01'''
+
+delete from public.notifications;
+delete from public.team_invoices;
+delete from public.invoice_requests;
+
+-- Bruno ja mandou a dele; Carla nao; Marina teve a dela recusada.
+insert into public.team_invoices (user_id, competencia, valor, arquivo_url, status)
+values (:BRUNO, :MES_SERVICO, 4250.00, 'nf/b-mes.pdf', 'enviada');
+
+insert into public.team_invoices
+  (user_id, competencia, valor, arquivo_url, status, motivo_recusa, decidido_por)
+values (:MARINA, :MES_SERVICO, 3900.00, 'nf/m-mes.pdf', 'recusada', 'Numero ilegivel.', :ANA);
+
+-- ZERAR OS AVISOS DEPOIS DA MONTAGEM, E NAO ANTES.
+--
+-- Os dois inserts de cima disparam `nota_avisa` e tocam o sino da socia -- e
+-- com eles no meio, o cenario "a socia nao se cobrou" contaria dois avisos que
+-- nao vieram do pedido e falharia por um motivo que nao e o dele. A montagem
+-- precisa terminar antes de a medicao comecar; e a armadilha da fixture
+-- ocupando o lugar do cenario, vista do outro lado.
+delete from public.notifications;
+
+select teste.cenario('O colaborador nao pede as notas da equipe', :CARLA,
+  format($fmt$select public.solicitar_notas_do_mes(%L)$fmt$, :MES_SERVICO), 'recusa');
+
+select teste.cenario('O DESENVOLVEDOR tambem nao', :DIEGO,
+  format($fmt$select public.solicitar_notas_do_mes(%L)$fmt$, :MES_SERVICO), 'recusa');
+
+select teste.cenario('Nem enxerga quem esta devendo', :DIEGO,
+  format($fmt$select public.quem_deve_nota(%L)$fmt$, :MES_SERVICO), 'recusa');
+
+select teste.cenario('Nao se pede a nota de um mes que nao comecou', :ANA,
+  $$select public.solicitar_notas_do_mes('2099-01-01')$$, 'recusa');
+
+-- ---------------------------------------------------------------------------
+-- A CONTA ANTES DO CLIQUE, e ela e a mesma que o envio usa: o dialogo promete
+-- um numero, e um numero diferente do que sai seria a tela mentindo sobre o
+-- que o botao acabou de fazer.
+--
+-- MEDIDO POR ID E POR CONTAGEM, E NAO PELA LISTA DE NOMES. A primeira versao
+-- comparava `string_agg(nome)` com os seis nomes escritos a mao, e ela falhou
+-- na primeira rodada: o arquivo 29 renomeia a Carla para provar a trilha de
+-- auditoria, e o nome dela chega aqui com "Auditada" no fim. Um cenario que
+-- quebra porque OUTRO arquivo mexeu num nome nao esta medindo esta regra --
+-- esta medindo a ordem dos arquivos.
+-- ---------------------------------------------------------------------------
+select teste.conferir_como(
+  'Sao quatro devendo: a equipe menos a socia que pede e menos Bruno',
+  :ANA,
+  format($fmt$select count(*)::text from public.quem_deve_nota(%L)$fmt$, :MES_SERVICO),
+  '4');
+
+select teste.conferir_como(
+  'Bruno fica de fora: a dele ja esta enviada',
+  :ANA,
+  format($fmt$select count(*)::text from public.quem_deve_nota(%L) where user_id = %L$fmt$,
+         :MES_SERVICO, :BRUNO),
+  '0');
+
+select teste.conferir_como(
+  'Marina fica dentro: recusada conta como nao enviada',
+  :ANA,
+  format($fmt$select count(*)::text from public.quem_deve_nota(%L) where user_id = %L$fmt$,
+         :MES_SERVICO, :MARINA),
+  '1');
+
+select teste.conferir_como(
+  'E a socia nao se cobra: a contagem da tela seria 5 com ela dentro',
+  :ANA,
+  format($fmt$select count(*)::text from public.quem_deve_nota(%L) where user_id = %L$fmt$,
+         :MES_SERVICO, :ANA),
+  '0');
+
+select teste.cenario('A socia pede as notas do mes', :ANA,
+  format($fmt$select public.solicitar_notas_do_mes(%L)$fmt$, :MES_SERVICO), 'ok', 1);
+
+select teste.conferir(
+  'Carla foi cobrada',
+  (select count(*)::text from public.notifications where user_id = :CARLA),
+  '1');
+
+-- A LINHA QUE FAZ O BOTAO PODER SER APERTADO DE NOVO: sem ela, a cobranca
+-- chega tambem para quem ja enviou, e vira o aviso que se aprende a ignorar.
+select teste.conferir(
+  'E Bruno NAO foi cobrado',
+  (select count(*)::text from public.notifications where user_id = :BRUNO),
+  '0');
+
+select teste.conferir(
+  'Marina foi cobrada',
+  (select count(*)::text from public.notifications where user_id = :MARINA),
+  '1');
+
+select teste.conferir(
+  'A socia nao se cobrou',
+  (select count(*)::text from public.notifications where user_id = :ANA),
+  '0');
+
+-- O PRAZO VIAJA NO CORPO DO AVISO, COM A DATA E NAO COM A PALAVRA "HOJE".
+--
+-- Este cenario e o que impede a volta do "Envie hoje": gravada no dia 5, essa
+-- frase passa a mentir no dia 6 -- e mente para quem esta atrasado, que e quem
+-- mais precisa ler a verdade. Se alguem tirar a data do corpo, este falha.
+select teste.conferir(
+  'O aviso diz que o prazo e o dia do pedido, com a data escrita',
+  (select corpo from public.notifications where user_id = :CARLA),
+  'O prazo é o mesmo dia do pedido: ' || to_char(current_date, 'DD/MM/YYYY')
+    || '. Anexe a sua em Notas Fiscais.');
+
+select teste.conferir(
+  'E o pedido ficou registrado com quantas pessoas alcancou',
+  (select competencia::text || ' | ' || quantas_pessoas::text
+     from public.invoice_requests),
+  '2026-08-01 | 4');
+
+select teste.cenario('O colaborador nao le os pedidos', :CARLA,
+  'select 1 from public.invoice_requests', 'ok', 0);
+
+-- ---------------------------------------------------------------------------
+-- O PRAZO DO LADO DE QUEM DEVE A NOTA
+--
+-- A policy de `invoice_requests` e do socio e continua sendo; quem devolve a
+-- Carla o recorte que e dela e `meus_pedidos_de_nota()`, definer. Sem ela o
+-- prazo existiria so no aviso do sino -- que a pessoa marca como lido e nunca
+-- mais encontra.
+-- ---------------------------------------------------------------------------
+select teste.conferir_como(
+  'Carla le o pedido que a cobra, com o prazo no dia em que ele saiu',
+  :CARLA,
+  $$select competencia::text || ' | ' || pedido_em::text
+      from public.meus_pedidos_de_nota()$$,
+  '2026-08-01 | ' || current_date::text);
+
+-- QUEM JA MANDOU NAO LE PEDIDO EM ABERTO, e e a mesma pergunta que decide a
+-- cobranca: sem ela, Bruno abriria Notas Fiscais e leria uma faixa pedindo a
+-- nota que ele enviou na semana passada.
+select teste.conferir_como(
+  'Bruno nao tem pedido em aberto: a dele ja foi',
+  :BRUNO,
+  $$select count(*)::text from public.meus_pedidos_de_nota()$$,
+  '0');
+
+select teste.conferir_como(
+  'Marina tem: a recusada nao encerra o pedido',
+  :MARINA,
+  $$select count(*)::text from public.meus_pedidos_de_nota()$$,
+  '1');
+
+-- O CLIENTE NAO LE NADA DISSO. Ele nao emite nota para a agencia, e sem a
+-- guarda de `is_staff()` ele leria a lista de meses em que a Full cobrou notas
+-- -- porque nao tendo nota nenhuma, nenhum pedido sai pelo `not exists`.
+select teste.conferir_como(
+  'O cliente nao le pedido de nota nenhum',
+  :JOANA,
+  $$select count(*)::text from public.meus_pedidos_de_nota()$$,
+  '0');
+
+-- ---------------------------------------------------------------------------
+-- COBRAR DE NOVO: Carla manda a dela, e a segunda cobranca nao a alcanca.
+-- ---------------------------------------------------------------------------
+-- O PRIMEIRO PEDIDO RECUA TRES DIAS, E SEM ESSE RECUO O CENARIO DO PRAZO NAO
+-- MEDE NADA. A primeira versao desta secao disparava os dois pedidos na mesma
+-- rodada, entao os dois nasciam com o mesmo `now()`: `min` e `max` davam a
+-- mesma data, e a mutacao que troca um pelo outro passou verde. Um teste que
+-- nao separa a resposta certa da errada e um teste que afirma sem provar -- a
+-- mesma licao do `select` antes do `insert` na idempotencia da recorrencia.
+update public.invoice_requests set created_at = now() - interval '3 days';
+
+delete from public.notifications;
+
+insert into public.team_invoices (user_id, competencia, valor, arquivo_url)
+values (:CARLA, :MES_SERVICO, 5300.00, 'nf/c-mes.pdf');
+
+delete from public.notifications;
+
+select teste.cenario('A socia cobra de novo', :ANA,
+  format($fmt$select public.solicitar_notas_do_mes(%L)$fmt$, :MES_SERVICO), 'ok', 1);
+
+select teste.conferir(
+  'Carla nao foi cobrada de novo',
+  (select count(*)::text from public.notifications where user_id = :CARLA),
+  '0');
+
+select teste.conferir(
+  'E a segunda cobranca e uma linha propria, com a contagem menor',
+  (select count(*)::text || ' pedidos, o ultimo para ' ||
+          (select quantas_pessoas::text from public.invoice_requests
+            order by created_at desc limit 1)
+     from public.invoice_requests),
+  '2 pedidos, o ultimo para 3');
+
+-- O PRAZO QUE VALE E O DO PEDIDO MAIS RECENTE, e isso e o `max(created_at)`.
+-- Rafael tem dois pedidos em cima dele agora; devolvendo os dois, a tela dele
+-- mostraria duas faixas cobrando o mesmo mes, e devolvendo o primeiro ele
+-- leria um prazo que a cobranca de hoje ja substituiu.
+select teste.conferir_como(
+  'Rafael tem UMA linha para os dois pedidos do mesmo mes, com o prazo novo',
+  :RAFAEL,
+  $$select count(*)::text || ' | ' ||
+      (select max(pedido_em)::text from public.meus_pedidos_de_nota())
+      from public.meus_pedidos_de_nota()$$,
+  '1 | ' || current_date::text);
+
+-- ATRASAR NAO FECHA A PORTA, e este e o cenario que guarda a decisao: o prazo
+-- passou faz duas semanas e a nota entra. Uma trava aqui deixaria a agencia sem
+-- a nota, que e o oposto de pedi-la.
+insert into public.invoice_requests (competencia, solicitado_por, quantas_pessoas, created_at)
+values (:MES_ANTERIOR, :ANA, 1, now() - interval '14 days');
+
+select teste.conferir_como(
+  'Rafael le o prazo do mes anterior, que passou faz duas semanas',
+  :RAFAEL,
+  format($fmt$select pedido_em::text from public.meus_pedidos_de_nota()
+               where competencia = %L$fmt$, :MES_ANTERIOR),
+  (current_date - 14)::text);
+
+select teste.cenario('Rafael manda a do mes anterior duas semanas depois do prazo', :RAFAEL,
+  format($fmt$insert into public.team_invoices (user_id, competencia, valor, arquivo_url)
+          values (%L, %L, 4100.00, 'nf/r-anterior.pdf')$fmt$, :RAFAEL, :MES_ANTERIOR),
+  'ok', 1);
+
+select teste.conferir_como(
+  'E o pedido dele sai da lista, porque a nota chegou',
+  :RAFAEL,
+  format($fmt$select count(*)::text from public.meus_pedidos_de_nota()
+               where competencia = %L$fmt$, :MES_ANTERIOR),
+  '0');

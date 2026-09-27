@@ -2529,6 +2529,118 @@ módulo, e quem separa é o RLS.
 reenviada não é pendência, e um aviso que não sai depois de resolvido é o que
 ensina a ignorar o aviso.
 
+#### "Pedir as notas do mês": o botão do Financeiro
+
+Migration 0066, decisão do usuário: *"quero adicionar um botão no financeiro,
+de solicitar notas fiscais, quando a pessoa do financeiro aperta esse botão,
+ela automaticamente envia um pedido a todos os colaboradores internos da
+agência, para que enviem a nota fiscal do mês de serviço"*.
+
+**O PEDIDO NÃO VAI PARA QUEM JÁ MANDOU, e é a decisão que faz o botão poder ser
+apertado de novo.** No dia 5 o sócio pede a todos; no dia 10 faltam três. Sem
+essa linha a segunda cobrança chega também para quem já enviou — e um aviso que
+cobra o que a pessoa já fez é o aviso que ela aprende a ignorar. "Já mandou" é
+ter nota **viva** no mês: enviada, aprovada ou paga. A recusada **não** conta,
+de propósito — quem teve a nota recusada precisa mandar outra, então ela é
+exatamente quem a cobrança procura.
+
+**Tudo numa função só, porque é uma transação só.** `solicitar_notas_do_mes()`
+grava o registro e toca os N sinos juntos; pelo PostgREST seriam N+1 idas, e a
+terceira falhando deixaria metade da equipe cobrada e o registro dizendo que
+todos foram. E o sino é o banco e não a action: `notificar()` nunca avisa quem
+causou o aviso, nunca avisa quem saiu, e devolve `null` sem derrubar a escrita
+quando não há ninguém — a lição da 0062. Escrever o aviso na camada de
+aplicação perderia as três de uma vez.
+
+**O registro existe porque um botão sem memória se aperta duas vezes.** Oito
+avisos saíram e nada na tela diz isso; o diálogo lê o último pedido e escreve
+*"você já pediu em 03/10, para 8 pessoas"*. **Mais de uma linha por mês é o
+desenho**, e não um furo: a cobrança do dia 10 é um fato diferente do pedido do
+dia 5, com outro destinatário e outra contagem — um `unique (competencia)`
+transformaria a segunda em reescrita da primeira, que é o que rodada de
+aprovação fechada nunca sofre. E o registro **nasce mesmo com zero pessoas**:
+"pedi no dia 10 e não faltava ninguém" é uma resposta.
+
+**O diálogo diz QUEM vai receber, pelo nome, antes do clique.** Um botão que
+dispara oito avisos e só depois conta quantos foram é um botão que se aperta
+com medo — e o medo tem razão, porque o aviso não se desfaz. A lista de nomes é
+o que faz a pessoa reconhecer, antes de mandar, que a Marina está ali porque a
+nota dela foi recusada. É a decisão do diálogo de apagar campanha, que **conta**
+o que vai junto em vez de perguntar "tem certeza?".
+
+**E a contagem vem da MESMA função que o envio usa.** `quem_deve_nota()`
+responde aos dois lados, pela razão de `podeEnviarAoCliente()` no Social: a tela
+existe para escrever a frase que o banco vai confirmar. Duas contas dariam um
+diálogo prometendo cinco e um envio alcançando quatro.
+
+##### O prazo é o mesmo dia do pedido, e ele AVISA em vez de RECUSAR
+
+Decisão do usuário: *"a nota precisa ser enviada no mesmo dia de solicitação"*.
+
+**Não é coluna.** O prazo de um pedido é a data em que ele saiu —
+`created_at::date`, e mais nada. Um `prazo date` ao lado criaria duas verdades
+sobre o mesmo fato, e é a mesma razão pela qual atraso no Financeiro não é
+coluna e bloqueio de subtarefa não é status.
+
+**E a tentação de travar o `insert` depois do dia se desfaz numa frase:** uma
+nota recusada por atraso é uma nota que a agência **não recebe** — o oposto do
+que pedir a nota existe para conseguir. Quem perdeu o dia manda no dia seguinte.
+É a decisão de "função sem dono avisa, nunca recusa" (0064) e do limite por task
+da recorrência, que corta em vez de recusar.
+
+**Cobrar de novo MOVE o prazo, e isso é dito em voz alta.** O que vale é o
+pedido mais recente, porque foi ele que chegou à pessoa: cobrar no dia 10 é
+dizer "hoje" de novo, e continuar medindo pelo dia 5 marcaria de atrasado quem
+está dentro do prazo que acabou de receber. *O custo:* a contagem de atrasados
+cai quando o sócio cobra de novo. Os pedidos anteriores ficam todos no banco,
+com data, e é neles que mora o histórico.
+
+**O corpo do aviso leva a DATA, nunca a palavra "hoje".** O sino é escrito uma
+vez e lido quando a pessoa abrir — às vezes três dias depois. "Envie hoje"
+gravado no dia 5 passa a mentir no dia 6, e mente exatamente para quem está
+atrasado, que é quem mais precisa ler a verdade. É a razão pela qual o "agora"
+do feed de Recomendações desce do servidor.
+
+##### O prazo do lado de quem deve a nota
+
+**O sino não basta**: o aviso vira lido no primeiro clique, e depois o pedido
+não existe em tela nenhuma. A faixa mora em `/painel/notas-fiscais`, acima da
+lista, e some sozinha quando a nota chega — como os blocos de exceção da Home. O
+tom é `--warning` mesmo atrasado, nunca `--danger`: vermelho numa tela que se
+abre uma vez por mês treina o hábito de ignorar vermelho, e o atraso aqui é uma
+nota que ainda entra.
+
+Quem devolve esse recorte é `meus_pedidos_de_nota()`, `security definer`, **e
+não um `select` em `invoice_requests`**: a policy daquela tabela é do sócio e
+continua sendo. Abrir o SELECT para `is_staff()` resolveria a leitura e
+entregaria de lambuja o `quantas_pessoas` de cada pedido — quantos colegas estão
+devendo, numa tela pessoal onde isso não decide nada. É a forma de
+`usuarios_do_meu_cliente()`, definer para devolver só o agregado.
+
+*O skew de fuso falha para o lado generoso, e fica registrado:* `created_at::date`
+lê a data no fuso da sessão, então um pedido disparado à noite pode ser lido
+como do dia seguinte. O erro possível é dar um dia a mais a quem foi cobrado —
+nunca marcar de atrasado quem está em dia.
+
+**E entra no "Precisa de mim" da Home**, que é onde mora "o que está parado me
+esperando".
+
+##### Dois achados da bateria, e os dois são sobre medir
+
+**O cenário do prazo não media nada**, e a mutação mostrou: os dois pedidos
+saíam na mesma rodada, com o mesmo `now()`, então `min` e `max` davam a mesma
+data e trocar um pelo outro passava verde. O primeiro pedido recua três dias, e
+aí a mutação falha. É a lição do `select` antes do `insert` na idempotência da
+recorrência: um teste que não separa a resposta certa da errada é um teste que
+afirma sem provar.
+
+**E a seção não usa o calendário de 2027 do resto do arquivo.**
+`solicitar_notas_do_mes()` recusa mês que não começou, e é a primeira trava
+daquele arquivo a comparar com `current_date` — as sete seções de cima datam
+tudo em 2027 sem problema porque para elas a competência é só uma etiqueta de
+mês. Aqui o mês de serviço é um mês que já passou, e passado não volta a ser
+futuro.
+
 #### O bucket é privado, e a pasta é da pessoa
 
 Uma nota fiscal traz CNPJ, endereço e valor. A policy compara
@@ -4388,6 +4500,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0063_a_capa_e_a_foto_do_portal.sql` | **Pendente de aplicação.** Traz `clients.capa_url` e põe a capa na lista de `protect_client_columns`. Sem ela, a ficha do cliente devolve erro de coluna inexistente ao trocar a capa |
 | `supabase/migrations/0064_os_padroes_da_conta.sql` | **Pendente de aplicação.** Traz `client_flow_defaults`, `client_function_defaults`, `workflow_steps.funcao_padrao` resolvida por conta e o aviso ao aprovador padrão. Sem ela, a aba **Configurações do fluxo** da ficha do cliente devolve erro de tabela inexistente — e aplicar um workflow continua criando etapa sem dono, sem dizer qual função faltou |
 | `supabase/migrations/0065_a_nota_fiscal_da_pessoa.sql` | **Pendente de aplicação.** Traz `team_invoices`, o enum `nf_status`, o bucket privado `notas-fiscais`, as travas de transição e o gatilho que lança a despesa no Financeiro. Sem ela, `/painel/notas-fiscais` devolve erro de tabela inexistente — a tela deixou de ser um espaço reservado e passou a ler o banco |
+| `supabase/migrations/0066_solicitar_as_notas_do_mes.sql` | **Pendente de aplicação.** Traz `invoice_requests`, `quem_deve_nota()`, `solicitar_notas_do_mes()` e `meus_pedidos_de_nota()`. Sem ela, o botão **Pedir as notas do mês** no Financeiro leva *"Could not find the function"*, e a faixa do pedido em Notas Fiscais nunca aparece — ela devolve vazia em vez de derrubar a tela, de propósito |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

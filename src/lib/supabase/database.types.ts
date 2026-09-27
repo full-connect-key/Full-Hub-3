@@ -561,6 +561,34 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * Cada vez que o sócio pediu as notas fiscais de um mês (0066).
+       *
+       * **Sem `Update` e sem `Delete`, e é o desenho**: o pedido é o registro
+       * de uma coisa que aconteceu — oito pessoas receberam o aviso —, e
+       * apagar a linha não desfaz os avisos. A mesma forma de
+       * `client_portal_views` e do `audit_log`.
+       *
+       * Quem escreve é `solicitar_notas_do_mes()`, não um insert da tela: o
+       * registro e os N avisos são uma transação só. `quantas_pessoas` fica
+       * fora do `Insert` por isso — a função é que conta.
+       */
+      invoice_requests: {
+        Row: {
+          id: string;
+          competencia: string;
+          solicitado_por: string;
+          quantas_pessoas: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          competencia: string;
+          solicitado_por: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       client_portal_views: {
         Row: {
           id: string;
@@ -2088,6 +2116,38 @@ export interface Database {
           depende_de_ordem: number | null;
         }[];
       };
+      /**
+       * Quem da equipe ainda nao tem nota viva no mes (0066).
+       *
+       * A TELA CHAMA ANTES DO CLIQUE, e e a razao de ela existir separada de
+       * `solicitar_notas_do_mes`: o dialogo diz quantas pessoas vao receber, e
+       * um numero diferente do que sai seria a tela mentindo sobre o que o
+       * botao acabou de fazer. E a decisao de `podeEnviarAoCliente()`.
+       *
+       * So o socio -- a primeira linha da funcao estoura para todo mundo.
+       */
+      quem_deve_nota: {
+        Args: { p_competencia: string };
+        Returns: { user_id: string; nome: string }[];
+      };
+      /**
+       * Avisa quem ainda nao mandou a nota do mes e grava o pedido (0066).
+       * Devolve quantas pessoas foram alcancadas.
+       */
+      solicitar_notas_do_mes: { Args: { p_competencia: string }; Returns: number };
+      /**
+       * Os meses em que a equipe me cobrou a nota e eu ainda nao mandei, com a
+       * data do ultimo pedido -- que E o prazo (0066).
+       *
+       * `security definer` porque a policy de `invoice_requests` e do socio e
+       * continua sendo: abrir o SELECT para `is_staff()` entregaria de lambuja
+       * o `quantas_pessoas` de cada pedido, numa tela pessoal onde quantos
+       * colegas estao devendo nao decide nada.
+       */
+      meus_pedidos_de_nota: {
+        Args: Record<string, never>;
+        Returns: { competencia: string; pedido_em: string }[];
+      };
       pode_aprovar_subtarefa: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_liberada: { Args: { p_subtask_id: string }; Returns: boolean };
       subtask_pendencias: { Args: { p_subtask_id: string }; Returns: string | null };
@@ -2531,6 +2591,7 @@ export type ClientFlowDefaults =
 export type ClientFunctionDefault =
   Database["public"]["Tables"]["client_function_defaults"]["Row"];
 export type TeamInvoice = Database["public"]["Tables"]["team_invoices"]["Row"];
+export type InvoiceRequest = Database["public"]["Tables"]["invoice_requests"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];

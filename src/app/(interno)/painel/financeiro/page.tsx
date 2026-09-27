@@ -14,12 +14,14 @@ import {
   relatorioDoPeriodo,
   visaoGeralDoMes,
 } from "@/lib/dados/financeiro";
+import { pedidosDeNota } from "@/lib/dados/notas-fiscais";
 import { competenciaDaChave, competenciaDe, deslocarCompetencia } from "@/lib/dominio/financeiro";
 
 import { AbasDoFinanceiro } from "./abas";
 import { Contratos } from "./contratos";
 import { Lancamentos } from "./lancamentos";
 import { Relatorios } from "./relatorios";
+import { PedirNotas } from "./pedir-notas";
 import { VisaoGeralDoFinanceiro } from "./visao-geral";
 import { lerAba } from "./vocabulario";
 
@@ -55,10 +57,29 @@ export default async function PaginaDoFinanceiro({
   const mes = typeof parametros.mes === "string" ? parametros.mes : undefined;
   const competencia = competenciaDaChave(mes, hojeISO);
 
+  // O ÚLTIMO PEDIDO DESTE MÊS DESCE COM A PÁGINA, e não é buscado pelo
+  // diálogo: ele responde "eu já pedi?", que é a pergunta de quem está olhando
+  // o botão — buscá-la ao abrir faria a resposta chegar depois da dúvida.
+  const pedidos = await pedidosDeNota(competencia);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Financeiro"
+        actions={
+          <PedirNotas
+            competencia={competencia}
+            hojeISO={hojeISO}
+            pedidoAnterior={
+              pedidos[0]
+                ? {
+                    quantasPessoas: pedidos[0].quantasPessoas,
+                    criadoEm: pedidos[0].criadoEm,
+                  }
+                : null
+            }
+          />
+        }
       />
 
       <AbasDoFinanceiro atual={aba} />

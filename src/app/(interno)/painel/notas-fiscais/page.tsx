@@ -4,11 +4,12 @@ import { forbidden } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehSocio } from "@/lib/auth/roles";
-import { filaDeNotas, minhasNotas } from "@/lib/dados/notas-fiscais";
+import { filaDeNotas, meusPedidosDeNota, minhasNotas } from "@/lib/dados/notas-fiscais";
 import { mesesParaEmitir } from "@/lib/dominio/notas-fiscais";
 
 import { AbasDaNota } from "./abas";
 import { lerAba, type Aba } from "./vocabulario";
+import { FaixaDoPedido } from "./faixa-do-pedido";
 import { FilaDoSocio } from "./fila-do-socio";
 import { MinhasNotas } from "./minhas-notas";
 
@@ -66,6 +67,7 @@ export default async function Pagina({
   // veria um mês que ainda não terminou no topo do seletor.
   const agora = new Date();
   const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
+  const hojeISO = `${hoje}-${String(agora.getDate()).padStart(2, "0")}`;
 
   return (
     <div className="space-y-6">
@@ -92,11 +94,19 @@ export default async function Pagina({
       {aba === "conferir" && fila ? (
         <FilaDoSocio fila={fila} />
       ) : (
-        <MinhasNotas
-          notas={await minhasNotas()}
-          usuarioId={sessao.usuarioId}
-          mesesDisponiveis={mesesParaEmitir(hoje)}
-        />
+        <>
+          {/* A FAIXA FICA ACIMA DA LISTA, e não dentro do diálogo de envio:
+              quem abre esta tela precisa saber que foi cobrado ANTES de decidir
+              se vai mandar algo hoje. Dentro do diálogo ela só apareceria para
+              quem já tinha decidido. */}
+          <FaixaDoPedido pedidos={await meusPedidosDeNota()} hojeISO={hojeISO} />
+
+          <MinhasNotas
+            notas={await minhasNotas()}
+            usuarioId={sessao.usuarioId}
+            mesesDisponiveis={mesesParaEmitir(hoje)}
+          />
+        </>
       )}
     </div>
   );

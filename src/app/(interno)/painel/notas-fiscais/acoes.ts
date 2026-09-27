@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigirEquipeNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { quemDeveNota } from "@/lib/dados/notas-fiscais";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -199,4 +200,108 @@ export async function apagarNota(id: string): Promise<Resultado> {
     revalidatePath(ROTA);
     return sucesso("Nota apagada.");
   });
+}
+
+/**
+ * Pedir a todo mundo que ainda não mandou a nota do mês.
+ *
+ * ---------------------------------------------------------------------------
+ * **UMA CHAMADA SÓ, E É POR ISSO QUE ELA MORA NO BANCO.**
+ *
+ * `solicitar_notas_do_mes()` grava o registro e toca os N sinos na mesma
+ * transação. Pelo PostgREST seriam N+1 idas, e a terceira falhando deixaria
+ * metade da equipe cobrada e o registro dizendo que todos foram. É a mesma
+ * razão de `decidir_solicitacao()` no Full Days e de `abrir_campanha()`.
+ *
+ * **E o sino é o banco, não esta action.** `notificar()` é função do Postgres:
+ * ela nunca avisa quem causou o aviso, nunca avisa quem saiu da agência, e
+ * devolve `null` sem derrubar a escrita quando não há ninguém — a lição da
+ * 0062. Escrever o aviso aqui perderia as três de uma vez.
+ * ---------------------------------------------------------------------------
+ *
+ * A guarda de sócio espelha a primeira linha da função, e existe para a recusa
+ * chegar em português: sem ela, quem não pode leria a mensagem crua do
+ * Postgres.
+ */
+export async function solicitarNotasDoMes(mes: unknown): Promise<Resultado> {
+  return executarAcao("solicitarNotasDoMes", async () => {
+    await exigirSocioNaAcao();
+
+    const lido = z.object({ mes: z.string().regex(/^\d{4}-\d{2}$/) }).safeParse({ mes });
+    if (!lido.success) {
+      return falha(
+        recusaDeValidacao("solicitarNotasDoMes", lido.error, { mes }, "Escolha o mês de serviço.", {
+          mes: "mês de serviço",
+        }),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase.rpc("solicitar_notas_do_mes", {
+      p_competencia: `${lido.data.mes}-01`,
+    });
+
+    if (error) return falha(error.message);
+
+    revalidatePath("/painel/financeiro");
+    revalidatePath(ROTA);
+    // O AVISO CAI NO SINO DE OUTRAS PESSOAS, então a Home delas também muda —
+    // e é lá que o bloco "Precisa de mim" mostra o pedido em aberto.
+    revalidatePath("/painel");
+
+    const quantas = data ?? 0;
+
+    // O NÚMERO ZERO É UMA RESPOSTA BOA, e a frase diz isso em vez de parecer
+    // que o botão não funcionou: "pedi e não faltava ninguém" é exatamente o
+    // que quem aperta quer saber.
+    if (quantas === 0) {
+      return sucesso("Ninguém está devendo a nota deste mês — nenhum aviso foi enviado.");
+    }
+
+    return sucesso(
+      quantas === 1
+        ? "Pedido enviado para 1 pessoa. O prazo é hoje."
+        : `Pedido enviado para ${quantas} pessoas. O prazo é hoje.`,
+    );
+  });
+}
+
+/**
+ * Quem vai ser cobrado, para o diálogo escrever a frase ANTES do clique.
+ *
+ * ---------------------------------------------------------------------------
+ * **É UMA LEITURA NUMA `"use server"`, e a exceção tem motivo.**
+ *
+ * `lib/dados/` é `server-only` — o navegador não alcança. E este número precisa
+ * ser recalculado quando a pessoa troca o mês no diálogo, que é uma interação
+ * do lado de cá. As alternativas eram piores: buscar os doze meses no
+ * carregamento da página são doze RPCs para desenhar um botão, e mostrar um
+ * número fixo faria o diálogo prometer uma coisa e o banco fazer outra.
+ *
+ * **E ela chama a MESMA função que o envio chama.** `quem_deve_nota()` é a
+ * fonte única dos dois lados, pela razão de `podeEnviarAoCliente()` no Social:
+ * a tela existe para escrever a frase que o banco vai confirmar.
+ * ---------------------------------------------------------------------------
+ */
+export async function contarQuemDeveNota(
+  mes: unknown,
+): Promise<{ ok: true; nomes: string[] } | { ok: false; error: string }> {
+  try {
+    await exigirSocioNaAcao();
+
+    const lido = z.object({ mes: z.string().regex(/^\d{4}-\d{2}$/) }).safeParse({ mes });
+    if (!lido.success) return { ok: false, error: "Escolha o mês de serviço." };
+
+    const pessoas = await quemDeveNota(`${lido.data.mes}-01`);
+    return { ok: true, nomes: pessoas.map((p) => p.nome) };
+  } catch (erro) {
+    // A RECUSA NÃO PODE SUMIR, mesmo numa leitura: o diálogo mostra a frase em
+    // vez de um "0 pessoas" que faria o botão parecer desnecessário. Zero é uma
+    // resposta plausível, e é o pior tipo de resposta errada.
+    console.error("[acao:contarQuemDeveNota]", erro);
+    return {
+      ok: false,
+      error: erro instanceof Error ? erro.message : "Não foi possível contar quem está devendo.",
+    };
+  }
 }

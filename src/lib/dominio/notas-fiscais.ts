@@ -136,3 +136,53 @@ export function interpretarValor(texto: string): number | null {
   const numero = Number(normalizado);
   return Number.isFinite(numero) && numero > 0 ? numero : null;
 }
+
+/**
+ * O PRAZO DE UM PEDIDO É O DIA EM QUE ELE SAIU (decisão do usuário).
+ *
+ * ---------------------------------------------------------------------------
+ * **Ele AVISA e nunca RECUSA, e a razão cabe numa frase**: uma nota recusada
+ * por atraso é uma nota que a agência NÃO recebe — o oposto do que pedir a
+ * nota existe para conseguir. Quem perdeu o dia manda no dia seguinte, e o
+ * atraso fica visível dos dois lados: aqui, na tela de quem deve, e na fila do
+ * sócio.
+ *
+ * É a mesma decisão de "função sem dono avisa, nunca recusa" (0064) e do
+ * limite por task da recorrência, que corta em vez de recusar.
+ * ---------------------------------------------------------------------------
+ *
+ * **E a comparação é com o `hoje` que desce do servidor**, como em todo prazo
+ * do produto: se cada tela lesse o próprio relógio, o navegador em outro fuso
+ * classificaria como atrasado um pedido que o contador ainda dá em dia.
+ */
+export type PedidoDeNota = {
+  /** O mês de serviço, no primeiro dia — como a competência é gravada. */
+  competencia: string;
+  /** O dia em que o pedido saiu, que É o prazo. */
+  pedidoEm: string;
+};
+
+export function prazoVencido(pedido: PedidoDeNota, hojeISO: string): boolean {
+  return pedido.pedidoEm < hojeISO;
+}
+
+/**
+ * A frase do prazo, e ela muda de tempo verbal.
+ *
+ * "O prazo é hoje" e "o prazo era 05/10" dizem coisas diferentes para quem
+ * abre a tela, e a segunda é a que precisa aparecer para quem passou do dia —
+ * uma frase só, no presente, faria a tela de quem está atrasado parecer a de
+ * quem está em dia.
+ */
+export function fraseDoPrazo(pedido: PedidoDeNota, hojeISO: string): string {
+  const dia = diaEMes(pedido.pedidoEm);
+  if (pedido.pedidoEm === hojeISO) return "O prazo é hoje.";
+  if (pedido.pedidoEm > hojeISO) return `O prazo é ${dia}.`;
+  return `O prazo era ${dia}, o mesmo dia do pedido.`;
+}
+
+/** "2026-10-05" → "05/10". Montado do texto, nunca por `new Date(iso)`. */
+export function diaEMes(iso: string): string {
+  const [, mes, dia] = iso.split("-");
+  return `${dia}/${mes}`;
+}

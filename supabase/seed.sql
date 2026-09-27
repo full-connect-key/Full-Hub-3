@@ -230,6 +230,23 @@ begin
   values (v_marina, v_mes - interval '1 month', 3900.00,
           v_marina || '/exemplo-enviada.pdf',
           'Inclui as duas diarias do evento de sabado.');
+
+  -- ------------------------------------------------------------------------
+  -- O PEDIDO DE NOTAS (0066), E ELE NASCE ATRASADO DE PROPOSITO.
+  --
+  -- O prazo e o mesmo dia do pedido, entao um pedido de HOJE mostraria a faixa
+  -- em "o prazo e hoje" -- que e o estado facil. Datado tres dias atras, o
+  -- ambiente de desenvolvimento abre no estado que pede conferencia: a faixa
+  -- no tom de atencao, dizendo que o prazo era 03/10 e que a nota ainda entra.
+  --
+  -- E ele e do mes PASSADO porque `v_mes - interval '1 month'` e o mes de
+  -- servico das notas acima: Bruno e Carla ja mandaram as deles, entao quem le
+  -- a faixa e justamente quem falta -- Diego, Rafael e o Otto da equipe. Um
+  -- pedido de um mes em que ninguem devesse nada nao desenharia faixa nenhuma.
+  -- ------------------------------------------------------------------------
+  insert into public.invoice_requests
+    (competencia, solicitado_por, quantas_pessoas, created_at)
+  values (v_mes - interval '1 month', v_ana, 4, now() - interval '3 days');
 end;
 $notas$;
 

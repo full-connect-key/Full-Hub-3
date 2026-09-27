@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import type { PedidoDeNota } from "@/lib/dominio/notas-fiscais";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { NfStatus, TeamInvoice } from "@/lib/supabase/database.types";
 
@@ -211,4 +212,91 @@ export async function minhasNotasRecusadas(): Promise<NotaDaEquipe[]> {
   // não sai depois de resolvido é o que ensina a ignorar o aviso.
   const vivas = new Set(await mesesJaEnviados());
   return montar(recusadas.filter((n) => !vivas.has(n.competencia.slice(0, 7))));
+}
+
+// ===========================================================================
+// O PEDIDO DE NOTAS DO MÊS (0066)
+// ===========================================================================
+
+/**
+ * Os pedidos que me cobram, com o prazo de cada um.
+ *
+ * Passa por `meus_pedidos_de_nota()` e não por um `select` em
+ * `invoice_requests`: a policy daquela tabela é do sócio e continua sendo, e
+ * abrir o SELECT para `is_staff()` entregaria de lambuja o `quantas_pessoas` de
+ * cada pedido — quantos colegas estão devendo, numa tela pessoal onde isso não
+ * decide nada.
+ *
+ * **Devolve vazio e não estoura quando a migration falta**, ao contrário do
+ * resto deste arquivo: é uma faixa em cima de uma tela que funciona sem ela. A
+ * tela de Notas Fiscais inteira cair porque o aviso não carregou seria trocar
+ * uma falha parcial por uma total — a mesma decisão de `assinarNotas`.
+ */
+export async function meusPedidosDeNota(): Promise<PedidoDeNota[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("meus_pedidos_de_nota");
+
+  if (error) {
+    console.error("[consulta:meus pedidos de nota]", error);
+    return [];
+  }
+
+  return (data ?? []).map((linha) => ({
+    competencia: linha.competencia,
+    pedidoEm: linha.pedido_em,
+  }));
+}
+
+/** Quem da equipe ainda não mandou a nota do mês — a conta antes do clique. */
+export async function quemDeveNota(competencia: string): Promise<{ id: string; nome: string }[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("quem_deve_nota", {
+    p_competencia: competencia,
+  });
+
+  // O SÓCIO É QUEM CHEGA AQUI, e para ele um erro é a migration faltando. O
+  // diálogo então diz "não foi possível contar" em vez de prometer zero — zero
+  // pessoas devendo é uma resposta plausível, e é o pior tipo de resposta
+  // errada: ela faz o botão parecer desnecessário.
+  if (error) {
+    console.error("[consulta:quem deve nota]", error);
+    throw error;
+  }
+
+  return (data ?? []).map((linha) => ({ id: linha.user_id, nome: linha.nome }));
+}
+
+/**
+ * Os pedidos já feitos de um mês, do mais novo para o mais antigo.
+ *
+ * É o que faz o diálogo poder dizer "você já pediu em 03/10, para 8 pessoas" —
+ * sem isso, um botão que disparou oito avisos não deixa rastro na tela, e se
+ * aperta duas vezes por dúvida.
+ */
+export type PedidoRegistrado = {
+  id: string;
+  competencia: string;
+  quantasPessoas: number;
+  criadoEm: string;
+};
+
+export async function pedidosDeNota(competencia: string): Promise<PedidoRegistrado[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase
+    .from("invoice_requests")
+    .select("id, competencia, quantas_pessoas, created_at")
+    .eq("competencia", competencia)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[consulta:pedidos de nota]", error);
+    return [];
+  }
+
+  return (data ?? []).map((linha) => ({
+    id: linha.id,
+    competencia: linha.competencia,
+    quantasPessoas: linha.quantas_pessoas,
+    criadoEm: linha.created_at,
+  }));
 }

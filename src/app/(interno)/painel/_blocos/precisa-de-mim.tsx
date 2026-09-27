@@ -34,12 +34,22 @@ export function PrecisaDeMim({
   dados,
   notasRecusadas,
   notasEsperandoOSocio,
+  notasPedidas,
 }: {
   dados: ResumoDaHome["precisa_de_mim"];
   /** As minhas notas que voltaram e cujo mês ainda não tem nota nova. */
   notasRecusadas: number;
   /** Quantas esperam a conferência — zero para quem não é sócio. */
   notasEsperandoOSocio: number;
+  /**
+   * Meses em que o Financeiro pediu a minha nota e eu ainda não mandei (0066).
+   *
+   * Aqui e não só no sino: o aviso vira lido no primeiro clique, e depois o
+   * pedido não existe em tela nenhuma até a pessoa abrir Notas Fiscais por
+   * conta própria. É exatamente "o que está parado me esperando", que é a
+   * pergunta deste bloco.
+   */
+  notasPedidas: number;
 }) {
   const linhas = [
     {
@@ -71,6 +81,12 @@ export function PrecisaDeMim({
       href: "/painel/notas-fiscais?aba=conferir",
       singular: "nota fiscal da equipe esperando você",
       plural: "notas fiscais da equipe esperando você",
+    },
+    {
+      quantos: notasPedidas,
+      href: "/painel/notas-fiscais",
+      singular: "nota fiscal que o Financeiro pediu e você não mandou",
+      plural: "notas fiscais que o Financeiro pediu e você não mandou",
     },
   ].filter((linha) => linha.quantos > 0);
 

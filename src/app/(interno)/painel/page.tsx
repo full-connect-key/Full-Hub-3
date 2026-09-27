@@ -6,6 +6,7 @@ import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { resumoDaHome } from "@/lib/dados/home";
 import { meuDia, prazosDeHoje } from "@/lib/dados/minhas-tasks";
 import {
+  meusPedidosDeNota,
   minhasNotasRecusadas,
   notasEsperandoOSocio,
 } from "@/lib/dados/notas-fiscais";
@@ -58,7 +59,15 @@ export default async function PaginaInicialDoPainel() {
   const { profile, usuarioId } = await exigirAcessoARota("/painel");
   const gestao = ehGestor(profile.role);
 
-  const [ficha, resumo, itensDoDia, portais, recusadas, esperandoOSocio] = await Promise.all([
+  const [
+    ficha,
+    resumo,
+    itensDoDia,
+    portais,
+    recusadas,
+    esperandoOSocio,
+    pedidosDeNotaAbertos,
+  ] = await Promise.all([
     obterMinhaFicha(),
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
@@ -71,6 +80,10 @@ export default async function PaginaInicialDoPainel() {
     // seria repetir na tela a regra que a policy já aplica.
     minhasNotasRecusadas(),
     notasEsperandoOSocio(),
+    // O PEDIDO EM ABERTO (0066): os meses em que o Financeiro cobrou a minha
+    // nota e eu não mandei. Sem ele o pedido viveria só no sino, que vira lido
+    // no primeiro clique — e o prazo é o mesmo dia.
+    meusPedidosDeNota(),
   ]);
 
   return (
@@ -95,6 +108,7 @@ export default async function PaginaInicialDoPainel() {
         dados={resumo.precisa_de_mim}
         notasRecusadas={recusadas.length}
         notasEsperandoOSocio={esperandoOSocio}
+        notasPedidas={pedidosDeNotaAbertos.length}
       />
 
       <QuemEstaForaHoje pessoas={resumo.fora_hoje} />

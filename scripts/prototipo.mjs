@@ -188,6 +188,10 @@ const TELAS = [
   { nome: "75-financeiro-contratos", rota: "/painel/financeiro?aba=contratos", largura: 1700, altura: 800, role: "socio" },
   { nome: "76-financeiro-relatorios", rota: "/painel/financeiro?aba=relatorios", largura: 1700, altura: 1400, role: "socio" },
   { nome: "77-financeiro-visao-geral-escuro", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio", tema: "escuro" },
+  // O DIALOGO DO PEDIDO DE NOTAS (0066). Sem o clique, a unica coisa que a
+  // imagem prova e que o botao existe -- e o que precisa ser conferido e a
+  // lista de nomes e a frase do prazo, que so aparecem dentro dele.
+  { nome: "77b-financeiro-pedir-notas", rota: "/painel/financeiro", largura: 1300, altura: 1000, role: "socio", clicar: 'button:has-text("Pedir as notas do mês")' },
 
   // --- Sprint 9: Academy e Recomendacoes ---------------------------------
   // A troca obrigatoria do primeiro acesso. Mora em (auth), entao nao passa
