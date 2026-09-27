@@ -8,6 +8,21 @@
  * parte de dentro do servidor, com o IP e o acesso dele. É a família de falha
  * conhecida como SSRF.
  *
+ * ---------------------------------------------------------------------------
+ * **E AGORA SÃO DOIS CHAMADORES, O QUE DOBRA A LISTA.**
+ *
+ * `buscarMetadados()` lê o `<head>` do endereço que a pessoa colou.
+ * `baixarImagem()` (0067) baixa a capa que aquele `<head>` apontou — e o
+ * endereço dela foi escolhido pelo **SITE**, não pela pessoa. É a porta mais
+ * larga das duas: um site inofensivo pode servir
+ * `<meta property="og:image" content="http://169.254.169.254/latest/meta-data/">`
+ * e o servidor buscaria aquilo sem ninguém ter digitado nada.
+ *
+ * As duas passam pelo mesmo `abrir()`, então a trava é uma — mas uma trava
+ * compartilhada só está provada nos caminhos que alguém exercita. Medir só o
+ * primeiro passaria no dia em que o segundo deixasse de chamar o guarda.
+ * ---------------------------------------------------------------------------
+ *
  * **E ela não quebra com erro — ela passa a funcionar.** Um `ehInterno` que
  * deixe de cobrir uma faixa não derruba build, não derruba teste de tela, e o
  * preview continua preenchendo título e imagem como sempre. O que muda é que
@@ -66,19 +81,34 @@ await writeFile(copia, fonte.replace(/^import "server-only";\n/, ""));
 
 let falhas = 0;
 try {
-  const { buscarMetadados } = await import(pathToFileURL(copia).href);
+  const { buscarMetadados, baixarImagem } = await import(pathToFileURL(copia).href);
 
-  console.log("\nO preview recusa endereço de rede interna\n");
-  for (const [alvo, porque, motivo] of CASOS) {
-    const r = await buscarMetadados(alvo);
-    // O MOTIVO, e não só a recusa: "O site não respondeu" é recusa da REDE, e
-    // numa máquina onde o endereço responde ela vira um preview.
-    const certo = r.ok === false && r.motivo === motivo;
-    if (!certo) falhas++;
-    console.log(
-      `  ${certo ? "ok     " : "FALHA  "} ${porque.padEnd(28)} ${alvo}` +
-        (certo ? "" : `\n          esperava "${motivo}", veio "${r.ok ? "passou" : r.motivo}"`),
-    );
+  // OS DOIS CAMINHOS, na mesma lista. `baixarImagem` é o que traz a capa da
+  // recomendação, e o endereço dela vem do site — não da pessoa.
+  const CAMINHOS = [
+    ["a prévia do link (o que a pessoa colou)", buscarMetadados],
+    ["a capa da recomendação (o que o site apontou)", baixarImagem],
+  ];
+
+  for (const [quem, buscar] of CAMINHOS) {
+    if (typeof buscar !== "function") {
+      falhas++;
+      console.log(`\nFALHA  ${quem} — a função não existe mais neste módulo\n`);
+      continue;
+    }
+
+    console.log(`\nRecusa endereço de rede interna: ${quem}\n`);
+    for (const [alvo, porque, motivo] of CASOS) {
+      const r = await buscar(alvo);
+      // O MOTIVO, e não só a recusa: "O site não respondeu" é recusa da REDE, e
+      // numa máquina onde o endereço responde ela vira um preview.
+      const certo = r.ok === false && r.motivo === motivo;
+      if (!certo) falhas++;
+      console.log(
+        `  ${certo ? "ok     " : "FALHA  "} ${porque.padEnd(28)} ${alvo}` +
+          (certo ? "" : `\n          esperava "${motivo}", veio "${r.ok ? "passou" : r.motivo}"`),
+      );
+    }
   }
 } finally {
   await rm(pasta, { recursive: true, force: true });

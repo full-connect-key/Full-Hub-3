@@ -481,3 +481,91 @@ select teste.conferir('O material da outra trilha ficou onde estava',
   (select ordem::text from public.academy_materials
     where id = 'b3b3b3b3-0000-0000-0000-000000000001'),
   '7');
+
+-- ===========================================================================
+-- O BUCKET DAS CAPAS (0067)
+--
+-- A capa de uma recomendacao e baixada pelo servidor e guardada aqui, porque
+-- o CSP recusa `<img>` de qualquer host de fora. O que estes cenarios provam
+-- nao e o download -- isso e `npm run check:preview`, em JavaScript -- e sim
+-- QUEM alcanca o arquivo depois que ele existe.
+--
+-- E a bateria alcanca isso porque `_fixture_supabase.sql` finge
+-- `storage.objects` com RLS ligada e `storage.foldername()`. Sem os cenarios,
+-- a unica conferencia das tres policies seria olhar o SQL -- e "a pasta e de
+-- quem indica" e exatamente do tipo que nao se responde de olho: sem o recorte
+-- da pasta, `is_staff()` sozinho deixaria qualquer pessoa da equipe
+-- sobrescrever a capa da recomendacao de outra, e a troca passaria calada,
+-- porque o endereco gravado continua o mesmo.
+-- ===========================================================================
+
+delete from storage.objects where bucket_id = 'recomendacoes-capas';
+
+select teste.cenario('Quem indica grava a capa na pasta dela', :CARLA,
+  format($fmt$
+    insert into storage.objects (bucket_id, name)
+    values ('recomendacoes-capas', %L)
+  $fmt$, :CARLA || '/capa-1.jpg'), 'ok');
+
+-- A TROCA SILENCIOSA: Bruno e da equipe e passa em `is_staff()`. O que o
+-- recusa e a pasta, e mais nada.
+select teste.cenario('Colaborador NAO grava na pasta de outro', :BRUNO,
+  format($fmt$
+    insert into storage.objects (bucket_id, name)
+    values ('recomendacoes-capas', %L)
+  $fmt$, :CARLA || '/capa-2.jpg'), 'recusa');
+
+-- E nem o socio: quem sobe a capa e quem indica. A gestao MODERA APAGANDO,
+-- que e a regra do proprio feed -- ela nao reescreve o que outra pessoa pos.
+select teste.cenario('Nem o socio grava na pasta de outro', :ANA,
+  format($fmt$
+    insert into storage.objects (bucket_id, name)
+    values ('recomendacoes-capas', %L)
+  $fmt$, :CARLA || '/capa-3.jpg'), 'recusa');
+
+-- A EQUIPE INTEIRA LE, e nao so quem postou: o feed e de todo mundo, e uma
+-- capa que so o autor enxerga seria uma moldura quebrada para os outros oito.
+select teste.conferir_como('Bruno enxerga a capa que a Carla subiu', :BRUNO,
+  $$select count(*)::text from storage.objects
+     where bucket_id = 'recomendacoes-capas'$$, '1');
+
+-- O CLIENTE NAO ALCANCA NADA DISTO, como nas seis tabelas do modulo: as
+-- Recomendacoes nao abrem para o Portal.
+select teste.conferir_como('O cliente nao enxerga capa nenhuma', :JOANA,
+  $$select count(*)::text from storage.objects
+     where bucket_id = 'recomendacoes-capas'$$, '0');
+
+select teste.cenario('O cliente NAO grava no bucket das capas', :JOANA,
+  format($fmt$
+    insert into storage.objects (bucket_id, name)
+    values ('recomendacoes-capas', %L)
+  $fmt$, :JOANA || '/capa.jpg'), 'recusa');
+
+select teste.cenario('Quem pos apaga a dela', :CARLA,
+  format($fmt$
+    delete from storage.objects
+     where bucket_id = 'recomendacoes-capas' and name = %L
+  $fmt$, :CARLA || '/capa-1.jpg'), 'ok');
+
+-- E a gestao apaga a de qualquer um, que e a outra metade de "moderar e
+-- apagar".
+insert into storage.objects (bucket_id, name)
+values ('recomendacoes-capas', :CARLA || '/capa-4.jpg');
+
+select teste.cenario('A gestao apaga a capa de outra pessoa', :DIEGO,
+  format($fmt$
+    delete from storage.objects
+     where bucket_id = 'recomendacoes-capas' and name = %L
+  $fmt$, :CARLA || '/capa-4.jpg'), 'ok');
+
+-- NAO HA POLICY DE UPDATE, e a ausencia e a regra: trocar o arquivo por baixo
+-- de um endereco ja gravado e trocar a imagem sem deixar rastro. Nem a dona
+-- dele consegue -- o caminho e gravar outro e apontar a recomendacao para la.
+insert into storage.objects (bucket_id, name)
+values ('recomendacoes-capas', :CARLA || '/capa-5.jpg');
+
+select teste.cenario('Ninguem reescreve o arquivo, nem quem o pos', :CARLA,
+  format($fmt$
+    update storage.objects set name = %L
+     where bucket_id = 'recomendacoes-capas' and name = %L
+  $fmt$, :CARLA || '/outra.jpg', :CARLA || '/capa-5.jpg'), 'recusa');

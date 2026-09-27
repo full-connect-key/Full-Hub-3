@@ -162,7 +162,12 @@ from (
     -- ela que responde "o resolvedor esta de pe?".
     ('0064', 'client_function_defaults',        'tabela',       'client_function_defaults'),
     ('0065', 'team_invoices',                 'tabela',       'team_invoices'),
-    ('0066', 'invoice_requests',              'tabela',       'invoice_requests')
+    ('0066', 'invoice_requests',              'tabela',       'invoice_requests'),
+    -- A 0067 NAO CRIA TABELA, COLUNA NEM FUNCAO: ela cria um bucket e tres
+    -- policies em `storage.objects`, que e schema do Supabase. `policy_fora`
+    -- existe desde a 0057 exatamente para este caso -- o `policy` normal fecha
+    -- em `schemaname = 'public'` e responderia FALTA para sempre.
+    ('0067', 'bucket das capas do feed',      'policy_fora',  'storage|objects|capas: a equipe le')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

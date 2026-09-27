@@ -195,6 +195,14 @@ const nextConfig: NextConfig = {
       // internamente. Para fechar, e tirar o `<img>` de
       // `recomendacoes/cartao.tsx` -- o cartao ja tem o dominio escrito por
       // extenso embaixo do titulo, entao o icone e enfeite, nao informacao.
+      //
+      // E A CAPA DA RECOMENDACAO NAO PRECISA DE HOST NENHUM AQUI, de
+      // proposito: ela e BAIXADA pelo servidor para o bucket privado
+      // `recomendacoes-capas` (0067) e servida assinada pelo proprio Supabase.
+      // Abrir `img-src` para `https:` resolveria em uma palavra e pagaria o
+      // custo acima -- que ja foi anotado para UMA origem -- multiplicado por
+      // uma origem nova a cada link recomendado. Quem for tentado a abrir,
+      // leia `lib/recomendacoes/capa.ts` antes.
       // -------------------------------------------------------------------
       `img-src 'self' data: blob: https://www.google.com ${supabase}`,
       `connect-src 'self' ${supabase} ${supabaseWs}`,

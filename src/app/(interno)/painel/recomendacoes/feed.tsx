@@ -506,10 +506,10 @@ function CartaoDoPost({
       {/* A ARTE GRANDE ABRE O PAINEL, e só nele: na grade ela já é a capa do
           cartão, e repeti-la aqui seria mostrar a mesma imagem duas vezes na
           mesma tela. */}
-      {semMoldura && post.imagem_url ? (
+      {semMoldura && post.capa ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={post.imagem_url}
+          src={post.capa}
           alt=""
           className="aspect-video w-full rounded-lg border object-cover"
         />
@@ -916,7 +916,13 @@ function FormularioDePost({
   const [descricao, setDescricao] = useState("");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
-  const [imagem, setImagem] = useState<string | null>(null);
+  // DOIS ESTADOS PARA A CAPA, e eles não são a mesma coisa: `capa` é o caminho
+  // no bucket, que é o que a recomendação grava; `capaAssinada` é o endereço
+  // que vale uma hora e serve para o `<img>` desta tela. Um estado só obrigaria
+  // a escolher entre gravar um endereço que expira e desenhar um caminho que
+  // não é URL de nada.
+  const [capa, setCapa] = useState<string | null>(null);
+  const [capaAssinada, setCapaAssinada] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
 
   /**
@@ -946,7 +952,14 @@ function FormularioDePost({
       if (!previa) return;
       if (previa.titulo && !titulo.trim()) setTitulo(previa.titulo);
       if (previa.descricao && !descricao.trim()) setDescricao(previa.descricao);
-      if (previa.imagem) setImagem(previa.imagem);
+      // A CAPA JÁ VEM GUARDADA NO BUCKET DA AGÊNCIA, e o que chega aqui é o
+      // endereço assinado dela. O `og:image` do site de fora não chega nunca
+      // até esta tela: o CSP recusaria o `<img>`, e a prévia mostraria a
+      // moldura quebrada de uma capa que na verdade veio.
+      if (previa.capa) {
+        setCapa(previa.capa);
+        setCapaAssinada(previa.capaAssinada);
+      }
     } finally {
       setBuscando(false);
     }
@@ -1046,20 +1059,34 @@ function FormularioDePost({
           />
         </div>
 
-        {/* A IMAGEM ACHADA, com o botão de tirar. Ela aparece porque é o que
-            vai virar a capa do cartão — sem mostrá-la, a pessoa só descobre
-            qual imagem o site deu depois de publicar. */}
-        {imagem ? (
+        {/* A CAPA ACHADA, com o botão de tirar. Ela aparece porque é o que vai
+            virar a capa do cartão — sem mostrá-la, a pessoa só descobre qual
+            imagem o site deu depois de publicar.
+
+            "Usar sem imagem" NÃO apaga o arquivo do bucket, e é a decisão da
+            0048 vista de outro ângulo: apagar não é desfazer, e o que sobra na
+            pasta é do autor. O que ele faz é não apontar a recomendação para
+            ele. */}
+        {capa ? (
           <div className="flex items-center gap-3 sm:col-span-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imagem}
-              alt=""
-              className="h-16 w-28 shrink-0 rounded-md border object-cover"
-            />
+            {capaAssinada ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={capaAssinada}
+                alt=""
+                className="h-16 w-28 shrink-0 rounded-md border object-cover"
+              />
+            ) : null}
             <div className="min-w-0">
               <p className="text-text-secondary text-sm">Capa encontrada no link.</p>
-              <Button variant="ghost" size="sm" onClick={() => setImagem(null)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCapa(null);
+                  setCapaAssinada(null);
+                }}
+              >
                 Usar sem imagem
               </Button>
             </div>
@@ -1079,7 +1106,7 @@ function FormularioDePost({
               titulo,
               descricao,
               url,
-              imagem_url: imagem,
+              imagem_url: capa,
               tags: lerTags(tags),
             })
           }

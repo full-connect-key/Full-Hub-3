@@ -12,7 +12,16 @@ import { isIP } from "node:net";
  * E é a única coisa no produto que faz isso. Toda outra escrita sai de um
  * formulário e vai para o Postgres; aqui o texto que a pessoa cola vira uma
  * requisição que **parte de dentro do servidor**, com o IP dele e o acesso que ele
- * tem. É a família de falha conhecida como SSRF, e ela não precisa de nada
+ * tem.
+ *
+ * **São DUAS buscas e uma trava só.** `buscarMetadados()` lê o `<head>` para o
+ * formulário se preencher; `baixarImagem()` traz a capa que aquele `<head>`
+ * apontou, para ela ficar no bucket da agência em vez de num servidor de fora.
+ * As duas passam pelo mesmo `abrir()`, e é ele que segue redirecionamento à mão
+ * conferindo cada salto — uma segunda cópia daquele laço seria exatamente onde a
+ * conferência do salto ficaria de fora, porque ela é a linha que parece
+ * redundante. **E a segunda é a mais exposta, não a menos:** o endereço que ela
+ * busca foi escolhido pelo SITE, não pela pessoa. É a família de falha conhecida como SSRF, e ela não precisa de nada
  * sofisticado para doer: `http://localhost:3000`, o IP interno do Postgres, ou
  * o endereço de metadados que quase todo provedor de nuvem serve em
  * `169.254.169.254` — que costuma devolver credencial da máquina.
@@ -153,35 +162,43 @@ function decodificar(texto: string): string {
     .replace(/&amp;/g, "&");
 }
 
-export async function buscarMetadados(
-  endereco: string,
-): Promise<{ ok: true; previa: PreviaDoLink } | { ok: false; motivo: string }> {
-  let url: URL;
-  try {
-    url = new URL(endereco);
-  } catch {
-    return { ok: false, motivo: "Endereço inválido." };
-  }
+/**
+ * Abre um endereço seguindo os redirecionamentos À MÃO, conferindo cada salto.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE É UM SÓ PORQUE A CHECAGEM DO SALTO É O QUE SE ESQUECE.**
+ *
+ * Duas coisas do produto buscam um endereço que alguém digitou: a prévia do
+ * link, que lê o `<head>`, e a capa da recomendação, que baixa a imagem que
+ * aquele `<head>` apontou. A segunda nasceu depois — e uma segunda cópia deste
+ * laço seria o lugar onde a conferência do salto fica de fora, porque ela é
+ * justamente a linha que parece redundante: o endereço já foi conferido uma vez
+ * antes de entrar no laço.
+ *
+ * O que muda entre as duas é o teto de bytes e o `accept`. O que não muda é a
+ * trava, e é por isso que ela mora aqui.
+ * ---------------------------------------------------------------------------
+ */
+async function abrir(
+  inicial: URL,
+  aceita: string,
+): Promise<{ ok: true; resposta: Response; url: URL } | { ok: false; motivo: string }> {
+  let url = inicial;
 
-  let resposta: Response | null = null;
-
-  // OS SALTOS SÃO SEGUIDOS À MÃO, e cada destino passa pela mesma checagem.
-  // Com `redirect: "follow"` o fetch iria sozinho até o fim, e o 302 para
-  // `127.0.0.1` seria obedecido sem ninguém olhar.
   for (let salto = 0; salto <= SALTOS; salto++) {
     const recusa = await conferir(url);
     if (recusa) return { ok: false, motivo: recusa };
 
-    const parar = AbortSignal.timeout(TEMPO_LIMITE);
+    let resposta: Response;
     try {
       resposta = await fetch(url, {
         redirect: "manual",
-        signal: parar,
+        signal: AbortSignal.timeout(TEMPO_LIMITE),
         headers: {
           // O nome do produto, para quem olhar o log do outro lado saber quem
-          // bateu — e um Accept que diz que só interessa HTML.
+          // bateu.
           "user-agent": "FullHub/1.0 (+prévia de link)",
-          accept: "text/html,application/xhtml+xml",
+          accept: aceita,
         },
       });
     } catch {
@@ -196,26 +213,34 @@ export async function buscarMetadados(
       } catch {
         return { ok: false, motivo: "O site não respondeu." };
       }
+      // O corpo de um 302 não interessa, e deixá-lo pendurado prende o socket
+      // até o coletor passar.
+      await resposta.body?.cancel().catch(() => {});
       continue;
     }
 
-    break;
+    if (!resposta.ok) return { ok: false, motivo: "O site não respondeu." };
+    return { ok: true, resposta, url };
   }
 
-  if (!resposta || !resposta.ok) {
-    return { ok: false, motivo: "O site não respondeu." };
-  }
+  // Estourou o teto de saltos: é isto que impede dois endereços apontando um
+  // para o outro de prenderem o servidor.
+  return { ok: false, motivo: "O site não respondeu." };
+}
 
-  const tipo = resposta.headers.get("content-type") ?? "";
-  if (!tipo.includes("html")) {
-    return { ok: false, motivo: "O endereço não é uma página." };
-  }
-
-  // LÊ ATÉ O TETO E PARA. `resposta.text()` traria o arquivo inteiro para a
-  // memória antes de qualquer corte — e o teto existe justamente para o caso
-  // de o outro lado mandar algo enorme.
+/**
+ * Lê o corpo da resposta até o teto e PARA.
+ *
+ * `resposta.text()` e `resposta.arrayBuffer()` trazem o arquivo inteiro para a
+ * memória antes de qualquer corte — e o teto existe justamente para o caso de o
+ * outro lado mandar algo enorme.
+ */
+async function lerAteOTeto(
+  resposta: Response,
+  teto: number,
+): Promise<Uint8Array | null> {
   const leitor = resposta.body?.getReader();
-  if (!leitor) return { ok: false, motivo: "O site não respondeu." };
+  if (!leitor) return null;
 
   const pedacos: Uint8Array[] = [];
   let tamanho = 0;
@@ -225,20 +250,48 @@ export async function buscarMetadados(
       if (done || !value) break;
       pedacos.push(value);
       tamanho += value.length;
-      if (tamanho >= TETO) break;
+      if (tamanho >= teto) break;
     }
   } finally {
     await leitor.cancel().catch(() => {});
   }
 
-  const html = new TextDecoder().decode(
-    pedacos.reduce<Uint8Array>((tudo, p) => {
-      const junto = new Uint8Array(tudo.length + p.length);
-      junto.set(tudo);
-      junto.set(p, tudo.length);
-      return junto;
-    }, new Uint8Array()),
-  );
+  const junto = new Uint8Array(Math.min(tamanho, teto));
+  let onde = 0;
+  for (const p of pedacos) {
+    if (onde >= junto.length) break;
+    const cabe = Math.min(p.length, junto.length - onde);
+    junto.set(p.subarray(0, cabe), onde);
+    onde += cabe;
+  }
+  return junto;
+}
+
+export async function buscarMetadados(
+  endereco: string,
+): Promise<{ ok: true; previa: PreviaDoLink } | { ok: false; motivo: string }> {
+  let inicial: URL;
+  try {
+    inicial = new URL(endereco);
+  } catch {
+    return { ok: false, motivo: "Endereço inválido." };
+  }
+
+  const aberto = await abrir(inicial, "text/html,application/xhtml+xml");
+  if (!aberto.ok) return aberto;
+
+  const { resposta, url } = aberto;
+
+  const tipo = resposta.headers.get("content-type") ?? "";
+  if (!tipo.includes("html")) {
+    await resposta.body?.cancel().catch(() => {});
+    return { ok: false, motivo: "O endereço não é uma página." };
+  }
+
+  const bytes = await lerAteOTeto(resposta, TETO);
+  if (!bytes) return { ok: false, motivo: "O site não respondeu." };
+
+  const html = new TextDecoder().decode(bytes);
 
   const titulo =
     meta(html, "og:title") ??
@@ -262,4 +315,77 @@ export async function buscarMetadados(
       imagem: imagem ? new URL(imagem, url).toString() : null,
     },
   };
+}
+
+/** 3 MB. Um poster de filme tem algumas centenas de KB; 40 MB é outra coisa. */
+const TETO_DA_IMAGEM = 3 * 1024 * 1024;
+
+/**
+ * O que dá para desenhar num `<img>` sem virar vetor de script.
+ *
+ * **`image/svg+xml` FICA DE FORA**, e é a mesma decisão de `EH_IMAGEM` nas
+ * campanhas: SVG de terceiro dentro de `<img>` é vetor de script, e uma capa
+ * vem de fora por definição — é o caso que a regra descreve, não a exceção.
+ */
+const TIPOS_DE_IMAGEM = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+
+/** A extensão que o arquivo ganha no bucket, a partir do tipo que chegou. */
+export function extensaoDoTipo(contentType: string): string {
+  const tipo = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (tipo === "image/png") return "png";
+  if (tipo === "image/webp") return "webp";
+  if (tipo === "image/gif") return "gif";
+  return "jpg";
+}
+
+/**
+ * Baixa a capa para o servidor guardar.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA PASSA PELA MESMA TRAVA, e não é por elegância.**
+ *
+ * O endereço que chega aqui saiu de um `og:image` — isto é, foi escolhido pelo
+ * SITE DE FORA e não pela pessoa. É pior que o caso da prévia, não melhor: um
+ * site pode servir uma página inofensiva com
+ * `<meta property="og:image" content="http://169.254.169.254/latest/meta-data/">`
+ * e o servidor buscaria o endereço sem ninguém ter digitado nada. Conferir só o
+ * link que a pessoa colou deixaria essa porta escancarada.
+ *
+ * E o `content-type` é conferido NA RESPOSTA e não pela extensão do endereço:
+ * `capa.jpg` pode devolver HTML, e um HTML gravado no bucket com nome de imagem
+ * é um arquivo que o navegador vai tentar interpretar.
+ * ---------------------------------------------------------------------------
+ *
+ * **Ela nunca é o caminho crítico**, e quem chama trata a recusa como ausência
+ * de capa — não como falha do post. A recomendação existe sem imagem, e o
+ * cartão já tem um estado desenhado para isso.
+ */
+export async function baixarImagem(
+  endereco: string,
+): Promise<{ ok: true; bytes: Uint8Array; tipo: string } | { ok: false; motivo: string }> {
+  let inicial: URL;
+  try {
+    inicial = new URL(endereco);
+  } catch {
+    return { ok: false, motivo: "Endereço inválido." };
+  }
+
+  const aberto = await abrir(inicial, TIPOS_DE_IMAGEM.join(","));
+  if (!aberto.ok) return aberto;
+
+  const { resposta } = aberto;
+
+  const bruto = resposta.headers.get("content-type") ?? "";
+  const tipo = bruto.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!(TIPOS_DE_IMAGEM as readonly string[]).includes(tipo)) {
+    await resposta.body?.cancel().catch(() => {});
+    return { ok: false, motivo: "O endereço não é uma imagem." };
+  }
+
+  const bytes = await lerAteOTeto(resposta, TETO_DA_IMAGEM);
+  if (!bytes || bytes.length === 0) {
+    return { ok: false, motivo: "O site não respondeu." };
+  }
+
+  return { ok: true, bytes, tipo };
 }

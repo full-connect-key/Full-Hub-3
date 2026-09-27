@@ -3303,6 +3303,92 @@ Um módulo de indicação com aprovação prévia morre na segunda semana.
 rotas moram em `(interno)`, nenhuma entrada do `MENU` aceita `cliente`, e a
 RLS recusa o perfil nas seis tabelas — é o terceiro que vale.
 
+#### A capa do filme vem do link, e fica AQUI
+
+Migration 0067, decisão do usuário: *"queria uma maneira de conectar alguma
+plataforma de filmes na aba de recomendações, então quando a pessoa recomenda
+um filme, a capa do filme aparece. Pode ser puxando do link mesmo"*.
+
+**Não há plataforma de filmes, e não precisa haver.** O `og:image` é a metatag
+que Netflix, IMDb, YouTube, Letterboxd e qualquer loja de livro já servem para
+o WhatsApp desenhar a prévia — então o mesmo caminho cobre filme, série, curso
+e ferramenta, que são quatro das oito categorias do feed. Uma chave de API do
+TMDB resolveria **uma** categoria e traria uma credencial a mais para guardar.
+
+**E NÃO HÁ COLUNA NOVA: é a nona ponte construída e nunca atravessada.**
+`recommendations.imagem_url` existe desde a 0017, o formulário a preenche desde
+o Sprint 9, `buscarPreviaDoLink` lê o `og:image` desde então, e o cartão a
+desenha. O que faltava era ela **aparecer** — e o que a escondia é o CSP: ele
+fecha `img-src` em `'self' data: blob:` mais o Google e o Supabase, então uma
+capa hospedada em qualquer outro lugar era recusada pelo navegador e o cartão
+saía com a moldura quebrada. **Nenhum build diz isso, e o protótipo não pega:**
+as imagens de exemplo dele apontam para `/exemplos/`, caminho local. É o mesmo
+modo de falha do `remotePatterns` do `next/image` e da classe de cor que o
+Tailwind não conhece.
+
+**A capa é BAIXADA para o bucket privado, e não apontada lá fora.** Três razões,
+e as três são mecânicas:
+
+1. **O CSP.** Abrir `img-src` para `https:` resolveria numa palavra e pagaria o
+   custo que o comentário do próprio CSP já calculou para UMA origem — o
+   favicon do Google faz cada navegador da equipe contar ao Google o que a
+   agência anda indicando. Com `https:` inteiro seria uma origem nova por
+   recomendação.
+2. **Capa apontada lá fora SOME.** O poster muda de endereço, o site sai do ar,
+   e o feed de três anos atrás fica cheio de moldura quebrada.
+3. Um `<img>` para fora vaza o `Referer` de quem está olhando.
+
+O bucket é privado como todos os outros, a equipe inteira lê (`is_staff()`), e
+a pasta é de quem indicou — a mesma forma do bucket de notas. **Poster de filme
+é público na internet, e "público lá" não é razão para abrir um bucket aqui:** a
+lista do que a agência indica internamente é dela.
+
+**A BUSCA É A MESMA, e a trava também.** `lib/link-preview.ts` era a única parte
+do produto que fazia o servidor abrir um endereço escolhido por alguém; agora
+são duas — ler o `<head>` e baixar a capa que ele apontou —, e as duas passam
+pelo mesmo `abrir()`, que segue redirecionamento à mão conferindo cada salto.
+**Uma segunda cópia daquele laço seria exatamente onde a conferência do salto
+ficaria de fora**, porque ela é a linha que parece redundante: o endereço já foi
+conferido uma vez antes de entrar no laço.
+
+**E a segunda é a mais exposta, não a menos.** O endereço que ela busca foi
+escolhido pelo SITE, não pela pessoa: uma página inofensiva pode servir
+`og:image` apontando para `169.254.169.254` e o servidor buscaria aquilo sem
+ninguém ter digitado nada. Por isso `npm run check:preview` passou a rodar os
+doze endereços internos **pelos dois caminhos** — medir só o primeiro passaria
+no dia em que o segundo deixasse de chamar o guarda. Medido com duas mutações:
+tirar a faixa `169.254` derruba dois cenários, tirar o `conferir()` de dentro do
+`abrir()` derruba vinte e dois.
+
+**O download acontece na PRÉVIA, e não na publicação**, e é por causa do mesmo
+CSP: devolver o endereço externo para o formulário daria uma prévia com a
+moldura quebrada — que é pior que prévia nenhuma, porque afirma que a capa não
+veio quando ela veio. Baixando ali, o que a pessoa confere antes de publicar é
+exatamente o arquivo que vai para o cartão. *O custo, dito em vez de escondido:*
+quem cola um link e desiste deixa um arquivo que nenhuma recomendação aponta. É
+a forma da 0048 — *"o arquivo continua no bucket"* — e do rascunho de task que
+ninguém apaga, porque **a limpeza não roda sozinha neste produto**. A pasta é do
+autor, então o que sobra é dele.
+
+**`capa` é campo novo no feed, e `imagem_url` não é reescrito.** A coluna guarda
+o caminho no bucket; o que o `<img>` precisa é a URL assinada, que vale uma hora
+e não serve para gravar. Sobrescrever a coluna faria a tela e a ação discordarem
+sobre o que ela significa. A assinatura é em bloco, uma ida para o feed inteiro,
+e `assinarArquivos` já deixa passar o que começa com `http` — que é o endereço
+colado à mão antes da 0067, e que continua valendo com o CSP decidindo se
+aparece.
+
+**Não existe policy de UPDATE no bucket**, e a ausência é a regra: trocar o
+arquivo por baixo de um endereço já gravado é trocar a imagem sem deixar rastro.
+E "Usar sem imagem" **não apaga o arquivo** — apagar não é desfazer; ele só deixa
+de apontar para lá.
+
+**Nada disso trava o post.** Um site sem `og:image`, fora do ar, ou recusado pelo
+guarda devolve os textos com a capa nula, e o cartão tem esse estado desenhado —
+a cor da categoria com o ícone dela. O motivo vai para o log do servidor, porque
+uma capa que some sem registro é a varredura do dia em que todas pararem de
+chegar.
+
 ### A tela inicial, as Métricas e o Resumo da Agência
 
 O Sprint 15 é o que faz o Full Hub responder sobre si mesmo. A camada de
@@ -4606,6 +4692,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
+| `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado |
@@ -4626,6 +4713,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0064_os_padroes_da_conta.sql` | **Pendente de aplicação.** Traz `client_flow_defaults`, `client_function_defaults`, `workflow_steps.funcao_padrao` resolvida por conta e o aviso ao aprovador padrão. Sem ela, a aba **Configurações do fluxo** da ficha do cliente devolve erro de tabela inexistente — e aplicar um workflow continua criando etapa sem dono, sem dizer qual função faltou |
 | `supabase/migrations/0065_a_nota_fiscal_da_pessoa.sql` | **Pendente de aplicação.** Traz `team_invoices`, o enum `nf_status`, o bucket privado `notas-fiscais`, as travas de transição e o gatilho que lança a despesa no Financeiro. Sem ela, `/painel/notas-fiscais` devolve erro de tabela inexistente — a tela deixou de ser um espaço reservado e passou a ler o banco |
 | `supabase/migrations/0066_solicitar_as_notas_do_mes.sql` | **Pendente de aplicação.** Traz `invoice_requests`, `quem_deve_nota()`, `solicitar_notas_do_mes()` e `meus_pedidos_de_nota()`. Sem ela, o botão **Pedir as notas do mês** no Financeiro leva *"Could not find the function"*, e a faixa do pedido em Notas Fiscais nunca aparece — ela devolve vazia em vez de derrubar a tela, de propósito |
+| `supabase/migrations/0067_a_capa_da_recomendacao.sql` | **Pendente de aplicação.** Traz o bucket privado `recomendacoes-capas` e as três policies dele. **Não traz coluna nenhuma** — `recommendations.imagem_url` existe desde a 0017. Sem ela, colar um link no feed busca a capa, o upload é recusado pelo Storage (*"Bucket not found"*), o motivo vai para o log e a recomendação nasce **sem capa** — a tela não quebra, de propósito |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

@@ -2,8 +2,12 @@ import "server-only";
 
 import { cache } from "react";
 
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { RecCategoria, Recomendacao } from "@/lib/supabase/database.types";
+
+/** O bucket privado das capas — 0067. */
+export const BUCKET_DAS_CAPAS = "recomendacoes-capas";
 
 /**
  * As consultas do feed de Recomendações.
@@ -28,6 +32,18 @@ export type PostDoFeed = Recomendacao & {
   quantasCurtidas: number;
   euCurti: boolean;
   comentarios: ComentarioDoPost[];
+  /**
+   * O endereço da capa PRONTO PARA O `<img>`, e é por isso que ele é um campo
+   * novo em vez de `imagem_url` reescrito.
+   *
+   * A coluna guarda o caminho no bucket (0067); o que o navegador precisa é a
+   * URL assinada. Sobrescrever a coluna faria a tela e o banco discordarem
+   * sobre o que `imagem_url` significa — e é a coluna que a ação grava de
+   * volta. `capa` nulo é a resposta certa para os dois casos em que não há o
+   * que desenhar: não há capa, ou a assinatura falhou — e o cartão tem estado
+   * desenhado para isso.
+   */
+  capa: string | null;
 };
 
 export type FiltrosDoFeed = {
@@ -87,6 +103,17 @@ export const listarFeed = cache(
 
     const porId = new Map((perfis ?? []).map((p) => [p.id, p]));
 
+    // AS CAPAS SÃO ASSINADAS EM BLOCO, uma ida para o feed inteiro. Uma por
+    // cartão seriam quarenta chamadas ao Storage para desenhar uma tela.
+    //
+    // `assinarArquivos` já deixa passar o que começa com `http`, que é o caso
+    // do endereço colado à mão antes da 0067 — ele fica como está, e o CSP
+    // decide se aparece.
+    const capas = await assinarArquivos(
+      BUCKET_DAS_CAPAS,
+      posts.map((p) => p.imagem_url),
+    );
+
     const montados: PostDoFeed[] = posts.map((post) => {
       const minhas = (curtidas ?? []).filter((c) => c.recommendation_id === post.id);
       return {
@@ -94,6 +121,7 @@ export const listarFeed = cache(
         autor: porId.get(post.autor_id) ?? null,
         quantasCurtidas: minhas.length,
         euCurti: minhas.some((c) => c.user_id === usuarioId),
+        capa: enderecoDaArte(post.imagem_url, capas),
         comentarios: (comentarios ?? [])
           .filter((c) => c.recommendation_id === post.id)
           .map((c) => ({

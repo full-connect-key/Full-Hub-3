@@ -14,6 +14,17 @@ import type { EmAlta, FiltrosDoFeed, PostDoFeed } from "../../src/lib/dados/reco
 
 export type { EmAlta, FiltrosDoFeed, PostDoFeed };
 
+/**
+ * O nome do bucket das capas (0067).
+ *
+ * Ele existe no stub porque a ação do feed o importa daqui, e nao porque o
+ * prototipo assine alguma coisa: as capas de exemplo sao caminhos locais em
+ * `/exemplos/`, que o `enderecoDaArte` devolve como estao. O valor tem que ser
+ * o mesmo do modulo real -- um bucket diferente aqui nao quebraria nada e
+ * esconderia que a tela e a acao falam de coisas diferentes.
+ */
+export const BUCKET_DAS_CAPAS = "recomendacoes-capas";
+
 const CARLA = {
   id: "a0000000-0000-0000-0000-000000000003",
   nome: "Carla Reis",
@@ -60,6 +71,7 @@ const POSTS: PostDoFeed[] = [
     descricao: "Dá para montar apresentação de campanha sem sair do arquivo do KV.",
     url: "https://www.figma.com/slides/",
     imagem_url: "/exemplos/capa-1.svg",
+    capa: "/exemplos/capa-1.svg",
     tags: ["design", "apresentacao"],
     created_at: atras(3 * 60),
     autor: CARLA,
@@ -90,6 +102,7 @@ const POSTS: PostDoFeed[] = [
     descricao: "A temporada sobre design gráfico vale por três cursos.",
     url: "https://www.netflix.com/title/80057883",
     imagem_url: "/exemplos/arte-2.svg",
+    capa: "/exemplos/arte-2.svg",
     tags: ["design", "inspiracao"],
     created_at: atras(60 * 24 * 2),
     autor: BRUNO,
@@ -107,6 +120,7 @@ const POSTS: PostDoFeed[] = [
     descricao: "Serve para a conversa de posicionamento com cliente novo.",
     url: null,
     imagem_url: null,
+    capa: null,
     tags: ["estrategia"],
     created_at: atras(60 * 24 * 6),
     autor: MARINA,
@@ -122,6 +136,7 @@ const POSTS: PostDoFeed[] = [
     descricao: "Posicionamento explicado sem jargão. Curto.",
     url: "https://www.aprildunford.com/obviously-awesome",
     imagem_url: null,
+    capa: null,
     tags: ["estrategia", "posicionamento"],
     // Vinte dias: acima de uma semana `tempoRelativo` devolve null e a tela
     // mostra a data. Sem um post antigo, esse caminho nunca apareceria numa

@@ -8,7 +8,10 @@ import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
-import { buscarMetadados, type PreviaDoLink } from "@/lib/link-preview";
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
+import { BUCKET_DAS_CAPAS } from "@/lib/dados/recomendacoes";
+import { buscarMetadados } from "@/lib/link-preview";
+import { guardarCapa } from "@/lib/recomendacoes/capa";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -57,6 +60,13 @@ export async function publicarRecomendacao(dados: unknown): Promise<Resultado<st
 
     const supabase = await criarClienteServidor();
 
+    // A CAPA JÁ VEM GUARDADA DA PRÉVIA, e esta linha é a rede de segurança:
+    // `guardarCapa` devolve o caminho de volta quando ele já é do bucket, e
+    // baixa quando o que chegou é um endereço de fora. Sem ela, um chamador que
+    // não passasse pela prévia gravaria um endereço externo — que o CSP recusa,
+    // e o cartão sairia com a moldura quebrada sem nada dizer por quê.
+    const capa = await guardarCapa(sessao.usuarioId, entrada.imagem_url);
+
     const { data, error } = await supabase
       .from("recommendations")
       .insert({
@@ -65,7 +75,7 @@ export async function publicarRecomendacao(dados: unknown): Promise<Resultado<st
         titulo: entrada.titulo,
         descricao: entrada.descricao?.trim() || null,
         url: entrada.url?.trim() || null,
-        imagem_url: entrada.imagem_url?.trim() || null,
+        imagem_url: capa,
         // As tags são normalizadas de novo pelo trigger da 0017. As duas
         // existem: esta escreve o que a pessoa vê, o trigger é o que vale.
         tags: entrada.tags.length > 0 ? entrada.tags : null,
@@ -312,6 +322,20 @@ export async function excluirComentario(id: string): Promise<Resultado> {
 }
 
 /**
+ * O que o formulário recebe quando alguém cola um link.
+ *
+ * **`capa` é o CAMINHO no bucket e `capaAssinada` é o que o `<img>` desenha.**
+ * São dois porque servem a dois momentos: a assinatura vale uma hora e não
+ * serve para gravar, o caminho é o que a recomendação guarda para sempre.
+ */
+export type PreviaParaOFormulario = {
+  titulo: string | null;
+  descricao: string | null;
+  capa: string | null;
+  capaAssinada: string | null;
+};
+
+/**
  * Os metadados do link, para o formulário se preencher sozinho.
  *
  * **É a única ação do produto que faz o servidor buscar um endereço escolhido
@@ -319,10 +343,31 @@ export async function excluirComentario(id: string): Promise<Resultado> {
  * `npm run check:preview` confere doze endereços internos a cada verificação
  * — inclusive o `169.254.169.254` dos metadados de nuvem.
  *
+ * ---------------------------------------------------------------------------
+ * **E A CAPA É BAIXADA AQUI, NA PRÉVIA, E NÃO NA PUBLICAÇÃO.**
+ *
+ * Ela precisava ser, e a razão é o CSP: `img-src` fecha em `'self' data: blob:`
+ * mais o Google e o Supabase, então o `og:image` de um site de filme **não
+ * aparece** num `<img>` do Full Hub. Devolver o endereço externo para a tela
+ * daria uma prévia com a moldura quebrada — que é pior que prévia nenhuma,
+ * porque ela afirma que a capa não veio quando ela veio.
+ *
+ * Baixando aqui, o que a pessoa vê antes de publicar é exatamente o arquivo que
+ * vai para o cartão, assinado do nosso próprio bucket.
+ *
+ * *O custo, e ele é dito em vez de escondido:* quem cola um link e desiste
+ * deixa um arquivo no bucket que nenhuma recomendação aponta. É a mesma forma
+ * do slide removido da 0048 — "o arquivo continua no bucket" — e do rascunho de
+ * task que ninguém apaga, porque **a limpeza não roda sozinha neste produto**.
+ * A pasta é do autor, então o que sobra é dele e mais de ninguém.
+ * ---------------------------------------------------------------------------
+ *
  * **Ela nunca falha o envio, e é o que o sprint pede:** um site sem Open Graph,
  * fora do ar, ou que o guarda recusou devolve `{ ok: false }` com a frase, e a
  * pessoa preenche à mão. O preview é atalho, não requisito — travar o post
- * porque um blog não tem metatag seria pôr uma porta onde havia um caminho.
+ * porque um blog não tem metatag seria pôr uma porta onde havia um caminho. E
+ * uma capa que não pôde ser baixada devolve os textos com `capa` nula: metade
+ * do atalho é melhor que nenhum.
  *
  * `exigirEquipeNaAcao()` e não só a sessão: quem não é da equipe não tem o que
  * fazer aqui, e sem a guarda a ação viraria um buscador de URLs aberto a
@@ -330,9 +375,9 @@ export async function excluirComentario(id: string): Promise<Resultado> {
  */
 export async function buscarPreviaDoLink(
   url: unknown,
-): Promise<Resultado<PreviaDoLink>> {
+): Promise<Resultado<PreviaParaOFormulario>> {
   return executarAcao("buscarPreviaDoLink", async () => {
-    await exigirEquipeNaAcao();
+    const sessao = await exigirEquipeNaAcao();
 
     const validado = z.string().trim().min(1).safeParse(url);
     if (!validado.success) return falha("Cole um endereço.");
@@ -340,6 +385,14 @@ export async function buscarPreviaDoLink(
     const r = await buscarMetadados(validado.data);
     if (!r.ok) return falha(r.motivo);
 
-    return sucesso("Prévia carregada.", r.previa);
+    const capa = await guardarCapa(sessao.usuarioId, r.previa.imagem);
+    const assinadas = capa ? await assinarArquivos(BUCKET_DAS_CAPAS, [capa]) : {};
+
+    return sucesso("Prévia carregada.", {
+      titulo: r.previa.titulo,
+      descricao: r.previa.descricao,
+      capa,
+      capaAssinada: capa ? enderecoDaArte(capa, assinadas) : null,
+    });
   });
 }

@@ -96,4 +96,8 @@ cumpre) e a mensagem que aponta a saída; e o que a trava NÃO alcança —
 cancelar, editar uma task já entregue, e o recálculo automático seguem
 passando.
 
-São 250 cenários no total.
+**Quantos cenários existe quem conta é o `rodar.sh`**, no rodapé da rodada — e
+não uma linha aqui. Este número dizia 250 e a bateria estava em mais de mil:
+um total escrito à mão é um número que ninguém atualiza, e a única coisa que
+ele faz é envelhecer até mentir. É a mesma razão pela qual a lista do
+`onde-esta-o-banco.sql` passou a ser conferida pelo `check:migrations`.

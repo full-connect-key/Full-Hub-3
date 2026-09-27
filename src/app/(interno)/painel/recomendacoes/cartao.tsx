@@ -83,10 +83,10 @@ export function Cartao({
           destaque ? "aspect-[16/10]" : "aspect-video",
         )}
       >
-        {post.imagem_url ? (
+        {post.capa ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={post.imagem_url}
+            src={post.capa}
             alt=""
             loading="lazy"
             className="size-full object-cover"
