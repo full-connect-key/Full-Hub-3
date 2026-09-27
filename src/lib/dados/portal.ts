@@ -110,6 +110,7 @@ export async function itensDoPortal(
       conteudoId: sub.id,
       titulo: sub.titulo,
       demanda: task.titulo,
+      demandaId: task.id,
       clienteId: task.client_id,
       cliente: porCliente.get(task.client_id)?.nome_empresa ?? "",
       status: statusParaOCliente({
@@ -138,6 +139,33 @@ export async function itensDoPortal(
     ...(await postsComoItens(clienteId)),
     ...(await entregaveisComoItens(clienteId)),
   ];
+}
+
+/**
+ * O material de UMA demanda, do jeito que o cliente o vê.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA NÃO ABRE NADA QUE JÁ NÃO ESTIVESSE ABERTO.** É a mesma leitura de
+ * `itensDoPortal()`, filtrada — a visibilidade continua sendo a RLS
+ * (`approval_rounds_select_cliente` e `subtasks_select_cliente`), e um material
+ * que a empresa não podia ver antes continua fora. O que muda é o RECORTE.
+ *
+ * **E é filtro em cima da mesma consulta, não uma consulta nova.** Uma segunda
+ * leitura nomeando as mesmas colunas seria o lugar onde as duas divergem, e a
+ * que divergisse é a que ninguém abre — a decisão de `rodadasDo()` no motor de
+ * aprovação e de `montarCSV` deixar de ter seis donos.
+ * ---------------------------------------------------------------------------
+ *
+ * `clienteId` é obrigatório aqui, ao contrário de `itensDoPortal()`: quem lê
+ * isto pode ser a equipe, na visualização administrativa, e `is_staff()`
+ * enxerga todas as empresas.
+ */
+export async function materiaisDaDemanda(
+  clienteId: string,
+  demandaId: string,
+): Promise<ItemDoPortal[]> {
+  const itens = await itensDoPortal(clienteId);
+  return itens.filter((i) => i.demandaId === demandaId);
 }
 
 /**
@@ -211,6 +239,9 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
     // de uma etapa de campanha, mas o nome dela é vocabulário interno — e
     // muitos posts não têm etapa nenhuma, que é caso normal e não exceção.
     demanda: ROTULO_DA_PLATAFORMA[post.plataforma],
+    // Sem demanda no sentido de `tasks.id`: a dele é o mês de social, que
+    // nunca nasce de um pedido. O tipo explica a escolha.
+    demandaId: null,
     clienteId: post.client_id,
     cliente: porCliente.get(post.client_id) ?? "",
     status: post.status,
@@ -325,6 +356,9 @@ async function entregaveisComoItens(
         // o nome que o cliente reconhece — "Wave Outubro Rosa" diz muito
         // mais que o nome do grupo onde ela está pendurada.
         demanda: campanha.nome,
+        // Pelo mesmo motivo do post: a demanda dele é a da campanha, e
+        // `abrir_campanha()` abre a própria.
+        demandaId: null,
         clienteId: campanha.client_id,
         cliente: porCliente.get(campanha.client_id) ?? "",
         status: item.status,

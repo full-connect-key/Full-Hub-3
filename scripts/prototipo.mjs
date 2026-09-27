@@ -315,6 +315,12 @@ const TELAS = [
   { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
+  // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
+  // telas: a de cima prova que o material aparece, a de baixo prova que o
+  // concluído SEM material diz o que fazer em vez de não dizer nada — que era
+  // o estado em que o pedido concluído virava um beco.
+  { nome: "94b-portal-pedido-entregue", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000005", largura: 1400, altura: 1600, role: "cliente" },
+  { nome: "94c-portal-pedido-entregue-sem-material", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000006", largura: 375, altura: 1400, role: "cliente" },
 
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },

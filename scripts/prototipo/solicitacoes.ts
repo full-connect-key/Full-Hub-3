@@ -230,6 +230,58 @@ const PEDIDOS: PedidoNaLista[] = [
     quantasMensagens: 0,
     demanda: null,
   },
+  // OS DOIS CONCLUIDOS, e sao dois porque a secao "Material deste pedido" tem
+  // dois estados e nenhum deles aparecia antes: com material, e concluido SEM
+  // material -- que e o caso que motivou a secao existir.
+  {
+    id: "e0000000-0000-0000-0000-000000000005",
+    // ESTE `client_id` E O DA EMPRESA DE `scripts/prototipo/portal.ts`, e nao
+    // o `b0...0001` dos outros: `itensDoPortal` filtra por empresa, e com o id
+    // dos vizinhos a secao sairia vazia na tela que existe para mostra-la
+    // cheia. O comentario do outro stub diz o mesmo do lado de la.
+    client_id: "c0000000-0000-0000-0000-00000000000a",
+    request_type_id: TIPOS[0].id,
+    criado_por: JOANA.id,
+    titulo: "Banner do site para a Black Friday",
+    descricao: "Um para a home e um quadrado para o feed, com o desconto em destaque.",
+    respostas: { rede: "Site", formato: "Banner", mensagem: "Até 40% em toda a loja." },
+    data_desejada: diasAtras(6),
+    status: "concluida",
+    motivo_recusa: null,
+    decidida_em: diasAtras(3),
+    created_at: diasAtras(16),
+    updated_at: diasAtras(3),
+    empresa: "Mundo Verde",
+    autor: JOANA,
+    tipo: "Peça para redes",
+    quantosAnexos: 1,
+    quantasMensagens: 2,
+    demanda: {
+      id: "f0000000-0000-0000-0000-000000000002",
+      titulo: "Banner de Black Friday — site",
+    },
+  },
+  {
+    id: "e0000000-0000-0000-0000-000000000006",
+    client_id: "b0000000-0000-0000-0000-000000000001",
+    request_type_id: TIPOS[3].id,
+    criado_por: JOANA.id,
+    titulo: "Trocar o telefone no rodapé do site",
+    descricao: null,
+    respostas: { mensagem: "O número mudou na semana passada." },
+    data_desejada: null,
+    status: "concluida",
+    motivo_recusa: null,
+    decidida_em: diasAtras(8),
+    created_at: diasAtras(12),
+    updated_at: diasAtras(8),
+    empresa: "Mundo Verde",
+    autor: JOANA,
+    tipo: "Outro",
+    quantosAnexos: 0,
+    quantasMensagens: 1,
+    demanda: null,
+  },
 ];
 
 const CONVERSA: Record<string, MensagemDoPedido[]> = {

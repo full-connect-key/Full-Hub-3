@@ -27,6 +27,14 @@ const dia = (deslocamento: number) => {
 // se quer conferir na imagem.
 const VERDE = "c0000000-0000-0000-0000-00000000000a";
 
+// A DEMANDA DO PEDIDO CONCLUIDO de `scripts/prototipo/solicitacoes.ts`, e os
+// dois valores TEM que casar: o detalhe do pedido cruza `demandaId` com a
+// demanda dele, e um par trocado deixaria a secao "Material deste pedido"
+// vazia -- na tela que existe justamente para mostra-la cheia. O mesmo vale
+// para o `client_id` daquele pedido, que precisa ser este VERDE, porque
+// `itensDoPortal` filtra por empresa.
+const DEMANDA_DO_PEDIDO = "f0000000-0000-0000-0000-000000000002";
+
 export function prazosDoPortal() {
   const fim = new Date(HOJE);
   fim.setDate(fim.getDate() + ((7 - fim.getDay()) % 7));
@@ -40,6 +48,7 @@ const ITENS: ItemDoPortal[] = [
     conteudoId: "i1",
     titulo: "KV da campanha de verão",
     demanda: "Campanha de Instagram — linha de verão",
+    demandaId: "f0000000-0000-0000-0000-0000000000a1",
     clienteId: VERDE,
     cliente: "Mundo Verde",
     status: "em_aprovacao",
@@ -54,6 +63,7 @@ const ITENS: ItemDoPortal[] = [
     conteudoId: "i2",
     titulo: "Roteiro do reels institucional",
     demanda: "Reels institucional",
+    demandaId: "f0000000-0000-0000-0000-0000000000a2",
     clienteId: VERDE,
     cliente: "Mundo Verde",
     status: "em_aprovacao",
@@ -68,6 +78,7 @@ const ITENS: ItemDoPortal[] = [
     conteudoId: "i3",
     titulo: "Landing page da promoção",
     demanda: "Landing page da promoção",
+    demandaId: "f0000000-0000-0000-0000-0000000000a3",
     clienteId: VERDE,
     cliente: "Mundo Verde",
     status: "aprovado",
@@ -82,11 +93,44 @@ const ITENS: ItemDoPortal[] = [
     conteudoId: "i4",
     titulo: "Adaptações para stories",
     demanda: "Campanha de Instagram — linha de verão",
+    demandaId: "f0000000-0000-0000-0000-0000000000a1",
     clienteId: VERDE,
     cliente: "Mundo Verde",
     status: "em_producao",
     prazo: dia(8),
     enviadoEm: dia(-1),
+    miniatura: null,
+    caminho: null,
+  },
+  // OS DOIS MATERIAIS DO PEDIDO CONCLUIDO, e sao dois de proposito: com um so
+  // nao daria para ver que a secao e uma lista.
+  {
+    rodadaId: null,
+    tipo: "subtask",
+    conteudoId: "i5",
+    titulo: "Banner 1920 × 600 para a home",
+    demanda: "Banner de Black Friday — site",
+    demandaId: DEMANDA_DO_PEDIDO,
+    clienteId: VERDE,
+    cliente: "Mundo Verde",
+    status: "aprovado",
+    prazo: dia(-4),
+    enviadoEm: dia(-7),
+    miniatura: null,
+    caminho: null,
+  },
+  {
+    rodadaId: null,
+    tipo: "subtask",
+    conteudoId: "i6",
+    titulo: "Versão quadrada para o feed",
+    demanda: "Banner de Black Friday — site",
+    demandaId: DEMANDA_DO_PEDIDO,
+    clienteId: VERDE,
+    cliente: "Mundo Verde",
+    status: "aprovado",
+    prazo: dia(-4),
+    enviadoEm: dia(-7),
     miniatura: null,
     caminho: null,
   },
@@ -99,6 +143,14 @@ export async function itensDoPortal(
   // uma empresa so, e manter a assinatura e o que faz a tela do prototipo ser
   // a mesma tela do produto.
   return clienteId ? ITENS.filter((i) => i.clienteId === clienteId) : ITENS;
+}
+
+export async function materiaisDaDemanda(
+  clienteId: string,
+  demandaId: string,
+): Promise<ItemDoPortal[]> {
+  const itens = await itensDoPortal(clienteId);
+  return itens.filter((i) => i.demandaId === demandaId);
 }
 
 export async function atividadeRecente(

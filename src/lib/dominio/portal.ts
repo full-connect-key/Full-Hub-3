@@ -45,6 +45,22 @@ export type ItemDoPortal = {
   titulo: string;
   /** A demanda a que ele pertence. Contexto, nunca o item. */
   demanda: string;
+  /**
+   * O id da demanda, quando o material vem de uma.
+   *
+   * Existe para uma pergunta só: **"o que já chegou por este pedido?"** — o
+   * detalhe do pedido do cliente cruza `tasks.request_id` com esta coluna, e
+   * sem ela o pedido concluído seria um beco, com um selo verde e nada para
+   * abrir.
+   *
+   * **`null` no post e no material de campanha, e é decisão.** Os dois têm
+   * demanda própria — o mês de social e a campanha —, e nenhuma das duas nasce
+   * de um pedido: a conversão abre uma demanda nova, e `abrir_campanha()` e
+   * `abrir_mes_de_social()` abrem as delas. Preencher os dois custaria duas
+   * consultas a mais na leitura que serve a tela inicial, o contador e a
+   * lista, para responder uma pergunta que nunca é feita.
+   */
+  demandaId: string | null;
   clienteId: string;
   cliente: string;
   status: ContentStatus;

@@ -5,13 +5,21 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarClock, ExternalLink, Paperclip, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  ExternalLink,
+  Paperclip,
+  Trash2,
+} from "lucide-react";
 
 import {
   apagarAnexo,
   escreverNaSolicitacao,
   registrarAnexo,
 } from "@/app/(cliente)/portal/_actions/solicitacoes";
+import { CartaoDeItem } from "@/components/portal/cartao-de-item";
 import { PageHeader } from "@/components/shared/page-header";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -20,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { PedidoCompleto } from "@/lib/dados/solicitacoes";
+import type { ItemDoPortal } from "@/lib/dominio/portal";
 import {
   BUCKET_DOS_PEDIDOS,
   EXPLICACAO_PARA_O_CLIENTE,
@@ -58,10 +67,16 @@ const TETO_DE_ARQUIVOS = 10;
 export function DetalheDoPedido({
   pedido,
   base,
+  hoje,
+  materiais,
   somenteLeitura = false,
 }: {
   pedido: PedidoCompleto;
   base: string;
+  /** Vem do servidor, como em todo o produto: dois relógios dariam dois prazos. */
+  hoje: string;
+  /** O que já chegou por este pedido. A RLS decide o que entra na lista. */
+  materiais: ItemDoPortal[];
   somenteLeitura?: boolean;
 }) {
   const [executando, comecar] = useTransition();
@@ -72,6 +87,16 @@ export function DetalheDoPedido({
   const campos = camposDoRoteiro(pedido.roteiro?.campos_json);
   const respostas = respostasParaLer(campos, pedido.respostas);
   const cheio = pedido.anexos.length >= TETO_DE_ARQUIVOS;
+
+  // A SEÇÃO SÓ APARECE QUANDO TEM O QUE DIZER, e são dois casos.
+  //
+  // Com material, ela responde "o que já chegou por este pedido". Concluído
+  // sem material, ela responde a pergunta que este pedido deixava sem
+  // resposta: o estado virou "Entregue" e não havia nada para abrir. Nos
+  // outros estados não há nem uma coisa nem outra — e uma caixa dizendo
+  // "nada aqui" ocupa a tela todo dia para informar em alguns.
+  const mostrarMateriais = pedido.status === "concluida" || materiais.length > 0;
+  const encerrado = pedido.status === "concluida" || pedido.status === "recusada";
 
   async function subir(escolhido: File | undefined) {
     if (!escolhido) return;
@@ -149,9 +174,61 @@ export function DetalheDoPedido({
             <strong className="tabular-nums">
               {format(parseISO(pedido.data_desejada), "dd/MM/yyyy", { locale: ptBR })}
             </strong>
-            . A data que a Full vai assumir chega por aqui, na conversa.
+            .
+            {/* A PROMESSA SAI QUANDO O PEDIDO FECHA. "A data que a Full vai
+                assumir chega por aqui" é verdade enquanto há o que combinar;
+                num pedido já concluído ela promete uma conversa que não vai
+                acontecer, e num recusado promete uma data para o que não vai
+                ser feito. É a razão pela qual o aviso do sino leva a data e
+                nunca a palavra "hoje": o texto é escrito uma vez e lido
+                depois. */}
+            {encerrado ? "" : " A data que a Full vai assumir chega por aqui, na conversa."}
           </span>
         </p>
+      ) : null}
+
+      {mostrarMateriais ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Material deste pedido</h2>
+
+          {materiais.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Este pedido foi concluído sem nenhum material para você aprovar por aqui. Se o que
+              você pediu não chegou, escreva na conversa abaixo — é por lá que a Full responde.
+            </p>
+          ) : (
+            <>
+              {/* O MESMO CARTÃO DE "MATERIAIS", e não um resumo em linha: a
+                  mesma coisa desenhada de dois jeitos parece duas coisas, e o
+                  cartão já sabe quando um prazo é cobrança e quando é
+                  registro. */}
+              <div className="space-y-3">
+                {materiais.map((m) => (
+                  <CartaoDeItem key={`${m.tipo}-${m.conteudoId}`} item={m} hoje={hoje} />
+                ))}
+              </div>
+
+              {/* O material que vem de uma demanda não tem tela própria — ele
+                  se decide na fila de aprovações. O cartão fica sem link de
+                  propósito, e o caminho vai aqui, uma vez.
+
+                  E O LINK FICA SOZINHO NA LINHA, e não dentro de uma frase:
+                  ele nasceu dentro de uma e o axe reprovou por
+                  `link-in-text-block` — um link que só se distingue do texto
+                  em volta pela cor não existe para quem não distingue aquela
+                  cor. Todo link deste produto é `hover:underline`, e nenhum
+                  outro foi acusado justamente porque nenhum outro mora no meio
+                  de um parágrafo. */}
+              <Link
+                href={`${base}/itens`}
+                className="text-accent-strong inline-flex items-center gap-1 text-sm hover:underline"
+              >
+                Ver em Materiais
+                <ArrowRight aria-hidden className="size-3.5" />
+              </Link>
+            </>
+          )}
+        </section>
       ) : null}
 
       {pedido.descricao ? (

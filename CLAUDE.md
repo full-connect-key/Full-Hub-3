@@ -2626,6 +2626,75 @@ caminho contrário (servidor importando valor do cliente), então quem reprovou
 foi o `npm run build`, com um erro sobre `next/headers` no Pages Router. O
 valor mora em `lib/dominio/solicitacoes.ts`, como `PRAZO_DE_APROVACAO_PADRAO`.
 
+#### O pedido concluído devolve o material, e o vazio diz o que fazer
+
+**O pedido virava um beco.** `tasks_espelha_no_pedido` move o pedido para
+`concluida` quando a demanda vai a `entregue`, o sino toca *"seu pedido foi
+concluído"* — e a tela do cliente mostrava um selo verde, a palavra "Entregue."
+e nada para abrir. O trabalho existia, o material existia, e o pedido que o
+originou não apontava para nenhum dos dois.
+
+**A ponte já estava construída:** `tasks.request_id` nasceu na 0068. O que
+faltava era o outro lado da travessia — de que demanda é cada material —, e
+ele custou **um campo num tipo**, `ItemDoPortal.demandaId`. Nenhuma migration,
+nenhuma consulta nova.
+
+**E é FILTRO em cima da mesma leitura, não uma leitura nova.**
+`materiaisDaDemanda()` chama `itensDoPortal()` e filtra. É o que garante a
+frase que mais importa aqui: **nada que a empresa não pudesse ver passou a
+aparecer** — quem decide continua sendo `approval_rounds_select_cliente` e
+`subtasks_select_cliente`, e o que muda é o recorte. Uma segunda consulta
+nomeando as mesmas colunas seria o lugar onde as duas divergem, e a que
+divergisse é a do pedido, que a equipe quase não abre.
+
+**`tasks.link_entrega` NÃO entra, e a recusa é mecânica antes de ser de
+princípio.** Ela é a pasta do Drive da agência, criada por `lib/drive/` num
+Drive Compartilhado da unidade: **ninguém a compartilha com o cliente**, e o
+módulo não sabe fazê-lo — ele só procura e cria. O link levaria à tela de
+permissão negada do Google, que é pior que link nenhum, porque promete o
+material e entrega uma porta fechada. E o endereço pode ter sido colado à mão,
+apontando para qualquer coisa: o produto não tem como afirmar que aquilo é
+material pronto para o cliente.
+
+**`demandaId` fica nulo no post e no material de campanha**, e é decisão: os
+dois têm demanda própria — o mês de social e a campanha —, e nenhuma delas
+nasce de um pedido, porque a conversão abre uma demanda nova e
+`abrir_campanha()` e `abrir_mes_de_social()` abrem as suas. Preenchê-los
+custaria duas consultas a mais na leitura que serve a tela inicial, o contador
+e a lista, para responder uma pergunta que nunca é feita.
+
+**O VAZIO É A METADE QUE IMPORTA.** Concluído sem nenhum material é caso real e
+não defeito: uma demanda sem nada que peça o aval do cliente fecha sem nunca
+ter mostrado peça nenhuma — `tasks_entregue_exige_cada_etapa` (0023) só cobra
+as que pedem. Aí a seção diz isso e manda para a conversa, em vez de não
+dizer nada. Uma caixa "nada aqui" nos outros estados seria o contrário: espaço
+gasto todo dia para informar em alguns, que é a regra dos blocos de exceção da
+Home.
+
+**A demanda só é legível para o cliente quando algo dela foi enviado** —
+`tasks_select_cliente` exige uma rodada de escopo cliente. Então a tela desenha
+o vazio a partir do **estado do pedido**, nunca da ausência da demanda: pela
+segunda, um concluído sem material não mostraria nem a frase.
+
+**Duas coisas a imagem mostrou, e nenhuma o build pegaria.** A seção nasceu
+entre o selo e o "Enviado em ... por Joana", partindo em duas a linha que diz
+de quem é o pedido e quando ele chegou — ela desceu para depois do bloco
+inteiro, e o material continua sendo a primeira coisa depois dele. E o link
+era *"Ver por inteiro e decidir em Materiais"* numa lista em que as duas peças
+já estavam **aprovadas**: um botão prometendo uma decisão que não existe.
+
+**E o axe pegou a terceira**, que é uma regra nova para este produto:
+`link-in-text-block`. O link nasceu no meio de uma frase, e ali a cor é a única
+coisa que o separa do texto em volta. Todo link do produto é `hover:underline`
+e nenhum outro foi acusado — porque nenhum outro mora dentro de um parágrafo.
+Ele virou linha própria, que é o formato que o resto já usa.
+
+**De quebra, a promessa do prazo desejado sai quando o pedido fecha.** *"A data
+que a Full vai assumir chega por aqui, na conversa"* é verdade enquanto há o
+que combinar; num pedido concluído ela promete uma conversa que não vai
+acontecer, e num recusado, uma data para o que não vai ser feito. É a razão
+pela qual o aviso do sino leva a data e nunca a palavra "hoje".
+
 ### Portais de Clientes
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login

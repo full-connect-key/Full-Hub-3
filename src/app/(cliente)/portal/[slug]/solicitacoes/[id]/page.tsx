@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { exigirEquipe } from "@/lib/auth/dal";
+import { materiaisDaDemanda, prazosDoPortal } from "@/lib/dados/portal";
 import { pedido } from "@/lib/dados/solicitacoes";
 
 import { DetalheDoPedido } from "../../../(meu)/solicitacoes/[id]/detalhe";
@@ -20,5 +21,20 @@ export default async function Pagina({ params }: PageProps<"/portal/[slug]/solic
   // escrever daqui seria a agência conversando no lugar dele. Quem responde o
   // pedido responde em `/painel/solicitacoes/{id}`, assinando com o próprio
   // nome.
-  return <DetalheDoPedido pedido={dados} base={`/portal/${slug}`} somenteLeitura />;
+  // `client_id` OBRIGATÓRIO aqui: `is_staff()` enxerga todas as empresas, e sem
+  // ele o material da Óptica Visão apareceria no pedido da Mundo Verde.
+  const { hoje } = prazosDoPortal();
+  const materiais = dados.demanda
+    ? await materiaisDaDemanda(dados.client_id, dados.demanda.id)
+    : [];
+
+  return (
+    <DetalheDoPedido
+      pedido={dados}
+      base={`/portal/${slug}`}
+      hoje={hoje}
+      materiais={materiais}
+      somenteLeitura
+    />
+  );
 }
