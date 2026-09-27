@@ -95,8 +95,25 @@ const TELAS = [
   // falam da mesma coisa -- sem dump, "ver quais" e uma promessa que ninguem
   // conferiu.
   { nome: "23b-tasks-atrasadas", rota: "/painel/gestao-tasks?atrasadas=1", largura: 1600, altura: 1000, role: "socio" },
-  { nome: "24-tasks-nova", rota: "/painel/gestao-tasks", largura: 1400, altura: 2100, role: "socio", clicar: 'button:has-text("Nova task")' },
-  { nome: "24b-tasks-nova-com-etapa", rota: "/painel/gestao-tasks", largura: 1400, altura: 2300, role: "socio", clicar: ['button:has-text("Nova task")', 'button:has-text("Subtarefa")'] },
+  // SEM TELA DE "NOVA TASK", e a ausencia e mecanica.
+  //
+  // "+ Nova task" nao abre dialogo: ele chama `criarRascunho()` -- uma Server
+  // Action -- e navega para a demanda criada. O prototipo troca `lib/dados/`
+  // por exemplos e NAO troca as actions, entao aquela chamada ia ao Supabase
+  // sem credencial e a imagem saia com o board e um toast vermelho, batizada
+  // de `24-tasks-nova`. O seletor casava, o clique acontecia, e nenhum aviso
+  // era impresso -- foi esta tela que motivou a lista `comErro`.
+  //
+  // A segunda, `24b-tasks-nova-com-etapa`, clicava num `button:has-text(
+  // "Subtarefa")` que nao existe: acrescentar etapa e um campo mais um botao
+  // "Adicionar" que nasce desabilitado, e gravar passaria pela mesma action
+  // que nao existe aqui.
+  //
+  // O stub de tasks ja dizia isto, na linha que fixa `publicada_em`: "no
+  // prototipo tudo ja nasce publicado; rascunho e a tela de quem esta
+  // montando, e nenhuma das imagens mostra esse momento". Quem quiser a tela
+  // do rascunho semeia uma task com `publicada_em: null` e aponta a rota para
+  // ela -- e ai e uma rota, nao um clique.
   { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
   // O seletor ABERTO. Os sete status com os calculados desligados so se veem
   // com a lista aberta -- fechada, a tela mostra um campo e nada prova que
@@ -108,7 +125,19 @@ const TELAS = [
   { nome: "32-minhas-tasks-calendario", rota: "/painel/minhas-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio" },
   { nome: "33-minhas-tasks-atrasadas", rota: "/painel/minhas-tasks?foco=atrasadas", largura: 1600, altura: 1000, role: "socio" },
   { nome: "34-minhas-tasks-escuro", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", tema: "escuro" },
-  { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'button:has-text("Revisar o manual")' },
+  // O SELETOR ERA O TITULO DA DEMANDA, e o que abre o painel e o da ETAPA.
+  //
+  // "Revisar o manual" so casaria com "Revisar o manual de atendimento", que e
+  // o nome da demanda -- e ele mora num `<p>` IRMAO do botao, nao dentro dele.
+  // O que se clica aqui e "Revisar o texto do manual", a etapa. Enquanto o
+  // seletor estava morto a imagem saia sem painel nenhum, com o nome de uma
+  // tela que ela nao era.
+  //
+  // E este e o caso que o `check:prototipo` NAO pega: "Revisar o manual" e
+  // substring de um titulo que existe no stub, entao a busca por texto acha e
+  // da ok. Substring presente em algum lugar nao e botao presente na rota --
+  // quem prova isso e a rodada.
+  { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'button:has-text("Revisar o texto do manual")' },
   { nome: "36-minhas-tasks-atendimento", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador" },
   { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
   { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button:has-text("Concluir")' },
@@ -136,7 +165,11 @@ const TELAS = [
   // O CARROSSEL NAVEGÁVEL (0048): a imagem precisa mostrar o slide 2, e não o
   // primeiro — é o clique na seta que prova que ele anda, e uma imagem do
   // estado inicial pareceria igual à tira antiga.
-  { nome: "59-carrossel", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", clicar: 'button[aria-label="Próximo slide"]' },
+  // SEM CLIQUE, e e o desenho: a faixa mostra a composicao inteira de uma vez
+  // (decisao do usuario), entao nao ha "proximo slide" para clicar -- e nao
+  // ha porque a peça toda ja esta na tela. O seletor era o do desenho
+  // anterior, uma imagem por vez com setas.
+  { nome: "59-carrossel", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio" },
   { nome: "60-carrossel-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
   { nome: "58-corrente-escuro", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
 
@@ -779,6 +812,24 @@ try {
   const quebradas = [];
 
   // ------------------------------------------------------------------------
+  // TELAS QUE SAIRAM COM UM AVISO DE ERRO NA CARA, e esta e a falha que o
+  // "sem o clique" NAO pega -- porque o clique DEU CERTO.
+  //
+  // `24-tasks-nova` clicava em "+ Nova task", que nao abre dialogo nenhum:
+  // ele chama `criarRascunho()`, uma Server Action, e navega para a demanda
+  // criada. O prototipo troca `lib/dados/` e NAO troca as actions, entao ela
+  // ia ao Supabase sem credencial, falhava, e a imagem saia com o board e um
+  // toast vermelho -- com o nome de uma tela que ela nao era, e sem uma linha
+  // de aviso em lugar nenhum: o seletor casou, o clique aconteceu, o gerador
+  // ficou satisfeito.
+  //
+  // E a mesma familia do 500 logo acima: la o servidor reclama, aqui quem
+  // reclama e o navegador, e nos dois casos a imagem existe e mente. A regra
+  // do produto diz que nenhuma escrita pode falhar em silencio; esta e a
+  // versao dela para o gerador.
+  const comErro = [];
+
+  // ------------------------------------------------------------------------
   // VIOLACAO DE CSP, e ela e a razao de esta captura existir.
   //
   // Um Content-Security-Policy errado NAO derruba o build, nao aparece no
@@ -926,6 +977,15 @@ try {
           }
         }
         await pagina.waitForTimeout(400);
+
+        // O sonner marca o toast com `data-type`. So o de ERRO conta: um
+        // "salvo" verde e o desfecho certo de varias destas telas.
+        const erro = await pagina
+          .locator('[data-sonner-toast][data-type="error"]')
+          .first()
+          .textContent({ timeout: 1000 })
+          .catch(() => null);
+        if (erro) comErro.push(`${tela.nome}: ${erro.trim().slice(0, 120)}`);
       }
 
       try {
@@ -1023,6 +1083,17 @@ try {
   }
 
   await navegador.close();
+
+  if (comErro.length > 0) {
+    console.error(`\n  ${comErro.length} tela(s) sairam com AVISO DE ERRO na tela:`);
+    for (const linha of comErro) console.error(`    ${linha}`);
+    console.error(
+      "\n  O clique aconteceu e a acao falhou: a imagem existe e nao e a tela\n" +
+        "  que o nome promete. Quase sempre e uma Server Action, que o\n" +
+        "  prototipo NAO troca por exemplo -- entao ou a tela sai sem o clique,\n" +
+        "  ou ela nao tem como existir aqui.",
+    );
+  }
 
   if (semClique.length > 0) {
     console.error(`\n  ${semClique.length} tela(s) sairam SEM o clique:`);

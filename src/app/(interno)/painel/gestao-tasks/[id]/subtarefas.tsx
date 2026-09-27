@@ -343,12 +343,24 @@ function Linha({
         <GripVertical className="text-muted-foreground/50 size-4 shrink-0" aria-hidden />
       ) : null}
 
+      {/* UM PISO, e não só `min-w-0`. Com o mínimo em zero o título era o
+          único desta linha a ceder largura — o selo de prioridade, o prazo, o
+          seletor de status, o cronômetro e o botão de ação são todos
+          `shrink-0` —, e no painel lateral "Revisar o texto do manual" saía
+          como "Rev". Com o piso, o resto quebra para a linha de baixo, que é
+          o que o `flex-wrap` do pai está ali para fazer. É o mesmo conserto
+          de "Meu dia" no Sprint 15, e foi a imagem do protótipo que mostrou
+          de novo — desta vez com o painel aberto.
+
+          E o `truncate` vai no BOTÃO, não num `<span>` dentro dele: num
+          elemento inline as três propriedades não recortam nada, então o
+          título era cortado sem reticências. */}
       <button
         type="button"
-        className="hover:text-accent-strong min-w-0 flex-1 text-left text-sm font-medium"
+        className="hover:text-accent-strong block min-w-[10rem] flex-1 truncate text-left text-sm font-medium"
         onClick={aoAbrir}
       >
-        <span className="truncate">{sub.titulo}</span>
+        {sub.titulo}
       </button>
 
       <div className="flex shrink-0 items-center gap-2">

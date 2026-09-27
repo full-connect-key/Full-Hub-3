@@ -203,12 +203,103 @@ for (const { alias, stub } of pares) {
   }
 }
 
-if (problemas > 0) {
-  console.log(
-    `\n${problemas} stub(s) para trás do módulo real. O \`npm run prototipo\` ` +
-      `quebraria na compilação, depois de dois minutos — e o \`typecheck\` não vê, ` +
-      `porque ele checa contra o módulo de verdade.\n`,
-  );
+// ---------------------------------------------------------------------------
+// SEGUNDA PARTE: O SELETOR DE CLIQUE QUE APONTA PARA UM TEXTO QUE NÃO EXISTE
+//
+// Várias telas do protótipo só aparecem depois de um clique, e o seletor é o
+// TEXTO de um botão — `button:has-text("Nova subtarefa")`, `[aria-label=
+// "Próximo slide"]`. Quando a tela muda de palavra, o seletor morre: a imagem
+// sai assim mesmo, com o nome de uma tela que ela não é.
+//
+// **O gerador AVISA, e o aviso espera meses.** Ele só sabe disso rodando, e a
+// rodada completa leva quinze minutos e não está na `verificar.yml` — foi
+// assim que três seletores mortos sobreviveram, um deles apontando para as
+// setas de um carrossel que o usuário mandou trocar pela composição inteira.
+//
+// Esta varredura é a metade barata: se o texto do seletor não aparece em
+// `src/` **nem** nos exemplos de `scripts/prototipo/`, ele não pode casar com
+// nada, e isso se sabe em menos de um segundo — no CI, em todo push.
+//
+// **Os exemplos entram na busca de propósito:** metade dos seletores aponta
+// para dado semeado (`button:has-text("Criar KV")` é o título de uma etapa do
+// stub), e procurar só em `src/` acusaria todos eles.
+//
+// **E ela NÃO prova que o seletor casa.** Texto presente em algum lugar não é
+// botão presente naquela rota, e ambiguidade — o mesmo texto duas vezes na
+// mesma tela, que é erro estrito no Playwright — ela não vê. Quem prova é a
+// rodada. O que ela pega é a classe que apodrece calada: a palavra que saiu
+// do produto.
+// ---------------------------------------------------------------------------
+
+/** Os textos literais que dá para extrair de um seletor. */
+function textosDoSeletor(seletor) {
+  const achados = [];
+  for (const m of seletor.matchAll(/:has-text\(\s*["']([^"']+)["']\s*\)/g)) achados.push(m[1]);
+  for (const m of seletor.matchAll(/\[aria-label[\^$*]?=\s*["']([^"']+)["']\s*\]/g)) {
+    achados.push(m[1]);
+  }
+  return achados;
+}
+
+async function textoDaArvore(raiz, aceita) {
+  const { readdir } = await import("node:fs/promises");
+  let junto = "";
+  async function andar(dir) {
+    for (const entrada of await readdir(dir, { withFileTypes: true })) {
+      const cheio = path.join(dir, entrada.name);
+      if (entrada.isDirectory()) await andar(cheio);
+      else if (aceita(entrada.name)) junto += await readFile(cheio, "utf8");
+    }
+  }
+  await andar(raiz);
+  return junto;
+}
+
+console.log("\nOs cliques do protótipo apontam para texto que existe\n");
+
+// Uma linha de `TELAS` por vez: o nome e o `clicar` daquela linha precisam
+// andar juntos para a mensagem dizer QUAL tela tem o seletor morto.
+const comClique = [...(gerador ?? "").matchAll(/\{\s*nome:\s*"([^"]+)"[^\n]*?clicar:\s*(\[[^\]]*\]|'[^']*'|"[^"]*")/g)];
+
+const fonte =
+  (await textoDaArvore(path.join(RAIZ, "src"), (n) => /\.(tsx?|svg)$/.test(n))) +
+  (await textoDaArvore(path.join(RAIZ, "scripts/prototipo"), (n) => /\.tsx?$/.test(n)));
+
+let mortos = 0;
+let conferidos = 0;
+
+for (const [, nome, bruto] of comClique) {
+  for (const m of bruto.matchAll(/'([^']*)'|"([^"]*)"/g)) {
+    const seletor = m[1] ?? m[2];
+    for (const texto of textosDoSeletor(seletor)) {
+      conferidos++;
+      if (!fonte.includes(texto)) {
+        console.log(`  FALHA   ${nome} — “${texto}” não existe em src/ nem nos exemplos`);
+        mortos++;
+      }
+    }
+  }
+}
+
+if (mortos === 0) {
+  console.log(`  ok      ${conferidos} texto(s) de clique, todos ainda no produto`);
+}
+
+if (problemas > 0 || mortos > 0) {
+  if (problemas > 0) {
+    console.log(
+      `\n${problemas} stub(s) para trás do módulo real. O \`npm run prototipo\` ` +
+        `quebraria na compilação, depois de dois minutos — e o \`typecheck\` não vê, ` +
+        `porque ele checa contra o módulo de verdade.\n`,
+    );
+  }
+  if (mortos > 0) {
+    console.log(
+      `\n${mortos} seletor(es) de clique apontando para texto que sumiu. A tela sai ` +
+        `assim mesmo,\ncom o nome de uma tela que ela não é — e o gerador só ` +
+        `descobre isso na rodada\ncompleta, que leva quinze minutos e não está no CI.\n`,
+    );
+  }
   process.exit(1);
 }
 

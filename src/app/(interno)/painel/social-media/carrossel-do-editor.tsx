@@ -15,20 +15,30 @@ import { removerArquivoDaVersao } from "./acoes";
 export type SlideDoEditor = { url: string; assinada: string | null };
 
 /**
- * O carrossel do editor: as artes EM SEQUÊNCIA, e não uma tira de miniaturas.
+ * O carrossel do editor: a composição INTEIRA, um slide ao lado do outro.
  *
  * **A tira de 48px não deixava ir de uma imagem para outra**, e era só isso
  * que ela fazia — seis quadradinhos ilegíveis embaixo da capa. Quem produz
- * precisa conferir slide a slide antes de mandar, e o que ele via era o
- * primeiro grande e cinco carimbos.
+ * precisa conferir antes de mandar, e o que ele via era o primeiro grande e
+ * cinco carimbos.
  *
- * Agora a imagem corrente ocupa o quadro inteiro, as setas andam, e a tira
- * embaixo vira a régua de onde se está — com a atual marcada. Clicar num
- * quadradinho pula direto, que é o caminho de quem quer o slide 5.
+ * **A primeira correção foi uma de cada vez, com setas — e ela também estava
+ * errada**, por um motivo que o usuário nomeou: *"deixe no layout de
+ * carrossel, um slide ao lado do outro, para o cliente ver a composição total
+ * dele"*. Carrossel não é pilha de imagens, é uma peça só que o dedo
+ * atravessa: a arte vaza de um slide para o outro, e o emendado — que é o que
+ * mais sai errado — não aparece em nenhum slide isolado. Não há setas, não há
+ * contador de posição e não há navegação por teclado, porque não há por onde
+ * andar: está tudo na tela, e o que passa de três rola para o lado.
  *
- * **Teclado também**: as setas do teclado andam quando o carrossel tem o foco.
- * Um carrossel que só responde ao mouse é um carrossel que metade da equipe
- * não usa.
+ * Quem desenha a faixa é `FaixaDaComposicao`, e **é o mesmo componente que o
+ * cliente vê no portal**: duas telas com dois desenhos divergiriam, e a
+ * divergência apareceria no lugar mais caro, que é o que a agência olha antes
+ * de mandar.
+ *
+ * **O que o clique num slide faz aqui é ESCOLHER**, e não navegar — o anel
+ * marca sobre qual deles o botão de remover age. No portal não há ação
+ * nenhuma, então lá não há escolha nem anel.
  *
  * **E cada slide se apaga do próprio quadro.** Remover grava uma VERSÃO NOVA
  * (0048) — a anterior continua no histórico com o arquivo que saiu, que foi o

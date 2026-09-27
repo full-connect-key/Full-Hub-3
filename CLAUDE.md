@@ -1731,23 +1731,58 @@ Removendo o slide 3 de 5, a versão nova tem quatro arquivos e o sinal **não**
 vai: a capa sai do primeiro deles, pela mesma linha que já escolhia o primeiro
 slide desde a 0042. Remover o primeiro promove o segundo a capa.
 
-#### O carrossel anda, nos dois lados
+#### O carrossel é a COMPOSIÇÃO INTEIRA, nos dois lados
 
-Decisão do usuário: *"atualmente ele não permite ir de uma imagem para outra,
-quero que as imagens apareçam em sequência, como um carrossel mesmo"*.
+**São duas decisões do usuário, e a segunda desfez metade da primeira.** A
+primeira: *"atualmente ele não permite ir de uma imagem para outra, quero que
+as imagens apareçam em sequência, como um carrossel mesmo"* — e eu a resolvi
+com uma imagem grande de cada vez, setas, contador e a tira embaixo como régua.
+A segunda: *"deixe no layout de carrossel, um slide ao lado do outro, para o
+cliente ver a composição total dele. Se for mais de 3 slides, tudo bem ser
+exibido arrastando para o lado, mas sempre mostrar todas as artes ao mesmo
+tempo."*
 
-**No editor**, a tira de miniaturas de 48px virou `carrossel-do-editor.tsx`: a
-imagem corrente no quadro inteiro, setas, contador sempre visível, a tira
-embaixo como régua de onde se está, e teclado. E cada slide se apaga do próprio
-quadro. A arte única passa pelo mesmo componente com uma imagem só — dois
-desenhos para a mesma coisa divergiriam no dia em que o botão de remover
-mudasse.
+**Uma por vez era o erro, e ele tem nome: carrossel não é uma pilha de imagens,
+é uma composição.** Um bom carrossel de feed é desenhado como uma peça só que o
+dedo atravessa — a arte vaza de um slide para o outro, e a frase começa no três
+e termina no quatro. Mostrando um de cada vez, quem aprova decide sobre um
+quinto do material cinco vezes, e o emendado — que é o que mais sai errado —
+não aparece em nenhuma das cinco. O registro da ida e da volta fica porque a
+primeira ideia é a que volta sozinha: "ele não anda" pede setas, e setas são
+exatamente o que a segunda decisão tirou.
 
-**No portal o visualizador já sabia andar** desde o Sprint 12; quem mandava só
-a capa era quem o chamava. `ModeloDoConteudo.arte` virou `artes`, e o post
-passa os slides da versão corrente. A capa entra uma vez só: ela É o primeiro
-slide, e mandá-la à frente da lista mostraria a mesma imagem duas vezes — o
-cliente contaria seis onde há cinco.
+**Não há setas, contador de posição nem navegação por teclado**, e a ausência é
+consequência e não esquecimento: não há por onde andar. Está tudo na tela, e o
+que passa de três rola para o lado.
+
+**Os slides ficam ENCOSTADOS, sem vão.** Um `gap` quebraria exatamente o que a
+faixa existe para mostrar — onde a arte de um continua na do outro. A fronteira
+se lê pelo número em cada slide, não por um espaço. E **três cabem na largura**:
+com quatro ou cinco espremidos, cada um fica pequeno demais para julgar o
+rodapé, que é o pedido de ajuste mais comum. Em 375px cabe um e meio, e o meio é
+o que diz que há mais.
+
+**É o MESMO componente nos dois lados** — `components/shared/faixa-da-composicao.tsx`,
+no editor por `carrossel-do-editor.tsx` e no portal pelo visualizador. Duas
+telas com dois desenhos divergiriam, e a divergência apareceria no lugar mais
+caro: o que a agência olha antes de mandar contra o que o cliente vê depois.
+
+**O que muda entre os dois é a AÇÃO, e é por isso que só o editor tem
+escolhido.** Clicar num slide lá não navega — marca com um anel sobre qual deles
+o botão de remover age. No portal não há ação nenhuma, então não há escolha nem
+anel: um destaque que não decide nada é um convite a clicar sem resposta.
+
+**No portal o visualizador já sabia mostrar mais de uma** desde o Sprint 12;
+quem mandava só a capa era quem o chamava. `ModeloDoConteudo.arte` virou
+`artes`, e o post passa os slides da versão corrente. A capa entra uma vez só:
+ela É o primeiro slide, e mandá-la à frente da lista mostraria a mesma imagem
+duas vezes — o cliente contaria seis onde há cinco.
+
+**E a tela do protótipo perdeu o clique junto com as setas.** Ela clicava em
+`button[aria-label="Próximo slide"]`, que não existe mais; hoje ela sai em
+repouso, que é exatamente o que se confere numa faixa que mostra tudo de uma
+vez. Foi o aviso da rodada completa que encontrou — e ele esperou, porque
+aquela rodada leva quinze minutos e não está no CI.
 
 #### As etapas de social aparecem em Minhas Tasks
 
@@ -4198,6 +4233,15 @@ selo do cliente, o prazo e o Concluir continuarem lado a lado. Com um piso, o
 resto quebra para a linha de baixo — que é o que o `flex-wrap` do pai está ali
 para fazer.
 
+**E a MESMA linha estava na lista de etapas do detalhe da Task**, encontrada
+depois, na imagem do painel lateral: "Revisar o texto do manual" saía como
+"Rev", porque o selo de prioridade, o prazo, o seletor de status, o cronômetro
+e o botão de ação são todos `shrink-0` e o título era o único que podia
+encolher. Mesmo conserto, e mais um detalhe que o de cima não tinha: o
+`truncate` morava num `<span>` dentro do botão, e num elemento inline as três
+propriedades não recortam nada — o título era cortado **sem reticências**, que
+é a diferença entre "está truncado" e "está quebrado".
+
 #### O seed concluía etapa sem carimbo, e o número saía plausível
 
 Duas etapas nasciam `concluida` por INSERT. **Trigger de UPDATE não roda num
@@ -5347,8 +5391,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
-| `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
-| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado |
+| `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
