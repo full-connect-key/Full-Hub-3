@@ -35,6 +35,17 @@ import { moverEtapaDoPost } from "../social-media/acoes";
  * A camada de dados já tirou daqui as que ainda não podem começar: uma etapa
  * de Layout cujo Conteúdo ninguém escreveu não é trabalho meu hoje, e o banco
  * recusaria o clique.
+ *
+ * **ELE FICA ACIMA DO SELETOR DE VISÃO, e não dentro da Lista com as outras
+ * duas áreas.** A razão é mecânica e não de gosto: o board desenha colunas dos
+ * seis status da etapa de demanda e o calendário desenha prazos de demanda —
+ * nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da Lista, o
+ * Social sumiria em duas das três visões, e quem trabalha no board perderia a
+ * área inteira sem nada dizendo por quê.
+ *
+ * O que ele ganhou foi o MESMO cabeçalho das seções da Lista — ícone, nome por
+ * extenso, contagem e o link para a área. A posição difere pela razão acima; a
+ * linguagem, não.
  */
 export function EtapasDeSocial({ etapas }: { etapas: EtapaDeSocialMinha[] }) {
   const [, comecar] = useTransition();
@@ -60,13 +71,14 @@ export function EtapasDeSocial({ etapas }: { etapas: EtapaDeSocialMinha[] }) {
           className="text-text-primary flex items-center gap-2 text-sm font-semibold"
         >
           <Images aria-hidden className="text-text-muted size-4" />
-          Social
+          Social Media
+          <span className="text-text-muted font-normal tabular-nums">{etapas.length}</span>
         </h2>
         <Link
           href="/painel/social-media"
           className="text-accent-strong text-xs hover:underline"
         >
-          Ver o calendário
+          Ver a área
         </Link>
       </div>
 

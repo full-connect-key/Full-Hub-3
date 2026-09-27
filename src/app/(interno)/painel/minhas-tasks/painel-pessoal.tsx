@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Columns3, List } from "lucide-react";
+import { CalendarDays, ClipboardList, Columns3, FolderKanban, Images, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
 import { BoardDeEtapas } from "./board-de-etapas";
-import type { LinhaPessoal } from "./linhas";
+import { ROTA_DA_AREA, ROTULOS_DE_AREA, areaDaLinha, type LinhaPessoal } from "./linhas";
 import { EtapasDeSocial } from "./etapas-de-social";
 import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
@@ -151,6 +152,47 @@ export function PainelPessoal({
         ) : null}
       </div>
 
+      {/* AS TRÊS ÁREAS, COM CONTAGEM, MESMO QUANDO UMA DELAS ESTÁ EM ZERO.
+          ---------------------------------------------------------------
+          Decisão do usuário: *"Social Media e Campanhas ainda não está dentro
+          de Minhas Tasks"*. Elas estavam — a peça de campanha é uma subtarefa
+          desde a 0051 e a etapa de social tem bloco desde o Sprint 14 —, mas
+          as duas só apareciam QUANDO havia trabalho nelas. Quem abre a tela
+          procurando a área pelo nome, e não tem nada lá naquele dia, conclui
+          que ela não existe aqui.
+
+          Por isso esta faixa mostra o ZERO, ao contrário do selo de contagem
+          da fila de aprovações, onde a ausência é a resposta. As duas regras
+          não brigam: lá o selo COBRA uma ação, e um zero cobraria nada; aqui
+          a linha RESPONDE onde o meu trabalho está, e "nenhum" é resposta.
+
+          Cada chip é um link para a área inteira — não um filtro: a Lista já
+          separa por área logo abaixo, e um filtro seria um segundo jeito de
+          fazer a mesma coisa, com a URL para manter em dia. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            ["demandas", ClipboardList, linhas.filter((l) => areaDaLinha(l) === "demandas").length],
+            ["campanhas", FolderKanban, linhas.filter((l) => areaDaLinha(l) === "campanhas").length],
+            ["social", Images, etapasDeSocial.length],
+          ] as const
+        ).map(([area, Icone, quantas]) => (
+          <Link
+            key={area}
+            href={ROTA_DA_AREA[area]}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+              "hover:bg-accent",
+              quantas === 0 && "text-muted-foreground",
+            )}
+          >
+            <Icone aria-hidden className="size-3.5" />
+            {ROTULOS_DE_AREA[area]}
+            <span className="tabular-nums font-medium">{quantas}</span>
+          </Link>
+        ))}
+      </div>
+
       {/* A FAIXA FICA ACIMA DE "MEU DIA", e é o único lugar em que ela cabe:
           ela diz que chegou trabalho que ainda NÃO está em nenhuma das listas
           abaixo — o post que a gestão acabou de liberar não tem prazo próprio,
@@ -164,13 +206,6 @@ export function PainelPessoal({
         usuarioId={usuarioId}
         souGestor={souGestor}
       />
-
-      {/* O SOCIAL FICA ACIMA DAS TRÊS VISÕES, e não dentro delas: board, lista
-          e calendário são as etapas de demanda, e uma quarta coisa dentro de
-          um seletor de visão seria uma visão que some quando a pessoa troca
-          para o calendário. Aqui ela está sempre à vista, e some sozinha para
-          quem não tem etapa de social nenhuma. */}
-      <EtapasDeSocial etapas={etapasDeSocial} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
@@ -234,6 +269,21 @@ export function PainelPessoal({
           aoAbrir={setTaskAberta}
         />
       ) : null}
+
+      {/* O SOCIAL É A TERCEIRA ÁREA, e vem DEPOIS do conteúdo da visão — na
+          mesma ordem dos chips lá em cima: Demandas, Campanhas, Social Media.
+
+          **Ele fica FORA do seletor de visão, e isso é mecânico.** O board
+          desenha colunas dos status da etapa de demanda e o calendário desenha
+          prazos de demanda; nenhum dos dois sabe desenhar uma etapa de post, e
+          uma etapa de post não tem rodada, cronômetro nem dependência para
+          caber no molde. Posto dentro da Lista, o Social sumiria em duas das
+          três visões — e quem trabalha no board perderia a área inteira sem
+          nada dizendo por quê.
+
+          Na Lista ele fecha a sequência das três seções; no board e no
+          calendário ele aparece embaixo, que é onde uma lista cabe. */}
+      <EtapasDeSocial etapas={etapasDeSocial} />
 
       <PainelLateralDaTask taskId={taskAberta} aoFechar={() => setTaskAberta(null)} />
 

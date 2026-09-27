@@ -1768,13 +1768,57 @@ Decisão do usuário: *"quero que passe Social Media e Campanhas para dentro de
 Minhas Tasks, com um sinal de notificação, sempre que o colaborador for
 responsável por algo novo nessas áreas"*.
 
-**AS DUAS ÁREAS JÁ ESTAVAM LÁ, e é isso que faz o sinal ser a entrega.** As
-etapas da corrente do Social têm bloco próprio nesta tela desde o Sprint 14. E
-a peça de campanha é uma SUBTAREFA desde a 0051 — abrir a campanha cria a
-demanda com uma etapa por entregável, no nome de quem vai produzi-la —, então
-ela já aparecia na lista de etapas, com prazo, cronômetro e o botão certo.
-Desenhar um bloco "Campanhas" aqui poria o **mesmo trabalho duas vezes na
-mesma tela**, que é exatamente o que a 0061 recusou para a subtarefa do post.
+**AS DUAS ÁREAS JÁ ESTAVAM LÁ — E ESSE ERA O PROBLEMA.** As etapas da corrente
+do Social têm bloco próprio nesta tela desde o Sprint 14. E a peça de campanha
+é uma SUBTAREFA desde a 0051 — abrir a campanha cria a demanda com uma etapa
+por entregável, no nome de quem vai produzi-la —, então ela já aparecia na
+lista de etapas, com prazo, cronômetro e o botão certo.
+
+**Eu li isso como "já está pronto", e o usuário respondeu que não:** *"Social
+Media e Campanhas ainda não está dentro de Minhas Tasks"*. Ele estava certo, e
+a distinção é a lição: **estar na tela e ser visível na tela são duas coisas
+diferentes.** A peça de campanha era uma linha igual às outras com um selo
+pequeno escrito "Campanha"; o Social era um bloco chamado "Social", sem
+contagem, que some quando não há nenhuma. Quem abre procurando a área pelo
+nome não achava nem uma nem outra — e quem não tinha trabalho ali naquele dia
+concluía que a área não existe aqui.
+
+#### As três áreas passaram a ter nome, contagem e seção
+
+**É AGRUPAMENTO, e não bloco novo.** Um bloco "Campanhas" ao lado da lista
+geral poria o mesmo trabalho duas vezes na mesma tela — a conta que a 0061
+recusou para a subtarefa do post. Aqui a linha SAI da lista geral e entra na
+seção da área dela: cada trabalho continua aparecendo uma vez só.
+`areaDaLinha()` em `minhas-tasks/linhas.ts` responde de que área é cada etapa,
+e a pergunta é `subtarefa.campanha` — não o caminho longo pela demanda, senão
+a etapa de uma campanha aberta sem entregável responderia "campanha".
+
+**Com uma área só, o cabeçalho some.** Uma seção única com um título em cima é
+moldura sem função — a mesma razão pela qual as abas de Equipe sumiram quando
+sobrou uma. O agrupamento existe para separar; sem o que separar, ele é uma
+linha a mais entre a pessoa e o trabalho dela.
+
+**A faixa de áreas mostra o ZERO, ao contrário do selo da fila de aprovações.**
+As duas regras não brigam: lá o selo COBRA uma ação, e um zero cobraria nada;
+aqui a linha RESPONDE onde o meu trabalho está, e "nenhum" é resposta — é
+justamente o caso em que a pessoa procurava a área e não a encontrava. Cada
+chip é um link para a área inteira e **não um filtro**: a Lista já separa por
+área logo abaixo, e um filtro seria um segundo jeito de fazer a mesma coisa,
+com um parâmetro de URL a mais para manter em dia.
+
+**O Social fica FORA do seletor de visão, e é mecânico.** O board desenha
+colunas dos status da etapa de demanda e o calendário desenha prazos de
+demanda; nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da
+Lista, ele sumiria em duas das três visões, e quem trabalha no board perderia
+a área inteira sem nada dizendo por quê. Ele vem DEPOIS do conteúdo da visão,
+na mesma ordem dos chips — Demandas, Campanhas, Social Media —, então na Lista
+as três seções se leem em sequência e no board ele fica embaixo das colunas,
+que é onde uma lista cabe.
+
+**E o selo da peça diz QUAL campanha**, não a palavra "Campanha". Dentro da
+seção Campanhas ele repetiria o cabeçalho cinco vezes sem informar nada; o
+nome responde de qual peça é a etapa, que é a pergunta de quem tem três
+campanhas correndo. Ele continua sendo o link para onde o arquivo sobe.
 
 **O que faltava eram duas coisas, e nenhuma é uma lista nova.**
 
