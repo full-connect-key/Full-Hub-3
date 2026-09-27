@@ -26,6 +26,7 @@ import type { TaskPrioridade, TaskStatus } from "@/lib/supabase/database.types";
 
 import { AbasDeGestaoDeTasks } from "./abas";
 import { Fila } from "./aprovacoes-internas/fila";
+import { ContadoresDeDemandas } from "./contadores";
 import { PainelDeTasks } from "./painel-de-tasks";
 import { lerAba, type Aba } from "./vocabulario";
 import { EditorDeRecorrencia } from "./workflows/recorrencias/editor";
@@ -53,19 +54,6 @@ export const metadata: Metadata = { title: "Gestão de Tasks" };
  * efeito é trocar um texto que o redirect já resolve — a mesma decisão dos
  * comentários datados da 0028 e da 0031.
  */
-function Contador({ valor, rotulo, tom }: { valor: number; rotulo: string; tom?: "alerta" }) {
-  return (
-    <div className="rounded-lg border px-3.5 py-2">
-      <p
-        className={`text-xl font-semibold tabular-nums ${tom === "alerta" && valor > 0 ? "text-destructive" : ""}`}
-      >
-        {valor}
-      </p>
-      <p className="text-muted-foreground text-xs">{rotulo}</p>
-    </div>
-  );
-}
-
 /** Traduz os parâmetros da URL nos filtros que a consulta entende. */
 function filtrosDaUrl(params: Record<string, string | string[] | undefined>): FiltrosDeTask {
   const texto = (chave: string) => {
@@ -116,11 +104,11 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
           DEMANDAS, e lido no topo da aba de Workflows seria um número sobre
           outra coisa — a tela afirmando com confiança algo que ela não está
           mostrando. */}
-      <div className="flex flex-wrap gap-2">
-        <Contador valor={contadores.abertas} rotulo="abertas" />
-        <Contador valor={contadores.atrasadas} rotulo="atrasadas" tom="alerta" />
-        <Contador valor={contadores.concluidasNoMes} rotulo="concluídas no mês" />
-      </div>
+      <ContadoresDeDemandas
+        abertas={contadores.abertas}
+        atrasadas={contadores.atrasadas}
+        concluidasNoMes={contadores.concluidasNoMes}
+      />
 
       <PainelDeTasks
         tasks={tasks}

@@ -55,12 +55,26 @@ export function PulsoDaAgencia({ dados }: { dados: ResumoDaHome["pulso"] }) {
           apoio="em demandas publicadas"
           href="/painel/gestao-tasks"
         />
+        {/* O CARTAO LEVA O FILTRO, e nao o board inteiro (decisao do
+            usuario: "quero que ao clicar no botao de atrasadas, ele me mostre
+            quais tasks estao atrasadas"). Um numero que abre a lista completa
+            obriga a pessoa a procurar, na agencia inteira, as tres linhas que
+            ele contou.
+
+            E VALE DIZER O QUE MUDA DE UNIDADE NO CAMINHO: este numero conta
+            ETAPAS vencidas (`home_summary`, 0049, so as folhas), e o board
+            lista as DEMANDAS que as contem — uma demanda com duas etapas
+            vencidas e uma linha la. Entao cinco aqui pode virar tres linhas
+            adiante, e nenhuma das duas contas esta errada: o apoio deste
+            cartao diz "etapa" justamente para a diferenca nao ser lida como
+            defeito. Mandar para uma lista de etapas da agencia seria a outra
+            saida, e ela existe — e o "ficou para tras" do Resumo da Agencia. */}
         <CartaoDeNumero
           rotulo="Atrasadas"
           valor={atrasadas}
           apoio={atrasadas === 0 ? "nenhuma passou do prazo" : "passaram do prazo da etapa"}
           tom={atrasadas > 0 ? "alerta" : "bom"}
-          href="/painel/gestao-tasks"
+          href={atrasadas > 0 ? "/painel/gestao-tasks?atrasadas=1" : "/painel/gestao-tasks"}
         />
         <CartaoDeNumero
           rotulo="Concluídas na semana"

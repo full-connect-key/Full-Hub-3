@@ -140,7 +140,11 @@ export function PainelDeProducao({
              bug. */
           apoio="passaram do prazo — medido hoje"
           tom={dados.atrasadas > 0 ? "alerta" : "bom"}
-          href="/painel/gestao-tasks"
+          /* COM O FILTRO, e não o board inteiro: o número é a resposta de
+             "quantas", e o clique é a de "quais". Sem `?atrasadas=1` o cartão
+             mandava a pessoa procurar na agência inteira o que ele acabou de
+             contar. */
+          href={dados.atrasadas > 0 ? "/painel/gestao-tasks?atrasadas=1" : "/painel/gestao-tasks"}
         />
       </div>
 

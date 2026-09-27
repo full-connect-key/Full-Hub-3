@@ -90,6 +90,11 @@ const TELAS = [
   { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },
   { nome: "22-tasks-lista", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio" },
   { nome: "23-tasks-calendario", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1100, role: "socio" },
+  // O BOARD FILTRADO PELO CONTADOR: o destino de clicar em "2 atrasadas", que
+  // ate aqui era o board inteiro. E a tela que prova que o numero e a lista
+  // falam da mesma coisa -- sem dump, "ver quais" e uma promessa que ninguem
+  // conferiu.
+  { nome: "23b-tasks-atrasadas", rota: "/painel/gestao-tasks?atrasadas=1", largura: 1600, altura: 1000, role: "socio" },
   { nome: "24-tasks-nova", rota: "/painel/gestao-tasks", largura: 1400, altura: 2100, role: "socio", clicar: 'button:has-text("Nova task")' },
   { nome: "24b-tasks-nova-com-etapa", rota: "/painel/gestao-tasks", largura: 1400, altura: 2300, role: "socio", clicar: ['button:has-text("Nova task")', 'button:has-text("Subtarefa")'] },
   { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
