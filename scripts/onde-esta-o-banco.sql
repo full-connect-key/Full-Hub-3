@@ -160,7 +160,8 @@ from (
     -- primeira sem a segunda se alguem aplicar o arquivo pela metade. A de
     -- funcoes e a que faz o workflow global servir todos os clientes, entao e
     -- ela que responde "o resolvedor esta de pe?".
-    ('0064', 'client_function_defaults',        'tabela',       'client_function_defaults')
+    ('0064', 'client_function_defaults',        'tabela',       'client_function_defaults'),
+    ('0065', 'team_invoices',                 'tabela',       'team_invoices')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
