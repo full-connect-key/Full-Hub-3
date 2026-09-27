@@ -9,6 +9,10 @@
 \set CAMERA  '''aa000000-0000-0000-0000-0000000000a2'''
 \set LENTE   '''aa000000-0000-0000-0000-0000000000a3'''
 \set TRIPE   '''aa000000-0000-0000-0000-0000000000a4'''
+-- O EMPRESTIMO DA SECAO 7, e o nome diz que ele e emprestimo: ele nasceu
+-- chamado `:TRIPE`, com um uuid de equipamento, e passava -- uuid e uuid.
+-- Custou um cenario escrito contra um equipamento que nunca foi cadastrado.
+\set L_APAGAR '''bb000000-0000-0000-0000-0000000000b2'''
 \set L_NOTE  '''bb000000-0000-0000-0000-0000000000b1'''
 
 -- ===========================================================================
@@ -333,11 +337,11 @@ select teste.conferir(
 -- ---------------------------------------------------------------------------
 select teste.cenario('Emprestimo em aberto se apaga', :DIEGO,
   format($fmt$insert into public.asset_loans (id, asset_id, user_id, entregue_por)
-          values (%L, %L, %L, %L)$fmt$, :TRIPE, :NOTE, :MARINA, :DIEGO),
+          values (%L, %L, %L, %L)$fmt$, :L_APAGAR, :NOTE, :MARINA, :DIEGO),
   'ok', 1);
 
 select teste.cenario('...e some de verdade', :DIEGO,
-  format($fmt$delete from public.asset_loans where id = %L$fmt$, :TRIPE),
+  format($fmt$delete from public.asset_loans where id = %L$fmt$, :L_APAGAR),
   'ok', 1);
 
 -- NEM O SOCIO. O emprestimo devolvido e a resposta de "eu devolvi em marco", e
@@ -443,3 +447,52 @@ select teste.conferir_como(
   :JOANA,
   'select count(*) from public.asset_loans',
   '0');
+
+
+-- ---------------------------------------------------------------------------
+-- 10. A FICHA TECNICA (0070)
+--
+-- Quatro colunas de texto, e o que precisa ser provado nao e que `text` aceita
+-- texto: e que elas ficam DO LADO DE DENTRO da trava que a 0069 pos em
+-- `assets`. `valor_aquisicao` e `nota_fiscal_url` ja estavam fora do alcance
+-- do colaborador porque `assets_select` e `is_gestor()`; a ficha nasce na
+-- mesma linha, entao ela herda a mesma regra -- e o cenario existe para o dia
+-- em que alguem abrir `assets_select` achando que "especificacao de maquina
+-- nao e sigilo" e levar o valor de compra junto.
+-- ---------------------------------------------------------------------------
+select teste.cenario('A gestao preenche a ficha tecnica do notebook', :DIEGO,
+  format($fmt$update public.assets
+             set memoria_ram = '16 GB',
+                 processador = 'Apple M3 Pro',
+                 armazenamento = '512 GB SSD'
+           where id = %L$fmt$, :NOTE),
+  'ok', 1);
+
+select teste.conferir_como(
+  'E ela fica gravada como foi escrita',
+  :DIEGO,
+  'select memoria_ram || '' / '' || armazenamento from public.assets where id = '
+    || quote_literal(:NOTE) || '::uuid',
+  '16 GB / 512 GB SSD');
+
+-- A METADE QUE IMPORTA: quem esta COM o notebook continua sem ler a linha de
+-- `assets`. O recorte dele e `meus_comodatos()`, e a ficha nao entra nele --
+-- ele ja sabe o que tem na maquina, ela esta na mesa dele.
+select teste.conferir_como(
+  'O colaborador nao le a linha do equipamento nem para ver a ficha',
+  :MARINA,
+  'select count(*) from public.assets where memoria_ram is not null',
+  '0');
+
+-- E A FICHA NAO E DE COMPUTADOR SO, pelo lado do banco: nao ha `check` por
+-- tipo, de proposito. Um tripe com processador e bobagem; uma mesa
+-- digitalizadora com processador proprio nao e, e recusar no banco chegaria
+-- como erro numa tela de cadastro. Quem esconde e a tela.
+select teste.cenario('A gestao cadastra um tripe', :DIEGO,
+  format($fmt$insert into public.assets (id, tipo, nome, criado_por)
+          values (%L, 'tripe', 'Manfrotto 190', %L)$fmt$, :TRIPE, :DIEGO),
+  'ok', 1);
+
+select teste.cenario('E o banco aceita ficha em equipamento que nao e computador', :DIEGO,
+  format($fmt$update public.assets set processador = 'chip proprio' where id = %L$fmt$, :TRIPE),
+  'ok', 1);

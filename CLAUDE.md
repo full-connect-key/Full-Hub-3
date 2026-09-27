@@ -3288,6 +3288,66 @@ deixaria a agência sem conseguir desligar quem já foi embora. O que ela impede
 Quem responde é `comodatos_em_aberto_de()`, `security definer`, porque
 `desligarColaborador` roda com a chave de serviço.
 
+#### A ficha técnica do equipamento
+
+Migration 0070, decisão do usuário: *"quando vou cadastrar um equipamento,
+quero poder preencher: Memória RAM, Processador, Placa de Vídeo e
+Armazenamento"*.
+
+**São QUATRO COLUNAS, e não um `especificacoes jsonb`.** A tentação do jsonb é
+real — assim a câmera ganharia "megapixels" sem migration —, e ela se desfaz em
+três pontos: são quatro campos **nomeados que o usuário pediu pelo nome**, e num
+jsonb a tela inventa as chaves, até a segunda escrever `placa_video` onde a
+primeira escreveu `placa_de_video` — sem erro de tipo, sem erro de banco, e com
+o campo aparecendo vazio; o critério que separa jsonb de coluna neste produto
+já está escrito, e é o de `post_versions.arquivos` — **jsonb é para o que se
+escreve de uma vez e se lê inteiro, nunca consultado item a item**, e "quem está
+com um notebook de 8GB?" é exatamente uma consulta item a item; e é a razão de
+`midia` ter virado enum na 0042, porque o que a tela desenha por cima precisa
+ser um nome que o compilador confere.
+
+**E são `text`, não número.** O que se digita é "16 GB", "512 GB SSD", "1 TB
+NVMe", "RTX 3060 6GB". Uma coluna numérica escolheria a unidade no schema e
+perderia o "NVMe" e o "SSD", que é metade do que decide se a máquina serve. É a
+decisão do tempo ao contrário: lá é `integer` em minutos porque há conta em
+cima; aqui não há conta nenhuma.
+
+**A TELA ESCONDE, O BANCO NÃO RECUSA.** Não existe `check` por tipo: ele
+recusaria a mesa digitalizadora com processador próprio, e a recusa chegaria
+como erro de banco numa tela de cadastro. Quem decide se o campo faz sentido é
+quem está olhando o equipamento — e a bateria guarda o cenário que prova que o
+banco aceita, para o dia em que alguém quiser "arrumar" isso com um check.
+
+Na tela quem responde é `temFichaTecnica()`, e **são DUAS perguntas**: o tipo é
+de computador, **ou** já há algo preenchido. Sem a segunda, trocar o tipo de um
+notebook para "Outro" esconderia os quatro campos — e o próximo salvamento os
+gravaria vazios, porque o formulário manda o que ele mostra. É a regra que
+`ItemDoInventario` já carregava escrita por causa de `observacoes`: um
+formulário que abre com o campo vazio apaga o que não mostrou.
+
+**A ficha é uma SEÇÃO com título, e não mais quatro campos na grade.** Na grade
+eles ficariam ao lado de "Número de série" e "Valor de aquisição", que são de
+todo equipamento, e o cadastro de um tripé pareceria ter metade dos campos em
+branco por descuido. Com o título, a ausência num tripé se lê como "não se
+aplica".
+
+**Na folha ela mostra só o que tem valor**, e fica ACIMA da linha do tempo: a
+folha responde "por onde esta peça passou", a ficha responde "o que é esta
+peça", e quem abre a página de um notebook para decidir se ele serve está
+fazendo a segunda pergunta. "Placa de vídeo —" numa máquina de vídeo integrado
+ocupa uma coluna para dizer que não há o que dizer; no formulário é o contrário,
+porque lá o campo vazio é onde se escreve.
+
+**E ela entra no CSV do inventário**, com as quatro colunas vazias na maior
+parte das linhas de propósito: é uma planilha de inventário, e "quais máquinas
+precisam de upgrade" é a pergunta que faz alguém anotar a RAM.
+
+**A ficha fica do lado de dentro da trava de `assets`**, sem nenhuma linha
+nova: `assets_select` é `is_gestor()` desde a 0069, e a coluna nasce na mesma
+linha. O cenário da bateria existe para o dia em que alguém abrir a policy
+achando que "especificação de máquina não é sigilo" — e levar o valor de compra
+junto.
+
 #### O que ficou de fora, e é decisão
 
 - **Não há bucket de termos**, pelo motivo acima — o termo não vira arquivo.
@@ -5240,6 +5300,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0067_a_capa_da_recomendacao.sql` | **Pendente de aplicação.** Traz o bucket privado `recomendacoes-capas` e as três policies dele. **Não traz coluna nenhuma** — `recommendations.imagem_url` existe desde a 0017. Sem ela, colar um link no feed busca a capa, o upload é recusado pelo Storage (*"Bucket not found"*), o motivo vai para o log e a recomendação nasce **sem capa** — a tela não quebra, de propósito |
 | `supabase/migrations/0068_solicitacoes_do_cliente.sql` | **Pendente de aplicação.** Traz `request_types`, `client_requests`, `request_attachments`, `request_messages`, `clients.aceita_solicitacoes`, `tasks.request_id`, o bucket `solicitacoes-arquivos` e o gatilho que move o pedido quando a demanda é publicada. Sem ela, `/painel/solicitacoes` e `/portal/solicitacoes` devolvem erro de tabela inexistente — e as duas entradas de menu levam a uma tela quebrada |
 | `supabase/migrations/0069_comodatos.sql` | **Pendente de aplicação.** Traz `assets`, `asset_loans`, `asset_photos`, `asset_events`, `asset_term_template`, a sequence do patrimônio, o bucket `comodatos-fotos` e as funções `meus_comodatos()`, `confirmar_recebimento()`, `reportar_problema_do_comodato()` e `comodatos_em_aberto_de()`. Sem ela, `/painel/comodatos` devolve erro de tabela inexistente — e o desligamento de colaborador deixa de contar o equipamento em aberto, que é o aviso que ela existe para dar |
+| `supabase/migrations/0070_a_ficha_tecnica_do_equipamento.sql` | **Pendente de aplicação.** Traz `memoria_ram`, `processador`, `placa_de_video` e `armazenamento` em `assets`. Sem ela, cadastrar ou editar um equipamento devolve *"Could not find the 'memoria_ram' column"* — a tela passou a mandar os quatro |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

@@ -177,7 +177,12 @@ from (
     -- `assets`: o catalogo sozinho e um cadastro sem uso, e o emprestimo e o
     -- que faz o modulo existir. Toda funcao e todo trigger da migration passam
     -- por ele.
-    ('0069', 'asset_loans',                   'tabela',       'asset_loans')
+    ('0069', 'asset_loans',                   'tabela',       'asset_loans'),
+    -- A 0070 acrescenta quatro colunas a `assets`, e a que responde por ela e
+    -- `placa_de_video`: as outras tres tem nome que alguem pode ter criado a
+    -- mao num banco antigo, e esta e a unica que so existe por causa desta
+    -- migration.
+    ('0070', 'assets.placa_de_video',        'coluna',       'assets.placa_de_video')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

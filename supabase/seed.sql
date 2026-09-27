@@ -2040,6 +2040,16 @@ begin
      current_date - 200, 3890.00, 'Fica na sala de edição.', v_ana)
   on conflict (id) do nothing;
 
+  -- A FICHA TECNICA (0070), so no notebook: ela e a excecao e nao a regra, e
+  -- um seed em que ate o tripe tem placa de video mostra o produto como ele
+  -- nao e. A camera fica sem, de proposito -- e o caso em que a tela esconde
+  -- a secao.
+  update public.assets
+  set memoria_ram   = '18 GB',
+      processador   = 'Apple M3 Pro',
+      armazenamento = '512 GB SSD'
+  where id = v_note;
+
   -- 1. O CASO NORMAL: aceito, sem previsao de devolucao.
   insert into public.asset_loans
     (id, asset_id, user_id, data_entrega, estado_entrega, acessorios,

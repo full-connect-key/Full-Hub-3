@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
 import type { IndicadoresDoInventario, ItemDoInventario, PessoaComEquipamento } from "@/lib/dados/comodatos";
 import {
+  CAMPOS_DA_FICHA,
   ICONE_DO_TIPO,
   ROTULOS_DE_ESTADO,
   ROTULOS_DE_STATUS,
@@ -346,7 +347,23 @@ function PorPessoa({ pessoas }: { pessoas: PessoaComEquipamento[] }) {
 function baixarInventario(itens: ItemDoInventario[]) {
   baixarCSV(
     montarCSV(
-      ["Código", "Tipo", "Nome", "Marca", "Modelo", "Série", "Situação", "Estado", "Valor", "Com quem"],
+      // A FICHA TÉCNICA ENTRA NO CSV (0070), e as quatro colunas ficam vazias
+      // na maior parte das linhas de propósito: é uma planilha de inventário,
+      // e "quais máquinas precisam de upgrade" é a pergunta que faz alguém
+      // anotar a RAM. Sem elas, o CSV responde tudo menos isso.
+      [
+        "Código",
+        "Tipo",
+        "Nome",
+        "Marca",
+        "Modelo",
+        "Série",
+        "Situação",
+        "Estado",
+        "Valor",
+        "Com quem",
+        ...CAMPOS_DA_FICHA.map((c) => c.rotulo),
+      ],
       itens.map((i) => [
         i.codigo,
         ROTULOS_DE_TIPO[i.tipo],
@@ -358,6 +375,7 @@ function baixarInventario(itens: ItemDoInventario[]) {
         ROTULOS_DE_ESTADO[i.estado],
         i.valor_aquisicao,
         i.comodato?.pessoa ?? null,
+        ...CAMPOS_DA_FICHA.map((c) => i[c.chave]),
       ]),
     ),
     "inventario-comodatos.csv",

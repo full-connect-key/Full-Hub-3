@@ -230,3 +230,58 @@ export function linhaDoAceite(aceitoEm: string | null, nome: string): string {
   const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return `Recebimento confirmado por ${nome} no Full Hub em ${data} às ${hora}.`;
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * A FICHA TÉCNICA (0070)
+ *
+ * Decisão do usuário: *"quando vou cadastrar um equipamento, quero poder
+ * preencher: Memória RAM, Processador, Placa de Vídeo e Armazenamento"*.
+ *
+ * **É UMA LISTA SÓ, e não quatro campos digitados em cada tela.** Quem desenha
+ * a ficha são três lugares — o diálogo de cadastro, a folha do equipamento e o
+ * CSV do inventário —, e a quarta cópia seria a que esquecesse um campo novo.
+ * É a decisão de `FUNCOES` na 0064, que virou uma tupla depois de viver
+ * copiada em quatro arquivos.
+ * ---------------------------------------------------------------------------
+ */
+export const CAMPOS_DA_FICHA = [
+  { chave: "memoria_ram", rotulo: "Memória RAM", dica: "16 GB" },
+  { chave: "processador", rotulo: "Processador", dica: "Intel i7-1165G7" },
+  { chave: "placa_de_video", rotulo: "Placa de vídeo", dica: "RTX 3060 6GB" },
+  { chave: "armazenamento", rotulo: "Armazenamento", dica: "512 GB SSD" },
+] as const;
+
+export type CampoDaFicha = (typeof CAMPOS_DA_FICHA)[number]["chave"];
+
+/** Os tipos em que a ficha é a primeira coisa que alguém pergunta. */
+const TIPOS_COM_FICHA: AssetTipo[] = ["notebook", "desktop"];
+
+/**
+ * A ficha aparece?
+ *
+ * **São DUAS perguntas, e a segunda é a que evita apagar dado.** A primeira é
+ * o tipo: ninguém procura placa de vídeo num tripé, e quatro campos vazios em
+ * todo cadastro de acessório são quatro campos que ensinam a rolar sem ler.
+ *
+ * A segunda é se JÁ HÁ ALGO PREENCHIDO, e sem ela trocar o tipo de um notebook
+ * para "outro" esconderia os quatro campos — e o próximo salvamento os
+ * gravaria vazios, porque o formulário manda o que ele mostra. É a regra que
+ * `ItemDoInventario` já carrega escrita por causa de `observacoes`: um
+ * formulário que abre com o campo vazio apaga o que não mostrou.
+ *
+ * **E o banco não tem trava por tipo**, de propósito: um `check` recusaria a
+ * mesa digitalizadora com processador próprio, e a recusa chegaria como erro
+ * de banco numa tela de cadastro. Quem decide se o campo faz sentido é quem
+ * está olhando o equipamento.
+ */
+export function temFichaTecnica(
+  tipo: AssetTipo,
+  valores: Partial<Record<CampoDaFicha, string | null>>,
+): boolean {
+  if (TIPOS_COM_FICHA.includes(tipo)) return true;
+  return CAMPOS_DA_FICHA.some(({ chave }) => {
+    const v = valores[chave];
+    return typeof v === "string" && v.trim() !== "";
+  });
+}

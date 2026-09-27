@@ -308,7 +308,10 @@ const TELAS = [
   { nome: "96-comodatos-inventario", rota: "/painel/comodatos?aba=geral", largura: 1600, altura: 1200, role: "socio" },
   { nome: "96b-comodatos-por-pessoa", rota: "/painel/comodatos?aba=geral&visao=pessoa", largura: 1500, altura: 1000, role: "socio" },
   { nome: "97-comodatos-modelo-termo", rota: "/painel/comodatos/modelo-termo", largura: 1500, altura: 1400, role: "socio" },
-  { nome: "97b-comodatos-folha", rota: "/painel/comodatos/as-2", largura: 1400, altura: 1100, role: "socio" },
+  { nome: "97b-comodatos-folha", rota: "/painel/comodatos/as-1", largura: 1400, altura: 1100, role: "socio" },
+  // A FICHA TÉCNICA (0070) só existe DEPOIS do clique: ela é uma seção do
+  // diálogo de cadastro, e uma tela sem o clique fotografa a lista.
+  { nome: "97c-comodatos-cadastro", rota: "/painel/comodatos?aba=geral", largura: 1400, altura: 1500, role: "socio", clicar: 'button:has-text("Cadastrar")' },
   { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },

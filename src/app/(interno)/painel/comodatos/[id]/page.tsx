@@ -13,6 +13,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { equipamento, folhaDoEquipamento } from "@/lib/dados/comodatos";
 import {
+  CAMPOS_DA_FICHA,
   ICONE_DO_TIPO,
   ROTULOS_DE_ESTADO,
   ROTULOS_DE_EVENTO,
@@ -53,6 +54,15 @@ export default async function Pagina({ params }: PageProps<"/painel/comodatos/[i
   if (!item) notFound();
 
   const Icone = ICONE_DO_TIPO[item.tipo];
+
+  // SÓ O QUE TEM VALOR, e não os quatro com um travessão nos vazios: aqui a
+  // ficha é leitura, e "Placa de vídeo —" numa máquina de vídeo integrado
+  // ocupa uma coluna para dizer que não há o que dizer. No formulário é o
+  // contrário — lá o campo vazio é onde se escreve.
+  const fichaPreenchida = CAMPOS_DA_FICHA.map(({ chave, rotulo }) => ({
+    rotulo: rotulo as string,
+    valor: item[chave],
+  })).filter((c): c is { rotulo: string; valor: string } => Boolean(c.valor));
 
   return (
     <div className="space-y-6">
@@ -107,6 +117,33 @@ export default async function Pagina({ params }: PageProps<"/painel/comodatos/[i
           ) : null}
         </CardContent>
       </Card>
+
+      {/* A FICHA TÉCNICA (0070), e ela fica ACIMA da folha.
+    
+          A folha responde "por onde esta peça passou"; a ficha responde "o que
+          é esta peça" — e quem abre a página de um notebook para decidir se
+          ele serve para o trabalho de alguém está fazendo a segunda pergunta.
+          Um bloco inteiro abaixo da linha do tempo seria lido depois de uma
+          lista que pode ter vinte linhas.
+
+          Ela some quando não há nada preenchido, como os blocos de exceção da
+          Home: quatro rótulos sem valor numa página de tripé é moldura. */}
+      {fichaPreenchida.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="ficha-titulo">
+          <h2 id="ficha-titulo" className="text-text-primary text-sm font-semibold">
+            Configuração
+          </h2>
+          <Card>
+            <CardContent className="flex flex-wrap gap-x-8 gap-y-4 pt-6">
+              {fichaPreenchida.map(({ rotulo, valor }) => (
+                <Dado key={rotulo} rotulo={rotulo}>
+                  {valor}
+                </Dado>
+              ))}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       <section className="space-y-3" aria-labelledby="folha-titulo">
         <h2 id="folha-titulo" className="text-text-primary text-sm font-semibold">

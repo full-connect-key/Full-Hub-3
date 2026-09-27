@@ -55,6 +55,12 @@ const esquemaDoEquipamento = z.object({
   nota_fiscal_url: z.string().trim().optional(),
   foto_url: z.string().trim().optional(),
   observacoes: z.string().trim().optional(),
+  // A FICHA TÉCNICA (0070). Todos opcionais: ela é a exceção e não a regra —
+  // a maior parte do inventário é tripé, lente e cabo.
+  memoria_ram: z.string().trim().optional(),
+  processador: z.string().trim().optional(),
+  placa_de_video: z.string().trim().optional(),
+  armazenamento: z.string().trim().optional(),
 });
 
 /** Em branco vira null, e não string vazia: `''` num campo opcional é um valor
@@ -88,6 +94,10 @@ export async function salvarEquipamento(dados: unknown): Promise<Resultado> {
       nota_fiscal_url: ouNulo(campos.nota_fiscal_url),
       foto_url: ouNulo(campos.foto_url),
       observacoes: ouNulo(campos.observacoes),
+      memoria_ram: ouNulo(campos.memoria_ram),
+      processador: ouNulo(campos.processador),
+      placa_de_video: ouNulo(campos.placa_de_video),
+      armazenamento: ouNulo(campos.armazenamento),
     };
 
     const resposta = id

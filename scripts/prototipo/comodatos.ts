@@ -53,6 +53,13 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: null,
     data_aquisicao: "2026-02-10",
+    // A FICHA TÉCNICA (0070). Só o notebook a tem preenchida: ela é o
+    // único tipo em que o formulário mostra a seção, e uma imagem com a
+    // ficha vazia não mostra a ficha.
+    memoria_ram: "16 GB",
+    processador: "Apple M3 Pro",
+    placa_de_video: null,
+    armazenamento: "512 GB SSD",
     comodato: {
       id: "ln-1",
       user_id: MARINA,
@@ -79,6 +86,10 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: null,
     data_aquisicao: "2026-05-20",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
     comodato: {
       id: "ln-2",
       user_id: BRUNO,
@@ -105,6 +116,10 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: null,
     data_aquisicao: "2025-11-03",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
     comodato: {
       id: "ln-3",
       user_id: SAIU,
@@ -131,6 +146,10 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: null,
     data_aquisicao: "2027-01-15",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
     comodato: null,
   },
   {
@@ -148,6 +167,10 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: "Foco automático travando.",
     data_aquisicao: "2025-06-01",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
     comodato: null,
   },
   {
@@ -165,6 +188,10 @@ const ITENS: ItemDoInventario[] = [
     foto: null,
     observacoes: null,
     data_aquisicao: "2024-03-12",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
     comodato: null,
   },
 ];
@@ -276,12 +303,12 @@ export async function folhaDoEquipamento(_assetId: string): Promise<LinhaDaFolha
       tipo: "emprestado",
       texto: null,
       estado: "bom",
-      // O NOME AQUI E O MESMO DO CARTAO DE CIMA (`as-2`, com o Bruno). A
+      // O NOME AQUI E O MESMO DO CARTAO DE CIMA (`as-1`, com a Marina). A
       // primeira versao punha outra pessoa, e a imagem saiu dizendo "com quem
-      // esta: Bruno Lima" sobre uma folha cuja ultima entrega era de outra --
+      // esta: Marina Alves" sobre uma folha cuja ultima entrega era de outra --
       // dois fatos contraditorios lado a lado, que e como um protótipo
       // inventa um defeito que o produto nao tem.
-      pessoa: "Bruno Lima",
+      pessoa: "Marina Alves",
       quem: "Ana Souza",
       created_at: "2026-08-15T11:00:00Z",
     },
@@ -308,7 +335,7 @@ export async function folhaDoEquipamento(_assetId: string): Promise<LinhaDaFolha
       tipo: "devolvido",
       texto: "Devolveu com marca de poeira no sensor.",
       estado: "ruim",
-      pessoa: "Marina Alves",
+      pessoa: "Bruno Lima",
       quem: "Ana Souza",
       created_at: "2026-07-29T17:05:00Z",
     },
@@ -320,7 +347,7 @@ export async function folhaDoEquipamento(_assetId: string): Promise<LinhaDaFolha
       tipo: "emprestado",
       texto: null,
       estado: "bom",
-      pessoa: "Marina Alves",
+      pessoa: "Bruno Lima",
       quem: "Ana Souza",
       created_at: "2026-03-02T10:40:00Z",
     },

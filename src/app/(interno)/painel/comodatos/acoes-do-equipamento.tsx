@@ -26,7 +26,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { ItemDoInventario } from "@/lib/dados/comodatos";
-import { ESTADOS, ROTULOS_DE_ESTADO, ROTULOS_DE_TIPO, TIPOS_DE_ASSET } from "@/lib/dominio/comodatos";
+import {
+  CAMPOS_DA_FICHA,
+  ESTADOS,
+  ROTULOS_DE_ESTADO,
+  ROTULOS_DE_TIPO,
+  TIPOS_DE_ASSET,
+  temFichaTecnica,
+} from "@/lib/dominio/comodatos";
 import type { AssetEstado, AssetTipo } from "@/lib/supabase/database.types";
 
 import { darBaixa, devolverEquipamento, emprestarEquipamento, mudarSituacao, salvarEquipamento } from "./acoes";
@@ -56,6 +63,10 @@ export function DialogoDeEquipamento({
   const [tipo, setTipo] = useState<AssetTipo>(item?.tipo ?? "notebook");
   const [estado, setEstado] = useState<AssetEstado>(item?.estado ?? "bom");
 
+  // O TIPO É ESTADO, então a seção aparece e some enquanto a pessoa mexe no
+  // seletor — sem salvar e reabrir para descobrir que os campos existiam.
+  const mostrarFicha = temFichaTecnica(tipo, item ?? {});
+
   async function salvar(form: FormData) {
     setEnviando(true);
     const valor = String(form.get("valor_aquisicao") ?? "").replace(",", ".");
@@ -72,6 +83,15 @@ export function DialogoDeEquipamento({
         data_aquisicao: String(form.get("data_aquisicao") ?? ""),
         valor_aquisicao: valor === "" ? null : Number(valor),
         observacoes: String(form.get("observacoes") ?? ""),
+        // A FICHA TÉCNICA VAI SEMPRE, e não só quando a seção está na tela:
+        // `form.get` de um campo que não foi desenhado devolve null e vira
+        // `""`, que `ouNulo` grava como null — apagando a ficha de quem mudou
+        // o tipo. O `?? item?.…` é a rede; a outra metade é a seção aparecer
+        // quando já há valor, e as duas moram em `temFichaTecnica()`.
+        memoria_ram: String(form.get("memoria_ram") ?? item?.memoria_ram ?? ""),
+        processador: String(form.get("processador") ?? item?.processador ?? ""),
+        placa_de_video: String(form.get("placa_de_video") ?? item?.placa_de_video ?? ""),
+        armazenamento: String(form.get("armazenamento") ?? item?.armazenamento ?? ""),
       }),
     );
     setEnviando(false);
@@ -148,6 +168,39 @@ export function DialogoDeEquipamento({
               dica="só a gestão vê"
             />
           </div>
+
+          {/* A FICHA TÉCNICA (0070), decisão do usuário.
+
+              Ela aparece para computador e para todo equipamento que já tenha
+              qualquer um dos quatro preenchido — as duas metades moram em
+              `temFichaTecnica()`. Sem a segunda, trocar o tipo de um notebook
+              para "Outro" esconderia os campos, e o próximo salvamento os
+              gravaria vazios.
+
+              **E ela é uma SEÇÃO com título**, e não mais quatro campos na
+              grade de cima: ali ficariam ao lado de "Número de série" e "Valor
+              de aquisição", que são de todo equipamento, e o cadastro de um
+              tripé pareceria ter metade dos campos em branco por descuido. Com
+              o título, a ausência num tripé se lê como "não se aplica". */}
+          {mostrarFicha ? (
+            <fieldset className="space-y-3 rounded-lg border p-3">
+              <legend className="text-text-secondary px-1 text-xs font-medium">
+                Configuração
+              </legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {CAMPOS_DA_FICHA.map(({ chave, rotulo, dica }) => (
+                  <Campo
+                    key={chave}
+                    id={`cmd-${chave}`}
+                    nome={chave}
+                    rotulo={rotulo}
+                    padrao={item?.[chave] ?? ""}
+                    dica={dica}
+                  />
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="cmd-obs">Observações</Label>

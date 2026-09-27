@@ -87,6 +87,13 @@ export type ItemDoInventario = {
   // corrigir o modelo.
   observacoes: string | null;
   data_aquisicao: string | null;
+  // A FICHA TÉCNICA (0070). Ela vem pela mesma razão das duas de cima: o
+  // diálogo de edição escreve os quatro, e um formulário que abre com o campo
+  // vazio apaga o que não mostrou.
+  memoria_ram: string | null;
+  processador: string | null;
+  placa_de_video: string | null;
+  armazenamento: string | null;
   comodato: {
     id: string;
     user_id: string;
@@ -99,8 +106,12 @@ export type ItemDoInventario = {
   } | null;
 };
 
+// UMA STRING LITERAL, e não duas concatenadas: o tipo do `select` do
+// PostgREST é inferido do literal, e um `"..." + "..."` colapsa o retorno em
+// `GenericStringError` — o erro sai onde a linha é LIDA, três funções adiante,
+// falando de `foto_url`. É a mesma família do `ouFalha(... .maybeSingle())`.
 const COLUNAS_DO_ITEM =
-  "id, codigo, tipo, nome, marca, modelo, numero_serie, status, estado, valor_aquisicao, foto_url, observacoes, data_aquisicao";
+  "id, codigo, tipo, nome, marca, modelo, numero_serie, status, estado, valor_aquisicao, foto_url, observacoes, data_aquisicao, memoria_ram, processador, placa_de_video, armazenamento";
 
 /**
  * O inventário inteiro, com quem está com cada item.

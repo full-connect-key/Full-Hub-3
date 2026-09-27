@@ -750,6 +750,13 @@ export interface Database {
           foto_url: string | null;
           observacoes: string | null;
           motivo_baixa: string | null;
+          /** A FICHA TECNICA (0070), `text` porque a unidade faz parte do que se
+           *  le: "16 GB", "512 GB SSD", "Intel i7-1165G7". Vazia em tudo que
+           *  nao e computador, e a TELA e quem decide mostrar. */
+          memoria_ram: string | null;
+          processador: string | null;
+          placa_de_video: string | null;
+          armazenamento: string | null;
           criado_por: string | null;
           created_at: string;
           updated_at: string;
@@ -769,6 +776,10 @@ export interface Database {
           nota_fiscal_url?: string | null;
           foto_url?: string | null;
           observacoes?: string | null;
+          memoria_ram?: string | null;
+          processador?: string | null;
+          placa_de_video?: string | null;
+          armazenamento?: string | null;
           criado_por?: string | null;
         };
         Update: {
@@ -787,6 +798,10 @@ export interface Database {
           foto_url?: string | null;
           observacoes?: string | null;
           motivo_baixa?: string | null;
+          memoria_ram?: string | null;
+          processador?: string | null;
+          placa_de_video?: string | null;
+          armazenamento?: string | null;
         };
         Relationships: [];
       };
