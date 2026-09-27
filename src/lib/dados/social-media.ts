@@ -323,13 +323,14 @@ export async function obterPostDaAgencia(id: string): Promise<{
 
   const [post] = await montar([data as Linha]);
 
-  const { data: linhas } = await supabase
-    .from("post_versions")
-    .select("*")
-    .eq("post_id", id)
-    .order("numero_versao", { ascending: false });
-
-  const versoes = linhas ?? [];
+  const versoes = ouFalha(
+    "as versões do post",
+    await supabase
+      .from("post_versions")
+      .select("*")
+      .eq("post_id", id)
+      .order("numero_versao", { ascending: false }),
+  );
   const caminhos = versoes.flatMap((v) => [
     v.arte_url,
     ...((v.arquivos ?? []) as ArquivoDaVersao[]).flatMap((a) => [
@@ -448,7 +449,7 @@ export async function minhasEtapasDeSocial(
   // AS IRMÃS DE CADA ETAPA, para saber se a minha já pode começar. É a mesma
   // conta de `bloqueioDaEtapa`, com a diferença de que aqui ela decide se o
   // item aparece — e não só como ele é desenhado.
-  const [{ data: posts }, { data: irmas }] = await Promise.all([
+  const [respostaDePosts, respostaDeIrmas] = await Promise.all([
     supabase
       .from("posts")
       .select("id, tema, client_id, data_publicacao")
@@ -458,22 +459,25 @@ export async function minhasEtapasDeSocial(
       .select("post_id, ordem, status")
       .in("post_id", idsDePost),
   ]);
+  const posts = ouFalha("os posts das minhas etapas", respostaDePosts);
+  const irmas = ouFalha("as irmãs de cada etapa", respostaDeIrmas);
 
-  const { data: clientes } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .in("id", [...new Set((posts ?? []).map((p) => p.client_id))]);
-
-  const nomeDoCliente = new Map(
-    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  const clientes = ouFalha(
+    "as empresas dos posts das minhas etapas",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", [...new Set(posts.map((p) => p.client_id))]),
   );
-  const doPost = new Map((posts ?? []).map((p) => [p.id, p]));
+
+  const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
+  const doPost = new Map(posts.map((p) => [p.id, p]));
   const nomes = await nomesDe([usuarioId]);
 
   return minhas
     .filter((e) => {
       if (e.status !== "nao_iniciada") return true;
-      return !(irmas ?? []).some(
+      return !irmas.some(
         (i) =>
           i.post_id === e.post_id &&
           i.ordem < e.ordem &&

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Notification } from "@/lib/supabase/database.types";
 
@@ -45,11 +47,17 @@ export async function minhasNotificacoes(): Promise<{
 
   const idsDeOrigem = [...new Set(lista.map((n) => n.origem_id).filter(Boolean))] as string[];
 
-  const { data: pessoas } = idsDeOrigem.length
-    ? await supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDeOrigem)
-    : { data: [] as { id: string; nome: string; avatar_url: string | null }[] };
+  const pessoas = idsDeOrigem.length
+    ? ouFalha(
+        "quem causou cada aviso",
+        await supabase
+          .from("profiles")
+          .select("id, nome, avatar_url")
+          .in("id", idsDeOrigem),
+      )
+    : [];
 
-  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
+  const porPessoa = new Map(pessoas.map((p) => [p.id, p]));
 
   return {
     lista: lista.map((n) => ({

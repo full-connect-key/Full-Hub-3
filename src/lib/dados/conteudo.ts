@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { colunasDoConteudo, type Conteudo } from "@/lib/aprovacoes/conteudo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { StatusRodada } from "@/lib/supabase/database.types";
@@ -47,18 +49,21 @@ export async function rodadasDo(
   if (ids.length === 0) return new Map();
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("approval_rounds")
-    .select(
-      "id, content_id, status, numero_rodada, decidido_por, decidido_em, comentario, solicitado_em",
-    )
-    .eq("content_type", tipo)
-    .eq("escopo", "cliente")
-    .in("content_id", ids)
-    .order("numero_rodada", { ascending: false });
+  const data = ouFalha(
+    "as rodadas de aprovação do material",
+    await supabase
+      .from("approval_rounds")
+      .select(
+        "id, content_id, status, numero_rodada, decidido_por, decidido_em, comentario, solicitado_em",
+      )
+      .eq("content_type", tipo)
+      .eq("escopo", "cliente")
+      .in("content_id", ids)
+      .order("numero_rodada", { ascending: false }),
+  );
 
   const mapa = new Map<string, RodadaDoConteudo>();
-  for (const linha of (data ?? []) as RodadaDoConteudo[]) {
+  for (const linha of data as RodadaDoConteudo[]) {
     // A de maior número é a que vale; as anteriores são o histórico de um
     // ciclo que já fechou.
     if (!mapa.has(linha.content_id)) mapa.set(linha.content_id, linha);
@@ -73,12 +78,12 @@ export async function nomesDe(
   if (limpos.length === 0) return new Map();
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, nome")
-    .in("id", limpos);
+  const data = ouFalha(
+    "os nomes de quem decidiu",
+    await supabase.from("profiles").select("id, nome").in("id", limpos),
+  );
 
-  return new Map((data ?? []).map((p) => [p.id, p.nome]));
+  return new Map(data.map((p) => [p.id, p.nome]));
 }
 
 /**
@@ -127,22 +132,26 @@ export async function comentariosDe(
   const supabase = await criarClienteServidor();
   const { content_type, content_id } = colunasDoConteudo(conteudo);
 
-  const { data } = await supabase
-    .from("comments")
-    .select("id, texto, created_at, autor_id, interno, resposta_a")
-    .eq("content_type", content_type)
-    .eq("content_id", content_id)
-    .order("created_at");
-
-  const linhas = data ?? [];
+  const linhas = ouFalha(
+    "os comentários do material",
+    await supabase
+      .from("comments")
+      .select("id, texto, created_at, autor_id, interno, resposta_a")
+      .eq("content_type", content_type)
+      .eq("content_id", content_id)
+      .order("created_at"),
+  );
   if (linhas.length === 0) return [];
 
-  const { data: pessoas } = await supabase
-    .from("profiles")
-    .select("id, nome, role")
-    .in("id", [...new Set(linhas.map((l) => l.autor_id))]);
+  const pessoas = ouFalha(
+    "os autores dos comentários",
+    await supabase
+      .from("profiles")
+      .select("id, nome, role")
+      .in("id", [...new Set(linhas.map((l) => l.autor_id))]),
+  );
 
-  const porId = new Map((pessoas ?? []).map((p) => [p.id, p]));
+  const porId = new Map(pessoas.map((p) => [p.id, p]));
 
   return linhas.map((l) => {
     const pessoa = porId.get(l.autor_id);

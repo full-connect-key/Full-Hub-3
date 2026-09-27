@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { cache } from "react";
 
 import { DIAS_DE_DESCANSO_PADRAO } from "@/lib/dominio/full-days";
@@ -65,25 +67,31 @@ const SEM_AREA = "Sem área";
 export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
   const supabase = await criarClienteServidor();
 
-  const { data: perfis } = await supabase
-    .from("profiles")
-    .select("id, nome, avatar_url, role, ativo")
-    .neq("role", "cliente")
-    .eq("ativo", true)
-    .order("nome");
+  const perfis = ouFalha(
+    "os perfis da equipe",
+    await supabase
+      .from("profiles")
+      .select("id, nome, avatar_url, role, ativo")
+      .neq("role", "cliente")
+      .eq("ativo", true)
+      .order("nome"),
+  );
 
-  const pessoas = perfis ?? [];
+  const pessoas = perfis;
   if (pessoas.length === 0) return [];
 
-  const { data: fichas } = await supabase
-    .from("team_members")
-    .select("user_id, area, cargo, ativo, dias_ferias_ano, max_parcelas_ferias")
-    .in(
-      "user_id",
-      pessoas.map((p) => p.id),
-    );
+  const fichas = ouFalha(
+    "as fichas da equipe",
+    await supabase
+      .from("team_members")
+      .select("user_id, area, cargo, ativo, dias_ferias_ano, max_parcelas_ferias")
+      .in(
+        "user_id",
+        pessoas.map((p) => p.id),
+      ),
+  );
 
-  const porUsuario = new Map((fichas ?? []).map((f) => [f.user_id, f]));
+  const porUsuario = new Map(fichas.map((f) => [f.user_id, f]));
 
   return pessoas
     // Quem foi desligado sai da matriz e do relatório. O registro fica no
@@ -107,12 +115,15 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
 /** Os feriados de um intervalo, como conjunto de datas ISO. */
 export async function feriadosEntre(inicio: string, fim: string): Promise<Set<string>> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("holidays")
-    .select("data")
-    .gte("data", inicio)
-    .lte("data", fim);
-  return new Set((data ?? []).map((h) => h.data));
+  const data = ouFalha(
+    "os feriados do período",
+    await supabase
+      .from("holidays")
+      .select("data")
+      .gte("data", inicio)
+      .lte("data", fim),
+  );
+  return new Set(data.map((h) => h.data));
 }
 
 export async function feriadosComNome(
@@ -120,13 +131,16 @@ export async function feriadosComNome(
   fim: string,
 ): Promise<{ data: string; nome: string }[]> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("holidays")
-    .select("data, nome")
-    .gte("data", inicio)
-    .lte("data", fim)
-    .order("data");
-  return data ?? [];
+  const data = ouFalha(
+    "os feriados com nome",
+    await supabase
+      .from("holidays")
+      .select("data, nome")
+      .gte("data", inicio)
+      .lte("data", fim)
+      .order("data"),
+  );
+  return data;
 }
 
 /**
@@ -148,7 +162,7 @@ export async function matrizDoPeriodo(
 
   // Uma consulta para a equipe inteira, e não uma por pessoa: numa agência de
   // vinte pessoas seriam vinte idas ao banco para pintar uma grade.
-  const [{ data: presencas }, { data: descansos }] = await Promise.all([
+  const [respostaDePresencas, respostaDeDescansos] = await Promise.all([
     supabase.from("team_presence").select("*").gte("data", inicio).lte("data", fim),
     supabase
       .from("hr_requests")
@@ -158,14 +172,16 @@ export async function matrizDoPeriodo(
       .gte("data_inicio", `${ano}-01-01`)
       .lte("data_inicio", `${ano}-12-31`),
   ]);
+  const presencas = ouFalha("a presença da equipe no período", respostaDePresencas);
+  const descansos = ouFalha("os descansos do ciclo", respostaDeDescansos);
 
   const usadosDe = new Map<string, number>();
-  for (const pedido of descansos ?? []) {
+  for (const pedido of descansos) {
     usadosDe.set(pedido.user_id, (usadosDe.get(pedido.user_id) ?? 0) + pedido.dias_uteis);
   }
 
   const porPessoa = new Map<string, TeamPresence[]>();
-  for (const linha of presencas ?? []) {
+  for (const linha of presencas) {
     const atual = porPessoa.get(linha.user_id) ?? [];
     atual.push(linha);
     porPessoa.set(linha.user_id, atual);
@@ -191,12 +207,15 @@ export async function matrizDoPeriodo(
 /** Os pedidos de uma pessoa, do mais recente para trás. */
 export async function minhasSolicitacoes(usuarioId: string): Promise<HrRequest[]> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("hr_requests")
-    .select("*")
-    .eq("user_id", usuarioId)
-    .order("data_inicio", { ascending: false });
-  return data ?? [];
+  const data = ouFalha(
+    "os meus pedidos do Full Days",
+    await supabase
+      .from("hr_requests")
+      .select("*")
+      .eq("user_id", usuarioId)
+      .order("data_inicio", { ascending: false }),
+  );
+  return data;
 }
 
 /**
@@ -212,26 +231,32 @@ export async function filaDeAprovacoes(status: HrStatus): Promise<SolicitacaoNaT
   const time = await listarTime();
   const porPessoa = new Map(time.map((p) => [p.id, p]));
 
-  const { data: pedidos } = await supabase
-    .from("hr_requests")
-    .select("*")
-    .eq("status", status)
-    .order("created_at", { ascending: status === "pendente" });
+  const pedidos = ouFalha(
+    "os pedidos por situação",
+    await supabase
+      .from("hr_requests")
+      .select("*")
+      .eq("status", status)
+      .order("created_at", { ascending: status === "pendente" }),
+  );
 
-  const lista = pedidos ?? [];
+  const lista = pedidos;
   if (lista.length === 0) return [];
 
   // Os aprovados servem de contexto para todos os pendentes de uma vez — uma
   // consulta, e não uma por pedido.
-  const { data: aprovados } = await supabase
-    .from("hr_requests")
-    .select("user_id, data_inicio, data_fim")
-    .eq("status", "aprovada");
+  const aprovados = ouFalha(
+    "os períodos já combinados",
+    await supabase
+      .from("hr_requests")
+      .select("user_id, data_inicio, data_fim")
+      .eq("status", "aprovada"),
+  );
 
   return lista.map((pedido) => {
     const pessoa = porPessoa.get(pedido.user_id) ?? null;
 
-    const colegasFora = (aprovados ?? [])
+    const colegasFora = aprovados
       .filter((outro) => {
         if (outro.user_id === pedido.user_id) return false;
         const colega = porPessoa.get(outro.user_id);
@@ -250,7 +275,10 @@ export async function filaDeAprovacoes(status: HrStatus): Promise<SolicitacaoNaT
 
 export async function contarPorStatus(): Promise<Record<HrStatus, number>> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.from("hr_requests").select("status");
+  const data = ouFalha(
+    "a contagem de pedidos por situação",
+    await supabase.from("hr_requests").select("status"),
+  );
 
   const contagem: Record<HrStatus, number> = {
     pendente: 0,
@@ -258,7 +286,7 @@ export async function contarPorStatus(): Promise<Record<HrStatus, number>> {
     reprovada: 0,
     cancelada: 0,
   };
-  for (const linha of data ?? []) contagem[linha.status] += 1;
+  for (const linha of data) contagem[linha.status] += 1;
   return contagem;
 }
 
@@ -286,21 +314,24 @@ export async function diasBloqueadosDaArea(
   const colegas = time.filter((p) => p.area === eu.area && p.id !== usuarioId);
   if (colegas.length === 0) return new Map();
 
-  const { data: aprovados } = await supabase
-    .from("hr_requests")
-    .select("user_id, data_inicio, data_fim")
-    .eq("status", "aprovada")
-    .in(
-      "user_id",
-      colegas.map((c) => c.id),
-    )
-    .lte("data_inicio", fim)
-    .gte("data_fim", inicio);
+  const aprovados = ouFalha(
+    "os períodos combinados da equipe",
+    await supabase
+      .from("hr_requests")
+      .select("user_id, data_inicio, data_fim")
+      .eq("status", "aprovada")
+      .in(
+        "user_id",
+        colegas.map((c) => c.id),
+      )
+      .lte("data_inicio", fim)
+      .gte("data_fim", inicio),
+  );
 
   const porNome = new Map(colegas.map((c) => [c.id, c.nome]));
   const bloqueados = new Map<string, string[]>();
 
-  for (const pedido of aprovados ?? []) {
+  for (const pedido of aprovados) {
     const nome = porNome.get(pedido.user_id) ?? "—";
     const cursor = new Date(`${pedido.data_inicio}T12:00:00`);
     const ate = new Date(`${pedido.data_fim}T12:00:00`);
@@ -361,15 +392,17 @@ export async function relatorioDoPeriodo(
   const ano = Number(hojeISO.slice(0, 4));
   const ids = time.map((p) => p.id);
 
-  const [{ data: pedidos }, { data: fichas }] = await Promise.all([
+  const [respostaDePedidos, respostaDeFichas] = await Promise.all([
     supabase.from("hr_requests").select("*").in("user_id", ids),
     supabase.from("team_members").select("user_id, data_admissao").in("user_id", ids),
   ]);
+  const pedidos = ouFalha("os pedidos do relatório", respostaDePedidos);
+  const fichas = ouFalha("as admissões da equipe", respostaDeFichas);
 
-  const admissaoDe = new Map((fichas ?? []).map((f) => [f.user_id, f.data_admissao]));
+  const admissaoDe = new Map(fichas.map((f) => [f.user_id, f.data_admissao]));
 
   return time.map((pessoa) => {
-    const meus = (pedidos ?? []).filter((p) => p.user_id === pessoa.id);
+    const meus = pedidos.filter((p) => p.user_id === pessoa.id);
 
     const feriasDoAno = meus.filter(
       (p) => p.tipo === "ferias" && p.data_inicio.slice(0, 4) === String(ano),
@@ -444,13 +477,16 @@ export async function foraHoje(hojeISO: string): Promise<
   const time = await listarTime();
   const porPessoa = new Map(time.map((p) => [p.id, p]));
 
-  const { data } = await supabase
-    .from("team_presence")
-    .select("user_id, status")
-    .eq("data", hojeISO)
-    .in("status", ["ferias", "licenca", "ausente"]);
+  const data = ouFalha(
+    "a presença de hoje",
+    await supabase
+      .from("team_presence")
+      .select("user_id, status")
+      .eq("data", hojeISO)
+      .in("status", ["ferias", "licenca", "ausente"]),
+  );
 
-  return (data ?? [])
+  return data
     .map((linha) => {
       const pessoa = porPessoa.get(linha.user_id);
       if (!pessoa) return null;
@@ -487,13 +523,16 @@ export async function lancamentosDaGestao(): Promise<LancamentoNaTela[]> {
   const time = await listarTime();
   const porPessoa = new Map(time.map((p) => [p.id, p]));
 
-  const { data } = await supabase
-    .from("hr_requests")
-    .select("*")
-    .neq("origem", "solicitacao")
-    .order("data_inicio", { ascending: false });
+  const data = ouFalha(
+    "os períodos registrados pela gestão",
+    await supabase
+      .from("hr_requests")
+      .select("*")
+      .neq("origem", "solicitacao")
+      .order("data_inicio", { ascending: false }),
+  );
 
-  return (data ?? []).map((pedido) => ({
+  return data.map((pedido) => ({
     ...pedido,
     pessoa: porPessoa.get(pedido.user_id) ?? null,
     lancadoPor: pedido.lancado_por

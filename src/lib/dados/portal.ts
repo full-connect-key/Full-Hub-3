@@ -48,55 +48,69 @@ export async function itensDoPortal(
 
   // Só as de escopo cliente. A aprovação interna inteira — quem pediu, quem
   // validou, o que foi comentado — fica do lado de cá da parede.
-  const { data: rodadas } = await supabase
-    .from("approval_rounds")
-    .select(
-      "id, content_type, content_id, status, solicitado_em, numero_rodada",
-    )
-    .eq("escopo", "cliente")
-    .eq("content_type", "subtask")
-    .order("numero_rodada", { ascending: false });
+  const todas = ouFalha(
+    "as rodadas de aprovação do portal",
+    await supabase
+      .from("approval_rounds")
+      .select(
+        "id, content_type, content_id, status, solicitado_em, numero_rodada",
+      )
+      .eq("escopo", "cliente")
+      .eq("content_type", "subtask")
+      .order("numero_rodada", { ascending: false }),
+  );
 
-  const todas = rodadas ?? [];
   if (todas.length === 0) return [];
 
   const idsDeConteudo = [...new Set(todas.map((r) => r.content_id))];
 
-  const { data: subtarefas } = await supabase
-    .from("subtasks")
-    .select("id, task_id, titulo, prazo, status")
-    .in("id", idsDeConteudo);
+  const subtarefas = ouFalha(
+    "as etapas do portal",
+    await supabase
+      .from("subtasks")
+      .select("id, task_id, titulo, prazo, status")
+      .in("id", idsDeConteudo),
+  );
 
-  const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
+  const idsDeTasks = [...new Set(subtarefas.map((s) => s.task_id))];
   if (idsDeTasks.length === 0) return [];
 
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, titulo, client_id")
-    .in("id", idsDeTasks);
+  const tasks = ouFalha(
+    "as demandas do portal",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, client_id")
+      .in("id", idsDeTasks),
+  );
 
   const idsDeClientes = [
-    ...new Set((tasks ?? []).map((t) => t.client_id).filter(Boolean)),
+    ...new Set(tasks.map((t) => t.client_id).filter(Boolean)),
   ] as string[];
 
-  const { data: clientes } = idsDeClientes.length
-    ? await supabase
-        .from("clients")
-        .select("id, nome_empresa")
-        .in("id", idsDeClientes)
-    : { data: [] as { id: string; nome_empresa: string }[] };
+  const clientes = idsDeClientes.length
+    ? ouFalha(
+        "as empresas dos materiais do portal",
+        await supabase
+          .from("clients")
+          .select("id, nome_empresa")
+          .in("id", idsDeClientes),
+      )
+    : [];
 
-  const { data: entregas } = await supabase
-    .from("subtask_entregas")
-    .select("subtask_id, tipo, url")
-    .in("subtask_id", idsDeConteudo);
+  const entregas = ouFalha(
+    "os arquivos entregues em cada etapa",
+    await supabase
+      .from("subtask_entregas")
+      .select("subtask_id, tipo, url")
+      .in("subtask_id", idsDeConteudo),
+  );
 
-  const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
+  const porTask = new Map(tasks.map((t) => [t.id, t]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
 
   const itens: ItemDoPortal[] = [];
 
-  for (const sub of subtarefas ?? []) {
+  for (const sub of subtarefas) {
     const task = porTask.get(sub.task_id);
     if (!task || !task.client_id) continue;
     if (clienteId && task.client_id !== clienteId) continue;
@@ -201,36 +215,40 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const posts = ouFalha("os materiais do portal", await consulta) ?? [];
+  const posts = ouFalha("os materiais do portal", await consulta);
   if (posts.length === 0) return [];
 
-  const { data: rodadas } = await supabase
-    .from("approval_rounds")
-    .select("id, content_id, status, numero_rodada")
-    .eq("content_type", "post")
-    .eq("escopo", "cliente")
-    .in(
-      "content_id",
-      posts.map((p) => p.id),
-    )
-    .order("numero_rodada", { ascending: false });
+  const rodadas = ouFalha(
+    "as rodadas dos posts do portal",
+    await supabase
+      .from("approval_rounds")
+      .select("id, content_id, status, numero_rodada")
+      .eq("content_type", "post")
+      .eq("escopo", "cliente")
+      .in(
+        "content_id",
+        posts.map((p) => p.id),
+      )
+      .order("numero_rodada", { ascending: false }),
+  );
 
   const pendentePorPost = new Map<string, string>();
   const vistos = new Set<string>();
-  for (const r of rodadas ?? []) {
+  for (const r of rodadas) {
     if (vistos.has(r.content_id)) continue;
     vistos.add(r.content_id);
     if (r.status === "pendente") pendentePorPost.set(r.content_id, r.id);
   }
 
   const idsDeClientes = [...new Set(posts.map((p) => p.client_id))];
-  const { data: clientes } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .in("id", idsDeClientes);
-  const porCliente = new Map(
-    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  const clientes = ouFalha(
+    "as empresas dos posts do portal",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", idsDeClientes),
   );
+  const porCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
 
   return posts.map((post) => ({
     rodadaId: pendentePorPost.get(post.id) ?? null,
@@ -290,21 +308,22 @@ async function entregaveisComoItens(
 
   if (clienteId) consulta = consulta.eq("client_id", clienteId);
 
-  const { data: campanhas } = await consulta;
-  if (!campanhas || campanhas.length === 0) return [];
+  const campanhas = ouFalha("as campanhas do portal", await consulta);
+  if (campanhas.length === 0) return [];
 
-  const { data: entregaveis } = await supabase
-    .from("deliverables")
-    .select(
-      "id, campaign_id, parent_id, nome, prazo, status, thumbnail_url, arte_url, enviado_em",
-    )
-    .in(
-      "campaign_id",
-      campanhas.map((c) => c.id),
-    )
-    .order("ordem");
-
-  const linhas = entregaveis ?? [];
+  const linhas = ouFalha(
+    "os materiais de campanha do portal",
+    await supabase
+      .from("deliverables")
+      .select(
+        "id, campaign_id, parent_id, nome, prazo, status, thumbnail_url, arte_url, enviado_em",
+      )
+      .in(
+        "campaign_id",
+        campanhas.map((c) => c.id),
+      )
+      .order("ordem"),
+  );
   if (linhas.length === 0) return [];
 
   const comFilho = new Set(
@@ -313,19 +332,22 @@ async function entregaveisComoItens(
   const folhasDaArvore = linhas.filter((d) => !comFilho.has(d.id));
   if (folhasDaArvore.length === 0) return [];
 
-  const { data: rodadas } = await supabase
-    .from("approval_rounds")
-    .select("id, content_id, status, numero_rodada, solicitado_em")
-    .eq("content_type", "deliverable")
-    .eq("escopo", "cliente")
-    .in(
-      "content_id",
-      folhasDaArvore.map((d) => d.id),
-    )
-    .order("numero_rodada", { ascending: false });
+  const rodadas = ouFalha(
+    "as rodadas dos materiais de campanha",
+    await supabase
+      .from("approval_rounds")
+      .select("id, content_id, status, numero_rodada, solicitado_em")
+      .eq("content_type", "deliverable")
+      .eq("escopo", "cliente")
+      .in(
+        "content_id",
+        folhasDaArvore.map((d) => d.id),
+      )
+      .order("numero_rodada", { ascending: false }),
+  );
 
   const atual = new Map<string, { id: string; status: StatusRodada }>();
-  for (const r of rodadas ?? []) {
+  for (const r of rodadas) {
     // A de maior número é a que vale; as anteriores são o histórico de um
     // ciclo que já fechou.
     if (!atual.has(r.content_id)) atual.set(r.content_id, r);
@@ -334,12 +356,15 @@ async function entregaveisComoItens(
   const porCampanha = new Map(campanhas.map((c) => [c.id, c]));
 
   const idsDeClientes = [...new Set(campanhas.map((c) => c.client_id))];
-  const { data: clientes } = await supabase
-    .from("clients")
-    .select("id, nome_empresa")
-    .in("id", idsDeClientes);
+  const clientes = ouFalha(
+    "as empresas das campanhas do portal",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", idsDeClientes),
+  );
   const porCliente = new Map(
-    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+    clientes.map((c) => [c.id, c.nome_empresa]),
   );
 
   return folhasDaArvore.flatMap((item) => {
@@ -423,24 +448,33 @@ export async function atividadeRecente(
       .limit(30),
   );
 
-  const linhas = data ?? [];
+  const linhas = data;
   if (linhas.length === 0) return [];
 
   const idsDeTasks = [...new Set(linhas.map((l) => l.task_id))];
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, titulo, client_id")
-    .in("id", idsDeTasks);
+  const tasks = ouFalha(
+    "as demandas da atividade recente",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, client_id")
+      .in("id", idsDeTasks),
+  );
 
   const idsDeSubs = [
     ...new Set(linhas.map((l) => l.subtask_id).filter(Boolean)),
   ] as string[];
-  const { data: subs } = idsDeSubs.length
-    ? await supabase.from("subtasks").select("id, titulo").in("id", idsDeSubs)
-    : { data: [] as { id: string; titulo: string }[] };
+  const subs = idsDeSubs.length
+    ? ouFalha(
+        "as etapas da atividade recente",
+        await supabase
+          .from("subtasks")
+          .select("id, titulo")
+          .in("id", idsDeSubs),
+      )
+    : [];
 
-  const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
-  const porSub = new Map((subs ?? []).map((s) => [s.id, s]));
+  const porTask = new Map(tasks.map((t) => [t.id, t]));
+  const porSub = new Map(subs.map((s) => [s.id, s]));
 
   return linhas
     .filter((l) => {
@@ -534,10 +568,19 @@ const PADRAO: PreferenciasDeAviso = {
  */
 export async function minhasPreferencias(): Promise<PreferenciasDeAviso> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("client_notification_prefs")
-    .select("novo_conteudo, novo_comentario, lembrete_pendencias, frequencia")
-    .maybeSingle();
 
-  return (data as PreferenciasDeAviso | null) ?? PADRAO;
+  // `ouFalha` AQUI SEPARA DUAS COISAS QUE O `?? PADRAO` juntava: sem linha é
+  // "esta pessoa nunca mexeu", e o padrão é a resposta certa; erro é a consulta
+  // recusada, e devolver o padrão faria a tela mostrar as caixas marcadas de
+  // fábrica como se fossem a escolha dela. O `.limit(1)` no lugar de
+  // `.maybeSingle()` é mecânico: com ele o tipo de `ouFalha` colapsa em `never`.
+  const linhas = ouFalha(
+    "as suas preferências de aviso",
+    await supabase
+      .from("client_notification_prefs")
+      .select("novo_conteudo, novo_comentario, lembrete_pendencias, frequencia")
+      .limit(1),
+  );
+
+  return (linhas[0] as PreferenciasDeAviso | undefined) ?? PADRAO;
 }

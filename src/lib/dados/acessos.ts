@@ -87,12 +87,12 @@ export async function visitasAoPortal(
   if (!linhas || linhas.length === 0) return [];
 
   const ids = [...new Set(linhas.map((l) => l.staff_user_id))];
-  const { data: pessoas } = await supabase
-    .from("profiles")
-    .select("id, nome")
-    .in("id", ids);
+  const pessoas = ouFalha(
+    "quem da equipe abriu o portal",
+    await supabase.from("profiles").select("id, nome").in("id", ids),
+  );
 
-  const nomes = new Map((pessoas ?? []).map((p) => [p.id, p.nome]));
+  const nomes = new Map(pessoas.map((p) => [p.id, p.nome]));
 
   return linhas.map((l) => ({
     id: l.id,

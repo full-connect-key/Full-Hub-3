@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ouFalha } from "./consulta";
+
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   ApprovalRound,
@@ -52,20 +54,20 @@ export async function minhasAprovacoes(
   // acontece no banco, e não depois de trazer o que não interessa.
   let idsPermitidos: string[] | null = null;
   if (clienteId) {
-    const { data: tasksDoCliente } = await supabase
-      .from("tasks")
-      .select("id")
-      .eq("client_id", clienteId);
+    const tasksDoCliente = ouFalha(
+      "as demandas da empresa",
+      await supabase.from("tasks").select("id").eq("client_id", clienteId),
+    );
 
-    const ids = (tasksDoCliente ?? []).map((t) => t.id);
+    const ids = tasksDoCliente.map((t) => t.id);
     if (ids.length === 0) return { esperando: [], decididas: [] };
 
-    const { data: subtarefasDoCliente } = await supabase
-      .from("subtasks")
-      .select("id")
-      .in("task_id", ids);
+    const subtarefasDoCliente = ouFalha(
+      "as etapas das demandas da empresa",
+      await supabase.from("subtasks").select("id").in("task_id", ids),
+    );
 
-    idsPermitidos = (subtarefasDoCliente ?? []).map((s) => s.id);
+    idsPermitidos = subtarefasDoCliente.map((s) => s.id);
     if (idsPermitidos.length === 0) return { esperando: [], decididas: [] };
   }
 
@@ -78,16 +80,17 @@ export async function minhasAprovacoes(
     .eq("content_type", "subtask");
   if (idsPermitidos) consulta = consulta.in("content_id", idsPermitidos);
 
-  const { data: rodadas } = await consulta.order("solicitado_em", {
-    ascending: false,
-  });
+  const rodadas = ouFalha(
+    "as aprovações do cliente",
+    await consulta.order("solicitado_em", { ascending: false }),
+  );
 
-  const todas = (rodadas ?? []) as ApprovalRound[];
+  const todas = rodadas as ApprovalRound[];
   if (todas.length === 0) return { esperando: [], decididas: [] };
 
   const idsDeSubtarefas = [...new Set(todas.map((r) => r.content_id))];
 
-  const [{ data: subtarefas }, { data: entregas }] = await Promise.all([
+  const [respostaDeSubtarefas, respostaDeEntregas] = await Promise.all([
     supabase
       .from("subtasks")
       .select("id, task_id, titulo")
@@ -97,13 +100,15 @@ export async function minhasAprovacoes(
       .select("*")
       .in("subtask_id", idsDeSubtarefas),
   ]);
+  const subtarefas = ouFalha("as etapas em aprovação", respostaDeSubtarefas);
+  const entregas = ouFalha("os arquivos entregues", respostaDeEntregas);
 
-  const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
+  const idsDeTasks = [...new Set(subtarefas.map((s) => s.task_id))];
 
-  const [{ data: tasks }, { data: comentarios }] = await Promise.all([
+  const [respostaDeTasks, respostaDeComentarios] = await Promise.all([
     idsDeTasks.length
       ? supabase.from("tasks").select("id, titulo").in("id", idsDeTasks)
-      : Promise.resolve({ data: [] as { id: string; titulo: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; titulo: string }[], error: null }),
     supabase
       .from("task_comentarios")
       .select("id, subtask_id, autor_id, texto, created_at")
@@ -111,9 +116,11 @@ export async function minhasAprovacoes(
       .in("subtask_id", idsDeSubtarefas)
       .order("created_at"),
   ]);
+  const tasks = ouFalha("as demandas em aprovação", respostaDeTasks);
+  const comentarios = ouFalha("a conversa de cada material", respostaDeComentarios);
 
-  const porSubtarefa = new Map((subtarefas ?? []).map((s) => [s.id, s]));
-  const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
+  const porSubtarefa = new Map(subtarefas.map((s) => [s.id, s]));
+  const porTask = new Map(tasks.map((t) => [t.id, t]));
 
   const montar = (rodada: ApprovalRound): AprovacaoDoCliente | null => {
     const sub = porSubtarefa.get(rodada.content_id);
@@ -128,8 +135,8 @@ export async function minhasAprovacoes(
       enviadaEm: rodada.solicitado_em,
       decididaEm: rodada.decidido_em,
       comentario: rodada.comentario,
-      entregas: (entregas ?? []).filter((e) => e.subtask_id === sub.id),
-      conversa: (comentarios ?? [])
+      entregas: entregas.filter((e) => e.subtask_id === sub.id),
+      conversa: comentarios
         .filter((c) => c.subtask_id === sub.id)
         .map((c) => ({
           id: c.id,
