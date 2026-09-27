@@ -1203,7 +1203,20 @@ export interface Database {
         Update: { data?: string; nome?: string };
         Relationships: [];
       };
-      /** Catalogo compartilhado de skills (migration 0012). */
+      /**
+       * Catalogo compartilhado de skills (migration 0012).
+       *
+       * SEM `sugerida_por`, e a ausencia era drift: a 0043 apagou a coluna
+       * junto com a tela que decidia as sugestoes -- o catalogo tinha dois
+       * caminhos de entrada, a gestao criava e a equipe sugeria, e a fila de
+       * aprovacao morava no modulo que saiu. Aqui ela ficou declarada por
+       * quatro migrations, no Row, no Insert e no Update: compilava,
+       * autocompletava, e qualquer escrita levaria *"Could not find the
+       * 'sugerida_por' column"* na tela de quem usa o sistema.
+       *
+       * `ativa` FICA: e como a gestao tira do ar uma etiqueta que a agencia nao
+       * usa mais sem apagar a que ja esta em material antigo.
+       */
       skills: {
         Row: {
           id: string;
@@ -1211,7 +1224,6 @@ export interface Database {
           categoria: string | null;
           descricao: string | null;
           ativa: boolean;
-          sugerida_por: string | null;
           created_at: string;
         };
         Insert: {
@@ -1220,14 +1232,12 @@ export interface Database {
           categoria?: string | null;
           descricao?: string | null;
           ativa?: boolean;
-          sugerida_por?: string | null;
         };
         Update: {
           nome?: string;
           categoria?: string | null;
           descricao?: string | null;
           ativa?: boolean;
-          sugerida_por?: string | null;
         };
         Relationships: [];
       };
@@ -2127,6 +2137,24 @@ export interface Database {
           responsavel_id: string | null;
           status: SubtaskStatus;
           prazo: string | null;
+          /**
+           * A REGRA de data, em dias relativos a publicacao do post (0059) --
+           * "Layout tres dias antes de ir ao ar". `prazo` e o DIA que ela
+           * produz, e a regra existe para ele se recalcular sozinho quando o
+           * post andar.
+           *
+           * FORA DE `Insert` E DE `Update`, como `tempo_medido_segundos` da
+           * 0021: quem escreve e `abrir_mes_de_social()`, e quem a APAGA e o
+           * trigger, no instante em que alguem data a etapa a mao -- dali em
+           * diante o post pode andar que ela fica onde a pessoa a pos. Tentar
+           * grava-la daqui e erro de tipo antes de ser recusa do banco.
+           *
+           * Ela faltava no Row inteiro, e essa e a metade que doi: o
+           * `select("*")` trazia a coluna e o TypeScript nao a conhecia, entao
+           * nenhuma tela tinha como mostrar por que uma etapa para de andar com
+           * o post. A coluna existia na tabela e nao existia no produto.
+           */
+          prazo_offset_dias: number | null;
           concluida_em: string | null;
           created_at: string;
           updated_at: string;

@@ -57,6 +57,17 @@ jobs:
       - name: Migrations que sobrevivem ao separador de comandos
         run: npm run check:migrations
 
+      # O `database.types.ts` é escrito à MÃO -- o cabeçalho dele diz que
+      # deveria ser gerado, e a geração pede credencial do projeto. Trinta e uma
+      # migrations depois, ele cobre sessenta tabelas mantidas por digitação, e
+      # uma coluna fora de lugar atravessa o tsc, o lint e o build: o TypeScript
+      # é a fonte da verdade para o TypeScript, e ele não conhece o Postgres. O
+      # erro nasce em produção -- "Could not find the 'x' column" ou, pior, um
+      # `select` recusado INTEIRO, e aí a lista volta vazia e a tela diz "nenhum
+      # resultado" com toda a confiança.
+      - name: O tipo do banco acompanha as migrations
+        run: npm run check:tipos
+
       # Valor exportado de arquivo "use client" chamado por Server Component.
       # O build, o lint e o tsc passam os tres -- o erro so nasce quando
       # alguem PEDE a pagina, e a resposta e um 500 seco. Foi assim que a

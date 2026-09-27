@@ -5249,6 +5249,40 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   da 0007 dizem a mesma coisa para quem chamar a API direto. As duas existem de
   propósito: a primeira escreve a mensagem que a pessoa lê, a segunda é a que
   vale.
+- **O `database.types.ts` é escrito à MÃO, e o cabeçalho dele diz que não
+  deveria ser.** A geração (`npx supabase gen types typescript --linked`) pede
+  credencial do projeto, que não existe nesta máquina, então desde o Sprint 0 o
+  arquivo é digitado: sessenta tabelas e algumas centenas de colunas.
+
+  **Uma coluna fora de lugar ali não quebra nada no caminho.** Ela atravessa o
+  `tsc`, o `lint` e o `build`, porque o tipo é a fonte da verdade PARA O
+  TypeScript e o TypeScript não conhece o Postgres. Quem paga é a tela: *"Could
+  not find the 'x' column of 'y' in the schema cache"*, ou — pior — um `select`
+  que o PostgREST recusa INTEIRO, e aí a leitura volta vazia e a tela afirma
+  "nenhum resultado" com toda a confiança. É o mesmo modo de falha que trouxe
+  `ouFalha()`.
+
+  `npm run check:tipos` é a prova, e ela achou duas derivas na primeira rodada:
+  `skills.sugerida_por` estava no `Row`, no `Insert` e no `Update` quatro
+  migrations depois de a 0043 apagar a coluna, e `post_etapas.prazo_offset_dias`
+  não estava em lugar nenhum desde que a 0059 a criou — a regra de data existia
+  na tabela e **não existia no produto**, então nenhuma tela tinha como mostrar
+  por que uma etapa para de andar com o post.
+
+  **Ela também pegou um bug meu, e o achado é a lição:** a primeira versão lia
+  só a primeira cláusula de cada `alter table`, e a 0070 acrescenta quatro
+  colunas de uma vez — as três que faltaram apareceram como "declarada no `Row` e
+  ausente do banco", que é o achado mais grave da lista. Eu ia atrás de um furo
+  de produção e o furo era do leitor. Quem varre SQL com expressão regular corta
+  a instrução até o `;` e lê as cláusulas uma a uma; e tira os comentários
+  primeiro, senão as explicações que CITAM o comando que discutem — "a 0023
+  apagou `tasks.exigencia_aprovacao`" — apagam coluna que está de pé.
+
+  **Os VALORES de cada enum ficam de fora de propósito:** valor órfão é normal
+  aqui, porque `alter type ... drop value` não existe no Postgres — `cancelada`
+  em `task_status` e o `pf_tipo` inteiro continuam lá, e o TypeScript deve mesmo
+  ignorá-los. O tipo inteiro, esse sai: a 0023 fez `drop type` em
+  `exigencia_aprovacao`, e é a diferença entre os dois casos.
 - **Função não atravessa a fronteira servidor/cliente.** Uma função pura que
   os dois lados usam vai para `lib/dominio/`; `lib/dados/` é `server-only` e o
   que sai de lá são dados, nunca funções.
@@ -5555,6 +5589,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:cores` | Contraste dos pares texto/fundo, cor literal fora dos tokens, classe de cor inexistente e nome que saiu do produto |
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
+| `npm run check:tipos` | Confere que o `database.types.ts` acompanha as migrations, nos **dois sentidos**: coluna que o banco tem e o `Row` não — o `select("*")` a traz e o TypeScript não a conhece, então o campo fica invisível no produto sem nada quebrar (foi o caso de `clients.logo_url`, doze sprints como campo de anotação) — e coluna no `Row` que o banco não tem, que é a pior das duas porque **compila e o editor a autocompleta**: a recusa chega na tela de quem usa o sistema. Ele lê as migrations como quem as aplicaria (`create table`, as cláusulas de `alter table`, `drop column`, `rename`, `drop table`, `drop type`) e não consulta banco nenhum. Tabela alcançada só por RPC precisa de **motivo escrito** na lista de isentas, como o `-- SEM LINHA: 0026` do `onde-esta-o-banco.sql` |
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
