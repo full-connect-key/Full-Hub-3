@@ -44,6 +44,58 @@
 -- ---------------------------------------------------------------------------
 -- PARTE 1 - Usuarios (somente ambiente local)
 -- ---------------------------------------------------------------------------
+--
+-- E ELA SE RECUSA A RODAR NUM BANCO QUE JA TEM GENTE, em vez de pedir por
+-- favor. O aviso do cabecalho existe desde o Sprint 0 e diz exatamente isto --
+-- mas ele esta vinte linhas acima do bloco, e o jeito de trabalhar deste
+-- projeto e COLAR NO SQL EDITOR: e assim que toda migration e aplicada, assim
+-- que o `campanhas-sem-demanda.sql` roda, assim que o `agendar-rotinas.sql`
+-- ligou o pg_cron. Um comentario nao recusa nada.
+--
+-- E o que este bloco grava e caro: dez contas com a MESMA senha, escrita em
+-- texto aqui do lado. Num projeto hospedado isso e dez chaves-mestras -- e o
+-- produto tem uma regra escrita sobre exatamente esse formato, em
+-- `gerarSenhaProvisoria()`: **nunca uma senha padrao**, porque quem a soubesse
+-- entraria em qualquer conta recem-criada, e numa conta que ninguem usasse ela
+-- valeria para sempre. O seed e o unico lugar do produto que quebra essa regra,
+-- e pode quebrar -- porque o banco onde ele roda e descartavel.
+--
+-- A GUARDA NAO PEDE OPT-IN, e e por isso que ela nao atrapalha ninguem.
+-- `npx supabase db reset` derruba o banco e roda este arquivo com `auth.users`
+-- VAZIA, entao ela passa sozinha; rodar o seed de novo no mesmo banco local
+-- tambem passa, porque as unicas linhas la sao as dele. Um `set` obrigatorio no
+-- topo viraria a linha que todo mundo copia junto sem ler -- a saida de
+-- emergencia virando porta destrancada, que e a decisao da 0045.
+--
+-- O que ela recusa e o unico caso que importa: um banco com UMA pessoa de
+-- verdade dentro. A mensagem diz o caminho, como toda recusa deste produto.
+do $$
+declare
+  alheios integer;
+begin
+  select count(*) into alheios
+    from auth.users
+   where id not in (
+     'a0000000-0000-0000-0000-000000000001'::uuid,
+     'a0000000-0000-0000-0000-000000000002'::uuid,
+     'a0000000-0000-0000-0000-000000000003'::uuid,
+     'a0000000-0000-0000-0000-000000000004'::uuid,
+     'a0000000-0000-0000-0000-000000000005'::uuid,
+     'a0000000-0000-0000-0000-000000000006'::uuid,
+     'a0000000-0000-0000-0000-000000000007'::uuid,
+     'a0000000-0000-0000-0000-000000000008'::uuid,
+     'a0000000-0000-0000-0000-000000000009'::uuid,
+     'a0000000-0000-0000-0000-00000000000a'::uuid
+   );
+
+  if alheios > 0 then
+    raise exception
+      'Este banco tem % usuario(s) que nao sao do seed. A PARTE 1 cria dez contas com a mesma senha, em texto neste arquivo -- nao e para rodar aqui.', alheios
+      using hint =
+        'Se este e o projeto da agencia: pare, e crie as pessoas em Authentication > Users > Add user, com "Auto Confirm User" e o User Metadata do cabecalho. Depois rode a partir da PARTE 2, que nao toca em auth.users. Se este e um banco descartavel e voce quer semear mesmo assim, apague os usuarios que ja estao la.';
+  end if;
+end $$;
+
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
@@ -1879,6 +1931,17 @@ begin
   on conflict (id) do nothing;
 
   -- 3. O QUE VIROU DEMANDA -- pelo caminho normal.
+  --
+  -- **O `on conflict` AQUI E O QUE FAZ O SEED PODER RODAR DE NOVO**, e ele
+  -- faltava: era o unico dos quatro pedidos sem ele, e rodando o arquivo duas
+  -- vezes a segunda estourava em `client_requests_pkey` -- desmentindo o
+  -- cabecalho deste arquivo, que promete que rodar de novo nao duplica nada.
+  --
+  -- E o `if` abaixo ja sabia lidar com isso ANTES de o `on conflict` existir:
+  -- sem linha inserida, `returning id into` deixa `v_pedido` nulo, e a demanda
+  -- nao e criada de novo. Esta e a razao de o `returning` ficar onde esta em
+  -- vez de o insert ganhar um `where not exists`: a pergunta "o pedido nasceu
+  -- agora?" e exatamente a que decide se a demanda tambem nasce.
   insert into public.client_requests
     (id, client_id, request_type_id, criado_por, titulo, respostas, status, created_at)
   values
@@ -1886,6 +1949,7 @@ begin
      'Campanha de recompra para quem comprou em julho',
      '{"rede":"Mais de uma","mensagem":"Volte e leve 15% na segunda compra."}'::jsonb,
      'em_analise', now() - interval '9 days')
+  on conflict (id) do nothing
   returning id into v_pedido;
 
   if v_pedido is not null then

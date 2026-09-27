@@ -5065,6 +5065,32 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   nem `iniciada_em`, e **não apareceu como bug porque uma tela só lê a coluna
   e o que ela devolve é um número**: o contador de concluídas do mês vinha
   respondendo zero, que é uma resposta plausível. A 0052 devolveu o bloco.
+- **O seed RECUSA rodar num banco que já tem gente**, e a guarda é do arquivo
+  e não do cabeçalho. O aviso "não rode a PARTE 1 num projeto hospedado"
+  existe desde o Sprint 0, vinte linhas acima do bloco — e o jeito de
+  trabalhar deste projeto é **colar no SQL Editor**: é assim que toda
+  migration é aplicada, assim que o `campanhas-sem-demanda.sql` roda, assim
+  que o `agendar-rotinas.sql` ligou o pg_cron. Um comentário não recusa nada,
+  e o que aquele bloco grava é caro: dez contas com a **mesma senha**, escrita
+  em texto ao lado — o único lugar do produto que quebra a regra de
+  `gerarSenhaProvisoria()`, e que pode quebrar, porque o banco onde ele roda é
+  descartável.
+
+  **E ela não pede opt-in, que é o que a faz não atrapalhar ninguém.** `npx
+  supabase db reset` roda o arquivo com `auth.users` vazia e passa sozinha;
+  rodar de novo no mesmo banco local também passa, porque as únicas linhas lá
+  são as dele. Um `set` obrigatório no topo viraria a linha que todo mundo
+  copia junto sem ler — a saída de emergência virando porta destrancada, que é
+  a decisão da 0045. O que ela recusa é o caso que importa: um banco com **uma
+  pessoa de verdade** dentro.
+- **E "rodar de novo não duplica nada" é uma afirmação que precisa ser
+  medida.** O cabeçalho do seed diz isso desde o Sprint 0, e tinha deixado de
+  ser verdade: dos quatro pedidos do Sprint 3E, um ficou sem `on conflict` —
+  a segunda passada estourava em `client_requests_pkey`. Quem encontrou foi o
+  teste da guarda acima, rodando o arquivo duas vezes no mesmo banco. **Um
+  cabeçalho não confere o que promete**, e este é o tipo de promessa que só se
+  quebra para quem roda o seed duas vezes — o que ninguém faz até o dia em que
+  precisa.
 
 **Código**
 
