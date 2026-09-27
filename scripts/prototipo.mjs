@@ -71,6 +71,13 @@ const TELAS = [
   { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
+  // AS NOTAS FISCAIS (0065). Duas telas porque sao dois lados do mesmo modulo:
+  // o colaborador ve a nota dele que voltou, o socio ve a fila da agencia. E a
+  // do colaborador e a que carrega o bloco da recusada, que e o unico que pede
+  // acao.
+  { nome: "10o-notas-fiscais-minhas", rota: "/painel/notas-fiscais", largura: 1440, altura: 1000, role: "colaborador" },
+  { nome: "10p-notas-fiscais-fila", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 1200, role: "socio" },
+  { nome: "10q-notas-fiscais-375", rota: "/painel/notas-fiscais", largura: 375, altura: 1100, role: "colaborador" },
   { nome: "10e-equipe-lista", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "socio" },
   { nome: "10f-colaborador-dados", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
   { nome: "10g-desligamento", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
@@ -372,6 +379,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
   "@/lib/dados/fluxo-do-cliente": ["./scripts/prototipo/fluxo-do-cliente.ts"],
+  "@/lib/dados/notas-fiscais": ["./scripts/prototipo/notas-fiscais.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],

@@ -172,6 +172,67 @@ from (values
 ) as v(id, segmento, responsavel, ativo)
 where clients.id = v.id;
 
+-- AS NOTAS FISCAIS DA EQUIPE (0065), e os quatro estados aparecem.
+--
+-- UMA RECUSADA E A NOTA NOVA DO MESMO MES convivem de proposito: e o caso que
+-- o indice unico parcial existe para permitir, e e o unico estado da tela que
+-- pede acao da pessoa. Um seed so com o caso feliz mostraria o modulo no unico
+-- estado em que o bloco vermelho nunca aparece -- a mesma armadilha da empresa
+-- sem responsavel de atendimento, que escondeu o bug da 0062 por meses.
+--
+-- A NOTA PAGA AQUI NAO GERA DESPESA no Financeiro, e e consequencia e nao
+-- descuido: o gatilho da 0065 roda no UPDATE, que e o caminho de quem clica em
+-- "marcar paga". O seed insere o estado final direto. Quem quiser ver a ponte
+-- funcionando marca uma nota como paga pela tela.
+do $notas$
+declare
+  v_bruno  uuid := 'a0000000-0000-0000-0000-000000000005';
+  v_carla  uuid := 'a0000000-0000-0000-0000-000000000003';
+  v_marina uuid := 'a0000000-0000-0000-0000-000000000006';
+  v_ana    uuid := 'a0000000-0000-0000-0000-000000000001';
+  v_mes    date := date_trunc('month', current_date)::date;
+begin
+  if not exists (select 1 from public.profiles where id = v_bruno) then
+    return;
+  end if;
+  if exists (select 1 from public.team_invoices) then
+    return;
+  end if;
+
+  -- Paga, com a data do pagamento: o mes retrasado ja fechou.
+  insert into public.team_invoices
+    (user_id, competencia, valor, numero, arquivo_url, status, pagamento,
+     decidido_por, decidido_em)
+  values (v_bruno, v_mes - interval '2 month', 4250.00, '000108',
+          v_bruno || '/exemplo-retrasado.pdf', 'paga', ((v_mes - interval '1 month')::date + 4),
+          v_ana, now() - interval '30 days');
+
+  -- Aprovada, esperando o pagamento.
+  insert into public.team_invoices
+    (user_id, competencia, valor, numero, arquivo_url, status, decidido_por, decidido_em)
+  values (v_bruno, v_mes - interval '1 month', 4250.00, '000123',
+          v_bruno || '/exemplo-passado.pdf', 'aprovada', v_ana, now() - interval '3 days');
+
+  -- Recusada, com o motivo escrito -- e a nota nova do MESMO mes ao lado.
+  insert into public.team_invoices
+    (user_id, competencia, valor, numero, arquivo_url, status, motivo_recusa,
+     decidido_por, decidido_em)
+  values (v_carla, v_mes - interval '1 month', 5300.00, '000411',
+          v_carla || '/exemplo-recusada.pdf', 'recusada', 'O CNPJ esta o da empresa antiga.',
+          v_ana, now() - interval '5 days');
+
+  insert into public.team_invoices (user_id, competencia, valor, numero, arquivo_url)
+  values (v_carla, v_mes - interval '1 month', 5300.00, '000412',
+          v_carla || '/exemplo-reenviada.pdf');
+
+  -- E uma esperando a conferencia, para a fila do socio nao abrir vazia.
+  insert into public.team_invoices (user_id, competencia, valor, arquivo_url, observacoes)
+  values (v_marina, v_mes - interval '1 month', 3900.00,
+          v_marina || '/exemplo-enviada.pdf',
+          'Inclui as duas diarias do evento de sabado.');
+end;
+$notas$;
+
 -- OS PADROES DA CONTA (0064), e SO A MUNDO VERDE tem.
 --
 -- A Optica fica sem linha nenhuma nas duas tabelas, pela mesma razao que ela

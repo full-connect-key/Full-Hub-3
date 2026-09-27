@@ -7,13 +7,18 @@ import type { ResumoDaHome } from "@/lib/dados/home";
  * O que está parado esperando esta pessoa.
  *
  * ---------------------------------------------------------------------------
- * SÃO TRÊS ITENS E NÃO QUATRO, e a ausência do quarto é registro, não descuido.
+ * SÃO CINCO ITENS, E O QUARTO ESPEROU A TABELA EXISTIR.
  *
- * O sprint pede também as notas fiscais recusadas. A tabela não existe: a
- * agência emitir nota ficou fora do produto por decisão do usuário, e o módulo
- * da pessoa é tela de espera até hoje. O bloco entrega os três que têm dado —
- * inventar o quarto com outra fonte seria mostrar um número que não responde à
- * pergunta que o rótulo faz.
+ * Este comentário dizia "são três e não quatro", e explicava: o sprint pedia
+ * as notas fiscais recusadas, e o módulo da pessoa era tela de espera. A 0065
+ * criou `team_invoices`, então o quarto entrou — e com ele o quinto, que o
+ * sprint não pedia: a fila do sócio.
+ *
+ * **Os dois são lados opostos do mesmo módulo**, e por isso nunca aparecem
+ * juntos para a mesma pessoa: o colaborador vê a nota dele que voltou, o sócio
+ * vê as que esperam a conferência dele. O RLS é que separa — para quem não é
+ * sócio a contagem da fila é zero porque a policy não devolve as linhas, e não
+ * porque um `if` a escondeu.
  * ---------------------------------------------------------------------------
  *
  * **O bloco some quando não há nada**, como o aviso dos rascunhos. Uma caixa
@@ -25,7 +30,17 @@ import type { ResumoDaHome } from "@/lib/dados/home";
  * não porque um `if` os escondeu, mas porque a policy não devolve as linhas.
  * Desenhar "0 aprovações" seria ensinar que existe uma fila dele ali.
  */
-export function PrecisaDeMim({ dados }: { dados: ResumoDaHome["precisa_de_mim"] }) {
+export function PrecisaDeMim({
+  dados,
+  notasRecusadas,
+  notasEsperandoOSocio,
+}: {
+  dados: ResumoDaHome["precisa_de_mim"];
+  /** As minhas notas que voltaram e cujo mês ainda não tem nota nova. */
+  notasRecusadas: number;
+  /** Quantas esperam a conferência — zero para quem não é sócio. */
+  notasEsperandoOSocio: number;
+}) {
   const linhas = [
     {
       quantos: dados?.aprovacoes ?? 0,
@@ -44,6 +59,18 @@ export function PrecisaDeMim({ dados }: { dados: ResumoDaHome["precisa_de_mim"] 
       href: "/painel/full-days?aba=aprovacoes",
       singular: "pedido de Full Days esperando você",
       plural: "pedidos de Full Days esperando você",
+    },
+    {
+      quantos: notasRecusadas,
+      href: "/painel/notas-fiscais",
+      singular: "nota fiscal sua para reenviar",
+      plural: "notas fiscais suas para reenviar",
+    },
+    {
+      quantos: notasEsperandoOSocio,
+      href: "/painel/notas-fiscais?aba=conferir",
+      singular: "nota fiscal da equipe esperando você",
+      plural: "notas fiscais da equipe esperando você",
     },
   ].filter((linha) => linha.quantos > 0);
 

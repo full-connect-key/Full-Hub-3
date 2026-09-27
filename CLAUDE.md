@@ -2435,6 +2435,111 @@ um item é moldura sem função — a mesma razão pela qual as abas do Full Day
 somem para quem só propõe o próprio período. O módulo voltou a se chamar
 **Equipe**.
 
+### A nota fiscal da pessoa
+
+`team_invoices` — migration 0065. A equipe é toda PJ, então todo mês cada
+pessoa emite a nota dela e manda para a agência pagar. **Não confundir com o
+Financeiro da casa**: aquele é da agência, na Gestão; este é de cada um, na
+Principal. No menu antigo os dois viviam juntos em "Financeiro e NFs", e o
+resultado era o colaborador achando que não tinha onde mandar a nota.
+
+**O módulo estava no menu desde o Sprint 3C e a tela dizia "esta área ainda
+não está pronta".** Não havia ponte para atravessar desta vez — nem tabela, nem
+tipo, nem coluna esperando alguém. É o primeiro módulo do zero em muitos
+sprints, e por isso a migration é grande.
+
+#### As três decisões, e o que cada uma custou
+
+**SÓ O SÓCIO CONFERE E PAGA**, e mais ninguém. É a regra do Financeiro pela
+mesma razão: a fila de notas é a folha de pagamento da agência vista de outro
+ângulo — quem a abre lê quanto cada colega ganha. O desenvolvedor é gestão para
+todo o resto do sistema e aqui não. *O custo aceito é o mesmo:* num dia em que
+o sócio estiver fora, ninguém aprova nota.
+
+**A NOTA PAGA VIRA DESPESA NO FINANCEIRO**, automaticamente. Sem isso o mesmo
+dinheiro é lançado duas vezes à mão, e a rentabilidade por cliente ignora o
+maior custo da casa — o que faz a margem mentir **para cima**, que é a pior
+direção. O lançamento nasce do CLIQUE de quem pagou, nunca de uma rotina: é a
+decisão da 0013 sobre gerar lançamentos do mês.
+
+`nota_paga_vira_despesa()` é `security definer` porque `finance_entries` fecha
+em `is_socio()` nos quatro comandos. Quem decide o acesso não é ela — é a
+policy da nota mais o `nota_protege_colunas`, que já exigem o sócio para mexer
+em `status`. E `finance_entry_id` é a ponte nos dois sentidos: ela impede o
+lançamento em dobro e diz, de dentro do Financeiro, de qual nota aquilo veio.
+
+**O VALOR É DIGITADO A CADA MÊS.** PJ com valor variável por hora, projeto ou
+bônus é o caso normal, e um valor fixo na ficha poria o contrato de cada pessoa
+numa tabela que a gestão inteira já lê.
+
+#### O que o banco garante, e não a tela
+
+- **A nota não NASCE paga.** `team_invoices_insert` só aceita `enviada`, então
+  todo caminho até o pagamento passa pelo UPDATE — que só o sócio faz. Sem essa
+  linha, uma requisição montada à mão pularia a conferência inteira.
+- **O sócio decide e não redige.** Ele não reescreve valor, número nem arquivo:
+  corrigir por fora transformaria a conferência em reescrita, e a pessoa veria
+  a própria nota com outro número sem nada dizendo quem trocou. Se está errado,
+  recusa com o motivo.
+- **Recusar exige motivo**, na action e no `check`. Recusa sem motivo manda a
+  pessoa adivinhar, e a próxima nota volta igual.
+- **Pagar exige a data**, e ela é DIGITADA e não `now()`: o sócio marca no dia
+  em que lembra, e a transferência saiu no dia em que saiu. É a mesma razão das
+  três datas do Financeiro.
+- **Nota paga e nota recusada não mudam mais de estado**, e nem se apagam —
+  nem pelo sócio. Apagar é só da própria pessoa e só enquanto ninguém conferiu.
+
+**UMA NOTA VIVA POR MÊS, E AS RECUSADAS ACUMULAM.** O índice único é
+**parcial** (`where status <> 'recusada'`), e é essa a diferença: a pessoa não
+manda duas notas de outubro ao mesmo tempo, mas a recusada FICA no banco com o
+motivo, e uma nova nasce ao lado. Reescrever a recusada apagaria o que foi
+pedido — a mesma razão pela qual rodada de aprovação fechada nunca é reescrita.
+
+#### A tela, e o que ela diz
+
+Duas abas na URL: **Minhas notas** para todo mundo, **A conferir** só para o
+sócio — `?aba=conferir` digitado leva 403, e a policy devolve lista vazia de
+qualquer forma. A guarda existe além do RLS por uma razão específica: sem ela,
+quem não é sócio abriria a fila e leria *"Nenhuma nota esperando"*, uma
+afirmação falsa com toda a confiança.
+
+**A recusada ABRE a lista, com o motivo por extenso** — ela é a única linha que
+pede ação, e o motivo é o que decide o que a pessoa faz em seguida. Num
+`title`, ele não existe para quem usa toque.
+
+**A fila do sócio tem três listas, e a divisão é por quem espera o quê**: "A
+conferir" espera uma leitura, "Aprovadas" esperam uma transferência — com o
+**total a pagar no cabeçalho**, que é a pergunta que se faz antes de abrir o
+banco —, e "Encerradas" não esperam nada.
+
+**E o sino toca nos dois sentidos**: todo sócio ativo é avisado quando chega
+nota, e quem emitiu é avisado quando ela é decidida. Sem isso o módulo vira uma
+tela que alguém lembra de abrir, e o que espera do outro lado é o pagamento de
+alguém.
+
+#### O quarto item da Home, que esperou a tabela existir
+
+O bloco "Precisa de mim" dizia, no próprio comentário, que tinha **três itens e
+não quatro** porque o sprint pedia as notas recusadas e a tabela não existia.
+Agora existe, e entraram **dois**: a minha nota que voltou, e a fila do sócio.
+Eles nunca aparecem juntos para a mesma pessoa — são os dois lados do mesmo
+módulo, e quem separa é o RLS.
+
+`minhasNotasRecusadas()` desconta o mês que já tem nota nova: uma recusada
+reenviada não é pendência, e um aviso que não sai depois de resolvido é o que
+ensina a ignorar o aviso.
+
+#### O bucket é privado, e a pasta é da pessoa
+
+Uma nota fiscal traz CNPJ, endereço e valor. A policy compara
+`(storage.foldername(name))[1]` com quem está pedindo — a mesma forma do bucket
+de campanhas, com o recorte mais estreito: lá a pasta é do cliente e quem lê é
+a equipe; aqui a pasta é da pessoa e quem lê é ela e o sócio.
+
+**E a trilha de auditoria pega a tabela**, o que aqui não é detalhe: `audit_log`
+copia o trecho que mudou, então a linha de uma nota carrega o VALOR. Como só o
+sócio lê a trilha, a regra desta migration não tem porta dos fundos.
+
 ### O Financeiro da agência é só do sócio
 
 `contracts`, `finance_categories` e `finance_entries` fecham em `is_socio()`
@@ -2452,7 +2557,8 @@ por tabela: quem mexer numa delas vê as outras três na mesma tela.
 **A aba de Notas Fiscais que o sprint pedia não existe.** A agência emitir NF
 para cliente ficou fora do Full Hub por decisão do usuário; o módulo de nota
 fiscal que existe é o **da pessoa** (`/painel/notas-fiscais`), a nota que o
-colaborador manda para a agência pagar.
+colaborador manda para a agência pagar — e desde a 0065 ele é tela de verdade,
+com a despesa caindo aqui quando o sócio marca a nota como paga.
 
 #### Três datas, e elas não são a mesma coisa
 
@@ -4281,6 +4387,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0062_notificar_ninguem_nao_e_erro.sql` | **Pendente de aplicação, e é a que conserta o bug relatado.** Faz `notificar()` devolver null quando não há a quem avisar. Sem ela, numa empresa **sem responsável de atendimento** o cliente não consegue aprovar, recusar, pedir ajustes nem comentar: o `not null` de `notifications.user_id` derruba a transação inteira |
 | `supabase/migrations/0063_a_capa_e_a_foto_do_portal.sql` | **Pendente de aplicação.** Traz `clients.capa_url` e põe a capa na lista de `protect_client_columns`. Sem ela, a ficha do cliente devolve erro de coluna inexistente ao trocar a capa |
 | `supabase/migrations/0064_os_padroes_da_conta.sql` | **Pendente de aplicação.** Traz `client_flow_defaults`, `client_function_defaults`, `workflow_steps.funcao_padrao` resolvida por conta e o aviso ao aprovador padrão. Sem ela, a aba **Configurações do fluxo** da ficha do cliente devolve erro de tabela inexistente — e aplicar um workflow continua criando etapa sem dono, sem dizer qual função faltou |
+| `supabase/migrations/0065_a_nota_fiscal_da_pessoa.sql` | **Pendente de aplicação.** Traz `team_invoices`, o enum `nf_status`, o bucket privado `notas-fiscais`, as travas de transição e o gatilho que lança a despesa no Financeiro. Sem ela, `/painel/notas-fiscais` devolve erro de tabela inexistente — a tela deixou de ser um espaço reservado e passou a ler o banco |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

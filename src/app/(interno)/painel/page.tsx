@@ -5,6 +5,10 @@ import { ehGestor } from "@/lib/auth/roles";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { resumoDaHome } from "@/lib/dados/home";
 import { meuDia, prazosDeHoje } from "@/lib/dados/minhas-tasks";
+import {
+  minhasNotasRecusadas,
+  notasEsperandoOSocio,
+} from "@/lib/dados/notas-fiscais";
 import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
@@ -54,13 +58,19 @@ export default async function PaginaInicialDoPainel() {
   const { profile, usuarioId } = await exigirAcessoARota("/painel");
   const gestao = ehGestor(profile.role);
 
-  const [ficha, resumo, itensDoDia, portais] = await Promise.all([
+  const [ficha, resumo, itensDoDia, portais, recusadas, esperandoOSocio] = await Promise.all([
     obterMinhaFicha(),
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
     // Só a gestão enxerga a seção. A rota /portal/{slug} recusa colaborador no
     // servidor de qualquer forma — não buscar aqui é economia, não é a trava.
     gestao ? listarPortaisDeClientes() : Promise.resolve([]),
+    // AS NOTAS FISCAIS ENTRAM AQUI (0065), e as duas consultas são baratas: a
+    // primeira é do próprio usuário, a segunda é uma contagem que volta zero
+    // pelo RLS para quem não é sócio. Não vale um `if` de perfil antes —
+    // seria repetir na tela a regra que a policy já aplica.
+    minhasNotasRecusadas(),
+    notasEsperandoOSocio(),
   ]);
 
   return (
@@ -81,7 +91,11 @@ export default async function PaginaInicialDoPainel() {
         estaSemana={resumo.meu_dia?.semana ?? 0}
       />
 
-      <PrecisaDeMim dados={resumo.precisa_de_mim} />
+      <PrecisaDeMim
+        dados={resumo.precisa_de_mim}
+        notasRecusadas={recusadas.length}
+        notasEsperandoOSocio={esperandoOSocio}
+      />
 
       <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
 

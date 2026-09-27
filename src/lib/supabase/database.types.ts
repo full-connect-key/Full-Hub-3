@@ -15,6 +15,9 @@
 export type UserRole = "cliente" | "colaborador" | "desenvolvedor" | "socio";
 
 /** O que a pessoa faz na agência. Diferente de UserRole, que é o acesso. */
+/** Os quatro estados da nota fiscal da pessoa (0065). */
+export type NfStatus = "enviada" | "aprovada" | "paga" | "recusada";
+
 export type TeamFuncao =
   | "Atendimento"
   | "Social Media"
@@ -504,6 +507,58 @@ export interface Database {
           user_id: string;
         };
         Update: { user_id?: string };
+        Relationships: [];
+      };
+      /**
+       * A nota fiscal da pessoa (0065).
+       *
+       * `status`, `motivo_recusa`, `decidido_*`, `pagamento` e
+       * `finance_entry_id` ficam FORA de `Insert` e de `Update`, e é a mesma
+       * decisão do cronômetro da subtarefa: quem escreve essas colunas é o
+       * banco — a policy exige o sócio, o trigger carimba quem decidiu, e a
+       * despesa nasce da transição. Deixá-las aqui faria a tela oferecer uma
+       * escrita que o Postgres recusa, e o erro chegaria em inglês.
+       *
+       * Decidir passa pela action `decidirNota`, que chama o update com o
+       * cliente do próprio sócio — o RLS continua valendo.
+       */
+      team_invoices: {
+        Row: {
+          id: string;
+          user_id: string;
+          competencia: string;
+          valor: number;
+          numero: string | null;
+          arquivo_url: string;
+          observacoes: string | null;
+          status: NfStatus;
+          motivo_recusa: string | null;
+          decidido_por: string | null;
+          decidido_em: string | null;
+          pagamento: string | null;
+          finance_entry_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          competencia: string;
+          valor: number;
+          numero?: string | null;
+          arquivo_url: string;
+          observacoes?: string | null;
+        };
+        Update: {
+          valor?: number;
+          numero?: string | null;
+          arquivo_url?: string;
+          observacoes?: string | null;
+          /** Só o sócio escreve — a policy e o trigger é que decidem. */
+          status?: NfStatus;
+          motivo_recusa?: string | null;
+          pagamento?: string | null;
+        };
         Relationships: [];
       };
       client_portal_views: {
@@ -2475,6 +2530,7 @@ export type ClientFlowDefaults =
   Database["public"]["Tables"]["client_flow_defaults"]["Row"];
 export type ClientFunctionDefault =
   Database["public"]["Tables"]["client_function_defaults"]["Row"];
+export type TeamInvoice = Database["public"]["Tables"]["team_invoices"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];
