@@ -167,7 +167,12 @@ from (
     -- policies em `storage.objects`, que e schema do Supabase. `policy_fora`
     -- existe desde a 0057 exatamente para este caso -- o `policy` normal fecha
     -- em `schemaname = 'public'` e responderia FALTA para sempre.
-    ('0067', 'bucket das capas do feed',      'policy_fora',  'storage|objects|capas: a equipe le')
+    ('0067', 'bucket das capas do feed',      'policy_fora',  'storage|objects|capas: a equipe le'),
+    -- A 0068 cria quatro tabelas; a que responde por ela e a do PEDIDO, e
+    -- nao `request_types`: aquela tem `create table if not exists` e sobrevive
+    -- a uma aplicacao pela metade, enquanto `client_requests` e a que as
+    -- outras tres referenciam -- sem ela, nada do modulo esta de pe.
+    ('0068', 'client_requests',               'tabela',       'client_requests')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
