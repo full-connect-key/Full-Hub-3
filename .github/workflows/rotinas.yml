@@ -1,0 +1,78 @@
+# As rotinas diárias do Full Hub.
+#
+# ---------------------------------------------------------------------------
+# NADA NO PRODUTO RODAVA SOZINHO. `gerar_recorrencias()` e
+# `limpar_rascunhos_abandonados()` existem desde 2026 e nunca tiveram quem as
+# chamasse: o agendamento era de um sprint que perdeu a VPS antes de acontecer,
+# e o que ficou escrito em CLAUDE.md foi "chamá-la é ato de alguém".
+#
+# **O AGENDAMENTO NÃO PRECISAVA DA VPS**, e é por isso que ele volta sem ela: é
+# uma chamada HTTP ao PostgREST, e o `schedule:` do GitHub Actions é um relógio
+# que a agência já tem. A parte B e a parte C do Sprint 16 voltaram pelo mesmo
+# argumento — o que perdeu a máquina foi só o que precisava de máquina.
+#
+# O QUE ELE CUSTA, e precisa estar escrito: a chave de serviço passa a morar num
+# secret do repositório, e a chave de serviço IGNORA TODO O RLS. Quem tem
+# permissão de escrita aqui pode lê-la escrevendo um workflow — é um push. A
+# alternativa sem esse custo é o `pg_cron`, que mantém o agendamento DENTRO do
+# banco e não cria chave nenhuma; o PASSO 3 da migration 0071 traz as duas
+# linhas para colar e o que apagar daqui.
+# ---------------------------------------------------------------------------
+name: Rotinas
+
+on:
+  schedule:
+    # 06:23 UTC = 03:23 em São Paulo — a madrugada da agência, e um minuto que
+    # não é :00 de propósito: o GitHub atrasa o disparo na hora cheia, onde
+    # cabe a fila do mundo inteiro.
+    - cron: "23 6 * * *"
+  # PARA RODAR À MÃO, e não é conveniência: é o que responde "ela rodou?" no dia
+  # em que alguém desconfiar, sem esperar a madrugada seguinte.
+  workflow_dispatch:
+
+# Duas madrugadas não se atropelam. `gerar_ocorrencia()` é idempotente pelo
+# índice único (0040), então o estrago seria pequeno — mas duas execuções
+# concorrentes dariam dois logs contando histórias diferentes sobre a mesma
+# noite, e é o log que se lê quando algo não nasceu.
+concurrency:
+  group: rotinas
+  cancel-in-progress: false
+
+jobs:
+  diarias:
+    name: Recorrências e limpeza de rascunhos
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SEM OS SECRETS ELE TERMINA EM 0, com o motivo no resumo do passo — a
+      # mesma decisão do job `publicar`: uma Action vermelha todo dia por falta
+      # de configuração é uma Action que a equipe aprende a ignorar, e aí o dia
+      # em que ela fica vermelha DE VERDADE passa batido.
+      - name: Há credencial?
+        id: credencial
+        run: |
+          if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            {
+              echo "### As rotinas não rodaram"
+              echo
+              echo "Faltam os secrets \`SUPABASE_URL\` e \`SUPABASE_SERVICE_ROLE_KEY\`."
+              echo
+              echo "Sem eles: a demanda recorrente só nasce quando alguém abre a regra e clica em"
+              echo "\"Gerar agora\", e o rascunho parado há sete dias não é apagado por ninguém."
+              echo "Nenhuma tela quebra — é justamente por isso que isto passou despercebido."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "tem=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "tem=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      # O MESMO ARQUIVO QUE ALGUÉM RODA À MÃO. Repetir os `curl` aqui dentro
+      # daria duas rotinas: a que se testa e a que roda de madrugada.
+      - name: Rodar as rotinas
+        if: steps.credencial.outputs.tem == 'sim'
+        run: bash scripts/rodar-rotinas.sh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

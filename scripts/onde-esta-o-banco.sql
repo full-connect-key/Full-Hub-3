@@ -48,6 +48,21 @@ from (
          where n.nspname = 'public' and p.proname = v.nome)
       when 'trigger' then exists (
         select 1 from pg_trigger g where g.tgname = v.nome)
+      -- GRANT QUE FOI TIRADO, e nao objeto que nasceu: a 0071 nao cria nada --
+      -- ela REVOGA `execute`. Sem este tipo a unica pergunta possivel seria
+      -- "a funcao existe?", e ela existe desde a 0028. `papel|assinatura`.
+      --
+      -- `has_function_privilege` respeita heranca de papel, que e exatamente a
+      -- pergunta: `service_role` nao e membro de `authenticated` no Supabase,
+      -- e foi por isso que o grant da 0040 nao alcancava o cron.
+      --
+      -- O `to_regrole` e a guarda: num Postgres sem os papeis do Supabase a
+      -- funcao ESTOURA, e um erro aqui derrubaria a consulta inteira -- as
+      -- trinta e duas linhas de um script cujo trabalho e responder uma.
+      when 'sem_execute' then
+        to_regrole(split_part(v.nome, '|', 1)) is null
+        or not has_function_privilege(
+             split_part(v.nome, '|', 1), split_part(v.nome, '|', 2), 'execute')
       when 'feriado' then exists (
         select 1 from public.holidays h where h.data = v.nome::date)
       -- Corpo de funcao, e nao ausencia de objeto: a 0029 nao cria nada, ela
@@ -182,7 +197,14 @@ from (
     -- `placa_de_video`: as outras tres tem nome que alguem pode ter criado a
     -- mao num banco antigo, e esta e a unica que so existe por causa desta
     -- migration.
-    ('0070', 'assets.placa_de_video',        'coluna',       'assets.placa_de_video')
+    ('0070', 'assets.placa_de_video',        'coluna',       'assets.placa_de_video'),
+    -- A 0071 NAO CRIA NADA. O que ela faz e tirar de `anon` o `execute` de uma
+    -- funcao `security definer` que APAGA rascunho -- o furo que a 0028 deixou
+    -- aberto sem querer. E essa a linha que se confere, e nao o grant do cron:
+    -- sem o grant a rotina falha com barulho, no log do Actions; sem o revoke
+    -- nada falha nunca, e e por isso que ele durou.
+    ('0071', 'anon sem execute em limpar_rascunhos_abandonados', 'sem_execute',
+             'anon|public.limpar_rascunhos_abandonados()')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

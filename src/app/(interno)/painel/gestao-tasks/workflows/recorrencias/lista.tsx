@@ -255,6 +255,25 @@ export function ListaDeRecorrencias({
         da Home: aqui o normal É a ausência da rotina, e um aviso que só
         aparecesse de vez em quando ensinaria que o resto do tempo ela está
         rodando.
+
+        -----------------------------------------------------------------------
+        AGORA EXISTE UM CHAMADOR, E O TEXTO CONTINUA ESTE. A rotina diária
+        (`.github/workflows/rotinas.yml`, chamando `scripts/rodar-rotinas.sh`)
+        pede a geração toda madrugada — e ela só acontece de verdade quando as
+        duas credenciais do repositório estiverem preenchidas. Enquanto isso não
+        for confirmado, esta tela NÃO pode dizer que a demanda nasce sozinha:
+        das duas afirmações erradas possíveis, esta é a caríssima. "Ela roda" faz
+        a pessoa parar de clicar em Gerar agora, e o cliente descobre no dia da
+        entrega; "ela não roda" faz alguém clicar sem precisar, e o índice único
+        da 0040 recusa a segunda geração do mesmo período.
+
+        **O QUE MUDAR QUANDO AS CREDENCIAIS ESTIVEREM LÁ:** esta faixa vira
+        informativa — "a demanda nasce de madrugada; o Gerar agora existe para
+        quem não quer esperar" — e o tom passa de `--warning` para neutro. O que
+        ela NUNCA pode fazer é citar a mecânica: credencial, repositório e
+        agendamento são vocabulário de desenvolvimento, e nenhum texto visível
+        ao usuário carrega isso.
+        -----------------------------------------------------------------------
       */}
       <div className="bg-warning-soft rounded-card border p-3">
         <p className="text-sm">

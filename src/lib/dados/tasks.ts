@@ -1,9 +1,6 @@
 import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
-
-import { cache } from "react";
-
 import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
@@ -71,6 +68,58 @@ const HOJE = () => hojeNaAgencia();
 
 const CONCLUIDAS: TaskStatus[] = ["concluido"];
 
+/**
+ * O PRÓXIMO PRAZO EM ABERTO DE CADA DEMANDA, e ele mora aqui pela razão de
+ * sempre: a lista e o contador do cabeçalho faziam a conta cada um por conta
+ * própria, e as duas contas discordavam.
+ *
+ * **Só as FOLHAS e só o que não terminou.** A agrupadora guarda o prazo que
+ * tinha antes de ganhar filha (0022) — ele para de contar, e não é apagado —,
+ * então incluí-la faz uma demanda inteira aparecer atrasada por causa de uma
+ * data que o produto decidiu ignorar. Quem filtra é `folhas()`, que é a mesma
+ * função que `enriquecer()` já usa uma linha acima.
+ */
+export function proximoPrazoAberto(linhas: LinhaDeSubtarefa[]): Map<string, string> {
+  const porTask = new Map<string, string>();
+  for (const sub of folhas(linhas)) {
+    if (sub.status === "concluida" || !sub.prazo) continue;
+    const atual = porTask.get(sub.task_id);
+    if (!atual || sub.prazo < atual) porTask.set(sub.task_id, sub.prazo);
+  }
+  return porTask;
+}
+
+/**
+ * Uma demanda está atrasada quando alguma etapa em aberto passou da data.
+ *
+ * ---------------------------------------------------------------------------
+ * **O CONTADOR DO CABEÇALHO PERGUNTAVA OUTRA COISA, e dizia um número que a
+ * tela não tinha como mostrar.** Ele ia direto a `subtasks` procurando
+ * `prazo < hoje` e contava `task_id` distinto — sem três das quatro condições
+ * que o filtro da lista aplica:
+ *
+ * - **rascunho entrava.** As outras duas contagens daquele bloco filtram
+ *   `publicada_em`, e o comentário em cima delas diz que rascunho não é
+ *   indicador da agência; esta, por não tocar em `tasks`, contava a etapa
+ *   atrasada de um rascunho — que é invisível para todo mundo menos quem o
+ *   criou. O contador cobrava uma demanda que ninguém tinha como abrir;
+ * - **demanda concluída entrava**, por uma etapa que ficou aberta dentro dela;
+ * - **agrupadora entrava**, com o prazo que ela deixou de exercer.
+ *
+ * As três somam para o mesmo lado: o número era sempre maior ou igual ao que
+ * a lista mostra, nunca menor. É a mesma família do "hoje" que dependia do
+ * fuso do processo — um número que só mente para cima é o mais difícil de
+ * duvidar, porque ele nunca esconde trabalho, só inventa.
+ * ---------------------------------------------------------------------------
+ */
+export function demandaAtrasada(
+  status: TaskStatus,
+  proximoPrazo: string | null,
+  hoje: string,
+): boolean {
+  return !CONCLUIDAS.includes(status) && proximoPrazo !== null && proximoPrazo < hoje;
+}
+
 type LinhaDeSubtarefa = Pick<
   Subtask,
   | "id"
@@ -119,7 +168,11 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
   //
   // As linhas das agrupadoras ainda são lidas de propósito: `folhas()`
   // precisa da lista inteira para saber quem tem filha.
-  const linhas = folhas((subtarefas ?? []) as LinhaDeSubtarefa[]);
+  const todasAsLinhas = (subtarefas ?? []) as LinhaDeSubtarefa[];
+  const linhas = folhas(todasAsLinhas);
+  // O prazo em aberto sai da MESMA função que o contador do cabeçalho usa.
+  // Enquanto a conta morava aqui dentro, o contador tinha a dele.
+  const prazoAberto = proximoPrazoAberto(todasAsLinhas);
 
   // Quais subtarefas têm rodada esperando decisão. É o que o board precisa
   // saber para recusar um arrasto com o motivo certo.
@@ -169,10 +222,6 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
       atual.estimativa += sub.estimativa_minutos;
     if (sub.tempo_real_minutos !== null)
       atual.tempoReal += sub.tempo_real_minutos;
-    if (sub.status !== "concluida" && sub.prazo) {
-      if (!atual.proximoPrazo || sub.prazo < atual.proximoPrazo)
-        atual.proximoPrazo = sub.prazo;
-    }
     const pessoa = sub.responsavel_id
       ? porPessoa.get(sub.responsavel_id)
       : null;
@@ -191,7 +240,7 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
       subtarefasConcluidas: r.concluidas,
       estimativaMinutos: r.estimativa > 0 ? r.estimativa : null,
       tempoRealMinutos: r.tempoReal > 0 ? r.tempoReal : null,
-      proximoPrazo: r.proximoPrazo,
+      proximoPrazo: prazoAberto.get(task.id) ?? null,
       aprovacaoPendenteEm: r.aprovacaoPendenteEm,
       temSubtarefaEmAjustes: r.emAjustes,
     };
@@ -204,7 +253,6 @@ function resumoVazio() {
     concluidas: 0,
     estimativa: 0,
     tempoReal: 0,
-    proximoPrazo: null as string | null,
     aprovacaoPendenteEm: null as string | null,
     emAjustes: false,
     equipe: [] as Pessoa[],
@@ -262,54 +310,106 @@ export async function listarTasks(
   const tasks = await enriquecer(linhasDeTask);
 
   if (filtros.soAtrasadas) {
-    // Atraso é da SUBTAREFA: a Task não tem prazo próprio. Uma demanda está
-    // atrasada quando alguma etapa em aberto passou da data.
+    // Atraso é da SUBTAREFA: a Task não tem prazo próprio. A pergunta mora em
+    // `demandaAtrasada()`, que é a mesma que o contador do cabeçalho faz.
     const hoje = HOJE();
-    return tasks.filter(
-      (t) =>
-        !CONCLUIDAS.includes(t.status) &&
-        t.proximoPrazo !== null &&
-        t.proximoPrazo < hoje,
-    );
+    return tasks.filter((t) => demandaAtrasada(t.status, t.proximoPrazo, hoje));
   }
 
   return tasks;
 }
 
-/** Os três números do cabeçalho. */
-export const contadoresDeTasks = cache(async () => {
-  const supabase = await criarClienteServidor();
-  const hoje = HOJE();
+/**
+ * Os três números do cabeçalho, contados NA MESMA LISTA que o board desenha.
+ *
+ * ---------------------------------------------------------------------------
+ * **ERAM DUAS PERGUNTAS PARA O MESMO FATO, e o usuário levou duas rodadas para
+ * dizer isso:** primeiro em Minhas Tasks, depois aqui — *"Gestão de task, está
+ * ainda com uma demanda atrasada, que não encontro"*. Um número que a tela não
+ * consegue mostrar é sempre a mesma coisa: alguém perguntou de dois jeitos.
+ *
+ * O contador ia direto a `subtasks` procurando `prazo < hoje` e contava
+ * `task_id` distinto. Faltavam-lhe QUATRO condições que o filtro da lista
+ * aplica, e as quatro inflam:
+ *
+ * 1. **rascunho entrava** — ele não tocava em `tasks`, então a etapa atrasada
+ *    de um rascunho contava; a demanda é invisível para todo mundo menos quem
+ *    a rascunhou, e o board a esconde por desenho (0028);
+ * 2. **demanda concluída entrava** — uma etapa vencida dentro de uma demanda
+ *    já entregue é história, não atraso;
+ * 3. **a agrupadora entrava** — o prazo dela é o que sobrou de quando ela era
+ *    folha (0022), e uma demanda inteira aparecia atrasada por uma data que o
+ *    produto decidiu ignorar;
+ * 4. **os filtros da tela não entravam.** Esta é a que sobrou depois de as
+ *    três primeiras serem consertadas, e é a mais difícil de ver: o cartão de
+ *    atrasadas é um botão que LIGA `?atrasadas=1` **mantendo** o cliente, a
+ *    prioridade e o status que já estavam na URL — e o contador não recebia
+ *    filtro nenhum. Com um cliente escolhido, "1 atrasada · ver quais" levava
+ *    a um board vazio de novo, agora por outro motivo.
+ *
+ * **Por isso a conta deixou de ser uma consulta e passou a ser uma varredura
+ * da lista.** Não há como um `count(*)` no banco responder "quantas das que
+ * estão nesta tela", porque quem decide o que está na tela é `folhas()` mais
+ * `demandaAtrasada()`, que são TypeScript. Duas idas ao banco viraram zero: a
+ * lista já estava carregada.
+ *
+ * *O que se perde, e é consequência aceita:* os três números passaram a ser do
+ * RECORTE e não da agência. Filtrando por um cliente, "abertas" conta as dele
+ * — o que é o certo, porque é o que o board mostra logo abaixo; antes a tela
+ * dizia 12 acima de um board com 3 cartões.
+ * ---------------------------------------------------------------------------
+ */
+export function contarDemandas(tasks: TaskDaLista[], hoje: string) {
+  // O MÊS É O DA AGÊNCIA e `concluida_em` é UTC, então a comparação tem o
+  // mesmo desvio de algumas horas que a consulta antiga tinha na virada do
+  // mês — de propósito: consertá-lo aqui e não no resto do produto criaria
+  // duas definições de "este mês", que é exatamente o erro que esta função
+  // existe para desfazer.
   const primeiroDoMes = `${hoje.slice(0, 7)}-01`;
 
-  const [abertas, concluidas, atrasadas] = await Promise.all([
-    // Os contadores também ignoram rascunho: um número que só existe na tela
-    // de quem rascunhou não é um indicador da agência.
-    supabase
-      .from("tasks")
-      .select("id", { count: "exact", head: true })
-      .not("publicada_em", "is", null)
-      .not("status", "in", "(concluido)"),
-    supabase
-      .from("tasks")
-      .select("id", { count: "exact", head: true })
-      .not("publicada_em", "is", null)
-      .eq("status", "concluido")
-      .gte("concluida_em", `${primeiroDoMes}T00:00:00Z`),
-    // Atrasada conta pela subtarefa vencida, e cada task conta uma vez.
-    supabase
-      .from("subtasks")
-      .select("task_id")
-      .lt("prazo", hoje)
-      .not("status", "eq", "concluida"),
-  ]);
+  let abertas = 0;
+  let atrasadas = 0;
+  let concluidasNoMes = 0;
+
+  for (const task of tasks) {
+    if (!CONCLUIDAS.includes(task.status)) abertas += 1;
+    if (demandaAtrasada(task.status, task.proximoPrazo, hoje)) atrasadas += 1;
+    if (
+      task.status === "concluido" &&
+      task.concluida_em !== null &&
+      task.concluida_em.slice(0, 10) >= primeiroDoMes
+    ) {
+      concluidasNoMes += 1;
+    }
+  }
+
+  return { abertas, atrasadas, concluidasNoMes };
+}
+
+/**
+ * A aba de Demandas numa consulta só: a lista, e os números que a descrevem.
+ *
+ * **O filtro de atrasadas é aplicado AQUI e não em `listarTasks`**, e essa é a
+ * linha que impede o número de voltar a divergir: a lista chega inteira, os
+ * três contadores são tirados dela, e só então o recorte de atrasadas corta.
+ * Pedir a lista já cortada obrigaria a uma segunda consulta para contar — que
+ * é de onde a divergência saiu nas duas vezes.
+ *
+ * `listarTasks` **continua** sabendo filtrar atrasadas, porque o calendário
+ * depende disso (`itensDoCalendario` repassa os filtros). Os dois caminhos
+ * perguntam a `demandaAtrasada()`, então não há duas respostas possíveis.
+ */
+export async function demandasDaAba(filtros: FiltrosDeTask) {
+  const hoje = HOJE();
+  const todas = await listarTasks({ ...filtros, soAtrasadas: false });
 
   return {
-    abertas: abertas.count ?? 0,
-    atrasadas: new Set((atrasadas.data ?? []).map((s) => s.task_id)).size,
-    concluidasNoMes: concluidas.count ?? 0,
+    tasks: filtros.soAtrasadas
+      ? todas.filter((t) => demandaAtrasada(t.status, t.proximoPrazo, hoje))
+      : todas,
+    contadores: contarDemandas(todas, hoje),
   };
-});
+}
 
 // ---------------------------------------------------------------------------
 // Detalhe

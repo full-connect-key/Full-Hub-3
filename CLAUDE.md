@@ -4872,19 +4872,104 @@ onde a credencial já é `server-only`. Quem ler isto daqui a três sprints não
 vai concluir que elas saíram por impossibilidade técnica, nem que voltaram por
 capricho.
 
-**O que a ausência da G deixa de pé**, até alguém decidir outra coisa:
+**E a G voltou depois, pelo mesmo argumento que trouxe as outras duas.** O que
+ela precisava não era da VPS: era de um relógio. A seção abaixo é o que ela
+entregou, e os dois buracos que ela não fecha.
 
-- `limpar_rascunhos_abandonados()` (0028) **não** roda sozinha. O rascunho de
-  7 dias não é apagado por ninguém; o bloco da Home passou a dizer que o
-  rascunho está parado, e não que ele some amanhã.
-- `gerar_recorrencias()` (0040) **não** roda sozinha. O stories de toda
-  segunda nasce quando alguém abre a regra e clica em "Gerar agora", e a tela
-  de Recorrências diz isso numa faixa fixa.
-- **`frequencia = 'diario'` das preferências do portal não sai**, e é o mesmo
-  buraco visto do lado do e-mail. Está escrito na tela, pela mesma razão: a
-  pessoa escolheu uma coisa e receberia outra — ou nada, calada.
+#### A rotina diária, e por que ela não precisava da máquina
+
+`.github/workflows/rotinas.yml`, chamando `scripts/rodar-rotinas.sh`.
+
+**DUAS FUNÇÕES EXISTIAM E NINGUÉM AS CHAMAVA**, e uma delas fazia o módulo de
+recorrências ser decorativo: a regra guarda a cadência, a prévia mostra as cinco
+próximas, `recurrence_runs` tem coluna para cada execução — e a demanda só nascia
+se alguém abrisse a regra e clicasse. O stories de toda segunda dependia de
+alguém lembrar toda segunda, que é exatamente o que a recorrência existe para
+não exigir.
+
+**O agendamento é uma chamada HTTP**, então o `schedule:` do GitHub Actions
+basta: 06:23 UTC, que é 03:23 em São Paulo, num minuto que não é `:00` de
+propósito — o GitHub atrasa o disparo na hora cheia, onde cabe a fila do mundo
+inteiro.
+
+**O script é um só, e a Action o chama em vez de repetir os `curl`.** É a decisão
+do `verificar.yml` ser chamado pelo deploy: uma cópia da rotina envelhece em
+silêncio, e a que roda de madrugada é justamente a que ninguém olha.
+
+**A rotina não pode falhar calada**, que é a regra do produto num lugar sem tela
+— aqui não há ninguém para ler um toast. O código HTTP é conferido, o corpo da
+resposta vai para o log, e o erro sai como `::error::`, que o GitHub mostra na
+cara do commit. **E o HTTP 200 também é lido**: o `exception` de
+`gerar_recorrencias()` fica DENTRO do laço, de propósito, então uma regra que
+falha devolve 200 com o estrago no corpo — sem essa leitura o Actions ficaria
+verde numa madrugada em que nada nasceu.
+
+**O que ela custa, e está escrito no cabeçalho dela:** a chave de serviço passa a
+morar num secret do repositório, e ela ignora todo o RLS — quem tem permissão de
+escrita pode lê-la escrevendo um workflow. **O `pg_cron` não tem esse custo**: o
+agendamento mora dentro do banco e nenhuma chave é criada. Ele não está ligado
+por migration porque a extensão se habilita no painel do Supabase, e um `create
+extension` falharia em qualquer ambiente onde ela não esteja disponível —
+migration que não roda no próximo ambiente não é migration. As duas linhas para
+colar estão no PASSO 3 da 0071.
+
+**E AS DUAS TELAS CONTINUAM DIZENDO QUE A ROTINA NÃO RODA**, de propósito: se a
+demanda nasce sozinha depende de dois segredos do repositório, e nenhuma tela tem
+como saber se eles estão lá. Das duas afirmações erradas possíveis, "ela roda" é
+a caríssima — a pessoa para de clicar em "Gerar agora" e o cliente descobre no
+dia da entrega; "ela não roda" faz alguém clicar sem precisar, e o índice único
+da 0040 recusa a geração repetida. O que cada faixa vira quando as credenciais
+existirem está escrito ao lado dela, junto com o que ela nunca pode fazer:
+**citar a mecânica** — credencial, repositório e agendamento são vocabulário de
+desenvolvimento, e nenhum texto visível ao usuário carrega isso.
+
+#### E ao dar um chamador à limpeza, apareceu quem mais podia chamá-la
+
+Migration 0071. `limpar_rascunhos_abandonados()` nasceu na 0028 como `security
+definer` — ela APAGA de `tasks` — e **sem revoke**. O Postgres concede `execute`
+a `public` por padrão em toda função nova, e o PostgREST publica o schema
+`public` sozinho. Somando as duas, um POST em
+`/rest/v1/rpc/limpar_rascunhos_abandonados` com a chave anon — que vai no bundle
+que o navegador baixa — apagava todo rascunho da agência **sem sessão nenhuma**.
+
+Não é escalonamento de privilégio de um colaborador: é de qualquer pessoa. E o
+furo tinha a cara de "nada aconteceu": um rascunho é de quem o criou e de mais
+ninguém, então a pessoa abriria a tela, não acharia o que escreveu, e concluiria
+que errou o caminho.
+
+`gerar_recorrencias()` saiu de `authenticated` no mesmo arquivo, porque nenhuma
+tela a chama — o botão "Gerar agora" de uma regra é `gerar_ocorrencia()`, que é
+outra função, de uma regra só, e essa continua onde estava.
+
+**A bateria mede o privilégio e não a mensagem de recusa**, e a distinção é a do
+limite de tentativas: uma função pode recusar por dentro e continuar executável,
+e aí o que se mediu foi o corpo dela, não a porta. `teste.como_a_rotina()` entrou
+no ferramental porque `teste.cenario` sempre entra como `authenticated` — usá-lo
+aqui testaria um caminho que o produto não tem e, pior, **pediria de volta o
+`execute` que a 0071 tirou**.
+
+**E o teste de mutação me corrigiu no meio do caminho.** A primeira versão da
+0071 afirmava que o cron levaria "permission denied" em `gerar_recorrencias()`,
+porque a 0040 fecha em `authenticated` e `service_role` não é membro dele. Tirei
+o grant para ver o cenário cair, e ele passou: `service_role` já tinha `execute`
+pelo `alter default privileges` que o Supabase deixa ligado no schema `public`, e
+o `revoke all from public` da 0040 não o alcança. O grant ficou de qualquer
+forma — privilégio herdado de default privileges é privilégio que some quando
+alguém os aperta, e aí a rotina para de madrugada —, e o cabeçalho da migration
+conta a ida e a volta em vez de mostrar só a conclusão.
+
+**O que a rotina ainda NÃO cobre**, e é o mesmo buraco visto do lado do e-mail:
+
+- **`frequencia = 'diario'` das preferências do portal não sai.** Está escrito na
+  tela, pela mesma razão: a pessoa escolheu uma coisa e receberia outra — ou
+  nada, calada.
 - **`lembrete_pendencias` também não**, e pelo mesmo motivo: um lembrete é uma
   varredura diária, não uma consequência de alguém ter clicado.
+
+Os dois dependem de uma coisa que a rotina não tem: **a URL do app.** As duas
+funções do banco são RPC no PostgREST, e o digest é uma varredura que monta
+e-mail — ela vive no Next, e ninguém sabe onde o site roda desde a VPS. É a
+mesma pendência que deixa o rodapé do painel dizendo "versão local".
 
 **Duas das frases erradas moram em migration aplicada, e por isso ficam
 erradas.** Os comentários da 0028 e da 0031 são `comment on function` e
@@ -5476,28 +5561,13 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
+| `scripts/rodar-rotinas.sh` | As rotinas diárias: gerar as demandas recorrentes que venceram e apagar rascunho parado há mais de 7 dias. **É o mesmo arquivo que a Action chama de madrugada**, e não uma cópia — a decisão do `verificar.yml` ser chamado pelo deploy. Pede `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente; a chave entra pela **entrada padrão** do curl e nunca pela linha de comando, porque `ps` de um processo lê argumento de outro e o log do Actions ecoa o comando que falhou |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |
 | `scripts/exportar-antes-da-0034.sql` | Cola no SQL Editor e mostra o que havia no Resumo Semanal e no Financeiro Pessoal, para entregar a quem escreveu antes de a 0034 apagar. Não muda nada |
-| `supabase/migrations/0055_o_calendario_full.sql` | **Pendente de aplicação.** Traz `events`, `event_participants`, a view `calendar_events`, `capacidade_minutos_dia` em `team_members` e as funções `carga_da_equipe()` e `eventos_que_bloqueiam()`. Sem ela, `/painel/calendario` **devolve erro de servidor na abertura** — e devolve só ela: nenhuma outra tela lê esses objetos. `scripts/migrations-pendentes.sh 0055` monta a colagem |
-| `supabase/migrations/0056_limite_de_tentativas.sql` | **Pendente de aplicação.** Traz `rate_limits` e as funções `consumir_tentativa()` e `perdoar_tentativas()`. Sem ela o login, a recuperação de senha e o comentário voltam a aceitar repetição sem contar — e **sem erro na tela**, porque o limitador falha para o lado aberto |
-| `supabase/migrations/0057_atualizacao_ao_vivo.sql` | **Pendente de aplicação.** A policy que decide quem ouve o canal da equipe. Sem ela o canal é privado e não autorizado: o Painel mostra **"Sem atualização ao vivo"** e nada se atualiza sozinho — visível, não silencioso |
-| `supabase/migrations/0058_trilha_de_auditoria.sql` | **Pendente de aplicação.** Traz `audit_log` e o trigger `registrar_auditoria()` em 13 tabelas. Sem ela, `/painel/auditoria` devolve erro de tabela inexistente — e nada é registrado |
-| `supabase/migrations/0059_a_data_de_cada_etapa_do_social.sql` | **Pendente de aplicação.** Traz `post_etapas.prazo_offset_dias`, o recálculo quando o post muda de dia e a OITAVA origem da `calendar_events`. Sem ela, abrir o mês continua criando etapas sem data e elas não entram no calendário de ninguém |
-| `supabase/migrations/0060_a_gestao_envia_o_que_produziu.sql` | **Pendente de aplicação.** Tira de `validar_nova_rodada` a trava que recusava quem produziu enviar ao cliente — ela só alcançava desenvolvedor e sócio, que são quem o usuário liberou. Sem ela aplicada, a gestão continua levando a recusa num envio que o produto diz que é dela |
-| `supabase/migrations/0061_o_mes_de_social_e_uma_demanda.sql` | **Pendente de aplicação.** Traz `tasks.social_do_mes`, `subtarefa_de_post()`, o mirror da corrente e o `p_link_entrega` de `abrir_mes_de_social()`. Sem ela, abrir o mês continua criando posts soltos — e a tela, que passou a mandar a pasta, leva *"Could not find the function"* |
-| `supabase/migrations/0062_notificar_ninguem_nao_e_erro.sql` | **Pendente de aplicação, e é a que conserta o bug relatado.** Faz `notificar()` devolver null quando não há a quem avisar. Sem ela, numa empresa **sem responsável de atendimento** o cliente não consegue aprovar, recusar, pedir ajustes nem comentar: o `not null` de `notifications.user_id` derruba a transação inteira |
-| `supabase/migrations/0063_a_capa_e_a_foto_do_portal.sql` | **Pendente de aplicação.** Traz `clients.capa_url` e põe a capa na lista de `protect_client_columns`. Sem ela, a ficha do cliente devolve erro de coluna inexistente ao trocar a capa |
-| `supabase/migrations/0064_os_padroes_da_conta.sql` | **Pendente de aplicação.** Traz `client_flow_defaults`, `client_function_defaults`, `workflow_steps.funcao_padrao` resolvida por conta e o aviso ao aprovador padrão. Sem ela, a aba **Configurações do fluxo** da ficha do cliente devolve erro de tabela inexistente — e aplicar um workflow continua criando etapa sem dono, sem dizer qual função faltou |
-| `supabase/migrations/0065_a_nota_fiscal_da_pessoa.sql` | **Pendente de aplicação.** Traz `team_invoices`, o enum `nf_status`, o bucket privado `notas-fiscais`, as travas de transição e o gatilho que lança a despesa no Financeiro. Sem ela, `/painel/notas-fiscais` devolve erro de tabela inexistente — a tela deixou de ser um espaço reservado e passou a ler o banco |
-| `supabase/migrations/0066_solicitar_as_notas_do_mes.sql` | **Pendente de aplicação.** Traz `invoice_requests`, `quem_deve_nota()`, `solicitar_notas_do_mes()` e `meus_pedidos_de_nota()`. Sem ela, o botão **Pedir as notas do mês** no Financeiro leva *"Could not find the function"*, e a faixa do pedido em Notas Fiscais nunca aparece — ela devolve vazia em vez de derrubar a tela, de propósito |
-| `supabase/migrations/0067_a_capa_da_recomendacao.sql` | **Pendente de aplicação.** Traz o bucket privado `recomendacoes-capas` e as três policies dele. **Não traz coluna nenhuma** — `recommendations.imagem_url` existe desde a 0017. Sem ela, colar um link no feed busca a capa, o upload é recusado pelo Storage (*"Bucket not found"*), o motivo vai para o log e a recomendação nasce **sem capa** — a tela não quebra, de propósito |
-| `supabase/migrations/0068_solicitacoes_do_cliente.sql` | **Pendente de aplicação.** Traz `request_types`, `client_requests`, `request_attachments`, `request_messages`, `clients.aceita_solicitacoes`, `tasks.request_id`, o bucket `solicitacoes-arquivos` e o gatilho que move o pedido quando a demanda é publicada. Sem ela, `/painel/solicitacoes` e `/portal/solicitacoes` devolvem erro de tabela inexistente — e as duas entradas de menu levam a uma tela quebrada |
-| `supabase/migrations/0069_comodatos.sql` | **Pendente de aplicação.** Traz `assets`, `asset_loans`, `asset_photos`, `asset_events`, `asset_term_template`, a sequence do patrimônio, o bucket `comodatos-fotos` e as funções `meus_comodatos()`, `confirmar_recebimento()`, `reportar_problema_do_comodato()` e `comodatos_em_aberto_de()`. Sem ela, `/painel/comodatos` devolve erro de tabela inexistente — e o desligamento de colaborador deixa de contar o equipamento em aberto, que é o aviso que ela existe para dar |
-| `supabase/migrations/0070_a_ficha_tecnica_do_equipamento.sql` | **Pendente de aplicação.** Traz `memoria_ram`, `processador`, `placa_de_video` e `armazenamento` em `assets`. Sem ela, cadastrar ou editar um equipamento devolve *"Could not find the 'memoria_ram' column"* — a tela passou a mandar os quatro |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
-| `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
+| `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI. **E é a única resposta para "o que falta aplicar" — esta tabela não responde mais.** Ela já listou dezesseis migrations como pendentes, uma linha cada, com o que traziam e o que quebrava sem elas, e ficou **errada no dia em que cinco foram aplicadas e ninguém editou a prosa** — que é justamente o dia em que alguém a consulta. Pendência escrita à mão num arquivo de decisões é a armadilha do comentário datado da 0028: ela responde com confiança sobre um estado que não é mais o dela. O script pergunta ao banco; o que cada migration traz continua no cabeçalho dela, onde não envelhece |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |
 | `scripts/deploy.sh` | **Fora de uso — a VPS não existe mais.** Publicava na VPS, rodando **nela**, chamado pelo GitHub Actions por SSH |
 | `scripts/prototipo-clicavel/` | Gera a página única e clicável para validação (veja o README de lá) |

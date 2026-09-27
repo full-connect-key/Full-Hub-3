@@ -22,8 +22,16 @@ import { rascunhosAExpirar } from "@/lib/dados/tasks";
  * foram embora. Então o bloco continua, dizendo o que é verdade — aquele
  * rascunho está parado — e quem apaga é quem clica.
  *
- * A função do banco fica de pé e funciona; ela só não tem quem a chame. Está
- * registrado na seção "O que o Sprint 16 NÃO vai entregar" do CLAUDE.md.
+ * **A ROTINA GANHOU UM CHAMADOR, E ESTE TEXTO CONTINUA O MESMO.** A rotina
+ * diária pede a limpeza toda madrugada, e ela só apaga de verdade quando as
+ * credenciais do repositório estiverem preenchidas — coisa que esta tela não
+ * tem como saber. Voltar a prometer "some amanhã" antes disso seria refazer o
+ * erro que este comentário registra, com a diferença de que agora a promessa
+ * às vezes se cumpre: pior ainda, porque o rascunho sumiria para alguns e não
+ * para outros, e ninguém acharia o padrão.
+ *
+ * Quando a limpeza estiver rodando de verdade, o texto pode voltar a falar do
+ * prazo — em português comum, sem citar rotina nem credencial.
  * ---------------------------------------------------------------------------
  *
  * **Não aparece quando não há nada a dizer**, e é o normal: um bloco fixo

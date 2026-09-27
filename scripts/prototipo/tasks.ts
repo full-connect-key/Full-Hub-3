@@ -599,8 +599,42 @@ export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLi
   });
 }
 
-export async function contadoresDeTasks() {
-  return { abertas: 5, atrasadas: 2, concluidasNoMes: 1 };
+// OS NÚMEROS SAEM DA LISTA, como no módulo de verdade: com um valor fixo aqui
+// a imagem do protótipo mostraria "2 atrasadas" acima de um board que pode ter
+// outra quantidade — exatamente o bug que a mudança desfez.
+export function contarDemandas(tasks: TaskDaLista[], hoje: string) {
+  let abertas = 0;
+  let atrasadas = 0;
+  let concluidasNoMes = 0;
+  const primeiroDoMes = `${hoje.slice(0, 7)}-01`;
+
+  for (const task of tasks) {
+    if (task.status !== "concluido") abertas += 1;
+    const viva = task.status !== "concluido" && task.status !== "cancelada";
+    if (viva && task.proximoPrazo && task.proximoPrazo < hoje) atrasadas += 1;
+    if (
+      task.status === "concluido" &&
+      task.concluida_em &&
+      task.concluida_em.slice(0, 10) >= primeiroDoMes
+    ) {
+      concluidasNoMes += 1;
+    }
+  }
+
+  return { abertas, atrasadas, concluidasNoMes };
+}
+
+export async function demandasDaAba(filtros: FiltrosDeTask = {}) {
+  const hoje = dia(0);
+  const todas = await listarTasks({ ...filtros, soAtrasadas: false });
+  const viva = (t: TaskDaLista) => t.status !== "concluido" && t.status !== "cancelada";
+
+  return {
+    tasks: filtros.soAtrasadas
+      ? todas.filter((t) => viva(t) && t.proximoPrazo !== null && t.proximoPrazo < hoje)
+      : todas,
+    contadores: contarDemandas(todas, hoje),
+  };
 }
 
 export async function obterTask(id: string): Promise<TaskCompleta | null> {

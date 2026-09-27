@@ -54,6 +54,51 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- teste.como_a_rotina - o que roda de madrugada, e nao na tela de ninguem
+--
+-- `teste.cenario` sempre entra como `authenticated`, porque quase tudo neste
+-- produto acontece com alguem logado. Duas funcoes nao: `gerar_recorrencias()`
+-- e `limpar_rascunhos_abandonados()` sao chamadas pela rotina diaria com a
+-- chave de servico, e desde a 0071 `authenticated` NAO tem `execute` nelas.
+--
+-- E a distincao importa: usar `teste.cenario` aqui testaria um caminho que o
+-- produto nao tem -- e, pior, pediria de volta o `execute` que a 0071 tirou. A
+-- bateria passaria a exigir o furo.
+-- ---------------------------------------------------------------------------
+create or replace function teste.como_a_rotina(
+  p_descricao text,
+  p_comando   text,
+  p_espera    text default 'ok'      -- 'ok' | 'recusa'
+) returns void
+language plpgsql
+as $$
+declare
+  linhas integer;
+begin
+  begin
+    execute 'set local role service_role';
+    execute p_comando;
+    get diagnostics linhas = row_count;
+    execute 'reset role';
+
+    if p_espera = 'recusa' then
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'FALHOU', format('passou quando devia ser recusado (%s linhas)', linhas));
+    else
+      insert into teste.resultado (descricao, situacao, detalhe)
+      values (p_descricao, 'passou', format('%s linha(s)', linhas));
+    end if;
+  exception when others then
+    execute 'reset role';
+    insert into teste.resultado (descricao, situacao, detalhe)
+    values (p_descricao,
+            case when p_espera = 'recusa' then 'passou' else 'FALHOU' end,
+            left(sqlerrm, 120));
+  end;
+end;
+$$;
+
 -- Atalhos de leitura, para nao repetir o uuid no texto dos cenarios.
 create or replace function teste.limpar() returns void language plpgsql as $$
 begin

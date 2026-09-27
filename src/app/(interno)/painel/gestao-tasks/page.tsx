@@ -15,9 +15,8 @@ import {
   modeloDeUmaTask,
 } from "@/lib/dados/recorrencias";
 import {
-  contadoresDeTasks,
+  demandasDaAba,
   itensDoCalendario,
-  listarTasks,
   meusRascunhos,
   type FiltrosDeTask,
 } from "@/lib/dados/tasks";
@@ -84,9 +83,13 @@ async function clientesAtivos() {
 async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
   // Os workflows saíram daqui junto com o diálogo de criação: quem escolhe o
   // workflow agora é a tela de detalhe, e é ela que os carrega.
-  const [tasks, itens, clientes, equipe, rascunhos, ehDoAtendimento, contadores] =
+  // A LISTA E OS TRÊS NÚMEROS SAEM DA MESMA CHAMADA, e é o que impede o
+  // contador de atrasadas de dizer um número que o board não mostra — duas
+  // vezes o mesmo bug, e as duas vezes foi o usuário quem encontrou. A conta
+  // mora em `demandasDaAba()`; aqui não se conta nada.
+  const [{ tasks, contadores }, itens, clientes, equipe, rascunhos, ehDoAtendimento] =
     await Promise.all([
-      listarTasks(filtros),
+      demandasDaAba(filtros),
       itensDoCalendario(filtros),
       listarClientes(),
       listarEquipeAtiva(),
@@ -95,7 +98,6 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
       // na tela. É o que faz "Nova recorrente" e `tasks_insert` não
       // divergirem, como já acontece com "Nova task".
       souDoAtendimento(),
-      contadoresDeTasks(),
     ]);
 
   return (

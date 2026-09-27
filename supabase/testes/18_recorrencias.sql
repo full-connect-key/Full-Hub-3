@@ -193,8 +193,11 @@ select teste.conferir('E UMA linha no historico de execucao',
   (select count(*)::text from public.recurrence_runs), '1');
 
 -- E a rotina inteira tambem: duas passadas no mesmo dia.
-select teste.cenario('A rotina roda', :ANA, 'select * from public.gerar_recorrencias()', 'ok');
-select teste.cenario('A rotina roda de novo', :ANA, 'select * from public.gerar_recorrencias()', 'ok');
+-- A ROTINA NAO E DA ANA, e desde a 0071 nem poderia ser: `gerar_recorrencias()`
+-- so e executavel por `service_role`. Chamada como `authenticated`, estes
+-- cenarios pediriam de volta o `execute` que aquela migration tirou.
+select teste.como_a_rotina('A rotina roda', 'select * from public.gerar_recorrencias()');
+select teste.como_a_rotina('A rotina roda de novo', 'select * from public.gerar_recorrencias()');
 
 select teste.conferir('Duas rodadas da rotina nao duplicaram o mes corrente',
   (select count(*)::text from public.recurrence_runs r
@@ -222,8 +225,8 @@ select teste.conferir('O proximo periodo dela e o MES CORRENTE, nao janeiro',
     (select id from public.task_recurrences where nome = 'Antiga'))::text,
   date_trunc('month', current_date)::date::text);
 
-select teste.cenario('A rotina roda com ela ativa', :ANA,
-  'select * from public.gerar_recorrencias()', 'ok');
+select teste.como_a_rotina(
+  'A rotina roda com ela ativa', 'select * from public.gerar_recorrencias()');
 
 select teste.conferir('E ela gerou no maximo o limite de tasks por rodada',
   (select (count(*) <= public.limite_tasks_por_rodada())::text
@@ -544,8 +547,8 @@ select teste.conferir('E nenhuma task foi criada por ela',
 -- UMA REGRA COM ERRO NAO IMPEDE AS OUTRAS DE RODAREM. Sem o bloco `exception`
 -- dentro do laco, a agencia acordaria sem nenhuma demanda gerada --
 -- descobrindo o problema pela ausencia, que e a pior forma de descobrir.
-select teste.cenario('A rotina roda com a regra quebrada no meio', :ANA,
-  'select * from public.gerar_recorrencias()', 'ok');
+select teste.como_a_rotina(
+  'A rotina roda com a regra quebrada no meio', 'select * from public.gerar_recorrencias()');
 
 select teste.conferir('E as OUTRAS regras geraram assim mesmo',
   (select (count(*) > 0)::text from public.tasks t
