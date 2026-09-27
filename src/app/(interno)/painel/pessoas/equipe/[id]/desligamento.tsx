@@ -27,6 +27,7 @@ export type Vinculos = {
   tasksAbertas: number;
   solicitacoesPendentes: number;
   clientesSobResponsabilidade: number;
+  equipamentosEmAberto: number;
   exigeTransferencia: boolean;
   total: number;
 };
@@ -58,16 +59,19 @@ export function Desligamento({
   const [etapa, setEtapa] = useState<0 | 1 | 2>(0);
   const [destino, setDestino] = useState<string>("");
   const [nomeDigitado, setNomeDigitado] = useState("");
+  const [cienteDoEquipamento, setCienteDoEquipamento] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const router = useRouter();
 
   const faltaEscolherDestino = vinculos.exigeTransferencia && !destino;
+  const faltaDecidirOEquipamento = vinculos.equipamentosEmAberto > 0 && !cienteDoEquipamento;
   const nomeConfere = nomeDigitado.trim() === nome;
 
   function fechar() {
     setEtapa(0);
     setDestino("");
     setNomeDigitado("");
+    setCienteDoEquipamento(false);
   }
 
   async function desligar() {
@@ -124,8 +128,53 @@ export function Desligamento({
                 <li>{vinculos.tasksAbertas} subtarefa(s) em aberto</li>
                 <li>{vinculos.solicitacoesPendentes} solicitação(ões) pendente(s)</li>
                 <li>{vinculos.clientesSobResponsabilidade} cliente(s) sob responsabilidade</li>
+                <li>{vinculos.equipamentosEmAberto} equipamento(s) da agência</li>
               </ul>
             </div>
+
+            {/* O EQUIPAMENTO PEDE UMA DECISÃO, E ELA NÃO É A TRANSFERÊNCIA.
+                ---------------------------------------------------------
+                Passar o notebook para outra pessoa é um empréstimo novo, com
+                estado, acessórios e termo — não um campo neste diálogo. E
+                registrar a devolução aqui seria afirmar que o equipamento
+                voltou num dia em que ele talvez ainda esteja na casa dela.
+
+                Então a decisão é explícita e binária: ou a devolução é
+                registrada agora, em Comodatos, ou alguém marca que sabe e vai
+                cobrar. O que não dá é passar batido — que é exatamente o que
+                acontecia antes deste bloco existir. */}
+            {vinculos.equipamentosEmAberto > 0 ? (
+              <Alert variant="warning">
+                <AlertTriangle />
+                <AlertDescription className="space-y-2">
+                  <span className="block">
+                    {vinculos.equipamentosEmAberto === 1
+                      ? "Um equipamento da agência ainda está com esta pessoa."
+                      : `${vinculos.equipamentosEmAberto} equipamentos da agência ainda estão com esta pessoa.`}{" "}
+                    Registre a devolução antes, ou confirme abaixo que você vai cobrar.
+                  </span>
+                  <span className="flex flex-wrap items-center gap-3">
+                    <a
+                      href="/painel/comodatos?aba=geral&visao=pessoa"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent-strong text-sm underline underline-offset-4"
+                    >
+                      Abrir Comodatos
+                    </a>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={cienteDoEquipamento}
+                        onChange={(e) => setCienteDoEquipamento(e.target.checked)}
+                        className="size-4"
+                      />
+                      Sei do equipamento e vou cobrar
+                    </label>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
             {vinculos.exigeTransferencia ? (
               <Alert variant="warning">
@@ -166,7 +215,7 @@ export function Desligamento({
             <Button
               variant="destructive"
               onClick={() => setEtapa(2)}
-              disabled={faltaEscolherDestino || enviando}
+              disabled={faltaEscolherDestino || faltaDecidirOEquipamento || enviando}
             >
               Continuar
             </Button>

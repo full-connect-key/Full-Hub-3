@@ -134,7 +134,7 @@ export const obterMinhaFicha = cache(async (): Promise<TeamMember | null> => {
 export async function vinculosDoColaborador(userId: string) {
   const supabase = await criarClienteServidor();
 
-  const [{ count: tasks }, { count: clientes }] = await Promise.all([
+  const [{ count: tasks }, { count: clientes }, { count: equipamentos }] = await Promise.all([
     supabase
       .from("subtasks")
       .select("id", { count: "exact", head: true })
@@ -144,6 +144,14 @@ export async function vinculosDoColaborador(userId: string) {
       .from("clients")
       .select("id", { count: "exact", head: true })
       .eq("responsavel_atendimento_id", userId),
+    // O EQUIPAMENTO DA AGÊNCIA QUE ESTÁ COM ELA (0069). Não dá para desligar
+    // alguém e esquecer o notebook: é o vínculo que custa dinheiro, e o único
+    // aqui que não é trabalho.
+    supabase
+      .from("asset_loans")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("data_devolucao", null),
   ]);
 
   const tasksAbertas = tasks ?? 0;
@@ -152,11 +160,19 @@ export async function vinculosDoColaborador(userId: string) {
   // Sprint 6: solicitações de Full Day pendentes entram aqui.
   const solicitacoesPendentes = 0;
 
+  const equipamentosEmAberto = equipamentos ?? 0;
+
   return {
     tasksAbertas,
     solicitacoesPendentes,
     clientesSobResponsabilidade,
+    equipamentosEmAberto,
     exigeTransferencia: tasksAbertas > 0,
+    // O EQUIPAMENTO NÃO ENTRA NO `total`, e é decisão: aquele número conta o
+    // TRABALHO preso ao nome da pessoa, e é ele que o diálogo usa para dizer
+    // "há coisa aqui". Somar o notebook faria "3 vínculos" significar duas
+    // coisas diferentes na mesma frase. O equipamento tem bloco próprio, e uma
+    // decisão própria.
     total: tasksAbertas + solicitacoesPendentes + clientesSobResponsabilidade,
   };
 }

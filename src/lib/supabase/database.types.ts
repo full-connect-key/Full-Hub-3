@@ -240,7 +240,9 @@ export type NotificationTipo =
   // 0055: o aviso de que você entrou num evento.
   | "evento"
   // 0068: o pedido que o cliente abriu pelo Portal, e o que acontece com ele.
-  | "solicitacao";
+  | "solicitacao"
+  // 0069: o equipamento que passou para a sua mao, e o que acontece com ele.
+  | "comodato";
 
 /** O que o evento é. Decide a cor quando `events.cor` não diz outra coisa. */
 export type EventoTipo =
@@ -275,6 +277,48 @@ export type TipoNoCalendario =
   | "etapa_de_post";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
+
+/**
+ * O QUE O EQUIPAMENTO E (migration 0069).
+ *
+ * Enum e nao texto porque e ele que decide o ICONE quando o equipamento nao
+ * tem foto: um "Notebook" com N maiusculo faria o icone sumir sem erro nenhum.
+ * E a mesma separacao de `posts.midia` (enum) e `posts.formato` (texto).
+ */
+export type AssetTipo =
+  | "notebook"
+  | "desktop"
+  | "monitor"
+  | "celular"
+  | "tablet"
+  | "camera"
+  | "lente"
+  | "microfone"
+  | "iluminacao"
+  | "tripe"
+  | "headset"
+  | "teclado"
+  | "mouse"
+  | "hd_externo"
+  | "acessorio"
+  | "outro";
+
+/** Onde o equipamento esta. Escrito pelo emprestimo, nunca pela tela. */
+export type AssetStatus = "disponivel" | "emprestado" | "manutencao" | "baixado";
+
+/** Quatro degraus, e nao cinco: escala com meio-degrau duas pessoas leem diferente. */
+export type AssetEstado = "novo" | "bom" | "regular" | "ruim";
+
+/** Cada linha da folha corrida do equipamento. */
+export type AssetEventoTipo =
+  | "cadastrado"
+  | "emprestado"
+  | "aceito"
+  | "devolvido"
+  | "manutencao"
+  | "baixado"
+  | "problema"
+  | "voltou";
 
 export type HrTipo = "ferias" | "licenca" | "ausencia";
 export type HrStatus = "pendente" | "aprovada" | "reprovada" | "cancelada";
@@ -688,6 +732,161 @@ export interface Database {
        * **`data_desejada` é DESEJO, nunca compromisso.** O que a agência assume
        * é `tasks.data_fim`, e a conversão não copia um no outro.
        */
+      assets: {
+        Row: {
+          id: string;
+          codigo: string | null;
+          tipo: AssetTipo;
+          nome: string;
+          marca: string | null;
+          modelo: string | null;
+          numero_serie: string | null;
+          status: AssetStatus;
+          estado: AssetEstado;
+          data_aquisicao: string | null;
+          /** So a gestao LE: `assets_select` fecha em is_gestor() (0069). */
+          valor_aquisicao: number | null;
+          nota_fiscal_url: string | null;
+          foto_url: string | null;
+          observacoes: string | null;
+          motivo_baixa: string | null;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          /** Em branco vira FCK-0000 pela sequence, no trigger. */
+          codigo?: string | null;
+          tipo: AssetTipo;
+          nome: string;
+          marca?: string | null;
+          modelo?: string | null;
+          numero_serie?: string | null;
+          estado?: AssetEstado;
+          data_aquisicao?: string | null;
+          valor_aquisicao?: number | null;
+          nota_fiscal_url?: string | null;
+          foto_url?: string | null;
+          observacoes?: string | null;
+          criado_por?: string | null;
+        };
+        Update: {
+          codigo?: string | null;
+          tipo?: AssetTipo;
+          nome?: string;
+          marca?: string | null;
+          modelo?: string | null;
+          numero_serie?: string | null;
+          /** `emprestado` nao se escreve a mao: quem o poe la e o emprestimo. */
+          status?: AssetStatus;
+          estado?: AssetEstado;
+          data_aquisicao?: string | null;
+          valor_aquisicao?: number | null;
+          nota_fiscal_url?: string | null;
+          foto_url?: string | null;
+          observacoes?: string | null;
+          motivo_baixa?: string | null;
+        };
+        Relationships: [];
+      };
+      asset_loans: {
+        Row: {
+          id: string;
+          asset_id: string;
+          user_id: string;
+          data_entrega: string;
+          data_prevista_devolucao: string | null;
+          data_devolucao: string | null;
+          estado_entrega: AssetEstado;
+          estado_devolucao: AssetEstado | null;
+          acessorios: string | null;
+          observacoes_entrega: string | null;
+          observacoes_devolucao: string | null;
+          termo_corpo: string | null;
+          aceito_em: string | null;
+          entregue_por: string;
+          recebido_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          asset_id: string;
+          user_id: string;
+          data_entrega?: string;
+          data_prevista_devolucao?: string | null;
+          estado_entrega?: AssetEstado;
+          acessorios?: string | null;
+          observacoes_entrega?: string | null;
+          entregue_por: string;
+        };
+        Update: {
+          /** A devolucao, e so ela. O par data + estado e cobrado por check. */
+          data_devolucao?: string | null;
+          estado_devolucao?: AssetEstado | null;
+          observacoes_devolucao?: string | null;
+          recebido_por?: string | null;
+          data_prevista_devolucao?: string | null;
+          acessorios?: string | null;
+          observacoes_entrega?: string | null;
+        };
+        /**
+         * `aceito_em` e `termo_corpo` ficam FORA de Insert e de Update de
+         * proposito, como o cronometro da subtarefa: o aceite so entra por
+         * `confirmar_recebimento()` e o termo e congelado pelo trigger.
+         * Tentar grava-los e erro de tipo antes de ser recusa do banco.
+         */
+        Relationships: [];
+      };
+      asset_photos: {
+        Row: {
+          id: string;
+          loan_id: string;
+          momento: "entrega" | "devolucao";
+          url: string;
+          created_at: string;
+        };
+        Insert: {
+          loan_id: string;
+          momento: "entrega" | "devolucao";
+          url: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      asset_events: {
+        Row: {
+          id: string;
+          asset_id: string;
+          loan_id: string | null;
+          tipo: AssetEventoTipo;
+          texto: string | null;
+          estado: AssetEstado | null;
+          pessoa_id: string | null;
+          registrado_por: string | null;
+          created_at: string;
+        };
+        /** Sem Insert e sem Update: a unica porta sao os triggers (0069). */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      asset_term_template: {
+        Row: {
+          id: string;
+          unica: boolean;
+          corpo: string;
+          atualizado_por: string | null;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: {
+          corpo?: string;
+          atualizado_por?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       client_requests: {
         Row: {
           id: string;
@@ -2293,6 +2492,47 @@ export interface Database {
       is_gestor: { Args: Record<string, never>; Returns: boolean };
       is_atendimento: { Args: Record<string, never>; Returns: boolean };
       pode_editar_task: { Args: { p_task_id: string }; Returns: boolean };
+      /**
+       * Os equipamentos que estao e que estiveram comigo (0069).
+       *
+       * Ela existe porque `assets_select` e `is_gestor()`: a linha do
+       * equipamento carrega valor de aquisicao e nota fiscal, e policy nao
+       * limita coluna. O recorte seguro sai daqui, e NAO tem essas duas.
+       */
+      meus_comodatos: {
+        Args: Record<string, never>;
+        Returns: {
+          loan_id: string;
+          asset_id: string;
+          codigo: string | null;
+          tipo: AssetTipo;
+          nome: string;
+          marca: string | null;
+          modelo: string | null;
+          numero_serie: string | null;
+          foto_url: string | null;
+          data_entrega: string;
+          data_prevista_devolucao: string | null;
+          data_devolucao: string | null;
+          estado_entrega: AssetEstado;
+          estado_devolucao: AssetEstado | null;
+          acessorios: string | null;
+          observacoes_entrega: string | null;
+          termo_corpo: string | null;
+          aceito_em: string | null;
+          devolvido: boolean;
+        }[];
+      };
+      confirmar_recebimento: { Args: { p_loan_id: string }; Returns: undefined };
+      reportar_problema_do_comodato: {
+        Args: { p_loan_id: string; p_texto: string };
+        Returns: undefined;
+      };
+      /** O que ainda esta com uma pessoa — o que o desligamento mostra. */
+      comodatos_em_aberto_de: {
+        Args: { p_user_id: string };
+        Returns: { loan_id: string; codigo: string | null; nome: string; data_entrega: string }[];
+      };
       /**
        * As etapas de um workflow com o responsavel JA RESOLVIDO para uma conta
        * (migration 0064).

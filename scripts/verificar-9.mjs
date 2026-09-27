@@ -214,21 +214,21 @@ const MARCA_DA_BARRA = 'aria-label="Módulos do painel"';
 const NA_BARRA = [
   {
     tela: "08-painel-colaborador",
-    tem: ["Início", "Minhas Tasks", "Solicitações", "Notas Fiscais"],
+    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais"],
     naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro"],
     porque:
       "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
   },
   {
     tela: "05-painel-socio",
-    tem: ["Minhas Tasks", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro"],
     naoTem: ["Social Media", "Campanhas"],
     porque:
       "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria",
   },
   {
     tela: "09-painel-desenvolvedor",
-    tem: ["Minhas Tasks", "Gestão de Tasks", "Métricas"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas"],
     naoTem: ["Social Media", "Campanhas", "Financeiro"],
     porque:
       "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",

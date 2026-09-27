@@ -1921,3 +1921,197 @@ begin
   raise notice 'Sprint 3E: 4 pedidos do cliente, um deles convertido em demanda pelo trigger.';
 end
 $bloco$;
+
+
+-- ===========================================================================
+-- Sprint 3F -- OS COMODATOS (migration 0069)
+--
+-- Cinco equipamentos, escolhidos para que cada estado do modulo apareca uma
+-- vez -- e nao cinco notebooks iguais:
+--
+--   * o notebook da Carla, aceito, sem previsao de devolucao: o caso normal;
+--   * a camera da Carla, ENTREGUE E NAO ACEITA, com a devolucao vencida: e o
+--     unico item que faz o destaque amarelo do cartao e o vermelho do prazo
+--     significarem alguma coisa;
+--   * a lente com a LETICIA, QUE SAIU DA AGENCIA: e o alerta em `--danger` do
+--     painel, o caso que custa dinheiro;
+--   * o tripe da Carla, ja devolvido: e o historico, que e o valor do modulo;
+--   * um monitor parado em `disponivel`, para o inventario nao ser uma lista
+--     em que tudo esta emprestado.
+--
+-- **O STATUS DO EQUIPAMENTO NAO E ESCRITO AQUI**, e e de proposito. Quem o
+-- move e o trigger `asset_loans_move_status`: o insert do emprestimo poe
+-- `emprestado`, e a data de devolucao devolve para `disponivel`. Marca-lo a
+-- mao mostraria o produto num estado que o caminho normal nao produz -- a
+-- mesma armadilha do seed que carimbava `enviado_em` em item que ninguem
+-- enviou, do que concluia etapa por INSERT, e do pedido do Sprint 3E. Se um
+-- dia o trigger parar de mover, o seed mostra isso.
+--
+-- **E o codigo tambem nao.** `assets.codigo` fica em branco para a sequence
+-- gerar FCK-0001 em diante -- que e um criterio de aceite do modulo, e um
+-- criterio conferido pelo caminho de verdade vale mais que cinco strings
+-- digitadas a mao.
+-- ===========================================================================
+
+-- A PESSOA QUE SAIU DA AGENCIA, e ela existe por causa de UM alerta.
+--
+-- Sem alguem desligado, o cartao "Com quem saiu" nasce em zero e o alerta
+-- vermelho do painel nunca aparece em ambiente de desenvolvimento -- ou seja,
+-- o produto se mostra no unico estado em que o caso mais caro do modulo nao
+-- existe. E a licao da Optica Visao sem responsavel de atendimento (0062),
+-- aplicada antes de o bug acontecer em vez de depois.
+--
+-- Ela e desligada de verdade: `profiles.ativo = false` (entao `auth_role()`
+-- devolve null e ela nao alcanca nada) mais `team_members.ativo = false` com
+-- a data. Nao se apaga quem tem historico -- e o historico dela e justamente
+-- a lente que ficou.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+select
+  '00000000-0000-0000-0000-000000000000',
+  'a0000000-0000-0000-0000-00000000000a'::uuid,
+  'authenticated', 'authenticated', 'leticia@fullconnectkey.com.br',
+  crypt('FullHub@2026', gen_salt('bf')), now(),
+  jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', 'colaborador'),
+  jsonb_build_object('nome', 'Letícia Moraes', 'role', 'colaborador'),
+  now(), now(), '', '', '', ''
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, provider_id, identity_data, provider,
+  last_sign_in_at, created_at, updated_at
+)
+select
+  gen_random_uuid(), u.id, u.id::text,
+  jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+  'email', now(), now(), now()
+from auth.users u
+where u.id = 'a0000000-0000-0000-0000-00000000000a'
+  and not exists (
+    select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email'
+  );
+
+-- `protect_profile_role` devolve `role` e `ativo` ao valor antigo para escrita
+-- de quem esta logado; o seed roda como dono da tabela, sem sessao, entao a
+-- escrita passa. E e o unico lugar do produto que precisa disso.
+update public.profiles
+set nome = 'Letícia Moraes', role = 'colaborador', ativo = false
+where id = 'a0000000-0000-0000-0000-00000000000a';
+
+insert into public.team_members (user_id, cargo, area, funcao, data_admissao, ativo, desligado_em)
+select 'a0000000-0000-0000-0000-00000000000a'::uuid, 'Editora de vídeo', 'Criação',
+       'Audiovisual', date '2024-09-02', false, current_date - 40
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-00000000000a')
+on conflict (user_id) do update
+set ativo = false, desligado_em = excluded.desligado_em;
+
+do $bloco$
+declare
+  v_ana     uuid := 'a0000000-0000-0000-0000-000000000001';
+  v_carla   uuid := 'a0000000-0000-0000-0000-000000000003';
+  v_leticia uuid := 'a0000000-0000-0000-0000-00000000000a';
+  v_note    uuid := 'd0000000-0000-0000-0000-000000000001';
+  v_camera  uuid := 'd0000000-0000-0000-0000-000000000002';
+  v_lente   uuid := 'd0000000-0000-0000-0000-000000000003';
+  v_tripe   uuid := 'd0000000-0000-0000-0000-000000000004';
+  v_monitor uuid := 'd0000000-0000-0000-0000-000000000005';
+begin
+  if to_regclass('public.assets') is null then
+    raise notice 'Sprint 3F: a 0069 ainda nao foi aplicada -- pulando os comodatos.';
+    return;
+  end if;
+
+  insert into public.assets
+    (id, tipo, nome, marca, modelo, numero_serie, estado,
+     data_aquisicao, valor_aquisicao, observacoes, criado_por)
+  values
+    (v_note, 'notebook', 'MacBook Pro 14 M3', 'Apple', 'A2918', 'C02X1LMNPQ', 'novo',
+     current_date - 400, 18990.00, null, v_ana),
+    (v_camera, 'camera', 'Sony A7 IV', 'Sony', 'ILCE-7M4', 'SN-778812', 'bom',
+     current_date - 700, 16500.00, 'Usada nas gravações de cliente.', v_ana),
+    (v_lente, 'lente', 'Sigma 24-70 f/2.8', 'Sigma', 'DG DN Art', 'SG-449001', 'bom',
+     current_date - 500, 7200.00, null, v_ana),
+    (v_tripe, 'tripe', 'Tripé Manfrotto 190', 'Manfrotto', 'MT190XPRO3', null, 'regular',
+     current_date - 900, 1450.00, null, v_ana),
+    (v_monitor, 'monitor', 'Dell UltraSharp 27', 'Dell', 'U2723QE', 'DL-props-01', 'bom',
+     current_date - 200, 3890.00, 'Fica na sala de edição.', v_ana)
+  on conflict (id) do nothing;
+
+  -- 1. O CASO NORMAL: aceito, sem previsao de devolucao.
+  insert into public.asset_loans
+    (id, asset_id, user_id, data_entrega, estado_entrega, acessorios,
+     aceito_em, entregue_por)
+  values
+    ('b0000000-0000-0000-0000-000000000001', v_note, v_carla,
+     current_date - 210, 'novo', 'carregador, capa',
+     (current_date - 209)::timestamptz + interval '9 hours 14 minutes', v_ana)
+  on conflict (id) do nothing;
+
+  -- 2. ENTREGUE E NAO ACEITA, com a devolucao vencida ontem.
+  insert into public.asset_loans
+    (id, asset_id, user_id, data_entrega, data_prevista_devolucao, estado_entrega,
+     acessorios, observacoes_entrega, entregue_por)
+  values
+    ('b0000000-0000-0000-0000-000000000002', v_camera, v_carla,
+     current_date - 43, current_date - 1, 'bom',
+     'duas baterias, cartão 128GB, alça',
+     'Para as gravações da Mundo Verde.', v_ana)
+  on conflict (id) do nothing;
+
+  -- 3. COM QUEM SAIU DA AGENCIA.
+  insert into public.asset_loans
+    (id, asset_id, user_id, data_entrega, estado_entrega, aceito_em, entregue_por)
+  values
+    ('b0000000-0000-0000-0000-000000000003', v_lente, v_leticia,
+     current_date - 300, 'bom', (current_date - 299)::timestamptz, v_ana)
+  on conflict (id) do nothing;
+
+  -- 4. JA DEVOLVIDO -- e a devolucao vai num UPDATE, nao no INSERT.
+  --
+  -- `asset_loans_move_status` e um trigger de UPDATE: gravar a data junto com
+  -- a linha deixaria o tripe parado em `emprestado` e o historico do
+  -- equipamento sem o evento de devolucao. E o mesmo erro do seed que
+  -- concluia etapa por INSERT e fazia toda conta de entrega responder zero.
+  insert into public.asset_loans
+    (id, asset_id, user_id, data_entrega, estado_entrega, aceito_em, entregue_por)
+  values
+    ('b0000000-0000-0000-0000-000000000004', v_tripe, v_carla,
+     current_date - 180, 'bom', (current_date - 179)::timestamptz, v_ana)
+  on conflict (id) do nothing;
+
+  update public.asset_loans
+  set data_devolucao = current_date - 122,
+      estado_devolucao = 'bom',
+      recebido_por = v_ana
+  where id = 'b0000000-0000-0000-0000-000000000004'
+    and data_devolucao is null;
+
+  -- A LINHA DO TEMPO PRECISA DE DATAS, e as dos triggers sao todas `now()`.
+  --
+  -- Os eventos sao de verdade -- quem os escreveu foi `assets_registra` e
+  -- `asset_loans_registra`, e o seed nao inventa nenhum. O que ele corrige e o
+  -- RELOGIO: como as quatro escritas acontecem no mesmo instante, a folha do
+  -- equipamento sairia com "devolvido" acima de "cadastrado" na mesma data, e
+  -- uma linha do tempo fora de ordem e pior que nenhuma. E o mesmo que o seed
+  -- ja faz com `created_at` dos pedidos do Sprint 3E.
+  update public.asset_events e
+  set created_at = a.data_aquisicao::timestamptz + interval '10 hours'
+  from public.assets a
+  where a.id = e.asset_id and e.tipo = 'cadastrado' and a.data_aquisicao is not null;
+
+  update public.asset_events e
+  set created_at = l.data_entrega::timestamptz + interval '11 hours'
+  from public.asset_loans l
+  where l.id = e.loan_id and e.tipo = 'emprestado';
+
+  update public.asset_events e
+  set created_at = l.data_devolucao::timestamptz + interval '17 hours'
+  from public.asset_loans l
+  where l.id = e.loan_id and e.tipo = 'devolvido' and l.data_devolucao is not null;
+
+  raise notice 'Sprint 3F: 5 equipamentos, 3 comodatos em aberto (um com pessoa desligada) e 1 devolvido.';
+end
+$bloco$;

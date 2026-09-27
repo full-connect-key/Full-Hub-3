@@ -50,6 +50,10 @@ export async function vinculosDoColaborador(userId: string) {
     tasksAbertas,
     solicitacoesPendentes: 0,
     clientesSobResponsabilidade,
+    // UM EQUIPAMENTO COM ELA (0069): e o que faz a faixa de comodato do
+    // desligamento aparecer na imagem. Sem isto, o bloco que obriga a decidir
+    // sobre o notebook nunca seria fotografado.
+    equipamentosEmAberto: daCarla ? 1 : 0,
     exigeTransferencia: tasksAbertas > 0,
     total: tasksAbertas + clientesSobResponsabilidade,
   };

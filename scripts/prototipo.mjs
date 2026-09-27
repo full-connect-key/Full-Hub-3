@@ -292,6 +292,23 @@ const TELAS = [
   { nome: "90b-solicitacoes-fila-375", rota: "/painel/solicitacoes", largura: 375, altura: 1200, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
+
+  // ---------------------------------------------------------------------
+  // COMODATOS (0069)
+  //
+  // Sao quatro porque sao quatro estados que nenhuma outra tela mostra: o
+  // aceite pendente com o termo a mao, o painel com o alerta de pessoa
+  // desligada, o agrupamento por pessoa, e o editor do termo -- que so o socio
+  // ve. A do colaborador sai como COLABORADOR de proposito: capturada como
+  // socio, ela mostraria a barra de abas, e a decisao "uma aba so nao vira
+  // barra" nunca apareceria numa imagem.
+  // ---------------------------------------------------------------------
+  { nome: "95-comodatos-meus", rota: "/painel/comodatos", largura: 1400, altura: 1100, role: "colaborador" },
+  { nome: "95b-comodatos-meus-375", rota: "/painel/comodatos", largura: 375, altura: 1500, role: "colaborador" },
+  { nome: "96-comodatos-inventario", rota: "/painel/comodatos?aba=geral", largura: 1600, altura: 1200, role: "socio" },
+  { nome: "96b-comodatos-por-pessoa", rota: "/painel/comodatos?aba=geral&visao=pessoa", largura: 1500, altura: 1000, role: "socio" },
+  { nome: "97-comodatos-modelo-termo", rota: "/painel/comodatos/modelo-termo", largura: 1500, altura: 1400, role: "socio" },
+  { nome: "97b-comodatos-folha", rota: "/painel/comodatos/as-2", largura: 1400, altura: 1100, role: "socio" },
   { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
@@ -428,6 +445,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
   "@/lib/dados/solicitacoes": ["./scripts/prototipo/solicitacoes.ts"],
+  "@/lib/dados/comodatos": ["./scripts/prototipo/comodatos.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

@@ -379,6 +379,44 @@ select teste.conferir_como(
   'select count(*) from public.asset_term_template',
   '0');
 
+-- ---------------------------------------------------------------------------
+-- E O TERMO DE UM COMODATO NAO ANDA COM O MODELO
+--
+-- Este e o cenario que separa "ler o modelo na hora de imprimir" de "congelar
+-- o texto na entrega". Sem ele, a diferenca entre as duas so apareceria no dia
+-- em que o socio reescrevesse o termo -- e o que mudaria seria o documento de
+-- um comodato de dois anos atras, que e a coisa que nao pode mudar. E a
+-- decisao de `workflow_snapshot` desde a 0008.
+-- ---------------------------------------------------------------------------
+select teste.conferir(
+  'O comodato do Bruno guardou o texto do termo',
+  (select (termo_corpo like 'TERMO DE COMODATO%')::text
+     from public.asset_loans where id = :L_NOTE),
+  'true');
+
+select teste.cenario('O socio reescreve o modelo inteiro', :ANA,
+  $$update public.asset_term_template set corpo = 'Modelo novo, de hoje' where unica$$,
+  'ok', 1);
+
+select teste.conferir(
+  'E o termo do comodato antigo continua o de antes',
+  (select (termo_corpo like 'TERMO DE COMODATO%')::text
+     from public.asset_loans where id = :L_NOTE),
+  'true');
+
+-- A METADE POSITIVA: o comodato NOVO nasce com o texto novo. Sem ela, um
+-- trigger que nunca copiasse nada passaria no cenario de cima.
+select teste.cenario('O tripe sai depois da troca do modelo', :DIEGO,
+  format($fmt$insert into public.asset_loans (asset_id, user_id, entregue_por)
+          values (%L, %L, %L)$fmt$, :CAMERA, :BRUNO, :DIEGO),
+  'ok', 1);
+
+select teste.conferir(
+  'O comodato novo nasceu com o modelo novo',
+  (select termo_corpo from public.asset_loans
+    where asset_id = :CAMERA and data_devolucao is null),
+  'Modelo novo, de hoje');
+
 
 -- ---------------------------------------------------------------------------
 -- 9. O DESLIGAMENTO PRECISA SABER

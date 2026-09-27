@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Receipt,
+  Boxes,
   ScrollText,
   Sparkles,
   Sun,
@@ -218,6 +219,22 @@ export const MENU: MenuItem[] = [
     section: "principal",
     description:
       "O que a equipe anda indicando: filme, curso, ferramenta, referência.",
+  },
+  {
+    // QUAL EQUIPAMENTO DA AGÊNCIA ESTÁ COM QUEM (0069).
+    //
+    // Na PRINCIPAL e para `EQUIPE`, porque a divisão do menu é sobre a PESSOA:
+    // a primeira coisa que esta tela responde é "o que está comigo", e quem
+    // tem um notebook da agência é todo mundo. A visão do inventário inteiro é
+    // uma aba dentro dela, fechada em `is_gestor()` pela guarda e pela RLS —
+    // não um segundo item de menu, que daria dois lugares para a mesma
+    // pergunta.
+    label: "Comodatos",
+    href: "/painel/comodatos",
+    icon: Boxes,
+    roles: EQUIPE,
+    section: "principal",
+    description: "O equipamento da agência que está com você, e o termo dele.",
   },
   {
     // A nota fiscal DA PESSOA, não o financeiro da agência. Cada um envia a

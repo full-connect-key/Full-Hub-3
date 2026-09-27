@@ -256,7 +256,7 @@ create table if not exists public.asset_loans (
   acessorios text,
   observacoes_entrega text,
   observacoes_devolucao text,
-  termo_url text,
+  termo_corpo text,
   aceito_em timestamptz,
   entregue_por uuid not null references public.profiles(id) on delete restrict,
   recebido_por uuid references public.profiles(id) on delete set null,
@@ -269,6 +269,32 @@ comment on column public.asset_loans.data_prevista_devolucao is
   'Nula significa por tempo indeterminado. O atraso e DERIVADO dela com current_date, nunca gravado.';
 comment on column public.asset_loans.aceito_em is
   'Quando a pessoa confirmou o recebimento no sistema. Escrita so por confirmar_recebimento() -- o colaborador nao tem policy de UPDATE nesta tabela.';
+
+-- ---------------------------------------------------------------------------
+-- O TERMO E UM SNAPSHOT, E NAO UM ARQUIVO GUARDADO -- e as duas metades da
+-- frase sao decisoes separadas.
+--
+-- **SNAPSHOT** porque o modelo e editavel pelo socio, e um termo de comodato e
+-- o que a agencia afirmou por escrito NAQUELE dia. Lendo o modelo corrente na
+-- hora de imprimir, reescrever o texto hoje mudaria o termo de um emprestimo
+-- de dois anos atras -- que e exatamente o que `tasks.workflow_snapshot` evita
+-- desde a 0008: editar o workflow nao muda demanda nenhuma que ja esta
+-- correndo.
+--
+-- **E NAO UM ARQUIVO** porque o proprio sprint descreve o documento como vivo:
+-- *"o aceite fica registrado com data e hora, e aparece no termo quando ele e
+-- baixado depois do aceite"*. Um PDF gravado no instante da entrega nunca
+-- carregaria o aceite, e regrava-lo a cada mudanca seria manter duas verdades
+-- sobre o mesmo documento. Entao o PDF nasce no download, a partir DESTE texto
+-- congelado mais o estado de agora.
+--
+-- Por isso nao ha coluna de endereco de arquivo nem bucket de termos: seriam
+-- uma coluna e um bucket que nenhuma linha escreve, e coluna que ninguem
+-- preenche e o campo de anotacao que alguem reaproveita errado tres sprints
+-- depois. As fotos, essas sao arquivo de verdade e tem bucket.
+-- ---------------------------------------------------------------------------
+comment on column public.asset_loans.termo_corpo is
+  'O texto do termo como ele estava no dia da entrega. Copiado do modelo por trigger (0069) -- editar o modelo depois nao muda emprestimo nenhum, que e a decisao de workflow_snapshot. O PDF e montado deste texto no download, para o aceite aparecer quando ja existir.';
 
 do $bloco$
 begin
@@ -461,6 +487,35 @@ begin
 end;
 $func$;
 
+-- ---------------------------------------------------------------------------
+-- O texto do termo congela na entrega
+--
+-- E TRIGGER E NAO ACTION pela razao de sempre: o emprestimo nasce por mais de
+-- um caminho, e o que passar por fora da tela sairia sem termo -- um
+-- emprestimo sem termo so aparece no dia em que alguem for imprimi-lo, que e
+-- justamente o dia em que ele precisa existir.
+-- ---------------------------------------------------------------------------
+create or replace function public.asset_loans_congela_termo()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $func$
+begin
+  if new.termo_corpo is null then
+    select t.corpo into new.termo_corpo
+      from public.asset_term_template t
+     limit 1;
+  end if;
+  return new;
+end;
+$func$;
+
+drop trigger if exists asset_loans_termo on public.asset_loans;
+create trigger asset_loans_termo
+  before insert on public.asset_loans
+  for each row execute function public.asset_loans_congela_termo();
+
 drop trigger if exists asset_loans_registra on public.asset_loans;
 create trigger asset_loans_registra
   after insert or update on public.asset_loans
@@ -631,7 +686,7 @@ returns table (
   estado_devolucao public.asset_estado,
   acessorios text,
   observacoes_entrega text,
-  termo_url text,
+  termo_corpo text,
   aceito_em timestamptz,
   devolvido boolean
 )
@@ -652,7 +707,7 @@ begin
   select l.id, a.id, a.codigo, a.tipo, a.nome, a.marca, a.modelo, a.numero_serie,
          a.foto_url, l.data_entrega, l.data_prevista_devolucao, l.data_devolucao,
          l.estado_entrega, l.estado_devolucao, l.acessorios, l.observacoes_entrega,
-         l.termo_url, l.aceito_em, (l.data_devolucao is not null) as devolvido
+         l.termo_corpo, l.aceito_em, (l.data_devolucao is not null) as devolvido
     from public.asset_loans l
     join public.assets a on a.id = l.asset_id
    where l.user_id = (select auth.uid())
@@ -878,14 +933,14 @@ on conflict (unica) do nothing;
 
 
 -- ---------------------------------------------------------------------------
--- PASSO 13 - Os dois buckets privados
+-- PASSO 13 - O bucket privado das fotos
+--
+-- UM SO, e nao dois: o termo nao vira arquivo (veja o comentario de
+-- `termo_corpo`), entao um bucket de termos seria um bucket que nada escreve.
 --
 -- `comodatos-fotos` e da EQUIPE inteira na leitura e da gestao na escrita: a
 -- foto do estado e a prova dos dois lados, e uma pessoa que nao consegue abrir
 -- a foto da entrega dela nao tem como discordar dela.
---
--- `comodatos-termos` e mais estreito: a pasta e do dono do emprestimo, como no
--- bucket de notas fiscais -- o termo carrega o nome e os dados da pessoa.
 -- ---------------------------------------------------------------------------
 do $bloco$
 begin
@@ -893,15 +948,9 @@ begin
   values ('comodatos-fotos', 'comodatos-fotos', false)
   on conflict (id) do nothing;
 
-  insert into storage.buckets (id, name, public)
-  values ('comodatos-termos', 'comodatos-termos', false)
-  on conflict (id) do nothing;
-
   drop policy if exists "comodatos: a equipe le as fotos" on storage.objects;
   drop policy if exists "comodatos: a gestao escreve as fotos" on storage.objects;
   drop policy if exists "comodatos: a gestao apaga as fotos" on storage.objects;
-  drop policy if exists "comodatos: o termo e de quem o assina" on storage.objects;
-  drop policy if exists "comodatos: a gestao escreve o termo" on storage.objects;
 
   execute $politica$
     create policy "comodatos: a equipe le as fotos" on storage.objects
@@ -919,24 +968,6 @@ begin
     create policy "comodatos: a gestao apaga as fotos" on storage.objects
       for delete to authenticated
       using (bucket_id = 'comodatos-fotos' and public.is_gestor())
-  $politica$;
-
-  execute $politica$
-    create policy "comodatos: o termo e de quem o assina" on storage.objects
-      for select to authenticated
-      using (
-        bucket_id = 'comodatos-termos'
-        and (
-          (storage.foldername(name))[1] = (select auth.uid())::text
-          or public.is_gestor()
-        )
-      )
-  $politica$;
-
-  execute $politica$
-    create policy "comodatos: a gestao escreve o termo" on storage.objects
-      for insert to authenticated
-      with check (bucket_id = 'comodatos-termos' and public.is_gestor())
   $politica$;
 end;
 $bloco$;

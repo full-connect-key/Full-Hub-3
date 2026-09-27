@@ -10,12 +10,14 @@ import {
   minhasNotasRecusadas,
   notasEsperandoOSocio,
 } from "@/lib/dados/notas-fiscais";
+import { meusComodatos } from "@/lib/dados/comodatos";
 import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { BoasVindas } from "./_blocos/boas-vindas";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
+import { MeusEquipamentos } from "./_blocos/meus-equipamentos";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
 import { PrecisaDeMim } from "./_blocos/precisa-de-mim";
 import { PulsoDaAgencia } from "./_blocos/pulso-da-agencia";
@@ -67,6 +69,7 @@ export default async function PaginaInicialDoPainel() {
     recusadas,
     esperandoOSocio,
     pedidosDeNotaAbertos,
+    meusEquipamentos,
   ] = await Promise.all([
     obterMinhaFicha(),
     resumoDaHome(),
@@ -84,6 +87,10 @@ export default async function PaginaInicialDoPainel() {
     // nota e eu não mandei. Sem ele o pedido viveria só no sino, que vira lido
     // no primeiro clique — e o prazo é o mesmo dia.
     meusPedidosDeNota(),
+    // O EQUIPAMENTO QUE ESTÁ COMIGO (0069). Ela passa por `meus_comodatos()`,
+    // que é definer e devolve vazio para quem não é da equipe — nenhum `if` de
+    // perfil aqui, pela mesma razão das notas acima.
+    meusComodatos(),
   ]);
 
   return (
@@ -110,6 +117,8 @@ export default async function PaginaInicialDoPainel() {
         notasEsperandoOSocio={esperandoOSocio}
         notasPedidas={pedidosDeNotaAbertos.length}
       />
+
+      <MeusEquipamentos comodatos={meusEquipamentos} />
 
       <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
 

@@ -3073,6 +3073,192 @@ a equipe; aqui a pasta é da pessoa e quem lê é ela e o sócio.
 copia o trecho que mudou, então a linha de uma nota carrega o VALOR. Como só o
 sócio lê a trilha, a regra desta migration não tem porta dos fundos.
 
+### Comodatos: qual equipamento está com quem
+
+`assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`
+— migration 0069. A equipe é toda PJ e o equipamento é da agência: o notebook
+que a Carla usa, a câmera que saiu para uma gravação, a lente que ficou com
+quem não trabalha mais aqui.
+
+**É o segundo módulo do zero em poucos sprints, e não havia ponte para
+atravessar desta vez** — nem tabela, nem coluna esperando alguém, como foi o
+caso das Notas Fiscais. Por isso a migration é grande.
+
+**São DUAS visões da mesma informação, e é por isso que não são dois módulos:**
+o colaborador vê o que está com ele, a gestão vê o inventário inteiro e quem
+está com o quê. Uma rota, `/painel/comodatos`, com a aba na URL — e para quem
+não é gestão a barra de abas some, porque uma navegação de um item é moldura
+sem função, a mesma razão pela qual as abas de Equipe sumiram quando sobrou
+uma.
+
+**Ele fica na PRINCIPAL e abre para `EQUIPE`**, porque a divisão do menu é
+sobre a pessoa: Gestão carrega o selo Admin e quer dizer "o que eu faço sobre
+os outros", e quem confere o próprio notebook não está fazendo nada sobre
+ninguém. É a decisão que moveu o Social Media e as Campanhas.
+
+#### A divergência do texto do sprint é de segurança, e ela não cabia junto
+
+O sprint escreve `assets_select` deixando o colaborador ler a linha do
+equipamento que está com ele, e na linha seguinte diz que `valor_aquisicao` e
+`nota_fiscal_url` são só da gestão — *"se a consulta do colaborador precisar da
+tabela, use uma view sem essas colunas"*.
+
+**As duas frases não cabem juntas.** Uma view não limita a tabela de baixo: com
+a policy permitindo a linha, o colaborador lê as duas colunas pelo PostgREST
+com um `select=valor_aquisicao` — a view protege quem passa por ela, e ninguém
+é obrigado a passar. É a mesma regra que o produto já escreveu de outro jeito:
+**policy não limita coluna**, e foi por isso que `comments.interno`,
+`posts_protege_colunas` e `protect_client_columns` viraram trigger.
+
+Então a linha fica **fora do alcance**: `assets_select` é `is_gestor()` e mais
+nada, e o colaborador chega ao que é dele por `meus_comodatos()`, `security
+definer`, que devolve o recorte sem as duas colunas. É a forma de
+`usuarios_do_meu_cliente()` e de `meus_pedidos_de_nota()` — definer para
+devolver só o agregado que aquela pessoa pode ver.
+
+#### O que o banco garante, e não a tela
+
+- **Um equipamento não está com duas pessoas.** O índice único é parcial —
+  `asset_loans (asset_id) where data_devolucao is null` —, e **é ele a trava,
+  não a consulta**: duas abas emprestando a mesma câmera passam pelas duas
+  consultas antes de qualquer uma gravar. É a decisão da 0040.
+- **O status do equipamento é escrito pelo EMPRÉSTIMO**, por
+  `asset_loans_move_status`: entregar põe `emprestado`, devolver devolve para
+  `disponivel` — ou para `manutencao`, quando o estado de devolução é `ruim`.
+  **E ele não volta de `baixado` por engano:** um equipamento dado baixa não
+  reaparece disponível porque alguém corrigiu uma data.
+- **Atraso é DERIVADO, nunca coluna.** `data_prevista_devolucao < hoje` é uma
+  pergunta que depende do dia de hoje, e uma coluna precisaria de uma rotina
+  noturna para continuar verdadeira — no dia em que ela não rodasse, o painel
+  mentiria sem avisar. É a mesma razão pela qual bloqueio de subtarefa não é
+  status e atraso no Financeiro não é coluna.
+- **O colaborador não edita, não empresta e não devolve.** Ele não tem policy
+  de UPDATE em `asset_loans`; as duas coisas que ele faz —
+  `confirmar_recebimento()` e `reportar_problema_do_comodato()` — são funções
+  que escrevem **uma** coisa cada. Sem policy de UPDATE não há coluna a
+  proteger por trigger.
+- **Sem policy de DELETE em `assets`, e a ausência é a regra:** o caminho é dar
+  baixa, com motivo. Apagar o equipamento levaria junto a folha dele, que é o
+  valor do módulo — a mesma decisão de não apagar pessoa nem cliente com
+  histórico. Emprestimo **devolvido** também não se apaga; o lançado por engano
+  e ainda em aberto, sim.
+
+#### A folha corrida do equipamento é tabela própria, e não o `audit_log`
+
+`asset_events` guarda cadastrado, emprestado, devolvido, em manutenção, voltou
+e baixado, com data, estado e quem registrou.
+
+**A tentação é ler o `audit_log` da 0058**, que já grava `update` em
+`assets` — e ela se desfaz em duas linhas: aquela trilha é **só do sócio**
+desde a 0058, porque copia o trecho que mudou de `finance_entries`, e esta
+folha é do colaborador e do desenvolvedor; e o que ela grava é o diff de
+colunas, não o fato — reconstruir "emprestado à Carla" a partir de
+`status: disponivel → emprestado` é reconstruir do lado errado.
+
+**De quebra ela resolve o "reportar problema".** O sprint manda avisar a gestão
+por notificação; um aviso é uma linha do sino, e o sino se apaga no primeiro
+clique. Aqui o problema relatado vira evento na folha do equipamento, onde
+quem for consertar procura.
+
+**E ela é escrita por TRIGGER, nunca pela action** — pela razão da auditoria: o
+empréstimo nasce por mais de um caminho, e um registro escrito na camada de
+aplicação registra o que passou pela tela e perde o resto.
+
+**A folha é ROTA e não diálogo** (`/painel/comodatos/{id}`), pela razão que põe
+filtro na URL em toda listagem do produto: "olha a folha do FCK-0002" precisa
+ser um link, e a pergunta que ela responde — *a lente sumiu, quem foi o último
+a ficar com ela?* — é a que se faz numa conversa, com alguém do outro lado. E
+ela é **da gestão**: o colaborador vê o que está e o que esteve com ele; a
+folha mostra por quantas mãos a peça passou, que é informação sobre as outras
+pessoas.
+
+#### O termo é um SNAPSHOT, e não um arquivo guardado
+
+`asset_loans.termo_corpo` copia o texto do modelo no instante da entrega, pelo
+trigger `asset_loans_congela_termo`.
+
+**SNAPSHOT** porque o modelo é editável pelo sócio, e um termo de comodato é o
+que a pessoa aceitou naquele dia: mudar o texto não pode mudar o que ela
+assinou. É a mesma decisão de `tasks.workflow_snapshot`.
+
+**E NÃO UM ARQUIVO** porque o próprio sprint descreve o documento como vivo —
+*"o aceite aparece no termo quando ele é baixado depois do aceite"*. Um PDF
+gravado na entrega não tem como ganhar uma linha depois; teria que ser
+regravado, e aí não é mais o que foi entregue. O PDF é montado **na hora do
+download**, a partir do corpo congelado mais o aceite de agora. Por isso não há
+coluna de endereço de arquivo nem bucket de termos: seriam um arquivo
+desatualizado e um bucket que nada escreve.
+
+**O modelo é UMA LINHA SÓ**, e é de propósito: o termo é da agência, não do
+equipamento nem da pessoa. Um modelo por tipo de equipamento seria a segunda
+pergunta que ninguém fez. **A chave é uuid e a trava é a coluna ao lado**
+(`unica boolean` com `check` e `unique`) — a primeira versão usou `id boolean
+primary key`, que é engenhoso e quebra `registrar_auditoria()`, que grava o id
+da linha num `uuid`: *"invalid input syntax for type uuid: true"*.
+
+**Só o sócio escreve o modelo**, pela razão da fila de notas: este texto é o
+que a agência afirma sobre a propriedade do equipamento, e mexer nele é
+decisão de quem responde por ela. Ler, a equipe inteira lê — é o que cada um
+recebe junto com o equipamento.
+
+**As variáveis são conferidas na tela ao lado, e o que não tiver valor sai como
+"—"**, nunca com a chave crua: um termo impresso dizendo `{{SERIE}}` é um termo
+que ninguém assina.
+
+#### O aceite, e o que ele é
+
+O empréstimo sem `aceito_em` aparece em destaque no cartão da pessoa, com o
+termo e a lista de acessórios à mão — **é o que ela está aceitando**, e um
+botão de confirmar acima de uma tela que não mostra o que foi entregue é um
+botão que confirma o quê.
+
+Confirmar grava a data, escreve o evento na folha e avisa quem entregou.
+`notificar()` faz o resto: não avisa quem causou o aviso, não avisa quem saiu,
+e devolve `null` sem derrubar a escrita quando não há a quem avisar — a lição
+da 0062.
+
+#### O alerta que custa dinheiro
+
+O painel da gestão tem cinco cartões e **um alerta acima de tudo**, o único em
+`--danger` da tela: equipamento em aberto com pessoa que saiu da agência.
+Devolução atrasada é cobrança; equipamento com quem foi embora é prejuízo, e
+por isso os dois não dividem a mesma cor.
+
+**A pergunta é `profiles.ativo`**, que é o que o desligamento apaga — e é por
+isso que **o seed traz alguém desligada**. Sem ela o cartão nasce em zero e o
+alerta nunca aparece em desenvolvimento: o produto se mostraria no único estado
+em que o caso mais caro do módulo não existe. É a lição da Óptica Visão sem
+responsável de atendimento (0062), aplicada antes de o bug acontecer em vez de
+depois.
+
+#### Desligar alguém passa por aqui
+
+No fluxo de desligamento (`/painel/pessoas/equipe/[id]`), a lista de vínculos
+ganhou os equipamentos em aberto, e eles **não entram no total**: o total conta
+o que é transferido, e equipamento não se transfere com um clique. O que há é
+uma faixa em `--warning` com o link para Comodatos e uma caixa obrigatória —
+*"sei do equipamento e vou cobrar"* — que solta o botão de continuar.
+
+**Ela AVISA em vez de recusar**, e a escolha é a mesma de "função sem dono
+avisa, nunca recusa" (0064): travar o desligamento por causa de uma lente
+deixaria a agência sem conseguir desligar quem já foi embora. O que ela impede
+é desligar **sem ver** — que é o caso de verdade.
+
+Quem responde é `comodatos_em_aberto_de()`, `security definer`, porque
+`desligarColaborador` roda com a chave de serviço.
+
+#### O que ficou de fora, e é decisão
+
+- **Não há bucket de termos**, pelo motivo acima — o termo não vira arquivo.
+  O bucket é um só, `comodatos-fotos`, privado como todos, com a pasta do
+  comodato na frente do caminho.
+- **As fotos são o que resolve discussão na devolução** — "a tampa já estava
+  assim" —, e por isso o momento (`entrega` / `devolucao`) é coluna e não um
+  prefixo no nome do arquivo.
+- **A exportação em CSV sai do inventário e dos comodatos em aberto**, pelo
+  `montarCSV` de `lib/dominio/csv.ts` — que deixou de ter seis donos no Sprint
+  15 justamente para não ganhar um sétimo aqui.
+
 ### O Financeiro da agência é só do sócio
 
 `contracts`, `finance_categories` e `finance_entries` fecham em `is_socio()`
@@ -4972,7 +5158,8 @@ src/
   lib/supabase/               clients, proxy, tipos, diagnóstico
 supabase/migrations/          SQL versionado
 supabase/testes/              bateria de RLS e de fluxo, rodando como gente
-supabase/seed.sql             9 usuários de teste, 3 empresas (uma desativada)
+supabase/seed.sql             10 usuários de teste (uma pessoa desligada, com
+                              equipamento em aberto), 3 empresas (uma desativada)
 scripts/                      Verificação de conexão e geradores de protótipo
 ```
 
@@ -5011,6 +5198,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0066_solicitar_as_notas_do_mes.sql` | **Pendente de aplicação.** Traz `invoice_requests`, `quem_deve_nota()`, `solicitar_notas_do_mes()` e `meus_pedidos_de_nota()`. Sem ela, o botão **Pedir as notas do mês** no Financeiro leva *"Could not find the function"*, e a faixa do pedido em Notas Fiscais nunca aparece — ela devolve vazia em vez de derrubar a tela, de propósito |
 | `supabase/migrations/0067_a_capa_da_recomendacao.sql` | **Pendente de aplicação.** Traz o bucket privado `recomendacoes-capas` e as três policies dele. **Não traz coluna nenhuma** — `recommendations.imagem_url` existe desde a 0017. Sem ela, colar um link no feed busca a capa, o upload é recusado pelo Storage (*"Bucket not found"*), o motivo vai para o log e a recomendação nasce **sem capa** — a tela não quebra, de propósito |
 | `supabase/migrations/0068_solicitacoes_do_cliente.sql` | **Pendente de aplicação.** Traz `request_types`, `client_requests`, `request_attachments`, `request_messages`, `clients.aceita_solicitacoes`, `tasks.request_id`, o bucket `solicitacoes-arquivos` e o gatilho que move o pedido quando a demanda é publicada. Sem ela, `/painel/solicitacoes` e `/portal/solicitacoes` devolvem erro de tabela inexistente — e as duas entradas de menu levam a uma tela quebrada |
+| `supabase/migrations/0069_comodatos.sql` | **Pendente de aplicação.** Traz `assets`, `asset_loans`, `asset_photos`, `asset_events`, `asset_term_template`, a sequence do patrimônio, o bucket `comodatos-fotos` e as funções `meus_comodatos()`, `confirmar_recebimento()`, `reportar_problema_do_comodato()` e `comodatos_em_aberto_de()`. Sem ela, `/painel/comodatos` devolve erro de tabela inexistente — e o desligamento de colaborador deixa de contar o equipamento em aberto, que é o aviso que ela existe para dar |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |
@@ -5021,6 +5209,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 3F | **Comodatos: qual equipamento está com quem.** Migration 0069, e o **segundo módulo do zero em poucos sprints** — não havia ponte para atravessar desta vez, nem tabela nem coluna esperando alguém. `assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`, com duas visões da mesma informação numa rota só: o colaborador vê o que está com ele, a gestão vê o inventário inteiro. **A divergência do texto do sprint é de segurança**, e as duas frases dele não cabiam juntas: ele manda deixar o colaborador ler a linha do equipamento e, na linha seguinte, esconder `valor_aquisicao` numa view — mas **uma view não limita a tabela de baixo**, e com a policy permitindo a linha o valor sai por um `select=valor_aquisicao` no PostgREST. É a regra que o produto já escreveu três vezes de outro jeito: policy não limita coluna. Então a linha ficou **fora do alcance** e o recorte vem de `meus_comodatos()`, `security definer` — a forma de `usuarios_do_meu_cliente()`. **O índice único parcial é a trava** contra dois empréstimos do mesmo item, e não a consulta (0040); **o status é escrito pelo empréstimo**, por trigger; **atraso é derivado**, nunca coluna. **O termo é SNAPSHOT e não arquivo:** o corpo congela na entrega, porque o modelo é editável e um termo é o que a pessoa aceitou naquele dia — e o PDF é montado no download, porque o próprio sprint descreve o documento como vivo (o aceite aparece nele depois de acontecer), e um PDF gravado na entrega não tem como ganhar uma linha. Por isso não há bucket de termos. **A folha do equipamento é tabela própria e não o `audit_log`**: aquela trilha é só do sócio desde a 0058, e o que ela grava é diff de coluna, não fato. No desligamento, o equipamento em aberto **avisa com caixa obrigatória em vez de recusar** — travar deixaria a agência sem conseguir desligar quem já foi embora; o que ela impede é desligar sem ver. **61 cenários novos, 1355 no total**, e quatro bugs reais na primeira rodada: um `case` devolvendo texto para coluna de enum, emprestar criando DOIS eventos `emprestado` (o trigger de status e o do empréstimo), e `asset_term_template` com `id boolean primary key` — engenhoso, e quebra `registrar_auditoria()`, que grava o id num `uuid`. **E um cenário que passava pelo motivo errado:** a mutação que tirava a checagem de dono de `confirmar_recebimento()` não era pega, porque o teste procurava o empréstimo por um `select` que a RLS da outra pessoa não resolve — ele media a policy de SELECT, não a pergunta de propriedade. Com o id literal, a mutação cai. **E o seed passou a ter alguém desligada**, com uma lente em aberto: sem ela o alerta mais caro do módulo nunca aparece em desenvolvimento — a lição da 0062 aplicada antes do bug em vez de depois. |
 | Sprint 15 | **A agência passou a responder sobre si mesma.** A camada de indicadores existia desde a 0035 e o resumo da Home desde a 0049, e nenhuma tela as lia. A Home ganhou os **nove blocos**, na ordem do dia da pessoa — quem sou eu, o que eu entrego hoje, o que está parado me esperando, quem não está aqui, para onde eu vou, e só então o panorama da gestão: quem abre esta tela abre para trabalhar. "Meu dia" é o **mesmo componente de Minhas Tasks**, que já estava separado desde o Sprint 4 esperando exatamente isto. `/painel/metricas` traz cinco abas com o **período como CHAVE e não como as duas datas** — "últimos 30 dias" salvo como `de=2026-08-26` é um link que envelhece calado —, e `QUEM_VE` espelha a primeira linha de cada função da 0035: quatro de `is_gestor()`, a rentabilidade de `is_socio()`. `ouFalha()` em todas, e aqui ele vale mais que de costume: a recusa dessas funções chega como erro, e sem ele o painel mostraria zeros — **painel zerado não parece recusa, parece agência parada**. `/painel/resumo-agencia` é a conversa de segunda-feira, e é **módulo antes de ser tela** (`lib/reports/weekly.ts`), porque a mesma função serviria o envio automático que ainda não existe. De quebra, o **CSV deixou de ter seis donos**: `montarCSV` morava dentro do Financeiro e a Academy importava dali, e as cópias já divergiam — o BOM que o Excel precisa estava em quatro das cinco telas. **Quatro erros meus, e nenhum o `npm run build` pegaria:** o cartão dizia "11 entregues" e o bloco logo abaixo contava 7, porque `producao_do_periodo()` conta só folha e as listas contavam agrupadora junto (foi a imagem que pôs os dois números lado a lado); em 375px a barra de abas empurrava a página inteira para os lados, e o **Full Days tinha a mesma linha desde o Sprint 6**; o título da etapa em "Meu dia" encolhia até "Re…" no celular; e o meu próprio comentário explicando por que o estado passa pelo mapa de rótulos **citava a palavra que a 0016 proibiu** — sétima vez na mesma armadilha. E o seed concluía duas etapas por INSERT, onde o trigger de UPDATE não roda: `concluida_em` nulo fazia toda conta de entrega responder **zero, que é plausível**. |
 | Sprint 10 | **O Calendário Full**: migration 0055, com `events`, `event_participants` e a view `calendar_events` juntando sete origens num formato só. **A linha mais importante é `security_invoker = true`** — sem ela a view roda com os direitos de quem a criou e lê as sete tabelas inteiras para qualquer pessoa autenticada, num objeto que o PostgREST publica sozinho. E o furo **passa despercebido num banco com um cliente só**: ele vê seis campanhas, que é o total, e "seis de seis" tem a mesma cara com a RLS ligada e desligada; por isso a bateria cria material de duas empresas, e tirando a cláusula seis cenários falham e dizem o que vazaria. **Quatro divergências do texto do sprint**, e a primeira é grave: ele filtra rascunho por `status in ('rascunho','cancelada')` e **nenhum dos dois existe** — `rascunho` nem é valor do enum, e o Postgres recusaria a criação da view com um erro falando de enum; `carga_do_dia()` já existia desde a 0035 e nada aqui recalcula; `capacidade_minutos_dia` não existia e nasce por pessoa; e "não incluir posts e campanhas ainda" está vencido, porque os dois módulos existem. Quatro visões, e a Linha do Tempo é a que responde "a equipe aguenta?" — com a coluna de nomes fixa, que quase não foi: o `overflow-hidden` do invólucro cria um scrollport e quebra o `sticky`, e a imagem mostrou "Carla Nunes" lida como "nes". **A ausência chegava com a chave do enum no título** e ia crua para a tela — a palavra que a 0016 tirou de propósito, e que `check:cores` não pegaria porque ele procura as formas acentuadas. **1000 cenários**, 24 novos, com mutação no `security_invoker`. |
 | Campanhas ponta a ponta | **A campanha virou trabalho de verdade**, em seis migrations e uma sequência de decisões do usuário. **0050 — a capa:** "para ser identificável direto pela imagem qual campanha é". **0051 — a campanha nasce com a DEMANDA**, uma etapa por entregável: a ponte (`deliverables.subtask_id` e `responsavel_id`) existia desde a 0033 e ninguém a atravessava, então a coluna nova é uma só. Tudo numa transação, porque a terceira de cinco escritas falhando deixaria uma campanha ligada a uma demanda com metade das etapas. **E ela se finaliza sozinha, nos dois sentidos** — "só é finalizada quando todas as suas etapas são entregues", e uma peça nova a reabre. **0052 — quem aprova a peça conclui a etapa:** "o responsável entrega, e o cliente conclui". O trigger **nunca derruba a aprovação do cliente**: ele está do outro lado sem ninguém por perto, e o que veria seria a aprovação dele falhando por causa de uma etapa que nem sabe que existe. **0053 — vários arquivos na mesma versão**, porque uma entrega é o PDF, o AI e o JPG; a capa passou a ser a primeira IMAGEM, não o primeiro arquivo. **0054 — o módulo virou "Campanhas", foi para a Principal e abriu para `EQUIPE`**: quem produz precisa chegar ao material dele. Abrir campanha continua sendo de quem abre demanda, e `campaigns_insert` fechou em `is_atendimento()` — a mesma função de `tasks_insert`, não uma parecida. **E a tela onde a equipe sobe o material não é área nova:** `deliverable_versions` já tinha versão, arquivo e justificativa desde a 0033 — faltava a tela, como no Social Media até a 0042. **O bug que abriu tudo isso:** `COLUNAS_DA_CAMPANHA` citava `clients(nome)` e a coluna é `nome_empresa`; o PostgREST recusa o `select` inteiro, o erro era descartado, e a tela dizia "Nenhuma campanha aberta" para quem tinha acabado de criar uma — **uma leitura que falha calada é pior que uma escrita, porque lista vazia é indistinguível da verdade**. Daí `ouFalha()`. **E de quebra, um bug de duas migrations atrás:** a 0030 reescreveu `validar_transicao_de_subtarefa()` a partir das quatro travas e perdeu o bloco de carimbos — desde então nenhuma subtarefa tinha `concluida_em`, e o contador de concluídas do mês respondia zero, que é plausível. **968 cenários**, com mutação em cinco travas. |
