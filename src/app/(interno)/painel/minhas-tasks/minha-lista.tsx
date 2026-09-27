@@ -10,7 +10,7 @@ import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { StatusBadge, corDoPontoDeStatus } from "@/components/shared/status-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { situacaoDoPrazo } from "@/lib/dominio/tasks";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
@@ -18,14 +18,7 @@ import { cn } from "@/lib/utils";
 
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 
-import {
-  AREAS,
-  ICONE_DA_AREA,
-  ROTA_DA_AREA,
-  ROTULOS_DE_AREA,
-  areaDaLinha,
-  type LinhaPessoal,
-} from "./linhas";
+import { ICONE_DA_AREA, STATUS_EM_ORDEM, type LinhaPessoal } from "./linhas";
 
 /** O selo da peça usa o ÍCONE DA ÁREA, e não um desenho escolhido aqui: ele
  *  aponta para a campanha, que é a área cujo cabeçalho está duas linhas acima.
@@ -70,44 +63,55 @@ export function MinhaLista({
     );
   }
 
-  // AS LINHAS SE SEPARAM POR ÁREA, e cada uma aparece numa seção só.
+  // AS LINHAS SE SEPARAM POR STATUS DA ETAPA, na ordem em que ela anda.
   //
-  // A ordem dentro da seção continua sendo a global de `montarLinhas` — o que
-  // vence amanhã no topo —, porque ela já veio ordenada; separar não reordena.
-  const porArea = AREAS.map((area) => ({
-    area,
-    itens: linhas.filter((l) => areaDaLinha(l) === area),
+  // A ordem DENTRO de cada grupo continua sendo a global de `montarLinhas` —
+  // o que vence amanhã no topo —, porque ela já veio ordenada: separar não
+  // reordena. É o que faz a etapa atrasada aparecer no começo do grupo dela
+  // em vez de no meio.
+  //
+  // `STATUS_EM_ORDEM` é a mesma lista do board, que fica no seletor de visão
+  // ao lado, e o porquê está escrito lá em `linhas.ts`.
+  const porStatus = STATUS_EM_ORDEM.map(({ status, titulo }) => ({
+    status,
+    titulo,
+    // GRUPO VAZIO SOME, em vez de virar um cabeçalho com nada embaixo. É a
+    // decisão da lista da Gestão de Tasks, e a mesma dos blocos de exceção da
+    // Home: quem não tem etapa em ajustes não precisa ler todo dia que não
+    // tem.
+    itens: linhas.filter((l) => l.subtarefa.status === status),
   })).filter((g) => g.itens.length > 0);
 
-  // COM UMA ÁREA SÓ, O CABEÇALHO SOME. Uma seção única com um título em cima é
+  // COM UM GRUPO SÓ, O CABEÇALHO SOME. Uma seção única com um título em cima é
   // moldura sem função — a mesma razão pela qual as abas de Equipe sumiram
-  // quando sobrou uma. O agrupamento existe para separar; sem o que separar,
-  // ele é só uma linha a mais entre a pessoa e o trabalho dela.
-  const agrupar = porArea.length > 1;
+  // quando sobrou uma, e pela qual o agrupamento por área já fazia isto antes
+  // deste. O agrupamento existe para separar; sem o que separar, ele é uma
+  // linha a mais entre a pessoa e o trabalho dela.
+  const agrupar = porStatus.length > 1;
 
   return (
     <div className="space-y-5">
-      {porArea.map((grupo) => (
-        <section key={grupo.area} className="space-y-2">
+      {porStatus.map((grupo) => (
+        <section key={grupo.status} className="space-y-2">
           {agrupar ? (
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-text-primary flex items-center gap-2 text-sm font-semibold">
-                {(() => {
-                  const Icone = ICONE_DA_AREA[grupo.area];
-                  return <Icone aria-hidden className="text-text-muted size-4" />;
-                })()}
-                {ROTULOS_DE_AREA[grupo.area]}
-                <span className="text-text-muted font-normal tabular-nums">
-                  {grupo.itens.length}
-                </span>
-              </h2>
-              <Link
-                href={ROTA_DA_AREA[grupo.area]}
-                className="text-accent-strong text-xs hover:underline"
-              >
-                Ver a área
-              </Link>
-            </div>
+            <h2 className="text-text-primary flex items-center gap-2 text-sm font-semibold">
+              {/* O PONTO COLORIDO É O MESMO DO SELETOR DE STATUS e do selo de
+                  cada linha, e não um segundo jeito de pintar a mesma coisa.
+                  Sem ele o cabeçalho é a única parte da tela em que o status
+                  aparece sem cor, e o olho não liga o grupo às linhas que
+                  estão dentro dele. */}
+              <span
+                aria-hidden
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  corDoPontoDeStatus(grupo.status),
+                )}
+              />
+              {grupo.titulo}
+              <span className="text-text-muted font-normal tabular-nums">
+                {grupo.itens.length}
+              </span>
+            </h2>
           ) : null}
 
           <Linhas
@@ -116,6 +120,16 @@ export function MinhaLista({
             usuarioId={usuarioId}
             souGestor={souGestor}
             aoAbrir={aoAbrir}
+            // O SELO DE STATUS SOME DENTRO DO GRUPO, e é a mesma decisão do
+            // selo da campanha: dentro da seção que já diz o nome, ele
+            // repetiria o cabeçalho uma vez por linha sem informar nada. É
+            // também o que o board faz — o card não carrega selo, porque a
+            // coluna já disse.
+            //
+            // **E ele VOLTA quando não há cabeçalho**, que é o caso de quem
+            // tem tudo no mesmo status: sem o selo e sem o título, o status
+            // sumiria da tela inteira.
+            mostrarStatus={!agrupar}
           />
         </section>
       ))}
@@ -129,12 +143,14 @@ function Linhas({
   usuarioId,
   souGestor,
   aoAbrir,
+  mostrarStatus,
 }: {
   linhas: LinhaPessoal[];
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
   aoAbrir: (taskId: string) => void;
+  mostrarStatus: boolean;
 }) {
   return (
     <div className="divide-y rounded-lg border">
@@ -260,7 +276,7 @@ function Linhas({
               <span className="text-muted-foreground text-xs">Sem prazo</span>
             )}
 
-            <StatusBadge status={sub.status} />
+            {mostrarStatus ? <StatusBadge status={sub.status} /> : null}
 
             {/* O relógio corre enquanto a etapa está em andamento. Fica à
                 vista para a pessoa reparar que esqueceu a etapa aberta — é o

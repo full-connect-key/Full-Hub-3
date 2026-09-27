@@ -1,7 +1,8 @@
 import { ClipboardList, FolderKanban, Images, type LucideIcon } from "lucide-react";
 
 import type { MinhaSubtarefa, MinhaTask } from "@/lib/dados/minhas-tasks";
-import type { TaskStatus } from "@/lib/supabase/database.types";
+import { ROTULOS_DE_SUBTAREFA, STATUS_DE_SUBTAREFA } from "@/lib/tasks/state-machine";
+import type { SubtaskStatus, TaskStatus } from "@/lib/supabase/database.types";
 
 /**
  * O achatamento de Minhas Tasks: de tasks para ETAPAS.
@@ -164,4 +165,70 @@ export function areaDaLinha(linha: LinhaPessoal): AreaDeTrabalho {
 
 export function ehArea(valor: string | undefined): valor is AreaDeTrabalho {
   return Boolean(valor) && (AREAS as readonly string[]).includes(valor as string);
+}
+
+/**
+ * ---------------------------------------------------------------------------
+ * OS SEIS STATUS DA ETAPA, NA ORDEM EM QUE ELA ANDA
+ *
+ * Decisão do usuário: *"quero que em minhas tasks, a visualização em lista
+ * seja apresentada por status"*. A Lista agrupava por ÁREA; passou a agrupar
+ * por status, e o agrupamento por área saiu — dois níveis de cabeçalho sobre
+ * oito linhas é moldura, não organização.
+ *
+ * **O STATUS É O DA ETAPA, E NÃO O DA DEMANDA**, e a razão é mecânica antes
+ * de ser conceitual: cada linha da Lista JÁ CARREGA o `StatusBadge` da etapa.
+ * Agrupando pelo status da demanda, um cabeçalho "Em andamento" apareceria em
+ * cima de uma linha marcada "Concluída" — dois fatos sobre a mesma linha se
+ * contradizendo a um centímetro de distância, que é o erro que o produto já
+ * pegou no cartão de "11 entregues" com sete na lista embaixo.
+ *
+ * E é conceitual também: a Lista lista ETAPAS desde o Sprint 10, porque
+ * "Conteúdo" e "Layout" da mesma demanda são dois trabalhos meus, com dois
+ * prazos. Pelo status da mãe os dois caem no mesmo grupo mesmo com um
+ * concluído e o outro sem começar — que é exatamente o que fez o board de
+ * demandas sair desta tela.
+ *
+ * **E ESTA LISTA É A MESMA DO BOARD**, que fica no seletor de visão ao lado.
+ * Ela nasceu lá dentro; duas cópias da mesma ordem divergiriam na primeira
+ * vez que alguém mexesse numa — é a lição de `ICONE_DA_AREA`, que tinha três
+ * cópias e duas já divergidas, e a de `COLUNAS_POR_STATUS` na Gestão de
+ * Tasks. Trocar de visão e ver a mesma etapa em dois lugares diferentes da
+ * ordem seria a tela desmentindo a si mesma.
+ *
+ * **São os SEIS da etapa e não os sete da Task**, pela razão que o board já
+ * registrava: são enums diferentes no banco, e um de-para entre os dois é o
+ * lugar onde as duas verdades começam a divergir.
+ * ---------------------------------------------------------------------------
+ */
+export const STATUS_EM_ORDEM: { status: SubtaskStatus; titulo: string }[] = [
+  { status: "nao_iniciada", titulo: ROTULOS_DE_SUBTAREFA.nao_iniciada },
+  { status: "em_andamento", titulo: ROTULOS_DE_SUBTAREFA.em_andamento },
+  {
+    status: "aguardando_informacoes",
+    titulo: ROTULOS_DE_SUBTAREFA.aguardando_informacoes,
+  },
+  {
+    status: "enviada_aprovacao",
+    titulo: ROTULOS_DE_SUBTAREFA.enviada_aprovacao,
+  },
+  { status: "em_ajustes", titulo: ROTULOS_DE_SUBTAREFA.em_ajustes },
+  { status: "concluida", titulo: ROTULOS_DE_SUBTAREFA.concluida },
+];
+
+// A ORDEM PRECISA COBRIR O ENUM INTEIRO, como os grupos do seletor de status
+// cobrem o dele. Um valor novo sem lugar aqui some das DUAS visões sem erro e
+// sem aviso — a etapa simplesmente não aparece, e só se descobre no dia em que
+// alguém for procurar por ela.
+//
+// A checagem mora aqui e não no board porque a lista mora aqui: deixada lá,
+// ela pararia de rodar para quem abrisse a Lista sem nunca abrir o board.
+const SEM_LUGAR = STATUS_DE_SUBTAREFA.filter(
+  (status) => !STATUS_EM_ORDEM.some((linha) => linha.status === status),
+);
+if (SEM_LUGAR.length > 0) {
+  throw new Error(
+    `Status de subtarefa sem lugar em Minhas Tasks: ${SEM_LUGAR.join(", ")}. ` +
+      "Toda etapa precisa cair em algum grupo, senão ela some da tela sem avisar.",
+  );
 }

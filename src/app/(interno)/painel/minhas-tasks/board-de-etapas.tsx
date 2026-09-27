@@ -30,16 +30,12 @@ import {
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { COR_DA_PRIORIDADE, situacaoDoPrazo } from "@/lib/dominio/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
-import {
-  ROTULO_DA_APROVACAO,
-  ROTULOS_DE_SUBTAREFA,
-  STATUS_DE_SUBTAREFA,
-} from "@/lib/tasks/state-machine";
+import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { moverSubtarefa } from "../gestao-tasks/acoes-de-itens";
-import type { LinhaPessoal } from "./linhas";
+import { STATUS_EM_ORDEM, type LinhaPessoal } from "./linhas";
 
 /**
  * O board de Minhas Tasks — um card por ETAPA, e não por demanda.
@@ -83,35 +79,17 @@ import type { LinhaPessoal } from "./linhas";
  * porquê onde ela tentou. O card volta para a coluna de origem sozinho.
  */
 
-/** As colunas, na ordem em que a etapa anda. */
-const COLUNAS: { status: SubtaskStatus; titulo: string }[] = [
-  { status: "nao_iniciada", titulo: ROTULOS_DE_SUBTAREFA.nao_iniciada },
-  { status: "em_andamento", titulo: ROTULOS_DE_SUBTAREFA.em_andamento },
-  {
-    status: "aguardando_informacoes",
-    titulo: ROTULOS_DE_SUBTAREFA.aguardando_informacoes,
-  },
-  {
-    status: "enviada_aprovacao",
-    titulo: ROTULOS_DE_SUBTAREFA.enviada_aprovacao,
-  },
-  { status: "em_ajustes", titulo: ROTULOS_DE_SUBTAREFA.em_ajustes },
-  { status: "concluida", titulo: ROTULOS_DE_SUBTAREFA.concluida },
-];
-
-// As colunas precisam cobrir o enum inteiro, como os grupos do seletor de
-// status cobrem o dele. Um valor novo sem coluna some do board sem erro e sem
-// aviso: a etapa simplesmente não aparece, e só se descobre no dia em que
-// alguém for procurar por ela.
-const SEM_COLUNA = STATUS_DE_SUBTAREFA.filter(
-  (status) => !COLUNAS.some((coluna) => coluna.status === status),
-);
-if (SEM_COLUNA.length > 0) {
-  throw new Error(
-    `Status de subtarefa sem coluna no board de Minhas Tasks: ${SEM_COLUNA.join(", ")}. ` +
-      "Toda etapa precisa cair em alguma coluna, senão ela some da tela sem avisar.",
-  );
-}
+/**
+ * As colunas são `STATUS_EM_ORDEM`, e a lista mora em `linhas.ts`.
+ *
+ * Ela nasceu aqui e saiu quando a Lista passou a agrupar pelos mesmos seis
+ * status (decisão do usuário). Duas cópias da mesma ordem divergiriam na
+ * primeira vez que alguém mexesse numa — e o sintoma seria trocar de visão no
+ * seletor e ver a mesma etapa em dois lugares diferentes da sequência. A
+ * checagem de que a ordem cobre o enum inteiro foi junto, pelo mesmo motivo:
+ * deixada aqui, ela pararia de rodar para quem abrisse só a Lista.
+ */
+const COLUNAS = STATUS_EM_ORDEM;
 
 function Card({
   linha,

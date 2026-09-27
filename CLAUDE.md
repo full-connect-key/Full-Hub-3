@@ -1795,24 +1795,64 @@ concluía que a área não existe aqui.
 
 **É AGRUPAMENTO, e não bloco novo.** Um bloco "Campanhas" ao lado da lista
 geral poria o mesmo trabalho duas vezes na mesma tela — a conta que a 0061
-recusou para a subtarefa do post. Aqui a linha SAI da lista geral e entra na
-seção da área dela: cada trabalho continua aparecendo uma vez só.
-`areaDaLinha()` em `minhas-tasks/linhas.ts` responde de que área é cada etapa,
-e a pergunta é `subtarefa.campanha` — não o caminho longo pela demanda, senão
-a etapa de uma campanha aberta sem entregável responderia "campanha".
+recusou para a subtarefa do post. A linha SAI da lista geral e entra na seção
+dela: cada trabalho continua aparecendo uma vez só. `areaDaLinha()` em
+`minhas-tasks/linhas.ts` responde de que área é cada etapa, e a pergunta é
+`subtarefa.campanha` — não o caminho longo pela demanda, senão a etapa de uma
+campanha aberta sem entregável responderia "campanha".
 
-**Com uma área só, o cabeçalho some.** Uma seção única com um título em cima é
-moldura sem função — a mesma razão pela qual as abas de Equipe sumiram quando
-sobrou uma. O agrupamento existe para separar; sem o que separar, ele é uma
-linha a mais entre a pessoa e o trabalho dela.
+**A Lista chegou a AGRUPAR POR ÁREA, e hoje agrupa por status** — a decisão
+está em "A Lista agrupa por status", logo abaixo. O que sobrou da área na
+Lista é o selo da campanha em cada linha, que diz mais que um cabeçalho: ele
+nomeia QUAL campanha. `areaDaLinha()` continua respondendo pela faixa de chips
+e pelo Social, que é bloco à parte.
 
 **A faixa de áreas mostra o ZERO, ao contrário do selo da fila de aprovações.**
 As duas regras não brigam: lá o selo COBRA uma ação, e um zero cobraria nada;
 aqui a linha RESPONDE onde o meu trabalho está, e "nenhum" é resposta — é
 justamente o caso em que a pessoa procurava a área e não a encontrava. Cada
-chip é um link para a área inteira e **não um filtro**: a Lista já separa por
-área logo abaixo, e um filtro seria um segundo jeito de fazer a mesma coisa,
-com um parâmetro de URL a mais para manter em dia.
+chip é um link para a área inteira e **não um filtro**: ele leva ao MÓDULO —
+onde a pessoa vê o mês de social inteiro, a campanha com a árvore —, e isso é
+outra coisa que estreitar esta lista. Um filtro seria um parâmetro de URL a
+mais para manter em dia, oferecendo um recorte que a faixa já não promete.
+
+#### A Lista agrupa por STATUS
+
+Decisão do usuário: *"quero que em minhas tasks, a visualização em lista seja
+apresentada por status"*. Ela agrupava por área; passou a agrupar pelos status,
+e o agrupamento por área saiu junto — dois níveis de cabeçalho sobre oito
+linhas é moldura, não organização.
+
+**O STATUS É O DA ETAPA, e não o da demanda**, e a razão é mecânica antes de
+ser conceitual: **cada linha já carrega o selo de status dela**. Agrupando pelo
+status da demanda, um cabeçalho "Em andamento" apareceria em cima de uma linha
+marcada "Concluída" — dois fatos sobre a mesma linha se contradizendo a um
+centímetro de distância, que é o erro do cartão de "11 entregues" com sete na
+lista logo abaixo. E é conceitual também: a Lista lista ETAPAS desde o Sprint
+10, porque "Conteúdo" e "Layout" da mesma demanda são dois trabalhos meus;
+pelo status da mãe os dois caem no mesmo grupo mesmo com um concluído e o
+outro sem começar, que é exatamente o que tirou o board de demandas desta
+tela.
+
+**E o selo de status SOME dentro do grupo**, porque o cabeçalho já o disse — é
+a decisão do selo da campanha, e é o que o board já fazia: o card não carrega
+selo, a coluna carrega. **Ele volta quando não há cabeçalho**, que é o caso de
+quem tem tudo no mesmo status: sem o selo e sem o título, o status sumiria da
+tela inteira.
+
+**A ordem é a mesma do board**, e a lista dos seis mora em `STATUS_EM_ORDEM`,
+em `minhas-tasks/linhas.ts`. Ela nasceu dentro do board e saiu de lá: as duas
+visões são o mesmo seletor, e duas cópias da mesma ordem divergiriam na
+primeira vez que alguém mexesse numa — trocar de visão e ver a mesma etapa em
+outro ponto da sequência é a tela desmentindo a si mesma. É a lição de
+`ICONE_DA_AREA`, que tinha três cópias e duas já divergidas. **A checagem de
+que a ordem cobre o enum inteiro foi junto**, pela mesma razão: deixada no
+board, ela pararia de rodar para quem abrisse só a Lista.
+
+**Dentro do grupo a ordem continua global** — o que vence amanhã no topo —,
+porque `montarLinhas()` já entrega ordenado e separar não reordena. **E grupo
+vazio some**, como na lista da Gestão de Tasks: quem não tem etapa em ajustes
+não precisa ler todo dia que não tem.
 
 **O Social fica FORA do seletor de visão, e é mecânico.** O board desenha
 colunas dos status da etapa de demanda e o calendário desenha prazos de
@@ -1820,13 +1860,14 @@ demanda; nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da
 Lista, ele sumiria em duas das três visões, e quem trabalha no board perderia
 a área inteira sem nada dizendo por quê. Ele vem DEPOIS do conteúdo da visão,
 na mesma ordem dos chips — Demandas, Campanhas, Social Media —, então na Lista
-as três seções se leem em sequência e no board ele fica embaixo das colunas,
-que é onde uma lista cabe.
+ele fecha a tela depois dos grupos de status e no board ele fica embaixo das
+colunas, que é onde uma lista cabe.
 
-**E o selo da peça diz QUAL campanha**, não a palavra "Campanha". Dentro da
-seção Campanhas ele repetiria o cabeçalho cinco vezes sem informar nada; o
-nome responde de qual peça é a etapa, que é a pergunta de quem tem três
-campanhas correndo. Ele continua sendo o link para onde o arquivo sobe.
+**E o selo da peça diz QUAL campanha**, não a palavra "Campanha". Enquanto
+havia uma seção Campanhas, a palavra repetia o cabeçalho cinco vezes sem
+informar nada; hoje não há a seção, e o nome continua sendo a resposta melhor
+— de qual peça é esta etapa, que é a pergunta de quem tem três campanhas
+correndo. Ele é também o link para onde o arquivo sobe.
 
 **O que faltava eram duas coisas, e nenhuma é uma lista nova.**
 
