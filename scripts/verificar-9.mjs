@@ -178,6 +178,105 @@ const POR_PERFIL = [
   },
 ];
 
+/**
+ * A BARRA LATERAL, POR PERFIL — e esta é a única checagem que lê SÓ ela.
+ *
+ * As de cima leem a página inteira, o menu incluído, e é o que elas precisam:
+ * a pergunta é o que a pessoa lê. Aqui a pergunta é outra — **o que a barra
+ * lista** —, e a página inteira não sabe responder: "Campanhas ativas" é um
+ * cartão do Pulso na tela inicial do sócio, então uma busca no texto todo
+ * diria que a entrada continua no menu quando ela não está. Por isso o recorte
+ * é o `<nav>` da barra, achado pelo rótulo acessível que ele já carregava.
+ *
+ * **POR QUE ELA EXISTE:** Social Media e Campanhas saíram da barra por decisão
+ * do usuário — *"quero que social media e campanhas saiam da aba lateral, elas
+ * devem ficar dentro de minhas tasks para diminuir a quantidade de itens"*. As
+ * duas rotas continuam de pé (`hiddenFromMenu` em `lib/auth/permissions.ts`,
+ * não linha apagada, senão `canAccess` deixaria de conhecê-las e a rota
+ * devolveria 403), e a porta passou a ser a faixa das três áreas em Minhas
+ * Tasks.
+ *
+ * **E É DE MÃO DUPLA COM `A_PORTA`, que é a metade que falta.** Sem ela, a
+ * checagem de ausência passaria no dia em que a faixa de Minhas Tasks
+ * quebrasse: as duas áreas não estariam na barra nem em lugar nenhum, e o
+ * módulo teria sumido do produto em silêncio. Tirar a entrada só foi possível
+ * porque a faixa existe, então a checagem confere as duas coisas ou não
+ * confere nenhuma.
+ *
+ * O lado positivo de cada linha existe pela razão de sempre: uma barra que
+ * parasse de desenhar QUALQUER item passaria numa checagem que só procura
+ * ausência. "Auditoria" fica de fora desta lista de propósito — quem responde
+ * por ela é `POR_PERFIL`, e duas checagens dizendo a mesma coisa são o lugar
+ * onde as duas começam a discordar.
+ */
+const MARCA_DA_BARRA = 'aria-label="Módulos do painel"';
+
+const NA_BARRA = [
+  {
+    tela: "08-painel-colaborador",
+    tem: ["Início", "Minhas Tasks", "Solicitações", "Notas Fiscais"],
+    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro"],
+    porque:
+      "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
+  },
+  {
+    tela: "05-painel-socio",
+    tem: ["Minhas Tasks", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro"],
+    naoTem: ["Social Media", "Campanhas"],
+    porque:
+      "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria",
+  },
+  {
+    tela: "09-painel-desenvolvedor",
+    tem: ["Minhas Tasks", "Gestão de Tasks", "Métricas"],
+    naoTem: ["Social Media", "Campanhas", "Financeiro"],
+    porque:
+      "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",
+  },
+];
+
+const A_PORTA = {
+  tela: "30-minhas-tasks-lista",
+  nomes: ["Demandas", "Campanhas", "Social Media"],
+  porque:
+    "a faixa das três áreas é a porta que substituiu as duas entradas da barra; sem os nomes nela, o módulo sumiu do produto",
+};
+
+/**
+ * O `<nav>` da barra, recortado da página.
+ *
+ * O recorte conta a profundidade em vez de procurar o primeiro `</nav>`: a
+ * barra tem seções aninhadas, e um `indexOf` fecharia no lugar errado se um
+ * dia houver um `<nav>` dentro dela. E devolve TODAS as ocorrências, porque no
+ * celular a mesma barra aparece de novo dentro da gaveta — conferir uma só
+ * deixaria a outra livre para divergir.
+ */
+function barrasDe(html) {
+  const achados = [];
+  let de = 0;
+  for (;;) {
+    const marca = html.indexOf(MARCA_DA_BARRA, de);
+    if (marca === -1) break;
+    let i = html.indexOf(">", marca) + 1;
+    let fundo = 1;
+    while (i < html.length && fundo > 0) {
+      const abre = html.indexOf("<nav", i);
+      const fecha = html.indexOf("</nav", i);
+      if (fecha === -1) break;
+      if (abre !== -1 && abre < fecha) {
+        fundo += 1;
+        i = abre + 4;
+      } else {
+        fundo -= 1;
+        i = fecha + 5;
+      }
+    }
+    achados.push(html.slice(marca, i));
+    de = i;
+  }
+  return achados;
+}
+
 /** O texto que a pessoa lê, sem marcação, sem script e sem estilo. */
 function textoDe(html) {
   return html
@@ -267,6 +366,8 @@ const NECESSARIAS = [
   ...new Set([
     ...DO_SPRINT_9,
     ...POR_PERFIL.flatMap(({ tem, naoTem }) => (naoTem ? [tem, naoTem] : [tem])),
+    ...NA_BARRA.map(({ tela }) => tela),
+    A_PORTA.tela,
   ]),
 ];
 
@@ -374,6 +475,55 @@ for (const { frase, tem, naoTem, porque } of POR_PERFIL) {
         : `“${frase}” está em ${tem}`,
     );
   }
+}
+
+console.log("\nO que a barra lateral lista\n");
+
+for (const { tela, tem, naoTem, porque } of NA_BARRA) {
+  const barras = barrasDe(await readFile(path.join(DUMPS, `${tela}.html`), "utf8"));
+
+  // SEM A BARRA, ELE FALHA — nunca passa em branco. Um dump em que o recorte
+  // não acha o `<nav>` é um dump em que TODA ausência passa: a barra some, e a
+  // checagem que devia gritar diz "ok" para as duas linhas de baixo.
+  if (barras.length === 0) {
+    problemas.push(
+      `${tela} não tem a barra lateral no dump — o recorte procura o rótulo
+` +
+        `          “Módulos do painel”, e sem ele esta checagem afirmaria sobre
+` +
+        "          uma barra que ninguém leu.",
+    );
+    continue;
+  }
+
+  const texto = barras.map(textoDe).join(" · ");
+
+  const sumiram = tem.filter((rotulo) => !apareceInteira(texto, rotulo));
+  const voltaram = naoTem.filter((rotulo) => apareceInteira(texto, rotulo));
+
+  if (sumiram.length > 0) {
+    problemas.push(
+      `a barra de ${tela} não lista ${sumiram.join(", ")} — ${porque}.\n` +
+        "          Esta é a metade positiva: sem ela, a checagem de ausência\n" +
+        "          passaria numa barra que parou de desenhar tudo.",
+    );
+  } else if (voltaram.length > 0) {
+    problemas.push(`a barra de ${tela} voltou a listar ${voltaram.join(", ")} — ${porque}`);
+  } else {
+    certo(`${tela}: ${tem.length} item(ns) de pé, ${naoTem.length} fora`);
+  }
+}
+
+const daPorta = A_PORTA.nomes.filter(
+  (nome) => !apareceInteira(textos.get(A_PORTA.tela) ?? "", nome),
+);
+
+if (daPorta.length > 0) {
+  problemas.push(
+    `${A_PORTA.tela} não nomeia ${daPorta.join(", ")} — ${A_PORTA.porque}`,
+  );
+} else {
+  certo(`${A_PORTA.tela} nomeia as três áreas`);
 }
 
 relatar();

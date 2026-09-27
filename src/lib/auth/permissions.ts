@@ -123,6 +123,27 @@ export const MENU: MenuItem[] = [
     // o assunto: Gestão carrega o selo Admin e significa "o que eu faço sobre
     // os outros". O redator escrevendo a legenda dele não está fazendo nada
     // sobre ninguém — é o trabalho do dia dele, como Minhas Tasks.
+    // ---------------------------------------------------------------------
+    // **E EM SEGUIDA ELA SAIU DA BARRA** — decisão do usuário: *"quero que
+    // social media e campanhas saiam da aba lateral, elas devem ficar dentro
+    // de minhas tasks para diminuir a quantidade de itens na aba lateral"*.
+    //
+    // O parágrafo acima fica registrado porque explica por que ela é UMA linha
+    // e por que estava na Principal; o que mudou é que agora ela não é linha
+    // nenhuma.
+    //
+    // **É `hiddenFromMenu` e não a linha apagada**, pela razão de "Meu Perfil":
+    // `canAccess()` responde pelo `MENU`. Sem a entrada, `/painel/social-media`
+    // viraria rota desconhecida, `exigirAcessoARota` devolveria 403, e
+    // `findMenuItem` deixaria de achar o título — a trilha e o `<title>` da aba
+    // sairiam em branco. A bandeira existe exatamente para isto: quem sai é a
+    // ENTRADA, não a tela.
+    //
+    // **E a porta é Minhas Tasks**, que é onde o trabalho de social já estava:
+    // a faixa das três áreas mostra "Social Media" com a contagem — inclusive
+    // zero — e é um link para cá. Tirar a entrada sem essa faixa teria
+    // escondido o módulo; foi ela que tornou a remoção possível.
+    // ---------------------------------------------------------------------
     label: "Social Media",
     href: "/painel/social-media",
     icon: Images,
@@ -130,6 +151,7 @@ export const MENU: MenuItem[] = [
     section: "principal",
     description:
       "Os posts da agência, da pauta ao envio ao cliente.",
+    hiddenFromMenu: true,
   },
   {
     // DE `GESTAO` PARA `EQUIPE`, e da seção Gestão para a Principal — decisão
@@ -147,6 +169,10 @@ export const MENU: MenuItem[] = [
     // **Abrir campanha continua sendo do Atendimento**, e quem recusa é o
     // banco: `campaigns_insert` e `tasks_insert` (0054). Ver o módulo e abrir
     // trabalho nele são duas decisões — a segunda não acompanha a primeira.
+    // **E ELA TAMBÉM SAIU DA BARRA**, pela mesma decisão e pela mesma porta:
+    // a peça de campanha é uma subtarefa desde a 0051, então ela já vivia em
+    // Minhas Tasks — agora com seção nomeada e contagem. O histórico acima
+    // fica porque explica o nome e a seção; o que mudou é a entrada.
     label: "Campanhas",
     href: "/painel/aprovacoes",
     icon: FileCheck2,
@@ -154,6 +180,7 @@ export const MENU: MenuItem[] = [
     section: "principal",
     description:
       "As campanhas da agência: o material de cada peça, versão a versão.",
+    hiddenFromMenu: true,
   },
   {
     label: "Full Days",

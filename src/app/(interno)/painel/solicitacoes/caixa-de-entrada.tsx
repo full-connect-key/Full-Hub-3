@@ -6,7 +6,6 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Inbox, MessageSquare, Paperclip } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";

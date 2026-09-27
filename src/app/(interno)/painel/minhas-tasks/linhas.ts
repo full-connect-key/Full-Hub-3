@@ -1,3 +1,5 @@
+import { ClipboardList, FolderKanban, Images, type LucideIcon } from "lucide-react";
+
 import type { MinhaSubtarefa, MinhaTask } from "@/lib/dados/minhas-tasks";
 import type { TaskStatus } from "@/lib/supabase/database.types";
 
@@ -122,6 +124,28 @@ export const ROTA_DA_AREA: Record<AreaDeTrabalho, string> = {
   demandas: "/painel/gestao-tasks",
   campanhas: "/painel/aprovacoes",
   social: "/painel/social-media",
+};
+
+/**
+ * O ÍCONE DE CADA ÁREA, e ele mora aqui pela razão de `FUNCOES`.
+ *
+ * Eram TRÊS cópias deste mapa na mesma pasta — a faixa das áreas, o cabeçalho
+ * de cada seção da Lista e a faixa de novidades —, e **duas já tinham
+ * divergido**: o Social aparecia com o ícone de lista numa e com o de imagens
+ * nas outras, na mesma tela, a poucos pixels de distância. A quarta cópia
+ * seria a que esquecesse uma área nova.
+ *
+ * **E o ícone passou a carregar mais peso do que carregava.** Enquanto Social
+ * Media e Campanhas eram itens da barra lateral, ele era só o eco do ícone de
+ * lá — quem reconhecia a área reconhecia pelo menu. As duas entradas saíram
+ * da barra por decisão do usuário, e agora este é o único lugar do produto em
+ * que aquele desenho aparece ao lado daquele nome. Dois desenhos para a mesma
+ * área deixaram de ser inconsistência de estilo e passaram a ser duas áreas.
+ */
+export const ICONE_DA_AREA: Record<AreaDeTrabalho, LucideIcon> = {
+  demandas: ClipboardList,
+  campanhas: FolderKanban,
+  social: Images,
 };
 
 /**

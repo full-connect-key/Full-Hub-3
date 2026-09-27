@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ClipboardList, Columns3, FolderKanban, Images, List } from "lucide-react";
+import { CalendarDays, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
@@ -18,7 +18,13 @@ import { cn } from "@/lib/utils";
 
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
 import { BoardDeEtapas } from "./board-de-etapas";
-import { ROTA_DA_AREA, ROTULOS_DE_AREA, areaDaLinha, type LinhaPessoal } from "./linhas";
+import {
+  ICONE_DA_AREA,
+  ROTA_DA_AREA,
+  ROTULOS_DE_AREA,
+  areaDaLinha,
+  type LinhaPessoal,
+} from "./linhas";
 import { EtapasDeSocial } from "./etapas-de-social";
 import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
@@ -172,25 +178,28 @@ export function PainelPessoal({
       <div className="flex flex-wrap items-center gap-2">
         {(
           [
-            ["demandas", ClipboardList, linhas.filter((l) => areaDaLinha(l) === "demandas").length],
-            ["campanhas", FolderKanban, linhas.filter((l) => areaDaLinha(l) === "campanhas").length],
-            ["social", Images, etapasDeSocial.length],
+            ["demandas", linhas.filter((l) => areaDaLinha(l) === "demandas").length],
+            ["campanhas", linhas.filter((l) => areaDaLinha(l) === "campanhas").length],
+            ["social", etapasDeSocial.length],
           ] as const
-        ).map(([area, Icone, quantas]) => (
-          <Link
-            key={area}
-            href={ROTA_DA_AREA[area]}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
-              "hover:bg-accent",
-              quantas === 0 && "text-muted-foreground",
-            )}
-          >
-            <Icone aria-hidden className="size-3.5" />
-            {ROTULOS_DE_AREA[area]}
-            <span className="tabular-nums font-medium">{quantas}</span>
-          </Link>
-        ))}
+        ).map(([area, quantas]) => {
+          const Icone = ICONE_DA_AREA[area];
+          return (
+            <Link
+              key={area}
+              href={ROTA_DA_AREA[area]}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                "hover:bg-accent",
+                quantas === 0 && "text-muted-foreground",
+              )}
+            >
+              <Icone aria-hidden className="size-3.5" />
+              {ROTULOS_DE_AREA[area]}
+              <span className="tabular-nums font-medium">{quantas}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {/* A FAIXA FICA ACIMA DE "MEU DIA", e é o único lugar em que ela cabe:

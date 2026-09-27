@@ -1585,14 +1585,22 @@ duas verdades começam a divergir. **O que não muda: distribuir a corrente
 continua sendo da gestão.** Abrir trabalho e distribuir trabalho são duas
 decisões.
 
-**"Social Media" é UMA linha do menu, e fica na Principal.** Ela passou por
-Gestão e por duas entradas ao mesmo tempo no mesmo dia; o histórico fica
-registrado porque a ideia pode voltar. O que decidiu: a tela já muda sozinha por
-perfil, e quem recusa é a RLS e os triggers — uma segunda entrada não
-acrescentava trava nenhuma, só um segundo caminho para o mesmo lugar com o
-mesmo nome. E é na Principal porque a divisão do menu é sobre a **pessoa**:
-Gestão carrega o selo Admin e significa "o que eu faço sobre os outros", e o
-redator escrevendo a legenda dele não está fazendo nada sobre ninguém.
+**"Social Media" NÃO É MAIS UMA LINHA DO MENU**, e o caminho até aqui fica
+registrado inteiro porque cada passo dele foi uma decisão. Ela passou por
+Gestão, por duas entradas ao mesmo tempo no mesmo dia, virou **uma** linha na
+Principal — a tela já muda sozinha por perfil, e quem recusa é a RLS e os
+triggers, então a segunda entrada não acrescentava trava nenhuma, só um
+segundo caminho para o mesmo lugar com o mesmo nome —, e então **saiu da
+barra**. A Principal era o lugar certo pela razão que continua de pé: a
+divisão do menu é sobre a **pessoa**, Gestão carrega o selo Admin e significa
+"o que eu faço sobre os outros", e o redator escrevendo a legenda dele não
+está fazendo nada sobre ninguém.
+
+Quem a tirou foi o usuário: *"quero que social media e campanhas saiam da aba
+lateral, elas devem ficar dentro de minhas tasks para diminuir a quantidade de
+itens na aba lateral"*. O que está escrito sobre as duas remoções — por que a
+entrada sai e a rota fica, e o que passou a ser a porta — está em **"As duas
+entradas saem da barra"**, logo abaixo da seção de Minhas Tasks.
 
 #### O mês de social é UMA demanda, e cada post é uma etapa dela
 
@@ -1825,7 +1833,9 @@ campanhas correndo. Ele continua sendo o link para onde o arquivo sobe.
 **1. O caminho de volta para a campanha.** A etapa dizia "Lâmina A5" e clicar
 abria a DEMANDA — e o PDF sobe em `/painel/aprovacoes/campanhas/{id}`. Quem
 produz caía numa tela sem lugar para o arquivo. Agora a linha carrega um selo
-**Campanha** que é um link para lá. A pergunta é por `deliverables.subtask_id`,
+com o NOME da campanha, que é um link para lá — a palavra "Campanha" era o
+que ele dizia na primeira versão, e dentro da seção Campanhas ela repetia o
+cabeçalho sem informar nada. A pergunta é por `deliverables.subtask_id`,
 a ponte que a 0033 criou e a 0051 passou a escrever: pelo caminho longo
 (`task → campaign`) a etapa de uma campanha sem entregável responderia "sim", e
 ela não é peça de nada.
@@ -1867,6 +1877,61 @@ parcial por uma total.
 PostgREST recusa o `select` INTEIRO quando não acha a relação pelo nome escrito
 — e foi assim que uma campanha recém-criada não aparecia em lugar nenhum. Duas
 idas ao banco custam menos que essa classe de bug.
+
+#### As duas entradas saem da barra lateral
+
+Decisão do usuário: *"quero que social media e campanhas saiam da aba lateral,
+elas devem ficar dentro de minhas tasks para diminuir a quantidade de itens na
+aba lateral"*. A barra tinha dezoito linhas para o sócio; ficou com dezesseis.
+
+**E SÓ FOI POSSÍVEL PORQUE A FAIXA DAS TRÊS ÁREAS EXISTE.** Tirar um item de
+menu de um módulo que não aparece em mais lugar nenhum não é enxugar a barra,
+é esconder o módulo — e esconder o módulo de quem produz é esconder o trabalho
+dele, que é o argumento que trouxe as duas telas para `EQUIPE` na 0054 e no
+Sprint 14. A ordem das duas mudanças é a explicação: primeiro as áreas ganharam
+nome, contagem e seção própria em Minhas Tasks, depois a entrada saiu.
+
+**A ENTRADA SAI, A ROTA FICA**, e quem faz isso é `hiddenFromMenu` em
+`lib/auth/permissions.ts` — a bandeira que "Meu Perfil" já usava —, nunca a
+linha apagada. `getMenuForRole()` a filtra da barra; `canAccess()` e
+`findMenuItem()` continuam respondendo pelo `MENU`. Sem a entrada,
+`/painel/social-media` viraria rota desconhecida: `exigirAcessoARota`
+devolveria 403 para quem chegasse pela faixa, e a trilha e o `<title>` da aba
+sairiam em branco. **O item sai do menu, não do alcance de quem o abria** —
+nenhuma policy mudou, nenhum perfil perdeu nada.
+
+**O que garante que a remoção não virou desaparecimento é uma checagem de
+MÃO DUPLA**, e ela é a primeira do produto a ler **só a barra lateral**:
+`check:sprint9` recorta o `<nav aria-label="Módulos do painel">` do dump e
+confere que os dois nomes NÃO estão lá, em três perfis — e, do outro lado, que
+a tela de Minhas Tasks nomeia as três áreas. Sem a segunda metade, a checagem
+passaria no dia em que a faixa quebrasse: os dois módulos não estariam na barra
+nem em lugar nenhum, e o produto os teria perdido em silêncio.
+
+**E o recorte não é zelo, é o que faz a checagem medir.** As outras seções do
+`check:sprint9` leem a página inteira, porque a pergunta delas é o que a pessoa
+lê. Aqui a pergunta é o que a barra **lista**, e a página inteira não sabe
+responder: "Campanhas ativas" é um cartão do Pulso na tela inicial do sócio,
+então uma busca no texto todo diria que a entrada continua no menu quando ela
+não está. Medido com três mutações: trocar o recorte pela página inteira
+derruba três cenários, devolver a entrada ao `MENU` derruba os mesmos três, e
+fazer a faixa parar de nomear uma área derruba o quarto.
+
+**E o ÍCONE DE CADA ÁREA passou a morar num lugar só**, que é consequência
+direta disto. Eram três cópias do mapa na mesma pasta — a faixa dos chips, o
+cabeçalho de cada seção da Lista e a faixa de novidades —, e **duas já tinham
+divergido**: o Social aparecia com o ícone de lista numa e com o de imagens nas
+outras, na mesma tela, a poucos pixels de distância. Enquanto as duas eram
+itens da barra o ícone era só o eco do ícone de lá; agora este é o **único**
+lugar do produto em que aquele desenho aparece ao lado daquele nome, e dois
+desenhos para a mesma área deixaram de ser inconsistência de estilo e passaram
+a ser duas áreas. É a decisão de `FUNCOES` na 0064: a quarta cópia seria a que
+esquecesse uma área nova.
+
+*O que se perde, e é consequência aceita:* quem procurava o módulo na barra
+por hábito passa por Minhas Tasks. O ganho é que ele o encontra ao lado da
+contagem do que é dele lá dentro — que é a pergunta que levava a pessoa a
+clicar no item.
 
 #### Campanhas: a Wave, a árvore e a decisão de cada peça
 
@@ -2128,7 +2193,11 @@ palavra o argumento que moveu o Social Media: esconder o módulo de quem produz
 
 **E foi para a seção Principal**, porque a divisão do menu é sobre a PESSOA:
 Gestão carrega o selo Admin e quer dizer "o que eu faço sobre os outros", e o
-designer subindo o PDF da lâmina dele não está fazendo nada sobre ninguém.
+designer subindo o PDF da lâmina dele não está fazendo nada sobre ninguém. **E
+depois saiu da barra junto com o Social Media**, pela decisão registrada em
+"As duas entradas saem da barra": a Principal era o lugar certo para ela, e o
+argumento continua valendo para onde ela foi — Minhas Tasks é a tela do
+trabalho do dia da pessoa, que é exatamente o que a peça de campanha é.
 
 **O nome mudou junto.** Ele ficava ao lado de "Aprovações Internas" na mesma
 seção, e as duas telas não são a mesma coisa — uma é a fila de validação da
@@ -4923,7 +4992,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Confere que os stubs de `scripts/prototipo/` exportam tudo o que `src/` importa deles. **O `typecheck` não vê os stubs** — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária; um export que falta atravessa build, lint e tipo, e só quebra dentro do `npm run prototipo`, depois de dois minutos compilando. E o protótipo **não está no CI**, então o defeito espera alguém rodar um script de quinze minutos à mão |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado |
-| `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco |
+| `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
 | `scripts/migrations-pendentes.sh 0019 0020` | Junta as migrations que faltam num arquivo só, para colar no SQL Editor do Supabase |
 | `scripts/exportar-antes-da-0043.sql` | Cola no SQL Editor e mostra a autoavaliação e as observações que a 0043 vai apagar. **Conveniência, não condição** — ao contrário do da 0034, estas tabelas a gestão já lia |

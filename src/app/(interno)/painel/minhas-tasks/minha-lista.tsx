@@ -3,14 +3,7 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
-import {
-  ChevronRight,
-  ClipboardList,
-  FolderKanban,
-  ListChecks,
-  Lock,
-  Link2,
-} from "lucide-react";
+import { ChevronRight, ListChecks, Lock, Link2 } from "lucide-react";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
@@ -27,21 +20,18 @@ import type { Prazos } from "@/lib/dados/minhas-tasks";
 
 import {
   AREAS,
+  ICONE_DA_AREA,
   ROTA_DA_AREA,
   ROTULOS_DE_AREA,
   areaDaLinha,
-  type AreaDeTrabalho,
   type LinhaPessoal,
 } from "./linhas";
 
-/** O ícone de cada área é o MESMO do item de menu dela — é como a pessoa a
- *  reconhece na barra lateral, e um segundo desenho para a mesma coisa faria
- *  a seção parecer outra área. */
-const ICONE_DA_AREA: Record<AreaDeTrabalho, typeof ListChecks> = {
-  demandas: ClipboardList,
-  campanhas: FolderKanban,
-  social: ListChecks,
-};
+/** O selo da peça usa o ÍCONE DA ÁREA, e não um desenho escolhido aqui: ele
+ *  aponta para a campanha, que é a área cujo cabeçalho está duas linhas acima.
+ *  Dois desenhos na mesma tela para a mesma coisa é o que este mapa saiu de
+ *  três lugares para evitar. */
+const IconeDaCampanha = ICONE_DA_AREA.campanhas;
 
 /**
  * Lista de Minhas Tasks — uma linha por ETAPA minha.
@@ -218,7 +208,7 @@ function Linhas({
                     className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                     title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
                   >
-                    <FolderKanban aria-hidden className="size-3 shrink-0" />
+                    <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
                     {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
                         Dentro da seção Campanhas ele repetiria o cabeçalho
                         cinco vezes sem informar nada; o nome diz de qual peça

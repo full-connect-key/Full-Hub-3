@@ -3,26 +3,14 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FolderKanban, Images, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { NovidadeDeArea } from "@/lib/dados/novidades";
 
 import { marcarNovidadesComoVistas } from "../_actions/notificacoes";
-
-const AREAS = {
-  social: {
-    rotulo: "Social Media",
-    href: "/painel/social-media",
-    Icone: Images,
-  },
-  campanhas: {
-    rotulo: "Campanhas",
-    href: "/painel/aprovacoes",
-    Icone: FolderKanban,
-  },
-} as const;
+import { ICONE_DA_AREA, ROTA_DA_AREA, ROTULOS_DE_AREA } from "./linhas";
 
 /**
  * "Chegou coisa nova para você" — Social Media e Campanhas dentro de Minhas
@@ -84,7 +72,12 @@ export function Novidades({ novidades }: { novidades: NovidadeDeArea[] }) {
 
       <ul className="flex flex-wrap items-center gap-2">
         {novidades.map(({ area, ids }) => {
-          const { rotulo, href, Icone } = AREAS[area];
+          // O NOME, A ROTA E O ÍCONE VÊM DO MESMO MAPA DA FAIXA DE ÁREAS,
+          // dois blocos acima nesta tela. Esta faixa tinha os três copiados
+          // — e a cópia já tinha divergido no ícone do Social.
+          const rotulo = ROTULOS_DE_AREA[area];
+          const href = ROTA_DA_AREA[area];
+          const Icone = ICONE_DA_AREA[area];
           return (
             <li key={area}>
               {/* O NOME DA ÁREA É O LINK, e o número vai dentro dele: são a
