@@ -277,6 +277,20 @@ const TELAS = [
     clicar: ['button:has-text("Figma Slides")', 'button:has-text("Remover")'] },
   { nome: "89-recomendacoes-escuro", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "colaborador", tema: "escuro" },
 
+  // ---------------------------------------------------------------------
+  // Solicitacoes do cliente (0068). Sao SEIS telas e nao tres: as duas
+  // pontas do mesmo pedido -- a fila do Atendimento e o portal de quem o
+  // abriu -- nao se conferem uma pela outra, e o formulario com o roteiro de
+  // briefing e a unica tela do produto em que o cliente ESCREVE.
+  // ---------------------------------------------------------------------
+  { nome: "90-solicitacoes-fila", rota: "/painel/solicitacoes", largura: 1500, altura: 1000, role: "colaborador" },
+  { nome: "90b-solicitacoes-fila-375", rota: "/painel/solicitacoes", largura: 375, altura: 1200, role: "colaborador" },
+  { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
+  { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
+  { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
+  { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
+  { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
+
   { nome: "11-componentes", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio" },
   { nome: "12-componentes-escuro", rota: "/painel/dev/componentes", largura: 1440, altura: 1200, role: "socio", tema: "escuro" },
 
@@ -408,6 +422,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/financeiro": ["./scripts/prototipo/financeiro.ts"],
   "@/lib/dados/academy": ["./scripts/prototipo/academy.ts"],
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
+  "@/lib/dados/solicitacoes": ["./scripts/prototipo/solicitacoes.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);

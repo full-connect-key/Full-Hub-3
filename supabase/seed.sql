@@ -1801,3 +1801,123 @@ begin
   raise notice 'Sprint 14: corrente do Social Media, carrossel de 5 slides e video por link.';
 end
 $$;
+
+
+-- ===========================================================================
+-- Sprint 3E -- OS PEDIDOS QUE OS CLIENTES ABRIRAM (migration 0068)
+--
+-- Quatro pedidos, escolhidos para a fila do Atendimento e o portal mostrarem
+-- estados diferentes -- e nao quatro copias do mesmo:
+--
+--   * um NOVO, esperando ha cinco dias, com data desejada e dois anexos: e o
+--     unico estado em que o destaque da fila significa alguma coisa;
+--   * um em analise com conversa nos dois sentidos;
+--   * um que ja virou demanda publicada, para o bloco "virou a demanda X" e
+--     para o `em_andamento` que o trigger escreveu -- e nao a mao;
+--   * um recusado com motivo, que e a unica linha que pede acao do cliente.
+--
+-- **O PEDIDO QUE VIROU DEMANDA PASSA PELO TRIGGER**, e nao por um `update`
+-- direto no status. Marca-lo a mao mostraria o produto num estado que o
+-- caminho normal nao produz -- a mesma armadilha do seed que carimbava
+-- `enviado_em` em item que ninguem enviou, e do que concluia etapa por INSERT.
+-- Aqui a demanda nasce rascunho e e publicada logo abaixo; o trigger faz o
+-- resto, e se um dia ele parar de fazer, o seed mostra isso.
+-- ===========================================================================
+do $bloco$
+declare
+  v_verde  uuid := 'c0000000-0000-0000-0000-00000000000a';
+  v_joana  uuid := 'a0000000-0000-0000-0000-000000000004';
+  v_tipo_redes    uuid;
+  v_tipo_impresso uuid;
+  v_tipo_outro    uuid;
+  v_pedido uuid;
+  v_task   uuid;
+begin
+  if to_regclass('public.client_requests') is null then
+    raise notice 'Sprint 3E: a 0068 ainda nao foi aplicada -- pulando os pedidos.';
+    return;
+  end if;
+
+  if not exists (select 1 from public.clients where id = v_verde) then
+    return;
+  end if;
+
+  select id into v_tipo_redes    from public.request_types where nome = 'Peça para redes';
+  select id into v_tipo_impresso from public.request_types where nome = 'Material impresso';
+  select id into v_tipo_outro    from public.request_types where nome = 'Outro';
+
+  -- 1. O NOVO, esperando ha cinco dias.
+  insert into public.client_requests
+    (id, client_id, request_type_id, criado_por, titulo, descricao, respostas,
+     data_desejada, status, created_at)
+  values
+    ('e0000000-0000-0000-0000-000000000001', v_verde, v_tipo_redes, v_joana,
+     'Arte para o Dia das Mães',
+     'Queria uma peça bonita para o feed, com a linha visual da loja.',
+     '{"rede":"Instagram","formato":"Feed","mensagem":"Que a gente tem uma seleção de presentes até R$ 80."}'::jsonb,
+     current_date + 20, 'nova', now() - interval '5 days')
+  on conflict (id) do nothing;
+
+  -- 2. EM ANALISE, com conversa nos dois sentidos.
+  insert into public.client_requests
+    (id, client_id, request_type_id, criado_por, titulo, respostas, status, created_at)
+  values
+    ('e0000000-0000-0000-0000-000000000002', v_verde, v_tipo_impresso, v_joana,
+     'Lâmina A5 para a feira',
+     '{"peca":"Lâmina A5, frente e verso","medida":"14,8 × 21 cm"}'::jsonb,
+     'em_analise', now() - interval '2 days')
+  on conflict (id) do nothing;
+
+  insert into public.request_messages (id, request_id, autor_id, texto, created_at)
+  values
+    ('aa000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002',
+     'a0000000-0000-0000-0000-000000000003',
+     'A feira é em qual cidade? Pergunto por causa do prazo da gráfica.',
+     now() - interval '2 days'),
+    ('aa000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000002',
+     v_joana, 'Em Curitiba, dia 12.', now() - interval '1 day')
+  on conflict (id) do nothing;
+
+  -- 3. O QUE VIROU DEMANDA -- pelo caminho normal.
+  insert into public.client_requests
+    (id, client_id, request_type_id, criado_por, titulo, respostas, status, created_at)
+  values
+    ('e0000000-0000-0000-0000-000000000003', v_verde, v_tipo_redes, v_joana,
+     'Campanha de recompra para quem comprou em julho',
+     '{"rede":"Mais de uma","mensagem":"Volte e leve 15% na segunda compra."}'::jsonb,
+     'em_analise', now() - interval '9 days')
+  returning id into v_pedido;
+
+  if v_pedido is not null then
+    insert into public.tasks
+      (client_id, titulo, briefing_texto, link_entrega, criado_por, publicada_em, request_id)
+    values
+      (v_verde, 'Campanha de recompra — Mundo Verde',
+       'Pedido aberto pelo cliente no Portal.' || chr(10) || chr(10) ||
+       'Onde vai ao ar: Mais de uma' || chr(10) ||
+       'O que esta peça precisa dizer: Volte e leve 15% na segunda compra.',
+       'https://drive.google.com/drive/folders/exemplo-recompra',
+       'a0000000-0000-0000-0000-000000000003', null, v_pedido)
+    returning id into v_task;
+
+    -- E AQUI O TRIGGER TRABALHA: publicar move o pedido para `em_andamento` e
+    -- avisa o cliente. O seed nao escreve nem uma coisa nem a outra.
+    update public.tasks set publicada_em = now() - interval '6 days' where id = v_task;
+  end if;
+
+  -- 4. O RECUSADO, com motivo.
+  insert into public.client_requests
+    (id, client_id, request_type_id, criado_por, titulo, respostas,
+     status, motivo_recusa, decidida_em, created_at)
+  values
+    ('e0000000-0000-0000-0000-000000000004', v_verde, v_tipo_outro, v_joana,
+     'Reimprimir os cartões antigos',
+     '{"mensagem":"Os mesmos do ano passado, sem mudar nada."}'::jsonb,
+     'recusada',
+     'A arte do ano passado usa o logo antigo. Vale refazer com a marca nova — abrimos outro pedido?',
+     now() - interval '11 days', now() - interval '14 days')
+  on conflict (id) do nothing;
+
+  raise notice 'Sprint 3E: 4 pedidos do cliente, um deles convertido em demanda pelo trigger.';
+end
+$bloco$;

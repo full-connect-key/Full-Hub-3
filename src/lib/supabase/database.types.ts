@@ -18,6 +18,24 @@ export type UserRole = "cliente" | "colaborador" | "desenvolvedor" | "socio";
 /** Os quatro estados da nota fiscal da pessoa (0065). */
 export type NfStatus = "enviada" | "aprovada" | "paga" | "recusada";
 
+/**
+ * O status do pedido que o cliente abre pelo Portal (0068).
+ *
+ * **É um quarto vocabulário**, ao lado de `task_status`, `subtask_status` e
+ * `content_status`, e pela mesma razão que mantém os três separados: esta
+ * tabela responde a outra pergunta — "em que pé está o meu PEDIDO?" —, e
+ * nenhum dos três a responde.
+ *
+ * Sem `cancelada`, que é a lição da 0020, e sem `lida`: "alguém abriu" não é
+ * estado do trabalho.
+ */
+export type SolicitacaoStatus =
+  | "nova"
+  | "em_analise"
+  | "em_andamento"
+  | "concluida"
+  | "recusada";
+
 export type TeamFuncao =
   | "Atendimento"
   | "Social Media"
@@ -194,6 +212,22 @@ export type NoDoTemplate = {
 
 export type EstruturaDeTemplate = NoDoTemplate[];
 
+/**
+ * Uma pergunta do roteiro de briefing (0068).
+ *
+ * O roteiro existe porque um campo de texto livre chamado "descreva o que você
+ * precisa" devolve "uma arte pro insta", e a primeira mensagem da conversa é
+ * sempre a mesma pergunta.
+ */
+export type CampoDoRoteiro = {
+  chave: string;
+  rotulo: string;
+  tipo: "texto" | "texto_longo" | "escolha" | "data";
+  obrigatorio?: boolean;
+  opcoes?: string[];
+  ajuda?: string;
+};
+
 export type NotificationTipo =
   | "task"
   | "aprovacao"
@@ -204,7 +238,9 @@ export type NotificationTipo =
   | "cliente"
   | "sistema"
   // 0055: o aviso de que você entrou num evento.
-  | "evento";
+  | "evento"
+  // 0068: o pedido que o cliente abriu pelo Portal, e o que acontece com ele.
+  | "solicitacao";
 
 /** O que o evento é. Decide a cor quando `events.cor` não diz outra coisa. */
 export type EventoTipo =
@@ -339,6 +375,15 @@ export interface Database {
            * antigo para o cliente.
            */
           capa_url: string | null;
+          /**
+           * Esta conta abre pedido pelo Portal? (0068)
+           *
+           * Default TRUE — o contrário faria o módulo nascer invisível para
+           * todo cliente e a agência concluir que ele não funciona. Desligar é
+           * ato de alguém, conta por conta, e serve para quem combinou que
+           * tudo passa pelo Atendimento por telefone.
+           */
+          aceita_solicitacoes: boolean;
           ativo: boolean;
           created_at: string;
         };
@@ -356,6 +401,7 @@ export interface Database {
           observacoes?: string | null;
           logo_url?: string | null;
           capa_url?: string | null;
+          aceita_solicitacoes?: boolean;
           ativo?: boolean;
           created_at?: string;
         };
@@ -371,6 +417,7 @@ export interface Database {
           observacoes?: string | null;
           logo_url?: string | null;
           capa_url?: string | null;
+          aceita_solicitacoes?: boolean;
           ativo?: boolean;
         };
         Relationships: [];
@@ -585,6 +632,153 @@ export interface Database {
           id?: string;
           competencia: string;
           solicitado_por: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      /**
+       * Os tipos de pedido, com o roteiro de briefing (0068).
+       *
+       * `campos_json` é um ARRAY, e um `check` no banco garante isso: um objeto
+       * gravado ali não quebra nada na hora — ele quebra na tela do cliente,
+       * que faz `.map()` no que veio e mostra um formulário sem campo nenhum,
+       * sem erro e sem log.
+       */
+      request_types: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          icone: string | null;
+          campos_json: CampoDoRoteiro[];
+          ordem: number;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          descricao?: string | null;
+          icone?: string | null;
+          campos_json?: CampoDoRoteiro[];
+          ordem?: number;
+          ativo?: boolean;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          icone?: string | null;
+          campos_json?: CampoDoRoteiro[];
+          ordem?: number;
+          ativo?: boolean;
+        };
+        Relationships: [];
+      };
+      /**
+       * O pedido que o cliente abre pelo Portal (0068).
+       *
+       * **`status`, `criado_por`, `motivo_recusa` e `decidida_em` ficam FORA do
+       * `Insert`**, e não é economia de digitação: o trigger
+       * `client_requests_normaliza` reescreve os quatro quando quem escreve não
+       * é da equipe, então tentar gravá-los é erro de tipo antes de ser uma
+       * escrita que o banco descarta em silêncio. É a forma das duas colunas do
+       * cronômetro.
+       *
+       * **`data_desejada` é DESEJO, nunca compromisso.** O que a agência assume
+       * é `tasks.data_fim`, e a conversão não copia um no outro.
+       */
+      client_requests: {
+        Row: {
+          id: string;
+          client_id: string;
+          request_type_id: string | null;
+          criado_por: string | null;
+          titulo: string;
+          descricao: string | null;
+          respostas: Record<string, string>;
+          data_desejada: string | null;
+          status: SolicitacaoStatus;
+          motivo_recusa: string | null;
+          decidida_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          request_type_id?: string | null;
+          titulo: string;
+          descricao?: string | null;
+          respostas?: Record<string, string>;
+          data_desejada?: string | null;
+        };
+        Update: {
+          /** Só `is_atendimento()` — a policy de UPDATE não aceita o cliente. */
+          status?: SolicitacaoStatus;
+          motivo_recusa?: string | null;
+          titulo?: string;
+          descricao?: string | null;
+          request_type_id?: string | null;
+        };
+        Relationships: [];
+      };
+      /**
+       * Os anexos do pedido, no bucket privado `solicitacoes-arquivos` (0068).
+       *
+       * **Sem `Update`, e a tabela também não tem policy de UPDATE**: trocar o
+       * arquivo por baixo de um nome que alguém já leu é trocar o destino
+       * embaixo de quem o leu. Apaga e põe outro — a decisão de
+       * `post_referencias`.
+       */
+      request_attachments: {
+        Row: {
+          id: string;
+          request_id: string;
+          caminho: string;
+          nome: string;
+          tipo: string | null;
+          tamanho: number | null;
+          enviado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          caminho: string;
+          nome: string;
+          tipo?: string | null;
+          tamanho?: number | null;
+          enviado_por?: string | null;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      /**
+       * A conversa do pedido (0068).
+       *
+       * **Não existe `interno` aqui, e a ausência é a regra do módulo**: tudo o
+       * que se escreve é para o cliente ler. Quem precisa falar da agência para
+       * dentro fala em `task_comentarios`, na demanda.
+       *
+       * Sem `Update`: mensagem não se edita nem se apaga, nem pelo sócio. Ela é
+       * o combinado entre duas empresas sobre o que vai ser feito, não uma
+       * opinião — a razão pela qual rodada de aprovação fechada nunca é
+       * reescrita. E `autor_id` fica fora do `Insert` porque o trigger o
+       * reescreve: policy não limita coluna.
+       */
+      request_messages: {
+        Row: {
+          id: string;
+          request_id: string;
+          autor_id: string;
+          texto: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          request_id: string;
+          texto: string;
         };
         Update: never;
         Relationships: [];
@@ -1190,6 +1384,17 @@ export interface Database {
           // `abrir_mes_de_social()`, e uma demanda marcada à mão como o social
           // de um mês mentiria no selo que a tela mostra.
           social_do_mes: string | null;
+          /**
+           * O pedido do cliente que virou esta demanda (0068).
+           *
+           * **Está no `Insert` e NÃO no `Update`**, e a assimetria é a regra do
+           * sprint: a ligação nasce com o rascunho, no clique de converter, e
+           * não se muda depois. Apontar uma demanda existente para outro pedido
+           * faria o cliente ver, no portal dele, o andamento de um trabalho que
+           * não é o que ele pediu — e o índice único já garante que um pedido
+           * vira uma demanda só.
+           */
+          request_id: string | null;
           criado_por: string;
           concluida_em: string | null;
           // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
@@ -1215,6 +1420,7 @@ export interface Database {
           task_type_id?: string | null;
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
+          request_id?: string | null;
           criado_por: string;
         };
         Update: {
@@ -2592,6 +2798,10 @@ export type ClientFunctionDefault =
   Database["public"]["Tables"]["client_function_defaults"]["Row"];
 export type TeamInvoice = Database["public"]["Tables"]["team_invoices"]["Row"];
 export type InvoiceRequest = Database["public"]["Tables"]["invoice_requests"]["Row"];
+export type RequestType = Database["public"]["Tables"]["request_types"]["Row"];
+export type ClientRequest = Database["public"]["Tables"]["client_requests"]["Row"];
+export type RequestAttachment = Database["public"]["Tables"]["request_attachments"]["Row"];
+export type RequestMessage = Database["public"]["Tables"]["request_messages"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];

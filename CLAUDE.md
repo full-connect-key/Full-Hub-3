@@ -2289,6 +2289,189 @@ devolvendo só o agregado.
 Se a auditoria cair, o cliente não pode ficar sem o portal por causa disso. O
 erro vai para o log do servidor.
 
+#### As solicitações do cliente
+
+`request_types`, `client_requests`, `request_attachments` e `request_messages`
+— migration 0068. O cliente pede um trabalho pelo Portal, com anexo e um
+roteiro de briefing; o Atendimento lê, conversa e converte em demanda num
+clique.
+
+**O Portal era de mão única**, e é isso que este módulo desfaz. Desde o Sprint
+12 a agência envia e o cliente aprova, pede ajustes ou recusa — nada do que ele
+escreve ali ABRE trabalho. O comentário de um material vive dentro daquele
+material; um pedido novo chega por WhatsApp, some no fim do dia e vira "você
+chegou a ver o que eu mandei?". A demanda só nascia quando alguém do
+Atendimento a digitava.
+
+**A CONVERSÃO NUNCA É AUTOMÁTICA, e é a primeira regra.** Um pedido não é uma
+demanda: chega sem prazo combinado, sem responsável, sem prioridade e às vezes
+sem ser um trabalho — e são essas quatro coisas que o Atendimento decide. Uma
+rotina que criasse a task sozinha poria no board da agência trabalho que
+ninguém aceitou, e o board é o lugar onde a equipe confia que tudo tem dono.
+**Não existe trigger que crie task a partir de pedido.**
+
+**E O STATUS SÓ ANDA QUANDO A DEMANDA É PUBLICADA.** Converter abre um
+**rascunho** (0028) com título, cliente, briefing e a pasta padrão da conta
+preenchidos, e leva para a tela de detalhe — que é onde se escolhe o workflow,
+se distribui as etapas e se assume o prazo. Andar na criação do rascunho diria
+ao cliente "estamos fazendo" sobre uma demanda que ninguém da equipe enxerga
+ainda, e que pode ser abandonada.
+
+Quem move é `tasks_espelha_no_pedido`, em duas transições e só duas: publicar
+→ `em_andamento`, e `entregue` → `concluida`. **A segunda evita a fila que
+acumula** — sem ela todo pedido já entregue ficaria para sempre na caixa de
+entrada, e uma fila que só cresce é uma fila que ninguém abre. **O trigger mora
+em `tasks` e não dentro de `publicarTask`**, pela razão da 0045: aquela action
+já foi reescrita e vai ser de novo, e cada reescrita é uma chance de o trecho
+ficar para trás. E ele **nunca derruba a escrita da task**, que é a lição da
+0052: uma falha aqui apareceria para quem clicou em "Criar task" como a
+publicação dela sendo recusada, com uma mensagem sobre um pedido do cliente.
+
+**O PRAZO DESEJADO NÃO É COMPROMISSO**, e a coluna diz isso no nome.
+`data_desejada` é o que o cliente gostaria; `tasks.data_fim` é o que a agência
+assume. A conversão não copia um no outro — ela escreve a data no BRIEFING,
+com a frase que diz o que ela é. E a tela do portal repete isso embaixo do
+campo, porque quem digita a data precisa saber o que ela significa antes de
+digitar, não quando a peça não chegar no dia.
+
+**E o cliente não escolhe prioridade, responsável nem prazo real.** As três
+colunas **não existem** nesta tabela, o que é mais forte que não mostrá-las na
+tela: o campo que não existe não volta no dia em que alguém copiar o
+formulário.
+
+**`solicitacao_status` é um QUARTO vocabulário**, ao lado de `task_status`,
+`subtask_status` e `content_status`, e pela mesma razão que mantém os três
+separados: esta tabela responde a outra pergunta — "em que pé está o meu
+PEDIDO?". Sem `cancelada`, que é a lição da 0020, e sem `lida`: "alguém abriu"
+não é estado do trabalho, e um selo que muda porque uma tela foi aberta ensina
+o cliente a contar visualização.
+
+**São DOIS mapas de rótulo, e não um.** O mesmo valor quer dizer coisas
+diferentes dos dois lados: `em_andamento` é "virou demanda" na fila do
+Atendimento e "em produção" no portal; `nova` é "ninguém triou" — uma cobrança
+— e "enviado" — um recibo. Um mapa só obrigaria a escolher entre dizer ao
+cliente que o pedido dele está "novo" e dizer à agência que está "enviado".
+`SeloDaSolicitacao` recebe de que lado está sendo desenhado, e é o que permite
+um componente para as duas telas.
+
+#### O roteiro de briefing
+
+`request_types.campos_json` é um array em `jsonb` com as perguntas daquele tipo
+de trabalho — onde vai ao ar, que medida, quanto tempo. Ele existe porque um
+campo de texto livre chamado "descreva o que você precisa" devolve "uma arte
+pro insta", e a primeira mensagem da conversa é sempre a mesma pergunta.
+
+**É `jsonb` e não um par de tabelas**, pelo critério do template de campanha:
+é uma lista que alguém edita inteira antes de salvar, e normalizar criaria duas
+tabelas para servir um `select * where id = ?`.
+
+**E o roteiro NÃO é copiado para o pedido**, ao contrário do
+`workflow_snapshot` da task. Lá a cópia existe porque editar o workflow não
+pode mudar demanda nenhuma que já está correndo, e a demanda vive meses; o
+pedido vira demanda em dias, e o que importa dele — a resposta — está na
+própria linha. Se o roteiro mudar embaixo de um pedido antigo, o que se perde é
+o texto da pergunta: **a resposta órfã aparece com a chave crua e um aviso**,
+em vez de sumir. Esconder a linha faria sumir uma informação que o cliente
+escreveu.
+
+**Um `check` garante que `campos_json` é uma LISTA**, e ele existe porque um
+objeto gravado ali não quebra nada na hora: quebra na tela do cliente, que faz
+`.map()` no que veio e mostra um formulário sem campo nenhum — sem erro e sem
+log. `camposDoRoteiro()` descarta ainda o campo sem `chave`, que seria uma
+pergunta cuja resposta não se grava em lugar nenhum.
+
+**Quem edita o roteiro é a GESTÃO, e não `is_atendimento()` como quem tria.**
+O roteiro vale para todas as contas: abrir uma demanda é trabalho do dia, mudar
+a pergunta que todo cliente vai responder é configuração do produto. É a mesma
+separação de "o Atendimento abre o mês, a gestão distribui a corrente" (0046).
+
+**Os quatro tipos iniciais nascem na migration**, como os workflows da 0008: um
+catálogo vazio no primeiro dia faz o módulo estrear sem funcionar — o cliente
+abre "Novo pedido", encontra um seletor sem opção e conclui que a área não está
+pronta.
+
+#### A fila, a conversa e os anexos
+
+**A caixa de entrada ordena DO MAIS ANTIGO PARA O MAIS NOVO**, ao contrário de
+toda outra listagem do produto, e a 0068 cria o índice para isso. A pergunta
+desta tela não é "o que chegou?", é "quem está esperando há mais tempo?" — e
+uma fila em que o pedido de ontem aparece acima do de semana passada é a fila
+em que o de semana passada nunca é atendido. Os encerrados vão para o fim e não
+para fora: o Atendimento precisa achar o que já respondeu quando o cliente
+pergunta de novo.
+
+**O destaque é a IDADE e não o status**, e por isso é uma borda e não um selo a
+mais — o selo já diz em que pé está. `--warning` e nunca `--danger`: um pedido
+de três dias é uma cobrança, não um erro.
+
+**NÃO EXISTE `interno` NAS MENSAGENS, e a ausência é a regra do módulo.** Em
+`comments` (0032) existe, porque aquela thread fica no material e a equipe
+precisa de um canto para falar sobre ele. Aqui a conversa É o pedido sendo
+esclarecido: tudo o que se escreve é para o cliente ler, e a tela diz isso em
+uma frase. Quem precisa falar da agência para dentro fala em
+`task_comentarios`, na demanda — que é outra tabela, em outra tela, e que o
+cliente não alcança. Uma coluna `interno` aqui seria o pior dos dois mundos: um
+campo que a tela do cliente não mostra e a do painel mostra por engano no dia
+em que alguém reaproveitar o componente da outra thread.
+
+**A ação da conversa é UMA, para os dois lados**, e mora do lado do cliente:
+mesma tabela, mesma validação, mesma cota. Duas cópias dariam dois limites de
+tamanho para a mesma conversa, e a que divergisse seria a do lado que ninguém
+testa.
+
+**Mensagem não se edita nem se apaga, nem pelo sócio.** É o oposto do feed de
+Recomendações, onde o autor edita: lá a frase é uma opinião dele; aqui ela é o
+combinado entre duas empresas sobre o que vai ser feito. Reescrever "pode ser
+azul" depois da peça pronta é reescrever o pedido — a razão pela qual rodada de
+aprovação fechada nunca é reescrita. **E o cliente não edita o pedido depois de
+mandar**, pela mesma razão: o caminho é a conversa.
+
+**O teto de dez anexos RECUSA em vez de cortar**, ao contrário do limite por
+task da recorrência: lá o excesso vem de uma regra de calendário, e cortar
+deixa o mês incompleto e anotado; aqui cada arquivo foi escolhido e enviado por
+uma pessoa, e descartar o décimo primeiro calado faria o cliente achar que
+mandou o que não chegou. A contagem é do banco e não da tela: dez abas somando
+um arquivo cada passam por dez contagens antes de qualquer uma gravar.
+
+**Os anexos são COPIADOS para a demanda, não movidos** — eles continuam no
+pedido, que é a tela do cliente. A referência aponta para o caminho no bucket
+dos pedidos, e não para um segundo arquivo: duplicar em dois buckets criaria
+duas cópias que divergem no dia em que o cliente apagar a dele.
+
+**`aceita_solicitacoes` fecha a porta no BANCO**, no `with check` da policy de
+INSERT, e não só escondendo o botão. O default é `true`: o contrário faria o
+módulo nascer invisível para todo cliente e a agência concluir que ele não
+funciona. Na conta desligada a tela **diz a quem falar** em vez de só sumir — a
+decisão do "Enviar ao cliente" desligado com a razão escrita.
+
+**A equipe também abre pedido**, e não é furo: o Atendimento que recebe por
+telefone registra ali, e a conversa passa a ter um lugar. Quem escreveu fica em
+`criado_por`, então o cliente vê de quem partiu. O que a **visualização
+administrativa** (`/portal/{slug}/solicitacoes`) não faz é abrir pedido em nome
+dele: seria a agência escrevendo como se fosse o cliente, e o caminho é a fila
+do painel, onde o pedido nasce assinado.
+
+**O aviso de pedido novo vai para `clients.responsavel_atendimento_id`** (0062)
+e não para uma coluna nova em `client_flow_defaults` — a decisão da 0064. Conta
+sem atendente não derruba o pedido: `notificar()` devolve `null` quando não há
+a quem avisar. O que se perde é o sino; o pedido está na caixa de entrada, que
+é onde o Atendimento olha.
+
+**O menu leva a entrada para a PRINCIPAL e a abre para `EQUIPE`**, porque
+`is_atendimento()` é verdadeira para colaborador do Atendimento — e é ele quem
+vive nesta fila. Uma entrada de `GESTAO` esconderia o módulo exatamente de quem
+o usa. *O que fica em aberto, e é dito em vez de escondido:* um colaborador
+fora do Atendimento vê a lista de todos os clientes; ele já vê as demandas
+deles no board, mas se um dia isso precisar ser fechado é uma policy de SELECT
+mais estreita, não um `roles` mais curto.
+
+**E o build pegou o que `check:fronteira` não pega.** O nome do bucket estava
+em `lib/dados/solicitacoes.ts`, que é `server-only`, e a tela do pedido — que é
+`"use client"` — precisa dele para subir o arquivo. `check:fronteira` varre o
+caminho contrário (servidor importando valor do cliente), então quem reprovou
+foi o `npm run build`, com um erro sobre `next/headers` no Pages Router. O
+valor mora em `lib/dominio/solicitacoes.ts`, como `PRAZO_DE_APROVACAO_PADRAO`.
+
 ### Portais de Clientes
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login
@@ -4714,6 +4897,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `supabase/migrations/0065_a_nota_fiscal_da_pessoa.sql` | **Pendente de aplicação.** Traz `team_invoices`, o enum `nf_status`, o bucket privado `notas-fiscais`, as travas de transição e o gatilho que lança a despesa no Financeiro. Sem ela, `/painel/notas-fiscais` devolve erro de tabela inexistente — a tela deixou de ser um espaço reservado e passou a ler o banco |
 | `supabase/migrations/0066_solicitar_as_notas_do_mes.sql` | **Pendente de aplicação.** Traz `invoice_requests`, `quem_deve_nota()`, `solicitar_notas_do_mes()` e `meus_pedidos_de_nota()`. Sem ela, o botão **Pedir as notas do mês** no Financeiro leva *"Could not find the function"*, e a faixa do pedido em Notas Fiscais nunca aparece — ela devolve vazia em vez de derrubar a tela, de propósito |
 | `supabase/migrations/0067_a_capa_da_recomendacao.sql` | **Pendente de aplicação.** Traz o bucket privado `recomendacoes-capas` e as três policies dele. **Não traz coluna nenhuma** — `recommendations.imagem_url` existe desde a 0017. Sem ela, colar um link no feed busca a capa, o upload é recusado pelo Storage (*"Bucket not found"*), o motivo vai para o log e a recomendação nasce **sem capa** — a tela não quebra, de propósito |
+| `supabase/migrations/0068_solicitacoes_do_cliente.sql` | **Pendente de aplicação.** Traz `request_types`, `client_requests`, `request_attachments`, `request_messages`, `clients.aceita_solicitacoes`, `tasks.request_id`, o bucket `solicitacoes-arquivos` e o gatilho que move o pedido quando a demanda é publicada. Sem ela, `/painel/solicitacoes` e `/portal/solicitacoes` devolvem erro de tabela inexistente — e as duas entradas de menu levam a uma tela quebrada |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

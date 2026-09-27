@@ -1,4 +1,12 @@
-import { BadgeCheck, Home, Megaphone, Settings, Share2, type LucideIcon } from "lucide-react";
+import {
+  BadgeCheck,
+  Home,
+  Megaphone,
+  MessageSquarePlus,
+  Settings,
+  Share2,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
  * Navegação do Portal do Cliente.
@@ -46,6 +54,23 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     href: "/portal/campanhas",
     icon: Megaphone,
     description: "Suas campanhas, o que já foi aprovado e o que espera você.",
+  },
+  {
+    // PEDIDOS É A ÚNICA SEÇÃO EM QUE O CLIENTE ESCREVE, e por isso ela fica
+    // por último entre as quatro que ele lê.
+    //
+    // As outras respondem "o que a Full fez para mim"; esta responde "o que eu
+    // preciso". São movimentos opostos, e pôr a de escrever no meio das de ler
+    // faria a pessoa que veio aprovar um post tropeçar num formulário.
+    //
+    // **Ela aparece para todo cliente, mesmo na conta que não aceita pedido**,
+    // e é escolha: o histórico do que já foi pedido continua sendo dele. O que
+    // some na conta desligada é o botão de abrir um novo — e a tela diz a quem
+    // falar, em vez de sumir e deixá-lo procurando.
+    label: "Pedidos",
+    href: "/portal/solicitacoes",
+    icon: MessageSquarePlus,
+    description: "O que você pediu para a agência, e em que pé está.",
   },
   {
     // FORA DA NAVEGAÇÃO, e a rota de pé — decisão do usuário: "um caminho só

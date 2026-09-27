@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FileCheck2,
   Images,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   Receipt,
@@ -225,6 +226,34 @@ export const MENU: MenuItem[] = [
   },
 
   // --- Gestão --------------------------------------------------------------
+  {
+    // SOLICITAÇÕES FICA NA PRINCIPAL e é de `EQUIPE`, e as duas metades são
+    // decisões separadas.
+    //
+    // **Na Principal** porque a divisão do menu é sobre a PESSOA: Gestão
+    // carrega o selo Admin e quer dizer "o que eu faço sobre os outros", e
+    // atender o pedido de um cliente é o trabalho do dia de quem faz
+    // Atendimento — como Minhas Tasks e Social Media.
+    //
+    // **`EQUIPE` e não `GESTAO`** porque `is_atendimento()` é verdadeira para
+    // COLABORADOR que está no Atendimento, e é ele quem vive nesta fila. Uma
+    // entrada de `GESTAO` esconderia o módulo exatamente de quem o usa — e o
+    // menu não é a trava: quem recusa é `client_requests_update`, que é
+    // `is_atendimento()`. O designer que abrir a tela lê a fila (o SELECT é
+    // `is_staff()`) e não consegue triar nada.
+    //
+    // *O que fica em aberto, e é dito em vez de escondido:* um colaborador
+    // fora do Atendimento vê a lista dos pedidos de todos os clientes. Ele já
+    // vê as demandas deles no board, então não há nada aqui que o board não
+    // mostre — mas se um dia isso precisar ser fechado, é uma policy de SELECT
+    // mais estreita, não um `roles` mais curto.
+    label: "Solicitações",
+    href: "/painel/solicitacoes",
+    icon: Inbox,
+    roles: EQUIPE,
+    section: "principal",
+    description: "O que os clientes pediram pelo Portal, e o que virou demanda.",
+  },
   {
     // ERAM TRÊS ITENS — "Gestão de Tasks", "Aprovações Internas" e
     // "Workflows" — e viraram um, por decisão do usuário. Os três respondiam à

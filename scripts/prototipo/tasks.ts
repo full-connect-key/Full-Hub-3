@@ -425,6 +425,7 @@ const BASE = {
   concluida_em: null,
   recurrence_id: null,
   social_do_mes: null,
+  request_id: null,
   criado_por: CARLA.id,
   created_at: "2026-09-10T09:00:00.000Z",
   updated_at: "2026-09-19T15:30:00.000Z",
