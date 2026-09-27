@@ -29,8 +29,8 @@ import {
   aprovarInterna,
   enviarParaCliente,
   solicitarAjustesInterna,
-} from "../gestao-tasks/acoes-de-aprovacao";
-import { enviarAoCliente } from "../social-media/acoes";
+} from "../acoes-de-aprovacao";
+import { enviarAoCliente } from "../../social-media/acoes";
 
 /**
  * A fila do Desenvolvedor.

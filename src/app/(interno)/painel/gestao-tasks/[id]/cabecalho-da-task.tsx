@@ -53,7 +53,7 @@ export function CabecalhoDaTask({
         {task.recurrence_id ? (
           <Badge variant="outline" className="shrink-0" asChild>
             <Link
-              href={`/painel/workflows?aba=recorrencias&regra=${task.recurrence_id}`}
+              href={`/painel/gestao-tasks?aba=recorrencias&regra=${task.recurrence_id}`}
               title="Esta demanda nasceu de uma regra. Abrir a regra."
             >
               <Repeat aria-hidden className="size-3" />

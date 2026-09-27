@@ -57,7 +57,7 @@ import {
 } from "../acoes-de-recorrencia";
 
 const SEM_VALOR = "__sem__";
-const VOLTAR = "/painel/workflows?aba=recorrencias";
+const VOLTAR = "/painel/gestao-tasks?aba=recorrencias";
 
 function etapaVazia(): EtapaDoModelo {
   return {

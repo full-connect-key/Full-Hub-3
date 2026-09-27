@@ -125,7 +125,7 @@ export function PainelDeTasks({
               ritmo errado. */}
           {podeConfigurarRecorrencia ? (
             <Button variant="outline" asChild>
-              <Link href="/painel/workflows?aba=recorrencias&regra=nova">
+              <Link href="/painel/gestao-tasks?aba=recorrencias&regra=nova">
                 <Repeat aria-hidden />
                 Nova recorrente
               </Link>

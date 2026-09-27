@@ -13,7 +13,7 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { descartarRascunho, excluirTask } from "../acoes";
-import { salvarTaskComoTipo } from "../../workflows/acoes";
+import { salvarTaskComoTipo } from "../workflows/acoes";
 
 /**
  * O que se faz COM a demanda inteira — não com um campo dela.
@@ -106,7 +106,7 @@ export function AcoesDaTask({
         <div>
           <Button variant="outline" size="sm" asChild>
             <Link
-              href={`/painel/workflows?aba=recorrencias&regra=nova&deTask=${task.id}`}
+              href={`/painel/gestao-tasks?aba=recorrencias&regra=nova&deTask=${task.id}`}
             >
               <Repeat aria-hidden />
               Transformar em recorrente

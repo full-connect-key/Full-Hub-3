@@ -327,7 +327,7 @@ export async function pedirAvalInterno(postId: string): Promise<Resultado> {
     if (error) return falha(error.message);
 
     revalidar();
-    revalidatePath("/painel/aprovacoes-internas");
+    revalidatePath("/painel/gestao-tasks");
     return sucesso("Enviado para o aval interno. A gestão decide e depois manda ao cliente.");
   });
 }

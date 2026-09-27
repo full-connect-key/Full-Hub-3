@@ -40,7 +40,7 @@ const AVISOS: NotificacaoNaTela[] = [
     tipo: "aprovacao",
     titulo: "Arte do post está esperando aprovação",
     corpo: "Campanha de outubro — Mundo Verde.",
-    link: "/painel/aprovacoes-internas",
+    link: "/painel/gestao-tasks?aba=aprovacoes-internas",
     origem_id: DIEGO.id,
     lida_em: null,
     created_at: agoraMenos(5 * 60),

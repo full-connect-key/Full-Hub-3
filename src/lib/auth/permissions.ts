@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -18,7 +17,6 @@ import {
   type LucideIcon,
   UserRound,
   Users,
-  Workflow,
 } from "lucide-react";
 
 import type { UserRole } from "@/lib/supabase/database.types";
@@ -228,21 +226,28 @@ export const MENU: MenuItem[] = [
 
   // --- Gestão --------------------------------------------------------------
   {
+    // ERAM TRÊS ITENS — "Gestão de Tasks", "Aprovações Internas" e
+    // "Workflows" — e viraram um, por decisão do usuário. Os três respondiam à
+    // mesma pergunta em três endereços: o trabalho da agência. A demanda é o
+    // trabalho, o workflow é a cadeia que ela percorre, a recorrência é a
+    // regra que a abre na data, e a fila é onde ela espera o aval antes de
+    // sair — e quem monta a cadeia é quem distribui, que é quem aprova.
+    //
+    // É a decisão da Gestão de Pessoas, aplicada de novo: as quatro abas moram
+    // na URL (`?aba=`), `findMenuItem` casa por prefixo, e os dois caminhos
+    // antigos viram 308 em ROTAS_RENOMEADAS, logo abaixo.
+    //
+    // O QUE A FUSÃO DEVOLVE EM TROCA DO ITEM QUE SUMIU é o selo de contagem na
+    // aba de Aprovações internas: antes a pessoa via o item na barra lateral
+    // todo dia e clicava para descobrir se havia algo esperando; agora o
+    // número está na tela que ela já abre.
     label: "Gestão de Tasks",
     href: "/painel/gestao-tasks",
     icon: ClipboardList,
     roles: GESTAO,
     section: "gestao",
-    description: "Distribuição e acompanhamento das tarefas de toda a equipe.",
-  },
-  {
-    label: "Aprovações Internas",
-    href: "/painel/aprovacoes-internas",
-    icon: BadgeCheck,
-    roles: GESTAO,
-    section: "gestao",
     description:
-      "A fila de entregas esperando validação — e as prontas para ir ao cliente.",
+      "As demandas da agência, os workflows, as recorrentes e a fila de aval interno.",
   },
   {
     // ERAM DOIS ITENS — "Equipe" e "Clientes" — e viraram um, por decisão do
@@ -260,14 +265,6 @@ export const MENU: MenuItem[] = [
     roles: GESTAO,
     section: "gestao",
     description: "Quem é da casa e quem é cliente: função, área e acessos.",
-  },
-  {
-    label: "Workflows",
-    href: "/painel/workflows",
-    icon: Workflow,
-    roles: GESTAO,
-    section: "gestao",
-    description: "Os workflows da agência e a cadeia de etapas de cada um.",
   },
   {
     // GESTÃO, e não só o sócio — mas a aba de rentabilidade dentro dela é
@@ -360,6 +357,24 @@ export const ROTAS_RENOMEADAS: { de: string; para: string }[] = [
   { de: "/painel/equipe/:id", para: "/painel/pessoas/equipe/:id" },
   { de: "/painel/clientes", para: "/painel/pessoas?aba=clientes" },
   { de: "/painel/equipe", para: "/painel/pessoas?aba=equipe" },
+
+  // Workflows e Aprovações Internas viraram abas de Gestão de Tasks.
+  //
+  // O REDIRECT NÃO É GENTILEZA COM QUEM TEM LINK SALVO. As notificações do
+  // sino gravam o endereço DENTRO da linha, e `notificar()` é chamada de
+  // dentro de trigger desde a 0008 com `/painel/aprovacoes-internas` escrito
+  // no corpo da função — são linhas que já estão no banco de produção. Sem
+  // estas duas, todo sino antigo levaria a 404.
+  //
+  // Reescrever o corpo daquelas funções seria uma migration cujo único efeito
+  // é trocar um texto que o redirect já resolve, e migration que não muda
+  // comportamento é migration que alguém aplica por engano achando que muda —
+  // a mesma decisão dos comentários datados da 0028 e da 0031.
+  { de: "/painel/workflows", para: "/painel/gestao-tasks?aba=workflows" },
+  {
+    de: "/painel/aprovacoes-internas",
+    para: "/painel/gestao-tasks?aba=aprovacoes-internas",
+  },
 ];
 
 /**

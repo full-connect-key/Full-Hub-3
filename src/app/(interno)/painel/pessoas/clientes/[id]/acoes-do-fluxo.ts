@@ -175,7 +175,7 @@ export async function definirFuncaoDaConta(dados: unknown): Promise<Resultado> {
 /**
  * Duplica um workflow global para a conta.
  *
- * A ação de duplicar **já existe** em `/painel/workflows` desde o Sprint 3B, e
+ * A ação de duplicar **já existe** em `/painel/gestao-tasks?aba=workflows` desde o Sprint 3B, e
  * é ela que é chamada: reimplementar aqui daria duas cópias da mesma cadeia de
  * escritas (o template, as etapas, o tipo) e a segunda esqueceria uma coluna na
  * primeira vez que alguém acrescentasse uma.
@@ -199,7 +199,7 @@ export async function duplicarFluxoParaAConta(
   tipoId: string,
   clienteId: string,
 ): Promise<Resultado<string>> {
-  const { duplicarWorkflow } = await import("../../../workflows/acoes");
+  const { duplicarWorkflow } = await import("../../../gestao-tasks/workflows/acoes");
   const resultado = await duplicarWorkflow(tipoId, clienteId);
 
   if (resultado.ok) revalidatePath(`${ROTA}/clientes/${clienteId}`);

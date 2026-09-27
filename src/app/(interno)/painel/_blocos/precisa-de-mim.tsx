@@ -54,7 +54,7 @@ export function PrecisaDeMim({
   const linhas = [
     {
       quantos: dados?.aprovacoes ?? 0,
-      href: "/painel/aprovacoes-internas",
+      href: "/painel/gestao-tasks?aba=aprovacoes-internas",
       singular: "entrega esperando seu aval interno",
       plural: "entregas esperando seu aval interno",
     },

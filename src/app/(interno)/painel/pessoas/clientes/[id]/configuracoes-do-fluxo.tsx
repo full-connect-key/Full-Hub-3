@@ -50,7 +50,7 @@ import { definirFuncaoDaConta, duplicarFluxoParaAConta, salvarPadroesDaConta } f
  * alguém aplicá-lo.
  *
  * **O editor de fluxo NÃO mora aqui**, e a seção 2 é uma lista com link para
- * `/painel/workflows`. Dois editores da mesma cadeia divergiriam na primeira
+ * `/painel/gestao-tasks?aba=workflows`. Dois editores da mesma cadeia divergiriam na primeira
  * mudança, e a divergência apareceria no que a demanda nasce fazendo.
  *
  * **Nada aqui bloqueia a abertura de demanda.** Função sem dono é aviso, não
@@ -281,7 +281,7 @@ export function ConfiguracoesDoFluxo({
         titulo="Fluxos desta conta"
         acao={
           <Button asChild variant="outline" size="sm">
-            <Link href="/painel/workflows">
+            <Link href="/painel/gestao-tasks?aba=workflows">
               Editar fluxos
               <ArrowUpRight aria-hidden />
             </Link>
@@ -406,7 +406,7 @@ export function ConfiguracoesDoFluxo({
         titulo="Demandas recorrentes"
         acao={
           <Button asChild variant="outline" size="sm">
-            <Link href="/painel/workflows?aba=recorrencias">
+            <Link href="/painel/gestao-tasks?aba=recorrencias">
               Editar recorrências
               <ArrowUpRight aria-hidden />
             </Link>

@@ -108,11 +108,11 @@ const TELAS = [
   { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
   { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button:has-text("Concluir")' },
 
-  { nome: "40-aprovacoes-internas", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
-  { nome: "41-aprovacoes-internas-socio", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
-  { nome: "42-aprovacoes-ajustes", rota: "/painel/aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
-  { nome: "43-workflows", rota: "/painel/workflows", largura: 1440, altura: 1000, role: "socio" },
-  { nome: "45-workflow-editor", rota: "/painel/workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
+  { nome: "40-aprovacoes-internas", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
+  { nome: "41-aprovacoes-internas-socio", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "42-aprovacoes-ajustes", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
+  { nome: "43-workflows", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "45-workflow-editor", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
   { nome: "50-social-lista", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "socio" },
   { nome: "51-social-calendario", rota: "/painel/social-media?visao=calendario&post=p1", largura: 1600, altura: 1100, role: "socio" },
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
@@ -135,13 +135,13 @@ const TELAS = [
   { nome: "60-carrossel-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
   { nome: "58-corrente-escuro", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
 
-  { nome: "44-recorrencias", rota: "/painel/workflows?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
-  { nome: "44b-recorrencia-editor", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },
+  { nome: "44-recorrencias", rota: "/painel/gestao-tasks?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
+  { nome: "44b-recorrencia-editor", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },
   // 375px: a previa vai para BAIXO do formulario no celular, e a grade de
   // chips das variaveis e o que primeiro estoura a largura.
-  { nome: "44c-recorrencia-375", rota: "/painel/workflows?aba=recorrencias&regra=nova", largura: 375, altura: 1600, role: "socio" },
+  { nome: "44c-recorrencia-375", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 375, altura: 1600, role: "socio" },
   { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Enviar para aprovação")' },
-  { nome: "49-aprovacao-propria", rota: "/painel/aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
+  { nome: "49-aprovacao-propria", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 

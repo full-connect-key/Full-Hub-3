@@ -149,7 +149,7 @@ export async function equipePorFuncaoDaConta(
  * `listarWorkflows` já filtra "os globais mais os dele" — o que falta ali é a
  * cadeia, e esta tela precisa dela para mostrar "Pauta → Conteúdo → Arte →
  * Agendamento" com o cadeado nas que exigem aval. **O editor continua em
- * `/painel/workflows`**, e esta lista leva para lá: dois editores do mesmo
+ * `/painel/gestao-tasks?aba=workflows`**, e esta lista leva para lá: dois editores do mesmo
  * fluxo divergiriam na primeira mudança, e a divergência apareceria no que a
  * demanda nasce fazendo.
  */
@@ -235,7 +235,7 @@ export async function fluxosDaConta(clienteId: string): Promise<FluxoDaConta[]> 
  * As recorrências desta conta, só para LER.
  *
  * A aba mostra o que a conta gera sozinha sem a pessoa sair da ficha do
- * cliente — e leva para `/painel/workflows?aba=recorrencias` para editar.
+ * cliente — e leva para `/painel/gestao-tasks?aba=recorrencias` para editar.
  * Reimplementar o editor aqui seria a mesma duplicação que a lista de fluxos
  * recusa: uma recorrência é a única coisa do produto que cria trabalho de
  * madrugada, e dois lugares de onde mexer nela é um a mais do que dá para

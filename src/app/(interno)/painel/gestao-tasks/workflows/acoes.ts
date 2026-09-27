@@ -29,7 +29,18 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * próximas, e só.
  */
 
-const ROTA = "/painel/workflows";
+/**
+ * A ROTA DA REVALIDAÇÃO NÃO LEVA A ABA, e a diferença não é cosmética:
+ * `revalidatePath` casa por CAMINHO, e uma string com `?aba=` não bate com
+ * rota nenhuma — a chamada passa sem erro e não revalida nada. Quem mexesse
+ * num workflow veria a tela antiga até recarregar à mão, e não haveria o que
+ * investigar: nenhum log, nenhuma recusa.
+ *
+ * As quatro abas são a MESMA rota, então revalidar o caminho revalida as
+ * quatro de uma vez, que é exatamente o certo — mudar um workflow muda a
+ * contagem de etapas que a aba de Demandas mostra.
+ */
+const ROTA = "/painel/gestao-tasks";
 
 const esquemaDeEtapa = z.object({
   nome: z.string().min(1, "A etapa precisa de um nome."),

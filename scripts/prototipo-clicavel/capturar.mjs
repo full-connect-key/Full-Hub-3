@@ -69,8 +69,8 @@ const COM_SUSPENSE = {
   "visao-lista": "/painel/gestao-tasks?visao=lista",
   "visao-calendario": "/painel/gestao-tasks?visao=calendario",
   "modulo-gestao-tasks-detalhe": TASK,
-  "modulo-aprovacoes-internas": "/painel/aprovacoes-internas",
-  "modulo-workflows": "/painel/workflows",
+  "modulo-aprovacoes-internas": "/painel/gestao-tasks?aba=aprovacoes-internas",
+  "modulo-workflows": "/painel/gestao-tasks?aba=workflows",
   "modulo-notas-fiscais": "/painel/notas-fiscais",
   "modulo-full-days": "/painel/full-days",
   "full-days-matriz": "/painel/full-days?aba=matriz",
@@ -135,12 +135,12 @@ const DIALOGOS = [
   },
   {
     nome: "aprovacao-ajustes",
-    rota: "/painel/aprovacoes-internas",
+    rota: "/painel/gestao-tasks?aba=aprovacoes-internas",
     passos: ['button:has-text("Solicitar ajustes")'],
   },
   {
     nome: "tipo-novo",
-    rota: "/painel/workflows",
+    rota: "/painel/gestao-tasks?aba=workflows",
     passos: ['button:has-text("Novo tipo de tarefa")'],
   },
   {
