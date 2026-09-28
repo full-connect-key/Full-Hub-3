@@ -392,17 +392,51 @@ export type { DescansoDoCiclo } from "../../src/lib/dados/full-days";
  * O saldo do ciclo de 12 meses, para o prototipo.
  *
  * A Ana (socia) esta ha mais de um ano na agencia, entao o exemplo mostra o
- * caso que so existe depois da 0039: DOIS ciclos, 30 dias concedidos, e o que
- * sobrou do primeiro continuando no segundo. Com um ciclo so, a imagem nao
- * mostraria a diferenca entre o modelo novo e o antigo.
+ * caso que so existe depois da 0039: DOIS ciclos COMPLETADOS, 30 dias
+ * conquistados, e o que sobrou do primeiro continuando no segundo. Com um
+ * ciclo so, a imagem nao mostraria a diferenca entre o modelo novo e o antigo.
+ *
+ * `proximoEm` entrou com a 0074 e nao e decorativo: ele e o campo que a tela
+ * usa quando `ciclos` e ZERO, que e o estado de todo mundo no primeiro ano.
+ * Esta funcao devolve dois ciclos de proposito -- a tela do primeiro ciclo tem
+ * imagem propria, por `PROTOTIPO_SO`, e um stub que so soubesse desenhar um
+ * dos dois estados fotografaria o produto pela metade.
  */
 export async function descansoDoCiclo(
   _usuarioId: string,
 ): Promise<import("../../src/lib/dados/full-days").DescansoDoCiclo | null> {
   const inicio = new Date();
   inicio.setFullYear(inicio.getFullYear() - 1);
+  const proximo = new Date(inicio);
+  proximo.setFullYear(proximo.getFullYear() + 1);
+
+  // O PRIMEIRO CICLO, por pedido da tela (`env` no gerador). Colchetes de
+  // proposito, como em `dal.ts`: assim o valor vem do ambiente na hora do
+  // pedido e o mesmo build serve para as duas imagens.
+  //
+  // Ele nao e um `_usuarioId` diferente porque nenhum perfil do prototipo
+  // corresponde a quem acabou de entrar -- e inventar um contradiria o seed,
+  // onde a Marina tem um ciclo fechado.
+  if (process.env["PROTOTIPO_PRIMEIRO_CICLO"] === "1") {
+    const entrou = new Date();
+    entrou.setMonth(entrou.getMonth() - 4);
+    const chegam = new Date(entrou);
+    chegam.setFullYear(chegam.getFullYear() + 1);
+    return {
+      inicioDoCiclo: entrou.toISOString().slice(0, 10),
+      proximoEm: chegam.toISOString().slice(0, 10),
+      ciclos: 0,
+      diasConcedidos: 0,
+      diasUsados: 0,
+      saldo: 0,
+      parcelasConcedidas: 0,
+      parcelasUsadas: 0,
+    };
+  }
+
   return {
     inicioDoCiclo: inicio.toISOString().slice(0, 10),
+    proximoEm: proximo.toISOString().slice(0, 10),
     ciclos: 2,
     diasConcedidos: 30,
     diasUsados: 10,

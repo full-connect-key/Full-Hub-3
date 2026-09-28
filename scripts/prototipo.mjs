@@ -232,6 +232,14 @@ const TELAS = [
   { nome: "63-full-days-aprovacoes", rota: "/painel/full-days?aba=aprovacoes", largura: 1500, altura: 900, role: "socio" },
   { nome: "64-full-days-remarcar", rota: "/painel/full-days?aba=aprovacoes", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Preciso remarcar")' },
   { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
+  // QUEM AINDA NAO CONQUISTOU DIA NENHUM (0074). E o estado de todo mundo por
+  // doze meses, e a tela dele nao e "saldo zero": ela troca o numero pela DATA
+  // em que os primeiros dias chegam, tira a barra de uso -- que a zero pede
+  // para ser lida como "voce ja usou tudo" -- e desliga o envio com um aviso
+  // so. Sem esta imagem, a unica tela do modulo que muda de forma ficaria sem
+  // foto.
+  { nome: "65d-full-days-primeiro-ciclo", rota: "/painel/full-days", largura: 1600, altura: 1200,
+    role: "colaborador", env: { PROTOTIPO_PRIMEIRO_CICLO: "1" } },
   // A PROVA DO AJUSTE 03, e não uma tela bonita: clicar em 28/10, alcançar
   // novembro e clicar em 03/11. O Playwright rola sozinho para chegar no
   // segundo dia, que é o gesto exato que perdia a seleção quando o mês vivia

@@ -412,8 +412,23 @@ select 'a0000000-0000-0000-0000-000000000006'::uuid, 'Social media', 'Criação'
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000006')
 on conflict (user_id) do nothing;
 
+-- O RAFAEL ESTA NO PRIMEIRO CICLO, E E POR ISSO QUE A DATA DELE E RELATIVA.
+--
+-- Depois da 0074 os dias sao conquistados no FIM de cada 12 meses, entao
+-- "pessoa sem nenhum dia, com a data em que os primeiros chegam" e o estado de
+-- todo mundo que entra -- por doze meses. As outras cinco fichas tem data
+-- literal e ja passaram de um ano, entao com mais uma delas o ambiente de
+-- desenvolvimento mostraria o produto no unico estado em que a tela do
+-- primeiro ciclo nao existe. E a licao da Optica Visao sem responsavel de
+-- atendimento (0062) e da pessoa desligada com equipamento em aberto (0069),
+-- aplicada antes de o bug acontecer em vez de depois.
+--
+-- E RELATIVA e nao literal justamente porque o estado precisa continuar
+-- valendo: uma data fixa de "quatro meses atras" para de ser o primeiro ciclo
+-- daqui a oito meses, sem ninguem tocar no arquivo.
 insert into public.team_members (user_id, cargo, area, funcao, data_admissao)
-select 'a0000000-0000-0000-0000-000000000007'::uuid, 'Analista de tráfego', 'Mídia', 'Trafego', date '2025-04-02'
+select 'a0000000-0000-0000-0000-000000000007'::uuid, 'Analista de tráfego', 'Mídia', 'Trafego',
+       (current_date - interval '4 months')::date
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000007')
 on conflict (user_id) do nothing;
 

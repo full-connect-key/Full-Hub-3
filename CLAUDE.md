@@ -3669,19 +3669,58 @@ exigir deploy.
 **O ciclo é contado da ENTRADA da pessoa, não do calendário** (migration 0039,
 decisão do usuário). O saldo deixou de zerar em 1º de janeiro e virou um
 número corrido: cada ciclo **soma** 15 dias e 2 parcelas, e o que sobrou de um
-ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 60 dias
-— quatro ciclos, porque o primeiro começa na entrada e os outros três nos
-aniversários.
+ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 45 dias
+— três ciclos completados, e o quarto está correndo.
 
 - `ciclos_de_descanso()` conta os ciclos, `inicio_do_ciclo()` diz quando o
   atual começou, e `saldo_de_ferias()` **perdeu o parâmetro de ano**. A âncora
-  é `data_admissao`; sem ela, `created_at` da ficha — uma ficha incompleta não
-  pode deixar a pessoa com zero dias.
-- **Os 15 chegam no COMEÇO do ciclo**, e é o `+ 1` em `ciclos_de_descanso()`.
-  A outra leitura possível — conceder só quando o ciclo se completa — é a
-  regra do período aquisitivo da CLT, e deixaria quem entrou ontem doze meses
-  sem descansar. Para inverter, é aquela linha, e a bateria tem o cenário que
-  avisa.
+  é `data_admissao`; sem ela, `created_at` da ficha.
+- **OS 15 SÃO CONQUISTADOS NO FIM DO CICLO, e não na abertura dele** (migration
+  0074, decisão do usuário: *"entrou hj, nn tem dias disponíveis - fez 12
+  meses, ganha 15 dias, fez 24 meses, ganha mais 15 dias"*). Quem entrou hoje
+  tem **zero** — zero dias, zero parcelas —, e o primeiro bloco entra no
+  primeiro aniversário.
+
+  **A 0039 tinha escolhido o contrário, e registrou a escolha.** O comentário
+  dela dizia que havia duas leituras de "a cada 12 meses soma 15", que ela
+  ficava com a da abertura, que **para inverter era o `+ 1` de
+  `ciclos_de_descanso()`** e que a bateria tinha o cenário que avisaria. Ele
+  avisou: era *"Quem entrou hoje já está no ciclo 1"*, e hoje ele é o mesmo
+  cenário virado do avesso. Devolvendo o `+ 1`, **32 cenários caem** — a regra
+  está medida no módulo inteiro, não só na sentinela.
+
+- **A recusa do primeiro ciclo diz a DATA, e não os três números.** *"Você já
+  tem 0 comprometidos, então sobram 0"* é verdade e não ensina nada: quem lê
+  não sabe se é a regra, um cadastro errado ou um defeito. `proximo_descanso_em()`
+  nasceu para a frase poder dizer *"os seus primeiros 15 dias chegam em
+  28/05/2027"*, e é a decisão da recusa da 0023 nomear cada etapa em vez de
+  dizer "há etapa sem aprovação". A dica manda para onde não depende de saldo:
+  ausência pontual e afastamento.
+- **E a tela do primeiro ciclo troca de forma, não de número.** O título vira a
+  data, a barra de uso **some** — a zero ela pede para ser lida como "você já
+  usou tudo", que é o contrário do que está acontecendo —, "Saldo depois" sai
+  do resumo, e o envio desliga com **um** aviso só. Sem o `!primeiroCiclo` nos
+  dois derivados, quem entrou este ano veria três recusas empilhadas para um
+  motivo só, que é a tela parecendo quebrada.
+- **Sem ficha, zero ciclos** — e até a 0074 era um, com o argumento de que "uma
+  ficha incompleta não pode deixar a pessoa com zero dias". Ele valia enquanto
+  o primeiro ciclo já vinha concedido; agora zero é o estado normal de quem
+  chegou, e dar um ciclo a quem não tem ficha daria a ela mais do que quem tem.
+- **O lançamento retroativo continua passando**, inclusive no primeiro ano: a
+  gestão registra o descanso combinado por fora, o saldo fica negativo, e isso
+  é a verdade. `validar_solicitacao` devolve antes da conta de saldo quando a
+  origem não é `solicitacao`.
+- **`inicio_do_ciclo()` parou de repetir a conta.** Ela calculava os
+  aniversários por conta própria com o mesmo `age()`; sem o `+ 1` os dois
+  números passaram a ser o mesmo, e duas cópias da mesma conta é onde as duas
+  verdades começam a divergir.
+- **E o seed ganhou alguém no primeiro ciclo**, com data relativa e não
+  literal: depois da 0074 "pessoa sem nenhum dia" é o estado de todo mundo por
+  doze meses, e com todas as fichas passadas de um ano o ambiente de
+  desenvolvimento mostraria o produto no único estado em que essa tela não
+  existe. É a lição da Óptica Visão (0062) e da pessoa desligada (0069). A data
+  é relativa porque uma fixa deixa de ser o primeiro ciclo sozinha, daqui a
+  alguns meses, sem ninguém tocar no arquivo.
 - **`tasks.ano_referencia` foi apagada**, e ela tinha nascido na 0037 para
   keyar o saldo por ano. Sem conta anual não há atribuição a fazer — os dias
   contam, e o ciclo em que caem não muda nada. Apagar e não aposentar, como a
@@ -3696,12 +3735,15 @@ aniversários.
   contas com entradas diferentes divergiriam no pior lugar: a tela prometendo
   dias que o banco recusa.
 
-> **O que isto custa, e foi dito a quem decidiu:** ciclo de 12 meses contado
-> da entrada da pessoa é, **estruturalmente**, o desenho do período aquisitivo
-> da CLT — mais parecido com ele que o ano civil, não menos. A nota do fim
-> desta seção já dizia que o vocabulário reduz o risco e a estrutura é o que
-> uma perícia olha. A decisão foi seguir assim mesmo. Quem for mexer nisso de
-> novo, mexa sabendo disso.
+> **O que isto custa, e foi dito a quem decidiu, duas vezes:** ciclo de 12
+> meses contado da entrada da pessoa é, **estruturalmente**, o desenho do
+> período aquisitivo da CLT — mais parecido com ele que o ano civil, não
+> menos. E a 0074 aproxima mais um passo, porque conceder só quando o ciclo se
+> completa **é** o período aquisitivo. A nota do fim desta seção já dizia que o
+> vocabulário reduz o risco e a estrutura é o que uma perícia olha. As duas
+> decisões foram tomadas assim mesmo, por quem responde pela exposição. Quem
+> for mexer nisso de novo, mexa sabendo disso — e a inversão continua sendo uma
+> linha só.
 
 **E eles contam CORRIDO** (migration 0024, decisão do usuário). Quinze dias
 são quinze dias de calendário — sai numa segunda, volta na terceira segunda —,

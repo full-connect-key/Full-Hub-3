@@ -214,7 +214,13 @@ from (
     -- sem a outra nao existe -- as duas nascem no mesmo arquivo. Apontar para a
     -- que a tela chama e o que faz a resposta ser util: sem ela, a topbar
     -- devolve "Could not find the function".
-    ('0073', 'busca_global()',             'funcao',       'busca_global')
+    ('0073', 'busca_global()',             'funcao',       'busca_global'),
+    -- A 0074 reescreve tres funcoes que ja existiam e cria UMA, e a linha
+    -- aponta para a nova. As reescritas nao servem: `ciclos_de_descanso` existe
+    -- desde a 0039 com o `+ 1` dentro, entao um banco parado la responderia
+    -- "ok" com a regra antiga valendo -- que e exatamente o modo de falha que o
+    -- cabecalho deste arquivo descreve. `proximo_descanso_em` so a 0074 cria.
+    ('0074', 'proximo_descanso_em()',      'funcao',       'proximo_descanso_em')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

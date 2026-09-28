@@ -32,13 +32,26 @@ update public.profiles set role = 'colaborador',  nome = 'Rafael Dias'  where id
 update public.profiles set role = 'cliente',      nome = 'Joana Verde'  where id = '77777777-7777-7777-7777-777777777777';
 update public.profiles set role = 'cliente',      nome = 'Otto Visao'   where id = '88888888-8888-8888-8888-888888888888';
 
-insert into public.team_members (user_id, cargo, area, funcao, ativo) values
-  ('11111111-1111-1111-1111-111111111111','Sócia','Gestão','Gestao',true),
-  ('22222222-2222-2222-2222-222222222222','Desenvolvedor','Tecnologia','Desenvolvimento',true),
-  ('33333333-3333-3333-3333-333333333333','Atendimento','Atendimento','Atendimento',true),
-  ('44444444-4444-4444-4444-444444444444','Designer','Criação','Design',true),
-  ('55555555-5555-5555-5555-555555555555','Social Media','Criação','Social Media',true),
-  ('66666666-6666-6666-6666-666666666666','Tráfego','Mídia','Trafego',true)
+-- `data_admissao` DE CATORZE MESES ATRAS, e ela nao estava aqui ate a 0074.
+--
+-- Sem a coluna, `ciclos_de_descanso()` cai no `created_at` da ficha -- que num
+-- banco de bateria e AGORA. Enquanto os 15 dias chegavam na abertura do ciclo,
+-- isso dava a todo mundo um ciclo cheio sem ninguem ter escrito uma data, e a
+-- secao inteira do Full Days media o saldo de gente que "entrou hoje". Era
+-- conveniencia de fixture ocupando o lugar do cenario, como o
+-- `responsavel_atendimento_id` do 15 e o `update` solto do 19.
+--
+-- Com a 0074 o mesmo estado da ZERO dias, e a secao cai inteira -- que e o
+-- sinal certo, e foi ele que mostrou a dependencia. Catorze meses e nao doze
+-- de proposito: doze cai em cima do aniversario, e um cenario que mede a regra
+-- nao pode estar empatado com a fronteira dela.
+insert into public.team_members (user_id, cargo, area, funcao, ativo, data_admissao) values
+  ('11111111-1111-1111-1111-111111111111','Sócia','Gestão','Gestao',true, current_date - interval '14 months'),
+  ('22222222-2222-2222-2222-222222222222','Desenvolvedor','Tecnologia','Desenvolvimento',true, current_date - interval '14 months'),
+  ('33333333-3333-3333-3333-333333333333','Atendimento','Atendimento','Atendimento',true, current_date - interval '14 months'),
+  ('44444444-4444-4444-4444-444444444444','Designer','Criação','Design',true, current_date - interval '14 months'),
+  ('55555555-5555-5555-5555-555555555555','Social Media','Criação','Social Media',true, current_date - interval '14 months'),
+  ('66666666-6666-6666-6666-666666666666','Tráfego','Mídia','Trafego',true, current_date - interval '14 months')
 on conflict do nothing;
 
 insert into public.clients (id, nome_empresa, nome_contato, email_contato, ativo) values

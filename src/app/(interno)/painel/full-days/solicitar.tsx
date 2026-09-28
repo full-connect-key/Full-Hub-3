@@ -107,8 +107,29 @@ export function Solicitar({
   const saldo = descanso?.saldo ?? diasPorCiclo;
   const saldoDepois = tipo === "ferias" ? saldo - diasSelecionados : saldo;
 
-  const excedeSaldo = tipo === "ferias" && diasSelecionados > saldo;
-  const semParcela = tipo === "ferias" && parcelasUsadas >= parcelasConcedidas;
+  // O PRIMEIRO CICLO É UM ESTADO PRÓPRIO, e não "saldo zero" (0074). Quem
+  // entrou há três meses não gastou os dias dela: eles ainda não chegaram, e
+  // as duas situações pedem frases opostas — uma manda escolher um período
+  // menor, a outra manda esperar uma data.
+  //
+  // O fallback de `ciclos` continua sendo 1 e não 0, e é deliberado: quando a
+  // consulta do saldo falha, cair em zero trancaria a equipe inteira fora do
+  // pedido por causa de uma leitura que não respondeu. É a decisão do limite
+  // de tentativas — falhar para o lado aberto, porque quem recusa quando
+  // quebra recusa justamente na hora em que já há outro problema. Quem decide
+  // de verdade é a trava do `insert`.
+  const primeiroCiclo = tipo === "ferias" && ciclos === 0;
+
+  const excedeSaldo =
+    tipo === "ferias" && !primeiroCiclo && diasSelecionados > saldo;
+  const semParcela =
+    tipo === "ferias" && !primeiroCiclo && parcelasUsadas >= parcelasConcedidas;
+
+  // A DATA POR EXTENSO, uma vez só: ela aparece na faixa do topo e no aviso do
+  // resumo, e duas formatações da mesma data é o começo de duas datas.
+  const chegamEm = descanso?.proximoEm
+    ? format(parseISO(descanso.proximoEm), "dd/MM/yyyy")
+    : null;
   const retroativo = Boolean(inicioSel && inicioSel < hojeISO);
 
   /**
@@ -187,7 +208,11 @@ export function Solicitar({
               Saldo de descanso
             </p>
             <p className="text-text-primary text-3xl font-semibold tracking-tight">
-              Você tem {saldo} de {concedidos} dias disponíveis
+              {primeiroCiclo
+                ? chegamEm
+                  ? `Seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}`
+                  : `Seus primeiros ${diasPorCiclo} dias chegam ao completar 12 meses`
+                : `Você tem ${saldo} de ${concedidos} dias disponíveis`}
             </p>
             {/* DE QUANDO O NÚMERO ESTÁ CONTANDO. Ele não zera mais em 1 de
                 janeiro: soma 15 a cada 12 meses desde a entrada da pessoa, e
@@ -196,33 +221,44 @@ export function Solicitar({
                 onde veio o número — e número que não se explica é número em
                 que ninguém confia. */}
             <p className="text-accent-strong text-sm">
-              {ciclos > 1
-                ? `São ${diasPorCiclo} dias a cada 12 meses na sua ficha, e você já passou por ${ciclos} ciclos — o que sobra de um continua no seguinte.`
-                : `São ${diasPorCiclo} dias a cada 12 meses na sua ficha. O descanso conta corrido: sair numa sexta e voltar na segunda são quatro dias.`}
+              {primeiroCiclo
+                ? chegamEm
+                  ? `O descanso é conquistado: ${diasPorCiclo} dias a cada 12 meses de casa, e o primeiro bloco entra na data acima. Ausência pontual e afastamento não dependem de saldo.`
+                  : "O descanso é conquistado a cada 12 meses de casa, e esta ficha ainda não tem data de entrada — peça à gestão para preencher."
+                : ciclos > 1
+                  ? `São ${diasPorCiclo} dias conquistados a cada 12 meses, e você já completou ${ciclos} ciclos — o que sobra de um continua no seguinte.`
+                  : `São ${diasPorCiclo} dias conquistados a cada 12 meses. O descanso conta corrido: sair numa sexta e voltar na segunda são quatro dias.`}
             </p>
           </div>
 
-          <div className="bg-surface-card w-full max-w-xs shrink-0 rounded-lg p-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-text-secondary text-sm">Já usado</span>
-              <span className="text-sm font-semibold tabular-nums">
-                {concedidos > 0 ? Math.round((usados / concedidos) * 100) : 0}%
-              </span>
+          {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias em
+              0 de 0 parcelas" é uma linha de números que não decide nada, e
+              uma barra vazia pede para ser lida como "você já usou tudo" —
+              que é o contrário do que está acontecendo. A faixa ao lado já
+              diz a única coisa que há para dizer, que é a data. */}
+          {primeiroCiclo ? null : (
+            <div className="bg-surface-card w-full max-w-xs shrink-0 rounded-lg p-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-text-secondary text-sm">Já usado</span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {concedidos > 0 ? Math.round((usados / concedidos) * 100) : 0}%
+                </span>
+              </div>
+              <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
+                <div
+                  className="bg-accent-strong h-full rounded-full"
+                  style={{
+                    width: `${concedidos > 0 ? Math.min(100, Math.round((usados / concedidos) * 100)) : 0}%`,
+                  }}
+                />
+              </div>
+              <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
+                {usados} {usados === 1 ? "dia" : "dias"} em {parcelasUsadas} de{" "}
+                {parcelasConcedidas}{" "}
+                {parcelasConcedidas === 1 ? "parcela" : "parcelas"}
+              </p>
             </div>
-            <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
-              <div
-                className="bg-accent-strong h-full rounded-full"
-                style={{
-                  width: `${concedidos > 0 ? Math.min(100, Math.round((usados / concedidos) * 100)) : 0}%`,
-                }}
-              />
-            </div>
-            <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
-              {usados} {usados === 1 ? "dia" : "dias"} em {parcelasUsadas} de{" "}
-              {parcelasConcedidas}{" "}
-              {parcelasConcedidas === 1 ? "parcela" : "parcelas"}
-            </p>
-          </div>
+          )}
         </section>
       ) : (
         <section className="bg-surface-card rounded-xl border p-5">
@@ -269,7 +305,16 @@ export function Solicitar({
             >
               {(
                 [
-                  ["ferias", `desconta (${saldo}d livres)`],
+                  // "desconta (0d livres)" é a frase certa para quem gastou
+                  // tudo e a errada para quem ainda não conquistou nada — e a
+                  // imagem do protótipo mostrou as duas com o mesmo texto. No
+                  // primeiro ciclo o cartão diz o que está acontecendo, que é
+                  // a razão inteira desta linha existir: ela está aqui para a
+                  // pessoa escolher entre os três tipos.
+                  [
+                    "ferias",
+                    ciclos === 0 ? "ainda não conquistado" : `desconta (${saldo}d livres)`,
+                  ],
                   ["licenca", "não desconta"],
                   ["ausencia", "não desconta"],
                 ] as const
@@ -324,7 +369,7 @@ export function Solicitar({
               valor={inicioSel ? String(diasSelecionados) : "—"}
               destaque
             />
-            {tipo === "ferias" ? (
+            {tipo === "ferias" && !primeiroCiclo ? (
               <Campo
                 rotulo="Saldo depois"
                 valor={`${saldoDepois} de ${concedidos}`}
@@ -343,6 +388,20 @@ export function Solicitar({
             <Aviso tom="atencao">
               Este período já começou. Registro do que passou é para ausência
               pontual — o sócio vai ver a data ao responder.
+            </Aviso>
+          ) : null}
+
+          {/* UM AVISO SÓ, e ele é o do primeiro ciclo. Sem o `!primeiroCiclo`
+              nos dois derivados acima, quem entrou este ano veria os três
+              empilhados: "você tem 0 de saldo", "já usou as 0 parcelas que
+              tem" e este. Três recusas para um motivo é a tela parecendo
+              quebrada. A frase é a MESMA do banco, como as outras duas: quem
+              lê aqui e quem levar a recusa do `insert` precisa ler o mesmo. */}
+          {primeiroCiclo ? (
+            <Aviso tom="erro">
+              {chegamEm
+                ? `O descanso é conquistado a cada 12 meses de casa. Os seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}.`
+                : "O descanso é conquistado a cada 12 meses de casa, e esta ficha não tem data de entrada."}
             </Aviso>
           ) : null}
 
@@ -395,7 +454,8 @@ export function Solicitar({
                 !inicioSel ||
                 diasSelecionados === 0 ||
                 excedeSaldo ||
-                semParcela
+                semParcela ||
+                primeiroCiclo
               }
               onClick={enviar}
             >

@@ -2702,6 +2702,13 @@ export interface Database {
         Args: { p_user_id: string };
         Returns: {
           inicio_do_ciclo: string | null;
+          /**
+           * O dia em que o próximo bloco de dias é conquistado — o próximo
+           * aniversário da entrada (0074). É o que a tela mostra para quem
+           * está no primeiro ciclo, onde `saldo` é zero: "0 de 0 dias" é
+           * verdade e não diz nada, e a data responde por que.
+           */
+          proximo_em: string | null;
           ciclos: number;
           dias_concedidos: number;
           dias_usados: number;
@@ -2710,6 +2717,14 @@ export interface Database {
           parcelas_usadas: number;
         }[];
       };
+      /**
+       * O dia em que a pessoa conquista o próximo bloco de dias (0074).
+       *
+       * A tela a recebe embutida em `descanso_do_ciclo`, e não a chama
+       * direto: uma segunda ida ao banco para um campo que a primeira já
+       * podia trazer é uma segunda chance de as duas discordarem.
+       */
+      proximo_descanso_em: { Args: { p_user_id: string }; Returns: string | null };
       decidir_solicitacao: {
         Args: { p_request_id: string; p_decisao: HrStatus; p_motivo: string | null };
         Returns: void;

@@ -313,7 +313,7 @@ select teste.recusa_com('A recusa por saldo fala de descanso, nao de ferias', :B
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
   $fmt$, :BRUNO),
-  'dias de descanso a cada 12 meses em contrato');
+  'dias de descanso conquistados a cada 12 meses');
 
 -- E A FRASE DIZ A CONTA INTEIRA: quantos o contrato da, quantos ja estao
 -- comprometidos, quantos sobram. Quem leva um "nao" com um numero so vai
@@ -429,8 +429,13 @@ declare
   frase   text;
   faltam  text[] := '{}';
   novas   text[] := array[
-    'dias de descanso a cada 12 meses em contrato',
+    'dias de descanso conquistados a cada 12 meses',
     'O descanso pode ser partido',
+    -- A FRASE DO PRIMEIRO CICLO (0074). Ela e a unica recusa do modulo que
+    -- nomeia uma DATA em vez de contar numeros, e e o que separa "voce nao
+    -- pode" de "voce ainda nao pode, e e em tal dia". Sem esta linha, alguem
+    -- que simplificasse a recusa de volta para "sobram 0" passaria aqui.
+    'O descanso e conquistado a cada 12 meses de casa',
     'So o socio responde aos periodos fora',
     'then ''Descanso''',
     'then ''Afastamento''',
@@ -544,84 +549,133 @@ select teste.recusa_com('Ausencia so no fim de semana continua recusada', :CARLA
   'nenhum dia util');
 
 
--- --- O ciclo de 12 meses (migration 0039) ----------------------------------
+-- --- O ciclo de 12 meses (0039), conquistado no fim dele (0074) -----------
 --
--- O saldo deixou de zerar em 1 de janeiro. Cada ciclo de 12 meses contado da
--- ENTRADA DA PESSOA soma 15 dias e 2 parcelas, e o que sobrou de um ciclo
--- continua la no seguinte.
+-- O saldo nao zera em 1 de janeiro: cada ciclo de 12 meses contado da ENTRADA
+-- DA PESSOA soma 15 dias e 2 parcelas, e o que sobrou de um continua no
+-- seguinte. A 0074 mudou QUANDO esse bloco chega -- no fim do ciclo, e nao na
+-- abertura dele.
 --
 -- Esta secao mexe na `data_admissao` de propósito e DEVOLVE no fim: os
--- arquivos seguintes contam com a ficha como ela estava.
+-- arquivos seguintes contam com a ficha como ela estava (catorze meses).
 
 delete from public.team_presence;
 delete from public.hr_requests;
 
 -- Sem data de entrada, a ancora e `created_at` -- e na bateria a ficha nasceu
--- agora. Uma pessoa sem admissao nao pode ficar sem saldo nenhum: e o caso
--- comum de cadastro incompleto, e zero dias na tela de quem acabou de chegar e
--- um erro que ninguem sabe explicar.
+-- agora. Zero ciclos, entao, e nao um: depois da 0074 zero dias e o estado
+-- normal de quem chegou, e dar um ciclo a quem nao tem ficha daria a ela mais
+-- do que quem tem ficha teria.
 update public.team_members set data_admissao = null where user_id = :BRUNO;
 
-select teste.conferir('Sem data de entrada, a pessoa esta no primeiro ciclo',
-  public.ciclos_de_descanso(:BRUNO)::text, '1');
+select teste.conferir('Sem data de entrada, nenhum ciclo completado',
+  public.ciclos_de_descanso(:BRUNO)::text, '0');
 
-select teste.conferir('E tem os 15 dias do primeiro ciclo',
-  public.saldo_de_ferias(:BRUNO)::text, '15');
+select teste.conferir('E nenhum dia conquistado',
+  public.saldo_de_ferias(:BRUNO)::text, '0');
 
--- Entrou hoje: primeiro ciclo, 15 dias JA. A outra leitura possivel de "a cada
--- 12 meses soma 15" e conceder so no fim do ciclo -- que e a regra do periodo
--- aquisitivo da CLT, e deixaria quem entrou ontem doze meses sem descansar.
--- Este cenario e o que trava a decisao: se alguem tirar o `+ 1` de
--- `ciclos_de_descanso()`, ele falha e diz qual regra mudou.
+-- ENTROU HOJE: ZERO. Este e o cenario que trava a decisao da 0074, e ele e o
+-- de antes virado do avesso -- ate ela, o que estava escrito aqui era "quem
+-- entrou hoje ja esta no ciclo 1" e "ja tem 15 dias, nao zero". A 0039 dizia,
+-- no proprio comentario, que para inverter bastava tirar o `+ 1` de
+-- `ciclos_de_descanso()` e que a bateria avisaria. Ela avisou. Se alguem
+-- devolver o `+ 1`, os dois de baixo falham e dizem qual regra voltou.
 update public.team_members set data_admissao = current_date where user_id = :BRUNO;
 
-select teste.conferir('Quem entrou hoje ja esta no ciclo 1',
-  public.ciclos_de_descanso(:BRUNO)::text, '1');
+select teste.conferir('Quem entrou hoje nao completou ciclo nenhum',
+  public.ciclos_de_descanso(:BRUNO)::text, '0');
 
-select teste.conferir('E ja tem 15 dias, nao zero',
-  public.saldo_de_ferias(:BRUNO)::text, '15');
+select teste.conferir('E nao tem dia nenhum ainda',
+  public.saldo_de_ferias(:BRUNO)::text, '0');
 
--- Onze meses: ainda no primeiro. Doze: no segundo. E a virada, e ela e de
+select teste.conferir('Nem parcela nenhuma',
+  public.parcelas_concedidas(:BRUNO)::text, '0');
+
+-- E A TELA PRECISA DIZER QUANDO, senao a recusa e um "nao" sem instrucao.
+select teste.conferir('Os primeiros dias chegam no primeiro aniversario',
+  public.proximo_descanso_em(:BRUNO)::text,
+  (current_date + interval '1 year')::date::text);
+
+-- A RECUSA CARREGA A DATA, e nao os tres numeros da outra frase: "voce ja tem
+-- 0 comprometidos, entao sobram 0" e verdade e nao ensina nada.
+select teste.recusa_com('Pedir descanso no primeiro ano recusa dizendo a data', :BRUNO,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ferias', current_date + 40, current_date + 44, 5)
+  $fmt$, :BRUNO),
+  to_char((current_date + interval '1 year')::date, 'DD/MM/YYYY'));
+
+-- E OS OUTROS DOIS TIPOS NAO DEPENDEM DE SALDO, que e o que a dica manda
+-- fazer. Sem este cenario, a dica seria uma frase que ninguem conferiu.
+select teste.cenario('Ausencia pontual passa no primeiro ano', :BRUNO,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ausencia', current_date + 40, current_date + 40, 1)
+  $fmt$, :BRUNO), 'ok', 1);
+
+delete from public.hr_requests where user_id = :BRUNO;
+
+-- E O LANCAMENTO RETROATIVO TAMBEM PASSA, porque ele registra o que ja
+-- aconteceu: o descanso combinado por fora no primeiro ano e historico, e
+-- historico se registra. O saldo fica negativo, e e a verdade.
+update public.team_members set data_admissao = current_date - interval '6 months'
+ where user_id = :BRUNO;
+
+select teste.cenario('A gestao lanca um descanso do primeiro ano', :ANA,
+  format($fmt$
+    select public.lancar_periodo(%L, 'ferias',
+      (current_date - interval '2 months')::date,
+      (current_date - interval '2 months' + interval '4 days')::date)
+  $fmt$, :BRUNO), 'ok');
+
+select teste.conferir('E o saldo fica negativo, que e o que aconteceu',
+  public.saldo_de_ferias(:BRUNO)::text, '-5');
+
+delete from public.team_presence;
+delete from public.hr_requests;
+
+-- Onze meses: ainda nenhum. Doze: o primeiro. E a virada, e ela e de
 -- calendario e nao de 365 dias -- `age()` e nao uma divisao.
 update public.team_members set data_admissao = current_date - interval '11 months'
  where user_id = :BRUNO;
 
-select teste.conferir('Onze meses ainda e o primeiro ciclo',
-  public.ciclos_de_descanso(:BRUNO)::text, '1');
+select teste.conferir('Onze meses ainda nao completam ciclo',
+  public.ciclos_de_descanso(:BRUNO)::text, '0');
 
 update public.team_members set data_admissao = current_date - interval '12 months'
  where user_id = :BRUNO;
 
-select teste.conferir('Doze meses abrem o segundo ciclo',
-  public.ciclos_de_descanso(:BRUNO)::text, '2');
+select teste.conferir('Doze meses completam o primeiro ciclo',
+  public.ciclos_de_descanso(:BRUNO)::text, '1');
 
-select teste.conferir('E os dias SOMAM: 30, e nao 15 de novo',
-  public.saldo_de_ferias(:BRUNO)::text, '30');
+select teste.conferir('E os 15 dias chegam',
+  public.saldo_de_ferias(:BRUNO)::text, '15');
 
-select teste.conferir('As parcelas somam junto: 4',
-  public.parcelas_concedidas(:BRUNO)::text, '4');
+select teste.conferir('Com as duas parcelas',
+  public.parcelas_concedidas(:BRUNO)::text, '2');
 
--- O CICLO ATUAL COMECOU NO ULTIMO ANIVERSARIO DA ENTRADA, e a tela mostra essa
--- data: um numero que a pessoa nao sabe de onde veio e um numero em que ela
--- nao confia.
--- Entrou ha exatamente doze meses: o segundo ciclo comecou HOJE, no
--- aniversario da entrada. Nao na data da entrada -- essa foi o comeco do
--- primeiro, que acabou ontem.
-select teste.conferir('O ciclo atual comecou no aniversario da entrada',
+-- O CICLO CORRENTE COMECOU NO ULTIMO ANIVERSARIO DA ENTRADA, e a tela mostra
+-- essa data: um numero que a pessoa nao sabe de onde veio e um numero em que
+-- ela nao confia. Entrou ha exatamente doze meses: o segundo ciclo comecou
+-- HOJE, e os proximos 15 chegam daqui a um ano.
+select teste.conferir('O ciclo corrente comecou no aniversario da entrada',
   public.inicio_do_ciclo(:BRUNO)::text, current_date::text);
 
--- TRES ANOS SEM PARAR sao QUATRO ciclos, e nao tres: o primeiro comecou na
--- entrada, e os outros tres nos aniversarios. Sessenta dias -- e e a diferenca
--- inteira entre os dois modelos, porque no ano civil o que nao se usou ate 31
--- de dezembro sumia.
+select teste.conferir('E os proximos dias chegam no aniversario seguinte',
+  public.proximo_descanso_em(:BRUNO)::text,
+  (current_date + interval '1 year')::date::text);
+
+-- TRES ANOS SEM PARAR sao TRES ciclos, e 45 dias -- e e a diferenca inteira
+-- entre os dois modelos, porque no ano civil o que nao se usou ate 31 de
+-- dezembro sumia.
 update public.team_members set data_admissao = current_date - interval '3 years'
  where user_id = :BRUNO;
 
-select teste.conferir('Tres anos sem parar abrem o quarto ciclo',
-  public.ciclos_de_descanso(:BRUNO)::text, '4');
+select teste.conferir('Tres anos sem parar completam tres ciclos',
+  public.ciclos_de_descanso(:BRUNO)::text, '3');
 
-select teste.conferir('E acumulam 60 dias',
-  public.saldo_de_ferias(:BRUNO)::text, '60');
+select teste.conferir('E acumulam 45 dias',
+  public.saldo_de_ferias(:BRUNO)::text, '45');
 
 -- E O QUE FOI USADO CONTINUA CONTANDO, sem olhar em que ano foi. Um descanso
 -- de dois anos atras nao "expira" -- se expirasse, os dias do outro lado da
@@ -634,32 +688,35 @@ select teste.cenario('Um descanso de dois anos atras, lancado pela socia', :ANA,
       (current_date - interval '2 years' + interval '9 days')::date)
   $fmt$, :BRUNO), 'ok');
 
-select teste.conferir('Ele desconta do saldo de hoje: 60 menos 10',
-  public.saldo_de_ferias(:BRUNO)::text, '50');
+select teste.conferir('Ele desconta do saldo de hoje: 45 menos 10',
+  public.saldo_de_ferias(:BRUNO)::text, '35');
 
-select teste.conferir('E gastou uma das oito parcelas',
+select teste.conferir('E gastou uma das seis parcelas',
   public.parcelas_de_ferias(:BRUNO)::text, '1');
 
-select teste.conferir('Que sao oito: duas por ciclo, em quatro ciclos',
-  public.parcelas_concedidas(:BRUNO)::text, '8');
+select teste.conferir('Que sao seis: duas por ciclo, em tres ciclos',
+  public.parcelas_concedidas(:BRUNO)::text, '6');
 
 -- A TRAVA DO PEDIDO USA A MESMA CONTA. Sem isso a tela mostraria 35 e o banco
--- recusaria a 16, que e o pior dos dois mundos: um numero que promete o que a
--- trava nao cumpre.
-select teste.cenario('Com 50 de saldo, um descanso de 30 dias passa', :BRUNO,
+-- recusaria, que e o pior dos dois mundos: um numero que promete o que a trava
+-- nao cumpre.
+select teste.cenario('Com 35 de saldo, um descanso de 30 dias passa', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 40, current_date + 69, 30)
   $fmt$, :BRUNO), 'ok', 1);
 
--- Sobram 20. Pedir 25 estoura, e a frase diz os tres numeros.
+-- Sobram 5. Pedir 25 estoura, e a frase diz os tres numeros.
 select teste.recusa_com('E um de 25 em cima dele estoura o saldo', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 100, current_date + 124, 25)
-  $fmt$, :BRUNO), 'entao sobram 20');
+  $fmt$, :BRUNO), 'entao sobram 5');
 
--- Devolve a ficha como estava, para os arquivos seguintes.
+-- Devolve a ficha como estava, para os arquivos seguintes. CATORZE MESES e nao
+-- `null`: a partir da 0074 o fixture carrega a data, e devolver `null` deixaria
+-- a equipe inteira sem saldo nos arquivos seguintes.
 delete from public.team_presence;
 delete from public.hr_requests;
-update public.team_members set data_admissao = null where user_id = :BRUNO;
+update public.team_members set data_admissao = current_date - interval '14 months'
+ where user_id = :BRUNO;

@@ -544,6 +544,14 @@ export async function lancamentosDaGestao(): Promise<LancamentoNaTela[]> {
 export type DescansoDoCiclo = {
   /** Quando começou o ciclo de 12 meses em que a pessoa está. */
   inicioDoCiclo: string | null;
+  /**
+   * Quando ela conquista o próximo bloco de dias — o próximo aniversário da
+   * entrada (0074). É o campo que sustenta a tela de quem está no primeiro
+   * ciclo: ali `saldo` e `diasConcedidos` são zero, e "0 de 0 dias" é verdade
+   * sem explicar nada.
+   */
+  proximoEm: string | null;
+  /** Quantos ciclos de 12 meses ela já COMPLETOU. Zero no primeiro ano. */
   ciclos: number;
   diasConcedidos: number;
   diasUsados: number;
@@ -580,6 +588,7 @@ export async function descansoDoCiclo(
 
   return {
     inicioDoCiclo: linha.inicio_do_ciclo,
+    proximoEm: linha.proximo_em,
     ciclos: linha.ciclos,
     diasConcedidos: linha.dias_concedidos,
     diasUsados: linha.dias_usados,
