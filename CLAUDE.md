@@ -5032,6 +5032,179 @@ nisso é maior que o de um comentário datado. **O tempo verbal certo mora
 aqui**, que é onde se procura o que vale hoje — a mesma razão pela qual a
 explicação de um nome morto mora fora de `src/`.
 
+### A busca da topbar deixou de ser uma casca
+
+`busca_global()` na migration 0073, `lib/dominio/busca.ts` com o vocabulário,
+`lib/dados/busca.ts` com a leitura e `components/painel/busca-global.tsx` com a
+paleta.
+
+**Ela foi uma CASCA desde o Sprint 1**, e a escolha estava certa para aquele
+dia: trinta linhas de componente, um botão com cara de campo, e um toast
+dizendo que a busca não estava pronta. Um campo que aceita texto e não faz
+nada é pior que um botão honesto — a pessoa conclui que o sistema quebrou.
+
+#### A LINHA MAIS IMPORTANTE É A QUE NÃO ESTÁ NA MIGRATION
+
+**`busca_global()` não é `security definer`.** Uma função `plpgsql` comum roda
+com o `current_user` de quem a chamou, então a policy das NOVE tabelas vale
+dentro dela — e é por isso que nem a consulta nem a paleta repetem filtro de
+permissão nenhum. Repetir criaria o segundo lugar onde a regra pode divergir, e
+seria o pior segundo lugar do produto: uma chamada só que lê `clients`,
+`assets` e `client_requests` de uma vez.
+
+**E o modo de falha é o do `security_invoker` da `calendar_events`: num banco
+com um cliente só, vazar tudo e mostrar o certo têm a mesma cara.** Por isso a
+bateria busca com material das DUAS empresas e pergunta a quatro pessoas de
+três perfis — trocando uma palavra na 0073, **sete cenários caem** e dizem o
+que vazaria.
+
+#### O acento é `translate`, e não a extensão `unaccent`
+
+Digitar "midia" tem que achar "mídia", e são dois problemas empilhados. O
+segundo é o que morde: **`lower()` não dobra acento, e o que ele faz depende do
+locale do banco.** Foi medido — no Postgres da bateria, que é locale C,
+`lower('GRÁFICA')` devolve `grÁfica`, uma forma que nunca casa com nada; em
+produção, com locale UTF-8, o mesmo `lower()` funciona. A versão ingênua
+passaria numa máquina e falharia na outra, conforme a cópia do banco.
+
+**É o `grep -i` do `check:cores` de novo**, que dizia "ok" numa máquina e
+falhava no CI para o mesmo commit. A saída é a mesma: não depender de variável
+de ambiente para saber ler.
+
+`sem_acento()` dobra pelo `translate`, **com as duas caixas no mapa** para o
+acento sair antes do `lower()`. Não é `unaccent` por três razões: extensão se
+habilita no painel do Supabase e um `create extension` falha em qualquer
+ambiente sem ela — a lição do `pg_cron` na 0072 —; `unaccent()` é `stable` e
+não entra em índice sem um invólucro; e **o conjunto de acentos do português é
+fechado**, ao contrário da lista de nomes mortos.
+
+#### `strpos` e não `like`, e o que isso resolve de graça
+
+Com `like '%termo%'`, quem busca "100%" busca qualquer coisa — o `%` vira
+curinga. `strpos` não tem curinga e **devolve ONDE casou**, que é a ordenação:
+posição 1 é casamento no começo do nome, e digitar "mun" põe "Mundo Verde"
+acima de "Comunicado da Mundo".
+
+Recência foi considerada e cai por um motivo mecânico: os grupos têm seis
+linhas, e em seis linhas o sinal útil é "o nome começa com o que eu digitei",
+não "foi mexido ontem".
+
+*O custo, dito em vez de escondido:* nenhum dos dois usa índice sem `pg_trgm`,
+então isto varre as nove tabelas. Numa agência com algumas centenas de demandas
+é barato; no dia em que não for, a saída é um índice de expressão sobre
+`sem_acento(titulo)` — que é por que ela é `immutable`.
+
+#### O limite é POR TIPO, e o corte diz quantos sobraram
+
+Um limite global de dez com trinta demandas casando mostraria **zero
+clientes** — e quem digita "Mundo" quase sempre quer a empresa. A paleta agrupa
+por tipo, e cada grupo precisa poder responder.
+
+E o `total` de cada ramo é `count(*) over ()`, que roda **antes** do `limit`:
+é a única forma de ele contar o que foi cortado. É a regra do Resumo da
+Agência — cortar calado faz a pessoa concluir que aquilo é tudo.
+
+#### O que ela busca, e o que ela não busca
+
+**O NOME, nunca o corpo.** Briefing, legenda, pauta e descrição ficam de fora:
+casar no corpo devolve a demanda cujo briefing menciona "gráfica" por acaso, e
+quem lê a linha não tem como ver POR QUE ela casou — o título na tela não
+contém o que foi digitado. A exceção são os campos que alguém DIGITA para achar
+uma coisa: o contato da empresa, o código de patrimônio e o número de série.
+
+São nove entidades, e cada uma entrou porque **tem uma tela de detalhe para
+onde levar**. Ficaram de fora as Recomendações (sem rota de detalhe, e o feed
+já tem busca na URL), os eventos (a tela deles é o calendário), o workflow e a
+recorrência (são configuração, e quem mexe nelas já está na aba), o lançamento
+financeiro (é um número, não um nome) e o **entregável** — a peça de campanha É
+uma subtarefa desde a 0051 e já entra pelo ramo de etapa, com a linhagem; somar
+as duas poria o mesmo trabalho duas vezes, que é a conta que a 0061 recusou.
+
+**E a subtarefa de post fica fora do ramo de etapa**, pela mesma razão: ela
+carrega o tema do post como título, e o post tem ramo próprio. Sem essa linha,
+buscar o tema devolveria duas linhas para o mesmo trabalho, levando a duas
+telas — e a certa é a do post, que é onde o card se preenche.
+
+#### O rascunho ENTRA, e é decisão
+
+A regra escrita diz que rascunho não entra em lista, board, calendário, Minhas
+Tasks, contador, relatório, notificação nem portal — e **todos aqueles
+respondem "qual é o trabalho da agência"**, onde um pensamento pela metade não
+cabe. A busca responde outra pergunta: *"onde está a coisa que eu tenho em
+mente"*, e um rascunho é exatamente a coisa que ninguém acha.
+
+A trava é a RLS **restritiva** da 0028 e não um filtro na consulta: o que volta
+é o meu e de mais ninguém — nem do sócio. O selo diz que ele ainda não existe
+para a equipe. Para reverter, é uma linha no ramo de demanda.
+
+#### O grupo "Equipe" só responde para a gestão, e não é escolha da busca
+
+`profiles_select` é `own or is_gestor()` desde o Sprint 2: **um colaborador lê
+exatamente UM perfil, o dele.** Então buscar o nome de um colega devolve nada
+para quem não é gestão, e a busca herda isso sem uma linha a respeito.
+
+**O cenário da bateria existe para o dia em que alguém achar que a busca está
+quebrada e "consertar" com `security definer`:** isso não consertaria a busca,
+abriria a tabela de perfis da agência inteira. Se a regra tiver que mudar, muda
+na policy — num lugar, para as vinte telas que leem `profiles`.
+
+#### A paleta, e por que nada dela mora na URL
+
+⌘K / Ctrl+K abre de qualquer tela. **E não `/`**, que já é a busca de demandas
+dentro da Gestão de Tasks — o atalho de lá começa com
+`if (metaKey || ctrlKey || altKey) return`, então os dois não colidem **por
+construção e não por sorte**.
+
+**Nada mora na URL**, ao contrário de todo filtro de listagem. A convenção
+existe porque "olha o dia 15" precisa ser um link; a paleta não é uma
+visualização de dados, é um CAMINHO até uma tela — e o link que interessa é o
+do destino. Pior: com o termo na URL, voltar da tela escolhida reabriria a
+paleta em cima dela.
+
+**A recusa aparece, e nunca vira lista vazia.** Aqui "não achei" é a resposta
+normal, então uma falha silenciosa seria indistinguível da verdade — a pessoa
+concluiria que a demanda não existe. O erro mora dentro da paleta e não num
+toast, senão um clique por tecla empilharia avisos.
+
+**O ícone das três áreas vem de `ICONE_DA_AREA`**, e não é zelo: demanda,
+campanha e Social Media já têm um desenho ao lado do nome delas em Minhas
+Tasks, e aquele mapa nasceu de três cópias das quais duas já tinham divergido.
+Uma quarta aqui poria o Social com um ícone na paleta e outro na lista, a dois
+cliques de distância.
+
+**A resposta é guardada com o TERMO que a produziu**, e esse par faz três
+trabalhos: é a guarda de corrida (digitando rápido, a resposta de "mun" pode
+chegar depois da de "mundo verde"), é o estado "buscando" derivado em vez de
+armazenado, e é o que impede "nada com esse nome" de aparecer no intervalo
+entre a tecla e a resposta. De quebra é o que permite o efeito não chamar
+`setState` no corpo dele, que o `lint` do projeto reprova.
+
+#### Quatro coisas que só a imagem pegou
+
+- **`role="listbox"` sem `role="option"` dentro é ARIA inválido**
+  (`aria-required-children`, crítico no axe), e os dois estados vazios caíam
+  nisso. O papel passou a existir só quando há opção; o `id` fica, porque o
+  `aria-controls` do campo aponta para ele.
+- **O realce não se lia.** `font-medium` contra `font-semibold` é um degrau de
+  500 para 600 — invisível a 14px. O título virou `font-normal`, e 400 contra
+  600 salta.
+- **O stub do protótipo casava no contexto de TODOS os tipos**, e a função de
+  verdade só tem segundo campo em cliente, pessoa e equipamento. A imagem saía
+  com cinco linhas sem realce nenhum, que a busca de verdade não devolve — uma
+  paleta que confere o stub e não o produto.
+- **E o stub não aplicava o limite por grupo**, então a imagem mostrava oito
+  demandas onde o produto corta em seis — sem o "e mais 2" embaixo, que é
+  justamente a linha que nenhuma outra tela do produto desenha.
+
+#### `digitar` no gerador de protótipo
+
+A paleta é a primeira tela do produto em que o clique não basta: ela abre
+vazia, dizendo "digite ao menos 2 letras", e uma imagem dela sem texto
+fotografa o estado que menos interessa. `digitar: { onde, texto }` preenche o
+campo depois dos cliques, e espera mais que o debounce de 300 ms — senão a
+imagem sai com o rodinha de carregando, que passaria como se fosse a tela
+pronta.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -5692,7 +5865,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
-| `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
+| `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. **Ela ATRAVESSA LINHA desde a busca global, e não atravessava:** a expressão exigia o `nome:` e o `clicar:` na MESMA linha, então toda entrada escrita em mais de uma — que é como as longas são escritas — ficava fora da conferência. Ela dizia "31 textos, todos no produto" sem nunca ter olhado para treze deles; hoje são 44. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
 | `scripts/agendar-rotinas.sql` | **Liga as rotinas diárias**, por `pg_cron`. Cola no SQL Editor uma vez, depois de habilitar a extensão em Database → Extensions. É **script e não migration** por duas razões: a extensão se habilita no painel, então um `create extension` falharia em qualquer ambiente sem ela; e agendamento não é schema, é escolha de operação. Traz também o `select` que confere e o `cron.job_run_details` que mostra cada execução — o único lugar onde se vê que a rotina rodou e não fez nada por não haver o que fazer, que é o caso normal e é indistinguível de não ter rodado. E o `unschedule` para desligar: aí `rotinas_agendadas()` volta a devolver false e as duas telas voltam a dizer que a geração é manual, sozinhas |

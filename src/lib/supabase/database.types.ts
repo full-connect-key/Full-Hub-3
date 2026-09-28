@@ -2870,6 +2870,26 @@ export interface Database {
        */
       rotinas_agendadas: { Args: Record<string, never>; Returns: boolean };
       /**
+       * A BUSCA DA TOPBAR (0073).
+       *
+       * Ela **não** é `security definer`: a RLS das nove tabelas é quem decide
+       * o que cada perfil acha, e é por isso que a consulta daqui não repete
+       * filtro nenhum.
+       */
+      busca_global: {
+        Args: { p_termo: string; p_limite?: number };
+        Returns: {
+          tipo: string;
+          id: string;
+          titulo: string;
+          contexto: string | null;
+          caminho: string;
+          selo: string | null;
+          posicao: number;
+          total: number;
+        }[];
+      };
+      /**
        * O LIMITE DE TENTATIVAS (0056).
        *
        * As duas só são chamáveis pela CHAVE DE SERVIÇO: a migration revoga o

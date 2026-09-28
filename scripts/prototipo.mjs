@@ -86,6 +86,36 @@ const TELAS = [
   { nome: "10h-meu-perfil", rota: "/painel/perfil", largura: 1440, altura: 1000, role: "socio" },
   { nome: "10i-equipe-desenvolvedor", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "desenvolvedor", clicar: 'button:has-text("Adicionar colaborador")' },
 
+  // ---------------------------------------------------------------------
+  // A PALETA DE BUSCA (0073), e sao QUATRO telas porque ela e a primeira do
+  // produto cujos estados dizem coisas diferentes com a mesma cara:
+  //
+  //   * VAZIA -- o que a pessoa ve no instante do atalho, com a frase que
+  //     diz quantas letras faltam. Sem ela, ninguem confere o estado em que
+  //     a paleta passa mais tempo;
+  //   * CHEIA -- os grupos na ordem, o realce do trecho que casou, o selo do
+  //     rascunho, a linhagem `Cliente · Demanda` da etapa. E a unica tela
+  //     que prova que `agruparBusca()` desenha o que a 0073 devolve;
+  //   * SEM NADA -- "Nada com esse nome", que e diferente de "digite mais";
+  //   * em 375px -- a paleta ocupa a tela inteira no celular, e o gatilho
+  //     ali e um icone e nao o campo, porque o campo nao cabe.
+  //
+  // O TERMO E "a" COM ACENTO DE PROPOSITO na tela cheia: ele e o unico jeito
+  // de a imagem mostrar que o realce cai EM CIMA do acento e nao ao lado
+  // dele -- o indice e medido na forma dobrada e aplicado na original, e isso
+  // so funciona porque a dobra troca letra por letra.
+  { nome: "12a-busca-vazia", rota: "/painel", largura: 1440, altura: 900, role: "socio",
+    clicar: 'button:has-text("Buscar na plataforma")' },
+  { nome: "12b-busca-com-resultado", rota: "/painel", largura: 1440, altura: 1000, role: "socio",
+    clicar: 'button:has-text("Buscar na plataforma")',
+    digitar: { onde: 'input[aria-label="Buscar na plataforma"]', texto: "outubro" } },
+  { nome: "12c-busca-sem-nada", rota: "/painel", largura: 1440, altura: 700, role: "socio",
+    clicar: 'button:has-text("Buscar na plataforma")',
+    digitar: { onde: 'input[aria-label="Buscar na plataforma"]', texto: "xilofone" } },
+  { nome: "12d-busca-375", rota: "/painel", largura: 375, altura: 812, role: "colaborador",
+    clicar: 'button[aria-label="Buscar na plataforma"]',
+    digitar: { onde: 'input[aria-label="Buscar na plataforma"]', texto: "midia" } },
+
   { nome: "20-tasks-board", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio" },
   { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },
   { nome: "22-tasks-lista", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio" },
@@ -489,6 +519,10 @@ const SUBSTITUICOES = {
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
   "@/lib/dados/solicitacoes": ["./scripts/prototipo/solicitacoes.ts"],
   "@/lib/dados/comodatos": ["./scripts/prototipo/comodatos.ts"],
+  // A BUSCA ENTRA AQUI PORQUE A PALETA ABRE DE QUALQUER TELA: o campo mora
+  // na topbar do layout, e sem o stub a acao chamaria o Supabase de dentro
+  // de uma rodada em que o dominio das consultas e `.invalid`.
+  "@/lib/dados/busca": ["./scripts/prototipo/busca.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -978,7 +1012,30 @@ try {
           }
         }
         await pagina.waitForTimeout(400);
+      }
 
+      // ---------------------------------------------------------------------
+      // `digitar` EXISTE POR CAUSA DA PALETA DE BUSCA (0073), que e a primeira
+      // tela do produto em que o clique nao basta: ela abre vazia, dizendo
+      // "digite ao menos 2 letras", e uma imagem dela sem texto fotografa o
+      // estado que menos interessa. O que precisa ser conferido e a lista
+      // agrupada, o realce do trecho que casou e o "e mais N" do corte.
+      //
+      // O DEBOUNCE E A RAZAO DA ESPERA. A busca tem 300ms de pausa por
+      // desenho: sem esperar mais que isso, a imagem sai com o rodinha de
+      // carregando -- que passaria como se fosse a tela pronta.
+      // ---------------------------------------------------------------------
+      if (tela.digitar) {
+        const { onde, texto } = tela.digitar;
+        try {
+          await pagina.fill(onde, texto, { timeout: 15000 });
+          await pagina.waitForTimeout(1200);
+        } catch {
+          faltou = faltou ?? `${onde} (digitar)`;
+        }
+      }
+
+      if (tela.clicar || tela.digitar) {
         // O sonner marca o toast com `data-type`. So o de ERRO conta: um
         // "salvo" verde e o desfecho certo de varias destas telas.
         const erro = await pagina

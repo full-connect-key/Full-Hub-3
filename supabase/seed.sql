@@ -37,7 +37,25 @@
 --         { "nome": "Ana Souza", "role": "socio" }
 --     Depois rode a partir de "PARTE 2".
 --
--- Rodar de novo nao duplica nada.
+-- ---------------------------------------------------------------------------
+-- RODAR DE NOVO NAO DUPLICA NADA, E ISSO E MEDIDO EM VEZ DE PROMETIDO.
+--
+-- A frase esta aqui desde o Sprint 0 e ja deixou de ser verdade duas vezes --
+-- as duas descobertas por acaso, porque um cabecalho nao confere o que
+-- promete. A conferencia e: aplicar as migrations em dois bancos limpos, rodar
+-- este arquivo UMA vez num e TRES no outro, e comparar a contagem de linhas de
+-- toda tabela de `public`. Hoje elas batem em todas, MENOS em duas:
+--
+--   * `audit_log` cresce, e esta certo. A segunda passada realmente apaga e
+--     recria linhas, e a trilha e append-only de proposito -- nem o socio
+--     reescreve nem apaga uma linha dela (0058). Um seed que a aparasse estaria
+--     contrariando o modulo que ele semeia.
+--   * `notifications` cresce pela mesma razao: nao existe policy de DELETE, e
+--     cada passada toca os sinos de verdade.
+--
+-- As duas sao as tabelas de EVENTO do produto. As de COISA batem, e e nelas
+-- que a promessa vale.
+-- ---------------------------------------------------------------------------
 -- ===========================================================================
 
 
@@ -1326,6 +1344,14 @@ begin
    where cu.client_id = verde and pr.role = 'cliente'
    limit 1;
 
+  -- A DEMANDA DA CAMPANHA SAI JUNTO, e ela e apagada ANTES: `campaigns.task_id`
+  -- aponta para ela, e sem esta linha a segunda passada do seed deixava a
+  -- demanda antiga no board, orfa, ao lado da nova -- dois "Wave Outubro Rosa"
+  -- com as mesmas etapas. O `delete` de `campaigns` logo abaixo nao a alcanca,
+  -- porque a chave vai no sentido contrario.
+  delete from public.tasks
+   where id in (select task_id from public.campaigns
+                 where client_id = verde and task_id is not null);
   delete from public.campaigns where client_id = verde;
 
   perform set_config('request.jwt.claim.sub', diego::text, true);
@@ -1636,6 +1662,18 @@ begin
     return;
   end if;
 
+  -- A DEMANDA GERADA SAI ANTES DA REGRA, e a ordem e o conserto.
+  -- `recurrence_id` e `on delete set null` DE PROPOSITO (0040): apagar a regra
+  -- nao pode apagar trabalho de verdade, com comentario, tempo lancado e
+  -- aprovacao. So que aqui isso significa que apagar a regra ORFANA o que ela
+  -- gerou em vez de limpar -- e a segunda passada do seed gerava tudo de novo,
+  -- deixando duas "Stories Setembro" e dois "Relatorio de midia" no board.
+  -- Quem encontrou foi a busca global: ela devolveu a mesma demanda duas vezes
+  -- num banco onde este arquivo tinha rodado duas vezes.
+  delete from public.tasks
+   where recurrence_id in (
+     select id from public.task_recurrences where criado_por = carla
+   );
   delete from public.task_recurrences where criado_por = carla;
 
   perform set_config('request.jwt.claim.sub', carla::text, true);

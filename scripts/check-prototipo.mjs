@@ -257,9 +257,26 @@ async function textoDaArvore(raiz, aceita) {
 
 console.log("\nOs cliques do protótipo apontam para texto que existe\n");
 
-// Uma linha de `TELAS` por vez: o nome e o `clicar` daquela linha precisam
+// Uma entrada de `TELAS` por vez: o nome e o `clicar` daquela entrada precisam
 // andar juntos para a mensagem dizer QUAL tela tem o seletor morto.
-const comClique = [...(gerador ?? "").matchAll(/\{\s*nome:\s*"([^"]+)"[^\n]*?clicar:\s*(\[[^\]]*\]|'[^']*'|"[^"]*")/g)];
+//
+// ELE ATRAVESSA LINHA, E A PRIMEIRA VERSAO NAO ATRAVESSAVA: ela usava
+// `[^\n]*?` entre o `nome:` e o `clicar:`, entao toda entrada escrita em mais
+// de uma linha -- que e como as longas sao escritas neste arquivo -- ficava
+// FORA da conferencia. A checagem dizia "31 textos, todos no produto" sem
+// nunca ter olhado para uma dezena deles.
+//
+// E o sintoma seria o pior possivel: um seletor morto numa entrada de duas
+// linhas sobreviveria a checagem, a tela sairia sem o clique, e o aviso viria
+// no fim de uma rodada de quinze minutos que nao esta no CI. E exatamente o
+// modo de falha que esta checagem existe para evitar.
+//
+// `(?:(?!nome:)[\s\S])*?` e o que faz ela atravessar sem atravessar DEMAIS:
+// sem a guarda do `nome:`, o `nome` de uma entrada casaria com o `clicar` da
+// seguinte, e a mensagem apontaria a tela errada -- que e pior que nao apontar.
+const comClique = [...(gerador ?? "").matchAll(
+  /\{\s*nome:\s*"([^"]+)"(?:(?!nome:)[\s\S])*?clicar:\s*(\[[^\]]*\]|'[^']*'|"[^"]*")/g,
+)];
 
 const fonte =
   (await textoDaArvore(path.join(RAIZ, "src"), (n) => /\.(tsx?|svg)$/.test(n))) +

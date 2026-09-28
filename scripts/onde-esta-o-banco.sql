@@ -208,7 +208,13 @@ from (
     -- A 0072 cria UMA funcao, e e ela que as duas faixas do produto consultam
     -- para dizer se a geracao roda de madrugada. `funcao` e nao `sem_execute`:
     -- aqui o que nasce e o objeto, e a 0071 ja cobre o lado do revoke.
-    ('0072', 'rotinas_agendadas()',        'funcao',       'rotinas_agendadas')
+    ('0072', 'rotinas_agendadas()',        'funcao',       'rotinas_agendadas'),
+    -- A 0073 cria DUAS funcoes, e a linha aponta para `busca_global` e nao para
+    -- `sem_acento`: a segunda e o ajudante da primeira, e um banco que tem uma
+    -- sem a outra nao existe -- as duas nascem no mesmo arquivo. Apontar para a
+    -- que a tela chama e o que faz a resposta ser util: sem ela, a topbar
+    -- devolve "Could not find the function".
+    ('0073', 'busca_global()',             'funcao',       'busca_global')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
