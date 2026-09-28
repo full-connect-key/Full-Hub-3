@@ -275,7 +275,12 @@ const esquemaDeLancamento = z.object({
   tipo: z.enum(["ferias", "licenca", "ausencia"]),
   data_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data inicial."),
   data_fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data final."),
-  ano_referencia: z.number().int().min(2000).max(2100).nullable().optional(),
+  // SEM ano de referência, e a ausência tem data: a 0039 apagou a coluna
+  // `hr_requests.ano_referencia` e tirou o parâmetro das três funções que o
+  // recebiam. O saldo deixou de ser por ano civil e virou um número corrido
+  // por ciclo de doze meses contado da entrada da pessoa — sem conta anual não
+  // há a que atribuir um período: os dias contam, e o ciclo em que caem não
+  // muda nada.
   observacao: z.string().trim().max(1000).nullable().optional(),
 });
 
@@ -322,7 +327,6 @@ export async function lancarPeriodo(dados: unknown): Promise<Resultado<string>> 
       p_tipo: entrada.tipo,
       p_data_inicio: entrada.data_inicio,
       p_data_fim: entrada.data_fim,
-      p_ano_referencia: entrada.ano_referencia ?? null,
       p_observacao: entrada.observacao ?? null,
     });
 
@@ -376,7 +380,6 @@ export async function corrigirLancamento(dados: unknown): Promise<Resultado> {
       p_request_id: entrada.id,
       p_data_inicio: entrada.data_inicio,
       p_data_fim: entrada.data_fim,
-      p_ano_referencia: entrada.ano_referencia ?? null,
       p_observacao: entrada.observacao ?? null,
     });
 

@@ -460,5 +460,287 @@ secao("Enum criado por migration e ausente do tipo");
   isenta("os VALORES de cada enum não são conferidos: valor órfão é normal aqui");
 }
 
+// ---------------------------------------------------------------------------
+// A TERCEIRA PERGUNTA: O ARGUMENTO DA RPC EXISTE?
+//
+// As duas seções de cima cuidam de COLUNA. Esta cuida de PARÂMETRO DE FUNÇÃO, e
+// ela nasceu de um bug que chegou na tela de quem usa o sistema: a tela de
+// Registrar período respondia *"Could not find the function
+// public.lancar_periodo(p_ano_referencia, …) in the schema cache"*. A 0039
+// tinha tirado `p_ano_referencia` das três funções que o recebiam, o
+// `database.types.ts` estava CERTO — quem ficou para trás foi a chamada.
+//
+// **E o TypeScript não pega, o que é o ponto inteiro desta seção.** A
+// assinatura do `rpc` no postgrest-js é
+//
+//   rpc<FnName, Args extends Schema["Functions"][FnName]["Args"] = never>(
+//     fn: FnName, args?: Args, …)
+//
+// e `args?: Args` é sítio de INFERÊNCIA: o TypeScript lê o tipo do literal que
+// foi passado e só confere que ele satisfaz a restrição. Um objeto com uma
+// chave A MAIS satisfaz — a checagem de propriedade excedente não vale quando o
+// alvo é um parâmetro de tipo nu. Então `npm run typecheck`, `lint` e `build`
+// passam os três, e o PostgREST — que resolve função por NOME MAIS NOMES DOS
+// ARGUMENTOS — responde que não existe função nenhuma com aquela assinatura.
+//
+// É o mesmo modo de falha das duas seções acima, um andar abaixo: compila, o
+// editor autocompleta, e a recusa é da pessoa que clicou.
+//
+// As três comparações fecham a corrente migration → tipo → chamada. Quebrar
+// qualquer elo cai aqui.
+// ---------------------------------------------------------------------------
+
+/** Os parâmetros de cada função viva nas migrations, na ordem de aplicação. */
+function assinaturasDasMigrations() {
+  const vivas = new Map(); // nome -> [parametros]
+  for (const arquivo of arquivos) {
+    const sql = semComentarios(readFileSync(join(MIGRATIONS, arquivo), "utf8"));
+
+    // O `drop` vem antes do `create` no mesmo arquivo quando a aridade muda --
+    // é o que a 0039 faz de propósito, para não criar uma sobrecarga que a
+    // chamada antiga continuaria resolvendo. Então os dois são lidos na ordem
+    // em que aparecem, e não em dois passes.
+    const eventos = [...sql.matchAll(
+      /\b(create\s+(?:or\s+replace\s+)?function|drop\s+function(?:\s+if\s+exists)?)\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi,
+    )];
+
+    for (const ev of eventos) {
+      const nome = ev[2].toLowerCase();
+      const ehDrop = /^drop/i.test(ev[1]);
+      // A lista de parâmetros, contando parênteses: um `default` pode trazer
+      // chamada de função dentro, e cortar no primeiro `)` partiria a lista.
+      let i = ev.index + ev[0].length;
+      let nivel = 1;
+      const inicio = i;
+      while (i < sql.length && nivel > 0) {
+        if (sql[i] === "(") nivel += 1;
+        else if (sql[i] === ")") nivel -= 1;
+        i += 1;
+      }
+      if (nivel !== 0) continue;
+      const lista = sql.slice(inicio, i - 1);
+
+      if (ehDrop) {
+        vivas.delete(nome);
+        continue;
+      }
+
+      // Cada parâmetro é `nome tipo [default ...]`. O `drop` traz só os tipos,
+      // e por isso ele não chega aqui.
+      const parametros = [];
+      let profundidade = 0;
+      let atual = "";
+      for (const c of lista) {
+        if (c === "(") profundidade += 1;
+        if (c === ")") profundidade -= 1;
+        if (c === "," && profundidade === 0) {
+          parametros.push(atual);
+          atual = "";
+        } else atual += c;
+      }
+      parametros.push(atual);
+
+      vivas.set(
+        nome,
+        parametros
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => {
+            // `out`/`inout` viriam antes do nome; nenhuma função deste projeto
+            // usa, e ignorá-las daria um parâmetro chamado "out".
+            const limpo = p.replace(/^(in|out|inout|variadic)\s+/i, "");
+            const m = limpo.match(/^([a-z_][a-z0-9_]*)\s+\S/i);
+            return m ? m[1].toLowerCase() : null;
+          })
+          .filter(Boolean),
+      );
+    }
+  }
+  return vivas;
+}
+
+/** O que o `Functions` do tipo declara: nome -> Set de argumentos. */
+function funcoesDoTipo(corpo) {
+  const mapa = new Map();
+  let i = 0;
+  let nivel = 0;
+  while (i < corpo.length) {
+    if (corpo.startsWith("/*", i)) {
+      const fim = corpo.indexOf("*/", i);
+      i = fim === -1 ? corpo.length : fim + 2;
+      continue;
+    }
+    if (corpo.startsWith("//", i)) {
+      const fim = corpo.indexOf("\n", i);
+      i = fim === -1 ? corpo.length : fim;
+      continue;
+    }
+    if (nivel === 0) {
+      const m = corpo.slice(i).match(/^([a-z_][a-z0-9_]*)\s*:\s*\{/i);
+      if (m) {
+        const nome = m[1].toLowerCase();
+        const corpoDaFuncao = bloco(corpo, `${m[1]}`, i);
+        if (corpoDaFuncao) {
+          const dentro = corpoDaFuncao.corpo;
+          if (/Args:\s*Record<string,\s*never>/.test(dentro)) {
+            mapa.set(nome, new Set());
+          } else {
+            const args = bloco(dentro, "Args");
+            mapa.set(nome, new Set(args ? chavesDoNivel(args.corpo) : []));
+          }
+          i = corpoDaFuncao.fim + 1;
+          continue;
+        }
+      }
+    }
+    if (corpo[i] === "{") nivel += 1;
+    else if (corpo[i] === "}") nivel -= 1;
+    i += 1;
+  }
+  return mapa;
+}
+
+/** Todo `.rpc("nome", { ... })` de `src/`, com as chaves que ele manda. */
+function chamadasDeRpc() {
+  const achados = [];
+  const arquivosTs = [];
+  (function andar(dir) {
+    for (const item of readdirSync(dir, { withFileTypes: true })) {
+      const caminho = join(dir, item.name);
+      if (item.isDirectory()) andar(caminho);
+      else if (/\.tsx?$/.test(item.name)) arquivosTs.push(caminho);
+    }
+  })(join(RAIZ, "src"));
+
+  for (const caminho of arquivosTs) {
+    const texto = readFileSync(caminho, "utf8");
+    for (const m of texto.matchAll(/\.rpc\(\s*"([a-z_][a-z0-9_]*)"\s*,\s*\{/gi)) {
+      let i = m.index + m[0].length - 1;
+      let nivel = 0;
+      const inicio = i;
+      while (i < texto.length) {
+        if (texto[i] === "{") nivel += 1;
+        else if (texto[i] === "}") {
+          nivel -= 1;
+          if (nivel === 0) break;
+        }
+        i += 1;
+      }
+      achados.push({
+        arquivo: caminho.slice(RAIZ.length),
+        linha: texto.slice(0, m.index).split("\n").length,
+        nome: m[1].toLowerCase(),
+        chaves: chavesDoNivel(texto.slice(inicio + 1, i)),
+      });
+    }
+    // A chamada SEM objeto nenhum -- `rpc("is_staff")` -- não manda chave, e
+    // não pode virar "função sem chamada": ela é o caso normal das funções de
+    // `Args: Record<string, never>`.
+    for (const m of texto.matchAll(/\.rpc\(\s*"([a-z_][a-z0-9_]*)"\s*\)/gi)) {
+      achados.push({
+        arquivo: caminho.slice(RAIZ.length),
+        linha: texto.slice(0, m.index).split("\n").length,
+        nome: m[1].toLowerCase(),
+        chaves: [],
+      });
+    }
+  }
+  return achados;
+}
+
+const blocoFuncoes = bloco(fonte, "    Functions");
+const funcoesDeclaradas = blocoFuncoes ? funcoesDoTipo(blocoFuncoes.corpo) : new Map();
+const funcoesDoBanco = assinaturasDasMigrations();
+
+secao("Argumento declarado no tipo e ausente da função no banco");
+if (!blocoFuncoes) {
+  falha("não achei o bloco Functions do database.types.ts", "o formato do arquivo mudou");
+} else {
+  let achou = 0;
+  for (const [nome, args] of [...funcoesDeclaradas].sort()) {
+    const noBanco = funcoesDoBanco.get(nome);
+    // A função que nenhuma migration cria não é conferida aqui: é `auth.uid()`
+    // e companhia, e uma checagem que reclama delas vira uma lista que ninguém
+    // lê.
+    if (!noBanco) continue;
+    const sobrando = [...args].filter((a) => !noBanco.includes(a));
+    if (sobrando.length) {
+      falha(
+        `${nome}: ${sobrando.join(", ")}`,
+        "o tipo declara, o banco não tem. Compila, autocompleta, e o PostgREST " +
+          "recusa a chamada inteira: resolve função por nome MAIS nomes dos argumentos.",
+      );
+      achou += 1;
+    }
+  }
+  if (achou === 0) ok(`${funcoesDeclaradas.size} função(ões) conferida(s)`);
+}
+
+// E UM PARÂMETRO PODE LEGITIMAMENTE FICAR DE FORA DO TIPO: aquele cujo default
+// é a única resposta que a tela tem o direito de dar. Ele precisa de MOTIVO
+// ESCRITO e não de silêncio -- é a mesma decisão do `SO_POR_RPC` acima e do
+// `-- SEM LINHA: 0026` do `onde-esta-o-banco.sql`. Tirar um parâmetro daqui é
+// uma escolha; esquecê-lo não é.
+const DEFAULT_E_A_RESPOSTA = {
+  "lancar_periodo.p_origem":
+    "o default é `lancamento_retroativo`, que é o único valor que a tela lança. " +
+    "Oferecê-lo no tipo poria `solicitacao` ao alcance de um autocompletar -- e " +
+    "a função recusa esse valor na segunda linha, porque pedido normal passa " +
+    "pela aba Solicitar. Importar arquivo, se um dia existir, é outro caminho.",
+};
+
+secao("Parâmetro da função no banco e ausente do tipo");
+{
+  let achou = 0;
+  for (const [nome, args] of [...funcoesDeclaradas].sort()) {
+    const noBanco = funcoesDoBanco.get(nome);
+    if (!noBanco) continue;
+    for (const p of noBanco) {
+      const motivo = DEFAULT_E_A_RESPOSTA[`${nome}.${p}`];
+      if (motivo && !args.has(p)) isenta(`${nome}.${p}: ${motivo}`);
+    }
+    const faltando = noBanco.filter(
+      (p) => !args.has(p) && !DEFAULT_E_A_RESPOSTA[`${nome}.${p}`],
+    );
+    if (faltando.length) {
+      falha(
+        `${nome}: ${faltando.join(", ")}`,
+        "o banco aceita, o tipo não oferece. Nenhuma tela consegue mandá-lo, e " +
+          "o parâmetro fica sendo o default da função sem ninguém ver.",
+      );
+      achou += 1;
+    }
+  }
+  if (achou === 0) ok("nenhum parâmetro invisível ao produto");
+}
+
+secao("Chamada que manda argumento que o tipo não declara");
+{
+  const chamadas = chamadasDeRpc();
+  let achou = 0;
+  for (const c of chamadas) {
+    const args = funcoesDeclaradas.get(c.nome);
+    if (!args) {
+      falha(
+        `${c.arquivo}:${c.linha} chama ${c.nome}`,
+        "e o database.types.ts não declara essa função.",
+      );
+      achou += 1;
+      continue;
+    }
+    const sobrando = c.chaves.filter((k) => !args.has(k));
+    if (sobrando.length) {
+      falha(
+        `${c.arquivo}:${c.linha} ${c.nome}: ${sobrando.join(", ")}`,
+        "`args?: Args` é sítio de inferência, então chave a mais NÃO é erro de " +
+          "tipo -- passa no typecheck, no lint e no build, e o PostgREST responde " +
+          "\"could not find the function ... in the schema cache\".",
+      );
+      achou += 1;
+    }
+  }
+  if (achou === 0) ok(`${chamadas.length} chamada(s) de RPC conferida(s)`);
+}
+
 console.log(problemas === 0 ? "\nTudo certo.\n" : `\n${problemas} problema(s).\n`);
 process.exit(problemas === 0 ? 0 : 1);
