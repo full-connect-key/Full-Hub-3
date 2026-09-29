@@ -204,11 +204,39 @@ const PARES = [
   ["--text-on-dark-muted", "--surface-sidebar", NORMAL, "item discreto do menu"],
   ["--text-on-dark-muted", "--surface-sidebar-2", NORMAL, "item discreto sobre hover"],
 
-  // O painel da marca na tela de login. Fundo próprio, escuro nos DOIS temas
-  // como a barra lateral — então o texto em cima dele precisa ser medido
-  // aqui, e não herdar a conta de nenhuma superfície que troca com o tema.
-  ["--text-on-dark", "--brand-navy", NORMAL, "nome do produto no painel da marca"],
-  ["--text-on-dark-muted", "--brand-navy", NORMAL, "frase de apoio no painel da marca"],
+  // `--brand-navy` como superfície. Ele era o painel da marca na tela de login,
+  // que SAIU quando a porta virou preta com a molécula — e continua sendo o
+  // fundo da faixa de identidade do portal do cliente quando a empresa não
+  // subiu capa. Fundo próprio, escuro nos DOIS temas como a barra lateral,
+  // então o texto em cima dele é medido aqui e não herda a conta de nenhuma
+  // superfície que troca com o tema.
+  ["--text-on-dark", "--brand-navy", NORMAL, "nome sobre o azul escuro da marca"],
+  ["--text-on-dark-muted", "--brand-navy", NORMAL, "apoio sobre o azul escuro da marca"],
+
+  // --- A PORTA: as quatro telas de (auth) -----------------------------------
+  //
+  // O vidro do cartão é medido contra o PIOR CASO, e é essa a única conta
+  // honesta aqui: o fundo é preto com a molécula azul passando, então o fundo
+  // efetivo de um texto do cartão vai de quase preto até o composto do vidro
+  // sobre o ponto MAIS CLARO dela. **Ninguém mede uma cor que anda** — quem
+  // garante o contraste é o cartão, e é contra o pior caso dele que os três
+  // tokens de texto precisam fechar.
+  //
+  // Medir contra `--auth-fundo` (preto) passaria por larga margem afirmando
+  // algo que a tela não garante: a proposta usava vidro a 58%, e nesse valor
+  // `--auth-apoio` dava 2,50:1 contra o pior caso e 15:1 contra o preto. As
+  // duas contas existiam; só uma descrevia a tela.
+  ["--auth-texto", "--vidro-no-pior-caso", NORMAL, "título e valor digitado na porta"],
+  ["--auth-rotulo", "--vidro-no-pior-caso", NORMAL, "rótulo de campo na porta"],
+  ["--auth-apoio", "--vidro-no-pior-caso", NORMAL, "subtítulo, link e placeholder na porta"],
+  // O azul da marca aparece na porta como texto em três lugares: a palavra
+  // "chave" do lema, o ícone do escudo em trocar-senha e o fundo do botão.
+  ["--brand-blue", "--vidro-no-pior-caso", NORMAL, "a palavra \"chave\" no lema"],
+  // E o mesmo trio contra o preto, que é o outro extremo do que passa atrás.
+  // Os dois lados entram porque um token pode reprovar no claro E no escuro por
+  // razões opostas — foi o que aconteceu com `--text-muted` no Sprint 16.
+  ["--auth-apoio", "--auth-fundo", NORMAL, "apoio da porta sobre o preto"],
+  ["--brand-blue", "--auth-fundo", GRANDE, "o símbolo da marca sobre o preto"],
 
   // Estados: cor cheia com texto por cima, e fundo suave com a cor como texto.
   ["--success-foreground", "--success", NORMAL, "texto sobre verde"],

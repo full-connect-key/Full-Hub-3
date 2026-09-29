@@ -3,12 +3,12 @@
 import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CampoDaPorta } from "@/components/auth/campo-da-porta";
+import { TituloDaPorta } from "@/components/auth/lema-da-agencia";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { esquemaDeNovaSenha, type DadosDeNovaSenha } from "@/lib/auth/esquemas";
 
 import { trocarSenhaDoPrimeiroAcesso, type EstadoDaTroca } from "./acoes";
@@ -52,16 +52,16 @@ export function FormularioDeTroca({ nome }: { nome: string }) {
   const primeiroNome = nome.trim().split(/\s+/)[0] ?? nome;
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+    <div className="flex flex-col gap-[22px] sm:gap-[26px]">
+      <div>
+        <TituloDaPorta>
           <ShieldCheck
             aria-hidden
-            className="text-accent-strong size-5 shrink-0"
+            className="text-brand-blue mr-2 inline size-5 shrink-0 align-[-2px]"
           />
           Olá, {primeiroNome}
-        </h1>
-        <p className="text-text-muted text-sm">
+        </TituloDaPorta>
+        <p className="text-auth-apoio mt-[11px] text-sm leading-relaxed">
           Você entrou com uma senha provisória, que alguém da equipe passou para
           você. Escolha agora uma senha que só você conhece — a provisória deixa
           de valer.
@@ -70,43 +70,34 @@ export function FormularioDeTroca({ nome }: { nome: string }) {
 
       <form onSubmit={enviar} noValidate className="space-y-4">
         {estado.erro ? (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="text-left">
             <AlertCircle />
             <AlertDescription>{estado.erro}</AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="senha">Sua nova senha</Label>
-          <Input
+        <div className="space-y-[15px]">
+          <CampoDaPorta
             id="senha"
-            type="password"
+            rotulo="Sua nova senha"
+            senha
+            icone={Lock}
             autoComplete="new-password"
-            aria-invalid={!!errors.senha}
             autoFocus
-            {...register("senha")}
+            erro={errors.senha?.message}
+            dica="Pelo menos 8 caracteres."
+            registro={register("senha")}
           />
-          {errors.senha ? (
-            <p className="text-destructive text-xs">{errors.senha.message}</p>
-          ) : (
-            <p className="text-text-muted text-xs">Pelo menos 8 caracteres.</p>
-          )}
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirmacao">Confirme a nova senha</Label>
-          <Input
+          <CampoDaPorta
             id="confirmacao"
-            type="password"
+            rotulo="Confirme a nova senha"
+            senha
+            icone={Lock}
             autoComplete="new-password"
-            aria-invalid={!!errors.confirmacao}
-            {...register("confirmacao")}
+            erro={errors.confirmacao?.message}
+            registro={register("confirmacao")}
           />
-          {errors.confirmacao ? (
-            <p className="text-destructive text-xs">
-              {errors.confirmacao.message}
-            </p>
-          ) : null}
         </div>
 
         <Button type="submit" className="w-full" disabled={enviando}>

@@ -4,13 +4,16 @@ import Link from "next/link";
 import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Clock, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Clock, Loader2, Lock, Mail } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { SeletorDePublico } from "@/components/auth/casca-de-autenticacao";
+import { CampoDaPorta } from "@/components/auth/campo-da-porta";
+import {
+  FraseDoPublico,
+  SeletorDePublico,
+} from "@/components/auth/casca-de-autenticacao";
+import { LemaDaAgencia } from "@/components/auth/lema-da-agencia";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { entrar, type EstadoFormulario } from "@/lib/auth/acoes";
 import { esquemaDeLogin, type DadosDeLogin } from "@/lib/auth/esquemas";
 
@@ -46,23 +49,22 @@ export function FormularioDeLogin({
   });
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Entrar</h1>
-        <p className="text-text-muted text-sm">
-          Use o e-mail que a Full cadastrou para você.
-        </p>
+    <div className="flex flex-col gap-[22px] sm:gap-[26px]">
+      <div>
+        <LemaDaAgencia titulo="Entrar" />
+        {/* A frase sai do contexto da casca, ao lado do seletor que a troca. */}
+        <FraseDoPublico />
       </div>
 
       {/* O seletor fica ENTRE o cabeçalho e os campos: é a pergunta que a
-          pessoa responde antes de digitar, e é onde ela olha depois de ler
-          "Entrar". Acima do cabeçalho ele viraria uma barra solta no topo da
-          coluna, sem nada explicando o que escolhe. */}
+          pessoa responde antes de digitar, e é onde ela olha depois de ler o
+          título. Acima dele viraria uma barra solta no topo do cartão, sem nada
+          explicando o que escolhe. */}
       <SeletorDePublico />
 
       <form onSubmit={enviar} noValidate className="space-y-4">
         {saiuPorInatividade && !estado.erro ? (
-          <Alert variant="warning">
+          <Alert variant="warning" className="text-left">
             <Clock />
             <AlertDescription>
               Sua sessão foi encerrada por inatividade. Entre novamente para
@@ -72,52 +74,47 @@ export function FormularioDeLogin({
         ) : null}
 
         {estado.erro ? (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="text-left">
             <AlertCircle />
             <AlertDescription>{estado.erro}</AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
-          <Input
+        <div className="space-y-[15px]">
+          <CampoDaPorta
             id="email"
-            type="email"
+            rotulo="E-mail"
+            tipo="email"
+            icone={Mail}
             autoComplete="email"
             placeholder="seu@email.com"
-            aria-invalid={!!errors.email}
             autoFocus
-            {...register("email")}
+            erro={errors.email?.message}
+            registro={register("email")}
           />
-          {errors.email ? (
-            <p className="text-destructive text-xs">{errors.email.message}</p>
-          ) : null}
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="senha">Senha</Label>
-          <Input
+          <CampoDaPorta
             id="senha"
-            type="password"
+            rotulo="Senha"
+            senha
+            icone={Lock}
             autoComplete="current-password"
             placeholder="••••••••"
-            aria-invalid={!!errors.senha}
-            {...register("senha")}
+            erro={errors.senha?.message}
+            registro={register("senha")}
           />
-          {errors.senha ? (
-            <p className="text-destructive text-xs">{errors.senha.message}</p>
-          ) : null}
         </div>
 
         <Button type="submit" className="w-full" disabled={enviando}>
           {enviando ? <Loader2 className="animate-spin" /> : null}
           {enviando ? "Entrando..." : "Entrar"}
+          {enviando ? null : <ArrowRight aria-hidden />}
         </Button>
 
-        <p className="text-center text-sm">
+        <p className="text-center">
           <Link
             href="/esqueci-senha"
-            className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            className="text-auth-apoio hover:text-auth-texto text-[13.5px] underline underline-offset-[3px]"
           >
             Esqueci minha senha
           </Link>

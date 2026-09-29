@@ -4,12 +4,12 @@ import Link from "next/link";
 import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CampoDaPorta } from "@/components/auth/campo-da-porta";
+import { TituloDaPorta } from "@/components/auth/lema-da-agencia";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   enviarLinkDeRecuperacao,
   type EstadoFormulario,
@@ -43,55 +43,49 @@ export function FormularioDeRecuperacao() {
   });
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Recuperar senha
-        </h1>
-        <p className="text-text-muted text-sm">
+    <div className="flex flex-col gap-[22px] sm:gap-[26px]">
+      <div>
+        <TituloDaPorta>Recuperar senha</TituloDaPorta>
+        <p className="text-auth-apoio mt-[11px] text-sm leading-relaxed">
           Informe seu e-mail e enviaremos um link para criar uma senha nova.
         </p>
       </div>
 
       <form onSubmit={enviar} noValidate className="space-y-4">
         {estado.erro ? (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="text-left">
             <AlertCircle />
             <AlertDescription>{estado.erro}</AlertDescription>
           </Alert>
         ) : null}
         {estado.sucesso ? (
-          <Alert variant="success">
+          <Alert variant="success" className="text-left">
             <CheckCircle2 />
             <AlertDescription>{estado.sucesso}</AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="seu@email.com"
-            aria-invalid={!!errors.email}
-            autoFocus
-            {...register("email")}
-          />
-          {errors.email ? (
-            <p className="text-destructive text-xs">{errors.email.message}</p>
-          ) : null}
-        </div>
+        <CampoDaPorta
+          id="email"
+          rotulo="E-mail"
+          tipo="email"
+          icone={Mail}
+          autoComplete="email"
+          placeholder="seu@email.com"
+          autoFocus
+          erro={errors.email?.message}
+          registro={register("email")}
+        />
 
         <Button type="submit" className="w-full" disabled={enviando}>
           {enviando ? <Loader2 className="animate-spin" /> : null}
           {enviando ? "Enviando..." : "Enviar link"}
         </Button>
 
-        <p className="text-center text-sm">
+        <p className="text-center">
           <Link
             href="/login"
-            className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+            className="text-auth-apoio hover:text-auth-texto text-[13.5px] underline underline-offset-[3px]"
           >
             Voltar para o login
           </Link>

@@ -116,6 +116,70 @@
      item comum, que fica em 7,66:1. */
   --text-on-dark-muted: #96989B;
 
+  /* --- A PORTA: as telas de (auth) ----------------------------------------
+     Fundo PRETO nos dois temas, como a barra lateral e o painel do login
+     antigo: a porta não acompanha o tema da página, e por isso estes tokens
+     vivem só aqui, sem par no `.dark`.
+
+     O VIDRO É 82% OPACO, E O NÚMERO FOI MEDIDO, NÃO ESCOLHIDO. A proposta
+     usava 58%, que é mais bonito e reprova: com a molécula passando atrás, o
+     fundo efetivo do cartão vai de quase preto até o composto do vidro sobre
+     o ponto MAIS CLARO dela. Nesse pior caso, 58% dava `--auth-apoio` em
+     2,50:1 — o subtítulo, o link e o placeholder ilegíveis por um instante a
+     cada volta da molécula, num tempo que ninguém consegue reproduzir de
+     propósito.
+
+     É a mesma regra do selo de estado vista de outro ângulo: **ninguém mede
+     uma cor que anda.** Quem garante o contraste é o cartão, então ele precisa
+     ser escuro o bastante para o texto passar QUALQUER que seja a luz atrás.
+
+     Os três números, medidos com `--auth-apoio`, que é o mais apertado dos
+     três textos: 58% dá 2,71:1, 75% dá 4,74:1 e 82% dá 5,92:1. Ou seja, 75%
+     JÁ PASSA — e 82% é escolha, não mínimo, por duas razões ditas em vez de
+     escondidas: 4,74 é folga de dois centésimos e meio sobre o limite, e o
+     pior caso medido é ele mesmo uma aproximação, porque o halo da molécula é
+     uma segunda camada de luz por cima da primeira. Quem quiser o vidro mais
+     transparente troca um número aqui e o `check:cores` diz na hora se ainda
+     fecha. O que se lê como vidro é o `backdrop-filter`, não a transparência. */
+  --auth-fundo: #000000;
+  --vidro-fundo: rgb(6 12 16 / 0.82);
+  --vidro-borda: rgb(255 255 255 / 0.11);
+  --vidro-brilho: rgb(255 255 255 / 0.14);
+  --auth-campo-fundo: rgb(255 255 255 / 0.05);
+  --auth-campo-borda: rgb(255 255 255 / 0.12);
+  --auth-pill-fundo: rgb(0 0 0 / 0.5);
+
+  /* Os três textos sobre o vidro. Opacos, e não branco com opacidade, pela
+     razão de sempre: `white/70` sobre um fundo que anda dá uma cor diferente a
+     cada segundo, e nenhuma delas foi medida. */
+  --auth-texto: #F5F6F8;
+  --auth-rotulo: #C5CAD1;
+  --auth-apoio: #A9B0B8;
+
+  /* O PIOR CASO, e ele existe para ser MEDIDO — nenhuma regra pinta com ele.
+     É o composto de `--vidro-fundo` sobre o ponto mais claro da molécula
+     (`--blue-muted`), que é o fundo efetivo mais claro que um texto do cartão
+     pode encontrar. Sem um token, os pares do `check:cores` teriam que medir
+     contra `--auth-fundo` — preto —, e passariam por larga margem afirmando
+     algo que a tela não garante.
+
+     O valor é CALCULADO e não estimado: `0,82 × #060C10 + 0,18 × #BCE4F9`.
+     A minha primeira conta à mão deu #273340, dois pontos a mais no azul, e o
+     erro foi para o lado generoso — é o tipo de aproximação que faz uma lista
+     de contraste afirmar com confiança um número que ela não mediu. Se a
+     opacidade do vidro mudar, este token muda com ela. */
+  --vidro-no-pior-caso: #27333A;
+
+  /* A molécula: cinco tons, e nenhum deles é literal novo. Os intermediários
+     saem de `color-mix` entre os dois azuis que já existem — escrever
+     #2E9FD6 aqui seria pôr no arquivo uma sexta cor de marca que a agência
+     não entregou, e que ninguém saberia de onde veio. */
+  --molecula-1: var(--blue-muted);
+  --molecula-2: var(--brand-blue);
+  --molecula-3: color-mix(in oklab, var(--brand-blue) 45%, var(--blue-strong));
+  --molecula-4: var(--blue-strong);
+  --molecula-5: color-mix(in oklab, var(--blue-strong) 68%, var(--auth-fundo));
+
   /* --- Estados ------------------------------------------------------------ */
   /* O par é sempre "cor cheia" + "fundo suave". A cor cheia carrega texto
      branco; o fundo suave carrega a cor cheia como texto. */
@@ -326,6 +390,15 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-on-dark-muted: var(--text-on-dark-muted);
+  --color-auth-fundo: var(--auth-fundo);
+  --color-auth-texto: var(--auth-texto);
+  --color-auth-rotulo: var(--auth-rotulo);
+  --color-auth-apoio: var(--auth-apoio);
+  --color-vidro: var(--vidro-fundo);
+  --color-vidro-borda: var(--vidro-borda);
+  --color-auth-campo: var(--auth-campo-fundo);
+  --color-auth-campo-borda: var(--auth-campo-borda);
+  --color-auth-pill: var(--auth-pill-fundo);
   --color-text-on-dark: var(--text-on-dark);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -372,6 +445,10 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Sora, e só nas telas de (auth). Carregada por `next/font` no layout
+     daquele grupo de rotas, então ela não pesa no painel — quem entra no
+     sistema baixa a letra da porta uma vez e nunca mais. */
+  --font-porta: var(--fonte-sora);
 }
 
 @layer base {
@@ -381,6 +458,177 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ===========================================================================
+   A MOLÉCULA DA PORTA — o fundo das telas de (auth).
+
+   O efeito é metaball, e ele é um filtro SVG de duas linhas (o filtro mora em
+   `components/auth/fundo-da-porta.tsx`, junto do desenho): desfoca os círculos
+   e depois AFIA o canal alpha. Duas gotas desfocadas que se aproximam têm os
+   halos somados, e o corte do alpha transforma essa soma numa borda só — elas
+   fundem. Afastando-se, a soma cai abaixo do corte e a borda se parte em duas.
+   É isso que faz o "dividir e juntar" ser de verdade, e não duas bolas
+   passando uma pela outra.
+
+   São DUAS animações empilhadas, de propósito:
+     · cada átomo converge para o centro e volta às bordas em 26s, todos no
+       mesmo compasso — é o dividir e juntar;
+     · o conjunto inteiro atravessa a tela em 64s, num ritmo que não bate com o
+       de cima — é o degradê passando pelo fundo.
+   Sem a segunda, a molécula ficaria respirando parada no meio da tela.
+
+   E ELAS MORAM AQUI, não no componente. Tailwind v4 não escreve `@keyframes`
+   por utilitário, e espalhar os tempos em `style` inline deixaria os seis
+   átomos com seis fontes de verdade sobre o mesmo compasso — mudar 26s pediria
+   seis edições, e a sexta ficaria para trás.
+   =========================================================================== */
+.molecula {
+  animation: molecula-atravessa 64s ease-in-out infinite;
+  will-change: transform;
+  /* Pelo mesmo motivo do atraso dos átomos, e o número saiu da imagem: em 0%
+     o conjunto está no canto esquerdo, e o primeiro quadro da porta deixava
+     metade da tela vazia de um lado e a massa inteira do outro. A -21s ficava
+     torto para o outro lado. A -10s ele está entre as duas primeiras paradas,
+     quase no centro — a massa fica ATRÁS do cartão, o vidro a difunde, e a luz
+     sangra em volta em vez de empilhar num canto. */
+  animation-delay: -10s;
+}
+/* O halo: a mesma molécula, sem o corte do alpha e muito desfocada. É ela que
+   faz o azul sangrar no preto em vez de terminar numa borda seca. */
+.molecula-halo { filter: blur(52px); opacity: 0.6; }
+
+@keyframes molecula-atravessa {
+  0%   { transform: translate(-90px, 40px) scale(1); }
+  33%  { transform: translate(110px, -60px) scale(1.12); }
+  66%  { transform: translate(60px, 90px) scale(0.95); }
+  100% { transform: translate(-90px, 40px) scale(1); }
+}
+
+.atomo {
+  animation-duration: 26s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  /* O ATRASO NEGATIVO ABRE A TELA NO MEIO DO CICLO, e é conserto de um
+     problema que só a imagem mostra: em 0% os seis átomos estão no ponto mais
+     afastado, e o primeiro quadro da porta — o que a pessoa vê ao chegar, e o
+     único que um print captura — era seis discos separados. A molécula só se
+     reconhecia como molécula treze segundos depois, quando ninguém está mais
+     olhando para o fundo.
+     Um quarto do ciclo é onde as gotas estão a caminho umas das outras, meio
+     fundidas: a tela em repouso já mostra o que o movimento faz. */
+  animation-delay: -6.5s;
+}
+/* Cada átomo tem um caminho próprio, e todos chegam perto do centro na metade
+   do ciclo. Dois deles só vão até meio caminho — se os seis encostassem no
+   mesmo ponto, a fusão viraria um círculo perfeito, que é a única forma que não
+   parece orgânica. */
+.atomo-1 { animation-name: atomo-1; }
+.atomo-2 { animation-name: atomo-2; }
+.atomo-3 { animation-name: atomo-3; }
+.atomo-4 { animation-name: atomo-4; }
+.atomo-5 { animation-name: atomo-5; }
+.atomo-6 { animation-name: atomo-6; }
+@keyframes atomo-1 { 0%,100% { transform: translate(-230px,-160px); } 50% { transform: translate(-30px,-20px); } }
+@keyframes atomo-2 { 0%,100% { transform: translate( 240px,-130px); } 50% { transform: translate( 40px, 10px); } }
+@keyframes atomo-3 { 0%,100% { transform: translate(-200px, 190px); } 50% { transform: translate(-20px, 40px); } }
+@keyframes atomo-4 { 0%,100% { transform: translate( 210px, 200px); } 50% { transform: translate( 30px, 30px); } }
+@keyframes atomo-5 { 0%,100% { transform: translate(  20px,-250px); } 50% { transform: translate(-70px,-90px); } }
+@keyframes atomo-6 { 0%,100% { transform: translate( -40px, 260px); } 50% { transform: translate( 80px, 100px); } }
+
+/* Textura fixa: a molécula passa POR BAIXO de pontos que não andam, e é isso
+   que faz o movimento se ler como movimento em vez de papel de parede
+   deslizando. A máscara fecha as bordas, senão a malha termina numa linha reta
+   no meio do preto. */
+.veu-da-porta {
+  background-image: radial-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 30px 30px;
+  -webkit-mask-image: radial-gradient(120% 95% at 50% 45%, #000 10%, transparent 78%);
+  mask-image: radial-gradient(120% 95% at 50% 45%, #000 10%, transparent 78%);
+}
+
+/* O cartão de vidro e o brilho do símbolo. Os dois são sombra composta, que
+   Tailwind escreve em utilitário arbitrário longo o bastante para ninguém
+   conseguir ler — e são usados nas quatro telas de (auth), então mudar o
+   brilho num lugar teria que mudar em quatro. */
+.vidro-da-porta {
+  box-shadow:
+    0 50px 120px -50px rgb(0 0 0),
+    inset 0 1px 0 var(--vidro-brilho);
+}
+.simbolo-da-porta {
+  filter: drop-shadow(0 8px 28px color-mix(in oklab, var(--brand-blue) 45%, transparent));
+}
+
+/* ===========================================================================
+   O TÍTULO QUE ALTERNA — a saudação e o lema da agência.
+
+   É CSS PURO, sem `useState` e sem `setInterval`, e a escolha tem consequência
+   boa: a porta é a tela que alguém abre quando nada mais funciona, e uma frase
+   que depende de hidratar é uma frase que pode não aparecer. Aqui as duas
+   moram no HTML que o servidor manda, e o navegador só as alterna.
+
+   O ciclo é de 11s: cada frase fica visível ~5s, com a saída de uma terminando
+   antes da entrada da outra. A segunda usa `animation-delay` NEGATIVO, que a
+   põe na metade do próprio ciclo já na primeira pintura — é assim que duas
+   animações iguais ficam em contrafase sem um relógio compartilhado.
+
+   As duas ocupam a MESMA célula de grade, então a altura do bloco é sempre a da
+   maior (o lema, em duas linhas) e o cartão não muda de tamanho a cada troca.
+   E `align-items: center` centraliza a de uma linha nesse espaço: sem ele,
+   "Sejam bem-vindos!" começava no topo da célula e parecia mais alto que o
+   lema, com um vão embaixo.
+
+   A centralização é só no eixo vertical. No horizontal o item continua com a
+   largura inteira e quem centra o texto é o `text-align` do cartão — com
+   `justify-items: center` o span encolheria para o tamanho do conteúdo, e o
+   `text-wrap: balance` perderia a largura com que equilibra as duas linhas.
+   =========================================================================== */
+.lema { display: grid; align-items: center; }
+.lema-frase { grid-area: 1 / 1; }
+
+/* `--i` é o índice da palavra, e é ele que escalona a entrada: a palavra 3
+   começa 110ms depois da 1. O atraso é calculado aqui, ao lado da animação que
+   ele atrasa, e não escrito em `style` em cada palavra. */
+.lema-palavra {
+  display: inline-block;
+  animation: lema-palavra 11s ease-in-out infinite;
+  animation-delay: calc(var(--fase, 0s) + var(--i) * 55ms);
+  opacity: 0;
+}
+.lema-frase-2 .lema-palavra { --fase: -5.5s; }
+
+@keyframes lema-palavra {
+  0%     { opacity: 0; transform: translateY(15px); filter: blur(9px); }
+  5%     { opacity: 1; transform: translateY(0);    filter: blur(0); }
+  44%    { opacity: 1; transform: translateY(0);    filter: blur(0); }
+  /* A saída vai para CIMA. Nas duas na mesma direção, a frase parece ter
+     VOLTADO em vez de ter sido substituída. */
+  49.5%  { opacity: 0; transform: translateY(-13px); filter: blur(9px); }
+  /* O salto de volta para baixo acontece com opacidade 0, então não se vê — e
+     sem ele a palavra voltaria de cima na volta do laço. */
+  50%    { opacity: 0; transform: translateY(15px); filter: blur(9px); }
+  100%   { opacity: 0; transform: translateY(15px); filter: blur(9px); }
+}
+
+/* "chave" é a palavra que liga o lema ao nome da agência — Connect KEY. */
+.lema-chave { color: var(--brand-blue); font-style: normal; }
+
+/* Texto que troca sozinho é justamente o que esta preferência pede para não
+   acontecer: a segunda frase SAI da tela, e a primeira fica inteira e parada.
+   A molécula para no estado SEPARADO, que é o quadro em que se reconhece que
+   são gotas — fundida no centro ela é uma mancha só. */
+@media (prefers-reduced-motion: reduce) {
+  .molecula, .atomo { animation: none; }
+  .atomo-1 { transform: translate(-230px,-160px); }
+  .atomo-2 { transform: translate( 240px,-130px); }
+  .atomo-3 { transform: translate(-200px, 190px); }
+  .atomo-4 { transform: translate( 210px, 200px); }
+  .atomo-5 { transform: translate(  20px,-250px); }
+  .atomo-6 { transform: translate( -40px, 260px); }
+
+  .lema-frase-2 { display: none; }
+  .lema-palavra { animation: none; opacity: 1; transform: none; filter: none; }
 }
 
 /* ===========================================================================

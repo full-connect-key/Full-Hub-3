@@ -897,24 +897,29 @@ terceira versão do símbolo.
 Connect Key, "Full Hub" é o nome do produto. Não existe wordmark de Full Hub,
 e desenhar um seria pôr no ar uma marca que a agência não fez.
 
-**O wordmark "full connect key" aparece uma vez, no painel escuro da tela de
-login.** Ele é um lockup fechado — três linhas que se encaixam, com o próprio
-símbolo dentro —, não uma linha de assinatura: embaixo de "Full Hub" ele
-repetia o disco que estava logo acima e disputava o mesmo espaço, e abaixo de
-uns 24px de altura as linhas fecham e ele vira um borrão. Nos lockups pequenos
-a assinatura é "FULL CONNECT KEY" em caixa alta espaçada, que se lê a 9px. A
-coluna escura do login existe justamente para dar a ele a largura em que as
-três linhas se leem.
+**O wordmark "full connect key" NÃO APARECE MAIS NO PRODUTO**, e a ausência é
+consequência de uma decisão e não esquecimento. Ele é um lockup fechado — três
+linhas que se encaixam, com o próprio símbolo dentro —, não uma linha de
+assinatura: embaixo de "Full Hub" ele repetia o disco que estava logo acima e
+disputava o mesmo espaço, e abaixo de uns 24px de altura as linhas fecham e ele
+vira um borrão. Ele tinha um lugar só, o painel escuro da tela de login, que
+existia justamente para dar a ele a largura em que as três linhas se leem.
+
+**A porta virou preta e centralizada, e a coluna escura saiu junto** (a decisão
+está em "A porta", logo abaixo). Sem ela não há onde ele caiba, e a instrução
+do usuário — *"apenas o logo da agência"* — tirou também a assinatura em caixa
+alta que poderia ocupar o lugar. Os quatro arquivos continuam em
+`public/marca/`, e devolvê-lo exige uma tela com largura para ele.
+
+Nos lockups pequenos do painel a assinatura continua sendo "FULL CONNECT KEY"
+em caixa alta espaçada, que se lê a 9px — isso não mudou.
 
 **A versão branca veio cortada na primeira entrega**, e foi o usuário quem
 viu: 833 × 428 contra 833 × 454 da colorida — 26px a menos embaixo, o "y" e o
 triângulo pela metade. O arquivo certo tem a mesma proporção da colorida, e é
-assim que se confere um: pela caixa do conteúdo, não de olho.
-
-**No painel escuro usa-se só a branca**, sem troca por tema: o fundo é
-`--brand-navy` nos dois temas, como a barra lateral. Onde as duas versões
-convivessem seriam duas imagens e não um filtro CSS — clarear a colorida por
-`filter` daria cinza lavado no lugar do branco e apagaria o azul junto.
+assim que se confere um: pela caixa do conteúdo, não de olho. Fica registrado
+porque o arquivo continua na pasta, e quem o usar de novo herda o problema se
+pegar o errado.
 
 **`src/app/icon.svg` é o TERCEIRO arquivo com cor literal**, e a exceção está
 registrada em `check:cores` — que passou a varrer `.svg` dentro de `src/` por
@@ -924,14 +929,131 @@ num `prefers-color-scheme` dentro do próprio arquivo. Deixá-lo fora da
 varredura faria a regra dizer que só há dois lugares com cor literal, e o
 terceiro ficaria invisível.
 
-#### A tela de login: painel da marca, formulário, e dois botões que não decidem
+#### A porta: preto, a molécula, e o cartão de vidro no centro
 
 `components/auth/casca-de-autenticacao.tsx` envolve as quatro telas de
-`(auth)` — login, esqueci-senha, redefinir-senha e trocar-senha. Coluna escura
-à esquerda com o símbolo, o nome do produto e o wordmark; formulário à
-direita, sem cartão, porque o painel já é o enquadramento. Em 375px a coluna
-vira uma faixa curta no topo: metade de uma tela de celular gasta com marca é
-meia tela a menos para digitar.
+`(auth)` — login, esqueci-senha, redefinir-senha e trocar-senha. Fundo preto
+com uma molécula azul atravessando, e um cartão de vidro centralizado com o
+símbolo da agência no alto.
+
+**É a quinta rodada de uma proposta, e o caminho fica registrado porque cada
+volta custou.** As quatro primeiras partiam de uma referência que o usuário
+mandou — vidro sobre degradê, em três disposições — e ele recusou todas: *"não
+gostei de nenhuma"*. O que estava errado era a **composição**, e a instrução
+que fechou é dele, palavra por palavra: *"quero que centralize as informações,
+deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula
+se dividindo e se juntando. Além disso, quero que deixe apenas o logo da
+agência, sem escrever Full Hub, quero uma letra mais contemporânea,
+tecnológica."*
+
+**A MOLÉCULA É METABALL, e o efeito inteiro são duas linhas de filtro SVG**
+(`components/auth/fundo-da-porta.tsx`): desfoca os seis círculos e depois
+**afia o canal alpha**. Duas gotas desfocadas que se aproximam têm os halos
+somados, e o corte do alpha transforma essa soma numa borda só — elas fundem.
+Afastando-se, a soma cai abaixo do corte e a borda se parte em duas. Sem o
+afiamento seriam manchas se sobrepondo, que é o que **parece** molécula e não é.
+
+São **duas animações empilhadas**, e os tempos não batem de propósito: cada
+átomo converge para o centro e volta às bordas em 26s — é o dividir e juntar —,
+e o conjunto atravessa a tela em 64s — é o degradê passando pelo fundo. Sem a
+segunda, a molécula ficaria respirando parada no meio da tela.
+
+**Os dois atrasos são NEGATIVOS, e isso saiu da imagem.** Em 0% os átomos estão
+no ponto mais afastado e o conjunto está no canto: o primeiro quadro da porta
+— o que a pessoa vê ao chegar, e o único que um print captura — era seis discos
+separados empilhados num canto, e a molécula só se reconhecia como molécula
+treze segundos depois. Com `-6.5s` nos átomos e `-10s` no conjunto, a tela em
+repouso já mostra o que o movimento faz. **Cada átomo é um degradê radial e não
+um tom chapado**, pela mesma razão: chapado, a gota se lê como adesivo.
+
+**Os tempos moram no `globals.css` e o desenho no componente.** Tailwind v4 não
+escreve `@keyframes` por utilitário, e espalhá-los em `style` inline daria aos
+seis átomos seis fontes de verdade sobre o mesmo compasso.
+
+**O VIDRO É 82% OPACO, E O NÚMERO FOI MEDIDO.** A proposta usava 58%, que é mais
+bonito e reprova: com a molécula passando atrás, o fundo efetivo do cartão vai
+de quase preto até o composto do vidro sobre o ponto mais claro dela, e nesse
+pior caso `--auth-apoio` dava **2,71:1** — o subtítulo, o link e o placeholder
+ilegíveis por um instante a cada volta, num tempo que ninguém consegue
+reproduzir de propósito. É a regra do selo de estado vista de outro ângulo:
+**ninguém mede uma cor que anda.** Quem garante o contraste é o cartão, e ele
+precisa ser escuro o bastante para o texto passar qualquer que seja a luz atrás.
+
+75% já passaria, em 4,74:1, e 82% é escolha e não mínimo: a folga é de dois
+centésimos e meio, e o pior caso medido é ele mesmo uma aproximação, porque o
+halo é uma segunda camada de luz por cima da primeira. O que se lê como vidro é
+o `backdrop-filter`, não a transparência.
+
+**`--vidro-no-pior-caso` é um token que NADA pinta.** Ele é o composto
+calculado (`0,82 × #060C10 + 0,18 × #BCE4F9`) e existe para o `check:cores` ter
+contra o que medir: contra `--auth-fundo`, que é preto, os três textos passariam
+por larga margem afirmando algo que a tela não garante. **Medido com mutação:**
+devolvendo o token ao composto de 58%, três cenários caem e dizem quais.
+
+**SÓ O SÍMBOLO, e "Full Hub" não aparece escrito em lugar nenhum da porta.** É o
+pedido do usuário. O símbolo é a versão **azul** do arquivo da agência — disco
+azul, ponto branco, triângulo cinza —, que é a que existe para fundo escuro: a
+de disco escuro desapareceria no preto.
+
+**A letra é Sora, e só vale em `(auth)`.** `next/font` carrega por rota, então
+quem está dentro do sistema nunca baixa esta família — o painel continua em
+Geist, que é a letra do trabalho. Uma letra a mais no produto inteiro seria peso
+em toda visita, para uma tela que se vê uma vez por dia. O token é
+`--font-porta`, e a variável do `next/font` se chama `--fonte-sora` porque dois
+tokens com o prefixo `--font-` seriam dois utilitários do Tailwind com o mesmo
+nome.
+
+**O título do login ALTERNA entre a saudação e o lema da agência** — "Sejam
+bem-vindos!" e "Entender, Conectar e Vender, essa é a **chave**!" —, com as
+palavras subindo do desfoque, uma depois da outra. "chave" sai em azul porque é
+a palavra que liga o lema ao nome da agência: Connect **Key**.
+
+- **O `<h1>` continua sendo "Entrar", e é `sr-only`.** Quem usa leitor de tela
+  ouve o nome da tela, não uma saudação que troca sozinha a cada cinco segundos,
+  e a página fica com um título estável. Sem isso, a mesma tela teria dois
+  títulos diferentes conforme o segundo em que alguém chegasse nela.
+- **A animação é CSS puro**, sem estado e sem `setInterval`: a porta é a tela
+  que alguém abre quando nada mais funciona, e uma frase que depende de hidratar
+  é uma frase que pode não aparecer. A segunda frase usa `animation-delay`
+  negativo, que é como duas animações iguais ficam em contrafase sem um relógio
+  compartilhado.
+- **As duas moram na MESMA célula de grade**, então a altura do bloco é sempre a
+  da maior e o cartão não muda de tamanho a cada troca. E `align-items: center`
+  centraliza a de uma linha nesse espaço — sem ele, "Sejam bem-vindos!" começava
+  no topo da célula e parecia mais alto que o lema, com um vão embaixo.
+- **Só o login alterna.** As outras três respondem a um pedido — "Recuperar
+  senha", "Criar nova senha", "Olá, Joana" —, e pôr o lema piscando por cima
+  delas trocaria a informação de que a pessoa precisa por uma frase de marca, no
+  momento em que ela está tentando resolver um problema. `TituloDaPorta` mora no
+  mesmo arquivo do lema para as duas escalas de texto não divergirem.
+- **A alternância não acontece com `prefers-reduced-motion`**: a segunda frase
+  sai da tela e a primeira fica inteira e parada. Texto que troca sozinho é
+  justamente o que essa preferência pede para não acontecer. A molécula para no
+  estado **separado**, que é o quadro em que se reconhece que são gotas.
+
+**`CampoDaPorta` existe para as quatro telas não divergirem.** Cada uma montava
+os campos por conta própria; com o desenho novo isso passaria a significar
+quatro versões do mesmo campo de vidro, e a que divergisse seria a de
+trocar-senha — a tela que ninguém abre depois do primeiro acesso. Ele é o
+`Input` do shadcn com as cores trocadas, e não um `<input>` cru: o que vem de
+graça dali é o anel de foco, o `aria-invalid` pintando a borda e o estado
+desabilitado.
+
+**O selo de erro e o de aviso continuam com fundo claro sobre o vidro escuro**,
+e é consequência aceita: eles são o par nomeado do produto, desenhado para
+superfície clara, e sobre o vidro viram um bloco luminoso. Numa tela em que a
+mensagem é "sua sessão caiu" ou "e-mail ou senha incorretos", ser impossível de
+não ver é o lado certo do erro. A imagem `03-login-sessao-expirada` existe para
+conferir isso.
+
+**Em 375px o cartão encolhe o respiro e nada mais.** Não há coluna para esconder
+nem painel para dobrar — é a vantagem de centralizar, e é a razão pela qual esta
+casca não tem um único `hidden lg:block`. A imagem de 390px continua sendo a que
+decide.
+
+**A porta é preta nos DOIS temas**, como a barra lateral: os tokens dela vivem
+só no `:root`, sem par no `.dark`. A imagem `02-login-escuro` existe para provar
+isso — duas imagens iguais ali são o resultado certo.
 
 **O seletor "Cliente / Colaborador" NÃO decide o login, e é decisão do
 usuário que exista assim mesmo.** Quem decide para onde a pessoa vai é o
@@ -941,14 +1063,15 @@ Fazer o seletor valer de verdade criaria um jeito novo de falhar na porta
 ("opção errada") e contaria a quem estivesse tentando se um e-mail é de
 cliente ou da equipe.
 
-**O que ele faz de verdade é trocar a frase do painel**, e é isso que o separa
-de um enfeite: quem chega vê, antes de digitar, o que aquela porta abre para
-ele. E a linha embaixo dos botões diz o resto em voz alta — *"os dois entram
-pelo mesmo formulário: o Full Hub reconhece você pelo e-mail"*. Sem ela, quem
-clicasse em "Colaborador" e caísse no portal concluiria que o sistema errou, e
-a agência responderia a essa pergunta toda semana.
+**A LEGENDA SAIU, por decisão do usuário, e com ela foi a única frase que
+explicava isso em voz alta** — *"os dois entram pelo mesmo formulário: o Full
+Hub reconhece você pelo e-mail"*. Sem ela, quem clica em "Colaborador" e cai no
+portal pode concluir que o sistema errou. O que sobrou de visível é o
+**subtítulo**, que continua trocando com o seletor: sem ele o clique não mudaria
+nada na tela, e um botão que não muda nada é um botão que a pessoa clica duas
+vezes achando que travou.
 
-O seletor mora ao lado do painel que ele muda, num arquivo só, e a tela de
+O seletor mora ao lado da frase que ele muda, num arquivo só, e a tela de
 login o posiciona por um contexto: são as duas metades da mesma decisão, e
 separadas divergiriam na primeira mudança de texto. A escolha **não** é
 lembrada no navegador — o cliente costuma entrar de computador compartilhado,
@@ -6195,6 +6318,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A porta | **A tela de login ganhou identidade nova**, em cinco rodadas de proposta — e as quatro primeiras foram recusadas com *"não gostei de nenhuma"*. O que estava errado era a **composição**, não o fundo, e a instrução que fechou é do usuário: *"centralize as informações, deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula se dividindo e se juntando (…) apenas o logo da agência, sem escrever Full Hub, uma letra mais contemporânea, tecnológica"*. **A molécula é metaball**, e o efeito inteiro são duas linhas de filtro SVG: desfoca os seis círculos e **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os halos somados, e o corte transforma a soma numa borda só. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece* molécula e não é. Duas animações empilhadas em tempos que não batem: os átomos fundem e se partem em 26s, o conjunto atravessa em 64s. **O vidro é 82% opaco, e o número foi MEDIDO:** a proposta usava 58%, e com a molécula passando atrás o pior caso — o vidro sobre o ponto mais claro dela — dava `--auth-apoio` em **2,71:1**, o subtítulo e o link ilegíveis por um instante a cada volta, num tempo que ninguém reproduz de propósito. É a regra do selo de estado de outro ângulo: **ninguém mede uma cor que anda**. `--vidro-no-pior-caso` é um token que nada pinta, e existe só para o `check:cores` ter contra o que medir — contra o preto os três textos passariam por larga margem afirmando algo que a tela não garante; medido com mutação, três cenários caem. **Sora por `next/font`, só em `(auth)`**, então o painel não paga por ela. O título do login **alterna** entre a saudação e o lema da agência com as palavras subindo do desfoque, em CSS puro — a porta é a tela que alguém abre quando nada mais funciona, e uma frase que depende de hidratar pode não aparecer. **O `<h1>` continua "Entrar" e é `sr-only`:** sem isso a mesma tela teria dois títulos diferentes conforme o segundo em que alguém chegasse nela. **Dois achados foram da imagem e não do build:** os átomos saíram chapados (na proposta cada um era degradê radial), e o quadro em repouso era o de máxima separação — seis discos num canto —, consertado com atraso negativo nas duas animações. De quebra, **o wordmark de três linhas saiu do produto** junto com a coluna escura que existia para dar largura a ele, e isso fica escrito em vez de virar ausência silenciosa. |
 | Sprint 3H | **Feedback de desenvolvimento assistido por IA.** Migration 0075: quatro tabelas, sete funções, e a exposição jurídica registrada no cabeçalho — **isto não é avaliação de desempenho**, e se um dia for, a regra muda inteira e passa pelo jurídico antes (LGPD, Art. 20). As três regras do módulo têm consequência de schema: comparação só consigo mesma (nenhuma função devolve duas pessoas lado a lado), os números crus na mesma linha do texto, e revisão humana por padrão. **Um rascunho vazado é pior que nenhum feedback**, e os cenários guardam os CINCO status que não são `enviado`. Quatro divergências do texto do sprint, todas sobre o produto como ele está: rascunho é `publicada_em is null` e não um valor de enum (quarto sprint a errar nisso); a tabela de autoavaliação foi apagada na 0043, então "o que ela quer desenvolver" virou "o que ela estudou"; não há Edge Functions aqui, e a geração periódica continua pendente da URL do app; e metade das métricas já existia — o que se copia da 0035 é a FORMA de cada conta, para a tela de Métricas e o feedback não discordarem sobre a mesma pessoa. **Três achados da bateria, e os três eram bugs**: `carga_do_dia()` devolvia zero num período fechado e o texto dizia a quem entregou o mês inteiro que a entrega baixa dela foi distribuição de trabalho; a proporção da capacidade acusava ociosidade num mês em que ninguém estimou; e `recebe_feedback_ia` nasceu inalcançável por quem ela é para. **83 cenários novos, 1494 no total**, medidos com quatro mutações. O `check:feedback` achou um bug meu na primeira rodada — o teto de três dígitos deixava a checagem de número cega para `2400` —, e o `check:cores` pegou os meus próprios comentários citando os dois nomes mortos que a varredura proíbe, pela sétima vez. |
 | Sprint 3F | **Comodatos: qual equipamento está com quem.** Migration 0069, e o **segundo módulo do zero em poucos sprints** — não havia ponte para atravessar desta vez, nem tabela nem coluna esperando alguém. `assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`, com duas visões da mesma informação numa rota só: o colaborador vê o que está com ele, a gestão vê o inventário inteiro. **A divergência do texto do sprint é de segurança**, e as duas frases dele não cabiam juntas: ele manda deixar o colaborador ler a linha do equipamento e, na linha seguinte, esconder `valor_aquisicao` numa view — mas **uma view não limita a tabela de baixo**, e com a policy permitindo a linha o valor sai por um `select=valor_aquisicao` no PostgREST. É a regra que o produto já escreveu três vezes de outro jeito: policy não limita coluna. Então a linha ficou **fora do alcance** e o recorte vem de `meus_comodatos()`, `security definer` — a forma de `usuarios_do_meu_cliente()`. **O índice único parcial é a trava** contra dois empréstimos do mesmo item, e não a consulta (0040); **o status é escrito pelo empréstimo**, por trigger; **atraso é derivado**, nunca coluna. **O termo é SNAPSHOT e não arquivo:** o corpo congela na entrega, porque o modelo é editável e um termo é o que a pessoa aceitou naquele dia — e o PDF é montado no download, porque o próprio sprint descreve o documento como vivo (o aceite aparece nele depois de acontecer), e um PDF gravado na entrega não tem como ganhar uma linha. Por isso não há bucket de termos. **A folha do equipamento é tabela própria e não o `audit_log`**: aquela trilha é só do sócio desde a 0058, e o que ela grava é diff de coluna, não fato. No desligamento, o equipamento em aberto **avisa com caixa obrigatória em vez de recusar** — travar deixaria a agência sem conseguir desligar quem já foi embora; o que ela impede é desligar sem ver. **61 cenários novos, 1355 no total**, e quatro bugs reais na primeira rodada: um `case` devolvendo texto para coluna de enum, emprestar criando DOIS eventos `emprestado` (o trigger de status e o do empréstimo), e `asset_term_template` com `id boolean primary key` — engenhoso, e quebra `registrar_auditoria()`, que grava o id num `uuid`. **E um cenário que passava pelo motivo errado:** a mutação que tirava a checagem de dono de `confirmar_recebimento()` não era pega, porque o teste procurava o empréstimo por um `select` que a RLS da outra pessoa não resolve — ele media a policy de SELECT, não a pergunta de propriedade. Com o id literal, a mutação cai. **E o seed passou a ter alguém desligada**, com uma lente em aberto: sem ela o alerta mais caro do módulo nunca aparece em desenvolvimento — a lição da 0062 aplicada antes do bug em vez de depois. |
 | Sprint 15 | **A agência passou a responder sobre si mesma.** A camada de indicadores existia desde a 0035 e o resumo da Home desde a 0049, e nenhuma tela as lia. A Home ganhou os **nove blocos**, na ordem do dia da pessoa — quem sou eu, o que eu entrego hoje, o que está parado me esperando, quem não está aqui, para onde eu vou, e só então o panorama da gestão: quem abre esta tela abre para trabalhar. "Meu dia" é o **mesmo componente de Minhas Tasks**, que já estava separado desde o Sprint 4 esperando exatamente isto. `/painel/metricas` traz cinco abas com o **período como CHAVE e não como as duas datas** — "últimos 30 dias" salvo como `de=2026-08-26` é um link que envelhece calado —, e `QUEM_VE` espelha a primeira linha de cada função da 0035: quatro de `is_gestor()`, a rentabilidade de `is_socio()`. `ouFalha()` em todas, e aqui ele vale mais que de costume: a recusa dessas funções chega como erro, e sem ele o painel mostraria zeros — **painel zerado não parece recusa, parece agência parada**. `/painel/resumo-agencia` é a conversa de segunda-feira, e é **módulo antes de ser tela** (`lib/reports/weekly.ts`), porque a mesma função serviria o envio automático que ainda não existe. De quebra, o **CSV deixou de ter seis donos**: `montarCSV` morava dentro do Financeiro e a Academy importava dali, e as cópias já divergiam — o BOM que o Excel precisa estava em quatro das cinco telas. **Quatro erros meus, e nenhum o `npm run build` pegaria:** o cartão dizia "11 entregues" e o bloco logo abaixo contava 7, porque `producao_do_periodo()` conta só folha e as listas contavam agrupadora junto (foi a imagem que pôs os dois números lado a lado); em 375px a barra de abas empurrava a página inteira para os lados, e o **Full Days tinha a mesma linha desde o Sprint 6**; o título da etapa em "Meu dia" encolhia até "Re…" no celular; e o meu próprio comentário explicando por que o estado passa pelo mapa de rótulos **citava a palavra que a 0016 proibiu** — sétima vez na mesma armadilha. E o seed concluía duas etapas por INSERT, onde o trigger de UPDATE não roda: `concluida_em` nulo fazia toda conta de entrega responder **zero, que é plausível**. |

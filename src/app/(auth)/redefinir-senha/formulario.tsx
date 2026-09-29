@@ -3,12 +3,12 @@
 import { startTransition, useActionState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Lock } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CampoDaPorta } from "@/components/auth/campo-da-porta";
+import { TituloDaPorta } from "@/components/auth/lema-da-agencia";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { definirNovaSenha, type EstadoFormulario } from "@/lib/auth/acoes";
 import { esquemaDeNovaSenha, type DadosDeNovaSenha } from "@/lib/auth/esquemas";
 
@@ -37,51 +37,43 @@ export function FormularioDeNovaSenha() {
   });
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Criar nova senha
-        </h1>
-        <p className="text-text-muted text-sm">Use pelo menos 8 caracteres.</p>
+    <div className="flex flex-col gap-[22px] sm:gap-[26px]">
+      <div>
+        <TituloDaPorta>Criar nova senha</TituloDaPorta>
+        <p className="text-auth-apoio mt-[11px] text-sm leading-relaxed">
+          Use pelo menos 8 caracteres.
+        </p>
       </div>
 
       <form onSubmit={enviar} noValidate className="space-y-4">
         {estado.erro ? (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="text-left">
             <AlertCircle />
             <AlertDescription>{estado.erro}</AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="senha">Nova senha</Label>
-          <Input
+        <div className="space-y-[15px]">
+          <CampoDaPorta
             id="senha"
-            type="password"
+            rotulo="Nova senha"
+            senha
+            icone={Lock}
             autoComplete="new-password"
-            aria-invalid={!!errors.senha}
             autoFocus
-            {...register("senha")}
+            erro={errors.senha?.message}
+            registro={register("senha")}
           />
-          {errors.senha ? (
-            <p className="text-destructive text-xs">{errors.senha.message}</p>
-          ) : null}
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirmacao">Confirme a nova senha</Label>
-          <Input
+          <CampoDaPorta
             id="confirmacao"
-            type="password"
+            rotulo="Confirme a nova senha"
+            senha
+            icone={Lock}
             autoComplete="new-password"
-            aria-invalid={!!errors.confirmacao}
-            {...register("confirmacao")}
+            erro={errors.confirmacao?.message}
+            registro={register("confirmacao")}
           />
-          {errors.confirmacao ? (
-            <p className="text-destructive text-xs">
-              {errors.confirmacao.message}
-            </p>
-          ) : null}
         </div>
 
         <Button type="submit" className="w-full" disabled={enviando}>

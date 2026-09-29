@@ -45,11 +45,28 @@ import path from "node:path";
 //                 `fullPage` rola a pagina, e o Select do Radix fecha ao rolar.
 // ---------------------------------------------------------------------------
 const TELAS = [
+  // --- A PORTA -----------------------------------------------------------
+  // A casca e UMA para as quatro telas de (auth), e cada imagem daqui prova
+  // uma coisa diferente sobre ela:
+  //
+  //   01   o cartao de vidro no centro, com o simbolo, o lema e os dois campos;
+  //   01b  375px -- o cartao encolhe o respiro e NADA se esconde, que e a
+  //        vantagem de centralizar. E a imagem que decide;
+  //   02   TEMA ESCURO, e ela existe para provar que a porta nao muda: os
+  //        tokens dela vivem so no `:root`, como os da barra lateral. Duas
+  //        imagens iguais aqui sao o resultado certo;
+  //   03   o Alert sobre o vidro. Os selos de estado tem fundo claro com texto
+  //        escuro, desenhados para superficie clara -- sobre o vidro escuro
+  //        eles viram um bloco luminoso, e e aqui que se ve se isso passa;
+  //   04   o cartao com UM campo so. Se o vidro ficar estranho em alguma das
+  //        quatro, e nesta;
+  //   04b  o mesmo, em 375px.
   { nome: "01-login", rota: "/login", largura: 1280, altura: 800 },
   { nome: "01b-login-375", rota: "/login", largura: 375, altura: 900 },
   { nome: "02-login-escuro", rota: "/login", largura: 1280, altura: 800, tema: "escuro" },
   { nome: "03-login-sessao-expirada", rota: "/login?motivo=inatividade", largura: 1280, altura: 800 },
   { nome: "04-esqueci-senha", rota: "/esqueci-senha", largura: 1280, altura: 800 },
+  { nome: "04b-esqueci-senha-375", rota: "/esqueci-senha", largura: 375, altura: 800 },
 
   { nome: "05-painel-socio", rota: "/painel", largura: 1440, altura: 860, role: "socio" },
   { nome: "06-painel-socio-escuro", rota: "/painel", largura: 1440, altura: 860, role: "socio", tema: "escuro" },
@@ -273,6 +290,7 @@ const TELAS = [
   // A troca obrigatoria do primeiro acesso. Mora em (auth), entao nao passa
   // pelo login do prototipo -- e por isso e uma tela avulsa na lista.
   { nome: "05b-primeiro-acesso", rota: "/trocar-senha", largura: 900, altura: 700, role: "colaborador-primeiro-acesso" },
+  { nome: "05c-primeiro-acesso-375", rota: "/trocar-senha", largura: 375, altura: 1000, role: "colaborador-primeiro-acesso" },
 
   { nome: "80-academy", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio" },
   { nome: "81-academy-colaborador", rota: "/painel/academy", largura: 1600, altura: 1200, role: "colaborador" },
