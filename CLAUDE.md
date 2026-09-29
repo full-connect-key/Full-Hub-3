@@ -3508,6 +3508,236 @@ junto.
   `montarCSV` de `lib/dominio/csv.ts` — que deixou de ter seis donos no Sprint
   15 justamente para não ganhar um sétimo aqui.
 
+### Feedback de desenvolvimento: um retrato do próprio trabalho
+
+`feedback_reports`, `feedback_replies`, `workload_alerts` e `feedback_config` —
+migration 0075. Cada pessoa da equipe recebe, periodicamente, o que entregou, o
+que mudou em relação a ela mesma, onde há espaço para crescer e o que estudar
+a seguir. O texto é escrito por IA; **todo número é calculado pelo banco.**
+
+**ISTO NÃO É AVALIAÇÃO DE DESEMPENHO, e a frase mora em três lugares.** Não é
+nota, não é ranking, não é insumo para decisão sobre promoção, aumento ou
+desligamento — e se um dia for, a regra muda inteira e passa pelo jurídico
+antes: a LGPD dá à pessoa o direito de pedir revisão de decisão automatizada
+que a afete (Art. 20), e o módulo foi desenhado justamente para não produzir
+uma. Ela está no cabeçalho da 0075 (que um refactor de tela não alcança), em
+`lib/dominio/feedback.ts` (que quem mexe na tela lê) e **na própria tela de
+quem gera** — porque é lá que a regra precisa ser lida. É a decisão do
+vocabulário do Full Days na 0016 e na 0018: exposição jurídica se registra, não
+se esconde.
+
+#### As três regras, e a consequência de schema de cada uma
+
+**1. Comparação só consigo mesma, ao longo do tempo.** Nunca com colegas, nunca
+com média da equipe, nunca em ranking. Por isso `feedback_metricas()` recebe
+UMA pessoa e devolve o período dela e o anterior dela — e **não existe função
+neste módulo que devolva duas pessoas lado a lado**. A única média da agência
+que aparece é a de CLIENTE (`clientes_com_retrabalho`), que é sobre a conta e
+não sobre gente: quem atende uma conta que pede o dobro de rodadas não está
+entregando pior.
+
+**O período anterior tem o MESMO comprimento** e termina no dia antes do
+início. Comparar um mês com um trimestre daria uma queda de volume que é só
+aritmética — e o texto diria que a pessoa entregou menos.
+
+**2. Os números crus viajam com o texto.** `metricas_json` e `contexto_json`
+ficam na mesma linha, e a tela mostra os dois juntos, nunca atrás de um botão.
+Texto sem número é opinião de máquina, e a pessoa não teria como conferir se a
+IA leu certo. `PainelDeMetricas` é **um** componente para a gestão e para ela —
+duas telas parecidas divergiriam no lugar mais caro: o que a agência olha antes
+de enviar contra o que a pessoa vê depois.
+
+**3. Revisão humana antes do envio, por padrão.** `feedback_config.exige_revisao`
+nasce `true`, e o interruptor que o desliga carrega a consequência escrita ao
+lado. **UM RASCUNHO VAZADO É PIOR QUE NENHUM FEEDBACK**: a policy da pessoa
+exige `status = 'enviado'`, com o filtro explícito, e os cenários da bateria
+guardam os CINCO status que não são esse — uma policy escrita como
+`status <> 'rascunho'` passaria por um cenário só e deixaria `gerando`,
+`revisado` e `descartado` vazarem.
+
+#### A forma de cada conta é a da 0035, linha por linha
+
+Metade das métricas já existia, e este módulo **não as reescreve onde elas têm
+dono**: `carga_do_dia()`, `subtask_eh_agrupadora()`, `cliente_da_rodada()` e
+`dias_uteis()` são chamadas. O que não dá para reaproveitar são
+`producao_do_periodo()`, `desvio_de_estimativa()` e `qualidade_da_entrega()`:
+as três são da AGÊNCIA e travam em `is_gestor()` na primeira linha, e a
+pergunta daqui é de uma pessoa. **O que se copia delas é a FORMA** — taxa no
+prazo com o mesmo denominador, etapa sem prazo fora da conta, desvio em pontos
+percentuais sobre a estimativa, folha e nunca agrupadora —, porque duas contas
+com formas diferentes fariam a tela de Métricas e o feedback discordarem sobre
+a mesma pessoa no mesmo mês.
+
+**`carga_do_dia()` GANHOU UM TERCEIRO ARGUMENTO, e não uma irmã.** Ela conta as
+etapas EM ABERTO cujo período cobre o dia, e está certa — a pergunta dela é a
+do calendário e da Home. Num período que já passou toda etapa está concluída,
+então ela devolvia zero, e o contexto lia 0% da capacidade e emitia a ressalva
+de ociosidade para quem entregou o mês inteiro: **um texto dizendo à pessoa que
+a entrega baixa dela foi distribuição de trabalho, num mês em que ela entregou
+tudo.** Foi a bateria que achou. Duas funções de carga dariam dois números para
+a mesma pessoa no mesmo dia, que é o que o comentário da 0035 existe para
+impedir; o parâmetro tem default `false`, então nenhum chamador existente mudou.
+O `drop` antes é obrigatório: `create or replace` com outra lista de argumentos
+cria uma SEGUNDA função, e a chamada de dois argumentos fica ambígua.
+
+**E a proporção da capacidade se declara INCERTA em vez de devolver um número
+baixo.** Num período em que ninguém preencheu estimativa, ela voltava 0% e
+acusava ociosidade de quem entregou — é a regra de `receita_por_hora` na 0035:
+zero é uma afirmação sobre a conta, e o que se quer dizer é que ninguém mediu.
+Nula, o prompt não fala de carga, que é melhor que falar errado.
+
+#### O contexto é a metade que evita o dano
+
+Ausência, carga contra capacidade, tempo parado esperando aprovação (interna e
+do cliente, separados), e cliente que pede mais rodadas que a média. Os números
+de entrega, sozinhos, cobram de quem recebeu 140% da capacidade e de quem
+esteve fora metade do mês.
+
+**`ressalvas` são frases prontas, em português**, e é de propósito: a
+alternativa seria mandar os números e confiar que o modelo os interprete na
+direção certa. Elas só nascem quando o fato existe — uma lista de ressalvas em
+toda geração viraria um parágrafo de desculpas em todo feedback.
+
+#### O prompt pede; a verificação confere
+
+**O prompt não é uma trava. Ele é um pedido muito bem escrito.** Quem confere é
+`verificarOTexto()` em `lib/dominio/feedback.ts`, e as duas existem de
+propósito — a decisão da máquina de estados da subtarefa ao lado dos triggers
+da 0007: uma escreve a instrução, a outra é a que vale.
+
+Quatro famílias que dá para conferir por máquina (comparação com terceiros,
+julgamento de caráter, elogio vazio, nota ou conceito), mais **todo número
+citado tem que existir nos dados** e o tamanho do texto. **A quinta — "no
+máximo dois pontos de melhoria" — NÃO está, de propósito:** não existe jeito
+honesto de contá-los num texto corrido sem cabeçalho de seção, e uma checagem
+que acerta às vezes treina quem revisa a ignorar os alertas todos. Essa fica
+para quem lê, que é o papel da revisão humana.
+
+**NADA DESCARTA EM SILÊNCIO.** Todo achado vira frase em `alertas_json` e
+aparece em destaque na tela de quem revisa. Um descarte silencioso gastaria uma
+chamada de IA e não deixaria nada para investigar.
+
+**`npm run check:feedback` é a prova**, e ela existe pela razão do `check:email`
+e do `check:preview`: uma trava que, quando some, faz o programa fazer MAIS
+coisas não derruba build, não derruba tipo, não derruba a bateria de SQL e não
+aparece em imagem de protótipo. Tirando uma família de termos, tudo continua
+verde — e a primeira notícia é alguém lendo, sobre si mesma, que entregou menos
+que a equipe. Ela mede **os dois sentidos**: o primeiro caso é um texto limpo,
+que tem de sair com zero achados, senão uma função que acusa sempre passaria em
+todos os outros. E ela achou um bug na primeira rodada — a parte inteira do
+número era `\d{1,3}`, o que parece certo porque o milhar vem com ponto, e com
+o teto de três dígitos `2400` não casava com nada: a checagem mais valiosa da
+lista ficava cega justamente para os números de minuto.
+
+#### A geração é da gestão, por botão — e o porquê fica registrado
+
+O sprint manda isto para uma Edge Function chamada pela rotina agendada. **Não
+há Edge Functions neste projeto**, e o Postgres não fala HTTP: as rotinas do
+`pg_cron` chamam RPC do PostgREST, e nenhuma delas alcança a API da Anthropic.
+A chamada mora no Next, na forma de `lib/email/`, e o que falta para a geração
+periódica é **a URL do app** — a mesma pendência que deixa o rodapé do painel
+dizendo "versão local" desde que a VPS saiu. No dia em que houver o endereço,
+isto vira uma linha em `scripts/rodar-rotinas.sh`.
+
+**A linha nasce em `gerando` ANTES da chamada**, e é isso que faz o índice
+único `(user_id, periodo_inicio, periodicidade)` ser a trava: duas abas
+clicando ao mesmo tempo passariam pelas duas consultas antes de qualquer uma
+gravar (0040), e aqui o custo de errar é uma chamada de IA paga duas vezes pelo
+mesmo texto. Quando a chave falta ou a API recusa, a linha **volta para
+`rascunho`** em vez de ficar presa em `gerando` — um relatório parado nesse
+estado é um que ninguém consegue abrir nem apagar sem entender por quê.
+
+**As três travas do sprint, e uma delas não recusa.** Menos etapas que o mínimo
+vira `dados_insuficientes` COM linha — ela diz que o período foi olhado e não
+tinha o que dizer, e sem ela "não gerou" e "não olhou" ficariam iguais. Quem
+optou por não receber é pulado, sem linha nenhuma. **Ausência acima de 40% do
+período NÃO impede**, e é decisão entre as duas saídas que o sprint oferece: o
+contexto já carrega a ressalva e o prompt já manda mencionar a ausência ao
+falar de volume. Recusar deixaria quem tirou descanso sem retorno nenhum sobre
+o mês, que é o oposto do que o módulo existe para fazer.
+
+**`modelo_usado` e `prompt_versao` são por relatório**, e não configuração
+global: o modelo troca, o prompt é reescrito, e o relatório de março precisa
+continuar dizendo quem o escreveu. **Suba `PROMPT_VERSAO` sempre que mexer no
+texto do sistema** — uma versão que não acompanha é pior que versão nenhuma.
+
+**`texto_gerado` e `texto_final` são DUAS colunas**, e juntá-las destruiria a
+única coisa que permite auditar a revisão: o que a IA escreveu. A edição é o
+normal, não a exceção.
+
+#### O que a tela da pessoa faz, e onde ela fica
+
+**Na tela Início, e não numa aba de outro módulo** — decisão do usuário. O
+sprint a punha dentro do módulo que saiu do produto na 0043, por decisão dele
+também. O ganho não é de rota: um retrato do próprio trabalho num módulo que
+ninguém abre por hábito é um retrato que ninguém lê.
+
+A ordem é **texto → assinatura → números**: o texto é o que ela veio ler, e
+conferir vem depois de ler — a decisão do detalhe do material no Portal, onde a
+arte vem antes dos botões. A linha honesta não é letra miúda: sem ela a pessoa
+leria um texto sobre si mesma sem saber que uma máquina o escreveu, e
+descobriria depois.
+
+**Responder não é opcional: feedback sem direito de resposta é comunicado.** A
+resposta notifica quem revisou e fica no histórico — e **não se edita nem se
+apaga, nem pelo sócio**, porque ela é o registro de que a pessoa discordou.
+Reescrevê-la apagaria a discordância, pela razão de a rodada de aprovação
+fechada nunca ser reescrita.
+
+**E a escolha de não receber passa por uma função do banco**, não por um
+`update` em `team_members`. Aquela tabela é `is_gestor()` no UPDATE desde o
+Sprint 2, então `recebe_feedback_ia` nasceu inalcançável por quem ela é para —
+a pessoa marcava "não quero receber", o update passava sem erro e sem linha, e
+ela continuava na fila. Foi a bateria que achou. Abrir uma policy ali daria
+junto a capacidade diária, o saldo de descanso e a função dela: policy não
+limita coluna. São duas funções que escrevem UMA coluna da própria linha, a
+forma de `confirmar_recebimento()` na 0069 — e cada uma só alcança a linha de
+quem chama, senão `security definer` seria a porta que desliga o feedback do
+colega.
+
+#### Os alertas de carga são da gestão, e a pessoa não os vê
+
+É provavelmente o retorno mais valioso do módulo: **quando alguém entrega
+menos, quase sempre o sistema sabe por quê — e a resposta costuma estar na
+distribuição de trabalho, não na pessoa.** Um alerta de sobrecarga na tela dela
+viraria cobrança por uma decisão que não foi dela; o que é dela chega pelo
+feedback, relativizado.
+
+`sobrecarga` exige DOIS períodos seguidos acima de 110%, e a segunda condição é
+o que separa um alerta de um ruído: um mês apertado é normal numa agência, dois
+seguidos é uma decisão de distribuição que ninguém revisou. `ociosidade` não
+exige dois — entrega baixa por falta de trabalho atribuído é um problema no
+primeiro mês. Eles são escritos por SQL e não pela IA, e por função e não por
+trigger: não há escrita que os dispare, eles nascem de uma pergunta sobre um
+período. `--warning` e nunca `--danger`, porque nenhum dos quatro é um erro.
+
+**A frase vem junto do nome do tipo**: "Carga baixa" ao lado do nome de alguém
+lê como cobrança, e o alerta existe para dizer o contrário.
+
+#### A transparência vem antes
+
+`/painel/feedback/sobre` é de toda a equipe, e tem entrada própria em
+`permissions.ts` — sem ela, `findMenuItem` casaria a rota com `/painel/feedback`,
+que é `GESTAO`, e devolveria 403 a quem o módulo existe para servir. O mesmo
+vale para `/painel/feedback/configuracoes`, que é do sócio: sem a entrada, o
+desenvolvedor abriria a configuração.
+
+**A primeira coisa que ela diz é o que o feedback NÃO é**, e não o que ele é:
+quem abre aquela página está com essa dúvida, e deixar a resposta para o quarto
+parágrafo é deixar a pessoa ler os três primeiros desconfiando. **E a lista do
+que NÃO é usado é tão importante quanto a do que é** — sem ela, "dados do
+sistema" é uma frase que a pessoa preenche com o pior que ela imagina. Um módulo
+assim só funciona se as pessoas confiarem nele, e confiança se ganha explicando
+antes, não depois.
+
+#### O que a trilha da 0058 NÃO pega
+
+`feedback_reports` fica fora do `audit_log`, e a ausência é decisão: a trilha
+copia o trecho que mudou, e aqui o trecho É o texto do feedback — ela viraria
+uma segunda cópia de cada rascunho descartado, numa tabela que a própria pessoa
+não alcança. Quem revisou, quando, e quando enviou já moram na própria linha. É
+a razão pela qual `approval_rounds` também ficou de fora.
+
 ### O Financeiro da agência é só do sócio
 
 `contracts`, `finance_categories` e `finance_entries` fecham em `is_socio()`
@@ -5944,6 +6174,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:tipos` | Confere que o `database.types.ts` acompanha as migrations, nos **dois sentidos**: coluna que o banco tem e o `Row` não — o `select("*")` a traz e o TypeScript não a conhece, então o campo fica invisível no produto sem nada quebrar (foi o caso de `clients.logo_url`, doze sprints como campo de anotação) — e coluna no `Row` que o banco não tem, que é a pior das duas porque **compila e o editor a autocompleta**: a recusa chega na tela de quem usa o sistema. Ele lê as migrations como quem as aplicaria (`create table`, as cláusulas de `alter table`, `drop column`, `rename`, `drop table`, `drop type`) e não consulta banco nenhum. Tabela alcançada só por RPC precisa de **motivo escrito** na lista de isentas, como o `-- SEM LINHA: 0026` do `onde-esta-o-banco.sql`. **E ele confere a mesma corrente um andar abaixo, em PARÂMETRO DE FUNÇÃO**: argumento que o tipo declara e a função não tem, parâmetro que a função tem e o tipo não oferece, e — a ponta que faltava — chave que uma chamada `.rpc()` manda e o tipo não declara. Esta última **não é erro de tipo**, e é por isso que ela precisa de checagem própria |
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
+| `npm run check:feedback` | Prova que a verificação do texto do feedback continua pegando o que não pode chegar a uma pessoa: comparação com terceiros, julgamento de caráter, elogio vazio, nota, número que não está nos dados. **Mede os dois sentidos** — o primeiro caso é um texto limpo, que tem de sair com zero achados, senão uma função que acusa SEMPRE passaria em todos os outros. É a família do `check:email` e do `check:preview`: uma trava que, quando some, faz o programa fazer MAIS coisas não derruba build, nem tipo, nem a bateria de SQL |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. **Ela ATRAVESSA LINHA desde a busca global, e não atravessava:** a expressão exigia o `nome:` e o `clicar:` na MESMA linha, então toda entrada escrita em mais de uma — que é como as longas são escritas — ficava fora da conferência. Ela dizia "31 textos, todos no produto" sem nunca ter olhado para treze deles; hoje são 44. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
@@ -5964,6 +6195,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 3H | **Feedback de desenvolvimento assistido por IA.** Migration 0075: quatro tabelas, sete funções, e a exposição jurídica registrada no cabeçalho — **isto não é avaliação de desempenho**, e se um dia for, a regra muda inteira e passa pelo jurídico antes (LGPD, Art. 20). As três regras do módulo têm consequência de schema: comparação só consigo mesma (nenhuma função devolve duas pessoas lado a lado), os números crus na mesma linha do texto, e revisão humana por padrão. **Um rascunho vazado é pior que nenhum feedback**, e os cenários guardam os CINCO status que não são `enviado`. Quatro divergências do texto do sprint, todas sobre o produto como ele está: rascunho é `publicada_em is null` e não um valor de enum (quarto sprint a errar nisso); a tabela de autoavaliação foi apagada na 0043, então "o que ela quer desenvolver" virou "o que ela estudou"; não há Edge Functions aqui, e a geração periódica continua pendente da URL do app; e metade das métricas já existia — o que se copia da 0035 é a FORMA de cada conta, para a tela de Métricas e o feedback não discordarem sobre a mesma pessoa. **Três achados da bateria, e os três eram bugs**: `carga_do_dia()` devolvia zero num período fechado e o texto dizia a quem entregou o mês inteiro que a entrega baixa dela foi distribuição de trabalho; a proporção da capacidade acusava ociosidade num mês em que ninguém estimou; e `recebe_feedback_ia` nasceu inalcançável por quem ela é para. **83 cenários novos, 1494 no total**, medidos com quatro mutações. O `check:feedback` achou um bug meu na primeira rodada — o teto de três dígitos deixava a checagem de número cega para `2400` —, e o `check:cores` pegou os meus próprios comentários citando os dois nomes mortos que a varredura proíbe, pela sétima vez. |
 | Sprint 3F | **Comodatos: qual equipamento está com quem.** Migration 0069, e o **segundo módulo do zero em poucos sprints** — não havia ponte para atravessar desta vez, nem tabela nem coluna esperando alguém. `assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`, com duas visões da mesma informação numa rota só: o colaborador vê o que está com ele, a gestão vê o inventário inteiro. **A divergência do texto do sprint é de segurança**, e as duas frases dele não cabiam juntas: ele manda deixar o colaborador ler a linha do equipamento e, na linha seguinte, esconder `valor_aquisicao` numa view — mas **uma view não limita a tabela de baixo**, e com a policy permitindo a linha o valor sai por um `select=valor_aquisicao` no PostgREST. É a regra que o produto já escreveu três vezes de outro jeito: policy não limita coluna. Então a linha ficou **fora do alcance** e o recorte vem de `meus_comodatos()`, `security definer` — a forma de `usuarios_do_meu_cliente()`. **O índice único parcial é a trava** contra dois empréstimos do mesmo item, e não a consulta (0040); **o status é escrito pelo empréstimo**, por trigger; **atraso é derivado**, nunca coluna. **O termo é SNAPSHOT e não arquivo:** o corpo congela na entrega, porque o modelo é editável e um termo é o que a pessoa aceitou naquele dia — e o PDF é montado no download, porque o próprio sprint descreve o documento como vivo (o aceite aparece nele depois de acontecer), e um PDF gravado na entrega não tem como ganhar uma linha. Por isso não há bucket de termos. **A folha do equipamento é tabela própria e não o `audit_log`**: aquela trilha é só do sócio desde a 0058, e o que ela grava é diff de coluna, não fato. No desligamento, o equipamento em aberto **avisa com caixa obrigatória em vez de recusar** — travar deixaria a agência sem conseguir desligar quem já foi embora; o que ela impede é desligar sem ver. **61 cenários novos, 1355 no total**, e quatro bugs reais na primeira rodada: um `case` devolvendo texto para coluna de enum, emprestar criando DOIS eventos `emprestado` (o trigger de status e o do empréstimo), e `asset_term_template` com `id boolean primary key` — engenhoso, e quebra `registrar_auditoria()`, que grava o id num `uuid`. **E um cenário que passava pelo motivo errado:** a mutação que tirava a checagem de dono de `confirmar_recebimento()` não era pega, porque o teste procurava o empréstimo por um `select` que a RLS da outra pessoa não resolve — ele media a policy de SELECT, não a pergunta de propriedade. Com o id literal, a mutação cai. **E o seed passou a ter alguém desligada**, com uma lente em aberto: sem ela o alerta mais caro do módulo nunca aparece em desenvolvimento — a lição da 0062 aplicada antes do bug em vez de depois. |
 | Sprint 15 | **A agência passou a responder sobre si mesma.** A camada de indicadores existia desde a 0035 e o resumo da Home desde a 0049, e nenhuma tela as lia. A Home ganhou os **nove blocos**, na ordem do dia da pessoa — quem sou eu, o que eu entrego hoje, o que está parado me esperando, quem não está aqui, para onde eu vou, e só então o panorama da gestão: quem abre esta tela abre para trabalhar. "Meu dia" é o **mesmo componente de Minhas Tasks**, que já estava separado desde o Sprint 4 esperando exatamente isto. `/painel/metricas` traz cinco abas com o **período como CHAVE e não como as duas datas** — "últimos 30 dias" salvo como `de=2026-08-26` é um link que envelhece calado —, e `QUEM_VE` espelha a primeira linha de cada função da 0035: quatro de `is_gestor()`, a rentabilidade de `is_socio()`. `ouFalha()` em todas, e aqui ele vale mais que de costume: a recusa dessas funções chega como erro, e sem ele o painel mostraria zeros — **painel zerado não parece recusa, parece agência parada**. `/painel/resumo-agencia` é a conversa de segunda-feira, e é **módulo antes de ser tela** (`lib/reports/weekly.ts`), porque a mesma função serviria o envio automático que ainda não existe. De quebra, o **CSV deixou de ter seis donos**: `montarCSV` morava dentro do Financeiro e a Academy importava dali, e as cópias já divergiam — o BOM que o Excel precisa estava em quatro das cinco telas. **Quatro erros meus, e nenhum o `npm run build` pegaria:** o cartão dizia "11 entregues" e o bloco logo abaixo contava 7, porque `producao_do_periodo()` conta só folha e as listas contavam agrupadora junto (foi a imagem que pôs os dois números lado a lado); em 375px a barra de abas empurrava a página inteira para os lados, e o **Full Days tinha a mesma linha desde o Sprint 6**; o título da etapa em "Meu dia" encolhia até "Re…" no celular; e o meu próprio comentário explicando por que o estado passa pelo mapa de rótulos **citava a palavra que a 0016 proibiu** — sétima vez na mesma armadilha. E o seed concluía duas etapas por INSERT, onde o trigger de UPDATE não roda: `concluida_em` nulo fazia toda conta de entrega responder **zero, que é plausível**. |
 | Sprint 10 | **O Calendário Full**: migration 0055, com `events`, `event_participants` e a view `calendar_events` juntando sete origens num formato só. **A linha mais importante é `security_invoker = true`** — sem ela a view roda com os direitos de quem a criou e lê as sete tabelas inteiras para qualquer pessoa autenticada, num objeto que o PostgREST publica sozinho. E o furo **passa despercebido num banco com um cliente só**: ele vê seis campanhas, que é o total, e "seis de seis" tem a mesma cara com a RLS ligada e desligada; por isso a bateria cria material de duas empresas, e tirando a cláusula seis cenários falham e dizem o que vazaria. **Quatro divergências do texto do sprint**, e a primeira é grave: ele filtra rascunho por `status in ('rascunho','cancelada')` e **nenhum dos dois existe** — `rascunho` nem é valor do enum, e o Postgres recusaria a criação da view com um erro falando de enum; `carga_do_dia()` já existia desde a 0035 e nada aqui recalcula; `capacidade_minutos_dia` não existia e nasce por pessoa; e "não incluir posts e campanhas ainda" está vencido, porque os dois módulos existem. Quatro visões, e a Linha do Tempo é a que responde "a equipe aguenta?" — com a coluna de nomes fixa, que quase não foi: o `overflow-hidden` do invólucro cria um scrollport e quebra o `sticky`, e a imagem mostrou "Carla Nunes" lida como "nes". **A ausência chegava com a chave do enum no título** e ia crua para a tela — a palavra que a 0016 tirou de propósito, e que `check:cores` não pegaria porque ele procura as formas acentuadas. **1000 cenários**, 24 novos, com mutação no `security_invoker`. |

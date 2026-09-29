@@ -383,6 +383,31 @@ const TELAS = [
   // A FICHA TÉCNICA (0070) só existe DEPOIS do clique: ela é uma seção do
   // diálogo de cadastro, e uma tela sem o clique fotografa a lista.
   { nome: "97c-comodatos-cadastro", rota: "/painel/comodatos?aba=geral", largura: 1400, altura: 1500, role: "socio", clicar: 'button:has-text("Cadastrar")' },
+  // ---------------------------------------------------------------------
+  // SPRINT 3H -- O FEEDBACK DE DESENVOLVIMENTO (0075)
+  //
+  // SAO SEIS TELAS E CADA UMA RESPONDE UMA COISA, porque este modulo tem dois
+  // lados que nao se parecem: quem escreve e quem le sobre si mesma.
+  //
+  // A DE 375px DO INICIO E A QUE MAIS IMPORTA, e e por isso que ela existe: a
+  // revisao mostra texto e numeros lado a lado a partir de `xl`, e o custo dessa
+  // decisao aparece no celular -- se as duas colunas nao empilharem com o texto
+  // primeiro, quem le o proprio feedback no telefone comeca pela tabela de
+  // numeros. Nenhum build pega isso.
+  // ---------------------------------------------------------------------
+  { nome: "98-feedback-fila", rota: "/painel/feedback", largura: 1500, altura: 1200, role: "socio" },
+  // A REVISAO COM ALERTA: a faixa de achados da verificacao so existe quando ha
+  // um, e uma rodada em que todo relatorio sai limpo fotografaria a tela sem
+  // ela -- que e a metade da tela que o modulo inteiro existe para ter.
+  { nome: "98b-feedback-revisao", rota: "/painel/feedback?relatorio=f0000000-0000-0000-0000-000000000002", largura: 1600, altura: 2000, role: "socio" },
+  { nome: "98c-feedback-revisao-375", rota: "/painel/feedback?relatorio=f0000000-0000-0000-0000-000000000002", largura: 375, altura: 2600, role: "socio" },
+  { nome: "98d-feedback-configuracoes", rota: "/painel/feedback/configuracoes", largura: 1400, altura: 1200, role: "socio" },
+  { nome: "98e-feedback-sobre", rota: "/painel/feedback/sobre", largura: 1400, altura: 2200, role: "colaborador" },
+  // O LADO DA PESSOA, na tela Inicio -- que e onde ele mora por decisao do
+  // usuario. A de 375 esta acima, e as duas sao da MESMA tela: o bloco do
+  // feedback e o ultimo item de "quem sou eu" antes do resto do dia.
+  { nome: "98f-feedback-na-home", rota: "/painel", largura: 1400, altura: 2600, role: "colaborador" },
+  { nome: "98g-feedback-na-home-375", rota: "/painel", largura: 375, altura: 3200, role: "colaborador" },
   { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
@@ -527,6 +552,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
   "@/lib/dados/solicitacoes": ["./scripts/prototipo/solicitacoes.ts"],
   "@/lib/dados/comodatos": ["./scripts/prototipo/comodatos.ts"],
+  "@/lib/dados/feedback": ["./scripts/prototipo/feedback.ts"],
   // A BUSCA ENTRA AQUI PORQUE A PALETA ABRE DE QUALQUER TELA: o campo mora
   // na topbar do layout, e sem o stub a acao chamaria o Supabase de dentro
   // de uma rodada em que o dominio das consultas e `.invalid`.

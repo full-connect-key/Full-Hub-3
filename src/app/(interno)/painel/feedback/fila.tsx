@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { LinhaDaFila, RelatorioDeFeedback } from "@/lib/dados/feedback";
+import type {
+  LinhaDaFila,
+  RelatorioDeFeedback,
+} from "@/lib/dominio/feedback";
 import { ROTULOS_DE_STATUS, lerAlertas } from "@/lib/dominio/feedback";
 import type { FeedbackPeriodicidade } from "@/lib/supabase/database.types";
 

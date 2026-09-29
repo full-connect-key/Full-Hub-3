@@ -1,4 +1,5 @@
 import type {
+  Database,
   FeedbackPeriodicidade,
   FeedbackStatus,
 } from "@/lib/supabase/database.types";
@@ -620,3 +621,50 @@ export function variacao(agora: number | null, antes: number | null) {
   if (agora === null || antes === null) return null;
   return Math.round((agora - antes) * 10) / 10;
 }
+
+
+// ---------------------------------------------------------------------------
+// A FORMA DO QUE A LEITURA DEVOLVE
+//
+// Estes tipos moram em domínio e não em `lib/dados/feedback.ts`, e não é
+// organização: o gerador de protótipo troca `@/lib/dados/feedback` pelo stub,
+// então um `export type` dentro do stub apontando para aquele mesmo caminho é
+// uma definição circular — `Circular definition of import alias`, que o
+// `typecheck` do projeto não vê porque ele checa contra o módulo de verdade.
+// Quem pegou foi a compilação do protótipo, dois minutos depois.
+//
+// É a mesma regra que o projeto já tinha escrita de outro jeito: o que os dois
+// lados precisam vai para `lib/dominio/`.
+// ---------------------------------------------------------------------------
+
+export type Pessoa = { id: string; nome: string; avatar_url: string | null };
+
+export type RelatorioDeFeedback =
+  Database["public"]["Tables"]["feedback_reports"]["Row"] & {
+    pessoa: Pessoa | null;
+    revisor: Pessoa | null;
+  };
+
+export type RespostaDoFeedback =
+  Database["public"]["Tables"]["feedback_replies"]["Row"] & {
+    autor: Pessoa | null;
+  };
+
+export type AlertaDeCarga =
+  Database["public"]["Tables"]["workload_alerts"]["Row"] & {
+    pessoa: Pessoa | null;
+  };
+
+export type ConfigDoFeedback =
+  Database["public"]["Tables"]["feedback_config"]["Row"] & {
+    revisor: Pessoa | null;
+  };
+
+export type LinhaDaFila = {
+  userId: string;
+  nome: string;
+  concluidas: number;
+  jaTem: boolean;
+  statusAtual: FeedbackStatus | null;
+  relatorioId: string | null;
+};

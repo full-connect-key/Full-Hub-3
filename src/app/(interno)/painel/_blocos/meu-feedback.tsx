@@ -3,7 +3,10 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MessageSquareHeart } from "lucide-react";
 
-import type { RelatorioDeFeedback, RespostaDoFeedback } from "@/lib/dados/feedback";
+import type {
+  RelatorioDeFeedback,
+  RespostaDoFeedback,
+} from "@/lib/dominio/feedback";
 import { PainelDeMetricas } from "../feedback/painel-de-metricas";
 import { ResponderAoFeedback } from "../feedback/responder";
 
@@ -75,19 +78,26 @@ export function MeuFeedback({
         {/* A LINHA HONESTA. Ela não é aviso legal nem letra miúda: sem ela, a
             pessoa leria um texto sobre si mesma sem saber que uma máquina o
             escreveu — e descobriria depois, que é o pior jeito de descobrir. */}
-        <p className="text-text-muted border-border border-t pt-3 text-xs">
-          Gerado automaticamente a partir dos seus dados no sistema
-          {relatorio.revisor?.nome ? (
-            <> e revisado por {relatorio.revisor.nome}</>
-          ) : null}
-          , em {format(parseISO(quando), "dd/MM/yyyy", { locale: ptBR })}.{" "}
+        {/* O LINK É LINHA PRÓPRIA, e não vai no meio da frase: dentro de um
+            parágrafo a cor é a única coisa que o separa do texto em volta, e o
+            axe acusa `link-in-text-block`. Foi a regra que o pedido concluído do
+            cliente já pagou uma vez — todo link do produto é `hover:underline`,
+            e nenhum outro foi acusado porque nenhum outro mora num parágrafo. */}
+        <div className="border-border border-t pt-3">
+          <p className="text-text-muted text-xs">
+            Gerado automaticamente a partir dos seus dados no sistema
+            {relatorio.revisor?.nome ? (
+              <> e revisado por {relatorio.revisor.nome}</>
+            ) : null}
+            , em {format(parseISO(quando), "dd/MM/yyyy", { locale: ptBR })}.
+          </p>
           <Link
             href="/painel/feedback/sobre"
-            className="text-accent-strong hover:underline"
+            className="text-accent-strong mt-1 inline-block text-xs hover:underline"
           >
             Como isto funciona
           </Link>
-        </p>
+        </div>
 
         <div className="border-border border-t pt-4">
           <h3 className="text-text-secondary mb-3 text-xs font-semibold tracking-wide uppercase">
@@ -108,15 +118,17 @@ export function MeuFeedback({
         </div>
 
         {quantosAnteriores > 0 ? (
-          <p className="text-text-muted text-xs">
-            Você tem {quantosAnteriores} feedback(s) de períodos anteriores.{" "}
+          <div>
+            <p className="text-text-muted text-xs">
+              Você tem {quantosAnteriores} feedback(s) de períodos anteriores.
+            </p>
             <Link
               href="/painel/feedback/sobre#historico"
-              className="text-accent-strong hover:underline"
+              className="text-accent-strong mt-1 inline-block text-xs hover:underline"
             >
               Ver o histórico
             </Link>
-          </p>
+          </div>
         ) : null}
       </div>
     </section>

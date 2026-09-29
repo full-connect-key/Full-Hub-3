@@ -4,7 +4,9 @@ import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { AlertaDeCarga } from "@/lib/dados/feedback";
+import type {
+  AlertaDeCarga,
+} from "@/lib/dominio/feedback";
 import {
   EXPLICACAO_DO_ALERTA,
   ROTULOS_DE_ALERTA_DE_CARGA,

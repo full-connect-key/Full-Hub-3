@@ -8,7 +8,10 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { RelatorioDeFeedback, RespostaDoFeedback } from "@/lib/dados/feedback";
+import type {
+  RelatorioDeFeedback,
+  RespostaDoFeedback,
+} from "@/lib/dominio/feedback";
 import { lerAlertas, ROTULOS_DE_STATUS } from "@/lib/dominio/feedback";
 
 import {

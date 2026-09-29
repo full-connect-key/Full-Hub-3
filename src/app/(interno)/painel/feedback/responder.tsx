@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { RespostaDoFeedback } from "@/lib/dados/feedback";
+import type {
+  RespostaDoFeedback,
+} from "@/lib/dominio/feedback";
 
 import { responderAoFeedback } from "./acoes";
 

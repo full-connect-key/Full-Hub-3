@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Gauge } from "lucide-react";
 
-import type { AlertaDeCarga } from "@/lib/dados/feedback";
+import type {
+  AlertaDeCarga,
+} from "@/lib/dominio/feedback";
 import {
   EXPLICACAO_DO_ALERTA,
   ROTULOS_DE_ALERTA_DE_CARGA,
@@ -129,27 +131,30 @@ export function PulsoDaAgencia({
                 {ROTULOS_DE_ALERTA_DE_CARGA[a.tipo] ?? a.tipo} ·{" "}
                 {a.pessoa?.nome ?? "—"}
               </p>
+              {/* O LINK EM LINHA PRÓPRIA, pela razão do `link-in-text-block`:
+                  dentro do parágrafo a cor seria a única coisa a distingui-lo.
+                  Este não foi acusado porque a imagem do Pulso é da gestão e a
+                  do feedback é do colaborador — e "não foi acusado" não é
+                  argumento para repetir o erro ao lado. */}
               <p className="text-text-secondary mt-0.5 text-xs">
-                {EXPLICACAO_DO_ALERTA[a.tipo] ?? ""}{" "}
-                <Link
-                  href="/painel/feedback"
-                  className="text-accent-strong hover:underline"
-                >
-                  Ver em Feedback
-                </Link>
+                {EXPLICACAO_DO_ALERTA[a.tipo] ?? ""}
               </p>
+              <Link
+                href="/painel/feedback"
+                className="text-accent-strong mt-1 inline-block text-xs hover:underline"
+              >
+                Ver em Feedback
+              </Link>
             </li>
           ))}
           {alertasDeCarga.length > 4 ? (
             <li className="text-text-muted text-xs">
-              e mais {alertasDeCarga.length - 4} sinal(is) em{" "}
               <Link
                 href="/painel/feedback"
                 className="text-accent-strong hover:underline"
               >
-                Feedback
+                e mais {alertasDeCarga.length - 4} sinal(is) em Feedback
               </Link>
-              .
             </li>
           ) : null}
         </ul>

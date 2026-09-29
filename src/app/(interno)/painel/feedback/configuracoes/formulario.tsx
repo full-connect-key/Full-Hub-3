@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { ConfigDoFeedback, Pessoa } from "@/lib/dados/feedback";
+import type {
+  ConfigDoFeedback,
+  Pessoa,
+} from "@/lib/dominio/feedback";
 import type { FeedbackPeriodicidade } from "@/lib/supabase/database.types";
 
 import { salvarConfigDoFeedback } from "../acoes";

@@ -3,7 +3,14 @@ import "server-only";
 import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
-  Database,
+  AlertaDeCarga,
+  ConfigDoFeedback,
+  LinhaDaFila,
+  Pessoa,
+  RelatorioDeFeedback,
+  RespostaDoFeedback,
+} from "@/lib/dominio/feedback";
+import type {
   FeedbackPeriodicidade,
   FeedbackStatus,
 } from "@/lib/supabase/database.types";
@@ -26,32 +33,10 @@ import type {
  * ---------------------------------------------------------------------------
  */
 
-type LinhaDoRelatorio = Database["public"]["Tables"]["feedback_reports"]["Row"];
-type LinhaDaResposta = Database["public"]["Tables"]["feedback_replies"]["Row"];
-type LinhaDoAlerta = Database["public"]["Tables"]["workload_alerts"]["Row"];
-type LinhaDaConfig = Database["public"]["Tables"]["feedback_config"]["Row"];
-
-export type Pessoa = { id: string; nome: string; avatar_url: string | null };
-
-export type RelatorioDeFeedback = LinhaDoRelatorio & {
-  pessoa: Pessoa | null;
-  revisor: Pessoa | null;
-};
-
-export type RespostaDoFeedback = LinhaDaResposta & { autor: Pessoa | null };
-
-export type AlertaDeCarga = LinhaDoAlerta & { pessoa: Pessoa | null };
-
-export type ConfigDoFeedback = LinhaDaConfig & { revisor: Pessoa | null };
-
-export type LinhaDaFila = {
-  userId: string;
-  nome: string;
-  concluidas: number;
-  jaTem: boolean;
-  statusAtual: FeedbackStatus | null;
-  relatorioId: string | null;
-};
+// OS TIPOS TÊM UM DONO SÓ, e ele é `lib/dominio/feedback.ts` — a razão está
+// escrita lá. Reexportá-los aqui pareceria conveniente e reabriria o problema:
+// o `check:prototipo` cobra do stub todo nome que `src/` importa deste caminho,
+// e o stub não pode reexportar um tipo que vem daqui sem ficar circular.
 
 /**
  * As pessoas em `profiles`, por id.
