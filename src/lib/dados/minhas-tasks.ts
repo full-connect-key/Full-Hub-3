@@ -456,6 +456,118 @@ export async function meuDia(userId: string, prazos: Prazos = prazosDeHoje()): P
   });
 }
 
+export type EtapaEmAndamento = {
+  id: string;
+  taskId: string;
+  titulo: string;
+  tituloDaMae: string;
+  cliente: string | null;
+  tempoMedidoSegundos: number;
+  andandoDesde: string;
+  /** Quantas OUTRAS estão com o relógio andando no meu nome agora. */
+  outras: number;
+};
+
+/**
+ * A ETAPA QUE ESTÁ COM O RELÓGIO ANDANDO AGORA, no meu nome.
+ *
+ * ---------------------------------------------------------------------------
+ * **Ela NÃO sai de `meuDia()`, e a razão é a que faz esta consulta existir.**
+ * Aquela lista é o que vence hoje e o que já passou do prazo — e o relógio
+ * esquecido aberto quase nunca está numa etapa que vence hoje. Ele está na que
+ * a pessoa começou às cinco da tarde de sexta, com prazo na quarta-feira
+ * seguinte, e que passou o fim de semana correndo. Derivar daqui a lista de lá
+ * mostraria o cartão exatamente nos casos em que ele não é necessário e o
+ * esconderia no único em que ele é.
+ * ---------------------------------------------------------------------------
+ *
+ * **São três consultas, e as três são pequenas** — bem menos que o `carregar()`
+ * de Minhas Tasks, que traz demanda, rodada, dependência e a máquina de
+ * estados inteira. Aqui a pergunta é uma só e a resposta é uma linha.
+ *
+ * **A agrupadora fica de fora**, como em todo lugar: o relógio dela não corre
+ * (0022), e uma etapa que estava andando no instante em que ganhou a primeira
+ * filha carrega o `andando_desde` antigo. Mostrá-la poria na primeira dobra da
+ * Home um número que o produto inteiro diz que não conta.
+ *
+ * **E o rascunho fica de fora**, como em toda lista: a etapa que eu rascunhei
+ * ainda não é trabalho de ninguém (0028).
+ *
+ * Mais de uma correndo é caso real — ninguém para a anterior ao começar a
+ * seguinte —, e quem aparece é **a que está andando há mais tempo**, que é
+ * justamente a esquecida. As outras viram contagem: repetir o cartão N vezes
+ * na primeira dobra trocaria o aviso por uma segunda lista.
+ */
+export async function etapaEmAndamento(userId: string): Promise<EtapaEmAndamento | null> {
+  const supabase = await criarClienteServidor();
+
+  const correndo = (ouFalha(
+    "as minhas etapas em andamento",
+    await supabase
+      .from("subtasks")
+      .select("id, task_id, titulo, tempo_medido_segundos, andando_desde")
+      .eq("responsavel_id", userId)
+      .not("andando_desde", "is", null)
+      // A mais antiga primeiro: é a que a pessoa esqueceu.
+      .order("andando_desde", { ascending: true }),
+  ) ?? []) as {
+    id: string;
+    task_id: string;
+    titulo: string;
+    tempo_medido_segundos: number;
+    andando_desde: string | null;
+  }[];
+
+  if (correndo.length === 0) return null;
+
+  const [comFilha, tasks] = await Promise.all([
+    supabase
+      .from("subtasks")
+      .select("parent_id")
+      .in("parent_id", correndo.map((s) => s.id))
+      .then((r) => ouFalha("as sub-etapas das minhas etapas em andamento", r)),
+    supabase
+      .from("tasks")
+      .select("id, titulo, client_id")
+      .in("id", [...new Set(correndo.map((s) => s.task_id))])
+      .not("publicada_em", "is", null)
+      .then((r) => ouFalha("as demandas das minhas etapas em andamento", r)),
+  ]);
+
+  const agrupadora = new Set((comFilha ?? []).map((f) => f.parent_id).filter(Boolean) as string[]);
+  const porId = new Map((tasks ?? []).map((t) => [t.id, t]));
+
+  const validas = correndo.filter((s) => !agrupadora.has(s.id) && porId.has(s.task_id));
+  const primeira = validas[0];
+  if (!primeira || !primeira.andando_desde) return null;
+
+  const mae = porId.get(primeira.task_id)!;
+
+  let cliente: string | null = null;
+  if (mae.client_id) {
+    const empresa = ouFalha(
+      "o cliente da minha etapa em andamento",
+      await supabase
+        .from("clients")
+        .select("nome_empresa")
+        .eq("id", mae.client_id)
+        .limit(1),
+    );
+    cliente = empresa?.[0]?.nome_empresa ?? null;
+  }
+
+  return {
+    id: primeira.id,
+    taskId: primeira.task_id,
+    titulo: primeira.titulo,
+    tituloDaMae: mae.titulo,
+    cliente,
+    tempoMedidoSegundos: primeira.tempo_medido_segundos,
+    andandoDesde: primeira.andando_desde,
+    outras: validas.length - 1,
+  };
+}
+
 /**
  * A pessoa logada pode criar task?
  *

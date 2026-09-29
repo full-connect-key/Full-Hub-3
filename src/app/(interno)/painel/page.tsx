@@ -4,7 +4,7 @@ import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { resumoDaHome } from "@/lib/dados/home";
-import { meuDia, prazosDeHoje } from "@/lib/dados/minhas-tasks";
+import { etapaEmAndamento, meuDia, prazosDeHoje } from "@/lib/dados/minhas-tasks";
 import {
   meusPedidosDeNota,
   minhasNotasRecusadas,
@@ -23,6 +23,7 @@ import { MeuDia } from "./minhas-tasks/meu-dia";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { BoasVindas } from "./_blocos/boas-vindas";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
+import { EmAndamentoAgora } from "./_blocos/em-andamento-agora";
 import { MeuFeedback } from "./_blocos/meu-feedback";
 import { MeusEquipamentos } from "./_blocos/meus-equipamentos";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
@@ -79,6 +80,7 @@ export default async function PaginaInicialDoPainel() {
     meusEquipamentos,
     meusFeedbacks_lista,
     alertasDeCargaAbertos,
+    correndoAgora,
   ] = await Promise.all([
     obterMinhaFicha(),
     resumoDaHome(),
@@ -109,6 +111,13 @@ export default async function PaginaInicialDoPainel() {
     // não é gestão, e não cai por conta própria: derrubar a tela inicial por
     // causa de um bloco entre nove seria caro por nada.
     gestao ? alertasAbertos() : Promise.resolve([]),
+    // O RELÓGIO QUE ESTÁ CORRENDO (interface "Leve"). Ela NÃO sai de
+    // `meuDia()`, e o porquê está em `etapaEmAndamento()`: o relógio esquecido
+    // aberto quase nunca está numa etapa que vence hoje. E vai aqui dentro,
+    // no mesmo `Promise.all`, em vez de num bloco que busca por conta
+    // própria — um `await` dentro do componente serializaria três consultas
+    // no caminho crítico da primeira dobra, que é justamente onde ele mora.
+    etapaEmAndamento(usuarioId),
   ]);
 
   // A CONVERSA DO FEEDBACK MAIS RECENTE, e só dele: os anteriores viram
@@ -130,6 +139,11 @@ export default async function PaginaInicialDoPainel() {
         role={profile.role}
         cargo={ficha?.cargo ?? null}
       />
+
+      {/* ANTES DE "MEU DIA", e a ordem é a do dia da pessoa: o que está
+          acontecendo agora vem antes do que ela entrega hoje. Some quando não
+          há relógio andando, como todo bloco de exceção desta tela. */}
+      <EmAndamentoAgora etapa={correndoAgora} agoraDoServidor={prazosDeHoje().agora} />
 
       <MeuDia
         itens={itensDoDia}

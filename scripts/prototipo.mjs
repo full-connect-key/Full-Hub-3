@@ -1279,6 +1279,26 @@ try {
     console.error(`  A lista inteira, com o motivo de cada nó: ${path.relative(RAIZ, relatorio)}`);
 
     process.exitCode = 1;
+  } else if (!process.env.PROTOTIPO_SO) {
+    // ----------------------------------------------------------------------
+    // ZERO ACHADO APAGA O RELATÓRIO, e só na rodada COMPLETA.
+    //
+    // Sem esta linha o arquivo era escrito quando havia achado e deixado
+    // intacto quando não havia — então o dia em que a lista zerasse,
+    // `acessibilidade.json` continuaria no disco com os achados da semana
+    // passada, com cara de atual. Quem o abrisse iria consertar o que já foi
+    // consertado, e concluiria que a varredura não mede nada.
+    //
+    // É a armadilha da tabela de migrations pendentes do CLAUDE.md e a do
+    // `onde-esta-o-banco.sql` parado na 0054: um arquivo cujo trabalho
+    // inteiro é dizer "onde" não pode ficar para trás em silêncio.
+    //
+    // **E NÃO NA RODADA FILTRADA**, que é a outra metade da decisão: ali zero
+    // quer dizer "zero nestas três telas", não "zero no produto". Apagar o
+    // relatório da rodada completa por causa de um recorte de três telas
+    // trocaria um arquivo velho por nenhum arquivo, que é pior.
+    // ----------------------------------------------------------------------
+    await rm(path.join(SAIDA, "acessibilidade.json"), { force: true });
   }
 
   if (violacoes.length > 0) {

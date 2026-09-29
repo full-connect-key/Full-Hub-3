@@ -8,6 +8,7 @@ import {
   segundosMedidos,
   type Cronometro as DadosDoCronometro,
 } from "@/lib/dominio/tempo";
+import { cn } from "@/lib/utils";
 
 /**
  * O relógio correndo, na tela.
@@ -22,16 +23,27 @@ import {
  * primeiro número saísse do relógio do navegador, o HTML do servidor e o da
  * hidratação discordariam — é a mesma regra do `tempoRelativo()` nas
  * Recomendações.
+ *
+ * **`destaque` muda a ESCALA e mais nada**, e é a razão de ele ser uma
+ * propriedade em vez de um segundo componente: o cartão "em andamento agora"
+ * da Home precisa do número na primeira dobra, grande o bastante para alguém
+ * reparar nele de passagem, e o resto do produto precisa do mesmo relógio numa
+ * linha de lista. Dois componentes divergiriam — e a divergência apareceria no
+ * número que a pessoa usa para declarar quanto tempo levou. O par de cor é o
+ * mesmo, já medido; tamanho não muda contraste.
  */
 export function Cronometro({
   dados,
   agoraDoServidor,
   rotulo = "Tempo medido nesta etapa",
+  destaque = false,
 }: {
   dados: DadosDoCronometro;
   /** O instante que o servidor mediu, em milissegundos. */
   agoraDoServidor: number;
   rotulo?: string;
+  /** Só a primeira dobra da Home passa: o mesmo relógio, em outra escala. */
+  destaque?: boolean;
 }) {
   const desde = dados.andando_desde;
   const fechados = dados.tempo_medido_segundos;
@@ -67,10 +79,18 @@ export function Cronometro({
           // Par NOMEADO e já medido (`--accent-foreground` sobre `--accent`,
           // o azul claro), nunca `bg-info/10`: opacidade sobre um fundo
           // qualquer dá uma cor que ninguém mediu, e outra no tema escuro.
-          ? "bg-accent text-accent-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs tabular-nums"
+          ? cn(
+              "bg-accent text-accent-foreground inline-flex items-center rounded-md font-mono tabular-nums",
+              destaque
+                ? "gap-2 px-2.5 py-1 text-2xl font-semibold tracking-tight sm:text-3xl"
+                : "gap-1 px-1.5 py-0.5 text-xs",
+            )
           // Parado é `--text-secondary` e não `--text-muted`: o discreto só
           // está medido para texto GRANDE, e este relógio é de 12px.
-          : "text-text-secondary inline-flex items-center gap-1 font-mono text-xs tabular-nums"
+          : cn(
+              "text-text-secondary inline-flex items-center font-mono tabular-nums",
+              destaque ? "gap-2 text-2xl font-semibold tracking-tight sm:text-3xl" : "gap-1 text-xs",
+            )
       }
       title={
         correndo
@@ -78,7 +98,7 @@ export function Cronometro({
           : `${rotulo}, já parado.`
       }
     >
-      <Timer aria-hidden className="size-3" />
+      <Timer aria-hidden className={destaque ? "size-5 sm:size-6" : "size-3"} />
       <span className="sr-only">{rotulo}: </span>
       {formatarCronometro(segundos)}
     </span>

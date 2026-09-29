@@ -12,6 +12,7 @@
  */
 import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "../../src/lib/dominio/tasks";
 import type {
+  EtapaEmAndamento as EtapaEmAndamentoReal,
   ItemDoDia as ItemDoDiaReal,
   MinhaSubtarefa as MinhaSubtarefaReal,
   MinhaTask as MinhaTaskReal,
@@ -24,6 +25,7 @@ import { SUBTAREFAS, TASKS } from "./tasks";
 export type MinhaTask = MinhaTaskReal;
 export type MinhaSubtarefa = MinhaSubtarefaReal;
 export type ItemDoDia = ItemDoDiaReal;
+export type EtapaEmAndamento = EtapaEmAndamentoReal;
 export type Prazos = PrazosReais;
 
 export function prazosDeHoje(): Prazos {
@@ -184,6 +186,39 @@ export async function meuDia(
     if (a.atrasada !== b.atrasada) return a.atrasada ? -1 : 1;
     return (a.prazo ?? "").localeCompare(b.prazo ?? "");
   });
+}
+
+/**
+ * O relogio que esta correndo agora, no nome da pessoa logada.
+ *
+ * As etapas de exemplo em `em_andamento` ja nascem com `andando_desde` fixo
+ * (47 minutos atras), porque a imagem precisa sair igual a cada rodada. Aqui a
+ * regra e a mesma do modulo real: so folha -- `carregar()` ja devolve apenas as
+ * minhas subtarefas, e agrupadora nao entra em `minhasSubtarefas` -- e a mais
+ * antiga primeiro, que e a esquecida.
+ */
+export async function etapaEmAndamento(userId: string): Promise<EtapaEmAndamento | null> {
+  const correndo: EtapaEmAndamento[] = [];
+
+  for (const task of carregar(userId)) {
+    for (const sub of task.minhasSubtarefas) {
+      if (!sub.andando_desde) continue;
+      correndo.push({
+        id: sub.id,
+        taskId: task.id,
+        titulo: sub.titulo,
+        tituloDaMae: task.titulo,
+        cliente: task.cliente?.nome_empresa ?? null,
+        tempoMedidoSegundos: sub.tempo_medido_segundos,
+        andandoDesde: sub.andando_desde,
+        outras: 0,
+      });
+    }
+  }
+
+  if (correndo.length === 0) return null;
+  correndo.sort((a, b) => a.andandoDesde.localeCompare(b.andandoDesde));
+  return { ...correndo[0], outras: correndo.length - 1 };
 }
 
 /** No protótipo, Atendimento e gestão criam task — a mesma regra do banco. */

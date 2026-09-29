@@ -1142,12 +1142,40 @@ sempre e que passava despercebida sobre o escuro. Os dois entraram na lista.
 **A letra é a Google Sans, no produto inteiro**, e a porta deixou de ter letra
 própria — a decisão e o que ela custou estão em "A porta", acima.
 
+**E O CRONÔMETRO SUBIU PARA A PRIMEIRA DOBRA.** É a peça que a referência
+resolveu de graça: o cartão "reunião agora" dela é o que está acontecendo neste
+instante, no alto da tela, antes de qualquer lista — e aqui o que está
+acontecendo é o relógio de uma etapa, que é justamente o número que alguém
+esquece correndo a noite inteira. Ele vivia dentro do detalhe da etapa e nas
+linhas de Minhas Tasks; quem abre a Home de manhã e não passa por nenhuma das
+duas telas descobria no diálogo de conclusão, com um número grande que ela não
+sabe de onde veio.
+
+**Ele NÃO sai de `meuDia()`**, e essa é a decisão que faz o cartão servir para
+alguma coisa. Aquela lista é o que vence hoje e o que já passou do prazo, e o
+relógio esquecido aberto quase nunca está numa etapa que vence hoje — está na
+que alguém começou às cinco da tarde de sexta, com prazo na quarta seguinte.
+Derivar dali mostraria o cartão nos casos em que ele não é necessário e o
+esconderia no único em que ele é. `etapaEmAndamento()` é consulta própria, com
+as regras de sempre: só folha, rascunho fora, e **a que está andando há mais
+tempo**, porque é a esquecida — as outras viram contagem, senão o aviso vira
+uma segunda lista.
+
+**É o MESMO `Cronometro` do resto do produto, com `destaque`**, que muda a
+escala e mais nada. Dois componentes divergiriam no número que a pessoa usa
+para declarar quanto tempo levou. **E não há botão de ação**, embora
+`AcoesDaSubtarefa` exista: ele decide o botão pela máquina de estados, e para
+isso precisa da rodada, do aval e da dependência, que esta consulta não traz —
+fabricar os campos faria o cartão oferecer "Concluir" onde o banco recusa, e o
+molde errado mente com mais convicção que a ausência. **Nem botão de parar:** o
+relógio segue o status da etapa (0021) e não se para à mão. O que há é um link,
+e ele vai para **Minhas Tasks e não para a demanda** — `/painel/gestao-tasks/{id}`
+é `GESTAO`, e quem mais esquece o relógio aberto é quem executa.
+
 *O que ainda NÃO foi feito desta interface, e é dito em vez de escondido:* a
-malha de cor no topo das telas, a topbar virando barra de contexto (nome do
-módulo mais as visões dele, no lugar da trilha), e as telas de Início e Minhas
-Tasks no desenho da proposta — a linha de meta leve sobre o cartão branco, a
-pilha de avatares de quem mais está na demanda, e o cartão "em andamento agora"
-com o cronômetro na primeira dobra.
+topbar virando barra de contexto (as visões do módulo ao lado do nome, no lugar
+da trilha), e a pilha de avatares de quem mais está na demanda — essa é
+consulta nova, não estilo.
 
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
@@ -6372,7 +6400,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:feedback` | Prova que a verificação do texto do feedback continua pegando o que não pode chegar a uma pessoa: comparação com terceiros, julgamento de caráter, elogio vazio, nota, número que não está nos dados. **Mede os dois sentidos** — o primeiro caso é um texto limpo, que tem de sair com zero achados, senão uma função que acusa SEMPRE passaria em todos os outros. É a família do `check:email` e do `check:preview`: uma trava que, quando some, faz o programa fazer MAIS coisas não derruba build, nem tipo, nem a bateria de SQL |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. **Ela ATRAVESSA LINHA desde a busca global, e não atravessava:** a expressão exigia o `nome:` e o `clicar:` na MESMA linha, então toda entrada escrita em mais de uma — que é como as longas são escritas — ficava fora da conferência. Ela dizia "31 textos, todos no produto" sem nunca ter olhado para treze deles; hoje são 44. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
-| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. **A rodada completa que termina em zero APAGA o arquivo**, e a filtrada não: deixado para trás, ele continuaria no disco com os achados da semana passada e cara de atual — a armadilha da tabela de migrations pendentes —, mas numa rodada de três telas "zero" quer dizer zero nelas, e apagar o relatório inteiro por causa de um recorte trocaria um arquivo velho por nenhum. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
 | `scripts/agendar-rotinas.sql` | **Liga as rotinas diárias**, por `pg_cron`. Cola no SQL Editor uma vez, depois de habilitar a extensão em Database → Extensions. É **script e não migration** por duas razões: a extensão se habilita no painel, então um `create extension` falharia em qualquer ambiente sem ela; e agendamento não é schema, é escolha de operação. Traz também o `select` que confere e o `cron.job_run_details` que mostra cada execução — o único lugar onde se vê que a rotina rodou e não fez nada por não haver o que fazer, que é o caso normal e é indistinguível de não ter rodado. E o `unschedule` para desligar: aí `rotinas_agendadas()` volta a devolver false e as duas telas voltam a dizer que a geração é manual, sozinhas |
 | `scripts/rodar-rotinas.sh` | As rotinas diárias: gerar as demandas recorrentes que venceram e apagar rascunho parado há mais de 7 dias. **É o mesmo arquivo que a Action chama de madrugada**, e não uma cópia — a decisão do `verificar.yml` ser chamado pelo deploy. Pede `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente; a chave entra pela **entrada padrão** do curl e nunca pela linha de comando, porque `ps` de um processo lê argumento de outro e o log do Actions ecoa o comando que falhou |
