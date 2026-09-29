@@ -51,8 +51,23 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
           avatarUrl={profile.avatar_url}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="bg-surface-card/90 sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-3 backdrop-blur sm:gap-3 lg:px-6">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          {/*
+            A MALHA DE COR DO TOPO, da interface "Leve".
+
+            Ela fica ATRÁS de tudo (`z-0`), não recebe clique, e termina em
+            220px — a altura da topbar mais o cabeçalho da página. Cobre a
+            busca e o título, que são texto grande, e acaba antes de qualquer
+            rótulo pequeno. **O alfa dela foi medido e o teto é do LINK**: a
+            conta inteira está no `globals.css`, em `--malha-no-pior-caso`.
+
+            E é `absolute` dentro da coluna de conteúdo, não do `body`: a barra
+            lateral tem fundo próprio, e uma malha que passasse por baixo dela
+            apareceria nas bordas no tema claro.
+          */}
+          <div aria-hidden className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[220px]" />
+
+          <header className="bg-surface-page/75 sticky top-0 z-30 flex h-16 items-center gap-2 px-3 backdrop-blur-xl sm:gap-3 lg:px-6">
             <MenuGaveta role={profile.role} />
             <Trilha />
 
@@ -81,11 +96,11 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
+          <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
             {children}
           </main>
 
-          <footer className="text-text-muted px-4 py-6 text-center text-xs lg:px-8">
+          <footer className="text-text-muted relative z-10 px-4 py-6 text-center text-xs lg:px-8">
             Full Hub — Full Connect Key
             {/* De qual commit saiu o que você está vendo.
                 Fica só no painel, e não no Portal do Cliente: para a equipe

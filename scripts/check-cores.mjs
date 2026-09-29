@@ -221,6 +221,15 @@ const PARES = [
   // quadrado de ícone — `--accent` com `--accent-foreground` —, e ele existe
   // exatamente para isso: é "o azul legível no tema de agora".
   ["--accent-foreground", "--accent", NORMAL, "selo Admin na barra"],
+
+  // A MALHA DO TOPO, medida contra o composto e não contra a página. Estes
+  // quatro pares foram o que decidiu o alfa dela: com o 0,75 da proposta os
+  // três tokens de texto passavam e o LINK dava 4,01:1. O alfa caiu para 0,36
+  // por causa desta linha, e não por gosto.
+  ["--text-primary", "--malha-no-pior-caso", NORMAL, "título sobre a malha"],
+  ["--text-secondary", "--malha-no-pior-caso", NORMAL, "texto de apoio sobre a malha"],
+  ["--text-muted", "--malha-no-pior-caso", NORMAL, "rótulo sobre a malha"],
+  ["--accent-strong", "--malha-no-pior-caso", NORMAL, "link sobre a malha"],
   ["--accent-strong", "--surface-sidebar", NORMAL, "perfil da pessoa na barra"],
 
   // `--brand-navy` como superfície. Ele era o painel da marca na tela de login,

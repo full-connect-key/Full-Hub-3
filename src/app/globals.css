@@ -86,6 +86,32 @@
   --blue-strong: #0A6B99;
   --blue-strong-hover: #08587D;
 
+  /* --- A MALHA DO TOPO ----------------------------------------------------
+     Três manchas de cor bem lavadas na faixa de cima do painel, da interface
+     "Leve". Elas não pintam superfície nenhuma: passam ATRÁS do conteúdo, que
+     continua em cartão branco.
+
+     **O ALFA DE 0,36 FOI MEDIDO, e quem o decidiu foi o link.** A proposta
+     usava 0,75, e nesse alfa o composto da mancha mais forte sobre a página
+     dá `--accent-strong` em **4,01:1** — abaixo do mínimo. Os três tokens de
+     texto passavam com folga; o azul não. Em 0,36 ele dá 4,53:1, e é por isso
+     que a malha daqui é mais discreta que a da proposta: o teto não é gosto,
+     é o contraste.
+
+     `--malha-no-pior-caso` é um token que NADA pinta — o composto calculado
+     (0,36 × #A8D2FA sobre `--surface-page`), para o `check:cores` ter contra o
+     que medir. É a forma de `--vidro-no-pior-caso` na porta, pela mesma razão:
+     medir contra a página passaria por larga margem afirmando algo que a tela
+     não garante.
+
+     **E ele cobre a topbar de quebra.** Ela é translúcida sobre a malha, o que
+     compõe para um tom MAIS CLARO que a mancha pura — então o pior caso do
+     texto lá é este mesmo, e não precisa de par próprio. */
+  --malha-a: rgb(168 210 250 / 0.36);
+  --malha-b: rgb(191 216 253 / 0.34);
+  --malha-c: rgb(169 224 238 / 0.36);
+  --malha-no-pior-caso: #D4E4F4;
+
   /* --- Superfícies -------------------------------------------------------- */
   /* A BARRA LATERAL PASSOU A SEGUIR O TEMA, e antes ela era escura nos dois.
      Decisão do usuário junto com a interface "Leve": no claro ela é branca com
@@ -325,6 +351,15 @@
   --blue-soft: #16303D;
   --blue-muted: #1E4C66;
 
+  /* No escuro a malha não é a clara mais fraca: são azuis ESCUROS sobre o
+     fundo escuro, e o alfa pode ser maior porque ali o texto é claro e o azul
+     do link é `--brand-blue`, que dá 7,36:1 sobre o pior composto. É a mesma
+     decisão das cores de série do Financeiro — passo próprio, não inversão. */
+  --malha-a: rgb(42 74 107 / 0.55);
+  --malha-b: rgb(51 52 94 / 0.50);
+  --malha-c: rgb(31 74 85 / 0.55);
+  --malha-no-pior-caso: #213448;
+
   --surface-sidebar: #1B1E22;
   --surface-sidebar-2: #2C3137;
   --sidebar-ativo-fundo: #2C3137;
@@ -510,6 +545,17 @@
      trocasse um deles a porta sairia com outra letra sem ninguém pedir. */
   --font-sans: var(--fonte-google-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* A faixa de cor do topo do painel. Fica ATRÁS do conteúdo (`z-0`), não
+   recebe clique, e termina em 220px — a altura da topbar mais o cabeçalho da
+   página. Ela cobre a busca e o título, que é texto grande; abaixo disso o
+   conteúdo volta ao chão liso, e nenhum rótulo pequeno cai sobre cor. */
+.malha-do-painel {
+  background:
+    radial-gradient(42% 100% at 10% 0%, var(--malha-a) 0%, transparent 72%),
+    radial-gradient(38% 96% at 48% -10%, var(--malha-b) 0%, transparent 74%),
+    radial-gradient(44% 104% at 92% 0%, var(--malha-c) 0%, transparent 74%);
 }
 
 @layer base {
