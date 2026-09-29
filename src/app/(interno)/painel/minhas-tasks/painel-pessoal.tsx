@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
@@ -30,14 +29,7 @@ import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
 import { PainelLateralDaTask } from "./painel-lateral";
-
-type Visao = "board" | "lista" | "calendario";
-
-const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
-  { id: "board", rotulo: "Board", Icone: Columns3 },
-  { id: "lista", rotulo: "Lista", Icone: List },
-  { id: "calendario", rotulo: "Calendário", Icone: CalendarDays },
-];
+import { SeletorDeVisao, type Visao } from "@/components/shared/seletor-de-visao";
 
 const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
 
@@ -229,25 +221,7 @@ export function PainelPessoal({
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
-          {VISOES.map(({ id, rotulo, Icone }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => navegar({ visao: id })}
-              aria-pressed={visao === id}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
-                visao === id
-                  ? "bg-background text-foreground font-medium shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icone aria-hidden className="size-4" />
-              {rotulo}
-            </button>
-          ))}
-        </div>
+        <SeletorDeVisao atual={visao} aoTrocar={(v) => navegar({ visao: v })} />
 
         {foco ? (
           <Badge variant="secondary">

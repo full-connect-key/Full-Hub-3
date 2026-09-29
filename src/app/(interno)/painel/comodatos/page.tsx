@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden } from "next/navigation";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
@@ -79,9 +78,13 @@ export default async function Pagina({ searchParams }: PageProps<"/painel/comoda
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Comodatos"
-        actions={
+      {/* Sem `PageHeader`: a topbar já diz "Comodatos". O link do modelo
+          subiu para a barra de contexto e o `<h1>` mora nela, invisível. */}
+      <AbasDosComodatos
+        ativa={aba}
+        visiveis={visiveis}
+        aceitesPendentes={indicadores.semAceite}
+        acoes={
           ehSocio(sessao.profile.role) ? (
             <Button asChild variant="outline" size="sm">
               <Link href="/painel/comodatos/modelo-termo">Modelo do termo</Link>
@@ -89,16 +92,6 @@ export default async function Pagina({ searchParams }: PageProps<"/painel/comoda
           ) : undefined
         }
       />
-
-      {visiveis.length > 1 ? (
-        <div className="border-b">
-          <AbasDosComodatos
-            ativa={aba}
-            visiveis={visiveis}
-            aceitesPendentes={indicadores.semAceite}
-          />
-        </div>
-      ) : null}
 
       {aba === "meus" ? (
         <MeusEquipamentos comodatos={meus} hoje={hoje} />

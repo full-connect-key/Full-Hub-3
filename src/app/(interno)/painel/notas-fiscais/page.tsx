@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { forbidden } from "next/navigation";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehSocio } from "@/lib/auth/roles";
 import { filaDeNotas, meusPedidosDeNota, minhasNotas } from "@/lib/dados/notas-fiscais";
@@ -72,7 +71,8 @@ export default async function Pagina({
   return (
     <div className="space-y-6">
       <div>
-        <PageHeader title="Notas Fiscais" />
+        {/* Sem `PageHeader`: a topbar já diz "Notas Fiscais". O `<h1>` mora
+            na barra de contexto, invisível. */}
         {/* A FRASE DA PRIVACIDADE FICA NA TELA, e não num texto de ajuda: ela
             é o que faz a pessoa anexar o PDF sem hesitar. Uma promessa que o
             banco cumpre e a tela não diz é uma promessa que ninguém conhece —
@@ -83,13 +83,7 @@ export default async function Pagina({
         </p>
       </div>
 
-      <div className="border-b">
-        <AbasDaNota
-          ativa={aba}
-          visiveis={visiveis}
-          aConferir={fila?.aConferir.length ?? 0}
-        />
-      </div>
+      <AbasDaNota ativa={aba} visiveis={visiveis} aConferir={fila?.aConferir.length ?? 0} />
 
       {aba === "conferir" && fila ? (
         <FilaDoSocio fila={fila} />

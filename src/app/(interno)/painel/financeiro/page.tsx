@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { format } from "date-fns";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import {
@@ -65,9 +64,11 @@ export default async function PaginaDoFinanceiro({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Financeiro"
-        actions={
+      {/* Sem `PageHeader`: a topbar já diz "Financeiro". O botão subiu para
+          a barra de contexto e o `<h1>` mora nela, invisível. */}
+      <AbasDoFinanceiro
+        atual={aba}
+        acoes={
           <PedirNotas
             competencia={competencia}
             hojeISO={hojeISO}
@@ -82,8 +83,6 @@ export default async function PaginaDoFinanceiro({
           />
         }
       />
-
-      <AbasDoFinanceiro atual={aba} />
 
       <Suspense
         key={`${aba}-${competencia}-${parametros.de ?? ""}-${parametros.ate ?? ""}`}

@@ -1,71 +1,46 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { ChartColumn, FileSignature, LayoutDashboard, ListOrdered } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
 import { ABAS, type Aba } from "./vocabulario";
 
-const ROTULOS: Record<Aba, { label: string; icone: typeof ChartColumn }> = {
-  "visao-geral": { label: "Visão Geral", icone: LayoutDashboard },
-  lancamentos: { label: "Lançamentos", icone: ListOrdered },
-  contratos: { label: "Contratos", icone: FileSignature },
-  relatorios: { label: "Relatórios", icone: ChartColumn },
+const ROTULOS: Record<Aba, { rotulo: string; Icone: typeof ChartColumn }> = {
+  "visao-geral": { rotulo: "Visão Geral", Icone: LayoutDashboard },
+  lancamentos: { rotulo: "Lançamentos", Icone: ListOrdered },
+  contratos: { rotulo: "Contratos", Icone: FileSignature },
+  relatorios: { rotulo: "Relatórios", Icone: ChartColumn },
 };
 
+/** Os filtros de cada seção, e o que não significa nada nas outras. */
+const DA_LISTA = ["tipo", "cliente", "categoria", "situacao"];
+const DOS_RELATORIOS = ["de", "ate"];
+
 /**
- * As abas do financeiro, na URL.
+ * As seções do Financeiro, na URL.
  *
- * Trocar de aba troca a página no servidor, e é por isso que cada aba carrega
+ * Trocar de seção troca a página no servidor, e é por isso que cada uma carrega
  * só a própria consulta: quem abriu para lançar uma despesa não paga pela
  * série de doze meses da visão geral.
  *
  * Os filtros da lista ficam para trás ao sair dela — `tipo=despesa` numa URL
  * de Contratos não significa nada e só atrapalharia quem lê o endereço.
  */
-export function AbasDoFinanceiro({ atual }: { atual: Aba }) {
-  const pathname = usePathname();
-  const parametros = useSearchParams();
-
-  function href(aba: Aba) {
-    const destino = new URLSearchParams(parametros.toString());
-    destino.set("aba", aba);
-    if (aba !== "lancamentos") {
-      for (const chave of ["tipo", "cliente", "categoria", "situacao"]) destino.delete(chave);
-    }
-    if (aba !== "relatorios") {
-      for (const chave of ["de", "ate"]) destino.delete(chave);
-    }
-    return `${pathname}?${destino.toString()}`;
-  }
+export function AbasDoFinanceiro({ atual, acoes }: { atual: Aba; acoes?: React.ReactNode }) {
+  const secoes: SecaoDoModulo<Aba>[] = ABAS.map((aba) => ({ chave: aba, ...ROTULOS[aba] }));
 
   return (
-    <nav aria-label="Seções do Financeiro" className="border-b">
-      <ul className="-mb-px flex min-w-max gap-1 overflow-x-auto">
-        {ABAS.map((aba) => {
-          const { label, icone: Icone } = ROTULOS[aba];
-          const ativo = aba === atual;
-          return (
-            <li key={aba}>
-              <Link
-                href={href(aba)}
-                aria-current={ativo ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm whitespace-nowrap transition-colors",
-                  ativo
-                    ? "border-accent-strong text-accent-strong font-medium"
-                    : "text-text-secondary hover:text-text-primary border-transparent",
-                )}
-              >
-                <Icone aria-hidden className="size-4" />
-                {label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <BarraDeContexto
+      rotuloAcessivel="Seções do Financeiro"
+      titulo="Financeiro"
+      atual={atual}
+      secoes={secoes}
+      acoes={acoes}
+      limparAoSair={(destino) => [
+        ...(destino === "lancamentos" ? [] : DA_LISTA),
+        ...(destino === "relatorios" ? [] : DOS_RELATORIOS),
+      ]}
+    />
   );
 }

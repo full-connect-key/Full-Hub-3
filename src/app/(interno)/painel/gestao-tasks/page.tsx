@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
 import { listarClientes } from "@/lib/dados/clientes";
@@ -252,8 +251,10 @@ export default async function PaginaDeGestaoDeTasks({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Gestão de Tasks" />
-
+      {/* SEM `PageHeader`: a topbar já diz "Gestão de Tasks", e repetir o
+          nome logo abaixo dele era a redundância que a interface "Leve" veio
+          tirar. O `<h1>` da página não sumiu — ele mora na barra de contexto,
+          invisível, como o da porta. */}
       <AbasDeGestaoDeTasks atual={aba} aguardando={fila.esperando.length} />
 
       <Suspense

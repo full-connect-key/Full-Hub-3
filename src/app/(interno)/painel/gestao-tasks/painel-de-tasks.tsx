@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { CalendarDays, Columns3, List } from "lucide-react";
 
 import Link from "next/link";
 import { Repeat } from "lucide-react";
@@ -13,18 +12,13 @@ import type { RascunhoDaLista } from "@/lib/dados/tasks";
 import { COLUNAS_POR_STATUS } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario, TaskDaLista } from "@/lib/dados/tasks";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
-import { cn } from "@/lib/utils";
 
 import { BoardDeTasks } from "./board";
 import { CalendarioDeTasks } from "./calendario";
-import { BarraDeFiltrosDeTask, useFiltros, type Visao } from "./filtros";
-import { ListaDeTasks } from "./lista";
+import { SeletorDeVisao } from "@/components/shared/seletor-de-visao";
 
-const VISOES: { id: Visao; rotulo: string; Icone: typeof List }[] = [
-  { id: "board", rotulo: "Board", Icone: Columns3 },
-  { id: "lista", rotulo: "Lista", Icone: List },
-  { id: "calendario", rotulo: "Calendário", Icone: CalendarDays },
-];
+import { BarraDeFiltrosDeTask, useFiltros } from "./filtros";
+import { ListaDeTasks } from "./lista";
 
 /**
  * Container das três visualizações.
@@ -96,25 +90,7 @@ export function PainelDeTasks({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
-          {VISOES.map(({ id, rotulo, Icone }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => definir({ visao: id })}
-              aria-pressed={filtros.visao === id}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
-                filtros.visao === id
-                  ? "bg-background text-foreground font-medium shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icone aria-hidden className="size-4" />
-              {rotulo}
-            </button>
-          ))}
-        </div>
+        <SeletorDeVisao atual={filtros.visao} aoTrocar={(v) => definir({ visao: v })} />
 
         <div className="ml-auto flex items-center gap-2">
           {/* "NOVA RECORRENTE" AO LADO DE "NOVA TASK", e não escondida em

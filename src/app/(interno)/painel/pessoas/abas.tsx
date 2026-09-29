@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { Building2, Users } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
 // `Aba`, `ABAS` e `ehAba` moram em `vocabulario.ts`, sem diretiva: este
 // arquivo e "use client", e o `page.tsx` -- que e de servidor -- chama
@@ -15,62 +13,35 @@ import { ABAS, type Aba } from "./vocabulario";
 
 export type { Aba };
 
-const ROTULOS: Record<Aba, { label: string; icone: typeof Users }> = {
-  clientes: { label: "Clientes", icone: Building2 },
-  equipe: { label: "Equipe", icone: Users },
+const ROTULOS: Record<Aba, { rotulo: string; Icone: typeof Users }> = {
+  clientes: { rotulo: "Clientes", Icone: Building2 },
+  equipe: { rotulo: "Equipe", Icone: Users },
 };
 
 /**
- * As duas abas de Gestão de Pessoas, na URL.
+ * As duas seções de Gestão de Pessoas, na URL.
  *
- * **Link e não estado**, como as abas do Full Days e pela mesma razão: "olha a
- * ficha do Mundo Verde" precisa ser um link, e trocar de aba precisa sobreviver
- * ao botão de voltar. Com estado interno, um link colado num grupo cairia
- * sempre na aba padrão.
+ * **Link e não estado**, e quem garante isso agora é a `BarraDeContexto`:
+ * "olha a ficha do Mundo Verde" precisa ser um link, e trocar de seção precisa
+ * sobreviver ao botão de voltar.
  *
- * E trocar de aba troca a página no SERVIDOR — cada aba carrega só a própria
+ * E trocar de seção troca a página no SERVIDOR — cada uma carrega só a própria
  * consulta. Quem abriu para cadastrar um cliente não busca a equipe inteira.
  *
- * O componente é o mesmo desenho de `full-days/abas.tsx`, e as duas cópias
- * existem por ora porque aquela carrega uma regra que esta não tem (sumir com
- * uma aba só, porque lá a lista de abas visíveis muda por perfil). No dia em
- * que uma terceira tela precisar disto, vira `components/shared/`.
+ * **O comentário que estava aqui virou o componente compartilhado.** Ele dizia
+ * *"no dia em que uma terceira tela precisar disto, vira `components/shared/`"*
+ * — e quando alguém foi contar, eram sete, em três desenhos diferentes.
  */
-export function AbasDePessoas({ atual }: { atual: Aba }) {
-  const pathname = usePathname();
-  const parametros = useSearchParams();
-
-  function href(aba: Aba) {
-    const destino = new URLSearchParams(parametros.toString());
-    destino.set("aba", aba);
-    return `${pathname}?${destino.toString()}`;
-  }
+export function AbasDePessoas({ atual, acoes }: { atual: Aba; acoes?: React.ReactNode }) {
+  const secoes: SecaoDoModulo<Aba>[] = ABAS.map((aba) => ({ chave: aba, ...ROTULOS[aba] }));
 
   return (
-    <nav aria-label="Seções de Gestão de Pessoas">
-      <ul className="bg-muted inline-flex min-w-max gap-1 overflow-x-auto rounded-xl p-1">
-        {ABAS.map((aba) => {
-          const { label, icone: Icone } = ROTULOS[aba];
-          const ativo = aba === atual;
-          return (
-            <li key={aba}>
-              <Link
-                href={href(aba)}
-                aria-current={ativo ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
-                  ativo
-                    ? "bg-surface-card text-text-primary font-medium shadow-sm"
-                    : "text-text-secondary hover:text-text-primary",
-                )}
-              >
-                <Icone aria-hidden className="size-4" />
-                {label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <BarraDeContexto
+      rotuloAcessivel="Seções de Gestão de Pessoas"
+      titulo="Gestão de Pessoas"
+      atual={atual}
+      secoes={secoes}
+      acoes={acoes}
+    />
   );
 }

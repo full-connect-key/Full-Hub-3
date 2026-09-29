@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Plus, UserPlus } from "lucide-react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
@@ -61,9 +60,13 @@ export default async function PaginaDePessoas({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Gestão de Pessoas"
-        actions={
+      {/* SEM `PageHeader`: a topbar já diz "Gestão de Pessoas", e repetir o
+          nome logo abaixo era a redundância que a interface "Leve" veio tirar.
+          O botão subiu para a barra de contexto, que é onde ele já ficava em
+          relação às abas — e o `<h1>` da página mora nela, invisível. */}
+      <AbasDePessoas
+        atual={aba}
+        acoes={
           // O BOTÃO É DA ABA, e não da página: "Novo cliente" na aba Equipe
           // abriria o formulário errado para quem está olhando uma lista de
           // pessoas. Um só botão que muda de destino conforme a aba seria
@@ -91,8 +94,6 @@ export default async function PaginaDePessoas({
           )
         }
       />
-
-      <AbasDePessoas atual={aba} />
 
       <Suspense key={aba} fallback={<LoadingSkeleton variant="table" rows={6} />}>
         <Conteudo aba={aba} />

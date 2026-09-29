@@ -1201,9 +1201,69 @@ ninguém mais na demanda, a imagem não prova que a pilha existe — prova só q
 ela sabe sumir. Duas e não uma, senão o "+N" nunca aparece e ninguém vê que
 elas se sobrepõem.
 
-*O que ainda NÃO foi feito desta interface, e é dito em vez de escondido:* a
-topbar virando barra de contexto (as visões do módulo ao lado do nome, no lugar
-da trilha).
+#### A barra de contexto, e as sete cópias que ela desfez
+
+**ERAM SETE `abas.tsx`, EM TRÊS DESENHOS DIFERENTES**, mais dois seletores de
+visão num quarto tamanho: Gestão de Tasks, Gestão de Pessoas, Financeiro, Notas
+Fiscais, Métricas, Comodatos e Full Days, cada um escrevendo o próprio `<Link>`
+e o próprio `new URLSearchParams`. Três em pílula, quatro sublinhados. Quem
+trocava de módulo trocava de vocabulário visual sem que nada tivesse mudado de
+natureza — e o comentário do de Pessoas já dizia, quando eram dois, *"no dia em
+que uma terceira tela precisar disto, vira `components/shared/`"*.
+
+**O QUE A `BarraDeContexto` CENTRALIZA É O DESENHO E O MECANISMO, NUNCA A
+LISTA.** Cada módulo continua dizendo quais são as seções dele, quais o perfil
+de quem está olhando alcança, e o que contar no selo — as três são conhecimento
+do módulo, e uma lista central teria que carregar o `QUEM_VE` das Métricas, o
+"só o sócio" das Notas e a contagem da fila de aval. O que some é a oitava
+cópia do link.
+
+**Ela GRUDA embaixo da topbar** — `top-16`, o fundo da página com desfoque,
+como o cabeçalho: rolando uma lista de quarenta demandas, saber em que seção se
+está continua valendo. E é **alinhada ao conteúdo**, não sangra para fora dele:
+a primeira versão usava `-mx-4 lg:-mx-8`, que é a decisão que a capa do cliente
+já pagou — `main` é `mx-auto max-w-6xl`, então a faixa sai mais larga que os
+cartões e ainda longe da borda da janela.
+
+**MENOS DE DUAS SEÇÕES NÃO VIRA BARRA**, regra que os Comodatos e as Notas já
+aplicavam e que agora vale para todos. E o **375px** entrou junto: o scroll é
+do `nav` e o `min-w-max` é do `ul` — os dois na mesma tag não fazem nada, e foi
+assim que a barra empurrou a página inteira para os lados no Full Days desde o
+Sprint 6. Centralizada, essa linha deixa de poder voltar em uma das sete.
+
+**E O NOME DO MÓDULO PASSOU A APARECER UMA VEZ SÓ.** Em sete telas o
+`PageHeader` dizia exatamente o que a topbar já diz três centímetros acima —
+"Gestão de Tasks" embaixo de "Gestão de Tasks". Ele saiu, e as **ações subiram
+para a barra**: "Novo cliente", "Pedir as notas do mês", "Modelo do termo",
+"Quem responde: Sócio". Onde o título diz outra coisa — "Bom dia, Ana" em
+Minhas Tasks, o nome da empresa numa ficha — o `PageHeader` ficou.
+
+**O `<h1>` NÃO SUMIU COM ELE, e isso é a parte que não se vê.** Quem usa leitor
+de tela navega por cabeçalho, e uma tela sem `h1` é uma tela sem nome. A barra
+carrega o título da página, **`sr-only`** — a decisão do `<h1>` da porta, pela
+mesma razão: um título por tela, e estável.
+
+**O SELETOR DE VISÃO NÃO É A BARRA DE CONTEXTO**, e a distinção é o que impede
+duas barras iguais na mesma tela. A barra navega entre SEÇÕES: cada uma carrega
+outra consulta, outro conteúdo, e trocar é trocar de página no servidor. O
+seletor troca o DESENHO do mesmo conteúdo — as mesmas etapas em coluna, em
+linha ou em dia. Em Gestão de Tasks os dois aparecem juntos, e com o mesmo peso
+a pessoa leria "Demandas / Workflows" e "Board / Lista" como duas metades da
+mesma escolha; por isso ele é menor. Ele também virou um componente só
+(`components/shared/seletor-de-visao.tsx`), com a ordem das três visões num
+lugar só — a decisão de `STATUS_EM_ORDEM` e de `ICONE_DA_AREA`.
+
+**Ele continua sendo BOTÃO e não link**, ao contrário da barra: quem muda a URL
+é o `useFiltros` da tela, com `router.replace(..., { scroll: false })`. Com
+`<Link>` cada troca de visão viraria uma entrada no histórico e a página
+saltaria para o topo — e quem está no fim de uma lista de quarenta demandas
+trocaria de visão para perder o lugar.
+
+*O que NÃO foi feito, e é dito em vez de escondido:* a barra não entrou DENTRO
+dos 64px do cabeçalho. Em 375px aquela linha já carrega a gaveta, o nome do
+módulo, o ponto do ao vivo, a busca, o sino e o avatar; quatro seções a mais
+não cabem. Ela é a faixa logo abaixo, grudada nele — e rolando a página as duas
+se leem como uma só.
 
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é

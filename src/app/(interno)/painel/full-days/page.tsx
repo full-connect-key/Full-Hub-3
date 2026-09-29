@@ -4,7 +4,6 @@ import { endOfMonth, format, startOfMonth } from "date-fns";
 import { forbidden } from "next/navigation";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import {
@@ -106,19 +105,21 @@ export default async function PaginaDoFullDays({
           primeira linha de `decidir_solicitacao()` exige sócio. Sem essa
           linha, o desenvolvedor abre a tela, não acha a aba de pedidos da
           equipe e conclui que falta permissão a ele. */}
-      <PageHeader
-        title="Full Days"
-        actions={
-          <div className="bg-surface-card rounded-card border px-4 py-2.5">
+      {/* Sem `PageHeader`: a topbar já diz "Full Days". "Quem responde"
+          subiu para a barra de contexto — ele é a resposta de "para quem
+          estou mandando isto", e ali fica à vista enquanto a pessoa escolhe
+          os dias, em vez de sair da tela na rolagem. O `<h1>` mora na barra,
+          invisível. */}
+      <AbasDoFullDays
+        atual={aba}
+        visiveis={visiveis}
+        acoes={
+          <div className="bg-surface-card rounded-card border px-3 py-1.5">
             <p className="text-text-muted text-[11px]">Quem responde</p>
-            <p className="text-sm font-medium">
-              Sócio — retorno final dos pedidos
-            </p>
+            <p className="text-sm font-medium">Sócio — retorno final dos pedidos</p>
           </div>
         }
       />
-
-      <AbasDoFullDays atual={aba} visiveis={visiveis} />
 
       {/* O `key` é DA ABA, e nunca do mês — era o mês nele que zerava a
           seleção do calendário. Trocar `?mes=` remontava esta subárvore

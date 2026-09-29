@@ -1,24 +1,24 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { Boxes, PackageOpen } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
 import type { Aba } from "./vocabulario";
 
-const ROTULOS: Record<Aba, { label: string; icone: typeof Boxes }> = {
-  meus: { label: "Meus equipamentos", icone: PackageOpen },
-  geral: { label: "Visão geral", icone: Boxes },
+const ROTULOS: Record<Aba, { rotulo: string; Icone: typeof Boxes }> = {
+  meus: { rotulo: "Meus equipamentos", Icone: PackageOpen },
+  geral: { rotulo: "Visão geral", Icone: Boxes },
 };
 
 /**
- * As duas visões da MESMA informação, e é por isso que são abas e não módulos.
+ * As duas visões da MESMA informação, e é por isso que são seções e não
+ * módulos.
  *
- * **Uma aba só não vira barra:** o colaborador vê apenas a dele, e uma
- * navegação de um item é moldura sem função — a mesma razão pela qual as abas
- * do Full Days somem para quem só propõe o próprio período.
+ * **Uma seção só não vira barra**, e quem aplica a regra agora é a
+ * `BarraDeContexto`: o colaborador vê apenas a dele, e uma navegação de um
+ * item é moldura sem função — a mesma razão pela qual as abas do Full Days
+ * somem para quem só propõe o próprio período.
  *
  * **E a gestão abre em "Meus equipamentos"**, e não na visão geral. Ela
  * também tem notebook, e a primeira pergunta de quem abre uma tela é sobre
@@ -28,46 +28,32 @@ export function AbasDosComodatos({
   ativa,
   visiveis,
   aceitesPendentes,
+  acoes,
 }: {
   ativa: Aba;
   visiveis: Aba[];
   /** Quantos recebimentos esperam confirmação. Zero não vira selo. */
   aceitesPendentes: number;
+  acoes?: React.ReactNode;
 }) {
-  const caminho = usePathname();
-  const parametros = useSearchParams();
-
-  if (visiveis.length < 2) return null;
+  const secoes: SecaoDoModulo<Aba>[] = visiveis.map((chave) => ({
+    chave,
+    ...ROTULOS[chave],
+    ...(chave === "geral"
+      ? {
+          contagem: aceitesPendentes,
+          rotuloDaContagem: `${aceitesPendentes} recebimento(s) esperando confirmação`,
+        }
+      : {}),
+  }));
 
   return (
-    <nav aria-label="Seções dos comodatos" className="-mb-px flex gap-1 overflow-x-auto">
-      {visiveis.map((chave) => {
-        const { label, icone: Icone } = ROTULOS[chave];
-        const busca = new URLSearchParams(parametros);
-        busca.set("aba", chave);
-
-        return (
-          <Link
-            key={chave}
-            href={`${caminho}?${busca}`}
-            aria-current={chave === ativa ? "page" : undefined}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3 py-2 text-sm transition-colors",
-              chave === ativa
-                ? "border-accent-strong text-accent-strong font-medium"
-                : "text-text-secondary hover:text-text-primary border-transparent",
-            )}
-          >
-            <Icone aria-hidden className="size-4" />
-            {label}
-            {chave === "geral" && aceitesPendentes > 0 ? (
-              <span className="bg-warning-soft text-warning rounded-full px-1.5 text-xs font-medium tabular-nums">
-                {aceitesPendentes}
-              </span>
-            ) : null}
-          </Link>
-        );
-      })}
-    </nav>
+    <BarraDeContexto
+      rotuloAcessivel="Seções dos comodatos"
+      titulo="Comodatos"
+      atual={ativa}
+      secoes={secoes}
+      acoes={acoes}
+    />
   );
 }

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { forbidden } from "next/navigation";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehSocio } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
@@ -97,8 +96,8 @@ export default async function PaginaDeMetricas({ searchParams }: PageProps<"/pai
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Métricas" />
-
+      {/* Sem `PageHeader`: a topbar já diz "Métricas". O `<h1>` mora na
+          barra de contexto, invisível. */}
       <AbasDeMetrica atual={aba} visiveis={visiveis} />
 
       <BarraDePeriodo
