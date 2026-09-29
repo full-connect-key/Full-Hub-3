@@ -1172,10 +1172,38 @@ relógio segue o status da etapa (0021) e não se para à mão. O que há é um 
 e ele vai para **Minhas Tasks e não para a demanda** — `/painel/gestao-tasks/{id}`
 é `GESTAO`, e quem mais esquece o relógio aberto é quem executa.
 
+**E A PILHA DE AVATARES NÃO CUSTOU CONSULTA NENHUMA**, ao contrário do que eu
+tinha escrito aqui — a frase dizia que ela era "consulta nova, não estilo", e
+estava errada. `carregar()` em `lib/dados/minhas-tasks.ts` traz as etapas dos
+outros com `profiles(id, nome, avatar_url)` desde o Sprint 4: são elas o
+contexto em cinza do painel lateral. **A ponte estava construída e ninguém a
+atravessava até a linha**, que é onde a pergunta é feita — *a arte não saiu,
+quem está com ela?*
+
+Ela vem **logo depois da linhagem**, e não no aglomerado da direita: a linhagem
+responde "por que estou fazendo isto?" e a pilha responde a pergunta seguinte;
+na direita ela leria como "quem está nesta etapa", que é uma pessoa só e é quem
+está olhando. É **uma vez por pessoa e não por etapa** — a mesma pessoa com três
+etapas na demanda é um círculo, e três iguais lado a lado leriam como três
+pessoas. Quem responde é `quemMaisEstaNa()` em `lib/dominio/tasks.ts`, pelo id
+e nunca pelo nome, que dois homônimos compartilham. Etapa sem dono não entra:
+um círculo genérico afirmaria que existe alguém.
+
+**E a sobreposição encolheu de seis pixels para quatro**, o que parece detalhe
+e não é: sem foto o círculo carrega DUAS letras, e seis pixels num círculo de
+vinte e quatro comiam a segunda — "MC" saía "M(". No board ela passava porque
+lá os avatares são de quem já subiu a sua; na linha de Minhas Tasks quase
+ninguém tem foto. Foi a imagem que mostrou.
+
+**O exemplo do protótipo ganhou duas etapas de outras pessoas** na demanda da
+Ana, pela mesma razão pela qual UMA etapa de exemplo é peça de campanha: sem
+ninguém mais na demanda, a imagem não prova que a pilha existe — prova só que
+ela sabe sumir. Duas e não uma, senão o "+N" nunca aparece e ninguém vê que
+elas se sobrepõem.
+
 *O que ainda NÃO foi feito desta interface, e é dito em vez de escondido:* a
 topbar virando barra de contexto (as visões do módulo ao lado do nome, no lugar
-da trilha), e a pilha de avatares de quem mais está na demanda — essa é
-consulta nova, não estilo.
+da trilha).
 
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é

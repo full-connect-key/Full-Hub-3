@@ -12,6 +12,7 @@ import {
   agrupadoras,
   combinaComFoco,
   folhas,
+  quemMaisEstaNa,
   situacaoDoPrazo,
   type FocoDoDia,
 } from "@/lib/dominio/tasks";
@@ -403,6 +404,15 @@ export type ItemDoDia = {
    */
   tempoMedidoSegundos: number;
   andandoDesde: string | null;
+  /**
+   * QUEM MAIS ESTÁ NA DEMANDA, uma vez cada — a pilha de avatares da linha.
+   *
+   * Não custa consulta: `carregar()` já traz as etapas dos outros com a ficha
+   * de cada responsável desde o Sprint 4. Ver que a arte não saiu é o que
+   * explica por que o agendamento está parado, e a pergunta seguinte —
+   * *quem está com ela?* — não tinha resposta nesta tela.
+   */
+  outrosNaDemanda: Pessoa[];
   /** O que fazer com ela — vem da máquina de estados, não do palpite da tela. */
   requerAprovacao: boolean;
   tipoAprovacao: "interna" | "cliente" | null;
@@ -441,6 +451,7 @@ export async function meuDia(userId: string, prazos: Prazos = prazosDeHoje()): P
         estimativaMinutos: sub.estimativa_minutos,
         tempoMedidoSegundos: sub.tempo_medido_segundos,
         andandoDesde: sub.andando_desde,
+        outrosNaDemanda: quemMaisEstaNa(task.outrasSubtarefas),
         requerAprovacao: sub.requer_aprovacao,
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,

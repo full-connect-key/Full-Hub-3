@@ -10,7 +10,12 @@
  * etapas da Ana e o social media as da Marina -- e o que faz uma imagem do
  * prototipo mostrar contadores e botoes diferentes de outra.
  */
-import { combinaComFoco, situacaoDoPrazo, type FocoDoDia } from "../../src/lib/dominio/tasks";
+import {
+  combinaComFoco,
+  quemMaisEstaNa,
+  situacaoDoPrazo,
+  type FocoDoDia,
+} from "../../src/lib/dominio/tasks";
 import type {
   EtapaEmAndamento as EtapaEmAndamentoReal,
   ItemDoDia as ItemDoDiaReal,
@@ -174,6 +179,7 @@ export async function meuDia(
         estimativaMinutos: sub.estimativa_minutos,
         tempoMedidoSegundos: sub.tempo_medido_segundos,
         andandoDesde: sub.andando_desde,
+        outrosNaDemanda: quemMaisEstaNa(task.outrasSubtarefas),
         requerAprovacao: sub.requer_aprovacao,
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,

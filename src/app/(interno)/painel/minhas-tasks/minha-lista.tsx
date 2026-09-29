@@ -7,6 +7,7 @@ import { ChevronRight, ListChecks, Lock, Link2 } from "lucide-react";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
@@ -199,57 +200,79 @@ function Linhas({
               {/* A LINHAGEM, e não uma linha de cabeçalho por demanda: ela
                   responde "por que estou fazendo isto?" sem gastar uma linha
                   inteira da lista, e clicar abre a demanda completa, onde se
-                  vê as etapas das outras pessoas. */}
-              <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
-                {linha.demanda.cliente ? (
-                  <>
-                    <span className="truncate">{linha.demanda.cliente}</span>
-                    <span aria-hidden>·</span>
-                  </>
-                ) : null}
-                <span className="truncate">{linha.demanda.titulo}</span>
-                {sub.etapaDeCima ? (
-                  <>
-                    <ChevronRight aria-hidden className="size-3 shrink-0" />
-                    <span className="truncate">{sub.etapaDeCima}</span>
-                  </>
-                ) : null}
-                {linha.demanda.minhas > 1 ? (
-                  <span className="shrink-0">
-                    {" "}
-                    · {linha.demanda.minhas} etapas minhas aqui
-                  </span>
-                ) : null}
-                {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
-                    sobe (0051 + Sprint das Campanhas).
+                  vê as etapas das outras pessoas.
 
-                    A peça de campanha já era uma etapa minha — abrir a
-                    campanha cria a demanda com uma etapa por entregável —, e
-                    o que faltava era o caminho de volta: clicar na linha abre
-                    a DEMANDA, e o PDF da lâmina sobe em
-                    `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
-                    produz lia "Lâmina A5" e caía numa tela sem lugar para o
-                    arquivo.
+                  E A PILHA DE QUEM MAIS ESTÁ NELA vem logo depois, na mesma
+                  linha, porque é a pergunta seguinte: a linhagem diz por que
+                  estou fazendo isto, a pilha diz quem está com o resto — que é
+                  o que explica a etapa parada esperando a arte de outra
+                  pessoa. Ela é irmã do `<p>` e não filha dele: avatar é um
+                  `<div>`, e `<div>` dentro de `<p>` faz o navegador fechar o
+                  parágrafo antes da hora, partindo a linha em duas sem ninguém
+                  pedir.
 
-                    `stopPropagation` porque a linha inteira abre o painel
-                    lateral: sem ele o clique no selo abriria os dois. */}
-                {sub.campanha ? (
-                  <Link
-                    href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-                    title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
-                  >
-                    <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
-                    {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
-                        Dentro da seção Campanhas ele repetiria o cabeçalho
-                        cinco vezes sem informar nada; o nome diz de qual peça
-                        é esta etapa — que é a pergunta de quem tem três
-                        campanhas correndo. */}
-                    <span className="truncate">{sub.campanha.nome}</span>
-                  </Link>
+                  Não custa consulta nenhuma: `carregar()` já trazia as etapas
+                  dos outros com a ficha de cada responsável desde o Sprint 4,
+                  para o painel lateral. */}
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+                  {linha.demanda.cliente ? (
+                    <>
+                      <span className="truncate">{linha.demanda.cliente}</span>
+                      <span aria-hidden>·</span>
+                    </>
+                  ) : null}
+                  <span className="truncate">{linha.demanda.titulo}</span>
+                  {sub.etapaDeCima ? (
+                    <>
+                      <ChevronRight aria-hidden className="size-3 shrink-0" />
+                      <span className="truncate">{sub.etapaDeCima}</span>
+                    </>
+                  ) : null}
+                  {linha.demanda.minhas > 1 ? (
+                    <span className="shrink-0">
+                      {" "}
+                      · {linha.demanda.minhas} etapas minhas aqui
+                    </span>
+                  ) : null}
+                  {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
+                      sobe (0051 + Sprint das Campanhas).
+
+                      A peça de campanha já era uma etapa minha — abrir a
+                      campanha cria a demanda com uma etapa por entregável —, e
+                      o que faltava era o caminho de volta: clicar na linha abre
+                      a DEMANDA, e o PDF da lâmina sobe em
+                      `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
+                      produz lia "Lâmina A5" e caía numa tela sem lugar para o
+                      arquivo.
+
+                      `stopPropagation` porque a linha inteira abre o painel
+                      lateral: sem ele o clique no selo abriria os dois. */}
+                  {sub.campanha ? (
+                    <Link
+                      href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                      title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
+                    >
+                      <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
+                      {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
+                          Dentro da seção Campanhas ele repetiria o cabeçalho
+                          cinco vezes sem informar nada; o nome diz de qual peça
+                          é esta etapa — que é a pergunta de quem tem três
+                          campanhas correndo. */}
+                      <span className="truncate">{sub.campanha.nome}</span>
+                    </Link>
+                  ) : null}
+                </p>
+
+                {linha.demanda.outros.length > 0 ? (
+                  <UserAvatarGroup
+                    max={3}
+                    users={linha.demanda.outros.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+                  />
                 ) : null}
-              </p>
+              </div>
             </div>
 
             {sub.requer_aprovacao ? (

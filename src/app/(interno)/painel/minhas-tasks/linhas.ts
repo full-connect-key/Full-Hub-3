@@ -1,6 +1,8 @@
 import { ClipboardList, FolderKanban, Images, type LucideIcon } from "lucide-react";
 
 import type { MinhaSubtarefa, MinhaTask } from "@/lib/dados/minhas-tasks";
+import type { Pessoa } from "@/lib/dados/tasks";
+import { quemMaisEstaNa } from "@/lib/dominio/tasks";
 import { ROTULOS_DE_SUBTAREFA, STATUS_DE_SUBTAREFA } from "@/lib/tasks/state-machine";
 import type { SubtaskStatus, TaskStatus } from "@/lib/supabase/database.types";
 
@@ -39,6 +41,15 @@ export type LinhaPessoal = {
     /** Quantas etapas a demanda tem ao todo, e quantas delas são minhas. */
     total: number;
     minhas: number;
+    /**
+     * Quem mais está na demanda, uma vez cada.
+     *
+     * Vem de `task.outrasSubtarefas`, que `carregar()` já traz com a ficha de
+     * cada responsável — nenhuma consulta nova. A linhagem responde "por que
+     * estou fazendo isto?"; a pilha responde a pergunta seguinte, que é
+     * "quem está com o resto?".
+     */
+    outros: Pessoa[];
   };
   subtarefa: MinhaSubtarefa;
 };
@@ -82,6 +93,7 @@ export function montarLinhas(tasks: MinhaTask[]): LinhaPessoal[] {
           status: task.status,
           total: task.subtarefasTotal,
           minhas: task.minhasSubtarefas.length,
+          outros: quemMaisEstaNa(task.outrasSubtarefas),
         },
         subtarefa: sub,
       })),

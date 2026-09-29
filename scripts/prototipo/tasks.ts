@@ -279,6 +279,38 @@ const SEMENTES: Semente[] = [
     estimativa_minutos: 60,
     tempo_real_minutos: null,
   },
+  // AS DUAS ETAPAS DA ANA DIVIDEM A DEMANDA COM MAIS ALGUEM, e e o que faz a
+  // pilha de avatares aparecer em imagem. Sem uma etapa de outra pessoa nesta
+  // demanda, a imagem nao prova que a pilha existe -- prova so que ela sabe
+  // sumir, que e a mesma razao pela qual UMA etapa de exemplo e peca de
+  // campanha. Duas pessoas e nao uma: com um circulo so ninguem ve que eles se
+  // sobrepoem, e o "+N" nunca aparece.
+  {
+    id: "s12",
+    task_id: "55555555-5555-5555-5555-555555555555",
+    titulo: "Diagramar o manual",
+    ordem: 3,
+    prazo: dia(4),
+    responsavel: MARINA,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 120,
+    tempo_real_minutos: null,
+  },
+  {
+    id: "s13",
+    task_id: "55555555-5555-5555-5555-555555555555",
+    titulo: "Revisar as imagens do manual",
+    ordem: 4,
+    prazo: dia(5),
+    responsavel: BRUNO,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 90,
+    tempo_real_minutos: null,
+  },
   // Vitrine — as duas etapas que dao a cada perfil um botao diferente
   {
     id: "s9",

@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { EmptyState } from "@/components/shared/empty-state";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
@@ -97,7 +98,29 @@ export function MeuDia({
                   fazer. Foi a imagem de 390px que mostrou; no 1600 as duas
                   entregas cabiam inteiras. */}
               <div className="min-w-48 flex-1">
-                <p className="text-muted-foreground truncate text-xs">{item.tituloDaMae}</p>
+                {/* A LINHAGEM E QUEM MAIS ESTÁ NELA, na mesma linha.
+
+                    A pilha responde a pergunta seguinte à linhagem: a
+                    linhagem diz por que estou fazendo isto, e a pilha diz
+                    quem está com o resto — que é o que explica a etapa
+                    parada esperando a arte de outra pessoa. Ela não custa
+                    consulta: `carregar()` já trazia essas fichas.
+
+                    Fica ao lado do título da demanda, e não no aglomerado da
+                    direita, porque é sobre a DEMANDA e não sobre a etapa —
+                    ali ela leria como "quem está nesta etapa", que é uma
+                    pessoa só e é quem está olhando. */}
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="text-muted-foreground min-w-0 truncate text-xs">
+                    {item.tituloDaMae}
+                  </p>
+                  {item.outrosNaDemanda.length > 0 ? (
+                    <UserAvatarGroup
+                      max={3}
+                      users={item.outrosNaDemanda.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+                    />
+                  ) : null}
+                </div>
                 <p className="flex items-center gap-1.5 truncate text-sm">
                   <CornerDownRight aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
                   {item.titulo}

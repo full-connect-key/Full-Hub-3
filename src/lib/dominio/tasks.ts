@@ -303,3 +303,35 @@ export const ROTULO_DO_ITEM_DE_CALENDARIO: Record<
   campanha: "Campanha",
   entregavel: "Entregável",
 };
+
+/**
+ * QUEM MAIS ESTÁ NA DEMANDA, uma vez cada.
+ *
+ * ---------------------------------------------------------------------------
+ * **A pilha de avatares da interface "Leve" não custou consulta nenhuma**, e é
+ * o que a tornou barata: `carregar()` em `lib/dados/minhas-tasks.ts` já traz as
+ * etapas dos outros com `profiles(id, nome, avatar_url)` desde o Sprint 4 —
+ * elas são o contexto em cinza do painel lateral. O que faltava era a lista
+ * aparecer na LINHA, que é onde a pergunta é feita: *a arte não saiu, quem
+ * está com ela?*
+ * ---------------------------------------------------------------------------
+ *
+ * **A dedução é por PESSOA e não por etapa**, e a diferença é visível: a Carla
+ * com três etapas na mesma demanda é uma pessoa, e três círculos iguais lado a
+ * lado leriam como três pessoas. Quem responde é o `Map` por id — nunca pelo
+ * nome, que dois homônimos compartilham.
+ *
+ * **Etapa sem dono não entra**, e a ausência é a mesma regra de todo lugar:
+ * ela não está no "Minhas Tasks" de ninguém, então não há avatar a desenhar —
+ * e um círculo genérico ali afirmaria que existe alguém.
+ */
+export function quemMaisEstaNa<P extends { id: string }>(
+  outrasSubtarefas: { responsavel: P | null }[],
+): P[] {
+  const porPessoa = new Map<string, P>();
+  for (const sub of outrasSubtarefas) {
+    if (!sub.responsavel) continue;
+    if (!porPessoa.has(sub.responsavel.id)) porPessoa.set(sub.responsavel.id, sub.responsavel);
+  }
+  return [...porPessoa.values()];
+}

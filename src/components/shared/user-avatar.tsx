@@ -58,7 +58,13 @@ export function UserAvatarGroup({
   const excedente = users.length - visiveis.length;
 
   return (
-    <div className="flex items-center -space-x-1.5">
+    // -space-x-1 E NÃO -1.5: quando não há foto o círculo carrega DUAS letras,
+    // e seis pixels de sobreposição num círculo de vinte e quatro comiam a
+    // segunda — "MC" saía "M(". Com quatro, a pilha continua se lendo como
+    // pilha e as iniciais cabem. Apareceu quando a pilha desceu para a linha
+    // de Minhas Tasks, onde quase ninguém tem foto; no board ela passava
+    // porque lá os avatares são de quem já subiu a sua.
+    <div className="flex items-center -space-x-1">
       {visiveis.map((usuario) => (
         <UserAvatar
           key={usuario.name}
