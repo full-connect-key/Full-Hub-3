@@ -4,6 +4,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, variaveisFaltando } from "@/lib/env";
 import { servicoConfigurado } from "./admin";
 import { emailConfigurado, enderecoDeDesvio, envioAoVivo } from "@/lib/email/config";
 import { driveConfigurado, faltandoNoDrive } from "@/lib/drive/config";
+import { temChaveDaAnthropic } from "@/lib/feedback/gerar";
 import { criarClienteServidor } from "./server";
 
 /**
@@ -368,6 +369,39 @@ function checarDrive(): Checagem {
   };
 }
 
+/**
+ * O feedback de desenvolvimento escreve? (Sprint 3H)
+ *
+ * ALERTA E NAO FALHA: sem a chave nada quebra. Os relatorios ja gerados abrem,
+ * a revisao funciona, o envio funciona, e as metricas do periodo continuam
+ * sendo calculadas e gravadas -- o que some e o texto. E a decisao do Resend e
+ * do Drive.
+ *
+ * E ela nao cita nenhum modelo nem nenhuma URL: o que interessa aqui e se a
+ * geracao funciona, e o nome do modelo mora em `lib/dominio/feedback.ts`.
+ */
+function checarFeedback(): Checagem {
+  if (temChaveDaAnthropic()) {
+    return {
+      nome: "Feedback de desenvolvimento",
+      situacao: "ok",
+      detalhe: "Chave configurada. O texto do feedback é escrito na geração.",
+    };
+  }
+
+  return {
+    nome: "Feedback de desenvolvimento",
+    situacao: "alerta",
+    detalhe:
+      "ANTHROPIC_API_KEY não configurada. As métricas do período continuam sendo " +
+      "calculadas e gravadas, e os relatórios já gerados abrem normalmente — o que " +
+      "não acontece é a escrita do texto.",
+    comoResolver:
+      "Crie uma chave em console.anthropic.com, coloque no .env.local como " +
+      "ANTHROPIC_API_KEY (sem o prefixo NEXT_PUBLIC_) e reinicie o servidor.",
+  };
+}
+
 function consolidar(checagens: Checagem[]): Situacao {
   if (checagens.some((c) => c.situacao === "falha")) return "falha";
   if (checagens.some((c) => c.situacao === "alerta")) return "alerta";
@@ -408,7 +442,7 @@ export async function diagnosticarSupabase(
     };
   }
 
-  const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail(), checarDrive()];
+  const checagens = [variaveis, alcance, schema, checarChaveDeServico(), checarEmail(), checarDrive(), checarFeedback()];
 
   return {
     situacaoGeral: consolidar(checagens),

@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { Gauge } from "lucide-react";
 
+import type { AlertaDeCarga } from "@/lib/dados/feedback";
+import {
+  EXPLICACAO_DO_ALERTA,
+  ROTULOS_DE_ALERTA_DE_CARGA,
+} from "@/lib/dominio/feedback";
 import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import type { ResumoDaHome } from "@/lib/dados/home";
 
@@ -30,7 +35,25 @@ import type { ResumoDaHome } from "@/lib/dados/home";
  * desaparece nos dias bons ensina que ele só aparece quando há problema — e aí
  * ninguém mais o lê nos outros dias.
  */
-export function PulsoDaAgencia({ dados }: { dados: ResumoDaHome["pulso"] }) {
+export function PulsoDaAgencia({
+  dados,
+  alertasDeCarga = [],
+}: {
+  dados: ResumoDaHome["pulso"];
+  /**
+   * OS SINAIS DE DISTRIBUIÇÃO DE TRABALHO (Sprint 3H), e eles vêm ANTES dos
+   * cinco cartões — não como um sexto.
+   *
+   * Um cartão diria "3 alertas" e mandaria clicar; aqui cada linha nomeia a
+   * pessoa e diz o que aconteceu, porque a resposta útil é essa. E é o único
+   * bloco do Pulso que fala de GENTE em vez de trabalho: somado aos números de
+   * etapa, ele viraria mais um contador da agência.
+   *
+   * A pessoa não vê nenhum destes sobre si mesma — `workload_alerts` é
+   * `is_gestor()` no SELECT, e o que é dela chega pelo feedback, relativizado.
+   */
+  alertasDeCarga?: AlertaDeCarga[];
+}) {
   if (!dados) return null;
 
   const atrasadas = dados.atrasadas ?? 0;
@@ -94,6 +117,43 @@ export function PulsoDaAgencia({ dados }: { dados: ResumoDaHome["pulso"] }) {
           href="/painel/aprovacoes"
         />
       </div>
+
+      {alertasDeCarga.length > 0 ? (
+        <ul className="space-y-2">
+          {alertasDeCarga.slice(0, 4).map((a) => (
+            <li
+              key={a.id}
+              className="bg-warning-soft border-warning rounded-lg border p-3"
+            >
+              <p className="text-warning text-sm font-semibold">
+                {ROTULOS_DE_ALERTA_DE_CARGA[a.tipo] ?? a.tipo} ·{" "}
+                {a.pessoa?.nome ?? "—"}
+              </p>
+              <p className="text-text-secondary mt-0.5 text-xs">
+                {EXPLICACAO_DO_ALERTA[a.tipo] ?? ""}{" "}
+                <Link
+                  href="/painel/feedback"
+                  className="text-accent-strong hover:underline"
+                >
+                  Ver em Feedback
+                </Link>
+              </p>
+            </li>
+          ))}
+          {alertasDeCarga.length > 4 ? (
+            <li className="text-text-muted text-xs">
+              e mais {alertasDeCarga.length - 4} sinal(is) em{" "}
+              <Link
+                href="/painel/feedback"
+                className="text-accent-strong hover:underline"
+              >
+                Feedback
+              </Link>
+              .
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
     </section>
   );
 }

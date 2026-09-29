@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 
 
+import Link from "next/link";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
+import { minhaEscolhaDeFeedback } from "@/lib/dados/feedback";
 import { obterColaborador } from "@/lib/dados/equipe";
 import { rotuloDaFuncao } from "@/lib/dominio/equipe";
 
 import { FormularioDoPerfil, TrocaDeSenha } from "./formulario";
+import { EscolhaDeFeedback } from "../feedback/sobre/escolha";
 
 export const metadata: Metadata = { title: "Meu perfil" };
 
@@ -31,7 +35,10 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
  */
 export default async function PaginaDoMeuPerfil() {
   const sessao = await exigirAcessoARota("/painel/perfil");
-  const pessoa = await obterColaborador(sessao.usuarioId);
+  const [pessoa, escolha] = await Promise.all([
+    obterColaborador(sessao.usuarioId),
+    minhaEscolhaDeFeedback(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -53,6 +60,31 @@ export default async function PaginaDoMeuPerfil() {
             </dl>
             <p className="text-muted-foreground mt-4 text-xs">
               Precisa alterar algum desses? Fale com a gestão.
+            </p>
+          </section>
+
+          {/* O FEEDBACK DE DESENVOLVIMENTO (Sprint 3H). O sprint pede que a
+              escolha more em Meu Perfil, alterável a qualquer momento — e ela
+              mora aqui, junto da explicação, porque um interruptor sem a
+              explicação ao lado é um interruptor que se desliga sem saber o que
+              se está desligando. */}
+          <section className="rounded-card border p-5">
+            <h2 className="mb-2 text-sm font-semibold">
+              Feedback de desenvolvimento
+            </h2>
+            <p className="text-muted-foreground mb-4 text-xs">
+              Um retrato do seu próprio trabalho, a partir dos números do
+              sistema. Não é avaliação de desempenho, nota nem ranking, e a
+              comparação é sempre com o seu período anterior — nunca com colegas.
+            </p>
+            <EscolhaDeFeedback recebe={escolha.recebe} />
+            <p className="text-muted-foreground mt-3 text-xs">
+              <Link
+                href="/painel/feedback/sobre"
+                className="text-accent-strong hover:underline"
+              >
+                Quais dados são usados, quem lê antes, e o seu histórico
+              </Link>
             </p>
           </section>
 

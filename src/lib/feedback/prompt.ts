@@ -39,13 +39,17 @@ import {
 /**
  * O texto do sistema.
  *
- * **O BLOCO 4 NÃO FALA DE "SKILLS QUE ELA QUER DESENVOLVER"**, e a diferença
- * vem do produto: o sprint pede isso, e `user_skills` foi apagada na migration
- * 0043 por decisão do usuário. Interesse declarado não existe mais; o que
- * existe, e é melhor porque é fato, é o que a pessoa ESTUDOU no período — as
- * trilhas do Full Academy que ela tocou e as etiquetas dos materiais que
- * concluiu. Pedir ao modelo para falar de um interesse que o banco não guarda
- * seria pedir para ele inventar um.
+ * **O BLOCO 4 NÃO FALA DE INTERESSE DECLARADO**, e a diferença vem do produto:
+ * o sprint pede isso, e a tabela de autoavaliação onde aquilo morava foi
+ * apagada na migration 0043 por decisão do usuário. Interesse declarado não
+ * existe mais; o que existe, e é melhor porque é fato, é o que a pessoa ESTUDOU
+ * no período — as trilhas do Full Academy que ela tocou e as etiquetas dos
+ * materiais que concluiu. Pedir ao modelo para falar de um interesse que o banco
+ * não guarda seria pedir para ele inventar um.
+ *
+ * (O nome daquela tabela não aparece aqui: ele está na lista de nomes mortos do
+ * `check:cores`, e a explicação mora em CLAUDE.md e no cabeçalho da 0043 — fora
+ * de `src/`.)
  */
 export const TEXTO_DO_SISTEMA = `Você escreve feedback de desenvolvimento para pessoas de uma agência de publicidade, a partir de dados do sistema interno dela.
 

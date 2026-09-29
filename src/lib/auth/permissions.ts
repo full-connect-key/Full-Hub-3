@@ -13,6 +13,7 @@ import {
   Receipt,
   Boxes,
   ScrollText,
+  MessageSquareHeart,
   Sparkles,
   Sun,
   ThumbsUp,
@@ -297,6 +298,56 @@ export const MENU: MenuItem[] = [
     roles: EQUIPE,
     section: "principal",
     description: "O que os clientes pediram pelo Portal, e o que virou demanda.",
+  },
+  {
+    // O FEEDBACK DE DESENVOLVIMENTO (Sprint 3H). Em GESTÃO porque a divisão do
+    // menu é sobre a PESSOA, e este é o único módulo do produto em que alguém
+    // escreve sobre o trabalho de outra alguém — é exatamente "o que eu faço
+    // sobre os outros".
+    //
+    // E A TELA DA PESSOA NÃO ESTÁ AQUI: ela mora na tela Início, por decisão do
+    // usuário. O sprint a punha numa aba de um módulo que saiu do produto na
+    // 0043 — então o feedback dela chega onde ela já abre todo dia. O nome
+    // daquele módulo está na lista de nomes mortos do `check:cores`, e a
+    // explicação mora em CLAUDE.md, fora de `src/`.
+    label: "Feedback",
+    href: "/painel/feedback",
+    icon: MessageSquareHeart,
+    roles: GESTAO,
+    section: "gestao",
+    description: "Gere, revise e envie o feedback de desenvolvimento da equipe.",
+  },
+  {
+    // A EXPLICAÇÃO É DE TODO MUNDO, e por isso ela tem entrada própria: sem
+    // ela, `findMenuItem` casaria `/painel/feedback/sobre` com o item de cima e
+    // `exigirAcessoARota` devolveria 403 a quem o módulo existe para servir. A
+    // rota mais longa ganha, então a ordem entre as duas não importa.
+    //
+    // Um módulo assim só funciona se as pessoas confiarem nele, e confiança se
+    // ganha explicando antes, não depois.
+    label: "Sobre o feedback",
+    href: "/painel/feedback/sobre",
+    icon: MessageSquareHeart,
+    roles: EQUIPE,
+    section: "gestao",
+    hiddenFromMenu: true,
+    description: "Que dados são usados, quem lê antes, e para que serve.",
+  },
+  {
+    // A CONFIGURAÇÃO É DO SÓCIO, e a entrada própria é o que faz a rota recusar
+    // o desenvolvedor: sem ela, ele cairia no item de cima, que é `GESTAO`. A
+    // action já exige o sócio; esta linha é a guarda de tela ao lado da trava,
+    // como em toda aba do produto que estreita o perfil.
+    //
+    // `exige_revisao` decide se um texto de máquina vai direto para uma pessoa,
+    // e isso é decisão de quem responde pela agência — a razão da fila de notas.
+    label: "Configurações do feedback",
+    href: "/painel/feedback/configuracoes",
+    icon: MessageSquareHeart,
+    roles: SOCIO,
+    section: "gestao",
+    hiddenFromMenu: true,
+    description: "Periodicidade, quem revisa, e se a revisão humana é exigida.",
   },
   {
     // ERAM TRÊS ITENS — "Gestão de Tasks", "Aprovações Internas" e

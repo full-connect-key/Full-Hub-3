@@ -11,12 +11,19 @@ import {
   notasEsperandoOSocio,
 } from "@/lib/dados/notas-fiscais";
 import { meusComodatos } from "@/lib/dados/comodatos";
+import {
+  alertasAbertos,
+  feedbackNovoParaMim,
+  meusFeedbacks,
+  relatorioComConversa,
+} from "@/lib/dados/feedback";
 import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { BoasVindas } from "./_blocos/boas-vindas";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
+import { MeuFeedback } from "./_blocos/meu-feedback";
 import { MeusEquipamentos } from "./_blocos/meus-equipamentos";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
 import { PrecisaDeMim } from "./_blocos/precisa-de-mim";
@@ -70,6 +77,8 @@ export default async function PaginaInicialDoPainel() {
     esperandoOSocio,
     pedidosDeNotaAbertos,
     meusEquipamentos,
+    meusFeedbacks_lista,
+    alertasDeCargaAbertos,
   ] = await Promise.all([
     obterMinhaFicha(),
     resumoDaHome(),
@@ -91,7 +100,26 @@ export default async function PaginaInicialDoPainel() {
     // que é definer e devolve vazio para quem não é da equipe — nenhum `if` de
     // perfil aqui, pela mesma razão das notas acima.
     meusComodatos(),
+    // O FEEDBACK QUE CHEGOU PARA MIM (Sprint 3H). A consulta não filtra por
+    // status: `feedback_reports_select` devolve só os `enviado` desta pessoa, e
+    // repetir o filtro aqui criaria o segundo lugar onde a regra pode divergir
+    // — o que mostraria a alguém um rascunho sobre ela mesma.
+    meusFeedbacks(),
+    // OS SINAIS DE CARGA, para o Pulso. Volta lista vazia pelo RLS para quem
+    // não é gestão, e não cai por conta própria: derrubar a tela inicial por
+    // causa de um bloco entre nove seria caro por nada.
+    gestao ? alertasAbertos() : Promise.resolve([]),
   ]);
+
+  // A CONVERSA DO FEEDBACK MAIS RECENTE, e só dele: os anteriores viram
+  // histórico em `/painel/feedback/sobre#historico`. Uma segunda ida ao banco
+  // por aqui é barata, e a alternativa era `meusFeedbacks()` trazer as respostas
+  // de todos — que numa pessoa com um ano de feedbacks é uma leitura inteira
+  // para desenhar uma thread.
+  const meuMaisRecente = meusFeedbacks_lista[0] ?? null;
+  const conversaDoMeuFeedback = meuMaisRecente
+    ? await relatorioComConversa(meuMaisRecente.id)
+    : null;
 
   return (
     <div className="space-y-8">
@@ -118,6 +146,16 @@ export default async function PaginaInicialDoPainel() {
         notasPedidas={pedidosDeNotaAbertos.length}
       />
 
+      {/* O FEEDBACK VEM DEPOIS DO QUE PRECISA DE MIM E ANTES DO RESTO, e a
+          posição é a ordem do dia: ele não é uma pendência — ninguém tem que
+          fazer nada com ele hoje —, mas é sobre a pessoa, e o que é sobre a
+          pessoa fica acima do que é sobre as coisas. */}
+      <MeuFeedback
+        relatorio={conversaDoMeuFeedback?.relatorio ?? null}
+        respostas={conversaDoMeuFeedback?.respostas ?? []}
+        quantosAnteriores={Math.max(0, meusFeedbacks_lista.length - 1)}
+      />
+
       <MeusEquipamentos comodatos={meusEquipamentos} />
 
       <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
@@ -126,7 +164,10 @@ export default async function PaginaInicialDoPainel() {
 
       {gestao ? (
         <>
-          <PulsoDaAgencia dados={resumo.pulso} />
+          <PulsoDaAgencia
+            dados={resumo.pulso}
+            alertasDeCarga={alertasDeCargaAbertos}
+          />
           <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
           <PortaisDeClientes clientes={portais} />
         </>

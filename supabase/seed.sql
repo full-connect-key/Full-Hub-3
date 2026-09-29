@@ -2242,3 +2242,254 @@ begin
   raise notice 'Sprint 3F: 5 equipamentos, 3 comodatos em aberto (um com pessoa desligada) e 1 devolvido.';
 end
 $bloco$;
+
+
+-- ===========================================================================
+-- PARTE 15 - O FEEDBACK DE DESENVOLVIMENTO (Sprint 3H, migration 0075)
+--
+-- UM ENVIADO E UM RASCUNHO, e os dois existem por razoes diferentes.
+--
+-- O ENVIADO e para a tela Inicio ter o que desenhar: sem ele o bloco do
+-- feedback some -- como todo bloco de excecao da Home --, e o ambiente de
+-- desenvolvimento mostraria o produto no unico estado em que a metade que
+-- interessa a pessoa nao existe. E a licao da Optica Visao (0062) e da pessoa
+-- desligada (0069), aplicada antes de o bug acontecer.
+--
+-- O RASCUNHO e para a trava: ele prova, clicando, que a pessoa NAO le o texto
+-- que a gestao esta revisando. Com um enviado so, a tela ficaria igual com a
+-- policy certa e com `and status = 'enviado'` apagado dela -- que e exatamente
+-- o modo de falha do `security_invoker` num banco com um cliente so.
+--
+-- O TEXTO E ESCRITO A MAO AQUI, e nao gerado: o seed nao tem chave de API, e
+-- inventar um texto que PARECA gerado seria pior que escrever um honesto. Ele
+-- segue as regras do modulo de proposito -- numeros que existem nas metricas,
+-- nenhuma comparacao com colega, nenhum julgamento de atitude, dois pontos de
+-- melhoria -- para a verificacao pos-geracao nao acusar nada num relatorio de
+-- exemplo e ensinar quem esta olhando que a faixa de alertas e ruido.
+--
+-- `modelo_usado` fica NULO, e a ausencia e honesta: nenhum modelo escreveu
+-- isto. Preencher com o nome do modelo padrao poria no ambiente de
+-- desenvolvimento uma afirmacao falsa sobre a origem de um texto -- que e a
+-- unica coisa que este modulo nao pode deixar acontecer.
+--
+-- Roda mais de uma vez sem erro: o indice unico por (pessoa, periodo,
+-- periodicidade) mais `on conflict do nothing`.
+-- ===========================================================================
+do $bloco$
+declare
+  carla   uuid := 'a0000000-0000-0000-0000-000000000003';
+  bruno   uuid := 'a0000000-0000-0000-0000-000000000005';
+  ana     uuid := 'a0000000-0000-0000-0000-000000000001';
+  -- O MES ANTERIOR FECHADO, contado de hoje -- e nao uma data literal. Uma
+  -- data fixa deixa de ser "o mes passado" sozinha, daqui a algumas semanas,
+  -- sem ninguem tocar no arquivo: e a decisao da data de entrada relativa que
+  -- a 0074 poe no seed.
+  inicio  date := date_trunc('month', current_date - interval '1 month')::date;
+  fim     date := (date_trunc('month', current_date)::date - 1);
+  metricas jsonb;
+  contexto jsonb;
+begin
+  if not exists (select 1 from public.profiles where id = carla) then
+    raise notice 'Rode a PARTE 2 antes: as pessoas de exemplo ainda nao existem.';
+    return;
+  end if;
+
+  -- O MES DE TRABALHO QUE O FEEDBACK MEDE, e sem ele nada disto existe.
+  --
+  -- O SEED TINHA DUAS ETAPAS CONCLUIDAS NO TOTAL, as duas de hoje, e nenhuma da
+  -- Carla -- entao `feedback_metricas()` respondia `concluidas: 0` e o
+  -- relatorio de exemplo nascia afirmando um mes que nao aconteceu. Foi o
+  -- proprio seed que mostrou, rodando: o numero saiu zero e zero e plausivel,
+  -- que e o pior jeito de um dado de exemplo estar errado -- a mesma armadilha
+  -- do `concluida_em` nulo do Sprint 15.
+  --
+  -- SAO SETE ETAPAS COM FORMAS DIFERENTES de proposito, porque cada uma faz um
+  -- numero da tela existir: cinco no prazo e duas fora dao uma taxa que nao e
+  -- 100% nem 0%; uma sem prazo prova que ela fica FORA da taxa em vez de contar
+  -- como acerto; e o tempo real acima da estimativa em quase todas produz uma
+  -- tendencia de "estimar para baixo", que e o achado mais concreto que este
+  -- modulo tem para oferecer.
+  --
+  -- AS DATAS SAO RELATIVAS AO MES ANTERIOR, nunca literais: uma data fixa deixa
+  -- de ser "o mes passado" sozinha, sem ninguem tocar no arquivo. E a decisao
+  -- da data de entrada relativa que a 0074 poe no seed.
+  insert into public.tasks (id, client_id, titulo, criado_por, link_entrega, publicada_em, data_inicio, data_fim, status, status_manual)
+  values (
+    '0f000000-0000-0000-0000-0000000000f1',
+    'c0000000-0000-0000-0000-00000000000a',
+    'Conteúdo de ' || to_char(inicio, 'MM/YYYY') || ' — Mundo Verde',
+    ana, 'https://drive.google.com/drive/folders/exemplo-feedback',
+    inicio::timestamptz, inicio, fim, 'entregue', true
+  )
+  on conflict (id) do nothing;
+
+  insert into public.subtasks (
+    task_id, titulo, ordem, responsavel_id, data_inicio, prazo, status,
+    iniciada_em, concluida_em, estimativa_minutos, tempo_real_minutos
+  )
+  select '0f000000-0000-0000-0000-0000000000f1', x.titulo, x.ordem, carla,
+         inicio + x.abre, inicio + x.vence, 'concluida',
+         (inicio + x.abre)::timestamptz + interval '9 hours',
+         (inicio + x.fecha)::timestamptz + interval '17 hours',
+         x.estimado, x.real_
+    from (values
+      ('Pauta do mês',             1,  0,  2,  1, 360, 400),
+      ('Legenda dos posts',        2,  2,  6,  5, 540, 720),
+      ('Arte do post de abertura', 3,  4,  8,  8, 720, 900),
+      ('Revisão do cliente',       4,  8, 12, 11, 180, 180),
+      ('Ajustes pedidos',          5, 12, 15, 18, 360, 780),
+      ('Adaptações para story',    6, 16, 19, 22, 540, 600),
+      ('Fechamento do mês',        7, 20, null, 26, 180, 225)
+    ) as x(titulo, ordem, abre, vence, fecha, estimado, real_)
+   where not exists (
+     select 1 from public.subtasks s
+      where s.task_id = '0f000000-0000-0000-0000-0000000000f1'
+        and s.titulo = x.titulo
+   );
+
+  -- AS METRICAS SAO CALCULADAS PELA FUNCAO DE VERDADE, e nao digitadas: um
+  -- JSON escrito a mao envelhece na primeira vez que `feedback_metricas()`
+  -- ganhar um campo, e a tela passaria a desenhar um bloco vazio sem ninguem
+  -- saber por que.
+  --
+  -- E O SEED PRECISA SE APRESENTAR COMO A ANA PARA CHAMA-LA. Rodar como dono do
+  -- banco NAO basta: a trava e `if not public.is_gestor()` dentro do corpo, e
+  -- `is_gestor()` pergunta por `auth.uid()` -- que sem sessao devolve null e cai
+  -- no lado fechado, como deve. A primeira versao deste bloco assumia o
+  -- contrario e o seed estourou com "As metricas do feedback sao calculadas
+  -- pela gestao".
+  --
+  -- SAO OS DOIS GUCS de proposito: `auth.uid()` do Supabase de verdade le
+  -- `request.jwt.claims` (um JSON), e o dublê de `_fixture_supabase.sql` le
+  -- `request.jwt.claim.sub`. Setar um so faria o seed funcionar num dos dois
+  -- ambientes e falhar no outro -- que e a familia de bug do `grep -i` que
+  -- dizia ok numa maquina e falhava no CI.
+  --
+  -- `true` no terceiro argumento: e escopo de transacao, e o bloco `do` inteiro
+  -- e uma transacao. A saida de emergencia nao pode virar porta destrancada,
+  -- que e a decisao da 0045.
+  perform set_config('request.jwt.claim.sub', ana::text, true);
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', ana::text, 'role', 'authenticated')::text, true);
+
+  metricas := public.feedback_metricas(carla, inicio, fim);
+  contexto := public.feedback_contexto(carla, inicio, fim);
+
+  insert into public.feedback_reports (
+    user_id, periodo_inicio, periodo_fim, periodicidade,
+    metricas_json, contexto_json, texto_gerado, texto_final,
+    modelo_usado, prompt_versao, status, revisado_por, revisado_em, enviado_em
+  )
+  values (
+    carla, inicio, fim, 'mensal',
+    metricas, contexto,
+    'Neste período você fechou as etapas que estavam no seu nome, e as que tinham prazo combinado saíram dentro dele. O tempo que você registrou nelas está no painel ao lado, etapa por etapa.'
+      || E'\n\n'
+      || 'Em relação ao período anterior, o número de etapas concluídas está no mesmo patamar. O que mudou foi a distribuição: mais trabalho de uma conta e menos de outra, o que aparece na lista por cliente.'
+      || E'\n\n'
+      || 'Dois pontos com espaço para crescer. O primeiro é a estimativa: comparando o que você estimou com o tempo que registrou, há uma diferença que vale olhar antes de datar a próxima etapa parecida — uma folga na hora de estimar custa menos que uma data refeita. O segundo é o retorno do cliente: parte do material voltou para ajuste, e as palavras que mais apareceram nos pedidos estão listadas ao lado; elas dizem o que conferir antes de enviar.'
+      || E'\n\n'
+      || 'Como sugestão de desenvolvimento, as trilhas do Full Academy ligadas ao tipo de trabalho que você mais fez neste período são o caminho mais curto — e ficam no seu ritmo.',
+    'Neste período você fechou as etapas que estavam no seu nome, e as que tinham prazo combinado saíram dentro dele. O tempo que você registrou nelas está no painel ao lado, etapa por etapa.'
+      || E'\n\n'
+      || 'Em relação ao período anterior, o número de etapas concluídas está no mesmo patamar. O que mudou foi a distribuição: mais trabalho de uma conta e menos de outra, o que aparece na lista por cliente.'
+      || E'\n\n'
+      || 'Dois pontos com espaço para crescer. O primeiro é a estimativa: comparando o que você estimou com o tempo que registrou, há uma diferença que vale olhar antes de datar a próxima etapa parecida — uma folga na hora de estimar custa menos que uma data refeita. O segundo é o retorno do cliente: parte do material voltou para ajuste, e as palavras que mais apareceram nos pedidos estão listadas ao lado; elas dizem o que conferir antes de enviar.'
+      || E'\n\n'
+      || 'Como sugestão de desenvolvimento, as trilhas do Full Academy ligadas ao tipo de trabalho que você mais fez neste período são o caminho mais curto — e ficam no seu ritmo.',
+    null, '3h.1', 'enviado', ana, now() - interval '2 days', now() - interval '2 days'
+  )
+  on conflict (user_id, periodo_inicio, periodicidade) do nothing;
+
+  -- O BRUNO SOBRECARREGADO, em DOIS periodos seguidos, e ele existe por causa de
+  -- UM alerta.
+  --
+  -- `sobrecarga` exige os dois periodos acima de 110%, e a segunda condicao e o
+  -- que separa um alerta de um ruido -- entao com um mes so nada nasce, e o
+  -- bloco de sinais do Pulso da agencia nunca apareceria em ambiente de
+  -- desenvolvimento. O produto se mostraria no unico estado em que o retorno
+  -- mais valioso do modulo nao existe: e a licao da Optica Visao (0062) e da
+  -- pessoa desligada (0069), aplicada antes de o bug acontecer.
+  --
+  -- OS PERIODOS SE SOBREPOEM de proposito, porque e assim que sobrecarga
+  -- acontece de verdade: nao e uma etapa gigante, sao tres etapas normais
+  -- abertas ao mesmo tempo. `carga_do_dia()` conta a estimativa inteira em cada
+  -- dia que o periodo cobre, que e o que faz a sobreposicao aparecer.
+  insert into public.tasks (id, client_id, titulo, criado_por, link_entrega, publicada_em, data_inicio, data_fim, status, status_manual)
+  values (
+    '0f000000-0000-0000-0000-0000000000f2',
+    'c0000000-0000-0000-0000-00000000000b',
+    'Mês apertado — Óptica Visão',
+    ana, 'https://drive.google.com/drive/folders/exemplo-sobrecarga',
+    (inicio - interval '1 month')::date::timestamptz,
+    (inicio - interval '1 month')::date, fim, 'em_andamento', false
+  )
+  on conflict (id) do nothing;
+
+  insert into public.subtasks (
+    task_id, titulo, ordem, responsavel_id, data_inicio, prazo, status,
+    estimativa_minutos
+  )
+  select '0f000000-0000-0000-0000-0000000000f2',
+         x.titulo, x.ordem, bruno,
+         x.base + x.abre, x.base + x.abre + 9, 'em_andamento', 420
+    from (
+      select titulo, ordem, abre, base
+        from (values (0), (1)) as m(volta)
+        cross join (values
+          ('Frente A', 1,  0),
+          ('Frente B', 2,  6),
+          ('Frente C', 3, 12),
+          ('Frente D', 4, 18)
+        ) as f(titulo, ordem, abre)
+        cross join lateral (
+          select (inicio - (m.volta || ' month')::interval)::date as base
+        ) b
+    ) as x(titulo, ordem, abre, base)
+   where not exists (
+     select 1 from public.subtasks s
+      where s.task_id = '0f000000-0000-0000-0000-0000000000f2'
+        and s.titulo = x.titulo
+        and s.data_inicio = x.base + x.abre
+   );
+
+  -- O RASCUNHO, no nome do Bruno. Ele NAO TEM `enviado_em` nem `revisado_por`,
+  -- e e isso que a tela dele nao pode mostrar.
+  insert into public.feedback_reports (
+    user_id, periodo_inicio, periodo_fim, periodicidade,
+    metricas_json, contexto_json, texto_gerado, texto_final,
+    modelo_usado, prompt_versao, status
+  )
+  values (
+    bruno, inicio, fim, 'mensal',
+    public.feedback_metricas(bruno, inicio, fim),
+    public.feedback_contexto(bruno, inicio, fim),
+    'Rascunho ainda em revisão pela gestão. A pessoa não deve conseguir ler este texto — se ele aparecer na tela Início dela, a policy de SELECT perdeu o filtro de status.',
+    'Rascunho ainda em revisão pela gestão. A pessoa não deve conseguir ler este texto — se ele aparecer na tela Início dela, a policy de SELECT perdeu o filtro de status.',
+    null, '3h.1', 'rascunho'
+  )
+  on conflict (user_id, periodo_inicio, periodicidade) do nothing;
+
+  -- A RESPOSTA DA PESSOA, no enviado. Sem ela a thread nasce vazia, e o
+  -- "direito de resposta" -- que e a parte do modulo que o sprint chama de
+  -- nao opcional -- fica sendo um campo de texto que ninguem viu funcionando.
+  insert into public.feedback_replies (report_id, autor_id, texto)
+  select r.id, carla,
+         'Nesse mês eu peguei duas campanhas que não estavam combinadas, e é isso que explica a conta de tempo. Podemos conversar sobre a distribuição?'
+    from public.feedback_reports r
+   where r.user_id = carla and r.periodo_inicio = inicio and r.periodicidade = 'mensal'
+     and not exists (
+       select 1 from public.feedback_replies x where x.report_id = r.id
+     );
+
+  -- OS SINAIS DE CARGA, para o Pulso da agencia ter o que mostrar. Eles saem
+  -- da funcao de verdade e nao de um insert a mao, pela mesma razao das
+  -- metricas: um alerta digitado mostraria um estado que o caminho normal nao
+  -- produz. Se nenhuma condicao bater no banco semeado, nenhum alerta nasce --
+  -- e esta certo, porque e o que a agencia veria.
+  perform public.registrar_alertas_de_carga(carla, inicio, fim);
+  perform public.registrar_alertas_de_carga(bruno, inicio, fim);
+
+  raise notice 'Sprint 3H: 1 feedback enviado (com resposta), 1 rascunho, e os alertas de carga do periodo.';
+end
+$bloco$;
