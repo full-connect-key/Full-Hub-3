@@ -39,9 +39,14 @@
 @custom-variant recolhido (&:is([data-menu="recolhido"] *));
 
 :root {
-  --radius: 0.625rem;
-  /* Cartão e bloco de conteúdo são um pouco mais redondos que controle. */
-  --radius-card: 12px;
+  /* O RAIO CRESCEU com a interface "Leve" (decisão do usuário, escolhida a
+     partir de uma referência): o cartão passou de 12px para 18px e o controle
+     de 10px para 12px. Não é gosto — é o que separa "caixa com borda" de
+     "objeto macio", que é a leitura inteira daquela proposta. Os dois valores
+     continuam ligados por grau: o cartão é mais redondo que o controle dentro
+     dele, senão o botão encosta no canto e a moldura parece torta. */
+  --radius: 0.75rem;
+  --radius-card: 18px;
 
   /* --- As duas cores da marca ------------------------------------------- */
   --brand-blue: #7FCFF5;
@@ -72,18 +77,39 @@
   /* Borda e preenchimento intermediário. Nunca texto. */
   --blue-muted: #BCE4F9;
   /* O azul legível: link, ícone sobre claro, fundo de botão com texto branco. */
-  --blue-strong: #0C75A6;
-  --blue-strong-hover: #095C83;
+  /* ESCURECIDO JUNTO COM O CHÃO, e quem cobrou foi o `check:cores`.
+     `--surface-page` saiu de #F5F6F8 para #EDEEF0, e o link sobre a página
+     caiu para 4,40:1 — abaixo do mínimo por um décimo, num par que passava
+     antes. É o tipo de quebra que uma troca de fundo faz calada: ninguém
+     mexeu no azul, e o azul parou de servir. Agora dá 5,06:1 na página e
+     5,87:1 no cartão. */
+  --blue-strong: #0A6B99;
+  --blue-strong-hover: #08587D;
 
   /* --- Superfícies -------------------------------------------------------- */
   --surface-sidebar: #22262A;
   --surface-sidebar-2: #2C3137;
-  --surface-page: #F5F6F8;
+  /* O CHÃO ESCURECEU de #F5F6F8 para cá. A interface "Leve" separa o cartão
+     branco do fundo pela DIFERENÇA entre os dois, e não por uma borda forte:
+     com #F5F6F8 o cartão quase não se destacava, e a solução seria engrossar
+     a borda — que é exatamente o contrário do desenho. */
+  --surface-page: #EDEEF0;
   --surface-card: #FFFFFF;
 
   /* --- Texto -------------------------------------------------------------- */
-  --text-primary: #1C1F24;
-  --text-secondary: #545960;
+  /* A ESCALA DE TEXTO ESCURECEU INTEIRA, e a razão foi o usuário olhando a
+     tela: *"a fonte cinza não dá leitura"*, duas vezes. A primeira resposta
+     levou os tons ao mínimo da WCAG e ele repetiu a queixa — estava certo, e
+     a lição cabe numa linha: **4,5:1 é o piso legal, não o ponto em que um
+     rótulo de 11px fica confortável de ler**, e metade da interface é rótulo
+     de 11px. Medido contra os SETE fundos em que cada token pode cair, e não
+     só contra o cartão branco.
+
+     `--text-secondary` deixou de ser igual a `--brand-gray`, e é de propósito:
+     o cinza da marca é uma cor da agência, este é um token de legibilidade —
+     os dois coincidirem era acaso, e o acaso travava o segundo. */
+  --text-primary: #0B0D12;
+  --text-secondary: #333A42;
   /* ESCURECIDO NO SPRINT 16 / PARTE F, de #868C94 para cá.
      O valor antigo dava 3,39:1 sobre o cartão branco e 3,14:1 sobre a página
      — abaixo do mínimo para texto normal. E ele é o token de 330 usos na
@@ -106,7 +132,7 @@
      passa a ser 4,60:1 (sobre `--danger-soft`), e o token deixa de ter fundo
      onde não pode ir. Continua claramente mais claro que `--text-secondary`:
      5,62:1 contra 7,06:1 no cartão. */
-  --text-muted: #626870;
+  --text-muted: #4C545E;
   /* O texto que vai sobre fundo escuro ou sobre cor cheia. */
   --text-on-dark: #F5F6F8;
   /* O texto APAGADO da barra escura — item de menu de módulo opcional.
@@ -266,7 +292,10 @@
      só separa blocos e pode ser discreta; a do campo é o que diz onde se
      clica para digitar, e o padrão pede 3:1 para isso. Com o mesmo cinza
      claro dos dois, o formulário ficava com campos quase invisíveis. */
-  --input: #868C94;
+  /* Mesma história, do outro lado: a borda do campo sobre a página caiu para
+     2,92:1 contra o mínimo de 3 para elemento de interface. #7A8089 devolve
+     3,43:1 na página e 3,98:1 no cartão. */
+  --input: #7A8089;
   --ring: var(--blue-strong);
 }
 
@@ -279,13 +308,16 @@
   --surface-page: #17191D;
   --surface-card: #1F2227;
 
-  --text-primary: #F5F6F8;
-  --text-secondary: #B6BCC4;
+  /* O escuro acompanhou o claro, e não por simetria: `--text-muted` estava em
+     4,56:1 sobre `--neutral-soft` — passando por três centésimos. Os três
+     tokens subiram juntos para o pior par ficar em 5,93:1. */
+  --text-primary: #F7F9FB;
+  --text-secondary: #C9CFD7;
   /* Clareado junto com o do tema claro, e pelo mesmo motivo: sobre
      `--neutral-soft` do escuro o #8B929B dava 4,17:1. Com #9299A2 o pior par
      é 4,56:1. E NÃO é o valor claro invertido — são passos próprios medidos
      contra os fundos do escuro, como as cores de série do Financeiro. */
-  --text-muted: #9299A2;
+  --text-muted: #A8AFB9;
   --text-on-dark: #F5F6F8;
   /* A barra lateral é escura nos dois temas, então o apagado dela é o mesmo. */
   --text-on-dark-muted: #96989B;
