@@ -1093,6 +1093,62 @@ separadas divergiriam na primeira mudança de texto. A escolha **não** é
 lembrada no navegador — o cliente costuma entrar de computador compartilhado,
 e a tela abriria com a frase do outro público.
 
+#### A interface "Leve", e o que ela trocou
+
+Decisão do usuário, a partir de uma referência que ele mandou e de quatro
+rodadas de proposta antes dela. O que a referência tinha e as outras não: **ela
+é leve sem ser vazia**. O mapeamento não é de cor, é de elemento — o cartão
+"reunião agora" dela é o **cronômetro da etapa em andamento**, que até aqui
+vivia dentro do detalhe da etapa e é justamente o número que alguém esquece
+correndo a noite inteira; o agrupamento por data com selo vermelho é o **prazo
+com "Atrasada"**.
+
+**A TROCA É DE TOKEN, e é isso que a torna possível.** As 63 telas mudaram sem
+uma linha de componente, porque `globals.css` é o único arquivo com cor
+literal — a mesma propriedade que a identidade original comprou lá atrás.
+
+**A escala de texto escureceu inteira**, e a razão foi ele olhando a tela: *"a
+fonte cinza não dá leitura"*, duas vezes. A primeira resposta levou os tons ao
+mínimo da WCAG e ele repetiu a queixa. Estava certo, e a lição cabe numa
+linha: **4,5:1 é o piso legal, não o ponto em que um rótulo de 11px fica
+confortável de ler** — e metade da interface é rótulo de 11px. Medido contra os
+sete fundos em que cada token pode cair, não só contra o cartão branco. De
+quebra, `--text-secondary` deixou de ser igual a `--brand-gray`: o cinza da
+marca é uma cor da agência, este é um token de legibilidade, e os dois
+coincidirem era acaso — acaso que travava o segundo.
+
+**Escurecer o chão quebrou dois pares que ninguém tocou**, e quem cobrou foi o
+`check:cores`: o link sobre a página caiu para 4,40:1 e a borda do campo para
+2,92:1. É o modo de falha que a varredura existe para pegar — ninguém mexeu no
+azul nem na borda, e os dois pararam de servir porque o fundo andou.
+
+**A barra lateral passou a SEGUIR O TEMA**, e era escura nos dois. No claro ela
+é branca com um fio à direita e a pílula azul no item ativo; no escuro continua
+escura, porque lá tudo é. O argumento contra o trilho preto é o da proposta:
+ele brigaria com a malha de cor do topo — duas coisas pesadas na mesma dobra.
+Os tokens `--text-on-dark*` deixaram de servir ali (num fundo branco seriam
+texto branco sobre branco), o símbolo perdeu o `sobreEscuro` porque os
+`--marca-*` já trocam por tema sozinhos, e as seis linhas do `check:cores` que
+mediam a barra foram reescritas — deixá-las medindo o par antigo faria a
+varredura reprovar o que a tela não usa e calar sobre o que ela passou a usar.
+
+**E o axe achou o que a lista não tinha.** O selo "Admin" e o perfil da pessoa
+usavam `--brand-blue`, o azul CLARO, que se lê sobre a barra escura — e a barra
+ficou branca. É a regra da casa virada do avesso, *azul claro pede texto
+escuro*, reaparecendo no dia em que o fundo mudou. O selo ainda usava
+`bg-brand-blue/15`, opacidade que o produto proíbe em cor de estado desde
+sempre e que passava despercebida sobre o escuro. Os dois entraram na lista.
+
+**A letra é a Google Sans, no produto inteiro**, e a porta deixou de ter letra
+própria — a decisão e o que ela custou estão em "A porta", acima.
+
+*O que ainda NÃO foi feito desta interface, e é dito em vez de escondido:* a
+malha de cor no topo das telas, a topbar virando barra de contexto (nome do
+módulo mais as visões dele, no lugar da trilha), e as telas de Início e Minhas
+Tasks no desenho da proposta — a linha de meta leve sobre o cartão branco, a
+pilha de avatares de quem mais está na demanda, e o cartão "em andamento agora"
+com o cronômetro na primeira dobra.
+
 Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
 `--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
 o único arquivo com cor literal** — os nomes do shadcn (`--primary`, `--muted`,
