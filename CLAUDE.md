@@ -6323,12 +6323,39 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   o `/painel` e ler o rodapé. Está escrito assim no próprio arquivo, em vez de
   a Action verde dar a entender que conferiu.
 
-  **O que continua sem resposta é a detecção de IP do limite de tentativas**,
-  logo acima. O caminho principal (`x-real-ip`) está certo em qualquer
-  hospedagem; a volta pela última entrada do `x-forwarded-for` foi escrita
-  para um nginx, e hospedagem compartilhada costuma empilhar mais de uma
-  camada. Se houver CDN na frente, o valor certo é o cabeçalho que ele assina,
-  e `enderecoDeQuemChama()` é o único lugar a mexer.
+  **E A DETECÇÃO DE IP DO LIMITE DE TENTATIVAS ESTÁ ERRADA AQUI**, o que
+  deixou de ser suposição: os cabeçalhos da resposta desta hospedagem trazem
+  `server: hcdn` e um `x-hcdn-request-id` com o nó de borda no fim
+  (`…-mum-edge10`). **Tem uma CDN na frente.**
+
+  A volta de `enderecoDeQuemChama()` lê a ÚLTIMA entrada do
+  `x-forwarded-for`, e essa regra assume **um proxy só, acrescentando no
+  fim** — é o que um nginx faz, e era um nginx quando ela foi escrita. Com
+  uma CDN na frente, a última entrada passa a ser a máquina da CDN, e não
+  quem chamou: **o limite por IP conta a internet inteira como um endereço
+  só**. O efeito é o pior dos dois: uma pessoa errando a senha três vezes
+  gasta a cota de todo mundo, e um ataque distribuído some dentro dela.
+
+  O caminho principal (`x-real-ip`) continua certo, e é por ele que quase
+  toda requisição sai — então isto não está quebrado hoje, está frágil. O
+  conserto é o cabeçalho que a CDN assina, e `enderecoDeQuemChama()` é o
+  único lugar a mexer. Medir antes de mexer: o que a Hostinger escreve em
+  `x-real-ip` e em `x-forwarded-for` se lê numa requisição só.
+
+  **E O CADASTRO PÚBLICO DO SUPABASE PRECISA FICAR DESLIGADO**, que é uma
+  configuração e não código — então nenhuma varredura deste repositório a
+  alcança. A migration 0002 previu o risco no primeiro mês e a frase dela
+  continua exata: `raw_user_meta_data` é escrito por quem se cadastra, o
+  `coalesce` de `handle_new_user()` cai nele quando não há
+  `raw_app_meta_data`, e `profiles.ativo` nasce `true` — então cadastro
+  aberto é qualquer pessoa escolhendo o próprio perfil de acesso. Desligar
+  não custa nada ao produto: quem cria conta é a Server Action com a chave
+  de serviço, que não passa por essa configuração.
+
+  **Quem avisa é o `/status`**, na versão pública, e foi ele quem avisou —
+  em 29/09/2026 a chave estava ligada no projeto. É a única checagem do
+  produto cujo alvo mora fora do repositório, e por isso ela é para ser
+  LIDA, não presumida.
 
 - **O deploy saía da `main`, e só dela.** `deploy.yml` dispara em `push:
   branches: [main]`, e `scripts/deploy.sh` puxa de `main` por padrão. Trabalho
