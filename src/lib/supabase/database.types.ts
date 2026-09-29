@@ -343,6 +343,27 @@ export type HrOrigem = "solicitacao" | "lancamento_retroativo" | "importacao";
  */
 export type RecorrenciaModo = "mensal_agrupada" | "task_por_ocorrencia";
 export type RecorrenciaFrequencia = "diaria" | "semanal" | "quinzenal" | "mensal";
+/** Mensal ou trimestral: como o feedback de desenvolvimento é gerado (0075). */
+export type FeedbackPeriodicidade = "mensal" | "trimestral";
+
+/**
+ * Os seis estados de um relatório de feedback (0075).
+ *
+ * `dados_insuficientes` e `descartado` são desfechos e não erros: o primeiro
+ * diz que o período não tinha o que dizer, o segundo que a gestão leu e não
+ * enviou. Sem os dois, a ausência de relatório significaria duas coisas
+ * diferentes e ninguém saberia qual.
+ *
+ * **Só `enviado` chega à pessoa**, e quem garante é `feedback_reports_select`.
+ */
+export type FeedbackStatus =
+  | "gerando"
+  | "rascunho"
+  | "revisado"
+  | "enviado"
+  | "descartado"
+  | "dados_insuficientes";
+
 export type PresencaStatus =
   | "presente"
   | "remoto"
@@ -1363,6 +1384,19 @@ export interface Database {
           created_at: string;
           // 0055: minutos de trabalho por dia útil desta pessoa. 480 = 8h.
           capacidade_minutos_dia: number;
+          /**
+           * Se esta pessoa quer receber o feedback de desenvolvimento (0075).
+           *
+           * Fica FORA de `Insert` e de `Update`, e a ausência é a regra:
+           * `team_members` é `is_gestor()` no UPDATE desde o Sprint 2, então
+           * quem altera isto é a própria pessoa, por
+           * `escolher_receber_feedback()`. Uma policy de UPDATE para ela daria
+           * junto a capacidade diária, o saldo de descanso e a função —
+           * policy não limita coluna.
+           */
+          recebe_feedback_ia: boolean;
+          /** Quando esta pessoa leu a explicação do feedback (0075). Nulo = ainda não leu. */
+          feedback_explicado_em: string | null;
         };
         Insert: {
           id?: string;
@@ -1388,6 +1422,157 @@ export interface Database {
           ativo?: boolean;
           desligado_em?: string | null;
           capacidade_minutos_dia?: number;
+        };
+        Relationships: [];
+      };
+      /**
+       * O FEEDBACK DE DESENVOLVIMENTO (0075).
+       *
+       * `metricas_json` e `contexto_json` viajam na mesma linha do texto de
+       * propósito: a tela da pessoa mostra os dois juntos, porque texto sem
+       * número é opinião de máquina e ela não teria como conferir se a IA leu
+       * certo.
+       *
+       * `texto_gerado` e `texto_final` são DUAS colunas, e juntá-las
+       * destruiria a única coisa que permite auditar a revisão: o que a IA
+       * escreveu. Com uma só, editar apagaria a saída do modelo.
+       */
+      feedback_reports: {
+        Row: {
+          id: string;
+          user_id: string;
+          periodo_inicio: string;
+          periodo_fim: string;
+          periodicidade: FeedbackPeriodicidade;
+          metricas_json: Json;
+          contexto_json: Json;
+          texto_gerado: string | null;
+          texto_final: string | null;
+          modelo_usado: string | null;
+          prompt_versao: string | null;
+          /** O que a verificação pós-geração achou no texto. Sinaliza, nunca descarta em silêncio. */
+          alertas_json: Json;
+          status: FeedbackStatus;
+          revisado_por: string | null;
+          revisado_em: string | null;
+          enviado_em: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          periodo_inicio: string;
+          periodo_fim: string;
+          periodicidade?: FeedbackPeriodicidade;
+          metricas_json: Json;
+          contexto_json: Json;
+          texto_gerado?: string | null;
+          texto_final?: string | null;
+          modelo_usado?: string | null;
+          prompt_versao?: string | null;
+          alertas_json?: Json;
+          status?: FeedbackStatus;
+        };
+        Update: {
+          metricas_json?: Json;
+          contexto_json?: Json;
+          texto_gerado?: string | null;
+          texto_final?: string | null;
+          modelo_usado?: string | null;
+          prompt_versao?: string | null;
+          alertas_json?: Json;
+          status?: FeedbackStatus;
+          revisado_por?: string | null;
+          revisado_em?: string | null;
+          enviado_em?: string | null;
+        };
+        Relationships: [];
+      };
+      /**
+       * A resposta ao feedback, e a conversa que segue (0075).
+       *
+       * Sem `Update`: a tabela não tem policy de UPDATE nem de DELETE, nem
+       * para o sócio. A resposta é o registro de que a pessoa discordou, e
+       * reescrevê-la depois apagaria a discordância — a razão pela qual rodada
+       * de aprovação fechada nunca é reescrita.
+       */
+      feedback_replies: {
+        Row: {
+          id: string;
+          report_id: string;
+          autor_id: string;
+          texto: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          autor_id: string;
+          texto: string;
+        };
+        // `never` e não a ausência da chave: o tipo `Database` do supabase-js
+        // exige as três, e sem uma delas o schema inteiro degrada para `never`
+        // — o mesmo laço que `audit_log` já documenta acima.
+        Update: never;
+        Relationships: [];
+      };
+      /**
+       * Os sinais que são da GESTÃO e não da pessoa (0075).
+       *
+       * Sem `Insert`: quem escreve é `registrar_alertas_de_carga()`, e um
+       * alerta montado à mão diria que a agência mediu uma coisa que ninguém
+       * mediu. Sem `delete` no banco: o caminho é marcar resolvido.
+       */
+      workload_alerts: {
+        Row: {
+          id: string;
+          user_id: string;
+          periodo_inicio: string;
+          periodo_fim: string;
+          tipo:
+            | "sobrecarga"
+            | "ociosidade"
+            | "gargalo_aprovacao"
+            | "retrabalho_por_cliente";
+          detalhes: Json;
+          resolvido: boolean;
+          created_at: string;
+        };
+        // `never` e não a ausência da chave, como em `audit_log`: sem as três,
+        // o schema inteiro degrada.
+        Insert: never;
+        Update: {
+          resolvido?: boolean;
+        };
+        Relationships: [];
+      };
+      /**
+       * Como o feedback é gerado (0075). Uma linha só, e nasce nesta
+       * migration — por isso sem `Insert`.
+       *
+       * `exige_revisao` nasce `true`, e é o default mais importante do módulo.
+       */
+      feedback_config: {
+        Row: {
+          id: string;
+          unica: boolean;
+          periodicidade: FeedbackPeriodicidade;
+          revisor_id: string | null;
+          exige_revisao: boolean;
+          minimo_subtarefas: number;
+          atualizado_por: string | null;
+          updated_at: string;
+        };
+        // `never` e não a ausência da chave, como em `audit_log`.
+        Insert: never;
+        Update: {
+          periodicidade?: FeedbackPeriodicidade;
+          revisor_id?: string | null;
+          exige_revisao?: boolean;
+          minimo_subtarefas?: number;
+          atualizado_por?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -3014,14 +3199,89 @@ export interface Database {
           receita_por_hora: number | null;
         }[];
       };
-      /** A carga de UMA pessoa num dia. A fonte única da conta desde a 0035. */
+      /**
+       * A carga de UMA pessoa num dia. A fonte única da conta desde a 0035.
+       *
+       * `p_incluir_concluidas` nasceu na 0075 e tem default `false`, então
+       * nenhum chamador antigo mudou. Ele existe para quem pergunta sobre um
+       * período que **já passou**: sem ele, um mês fechado responde zero, e o
+       * feedback dizia a quem entregou o mês inteiro que a entrega baixa dela
+       * foi distribuição de trabalho.
+       */
       carga_do_dia: {
-        Args: { p_user_id: string; p_data: string };
+        Args: {
+          p_user_id: string;
+          p_data: string;
+          p_incluir_concluidas?: boolean;
+        };
         Returns: {
           minutos_comprometidos: number;
           etapas: number;
           etapas_sem_estimativa: number;
         }[];
+      };
+      /**
+       * Os números crus do período de UMA pessoa, para o feedback de
+       * desenvolvimento (0075). A IA os recebe prontos — ela não calcula
+       * nada. Só `is_gestor()` chama; a pessoa lê a cópia gravada em
+       * `feedback_reports.metricas_json` do relatório **enviado**.
+       */
+      feedback_metricas: {
+        Args: { p_user_id: string; p_de: string; p_ate: string };
+        Returns: Json;
+      };
+      /**
+       * O que impede a leitura errada dos números (0075): ausência, carga
+       * contra capacidade, tempo parado esperando aprovação, cliente que pede
+       * mais rodadas que a média das contas — e `ressalvas`, as frases prontas
+       * que o prompt usa para RELATIVIZAR, nunca para cobrar.
+       */
+      feedback_contexto: {
+        Args: { p_user_id: string; p_de: string; p_ate: string };
+        Returns: Json;
+      };
+      /**
+       * Grava os sinais que são da GESTÃO e não da pessoa (0075). Idempotente
+       * pelo índice único: rodar de novo não empilha o mesmo alerta.
+       */
+      registrar_alertas_de_carga: {
+        Args: { p_user_id: string; p_de: string; p_ate: string };
+        Returns: number;
+      };
+      /**
+       * Quem entra na geração do período, com quantas etapas cada pessoa
+       * concluiu e se já tem relatório (0075). Mesma função para o diálogo e
+       * para a geração — duas contas dariam um diálogo prometendo mais do que
+       * a geração alcança.
+       */
+      quem_recebe_feedback: {
+        Args: {
+          p_de: string;
+          p_ate: string;
+          p_periodicidade?: FeedbackPeriodicidade;
+        };
+        Returns: {
+          user_id: string;
+          nome: string;
+          concluidas: number;
+          ja_tem: boolean;
+          status_atual: FeedbackStatus | null;
+        }[];
+      };
+      /**
+       * A pessoa escolhe se quer receber o feedback (0075). Escreve UMA coluna
+       * da própria linha: `team_members` é `is_gestor()` no UPDATE desde o
+       * Sprint 2, e abrir uma policy ali daria junto a capacidade diária, o
+       * saldo de descanso e a função dela — policy não limita coluna.
+       */
+      escolher_receber_feedback: {
+        Args: { p_receber: boolean };
+        Returns: boolean;
+      };
+      /** Guarda que esta pessoa leu a explicação do feedback (0075). Só na primeira vez. */
+      marcar_feedback_explicado: {
+        Args: Record<string, never>;
+        Returns: string | null;
       };
       /** Dias em que um evento com `bloqueia_ferias` atinge esta pessoa (0055). */
       eventos_que_bloqueiam: {

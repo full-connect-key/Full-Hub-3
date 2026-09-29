@@ -220,7 +220,12 @@ from (
     -- desde a 0039 com o `+ 1` dentro, entao um banco parado la responderia
     -- "ok" com a regra antiga valendo -- que e exatamente o modo de falha que o
     -- cabecalho deste arquivo descreve. `proximo_descanso_em` so a 0074 cria.
-    ('0074', 'proximo_descanso_em()',      'funcao',       'proximo_descanso_em')
+    ('0074', 'proximo_descanso_em()',      'funcao',       'proximo_descanso_em'),
+    -- A 0075 cria quatro tabelas e cinco funcoes, e a linha aponta para a
+    -- tabela do relatorio: ela e a unica coisa do modulo que nao existe de
+    -- forma nenhuma antes dele. `feedback_metricas` serviria igual; a tabela e
+    -- mais barata de conferir e e o que a tela le.
+    ('0075', 'feedback_reports',           'tabela',       'feedback_reports')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
