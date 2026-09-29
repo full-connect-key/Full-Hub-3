@@ -10,10 +10,20 @@ Plataforma interna da agência **Full Connect Key**. Uma única aplicação, um
 
 Next.js 16 (App Router) + TypeScript + Tailwind + shadcn/ui, sobre Supabase.
 
-> **A VPS nao existe mais**, por decisao da agencia. A secao de deploy e o
-> `docs/tutorial-hostinger.md` continuam aqui como registro de como era feito,
-> e nao descrevem onde o site roda hoje. Detalhe do que ficou inerte: a secao
-> **Deploy** do `CLAUDE.md`.
+> **Onde o Full Hub roda:** numa hospedagem da Hostinger, publicada pelo **Git
+> do hPanel** — ele clona a branch e constrói lá dentro. **A VPS não existe
+> mais**, por decisão da agência: a seção de deploy deste arquivo e o
+> `docs/tutorial-hostinger.md` descrevem aquela máquina e ficam como registro,
+> não como o caminho de hoje.
+>
+> **O deploy não acontece sozinho enquanto o segredo
+> `HOSTINGER_DEPLOY_WEBHOOK` não existir** — até lá o site só muda quando
+> alguém abre o hPanel e clica em Deploy. Como ligar: o comentário do job
+> `publicar-hostinger` em `.github/workflows/deploy.yml`.
+>
+> **E quem responde "já subiu?" é o rodapé do `/painel`**, que diz de qual
+> commit aquele build saiu. Uma Action verde não responde isso, e a seção
+> **Deploy** do `CLAUDE.md` conta o dia em que a diferença custou caro.
 
 As regras do produto e as convenções de código estão em
 [`CLAUDE.md`](./CLAUDE.md).

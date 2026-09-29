@@ -6291,12 +6291,44 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   continua rodando em cada push, que é a metade que nunca dependeu de máquina
   nenhuma — e é a metade que protege o código.
 
-  **O que NÃO dá para dizer daqui é onde o site roda agora**, e uma coisa do
-  produto depende disso: a detecção de IP do limite de tentativas, logo acima.
-  O caminho principal (`x-real-ip`) está certo em qualquer hospedagem; a volta
-  é que foi escrita para um nginx. **Sem saber o que ficou no lugar, o rodapé
-  do painel também não responde mais "já subiu?"** — sem o `deploy.sh`
-  passando o commit, ele diz "versão local".
+  **E o que ficou no lugar da VPS é uma hospedagem da Hostinger com o Git do
+  hPanel**, que clona a branch e constrói lá dentro. Isso é fato medido, e não
+  suposição: a tela de login nova apareceu no ar sem ninguém ter subido
+  arquivo compilado nenhum, e ela é TypeScript — alguém rodou `npm run build`
+  naquele servidor. O rodapé do painel **responde "já subiu?" normalmente**,
+  então, e foi ele quem provou tudo isto.
+
+  **O DEPLOY NÃO ACONTECE SOZINHO, e o custo disso já foi pago uma vez.** O
+  Git do hPanel puxa quando alguém manda — e a interface "Leve" inteira passou
+  um dia no ar sem estar no ar: o `/login` respondia 200 o tempo todo,
+  servindo o build da véspera. **Foi o rodapé que respondeu**, dizendo
+  `a3ea860` num dia em que a `main` estava oito commits à frente. É
+  exatamente para isso que ele existe, e é por isso que ele não é enfeite.
+
+  O job `publicar-hostinger` do `deploy.yml` liga isso, e **passa pela
+  verificação de propósito**: o auto-deploy cru do hPanel dispara no push de
+  qualquer coisa, inclusive do commit que não compila. Ele espera o segredo
+  `HOSTINGER_DEPLOY_WEBHOOK` — sem ele escreve no resumo e termina em 0, como
+  o job da VPS. **A URL do webhook é a credencial inteira**: quem a tiver
+  dispara deploy, então ela é segredo e vai por `env`, nunca interpolada na
+  linha de comando.
+
+  **E a conferência automática NÃO prova o que importa.** O passo "O site
+  continua de pé?" confere que o site responde, não que ele responde com este
+  commit — que é precisamente o buraco pelo qual o build da véspera passou. A
+  resposta certa está no rodapé, e o rodapé exige login, então **nenhuma
+  Action alcança**. Fechar isso exigiria pôr o commit numa superfície pública,
+  e a decisão de `/status` ter duas profundidades diz que isso não se faz sem
+  alguém escolher. Enquanto ninguém escolher, o veredito final é humano: abrir
+  o `/painel` e ler o rodapé. Está escrito assim no próprio arquivo, em vez de
+  a Action verde dar a entender que conferiu.
+
+  **O que continua sem resposta é a detecção de IP do limite de tentativas**,
+  logo acima. O caminho principal (`x-real-ip`) está certo em qualquer
+  hospedagem; a volta pela última entrada do `x-forwarded-for` foi escrita
+  para um nginx, e hospedagem compartilhada costuma empilhar mais de uma
+  camada. Se houver CDN na frente, o valor certo é o cabeçalho que ele assina,
+  e `enderecoDeQuemChama()` é o único lugar a mexer.
 
 - **O deploy saía da `main`, e só dela.** `deploy.yml` dispara em `push:
   branches: [main]`, e `scripts/deploy.sh` puxa de `main` por padrão. Trabalho

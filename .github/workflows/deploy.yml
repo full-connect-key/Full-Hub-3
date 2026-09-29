@@ -160,3 +160,123 @@ jobs:
           echo "O painel não respondeu 200 depois do deploy."
           echo "Para voltar: ssh na VPS e rode scripts/deploy.sh --reverter"
           exit 1
+
+  # ==========================================================================
+  # O caminho que vale HOJE: a hospedagem da Hostinger, pelo Git do hPanel.
+  #
+  # O job de cima é a VPS que saiu. Este é o lugar onde o Full Hub roda de
+  # verdade — uma hospedagem com Git, que clona a branch e constrói lá dentro.
+  #
+  # POR QUE PASSAR PELA ACTION, se o hPanel já sabe puxar sozinho
+  #
+  #   O auto-deploy do hPanel dispara no push, e no push de QUALQUER coisa:
+  #   um commit que não compila publica igual, e o painel cai até alguém
+  #   perceber. Chamando o webhook daqui, com `needs: verificar`, só publica
+  #   o que passou por padrões, tipos, as oito varreduras, o build e os
+  #   cenários da bateria. É a mesma ordem que o deploy da VPS tinha, e pela
+  #   mesma razão: o `npm ci` do servidor reescreve o node_modules do
+  #   processo que está NO AR.
+  #
+  # COMO LIGAR (duas coisas, uma vez)
+  #
+  #   1. no hPanel, em Avançado → GIT, ligue a implantação automática e copie
+  #      a URL de webhook que ele mostra;
+  #   2. no GitHub, em Settings → Secrets and variables → Actions → New
+  #      repository secret, crie `HOSTINGER_DEPLOY_WEBHOOK` com essa URL.
+  #
+  #   Não registre a URL em Settings → Webhooks do GitHub: ali ela dispara no
+  #   push cru, que é exatamente o que este job existe para não fazer.
+  # ==========================================================================
+  publicar-hostinger:
+    name: Publicar na Hostinger
+    needs: verificar
+    runs-on: ubuntu-latest
+    environment: producao
+
+    steps:
+      # Mesma decisão do job da VPS: falta de configuração não é falha. Um X
+      # vermelho que significa "você não configurou isso" ensina todo mundo a
+      # ignorar X vermelho, e aí o erro de verdade passa batido depois.
+      - name: O webhook do hPanel existe?
+        id: configurado
+        env:
+          WEBHOOK: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -n "$WEBHOOK" ]; then
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pronto=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Auto-deploy da Hostinger não configurado"
+            echo
+            echo "As verificações passaram, e ninguém foi avisado: falta o"
+            echo "segredo \`HOSTINGER_DEPLOY_WEBHOOK\`."
+            echo
+            echo "Enquanto ele não existir, o site só muda quando alguém abre"
+            echo "o hPanel e clica em **Deploy** — e quem responde se o que"
+            echo "está no ar é este commit é o **rodapé do painel**, não esta"
+            echo "Action."
+            echo
+            echo "Como ligar: o comentário do job \`publicar-hostinger\` em"
+            echo "\`.github/workflows/deploy.yml\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Nada a publicar: falta HOSTINGER_DEPLOY_WEBHOOK."
+
+      # A URL vai por `env` e não interpolada na linha de comando, pela mesma
+      # razão da chave de SSH acima: argumento de processo aparece num `ps`, e
+      # esta URL é a credencial inteira — quem a tiver dispara deploy.
+      - name: Chamar o deploy
+        if: steps.configurado.outputs.pronto == 'true'
+        env:
+          WEBHOOK: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}
+        run: |
+          codigo=$(curl -sS -X POST -o /tmp/resposta -w '%{http_code}' \
+                        --max-time 60 "$WEBHOOK" || echo 000)
+          echo "O hPanel respondeu HTTP $codigo"
+          head -c 2000 /tmp/resposta || true
+          echo
+
+          case "$codigo" in
+            2*) echo "Deploy disparado." ;;
+            000) echo "::error::O hPanel não respondeu. A URL do webhook mudou?"; exit 1 ;;
+            *)   echo "::error::O hPanel recusou o deploy (HTTP $codigo)."; exit 1 ;;
+          esac
+
+      # ATENÇÃO AO QUE ESTE PASSO NÃO PROVA.
+      #
+      # Ele confere que o site responde — não que o site responde COM ESTE
+      # COMMIT. Foi exatamente assim que a interface nova ficou um dia inteira
+      # fora do ar sem ninguém notar: o `/login` respondia 200 o tempo todo,
+      # servindo um build de véspera.
+      #
+      # Quem responde a pergunta certa é o rodapé do painel, que diz de qual
+      # commit o build saiu — e ele exige login, então nenhuma Action alcança.
+      # Enquanto for assim, o veredito final é humano: abrir o /painel e ler
+      # o rodapé. O que este passo pega é o caso em que o deploy derrubou o
+      # site, que é pior e é silencioso.
+      - name: O site continua de pé?
+        if: steps.configurado.outputs.pronto == 'true'
+        env:
+          ALVO: ${{ vars.URL_DE_PRODUCAO }}
+        run: |
+          if [ -z "$ALVO" ]; then
+            echo "Sem a variável URL_DE_PRODUCAO — pulando a conferência."
+            echo "Settings → Secrets and variables → Actions → Variables."
+            exit 0
+          fi
+
+          # Vinte tentativas com 6 s: o build numa hospedagem compartilhada é
+          # bem mais lento que os 23 s do build daqui, e durante ele o site
+          # pode responder 502.
+          for tentativa in $(seq 1 20); do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$ALVO/login" || echo 000)
+            echo "tentativa $tentativa: HTTP $codigo"
+            [ "$codigo" = "200" ] && { echo "De pé."; exit 0; }
+            sleep 6
+          done
+
+          echo "::error::O /login não respondeu 200 depois do deploy."
+          exit 1
