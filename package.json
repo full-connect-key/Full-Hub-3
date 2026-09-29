@@ -18,11 +18,13 @@
     "check:preview": "npx --yes tsx scripts/check-preview.mjs",
     "check:dias": "node scripts/check-dias.mjs",
     "check:email": "node scripts/check-email.mjs",
+    "check:feedback": "npx --yes tsx scripts/check-feedback.mjs",
     "check:prototipo": "node scripts/check-prototipo.mjs",
     "check:drive": "node scripts/check-drive.mjs",
     "check:sprint9": "node scripts/verificar-9.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

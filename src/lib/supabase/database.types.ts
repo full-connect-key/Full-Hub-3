@@ -3290,7 +3290,16 @@ export interface Database {
       };
       notificar: {
         Args: {
-          p_user_id: string;
+          /**
+           * `string | null` desde a 0062, e a nulabilidade é o ponto: "não há
+           * ninguém para avisar" não é erro, é a resposta — a função devolve
+           * `null` sem derrubar a escrita que a chamou. Com o tipo em `string`,
+           * quem passa uma coluna nulável (`clients.responsavel_atendimento_id`,
+           * `feedback_reports.revisado_por`) é obrigado a um `?? ""`, que
+           * inventaria um id e faria o `insert` estourar na chave estrangeira —
+           * exatamente o bug que a 0062 desfez.
+           */
+          p_user_id: string | null;
           p_tipo: NotificationTipo;
           p_titulo: string;
           p_corpo?: string | null;
