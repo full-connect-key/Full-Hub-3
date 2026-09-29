@@ -443,12 +443,15 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-card: var(--radius-card);
 
-  --font-sans: var(--font-geist-sans);
+  /* UMA família para o produto inteiro — painel, portal e porta —, carregada
+     no `layout.tsx` da raiz. Era Geist no sistema e Sora na porta, e a segunda
+     existia porque era uma letra A MAIS: carregá-la só em (auth) era o que
+     tornava a troca barata. Com uma família só não há segunda letra, então
+     `--font-porta` foi APAGADO daqui em vez de repontado — dois tokens para a
+     mesma família são duas verdades esperando divergir, e o dia em que alguém
+     trocasse um deles a porta sairia com outra letra sem ninguém pedir. */
+  --font-sans: var(--fonte-google-sans);
   --font-mono: var(--font-geist-mono);
-  /* Sora, e só nas telas de (auth). Carregada por `next/font` no layout
-     daquele grupo de rotas, então ela não pesa no painel — quem entra no
-     sistema baixa a letra da porta uma vez e nunca mais. */
-  --font-porta: var(--fonte-sora);
 }
 
 @layer base {
