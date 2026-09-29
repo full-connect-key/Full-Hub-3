@@ -185,10 +185,15 @@ const PARES = [
   ["--info-foreground", "--info", NORMAL, "texto sobre o azul de informação"],
 
   // A barra lateral escura.
-  ["--text-on-dark", "--surface-sidebar", NORMAL, "nome do item no menu"],
-  ["--text-on-dark", "--surface-sidebar-2", NORMAL, "item do menu em destaque"],
-  ["--brand-blue", "--surface-sidebar", NORMAL, "ITEM ATIVO do menu"],
-  ["--brand-blue", "--surface-sidebar-2", NORMAL, "item ativo com fundo próprio"],
+  // A BARRA LATERAL PASSOU A SEGUIR O TEMA (interface "Leve"), então estas seis
+  // linhas mediam o par errado: elas conferiam `--text-on-dark` sobre
+  // `--surface-sidebar`, e no tema claro isso virou texto branco sobre branco.
+  // Deixá-las como estavam faria a varredura reprovar um par que a tela não usa
+  // e calar sobre os pares que ela passou a usar — que é o pior dos dois.
+  ["--text-secondary", "--surface-sidebar", NORMAL, "nome do item no menu"],
+  ["--text-primary", "--surface-sidebar-2", NORMAL, "item do menu em destaque"],
+  ["--sidebar-ativo-texto", "--sidebar-ativo-fundo", NORMAL, "ITEM ATIVO do menu"],
+  ["--sidebar-ativo-texto", "--surface-sidebar", NORMAL, "item ativo sobre a barra"],
   // O PAR `--text-muted` SOBRE A BARRA LATERAL SAIU DAQUI, e a ausência é a
   // correção: nenhuma tela usa mais essa combinação. A barra é escura nos dois
   // temas, então o token dela é `--text-on-dark-muted`, medido logo abaixo.
@@ -201,8 +206,22 @@ const PARES = [
   // por isso precisa ser MEDIDO: o primeiro valor tentado foi
   // `text-on-dark/45`, que dava 4,05:1 — abaixo do mínimo para texto. Este
   // par é o motivo de o token existir em vez da opacidade.
-  ["--text-on-dark-muted", "--surface-sidebar", NORMAL, "item discreto do menu"],
-  ["--text-on-dark-muted", "--surface-sidebar-2", NORMAL, "item discreto sobre hover"],
+  ["--text-muted", "--surface-sidebar", NORMAL, "item discreto do menu"],
+  ["--text-muted", "--surface-sidebar-2", NORMAL, "item discreto sobre hover"],
+  // ESTES DOIS ENTRARAM DEPOIS, e quem os achou foi o axe na página viva, não
+  // esta lista — porque eles não estavam nela. O selo "Admin" e o perfil da
+  // pessoa usavam `--brand-blue`, que é o azul claro: ele se lê sobre a barra
+  // ESCURA, e a barra ficou branca. É a regra da casa virada do avesso — azul
+  // claro pede texto escuro — e ela reapareceu no dia em que o fundo mudou.
+  // O selo ainda usava `bg-brand-blue/15`, opacidade que o produto proíbe em
+  // cor de estado desde sempre; ela passava despercebida sobre o escuro.
+  // E o primeiro conserto estava errado nos DOIS temas: `--blue-strong` sobre
+  // `--blue-soft` dá 5,24:1 no claro e **2,35:1 no escuro**, porque lá os dois
+  // tokens são escuros. O par que serve nos dois é o que o produto já usa no
+  // quadrado de ícone — `--accent` com `--accent-foreground` —, e ele existe
+  // exatamente para isso: é "o azul legível no tema de agora".
+  ["--accent-foreground", "--accent", NORMAL, "selo Admin na barra"],
+  ["--accent-strong", "--surface-sidebar", NORMAL, "perfil da pessoa na barra"],
 
   // `--brand-navy` como superfície. Ele era o painel da marca na tela de login,
   // que SAIU quando a porta virou preta com a molécula — e continua sendo o

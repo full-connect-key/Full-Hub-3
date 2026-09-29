@@ -35,7 +35,7 @@ export function MenuGaveta({ role }: { role: UserRole }) {
       <SheetContent side="left" className="bg-surface-sidebar w-72 border-none p-0">
         <SheetHeader className="px-4 pt-4 pb-0">
           <SheetTitle className="text-left">
-            <Logo tamanho="sm" sobreEscuro />
+            <Logo tamanho="sm" />
           </SheetTitle>
           <SheetDescription className="sr-only">Módulos do painel interno</SheetDescription>
         </SheetHeader>

@@ -57,11 +57,11 @@ export function ListaDoMenu({
           <div key={section} className="flex flex-col gap-0.5">
             <div className="recolhido:lg:hidden flex items-center gap-2 px-3 pb-1">
               {/* Fundo escuro nos dois temas: o token é o `on-dark`. */}
-              <p className="text-text-on-dark-muted text-[11px] font-semibold tracking-wider uppercase">
+              <p className="text-text-muted text-[11px] font-semibold tracking-wider uppercase">
                 {SECTION_LABELS[section]}
               </p>
               {pill ? (
-                <span className="bg-brand-blue/15 text-brand-blue rounded px-1.5 py-px text-[10px] font-semibold tracking-wide uppercase">
+                <span className="bg-accent text-accent-foreground rounded px-1.5 py-px text-[10px] font-semibold tracking-wide uppercase">
                   {pill}
                 </span>
               ) : null}
@@ -79,16 +79,16 @@ export function ListaDoMenu({
                   className={cn(
                     "relative flex items-center gap-3 rounded-md py-2 pr-3 pl-3 text-sm transition-colors",
                     "recolhido:lg:justify-center recolhido:lg:px-0",
-                    "focus-visible:ring-brand-blue/60 focus-visible:ring-2 focus-visible:outline-none",
+                    "focus-visible:ring-accent-strong/60 focus-visible:ring-2 focus-visible:outline-none",
                     ativo
-                      ? "bg-surface-sidebar-2 text-brand-blue font-medium"
-                      : "text-text-on-dark/70 hover:bg-surface-sidebar-2/60 hover:text-text-on-dark",
+                      ? "bg-sidebar-ativo-fundo text-sidebar-ativo-texto font-semibold"
+                      : "text-text-secondary hover:bg-surface-sidebar-2 hover:text-text-primary",
                   )}
                 >
                   {ativo ? (
                     <span
                       aria-hidden
-                      className="bg-brand-blue absolute top-1 bottom-1 left-0 w-[3px] rounded-r"
+                      className="bg-sidebar-ativo-texto absolute top-1 bottom-1 left-0 w-[3px] rounded-r"
                     />
                   ) : null}
                   <item.icon aria-hidden className="size-4 shrink-0" />

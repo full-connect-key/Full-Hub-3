@@ -87,8 +87,30 @@
   --blue-strong-hover: #08587D;
 
   /* --- Superfícies -------------------------------------------------------- */
-  --surface-sidebar: #22262A;
-  --surface-sidebar-2: #2C3137;
+  /* A BARRA LATERAL PASSOU A SEGUIR O TEMA, e antes ela era escura nos dois.
+     Decisão do usuário junto com a interface "Leve": no claro ela é branca com
+     um fio à direita, e o item ativo é a pílula azul clara.
+
+     O argumento contra o trilho preto é o da proposta: ele brigaria com a
+     malha de cor do topo — duas coisas pesadas na mesma dobra —, e a atenção
+     precisa ficar onde o trabalho está, que é o conteúdo. No tema escuro ela
+     continua escura, porque lá tudo é.
+
+     **Consequência que atravessa o código:** os tokens `--text-on-dark*` NÃO
+     servem mais aqui. Eles existem para texto sobre fundo escuro, e num fundo
+     branco seriam texto branco sobre branco. Os componentes da barra passaram
+     a usar os tokens de tema, e as seis linhas do `check:cores` que mediam a
+     barra foram reescritas junto — deixá-las medindo `--text-on-dark` sobre
+     `--surface-sidebar` faria a varredura reprovar um par que a tela não usa
+     mais, e esconder os pares que ela passou a usar. */
+  --surface-sidebar: #FFFFFF;
+  --surface-sidebar-2: #F1F3F5;
+  /* O item ativo: pílula azul clara com o azul legível por cima. Dois tokens
+     próprios e não `--blue-soft`/`--blue-strong` soltos, porque no tema escuro
+     eles viram outra coisa — lá o fundo é o cinza da barra e o texto é o azul
+     da marca, que é o azul que se lê no escuro. */
+  --sidebar-ativo-fundo: var(--blue-soft);
+  --sidebar-ativo-texto: var(--blue-strong);
   /* O CHÃO ESCURECEU de #F5F6F8 para cá. A interface "Leve" separa o cartão
      branco do fundo pela DIFERENÇA entre os dois, e não por uma borda forte:
      com #F5F6F8 o cartão quase não se destacava, e a solução seria engrossar
@@ -305,6 +327,8 @@
 
   --surface-sidebar: #1B1E22;
   --surface-sidebar-2: #2C3137;
+  --sidebar-ativo-fundo: #2C3137;
+  --sidebar-ativo-texto: var(--brand-blue);
   --surface-page: #17191D;
   --surface-card: #1F2227;
 
@@ -416,6 +440,8 @@
   --color-accent-strong-hover: var(--accent-strong-hover);
   --color-surface-sidebar: var(--surface-sidebar);
   --color-surface-sidebar-2: var(--surface-sidebar-2);
+  --color-sidebar-ativo-fundo: var(--sidebar-ativo-fundo);
+  --color-sidebar-ativo-texto: var(--sidebar-ativo-texto);
   --color-surface-page: var(--surface-page);
   --color-surface-card: var(--surface-card);
   --color-text-primary: var(--text-primary);

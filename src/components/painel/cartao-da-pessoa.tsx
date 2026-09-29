@@ -46,7 +46,7 @@ export function CartaoDaPessoa({
       </Avatar>
 
       <span className="recolhido:lg:hidden flex min-w-0 flex-col leading-tight">
-        <span className="text-text-on-dark truncate text-sm font-medium">{nome}</span>
+        <span className="text-text-primary truncate text-sm font-medium">{nome}</span>
         {/*
           `on-dark-muted` E NÃO `muted`, e é o token que existe para isto: a
           barra lateral é escura nos DOIS temas, então o token do tema claro
@@ -55,9 +55,9 @@ export function CartaoDaPessoa({
           para a varredura que lê o estilo calculado.
         */}
         {cargo ? (
-          <span className="text-text-on-dark-muted truncate text-xs">{cargo}</span>
+          <span className="text-text-muted truncate text-xs">{cargo}</span>
         ) : null}
-        <span className="text-brand-blue truncate text-[11px] font-medium">
+        <span className="text-accent-strong truncate text-[11px] font-medium">
           {ROTULOS_DE_ROLE[role]}
         </span>
       </span>

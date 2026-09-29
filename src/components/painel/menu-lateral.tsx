@@ -10,10 +10,18 @@ import type { UserRole } from "@/lib/supabase/database.types";
 /**
  * Coluna fixa do painel, no desktop.
  *
- * A barra tem fundo próprio e escuro nos dois temas. Não é enfeite: ela separa
- * "onde eu navego" de "o que eu estou olhando", e deixa o conteúdo claro com a
- * tela inteira para respirar. Por ter fundo próprio, tudo aqui dentro usa os
- * tokens de texto sobre escuro em vez dos tokens de tema.
+ * A barra SEGUE O TEMA, e antes ela era escura nos dois. Decisão do usuário
+ * junto com a interface "Leve": no claro ela é branca, separada do conteúdo
+ * por um fio, e o item ativo é a pílula azul clara; no escuro continua escura,
+ * porque lá tudo é.
+ *
+ * O argumento contra o trilho preto é o da proposta: ele brigaria com a malha
+ * de cor do topo — duas coisas pesadas na mesma dobra —, e a atenção precisa
+ * ficar onde o trabalho está. **Por seguir o tema, nada aqui dentro usa mais
+ * os tokens `--text-on-dark*`**: num fundo branco eles seriam texto branco
+ * sobre branco. E o símbolo perdeu o `sobreEscuro` pelo mesmo motivo — os
+ * tokens `--marca-*` já trocam as três cores por tema sozinhos, e forçar a
+ * versão azul deixaria o disco claro em cima de uma barra clara.
  *
  * O estado recolhido não vive em estado do React, e sim no atributo data-menu
  * do <html>, gravado pelo script do layout antes da hidratação. Por isso a
@@ -44,14 +52,10 @@ export function MenuLateral({
   }
 
   return (
-    <aside className="bg-surface-sidebar recolhido:lg:w-[4.5rem] hidden w-64 shrink-0 transition-[width] duration-200 lg:block">
+    <aside className="bg-surface-sidebar border-border recolhido:lg:w-[4.5rem] border-r hidden w-64 shrink-0 transition-[width] duration-200 lg:block">
       <div className="sticky top-0 flex h-dvh flex-col gap-6 py-4">
         <div className="recolhido:lg:justify-center flex items-center px-4">
-          <Logo
-            tamanho="sm"
-            sobreEscuro
-            className="recolhido:lg:[&>span:last-child]:hidden"
-          />
+          <Logo tamanho="sm" className="recolhido:lg:[&>span:last-child]:hidden" />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3">
@@ -64,7 +68,7 @@ export function MenuLateral({
           <button
             type="button"
             onClick={alternar}
-            className="text-text-on-dark/60 hover:bg-surface-sidebar-2 hover:text-text-on-dark focus-visible:ring-brand-blue/60 recolhido:lg:justify-center flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="text-text-muted hover:bg-surface-sidebar-2 hover:text-text-primary focus-visible:ring-accent-strong/60 recolhido:lg:justify-center flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <PanelLeftClose
               aria-hidden
