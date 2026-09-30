@@ -12,8 +12,15 @@ import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { StatusBadge, corDoPontoDeStatus } from "@/components/shared/status-badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  StatusBadge,
+  corDoPontoDeStatus,
+} from "@/components/shared/status-badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { situacaoDoPrazo } from "@/lib/dominio/tasks";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import { cn } from "@/lib/utils";
@@ -215,7 +222,16 @@ function Linhas({
                   dos outros com a ficha de cada responsável desde o Sprint 4,
                   para o painel lateral. */}
               <div className="flex min-w-0 items-center gap-2">
-                <p className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+                {/* A LINHAGEM QUEBRA EM VEZ DE TRUNCAR, e a coluna estreita foi
+                    quem cobrou. Sem `flex-wrap`, os três pedaços disputam a
+                    mesma linha e cada um encolhe até virar reticência — a
+                    imagem saiu com "Mund… · Revisar o manua…", que não
+                    identifica nem o cliente nem a demanda. Quebrando, o
+                    segundo pedaço desce inteiro. É a mesma decisão do título
+                    de "Meu dia" no Sprint 15: com um piso, o resto quebra
+                    para a linha de baixo, que é o que o `flex-wrap` do pai
+                    está ali para fazer. */}
+                <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-xs">
                   {linha.demanda.cliente ? (
                     <>
                       <span className="truncate">{linha.demanda.cliente}</span>
@@ -255,7 +271,10 @@ function Linhas({
                       className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                       title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
                     >
-                      <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
+                      <IconeDaCampanha
+                        aria-hidden
+                        className="size-3 shrink-0"
+                      />
                       {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
                           Dentro da seção Campanhas ele repetiria o cabeçalho
                           cinco vezes sem informar nada; o nome diz de qual peça
@@ -269,7 +288,10 @@ function Linhas({
                 {linha.demanda.outros.length > 0 ? (
                   <UserAvatarGroup
                     max={3}
-                    users={linha.demanda.outros.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+                    users={linha.demanda.outros.map((p) => ({
+                      name: p.nome,
+                      src: p.avatar_url,
+                    }))}
                   />
                 ) : null}
               </div>
@@ -283,7 +305,8 @@ function Linhas({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Exige aprovação {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
+                  Exige aprovação{" "}
+                  {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -292,10 +315,15 @@ function Linhas({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-warning inline-flex">
-                    <Link2 className="size-3.5" aria-label="Aguardando outra etapa" />
+                    <Link2
+                      className="size-3.5"
+                      aria-label="Aguardando outra etapa"
+                    />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>Aguardando: {sub.dependenciasAbertas.join(", ")}</TooltipContent>
+                <TooltipContent>
+                  Aguardando: {sub.dependenciasAbertas.join(", ")}
+                </TooltipContent>
               </Tooltip>
             ) : null}
 
@@ -327,7 +355,9 @@ function Linhas({
               subtarefa={sub}
               usuarioId={usuarioId}
               souGestor={souGestor}
-              rodadaPendenteId={sub.rodadas.find((r) => r.status === "pendente")?.id ?? null}
+              rodadaPendenteId={
+                sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
+              }
             />
           </div>
         );

@@ -41,7 +41,6 @@ import {
   type Visao,
 } from "@/components/shared/seletor-de-visao";
 
-
 /**
  * Minhas Tasks.
  *
@@ -167,7 +166,13 @@ export function PainelPessoal({
         titleSecundario={primeiroNome}
         subtitulo={
           <>
-            <span className="capitalize">{dataPorExtenso}</span>
+            {/* `capitalize` do CSS sobe a primeira letra de CADA palavra, e o
+                que sai é "Quarta-Feira, 30 De Setembro". O date-fns em pt-BR
+                devolve tudo minúsculo de propósito; o que falta é a primeira
+                letra da FRASE, que é `first-letter`. */}
+            <span className="inline-block first-letter:uppercase">
+              {dataPorExtenso}
+            </span>
             {contadores.semana > 0 ? (
               <>
                 {" · "}
@@ -283,10 +288,6 @@ export function PainelPessoal({
                 Filtrando por {ROTULOS_DE_FOCO[foco].toLowerCase()}
               </Badge>
             ) : null}
-
-            {/* Só aparece para quem faz Atendimento. A policy tasks_insert é quem
-            recusa de verdade — isto evita oferecer um caminho sem saída. */}
-            {podeCriarTask ? <BotaoDeNovaTask className="ml-auto" /> : null}
           </div>
 
           {visao === "board" ? (
