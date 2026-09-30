@@ -26,6 +26,16 @@ export async function obterMinhasEmpresas() {
   return EMPRESAS_EXEMPLO;
 }
 
+export async function contatosDasMinhasEmpresas(ids: string[]) {
+  return CLIENTES_EXEMPLO.filter((c) => ids.includes(c.id)).map((c) => ({
+    id: c.id,
+    nome_empresa: c.nome_empresa,
+    nome_contato: c.nome_contato,
+    email_contato: c.email_contato,
+    telefone: c.telefone,
+  }));
+}
+
 /**
  * A identidade do portal (0063), com uma capa de exemplo do proprio site.
  *

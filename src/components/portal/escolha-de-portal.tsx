@@ -34,7 +34,7 @@ export async function EscolhaDePortal() {
         <li key={cliente.id}>
           <Link
             href={`/portal/${cliente.slug}`}
-            className="bg-surface-card hover:border-accent-strong flex items-center gap-3 rounded-xl border p-4 transition-colors"
+            className="bg-surface-card hover:border-accent-strong rounded-card shadow-cartao flex items-center gap-3 border p-4 transition-colors"
           >
             <Building2
               aria-hidden

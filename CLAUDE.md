@@ -5046,6 +5046,139 @@ que se lia antes das peças.
   layout — a mesma propriedade que fez as 63 telas mudarem por token.
 
 
+#### O Portal do Cliente na identidade "Leve"
+
+Sexta camada do redesenho, depois dos tokens, de Minhas Tasks, do Início, do
+Full Days e das três áreas de trabalho — e a última que faltava, porque o
+Portal é a área que a equipe nunca abre. **Ele estava dois desenhos atrás:**
+abas sublinhadas, títulos em 24px semibold, cartões de raio pequeno sem
+sombra. Quem atravessava do painel para o portal do cliente trocava de
+vocabulário visual sem nada ter mudado de natureza.
+
+**A NAVEGAÇÃO VIROU A PÍLULA DA `BarraDeContexto`.** As duas navegam entre
+SEÇÕES — cada uma com outra consulta, outro conteúdo, e trocar é trocar de
+página no servidor —, e eram dois desenhos para a mesma coisa: é o argumento
+das sete cópias de `abas.tsx` atravessando a fronteira entre as duas áreas.
+
+**O componente continua sendo OUTRO, e é de propósito.** A `BarraDeContexto`
+carrega o `<h1>` `sr-only`, o selo de contagem e as ações do módulo, e decide a
+seção por `?aba=`; aqui cada seção é uma ROTA, o título mora no cabeçalho de
+cada tela, e o cliente não tem ação de módulo nenhuma. Reaproveitá-la seria
+carregar quatro parâmetros que este lado não usa para herdar oito classes. **O
+que se compartilha é o desenho; o mecanismo é diferente porque a coisa é
+diferente.**
+
+**OS TRÊS LADRILHOS DE NÚMERO DA TELA INICIAL VIRARAM UMA LINHA.** Eles
+ocupavam a primeira dobra com "2" num tamanho enorme — e a lista logo abaixo
+**É** esses dois materiais, item por item. É o cartão de "11 entregues" com
+sete na lista embaixo, que o Resumo da Agência já pagou uma vez, e a mesma
+decisão que o Início do painel tomou ao recusar o ladrilho de "5 esperando
+você". Hoje é *"**2** materiais esperando decisão · 1 em produção · 3 aprovados
+no mês"*, no subtítulo.
+
+**Cada material é um cartão SOLTO**, com 9px entre eles, e não uma faixa dentro
+de um contêiner com fios: cada linha é uma decisão separada, e num contêiner
+único o que se lê primeiro é a CAIXA. **"Atividade recente" continua sendo o
+contêiner com `divide-y`**, e a exceção é a regra vista do outro lado — ela é
+um registro do que já aconteceu, não um conjunto de decisões: ali a caixa é o
+que se lê, e está certo.
+
+**O calendário, o visualizador de arte e o histórico de versões ficaram como
+estavam.** Os três são moldura para conteúdo, não cartão — dar sombra e raio a
+eles seria transformar o quadro em objeto e a arte em recheio.
+
+##### A árvore da campanha desfaz o cartão dentro do cartão
+
+O grupo de entregáveis era uma caixa grande com as peças dentro, e as peças
+eram cartão — cartão dentro de cartão, onde o que se lê primeiro é a CAIXA.
+**A árvore de produção da agência já tinha tomado a decisão contrária** na
+camada anterior: o grupo vira rótulo com um fio à esquerda, e quem ganha borda
+e sombra é a PEÇA, que é a unidade sobre a qual alguém age. Ninguém decide
+sobre um grupo: ele não recebe arquivo, não tem versão, e o status dele é
+derivado dos filhos desde a 0033.
+
+Duas telas que desenham a mesma árvore de dois jeitos é a divergência esperando
+acontecer — e a divergência apareceria no lugar mais caro, que é o que a
+agência olha antes de mandar contra o que o cliente vê depois.
+
+**O que muda entre as duas é que esta DOBRA**, e por isso o rótulo continua
+sendo `<button aria-expanded>` em vez do `<h3>` de lá. A contagem fica no
+cabeçalho sempre, que é a regra do `GrupoDobravel`: grupo fechado precisa
+continuar dizendo quantos tem dentro, senão não é recolher, é esconder.
+
+**E o FIO fecha o grupo dos dois lados.** O rótulo diz onde ele COMEÇA e não diz
+onde ele TERMINA: sem o fio, "Tabloide" — que é uma peça de topo — cai logo
+abaixo do sexto Feed/Story e lê como o sétimo item de um grupo cujo rótulo diz
+seis. É o mesmo achado que a árvore da agência teve, na mesma imagem.
+
+##### A capa da campanha: o lugar de pôr uma, e o lugar de reservar espaço
+
+Relato do usuário: *"dentro do portal do cliente, as campanhas, continuam sem o
+espaço para colocar a capa"*. Ele estava certo, e a causa não era a que a frase
+sugere — **o portal desenha a capa nos quatro lugares desde a 0050.** Faltavam
+duas outras coisas.
+
+**1. NÃO HAVIA ONDE PÔR UMA.** `CapaDaCampanha`, que é o uploader, morava só no
+cartão da listagem do painel — e a tela onde a equipe efetivamente trabalha
+numa campanha é `/painel/aprovacoes/campanhas/{id}`, onde a capa era desenhada
+e não se trocava. Quem abria a campanha para subir o PDF da lâmina não
+encontrava o botão, porque ele estava noutra tela, num cartão. Agora o uploader
+é a própria peça da linha de identidade, com `proporcao="quadrada"` para caber
+naquela fileira.
+
+**2. E NÃO HAVIA ESPAÇO RESERVADO.** `CapaDoCartao` tinha duas respostas para
+"não há imagem" — a faixa some, ou vira moldura pontilhada —, e **a grade do
+portal usava a primeira**. Com uns cartões carregando capa e outros não, a
+grade ficava com alturas desiguais e um vão no fim da linha. Foi a imagem do
+protótipo que mostrou, e nenhum build pegaria.
+
+Então são **TRÊS respostas**, e a terceira desfaz metade do que estava escrito
+ali. A regra antiga dizia que espaço reservado numa grade é "uma lista de
+buracos" — e ela supunha que quase nenhuma campanha teria capa, o que era
+verdade **enquanto o único lugar de pôr uma era o cartão da listagem**. Um
+buraco é um retângulo cinza vazio; `--brand-navy` é um fundo ESCOLHIDO, o mesmo
+que a identidade do cliente usa desde a 0063, e ele dá ritmo à grade em vez de
+tirá-lo.
+
+| Sem capa | Onde | Por quê |
+| --- | --- | --- |
+| `nada` | detalhe da campanha | um item só, sem linha para desalinhar |
+| `moldura` | onde quem pode trocar está olhando | é ela que diz onde clicar |
+| `fundo` | a GRADE | alturas iguais; o vão é a única das três que parece defeito |
+
+##### A seção que aparecia vazia, e o que ela mostrou
+
+A aba Configurações desenhava "Dados da empresa" com título, subtítulo e NADA
+embaixo. A causa é a de sempre: a página lia `clients` direto, com
+`const { data } = await supabase...`, e **uma leitura assim falha calada.** Em
+produção funcionava; o ponto é que o modo de falha era invisível dos dois lados
+— e foi a imagem que mostrou, porque no protótipo não há Supabase e a consulta
+volta vazia. Uma seção vazia lê como tela quebrada.
+
+A leitura virou `contatosDasMinhasEmpresas()` em `lib/dados/clientes.ts`, com
+`ouFalha()`. Ela **não** substitui `obterMinhasEmpresas()`: aquela responde "de
+que empresas eu sou", esta traz as três colunas que só aquela tela edita.
+
+**E ela é a última das leituras cruas do Portal.** A migração para `ouFalha()`
+tinha começado justamente por esta área — *"primeiro o que o cliente lê"* —, e
+esta ficou para trás por estar numa `page.tsx` e não em `lib/dados/`. É onde a
+varredura não olha.
+
+##### O que NÃO mudou, e é decisão
+
+- **Nenhuma consulta de material mudou, e nenhuma migration entrou.** O que o
+  cliente enxerga continua sendo decidido por `tasks_select_cliente`,
+  `posts_select_cliente` e `deliverables_select_cliente` — a camada que vale.
+- **O vocabulário continua sem jargão interno**, e `check:cores` continua
+  varrendo `src/app/(cliente)/` e `src/components/portal/` atrás das formas
+  portuguesas de "task", "subtarefa", "etapa", "workflow" e "sprint".
+- **O portal SEGUE O TEMA**, ao contrário da porta: os tokens dele não têm par
+  próprio no `:root`, e a imagem `15b-portal-escuro` existe para provar que o
+  escuro não é o claro invertido à mão.
+- **O rodapé continua sem o commit.** Para a equipe ele é a resposta de "já
+  subiu?"; para o cliente seria uma sigla sem significado.
+
+
 #### Registrar período que já aconteceu — da gestão, e só dela
 
 A aba **Registrar período** (`?aba=lancamentos`) é onde a gestão grava o

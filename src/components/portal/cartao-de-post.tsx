@@ -29,7 +29,7 @@ export function CartaoDePost({
   return (
     <Link
       href={`${base}/social-media/${post.id}`}
-      className="bg-surface-card hover:border-accent-strong flex items-center gap-4 rounded-xl border p-3 transition-colors sm:p-4"
+      className="bg-surface-card hover:border-accent-strong rounded-card shadow-cartao flex items-center gap-4 border p-3 transition-colors sm:p-4"
     >
       <div className="bg-neutral-soft relative size-16 shrink-0 overflow-hidden rounded-lg border">
         {arte ? (

@@ -137,7 +137,7 @@ export function DecisoesDoConteudo({
           : "Ajustes pedidos";
 
     return (
-      <p className="bg-surface-card text-text-muted rounded-xl border p-4 text-sm">
+      <p className="bg-surface-card text-text-muted rounded-card shadow-cartao border p-4 text-sm">
         {verbo}
         {decididoPor ? ` por ${decididoPor}` : ""} em{" "}
         {format(parseISO(decididoEm), "dd/MM/yyyy 'às' HH:mm", {

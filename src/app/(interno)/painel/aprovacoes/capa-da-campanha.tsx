@@ -34,6 +34,8 @@ export function CapaDaCampanha({
   capaAssinada,
   temCapa,
   podeTrocar,
+  proporcao,
+  className,
 }: {
   campanhaId: string;
   clienteId: string;
@@ -41,6 +43,18 @@ export function CapaDaCampanha({
   capaAssinada: string | null;
   temCapa: boolean;
   podeTrocar: boolean;
+  /**
+   * A proporção e a largura da moldura, para o uploader caber onde a capa já
+   * aparece.
+   *
+   * Elas existem porque a tela de produção desenha a capa numa LINHA — quadrada
+   * e estreita, ao lado do progresso —, e a listagem a desenha larga no topo do
+   * cartão. Sem elas, pôr o uploader na tela de produção significaria um segundo
+   * componente de capa, e duas proporções fariam a mesma campanha parecer outra
+   * em cada tela — que é exatamente o que `CapaDoCartao` existe para impedir.
+   */
+  proporcao?: "larga" | "quadrada";
+  className?: string;
 }) {
   const router = useRouter();
   const arquivoRef = useRef<HTMLInputElement>(null);
@@ -92,7 +106,13 @@ export function CapaDaCampanha({
 
   return (
     <div className="space-y-2">
-      <CapaDoCartao url={capaAssinada} alt={nome} vazia={podeTrocar} />
+      <CapaDoCartao
+        url={capaAssinada}
+        alt={nome}
+        semCapa={podeTrocar ? "moldura" : "nada"}
+        proporcao={proporcao}
+        className={className}
+      />
 
       {podeTrocar ? (
         <div className="flex items-center gap-1.5">

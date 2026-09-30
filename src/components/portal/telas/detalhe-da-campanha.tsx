@@ -88,7 +88,7 @@ export async function DetalheDaCampanha({
         />
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">{campanha.nome}</h1>
+          <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">{campanha.nome}</h1>
           <p className="text-text-muted text-sm tabular-nums">
             {periodoCurto(campanha.dataInicio, campanha.dataFim)}
             <span aria-hidden> · </span>
@@ -102,7 +102,7 @@ export async function DetalheDaCampanha({
         </div>
       </div>
 
-      <section className="bg-surface-card space-y-3 rounded-xl border p-4">
+      <section className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4">
         {conta.total > 0 ? (
           <BarraDeProgresso
             nome="Materiais aprovados"
@@ -139,7 +139,7 @@ export async function DetalheDaCampanha({
       ) : null}
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Materiais</h2>
+        <h2 className="text-xl font-bold tracking-[-0.02em]">Materiais</h2>
 
         {arvore.length === 0 ? (
           <EmptyState

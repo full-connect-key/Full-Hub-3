@@ -110,7 +110,7 @@ export function Preferencias({ iniciais }: { iniciais: PreferenciasDeAviso }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface-card divide-y rounded-xl border">
+      <div className="bg-surface-card rounded-card shadow-cartao divide-y border">
         {AVISOS.map(({ chave, rotulo, ajuda, aindaNao }) => (
           <div
             key={chave}
@@ -151,7 +151,7 @@ export function Preferencias({ iniciais }: { iniciais: PreferenciasDeAviso }) {
               aria-pressed={valores.frequencia === valor}
               onClick={() => salvar({ ...valores, frequencia: valor })}
               className={cn(
-                "rounded-xl border p-4 text-left transition-colors",
+                "rounded-card border p-4 text-left transition-colors",
                 valores.frequencia === valor
                   ? "border-accent-strong bg-accent"
                   : "bg-surface-card hover:bg-accent",

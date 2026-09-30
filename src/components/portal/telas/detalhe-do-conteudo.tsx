@@ -142,7 +142,7 @@ export function DetalheDoConteudo({
               {modelo.selo}
               <StatusBadge status={modelo.status} />
             </div>
-            <h1 className="text-2xl font-semibold">{modelo.titulo}</h1>
+            <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">{modelo.titulo}</h1>
             {modelo.linhaDeContexto ? (
               <p className="text-text-muted text-sm">
                 {modelo.linhaDeContexto}
@@ -204,7 +204,7 @@ export function DetalheDoConteudo({
         ) : null}
 
         <section className="min-w-0 space-y-3">
-          <h2 className="text-lg font-semibold">{modelo.texto.titulo}</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">{modelo.texto.titulo}</h2>
           <TextoDoConteudo
             texto={modelo.texto.corpo}
             rotulo={modelo.texto.rotulo}
@@ -213,8 +213,8 @@ export function DetalheDoConteudo({
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Informações</h2>
-        <dl className="bg-surface-card grid gap-x-8 gap-y-3 rounded-xl border p-4 sm:grid-cols-2">
+        <h2 className="text-xl font-bold tracking-[-0.02em]">Informações</h2>
+        <dl className="bg-surface-card rounded-card shadow-cartao grid gap-x-8 gap-y-3 border p-4 sm:grid-cols-2">
           {modelo.propriedades.map((linha) => (
             <div
               key={linha.rotulo}

@@ -75,15 +75,15 @@ export function ListaDeAprovacoes({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">
+        <h2 className="text-xl font-bold tracking-[-0.02em]">
           {somenteLeitura ? "Esperando o cliente" : "Esperando você"}
         </h2>
         {esperando.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+          <p className="text-text-muted rounded-card border border-dashed p-4 text-sm">
             Nada pendente no momento.
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-[9px]">
             {esperando.map((item) => (
               <CartaoPendente
                 key={item.rodadaId}
@@ -97,10 +97,13 @@ export function ListaDeAprovacoes({
 
       {decididas.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold">Já decididas</h2>
-          <ul className="space-y-2">
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Já decididas</h2>
+          <ul className="space-y-[9px]">
             {decididas.map((item) => (
-              <li key={item.rodadaId} className="rounded-lg border p-3">
+              <li
+                key={item.rodadaId}
+                className="bg-surface-card rounded-card shadow-cartao border p-4"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{item.titulo}</span>
                   <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
@@ -160,7 +163,7 @@ function CartaoPendente({
   }
 
   return (
-    <li className="space-y-3 rounded-lg border p-4">
+    <li className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{item.titulo}</span>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>

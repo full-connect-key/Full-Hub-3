@@ -150,40 +150,21 @@ export async function InicioDoPortal({
         />
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
-        {/* O CARTÃO GRANDE, e o número em tamanho de manchete. */}
-        <div className="bg-blue-soft border-blue-muted rounded-xl border p-6">
-          <p className="text-text-primary text-sm font-medium">
-            {comoEquipe ? "Esperando o cliente" : "Esperando você"}
-          </p>
-          <p className="text-text-primary mt-2 text-5xl font-semibold tabular-nums">
-            {pendentes.length}
-          </p>
-          <p className="text-text-primary/80 mt-1 text-sm">
-            {pendentes.length === 1
-              ? "material para aprovar"
-              : "materiais para aprovar"}
-          </p>
-        </div>
+      {/* ------------------------------------------ os números viram UMA LINHA --
+          ELES ERAM TRÊS LADRILHOS, o primeiro com o número em tamanho de
+          manchete — e o maior deles dizia "Esperando você: 3" com a lista
+          desses mesmos três logo abaixo. É o cartão de "11 entregues" com
+          sete na lista, que o Resumo da Agência já pagou uma vez e que o
+          Início do painel desfez: quando a lista ao lado É o número, o número
+          não vira cartão.
 
-        <div className="bg-surface-card rounded-xl border p-5">
-          <p className="text-text-muted text-sm">Em produção</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums">
-            {emProducao}
-          </p>
-        </div>
-
-        <div className="bg-surface-card rounded-xl border p-5">
-          <p className="text-text-muted text-sm">Aprovados no mês</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums">
-            {aprovadosNoMes}
-          </p>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">
+          Os outros dois ficam porque a lista NÃO os responde — "em produção"
+          é o que ainda não chegou, "aprovados no mês" é o que já saiu daqui.
+          Eles viram texto, e o primeiro vira o link que leva à própria lista,
+          como o "ver quais" da Gestão de Tasks. */}
+      <section className="space-y-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <h2 className="text-xl font-bold tracking-[-0.02em]">
             {comoEquipe
               ? "Para a aprovação do cliente"
               : "Para a sua aprovação"}
@@ -191,7 +172,7 @@ export async function InicioDoPortal({
           {itens.length > 0 ? (
             <Link
               href={`${base}/itens`}
-              className="text-accent-strong inline-flex items-center gap-1 text-sm hover:underline"
+              className="text-accent-strong inline-flex items-center gap-1 text-sm font-medium hover:underline"
             >
               Ver tudo
               <ArrowRight aria-hidden className="size-4" />
@@ -199,11 +180,25 @@ export async function InicioDoPortal({
           ) : null}
         </div>
 
+        <p className="text-text-secondary text-sm">
+          <span className="text-text-primary font-semibold tabular-nums">
+            {pendentes.length}
+          </span>{" "}
+          {pendentes.length === 1
+            ? "material esperando decisão"
+            : "materiais esperando decisão"}
+          <span aria-hidden> · </span>
+          <span className="tabular-nums">{emProducao}</span> em produção
+          <span aria-hidden> · </span>
+          <span className="tabular-nums">{aprovadosNoMes}</span> aprovados no
+          mês
+        </p>
+
         {pendentes.length === 0 ? (
           // ZERO PENDÊNCIA É BOA NOTÍCIA, e a tela diz isso. Um vazio genérico
           // ("nenhum resultado") deixa a pessoa em dúvida se ela procurou
           // errado ou se está tudo bem.
-          <div className="bg-success-soft flex items-start gap-3 rounded-xl border border-transparent p-6">
+          <div className="bg-success-soft rounded-card shadow-cartao flex items-start gap-3 border border-transparent p-6">
             <PartyPopper
               aria-hidden
               className="text-success mt-0.5 size-5 shrink-0"
@@ -220,7 +215,10 @@ export async function InicioDoPortal({
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          /* CARTÃO SOLTO, com 9px entre eles — a decisão da lista de Minhas
+             Tasks: num contêiner com fios o que se lê primeiro é a CAIXA, e
+             aqui cada linha é uma decisão separada, sobre uma peça diferente. */
+          <div className="space-y-[9px]">
             {pendentes.slice(0, 5).map((item) => (
               <CartaoDeItem
                 key={item.conteudoId}
@@ -262,7 +260,9 @@ export async function InicioDoPortal({
                   é como se aprende a ler errado as duas — o produto já pagou
                   esse preço uma vez, com dois nomes para o mesmo módulo. Quem
                   diz o que "ativa" significa é a linha embaixo. */}
-              <h2 className="text-lg font-semibold">Campanhas ativas</h2>
+              <h2 className="text-xl font-bold tracking-[-0.02em]">
+                Campanhas ativas
+              </h2>
               <p className="text-text-muted text-sm">
                 O que a Full está produzindo para você agora.
               </p>
@@ -281,7 +281,7 @@ export async function InicioDoPortal({
               <li key={campanha.id}>
                 <Link
                   href={`${base}/campanhas/${campanha.id}`}
-                  className="bg-surface-card hover:border-accent-strong block space-y-2 rounded-xl border p-4 transition-colors"
+                  className="bg-surface-card rounded-card shadow-cartao hover:border-accent-strong block space-y-2 border p-4 transition-colors"
                 >
                   {/* A CAPA AQUI TAMBÉM (0050), e no mesmo componente do
                       cartão da listagem: é a mesma campanha em duas telas, e
@@ -289,6 +289,7 @@ export async function InicioDoPortal({
                   <CapaDoCartao
                     url={campanha.capaAssinada}
                     alt={campanha.nome}
+                    semCapa="fundo"
                   />
 
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -332,8 +333,14 @@ export async function InicioDoPortal({
 
       {atividade.length > 0 ? (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Atividade recente</h2>
-          <ul className="bg-surface-card divide-y rounded-xl border">
+          {/* AQUI O CONTÊINER FICA, e é a outra metade da regra dos cartões
+              soltos. A lista de aprovação é uma decisão por linha; esta é um
+              LOG — ninguém age sobre uma linha dela, só lê a sequência. Solta,
+              cada registro pediria a atenção que a peça para aprovar merece. */}
+          <h2 className="text-xl font-bold tracking-[-0.02em]">
+            Atividade recente
+          </h2>
+          <ul className="bg-surface-card rounded-card shadow-cartao divide-y border">
             {atividade.map((linha) => (
               <li
                 key={linha.id}

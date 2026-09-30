@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, ListChecks } from "lucide-react";
 
-import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
+import { CapaDaCampanha } from "../../capa-da-campanha";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -138,15 +138,35 @@ export default async function PaginaDaCampanha({
           imagem de 390px que mostrou. Então a capa encolhe para 96px e a
           linha continua sendo uma linha: uma composição só, uma proporção só,
           em toda largura. */}
-      <section className="bg-surface-card rounded-card shadow-cartao flex items-center gap-4 border p-4">
-        {campanha.capaAssinada ? (
-          <CapaDoCartao
-            url={campanha.capaAssinada}
-            alt={campanha.nome}
+      <section className="bg-surface-card rounded-card shadow-cartao flex items-start gap-4 border p-4">
+        {/* ---------------------------------------------- a capa, e o lugar --
+            AQUI SE PÕE A CAPA, e até agora não se punha em lugar nenhum que
+            alguém abrisse. O uploader existe desde a 0050 e morava SÓ no
+            cartão da listagem; esta tela — que é onde a equipe trabalha a
+            campanha, sobe arquivo e envia — desenhava a capa quando ela
+            existia e nada quando não existia.
+
+            O resultado é o que o usuário viu do outro lado: a campanha chega
+            ao portal do cliente sem imagem, porque o único lugar de subir uma
+            é um cartão numa grade que ninguém abre para isso. **A capa
+            existe para a campanha ser reconhecida de relance (0050), e uma
+            capa que ninguém consegue pôr não reconhece nada.**
+
+            `vazia` é o que faz a moldura pontilhada aparecer quando não há
+            capa — ela é a única coisa na tela que diz onde clicar, e é a
+            razão de o componente ter essa bandeira desde que nasceu. */}
+        <div className="w-24 shrink-0 sm:w-[150px]">
+          <CapaDaCampanha
+            campanhaId={campanha.id}
+            clienteId={campanha.clienteId}
+            nome={campanha.nome}
+            capaAssinada={campanha.capaAssinada}
+            temCapa={Boolean(campanha.capaUrl)}
+            podeTrocar
             proporcao="quadrada"
-            className="w-24 shrink-0 sm:w-[150px]"
+            className="w-full"
           />
-        ) : null}
+        </div>
 
         <div className="min-w-0 flex-1 space-y-3">
           <p className="text-text-muted text-sm tabular-nums">

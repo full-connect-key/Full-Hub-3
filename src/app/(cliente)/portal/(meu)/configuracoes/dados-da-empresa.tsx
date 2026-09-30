@@ -66,7 +66,7 @@ export function DadosDaEmpresa({
 
   return (
     <form onSubmit={form.handleSubmit(enviar)} className="space-y-5">
-      <div className="bg-surface-card rounded-xl border p-4">
+      <div className="bg-surface-card rounded-card shadow-cartao border p-4">
         <p className="text-text-muted text-sm">Empresa</p>
         <p className="mt-1 font-medium">{nomeDaEmpresa}</p>
         <p className="text-text-muted mt-2 text-sm">

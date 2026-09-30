@@ -48,7 +48,10 @@ export function ArvoreDeEntregaveis({
   miniaturas: Record<string, string>;
 }) {
   return (
-    <ul className="space-y-2">
+    /* SEIS ENTRE OS ITENS DE TOPO e nove entre as peças de um grupo, que é a
+       mesma escala da árvore de produção: sem a caixa em volta do grupo, a
+       distância é a única coisa que diz onde um termina e o outro começa. */
+    <ul className="space-y-6">
       {arvore.map((no) =>
         ehGrupo(no) ? (
           <Grupo
@@ -94,12 +97,25 @@ function Grupo({
   const [aberto, setAberto] = useState(temPendencia);
 
   return (
-    <li className="bg-surface-card overflow-hidden rounded-xl border">
+    /* O GRUPO É UM RÓTULO COM UM FIO, e não uma caixa em volta das peças —
+       a mesma decisão que a árvore de produção da agência já tomava, e que
+       aqui faltava. Enquanto o grupo era cartão, as peças eram cartão dentro
+       de cartão: o que se lia primeiro era a CAIXA, e ninguém decide sobre um
+       grupo — ele não recebe arquivo, não tem versão e o status dele é
+       derivado dos filhos desde a 0033. Quem ganha borda e sombra é a unidade
+       sobre a qual alguém age.
+
+       **O que muda em relação à árvore da agência é que este DOBRA**, e por
+       isso o rótulo continua sendo `<button aria-expanded>` em vez do `<h3>`
+       de lá: quem abre o portal quer ver o que espera a decisão dele, e o
+       grupo fechado precisa continuar dizendo quantos tem dentro — é a regra
+       do `GrupoDobravel`, contagem no cabeçalho sempre. */
+    <li className="space-y-2">
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
         aria-expanded={aberto}
-        className="hover:bg-accent flex w-full items-start gap-3 p-3 text-left transition-colors"
+        className="hover:bg-accent flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors"
       >
         {aberto ? (
           <ChevronDown aria-hidden className="mt-0.5 size-4 shrink-0" />
@@ -139,7 +155,11 @@ function Grupo({
       </button>
 
       {aberto ? (
-        <ul className="space-y-2 border-t p-3 pl-6 sm:pl-10">
+        /* O FIO À ESQUERDA fecha o grupo dos dois lados sem devolver a
+           caixa: o rótulo diz onde ele COMEÇA e não diz onde ele termina, e
+           sem o fio uma peça de topo logo abaixo do último filho lê como mais
+           um filho de um grupo cujo rótulo diz seis. */
+        <ul className="border-border space-y-[9px] border-l-2 pl-3 sm:pl-4">
           {no.filhos.map((filho) => (
             <li key={filho.id}>
               <Item
@@ -175,7 +195,7 @@ function Item({
   return (
     <Link
       href={`${base}/${item.id}`}
-      className="bg-surface-card hover:border-accent-strong flex items-start gap-3 rounded-xl border p-3 transition-colors"
+      className="bg-surface-card shadow-cartao hover:border-accent-strong rounded-card flex items-start gap-3 border p-3 transition-colors sm:p-4"
     >
       <div className="bg-neutral-soft size-12 shrink-0 overflow-hidden rounded-lg border">
         {miniatura ? (

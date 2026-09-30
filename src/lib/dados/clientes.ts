@@ -40,6 +40,35 @@ export const obterMinhasEmpresas = cache(async () => {
   return data;
 });
 
+/**
+ * O contato que cada empresa do cliente mantém — a tela de Configurações.
+ *
+ * **Ela existe porque a página lia `clients` direto**, com
+ * `const { data } = await supabase...`, e uma leitura assim falha calada: a
+ * seção "Dados da empresa" aparecia com o título, o subtítulo e NADA embaixo.
+ * Foi a imagem do protótipo que mostrou — lá não há Supabase, a consulta
+ * volta vazia, e uma seção vazia lê como tela quebrada. Em produção ela
+ * funcionava; o ponto é que o modo de falha era invisível dos dois lados.
+ *
+ * Ela NÃO substitui `obterMinhasEmpresas()`: aquela responde "de que empresas
+ * eu sou", e é a lista que o seletor e os filtros usam. Esta traz as três
+ * colunas que só esta tela edita, e o RLS continua sendo quem decide quais
+ * linhas voltam.
+ */
+export const contatosDasMinhasEmpresas = cache(async (ids: string[]) => {
+  if (ids.length === 0) return [];
+
+  const supabase = await criarClienteServidor();
+  return ouFalha(
+    "o contato das empresas",
+    await supabase
+      .from("clients")
+      .select("id, nome_empresa, nome_contato, email_contato, telefone")
+      .in("id", ids)
+      .order("nome_empresa"),
+  );
+});
+
 export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
   const supabase = await criarClienteServidor();
 
@@ -51,7 +80,9 @@ export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
   const vinculos = ouFalha("os vínculos de acesso", resposta1);
 
   const idsDeResponsaveis = [
-    ...new Set(clientes.map((c) => c.responsavel_atendimento_id).filter(Boolean)),
+    ...new Set(
+      clientes.map((c) => c.responsavel_atendimento_id).filter(Boolean),
+    ),
   ] as string[];
 
   const responsaveis = idsDeResponsaveis.length
@@ -79,16 +110,18 @@ export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
   }));
 });
 
-export const obterCliente = cache(async (id: string): Promise<Client | null> => {
-  const supabase = await criarClienteServidor();
-  // `limit(1)` E NÃO `maybeSingle()`: a união de duas formas que ele devolve
-  // faz o genérico de `ouFalha` resolver para `never`.
-  const [data] = ouFalha(
-    "a ficha do cliente",
-    await supabase.from("clients").select("*").eq("id", id).limit(1),
-  );
-  return data ?? null;
-});
+export const obterCliente = cache(
+  async (id: string): Promise<Client | null> => {
+    const supabase = await criarClienteServidor();
+    // `limit(1)` E NÃO `maybeSingle()`: a união de duas formas que ele devolve
+    // faz o genérico de `ouFalha` resolver para `never`.
+    const [data] = ouFalha(
+      "a ficha do cliente",
+      await supabase.from("clients").select("*").eq("id", id).limit(1),
+    );
+    return data ?? null;
+  },
+);
 
 /** Pessoas do lado do cliente com acesso ao portal desta empresa. */
 export const usuariosDoCliente = cache(async (clientId: string) => {
@@ -198,7 +231,11 @@ export async function vinculosDoCliente(clientId: string) {
  */
 export async function identidadeDoPortal(
   clienteId?: string,
-): Promise<{ nome: string; capaAssinada: string | null; fotoAssinada: string | null } | null> {
+): Promise<{
+  nome: string;
+  capaAssinada: string | null;
+  fotoAssinada: string | null;
+} | null> {
   const supabase = await criarClienteServidor();
 
   let consulta = supabase

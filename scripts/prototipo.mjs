@@ -474,6 +474,10 @@ const TELAS = [
   { nome: "20c-portal-entregavel", rota: "/portal/campanhas/camp-wave/d-kv", largura: 1280, altura: 2000 },
   { nome: "20d-portal-campanhas-375", rota: "/portal/campanhas", largura: 375, altura: 1200 },
   { nome: "20e-portal-campanha-375", rota: "/portal/campanhas/camp-wave", largura: 375, altura: 2000 },
+  // A CAPA COM O LUGAR DE PÔ-LA, na tela onde a equipe trabalha a campanha.
+  // Ela existe desde a 0050 e o uploader morava só no cartão da listagem —
+  // a moldura pontilhada aqui é a única coisa que diz onde clicar.
+  { nome: "20f-campanha-producao-capa", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1440, altura: 900, role: "socio" },
   { nome: "20f-nova-campanha", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1500, role: "socio" },
   // COM A ARVORE POVOADA: a secao 4 vazia nao mostra o que este sprint muda
   // -- o responsavel e o prazo de cada peca, que e o que faz a campanha virar

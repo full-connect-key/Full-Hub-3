@@ -44,19 +44,32 @@ export function CartaoDeCampanha({
     <Link
       href={href}
       className={cn(
-        "bg-surface-card hover:border-accent-strong block space-y-3 rounded-xl border p-4 transition-colors",
+        "bg-surface-card rounded-card shadow-cartao hover:border-accent-strong block space-y-3 border p-4 transition-colors",
         esperando > 0 && "border-warning",
       )}
     >
-      {/* A CAPA VEM ANTES DO NOME, e só quando existe (0050). O cliente abre
-          esta lista uma vez por semana e tem três ou quatro campanhas do mesmo
-          período: a imagem é o que ele reconhece antes de ler. Sem capa o
-          cartão fica como sempre foi — moldura vazia numa grade em que quase
-          nenhuma tem imagem é uma lista de buracos. */}
-      <CapaDoCartao url={campanha.capaAssinada} alt={campanha.nome} />
+      {/* A CAPA VEM ANTES DO NOME (0050). O cliente abre esta lista uma vez
+          por semana e tem três ou quatro campanhas do mesmo período: a imagem
+          é o que ele reconhece antes de ler.
+
+          **E A FAIXA FICA MESMO SEM CAPA**, na cor da marca, o que desfaz o
+          que estava escrito aqui. A regra antiga era "moldura vazia numa
+          grade é uma lista de buracos" — e a imagem do protótipo mostrou o
+          contrário: com uns cartões carregando imagem e outros não, a grade
+          fica com alturas desiguais e um vão no fim da linha, que é a única
+          das três saídas que parece defeito. Um buraco é um retângulo cinza;
+          `--brand-navy` é um fundo escolhido, o mesmo da identidade do
+          cliente, e ele dá ritmo à grade em vez de tirá-lo. */}
+      <CapaDoCartao
+        url={campanha.capaAssinada}
+        alt={campanha.nome}
+        semCapa="fundo"
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="min-w-0 font-medium">{campanha.nome}</h3>
+        <h3 className="min-w-0 font-bold tracking-[-0.015em]">
+          {campanha.nome}
+        </h3>
         {esperando > 0 ? (
           <span className="bg-warning-soft text-warning rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap">
             {esperando === 1

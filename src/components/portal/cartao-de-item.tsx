@@ -64,7 +64,7 @@ export function CartaoDeItem({
   const conteudo = (
     <article
       className={cn(
-        "bg-surface-card flex gap-4 rounded-xl border p-4 text-left transition-colors sm:p-5",
+        "bg-surface-card rounded-card shadow-cartao flex gap-4 border p-4 text-left transition-colors sm:p-5",
         (aoAbrir || href) && "hover:border-accent-strong",
       )}
     >
@@ -91,7 +91,9 @@ export function CartaoDeItem({
           <StatusBadge status={item.status} />
         </div>
 
-        <p className="text-base leading-snug font-medium">{item.titulo}</p>
+        <p className="text-base leading-snug font-bold tracking-[-0.015em]">
+          {item.titulo}
+        </p>
 
         {/* A demanda é contexto, e fica embaixo — o item é o que se decide. */}
         <p className="text-text-muted truncate text-sm">{item.demanda}</p>

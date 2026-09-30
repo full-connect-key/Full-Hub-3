@@ -40,13 +40,13 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
     <div className="space-y-12">
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Avisos</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Avisos</h2>
           <p className="text-text-muted mt-1 text-sm">
             O que cada pessoa do cliente quer receber, e com que frequência.
           </p>
         </div>
 
-        <p className="text-text-muted bg-surface-card flex items-start gap-2 rounded-xl border p-4 text-sm">
+        <p className="text-text-muted bg-surface-card rounded-card shadow-cartao flex items-start gap-2 border p-4 text-sm">
           <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />A preferência
           de avisos é de cada pessoa, e só ela lê. Nem a gestão enxerga, e isso
           vale no banco: a policy fecha no usuário nas quatro operações.
@@ -55,14 +55,14 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Dados da empresa</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Dados da empresa</h2>
           <p className="text-text-muted mt-1 text-sm">
             O contato que a Full usa para falar com eles. O cliente edita estes
             três campos no portal dele; aqui é leitura.
           </p>
         </div>
 
-        <dl className="bg-surface-card divide-y rounded-xl border">
+        <dl className="bg-surface-card rounded-card shadow-cartao divide-y border">
           {contato.map((linha) => (
             <div
               key={linha.rotulo}
@@ -79,18 +79,18 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Quem tem acesso</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Quem tem acesso</h2>
           <p className="text-text-muted mt-1 text-sm">
             As pessoas desta empresa que entram no portal.
           </p>
         </div>
 
         {usuarios.length === 0 ? (
-          <p className="text-text-muted bg-surface-card rounded-xl border p-4 text-sm">
+          <p className="text-text-muted bg-surface-card rounded-card shadow-cartao border p-4 text-sm">
             Ninguém desta empresa tem acesso ao portal ainda.
           </p>
         ) : (
-          <div className="bg-surface-card divide-y rounded-xl border">
+          <div className="bg-surface-card rounded-card shadow-cartao divide-y border">
             {usuarios.map((pessoa) => (
               <div
                 key={pessoa.user_id}
@@ -130,7 +130,7 @@ export default async function ConfiguracoesDoClienteVistasPelaEquipe({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Configurações</h1>
+        <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">Configurações</h1>
         <p className="text-text-muted mt-1">
           Os avisos e os dados de contato de{" "}
           {cliente?.nome_empresa ?? "este cliente"}.

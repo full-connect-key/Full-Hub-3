@@ -6,9 +6,11 @@ import { Info } from "lucide-react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
-import { obterMinhasEmpresas } from "@/lib/dados/clientes";
+import {
+  contatosDasMinhasEmpresas,
+  obterMinhasEmpresas,
+} from "@/lib/dados/clientes";
 import { minhasPreferencias, usuariosDoMeuCliente } from "@/lib/dados/portal";
-import { criarClienteServidor } from "@/lib/supabase/server";
 
 import { DadosDaEmpresa } from "./dados-da-empresa";
 import { Preferencias } from "./preferencias";
@@ -25,28 +27,21 @@ export const metadata: Metadata = { title: "Configurações" };
  */
 
 async function Conteudo() {
-  const supabase = await criarClienteServidor();
-
   const [empresas, preferencias, usuarios] = await Promise.all([
     obterMinhasEmpresas(),
     minhasPreferencias(),
     usuariosDoMeuCliente(),
   ]);
 
-  const { data: dados } = await supabase
-    .from("clients")
-    .select("id, nome_empresa, nome_contato, email_contato, telefone")
-    .in(
-      "id",
-      empresas.map((e) => e.id),
-    )
-    .order("nome_empresa");
+  // A segunda consulta depende da primeira: são as empresas desta pessoa, e
+  // quais são elas só se sabe depois de perguntar.
+  const dados = await contatosDasMinhasEmpresas(empresas.map((e) => e.id));
 
   return (
     <div className="space-y-12">
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Avisos</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">Avisos</h2>
           <p className="text-text-muted mt-1 text-sm">
             O que você quer receber, e com que frequência.
           </p>
@@ -56,14 +51,16 @@ async function Conteudo() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Dados da empresa</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">
+            Dados da empresa
+          </h2>
           <p className="text-text-muted mt-1 text-sm">
             O contato que a Full usa para falar com vocês.
           </p>
         </div>
 
         <div className="space-y-8">
-          {(dados ?? []).map((cliente) => (
+          {dados.map((cliente) => (
             <DadosDaEmpresa
               key={cliente.id}
               clienteId={cliente.id}
@@ -80,13 +77,15 @@ async function Conteudo() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold">Quem tem acesso</h2>
+          <h2 className="text-xl font-bold tracking-[-0.02em]">
+            Quem tem acesso
+          </h2>
           <p className="text-text-muted mt-1 text-sm">
             As pessoas da sua empresa que entram neste portal.
           </p>
         </div>
 
-        <div className="bg-surface-card divide-y rounded-xl border">
+        <div className="bg-surface-card rounded-card shadow-cartao divide-y border">
           {usuarios.map((pessoa) => (
             <div
               key={pessoa.user_id}
@@ -122,7 +121,9 @@ export default async function PaginaDeConfiguracoesDoPortal() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Configurações</h1>
+        <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">
+          Configurações
+        </h1>
         <p className="text-text-muted mt-1">
           Seus avisos e os dados da sua empresa.
         </p>

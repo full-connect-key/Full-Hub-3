@@ -29,7 +29,7 @@ export default async function PaginaInicialDoPortal({
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-semibold">Portais de clientes</h1>
+          <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">Portais de clientes</h1>
           <p className="text-text-muted mt-1">
             Escolha uma empresa para ver o portal dela como o cliente vê. A
             visualização é só leitura e fica registrada.

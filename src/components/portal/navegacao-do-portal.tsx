@@ -12,6 +12,24 @@ import { cn } from "@/lib/utils";
  * No celular vira uma faixa que rola na horizontal: são poucos itens, então
  * uma gaveta como a do painel seria peso sem necessidade.
  *
+ * ---------------------------------------------------------------------------
+ * **ELA É A PÍLULA DA `BarraDeContexto`, e não mais a aba sublinhada.**
+ *
+ * As duas navegam entre SEÇÕES — cada uma com outra consulta, outro conteúdo,
+ * e trocar é trocar de página no servidor. Eram dois desenhos para a mesma
+ * natureza, que é exatamente o argumento das sete cópias de `abas.tsx` que a
+ * barra de contexto desfez: quem atravessa do painel para o portal do cliente
+ * trocava de vocabulário visual sem nada ter mudado.
+ *
+ * **O componente continua sendo OUTRO, e é de propósito.** A `BarraDeContexto`
+ * carrega o `<h1>` `sr-only` da página, o selo de contagem e as ações do
+ * módulo, e decide a seção por `?aba=` — aqui cada seção é uma ROTA, o título
+ * mora no cabeçalho de cada tela, e o cliente não tem ação de módulo nenhuma.
+ * Reaproveitá-la significaria carregar quatro parâmetros que este lado não usa
+ * para herdar oito classes. O que se compartilha é o desenho; o mecanismo é
+ * diferente porque a coisa é diferente.
+ * ---------------------------------------------------------------------------
+ *
  * Configurações NÃO está aqui — ela é o único item que fala do cliente e não
  * do trabalho da agência, e mora no menu do avatar, que é onde ele já
  * procura. Um caminho só, por decisão do usuário.
@@ -25,8 +43,8 @@ export function NavegacaoDoPortal({ base = "/portal" }: { base?: string }) {
   const itens = navegacaoComBase(base).filter((item) => !item.foraDaBarra);
 
   return (
-    <nav aria-label="Seções do portal" className="-mb-px overflow-x-auto">
-      <ul className="flex min-w-max items-center gap-1">
+    <nav aria-label="Seções do portal" className="min-w-0 overflow-x-auto pb-3">
+      <ul className="bg-muted inline-flex min-w-max items-center gap-1 rounded-xl p-1">
         {itens.map((item) => {
           const ativo =
             item.href === base
@@ -39,10 +57,10 @@ export function NavegacaoDoPortal({ base = "/portal" }: { base?: string }) {
                 href={item.href}
                 aria-current={ativo ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2 border-b-2 px-3 py-3 text-sm transition-colors",
+                  "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
                   ativo
-                    ? "border-accent-strong text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground border-transparent",
+                    ? "bg-surface-card text-text-primary font-medium shadow-sm"
+                    : "text-text-secondary hover:text-text-primary",
                 )}
               >
                 <item.icon aria-hidden className="size-4" />

@@ -76,7 +76,7 @@ export function ThreadDeComentarios({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Comentários</h2>
+      <h2 className="text-xl font-bold tracking-[-0.02em]">Comentários</h2>
 
       {raizes.length === 0 ? (
         <p className="text-text-muted text-sm">
