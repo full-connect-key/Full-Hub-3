@@ -333,12 +333,21 @@ $notas$;
 -- feed" tem a etapa Conteudo apontando para a funcao Redator, entao a tela e a
 -- abertura da demanda tem que dizer QUAL funcao falta. Com as nove funcoes
 -- preenchidas, esse aviso nunca apareceria em desenvolvimento.
+--
+-- E A MUNDO VERDE APROVA A PAUTA (0076), que e a segunda razao pela qual a
+-- Optica Visao fica sem linha: as duas metades da decisao precisam existir em
+-- desenvolvimento. Sem uma conta com portao no meio da corrente, o ambiente
+-- mostraria o produto no unico arranjo em que o Envio e o unico portao -- e a
+-- tela do portal sem arte, que e a que o sprint inteiro existe para desenhar,
+-- nunca apareceria.
 insert into public.client_flow_defaults
-  (client_id, aprovador_interno_id, pasta_entrega_url, prazo_aprovacao_cliente_dias)
+  (client_id, aprovador_interno_id, pasta_entrega_url, prazo_aprovacao_cliente_dias,
+   social_aprovacoes)
 select 'c0000000-0000-0000-0000-00000000000a'::uuid,
        'a0000000-0000-0000-0000-000000000002'::uuid,
        'https://drive.google.com/drive/folders/mundo-verde-entregas',
-       2
+       2,
+       array['Pauta']
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000002')
 on conflict (client_id) do nothing;
 

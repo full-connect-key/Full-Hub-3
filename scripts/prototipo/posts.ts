@@ -36,6 +36,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: dia(7),
     rodadaPendenteId: "r1",
     decididoPor: null,
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: null,
   },
   {
@@ -55,6 +57,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: "r2",
     decididoPor: null,
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: null,
   },
   {
@@ -74,6 +78,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: "r3",
     decididoPor: null,
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: null,
   },
   {
@@ -93,6 +99,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: "Joana Prado",
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 4 * 864e5).toISOString(),
   },
   {
@@ -112,6 +120,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: "Joana Prado",
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 6 * 864e5).toISOString(),
   },
   {
@@ -131,6 +141,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: "Joana Prado",
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 10 * 864e5).toISOString(),
   },
   {
@@ -150,6 +162,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: "Joana Prado",
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 12 * 864e5).toISOString(),
   },
   {
@@ -169,6 +183,8 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: "Joana Prado",
+    portaoDoCliente: null,
+    textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 2 * 864e5).toISOString(),
   },
   {
@@ -188,6 +204,35 @@ const POSTS: PostDoPortal[] = [
     prazoAprovacao: null,
     rodadaPendenteId: null,
     decididoPor: null,
+    portaoDoCliente: null,
+    textoDoPortao: null,
+    decididoEm: null,
+  },
+  // O PORTAO DO MEIO DA CORRENTE (0076), e ele existe aqui pela razao pela qual
+  // o seed tem uma pessoa desligada: sem um post neste estado, a imagem do
+  // portal sai no unico arranjo em que a novidade nao aparece. Ele nao tem arte
+  // -- e nao e falta: a Pauta e a PRIMEIRA etapa, e a arte nasce duas etapas
+  // depois. E o que a tela mostra no lugar dela e o texto da pauta.
+  {
+    id: "p10",
+    clienteId: VERDE,
+    tema: "Dia do Cliente",
+    legenda: null,
+    dataPublicacao: dia(22),
+    horario: null,
+    plataforma: "instagram",
+    formato: "feed",
+    midia: "carrossel",
+    status: "em_aprovacao",
+    arteUrl: null,
+    thumbnailUrl: null,
+    versaoAtual: 1,
+    prazoAprovacao: dia(24),
+    rodadaPendenteId: "r10",
+    decididoPor: null,
+    portaoDoCliente: "Pauta",
+    textoDoPortao:
+      "Carrossel de cinco telas contando a história de três clientes que compram na loja desde a inauguração. Tom de conversa, sem promoção nenhuma — a ideia é a data, não a venda. Fecha com um convite para marcar quem apresentou a marca à pessoa.",
     decididoEm: null,
   },
 ];

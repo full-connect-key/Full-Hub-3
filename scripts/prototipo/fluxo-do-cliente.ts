@@ -63,6 +63,11 @@ export async function padroesDaConta(clienteId: string): Promise<PadroesDaConta>
       aprovador_interno_id: DIEGO.id,
       pasta_entrega_url: "https://drive.google.com/drive/folders/mundo-verde-entregas",
       prazo_aprovacao_cliente_dias: 2,
+      // A MUNDO VERDE APROVA A PAUTA (0076), e o exemplo existe para a imagem
+      // mostrar o interruptor ligado com a consequência escrita embaixo dele.
+      // Com a lista vazia, a seção sairia igual em toda conta — e o que ela
+      // acrescenta é justamente o estado que quase nenhuma conta tem.
+      social_aprovacoes: ["Pauta"],
       created_at: "2027-01-10T12:00:00.000Z",
       updated_at: "2027-03-02T09:30:00.000Z",
     },

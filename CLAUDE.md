@@ -1646,7 +1646,29 @@ miniatura, rede e tema.
 
 **No detalhe, a ordem da tela é a ordem da decisão:** arte grande, informações,
 legenda, e só então os botões. Botão antes da arte convida a aprovar sem
-olhar. O visualizador dá zoom de verdade (roda, pinça e botões) porque quem
+olhar.
+
+**E A LEGENDA FICA AO LADO DA ARTE, não abaixo dela** — decisão do usuário:
+*"quero que na visualização do cliente, a legenda apareça ao lado da imagem,
+para deixar o mais próximo do instagram possível"*. É o arranjo em que a peça
+vai ser encontrada quando for ao ar, e é ele que permite ler a legenda **sem
+tirar a arte do campo de visão** — que é a conferência que a pessoa veio
+fazer: o texto casa com o que está desenhado?
+
+A coluna é **fixa em 340px e não `1fr`**, pela razão da coluna de 306px do
+painel: em `1fr` ela encolheria junto com a arte, e o que importa nela é caber
+uma linha de legenda sem quebrar a cada três palavras. Abaixo de `lg` volta a
+empilhar — num celular não há "ao lado", e é assim que o próprio Instagram se
+comporta.
+
+**É uma bandeira do MODELO e não o padrão da casca** (`textoAoLado`), porque a
+razão dela é do POST: um post é uma arte quadrada com uma legenda ao lado. O
+entregável de campanha é um PDF de impressão ou um AI aberto, e a descrição
+dele é uma instrução de produção — espremê-la numa coluna de 340px ao lado de
+uma lâmina A5 deitada tira largura da peça para dar a um texto que não se lê em
+paralelo com ela. **E ela é derivada da ARTE, não uma constante:** desde a 0076
+o post pode chegar sem arte nenhuma, e uma coluna de 340px ao lado de nada
+seria texto estreito de graça. O visualizador dá zoom de verdade (roda, pinça e botões) porque quem
 aprova precisa ler o rodapé pequeno e ver se o logo ficou pixelado — é o
 pedido de ajuste mais comum. "Solicitar ajustes" fica à vista e não dentro de
 "Comentar": é a ação mais frequente, e escondida ela vira um comentário que
@@ -2311,6 +2333,128 @@ duas vezes — o cliente contaria seis onde há cinco.
 repouso, que é exatamente o que se confere numa faixa que mostra tudo de uma
 vez. Foi o aviso da rodada completa que encontrou — e ele esperou, porque
 aquela rodada leva quinze minutos e não está no CI.
+
+#### O cliente aprova a corrente ETAPA POR ETAPA, e é padrão da conta
+
+Migration 0076, decisão do usuário: *"preciso poder escolher, se as etapas vão
+ser aprovadas pelo cliente, uma por uma. Algumas contas aprovam pauta, antes de
+entrar em produção"*.
+
+**A escolha é da CONTA, e "algumas contas aprovam pauta" é a frase inteira.**
+Não é decisão que se toma por post, nem ao abrir cada mês: é combinado de
+contrato, e o lugar dele é a aba **Configurações do fluxo** da ficha do cliente,
+que existe desde a 0064 justamente para isto. Uma pergunta na abertura de cada
+mês obrigaria a repetir a mesma resposta doze vezes por ano, por cliente — e a
+décima terceira sairia diferente.
+
+**E ela mora na mesma linha do prazo de resposta**, `client_flow_defaults`, com
+o mesmo botão Salvar: um segundo botão para a mesma linha seriam duas escritas
+concorrentes na mesma tela.
+
+`social_aprovacoes` é `text[]` e não `jsonb` — a pergunta é de pertinência
+("a Pauta está nesta lista?"), não um número por chave, que é o critério de
+`post_versions.arquivos`. **E o `check` com os nomes não existe no banco de
+propósito:** ele seria a sexta cópia da corrente. Quem recusa "Revisão do sócio"
+digitado à mão é o `z.enum` da action, montado a partir de
+`ETAPAS_QUE_O_CLIENTE_PODE_APROVAR` — que é `etapas_que_o_cliente_pode_aprovar()`
+do outro lado, como `situacaoDoLancamento()` no Financeiro.
+
+**O Envio e o Programar ficam de fora da lista, e por razões diferentes.** O
+Envio **já é** o portão de toda conta desde a 0032 — oferecê-lo seria oferecer
+ligar o que está ligado. O Programar vem DEPOIS da decisão: pôr o cliente para
+aprovar a programação seria pedir a ele o aval de um trabalho que só existe
+porque ele já aprovou.
+
+##### Não há `content_type` novo, e é a decisão que fez o resto caber
+
+`approval_rounds` não ganhou coluna nenhuma. **Qual etapa uma rodada de cliente
+decide é DERIVADO da ordem**, porque a corrente é serial: uma etapa só começa
+quando a anterior fecha (0045), então não há dois portões abertos ao mesmo
+tempo. `porta_do_cliente_no_post()` devolve o primeiro portão ainda não
+concluído, e `portaoDoCliente()` faz a mesma pergunta na tela.
+
+Guardar a etapa na rodada seria uma segunda resposta para uma pergunta que a
+ordem já responde, e as duas divergiriam no dia em que alguém apagasse uma
+etapa. É "bloqueio não é status" e "atraso do Financeiro não é coluna" de novo —
+e o que ela poupou foi um tipo novo no enum, uma rota nova no portal e um jogo
+de policies.
+
+##### A linha que o sprint quase quebrou de forma cara
+
+`decidir_rodada_do_cliente` escreve `posts.status = 'aprovado'` a cada decisão
+positiva, desde a 0032. Com um portão no meio da corrente isso passaria a
+afirmar que a **peça inteira** está fechada — verde no calendário do cliente,
+fechada na grade do feed, "pode programar" para a agência — quando o que ele
+aprovou foi um parágrafo de texto e a arte nem existe.
+
+Por isso `posts_corrente_do_cliente` **devolve o post para `em_producao`** quando
+o portão decidido não é o Envio. A rodada fica gravada como aprovada, que é a
+verdade, e a corrente anda. **É o cenário que justifica o arquivo de bateria
+inteiro**, e o único que cai quando se tira essa linha.
+
+O recálculo precisa de uma saída de reentrância — o GUC de escopo local da 0045
+—, senão o `update` do próprio trigger o dispararia de novo.
+
+##### Num portão do meio não há arte, e as travas mudam de forma
+
+- **A trava de data não vale.** "Post sem data não vai ao cliente" (0044) é
+  sobre a ARTE: ele decidiria sobre a peça sem saber quando ela vai ao ar. A
+  Pauta é a **primeira** etapa da corrente, e o mês abre em branco (0044) — exigir
+  a data ali seria uma recusa que a corrente não tem como satisfazer, e o portão
+  ficaria fechado para sempre. O mesmo vale para o link do vídeo.
+- **O botão diz O QUE está saindo.** `rotuloDoEnvio()` — "Enviar a Pauta ao
+  cliente". Numa conta que aprova a pauta a gestão clica nesse botão duas vezes
+  na vida de um post, e as duas mandam coisas diferentes: um rótulo igual nas
+  duas é a tela pedindo uma decisão sem dizer sobre o quê.
+- **A etapa-portão continua se marcando à mão**, ao contrário do Envio. Recusar
+  `em_andamento` deixaria quem escreve a pauta sem como dizer que começou. O que
+  o banco recusa é o FIM dela pela mão de alguém — `concluida` e
+  `enviada_aprovacao`, os dois que afirmam uma decisão que não aconteceu.
+- **O ajuste nasce DEPOIS do portão recusado**, e não no vão fixo entre Envio e
+  Programar, e quem refaz é o dono do próprio portão: quem escreveu a pauta
+  reescreve a pauta. Ler "Layout" ali poria o designer para reescrever texto.
+
+##### A PAUTA PASSA A SER LEGÍVEL PELO CLIENTE, e a inversão é declarada
+
+A 0046 escreveu que a pauta é conversa interna, e era verdade **enquanto
+ninguém de fora a decidia**. Quem liga o interruptor está dizendo que naquela
+conta ela não é — e o recorte é exatamente esse: só a etapa marcada, só enquanto
+ela é o portão aberto, só na conta que a ligou. A aba diz isso em voz alta antes
+de alguém salvar.
+
+**E o cliente CONTINUA sem policy em `post_etapas`**, que é a linha da 0045 e
+fica de pé: a corrente é conversa interna — quem está com o material na mão,
+qual etapa travou, quem atrasou. O que ele precisa é outra coisa, e quem
+devolve é `o_que_o_cliente_decide()`, `security definer` entregando só o
+agregado: a forma de `usuarios_do_meu_cliente()` (0031), de
+`meus_pedidos_de_nota()` (0066) e de `meus_comodatos()` (0069).
+
+**A guarda dela é escrita à mão, e é a parte que a bateria mede**: `security
+definer` não passa pela RLS de `posts`, então as quatro linhas que repetem
+`posts_select_cliente` são o que impede a função de responder sobre o post de
+qualquer empresa para quem tiver o uuid. Tirando-as, três cenários caem e dizem
+o que vazaria — e o furo passaria despercebido num banco com um cliente só, que
+é a lição da `calendar_events`.
+
+##### A tela do portal, sem arte
+
+**A moldura de arte SOME quando há o aviso e não há arte.** Ela diz *"este
+material ainda não tem arte anexada"*, que é verdade e lê como defeito — e
+ocupa a primeira dobra inteira para informar que não há nada ali. Sem o aviso a
+moldura fica: aí a ausência de arte É uma falta, e escondê-la esconderia a
+falta.
+
+O que entra no lugar é o texto daquele portão — a pauta, a legenda — com o
+cabeçalho levando o nome dele: "Legenda" em cima de uma pauta seria a tela
+dizendo a coisa errada sobre o que a pessoa está lendo.
+
+**E a frase do aviso não carrega vocabulário interno.** Ela nomeia a coisa —
+"na Pauta deste material" —, nunca o passo do fluxo: o cliente recebe material,
+e essa é a regra deste lado do produto. **`check:cores` não pegaria isto**,
+porque a frase nasce em `lib/dominio/` e a varredura procura o jargão em
+`src/app/(cliente)/` e `src/components/portal/` — é o caso da ausência que chega
+com a chave do enum no Calendário Full. Quem mexer nela mexe sem rede, e a
+decisão está escrita ao lado da função.
 
 #### As etapas de social aparecem em Minhas Tasks
 

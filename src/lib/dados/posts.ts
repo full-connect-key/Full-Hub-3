@@ -54,6 +54,16 @@ function montar(
   linha: LinhaDePost,
   rodada: RodadaDoConteudo | undefined,
   nomes: Map<string, string>,
+  /**
+   * O portão do meio da corrente (0076), quando a tela o pediu.
+   *
+   * **Nulo na listagem do mês, e é decisão.** A grade e o calendário mostram
+   * uma miniatura e um selo por post — a etapa que está esperando o cliente não
+   * muda nenhum dos dois, e perguntá-la ali seria uma chamada por post para
+   * desenhar o que já está desenhado. Quem precisa dela é a tela de decisão,
+   * que é de um post só.
+   */
+  portao?: { etapa: string; texto: string | null } | null,
 ): PostDoPortal {
   return {
     id: linha.id,
@@ -75,6 +85,8 @@ function montar(
       ? (nomes.get(rodada.decidido_por) ?? null)
       : null,
     decididoEm: rodada?.decidido_em ?? null,
+    portaoDoCliente: portao?.etapa ?? null,
+    textoDoPortao: portao?.texto ?? null,
   };
 }
 
@@ -134,7 +146,40 @@ export async function obterPost(
   const rodadas = await rodadasDo("post", [linha.id]);
   const nomes = await nomesDe([rodadas.get(linha.id)?.decidido_por ?? null]);
 
-  return montar(linha, rodadas.get(linha.id), nomes);
+  return montar(linha, rodadas.get(linha.id), nomes, await portaoDoPost(supabase, linha.id));
+}
+
+/**
+ * Qual etapa da corrente está esperando o cliente, e o texto dela (0076).
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA NÃO USA `ouFalha()`, e a exceção tem motivo.** A tela de decisão
+ * funciona inteira sem esta resposta — ela é o caminho de sempre, o do Envio, em
+ * que não há portão do meio nenhum. Derrubar a tela em que o cliente aprova por
+ * causa de uma linha que quase sempre vem vazia seria trocar uma imprecisão por
+ * uma falha total, que é a decisão da faixa de novidades de Minhas Tasks.
+ *
+ * O que ela NÃO pode fazer é falhar calada do outro lado: o erro vai para o log
+ * do servidor, senão um portão que parasse de aparecer para todos os clientes
+ * seria descoberto por alguém aprovando uma pauta sem saber que era uma pauta.
+ * ---------------------------------------------------------------------------
+ */
+async function portaoDoPost(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  postId: string,
+): Promise<{ etapa: string; texto: string | null } | null> {
+  const { data, error } = await supabase.rpc("o_que_o_cliente_decide", {
+    p_post_id: postId,
+  });
+
+  if (error) {
+    console.error("[consulta:o portão do cliente no post]", error);
+    return null;
+  }
+
+  const primeiro = data?.[0];
+  if (!primeiro) return null;
+  return { etapa: primeiro.etapa, texto: primeiro.texto };
 }
 
 /** O histórico de versões, da mais nova para a mais antiga. */

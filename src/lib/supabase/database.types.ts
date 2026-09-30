@@ -575,6 +575,17 @@ export interface Database {
           aprovador_interno_id: string | null;
           pasta_entrega_url: string | null;
           prazo_aprovacao_cliente_dias: number;
+          /**
+           * Os elos da corrente do social que ESTA conta aprova, além do
+           * Envio (0076) — *"algumas contas aprovam pauta, antes de entrar em
+           * produção"*.
+           *
+           * É `text[]` e não `jsonb` como o `p_prazos` da 0059, que também é
+           * por nome de etapa: lá a pergunta pede um NÚMERO por chave, e um
+           * mapa é a forma certa; aqui ela é de pertencimento, e um mapa com
+           * valores `false` guarda o que ninguém quis dizer.
+           */
+          social_aprovacoes: string[];
           created_at: string;
           updated_at: string;
         };
@@ -584,11 +595,13 @@ export interface Database {
           aprovador_interno_id?: string | null;
           pasta_entrega_url?: string | null;
           prazo_aprovacao_cliente_dias?: number;
+          social_aprovacoes?: string[];
         };
         Update: {
           aprovador_interno_id?: string | null;
           pasta_entrega_url?: string | null;
           prazo_aprovacao_cliente_dias?: number;
+          social_aprovacoes?: string[];
         };
         Relationships: [];
       };
@@ -2340,6 +2353,16 @@ export interface Database {
            * o post. A coluna existia na tabela e nao existia no produto.
            */
           prazo_offset_dias: number | null;
+          /**
+           * Esta etapa passa pelo CLIENTE antes de a próxima começar (0076).
+           *
+           * Nasce da lista da conta (`client_flow_defaults.social_aprovacoes`)
+           * e a gestão troca por post. O Envio não precisa dela: ele É o
+           * portão do cliente desde a 0045 — e quem for marcá-lo aqui por
+           * engano não consegue, porque `montar_etapas_do_post` o deixa de
+           * fora.
+           */
+          aprovacao_cliente: boolean;
           concluida_em: string | null;
           created_at: string;
           updated_at: string;
@@ -2353,6 +2376,7 @@ export interface Database {
           responsavel_id?: string | null;
           status?: SubtaskStatus;
           prazo?: string | null;
+          aprovacao_cliente?: boolean;
         };
         Update: {
           /** O que o RESPONSÁVEL troca é o status, e mais nada — o resto o
@@ -2364,6 +2388,7 @@ export interface Database {
           ordem?: number;
           responsavel_id?: string | null;
           prazo?: string | null;
+          aprovacao_cliente?: boolean;
         };
         Relationships: [];
       };
@@ -2846,6 +2871,18 @@ export interface Database {
       decidir_rodada_do_cliente: {
         Args: { p_round_id: string; p_decisao: StatusRodada; p_comentario: string | null };
         Returns: void;
+      };
+      /**
+       * O portão da corrente que espera o cliente, e o texto dele (0076).
+       *
+       * Devolve zero linhas no caminho de sempre — o do Envio —, e é por isso
+       * que a tela do portal trata a lista vazia como "nada a anunciar" em vez
+       * de erro. `security definer` porque o cliente não tem policy em
+       * `post_etapas` e não passa a ter.
+       */
+      o_que_o_cliente_decide: {
+        Args: { p_post_id: string };
+        Returns: { etapa: string; texto: string | null }[];
       };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
 

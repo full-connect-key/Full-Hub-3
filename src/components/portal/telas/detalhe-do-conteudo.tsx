@@ -50,6 +50,39 @@ export type ModeloDoConteudo = {
    * ("Copiar legenda", "Ler a descrição inteira").
    */
   texto: { titulo: string; rotulo: string; corpo: string | null };
+  /**
+   * O texto fica AO LADO da arte, e não abaixo dela (decisão do usuário:
+   * *"quero que na visualização do cliente, a legenda apareça ao lado da
+   * imagem, para deixar o mais próximo do instagram possível"*).
+   *
+   * **É uma bandeira do modelo e não o padrão da casca**, porque a razão dela
+   * é do POST e não do material em geral: um post é uma arte quadrada com uma
+   * legenda ao lado, que é exatamente o arranjo que o cliente vai ver quando
+   * a peça for ao ar — e conferir a legenda contra a arte é a decisão que ele
+   * veio tomar. O entregável de campanha é um PDF de impressão ou um AI
+   * aberto, e a descrição dele é uma instrução de produção: espremê-la numa
+   * coluna de 340px ao lado de uma lâmina A5 deitada tira largura da peça
+   * para dar a um texto que não se lê em paralelo com ela.
+   */
+  textoAoLado?: boolean;
+  /**
+   * O aviso acima do material, quando o que saiu NÃO é o material pronto.
+   *
+   * ------------------------------------------------------------------------
+   * Ele nasceu com o portão do meio da corrente do social (migration 0076):
+   * numa conta que aprova a pauta, o primeiro material que chega ao cliente é
+   * um parágrafo de texto, semanas antes de existir arte. Sem esta linha a tela
+   * abriria igual à de sempre — moldura de arte, legenda, dois botões — e a
+   * pessoa aprovaria sem saber o que estava aprovando.
+   *
+   * **E ele decide se a moldura de arte aparece:** com aviso e sem arte, o
+   * quadro é omitido. Aquele quadro diz *"este material ainda não tem arte
+   * anexada"*, que é verdade e lê como defeito — e ocupa a primeira dobra
+   * inteira para dizer que não há nada ali. Sem o aviso, a moldura fica: aí a
+   * ausência de arte É uma falta, e esconder o quadro esconderia a falta.
+   * ------------------------------------------------------------------------
+   */
+  aviso?: string | null;
   /** A peça, em ordem. Um entregável tem uma; um carrossel tem as que o
    *  cliente vai percorrer antes de decidir — e decidir sobre a primeira,
    *  quando há cinco, é decidir sobre um quinto do material. */
@@ -131,10 +164,53 @@ export function DetalheDoConteudo({
         </div>
       </div>
 
-      <VisualizadorDeArte
-        imagens={modelo.artes}
-        alt={`Arte de ${modelo.titulo}`}
-      />
+      {/* ------------------------------------------- a arte e o que a acompanha --
+          A LEGENDA FICA AO LADO DA ARTE, como no Instagram aberto no
+          computador: a peça à esquerda, o texto numa coluna estreita à
+          direita. É o arranjo em que o cliente vai encontrar o post quando
+          ele for ao ar, e é ele que permite ler a legenda SEM tirar a arte do
+          campo de visão — que é a conferência que a pessoa veio fazer.
+
+          A coluna é FIXA em 340px e não `1fr`, pela razão da coluna de 306px
+          do painel: em `1fr` ela encolheria junto com a arte, e o que importa
+          nela é caber uma linha de legenda sem quebrar a cada três palavras.
+          Abaixo de `lg` volta a empilhar — num celular não há "ao lado", e é
+          assim que o próprio Instagram se comporta.
+
+          E ela NÃO vale para todo material: quem decide é o modelo. A
+          explicação está no campo `textoAoLado`, lá em cima. */}
+      {/* O AVISO VEM ANTES DO MATERIAL, e não entre ele e os botões: é a
+          frase que diz o que está sendo decidido, e ela só serve se for lida
+          ANTES. `--warning` e nunca `--danger` — não há erro nenhum aqui, há
+          um passo do caminho. */}
+      {modelo.aviso ? (
+        <p className="bg-warning-soft text-warning rounded-lg px-3.5 py-2.5 text-sm font-semibold">
+          {modelo.aviso}
+        </p>
+      ) : null}
+
+      <div
+        className={
+          modelo.textoAoLado
+            ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"
+            : "space-y-8"
+        }
+      >
+        {modelo.artes.length > 0 || !modelo.aviso ? (
+          <VisualizadorDeArte
+            imagens={modelo.artes}
+            alt={`Arte de ${modelo.titulo}`}
+          />
+        ) : null}
+
+        <section className="min-w-0 space-y-3">
+          <h2 className="text-lg font-semibold">{modelo.texto.titulo}</h2>
+          <TextoDoConteudo
+            texto={modelo.texto.corpo}
+            rotulo={modelo.texto.rotulo}
+          />
+        </section>
+      </div>
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Informações</h2>
@@ -149,14 +225,6 @@ export function DetalheDoConteudo({
             </div>
           ))}
         </dl>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">{modelo.texto.titulo}</h2>
-        <TextoDoConteudo
-          texto={modelo.texto.corpo}
-          rotulo={modelo.texto.rotulo}
-        />
       </section>
 
       <section className="space-y-4">

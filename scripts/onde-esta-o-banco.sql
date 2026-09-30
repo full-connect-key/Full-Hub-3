@@ -225,7 +225,15 @@ from (
     -- tabela do relatorio: ela e a unica coisa do modulo que nao existe de
     -- forma nenhuma antes dele. `feedback_metricas` serviria igual; a tabela e
     -- mais barata de conferir e e o que a tela le.
-    ('0075', 'feedback_reports',           'tabela',       'feedback_reports')
+    ('0075', 'feedback_reports',           'tabela',       'feedback_reports'),
+    -- A 0076 acrescenta DUAS colunas e cria UMA funcao, e a linha aponta para
+    -- a funcao: as duas colunas tem `default`, entao um banco parado antes
+    -- dela responde as consultas antigas sem erro nenhum -- e a corrente
+    -- continuaria com um portao so, calada. `porta_do_cliente_no_post` e o que
+    -- `posts_corrente_do_cliente` passou a chamar: sem ela a decisao do
+    -- cliente estoura com "function does not exist", que e o sintoma que se
+    -- vai investigar.
+    ('0076', 'porta_do_cliente_no_post()', 'funcao',       'porta_do_cliente_no_post')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

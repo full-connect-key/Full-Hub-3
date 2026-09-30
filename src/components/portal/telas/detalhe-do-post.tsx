@@ -15,6 +15,7 @@ import {
   versoesDoPost,
 } from "@/lib/dados/posts";
 import {
+  fraseDoPortao,
   mesDe,
   ROTULO_DA_PLATAFORMA,
   type PostDoPortal,
@@ -85,6 +86,12 @@ export async function DetalheDoPost({
 
   const { anterior, proximo } = vizinhosDe(post, doMes);
 
+  // O QUE ESTÁ ESPERANDO ELE, quando não é o material pronto (0076). Numa conta
+  // que aprova a pauta, o primeiro que chega aqui é um parágrafo de texto — e o
+  // que a tela mostra passa a ser ele, com a frase dizendo o que se decide.
+  const portao = post.portaoDoCliente;
+  const artesDoPost = doCarrossel.length > 0 ? doCarrossel : capa ? [capa] : [];
+
   const modelo: ModeloDoConteudo = {
     conteudo: doPost(post.id),
     titulo: post.tema,
@@ -108,8 +115,29 @@ export async function DetalheDoPost({
           : "Sem prazo definido",
       },
     ],
-    texto: { titulo: "Legenda", rotulo: "a legenda", corpo: post.legenda },
-    artes: doCarrossel.length > 0 ? doCarrossel : capa ? [capa] : [],
+    // O TEXTO É O DAQUILO QUE ESTÁ SENDO DECIDIDO, e o cabeçalho leva o nome
+    // dele: "Legenda" em cima de uma pauta seria a tela dizendo a coisa errada
+    // sobre o que a pessoa está lendo. O de-para mora num lugar só, a função
+    // `o_que_o_cliente_decide()` — e o vocabulário interno da agência não
+    // aparece aqui, que é a regra deste lado do produto.
+    texto: portao
+      ? {
+          titulo: portao,
+          rotulo: `a ${portao.toLowerCase()}`,
+          corpo: post.textoDoPortao,
+        }
+      : { titulo: "Legenda", rotulo: "a legenda", corpo: post.legenda },
+    aviso: portao ? fraseDoPortao(portao) : null,
+    // A LEGENDA AO LADO DA ARTE, e só no post — decisão do usuário. É o
+    // arranjo do Instagram aberto no computador, e é o que o cliente vai ver
+    // quando a peça for ao ar. A explicação inteira mora em `textoAoLado`.
+    //
+    // **É derivado da ARTE e não uma constante `true`**, porque desde a 0076 o
+    // post pode chegar sem arte nenhuma: numa coluna de 340px ao lado de nada, o
+    // texto ficaria estreito de graça. Antes da 0076 os dois eram a mesma
+    // coisa — post com o cliente sem arte era recusado pelo banco.
+    textoAoLado: artesDoPost.length > 0,
+    artes: artesDoPost,
     versaoAtual: post.versaoAtual,
     // O post ainda não oferece download: quem publica é a agência, e o
     // arquivo do cliente é o que vai ao ar, não o que ele guarda. Se um dia

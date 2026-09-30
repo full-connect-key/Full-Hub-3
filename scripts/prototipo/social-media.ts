@@ -326,6 +326,11 @@ const CORRENTE: EtapaDoPost[] = [
     status: "concluida",
     prazo: dia(10),
     concluidaEm: dia(10),
+    // A PAUTA E PORTAO DO CLIENTE (0076), e e o unico elo do stub que carrega
+    // a marca: ela existe para a imagem mostrar o selo que so aparece nas
+    // contas que aprovam a pauta. Marcar todas poria na imagem uma conta que
+    // aprova cinco vezes, que nao e o caso comum.
+    aprovacaoCliente: true,
   },
   {
     id: "e2",
@@ -337,6 +342,7 @@ const CORRENTE: EtapaDoPost[] = [
     status: "concluida",
     prazo: dia(12),
     concluidaEm: dia(12),
+    aprovacaoCliente: false,
   },
   {
     id: "e3",
@@ -348,6 +354,7 @@ const CORRENTE: EtapaDoPost[] = [
     status: "concluida",
     prazo: dia(14),
     concluidaEm: dia(14),
+    aprovacaoCliente: false,
   },
   // `em_ajustes` E NAO `enviada_aprovacao`, e a diferenca nao e detalhe: a
   // etapa de Ajustes so existe porque o cliente pediu, e nesse instante o
@@ -363,6 +370,7 @@ const CORRENTE: EtapaDoPost[] = [
     status: "em_ajustes",
     prazo: null,
     concluidaEm: null,
+    aprovacaoCliente: false,
   },
   {
     id: "e5",
@@ -374,6 +382,7 @@ const CORRENTE: EtapaDoPost[] = [
     status: "em_andamento",
     prazo: dia(16),
     concluidaEm: null,
+    aprovacaoCliente: false,
   },
   {
     id: "e6",
@@ -385,6 +394,7 @@ const CORRENTE: EtapaDoPost[] = [
     status: "nao_iniciada",
     prazo: dia(17),
     concluidaEm: null,
+    aprovacaoCliente: false,
   },
 ];
 

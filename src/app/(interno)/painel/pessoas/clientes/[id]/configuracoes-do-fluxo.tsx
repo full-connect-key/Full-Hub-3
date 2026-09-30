@@ -10,6 +10,7 @@ import {
   Lock,
   Repeat,
   Save,
+  UserCheck,
   TriangleAlert,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -29,6 +31,7 @@ import {
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import { FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
+import { ETAPAS_QUE_O_CLIENTE_PODE_APROVAR } from "@/lib/dominio/posts";
 import type { FluxoDaConta, PadroesDaConta, RecorrenciaDaConta } from "@/lib/dados/fluxo-do-cliente";
 import type { TeamFuncao, UserRole } from "@/lib/supabase/database.types";
 
@@ -111,6 +114,12 @@ export function ConfiguracoesDoFluxo({
   const [prazo, setPrazo] = useState(
     String(padroes.linha?.prazo_aprovacao_cliente_dias ?? PRAZO_DE_APROVACAO_PADRAO),
   );
+  // UM `Set` E NÃO UM ARRAY, porque a pergunta que a tela faz é de pertinência
+  // — "a Pauta está ligada?" — e a ordem de gravação é decidida na action, pela
+  // ordem da corrente. Um array aqui gravaria a ordem dos cliques.
+  const [portoes, setPortoes] = useState<Set<string>>(
+    () => new Set(padroes.linha?.social_aprovacoes ?? []),
+  );
 
   const porFuncao = new Map(padroes.porFuncao.map((p) => [p.funcao, p.pessoa.id]));
 
@@ -126,6 +135,7 @@ export function ConfiguracoesDoFluxo({
           aprovador_interno_id: aprovador === SEM_NINGUEM ? null : aprovador,
           pasta_entrega_url: pasta.trim() || null,
           prazo_aprovacao_cliente_dias: Number(prazo) || PRAZO_DE_APROVACAO_PADRAO,
+          social_aprovacoes: [...portoes],
         }),
       );
       if (resultado?.ok) router.refresh();
@@ -351,7 +361,7 @@ export function ConfiguracoesDoFluxo({
         )}
       </SecaoDoFormulario>
 
-      <SecaoDoFormulario numero={3} titulo="Entrega e prazos">
+      <SecaoDoFormulario numero={3} titulo="Entrega, prazos e o que o cliente aprova">
         <div className="space-y-4 rounded-xl border p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -390,6 +400,93 @@ export function ConfiguracoesDoFluxo({
                 atrasado na fila de aprovações.
               </p>
             </div>
+          </div>
+
+          {/* ----------------------------------------- o portão do cliente --
+              O QUE O CLIENTE APROVA NO SOCIAL (migration 0076), e ele mora
+              nesta seção por duas razões. A primeira é de conteúdo: a seção 3
+              é onde já vivem as perguntas sobre o cliente desta conta — o
+              prazo de resposta dele está a três linhas daqui. A segunda é
+              mecânica: as duas coisas são colunas da MESMA linha de
+              `client_flow_defaults`, e um segundo botão Salvar para a mesma
+              linha seria duas escritas concorrentes na mesma tela.
+
+              É PADRÃO DA CONTA e não escolha por post: "algumas contas aprovam
+              pauta" é combinado de contrato, e uma pergunta na abertura de cada
+              mês obrigaria a repetir a mesma resposta doze vezes por ano, por
+              cliente — e a décima terceira sairia diferente. */}
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <p className="text-sm font-medium">O que o cliente aprova no social</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                O envio do material pronto passa sempre por ele. Aqui se escolhe o
+                que mais desta conta espera o aval dele antes de seguir.
+              </p>
+            </div>
+
+            <ul className="space-y-2">
+              {ETAPAS_QUE_O_CLIENTE_PODE_APROVAR.map((etapa) => {
+                const ligado = portoes.has(etapa.nome);
+                return (
+                  <li
+                    key={etapa.nome}
+                    className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <div className="min-w-0">
+                      <Label
+                        htmlFor={`portao-${etapa.nome}`}
+                        className="cursor-pointer text-sm"
+                      >
+                        {etapa.nome}
+                        <span className="text-muted-foreground font-normal">
+                          · {ROTULOS_DE_FUNCAO[etapa.funcao]}
+                        </span>
+                      </Label>
+                      {/* A FRASE DIZ O QUE ACONTECE COM A CORRENTE, não que o
+                          interruptor está ligado — isso o próprio interruptor
+                          já diz. Ligado, o trabalho para ali e espera alguém de
+                          fora da agência; é essa consequência que decide. */}
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {ligado ? (
+                          <span className="text-warning inline-flex items-center gap-1">
+                            <UserCheck aria-hidden className="size-3 shrink-0" />
+                            a corrente para aqui e espera o cliente aprovar
+                          </span>
+                        ) : (
+                          "segue direto para a etapa seguinte"
+                        )}
+                      </p>
+                    </div>
+                    <Switch
+                      id={`portao-${etapa.nome}`}
+                      checked={ligado}
+                      disabled={salvando}
+                      onCheckedChange={(marcado) =>
+                        setPortoes((atual) => {
+                          const proximo = new Set(atual);
+                          if (marcado) proximo.add(etapa.nome);
+                          else proximo.delete(etapa.nome);
+                          return proximo;
+                        })
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* O QUE MUDA PARA O CLIENTE É DITO AQUI, e não descoberto depois.
+                A pauta é conversa interna em toda conta que não liga este
+                interruptor — está escrito assim desde a 0046. Ligando, ela vira
+                a primeira coisa que o cliente lê sobre aquele post, e quem
+                configura a conta é quem precisa saber disso antes de salvar. */}
+            {portoes.size > 0 ? (
+              <p className="bg-warning-soft text-warning rounded-lg px-3 py-2 text-xs">
+                O texto de cada etapa marcada passa a aparecer no portal deste
+                cliente. Vale para os posts abertos daqui em diante: o mês que já
+                está aberto continua com a corrente que nasceu com ele.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex justify-end border-t pt-4">

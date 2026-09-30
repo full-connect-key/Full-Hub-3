@@ -380,7 +380,7 @@ export async function corrente(postId: string): Promise<EtapaDoPost[]> {
     await supabase
       .from("post_etapas")
       .select(
-        "id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em",
+        "id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em, aprovacao_cliente",
       )
       .eq("post_id", postId)
       .order("ordem"),
@@ -401,6 +401,7 @@ export async function corrente(postId: string): Promise<EtapaDoPost[]> {
     status: l.status,
     prazo: l.prazo,
     concluidaEm: l.concluida_em,
+    aprovacaoCliente: l.aprovacao_cliente,
   }));
 }
 
@@ -434,7 +435,7 @@ export async function minhasEtapasDeSocial(
     await supabase
       .from("post_etapas")
       .select(
-        "id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em",
+        "id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em, aprovacao_cliente",
       )
       .eq("responsavel_id", usuarioId)
       .neq("status", "concluida")
@@ -497,6 +498,7 @@ export async function minhasEtapasDeSocial(
         status: e.status,
         prazo: e.prazo,
         concluidaEm: e.concluida_em,
+        aprovacaoCliente: e.aprovacao_cliente,
         tema: post?.tema ?? "—",
         cliente: post ? (nomeDoCliente.get(post.client_id) ?? "—") : "—",
         dataPublicacao: post?.data_publicacao ?? null,

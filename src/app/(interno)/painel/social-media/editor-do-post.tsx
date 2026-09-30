@@ -41,6 +41,8 @@ import {
   SIGLA_DA_PLATAFORMA,
   maoDoPost,
   podeEnviarAoCliente,
+  portaoDoCliente,
+  rotuloDoEnvio,
   podeProduzir,
   type MaoDoPost,
   rotuloDaData,
@@ -152,7 +154,15 @@ export function EditorDoPost({
   const slides = versaoAtual?.arquivos ?? [];
   const mao = maoDoPost(post);
   const posso = podeProduzir(post, quemLe);
-  const envio = podeEnviarAoCliente(post, quemLe);
+  // QUAL ETAPA ESTÁ SAINDO (0076). Numa conta que aprova a pauta, este botão é
+  // clicado duas vezes na vida do post, e as duas mandam coisas diferentes: sem
+  // o portão ele diria "Enviar ao cliente" nas duas e cobraria a arte na
+  // primeira, que é a Pauta — a etapa em que a arte ainda não existe.
+  //
+  // É `porta_do_cliente_no_post()` do outro lado, e as duas fazem a mesma
+  // pergunta: o primeiro portão ainda não concluído, na ordem da corrente.
+  const portao = portaoDoCliente(etapas);
+  const envio = podeEnviarAoCliente(post, quemLe, portao);
 
   // SEM EFEITO PARA RESSINCRONIZAR O ESTADO, e a ausência é o conserto: quem
   // troca de post é o `key={post.id}` lá em `social-media.tsx`, que remonta a
@@ -604,7 +614,7 @@ export function EditorDoPost({
             }
           >
             <Send aria-hidden className="size-4" />
-            Enviar ao cliente
+            {rotuloDoEnvio(portao)}
           </Button>
 
           {quemLe.ehGestor ? (

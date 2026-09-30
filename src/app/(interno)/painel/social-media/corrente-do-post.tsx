@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Lock, Play } from "lucide-react";
+import { Check, Lock, Play, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
@@ -9,7 +9,9 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   bloqueioDaEtapa,
   etapaDaVez,
+  etapaEsperaOCliente,
   etapaSeMarcaAMao,
+  rotuloDoEnvio,
   andamentoDaCorrente,
   type EtapaDoPost,
 } from "@/lib/dominio/posts";
@@ -124,8 +126,25 @@ export function CorrenteDoPost({
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="text-text-primary block text-sm font-bold tracking-[-0.01em]">
-                    {etapa.nome}
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-text-primary text-sm font-bold tracking-[-0.01em]">
+                      {etapa.nome}
+                    </span>
+                    {/* O SELO DIZ QUE ESTA ETAPA SAI DA AGÊNCIA (0076), e é a
+                        informação que muda o que a pessoa faz: ela produz a
+                        pauta e para — não conclui, envia. Sem o selo, a única
+                        pista seria a recusa do banco no clique de concluir, e
+                        descobrir uma regra levando "não" é o que este produto
+                        evita desde o botão desligado com a razão escrita. */}
+                    {etapaEsperaOCliente(etapa) ? (
+                      <span
+                        className="bg-warning-soft text-warning inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
+                        title="Esta conta pede o aval do cliente nesta etapa."
+                      >
+                        <UserCheck aria-hidden className="size-3 shrink-0" />
+                        Cliente aprova
+                      </span>
+                    ) : null}
                   </span>
                   {/* A FUNÇÃO E A PESSOA, e não só a pessoa: "Design" é o que a
                       etapa é, e o nome é quem está com ela hoje. Sem o nome,
@@ -160,6 +179,26 @@ export function CorrenteDoPost({
               ) : !etapaSeMarcaAMao(etapa) ? (
                 <p className="text-text-muted mt-1.5 pl-11 text-xs">
                   Acompanha a decisão do cliente — use a ação Enviar ao cliente.
+                </p>
+              ) : etapaEsperaOCliente(etapa) && etapa.status !== "concluida" ? (
+                /* O SELETOR CONTINUA AQUI, e a frase diz onde ele para: quem
+                   escreve a pauta marca "em andamento" e trabalha; quem fecha
+                   esta etapa é a decisão de fora. Trocar o seletor por um selo
+                   travaria a primeira etapa da corrente para sempre.
+
+                   **E ela SOME quando a etapa fecha**, que foi o que a imagem
+                   do protótipo mostrou: instrução em cima de coisa que já
+                   aconteceu é ruído na linha que a pessoa lê para saber o que
+                   fazer agora. O SELO fica — ele não manda fazer nada, diz que
+                   aquela etapa passou pelo cliente, e isso continua sendo um
+                   fato sobre ela depois de fechada.
+
+                   O nome do botão sai de `rotuloDoEnvio`, e não escrito aqui:
+                   a instrução e o botão que ela manda apertar divergiriam na
+                   primeira vez que alguém mexesse num dos dois. */
+                <p className="text-text-muted mt-1.5 pl-11 text-xs">
+                  Quem fecha esta etapa é o cliente — use a ação{" "}
+                  {rotuloDoEnvio(etapa)}.
                 </p>
               ) : null}
             </li>

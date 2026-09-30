@@ -462,6 +462,11 @@ const TELAS = [
   { nome: "16d-portal-social-lista", rota: "/portal/social-media?visao=lista", largura: 1280, altura: 1200 },
   { nome: "16e-portal-post", rota: "/portal/social-media/p1", largura: 1280, altura: 2100 },
   { nome: "16f-portal-post-aprovado", rota: "/portal/social-media/p5", largura: 1280, altura: 1500 },
+  // O PORTÃO DO MEIO DA CORRENTE (0076): pauta sem arte, com o aviso dizendo
+  // o que está sendo decidido. É a tela que o sprint inteiro existe para
+  // desenhar, e ela não aparece em nenhuma das outras — nelas há arte.
+  { nome: "16k-portal-post-pauta", rota: "/portal/social-media/p10", largura: 1280, altura: 1500 },
+  { nome: "16l-portal-post-pauta-390", rota: "/portal/social-media/p10", largura: 390, altura: 1500 },
   { nome: "16g-portal-social-375", rota: "/portal/social-media", largura: 375, altura: 1400 },
   { nome: "16h-portal-post-375", rota: "/portal/social-media/p1", largura: 375, altura: 2000 },
   { nome: "20-portal-campanhas", rota: "/portal/campanhas", largura: 1280, altura: 900 },

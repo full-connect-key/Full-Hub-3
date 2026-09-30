@@ -90,7 +90,47 @@ export type PostDoPortal = {
   /** Quem decidiu a última rodada fechada, e quando. */
   decididoPor: string | null;
   decididoEm: string | null;
+  /**
+   * A etapa da corrente que está esperando o cliente, quando não é o Envio
+   * (migration 0076). Nula no caminho de sempre.
+   *
+   * **Ela vem de `o_que_o_cliente_decide()` e não de um `select` em
+   * `post_etapas`**, porque o cliente não tem policy naquela tabela desde a
+   * 0045 — e não passa a ter: a corrente é conversa interna. O que a função
+   * devolve é o agregado de que a tela precisa, e nada mais.
+   */
+  portaoDoCliente: string | null;
+  /** O texto daquele portão — a pauta, ou a legenda. */
+  textoDoPortao: string | null;
 };
+
+/**
+ * A frase que diz ao cliente o que ele está decidindo (0076).
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA NOMEIA A COISA, e a palavra que descreve o PASSO fica de fora.** O
+ * cliente recebe material; "etapa" é palavra da agência, e a regra do produto
+ * diz isso desde o Sprint 12 — nenhum jargão interno atravessa para o lado
+ * dele. Aqui a coisa se chama Pauta ou Conteúdo, que são nomes do trabalho
+ * dele e não do nosso fluxo.
+ *
+ * **E a varredura NÃO pegaria isto, que é o motivo de a decisão estar
+ * escrita.** `check:cores` procura o vocabulário interno em
+ * `src/app/(cliente)/` e `src/components/portal/`, e esta frase nasce em
+ * `lib/dominio/` — o mesmo caso da ausência que chega com a chave do enum no
+ * Calendário Full: o texto vem de fora do caminho varrido e a regra continua
+ * valendo. Quem mexer nesta linha mexe sem rede.
+ *
+ * **Ela nomeia QUAL**, como a recusa da 0023 nomeia cada etapa sem aprovação:
+ * "a Full pediu seu aval" manda a pessoa procurar o que mudou. E diz o que vem
+ * depois, porque é isso que tira a impressão de que falta algo na tela: quem
+ * abre um post sem arte nenhuma precisa saber que a arte ainda vai existir, e
+ * que este aval é o que a destrava.
+ * ---------------------------------------------------------------------------
+ */
+export function fraseDoPortao(nome: string): string {
+  return `A Full está pedindo seu aval na ${nome} deste material. O resto segue depois que você aprovar.`;
+}
 
 export type FiltrosDePost = {
   plataforma: PlataformaSocial | null;
@@ -306,19 +346,49 @@ export function maoDoPost(post: EstadoDoPost): MaoDoPost {
  * o botão:** um botão que some ensina que não existe; um botão desligado que
  * diz por quê ensina a regra — e a regra aqui é de banco, não de tela.
  */
-export function faltaParaEnviar(post: EstadoDoPost): string[] {
+export function faltaParaEnviar(
+  post: EstadoDoPost,
+  /**
+   * O portão que está saindo. Sem ele a resposta é a de sempre — o Envio —,
+   * que é o que mantém de pé toda tela que ainda não passa a corrente.
+   */
+  portao?: EtapaDoPost | null,
+): string[] {
   const faltam: string[] = [];
+  const doMeio = Boolean(portao && portao.nome !== "Envio");
 
-  if (post.midia === "video") {
-    if (!post.videoUrl?.trim()) faltam.push("o link do vídeo");
-  } else if (!post.arteUrl) {
-    faltam.push("a arte");
+  // NUM PORTÃO DO MEIO A ARTE NÃO É O QUE SAI, e é por isso que a pergunta
+  // mudou de forma na 0076: quem vai ao cliente é a pauta ou a legenda, e a
+  // arte nem existe ainda. Exigi-la ali travaria o portão para sempre — a
+  // Pauta é a PRIMEIRA etapa da corrente.
+  //
+  // `validar_nova_rodada` faz a mesma distinção no banco, e as duas saíram no
+  // mesmo commit: a lição da 0029 é que desfazer um lado só não desfaz nada.
+  if (!doMeio) {
+    if (post.midia === "video") {
+      if (!post.videoUrl?.trim()) faltam.push("o link do vídeo");
+    } else if (!post.arteUrl) {
+      faltam.push("a arte");
+    }
   }
 
   if (!post.avalInterno) faltam.push("o aval interno");
-  if (post.enviadoEm) faltam.push("nada — ele já está com o cliente");
+  if (post.enviadoEm && !doMeio) faltam.push("nada — ele já está com o cliente");
 
   return faltam;
+}
+
+/**
+ * O rótulo do botão que manda o portão ao cliente.
+ *
+ * **Ele diz O QUE está saindo**, e não só "Enviar ao cliente": numa conta que
+ * aprova a pauta, a gestão clica nesse botão duas vezes na vida de um post, e
+ * as duas mandam coisas diferentes. Um rótulo igual nas duas é a tela pedindo
+ * uma decisão sem dizer sobre o quê.
+ */
+export function rotuloDoEnvio(portao: EtapaDoPost | null): string {
+  if (!portao || portao.nome === "Envio") return "Enviar ao cliente";
+  return `Enviar a ${portao.nome} ao cliente`;
 }
 
 /**
@@ -343,11 +413,13 @@ export function faltaParaEnviar(post: EstadoDoPost): string[] {
 export function podeEnviarAoCliente(
   post: EstadoDoPost,
   quemLe: { id: string; ehGestor: boolean },
+  /** O portão que está saindo — ver `faltaParaEnviar`. */
+  portao?: EtapaDoPost | null,
 ): { pode: boolean; porque: string | null } {
   if (!quemLe.ehGestor) {
     return { pode: false, porque: "Enviar ao cliente é do desenvolvedor ou do sócio." };
   }
-  const faltam = faltaParaEnviar(post);
+  const faltam = faltaParaEnviar(post, portao);
   if (faltam.length > 0) return { pode: false, porque: `Falta ${faltam.join(" e ")}.` };
   return { pode: true, porque: null };
 }
@@ -396,7 +468,34 @@ export type EtapaDoPost = {
   status: SubtaskStatus;
   prazo: string | null;
   concluidaEm: string | null;
+  /**
+   * Esta etapa passa pelo cliente antes de a próxima começar (0076).
+   *
+   * O Envio não carrega a marca e é portão do mesmo jeito: ele É o portão
+   * desde a 0045, e marcá-lo seria dizer duas vezes a mesma coisa. Quem junta
+   * os dois é `portaoDoCliente()`.
+   */
+  aprovacaoCliente: boolean;
 };
+
+/**
+ * A etapa que a PRÓXIMA decisão do cliente fecha.
+ *
+ * **Derivada da ordem, nunca gravada** — é `porta_do_cliente_no_post()` do
+ * Postgres escrita deste lado, como `situacaoDoLancamento()` no Financeiro: o
+ * banco decide o que acontece, e esta responde o que a tela escreve. A
+ * corrente é serial, então há no máximo um portão aberto por vez.
+ */
+export function portaoDoCliente(etapas: EtapaDoPost[]): EtapaDoPost | null {
+  return (
+    [...etapas]
+      .sort((a, b) => a.ordem - b.ordem)
+      .find(
+        (e) =>
+          (e.aprovacaoCliente || e.nome === "Envio") && e.status !== "concluida",
+      ) ?? null
+  );
+}
 
 /**
  * A etapa em que o post está agora.
@@ -469,6 +568,26 @@ export function etapaSeMarcaAMao(etapa: EtapaDoPost): boolean {
   return etapa.nome !== ETAPA_DE_ENVIO;
 }
 
+/**
+ * A etapa é um PORTÃO DO CLIENTE do meio da corrente (0076).
+ *
+ * ---------------------------------------------------------------------------
+ * **E ELA CONTINUA PASSANDO POR `etapaSeMarcaAMao`, de propósito.** A tentação
+ * é fazer o portão cair no mesmo ramo do Envio e trocar o seletor por um selo —
+ * e isso travaria a etapa para sempre: a Pauta é a PRIMEIRA da corrente, e quem
+ * a escreve precisa marcá-la "em andamento" antes de haver o que enviar.
+ *
+ * O que o banco recusa é o FIM dela pela mão de alguém — `concluida` e
+ * `enviada_aprovacao`, que são os dois que afirmam uma decisão do cliente. O
+ * resto continua sendo de quem faz. E quem recusa é o banco, com a dica
+ * dizendo o caminho: um item cinza no seletor não diria por quê. É a decisão do
+ * seletor de status da etapa de demanda.
+ * ---------------------------------------------------------------------------
+ */
+export function etapaEsperaOCliente(etapa: EtapaDoPost): boolean {
+  return etapa.aprovacaoCliente && etapa.nome !== ETAPA_DE_ENVIO;
+}
+
 /** As funções da corrente que o diálogo de abrir o mês pergunta. */
 export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as const;
 
@@ -504,6 +623,24 @@ export const ETAPAS_DA_CORRENTE = [
   { nome: "Envio", funcao: "Social Media", offsetPadrao: -3 },
   { nome: "Programar", funcao: "Social Media", offsetPadrao: 0 },
 ] as const;
+
+/**
+ * Os elos da corrente que podem virar PORTÃO DO CLIENTE (migration 0076).
+ *
+ * É `etapas_que_o_cliente_pode_aprovar()` do outro lado, e os dois existem de
+ * propósito, como `situacaoDoLancamento()` no Financeiro: o banco decide o que
+ * uma conta pode gravar, esta lista decide o que a tela oferece. Sem a de cá, a
+ * aba precisaria de uma ida ao banco para desenhar três interruptores.
+ *
+ * **O Envio e o Programar ficam de fora, e por razões diferentes.** O Envio já
+ * É o portão de toda conta desde a 0032 — oferecê-lo seria oferecer ligar o que
+ * está ligado. O Programar vem DEPOIS da decisão do cliente: pôr o cliente para
+ * aprovar a programação seria pedir a ele o aval de um trabalho que só existe
+ * porque ele já aprovou.
+ */
+export const ETAPAS_QUE_O_CLIENTE_PODE_APROVAR = ETAPAS_DA_CORRENTE.filter(
+  (e) => e.nome !== "Envio" && e.nome !== "Programar",
+);
 
 /**
  * "3 dias antes", "no dia", "2 dias depois".
