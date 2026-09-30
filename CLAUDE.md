@@ -1201,6 +1201,103 @@ ninguém mais na demanda, a imagem não prova que a pilha existe — prova só q
 ela sabe sumir. Duas e não uma, senão o "+N" nunca aparece e ninguém vê que
 elas se sobrepõem.
 
+#### A COMPOSIÇÃO chegou depois dos tokens, e a distância entre as duas custou
+
+**O redesenho entrou no produto pela metade, e ficou assim por semanas.** Os
+tokens saíram (`26e2b68`, `f40b96a`) e a malha saiu (`22ef603`); a
+**composição** que o artifact aprovado desenhava — as duas colunas, os cartões
+soltos, a coluna da direita, o cabeçalho grande — nunca saiu dele. Quem
+olhava a tela via a linguagem nova e o desenho antigo, e a queixa que chegou
+foi a certa: *"o visual da plataforma ainda não está igual ao que foi aprovado
+por aqui"*.
+
+Fica escrito porque o modo de falha se repete: **aplicar a paleta de uma
+proposta é barato e parece pronto.** A composição é o que custa, e é o que a
+pessoa reconhece.
+
+**A TOPBAR NÃO CARREGA MAIS O NOME DO MÓDULO.** Ela é a busca flutuante à
+esquerda, o sino e o avatar à direita, e mais nada — sem fundo próprio e sem
+fio, porque sobre a malha uma faixa translúcida criava uma segunda borda
+horizontal onde o desenho não tem nenhuma.
+
+**O nome não sumiu, DESCEU.** Ele era um `<p>` (`trilha.tsx`, apagado), e o
+`<h1>` já morava em `BarraDeContexto`, `sr-only`. Agora esse mesmo título
+aparece na escala grande do desenho no cabeçalho da página — nas sete telas
+que tiraram o `PageHeader` no Sprint 9, e pelo próprio `PageHeader` no resto.
+A decisão daquele sprint continua inteira ("o nome do módulo aparece uma vez
+só"); o que mudou foi ONDE essa vez acontece. E ele fica **fora** da faixa
+grudada: a barra de seções continua `sticky`, e um título dentro dela grudaria
+junto, gastando altura em toda rolagem.
+
+**A ESCALA DO TÍTULO É 34px, contra os 20px de antes**, e o argumento é sobre
+onde mora a hierarquia. Com os cinzas escurecidos até 11,51:1 e 7,67:1, a
+diferença entre título e rótulo **deixou de ser feita por clareza** — que é o
+sinal que depende de a pessoa enxergar bem — e passou a ser feita por peso e
+tamanho. Com o título em 20px e o rótulo em 11px, os dois quase escuros, a
+tela vira um bloco só.
+
+`titleSecundario` é a segunda metade em tom fraco ("Bom dia, **Ana**"), e é
+prop e não `ReactNode` dentro de `title` porque o `<h1>` precisa do texto
+inteiro para o leitor de tela: quebrado em dois nós, o nome da página vira
+"Bom dia," e a pessoa fica sem saber onde está.
+
+**MINHAS TASKS GANHOU A COLUNA DA DIREITA, de 306px**, e o artifact diz o que
+ela carrega e por quê: o cronômetro, os contadores e quem está fora — *"as
+três coisas que hoje moram na Home e que ninguém vê estando em Minhas
+Tasks"*. São os **mesmos componentes e as mesmas consultas** da Home, nunca
+cópias: duas versões do cronômetro divergiriam no número que a pessoa usa
+para declarar quanto tempo a etapa levou.
+
+A largura é fixa de propósito — a coluna carrega dois ladrilhos lado a lado, e
+em `1fr` eles encolheriam junto com a lista; o número de 26px é o conteúdo do
+ladrilho, não enfeite que pode espremer. Abaixo de 1150px vira uma coluna só,
+com a direita **depois**: no celular o que a pessoa veio fazer é a lista.
+
+**A contagem da semana virou SUBTÍTULO**, e é a única diferença desta tela
+para o artifact. Ele mostra dois ladrilhos e escreve "7 etapas suas nesta
+semana" na linha de baixo; o produto tinha os três como contador clicável, e
+perder o terceiro seria perder um filtro que existe na URL desde o Sprint 4.
+Ele virou botão dentro do subtítulo: continua filtrando, e não ocupa um
+ladrilho onde três não cabem sem apertar.
+
+**CADA ETAPA É UM CARTÃO SOLTO**, com 9px entre eles, e não uma faixa dentro
+de um contêiner com fios. O argumento é o da régua de cobertura do Full Days:
+a lista é o trabalho de uma pessoa e cada linha é uma decisão separada. Num
+contêiner único o que se lê primeiro é a CAIXA; soltas, o que se lê primeiro é
+cada etapa.
+
+**O SINO E O AVATAR VIRAM DISCOS TRANSLÚCIDOS.** `.disco-da-topbar` é classe e
+não variante do `Button` porque o que a define é o VIDRO — `backdrop-filter`
+mais uma borda quase invisível —, e isso é superfície e não papel. A borda é
+6% do texto e não um token de borda: ela não separa dois blocos, desenha o
+limite do disco sobre um fundo que muda de cor conforme a malha passa; um
+`--border` chapado viraria anel cinza no ponto claro e sumiria no escuro.
+
+#### A Lista separa por status SEMPRE, e isto desfaz uma decisão minha
+
+Relato do usuário: *"as tasks não estão separadas em lista pelo status que se
+encontram"*. Ele estava certo, e a causa era `porStatus.length > 1` em
+`minha-lista.tsx`: com todas as etapas no mesmo status o cabeçalho sumia e a
+Lista virava uma lista corrida.
+
+O argumento de então era que **uma seção única com título em cima é moldura
+sem função** — a mesma razão pela qual as abas de Equipe sumiram quando sobrou
+uma, e pela qual o agrupamento por área já fazia isso. **Ele não vale aqui, e
+a diferença é o que a moldura AFIRMA:** uma aba solta não diz nada que a tela
+já não diga; um cabeçalho de status diz em que pé está tudo o que está embaixo
+dele, e isso é informação mesmo sendo a única.
+
+**Pior, o estado em que ela sumia é o mais comum do dia a dia:** a pessoa com
+as quatro etapas dela em andamento abria a Lista, via uma lista corrida sem
+nada dizendo que aquele *era* o recorte, e concluía com razão que a tela não
+separa por status.
+
+A Gestão de Tasks não tinha esse caso — ela mostra o cabeçalho de todo grupo e
+abre com "status" selecionado. O que sobra da decisão antiga é a parte que
+continua de pé: **grupo vazio não vira cabeçalho**, porque aí sim não há o que
+dizer.
+
+
 #### A barra de contexto, e as sete cópias que ela desfez
 
 **ERAM SETE `abas.tsx`, EM TRÊS DESENHOS DIFERENTES**, mais dois seletores de
@@ -1265,21 +1362,74 @@ módulo, o ponto do ao vivo, a busca, o sino e o avatar; quatro seções a mais
 não cabem. Ela é a faixa logo abaixo, grudada nele — e rolando a página as duas
 se leem como uma só.
 
-Duas cores da Full Connect Key, e só: o cinza `--brand-gray` e o azul claro
-`--brand-blue`. Todo o resto é derivado ou neutro, e **`src/app/globals.css` é
-o único arquivo com cor literal** — os nomes do shadcn (`--primary`, `--muted`,
-`--border`) apontam para os tokens da marca, e é isso que faz a interface
-inteira mudar sem tocar em componente.
+**São TRÊS cores, e a terceira é o azul de AÇÃO.** Eram duas da Full Connect
+Key — o cinza `--brand-gray` e o azul claro `--brand-blue` —, e o royal
+`--action` entrou por decisão do usuário ao comparar a plataforma no ar com o
+artifact aprovado. **O royal é a cor de ação — botão, pílula do item ativo,
+link e ícone — e o ciano fica reservado ao símbolo e aos acentos de marca.**
 
-**A regra que não se quebra:** texto branco sobre `--brand-blue` dá 1.7:1. Em
-uma frase — *azul claro pede texto escuro; texto branco pede azul escuro.*
+Todo o resto continua derivado ou neutro, e **`src/app/globals.css` segue
+sendo o único arquivo com cor literal** — os nomes do shadcn (`--primary`,
+`--muted`, `--border`) apontam para os tokens, e é isso que faz a interface
+inteira mudar sem tocar em componente. Foi essa propriedade que permitiu as
+quatro camadas do redesenho.
 
-- botão primário = fundo `--brand-blue` + texto `--text-primary`;
-- link e ícone em fundo claro = `--accent-strong`, que é "o azul legível no
-  tema de agora": azul escuro no claro, azul da marca no escuro;
-- item ativo na barra lateral escura = `--brand-blue`, que é onde essa cor
-  funciona como texto;
-- fundo cheio de cor + texto branco = `--blue-strong`.
+**A terceira cor existe por contraste, não por gosto.** `--brand-blue` dá
+1,18:1 sobre a malha cheia e 1,73:1 sobre o cartão: ele nunca foi cor de
+texto, e é por isso que `--accent-strong` existe desde o Sprint 3C como "o
+azul que dá para ler". O royal serve aos DOIS papéis com a mesma matiz —
+preenchimento e texto —, que o par ciano nunca conseguiu.
+
+**A regra que não se quebra continua valendo, e agora é sobre o royal
+também:** *azul claro pede texto escuro; texto branco pede azul escuro.* São
+dois tons e não um pela razão do par nomeado — `--action` é fundo com branco
+por cima, `--action-text` é texto sobre fundo claro, e trocá-los põe branco
+sobre azul claro.
+
+- **botão primário = a pílula PRETA** (`--acao-fundo`, que aponta para
+  `--text-primary`), com o hover indo para o royal. A regra antiga era "fundo
+  `--brand-blue` + texto `--text-primary`", e ela existia porque branco sobre
+  o ciano dá 1,7:1 — sai junto com o botão ciano. O par que entra é o mais
+  folgado da casa: **19,43:1**. E ele **inverte sozinho no escuro**, porque
+  aponta para `--text-primary` em vez de repetir dois hexadecimais: um botão
+  preto sobre página escura não se lê como botão, se lê como buraco;
+- **ação principal de uma coluna = a pílula com DEGRADÊ** (`.pilula-de-acao`
+  mais `destaque` no `BotaoDeNovaTask`). É classe e não utilitário porque
+  `bg-*` do Tailwind gera `background-color`, e o que ela pinta é
+  `background-image`;
+- link e ícone em fundo claro = `--accent-strong`, que agora aponta para
+  `--action-text`: **4,72:1 sobre a malha cheia**, 6,91 sobre o cartão;
+- item ativo na barra lateral = `--action-soft` com `--action-text`, 5,88:1;
+- fundo cheio de cor + texto branco = `--blue-strong`, para o que é da marca.
+
+**O DEGRADÊ DO BOTÃO NÃO É O DA PROPOSTA, e a diferença foi medida.** O da
+proposta reprova nos TRÊS pontos com o texto branco que ela mesma põe em cima:
+`#5B9BFF` dá 2,77:1, `#2F6BFF` dá 4,50:1 (no fio) e o ciano `#22C6F0` dá
+**2,02:1** — o rótulo "Nova task" ficaria ilegível na ponta. É a conta que
+reprovou o vidro a 58% na porta, e a saída é a mesma: escurecer até o pior
+ponto passar. A ponta que escurece é a ciano, que é justamente a que ninguém
+lê como cor da marca, e o azul→teal do desenho continua inteiro: 4,83 / 5,94 /
+6,57.
+
+`--action-grad-1/2/3` são tokens que **nada pinta**, a forma de
+`--malha-no-pior-caso` e de `--vidro-no-pior-caso`: o `check:cores` mede par de
+token, e um degradê é `background-image`. Sem eles a varredura diria que está
+tudo certo sobre um botão que ninguém conferiu — que é exatamente o furo que a
+proposta tinha.
+
+**E A MALHA SUBIU PARA O ALFA APROVADO (0,75), porque o link escureceu.** Ela
+estava em 0,36, e o teto era do link: no alfa da proposta o composto da mancha
+mais forte é `#B9D9F8`, onde o `--accent-strong` antigo (`#0A6B99`) dava
+4,01:1. Não era gosto nem discrição — era contraste, e a proposta não esbarrou
+nisso porque **não tem nenhum link azul na faixa de cima**; o produto tem
+("ver quais", "Ver a área", "Marcar como vistas"), e o conteúdo rola por baixo
+da malha. Com o royal de texto ela dá 4,72:1 e a malha pôde ficar como foi
+desenhada.
+
+**O escuro não é o claro invertido.** A proposta não tem tema escuro e diz isso
+no fecho dela; são passos próprios medidos contra os fundos do escuro, como as
+cores de série do Financeiro — `#9CBEFF` no texto, `#1E2A45` na pílula.
+`check:cores` passou de 34 para **37 pares**.
 
 Selo de estado usa o **par nomeado** (`bg-warning-soft text-warning`), nunca
 `bg-warning/10`: opacidade sobre um fundo qualquer dá uma cor que ninguém
