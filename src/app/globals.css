@@ -338,7 +338,20 @@
      branco; o fundo suave carrega a cor cheia como texto. */
   --success: #15803D;
   --success-soft: #DCFCE7;
-  --warning: #B45309;
+  /* ESCURECIDO DE #B45309, e quem cobrou foi o axe na rodada completa: em 16
+     telas o token caía sobre `--surface-page` e dava **4,32:1**, abaixo do
+     mínimo. É a terceira causa do contraste vista de novo — o par estava
+     medido contra o cartão e contra `--warning-soft`, e não contra os outros
+     fundos em que ele pode cair. `--text-muted` pagou exatamente isto, e o
+     conserto é o mesmo: escurecer o TOKEN e pôr os fundos todos na lista, em
+     vez de consertar os 16 lugares de chamada — o 17º ficaria para trás.
+
+     Medido contra os cinco fundos possíveis: página 5,45 · cartão 6,33 ·
+     warning-soft 5,68 · neutral-soft 4,97 · o composto que o axe relatou
+     5,54. O pior par saiu de 3,94 para 4,97.
+
+     O escuro não mudou: #FBBF24 dá 10,54 na página e 8,56 no fundo suave. */
+  --warning: #9C4707;
   --warning-soft: #FEF3C7;
   --danger: #B91C1C;
   --danger-soft: #FEE2E2;

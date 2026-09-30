@@ -231,6 +231,14 @@ const PARES = [
   ["--text-muted", "--malha-no-pior-caso", NORMAL, "rótulo sobre a malha"],
   ["--accent-strong", "--malha-no-pior-caso", NORMAL, "link sobre a malha"],
 
+  // O AMARELO SOBRE OS FUNDOS EM QUE ELE CAI, e não só sobre o par nomeado.
+  // Ele estava medido contra o cartão e contra --warning-soft, e o axe o
+  // achou em 16 telas sobre a PÁGINA, a 4,32:1. É a terceira causa do
+  // contraste de novo: um token de 300 usos não se conserta no lugar de
+  // chamada, porque o 17º fica para trás.
+  ["--warning", "--surface-page", NORMAL, "selo de atenção sobre a página"],
+  ["--warning", "--neutral-soft", NORMAL, "selo de atenção sobre o cinza suave"],
+
   // O DEGRADÊ DA PÍLULA DE AÇÃO, medido nas três paradas e não só no meio.
   // O da proposta passava no meio (4,50) e dava 2,02:1 na ponta ciano — medir
   // uma parada só é a mesma armadilha de medir o texto contra o branco em vez
