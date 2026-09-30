@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { AlertTriangle, ChevronLeft, ChevronRight, Download } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -105,14 +106,14 @@ export function RelatorioGerencial({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-4">
+      <div className="bg-surface-card rounded-card shadow-cartao flex flex-wrap items-center gap-2 border p-3">
         <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
           <ChevronLeft aria-hidden />
         </Button>
         {/* first-letter, e não capitalize: este maiúsculiza cada palavra e
             produziria "Setembro De 2026". */}
-        <p className="text-sm font-medium first-letter:uppercase">
+        <p className="text-[15px] font-bold tracking-[-0.02em] first-letter:uppercase">
           {format(parseISO(inicio), "MMMM 'de' yyyy", { locale: ptBR })}
         </p>
         <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>
@@ -139,35 +140,54 @@ export function RelatorioGerencial({
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador
-          titulo="Descanso no ano"
+      {/* OS QUATRO NÚMEROS PASSARAM A SER O `CartaoDeNumero` compartilhado, e
+          não um `Indicador` local. Ele nasceu no Sprint 15 para a Home e as
+          Métricas; esta cópia era a terceira forma do mesmo cartão no produto,
+          e já divergia — o rótulo dela é `--text-muted` fixo, que é justamente
+          o par que a varredura de acessibilidade reprovou sobre fundo tingido.
+          Com o componente, o tom decide a cor do rótulo junto.
+
+          "Esperando decisão" ganha o tom de atenção quando há fila, e vira um
+          link para ela: o número era um beco — a pessoa lia "3" e voltava ao
+          menu para chegar na tela que resolve os três. */}
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <CartaoDeNumero
+          rotulo="Descanso no ano"
           valor={`${tiradas} de ${contratadas}`}
           apoio="dias usados, do total previsto em contrato"
         />
-        <Indicador
-          titulo="Taxa de ausência"
+        <CartaoDeNumero
+          rotulo="Taxa de ausência"
           valor={`${taxa.toFixed(1)}%`}
           apoio={`${ausencias} dia(s) sobre ${capacidade} de capacidade`}
         />
-        <Indicador
-          titulo="Esperando decisão"
-          valor={String(pendentes)}
+        <CartaoDeNumero
+          rotulo="Esperando decisão"
+          valor={pendentes}
           apoio={pendentes === 1 ? "solicitação" : "solicitações"}
+          tom={pendentes > 0 ? "atencao" : "neutro"}
+          href={pendentes > 0 ? "/painel/full-days?aba=aprovacoes" : undefined}
         />
-        <Indicador
-          titulo="Afastamentos"
-          valor={String(licencas)}
+        <CartaoDeNumero
+          rotulo="Afastamentos"
+          valor={licencas}
           apoio={`e ${foraHoje} pessoa(s) em descanso agora`}
         />
       </div>
 
+      {/* O ALERTA É `--warning`, E NUNCA `--danger`, e a troca é a regra do
+          produto aplicada onde ela faltava: vermelho é erro, e uma pessoa há
+          um ano sem parar não é um erro — é um risco de entrega e de
+          esgotamento que alguém precisa combinar. Numa tela que se abre uma
+          vez por semana, vermelho permanente treina o hábito de ignorar
+          vermelho, que é a razão pela qual o alerta de 7 dias do portal e os
+          quatro sinais de carga do Feedback também são âmbar. */}
       {vencendo.length > 0 ? (
-        <section className="bg-danger-soft rounded-card border p-4">
+        <section className="bg-warning-soft rounded-card border p-4">
           <div className="flex items-start gap-2">
-            <AlertTriangle aria-hidden className="text-danger mt-0.5 size-4 shrink-0" />
+            <AlertTriangle aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
-              <h2 className="text-danger text-sm font-semibold">
+              <h2 className="text-warning text-sm font-semibold">
                 Há mais de um ano sem descanso — {vencendo.length} pessoa(s)
               </h2>
               <p className="text-text-secondary mt-0.5 text-sm">
@@ -191,7 +211,7 @@ export function RelatorioGerencial({
         </section>
       ) : null}
 
-      <div className="rounded-card overflow-x-auto border">
+      <div className="bg-surface-card rounded-card shadow-cartao overflow-x-auto border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -268,12 +288,3 @@ export function RelatorioGerencial({
   );
 }
 
-function Indicador({ titulo, valor, apoio }: { titulo: string; valor: string; apoio: string }) {
-  return (
-    <div className="bg-surface-card rounded-card border p-4">
-      <p className="text-text-muted text-xs font-medium tracking-wide uppercase">{titulo}</p>
-      <p className="text-text-primary mt-1 text-2xl font-semibold tabular-nums">{valor}</p>
-      <p className="text-text-muted mt-0.5 text-xs">{apoio}</p>
-    </div>
-  );
-}

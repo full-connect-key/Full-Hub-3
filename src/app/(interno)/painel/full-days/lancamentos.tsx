@@ -176,16 +176,18 @@ export function Lancamentos({
     });
   }
 
+  const podeGravar = Boolean(pessoa) && Boolean(de) && Boolean(ate) && !salvando;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* A FAIXA DIZ PARA QUE SERVE, e não é enfeite: esta é a única tela do
           produto onde alguém escreve no saldo de outra pessoa. Quem abre sem
           saber disso acha que é mais um formulário de pedido. */}
-      <section className="bg-warning-soft text-warning rounded-xl p-6">
+      <section className="bg-warning-soft text-warning rounded-card border p-6">
         <p className="text-xs font-semibold tracking-widest uppercase">
           Registro de período que já aconteceu
         </p>
-        <p className="text-text-primary mt-1.5 text-2xl font-semibold tracking-tight">
+        <p className="text-text-primary mt-1.5 text-[26px] leading-tight font-bold tracking-[-0.035em]">
           Isto grava no saldo de outra pessoa, e não passa pela fila
         </p>
         <p className="mt-1.5 text-sm">
@@ -196,8 +198,46 @@ export function Lancamentos({
         </p>
       </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[22rem_1fr]">
-        <aside className="bg-surface-card rounded-xl border p-5">
+      {/* A MESMA INVERSÃO DE "PROPOR PERÍODO", e por isso ela vale aqui: as
+          duas telas são a mesma composição com o calendário recusando o lado
+          oposto do tempo — lá o passado, aqui o futuro. Se uma tivesse a
+          coluna estreita à esquerda e a outra à direita, trocar de aba
+          reorganizaria a tela debaixo de quem está no meio de um registro. */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
+        <div className="min-w-0 space-y-3">
+          <p className="text-text-muted mb-3 text-xs">
+            Clique na data inicial e depois na final — ou arraste de uma até a
+            outra. O calendário vai de janeiro de 2025 até ontem.
+          </p>
+
+          <div className="bg-surface-card rounded-card shadow-cartao border p-3">
+            <CalendarioRolavel
+              de={de}
+              ate={ate}
+              aoSelecionar={(novoDe, novoAte) => {
+                setDe(novoDe);
+                setAte(novoAte);
+              }}
+              hojeISO={hojeISO}
+              feriados={feriadoDe}
+              bloqueados={{}}
+              recusaDoDia={recusaDoDia}
+              recusaDoIntervalo={() => ""}
+              aoRecusar={(frase) => toast.error(frase)}
+            />
+          </div>
+        </div>
+
+        {/* EMPILHADAS, A CONFIGURAÇÃO VEM PRIMEIRO — `order-first` no celular e
+            a ordem natural no desktop. As duas metades da decisão são
+            diferentes: em duas colunas o olho começa na esquerda, e lá a peça
+            grande é o calendário; empilhadas não há esquerda, há em cima, e em
+            cima tem que estar o que decide o que o calendário significa (o
+            tipo muda de corrido para útil) mais o resumo do que já foi
+            escolhido. Com o calendário em cima, ele rola dentro de si mesmo e
+            o resumo fica longe do polegar — a decisão que a prévia da
+            recorrência já tinha tomado, pelo mesmo motivo. */}
+        <aside className="order-first lg:order-none bg-surface-card rounded-card shadow-cartao border p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-semibold">
               {editando ? "Corrigir registro" : "Novo registro"}
@@ -241,7 +281,7 @@ export function Lancamentos({
               <div
                 role="radiogroup"
                 aria-label="Tipo de período"
-                className="grid grid-cols-3 gap-2"
+                className="flex flex-col gap-2"
               >
                 {(
                   [
@@ -257,9 +297,9 @@ export function Lancamentos({
                     aria-checked={tipo === valor}
                     onClick={() => setTipo(valor)}
                     className={cn(
-                      "rounded-lg border px-2 py-2.5 text-center transition-colors",
+                      "rounded-xl border px-3 py-2.5 text-left transition-colors",
                       tipo === valor
-                        ? "border-accent-strong bg-blue-soft"
+                        ? "border-action bg-action-soft"
                         : "hover:bg-accent",
                     )}
                   >
@@ -333,9 +373,17 @@ export function Lancamentos({
               />
             </div>
 
+            {/* A MESMA PÍLULA DE "PROPOR PERÍODO", e ela só aparece quando o
+                botão está de pé: desabilitada, o degradê a 50% se lê como
+                "ação principal em repouso" e não como "não dá". */}
             <Button
-              className="w-full"
-              disabled={!pessoa || !de || !ate || salvando}
+              className={cn(
+                "h-11 w-full rounded-full text-sm font-bold",
+                podeGravar
+                  ? "pilula-de-acao text-action-foreground hover:brightness-105"
+                  : "bg-muted text-text-muted opacity-100 shadow-none",
+              )}
+              disabled={!podeGravar}
               onClick={gravar}
             >
               {salvando ? (
@@ -346,31 +394,12 @@ export function Lancamentos({
           </div>
         </aside>
 
-        <section className="min-w-0">
-          <p className="text-text-muted mb-3 text-xs">
-            Clique na data inicial e depois na final — ou arraste de uma até a
-            outra. O calendário vai de janeiro de 2025 até ontem.
-          </p>
-
-          <CalendarioRolavel
-            de={de}
-            ate={ate}
-            aoSelecionar={(novoDe, novoAte) => {
-              setDe(novoDe);
-              setAte(novoAte);
-            }}
-            hojeISO={hojeISO}
-            feriados={feriadoDe}
-            bloqueados={{}}
-            recusaDoDia={recusaDoDia}
-            recusaDoIntervalo={() => ""}
-            aoRecusar={(frase) => toast.error(frase)}
-          />
-        </section>
       </div>
 
       <section>
-        <h2 className="mb-3 text-base font-semibold">Períodos registrados</h2>
+        <h2 className="text-text-secondary mb-2.5 text-xs font-bold tracking-wider uppercase">
+          Períodos registrados
+        </h2>
 
         {lancamentos.length === 0 ? (
           <EmptyState
@@ -379,11 +408,11 @@ export function Lancamentos({
             description="O que aparece aqui é só o que a gestão lançou. Pedido que a pessoa propôs fica na aba Pedidos da equipe."
           />
         ) : (
-          <ul className="space-y-2">
+          <ul className="flex flex-col gap-2">
             {lancamentos.map((item) => (
               <li
                 key={item.id}
-                className="bg-surface-card flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border p-4"
+                className="bg-surface-card rounded-card shadow-cartao flex flex-wrap items-center gap-x-4 gap-y-2 border p-4"
               >
                 <UserAvatar
                   name={item.pessoa?.nome ?? "—"}

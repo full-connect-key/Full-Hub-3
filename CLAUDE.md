@@ -4598,20 +4598,42 @@ formulário e virou ferramenta: quem entra ali não está preenchendo campos na
 ordem, está escolhendo dias num calendário e olhando o que isso faz com o
 saldo.
 
-- **O saldo ABRE a tela, numa faixa de `--blue-soft` com a frase inteira**
+- **O saldo ABRE a tela, numa faixa em `--action-soft` com a frase inteira**
   ("Você tem 5 de 15 dias disponíveis") e a barra de uso ao lado. Ele era um
   cartão no painel lateral, e era preciso varrer o olho até a coluna da
   direita para achar a primeira coisa que quem entra ali quer saber. Quem pede
-  afastamento ou ausência pontual não vê saldo nenhum — não desconta.
-- **A configuração fica à ESQUERDA e o calendário à direita**, invertendo as
-  colunas. O calendário é a peça grande e é onde a mão trabalha; o painel é o
-  resumo do que ela fez. Em 375px a ordem de leitura vira a de cima para
-  baixo, e o painel é o primeiro — no celular o calendário rola dentro de si
-  mesmo, e um resumo embaixo dele fica longe do polegar.
-- **O tipo de pedido é um `radiogroup` de três cartões**, cada um dizendo
-  embaixo do nome se desconta e quanto (`desconta (15d)` / `não desconta`). Um
-  `<select>` escondia exatamente a informação que faz a pessoa escolher entre
-  os três, e ela é diferente por tipo.
+  afastamento ou ausência pontual não vê saldo nenhum — não desconta. (Ele era
+  `--blue-soft`, o ciano, e passou ao royal quando a ação do produto passou: o
+  ciano ficou reservado ao símbolo e aos acentos de marca.)
+- **O CALENDÁRIO FICA À ESQUERDA e a configuração na coluna de 306px** — e
+  isto desfaz uma decisão minha. A versão anterior punha o painel à esquerda
+  com o argumento de que *"o tipo de pedido muda o que o calendário
+  significa"* — descanso conta corrido, os outros contam útil —, e queria que
+  a regra fosse lida antes das datas. O que ela não notou é que isso deixava o
+  Full Days sendo o **inverso** das outras telas do produto: em Minhas Tasks e
+  no Início a peça grande é a da esquerda e o resumo é a coluna estreita da
+  direita, e aqui a peça grande é justamente o calendário. **E a regra não
+  depende mais da posição para ser lida**, que é o que torna a inversão
+  barata: o tipo é o primeiro bloco da coluna, os três cartões dizem por
+  extenso se descontam, e a faixa de saldo acima das duas colunas já respondeu
+  a pergunta antes de qualquer clique.
+- **Empilhadas, a configuração vem PRIMEIRO** (`order-first lg:order-none`), e
+  as duas metades da decisão são diferentes: em duas colunas o olho começa na
+  esquerda; empilhadas não há esquerda, há em cima — e em cima tem que estar o
+  que decide o que o calendário significa, mais o resumo do que já foi
+  escolhido. Com o calendário em cima ele rola dentro de si mesmo e o resumo
+  fica longe do polegar, que é a decisão da prévia da recorrência.
+- **O tipo de pedido é um `radiogroup` de três cartões EMPILHADOS**, cada um
+  dizendo embaixo do nome se desconta e quanto (`desconta (15d)` / `não
+  desconta`). Um `<select>` escondia exatamente a informação que faz a pessoa
+  escolher entre os três, e ela é diferente por tipo — e três cartões lado a
+  lado na coluna de 306px dariam noventa pixels cada, truncando justamente
+  essa linha e deixando só a palavra do tipo, que é a parte que não explica
+  nada.
+- **A pílula com degradê só aparece quando o botão está DE PÉ.** Desabilitada,
+  o `opacity-50` a deixava num azul claro que se lê como "ação principal em
+  repouso", e não como "não dá"; quando não dá, ela volta a ser um botão cinza
+  chapado — a forma que o produto inteiro usa para dizer isso.
 - **As abas viraram pílulas.** A barra sublinhada funciona quando as abas
   ficam grudadas no conteúdo delas; aqui elas ficam acima da faixa de saldo,
   que já tem fundo próprio, e duas linhas horizontais seguidas — a borda da
@@ -4680,6 +4702,78 @@ e não explica manda a pessoa clicar de novo, mais forte, e desistir —
 `motivoDoBloqueio()` escreve a frase. Arrastando, a recusa é silenciosa: a
 seleção não passa do bloqueio, porque um toast por movimento do mouse
 empilharia dez avisos iguais antes de a pessoa soltar o botão.
+
+#### O resto do módulo na interface aprovada
+
+Quarta tela do redesenho, depois dos tokens, de Minhas Tasks e do Início — e a
+primeira em que ele encosta num módulo de cinco seções. O que mudou, fora as
+duas colunas de "Propor período" que já estão acima:
+
+**A MATRIZ CONTINUA EM UMA COLUNA, e é decisão.** Ela é larga por natureza —
+trinta e uma colunas de dia mais os totais —, e uma coluna de 306px ao lado
+tiraria dela exatamente o que ela precisa. O que muda é que a barra de
+controle (mês, legenda, CSV) virou cartão: solta na página, ela lia como
+coisas que sobraram acima da grade.
+
+**E a grade continua `overflow-x-auto`, NUNCA `overflow-hidden`.** Arredondar
+as pontas com `hidden` é a tentação óbvia e cria um novo scrollport: a coluna
+de nomes, que é `sticky left-0`, passa a se medir por ele e sai da tela junto
+com os dias. Foi o que a Linha do Tempo do Calendário Full pagou, com "Carla
+Nunes" lida como "nes". `auto` arredonda igual e é o scrollport de verdade.
+
+**A régua de cobertura NÃO mudou, e a proposta errou sobre ela.** Eu escrevi
+que ela "vira linha da área" — ela já era: desde o Sprint 6 a linha de
+cabeçalho de cada área carrega o número de quem está fora em cada dia, pela
+mesma `coberturaDaArea()` e com o mesmo limiar do calendário de pedido. Fica
+escrito porque o erro é o da maquete contra o produto, e a maquete é o que
+alguém lê depois.
+
+**Na fila de pedidos, os dois botões DESCERAM para o pé do cartão.** Eles
+ficavam numa coluna à direita, na altura do NOME — ou seja, ao lado do aviso
+de quem da mesma área já está fora, e não abaixo dele. A informação que decide
+um "preciso remarcar" é exatamente esse aviso, e um botão que divide a linha
+com ele pode ser clicado sem que ele tenha sido lido. (Aqui também corrijo a
+proposta: ela dizia que o aviso "vivia fora do cartão", e ele estava dentro
+desde o Sprint 6 — o que estava errado era a altura dele, não o lugar.)
+
+**O Relatório trocou o `Indicador` local pelo `CartaoDeNumero` compartilhado.**
+Era a terceira forma do mesmo cartão no produto, e já tinha divergido: o
+rótulo dela é `--text-muted` fixo, que é justamente o par que a varredura de
+acessibilidade reprovou sobre fundo tingido. Com o componente, o tom decide a
+cor do rótulo junto — e "Esperando decisão" ganhou o tom de atenção e virou
+link para a fila, porque o número era um beco: a pessoa lia "3" e voltava ao
+menu para chegar na tela que resolve os três.
+
+**E o alerta de quem está há mais de um ano sem parar passou a `--warning`.**
+Ele era `--danger`, e a troca é a regra do produto aplicada onde ela faltava:
+vermelho é erro, e uma pessoa há um ano sem descanso não é um erro — é um
+risco de entrega e de esgotamento que alguém precisa combinar. Numa tela que
+se abre uma vez por semana, vermelho permanente treina o hábito de ignorar
+vermelho, que é a razão pela qual o alerta de 7 dias do portal e os quatro
+sinais de carga do Feedback também são âmbar.
+
+**"Registrar período" recebeu a MESMA inversão de "Propor"**, e é por isso que
+ela vale lá: as duas telas são a mesma composição com o calendário recusando o
+lado oposto do tempo — lá o passado, aqui o futuro. Se uma tivesse a coluna
+estreita à esquerda e a outra à direita, trocar de aba reorganizaria a tela
+debaixo de quem está no meio de um registro.
+
+**O cartão "Quem já está fora" é a única peça nova, e não custa consulta.**
+`bloqueados` é o mapa dia → nomes que o calendário já recebe para pintar de
+âmbar; o cartão é o mesmo dado lido por PESSOA, com o intervalo dela. Ele
+existe porque em 390px a célula tem cerca de 45px: "Marina" vira "Ma…", e
+truncar não identifica ninguém — o dia fica só em âmbar e o nome mora ali. No
+desktop ele continua servindo, porque quem vai propor uma semana lê a lista
+antes de clicar em vez de descobrir a recusa no arrasto. *O que ele não sabe,
+e é dito:* dois períodos separados da mesma pessoa no mesmo mês se leem como
+um só — guardar cada bloco exigiria a data de início e de fim de cada pedido
+alheio, informação que esta tela não tem e não deve ter.
+
+**O vocabulário não mudou em nenhuma das cinco.** Descanso, afastamento,
+ausência pontual, sem alocação, "de acordo" e "preciso remarcar" — a decisão
+da 0016 e da 0018 continua inteira, e uma mudança de layout não é lugar de
+desfazê-la.
+
 
 #### Registrar período que já aconteceu — da gestão, e só dela
 

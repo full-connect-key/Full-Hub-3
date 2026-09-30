@@ -143,14 +143,18 @@ export function MatrizDaEquipe({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3">
+      {/* A BARRA DE CONTROLE VIROU CARTÃO, como toda superfície da interface
+          aprovada: solta na página, os três controles e a legenda liam como
+          coisas que sobraram acima da grade. Num cartão eles se leem como o
+          painel de quem opera a matriz, que é o que são. */}
+      <div className="bg-surface-card rounded-card shadow-cartao flex flex-wrap items-center gap-2 border p-3">
         <Button variant="outline" size="icon" aria-label="Mês anterior" onClick={() => irParaMes(-1)}>
           <ChevronLeft aria-hidden />
         </Button>
         {/* first-letter, e não capitalize: este maiúsculiza cada palavra e
             produziria "Setembro De 2026". */}
-        <p className="text-sm font-medium first-letter:uppercase">
+        <p className="text-[15px] font-bold tracking-[-0.02em] first-letter:uppercase">
           {format(parseISO(inicio), "MMMM 'de' yyyy", { locale: ptBR })}
         </p>
         <Button variant="outline" size="icon" aria-label="Próximo mês" onClick={() => irParaMes(1)}>
@@ -168,12 +172,18 @@ export function MatrizDaEquipe({
         </Button>
       </div>
 
+      {/* `overflow-x-auto` e NUNCA `overflow-hidden` para arredondar as
+          pontas, que é a tentação óbvia: `overflow: hidden` cria um novo
+          scrollport, e a coluna de nomes — que é `sticky left-0` — passa a
+          se medir por ele e sai da tela junto com os dias. Foi o que a
+          Linha do Tempo do Calendário Full pagou, com "Carla Nunes" lida
+          como "nes". `auto` arredonda igual e é o scrollport de verdade. */}
       {linhas.length === 0 ? (
         <p className="text-muted-foreground rounded-card border border-dashed p-6 text-center text-sm">
           Nenhuma pessoa ativa na equipe.
         </p>
       ) : (
-        <div className="rounded-card overflow-x-auto border">
+        <div className="bg-surface-card rounded-card shadow-cartao overflow-x-auto border">
           <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>

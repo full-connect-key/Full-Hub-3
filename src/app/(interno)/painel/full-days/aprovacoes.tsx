@@ -145,9 +145,9 @@ export function Aprovacoes({
           }
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="flex flex-col gap-2.5">
           {fila.map((pedido) => (
-            <li key={pedido.id} className="bg-surface-card rounded-card border p-4">
+            <li key={pedido.id} className="bg-surface-card rounded-card shadow-cartao border p-4">
               <div className="flex flex-wrap items-start gap-3">
                 {filaAtual === "pendente" ? (
                   <input
@@ -173,7 +173,9 @@ export function Aprovacoes({
 
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{pedido.pessoa?.nome ?? "—"}</span>
+                    <span className="text-[15px] font-bold tracking-[-0.02em]">
+                      {pedido.pessoa?.nome ?? "—"}
+                    </span>
                     <Badge variant="secondary">{pedido.pessoa?.area ?? "Sem área"}</Badge>
                     <Badge variant="outline">{ROTULOS_DE_TIPO[pedido.tipo]}</Badge>
                   </div>
@@ -215,31 +217,42 @@ export function Aprovacoes({
                   ) : null}
                 </div>
 
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span className="text-text-muted text-xs tabular-nums">
-                    informado em {format(parseISO(pedido.created_at), "dd/MM/yy", { locale: ptBR })}
-                  </span>
-
-                  {pedido.status === "pendente" ? (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={executando}
-                        onClick={() => {
-                          setMotivo("");
-                          setReprovando(pedido);
-                        }}
-                      >
-                        Preciso remarcar
-                      </Button>
-                      <Button size="sm" disabled={executando} onClick={() => aprovar(pedido.id)}>
-                        De acordo
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+                <span className="text-text-muted shrink-0 text-xs tabular-nums">
+                  informado em {format(parseISO(pedido.created_at), "dd/MM/yy", { locale: ptBR })}
+                </span>
               </div>
+
+              {/* OS DOIS BOTÕES DESCERAM PARA O PÉ DO CARTÃO, e não é
+                  arrumação: eles ficavam numa coluna à direita, na altura do
+                  NOME — ou seja, ao lado do aviso de quem da mesma área já
+                  está fora, e não abaixo dele. A informação que decide um
+                  "preciso remarcar" é exatamente esse aviso, e um botão que
+                  divide a linha com ele pode ser clicado sem que ele tenha
+                  sido lido. No pé, ele está sempre acima da decisão. */}
+              {pedido.status === "pendente" ? (
+                <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                  <Button
+                    size="sm"
+                    className="rounded-full px-5"
+                    disabled={executando}
+                    onClick={() => aprovar(pedido.id)}
+                  >
+                    De acordo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full px-5"
+                    disabled={executando}
+                    onClick={() => {
+                      setMotivo("");
+                      setReprovando(pedido);
+                    }}
+                  >
+                    Preciso remarcar
+                  </Button>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

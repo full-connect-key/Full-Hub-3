@@ -78,6 +78,56 @@ export function Solicitar({
     () => new Map(feriados.map((f) => [f.data, f.nome])),
     [feriados],
   );
+
+  /**
+   * QUEM DA MINHA ÁREA JÁ ESTÁ FORA, lido do mapa que o calendário já recebe.
+   *
+   * `bloqueados` é dia → nomes, que é a forma de que a grade precisa para
+   * pintar cada célula. Aqui a pergunta é a outra metade — por PESSOA, com o
+   * intervalo dela —, e a volta é uma leitura do mesmo objeto, não uma
+   * consulta nova: pedir ao banco a mesma coisa de outro jeito é abrir a porta
+   * para os dois números discordarem.
+   *
+   * A faixa é o primeiro e o último dia em que o nome aparece, e ela é
+   * honesta sobre o que não sabe: dois períodos separados da mesma pessoa no
+   * mesmo mês se leem como um só. Guardar cada bloco exigiria a data de
+   * início e de fim de cada pedido alheio — informação que esta tela não tem e
+   * não deve ter, porque ela é do calendário de quem propõe, não da matriz.
+   */
+  /**
+   * O BOTÃO DE PÉ, derivado uma vez — e é ele que decide se a pílula aparece.
+   *
+   * Desabilitada, a pílula com degradê continuava parecendo clicável: o
+   * `opacity-50` do botão a deixava num azul claro que se lê como "ação
+   * principal em repouso", e não como "não dá". Quando não dá, ela volta a ser
+   * um botão cinza chapado — que é a forma que o produto inteiro usa para
+   * dizer isso, e a única que não promete nada.
+   */
+  const foraDaMinhaArea = useMemo(() => {
+    const porPessoa = new Map<string, string[]>();
+    for (const [dia, nomes] of Object.entries(bloqueados)) {
+      for (const nome of nomes) {
+        const dias = porPessoa.get(nome);
+        if (dias) dias.push(dia);
+        else porPessoa.set(nome, [dia]);
+      }
+    }
+    return [...porPessoa.entries()]
+      .map(([nome, dias]) => {
+        const ordenados = [...dias].sort();
+        const primeiro = ordenados[0];
+        const ultimo = ordenados[ordenados.length - 1];
+        return {
+          nome,
+          faixa:
+            primeiro === ultimo
+              ? format(parseISO(primeiro), "dd/MM")
+              : `${format(parseISO(primeiro), "dd/MM")} a ${format(parseISO(ultimo), "dd/MM")}`,
+          desde: primeiro,
+        };
+      })
+      .sort((a, b) => a.desde.localeCompare(b.desde));
+  }, [bloqueados]);
   const conjuntoDeFeriados = useMemo(
     () => new Set(feriados.map((f) => f.data)),
     [feriados],
@@ -189,8 +239,16 @@ export function Solicitar({
     });
   }
 
+  const podeEnviar =
+    !enviando &&
+    Boolean(inicioSel) &&
+    diasSelecionados > 0 &&
+    !excedeSaldo &&
+    !semParcela &&
+    !primeiroCiclo;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* O SALDO ABRE A TELA NUM BANNER, e não numa frase corrida.
           Ele já abria a tela — a decisão anterior foi tirá-lo da coluna
           lateral, porque era preciso varrer o olho até a direita para achar.
@@ -202,12 +260,12 @@ export function Solicitar({
           Quem pede afastamento ou ausência pontual não vê saldo nenhum: não
           desconta, e mostrar um número que não muda ensina a ignorá-lo. */}
       {tipo === "ferias" ? (
-        <section className="bg-blue-soft flex flex-wrap items-center justify-between gap-6 rounded-xl p-6">
+        <section className="bg-action-soft rounded-card flex flex-wrap items-center justify-between gap-6 border p-6">
           <div className="min-w-0 space-y-1.5">
             <p className="text-accent-strong text-xs font-semibold tracking-widest uppercase">
               Saldo de descanso
             </p>
-            <p className="text-text-primary text-3xl font-semibold tracking-tight">
+            <p className="text-text-primary text-[26px] leading-tight font-bold tracking-[-0.035em]">
               {primeiroCiclo
                 ? chegamEm
                   ? `Seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}`
@@ -237,7 +295,7 @@ export function Solicitar({
               que é o contrário do que está acontecendo. A faixa ao lado já
               diz a única coisa que há para dizer, que é a data. */}
           {primeiroCiclo ? null : (
-            <div className="bg-surface-card w-full max-w-xs shrink-0 rounded-lg p-4">
+            <div className="bg-surface-card shadow-cartao w-full max-w-xs shrink-0 rounded-xl p-4">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-text-secondary text-sm">Já usado</span>
                 <span className="text-sm font-semibold tabular-nums">
@@ -246,7 +304,7 @@ export function Solicitar({
               </div>
               <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
                 <div
-                  className="bg-accent-strong h-full rounded-full"
+                  className="bg-action h-full rounded-full"
                   style={{
                     width: `${concedidos > 0 ? Math.min(100, Math.round((usados / concedidos) * 100)) : 0}%`,
                   }}
@@ -261,7 +319,7 @@ export function Solicitar({
           )}
         </section>
       ) : (
-        <section className="bg-surface-card rounded-xl border p-5">
+        <section className="bg-surface-card rounded-card shadow-cartao border p-5">
           <p className="text-text-secondary text-sm">
             <strong className="text-text-primary font-medium">
               {ROTULOS_DE_TIPO[tipo]}
@@ -271,18 +329,85 @@ export function Solicitar({
         </section>
       )}
 
-      {/* CONFIGURAR À ESQUERDA, CALENDÁRIO À DIREITA — a ordem da versão A.
-          A inversão não é gosto: o tipo de pedido muda o que o calendário
-          significa (descanso conta corrido, os outros contam útil) e muda
-          quais dias o passado aceita. Com o seletor à direita, a pessoa
-          escolhia as datas primeiro e descobria a regra depois.
+      {/* O CALENDÁRIO À ESQUERDA, A CONFIGURAÇÃO NA COLUNA DE 306px — e a
+          inversão desfaz uma decisão minha, com o argumento dela virado.
+
+          A versão anterior punha o painel à esquerda porque *"o tipo de pedido
+          muda o que o calendário significa"* — descanso conta corrido, os
+          outros contam útil — e queria que a regra fosse lida antes das datas.
+          O que ela não notou é que isso deixava o Full Days sendo o INVERSO
+          das outras telas do produto: em Minhas Tasks e no Início a peça
+          grande é a da esquerda e o resumo é a coluna estreita da direita, e
+          aqui a peça grande é justamente o calendário.
+
+          **E a regra não depende mais da posição para ser lida**, que é o que
+          torna a inversão barata: o tipo de pedido é o primeiro bloco da
+          coluna, os três cartões dizem por extenso se descontam, e a faixa de
+          saldo acima das duas colunas já respondeu a pergunta antes de
+          qualquer clique.
 
           As seções perderam a numeração que a tela tinha. Ela vinha do Nova
           Task, onde as seções são etapas de um formulário que se percorre de
           cima para baixo; aqui são duas colunas lado a lado, e numerar dois
           blocos simultâneos promete uma ordem que a tela não tem. */}
-      <div className="grid items-start gap-6 lg:grid-cols-[22rem_1fr]">
-        <aside className="bg-surface-card rounded-card space-y-4 border p-5">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
+        <div className="min-w-0 space-y-3">
+          {/* A instrução fica COLADA NO CALENDÁRIO, onde a mão está: seleção
+            por intervalo não se explica sozinha, e quem nunca usou clica
+            num dia, vê um quadrado azul e não descobre que falta o segundo
+            clique. A segunda frase é nova e responde à pergunta que gerou
+            este ajuste — sim, dá para atravessar o mês. */}
+          <p className="text-text-muted mb-3 text-xs">
+            Clique na data inicial e depois na final — ou arraste de uma até a
+            outra. Role para alcançar os outros meses: a seleção não se perde.
+          </p>
+
+          <div className="bg-surface-card rounded-card shadow-cartao border p-3">
+            <CalendarioRolavel
+              de={de}
+              ate={ate}
+              aoSelecionar={(novoDe, novoAte) => {
+                setDe(novoDe);
+                setAte(novoAte);
+              }}
+              hojeISO={hojeISO}
+              feriados={feriadoDe}
+              bloqueados={bloqueados}
+              recusaDoDia={recusaDoDia}
+              recusaDoIntervalo={recusaDoIntervalo}
+              aoRecusar={(frase) => toast.error(frase)}
+            />
+          </div>
+
+          <ul className="text-text-secondary mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-accent-strong size-3 rounded-sm"
+              />
+              Selecionado
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-warning-soft border-warning size-3 rounded-sm border"
+              />
+              Alguém da sua área está fora
+            </li>
+          </ul>
+        </div>
+
+        {/* EMPILHADAS, A CONFIGURAÇÃO VEM PRIMEIRO — `order-first` no celular e
+            a ordem natural no desktop. As duas metades da decisão são
+            diferentes: em duas colunas o olho começa na esquerda, e lá a peça
+            grande é o calendário; empilhadas não há esquerda, há em cima, e em
+            cima tem que estar o que decide o que o calendário significa (o
+            tipo muda de corrido para útil) mais o resumo do que já foi
+            escolhido. Com o calendário em cima, ele rola dentro de si mesmo e
+            o resumo fica longe do polegar — a decisão que a prévia da
+            recorrência já tinha tomado, pelo mesmo motivo. */}
+        <aside className="order-first lg:order-none flex flex-col gap-2.5">
+          <section className="bg-surface-card rounded-card shadow-cartao space-y-4 border p-5">
           <h2 className="text-base font-semibold">Configurar pedido</h2>
 
           {/* TRÊS BOTÕES À VISTA, e não uma lista suspensa. São três opções e
@@ -290,6 +415,13 @@ export function Solicitar({
               se desconta do saldo ou não. Dentro de um `select` isso só
               aparecia depois de abrir — e a diferença entre descanso e
               ausência pontual é exatamente essa.
+
+              **E ELES EMPILHAM, em vez de dividir a linha em três.** Numa
+              coluna de 306px cada cartão ficaria com noventa pixels, e a linha
+              que decide a escolha — "desconta (20d livres)" contra "não
+              desconta" — sairia truncada nos três: sobraria a palavra do tipo,
+              que é justamente a parte que não explica nada. Empilhados ela
+              cabe por extenso, e o nome e a nota se leem na mesma linha.
 
               `radiogroup` e não três botões soltos: o leitor de tela anuncia
               "1 de 3" e a seta move entre eles, que é o comportamento certo
@@ -301,7 +433,7 @@ export function Solicitar({
             <div
               role="radiogroup"
               aria-label="Tipo de pedido"
-              className="grid grid-cols-3 gap-2"
+              className="flex flex-col gap-2"
             >
               {(
                 [
@@ -326,24 +458,24 @@ export function Solicitar({
                   aria-checked={tipo === valor}
                   onClick={() => setTipo(valor)}
                   className={cn(
-                    "rounded-lg border px-2 py-2.5 text-center transition-colors",
+                    "rounded-xl border px-3 py-2.5 text-left transition-colors",
                     tipo === valor
-                      ? "border-accent-strong bg-blue-soft"
+                      ? "border-action bg-action-soft"
                       : "hover:bg-accent",
                   )}
                 >
                   <span
                     className={cn(
                       "block text-[13px]",
-                      tipo === valor ? "font-semibold" : "font-medium",
+                      tipo === valor ? "font-bold" : "font-semibold",
                     )}
                   >
                     {ROTULOS_DE_TIPO[valor]}
                   </span>
                   <span
                     className={cn(
-                      "mt-0.5 block text-[11px]",
-                      tipo === valor ? "text-accent-strong" : "text-text-muted",
+                      "mt-0.5 block text-[11px] font-semibold",
+                      tipo === valor ? "text-action-text" : "text-text-muted",
                     )}
                   >
                     {nota}
@@ -447,71 +579,69 @@ export function Solicitar({
                 Limpar
               </Button>
             ) : null}
+            {/* A PÍLULA COM DEGRADÊ, porque aqui ela é a ação principal de
+                uma coluna e não mais um botão numa linha de controles — a
+                mesma decisão do "Nova task" de Minhas Tasks e do Início. As
+                três paradas do degradê são medidas pelo `check:cores` contra o
+                branco do rótulo. Desabilitada ela volta ao cinza: um degradê
+                apagado continua parecendo clicável. */}
             <Button
-              className="flex-1"
-              disabled={
-                enviando ||
-                !inicioSel ||
-                diasSelecionados === 0 ||
-                excedeSaldo ||
-                semParcela ||
-                primeiroCiclo
-              }
+              className={cn(
+                "h-11 flex-1 rounded-full text-sm font-bold",
+                podeEnviar
+                  ? "pilula-de-acao text-action-foreground hover:brightness-105"
+                  : "bg-muted text-text-muted opacity-100 shadow-none",
+              )}
+              disabled={!podeEnviar}
               onClick={enviar}
             >
               {enviando ? <Loader2 className="animate-spin" /> : null}
               Enviar pedido
             </Button>
           </div>
+          </section>
+
+        {/* QUEM JÁ ESTÁ FORA DA MINHA ÁREA, e ele não custa consulta
+            nenhuma: `bloqueados` é o mapa dia → nomes que o calendário já
+            recebe para pintar de âmbar, e este cartão é o mesmo dado lido de
+            outro jeito — por pessoa, com o intervalo dela.
+
+            **Ele existe porque em 390px o nome não cabe na célula.** Lá cada
+            dia tem cerca de 45px, "Marina" vira "Ma…" e truncar não
+            identifica ninguém; o dia fica só em âmbar e o nome mora aqui. No
+            desktop ele continua servindo: quem vai propor uma semana lê a
+            lista antes de clicar, em vez de descobrir a recusa no arrasto. */}
+        {foraDaMinhaArea.length > 0 ? (
+          <section className="bg-surface-card rounded-card shadow-cartao border p-4">
+            <h2 className="text-text-secondary flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+              <TriangleAlert aria-hidden className="size-4" />
+              Quem já está fora
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {foraDaMinhaArea.map((pessoa) => (
+                <li key={pessoa.nome} className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {pessoa.nome}
+                  </span>
+                  <span className="bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums">
+                    {pessoa.faixa}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-text-muted mt-3 text-xs">
+              Da sua área, {minhaArea}. Os dias deles ficam em âmbar no
+              calendário, e o pedido que passar por cima é recusado.
+            </p>
+          </section>
+        ) : null}
         </aside>
-
-        <section className="min-w-0">
-          {/* A instrução fica COLADA NO CALENDÁRIO, onde a mão está: seleção
-            por intervalo não se explica sozinha, e quem nunca usou clica
-            num dia, vê um quadrado azul e não descobre que falta o segundo
-            clique. A segunda frase é nova e responde à pergunta que gerou
-            este ajuste — sim, dá para atravessar o mês. */}
-          <p className="text-text-muted mb-3 text-xs">
-            Clique na data inicial e depois na final — ou arraste de uma até a
-            outra. Role para alcançar os outros meses: a seleção não se perde.
-          </p>
-
-          <CalendarioRolavel
-            de={de}
-            ate={ate}
-            aoSelecionar={(novoDe, novoAte) => {
-              setDe(novoDe);
-              setAte(novoAte);
-            }}
-            hojeISO={hojeISO}
-            feriados={feriadoDe}
-            bloqueados={bloqueados}
-            recusaDoDia={recusaDoDia}
-            recusaDoIntervalo={recusaDoIntervalo}
-            aoRecusar={(frase) => toast.error(frase)}
-          />
-
-          <ul className="text-text-secondary mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-            <li className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className="bg-accent-strong size-3 rounded-sm"
-              />
-              Selecionado
-            </li>
-            <li className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className="bg-warning-soft border-warning size-3 rounded-sm border"
-              />
-              Alguém da sua área está fora
-            </li>
-          </ul>
-        </section>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Meus períodos</h2>
+      <section className="space-y-2.5">
+        <h2 className="text-text-secondary text-xs font-bold tracking-wider uppercase">
+          Meus períodos
+        </h2>
 
         {solicitacoes.length === 0 ? (
           <EmptyState
@@ -520,11 +650,11 @@ export function Solicitar({
             description="Escolha um período no calendário acima e envie. Os sócios são avisados na hora."
           />
         ) : (
-          <ul className="space-y-2">
+          <ul className="flex flex-col gap-2">
             {solicitacoes.map((pedido) => (
               <li
                 key={pedido.id}
-                className="bg-surface-card rounded-card flex flex-wrap items-center gap-3 border p-3"
+                className="bg-surface-card rounded-card shadow-cartao flex flex-wrap items-center gap-3 border p-3.5"
               >
                 <Badge variant="outline">{ROTULOS_DE_TIPO[pedido.tipo]}</Badge>
 
