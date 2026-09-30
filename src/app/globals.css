@@ -48,6 +48,18 @@
   --radius: 0.75rem;
   --radius-card: 18px;
 
+  /* A SOMBRA DO CARTÃO, da interface aprovada. São DUAS camadas e não uma:
+     1px quase opaco que faz a borda do cartão existir, e uma segunda larga e
+     muito recuada (`-22px`) que só levanta o cartão do chão sem desenhar
+     contorno. Uma sombra só, no meio do caminho, vira aquela auréola cinza
+     que se lê como borrão.
+
+     No escuro ela não some nem dobra de força: sombra sobre fundo escuro quase
+     não aparece, e é a BORDA que separa o cartão lá. Ela fica para dar a mesma
+     elevação ao que flutua de verdade — o popover, o painel lateral. */
+  --sombra-cartao:
+    0 1px 2px rgb(18 20 26 / 0.04), 0 14px 30px -22px rgb(18 20 26 / 0.4);
+
   /* --- As duas cores da marca ------------------------------------------- */
   --brand-blue: #7FCFF5;
   --brand-gray: #545960;
@@ -604,6 +616,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-card: var(--radius-card);
+  --shadow-cartao: var(--sombra-cartao);
 
   /* UMA família para o produto inteiro — painel, portal e porta —, carregada
      no `layout.tsx` da raiz. Era Geist no sistema e Sora na porta, e a segunda

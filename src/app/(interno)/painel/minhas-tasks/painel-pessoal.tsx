@@ -4,8 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { ArrowRight, CalendarDays, Clock, type LucideIcon } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
+import { PageHeader } from "@/components/shared/page-header";
+import { EmAndamentoAgora } from "../_blocos/em-andamento-agora";
+import { QuemEstaForaHoje } from "../_blocos/quem-esta-fora-hoje";
+import type { ResumoDaHome } from "@/lib/dados/home";
+import type { EtapaEmAndamento } from "@/lib/dados/minhas-tasks";
 import { ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
@@ -29,9 +36,11 @@ import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
 import { PainelLateralDaTask } from "./painel-lateral";
-import { SeletorDeVisao, type Visao } from "@/components/shared/seletor-de-visao";
+import {
+  SeletorDeVisao,
+  type Visao,
+} from "@/components/shared/seletor-de-visao";
 
-const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
 
 /**
  * Minhas Tasks.
@@ -53,6 +62,24 @@ const FOCOS: FocoDoDia[] = ["atrasadas", "hoje", "semana"];
  * "Atrasadas" navega, e o servidor devolve a lista já filtrada pela mesma
  * função que produziu o número.
  */
+/**
+ * OS DOIS LADRILHOS DA COLUNA DA DIREITA, na ordem do desenho: o que vence
+ * hoje e o que já passou. O terceiro foco — "esta semana" — não está aqui de
+ * propósito: ele virou a linha do subtítulo, onde o artifact o pôs.
+ *
+ * O tom é o PAR NOMEADO e nunca opacidade, que é a regra da casa para cor de
+ * estado: `bg-warning/10` sobre um fundo qualquer dá uma cor que ninguém
+ * mediu, e no tema escuro dá outra.
+ */
+const LADRILHOS = [
+  { id: "hoje", Icone: CalendarDays, tom: "bg-action-soft text-action-text" },
+  { id: "atrasadas", Icone: Clock, tom: "bg-danger-soft text-danger" },
+] as const satisfies readonly {
+  id: FocoDoDia;
+  Icone: LucideIcon;
+  tom: string;
+}[];
+
 export function PainelPessoal({
   linhas,
   etapasDeSocial,
@@ -68,6 +95,11 @@ export function PainelPessoal({
   podeCriarTask,
   visao,
   foco,
+  correndoAgora,
+  foraHoje,
+  saudacao,
+  dataPorExtenso,
+  agoraDoServidor,
 }: {
   linhas: LinhaPessoal[];
   itensDeCalendario: ItemDeCalendario[];
@@ -88,6 +120,14 @@ export function PainelPessoal({
   podeCriarTask: boolean;
   visao: Visao;
   foco: FocoDoDia | null;
+  /** A etapa que está com o relógio correndo — a que está andando há mais tempo. */
+  correndoAgora: EtapaEmAndamento | null;
+  foraHoje: ResumoDaHome["fora_hoje"];
+  /** "Bom dia" / "Boa tarde" / "Boa noite", decidido NO SERVIDOR. */
+  saudacao: string;
+  /** "Terça, 29 de setembro", já no locale pt-BR e no fuso da agência. */
+  dataPorExtenso: string;
+  agoraDoServidor: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -106,61 +146,47 @@ export function PainelPessoal({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
-        {FOCOS.map((id) => {
-          const ativo = foco === id;
-          const valor = contadores[id];
-          return (
-            <button
-              key={id}
-              type="button"
-              // Identifica o contador para o teste automatizado conferir que o
-              // número bate com o que a lista e o calendário mostram.
-              data-foco={id}
-              aria-pressed={ativo}
-              onClick={() => navegar({ foco: ativo ? null : id })}
-              className={cn(
-                "rounded-lg border px-3.5 py-2 text-left transition-colors",
-                ativo ? "border-accent-strong bg-accent" : "hover:bg-accent",
-              )}
-            >
-              <p
-                className={cn(
-                  "text-xl font-semibold tabular-nums",
-                  id === "atrasadas" && valor > 0 && "text-destructive",
-                )}
-              >
-                {valor}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {ROTULOS_DE_FOCO[id]}
-                {/* "VER QUAIS" É O QUE TRANSFORMA O NÚMERO EM CAMINHO.
-                    O contador sempre foi clicável e nunca parecia: quem lia
-                    "1 atrasada" varria a lista atrás dela em vez de clicar
-                    no número que já filtra. A Gestão de Tasks resolveu isto
-                    com esta mesma palavra — aqui ela faltava.
+      {/*
+        O CABEÇALHO DA TELA, na composição aprovada: saudação grande em duas
+        cores, e embaixo a data com a contagem da semana.
 
-                    Só quando há o que ver e o filtro ainda não está ligado:
-                    num zero não há para onde ir, e com o filtro ligado a
-                    lista já é o recorte. */}
-                {valor > 0 && !ativo ? (
-                  <span className="text-accent-strong"> · ver quais</span>
-                ) : null}
-              </p>
-            </button>
-          );
-        })}
+        **A contagem da semana é a SUBTÍTULO e não um terceiro ladrilho**, e
+        essa é a única diferença entre esta tela e o artifact — ele mostra dois
+        ladrilhos (Para hoje, Atrasada) e escreve "7 etapas suas nesta semana"
+        na linha de baixo. O produto tinha os três como contador clicável, e
+        perder o terceiro seria perder um filtro que existe na URL. Ele virou
+        BOTÃO dentro do subtítulo: continua filtrando, e não ocupa um ladrilho
+        numa coluna de 306px onde três não cabem sem apertar.
 
-        {foco ? (
-          <button
-            type="button"
-            onClick={() => navegar({ foco: null })}
-            className="text-muted-foreground hover:text-foreground self-center text-xs underline underline-offset-4"
-          >
-            Limpar filtro
-          </button>
-        ) : null}
-      </div>
+        A saudação e a data descem do SERVIDOR. Se a tela lesse o relógio, o
+        navegador em outro fuso diria "Boa noite" num começo de tarde — é a
+        regra de `hojeNaAgencia()` vista do lado do texto.
+      */}
+      <PageHeader
+        title={`${saudacao},`}
+        titleSecundario={primeiroNome}
+        subtitulo={
+          <>
+            <span className="capitalize">{dataPorExtenso}</span>
+            {contadores.semana > 0 ? (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  data-foco="semana"
+                  aria-pressed={foco === "semana"}
+                  onClick={() =>
+                    navegar({ foco: foco === "semana" ? null : "semana" })
+                  }
+                  className="text-accent-strong hover:underline"
+                >
+                  {contadores.semana} etapas suas nesta semana
+                </button>
+              </>
+            ) : null}
+          </>
+        }
+      />
 
       {/* AS TRÊS ÁREAS, COM CONTAGEM, MESMO QUANDO UMA DELAS ESTÁ EM ZERO.
           ---------------------------------------------------------------
@@ -182,8 +208,14 @@ export function PainelPessoal({
       <div className="flex flex-wrap items-center gap-2">
         {(
           [
-            ["demandas", linhas.filter((l) => areaDaLinha(l) === "demandas").length],
-            ["campanhas", linhas.filter((l) => areaDaLinha(l) === "campanhas").length],
+            [
+              "demandas",
+              linhas.filter((l) => areaDaLinha(l) === "demandas").length,
+            ],
+            [
+              "campanhas",
+              linhas.filter((l) => areaDaLinha(l) === "campanhas").length,
+            ],
             ["social", etapasDeSocial.length],
           ] as const
         ).map(([area, quantas]) => {
@@ -213,59 +245,80 @@ export function PainelPessoal({
           Embaixo, ela seria a resposta depois da pergunta. */}
       <Novidades novidades={novidades} />
 
-      <MeuDia
-        itens={itensDoDia}
-        primeiroNome={primeiroNome}
-        usuarioId={usuarioId}
-        souGestor={souGestor}
-      />
+      {/*
+        AS DUAS COLUNAS DO DESENHO APROVADO.
 
-      <div className="flex flex-wrap items-center gap-3">
-        <SeletorDeVisao atual={visao} aoTrocar={(v) => navegar({ visao: v })} />
+        A coluna da direita não é decoração, e o artifact diz o que ela carrega
+        e por quê: o cronômetro, os contadores e quem está fora — "as três
+        coisas que hoje moram na Home e que ninguém vê estando em Minhas
+        Tasks". Quem passa o dia nesta tela não abre a Home, e o relógio
+        esquecido aberto é justamente o número que ninguém vê.
 
-        {foco ? (
-          <Badge variant="secondary">
-            Filtrando por {ROTULOS_DE_FOCO[foco].toLowerCase()}
-          </Badge>
-        ) : null}
+        306px é a largura do desenho, e ela é fixa de propósito: a coluna
+        carrega dois ladrilhos lado a lado, e em `1fr` eles encolheriam junto
+        com a lista ao lado — o número de 26px é o conteúdo do ladrilho, não um
+        enfeite que pode espremer.
 
-        {/* Só aparece para quem faz Atendimento. A policy tasks_insert é quem
+        Abaixo de 1150px vira uma coluna só, como no artifact. E a direita vem
+        DEPOIS no empilhamento, porque no celular o que a pessoa veio fazer é a
+        lista; o resumo é contexto.
+      */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
+        <div className="min-w-0 space-y-5">
+          <MeuDia
+            itens={itensDoDia}
+            primeiroNome={primeiroNome}
+            usuarioId={usuarioId}
+            souGestor={souGestor}
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <SeletorDeVisao
+              atual={visao}
+              aoTrocar={(v) => navegar({ visao: v })}
+            />
+
+            {foco ? (
+              <Badge variant="secondary">
+                Filtrando por {ROTULOS_DE_FOCO[foco].toLowerCase()}
+              </Badge>
+            ) : null}
+
+            {/* Só aparece para quem faz Atendimento. A policy tasks_insert é quem
             recusa de verdade — isto evita oferecer um caminho sem saída. */}
-        {podeCriarTask ? (
-          <BotaoDeNovaTask className="ml-auto" />
-        ) : null}
-      </div>
+            {podeCriarTask ? <BotaoDeNovaTask className="ml-auto" /> : null}
+          </div>
 
-      {visao === "board" ? (
-        <BoardDeEtapas
-          linhas={linhas}
-          prazos={prazos}
-          usuarioId={usuarioId}
-          souGestor={souGestor}
-          aoAbrir={setTaskAberta}
-        />
-      ) : null}
+          {visao === "board" ? (
+            <BoardDeEtapas
+              linhas={linhas}
+              prazos={prazos}
+              usuarioId={usuarioId}
+              souGestor={souGestor}
+              aoAbrir={setTaskAberta}
+            />
+          ) : null}
 
-      {visao === "lista" ? (
-        <MinhaLista
-          linhas={linhas}
-          prazos={prazos}
-          usuarioId={usuarioId}
-          souGestor={souGestor}
-          aoAbrir={setTaskAberta}
-        />
-      ) : null}
+          {visao === "lista" ? (
+            <MinhaLista
+              linhas={linhas}
+              prazos={prazos}
+              usuarioId={usuarioId}
+              souGestor={souGestor}
+              aoAbrir={setTaskAberta}
+            />
+          ) : null}
 
-      {visao === "calendario" ? (
-        <CalendarioDeTasks
-          itens={itensDeCalendario}
-          equipe={equipe}
-          prazos={prazos}
-          aoAbrir={setTaskAberta}
-        />
-      ) : null}
+          {visao === "calendario" ? (
+            <CalendarioDeTasks
+              itens={itensDeCalendario}
+              equipe={equipe}
+              prazos={prazos}
+              aoAbrir={setTaskAberta}
+            />
+          ) : null}
 
-      {/* O SOCIAL É A TERCEIRA ÁREA, e vem DEPOIS do conteúdo da visão — na
+          {/* O SOCIAL É A TERCEIRA ÁREA, e vem DEPOIS do conteúdo da visão — na
           mesma ordem dos chips lá em cima: Demandas, Campanhas, Social Media.
 
           **Ele fica FORA do seletor de visão, e isso é mecânico.** O board
@@ -278,10 +331,94 @@ export function PainelPessoal({
 
           Na Lista ele fecha a sequência das três seções; no board e no
           calendário ele aparece embaixo, que é onde uma lista cabe. */}
-      <EtapasDeSocial etapas={etapasDeSocial} />
+          <EtapasDeSocial etapas={etapasDeSocial} />
+        </div>
 
-      <PainelLateralDaTask taskId={taskAberta} aoFechar={() => setTaskAberta(null)} />
+        <aside className="flex flex-col gap-2.5 lg:sticky lg:top-20">
+          {/* A PÍLULA DE AÇÃO ABRE A COLUNA, como no desenho. Ela só aparece
+              para quem faz Atendimento — `tasks_insert` é quem recusa de
+              verdade, e isto evita oferecer um caminho sem saída. */}
+          {podeCriarTask ? (
+            <BotaoDeNovaTask className="w-full" destaque />
+          ) : null}
 
+          {/* O MESMO componente da Home, com os mesmos dados. Ele já sabe
+              sumir quando não há etapa correndo — e sumir é o certo: um cartão
+              dizendo "nenhuma etapa em andamento" ocupa a primeira dobra todo
+              dia para informar em alguns. */}
+          <EmAndamentoAgora
+            etapa={correndoAgora}
+            agoraDoServidor={agoraDoServidor}
+          />
+
+          <div className="grid grid-cols-2 gap-2.5">
+            {LADRILHOS.map(({ id, Icone, tom }) => {
+              const ativo = foco === id;
+              const valor = contadores[id];
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  // Identifica o contador para o teste automatizado conferir
+                  // que o número bate com o que a lista e o calendário mostram.
+                  data-foco={id}
+                  aria-pressed={ativo}
+                  onClick={() => navegar({ foco: ativo ? null : id })}
+                  className={cn(
+                    "bg-card rounded-card border p-3 text-left transition-colors",
+                    ativo
+                      ? "border-accent-strong"
+                      : "border-border hover:border-accent-strong/40",
+                  )}
+                >
+                  <span className="flex items-center justify-between">
+                    <span
+                      className={cn(
+                        "grid size-7 place-items-center rounded-lg",
+                        tom,
+                      )}
+                    >
+                      <Icone aria-hidden className="size-4" />
+                    </span>
+                    <ArrowRight
+                      aria-hidden
+                      className="text-text-muted size-3.5"
+                    />
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-2.5 block text-[26px] leading-none font-bold tracking-[-0.04em] tabular-nums",
+                      id === "atrasadas" && valor > 0 && "text-destructive",
+                    )}
+                  >
+                    {valor}
+                  </span>
+                  <span className="text-text-secondary mt-1 block text-xs font-semibold">
+                    {ROTULOS_DE_FOCO[id]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {foco ? (
+            <button
+              type="button"
+              onClick={() => navegar({ foco: null })}
+              className="text-text-muted hover:text-foreground self-start text-xs underline underline-offset-4"
+            >
+              Limpar filtro
+            </button>
+          ) : null}
+
+          <QuemEstaForaHoje pessoas={foraHoje} />
+        </aside>
+      </div>
+
+      <PainelLateralDaTask
+        taskId={taskAberta}
+        aoFechar={() => setTaskAberta(null)}
+      />
     </div>
   );
 }

@@ -31,11 +31,23 @@ export function BotaoDeNovaTask({
   className,
   id,
   atalho,
+  destaque,
 }: {
   className?: string;
   id?: string;
   /** A tecla que faz a mesma coisa, mostrada dentro do botão. */
   atalho?: string;
+  /**
+   * A PÍLULA COM DEGRADÊ DO DESENHO APROVADO, para quando o botão é a ação
+   * principal de uma coluna e não mais um botão numa linha de controles.
+   *
+   * O degradê mora numa classe do `globals.css` e não num utilitário porque
+   * `bg-*` do Tailwind gera `background-color`, e o que ele pinta é
+   * `background-image`. As três paradas dele são medidas pelo `check:cores`
+   * contra o branco do rótulo — foi assim que o degradê da proposta foi
+   * reprovado, com 2,02:1 na ponta ciano.
+   */
+  destaque?: boolean;
 }) {
   const router = useRouter();
   const [abrindo, iniciar] = useTransition();
@@ -52,7 +64,16 @@ export function BotaoDeNovaTask({
   }
 
   return (
-    <Button id={id} className={cn(className)} onClick={abrir} disabled={abrindo}>
+    <Button
+      id={id}
+      className={cn(
+        destaque &&
+          "pilula-de-acao text-action-foreground h-11 rounded-full text-sm font-bold hover:brightness-105",
+        className,
+      )}
+      onClick={abrir}
+      disabled={abrindo}
+    >
       {abrindo ? <Loader2 className="animate-spin" /> : <Plus aria-hidden />}
       Nova task
       {atalho ? (

@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import {
   contadoresPessoais,
+  etapaEmAndamento,
   itensPessoaisDoCalendario,
   meuDia,
   minhasTasks,
   prazosDeHoje,
   souDoAtendimento,
 } from "@/lib/dados/minhas-tasks";
+import { resumoDaHome } from "@/lib/dados/home";
 import { minhasNovidades } from "@/lib/dados/novidades";
 import { minhasEtapasDeSocial } from "@/lib/dados/social-media";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
@@ -59,6 +63,8 @@ async function Conteudo({
     podeCriarTask,
     etapasDeSocial,
     novidades,
+    correndoAgora,
+    resumo,
   ] = await Promise.all([
     minhasTasks(usuarioId, foco, prazos),
     itensPessoaisDoCalendario(usuarioId, foco, prazos),
@@ -71,6 +77,17 @@ async function Conteudo({
     // notificações por ler desta pessoa e as separa por área pelo endereço —
     // é o sino visto de outro ângulo, e não um estado novo ao lado dele.
     minhasNovidades(),
+    // AS DUAS PEÇAS DA COLUNA DA DIREITA, e elas já existiam: o cronômetro da
+    // etapa esquecida aberta e quem não está hoje moram na Home desde o
+    // Sprint 15, e o artifact aprovado as traz para cá com a frase que explica
+    // por quê — "as três coisas que hoje moram na Home e que ninguém vê
+    // estando em Minhas Tasks".
+    //
+    // São as MESMAS consultas e os MESMOS componentes, nunca cópias: duas
+    // versões do cronômetro divergiriam no número que a pessoa usa para
+    // declarar quanto tempo a etapa levou.
+    etapaEmAndamento(usuarioId),
+    resumoDaHome(),
   ]);
 
   return (
@@ -89,6 +106,13 @@ async function Conteudo({
       podeCriarTask={podeCriarTask}
       visao={visao}
       foco={foco}
+      correndoAgora={correndoAgora}
+      foraHoje={resumo.fora_hoje}
+      saudacao={saudacao()}
+      dataPorExtenso={format(prazos.agora, "EEEE, d 'de' MMMM", {
+        locale: ptBR,
+      })}
+      agoraDoServidor={prazos.agora}
     />
   );
 }
@@ -113,10 +137,6 @@ export default async function PaginaDeMinhasTasks({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={`${saudacao()}, ${nome}`}
-      />
-
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
         <Conteudo
           usuarioId={sessao.usuarioId}
