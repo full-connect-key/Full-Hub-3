@@ -6357,6 +6357,43 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   produto cujo alvo mora fora do repositório, e por isso ela é para ser
   LIDA, não presumida.
 
+- **O BUILD É O DO WEBPACK, e o Turbopack morria no `globals.css`.** O Next 16
+  constrói com Turbopack por padrão; `"build": "next build --webpack"` volta ao
+  empacotador anterior, e é o que está no `package.json`.
+
+  **O que o servidor relatou:** *"o processo Node do carregador PostCSS do
+  Turbopack foi encerrado inesperadamente com status 0 ao interpretar
+  globals.css"*. Veio com a conclusão de que o CSS estava inválido, ou o
+  PostCSS incompatível, e com a sugestão de voltar para o `next@16.2.0`.
+
+  **As três estão erradas, e a prova é de trinta segundos:** o mesmo commit,
+  com o mesmo `globals.css`, constrói com Turbopack nesta máquina —
+  `✓ Compiled successfully`, código de saída 0. Não há sintaxe a corrigir nem
+  configuração a trocar, e um downgrade de framework para contornar o que um
+  sinalizador resolve é pagar caro por uma solução pior.
+
+  **A assinatura diz o que foi:** um processo que "falha" saindo com status
+  **0** não travou por erro, foi **morto antes de entregar**. É limite de
+  recurso, e não de sintaxe — o Turbopack abre um subprocesso Node para o
+  PostCSS, e é ele que a hospedagem compartilhada derruba.
+
+  **E a linha do tempo fecha sem folga.** O último deploy que passou foi o
+  `a3ea860`; o primeiro commit depois dele é o `cd8349b`, que é o primeiro dos
+  quatro que mexeram no `globals.css` — o arquivo foi de 696 para 803 linhas.
+  Medido: Turbopack 1963 MB de pico, webpack 1752 MB. O build estava na borda,
+  e 107 linhas de CSS o empurraram para fora.
+
+  **O custo do `--webpack` está dito:** cinco vezes mais lento (18s → 90s), e o
+  CI sai de 23s para perto de dois minutos. O que vai para o ar, esse encolhe —
+  18 MB contra 242 MB, porque os 523 MB restantes são cache de build, que não é
+  servido.
+
+  **O gerador de protótipo NÃO acompanha**, e é consequência e não descuido:
+  `scripts/prototipo.mjs` chama `npx next build` direto, não o script do
+  `package.json`. As rodadas dele seguem rápidas, e ele compila com outro
+  empacotador que o da produção — diferença pequena hoje, e escrita aqui para
+  não ser descoberta como surpresa no dia em que ela importar.
+
 - **O deploy saía da `main`, e só dela.** `deploy.yml` dispara em `push:
   branches: [main]`, e `scripts/deploy.sh` puxa de `main` por padrão. Trabalho
   em branch não vai ao ar: quando a verificação fecha, a `main` avança e o
