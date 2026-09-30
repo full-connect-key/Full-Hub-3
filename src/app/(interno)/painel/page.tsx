@@ -23,7 +23,6 @@ import {
 import { meusComodatos } from "@/lib/dados/comodatos";
 import {
   alertasAbertos,
-  feedbackNovoParaMim,
   meusFeedbacks,
   relatorioComConversa,
 } from "@/lib/dados/feedback";

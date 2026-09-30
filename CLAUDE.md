@@ -4774,6 +4774,133 @@ ausência pontual, sem alocação, "de acordo" e "preciso remarcar" — a decis�
 da 0016 e da 0018 continua inteira, e uma mudança de layout não é lugar de
 desfazê-la.
 
+#### As três áreas de trabalho: Gestão de Tasks, Social Media e Campanhas
+
+Quinta camada do redesenho, depois dos tokens, de Minhas Tasks, do Início e do
+Full Days — e a primeira em que ele encosta nas telas onde a agência produz.
+O que mudou em cada uma, e o que **não** mudou.
+
+**A COLUNA ESTREITA MUDA DE LADO CONFORME O QUE ELA É**, e esta é a regra que
+faltava escrever. Em Minhas Tasks, no Início e no Full Days os 306px ficam à
+**direita**, porque ali eles são um RESUMO — o cronômetro, os contadores, quem
+está fora: coisas que acompanham o que a pessoa veio fazer. No Social Media a
+coluna estreita fica à **esquerda**, porque ali ela é o ÍNDICE, e o índice é
+por onde se entra. Invertido, o mês abriria com um editor vazio ocupando a
+esquerda e a lista de posts no canto — a tela pedindo uma escolha com a escolha
+fora do caminho do olho.
+
+##### Gestão de Tasks: os números viram uma linha, e a coluna perde a caixa
+
+**Os três contadores eram três ladrilhos com número grande** em cima do board,
+gastando noventa pixels da primeira dobra da tela mais cheia do painel — e o
+board é a peça. Viraram uma linha de texto: *"5 abertas · 2 atrasadas · ver
+quais · 1 concluída no mês"*. É a decisão do Início aplicada de novo — a lista
+logo abaixo É esses números, então eles não viram cartão.
+
+**E a linha ficou DENTRO da aba, e não no subtítulo do cabeçalho**, que era
+onde a proposta a punha. O cabeçalho é das quatro seções, e os números nascem
+da mesma chamada que a lista: subi-los pediria uma segunda consulta para
+desenhar três números quarenta pixels acima — e dois lugares contando a mesma
+coisa é exatamente o bug que este contador já teve duas vezes, as duas
+encontradas pelo usuário.
+
+**A COLUNA DO BOARD PERDEU A CAIXA.** Ela era um retângulo cinza com fio, e o
+que se lia primeiro era o retângulo; sem ele, o que se lê primeiro é cada
+demanda, que é a unidade sobre a qual alguém decide. O que fica é o cabeçalho
+com o nome e a contagem — e um realce de fundo **só durante o arrasto**: sem o
+chão permanente, o alvo precisava de outro jeito de se anunciar, e ele só
+existe quando há um card no ar.
+
+**A faixa de prioridade do card foi de 1px para 4px** pela mesma razão. Ela era
+um fio contra o fundo cinza da coluna; com o cartão solto sobre a página, o fio
+sumia. Em 4px ela é a mesma borda à esquerda que a linha atrasada de Minhas
+Tasks usa.
+
+**O PAR DE DATAS VIROU UM CHIP "Prazo"**, e com ele a barra de filtros cabe numa
+linha só. Eram dois rótulos e dois `<input type="date">` de 144px cada — 320
+pixels e uma faixa inteira da primeira dobra para um recorte que quase ninguém
+usa, acima da peça que todo mundo veio ver. *O que se perde, e é dito:* as datas
+deixam de estar à vista e pedem um clique. O que impede isso de virar um filtro
+invisível é o **rótulo** — com valor, o chip para de dizer "Prazo" e passa a
+dizer "12/03 → 20/03", aceso. É a regra da faixa de áreas de Minhas Tasks: quem
+recolhe continua dizendo o que tem dentro, senão não é recolher, é esconder.
+
+**E ele é local, não uma prop nova da `FilterBar`.** Aquela barra é de sete
+telas, e um par de datas embutido nela seria um campo que seis não usam — a
+razão pela qual o "Prazo" entra por `children`, que é a porta que ela já tem. O
+popover tem "Limpar o prazo" próprio, porque o "Limpar filtros" da barra derruba
+os quatro selects junto e quem abriu o popover veio mexer numa coisa só.
+
+##### Social Media: a lista solta e a corrente com ladrilho
+
+**Cada post é um cartão solto**, e não uma faixa dentro de uma caixa com fios —
+o argumento da lista de Minhas Tasks: num contêiner único o que se lê primeiro é
+a CAIXA, e aqui cada linha é um trabalho separado, com dono e data próprios. O
+cabeçalho de cada grupo (Comigo / Esperando alguém / Fora das minhas mãos) virou
+o mesmo rótulo em caixa alta do board.
+
+**A CORRENTE VIROU CARTÕES COM LADRILHO DE ÍCONE**, que é o desenho do "Precisa
+de mim" da Home aplicado onde ele cabe melhor: cada elo é o trabalho de uma
+pessoa diferente. O círculo de 24px virou ladrilho quadrado de 32px, e o azul
+dele passou a ser o par nomeado `bg-action-soft text-action-text` — o royal de
+ação, como o resto do produto desde a troca de cor.
+
+**A razão do "Enviar ao cliente" desligado virou uma PÍLULA ÂMBAR.** Ela é a
+única coisa na tela que explica por que o botão mais importante do módulo está
+desligado, e em cinza, ao lado de um botão cinza desabilitado, lia como legenda
+do botão em vez de resposta. `--warning` e nunca `--danger`: falta um passo, não
+há erro nenhum.
+
+**E ela mostrou uma consulta que ninguém desenhava.** `faltaParaEnviar(post)`
+era calculada no editor e a única linha que a citava era um
+`? null : null` — código que sempre rende nada. Quem nomeia o que falta é
+`envio.porque`, montado pela mesma função um nível acima; a variável local saiu.
+
+##### Campanhas: o grupo vira rótulo, e o progresso sobe para o cabeçalho
+
+**A IDENTIDADE DA CAMPANHA VIROU UMA LINHA.** A capa ocupava a largura inteira
+com 160px de altura e empurrava a barra de progresso — que é o número que a
+pessoa veio ver — para baixo da dobra num notebook. Agora é capa à esquerda,
+cliente/período/status e progresso na coluna ao lado, na mesma altura.
+
+**A capa é `quadrada` aqui e `larga` no cartão da grade, e as duas continuam
+sendo o MESMO componente** — o que muda é a proporção que cada tela pede, não o
+desenho. Numa faixa 16/6 de 150px de largura a imagem teria 56px de altura, que
+não reconhece campanha nenhuma.
+
+**E A LINHA NÃO EMPILHA NO CELULAR, ao contrário de quase tudo neste produto.**
+A primeira versão empilhava, e a imagem de 390px mostrou o preço: a capa
+quadrada ocupa a largura inteira, fica com uns 330px de altura, e a barra de
+progresso volta para baixo da dobra — o mesmo problema de antes, só que pior,
+porque agora a imagem é maior. A capa encolhe para 96px e a linha continua sendo
+uma linha: uma composição só, uma proporção só, em toda largura.
+
+**O GRUPO DE ENTREGÁVEIS VIROU UM RÓTULO, e a PEÇA virou o cartão.** Antes o
+grupo era uma caixa grande com as peças dentro, e o que se lia primeiro era a
+caixa — mas **ninguém decide sobre um grupo**: ele não recebe arquivo, não tem
+versão e o status dele é derivado dos filhos desde a 0033. O que ganha borda e
+sombra é a unidade sobre a qual alguém age.
+
+**O RECUO FICOU, e a proposta tinha tirado ele.** O rótulo diz onde o grupo
+COMEÇA e não diz onde ele TERMINA, e a imagem mostrou o preço: o "Tabloide", que
+é uma peça de topo, caía logo abaixo do sexto Feed/Story com o mesmo espaço
+entre eles, e lia como o sétimo item de um grupo cujo rótulo diz seis. O que
+voltou é um **fio à esquerda**, e não a caixa: sem topo, sem fundo, sem cor de
+fundo e sem sombra, ele fecha o grupo dos dois lados sem devolver o retângulo
+que se lia antes das peças.
+
+##### O que NÃO mudou, e é decisão
+
+- **O board continua arrastando, e o cartão continua sem selo de status** — a
+  coluna carrega o status, o card não repete. A decisão é do Sprint 10.
+- **A lista de Social Media continua agrupando por QUEM ESTÁ SEGURANDO**, e não
+  por status: é o que faz a mesma tela servir aos três perfis internos.
+- **O seletor de visão continua menor que a barra de contexto**, em Gestão de
+  Tasks. Com o mesmo peso a pessoa leria "Demandas / Workflows" e "Board /
+  Lista" como duas metades da mesma escolha.
+- **Nenhuma consulta mudou, e nenhuma migration entrou.** As três áreas são
+  layout — a mesma propriedade que fez as 63 telas mudarem por token.
+
 
 #### Registrar período que já aconteceu — da gestão, e só dela
 

@@ -64,19 +64,22 @@ function Card({
   return (
     <article
       className={cn(
-        "bg-card relative overflow-hidden rounded-lg border p-3 shadow-xs",
+        "bg-card rounded-card shadow-cartao relative overflow-hidden border p-3.5",
         vencida && "border-destructive/40",
         arrastando && "opacity-60",
       )}
     >
-      {/* Faixa de prioridade: dá para varrer a coluna sem ler os selos. */}
+      {/* Faixa de prioridade: dá para varrer a coluna sem ler os selos — e
+          ela ganhou peso quando a coluna perdeu o chão cinza. Com os cartões
+          soltos sobre a página, a faixa de 1px sumia; em 4px ela é a mesma
+          borda à esquerda que a linha atrasada de Minhas Tasks usa. */}
       <span
         aria-hidden
         className={cn("absolute inset-y-0 left-0 w-1", COR_DA_PRIORIDADE[task.prioridade])}
       />
 
-      <div className="space-y-2 pl-2">
-        <p className="text-sm leading-snug font-medium">{task.titulo}</p>
+      <div className="space-y-2 pl-2.5">
+        <p className="text-[13.5px] leading-snug font-bold tracking-[-0.015em]">{task.titulo}</p>
 
         {marcador}
 
@@ -199,21 +202,34 @@ function Coluna({
   const { setNodeRef, isOver } = useDroppable({ id: coluna.id });
 
   return (
+    /* A COLUNA PERDEU A CAIXA, e é a decisão dos cartões soltos de Minhas
+       Tasks aplicada ao board: ela era um retângulo cinza com fio, e o que se
+       lia primeiro era o retângulo. Sem ele, o que se lê primeiro é cada
+       demanda — que é a unidade sobre a qual alguém decide.
+
+       O que fica é o cabeçalho com o nome e a contagem, e um realce de fundo
+       enquanto um card paira sobre a coluna: sem o chão permanente, o alvo do
+       arrasto precisava de outro jeito de se anunciar, e ele só aparece
+       durante o arrasto. */
     <section
       ref={setNodeRef}
       className={cn(
-        "bg-muted/40 flex w-72 shrink-0 flex-col rounded-xl border transition-colors",
+        "flex w-72 shrink-0 flex-col rounded-xl border border-transparent transition-colors",
         isOver && "border-accent-strong bg-accent",
       )}
     >
-      <header className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
-        <h3 className="text-sm font-medium">{coluna.titulo}</h3>
-        <span className="text-muted-foreground text-xs tabular-nums">{tasks.length}</span>
+      <header className="flex items-center justify-between gap-2 px-1.5 pb-2.5">
+        <h3 className="text-text-secondary text-[11px] font-bold tracking-wider uppercase">
+          {coluna.titulo}
+        </h3>
+        <span className="text-text-muted text-xs font-bold tabular-nums">{tasks.length}</span>
       </header>
 
-      <div className="flex max-h-[calc(100dvh-20rem)] flex-col gap-2 overflow-y-auto p-2">
+      <div className="flex max-h-[calc(100dvh-20rem)] flex-col gap-2.5 overflow-y-auto px-0.5 pb-1">
         {tasks.length === 0 ? (
-          <p className="text-muted-foreground px-1 py-6 text-center text-xs">Nada aqui.</p>
+          <p className="text-text-muted rounded-card border border-dashed px-1 py-5 text-center text-xs font-semibold">
+            Nada aqui.
+          </p>
         ) : (
           tasks.map((task) => (
             <CardArrastavel
@@ -307,7 +323,7 @@ export function BoardDeTasks({
 
   return (
     <DndContext sensors={sensores} onDragStart={aoComecar} onDragEnd={aoSoltar}>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex items-start gap-3.5 overflow-x-auto pb-2">
         {colunas.map((coluna) => (
           <Coluna
             key={coluna.id}

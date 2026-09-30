@@ -118,34 +118,60 @@ export default async function PaginaDaCampanha({
         }
       />
 
-      <section className="bg-surface-card space-y-3 rounded-xl border p-4">
-        <CapaDoCartao
-          url={campanha.capaAssinada}
-          alt={campanha.nome}
-          className="max-h-40"
-        />
-        <p className="text-text-muted text-sm tabular-nums">
-          {campanha.cliente}
-          <span aria-hidden> · </span>
-          {periodoCurto(campanha.dataInicio, campanha.dataFim)}
-          <span aria-hidden> · </span>
-          <span>{ROTULO_DA_CAMPANHA[campanha.status]}</span>
-        </p>
+      {/* A IDENTIDADE DA CAMPANHA VIROU UMA LINHA, e não mais uma pilha.
+          A capa ocupava a largura inteira com 160px de altura e empurrava a
+          barra de progresso — que é o número que a pessoa veio ver — para
+          baixo da dobra num notebook. Agora ela é um quadrado de 150px à
+          esquerda, e o cliente, o período, o status e o progresso ocupam a
+          coluna ao lado: a mesma altura, com a informação dentro dela.
 
-        {conta.total > 0 ? (
-          <BarraDeProgresso
-            nome="Materiais aprovados"
-            valor={conta.aprovados}
-            total={conta.total}
-            tom={conta.aprovados === conta.total ? "sucesso" : "marca"}
-            rotulo={`${conta.aprovados} de ${conta.total} aprovados pelo cliente`}
+          A capa é `quadrada` aqui e `larga` no cartão da grade, e as duas
+          continuam sendo o MESMO componente — o que muda é a proporção que
+          cada tela pede, não o desenho. Numa faixa 16/6 de 150px de largura a
+          imagem teria 56px de altura, que não reconhece campanha nenhuma.
+
+          E A LINHA NÃO EMPILHA NO CELULAR, ao contrário de quase tudo neste
+          produto. Empilhada ela custava o que a linha veio consertar: em
+          390px a capa quadrada ocupa a largura inteira, fica com uns 330px de
+          altura, e a barra de progresso volta para baixo da dobra — o mesmo
+          problema de antes, só que pior, porque agora a imagem é maior. Foi a
+          imagem de 390px que mostrou. Então a capa encolhe para 96px e a
+          linha continua sendo uma linha: uma composição só, uma proporção só,
+          em toda largura. */}
+      <section className="bg-surface-card rounded-card shadow-cartao flex items-center gap-4 border p-4">
+        {campanha.capaAssinada ? (
+          <CapaDoCartao
+            url={campanha.capaAssinada}
+            alt={campanha.nome}
+            proporcao="quadrada"
+            className="w-24 shrink-0 sm:w-[150px]"
           />
-        ) : (
-          <p className="text-text-muted text-sm">
-            Esta campanha ainda não tem entregável. Acrescente na demanda — cada
-            etapa vira uma peça aqui.
+        ) : null}
+
+        <div className="min-w-0 flex-1 space-y-3">
+          <p className="text-text-muted text-sm tabular-nums">
+            {campanha.cliente}
+            <span aria-hidden> · </span>
+            {periodoCurto(campanha.dataInicio, campanha.dataFim)}
+            <span aria-hidden> · </span>
+            <span>{ROTULO_DA_CAMPANHA[campanha.status]}</span>
           </p>
-        )}
+
+          {conta.total > 0 ? (
+            <BarraDeProgresso
+              nome="Materiais aprovados"
+              valor={conta.aprovados}
+              total={conta.total}
+              tom={conta.aprovados === conta.total ? "sucesso" : "marca"}
+              rotulo={`${conta.aprovados} de ${conta.total} aprovados pelo cliente`}
+            />
+          ) : (
+            <p className="text-text-muted text-sm">
+              Esta campanha ainda não tem entregável. Acrescente na demanda —
+              cada etapa vira uma peça aqui.
+            </p>
+          )}
+        </div>
       </section>
 
       <ArvoreDeProducao

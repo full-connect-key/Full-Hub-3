@@ -66,7 +66,10 @@ export function CorrenteDoPost({
   return (
     <section className="space-y-2" aria-labelledby="corrente-titulo">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 id="corrente-titulo" className="text-text-primary text-sm font-semibold">
+        <h3
+          id="corrente-titulo"
+          className="text-text-secondary text-[11px] font-bold tracking-wider uppercase"
+        >
           Corrente
         </h3>
         <span className="text-text-muted text-xs tabular-nums">
@@ -74,7 +77,13 @@ export function CorrenteDoPost({
         </span>
       </div>
 
-      <ol className="space-y-1.5">
+      {/* CADA ELO É UM CARTÃO SOLTO COM LADRILHO DE ÍCONE, e é o desenho do
+          "Precisa de mim" da Home aplicado aqui: cada etapa é o trabalho de
+          uma pessoa diferente, e num contêiner com fios o que se lê primeiro é
+          a caixa. O ladrilho quadrado troca o círculo de antes pelo mesmo
+          formato que o produto usa para dizer "isto é uma linha sobre a qual
+          alguém decide". */}
+      <ol className="space-y-2">
         {etapas.map((etapa) => {
           const bloqueio = bloqueioDaEtapa(etapa, etapas);
           const minha = etapa.responsavelId === quemSou;
@@ -85,7 +94,7 @@ export function CorrenteDoPost({
             <li
               key={etapa.id}
               className={cn(
-                "rounded-xl border px-3 py-2.5 transition-colors",
+                "rounded-card shadow-cartao border px-3 py-2.5 transition-colors",
                 etapa.status === "concluida"
                   ? "border-border bg-muted"
                   : eADaVez
@@ -96,26 +105,26 @@ export function CorrenteDoPost({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <span
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-xs",
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs",
                     etapa.status === "concluida"
                       ? "bg-success-soft text-success"
                       : bloqueio
                         ? "bg-muted text-text-muted"
-                        : "bg-blue-strong text-white",
+                        : "bg-action-soft text-action-text",
                   )}
                   aria-hidden
                 >
                   {etapa.status === "concluida" ? (
-                    <Check className="size-3.5" />
+                    <Check className="size-4" />
                   ) : bloqueio ? (
-                    <Lock className="size-3" />
+                    <Lock className="size-3.5" />
                   ) : (
-                    <Play className="size-3" />
+                    <Play className="size-3.5" />
                   )}
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="text-text-primary block text-sm font-medium">
+                  <span className="text-text-primary block text-sm font-bold tracking-[-0.01em]">
                     {etapa.nome}
                   </span>
                   {/* A FUNÇÃO E A PESSOA, e não só a pessoa: "Design" é o que a
@@ -147,9 +156,9 @@ export function CorrenteDoPost({
                   demanda: quem recusa é o banco, e a recusa dele diz o
                   caminho. */}
               {bloqueio ? (
-                <p className="text-text-muted mt-1.5 pl-9 text-xs">{bloqueio}</p>
+                <p className="text-text-muted mt-1.5 pl-11 text-xs">{bloqueio}</p>
               ) : !etapaSeMarcaAMao(etapa) ? (
-                <p className="text-text-muted mt-1.5 pl-9 text-xs">
+                <p className="text-text-muted mt-1.5 pl-11 text-xs">
                   Acompanha a decisão do cliente — use a ação Enviar ao cliente.
                 </p>
               ) : null}

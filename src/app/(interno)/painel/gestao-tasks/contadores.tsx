@@ -10,6 +10,19 @@ import { useFiltros } from "./filtros";
  * Os três números da aba de Demandas — e o de atrasadas FILTRA.
  *
  * ---------------------------------------------------------------------------
+ * **ELES SÃO UMA LINHA DE TEXTO, e não três cartões brancos.** Eram três
+ * ladrilhos com número grande em cima do board, gastando noventa pixels da
+ * primeira dobra da tela mais cheia do painel — e o board é a peça. É a
+ * decisão do Início: a lista logo abaixo É esses números, então eles não
+ * viram cartão; o número mora onde serve de link.
+ *
+ * **E a linha fica DENTRO da aba, e não no subtítulo do cabeçalho**, que era
+ * onde a proposta a punha. O cabeçalho é das quatro seções e os números
+ * nascem da mesma consulta que a lista — subi-los pediria uma segunda
+ * chamada só para desenhar três números quarenta pixels acima, e dois lugares
+ * contando a mesma coisa é exatamente o bug que este contador já teve duas
+ * vezes, as duas encontradas pelo usuário.
+ *
  * **O NÚMERO ERA UM BECO SEM SAÍDA, e foi o usuário quem apontou:** *"quero
  * que ao clicar no botão de atrasadas, ele me mostre quais tasks estão
  * atrasadas"*. Ele estava certo — "2 atrasadas" era um `<div>`: a tela dizia
@@ -47,49 +60,32 @@ export function ContadoresDeDemandas({
   const { filtros, definir } = useFiltros();
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Numero valor={abertas} rotulo="abertas" />
-
+    <p className="text-text-secondary text-sm font-semibold">
+      <span className="tabular-nums">{abertas}</span>{" "}
+      {abertas === 1 ? "aberta" : "abertas"}
+      {" · "}
       {atrasadas > 0 ? (
         <button
           type="button"
           aria-pressed={filtros.atrasadas}
           onClick={() => definir({ atrasadas: !filtros.atrasadas })}
           className={cn(
-            "rounded-lg border px-3.5 py-2 text-left transition-colors",
-            "hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-            filtros.atrasadas && "border-danger bg-danger-soft",
+            "inline-flex items-center gap-1 rounded-sm hover:underline",
+            "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
+            filtros.atrasadas ? "text-danger" : "text-accent-strong",
           )}
         >
-          <p className="text-destructive text-xl font-semibold tabular-nums">{atrasadas}</p>
-          {/* O ICONE E A UNICA COISA QUE DIZ QUE ISTO CLICA. Sem ele o cartao
-              tem a mesma cara dos dois ao lado, que sao texto -- e um controle
-              que nao parece controle ensina que ele nao existe, que e o estado
-              em que este numero estava. */}
-          <p
-            className={cn(
-              "flex items-center gap-1 text-xs",
-              filtros.atrasadas ? "text-danger" : "text-accent-strong",
-            )}
-          >
-            <ListFilter aria-hidden className="size-3 shrink-0" />
-            {filtros.atrasadas ? "atrasadas · filtrando" : "atrasadas · ver quais"}
-          </p>
+          <ListFilter aria-hidden className="size-3.5 shrink-0" />
+          <span className="tabular-nums">{atrasadas}</span>{" "}
+          {atrasadas === 1 ? "atrasada" : "atrasadas"}
+          {filtros.atrasadas ? " · filtrando" : " · ver quais"}
         </button>
       ) : (
-        <Numero valor={0} rotulo="atrasadas" />
+        <span>0 atrasadas</span>
       )}
-
-      <Numero valor={concluidasNoMes} rotulo="concluídas no mês" />
-    </div>
-  );
-}
-
-function Numero({ valor, rotulo }: { valor: number; rotulo: string }) {
-  return (
-    <div className="rounded-lg border px-3.5 py-2">
-      <p className="text-xl font-semibold tabular-nums">{valor}</p>
-      <p className="text-muted-foreground text-xs">{rotulo}</p>
-    </div>
+      {" · "}
+      <span className="tabular-nums">{concluidasNoMes}</span>{" "}
+      {concluidasNoMes === 1 ? "concluída no mês" : "concluídas no mês"}
+    </p>
   );
 }

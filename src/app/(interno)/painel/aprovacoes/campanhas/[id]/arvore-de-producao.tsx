@@ -64,60 +64,76 @@ export function ArvoreDeProducao({
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
 
+  /** O cartão de uma peça, com o estado de aberto que a lista guarda. */
+  const cartao = (item: EntregavelDoPortal) => (
+    <Peca
+      item={item}
+      clienteId={clienteId}
+      miniatura={miniaturas[item.id] || null}
+      versoes={versoes[item.id] ?? []}
+      assinadas={assinadas}
+      aberto={aberto === item.id}
+      aoAbrir={() => setAberto((atual) => (atual === item.id ? null : item.id))}
+    />
+  );
+
   return (
-    <ul className="space-y-3">
+    /* O GRUPO VIROU UM RÓTULO, e a PEÇA virou o cartão.
+       -----------------------------------------------------------------
+       Antes o grupo era uma caixa grande com as peças dentro, e o que se lia
+       primeiro era a caixa — mas ninguém decide sobre um grupo: ele não
+       recebe arquivo, não tem versão e o status dele é derivado dos filhos
+       desde a 0033. É a decisão dos cartões soltos de Minhas Tasks: o que
+       ganha borda e sombra é a unidade sobre a qual alguém age.
+
+       Então o nome do grupo passou a ser um rótulo em caixa alta — a mesma
+       forma do cabeçalho de coluna do board e do grupo da Lista —, e cada
+       peça é um cartão solto embaixo dele.
+
+       O RECUO FICOU, e a proposta tinha tirado ele: o rótulo diz onde o grupo
+       COMEÇA e não diz onde ele termina, e a imagem mostrou o preço — o
+       "Tabloide", que é uma peça de topo, caía logo abaixo do sexto
+       Feed/Story com o mesmo espaço entre eles, e lia como o sétimo de um
+       grupo cujo rótulo diz seis. O que voltou é um FIO à esquerda, e não a
+       caixa: sem topo, sem fundo, sem fundo de cor e sem sombra, ele fecha o
+       grupo dos dois lados sem devolver o retângulo que se lia antes das
+       peças. */
+    <div className="space-y-6">
       {arvore.map((no) => (
-        <li key={no.item.id} className="bg-surface-card rounded-xl border p-4">
+        <section key={no.item.id} className="space-y-2">
           {no.filhos.length > 0 ? (
             <>
               {/* O GRUPO NÃO RECEBE ARQUIVO, e é a regra da casa: quem tem
                   filho para de ser unidade de trabalho. A peça é o sub-item,
                   e um upload no grupo criaria uma entrega que não é de
                   ninguém e que nenhuma conta enxerga. */}
-              <p className="font-medium">{no.item.nome}</p>
-              <p className="text-text-muted mt-0.5 text-sm">
-                {no.filhos.length} {no.filhos.length === 1 ? "peça" : "peças"}{" "}
-                dentro
-              </p>
+              <h3 className="text-text-secondary flex items-baseline justify-between gap-2 pl-3 text-[11px] font-bold tracking-wider uppercase">
+                {no.item.nome}
+                <span className="text-text-muted tabular-nums">
+                  {no.filhos.length}{" "}
+                  {no.filhos.length === 1 ? "peça" : "peças"}
+                </span>
+              </h3>
 
-              <ul className="mt-3 space-y-2 border-t pt-3 pl-3 sm:pl-6">
+              <ul className="border-border space-y-2 border-l-2 pl-3">
                 {no.filhos.map((filho: EntregavelDoPortal) => (
-                  <li key={filho.id}>
-                    <Peca
-                      item={filho}
-                      clienteId={clienteId}
-                      miniatura={miniaturas[filho.id] || null}
-                      versoes={versoes[filho.id] ?? []}
-                      assinadas={assinadas}
-                      aberto={aberto === filho.id}
-                      aoAbrir={() =>
-                        setAberto((atual) =>
-                          atual === filho.id ? null : filho.id,
-                        )
-                      }
-                    />
+                  <li
+                    key={filho.id}
+                    className="bg-surface-card rounded-card shadow-cartao border p-4"
+                  >
+                    {cartao(filho)}
                   </li>
                 ))}
               </ul>
             </>
           ) : (
-            <Peca
-              item={no.item}
-              clienteId={clienteId}
-              miniatura={miniaturas[no.item.id] || null}
-              versoes={versoes[no.item.id] ?? []}
-              assinadas={assinadas}
-              aberto={aberto === no.item.id}
-              aoAbrir={() =>
-                setAberto((atual) =>
-                  atual === no.item.id ? null : no.item.id,
-                )
-              }
-            />
+            <div className="bg-surface-card rounded-card shadow-cartao border p-4">
+              {cartao(no.item)}
+            </div>
           )}
-        </li>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 

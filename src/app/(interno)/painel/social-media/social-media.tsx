@@ -359,15 +359,28 @@ export function SocialMedia({
           }
         />
       ) : visao === "lista" ? (
+        /* A COLUNA ESTREITA FICA À ESQUERDA AQUI, e é o contrário de Minhas
+           Tasks, do Início e do Full Days — onde os 306px moram à direita.
+           A diferença é o que a coluna É: lá ela é um RESUMO, que acompanha o
+           que a pessoa veio fazer; aqui ela é o ÍNDICE, e o índice é por onde
+           se entra. Invertida, o mês de social abriria com um editor vazio
+           ocupando a esquerda e a lista de posts no canto — a tela pedindo uma
+           escolha com a escolha fora do caminho do olho. */
         <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-          <div className="border-border bg-surface-card overflow-hidden rounded-xl border">
+          <div className="space-y-4">
             {grupos.map((grupo) => (
-              <section key={grupo.titulo}>
-                <h2 className="bg-muted text-text-secondary flex justify-between px-3 py-1.5 text-[11px] tracking-wide uppercase">
+              <section key={grupo.titulo} className="space-y-2">
+                <h2 className="text-text-secondary flex justify-between px-1 text-[11px] font-bold tracking-wider uppercase">
                   {grupo.titulo}
-                  <span>{grupo.itens.length}</span>
+                  <span className="text-text-muted tabular-nums">
+                    {grupo.itens.length}
+                  </span>
                 </h2>
-                <ul>
+                {/* CADA POST É UM CARTÃO SOLTO, e não uma faixa dentro de uma
+                    caixa com fios. É o argumento da lista de Minhas Tasks: num
+                    contêiner único o que se lê primeiro é a CAIXA, e aqui cada
+                    linha é um trabalho separado, com dono e data próprios. */}
+                <ul className="space-y-1.5">
                   {grupo.itens.map((p) => (
                     <li key={p.id}>
                       <button
@@ -375,9 +388,9 @@ export function SocialMedia({
                         onClick={() => abrir(p.id)}
                         aria-current={aberto?.id === p.id ? "true" : undefined}
                         className={cn(
-                          "border-border flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left",
+                          "bg-surface-card rounded-card shadow-cartao flex w-full items-center gap-2.5 border p-2.5 text-left transition-colors",
                           aberto?.id === p.id
-                            ? "bg-blue-soft"
+                            ? "border-accent-strong bg-blue-soft"
                             : "hover:bg-muted",
                         )}
                       >
@@ -392,10 +405,10 @@ export function SocialMedia({
                           ) : null}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="text-text-primary block truncate text-sm font-medium">
+                          <span className="text-text-primary block truncate text-[13.5px] font-bold tracking-[-0.015em]">
                             {p.tema}
                           </span>
-                          <span className="text-text-secondary mt-0.5 flex items-center gap-1.5 text-xs">
+                          <span className="text-text-secondary mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
                             <Selo post={p} />
                             {rotuloDaData(
                               p.dataPublicacao
@@ -416,7 +429,7 @@ export function SocialMedia({
             ))}
           </div>
 
-          <div className="border-border bg-surface-card rounded-xl border p-4 lg:p-5">
+          <div className="bg-surface-card rounded-card shadow-cartao border p-4 lg:p-5">
             {editor ?? (
               <p className="text-text-secondary py-12 text-center text-sm">
                 Escolha um post à esquerda.
@@ -432,7 +445,7 @@ export function SocialMedia({
           )}
         >
           <div>
-            <div className="border-border grid grid-cols-7 gap-px overflow-hidden rounded-xl border bg-[var(--border)]">
+            <div className="rounded-card shadow-cartao grid grid-cols-7 gap-px overflow-hidden border bg-[var(--border)]">
               {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => (
                 <div
                   key={d}
@@ -527,7 +540,7 @@ export function SocialMedia({
             {semData.length > 0 ? (
               <section className="border-border mt-4 border-t pt-3">
                 <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="text-text-primary text-sm font-semibold">
+                  <h3 className="text-text-secondary text-[11px] font-bold tracking-wider uppercase">
                     Sem data ainda
                   </h3>
                   <span className="text-text-muted text-xs tabular-nums">
@@ -544,7 +557,7 @@ export function SocialMedia({
                       <button
                         type="button"
                         onClick={() => abrir(p.id)}
-                        className="border-border bg-surface-card hover:bg-muted flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors"
+                        className="bg-surface-card shadow-cartao hover:bg-muted flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors"
                       >
                         <span
                           aria-hidden
@@ -570,7 +583,7 @@ export function SocialMedia({
           {/* O PAINEL EMPURRA, não cobre. Coberto, ele comia sábado e domingo
               — foi a imagem da proposta que mostrou. */}
           {editor ? (
-            <aside className="border-border bg-surface-card rounded-xl border p-4 xl:sticky xl:top-4">
+            <aside className="bg-surface-card rounded-card shadow-cartao border p-4 xl:sticky xl:top-20">
               {editor}
             </aside>
           ) : null}

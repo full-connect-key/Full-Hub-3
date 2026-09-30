@@ -39,7 +39,6 @@ import {
   ROTULO_DA_MIDIA,
   ROTULO_DA_PLATAFORMA,
   SIGLA_DA_PLATAFORMA,
-  faltaParaEnviar,
   maoDoPost,
   podeEnviarAoCliente,
   podeProduzir,
@@ -154,7 +153,6 @@ export function EditorDoPost({
   const mao = maoDoPost(post);
   const posso = podeProduzir(post, quemLe);
   const envio = podeEnviarAoCliente(post, quemLe);
-  const faltam = faltaParaEnviar(post);
 
   // SEM EFEITO PARA RESSINCRONIZAR O ESTADO, e a ausência é o conserto: quem
   // troca de post é o `key={post.id}` lá em `social-media.tsx`, que remonta a
@@ -633,13 +631,19 @@ export function EditorDoPost({
           ) : null}
         </div>
 
+        {/* A RAZÃO É UMA PÍLULA ÂMBAR, e não uma linha de texto cinza.
+            Ela é a única coisa na tela que explica por que o botão mais
+            importante do módulo está desligado — e em cinza, ao lado de um
+            botão cinza desabilitado, ela lia como legenda do botão em vez de
+            resposta. `--warning` e nunca `--danger`: falta um passo, não há
+            erro nenhum. O par é nomeado (`bg-warning-soft text-warning`), como
+            todo selo de estado deste produto. */}
         {!envio.pode && envio.porque ? (
-          <p className="text-text-secondary flex items-start gap-2 text-xs">
-            <CircleAlert aria-hidden className="text-warning mt-0.5 size-3.5 shrink-0" />
+          <p className="bg-warning-soft text-warning flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold">
+            <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
             {envio.porque}
           </p>
         ) : null}
-        {faltam.length === 0 && !envio.pode && !quemLe.ehGestor ? null : null}
       </div>
 
       {/* A CORRENTE FICA ENTRE AS AÇÕES E O HISTÓRICO, e a posição é a mesma

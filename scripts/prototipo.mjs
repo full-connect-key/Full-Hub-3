@@ -485,6 +485,11 @@ const TELAS = [
   // escreve a justificativa e manda ao cliente. Sem o clique, a imagem mostra
   // so a arvore fechada -- que e justamente o que ja existia.
   { nome: "20l-campanha-producao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "socio" },
+  // A identidade da campanha e uma LINHA no desktop -- capa de 150px a
+  // esquerda, progresso a direita -- e empilha no celular. E a imagem de 390px
+  // que decide: e ela que mostra se a capa quadrada come a primeira dobra
+  // inteira antes de a barra de progresso aparecer.
+  { nome: "20o-campanha-producao-390", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 390, altura: 1400, role: "socio" },
   // COMO O COLABORADOR VE (0054): o modulo aparece para ele, o botao de abrir
   // campanha nao. E a imagem e a unica prova disso -- o build nao sabe quem
   // esta logado.

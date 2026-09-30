@@ -110,7 +110,7 @@ export default async function PaginaDeAprovacoes() {
             return (
               <li
                 key={campanha.id}
-                className="bg-surface-card flex flex-col gap-3 rounded-xl border p-4"
+                className="bg-surface-card rounded-card shadow-cartao flex flex-col gap-3 border p-4"
               >
                 <CapaDaCampanha
                   campanhaId={campanha.id}
@@ -124,7 +124,7 @@ export default async function PaginaDeAprovacoes() {
                 <div className="min-w-0 flex-1 space-y-1">
                   <Link
                     href={href}
-                    className="hover:text-accent-strong font-medium transition-colors"
+                    className="hover:text-accent-strong block text-[15px] font-bold tracking-[-0.015em] transition-colors"
                   >
                     {campanha.nome}
                   </Link>
