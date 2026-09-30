@@ -90,7 +90,10 @@ export function BuscaGlobal() {
   // nenhum campo do produto usa ⌘K para outra coisa.
   useEffect(() => {
     function aoTeclar(evento: KeyboardEvent) {
-      if ((evento.metaKey || evento.ctrlKey) && evento.key.toLowerCase() === "k") {
+      if (
+        (evento.metaKey || evento.ctrlKey) &&
+        evento.key.toLowerCase() === "k"
+      ) {
         evento.preventDefault();
         setAberta((antes) => !antes);
       }
@@ -104,7 +107,7 @@ export function BuscaGlobal() {
       <button
         type="button"
         onClick={() => setAberta(true)}
-        className="text-text-secondary hover:bg-accent hover:text-accent-foreground border-input focus-visible:ring-ring/50 hidden h-8 w-56 items-center gap-2 rounded-md border px-2.5 text-sm transition-colors focus-visible:ring-[3px] focus-visible:outline-none md:flex xl:w-72"
+        className="text-text-muted hover:text-text-secondary bg-surface-card/70 border-border/50 focus-visible:ring-ring/50 hidden h-10 w-full max-w-[330px] items-center gap-2.5 rounded-full border px-4 text-sm font-semibold backdrop-blur-lg transition-colors focus-visible:ring-[3px] focus-visible:outline-none md:flex"
       >
         <Search aria-hidden className="size-4 shrink-0" />
         <span className="truncate">Buscar na plataforma…</span>
@@ -145,8 +148,9 @@ export function BuscaGlobal() {
         >
           <DialogTitle className="sr-only">Buscar na plataforma</DialogTitle>
           <DialogDescription className="sr-only">
-            Digite para achar demandas, etapas, clientes, pessoas, campanhas, posts,
-            equipamentos, pedidos e trilhas. Use as setas para escolher e Enter para abrir.
+            Digite para achar demandas, etapas, clientes, pessoas, campanhas,
+            posts, equipamentos, pedidos e trilhas. Use as setas para escolher e
+            Enter para abrir.
           </DialogDescription>
           {aberta ? <Paleta aoEscolher={() => setAberta(false)} /> : null}
         </DialogContent>
@@ -183,7 +187,9 @@ function Paleta({ aoEscolher }: { aoEscolher: () => void }) {
     termo: string;
     grupos: GrupoDaBusca[];
   } | null>(null);
-  const [erro, setErro] = useState<{ termo: string; mensagem: string } | null>(null);
+  const [erro, setErro] = useState<{ termo: string; mensagem: string } | null>(
+    null,
+  );
 
   const limpo = termo.trim();
   const curto = limpo.length < MINIMO_PARA_BUSCAR;
@@ -200,7 +206,8 @@ function Paleta({ aoEscolher }: { aoEscolher: () => void }) {
   // O ÍNDICE É GRAMPEADO NA LEITURA, e não corrigido por efeito: a lista
   // encolhe a cada tecla, e um `setEscolhido` para caber seria outro `setState`
   // em cascata. Grampear responde a mesma pergunta sem guardar nada.
-  const ativo = linhas.length === 0 ? -1 : Math.min(escolhido, linhas.length - 1);
+  const ativo =
+    linhas.length === 0 ? -1 : Math.min(escolhido, linhas.length - 1);
 
   useEffect(() => {
     const alvo = termo.trim();
@@ -224,7 +231,10 @@ function Paleta({ aoEscolher }: { aoEscolher: () => void }) {
       // `dados` é opcional no contrato de `Resultado`, e o `??` aqui não é
       // cerimônia: com um `!` a paleta prometeria um objeto que o contrato não
       // garante.
-      setResposta({ termo: r.dados?.termo ?? alvo, grupos: r.dados?.grupos ?? [] });
+      setResposta({
+        termo: r.dados?.termo ?? alvo,
+        grupos: r.dados?.grupos ?? [],
+      });
       setEscolhido(0);
     }, PAUSA_MS);
 
@@ -264,7 +274,10 @@ function Paleta({ aoEscolher }: { aoEscolher: () => void }) {
     <>
       <div className="flex items-center gap-2 border-b px-4 py-3 pr-12">
         {buscando ? (
-          <Loader2 aria-hidden className="text-text-muted size-4 shrink-0 animate-spin" />
+          <Loader2
+            aria-hidden
+            className="text-text-muted size-4 shrink-0 animate-spin"
+          />
         ) : (
           <Search aria-hidden className="text-text-muted size-4 shrink-0" />
         )}

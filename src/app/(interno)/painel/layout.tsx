@@ -3,7 +3,6 @@ import { MenuDoUsuario } from "@/components/painel/menu-do-usuario";
 import { MenuGaveta } from "@/components/painel/menu-gaveta";
 import { MenuLateral } from "@/components/painel/menu-lateral";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
-import { Trilha } from "@/components/painel/trilha";
 import { AtualizacaoAoVivo } from "@/components/shared/atualizacao-ao-vivo";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
@@ -35,9 +34,14 @@ const tituloDaVersao = publicadoEm
   ? `Versão no ar desde ${publicadoEm}`
   : "Build local, fora de um clone do repositório";
 
-export default async function LayoutDoPainel({ children }: LayoutProps<"/painel">) {
+export default async function LayoutDoPainel({
+  children,
+}: LayoutProps<"/painel">) {
   const { email, profile } = await exigirEquipe();
-  const [ficha, avisos] = await Promise.all([obterMinhaFicha(), minhasNotificacoes()]);
+  const [ficha, avisos] = await Promise.all([
+    obterMinhaFicha(),
+    minhasNotificacoes(),
+  ]);
 
   return (
     <>
@@ -65,11 +69,31 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
             lateral tem fundo próprio, e uma malha que passasse por baixo dela
             apareceria nas bordas no tema claro.
           */}
-          <div aria-hidden className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[190px]" />
+          <div
+            aria-hidden
+            className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[190px]"
+          />
 
-          <header className="bg-surface-page/75 sticky top-0 z-30 flex h-16 items-center gap-2 px-3 backdrop-blur-xl sm:gap-3 lg:px-6">
+          {/*
+            A TOPBAR NÃO CARREGA MAIS O NOME DO MÓDULO, e a busca passou para a
+            esquerda. É o desenho aprovado: uma faixa que tem a busca, o sino e
+            o avatar, e mais nada.
+
+            O nome não sumiu — DESCEU. Ele é o título grande da página agora,
+            escrito por `BarraDeContexto` nas sete telas que tiraram o
+            `PageHeader` no Sprint 9 e pelo próprio `PageHeader` no resto. A
+            decisão daquele sprint continua valendo palavra por palavra ("o
+            nome do módulo aparece uma vez só"); o que mudou foi ONDE essa vez
+            acontece.
+
+            E ela deixou de ter fundo e desfoque próprios: sobre a malha, uma
+            faixa translúcida criava uma segunda borda horizontal onde o
+            desenho não tem nenhuma. O que gruda no topo agora é a barra de
+            seções, que é a que precisa.
+          */}
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 px-3 sm:gap-3 lg:px-6">
             <MenuGaveta role={profile.role} />
-            <Trilha />
+            <BuscaGlobal />
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
               {/*
@@ -85,8 +109,10 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
                 policy da 0057 é o que garante.
               */}
               <AtualizacaoAoVivo className="mr-1" />
-              <BuscaGlobal />
-              <SinoDeNotificacoes notificacoes={avisos.lista} naoLidas={avisos.naoLidas} />
+              <SinoDeNotificacoes
+                notificacoes={avisos.lista}
+                naoLidas={avisos.naoLidas}
+              />
               <MenuDoUsuario
                 nome={profile.nome}
                 email={email}

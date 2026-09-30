@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PageHeader } from "@/components/shared/page-header";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
@@ -112,7 +113,8 @@ export function BarraDeContexto<C extends string>({
   const caminho = usePathname();
   const parametros = useSearchParams();
 
-  if (secoes.length < 2 && !acoes) return null;
+  const temBarra = secoes.length > 1 || Boolean(acoes);
+  if (!temBarra && !titulo) return null;
 
   function href(destino: C) {
     const busca = new URLSearchParams(parametros.toString());
@@ -122,45 +124,71 @@ export function BarraDeContexto<C extends string>({
   }
 
   return (
-    <div className="bg-surface-page/75 sticky top-16 z-20 flex flex-wrap items-center gap-3 py-2 backdrop-blur-xl">
-      {titulo ? <h1 className="sr-only">{titulo}</h1> : null}
+    <>
+      {/*
+        O TÍTULO SAIU DA TOPBAR E DESCEU PARA CÁ, VISÍVEL.
 
-      {secoes.length > 1 ? (
-        <nav aria-label={rotuloAcessivel} className="min-w-0 overflow-x-auto">
-          <ul className="bg-muted inline-flex min-w-max gap-1 rounded-xl p-1">
-            {secoes.map(({ chave, rotulo, Icone, contagem, rotuloDaContagem }) => {
-              const ativo = chave === atual;
-              return (
-                <li key={chave}>
-                  <Link
-                    href={href(chave)}
-                    aria-current={ativo ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
-                      ativo
-                        ? "bg-surface-card text-text-primary font-medium shadow-sm"
-                        : "text-text-secondary hover:text-text-primary",
-                    )}
-                  >
-                    <Icone aria-hidden className="size-4" />
-                    {rotulo}
-                    {contagem && contagem > 0 ? (
-                      <span
-                        className="bg-warning-soft text-warning rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums"
-                        aria-label={rotuloDaContagem}
-                      >
-                        {contagem}
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        Ele era `sr-only` porque a topbar já dizia o nome do módulo três
+        centímetros acima, e dois títulos iguais na mesma dobra é o que o
+        Sprint 9 tirou. Na interface aprovada a topbar não carrega nome
+        nenhum — ela é só a busca flutuante, o sino e o avatar —, então o
+        nome do módulo precisa aparecer em algum lugar, e o lugar é o
+        cabeçalho da página, na escala grande do desenho.
+
+        **E ele fica FORA da faixa grudada.** A barra de seções continua
+        `sticky` porque rolando quarenta demandas saber em que seção se está
+        continua valendo; um título dentro dela grudaria junto e gastaria
+        altura em toda rolagem, que é o oposto do que um título faz.
+      */}
+      {titulo ? <PageHeader title={titulo} className="mb-4" /> : null}
+
+      {temBarra ? (
+        <div className="bg-surface-page/75 sticky top-16 z-20 flex flex-wrap items-center gap-3 py-2 backdrop-blur-xl">
+          {secoes.length > 1 ? (
+            <nav
+              aria-label={rotuloAcessivel}
+              className="min-w-0 overflow-x-auto"
+            >
+              <ul className="bg-muted inline-flex min-w-max gap-1 rounded-xl p-1">
+                {secoes.map(
+                  ({ chave, rotulo, Icone, contagem, rotuloDaContagem }) => {
+                    const ativo = chave === atual;
+                    return (
+                      <li key={chave}>
+                        <Link
+                          href={href(chave)}
+                          aria-current={ativo ? "page" : undefined}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
+                            ativo
+                              ? "bg-surface-card text-text-primary font-medium shadow-sm"
+                              : "text-text-secondary hover:text-text-primary",
+                          )}
+                        >
+                          <Icone aria-hidden className="size-4" />
+                          {rotulo}
+                          {contagem && contagem > 0 ? (
+                            <span
+                              className="bg-warning-soft text-warning rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                              aria-label={rotuloDaContagem}
+                            >
+                              {contagem}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </li>
+                    );
+                  },
+                )}
+              </ul>
+            </nav>
+          ) : null}
+
+          {acoes ? (
+            <div className="ml-auto flex items-center gap-2">{acoes}</div>
+          ) : null}
+        </div>
       ) : null}
-
-      {acoes ? <div className="ml-auto flex items-center gap-2">{acoes}</div> : null}
-    </div>
+    </>
   );
 }
