@@ -1298,6 +1298,73 @@ continua de pé: **grupo vazio não vira cabeçalho**, porque aí sim não há o
 dizer.
 
 
+#### O Início ganhou a composição, e passou a dizer o que ele É
+
+Terceira tela do redesenho, depois de Minhas Tasks — mesmo cabeçalho grande,
+mesmas duas colunas, mesma coluna de 306px, mesmos cartões soltos. O que ela
+resolve não é de desenho, é de **conteúdo**: com a coluna da direita agora
+existindo em Minhas Tasks — cronômetro, quem está fora, os contadores —, as
+duas telas corriam o risco de virar a mesma.
+
+**A diferença mora na esquerda, e ela é uma frase:** Minhas Tasks responde *o
+que eu faço agora* e lista ETAPAS; o Início responde *o que está me
+esperando*, e a resposta quase nunca é uma etapa — é um aval, um comentário
+sem resposta, uma nota que voltou. Por isso **"Precisa de mim" subiu para o
+topo da coluna**: ele deixou de ser o quarto bloco entre nove e passou a ser o
+conteúdo da tela.
+
+**E cada linha dele virou CARTÃO SOLTO com ladrilho de ícone.** É o argumento
+da lista de Minhas Tasks contra o contêiner com fios, aplicado de novo: num
+bloco único o que se lê primeiro é a CAIXA, e aqui cada linha é uma decisão
+separada, em um módulo diferente. **A cor do ladrilho é a do MÓDULO, nunca
+urgência** — as seis linhas dividiam o mesmo selo `--warning`, o que dizia que
+um aval interno de hoje cobra com a mesma pressa que a nota fiscal do mês que
+vem. Par nomeado sempre, e os seis pares já são medidos pelo `check:cores`.
+
+**NÃO HÁ LADRILHO DE NÚMERO AQUI**, ao contrário de Minhas Tasks, e a ausência
+é decisão. Lá eles respondem "para hoje" e "atrasadas", duas perguntas que a
+lista ao lado não responde. Aqui o número seria "5 esperando você" — e a lista
+logo abaixo **É** esse cinco, item por item: seria o cartão de "11 entregues"
+com sete na lista embaixo, que o Resumo da Agência já pagou uma vez. O número
+mora no subtítulo, onde serve de link para `#precisa-de-mim`, **e sai da mesma
+função que desenha as linhas** (`linhasDoPrecisaDeMim()`): duas somas para o
+mesmo fato é exatamente o bug que ele evita.
+
+**A saudação perdeu o emoji e os dois selos de perfil**, e `BoasVindas` saiu do
+produto. O cartão da pessoa no pé da barra lateral já diz o perfil de acesso e
+o cargo, na tela inteira e não só nesta; repetir na primeira dobra gastava a
+linha que o subtítulo usa para dizer o que mudou desde ontem.
+
+**E a saudação passou a morar em `lib/dominio/datas.ts`.** Ela nascera dentro
+de `minhas-tasks/page.tsx` lendo `new Date().getHours()`; com duas telas
+saudando, duas cópias divergiriam — e a que estava lá **já estava errada pelo
+mesmo motivo do contador de atrasadas**: o container roda em UTC, e às 12h30
+de lá são 9h30 em São Paulo. A versão antiga desejava boa tarde a quem tinha
+acabado de chegar, na primeira linha da primeira tela.
+
+**A coluna da direita é a MESMA de Minhas Tasks**, componente por componente e
+consulta por consulta — e repetir o componente não é repetir a verdade: é uma
+consulta só, e quem abre o Início de manhã sem passar pela outra tela vê o
+relógio esquecido aberto do mesmo jeito. *O que se perde, e é escolha:* as
+duas telas passam a se parecer na metade direita. O ganho é que nenhuma das
+duas tem um canto morto.
+
+**Dois blocos mudaram de forma para caber nos 306px**, e os dois por medida e
+não por gosto: o Acesso Rápido era `sm:grid-cols-3`, o que ali dava noventa e
+poucos pixels por atalho — "Notas Fisc…" acima de "Envio e paga…" —, e virou
+lista vertical; e "Quem está fora hoje" era uma linha que quebrava, e virou uma
+pessoa por linha com o estado à direita.
+
+**O que NÃO mudou é o feedback.** A proposta desenhava "Ver os números" como
+link, com o painel de métricas fechado — e a regra da 0075 diz o contrário em
+quantas palavras: *os números crus viajam com o texto, e a tela mostra os dois
+juntos, nunca atrás de um botão*. Texto sem número é opinião de máquina. A
+regra escrita ganha da maquete.
+
+**O Pulso continua aparecendo com zero**, que é a exceção declarada entre os
+blocos desta tela: zero atrasada é a resposta boa, e um bloco que some nos dias
+bons ensina que ele só aparece quando há problema.
+
 #### A barra de contexto, e as sete cópias que ela desfez
 
 **ERAM SETE `abas.tsx`, EM TRÊS DESENHOS DIFERENTES**, mais dois seletores de

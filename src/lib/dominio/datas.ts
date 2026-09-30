@@ -69,3 +69,32 @@ export function fimDaSemanaNaAgencia(agora: Date = new Date()): string {
   base.setUTCDate(base.getUTCDate() + (diaDaSemana === 0 ? 0 : 7 - diaDaSemana));
   return base.toISOString().slice(0, 10);
 }
+
+/**
+ * "Bom dia", "Boa tarde" ou "Boa noite" — a saudação de DUAS telas.
+ *
+ * **Ela nasceu dentro de `minhas-tasks/page.tsx` e saiu de lá quando o Início
+ * passou a saudar também.** Duas cópias de uma conta de relógio divergem no
+ * dia em que alguém mexer numa: abrir as duas telas às sete da noite e ler
+ * "Boa tarde" numa e "Boa noite" na outra é a plataforma desmentindo a si
+ * mesma a um clique de distância — a decisão de `STATUS_EM_ORDEM` e de
+ * `ICONE_DA_AREA`.
+ *
+ * **E a hora é a DA AGÊNCIA, não a do processo**, pela razão inteira deste
+ * arquivo. O container roda em UTC; às 12h30 de lá são 9h30 em São Paulo, e a
+ * versão que lia `new Date().getHours()` desejava boa tarde a quem tinha
+ * acabado de chegar. O erro é o mesmo do contador de atrasadas, só que ele
+ * aparece na primeira linha da primeira tela.
+ */
+export function saudacaoDaAgencia(agora: Date = new Date()): string {
+  const hora = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: FUSO_DA_AGENCIA,
+      hour: "2-digit",
+      hour12: false,
+    }).format(agora),
+  );
+  if (hora < 12) return "Bom dia";
+  if (hora < 18) return "Boa tarde";
+  return "Boa noite";
+}

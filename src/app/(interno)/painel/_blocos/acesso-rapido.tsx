@@ -31,29 +31,36 @@ const ATALHOS = [
   },
 ];
 
+/**
+ * **A LISTA É VERTICAL, e não mais três cartões lado a lado.** Ela mudou de
+ * lugar com a composição do desenho aprovado: era uma faixa na largura inteira
+ * da página, e virou o último cartão da coluna de 306px. Em três colunas ali
+ * cada atalho ficava com noventa e poucos pixels, e o rótulo e a frase embaixo
+ * dele saíam truncados os dois — "Notas Fisc…" acima de "Envio e paga…".
+ */
 export function AcessoRapido() {
   return (
-    <section className="space-y-3">
-      <h2 className="text-text-primary text-sm font-semibold tracking-wide uppercase">
+    <section className="bg-surface-card rounded-card space-y-2.5 border p-4">
+      <h2 className="text-text-secondary text-xs font-bold tracking-wider uppercase">
         Acesso rápido
       </h2>
 
-      <ul className="grid gap-3 sm:grid-cols-3">
+      <ul className="flex flex-col gap-1">
         {ATALHOS.map((atalho) => (
           <li key={atalho.href}>
             <Link
               href={atalho.href}
-              className="bg-surface-card rounded-card hover:border-blue-muted focus-visible:ring-ring/50 group flex h-full items-center gap-3 border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="hover:bg-accent/50 focus-visible:ring-ring/50 group -mx-1.5 flex h-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <span
                 aria-hidden
-                className="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-lg"
+                className="bg-accent text-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
               >
-                <atalho.icone className="size-5" />
+                <atalho.icone className="size-4" />
               </span>
 
               <span className="flex min-w-0 flex-col leading-tight">
-                <span className="text-text-primary truncate text-sm font-medium">
+                <span className="text-text-primary truncate text-sm font-semibold">
                   {atalho.label}
                 </span>
                 <span className="text-text-muted truncate text-xs">{atalho.frase}</span>

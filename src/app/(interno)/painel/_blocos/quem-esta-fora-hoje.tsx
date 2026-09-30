@@ -36,25 +36,25 @@ export function QuemEstaForaHoje({ pessoas }: { pessoas: ResumoDaHome["fora_hoje
 
   return (
     <section className="bg-surface-card rounded-card border p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
+      <h2 className="text-text-secondary flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
         <CalendarOff aria-hidden className="size-4" />
         Quem está fora hoje
         <Link
           href="/painel/full-days"
-          className="text-accent-strong ml-auto text-xs font-normal hover:underline"
+          className="text-accent-strong ml-auto text-xs font-semibold tracking-normal normal-case hover:underline"
         >
           ver a matriz
         </Link>
       </h2>
 
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+      <ul className="mt-3 flex flex-col gap-2">
         {pessoas.map((pessoa) => {
           const estado = pessoa.estado as PresencaStatus;
           return (
             <li key={`${pessoa.nome}-${pessoa.estado}`} className="flex items-center gap-2">
               <UserAvatar name={pessoa.nome} size="sm" />
-              <span className="text-sm">{pessoa.nome}</span>
-              <span className="text-text-muted flex items-center gap-1 text-xs">
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{pessoa.nome}</span>
+              <span className="text-text-muted flex shrink-0 items-center gap-1 text-xs">
                 <span
                   aria-hidden
                   className={cn("size-2 rounded-full", CORES_DE_PRESENCA[estado])}

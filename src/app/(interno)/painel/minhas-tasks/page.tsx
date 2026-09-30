@@ -22,6 +22,8 @@ import { minhasNovidades } from "@/lib/dados/novidades";
 import { minhasEtapasDeSocial } from "@/lib/dados/social-media";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
+import { saudacaoDaAgencia } from "@/lib/dominio/datas";
+
 import { montarLinhas } from "./linhas";
 import { PainelPessoal } from "./painel-pessoal";
 
@@ -29,13 +31,6 @@ export const metadata: Metadata = { title: "Minhas Tasks" };
 
 const VISOES = ["board", "lista", "calendario"] as const;
 const FOCOS = ["atrasadas", "hoje", "semana"] as const;
-
-function saudacao(): string {
-  const hora = new Date().getHours();
-  if (hora < 12) return "Bom dia";
-  if (hora < 18) return "Boa tarde";
-  return "Boa noite";
-}
 
 async function Conteudo({
   usuarioId,
@@ -108,7 +103,7 @@ async function Conteudo({
       foco={foco}
       correndoAgora={correndoAgora}
       foraHoje={resumo.fora_hoje}
-      saudacao={saudacao()}
+      saudacao={saudacaoDaAgencia()}
       dataPorExtenso={format(prazos.agora, "EEEE, d 'de' MMMM", {
         locale: ptBR,
       })}

@@ -73,6 +73,10 @@ const TELAS = [
   { nome: "07-painel-menu-recolhido", rota: "/painel", largura: 1440, altura: 860, role: "socio", menu: "recolhido" },
   { nome: "08-painel-colaborador", rota: "/painel", largura: 1440, altura: 860, role: "colaborador" },
   { nome: "09-painel-desenvolvedor", rota: "/painel", largura: 1440, altura: 860, role: "desenvolvedor" },
+  // O 390px do Início. A composição aprovada tem duas colunas, e a decisão de
+  // quando elas viram uma só é a que nenhum build pega — foi a imagem estreita
+  // que mostrou "Mund… · Revisar o manua…" na coluna de Minhas Tasks.
+  { nome: "09b-painel-390", rota: "/painel", largura: 390, altura: 900, role: "colaborador" },
 
   // GESTÃO DE PESSOAS: as duas listas que eram dois módulos, agora em abas.
   // As duas imagens da lista existem para a barra de abas ser conferida nas

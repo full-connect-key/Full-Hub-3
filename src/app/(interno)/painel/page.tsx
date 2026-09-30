@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
+import { PageHeader } from "@/components/shared/page-header";
+import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
-import { obterMinhaFicha } from "@/lib/dados/equipe";
+import { saudacaoDaAgencia } from "@/lib/dominio/datas";
 import { resumoDaHome } from "@/lib/dados/home";
-import { etapaEmAndamento, meuDia, prazosDeHoje } from "@/lib/dados/minhas-tasks";
+import {
+  etapaEmAndamento,
+  meuDia,
+  prazosDeHoje,
+  souDoAtendimento,
+} from "@/lib/dados/minhas-tasks";
 import {
   meusPedidosDeNota,
   minhasNotasRecusadas,
@@ -21,13 +31,12 @@ import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
-import { BoasVindas } from "./_blocos/boas-vindas";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
 import { EmAndamentoAgora } from "./_blocos/em-andamento-agora";
 import { MeuFeedback } from "./_blocos/meu-feedback";
 import { MeusEquipamentos } from "./_blocos/meus-equipamentos";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
-import { PrecisaDeMim } from "./_blocos/precisa-de-mim";
+import { PrecisaDeMim, linhasDoPrecisaDeMim } from "./_blocos/precisa-de-mim";
 import { PulsoDaAgencia } from "./_blocos/pulso-da-agencia";
 import { QuemEstaForaHoje } from "./_blocos/quem-esta-fora-hoje";
 import { RascunhosAExpirar } from "./_blocos/rascunhos-a-expirar";
@@ -70,7 +79,6 @@ export default async function PaginaInicialDoPainel() {
   const gestao = ehGestor(profile.role);
 
   const [
-    ficha,
     resumo,
     itensDoDia,
     portais,
@@ -81,8 +89,8 @@ export default async function PaginaInicialDoPainel() {
     meusFeedbacks_lista,
     alertasDeCargaAbertos,
     correndoAgora,
+    podeAbrirDemanda,
   ] = await Promise.all([
-    obterMinhaFicha(),
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
     // Só a gestão enxerga a seção. A rota /portal/{slug} recusa colaborador no
@@ -118,6 +126,11 @@ export default async function PaginaInicialDoPainel() {
     // própria — um `await` dentro do componente serializaria três consultas
     // no caminho crítico da primeira dobra, que é justamente onde ele mora.
     etapaEmAndamento(usuarioId),
+    // QUEM ABRE DEMANDA — a mesma pergunta que `tasks_insert` faz desde a
+    // 0006, por RPC. A pílula de "Nova task" é a ação principal da coluna da
+    // direita, e oferecê-la a quem o banco recusa seria um botão que existe
+    // para dar erro.
+    souDoAtendimento(),
   ]);
 
   // A CONVERSA DO FEEDBACK MAIS RECENTE, e só dele: os anteriores viram
@@ -130,62 +143,122 @@ export default async function PaginaInicialDoPainel() {
     ? await relatorioComConversa(meuMaisRecente.id)
     : null;
 
+  // O NÚMERO DO SUBTÍTULO SAI DA MESMA LISTA QUE O BLOCO DESENHA, e não de uma
+  // soma feita aqui: "5 coisas esperando você" leva até `#precisa-de-mim`, e
+  // duas contas para o mesmo fato são o cartão de "11 entregues" com sete na
+  // lista logo abaixo, que o Resumo da Agência já pagou uma vez.
+  const esperandoPorMim = linhasDoPrecisaDeMim({
+    dados: resumo.precisa_de_mim,
+    notasRecusadas: recusadas.length,
+    notasEsperandoOSocio: esperandoOSocio,
+    notasPedidas: pedidosDeNotaAbertos.length,
+  }).reduce((total, linha) => total + linha.quantos, 0);
+
+  const prazos = prazosDeHoje();
+
   return (
-    <div className="space-y-8">
-      <RascunhosAExpirar />
+    <div className="space-y-5">
+      {/* A SAUDAÇÃO PERDEU O EMOJI E OS SELOS DE PERFIL, e a ausência é
+          escolha: o cartão da pessoa no pé da barra lateral já diz o perfil de
+          acesso e o cargo, na tela inteira e não só nesta. Repetir na primeira
+          dobra gastaria a linha que o subtítulo usa para dizer o que mudou
+          desde ontem.
 
-      <BoasVindas
-        primeiroNome={primeiroNome(profile.nome)}
-        role={profile.role}
-        cargo={ficha?.cargo ?? null}
+          E o que está esperando vira LINK no subtítulo, nunca ladrilho de
+          número: em Minhas Tasks os ladrilhos respondem "para hoje" e
+          "atrasadas", que são duas perguntas que a lista ao lado não responde.
+          Aqui o número seria "5 esperando você" — e a lista logo abaixo É esse
+          cinco, item por item. */}
+      <PageHeader
+        title={`${saudacaoDaAgencia()},`}
+        titleSecundario={primeiroNome(profile.nome)}
+        subtitulo={
+          <>
+            <span className="inline-block first-letter:uppercase">
+              {format(prazos.agora, "EEEE, d 'de' MMMM", { locale: ptBR })}
+            </span>
+            {esperandoPorMim > 0 ? (
+              <>
+                {" · "}
+                <Link href="#precisa-de-mim" className="text-accent-strong hover:underline">
+                  {esperandoPorMim === 1
+                    ? "1 coisa esperando você"
+                    : `${esperandoPorMim} coisas esperando você`}
+                </Link>
+              </>
+            ) : null}
+          </>
+        }
       />
 
-      {/* ANTES DE "MEU DIA", e a ordem é a do dia da pessoa: o que está
-          acontecendo agora vem antes do que ela entrega hoje. Some quando não
-          há relógio andando, como todo bloco de exceção desta tela. */}
-      <EmAndamentoAgora etapa={correndoAgora} agoraDoServidor={prazosDeHoje().agora} />
+      {/* AS DUAS COLUNAS SÃO AS MESMAS DE MINHAS TASKS, e a largura fixa de
+          306px tem o mesmo motivo: a direita carrega cartões cujo conteúdo
+          define a altura, e em `1fr` eles encolheriam junto com a lista.
+          Abaixo de 1150px vira uma coluna só, com a direita DEPOIS — no
+          celular o que a pessoa veio ver é o que está parado esperando ela. */}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
+        <div className="min-w-0 space-y-6">
+          {/* A FAIXA DE EXCEÇÃO FICA ACIMA DE TUDO, porque ela tem prazo — e
+              some sozinha quando não há nada a dizer, como todo bloco de
+              exceção desta tela. */}
+          <RascunhosAExpirar />
 
-      <MeuDia
-        itens={itensDoDia}
-        primeiroNome={primeiroNome(profile.nome)}
-        usuarioId={usuarioId}
-        souGestor={gestao}
-        estaSemana={resumo.meu_dia?.semana ?? 0}
-      />
-
-      <PrecisaDeMim
-        dados={resumo.precisa_de_mim}
-        notasRecusadas={recusadas.length}
-        notasEsperandoOSocio={esperandoOSocio}
-        notasPedidas={pedidosDeNotaAbertos.length}
-      />
-
-      {/* O FEEDBACK VEM DEPOIS DO QUE PRECISA DE MIM E ANTES DO RESTO, e a
-          posição é a ordem do dia: ele não é uma pendência — ninguém tem que
-          fazer nada com ele hoje —, mas é sobre a pessoa, e o que é sobre a
-          pessoa fica acima do que é sobre as coisas. */}
-      <MeuFeedback
-        relatorio={conversaDoMeuFeedback?.relatorio ?? null}
-        respostas={conversaDoMeuFeedback?.respostas ?? []}
-        quantosAnteriores={Math.max(0, meusFeedbacks_lista.length - 1)}
-      />
-
-      <MeusEquipamentos comodatos={meusEquipamentos} />
-
-      <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
-
-      <AcessoRapido />
-
-      {gestao ? (
-        <>
-          <PulsoDaAgencia
-            dados={resumo.pulso}
-            alertasDeCarga={alertasDeCargaAbertos}
+          <PrecisaDeMim
+            dados={resumo.precisa_de_mim}
+            notasRecusadas={recusadas.length}
+            notasEsperandoOSocio={esperandoOSocio}
+            notasPedidas={pedidosDeNotaAbertos.length}
           />
-          <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
-          <PortaisDeClientes clientes={portais} />
-        </>
-      ) : null}
+
+          <MeuDia
+            itens={itensDoDia}
+            primeiroNome={primeiroNome(profile.nome)}
+            usuarioId={usuarioId}
+            souGestor={gestao}
+            estaSemana={resumo.meu_dia?.semana ?? 0}
+          />
+
+          {/* O FEEDBACK VEM DEPOIS DO QUE PRECISA DE MIM E DO QUE EU ENTREGO
+              HOJE: ele não é uma pendência — ninguém tem que fazer nada com
+              ele hoje —, mas é sobre a pessoa, e o que é sobre a pessoa fica
+              acima do que é sobre a agência. */}
+          <MeuFeedback
+            relatorio={conversaDoMeuFeedback?.relatorio ?? null}
+            respostas={conversaDoMeuFeedback?.respostas ?? []}
+            quantosAnteriores={Math.max(0, meusFeedbacks_lista.length - 1)}
+          />
+
+          {gestao ? (
+            <>
+              <PulsoDaAgencia
+                dados={resumo.pulso}
+                alertasDeCarga={alertasDeCargaAbertos}
+              />
+              <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
+              <PortaisDeClientes clientes={portais} />
+            </>
+          ) : null}
+        </div>
+
+        <aside className="flex flex-col gap-2.5 lg:sticky lg:top-20">
+          {podeAbrirDemanda ? (
+            <BotaoDeNovaTask destaque className="w-full" />
+          ) : null}
+
+          {/* O CRONÔMETRO É O PRIMEIRO CARTÃO DA COLUNA, e é o mesmo
+              componente e a mesma consulta de Minhas Tasks. Repetir o
+              componente não é repetir a verdade: quem abre o Início de manhã
+              sem passar pela outra tela vê o relógio esquecido aberto do mesmo
+              jeito. Some quando não há nenhum andando. */}
+          <EmAndamentoAgora etapa={correndoAgora} agoraDoServidor={prazos.agora} />
+
+          <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
+
+          <MeusEquipamentos comodatos={meusEquipamentos} />
+
+          <AcessoRapido />
+        </aside>
+      </div>
     </div>
   );
 }
