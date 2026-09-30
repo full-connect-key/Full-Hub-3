@@ -27,9 +27,20 @@ export default async function LayoutDoMeuPortal({
 
   if (comoEquipe) {
     return (
-      <div className="bg-surface-page flex min-h-dvh flex-col">
-        <header className="bg-surface-card border-b">
-          <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-4 lg:px-8">
+      /* A CASCA SIMPLES DA GESTÃO ganhou a mesma pele da do cliente, e por um
+         motivo bobo e real: sem ela esta tela seria o terceiro desenho da
+         mesma plataforma — o painel de onde a pessoa veio, o portal para onde
+         ela vai, e uma bifurcação com cara de nenhum dos dois. O que ela
+         continua não tendo é a navegação do cliente, que é a decisão de
+         sempre: a equipe não tem empresa, e todas as seções voltariam vazias. */
+      <div className="bg-surface-page relative flex min-h-dvh flex-col">
+        <div
+          aria-hidden
+          className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[170px]"
+        />
+
+        <header className="relative z-10 flex h-16 items-center px-4 lg:px-8">
+          <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
             <Logo tamanho="sm" />
             <Link
               href="/painel"
@@ -41,11 +52,11 @@ export default async function LayoutDoMeuPortal({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 lg:px-8 lg:py-12">
+        <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
           {children}
         </main>
 
-        <footer className="text-text-muted px-4 py-6 text-center text-xs lg:px-8">
+        <footer className="text-text-muted relative z-10 px-4 py-6 text-center text-xs lg:px-8">
           Full Hub — Full Connect Key
         </footer>
       </div>
@@ -55,7 +66,8 @@ export default async function LayoutDoMeuPortal({
   const empresas = await obterMinhasEmpresas();
   // SÓ COM UMA EMPRESA. Com duas, o cabeçalho troca o nome pelo seletor, e uma
   // foto ao lado de um controle que lista N empresas diria que ela é de todas.
-  const identidade = empresas.length === 1 ? await identidadeDoPortal(empresas[0].id) : null;
+  const identidade =
+    empresas.length === 1 ? await identidadeDoPortal(empresas[0].id) : null;
   const nomeDaEmpresa = empresas
     .map((empresa) => empresa.nome_empresa)
     .join(", ");

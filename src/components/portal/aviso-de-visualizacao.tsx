@@ -20,7 +20,7 @@ export function AvisoDeVisualizacao({
 }) {
   return (
     <div className="bg-warning-soft text-warning sticky top-0 z-50 border-b border-current/20">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 lg:px-8">
         <Eye aria-hidden className="size-4 shrink-0" />
         <p className="min-w-0 flex-1 text-sm">
           Você está visualizando o portal da <strong>{nomeDaEmpresa}</strong>{" "}

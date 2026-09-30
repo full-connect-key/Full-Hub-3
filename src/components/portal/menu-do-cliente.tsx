@@ -43,7 +43,7 @@ export function MenuDoCliente({
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full"
+          className="disco-da-topbar rounded-full"
           aria-label="Menu do usuário"
         >
           <Avatar className="size-8">

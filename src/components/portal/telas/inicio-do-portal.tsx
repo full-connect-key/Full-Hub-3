@@ -276,7 +276,7 @@ export async function InicioDoPortal({
             </Link>
           </div>
 
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {comProgresso.map(({ campanha, conta, esperando }) => (
               <li key={campanha.id}>
                 <Link

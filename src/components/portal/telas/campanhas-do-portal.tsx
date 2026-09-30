@@ -102,7 +102,7 @@ export async function CampanhasDoPortal({
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ordenadas.map(({ campanha, progresso: p, esperando }) => (
             <CartaoDeCampanha
               key={campanha.id}

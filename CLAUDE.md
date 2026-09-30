@@ -5087,6 +5087,79 @@ que se lê, e está certo.
 estavam.** Os três são moldura para conteúdo, não cartão — dar sombra e raio a
 eles seria transformar o quadro em objeto e a arte em recheio.
 
+##### E depois a CASCA inteira virou a do painel
+
+Relato do usuário, olhando o resultado da camada acima: *"quero que o portal do
+cliente tenha o layout mais parecido com o restante da plataforma"*. Ele estava
+certo, e a distância que sobrava não era de cor — a paleta já era a mesma. Era
+de MOLDURA, e ela cabe numa tabela:
+
+| | Painel | Portal, até aqui |
+| --- | --- | --- |
+| A malha de cor no topo | 190px atrás de tudo | não existia |
+| A topbar | 64px, sem fundo e sem fio | dentro de uma faixa branca com borda |
+| O sino e o avatar | discos de vidro | botões chapados |
+| A largura | `max-w-6xl` | `max-w-5xl` |
+
+As quatro passaram para cá, e **foi escolha entre três propostas**. A malha é a
+mesma `.malha-do-painel`, em 170px — a altura da topbar mais a barra de seções,
+como lá ela cobre a topbar mais o título grande. O par de tokens sobre ela já
+era medido pelo `check:cores` desde a interface Leve, então nenhuma linha nova
+foi precisa: quem escreve na malha aqui são os mesmos `--text-primary` e
+`--text-secondary` das pílulas.
+
+**A MALHA MORA NO INVÓLUCRO DE DENTRO, e não no de fora.** É a mesma razão pela
+qual no painel ela vive na coluna de conteúdo e não no `body`: lá a barra
+lateral tem fundo próprio e a malha apareceria nas bordas dela; aqui a faixa da
+visualização administrativa é `sticky top-0`, e uma malha no invólucro de fora
+gastaria os primeiros 60px dela atrás de um fundo âmbar.
+
+**A topbar é ALINHADA AO CONTEÚDO, e a do painel não é.** Lá ela vai de ponta a
+ponta da coluna, porque a barra lateral já encosta o conteúdo à esquerda; aqui,
+sem barra lateral, o logo ficaria na borda de uma janela de 1440 e os cartões
+começariam 144px adentro. É a decisão da capa do cliente e a da barra de
+contexto, pela terceira vez.
+
+**A barra de seções NÃO GRUDA**, e é a única coisa desta casca que não copia a
+`BarraDeContexto`. Duas razões, e as duas são daqui: as listas do portal são
+curtas — dois materiais esperando, três campanhas —, e não as quarenta demandas
+que fizeram a barra do painel grudar; e a faixa da visualização administrativa
+já é `sticky top-0`, então duas coisas presas no mesmo lugar seriam uma
+cobrindo a outra.
+
+**A grade de campanhas ganhou a terceira coluna**, e é consequência da largura e
+não gosto: em `max-w-6xl` com duas colunas cada cartão fica com 560px para uma
+faixa de imagem 16/6, e três campanhas deixavam a terceira sozinha numa linha.
+
+**A casca simples da gestão** — a bifurcação de `/portal`, que não é o portal de
+ninguém — recebeu a mesma pele. Sem isso ela seria o terceiro desenho da mesma
+plataforma: o painel de onde a pessoa veio, o portal para onde ela vai, e uma
+tela com cara de nenhum dos dois. O que ela continua não tendo é a navegação do
+cliente, pela razão de sempre: a equipe não tem empresa, e todas as seções
+voltariam vazias.
+
+##### O QUE NÃO VEIO, e é a decisão que a proposta existiu para tomar
+
+**A barra lateral.** Ela é o item que mais aproximaria as duas áreas, e era a
+proposta B; a C punha ainda a coluna de 306px. As duas ficaram de fora, e os
+motivos são estes:
+
+- **No celular ela cobra um toque.** No painel a barra vira gaveta porque são
+  dezesseis itens e não há como mostrá-los; aqui são cinco, e eles cabem na
+  tela. Trocar de seção passaria de um toque para dois, num portal que se abre
+  quase sempre pelo celular — que é a razão pela qual esta navegação nasceu em
+  cima, e ela não mudou.
+- **Ela carrega o cartão da pessoa no pé**, que diz o perfil de acesso e o
+  cargo. Vocabulário da agência, na tela de quem é cliente.
+- **E a coluna de 306px não tem o que carregar.** No painel ela é um RESUMO —
+  o cronômetro, os contadores, quem está fora —, e nada disso existe do lado do
+  cliente. O único morador possível hoje é "Atividade recente", que ganharia a
+  primeira dobra em vez de ficar no pé da página; um bloco só não sustenta uma
+  coluna, e inventar o segundo seria inventar informação.
+
+Se um dia a barra lateral entrar, o que decide é o celular, e a conta está
+escrita aqui.
+
 ##### A árvore da campanha desfaz o cartão dentro do cartão
 
 O grupo de entregáveis era uma caixa grande com as peças dentro, e as peças
