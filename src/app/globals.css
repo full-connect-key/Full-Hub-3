@@ -127,6 +127,23 @@
      como --success-foreground: é o que o par nomeado quer dizer. */
   --action-foreground: #FFFFFF;
 
+  /* O BOTÃO DE AÇÃO DE LINHA — "Concluir", "Iniciar" — é uma PÍLULA PRETA no
+     desenho aprovado, e não o botão ciano que o produto tinha.
+
+     A regra antiga ("botão primário = fundo --brand-blue + texto
+     --text-primary") existia porque branco sobre o ciano dá 1,7:1; ela some
+     junto com o botão ciano. Aqui o par é o mais folgado do produto — 19,43:1
+     no claro — e o hover vai para o royal de ação, que é onde a cor entra.
+
+     `--acao-fundo` INVERTE POR TEMA sozinho: no escuro um botão preto sobre
+     página escura não se lê como botão, se lê como buraco. Quem já faz essa
+     inversão é `--text-primary`, e apontar para ele em vez de repetir os dois
+     hexadecimais é o que impede os dois de divergirem. */
+  --acao-fundo: var(--text-primary);
+  --acao-texto: var(--surface-card);
+  --acao-fundo-hover: var(--action-text);
+  --acao-texto-hover: var(--action-foreground);
+
   /* O DEGRADÊ DO BOTÃO, E ELE NÃO É O DA PROPOSTA — porque o da proposta
      reprova nos TRÊS pontos com o texto branco que ela mesma põe em cima:
      #5B9BFF dá 2,77:1, #2F6BFF dá 4,50:1 (no fio) e o ciano #22C6F0 dá
@@ -428,6 +445,11 @@
   --action-soft: #1E2A45;
   --action-foreground: #FFFFFF;
 
+  /* No escuro o hover é o royal CLARO, que pede texto escuro em cima — o
+     branco sobre ele daria 2,4:1. Os outros dois tokens invertem sozinhos
+     porque apontam para `--text-primary` e `--surface-card`. */
+  --acao-texto-hover: var(--surface-page);
+
   /* No escuro a malha não é a clara mais fraca: são azuis ESCUROS sobre o
      fundo escuro, e o alfa pode ser maior porque ali o texto é claro e o azul
      do link é `--brand-blue`, que dá 7,36:1 sobre o pior composto. É a mesma
@@ -558,6 +580,10 @@
   --color-action-text: var(--action-text);
   --color-action-soft: var(--action-soft);
   --color-action-foreground: var(--action-foreground);
+  --color-acao-fundo: var(--acao-fundo);
+  --color-acao-texto: var(--acao-texto);
+  --color-acao-fundo-hover: var(--acao-fundo-hover);
+  --color-acao-texto-hover: var(--acao-texto-hover);
   --color-surface-page: var(--surface-page);
   --color-surface-card: var(--surface-card);
   --color-text-primary: var(--text-primary);
@@ -896,4 +922,24 @@
 }
 .pilula-de-acao:hover {
   box-shadow: 0 12px 26px -10px rgb(47 107 255 / 0.85);
+}
+
+/* --- O BOTÃO CIRCULAR DA TOPBAR ---------------------------------------------
+   O sino e o avatar do desenho aprovado: um disco translúcido com desfoque,
+   sobre a malha. Ele é classe e não variante do `Button` porque o que o define
+   é o VIDRO — `backdrop-filter` mais uma borda quase invisível —, e isso é
+   superfície, não papel: o mesmo tratamento serve a um botão, a um link e ao
+   gatilho de um menu.
+
+   A borda é 5% do preto e não um token de borda: ela não separa dois blocos,
+   ela desenha o limite do disco sobre um fundo que muda de cor conforme a
+   malha passa. Um `--border` chapado apareceria como anel cinza no ponto
+   claro da malha e sumiria no ponto escuro. */
+.disco-da-topbar {
+  background: color-mix(in srgb, var(--surface-card) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 6%, transparent);
+  backdrop-filter: blur(8px);
+}
+.disco-da-topbar:hover {
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
 }

@@ -91,12 +91,25 @@ export function MinhaLista({
     itens: linhas.filter((l) => l.subtarefa.status === status),
   })).filter((g) => g.itens.length > 0);
 
-  // COM UM GRUPO SÓ, O CABEÇALHO SOME. Uma seção única com um título em cima é
-  // moldura sem função — a mesma razão pela qual as abas de Equipe sumiram
-  // quando sobrou uma, e pela qual o agrupamento por área já fazia isto antes
-  // deste. O agrupamento existe para separar; sem o que separar, ele é uma
-  // linha a mais entre a pessoa e o trabalho dela.
-  const agrupar = porStatus.length > 1;
+  // O CABEÇALHO DE STATUS APARECE SEMPRE, inclusive com um grupo só — e isso
+  // DESFAZ uma decisão minha, por relato do usuário: *"as tasks não estão
+  // separadas em lista pelo status que se encontram"*.
+  //
+  // A regra antiga era `porStatus.length > 1`, com o argumento de que uma
+  // seção única com título em cima é moldura sem função — a mesma razão pela
+  // qual as abas de Equipe sumiram quando sobrou uma. O argumento estava
+  // errado aqui, e a diferença é o que a moldura afirma: uma aba solta não diz
+  // nada que a tela já não diga; **um cabeçalho de status diz em que pé está
+  // tudo o que está embaixo dele**, e isso é informação mesmo quando é a única.
+  //
+  // Pior: o estado em que ela sumia é justamente o mais comum no dia a dia —
+  // a pessoa com as quatro etapas dela em andamento abre a Lista e vê uma
+  // lista corrida, sem nada dizendo que aquele É o recorte. Ela conclui, com
+  // razão, que a tela não separa por status.
+  //
+  // O que sobra da decisão antiga é a parte que continua de pé: grupo vazio
+  // não vira cabeçalho (logo acima), porque aí sim não há o que dizer.
+  const agrupar = porStatus.length > 0;
 
   return (
     <div className="space-y-5">
@@ -114,16 +127,15 @@ export function MinhaLista({
             // também o que o board faz — o card não carrega selo, porque a
             // coluna já disse.
             //
-            // **E ele VOLTA quando não há cabeçalho**, que é o caso de quem
-            // tem tudo no mesmo status: sem o selo e sem o título, o status
-            // sumiria da tela inteira.
+            // E como o cabeçalho agora aparece SEMPRE, o selo não volta mais
+            // em caso nenhum — o "volta quando não há cabeçalho" deixou de ter
+            // caso, porque não existe mais lista sem cabeçalho.
             mostrarStatus={!agrupar}
           />
         );
 
-        // SEM CABEÇALHO NÃO HÁ O QUE DOBRAR. Com um grupo só a lista é a
-        // tela inteira, e um botão que esconde tudo o que existe não é
-        // organização, é um interruptor de luz.
+        // Só sobra sem cabeçalho a lista sem nenhum grupo, que é a lista
+        // vazia — e aí não há o que desenhar de qualquer forma.
         if (!agrupar) return <div key={grupo.status}>{conteudo}</div>;
 
         return (
@@ -165,7 +177,19 @@ function Linhas({
   mostrarStatus: boolean;
 }) {
   return (
-    <div className="divide-y rounded-lg border">
+    /*
+      CADA ETAPA É UM CARTÃO SOLTO, e não uma faixa dentro de um contêiner.
+
+      É o desenho aprovado, e o argumento é o mesmo que a régua de cobertura
+      do Full Days usa: a lista é o trabalho de uma pessoa, e cada linha dela
+      é uma decisão separada — começar, concluir, abrir. Num contêiner único
+      com fios entre as linhas, o que se lê primeiro é a CAIXA; soltas, o que
+      se lê primeiro é cada etapa, que é o que a pessoa veio ver.
+
+      9px entre eles, que é a distância do artifact: menos e voltam a parecer
+      uma lista com fio, mais e a coluna vira uma pilha de blocos sem relação.
+    */
+    <div className="flex flex-col gap-2">
       {linhas.map((linha) => {
         const sub = linha.subtarefa;
         const situacao = situacaoDoPrazo(
@@ -179,7 +203,7 @@ function Linhas({
           <div
             key={linha.chave}
             className={cn(
-              "flex flex-wrap items-center gap-2 p-3",
+              "bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-2 border p-3.5",
               // A LINHA ATRASADA PRECISA SER ACHADA, e `bg-destructive/5`
               // não achava ninguém: 5% de uma cor sobre o fundo do cartão é
               // um tom que não se distingue do branco. O contador dizia "1
@@ -192,7 +216,7 @@ function Linhas({
               // esquerda é o que sobrevive à varredura do olho numa lista
               // longa — o fundo sozinho se perde entre dois cartões.
               situacao === "atrasada" &&
-                "bg-danger-soft border-danger border-l-4 pl-2",
+                "bg-danger-soft border-danger border-l-4 pl-2.5",
             )}
           >
             <div className="min-w-0 flex-1">

@@ -77,7 +77,7 @@ export function SinoDeNotificacoes({
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="disco-da-topbar relative rounded-full"
           aria-label={
             naoLidas > 0 ? `Notificações: ${naoLidas} por ler` : "Notificações"
           }
@@ -92,7 +92,11 @@ export function SinoDeNotificacoes({
       </PopoverTrigger>
 
       {/* Mesmo motivo do seletor de status: o popover e um role="dialog". */}
-      <PopoverContent align="end" aria-label="Notificações" className="w-80 p-0 sm:w-96">
+      <PopoverContent
+        align="end"
+        aria-label="Notificações"
+        className="w-80 p-0 sm:w-96"
+      >
         <div className="flex items-center justify-between border-b px-3 py-2">
           <p className="text-sm font-medium">Notificações</p>
           {naoLidas > 0 ? (
@@ -131,7 +135,9 @@ export function SinoDeNotificacoes({
                       <p
                         className={cn(
                           "text-sm",
-                          notificacao.lida_em ? "text-muted-foreground" : "font-medium",
+                          notificacao.lida_em
+                            ? "text-muted-foreground"
+                            : "font-medium",
                         )}
                       >
                         {notificacao.titulo}
@@ -142,7 +148,9 @@ export function SinoDeNotificacoes({
                         </p>
                       ) : null}
                       <p className="text-text-muted mt-1 text-[11px]">
-                        {notificacao.origem ? `${notificacao.origem.nome} · ` : ""}
+                        {notificacao.origem
+                          ? `${notificacao.origem.nome} · `
+                          : ""}
                         {formatDistanceToNow(parseISO(notificacao.created_at), {
                           locale: ptBR,
                           addSuffix: true,

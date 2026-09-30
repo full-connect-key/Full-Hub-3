@@ -36,9 +36,16 @@ export function MenuDoUsuario({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu do usuário">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="disco-da-topbar rounded-full"
+          aria-label="Menu do usuário"
+        >
           <Avatar className="size-8">
-            <AvatarFallback className="text-xs font-medium">{iniciaisDe(nome)}</AvatarFallback>
+            <AvatarFallback className="text-xs font-medium">
+              {iniciaisDe(nome)}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -47,7 +54,9 @@ export function MenuDoUsuario({
         <DropdownMenuLabel className="font-normal">
           <p className="truncate font-medium">{nome}</p>
           <p className="text-muted-foreground truncate text-xs">{email}</p>
-          <p className="text-muted-foreground mt-1 text-xs">{ROTULOS_DE_ROLE[role]}</p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {ROTULOS_DE_ROLE[role]}
+          </p>
         </DropdownMenuLabel>
 
         <DropdownMenuSeparator />

@@ -9,7 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        // A PÍLULA PRETA DO DESENHO APROVADO, com o hover indo para o royal
+        // de ação. Ela substitui o botão ciano de texto escuro — aquele
+        // existia porque branco sobre --brand-blue dá 1,7:1, e a regra sai
+        // junto com o botão. Este par é o mais folgado da casa (19,43:1), e
+        // inverte sozinho no escuro porque --acao-fundo aponta para
+        // --text-primary.
+        default:
+          "bg-acao-fundo text-acao-texto hover:bg-acao-fundo-hover hover:text-acao-texto-hover rounded-full",
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20",
         outline:
