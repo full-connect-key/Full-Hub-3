@@ -65,7 +65,7 @@ export default async function LayoutDoPainel({ children }: LayoutProps<"/painel"
             lateral tem fundo próprio, e uma malha que passasse por baixo dela
             apareceria nas bordas no tema claro.
           */}
-          <div aria-hidden className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[220px]" />
+          <div aria-hidden className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[190px]" />
 
           <header className="bg-surface-page/75 sticky top-0 z-30 flex h-16 items-center gap-2 px-3 backdrop-blur-xl sm:gap-3 lg:px-6">
             <MenuGaveta role={profile.role} />

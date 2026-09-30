@@ -230,6 +230,14 @@ const PARES = [
   ["--text-secondary", "--malha-no-pior-caso", NORMAL, "texto de apoio sobre a malha"],
   ["--text-muted", "--malha-no-pior-caso", NORMAL, "rótulo sobre a malha"],
   ["--accent-strong", "--malha-no-pior-caso", NORMAL, "link sobre a malha"],
+
+  // O DEGRADÊ DA PÍLULA DE AÇÃO, medido nas três paradas e não só no meio.
+  // O da proposta passava no meio (4,50) e dava 2,02:1 na ponta ciano — medir
+  // uma parada só é a mesma armadilha de medir o texto contra o branco em vez
+  // de contra a malha.
+  ["--action-foreground", "--action-grad-1", NORMAL, "rótulo no início do degradê"],
+  ["--action-foreground", "--action-grad-2", NORMAL, "rótulo no meio do degradê"],
+  ["--action-foreground", "--action-grad-3", NORMAL, "rótulo no fim do degradê"],
   ["--accent-strong", "--surface-sidebar", NORMAL, "perfil da pessoa na barra"],
 
   // `--brand-navy` como superfície. Ele era o painel da marca na tela de login,

@@ -86,6 +86,56 @@
   --blue-strong: #0A6B99;
   --blue-strong-hover: #08587D;
 
+  /* --- O AZUL DE AÇÃO, QUE NÃO É O AZUL DA MARCA --------------------------
+     É a TERCEIRA cor do produto, e a regra de "duas cores da Full Connect Key
+     e só" passa a ter esta exceção escrita. Decisão do usuário, ao aprovar a
+     interface Leve: **o royal é a cor de AÇÃO — botão, pílula do item ativo,
+     link e ícone — e o ciano `--brand-blue` fica reservado ao símbolo e aos
+     acentos de marca.**
+
+     O motivo de ela existir é de contraste, não de gosto. `--brand-blue` dá
+     1,18:1 sobre a malha cheia e 1,73:1 sobre o cartão: ele nunca foi cor de
+     texto, e é por isso que `--accent-strong` existia desde o Sprint 3C como
+     "o azul que dá para ler". O que a proposta trouxe foi um azul que serve
+     aos DOIS papéis com a mesma matiz — preenchimento e texto —, que o par
+     ciano nunca conseguiu.
+
+     São dois tons e não um, pela mesma razão do par nomeado: `--action` é
+     fundo com texto branco por cima, `--action-text` é texto sobre fundo
+     claro. Trocá-los põe branco sobre azul claro, que é 1,7:1.
+
+       --action-text sobre a malha cheia   4,72:1
+       --action-text sobre o cartão        6,91:1
+       --action-text sobre a página        5,96:1
+       --action-text sobre --action-soft   5,88:1 */
+  --action: #2F6BFF;
+  --action-text: #1B4FCC;
+  --action-soft: #E4EDFF;
+  /* O branco do rótulo sobre o royal cheio e sobre o degradê. Nome do shadcn,
+     como --success-foreground: é o que o par nomeado quer dizer. */
+  --action-foreground: #FFFFFF;
+
+  /* O DEGRADÊ DO BOTÃO, E ELE NÃO É O DA PROPOSTA — porque o da proposta
+     reprova nos TRÊS pontos com o texto branco que ela mesma põe em cima:
+     #5B9BFF dá 2,77:1, #2F6BFF dá 4,50:1 (no fio) e o ciano #22C6F0 dá
+     **2,02:1**. O rótulo "Nova task" ficaria ilegível na ponta ciano.
+
+     É a mesma conta que reprovou o vidro a 58% na porta, e a saída é a mesma:
+     escurecer até o PIOR ponto passar. A ponta que escurece é a ciano, que é
+     justamente a que ninguém lê como cor da marca — o azul→teal do desenho
+     continua inteiro. Medido com texto branco: 4,83 / 5,94 / 6,57. */
+  --action-gradiente: linear-gradient(145deg, #2B66F7 0%, #2158E0 48%, #14657F 100%);
+
+  /* OS TRÊS PARADAS DO DEGRADÊ, COMO TOKENS QUE NADA PINTA. É a forma de
+     `--malha-no-pior-caso` e de `--vidro-no-pior-caso`, pela mesma razão: o
+     `check:cores` mede PAR DE TOKEN, e um degradê é `background-image` — sem
+     estes três, a varredura não teria contra o que medir o branco do rótulo e
+     diria que está tudo certo sobre um botão que ninguém conferiu. E é
+     exatamente esse o furo que a proposta tinha: 2,02:1 na ponta ciano. */
+  --action-grad-1: #2B66F7;
+  --action-grad-2: #2158E0;
+  --action-grad-3: #14657F;
+
   /* --- A MALHA DO TOPO ----------------------------------------------------
      Três manchas de cor bem lavadas na faixa de cima do painel, da interface
      "Leve". Elas não pintam superfície nenhuma: passam ATRÁS do conteúdo, que
@@ -107,10 +157,10 @@
      **E ele cobre a topbar de quebra.** Ela é translúcida sobre a malha, o que
      compõe para um tom MAIS CLARO que a mancha pura — então o pior caso do
      texto lá é este mesmo, e não precisa de par próprio. */
-  --malha-a: rgb(168 210 250 / 0.36);
-  --malha-b: rgb(191 216 253 / 0.34);
-  --malha-c: rgb(169 224 238 / 0.36);
-  --malha-no-pior-caso: #D4E4F4;
+  --malha-a: rgb(168 210 250 / 0.75);
+  --malha-b: rgb(191 216 253 / 0.70);
+  --malha-c: rgb(169 224 238 / 0.75);
+  --malha-no-pior-caso: #B9D9F8;
 
   /* --- Superfícies -------------------------------------------------------- */
   /* A BARRA LATERAL PASSOU A SEGUIR O TEMA, e antes ela era escura nos dois.
@@ -135,8 +185,8 @@
      próprios e não `--blue-soft`/`--blue-strong` soltos, porque no tema escuro
      eles viram outra coisa — lá o fundo é o cinza da barra e o texto é o azul
      da marca, que é o azul que se lê no escuro. */
-  --sidebar-ativo-fundo: var(--blue-soft);
-  --sidebar-ativo-texto: var(--blue-strong);
+  --sidebar-ativo-fundo: var(--action-soft);
+  --sidebar-ativo-texto: var(--action-text);
   /* O CHÃO ESCURECEU de #F5F6F8 para cá. A interface "Leve" separa o cartão
      branco do fundo pela DIFERENÇA entre os dois, e não por uma borda forte:
      com #F5F6F8 o cartão quase não se destacava, e a solução seria engrossar
@@ -301,8 +351,8 @@
   --brand-foreground: var(--text-primary);
   /* "O azul que dá para ler no tema de agora": --blue-strong no claro,
      --brand-blue no escuro. Link e ícone usam este. */
-  --accent-strong: var(--blue-strong);
-  --accent-strong-hover: var(--blue-strong-hover);
+  --accent-strong: var(--action-text);
+  --accent-strong-hover: #12369B;
 
   --background: var(--surface-page);
   --foreground: var(--text-primary);
@@ -351,19 +401,34 @@
   --blue-soft: #16303D;
   --blue-muted: #1E4C66;
 
+  /* O royal de PREENCHIMENTO não muda: ele carrega texto branco por cima nos
+     dois temas, e o que o mede é o branco, não o fundo atrás. O de TEXTO,
+     esse inverte — #1B4FCC sobre a página escura é azul escuro sobre escuro.
+     E não é o claro invertido: são passos próprios medidos contra os fundos
+     do escuro, como as cores de série do Financeiro.
+
+       --action-text sobre a malha escura  5,88:1
+       --action-text sobre o cartão        8,53:1
+       --action-text sobre a página        9,41:1
+       --action-text sobre --action-soft   7,62:1 */
+  --action: #2F6BFF;
+  --action-text: #9CBEFF;
+  --action-soft: #1E2A45;
+  --action-foreground: #FFFFFF;
+
   /* No escuro a malha não é a clara mais fraca: são azuis ESCUROS sobre o
      fundo escuro, e o alfa pode ser maior porque ali o texto é claro e o azul
      do link é `--brand-blue`, que dá 7,36:1 sobre o pior composto. É a mesma
      decisão das cores de série do Financeiro — passo próprio, não inversão. */
-  --malha-a: rgb(42 74 107 / 0.55);
-  --malha-b: rgb(51 52 94 / 0.50);
-  --malha-c: rgb(31 74 85 / 0.55);
-  --malha-no-pior-caso: #213448;
+  --malha-a: rgb(42 74 107 / 0.75);
+  --malha-b: rgb(51 52 94 / 0.70);
+  --malha-c: rgb(31 74 85 / 0.75);
+  --malha-no-pior-caso: #253E58;
 
   --surface-sidebar: #1B1E22;
   --surface-sidebar-2: #2C3137;
-  --sidebar-ativo-fundo: #2C3137;
-  --sidebar-ativo-texto: var(--brand-blue);
+  --sidebar-ativo-fundo: var(--action-soft);
+  --sidebar-ativo-texto: var(--action-text);
   --surface-page: #17191D;
   --surface-card: #1F2227;
 
@@ -412,8 +477,8 @@
 
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
      legível é o próprio azul da marca. */
-  --accent-strong: var(--brand-blue);
-  --accent-strong-hover: #A9DFF8;
+  --accent-strong: var(--action-text);
+  --accent-strong-hover: #C2D6FF;
 
   --background: var(--surface-page);
   --foreground: var(--text-primary);
@@ -477,6 +542,10 @@
   --color-surface-sidebar-2: var(--surface-sidebar-2);
   --color-sidebar-ativo-fundo: var(--sidebar-ativo-fundo);
   --color-sidebar-ativo-texto: var(--sidebar-ativo-texto);
+  --color-action: var(--action);
+  --color-action-text: var(--action-text);
+  --color-action-soft: var(--action-soft);
+  --color-action-foreground: var(--action-foreground);
   --color-surface-page: var(--surface-page);
   --color-surface-card: var(--surface-card);
   --color-text-primary: var(--text-primary);
@@ -553,9 +622,9 @@
    conteúdo volta ao chão liso, e nenhum rótulo pequeno cai sobre cor. */
 .malha-do-painel {
   background:
-    radial-gradient(42% 100% at 10% 0%, var(--malha-a) 0%, transparent 72%),
-    radial-gradient(38% 96% at 48% -10%, var(--malha-b) 0%, transparent 74%),
-    radial-gradient(44% 104% at 92% 0%, var(--malha-c) 0%, transparent 74%);
+    radial-gradient(44% 80% at 12% 0%, var(--malha-a) 0%, transparent 72%),
+    radial-gradient(40% 78% at 48% -8%, var(--malha-b) 0%, transparent 74%),
+    radial-gradient(46% 84% at 92% 0%, var(--malha-c) 0%, transparent 74%);
 }
 
 @layer base {
@@ -800,4 +869,18 @@
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* --- A PÍLULA DE AÇÃO ------------------------------------------------------
+   O "Nova task" da proposta. É classe e não utilitário porque um degradê não
+   cabe num token de cor do Tailwind: `bg-action` geraria `background-color`,
+   e o que ela pinta é `background-image`. O degradê e a sombra moram juntos
+   porque a sombra é do azul do meio — separados, trocar um deixaria a luz
+   embaixo do botão com a cor do desenho anterior. */
+.pilula-de-acao {
+  background: var(--action-gradiente);
+  box-shadow: 0 10px 22px -10px rgb(47 107 255 / 0.7);
+}
+.pilula-de-acao:hover {
+  box-shadow: 0 12px 26px -10px rgb(47 107 255 / 0.85);
 }
