@@ -12,6 +12,7 @@
  */
 import type { VersaoDoConteudo } from "../../src/lib/dados/conteudo";
 import type {
+  AnaliseDaPeca,
   CampanhaDoPortal,
   EntregavelDoPortal,
 } from "../../src/lib/dominio/campanhas";
@@ -319,4 +320,25 @@ export async function templatesDeCampanha(
       clienteId: null,
     },
   ];
+}
+
+/**
+ * O estado da analise interna de cada peca.
+ *
+ * O exemplo tem UMA de cada: uma esperando a gestao, uma ja com o aval (que e
+ * a que mostra o "Enviar ao cliente" ligado) e o resto sem nada. Com todas
+ * iguais a imagem provaria um estado so -- e sao os tres estados que decidem
+ * qual botao a tela desenha.
+ */
+export async function analiseDosEntregaveis(
+  itens: { id: string; versaoAtual: number }[],
+): Promise<Map<string, AnaliseDaPeca>> {
+  const mapa = new Map<string, AnaliseDaPeca>();
+  itens.forEach((item, i) => {
+    mapa.set(item.id, {
+      pendente: i === 1,
+      aprovado: i === 0,
+    });
+  });
+  return mapa;
 }

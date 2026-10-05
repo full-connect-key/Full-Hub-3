@@ -290,6 +290,19 @@ export async function aprovarInterna(
       return decidirRodadaDePost(supabase, sessao.usuarioId, rodada, "aprovada", comentario);
     }
 
+    // A PEÇA DE CAMPANHA DECIDE POR AQUI TAMBÉM, e antes disto ela não decidia
+    // por lugar nenhum — pela mesma razão do post um parágrafo acima: a regra
+    // estava no banco desde a 0033 e nenhuma tela a alcançava.
+    if (rodada.content_type === "deliverable") {
+      return decidirRodadaDeEntregavel(
+        supabase,
+        sessao.usuarioId,
+        rodada,
+        "aprovada",
+        comentario,
+      );
+    }
+
     const alvo = etapaDaRodada(rodada);
     if (!alvo) {
       return falha(
@@ -391,6 +404,16 @@ export async function solicitarAjustesInterna(
 
     if (rodada.content_type === "post") {
       return decidirRodadaDePost(
+        supabase,
+        sessao.usuarioId,
+        rodada,
+        "ajustes_solicitados",
+        comentario,
+      );
+    }
+
+    if (rodada.content_type === "deliverable") {
+      return decidirRodadaDeEntregavel(
         supabase,
         sessao.usuarioId,
         rodada,
@@ -625,5 +648,86 @@ async function decidirRodadaDePost(
     decisao === "aprovada"
       ? 'Aval interno dado. Agora dá para usar "Enviar ao cliente".'
       : "Ajustes pedidos. O post voltou para quem produziu.",
+  );
+}
+
+/**
+ * A decisão interna de uma PEÇA DE CAMPANHA.
+ *
+ * ---------------------------------------------------------------------------
+ * **Função própria, e não um `if` dentro da do post**, pela razão que separou
+ * as três leituras da fila: tabelas diferentes, nomes diferentes para a mesma
+ * coisa, telas diferentes para voltar.
+ *
+ * **PEDIR AJUSTES NÃO MEXE EM `deliverables.status`**, e é a parte que pede
+ * cuidado — é a lição do post, letra por letra. Marcar `ajustes` ali parece o
+ * espelho do que o cliente causa, e dispararia o que a tela do portal lê: a
+ * peça apareceria para o CLIENTE como "em ajustes" sem ele ter visto nada, e
+ * `enviado_em` continuaria nulo, então ele veria um estado de uma peça que não
+ * existe para ele. A rodada recusada já devolve a peça para a produção
+ * sozinha: o aval volta a ser falso e o botão de enviar desliga.
+ *
+ * **Quem produziu recebe o aviso, e aqui ele é explícito.** A peça não tem
+ * conversa interna — o comentário fica na rodada, que a tela de produção não
+ * mostra. Sem o sino, um pedido de ajustes escrito na sexta espera a pessoa
+ * abrir a campanha por acaso.
+ * ---------------------------------------------------------------------------
+ */
+async function decidirRodadaDeEntregavel(
+  supabase: ClienteSupabase,
+  usuarioId: string,
+  rodada: { id: string; content_id: string; numero_rodada: number },
+  decisao: "aprovada" | "ajustes_solicitados",
+  comentario?: string,
+): Promise<Resultado> {
+  const { data: peca } = await supabase
+    .from("deliverables")
+    .select("id, nome, responsavel_id, campaign_id")
+    .eq("id", rodada.content_id)
+    .maybeSingle();
+
+  if (!peca) return falha("Material de campanha não encontrado.");
+
+  const { data, error } = await supabase
+    .from("approval_rounds")
+    .update({
+      status: decisao,
+      decidido_por: usuarioId,
+      decidido_em: new Date().toISOString(),
+      comentario: comentario?.trim() || null,
+    })
+    .eq("id", rodada.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return falha(error.message);
+  // `.select()` porque uma escrita barrada pelo RLS volta sem erro e sem
+  // linha. Quem barraria aqui é `approval_rounds_decide`, que desde a 0033 já
+  // aceita entregável — por `pode_aprovar_entregavel()`.
+  if (!data) {
+    return falha("O banco recusou a decisão: só a gestão decide rodada interna.");
+  }
+
+  if (peca.responsavel_id) {
+    await supabase.rpc("notificar", {
+      p_user_id: peca.responsavel_id,
+      p_tipo: "aprovacao",
+      p_titulo:
+        decisao === "aprovada"
+          ? `Aval interno aprovado: "${peca.nome}"`
+          : `Ajustes pedidos em "${peca.nome}"`,
+      p_corpo: comentario?.trim() || null,
+      p_link: `/painel/aprovacoes/campanhas/${peca.campaign_id}`,
+    });
+  }
+
+  revalidatePath("/painel/aprovacoes");
+  revalidatePath(`/painel/aprovacoes/campanhas/${peca.campaign_id}`);
+  revalidatePath("/painel/gestao-tasks");
+
+  return sucesso(
+    decisao === "aprovada"
+      ? 'Aval interno dado. Agora dá para usar "Enviar ao cliente".'
+      : "Ajustes pedidos. O material voltou para quem o produziu.",
   );
 }

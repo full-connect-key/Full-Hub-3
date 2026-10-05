@@ -586,3 +586,112 @@ select teste.cenario('Nem o socio troca a empresa da campanha', :ANA,
   format($fmt$update public.campaigns set client_id = 'aaaaaaaa-0000-0000-0000-000000000002'
    where id = %L$fmt$, current_setting('teste.campanha_78')),
   'recusa');
+
+
+-- ===========================================================================
+-- A ANALISE INTERNA DA PECA, E A PONTE QUE NINGUEM ATRAVESSAVA
+--
+-- Decisao do usuario: *"quando o colaborador sobe uma arte dentro de uma
+-- campanha, apareca um botao de enviar para analise ao inves de enviar para o
+-- cliente (...) os desenvolvedores e socios devem avaliar a arte e enviar para
+-- o cliente, ou solicitar alteracao"*.
+--
+-- **NAO HA MIGRATION, E E O PONTO.** `validar_nova_rodada` recusa a rodada de
+-- escopo `cliente` num entregavel enquanto nao houver a INTERNA do mesmo
+-- numero aprovada -- esta no banco desde a 0033, na mesma forma do post. O que
+-- faltava era a acao que abre a interna: a tela de producao tinha "Enviar ao
+-- cliente" e mais nada, e o banco recusava.
+--
+-- Estes cenarios guardam o caminho inteiro, e o ultimo e o que importa: subir
+-- uma versao nova DEPOIS do aval invalida o aval. Sem ele, o designer subiria
+-- a v2 e o botao continuaria ligado -- mandando ao cliente uma arte que
+-- ninguem olhou.
+-- ===========================================================================
+
+\set CAN '''ca000000-0000-0000-0000-000000000001'''
+\set PEC '''be000000-0000-0000-0000-000000000001'''
+
+insert into public.campaigns (id, client_id, nome, data_inicio, data_fim, criado_por, status)
+values (:CAN, :VERDE, 'Wave da analise', current_date, current_date + 10, :DIEGO, 'ativa');
+
+-- A PECA E DO BRUNO, que e colaborador: e ele quem produz e quem manda para
+-- analise.
+insert into public.deliverables (id, campaign_id, nome, ordem, responsavel_id)
+values (:PEC, :CAN, 'Lamina da analise', 0, :BRUNO);
+
+-- 1. SEM ARQUIVO O BANCO NAO TEM O QUE RECUSAR -- quem recusa e a tela, e e
+-- escolha: `arte_url` nulo nao e regra de aprovacao, e uma trava a mais no
+-- trigger seria uma segunda verdade sobre a mesma coisa. O cenario fica para
+-- registrar que a trava NAO esta aqui.
+select teste.cenario('A primeira versao, com arquivo', :BRUNO,
+  format($fmt$insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+    values (%L, '[{"url":"verde/e/v1.pdf","nome":"v1.pdf"}]'::jsonb, %L)$fmt$, :PEC, :BRUNO),
+  'ok', 1);
+
+-- 2. E A GESTAO NAO ENVIA AO CLIENTE ANTES DO AVAL INTERNO.
+--
+-- E O CENARIO QUE PROVA QUE A ANALISE NAO E DECORATIVA. Ele passava
+-- despercebido porque ninguem conseguia chegar ate aqui: a acao da tela
+-- montava a rodada com `max + 1`, que nunca casa com a interna.
+select teste.cenario('A gestao nao envia ao cliente sem o aval interno', :ANA,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :PEC, :ANA),
+  'recusa');
+
+-- 3. QUEM PRODUZIU MANDA PARA ANALISE.
+select teste.cenario('Quem produziu manda a peca para analise', :BRUNO,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('deliverable', %L, 1, 'interna', %L)$fmt$, :PEC, :BRUNO),
+  'ok', 1);
+
+-- 4. E O COLABORADOR NAO DECIDE A PROPRIA ANALISE.
+--
+-- Quem barra e `approval_rounds_decide`, por `pode_aprovar_entregavel()`. A
+-- 0029 tirou a trava de autoaprovacao da GESTAO; o colaborador continua sem
+-- decidir nada, que e a outra metade daquela decisao.
+select teste.cenario('O colaborador nao decide a propria analise', :BRUNO,
+  format($fmt$update public.approval_rounds set status = 'aprovada'
+   where content_type = 'deliverable' and content_id = %L and escopo = 'interna'$fmt$, :PEC),
+  'recusa');
+
+select teste.cenario('A gestao aprova a analise', :ANA,
+  format($fmt$update public.approval_rounds set status = 'aprovada', decidido_por = %L
+   where content_type = 'deliverable' and content_id = %L and escopo = 'interna'$fmt$,
+   :ANA, :PEC),
+  'ok', 1);
+
+-- 5. AGORA O ENVIO AO CLIENTE PASSA.
+select teste.cenario('Com o aval, a gestao envia ao cliente', :ANA,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :PEC, :ANA),
+  'ok', 1);
+
+-- E O ENVIO CARIMBOU A PECA, por `marcar_conteudo_como_enviado` (0033): e
+-- assim que ela passa a existir para o cliente.
+select teste.conferir('O envio carimbou a peca',
+  (select (enviado_em is not null)::text from public.deliverables where id = :PEC),
+  'true');
+
+-- 6. A VERSAO NOVA INVALIDA O AVAL.
+--
+-- E O CENARIO QUE IMPEDE A ARTE NAO OLHADA DE SAIR. Subir a v2 depois do aval
+-- da v1 e o caso real: o designer corrige uma coisa e manda. Com o numero da
+-- rodada casado com a versao, a v2 nao tem interna aprovada e o banco recusa.
+-- Se alguem voltar a numerar por `max + 1`, ou a pedir a interna com um numero
+-- proprio, este cenario cai.
+select teste.cenario('A segunda versao', :BRUNO,
+  format($fmt$insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+    values (%L, '[{"url":"verde/e/v2.pdf","nome":"v2.pdf"}]'::jsonb, %L)$fmt$, :PEC, :BRUNO),
+  'ok', 1);
+
+select teste.conferir('A peca esta na v2',
+  (select versao_atual::text from public.deliverables where id = :PEC), '2');
+
+select teste.cenario('E a v2 nao vai ao cliente com o aval da v1', :ANA,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    values ('deliverable', %L, 2, 'cliente', %L)$fmt$, :PEC, :ANA),
+  'recusa');

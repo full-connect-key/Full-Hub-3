@@ -2962,6 +2962,62 @@ componente nas quatro telas: a capa existe para a campanha ser reconhecida de
 relance, e duas proporções fariam a mesma campanha parecer outra em cada uma.
 Tirar a capa é `null` e não apagar o arquivo.
 
+#### A arte da campanha passa pela ANÁLISE INTERNA antes do cliente
+
+Decisão do usuário: *"quando o colaborador sobe uma arte, dentro de uma
+campanha, apareça um botão de enviar para análise ao invés de enviar para o
+cliente, que quando clicado, notifica os desenvolvedores e sócios, que devem
+avaliar a arte e enviar para o cliente, ou solicitar alteração"*.
+
+**NÃO HÁ MIGRATION, E É O PONTO.** `validar_nova_rodada` recusa a rodada de
+escopo `cliente` num entregável enquanto não houver a INTERNA do mesmo número
+aprovada — está no banco desde a **0033**, na mesma forma do post;
+`approval_rounds_decide` já aceita `deliverable` por
+`pode_aprovar_entregavel()`; e `approval_rounds_avisa_aprovador` (0064) já toca
+o sino quando uma rodada interna nasce pendente. **É a décima primeira ponte
+construída e nunca atravessada**, junto com `deliverables.subtask_id` antes da
+0051 e o aval interno do post antes de ele entrar na fila.
+
+**E o botão que existia estava quebrado, de um jeito que ninguém tinha
+visto.** `enviarEntregavelAoCliente` numerava a rodada como `max + 1` — e o
+trigger compara o número da de cliente com o da interna. Um número sempre maior
+não casa com nenhuma, então **o envio ao cliente de uma peça de campanha nunca
+passou**: quem clicava levava *"esta rodada ainda não passou pela aprovação
+interna"*, sobre uma aprovação que não tinha por onde acontecer.
+
+**O NÚMERO DA RODADA É A VERSÃO DA PEÇA.** Casando os dois, as duas rodadas da
+mesma versão se encontram — e subir uma versão nova depois do aval deixa a nova
+SEM aval, que é o que tem de acontecer: o que a gestão aprovou não é mais o que
+iria ao cliente. É a conta do `avalInterno` do Social Media, com a mesma linha
+(`numero_rodada >= versao_atual`) em `analiseDosEntregaveis()` e na fila. **A
+bateria guarda o cenário que impede a arte não olhada de sair**: subir a v2
+depois do aval da v1 e o banco recusar o envio.
+
+**A peça entra na fila de aprovações internas**, como o post entrou — e por
+`entregaveisNaFila()`, uma TERCEIRA função e não um `if` no meio das outras
+duas: as três leem tabelas diferentes, com nomes diferentes para a mesma coisa
+(`titulo`, `tema`, `nome`) e levam a telas diferentes. A ordenação continua
+sendo feita depois de juntar, senão toda peça viria atrás de todo post. **A
+arte vem assinada na linha**, do bucket `campanhas-arquivos` — a gestão precisa
+OLHAR antes de decidir, e um "Aprovar" numa linha sem nada para abrir convida ao
+erro que o Portal evita pondo a arte antes dos botões.
+
+**Pedir ajustes NÃO mexe em `deliverables.status`**, e é a lição do post letra
+por letra: marcar `ajustes` ali faria a peça aparecer ao CLIENTE num estado que
+ele não causou, de um material que ainda não existe para ele. A rodada recusada
+já devolve a peça para a produção sozinha — o aval volta a ser falso e o botão
+de enviar desliga. **Quem produziu recebe o aviso**, porque a peça não tem
+conversa interna: o comentário fica na rodada, que a tela de produção não
+mostra.
+
+**O "Enviar ao cliente" SOME para quem produz, e fica desligado para a
+gestão.** São as duas metades da mesma regra: para quem nunca vai poder usá-lo,
+um botão permanentemente desligado é ruído, e a razão escrita seria dita a quem
+não decide isso; para quem decide, o botão desligado com a frase é o que ensina
+o passo que falta — a decisão do "Enviar ao cliente" do Social Media. E a frase
+é **uma só**: com a análise pendente, a pílula azul já responde, e a âmbar ao
+lado dela repetiria a mesma coisa a um centímetro de distância.
+
 #### A campanha se edita depois de aberta
 
 Migration 0078, decisão do usuário: *"preciso poder editar as informações de

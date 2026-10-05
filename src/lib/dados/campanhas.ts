@@ -11,6 +11,7 @@ import {
 import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
+  AnaliseDaPeca,
   CampanhaDoPortal,
   EntregavelDoPortal,
 } from "@/lib/dominio/campanhas";
@@ -401,4 +402,52 @@ export async function campanhaDaTask(
   );
 
   return campanha ?? null;
+}
+
+/**
+ * O estado da ANÁLISE INTERNA de cada peça.
+ *
+ * ---------------------------------------------------------------------------
+ * **Uma consulta para a árvore inteira**, e não uma por item: são quinze peças
+ * numa Wave, e quinze idas ao banco em série para desenhar uma lista é o que a
+ * assinatura das miniaturas já evita um parágrafo acima.
+ *
+ * **`numero_rodada >= versao_atual` é a linha que importa**, e é a mesma conta
+ * do `avalInterno` do Social Media: subir uma versão nova depois do aval
+ * INVALIDA o aval, porque o que a gestão aprovou não é mais o que iria ao
+ * cliente. Sem ela, o designer subiria a v2 depois da v1 aprovada e o botão de
+ * enviar continuaria ligado — mandando ao cliente uma arte que ninguém viu.
+ * ---------------------------------------------------------------------------
+ */
+export async function analiseDosEntregaveis(
+  itens: { id: string; versaoAtual: number }[],
+): Promise<Map<string, AnaliseDaPeca>> {
+  const mapa = new Map<string, AnaliseDaPeca>();
+  if (itens.length === 0) return mapa;
+
+  const supabase = await criarClienteServidor();
+  const rodadas = ouFalha(
+    "as rodadas internas dos entregáveis",
+    await supabase
+      .from("approval_rounds")
+      .select("content_id, numero_rodada, escopo, status")
+      .eq("content_type", "deliverable")
+      .eq("escopo", "interna")
+      .in(
+        "content_id",
+        itens.map((i) => i.id),
+      ),
+  );
+
+  for (const item of itens) {
+    const minhas = (rodadas ?? []).filter((r) => r.content_id === item.id);
+    mapa.set(item.id, {
+      pendente: minhas.some((r) => r.status === "pendente"),
+      aprovado: minhas.some(
+        (r) => r.status === "aprovada" && r.numero_rodada >= item.versaoAtual,
+      ),
+    });
+  }
+
+  return mapa;
 }

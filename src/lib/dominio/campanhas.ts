@@ -421,3 +421,60 @@ export function periodoCurto(inicio: string, fim: string): string {
 export function duracaoEmDias(inicio: string, fim: string): number {
   return diasAte(fim, inicio) + 1;
 }
+
+// ---------------------------------------------------------------------------
+// A ANÁLISE INTERNA DA PEÇA — decisão do usuário.
+//
+// *"quando o colaborador sobe uma arte dentro de uma campanha, apareça um
+// botão de enviar para análise ao invés de enviar para o cliente (…) os
+// desenvolvedores e sócios devem avaliar a arte e enviar para o cliente, ou
+// solicitar alteração"*.
+//
+// **A REGRA JÁ ESTAVA NO BANCO, E NINGUÉM A ATRAVESSAVA.** `validar_nova_rodada`
+// recusa uma rodada de escopo `cliente` num entregável enquanto não houver a
+// rodada INTERNA do mesmo número aprovada — está lá desde a 0033, na mesma
+// forma do post. O que não existia era o botão que abre a interna: a tela de
+// produção tinha "Enviar ao cliente" e mais nada, e o banco recusava com
+// *"Esta rodada ainda não passou pela aprovação interna"*. É a ponte construída
+// e nunca atravessada, como a fila de aprovações do post antes de ela existir.
+//
+// Esta função responde a MESMA pergunta que o trigger faz, e existe só para
+// escrever a frase — é `podeEnviarAoCliente()` do Social Media, na peça de
+// campanha.
+// ---------------------------------------------------------------------------
+
+export type AnaliseDaPeca = {
+  /** Há uma rodada interna pendente agora. */
+  pendente: boolean;
+  /** O aval interno vale para a versão que está no ar. */
+  aprovado: boolean;
+};
+
+export function podeEnviarPecaAoCliente(
+  item: Pick<EntregavelDoPortal, "arteUrl">,
+  analise: AnaliseDaPeca,
+): { pode: boolean; porque: string | null } {
+  if (!item.arteUrl) {
+    return { pode: false, porque: "Suba pelo menos um arquivo antes de enviar." };
+  }
+  if (analise.pendente) {
+    return { pode: false, porque: "A análise interna está em andamento." };
+  }
+  if (!analise.aprovado) {
+    return { pode: false, porque: "Falta o aval interno — mande para análise primeiro." };
+  }
+  return { pode: true, porque: null };
+}
+
+export function podePedirAnalise(
+  item: Pick<EntregavelDoPortal, "arteUrl">,
+  analise: AnaliseDaPeca,
+): { pode: boolean; porque: string | null } {
+  if (!item.arteUrl) {
+    return { pode: false, porque: "Suba pelo menos um arquivo antes de mandar para análise." };
+  }
+  if (analise.pendente) {
+    return { pode: false, porque: "Já está na fila de análise." };
+  }
+  return { pode: true, porque: null };
+}

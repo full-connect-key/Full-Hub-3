@@ -9,7 +9,9 @@ import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
+import { ehGestor } from "@/lib/auth/roles";
 import {
+  analiseDosEntregaveis,
   entregaveisDaCampanha,
   obterCampanha,
   urlsDosArquivos,
@@ -54,7 +56,7 @@ export default async function PaginaDaCampanha({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await exigirAcessoARota("/painel/aprovacoes");
+  const sessao = await exigirAcessoARota("/painel/aprovacoes");
   const { id } = await params;
 
   const campanha = await obterCampanha(id);
@@ -84,6 +86,14 @@ export default async function PaginaDaCampanha({
         async (item) => [item.id, await versoesDoEntregavel(item.id)] as const,
       ),
     ),
+  );
+
+  // O ESTADO DO AVAL INTERNO DE CADA PEÇA, numa consulta para a árvore
+  // inteira. É ele que decide entre "Enviar para análise" e "Enviar ao
+  // cliente", e a pergunta é a MESMA que `validar_nova_rodada` faz no banco —
+  // esta existe só para escrever a frase do botão desligado.
+  const analise = await analiseDosEntregaveis(
+    itens.map((i) => ({ id: i.id, versaoAtual: i.versaoAtual })),
   );
 
   const arquivosDasVersoes = await urlsDosArquivos(
@@ -226,6 +236,8 @@ export default async function PaginaDaCampanha({
         )}
         versoes={versoes}
         assinadas={arquivosDasVersoes}
+        analise={Object.fromEntries(analise)}
+        ehGestao={ehGestor(sessao.profile.role)}
       />
     </div>
   );

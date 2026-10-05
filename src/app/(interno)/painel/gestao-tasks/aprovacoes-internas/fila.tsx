@@ -31,6 +31,21 @@ import {
   solicitarAjustesInterna,
 } from "../acoes-de-aprovacao";
 import { enviarAoCliente } from "../../social-media/acoes";
+import { enviarEntregavelAoCliente } from "../../aprovacoes/acoes-de-campanha";
+
+/**
+ * O que cada linha da fila É.
+ *
+ * Mapa e não um ternário aninhado: são três tipos desde que a peça de campanha
+ * entrou, e o quarto — se existir — se acrescenta aqui em vez de em três
+ * lugares. É a decisão de `ICONE_DA_AREA`, que tinha três cópias e duas já
+ * divergidas.
+ */
+const ROTULO_DO_TIPO: Record<ItemDaFila["tipo"], string> = {
+  subtask: "Etapa",
+  post: "Post",
+  deliverable: "Peça de campanha",
+};
 
 /**
  * A fila do Desenvolvedor.
@@ -126,9 +141,10 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         </Link>
         {/* DE QUE TIPO É ESTA LINHA. Os botões são os mesmos e o que acontece
             depois não: a etapa de aval interno conclui, o post segue para o
-            envio. */}
-        <Badge variant={item.tipo === "post" ? "default" : "secondary"}>
-          {item.tipo === "post" ? "Post" : "Etapa"}
+            envio, e a peça de campanha libera o "Enviar ao cliente" da tela da
+            campanha. Sem o selo, a mesma linha significaria três coisas. */}
+        <Badge variant={item.tipo === "subtask" ? "secondary" : "default"}>
+          {ROTULO_DO_TIPO[item.tipo]}
         </Badge>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
         <Badge variant="secondary">
@@ -196,7 +212,9 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
         <p className="text-muted-foreground pt-1 text-xs italic">
           {item.tipo === "post"
             ? "Sem arte ainda — abra o post antes de decidir."
-            : "Sem arquivo anexado."}
+            : item.tipo === "deliverable"
+              ? "Sem arquivo ainda — abra a campanha antes de decidir."
+              : "Sem arquivo anexado."}
         </p>
       )}
     </div>
@@ -320,7 +338,9 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
             const resultado = await chamarAcao(() =>
               item.tipo === "post"
                 ? enviarAoCliente(item.contentId)
-                : enviarParaCliente(item.contentId),
+                : item.tipo === "deliverable"
+                  ? enviarEntregavelAoCliente(item.contentId)
+                  : enviarParaCliente(item.contentId),
             );
             if (!resultado.ok) toast.error(resultado.error);
             else {

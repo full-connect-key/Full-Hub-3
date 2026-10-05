@@ -16,6 +16,9 @@ import type { Pessoa } from "./tasks";
 /** O mesmo bucket privado de `lib/dados/social-media.ts`. */
 const BUCKET_DAS_ARTES = "posts-artes";
 
+/** E o da campanha, que é OUTRO: a policy dele pergunta pela pasta do cliente. */
+const BUCKET_DAS_CAMPANHAS = "campanhas-arquivos";
+
 /**
  * A fila de aprovações internas.
  *
@@ -63,9 +66,11 @@ export type ItemDaFila = {
   rodadaId: string | null;
   /**
    * O que está sendo decidido. A fila deixou de ser só de etapa: o post entra
-   * por aqui desde que a tela passou a ler os dois tipos.
+   * por aqui desde que a tela passou a ler os dois tipos, e a PEÇA DE CAMPANHA
+   * entrou pelo mesmo caminho — a regra dela estava no banco desde a 0033 e
+   * nenhuma tela a alcançava.
    */
-  tipo: "subtask" | "post";
+  tipo: "subtask" | "post" | "deliverable";
   contentId: string;
   numeroRodada: number;
   /** O nome do que se decide: o título da etapa, ou o tema do post. */
@@ -116,15 +121,21 @@ type FilaCrua = {
 };
 
 export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
-  const [deEtapas, dePosts] = await Promise.all([
+  const [deEtapas, dePosts, dePecas] = await Promise.all([
     etapasNaFila(),
     postsNaFila(),
+    entregaveisNaFila(),
   ]);
 
-  const esperando = [...deEtapas.esperando, ...dePosts.esperando];
+  const esperando = [
+    ...deEtapas.esperando,
+    ...dePosts.esperando,
+    ...dePecas.esperando,
+  ];
   const prontasParaOCliente = [
     ...deEtapas.prontasParaOCliente,
     ...dePosts.prontasParaOCliente,
+    ...dePecas.prontasParaOCliente,
   ];
 
   const prazos = await prazosDasContas(
@@ -449,6 +460,159 @@ async function postsNaFila(): Promise<FilaCrua> {
           interna?.decidido_em ??
           interna?.solicitado_em ??
           new Date().toISOString(),
+      });
+    }
+  }
+
+  return { esperando, prontasParaOCliente };
+}
+
+/**
+ * As rodadas internas de PEÇA DE CAMPANHA.
+ *
+ * ---------------------------------------------------------------------------
+ * **TERCEIRA FUNÇÃO, E NÃO UM `if` NO MEIO DAS OUTRAS DUAS.**
+ *
+ * É a decisão que separou `etapasNaFila()` de `postsNaFila()`: as três leem
+ * tabelas diferentes, com nomes diferentes para a mesma coisa — `titulo` na
+ * etapa, `tema` no post, `nome` na peça — e levam a telas diferentes. Juntas,
+ * cada `select` ganharia um `if tipo ===` no meio, que é a duplicação de volta
+ * com outro nome. O que se compartilha é a casca, não a leitura.
+ *
+ * **A ordenação continua sendo feita DEPOIS de juntar**, lá em cima: ordenar
+ * dentro de cada uma e concatenar daria uma fila em que toda peça vem atrás de
+ * todo post — inclusive a parada há uma semana atrás do post de hoje.
+ *
+ * **A ARTE VEM ASSINADA**, pela mesma razão do post: a gestão precisa OLHAR
+ * antes de decidir, e o bucket é privado. Um "Aprovar" numa linha sem nada
+ * para abrir convida ao erro que o Portal evita pondo a arte antes dos botões.
+ * O bucket é OUTRO — `campanhas-arquivos` e não `posts-artes` —, e a policy
+ * dele pergunta pela pasta do cliente.
+ * ---------------------------------------------------------------------------
+ */
+async function entregaveisNaFila(): Promise<FilaCrua> {
+  const supabase = await criarClienteServidor();
+
+  const rodadas = ouFalha(
+    "a fila de aprovações de peça de campanha",
+    await supabase
+      .from("approval_rounds")
+      .select("*")
+      .eq("content_type", "deliverable")
+      .order("numero_rodada", { ascending: false }),
+  );
+
+  const todas = (rodadas ?? []) as ApprovalRound[];
+  if (todas.length === 0) return { esperando: [], prontasParaOCliente: [] };
+
+  const pecas = ouFalha(
+    "as peças de campanha da fila",
+    await supabase
+      .from("deliverables")
+      .select(
+        "id, campaign_id, nome, versao_atual, responsavel_id, enviado_em, arte_url, thumbnail_url",
+      )
+      .in("id", [...new Set(todas.map((r) => r.content_id))]),
+  );
+
+  if (!pecas || pecas.length === 0) return { esperando: [], prontasParaOCliente: [] };
+
+  const campanhas = ouFalha(
+    "as campanhas da fila",
+    await supabase
+      .from("campaigns")
+      .select("id, nome, client_id")
+      .in("id", [...new Set(pecas.map((p) => p.campaign_id))]),
+  );
+
+  const porCampanha = new Map((campanhas ?? []).map((c) => [c.id, c]));
+
+  const [clientes, pessoas, assinadas] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", [
+        ...new Set((campanhas ?? []).map((c) => c.client_id)),
+      ])
+      .then((r) => ouFalha("os clientes da fila de campanha", r)),
+    supabase
+      .from("profiles")
+      .select("id, nome, avatar_url")
+      .in("id", [
+        ...new Set(pecas.map((p) => p.responsavel_id).filter(Boolean)),
+      ] as string[])
+      .then((r) => ouFalha("os nomes da fila de campanha", r)),
+    assinarArquivos(
+      BUCKET_DAS_CAMPANHAS,
+      pecas.map((p) => p.thumbnail_url ?? p.arte_url),
+    ),
+  ]);
+
+  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
+
+  const esperando: ItemSemPrazo[] = [];
+  const prontasParaOCliente: ItemSemPrazo[] = [];
+
+  for (const peca of pecas) {
+    const campanha = porCampanha.get(peca.campaign_id);
+    const minhas = todas.filter((r) => r.content_id === peca.id);
+    const caminho = peca.thumbnail_url ?? peca.arte_url;
+    const assinada = caminho ? assinadas[caminho] : null;
+
+    const base = {
+      tipo: "deliverable" as const,
+      contentId: peca.id,
+      titulo: peca.nome,
+      contexto: campanha ? campanha.nome : "Campanha",
+      rota: `/painel/aprovacoes/campanhas/${peca.campaign_id}?item=${peca.id}`,
+      cliente: campanha ? (porCliente.get(campanha.client_id) ?? null) : null,
+      clienteId: campanha?.client_id ?? null,
+      responsavel: peca.responsavel_id
+        ? (porPessoa.get(peca.responsavel_id) ?? null)
+        : null,
+      // SEMPRE `cliente`: a peça de campanha existe para o cliente decidir.
+      // Não há material de campanha que pare no aval interno — ele é o portão,
+      // nunca o destino.
+      tipoAprovacao: "cliente" as TipoAprovacao,
+      anexos: assinada ? [{ id: peca.id, nome: "Arte", url: assinada }] : [],
+    };
+
+    const pendente = minhas.find(
+      (r) => r.status === "pendente" && r.escopo === "interna",
+    );
+    if (pendente) {
+      esperando.push({
+        ...base,
+        rodadaId: pendente.id,
+        numeroRodada: pendente.numero_rodada,
+        desde: pendente.solicitado_em,
+      });
+      continue;
+    }
+
+    // `>= versao_atual`, a mesma conta de `analiseDosEntregaveis()` e do
+    // `avalInterno` do Social: subir uma versão nova depois do aval invalida o
+    // aval, porque o que a gestão aprovou não é mais o que iria ao cliente.
+    const comAval = minhas
+      .filter(
+        (r) =>
+          r.escopo === "interna" &&
+          r.status === "aprovada" &&
+          r.numero_rodada >= peca.versao_atual,
+      )
+      .sort((a, b) => b.numero_rodada - a.numero_rodada)[0];
+
+    const jaFoiNestaVersao = minhas.some(
+      (r) => r.escopo === "cliente" && r.numero_rodada >= peca.versao_atual,
+    );
+
+    if (comAval && !jaFoiNestaVersao) {
+      prontasParaOCliente.push({
+        ...base,
+        rodadaId: comAval.id,
+        numeroRodada: comAval.numero_rodada,
+        desde: comAval.decidido_em ?? comAval.solicitado_em,
       });
     }
   }

@@ -500,7 +500,14 @@ const TELAS = [
   // A TELA DE PRODUCAO, com uma peca aberta: e onde a equipe sobe arquivo,
   // escreve a justificativa e manda ao cliente. Sem o clique, a imagem mostra
   // so a arvore fechada -- que e justamente o que ja existia.
-  { nome: "20l-campanha-producao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "socio" },
+  { nome: "20l-campanha-producao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "socio",
+    clicar: 'button:has-text("Lâmina customizável A5")' },
+  // E A MESMA PECA PARA QUEM PRODUZ: ele ve "Enviar para análise" e NAO ve o
+  // envio ao cliente, que e de `is_gestor()`. Sem as duas imagens lado a lado,
+  // "o botao aparece para quem deve" e uma afirmacao que ninguem conferiu --
+  // e nenhum build sabe quem esta logado.
+  { nome: "20p-campanha-producao-colaborador", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "colaborador-social",
+    clicar: 'button:has-text("Lâmina customizável A5")' },
   // A identidade da campanha e uma LINHA no desktop -- capa de 150px a
   // esquerda, progresso a direita -- e empilha no celular. E a imagem de 390px
   // que decide: e ela que mostra se a capa quadrada come a primeira dobra

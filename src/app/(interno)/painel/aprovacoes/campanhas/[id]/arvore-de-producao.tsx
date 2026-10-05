@@ -9,6 +9,7 @@ import {
   ImageIcon,
   Loader2,
   Send,
+  ShieldCheck,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,15 +20,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { VersaoDoConteudo } from "@/lib/dados/conteudo";
-import type {
-  EntregavelDoPortal,
-  NoDaArvore,
+import {
+  podeEnviarPecaAoCliente,
+  podePedirAnalise,
+  type AnaliseDaPeca,
+  type EntregavelDoPortal,
+  type NoDaArvore,
 } from "@/lib/dominio/campanhas";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import {
   enviarEntregavelAoCliente,
+  pedirAnaliseDoEntregavel,
   gravarVersaoDoEntregavel,
 } from "../../acoes-de-campanha";
 
@@ -55,12 +60,18 @@ export function ArvoreDeProducao({
   miniaturas,
   versoes,
   assinadas,
+  analise,
+  ehGestao,
 }: {
   clienteId: string;
   arvore: NoDaArvore[];
   miniaturas: Record<string, string>;
   versoes: Record<string, VersaoDoConteudo[]>;
   assinadas: Record<string, string>;
+  /** O estado do aval interno de cada peça. A chave é o id dela. */
+  analise: Record<string, AnaliseDaPeca>;
+  /** Quem envia ao cliente é `is_gestor()`, e o botão segue a mesma pergunta. */
+  ehGestao: boolean;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
 
@@ -74,6 +85,8 @@ export function ArvoreDeProducao({
       assinadas={assinadas}
       aberto={aberto === item.id}
       aoAbrir={() => setAberto((atual) => (atual === item.id ? null : item.id))}
+      analise={analise[item.id] ?? { pendente: false, aprovado: false }}
+      ehGestao={ehGestao}
     />
   );
 
@@ -145,6 +158,8 @@ function Peca({
   assinadas,
   aberto,
   aoAbrir,
+  analise,
+  ehGestao,
 }: {
   item: EntregavelDoPortal;
   clienteId: string;
@@ -153,9 +168,13 @@ function Peca({
   assinadas: Record<string, string>;
   aberto: boolean;
   aoAbrir: () => void;
+  analise: AnaliseDaPeca;
+  ehGestao: boolean;
 }) {
   const router = useRouter();
   const arquivoRef = useRef<HTMLInputElement>(null);
+  const podeAnalise = podePedirAnalise(item, analise);
+  const podeEnviar = podeEnviarPecaAoCliente(item, analise);
   const [subindo, setSubindo] = useState(false);
   const [notas, setNotas] = useState("");
   const [enviando, enviar] = useTransition();
@@ -205,6 +224,18 @@ function Peca({
       setSubindo(false);
       if (arquivoRef.current) arquivoRef.current.value = "";
     }
+  }
+
+  function mandarParaAnalise() {
+    enviar(async () => {
+      const r = await chamarAcao(() => pedirAnaliseDoEntregavel(item.id));
+      if (r.ok) {
+        toast.success(r.mensagem);
+        router.refresh();
+      } else {
+        toast.error(r.error);
+      }
+    });
   }
 
   function mandar() {
@@ -306,23 +337,66 @@ function Peca({
                 a agência passasse a usar, e o erro seria o seletor recusando
                 um arquivo sem dizer por quê. Quem decide o que vira capa é o
                 banco, pela extensão. */}
-            <Button size="sm" disabled={enviando || !item.arteUrl} onClick={mandar}>
+            {/* ------------------------------------------------- a análise --
+                "ENVIAR PARA ANÁLISE" É O BOTÃO DE QUEM PRODUZ — decisão do
+                usuário. Ele abre a rodada INTERNA, a gestão decide na fila de
+                aprovações, e só então o envio ao cliente se liga.
+
+                A regra está no banco desde a 0033: `validar_nova_rodada`
+                recusa a rodada de cliente enquanto não houver a interna do
+                mesmo número aprovada. O que faltava era este botão — até
+                agora a tela só oferecia "Enviar ao cliente", e quem clicava
+                levava do banco uma recusa falando de uma aprovação que não
+                tinha por onde acontecer. */}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={enviando || !podeAnalise.pode}
+              onClick={mandarParaAnalise}
+            >
               {enviando ? (
                 <Loader2 aria-hidden className="size-4 animate-spin" />
               ) : (
-                <Send aria-hidden className="size-4" />
+                <ShieldCheck aria-hidden className="size-4" />
               )}
-              {jaFoi ? "Enviar nova versão ao cliente" : "Enviar ao cliente"}
+              {analise.aprovado ? "Mandar para análise de novo" : "Enviar para análise"}
             </Button>
+
+            {/* O ENVIO AO CLIENTE SÓ APARECE PARA A GESTÃO, e não desligado:
+                aqui ele não é uma regra que quem produz precise aprender —
+                é o trabalho de outra pessoa. Um botão permanentemente
+                desligado na tela de quem nunca vai poder usá-lo é ruído, e a
+                razão escrita ("falta o aval interno") seria dita a quem não
+                decide isso. Para a gestão ele fica, desligado, com a razão. */}
+            {ehGestao ? (
+              <Button size="sm" disabled={enviando || !podeEnviar.pode} onClick={mandar}>
+                {enviando ? (
+                  <Loader2 aria-hidden className="size-4 animate-spin" />
+                ) : (
+                  <Send aria-hidden className="size-4" />
+                )}
+                {jaFoi ? "Enviar nova versão ao cliente" : "Enviar ao cliente"}
+              </Button>
+            ) : null}
           </div>
 
-          {!item.arteUrl ? (
-            // O BOTÃO FICA DESLIGADO COM A RAZÃO ESCRITA, em vez de sumir: um
-            // botão que some ensina que não existe; um desligado que diz o
-            // que falta ensina a regra. É a mesma decisão do "Enviar ao
-            // cliente" do Social Media.
-            <p className="text-text-muted text-sm">
-              Suba pelo menos um arquivo antes de enviar.
+          {/* A RAZÃO FICA NUMA PÍLULA ÂMBAR, e não em cinza ao lado de um
+              botão cinza — ali ela lia como legenda do botão em vez de
+              resposta. É a decisão do "Enviar ao cliente" desligado do Social
+              Media. `--warning` e nunca `--danger`: falta um passo, não há
+              erro nenhum. */}
+          {/* UMA FRASE SÓ, e não duas dizendo a mesma coisa. Com a análise
+              pendente, a pílula azul já responde por que os dois botões estão
+              desligados — a âmbar ao lado dela repetiria "já está na fila"
+              logo abaixo de "na fila de análise da gestão", a um centímetro
+              de distância. É a decisão do selo que some dentro do grupo. */}
+          {analise.pendente ? (
+            <p className="bg-blue-soft text-blue-strong rounded-lg px-3 py-2 text-sm">
+              Na fila de análise da gestão — v{item.versaoAtual}.
+            </p>
+          ) : (ehGestao ? podeEnviar.porque : podeAnalise.porque) ? (
+            <p className="bg-warning-soft text-warning rounded-lg px-3 py-2 text-sm">
+              {ehGestao ? podeEnviar.porque : podeAnalise.porque}
             </p>
           ) : null}
 

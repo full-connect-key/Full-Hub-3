@@ -216,30 +216,41 @@ export async function enviarEntregavelAoCliente(
     const supabase = await criarClienteServidor();
     const conteudo = doEntregavel(entregavelId);
 
-    // A numeração continua de onde a anterior parou. Rodada fechada nunca é
-    // reescrita nem apagada — cada ciclo de ajuste cria uma nova, com número
-    // maior, e as anteriores ficam com o que foi pedido e decidido.
-    const { data: anteriores } = await supabase
-      .from("approval_rounds")
-      .select("numero_rodada")
-      .eq("content_type", conteudo.tipo)
-      .eq("content_id", conteudo.id)
-      .order("numero_rodada", { ascending: false })
-      .limit(1);
+    // -----------------------------------------------------------------------
+    // O NÚMERO DA RODADA É A VERSÃO DA PEÇA, e não "a próxima".
+    //
+    // Era `max(numero_rodada) + 1`, e com isso o envio NUNCA passava: desde a
+    // 0033 o trigger exige a rodada INTERNA do MESMO número aprovada antes da
+    // de cliente, e um número sempre maior que o da interna não casa com
+    // nenhuma. O botão existia e o banco recusava com *"esta rodada ainda não
+    // passou pela aprovação interna"* — sobre uma aprovação que, até agora,
+    // não tinha por onde acontecer.
+    //
+    // Casando o número com `versao_atual`, as duas rodadas da mesma versão se
+    // encontram, e subir uma versão nova depois do aval deixa a nova SEM aval
+    // — que é o que tem de acontecer: o que a gestão aprovou não é mais o que
+    // iria ao cliente. Rodada fechada continua sem ser reescrita, porque cada
+    // versão nova traz um número novo.
+    // -----------------------------------------------------------------------
+    const { data: peca } = await supabase
+      .from("deliverables")
+      .select("id, versao_atual")
+      .eq("id", entregavelId)
+      .maybeSingle();
 
-    const numero = (anteriores?.[0]?.numero_rodada ?? 0) + 1;
+    if (!peca) return falha("Este material não existe, ou o seu acesso não o alcança.");
 
     const { data, error } = await supabase
       .from("approval_rounds")
       .insert({
         ...colunasDoConteudo(conteudo),
-        numero_rodada: numero,
+        numero_rodada: peca.versao_atual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,
       })
       .select("id");
 
-    if (error) return falha(error.message);
+    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
     if (!data || data.length === 0) {
       return falha("O banco recusou o envio deste material.");
     }
@@ -572,5 +583,93 @@ export async function editarCampanha(
     revalidatePath(`${ROTA}/campanhas/${campanhaId}`);
     revalidatePath("/portal/campanhas");
     return sucesso("Campanha atualizada.");
+  });
+}
+
+/**
+ * "Enviar para análise" — a rodada INTERNA da peça de campanha.
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário: *"quando o colaborador sobe uma arte dentro de uma
+ * campanha, apareça um botão de enviar para análise ao invés de enviar para o
+ * cliente, que quando clicado, notifica os desenvolvedores e sócios"*.
+ *
+ * **NÃO HÁ MIGRATION, e é a parte que importa.** `validar_nova_rodada` recusa
+ * uma rodada de escopo `cliente` num entregável enquanto não houver a INTERNA
+ * do mesmo número aprovada — está no banco desde a 0033, na mesma forma do
+ * post —, `approval_rounds_decide` já aceita `deliverable` por
+ * `pode_aprovar_entregavel()`, e `approval_rounds_avisa_aprovador` (0064) já
+ * toca o sino quando uma rodada interna nasce pendente.
+ *
+ * O que faltava era ESTA ação. Até aqui a tela de produção tinha "Enviar ao
+ * cliente" e mais nada: quem clicava levava do banco um *"esta rodada ainda não
+ * passou pela aprovação interna"* sobre uma aprovação que não tinha por onde
+ * acontecer. É a ponte construída e nunca atravessada — a mesma situação do
+ * aval interno do post antes de ele entrar na fila.
+ *
+ * **O NÚMERO É A VERSÃO, e não "a próxima rodada".** O trigger compara
+ * `numero_rodada` entre a interna e a de cliente, e `deliverable_versions`
+ * numera as versões: casando os dois, subir a v2 depois do aval da v1 deixa a
+ * v2 sem aval — que é exatamente o que tem de acontecer, porque o que a gestão
+ * aprovou não é mais o que iria ao cliente. Com um contador próprio, a v2
+ * herdaria o aval da v1 e sairia sem ninguém ter olhado.
+ *
+ * **Quem abre é o responsável pela peça, ou a gestão** — a pergunta é do
+ * trigger (*"só quem produziu o entregável envia para aprovação"*), e aqui não
+ * se repete: `exigirRotaNaAcao` é a porta do módulo, e o resto é do banco.
+ * ---------------------------------------------------------------------------
+ */
+export async function pedirAnaliseDoEntregavel(
+  entregavelId: string,
+): Promise<Resultado> {
+  return executarAcao("pedirAnaliseDoEntregavel", async () => {
+    const sessao = await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+    const conteudo = doEntregavel(entregavelId);
+
+    const { data: peca } = await supabase
+      .from("deliverables")
+      .select("id, nome, versao_atual, arte_url, campaign_id")
+      .eq("id", entregavelId)
+      .maybeSingle();
+
+    if (!peca) return falha("Este material não existe, ou o seu acesso não o alcança.");
+    if (!peca.arte_url) {
+      return falha("Suba pelo menos um arquivo antes de mandar para análise.");
+    }
+
+    const { data: jaTem } = await supabase
+      .from("approval_rounds")
+      .select("id")
+      .eq("content_type", conteudo.tipo)
+      .eq("content_id", conteudo.id)
+      .eq("escopo", "interna")
+      .eq("numero_rodada", peca.versao_atual)
+      .limit(1);
+
+    if (jaTem && jaTem.length > 0) {
+      return falha("Esta versão já foi para análise. Suba uma versão nova para pedir de novo.");
+    }
+
+    const { data, error } = await supabase
+      .from("approval_rounds")
+      .insert({
+        ...colunasDoConteudo(conteudo),
+        numero_rodada: peca.versao_atual,
+        escopo: "interna",
+        solicitado_por: sessao.usuarioId,
+      })
+      .select("id");
+
+    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou: só quem produziu o material o manda para análise.");
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath(`${ROTA}/campanhas/${peca.campaign_id}`);
+    // A FILA MORA EM GESTÃO DE TASKS desde que as três telas viraram uma.
+    revalidatePath("/painel/gestao-tasks");
+    return sucesso("Mandado para análise. A gestão decide na fila de aprovações.");
   });
 }
