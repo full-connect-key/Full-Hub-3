@@ -54,6 +54,21 @@ type Linha = {
   redes: PlataformaSocial[];
   quantidade: string;
 };
+
+/** As duas pontas de uma etapa da corrente, em texto de `<input type="date">`. */
+type Periodo = { inicio: string; fim: string };
+
+function periodosSugeridos(mes: string): Record<string, Periodo> {
+  return Object.fromEntries(
+    ETAPAS_DA_CORRENTE.map((e) => [
+      e.nome,
+      {
+        inicio: diaSugeridoDaEtapa(mes, e.comecaEm),
+        fim: diaSugeridoDaEtapa(mes, e.diasAntesDoMes),
+      },
+    ]),
+  );
+}
 const TETO = 60;
 
 /**
@@ -160,10 +175,17 @@ export function AbrirOMes({
    * apagar o campo precisa deixá-lo vazio em vez de virar zero, e zero aqui
    * quer dizer "no dia da publicação", que é uma escolha de verdade.
    */
-  const [prazos, setPrazos] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      ETAPAS_DA_CORRENTE.map((e) => [e.nome, diaSugeridoDaEtapa(mes, e.diasAntesDoMes)]),
-    ),
+  /**
+   * O PERÍODO de cada etapa (0084), e não mais só o dia de vencer.
+   *
+   * Decisão do usuário: *"quero que coloque data de início e final da task,
+   * que deve se repetir em todos os posts"*. É a 0027 um nível abaixo — a
+   * etapa de demanda ganhou período pelo mesmo argumento, e aqui a falta doía
+   * mais: a Pauta do mês inteiro é um bloco de trabalho, e com só o fim ela
+   * aparecia inteira num dia e zero nos outros na carga de quem produz.
+   */
+  const [prazos, setPrazos] = useState<Record<string, Periodo>>(() =>
+    periodosSugeridos(mes),
   );
 
   /**
@@ -180,14 +202,24 @@ export function AbrirOMes({
    * é a ordem de `coalesce(etapa, padrão)` da 0041, aqui no navegador.
    */
   function trocarMes(novo: string) {
+    const antes = periodosSugeridos(mes);
+    const depois = periodosSugeridos(novo);
     setPrazos((atual) =>
       Object.fromEntries(
-        ETAPAS_DA_CORRENTE.map((e) => [
-          e.nome,
-          atual[e.nome] === diaSugeridoDaEtapa(mes, e.diasAntesDoMes)
-            ? diaSugeridoDaEtapa(novo, e.diasAntesDoMes)
-            : (atual[e.nome] ?? ""),
-        ]),
+        ETAPAS_DA_CORRENTE.map((e) => {
+          const meu = atual[e.nome] ?? { inicio: "", fim: "" };
+          // PONTA A PONTA, e não o par inteiro: quem ajustou só o fim da Pauta
+          // continua tendo o início refeito pelo mês novo, que é o que ela
+          // esperaria. Comparar o par de uma vez congelaria as duas por causa
+          // de uma.
+          return [
+            e.nome,
+            {
+              inicio: meu.inicio === antes[e.nome].inicio ? depois[e.nome].inicio : meu.inicio,
+              fim: meu.fim === antes[e.nome].fim ? depois[e.nome].fim : meu.fim,
+            },
+          ];
+        }),
       ),
     );
     setMes(novo);
@@ -201,8 +233,21 @@ export function AbrirOMes({
   // A tela cobra antes para a recusa não chegar depois de sete campos
   // preenchidos; quem vale é o banco, e é ele que pega quem chamar a RPC
   // direto.
+  // UMA ETAPA INVERTIDA DESLIGA O BOTÃO, e não deixa a recusa chegar depois de
+  // dez campos preenchidos. Quem recusa de verdade é a função — e, para quem
+  // montar a chamada à mão, o `check` `post_etapas_periodo` da tabela.
+  const periodoInvertido = ETAPAS_DA_CORRENTE.some((e) => {
+    const p = prazos[e.nome];
+    return !!p && p.inicio !== "" && p.fim !== "" && p.inicio > p.fim;
+  });
+
   const podeAbrir =
-    !!cliente && total > 0 && !excede && !linhaSemRede && pasta.trim().length > 0;
+    !!cliente &&
+    total > 0 &&
+    !excede &&
+    !linhaSemRede &&
+    !periodoInvertido &&
+    pasta.trim().length > 0;
 
   function criarNoDrive() {
     criarPasta(async () => {
@@ -234,11 +279,15 @@ export function AbrirOMes({
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
           ),
           link_entrega: pasta.trim(),
-          // A ETAPA SEM DIA NÃO VIAJA, pela mesma razão dos responsáveis:
-          // mandar `{"Layout": null}` faria o banco gravar nulo por cima de
-          // nada, e o mapa passaria a dizer que alguém escolheu "sem dia".
+          // A ETAPA SEM PONTA NENHUMA NÃO VIAJA, pela mesma razão dos
+          // responsáveis: mandar `{"Layout": {}}` faria o banco gravar nulo por
+          // cima de nada, e o mapa passaria a dizer que alguém escolheu "sem
+          // dia". Com UMA das duas preenchidas ela vai — os dois são opcionais
+          // no banco desde a 0084, pela decisão da 0027.
           prazos: Object.fromEntries(
-            Object.entries(prazos).filter(([, v]) => v.trim().length > 0),
+            Object.entries(prazos).filter(
+              ([, v]) => v.inicio.trim().length > 0 || v.fim.trim().length > 0,
+            ),
           ),
         }),
       );
@@ -251,6 +300,7 @@ export function AbrirOMes({
       toast.success(r.mensagem);
       setAberto(false);
       setLinhas([{ id: proximoId.current++, redes: ["instagram"], quantidade: "" }]);
+      setPrazos(periodosSugeridos(mes));
       setPasta("");
       router.refresh();
     });
@@ -530,12 +580,16 @@ export function AbrirOMes({
           */}
           <section className="space-y-3">
             <div>
-              <h3 className="text-sm font-semibold">Quando cada etapa vence</h3>
+              <h3 className="text-sm font-semibold">O período de cada etapa</h3>
             </div>
 
             <div className="grid gap-2">
               {ETAPAS_DA_CORRENTE.map((etapa) => {
-                const bruto = prazos[etapa.nome] ?? "";
+                const periodo = prazos[etapa.nome] ?? { inicio: "", fim: "" };
+                const invertido =
+                  periodo.inicio !== "" &&
+                  periodo.fim !== "" &&
+                  periodo.inicio > periodo.fim;
                 return (
                   // GRADE DE TRÊS COLUNAS, e não `flex-wrap`: em 375px a
                   // frase do Programar ("no dia da publicação") é mais longa
@@ -544,23 +598,56 @@ export function AbrirOMes({
                   // a imagem de 375px que mostrou. Com a grade, ela quebra
                   // DENTRO da própria coluna e continua ao lado do número a que
                   // se refere.
+                  // GRADE DE QUATRO COLUNAS: nome, início, "até", fim. A
+                  // palavra do meio é o que diz que os dois campos são UM
+                  // período e não dois campos soltos — sem ela, "Pauta 01/10
+                  // 05/10" se lê como duas datas e a pessoa adivinha qual é
+                  // qual.
+                  // EM 375px O NOME DA ETAPA SOBE para a linha de cima, e os
+                  // dois campos ficam sozinhos na de baixo. Com os três na
+                  // mesma linha sobravam uns 120px por campo de data, e o
+                  // `<input type="date">` corta o ANO antes de cortar
+                  // qualquer outra coisa: "01/10/202" lê como data válida e
+                  // não é — foi a imagem de 375px que mostrou, como no
+                  // calendário do Full Days.
                   <div
                     key={etapa.nome}
-                    className="grid grid-cols-[minmax(4.5rem,auto)_9.5rem_1fr] items-center gap-2"
+                    className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 gap-y-1 sm:grid-cols-[minmax(4.5rem,auto)_1fr_auto_1fr]"
                   >
                     <Label
-                      htmlFor={`prazo-${etapa.nome}`}
-                      className="text-sm font-medium"
+                      htmlFor={`inicio-${etapa.nome}`}
+                      className="col-span-3 text-sm font-medium sm:col-span-1"
                     >
                       {etapa.nome}
                     </Label>
                     <Input
-                      id={`prazo-${etapa.nome}`}
+                      id={`inicio-${etapa.nome}`}
                       type="date"
+                      aria-label={`${etapa.nome} começa em`}
                       className="w-full"
-                      value={bruto}
+                      value={periodo.inicio}
                       onChange={(e) =>
-                        setPrazos((atual) => ({ ...atual, [etapa.nome]: e.target.value }))
+                        setPrazos((atual) => ({
+                          ...atual,
+                          [etapa.nome]: { ...periodo, inicio: e.target.value },
+                        }))
+                      }
+                    />
+                    <span aria-hidden className="text-text-muted text-xs">
+                      até
+                    </span>
+                    <Input
+                      id={`fim-${etapa.nome}`}
+                      type="date"
+                      aria-label={`${etapa.nome} termina em`}
+                      aria-invalid={invertido}
+                      className="w-full"
+                      value={periodo.fim}
+                      onChange={(e) =>
+                        setPrazos((atual) => ({
+                          ...atual,
+                          [etapa.nome]: { ...periodo, fim: e.target.value },
+                        }))
                       }
                     />
                     {/*
@@ -571,15 +658,21 @@ export function AbrirOMes({
                       trabalho em lote não tem outro jeito de ver o que escolheu.
                     */}
                     {/*
-                      O DIA DA SEMANA AO LADO DA DATA, e não a data repetida: o
-                      campo já mostra 05/10, e o que ele não diz é que 05/10 é
-                      uma terça. Marcar a pauta do mês num sábado é o erro que
-                      só essa palavra pega — é a razão pela qual a frase existia
-                      na 0059 ("3 dias antes", porque `-3` não é português),
-                      aplicada ao que o campo passou a aceitar.
+                      O DIA DA SEMANA DAS DUAS PONTAS, embaixo e ocupando a
+                      linha inteira: ao lado ele não cabe mais, com dois campos
+                      de data na mesma linha. Ele fica porque o campo já mostra
+                      05/10 e o que ele não diz é que 05/10 é uma terça —
+                      marcar o envio do mês num domingo é o erro que só essa
+                      palavra pega, e foi a imagem do protótipo que mostrou.
                     */}
-                    <span className="text-text-secondary text-xs">
-                      {rotuloDoDiaDaEtapa(bruto)}
+                    <span className="text-text-secondary col-span-3 text-xs sm:col-start-2 sm:-col-end-1">
+                      {invertido ? (
+                        <span className="text-danger">
+                          Esta etapa terminaria antes de começar.
+                        </span>
+                      ) : (
+                        `${rotuloDoDiaDaEtapa(periodo.inicio)} até ${rotuloDoDiaDaEtapa(periodo.fim)}`
+                      )}
                     </span>
                   </div>
                 );

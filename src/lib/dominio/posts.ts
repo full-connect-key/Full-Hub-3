@@ -638,9 +638,21 @@ export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as cons
  * 30 ou 31 dias; um dia fixo do mês anterior não faria isso.
  * ---------------------------------------------------------------------------
  *
- * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com as
- * cinco datas preenchidas e a pessoa muda o que quiser. Cinco campos vazios
- * fariam quem abre o mês inventar cinco datas na hora.
+ * **SÃO DUAS PONTAS E NÃO UMA** (0084), decisão do usuário: *"quero que
+ * coloque data de início e final da task, que deve se repetir em todos os
+ * posts"*. É a 0027 um nível abaixo — a etapa de demanda ganhou período pelo
+ * mesmo argumento, *"duas etapas com o mesmo prazo podem ser uma de três dias
+ * e uma de três horas"*. Aqui a falta dói mais: a Pauta do mês inteiro é um
+ * BLOCO de trabalho, e com só o fim ela aparece inteira num dia e zero nos
+ * outros na carga de quem produz.
+ *
+ * `comecaEm` e `diasAntesDoMes` são as duas pontas, contadas do dia 1. Os
+ * blocos sugeridos se encostam sem se sobrepor — a Pauta fecha no dia em que
+ * o Conteúdo começa a correr —, e quem quiser paralelismo arrasta o início.
+ *
+ * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com os
+ * cinco períodos preenchidos e a pessoa muda o que quiser. Dez campos vazios
+ * fariam quem abre o mês inventar dez datas na hora.
  *
  * **A ordem aqui É a ordem da corrente**, e o banco recusa dias que andem para
  * trás dela: o Layout com prazo antes do Conteúdo é quase sempre um número
@@ -649,11 +661,11 @@ export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as cons
  * ainda não deixa tocá-la.
  */
 export const ETAPAS_DA_CORRENTE = [
-  { nome: "Pauta", funcao: "Social Media", diasAntesDoMes: 27 },
-  { nome: "Conteúdo", funcao: "Redator", diasAntesDoMes: 20 },
-  { nome: "Layout", funcao: "Design", diasAntesDoMes: 12 },
-  { nome: "Envio", funcao: "Social Media", diasAntesDoMes: 7 },
-  { nome: "Programar", funcao: "Social Media", diasAntesDoMes: 2 },
+  { nome: "Pauta", funcao: "Social Media", comecaEm: 31, diasAntesDoMes: 27 },
+  { nome: "Conteúdo", funcao: "Redator", comecaEm: 26, diasAntesDoMes: 20 },
+  { nome: "Layout", funcao: "Design", comecaEm: 19, diasAntesDoMes: 12 },
+  { nome: "Envio", funcao: "Social Media", comecaEm: 11, diasAntesDoMes: 7 },
+  { nome: "Programar", funcao: "Social Media", comecaEm: 6, diasAntesDoMes: 2 },
 ] as const;
 
 /**

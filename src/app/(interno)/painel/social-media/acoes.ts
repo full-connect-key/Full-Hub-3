@@ -465,12 +465,27 @@ const esquemaDoMes = z.object({
    * o que faz a recusa aparecer antes de a pessoa mandar; quem vale é o
    * `check` da 0059, e é ele que pega quem chamar a RPC direto.
    */
-  // O DIA DE CADA ETAPA, e não mais um número de dias antes da publicação
-  // (0083, decisão do usuário): a Pauta do mês inteiro é feita num dia só.
+  // O PERÍODO DE CADA ETAPA (0084, decisão do usuário): a Pauta do mês inteiro
+  // começa num dia e fecha noutro, e as duas pontas valem para todos os posts.
+  //
+  // As duas são OPCIONAIS dentro do par, pela decisão da 0027: quem abre o mês
+  // costuma saber quando a etapa fecha e ainda não quando ela começa, e exigir
+  // as duas faria a pessoa inventar uma.
   prazos: z
     .record(
       z.string(),
-      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha o dia de cada etapa."),
+      z.object({
+        inicio: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha o início de cada etapa.")
+          .or(z.literal(""))
+          .optional(),
+        fim: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha o fim de cada etapa.")
+          .or(z.literal(""))
+          .optional(),
+      }),
     )
     .optional(),
   /**
@@ -534,9 +549,19 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
     // escolhido não viaja. Mandar `{"Layout": null}` faria o banco gravar nulo
     // por cima de nada — inofensivo, e o mapa passaria a dizer que alguém
     // escolheu "sem dia", que é outra coisa.
-    const prazos: Record<string, string> = {};
-    for (const [etapa, dia] of Object.entries(lido.data.prazos ?? {})) {
-      if (typeof dia === "string" && dia.trim().length > 0) prazos[etapa] = dia;
+    // A PONTA VAZIA VIRA AUSÊNCIA, e não string vazia: o banco faz
+    // `nullif(btrim(...), '')`, então as duas formas gravam nulo — mas o mapa
+    // que viaja é o que alguém vai ler num log, e `{"inicio": ""}` diz que
+    // escolheram "sem dia", que é outra coisa de não ter escolhido.
+    const prazos: Record<string, { inicio?: string; fim?: string }> = {};
+    for (const [etapa, par] of Object.entries(lido.data.prazos ?? {})) {
+      const inicio = (par?.inicio ?? "").trim();
+      const fim = (par?.fim ?? "").trim();
+      if (inicio.length === 0 && fim.length === 0) continue;
+      prazos[etapa] = {
+        ...(inicio.length > 0 ? { inicio } : {}),
+        ...(fim.length > 0 ? { fim } : {}),
+      };
     }
 
     const { data, error } = await supabase.rpc("abrir_mes_de_social", {

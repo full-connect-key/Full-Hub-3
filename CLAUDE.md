@@ -2356,6 +2356,69 @@ se pega datando à mão — medem hoje o contrário: se alguém devolver a colun
 qualquer um dos dois triggers, um deles falha e diz qual. Medido com mutação:
 fazendo o prazo depender do post de novo, sete cenários caem.
 
+##### E são DUAS pontas, não uma — o que a 0084 acrescentou
+
+Decisão do usuário, logo depois: *"ao invés de quando cada etapa vence, no
+Social do mês... quero que coloque data de início e final da task, que deve se
+repetir em todos os posts. Então se a pauta vai começar no dia X — essa data
+vale para todos os posts, e se ela termina no dia Y, isso vale para todos os
+posts"*.
+
+**É a 0027 um nível abaixo.** A etapa de demanda ganhou período pelo mesmo
+argumento, escrito lá: *"duas etapas com o mesmo prazo podem ser uma de três
+dias e uma de três horas — sem o início, quem monta a agenda da semana tem
+metade da informação"*. A corrente do social estava no estado anterior a isso.
+
+**E aqui a falta doía mais, que é por que ele pediu:** a Pauta do mês inteiro
+não é um dia, é um BLOCO de trabalho. Com só o fim, ela aparece inteira num dia
+e zero nos outros na carga de quem produz — e a carga é justamente a tela que o
+Calendário Full existe para responder.
+
+**`prazo` continua sendo o fim, e não virou `data_fim`.** É a decisão da 0027
+palavra por palavra: ele é lido pela sexta origem da `calendar_events`, pelo
+card da corrente, por Minhas Tasks e pela trava da ordem. Renomear coluna em
+uso é migration arriscada sem nada em troca, e quem diz a verdade para quem
+abrir o schema é o `comment`.
+
+**O calendário continua mostrando só o fim**, e a ausência de mudança na view é
+a decisão — também da 0027: *"começar tarde não é atrasar; entregar tarde é. E
+uma barra por data dobraria os itens do mês"*. Com doze posts, pintar as duas
+pontas de cinco etapas poria cento e vinte linhas no mês de uma conta só.
+
+**Os dois são opcionais**, pela mesma 0027: quem abre o mês costuma saber
+quando a etapa fecha e ainda não quando ela começa, e exigir as duas faria a
+pessoa inventar uma.
+
+**A corrente continua sendo conferida pelo FIM**, e não pelo início: é o fim
+que define atraso, e é por ele que a 0045 recusa começar o Layout antes de o
+Conteúdo fechar. Comparar os inícios recusaria o normal — o Layout começa
+enquanto o Conteúdo ainda corre, e isso é trabalho em paralelo, não erro.
+
+**Período invertido é recusado nomeando a ETAPA**, e não pelo `check` da
+tabela: `post_etapas_periodo` não diz qual das cinco está trocada. O `check`
+fica, e é ele que segura quem monta o `update` à mão — a diferença de sempre
+entre "a tela não faz" e "o banco não aceita".
+
+**A data solta da 0083 é recusada com frase própria, e não aceita como "só o
+fim".** Ela é a recusa que mais importa das três: o número da 0059 estoura
+sozinho, mas uma data válida entraria calada e o mês abriria com a corrente
+inteira sem início — que não dá erro em lugar nenhum e some na carga de quem
+produz, onde ninguém vai procurar.
+
+**Os blocos sugeridos se encostam sem se sobrepor** — a Pauta fecha no dia em
+que o Conteúdo começa a correr. Quem quiser paralelismo arrasta o início, e as
+duas pontas são contadas do dia 1 do mês (`comecaEm` e `diasAntesDoMes`), então
+elas se adaptam a mês de 28, 30 ou 31 dias.
+
+**Trocar o mês refaz ponta a ponta, e não o par inteiro:** quem ajustou só o
+fim da Pauta continua tendo o início refeito pelo mês novo, que é o que ela
+esperaria. Comparar o par de uma vez congelaria as duas por causa de uma.
+
+**Em 375px o nome da etapa sobe para a linha de cima.** Com os três na mesma
+linha sobravam uns 120px por campo, e o `<input type="date">` corta o ANO antes
+de qualquer outra coisa: `01/10/202` lê como data válida e não é. Foi a imagem
+de 375px que mostrou, como no calendário do Full Days.
+
 *O que fica em aberto, e é dito em vez de escondido:* com doze posts, a Pauta
 existe doze vezes no mesmo dia, e em Minhas Tasks a social media vê doze linhas
 "Pauta" vencendo juntas. A frase dele — *"um dia para fazer a pauta do mês

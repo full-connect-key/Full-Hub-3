@@ -277,7 +277,8 @@ from (
     -- coluna `prazo` existe desde a 0045 e responderia ok num banco parado la,
     -- com a corrente ainda andando atras da data de cada post.
     ('0083', 'post_etapas sem prazo_offset_dias', 'sem_coluna',
-             'post_etapas.prazo_offset_dias')
+             'post_etapas.prazo_offset_dias'),
+    ('0084', 'post_etapas.data_inicio',  'coluna',       'post_etapas.data_inicio')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -2345,14 +2345,22 @@ export interface Database {
           responsavel_id: string | null;
           status: SubtaskStatus;
           /**
-           * O DIA em que esta etapa precisa estar pronta.
+           * O PERIODO desta etapa, escolhido ao abrir o mes e IGUAL para todos
+           * os posts dele (0083/0084): a Pauta dos doze comeca num dia e fecha
+           * noutro.
            *
-           * Escolhido ao abrir o mes e IGUAL para todos os posts dele (0083):
-           * a Pauta dos doze e feita num dia, o Conteudo noutro. Ate a 0083 ele
-           * era calculado a partir de `prazo_offset_dias` -- dias antes da
-           * publicacao de CADA post --, e a coluna da regra saiu junto com os
-           * dois triggers que a serviam, por decisao do usuario.
+           * Ate a 0083 o fim era calculado a partir de `prazo_offset_dias` --
+           * dias antes da publicacao de CADA post --, e a coluna da regra saiu
+           * junto com os dois triggers que a serviam. A 0084 acrescentou a
+           * outra ponta, pela decisao da 0027: *"duas etapas com o mesmo prazo
+           * podem ser uma de tres dias e uma de tres horas"*.
+           *
+           * Os DOIS sao opcionais, tambem pela 0027 -- quem abre o mes costuma
+           * saber quando a etapa fecha e ainda nao quando ela comeca. O fim
+           * continua se chamando `prazo` e nao `data_fim` porque renomear
+           * coluna em uso e migration arriscada sem nada em troca.
            */
+          data_inicio: string | null;
           prazo: string | null;
           /**
            * Esta etapa passa pelo CLIENTE antes de a próxima começar (0076).
@@ -3016,13 +3024,16 @@ export interface Database {
           p_responsavel_id?: string | null;
           p_responsaveis?: Record<string, string>;
           /**
-           * O DIA DE CALENDÁRIO de cada etapa, `AAAA-MM-DD` (0083) — e não
-           * mais um número de dias antes da publicação, que era a 0059. Ele
-           * vale para o mês INTEIRO: a Pauta dos doze posts é feita num dia
-           * só. A chave é o NOME da etapa — Pauta e Programar são as duas de
-           * Social Media, e uma chave por função daria às duas o mesmo dia.
+           * O PERÍODO de cada etapa (0084): `{"Pauta": {"inicio": "AAAA-MM-DD",
+           * "fim": "AAAA-MM-DD"}}`. As duas pontas valem para o mês INTEIRO —
+           * a Pauta dos doze posts começa num dia e fecha noutro.
+           *
+           * A chave é o NOME da etapa — Pauta e Programar são as duas de
+           * Social Media, e uma chave por função daria às duas o mesmo
+           * período. As duas formas antigas são recusadas com frase própria: o
+           * número da 0059 e a data solta da 0083.
            */
-          p_prazos?: Record<string, string>;
+          p_prazos?: Record<string, { inicio?: string; fim?: string }>;
           /**
            * A pasta de entrega da DEMANDA do mês (0061). Obrigatória quando
            * ela nasce; ignorada quando o mês já tem demanda — abrir o mesmo

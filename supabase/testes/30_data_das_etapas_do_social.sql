@@ -69,9 +69,11 @@ select teste.cenario('A gestão abre três posts com um dia por etapa',
       (select id from public.clients order by created_at limit 1),
       '2027-11', '[{"redes": ["instagram"], "quantidade": 3}]'::jsonb,
       null, '{}'::jsonb,
-      '{"Pauta": "2027-10-05", "Conteúdo": "2027-10-12",
-        "Layout": "2027-10-20", "Envio": "2027-10-25",
-        "Programar": "2027-10-30"}'::jsonb,
+      '{"Pauta":     {"inicio": "2027-10-01", "fim": "2027-10-05"},
+        "Conteúdo":  {"inicio": "2027-10-06", "fim": "2027-10-12"},
+        "Layout":    {"inicio": "2027-10-13", "fim": "2027-10-20"},
+        "Envio":     {"inicio": "2027-10-21", "fim": "2027-10-25"},
+        "Programar": {"inicio": "2027-10-26", "fim": "2027-10-30"}}'::jsonb,
       'https://drive.google.com/drive/folders/PASTA-0083')$$,
   'ok', 1);
 
@@ -97,6 +99,43 @@ select teste.conferir('cada etapa tem o SEU dia, e a corrente anda na ordem',
      from public.post_etapas e join public.posts p on p.id = e.post_id
     where p.tema like '%· Novembro/2027'),
   '2027-10-05,2027-10-12,2027-10-20,2027-10-25,2027-10-30');
+
+-- ---------------------------------------------------------------------------
+-- E AS DUAS PONTAS, que é o pedido da 0084: *"quero que coloque data de início
+-- e final da task, que deve se repetir em todos os posts. Então se a pauta vai
+-- começar no dia X — essa data vale para todos os posts, e se ela termina no
+-- dia Y, isso vale para todos os posts"*.
+--
+-- Sem o início a Pauta do mês aparece inteira num dia e zero nos outros na
+-- carga de quem produz, que é onde a falta dói e onde ninguém vai procurar.
+-- ---------------------------------------------------------------------------
+
+select teste.conferir('as três Pautas começam no mesmo dia',
+  (select count(distinct data_inicio)::text || ' de ' || count(*)::text
+     from public.post_etapas e join public.posts p on p.id = e.post_id
+    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'), '1 de 3');
+
+select teste.conferir('e o período delas é o que foi escolhido',
+  (select string_agg(distinct data_inicio::text || '→' || prazo::text, ',')
+     from public.post_etapas e join public.posts p on p.id = e.post_id
+    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'),
+  '2027-10-01→2027-10-05');
+
+-- AS CINCO TEM INICIO, e não só a primeira: um `update` que gravasse o início
+-- de uma etapa só passaria no cenário de cima e deixaria as outras quatro sem
+-- bloco nenhum na agenda.
+select teste.conferir('as quinze etapas têm as duas pontas',
+  (select count(*)::text from public.post_etapas e join public.posts p on p.id = e.post_id
+    where p.tema like '%· Novembro/2027'
+      and e.data_inicio is not null and e.prazo is not null), '15');
+
+-- E O INICIO DE CADA UMA É O SEU, e não o da primeira: se o `update` gravasse
+-- a mesma data nas cinco, este cenário acha uma data só.
+select teste.conferir('cada etapa começa no seu dia',
+  (select string_agg(distinct data_inicio::text, ',' order by data_inicio::text)
+     from public.post_etapas e join public.posts p on p.id = e.post_id
+    where p.tema like '%· Novembro/2027'),
+  '2027-10-01,2027-10-06,2027-10-13,2027-10-21,2027-10-26');
 
 -- A DATA NAO PRECISA CAIR DENTRO DO MES, e é decisão: o social de novembro é
 -- produzido em outubro inteiro. A trava óbvia — "a etapa vence dentro do mês"
@@ -254,7 +293,8 @@ select teste.recusa_com(
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
       '2027-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
-      '{"Conteúdo": "2027-11-20", "Layout": "2027-11-10"}'::jsonb)$$,
+      '{"Conteúdo": {"inicio": "2027-11-15", "fim": "2027-11-20"},
+        "Layout":   {"inicio": "2027-11-05", "fim": "2027-11-10"}}'::jsonb)$$,
   'venceria antes da etapa anterior');
 
 select teste.recusa_com(
@@ -263,21 +303,56 @@ select teste.recusa_com(
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
       '2027-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
-      '{"Revisão": "2027-11-10"}'::jsonb)$$,
+      '{"Revisão": {"inicio": "2027-11-05", "fim": "2027-11-10"}}'::jsonb)$$,
   'não tem etapa chamada');
 
--- O OFFSET DA 0059 E RECUSADO COM FRASE PROPRIA, e não com um erro sobre
--- sintaxe de entrada de `date`. Quem cair aqui está mandando a forma antiga, e
--- a recusa precisa dizer qual é a nova — é a decisão do objeto de quantidades
--- na 0082.
+-- AS DUAS FORMAS ANTIGAS SAO RECUSADAS COM FRASE PROPRIA, e não com um erro
+-- sobre sintaxe de entrada de `date`. Quem cair aqui está mandando a 0059 (o
+-- número) ou a 0083 (a data solta), e a recusa precisa dizer qual é a nova — é
+-- a decisão do objeto de quantidades na 0082.
+--
+-- A SOLTA É A QUE IMPORTA MAIS: ela é uma data válida, então sem esta recusa
+-- ela entraria como "só o fim" e o mês abriria com a corrente inteira sem
+-- início — que não dá erro em lugar nenhum e some na carga de quem produz.
 select teste.recusa_com_dica(
-  'o número da 0059 é recusado dizendo que agora é dia',
+  'o número da 0059 é recusado dizendo que agora é período',
   '11111111-1111-1111-1111-111111111111',
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
       '2027-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
       '{"Pauta": -10}'::jsonb)$$,
-  'não mais um número de dias antes da publicação');
+  'as duas pontas');
+
+select teste.recusa_com_dica(
+  'e a data solta da 0083 também',
+  '11111111-1111-1111-1111-111111111111',
+  $$select public.abrir_mes_de_social(
+      (select id from public.clients order by created_at limit 1),
+      '2027-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
+      '{"Pauta": "2027-11-10"}'::jsonb)$$,
+  'as duas pontas');
+
+-- PERIODO INVERTIDO E RECUSADO NOMEANDO A ETAPA, e não pelo `check` da tabela:
+-- "post_etapas_periodo" não diz qual das cinco está trocada.
+select teste.recusa_com_dica(
+  'a etapa que termina antes de começar é recusada pelo nome',
+  '11111111-1111-1111-1111-111111111111',
+  $$select public.abrir_mes_de_social(
+      (select id from public.clients order by created_at limit 1),
+      '2027-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
+      '{"Layout": {"inicio": "2027-11-20", "fim": "2027-11-10"}}'::jsonb)$$,
+  'os dois campos não estão trocados');
+
+-- E O `check` DA TABELA SEGURA QUEM MONTA O UPDATE A MAO, que é a diferença de
+-- sempre entre "a tela não faz" e "o banco não aceita".
+select teste.recusa_com(
+  'e o banco recusa o período invertido escrito à mão',
+  '11111111-1111-1111-1111-111111111111',
+  $$update public.post_etapas e set data_inicio = '2027-10-30'
+     from public.posts p
+    where p.id = e.post_id and p.tema = 'Instagram 3 de 3 · Novembro/2027'
+      and e.nome = 'Pauta'$$,
+  'post_etapas_periodo');
 
 
 -- ---------------------------------------------------------------------------
