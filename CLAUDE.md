@@ -3988,11 +3988,36 @@ eles vêm de outro módulo e abrem em outra tela. O `Record` continua total sobr
 a união — e `subtarefa: null` é explícito — para um tipo novo não cair calado
 no último ramo de um `? :`, que é como "entregável" quase virou "Etapa".
 
-**O QUE ENTROU NO LUGAR É A LINHAGEM** — *"que apareça o nome da task mãe,
-junto com o nome da Subtarefa"*. `Cliente · Demanda` embaixo do nome da etapa,
-que é a forma de Minhas Tasks desde o Sprint 10. Ela responde a pergunta que o
-rótulo nunca respondeu: *"de que demanda é este Layout?"* — e "Layout" é o nome
-de uma etapa em toda campanha da agência.
+**O QUE ENTROU NO LUGAR SÃO TRÊS LINHAS** — *"que apareça o nome da task mãe,
+junto com o nome da Subtarefa (…) pode manter o nome do cliente, e o ícone da
+pessoa"*, com um print junto. Cliente, demanda e etapa, nessa ordem, cada uma
+na sua linha:
+
+```
+Mundo Verde                      ← cliente   10px  --text-secondary  medium
+Campanha Saúde do Homem          ← demanda   10px  --text-muted
+KV                        (MC)   ← etapa     13px  --text-primary    semibold
+```
+
+**É a proposta C de três**, escolhida pelo usuário depois de ver as três no
+tamanho real da célula. As outras duas foram: **A**, cliente e demanda juntos
+numa linha só (`Mundo Verde · Campanha…`) com a etapa embaixo; e **B**, o
+cliente como selo de duas letras ao lado da demanda — recusada porque "MV"
+precisa ser aprendido e duas contas com a mesma inicial viram o mesmo selo.
+
+**O contexto em cima, o trabalho embaixo**, que é a ordem do print: a etapa é o
+que a pessoa vai fazer, e é ela que leva o tamanho e o peso. "Layout" é o nome
+de uma etapa em toda campanha da agência — sem as duas linhas acima, a célula
+não diz de que trabalho ele é.
+
+**O peso faz o que a cor faria.** Três tamanhos e três pesos, uma família de
+tom só: dar cor própria ao cliente exigiria medi-la contra os quatro fundos
+tingidos do chip, e o que ela acrescentaria é o que o tamanho já diz.
+
+***O que a C custa, e foi dito antes da escolha:*** **altura**. O chip passou de
+dois para três níveis, então um dia com três etapas ocupa a célula inteira e a
+linha da semana cresce. É o preço de nada truncar na linha que identifica a
+demanda, e é reversível — as outras duas propostas continuam descritas aqui.
 
 **A COR É O CHIP, e não mais um fio de quatro pixels** — *"mude as cores das
 legendas do calendário, deixe ele visualmente mais colorido"*, com as três que
@@ -4041,12 +4066,14 @@ componente que carrega o `object-cover` do `AvatarImage`: o conserto da foto
 achatada vale para o produto inteiro por passar todo avatar por um lugar só, e
 uma segunda forma de desenhar o círculo é onde essa propriedade se perde.
 
-**E ele é `xs` (20px) e fica na linha da LINHAGEM, não na do título.** Foi a
-imagem do protótipo que decidiu as duas coisas: a célula do mês tem cerca de
-160px, e com o círculo de 24px ao lado do nome, "Conferir os anexos" saía
-"Conferir os ane…". O nome da etapa é o que identifica o trabalho e fica com a
-largura inteira; a linhagem trunca, porque ela é contexto — e o texto completo
-viaja no `title` e no `aria-label` do chip, junto com o nome da pessoa.
+**E ele é `xs` (20px), na linha da ETAPA.** A célula do mês tem cerca de 160px,
+e a 24px o círculo comia o nome — foi a imagem do protótipo que mostrou, com
+"Conferir os anexos" saindo "Conferir os ane…". *A 20px ele ainda divide a
+linha com o título, e títulos longos continuam truncando ali:* o texto
+completo viaja no `title` e no `aria-label` do chip, junto com o nome da
+pessoa. Subi-lo para a linha do cliente — que é a mais curta das três —
+devolveria a largura inteira ao nome da etapa, e é uma linha de mudança; fica
+registrado como a saída se o truncamento incomodar.
 
 **Etapa sem dono não ganha círculo genérico**, que é a regra da pilha de
 avatares: um círculo ali afirmaria que existe alguém. Post e campanha não têm a

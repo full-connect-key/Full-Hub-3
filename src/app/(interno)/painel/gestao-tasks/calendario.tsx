@@ -268,15 +268,14 @@ export function CalendarioDeTasks({
                     // ramo de um `? :` — foi assim que "entregável" quase
                     // virou "Etapa".
                     const rotulo = ROTULO_DO_ITEM_DE_CALENDARIO[item.tipo];
-                    // A linhagem: de onde esta linha vem. Em Minhas Tasks ela
-                    // é `Cliente · Demanda › Etapa de cima`; aqui o nome da
-                    // etapa já é o título, então sobram as duas de fora.
-                    const linhagem = [item.cliente, item.demanda]
-                      .filter(Boolean)
-                      .join(" · ");
+                    // A LINHAGEM É UMA LINHA PARA CADA, e não um `Cliente ·
+                    // Demanda` só: decisão do usuário, a proposta C. Juntas
+                    // numa linha de 158px, a primeira que trunca é a demanda
+                    // — e é ela que diz de que trabalho a etapa é.
                     const descricao = [
+                      item.cliente,
+                      item.demanda,
                       rotulo ? `${rotulo}: ${item.titulo}` : item.titulo,
-                      linhagem,
                       item.responsavel ? `com ${item.responsavel.nome}` : null,
                       `prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`,
                     ]
@@ -327,13 +326,30 @@ export function CalendarioDeTasks({
                             )}
                           />
 
-                          {/* O TÍTULO TEM A LARGURA INTEIRA, e o rosto desce
-                              para a linha da linhagem. Na célula do mês sobram
-                              cerca de 160px: com o círculo ao lado do nome,
-                              "Conferir os anexos" saía "Conferir os ane…" —
-                              e o nome da etapa é o que identifica o trabalho.
-                              A linhagem pode truncar, porque ela é contexto. */}
-                          <span className="flex items-baseline gap-1">
+                          {/* TRÊS LINHAS: cliente, demanda, etapa.
+                              Decisão do usuário, a proposta C — e a ordem é a
+                              do print dele: o que dá o contexto em cima, o
+                              trabalho embaixo e em destaque.
+
+                              O peso faz o trabalho que a cor faria: medium,
+                              normal e semibold, três tamanhos, uma família de
+                              tom só. Dar uma cor própria ao cliente exigiria
+                              medi-la contra os quatro fundos tingidos do
+                              chip, e o que ela acrescentaria é o que o
+                              tamanho já diz. */}
+                          {item.cliente ? (
+                            <span className="text-text-secondary block truncate text-[10px] font-medium">
+                              {item.cliente}
+                            </span>
+                          ) : null}
+
+                          {item.demanda ? (
+                            <span className="text-text-muted block truncate text-[10px] leading-tight">
+                              {item.demanda}
+                            </span>
+                          ) : null}
+
+                          <span className="mt-0.5 flex items-center gap-1">
                             {rotulo ? (
                               <span
                                 className={cn(
@@ -346,32 +362,24 @@ export function CalendarioDeTasks({
                             ) : null}
                             <span
                               className={cn(
-                                "text-text-primary min-w-0 flex-1 truncate font-medium",
+                                "text-text-primary min-w-0 flex-1 truncate text-[13px] leading-tight font-semibold",
                                 item.concluida && "line-through",
                               )}
                             >
                               {item.titulo}
                             </span>
+                            {/* Sem tooltip: o chip é um botão, e um gatilho
+                                interativo dentro dele é nested-interactive. */}
+                            {item.responsavel ? (
+                              <UserAvatar
+                                name={item.responsavel.nome}
+                                src={item.responsavel.avatar_url}
+                                size="xs"
+                                tooltip={false}
+                                className="ring-background shrink-0 ring-1"
+                              />
+                            ) : null}
                           </span>
-
-                          {linhagem || item.responsavel ? (
-                            <span className="mt-0.5 flex items-center gap-1">
-                              <span className="text-text-muted min-w-0 flex-1 truncate text-[10px]">
-                                {linhagem}
-                              </span>
-                              {/* Sem tooltip: o chip é um botão, e um gatilho
-                                  interativo dentro dele é nested-interactive. */}
-                              {item.responsavel ? (
-                                <UserAvatar
-                                  name={item.responsavel.nome}
-                                  src={item.responsavel.avatar_url}
-                                  size="xs"
-                                  tooltip={false}
-                                  className="ring-background shrink-0 ring-1"
-                                />
-                              ) : null}
-                            </span>
-                          ) : null}
                         </button>
                       </li>
                     );

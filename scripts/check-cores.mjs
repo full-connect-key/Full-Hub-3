@@ -175,6 +175,12 @@ const PARES = [
   ["--text-primary", "--success-soft", NORMAL, "nome da etapa no chip concluído"],
   ["--text-primary", "--accent", NORMAL, "nome da etapa no chip em produção"],
   ["--text-muted", "--accent", NORMAL, "linhagem no chip em produção"],
+  // A TERCEIRA LINHA do chip é o nome do cliente, em `--text-secondary`: o
+  // chip passou a ter cliente, demanda e etapa em três pesos (proposta C).
+  // `--text-secondary` sobre os três `*-soft` já está medido acima, no bloco
+  // do rótulo do cartão de número; faltava `--accent`, pelo mesmo motivo das
+  // duas linhas acima — ele é outro fundo em cada tema.
+  ["--text-secondary", "--accent", NORMAL, "nome do cliente no chip em produção"],
 
   // O PAR NEUTRO, e ele é a terceira vez que esta lista fica para trás da
   // interface.
