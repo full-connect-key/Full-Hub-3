@@ -249,7 +249,12 @@ from (
     -- etapa lia, e que depois da 0077 nao aparece em nenhuma das seis. Apontar
     -- para a view seria responder ok desde a 0055.
     ('0077', 'demanda e etapa fora do calendario', 'sem_na_view',
-             'calendar_events|subtasks')
+             'calendar_events|subtasks'),
+    -- A 0078 cria DOIS triggers em `campaigns`, e a linha aponta para o que
+    -- protege as colunas: sem ele a tela de editar campanha existe e qualquer
+    -- colaborador troca o periodo combinado com o cliente -- que e o pior dos
+    -- dois estados, porque a tela passa a oferecer o que o banco aceita.
+    ('0078', 'campaigns_protege_colunas',  'trigger',      'campaigns_protege_colunas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

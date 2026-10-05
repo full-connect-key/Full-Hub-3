@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, ListChecks } from "lucide-react";
 
 import { CapaDaCampanha } from "../../capa-da-campanha";
+import { EditarCampanha } from "../../editar-campanha";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   versoesDoEntregavel,
 } from "@/lib/dados/campanhas";
 import { enderecoDaArte } from "@/lib/dados/conteudo";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
   emArvore,
   folhas,
@@ -58,6 +60,14 @@ export default async function PaginaDaCampanha({
   const campanha = await obterCampanha(id);
   if (!campanha) notFound();
 
+  // QUEM EDITA É QUEM ABRE, e a pergunta vai ao BANCO pela mesma RPC que o
+  // botão "Nova campanha" usa — `is_atendimento()`, a de `campaigns_insert`
+  // desde a 0054. Escrever a regra em TypeScript ("desenvolvedor ou sócio")
+  // divergiria da policy: quem é do Atendimento abre campanha sendo
+  // colaborador. E ela não é a trava — `campaigns_protege_colunas` (0078)
+  // recusa quem chamar a API direto; esta linha só decide se o botão aparece.
+  const podeEditar = await souDoAtendimento();
+
   const entregaveis = await entregaveisDaCampanha(campanha.id);
   const arvore = emArvore(entregaveis);
   const itens = folhas(arvore);
@@ -96,6 +106,17 @@ export default async function PaginaDaCampanha({
         title={campanha.nome}
         actions={
           <div className="flex flex-wrap gap-2">
+            {podeEditar ? (
+              <EditarCampanha
+                campanhaId={campanha.id}
+                nome={campanha.nome}
+                descricao={campanha.descricao}
+                dataInicio={campanha.dataInicio}
+                dataFim={campanha.dataFim}
+                status={campanha.status}
+                tudoAprovado={conta.total > 0 && conta.aprovados === conta.total}
+              />
+            ) : null}
             {campanha.taskId ? (
               <Button variant="outline" asChild>
                 <Link href={`/painel/gestao-tasks/${campanha.taskId}`}>

@@ -471,3 +471,106 @@ export async function moverEntregavel(
     return sucesso("Entregável atualizado.");
   });
 }
+
+// ---------------------------------------------------------------------------
+// EDITAR A CAMPANHA DEPOIS DE ABERTA (0078) — decisão do usuário.
+//
+// A tela de produção mostrava nome, cliente, período e estado como TEXTO desde
+// que nasceu, e a única coisa que se trocava ali era a capa. Um nome digitado
+// errado na abertura ficava para sempre: no board da agência, no portal do
+// cliente e no calendário.
+// ---------------------------------------------------------------------------
+
+const esquemaDaEdicao = z
+  .object({
+    nome: z.string().trim().min(2, "Dê um nome à campanha."),
+    descricao: z.string().trim().optional(),
+    dataInicio: data,
+    dataFim: data,
+    status: z.enum(["planejamento", "ativa", "finalizada", "cancelada"]),
+  })
+  .refine((v) => v.dataFim >= v.dataInicio, {
+    path: ["dataFim"],
+    message: "O encerramento não pode ser antes do início.",
+  });
+
+export type EdicaoDaCampanha = z.input<typeof esquemaDaEdicao>;
+
+/**
+ * Edita o que foi combinado: nome, descrição, período e estado.
+ *
+ * ---------------------------------------------------------------------------
+ * **O CLIENTE NÃO ESTÁ AQUI, e a ausência é a regra.** `abrir_campanha()`
+ * (0051) cria a demanda com o mesmo `client_id`, e a visibilidade de cada
+ * entregável no portal sai dali — trocar a empresa deixaria a demanda
+ * apontando para a antiga e as peças já enviadas visíveis para quem não as
+ * pediu. O campo que não existe não volta no dia em que alguém copiar este
+ * formulário; e, de qualquer forma, `campaigns_protege_colunas` recusa.
+ *
+ * **`exigirAtendimentoNaAcao` e não `exigirRotaNaAcao`**, pela razão da
+ * criação: desde a 0054 a rota é de `EQUIPE` — o colaborador entra para subir
+ * a arte da peça dele —, e nome, período e estado são o combinado com o
+ * cliente. **E a guarda não é a trava**: quem recusa é o trigger da 0078, que
+ * vale para quem chamar a API direto. Esta existe para a pessoa ler uma frase
+ * em vez de levar um erro de banco.
+ *
+ * **O título da demanda acompanha o nome, e o período NÃO** — quem espelha é
+ * `campaigns_espelha_na_demanda`, e o porquê da assimetria está lá: o período
+ * da demanda é derivado das etapas desde a 0028, e gravá-lo aqui seria
+ * escrever um valor que o próximo recálculo desfaz.
+ *
+ * **E o estado pode voltar sozinho.** `campanha_finaliza_sozinha` (0051) põe
+ * `finalizada` quando toda folha está aprovada e devolve para `ativa` quando
+ * uma peça volta à produção. Marcar `ativa` à mão numa campanha com tudo
+ * aprovado é uma escolha que o trigger desfaz na próxima escrita — e isso é
+ * dito na tela, em vez de a pessoa descobrir sozinha.
+ * ---------------------------------------------------------------------------
+ */
+export async function editarCampanha(
+  campanhaId: string,
+  entrada: EdicaoDaCampanha,
+): Promise<Resultado> {
+  return executarAcao("editarCampanha", async () => {
+    await exigirAtendimentoNaAcao();
+
+    const validacao = esquemaDaEdicao.safeParse(entrada);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "editarCampanha",
+          validacao.error,
+          entrada,
+          "Confira os dados da campanha.",
+          CAMPOS,
+        ),
+      );
+    }
+    const dados = validacao.data;
+
+    const supabase = await criarClienteServidor();
+
+    // `.select()` porque o RLS e o trigger podem recusar: sem ele, um update
+    // barrado volta sem erro e sem linha, e a tela diz "pronto" à toa.
+    const { data, error } = await supabase
+      .from("campaigns")
+      .update({
+        nome: dados.nome,
+        descricao: dados.descricao?.trim() || null,
+        data_inicio: dados.dataInicio,
+        data_fim: dados.dataFim,
+        status: dados.status,
+      })
+      .eq("id", campanhaId)
+      .select("id");
+
+    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou. Editar a campanha é de quem abre demanda.");
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath(`${ROTA}/campanhas/${campanhaId}`);
+    revalidatePath("/portal/campanhas");
+    return sucesso("Campanha atualizada.");
+  });
+}

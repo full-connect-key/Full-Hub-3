@@ -483,3 +483,106 @@ select teste.cenario('Marina, do Atendimento, abre campanha sendo colaboradora',
 -- 6. E APAGAR CONTINUA SENDO DA GESTAO, mesmo com o modulo aberto.
 select teste.cenario('O colaborador continua sem apagar campanha', :BRUNO,
   format('delete from public.campaigns where id = %L', :C53), 'recusa');
+
+
+-- ===========================================================================
+-- 0078 -- EDITAR A CAMPANHA DEPOIS DE ABERTA
+--
+-- Decisao do usuario. O que estes cenarios guardam:
+--
+--   1. `campaigns_update` e `is_staff()` desde a 0033 e TEM que continuar
+--      sendo -- e por ela que quem produz troca a CAPA (0050). Entao a trava
+--      de nome, periodo e estado nao pode estar na policy: ela e um trigger de
+--      coluna, como `posts_protege_colunas`. Os dois primeiros cenarios sao a
+--      mesma pessoa, na mesma tabela, com a mesma policy: um passa e o outro
+--      nao. **Tirando o trigger, o segundo passa** -- e e esse o furo.
+--
+--   2. A EMPRESA NAO SE TROCA PARA NINGUEM, nem para o socio. `abrir_campanha`
+--      cria a demanda com o mesmo `client_id`, e a visibilidade de cada peca
+--      no portal sai dai: trocar a empresa deixaria as pecas ja enviadas
+--      visiveis para quem nao as pediu.
+--
+--   3. O TITULO DA DEMANDA ACOMPANHA O NOME, e o PERIODO nao -- o da demanda e
+--      derivado das etapas desde a 0028, e espelha-lo seria gravar um valor
+--      que o proximo recalculo desfaz.
+-- ===========================================================================
+
+\set C78 '''c0780000-0000-0000-0000-000000000001'''
+
+-- A campanha COM demanda, pela RPC, que e o caminho que a tela usa.
+select teste.cenario('Abre a campanha que vai ser editada', :ANA,
+  format($fmt$select public.abrir_campanha(
+    %L, 'Wave de outubro', null, current_date, current_date + 20, 'ativa',
+    'https://drive.google.com/wave78', null, null, null,
+    '[{"nome":"Lamina","prazo":null,"responsavelId":null,"filhos":[]}]'::jsonb)$fmt$,
+    :VERDE),
+  'ok');
+
+do $$
+declare c uuid;
+begin
+  select id into c from public.campaigns where nome = 'Wave de outubro';
+  perform set_config('teste.campanha_78', c::text, false);
+end
+$$;
+
+-- 1. O COLABORADOR TROCA A CAPA -- a policy e `is_staff()`, e e por isso que
+-- a trava das outras colunas nao pode morar nela.
+select teste.cenario('O colaborador troca a capa', :BRUNO,
+  format($fmt$update public.campaigns set capa_url = 'verde/capas/x.png' where id = %L$fmt$,
+    current_setting('teste.campanha_78')),
+  'ok', 1);
+
+-- 2. E NAO TROCA O NOME, NEM O PERIODO, NEM O ESTADO.
+select teste.cenario('Mas nao renomeia a campanha', :BRUNO,
+  format($fmt$update public.campaigns set nome = 'Wave do Bruno' where id = %L$fmt$,
+    current_setting('teste.campanha_78')),
+  'recusa');
+
+select teste.cenario('Nem mexe no periodo combinado', :BRUNO,
+  format($fmt$update public.campaigns set data_fim = current_date + 90 where id = %L$fmt$,
+    current_setting('teste.campanha_78')),
+  'recusa');
+
+select teste.cenario('Nem no estado da campanha', :BRUNO,
+  format($fmt$update public.campaigns set status = 'cancelada' where id = %L$fmt$,
+    current_setting('teste.campanha_78')),
+  'recusa');
+
+-- 3. O ATENDIMENTO EDITA SENDO COLABORADOR -- Marina virou Atendimento na
+-- secao 5 acima, e e o mesmo cenario que separa `is_atendimento()` de
+-- `is_gestor()`.
+select teste.cenario('Marina, do Atendimento, edita sendo colaboradora', :MARINA,
+  format($fmt$update public.campaigns
+     set nome = 'Wave de outubro e novembro', data_fim = current_date + 40
+   where id = %L$fmt$, current_setting('teste.campanha_78')),
+  'ok', 1);
+
+-- 4. O TITULO DA DEMANDA ACOMPANHOU.
+select teste.conferir('O titulo da demanda acompanha o nome da campanha',
+  (select t.titulo from public.tasks t
+     join public.campaigns c on c.task_id = t.id
+    where c.id = current_setting('teste.campanha_78')::uuid),
+  'Wave de outubro e novembro');
+
+-- 5. E O PERIODO DA DEMANDA *NAO* ACOMPANHOU.
+--
+-- E O CENARIO QUE IMPEDE A SIMETRIA. Espelhar o periodo parece o par obvio do
+-- titulo, e seria gravar um valor que `recalcular_periodo_da_task()` (0028)
+-- desfaz na proxima escrita em `subtasks` -- a escolha passa e some depois,
+-- sem ninguem ver. Quem acrescentar `data_fim` ao espelho derruba este.
+select teste.conferir('O periodo da demanda continua sendo o das etapas',
+  (select (t.data_fim is distinct from c.data_fim)::text
+     from public.tasks t
+     join public.campaigns c on c.task_id = t.id
+    where c.id = current_setting('teste.campanha_78')::uuid),
+  'true');
+
+-- 6. A EMPRESA NAO SE TROCA, NEM PARA O SOCIO.
+--
+-- A unica recusa deste trigger que vale para todo mundo, e ela vem ANTES do
+-- `return` de `is_atendimento()` de proposito.
+select teste.cenario('Nem o socio troca a empresa da campanha', :ANA,
+  format($fmt$update public.campaigns set client_id = 'aaaaaaaa-0000-0000-0000-000000000002'
+   where id = %L$fmt$, current_setting('teste.campanha_78')),
+  'recusa');

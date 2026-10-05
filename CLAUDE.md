@@ -2962,6 +2962,56 @@ componente nas quatro telas: a capa existe para a campanha ser reconhecida de
 relance, e duas proporções fariam a mesma campanha parecer outra em cada uma.
 Tirar a capa é `null` e não apagar o arquivo.
 
+#### A campanha se edita depois de aberta
+
+Migration 0078, decisão do usuário: *"preciso poder editar as informações de
+uma campanha, após abrir ela. Mudar data, nome, dentre outras coisas"*. A tela
+de produção mostrava nome, cliente, período e estado como TEXTO desde que
+nasceu, e a única coisa que se trocava ali era a capa — um nome digitado errado
+na abertura ficava para sempre, no board, no portal e no calendário.
+
+**A trava não podia morar na policy.** `campaigns_update` é `is_staff()` desde
+a 0033, e tem que continuar sendo: é por ela que quem produz troca a CAPA
+(0050). Abrir a mesma policy para o nome e o período entregaria a quem produz o
+combinado com o cliente. Então é `campaigns_protege_colunas`, pela razão de
+sempre — **policy não limita coluna** —, na forma de `posts_protege_colunas`
+(0042) e de `protect_client_columns` (0005). Dois cenários da bateria são a
+mesma pessoa, na mesma tabela, com a mesma policy: a capa passa e o nome não.
+
+**Quem edita é `is_atendimento()`, a mesma pergunta de quem abre** (0054): nome,
+período e estado são o combinado com o cliente — a decisão da abertura, tomada
+de novo. E ele **recusa em vez de reescrever**, como o trigger do post: os
+campos aparecem na tela, e quem tenta mudar a data precisa ouvir que não pode,
+senão salva, vê a data antiga voltar e conclui que a tela está quebrada.
+
+**A EMPRESA NÃO SE TROCA PARA NINGUÉM, nem para o sócio**, e é a única recusa
+sem exceção. `abrir_campanha()` (0051) cria a demanda com o mesmo `client_id`,
+e a visibilidade de cada peça no portal sai dali: trocar a empresa deixaria a
+demanda apontando para a antiga e as peças já enviadas visíveis para quem não
+as pediu — um vazamento entre contas que nenhuma tela mostraria. Campanha de
+outra empresa é campanha nova. O campo nem existe no formulário: o que não
+existe não volta no dia em que alguém copiar a tela.
+
+**O título da demanda acompanha o nome; o período NÃO**, e a assimetria é
+deliberada. `tasks.data_inicio` e `data_fim` são DERIVADOS das etapas desde a
+0028 — `recalcular_periodo_da_task()` os reescreve a cada escrita em
+`subtasks`. Espelhar o período seria gravar um valor que o próximo recálculo
+desfaz, que é o pior dos dois mundos: a escolha passa e some depois, sem
+ninguém ver. São dois fatos diferentes — o período da campanha é o combinado
+com o cliente, o da demanda é a soma do trabalho dentro dela. **A bateria
+guarda o cenário que impede a simetria**: quem acrescentar `data_fim` ao
+espelho o derruba.
+
+**E é diálogo, não edição no lugar**, ao contrário da tela de task: lá o
+rascunho é de quem o criou e não existe para mais ninguém; aqui cada
+salvamento parcial muda o que o cliente lê no portal dele. É a decisão do
+editor de recorrência.
+
+**O estado pode voltar sozinho, e a tela diz isso** — mas só quando vale.
+`campanha_finaliza_sozinha` (0051) marca `finalizada` quando toda folha está
+aprovada e devolve para `ativa` quando uma peça volta à produção; o aviso só
+aparece com tudo aprovado, porque um aviso permanente é um aviso que ninguém lê.
+
 #### Onde a equipe sobe o material: a própria campanha
 
 `/painel/aprovacoes/campanhas/[id]` — e **não é área nova, nem precisava
