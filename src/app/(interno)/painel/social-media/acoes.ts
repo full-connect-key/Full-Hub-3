@@ -465,7 +465,14 @@ const esquemaDoMes = z.object({
    * o que faz a recusa aparecer antes de a pessoa mandar; quem vale é o
    * `check` da 0059, e é ele que pega quem chamar a RPC direto.
    */
-  prazos: z.record(z.string(), z.number().int().min(-60).max(60).nullable()).optional(),
+  // O DIA DE CADA ETAPA, e não mais um número de dias antes da publicação
+  // (0083, decisão do usuário): a Pauta do mês inteiro é feita num dia só.
+  prazos: z
+    .record(
+      z.string(),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha o dia de cada etapa."),
+    )
+    .optional(),
   /**
    * A pasta de entrega da DEMANDA do mês (0061).
    *
@@ -527,9 +534,9 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
     // escolhido não viaja. Mandar `{"Layout": null}` faria o banco gravar nulo
     // por cima de nada — inofensivo, e o mapa passaria a dizer que alguém
     // escolheu "sem dia", que é outra coisa.
-    const prazos: Record<string, number> = {};
-    for (const [etapa, dias] of Object.entries(lido.data.prazos ?? {})) {
-      if (typeof dias === "number") prazos[etapa] = dias;
+    const prazos: Record<string, string> = {};
+    for (const [etapa, dia] of Object.entries(lido.data.prazos ?? {})) {
+      if (typeof dia === "string" && dia.trim().length > 0) prazos[etapa] = dia;
     }
 
     const { data, error } = await supabase.rpc("abrir_mes_de_social", {

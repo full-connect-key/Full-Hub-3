@@ -584,10 +584,10 @@ export interface Database {
            * Envio (0076) — *"algumas contas aprovam pauta, antes de entrar em
            * produção"*.
            *
-           * É `text[]` e não `jsonb` como o `p_prazos` da 0059, que também é
-           * por nome de etapa: lá a pergunta pede um NÚMERO por chave, e um
-           * mapa é a forma certa; aqui ela é de pertencimento, e um mapa com
-           * valores `false` guarda o que ninguém quis dizer.
+           * É `text[]` e não `jsonb` como o `p_prazos`, que também é por nome
+           * de etapa: lá a pergunta pede um VALOR por chave, e um mapa é a
+           * forma certa; aqui ela é de pertencimento, e um mapa com valores
+           * `false` guarda o que ninguém quis dizer.
            */
           social_aprovacoes: string[];
           created_at: string;
@@ -2344,25 +2344,16 @@ export interface Database {
           funcao: TeamFuncao;
           responsavel_id: string | null;
           status: SubtaskStatus;
-          prazo: string | null;
           /**
-           * A REGRA de data, em dias relativos a publicacao do post (0059) --
-           * "Layout tres dias antes de ir ao ar". `prazo` e o DIA que ela
-           * produz, e a regra existe para ele se recalcular sozinho quando o
-           * post andar.
+           * O DIA em que esta etapa precisa estar pronta.
            *
-           * FORA DE `Insert` E DE `Update`, como `tempo_medido_segundos` da
-           * 0021: quem escreve e `abrir_mes_de_social()`, e quem a APAGA e o
-           * trigger, no instante em que alguem data a etapa a mao -- dali em
-           * diante o post pode andar que ela fica onde a pessoa a pos. Tentar
-           * grava-la daqui e erro de tipo antes de ser recusa do banco.
-           *
-           * Ela faltava no Row inteiro, e essa e a metade que doi: o
-           * `select("*")` trazia a coluna e o TypeScript nao a conhecia, entao
-           * nenhuma tela tinha como mostrar por que uma etapa para de andar com
-           * o post. A coluna existia na tabela e nao existia no produto.
+           * Escolhido ao abrir o mes e IGUAL para todos os posts dele (0083):
+           * a Pauta dos doze e feita num dia, o Conteudo noutro. Ate a 0083 ele
+           * era calculado a partir de `prazo_offset_dias` -- dias antes da
+           * publicacao de CADA post --, e a coluna da regra saiu junto com os
+           * dois triggers que a serviam, por decisao do usuario.
            */
-          prazo_offset_dias: number | null;
+          prazo: string | null;
           /**
            * Esta etapa passa pelo CLIENTE antes de a próxima começar (0076).
            *
@@ -3025,11 +3016,13 @@ export interface Database {
           p_responsavel_id?: string | null;
           p_responsaveis?: Record<string, string>;
           /**
-           * O dia de cada etapa, em dias relativos à publicação (0059).
-           * A chave é o NOME da etapa — Pauta e Programar são as duas de
+           * O DIA DE CALENDÁRIO de cada etapa, `AAAA-MM-DD` (0083) — e não
+           * mais um número de dias antes da publicação, que era a 0059. Ele
+           * vale para o mês INTEIRO: a Pauta dos doze posts é feita num dia
+           * só. A chave é o NOME da etapa — Pauta e Programar são as duas de
            * Social Media, e uma chave por função daria às duas o mesmo dia.
            */
-          p_prazos?: Record<string, number>;
+          p_prazos?: Record<string, string>;
           /**
            * A pasta de entrega da DEMANDA do mês (0061). Obrigatória quando
            * ela nasce; ignorada quando o mês já tem demanda — abrir o mesmo

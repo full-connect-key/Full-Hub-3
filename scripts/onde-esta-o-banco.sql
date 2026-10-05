@@ -272,7 +272,12 @@ from (
     -- A 0082 aponta para a coluna NOVA e nao para a ausencia da antiga:
     -- `sem_coluna posts.plataforma` responderia ok num banco que nunca teve a
     -- tabela, e a pergunta aqui e se a lista de redes ja existe.
-    ('0082', 'posts.plataformas',          'coluna',       'posts.plataformas')
+    ('0082', 'posts.plataformas',          'coluna',       'posts.plataformas'),
+    -- A 0083 aponta para a AUSENCIA do offset, porque e isso que ela faz: a
+    -- coluna `prazo` existe desde a 0045 e responderia ok num banco parado la,
+    -- com a corrente ainda andando atras da data de cada post.
+    ('0083', 'post_etapas sem prazo_offset_dias', 'sem_coluna',
+             'post_etapas.prazo_offset_dias')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

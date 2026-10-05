@@ -2254,39 +2254,6 @@ que acontece quando o post muda de dia, e o **oitavo `union all`** da
 calendário de pessoa nenhuma. A data existia na tabela e não existia na tela,
 que é o pior dos dois estados.
 
-**É OFFSET e não data fixa.** "Layout três dias antes de ir ao ar" vale para os
-doze posts do mês; data fixa obrigaria a digitar doze vezes e nasceria errada
-no dia em que a publicação mudasse de dia. É a mesma razão de
-`workflow_steps.prazo_offset_dias` desde a 0008.
-
-A diferença é que `post_etapas` é **instância** e não modelo, então ela guarda
-as duas: `prazo_offset_dias` (a regra) e `prazo` (o dia). A regra existe para o
-dia se recalcular sozinho quando o post andar.
-
-**O post abre sem data, e isso não quebra nada — é a parte que encaixa.** A
-0044 decidiu que o mês abre em branco. Com o offset gravado e a publicação
-ainda nula, `prazo` fica nulo também; no instante em que alguém escreve o dia
-do post, as cinco etapas caem no calendário das cinco pessoas de uma vez. A
-regra fica guardada esperando o dia.
-
-**E o volante se pega, como no status da Task.** Datar uma etapa à mão **limpa
-o offset dela** — dali em diante o post pode andar que ela fica onde alguém a
-pôs. É a decisão da 0025: aceitar o clique e deixar o recálculo desfazer em
-seguida é o pior dos dois mundos, porque a escolha some sem ninguém ver. *O
-que não existe é o caminho de volta* ("deixar o Full Hub calcular"): a etapa é
-uma linha num card, não uma tela com rodapé — quem quiser a regra de volta
-abre o mês de novo. A assimetria com a 0025 é consciente.
-
-**O trigger que limpa o offset precisa de duas condições, e não de uma:** só
-quando o `prazo` mudou **e** o offset não. Sem a segunda, mexer no status de
-uma etapa apagaria a regra de data de passagem — e o sintoma seria uma etapa
-que para de andar com o post sem ninguém ter tocado na data.
-
-**E o recálculo usa o GUC de escopo local**, a mesma saída de
-`posts_corrente_do_cliente` (0045): sem ele, o próprio recálculo dispararia o
-trigger e apagaria a regra que acabou de aplicar, na primeira vez que alguém
-trocasse a data do post.
-
 **A chave dos prazos é o NOME da etapa, e não a função** — ao contrário de
 `p_responsaveis`. Pauta e Programar são as **duas** de Social Media, e uma
 chave por função daria às duas o mesmo dia: a pauta venceria junto com a
@@ -2297,12 +2264,6 @@ a etapa. O Layout com prazo antes do Conteúdo é quase sempre um número
 trocado, e o estrago é grande: a corrente já recusa começar o Layout antes de o
 Conteúdo fechar (0045), então a pessoa veria no calendário dela uma etapa
 vencendo num dia em que o banco ainda não deixa tocá-la.
-
-**O diálogo abre com os cinco números preenchidos** (−10, −7, −4, −3, 0), e é
-sugestão e não contrato — como o modelo de campanha. Cinco campos vazios
-fariam quem abre o mês inventar cinco números, e inventar data é o que a 0044
-evita. Ao lado de cada campo vai a frase: `-3` não é português, e "3 dias
-antes" é o que se confere.
 
 **A guarda da action estava mais apertada que o banco, e isso foi consertado
 junto.** A 0046 abriu `abrir_mes_de_social()` para `is_atendimento()` — "o
@@ -2325,6 +2286,82 @@ repetida na 0059 por isso — e na 0077 de novo, que é a terceira. Sem ela a vi
 voltaria a rodar com os direitos de quem a criou e leria as tabelas de origem
 inteiras para qualquer pessoa autenticada — e o furo passa despercebido num
 banco com um cliente só. A bateria mede.
+
+##### E o dia é do MÊS, não de cada post — o que a 0083 corrigiu
+
+Decisão do usuário, descrevendo como a agência realmente trabalha: *"Se o
+social é de Novembro, em um dia X de Outubro, a Social Media vai ter um dia
+para fazer a pauta do mês todo. A redatora vai ter um dia pra fazer o
+conteúdo, e o Designer vai ter um prazo X para fazer os layouts. (…) ele
+precisa parar de ficar marcada para ser feita em X dias antes do post ser
+publicado"*.
+
+**A 0059 leu a corrente como a produção de CADA PEÇA**, e isso não era
+detalhe: o Layout de um post saía três dias antes **daquele** post ir ao ar.
+Com doze posts espalhados pelo mês, o Design trabalhava doze vezes, em doze
+dias diferentes, cada layout colado na data de publicação da sua peça. **Não é
+assim que a agência produz:** o mês inteiro é feito em bloco, antes de o mês
+começar — um dia de pauta para os doze, um dia de conteúdo para os doze.
+
+**O argumento do offset vinha de `workflow_steps` (0008), e lá ele está
+certo:** um workflow é um MODELO, aplicado a demandas que começam em datas
+diferentes, e data fixa faria toda demanda nova nascer vencida. Aqui não há
+modelo — `abrir_mes_de_social()` abre UM mês, e o mês tem um calendário
+próprio. A data é fixa porque o mês é fixo. Por isso o offset continua de pé no
+workflow de task e na recorrência, e saiu só daqui.
+
+**`prazo_offset_dias` foi apagada com os DOIS triggers que a serviam**, e os
+triggers são a metade que importa mais: `posts_recalcula_prazos` moveria o dia
+da Pauta do mês inteiro porque alguém trocou a data de **um** post — que é
+exatamente o comportamento que ele pediu para tirar. Tirar só a tela deixaria o
+banco desfazendo a escolha por baixo, que é a lição da 0029. O que fica é
+`post_etapas.prazo`, o dia em si: a origem do Calendário Full, a linha de
+Minhas Tasks e o card da corrente não mudaram.
+
+**A data pode cair fora do mês, e isso é decisão.** A trava óbvia seria "a
+etapa vence depois do dia 1", e ela recusaria justamente o caso que ele
+descreveu — a corrente inteira em outubro para o social de novembro. É
+"função sem dono avisa, nunca recusa" (0064): travar o que é só incomum deixa
+o trabalho parado. O que continua travado é a corrente vencer de trás para a
+frente, agora comparando datas.
+
+**O padrão é contado do DIA 1 do mês que está sendo aberto**, e não de uma data
+literal: `diasAntesDoMes` em `ETAPAS_DA_CORRENTE` põe os cinco em 5, 12, 20, 25
+e 30 de outubro para novembro de 2027. Contado assim ele se adapta sozinho a
+mês de 28, 30 ou 31 dias; um dia fixo do mês anterior não faria isso.
+
+**Trocar o mês no diálogo refaz as cinco datas**, e isto é o que o offset dava
+de graça: com número, "10 dias antes" valia para qualquer mês; com data, abrir
+em novembro e trocar para janeiro deixaria a corrente inteira três meses antes
+do mês que ela produz — e a recusa do banco não pegaria, porque datas em
+outubro para janeiro são uma corrente perfeitamente ordenada. **Só reescreve o
+que ainda é a sugestão:** quem já mexeu num campo mandou, que é a ordem de
+`coalesce(etapa, padrão)` da 0041 aplicada no navegador.
+
+**O rótulo ao lado do campo é o DIA DA SEMANA**, e não a data repetida: o campo
+já mostra 25/10, e o que ele não diz é que 25/10 é um domingo. Marcar o envio
+do mês num domingo é o erro que só essa palavra pega — é a razão pela qual
+`rotuloDoOffset` existia ("3 dias antes", porque `-3` não é português),
+aplicada ao que o campo passou a aceitar. Foi a imagem do protótipo que
+mostrou o domingo.
+
+**O número da 0059 é recusado com frase própria**, e não com um erro sobre
+sintaxe de entrada de `date`: quem cair ali está mandando a forma antiga, e a
+recusa precisa dizer qual é a nova. É a decisão do objeto de quantidades na
+0082.
+
+**Os cenários da 0059 ficaram, virados do avesso.** Os que provavam o offset —
+a regra guardada esperando o dia, o recálculo quando o post anda, o volante que
+se pega datando à mão — medem hoje o contrário: se alguém devolver a coluna ou
+qualquer um dos dois triggers, um deles falha e diz qual. Medido com mutação:
+fazendo o prazo depender do post de novo, sete cenários caem.
+
+*O que fica em aberto, e é dito em vez de escondido:* com doze posts, a Pauta
+existe doze vezes no mesmo dia, e em Minhas Tasks a social media vê doze linhas
+"Pauta" vencendo juntas. A frase dele — *"um dia para fazer a pauta do mês
+todo"* — descreve **um** trabalho, não doze. Colapsar a corrente para uma por
+MÊS em vez de uma por post é mudança de modelo bem maior que a data, e não foi
+pedida; fica registrada aqui porque é a pergunta seguinte natural.
 
 #### O card: quem pega a etapa é quem preenche
 

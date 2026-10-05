@@ -616,32 +616,62 @@ export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as cons
  * pegar também os ajustes que o cliente pedir.
  */
 /**
- * A corrente, na ordem, com o dia que cada etapa costuma pedir (0059).
+ * A corrente, na ordem, com o dia que cada etapa costuma pedir (0059/0083).
  *
- * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com
- * estes números preenchidos e a pessoa muda o que quiser. Um formulário com
- * cinco campos vazios faria quem abre o mês inventar cinco números na hora, e
- * inventar é o que este produto evita desde a 0044 — o mês abre em branco
- * justamente para ninguém chutar data.
+ * ---------------------------------------------------------------------------
+ * **O DIA É DO MÊS, e não de cada post** — decisão do usuário, corrigindo o
+ * modelo da 0059: *"se o social é de Novembro, em um dia X de Outubro, a
+ * Social Media vai ter um dia para fazer a pauta do mês todo. A redatora vai
+ * ter um dia pra fazer o conteúdo, e o Designer vai ter um prazo X para fazer
+ * os layouts"*.
  *
- * Os números são NEGATIVOS porque contam para trás da publicação: a pauta
- * começa dez dias antes, a programação é no dia. Quem escrever positivo está
- * dizendo "depois de ir ao ar", que existe e é raro — por isso o campo aceita
- * e não recusa.
+ * A 0059 lia a corrente como a produção de CADA PEÇA — o Layout de um post
+ * saía três dias antes daquele post ir ao ar —, e com doze posts espalhados
+ * pelo mês isso punha o Design trabalhando doze vezes, em doze dias. Não é
+ * assim que a agência produz: o mês inteiro é feito em bloco, antes de o mês
+ * começar.
+ *
+ * **Por isso o padrão é contado do DIA 1 DO MÊS que está sendo aberto**, e não
+ * da publicação de cada post: `diasAntesDoMes` dias antes do dia 1. Para
+ * novembro de 2027, os cinco caem em 5, 12, 20, 25 e 30 de outubro — que é a
+ * frase do usuário desenhada. Contado assim ele se adapta sozinho a mês de 28,
+ * 30 ou 31 dias; um dia fixo do mês anterior não faria isso.
+ * ---------------------------------------------------------------------------
+ *
+ * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com as
+ * cinco datas preenchidas e a pessoa muda o que quiser. Cinco campos vazios
+ * fariam quem abre o mês inventar cinco datas na hora.
  *
  * **A ordem aqui É a ordem da corrente**, e o banco recusa dias que andem para
- * trás dela (0059): o Layout com prazo antes do Conteúdo é quase sempre um
- * número trocado, e a corrente já recusa começar o Layout antes de o Conteúdo
- * fechar — a pessoa veria no calendário uma etapa vencendo num dia em que o
- * banco ainda não deixa tocá-la.
+ * trás dela: o Layout com prazo antes do Conteúdo é quase sempre um número
+ * trocado, e a corrente já recusa começar o Layout antes de o Conteúdo fechar
+ * — a pessoa veria no calendário uma etapa vencendo num dia em que o banco
+ * ainda não deixa tocá-la.
  */
 export const ETAPAS_DA_CORRENTE = [
-  { nome: "Pauta", funcao: "Social Media", offsetPadrao: -10 },
-  { nome: "Conteúdo", funcao: "Redator", offsetPadrao: -7 },
-  { nome: "Layout", funcao: "Design", offsetPadrao: -4 },
-  { nome: "Envio", funcao: "Social Media", offsetPadrao: -3 },
-  { nome: "Programar", funcao: "Social Media", offsetPadrao: 0 },
+  { nome: "Pauta", funcao: "Social Media", diasAntesDoMes: 27 },
+  { nome: "Conteúdo", funcao: "Redator", diasAntesDoMes: 20 },
+  { nome: "Layout", funcao: "Design", diasAntesDoMes: 12 },
+  { nome: "Envio", funcao: "Social Media", diasAntesDoMes: 7 },
+  { nome: "Programar", funcao: "Social Media", diasAntesDoMes: 2 },
 ] as const;
+
+/**
+ * O dia sugerido de uma etapa, a partir do mês que está sendo aberto (0083).
+ *
+ * **Sem `Date` do navegador para a conta do calendário**: `new Date("2027-11")`
+ * é interpretado como UTC e `getDate()` devolve o dia no fuso de quem está
+ * olhando — a mesma armadilha que `hojeNaAgencia()` existe para fechar. Aqui a
+ * conta é feita em UTC de ponta a ponta e o resultado sai como texto
+ * `AAAA-MM-DD`, que é o que o `<input type="date">` e o Postgres falam.
+ */
+export function diaSugeridoDaEtapa(mes: string, diasAntesDoMes: number): string {
+  const [ano, m] = mes.split("-").map(Number);
+  if (!Number.isFinite(ano) || !Number.isFinite(m)) return "";
+  const d = new Date(Date.UTC(ano, m - 1, 1));
+  d.setUTCDate(d.getUTCDate() - diasAntesDoMes);
+  return d.toISOString().slice(0, 10);
+}
 
 /**
  * Os elos da corrente que podem virar PORTÃO DO CLIENTE (migration 0076).
@@ -662,16 +692,27 @@ export const ETAPAS_QUE_O_CLIENTE_PODE_APROVAR = ETAPAS_DA_CORRENTE.filter(
 );
 
 /**
- * "3 dias antes", "no dia", "2 dias depois".
+ * "terça, 5 de outubro" — o dia de uma etapa, escrito ao lado do campo.
  *
- * A frase existe porque `-3` não é português. O campo aceita o número — é o
- * que se digita rápido —, e a frase ao lado é o que confere.
+ * **O DIA DA SEMANA É O PONTO, e não enfeite.** Quem monta o mês está marcando
+ * um dia de trabalho de uma pessoa, e marcar a pauta do mês num sábado é o erro
+ * que o número cru esconde: `2027-10-09` não diz nada, "sábado, 9 de outubro"
+ * diz tudo. É a mesma razão pela qual `rotuloDoOffset` existia na 0059 — `-3`
+ * não é português —, aplicada ao que o campo passou a aceitar.
+ *
+ * Em UTC pela razão de `diaSugeridoDaEtapa`: `new Date("2027-10-05")` lido no
+ * fuso local vira 4 de outubro às 21h em São Paulo, e o rótulo diria "segunda".
  */
-export function rotuloDoOffset(dias: number): string {
-  if (dias === 0) return "no dia da publicação";
-  const quantos = Math.abs(dias);
-  const plural = quantos === 1 ? "dia" : "dias";
-  return dias < 0 ? `${quantos} ${plural} antes` : `${quantos} ${plural} depois`;
+export function rotuloDoDiaDaEtapa(dia: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return "sem dia marcado";
+  const d = new Date(`${dia}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "sem dia marcado";
+  const semana = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  const meses = [
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+  ];
+  return `${semana[d.getUTCDay()]}, ${d.getUTCDate()} de ${meses[d.getUTCMonth()]}`;
 }
 
 /**

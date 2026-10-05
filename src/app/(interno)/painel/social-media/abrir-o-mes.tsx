@@ -31,8 +31,9 @@ import {
   ETAPAS_DA_FUNCAO,
   FUNCOES_DA_CORRENTE,
   ROTULO_DA_PLATAFORMA,
+  diaSugeridoDaEtapa,
   nomeDaPastaDoMes,
-  rotuloDoOffset,
+  rotuloDoDiaDaEtapa,
 } from "@/lib/dominio/posts";
 
 import { abrirMesDeSocial, criarPastaDoMesDeSocial } from "./acoes";
@@ -160,8 +161,37 @@ export function AbrirOMes({
    * quer dizer "no dia da publicação", que é uma escolha de verdade.
    */
   const [prazos, setPrazos] = useState<Record<string, string>>(() =>
-    Object.fromEntries(ETAPAS_DA_CORRENTE.map((e) => [e.nome, String(e.offsetPadrao)])),
+    Object.fromEntries(
+      ETAPAS_DA_CORRENTE.map((e) => [e.nome, diaSugeridoDaEtapa(mes, e.diasAntesDoMes)]),
+    ),
   );
+
+  /**
+   * TROCAR O MÊS REFAZ AS CINCO DATAS, e isto é o que o offset dava de graça.
+   *
+   * Com número, "10 dias antes" valia para qualquer mês; com data, abrir o
+   * diálogo em novembro e trocar para janeiro deixaria as cinco em outubro —
+   * a corrente inteira três meses antes do mês que ela produz, sem nada na
+   * tela dizendo. A recusa do banco não pegaria: datas em outubro para o mês
+   * de janeiro são uma corrente perfeitamente ordenada.
+   *
+   * **Só reescreve o que ainda é a sugestão.** Quem já mexeu num campo mandou,
+   * e refazer tudo apagaria a escolha de quem trocou o mês depois de ajustar —
+   * é a ordem de `coalesce(etapa, padrão)` da 0041, aqui no navegador.
+   */
+  function trocarMes(novo: string) {
+    setPrazos((atual) =>
+      Object.fromEntries(
+        ETAPAS_DA_CORRENTE.map((e) => [
+          e.nome,
+          atual[e.nome] === diaSugeridoDaEtapa(mes, e.diasAntesDoMes)
+            ? diaSugeridoDaEtapa(novo, e.diasAntesDoMes)
+            : (atual[e.nome] ?? ""),
+        ]),
+      ),
+    );
+    setMes(novo);
+  }
 
   const excede = total > TETO;
   // A PASTA ENTRA NA CONDIÇÃO, e é o que muda desde a 0061: o mês deixou de
@@ -204,11 +234,11 @@ export function AbrirOMes({
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
           ),
           link_entrega: pasta.trim(),
+          // A ETAPA SEM DIA NÃO VIAJA, pela mesma razão dos responsáveis:
+          // mandar `{"Layout": null}` faria o banco gravar nulo por cima de
+          // nada, e o mapa passaria a dizer que alguém escolheu "sem dia".
           prazos: Object.fromEntries(
-            Object.entries(prazos).map(([etapa, v]) => {
-              const n = Number.parseInt(v, 10);
-              return [etapa, Number.isFinite(n) ? n : null];
-            }),
+            Object.entries(prazos).filter(([, v]) => v.trim().length > 0),
           ),
         }),
       );
@@ -270,7 +300,7 @@ export function AbrirOMes({
                 id="mes-mes"
                 type="month"
                 value={mes}
-                onChange={(e) => setMes(e.target.value)}
+                onChange={(e) => trocarMes(e.target.value)}
               />
             </div>
           </div>
@@ -501,17 +531,21 @@ export function AbrirOMes({
           <section className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold">Quando cada etapa vence</h3>
+              {/* A FRASE NÃO CARREGA O TOTAL, e a primeira versão carregava:
+                  com a seção de quantidades ainda vazia ela dizia "a Pauta dos
+                  N posts", que é a tela pedindo à pessoa que leia uma letra no
+                  lugar de um número. O que importa aqui é a REGRA, e ela não
+                  depende de quantos são. */}
               <p className="text-text-secondary text-xs">
-                Em dias antes da publicação. Vale para todos os posts deste mês —
-                e como eles ainda não têm data, o dia de cada etapa nasce junto
-                com o dia do post.
+                Um dia para cada etapa, valendo para o mês inteiro: a Pauta de
+                todos os posts é feita num dia só, o Conteúdo noutro. O dia não
+                muda quando um post troca de data de publicação.
               </p>
             </div>
 
             <div className="grid gap-2">
               {ETAPAS_DA_CORRENTE.map((etapa) => {
                 const bruto = prazos[etapa.nome] ?? "";
-                const n = Number.parseInt(bruto, 10);
                 return (
                   // GRADE DE TRÊS COLUNAS, e não `flex-wrap`: em 375px a
                   // frase do Programar ("no dia da publicação") é mais longa
@@ -522,7 +556,7 @@ export function AbrirOMes({
                   // se refere.
                   <div
                     key={etapa.nome}
-                    className="grid grid-cols-[minmax(4.5rem,auto)_5rem_1fr] items-center gap-2"
+                    className="grid grid-cols-[minmax(4.5rem,auto)_9.5rem_1fr] items-center gap-2"
                   >
                     <Label
                       htmlFor={`prazo-${etapa.nome}`}
@@ -532,10 +566,7 @@ export function AbrirOMes({
                     </Label>
                     <Input
                       id={`prazo-${etapa.nome}`}
-                      type="number"
-                      inputMode="numeric"
-                      min={-60}
-                      max={60}
+                      type="date"
                       className="w-full"
                       value={bruto}
                       onChange={(e) =>
@@ -549,8 +580,16 @@ export function AbrirOMes({
                       cinco próximas ocorrências da recorrência: quem configura
                       trabalho em lote não tem outro jeito de ver o que escolheu.
                     */}
+                    {/*
+                      O DIA DA SEMANA AO LADO DA DATA, e não a data repetida: o
+                      campo já mostra 05/10, e o que ele não diz é que 05/10 é
+                      uma terça. Marcar a pauta do mês num sábado é o erro que
+                      só essa palavra pega — é a razão pela qual a frase existia
+                      na 0059 ("3 dias antes", porque `-3` não é português),
+                      aplicada ao que o campo passou a aceitar.
+                    */}
                     <span className="text-text-secondary text-xs">
-                      {Number.isFinite(n) ? rotuloDoOffset(n) : "sem data"}
+                      {rotuloDoDiaDaEtapa(bruto)}
                     </span>
                   </div>
                 );
