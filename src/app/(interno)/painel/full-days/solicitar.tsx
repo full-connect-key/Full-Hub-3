@@ -272,21 +272,12 @@ export function Solicitar({
                   : `Seus primeiros ${diasPorCiclo} dias chegam ao completar 12 meses`
                 : `Você tem ${saldo} de ${concedidos} dias disponíveis`}
             </p>
-            {/* DE QUANDO O NÚMERO ESTÁ CONTANDO. Ele não zera mais em 1 de
-                janeiro: soma 15 a cada 12 meses desde a entrada da pessoa, e
-                o que sobrou de um ciclo continua no seguinte. Sem esta linha,
-                quem viu 15 no ano passado e vê 30 agora não tem como saber de
-                onde veio o número — e número que não se explica é número em
-                que ninguém confia. */}
-            <p className="text-accent-strong text-sm">
-              {primeiroCiclo
-                ? chegamEm
-                  ? `O descanso é conquistado: ${diasPorCiclo} dias a cada 12 meses de casa, e o primeiro bloco entra na data acima. Ausência pontual e afastamento não dependem de saldo.`
-                  : "O descanso é conquistado a cada 12 meses de casa, e esta ficha ainda não tem data de entrada — peça à gestão para preencher."
-                : ciclos > 1
-                  ? `São ${diasPorCiclo} dias conquistados a cada 12 meses, e você já completou ${ciclos} ciclos — o que sobra de um continua no seguinte.`
-                  : `São ${diasPorCiclo} dias conquistados a cada 12 meses. O descanso conta corrido: sair numa sexta e voltar na segunda são quatro dias.`}
-            </p>
+            {primeiroCiclo && !chegamEm ? (
+              <p className="text-accent-strong text-sm">
+                Esta ficha ainda não tem data de entrada — peça à gestão para
+                preencher.
+              </p>
+            ) : null}
           </div>
 
           {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias em

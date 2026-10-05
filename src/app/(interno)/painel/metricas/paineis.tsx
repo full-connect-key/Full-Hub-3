@@ -239,14 +239,7 @@ export function PainelDeTempo({
       </div>
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold">Onde o tempo da etapa fica</h2>
-          <p className="text-text-muted text-sm">
-            Quanto tempo somado as etapas passaram em cada status. Etapa que ainda está num
-            status conta até agora — a parada há duas semanas em &ldquo;aguardando
-            informações&rdquo; é justamente o que isto existe para mostrar.
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">Onde o tempo da etapa fica</h2>
 
         {porStatus.length === 0 ? (
           /* O HISTÓRICO COMEÇA NA 0035, e a frase diz isso em vez de mostrar
@@ -266,13 +259,7 @@ export function PainelDeTempo({
       </section>
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold">Quanto a aprovação segura</h2>
-          <p className="text-text-muted text-sm">
-            Os dois números separados de propósito: se o interno for alto, o gargalo é da casa, e
-            nenhuma cobrança ao cliente resolve.
-          </p>
-        </div>
+        <h2 className="text-sm font-semibold">Quanto a aprovação segura</h2>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <CartaoDeNumero

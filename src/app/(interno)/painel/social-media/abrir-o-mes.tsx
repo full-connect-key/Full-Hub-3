@@ -531,16 +531,6 @@ export function AbrirOMes({
           <section className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold">Quando cada etapa vence</h3>
-              {/* A FRASE NÃO CARREGA O TOTAL, e a primeira versão carregava:
-                  com a seção de quantidades ainda vazia ela dizia "a Pauta dos
-                  N posts", que é a tela pedindo à pessoa que leia uma letra no
-                  lugar de um número. O que importa aqui é a REGRA, e ela não
-                  depende de quantos são. */}
-              <p className="text-text-secondary text-xs">
-                Um dia para cada etapa, valendo para o mês inteiro: a Pauta de
-                todos os posts é feita num dia só, o Conteúdo noutro. O dia não
-                muda quando um post troca de data de publicação.
-              </p>
             </div>
 
             <div className="grid gap-2">

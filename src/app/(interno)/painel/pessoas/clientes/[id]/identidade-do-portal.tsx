@@ -102,13 +102,7 @@ export function IdentidadeDoPortal({
 
   return (
     <section className="bg-surface-card space-y-4 rounded-xl border p-5">
-      <div>
-        <h2 className="text-base font-semibold">Identidade do portal</h2>
-        <p className="text-text-secondary text-sm">
-          É o que {nome} vê ao entrar. As duas são da agência — o cliente não
-          troca nenhuma das duas por lá.
-        </p>
-      </div>
+      <h2 className="text-base font-semibold">Identidade do portal</h2>
 
       {/* A PRÉVIA, no desenho de verdade. */}
       <div className="overflow-hidden rounded-lg border">

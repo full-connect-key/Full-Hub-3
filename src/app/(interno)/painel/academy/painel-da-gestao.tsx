@@ -167,15 +167,9 @@ export function PainelDaGestao({
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-text-primary text-sm font-semibold">
-              Acompanhamento
-            </h2>
-            <p className="text-text-muted text-xs">
-              Quem concluiu o quê. A anotação pessoal de cada material não
-              aparece aqui — ela é de quem a escreveu.
-            </p>
-          </div>
+          <h2 className="text-text-primary text-sm font-semibold">
+            Acompanhamento
+          </h2>
           <div className="flex items-center gap-2">
             <label className="text-text-secondary flex items-center gap-1.5 text-xs">
               <input

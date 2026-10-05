@@ -190,10 +190,6 @@ export function RelatorioGerencial({
               <h2 className="text-warning text-sm font-semibold">
                 Há mais de um ano sem descanso — {vencendo.length} pessoa(s)
               </h2>
-              <p className="text-text-secondary mt-0.5 text-sm">
-                Ninguém entrega no mesmo ritmo por doze meses seguidos. Vale combinar um período
-                com cada uma antes que a conta chegue como queda de qualidade ou saída.
-              </p>
               <ul className="mt-2 space-y-0.5">
                 {vencendo.map((l) => (
                   <li key={l.id} className="text-text-primary text-sm">
