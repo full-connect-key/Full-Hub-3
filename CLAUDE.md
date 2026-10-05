@@ -1869,6 +1869,98 @@ post aberto antes dela, em que quem criou foi quem produziu. **A bateria guarda
 o cenário virado do avesso**: se alguém devolver `criado_por` ali, "Quem
 produziu pede o aval interno" falha e diz qual.
 
+##### A mesma peça sai em MAIS DE UMA REDE
+
+Migration 0082, decisão do usuário: *"na hora de abrir social, permita juntar
+duas redes sociais, já que tudo que postamos no Instagram postamos no
+Facebook"*.
+
+**A frase dele descreve UM post, e não dois.** "Tudo que postamos no Instagram
+postamos no Facebook" não é um post de Instagram mais um post de Facebook: é a
+mesma peça, com a mesma arte, a mesma legenda e uma decisão só do cliente,
+indo para dois lugares. Por isso `posts.plataforma` virou `posts.plataformas`
+— e por isso abrir **doze** no Instagram junto com o Facebook abre **doze**
+posts, não vinte e quatro.
+
+A leitura contrária — abrir os dois lados pareados — custaria ao cliente
+aprovar duas vezes a mesma arte, e à agência manter duas correntes de cinco
+etapas para um trabalho que aconteceu uma vez. É a conta da 0022: quem tem
+filha vira agrupadora porque senão tudo conta duas vezes. **A bateria guarda o
+cenário que impede a inversão**, e ele é o único que acha 8 onde espera 4.
+
+**`plataforma` foi APAGADA, e não aposentada**, que é a decisão da 0023. Uma
+coluna singular ao lado da lista seria "a rede principal" — dois lugares para
+o mesmo fato, e no dia em que um deles divergisse o selo do card e o filtro do
+portal discordariam sobre o mesmo post. *O custo está dito:* é a coluna mais
+lida do módulo, e o selo, a célula do calendário, a grade do feed, o filtro do
+portal, a fila de aprovações e a bateria inteira do social passaram por ela.
+
+**São DUAS travas, e as duas importam.** `not null` sozinho deixa passar `{}`,
+que é um post que não vai a lugar nenhum — e o modo de falha é o da 0048, onde
+o array vazio virou sinal e apagou arte: aqui vazio nunca quer dizer nada,
+quer dizer que alguém esqueceu. A segunda recusa a rede repetida, que
+desenharia o selo duas vezes e faria a contagem por rede do mês somar o mesmo
+post duas vezes. **Ela é `check` e não trigger** porque não há nada a
+reescrever; e precisou virar função (`redes_sem_repeticao()`) porque a
+pergunta é uma subconsulta, e o Postgres recusa subconsulta em check
+constraint com *"cannot use subquery in check constraint"*.
+
+**`p_quantidades` trocou de forma, e a antiga não fica.** Era um OBJETO —
+`{"instagram": 12}` —, e um objeto não sabe expressar combinação: a chave é
+uma rede só. Virou uma LISTA de linhas, `[{"redes": [...], "quantidade": N}]`,
+que é exatamente o que o diálogo mostra. Aceitar as duas formas seria um
+normalizador alimentando um parser, e o objeto é justamente a forma que não
+sabe dizer o que esta migration existe para dizer — então ele é recusado **com
+frase própria**, que diz qual é a nova. O tipo do parâmetro continua `jsonb`,
+então a assinatura não muda e não nasce uma segunda função ao lado: a
+pegadinha que a 0061 registrou e que já custou um *"Could not find the
+function"* ao usuário.
+
+**O nome da combinação sai por extenso e na ORDEM DO ENUM** — "Instagram +
+Facebook", nunca "Facebook + Instagram". Alfabeticamente o Facebook vem antes,
+e duas chamadas iguais com as redes marcadas em ordens diferentes dariam dois
+temas diferentes para o mesmo mês. É a mesma ordem do `array_agg` que grava a
+coluna, então o tema e o selo nunca discordam — e foi a bateria que pegou,
+porque a primeira versão ordenava por texto.
+
+**O `<Select>` de rede virou um grupo de chips**, e a troca é mecânica antes
+de ser de gosto: um `<Select>` escolhe UM valor. `<select multiple>` existe e é
+pior — no celular, que é o caminho principal, marcar o segundo item desmarca o
+primeiro em metade dos navegadores. `components/shared/seletor-de-redes.tsx` é
+compartilhado porque são TRÊS telas (abrir o post avulso, editar o post, abrir
+o mês), e a que divergisse seria a de abrir o mês, que decide sessenta peças de
+uma vez. **Ele devolve sempre na ordem de `PLATAFORMAS`**, e nunca na ordem em
+que a pessoa clicou, pela mesma razão do tema.
+
+**`SelosDasRedes` é um componente a mais, e não um `plataformas` dentro de
+`SeloDaRede`.** O selo responde "que rede é esta?" e serve também fora de post
+— na faixa de filtros do portal, por exemplo; aqui a pergunta é "em que redes
+este post sai?". Juntar os dois daria um `plataforma?` e um `plataformas?`
+opcionais, onde passar os dois é um estado que nada recusa. O vão entre as
+siglas é de 2px e nunca `gap-1`: as duas são o MESMO fato, e com o vão normal
+se leem como dois selos de coisas diferentes.
+
+**Na lista interna é um quadradinho por rede, e não um selo com as duas siglas
+dentro:** o selo tem 20px, e "IGFB" em 9px vira um borrão.
+
+**De quebra, a fila de aprovações parou de imprimir a chave do enum.** A linha
+dizia `instagram · 15/10` — a camada em inglês na tela de quem aprova, o mesmo
+descuido que a ausência do Calendário Full já pagou. Ela passou a usar
+`ROTULO_DA_PLATAFORMA`, e com a peça saindo em duas vira "Instagram +
+Facebook".
+
+**O filtro de rede do portal passou a ser `includes` e não igualdade**, senão
+filtrar por Facebook esconderia a peça que sai no Instagram E no Facebook — e
+ela sai no Facebook. Pela mesma razão a faixa de redes do mês e a grade do feed
+usam `flatMap`: uma peça combinada põe as duas redes na linha, porque está nas
+duas.
+
+**E o seed e o protótipo passaram a ter uma peça combinada.** Sem ela o
+ambiente de desenvolvimento mostra o produto no único estado em que a
+combinação não existe, e o selo duplo não aparece em imagem nenhuma — é a lição
+da Óptica Visão sem responsável de atendimento (0062) e da pessoa desligada
+(0069), aplicada antes do bug em vez de depois.
+
 ##### A MÍDIA não é o `formato`, e a pergunta eram duas
 
 *"Por onde a pessoa seleciona se é vídeo, carrossel, post estático ou

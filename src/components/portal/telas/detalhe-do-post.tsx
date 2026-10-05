@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { SeloDaRede } from "@/components/portal/selo-da-rede";
+import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import {
   DetalheDoConteudo,
   dataLonga,
@@ -99,12 +99,12 @@ export async function DetalheDoPost({
       dataLonga(post.dataPublicacao) +
       (post.horario ? ` · ${post.horario}` : ""),
     status: post.status,
-    selo: <SeloDaRede plataforma={post.plataforma} />,
+    selo: <SelosDasRedes plataformas={post.plataformas} />,
     // O tema NÃO se repete aqui: ele é o título da página, logo acima. Um
     // campo que repete o cabeçalho ocupa a linha que o formato ou o prazo
     // poderiam ocupar.
     propriedades: [
-      { rotulo: "Plataforma", valor: ROTULO_DA_PLATAFORMA[post.plataforma] },
+      { rotulo: "Plataforma", valor: post.plataformas.map((p) => ROTULO_DA_PLATAFORMA[p]).join(" + ") },
       { rotulo: "Formato", valor: post.formato ?? "—" },
       { rotulo: "Horário", valor: post.horario ?? "A definir" },
       { rotulo: "Versão", valor: String(post.versaoAtual) },

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, FolderPlus, Loader2 } from "lucide-react";
+import { CalendarPlus, FolderPlus, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   ETAPAS_DA_CORRENTE,
   ETAPAS_DA_FUNCAO,
   FUNCOES_DA_CORRENTE,
-  PLATAFORMAS,
   ROTULO_DA_PLATAFORMA,
   nomeDaPastaDoMes,
   rotuloDoOffset,
@@ -37,7 +37,22 @@ import {
 
 import { abrirMesDeSocial, criarPastaDoMesDeSocial } from "./acoes";
 
+import type { PlataformaSocial } from "@/lib/supabase/database.types";
+
 const SEM_VALOR = "__sem__";
+
+/**
+ * Uma linha de combinação do diálogo: N posts nestas redes (0082).
+ *
+ * O `id` existe porque a lista se reordena ao apagar uma linha do meio, e uma
+ * `key` por índice faria o React reaproveitar o campo errado — quem digitou 12
+ * na segunda linha veria o 12 pular para a terceira ao apagar a primeira.
+ */
+type Linha = {
+  id: number;
+  redes: PlataformaSocial[];
+  quantidade: string;
+};
 const TETO = 60;
 
 /**
@@ -89,18 +104,47 @@ export function AbrirOMes({
     d.setUTCMonth(d.getUTCMonth() + 1);
     return d.toISOString().slice(0, 7);
   });
-  const [quantidades, setQuantidades] = useState<Record<string, string>>({});
+  /**
+   * AS LINHAS DE COMBINAÇÃO (0082), e não um número por rede.
+   *
+   * Decisão do usuário: *"permita juntar duas redes sociais, já que tudo que
+   * postamos no Instagram postamos no Facebook"*. Uma grade com sete campos
+   * não sabe dizer isso — ela pede UM número POR rede, e doze no Instagram
+   * mais doze no Facebook são vinte e quatro peças, vinte e quatro decisões
+   * do cliente e vinte e quatro correntes de cinco etapas para um trabalho
+   * que aconteceu doze vezes.
+   *
+   * Cada linha é "N posts nestas redes". A quantidade é TEXTO e não número,
+   * como era antes: apagar o campo precisa deixá-lo vazio em vez de virar
+   * zero.
+   *
+   * **Nasce com uma linha**, e não com zero: a tela abre mostrando o que ela
+   * pede, em vez de um botão "adicionar" acima de nada.
+   */
+  const [linhas, setLinhas] = useState<Linha[]>(() => [
+    { id: 1, redes: ["instagram"], quantidade: "" },
+  ]);
+  const proximoId = useRef(2);
   const [pasta, setPasta] = useState("");
   const [criandoPasta, criarPasta] = useTransition();
   const [responsaveis, setResponsaveis] = useState<Record<string, string>>({});
 
+  // O TOTAL CONTA POSTS, e nunca posts vezes redes — é a conta inteira desta
+  // mudança, e a mesma que `abrir_mes_de_social()` faz do outro lado. Se as
+  // duas discordarem, o diálogo promete um número e o banco abre outro.
   const total = useMemo(
     () =>
-      Object.values(quantidades).reduce((soma, v) => {
-        const n = Number.parseInt(v, 10);
+      linhas.reduce((soma, l) => {
+        const n = Number.parseInt(l.quantidade, 10);
         return soma + (Number.isFinite(n) && n > 0 ? n : 0);
       }, 0),
-    [quantidades],
+    [linhas],
+  );
+
+  // UMA LINHA COM NÚMERO E SEM REDE é recusada pelo banco, e a tela desliga o
+  // botão antes em vez de deixar a recusa chegar depois de tudo preenchido.
+  const linhaSemRede = linhas.some(
+    (l) => Number.parseInt(l.quantidade, 10) > 0 && l.redes.length === 0,
   );
 
   /**
@@ -127,7 +171,8 @@ export function AbrirOMes({
   // A tela cobra antes para a recusa não chegar depois de sete campos
   // preenchidos; quem vale é o banco, e é ele que pega quem chamar a RPC
   // direto.
-  const podeAbrir = !!cliente && total > 0 && !excede && pasta.trim().length > 0;
+  const podeAbrir =
+    !!cliente && total > 0 && !excede && !linhaSemRede && pasta.trim().length > 0;
 
   function criarNoDrive() {
     criarPasta(async () => {
@@ -142,18 +187,19 @@ export function AbrirOMes({
   }
 
   function enviarFormulario() {
-    const numeros: Record<string, number> = {};
-    for (const [rede, v] of Object.entries(quantidades)) {
-      const n = Number.parseInt(v, 10);
-      if (Number.isFinite(n) && n > 0) numeros[rede] = n;
-    }
+    // A LINHA ZERADA NÃO VIAJA: ela é só uma linha que ninguém preencheu, e
+    // mandá-la faria o banco recusar falando de rede quando o que falta é
+    // número.
+    const combinacoes = linhas
+      .map((l) => ({ redes: l.redes, quantidade: Number.parseInt(l.quantidade, 10) }))
+      .filter((l) => Number.isFinite(l.quantidade) && l.quantidade > 0);
 
     enviar(async () => {
       const r = await chamarAcao(() =>
         abrirMesDeSocial({
           client_id: cliente,
           mes,
-          quantidades: numeros,
+          quantidades: combinacoes,
           responsaveis: Object.fromEntries(
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
           ),
@@ -174,7 +220,7 @@ export function AbrirOMes({
 
       toast.success(r.mensagem);
       setAberto(false);
-      setQuantidades({});
+      setLinhas([{ id: proximoId.current++, redes: ["instagram"], quantidade: "" }]);
       setPasta("");
       router.refresh();
     });
@@ -280,7 +326,7 @@ export function AbrirOMes({
           <section className="space-y-2">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="text-text-primary text-sm font-semibold">
-                Quantos posts, por rede
+                Quantos posts, e em que redes
               </h3>
               <span
                 className={cnTotal(excede)}
@@ -294,32 +340,106 @@ export function AbrirOMes({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {PLATAFORMAS.map((rede) => (
-                <div key={rede} className="space-y-1">
-                  <Label htmlFor={`qtd-${rede}`} className="text-xs">
-                    {ROTULO_DA_PLATAFORMA[rede]}
-                  </Label>
-                  <Input
-                    id={`qtd-${rede}`}
-                    type="number"
-                    min={0}
-                    max={TETO}
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={quantidades[rede] ?? ""}
-                    onChange={(e) =>
-                      setQuantidades((atual) => ({ ...atual, [rede]: e.target.value }))
+            <ul className="space-y-3">
+              {linhas.map((linha, i) => (
+                <li
+                  key={linha.id}
+                  className="border-border space-y-2 rounded-lg border p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`qtd-${linha.id}`} className="text-xs">
+                      Quantos
+                    </Label>
+                    <Input
+                      id={`qtd-${linha.id}`}
+                      type="number"
+                      min={0}
+                      max={TETO}
+                      inputMode="numeric"
+                      placeholder="0"
+                      className="w-20"
+                      value={linha.quantidade}
+                      onChange={(e) =>
+                        setLinhas((atual) =>
+                          atual.map((l) =>
+                            l.id === linha.id ? { ...l, quantidade: e.target.value } : l,
+                          ),
+                        )
+                      }
+                    />
+                    <span className="text-text-muted text-xs">em</span>
+
+                    {/* A LINHA SÓ SE APAGA QUANDO HÁ MAIS DE UMA: com uma só,
+                        o botão esvaziaria a seção e deixaria a pessoa olhando
+                        para um "adicionar" acima de nada. */}
+                    {linhas.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remover a linha ${i + 1}`}
+                        className="ml-auto"
+                        onClick={() =>
+                          setLinhas((atual) => atual.filter((l) => l.id !== linha.id))
+                        }
+                      >
+                        <X aria-hidden className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <SeletorDeRedes
+                    valor={linha.redes}
+                    rotulo={`Redes da linha ${i + 1}`}
+                    aoMudar={(redes) =>
+                      setLinhas((atual) =>
+                        atual.map((l) => (l.id === linha.id ? { ...l, redes } : l)),
+                      )
                     }
                   />
-                </div>
+
+                  {/* A FRASE DIZ A CONTA, porque ela é o ponto inteiro: quem
+                      marca duas redes precisa ler, antes de salvar, que são
+                      quatro peças e não oito. */}
+                  <p className="text-text-muted text-xs">
+                    {linha.redes.length === 0
+                      ? "Escolha ao menos uma rede."
+                      : linha.redes.length === 1
+                        ? `${ROTULO_DA_PLATAFORMA[linha.redes[0]]}.`
+                        : `A mesma peça sai em ${linha.redes
+                            .map((r) => ROTULO_DA_PLATAFORMA[r])
+                            .join(" e ")} — uma arte, uma aprovação do cliente.`}
+                  </p>
+                </li>
               ))}
-            </div>
+            </ul>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setLinhas((atual) => [
+                  ...atual,
+                  { id: proximoId.current++, redes: [], quantidade: "" },
+                ])
+              }
+            >
+              <Plus aria-hidden className="size-4" />
+              Outra combinação
+            </Button>
 
             {/* O TETO AVISA ANTES DE O BANCO RECUSAR, e diz o que fazer no
                 lugar — é a mesma frase do `hint` do Postgres. Descobrir o
                 limite pela recusa depois de preencher sete campos é descobrir
                 tarde. */}
+            {linhaSemRede ? (
+              <p className="text-danger text-xs">
+                Há uma linha com quantidade e sem rede nenhuma. Escolha a rede ou
+                zere o número.
+              </p>
+            ) : null}
+
             {excede ? (
               <p className="text-danger text-xs">
                 São {total} posts de uma vez, e o limite é {TETO}. Se o número está

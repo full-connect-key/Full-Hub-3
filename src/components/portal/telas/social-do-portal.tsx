@@ -108,8 +108,10 @@ export async function SocialDoPortal({
   // As duas coisas que a faixa de filtros precisa, e as duas saem do MÊS
   // INTEIRO — nunca do que sobrou do filtro.
   const contagens = contarPorFase(todos);
+  // `some(includes)` E NAO `some(===)`: uma peca que sai no Instagram e no
+  // Facebook poe as DUAS redes na faixa, porque ela esta nas duas.
   const redes = PLATAFORMAS.filter((rede) =>
-    todos.some((post) => post.plataforma === rede),
+    todos.some((post) => post.plataformas.includes(rede)),
   );
 
   return (
@@ -170,7 +172,7 @@ export async function SocialDoPortal({
           posts={posts}
           artes={artes}
           base={base}
-          redes={[...new Set(posts.map((p) => p.plataforma))]}
+          redes={[...new Set(posts.flatMap((p) => p.plataformas))]}
         />
       ) : visao === "lista" ? (
         <div className="space-y-3">

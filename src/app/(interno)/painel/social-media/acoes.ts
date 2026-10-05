@@ -52,7 +52,7 @@ const ROTULOS = {
   pauta: "pauta",
   url: "endereço da referência",
   data_publicacao: "data de publicação",
-  plataforma: "rede",
+  plataformas: "redes",
   video_url: "link do vídeo",
 } as const;
 
@@ -61,9 +61,17 @@ const esquemaDeAbertura = z.object({
   tema: z.string().trim().min(2, "Escreva o tema do post."),
   data_publicacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data."),
   horario: z.string().nullable().optional(),
-  plataforma: z.enum([
-    "instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest",
-  ]),
+  // UMA LISTA, e com ao menos uma (0082). O `min(1)` repete o
+  // `posts_plataformas_nao_vazia` do banco de propósito: quem escreve a
+  // mensagem é a action, quem recusa é o `check` — as duas pontas da regra
+  // que mora nos dois lados.
+  plataformas: z
+    .array(
+      z.enum([
+        "instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest",
+      ]),
+    )
+    .min(1, "Escolha ao menos uma rede."),
   formato: z.string().trim().nullable().optional(),
   midia: z.enum(["imagem", "carrossel", "video"]),
   responsavel_id: z.string().uuid().nullable().optional(),
@@ -94,7 +102,7 @@ export async function abrirPost(dados: unknown): Promise<Resultado<string>> {
         tema: entrada.tema,
         data_publicacao: entrada.data_publicacao,
         horario: entrada.horario || null,
-        plataforma: entrada.plataforma,
+        plataformas: entrada.plataformas,
         formato: entrada.formato || null,
         midia: entrada.midia,
         responsavel_id: entrada.responsavel_id ?? null,
@@ -132,8 +140,11 @@ const esquemaDeEdicao = z.object({
     .regex(/^https?:\/\//i, "O link do vídeo precisa começar com http:// ou https://.")
     .nullable()
     .optional(),
-  plataforma: z
-    .enum(["instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest"])
+  plataformas: z
+    .array(
+      z.enum(["instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest"]),
+    )
+    .min(1, "Escolha ao menos uma rede.")
     .optional(),
   horario: z.string().nullable().optional(),
   // A DATA PASSA POR AQUI DESDE A 0044, e o comentário abaixo mudou junto: a
@@ -423,7 +434,24 @@ export async function excluirPost(id: string): Promise<Resultado> {
 const esquemaDoMes = z.object({
   client_id: z.string().uuid("Escolha o cliente."),
   mes: z.string().regex(/^\d{4}-\d{2}$/, "Escolha o mês."),
-  quantidades: z.record(z.string(), z.number().int().min(0).max(60)),
+  // AS LINHAS DE COMBINAÇÃO (0082), e não mais um número por rede: um objeto
+  // `{rede: n}` não sabe dizer "doze no Instagram JUNTO com o Facebook",
+  // porque a chave é uma rede só. O `min(1)` em `redes` repete o
+  // `posts_plataformas_nao_vazia` do banco — as duas pontas da regra.
+  quantidades: z
+    .array(
+      z.object({
+        redes: z
+          .array(
+            z.enum([
+              "instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest",
+            ]),
+          )
+          .min(1, "Escolha ao menos uma rede em cada linha."),
+        quantidade: z.number().int().min(0).max(60),
+      }),
+    )
+    .min(1, "Escolha quantos posts abrir."),
   responsaveis: z.record(z.string(), z.string().uuid().nullable()),
   /**
    * O dia de cada etapa, em DIAS relativos à publicação (negativo = antes).

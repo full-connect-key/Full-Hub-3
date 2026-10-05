@@ -97,10 +97,10 @@ values
 
 -- Um post ENVIADO de cada empresa: o cliente enxerga post enviado, e so o da
 -- empresa dele.
-insert into public.posts (client_id, tema, data_publicacao, plataforma, status, criado_por, enviado_em)
+insert into public.posts (client_id, tema, data_publicacao, plataformas, status, criado_por, enviado_em)
 values
-  (:VERDE,  'Post do Verde',  current_date + 1, 'instagram', 'em_aprovacao', :ANA, now()),
-  (:OPTICA, 'Post da Óptica', current_date + 1, 'instagram', 'em_aprovacao', :ANA, now());
+  (:VERDE,  'Post do Verde',  current_date + 1, '{instagram}', 'em_aprovacao', :ANA, now()),
+  (:OPTICA, 'Post da Óptica', current_date + 1, '{instagram}', 'em_aprovacao', :ANA, now());
 
 -- Duas ausencias: uma combinada e uma esperando resposta.
 insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, status)

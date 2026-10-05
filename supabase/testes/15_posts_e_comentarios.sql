@@ -42,13 +42,13 @@ delete from public.posts;
 update public.clients set responsavel_atendimento_id = :MARINA where id = :VERDE;
 
 insert into public.posts (id, client_id, tema, legenda, data_publicacao, horario,
-                          plataforma, formato, criado_por)
+                          plataformas, formato, criado_por)
 values (:RASCUNHO, :VERDE, 'Bastidores da fabrica', 'Legenda em construcao',
-        '2026-10-08', '18:30', 'instagram', 'feed', :BRUNO),
+        '2026-10-08', '18:30', '{instagram}', 'feed', :BRUNO),
        (:ENVIADO, :VERDE, 'Promocao de outubro', 'Corre que acaba!',
-        '2026-10-15', '12:00', 'instagram', 'carrossel', :BRUNO),
+        '2026-10-15', '12:00', '{instagram}', 'carrossel', :BRUNO),
        (:DA_OPTICA, :OPTICA, 'Campanha de armacoes', null,
-        '2026-10-20', null, 'facebook', 'feed', :BRUNO);
+        '2026-10-20', null, '{facebook}', 'feed', :BRUNO);
 
 select teste.conferir('Post nasce em producao',
   (select status::text from public.posts where id = :ENVIADO), 'em_producao');
@@ -81,8 +81,8 @@ select teste.cenario('Joana nao lista nenhum post ainda', :JOANA,
 -- diferenca entre "a tela nao tem o botao" e "o banco nao aceita".
 -- ---------------------------------------------------------------------------
 select teste.cenario('Joana nao cria post', :JOANA,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Post que eu quero', '2026-10-30', 'instagram')$fmt$, :VERDE),
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Post que eu quero', '2026-10-30', '{instagram}')$fmt$, :VERDE),
   'recusa');
 
 select teste.cenario('Joana nao edita post', :JOANA,

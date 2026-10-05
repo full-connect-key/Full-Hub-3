@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ImageOff } from "lucide-react";
 
-import { SeloDaRede } from "@/components/portal/selo-da-rede";
+import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { PostDoPortal } from "@/lib/dominio/posts";
 
@@ -43,7 +43,7 @@ export function CartaoDePost({
 
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
-          <SeloDaRede plataforma={post.plataforma} />
+          <SelosDasRedes plataformas={post.plataformas} />
           <StatusBadge status={post.status} />
           {post.formato ? (
             <span className="text-text-muted text-xs">{post.formato}</span>

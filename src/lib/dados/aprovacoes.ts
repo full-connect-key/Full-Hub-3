@@ -3,15 +3,22 @@ import "server-only";
 import { ouFalha } from "@/lib/dados/consulta";
 import { assinarArquivos } from "@/lib/dados/conteudo";
 import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
+import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
 import type {
   ApprovalRound,
+  PlataformaSocial,
   SubtaskEntrega,
   TipoAprovacao,
 } from "@/lib/supabase/database.types";
 
 import type { Pessoa } from "./tasks";
+
+/** "Instagram + Facebook" — a mesma forma que o tema do post usa (0082). */
+function redesPorExtenso(redes: PlataformaSocial[]): string {
+  return redes.map((r) => ROTULO_DA_PLATAFORMA[r]).join(" + ");
+}
 
 /** O mesmo bucket privado de `lib/dados/social-media.ts`. */
 const BUCKET_DAS_ARTES = "posts-artes";
@@ -366,7 +373,7 @@ async function postsNaFila(): Promise<FilaCrua> {
     await supabase
       .from("posts")
       .select(
-        "id, client_id, tema, plataforma, data_publicacao, versao_atual, responsavel_id, enviado_em, arte_url, thumbnail_url",
+        "id, client_id, tema, plataformas, data_publicacao, versao_atual, responsavel_id, enviado_em, arte_url, thumbnail_url",
       )
       .in("id", idsDePosts),
   );
@@ -410,9 +417,13 @@ async function postsNaFila(): Promise<FilaCrua> {
       tipo: "post" as const,
       contentId: post.id,
       titulo: post.tema,
+      // AS REDES POR EXTENSO, e não a chave do enum: a linha dizia
+      // `instagram · 15/10`, que é a camada em inglês na tela de quem aprova
+      // — o mesmo descuido que a ausência do Calendário Full já pagou. Com a
+      // peça saindo em duas, vira "Instagram + Facebook".
       contexto: post.data_publicacao
-        ? `${post.plataforma} · ${post.data_publicacao.slice(8, 10)}/${post.data_publicacao.slice(5, 7)}`
-        : `${post.plataforma} · sem data ainda`,
+        ? `${redesPorExtenso(post.plataformas)} · ${post.data_publicacao.slice(8, 10)}/${post.data_publicacao.slice(5, 7)}`
+        : `${redesPorExtenso(post.plataformas)} · sem data ainda`,
       rota: `/painel/social-media?post=${post.id}`,
       cliente: porCliente.get(post.client_id) ?? null,
       clienteId: post.client_id,

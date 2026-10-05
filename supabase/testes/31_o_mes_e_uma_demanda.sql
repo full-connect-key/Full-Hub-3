@@ -55,12 +55,12 @@ on conflict (id) do nothing;
 -- trava com excecao para o caso frequente e uma trava desligada.
 -- ---------------------------------------------------------------------------
 select teste.recusa_com('Abrir o mes sem pasta de entrega e recusado', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2027-06', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-06', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE),
   'precisa da pasta de entrega');
 
 select teste.recusa_com_dica('E a dica diz que o mes e uma demanda', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2027-06', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-06', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE),
   'O mês de social é uma demanda só');
 
@@ -73,7 +73,7 @@ select teste.conferir('E nenhum post ficou para tras da recusa',
 -- ---------------------------------------------------------------------------
 select teste.cenario('O Atendimento abre tres posts de junho', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2027-06', '{"instagram": 3}'::jsonb, p_link_entrega => %L)$fmt$, :VERDE, :PASTA),
+    %L, '2027-06', '[{"redes": ["instagram"], "quantidade": 3}]'::jsonb, p_link_entrega => %L)$fmt$, :VERDE, :PASTA),
   'ok', 1);
 
 select teste.conferir('Nasceu UMA demanda do mes',
@@ -231,7 +231,7 @@ select teste.conferir('A etapa comum continua com o relogio correndo',
 -- ---------------------------------------------------------------------------
 select teste.cenario('A segunda abertura do mesmo mes dispensa a pasta', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2027-06', '{"linkedin": 2}'::jsonb)$fmt$, :VERDE),
+    %L, '2027-06', '[{"redes": ["linkedin"], "quantidade": 2}]'::jsonb)$fmt$, :VERDE),
   'ok', 1);
 
 select teste.conferir('Continua sendo UMA demanda de junho',

@@ -1027,24 +1027,24 @@ begin
   -- Em producao: NAO aparece para o cliente. E o caso mais importante do seed,
   -- porque e o unico que so da para conferir tentando ver e nao vendo.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+                            plataformas, formato, arte_url, thumbnail_url, criado_por)
   values (verde, 'Bastidores da colheita',
           'A gente acompanha de perto quem planta. (rascunho da legenda)',
-          primeiro + 2, '09:00', 'instagram', 'reels',
+          primeiro + 2, '09:00', '{instagram}', 'reels',
           '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', bruno);
 
   insert into public.posts (client_id, tema, data_publicacao, horario,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Teaser da linha de verao', primeiro + 4, '11:30',
-          'tiktok', 'video', bruno);
+          '{tiktok}', 'video', bruno);
 
   -- --------------------------------------------------------------------- 2 --
   -- Aguardando informacoes: a agencia esperando material do cliente.
   insert into public.posts (client_id, tema, legenda, data_publicacao,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Depoimento de cliente',
           'Falta o video que a loja ia mandar.', primeiro + 6,
-          'youtube', 'video', bruno)
+          '{youtube}', 'video', bruno)
   returning id into p;
   update public.posts set status = 'aguardando_informacoes' where id = p;
 
@@ -1052,13 +1052,13 @@ begin
   -- Esperando a decisao do cliente. Tres deles, que e o que faz o contador da
   -- tela inicial ter um numero de verdade.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url,
+                            plataformas, formato, arte_url, thumbnail_url,
                             prazo_aprovacao, criado_por)
   values (verde, 'Promocao de outubro',
           'Corre que acaba! Toda a linha de granolas com 20% ate domingo. ' ||
           'Aproveite para experimentar os sabores novos — tem castanha, tem cacau, ' ||
           'e tem aquele de coco que sai voando toda semana.',
-          primeiro + 9, '12:00', 'instagram', 'carrossel',
+          primeiro + 9, '12:00', '{instagram}', 'carrossel',
           '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', primeiro + 7, bruno)
   returning id into p;
 
@@ -1073,10 +1073,10 @@ begin
   values ('post', p, 1, 'cliente', diego);
 
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+                            plataformas, formato, arte_url, thumbnail_url, criado_por)
   values (verde, 'Post institucional do mes',
           'Quinze anos escolhendo fornecedor por fornecedor.',
-          primeiro + 12, '18:30', 'linkedin', 'feed',
+          primeiro + 12, '18:30', '{linkedin}', 'feed',
           '/exemplos/arte-3.svg', '/exemplos/arte-3.svg', bruno)
   returning id into p;
 
@@ -1097,9 +1097,9 @@ begin
   values ('post', p, marina, 'Cliente sempre pede foto da loja. Já deixar na próxima.', true);
 
   insert into public.posts (client_id, tema, legenda, data_publicacao,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Enquete de sabores', 'Qual entra na linha do ano que vem?',
-          primeiro + 14, 'twitter', 'story', bruno)
+          primeiro + 14, '{twitter}', 'story', bruno)
   returning id into p;
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
@@ -1111,10 +1111,10 @@ begin
   -- Ajustes pedidos pelo cliente: duas versoes, e a rodada 1 fechada com o
   -- motivo. Rodada fechada nunca e reescrita -- e por isso a proxima e a 2.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+                            plataformas, formato, arte_url, thumbnail_url, criado_por)
   values (verde, 'Receita da semana',
           'Panqueca de banana com granola. Cinco minutos.',
-          primeiro + 16, '08:00', 'instagram', 'feed',
+          primeiro + 16, '08:00', '{instagram}', 'feed',
           '/exemplos/arte-3.svg', '/exemplos/arte-3.svg', bruno)
   returning id into p;
 
@@ -1134,9 +1134,9 @@ begin
   update public.posts set status = 'ajustes' where id = p;
 
   insert into public.posts (client_id, tema, data_publicacao,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Card de horario de feriado', primeiro + 18,
-          'facebook', 'feed', bruno)
+          '{facebook}', 'feed', bruno)
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '3 days');
@@ -1150,10 +1150,10 @@ begin
   -- segunda. E o caminho completo do modulo, e o unico jeito de conferir que o
   -- historico nao some quando o ciclo fecha.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+                            plataformas, formato, arte_url, thumbnail_url, criado_por)
   values (verde, 'Lancamento da granola de cacau',
           'Chegou. E sim, tem pedaco de cacau de verdade.',
-          primeiro + 20, '19:00', 'instagram', 'carrossel',
+          primeiro + 20, '19:00', '{instagram}', 'carrossel',
           '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', bruno)
   returning id into p;
 
@@ -1188,10 +1188,10 @@ begin
   update public.posts set status = 'aprovado' where id = p;
 
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, arte_url, thumbnail_url, criado_por)
+                            plataformas, formato, arte_url, thumbnail_url, criado_por)
   values (verde, 'Guia de receitas no Pinterest',
           'Salvou, fez. E simples assim.', primeiro + 22, '15:00',
-          'pinterest', 'feed', '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', bruno)
+          '{pinterest}', 'feed', '/exemplos/arte-1.svg', '/exemplos/arte-1.svg', bruno)
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '11 days');
@@ -1203,10 +1203,10 @@ begin
   -- Recusado: o desfecho que a 0032 acrescentou. Motivo obrigatorio, e ele
   -- fica na rodada.
   insert into public.posts (client_id, tema, legenda, data_publicacao,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Comparativo com concorrente',
           'A gente sabe quem faz melhor.', primeiro + 24,
-          'instagram', 'feed', bruno)
+          '{instagram}', 'feed', bruno)
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '13 days');
@@ -1221,10 +1221,10 @@ begin
   -- para o selo e o filtro terem o setimo caso para desenhar. Se um dia o
   -- produto souber pausar um post, este update sai.
   insert into public.posts (client_id, tema, legenda, data_publicacao,
-                            plataforma, formato, criado_por)
+                            plataformas, formato, criado_por)
   values (verde, 'Acao de fim de ano',
           'Esperando o calendario comercial fechar.', primeiro + 27,
-          'facebook', 'feed', bruno)
+          '{facebook}', 'feed', bruno)
   returning id into p;
   update public.posts set status = 'stand_by' where id = p;
 
@@ -1292,11 +1292,23 @@ begin
   -- SEIS E NAO UM, porque o que a faixa "sem data ainda" precisa provar e que
   -- ela aguenta o lote: com um post so, ela pareceria um cartao solto e
   -- ninguem descobriria que a lista rola.
+  --
+  -- E OS DOIS ULTIMOS SAEM NO INSTAGRAM E NO FACEBOOK (0082), que e o caso
+  -- que o usuario descreveu -- *"tudo que postamos no Instagram postamos no
+  -- Facebook"*. Sem eles, o ambiente de desenvolvimento mostra o produto no
+  -- unico estado em que a combinacao nao existe, e o selo de duas redes
+  -- nunca aparece em imagem nenhuma: e a licao da Optica Visao sem
+  -- responsavel de atendimento (0062) e da pessoa desligada (0069).
   for i in 1..6 loop
-    insert into public.posts (client_id, tema, data_publicacao, plataforma,
+    insert into public.posts (client_id, tema, data_publicacao, plataformas,
                               midia, criado_por, responsavel_id)
-    values (verde, format('Instagram %s de 6 · mês que vem', i), null,
-            'instagram', 'imagem', diego, marina);
+    values (verde,
+            case when i > 4
+                 then format('Instagram + Facebook %s de 6 · mês que vem', i)
+                 else format('Instagram %s de 6 · mês que vem', i) end,
+            null,
+            case when i > 4 then '{instagram,facebook}' else '{instagram}' end,
+            'imagem', diego, marina);
   end loop;
 
   update public.post_etapas e
@@ -1876,10 +1888,10 @@ begin
   -- `post_versions_sincroniza`. E o caso que prova que o calendario, o card e
   -- a miniatura do portal nao precisam saber que carrossel existe.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, midia, criado_por, responsavel_id)
+                            plataformas, formato, midia, criado_por, responsavel_id)
   values (verde, 'Carrossel de dicas',
           'Cinco dicas para manter a horta viva no calor. Arrasta pro lado.',
-          primeiro + 18, '12:00', 'instagram', 'Carrossel', 'carrossel', ana, bruno)
+          primeiro + 18, '12:00', '{instagram}', 'Carrossel', 'carrossel', ana, bruno)
   returning id into p;
 
   insert into public.post_versions (post_id, arquivos, legenda, criado_por)
@@ -1896,19 +1908,19 @@ begin
   -- `validar_nova_rodada` recusa enviar sem o link, e o seed traz o link
   -- preenchido de proposito -- o caso SEM link e da bateria, nao daqui.
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
-                            plataforma, formato, midia, video_url,
+                            plataformas, formato, midia, video_url,
                             criado_por, responsavel_id)
   values (verde, 'Reels da receita',
           'A receita que a nutricionista mandou, em 30 segundos.',
-          primeiro + 21, '18:00', 'instagram', 'Reels', 'video',
+          primeiro + 21, '18:00', '{instagram}', 'Reels', 'video',
           'https://drive.google.com/file/d/exemplo-reels/view', ana, marina);
 
   -- -------------------------------------------------- BRIEFING SEM DONO --
   -- O estado que a lista destaca em "Esperando alguem", e que no calendario
   -- fica cinza: a gestao abriu e ninguem pegou.
   insert into public.posts (client_id, tema, data_publicacao,
-                            plataforma, formato, midia, criado_por)
-  values (verde, 'Fim de mes', primeiro + 27, 'instagram', 'Feed', 'imagem', diego);
+                            plataformas, formato, midia, criado_por)
+  values (verde, 'Fim de mes', primeiro + 27, '{instagram}', 'Feed', 'imagem', diego);
 
   perform set_config('request.jwt.claim.sub', '', true);
 

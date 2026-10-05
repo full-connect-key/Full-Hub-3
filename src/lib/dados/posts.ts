@@ -30,7 +30,7 @@ import { deslocarMes, type PostDoPortal } from "@/lib/dominio/posts";
 // Uma string literal, e nao uma concatenacao: o supabase-js tipa o retorno a
 // partir do TEXTO do select, e um `+` no meio apaga esse tipo.
 // prettier-ignore
-const COLUNAS = "id, client_id, tema, legenda, data_publicacao, horario, plataforma, formato, midia, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em";
+const COLUNAS = "id, client_id, tema, legenda, data_publicacao, horario, plataformas, formato, midia, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em";
 
 type LinhaDePost = {
   id: string;
@@ -39,7 +39,7 @@ type LinhaDePost = {
   legenda: string | null;
   data_publicacao: string;
   horario: string | null;
-  plataforma: PostDoPortal["plataforma"];
+  plataformas: PostDoPortal["plataformas"];
   formato: string | null;
   midia: PostDoPortal["midia"];
   status: PostDoPortal["status"];
@@ -72,7 +72,7 @@ function montar(
     legenda: linha.legenda,
     dataPublicacao: linha.data_publicacao,
     horario: linha.horario ? linha.horario.slice(0, 5) : null,
-    plataforma: linha.plataforma,
+    plataformas: linha.plataformas,
     formato: linha.formato,
     midia: linha.midia,
     status: linha.status,

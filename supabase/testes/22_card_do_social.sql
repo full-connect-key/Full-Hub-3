@@ -19,9 +19,9 @@
 -- trabalho e fazer trabalho sao tres coisas, e o arquivo prova as tres.
 -- ===========================================================================
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:CARD, :VERDE, 'Card completo', '2026-11-28', 'instagram',
+values (:CARD, :VERDE, 'Card completo', '2026-11-28', '{instagram}',
         'imagem', :ANA, :MARINA);
 
 -- A corrente ja nasceu pelo gatilho. A Pauta vai para a Carla e o Layout para
@@ -42,31 +42,31 @@ update public.post_etapas set responsavel_id = :BRUNO
 -- A CARLA E `colaborador` E ESTA NO ATENDIMENTO. Este cenario e o que separa
 -- perfil de acesso de funcao na agencia: ate a 0046 ela levava "é da gestão".
 select teste.cenario('O Atendimento abre o mes, sendo colaborador', :CARLA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '{"instagram": 2}'::jsonb,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb,
     p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$,
     :VERDE), 'ok', 1);
 
 select teste.cenario('E abre post avulso tambem', :CARLA,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Story que o cliente pediu hoje', '2027-03-05', 'instagram')$fmt$,
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Story que o cliente pediu hoje', '2027-03-05', '{instagram}')$fmt$,
     :VERDE), 'ok', 1);
 
 -- O BRUNO E `colaborador` E E DESIGN. Mesmo perfil da Carla, outra funcao --
 -- e e a funcao que decide. Se alguem trocar `is_atendimento()` por
 -- `is_staff()`, este cenario passa a aceitar e diz que a trava caiu.
 select teste.recusa_com('O Design nao abre o mes', :BRUNO,
-  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-03', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE),
   'é do Atendimento');
 
 select teste.cenario('Nem abre post avulso', :BRUNO,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Post que eu abri', '2027-03-06', 'instagram')$fmt$, :VERDE),
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Post que eu abri', '2027-03-06', '{instagram}')$fmt$, :VERDE),
   'recusa');
 
 select teste.cenario('E o cliente muito menos', :JOANA,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Post do cliente', '2027-03-07', 'instagram')$fmt$, :VERDE),
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Post do cliente', '2027-03-07', '{instagram}')$fmt$, :VERDE),
   'recusa');
 
 
@@ -212,9 +212,9 @@ select teste.conferir('E as referencias foram com ele',
 
 \set CARD2 '''50600000-0000-0000-0000-000000000002'''
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:CARD2, :VERDE, 'Card da corrente', null, 'instagram',
+values (:CARD2, :VERDE, 'Card da corrente', null, '{instagram}',
         'imagem', :ANA, :MARINA);
 
 -- A Carla tem a etapa Conteudo e NAO e `posts.responsavel_id` -- que e a

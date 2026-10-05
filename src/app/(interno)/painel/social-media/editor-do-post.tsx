@@ -1,5 +1,6 @@
 "use client";
 
+import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,7 +35,6 @@ import {
   EXPLICACAO_DA_MIDIA,
   FORMATOS_SUGERIDOS,
   MIDIAS,
-  PLATAFORMAS,
   ROTULO_DA_MAO,
   ROTULO_DA_MIDIA,
   ROTULO_DA_PLATAFORMA,
@@ -58,7 +58,7 @@ import type {
   ReferenciaDoPost,
   VersaoDoPost,
 } from "@/lib/dados/social-media";
-import type { PlataformaSocial, PostMidia } from "@/lib/supabase/database.types";
+import type { PostMidia } from "@/lib/supabase/database.types";
 
 import {
   editarPost,
@@ -276,8 +276,12 @@ export function EditorDoPost({
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="gap-1">
-          <span aria-hidden>{SIGLA_DA_PLATAFORMA[post.plataforma]}</span>
-          <span className="sr-only">{ROTULO_DA_PLATAFORMA[post.plataforma]}</span>
+          <span aria-hidden>
+            {post.plataformas.map((p) => SIGLA_DA_PLATAFORMA[p]).join(" ")}
+          </span>
+          <span className="sr-only">
+            {post.plataformas.map((p) => ROTULO_DA_PLATAFORMA[p]).join(" e ")}
+          </span>
           {post.formato ?? ROTULO_DA_MIDIA[post.midia]}
         </Badge>
         {post.responsavel ? (
@@ -454,29 +458,28 @@ export function EditorDoPost({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`rede-${post.id}`}>Rede</Label>
-          <Select
-            value={post.plataforma}
-            disabled={!posso}
-            onValueChange={(v) =>
+          {/* Um `<span>` e não um `<Label htmlFor>`: o seletor é um grupo de
+              botões, e `<label for>` não nomeia nada que não seja campo de
+              formulário. Quem nomeia o grupo é o `aria-label` dele. */}
+          <span className="text-sm leading-none font-medium">Redes</span>
+          {/* SALVA NO CLIQUE, como os outros campos desta tela — e a lista
+              vazia não chega ao banco: o seletor devolve o que foi marcado, e
+              desmarcar a última só mandaria `[]`, que o `check` recusa com uma
+              mensagem sobre `cardinality`. A guarda aqui escreve a frase. */}
+          <SeletorDeRedes
+            valor={post.plataformas}
+            desabilitado={!posso}
+            rotulo="Redes deste post"
+            aoMudar={(redes) => {
+              if (redes.length === 0) {
+                toast.error("O post precisa de ao menos uma rede.");
+                return;
+              }
               iniciar(() =>
-                agir(() =>
-                  chamarAcao(() => editarPost(post.id, { plataforma: v as PlataformaSocial })),
-                ),
-              )
-            }
-          >
-            <SelectTrigger aria-label="Rede" id={`rede-${post.id}`} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PLATAFORMAS.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {ROTULO_DA_PLATAFORMA[p]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                agir(() => chamarAcao(() => editarPost(post.id, { plataformas: redes }))),
+              );
+            }}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -498,7 +501,9 @@ export function EditorDoPost({
             }
           />
           <datalist id={`formatos-${post.id}`}>
-            {(FORMATOS_SUGERIDOS[post.plataforma] ?? []).map((f) => (
+            {[
+              ...new Set(post.plataformas.flatMap((p) => FORMATOS_SUGERIDOS[p] ?? [])),
+            ].map((f) => (
               <option key={f} value={f} />
             ))}
           </datalist>

@@ -2213,7 +2213,13 @@ export interface Database {
           // `validar_nova_rodada`, nao a tela.
           data_publicacao: string | null;
           horario: string | null;
-          plataforma: PlataformaSocial;
+          /**
+           * AS REDES desta peça (0082). Lista, e `plataforma` singular foi
+           * APAGADA: a mesma arte sai no Instagram e no Facebook, e uma
+           * coluna "a rede principal" ao lado seria o segundo lugar onde o
+           * mesmo fato diverge.
+           */
+          plataformas: PlataformaSocial[];
           formato: string | null;
           midia: PostMidia;
           // Video e por LINK e nao por upload (0042, decisao do usuario): o
@@ -2248,7 +2254,7 @@ export interface Database {
           pauta?: string | null;
           data_publicacao?: string | null;
           horario?: string | null;
-          plataforma: PlataformaSocial;
+          plataformas: PlataformaSocial[];
           formato?: string | null;
           midia?: PostMidia;
           video_url?: string | null;
@@ -2267,7 +2273,7 @@ export interface Database {
           // recusar o colaborador aqui.
           data_publicacao?: string | null;
           horario?: string | null;
-          plataforma?: PlataformaSocial;
+          plataformas?: PlataformaSocial[];
           formato?: string | null;
           midia?: PostMidia;
           video_url?: string | null;
@@ -2959,7 +2965,12 @@ export interface Database {
       /**
        * Abre N posts de um cliente para um mês, SEM DATA (0044/0045).
        *
-       * `p_quantidades` é `{"instagram": 12, "linkedin": 4}` e `p_responsaveis`
+       * `p_quantidades` é uma LISTA de combinações desde a 0082 —
+       * `[{"redes": ["instagram","facebook"], "quantidade": 12}]`, e doze no
+       * Instagram junto com o Facebook são DOZE posts, não vinte e quatro. O
+       * objeto da 0044 (`{"instagram": 12}`) é recusado com frase própria: ele
+       * não sabe dizer combinação, porque a chave é uma rede só.
+       * `p_responsaveis`
        * é `{"Social Media": uuid, "Redator": uuid, "Design": uuid}` — uma
        * pessoa por FUNÇÃO e não uma por etapa, porque a Pauta e o Programar do
        * mesmo post são da mesma social media.
@@ -3010,7 +3021,7 @@ export interface Database {
         Args: {
           p_client_id: string;
           p_mes: string;
-          p_quantidades: Record<string, number>;
+          p_quantidades: { redes: PlataformaSocial[]; quantidade: number }[];
           p_responsavel_id?: string | null;
           p_responsaveis?: Record<string, string>;
           /**

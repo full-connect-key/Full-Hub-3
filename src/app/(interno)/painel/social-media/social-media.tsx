@@ -72,15 +72,23 @@ const LEGENDA: { tom: string; rotulo: string }[] = [
   { tom: "bg-success", rotulo: "Encerrado" },
 ];
 
+// UM QUADRADINHO POR REDE (0082), e não um só com as duas siglas dentro: o
+// selo tem 20px, e "IGFB" em 9px vira um borrão. Dois selos de 20px lado a
+// lado continuam cabendo na linha da lista.
 function Selo({ post }: { post: PostDaAgencia }) {
   return (
-    <span
-      aria-hidden
-      className="bg-muted text-text-secondary inline-grid size-5 shrink-0 place-items-center rounded text-[9px] font-bold"
-      title={ROTULO_DA_PLATAFORMA[post.plataforma]}
-    >
-      {SIGLA_DA_PLATAFORMA[post.plataforma]}
-    </span>
+    <>
+      {post.plataformas.map((p) => (
+        <span
+          key={p}
+          aria-hidden
+          className="bg-muted text-text-secondary inline-grid size-5 shrink-0 place-items-center rounded text-[9px] font-bold"
+          title={ROTULO_DA_PLATAFORMA[p]}
+        >
+          {SIGLA_DA_PLATAFORMA[p]}
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -570,7 +578,7 @@ export function SocialMedia({
                           {p.tema}
                         </span>
                         <span className="text-text-muted">
-                          {SIGLA_DA_PLATAFORMA[p.plataforma]}
+                          {p.plataformas.map((r) => SIGLA_DA_PLATAFORMA[r]).join(" ")}
                         </span>
                       </button>
                     </li>

@@ -29,10 +29,9 @@ import {
   EXPLICACAO_DA_MIDIA,
   FORMATOS_SUGERIDOS,
   MIDIAS,
-  PLATAFORMAS,
   ROTULO_DA_MIDIA,
-  ROTULO_DA_PLATAFORMA,
 } from "@/lib/dominio/posts";
+import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
 import type { PlataformaSocial, PostMidia } from "@/lib/supabase/database.types";
 
 import { abrirPost } from "./acoes";
@@ -67,7 +66,7 @@ export function NovoPost({
   const [tema, setTema] = useState("");
   const [data, setData] = useState("");
   const [horario, setHorario] = useState("");
-  const [plataforma, setPlataforma] = useState<PlataformaSocial>("instagram");
+  const [plataformas, setPlataformas] = useState<PlataformaSocial[]>(["instagram"]);
   const [formato, setFormato] = useState("Feed");
   const [midia, setMidia] = useState<PostMidia>("imagem");
   const [responsavel, setResponsavel] = useState<string | null>(null);
@@ -76,6 +75,7 @@ export function NovoPost({
     clienteId ? null : "o cliente",
     tema.trim().length >= 2 ? null : "o tema",
     data ? null : "a data",
+    plataformas.length > 0 ? null : "a rede",
   ].filter((f): f is string => f !== null);
 
   function criar() {
@@ -86,7 +86,7 @@ export function NovoPost({
           tema: tema.trim(),
           data_publicacao: data,
           horario: horario || null,
-          plataforma,
+          plataformas,
           formato: formato || null,
           midia,
           responsavel_id: responsavel,
@@ -180,22 +180,17 @@ export function NovoPost({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="np-rede">Rede</Label>
-              <Select
-                value={plataforma}
-                onValueChange={(v) => setPlataforma(v as PlataformaSocial)}
-              >
-                <SelectTrigger aria-label="Rede" id="np-rede" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATAFORMAS.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {ROTULO_DA_PLATAFORMA[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* `<Label>` E NAO `htmlFor`: o seletor é um grupo de botões,
+                  e um `<label for>` não nomeia nada que não seja campo de
+                  formulário — é a mesma armadilha que pôs `aria-label` nos 52
+                  `SelectTrigger` do produto. Quem nomeia o grupo é o
+                  `aria-label` dele. */}
+              <span className="text-sm leading-none font-medium">Redes</span>
+              <SeletorDeRedes
+                valor={plataformas}
+                aoMudar={setPlataformas}
+                rotulo="Redes deste post"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="np-formato">Formato</Label>
@@ -207,7 +202,11 @@ export function NovoPost({
                 placeholder="Feed, Stories, Reels…"
               />
               <datalist id="np-formatos">
-                {(FORMATOS_SUGERIDOS[plataforma] ?? []).map((f) => (
+                {/* A SUGESTAO E A UNIAO das redes marcadas: um post que sai
+                    no Instagram e no Facebook aceita formato dos dois. */}
+                {[
+                  ...new Set(plataformas.flatMap((p) => FORMATOS_SUGERIDOS[p] ?? [])),
+                ].map((f) => (
                   <option key={f} value={f} />
                 ))}
               </datalist>

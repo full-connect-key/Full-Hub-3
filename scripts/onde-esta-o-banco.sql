@@ -268,7 +268,11 @@ from (
     -- A 0081 reescreve `carga_do_dia()` e cria `disponibilidade()`. A linha
     -- aponta para a NOVA: `carga_do_dia` existe desde a 0035 e responderia ok
     -- num banco parado la, com a conta antiga.
-    ('0081', 'disponibilidade()', 'funcao', 'disponibilidade')
+    ('0081', 'disponibilidade()', 'funcao', 'disponibilidade'),
+    -- A 0082 aponta para a coluna NOVA e nao para a ausencia da antiga:
+    -- `sem_coluna posts.plataforma` responderia ok num banco que nunca teve a
+    -- tabela, e a pergunta aqui e se a lista de redes ja existe.
+    ('0082', 'posts.plataformas',          'coluna',       'posts.plataformas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

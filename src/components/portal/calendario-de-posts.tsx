@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import { SeloDaRede } from "@/components/portal/selo-da-rede";
+import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import {
   corDoPontoDeStatus,
   rotuloDoStatus,
@@ -199,9 +199,12 @@ function Miniatura({
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1">
-          <SeloDaRede
-            plataforma={post.plataforma}
-            className="h-4 min-w-7 text-[0.6rem]"
+          {/* Na celula do mes o selo encolhe, e com duas redes sao duas
+              siglas de 28px. Cabe porque a sigla ja e a forma curta — o nome
+              por extenso sai no `title` de cada uma. */}
+          <SelosDasRedes
+            plataformas={post.plataformas}
+            classeDoSelo="h-4 min-w-7 text-[0.6rem]"
           />
           {post.horario ? (
             <span className="text-text-muted text-[0.65rem] tabular-nums">

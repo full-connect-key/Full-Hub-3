@@ -23,9 +23,9 @@
 -- tem no portal.
 -- ===========================================================================
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:CORRENTE, :VERDE, 'Corrente completa', '2026-11-25', 'instagram',
+values (:CORRENTE, :VERDE, 'Corrente completa', '2026-11-25', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 
@@ -75,7 +75,7 @@ select teste.conferir('E nenhuma etapa de Ajustes ainda',
 
 select teste.cenario('A gestao abre dois posts distribuindo a corrente', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2027-01', '{"instagram": 2}'::jsonb, null,
+    %L, '2027-01', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb, null,
     jsonb_build_object('Social Media', %L::text, 'Redator', %L::text, 'Design', %L::text),
     '{}'::jsonb, 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$,
     :VERDE, :MARINA, :CARLA, :BRUNO), 'ok', 1);

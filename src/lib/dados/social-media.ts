@@ -30,7 +30,7 @@ const BUCKET = "posts-artes";
 // String literal, e nao concatenacao: o supabase-js tipa o retorno a partir do
 // TEXTO do select, e um `+` no meio apaga esse tipo.
 // prettier-ignore
-const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataforma, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, subtask_id";
+const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataformas, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, subtask_id";
 
 export type PostDaAgencia = {
   id: string;
@@ -45,7 +45,7 @@ export type PostDaAgencia = {
    *  calendário, porque não há célula onde ele caiba. */
   dataPublicacao: string | null;
   horario: string | null;
-  plataforma: PlataformaSocial;
+  plataformas: PlataformaSocial[];
   formato: string | null;
   midia: PostMidia;
   videoUrl: string | null;
@@ -93,7 +93,7 @@ type Linha = {
   pauta: string | null;
   data_publicacao: string | null;
   horario: string | null;
-  plataforma: PlataformaSocial;
+  plataformas: PlataformaSocial[];
   formato: string | null;
   midia: PostMidia;
   video_url: string | null;
@@ -182,7 +182,7 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       pauta: l.pauta,
       dataPublicacao: l.data_publicacao,
       horario: l.horario ? l.horario.slice(0, 5) : null,
-      plataforma: l.plataforma,
+      plataformas: l.plataformas,
       formato: l.formato,
       midia: l.midia,
       videoUrl: l.video_url,

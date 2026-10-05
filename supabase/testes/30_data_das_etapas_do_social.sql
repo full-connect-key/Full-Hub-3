@@ -22,8 +22,8 @@ begin
   perform set_config('request.jwt.claim.sub',
                      '11111111-1111-1111-1111-111111111111', true);
 
-  insert into public.posts (client_id, tema, plataforma, midia, criado_por, responsavel_id)
-  values (v_cliente, 'Bateria 0059 · post com regra', 'instagram', 'imagem',
+  insert into public.posts (client_id, tema, plataformas, midia, criado_por, responsavel_id)
+  values (v_cliente, 'Bateria 0059 · post com regra', '{instagram}', 'imagem',
           '11111111-1111-1111-1111-111111111111',
           '33333333-3333-3333-3333-333333333333')
   returning id into v_post;
@@ -203,7 +203,7 @@ select teste.recusa_com(
   '11111111-1111-1111-1111-111111111111',
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
-      '2026-12', '{"instagram": 1}'::jsonb, null, '{}'::jsonb,
+      '2026-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
       '{"Conteúdo": -3, "Layout": -9}'::jsonb)$$,
   'venceria antes da etapa anterior');
 
@@ -212,7 +212,7 @@ select teste.recusa_com(
   '11111111-1111-1111-1111-111111111111',
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
-      '2026-12', '{"instagram": 1}'::jsonb, null, '{}'::jsonb,
+      '2026-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
       '{"Revisão": -3}'::jsonb)$$,
   'não tem etapa chamada');
 
@@ -221,7 +221,7 @@ select teste.recusa_com(
   '11111111-1111-1111-1111-111111111111',
   $$select public.abrir_mes_de_social(
       (select id from public.clients order by created_at limit 1),
-      '2026-12', '{"instagram": 1}'::jsonb, null, '{}'::jsonb,
+      '2026-12', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb, null, '{}'::jsonb,
       '{"Pauta": -900}'::jsonb)$$,
   'dias da publicação');
 

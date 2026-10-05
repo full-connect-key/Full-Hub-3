@@ -30,17 +30,18 @@
 -- a Carla, com o MESMO perfil, abre, porque esta no Atendimento. O arquivo 22
 -- guarda os dois lados dessa mesma pergunta.
 select teste.recusa_com('O Design nao abre o mes', :BRUNO,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE),
   'é do Atendimento');
 
 select teste.cenario('E o cliente muito menos', :JOANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-11', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE), 'recusa');
 
 select teste.cenario('A gestao abre tres no Instagram e dois no LinkedIn', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2026-11', '{"instagram": 3, "linkedin": 2}'::jsonb,
+    %L, '2026-11', '[{"redes": ["instagram"], "quantidade": 3},
+                      {"redes": ["linkedin"], "quantidade": 2}]'::jsonb,
     p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$, :VERDE), 'ok', 1);
 
 select teste.conferir('Nasceram cinco posts',
@@ -64,7 +65,7 @@ select teste.conferir('O tema diz a rede, o numero e o mes',
 -- --- 2. O que a funcao recusa ----------------------------------------------
 
 select teste.recusa_com('Zero post nao abre mes nenhum', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '{"instagram": 0}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '[{"redes": ["instagram"], "quantidade": 0}]'::jsonb)$fmt$,
     :VERDE),
   'Escolha quantos posts abrir');
 
@@ -74,28 +75,28 @@ select teste.recusa_com('Zero post nao abre mes nenhum', :ANA,
 -- de digitacao: sessenta e um posts criados em silencio sao sessenta e um para
 -- apagar a mao.
 select teste.recusa_com('Sessenta e um de uma vez nao passa', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '{"instagram": 61}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '[{"redes": ["instagram"], "quantidade": 61}]'::jsonb)$fmt$,
     :VERDE),
   'o limite é 60');
 
 select teste.recusa_com_dica('E a recusa diz o que fazer no lugar', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '{"instagram": 61}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '[{"redes": ["instagram"], "quantidade": 61}]'::jsonb)$fmt$,
     :VERDE),
   'abra em duas vezes');
 
 select teste.recusa_com('Quantidade negativa nao passa', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '{"instagram": -3}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, '2026-12', '[{"redes": ["instagram"], "quantidade": -3}]'::jsonb)$fmt$,
     :VERDE),
   'negativa');
 
 select teste.recusa_com('Mes fora do formato nao passa', :ANA,
-  format($fmt$select public.abrir_mes_de_social(%L, 'novembro', '{"instagram": 2}'::jsonb)$fmt$,
+  format($fmt$select public.abrir_mes_de_social(%L, 'novembro', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
     :VERDE),
   'AAAA-MM');
 
 select teste.recusa_com('Cliente que nao existe nao abre mes', :ANA,
   $fmt$select public.abrir_mes_de_social(
-    'aaaaaaaa-0000-0000-0000-00000000ffff', '2026-11', '{"instagram": 2}'::jsonb)$fmt$,
+    'aaaaaaaa-0000-0000-0000-00000000ffff', '2026-11', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb)$fmt$,
   'Cliente não encontrado');
 
 -- E NASCERAM TODOS OU NENHUM. Cinco continuam sendo cinco depois de seis
@@ -115,16 +116,16 @@ select teste.conferir('Nenhuma recusa deixou post pela metade',
 
 select teste.cenario('A gestao abre dois ja no nome do Bruno', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2026-12', '{"tiktok": 2}'::jsonb, %L,
+    %L, '2026-12', '[{"redes": ["tiktok"], "quantidade": 2}]'::jsonb, %L,
     p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-TESTE')$fmt$, :VERDE, :BRUNO), 'ok', 1);
 
 select teste.conferir('Os dois sairam com dono',
   (select count(*)::text from public.posts
-    where client_id = :VERDE and plataforma = 'tiktok' and responsavel_id = :BRUNO), '2');
+    where client_id = :VERDE and plataformas = '{tiktok}' and responsavel_id = :BRUNO), '2');
 
 select teste.conferir('E o Bruno enxerga os dois',
   (select count(*)::text from public.posts
-    where client_id = :VERDE and plataforma = 'tiktok'), '2');
+    where client_id = :VERDE and plataformas = '{tiktok}'), '2');
 
 
 -- --- 4. POST SEM DATA NAO VAI AO CLIENTE ----------------------------------
@@ -196,3 +197,127 @@ select teste.cenario('O cliente nao ve post sem data', :JOANA,
 select teste.cenario('E nao escolhe a data de nada', :JOANA,
   format($fmt$update public.posts set data_publicacao = '2026-11-30'
      where client_id = %L and tema like 'Instagram 2 de 3%%'$fmt$, :VERDE), 'recusa');
+
+
+-- ===========================================================================
+-- 6. DUAS REDES NA MESMA PECA (0082)
+--
+-- Decisao do usuario: *"permita juntar duas redes sociais, ja que tudo que
+-- postamos no Instagram postamos no Facebook"*.
+--
+-- O CENARIO QUE JUSTIFICA A MIGRATION INTEIRA e o primeiro: doze no Instagram
+-- junto com o Facebook sao DOZE posts, nao vinte e quatro. Lendo a frase dele
+-- como "abra os dois lados pareados", a conta dobra -- e com ela a decisao do
+-- cliente, a corrente de cinco etapas e a linha no board.
+-- ===========================================================================
+
+select teste.cenario('A gestao abre quatro no Instagram JUNTO com o Facebook', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-08', '[{"redes": ["instagram", "facebook"], "quantidade": 4}]'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-AGOSTO')$fmt$,
+    :VERDE), 'ok', 1);
+
+-- SAO QUATRO E NAO OITO. Se alguem ler a combinacao como "um post por rede",
+-- este cenario acha 8 e diz exatamente o que mudou.
+select teste.conferir('Nasceram QUATRO posts, e nao oito',
+  (select count(*)::text from public.posts
+    where client_id = :VERDE and tema like '%· Agosto/2027'), '4');
+
+select teste.conferir('E cada um carrega as DUAS redes',
+  (select count(*)::text from public.posts
+    where client_id = :VERDE and tema like '%· Agosto/2027'
+      and plataformas = '{instagram,facebook}'), '4');
+
+-- O NOME DA COMBINACAO sai por extenso e na ordem do enum, nao na ordem em
+-- que a pessoa marcou as caixas: duas chamadas iguais com as redes trocadas
+-- de lugar dariam dois temas diferentes para o mesmo mes.
+select teste.conferir('O tema nomeia as duas',
+  (select count(*)::text from public.posts
+    where client_id = :VERDE and tema = 'Instagram + Facebook 1 de 4 · Agosto/2027'), '1');
+
+-- E A DEMANDA DO MES TEM UMA ETAPA POR POST, nao por rede. E a conta da 0061
+-- vista daqui: o progresso do mes e quantos POSTS andaram.
+select teste.conferir('A demanda do mes ganhou quatro etapas',
+  (select count(*)::text from public.subtasks s
+     join public.tasks t on t.id = s.task_id
+    where t.client_id = :VERDE and t.social_do_mes = '2027-08-01'), '4');
+
+-- UMA LINHA DE CADA, NA MESMA CHAMADA: e assim que o dialogo e desenhado --
+-- doze em IG+FB e quatro no LinkedIn.
+select teste.cenario('Duas linhas na mesma chamada', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-09', '[{"redes": ["instagram", "facebook"], "quantidade": 3},
+                     {"redes": ["linkedin"], "quantidade": 2}]'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/PASTA-DE-SETEMBRO')$fmt$,
+    :VERDE), 'ok', 1);
+
+select teste.conferir('Cinco posts: tres combinados e dois do LinkedIn',
+  (select count(*)::text from public.posts
+    where client_id = :VERDE and tema like '%· Setembro/2027'), '5');
+
+select teste.conferir('E so dois carregam o LinkedIn',
+  (select count(*)::text from public.posts
+    where client_id = :VERDE and tema like '%· Setembro/2027'
+      and 'linkedin' = any(plataformas)), '2');
+
+
+-- --- O que a funcao recusa, e a forma que ela nao aceita mais --------------
+
+-- O OBJETO DA 0044 E RECUSADO COM FRASE PROPRIA, e nao com um erro sobre tipo
+-- de jsonb vindo de dentro de `jsonb_array_elements`. Quem cair aqui esta
+-- mandando a forma antiga, e a recusa precisa dizer qual e a nova.
+select teste.recusa_com_dica('A forma antiga, de objeto, e recusada', :ANA,
+  format($fmt$select public.abrir_mes_de_social(%L, '2027-04', '{"instagram": 2}'::jsonb)$fmt$,
+    :VERDE),
+  '"redes": ["instagram","facebook"]');
+
+select teste.recusa_com('Uma linha com quantidade e sem rede nao abre nada', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-04', '[{"redes": [], "quantidade": 3}]'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/X')$fmt$, :VERDE),
+  'Escolha ao menos uma rede');
+
+-- E A LINHA ZERADA NAO E RECUSADA POR FALTA DE REDE: ela e so uma linha que
+-- ninguem preencheu, e quem responde por ela e o "escolha quantos posts
+-- abrir". Sem essa distincao, o dialogo com uma linha em branco recusaria
+-- falando de rede quando o que falta e numero.
+select teste.recusa_com('A linha zerada cai no "escolha quantos", e nao na rede', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-04', '[{"redes": [], "quantidade": 0}]'::jsonb)$fmt$, :VERDE),
+  'Escolha quantos posts abrir');
+
+-- O TETO DE 60 CONTA POSTS, e nao posts vezes redes: trinta e cinco em duas
+-- redes sao trinta e cinco pecas. Se alguem multiplicar, este cenario recusa
+-- e diz que o teto passou a contar outra coisa.
+select teste.cenario('Trinta e cinco em duas redes passam do teto', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-05', '[{"redes": ["instagram", "facebook"], "quantidade": 35}]'::jsonb,
+    p_link_entrega => 'https://drive.google.com/drive/folders/Y')$fmt$, :VERDE),
+  'ok', 1);
+
+
+-- --- As duas travas da coluna, medidas direto -----------------------------
+--
+-- Os cenarios de cima passam pela funcao, que normaliza com `distinct` antes
+-- de gravar. Estes medem o `check` da TABELA, que e quem segura o PATCH
+-- montado a mao -- a diferenca de sempre entre "a tela nao faz" e "o banco
+-- nao aceita".
+
+select teste.recusa_com('Lista de redes vazia e recusada pelo banco', :ANA,
+  format($fmt$insert into public.posts (client_id, tema, plataformas)
+    values (%L, 'Post sem rede', '{}')$fmt$, :VERDE),
+  'posts_plataformas_nao_vazia');
+
+select teste.recusa_com('E a rede repetida tambem', :ANA,
+  format($fmt$insert into public.posts (client_id, tema, plataformas)
+    values (%L, 'Post repetido', '{instagram,instagram}')$fmt$, :VERDE),
+  'posts_plataformas_sem_repeticao');
+
+-- A COLUNA ANTIGA NAO VOLTA. Ela foi apagada e nao aposentada (0023), e uma
+-- `plataforma` singular ao lado da lista seria "a rede principal" -- dois
+-- lugares para o mesmo fato. Se alguem a recriar por conveniencia, este
+-- cenario cai.
+select teste.conferir('`posts.plataforma` nao existe mais',
+  (select count(*)::text from information_schema.columns
+    where table_schema = 'public' and table_name = 'posts'
+      and column_name = 'plataforma'), '0');

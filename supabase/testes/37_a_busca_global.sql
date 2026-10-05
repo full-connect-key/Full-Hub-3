@@ -273,9 +273,9 @@ insert into public.subtasks (id, task_id, titulo, ordem)
 values ('bb000000-0000-0000-0000-00000000b0d1', 'bb000000-0000-0000-0000-00000000b003',
         'Espelho de post: guarda-chuva', 10);
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma, criado_por, subtask_id)
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas, criado_por, subtask_id)
 values ('bb000000-0000-0000-0000-00000000b0e1', :VERDE,
-        'Espelho de post: guarda-chuva', current_date + 10, 'instagram', :DIEGO,
+        'Espelho de post: guarda-chuva', current_date + 10, '{instagram}', :DIEGO,
         'bb000000-0000-0000-0000-00000000b0d1');
 
 select teste.conferir_como(

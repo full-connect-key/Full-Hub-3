@@ -23,32 +23,32 @@
 -- e sem `dono_do_post()` a trava passaria a proteger a pessoa errada.
 -- ===========================================================================
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           formato, midia, criado_por, responsavel_id)
-values (:BRIEFING, :VERDE, 'Briefing sem dono', '2026-11-10', 'instagram',
+values (:BRIEFING, :VERDE, 'Briefing sem dono', '2026-11-10', '{instagram}',
         'Feed', 'imagem', :ANA, null),
-       (:CARROSSEL, :VERDE, 'Carrossel de dicas', '2026-11-12', 'instagram',
+       (:CARROSSEL, :VERDE, 'Carrossel de dicas', '2026-11-12', '{instagram}',
         'Feed', 'carrossel', :ANA, :BRUNO),
-       (:VIDEO, :VERDE, 'Reels da receita', '2026-11-15', 'instagram',
+       (:VIDEO, :VERDE, 'Reels da receita', '2026-11-15', '{instagram}',
         'Reels', 'video', :ANA, :BRUNO);
 
 
 -- --- 1. Quem abre o post ---------------------------------------------------
 
 select teste.cenario('O socio abre um post', :ANA,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Aberto pela socia', '2026-11-20', 'instagram')$fmt$, :VERDE), 'ok', 1);
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Aberto pela socia', '2026-11-20', '{instagram}')$fmt$, :VERDE), 'ok', 1);
 
 select teste.cenario('O desenvolvedor abre um post', :DIEGO,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Aberto pelo dev', '2026-11-21', 'instagram')$fmt$, :VERDE), 'ok', 1);
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Aberto pelo dev', '2026-11-21', '{instagram}')$fmt$, :VERDE), 'ok', 1);
 
 -- ERA `is_staff()` ATE A 0042, e a mudanca e decisao do usuario: "criada por
 -- um desenvolvedor ou socio". Um colaborador abrindo post proprio furava a
 -- corrente logo no primeiro elo.
 select teste.cenario('O colaborador NAO abre post', :BRUNO,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Aberto pelo Bruno', '2026-11-22', 'instagram')$fmt$, :VERDE), 'recusa');
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Aberto pelo Bruno', '2026-11-22', '{instagram}')$fmt$, :VERDE), 'recusa');
 
 -- E O DO ATENDIMENTO ABRE, desde a 0046 -- cenario VIRADO DO AVESSO, como o
 -- da data. Ate aqui `posts_insert` era `is_gestor()`, e a Carla levava recusa
@@ -58,8 +58,8 @@ select teste.cenario('O colaborador NAO abre post', :BRUNO,
 -- coisas diferentes. Se alguem devolver a policy para `is_gestor()`, este
 -- cenario falha e diz que a decisao foi desfeita.
 select teste.cenario('E o do Atendimento ABRE -- decisao da 0046', :CARLA,
-  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataforma)
-    values (%L, 'Aberto pela Carla', '2026-11-23', 'instagram')$fmt$, :VERDE), 'ok', 1);
+  format($fmt$insert into public.posts (client_id, tema, data_publicacao, plataformas)
+    values (%L, 'Aberto pela Carla', '2026-11-23', '{instagram}')$fmt$, :VERDE), 'ok', 1);
 
 
 -- --- 2. Quem edita ---------------------------------------------------------
@@ -318,9 +318,9 @@ select teste.cenario('E nao se poe como responsavel de nada', :JOANA,
 
 \set SOZINHO '''50580000-0000-0000-0000-000000000009'''
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:SOZINHO, :VERDE, 'Arte que saiu errada', '2026-12-20', 'instagram',
+values (:SOZINHO, :VERDE, 'Arte que saiu errada', '2026-12-20', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 select teste.cenario('Sobe a arte', :BRUNO,
@@ -376,9 +376,9 @@ select teste.conferir('E a arte continua de pe',
 
 \set CINCO '''50580000-0000-0000-0000-00000000000a'''
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:CINCO, :VERDE, 'Carrossel com slide errado', '2026-12-22', 'instagram',
+values (:CINCO, :VERDE, 'Carrossel com slide errado', '2026-12-22', '{instagram}',
         'carrossel', :ANA, :BRUNO);
 
 insert into public.post_versions (post_id, arquivos, notas_mudanca, criado_por)

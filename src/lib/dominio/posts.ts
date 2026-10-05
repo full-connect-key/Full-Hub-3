@@ -70,7 +70,12 @@ export type PostDoPortal = {
   legenda: string | null;
   dataPublicacao: string;
   horario: string | null;
-  plataforma: PlataformaSocial;
+  /**
+   * AS REDES em que esta peça sai (0082). Lista e não valor único: a mesma
+   * arte costuma ir ao Instagram e ao Facebook, e são um post só — uma
+   * decisão do cliente, uma corrente de cinco etapas, uma linha no board.
+   */
+  plataformas: PlataformaSocial[];
   formato: string | null;
   /**
    * O QUE A TELA DESENHA — imagem, carrossel ou vídeo (0042).
@@ -152,7 +157,9 @@ export function combinaComFiltroDePost(
   post: PostDoPortal,
   filtros: FiltrosDePost,
 ): boolean {
-  if (filtros.plataforma && post.plataforma !== filtros.plataforma)
+  // `includes` E NAO IGUALDADE: filtrar por Facebook tem que trazer a peça
+  // que sai no Instagram E no Facebook — ela sai no Facebook.
+  if (filtros.plataforma && !post.plataformas.includes(filtros.plataforma))
     return false;
   if (filtros.fase && faseDoMaterial(post.status) !== filtros.fase)
     return false;

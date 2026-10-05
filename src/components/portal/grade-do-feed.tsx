@@ -6,7 +6,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Images, ImageOff, Play } from "lucide-react";
 
-import { SeloDaRede } from "@/components/portal/selo-da-rede";
+import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import { ROTULO_DA_PLATAFORMA, type PostDoPortal } from "@/lib/dominio/posts";
 import {
   corDoPontoDeStatus,
@@ -61,7 +61,7 @@ export function GradeDoFeed({
   artes: Record<string, string>;
   base: string;
   /** As redes presentes no mês, para a linha de aviso. */
-  redes: PostDoPortal["plataforma"][];
+  redes: PostDoPortal["plataformas"];
 }) {
   // DO MAIS NOVO PARA O MAIS ANTIGO. `slice()` antes de ordenar porque o array
   // vem de cima e ordenar no lugar mudaria a ordem das outras visões.
@@ -157,14 +157,14 @@ export function GradeDoFeed({
 
                 <span className="sr-only">
                   {post.tema} — {quando}, {estado},{" "}
-                  {ROTULO_DA_PLATAFORMA[post.plataforma]}
+                  {post.plataformas.map((p) => ROTULO_DA_PLATAFORMA[p]).join(", ")}
                 </span>
 
                 {/* A REDE só aparece quando há mais de uma na grade: com uma
                     só, o selo repetiria a mesma sigla em doze quadradinhos. */}
                 {redes.length > 1 ? (
-                  <SeloDaRede
-                    plataforma={post.plataforma}
+                  <SelosDasRedes
+                    plataformas={post.plataformas}
                     className="absolute top-1.5 left-1.5"
                   />
                 ) : null}

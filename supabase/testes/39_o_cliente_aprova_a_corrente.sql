@@ -34,9 +34,9 @@
 -- estava, com um portao so. O contrario -- todo post nascendo com cinco
 -- portoes -- poria o cliente decidindo cinco vezes sobre uma peca.
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:SEMPORTAO, :VERDE, 'Conta sem portao do meio', '2027-03-10', 'instagram',
+values (:SEMPORTAO, :VERDE, 'Conta sem portao do meio', '2027-03-10', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 select teste.conferir('Sem lista na conta, nenhuma etapa vira portao',
@@ -55,9 +55,9 @@ insert into public.client_flow_defaults (client_id, social_aprovacoes)
 values (:VERDE, array['Pauta'])
 on conflict (client_id) do update set social_aprovacoes = array['Pauta'];
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:COMPAUTA, :VERDE, 'Conta que aprova a pauta', null, 'instagram',
+values (:COMPAUTA, :VERDE, 'Conta que aprova a pauta', null, '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 update public.post_etapas set responsavel_id = :MARINA
@@ -92,9 +92,9 @@ update public.client_flow_defaults
 
 \set TUDO '''50760000-0000-0000-0000-000000000004'''
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:TUDO, :VERDE, 'Lista com tudo dentro', '2027-03-12', 'instagram',
+values (:TUDO, :VERDE, 'Lista com tudo dentro', '2027-03-12', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 select teste.conferir('Envio, Programar e nome inventado nao viram portao',
@@ -229,9 +229,9 @@ select teste.conferir('A porta do cliente passou a ser o Envio',
 -- pauta reescreve a pauta. Ler "Layout" aqui poria o designer para reescrever
 -- texto.
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:AJUSTE, :VERDE, 'Pauta que volta', '2027-03-20', 'instagram',
+values (:AJUSTE, :VERDE, 'Pauta que volta', '2027-03-20', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 update public.post_etapas set responsavel_id = :MARINA
@@ -338,9 +338,9 @@ select teste.conferir('E e do Bruno, que fez o Layout',
 update public.client_flow_defaults set social_aprovacoes = '{}'
  where client_id = :VERDE;
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
-values (:NORMAL, :VERDE, 'Caminho de sempre', '2027-03-25', 'instagram',
+values (:NORMAL, :VERDE, 'Caminho de sempre', '2027-03-25', '{instagram}',
         'imagem', :ANA, :BRUNO);
 
 update public.post_etapas set status = 'concluida'
@@ -395,10 +395,10 @@ select teste.conferir('Com o Envio concluido',
 update public.client_flow_defaults
    set social_aprovacoes = array['Pauta'] where client_id = :VERDE;
 
-insert into public.posts (id, client_id, tema, pauta, data_publicacao, plataforma,
+insert into public.posts (id, client_id, tema, pauta, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
 values (:LEITURA, :VERDE, 'Dia do Cliente', 'Carrossel de cinco telas, tom de conversa.',
-        null, 'instagram', 'carrossel', :ANA, :BRUNO);
+        null, '{instagram}', 'carrossel', :ANA, :BRUNO);
 
 update public.post_etapas set responsavel_id = :MARINA
  where post_id = :LEITURA and nome = 'Pauta';
