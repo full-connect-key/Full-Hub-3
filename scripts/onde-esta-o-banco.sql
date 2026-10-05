@@ -264,7 +264,11 @@ from (
     -- trigger a etapa acrescentada na demanda nao vira peca, que e o estado
     -- em que a campanha perde item em silencio.
     ('0080', 'subtasks_espelha_no_entregavel', 'trigger',
-             'subtasks_espelha_no_entregavel')
+             'subtasks_espelha_no_entregavel'),
+    -- A 0081 reescreve `carga_do_dia()` e cria `disponibilidade()`. A linha
+    -- aponta para a NOVA: `carga_do_dia` existe desde a 0035 e responderia ok
+    -- num banco parado la, com a conta antiga.
+    ('0081', 'disponibilidade()', 'funcao', 'disponibilidade')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
