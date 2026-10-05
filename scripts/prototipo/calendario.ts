@@ -90,20 +90,6 @@ const ITENS: ItemDoCalendario[] = [
     status: "convencao",
     link: "/painel/calendario?evento=ev-convencao",
   },
-  {
-    id: "task-1",
-    tipo: "task",
-    titulo: "Campanha de verão",
-    dataInicio: dia(-3),
-    dataFim: dia(6),
-    clientId: OPTICA,
-    cliente: "Óptica Visão",
-    userId: null,
-    pessoa: null,
-    prioridade: "alta",
-    status: "em_andamento",
-    link: "/painel/gestao-tasks/task-1",
-  },
   // A AUSENCIA EM CIMA DAS ETAPAS DO BRUNO: o caso que o calendario existe
   // para mostrar.
   {
@@ -120,37 +106,70 @@ const ITENS: ItemDoCalendario[] = [
     status: "aprovada",
     link: "/painel/full-days",
   },
-];
-
-// ETAPAS ESPALHADAS, com o Bruno carregado e o Rafael estourado: sem uma
-// pessoa em cada extremo, a barra de carga sairia toda da mesma cor e a
-// legenda nao significaria nada.
-const ETAPAS: [string, string, number, typeof BRUNO][] = [
-  ["Conceito do KV", "Mundo Verde", 1, BRUNO],
-  ["Adaptação do feed", "Mundo Verde", 2, BRUNO],
-  ["Roteiro do reels", "Óptica Visão", 2, MARINA],
-  ["Subida de mídia", "Óptica Visão", 3, RAFAEL],
-  ["Relatório do mês", "Mundo Verde", 3, RAFAEL],
-  ["Briefing da promoção", "Óptica Visão", 5, CARLA],
-  ["Revisão do tabloide", "Mundo Verde", 6, MARINA],
-];
-
-for (const [titulo, cliente, delta, pessoa] of ETAPAS) {
-  ITENS.push({
-    id: `sub-${titulo}`,
-    tipo: "subtarefa",
-    titulo,
-    dataInicio: dia(delta),
-    dataFim: dia(delta),
-    clientId: cliente === "Mundo Verde" ? VERDE : OPTICA,
-    cliente,
-    userId: pessoa.id,
-    pessoa,
-    prioridade: delta < 3 ? "alta" : "normal",
+  // A PECA DA CAMPANHA E A ETAPA DO POST: as duas camadas que o stub nao
+  // cobria. Depois da 0077 a `calendar_events` tem SEIS origens, e uma imagem
+  // que mostra quatro delas nao prova a legenda -- e e ela que o protótipo
+  // existe para conferir.
+  {
+    id: "ent-lamina",
+    tipo: "entregavel",
+    titulo: "Lâmina A5",
+    dataInicio: dia(4),
+    dataFim: dia(4),
+    clientId: OPTICA,
+    cliente: "Óptica Visão",
+    userId: CARLA.id,
+    pessoa: CARLA,
+    prioridade: null,
+    status: "em_producao",
+    link: "/painel/aprovacoes/campanhas/camp-wave?item=ent-lamina",
+  },
+  {
+    id: "etapa-post-layout",
+    tipo: "etapa_de_post",
+    titulo: "Layout · dica do dia",
+    dataInicio: dia(2),
+    dataFim: dia(2),
+    clientId: VERDE,
+    cliente: "Mundo Verde",
+    userId: BRUNO.id,
+    pessoa: BRUNO,
+    prioridade: null,
     status: "em_andamento",
-    link: "/painel/gestao-tasks/task-1",
-  });
-}
+    link: "/painel/social-media?post=post-0",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// AS ETAPAS NAO SAO MAIS ITEM DO CALENDARIO, E CONTINUAM SENDO CARGA.
+//
+// A 0077 tirou a demanda e a etapa da `calendar_events` -- elas vivem em
+// Minhas Tasks. O que NAO saiu e o peso delas: a cor da celula da Linha do
+// Tempo e OCUPACAO, e ela vem de `carga_da_equipe()` chamando `carga_do_dia()`
+// (0035), que leem `subtasks` direto e nao a view.
+//
+// Por isso esta lista deixou de ser empurrada para `ITENS` e passou a
+// alimentar so a carga -- que e exatamente a separacao do produto. Deixa-la
+// nos itens faria a imagem do prototipo mostrar uma camada que a tela nao tem,
+// e e esse tipo de dado de exemplo que mostra o produto como ele nao e.
+//
+// Com o Bruno carregado e o Rafael estourado: sem uma pessoa em cada extremo,
+// a barra de carga sairia toda da mesma cor e a legenda nao significaria nada.
+// ---------------------------------------------------------------------------
+const ETAPAS: [number, typeof BRUNO][] = [
+  [1, BRUNO],
+  [2, BRUNO],
+  [2, MARINA],
+  [3, RAFAEL],
+  [3, RAFAEL],
+  [5, CARLA],
+  [6, MARINA],
+];
+
+const ETAPAS_POR_DIA = ETAPAS.map(([delta, pessoa]) => ({
+  dia: dia(delta),
+  userId: pessoa.id,
+}));
 
 const POSTS = [1, 1, 2, 5, 5, 8];
 POSTS.forEach((delta, i) => {
@@ -220,9 +239,7 @@ export async function cargaDaEquipe(inicio: string, fim: string): Promise<CargaD
     const diaDaSemana = cursor.getUTCDay();
     if (diaDaSemana !== 0 && diaDaSemana !== 6) {
       for (const pessoa of PESSOAS) {
-        const dela = ITENS.filter(
-          (i) => i.tipo === "subtarefa" && i.userId === pessoa.id && i.dataInicio === iso,
-        );
+        const dela = ETAPAS_POR_DIA.filter((e) => e.userId === pessoa.id && e.dia === iso);
         carga.push({
           userId: pessoa.id,
           dia: iso,

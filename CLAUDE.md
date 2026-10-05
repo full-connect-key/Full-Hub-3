@@ -507,31 +507,70 @@ e campanha) e o do Full Days (quem está fora). Nenhum dos dois respondia a
 pergunta que a agência faz toda segunda: **"o que acontece nesta semana, e
 quem está disponível para fazer?"**
 
-**Tudo sai de UMA view, `calendar_events`**, que junta OITO origens num
-formato só: demanda, etapa, ausência, evento, post, **etapa de post**,
-campanha e entregável. A oitava entrou na 0059, e entrou exatamente como este
-parágrafo dizia que entraria: um `union all` a mais. Nenhuma tabela de evento
-agregado: uma tabela que copia prazo de etapa, data de post e período de
-campanha precisa ser reescrita por sete caminhos para continuar verdadeira, e
-no dia em que um deles falhar o calendário mente sem avisar. É a mesma razão
-pela qual bloqueio de subtarefa não é status e atraso do Financeiro não é
-coluna.
+**Tudo sai de UMA view, `calendar_events`**, que junta SEIS origens num
+formato só: ausência, evento, post, **etapa de post**, campanha e entregável.
+Nenhuma tabela de evento agregado: uma tabela que copia data de post e período
+de campanha precisa ser reescrita por vários caminhos para continuar
+verdadeira, e no dia em que um deles falhar o calendário mente sem avisar. É a
+mesma razão pela qual bloqueio de subtarefa não é status e atraso do Financeiro
+não é coluna.
+
+**Eram OITO, e a demanda e a etapa saíram na 0077** — decisão do usuário:
+*"quero que elas fiquem apenas dentro do Minhas Tasks"*. A oitava origem
+(etapa de post) entrou na 0059 exatamente como este parágrafo dizia que
+entraria, com um `union all` a mais; as duas primeiras saíram do mesmo jeito,
+tirando dois.
+
+**Saíram da VIEW, e não só da lista de camadas**, e a diferença é o que
+impede que voltem: uma camada é um interruptor, e tirar o interruptor
+deixando a origem produzindo esconde as linhas desta tela e as entrega de
+graça ao próximo consumidor da view — a exportação, um relatório, uma tela
+nova. É a decisão da 0023, que apagou `tasks.exigencia_aprovacao` em vez de
+deixá-la parada.
+
+**O que a Linha do Tempo NÃO perde é a carga**, e é o que faz a remoção
+caber. A cor de cada célula é ocupação, e ela sai de `carga_da_equipe()`
+chamando `carga_do_dia()` (0035) — nenhuma das duas lê a view: elas leem
+`subtasks` direto. Sai a BARRA da etapa e fica o PESO dela, que é o que
+responde "a equipe aguenta?".
+
+**E o arrasto saiu junto.** Ele valia para uma camada só — a etapa, porque o
+prazo dela é escrito por quem a faz; nos outros ele prometia uma mudança que o
+banco desfaz ou recusa. Sem aquela camada não sobra nada nesta grade que se
+mova arrastando, e um alvo de solta que recusa tudo é um gesto que não faz
+nada. Quem arrasta agora é o board de etapas de Minhas Tasks.
+
+**A coluna `prioridade` continua na view, e nenhuma origem a escreve.**
+`create or replace view` não deixa TIRAR coluna — só acrescentar no fim —, e
+um `drop`/`create` derrubaria junto os grants de um objeto que o PostgREST
+publica. É `cancelada` no enum de status visto de outro ângulo: o valor fica,
+e nenhum caminho o produz.
 
 **`security_invoker = true` é a linha mais importante da migration.** Uma
 view comum no Postgres roda com os direitos de QUEM A CRIOU — o superusuário
-da migration —, e sem essa cláusula a `calendar_events` lê as sete tabelas
-inteiras para qualquer pessoa autenticada, furando a RLS de todas de uma vez
+da migration —, e sem essa cláusula a `calendar_events` lê as tabelas de
+origem inteiras para qualquer pessoa autenticada, furando a RLS de todas de uma vez
 num objeto que o PostgREST publica sozinho. **E o furo passa despercebido num
 banco com um cliente só:** ele vê seis campanhas, que é o total, e "seis de
 seis" tem a mesma cara com a RLS ligada e desligada. Por isso a bateria cria
 material de DUAS empresas — tirando a cláusula, seis cenários falham e dizem
 o que vazaria.
 
-**O rascunho é filtrado nos dois lugares**, como manda a regra: a RLS
-restritiva esconde o dos outros, e `publicada_em is not null` na view esconde
-o meu. E **`rascunho` e `cancelada` não existem como status** — o sprint
-filtrava por eles, e `rascunho` nem é valor do enum: o Postgres recusaria a
-criação da view, com um erro falando de enum e não de rascunho.
+**O filtro de rascunho saiu com as duas origens que o usavam**, e o registro
+fica porque a regra continua valendo em toda parte: a RLS restritiva esconde o
+rascunho dos outros e a consulta esconde o meu. Na view ele era
+`publicada_em is not null`, e com a demanda e a etapa fora não há mais o que
+filtrar. E **`rascunho` e `cancelada` não existem como status** — o sprint da
+0055 filtrava por eles, e `rascunho` nem é valor do enum: o Postgres recusaria
+a criação da view, com um erro falando de enum e não de rascunho.
+
+**Os cenários que mediam os dois filtros ficaram, virados do avesso.** A
+bateria da 0055 provava que o rascunho não vazava e que só a folha entrava; as
+fixtures continuam todas de pé — demanda publicada, rascunho, mãe e filha com
+prazo — e hoje o que se confere é que nenhuma atravessa a view, nem para o
+sócio. Devolvendo um dos dois `union all`, um deles falha e diz qual. **E um
+deles mede o TEXTO da view** e não a contagem: num banco sem demanda nenhuma,
+todos os outros passariam com as origens de pé.
 
 #### As quatro visões, e o que cada uma responde
 
@@ -607,13 +646,6 @@ que é a pior forma de um link mentir.
 **"Só minha pauta" inclui o que é da agência.** Ele responde "o que eu
 preciso saber hoje", e a convenção da semana que vem é parte disso mesmo não
 tendo o meu nome.
-
-**Arrastar uma etapa muda o prazo dela, com desfazer.** Só a etapa arrasta: o
-período da demanda é derivado e se recalcula sozinho, a campanha tem período
-combinado, e a ausência é decisão do sócio — oferecer o arrasto neles
-prometeria uma mudança que o banco desfaz ou recusa. **É arrasto nativo e não
-dnd-kit, com o custo dito:** ele não responde a toque, e no celular a data se
-muda abrindo a etapa.
 
 **As camadas são links, e não caixas com estado no `localStorage`.** Com as
 duas fontes, a tela abriria com a camada que o link diz e trocaria sozinha um
@@ -2082,7 +2114,8 @@ Atendimento lia "seu perfil não permite esta ação" numa ação que o produto 
 que é dela. É a lição da 0029 virada — quando a regra mora nos dois lados,
 mudar um não muda nada, e aqui o lado que ficou para trás era o de cima.
 
-**A oitava origem da `calendar_events`** é `etapa_de_post`, e ela é camada
+**A oitava origem da `calendar_events`** era `etapa_de_post` — hoje é a sexta,
+depois de a 0077 tirar a demanda e a etapa —, e ela é camada
 própria: `post` é o dia em que a peça vai ao ar, `etapa_de_post` é o dia em que
 o trabalho de alguém precisa estar pronto, e as duas datas raramente são a
 mesma. O `client_id` vem do **post** — a etapa não tem cliente, e sem o join o
@@ -2090,9 +2123,10 @@ filtro por cliente deixaria estas linhas passar sempre, o que parece "sem
 filtro" e é pauta de uma conta aparecendo na tela de quem filtrou por outra.
 
 **`create or replace view` NÃO herda `security_invoker`**, e a cláusula foi
-repetida na 0059 por isso. Sem ela a view voltaria a rodar com os direitos de
-quem a criou e leria as oito tabelas inteiras para qualquer pessoa autenticada
-— e o furo passa despercebido num banco com um cliente só. A bateria mede.
+repetida na 0059 por isso — e na 0077 de novo, que é a terceira. Sem ela a view
+voltaria a rodar com os direitos de quem a criou e leria as tabelas de origem
+inteiras para qualquer pessoa autenticada — e o furo passa despercebido num
+banco com um cliente só. A bateria mede.
 
 #### O card: quem pega a etapa é quem preenche
 

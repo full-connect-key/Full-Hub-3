@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirAtendimentoNaAcao, exigirEquipeNaAcao } from "@/lib/acoes/guardas";
+import { exigirAtendimentoNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
@@ -165,52 +165,5 @@ export async function excluirEvento(id: string): Promise<Resultado> {
 
     revalidatePath(ROTA);
     return sucesso("Evento removido.");
-  });
-}
-
-/**
- * Arrastar uma etapa no calendário muda o PRAZO dela.
- *
- * ---------------------------------------------------------------------------
- * AÇÃO PRÓPRIA, E NÃO `atualizarSubtarefa`
- *
- * Aquela pede o `task_id` para revalidar a tela da demanda, e o item do
- * calendário não o carrega — ele vem da view, que devolve o link e mais nada.
- * Tirar o id de dentro do link com uma expressão regular funcionaria até
- * alguém mudar a rota, e aí a gravação passaria a falhar num lugar que
- * ninguém liga à mudança de rota.
- *
- * **Quem decide se pode é a RLS de `subtasks`**, como sempre: a escrita
- * termina em `.select()`, e sem linha de volta é recusa. A tela não repete a
- * pergunta — ela só não oferece o arrasto para quem o banco vai recusar, que
- * é cortesia e não trava.
- *
- * **Arrastar não mexe na Task.** O período dela é derivado das etapas desde a
- * 0028 e se recalcula sozinho: escrever nele aqui seria o segundo lugar
- * gravando o que o trigger já grava.
- * ---------------------------------------------------------------------------
- */
-export async function moverPrazoDaEtapa(id: string, prazo: string): Promise<Resultado> {
-  return executarAcao("moverPrazoDaEtapa", async () => {
-    await exigirEquipeNaAcao();
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) return falha("Data inválida.");
-
-    const supabase = await criarClienteServidor();
-
-    const { data, error } = await supabase
-      .from("subtasks")
-      .update({ prazo })
-      .eq("id", id)
-      .select("id")
-      .maybeSingle();
-
-    if (error) return falha(`Não foi possível mover: ${error.message}`);
-    if (!data) {
-      return falha("O banco recusou. Mover o prazo é de quem faz a etapa, do Atendimento ou da gestão.");
-    }
-
-    revalidatePath(ROTA);
-    return sucesso("Prazo movido.");
   });
 }

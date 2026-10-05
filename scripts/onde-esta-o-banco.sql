@@ -100,6 +100,16 @@ from (
          where n.nspname = 'public'
            and p.proname = split_part(v.nome, '|', 1)
            and p.prosrc like '%' || split_part(v.nome, '|', 2) || '%')
+      -- TRECHO QUE SAIU DO CORPO DE UMA VIEW. A 0077 nao cria objeto nenhum --
+      -- ela REESCREVE a `calendar_events` com duas origens a menos. Perguntar
+      -- "a view existe?" responderia ok desde a 0055; o que distingue os dois
+      -- estados e o texto dela nao citar mais a tabela que saiu.
+      -- `view|trecho`.
+      when 'sem_na_view' then not exists (
+        select 1 from pg_views w
+         where w.schemaname = 'public'
+           and w.viewname = split_part(v.nome, '|', 1)
+           and w.definition like '%' || split_part(v.nome, '|', 2) || '%')
     end as ok
   from (values
     -- SEM LINHA: 0026 - ela nao deixa rastro. A 0026 reescreveu
@@ -233,7 +243,13 @@ from (
     -- `posts_corrente_do_cliente` passou a chamar: sem ela a decisao do
     -- cliente estoura com "function does not exist", que e o sintoma que se
     -- vai investigar.
-    ('0076', 'porta_do_cliente_no_post()', 'funcao',       'porta_do_cliente_no_post')
+    ('0076', 'porta_do_cliente_no_post()', 'funcao',       'porta_do_cliente_no_post'),
+    -- A 0077 nao cria nada: ela tira DUAS origens da `calendar_events`. A
+    -- linha procura `subtasks` no texto da view -- a tabela que so a origem da
+    -- etapa lia, e que depois da 0077 nao aparece em nenhuma das seis. Apontar
+    -- para a view seria responder ok desde a 0055.
+    ('0077', 'demanda e etapa fora do calendario', 'sem_na_view',
+             'calendar_events|subtasks')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

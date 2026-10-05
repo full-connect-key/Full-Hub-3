@@ -9,13 +9,13 @@
 \set OPTICA  '''aaaaaaaa-0000-0000-0000-000000000002'''
 
 -- ===========================================================================
--- 0055 -- O CALENDARIO FULL: A VIEW QUE PODIA VAZAR TUDO, E OS EVENTOS
+-- 0055/0077 -- O CALENDARIO FULL: A VIEW QUE PODIA VAZAR TUDO, E OS EVENTOS
 --
 -- O que estes cenarios guardam, e que nenhuma tela mostraria:
 --
 --   1. `security_invoker = true` NA VIEW. Sem essa clausula a view roda com
 --      os direitos de quem a criou -- o superusuario da migration -- e passa
---      a ler as sete tabelas de origem INTEIRAS, para qualquer pessoa
+--      a ler as tabelas de origem INTEIRAS, para qualquer pessoa
 --      autenticada. O cliente de uma empresa veria a agenda da agencia com o
 --      nome das demandas de todos os outros clientes.
 --
@@ -25,14 +25,15 @@
 --      OPTICA e conferem que a JOANA, que e do Mundo Verde, nao o alcanca. E
 --      esse o cenario que falha se alguem tirar o `security_invoker`.
 --
---   2. O RASCUNHO NAO VAZA NEM PARA QUEM O CRIOU. A RLS restritiva ja esconde
---      o dos outros; o filtro `publicada_em is not null` da view esconde o
---      meu. Sem ele, o calendario da agencia mostraria para mim uma demanda
---      que ninguem mais enxerga -- e eu a trataria como combinada.
+--   2. A DEMANDA E A ETAPA NAO ESTAO MAIS NA VIEW (0077), por decisao do
+--      usuario: elas vivem em Minhas Tasks. As fixtures das duas continuam
+--      aqui -- demanda publicada, rascunho, mae e filha com prazo --, e os
+--      cenarios que mediam os filtros delas foram VIRADOS DO AVESSO: hoje
+--      conferem que nenhuma atravessa a view, nem para o socio. Devolvendo um
+--      dos dois `union all`, um deles falha e diz qual.
 --
---   3. SO AS FOLHAS. A agrupadora guarda o prazo de quando ainda era folha, e
---      sem o `not exists` a mesma entrega apareceria duas vezes no mes, uma
---      delas numa data que ninguem mais usa.
+--      **E um deles mede o TEXTO da view**, e nao a contagem: um banco sem
+--      demanda nenhuma passaria por todos os outros com as origens de pe.
 --
 --   4. QUEM ABRE EVENTO e `is_atendimento()`, a mesma pergunta de
 --      `tasks_insert`. Bruno e Design: ele le o calendario e nao escreve nele.
@@ -123,20 +124,6 @@ select teste.conferir_como(
 );
 
 select teste.conferir_como(
-  'Cliente nao ve demanda nenhuma, nem da propria empresa',
-  :JOANA,
-  $$select count(*)::text from public.calendar_events where tipo = 'task'$$,
-  '0'
-);
-
-select teste.conferir_como(
-  'Cliente nao ve etapa da equipe',
-  :JOANA,
-  $$select count(*)::text from public.calendar_events where tipo = 'subtarefa'$$,
-  '0'
-);
-
-select teste.conferir_como(
   'Cliente nao ve quem da agencia esta fora',
   :JOANA,
   $$select count(*)::text from public.calendar_events where tipo = 'ausencia'$$,
@@ -169,40 +156,71 @@ select teste.conferir_como(
 
 
 -- ---------------------------------------------------------------------------
--- 2. O RASCUNHO NAO VAZA, NEM PARA QUEM O CRIOU
+-- 2. A DEMANDA E A ETAPA NAO ESTAO NA VIEW (0077)
+--
+-- Decisao do usuario: *"quero que elas fiquem apenas dentro do Minhas Tasks"*.
+-- As duas origens sairam da `calendar_events`, e nao so da lista de camadas da
+-- tela -- tirar o interruptor e deixar a origem produzindo esconderia as
+-- linhas daquela tela e as entregaria de graca ao proximo consumidor da view.
+--
+-- SAO OS CENARIOS DA 0055 VIRADOS DO AVESSO. Ate aqui esta parte media os
+-- filtros das duas origens: "o rascunho nao vaza nem para quem o criou" e "so
+-- as folhas". As fixtures continuam todas de pe -- duas demandas publicadas,
+-- um rascunho, a mae e a filha com prazo, e a etapa do rascunho --, e o que se
+-- confere e que NENHUMA delas atravessa a view. Devolvendo qualquer um dos
+-- dois `union all`, um destes falha e diz qual.
+--
+-- E a pergunta e feita para a ANA, que e SOCIA: medir isto pelo cliente nao
+-- mediria nada, porque a RLS ja o barrava antes. O que mudou foi para quem ve
+-- tudo.
 -- ---------------------------------------------------------------------------
 select teste.conferir_como(
-  'Rascunho nao entra no calendario nem para quem o criou',
+  'A camada de demanda nao existe mais, nem para o socio',
   :ANA,
-  $$select count(*)::text from public.calendar_events
-     where titulo = 'Ideia solta que ainda nao existe'$$,
+  $$select count(*)::text from public.calendar_events where tipo = 'task'$$,
   '0'
 );
 
 select teste.conferir_como(
-  'Etapa de rascunho tambem nao entra',
+  'A camada de etapa nao existe mais, nem para o socio',
   :ANA,
-  $$select count(*)::text from public.calendar_events
-     where titulo = 'Etapa de um rascunho'$$,
+  $$select count(*)::text from public.calendar_events where tipo = 'subtarefa'$$,
   '0'
 );
 
-
--- ---------------------------------------------------------------------------
--- 3. SO AS FOLHAS
--- ---------------------------------------------------------------------------
+-- PELO TITULO, e nao so pelo `tipo`: uma origem devolvida com outro rotulo
+-- passaria pelos dois cenarios de cima.
 select teste.conferir_como(
-  'A etapa FILHA entra no calendario',
+  'A demanda publicada nao aparece pelo titulo',
+  :ANA,
+  $$select count(*)::text from public.calendar_events where titulo = 'Wave do Mundo Verde'$$,
+  '0'
+);
+
+select teste.conferir_como(
+  'A etapa folha, que ENTRAVA, tambem nao aparece mais',
   :ANA,
   $$select count(*)::text from public.calendar_events where titulo = 'KV'$$,
-  '1'
+  '0'
 );
 
+-- A VIEW NAO LE MAIS `subtasks` NEM `tasks`, e este cenario mede o TEXTO dela.
+-- E a mesma forma do `sem_na_view` do `onde-esta-o-banco.sql`: os quatro
+-- cenarios de cima contam linhas, e um banco sem nenhuma demanda passaria por
+-- todos eles com as origens de pe.
+select teste.conferir(
+  'A definicao da view nao cita mais subtasks',
+  (select (pg_get_viewdef('public.calendar_events'::regclass) like '%subtasks%')::text),
+  'false'
+);
+
+-- E O QUE CONTINUA ENTRANDO, porque um arquivo que so confere zeros passaria
+-- com a view devolvendo lista vazia para todo mundo -- inclusive quebrada.
 select teste.conferir_como(
-  'A AGRUPADORA nao entra, mesmo tendo prazo',
+  'A campanha continua entrando',
   :ANA,
-  $$select count(*)::text from public.calendar_events where titulo = 'Arte'$$,
-  '0'
+  $$select count(*)::text from public.calendar_events where tipo = 'campanha'$$,
+  '2'
 );
 
 

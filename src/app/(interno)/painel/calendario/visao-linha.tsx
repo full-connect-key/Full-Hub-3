@@ -8,7 +8,6 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   COR_DA_CAMADA,
   COR_DO_NIVEL,
-  corDaEtapa,
   ROTULOS_DE_CAMADA,
   ROTULOS_DE_NIVEL,
   diaNaGrade,
@@ -262,12 +261,7 @@ export function VisaoDeLinha({
                                 type="button"
                                 onClick={() => aoAbrir(item)}
                                 aria-label={`${item.titulo} — ${format(parseISO(dia), "dd/MM")}`}
-                                className={cn(
-                                  "h-2 w-full rounded-full",
-                                  item.tipo === "subtarefa"
-                                    ? corDaEtapa(item.prioridade)
-                                    : COR_DA_CAMADA[item.tipo],
-                                )}
+                                className={cn("h-2 w-full rounded-full", COR_DA_CAMADA[item.tipo])}
                               />
                             ))}
                           </div>

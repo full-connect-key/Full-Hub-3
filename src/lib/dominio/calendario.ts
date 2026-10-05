@@ -32,13 +32,25 @@ export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
 // AS CAMADAS
 //
 // Uma camada é uma origem da view que dá para desligar. Elas são as MESMAS
-// sete que a `calendar_events` produz, e é de propósito: uma camada que não
+// seis que a `calendar_events` produz, e é de propósito: uma camada que não
 // casasse com um `tipo` seria um interruptor que não apaga nada.
+//
+// ---------------------------------------------------------------------------
+// A DEMANDA E A ETAPA NÃO ESTÃO AQUI, e a ausência é decisão do usuário
+// (0077): *"quero que elas fiquem apenas dentro do Minhas Tasks"*.
+//
+// Elas saíram da VIEW, e não só desta lista — tirar o interruptor e deixar a
+// origem produzindo esconderia as linhas desta tela e as entregaria de graça
+// ao próximo consumidor da view, que é a porta por onde elas voltam sem
+// ninguém ter decidido isso.
+//
+// **O que a Linha do Tempo não perde é a CARGA.** A cor da célula é ocupação,
+// e ela sai de `carga_da_equipe()` chamando `carga_do_dia()` (0035) — nenhuma
+// das duas lê esta view: elas leem `subtasks` direto. Sai a barra da etapa e
+// fica o peso dela, que é o que responde "a equipe aguenta?".
 // ---------------------------------------------------------------------------
 
 export const CAMADAS: TipoNoCalendario[] = [
-  "subtarefa",
-  "task",
   "ausencia",
   "evento",
   "post",
@@ -48,8 +60,6 @@ export const CAMADAS: TipoNoCalendario[] = [
 ];
 
 export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
-  subtarefa: "Etapas",
-  task: "Demandas",
   ausencia: "Quem está fora",
   evento: "Eventos",
   post: "Posts",
@@ -66,14 +76,8 @@ export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
  * Nunca opacidade: `bg-warning/10` sobre um fundo qualquer dá uma cor que
  * ninguém mediu, e no tema escuro dá outra. Os pares abaixo estão todos em
  * `check:cores`.
- *
- * **A etapa é a exceção e não tem cor fixa**: ela é pintada pela PRIORIDADE,
- * que é a informação que decide o que fazer primeiro. Dar-lhe uma cor de
- * camada apagaria justamente isso.
  */
 export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
-  subtarefa: "bg-muted text-text-secondary",
-  task: "bg-blue-soft text-blue-strong",
   // `text-neutral` E NAO `text-text-muted`: o par
   // `--text-muted` sobre `--muted` dá 4,43:1 — passa raspando POR BAIXO do
   // mínimo de 4.5, e o axe reprovou nas três visões do mês. `--neutral` é o
@@ -93,25 +97,6 @@ export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
   campanha: "bg-warning-soft text-warning",
   entregavel: "bg-warning-soft text-warning",
 };
-
-/**
- * A cor da barra de uma ETAPA, pela prioridade.
- *
- * É a exceção do mapa acima, e está escrita lá: dar cor de camada à etapa
- * apagaria a informação que decide o que fazer primeiro. Só o FUNDO, sem
- * texto — a barra é uma faixa de 8px e não carrega palavra nenhuma; o nome
- * vai no `title` e no rótulo acessível.
- */
-export const COR_DA_PRIORIDADE: Record<string, string> = {
-  urgente: "bg-danger",
-  alta: "bg-warning",
-  normal: "bg-neutral",
-  baixa: "bg-neutral-soft",
-};
-
-export function corDaEtapa(prioridade: string | null): string {
-  return COR_DA_PRIORIDADE[prioridade ?? "normal"] ?? COR_DA_PRIORIDADE.normal;
-}
 
 // ---------------------------------------------------------------------------
 // OS TIPOS DE EVENTO
@@ -170,6 +155,13 @@ export type ItemDoCalendario = {
   cliente: string | null;
   userId: string | null;
   pessoa: { id: string; nome: string; avatar_url: string | null } | null;
+  /**
+   * **Sempre nula desde a 0077**, e a coluna continua na view de propósito:
+   * `create or replace view` não deixa TIRAR coluna — só acrescentar no fim —,
+   * e um `drop`/`create` derrubaria junto os grants de um objeto que o
+   * PostgREST publica. É a situação de `cancelada` no enum de status: o valor
+   * fica, e nenhum caminho o produz. Quem a escrevia era a etapa, que saiu.
+   */
   prioridade: string | null;
   status: string | null;
   link: string;

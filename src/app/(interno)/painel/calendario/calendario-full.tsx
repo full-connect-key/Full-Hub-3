@@ -11,9 +11,7 @@ import {
   Download,
   Plus,
 } from "lucide-react";
-import { toast } from "sonner";
 
-import { chamarAcao } from "@/lib/acoes/cliente";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -40,7 +38,6 @@ import {
 import type { TipoNoCalendario } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-import { moverPrazoDaEtapa } from "./acoes";
 import { DetalheDoEvento } from "./detalhe-do-evento";
 import { FormularioDeEvento } from "./formulario-de-evento";
 import { somarMeses, type Janela } from "./periodo";
@@ -135,44 +132,6 @@ export function CalendarioFull({
     [mes],
   );
 
-  /**
-   * Arrastar uma etapa, com DESFAZER.
-   *
-   * O desfazer não é enfeite: arrastar é o gesto mais fácil de fazer sem
-   * querer numa grade cheia, e a pessoa só percebe quando a linha já está no
-   * outro dia. O toast guarda a data antiga e chama a mesma ação de volta —
-   * um caminho só, que não tem como divergir do de ida.
-   */
-  function mover(item: ItemDoCalendario, novoDia: string) {
-    const antes = item.dataInicio;
-    void chamarAcao(() => moverPrazoDaEtapa(item.id, novoDia)).then((r) => {
-      if (!r.ok) {
-        toast.error(r.error);
-        return;
-      }
-      toast.success(
-        `"${item.titulo}" agora vence em ${format(parseISO(novoDia), "dd/MM")}.`,
-        {
-          action: {
-            label: "Desfazer",
-            onClick: () => {
-              void chamarAcao(() => moverPrazoDaEtapa(item.id, antes)).then(
-                (volta) => {
-                  if (volta.ok) {
-                    toast.success("Prazo devolvido.");
-                    router.refresh();
-                  } else {
-                    toast.error(volta.error);
-                  }
-                },
-              );
-            },
-          },
-        },
-      );
-      router.refresh();
-    });
-  }
 
   function exportarIcs() {
     // O ARQUIVO SAI DO QUE ESTÁ NA TELA, e não de uma segunda consulta: o
@@ -360,7 +319,6 @@ export function CalendarioFull({
           itens={itens}
           aoAbrir={setEmFoco}
           aoSelecionar={podeEscrever ? setAbrindo : undefined}
-          aoMover={mover}
         />
       ) : visao === "semana" ? (
         <VisaoDeSemana janela={janela} itens={itens} aoAbrir={setEmFoco} />

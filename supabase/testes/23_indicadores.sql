@@ -19,10 +19,33 @@
 \set TRASCUNHO '''50700000-0000-0000-0000-000000000002'''
 \set MAE      '''50700000-0000-0000-0000-00000000000a'''
 \set FILHA    '''50700000-0000-0000-0000-00000000000b'''
+\set OUTROCLI '''50700000-0000-0000-0000-0000000000c2'''
+\set TOUTRA   '''50700000-0000-0000-0000-000000000003'''
 
 -- Uma demanda publicada e uma em rascunho, lado a lado. A do rascunho tem
 -- etapa com prazo vencido no nome do Bruno -- se ela vazar para alguma conta,
 -- os numeros do Bruno mudam e os cenarios dizem qual.
+-- ---------------------------------------------------------------------------
+-- E A LOUSA COMECA LIMPA, que e a metade que faltava.
+--
+-- `meu_dia` conta as etapas do BRUNO na agencia inteira -- nao dá para
+-- recortá-lo por cliente, porque a pergunta dele é pessoal. Então um cliente
+-- próprio não basta: a bateria roda todos os arquivos contra o MESMO banco, e
+-- o 18 gera uma demanda de recorrência com uma etapa no nome do Bruno
+-- vencendo no dia 11 do período.
+--
+-- **E o sintoma era o pior possível: o cenário passava ou falhava CONFORME O
+-- DIA DO MÊS.** "E a semana nao arrasta o mes que vem" espera 1 e achava 2
+-- entre o dia 4 e o dia 11, porque é nesses dias que a etapa do 18 cai dentro
+-- da janela de sete dias do Bruno. Fora deles, verde. Um teste que depende da
+-- data em que roda é um teste que ninguém consegue reproduzir, e ele
+-- reprovaria no CI num commit que não tem nada a ver com ele.
+--
+-- `teste.limpar()` é o que todo outro arquivo da bateria faz na primeira
+-- linha, e aqui ele tinha ficado de fora.
+-- ---------------------------------------------------------------------------
+select teste.limpar();
+
 -- UM CLIENTE SO DESTE ARQUIVO. A primeira versao media `producao_do_periodo`
 -- pelo numero absoluto da agencia, e ela falhou na hora: a bateria roda todos
 -- os arquivos contra o MESMO banco, e o arquivo 19 cria posts, o 21 cria
@@ -44,6 +67,33 @@ values (:TDEMANDA, 'Atrasada de verdade', 1, :BRUNO, current_date - 5, 'em_andam
        (:TDEMANDA, 'Esta semana',         3, :BRUNO, current_date + 3, 'nao_iniciada', 90),
        (:TDEMANDA, 'Mes que vem',         4, :BRUNO, current_date + 40, 'nao_iniciada', 60),
        (:TRASCUNHO, 'Do rascunho',        1, :BRUNO, current_date - 9, 'em_andamento', 300);
+
+-- ---------------------------------------------------------------------------
+-- UMA SEGUNDA EMPRESA, E ELA EXISTE PARA O FILTRO TER O QUE EXCLUIR.
+--
+-- O cenario "E o filtro por cliente vale" compara o numero DESTE cliente com
+-- o da agencia inteira e espera que o primeiro seja menor. Ele vinha passando
+-- por acidente -- o que fazia o total da agencia ser maior era o resto que
+-- outros arquivos deixavam no banco, e com a lousa limpa os dois numeros
+-- ficaram iguais: o filtro passou a "nao filtrar" sem nada ter mudado nele.
+--
+-- Um cenario que depende do que outro arquivo deixou atras e um cenario que
+-- afirma sem provar. Esta demanda e a contraparte: ela existe para o total ser
+-- maior, aqui dentro, onde se le por que.
+--
+-- **NO NOME DA MARINA e nao do Bruno**: `meu_dia` conta as etapas dele, e uma
+-- etapa a mais aqui mudaria os tres contadores das secoes de cima.
+-- ---------------------------------------------------------------------------
+insert into public.clients (id, nome_empresa, nome_contato, email_contato, ativo, slug)
+values (:OUTROCLI, 'Outra SA', 'Teste', 'teste@outra.com', true, 'outra-sa')
+on conflict (id) do nothing;
+
+insert into public.tasks (id, client_id, titulo, criado_por, link_entrega, publicada_em)
+values (:TOUTRA, :OUTROCLI, 'Demanda de outra conta', :ANA, 'https://drive.com/z', now());
+
+insert into public.subtasks (task_id, titulo, ordem, responsavel_id, prazo, status, estimativa_minutos)
+values (:TOUTRA, 'Etapa da outra conta', 1, :MARINA, current_date + 2, 'nao_iniciada', 60);
+
 
 -- A agrupadora e a filha: a mae tem estimativa e prazo gravados, e eles param
 -- de contar no instante em que ela ganha filha. Apagar seria destruir dado por

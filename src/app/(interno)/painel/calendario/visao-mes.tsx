@@ -1,9 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
-import { Lock } from "lucide-react";
-
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   COR_DA_CAMADA,
@@ -50,18 +46,26 @@ export function VisaoDeMes({
   itens,
   aoAbrir,
   aoSelecionar,
-  aoMover,
 }: {
   mes: string;
   itens: ItemDoCalendario[];
   aoAbrir: (item: ItemDoCalendario) => void;
   /** Selecionar um intervalo abre o formulário de evento já com as datas. */
   aoSelecionar?: (periodo: { de: string; ate: string }) => void;
-  /** Arrastar uma etapa para outro dia muda o prazo dela. */
-  aoMover?: (item: ItemDoCalendario, novoDia: string) => void;
 }) {
-  const [arrastando, setArrastando] = useState<ItemDoCalendario | null>(null);
-  const [alvo, setAlvo] = useState<string | null>(null);
+  // ---------------------------------------------------------------------------
+  // O ARRASTO SAIU COM AS ETAPAS (0077).
+  //
+  // Ele valia para uma camada só — a etapa, porque o prazo dela é escrito por
+  // quem a faz. O período da demanda é derivado, a campanha tem período
+  // combinado e a ausência é decisão do sócio: oferecê-lo neles prometia uma
+  // mudança que o banco desfaz ou recusa. Sem a camada da etapa não sobra nada
+  // nesta grade que se mova arrastando, e um alvo de solta que recusa tudo é
+  // um gesto que não faz nada — o pior tipo de recusa.
+  //
+  // Quem arrasta agora é o board de etapas de Minhas Tasks, que é onde a
+  // etapa passou a viver.
+  // ---------------------------------------------------------------------------
   const semanas = semanasDoMes(mes);
   const hoje = hojeNaAgencia();
 
@@ -150,7 +154,6 @@ export function VisaoDeMes({
                           // sábado do meio do mês ficava idêntico ao dia 2 do
                           // mês seguinte — que é a diferença entre "ninguém
                           // trabalha" e "isto não é deste mês".
-                          alvo === dia && "ring-accent-strong ring-2 ring-inset",
                           // `opacity-60` SAIU, e ele era o bug: opacidade no
                           // contêiner desbota TUDO o que está dentro, inclusive
                           // o texto — e o axe reprovou o número do dia por
@@ -172,23 +175,6 @@ export function VisaoDeMes({
                               : "bg-surface-card",
                         )}
                         onDoubleClick={() => aoSelecionar?.({ de: dia, ate: dia })}
-                        onDragOver={(e) => {
-                          if (!arrastando) return;
-                          // `preventDefault` é o que TORNA a célula um alvo
-                          // válido: sem ele o navegador recusa a solta em
-                          // silêncio, e o arrasto vira um gesto que não faz
-                          // nada — o pior tipo de recusa.
-                          e.preventDefault();
-                          setAlvo(dia);
-                        }}
-                        onDragLeave={() => setAlvo((a) => (a === dia ? null : a))}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const item = arrastando;
-                          setArrastando(null);
-                          setAlvo(null);
-                          if (item && dia !== diaNaGrade(item).de) aoMover?.(item, dia);
-                        }}
                       >
                         <div className="flex items-center justify-between px-1">
                           <span
@@ -232,31 +218,8 @@ export function VisaoDeMes({
                               <button
                                 type="button"
                                 onClick={() => aoAbrir(item)}
-                                // SÓ A ETAPA ARRASTA, e é o que o produto
-                                // deixa mover: o período da demanda é
-                                // derivado das etapas e se recalcula sozinho,
-                                // a campanha tem período combinado, e a
-                                // ausência é decisão do sócio. Oferecer o
-                                // arrasto neles prometeria uma mudança que o
-                                // banco desfaz ou recusa.
-                                //
-                                // É ARRASTO NATIVO e não dnd-kit, com o custo
-                                // dito: ele não responde a toque. No celular
-                                // a grade já vira leitura — mudar a data se
-                                // faz abrindo a etapa, que é o caminho que
-                                // existe de qualquer jeito.
-                                draggable={Boolean(aoMover) && item.tipo === "subtarefa"}
-                                onDragStart={() => setArrastando(item)}
-                                onDragEnd={() => {
-                                  setArrastando(null);
-                                  setAlvo(null);
-                                }}
                                 title={`${ROTULOS_DE_CAMADA[item.tipo]}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
-                                className={cn(
-                                  "flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left hover:bg-muted",
-                                  aoMover && item.tipo === "subtarefa" && "cursor-grab",
-                                  arrastando?.id === item.id && "opacity-50",
-                                )}
+                                className="hover:bg-muted flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left"
                               >
                                 <span
                                   aria-hidden
@@ -283,10 +246,7 @@ export function VisaoDeMes({
       </div>
 
       <p className="text-text-muted mt-2 text-xs">
-        Clique duas vezes num dia para abrir um evento
-        {aoMover ? ", e arraste uma etapa para mudar o prazo dela" : ""}.
-        <Lock aria-hidden className="ml-2 inline size-3" /> a etapa que exige aprovação abre a
-        rodada no detalhe dela.
+        Clique duas vezes num dia para abrir um evento.
       </p>
     </div>
   );

@@ -255,25 +255,29 @@ export type EventoTipo =
   | "outro";
 
 /**
- * As sete origens da `calendar_events`.
+ * As SEIS origens da `calendar_events`.
  *
  * O nome de cada uma é o que a view escreve na coluna `tipo`, e é por isso
  * que ele fica em INGLÊS de um lado e em português do outro: aqui é valor de
  * dado, e o rótulo que a pessoa lê sai de `ROTULOS_DE_CAMADA`.
+ *
+ * **`task` e `subtarefa` saíram na 0077**, por decisão do usuário: a demanda
+ * e a etapa vivem em Minhas Tasks e em Gestão de Tasks. Os dois valores saem
+ * do tipo junto com os `union all` que os produziam — um valor que a view não
+ * escreve mais é um filtro que o compilador aceitaria e o banco responderia
+ * com zero linhas, calado.
  */
 export type TipoNoCalendario =
-  | "task"
-  | "subtarefa"
   | "ausencia"
   | "evento"
   | "post"
   | "campanha"
   | "entregavel"
-  // A OITAVA ORIGEM (0059): a etapa da corrente de um post. Ela é diferente
-  // de `post` — aquele é o dia em que a peça vai ao ar, este é o dia em que o
-  // trabalho de alguém precisa estar pronto, e as duas datas raramente são a
-  // mesma. Sem esta camada, a etapa do redator tinha prazo na tabela e não
-  // aparecia no calendário de ninguém.
+  // A etapa da corrente de um post, que nasceu como oitava origem na 0059 e
+  // hoje é a sexta. Ela é diferente de `post` — aquele é o dia em que a peça
+  // vai ao ar, este é o dia em que o trabalho de alguém precisa estar pronto,
+  // e as duas datas raramente são a mesma. Sem esta camada, a etapa do redator
+  // tinha prazo na tabela e não aparecia no calendário de ninguém.
   | "etapa_de_post";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
