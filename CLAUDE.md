@@ -5343,14 +5343,61 @@ constantes no código: contrato muda por pessoa, e mudar contrato não pode
 exigir deploy.
 
 **O ciclo é contado da ENTRADA da pessoa, não do calendário** (migration 0039,
-decisão do usuário). O saldo deixou de zerar em 1º de janeiro e virou um
-número corrido: cada ciclo **soma** 15 dias e 2 parcelas, e o que sobrou de um
-ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 45 dias
-— três ciclos completados, e o quarto está correndo.
+decisão do usuário). O saldo deixou de zerar em 1º de janeiro e passou a ser do
+ciclo de doze meses contado da admissão.
+
+**E ELE NÃO ACUMULA: os 15 dias se restauram a cada aniversário** (migration
+0085, decisão do usuário: *"A pessoa vai ter 15 dias de descanso, não
+acumulativo. A cada 1 ano, se restaura os 15 dias completos, não se soma.
+Então se ela tiver 15 dias de descanso, tirou 5, e venceu um ano de agência,
+ela recebe mais 5 dias e volta a ter 15"*). Quem entrou há três anos e nunca
+parou tem **15**, não 45.
+
+**A 0085 desfaz METADE da 0039, e só metade.** Aquela migration fez duas
+coisas: tirou o saldo do ano civil e o pôs em ciclos contados da entrada — e
+fez o saldo **correr**, somando 15 por ciclo com o resto passando adiante. A
+primeira fica inteira, e é por isso que a 0085 é curta: `inicio_do_ciclo()`,
+`ciclos_de_descanso()` e `proximo_descanso_em()` não mudam uma linha. **O que
+muda é só a conta.**
+
+**O que se perde é o ponto da regra, não um efeito colateral:** quem não tirou
+nada num ciclo chega ao aniversário com 15 e não com 30. Fica escrito porque a
+0039 havia escrito o contrário em voz alta, e quem ler as duas precisa saber
+qual vale.
+
+**O SALDO NEGATIVO TAMBÉM ZERA**, e é consequência aceita: um lançamento
+retroativo pode deixar alguém em −3 num ciclo, e no aniversário ela volta a 15.
+Cobrar a dívida no ciclo seguinte seria acumular o negativo numa regra que
+acabou de deixar de acumular o positivo — duas direções para a mesma conta.
+
+**O RECORTE É O `data_inicio` DO PEDIDO, e isso evita uma conta dobrada.** Um
+descanso de 28/10 a 03/11, numa pessoa cujo aniversário é 01/11, atravessa a
+virada do ciclo; contando dia a dia ele entraria em DUAS contas de saldo — que
+é exatamente o que a 0039 desfez ao tirar a trava do descanso atravessando o
+ano. Então o pedido pertence ao ciclo em que **começa**, inteiro, que é também
+como a pessoa pensa nele. `descanso_usado_no_ciclo()` é o lugar único desse
+recorte, e não a mesma consulta copiada nos quatro pontos que precisam dela —
+é a decisão de `carga_do_dia()` ser a fonte única desde a 0035.
+
+**A bateria separa as duas implementações pelo NÚMERO**, e não só pela
+intenção: o recorte errado mais provável é `data_fim >= comeca`, que parece a
+mesma coisa e conta o descanso da virada inteiro nos dois ciclos. Trocando a
+coluna, dois cenários caem e dizem 10 e 7 onde esperavam 15 e 12. Medido com
+três mutações — devolver `por_ciclo * ciclos` ao saldo derruba **10 cenários**,
+devolvê-lo às parcelas derruba 2, e trocar o recorte derruba os 2 da virada.
+
+**AS PARCELAS ACOMPANHAM, pela mesma razão.** `max_parcelas_ferias` é "quantas
+vezes o descanso pode ser partido", e a frase da recusa sempre disse *"por
+ciclo de 12 meses"*. Com o saldo restaurando e as parcelas acumulando, alguém
+com três ciclos poderia partir 15 dias em seis — o que a própria frase já
+negava.
 
 - `ciclos_de_descanso()` conta os ciclos, `inicio_do_ciclo()` diz quando o
   atual começou, e `saldo_de_ferias()` **perdeu o parâmetro de ano**. A âncora
-  é `data_admissao`; sem ela, `created_at` da ficha.
+  é `data_admissao`; sem ela, `created_at` da ficha. Depois da 0085, `ciclos`
+  decide **uma** coisa — zero é o primeiro ciclo, que não concede nada —, e não
+  é mais um multiplicador: `descanso_do_ciclo()` devolve os quatro números do
+  ciclo corrente, e a tela os lê como estão.
 - **OS 15 SÃO CONQUISTADOS NO FIM DO CICLO, e não na abertura dele** (migration
   0074, decisão do usuário: *"entrou hj, nn tem dias disponíveis - fez 12
   meses, ganha 15 dias, fez 24 meses, ganha mais 15 dias"*). Quem entrou hoje
@@ -5386,6 +5433,20 @@ ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 45 dias
   gestão registra o descanso combinado por fora, o saldo fica negativo, e isso
   é a verdade. `validar_solicitacao` devolve antes da conta de saldo quando a
   origem não é `solicitacao`.
+
+  **E depois da 0085 ele tem um efeito a mais, dito em vez de escondido:** um
+  lançamento de ciclo ANTERIOR não mexe no saldo de hoje, porque a conta olha
+  só o ciclo corrente. Ele continua na matriz, no relatório e na folha da
+  pessoa — o que ele não faz é cobrar dias de um bloco que já se restaurou.
+  Era o contrário na 0039, onde um descanso de três anos atrás descontava para
+  sempre. **O cenário que provava aquilo ficou, virado do avesso.**
+
+  **E os cenários de saldo do lançamento passaram a datar de `current_date`**,
+  admissão inclusive. Não é estilo: um período escrito em 2025 não tem como
+  estar no ciclo corrente de hoje, qualquer que seja a admissão, porque o ciclo
+  corrente sempre termina no futuro. Com datas fixas eles mediriam uma coisa
+  hoje e outra no ano que vem — a armadilha que o próprio arquivo já nomeava
+  para os números esperados.
 - **`inicio_do_ciclo()` parou de repetir a conta.** Ela calculava os
   aniversários por conta própria com o mesmo `age()`; sem o `+ 1` os dois
   números passaram a ser o mesmo, e duas cópias da mesma conta é onde as duas
@@ -5409,17 +5470,38 @@ ciclo continua no seguinte. Quem entrou há três anos e nunca parou tem 45 dias
   `descanso_do_ciclo()`, que é a mesma conta que a trava do `insert` usa — o
   ciclo depende da data de entrada, que a lista de pedidos nem carrega. Duas
   contas com entradas diferentes divergiriam no pior lugar: a tela prometendo
-  dias que o banco recusa.
+  dias que o banco recusa. **E é por isso que a 0085 não mexeu numa linha de
+  layout:** mudou a conta, e a faixa, a barra e os dois avisos acompanharam.
+- **O QUE A TELA PASSOU A DIZER É QUANDO OS DIAS VOLTAM**, e era a metade que
+  faltava. A faixa dizia *"Você tem 5 de 15 dias disponíveis"* e não dizia nem
+  que os 5 vencem, nem que os 15 voltam — e as duas coisas decidem se a pessoa
+  pede agora ou espera. A linha embaixo leva a data, que é a mesma que a dica
+  da recusa do banco carrega.
+- **"Neste ciclo" é a palavra que a 0085 acrescentou, nos DOIS lados.** Sem
+  ela, quem tirou dez no ciclo passado e cinco neste leria *"você tem 10 de
+  saldo"* e iria procurar os outros dez. A recusa do `insert` diz a conta
+  inteira — quantos o contrato dá por ciclo, quantos estão comprometidos neste,
+  quantos sobram — e a dica diz quando eles voltam, que é a pergunta seguinte.
+- **`descanso_do_ciclo()` não tinha cenário nenhum até aqui**, e é a função que
+  escreve a frase do saldo e desenha a barra de uso. A 0085 a reescreveu
+  inteira, que é exatamente onde uma guarda se perde, então os cenários entraram
+  com ela — os dois números do ciclo e a recusa ao cliente. Eles vão por
+  `conferir_como` e não por `conferir`: ela é `security definer` com
+  `is_staff()` na porta, e avaliada como dono do banco — sem sessão — recusa a
+  si mesma.
 
-> **O que isto custa, e foi dito a quem decidiu, duas vezes:** ciclo de 12
+> **O que isto custa, e foi dito a quem decidiu, três vezes:** ciclo de 12
 > meses contado da entrada da pessoa é, **estruturalmente**, o desenho do
 > período aquisitivo da CLT — mais parecido com ele que o ano civil, não
-> menos. E a 0074 aproxima mais um passo, porque conceder só quando o ciclo se
-> completa **é** o período aquisitivo. A nota do fim desta seção já dizia que o
-> vocabulário reduz o risco e a estrutura é o que uma perícia olha. As duas
-> decisões foram tomadas assim mesmo, por quem responde pela exposição. Quem
-> for mexer nisso de novo, mexa sabendo disso — e a inversão continua sendo uma
-> linha só.
+> menos. A 0074 aproxima mais um passo, porque conceder só quando o ciclo se
+> completa **é** o período aquisitivo. E a 0085 fecha o par: um bloco concedido
+> ao completar o ciclo e **perdido se não usado** é o período aquisitivo mais o
+> concessivo, que é o mais próximo que o produto chegou do desenho da lei. A
+> nota do fim desta seção já dizia que o vocabulário reduz o risco e a
+> estrutura é o que uma perícia olha. As três decisões foram tomadas assim
+> mesmo, por quem responde pela exposição. Quem for mexer nisso de novo, mexa
+> sabendo disso — e a volta continua sendo uma linha só, em
+> `saldo_de_ferias()`.
 
 **E eles contam CORRIDO** (migration 0024, decisão do usuário). Quinze dias
 são quinze dias de calendário — sai numa segunda, volta na terceira segunda —,

@@ -391,22 +391,33 @@ export type { DescansoDoCiclo } from "../../src/lib/dados/full-days";
 /**
  * O saldo do ciclo de 12 meses, para o prototipo.
  *
- * A Ana (socia) esta ha mais de um ano na agencia, entao o exemplo mostra o
- * caso que so existe depois da 0039: DOIS ciclos COMPLETADOS, 30 dias
- * conquistados, e o que sobrou do primeiro continuando no segundo. Com um
- * ciclo so, a imagem nao mostraria a diferenca entre o modelo novo e o antigo.
+ * A Ana (socia) esta ha mais de um ano na agencia, entao o exemplo mostra DOIS
+ * ciclos COMPLETADOS -- e, depois da 0085, com 15 dias concedidos e duas
+ * parcelas, nao 30 e quatro. **Os numeros antigos descreviam um estado que o
+ * produto nao tem mais**, e um stub assim fotografa um produto que nao existe:
+ * e o seed inserindo campanha sem demanda, na camada da imagem.
+ *
+ * `diasUsados` e cinco de proposito, e nao zero nem quinze: com zero a barra
+ * de uso sai vazia e com quinze ela sai cheia -- os dois extremos escondem o
+ * que ela serve para dizer. E com saldo parcial a faixa mostra a frase inteira
+ * que a 0085 trouxe, a da data em que os dias voltam.
  *
  * `proximoEm` entrou com a 0074 e nao e decorativo: ele e o campo que a tela
- * usa quando `ciclos` e ZERO, que e o estado de todo mundo no primeiro ano.
- * Esta funcao devolve dois ciclos de proposito -- a tela do primeiro ciclo tem
- * imagem propria, por `PROTOTIPO_SO`, e um stub que so soubesse desenhar um
- * dos dois estados fotografaria o produto pela metade.
+ * usa quando `ciclos` e ZERO, que e o estado de todo mundo no primeiro ano --
+ * e desde a 0085 ele serve tambem a quem JA tem ciclo fechado, porque e a data
+ * em que o bloco se restaura. Esta funcao devolve dois ciclos de proposito: a
+ * tela do primeiro ciclo tem imagem propria, por `PROTOTIPO_SO`, e um stub que
+ * so soubesse desenhar um dos dois estados fotografaria o produto pela metade.
  */
 export async function descansoDoCiclo(
   _usuarioId: string,
 ): Promise<import("../../src/lib/dados/full-days").DescansoDoCiclo | null> {
+  // O CICLO CORRENTE COMECOU HA QUATRO MESES, e nao ha exatamente um ano: com
+  // um ano cheio o proximo aniversario cai HOJE, e a faixa dizia "os 15 dias
+  // voltam inteiros em <a data de hoje>" -- uma frase que se le como defeito.
+  // A imagem mostrou.
   const inicio = new Date();
-  inicio.setFullYear(inicio.getFullYear() - 1);
+  inicio.setMonth(inicio.getMonth() - 4);
   const proximo = new Date(inicio);
   proximo.setFullYear(proximo.getFullYear() + 1);
 
@@ -438,10 +449,10 @@ export async function descansoDoCiclo(
     inicioDoCiclo: inicio.toISOString().slice(0, 10),
     proximoEm: proximo.toISOString().slice(0, 10),
     ciclos: 2,
-    diasConcedidos: 30,
-    diasUsados: 10,
-    saldo: 20,
-    parcelasConcedidas: 4,
-    parcelasUsadas: 2,
+    diasConcedidos: 15,
+    diasUsados: 5,
+    saldo: 10,
+    parcelasConcedidas: 2,
+    parcelasUsadas: 1,
   };
 }

@@ -278,7 +278,11 @@ from (
     -- com a corrente ainda andando atras da data de cada post.
     ('0083', 'post_etapas sem prazo_offset_dias', 'sem_coluna',
              'post_etapas.prazo_offset_dias'),
-    ('0084', 'post_etapas.data_inicio',  'coluna',       'post_etapas.data_inicio')
+    ('0084', 'post_etapas.data_inicio',  'coluna',       'post_etapas.data_inicio'),
+    -- A 0085 reescreve `saldo_de_ferias()` e cria `descanso_usado_no_ciclo()`.
+    -- A linha aponta para a NOVA: o saldo existe desde a 0011 e responderia ok
+    -- num banco parado la, com a conta acumulativa.
+    ('0085', 'descanso_usado_no_ciclo()', 'funcao', 'descanso_usado_no_ciclo')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

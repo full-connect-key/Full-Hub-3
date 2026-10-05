@@ -553,6 +553,17 @@ export type DescansoDoCiclo = {
   proximoEm: string | null;
   /** Quantos ciclos de 12 meses ela já COMPLETOU. Zero no primeiro ano. */
   ciclos: number;
+  /**
+   * **OS QUATRO SÃO DO CICLO CORRENTE, e não da vida dela** (0085). O descanso
+   * deixou de acumular: `diasConcedidos` é o que o contrato dá por ciclo, e
+   * `diasUsados` conta só o que COMEÇOU dentro do ciclo em que ela está — um
+   * descanso que atravessa o aniversário pertence ao ciclo de onde saiu.
+   *
+   * Até a 0085 eram a soma de tudo: alguém com três ciclos lia 45 concedidos.
+   * `ciclos` continua acima porque ele ainda decide uma coisa — zero é o
+   * primeiro ciclo, que não concede nada (0074) —, e **não** porque alguém
+   * deva multiplicar por ele.
+   */
   diasConcedidos: number;
   diasUsados: number;
   saldo: number;

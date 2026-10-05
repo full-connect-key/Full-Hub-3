@@ -277,10 +277,14 @@ const esquemaDeLancamento = z.object({
   data_fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data final."),
   // SEM ano de referência, e a ausência tem data: a 0039 apagou a coluna
   // `hr_requests.ano_referencia` e tirou o parâmetro das três funções que o
-  // recebiam. O saldo deixou de ser por ano civil e virou um número corrido
-  // por ciclo de doze meses contado da entrada da pessoa — sem conta anual não
-  // há a que atribuir um período: os dias contam, e o ciclo em que caem não
-  // muda nada.
+  // recebiam. O saldo deixou de ser por ano civil e passou a ser por ciclo de
+  // doze meses contado da entrada da pessoa — sem conta anual não há a que
+  // atribuir um período, e o ciclo em que ele cai sai da própria data.
+  //
+  // E DESDE A 0085 ELE NÃO ACUMULA: o lançamento de um ciclo anterior continua
+  // na matriz e no relatório, e não desconta do saldo de hoje. Era o contrário
+  // na 0039, onde o número corria e um descanso de três anos atrás descontava
+  // para sempre.
   observacao: z.string().trim().max(1000).nullable().optional(),
 });
 

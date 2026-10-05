@@ -278,6 +278,20 @@ export function Solicitar({
                 preencher.
               </p>
             ) : null}
+
+            {/* QUANDO OS DIAS VOLTAM É A METADE QUE FALTAVA (0085). O saldo
+                deixou de correr: ele se restaura inteiro no aniversário da
+                entrada, e o que sobrou do ciclo se perde ali. Sem esta linha a
+                faixa diz "você tem 5 de 15" e não diz nem que os 5 vencem, nem
+                que os 15 voltam — e as duas coisas decidem se a pessoa pede
+                agora ou espera. É a razão pela qual a dica da recusa do banco
+                carrega a mesma data. */}
+            {!primeiroCiclo && chegamEm ? (
+              <p className="text-accent-strong text-sm">
+                O descanso não acumula: os {concedidos} dias voltam inteiros em{" "}
+                {chegamEm}, e o que sobrar deste ciclo se perde.
+              </p>
+            ) : null}
           </div>
 
           {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias em
@@ -528,20 +542,29 @@ export function Solicitar({
             </Aviso>
           ) : null}
 
+          {/* "NESTE CICLO" É A PALAVRA QUE A 0085 ACRESCENTOU, nos dois
+              lados. Sem ela, quem tirou dez no ciclo passado e cinco neste
+              leria "você tem 10 de saldo" e iria procurar os outros dez — e a
+              frase do banco diz exatamente isto desde a 0085. */}
           {excedeSaldo ? (
             <Aviso tom="erro">
-              São {diasSelecionados} dias corridos e você tem {saldo} de saldo.
-              Escolha um período menor.
+              São {diasSelecionados} dias corridos e neste ciclo você tem{" "}
+              {saldo} de saldo. Escolha um período menor
+              {chegamEm ? ` ou espere ${chegamEm}` : ""}.
             </Aviso>
           ) : null}
 
           {/* A FRASE É A MESMA DO BANCO, de propósito: quem vê o aviso aqui e
               quem levar a recusa do `insert` precisa ler a mesma coisa. A
-              contagem é a dos ciclos — duas por ciclo, somando. */}
+              contagem é a do CICLO CORRENTE (0085) — as parcelas se restauram
+              junto com os dias, e não somam. Com elas somando, quem tem três
+              ciclos poderia partir quinze dias em seis vezes, o que esta
+              própria frase já negava ao dizer "por ciclo". */}
           {semParcela ? (
             <Aviso tom="erro">
-              O descanso pode ser partido em até {parcelasPorCiclo} vezes a
-              cada 12 meses, e você já usou as {parcelasConcedidas} que tem.
+              O descanso pode ser partido em até {parcelasPorCiclo} vezes por
+              ciclo de 12 meses, e você já usou as {parcelasConcedidas} deste
+              ciclo.
             </Aviso>
           ) : null}
 
