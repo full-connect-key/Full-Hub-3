@@ -430,22 +430,44 @@ export async function analiseDosEntregaveis(
     "as rodadas internas dos entregáveis",
     await supabase
       .from("approval_rounds")
-      .select("content_id, numero_rodada, escopo, status")
+      // `comentario` e `decidido_em` entraram com a 0079: é o pedido de ajuste
+      // que a tela mostra. Sem eles a peça voltava e nada na tela dizia por
+      // quê — a rodada recusada ficava igual à peça que nunca foi à análise.
+      .select("content_id, numero_rodada, escopo, status, comentario, decidido_em")
       .eq("content_type", "deliverable")
       .eq("escopo", "interna")
       .in(
         "content_id",
         itens.map((i) => i.id),
-      ),
+      )
+      .order("numero_rodada", { ascending: false }),
   );
 
   for (const item of itens) {
     const minhas = (rodadas ?? []).filter((r) => r.content_id === item.id);
+
+    // O AJUSTE É DA VERSÃO QUE ESTÁ NO AR, e não o último de qualquer versão:
+    // subir a v3 depois de a v2 ter sido recusada devolve a peça ao começo do
+    // ciclo, e carregar a recusa da v2 adiante travaria o botão para sempre.
+    const ajuste =
+      minhas.find(
+        (r) =>
+          r.numero_rodada === item.versaoAtual &&
+          (r.status === "ajustes_solicitados" || r.status === "rejeitada"),
+      ) ?? null;
+
     mapa.set(item.id, {
       pendente: minhas.some((r) => r.status === "pendente"),
       aprovado: minhas.some(
         (r) => r.status === "aprovada" && r.numero_rodada >= item.versaoAtual,
       ),
+      ajuste: ajuste
+        ? {
+            recusada: ajuste.status === "rejeitada",
+            comentario: ajuste.comentario,
+            quando: ajuste.decidido_em ?? "",
+          }
+        : null,
     });
   }
 

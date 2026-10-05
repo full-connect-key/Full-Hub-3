@@ -448,6 +448,26 @@ export type AnaliseDaPeca = {
   pendente: boolean;
   /** O aval interno vale para a versão que está no ar. */
   aprovado: boolean;
+  /**
+   * O PEDIDO DE AJUSTE DA VERSÃO QUE ESTÁ NO AR, quando houve um.
+   *
+   * Sem ele a tela não tinha como dizer que a peça voltou: a rodada
+   * `ajustes_solicitados` deixava de ser `pendente`, deixava de ser
+   * `aprovado`, e as duas bandeiras ficavam idênticas ao estado de uma peça
+   * que nunca foi para análise. O botão "Enviar para análise" aparecia
+   * habilitado e o banco recusava o clique — era o relato do usuário.
+   *
+   * O comentário vem junto porque ele é a razão de a peça ter voltado, e
+   * nenhuma tela do produto lê rodada de entregável. Ele também cai na thread
+   * da demanda pelo trigger da 0079, que é onde quem produz volta depois; aqui
+   * ele fica ao lado do botão, que é onde a pessoa está no instante em que
+   * precisa dele.
+   */
+  ajuste: {
+    recusada: boolean;
+    comentario: string | null;
+    quando: string;
+  } | null;
 };
 
 export function podeEnviarPecaAoCliente(
@@ -475,6 +495,33 @@ export function podePedirAnalise(
   }
   if (analise.pendente) {
     return { pode: false, porque: "Já está na fila de análise." };
+  }
+  // ---------------------------------------------------------------------------
+  // A MESMA VERSÃO NÃO VOLTA PARA A FILA, e a tela diz isso ANTES do clique.
+  //
+  // `pedirAnaliseDoEntregavel` recusa abrir uma segunda rodada interna no
+  // número corrente, e o número é a versão — então, depois de um pedido de
+  // ajuste, o caminho é subir a versão corrigida. Isso é de propósito: o
+  // conteúdo inteiro de uma peça de campanha É o arquivo, e a rodada de
+  // cliente casa por NÚMERO — com duas internas na mesma versão, uma aprovada
+  // e uma recusada, o envio acharia a aprovada e deixaria sair a arte que a
+  // gestão recusou.
+  //
+  // O que estava errado era a tela: ela oferecia o botão e o banco recusava
+  // depois do clique, com uma frase que parecia defeito. Esta linha é a mesma
+  // pergunta, escrita onde a pessoa lê — a regra da casa de a tela e o banco
+  // nunca divergirem.
+  // ---------------------------------------------------------------------------
+  if (analise.ajuste) {
+    return {
+      pode: false,
+      // A FRASE NÃO REPETE DE QUEM É O PEDIDO, porque quem a desenha é a
+      // faixa âmbar, e o cabeçalho dela já diz "A gestão pediu ajustes na
+      // v2". Duas vezes a mesma atribuição a uma linha de distância é a tela
+      // ocupando espaço para dizer o que já disse — a decisão do selo que
+      // some dentro do grupo.
+      porque: "Suba a versão corrigida para mandar de novo.",
+    };
   }
   return { pode: true, porque: null };
 }

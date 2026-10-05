@@ -413,7 +413,7 @@ select teste.conferir(
 
 select teste.conferir(
   'E o aviso nomeia a etapa e leva para a fila',
-  (select case when corpo like 'Arte do lancamento%' and link = '/painel/aprovacoes-internas'
+  (select case when corpo like 'Arte do lancamento%' and link = '/painel/gestao-tasks?aba=aprovacoes-internas'
                then 'nomeia e leva' else coalesce(corpo, '(vazio)') end
      from public.notifications where user_id = :ANA limit 1),
   'nomeia e leva');

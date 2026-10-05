@@ -279,10 +279,21 @@ function Peca({
 
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{item.nome}</span>
+          {/* A LINHA FECHADA DIZ QUE A PEÇA VOLTOU, senão quem produz abre
+              as quinze uma a uma para descobrir qual é a dele. É a regra da
+              contagem no cabeçalho do grupo dobrável: o que está recolhido
+              continua dizendo o que tem dentro. */}
           <span className="text-text-muted block truncate text-sm">
             {item.versaoAtual > 1 ? `v${item.versaoAtual}` : "v1"}
             {item.arquivoNome ? ` · ${item.arquivoNome}` : " · sem arquivo"}
             {jaFoi ? " · já foi ao cliente" : ""}
+            {analise.ajuste ? (
+              <span className="text-warning font-semibold">
+                {analise.ajuste.recusada
+                  ? " · recusada na análise"
+                  : " · ajustes pedidos"}
+              </span>
+            ) : analise.pendente ? " · na análise" : ""}
           </span>
         </span>
 
@@ -394,6 +405,43 @@ function Peca({
             <p className="bg-blue-soft text-blue-strong rounded-lg px-3 py-2 text-sm">
               Na fila de análise da gestão — v{item.versaoAtual}.
             </p>
+          ) : analise.ajuste ? (
+            /* ----------------------------------------------- o que a gestão pediu --
+               O PEDIDO DE AJUSTE APARECE AQUI, e até a 0079 não aparecia em
+               lugar nenhum: ele é gravado em `approval_rounds.comentario`, e
+               nenhuma tela do produto lê rodada de entregável. A peça voltava
+               para a produção em silêncio — "ela não está voltando", que é o
+               relato exato do usuário.
+
+               ELE VEM ANTES DOS BOTÕES na leitura da pessoa, e não depois:
+               é a razão de ela estar aqui. É a mesma ordem do detalhe do
+               material no portal, onde a arte vem antes das decisões — a
+               informação que decide o próximo passo não pode ficar abaixo do
+               passo.
+
+               `--warning` e nunca `--danger`, inclusive na recusa: refazer
+               uma arte é trabalho, não erro. Vermelho numa tela que quem
+               produz abre todo dia treina o hábito de ignorar vermelho. */
+            <div className="bg-warning-soft text-warning space-y-1 rounded-lg px-3 py-2 text-sm">
+              <p className="font-semibold">
+                {analise.ajuste.recusada
+                  ? `A gestão recusou a v${item.versaoAtual}`
+                  : `A gestão pediu ajustes na v${item.versaoAtual}`}
+                {analise.ajuste.quando ? (
+                  <span className="font-normal tabular-nums">
+                    {" · "}
+                    {new Date(analise.ajuste.quando).toLocaleDateString("pt-BR")}
+                  </span>
+                ) : null}
+              </p>
+              {/* `whitespace-pre-line` porque o recado é digitado numa
+                  textarea: sem ele, três linhas de pedido viram um parágrafo
+                  corrido e a lista de ajustes deixa de ser uma lista. */}
+              {analise.ajuste.comentario ? (
+                <p className="whitespace-pre-line">{analise.ajuste.comentario}</p>
+              ) : null}
+              <p>{podeAnalise.porque}</p>
+            </div>
           ) : (ehGestao ? podeEnviar.porque : podeAnalise.porque) ? (
             <p className="bg-warning-soft text-warning rounded-lg px-3 py-2 text-sm">
               {ehGestao ? podeEnviar.porque : podeAnalise.porque}

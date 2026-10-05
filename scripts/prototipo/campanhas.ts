@@ -338,6 +338,19 @@ export async function analiseDosEntregaveis(
     mapa.set(item.id, {
       pendente: i === 1,
       aprovado: i === 0,
+      // A TERCEIRA PECA VOLTOU COM AJUSTE PEDIDO, e ela existe na imagem pela
+      // razao das outras duas: e o estado que a 0079 consertou, e sem um
+      // exemplo dele a imagem nao prova que a faixa ambar com o recado existe
+      // -- prova so que ela sabe sumir.
+      ajuste:
+        i === 2
+          ? {
+              recusada: false,
+              comentario:
+                "O logo no rodape ficou pequeno e a foto do topo esta cortando a cabeca. Troca as duas e manda de novo.",
+              quando: "2027-03-12T14:20:00.000Z",
+            }
+          : null,
     });
   });
   return mapa;

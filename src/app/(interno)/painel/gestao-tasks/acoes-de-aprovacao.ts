@@ -628,7 +628,13 @@ async function decidirRodadaDePost(
   }
 
   if (post.responsavel_id) {
-    await supabase.rpc("notificar", {
+    // O RESULTADO NÃO É DESCARTADO, e descartá-lo era o bug irmão do que a
+    // 0079 consertou: `rpc` devolve `{ error }`, e com o retorno jogado fora
+    // uma recusa de `notificar()` não aparecia em lugar nenhum — nem na tela,
+    // nem no log. "As notificações não funcionam" é exatamente o sintoma, e
+    // não haveria o que investigar. O aviso não derruba a decisão (ela já foi
+    // gravada, e é ela que importa), mas o log diz que ele não saiu.
+    const { error: erroDoAviso } = await supabase.rpc("notificar", {
       p_user_id: post.responsavel_id,
       p_tipo: "aprovacao",
       p_titulo:
@@ -638,6 +644,9 @@ async function decidirRodadaDePost(
       p_corpo: comentario?.trim() || null,
       p_link: "/painel/social-media",
     });
+    if (erroDoAviso) {
+      console.error("[decidirRodadaDePost] o sino não tocou:", erroDoAviso);
+    }
   }
 
   revalidatePath("/painel/social-media");
@@ -659,18 +668,23 @@ async function decidirRodadaDePost(
  * as três leituras da fila: tabelas diferentes, nomes diferentes para a mesma
  * coisa, telas diferentes para voltar.
  *
- * **PEDIR AJUSTES NÃO MEXE EM `deliverables.status`**, e é a parte que pede
- * cuidado — é a lição do post, letra por letra. Marcar `ajustes` ali parece o
- * espelho do que o cliente causa, e dispararia o que a tela do portal lê: a
- * peça apareceria para o CLIENTE como "em ajustes" sem ele ter visto nada, e
- * `enviado_em` continuaria nulo, então ele veria um estado de uma peça que não
- * existe para ele. A rodada recusada já devolve a peça para a produção
- * sozinha: o aval volta a ser falso e o botão de enviar desliga.
+ * **ELA GRAVA A DECISÃO, E MAIS NADA — o resto é do trigger da 0079.** E essa
+ * divisão nasceu de um bug meu: a primeira versão desta função não mexia em
+ * `deliverables.status`, copiando a regra do post, e eu copiei a regra sem
+ * conferir se o motivo dela valia aqui. Lá ele vale — marcar `ajustes` num
+ * post dispara `posts_corrente_do_cliente` (0045), que cria uma etapa
+ * "Ajustes" e manda um aviso dizendo que o cliente pediu, o que é mentira.
+ * Em `deliverables` não existe trigger nenhum falando do cliente, então o que
+ * sobrou foi uma decisão sem consequência: a rodada virava
+ * `ajustes_solicitados`, a peça ficava onde estava, a etapa ficava onde
+ * estava, e quem produziu não via diferença nenhuma — e, pior, o botão
+ * "Enviar para análise" aparecia habilitado e o banco recusava o clique.
+ * Era o relato do usuário, palavra por palavra: *"ela não está voltando"*.
  *
- * **Quem produziu recebe o aviso, e aqui ele é explícito.** A peça não tem
- * conversa interna — o comentário fica na rodada, que a tela de produção não
- * mostra. Sem o sino, um pedido de ajustes escrito na sexta espera a pessoa
- * abrir a campanha por acaso.
+ * Hoje a devolução inteira — status da peça, status da etapa, o pedido como
+ * comentário na demanda e o sino de quem produziu — mora em
+ * `approval_rounds_devolve_o_entregavel`, na mesma transação da decisão. O
+ * cabeçalho da 0079 diz por que `em_producao` e nunca `ajustes`.
  * ---------------------------------------------------------------------------
  */
 async function decidirRodadaDeEntregavel(
@@ -708,26 +722,30 @@ async function decidirRodadaDeEntregavel(
     return falha("O banco recusou a decisão: só a gestão decide rodada interna.");
   }
 
-  if (peca.responsavel_id) {
-    await supabase.rpc("notificar", {
-      p_user_id: peca.responsavel_id,
-      p_tipo: "aprovacao",
-      p_titulo:
-        decisao === "aprovada"
-          ? `Aval interno aprovado: "${peca.nome}"`
-          : `Ajustes pedidos em "${peca.nome}"`,
-      p_corpo: comentario?.trim() || null,
-      p_link: `/painel/aprovacoes/campanhas/${peca.campaign_id}`,
-    });
-  }
+  // O AVISO E A DEVOLUÇÃO SÃO DO BANCO, pelo trigger
+  // `approval_rounds_devolve_o_entregavel` (0079) — e não desta função, que
+  // é o que eles eram e o que não funcionava. Ele faz, na mesma transação da
+  // decisão: a peça volta para `em_producao`, a etapa da 0051 volta para
+  // `em_andamento` (e é isso que a põe no "Minhas Tasks" de quem a produziu),
+  // o pedido de ajuste vira comentário na demanda, e o sino toca.
+  //
+  // No trigger pela razão da 0045: esta action já foi reescrita e vai ser de
+  // novo, e cada reescrita é uma chance de o trecho ficar para trás. De
+  // quebra, ele pega todo caminho que decida a rodada — inclusive um PATCH
+  // montado à mão contra o PostgREST.
 
   revalidatePath("/painel/aprovacoes");
   revalidatePath(`/painel/aprovacoes/campanhas/${peca.campaign_id}`);
   revalidatePath("/painel/gestao-tasks");
+  // A ETAPA MUDOU DE STATUS, então Minhas Tasks mudou. Sem esta linha, quem
+  // produziu veria a lista de ontem até recarregar à mão — e a peça que voltou
+  // é justamente a que ele está procurando ali.
+  revalidatePath("/painel/minhas-tasks");
+  anunciar("aprovacao");
 
   return sucesso(
     decisao === "aprovada"
       ? 'Aval interno dado. Agora dá para usar "Enviar ao cliente".'
-      : "Ajustes pedidos. O material voltou para quem o produziu.",
+      : "Ajustes pedidos. O material voltou para quem o produziu, com o seu recado.",
   );
 }

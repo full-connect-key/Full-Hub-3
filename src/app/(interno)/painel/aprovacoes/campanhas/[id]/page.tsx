@@ -217,9 +217,26 @@ export default async function PaginaDaCampanha({
               rotulo={`${conta.aprovados} de ${conta.total} aprovados pelo cliente`}
             />
           ) : (
+            /* A FRASE PASSOU A SER VERDADE NA 0080, e até ela era uma
+               promessa que o produto não cumpria: acrescentar uma etapa na
+               demanda não criava peça nenhuma aqui, e a arvore de uma
+               campanha era congelada no clique de "Criar campanha". Hoje o
+               espelho `subtasks_espelha_no_entregavel` cria a peça — então a
+               frase virou um LINK, porque mandar alguém procurar a demanda
+               sozinho quando ela está a um clique é gastar a frase. */
             <p className="text-text-muted text-sm">
-              Esta campanha ainda não tem entregável. Acrescente na demanda —
-              cada etapa vira uma peça aqui.
+              Esta campanha ainda não tem material.{" "}
+              {campanha.taskId ? (
+                <Link
+                  href={`/painel/gestao-tasks/${campanha.taskId}`}
+                  className="text-accent-strong hover:underline"
+                >
+                  Acrescente uma etapa na demanda
+                </Link>
+              ) : (
+                "Acrescente uma etapa na demanda"
+              )}{" "}
+              — cada etapa vira uma peça aqui.
             </p>
           )}
         </div>

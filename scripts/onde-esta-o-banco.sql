@@ -254,7 +254,17 @@ from (
     -- protege as colunas: sem ele a tela de editar campanha existe e qualquer
     -- colaborador troca o periodo combinado com o cliente -- que e o pior dos
     -- dois estados, porque a tela passa a oferecer o que o banco aceita.
-    ('0078', 'campaigns_protege_colunas',  'trigger',      'campaigns_protege_colunas')
+    ('0078', 'campaigns_protege_colunas',  'trigger',      'campaigns_protege_colunas'),
+    -- A 0079 cria DOIS objetos, e a linha aponta para o trigger e nao para a
+    -- funcao `avisa_aprovador_da_conta()`, que existe desde a 0064 e
+    -- responderia ok num banco parado la.
+    ('0079', 'approval_rounds_devolve_o_entregavel', 'trigger',
+             'approval_rounds_devolve_o_entregavel'),
+    -- A 0080 aponta para o espelho, e nao para `campanha_da_task()`: sem o
+    -- trigger a etapa acrescentada na demanda nao vira peca, que e o estado
+    -- em que a campanha perde item em silencio.
+    ('0080', 'subtasks_espelha_no_entregavel', 'trigger',
+             'subtasks_espelha_no_entregavel')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

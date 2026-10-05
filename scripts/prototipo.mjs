@@ -506,8 +506,13 @@ const TELAS = [
   // envio ao cliente, que e de `is_gestor()`. Sem as duas imagens lado a lado,
   // "o botao aparece para quem deve" e uma afirmacao que ninguem conferiu --
   // e nenhum build sabe quem esta logado.
+  // ABRE A PECA QUE VOLTOU DA ANALISE, e nao a que esta na fila: a que esta na
+  // fila mostra uma pilula azul que a tela ja tinha, e a que voltou mostra o
+  // que a 0079 consertou -- o recado da gestao, que ate ela nao aparecia em
+  // lugar nenhum. A outra continua na imagem, fechada, com o "na analise" na
+  // linha dela.
   { nome: "20p-campanha-producao-colaborador", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "colaborador-social",
-    clicar: 'button:has-text("Lâmina customizável A5")' },
+    clicar: 'button:has-text("Precificador editável")' },
   // A identidade da campanha e uma LINHA no desktop -- capa de 150px a
   // esquerda, progresso a direita -- e empilha no celular. E a imagem de 390px
   // que decide: e ela que mostra se a capa quadrada come a primeira dobra

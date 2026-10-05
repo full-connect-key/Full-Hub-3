@@ -695,3 +695,308 @@ select teste.cenario('E a v2 nao vai ao cliente com o aval da v1', :ANA,
       (content_type, content_id, numero_rodada, escopo, solicitado_por)
     values ('deliverable', %L, 2, 'cliente', %L)$fmt$, :PEC, :ANA),
   'recusa');
+
+
+-- ===========================================================================
+-- 0079 - A PECA VOLTA PARA QUEM A PRODUZIU, COM O PEDIDO ESCRITO
+--
+-- Relato do usuario: *"quando o atendimento devolve uma peca da campanha para
+-- ajuste, ela nao esta voltando (...) e que as notificacoes comecem a
+-- funcionar"*.
+--
+-- A causa era uma decisao minha: `decidirRodadaDeEntregavel` nao mexia em
+-- `deliverables.status`, copiando a regra do post -- e o motivo dela nao
+-- valia aqui, porque nao existe trigger em `deliverables.status` falando do
+-- cliente. A rodada virava `ajustes_solicitados` e nada mais acontecia.
+--
+-- ESTES CENARIOS SAO O QUE NENHUMA TELA MOSTRARIA, e sao quatro fatos de uma
+-- decisao so: a peca volta para a producao, a ETAPA dela volta para o
+-- trabalho (e e isso que a devolve ao Minhas Tasks de quem produziu), o
+-- pedido vira comentario na demanda, e o sino toca.
+--
+-- E o ultimo guarda o lado oposto: `aprovado` NAO e desfeito. Sem ele, a
+-- recusa interna da v2 apagaria a aprovacao que o cliente deu na v1.
+-- ===========================================================================
+\set C79 '''c0790000-0000-0000-0000-000000000001'''
+
+create temporary table alvo79 (id uuid);
+grant all on alvo79 to authenticated;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :DIEGO, true);
+insert into alvo79
+select public.abrir_campanha(
+  :VERDE, 'Wave que volta', null,
+  current_date, current_date + 20, 'ativa',
+  'https://drive.google.com/volta', null, null, null,
+  '[{"nome":"Lamina que volta","prazo":null,"responsavel":"44444444-4444-4444-4444-444444444444","filhos":[]}]'::jsonb
+);
+commit;
+reset role;
+
+-- A peca e a etapa, nomeadas por uma vista so: o id sai do nome, porque o
+-- `abrir_campanha` gera uuid e guardar o retorno daria o da CAMPANHA.
+create temporary view peca79 as
+  select d.id, d.subtask_id, s.task_id
+    from public.deliverables d
+    join public.campaigns c on c.id = d.campaign_id
+    join public.subtasks s on s.id = d.subtask_id
+   where c.nome = 'Wave que volta';
+grant all on peca79 to authenticated;
+
+insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+select id, '[{"url":"verde/volta/v1.pdf","nome":"v1.pdf"}]'::jsonb, :BRUNO from peca79;
+
+-- A ETAPA COMECA O TRABALHO, senao ela esta em `nao_iniciada` e a volta para
+-- `em_andamento` nao prova nada -- seria o estado que o espelho da 0080 ja
+-- deixaria. Daqui ela vai para `enviada_aprovacao`? Nao: a rodada e do
+-- ENTREGAVEL, e a trava 3 cobra uma rodada da propria subtarefa. A etapa fica
+-- em `em_andamento` e e justamente de la que ela nao pode sair sozinha.
+update public.subtasks set status = 'aguardando_informacoes'
+ where id in (select subtask_id from peca79);
+
+delete from public.notifications;
+
+select teste.cenario('Quem produziu manda a lamina para analise', :BRUNO,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    select 'deliverable', id, 1, 'interna', %L from peca79$fmt$, :BRUNO),
+  'ok', 1);
+
+-- ---------------------------------------------------------------------------
+-- A GESTAO ATIVA INTEIRA E AVISADA quando a conta nao tem aprovador
+-- configurado -- e era este o buraco do "as notificacoes nao funcionam":
+-- `avisa_aprovador_da_conta()` so avisava `client_flow_defaults.aprovador_interno_id`,
+-- que e opcional e esta nulo na maioria das contas. E `deliverable` nem
+-- chegava ali: caia num `else return new`.
+--
+-- O Bruno abriu a rodada, entao ele nao recebe -- e `notificar()` quem
+-- garante. Ana e Diego sao a gestao do seed; a contagem e por isso 2.
+-- ---------------------------------------------------------------------------
+select teste.conferir('A gestao foi avisada da analise da peca',
+  (select count(*)::text from public.notifications n
+     join public.profiles p on p.id = n.user_id
+    where n.tipo = 'aprovacao' and p.role in ('desenvolvedor', 'socio')),
+  '2');
+
+select teste.conferir('E o aviso nomeia a peca',
+  (select (count(*) > 0)::text from public.notifications
+    where corpo like 'Lamina que volta%'),
+  'true');
+
+select teste.conferir('Quem pediu a analise nao recebe aviso',
+  (select count(*)::text from public.notifications where user_id = :BRUNO),
+  '0');
+
+delete from public.notifications;
+
+-- ---------------------------------------------------------------------------
+-- E AGORA A DECISAO. Ana pede ajustes, com o recado.
+-- ---------------------------------------------------------------------------
+select teste.cenario('A gestao pede ajustes na analise da peca', :ANA,
+  format($fmt$update public.approval_rounds
+     set status = 'ajustes_solicitados', decidido_por = %L, decidido_em = now(),
+         comentario = 'O logo no rodape ficou pequeno.'
+   where content_type = 'deliverable' and escopo = 'interna'
+     and content_id in (select id from peca79)$fmt$, :ANA),
+  'ok', 1);
+
+select teste.conferir('A peca voltou para a producao',
+  (select d.status::text from public.deliverables d where d.id in (select id from peca79)),
+  'em_producao');
+
+-- O CENARIO QUE RESPONDE AO RELATO. Sem a linha da etapa no trigger, a peca
+-- nao aparece no Minhas Tasks de quem a produziu -- e e lá que ele a procura.
+select teste.conferir('E a ETAPA dela voltou para o trabalho',
+  (select s.status::text from public.subtasks s
+    where s.id in (select subtask_id from peca79)),
+  'em_andamento');
+
+-- `em_ajustes` NAO e o status da etapa, e o cenario registra por que: a trava
+-- 4 de `validar_transicao_de_subtarefa` cobra uma rodada `ajustes_solicitados`
+-- na propria SUBTAREFA, e esta rodada e do entregavel. Quem trocar
+-- `em_andamento` por `em_ajustes` no trigger derruba a decisao da gestao com
+-- uma excecao sobre a etapa.
+select teste.conferir('O pedido de ajuste virou comentario na demanda',
+  (select (count(*) > 0)::text from public.task_comentarios c
+    where c.subtask_id in (select subtask_id from peca79)
+      and c.texto like '%logo no rodape ficou pequeno%'
+      and c.interno),
+  'true');
+
+select teste.conferir('E quem produziu recebeu o sino',
+  (select count(*)::text from public.notifications
+    where user_id = :BRUNO and tipo = 'aprovacao'
+      and titulo like 'Ajustes pedidos%'),
+  '1');
+
+select teste.conferir('Com o recado no corpo do aviso',
+  (select corpo from public.notifications
+    where user_id = :BRUNO and titulo like 'Ajustes pedidos%' limit 1),
+  'O logo no rodape ficou pequeno.');
+
+-- ---------------------------------------------------------------------------
+-- O `aprovado` NAO E DESFEITO, e este e o cenario que impede a correcao de
+-- virar um estrago: a recusa interna de uma versao nova nao pode apagar a
+-- aprovacao que o cliente deu na anterior. O que ela diz e "esta versao nao
+-- sai", nao "a outra deixou de valer".
+-- ---------------------------------------------------------------------------
+update public.deliverables set status = 'aprovado' where id in (select id from peca79);
+delete from public.notifications;
+
+select teste.cenario('A segunda analise da mesma lamina', :BRUNO,
+  format($fmt$insert into public.approval_rounds
+      (content_type, content_id, numero_rodada, escopo, solicitado_por)
+    select 'deliverable', id, 2, 'interna', %L from peca79$fmt$, :BRUNO),
+  'ok', 1);
+
+select teste.cenario('E a gestao recusa esta', :ANA,
+  format($fmt$update public.approval_rounds
+     set status = 'rejeitada', decidido_por = %L, decidido_em = now(),
+         comentario = 'Nao e isso.'
+   where content_type = 'deliverable' and escopo = 'interna' and numero_rodada = 2
+     and content_id in (select id from peca79)$fmt$, :ANA),
+  'ok', 1);
+
+select teste.conferir('A peca aprovada pelo cliente continua aprovada',
+  (select d.status::text from public.deliverables d where d.id in (select id from peca79)),
+  'aprovado');
+
+
+-- ===========================================================================
+-- 0080 - A CAMPANHA E A TASK MAE, E AS SUBTAREFAS SAO OS ITENS DELA
+--
+-- Decisao do usuario: *"quero que a campanha apareca como uma task. A
+-- campanha e a task mae, e as subtarefas sao os itens da campanha."*
+--
+-- A frase ja era verdade, e so no instante da abertura: dali em diante os dois
+-- lados andavam separados. Nao havia caminho nenhum para acrescentar item a
+-- uma campanha aberta, e acrescentar ETAPA na demanda -- o caminho que
+-- existe, e que a tela de producao MANDA usar -- nao criava peca.
+--
+-- O PRIMEIRO CENARIO E O QUE IMPEDE A REGRESSAO CARA: `abrir_campanha()`
+-- parou de inserir entregavel, porque o espelho o cria. Devolvendo os dois
+-- `insert into deliverables` a ela, cada item nasce DUAS vezes -- e a
+-- contagem cai aqui em vez de aparecer como uma campanha com o dobro dos
+-- itens que a demanda tem.
+-- ===========================================================================
+\set C80 '''c0800000-0000-0000-0000-000000000001'''
+
+create temporary table alvo80 (id uuid);
+grant all on alvo80 to authenticated;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :DIEGO, true);
+insert into alvo80
+select public.abrir_campanha(
+  :VERDE, 'Wave espelhada', null,
+  current_date, current_date + 20, 'ativa',
+  'https://drive.google.com/espelho', null, null, null,
+  '[{"nome":"Cartaz espelhado","prazo":null,"responsavel":null,
+     "filhos":[{"nome":"Versao A4","prazo":null,"responsavel":null}]}]'::jsonb
+);
+commit;
+reset role;
+
+create temporary view camp80 as
+  select c.id, c.task_id from public.campaigns c where c.nome = 'Wave espelhada';
+grant all on camp80 to authenticated;
+
+select teste.conferir('A abertura nao duplica o item',
+  (select count(*)::text from public.deliverables d
+    where d.campaign_id in (select id from camp80)),
+  '2');
+
+select teste.conferir('E a arvore chegou com o sub-item debaixo do pai',
+  (select count(*)::text from public.deliverables f
+    join public.deliverables p on p.id = f.parent_id
+   where f.campaign_id in (select id from camp80) and f.nome = 'Versao A4'
+     and p.nome = 'Cartaz espelhado'),
+  '1');
+
+-- ---------------------------------------------------------------------------
+-- A ETAPA NOVA NA DEMANDA VIRA PECA, que e o caminho que nao existia -- e a
+-- frase da tela de producao (*"Acrescente na demanda - cada etapa vira uma
+-- peca aqui"*) era uma promessa que o produto nao cumpria.
+-- ---------------------------------------------------------------------------
+select teste.cenario('O Atendimento acrescenta uma etapa na demanda da campanha', :MARINA,
+  $$insert into public.subtasks (task_id, titulo, ordem, responsavel_id)
+    select task_id, 'Tabloide novo', 9, '44444444-4444-4444-4444-444444444444' from camp80$$,
+  'ok', 1);
+
+select teste.conferir('E ela virou peca da campanha',
+  (select count(*)::text from public.deliverables d
+    where d.campaign_id in (select id from camp80) and d.nome = 'Tabloide novo'),
+  '1');
+
+select teste.conferir('Com o responsavel e a ordem da etapa',
+  (select (d.responsavel_id = :BRUNO and d.ordem = 9)::text
+     from public.deliverables d
+    where d.campaign_id in (select id from camp80) and d.nome = 'Tabloide novo'),
+  'true');
+
+-- ---------------------------------------------------------------------------
+-- RENOMEAR A ETAPA RENOMEIA A PECA. Sem isto a peca fica com o nome de
+-- fabrica para sempre -- o bug que o titulo da subtarefa de post ja teve.
+-- ---------------------------------------------------------------------------
+select teste.cenario('Renomear a etapa', :MARINA,
+  $$update public.subtasks set titulo = 'Tabloide A3'
+     where task_id in (select task_id from camp80) and titulo = 'Tabloide novo'$$,
+  'ok', 1);
+
+select teste.conferir('A peca acompanhou o nome',
+  (select count(*)::text from public.deliverables d
+    where d.campaign_id in (select id from camp80) and d.nome = 'Tabloide A3'),
+  '1');
+
+-- ---------------------------------------------------------------------------
+-- APAGAR A ETAPA VAZIA APAGA A PECA -- e so a vazia. A peca com versao
+-- gravada FICA, sem etapa: levar junto a arte que o cliente aprovou por causa
+-- de um clique numa lista de etapas e perda de material, e a regra da casa e
+-- que apagar nao e desfazer.
+-- ---------------------------------------------------------------------------
+select teste.cenario('Apagar a etapa sem material', :ANA,
+  $$delete from public.subtasks
+     where task_id in (select task_id from camp80) and titulo = 'Tabloide A3'$$,
+  'ok', 1);
+
+select teste.conferir('A peca vazia foi com ela',
+  (select count(*)::text from public.deliverables d
+    where d.campaign_id in (select id from camp80) and d.nome = 'Tabloide A3'),
+  '0');
+
+insert into public.deliverable_versions (deliverable_id, arquivos, criado_por)
+select d.id, '[{"url":"verde/espelho/v1.pdf","nome":"v1.pdf"}]'::jsonb, :BRUNO
+  from public.deliverables d
+ where d.campaign_id in (select id from camp80) and d.nome = 'Cartaz espelhado';
+
+select teste.cenario('Apagar a etapa da peca que tem material', :ANA,
+  $$delete from public.subtasks
+     where task_id in (select task_id from camp80) and titulo = 'Cartaz espelhado'$$,
+  'ok', 1);
+
+select teste.conferir('A peca com arquivo ficou, e sem etapa',
+  (select (count(*) filter (where d.subtask_id is null))::text
+     from public.deliverables d
+    where d.campaign_id in (select id from camp80) and d.nome = 'Cartaz espelhado'),
+  '1');
+
+-- ---------------------------------------------------------------------------
+-- E O ESPELHO NAO ALCANCA DEMANDA QUE NAO E DE CAMPANHA, que e a outra metade:
+-- sem `campanha_da_task()` devolvendo null, toda etapa da agencia viraria
+-- entregavel de uma campanha qualquer.
+-- ---------------------------------------------------------------------------
+insert into public.tasks (id, client_id, titulo, criado_por, data_inicio, link_entrega)
+values ('c0800000-0000-0000-0000-0000000000ff', :VERDE, 'Demanda sem campanha',
+        :DIEGO, current_date, 'https://drive.google.com/sem-campanha');
+
+select teste.cenario('Uma etapa de demanda comum', :MARINA,
+  $$insert into public.subtasks (task_id, titulo, ordem)
+    values ('c0800000-0000-0000-0000-0000000000ff', 'Etapa solta', 0)$$,
+  'ok', 1);
+
+select teste.conferir('Ela nao virou peca de campanha nenhuma',
+  (select count(*)::text from public.deliverables d where d.nome = 'Etapa solta'),
+  '0');

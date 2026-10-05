@@ -1227,6 +1227,26 @@ vinte e quatro comiam a segunda — "MC" saía "M(". No board ela passava porque
 lá os avatares são de quem já subiu a sua; na linha de Minhas Tasks quase
 ninguém tem foto. Foi a imagem que mostrou.
 
+**E A FOTO ERA ACHATADA, não cortada**, em toda a plataforma — relato do
+usuário. `AvatarImage` tinha `aspect-square size-full` e **nenhum
+`object-fit`**, e o padrão do CSS é `fill`, que ESTICA a imagem até preencher a
+caixa; a caixa ali é quadrada por definição, então toda foto que não é quadrada
+saía deformada: a vertical some pelos lados, a horizontal achata o rosto. O
+conserto é `object-cover object-center`, e **ele vale para o produto inteiro
+numa linha** — barra lateral, listas, comentários, pilha, fila de aprovações,
+ficha da pessoa —, porque todo avatar do produto passa por `UserAvatar` ou pelo
+cartão da pessoa, e os dois usam este componente. É a propriedade que o
+`globals.css` tem com a cor, vista na camada de componente.
+
+O `center` é explícito e não herdado, pela razão do par nomeado: ele é o padrão
+do CSS, e escrevê-lo impede que alguém o troque sem perceber que está
+escolhendo onde o retrato é cortado.
+
+**Nenhuma varredura pegaria isto**, e vale dizer por quê: `check:cores` mede
+contraste e classe de cor, o `axe` mede árvore de acessibilidade, e uma imagem
+esticada não é nenhum dos dois — ela passa em todos e só aparece para quem
+conhece o rosto. Foi o usuário olhando a própria equipe.
+
 **O exemplo do protótipo ganhou duas etapas de outras pessoas** na demanda da
 Ana, pela mesma razão pela qual UMA etapa de exemplo é peça de campanha: sem
 ninguém mais na demanda, a imagem não prova que a pilha existe — prova só que
@@ -3017,6 +3037,142 @@ não decide isso; para quem decide, o botão desligado com a frase é o que ensi
 o passo que falta — a decisão do "Enviar ao cliente" do Social Media. E a frase
 é **uma só**: com a análise pendente, a pílula azul já responde, e a âmbar ao
 lado dela repetiria a mesma coisa a um centímetro de distância.
+
+##### E O PEDIDO DE AJUSTE DEVOLVE A PEÇA — o que a 0079 consertou
+
+Relato do usuário, sobre o que acabou de ser descrito: *"quando o atendimento
+devolve uma peça da campanha para ajuste, ela não está voltando. Preciso que
+corrija isso, para a peça voltar para a pessoa, com a solicitação de ajuste
+feita. E que as notificações comecem a funcionar"*. Ele estava certo nos dois
+pontos, e as duas causas são minhas.
+
+**A PRIMEIRA: EU COPIEI A REGRA DO POST SEM CONFERIR SE O MOTIVO DELA VALIA.**
+Está escrito, duas seções acima, por que o post não mexe em `posts.status` ao
+pedir ajuste: `posts_corrente_do_cliente` (0045) dispara nesse status e diz que
+o cliente pediu, o que é mentira. Eu escrevi a mesma linha para a peça de
+campanha, e **não existe trigger nenhum em `deliverables.status` falando do
+cliente** — o motivo não existia aqui. O que sobrou foi uma decisão sem
+consequência: a rodada virava `ajustes_solicitados`, a peça ficava onde estava,
+a etapa ficava onde estava, e a tela não dizia nada. Pior, o botão "Enviar para
+análise" aparecia ligado e o banco recusava o clique, porque a mesma versão não
+abre duas internas. **A peça não voltava e não dava para mandar de novo.**
+
+**A volta é `em_producao` e nunca `ajustes`**, e aqui o vocabulário importa:
+`ajustes` é a palavra do CLIENTE neste enum — é o que
+`decidir_rodada_do_cliente` escreve. Numa peça que ele não enxerga
+(`deliverables_select_cliente` exige `enviado_em`) seria gravar que ele decidiu
+o que não viu; numa que ele já aprovou, seria desfazer a aprovação dele por
+causa de uma rodada interna da versão seguinte. **Por isso `aprovado` é
+preservado:** a recusa interna da v2 diz que a v2 não sai, não que a v1 deixou
+de valer. É a frase que `etapa_acompanha_o_entregavel` já escrevia um nível
+abaixo — *"a peça foi feita uma vez e vai ser refeita"*.
+
+**A ETAPA É O QUE A DEVOLVE DE VERDADE.** A peça é uma subtarefa desde a 0051,
+então mover a etapa para `em_andamento` é o que a põe de volta no "Minhas
+Tasks" de quem a produziu — que é onde ele a procura. `em_ajustes` não cabe, e
+é mecânico: a trava 4 de `validar_transicao_de_subtarefa` cobra uma rodada
+`ajustes_solicitados` na própria SUBTAREFA, e esta rodada é do entregável.
+
+**E o pedido vira COMENTÁRIO na demanda.** Ele morava só em
+`approval_rounds.comentario`, e nenhuma tela do produto lê rodada de
+entregável. Na demanda ele cai onde a etapa de demanda já grava o dela desde a
+0007. A peça de campanha tem `task_comentarios` justamente por ser uma
+subtarefa — ao contrário do post, que não tem nada equivalente do lado interno
+e por isso depende só do sino.
+
+**Tudo isso é TRIGGER e não action** (`approval_rounds_devolve_o_entregavel`),
+pela razão da 0045: a action que decide a rodada já foi reescrita e vai ser de
+novo, e cada reescrita é uma chance de o trecho ficar para trás. De quebra ele
+pega todo caminho, inclusive um PATCH montado à mão.
+
+**A SEGUNDA CAUSA: o aviso da rodada interna nunca alcançou a peça.** Eu
+escrevi aqui que `approval_rounds_avisa_aprovador` (0064) *"já toca o sino
+quando uma rodada interna nasce pendente"*. Não tocava:
+`avisa_aprovador_da_conta()` tem um `else return new` depois de `subtask` e
+`post`, e `deliverable` caía nele. Era uma afirmação minha sobre código que eu
+não tinha lido — a mesma falha da frase sobre a pilha de avatares não custar
+consulta, e vale repetir por quê: **o custo de escrever aqui uma propriedade
+que não foi conferida é que ela passa a ser lida como verdade por quem vier
+depois.**
+
+**E havia uma segunda metade, que valia para os TRÊS tipos.** O único avisado
+era `client_flow_defaults.aprovador_interno_id`, que é opcional e está nulo na
+maioria das contas — a aba Configurações do fluxo nasceu na 0064 e quase
+ninguém a preencheu. **Conta sem aprovador configurado não avisava ninguém**, e
+isso se lê exatamente como "as notificações não funcionam". Agora a volta é a
+**gestão ativa inteira**, que é a forma de `solicitar_notas_do_mes()` e o pedido
+literal do usuário. *O custo está dito:* numa agência sem aprovador
+configurado, toda rodada interna toca o sino de todo gestor — melhor que tocar
+o de ninguém, e quem quiser estreitar nomeia o aprovador da conta.
+
+**De quebra, o `rpc("notificar")` do post deixou de ser descartado.** Ele
+devolve `{ error }`, e com o retorno jogado fora uma recusa não aparecia nem na
+tela nem no log — contra a regra de nenhuma escrita falhar em silêncio, no
+único lugar onde o sintoma é "não chegou nada".
+
+#### A campanha é a TASK MÃE, e as subtarefas são os itens dela
+
+Migration 0080, decisão do usuário: *"quero que a campanha apareça como uma
+task. A campanha é a task mãe, e as subtarefas são os itens da campanha."*
+
+**A frase já era verdade, e só no instante da abertura.** `abrir_campanha()`
+(0051) cria a demanda e, para cada nó, uma etapa e um entregável apontando para
+ela — e dali em diante os dois lados andavam separados:
+
+- **não existia caminho nenhum para acrescentar um item a uma campanha
+  aberta.** A árvore era congelada no clique de "Criar campanha", e o jeito de
+  acrescentar uma peça era abrir outra campanha;
+- acrescentar uma ETAPA na demanda — que é o caminho que existe, e o que a
+  tela de produção MANDA fazer, com a frase *"Acrescente na demanda — cada
+  etapa vira uma peça aqui"* — **não criava peça nenhuma**. Aquela frase era
+  uma promessa que o produto não cumpria;
+- renomear a etapa deixava a peça com o nome antigo para sempre, e trocar o
+  responsável dela deixava a peça no nome de quem saiu do trabalho.
+
+**Há UM lugar onde uma peça nasce, e é a etapa da demanda.** Por isso
+`abrir_campanha()` parou de inserir entregável: com o espelho de pé ela criava
+a etapa (o espelho criava a peça) e inseria a peça de novo — dois itens por
+nó. A saída não é um `if` no espelho para ele se calar durante a abertura; é
+tirar a segunda escrita. É a decisão de `arte_url` ser a capa escrita pelo
+trigger e a de `tasks.data_inicio` ser derivada das etapas: o que é
+consequência não se escreve duas vezes.
+
+**O espelho copia quatro colunas, e nenhuma delas é status.** Nome, prazo,
+responsável e ordem, mais o nível — `subtasks_agrupadora` (0022) recusa o neto
+da etapa e `deliverables_dois_niveis` (0033) recusa o neto da peça, então os
+três níveis da demanda batem com os dois da campanha sem de-para. O status
+fica de fora porque `content_status` é o ciclo com o cliente e
+`subtask_status` é o trabalho da pessoa — a decisão dos três vocabulários. Quem
+liga os dois onde eles se encontram de verdade já existe:
+`etapa_acompanha_o_entregavel` (0052) e `entregavel_volta_da_analise` (0079).
+
+**Ele não vai no sentido contrário**, e é o que impede o laço: criar entregável
+não cria etapa. Se um dia houver uma tela de "acrescentar peça" direto na
+campanha, ela chama a demanda.
+
+**E ele não apaga a peça que tem material.** Apagar a etapa apaga a peça vazia
+— que é o que a pessoa quis dizer — e preserva a que tem versão gravada ou
+carimbo de envio: ali o `on delete set null` de `subtask_id` deixa a peça sem
+etapa, que é o estado das campanhas anteriores à 0051 e que a tela já desenha.
+Levar junto a arte que o cliente aprovou por causa de um clique numa lista de
+etapas é perda de material, e apagar não é desfazer.
+
+**São DOIS triggers na mesma função, e foi a bateria que mostrou por quê.**
+`after` para nascer e mudar (num `before insert` a etapa ainda não existe e a
+peça estouraria na chave estrangeira), e **`before` para apagar**: `subtask_id`
+é `on delete set null`, a ação da chave estrangeira também roda como trigger
+AFTER, e num `after delete` a coluna já pode estar nula — o `where
+d.subtask_id = old.id` não acha a peça que acabou de ser desligada, e ela fica
+órfã em vez de sair, sem erro nenhum. O cenário "a peça vazia foi com ela"
+achou 1 onde esperava 0; o resultado era plausível, que é o modo de falha desta
+casa.
+
+**A migration faz uma passada nas campanhas que já estão abertas**, pelos pais
+e depois pelos filhos em dois comandos — num comando só a ordem das linhas não
+é garantida e metade dos filhos sairia no nível de topo. As anteriores à 0051
+continuam com `task_id` nulo, e a resposta para elas continua sendo
+`scripts/campanhas-sem-demanda.sql`, que pede a pasta de entrega a quem sabe
+qual é.
 
 #### A campanha se edita depois de aberta
 
