@@ -16,12 +16,18 @@ import { enderecoDaArte } from "@/lib/dados/conteudo";
 import { postsDoMes, urlsDasArtes } from "@/lib/dados/posts";
 import { prazosDoPortal } from "@/lib/dados/portal";
 import {
+  ehFaseDoMaterial,
+  faseDoMaterial,
+  FASES_DO_MATERIAL,
+  type FaseDoMaterial,
+} from "@/lib/dominio/portal";
+import {
   combinaComFiltroDePost,
-  esperaDecisao,
   mesDe,
   PLATAFORMAS,
   porDia,
   type FiltrosDePost,
+  type PostDoPortal,
 } from "@/lib/dominio/posts";
 import { corDoPontoDeStatus } from "@/components/shared/status-badge";
 import type {
@@ -47,16 +53,32 @@ export function lerFiltrosDePost(
     typeof params[chave] === "string" ? params[chave] : "";
 
   const plataforma = texto("plataforma");
-  const status = texto("status");
+  const fase = texto("fase");
 
   return {
     plataforma: (PLATAFORMAS as string[]).includes(plataforma)
       ? (plataforma as PlataformaSocial)
       : null,
-    status: (STATUS_DE_CONTEUDO as string[]).includes(status)
-      ? (status as ContentStatus)
-      : null,
+    fase: ehFaseDoMaterial(fase) ? fase : null,
   };
+}
+
+/**
+ * Quantos materiais o mês tem em cada fase.
+ *
+ * **A conta é sobre o MÊS INTEIRO, nunca sobre o que sobrou do filtro.**
+ * Filtrando por Instagram, "Aprovados 7" continua dizendo quantos o mês tem —
+ * senão escolher um filtro zeraria os outros chips e a pessoa perderia o
+ * caminho de volta. É o contador das abas de Pedidos pela quarta vez: o
+ * recorte acontece na tela, e o número vem da lista inteira.
+ */
+function contarPorFase(posts: PostDoPortal[]): Record<FaseDoMaterial, number> {
+  const contagens = Object.fromEntries(
+    FASES_DO_MATERIAL.map((f) => [f.fase, 0]),
+  ) as Record<FaseDoMaterial, number>;
+
+  for (const post of posts) contagens[faseDoMaterial(post.status)] += 1;
+  return contagens;
 }
 
 export async function SocialDoPortal({
@@ -81,8 +103,14 @@ export async function SocialDoPortal({
   const posts = todos.filter((post) => combinaComFiltroDePost(post, filtros));
 
   const artes = await urlsDasArtes(posts.map((p) => p.thumbnailUrl));
-  const aguardando = posts.filter(esperaDecisao).length;
   const doDia = dia ? (porDia(posts).get(dia) ?? []) : [];
+
+  // As duas coisas que a faixa de filtros precisa, e as duas saem do MÊS
+  // INTEIRO — nunca do que sobrou do filtro.
+  const contagens = contarPorFase(todos);
+  const redes = PLATAFORMAS.filter((rede) =>
+    todos.some((post) => post.plataforma === rede),
+  );
 
   return (
     <div className="space-y-6">
@@ -93,26 +121,32 @@ export async function SocialDoPortal({
         base={base}
       />
 
-      {/* O CONTADOR É A PRIMEIRA COISA, e é o único número da tela: o
-          calendário responde "o que vai ao ar quando", e este responde "o que
-          depende de mim". */}
-      <p className="text-base">
-        {aguardando === 0 ? (
-          <span className="text-text-muted">
-            {comoEquipe
-              ? "Nenhum material deste mês aguarda a decisão do cliente."
-              : "Nenhum material deste mês aguarda a sua aprovação."}
-          </span>
-        ) : (
-          <>
-            <strong className="tabular-nums">{aguardando}</strong>{" "}
-            {aguardando === 1 ? "post aguarda" : "posts aguardam"}{" "}
-            {comoEquipe ? "a decisão do cliente" : "a sua aprovação"} neste mês.
-          </>
-        )}
-      </p>
+      {/* A FRASE DO CONTADOR SAIU, e quem responde agora é o primeiro chip.
 
-      <FiltrosDePosts filtros={filtros} encontrados={posts.length} />
+          Ela dizia "4 posts aguardam a sua aprovação neste mês" quarenta
+          pixels acima de um chip escrito "Esperando você 4" — dois números
+          para o mesmo fato, um do lado do outro, que é o cartão de "11
+          entregues" com sete na lista embaixo. E o chip faz mais: ele diz o
+          número E leva até os quatro, enquanto a frase só dizia o número. Por
+          isso ele é o único âmbar da linha, e por isso "Esperando você" vira
+          "Esperando o cliente" na visualização administrativa — a frase
+          trocava de dono, e o rótulo passou a trocar no lugar dela.
+
+          **E ela estava errada desde sempre, de um jeito que ninguém veria:**
+          a conta era sobre `posts`, a lista já FILTRADA, enquanto o texto
+          dizia "neste mês" — filtrando por Instagram, ela contava só o
+          Instagram e continuava afirmando que aquilo era o mês.
+
+          `esperaDecisao` continua existindo e continua sendo a pergunta certa
+          para o BOTÃO: lá a rodada aberta precisa existir, senão o clique cai
+          na recusa "esta rodada já foi decidida". Aqui a pergunta é outra —
+          em que pé está o material deste mês. */}
+      <FiltrosDePosts
+        filtros={filtros}
+        contagens={contagens}
+        redes={redes}
+        comoEquipe={comoEquipe}
+      />
 
       {posts.length === 0 ? (
         <EmptyState

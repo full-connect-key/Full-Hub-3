@@ -1,3 +1,5 @@
+import { faseDoMaterial, type FaseDoMaterial } from "@/lib/dominio/portal";
+
 import type {
   ContentStatus,
   PlataformaSocial,
@@ -132,9 +134,18 @@ export function fraseDoPortao(nome: string): string {
   return `A Full está pedindo seu aval na ${nome} deste material. O resto segue depois que você aprovar.`;
 }
 
+/**
+ * O filtro do Social no portal: uma rede e uma FASE.
+ *
+ * **Era `status`, e são sete; virou `fase`, e são quatro** — o porquê está em
+ * `FASES_DO_MATERIAL`, em `lib/dominio/portal.ts`. A chave na URL mudou junto:
+ * `?status=em_producao` deixa de filtrar, e isso é dito em vez de escondido —
+ * um valor que não existe mais cai em "sem filtro", que é o comportamento de
+ * toda listagem deste produto para valor torto.
+ */
 export type FiltrosDePost = {
   plataforma: PlataformaSocial | null;
-  status: ContentStatus | null;
+  fase: FaseDoMaterial | null;
 };
 
 export function combinaComFiltroDePost(
@@ -143,7 +154,8 @@ export function combinaComFiltroDePost(
 ): boolean {
   if (filtros.plataforma && post.plataforma !== filtros.plataforma)
     return false;
-  if (filtros.status && post.status !== filtros.status) return false;
+  if (filtros.fase && faseDoMaterial(post.status) !== filtros.fase)
+    return false;
   return true;
 }
 

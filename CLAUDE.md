@@ -1696,6 +1696,92 @@ aberto e filtros moram na URL, como em toda listagem do produto — "olha o dia
 por medir a janela: sete colunas em 375px dão 50px por dia, e 50px não cabem
 miniatura, rede e tema.
 
+##### Os filtros são QUATRO FASES e as redes do mês, numa linha só
+
+Proposta de layout escolhida entre três, por decisão do usuário. Eram
+**catorze pílulas do mesmo peso em duas fileiras** — sete redes e sete status
+—, cerca de 130px acima do calendário, que é a peça que o cliente veio ver. As
+outras duas ficam registradas porque a decisão pode voltar: **B**, uma faixa
+grande de decisão ("4 materiais esperando você" com um "Ver só esses") e o
+resto recolhido num "Filtrar" — recusada porque quem quer só o mês aprovado
+passa a precisar de dois cliques, e filtro recolhido é filtro que ninguém
+descobre; **C**, controle segmentado, mais arrumado e **exclusivo**, onde não
+dá para ver "aprovados" sabendo quantos estão em ajustes, e a contagem não
+cabe sem apertar.
+
+**As três mudanças são de conteúdo antes de serem de forma.**
+
+**1. Os sete status viraram QUATRO FASES** — `FASES_DO_MATERIAL` em
+`lib/dominio/portal.ts`. "Em produção", "Aguardando informações" e "Stand by"
+descrevem onde o trabalho está DENTRO da agência; do lado de fora os três
+dizem *a Full está trabalhando nisso*, e oferecer os três é pedir ao cliente
+que escolha entre distinções que não são dele. **E a fase é DERIVADA**, como
+`faseDoPedido()` nas abas de Pedidos e `maoDoPost()` no Social: uma coluna
+precisaria ser reescrita por todo caminho que mexe no status. **O selo de cada
+card continua dizendo o status exato** — a fase agrupa o FILTRO, não a linha.
+
+**A quinta, "Recusados", só aparece quando existe uma**, como a aba Recusado
+dos Pedidos: ela não cabe em nenhuma das quatro, e um chip permanente num mês
+em que nada foi recusado é um lembrete diário de um problema que não existe.
+
+**2. Cada chip traz a CONTAGEM, e o zero aparece.** Sem ela a pessoa clica
+para descobrir que está vazio; com ela o filtro responde antes de ser clicado.
+O zero fica pela razão da faixa de áreas de Minhas Tasks: aqui a linha
+RESPONDE o que existe no mês, e "nenhum" é resposta — diferente do selo da
+fila de aprovações, que COBRA uma ação e por isso some no zero.
+
+**As duas contagens saem do MÊS INTEIRO, nunca do que sobrou do filtro.**
+Filtrando por Instagram, "Aprovados 2" continua dizendo quantos o mês tem:
+senão escolher um filtro zeraria os outros chips e a pessoa perderia o caminho
+de volta. É o contador das abas de Pedidos pela terceira vez — o recorte
+acontece na tela, e o número vem da lista inteira.
+
+**3. Só as redes que o mês TEM.** Um chip de TikTok numa conta que não posta
+no TikTok não é uma resposta, é ruído — e elas vêm na **sigla** de duas letras
+que o calendário e o card já usam, porque sete nomes por extenso foram metade
+do problema que esta linha resolve. A sigla entra como TEXTO do chip e não
+como `SeloDaRede`: aquele componente é um par nomeado (`bg-neutral-soft` com
+`text-neutral`), e apagar o fundo dele com `bg-transparent` deixaria a cor de
+frente sobre um fundo que ninguém mediu. Dentro do chip a sigla É o rótulo.
+
+**A FRASE DO CONTADOR SAIU, e quem responde agora é o primeiro chip.** Ela
+dizia "4 posts aguardam a sua aprovação neste mês" quarenta pixels acima de um
+chip escrito "Esperando você 4" — dois números para o mesmo fato, um do lado
+do outro, que é o cartão de "11 entregues" com sete na lista embaixo. E o chip
+faz mais: ele diz o número **e leva até os quatro**. **De quebra ela estava
+errada desde sempre, de um jeito que ninguém veria:** a conta era sobre a
+lista já FILTRADA enquanto o texto dizia "neste mês" — filtrando por
+Instagram, ela contava só o Instagram e continuava afirmando que aquilo era o
+mês.
+
+**"Esperando você" vira "Esperando o cliente" na visualização
+administrativa.** A frase que saiu já trocava de dono; o rótulo passou a
+trocar no lugar dela, e a troca mora em `FASES_DO_MATERIAL` e não num `if` na
+faixa — é a decisão dos dois mapas de rótulo das Solicitações, onde o mesmo
+valor quer dizer coisas diferentes dos dois lados.
+
+**E ela é a ÚNICA que se destaca em repouso**, em âmbar: as outras três
+respondem onde o material está, esta diz que alguém está esperando. `--warning`
+e nunca `--danger` — material esperando decisão é o estado normal do mês, não
+um erro, que é a regra do alerta de 7 dias das campanhas. O azul fica
+reservado ao chip ATIVO, então os dois sinais não se confundem.
+
+**`esperaDecisao` continua existindo**, e continua sendo a pergunta certa para
+o BOTÃO: lá a rodada aberta precisa existir, senão o clique cai na recusa
+"esta rodada já foi decidida". A fase responde outra coisa — em que pé está o
+material.
+
+**Em 375px o separador vira QUEBRA DE LINHA, em vez de sumir.** Num fio
+vertical as duas metades se distinguem por estarem lado a lado; empilhadas,
+sem ele, as redes continuavam a linha das fases e "PT" sobrava sozinha num
+quarto nível — a faixa lia como dez chips soltos em vez de dois grupos.
+`w-full` dentro do `flex-wrap` força a quebra sem um segundo contêiner, que é
+o que daria dois `gap` diferentes entre os chips.
+
+**O parâmetro da URL é `?fase=` e não mais `?status=`**, e valor torto vira
+nulo — `ehFaseDoMaterial` recusa o que não existe, como `PLATAFORMAS` já
+recusava a rede inventada.
+
 **No detalhe, a ordem da tela é a ordem da decisão:** arte grande, informações,
 legenda, e só então os botões. Botão antes da arte convida a aprovar sem
 olhar.

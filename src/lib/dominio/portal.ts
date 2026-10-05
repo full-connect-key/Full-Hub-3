@@ -113,6 +113,98 @@ export function statusParaOCliente(entrada: {
   return "em_producao";
 }
 
+/**
+ * AS QUATRO FASES DO MATERIAL — o que o filtro do Social oferece ao cliente.
+ *
+ * ---------------------------------------------------------------------------
+ * **São QUATRO, e `content_status` tem SETE.** Decisão de desenho, escolhida
+ * entre três propostas: a faixa de filtros do Social no portal era catorze
+ * pílulas do mesmo peso em duas fileiras — sete redes e sete status — antes
+ * do calendário, que é a peça que o cliente veio ver.
+ *
+ * **Três dos sete querem dizer a mesma coisa do lado de fora.** "Em produção",
+ * "Aguardando informações" e "Stand by" descrevem onde o trabalho está DENTRO
+ * da agência; para quem está do outro lado os três dizem *a Full está
+ * trabalhando nisso*. Oferecer os três é pedir ao cliente que escolha entre
+ * distinções que não são dele.
+ *
+ * **E a fase é DERIVADA, não uma coluna.** É a decisão de `faseDoPedido()` nas
+ * abas de Pedidos, de `maoDoPost()` no Social Media e de "atraso não é coluna"
+ * no Financeiro: um `fase` em `posts` precisaria ser reescrito por todo caminho
+ * que mexe no status para continuar verdadeiro.
+ *
+ * **O selo de cada card continua dizendo o status exato.** A fase agrupa o
+ * FILTRO, e não o que a linha mostra — quem abre um material em "Em produção"
+ * continua lendo "Aguardando informações" se for o caso.
+ * ---------------------------------------------------------------------------
+ */
+export type FaseDoMaterial =
+  | "esperando"
+  | "producao"
+  | "ajustes"
+  | "aprovados"
+  | "recusados";
+
+/**
+ * De que fase é cada status.
+ *
+ * `Record` sobre a união inteira, e não um `switch` com `default`: um valor
+ * novo em `content_status` quebra o tipo aqui em vez de cair calado numa fase
+ * que ninguém escolheu.
+ */
+export const FASE_DO_STATUS: Record<ContentStatus, FaseDoMaterial> = {
+  em_aprovacao: "esperando",
+  em_producao: "producao",
+  aguardando_informacoes: "producao",
+  stand_by: "producao",
+  ajustes: "ajustes",
+  aprovado: "aprovados",
+  rejeitado: "recusados",
+};
+
+/**
+ * A ordem e o rótulo, num lugar só.
+ *
+ * **"Recusado" é a quinta e só aparece quando existe uma**, como a aba
+ * Recusado dos Pedidos: ela não cabe em nenhuma das quatro — em "Aprovados"
+ * afirmaria o contrário, e fora da faixa o material sumiria da tela de quem
+ * precisa justamente dele.
+ */
+export const FASES_DO_MATERIAL: {
+  fase: FaseDoMaterial;
+  rotulo: string;
+  /**
+   * O rótulo na visualização administrativa, quando ele muda de dono.
+   *
+   * "Esperando você" dito a alguém da agência é falso — e a mesma tela já
+   * troca a frase do contador ("a decisão do cliente"). Ele mora aqui e não
+   * num `if` na faixa de filtros, porque a troca é do vocabulário e não do
+   * desenho: é a decisão dos dois mapas de rótulo das Solicitações, onde o
+   * mesmo valor quer dizer coisas diferentes dos dois lados.
+   */
+  rotuloParaEquipe?: string;
+  /** Só desenha quando houver material nela. */
+  soComItem?: boolean;
+}[] = [
+  {
+    fase: "esperando",
+    rotulo: "Esperando você",
+    rotuloParaEquipe: "Esperando o cliente",
+  },
+  { fase: "producao", rotulo: "Em produção" },
+  { fase: "ajustes", rotulo: "Em ajustes" },
+  { fase: "aprovados", rotulo: "Aprovados" },
+  { fase: "recusados", rotulo: "Recusados", soComItem: true },
+];
+
+export function faseDoMaterial(status: ContentStatus): FaseDoMaterial {
+  return FASE_DO_STATUS[status];
+}
+
+export function ehFaseDoMaterial(valor: string): valor is FaseDoMaterial {
+  return FASES_DO_MATERIAL.some((f) => f.fase === valor);
+}
+
 /** Os três recortes de prazo do filtro. */
 export type FocoDePrazo = "urgente" | "semana" | "adiante";
 
