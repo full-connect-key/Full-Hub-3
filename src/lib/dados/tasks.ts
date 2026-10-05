@@ -622,7 +622,7 @@ export type ItemDeCalendario = {
   chave: string;
   /**
    * O post entrou aqui no Sprint 12, e é o primeiro item do calendário que
-   * NÃO é uma demanda nem uma etapa dela. A agência precisava de um lugar só
+   * NÃO é uma etapa de demanda. A agência precisava de um lugar só
    * para a pergunta "o que sai em que dia" — e um post agendado para o dia 15
    * ocupa a equipe no dia 15 exatamente como uma entrega.
    *
@@ -635,6 +635,20 @@ export type ItemDeCalendario = {
   tipo: TipoDeItemDeCalendario;
   taskId: string;
   titulo: string;
+  /**
+   * De onde esta linha vem — a DEMANDA, para a etapa; a campanha, para o
+   * entregável.
+   *
+   * Decisão do usuário: *"que apareça o nome da task mãe, junto com o nome da
+   * Subtarefa"*. A etapa dizia "Layout" e mais nada, e "Layout" é o nome de
+   * uma etapa em toda campanha da agência — numa célula com três linhas,
+   * nenhuma delas dizia de que trabalho era.
+   *
+   * Fica nulo no post e na campanha, que não têm mãe: o mês de social e a
+   * campanha SÃO a demanda deles, e repetir o próprio nome embaixo do título
+   * seria a linha se explicando com ela mesma.
+   */
+  demanda: string | null;
   prazo: string;
   prioridade: TaskPrioridade;
   status: TaskStatus;
@@ -708,21 +722,15 @@ export async function itensDoCalendario(
 
   const itens: ItemDeCalendario[] = [];
 
-  for (const task of tasks) {
-    if (!task.data_fim) continue;
-    itens.push({
-      chave: `task-${task.id}`,
-      tipo: "task",
-      taskId: task.id,
-      titulo: task.titulo,
-      prazo: task.data_fim,
-      prioridade: task.prioridade,
-      status: task.status,
-      concluida: task.status === "concluido",
-      responsavel: null,
-      cliente: task.cliente?.nome_empresa ?? null,
-    });
-  }
+  // A LINHA DA DEMANDA NÃO EXISTE MAIS, e a ausência é decisão do usuário:
+  // *"não considere no calendário a data final da task, apenas o prazo final
+  // da última subtarefa"*.
+  //
+  // E ela já era duplicata pela mecânica: `recalcular_periodo_task()` (0028)
+  // escreve `tasks.data_fim` como `max(prazo das folhas)`, então aquela linha
+  // caía no MESMO dia que a última etapa, com outro rótulo, dizendo o mesmo
+  // fato. O fim do período da demanda continua existindo — ele é o prazo da
+  // última etapa dela, que é a linha que ficou.
 
   for (const sub of subtarefas ?? []) {
     const mae = porTask.get(sub.task_id);
@@ -736,6 +744,7 @@ export async function itensDoCalendario(
       tipo: "subtarefa",
       taskId: sub.task_id,
       titulo: sub.titulo,
+      demanda: mae.titulo,
       prazo: sub.prazo,
       prioridade: sub.prioridade,
       status: mae.status,
@@ -817,6 +826,7 @@ async function campanhasNoCalendario(
     tipo: "campanha" as const,
     taskId: campanha.id,
     titulo: campanha.nome,
+    demanda: null,
     prazo: campanha.data_fim,
     prioridade: "normal" as TaskPrioridade,
     status: "em_andamento" as TaskStatus,
@@ -835,6 +845,7 @@ async function campanhasNoCalendario(
       tipo: "entregavel",
       taskId: item.id,
       titulo: item.nome,
+      demanda: campanha.nome,
       prazo: item.prazo,
       prioridade: "normal",
       status: "em_andamento",
@@ -902,6 +913,7 @@ async function postsNoCalendario(
       tipo: "post" as const,
       taskId: post.id,
       titulo: post.tema,
+      demanda: null,
       prazo: post.data_publicacao as string,
       prioridade: "normal" as TaskPrioridade,
       status: "em_andamento" as TaskStatus,

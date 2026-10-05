@@ -184,23 +184,74 @@ export const ROTULOS_DE_FOCO: Record<FocoDoDia, string> = {
 };
 
 /**
- * Cor de cada situação, usada no calendário e na legenda dele.
+ * A TINTA DE CADA SITUAÇÃO NO CALENDÁRIO: o chip inteiro, a barra e o rótulo.
  *
- * Vencido é vermelho e vence hoje é âmbar mesmo quando a prioridade é baixa:
- * o que aperta é a data, não a importância. Só o que está no futuro usa a cor
- * da prioridade.
+ * ---------------------------------------------------------------------------
+ * **São QUATRO cores, e as três que o usuário nomeou são estas** — decisão
+ * dele: *"Deixe as cores: Concluido em Verde, Em produção azul, e vencido em
+ * Vermelho"*, junto com *"mude as cores das legendas do calendário, deixe ele
+ * visualmente mais colorido"*.
+ *
+ * **"Mais colorido" é o CHIP e não a barra.** Ele era um cartão branco com um
+ * fio de quatro pixels na esquerda, e quatro fios de quatro pixels numa
+ * célula de calendário não se leem de longe — que é a distância de que a
+ * grade do mês é olhada. Agora a cor é o fundo do chip, e a barra continua
+ * para dar a borda de leitura.
+ *
+ * **E é PAR NOMEADO, nunca opacidade.** `bg-success/10` dá uma cor que
+ * ninguém mediu, e no tema escuro dá outra — a regra do selo de estado,
+ * aplicada aqui. Os quatro pares já são medidos pelo `check:cores`; o que
+ * entrou na lista com esta mudança foi `--text-primary` e `--text-muted`
+ * sobre os quatro fundos tingidos, que é o título e a linhagem do chip.
+ * ---------------------------------------------------------------------------
+ *
+ * **`semana` e `futura` dividem o azul**, e a fusão é o que tira a nota de pé
+ * de página que a legenda carregava (*"mais adiante no tempo, a barra usa a
+ * cor da prioridade"*). Duas razões:
+ *
+ * - **"esta semana" é o que a própria grade já diz.** Numa tela em que cada
+ *   item mora na célula do dia dele, uma cor que significa "cai nesta semana"
+ *   repete a posição — e repetir a posição com cor gasta a cor;
+ * - **a cor da prioridade no `futura` era a exceção à regra do próprio
+ *   calendário**, que é colorir pela SITUAÇÃO do prazo e não pela
+ *   importância. Ela precisava de uma frase de legenda para ser entendida, e
+ *   uma legenda com nota de rodapé é uma legenda que não se lê de relance.
+ *
+ * *O que se perde, e é dito em vez de escondido:* a prioridade sai da cor do
+ * calendário. Ela continua no `title` de cada chip e é o que o board e a
+ * Lista mostram — e nas duas ela é selo, não cor de fundo.
+ *
+ * `sem-prazo` fica no mapa por completude do `Record`, e nenhum item do
+ * calendário cai nele: item sem data não tem célula onde caber, e as quatro
+ * origens filtram a data nula antes de montar a lista.
  */
-export const COR_DA_SITUACAO: Record<Exclude<SituacaoDePrazo, "futura">, string> = {
-  atrasada: "bg-destructive",
-  hoje: "bg-warning",
-  semana: "bg-info",
-  concluida: "bg-muted-foreground/40",
-  "sem-prazo": "bg-muted-foreground/40",
+export const TINTA_DA_SITUACAO: Record<
+  SituacaoDePrazo,
+  { chip: string; barra: string; rotulo: string }
+> = {
+  atrasada: { chip: "bg-danger-soft", barra: "bg-danger", rotulo: "text-danger" },
+  hoje: { chip: "bg-warning-soft", barra: "bg-warning", rotulo: "text-warning" },
+  semana: { chip: "bg-accent", barra: "bg-accent-foreground", rotulo: "text-accent-foreground" },
+  futura: { chip: "bg-accent", barra: "bg-accent-foreground", rotulo: "text-accent-foreground" },
+  concluida: { chip: "bg-success-soft", barra: "bg-success", rotulo: "text-success" },
+  "sem-prazo": { chip: "bg-neutral-soft", barra: "bg-neutral", rotulo: "text-neutral" },
 };
 
-export function corDoPrazo(situacao: SituacaoDePrazo, prioridade: TaskPrioridade): string {
-  return situacao === "futura" ? COR_DA_PRIORIDADE[prioridade] : COR_DA_SITUACAO[situacao];
-}
+/**
+ * O que a legenda escreve para cada cor — QUATRO entradas, não seis.
+ *
+ * `semana` e `futura` dividem a mesma cor, então dividem a mesma linha: duas
+ * entradas de legenda com a mesma amostra são piores que uma, porque a pessoa
+ * procura a diferença, não acha, e passa a desconfiar do resto. É a decisão da
+ * legenda do calendário de Social Media, que agrupa os status que dividem o
+ * azul.
+ */
+export const LEGENDA_DO_CALENDARIO: { situacao: SituacaoDePrazo; rotulo: string }[] = [
+  { situacao: "atrasada", rotulo: "Vencido" },
+  { situacao: "hoje", rotulo: "Vence hoje" },
+  { situacao: "futura", rotulo: "Em produção" },
+  { situacao: "concluida", rotulo: "Concluído" },
+];
 
 // ---------------------------------------------------------------------------
 // Os três níveis: demanda → etapa → sub-etapa (migration 0022)
@@ -278,27 +329,63 @@ export function emArvore<T extends ComPai & { ordem: number }>(
  * aparecer na tela como o último ramo de um `? :` aninhado. Foi assim que
  * `entregavel` quase renderizou como "Etapa".
  */
+/**
+ * As quatro origens do calendário de tasks.
+ *
+ * ---------------------------------------------------------------------------
+ * **`"task"` SAIU, e a remoção é decisão do usuário:** *"não considere no
+ * calendário a data final da task, apenas o prazo final da última
+ * subtarefa"*.
+ *
+ * **E ela estava certa pela mecânica, não só pelo gosto.**
+ * `recalcular_periodo_task()` (0028) escreve `tasks.data_fim` como
+ * `max(prazo das FOLHAS)` — então a linha "Demanda" caía exatamente no mesmo
+ * dia que a última etapa, com outro rótulo, dizendo o mesmo fato. Era a
+ * contagem dobrada que este produto recusa em toda soma, aqui na forma de
+ * duas linhas na mesma célula.
+ *
+ * **Saiu do TIPO, e não só do loop que a produzia** — a decisão da 0023, que
+ * apagou `tasks.exigencia_aprovacao` em vez de deixá-la parada: um valor de
+ * união que nenhum caminho produz é o que alguém reaproveita errado três
+ * sprints depois, achando que ainda significa alguma coisa.
+ * ---------------------------------------------------------------------------
+ */
 export type TipoDeItemDeCalendario =
-  | "task"
   | "subtarefa"
   | "post"
   | "campanha"
   | "entregavel";
 
 /**
- * Cada linha marca uma coisa diferente, e o rótulo diz qual.
+ * O rótulo de MÓDULO de cada linha — e a etapa não tem nenhum.
  *
- * A da Task marca o fim do período da demanda; a da subtarefa, o prazo de uma
- * etapa; a do post, o dia em que ele vai ao ar; a da campanha, o dia em que
- * ela fecha; a do entregável, o prazo daquela peça. Sem o rótulo, cinco
- * significados dividiriam a mesma célula sem nada que os separasse.
+ * ---------------------------------------------------------------------------
+ * **A palavra "Etapa" saiu, por decisão do usuário:** *"que apareça o nome da
+ * task mãe, junto com o nome da Subtarefa, e tirar as palavras Etapa"*.
+ *
+ * **Ela só existia para se opor a "Demanda"**, que é a linha que saiu junto
+ * (veja `TipoDeItemDeCalendario`): com as duas na mesma célula, o rótulo era
+ * a única coisa que dizia qual era qual. Sem a Demanda, a etapa é a entidade
+ * desta tela — e nomear a entidade da tela dentro de cada linha dela é
+ * ocupar a largura do título para repetir onde a pessoa está.
+ *
+ * **O que entrou no lugar é a LINHAGEM**, que é informação: `Cliente ·
+ * Demanda` embaixo do nome da etapa. É a forma que Minhas Tasks já usa desde
+ * o Sprint 10, e ela responde a pergunta que o rótulo não respondia — *"de
+ * que demanda é este Layout?"*, numa agência com três campanhas correndo.
+ *
+ * **Post, campanha e entregável FICAM com rótulo**, e a assimetria é o ponto:
+ * eles vêm de outro módulo, abrem em outra tela, e o rótulo é o que diz isso
+ * sem gastar uma linha. O `Record` continua total sobre a união — e `null`
+ * é explícito — justamente para um tipo novo não cair calado no último ramo
+ * de um `? :`, que é como "entregável" quase virou "Etapa".
+ * ---------------------------------------------------------------------------
  */
 export const ROTULO_DO_ITEM_DE_CALENDARIO: Record<
   TipoDeItemDeCalendario,
-  string
+  string | null
 > = {
-  task: "Demanda",
-  subtarefa: "Etapa",
+  subtarefa: null,
   post: "Post",
   campanha: "Campanha",
   entregavel: "Entregável",

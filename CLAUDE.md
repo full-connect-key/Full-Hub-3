@@ -2659,6 +2659,19 @@ de um grupo que a pessoa fechou.
 status: a lista é a tela, e um botão que esconde tudo o que existe não é
 organização, é um interruptor de luz.
 
+**E O CABEÇALHO DE STATUS CARREGA O PONTO COLORIDO**, por decisão do usuário:
+*"na lista da Gestão de Tasks, separar os status, com uma cor, na visualização
+de lista"*. Era a diferença que sobrava entre as duas listas — a de Minhas
+Tasks já passava o `ponto` ao `GrupoDobravel` desde que ele nasceu, e a de
+Gestão de Tasks não.
+
+**A cor sai de `corDoPontoDeStatus()`, que é o MESMO `tom` do selo**, e não de
+um mapa paralelo: dois mapas de cor para os mesmos estados divergem na primeira
+vez que alguém acrescenta um status e só lembra de um deles. **E ela é só do
+agrupamento por STATUS:** agrupar por cliente ou por responsável não ganha
+ponto, porque não há cor da "Mundo Verde" no produto, e inventar uma seria pôr
+na tela um significado que nada mais carrega.
+
 **O Social fica FORA do seletor de visão, e é mecânico.** O board desenha
 colunas dos status da etapa de demanda e o calendário desenha prazos de
 demanda; nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da
@@ -3943,6 +3956,105 @@ nada. Quem mexesse num workflow veria a tela antiga até recarregar à mão, sem
 log e sem recusa para investigar. As quatro abas são a mesma rota, então
 revalidar o caminho revalida as quatro de uma vez, que é o certo: mudar um
 workflow muda a contagem de etapas que a aba de Demandas mostra.
+
+#### O calendário lista ETAPAS, e cada chip tem cor, linhagem e rosto
+
+Quatro decisões do usuário, na mesma conversa, e as quatro se encaixam numa
+tela só — `gestao-tasks/calendario.tsx`, que é também o calendário de Minhas
+Tasks com outros parâmetros.
+
+**A LINHA DA DEMANDA SAIU** — *"não considere no calendário a data final da
+task, apenas o prazo final da última subtarefa"*. E ela estava certa pela
+mecânica antes de ser de gosto: `recalcular_periodo_task()` (0028) escreve
+`tasks.data_fim` como `max(prazo das FOLHAS)`, então aquela linha caía
+**exatamente no mesmo dia** que a última etapa, com outro rótulo, dizendo o
+mesmo fato. Era a contagem dobrada que o produto recusa em toda soma, aqui na
+forma de duas linhas na mesma célula. O fim do período da demanda continua
+existindo — ele é o prazo da última etapa dela, que é a linha que ficou.
+
+**Saiu do TIPO, e não só do loop que a produzia.** `"task"` não é mais valor de
+`TipoDeItemDeCalendario`: é a decisão da 0023, que apagou
+`tasks.exigencia_aprovacao` em vez de deixá-la parada. Um valor de união que
+nenhum caminho produz é o que alguém reaproveita errado três sprints depois.
+
+**E A PALAVRA "ETAPA" SAIU JUNTO** — *"tirar as palavras Etapa"*. As duas
+metades são a mesma decisão: o rótulo só existia para se opor a "Demanda", e
+com as duas na mesma célula ele era a única coisa que dizia qual era qual. Sem
+a Demanda, a etapa é a entidade desta tela, e nomear a entidade da tela dentro
+de cada linha dela gasta a largura do título para repetir onde a pessoa está.
+
+**Post, campanha e entregável FICAM com rótulo**, e a assimetria é o ponto:
+eles vêm de outro módulo e abrem em outra tela. O `Record` continua total sobre
+a união — e `subtarefa: null` é explícito — para um tipo novo não cair calado
+no último ramo de um `? :`, que é como "entregável" quase virou "Etapa".
+
+**O QUE ENTROU NO LUGAR É A LINHAGEM** — *"que apareça o nome da task mãe,
+junto com o nome da Subtarefa"*. `Cliente · Demanda` embaixo do nome da etapa,
+que é a forma de Minhas Tasks desde o Sprint 10. Ela responde a pergunta que o
+rótulo nunca respondeu: *"de que demanda é este Layout?"* — e "Layout" é o nome
+de uma etapa em toda campanha da agência.
+
+**A COR É O CHIP, e não mais um fio de quatro pixels** — *"mude as cores das
+legendas do calendário, deixe ele visualmente mais colorido"*, com as três que
+ele nomeou: *"Concluido em Verde, Em produção azul, e vencido em Vermelho"*.
+Quatro fios de quatro pixels numa célula não se leem à distância de que a grade
+do mês é olhada. A barra cheia fica, como borda de leitura entre duas linhas do
+mesmo tom.
+
+**Par nomeado, nunca opacidade** — `bg-success-soft` com `--text-primary`, e
+não `bg-success/10`, que dá uma cor que ninguém mediu e no tema escuro dá
+outra. As cinco linhas que entraram no `check:cores` são o título e a linhagem
+sobre os quatro fundos tingidos; `--text-muted` sobre os três `*-soft` já
+estava medido, e o que faltava era `--accent` — **o caso que não dá para
+deduzir**, porque ele aponta para `--blue-soft` no claro e para
+`--surface-sidebar-2` no escuro: são dois fundos diferentes com o mesmo nome de
+token.
+
+**`semana` e `futura` dividem o azul**, e a fusão é o que tira a nota de pé de
+página que a legenda carregava (*"mais adiante no tempo, a barra usa a cor da
+prioridade"*). Duas razões: numa tela em que cada item mora na célula do dia
+dele, uma cor que significa "cai nesta semana" **repete a posição**; e a cor da
+prioridade no `futura` era a exceção à regra do próprio calendário, que é
+colorir pela situação do prazo e não pela importância — e precisava de uma
+frase de legenda para ser entendida. *O que se perde, e é dito:* a prioridade
+sai da cor do calendário. Ela continua no `title` de cada chip, e no board e na
+Lista ela é selo.
+
+**A legenda tem QUATRO entradas**, com a amostra sendo o chip de verdade — uma
+legenda que mostra outra coisa que a tela é uma legenda que ensina errado. A
+lista e a ordem moram em `LEGENDA_DO_CALENDARIO`: duas cópias divergiriam na
+primeira vez que alguém mexesse numa, e a tela discordaria da própria legenda.
+
+**O ROSTO DE QUEM É DONO DA ETAPA** — *"coloque o rosto da pessoa responsável
+na visualização da task, dentro de gestão de task, visualização de
+calendário"*. Ele **não custou consulta nenhuma**: `itensDoCalendario` já traz
+`profiles(id, nome, avatar_url)` de cada responsável desde o Sprint 4, porque é
+o que alimenta o filtro "pauta de" deste mesmo cabeçalho. A ponte estava
+construída e ninguém a atravessava, e quem a atravessa é a linha — que é onde a
+pergunta é feita: *a arte vence quinta, quem está com ela?*
+
+**Ele é `tooltip={false}`, e a bandeira nasceu aqui.** O chip inteiro é um
+`<button>`, e o `TooltipTrigger` do Radix dentro dele é `nested-interactive` —
+crítico no axe, e na prática duas paradas de Tab para a mesma coisa. A bandeira
+mora em `UserAvatar` em vez de a tela montar o `Avatar` à mão porque é esse
+componente que carrega o `object-cover` do `AvatarImage`: o conserto da foto
+achatada vale para o produto inteiro por passar todo avatar por um lugar só, e
+uma segunda forma de desenhar o círculo é onde essa propriedade se perde.
+
+**E ele é `xs` (20px) e fica na linha da LINHAGEM, não na do título.** Foi a
+imagem do protótipo que decidiu as duas coisas: a célula do mês tem cerca de
+160px, e com o círculo de 24px ao lado do nome, "Conferir os anexos" saía
+"Conferir os ane…". O nome da etapa é o que identifica o trabalho e fica com a
+largura inteira; a linhagem trunca, porque ela é contexto — e o texto completo
+viaja no `title` e no `aria-label` do chip, junto com o nome da pessoa.
+
+**Etapa sem dono não ganha círculo genérico**, que é a regra da pilha de
+avatares: um círculo ali afirmaria que existe alguém. Post e campanha não têm a
+coluna, e a peça de campanha é uma subtarefa desde a 0051 — ela já aparece pelo
+ramo da etapa, com o rosto certo.
+
+**Nenhuma migration, e nenhuma consulta nova.** As quatro mudanças são tipo,
+leitura e desenho.
 
 ### Gestão de Pessoas: Equipe e Clientes numa aba só
 

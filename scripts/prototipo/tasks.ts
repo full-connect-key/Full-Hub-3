@@ -767,21 +767,8 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
   const tasks = await listarTasks(filtros);
   const itens: ItemDeCalendario[] = [];
 
-  for (const task of tasks) {
-    if (!task.data_fim) continue;
-    itens.push({
-      chave: `task-${task.id}`,
-      tipo: "task",
-      taskId: task.id,
-      titulo: task.titulo,
-      prazo: task.data_fim,
-      prioridade: task.prioridade,
-      status: task.status,
-      concluida: task.status === "concluido",
-      responsavel: null,
-      cliente: task.cliente?.nome_empresa ?? null,
-    });
-  }
+  // A linha da Demanda saiu daqui junto com o produto: `tasks.data_fim` é
+  // `max(prazo das folhas)`, então ela caía no mesmo dia que a última etapa.
 
   for (const sub of SUBTAREFAS) {
     const mae = tasks.find((t) => t.id === sub.task_id);
@@ -792,6 +779,7 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
       tipo: "subtarefa",
       taskId: sub.task_id,
       titulo: sub.titulo,
+      demanda: mae.titulo,
       prazo: sub.prazo,
       prioridade: sub.prioridade,
       status: mae.status,

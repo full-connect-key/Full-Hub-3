@@ -157,6 +157,25 @@ const PARES = [
   ["--text-secondary", "--danger-soft", NORMAL, "rótulo do cartão de alerta"],
   ["--text-secondary", "--success-soft", NORMAL, "rótulo do cartão bom"],
 
+  // O CHIP DO CALENDÁRIO DE TASKS, que é o primeiro lugar do produto a pôr o
+  // título de um item sobre fundo tingido.
+  //
+  // Ele era um cartão branco com um fio de cor na esquerda, e virou o fundo
+  // inteiro quando o usuário pediu a tela "visualmente mais colorida" — então
+  // `--text-primary` (o nome da etapa) e `--text-muted` (a linhagem) caem
+  // sobre quatro fundos que nenhuma linha desta lista media com eles.
+  //
+  // `--text-muted` sobre os três `*-soft` já está medido acima; o que faltava
+  // era `--accent`, e ele é o caso que não dá para deduzir: no tema claro
+  // `--accent` aponta para `--blue-soft`, no escuro para
+  // `--surface-sidebar-2`. São dois fundos diferentes com o mesmo nome de
+  // token, e só medir os dois temas responde.
+  ["--text-primary", "--danger-soft", NORMAL, "nome da etapa no chip vencido"],
+  ["--text-primary", "--warning-soft", NORMAL, "nome da etapa no chip de hoje"],
+  ["--text-primary", "--success-soft", NORMAL, "nome da etapa no chip concluído"],
+  ["--text-primary", "--accent", NORMAL, "nome da etapa no chip em produção"],
+  ["--text-muted", "--accent", NORMAL, "linhagem no chip em produção"],
+
   // O PAR NEUTRO, e ele é a terceira vez que esta lista fica para trás da
   // interface.
   //

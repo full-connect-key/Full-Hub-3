@@ -26,10 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import {
+  LEGENDA_DO_CALENDARIO,
   ROTULO_DO_ITEM_DE_CALENDARIO,
   ROTULOS_DE_PRIORIDADE,
-  corDoPrazo,
+  TINTA_DA_SITUACAO,
   situacaoDoPrazo,
 } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
@@ -41,15 +43,54 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 /**
  * Calendário de prazos.
  *
- * Mostra dois níveis no mesmo dia: o fim do período da demanda e o prazo de
- * cada subtarefa. A
- * subtarefa vem com borda tracejada e o rótulo "Etapa", para ninguém confundir
- * um passo interno com a entrega final.
+ * A pergunta que ele tem de responder de relance é "o que entrega em que dia",
+ * e cada chip responde com três coisas: a COR da situação do prazo (e não da
+ * prioridade — o que aperta é a data), o nome da etapa com a linhagem embaixo,
+ * e o rosto de quem está com ela.
  *
- * A pergunta que ele tem de responder de relance é "o que entrega em que dia".
- * Por isso cada item traz três coisas fixas: a barra colorida pela SITUAÇÃO do
- * prazo (e não pela prioridade — o que aperta é a data), o rótulo Demanda ou
- * Etapa, e o chip do cliente. A legenda no rodapé fecha a leitura.
+ * ---------------------------------------------------------------------------
+ * **O QUE MUDOU, e as quatro partes são decisão do usuário.**
+ *
+ * **1. A linha da Demanda saiu**, e com ela a palavra "Etapa" — *"não
+ * considere no calendário a data final da task, apenas o prazo final da
+ * última subtarefa"* e *"tirar as palavras Etapa"*. As duas metades são a
+ * mesma decisão: `tasks.data_fim` é `max(prazo das folhas)` desde a 0028, a
+ * linha da Demanda caía no mesmo dia que a última etapa, e o rótulo era a
+ * única coisa que dizia qual das duas era qual. Sem ela, a etapa é a entidade
+ * desta tela, e nomear a entidade da tela em cada linha gasta a largura do
+ * título. O porquê inteiro está em `ROTULO_DO_ITEM_DE_CALENDARIO`.
+ *
+ * **2. A LINHAGEM entrou no lugar** — *"que apareça o nome da task mãe, junto
+ * com o nome da Subtarefa"*. `Cliente · Demanda` embaixo do nome da etapa, que
+ * é a forma de Minhas Tasks desde o Sprint 10: ela responde *"de que demanda
+ * é este Layout?"*, que é a pergunta de quem tem três campanhas correndo e a
+ * que o rótulo nunca respondeu.
+ *
+ * **3. A COR É O CHIP, e não mais um fio de quatro pixels** — *"mude as cores
+ * das legendas do calendário, deixe ele visualmente mais colorido"*, com as
+ * três que ele nomeou: concluído verde, em produção azul, vencido vermelho.
+ * Par nomeado, nunca opacidade; os quatro pares e o porquê da fusão de "esta
+ * semana" com "em produção" estão em `TINTA_DA_SITUACAO`.
+ *
+ * **4. O ROSTO DE QUEM É DONO DA ETAPA** — *"coloque o rosto da pessoa
+ * responsável na visualização da task, dentro de gestão de task, visualização
+ * de calendário"*. Ele não custa consulta nenhuma: `itensDoCalendario` já traz
+ * `profiles(id, nome, avatar_url)` de cada responsável desde o Sprint 4 — era
+ * o que alimentava o filtro "pauta de" deste cabeçalho. **A ponte estava
+ * construída e ninguém a atravessava**, e quem a atravessa é a linha, que é
+ * onde a pergunta é feita: *a arte vence quinta, quem está com ela?*
+ *
+ * **Ele é `tooltip={false}`, e isso é mecânico:** o chip inteiro é um
+ * `<button>`, e o `TooltipTrigger` do Radix dentro dele seria
+ * `nested-interactive` — crítico no axe, e duas paradas de Tab para a mesma
+ * coisa. O nome viaja no `title` e no `aria-label` do chip, junto com o resto.
+ *
+ * **Etapa sem dono não ganha círculo genérico**, que é a regra da pilha de
+ * avatares: um círculo ali afirmaria que existe alguém. Post, campanha e
+ * entregável também não têm — o post não tem a coluna, e a peça de campanha é
+ * uma subtarefa desde a 0051, então ela já aparece pelo ramo da etapa, com o
+ * rosto certo.
+ * ---------------------------------------------------------------------------
  */
 export function CalendarioDeTasks({
   itens,
@@ -220,12 +261,27 @@ export function CalendarioDeTasks({
                       prazos.hoje,
                       prazos.fimDaSemana,
                     );
-                    const cor = corDoPrazo(situacao, item.prioridade);
-                    // Cada linha marca uma coisa diferente, e o rótulo diz
-                    // qual. O mapa é um `Record` sobre a união justamente para
-                    // um tipo novo não cair calado no último ramo de um `? :`
-                    // — foi assim que "entregável" quase virou "Etapa".
+                    const tinta = TINTA_DA_SITUACAO[situacao];
+                    // O rótulo é de MÓDULO, e a etapa não tem nenhum: ela é a
+                    // entidade desta tela. O mapa é um `Record` sobre a união
+                    // justamente para um tipo novo não cair calado no último
+                    // ramo de um `? :` — foi assim que "entregável" quase
+                    // virou "Etapa".
                     const rotulo = ROTULO_DO_ITEM_DE_CALENDARIO[item.tipo];
+                    // A linhagem: de onde esta linha vem. Em Minhas Tasks ela
+                    // é `Cliente · Demanda › Etapa de cima`; aqui o nome da
+                    // etapa já é o título, então sobram as duas de fora.
+                    const linhagem = [item.cliente, item.demanda]
+                      .filter(Boolean)
+                      .join(" · ");
+                    const descricao = [
+                      rotulo ? `${rotulo}: ${item.titulo}` : item.titulo,
+                      linhagem,
+                      item.responsavel ? `com ${item.responsavel.nome}` : null,
+                      `prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
 
                     return (
                       <li key={item.chave}>
@@ -244,47 +300,53 @@ export function CalendarioDeTasks({
                                     `/painel/gestao-tasks/${item.taskId}`,
                                   )
                           }
-                          title={`${rotulo}: ${item.titulo}${item.cliente ? ` · ${item.cliente}` : ""} · prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`}
+                          title={descricao}
+                          aria-label={descricao}
                           className={cn(
-                            "relative w-full overflow-hidden rounded border py-1 pr-1.5 pl-2.5 text-left text-xs transition-colors",
-                            item.tipo === "subtarefa"
-                              ? "border-dashed bg-transparent"
-                              : "bg-card border-transparent shadow-xs",
-                            // Pontilhado para o que não é demanda nem etapa:
+                            "relative w-full overflow-hidden rounded border border-transparent py-1 pr-1.5 pl-2.5 text-left text-xs transition-opacity hover:opacity-85",
+                            // A COR É O CHIP. Era um cartão branco com um fio
+                            // de quatro pixels, e quatro fios numa célula não
+                            // se leem à distância de que a grade do mês é
+                            // olhada.
+                            tinta.chip,
+                            // Pontilhado para o que não é etapa de demanda:
                             // post, campanha e entregável vivem em outro
                             // módulo, e o traço diz isso sem ocupar espaço.
-                            (item.tipo === "post" ||
-                              item.tipo === "campanha" ||
-                              item.tipo === "entregavel") &&
-                              "border-border border-dotted",
-                            situacao === "atrasada" && "border-destructive/50",
-                            // O `line-through` do título já diz "concluída".
-                            // A opacidade em cima dele levava o rótulo e o
-                            // nome do cliente abaixo do contraste mínimo.
+                            rotulo && "border-border border-dotted",
                           )}
                         >
-                          {/* A barra é o que se lê de longe: cor da situação. */}
+                          {/* A barra é a cor cheia, e ela fica: sobre o chip
+                              tingido ela é a borda de leitura que separa uma
+                              linha da de baixo quando as duas são do mesmo
+                              tom. */}
                           <span
                             aria-hidden
-                            className={cn("absolute inset-y-0 left-0 w-1", cor)}
+                            className={cn(
+                              "absolute inset-y-0 left-0 w-1",
+                              tinta.barra,
+                            )}
                           />
 
+                          {/* O TÍTULO TEM A LARGURA INTEIRA, e o rosto desce
+                              para a linha da linhagem. Na célula do mês sobram
+                              cerca de 160px: com o círculo ao lado do nome,
+                              "Conferir os anexos" saía "Conferir os ane…" —
+                              e o nome da etapa é o que identifica o trabalho.
+                              A linhagem pode truncar, porque ela é contexto. */}
                           <span className="flex items-baseline gap-1">
+                            {rotulo ? (
+                              <span
+                                className={cn(
+                                  "shrink-0 text-[10px] font-medium uppercase",
+                                  tinta.rotulo,
+                                )}
+                              >
+                                {rotulo}
+                              </span>
+                            ) : null}
                             <span
                               className={cn(
-                                "shrink-0 text-[10px] font-medium uppercase",
-                                situacao === "atrasada"
-                                  ? "text-destructive"
-                                  : situacao === "hoje"
-                                    ? "text-warning"
-                                    : "text-muted-foreground",
-                              )}
-                            >
-                              {rotulo}
-                            </span>
-                            <span
-                              className={cn(
-                                "min-w-0 flex-1 truncate",
+                                "text-text-primary min-w-0 flex-1 truncate font-medium",
                                 item.concluida && "line-through",
                               )}
                             >
@@ -292,9 +354,22 @@ export function CalendarioDeTasks({
                             </span>
                           </span>
 
-                          {item.cliente ? (
-                            <span className="text-muted-foreground mt-0.5 block truncate text-[10px]">
-                              {item.cliente}
+                          {linhagem || item.responsavel ? (
+                            <span className="mt-0.5 flex items-center gap-1">
+                              <span className="text-text-muted min-w-0 flex-1 truncate text-[10px]">
+                                {linhagem}
+                              </span>
+                              {/* Sem tooltip: o chip é um botão, e um gatilho
+                                  interativo dentro dele é nested-interactive. */}
+                              {item.responsavel ? (
+                                <UserAvatar
+                                  name={item.responsavel.nome}
+                                  src={item.responsavel.avatar_url}
+                                  size="xs"
+                                  tooltip={false}
+                                  className="ring-background shrink-0 ring-1"
+                                />
+                              ) : null}
                             </span>
                           ) : null}
                         </button>
@@ -308,42 +383,39 @@ export function CalendarioDeTasks({
         </div>
       </div>
 
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2 text-xs">
-        <span className="font-medium">Legenda</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-destructive h-3 w-1 rounded-full" />
-          Vencido
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-warning h-3 w-1 rounded-full" />
-          Vence hoje
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="bg-info h-3 w-1 rounded-full" />
-          Esta semana
-        </span>
+      {/* A LEGENDA TEM QUATRO ENTRADAS, e não seis nem uma nota de pé de
+          página. A amostra é o chip de verdade — fundo tingido mais a barra —
+          porque uma legenda que mostra outra coisa que a tela é uma legenda
+          que ensina errado. A lista e a ordem moram em
+          `LEGENDA_DO_CALENDARIO`: duas cópias divergiriam na primeira vez que
+          alguém mexesse numa, e a tela discordaria da própria legenda. */}
+      <div className="text-text-secondary flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2 text-xs">
+        <span className="text-text-primary font-medium">Legenda</span>
+        {LEGENDA_DO_CALENDARIO.map(({ situacao, rotulo }) => {
+          const tinta = TINTA_DA_SITUACAO[situacao];
+          return (
+            <span key={situacao} className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={cn(
+                  "relative h-4 w-6 overflow-hidden rounded",
+                  tinta.chip,
+                )}
+              >
+                <span
+                  className={cn("absolute inset-y-0 left-0 w-1", tinta.barra)}
+                />
+              </span>
+              {rotulo}
+            </span>
+          );
+        })}
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
-            className="bg-muted-foreground/40 h-3 w-1 rounded-full"
+            className="border-border size-2.5 rounded border border-dotted"
           />
-          Concluído
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="bg-card size-2.5 rounded border shadow-xs"
-          />
-          <span className="text-[10px] font-medium uppercase">Demanda</span> =
-          fim do período da task
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden className="size-2.5 rounded border border-dashed" />
-          <span className="text-[10px] font-medium uppercase">Etapa</span> =
-          prazo de subtarefa
-        </span>
-        <span>
-          Mais adiante no tempo, a barra usa a cor da prioridade.
+          Post, campanha e entregável — abrem em outro módulo
         </span>
       </div>
     </div>

@@ -374,6 +374,10 @@ export async function itensPessoaisDoCalendario(
         tipo: "subtarefa",
         taskId: task.id,
         titulo: sub.titulo,
+        // A LINHAGEM VALE AQUI TAMBÉM, e é o mesmo componente: duas etapas
+        // chamadas "Layout" na mesma semana são dois trabalhos, e o nome da
+        // demanda é o que diz de qual campanha é cada uma.
+        demanda: task.titulo,
         prazo: sub.prazo,
         prioridade: sub.prioridade,
         status: task.status,

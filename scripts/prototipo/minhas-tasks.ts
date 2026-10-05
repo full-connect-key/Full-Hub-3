@@ -140,6 +140,7 @@ export async function itensPessoaisDoCalendario(
         tipo: "subtarefa",
         taskId: task.id,
         titulo: sub.titulo,
+        demanda: task.titulo,
         prazo: sub.prazo,
         prioridade: sub.prioridade,
         status: task.status,

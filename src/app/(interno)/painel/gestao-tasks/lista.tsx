@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { corDoPontoDeStatus, StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -419,7 +419,11 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       ? tasks.filter((t) => casaComBusca(t, colunas, busca))
       : tasks;
 
-    if (!agrupado) return [{ chave: "", titulo: "", tasks }];
+    // SEM PONTO NOS OUTROS AGRUPAMENTOS, e é decisão: cliente e responsável
+    // não têm cor no produto, e inventar uma aqui criaria um vocabulário de
+    // cor que nenhuma outra tela conhece — a pessoa aprenderia que azul é a
+    // Mundo Verde nesta lista e em nenhuma outra.
+    if (!agrupado) return [{ chave: "", titulo: "", ponto: undefined, tasks }];
 
     // O STATUS NÃO ORDENA EM ALFABÉTICA, e é o motivo de ele sair antes.
     //
@@ -436,6 +440,14 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
         // `nao_iniciada` não.
         chave: coluna.status as string,
         titulo: coluna.titulo,
+        // A COR SAI DO MESMO MAPA DO SELO E DO SELETOR, e não de um terceiro
+        // de-para aqui — pedido do usuário, e a Lista da Gestão de Tasks era
+        // a única das duas que não a tinha: Minhas Tasks pinta o ponto desde
+        // que o grupo passou a dobrar. Com o cabeçalho em preto e as linhas
+        // embaixo carregando o selo colorido, o olho não ligava um ao outro;
+        // pior, dois grupos vizinhos — "Em andamento" e "Em ajustes" — se
+        // liam como a mesma coisa até alguém reler a palavra.
+        ponto: corDoPontoDeStatus(coluna.status),
         tasks: visiveis.filter((t) => t.status === coluna.status),
       })).filter((grupo) => grupo.tasks.length > 0);
     }
@@ -450,7 +462,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     }
     return [...mapa.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
-      .map(([titulo, itens]) => ({ chave: titulo, titulo, tasks: itens }));
+      .map(([titulo, itens]) => ({ chave: titulo, titulo, ponto: undefined, tasks: itens }));
   })();
 
   const seletorDeAgrupamento = (
@@ -532,6 +544,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
             chave={grupo.chave}
             titulo={grupo.titulo}
             contagem={grupo.tasks.length}
+            ponto={grupo.ponto}
           >
             {tabela}
           </GrupoDobravel>

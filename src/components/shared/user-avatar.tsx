@@ -11,6 +11,10 @@ export function iniciaisDe(nome: string): string {
 }
 
 const TAMANHOS = {
+  // `xs` existe para a célula do calendário do mês, que tem cerca de 160px de
+  // largura: a 24px o círculo comia o nome da etapa e "Conferir os anexos"
+  // saía "Conferir os ane…". Foi a imagem do protótipo que mostrou.
+  xs: "size-5 text-[9px]",
   sm: "size-6 text-[10px]",
   md: "size-8 text-xs",
   lg: "size-10 text-sm",
@@ -19,26 +23,45 @@ const TAMANHOS = {
 /**
  * Foto da pessoa, ou as iniciais quando não há foto. O nome vem no tooltip,
  * porque em lista e tabela só cabe o círculo.
+ *
+ * **`tooltip={false}` existe para o avatar que mora DENTRO de um botão**, e
+ * não é preferência de desenho: o `TooltipTrigger` do Radix é interativo, e um
+ * elemento interativo dentro de outro é `nested-interactive` — crítico no axe,
+ * e na prática duas paradas de Tab para a mesma coisa. É o caso do chip do
+ * calendário de tasks, que é um `<button>` inteiro: lá o nome da pessoa viaja
+ * no `title` e no rótulo acessível do próprio chip, junto com o resto.
+ *
+ * A bandeira fica aqui em vez de a tela montar o `Avatar` à mão porque é este
+ * componente que carrega o `object-cover` do `AvatarImage` — o conserto da
+ * foto achatada vale para o produto inteiro por passar todo avatar por um
+ * lugar só, e uma segunda forma de desenhar o círculo é onde essa propriedade
+ * se perde.
  */
 export function UserAvatar({
   name,
   src,
   size = "md",
   className,
+  tooltip = true,
 }: {
   name: string;
   src?: string | null;
   size?: keyof typeof TAMANHOS;
   className?: string;
+  tooltip?: boolean;
 }) {
+  const circulo = (
+    <Avatar className={cn(TAMANHOS[size], className)}>
+      {src ? <AvatarImage src={src} alt={name} /> : null}
+      <AvatarFallback className="font-medium">{iniciaisDe(name)}</AvatarFallback>
+    </Avatar>
+  );
+
+  if (!tooltip) return circulo;
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Avatar className={cn(TAMANHOS[size], className)}>
-          {src ? <AvatarImage src={src} alt={name} /> : null}
-          <AvatarFallback className="font-medium">{iniciaisDe(name)}</AvatarFallback>
-        </Avatar>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{circulo}</TooltipTrigger>
       <TooltipContent>{name}</TooltipContent>
     </Tooltip>
   );
