@@ -74,7 +74,8 @@ export const ROTULOS_PARA_O_CLIENTE: Record<SolicitacaoStatus, string> = {
  */
 export const EXPLICACAO_PARA_O_CLIENTE: Record<SolicitacaoStatus, string> = {
   nova: "Recebemos. A gente responde por aqui.",
-  em_analise: "Estamos vendo o que você pediu — pode ser que a gente pergunte alguma coisa.",
+  em_analise:
+    "Estamos vendo o que você pediu — pode ser que a gente pergunte alguma coisa.",
   em_andamento: "Já está sendo feito.",
   concluida: "Entregue.",
   recusada: "Não vamos seguir com este pedido. O motivo está abaixo.",
@@ -88,13 +89,131 @@ export const EXPLICACAO_PARA_O_CLIENTE: Record<SolicitacaoStatus, string> = {
  * pela qual o alerta de 7 dias do portal é `--warning` e "Mudou" é o neutro na
  * trilha de auditoria.
  */
-export const TOM_DA_SOLICITACAO: Record<SolicitacaoStatus, "neutro" | "aviso" | "ok" | "erro"> = {
+export const TOM_DA_SOLICITACAO: Record<
+  SolicitacaoStatus,
+  "neutro" | "aviso" | "ok" | "erro"
+> = {
   nova: "aviso",
   em_analise: "neutro",
   em_andamento: "neutro",
   concluida: "ok",
   recusada: "erro",
 };
+
+// ---------------------------------------------------------------------------
+// AS FASES DO PEDIDO, na tela do cliente
+//
+// Decisão do usuário: *"na aba de pedidos, eles sejam separados em abas, Em
+// análise, Em produção, Em ajustes, Entregue"*.
+//
+// **ELAS NÃO SÃO O ENUM, e nenhuma coluna nasceu por causa delas.** A fase é
+// uma LEITURA do estado do pedido mais o da demanda que ele virou, e é a
+// decisão de `maoDoPost()` no Social Media, de "bloqueio não é status" e de
+// "atraso do Financeiro não é coluna": uma coluna `fase` precisaria ser
+// reescrita por quatro caminhos para continuar verdadeira, e divergiria no
+// primeiro pedido de ajustes.
+//
+// O de-para:
+//
+//   | Fase        | De onde sai                                            |
+//   | ----------- | ------------------------------------------------------ |
+//   | Em análise  | `nova` + `em_analise`                                  |
+//   | Em produção | `em_andamento`, e a demanda NÃO está em ajustes        |
+//   | Em ajustes  | `em_andamento`, e a demanda ESTÁ em ajustes            |
+//   | Entregue    | `concluida`                                            |
+//   | Recusado    | `recusada`                                             |
+//
+// **`nova` e `em_analise` dividem a primeira**, e é de propósito: a diferença
+// entre elas é se alguém do Atendimento já abriu a fila — que é informação da
+// AGÊNCIA, não do cliente. Para quem mandou, as duas querem dizer a mesma
+// coisa: está sendo olhado. Uma aba só para "ninguém triou ainda" seria a
+// cobrança interna aparecendo na tela de fora.
+//
+// **"EM AJUSTES" NÃO É VALOR DE `solicitacao_status`**, e a ausência é o
+// ponto. Quem sabe que há ajuste em curso é a DEMANDA — `task_status` tem
+// `em_ajustes` desde a 0007, e é para lá que ela volta quando o cliente pede
+// alteração num material. Acrescentar um valor ao enum do pedido criaria uma
+// segunda verdade sobre o mesmo fato, e ela divergiria no instante em que a
+// demanda saísse de ajustes: o pedido ficaria parado dizendo "em ajustes" até
+// alguém reescrevê-lo à mão. Derivada, ela volta sozinha.
+//
+// **E a demanda só é legível para o cliente quando algo dela foi enviado** —
+// `tasks_select_cliente` exige uma rodada de escopo cliente. Longe de ser um
+// furo, é o que faz a derivação valer exatamente onde ela importa: uma demanda
+// vai para `em_ajustes` porque o cliente pediu alteração numa peça, e pedir
+// alteração exige que a peça tenha saído. Quando a demanda não é legível, o
+// pedido fica em "Em produção", que é a verdade do que ele sabe.
+//
+// **"Recusado" é uma QUINTA aba, e ela só aparece quando existe pedido nela.**
+// O usuário nomeou quatro, e `recusada` não cabe em nenhuma: pôr o recusado em
+// "Entregue" afirmaria que foi entregue, e deixá-lo fora o faria desaparecer da
+// tela de quem o abriu — junto com o motivo, que é a única coisa que explica o
+// que aconteceu. Quase nenhuma conta tem um, então quase todo mundo vê as
+// quatro abas pedidas; quem tem, tem onde ler.
+// ---------------------------------------------------------------------------
+
+export const FASES_DO_PEDIDO = [
+  "analise",
+  "producao",
+  "ajustes",
+  "entregue",
+  "recusado",
+] as const;
+
+export type FaseDoPedido = (typeof FASES_DO_PEDIDO)[number];
+
+export const ROTULOS_DE_FASE: Record<FaseDoPedido, string> = {
+  analise: "Em análise",
+  producao: "Em produção",
+  ajustes: "Em ajustes",
+  entregue: "Entregue",
+  recusado: "Recusado",
+};
+
+export function ehFaseDoPedido(
+  valor: string | undefined,
+): valor is FaseDoPedido {
+  return (
+    Boolean(valor) &&
+    (FASES_DO_PEDIDO as readonly string[]).includes(valor as string)
+  );
+}
+
+/**
+ * Em que fase este pedido está, na leitura do cliente.
+ *
+ * `demandaEmAjustes` vem de fora — é o status da demanda que ele virou, e esta
+ * função não vai ao banco por nada: ela é chamada por linha, e a tela que a
+ * usa é a mesma que conta as abas.
+ */
+export function faseDoPedido(
+  status: SolicitacaoStatus,
+  demandaEmAjustes: boolean,
+): FaseDoPedido {
+  if (status === "recusada") return "recusado";
+  if (status === "concluida") return "entregue";
+  if (status === "em_andamento")
+    return demandaEmAjustes ? "ajustes" : "producao";
+  return "analise";
+}
+
+/**
+ * A frase da linha, já sabendo a fase.
+ *
+ * **"Em ajustes" não tem frase em `EXPLICACAO_PARA_O_CLIENTE`**, e não pode
+ * ter: aquele mapa é por STATUS, e o status de um pedido em ajuste continua
+ * sendo `em_andamento` — quem sabe do ajuste é a demanda. Sem esta função a
+ * linha dizia "Já está sendo feito" debaixo da aba "Em ajustes", que é a tela
+ * se desmentindo a um centímetro de distância. Acrescentar a frase ao mapa de
+ * status seria escrevê-la num lugar que não sabe se ela é verdade.
+ */
+export function explicacaoDoPedido(
+  status: SolicitacaoStatus,
+  fase: FaseDoPedido,
+): string {
+  if (fase === "ajustes") return "Voltou para ajuste — a gente está refazendo.";
+  return EXPLICACAO_PARA_O_CLIENTE[status];
+}
 
 /** Os que ainda pedem alguma coisa de alguém. */
 export const EM_ABERTO: SolicitacaoStatus[] = ["nova", "em_analise"];
@@ -103,8 +222,13 @@ export function ehAberta(status: SolicitacaoStatus): boolean {
   return EM_ABERTO.includes(status);
 }
 
-export function ehStatusDeSolicitacao(valor: string | undefined): valor is SolicitacaoStatus {
-  return Boolean(valor) && (STATUS_DA_SOLICITACAO as string[]).includes(valor as string);
+export function ehStatusDeSolicitacao(
+  valor: string | undefined,
+): valor is SolicitacaoStatus {
+  return (
+    Boolean(valor) &&
+    (STATUS_DA_SOLICITACAO as string[]).includes(valor as string)
+  );
 }
 
 /**
@@ -137,7 +261,10 @@ export function estaEsquecida(
   pedido: Pick<ClientRequest, "status" | "created_at">,
   hojeISO: string,
 ): boolean {
-  return ehAberta(pedido.status) && diasEsperando(pedido.created_at, hojeISO) >= DIAS_ATE_DESTACAR;
+  return (
+    ehAberta(pedido.status) &&
+    diasEsperando(pedido.created_at, hojeISO) >= DIAS_ATE_DESTACAR
+  );
 }
 
 /**
@@ -194,8 +321,15 @@ export function respostasParaLer(
     .filter((r) => r.valor.length > 0);
 
   const orfas = Object.entries(respostas)
-    .filter(([chave, valor]) => !conhecidas.has(chave) && String(valor ?? "").trim().length > 0)
-    .map(([chave, valor]) => ({ rotulo: chave, valor: String(valor).trim(), orfa: true }));
+    .filter(
+      ([chave, valor]) =>
+        !conhecidas.has(chave) && String(valor ?? "").trim().length > 0,
+    )
+    .map(([chave, valor]) => ({
+      rotulo: chave,
+      valor: String(valor).trim(),
+      orfa: true,
+    }));
 
   return [...doRoteiro, ...orfas];
 }

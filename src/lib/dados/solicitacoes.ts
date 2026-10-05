@@ -46,6 +46,17 @@ export type PedidoNaLista = ClientRequest & {
   quantasMensagens: number;
   /** A demanda que ele virou, quando virou. */
   demanda: { id: string; titulo: string } | null;
+  /**
+   * A demanda está em ajustes?
+   *
+   * É o que faz a fase "Em ajustes" existir sem uma coluna nova — a decisão
+   * está escrita em `faseDoPedido()`. **Falso quando a demanda não é legível**,
+   * e isso não é uma falha: `tasks_select_cliente` exige uma rodada de escopo
+   * cliente, e uma demanda vai para `em_ajustes` justamente porque o cliente
+   * pediu alteração numa peça que saiu — então ela é legível exatamente no
+   * caso em que esta resposta importa.
+   */
+  demandaEmAjustes: boolean;
 };
 
 export type MensagemDoPedido = RequestMessage & { autor: Pessoa | null };
@@ -95,7 +106,10 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     tipos.length ? supabase.from("request_types").select("id, nome").in("id", tipos) : null,
     supabase.from("request_attachments").select("request_id").in("request_id", ids),
     supabase.from("request_messages").select("request_id").in("request_id", ids),
-    supabase.from("tasks").select("id, titulo, request_id").in("request_id", ids),
+    // `status` ENTRA no mesmo `select`, e não numa consulta nova: é a fonte da
+    // fase "Em ajustes", e uma segunda leitura do mesmo fato é onde as duas
+    // divergem.
+    supabase.from("tasks").select("id, titulo, request_id, status").in("request_id", ids),
   ]);
 
   const porEmpresa = new Map(
@@ -123,6 +137,7 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     demanda: porPedido.get(p.id)
       ? { id: porPedido.get(p.id)!.id, titulo: porPedido.get(p.id)!.titulo }
       : null,
+    demandaEmAjustes: porPedido.get(p.id)?.status === "em_ajustes",
   }));
 }
 

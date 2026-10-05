@@ -162,6 +162,7 @@ const PEDIDOS: PedidoNaLista[] = [
     quantosAnexos: 2,
     quantasMensagens: 0,
     demanda: null,
+    demandaEmAjustes: false,
   },
   {
     id: "e0000000-0000-0000-0000-000000000002",
@@ -183,6 +184,7 @@ const PEDIDOS: PedidoNaLista[] = [
     quantosAnexos: 1,
     quantasMensagens: 2,
     demanda: null,
+    demandaEmAjustes: false,
   },
   {
     id: "e0000000-0000-0000-0000-000000000003",
@@ -207,6 +209,9 @@ const PEDIDOS: PedidoNaLista[] = [
       id: "f0000000-0000-0000-0000-000000000001",
       titulo: "Vídeo de vitrine — Óptica Visão",
     },
+    // EM AJUSTES, e e de proposito: sem um pedido nesta fase a aba sai vazia na
+    // imagem, e uma aba vazia nao prova que ela separa nada.
+    demandaEmAjustes: true,
   },
   {
     id: "e0000000-0000-0000-0000-000000000004",
@@ -229,6 +234,7 @@ const PEDIDOS: PedidoNaLista[] = [
     quantosAnexos: 0,
     quantasMensagens: 0,
     demanda: null,
+    demandaEmAjustes: false,
   },
   // OS DOIS CONCLUIDOS, e sao dois porque a secao "Material deste pedido" tem
   // dois estados e nenhum deles aparecia antes: com material, e concluido SEM
@@ -260,6 +266,7 @@ const PEDIDOS: PedidoNaLista[] = [
       id: "f0000000-0000-0000-0000-000000000002",
       titulo: "Banner de Black Friday — site",
     },
+    demandaEmAjustes: false,
   },
   {
     id: "e0000000-0000-0000-0000-000000000006",
@@ -281,6 +288,7 @@ const PEDIDOS: PedidoNaLista[] = [
     quantosAnexos: 0,
     quantasMensagens: 1,
     demanda: null,
+    demandaEmAjustes: false,
   },
 ];
 

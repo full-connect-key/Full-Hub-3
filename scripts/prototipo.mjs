@@ -385,6 +385,13 @@ const TELAS = [
   { nome: "90b-solicitacoes-fila-375", rota: "/painel/solicitacoes", largura: 375, altura: 1200, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
+  // A ABA FILTRADA, e nao so a de "Todos": a imagem de "Todos" mostra a faixa
+  // de abas e nao prova que alguma delas RECORTA. Esta sai em "Em ajustes",
+  // que e a fase derivada da demanda -- a unica que nao sai do enum do pedido.
+  { nome: "92b-portal-pedidos-ajustes", rota: "/portal/solicitacoes?fase=ajustes", largura: 1400, altura: 900, role: "cliente" },
+  // E 375px, porque a faixa de abas e o lugar onde o `min-w-max` na tag errada
+  // empurra a pagina inteira para os lados -- e isso nenhum build pega.
+  { nome: "92c-portal-pedidos-375", rota: "/portal/solicitacoes", largura: 375, altura: 1100, role: "cliente" },
 
   // ---------------------------------------------------------------------
   // COMODATOS (0069)

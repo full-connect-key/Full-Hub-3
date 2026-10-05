@@ -3293,6 +3293,67 @@ cliente que o pedido dele está "novo" e dizer à agência que está "enviado".
 `SeloDaSolicitacao` recebe de que lado está sendo desenhado, e é o que permite
 um componente para as duas telas.
 
+#### As abas do Portal são FASES, e não o enum
+
+Decisão do usuário: *"na aba de pedidos, eles sejam separados em abas, Em
+análise, Em produção, Em ajustes, Entregue"*.
+
+**Nenhuma coluna nasceu, e nenhum valor entrou no enum.** A fase é uma leitura
+do estado do pedido mais o da demanda que ele virou — `faseDoPedido()` em
+`lib/dominio/solicitacoes.ts` —, e é a decisão de `maoDoPost()` no Social
+Media, de "bloqueio não é status" e de "atraso do Financeiro não é coluna": uma
+coluna `fase` precisaria ser reescrita por quatro caminhos para continuar
+verdadeira.
+
+| Fase | De onde sai |
+| --- | --- |
+| Em análise | `nova` + `em_analise` |
+| Em produção | `em_andamento`, e a demanda NÃO está em ajustes |
+| Em ajustes | `em_andamento`, e a demanda ESTÁ em ajustes |
+| Entregue | `concluida` |
+| Recusado | `recusada` |
+
+**`nova` e `em_analise` dividem a primeira**, e é de propósito: a diferença
+entre elas é se alguém do Atendimento já abriu a fila — informação da AGÊNCIA,
+não do cliente. Para quem mandou, as duas querem dizer que está sendo olhado.
+
+**"EM AJUSTES" NÃO É VALOR DE `solicitacao_status`**, e a ausência é o ponto.
+Quem sabe que há ajuste em curso é a DEMANDA: `task_status` tem `em_ajustes`
+desde a 0007, e é para lá que ela volta quando o cliente pede alteração. Um
+valor novo no enum do pedido seria uma segunda verdade sobre o mesmo fato, e
+divergiria no instante em que a demanda saísse de ajustes — o pedido ficaria
+parado até alguém reescrevê-lo à mão. Derivada, ela volta sozinha.
+
+**E a demanda só é legível para o cliente quando algo dela foi enviado** —
+`tasks_select_cliente` exige uma rodada de escopo cliente. Longe de ser um
+furo, é o que faz a derivação valer onde ela importa: uma demanda vai para
+`em_ajustes` porque o cliente pediu alteração numa peça, e pedir alteração
+exige que a peça tenha saído. Fora disso o pedido fica em "Em produção", que é
+a verdade do que ele sabe.
+
+**"Recusado" é uma QUINTA aba, e só aparece quando existe pedido nela.** Ele
+nomeou quatro, e `recusada` não cabe em nenhuma: em "Entregue" afirmaria que
+foi entregue, e fora das abas o pedido sumiria da tela de quem o abriu — junto
+com o motivo, que é a única coisa que explica o que aconteceu.
+
+**"Todos" é a primeira, e é o padrão.** Abrindo em "Em análise", uma conta
+cujos três pedidos estão em produção cairia numa tela vazia tendo três pedidos.
+
+**A contagem sai da mesma lista que desenha as linhas**, e por isso o recorte
+acontece na tela e não na consulta: com o `select` já filtrado, o número das
+outras abas não existiria. É o contador de Minhas Tasks pela terceira vez.
+
+**O selo some dentro da aba e volta em "Todos"** — a decisão da Lista de Minhas
+Tasks: o cabeçalho já o disse. Aqui ela vale duas vezes, porque na aba "Em
+análise" o selo de um pedido `nova` diz "Enviado", e duas palavras diferentes
+para a mesma linha a um centímetro de distância é a tela se desmentindo. **E a
+frase da linha passa por `explicacaoDoPedido()`**, senão "Já está sendo feito"
+apareceria debaixo da aba "Em ajustes": `EXPLICACAO_PARA_O_CLIENTE` é por
+STATUS, e o status de um pedido em ajuste continua sendo `em_andamento`.
+
+**A aba mora na URL**, como todo filtro de listagem, e valor torto cai em
+"Todos".
+
 #### O roteiro de briefing
 
 `request_types.campos_json` é um array em `jsonb` com as perguntas daquele tipo
