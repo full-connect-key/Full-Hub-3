@@ -20,7 +20,6 @@ import {
   minhasNotasRecusadas,
   notasEsperandoOSocio,
 } from "@/lib/dados/notas-fiscais";
-import { meusComodatos } from "@/lib/dados/comodatos";
 import {
   alertasAbertos,
   meusFeedbacks,
@@ -33,7 +32,6 @@ import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
 import { EmAndamentoAgora } from "./_blocos/em-andamento-agora";
 import { MeuFeedback } from "./_blocos/meu-feedback";
-import { MeusEquipamentos } from "./_blocos/meus-equipamentos";
 import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
 import { PrecisaDeMim, linhasDoPrecisaDeMim } from "./_blocos/precisa-de-mim";
 import { PulsoDaAgencia } from "./_blocos/pulso-da-agencia";
@@ -84,7 +82,6 @@ export default async function PaginaInicialDoPainel() {
     recusadas,
     esperandoOSocio,
     pedidosDeNotaAbertos,
-    meusEquipamentos,
     meusFeedbacks_lista,
     alertasDeCargaAbertos,
     correndoAgora,
@@ -105,10 +102,6 @@ export default async function PaginaInicialDoPainel() {
     // nota e eu não mandei. Sem ele o pedido viveria só no sino, que vira lido
     // no primeiro clique — e o prazo é o mesmo dia.
     meusPedidosDeNota(),
-    // O EQUIPAMENTO QUE ESTÁ COMIGO (0069). Ela passa por `meus_comodatos()`,
-    // que é definer e devolve vazio para quem não é da equipe — nenhum `if` de
-    // perfil aqui, pela mesma razão das notas acima.
-    meusComodatos(),
     // O FEEDBACK QUE CHEGOU PARA MIM (Sprint 3H). A consulta não filtra por
     // status: `feedback_reports_select` devolve só os `enviado` desta pessoa, e
     // repetir o filtro aqui criaria o segundo lugar onde a regra pode divergir
@@ -252,8 +245,6 @@ export default async function PaginaInicialDoPainel() {
           <EmAndamentoAgora etapa={correndoAgora} agoraDoServidor={prazos.agora} />
 
           <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
-
-          <MeusEquipamentos comodatos={meusEquipamentos} />
 
           <AcessoRapido />
         </aside>

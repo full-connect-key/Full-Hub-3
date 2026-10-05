@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CircleHelp, Printer, Share2, Video } from "lucide-react";
+import { toast } from "sonner";
+import { CircleHelp, Paperclip, Printer, Share2, Video, X } from "lucide-react";
 
 import { abrirSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import { camposDoRoteiro, respostasQueFaltam } from "@/lib/dominio/solicitacoes";
+import {
+  camposDoRoteiro,
+  respostasQueFaltam,
+} from "@/lib/dominio/solicitacoes";
 import type { RequestType } from "@/lib/supabase/database.types";
+
+import { subirAnexoDoPedido } from "../subir-anexo";
+
+/** O teto é do banco; a tela conta para não oferecer um caminho sem saída. */
+const TETO_DE_ARQUIVOS = 10;
 
 /** Os ícones que os tipos iniciais da 0068 pedem, pelo nome gravado. */
 const ICONES = { Share2, Printer, Video, CircleHelp } as const;
@@ -61,6 +70,8 @@ export function FormularioDePedido({
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
   const [respostas, setRespostas] = useState<Record<string, string>>({});
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const campo = useRef<HTMLInputElement>(null);
   /**
    * A FRASE DO QUE FALTA SÓ APARECE DEPOIS DE ALGUÉM TENTAR ENVIAR.
    *
@@ -99,9 +110,42 @@ export function FormularioDePedido({
           data_desejada: quando,
         }),
       );
-      // Leva para o pedido recém-criado: é lá que ele anexa arquivo e conversa.
-      // Voltar para a lista faria a pessoa procurar o que acabou de mandar.
-      if (r.ok && r.dados) router.push(`/portal/solicitacoes/${r.dados}`);
+      if (!r.ok || !r.dados) return;
+
+      // -----------------------------------------------------------------
+      // O PEDIDO NASCE PRIMEIRO, E OS ARQUIVOS SOBEM DEPOIS.
+      //
+      // Não é escolha de estilo: o caminho no bucket leva o id do pedido, e
+      // a policy do Storage confere a pasta da empresa — não há onde pôr o
+      // arquivo antes de a linha existir. Guardá-los em memória até aqui é o
+      // que permite o anexo na abertura, que é o pedido do usuário.
+      //
+      // **E uma falha de upload NÃO derruba o pedido.** Ele já está no
+      // banco, e o Atendimento já foi avisado: descartar o texto que a
+      // pessoa escreveu por causa de um arquivo que não subiu seria trocar
+      // uma falha parcial por uma total. O que o aviso faz é NOMEAR o
+      // arquivo que ficou de fora, e a tela do pedido — que abre no
+      // instante seguinte — é onde ele entra.
+      // -----------------------------------------------------------------
+      for (const arquivo of arquivos) {
+        const anexo = await subirAnexoDoPedido({
+          clientId: clienteId,
+          pedidoId: r.dados,
+          arquivo,
+        });
+        if (!anexo.ok) {
+          toast.error(
+            `O pedido foi enviado, mas "${arquivo.name}" não subiu: ${
+              anexo.erro ?? "tente anexar de novo na tela do pedido."
+            }`,
+          );
+        }
+      }
+
+      // Leva para o pedido recém-criado: é lá que ele anexa mais arquivo e
+      // conversa. Voltar para a lista faria a pessoa procurar o que acabou
+      // de mandar.
+      router.push(`/portal/solicitacoes/${r.dados}`);
     });
   }
 
@@ -113,7 +157,11 @@ export function FormularioDePedido({
         <div className="space-y-1.5">
           <Label htmlFor="pedido-empresa">Para qual empresa</Label>
           <Select value={clienteId} onValueChange={setClienteId}>
-            <SelectTrigger aria-label="Empresa" id="pedido-empresa" className="w-full sm:w-80">
+            <SelectTrigger
+              aria-label="Empresa"
+              id="pedido-empresa"
+              className="w-full sm:w-80"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -128,11 +176,17 @@ export function FormularioDePedido({
       ) : null}
 
       <fieldset className="space-y-2">
-        <legend className="mb-2 text-sm font-medium">Que tipo de trabalho é</legend>
+        <legend className="mb-2 text-sm font-medium">
+          Que tipo de trabalho é
+        </legend>
         {/* `role="radiogroup"` no invólucro porque os cartões são
             `role="radio"`: um radio sem o grupo por perto é um papel sem pai,
             e o leitor de tela anuncia "opção 1 de 1" em cada um deles. */}
-        <div role="radiogroup" aria-label="Tipo de pedido" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          role="radiogroup"
+          aria-label="Tipo de pedido"
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        >
           {tipos.map((t) => {
             const Icone = ICONES[t.icone as keyof typeof ICONES] ?? CircleHelp;
             const escolhido = t.id === tipoId;
@@ -172,7 +226,9 @@ export function FormularioDePedido({
 
       {campos.length > 0 ? (
         <section className="space-y-4 rounded-lg border p-4">
-          <h2 className="text-sm font-semibold">Para a gente não precisar perguntar depois</h2>
+          <h2 className="text-sm font-semibold">
+            Para a gente não precisar perguntar depois
+          </h2>
 
           {campos.map((c) => {
             const id = `roteiro-${c.chave}`;
@@ -186,8 +242,15 @@ export function FormularioDePedido({
                 </Label>
 
                 {c.tipo === "escolha" && c.opcoes?.length ? (
-                  <Select value={valor} onValueChange={(v) => responder(c.chave, v)}>
-                    <SelectTrigger aria-label={c.rotulo} id={id} className="w-full sm:w-80">
+                  <Select
+                    value={valor}
+                    onValueChange={(v) => responder(c.chave, v)}
+                  >
+                    <SelectTrigger
+                      aria-label={c.rotulo}
+                      id={id}
+                      className="w-full sm:w-80"
+                    >
                       <SelectValue placeholder="Escolha" />
                     </SelectTrigger>
                     <SelectContent>
@@ -214,7 +277,9 @@ export function FormularioDePedido({
                   />
                 )}
 
-                {c.ajuda ? <p className="text-muted-foreground text-xs">{c.ajuda}</p> : null}
+                {c.ajuda ? (
+                  <p className="text-muted-foreground text-xs">{c.ajuda}</p>
+                ) : null}
               </div>
             );
           })}
@@ -242,9 +307,103 @@ export function FormularioDePedido({
           className="w-full sm:w-52"
         />
         <p className="text-muted-foreground text-xs">
-          É a data que ajudaria você — não é o prazo combinado. A gente olha o pedido e responde
-          por aqui com a data que dá para assumir.
+          É a data que ajudaria você — não é o prazo combinado. A gente olha o
+          pedido e responde por aqui com a data que dá para assumir.
         </p>
+      </div>
+
+      {/* ---------------------------------------------------------------
+          O ANEXO NA ABERTURA — decisão do usuário.
+
+          **Ele existia só na tela do pedido JÁ CRIADO**, e a linha do pé
+          deste formulário dizia isso em voz alta: "depois de enviar você pode
+          anexar arquivos". Quem abre um pedido está com a referência na mão —
+          o print, a foto do material, a arte do ano passado —, e mandá-la num
+          segundo passo é mandá-la num passo que metade das pessoas não dá.
+
+          **Os arquivos ficam em memória até o envio**, porque o caminho no
+          bucket leva o id do pedido e ele ainda não existe. Por isso esta
+          lista é uma lista de escolhas, e não de anexos: ninguém subiu nada
+          ainda, e a tela não pode afirmar que subiu.
+          --------------------------------------------------------------- */}
+      <div className="space-y-2">
+        <Label htmlFor="pedido-arquivos">Imagens e arquivos</Label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={arquivos.length >= TETO_DE_ARQUIVOS}
+            onClick={() => campo.current?.click()}
+          >
+            <Paperclip aria-hidden />
+            Escolher arquivos
+          </Button>
+
+          <input
+            ref={campo}
+            id="pedido-arquivos"
+            type="file"
+            multiple
+            // `sr-only` esconde da vista e NÃO da árvore de acessibilidade —
+            // por isso o `aria-label`: sem ele o campo é anunciado como
+            // "editar" e mais nada.
+            aria-label="Escolher imagens e arquivos para anexar"
+            className="sr-only"
+            onChange={(e) => {
+              const escolhidos = Array.from(e.target.files ?? []);
+              // O CORTE AVISA, em vez de descartar calado: cada arquivo foi
+              // escolhido por uma pessoa, e sumir com o décimo primeiro faria
+              // ela achar que mandou o que não chegou. É a decisão do teto de
+              // anexos do banco, que recusa em vez de cortar.
+              const cabem = TETO_DE_ARQUIVOS - arquivos.length;
+              if (escolhidos.length > cabem) {
+                toast.error(
+                  `São até ${TETO_DE_ARQUIVOS} arquivos por pedido. Entraram os ${cabem} primeiros.`,
+                );
+              }
+              setArquivos((atual) => [...atual, ...escolhidos.slice(0, cabem)]);
+              e.target.value = "";
+            }}
+          />
+
+          <span className="text-muted-foreground text-xs">
+            {arquivos.length} de {TETO_DE_ARQUIVOS}
+          </span>
+        </div>
+
+        {arquivos.length > 0 ? (
+          <ul className="space-y-1">
+            {arquivos.map((a, i) => (
+              <li
+                key={`${a.name}-${i}`}
+                className="bg-neutral-soft flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              >
+                <Paperclip
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <button
+                  type="button"
+                  aria-label={`Tirar ${a.name} da lista`}
+                  className="text-muted-foreground hover:text-danger transition-colors"
+                  onClick={() =>
+                    setArquivos((atual) => atual.filter((_, j) => j !== i))
+                  }
+                >
+                  <X aria-hidden className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Print, foto, a arte de referência — o que ajudar a gente a entender
+            o que você quer.
+          </p>
+        )}
       </div>
 
       {/* A FRASE NOMEIA O QUE FALTA, e não diz "preencha os obrigatórios".
@@ -257,7 +416,11 @@ export function FormularioDePedido({
       ) : null}
 
       <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()} disabled={executando}>
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          disabled={executando}
+        >
           Cancelar
         </Button>
         <Button
@@ -269,7 +432,8 @@ export function FormularioDePedido({
       </div>
 
       <p className="text-muted-foreground text-xs">
-        Depois de enviar você pode anexar arquivos e conversar com a gente na tela do pedido.
+        Depois de enviar você pode anexar mais arquivos e conversar com a gente
+        na tela do pedido.
       </p>
     </div>
   );

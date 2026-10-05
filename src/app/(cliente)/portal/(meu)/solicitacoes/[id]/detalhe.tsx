@@ -17,8 +17,8 @@ import {
 import {
   apagarAnexo,
   escreverNaSolicitacao,
-  registrarAnexo,
 } from "@/app/(cliente)/portal/_actions/solicitacoes";
+import { subirAnexoDoPedido } from "@/app/(cliente)/portal/(meu)/solicitacoes/subir-anexo";
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
 import { PageHeader } from "@/components/shared/page-header";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
@@ -30,12 +30,10 @@ import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { PedidoCompleto } from "@/lib/dados/solicitacoes";
 import type { ItemDoPortal } from "@/lib/dominio/portal";
 import {
-  BUCKET_DOS_PEDIDOS,
   EXPLICACAO_PARA_O_CLIENTE,
   camposDoRoteiro,
   respostasParaLer,
 } from "@/lib/dominio/solicitacoes";
-import { criarClienteNavegador } from "@/lib/supabase/client";
 
 /** O teto é do banco; a tela conta para não oferecer um caminho sem saída. */
 const TETO_DE_ARQUIVOS = 10;
@@ -95,37 +93,43 @@ export function DetalheDoPedido({
   // resposta: o estado virou "Entregue" e não havia nada para abrir. Nos
   // outros estados não há nem uma coisa nem outra — e uma caixa dizendo
   // "nada aqui" ocupa a tela todo dia para informar em alguns.
-  const mostrarMateriais = pedido.status === "concluida" || materiais.length > 0;
-  const encerrado = pedido.status === "concluida" || pedido.status === "recusada";
+  const mostrarMateriais =
+    pedido.status === "concluida" || materiais.length > 0;
+  const encerrado =
+    pedido.status === "concluida" || pedido.status === "recusada";
 
-  async function subir(escolhido: File | undefined) {
-    if (!escolhido) return;
+  /**
+   * Sobe os arquivos escolhidos, um por um.
+   *
+   * **O caminho e a gravação moram em `subirAnexoDoPedido()`**, que é o mesmo
+   * da tela de abrir pedido: a policy do Storage confere a pasta da empresa, e
+   * duas cópias do caminho dariam uma recusa que aparece numa das duas telas e
+   * numa delas só.
+   *
+   * **Um por um e não em paralelo**, e é de propósito: o teto de dez é contado
+   * pelo banco, e dez `insert` simultâneos passariam pelas dez contagens antes
+   * de qualquer uma gravar — a mesma razão pela qual a idempotência da
+   * recorrência é índice único e não consulta. Em série, o décimo primeiro
+   * leva a recusa com a dica.
+   */
+  async function subir(escolhidos: FileList | null) {
+    const arquivos = Array.from(escolhidos ?? []);
+    if (arquivos.length === 0) return;
     setSubindo(true);
     try {
-      const supabase = criarClienteNavegador();
-      const extensao = escolhido.name.split(".").pop() ?? "bin";
-      // A PASTA DA EMPRESA NA FRENTE, porque é ela que a policy do Storage
-      // confere — `(storage.foldername(name))[1]`. Um caminho montado de outro
-      // jeito é recusado pelo bucket, não por esta tela.
-      const caminho = `${pedido.client_id}/${pedido.id}/${Date.now()}.${extensao}`;
-
-      const { error } = await supabase.storage
-        .from(BUCKET_DOS_PEDIDOS)
-        .upload(caminho, escolhido, { contentType: escolhido.type });
-
-      if (error) {
-        toast.error(`Não foi possível anexar: ${error.message}`);
-        return;
+      for (const arquivo of arquivos) {
+        const r = await subirAnexoDoPedido({
+          clientId: pedido.client_id,
+          pedidoId: pedido.id,
+          arquivo,
+        });
+        if (!r.ok) {
+          toast.error(
+            `${arquivo.name}: ${r.erro ?? "não foi possível anexar."}`,
+          );
+          break;
+        }
       }
-
-      await chamarEMostrar(() =>
-        registrarAnexo(pedido.id, {
-          caminho,
-          nome: escolhido.name,
-          tipo: escolhido.type,
-          tamanho: escolhido.size,
-        }),
-      );
     } finally {
       setSubindo(false);
       if (campo.current) campo.current.value = "";
@@ -154,13 +158,17 @@ export function DetalheDoPedido({
       </div>
 
       {pedido.status === "recusada" && pedido.motivo_recusa ? (
-        <p className="bg-danger-soft text-danger rounded-lg p-3 text-sm">{pedido.motivo_recusa}</p>
+        <p className="bg-danger-soft text-danger rounded-lg p-3 text-sm">
+          {pedido.motivo_recusa}
+        </p>
       ) : null}
 
       <p className="text-muted-foreground text-xs">
         Enviado em{" "}
         <span className="tabular-nums">
-          {format(parseISO(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {format(parseISO(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", {
+            locale: ptBR,
+          })}
         </span>
         {pedido.autor ? ` por ${pedido.autor.nome}` : ""}
         {pedido.tipo ? ` · ${pedido.tipo}` : ""}
@@ -172,7 +180,9 @@ export function DetalheDoPedido({
           <span>
             Você pediu para{" "}
             <strong className="tabular-nums">
-              {format(parseISO(pedido.data_desejada), "dd/MM/yyyy", { locale: ptBR })}
+              {format(parseISO(pedido.data_desejada), "dd/MM/yyyy", {
+                locale: ptBR,
+              })}
             </strong>
             .
             {/* A PROMESSA SAI QUANDO O PEDIDO FECHA. "A data que a Full vai
@@ -182,7 +192,9 @@ export function DetalheDoPedido({
                 ser feito. É a razão pela qual o aviso do sino leva a data e
                 nunca a palavra "hoje": o texto é escrito uma vez e lido
                 depois. */}
-            {encerrado ? "" : " A data que a Full vai assumir chega por aqui, na conversa."}
+            {encerrado
+              ? ""
+              : " A data que a Full vai assumir chega por aqui, na conversa."}
           </span>
         </p>
       ) : null}
@@ -193,8 +205,9 @@ export function DetalheDoPedido({
 
           {materiais.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Este pedido foi concluído sem nenhum material para você aprovar por aqui. Se o que
-              você pediu não chegou, escreva na conversa abaixo — é por lá que a Full responde.
+              Este pedido foi concluído sem nenhum material para você aprovar
+              por aqui. Se o que você pediu não chegou, escreva na conversa
+              abaixo — é por lá que a Full responde.
             </p>
           ) : (
             <>
@@ -204,7 +217,11 @@ export function DetalheDoPedido({
                   registro. */}
               <div className="space-y-3">
                 {materiais.map((m) => (
-                  <CartaoDeItem key={`${m.tipo}-${m.conteudoId}`} item={m} hoje={hoje} />
+                  <CartaoDeItem
+                    key={`${m.tipo}-${m.conteudoId}`}
+                    item={m}
+                    hoje={hoje}
+                  />
                 ))}
               </div>
 
@@ -232,13 +249,18 @@ export function DetalheDoPedido({
       ) : null}
 
       {pedido.descricao ? (
-        <p className="text-text-secondary text-sm whitespace-pre-wrap">{pedido.descricao}</p>
+        <p className="text-text-secondary text-sm whitespace-pre-wrap">
+          {pedido.descricao}
+        </p>
       ) : null}
 
       {respostas.length > 0 ? (
         <dl className="divide-y rounded-lg border">
           {respostas.map((r) => (
-            <div key={r.rotulo} className="grid gap-1 p-3 sm:grid-cols-[12rem_1fr]">
+            <div
+              key={r.rotulo}
+              className="grid gap-1 p-3 sm:grid-cols-[12rem_1fr]"
+            >
               <dt className="text-muted-foreground text-sm">{r.rotulo}</dt>
               <dd className="text-sm whitespace-pre-wrap">{r.valor}</dd>
             </div>
@@ -250,12 +272,17 @@ export function DetalheDoPedido({
         <h2 className="text-sm font-semibold">Arquivos</h2>
 
         {pedido.anexos.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhum arquivo anexado.</p>
+          <p className="text-muted-foreground text-sm">
+            Nenhum arquivo anexado.
+          </p>
         ) : (
           <ul className="divide-y rounded-lg border">
             {pedido.anexos.map((a) => (
               <li key={a.id} className="flex items-center gap-2 p-3 text-sm">
-                <Paperclip aria-hidden className="text-muted-foreground size-4 shrink-0" />
+                <Paperclip
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
                 <span className="min-w-0 flex-1 truncate">{a.nome}</span>
                 {a.assinado ? (
                   <a
@@ -268,7 +295,9 @@ export function DetalheDoPedido({
                     <ExternalLink aria-hidden className="size-3" />
                   </a>
                 ) : (
-                  <span className="text-muted-foreground text-xs">Não foi possível abrir</span>
+                  <span className="text-muted-foreground text-xs">
+                    Não foi possível abrir
+                  </span>
                 )}
                 {!somenteLeitura ? (
                   <Button
@@ -278,7 +307,9 @@ export function DetalheDoPedido({
                     disabled={executando}
                     onClick={() =>
                       comecar(async () => {
-                        await chamarEMostrar(() => apagarAnexo(a.id, pedido.id));
+                        await chamarEMostrar(() =>
+                          apagarAnexo(a.id, pedido.id),
+                        );
                       })
                     }
                   >
@@ -306,9 +337,10 @@ export function DetalheDoPedido({
               // `sr-only` esconde da vista e NÃO da árvore de acessibilidade —
               // por isso o `aria-label`: sem ele o campo é anunciado como
               // "editar" e mais nada.
-              aria-label="Escolher um arquivo para anexar"
+              aria-label="Escolher arquivos para anexar"
               className="sr-only"
-              onChange={(e) => subir(e.target.files?.[0])}
+              multiple
+              onChange={(e) => subir(e.target.files)}
             />
             <span className="text-muted-foreground text-xs">
               {cheio
@@ -324,18 +356,25 @@ export function DetalheDoPedido({
 
         {pedido.mensagens.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Ainda não há conversa. Se precisar acrescentar alguma coisa, escreva abaixo.
+            Ainda não há conversa. Se precisar acrescentar alguma coisa, escreva
+            abaixo.
           </p>
         ) : (
           <ul className="space-y-3">
             {pedido.mensagens.map((m) => (
               <li key={m.id} className="flex gap-2">
-                <UserAvatar name={m.autor?.nome ?? "—"} src={m.autor?.avatar_url} size="sm" />
+                <UserAvatar
+                  name={m.autor?.nome ?? "—"}
+                  src={m.autor?.avatar_url}
+                  size="sm"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs">
                     <span className="font-medium">{m.autor?.nome ?? "—"}</span>{" "}
                     <span className="text-muted-foreground tabular-nums">
-                      {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", {
+                        locale: ptBR,
+                      })}
                     </span>
                   </p>
                   <p className="text-sm whitespace-pre-wrap">{m.texto}</p>
