@@ -214,11 +214,17 @@ select teste.conferir_como('E conta quantos ja foram ao cliente', :ANA,
        (select id from public.tasks where client_id = %L and social_do_mes = '2027-10-01'))$q$, :MCLI),
   '1');
 
--- AS ETAPAS DA CORRENTE ENTRAM NA CONTA, e sao cinco por post (0045): dois
--- posts, dez etapas. Sem esta linha o dialogo diria "2 posts" sobre um
--- apagamento que leva dez linhas de trabalho junto.
-select teste.conferir_como('E as etapas da corrente dos dois', :ANA,
+-- AS ETAPAS E AS MARCACOES SAO DUAS CONTAS, e a 0088 as separou: as etapas do
+-- MES sao cinco, e as marcacoes sao uma por post x etapa -- dez, nos dois
+-- posts. Juntar as duas num numero so daria "dez etapas" num mes de cinco, e o
+-- sprint pede as duas na frase do dialogo.
+select teste.conferir_como('O dialogo conta as cinco etapas do mes', :ANA,
   format($q$select etapas::text from public.o_que_vai_com_o_mes(
+       (select id from public.tasks where client_id = %L and social_do_mes = '2027-10-01'))$q$, :MCLI),
+  '5');
+
+select teste.conferir_como('E as dez marcacoes de progresso dos dois posts', :ANA,
+  format($q$select marcacoes::text from public.o_que_vai_com_o_mes(
        (select id from public.tasks where client_id = %L and social_do_mes = '2027-10-01'))$q$, :MCLI),
   '10');
 

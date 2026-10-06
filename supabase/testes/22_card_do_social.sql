@@ -24,13 +24,10 @@ insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
 values (:CARD, :VERDE, 'Card completo', '2026-11-28', '{instagram}',
         'imagem', :ANA, :MARINA);
 
--- A corrente ja nasceu pelo gatilho. A Pauta vai para a Carla e o Layout para
--- o Bruno: os dois lados da policy de update precisam existir para os dois
--- cenarios da secao 2 dizerem coisas diferentes.
-update public.post_etapas set responsavel_id = :CARLA
- where post_id = :CARD and nome = 'Pauta';
-update public.post_etapas set responsavel_id = :BRUNO
- where post_id = :CARD and nome = 'Layout';
+-- `:CARD` E UM POST AVULSO, fora de um mes aberto -- e desde a 0088 isso quer
+-- dizer que ele nao tem corrente nenhuma: a corrente e do MES, e o avulso volta
+-- a se comportar como um post anterior a 0045 (um envio, uma decisao). Quem
+-- escreve nele e a gestao e `posts.responsavel_id`, que e a Marina.
 
 
 -- --- 1. Quem abre o mes ----------------------------------------------------
@@ -70,40 +67,44 @@ select teste.cenario('E o cliente muito menos', :JOANA,
   'recusa');
 
 
--- --- 2. O QUE O ATENDIMENTO ABRE ELE NAO DISTRIBUI -------------------------
+-- --- 2. DISTRIBUIR A ETAPA DO MES PASSOU A SER DE QUEM DISTRIBUI ETAPA -----
 --
--- Abrir trabalho e distribuir trabalho sao duas decisoes, e o usuario separou
--- as duas na mesma frase: "nao vao poder abrir um novo social, ou definir
--- responsaveis. So quem faz isso e desenvolvedor."
+-- ISTO DESFAZ UMA REGRA DA 0046, e a divergencia e consequencia do 3J. O
+-- usuario tinha separado as duas decisoes na mesma frase -- *"nao vao poder
+-- abrir um novo social, ou definir responsaveis. So quem faz isso e
+-- desenvolvedor"* --, e `post_etapas` tinha policy propria para isso:
+-- `is_gestor()` no insert, e `is_gestor() or responsavel_id` no update.
 --
--- Dentro de `abrir_mes_de_social` a distribuicao passa, porque a funcao e
--- `security definer` e o mapa veio na mesma chamada. Fora dela, nao.
+-- A etapa do mes e uma SUBTAREFA, e `subtasks_update` e
+-- `is_gestor() or is_atendimento() or responsavel_id` desde a 0007. Entao o
+-- Atendimento distribui a etapa do social do mesmo jeito que distribui a etapa
+-- de qualquer demanda e a peca de qualquer campanha (0051).
+--
+-- MANTER A REGRA ESTREITA CUSTARIA UM GATILHO EM `subtasks` so para o social,
+-- e seria reintroduzir exatamente a divergencia que o 3J desfaz: a etapa do
+-- social com uma permissao que nenhuma outra etapa tem. Fica como esta, e
+-- escrito aqui porque a regra antiga era decisao de quem decide.
 
--- ZERO LINHAS E NAO EXCECAO, e a diferenca importa: quem recusa aqui e a
--- POLICY de update (`is_gestor() or responsavel_id = auth.uid()`), e a etapa
--- de Layout nao e da Carla -- ela nem chega ao trigger. Escrevi este cenario
--- esperando a mensagem do trigger e ele acusou; a recusa que vale e mais
--- funda que a que eu procurava, e a action traduz "nao voltou linha" em
--- recusa justamente para a tela nao dizer "salvo" a toa.
-select teste.cenario('O Atendimento nao passa etapa para outra pessoa', :CARLA,
-  format($fmt$update public.post_etapas set responsavel_id = %L
-     where post_id = %L and nome = 'Layout'$fmt$, :BRUNO, :CARD), 'ok', 0);
+select teste.conferir('A Carla esta no Atendimento, que e o que decide aqui',
+  (select funcao::text from public.team_members where user_id = :CARLA), 'Atendimento');
 
--- E NA ETAPA QUE E DELA A POLICY DEIXA PASSAR, e ai quem recusa e o trigger --
--- com a frase que a pessoa le. Sao as duas camadas, uma atras da outra.
-select teste.recusa_com('E na etapa dela, quem recusa e o trigger', :CARLA,
-  format($fmt$update public.post_etapas set responsavel_id = %L
-     where post_id = %L and nome = 'Pauta'$fmt$, :BRUNO, :CARD),
-  'o resto é da gestão');
+select teste.cenario('O Atendimento distribui a etapa do mes, como qualquer etapa', :CARLA,
+  format($fmt$update public.subtasks set responsavel_id = %L
+     where social_papel is not null and titulo = 'Conteúdo'
+       and task_id = (select id from public.tasks
+                       where client_id = %L and social_do_mes = '2027-03-01')$fmt$,
+    :CARLA, :VERDE), 'ok', 1);
 
-select teste.cenario('Nem a etapa dela mesma', :CARLA,
-  format($fmt$update public.post_etapas set responsavel_id = %L
-     where post_id = %L and nome = 'Conteúdo'$fmt$, :CARLA, :CARD),
-  'recusa');
-
-select teste.cenario('A gestao distribui', :DIEGO,
-  format($fmt$update public.post_etapas set responsavel_id = %L
-     where post_id = %L and nome = 'Conteúdo'$fmt$, :CARLA, :CARD), 'ok', 1);
+-- E O DESIGN NAO, porque ele nao e Atendimento nem gestao e a etapa nao e
+-- dele. ZERO LINHAS e nao excecao, e a diferenca importa: quem recusa aqui e a
+-- policy, e a action traduz "nao voltou linha" em recusa justamente para a
+-- tela nao dizer "salvo" a toa.
+select teste.cenario('E o Design nao distribui etapa que nao e dele', :BRUNO,
+  format($fmt$update public.subtasks set responsavel_id = %L
+     where social_papel is not null and titulo = 'Pauta'
+       and task_id = (select id from public.tasks
+                       where client_id = %L and social_do_mes = '2027-03-01')$fmt$,
+    :BRUNO, :VERDE), 'ok', 0);
 
 
 -- --- 3. A PAUTA: onde a primeira etapa da corrente escreve -----------------
@@ -217,10 +218,17 @@ insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
 values (:CARD2, :VERDE, 'Card da corrente', null, '{instagram}',
         'imagem', :ANA, :MARINA);
 
--- A Carla tem a etapa Conteudo e NAO e `posts.responsavel_id` -- que e a
--- Marina. Ate a 0047, `posts_update` so aceitava gestao ou o dono do post.
-update public.post_etapas set responsavel_id = :CARLA
- where post_id = :CARD2 and nome = 'Conteúdo';
+-- `:CARD2` ENTRA NUM MES ABERTO, e isto e o que mudou na 0088: a pergunta de
+-- `tenho_etapa_no_post()` passou de "quem esta com uma etapa deste POST" para
+-- "quem esta com uma etapa do MES deste post". Um post avulso nao tem etapa
+-- nenhuma, entao sem o mes este bloco mediria a ausencia da corrente em vez da
+-- presenca dela.
+--
+-- A Carla tem a etapa Conteudo do mes e NAO e `posts.responsavel_id` -- que e
+-- a Marina. Ate a 0047, `posts_update` so aceitava gestao ou o dono do post.
+update public.posts set social_task_id = (
+  select id from public.tasks where client_id = :VERDE and social_do_mes = '2027-03-01')
+ where id = :CARD2;
 
 select teste.cenario('A redatora escreve a legenda do post que nao e dela', :CARLA,
   format($fmt$update public.posts set legenda = 'Cinco dicas para o calor.'
@@ -259,10 +267,12 @@ select teste.cenario('Nem define a data', :BRUNO,
   format($fmt$update public.posts set data_publicacao = '2026-12-31'
      where id = %L$fmt$, :CARD2), 'ok', 0);
 
--- E o Bruno passa a escrever no instante em que ganha uma etapa. E a mesma
--- linha da policy vista do outro lado.
-update public.post_etapas set responsavel_id = :BRUNO
- where post_id = :CARD2 and nome = 'Layout';
+-- E o Bruno passa a escrever no instante em que ganha uma etapa DO MES. E a
+-- mesma linha da policy vista do outro lado.
+update public.subtasks set responsavel_id = :BRUNO
+ where social_papel is not null and titulo = 'Layout'
+   and task_id = (select id from public.tasks
+                   where client_id = :VERDE and social_do_mes = '2027-03-01');
 
 select teste.cenario('Com a etapa na mao, ele escreve', :BRUNO,
   format($fmt$update public.posts set legenda = 'Agora sim.'

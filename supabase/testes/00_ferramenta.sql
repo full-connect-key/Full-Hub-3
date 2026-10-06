@@ -108,6 +108,16 @@ begin
   delete from public.approval_rounds;
   delete from public.subtask_dependencies;
   delete from public.subtasks;
+  -- O POST DE UM MES DE SOCIAL SAI ANTES DA DEMANDA, e esta linha e um achado
+  -- da 0088. `tasks_apaga_o_social` (0086) RECUSA apagar um mes que tem post
+  -- ja enviado ao cliente -- e essa trava nunca disparava aqui porque a ponte
+  -- antiga era `posts.subtask_id`, que o `delete from subtasks` acima zerava
+  -- primeiro: `posts_do_mes()` achava zero e a limpeza passava. Era o mesmo
+  -- furo que a 0086 existiu para fechar, dentro da propria ferramenta de
+  -- teste. Com `posts.social_task_id` a trava passou a valer, e quem limpa
+  -- precisa tirar o material antes da casca -- que e a ordem de
+  -- `apagar_mes_de_social()`.
+  delete from public.posts where social_task_id is not null;
   delete from public.tasks;
 end $$;
 

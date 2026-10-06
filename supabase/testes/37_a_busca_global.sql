@@ -260,29 +260,42 @@ select teste.conferir_como(
   'select count(*)::text from public.busca_global(''panfleto'')',
   '0');
 
--- A SUBTAREFA DE POST FICA FORA DO RAMO DE ETAPA (0061): ela carrega o tema do
--- post como titulo, e o post tem ramo proprio. Sem essa linha, buscar o tema
--- devolveria duas linhas para o mesmo trabalho, levando a duas telas -- e a
--- certa e a do post, que e onde o card se preenche.
+-- A ETAPA DO MES DE SOCIAL ENTRA NO RAMO DE ETAPA, e este cenario esta virado
+-- do avesso. A 0073 filtrava `and not subtarefa_de_post(s.id)` porque a
+-- subtarefa ERA o post: ela carregava o tema dele como titulo, e buscar o tema
+-- devolvia duas linhas para o mesmo trabalho, levando a duas telas.
+--
+-- Com a 0088 a subtarefa e a FASE -- "Pauta", "Layout" --, e ela nao duplica
+-- nada: e um trabalho de verdade, com dono e prazo, e quem a procura pelo nome
+-- tem o mesmo direito de achar que tem numa demanda comum. O post continua com
+-- ramo proprio, e os dois sao coisas diferentes.
 insert into public.tasks (id, client_id, titulo, link_entrega, criado_por, social_do_mes)
 values ('bb000000-0000-0000-0000-00000000b003', :VERDE,
         'Social · Novembro/2027 de Mundo Verde',
         'https://drive.google.com/drive/folders/b3', :DIEGO, '2027-11-01');
 
-insert into public.subtasks (id, task_id, titulo, ordem)
+insert into public.subtasks (id, task_id, titulo, ordem, social_papel)
 values ('bb000000-0000-0000-0000-00000000b0d1', 'bb000000-0000-0000-0000-00000000b003',
-        'Espelho de post: guarda-chuva', 10);
+        'Pauta do guarda-chuva', 10, 'producao');
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataformas, criado_por, subtask_id)
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas, criado_por, social_task_id)
 values ('bb000000-0000-0000-0000-00000000b0e1', :VERDE,
         'Espelho de post: guarda-chuva', current_date + 10, '{instagram}', :DIEGO,
-        'bb000000-0000-0000-0000-00000000b0d1');
+        'bb000000-0000-0000-0000-00000000b003');
 
 select teste.conferir_como(
-  'o tema do post volta UMA vez, e como post -- nao como etapa',
+  'a etapa do mes e o post voltam como coisas diferentes',
   :ANA,
-  'select string_agg(tipo, '','' order by tipo) from public.busca_global(''guarda-chuva'')',
-  'post');
+  'select string_agg(distinct tipo, '','' order by tipo) from public.busca_global(''guarda-chuva'')',
+  'etapa,post');
+
+-- E A LINHAGEM DELA E A DEMANDA DO MES, que e o que faz as duas se
+-- distinguirem na paleta: "Pauta" sozinho nao diz de que mes de que conta.
+select teste.conferir_como(
+  'e a etapa do mes carrega o mes na linhagem',
+  :ANA,
+  'select contexto from public.busca_global(''guarda-chuva'') where tipo = ''etapa''',
+  'Mundo Verde · Social · Novembro/2027 de Mundo Verde');
 
 -- E A ETAPA COMUM CONTINUA APARECENDO, com a linhagem. Sem este cenario, o
 -- filtro de cima passaria por uma busca que perdeu o ramo de etapa inteiro.

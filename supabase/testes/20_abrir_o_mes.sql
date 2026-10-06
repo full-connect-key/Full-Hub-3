@@ -235,12 +235,19 @@ select teste.conferir('O tema nomeia as duas',
   (select count(*)::text from public.posts
     where client_id = :VERDE and tema = 'Instagram + Facebook 1 de 4 · Agosto/2027'), '1');
 
--- E A DEMANDA DO MES TEM UMA ETAPA POR POST, nao por rede. E a conta da 0061
--- vista daqui: o progresso do mes e quantos POSTS andaram.
-select teste.conferir('A demanda do mes ganhou quatro etapas',
-  (select count(*)::text from public.subtasks s
-     join public.tasks t on t.id = s.task_id
-    where t.client_id = :VERDE and t.social_do_mes = '2027-08-01'), '4');
+-- E A DEMANDA DO MES TEM UMA ETAPA POR FASE, nao por post nem por rede. Era
+-- "uma por post" na 0061, e a 0088 trocou: as quatro pecas combinadas nao sao
+-- quatro trabalhos, sao quatro CAIXINHAS dentro das cinco fases do mes.
+select teste.conferir('A demanda do mes ganhou as cinco etapas do fluxo',
+  (select count(*)::text from public.etapas_do_mes(
+    (select id from public.tasks
+      where client_id = :VERDE and social_do_mes = '2027-08-01'))), '5');
+
+select teste.conferir('E as quatro pecas viraram vinte caixinhas',
+  (select count(*)::text from public.post_etapa_progresso g
+    where g.post_id in (select id from public.posts_do_mes(
+      (select id from public.tasks
+        where client_id = :VERDE and social_do_mes = '2027-08-01')))), '20');
 
 -- UMA LINHA DE CADA, NA MESMA CHAMADA: e assim que o dialogo e desenhado --
 -- doze em IG+FB e quatro no LinkedIn.

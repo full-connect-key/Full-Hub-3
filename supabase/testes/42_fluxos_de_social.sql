@@ -284,66 +284,90 @@ insert into public.client_flow_defaults (client_id, social_flow_id)
 values (:FCLI, :FNOMES)
 on conflict (client_id) do update set social_flow_id = :FNOMES;
 
-\set POST1 '''e0870000-0000-0000-0000-0000000000a1'''
+-- O POST ENTRA NUM MES (0088), e nao mais avulso: a corrente e do MES desde
+-- entao, e um post fora de um mes aberto nao tem etapa nenhuma. Sem o mes,
+-- esta secao mediria a ausencia da corrente em vez da presenca dela.
+select teste.cenario('O Atendimento abre maio com o fluxo de vocabulário próprio', :CARLA,
+  format($q$select public.abrir_mes_de_social(%L, '2027-05',
+           '[{"redes":["instagram"],"quantidade":1}]'::jsonb,
+           %L, jsonb_build_object('Design', %L::text),
+           '{}'::jsonb, 'https://drive.com/maio', %L)$q$,
+         :FCLI, :BRUNO, :CARLA, :FNOMES), 'ok', 1);
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
-                          midia, criado_por, responsavel_id)
-values (:POST1, :FCLI, 'Peça com vocabulário próprio', '2027-05-10', '{instagram}',
-        'imagem', :ANA, :BRUNO);
+select set_config('t42.maio',
+  (select id::text from public.tasks where client_id = :FCLI and social_do_mes = '2027-05-01'),
+  false);
+select set_config('t42.post1',
+  (select id::text from public.posts_do_mes(current_setting('t42.maio')::uuid) limit 1),
+  false);
 
-select teste.conferir('A corrente do post saiu do fluxo da conta',
-  (select string_agg(nome, ' > ' order by ordem) from public.post_etapas
-    where post_id = :POST1),
+select teste.conferir('A corrente do mes saiu do fluxo escolhido',
+  (select string_agg(titulo, ' > ' order by ordem)
+     from public.etapas_do_mes(current_setting('t42.maio')::uuid)),
   'Briefing do mês > Produção de Layout > Entrega ao cliente > Agendamento');
 
 -- ESTE E O CENARIO. Com `nome = 'Envio'` de volta em
 -- `porta_do_cliente_no_post`, o primeiro portao aberto deste post seria o
 -- "Briefing do mes" -- que esta certo, porque ele TEM a marca -- e depois de
 -- concluido nao haveria mais nenhum: o post nunca sairia da agencia.
+select teste.conferir('Os dois portoes do mes, na ordem e sem se chamarem Envio',
+  (select string_agg(titulo, ' > ' order by ordem)
+     from public.portoes_do_mes(current_setting('t42.maio')::uuid)),
+  'Briefing do mês > Entrega ao cliente');
+
 select teste.conferir('O primeiro portao e o briefing, que a conta aprova',
-  (select (public.porta_do_cliente_no_post(:POST1)).nome), 'Briefing do mês');
+  (public.porta_do_cliente_no_post(current_setting('t42.post1')::uuid)).titulo,
+  'Briefing do mês');
 
-update public.post_etapas set status = 'concluida'
- where post_id = :POST1 and nome = 'Briefing do mês';
+-- E A ENTREGA E RECONHECIDA PELO PAPEL. Com `nome = 'Envio'` de volta em
+-- `portoes_do_mes`, este mes teria UM portao -- o briefing -- e depois dele
+-- nenhum: o post nunca sairia da agencia, sem erro em lugar nenhum.
+select teste.conferir('E a segunda e a entrega sem se chamar Envio',
+  (select social_papel::text from public.portoes_do_mes(current_setting('t42.maio')::uuid)
+    order by ordem desc limit 1), 'entrega');
 
-select teste.conferir('Fechado ele, o portao passa a ser a ENTREGA, pelo papel',
-  (select (public.porta_do_cliente_no_post(:POST1)).nome), 'Entrega ao cliente');
-
-select teste.conferir('E ela e a entrega sem se chamar Envio',
-  (select (public.porta_do_cliente_no_post(:POST1)).papel::text), 'entrega');
-
--- E A ENTREGA NAO SE MARCA A MAO, nem pela gestao -- ela e consequencia da
--- rodada de escopo cliente, como `posts.enviado_em` desde a 0032. A trava
--- perguntava pelo nome; agora pergunta pelo papel.
-select teste.recusa_com('A entrega nao se marca a mao, mesmo com outro nome', :DIEGO,
-  format($q$update public.post_etapas set status = 'em_andamento'
-            where post_id = %L and nome = 'Entrega ao cliente'$q$, :POST1),
-  'acompanha a decisão do cliente');
+-- E A CAIXINHA DA ENTREGA NAO SE MARCA A MAO, nem pela gestao -- ela e
+-- consequencia da APROVACAO daquele post, como `posts.enviado_em` e desde a
+-- 0032. A trava perguntava pelo nome; agora pergunta pelo papel.
+select teste.recusa_com('A caixinha da entrega nao se marca a mao, mesmo com outro nome', :DIEGO,
+  format($q$update public.post_etapa_progresso set concluido = true
+            where post_id = %L and subtask_id = (
+              select id from public.etapas_do_mes(%L) where titulo = 'Entrega ao cliente')$q$,
+         current_setting('t42.post1'), current_setting('t42.maio')),
+  'não se marca à mão');
 
 -- E O QUE O CLIENTE DECIDE sai do CAMPO e nao do nome: com
 -- `case e.nome when 'Pauta'` de volta, esta tela abriria em branco.
-update public.posts set pauta = 'Três telas, tom de conversa.' where id = :POST1;
+select teste.cenario('A gestao escreve o briefing', :DIEGO,
+  format($q$update public.posts set pauta = 'Três telas, tom de conversa.'
+            where id = %L$q$, current_setting('t42.post1')), 'ok', 1);
 
-update public.post_etapas set status = 'nao_iniciada'
- where post_id = :POST1 and nome = 'Briefing do mês';
-
-insert into public.approval_rounds
-  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, decidido_por)
-values ('post', :POST1, 1, 'interna', :BRUNO, 'aprovada', :DIEGO);
+-- A RODADA INTERNA APROVADA E FIXTURE, e entra como o arquivo 21 e o 39 a
+-- poem: por `insert` cru, sem sessao. `approval_rounds_insert` aceita rodada
+-- `pendente` de quem produziu (0032), e gravar uma ja aprovada pela mao de
+-- quem decide e um estado, nao uma acao.
+do $$
+begin
+  insert into public.approval_rounds
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status, decidido_por)
+  values ('post', current_setting('t42.post1')::uuid, 1, 'interna',
+          '44444444-4444-4444-4444-444444444444', 'aprovada',
+          '22222222-2222-2222-2222-222222222222');
+end $$;
 
 select teste.cenario('A gestao manda o briefing ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
     (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :POST1, :DIEGO),
-  'ok', 1);
+    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+    current_setting('t42.post1'), :DIEGO), 'ok', 1);
 
 select teste.conferir_como('O cliente le o texto do portao, pelo campo', :JOANA,
-  format($q$select texto from public.o_que_o_cliente_decide(%L)$q$, :POST1),
-  'Três telas, tom de conversa.');
+  format($q$select texto from public.o_que_o_cliente_decide(%L)$q$,
+    current_setting('t42.post1')), 'Três telas, tom de conversa.');
 
 select teste.conferir_como('E o nome do portao e o do fluxo dele', :JOANA,
-  format($q$select etapa from public.o_que_o_cliente_decide(%L)$q$, :POST1),
-  'Briefing do mês');
+  format($q$select etapa from public.o_que_o_cliente_decide(%L)$q$,
+    current_setting('t42.post1')), 'Briefing do mês');
 
 -- O CLIENTE APROVA, E O POST NAO FICA APROVADO -- a linha que a 0076 existe
 -- para proteger, atravessando a 0087: o portao decidido nao e a entrega, entao
@@ -354,61 +378,107 @@ select teste.cenario('A Joana aprova o briefing', :JOANA,
     (select id from public.approval_rounds
       where content_type = 'post' and content_id = %L and escopo = 'cliente'
       order by numero_rodada desc limit 1),
-    'aprovada', 'Pode seguir.')$fmt$, :POST1),
-  'ok', 1);
+    'aprovada', 'Pode seguir.')$fmt$, current_setting('t42.post1')), 'ok', 1);
 
 select teste.conferir('O post voltou para producao, e nao ficou aprovado',
-  (select status::text from public.posts where id = :POST1), 'em_producao');
+  (select status::text from public.posts where id = current_setting('t42.post1')::uuid),
+  'em_producao');
 
-select teste.conferir('E o briefing fechou',
-  (select status::text from public.post_etapas
-    where post_id = :POST1 and nome = 'Briefing do mês'), 'concluida');
+select teste.conferir('E o portao passou a ser a entrega, pelo papel',
+  (public.porta_do_cliente_no_post(current_setting('t42.post1')::uuid)).titulo,
+  'Entrega ao cliente');
 
 
 -- ---------------------------------------------------------------------------
 -- 5. O AJUSTE VOLTA PARA QUEM ENTREGOU, E NAO PARA A PALAVRA 'Layout'
 --
 -- Com a cadeia editavel, `e.nome = 'Layout'` devolveria o ajuste para NINGUEM
--- num fluxo que chame aquela etapa de outra coisa -- a etapa nasceria orfa, e
--- etapa sem dono nao aparece no "Minhas Tasks" de ninguem, que e o pior
--- destino de um pedido do cliente.
+-- num fluxo que chame aquela etapa de outra coisa -- a caixinha de ninguem
+-- desmarcaria, e o pedido do cliente nao chegaria a pessoa nenhuma.
+--
+-- NAO NASCE ETAPA (0088): com a etapa sendo do MES, criar uma "Ajustes" por
+-- pedido afirmaria que o mes inteiro voltou por causa de um post. O que volta
+-- e a CAIXINHA, na etapa de quem fez o ultimo elo de producao -- que neste
+-- fluxo e a "Producao de Layout", da Carla.
 -- ---------------------------------------------------------------------------
 
-update public.post_etapas set responsavel_id = :CARLA
- where post_id = :POST1 and nome = 'Produção de Layout';
+select set_config('t42.prod',
+  (select id::text from public.etapas_do_mes(current_setting('t42.maio')::uuid)
+    where titulo = 'Produção de Layout'), false);
 
-update public.post_etapas set status = 'concluida'
- where post_id = :POST1 and nome = 'Produção de Layout';
+select teste.conferir('A etapa de producao e da Carla, pela funcao Design',
+  (select responsavel_id::text from public.subtasks where id = current_setting('t42.prod')::uuid),
+  :CARLA);
 
-insert into public.approval_rounds
-  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, decidido_por)
-values ('post', :POST1, 2, 'interna', :BRUNO, 'aprovada', :DIEGO);
+-- A CAIXINHA DO BRIEFING JA ESTA FECHADA pela aprovacao da secao 4? NAO: num
+-- portao do MEIO a caixinha e marcada por quem fez o trabalho, e a aprovacao
+-- do cliente nao a toca -- ela ja estava marcada. O que a aprovacao destravou
+-- foi a TRAVA B da etapa seguinte.
+select teste.cenario('A Social Media marca o briefing daquele post', :CARLA,
+  format($q$update public.post_etapa_progresso set concluido = true
+            where post_id = %L and subtask_id = (
+              select id from public.etapas_do_mes(%L) where titulo = 'Briefing do mês')$q$,
+    current_setting('t42.post1'), current_setting('t42.maio')), 'ok', 0);
+
+do $$
+begin
+  update public.post_etapa_progresso set concluido = true
+   where post_id = current_setting('t42.post1')::uuid
+     and subtask_id = (select id from public.etapas_do_mes(
+       current_setting('t42.maio')::uuid) where titulo = 'Briefing do mês');
+end $$;
+
+select teste.cenario('A Carla fecha a caixinha dela naquele post', :CARLA,
+  format($q$update public.post_etapa_progresso set concluido = true
+            where post_id = %L and subtask_id = %L$q$,
+    current_setting('t42.post1'), current_setting('t42.prod')), 'ok', 1);
+
+do $$
+begin
+  insert into public.approval_rounds
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status, decidido_por)
+  values ('post', current_setting('t42.post1')::uuid, 2, 'interna',
+          '44444444-4444-4444-4444-444444444444', 'aprovada',
+          '22222222-2222-2222-2222-222222222222');
+end $$;
+
+select teste.cenario('A gestao data o post', :DIEGO,
+  format($q$update public.posts set data_publicacao = '2027-05-10' where id = %L$q$,
+    current_setting('t42.post1')), 'ok', 1);
 
 select teste.cenario('A gestao manda a peca pronta', :DIEGO,
   format($fmt$insert into public.approval_rounds
     (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$, :POST1, :DIEGO),
-  'ok', 1);
+    values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$,
+    current_setting('t42.post1'), :DIEGO), 'ok', 1);
 
 select teste.cenario('E a Joana pede ajustes', :JOANA,
   format($fmt$select public.decidir_rodada_do_cliente(
     (select id from public.approval_rounds
       where content_type = 'post' and content_id = %L and escopo = 'cliente'
-      order by numero_rodada desc limit 1),
-    'ajustes_solicitados', 'Trocar a cor do fundo.')$fmt$, :POST1),
-  'ok', 1);
+        and numero_rodada = 2),
+    'ajustes_solicitados', 'Trocar a cor do fundo.')$fmt$,
+    current_setting('t42.post1')), 'ok', 1);
 
-select teste.conferir('A etapa de Ajustes nasceu',
-  (select count(*)::text from public.post_etapas
-    where post_id = :POST1 and nome = 'Ajustes'), '1');
+select teste.conferir('Nao nasceu etapa de Ajustes nenhuma',
+  (select count(*)::text from public.subtasks
+    where task_id = current_setting('t42.maio')::uuid and titulo like 'Ajustes%'), '0');
 
-select teste.conferir('E e da Carla, que fez o ultimo elo de producao',
-  (select responsavel_id::text from public.post_etapas
-    where post_id = :POST1 and nome = 'Ajustes'), :CARLA);
+select teste.conferir('A caixinha do ultimo elo de PRODUCAO desmarcou',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t42.post1')::uuid
+      and subtask_id = current_setting('t42.prod')::uuid), 'false');
 
-select teste.conferir('Com a funcao dela, e nao Design escrito a mao',
-  (select funcao::text from public.post_etapas
-    where post_id = :POST1 and nome = 'Ajustes'), 'Design');
+select teste.conferir('E o pedido ficou na observacao dela',
+  (select observacao from public.post_etapa_progresso
+    where post_id = current_setting('t42.post1')::uuid
+      and subtask_id = current_setting('t42.prod')::uuid), 'Trocar a cor do fundo.');
+
+-- E E DA CARLA QUE O AVISO SAIU, e nao de quem enviou: quem refaz a arte e
+-- quem a fez (0045), e a pergunta e POSICIONAL.
+select teste.conferir('E a Carla foi avisada, porque a etapa e dela',
+  (select count(*)::text from public.notifications
+    where user_id = :CARLA and titulo like 'O cliente pediu ajustes%'), '1');
 
 
 -- ---------------------------------------------------------------------------
@@ -434,28 +504,34 @@ select teste.conferir('A demanda do mes guardou o fluxo escolhido',
 -- O FLUXO DO MES GANHA DO DA CONTA, e este e o cenario que cai se
 -- `fluxo_do_post()` ler a conta primeiro: a conta aponta para o fluxo de
 -- vocabulario proprio, e os posts de novembro nasceram com a corrente da casa.
-select teste.conferir('Os posts do mes nasceram com a corrente DELE, nao a da conta',
-  (select string_agg(distinct e.nome, ', ' order by e.nome)
-     from public.post_etapas e
-     join public.posts p on p.id = e.post_id
-     join public.subtasks s on s.id = p.subtask_id
-    where s.task_id = (select id from public.tasks
-                        where client_id = :FCLI and social_do_mes = '2027-11-01')),
-  'Conteúdo, Envio, Layout, Pauta, Programar');
+select teste.conferir('As etapas do mes sairam da corrente DELE, nao a da conta',
+  (select string_agg(titulo, ' > ' order by ordem)
+     from public.etapas_do_mes((select id from public.tasks
+                                 where client_id = :FCLI and social_do_mes = '2027-11-01'))),
+  'Pauta > Conteúdo > Layout > Envio > Programar');
 
 select teste.conferir('E `fluxo_do_post` responde o do mes',
   (select public.fluxo_do_post(p.id)::text
-     from public.posts p
-     join public.subtasks s on s.id = p.subtask_id
-    where s.task_id = (select id from public.tasks
-                        where client_id = :FCLI and social_do_mes = '2027-11-01')
+     from public.posts_do_mes((select id from public.tasks
+                                where client_id = :FCLI and social_do_mes = '2027-11-01')) p
     limit 1),
   :FTRES);
 
 -- E O POST AVULSO CAI NA CONTA, que e a verdade do que ele e: um post que
 -- ninguem abriu dentro de um mes (0061).
+insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
+                          midia, criado_por, responsavel_id)
+values ('e0870000-0000-0000-0000-0000000000a9', :FCLI, 'Story avulso', '2027-05-20',
+        '{instagram}', 'imagem', :ANA, :BRUNO);
+
 select teste.conferir('O post avulso responde o fluxo da conta',
-  (select public.fluxo_do_post(:POST1)::text), :FNOMES);
+  (select public.fluxo_do_post('e0870000-0000-0000-0000-0000000000a9'::uuid)::text), :FNOMES);
+
+-- E ELE NAO TEM ETAPA NENHUMA (0088): a corrente e do MES, e um post fora de
+-- um mes aberto volta a se comportar como um post anterior a 0045.
+select teste.conferir('Mas ele nao tem corrente nenhuma',
+  coalesce((public.porta_do_cliente_no_post(
+    'e0870000-0000-0000-0000-0000000000a9'::uuid)).titulo, '(nenhum)'), '(nenhum)');
 
 -- ABRIR O MESMO MES EM DUAS VEZES USA A MESMA CORRENTE, e e para isso que
 -- `tasks.social_flow_id` existe: sem ela a segunda chamada usaria o fluxo da
@@ -467,17 +543,22 @@ select teste.conferir_como('A segunda chamada acrescenta posts ao mesmo mes', :C
            null, '{}'::jsonb, '{}'::jsonb, null, %L)::text$q$, :FCLI, :FNOMES),
   '1');
 
-select teste.conferir('E o terceiro post nasceu com a corrente do MES, nao a pedida',
-  (select string_agg(e.nome, ' > ' order by e.ordem)
-     from public.post_etapas e
-    where e.post_id = (select p.id from public.posts p
-                        join public.subtasks s on s.id = p.subtask_id
-                       where s.task_id = (select id from public.tasks
-                                           where client_id = :FCLI
-                                             and social_do_mes = '2027-11-01')
-                         and p.plataformas = '{facebook}'::public.plataforma_social[]
-                       limit 1)),
+-- E AS ETAPAS NAO FORAM REFEITAS. Antes cada post novo ganhava uma corrente
+-- nova, e a segunda chamada podia dar-lhe outra; agora as etapas existem, e o
+-- terceiro post ganhou a CAIXINHA de cada uma das cinco que ja estavam la.
+select teste.conferir('E o mes continua com as cinco etapas do fluxo pedido',
+  (select string_agg(titulo, ' > ' order by ordem)
+     from public.etapas_do_mes((select id from public.tasks
+                                 where client_id = :FCLI and social_do_mes = '2027-11-01'))),
   'Pauta > Conteúdo > Layout > Envio > Programar');
+
+select teste.conferir('E o terceiro post ganhou a caixinha das cinco',
+  (select count(*)::text from public.post_etapa_progresso g
+    where g.post_id = (select p.id from public.posts_do_mes(
+                          (select id from public.tasks where client_id = :FCLI
+                            and social_do_mes = '2027-11-01')) p
+                        where p.plataformas = '{facebook}'::public.plataforma_social[]
+                        limit 1)), '5');
 
 select teste.conferir('O mes continua apontando para o fluxo original',
   (select social_flow_id::text from public.tasks
@@ -576,25 +657,43 @@ select teste.conferir('E nem a corrente fixa da 0045',
 
 
 -- ---------------------------------------------------------------------------
--- 9. AS CORRENTES QUE JA EXISTIAM GANHARAM O PAPEL
+-- 9. O PAPEL VIAJA DO ELO PARA A ETAPA DO MES
 --
--- Sem a passada da migration, todo post anterior a 0087 ficaria com os cinco
--- elos em `producao` -- e `porta_do_cliente_no_post()`, que passou a perguntar
--- pelo papel, nao acharia portao nenhum: o produto inteiro pararia de
--- conseguir enviar material ao cliente, nos posts que JA estao no ar.
+-- Sem a copia, todo mes aberto ficaria com as cinco etapas em `producao` -- e
+-- `portoes_do_mes()`, que pergunta pelo papel, nao acharia portao nenhum: o
+-- produto inteiro pararia de conseguir enviar material ao cliente, nos meses
+-- que JA estao correndo.
+--
+-- ESTE BLOCO ESTA VIRADO DO AVESSO: ele media `post_etapas`, que a 0088
+-- apagou. O que se mede e o mesmo fato um nivel acima -- a etapa do MES.
 -- ---------------------------------------------------------------------------
 
 select teste.conferir('Todo Envio materializado e entrega',
-  (select count(*)::text from public.post_etapas
-    where nome = 'Envio' and papel <> 'entrega'), '0');
+  (select count(*)::text from public.subtasks
+    where social_papel is not null and titulo = 'Envio'
+      and social_papel <> 'entrega'), '0');
 
 select teste.conferir('Todo Programar e pos-entrega',
-  (select count(*)::text from public.post_etapas
-    where nome = 'Programar' and papel <> 'pos_entrega'), '0');
+  (select count(*)::text from public.subtasks
+    where social_papel is not null and titulo = 'Programar'
+      and social_papel <> 'pos_entrega'), '0');
 
 select teste.conferir('E toda Pauta enche o campo pauta',
-  (select count(*)::text from public.post_etapas
-    where nome = 'Pauta' and campo is distinct from 'pauta'), '0');
+  (select count(*)::text from public.subtasks
+    where social_papel is not null and titulo = 'Pauta'
+      and social_campo is distinct from 'pauta'), '0');
+
+-- E TODO MES TEM EXATAMENTE UMA ENTREGA, que e a trava do fluxo (0087) vista
+-- no material: um mes com duas entregas poria o cliente decidindo duas vezes a
+-- mesma peca, e um sem nenhuma nunca a entregaria.
+select teste.conferir('E todo mes aberto tem UMA entrega',
+  (select count(*)::text from (
+     select t.id, count(*) filter (where s.social_papel = 'entrega') as entregas
+       from public.tasks t
+       join public.subtasks s on s.task_id = t.id and s.social_papel is not null
+      where t.social_do_mes is not null
+      group by t.id
+   ) x where x.entregas <> 1), '0');
 
 
 -- ---------------------------------------------------------------------------
@@ -604,19 +703,45 @@ select teste.conferir('E toda Pauta enche o campo pauta',
 -- etapa dele E a entrega ao cliente -- e o portao do post passaria a ser ela.
 -- ---------------------------------------------------------------------------
 
-select teste.recusa_com('Quem produz nao troca o papel da etapa dele', :CARLA,
-  format($q$update public.post_etapas set papel = 'entrega'
-            where post_id = %L and nome = 'Produção de Layout'$q$, :POST1),
-  'o resto é da gestão');
+-- A TRAVA MUDOU DE TABELA COM O MODELO (0088): era
+-- `post_etapas_regras`, e passou a ser `subtasks_protege_o_social` -- estreito
+-- de proposito, so as tres colunas. A policy de `subtasks` deixa o dono da
+-- etapa escrever nela, que e o certo e e como ele move o andamento; o que ele
+-- nao decide e se a etapa dele E a entrega ao cliente.
+select teste.recusa_com_dica('Quem produz nao troca o papel da etapa dele', :CARLA,
+  format($q$update public.subtasks set social_papel = 'entrega' where id = %L$q$,
+    current_setting('t42.prod')),
+  'Social Media → Fluxos');
 
--- O VALOR AQUI E 'pauta' e nao 'legenda', e e o segundo achado da bateria: o
--- elo ja enche a legenda neste fluxo, entao `new.campo is distinct from
--- old.campo` seria falso e o cenario passaria sem a trava ter sido exercida --
--- um teste que afirma sem provar.
+-- O VALOR AQUI E 'pauta' e nao 'legenda', e e o segundo achado da bateria: a
+-- etapa ja enche a legenda neste fluxo, entao `new.social_campo is distinct
+-- from old.social_campo` seria falso e o cenario passaria sem a trava ter sido
+-- exercida -- um teste que afirma sem provar.
 select teste.recusa_com('Nem o campo que ela enche', :CARLA,
-  format($q$update public.post_etapas set campo = 'pauta'
-            where post_id = %L and nome = 'Produção de Layout'$q$, :POST1),
-  'o resto é da gestão');
+  format($q$update public.subtasks set social_campo = 'pauta' where id = %L$q$,
+    current_setting('t42.prod')),
+  'é da gestão');
+
+select teste.recusa_com('Nem liga o portao do cliente na etapa dela', :CARLA,
+  format($q$update public.subtasks set social_portao = true where id = %L$q$,
+    current_setting('t42.prod')),
+  'é da gestão');
+
+-- E A GESTAO TROCA, porque e ela quem decide. Sem este cenario, alguem poderia
+-- travar as tres colunas para todo mundo e os tres de cima passariam.
+select teste.cenario('E a gestao troca o campo da etapa', :DIEGO,
+  format($q$update public.subtasks set social_campo = 'pauta' where id = %L$q$,
+    current_setting('t42.prod')), 'ok', 1);
+
+-- E O ANDAMENTO CONTINUA SENDO DELA, que e a metade que o gatilho estreito
+-- preserva: travar `subtasks` inteira para quem produz fecharia a unica coisa
+-- que ela faz na etapa. O `update` que o prova e o de `estimativa_minutos`, e
+-- nao o de `status`: a etapa dela depende do briefing, que ainda nao foi
+-- concluido, e `validar_transicao_de_subtarefa` (0007) recusaria sair de
+-- `nao_iniciada` -- uma recusa certa, pela trava errada para o que se mede.
+select teste.cenario('Mas o resto da etapa continua sendo dela', :CARLA,
+  format($q$update public.subtasks set estimativa_minutos = 120 where id = %L$q$,
+    current_setting('t42.prod')), 'ok', 1);
 
 
 -- ---------------------------------------------------------------------------

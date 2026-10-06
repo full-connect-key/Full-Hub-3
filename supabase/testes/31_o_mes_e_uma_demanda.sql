@@ -9,20 +9,25 @@
 \set PASTA   '''https://drive.google.com/drive/folders/PASTA-DE-TESTE'''
 
 -- ===========================================================================
--- 0061 -- O mes de social e UMA demanda, e cada post e uma etapa dela
+-- 31 - O MES DE SOCIAL E UMA DEMANDA (0061), E A ETAPA DELA E A FASE (0088)
 --
--- Decisao do usuario: *"quero que mude o fluxo para Uma task do Social do mes
--- em questao, e uma subtarefa, para cada um dos posts"*.
+-- A 0061 atendeu *"quero que mude o fluxo para Uma task do Social do mes em
+-- questao, e uma subtarefa, para cada um dos posts"*. A 0088 trocou a segunda
+-- metade por *"a producao vira mensal, a aprovacao continua por post"*: a
+-- subtarefa passou a ser a ETAPA do mes.
 --
--- O arquivo persegue tres coisas que a tela nao mostra:
+-- ---------------------------------------------------------------------------
+-- O ARQUIVO INTEIRO ESTA VIRADO DO AVESSO, e e a parte que vale ler
 --
---   1. a demanda do mes nasce UMA vez e e reusada na segunda abertura -- e a
---      unicidade e o INDICE, nao o `select` que a funcao faz antes;
---   2. a etapa do post nao tem dono, nao tem prazo e nao tem relogio -- as
---      tres ausencias sao decisao, e cada uma tem o cenario que avisa se
---      alguem as preencher;
---   3. o status dela sai da CORRENTE do post, e nunca fica em
---      `enviada_aprovacao` nem em `em_ajustes`.
+-- Ele perseguia tres AUSENCIAS -- a subtarefa do post nao tinha dono, nao
+-- tinha prazo e nao tinha relogio --, e cada uma era uma decisao da 0061. As
+-- tres viraram PRESENCAS: a etapa do mes tem dono, tem periodo e tem relogio,
+-- porque ela e trabalho de gente. Devolvendo a subtarefa por post, os
+-- cenarios de baixo acham tres onde esperam uma.
+--
+-- O que NAO virou do avesso e o que a 0061 acertou e continua de pe: a demanda
+-- do mes nasce UMA vez e e reusada na segunda abertura, e a unicidade e o
+-- INDICE e nao o `select` que a funcao faz antes.
 -- ===========================================================================
 
 select teste.limpar();
@@ -32,9 +37,9 @@ delete from public.posts;
 delete from public.tasks where social_do_mes is not null;
 
 -- UMA DEMANDA COMUM, com uma etapa comum: e o CONTROLE. Metade dos cenarios
--- deste arquivo afirma que a etapa do post NAO faz alguma coisa, e sem uma
--- etapa normal ao lado eles passariam num produto que parou de fazer aquilo
--- para todo mundo -- que e a metade que falta em toda checagem de ausencia.
+-- deste arquivo afirma que a etapa do mes FAZ alguma coisa que a etapa do post
+-- nao fazia, e sem uma etapa normal ao lado eles passariam num produto que
+-- parou de distinguir as duas -- que e a metade que falta em toda checagem.
 insert into public.tasks (id, client_id, titulo, link_entrega, criado_por)
 values ('cccccccc-0061-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001',
         'Demanda comum, para comparar', 'https://exemplo.com/pasta',
@@ -69,11 +74,14 @@ select teste.conferir('E nenhum post ficou para tras da recusa',
 
 
 -- ---------------------------------------------------------------------------
--- 2. A DEMANDA DO MES, E UMA ETAPA POR POST
+-- 2. A DEMANDA DO MES, E UMA ETAPA POR FASE
 -- ---------------------------------------------------------------------------
 select teste.cenario('O Atendimento abre tres posts de junho', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2027-06', '[{"redes": ["instagram"], "quantidade": 3}]'::jsonb, p_link_entrega => %L)$fmt$, :VERDE, :PASTA),
+    %L, '2027-06', '[{"redes": ["instagram"], "quantidade": 3}]'::jsonb,
+    p_responsaveis => jsonb_build_object('Social Media', %L::text, 'Design', %L::text),
+    p_prazos => jsonb_build_object('Pauta', jsonb_build_object('inicio','2027-05-05','fim','2027-05-10')),
+    p_link_entrega => %L)$fmt$, :VERDE, :MARINA, :BRUNO, :PASTA),
   'ok', 1);
 
 select teste.conferir('Nasceu UMA demanda do mes',
@@ -86,7 +94,7 @@ select teste.conferir('Com o nome do mes e do cliente',
   'Social · Junho/2027 de Mundo Verde');
 
 -- NASCE PUBLICADA e nao como rascunho: rascunho e de quem o criou, e
--- esconderia da equipe os tres posts que acabaram de ser abertos.
+-- esconderia da equipe as etapas que acabaram de ser distribuidas.
 select teste.conferir('A demanda do mes nasce publicada',
   (select (publicada_em is not null)::text from public.tasks
     where client_id = :VERDE and social_do_mes = '2027-06-01'), 'true');
@@ -95,125 +103,108 @@ select teste.conferir('Com a pasta de entrega gravada',
   (select link_entrega from public.tasks
     where client_id = :VERDE and social_do_mes = '2027-06-01'), :PASTA);
 
-select teste.conferir('Tres etapas na demanda, uma por post',
+select set_config('t31.mes',
+  (select id::text from public.tasks where client_id = :VERDE and social_do_mes = '2027-06-01'),
+  false);
+
+-- CINCO ETAPAS PARA TRES POSTS, e este e o cenario virado do avesso: ele media
+-- "tres etapas, uma por post".
+select teste.conferir('Cinco etapas na demanda, uma por FASE e nao uma por post',
   (select count(*)::text from public.subtasks s
-    join public.tasks t on t.id = s.task_id
-   where t.social_do_mes = '2027-06-01'), '3');
+    where s.task_id = current_setting('t31.mes')::uuid), '5');
 
--- A PONTE DA 0032, ATRAVESSADA. `posts.subtask_id` existia desde aquela
--- migration e nenhuma linha a escrevia.
-select teste.conferir('Todo post aponta para a etapa dele',
+select teste.conferir('E as cinco sao etapas de mes de social',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)), '5');
+
+-- A PONTE NOVA (0088). `posts.subtask_id` existia desde a 0032 e a 0061 a
+-- atravessou; com a subtarefa deixando de ser o post, a pergunta passou a ser
+-- de que MES o post e.
+select teste.conferir('Todo post aponta para a demanda do mes',
   (select count(*)::text from public.posts
-    where client_id = :VERDE and subtask_id is not null), '3');
+    where client_id = :VERDE and social_task_id = current_setting('t31.mes')::uuid), '3');
 
-select teste.conferir('E a etapa se chama como o post',
-  (select count(*)::text from public.posts p
-    join public.subtasks s on s.id = p.subtask_id
-   where s.titulo = p.tema), '3');
+select teste.conferir('E `posts_do_mes()` responde pela ponte nova',
+  (select count(*)::text from public.posts_do_mes(current_setting('t31.mes')::uuid)), '3');
 
 
 -- ---------------------------------------------------------------------------
--- 3. AS TRES AUSENCIAS, e cada uma e uma decisao
+-- 3. AS TRES AUSENCIAS DA 0061 VIRARAM TRES PRESENCAS
 --
--- Se alguem preencher qualquer uma delas, um destes tres falha e diz qual.
+-- Era isto que a 0061 decidia, e as tres razoes dela estao no cabecalho
+-- daquela migration: o trabalho de um post tem CINCO donos, o dia do post ja
+-- aparece duas vezes no calendario, e o relogio da linha do post andaria o mes
+-- inteiro. As tres valiam porque a linha era o POST. A etapa do mes e a FASE,
+-- e as cinco pessoas sao as cinco etapas.
 -- ---------------------------------------------------------------------------
-select teste.conferir('A etapa do post nao tem dono',
-  (select count(*)::text from public.posts p
-    join public.subtasks s on s.id = p.subtask_id
-   where s.responsavel_id is null), '3');
+select teste.conferir('A etapa do mes TEM dono',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)
+    where responsavel_id is not null), '3');
 
-select teste.conferir('Nem prazo',
-  (select count(*)::text from public.posts p
-    join public.subtasks s on s.id = p.subtask_id
-   where s.prazo is null and s.data_inicio is null), '3');
+select teste.conferir('E a Pauta TEM periodo',
+  (select data_inicio || '→' || prazo from public.etapas_do_mes(current_setting('t31.mes')::uuid)
+    where titulo = 'Pauta'), '2027-05-05→2027-05-10');
 
-select teste.conferir('E a funcao sabe reconhece-la',
-  (select count(*)::text from public.posts p
-   where public.subtarefa_de_post(p.subtask_id)), '3');
+select teste.conferir('E `subtarefa_de_post()` nao existe mais para perguntar',
+  (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'subtarefa_de_post'), '0');
 
-select teste.conferir('Uma etapa comum nao e etapa de post',
-  (select public.subtarefa_de_post(
-     'dddddddd-0061-0000-0000-000000000001'::uuid)::text),
-  'false');
+-- E A PERGUNTA NOVA SABE DISTINGUIR AS DUAS. Sem ela, `etapas_do_mes()`
+-- devolveria toda subtarefa da demanda, e a etapa comum do controle entraria
+-- na corrente de um mes de social.
+select teste.conferir('Uma etapa comum nao e etapa de mes',
+  (select (social_papel is null)::text from public.subtasks
+    where id = 'dddddddd-0061-0000-0000-000000000001'), 'true');
 
 
 -- ---------------------------------------------------------------------------
--- 4. O STATUS SAI DA CORRENTE, E NUNCA DAS DUAS PALAVRAS DE RODADA
+-- 4. O STATUS DA DEMANDA SAI DAS FASES
+--
+-- `recalcular_status_task` (0030) conta so as folhas, e as cinco fases sao
+-- folhas. O que saiu daqui foi o MIRROR: a 0061 copiava o status da corrente
+-- de cada post para a linha dele, com um de-para que nunca escrevia
+-- `enviada_aprovacao` nem `em_ajustes`. Sem linha de post nao ha o que
+-- espelhar -- a fase e escrita por quem a faz.
 -- ---------------------------------------------------------------------------
-select id as post_um from public.posts
- where client_id = :VERDE and tema like 'Instagram 1 de 3%' \gset
+select teste.conferir('As cinco fases nascem nao iniciadas',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)
+    where status = 'nao_iniciada'), '5');
 
-select subtask_id as etapa_um from public.posts where id = :'post_um' \gset
+select teste.conferir('E a demanda do mes tambem',
+  (select status::text from public.tasks where id = current_setting('t31.mes')::uuid),
+  'nao_iniciada');
 
-select teste.conferir('A etapa do post nasce nao iniciada',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'nao_iniciada');
+select teste.cenario('A Pauta comeca', :MARINA,
+  format($fmt$update public.subtasks set status = 'em_andamento'
+     where id = (select id from public.etapas_do_mes(%L) where titulo = 'Pauta')$fmt$,
+    current_setting('t31.mes')), 'ok', 1);
 
-update public.post_etapas set status = 'em_andamento'
- where post_id = :'post_um' and nome = 'Pauta';
-
-select teste.conferir('Corrente andando deixa a etapa em andamento',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'em_andamento');
-
-update public.post_etapas set status = 'aguardando_informacoes'
- where post_id = :'post_um' and nome = 'Pauta';
-
-select teste.conferir('Corrente esperando informacao aparece na etapa',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'aguardando_informacoes');
-
--- A REGRA DA AGRUPADORA (0022), aplicada um nivel abaixo: os dois status que
--- afirmam uma rodada da propria linha viram `em_andamento`, porque a fila de
--- aprovacoes iria procurar uma rodada que nao existe.
-update public.post_etapas set status = 'enviada_aprovacao'
- where post_id = :'post_um' and nome = 'Pauta';
-
-select teste.conferir('Corrente em aprovacao NAO poe a etapa em enviada_aprovacao',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'em_andamento');
-
-update public.post_etapas set status = 'em_ajustes'
- where post_id = :'post_um' and nome = 'Pauta';
-
-select teste.conferir('Nem em em_ajustes',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'em_andamento');
-
-update public.post_etapas set status = 'concluida' where post_id = :'post_um';
-
-select teste.conferir('Corrente inteira concluida conclui a etapa',
-  (select status::text from public.subtasks where id = :'etapa_um'), 'concluida');
-
--- E A DEMANDA DO MES ANDA SOZINHA, pelo `recalcular_status_task` da 0030 --
--- que conta so as folhas, e a etapa do post e folha.
 select teste.conferir('A demanda do mes acompanhou',
-  (select status::text from public.tasks where social_do_mes = '2027-06-01'),
+  (select status::text from public.tasks where id = current_setting('t31.mes')::uuid),
   'em_andamento');
 
+-- E O MIRROR SAIU. A funcao que o fazia era `recalcular_status_da_subtarefa_do_post`,
+-- e ela respondia sobre uma linha que nao existe mais.
+select teste.conferir('A funcao do mirror saiu com a linha do post',
+  (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'recalcular_status_da_subtarefa_do_post'), '0');
+
 
 -- ---------------------------------------------------------------------------
--- 5. O RELOGIO NAO CORRE NA ETAPA DO POST
+-- 5. O RELOGIO CORRE NA ETAPA DO MES
 --
--- Sem isto ela entraria em `em_andamento` pelo mirror e ficaria andando o mes
--- inteiro: o detalhe da demanda mostraria centenas de horas numa linha em que
--- ninguem trabalhou, e a rentabilidade cobraria em dobro o que as cinco etapas
--- da corrente ja mediram.
+-- A 0061 desligou o cronometro da linha do post, e com razao: ela entrava em
+-- `em_andamento` pelo mirror e ficaria andando o mes inteiro -- centenas de
+-- horas numa linha em que ninguem trabalhou. A etapa do mes e o contrario
+-- disso, e e metade do que o 3J entrega: ela mede, ela declara o tempo real ao
+-- concluir, e `disponibilidade_bruta()` passa a ve-la.
 -- ---------------------------------------------------------------------------
-select id as post_dois from public.posts
- where client_id = :VERDE and tema like 'Instagram 2 de 3%' \gset
-
-select subtask_id as etapa_dois from public.posts where id = :'post_dois' \gset
-
-update public.post_etapas set status = 'em_andamento'
- where post_id = :'post_dois' and nome = 'Pauta';
-
-select teste.conferir('A etapa do post esta em andamento',
-  (select status::text from public.subtasks where id = :'etapa_dois'), 'em_andamento');
-
-select teste.conferir('E o relogio dela nao abriu passagem',
-  (select (andando_desde is null)::text from public.subtasks where id = :'etapa_dois'), 'true');
-
-select teste.conferir('Nem acumulou segundo nenhum',
-  (select tempo_medido_segundos::text from public.subtasks where id = :'etapa_dois'), '0');
+select teste.conferir('A etapa do mes abriu passagem no relogio',
+  (select (andando_desde is not null)::text from public.etapas_do_mes(
+    current_setting('t31.mes')::uuid) where titulo = 'Pauta'), 'true');
 
 -- E A ETAPA COMUM CONTINUA MEDINDO. Sem este cenario, alguem poderia desligar
--- o cronometro inteiro e os dois de cima passariam.
+-- o cronometro inteiro e o de cima passaria.
 update public.subtasks set status = 'em_andamento'
  where id = 'dddddddd-0061-0000-0000-000000000001';
 
@@ -221,34 +212,68 @@ select teste.conferir('A etapa comum continua com o relogio correndo',
   (select (andando_desde is not null)::text from public.subtasks
     where id = 'dddddddd-0061-0000-0000-000000000001'), 'true');
 
+-- E A ISENCAO DA AGRUPADORA (0022) CONTINUA DE PE, que e a outra metade do
+-- `or` que a 0088 tirou do cronometro: tirando as duas, este cenario cai.
+insert into public.subtasks (id, task_id, parent_id, titulo, ordem)
+values ('dddddddd-0061-0000-0000-000000000002', 'cccccccc-0061-0000-0000-000000000001',
+        'dddddddd-0061-0000-0000-000000000001', 'Sub-etapa', 10)
+on conflict (id) do nothing;
+
+update public.subtasks set status = 'em_andamento'
+ where id = 'dddddddd-0061-0000-0000-000000000001';
+
+select teste.conferir('A agrupadora continua sem relogio',
+  (select (andando_desde is null)::text from public.subtasks
+    where id = 'dddddddd-0061-0000-0000-000000000001'), 'true');
+
 
 -- ---------------------------------------------------------------------------
--- 6. ABRIR O MES DE NOVO REUSA A DEMANDA, E NAO CRIA A GEMEA
+-- 6. ABRIR O MES DE NOVO REUSA A DEMANDA, E NAO REFAZ AS ETAPAS
 --
 -- Doze no Instagram hoje, quatro no LinkedIn amanha. Sem o reuso a agencia
 -- ficaria com duas demandas "Social de Junho" do mesmo cliente, com os posts
 -- espalhados entre as duas e nenhum lugar mostrando o mes inteiro.
+--
+-- E AS ETAPAS NAO SAO REFEITAS, que e o que mudou na 0088: antes cada post
+-- novo ganhava uma corrente nova, e os dois mapas eram aplicados a ela. Agora
+-- as etapas existem, com dono e periodo que alguem pode ter ajustado --
+-- reescreve-los na segunda chamada desfaria a distribuicao por causa de um
+-- "abrir mais dois posts". E a ordem de `coalesce(etapa, padrao)` da 0041.
 -- ---------------------------------------------------------------------------
+select teste.cenario('A gestao troca o dono da Pauta a mao', :ANA,
+  format($fmt$update public.subtasks set responsavel_id = %L
+     where id = (select id from public.etapas_do_mes(%L) where titulo = 'Pauta')$fmt$,
+    :BRUNO, current_setting('t31.mes')), 'ok', 1);
+
 select teste.cenario('A segunda abertura do mesmo mes dispensa a pasta', :ANA,
   format($fmt$select public.abrir_mes_de_social(
-    %L, '2027-06', '[{"redes": ["linkedin"], "quantidade": 2}]'::jsonb)$fmt$, :VERDE),
+    %L, '2027-06', '[{"redes": ["linkedin"], "quantidade": 2}]'::jsonb,
+    p_responsaveis => jsonb_build_object('Social Media', %L::text))$fmt$, :VERDE, :MARINA),
   'ok', 1);
 
 select teste.conferir('Continua sendo UMA demanda de junho',
   (select count(*)::text from public.tasks
     where client_id = :VERDE and social_do_mes = '2027-06-01'), '1');
 
-select teste.conferir('Agora com cinco etapas',
-  (select count(*)::text from public.subtasks s
-    join public.tasks t on t.id = s.task_id
-   where t.social_do_mes = '2027-06-01'), '5');
+select teste.conferir('Continua com cinco etapas, e nao dez',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)), '5');
 
--- A ORDEM CONTINUA DE ONDE PAROU. Reiniciar em 1 poria dois posts na mesma
--- posicao, e a lista da demanda passaria a depender da ordem de leitura.
-select teste.conferir('E cinco posicoes distintas',
-  (select count(distinct s.ordem)::text from public.subtasks s
-    join public.tasks t on t.id = s.task_id
-   where t.social_do_mes = '2027-06-01'), '5');
+select teste.conferir('Agora com cinco posts',
+  (select count(*)::text from public.posts_do_mes(current_setting('t31.mes')::uuid)), '5');
+
+-- E A DISTRIBUICAO A MAO SOBREVIVEU A SEGUNDA CHAMADA. Este e o cenario que
+-- impede a inversao: se `abrir_mes_de_social` reescrevesse os responsaveis, a
+-- Pauta voltaria para a Marina.
+select teste.conferir('E o dono que alguem ajustou nao foi reescrito',
+  (select responsavel_id::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)
+    where titulo = 'Pauta'), '44444444-4444-4444-4444-444444444444');
+
+-- E OS POSTS NOVOS GANHARAM CAIXINHA DAS CINCO ETAPAS, pelo gatilho
+-- `posts_entra_no_mes`. Sem ele a etapa mostraria "0 de 3" num mes de cinco.
+select teste.conferir('Cinco posts vezes cinco etapas: vinte e cinco caixinhas',
+  (select count(*)::text from public.post_etapa_progresso g
+    where g.post_id in (select id from public.posts_do_mes(current_setting('t31.mes')::uuid))),
+  '25');
 
 -- A UNICIDADE E O INDICE, e nao o `select` que a funcao faz antes. Duas abas
 -- clicando ao mesmo tempo passam pelas duas consultas antes de qualquer uma
@@ -267,32 +292,54 @@ select teste.recusa_com('E o mes tem que ser o dia 1', :ANA,
 
 
 -- ---------------------------------------------------------------------------
--- 7. O POST SOME, E A LINHA DELE NA DEMANDA SOME JUNTO
+-- 7. O POST SOME, E AS CAIXINHAS DELE SOMEM -- AS ETAPAS FICAM
 --
--- `posts.subtask_id` e `on delete set null` no outro sentido (a etapa saiu, o
--- post fica); deste lado nao existe chave. Sem o trigger a demanda continuaria
--- contando um post que nao existe mais, e "4 de 5" nunca fecharia.
+-- Este e o cenario virado do avesso: ele conferia que apagar o post apagava a
+-- LINHA dele na demanda, por trigger, porque deste lado nao existia chave.
+-- Agora existe -- `post_etapa_progresso.post_id` e `on delete cascade` --, e o
+-- que nao pode acontecer e a etapa do mes sair junto: ela e o trabalho de uma
+-- pessoa sobre os outros quatro posts.
 -- ---------------------------------------------------------------------------
-delete from public.posts where id = :'post_dois';
+select set_config('t31.post',
+  (select id::text from public.posts_do_mes(current_setting('t31.mes')::uuid)
+    order by tema limit 1), false);
 
-select teste.conferir('A etapa do post apagado sumiu',
-  (select count(*)::text from public.subtasks where id = :'etapa_dois'), '0');
+delete from public.posts where id = current_setting('t31.post')::uuid;
 
-select teste.conferir('E a demanda voltou a quatro etapas',
-  (select count(*)::text from public.subtasks s
-    join public.tasks t on t.id = s.task_id
-   where t.social_do_mes = '2027-06-01'), '4');
+select teste.conferir('As caixinhas do post apagado sumiram',
+  (select count(*)::text from public.post_etapa_progresso
+    where post_id = current_setting('t31.post')::uuid), '0');
+
+select teste.conferir('E a demanda continua com as cinco etapas',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t31.mes')::uuid)), '5');
+
+select teste.conferir('Com o denominador certo',
+  (select feitos || ' de ' || total from public.progresso_da_etapa(
+    (select id from public.etapas_do_mes(current_setting('t31.mes')::uuid)
+      where titulo = 'Pauta'))), '0 de 4');
 
 
 -- ---------------------------------------------------------------------------
--- 8. O TEMA MUDA, E O TITULO DA ETAPA ACOMPANHA
+-- 8. O TEMA DO POST NAO MEXE EM ETAPA NENHUMA
 --
--- O tema nasce "Instagram 1 de 3 · Junho/2027" e quem pega a Pauta o
--- reescreve. Sem isto o board da agencia mostraria o nome de fabrica para
--- sempre -- doze linhas com o mesmo titulo.
+-- Virado do avesso: a 0061 fazia o titulo da linha acompanhar o tema, porque a
+-- linha ERA o post -- sem isso o board mostraria o nome de fabrica para
+-- sempre. A etapa do mes se chama "Pauta", e o tema de um post nao tem o que
+-- renomear nela.
 -- ---------------------------------------------------------------------------
-update public.posts set tema = 'Bastidores da nova linha' where id = :'post_um';
+select set_config('t31.outro',
+  (select id::text from public.posts_do_mes(current_setting('t31.mes')::uuid)
+    order by tema limit 1), false);
 
-select teste.conferir('O titulo da etapa acompanhou o tema',
-  (select titulo from public.subtasks where id = :'etapa_um'),
-  'Bastidores da nova linha');
+update public.posts set tema = 'Bastidores da nova linha'
+ where id = current_setting('t31.outro')::uuid;
+
+select teste.conferir('As cinco etapas continuam com o nome da fase',
+  (select string_agg(titulo, ' > ' order by ordem)
+     from public.etapas_do_mes(current_setting('t31.mes')::uuid)),
+  'Pauta > Conteúdo > Layout > Envio > Programar');
+
+select teste.conferir('E o espelho de titulo saiu com a linha do post',
+  (select count(*)::text from pg_trigger
+    where tgname in ('posts_sincroniza_a_subtarefa', 'posts_apaga_a_subtarefa')
+      and not tgisinternal), '0');

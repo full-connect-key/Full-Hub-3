@@ -292,7 +292,13 @@ from (
     -- TABELA dos elos e nao para `social_flows`: o fluxo sem corrente nao
     -- abre mes nenhum, e e `social_flow_steps` que o PASSO 7 le em
     -- `montar_etapas_do_post`.
-    ('0087', 'social_flow_steps',        'tabela',       'social_flow_steps')
+    ('0087', 'social_flow_steps',        'tabela',       'social_flow_steps'),
+    -- A 0088 colapsa a corrente do social: uma etapa por MES em vez de uma
+    -- corrente por post. A linha aponta para `post_etapa_progresso` e nao
+    -- para `subtasks.social_papel`: a coluna nasce facil e a tabela e o que
+    -- prova que o modelo novo esta de pe -- um banco com a coluna e sem a
+    -- tabela nao tem onde guardar o "12 de 18".
+    ('0088', 'post_etapa_progresso',     'tabela',       'post_etapa_progresso')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

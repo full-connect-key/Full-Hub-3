@@ -1,42 +1,41 @@
 -- ===========================================================================
--- 30 - A CORRENTE DO MES TEM UM DIA POR ETAPA (migrations 0059 e 0083)
+-- 30 - A CORRENTE DO MES TEM UM DIA POR ETAPA (0059, 0083, 0084 e 0088)
 --
 -- O que estes cenarios guardam, em uma frase: o dia de cada etapa e escolhido
 -- ao abrir o mes e vale para o mes INTEIRO, a corrente nao vence de tras para
--- a frente, e a etapa com dia entra no calendario de quem e dela -- e so dele.
+-- a frente, e a etapa com dia nao entra no calendario -- ela entra na CARGA.
 --
 -- ---------------------------------------------------------------------------
--- OS CENARIOS DA 0059 FICARAM, VIRADOS DO AVESSO
+-- OS CENARIOS DA 0059 FICARAM, VIRADOS DO AVESSO -- DUAS VEZES
 --
--- Ela datava cada etapa por OFFSET da publicacao de cada post, e a 0083
--- desfez isso por decisao do usuario: *"ele precisa parar de ficar marcada
--- para ser feita em X dias antes do post ser publicado"*. Os cenarios que
--- provavam o offset -- a regra guardada esperando o dia, o recalculo quando o
--- post anda, o volante que se pega datando a mao -- continuam aqui medindo o
--- contrario: se alguem devolver a coluna ou qualquer um dos dois triggers, um
--- deles falha e diz qual.
+-- A 0059 datava cada etapa por OFFSET da publicacao de cada post, e a 0083
+-- desfez isso: *"ele precisa parar de ficar marcada para ser feita em X dias
+-- antes do post ser publicado"*. A 0084 acrescentou a segunda ponta. E a 0088
+-- desfez o resto: a etapa deixou de ser DE CADA POST e passou a ser DO MES.
+--
+-- Entao o cenario central deste arquivo mudou de forma sem mudar de assunto.
+-- Ele era *"as tres Pautas do mes vencem no mesmo dia"* -- tres linhas com a
+-- mesma data, que era o jeito de a 0084 dizer "uma Pauta por mes" com um
+-- modelo que nao sabia diz-lo. Agora e UMA Pauta, e o cenario confere isso:
+-- se alguem devolver a corrente por post, ele acha tres onde espera uma.
 -- ===========================================================================
 
 -- Estado de partida escrito aqui, como nos arquivos 27 e 29: os cenarios
 -- afirmam datas exatas, e isso so e verdade a partir de um ponto conhecido.
-delete from public.post_etapas e
- using public.posts p
- where p.id = e.post_id and p.tema like 'Bateria 0083%';
-delete from public.posts where tema like 'Bateria 0083%';
+delete from public.posts where tema like '%· Novembro/2027';
+delete from public.tasks where social_do_mes = '2027-11-01';
 
 
 -- ---------------------------------------------------------------------------
--- 1. O OFFSET SAIU DO BANCO, com os dois triggers que o serviam
+-- 1. O OFFSET SAIU DO BANCO, e a tabela que o carregava saiu depois
 --
 -- A coluna primeiro: ela era a regra, e deixa-la parada manteria no schema
 -- algo que nenhum caminho escreve e que a proxima pessoa leria como ativo --
--- a decisao da 0023.
+-- a decisao da 0023. E a 0088 levou a tabela inteira, pela mesma razao.
 -- ---------------------------------------------------------------------------
 
-select teste.conferir('`post_etapas.prazo_offset_dias` não existe mais',
-  (select count(*)::text from information_schema.columns
-    where table_schema = 'public' and table_name = 'post_etapas'
-      and column_name = 'prazo_offset_dias'), '0');
+select teste.conferir('`post_etapas` não existe mais, e o offset com ela',
+  (select coalesce(to_regclass('public.post_etapas')::text, '(nenhuma)')), '(nenhuma)');
 
 -- E OS DOIS TRIGGERS SAIRAM JUNTO, que é a metade que importa mais: o da
 -- esquerda moveria o dia da Pauta do mês inteiro porque alguém trocou a data
@@ -45,22 +44,23 @@ select teste.conferir('`post_etapas.prazo_offset_dias` não existe mais',
 -- da 0029, onde a regra morava nos dois lados.
 select teste.conferir('o trigger que recalculava o prazo pela data do post saiu',
   (select count(*)::text from pg_trigger
-    where tgname in ('posts_recalcula_prazos', 'post_etapas_solta_o_offset')
+    where tgname in ('posts_recalcula_prazos', 'post_etapas_solta_o_offset',
+                     'posts_monta_corrente')
       and not tgisinternal), '0');
 
-select teste.conferir('e as duas funções dele também',
+select teste.conferir('e as funções dele também',
   (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname in ('recalcular_prazos_do_post', 'post_etapas_solta_o_offset')), '0');
+      and p.proname in ('recalcular_prazos_do_post', 'post_etapas_solta_o_offset',
+                        'montar_etapas_do_post')), '0');
 
 
 -- ---------------------------------------------------------------------------
--- 2. UM DIA POR ETAPA, IGUAL PARA O MES INTEIRO
+-- 2. UMA ETAPA POR FASE, COM O PERIODO DO MES
 --
 -- O CENARIO QUE JUSTIFICA A MIGRATION. A frase do usuário em uma linha: *"em
 -- um dia X de Outubro, a Social Media vai ter um dia para fazer a pauta do mês
--- todo"*. Três posts, três datas de publicação diferentes — e uma Pauta só, no
--- mesmo dia para os três.
+-- todo"*. Três posts, três datas de publicação diferentes — e uma Pauta só.
 -- ---------------------------------------------------------------------------
 
 select teste.cenario('A gestão abre três posts com um dia por etapa',
@@ -77,80 +77,56 @@ select teste.cenario('A gestão abre três posts com um dia por etapa',
       'https://drive.google.com/drive/folders/PASTA-0083')$$,
   'ok', 1);
 
--- AS TRES PAUTAS VENCEM NO MESMO DIA, e é isso que o modelo antigo não sabia
--- fazer: com offset, cada uma caía dez dias antes da publicação do SEU post.
-select teste.conferir('as três Pautas do mês vencem no mesmo dia',
-  (select count(distinct prazo)::text || ' de ' || count(*)::text
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'), '1 de 3');
+select set_config('t30.mes',
+  (select id::text from public.tasks where social_do_mes = '2027-11-01'
+    order by created_at desc limit 1), false);
 
--- `string_agg(distinct)` E NAO `select distinct`: com mais de uma data o
--- segundo estoura com *"more than one row returned by a subquery"*, que
--- derruba o ARQUIVO em vez de reprovar o cenario -- e um cenario que explode
--- não diz qual é a resposta errada. Medido com mutação: fazendo o prazo
--- depender do post de novo, este aqui responde as três datas.
-select teste.conferir('e esse dia é o que foi escolhido',
-  (select string_agg(distinct prazo::text, ',' order by prazo::text)
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'), '2027-10-05');
+-- UMA PAUTA, E NAO TRES. Este e o cenario virado do avesso: ele media
+-- "1 de 3" -- uma data em tres linhas --, e mede "1 de 1". Devolvendo a
+-- corrente por post, ele acha 3.
+select teste.conferir('o mês tem UMA Pauta, e não uma por post',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where titulo = 'Pauta'), '1');
 
-select teste.conferir('cada etapa tem o SEU dia, e a corrente anda na ordem',
-  (select string_agg(distinct prazo::text, ',' order by prazo::text)
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027'),
-  '2027-10-05,2027-10-12,2027-10-20,2027-10-25,2027-10-30');
+select teste.conferir('e cinco etapas no total, para três posts',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)), '5');
 
--- ---------------------------------------------------------------------------
--- E AS DUAS PONTAS, que é o pedido da 0084: *"quero que coloque data de início
--- e final da task, que deve se repetir em todos os posts. Então se a pauta vai
--- começar no dia X — essa data vale para todos os posts, e se ela termina no
--- dia Y, isso vale para todos os posts"*.
---
--- Sem o início a Pauta do mês aparece inteira num dia e zero nos outros na
--- carga de quem produz, que é onde a falta dói e onde ninguém vai procurar.
--- ---------------------------------------------------------------------------
-
-select teste.conferir('as três Pautas começam no mesmo dia',
-  (select count(distinct data_inicio)::text || ' de ' || count(*)::text
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'), '1 de 3');
-
-select teste.conferir('e o período delas é o que foi escolhido',
-  (select string_agg(distinct data_inicio::text || '→' || prazo::text, ',')
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'),
+select teste.conferir('e o período dela é o que foi escolhido',
+  (select data_inicio || '→' || prazo
+     from public.etapas_do_mes(current_setting('t30.mes')::uuid) where titulo = 'Pauta'),
   '2027-10-01→2027-10-05');
 
--- AS CINCO TEM INICIO, e não só a primeira: um `update` que gravasse o início
--- de uma etapa só passaria no cenário de cima e deixaria as outras quatro sem
--- bloco nenhum na agenda.
-select teste.conferir('as quinze etapas têm as duas pontas',
-  (select count(*)::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027'
-      and e.data_inicio is not null and e.prazo is not null), '15');
+select teste.conferir('cada etapa tem o SEU dia, e a corrente anda na ordem',
+  (select string_agg(prazo::text, ',' order by ordem)
+     from public.etapas_do_mes(current_setting('t30.mes')::uuid)),
+  '2027-10-05,2027-10-12,2027-10-20,2027-10-25,2027-10-30');
 
--- E O INICIO DE CADA UMA É O SEU, e não o da primeira: se o `update` gravasse
--- a mesma data nas cinco, este cenário acha uma data só.
+-- AS CINCO TEM INICIO, e não só a primeira: um `insert` que gravasse o início
+-- de uma etapa só passaria no cenário de cima e deixaria as outras quatro sem
+-- bloco nenhum na agenda — e é o bloco que a carga lê.
+select teste.conferir('as cinco etapas têm as duas pontas',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where data_inicio is not null and prazo is not null), '5');
+
 select teste.conferir('cada etapa começa no seu dia',
-  (select string_agg(distinct data_inicio::text, ',' order by data_inicio::text)
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027'),
+  (select string_agg(data_inicio::text, ',' order by ordem)
+     from public.etapas_do_mes(current_setting('t30.mes')::uuid)),
   '2027-10-01,2027-10-06,2027-10-13,2027-10-21,2027-10-26');
 
 -- A DATA NAO PRECISA CAIR DENTRO DO MES, e é decisão: o social de novembro é
 -- produzido em outubro inteiro. A trava óbvia — "a etapa vence dentro do mês"
 -- — recusaria exatamente o caso que o usuário descreveu.
 select teste.conferir('as cinco datas são de OUTUBRO, e o mês é novembro',
-  (select count(*)::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and extract(month from e.prazo) = 10), '15');
+  (select count(*)::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where extract(month from prazo) = 10), '5');
 
 
 -- ---------------------------------------------------------------------------
 -- 3. O POST ANDA E A CORRENTE FICA ONDE ESTA
 --
 -- É o avesso do cenário central da 0059, onde mover a publicação movia as
--- cinco etapas junto. Agora o dia da Pauta é do MÊS: trocar a data de um post
--- não mexe no dia em que a social media vai pautar o mês inteiro.
+-- cinco etapas junto. Agora o dia da Pauta é do MÊS, e não existe mais um
+-- caminho pelo qual um post possa toca-lo.
 -- ---------------------------------------------------------------------------
 
 do $$
@@ -166,77 +142,60 @@ begin
   reset role;
 end $$;
 
-select teste.conferir('o post andou e a Pauta dele NÃO andou junto',
-  (select e.prazo::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema = 'Instagram 1 de 3 · Novembro/2027' and e.nome = 'Pauta'),
-  '2027-10-05');
-
--- E AS TRES CONTINUAM NO MESMO DIA. Com o trigger antigo de pé, só a deste
--- post teria se mexido — e a resposta aqui seria "2 de 3", que é o estado em
--- que a corrente do mês deixa de ser do mês.
-select teste.conferir('e as três Pautas continuam sendo uma data só',
-  (select count(distinct prazo)::text || ' de ' || count(*)::text
-     from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Pauta'), '1 de 3');
+select teste.conferir('o post andou e a Pauta do mês NÃO andou junto',
+  (select prazo::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where titulo = 'Pauta'), '2027-10-05');
 
 
 -- ---------------------------------------------------------------------------
--- 4. DATAR UMA ETAPA A MAO CONTINUA VALENDO, e agora sem efeito colateral
+-- 4. DATAR A ETAPA A MAO VALE PARA O MES INTEIRO
 --
--- Na 0059 isso limpava a regra daquela etapa, porque senão o próximo recálculo
--- a desfaria. Sem recálculo, a escrita à mão é só uma escrita à mão — e as
--- outras não são tocadas.
+-- E agora isso e literalmente verdade, e nao uma consequencia: ha UMA linha, e
+-- escrever nela e escrever o dia em que a agencia vai pautar o mes. Na 0059
+-- isso precisava limpar a regra daquela etapa, porque senao o proximo
+-- recalculo a desfaria.
 -- ---------------------------------------------------------------------------
 
-do $$
-begin
-  set local role authenticated;
-  perform set_config('request.jwt.claim.sub',
-                     '11111111-1111-1111-1111-111111111111', true);
-  update public.post_etapas e set prazo = '2027-10-22'
-   from public.posts p
-   where p.id = e.post_id and p.tema = 'Instagram 2 de 3 · Novembro/2027'
-     and e.nome = 'Layout';
-  reset role;
-end $$;
+select teste.cenario('A gestão troca o dia do Layout do mês',
+  '11111111-1111-1111-1111-111111111111',
+  format($fmt$update public.subtasks set prazo = '2027-10-22'
+     where id = (select id from public.etapas_do_mes(%L) where titulo = 'Layout')$fmt$,
+    current_setting('t30.mes')), 'ok', 1);
 
-select teste.conferir('datar uma etapa à mão grava o dia dela',
-  (select e.prazo::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema = 'Instagram 2 de 3 · Novembro/2027' and e.nome = 'Layout'),
-  '2027-10-22');
+select teste.conferir('e o dia novo vale para os três posts, porque é um só',
+  (select prazo::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where titulo = 'Layout'), '2027-10-22');
 
-select teste.conferir('e não encosta no Layout dos outros dois',
-  (select count(*)::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema like '%· Novembro/2027' and e.nome = 'Layout'
-      and e.prazo = '2027-10-20'), '2');
+select teste.conferir('e não encostou nas outras quatro',
+  (select string_agg(prazo::text, ',' order by ordem)
+     from public.etapas_do_mes(current_setting('t30.mes')::uuid) where titulo <> 'Layout'),
+  '2027-10-05,2027-10-12,2027-10-25,2027-10-30');
 
 -- MEXER NO STATUS NAO ENCOSTA NA DATA. O trigger da 0059 precisava de duas
 -- condições para não apagar a regra de passagem; sem ele, a pergunta continua
 -- valendo e a resposta é mais simples — nada toca a data senão quem a escreve.
-do $$
-begin
-  set local role authenticated;
-  perform set_config('request.jwt.claim.sub',
-                     '11111111-1111-1111-1111-111111111111', true);
-  update public.post_etapas e set status = 'em_andamento'
-   from public.posts p
-   where p.id = e.post_id and p.tema = 'Instagram 3 de 3 · Novembro/2027'
-     and e.nome = 'Pauta';
-  reset role;
-end $$;
+select teste.cenario('A Pauta começa',
+  '11111111-1111-1111-1111-111111111111',
+  format($fmt$update public.subtasks set status = 'em_andamento'
+     where id = (select id from public.etapas_do_mes(%L) where titulo = 'Pauta')$fmt$,
+    current_setting('t30.mes')), 'ok', 1);
 
 select teste.conferir('mexer no status não apaga o dia da etapa',
-  (select e.prazo::text from public.post_etapas e join public.posts p on p.id = e.post_id
-    where p.tema = 'Instagram 3 de 3 · Novembro/2027' and e.nome = 'Pauta'),
-  '2027-10-05');
+  (select prazo::text from public.etapas_do_mes(current_setting('t30.mes')::uuid)
+    where titulo = 'Pauta'), '2027-10-05');
 
 
 -- ---------------------------------------------------------------------------
--- 5. A ETAPA NO CALENDARIO, e quem NAO a vê
+-- 5. A ETAPA NAO ENTRA MAIS NO CALENDARIO, E ENTRA NA CARGA
 --
--- A sexta origem da `calendar_events`. O cenário do cliente é o que importa: a
--- corrente de produção é interna, e o portal mostra material enviado — não o
--- ritmo de quem o faz.
+-- A sexta origem da `calendar_events` saiu na 0088, pela frase do usuario que
+-- fechou o 3J: *"a corrente do social vive so em minhas tasks e na carga"*. E
+-- a decisao da 0077, que tirou a demanda e a etapa pela mesma razao.
+--
+-- OS CENARIOS DA 0059 FICARAM VIRADOS DO AVESSO: eles conferiam que a etapa
+-- APARECIA no calendario da equipe e NAO aparecia para o cliente. Hoje o
+-- primeiro mede o contrario, e o segundo continua igual -- ele nunca dependeu
+-- da camada existir.
 -- ---------------------------------------------------------------------------
 
 do $$
@@ -244,43 +203,42 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub',
                      '11111111-1111-1111-1111-111111111111', true);
-  update public.post_etapas e set responsavel_id = '33333333-3333-3333-3333-333333333333'
-   from public.posts p
-   where p.id = e.post_id and p.tema like '%· Novembro/2027' and e.nome = 'Conteúdo';
+  update public.subtasks set responsavel_id = '33333333-3333-3333-3333-333333333333'
+   where social_papel is not null and titulo = 'Conteúdo'
+     and task_id = current_setting('t30.mes')::uuid;
   reset role;
 end $$;
 
 select teste.conferir_como(
-  'a etapa com dia aparece no calendário da equipe',
+  'a etapa do mês NÃO aparece mais no calendário da equipe',
   '33333333-3333-3333-3333-333333333333',
-  $$select count(*)::text from public.calendar_events
-     where tipo = 'etapa_de_post' and titulo like 'Conteúdo · Instagram % de 3 · Novembro/2027'$$,
-  '3');
+  $$select count(*)::text from public.calendar_events where tipo = 'etapa_de_post'$$,
+  '0');
 
 select teste.conferir_como(
-  'o CLIENTE não vê etapa de post no calendário',
+  'e o cliente continua não vendo nenhuma',
   '77777777-7777-7777-7777-777777777777',
   $$select count(*)::text from public.calendar_events where tipo = 'etapa_de_post'$$,
   '0');
 
--- O `client_id` VEM DO POST, e sem o join ele seria nulo: o filtro por cliente
--- do calendário deixaria estas linhas passar SEMPRE, o que parece "sem filtro"
--- e é pauta de uma conta aparecendo na tela de quem filtrou por outra.
-select teste.conferir_como(
-  'a etapa carrega o cliente do post',
-  '33333333-3333-3333-3333-333333333333',
-  $$select (client_id is not null)::text from public.calendar_events
-     where tipo = 'etapa_de_post'
-       and titulo like 'Conteúdo · Instagram 1 de 3 · Novembro/2027' limit 1$$,
-  'true');
+-- E O QUE ENTROU NO LUGAR E O PESO. `carga_do_dia()` le `subtasks` direto e
+-- nunca leu `post_etapas` -- entao o dia em que a redatora escreve as doze
+-- legendas aparecia VAZIO na Linha do Tempo e na faixa de disponibilidade. Com
+-- a etapa sendo subtarefa, ele passa a existir sem uma linha de mudanca
+-- naquela funcao.
+--
+-- 180 MINUTOS E A ETAPA EM BRANCO DA 0081, distribuida pela janela: sete dias
+-- uteis entre 06/10 e 12/10 (a etapa Conteudo) dao um pedaco por dia, e o que
+-- este cenario mede e que ele NAO E ZERO.
+select teste.conferir(
+  'e a carga da redatora no dia da etapa deixou de ser zero',
+  (select (minutos_comprometidos > 0)::text from public.carga_do_dia(
+    '33333333-3333-3333-3333-333333333333', '2027-10-07')), 'true');
 
-select teste.conferir_como(
-  'a etapa carrega o responsável, senão não entra no calendário de ninguém',
-  '33333333-3333-3333-3333-333333333333',
-  $$select user_id::text from public.calendar_events
-     where tipo = 'etapa_de_post'
-       and titulo like 'Conteúdo · Instagram 1 de 3 · Novembro/2027' limit 1$$,
-  '33333333-3333-3333-3333-333333333333');
+select teste.conferir(
+  'num dia fora da janela dela, continua zero',
+  (select minutos_comprometidos::text from public.carga_do_dia(
+    '33333333-3333-3333-3333-333333333333', '2027-09-01')), '0');
 
 
 -- ---------------------------------------------------------------------------
@@ -333,7 +291,7 @@ select teste.recusa_com_dica(
   'as duas pontas');
 
 -- PERIODO INVERTIDO E RECUSADO NOMEANDO A ETAPA, e não pelo `check` da tabela:
--- "post_etapas_periodo" não diz qual das cinco está trocada.
+-- "subtasks_periodo" não diz qual das cinco está trocada.
 select teste.recusa_com_dica(
   'a etapa que termina antes de começar é recusada pelo nome',
   '11111111-1111-1111-1111-111111111111',
@@ -344,21 +302,22 @@ select teste.recusa_com_dica(
   'os dois campos não estão trocados');
 
 -- E O `check` DA TABELA SEGURA QUEM MONTA O UPDATE A MAO, que é a diferença de
--- sempre entre "a tela não faz" e "o banco não aceita".
+-- sempre entre "a tela não faz" e "o banco não aceita". Ele passou a ser o de
+-- `subtasks` (0027), que e o mesmo de toda etapa do produto -- e e isso que o
+-- 3J entrega: a etapa do social deixou de ter travas proprias.
 select teste.recusa_com(
   'e o banco recusa o período invertido escrito à mão',
   '11111111-1111-1111-1111-111111111111',
-  $$update public.post_etapas e set data_inicio = '2027-10-30'
-     from public.posts p
-    where p.id = e.post_id and p.tema = 'Instagram 3 de 3 · Novembro/2027'
-      and e.nome = 'Pauta'$$,
-  'post_etapas_periodo');
+  format($fmt$update public.subtasks set data_inicio = '2027-10-30'
+     where id = (select id from public.etapas_do_mes(%L) where titulo = 'Pauta')$fmt$,
+    current_setting('t30.mes')),
+  'subtasks_periodo');
 
 
 -- ---------------------------------------------------------------------------
 -- 7. UMA VERSAO SO DA FUNCAO
 --
--- Acrescentar um parametro cria uma funcao NOVA no Postgres: a de cinco
+-- Acrescentar um parametro cria uma funcao NOVA no Postgres: a de sete
 -- argumentos continuaria existindo, e o PostgREST escolheria uma das duas
 -- conforme o corpo do pedido. Duas versoes da mesma funcao e o lugar onde as
 -- duas verdades comecam a divergir -- e a que ficasse para tras abriria o mes
@@ -366,10 +325,9 @@ select teste.recusa_com(
 -- ---------------------------------------------------------------------------
 
 -- A 0087 ACRESCENTOU `p_flow_id`, e e por isso que ela faz o `drop` da
--- assinatura de sete ANTES do `create` da de oito: sem o `drop`, as duas
--- existiriam, o PostgREST continuaria resolvendo a chamada antiga na funcao
--- antiga -- a que ignora o fluxo --, e o dialogo escolheria o fluxo sem efeito
--- nenhum. Este cenario e o que cai se alguem tirar aquele `drop`.
+-- assinatura de sete ANTES do `create` da de oito. A 0088 nao acrescenta
+-- parametro nenhum, e e por isso que ela nao tem `drop` -- reescrever o corpo
+-- com a mesma assinatura e o caso em que `create or replace` basta.
 select teste.conferir(
   'existe UMA abrir_mes_de_social, e ela recebe os prazos e o fluxo',
   (select string_agg(pg_get_function_identity_arguments(p.oid), ' | ')
@@ -378,9 +336,9 @@ select teste.conferir(
   'p_client_id uuid, p_mes text, p_quantidades jsonb, p_responsavel_id uuid, p_responsaveis jsonb, p_prazos jsonb, p_link_entrega text, p_flow_id uuid');
 
 -- E A VIEW CONTINUA COM `security_invoker`. O `create or replace view` da 0059
--- teve que repetir a clausula: ele NAO herda a do objeto que substitui, e sem
--- ela a view leria as tabelas de origem inteiras para qualquer pessoa
--- autenticada.
+-- teve que repetir a clausula, a 0077 de novo e a 0088 pela quarta vez: ele
+-- NAO herda a do objeto que substitui, e sem ela a view leria as tabelas de
+-- origem inteiras para qualquer pessoa autenticada.
 select teste.conferir(
   'calendar_events continua com security_invoker depois do replace',
   (select (reloptions @> array['security_invoker=true'])::text
