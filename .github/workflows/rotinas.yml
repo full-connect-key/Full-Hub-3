@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # SEM OS SECRETS ELE TERMINA EM 0, com o motivo no resumo do passo — a
       # mesma decisão do job `publicar`: uma Action vermelha todo dia por falta

@@ -17,9 +17,21 @@ jobs:
     name: Padrões, tipos e build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # `@v5` NAS DUAS, e o `@v4` saiu por AVISO e nao por falha.
+      #
+      # O GitHub aposentou o Node 20 nos runners: uma action que declara
+      # `node20` continua rodando, forcada no Node 24, com uma anotacao amarela
+      # em cada execucao. Ou seja, nada quebrou — e e justamente por isso que
+      # vale subir agora: um aviso permanente em toda rodada e a forma mais
+      # barata de a equipe aprender a nao ler o resumo da Action, e ai o dia em
+      # que aparecer um aviso DE VERDADE ele passa batido. E a decisao do job
+      # `publicar` ("falta de configuracao nao e falha") vista do outro lado.
+      #
+      # As `@v5` das duas rodam em `node24`, que e o que o runner ja estava
+      # usando a forca — o comportamento nao muda, o aviso sai.
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -130,7 +142,7 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cliente do Postgres
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
