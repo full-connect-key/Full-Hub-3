@@ -2,8 +2,14 @@
  * Versao de prototipo de src/lib/dados/social-media.ts.
  *
  * Os tres estados da corrente aparecem de proposito -- briefing sem dono, em
- * producao e com o cliente --, porque a lista agrupa por QUEM ESTA SEGURANDO e
- * uma imagem com um grupo so nao prova que os tres cabem.
+ * producao e com o cliente --, porque cada linha diz a mao e uma imagem com um
+ * estado so nao prova que os tres cabem.
+ *
+ * E SAO DUAS CONTAS, desde que a lista passou a agrupar por conta: com uma so,
+ * a imagem mostra um cabecalho e nao prova que elas se separam -- a licao da
+ * pilha de avatares, que sem mais ninguem na demanda provava apenas que ela
+ * sabe sumir. Um dos posts e do SOCIO, que e quem o prototipo fotografa, para
+ * o "N suas" do cabecalho aparecer em alguma imagem.
  *
  * E o carrossel tem cinco slides: a faixa em 375px e o que primeiro estoura a
  * largura, e ela so aparece com mais de um.
@@ -24,6 +30,8 @@ export type ReferenciaDoPost = ReferenciaReal;
 const VERDE = "c0000000-0000-0000-0000-00000000000a";
 const PRODUTOR = "a0000000-0000-0000-0000-000000000005"; // o colaborador do prototipo
 const OUTRO = "a0000000-0000-0000-0000-000000000006";
+const OPTICA = "c0000000-0000-0000-0000-00000000000b";
+const SOCIO = "a0000000-0000-0000-0000-000000000001"; // a Ana, que o prototipo fotografa
 
 function dia(offset: number): string {
   const d = new Date();
@@ -168,8 +176,8 @@ const POSTS: PostDaAgencia[] = [
   },
   {
     id: "p6",
-    clienteId: VERDE,
-    cliente: "Mundo Verde",
+    clienteId: OPTICA,
+    cliente: "Óptica Visão",
     tema: "Promoção de outubro",
     pauta: null,
     legenda: "Corre que acaba! Toda a linha com 20% até domingo.",
@@ -184,8 +192,8 @@ const POSTS: PostDaAgencia[] = [
     thumbnailUrl: "/exemplos/arte-3.svg",
     versaoAtual: 2,
     enviadoEm: dia(3),
-    responsavelId: OUTRO,
-    responsavel: "Bruno Lima",
+    responsavelId: SOCIO,
+    responsavel: "Ana Souza",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
     avalInterno: true,
@@ -194,8 +202,8 @@ const POSTS: PostDaAgencia[] = [
   },
   {
     id: "p7",
-    clienteId: VERDE,
-    cliente: "Mundo Verde",
+    clienteId: OPTICA,
+    cliente: "Óptica Visão",
     tema: "Bastidores",
     pauta: null,
     legenda: "Quem planta o que chega na sua casa.",
@@ -403,41 +411,107 @@ export async function corrente(_postId: string): Promise<EtapaDoPost[]> {
 }
 
 /**
- * AS ETAPAS DE SOCIAL EM "MINHAS TASKS", e sao TRES de posts DIFERENTES: o que
- * a imagem precisa provar e que o bloco e uma lista de trabalhos e nao o
- * recorte de um post so. Uma delas sem data, que e o estado que a 0044 criou.
+ * AS ETAPAS DE SOCIAL EM "MINHAS TASKS", nos TRES NIVEIS.
+ *
+ * O exemplo tem que provar o agrupamento, e por isso ele e desenhado assim:
+ *
+ *   - DUAS CONTAS, senao a imagem mostra um cabecalho de conta e nao prova que
+ *     elas se separam -- a licao da pilha de avatares, que sem ninguem mais na
+ *     demanda so provava que ela sabe sumir;
+ *   - QUATRO POSTS DO MESMO MES na primeira conta, todos com a etapa "Layout":
+ *     e o caso que a lista corrida desenhava mal, e o unico em que se ve que o
+ *     nome da etapa repete e o post e que distingue as linhas;
+ *   - DUAS ETAPAS DO MESMO POST (a Pauta e o Programar do p7 sao as duas de
+ *     Social Media): sao duas linhas, e e a decisao do Sprint 10;
+ *   - UM POST AVULSO, sem demanda de mes, que e o estado de quem abre pela
+ *     acao "Novo post" e nao por `abrir_mes_de_social()`;
+ *   - E UM SEM DATA, que e o estado que a 0044 criou.
  */
+const DEMANDA_DO_MES = {
+  id: "t-social-nov",
+  titulo: "Social \u00b7 Novembro/2027 de Mundo Verde",
+  mes: "2027-11-01",
+};
+
 const MINHAS: EtapaDeSocialMinha[] = [
   {
-    ...CORRENTE[4],
+    ...CORRENTE[2],
     id: "m1",
     postId: "p1",
-    tema: "Carrossel de dicas",
+    nome: "Layout",
+    status: "em_andamento",
+    concluidaEm: null,
+    tema: "1 de 12 \u00b7 Instagram + Facebook",
     cliente: "Mundo Verde",
-    dataPublicacao: dia(17),
+    clienteId: "c-mundo-verde",
+    dataPublicacao: dia(7),
+    demanda: DEMANDA_DO_MES,
   },
   {
     ...CORRENTE[2],
     id: "m2",
     postId: "p2",
     nome: "Layout",
-    status: "em_andamento",
+    status: "nao_iniciada",
     concluidaEm: null,
-    tema: "Antes e depois",
+    tema: "2 de 12 \u00b7 Instagram + Facebook",
     cliente: "Mundo Verde",
-    dataPublicacao: dia(7),
+    clienteId: "c-mundo-verde",
+    dataPublicacao: dia(10),
+    demanda: DEMANDA_DO_MES,
+  },
+  {
+    ...CORRENTE[2],
+    id: "m3",
+    postId: "p3",
+    nome: "Layout",
+    status: "nao_iniciada",
+    concluidaEm: null,
+    tema: "3 de 12 \u00b7 Instagram",
+    cliente: "Mundo Verde",
+    clienteId: "c-mundo-verde",
+    dataPublicacao: dia(14),
+    demanda: DEMANDA_DO_MES,
   },
   {
     ...CORRENTE[0],
-    id: "m3",
-    postId: "p9",
+    id: "m4",
+    postId: "p7",
     nome: "Pauta",
     status: "nao_iniciada",
     concluidaEm: null,
     prazo: null,
-    tema: "Instagram 3 de 6 · mês que vem",
-    cliente: "Óptica Visão",
+    tema: "7 de 12 \u00b7 Instagram + Facebook",
+    cliente: "Mundo Verde",
+    clienteId: "c-mundo-verde",
     dataPublicacao: null,
+    demanda: DEMANDA_DO_MES,
+  },
+  {
+    ...CORRENTE[4],
+    id: "m5",
+    postId: "p7",
+    nome: "Programar",
+    status: "nao_iniciada",
+    concluidaEm: null,
+    tema: "7 de 12 \u00b7 Instagram + Facebook",
+    cliente: "Mundo Verde",
+    clienteId: "c-mundo-verde",
+    dataPublicacao: null,
+    demanda: DEMANDA_DO_MES,
+  },
+  {
+    ...CORRENTE[2],
+    id: "m6",
+    postId: "p9",
+    nome: "Layout",
+    status: "nao_iniciada",
+    concluidaEm: null,
+    tema: "Lan\u00e7amento da arma\u00e7\u00e3o nova",
+    cliente: "\u00d3ptica Vis\u00e3o",
+    clienteId: "c-optica-visao",
+    dataPublicacao: dia(17),
+    demanda: null,
   },
 ];
 

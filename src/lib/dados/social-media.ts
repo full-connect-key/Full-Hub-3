@@ -422,7 +422,24 @@ export type EtapaDeSocialMinha = EtapaDoPost & {
   postId: string;
   tema: string;
   cliente: string;
+  /** A empresa, pelo id: duas contas homônimas não viram uma. */
+  clienteId: string;
   dataPublicacao: string | null;
+  /**
+   * A DEMANDA DO MÊS, quando o post nasceu de um mês aberto.
+   *
+   * É a ponte da 0061 — `posts.subtask_id` → `subtasks.task_id` → `tasks` —,
+   * e ela estava construída: a coluna existe desde a 0032 e a demanda do mês
+   * desde a 0061. Até aqui nada em Minhas Tasks a atravessava, e por isso as
+   * doze etapas "Layout" de um mês apareciam como doze linhas soltas, sem
+   * nada dizendo que são o mesmo trabalho da mesma conta.
+   *
+   * **Nulo é o post avulso**, e é caso normal: quem abre um post pela ação
+   * "Novo post" não passa por `abrir_mes_de_social()`. Ele aparece embaixo da
+   * conta, sem a faixa do mês — inventar um mês para ele seria afirmar que
+   * existe uma demanda que ninguém abriu.
+   */
+  demanda: { id: string; titulo: string; mes: string | null } | null;
 };
 
 export async function minhasEtapasDeSocial(
@@ -453,7 +470,7 @@ export async function minhasEtapasDeSocial(
   const [respostaDePosts, respostaDeIrmas] = await Promise.all([
     supabase
       .from("posts")
-      .select("id, tema, client_id, data_publicacao")
+      .select("id, tema, client_id, data_publicacao, subtask_id")
       .in("id", idsDePost),
     supabase
       .from("post_etapas")
@@ -473,7 +490,50 @@ export async function minhasEtapasDeSocial(
 
   const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
   const doPost = new Map(posts.map((p) => [p.id, p]));
+
+  // A DEMANDA DO MÊS DE CADA POST, em duas consultas e nunca num embutido.
+  // O PostgREST recusa o `select` INTEIRO quando não acha a relação pelo nome
+  // escrito, e foi assim que uma campanha recém-criada não apareceu em lugar
+  // nenhum. Duas idas ao banco custam menos que essa classe de bug — e esta é
+  // a mesma decisão do nome da campanha na faixa de novidades.
+  const idsDeSubtarefa = [
+    ...new Set(posts.map((p) => p.subtask_id).filter((i): i is string => !!i)),
+  ];
+
+  const subtarefas = idsDeSubtarefa.length
+    ? ouFalha(
+        "as subtarefas dos posts das minhas etapas",
+        await supabase
+          .from("subtasks")
+          .select("id, task_id")
+          .in("id", idsDeSubtarefa),
+      )
+    : [];
+
+  const idsDeTask = [...new Set(subtarefas.map((s) => s.task_id))];
+  const demandas = idsDeTask.length
+    ? ouFalha(
+        "as demandas de mês das minhas etapas",
+        await supabase
+          .from("tasks")
+          .select("id, titulo, social_do_mes")
+          .in("id", idsDeTask),
+      )
+    : [];
+
+  const demandaDaSubtarefa = new Map(subtarefas.map((s) => [s.id, s.task_id]));
+  const porId = new Map(demandas.map((d) => [d.id, d]));
+
   const nomes = await nomesDe([usuarioId]);
+
+  function demandaDoPost(subtaskId: string | null) {
+    if (!subtaskId) return null;
+    const taskId = demandaDaSubtarefa.get(subtaskId);
+    if (!taskId) return null;
+    const d = porId.get(taskId);
+    if (!d) return null;
+    return { id: d.id, titulo: d.titulo, mes: d.social_do_mes };
+  }
 
   return minhas
     .filter((e) => {
@@ -501,7 +561,9 @@ export async function minhasEtapasDeSocial(
         aprovacaoCliente: e.aprovacao_cliente,
         tema: post?.tema ?? "—",
         cliente: post ? (nomeDoCliente.get(post.client_id) ?? "—") : "—",
+        clienteId: post?.client_id ?? "",
         dataPublicacao: post?.data_publicacao ?? null,
+        demanda: demandaDoPost(post?.subtask_id ?? null),
       };
     });
 }

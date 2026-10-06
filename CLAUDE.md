@@ -2809,6 +2809,114 @@ E a lista traz **só as que já podem começar**: uma etapa de Layout cujo
 Conteúdo ninguém escreveu ainda não é trabalho meu hoje — ela apareceria no topo
 da lista de quem não tem o que fazer com ela, e o banco recusaria o clique.
 
+##### E ela tem TRÊS NÍVEIS: conta › demanda do mês › post
+
+Relato do usuário, olhando a própria tela: *"Quando abro um mês de social, ele
+ainda não está ficando separado pelo Social de mês específico, de uma conta
+específica (…) Preciso que ele apareça como uma Task mãe, com cada post sendo
+uma subtarefa"*.
+
+**Ele estava certo, e os três níveis já existiam no banco — é a oitava ponte
+construída e nunca atravessada.** A conta, a demanda do mês
+(`tasks.social_do_mes`, migration 0061) e o post (`posts.subtask_id`, 0032). O
+que faltava era a tela ler a ponte, e por isso **isto não tem migration
+nenhuma**: é leitura e desenho, como o rosto no chip do calendário e como a
+pilha de avatares.
+
+**O que a lista corrida custava:** dezoito etapas "Layout" seguidas, todas com o
+mesmo nome, e a conta repetida dezoito vezes na linhagem. O olho não tinha como
+ver que são o mesmo trabalho do mesmo mês da mesma conta — que é exatamente a
+informação que decide em que ordem a pessoa os faz.
+
+**O ITEM CONTINUA SENDO A ETAPA, e isto é regra e não detalhe.** Se a Pauta e o
+Programar do mesmo post são meus — e são, porque as duas são de Social Media —,
+são **duas linhas**: dois trabalhos, em dois momentos. É a decisão do Sprint 10
+("Minhas Tasks lista ETAPAS, não demandas") e ela não muda aqui; o agrupamento
+muda o que fica ACIMA da linha, nunca o que a linha é.
+
+**DENTRO DO GRUPO, O POST É QUE CARREGA O PESO**, e isso inverte a linha de
+fora. Na lista corrida o título era a etapa, porque era ela que variava;
+agrupado por mês, o nome da etapa é quase sempre o MESMO em todas as linhas do
+grupo, e o que distingue uma da outra é o post. É a decisão do selo de status
+que some dentro do grupo: o que o cabeçalho e os vizinhos já dizem não ganha a
+escala grande.
+
+**A faixa do mês é um LINK para a demanda**, e é ela que entrega o pedido dele:
+a Task mãe existe, tem nome, e dali se vê o mês inteiro com os posts das outras
+pessoas. Sem o link, "Task mãe" seria uma palavra na tela sem nada atrás.
+
+**O post avulso entra na conta, SEM faixa de mês.** Ele não nasceu de
+`abrir_mes_de_social()`, então não há demanda a nomear — e uma faixa inventada
+afirmaria que existe uma que ninguém abriu. A linha diz "Fora de um mês aberto",
+que é a verdade.
+
+**A chave da conta é o ID e nunca o nome**, porque é ela que vai para a URL
+quando o grupo fecha: duas empresas homônimas virariam um grupo só. É
+`quemMaisEstaNa()` pela mesma razão.
+
+**A conta dobra, e o que está fechado mora na URL** — `socialFechado`, parâmetro
+próprio para não se misturar com os grupos de status da Lista. É para isso que
+o `GrupoDobravel` tem o `parametro`.
+
+**A contagem do cabeçalho diz as DUAS coisas** — "6 em 2 contas" —, porque o
+grupo fechado esconde as linhas e não os números: "6" sozinho num dia em que
+elas vêm de duas empresas esconde justamente o que o agrupamento existe para
+mostrar. Com uma conta só ele volta a ser o número seco.
+
+**Quem agrupa é `agruparSocialPorConta()` em `lib/dominio/posts.ts`**, e não a
+tela: a tela de Minhas Tasks e o stub do protótipo fazem a mesma pergunta, e
+duas contas divergiriam na primeira mudança.
+
+**O axe cobrou uma regra que eu mesmo quebrei**, e vale registrada: a contagem
+da faixa do mês saiu como `text-action-text/85`, e **opacidade em texto dá uma
+cor que ninguém mediu** — a regra que o produto já tinha escrita para o selo de
+estado e para o `opacity-80` do `DateBadge`. O par medido é `--action-text`
+sobre `--action-soft` (5,88:1), e quem separa o título da contagem é o **peso**,
+que é o sinal que não depende de a pessoa enxergar bem.
+
+**E o exemplo do protótipo ganhou duas contas e um post com duas etapas minhas**,
+pela razão da pilha de avatares: com uma conta só, a imagem mostra um cabeçalho
+e não prova que elas se separam — prova só que ele sabe existir.
+
+#### A lista do Social Media agrupa por CONTA
+
+Decisão do usuário, na mesma conversa: *"na aba de Social media, todos os posts
+abertos ficam em lista, uma lista corrida com os posts, quero que separe por
+conta, e ao clicar na conta, aparecem os posts em aberto daquela conta"*.
+
+**ISTO DESFAZ UM AGRUPAMENTO ANTERIOR, e vale dizer qual.** A lista agrupava por
+QUEM ESTÁ SEGURANDO — Comigo / Esperando alguém / Fora das minhas mãos —, com o
+argumento de que era o que fazia a mesma tela servir aos três perfis internos: o
+colaborador abria e a primeira seção era a dele.
+
+**O argumento continuava de pé e a tela deixou de precisar dele, por dois
+caminhos que nasceram depois.** O primeiro é o filtro `foco`, que já tem "só os
+meus" e "sem dono" na barra acima — um clique, e nenhum cabeçalho. O segundo é
+que **cada linha já diz a mão**, por extenso, ao lado da data: o fato não morava
+no cabeçalho, morava nos dois lugares.
+
+**O que aquele agrupamento dava de exclusivo era o relance** — em que contas há
+coisa minha —, e é isso que o **"· N suas"** ao lado do total devolve, inclusive
+com o grupo fechado. Ele é o `extra` do `GrupoDobravel`, que nasceu aqui: um
+cabeçalho de grupo pode precisar de um segundo fato, e a contagem fica no
+cabeçalho justamente para a dobra ser segura. **No zero ele não aparece** — "0
+suas" em nove das dez contas é a mesma linha com um número a mais, e a ausência é
+a resposta, como no selo da fila de aprovações.
+
+**O que a conta resolve e a mão não resolvia:** com dez clientes de social,
+"Fora das minhas mãos" é uma lista de cento e vinte posts de dez empresas
+misturados, ordenada por data. Quem abre a tela para conferir o mês de uma conta
+não tinha recorte nenhum além do filtro de cliente — que **troca a tela inteira**
+em vez de deixar as outras ao lado.
+
+**As contas com coisa minha vêm primeiro**, e é o que sobra da decisão antiga: a
+tela continua abrindo no que é meu. **Dentro da conta a ordem é a da consulta —
+por data — e meus posts não sobem:** dentro de um mês a ordem cronológica é a
+informação, e reordenar por dono quebraria a leitura "o que vai ao ar quando".
+
+**O ponto separa os dois números**, e foi a imagem que mostrou: sem ele a linha
+sai "Óptica Visão 2 1 sua", e dois algarismos colados se leem como um.
+
 #### "Chegou para você": o sinal de novidade em Minhas Tasks
 
 Decisão do usuário: *"quero que passe Social Media e Campanhas para dentro de

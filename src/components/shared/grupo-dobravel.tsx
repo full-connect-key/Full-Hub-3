@@ -49,6 +49,7 @@ export function GrupoDobravel({
   contagem,
   ponto,
   parametro = "fechados",
+  extra,
   children,
 }: {
   /** Identifica o grupo na URL. É o valor do status, não o rótulo. */
@@ -59,6 +60,17 @@ export function GrupoDobravel({
   ponto?: string;
   /** O nome do parâmetro, para duas listas na mesma tela não se misturarem. */
   parametro?: string;
+  /**
+   * UM SEGUNDO FATO NO CABEÇALHO, para o grupo fechado continuar respondendo.
+   *
+   * Ele nasceu no Social Media, onde a lista passou a agrupar por CONTA e o
+   * agrupamento anterior — Comigo / Esperando alguém / Fora das minhas mãos —
+   * saiu. O que se perderia sem isto é a única coisa que aquele dava de
+   * relance: em quais contas há trabalho esperando por MIM. Com "4 suas" ao
+   * lado do total, a resposta sobrevive à dobra, que é a mesma razão pela
+   * qual a contagem fica no cabeçalho.
+   */
+  extra?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -108,6 +120,7 @@ export function GrupoDobravel({
           ) : null}
           {titulo}
           <span className="text-text-muted font-normal tabular-nums">{contagem}</span>
+          {extra}
         </button>
       </h2>
 

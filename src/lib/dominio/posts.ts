@@ -775,3 +775,103 @@ export const SEM_DATA = "Sem data";
 export function rotuloDaData(formatada: string | null): string {
   return formatada ?? SEM_DATA;
 }
+
+// ---------------------------------------------------------------------------
+// O SOCIAL DE MINHAS TASKS EM TRÊS NÍVEIS: conta › mês › post
+// ---------------------------------------------------------------------------
+
+/**
+ * Agrupa as minhas etapas de social por CONTA e, dentro dela, pela DEMANDA
+ * DO MÊS.
+ *
+ * Relato do usuário, olhando a própria tela: *"Quando abro um mês de social,
+ * ele ainda não está ficando separado pelo Social de mês específico, de uma
+ * conta específica (…) Preciso que ele apareça como uma Task mãe, com cada
+ * post sendo uma subtarefa"*. Ele estava certo, e o que faltava não era
+ * modelo: **os três níveis existem no banco desde a 0061** — a conta, a
+ * demanda do mês (`tasks.social_do_mes`) e o post (`posts.subtask_id`). O que
+ * faltava era a tela ler a ponte. Por isso isto não tem migration nenhuma.
+ *
+ * **O ITEM CONTINUA SENDO A ETAPA, e não o post.** É a regra do produto desde
+ * o Sprint 10, e ela vale aqui pela mesma razão: se a Pauta e o Programar do
+ * mesmo post são meus, são **dois trabalhos**, em dois momentos, e uma linha
+ * só obrigaria a abrir para descobrir o que havia dentro. O que o
+ * agrupamento muda é o que fica ACIMA da linha, nunca o que a linha é.
+ *
+ * **A CHAVE DA CONTA É O ID, nunca o nome** — duas empresas homônimas
+ * compartilham o nome e não o id, e virariam um grupo só. É `quemMaisEstaNa()`
+ * pela mesma razão.
+ *
+ * **O POST AVULSO ENTRA NA CONTA, SEM FAIXA DE MÊS.** Ele não nasceu de
+ * `abrir_mes_de_social()`, então não há demanda a nomear; pô-lo numa faixa
+ * inventada afirmaria que existe uma demanda que ninguém abriu. Ele vem
+ * primeiro, porque é o que não tem onde se agrupar.
+ *
+ * **A ORDEM DENTRO DE CADA NÍVEL É A QUE CHEGOU**, e a camada de dados já
+ * entrega por prazo. Reordenar aqui por nome de conta poria a demanda que
+ * vence amanhã abaixo de uma de semana que vem — o oposto do que esta tela
+ * responde. O que decide a ordem das CONTAS é a etapa mais urgente de cada
+ * uma, que é a primeira que aparece nela.
+ */
+export type EtapaDeSocialAgrupavel = {
+  clienteId: string;
+  cliente: string;
+  demanda: { id: string; titulo: string; mes: string | null } | null;
+};
+
+export type MesDeSocialAgrupado<T> = {
+  /** Nulo quando são os posts avulsos da conta. */
+  demanda: { id: string; titulo: string; mes: string | null } | null;
+  etapas: T[];
+};
+
+export type ContaDeSocialAgrupada<T> = {
+  clienteId: string;
+  cliente: string;
+  meses: MesDeSocialAgrupado<T>[];
+  /** O total da conta, que é o que o cabeçalho dobrado continua dizendo. */
+  total: number;
+};
+
+export function agruparSocialPorConta<T extends EtapaDeSocialAgrupavel>(
+  etapas: T[],
+): ContaDeSocialAgrupada<T>[] {
+  const contas = new Map<string, ContaDeSocialAgrupada<T>>();
+
+  for (const etapa of etapas) {
+    let conta = contas.get(etapa.clienteId);
+    if (!conta) {
+      conta = {
+        clienteId: etapa.clienteId,
+        cliente: etapa.cliente,
+        meses: [],
+        total: 0,
+      };
+      contas.set(etapa.clienteId, conta);
+    }
+    conta.total += 1;
+
+    // A CHAVE DO MÊS É O ID DA DEMANDA e não o `social_do_mes`: uma conta pode
+    // ter duas demandas do mesmo mês se alguém abrir o mês duas vezes, e o
+    // id é o que separa as duas sem fundir o trabalho de uma na outra.
+    const chave = etapa.demanda?.id ?? null;
+    let mes = conta.meses.find((m) => (m.demanda?.id ?? null) === chave);
+    if (!mes) {
+      mes = { demanda: etapa.demanda, etapas: [] };
+      conta.meses.push(mes);
+    }
+    mes.etapas.push(etapa);
+  }
+
+  // O avulso primeiro dentro de cada conta, e o resto na ordem em que chegou
+  // — que é a ordem de prazo que a camada de dados já entregou.
+  for (const conta of contas.values()) {
+    conta.meses.sort((a, b) => {
+      if (!a.demanda && b.demanda) return -1;
+      if (a.demanda && !b.demanda) return 1;
+      return 0;
+    });
+  }
+
+  return [...contas.values()];
+}

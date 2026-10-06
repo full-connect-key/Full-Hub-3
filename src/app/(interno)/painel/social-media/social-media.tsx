@@ -25,6 +25,7 @@ import {
   maoDoPost,
   rotuloDaData,
 } from "@/lib/dominio/posts";
+import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { cn } from "@/lib/utils";
 import type {
   PostDaAgencia,
@@ -188,26 +189,61 @@ export function SocialMedia({
   }
 
   /**
-   * A lista agrupa por QUEM ESTÁ SEGURANDO, e não por status.
+   * A LISTA AGRUPA POR CONTA, e o grupo dobra.
    *
-   * É o que faz a mesma tela servir aos três perfis internos: o colaborador
-   * abre e a primeira seção é a dele. Agrupar por status daria cinco caixas em
-   * que ele precisaria procurar o próprio nome.
+   * Decisão do usuário: *"na aba de Social media, todos os posts abertos ficam
+   * em lista, uma lista corrida com os posts, quero que separe por conta, e ao
+   * clicar na conta, aparecem os posts em aberto daquela conta"*.
+   *
+   * **ISTO DESFAZ UM AGRUPAMENTO ANTERIOR, e vale dizer qual.** Ela agrupava
+   * por QUEM ESTÁ SEGURANDO — Comigo / Esperando alguém / Fora das minhas mãos
+   * —, com o argumento de que era o que fazia a mesma tela servir aos três
+   * perfis internos: o colaborador abria e a primeira seção era a dele.
+   *
+   * **O argumento continuava de pé e a tela deixou de precisar dele por dois
+   * caminhos que nasceram depois.** O primeiro é o filtro `foco`, que já tem
+   * "só os meus" e "sem dono" na barra acima — um clique, e nenhum cabeçalho.
+   * O segundo é que **cada linha já diz a mão**, por extenso, ao lado da data:
+   * o fato não morava no cabeçalho, morava nos dois lugares. O que o
+   * cabeçalho dava de exclusivo era o relance — em que contas há coisa minha
+   * —, e é isso que o "N suas" ao lado do total devolve, inclusive com o grupo
+   * fechado.
+   *
+   * **O QUE A CONTA RESOLVE, e o agrupamento por mão não resolvia:** com dez
+   * clientes de social, "Fora das minhas mãos" é uma lista de cento e vinte
+   * posts de dez empresas misturados, ordenada por data. Quem abre a tela para
+   * conferir o mês de uma conta não tinha recorte nenhum além do filtro de
+   * cliente — que troca a tela inteira, em vez de deixar as outras ao lado.
+   *
+   * **A CHAVE É O ID DA EMPRESA e nunca o nome**, porque é ela que vai para a
+   * URL quando o grupo fecha, e dois clientes homônimos viram um grupo só.
+   *
+   * **AS CONTAS COM COISA MINHA VÊM PRIMEIRO**, e é o que sobra da decisão
+   * antiga: a tela continua abrindo no que é meu. Dentro da conta a ordem é a
+   * que a consulta entregou — por data —, e meus posts não sobem: dentro de um
+   * mês a ordem cronológica é a informação, e reordenar por dono quebraria a
+   * leitura "o que vai ao ar quando".
    */
   const grupos = useMemo(() => {
-    const meus: PostDaAgencia[] = [];
-    const esperando: PostDaAgencia[] = [];
-    const outros: PostDaAgencia[] = [];
+    const porConta = new Map<
+      string,
+      { id: string; titulo: string; itens: PostDaAgencia[]; meus: number }
+    >();
+
     for (const p of posts) {
-      if (p.responsavelId === quemLe.id) meus.push(p);
-      else if (p.responsavelId === null) esperando.push(p);
-      else outros.push(p);
+      let conta = porConta.get(p.clienteId);
+      if (!conta) {
+        conta = { id: p.clienteId, titulo: p.cliente, itens: [], meus: 0 };
+        porConta.set(p.clienteId, conta);
+      }
+      conta.itens.push(p);
+      if (p.responsavelId === quemLe.id) conta.meus += 1;
     }
-    return [
-      { titulo: "Comigo", itens: meus },
-      { titulo: "Esperando alguém", itens: esperando },
-      { titulo: "Fora das minhas mãos", itens: outros },
-    ].filter((g) => g.itens.length > 0);
+
+    return [...porConta.values()].sort((a, b) => {
+      if (a.meus > 0 !== b.meus > 0) return a.meus > 0 ? -1 : 1;
+      return a.titulo.localeCompare(b.titulo, "pt-BR");
+    });
   }, [posts, quemLe.id]);
 
   const porDia = useMemo(() => {
@@ -377,13 +413,30 @@ export function SocialMedia({
         <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
           <div className="space-y-4">
             {grupos.map((grupo) => (
-              <section key={grupo.titulo} className="space-y-2">
-                <h2 className="text-text-secondary flex justify-between px-1 text-[11px] font-bold tracking-wider uppercase">
-                  {grupo.titulo}
-                  <span className="text-text-muted tabular-nums">
-                    {grupo.itens.length}
-                  </span>
-                </h2>
+              <GrupoDobravel
+                key={grupo.id}
+                chave={grupo.id}
+                titulo={grupo.titulo}
+                contagem={grupo.itens.length}
+                parametro="contasFechadas"
+                extra={
+                  /* "N SUAS" É O QUE SOBRA DO AGRUPAMENTO POR MÃO, e é por
+                     isso que ele está no cabeçalho e não numa linha de dentro:
+                     o grupo fechado continua respondendo em que contas há
+                     coisa esperando por mim. No zero ele não aparece — um "0
+                     suas" em nove das dez contas é a mesma linha com um número
+                     a mais, e a ausência é a resposta. */
+                  grupo.meus > 0 ? (
+                    <span className="text-accent-strong font-normal tabular-nums">
+                      {/* O PONTO SEPARA OS DOIS NÚMEROS. Sem ele a linha sai
+                          "Óptica Visão 2 1 sua", e dois algarismos colados se
+                          leem como um — foi a imagem do protótipo que mostrou. */}
+                      <span aria-hidden className="text-text-muted">· </span>
+                      {grupo.meus === 1 ? "1 sua" : `${grupo.meus} suas`}
+                    </span>
+                  ) : null
+                }
+              >
                 {/* CADA POST É UM CARTÃO SOLTO, e não uma faixa dentro de uma
                     caixa com fios. É o argumento da lista de Minhas Tasks: num
                     contêiner único o que se lê primeiro é a CAIXA, e aqui cada
@@ -433,7 +486,7 @@ export function SocialMedia({
                     </li>
                   ))}
                 </ul>
-              </section>
+              </GrupoDobravel>
             ))}
           </div>
 
