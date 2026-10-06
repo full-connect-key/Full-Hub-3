@@ -17,7 +17,6 @@ import { ROTULOS_DE_FOCO, type FocoDoDia } from "@/lib/dominio/tasks";
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
-import type { EtapaDeSocialMinha } from "@/lib/dados/social-media";
 import type { NovidadeDeArea } from "@/lib/dados/novidades";
 import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -31,7 +30,6 @@ import {
   areaDaLinha,
   type LinhaPessoal,
 } from "./linhas";
-import { EtapasDeSocial } from "./etapas-de-social";
 import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
@@ -81,7 +79,6 @@ const LADRILHOS = [
 
 export function PainelPessoal({
   linhas,
-  etapasDeSocial,
   novidades,
   itensDeCalendario,
   itensDoDia,
@@ -103,7 +100,6 @@ export function PainelPessoal({
   linhas: LinhaPessoal[];
   itensDeCalendario: ItemDeCalendario[];
   itensDoDia: ItemDoDia[];
-  etapasDeSocial: EtapaDeSocialMinha[];
   novidades: NovidadeDeArea[];
   contadores: Record<FocoDoDia, number>;
   equipe: {
@@ -197,10 +193,18 @@ export function PainelPessoal({
           ---------------------------------------------------------------
           Decisão do usuário: *"Social Media e Campanhas ainda não está dentro
           de Minhas Tasks"*. Elas estavam — a peça de campanha é uma subtarefa
-          desde a 0051 e a etapa de social tem bloco desde o Sprint 14 —, mas
-          as duas só apareciam QUANDO havia trabalho nelas. Quem abre a tela
-          procurando a área pelo nome, e não tem nada lá naquele dia, conclui
-          que ela não existe aqui.
+          desde a 0051 e a etapa de social desde a 0088 —, mas as duas só
+          apareciam QUANDO havia trabalho nelas. Quem abre a tela procurando a
+          área pelo nome, e não tem nada lá naquele dia, conclui que ela não
+          existe aqui.
+
+          **AS TRÊS CONTAGENS SAEM DE `areaDaLinha()` AGORA**, e isso é a 0088
+          aparecendo na tela: até ela o Social contava de `etapasDeSocial`,
+          uma consulta própria, porque a corrente era de `post_etapas` e não
+          cabia na lista. Com a etapa sendo do mês ela é uma subtarefa comum e
+          entra na mesma lista — então o número é a mesma soma dos outros dois,
+          sobre as mesmas linhas, e não há segundo lugar onde ele possa
+          divergir.
 
           Por isso esta faixa mostra o ZERO, ao contrário do selo de contagem
           da fila de aprovações, onde a ausência é a resposta. As duas regras
@@ -221,7 +225,10 @@ export function PainelPessoal({
               "campanhas",
               linhas.filter((l) => areaDaLinha(l) === "campanhas").length,
             ],
-            ["social", etapasDeSocial.length],
+            [
+              "social",
+              linhas.filter((l) => areaDaLinha(l) === "social").length,
+            ],
           ] as const
         ).map(([area, quantas]) => {
           const Icone = ICONE_DA_AREA[area];
@@ -319,20 +326,26 @@ export function PainelPessoal({
             />
           ) : null}
 
-          {/* O SOCIAL É A TERCEIRA ÁREA, e vem DEPOIS do conteúdo da visão — na
-          mesma ordem dos chips lá em cima: Demandas, Campanhas, Social Media.
+          {/* ---------------------------------------------------------------
+              O BLOCO DO SOCIAL SAIU DAQUI (0088), e a ausência é a entrega.
 
-          **Ele fica FORA do seletor de visão, e isso é mecânico.** O board
-          desenha colunas dos status da etapa de demanda e o calendário desenha
-          prazos de demanda; nenhum dos dois sabe desenhar uma etapa de post, e
-          uma etapa de post não tem rodada, cronômetro nem dependência para
-          caber no molde. Posto dentro da Lista, o Social sumiria em duas das
-          três visões — e quem trabalha no board perderia a área inteira sem
-          nada dizendo por quê.
+              Ele ficava embaixo das três visões, fora do seletor, porque o
+              board desenha colunas de `subtask_status` e o calendário desenha
+              prazos — e uma etapa de `post_etapas` não tinha nem rodada, nem
+              cronômetro, nem dependência para caber no molde. Posto dentro da
+              Lista, o Social sumiria em duas das três visões.
 
-          Na Lista ele fecha a sequência das três seções; no board e no
-          calendário ele aparece embaixo, que é onde uma lista cabe. */}
-          <EtapasDeSocial etapas={etapasDeSocial} />
+              Com a etapa sendo do MÊS ela é uma subtarefa como qualquer outra:
+              tem responsável, período, estimativa, cronômetro e as travas da
+              0007. Então ela aparece nas TRÊS visões pelo caminho de sempre —
+              linha na Lista, card no board, barra no calendário —, e o bloco
+              próprio deixou de ter o que mostrar que a lista não mostre.
+
+              **E o chip continua, com a contagem**, que é a razão de ele ter
+              nascido: ele leva ao MÓDULO, onde a pessoa vê o mês inteiro e as
+              caixinhas de cada peça. Era ele o pedido do usuário — ter nome e
+              contagem nesta tela —, não o bloco.
+              --------------------------------------------------------------- */}
         </div>
 
         <aside className="flex flex-col gap-2.5 lg:sticky lg:top-20">

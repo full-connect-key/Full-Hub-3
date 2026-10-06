@@ -209,7 +209,7 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
   let consulta = supabase
     .from("posts")
     .select(
-      "id, client_id, tema, data_publicacao, prazo_aprovacao, status, thumbnail_url, arte_url, enviado_em, plataformas, subtask_id",
+      "id, client_id, tema, data_publicacao, prazo_aprovacao, status, thumbnail_url, arte_url, enviado_em, plataformas",
     )
     .order("data_publicacao");
 
@@ -259,8 +259,10 @@ async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
     // nascido de uma etapa de campanha, mas o nome dela é vocabulário interno
     // — e muitos posts não têm etapa nenhuma, que é caso normal e não exceção.
     demanda: post.plataformas.map((p) => ROTULO_DA_PLATAFORMA[p]).join(" + "),
-    // Sem demanda no sentido de `tasks.id`: a dele é o mês de social, que
-    // nunca nasce de um pedido. O tipo explica a escolha.
+    // Sem demanda no sentido de `tasks.id`: a dele é o mês de social
+    // (`posts.social_task_id` desde a 0088), que nunca nasce de um pedido —
+    // e por isso a coluna não entra no `select` acima. O tipo explica a
+    // escolha.
     demandaId: null,
     clienteId: post.client_id,
     cliente: porCliente.get(post.client_id) ?? "",

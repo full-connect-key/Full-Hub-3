@@ -142,6 +142,9 @@ select set_config('t39.layout',
 select set_config('t39.envio',
   (select id::text from public.etapas_do_mes(current_setting('t39.abril')::uuid)
     where titulo = 'Envio'), false);
+select set_config('t39.programar',
+  (select id::text from public.etapas_do_mes(current_setting('t39.abril')::uuid)
+    where titulo = 'Programar'), false);
 
 select teste.conferir('A Pauta nasceu como portao do cliente',
   (select social_portao::text from public.subtasks where id = current_setting('t39.pauta')::uuid),
@@ -481,6 +484,37 @@ select teste.conferir('E a da Pauta continua marcada, porque ele a aprovou',
 select teste.conferir('E o Bruno foi avisado desta vez',
   (select count(*)::text from public.notifications
     where user_id = :BRUNO and titulo like 'O cliente pediu ajustes%'), '1');
+
+
+-- --- 8b. A RECUSA DA TRAVA B NOMEIA SO O QUE FALTA -------------------------
+--
+-- E O UNICO LUGAR DA BATERIA QUE PEGA ISSO, e e por isso que o cenario mora
+-- aqui e nao no 21: lá o fluxo tem UM portao (o Envio), e com um a lista do
+-- jeito errado e a do jeito certo dao a mesma frase. Aqui sao DOIS -- a Pauta
+-- e o Envio --, e esta peca tem a Pauta aprovada: a frase precisa dizer
+-- "Envio" e nunca "Pauta, Envio".
+--
+-- A VERSAO ERRADA NAO ESTOURA -- ela devolve uma recusa plausivel, que a
+-- pessoa confere, ve que esta errada, e passa a desconfiar do resto. Foi a
+-- imagem do prototipo que mostrou, nao a bateria, e e por isso que o cenario
+-- entra agora. E a decisao da 0023, que nomeia CADA etapa sem aprovacao.
+--
+-- Medido com mutacao: tirando o `offset` da trava B, este cenario cai e diz
+-- que a recusa veio com "Pauta, Envio".
+select teste.conferir('A Pauta desta peca esta aprovada',
+  public.aprovacoes_do_cliente_no_post(current_setting('t39.post')::uuid)::text,
+  '1');
+
+select teste.recusa_com('E a recusa do Programar nomeia so o Envio', :MARINA,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where post_id = %L and subtask_id = %L$fmt$,
+    current_setting('t39.post'), current_setting('t39.programar')),
+  'ainda não aprovou Envio neste post');
+
+-- O TRECHO PROCURADO ATRAVESSA O NOME, de "aprovou" a "neste post", e e isso
+-- que faz ele medir: `recusa_com` busca uma substring, e "aprovou Envio neste
+-- post" NAO esta dentro de "aprovou Pauta, Envio neste post". Um trecho mais
+-- curto -- so "Envio" -- passaria nas duas formas e afirmaria sem provar.
 
 
 -- --- 9. E no caminho de sempre o post FICA aprovado -----------------------

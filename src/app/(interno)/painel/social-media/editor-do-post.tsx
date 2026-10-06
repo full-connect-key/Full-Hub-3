@@ -41,12 +41,13 @@ import {
   SIGLA_DA_PLATAFORMA,
   maoDoPost,
   podeEnviarAoCliente,
-  portaoDoCliente,
+  portaoDoPost,
   rotuloDoEnvio,
   podeProduzir,
   type MaoDoPost,
   rotuloDaData,
-  type EtapaDoPost,
+  type CaixinhaDoPost,
+  type EtapaDoMes,
 } from "@/lib/dominio/posts";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 
@@ -126,6 +127,8 @@ export function EditorDoPost({
   post,
   versoes,
   etapas,
+  caixinhas,
+  aprovacoesDoCliente,
   referencias,
   equipe,
   quemLe,
@@ -134,7 +137,12 @@ export function EditorDoPost({
 }: {
   post: PostDaAgencia;
   versoes: VersaoDoPost[];
-  etapas: EtapaDoPost[];
+  /** As etapas do MÊS deste post. Vazio no post avulso. */
+  etapas: EtapaDoMes[];
+  /** As caixinhas DESTE post, uma por etapa do mês. */
+  caixinhas: CaixinhaDoPost[];
+  /** Quantas rodadas de cliente deste post já foram aprovadas — o `k` do portão. */
+  aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
   equipe: { id: string; nome: string }[];
   quemLe: QuemLe;
@@ -160,8 +168,11 @@ export function EditorDoPost({
   // primeira, que é a Pauta — a etapa em que a arte ainda não existe.
   //
   // É `porta_do_cliente_no_post()` do outro lado, e as duas fazem a mesma
-  // pergunta: o primeiro portão ainda não concluído, na ordem da corrente.
-  const portao = portaoDoCliente(etapas);
+  // pergunta: o (k+1)-ésimo portão do MÊS, onde k são as rodadas de cliente já
+  // aprovadas DESTE post. A conta é por post e não por mês desde a 0088 — a
+  // etapa é do mês e a decisão continua sendo por peça, que é a frase do
+  // usuário: *"A produção vira mensal, a aprovação continua por post."*
+  const portao = portaoDoPost(etapas, aprovacoesDoCliente);
   const envio = podeEnviarAoCliente(post, quemLe, portao);
 
   // SEM EFEITO PARA RESSINCRONIZAR O ESTADO, e a ausência é o conserto: quem
@@ -670,6 +681,9 @@ export function EditorDoPost({
         <div className="border-border border-t pt-4">
           <CorrenteDoPost
             etapas={etapas}
+            caixinhas={caixinhas}
+            postId={post.id}
+            aprovacoesDoCliente={aprovacoesDoCliente}
             quemSou={quemLe.id}
             ehGestao={quemLe.ehGestor}
           />

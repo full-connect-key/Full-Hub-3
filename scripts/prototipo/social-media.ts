@@ -15,17 +15,18 @@
  * largura, e ela so aparece com mais de um.
  */
 import type {
-  EtapaDeSocialMinha as EtapaMinhaReal,
   PostDaAgencia as PostReal,
   ReferenciaDoPost as ReferenciaReal,
   VersaoDoPost as VersaoReal,
 } from "../../src/lib/dados/social-media";
-import type { EtapaDoPost } from "../../src/lib/dominio/posts";
+import type { CaixinhaDoPost, EtapaDoMes } from "../../src/lib/dominio/posts";
 
 export type PostDaAgencia = PostReal;
 export type VersaoDoPost = VersaoReal;
-export type EtapaDeSocialMinha = EtapaMinhaReal;
 export type ReferenciaDoPost = ReferenciaReal;
+
+const MES_DE_NOVEMBRO = "t-social-nov";
+const MES_DA_OPTICA = "t-social-nov-optica";
 
 const VERDE = "c0000000-0000-0000-0000-00000000000a";
 const PRODUTOR = "a0000000-0000-0000-0000-000000000005"; // o colaborador do prototipo
@@ -66,6 +67,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: "Marina Costa",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    socialTaskId: MES_DE_NOVEMBRO,
     avalInterno: false,
     esperandoCliente: false,
     programado: false,
@@ -92,6 +94,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: "Marina Costa",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    socialTaskId: MES_DE_NOVEMBRO,
     avalInterno: false,
     esperandoCliente: false,
     programado: false,
@@ -118,6 +121,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: "Bruno Lima",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    socialTaskId: MES_DE_NOVEMBRO,
     avalInterno: true,
     esperandoCliente: false,
     programado: false,
@@ -144,6 +148,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: null,
     criadoPor: "a2",
     criadorNome: "Diego Alves",
+    socialTaskId: MES_DE_NOVEMBRO,
     avalInterno: false,
     esperandoCliente: false,
     programado: false,
@@ -170,6 +175,16 @@ const POSTS: PostDaAgencia[] = [
     responsavel: null,
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    // O POST AVULSO, sem mês: é o estado de quem abre pela ação "Novo post" e
+    // não por `abrir_mes_de_social()`. Sem ele, nenhuma imagem mostra o editor
+    // sem a corrente — e aquele ramo é o que mantém de pé o post anterior à
+    // 0045, com um envio e uma decisão.
+    //
+    // **E ele NÃO é o post programado**, que é a outra metade: o selo sai da
+    // caixinha da última etapa do MÊS, e um post sem mês não tem etapa nenhuma
+    // onde a marca pudesse morar. Com o avulso carregando o selo, a imagem
+    // mostraria um estado que a consulta de verdade não produz.
+    socialTaskId: null,
     avalInterno: false,
     esperandoCliente: false,
     programado: false,
@@ -196,6 +211,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: "Ana Souza",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    socialTaskId: MES_DA_OPTICA,
     avalInterno: true,
     esperandoCliente: true,
     programado: false,
@@ -222,6 +238,7 @@ const POSTS: PostDaAgencia[] = [
     responsavel: "Bruno Lima",
     criadoPor: "a1",
     criadorNome: "Ana Souza",
+    socialTaskId: MES_DA_OPTICA,
     avalInterno: true,
     esperandoCliente: false,
     programado: true,
@@ -276,7 +293,17 @@ export async function obterPostDaAgencia(id: string) {
   return {
     post,
     versoes: post.midia === "carrossel" ? VERSOES : VERSOES.slice(1),
-    etapas: CORRENTE,
+    // O POST AVULSO ABRE SEM CORRENTE, e e o ramo que o stub tem que
+    // reproduzir: sem mes nao ha etapa nenhuma, e o editor volta a se
+    // comportar como um post anterior a 0045. Devolvendo a corrente para
+    // todos, a imagem mostraria a lista num post que nao a tem.
+    etapas: post.socialTaskId ? CORRENTE : [],
+    caixinhas: post.socialTaskId ? CAIXINHAS.map((c) => ({ ...c, postId: post.id })) : [],
+    // UMA APROVACAO JA DADA: a Pauta. E o que faz o botao de envio dizer
+    // "Enviar ao cliente" em vez de "Enviar a Pauta ao cliente" -- com zero,
+    // o portao da vez seria a Pauta de novo, que ja esta aprovada na caixinha
+    // acima, e a imagem mostraria dois fatos que se contradizem.
+    aprovacoesDoCliente: post.socialTaskId ? 1 : 0,
     referencias: REFERENCIAS,
   };
 }
@@ -314,212 +341,173 @@ export async function referenciasDoPost(
 }
 
 /**
- * A CORRENTE COM SEIS ETAPAS, e nao com as cinco do padrao: a sexta e a de
- * Ajustes, que so nasce quando o cliente pede -- e e justamente ela que a
- * imagem precisa mostrar, porque e o unico elo que nao esta em nenhuma tela de
- * configuracao. Com cinco, a imagem provaria o caso fácil.
+ * A CORRENTE DO MES, com cinco etapas e as caixinhas de um post (0088).
  *
- * E o Envio entra EM CURSO, nao em branco: e o estado em que o selo troca o
- * seletor e a razao aparece escrita embaixo. Uma corrente toda "nao iniciada"
- * nao desenha nada disso.
+ * -------------------------------------------------------------------------
+ * **ERAM SEIS ETAPAS DO POST, e agora sao cinco DO MES.** A sexta era a de
+ * Ajustes, que nascia entre o Envio e o Programar quando o cliente pedia --
+ * e ela nao existe mais: com a etapa sendo do mes, criar uma "Ajustes" por
+ * pedido afirmaria que o mes inteiro voltou por causa de uma peca.
+ *
+ * O que entrou no lugar dela, e e o que esta imagem precisa provar, e a
+ * `observacao` da caixinha: o pedido do cliente sobre AQUELE post, escrito
+ * por `posts_corrente_do_cliente` no instante da recusa.
+ * -------------------------------------------------------------------------
+ *
+ * Os estados sao escolhidos para a imagem mostrar as quatro linhas que o
+ * componente sabe desenhar, e nao o caso fácil:
+ *
+ *   - a Pauta e PORTAO DO CLIENTE (0076), e e o unico elo com a marca: ela
+ *     existe para o selo aparecer. Marcar todas poria na imagem uma conta que
+ *     aprova cinco vezes, que nao e o caso comum;
+ *   - o Layout tem a caixinha DESMARCADA COM OBSERVACAO -- o post voltou;
+ *   - a entrega sai sem caixa, com a razao escrita: ela nao se marca a mao;
+ *   - e o ultimo elo fica bloqueado, que e a linha da trava da corrente.
+ *
+ * E o "12 de 18" de cada etapa nao bate com `feitos`/`total` das irmas de
+ * proposito: o mes tem dezoito pecas e esta imagem mostra uma.
  */
-const CORRENTE: EtapaDoPost[] = [
+const CORRENTE: EtapaDoMes[] = [
   {
     id: "e1",
     ordem: 10,
-    nome: "Pauta",
-    funcao: "Social Media",
+    titulo: "Pauta",
     responsavelId: PRODUTOR,
     responsavel: "Marina Costa",
     status: "concluida",
-    prazo: dia(10),
-    concluidaEm: dia(10),
-    // A PAUTA E PORTAO DO CLIENTE (0076), e e o unico elo do stub que carrega
-    // a marca: ela existe para a imagem mostrar o selo que so aparece nas
-    // contas que aprovam a pauta. Marcar todas poria na imagem uma conta que
-    // aprova cinco vezes, que nao e o caso comum.
-    aprovacaoCliente: true,
+    dataInicio: dia(2),
+    prazo: dia(5),
+    estimativaMinutos: 240,
+    papel: "producao",
+    campo: "pauta",
+    portao: true,
+    avisoGeracao: null,
+    feitos: 18,
+    total: 18,
   },
   {
     id: "e2",
     ordem: 20,
-    nome: "Conteúdo",
-    funcao: "Redator",
+    titulo: "Conteúdo",
     responsavelId: "a0000000-0000-0000-0000-000000000003",
     responsavel: "Carla Dias",
     status: "concluida",
+    dataInicio: dia(5),
     prazo: dia(12),
-    concluidaEm: dia(12),
-    aprovacaoCliente: false,
+    estimativaMinutos: 480,
+    papel: "producao",
+    campo: "legenda",
+    portao: false,
+    avisoGeracao: null,
+    feitos: 18,
+    total: 18,
   },
   {
     id: "e3",
     ordem: 30,
-    nome: "Layout",
-    funcao: "Design",
+    titulo: "Layout",
     responsavelId: OUTRO,
     responsavel: "Bruno Lima",
-    status: "concluida",
-    prazo: dia(14),
-    concluidaEm: dia(14),
-    aprovacaoCliente: false,
+    status: "em_andamento",
+    dataInicio: dia(12),
+    prazo: dia(20),
+    estimativaMinutos: 960,
+    papel: "producao",
+    campo: null,
+    portao: false,
+    avisoGeracao: null,
+    feitos: 11,
+    total: 18,
   },
-  // `em_ajustes` E NAO `enviada_aprovacao`, e a diferenca nao e detalhe: a
-  // etapa de Ajustes so existe porque o cliente pediu, e nesse instante o
-  // Envio volta para "em ajustes". Um stub com o Envio em aprovacao E UMA
-  // ETAPA DE AJUSTES ao lado desenha um estado que o produto nao alcanca.
   {
     id: "e4",
     ordem: 40,
-    nome: "Envio",
-    funcao: "Gestao",
-    responsavelId: null,
-    responsavel: null,
-    status: "em_ajustes",
-    prazo: null,
-    concluidaEm: null,
-    aprovacaoCliente: false,
+    titulo: "Envio",
+    responsavelId: SOCIO,
+    responsavel: "Ana Souza",
+    status: "em_andamento",
+    dataInicio: null,
+    prazo: dia(25),
+    estimativaMinutos: null,
+    papel: "entrega",
+    campo: null,
+    portao: false,
+    avisoGeracao: null,
+    feitos: 6,
+    total: 18,
   },
   {
     id: "e5",
-    ordem: 41,
-    nome: "Ajustes",
-    funcao: "Design",
-    responsavelId: OUTRO,
-    responsavel: "Bruno Lima",
-    status: "em_andamento",
-    prazo: dia(16),
-    concluidaEm: null,
-    aprovacaoCliente: false,
-  },
-  {
-    id: "e6",
     ordem: 50,
-    nome: "Programar",
-    funcao: "Social Media",
+    titulo: "Programar",
     responsavelId: PRODUTOR,
     responsavel: "Marina Costa",
     status: "nao_iniciada",
-    prazo: dia(17),
-    concluidaEm: null,
-    aprovacaoCliente: false,
+    dataInicio: null,
+    prazo: dia(30),
+    estimativaMinutos: 120,
+    papel: "pos_entrega",
+    campo: null,
+    portao: false,
+    // A FUNCAO SEM DONO AVISA E NUNCA RECUSA (0064), e o aviso NOMEIA a funcao
+    // que faltou: "ha etapa sem responsavel" manda abrir uma por uma. Ele esta
+    // num elo so para a imagem mostrar a linha, e nao em todos -- um mes com
+    // cinco avisos e um mes que ninguem configurou.
+    avisoGeracao: null,
+    feitos: 0,
+    total: 18,
   },
 ];
 
-export async function corrente(_postId: string): Promise<EtapaDoPost[]> {
-  return CORRENTE;
+/**
+ * AS CAIXINHAS DO POST ABERTO.
+ *
+ * O Layout VEM DESMARCADO COM A OBSERVACAO, que e o estado que a imagem
+ * precisa: ele e o que sobrou da etapa de Ajustes da 0045, e e a unica coisa
+ * desta tela que alguem de fora escreveu. Um conjunto todo marcado ou todo em
+ * branco nao desenha nem o pedido nem a caixa desligada.
+ *
+ * E a entrega fica DESMARCADA de proposito: ela fecha com a aprovacao, e
+ * marcada ali a imagem mostraria uma peca aprovada que o cliente ainda esta
+ * olhando -- o post aberto do stub tem `esperandoCliente`.
+ */
+const CAIXINHAS: CaixinhaDoPost[] = [
+  { postId: "p1", etapaId: "e1", concluido: true, observacao: null },
+  { postId: "p1", etapaId: "e2", concluido: true, observacao: null },
+  {
+    postId: "p1",
+    etapaId: "e3",
+    concluido: false,
+    observacao: "O logo ficou pixelado no terceiro slide; e o rodape cortou.",
+  },
+  { postId: "p1", etapaId: "e4", concluido: false, observacao: null },
+  { postId: "p1", etapaId: "e5", concluido: false, observacao: null },
+];
+
+export async function correnteDoMes(_taskId: string): Promise<{
+  etapas: EtapaDoMes[];
+  caixinhas: CaixinhaDoPost[];
+}> {
+  return { etapas: CORRENTE, caixinhas: CAIXINHAS };
 }
 
 /**
- * AS ETAPAS DE SOCIAL EM "MINHAS TASKS", nos TRES NIVEIS.
+ * ---------------------------------------------------------------------------
+ * `minhasEtapasDeSocial()` E O SEU EXEMPLO SAIRAM (0088)
  *
- * O exemplo tem que provar o agrupamento, e por isso ele e desenhado assim:
+ * Eram seis linhas montadas para provar o agrupamento `conta > demanda do mes
+ * > post` em "Minhas Tasks" -- quatro posts do mesmo mes todos com a etapa
+ * "Layout", duas etapas do mesmo post, um post avulso e um sem data. Aquele
+ * agrupamento existia porque a etapa era DO POST: doze posts davam doze linhas
+ * "Layout", e a faixa do mes era a unica coisa que dizia que sao o mesmo
+ * trabalho.
  *
- *   - DUAS CONTAS, senao a imagem mostra um cabecalho de conta e nao prova que
- *     elas se separam -- a licao da pilha de avatares, que sem ninguem mais na
- *     demanda so provava que ela sabe sumir;
- *   - QUATRO POSTS DO MESMO MES na primeira conta, todos com a etapa "Layout":
- *     e o caso que a lista corrida desenhava mal, e o unico em que se ve que o
- *     nome da etapa repete e o post e que distingue as linhas;
- *   - DUAS ETAPAS DO MESMO POST (a Pauta e o Programar do p7 sao as duas de
- *     Social Media): sao duas linhas, e e a decisao do Sprint 10;
- *   - UM POST AVULSO, sem demanda de mes, que e o estado de quem abre pela
- *     acao "Novo post" e nao por `abrir_mes_de_social()`;
- *   - E UM SEM DATA, que e o estado que a 0044 criou.
+ * Com a etapa sendo do mes a etapa de Layout e UMA, e ela e uma subtarefa
+ * comum -- entao ela aparece em Minhas Tasks pelo caminho de toda etapa de
+ * demanda, com o exemplo que `prototipo/minhas-tasks` ja monta, e o chip
+ * "Social Media" conta pela mesma `areaDaLinha()` dos outros dois.
+ * ---------------------------------------------------------------------------
  */
-const DEMANDA_DO_MES = {
-  id: "t-social-nov",
-  titulo: "Social \u00b7 Novembro/2027 de Mundo Verde",
-  mes: "2027-11-01",
-};
-
-const MINHAS: EtapaDeSocialMinha[] = [
-  {
-    ...CORRENTE[2],
-    id: "m1",
-    postId: "p1",
-    nome: "Layout",
-    status: "em_andamento",
-    concluidaEm: null,
-    tema: "1 de 12 \u00b7 Instagram + Facebook",
-    cliente: "Mundo Verde",
-    clienteId: "c-mundo-verde",
-    dataPublicacao: dia(7),
-    demanda: DEMANDA_DO_MES,
-  },
-  {
-    ...CORRENTE[2],
-    id: "m2",
-    postId: "p2",
-    nome: "Layout",
-    status: "nao_iniciada",
-    concluidaEm: null,
-    tema: "2 de 12 \u00b7 Instagram + Facebook",
-    cliente: "Mundo Verde",
-    clienteId: "c-mundo-verde",
-    dataPublicacao: dia(10),
-    demanda: DEMANDA_DO_MES,
-  },
-  {
-    ...CORRENTE[2],
-    id: "m3",
-    postId: "p3",
-    nome: "Layout",
-    status: "nao_iniciada",
-    concluidaEm: null,
-    tema: "3 de 12 \u00b7 Instagram",
-    cliente: "Mundo Verde",
-    clienteId: "c-mundo-verde",
-    dataPublicacao: dia(14),
-    demanda: DEMANDA_DO_MES,
-  },
-  {
-    ...CORRENTE[0],
-    id: "m4",
-    postId: "p7",
-    nome: "Pauta",
-    status: "nao_iniciada",
-    concluidaEm: null,
-    prazo: null,
-    tema: "7 de 12 \u00b7 Instagram + Facebook",
-    cliente: "Mundo Verde",
-    clienteId: "c-mundo-verde",
-    dataPublicacao: null,
-    demanda: DEMANDA_DO_MES,
-  },
-  {
-    ...CORRENTE[4],
-    id: "m5",
-    postId: "p7",
-    nome: "Programar",
-    status: "nao_iniciada",
-    concluidaEm: null,
-    tema: "7 de 12 \u00b7 Instagram + Facebook",
-    cliente: "Mundo Verde",
-    clienteId: "c-mundo-verde",
-    dataPublicacao: null,
-    demanda: DEMANDA_DO_MES,
-  },
-  {
-    ...CORRENTE[2],
-    id: "m6",
-    postId: "p9",
-    nome: "Layout",
-    status: "nao_iniciada",
-    concluidaEm: null,
-    tema: "Lan\u00e7amento da arma\u00e7\u00e3o nova",
-    cliente: "\u00d3ptica Vis\u00e3o",
-    clienteId: "c-optica-visao",
-    dataPublicacao: dia(17),
-    demanda: null,
-  },
-];
-
-export async function minhasEtapasDeSocial(
-  _usuarioId: string,
-): Promise<EtapaDeSocialMinha[]> {
-  return MINHAS;
-}
 
 /** A faixa "sem data ainda" do calendario: quatro, para ela provar o lote. */
 export async function postsSemData(

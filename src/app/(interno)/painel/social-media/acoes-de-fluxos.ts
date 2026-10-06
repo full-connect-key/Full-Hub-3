@@ -135,8 +135,12 @@ export async function salvarFluxoDeSocial(dados: unknown): Promise<Resultado<str
  * é `on delete set null`, então a demanda ficaria apontando para ninguém e
  * ninguém mais saberia com que corrente aquele mês foi aberto.
  *
- * E a corrente dos posts não se perde de qualquer jeito: ela está
- * materializada em `post_etapas` desde que cada post nasceu.
+ * E a corrente dos meses já abertos não se perde de qualquer jeito: desde a
+ * 0088 ela está materializada em `subtasks`, uma etapa por fase, com o papel
+ * de cada elo copiado em `social_papel` no instante em que o mês abriu. É
+ * SNAPSHOT e não uma chave para `social_flow_steps`, pela razão de
+ * `tasks.workflow_snapshot`: editar o fluxo depois não muda nenhum mês que já
+ * está correndo.
  */
 const esquemaDoEstado = z.object({
   flow_id: z.string().uuid(),

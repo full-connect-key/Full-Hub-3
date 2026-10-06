@@ -19,7 +19,6 @@ import {
 } from "@/lib/dados/minhas-tasks";
 import { resumoDaHome } from "@/lib/dados/home";
 import { minhasNovidades } from "@/lib/dados/novidades";
-import { minhasEtapasDeSocial } from "@/lib/dados/social-media";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
 import { saudacaoDaAgencia } from "@/lib/dominio/datas";
@@ -56,7 +55,6 @@ async function Conteudo({
     contadores,
     equipe,
     podeCriarTask,
-    etapasDeSocial,
     novidades,
     correndoAgora,
     resumo,
@@ -67,7 +65,6 @@ async function Conteudo({
     contadoresPessoais(usuarioId, prazos),
     listarEquipeAtiva(),
     souDoAtendimento(),
-    minhasEtapasDeSocial(usuarioId),
     // O SINAL DE "CHEGOU COISA NOVA" (decisão do usuário). Ele lê as
     // notificações por ler desta pessoa e as separa por área pelo endereço —
     // é o sino visto de outro ângulo, e não um estado novo ao lado dele.
@@ -90,7 +87,6 @@ async function Conteudo({
       linhas={montarLinhas(tasks)}
       itensDeCalendario={itensDeCalendario}
       itensDoDia={itensDoDia}
-      etapasDeSocial={etapasDeSocial}
       novidades={novidades}
       contadores={contadores}
       equipe={equipe}

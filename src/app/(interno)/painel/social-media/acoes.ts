@@ -606,80 +606,66 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
   });
 }
 
-const esquemaDaEtapa = z.object({
-  status: z.enum([
-    "nao_iniciada",
-    "em_andamento",
-    "aguardando_informacoes",
-    "enviada_aprovacao",
-    "em_ajustes",
-    "concluida",
-  ]),
-});
-
 /**
- * Mover uma etapa da corrente.
+ * MARCAR O POST NESTA ETAPA DO MÊS (0088).
  *
- * Termina com `.select()`: sem ele um `update` que a RLS barra volta sem erro e
- * sem linha, e a tela diz "salvo" à toa. Se não voltou linha, é recusa — e a
- * mensagem precisa dizer isso.
+ * -------------------------------------------------------------------------
+ * **`moverEtapaDoPost` e `definirDonoDaEtapa` SAÍRAM, e não foram
+ * aposentadas ao lado desta.**
+ *
+ * As duas escreviam em `post_etapas` — a corrente por post, que a 0088
+ * apagou. O que elas faziam continua existindo e mudou de porta: a etapa do
+ * mês é uma SUBTAREFA comum, então mover o andamento dela é o seletor de
+ * status de sempre e passá-la adiante é o campo de responsável da etapa, em
+ * Gestão de Tasks, com as travas da 0007 valendo e o cronômetro correndo.
+ *
+ * Mantê-las aqui apontando para as mesmas colunas de `subtasks` daria duas
+ * portas para o mesmo fato, e a que divergisse seria esta — a que quase
+ * ninguém exercita. É a decisão da 0023.
+ * -------------------------------------------------------------------------
+ *
+ * O que não existia é isto: a etapa é do mês e o trabalho é por peça, então
+ * a pessoa precisa dizer QUAIS posts ela já fez dentro da fase dela. É a
+ * caixinha, e o "12 de 18" do cabeçalho é a soma delas.
+ *
+ * **Quem recusa é `post_etapa_progresso_regras`**, e as duas travas estão lá:
+ * a caixinha da entrega não se marca à mão (ela é consequência da aprovação
+ * daquele post) e nenhuma caixinha fecha com um portão anterior ainda não
+ * aprovado pelo cliente. `bloqueioDaCaixinha()` faz a mesma pergunta na tela,
+ * para a caixa aparecer desligada com a razão escrita em vez de recusar no
+ * clique — a dupla de sempre, e a tela nunca é a trava.
+ *
+ * Termina com `.select()`: sem ele um `update` que a RLS barra volta sem erro
+ * e sem linha, e a tela diz "salvo" à toa. Aqui ela barra de verdade — a
+ * policy de UPDATE aceita a gestão ou quem é dono daquela etapa do mês.
  */
-export async function moverEtapaDoPost(
+export async function marcarPostNaEtapa(
+  postId: string,
   etapaId: string,
-  dados: unknown,
+  concluido: boolean,
 ): Promise<Resultado> {
-  return executarAcao("moverEtapaDoPost", async () => {
+  return executarAcao("marcarPostNaEtapa", async () => {
     await exigirEquipeNaAcao();
-
-    const lido = esquemaDaEtapa.safeParse(dados);
-    if (!lido.success) {
-      return falha(
-        recusaDeValidacao("moverEtapaDoPost", lido.error, dados, "Confira o andamento.", {
-          status: "andamento",
-        }),
-      );
-    }
 
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase
-      .from("post_etapas")
-      .update({ status: lido.data.status })
-      .eq("id", etapaId)
+      .from("post_etapa_progresso")
+      .update({ concluido })
+      .eq("post_id", postId)
+      .eq("subtask_id", etapaId)
       .select("id");
 
     if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
     if (!data || data.length === 0) {
-      return falha("Esta etapa não é sua, e mover a etapa de outra pessoa é da gestão.");
+      return falha(
+        "Esta etapa não é sua, e marcar a etapa de outra pessoa é da gestão.",
+      );
     }
 
     revalidar();
-    return sucesso("Andamento atualizado.");
+    return sucesso(concluido ? "Post marcado nesta etapa." : "Marca desfeita.");
   });
 }
-
-/** Passar uma etapa para alguém. Da gestão — a policy e o trigger recusam o resto. */
-export async function definirDonoDaEtapa(
-  etapaId: string,
-  responsavelId: string | null,
-): Promise<Resultado> {
-  return executarAcao("definirDonoDaEtapa", async () => {
-    await exigirGestorNaAcao();
-
-    const supabase = await criarClienteServidor();
-    const { data, error } = await supabase
-      .from("post_etapas")
-      .update({ responsavel_id: responsavelId })
-      .eq("id", etapaId)
-      .select("id");
-
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
-    if (!data || data.length === 0) return falha("Não foi possível alterar esta etapa.");
-
-    revalidar();
-    return sucesso(responsavelId ? "Etapa passada adiante." : "Etapa sem dono.");
-  });
-}
-
 
 const esquemaDaReferencia = z.object({
   url: z

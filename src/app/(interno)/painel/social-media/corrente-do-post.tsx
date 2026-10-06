@@ -1,62 +1,84 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Lock, Play, UserCheck } from "lucide-react";
+import { Check, Lock, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
-import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
-  bloqueioDaEtapa,
-  etapaDaVez,
-  etapaEsperaOCliente,
-  etapaSeMarcaAMao,
+  andamentoDoMes,
+  bloqueioDaCaixinha,
+  caixinhaSeMarcaAMao,
+  etapaDaVezDoPost,
   rotuloDoEnvio,
-  andamentoDaCorrente,
-  type EtapaDoPost,
+  type CaixinhaDoPost,
+  type EtapaDoMes,
 } from "@/lib/dominio/posts";
 import { ROTULOS_DE_SUBTAREFA } from "@/lib/tasks/state-machine";
 import { cn } from "@/lib/utils";
-import type { SubtaskStatus } from "@/lib/supabase/database.types";
 
-import { moverEtapaDoPost } from "./acoes";
+import { marcarPostNaEtapa } from "./acoes";
 
 /**
- * A corrente de etapas do post (0045).
+ * A corrente do MÊS, vista de dentro de um post (0088).
  *
- * Pauta → Conteúdo → Layout → Envio → Programar, com "Ajustes" entrando entre
- * as duas últimas quando o cliente pede.
+ * -------------------------------------------------------------------------
+ * **O QUE MUDOU: A LINHA É A ETAPA DO MÊS, E O QUE SE MARCA É A CAIXINHA.**
  *
- * **É UMA LISTA VERTICAL E NÃO UM STEPPER HORIZONTAL**, e a razão é o número
- * de etapas somado ao que cada uma carrega: cinco vira seis, sete, oito a cada
- * pedido do cliente, e cada uma precisa mostrar o nome de quem está com ela.
- * Em 375px um stepper de oito passos com nome embaixo dá quarenta pixels por
- * passo — "Marina" vira "Ma…", que não identifica ninguém.
+ * Até a 0087 esta lista era a corrente DO POST: cinco subtarefas por peça,
+ * cada uma com responsável, prazo e seletor de status próprios. Com dezoito
+ * posts isso eram noventa etapas, e a redatora via dezoito linhas "Conteúdo"
+ * vencendo no mesmo dia — dezoito trabalhos onde a frase do usuário descreve
+ * UM: *"a redatora vai ter um dia pra fazer o conteúdo"* do mês todo.
  *
- * **O andamento é o SELETOR, e não um botão de concluir**, como o selo de
- * status de cada etapa no detalhe da Task: quem faz a etapa muda o próprio
- * andamento onde já estava olhando. As duas exceções viram texto e não item
- * desligado — item cinza não diz por quê.
+ * Agora a etapa é do mês e o trabalho é por peça, então a pergunta que esta
+ * tela faz mudou de lado: não é "em que pé está a etapa?" — isso é do mês, e
+ * o seletor de status dela mora em Gestão de Tasks, onde ela é uma subtarefa
+ * comum com cronômetro e as travas da 0007. É **"este post já passou por
+ * ela?"**, e a resposta é uma caixa.
+ *
+ * O seletor de status saiu daqui por isso, e não por simplificação: ele
+ * mudaria o andamento do MÊS a partir do painel de uma peça entre dezoito —
+ * um clique cujo efeito a pessoa não tem como prever olhando esta tela. O
+ * status da etapa fica como SELO, que é honesto: é um fato sobre a fase, e
+ * não uma ação sobre este post.
+ * -------------------------------------------------------------------------
+ *
+ * **É UMA LISTA VERTICAL E NÃO UM STEPPER HORIZONTAL**, e a razão não mudou:
+ * cada linha carrega a caixa, o nome da fase, quem está com ela e o "12 de
+ * 18". Em 375px um stepper de cinco passos com isso embaixo dá setenta pixels
+ * por passo — "Marina" vira "Ma…", que não identifica ninguém.
  */
 export function CorrenteDoPost({
   etapas,
+  caixinhas,
+  postId,
+  aprovacoesDoCliente,
   quemSou,
   ehGestao,
 }: {
-  etapas: EtapaDoPost[];
+  etapas: EtapaDoMes[];
+  caixinhas: CaixinhaDoPost[];
+  postId: string;
+  aprovacoesDoCliente: number;
   quemSou: string;
   ehGestao: boolean;
 }) {
   const [pendente, comecarTransicao] = useTransition();
   const [mexendo, setMexendo] = useState<string | null>(null);
 
-  const vez = etapaDaVez(etapas);
-  const { concluidas, total } = andamentoDaCorrente(etapas);
+  const vez = etapaDaVezDoPost(etapas, caixinhas, postId);
+  const { concluidas, total } = andamentoDoMes(etapas);
+  const marcado = new Map(
+    caixinhas.filter((c) => c.postId === postId).map((c) => [c.etapaId, c]),
+  );
 
-  function mover(etapa: EtapaDoPost, status: SubtaskStatus) {
+  function marcar(etapa: EtapaDoMes, concluido: boolean) {
     setMexendo(etapa.id);
     comecarTransicao(async () => {
-      const r = await chamarAcao(() => moverEtapaDoPost(etapa.id, { status }));
+      const r = await chamarAcao(() =>
+        marcarPostNaEtapa(postId, etapa.id, concluido),
+      );
       setMexendo(null);
       if (r.ok) toast.success(r.mensagem);
       else toast.error(r.error);
@@ -72,24 +94,34 @@ export function CorrenteDoPost({
           id="corrente-titulo"
           className="text-text-secondary text-[11px] font-bold tracking-wider uppercase"
         >
-          Corrente
+          Corrente do mês
         </h3>
+        {/* O ANDAMENTO AQUI É DO MÊS, e o rótulo diz isso. Sem a palavra, "2 de
+            5 fases" numa tela de um post lia como o andamento desta peça — e
+            quem contasse as caixinhas marcadas acharia outro número. */}
         <span className="text-text-muted text-xs tabular-nums">
-          {concluidas} de {total} concluídas
+          {concluidas} de {total} fases do mês
         </span>
       </div>
 
-      {/* CADA ELO É UM CARTÃO SOLTO COM LADRILHO DE ÍCONE, e é o desenho do
-          "Precisa de mim" da Home aplicado aqui: cada etapa é o trabalho de
-          uma pessoa diferente, e num contêiner com fios o que se lê primeiro é
-          a caixa. O ladrilho quadrado troca o círculo de antes pelo mesmo
-          formato que o produto usa para dizer "isto é uma linha sobre a qual
-          alguém decide". */}
+      {/* CADA ELO É UM CARTÃO SOLTO COM A CAIXA À ESQUERDA, e a caixa ocupa o
+          lugar do ladrilho de ícone de antes: ali ele era decoração que
+          repetia o status, e aqui é a única coisa desta tela sobre a qual
+          alguém decide. */}
       <ol className="space-y-2">
         {etapas.map((etapa) => {
-          const bloqueio = bloqueioDaEtapa(etapa, etapas);
+          const caixinha = marcado.get(etapa.id);
+          const feito = caixinha?.concluido ?? false;
+          const bloqueio = bloqueioDaCaixinha(
+            etapa,
+            etapas,
+            caixinhas,
+            postId,
+            aprovacoesDoCliente,
+          );
           const minha = etapa.responsavelId === quemSou;
-          const podeMover = (minha || ehGestao) && etapaSeMarcaAMao(etapa) && !bloqueio;
+          const aMao = caixinhaSeMarcaAMao(etapa);
+          const podeMarcar = (minha || ehGestao) && aMao && !bloqueio;
           const eADaVez = vez?.id === etapa.id;
 
           return (
@@ -97,7 +129,7 @@ export function CorrenteDoPost({
               key={etapa.id}
               className={cn(
                 "rounded-card shadow-cartao border px-3 py-2.5 transition-colors",
-                etapa.status === "concluida"
+                feito
                   ? "border-border bg-muted"
                   : eADaVez
                     ? "border-accent-strong bg-blue-soft"
@@ -105,38 +137,51 @@ export function CorrenteDoPost({
               )}
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span
-                  className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs",
-                    etapa.status === "concluida"
-                      ? "bg-success-soft text-success"
-                      : bloqueio
-                        ? "bg-muted text-text-muted"
-                        : "bg-action-soft text-action-text",
-                  )}
-                  aria-hidden
-                >
-                  {etapa.status === "concluida" ? (
-                    <Check className="size-4" />
-                  ) : bloqueio ? (
-                    <Lock className="size-3.5" />
-                  ) : (
-                    <Play className="size-3.5" />
-                  )}
-                </span>
+                {podeMarcar ? (
+                  /* Checkbox nativo, como no resto do produto: o Radix traria
+                     uma dependência inteira para um controle que o navegador
+                     já faz bem, e `accent-brand` já o pinta com a cor da
+                     marca. */
+                  <input
+                    type="checkbox"
+                    className="accent-brand size-4 shrink-0"
+                    checked={feito}
+                    disabled={pendente && mexendo === etapa.id}
+                    onChange={(e) => marcar(etapa, e.target.checked)}
+                    aria-label={
+                      feito
+                        ? `Desmarcar este post em ${etapa.titulo}`
+                        : `Marcar este post em ${etapa.titulo}`
+                    }
+                  />
+                ) : (
+                  /* SEM A CAIXA DESLIGADA, e isto é regra deste produto: uma
+                     caixa cinza não diz por quê. O que entra é o estado — o
+                     visto de quem já passou, o cadeado de quem não pode —, e a
+                     razão vai escrita na linha de baixo. */
+                  <span
+                    className={cn(
+                      "flex size-4 shrink-0 items-center justify-center rounded-md",
+                      feito ? "bg-success-soft text-success" : "bg-muted text-text-muted",
+                    )}
+                    aria-hidden
+                  >
+                    {feito ? <Check className="size-3" /> : <Lock className="size-2.5" />}
+                  </span>
+                )}
 
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className="text-text-primary text-sm font-bold tracking-[-0.01em]">
-                      {etapa.nome}
+                      {etapa.titulo}
                     </span>
-                    {/* O SELO DIZ QUE ESTA ETAPA SAI DA AGÊNCIA (0076), e é a
-                        informação que muda o que a pessoa faz: ela produz a
-                        pauta e para — não conclui, envia. Sem o selo, a única
-                        pista seria a recusa do banco no clique de concluir, e
-                        descobrir uma regra levando "não" é o que este produto
-                        evita desde o botão desligado com a razão escrita. */}
-                    {etapaEsperaOCliente(etapa) ? (
+                    {/* O SELO DIZ QUE ESTA FASE SAI DA AGÊNCIA (0076), e é a
+                        informação que muda o que a pessoa faz: ela escreve a
+                        pauta e para — não marca, envia. Sem o selo, a única
+                        pista seria a recusa do banco no clique, e descobrir uma
+                        regra levando "não" é o que este produto evita desde o
+                        botão desligado com a razão escrita. */}
+                    {etapa.portao ? (
                       <span
                         className="bg-warning-soft text-warning inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
                         title="Esta conta pede o aval do cliente nesta etapa."
@@ -146,59 +191,61 @@ export function CorrenteDoPost({
                       </span>
                     ) : null}
                   </span>
-                  {/* A FUNÇÃO E A PESSOA, e não só a pessoa: "Design" é o que a
-                      etapa é, e o nome é quem está com ela hoje. Sem o nome,
-                      ninguém sabe a quem perguntar; sem a função, a etapa sem
-                      dono não diz nem que tipo de gente ela espera. */}
+                  {/* QUEM ESTÁ COM A FASE E O ANDAMENTO DELA. O "12 de 18" é o
+                      contexto que faltava: a minha caixinha é uma de dezoito, e
+                      sem o total a pessoa não sabe se é a primeira ou a última
+                      da fila da própria fase. */}
                   <span className="text-text-secondary block text-xs">
-                    {etapa.funcao}
-                    {etapa.responsavel ? ` · ${etapa.responsavel}` : " · sem dono"}
+                    {etapa.responsavel ?? "sem dono"}
+                    {etapa.total > 0 ? ` · ${etapa.feitos} de ${etapa.total}` : ""}
                   </span>
                 </span>
 
-                {podeMover ? (
-                  <SeletorDeStatusDaSubtarefa
-                    status={etapa.status}
-                    podeEditar={!(pendente && mexendo === etapa.id)}
-                    aoMudar={(status) => mover(etapa, status)}
-                    compacto
-                  />
-                ) : (
-                  <span className="text-text-secondary bg-muted rounded-lg px-2 py-1 text-xs">
-                    {ROTULOS_DE_SUBTAREFA[etapa.status]}
-                  </span>
-                )}
+                {/* O STATUS DA FASE É SELO E NUNCA SELETOR, e é honesto: ele é
+                    do mês, calculado pelo trabalho das dezoito peças, e mexer
+                    nele daqui mudaria a fase a partir de uma delas. */}
+                <span className="text-text-secondary bg-muted rounded-lg px-2 py-1 text-xs">
+                  {ROTULOS_DE_SUBTAREFA[etapa.status]}
+                </span>
               </div>
 
-              {/* A RAZÃO FICA ESCRITA, e não num item desligado do seletor.
-                  Esta tela aprendeu isso com o seletor de status da etapa de
-                  demanda: quem recusa é o banco, e a recusa dele diz o
-                  caminho. */}
-              {bloqueio ? (
-                <p className="text-text-muted mt-1.5 pl-11 text-xs">{bloqueio}</p>
-              ) : !etapaSeMarcaAMao(etapa) ? (
-                <p className="text-text-muted mt-1.5 pl-11 text-xs">
-                  Acompanha a decisão do cliente — use a ação Enviar ao cliente.
-                </p>
-              ) : etapaEsperaOCliente(etapa) && etapa.status !== "concluida" ? (
-                /* O SELETOR CONTINUA AQUI, e a frase diz onde ele para: quem
-                   escreve a pauta marca "em andamento" e trabalha; quem fecha
-                   esta etapa é a decisão de fora. Trocar o seletor por um selo
-                   travaria a primeira etapa da corrente para sempre.
+              {/* O PEDIDO DO CLIENTE VEM PRIMEIRO, e é a única coisa desta tela
+                  que alguém de fora escreveu.
 
-                   **E ela SOME quando a etapa fecha**, que foi o que a imagem
-                   do protótipo mostrou: instrução em cima de coisa que já
-                   aconteceu é ruído na linha que a pessoa lê para saber o que
-                   fazer agora. O SELO fica — ele não manda fazer nada, diz que
-                   aquela etapa passou pelo cliente, e isso continua sendo um
-                   fato sobre ela depois de fechada.
+                  Ele é o que sobrou da etapa de Ajustes da 0045: com a etapa
+                  sendo do mês, criar uma "Ajustes" por pedido afirmaria que o
+                  mês inteiro voltou por causa de uma peça. Quem escreve é
+                  `posts_corrente_do_cliente`, no instante da recusa, e ele
+                  aparece aqui porque é aqui que quem refaz vai olhar — não na
+                  rodada, que a tela de produção não mostra. */}
+              {caixinha?.observacao ? (
+                <p className="text-warning bg-warning-soft rounded-card mt-1.5 ml-8 px-2 py-1.5 text-xs">
+                  O cliente pediu: {caixinha.observacao}
+                </p>
+              ) : null}
+
+              {/* A RAZÃO FICA ESCRITA, e não numa caixa desligada. Esta tela
+                  aprendeu isso com o seletor de status da etapa de demanda:
+                  quem recusa é o banco, e a recusa dele diz o caminho. */}
+              {bloqueio ? (
+                <p className="text-text-muted mt-1.5 ml-8 text-xs">{bloqueio}</p>
+              ) : !aMao ? (
+                /* A CAIXINHA DA ENTREGA É CONSEQUÊNCIA DA APROVAÇÃO, nunca da
+                   mão de ninguém — a regra da 0045 um nível abaixo. Marcar
+                   afirmaria que a peça foi e voltou aprovada sem nada ter
+                   saído da agência.
 
                    O nome do botão sai de `rotuloDoEnvio`, e não escrito aqui:
                    a instrução e o botão que ela manda apertar divergiriam na
                    primeira vez que alguém mexesse num dos dois. */
-                <p className="text-text-muted mt-1.5 pl-11 text-xs">
-                  Quem fecha esta etapa é o cliente — use a ação{" "}
+                <p className="text-text-muted mt-1.5 ml-8 text-xs">
+                  Fecha com a aprovação do cliente — use a ação{" "}
                   {rotuloDoEnvio(etapa)}.
+                </p>
+              ) : etapa.portao && !feito ? (
+                <p className="text-text-muted mt-1.5 ml-8 text-xs">
+                  Marque quando terminar esta peça; quem fecha a fase com o
+                  cliente é a ação {rotuloDoEnvio(etapa)}.
                 </p>
               ) : null}
             </li>
@@ -209,14 +256,25 @@ export function CorrenteDoPost({
   );
 }
 
-/** O resumo de uma linha, para o cartão da lista e o card do calendário. */
-export function ResumoDaCorrente({ etapas }: { etapas: EtapaDoPost[] }) {
-  const vez = etapaDaVez(etapas);
-  if (!vez) return null;
-  return (
-    <span className="text-text-secondary text-xs">
-      {vez.nome}
-      {vez.responsavel ? ` · ${vez.responsavel}` : ""}
-    </span>
-  );
-}
+/**
+ * ---------------------------------------------------------------------------
+ * `ResumoDaCorrente` SAIU, e ela nunca teve chamador nenhum.
+ *
+ * Ela dizia, no próprio comentário, que era "o resumo de uma linha, para o
+ * cartão da lista e o card do calendário" — e nenhuma das duas telas a
+ * importava, em nenhum momento desde que ela nasceu. Era uma promessa escrita
+ * ao lado de código que o produto não executava, que é a classe de coisa que
+ * alguém lê três sprints depois como se fosse verdade.
+ *
+ * **E não foi mantida ao lado da `CorrenteDoPost` nova**, que é a decisão da
+ * 0023: a fase da vez de uma peça pede as caixinhas DELA
+ * (`etapaDaVezDoPost()`), e a lista do mês tem até duzentas linhas — carregar
+ * noventa caixinhas para escrever uma palavra por cartão é exatamente o que a
+ * consulta do selo "Programado" existe para não fazer. O que a linha já diz é
+ * a MÃO do post, que é derivada das colunas dele e não custa consulta
+ * nenhuma.
+ *
+ * Se um dia a lista precisar da fase por peça, o caminho é uma consulta em
+ * bloco das caixinhas dos posts da página — não este componente de volta.
+ * ---------------------------------------------------------------------------
+ */

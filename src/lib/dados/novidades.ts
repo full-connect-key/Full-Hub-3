@@ -13,9 +13,9 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * **O SINAL É O SINO, LIDO DE OUTRO ÂNGULO — e não um estado novo.**
  *
  * "Algo novo é meu nessas áreas" já é um fato gravado: `posts_avisa_responsavel`
- * toca o sino quando a gestão libera um post, `post_etapas` avisa quem ganhou
- * uma etapa da corrente, e a decisão do cliente numa peça de campanha avisa
- * quem a produziu. O que faltava não era o fato — era ele aparecer na tela em
+ * toca o sino quando a gestão libera um post, `subtasks_avisa_dono_da_etapa_do_mes`
+ * avisa quem ganhou uma fase da corrente do mês, e a decisão do cliente numa
+ * peça de campanha avisa quem a produziu. O que faltava não era o fato — era ele aparecer na tela em
  * que a pessoa trabalha, em vez de só num sino que ela abre por hábito.
  *
  * A alternativa era uma coluna `visto_em` por pessoa e por área, e ela criaria

@@ -303,7 +303,8 @@ export function AbrirOMes({
   // direto.
   // UMA ETAPA INVERTIDA DESLIGA O BOTÃO, e não deixa a recusa chegar depois de
   // dez campos preenchidos. Quem recusa de verdade é a função — e, para quem
-  // montar a chamada à mão, o `check` `post_etapas_periodo` da tabela.
+  // montar a chamada à mão, o `check` `subtasks_periodo` da tabela (0027),
+  // porque desde a 0088 a etapa do mês é uma subtarefa como qualquer outra.
   const periodoInvertido = etapasDoFluxo.some((e) => {
     const p = prazos[e.nome];
     return !!p && p.inicio !== "" && p.fim !== "" && p.inicio > p.fim;

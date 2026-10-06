@@ -169,9 +169,29 @@ export const ICONE_DA_AREA: Record<AreaDeTrabalho, LucideIcon> = {
  * escrever; indo por `task → campaign`, a etapa de uma campanha aberta sem
  * entregável responderia "campanha" — e ela não é peça de nada.
  *
- * A etapa de social não passa por aqui: ela é outro tipo, com outra lista.
+ * -------------------------------------------------------------------------
+ * **E A ETAPA DE SOCIAL PASSA POR AQUI DESDE A 0088**, que é a mudança.
+ *
+ * Até ela a corrente do social era de `post_etapas`, uma tabela própria com
+ * um vocabulário próprio: a etapa de post não tinha rodada, nem dependência
+ * cadastrada, nem cronômetro, então ela não cabia em `SubtarefaDetalhada` e
+ * tinha BLOCO PRÓPRIO nesta tela — *"o molde errado mente com mais convicção
+ * que a ausência"*.
+ *
+ * Com a etapa sendo do mês ela é uma subtarefa comum, com responsável, prazo,
+ * estimativa, cronômetro e as travas da 0007. Então ela entra na lista de
+ * sempre, e o que a área precisa dizer é só de onde ela vem — para o chip
+ * contar e o cabeçalho da Lista nomear.
+ *
+ * **A pergunta é `social_papel`, nunca o título nem o caminho pela demanda.**
+ * Pelo caminho longo (`task.social_do_mes`), uma etapa acrescentada à mão na
+ * demanda do mês — *"Conferir os direitos de imagem"* — responderia "social"
+ * sendo uma etapa de demanda comum; e pelo título, um fluxo que chame a fase
+ * de outra coisa deixaria a área vazia sem erro em lugar nenhum.
+ * -------------------------------------------------------------------------
  */
 export function areaDaLinha(linha: LinhaPessoal): AreaDeTrabalho {
+  if (linha.subtarefa.social_papel) return "social";
   return linha.subtarefa.campanha ? "campanhas" : "demandas";
 }
 

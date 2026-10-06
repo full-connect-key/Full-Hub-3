@@ -1,7 +1,11 @@
 import "server-only";
 
 import { assinarArquivos, nomesDe } from "@/lib/dados/conteudo";
-import { deslocarMes, type EtapaDoPost } from "@/lib/dominio/posts";
+import {
+  deslocarMes,
+  type CaixinhaDoPost,
+  type EtapaDoMes,
+} from "@/lib/dominio/posts";
 import { ouFalha } from "./consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
@@ -30,7 +34,7 @@ const BUCKET = "posts-artes";
 // String literal, e nao concatenacao: o supabase-js tipa o retorno a partir do
 // TEXTO do select, e um `+` no meio apaga esse tipo.
 // prettier-ignore
-const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataformas, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, subtask_id";
+const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataformas, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, social_task_id";
 
 export type PostDaAgencia = {
   id: string;
@@ -64,22 +68,36 @@ export type PostDaAgencia = {
   /** Há rodada de cliente esperando decisão. */
   esperandoCliente: boolean;
   /**
+   * A DEMANDA DO MÊS DE SOCIAL deste post (0088).
+   *
+   * Nula no post avulso, e é caso normal: quem clica em "Novo post" não passa
+   * por `abrir_mes_de_social()`, então não há mês a nomear nem corrente a
+   * carregar — ele volta a se comportar como um post anterior à 0045.
+   */
+  socialTaskId: string | null;
+  /**
    * O post já foi programado? (decisão do usuário)
    *
    * ---------------------------------------------------------------------
-   * **É DERIVADO DA ETAPA "Programar", e não uma coluna nova.**
+   * **É DERIVADO DA CAIXINHA DA ÚLTIMA ETAPA, e não uma coluna nova.**
    *
    * O pedido foi *"que o social media possa marcar em algum lugar dentro da
    * parte interna de social, se o post já foi programado ou não"* — e o
-   * lugar já existia desde a 0045: concluir a etapa Programar é exatamente
-   * isso. O que faltava era ela ser um FATO VISÍVEL sobre o post, e não uma
-   * linha dentro de um painel que só abre quando alguém clica nele.
+   * lugar já existia desde a 0045: fechar o último elo da corrente é
+   * exatamente isso. O que faltava era ele ser um FATO VISÍVEL sobre o post,
+   * e não uma linha dentro de um painel que só abre quando alguém clica
+   * nele.
    *
-   * Uma coluna `programado` ao lado da etapa criaria duas verdades sobre o
-   * mesmo fato, e elas divergiriam no primeiro pedido de ajustes do cliente
-   * — que reabre a corrente e não teria como reabrir a coluna. É a mesma
-   * razão pela qual bloqueio de subtarefa não é status, atraso do
-   * Financeiro não é coluna e a mão do post não é gravada.
+   * Uma coluna `programado` ao lado criaria duas verdades sobre o mesmo
+   * fato, e elas divergiriam no primeiro pedido de ajustes do cliente — que
+   * desmarca a caixinha e não teria como desmarcar a coluna. É a mesma razão
+   * pela qual bloqueio de subtarefa não é status, atraso do Financeiro não é
+   * coluna e a mão do post não é gravada.
+   *
+   * **A pergunta é pelo PAPEL `pos_entrega`, nunca pelo nome "Programar"**
+   * (0087): a corrente é editável por conta, e um fluxo que chame esse elo
+   * de "Agendar na rede" deixaria o selo apagado para sempre — sem erro em
+   * lugar nenhum, que é o modo de falha desta casa.
    * ---------------------------------------------------------------------
    */
   programado: boolean;
@@ -105,7 +123,7 @@ type Linha = {
   enviado_em: string | null;
   responsavel_id: string | null;
   criado_por: string | null;
-  subtask_id: string | null;
+  social_task_id: string | null;
 };
 
 async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
@@ -114,51 +132,71 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
   const supabase = await criarClienteServidor();
   const ids = linhas.map((l) => l.id);
 
-  const [
-    { data: clientes },
-    nomes,
-    assinadas,
-    { data: rodadas },
-    { data: etapasDeProgramar },
-  ] = await Promise.all([
-    supabase
-      .from("clients")
-      .select("id, nome_empresa")
-      .in("id", [...new Set(linhas.map((l) => l.client_id))]),
-    nomesDe([
-      ...linhas.map((l) => l.responsavel_id),
-      ...linhas.map((l) => l.criado_por),
-    ]),
-    assinarArquivos(
-      BUCKET,
-      linhas.map((l) => l.thumbnail_url ?? l.arte_url),
+  // AS ETAPAS `pos_entrega` DOS MESES DESTES POSTS, para o selo "Programado".
+  //
+  // Duas idas e nunca um embutido: o PostgREST recusa o `select` INTEIRO
+  // quando não resolve a relação pelo nome escrito, e foi assim que uma
+  // campanha recém-criada não apareceu em lugar nenhum. É a mesma decisão do
+  // nome da campanha na faixa de novidades.
+  //
+  // E só a `pos_entrega`: as outras interessam ao painel do post aberto, e
+  // trazer a corrente inteira de dez meses para desenhar um selo é pagar caro
+  // por um booleano.
+  const mesesDosPosts = [
+    ...new Set(
+      linhas.map((l) => l.social_task_id).filter((i): i is string => !!i),
     ),
-    // AS RODADAS DE TODOS OS POSTS NUMA CONSULTA SÓ. Uma por post seria uma
-    // consulta por linha do calendário — e o mês cheio tem trinta.
-    supabase
-      .from("approval_rounds")
-      .select("content_id, escopo, status, numero_rodada")
-      .eq("content_type", "post")
-      .in("content_id", ids),
-    // A ETAPA "Programar" DE TODOS OS POSTS, na mesma ida. Uma consulta por
-    // post seria uma por linha do calendário — o mesmo argumento das rodadas
-    // logo acima. Só a dela: as outras quatro interessam ao painel do post
-    // aberto, e trazer a corrente inteira de trinta posts para desenhar um
-    // selo é pagar caro por um booleano.
-    supabase
-      .from("post_etapas")
-      .select("post_id, status")
-      .eq("nome", "Programar")
-      .in("post_id", ids),
-  ]);
+  ];
+  const ultimasEtapas = mesesDosPosts.length
+    ? ouFalha(
+        "a última etapa dos meses de social",
+        await supabase
+          .from("subtasks")
+          .select("id")
+          .in("task_id", mesesDosPosts)
+          .eq("social_papel", "pos_entrega"),
+      )
+    : [];
+
+  const [{ data: clientes }, nomes, assinadas, { data: rodadas }, marcadas] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id, nome_empresa")
+        .in("id", [...new Set(linhas.map((l) => l.client_id))]),
+      nomesDe([
+        ...linhas.map((l) => l.responsavel_id),
+        ...linhas.map((l) => l.criado_por),
+      ]),
+      assinarArquivos(
+        BUCKET,
+        linhas.map((l) => l.thumbnail_url ?? l.arte_url),
+      ),
+      // AS RODADAS DE TODOS OS POSTS NUMA CONSULTA SÓ. Uma por post seria uma
+      // consulta por linha do calendário — e o mês cheio tem trinta.
+      supabase
+        .from("approval_rounds")
+        .select("content_id, escopo, status, numero_rodada")
+        .eq("content_type", "post")
+        .in("content_id", ids),
+      ultimasEtapas.length
+        ? supabase
+            .from("post_etapa_progresso")
+            .select("post_id")
+            .in("post_id", ids)
+            .in(
+              "subtask_id",
+              ultimasEtapas.map((e) => e.id),
+            )
+            .eq("concluido", true)
+        : Promise.resolve({ data: [] as { post_id: string }[], error: null }),
+    ]);
 
   const nomeDoCliente = new Map(
     (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
   );
   const programados = new Set(
-    (etapasDeProgramar ?? [])
-      .filter((e) => e.status === "concluida")
-      .map((e) => e.post_id),
+    (marcadas.data ?? []).map((m) => m.post_id),
   );
   const porPost = new Map<
     string,
@@ -199,6 +237,7 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
         : null,
       criadoPor: l.criado_por,
       criadorNome: l.criado_por ? (nomes.get(l.criado_por) ?? null) : null,
+      socialTaskId: l.social_task_id,
       avalInterno: minhas.some(
         (r) =>
           r.escopo === "interna" &&
@@ -306,7 +345,18 @@ export type VersaoDoPost = {
 export async function obterPostDaAgencia(id: string): Promise<{
   post: PostDaAgencia;
   versoes: VersaoDoPost[];
-  etapas: EtapaDoPost[];
+  /** As etapas do MÊS deste post. Vazio no post avulso, que não tem mês. */
+  etapas: EtapaDoMes[];
+  /** As caixinhas DESTE post, uma por etapa do mês. */
+  caixinhas: CaixinhaDoPost[];
+  /**
+   * Quantas rodadas de cliente deste post já foram APROVADAS.
+   *
+   * É o `k` de `portaoDoPost()` — pendente, recusada e rejeitada não contam,
+   * que é a regra da 0023: pedir aprovação não é ter aprovação. Sai das
+   * rodadas que `montar()` já leu, sem consulta nova.
+   */
+  aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
 } | null> {
   const supabase = await criarClienteServidor();
@@ -321,7 +371,26 @@ export async function obterPostDaAgencia(id: string): Promise<{
   );
   if (!data) return null;
 
-  const [post] = await montar([data as Linha]);
+  const linha = data as Linha;
+  const [post] = await montar([linha]);
+
+  // As rodadas de cliente já aprovadas: a conta de `portaoDoPost()`. Consulta
+  // própria e não um campo em `montar()` — o calendário do mês desenha trinta
+  // cartões e nenhum deles pergunta em que portão cada post está.
+  const aprovadas = ouFalha(
+    "as rodadas de cliente do post",
+    await supabase
+      .from("approval_rounds")
+      .select("id")
+      .eq("content_type", "post")
+      .eq("content_id", id)
+      .eq("escopo", "cliente")
+      .eq("status", "aprovada"),
+  );
+
+  const corrente = linha.social_task_id
+    ? await correnteDoMes(linha.social_task_id)
+    : { etapas: [], caixinhas: [] };
 
   const versoes = ouFalha(
     "as versões do post",
@@ -343,7 +412,9 @@ export async function obterPostDaAgencia(id: string): Promise<{
 
   return {
     post,
-    etapas: await corrente(id),
+    etapas: corrente.etapas,
+    caixinhas: corrente.caixinhas.filter((c) => c.postId === id),
+    aprovacoesDoCliente: aprovadas.length,
     referencias: await referenciasDoPost(id),
     versoes: versoes.map((v) => ({
       id: v.id,
@@ -365,208 +436,126 @@ export async function obterPostDaAgencia(id: string): Promise<{
 }
 
 /**
- * A corrente de etapas de um post (0045).
+ * A CORRENTE DO MÊS: as etapas, e as caixinhas de todos os posts dele.
+ *
+ * -------------------------------------------------------------------------
+ * **UMA FUNÇÃO E NÃO DUAS**, e as duas leituras saem da mesma ida ao banco.
+ *
+ * `etapasDoMes()` e `caixinhasDoMes()` separadas liam a MESMA tabela duas
+ * vezes — o "12 de 18" de cada etapa é a contagem das caixinhas dela. Duas
+ * consultas dariam dois números para o mesmo fato no instante em que alguém
+ * marcasse uma caixa entre elas, que é a razão de `carga_do_dia()` ser a
+ * fonte única desde a 0035.
+ *
+ * A contagem é feita AQUI e não por `progresso_da_etapa()`: aquela função
+ * existe para o SQL perguntar de dentro de um trigger, e uma chamada por
+ * etapa seriam cinco idas ao banco para somar linhas que esta consulta já
+ * trouxe inteiras.
+ * -------------------------------------------------------------------------
  *
  * Consulta própria e não um `join` no `select` do post: a corrente só é lida
- * no detalhe, e trazê-la no `COLUNAS` faria o calendário do mês carregar seis
- * linhas por post — cento e oitenta linhas para desenhar trinta cartões que
- * não mostram etapa nenhuma.
+ * no detalhe, e trazê-la no `COLUNAS` faria o calendário do mês carregar
+ * cinco etapas e trinta caixinhas por post — para desenhar cartões que não
+ * mostram etapa nenhuma.
  */
-export async function corrente(postId: string): Promise<EtapaDoPost[]> {
+export async function correnteDoMes(taskId: string): Promise<{
+  etapas: EtapaDoMes[];
+  caixinhas: CaixinhaDoPost[];
+}> {
   const supabase = await criarClienteServidor();
 
-  const data = ouFalha(
-    "a corrente do post",
+  // AS ETAPAS SÃO AS SUBTAREFAS COM `social_papel` PREENCHIDO, e a pergunta é
+  // essa e não "as subtarefas do mês": uma demanda de social pode ganhar uma
+  // etapa à mão como qualquer outra — alguém acrescenta "Conferir os direitos
+  // de imagem" —, e ela não é elo da corrente. Sem o filtro ela ganharia
+  // caixinha por post e entraria no "3 de 5" do cabeçalho.
+  const etapas = ouFalha(
+    "as etapas do mês de social",
     await supabase
-      .from("post_etapas")
+      .from("subtasks")
       .select(
-        "id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em, aprovacao_cliente",
+        "id, ordem, titulo, responsavel_id, status, data_inicio, prazo, estimativa_minutos, social_papel, social_campo, social_portao, aviso_geracao",
       )
-      .eq("post_id", postId)
+      .eq("task_id", taskId)
+      .not("social_papel", "is", null)
       .order("ordem"),
   );
 
-  const linhas = data ?? [];
-  const nomes = await nomesDe(linhas.map((l) => l.responsavel_id));
+  if (etapas.length === 0) return { etapas: [], caixinhas: [] };
 
-  return linhas.map((l) => ({
-    id: l.id,
-    ordem: l.ordem,
-    nome: l.nome,
-    funcao: l.funcao,
-    responsavelId: l.responsavel_id,
-    responsavel: l.responsavel_id
-      ? (nomes.get(l.responsavel_id) ?? null)
-      : null,
-    status: l.status,
-    prazo: l.prazo,
-    concluidaEm: l.concluida_em,
-    aprovacaoCliente: l.aprovacao_cliente,
-  }));
+  const marcacoes = ouFalha(
+    "as caixinhas do mês de social",
+    await supabase
+      .from("post_etapa_progresso")
+      .select("post_id, subtask_id, concluido, observacao")
+      .in(
+        "subtask_id",
+        etapas.map((e) => e.id),
+      ),
+  );
+
+  const nomes = await nomesDe(etapas.map((e) => e.responsavel_id));
+
+  const feitos = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const m of marcacoes) {
+    total.set(m.subtask_id, (total.get(m.subtask_id) ?? 0) + 1);
+    if (m.concluido) feitos.set(m.subtask_id, (feitos.get(m.subtask_id) ?? 0) + 1);
+  }
+
+  return {
+    etapas: etapas.map((e) => ({
+      id: e.id,
+      ordem: e.ordem,
+      titulo: e.titulo,
+      responsavelId: e.responsavel_id,
+      responsavel: e.responsavel_id
+        ? (nomes.get(e.responsavel_id) ?? null)
+        : null,
+      status: e.status,
+      dataInicio: e.data_inicio,
+      prazo: e.prazo,
+      estimativaMinutos: e.estimativa_minutos,
+      // O `not is null` acima garante o papel; o `!` é para o tipo, que não
+      // sabe ler o filtro do PostgREST.
+      papel: e.social_papel!,
+      campo: e.social_campo,
+      portao: e.social_portao,
+      avisoGeracao: e.aviso_geracao,
+      feitos: feitos.get(e.id) ?? 0,
+      total: total.get(e.id) ?? 0,
+    })),
+    caixinhas: marcacoes.map((m) => ({
+      postId: m.post_id,
+      etapaId: m.subtask_id,
+      concluido: m.concluido,
+      observacao: m.observacao,
+    })),
+  };
 }
 
 /**
- * As etapas de social que são MINHAS, para Minhas Tasks.
+ * ---------------------------------------------------------------------------
+ * `minhasEtapasDeSocial()` SAIU, e com ela o bloco Social de Minhas Tasks
+ * (migration 0088)
  *
- * Elas entram na mesma tela das etapas de demanda porque respondem à mesma
- * pergunta — "o que eu faço agora?" — e o redator, que não é do social, não
- * precisa aprender a abrir outra tela para descobrir que tem texto para
- * escrever. Duas caixas de entrada são uma caixa que alguém deixa de olhar.
+ * Ela lia `post_etapas` por `responsavel_id` e montava a linhagem
+ * `conta › demanda do mês › post` à mão, porque a etapa era DO POST: doze
+ * posts davam doze linhas "Layout" e o agrupamento era a única coisa que
+ * dizia que são o mesmo trabalho.
  *
- * **Só as que já podem começar, mais as que já começaram.** Uma etapa de
- * Layout de um post cuja Pauta ninguém escreveu ainda não é trabalho meu hoje:
- * ela apareceria no topo da lista de alguém que não tem o que fazer com ela, e
- * o banco recusaria o clique de Iniciar.
+ * Com a etapa sendo do MÊS, a etapa de Layout é UMA — e ela é uma subtarefa
+ * comum, com responsável, prazo, estimativa e status. Então ela já aparece em
+ * Minhas Tasks pelo caminho de toda etapa de demanda, com o cronômetro, o
+ * botão certo e a linhagem `Cliente · Social de Outubro › Layout` de graça.
+ *
+ * **Foi APAGADA e não mantida ao lado, que é a decisão da 0023:** uma consulta
+ * que nenhuma tela lê é o que alguém reaproveita errado três sprints depois,
+ * achando que ela ainda diz a verdade sobre a corrente. O que ficou no lugar
+ * é uma linha em `areaDaLinha()`, que responde "social" pelo `social_papel` da
+ * própria subtarefa.
+ * ---------------------------------------------------------------------------
  */
-export type EtapaDeSocialMinha = EtapaDoPost & {
-  postId: string;
-  tema: string;
-  cliente: string;
-  /** A empresa, pelo id: duas contas homônimas não viram uma. */
-  clienteId: string;
-  dataPublicacao: string | null;
-  /**
-   * A DEMANDA DO MÊS, quando o post nasceu de um mês aberto.
-   *
-   * É a ponte da 0061 — `posts.subtask_id` → `subtasks.task_id` → `tasks` —,
-   * e ela estava construída: a coluna existe desde a 0032 e a demanda do mês
-   * desde a 0061. Até aqui nada em Minhas Tasks a atravessava, e por isso as
-   * doze etapas "Layout" de um mês apareciam como doze linhas soltas, sem
-   * nada dizendo que são o mesmo trabalho da mesma conta.
-   *
-   * **Nulo é o post avulso**, e é caso normal: quem abre um post pela ação
-   * "Novo post" não passa por `abrir_mes_de_social()`. Ele aparece embaixo da
-   * conta, sem a faixa do mês — inventar um mês para ele seria afirmar que
-   * existe uma demanda que ninguém abriu.
-   */
-  demanda: { id: string; titulo: string; mes: string | null } | null;
-};
-
-export async function minhasEtapasDeSocial(
-  usuarioId: string,
-): Promise<EtapaDeSocialMinha[]> {
-  const supabase = await criarClienteServidor();
-
-  const data = ouFalha(
-    "as minhas etapas de post",
-    await supabase
-      .from("post_etapas")
-      .select(
-        "id, post_id, ordem, nome, funcao, responsavel_id, status, prazo, concluida_em, aprovacao_cliente",
-      )
-      .eq("responsavel_id", usuarioId)
-      .neq("status", "concluida")
-      .order("prazo", { nullsFirst: false }),
-  );
-
-  const minhas = data ?? [];
-  if (minhas.length === 0) return [];
-
-  const idsDePost = [...new Set(minhas.map((e) => e.post_id))];
-
-  // AS IRMÃS DE CADA ETAPA, para saber se a minha já pode começar. É a mesma
-  // conta de `bloqueioDaEtapa`, com a diferença de que aqui ela decide se o
-  // item aparece — e não só como ele é desenhado.
-  const [respostaDePosts, respostaDeIrmas] = await Promise.all([
-    supabase
-      .from("posts")
-      .select("id, tema, client_id, data_publicacao, subtask_id")
-      .in("id", idsDePost),
-    supabase
-      .from("post_etapas")
-      .select("post_id, ordem, status")
-      .in("post_id", idsDePost),
-  ]);
-  const posts = ouFalha("os posts das minhas etapas", respostaDePosts);
-  const irmas = ouFalha("as irmãs de cada etapa", respostaDeIrmas);
-
-  const clientes = ouFalha(
-    "as empresas dos posts das minhas etapas",
-    await supabase
-      .from("clients")
-      .select("id, nome_empresa")
-      .in("id", [...new Set(posts.map((p) => p.client_id))]),
-  );
-
-  const nomeDoCliente = new Map(clientes.map((c) => [c.id, c.nome_empresa]));
-  const doPost = new Map(posts.map((p) => [p.id, p]));
-
-  // A DEMANDA DO MÊS DE CADA POST, em duas consultas e nunca num embutido.
-  // O PostgREST recusa o `select` INTEIRO quando não acha a relação pelo nome
-  // escrito, e foi assim que uma campanha recém-criada não apareceu em lugar
-  // nenhum. Duas idas ao banco custam menos que essa classe de bug — e esta é
-  // a mesma decisão do nome da campanha na faixa de novidades.
-  const idsDeSubtarefa = [
-    ...new Set(posts.map((p) => p.subtask_id).filter((i): i is string => !!i)),
-  ];
-
-  const subtarefas = idsDeSubtarefa.length
-    ? ouFalha(
-        "as subtarefas dos posts das minhas etapas",
-        await supabase
-          .from("subtasks")
-          .select("id, task_id")
-          .in("id", idsDeSubtarefa),
-      )
-    : [];
-
-  const idsDeTask = [...new Set(subtarefas.map((s) => s.task_id))];
-  const demandas = idsDeTask.length
-    ? ouFalha(
-        "as demandas de mês das minhas etapas",
-        await supabase
-          .from("tasks")
-          .select("id, titulo, social_do_mes")
-          .in("id", idsDeTask),
-      )
-    : [];
-
-  const demandaDaSubtarefa = new Map(subtarefas.map((s) => [s.id, s.task_id]));
-  const porId = new Map(demandas.map((d) => [d.id, d]));
-
-  const nomes = await nomesDe([usuarioId]);
-
-  function demandaDoPost(subtaskId: string | null) {
-    if (!subtaskId) return null;
-    const taskId = demandaDaSubtarefa.get(subtaskId);
-    if (!taskId) return null;
-    const d = porId.get(taskId);
-    if (!d) return null;
-    return { id: d.id, titulo: d.titulo, mes: d.social_do_mes };
-  }
-
-  return minhas
-    .filter((e) => {
-      if (e.status !== "nao_iniciada") return true;
-      return !irmas.some(
-        (i) =>
-          i.post_id === e.post_id &&
-          i.ordem < e.ordem &&
-          i.status !== "concluida",
-      );
-    })
-    .map((e) => {
-      const post = doPost.get(e.post_id);
-      return {
-        id: e.id,
-        postId: e.post_id,
-        ordem: e.ordem,
-        nome: e.nome,
-        funcao: e.funcao,
-        responsavelId: e.responsavel_id,
-        responsavel: nomes.get(usuarioId) ?? null,
-        status: e.status,
-        prazo: e.prazo,
-        concluidaEm: e.concluida_em,
-        aprovacaoCliente: e.aprovacao_cliente,
-        tema: post?.tema ?? "—",
-        cliente: post ? (nomeDoCliente.get(post.client_id) ?? "—") : "—",
-        clienteId: post?.client_id ?? "",
-        dataPublicacao: post?.data_publicacao ?? null,
-        demanda: demandaDoPost(post?.subtask_id ?? null),
-      };
-    });
-}
 
 /** Os posts que ninguém datou ainda — a faixa ao lado da grade do mês. */
 export async function postsSemData(

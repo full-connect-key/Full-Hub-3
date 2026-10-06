@@ -21,7 +21,10 @@ import type {
   TaskCompleta as TaskCompletaReal,
   TaskDaLista as TaskDaListaReal,
 } from "../../src/lib/dados/tasks";
-import type { ApprovalRound } from "../../src/lib/supabase/database.types";
+import type {
+  ApprovalRound,
+  SocialFlowPapel,
+} from "../../src/lib/supabase/database.types";
 
 export type FiltrosDeTask = FiltrosReais;
 export type Pessoa = PessoaReal;
@@ -106,9 +109,70 @@ type Semente = {
   tempo_real_minutos: number | null;
   dependeDe?: string;
   rodadas?: { numero: number; escopo: "interna" | "cliente"; status: ApprovalRound["status"]; comentario?: string }[];
+  /**
+   * O PAPEL DESTA ETAPA NUMA CORRENTE DE SOCIAL (0088), quando ela é uma.
+   *
+   * Preenchido, `areaDaLinha()` responde "social" e a linha entra no chip
+   * daquela área em vez do de Demandas. Sem uma semente com ele a faixa de
+   * áreas sai com **Social Media 0** em toda imagem, e nenhuma delas prova a
+   * entrega do sprint — que é justamente a fase do mês aparecendo na lista
+   * comum, com o cronômetro e a linhagem de toda etapa de demanda. É a lição
+   * da pilha de avatares: com zero, a imagem prova só que o chip sabe existir.
+   */
+  socialPapel?: SocialFlowPapel;
 };
 
 const SEMENTES: Semente[] = [
+  // ---------------------------------------------------------------------
+  // AS FASES DO MES DE SOCIAL (0088).
+  //
+  // SAO DUAS E NAO UMA: a fase e do MES, entao a mesma pessoa pode ter duas
+  // fases do mesmo mes -- a Pauta e o Programar sao as duas de Social Media --,
+  // e com uma so a imagem nao mostra que elas aparecem como DUAS linhas. E a
+  // decisao do Sprint 10 ("Minhas Tasks lista ETAPAS"), que esta migration nao
+  // muda: o agrupamento mudou de lugar, a linha continua sendo a etapa.
+  //
+  // E A PAUTA VAI EM ANDAMENTO, com estimativa de um dia inteiro: e a frase do
+  // usuario desenhada -- *"a Social Media vai ter um dia para fazer a pauta do
+  // mes todo"* -- e e o estado em que o cronometro corre na linha.
+  //
+  // AS DUAS SAO DA ANA, e nao da Marina, por uma razao do PROTOTIPO e nao do
+  // produto: a tela de Minhas Tasks filtra pelo responsavel, e quem o gerador
+  // fotografa nela e a socia. Com a Marina as duas linhas existiriam e nao
+  // sairiam em imagem nenhuma -- a faixa continuaria dizendo "Social Media 0",
+  // que e exatamente o estado que este exemplo existe para desfazer. Numa
+  // agencia deste tamanho o perfil de acesso e a funcao nem sempre coincidem,
+  // que e a mesma razao pela qual a Carla, do Atendimento, e a Redatora da
+  // corrente do seed.
+  {
+    id: "sm1",
+    task_id: "88888888-8888-8888-8888-888888888888",
+    titulo: "Pauta",
+    ordem: 10,
+    data_inicio: dia(-6),
+    prazo: dia(-2),
+    responsavel: ANA,
+    status: "em_andamento",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 480,
+    tempo_real_minutos: null,
+    socialPapel: "producao",
+  },
+  {
+    id: "sm2",
+    task_id: "88888888-8888-8888-8888-888888888888",
+    titulo: "Programar",
+    ordem: 50,
+    prazo: dia(8),
+    responsavel: ANA,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 120,
+    tempo_real_minutos: null,
+    socialPapel: "pos_entrega",
+  },
   // Campanha de Instagram — o caso completo
   {
     id: "s1",
@@ -384,6 +448,13 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     estimativa_minutos: semente.estimativa_minutos,
     tempo_real_minutos: semente.tempo_real_minutos,
     ordem: semente.ordem,
+    // AS TRES SAO O SNAPSHOT DO ELO DO FLUXO (0088), e so a fase de um mes de
+    // social as carrega: `social_papel` preenchido e o que faz `areaDaLinha()`
+    // responder "social". Nulo e o caso de toda etapa de demanda, que e a
+    // maioria deste arquivo.
+    social_papel: semente.socialPapel ?? null,
+    social_campo: semente.socialPapel === "producao" ? "legenda" : null,
+    social_portao: false,
     iniciada_em: null,
     concluida_em: semente.status === "concluida" ? "2026-09-20T11:00:00.000Z" : null,
     // O cronometro. Fixo, porque a imagem do prototipo precisa sair igual a
@@ -558,6 +629,24 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     status: "entregue",
     data_inicio: dia(-14),
     data_fim: dia(-1),
+  },
+  // A DEMANDA DO MES DE SOCIAL (0088), que e a entrega do sprint vista desta
+  // tela: depois que a fase virou subtarefa, ela aparece aqui pelo caminho de
+  // toda etapa de demanda -- com prazo, cronometro, o botao certo e a linhagem
+  // `Mundo Verde · Social de Outubro › Layout`.
+  //
+  // Sem ela o chip "Social Media" sai em ZERO em toda imagem, e nenhuma prova
+  // o que o sprint fez: prova so que o chip sabe existir. E a licao da pilha
+  // de avatares e da Optica Visao sem responsavel de atendimento (0062).
+  {
+    id: "88888888-8888-8888-8888-888888888888",
+    client_id: ALFA.id,
+    cliente: ALFA,
+    titulo: "Social · Outubro/2026 de Mundo Verde",
+    prioridade: "normal",
+    status: "em_andamento",
+    data_inicio: dia(-6),
+    data_fim: dia(8),
   },
 ];
 

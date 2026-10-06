@@ -61,12 +61,19 @@ type EloEmEdicao = Omit<EtapaDoFluxo, "ordem"> & { id: number };
  * ---------------------------------------------------------------------------
  * **ELA MORA NO SOCIAL MEDIA, e não em Gestão de Tasks ao lado dos
  * workflows.** A proximidade é tentadora — um workflow de task e um fluxo de
- * social são os dois uma cadeia de etapas que uma demanda percorre —, e as duas
- * coisas não se encontram em lugar nenhum do produto: o workflow materializa
- * `subtasks` dentro de uma demanda, o fluxo materializa `post_etapas` dentro de
- * um post, e a 0045 escreveu por que um não serve ao outro (a pasta de entrega
- * obrigatória e as cento e vinte linhas no board). Quem monta um fluxo de
- * social está no Social Media, abrindo o mês, e é ali que ele faz falta.
+ * social são os dois uma cadeia de etapas que uma demanda percorre —, e desde
+ * a 0088 ela é mais tentadora ainda, porque os dois materializam a MESMA
+ * tabela: o fluxo virou uma etapa de `subtasks` por fase do mês, com
+ * responsável, período e cronômetro, como um workflow faz numa demanda.
+ *
+ * **O que os separa não é a tabela, é a UNIDADE DE TRABALHO.** O workflow
+ * materializa uma etapa por trabalho; o fluxo materializa uma etapa por FASE
+ * de um mês que tem dezoito peças, e cada fase guarda uma caixinha por peça
+ * — `post_etapa_progresso`, que nenhum workflow tem. O `prazo_offset_dias` do
+ * workflow (0008) é a outra metade: ele existe porque uma demanda começa em
+ * qualquer data, e o mês de social tem calendário próprio, que foi o que a
+ * 0083 decidiu. Quem monta um fluxo de social está no Social Media, abrindo o
+ * mês, e é ali que ele faz falta.
  *
  * **E SÓ A GESTÃO VÊ A ABA**, pela razão do PASSO 8 da 0087: abrir o mês é
  * trabalho do dia e é do Atendimento (0046); desenhar a corrente que toda

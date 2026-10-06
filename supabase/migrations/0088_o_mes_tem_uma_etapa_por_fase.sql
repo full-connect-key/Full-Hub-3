@@ -251,6 +251,17 @@
 --      ultimo elo de producao antes dela        -> 9 cenarios caem
 --   7. tirar o gatilho que protege as tres colunas de social em `subtasks`
 --                                               -> 3 cenarios caem
+--   8. tirar o `offset` da frase da trava B (nomear os portoes TODOS em vez
+--      dos que faltam)                          -> 1 cenario cai
+--
+-- A 8 E DE UMA RODADA DEPOIS, e quem a achou foi a IMAGEM do prototipo e nao
+-- a bateria -- a frase saia *"o cliente ainda nao aprovou Pauta, Envio neste
+-- post"* numa peca cuja Pauta estava aprovada. A versao errada nao estoura:
+-- ela devolve uma recusa plausivel, que a pessoa confere, ve que esta errada,
+-- e passa a desconfiar do resto. O cenario mora no arquivo 39 e nao no 21
+-- porque o fluxo do 21 tem UM portao, e com um a lista do jeito errado e a do
+-- jeito certo dao a mesma frase. E a decisao da 0023, que nomeia CADA etapa
+-- sem aprovacao: dizer quais errado e pior que nao dizer.
 --
 -- A 4 E A QUE VALE LER, e ela nao estava na lista que eu escrevi antes de
 -- rodar a bateria: eu nao sabia que ela existia. A conta do portao tem uma
@@ -820,9 +831,23 @@ begin
      where p.ordem < etapa.ordem;
 
     if public.aprovacoes_do_cliente_no_post(new.post_id) < portoes then
+      -- A FRASE NOMEIA SO O QUE FALTA, e nao os portoes todos.
+      --
+      -- As aprovacoes desta peca fecham os portoes NA ORDEM -- e a conta que
+      -- `porta_do_cliente_no_post()` faz --, entao os aprovados sao os `k`
+      -- primeiros e o `offset` tira exatamente eles. Sem ele, num fluxo que
+      -- valida a pauta a recusa do Programar dizia *"o cliente ainda nao
+      -- aprovou Pauta, Envio"* numa peca cuja Pauta esta aprovada: uma frase
+      -- que a pessoa confere, ve que esta errada, e passa a desconfiar do
+      -- resto. E a decisao da 0023, que nomeia CADA etapa sem aprovacao --
+      -- dizer quais e a diferenca entre uma recusa e uma instrucao, e dizer
+      -- quais errado e pior que nao dizer.
       select string_agg(p.titulo, ', ' order by p.ordem) into falta
-        from public.portoes_do_mes(etapa.task_id) p
-       where p.ordem < etapa.ordem;
+        from (select p.titulo, p.ordem
+                from public.portoes_do_mes(etapa.task_id) p
+               where p.ordem < etapa.ordem
+               order by p.ordem
+              offset public.aprovacoes_do_cliente_no_post(new.post_id)) p;
 
       raise exception using
         errcode = 'check_violation',

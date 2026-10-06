@@ -32,7 +32,7 @@ import type {
   ReferenciaDoPost,
   VersaoDoPost,
 } from "@/lib/dados/social-media";
-import type { EtapaDoPost } from "@/lib/dominio/posts";
+import type { CaixinhaDoPost, EtapaDoMes } from "@/lib/dominio/posts";
 
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
@@ -147,6 +147,8 @@ export function SocialMedia({
   aberto,
   versoes,
   etapas,
+  caixinhas,
+  aprovacoesDoCliente,
   referencias,
   clientes,
   equipe,
@@ -160,7 +162,12 @@ export function SocialMedia({
   semData: PostDaAgencia[];
   aberto: PostDaAgencia | null;
   versoes: VersaoDoPost[];
-  etapas: EtapaDoPost[];
+  /** As etapas do MÊS do post aberto. Vazio quando nenhum está aberto. */
+  etapas: EtapaDoMes[];
+  /** As caixinhas do post aberto. */
+  caixinhas: CaixinhaDoPost[];
+  /** Rodadas de cliente já aprovadas do post aberto — o `k` do portão. */
+  aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
@@ -274,6 +281,8 @@ export function SocialMedia({
       post={aberto}
       versoes={versoes}
       etapas={etapas}
+      caixinhas={caixinhas}
+      aprovacoesDoCliente={aprovacoesDoCliente}
       referencias={referencias}
       equipe={equipe}
       quemLe={quemLe}

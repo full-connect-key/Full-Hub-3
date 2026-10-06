@@ -1034,6 +1034,13 @@ declare
   p        uuid;
   rodada   uuid;
   i        integer;
+  -- A DEMANDA DO MES e as etapas dela (0088).
+  mes_task uuid;
+  meses    text[] := array['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                           'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  etapa    record;
+  etapa_id uuid;
+  anterior uuid;
 begin
   select id into verde from public.clients where slug = 'mundo-verde' limit 1;
   if verde is null then
@@ -1050,7 +1057,20 @@ begin
    where cu.client_id = verde and pr.role = 'cliente'
    limit 1;
 
+  -- O POST SAI ANTES DA DEMANDA DO MES, e a ordem e a trava (0086/0088).
+  --
+  -- `tasks_apaga_o_social` RECUSA apagar um mes que tem post ja enviado ao
+  -- cliente, e a saida que ela oferece e justamente esta: limpar o material
+  -- primeiro, depois a casca -- a ordem de `apagar_mes_de_social()`. Invertida,
+  -- a segunda linha estouraria, e com `social_task_id` em `on delete cascade`
+  -- ela levaria os dezoito posts junto sem passar por recusa nenhuma.
+  --
+  -- E O `delete` DA DEMANDA E O QUE FAZ O SEED RODAR DUAS VEZES: sem ele,
+  -- `tasks_social_do_mes_unico` recusa a segunda passada -- o que o cabecalho
+  -- deste arquivo promete, e que so o teste de rodar duas vezes confere.
   delete from public.posts where client_id = verde;
+  delete from public.tasks
+   where client_id = verde and social_do_mes is not null;
 
   perform set_config('request.jwt.claim.sub', diego::text, true);
 
@@ -1260,57 +1280,163 @@ begin
   update public.posts set status = 'stand_by' where id = p;
 
   -- --------------------------------------------------------------------- 8 --
-  -- A CORRENTE DE ETAPAS (0045), distribuida e em movimento.
+  -- A DEMANDA DO MES, COM UMA ETAPA POR FASE (0088).
   --
-  -- Ela ja nasceu com cada post, pelo gatilho `posts_monta_corrente` -- e os
-  -- posts que o cliente mandou ajustar ja ganharam a etapa de Ajustes, porque
-  -- o gatilho `posts_corrente_do_cliente` pegou os `update ... set status =
-  -- 'ajustes'` acima. O que falta e o que nenhum gatilho tem como saber: quem
-  -- faz cada parte.
+  -- ERA UMA CORRENTE POR POST, com cinco subtarefas em cada peca: doze posts
+  -- davam sessenta etapas, e a redatora via doze linhas "Conteudo" vencendo no
+  -- mesmo dia -- doze trabalhos onde a frase do usuario descreve UM. Agora a
+  -- fase e do mes e o trabalho e por peca, na caixinha de cada post.
   --
-  -- SEM ISSO O SEED MOSTRARIA A CORRENTE INTEIRA SEM DONO, que e justamente o
-  -- estado que a tela existe para evitar -- etapa sem dono nao aparece no
-  -- "Minhas Tasks" de ninguem.
-  update public.post_etapas e
-     set responsavel_id = case e.funcao
-                            when 'Social Media' then marina
-                            when 'Redator'      then carla
-                            when 'Design'       then bruno
-                            else null
-                          end
-    from public.posts ps
-   where ps.id = e.post_id and ps.client_id = verde
-     and e.funcao in ('Social Media', 'Redator', 'Design');
+  -- E `insert` direto e nao `abrir_mes_de_social()`: a funcao cobra
+  -- `is_atendimento()` na primeira linha e o seed roda sem sessao. O que ele
+  -- monta e a outra metade dela -- a demanda, as cinco etapas do fluxo da
+  -- conta, e `social_task_id` em cada post, que e o que faz o gatilho
+  -- `posts_entra_no_mes` abrir as caixinhas.
+  --
+  -- O MES POR EXTENSO SAI DO ARRAY e nunca de `to_char(..., 'TMMonth')`: o
+  -- `TM` le o `lc_time` do servidor, e no Postgres da bateria ele e `C` -- o
+  -- titulo sairia "November/2026" numa tela em portugues. E a pegadinha que a
+  -- 0044 registrou, e ela vale para o seed do mesmo jeito.
+  insert into public.tasks (client_id, titulo, briefing_texto, link_entrega,
+                            social_do_mes, social_flow_id, criado_por)
+  values (verde,
+          format('Social · %s/%s de Mundo Verde',
+                 meses[extract(month from primeiro)::int],
+                 extract(year from primeiro)::int),
+          'O mes de social do cliente piloto.',
+          'https://drive.google.com/drive/folders/mundo-verde-social',
+          primeiro, 'f1000000-0000-4000-8000-00000000000a', diego)
+  returning id into mes_task;
 
-  -- A ETAPA DE AJUSTES HERDA O DONO DO LAYOUT no instante em que o cliente
-  -- decide -- e quando ela nasceu, ali em cima, ninguem tinha Layout ainda.
-  -- Esta linha e o efeito colateral da ORDEM deste arquivo, nao da regra: o
-  -- seed pede ajustes antes de distribuir a corrente, o que nunca acontece na
-  -- vida real. Sem ela o pedido do cliente ficaria sem dono, que e o pior
-  -- estado possivel para um pedido do cliente.
+  -- AS CINCO ETAPAS SAEM DO FLUXO DA CONTA, e nao de uma lista escrita aqui:
+  -- `social_flow_steps` e quem guarda a corrente desde a 0087, e uma segunda
+  -- copia no seed divergiria na primeira vez que alguem mexesse no fluxo.
   --
-  -- E OS POSTS DA OUTRA EMPRESA CONTINUAM SEM DONO de proposito: "etapa sem
-  -- dono" e um estado que a tela precisa saber desenhar, e um seed em que tudo
-  -- tem dono nunca mostra esse desenho a ninguem.
-  update public.post_etapas a
-     set responsavel_id = (select l.responsavel_id from public.post_etapas l
-                            where l.post_id = a.post_id and l.nome = 'Layout')
-    from public.posts ps
-   where ps.id = a.post_id and ps.client_id = verde
-     and a.nome like 'Ajustes%' and a.responsavel_id is null;
+  -- O RESPONSAVEL VEM DA FUNCAO DO ELO, que e o `coalesce(etapa, padrao)` da
+  -- 0041 visto de outro angulo: sem ele as cinco etapas nasceriam sem dono, e
+  -- etapa sem dono nao aparece no "Minhas Tasks" de ninguem -- o pior tipo de
+  -- trabalho gerado automaticamente, o que ninguem sabe que nasceu.
+  for etapa in
+    select e.*, row_number() over (order by e.ordem) as n
+      from public.social_flow_steps e
+     where e.flow_id = 'f1000000-0000-4000-8000-00000000000a'
+     order by e.ordem
+  loop
+    insert into public.subtasks
+      (task_id, titulo, responsavel_id, ordem, data_inicio, prazo,
+       estimativa_minutos, social_papel, social_campo, social_portao)
+    values (mes_task, etapa.nome,
+            case etapa.funcao
+              when 'Social Media' then marina
+              when 'Redator'      then carla
+              when 'Design'       then bruno
+              else diego
+            end,
+            etapa.ordem,
+            primeiro - etapa.comeca_dias_antes,
+            primeiro - etapa.termina_dias_antes,
+            case etapa.papel when 'producao' then 480 else 120 end,
+            etapa.papel, etapa.campo, etapa.aprovacao_cliente)
+    returning id into etapa_id;
 
-  -- E UMA CORRENTE NO MEIO DO CAMINHO, para a tela ter o caso que importa: a
-  -- Pauta e o Conteudo fechados, o Layout na mao do Bruno agora. A ordem dos
-  -- dois `update` e a propria trava: o segundo so passa porque o primeiro
-  -- fechou os anteriores.
+    -- A CADEIA, como o workflow de task faz: a fase seguinte nao comeca antes
+    -- de a anterior fechar. Sem ela o board mostraria as cinco em aberto ao
+    -- mesmo tempo, que e o estado que a corrente existe para nao ter.
+    if anterior is not null then
+      insert into public.subtask_dependencies (subtask_id, depende_de_id)
+      values (etapa_id, anterior);
+    end if;
+    anterior := etapa_id;
+  end loop;
+
+  -- OS POSTS DATADOS ENTRAM NO MES. O gatilho abre uma caixinha por post em
+  -- cada etapa -- doze posts por cinco fases, sessenta linhas que ninguem
+  -- escreve a mao.
+  update public.posts set social_task_id = mes_task
+   where client_id = verde and social_task_id is null;
+
+  -- --------------------------------------------------------------------- 8b -
+  -- A CORRENTE NO MEIO DO CAMINHO, que e o caso que importa: as duas primeiras
+  -- fases do mes fechadas, o Layout na mao do Bruno agora.
+  --
+  -- UM `update` POR FASE, NA ORDEM, e nao um so com `ordem <= 20`: a cadeia de
+  -- dependencias que o laco acima criou e quem recusa, e num comando so a
+  -- ordem das linhas nao e garantida -- o Conteudo poderia ser escrito antes
+  -- da Pauta e a trava 3 de `validar_transicao_de_subtarefa` derrubaria o
+  -- seed. E a ordem dos dois E A PROPRIA TRAVA: o segundo passa porque o
+  -- primeiro fechou.
+  update public.subtasks set status = 'concluida'
+   where task_id = mes_task and ordem = 10;
+  update public.subtasks set status = 'concluida'
+   where task_id = mes_task and ordem = 20;
+  update public.subtasks set status = 'em_andamento'
+   where task_id = mes_task and ordem = 30;
+
+  -- E AS CAIXINHAS PELA METADE, que e a razao do sprint inteiro.
+  --
+  -- A fase do mes anda quando as pecas andam, e uma peca individual pode estar
+  -- duas fases atras das irmas. Com tudo marcado ou tudo em branco a tela
+  -- mostraria "12 de 12" ou "0 de 12" -- os dois estados em que o numero nao
+  -- informa nada sobre a distribuicao do trabalho.
+  --
+  -- E A CONDICAO E A DA TRAVA, nao uma escolha do seed: nesta conta a Pauta, o
+  -- Conteudo e o Layout sao PORTOES (o fluxo `...000a` e o da conta que valida
+  -- os tres), entao marcar o Conteudo de uma peca exige que o cliente tenha
+  -- aprovado a Pauta DELA. Os posts deste arquivo tem rodadas de cliente em
+  -- estados diferentes -- aprovada, pendente, rejeitada --, e e isso que faz
+  -- cada peca parar numa fase diferente. Um seed que marcasse tudo exigiria
+  -- desligar a trava, e aí ele nao mostraria o produto.
+  --
+  -- UM `update` POR FASE, NA ORDEM, pela mesma razao de cima: a trava A cobra
+  -- que as caixinhas anteriores DESTA peca estejam fechadas, e num comando so
+  -- a ordem das linhas nao e garantida.
+  for etapa in
+    select * from public.subtasks
+     where task_id = mes_task and social_papel is not null
+     order by ordem
+  loop
+    -- A ENTREGA PARA O LACO: a caixinha dela nao se marca a mao -- ela fecha
+    -- com a aprovacao do cliente, e e `posts_corrente_do_cliente` quem a
+    -- escreve. O `pos_entrega` nem e alcancado, que e o certo: ninguem
+    -- programa o que o cliente nao aprovou.
+    exit when etapa.social_papel <> 'producao';
+
+    update public.post_etapa_progresso g
+       set concluido = true
+     where g.subtask_id = etapa.id
+       -- Os portoes ANTERIORES a esta fase, contra as aprovacoes desta peca.
+       -- E `aprovacoes_do_cliente_no_post()` e nao uma conta escrita aqui: a
+       -- mesma funcao decide o portao da vez no banco e na tela.
+       and (select count(*) from public.subtasks q
+             where q.task_id = mes_task
+               and (q.social_portao or q.social_papel = 'entrega')
+               and q.ordem < etapa.ordem)
+           <= public.aprovacoes_do_cliente_no_post(g.post_id)
+       -- E as fases anteriores DESTA peca, que e a trava A.
+       and not exists (
+         select 1 from public.post_etapa_progresso h
+           join public.subtasks q on q.id = h.subtask_id
+          where h.post_id = g.post_id and q.task_id = mes_task
+            and q.ordem < etapa.ordem and not h.concluido);
+  end loop;
+
+  -- UMA CAIXINHA COM O PEDIDO DO CLIENTE, e e o que sobrou da etapa de
+  -- Ajustes da 0045: o Layout daquela peca voltou, com a razao escrita. Sem
+  -- ela nenhuma imagem do produto mostra a faixa ambar que o componente sabe
+  -- desenhar -- e e a unica coisa daquela tela que alguem de fora escreveu.
+  --
+  -- `concluido = false` passa pelas duas travas de propósito: elas olham quem
+  -- MARCA, e desmarcar e o que o pedido de ajustes faz.
   select id into p from public.posts
    where client_id = verde and tema = 'Bastidores da colheita' limit 1;
 
   if p is not null then
-    update public.post_etapas set status = 'concluida'
-     where post_id = p and nome in ('Pauta', 'Conteúdo');
-    update public.post_etapas set status = 'em_andamento'
-     where post_id = p and nome = 'Layout';
+    update public.post_etapa_progresso g
+       set concluido = false,
+           observacao = 'O logo ficou pixelado no terceiro slide; e o rodapé cortou.'
+      from public.subtasks e
+     where e.id = g.subtask_id and e.task_id = mes_task and e.ordem = 30
+       and g.post_id = p;
   end if;
 
   -- --------------------------------------------------------------------- 9 --
@@ -1338,26 +1464,33 @@ begin
                  then format('Instagram + Facebook %s de 6 · mês que vem', i)
                  else format('Instagram %s de 6 · mês que vem', i) end,
             null,
-            case when i > 4 then '{instagram,facebook}' else '{instagram}' end,
+            -- O CAST E OBRIGATORIO NUM `case`, e foi o seed que mostrou: os
+            -- dois ramos sao literais sem tipo, entao o Postgres resolve o
+            -- CASE inteiro como `text` e recusa com *"column plataformas is of
+            -- type plataforma_social[] but expression is of type text"*. Fora
+            -- de um `case` o literal e resolvido pela coluna de destino, que e
+            -- por que os outros inserts deste arquivo passam sem ele.
+            case when i > 4 then '{instagram,facebook}'::public.plataforma_social[]
+                 else '{instagram}'::public.plataforma_social[] end,
             'imagem', diego, marina);
   end loop;
 
-  update public.post_etapas e
-     set responsavel_id = case e.funcao
-                            when 'Social Media' then marina
-                            when 'Redator'      then carla
-                            when 'Design'       then bruno
-                            else null
-                          end
-    from public.posts ps
-   where ps.id = e.post_id and ps.client_id = verde
-     and ps.data_publicacao is null
-     and e.funcao in ('Social Media', 'Redator', 'Design');
+  -- OS SEIS SEM DATA ENTRAM NO MESMO MES, e e o ponto do modelo novo: eles nao
+  -- ganham corrente propria, ganham uma caixinha em cada fase que ja existe.
+  -- Antes da 0088 eram trinta etapas novas no board por causa de seis posts
+  -- que ninguem datou.
+  update public.posts set social_task_id = mes_task
+   where client_id = verde and social_task_id is null;
+
+  -- E AS CAIXINHAS DELES FICAM EM BRANCO, inclusive nas duas fases que o mes
+  -- fechou: a fase estar concluida nao afirma que toda peca passou por ela, e
+  -- e exatamente esse o estado que o "12 de 18" existe para mostrar. Marcar
+  -- junto esconderia a unica diferenca entre a fase e a peca.
 
   perform set_config('request.jwt.claim.sub', '', true);
 
   raise notice 'Sprint 12: 12 posts de exemplo criados para o cliente piloto.';
-  raise notice '0044/0045: 6 posts sem data e a corrente de etapas distribuida.';
+  raise notice '0044/0088: 6 posts sem data, e o mes com uma etapa por fase.';
 end
 $$;
 

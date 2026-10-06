@@ -1934,6 +1934,29 @@ export interface Database {
           estimativa_minutos: number | null;
           tempo_real_minutos: number | null;
           ordem: number;
+          /**
+           * PREENCHIDO = esta subtarefa é uma ETAPA de um mês de social
+           * (migration 0088), e o valor é o papel dela na corrente.
+           *
+           * É a primeira vez que um módulo encosta nesta tabela, e a escolha
+           * está no cabeçalho da 0088: uma tabela 1-1 ao lado seriam as MESMAS
+           * três colunas noutro lugar, cobrando um join em cada leitura da
+           * corrente, duas policies e um espelho para o apagamento.
+           *
+           * E são um SNAPSHOT, não uma chave para `social_flow_steps`:
+           * `salvar_fluxo_de_social()` apaga os elos e os reinsere a cada
+           * edição, então toda chave apontaria para uma linha que não existe
+           * mais na primeira vez que alguém mexesse no fluxo — e o mês em
+           * curso ficaria sem portão nenhum, sem erro em lugar nenhum.
+           */
+          social_papel: SocialFlowPapel | null;
+          /** Qual campo do card esta etapa enche: `pauta`, `legenda`, ou nulo
+           *  quando o trabalho dela viaja pela arte (0046, 0087). */
+          social_campo: string | null;
+          /** Esta etapa do mês passa pelo cliente, post por post (0076). Em
+           *  `social_papel = 'entrega'` ela é falsa porque a entrega JÁ é o
+           *  portão — e quem garante é o `check` `subtasks_social_coerente`. */
+          social_portao: boolean;
           iniciada_em: string | null;
           concluida_em: string | null;
           // O cronômetro (migration 0021). Só o trigger escreve, e por isso
@@ -1961,6 +1984,9 @@ export interface Database {
           estimativa_minutos?: number | null;
           tempo_real_minutos?: number | null;
           ordem?: number;
+          social_papel?: SocialFlowPapel | null;
+          social_campo?: string | null;
+          social_portao?: boolean;
         };
         Update: {
           parent_id?: string | null;
@@ -2298,8 +2324,10 @@ export interface Database {
         Row: {
           id: string;
           flow_id: string;
-          /** Com folga de dez (10,20,30…) pela razão de `post_etapas.ordem`
-           *  (0045): a etapa de Ajustes nasce ENTRE duas. */
+          /** Com folga de dez (10,20,30…), herdada de `post_etapas.ordem`
+           *  (0045), onde a etapa de Ajustes nascia ENTRE duas. Ela ficou
+           *  depois que a 0088 apagou aquela tabela: é o que permite
+           *  acrescentar uma fase no meio sem renumerar as seguintes. */
           ordem: number;
           nome: string;
           funcao: TeamFuncao;
@@ -2331,7 +2359,16 @@ export interface Database {
         Row: {
           id: string;
           client_id: string;
-          subtask_id: string | null;
+          /**
+           * A DEMANDA DO MÊS DE SOCIAL deste post (migration 0088).
+           *
+           * Era `subtask_id`, a ponte genérica da 0032 que a 0061 passou a
+           * usar para a LINHA DO POST no board. Sem essa linha não há o que
+           * guardar, e a pergunta que o produto faz é outra: de que MÊS este
+           * post é. Nulo = post avulso, fora de um mês aberto — e aí ele não
+           * tem corrente nenhuma, como antes da 0045.
+           */
+          social_task_id: string | null;
           tema: string;
           legenda: string | null;
           /** O que este post vai dizer, escrito na etapa Pauta (0046). É
@@ -2380,7 +2417,7 @@ export interface Database {
         Insert: {
           id?: string;
           client_id: string;
-          subtask_id?: string | null;
+          social_task_id?: string | null;
           tema: string;
           legenda?: string | null;
           pauta?: string | null;
@@ -2412,7 +2449,7 @@ export interface Database {
           arte_url?: string | null;
           thumbnail_url?: string | null;
           prazo_aprovacao?: string | null;
-          subtask_id?: string | null;
+          social_task_id?: string | null;
           status?: ContentStatus;
           // Quem libera e a gestao: o trigger `posts_protege_colunas` (0042)
           // recusa o colaborador que tentar, e a recusa diz por que.
@@ -2453,110 +2490,54 @@ export interface Database {
       };
 
       /**
-       * A corrente de trabalho de um post (0045).
+       * A CAIXINHA de um post numa etapa do mês de social (migration 0088).
        *
-       * Pauta → Conteúdo → Layout → Envio → Programar, e "Ajustes" entre as
-       * duas últimas quando o cliente pede. Cada etapa tem uma função e uma
-       * pessoa: até a 0044 o post tinha UMA mão por vez, o que descreve quem
-       * pode escrever e não quem faz o quê.
+       * O "12 de 18" do cabeçalho da etapa. Ela substitui `post_etapas`, que
+       * era a corrente inteira repetida em CADA post: um mês de doze posts com
+       * cinco fases tinha sessenta linhas de trabalho, e a conta que elas
+       * descreviam não é a que acontece — o redator escreve as doze legendas
+       * de uma vez.
        *
-       * `concluida_em` fica fora de Insert e de Update: quem carimba é o
-       * trigger `post_etapas_regras`, e uma etapa concluída sem data de
-       * conclusão não serve para relatório nenhum.
+       * Decisão do usuário, em uma frase: *"a produção vira mensal, a
+       * aprovação continua por post"*. A etapa é do mês (uma subtarefa, com
+       * dono, prazo e relógio) e a caixinha é do post dentro dela.
+       *
+       * `concluido_em` e `concluido_por` ficam fora de Insert e de Update:
+       * quem carimba é o trigger `post_etapa_progresso_regras`, e uma caixinha
+       * marcada sem data e sem autor é uma linha que não serve para relatório
+       * nenhum. Policy não limita coluna.
        */
-      post_etapas: {
+      post_etapa_progresso: {
         Row: {
           id: string;
           post_id: string;
-          /** Com folga entre os números (10,20,30,40,50): a etapa de Ajustes
-           *  nasce ENTRE Envio e Programar, e sequencial ela obrigaria a
-           *  renumerar as seguintes por causa de um pedido do cliente. */
-          ordem: number;
-          nome: string;
-          funcao: TeamFuncao;
-          responsavel_id: string | null;
-          status: SubtaskStatus;
+          /** A etapa do MÊS — uma subtarefa com `social_papel` preenchido. */
+          subtask_id: string;
+          concluido: boolean;
+          concluido_em: string | null;
+          concluido_por: string | null;
           /**
-           * O PERIODO desta etapa, escolhido ao abrir o mes e IGUAL para todos
-           * os posts dele (0083/0084): a Pauta dos doze comeca num dia e fecha
-           * noutro.
+           * O pedido do cliente sobre ESTE post, nesta etapa.
            *
-           * Ate a 0083 o fim era calculado a partir de `prazo_offset_dias` --
-           * dias antes da publicacao de CADA post --, e a coluna da regra saiu
-           * junto com os dois triggers que a serviam. A 0084 acrescentou a
-           * outra ponta, pela decisao da 0027: *"duas etapas com o mesmo prazo
-           * podem ser uma de tres dias e uma de tres horas"*.
-           *
-           * Os DOIS sao opcionais, tambem pela 0027 -- quem abre o mes costuma
-           * saber quando a etapa fecha e ainda nao quando ela comeca. O fim
-           * continua se chamando `prazo` e nao `data_fim` porque renomear
-           * coluna em uso e migration arriscada sem nada em troca.
+           * É a coluna que a etapa de Ajustes da 0045 deixou de precisar: com
+           * a etapa sendo do mês, criar uma "Ajustes" por pedido afirmaria que
+           * o mês inteiro voltou por causa de uma peça. Quem escreve aqui é
+           * `posts_corrente_do_cliente`, no instante em que ele recusa.
            */
-          data_inicio: string | null;
-          prazo: string | null;
-          /**
-           * Esta etapa passa pelo CLIENTE antes de a próxima começar (0076).
-           *
-           * Nasce do elo do FLUXO que o post percorre (0087) e a gestão troca
-           * por post. A entrega não precisa dela: ela É o portão do cliente
-           * desde a 0045 — e quem for marcá-la aqui por engano não consegue,
-           * porque o `check` de `social_flow_steps` a recusa fora de um elo de
-           * produção.
-           */
-          aprovacao_cliente: boolean;
-          /**
-           * O PAPEL deste elo (0087), e ele é a coluna que tirou a palavra
-           * 'Envio' de seis comparações do produto.
-           *
-           * Com a corrente fixa, `nome = 'Envio'` respondia "esta é a entrega
-           * ao cliente". Com fluxos editáveis isso vira o furo mais caro que
-           * a 0087 podia criar: um fluxo que chame aquele elo de "Entrega"
-           * ficaria SEM PORTÃO NENHUM, sem erro em lugar nenhum — o mês abre,
-           * os posts nascem, e "Enviar ao cliente" fica desligado para sempre.
-           *
-           * Copiado do fluxo no instante em que o post nasceu, nunca deduzido
-           * do nome.
-           */
-          papel: SocialFlowPapel;
-          /**
-           * Qual campo do card este elo enche (0046, virado coluna na 0087):
-           * `pauta`, `legenda` ou nenhum.
-           *
-           * O de-para era `case e.nome when 'Pauta' then p.pauta`, e renomear
-           * a etapa fazia a tela do portal abrir o portão com a caixa de texto
-           * VAZIA — o cliente decidindo sobre nada.
-           */
-          campo: string | null;
-          concluida_em: string | null;
+          observacao: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           post_id: string;
-          ordem: number;
-          nome: string;
-          funcao: TeamFuncao;
-          responsavel_id?: string | null;
-          status?: SubtaskStatus;
-          prazo?: string | null;
-          aprovacao_cliente?: boolean;
-          papel?: SocialFlowPapel;
-          campo?: string | null;
+          subtask_id: string;
+          concluido?: boolean;
+          observacao?: string | null;
         };
         Update: {
-          /** O que o RESPONSÁVEL troca é o status, e mais nada — o resto o
-           *  trigger recusa para quem não é gestão. Policy não limita
-           *  coluna. */
-          status?: SubtaskStatus;
-          nome?: string;
-          funcao?: TeamFuncao;
-          ordem?: number;
-          responsavel_id?: string | null;
-          prazo?: string | null;
-          aprovacao_cliente?: boolean;
-          papel?: SocialFlowPapel;
-          campo?: string | null;
+          concluido?: boolean;
+          observacao?: string | null;
         };
         Relationships: [];
       };
@@ -3046,7 +3027,7 @@ export interface Database {
        * Devolve zero linhas no caminho de sempre — o do Envio —, e é por isso
        * que a tela do portal trata a lista vazia como "nada a anunciar" em vez
        * de erro. `security definer` porque o cliente não tem policy em
-       * `post_etapas` e não passa a ter.
+       * `post_etapa_progresso` e não passa a ter.
        */
       o_que_o_cliente_decide: {
         Args: { p_post_id: string };
@@ -3795,6 +3776,7 @@ export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type PostVersion = Database["public"]["Tables"]["post_versions"]["Row"];
-export type PostEtapa = Database["public"]["Tables"]["post_etapas"]["Row"];
+export type PostEtapaProgresso =
+  Database["public"]["Tables"]["post_etapa_progresso"]["Row"];
 export type PostReferencia = Database["public"]["Tables"]["post_referencias"]["Row"];
 export type Comentario = Database["public"]["Tables"]["comments"]["Row"];

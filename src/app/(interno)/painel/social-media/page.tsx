@@ -69,6 +69,8 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
       aberto={aberto?.post ?? null}
       versoes={aberto?.versoes ?? []}
       etapas={aberto?.etapas ?? []}
+      caixinhas={aberto?.caixinhas ?? []}
+      aprovacoesDoCliente={aberto?.aprovacoesDoCliente ?? 0}
       referencias={aberto?.referencias ?? []}
       clientes={clientes
         .filter((c) => c.ativo)

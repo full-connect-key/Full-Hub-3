@@ -507,19 +507,21 @@ e campanha) e o do Full Days (quem está fora). Nenhum dos dois respondia a
 pergunta que a agência faz toda segunda: **"o que acontece nesta semana, e
 quem está disponível para fazer?"**
 
-**Tudo sai de UMA view, `calendar_events`**, que junta SEIS origens num
-formato só: ausência, evento, post, **etapa de post**, campanha e entregável.
+**Tudo sai de UMA view, `calendar_events`**, que junta CINCO origens num
+formato só: ausência, evento, post, campanha e entregável.
 Nenhuma tabela de evento agregado: uma tabela que copia data de post e período
 de campanha precisa ser reescrita por vários caminhos para continuar
 verdadeira, e no dia em que um deles falhar o calendário mente sem avisar. É a
 mesma razão pela qual bloqueio de subtarefa não é status e atraso do Financeiro
 não é coluna.
 
-**Eram OITO, e a demanda e a etapa saíram na 0077** — decisão do usuário:
-*"quero que elas fiquem apenas dentro do Minhas Tasks"*. A oitava origem
-(etapa de post) entrou na 0059 exatamente como este parágrafo dizia que
-entraria, com um `union all` a mais; as duas primeiras saíram do mesmo jeito,
-tirando dois.
+**Eram OITO, e já saíram três.** A demanda e a etapa de demanda saíram na
+0077 — decisão do usuário: *"quero que elas fiquem apenas dentro do Minhas
+Tasks"* —, e a **etapa de post** saiu na 0088, pela mesma frase aplicada ao
+social: *"a corrente do social vive só em minhas tasks e na carga"*. Aquela
+oitava origem entrou na 0059 exatamente como este parágrafo dizia que
+entraria, com um `union all` a mais; as três saíram do mesmo jeito, tirando
+três.
 
 **Saíram da VIEW, e não só da lista de camadas**, e a diferença é o que
 impede que voltem: uma camada é um interruptor, e tirar o interruptor
@@ -2329,6 +2331,14 @@ por acaso.
 Migrations 0044, 0045 e 0046, todas por decisão do usuário. É o que transforma
 o post de uma linha no calendário no trabalho de quatro pessoas.
 
+> **O MODELO MUDOU NA 0088, e esta seção é o histórico dele.** A corrente
+> deixou de ser por post e passou a ser do MÊS — uma subtarefa por fase, com
+> uma caixinha por peça —, e `post_etapas` foi apagada. O que vale hoje está
+> em **"A PRODUÇÃO VIRA MENSAL, E A APROVAÇÃO CONTINUA POR POST"**, abaixo. O
+> que continua de pé daqui: o mês abrir em branco (0044), a data ser de quem
+> produz, o teto de 60, o campo de cada elo (0046), e as razões pelas quais a
+> corrente não é um `workflow_template` nem um enum novo de status.
+
 **O mês abre em branco, sem datas** (0044). Com mais de dez clientes, todos com
 social, abrir cento e vinte posts um a um é a gestão inventando cento e vinte
 datas que quem produz vai refazer. `abrir_mes_de_social(cliente, mês,
@@ -2420,7 +2430,7 @@ Migration 0059, decisão do usuário: *"quando eu abra um mês de social, eu
 possa escolher em qual dia cada etapa da task vai ser realizada, para que já
 entre no calendário da pessoa responsável"*.
 
-**O que faltava não era a coluna.** `post_etapas.prazo` existe desde a 0045 e
+**O que faltava não era a coluna.** `post_etapas.prazo` existia desde a 0045 e
 nunca era preenchida por ninguém. Faltavam três coisas: de onde a data vem, o
 que acontece quando o post muda de dia, e o **oitavo `union all`** da
 `calendar_events` — sem ele a etapa podia ter dia marcado e não aparecia no
@@ -2446,8 +2456,9 @@ Atendimento lia "seu perfil não permite esta ação" numa ação que o produto 
 que é dela. É a lição da 0029 virada — quando a regra mora nos dois lados,
 mudar um não muda nada, e aqui o lado que ficou para trás era o de cima.
 
-**A oitava origem da `calendar_events`** era `etapa_de_post` — hoje é a sexta,
-depois de a 0077 tirar a demanda e a etapa —, e ela é camada
+**A oitava origem da `calendar_events`** era `etapa_de_post` — virou a sexta
+depois de a 0077 tirar a demanda e a etapa, e **saiu na 0088** —, e ela era
+camada
 própria: `post` é o dia em que a peça vai ao ar, `etapa_de_post` é o dia em que
 o trabalho de alguém precisa estar pronto, e as duas datas raramente são a
 mesma. O `client_id` vem do **post** — a etapa não tem cliente, e sem o join o
@@ -2488,7 +2499,8 @@ triggers são a metade que importa mais: `posts_recalcula_prazos` moveria o dia
 da Pauta do mês inteiro porque alguém trocou a data de **um** post — que é
 exatamente o comportamento que ele pediu para tirar. Tirar só a tela deixaria o
 banco desfazendo a escolha por baixo, que é a lição da 0029. O que fica é
-`post_etapas.prazo`, o dia em si: a origem do Calendário Full, a linha de
+`post_etapas.prazo`, o dia em si: a origem do Calendário Full (que saiu na
+0088), a linha de
 Minhas Tasks e o card da corrente não mudaram.
 
 **A data pode cair fora do mês, e isso é decisão.** A trava óbvia seria "a
@@ -2548,8 +2560,8 @@ e zero nos outros na carga de quem produz — e a carga é justamente a tela que
 Calendário Full existe para responder.
 
 **`prazo` continua sendo o fim, e não virou `data_fim`.** É a decisão da 0027
-palavra por palavra: ele é lido pela sexta origem da `calendar_events`, pelo
-card da corrente, por Minhas Tasks e pela trava da ordem. Renomear coluna em
+palavra por palavra: ele era lido pela sexta origem da `calendar_events` (que
+saiu na 0088), pelo card da corrente, por Minhas Tasks e pela trava da ordem. Renomear coluna em
 uso é migration arriscada sem nada em troca, e quem diz a verdade para quem
 abrir o schema é o `comment`.
 
@@ -2748,7 +2760,8 @@ post no board, e nada mais:
   dos cinco aqui poria o mesmo trabalho duas vezes na mesma lista, numa linha
   cujo dono seria um dos cinco escolhido a esmo;
 - **não tem prazo.** O dia do post já aparece duas vezes no calendário — a
-  sexta origem (o post) e a oitava (a etapa da corrente, 0059). Uma terceira
+  sexta origem (o post) e a oitava (a etapa da corrente, 0059 — que saiu na
+  0088). Uma terceira
   linha no mesmo dia é a conta que o produto já recusou duas vezes, e o resumo
   da semana ganharia cinquenta linhas dizendo "sem responsável";
 - **o relógio não corre nela**, que é a linha da 0022 para a agrupadora;
@@ -2759,7 +2772,7 @@ porque ela é o post — e o progresso do mês é quantos posts andaram. A pergu
 mora num lugar só, `subtarefa_de_post()`, como `subtask_eh_agrupadora()`.
 
 **O mirror não tem de-para, e é por isso que ele pode existir.**
-`post_etapas.status` é `subtask_status` desde a 0045, exatamente porque
+`post_etapas.status` era `subtask_status` desde a 0045, exatamente porque
 responde à mesma pergunta — então o mirror copia valor para valor. **Menos em
 dois casos:** a mãe nunca fica em `enviada_aprovacao` nem em `em_ajustes`,
 porque os dois afirmam uma rodada dela própria e a fila de aprovações iria
@@ -2991,8 +3004,9 @@ conta ela não é — e o recorte é exatamente esse: só a etapa marcada, só e
 ela é o portão aberto, só na conta que a ligou. A aba diz isso em voz alta antes
 de alguém salvar.
 
-**E o cliente CONTINUA sem policy em `post_etapas`**, que é a linha da 0045 e
-fica de pé: a corrente é conversa interna — quem está com o material na mão,
+**E o cliente CONTINUA sem policy na corrente**, que é a linha da 0045 e fica
+de pé — hoje são `subtasks` e `post_etapa_progresso` (0088), e ele não tem
+policy em nenhuma das duas: a corrente é conversa interna — quem está com o material na mão,
 qual etapa travou, quem atrasou. O que ele precisa é outra coisa, e quem
 devolve é `o_que_o_cliente_decide()`, `security definer` entregando só o
 agregado: a forma de `usuarios_do_meu_cliente()` (0031), de
@@ -3038,8 +3052,8 @@ mora em `etapas_padrao_do_social()`; se um dia precisar ser editável por
 cliente, vira tabela de modelo, e é decisão explícita"*. É esta.
 
 **O que a 0076 já fazia, e as três coisas que faltavam.** Ela já punha o
-cliente aprovando etapa por etapa — a marca em `post_etapas`, a lista na conta,
-o portão derivado da ordem. O que ela não fazia: a lista era da CONTA e não um
+cliente aprovando etapa por etapa — a marca na corrente (`post_etapas`, que a
+0088 apagou), a lista na conta, o portão derivado da ordem. O que ela não fazia: a lista era da CONTA e não um
 fluxo com nome, então duas contas com o mesmo combinado eram duas listas
 escritas duas vezes; as etapas eram as cinco fixas que o usuário ditou na 0045,
 e não dava para acrescentar uma revisão, renomear "Layout" nem tirar a que uma
@@ -3079,8 +3093,10 @@ para excluir o Envio e o Programar da lista de portões passaram a ser **dados**
 renomear a etapa fazia a tela do portal abrir o portão com a caixa de texto
 **vazia** — o cliente lendo nada e decidindo sobre isso.
 
-**As duas viajam para `post_etapas`**, copiadas no instante em que o post nasce,
-que é a forma de `aprovacao_cliente` desde a 0076. E a migration faz uma passada
+**As duas viajam para a corrente**, copiadas no instante em que ela é
+materializada, que é a forma de `aprovacao_cliente` desde a 0076 — para
+`post_etapas` naquele dia, e para `subtasks.social_papel` e `social_portao`
+desde a 0088. E a migration faz uma passada
 nas correntes que já existem: sem ela, todo post anterior à 0087 ficaria com os
 cinco elos em `producao`, e `porta_do_cliente_no_post()` — que passou a
 perguntar pelo papel — não acharia portão nenhum nos posts que já estão no ar.
@@ -3123,8 +3139,9 @@ meses que já estão correndo.
 
 **O mês guarda `tasks.social_flow_id`, e não um snapshot em `jsonb`.**
 `tasks.workflow_snapshot` existe porque o workflow carrega o que a subtarefa não
-guarda; aqui a materialização JÁ é o snapshot — `post_etapas` tem nome, função,
-papel e marca copiados, e editar o fluxo depois não encosta neles. O que a coluna
+guarda; aqui a materialização JÁ é o snapshot — a etapa do mês tem nome, papel,
+campo e marca copiados (`subtasks.social_papel`, `social_campo`,
+`social_portao` desde a 0088), e editar o fluxo depois não encosta neles. O que a coluna
 responde é outra pergunta: **abrir o mesmo mês em duas vezes acrescenta posts à
 demanda que já existe** (0061), e sem ela a segunda chamada poderia usar outro
 fluxo — um mês com duas correntes diferentes dentro.
@@ -3191,10 +3208,14 @@ desliga o botão Salvar e escreve a frase antes de a pessoa clicar.
 `/painel/social-media?aba=fluxos`. A proximidade com os workflows de Gestão de
 Tasks é tentadora — os dois são uma cadeia de etapas que uma demanda percorre —,
 e as duas coisas não se encontram em lugar nenhum do produto: o workflow
-materializa `subtasks` dentro de uma demanda, o fluxo materializa `post_etapas`
-dentro de um post, e a 0045 já escreveu por que um não serve ao outro (a pasta de
-entrega obrigatória e as cento e vinte linhas no board). Quem monta um fluxo de
-social está no Social Media, abrindo o mês.
+materializa `subtasks` dentro de uma demanda, e o fluxo materializava
+`post_etapas` dentro de cada post. **Depois da 0088 os dois materializam a
+mesma tabela**, e o que os separa deixou de ser isso: o workflow faz uma etapa
+por trabalho, o fluxo faz uma etapa por FASE de um mês com dezoito peças, e
+cada fase guarda uma caixinha por peça — que nenhum workflow tem. O
+`prazo_offset_dias` (0008) é a outra metade: ele existe porque uma demanda
+começa em qualquer data, e o mês de social tem calendário próprio (0083). Quem
+monta um fluxo de social está no Social Media, abrindo o mês.
 
 **SÓ A GESTÃO VÊ A ABA**, e é a separação da 0046 e da 0068: abrir o mês é
 trabalho do dia e é do Atendimento; desenhar a corrente que toda conta vai
@@ -3213,8 +3234,9 @@ certa para quase toda conta é a corrente de sempre com um portão a mais. É
 se desativa, como a etiqueta da Academy (`skills.ativa`). Apagar levaria o nome
 que os meses já abertos apontam — `tasks.social_flow_id` é `on delete set null`,
 então a demanda ficaria apontando para ninguém e ninguém mais saberia com que
-corrente aquele mês nasceu. A corrente dos posts não se perde de qualquer jeito:
-ela está materializada em `post_etapas` desde que cada um nasceu.
+corrente aquele mês nasceu. A corrente dos meses já abertos não se perde de
+qualquer jeito: desde a 0088 ela está materializada em `subtasks`, uma etapa
+por fase, com o papel de cada elo copiado em `social_papel`.
 
 **O diálogo que abre o mês oferece só os ATIVOS; a aba lista os dois.** Um fluxo
 desativado é um que a agência tirou do ar sem apagar, e oferecê-lo abriria um mês
@@ -3224,95 +3246,192 @@ ficha do cliente, a conta combinada com um fluxo desativado lê isso numa frase 
 âmbar, em vez de o seletor cair em "O padrão da casa" e a aba afirmar que ela não
 tem combinado.
 
-#### As etapas de social aparecem em Minhas Tasks
+#### A PRODUÇÃO VIRA MENSAL, E A APROVAÇÃO CONTINUA POR POST
 
-Decisão do usuário. O redator não é do social — se a etapa dele vivesse só na
-tela de Social Media, ele teria duas caixas de entrada e olharia uma. Clicar
-leva ao post, que é onde o card se preenche.
+Migration 0088, decisão do usuário, e o recorte é a frase dele inteira: *"A
+produção vira mensal, a aprovação continua por post."*
 
-**É bloco próprio e não itens misturados à lista de etapas de demanda**, e a
-razão é o que cada uma carrega: a etapa de demanda é uma `SubtarefaDetalhada` —
-rodada, cronômetro, dependência cadastrada, a máquina de estados que decide
-qual botão aparece. Uma etapa de post não tem nada disso, e fabricar os campos
-para ela caber no mesmo molde faria a tela oferecer "Enviar para aprovação" onde
-o banco responde outra coisa. **O molde errado mente com mais convicção que a
-ausência.**
+**Era uma corrente POR PECA, e a 0083 já havia dito por quê isso estava
+errado** — *"se o social é de Novembro, em um dia X de Outubro, a Social Media
+vai ter um dia para fazer a pauta do mês todo"*. Aquela migration consertou a
+DATA e deixou o modelo de pé: com doze posts, `post_etapas` guardava sessenta
+etapas, e em Minhas Tasks a redatora via **doze linhas "Conteúdo" vencendo
+juntas**. O próprio texto da 0084 registrava a pendência em voz alta, e esta é
+a resposta dela: *"colapsar a corrente para uma por MÊS em vez de uma por post
+é mudança de modelo bem maior que a data, e não foi pedida; fica registrada
+aqui porque é a pergunta seguinte natural."*
 
-*O que se perde, e é consequência aceita:* a ordem não é global entre os dois
-tipos. O que se ganha é uma tela só para "o que eu faço hoje".
+| | Antes (0045) | Agora (0088) |
+| --- | --- | --- |
+| A fase | uma linha por post | **uma subtarefa do mês** |
+| Onde ela mora | `post_etapas` | `subtasks`, com `social_papel` |
+| O trabalho por peça | o status da etapa daquele post | **a caixinha**, `post_etapa_progresso` |
+| A decisão do cliente | por post | **por post** — não mudou |
 
-E a lista traz **só as que já podem começar**: uma etapa de Layout cujo
-Conteúdo ninguém escreveu ainda não é trabalho meu hoje — ela apareceria no topo
-da lista de quem não tem o que fazer com ela, e o banco recusaria o clique.
+**`post_etapas` FOI APAGADA, e não aposentada ao lado**, que é a decisão da
+0023: uma tabela que nenhuma tela lê é o que alguém reaproveita errado três
+sprints depois, achando que ela ainda diz a verdade sobre a corrente. Saíram
+com ela os cinco triggers que a serviam, `montar_etapas_do_post()`,
+`subtarefa_de_post()` e `posts.subtask_id`.
 
-##### E ela tem TRÊS NÍVEIS: conta › demanda do mês › post
+##### A FASE É UMA SUBTAREFA COMUM, e é o que o sprint comprou
 
-Relato do usuário, olhando a própria tela: *"Quando abro um mês de social, ele
-ainda não está ficando separado pelo Social de mês específico, de uma conta
-específica (…) Preciso que ele apareça como uma Task mãe, com cada post sendo
-uma subtarefa"*.
+A etapa do mês tem responsável, período, estimativa, cronômetro, dependência
+cadastrada e as travas da 0007 — porque ela **é** uma subtarefa. O que isso
+devolve de graça:
 
-**Ele estava certo, e os três níveis já existiam no banco — é a oitava ponte
-construída e nunca atravessada.** A conta, a demanda do mês
-(`tasks.social_do_mes`, migration 0061) e o post (`posts.subtask_id`, 0032). O
-que faltava era a tela ler a ponte, e por isso **isto não tem migration
-nenhuma**: é leitura e desenho, como o rosto no chip do calendário e como a
-pilha de avatares.
+- ela aparece em Minhas Tasks pelo caminho de toda etapa de demanda, nas TRÊS
+  visões: linha na Lista, card no board de etapas, barra no calendário;
+- o relógio corre nela, e o tempo real é declarado como em qualquer etapa;
+- ela entra na carga de quem produz por `disponibilidade_bruta()` (0081), sem
+  uma linha nova: a conta lê `subtasks`, e agora a fase está lá;
+- e o status do mês é calculado pelas folhas desde a 0007, então a demanda
+  anda sozinha conforme as fases andam.
 
-**O que a lista corrida custava:** dezoito etapas "Layout" seguidas, todas com o
-mesmo nome, e a conta repetida dezoito vezes na linhagem. O olho não tinha como
-ver que são o mesmo trabalho do mesmo mês da mesma conta — que é exatamente a
-informação que decide em que ordem a pessoa os faz.
+**As três colunas novas são SNAPSHOT e não uma chave para `social_flow_steps`**
+(0087), pela razão de `tasks.workflow_snapshot`: `salvar_fluxo_de_social()`
+apaga e reinsere os elos a cada edição, e um mês que aponta para a linha
+perderia o papel da fase dele no dia em que alguém mexesse no fluxo. São
+colunas e não uma tabela 1-1 ao lado porque seriam as MESMAS três colunas
+noutro lugar, cobrando um join em cada leitura da corrente, duas policies e um
+espelho para o apagamento.
 
-**O ITEM CONTINUA SENDO A ETAPA, e isto é regra e não detalhe.** Se a Pauta e o
-Programar do mesmo post são meus — e são, porque as duas são de Social Media —,
-são **duas linhas**: dois trabalhos, em dois momentos. É a decisão do Sprint 10
-("Minhas Tasks lista ETAPAS, não demandas") e ela não muda aqui; o agrupamento
-muda o que fica ACIMA da linha, nunca o que a linha é.
+**E elas são protegidas por trigger** (`subtasks_protege_o_social`), pela razão
+de sempre — **policy não limita coluna**: `subtasks_update` aceita o dono da
+etapa desde o Sprint 3B, e sem o trigger o colaborador que tem a fase poria
+`social_papel = 'entrega'` nela, virando a própria etapa em portão do cliente.
+Foi a bateria que encontrou.
 
-**DENTRO DO GRUPO, O POST É QUE CARREGA O PESO**, e isso inverte a linha de
-fora. Na lista corrida o título era a etapa, porque era ela que variava;
-agrupado por mês, o nome da etapa é quase sempre o MESMO em todas as linhas do
-grupo, e o que distingue uma da outra é o post. É a decisão do selo de status
-que some dentro do grupo: o que o cabeçalho e os vizinhos já dizem não ganha a
-escala grande.
+##### A CAIXINHA é a unidade de trabalho, e ela não é status
 
-**A faixa do mês é um LINK para a demanda**, e é ela que entrega o pedido dele:
-a Task mãe existe, tem nome, e dali se vê o mês inteiro com os posts das outras
-pessoas. Sem o link, "Task mãe" seria uma palavra na tela sem nada atrás.
+`post_etapa_progresso (post_id, subtask_id, concluido, observacao)`, uma linha
+por peça em cada fase — dezoito posts por cinco fases são noventa linhas que
+ninguém escreve à mão: `posts_entra_no_mes` e `subtasks_etapa_entra_no_mes`
+abrem as duas direções, então entrar um post no mês ou acrescentar uma fase
+preenche o que falta.
 
-**O post avulso entra na conta, SEM faixa de mês.** Ele não nasceu de
-`abrir_mes_de_social()`, então não há demanda a nomear — e uma faixa inventada
-afirmaria que existe uma que ninguém abriu. A linha diz "Fora de um mês aberto",
-que é a verdade.
+**São DUAS travas, e a ordem entre elas foi medida.** `post_etapa_progresso_regras`
+recusa marcar uma caixinha enquanto um portão ANTERIOR não tiver a aprovação
+daquela peça (trava B) e enquanto uma fase anterior dela estiver aberta (trava
+A). **B vem primeiro**, e isso é escolha: na última fase as duas valem — a
+caixinha da entrega só fecha pela aprovação, então ela está desmarcada e a
+corrente também reclamaria —, e com A na frente a pessoa lia *"falta Envio"*,
+que é verdade e não diz o que fazer.
 
-**A chave da conta é o ID e nunca o nome**, porque é ela que vai para a URL
-quando o grupo fecha: duas empresas homônimas virariam um grupo só. É
-`quemMaisEstaNa()` pela mesma razão.
+**A caixinha da entrega não se marca à mão, nem pela gestão**, que é a regra da
+0045 um nível abaixo: a etapa Envio era consequência da rodada de escopo
+cliente, e a caixinha dela é consequência da APROVAÇÃO daquela peça. Marcar
+afirmaria que o material foi e voltou aprovado sem nada ter saído da agência.
 
-**A conta dobra, e o que está fechado mora na URL** — `socialFechado`, parâmetro
-próprio para não se misturar com os grupos de status da Lista. É para isso que
-o `GrupoDobravel` tem o `parametro`.
+**E `observacao` é o que sobrou da etapa de Ajustes.** Ela nascia entre o Envio
+e o Programar a cada pedido do cliente (0045), e com a fase sendo do mês criar
+uma "Ajustes" por pedido afirmaria que o mês inteiro voltou por causa de uma
+peça. Quem escreve é `posts_corrente_do_cliente`, no instante da recusa, e a
+tela a mostra em âmbar na linha da fase — é a única coisa daquela tela que
+alguém de fora escreveu, e é onde quem refaz vai olhar: na rodada, que a tela
+de produção não mostra, ela ficaria invisível.
 
-**A contagem do cabeçalho diz as DUAS coisas** — "6 em 2 contas" —, porque o
-grupo fechado esconde as linhas e não os números: "6" sozinho num dia em que
-elas vêm de duas empresas esconde justamente o que o agrupamento existe para
-mostrar. Com uma conta só ele volta a ser o número seco.
+**Não há coluna de status na caixinha**, e a ausência é a decisão: marcada ou
+não é o fato, e um enum ali seria um segundo vocabulário ao lado dos quatro que
+o produto já mantém separados.
 
-**Quem agrupa é `agruparSocialPorConta()` em `lib/dominio/posts.ts`**, e não a
-tela: a tela de Minhas Tasks e o stub do protótipo fazem a mesma pergunta, e
-duas contas divergiriam na primeira mudança.
+##### O PORTÃO DA PEÇA É POSICIONAL, e foi o bug que o teste de fumaça achou
 
-**O axe cobrou uma regra que eu mesmo quebrei**, e vale registrada: a contagem
-da faixa do mês saiu como `text-action-text/85`, e **opacidade em texto dá uma
-cor que ninguém mediu** — a regra que o produto já tinha escrita para o selo de
-estado e para o `opacity-80` do `DateBadge`. O par medido é `--action-text`
-sobre `--action-soft` (5,88:1), e quem separa o título da contagem é o **peso**,
-que é o sinal que não depende de a pessoa enxergar bem.
+`porta_do_cliente_no_post()` devolve o **(k+1)-ésimo** portão do mês, onde `k`
+são as rodadas de cliente já APROVADAS daquela peça — pendente, recusada e
+rejeitada não contam, que é a regra da 0023: pedir aprovação não é ter
+aprovação. `portaoDoPost()` faz a mesma pergunta na tela.
 
-**E o exemplo do protótipo ganhou duas contas e um post com duas etapas minhas**,
-pela razão da pilha de avatares: com uma conta só, a imagem mostra um cabeçalho
-e não prova que elas se separam — prova só que ele sabe existir.
+**E A FRASE DA RECUSA NOMEIA SÓ O QUE FALTA.** Ela dizia *"o cliente ainda não
+aprovou Pauta, Envio neste post"* numa peça cuja Pauta estava aprovada, porque
+listava os portões anteriores TODOS; as aprovações fecham na ordem, então os
+aprovados são os `k` primeiros e um `offset` tira exatamente eles. **A versão
+errada não estoura:** ela devolve uma recusa plausível, que a pessoa confere,
+vê que está errada, e passa a desconfiar do resto. É a decisão da 0023, que
+nomeia CADA etapa sem aprovação — dizer quais errado é pior que não dizer. Quem
+achou foi a imagem do protótipo, não a bateria, e o cenário entrou no arquivo
+39 e não no 21: o fluxo do 21 tem UM portão, e com um a lista errada e a certa
+dão a mesma frase. **Medido com mutação: 1 cenário cai, e diz a frase errada.**
+
+**E a pergunta é pelo PAPEL, nunca pelo nome** (0087): com a cadeia editável,
+`titulo === "Envio"` deixaria um fluxo que chame a entrega de "Entrega ao
+cliente" sem portão nenhum, sem erro em lugar nenhum.
+
+**O bug:** `posts_corrente_do_cliente` chamava aquela função para saber qual
+portão a decisão fechou — e a rodada já está `aprovada` quando o status do post
+é escrito, então `k` já contava a decisão e a função devolvia o portão
+SEGUINTE. Um portão do meio aprovado deixava o post em `aprovado`, que afirma
+ao cliente, ao calendário e à grade do feed que a peça inteira fechou — quando
+o que ele aprovou foi um parágrafo de texto e a arte nem existe. A saída é
+`portao_do_mes_na_posicao(task_id, posicao)`, um lugar só com a conta
+posicional, lido em `k` no ramo da aprovação. **Medido com mutação: 7 cenários
+caem.**
+
+Quem encontrou foi um teste de fumaça escrito à mão contra o Postgres, e não a
+bateria — e isso fica registrado porque é a lição da 0029 outra vez: a bateria
+media o que a função devolve, não o que o trigger faz com ela.
+
+##### `etapas_de_social.tsx` SAIU de Minhas Tasks, e a ausência é a entrega
+
+Havia um bloco próprio, fora do seletor de visão, e o argumento dele estava
+escrito aqui: *"uma etapa de post não tem rodada, cronômetro nem dependência
+para caber no molde — e o molde errado mente com mais convicção que a
+ausência"*. Era verdade enquanto a fase era de `post_etapas`.
+
+Com ela sendo uma subtarefa, o bloco deixou de ter o que mostrar que a lista
+não mostre — e o que ele dava de exclusivo, os TRÊS NÍVEIS `conta › demanda do
+mês › post`, deixou de existir como problema: a etapa de Layout do mês é UMA
+linha, não doze, então não há o que agrupar. **A linhagem continua**, e é a de
+toda etapa de demanda: `Mundo Verde · Social de Outubro › Layout`.
+
+**O chip "Social Media" FICA, com a contagem**, e era ele o pedido do usuário —
+*"com um sinal de notificação, sempre que o colaborador for responsável por
+algo novo nessas áreas"*. Ele leva ao MÓDULO, onde a pessoa vê o mês inteiro e
+as caixinhas de cada peça. **E as três contagens passaram a sair da mesma
+`areaDaLinha()`**: antes o Social contava de uma consulta própria, porque a
+corrente não cabia na lista; agora é a mesma soma sobre as mesmas linhas, e não
+há segundo lugar onde ela possa divergir.
+
+**`areaDaLinha()` pergunta `social_papel`, nunca o título nem o caminho pela
+demanda.** Pelo caminho longo (`task.social_do_mes`), uma etapa acrescentada à
+mão na demanda do mês — *"Conferir os direitos de imagem"* — responderia
+"social" sendo uma etapa comum; e pelo título, um fluxo que chame a fase de
+outra coisa deixaria a área vazia sem erro em lugar nenhum.
+
+##### A sexta origem do Calendário Full saiu
+
+`etapa_de_post` entrou na 0059 como oitava origem da `calendar_events` e saiu
+na 0088, por decisão do usuário: *"a corrente do social vive só em minhas
+tasks e na carga"*. **Saiu da VIEW e não só da lista de camadas**, que é a
+decisão da 0077 com as duas origens de demanda: uma camada é um interruptor, e
+tirar o interruptor deixando a origem produzindo esconde as linhas desta tela e
+as entrega de graça ao próximo consumidor da view.
+
+**E `security_invoker = true` foi repetida pela QUARTA vez**, porque
+`create or replace view` não a herda. Sem ela a view volta a rodar com os
+direitos de quem a criou e lê as tabelas de origem inteiras para qualquer
+pessoa autenticada — e o furo passa despercebido num banco com um cliente só.
+A bateria mede com material de duas empresas.
+
+**O que ela NÃO perde é a carga**, e é o que faz a remoção caber: a fase é uma
+subtarefa, e `disponibilidade_bruta()` lê `subtasks` direto. Sai a BARRA da
+fase do calendário e fica o PESO dela na Linha do Tempo.
+
+##### O que o sprint pedia e NÃO foi feito, com o motivo
+
+- **A fase-portão não é `requer_aprovacao = true`.** A trava de `subtasks` cobra
+  uma rodada aprovada na PRÓPRIA subtarefa (0007), e as rodadas aqui são por
+  post: uma fase de dezoito peças nunca teria a rodada dela, e ela ficaria
+  presa em `em_andamento` para sempre. Quem diz que a fase passa pelo cliente é
+  `social_portao`, e quem recusa fechar a caixinha é a trava B.
+- **A caixinha não tem responsável próprio.** Quem faz a peça naquela fase é
+  quem tem a fase — e um dono por caixinha seriam noventa atribuições por mês
+  para dizer dezoito vezes a mesma coisa. Se um dia a agência dividir uma fase
+  entre duas pessoas, é coluna nova e decisão explícita.
+- **A conversão dos meses já abertos é no `do $$` da migration**, e não um
+  script à parte: ela tem o que inventar — a fase do mês herda o responsável e
+  as datas pelo `mode()` da corrente antiga, e onde as peças divergiam o
+  `aviso_geracao` diz isso por extenso em vez de escolher calado.
 
 #### A lista do Social Media agrupa por CONTA
 
@@ -3494,14 +3613,14 @@ agrupamento por STATUS:** agrupar por cliente ou por responsável não ganha
 ponto, porque não há cor da "Mundo Verde" no produto, e inventar uma seria pôr
 na tela um significado que nada mais carrega.
 
-**O Social fica FORA do seletor de visão, e é mecânico.** O board desenha
-colunas dos status da etapa de demanda e o calendário desenha prazos de
-demanda; nenhum dos dois sabe desenhar uma etapa de post. Posto dentro da
-Lista, ele sumiria em duas das três visões, e quem trabalha no board perderia
-a área inteira sem nada dizendo por quê. Ele vem DEPOIS do conteúdo da visão,
-na mesma ordem dos chips — Demandas, Campanhas, Social Media —, então na Lista
-ele fecha a tela depois dos grupos de status e no board ele fica embaixo das
-colunas, que é onde uma lista cabe.
+**O Social ficava FORA do seletor de visão, e era mecânico** — o board desenha
+colunas de `subtask_status` e o calendário desenha prazos, e uma etapa de
+`post_etapas` não tinha nem rodada, nem cronômetro, nem dependência para caber
+no molde; posto dentro da Lista, ele sumiria em duas das três visões. **A 0088
+desfez isso ao desfazer a causa:** a fase do mês é uma subtarefa comum, então
+ela aparece nas TRÊS visões pelo caminho de toda etapa de demanda, e o bloco
+próprio saiu. O chip fica, com a contagem — e ele leva ao MÓDULO, onde se vê o
+mês inteiro e as caixinhas de cada peça.
 
 **E o selo da peça diz QUAL campanha**, não a palavra "Campanha". Enquanto
 havia uma seção Campanhas, a palavra repetia o cabeçalho cinco vezes sem
@@ -8791,6 +8910,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | Sprint | Entrega |
 | --- | --- |
 | A porta | **A tela de login ganhou identidade nova**, em cinco rodadas de proposta — e as quatro primeiras foram recusadas com *"não gostei de nenhuma"*. O que estava errado era a **composição**, não o fundo, e a instrução que fechou é do usuário: *"centralize as informações, deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula se dividindo e se juntando (…) apenas o logo da agência, sem escrever Full Hub, uma letra mais contemporânea, tecnológica"*. **A molécula é metaball**, e o efeito inteiro são duas linhas de filtro SVG: desfoca os seis círculos e **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os halos somados, e o corte transforma a soma numa borda só. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece* molécula e não é. Duas animações empilhadas em tempos que não batem: os átomos fundem e se partem em 26s, o conjunto atravessa em 64s. **O vidro é 82% opaco, e o número foi MEDIDO:** a proposta usava 58%, e com a molécula passando atrás o pior caso — o vidro sobre o ponto mais claro dela — dava `--auth-apoio` em **2,71:1**, o subtítulo e o link ilegíveis por um instante a cada volta, num tempo que ninguém reproduz de propósito. É a regra do selo de estado de outro ângulo: **ninguém mede uma cor que anda**. `--vidro-no-pior-caso` é um token que nada pinta, e existe só para o `check:cores` ter contra o que medir — contra o preto os três textos passariam por larga margem afirmando algo que a tela não garante; medido com mutação, três cenários caem. **A letra era Sora, carregada só em `(auth)`** — e deixou de ser: a Google Sans passou a valer no produto inteiro, por decisão do usuário, e a porta não tem mais letra própria. O título do login **alterna** entre a saudação e o lema da agência com as palavras subindo do desfoque, em CSS puro — a porta é a tela que alguém abre quando nada mais funciona, e uma frase que depende de hidratar pode não aparecer. **O `<h1>` continua "Entrar" e é `sr-only`:** sem isso a mesma tela teria dois títulos diferentes conforme o segundo em que alguém chegasse nela. **Dois achados foram da imagem e não do build:** os átomos saíram chapados (na proposta cada um era degradê radial), e o quadro em repouso era o de máxima separação — seis discos num canto —, consertado com atraso negativo nas duas animações. De quebra, **o wordmark de três linhas saiu do produto** junto com a coluna escura que existia para dar largura a ele, e isso fica escrito em vez de virar ausência silenciosa. |
+| Sprint 3J / Parte 1 | **A produção do social virou mensal, e a aprovação continua por post.** Migration 0088, com o recorte na frase do usuário: *"A produção vira mensal, a aprovação continua por post."* Era uma corrente POR PEÇA — com doze posts, `post_etapas` guardava sessenta etapas e a redatora via **doze linhas "Conteúdo" vencendo juntas**, doze trabalhos onde a frase dele descreve UM. A 0083 já tinha consertado a DATA e deixado o modelo de pé, e a 0084 registrou a pendência em voz alta: *"colapsar a corrente para uma por MÊS é mudança de modelo bem maior que a data, e não foi pedida; fica registrada aqui porque é a pergunta seguinte natural"*. Agora a fase é **uma subtarefa do mês** (`subtasks.social_papel`), e o trabalho por peça é **a caixinha** (`post_etapa_progresso`). **`post_etapas` foi APAGADA**, com os cinco triggers que a serviam e com `posts.subtask_id` — a decisão da 0023, e não aposentada ao lado. **O que o sprint comprou é o que a fase ganha de graça por SER uma subtarefa:** cronômetro, período, estimativa, as travas da 0007, a carga de `disponibilidade_bruta()` (0081) sem uma linha nova, e as TRÊS visões de Minhas Tasks — então `etapas-de-social.tsx` saiu, e com ele os três níveis `conta › demanda do mês › post`, que deixaram de existir como problema porque a etapa de Layout do mês é UMA linha e não doze. **O chip da área fica, com a contagem**, e as três passaram a sair da mesma `areaDaLinha()`, que pergunta `social_papel` — pelo caminho longo uma etapa acrescentada à mão no mês responderia "social", e pelo título um fluxo renomeado deixaria a área vazia. **Duas travas na caixinha, e a ordem entre elas foi medida:** o portão anterior sem a aprovação daquela peça vem ANTES da fase anterior aberta, senão na última fase a pessoa lia *"falta Envio"*, que é verdade e não diz o que fazer. **A caixinha da entrega não se marca à mão** (a regra da 0045 um nível abaixo), e `observacao` é o que sobrou da etapa de Ajustes — criar uma "Ajustes" por pedido afirmaria que o mês inteiro voltou por causa de uma peça. **A sexta origem do Calendário Full saiu**, por decisão do usuário (*"a corrente do social vive só em minhas tasks e na carga"*) — da VIEW e não só da lista de camadas, com `security_invoker = true` repetida pela quarta vez; o que ela não perde é a CARGA, porque a fase é subtarefa. **O bug que o teste de fumaça achou era meu, e caro:** `posts_corrente_do_cliente` lia o portão da decisão depois de a rodada já estar `aprovada`, então `k` contava a própria decisão e a função devolvia o portão SEGUINTE — um portão do meio aprovado deixava o post em `aprovado`, afirmando ao cliente, ao calendário e à grade do feed que a peça inteira fechou. A saída é `portao_do_mes_na_posicao()`, um lugar só com a conta posicional; **mutação: 7 cenários caem**. **E a bateria encontrou um furo de segurança que eu havia deixado:** nada protegia as três colunas novas, e `subtasks_update` aceita o dono da etapa — um colaborador poria `social_papel = 'entrega'` na própria fase; entrou `subtasks_protege_o_social`, pela razão de sempre, **policy não limita coluna**. **1805 cenários, sete mutações medidas** (2 / 6 / 3 / 7 / 5 / 9 / 3). De quebra, duas coisas do seed: ele apagava os posts e deixava a demanda do mês para trás, o que fazia a segunda passada estourar em `tasks_social_do_mes_unico` — e um `case` com dois literais de array virava `text` e era recusado pela coluna de enum, um bug latente desde a 0082 que só apareceu quando o seed voltou a chegar àquela linha. |
 | Sprint 3H | **Feedback de desenvolvimento assistido por IA.** Migration 0075: quatro tabelas, sete funções, e a exposição jurídica registrada no cabeçalho — **isto não é avaliação de desempenho**, e se um dia for, a regra muda inteira e passa pelo jurídico antes (LGPD, Art. 20). As três regras do módulo têm consequência de schema: comparação só consigo mesma (nenhuma função devolve duas pessoas lado a lado), os números crus na mesma linha do texto, e revisão humana por padrão. **Um rascunho vazado é pior que nenhum feedback**, e os cenários guardam os CINCO status que não são `enviado`. Quatro divergências do texto do sprint, todas sobre o produto como ele está: rascunho é `publicada_em is null` e não um valor de enum (quarto sprint a errar nisso); a tabela de autoavaliação foi apagada na 0043, então "o que ela quer desenvolver" virou "o que ela estudou"; não há Edge Functions aqui, e a geração periódica continua pendente da URL do app; e metade das métricas já existia — o que se copia da 0035 é a FORMA de cada conta, para a tela de Métricas e o feedback não discordarem sobre a mesma pessoa. **Três achados da bateria, e os três eram bugs**: `carga_do_dia()` devolvia zero num período fechado e o texto dizia a quem entregou o mês inteiro que a entrega baixa dela foi distribuição de trabalho; a proporção da capacidade acusava ociosidade num mês em que ninguém estimou; e `recebe_feedback_ia` nasceu inalcançável por quem ela é para. **83 cenários novos, 1494 no total**, medidos com quatro mutações. O `check:feedback` achou um bug meu na primeira rodada — o teto de três dígitos deixava a checagem de número cega para `2400` —, e o `check:cores` pegou os meus próprios comentários citando os dois nomes mortos que a varredura proíbe, pela sétima vez. |
 | Sprint 3F | **Comodatos: qual equipamento está com quem.** Migration 0069, e o **segundo módulo do zero em poucos sprints** — não havia ponte para atravessar desta vez, nem tabela nem coluna esperando alguém. `assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`, com duas visões da mesma informação numa rota só: o colaborador vê o que está com ele, a gestão vê o inventário inteiro. **A divergência do texto do sprint é de segurança**, e as duas frases dele não cabiam juntas: ele manda deixar o colaborador ler a linha do equipamento e, na linha seguinte, esconder `valor_aquisicao` numa view — mas **uma view não limita a tabela de baixo**, e com a policy permitindo a linha o valor sai por um `select=valor_aquisicao` no PostgREST. É a regra que o produto já escreveu três vezes de outro jeito: policy não limita coluna. Então a linha ficou **fora do alcance** e o recorte vem de `meus_comodatos()`, `security definer` — a forma de `usuarios_do_meu_cliente()`. **O índice único parcial é a trava** contra dois empréstimos do mesmo item, e não a consulta (0040); **o status é escrito pelo empréstimo**, por trigger; **atraso é derivado**, nunca coluna. **O termo é SNAPSHOT e não arquivo:** o corpo congela na entrega, porque o modelo é editável e um termo é o que a pessoa aceitou naquele dia — e o PDF é montado no download, porque o próprio sprint descreve o documento como vivo (o aceite aparece nele depois de acontecer), e um PDF gravado na entrega não tem como ganhar uma linha. Por isso não há bucket de termos. **A folha do equipamento é tabela própria e não o `audit_log`**: aquela trilha é só do sócio desde a 0058, e o que ela grava é diff de coluna, não fato. No desligamento, o equipamento em aberto **avisa com caixa obrigatória em vez de recusar** — travar deixaria a agência sem conseguir desligar quem já foi embora; o que ela impede é desligar sem ver. **61 cenários novos, 1355 no total**, e quatro bugs reais na primeira rodada: um `case` devolvendo texto para coluna de enum, emprestar criando DOIS eventos `emprestado` (o trigger de status e o do empréstimo), e `asset_term_template` com `id boolean primary key` — engenhoso, e quebra `registrar_auditoria()`, que grava o id num `uuid`. **E um cenário que passava pelo motivo errado:** a mutação que tirava a checagem de dono de `confirmar_recebimento()` não era pega, porque o teste procurava o empréstimo por um `select` que a RLS da outra pessoa não resolve — ele media a policy de SELECT, não a pergunta de propriedade. Com o id literal, a mutação cai. **E o seed passou a ter alguém desligada**, com uma lente em aberto: sem ela o alerta mais caro do módulo nunca aparece em desenvolvimento — a lição da 0062 aplicada antes do bug em vez de depois. |
 | Sprint 15 | **A agência passou a responder sobre si mesma.** A camada de indicadores existia desde a 0035 e o resumo da Home desde a 0049, e nenhuma tela as lia. A Home ganhou os **nove blocos**, na ordem do dia da pessoa — quem sou eu, o que eu entrego hoje, o que está parado me esperando, quem não está aqui, para onde eu vou, e só então o panorama da gestão: quem abre esta tela abre para trabalhar. "Meu dia" é o **mesmo componente de Minhas Tasks**, que já estava separado desde o Sprint 4 esperando exatamente isto. `/painel/metricas` traz cinco abas com o **período como CHAVE e não como as duas datas** — "últimos 30 dias" salvo como `de=2026-08-26` é um link que envelhece calado —, e `QUEM_VE` espelha a primeira linha de cada função da 0035: quatro de `is_gestor()`, a rentabilidade de `is_socio()`. `ouFalha()` em todas, e aqui ele vale mais que de costume: a recusa dessas funções chega como erro, e sem ele o painel mostraria zeros — **painel zerado não parece recusa, parece agência parada**. `/painel/resumo-agencia` é a conversa de segunda-feira, e é **módulo antes de ser tela** (`lib/reports/weekly.ts`), porque a mesma função serviria o envio automático que ainda não existe. De quebra, o **CSV deixou de ter seis donos**: `montarCSV` morava dentro do Financeiro e a Academy importava dali, e as cópias já divergiam — o BOM que o Excel precisa estava em quatro das cinco telas. **Quatro erros meus, e nenhum o `npm run build` pegaria:** o cartão dizia "11 entregues" e o bloco logo abaixo contava 7, porque `producao_do_periodo()` conta só folha e as listas contavam agrupadora junto (foi a imagem que pôs os dois números lado a lado); em 375px a barra de abas empurrava a página inteira para os lados, e o **Full Days tinha a mesma linha desde o Sprint 6**; o título da etapa em "Meu dia" encolhia até "Re…" no celular; e o meu próprio comentário explicando por que o estado passa pelo mapa de rótulos **citava a palavra que a 0016 proibiu** — sétima vez na mesma armadilha. E o seed concluía duas etapas por INSERT, onde o trigger de UPDATE não roda: `concluida_em` nulo fazia toda conta de entrega responder **zero, que é plausível**. |

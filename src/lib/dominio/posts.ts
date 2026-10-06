@@ -4,6 +4,7 @@ import type {
   ContentStatus,
   PlataformaSocial,
   PostMidia,
+  SocialFlowPapel,
   SubtaskStatus,
 } from "@/lib/supabase/database.types";
 
@@ -101,10 +102,12 @@ export type PostDoPortal = {
    * A etapa da corrente que está esperando o cliente, quando não é o Envio
    * (migration 0076). Nula no caminho de sempre.
    *
-   * **Ela vem de `o_que_o_cliente_decide()` e não de um `select` em
-   * `post_etapas`**, porque o cliente não tem policy naquela tabela desde a
-   * 0045 — e não passa a ter: a corrente é conversa interna. O que a função
-   * devolve é o agregado de que a tela precisa, e nada mais.
+   * **Ela vem de `o_que_o_cliente_decide()` e não de um `select` nas etapas
+   * do mês**, porque o cliente não tem policy em `subtasks` nem em
+   * `post_etapa_progresso` — e não passa a ter: a corrente é conversa
+   * interna, com quem está com o material na mão, qual fase travou e quem
+   * atrasou. O que a função devolve é o agregado de que a tela precisa, e
+   * nada mais.
    */
   portaoDoCliente: string | null;
   /** O texto daquele portão — a pauta, ou a legenda. */
@@ -368,13 +371,19 @@ export function maoDoPost(post: EstadoDoPost): MaoDoPost {
 export function faltaParaEnviar(
   post: EstadoDoPost,
   /**
-   * O portão que está saindo. Sem ele a resposta é a de sempre — o Envio —,
-   * que é o que mantém de pé toda tela que ainda não passa a corrente.
+   * O portão que está saindo. Sem ele a resposta é a de sempre — a entrega —,
+   * que é o comportamento de um post avulso: sem mês não há corrente, e ele
+   * volta a ser um post anterior à 0045 (um envio, uma decisão).
    */
-  portao?: EtapaDoPost | null,
+  portao?: EtapaDoMes | null,
 ): string[] {
   const faltam: string[] = [];
-  const doMeio = Boolean(portao && portao.nome !== "Envio");
+  // PELO PAPEL, E NUNCA PELO NOME (0087). Com `nome === "Envio"` um fluxo que
+  // chame a entrega de outra coisa cairia sempre no ramo do meio, e as duas
+  // travas da arte deixariam de valer — o cliente receberia a peça sem data
+  // de publicação e o vídeo sem link, pelo único caminho que existe para que
+  // isso não aconteça.
+  const doMeio = Boolean(portao && portao.papel !== "entrega");
 
   // NUM PORTÃO DO MEIO A ARTE NÃO É O QUE SAI, e é por isso que a pergunta
   // mudou de forma na 0076: quem vai ao cliente é a pauta ou a legenda, e a
@@ -405,9 +414,9 @@ export function faltaParaEnviar(
  * as duas mandam coisas diferentes. Um rótulo igual nas duas é a tela pedindo
  * uma decisão sem dizer sobre o quê.
  */
-export function rotuloDoEnvio(portao: EtapaDoPost | null): string {
-  if (!portao || portao.nome === "Envio") return "Enviar ao cliente";
-  return `Enviar a ${portao.nome} ao cliente`;
+export function rotuloDoEnvio(portao: EtapaDoMes | null): string {
+  if (!portao || portao.papel === "entrega") return "Enviar ao cliente";
+  return `Enviar a ${portao.titulo} ao cliente`;
 }
 
 /**
@@ -433,7 +442,7 @@ export function podeEnviarAoCliente(
   post: EstadoDoPost,
   quemLe: { id: string; ehGestor: boolean },
   /** O portão que está saindo — ver `faltaParaEnviar`. */
-  portao?: EtapaDoPost | null,
+  portao?: EtapaDoMes | null,
 ): { pode: boolean; porque: string | null } {
   if (!quemLe.ehGestor) {
     return { pode: false, porque: "Enviar ao cliente é do desenvolvedor ou do sócio." };
@@ -465,10 +474,12 @@ export function podeProduzir(
 }
 
 /* ==========================================================================
- * A CORRENTE DE ETAPAS DO POST (0045)
+ * A CORRENTE É DO MÊS, E A CAIXINHA É DO POST (migration 0088)
  *
- * Pauta → Conteúdo → Layout → Envio → Programar, e "Ajustes" entre as duas
- * últimas quando o cliente pede. Decisão do usuário.
+ * Decisão do usuário: *"a produção vira mensal, a aprovação continua por
+ * post"*. A etapa do mês é uma SUBTAREFA — com dono, prazo, estimativa e
+ * relógio —, e o que cada post tem dentro dela é uma caixinha: o "12 de 18"
+ * do cabeçalho.
  *
  * O que mora aqui são as perguntas que a tela faz e o banco também faz — como
  * `situacaoDoLancamento()` no Financeiro. A tela precisa saber de quem é a vez
@@ -476,62 +487,138 @@ export function podeProduzir(
  * doze posts.
  * ========================================================================== */
 
-/** A etapa como a tela a recebe: a linha, mais o nome de quem está com ela. */
-export type EtapaDoPost = {
+/** A etapa do mês como a tela a recebe, com o nome de quem está com ela. */
+export type EtapaDoMes = {
   id: string;
   ordem: number;
-  nome: string;
-  funcao: string;
+  titulo: string;
   responsavelId: string | null;
   responsavel: string | null;
   status: SubtaskStatus;
+  dataInicio: string | null;
   prazo: string | null;
-  concluidaEm: string | null;
+  estimativaMinutos: number | null;
   /**
-   * Esta etapa passa pelo cliente antes de a próxima começar (0076).
+   * O PAPEL desta etapa na corrente, copiado do elo do fluxo no instante em
+   * que o mês abriu (0087/0088).
    *
-   * O Envio não carrega a marca e é portão do mesmo jeito: ele É o portão
-   * desde a 0045, e marcá-lo seria dizer duas vezes a mesma coisa. Quem junta
-   * os dois é `portaoDoCliente()`.
+   * Ele é a coluna que tirou a palavra 'Envio' das comparações do produto: com
+   * a cadeia editável, `titulo === "Envio"` deixaria um fluxo que chame a
+   * entrega de "Entrega ao cliente" SEM PORTÃO NENHUM, sem erro em lugar
+   * nenhum.
    */
-  aprovacaoCliente: boolean;
+  papel: SocialFlowPapel;
+  /** Qual campo do card esta etapa enche: `pauta`, `legenda` ou nenhum. */
+  campo: string | null;
+  /** Esta etapa passa pelo cliente, post por post (0076). */
+  portao: boolean;
+  /**
+   * O recado da geração — função sem dono na conta, responsável desligado
+   * (0040/0064). A frase NOMEIA a função que faltou: "há etapa sem
+   * responsável" manda abrir uma por uma.
+   */
+  avisoGeracao: string | null;
+  /** O "12 de 18" do cabeçalho. */
+  feitos: number;
+  total: number;
+};
+
+/** A caixinha de um post numa etapa do mês. */
+export type CaixinhaDoPost = {
+  postId: string;
+  etapaId: string;
+  concluido: boolean;
+  /** O pedido do cliente sobre este post, nesta etapa. */
+  observacao: string | null;
 };
 
 /**
- * A etapa que a PRÓXIMA decisão do cliente fecha.
+ * Os portões do mês, em ordem.
  *
- * **Derivada da ordem, nunca gravada** — é `porta_do_cliente_no_post()` do
- * Postgres escrita deste lado, como `situacaoDoLancamento()` no Financeiro: o
- * banco decide o que acontece, e esta responde o que a tela escreve. A
- * corrente é serial, então há no máximo um portão aberto por vez.
+ * A entrega entra sem a marca: ela É o portão do cliente desde a 0032, e
+ * marcá-la seria dizer duas vezes a mesma coisa — o `check`
+ * `subtasks_social_coerente` recusa a marca fora de um elo de produção.
  */
-export function portaoDoCliente(etapas: EtapaDoPost[]): EtapaDoPost | null {
+export function portoesDoMes(etapas: EtapaDoMes[]): EtapaDoMes[] {
+  return [...etapas]
+    .sort((a, b) => a.ordem - b.ordem)
+    .filter((e) => e.portao || e.papel === "entrega");
+}
+
+/**
+ * O portão que a PRÓXIMA decisão do cliente deste post fecha.
+ *
+ * **Derivado, nunca gravado** — é `porta_do_cliente_no_post()` do Postgres
+ * escrita deste lado, como `situacaoDoLancamento()` no Financeiro. A conta é
+ * a (k+1)-ésima posição da lista de portões, onde k são as rodadas de cliente
+ * já APROVADAS daquele post: pendente, recusada e rejeitada não contam, que é
+ * a regra da 0023 — pedir aprovação não é ter aprovação.
+ *
+ * Devolve nulo num post sem mês, e os chamadores caem no ramo da entrega: sem
+ * corrente ele volta a se comportar como um post anterior à 0045.
+ */
+export function portaoDoPost(
+  etapas: EtapaDoMes[],
+  aprovacoesDoCliente: number,
+): EtapaDoMes | null {
+  return portoesDoMes(etapas)[aprovacoesDoCliente] ?? null;
+}
+
+/**
+ * De quem o post volta quando o cliente recusa um portão.
+ *
+ * A regra da 0045 sobrevive inteira, e é a única parte da etapa de Ajustes que
+ * ficou: **quem refaz a arte é quem a fez, e não quem a enviou.** Num portão
+ * do MEIO quem refaz é o dono do próprio portão — quem escreveu a pauta
+ * reescreve a pauta; ler "o último elo de produção" nos dois casos poria o
+ * designer para reescrever texto.
+ *
+ * E a pergunta é POSICIONAL e nunca pelo nome (0087): num fluxo que chame
+ * aquela etapa de "Produção de Layout", `titulo === "Layout"` devolveria
+ * ninguém — e a caixinha de ninguém desmarcaria.
+ */
+export function etapaQueRefazOPost(
+  etapas: EtapaDoMes[],
+  portao: EtapaDoMes | null,
+): EtapaDoMes | null {
+  if (!portao) return null;
+  if (portao.papel !== "entrega") return portao;
   return (
     [...etapas]
-      .sort((a, b) => a.ordem - b.ordem)
-      .find(
-        (e) =>
-          (e.aprovacaoCliente || e.nome === "Envio") && e.status !== "concluida",
-      ) ?? null
+      .filter((e) => e.papel === "producao" && e.ordem < portao.ordem)
+      .sort((a, b) => b.ordem - a.ordem)[0] ?? portao
   );
 }
 
 /**
- * A etapa em que o post está agora.
+ * A ETAPA DA VEZ DESTE POST: a primeira cuja caixinha ainda não fechou.
  *
- * É a PRIMEIRA NÃO CONCLUÍDA, e não a que está `em_andamento`: uma corrente em
- * que ninguém começou nada ainda também tem uma vez, e ela é da primeira. Sem
- * isso a tela mostraria "—" justamente no post que ninguém pegou, que é o que
- * mais precisa aparecer.
+ * **É por post e não por mês, e a distinção é o sprint inteiro.** A etapa do
+ * mês anda quando as dezoito peças andam; uma peça individual pode estar duas
+ * fases atrás das irmãs — e é dela que a lista e o card do calendário falam,
+ * porque a pergunta ali é *"em que pé está esta arte?"*.
+ *
+ * Nulo quando todas fecharam, e os chamadores não desenham nada: um "pronto"
+ * em cada linha de um mês terminado é a mesma palavra trinta vezes.
  */
-export function etapaDaVez(etapas: EtapaDoPost[]): EtapaDoPost | null {
+export function etapaDaVezDoPost(
+  etapas: EtapaDoMes[],
+  caixinhas: CaixinhaDoPost[],
+  postId: string,
+): EtapaDoMes | null {
+  const feito = new Map(
+    caixinhas
+      .filter((c) => c.postId === postId)
+      .map((c) => [c.etapaId, c.concluido]),
+  );
   return (
-    [...etapas].sort((a, b) => a.ordem - b.ordem).find((e) => e.status !== "concluida") ?? null
+    [...etapas].sort((a, b) => a.ordem - b.ordem).find((e) => !feito.get(e.id)) ??
+    null
   );
 }
 
-/** Quantas já fecharam, de quantas. O "3 de 6" do cabeçalho do post. */
-export function andamentoDaCorrente(etapas: EtapaDoPost[]): {
+/** Quantas fases fecharam, de quantas. O "3 de 5" do cabeçalho do mês. */
+export function andamentoDoMes(etapas: EtapaDoMes[]): {
   concluidas: number;
   total: number;
 } {
@@ -542,69 +629,69 @@ export function andamentoDaCorrente(etapas: EtapaDoPost[]): {
 }
 
 /**
- * Esta etapa já pode começar?
+ * A CAIXINHA DA ENTREGA NÃO SE MARCA À MÃO, nem pela gestão.
  *
- * É a mesma conta do trigger `post_etapas_regras`, e as duas existem de
- * propósito: esta escreve a frase que a pessoa lê antes de clicar, aquela é a
- * que vale. Duas telas perguntando por conta própria acabariam oferecendo
- * "Iniciar" onde o banco recusa.
+ * É a regra da 0045 um nível abaixo, letra por letra: a etapa Envio era
+ * consequência da rodada de escopo cliente, e a caixinha dela é consequência
+ * da APROVAÇÃO daquele post. Marcar à mão afirmaria que a peça foi e voltou
+ * aprovada sem nada ter saído da agência — e desmarcar afirmaria o contrário
+ * de uma aprovação que está gravada na rodada.
+ *
+ * A tela mostra o selo em vez da caixa, e a razão escrita: uma caixa
+ * desligada não diz nada.
  */
-export function bloqueioDaEtapa(
-  etapa: EtapaDoPost,
-  etapas: EtapaDoPost[],
-): string | null {
-  if (etapa.status !== "nao_iniciada") return null;
+export function caixinhaSeMarcaAMao(etapa: EtapaDoMes): boolean {
+  return etapa.papel !== "entrega";
+}
 
-  // `em_ajustes` NÃO BLOQUEIA o que vem depois: a etapa já devolveu o
-  // trabalho, e quem está esperando é ela. Sem isto a corrente trava
-  // justamente na etapa de Ajustes, que nasce logo depois do Envio — e o
-  // Envio só sai de `em_ajustes` quando o ajuste for feito. Mesma conta do
-  // trigger `post_etapas_regras`, que é a que vale.
-  const antes = etapas
-    .filter(
-      (e) =>
-        e.ordem < etapa.ordem &&
-        e.status !== "concluida" &&
-        e.status !== "em_ajustes",
-    )
+/**
+ * Posso marcar ESTE post nesta etapa?
+ *
+ * São as duas travas de `post_etapa_progresso_regras`, e as duas existem de
+ * propósito nos dois lados: esta escreve a frase que a pessoa lê antes de
+ * clicar, aquela é a que vale. Duas telas perguntando por conta própria
+ * acabariam oferecendo a caixa onde o banco recusa.
+ *
+ * **A ORDEM É A DO BANCO: o portão primeiro.** Na última etapa as duas valem —
+ * a caixinha da entrega só fecha pela aprovação, então ela está desmarcada e a
+ * corrente também reclamaria. Com a corrente primeiro a pessoa lia *"falta
+ * Envio"*, que é verdade e não diz o que fazer.
+ */
+export function bloqueioDaCaixinha(
+  etapa: EtapaDoMes,
+  etapas: EtapaDoMes[],
+  caixinhas: CaixinhaDoPost[],
+  postId: string,
+  aprovacoesDoCliente: number,
+): string | null {
+  const feito = new Map(
+    caixinhas.filter((c) => c.postId === postId).map((c) => [c.etapaId, c.concluido]),
+  );
+
+  const portoesAntes = portoesDoMes(etapas).filter((p) => p.ordem < etapa.ordem);
+  if (aprovacoesDoCliente < portoesAntes.length) {
+    // A FRASE NOMEIA SÓ O QUE FALTA, e é o `offset` da trava B do banco.
+    //
+    // As aprovações desta peça fecham os portões NA ORDEM — é a conta de
+    // `portaoDoPost()` —, então os aprovados são os `k` primeiros e o `slice`
+    // tira exatamente eles. Sem ele, num fluxo que valida a pauta a linha dizia
+    // *"o cliente ainda não aprovou Pauta, Envio"* numa peça cuja Pauta está
+    // aprovada: uma frase que a pessoa confere, vê que está errada, e passa a
+    // desconfiar do resto. Foi a imagem do protótipo que mostrou.
+    const nomes = portoesAntes
+      .slice(aprovacoesDoCliente)
+      .map((p) => p.titulo)
+      .join(", ");
+    return `O cliente ainda não aprovou ${nomes} neste post.`;
+  }
+
+  const antes = [...etapas]
+    .filter((e) => e.ordem < etapa.ordem && !feito.get(e.id))
     .sort((a, b) => a.ordem - b.ordem)
-    .map((e) => e.nome);
+    .map((e) => e.titulo);
 
   if (antes.length === 0) return null;
-  return `Esta etapa vem depois de ${antes.join(", ")}.`;
-}
-
-/**
- * A etapa Envio não se marca à mão, nem pela gestão.
- *
- * Ela é consequência da rodada de escopo cliente, como `posts.enviado_em` é
- * desde a 0032. A tela mostra o selo em vez do seletor — e a razão escrita,
- * porque um seletor desligado não diz nada.
- */
-export const ETAPA_DE_ENVIO = "Envio";
-
-export function etapaSeMarcaAMao(etapa: EtapaDoPost): boolean {
-  return etapa.nome !== ETAPA_DE_ENVIO;
-}
-
-/**
- * A etapa é um PORTÃO DO CLIENTE do meio da corrente (0076).
- *
- * ---------------------------------------------------------------------------
- * **E ELA CONTINUA PASSANDO POR `etapaSeMarcaAMao`, de propósito.** A tentação
- * é fazer o portão cair no mesmo ramo do Envio e trocar o seletor por um selo —
- * e isso travaria a etapa para sempre: a Pauta é a PRIMEIRA da corrente, e quem
- * a escreve precisa marcá-la "em andamento" antes de haver o que enviar.
- *
- * O que o banco recusa é o FIM dela pela mão de alguém — `concluida` e
- * `enviada_aprovacao`, que são os dois que afirmam uma decisão do cliente. O
- * resto continua sendo de quem faz. E quem recusa é o banco, com a dica
- * dizendo o caminho: um item cinza no seletor não diria por quê. É a decisão do
- * seletor de status da etapa de demanda.
- * ---------------------------------------------------------------------------
- */
-export function etapaEsperaOCliente(etapa: EtapaDoPost): boolean {
-  return etapa.aprovacaoCliente && etapa.nome !== ETAPA_DE_ENVIO;
+  return `Neste post falta ${antes.join(", ")} antes desta etapa.`;
 }
 
 /**
@@ -704,102 +791,34 @@ export function rotuloDaData(formatada: string | null): string {
   return formatada ?? SEM_DATA;
 }
 
-// ---------------------------------------------------------------------------
-// O SOCIAL DE MINHAS TASKS EM TRÊS NÍVEIS: conta › mês › post
-// ---------------------------------------------------------------------------
-
 /**
- * Agrupa as minhas etapas de social por CONTA e, dentro dela, pela DEMANDA
- * DO MÊS.
+ * ---------------------------------------------------------------------------
+ * O AGRUPAMENTO EM TRÊS NÍVEIS SAIU, e a razão é que o que ele agrupava
+ * deixou de existir (migration 0088)
  *
- * Relato do usuário, olhando a própria tela: *"Quando abro um mês de social,
- * ele ainda não está ficando separado pelo Social de mês específico, de uma
- * conta específica (…) Preciso que ele apareça como uma Task mãe, com cada
- * post sendo uma subtarefa"*. Ele estava certo, e o que faltava não era
- * modelo: **os três níveis existem no banco desde a 0061** — a conta, a
- * demanda do mês (`tasks.social_do_mes`) e o post (`posts.subtask_id`). O que
- * faltava era a tela ler a ponte. Por isso isto não tem migration nenhuma.
+ * `agruparSocialPorConta()` e os três tipos dela moravam aqui, e atendiam um
+ * relato do usuário: *"Quando abro um mês de social, ele ainda não está
+ * ficando separado pelo Social de mês específico, de uma conta específica"*.
+ * Com uma corrente por POST, um mês de dezoito posts dava dezoito etapas
+ * "Layout" seguidas no Minhas Tasks de quem desenha — todas com o mesmo nome,
+ * com a conta repetida dezoito vezes na linhagem.
  *
- * **O ITEM CONTINUA SENDO A ETAPA, e não o post.** É a regra do produto desde
- * o Sprint 10, e ela vale aqui pela mesma razão: se a Pauta e o Programar do
- * mesmo post são meus, são **dois trabalhos**, em dois momentos, e uma linha
- * só obrigaria a abrir para descobrir o que havia dentro. O que o
- * agrupamento muda é o que fica ACIMA da linha, nunca o que a linha é.
+ * **O MODELO RESOLVEU ISSO, e não o agrupamento.** A etapa passou a ser do
+ * MÊS: há UMA "Layout" por mês por conta, e ela é uma subtarefa comum — então
+ * ela entra na LISTA PRINCIPAL de Minhas Tasks, com a linhagem que toda etapa
+ * tem (`Mundo Verde · Social · Junho/2027 › Layout`). É a Parte 4 do sprint em
+ * uma frase: *"com a estrutura certa, isso sai de graça"*.
  *
- * **A CHAVE DA CONTA É O ID, nunca o nome** — duas empresas homônimas
- * compartilham o nome e não o id, e virariam um grupo só. É `quemMaisEstaNa()`
- * pela mesma razão.
+ * O bloco "Social" separado saiu junto, pela mesma razão: ele existia porque
+ * uma etapa de post não era `SubtarefaDetalhada` — não tinha rodada,
+ * cronômetro nem dependência, e fabricar os campos faria a tela oferecer
+ * "Enviar para aprovação" onde o banco responde outra coisa. A etapa do mês
+ * TEM os três, então ela cabe no molde — e o molde certo é o que não mente.
  *
- * **O POST AVULSO ENTRA NA CONTA, SEM FAIXA DE MÊS.** Ele não nasceu de
- * `abrir_mes_de_social()`, então não há demanda a nomear; pô-lo numa faixa
- * inventada afirmaria que existe uma demanda que ninguém abriu. Ele vem
- * primeiro, porque é o que não tem onde se agrupar.
- *
- * **A ORDEM DENTRO DE CADA NÍVEL É A QUE CHEGOU**, e a camada de dados já
- * entrega por prazo. Reordenar aqui por nome de conta poria a demanda que
- * vence amanhã abaixo de uma de semana que vem — o oposto do que esta tela
- * responde. O que decide a ordem das CONTAS é a etapa mais urgente de cada
- * uma, que é a primeira que aparece nela.
+ * **O que fica é o ÍCONE e o CHIP da área**, em `minhas-tasks/linhas.ts`:
+ * `areaDaLinha()` passou a responder "social" pela coluna `social_papel`, e a
+ * faixa das três áreas continua nomeando Social Media com a contagem do que é
+ * meu lá. Era isso que a pessoa procurava quando abria a tela pelo nome da
+ * área, e é a decisão que trouxe os dois módulos para dentro desta tela.
+ * ---------------------------------------------------------------------------
  */
-export type EtapaDeSocialAgrupavel = {
-  clienteId: string;
-  cliente: string;
-  demanda: { id: string; titulo: string; mes: string | null } | null;
-};
-
-export type MesDeSocialAgrupado<T> = {
-  /** Nulo quando são os posts avulsos da conta. */
-  demanda: { id: string; titulo: string; mes: string | null } | null;
-  etapas: T[];
-};
-
-export type ContaDeSocialAgrupada<T> = {
-  clienteId: string;
-  cliente: string;
-  meses: MesDeSocialAgrupado<T>[];
-  /** O total da conta, que é o que o cabeçalho dobrado continua dizendo. */
-  total: number;
-};
-
-export function agruparSocialPorConta<T extends EtapaDeSocialAgrupavel>(
-  etapas: T[],
-): ContaDeSocialAgrupada<T>[] {
-  const contas = new Map<string, ContaDeSocialAgrupada<T>>();
-
-  for (const etapa of etapas) {
-    let conta = contas.get(etapa.clienteId);
-    if (!conta) {
-      conta = {
-        clienteId: etapa.clienteId,
-        cliente: etapa.cliente,
-        meses: [],
-        total: 0,
-      };
-      contas.set(etapa.clienteId, conta);
-    }
-    conta.total += 1;
-
-    // A CHAVE DO MÊS É O ID DA DEMANDA e não o `social_do_mes`: uma conta pode
-    // ter duas demandas do mesmo mês se alguém abrir o mês duas vezes, e o
-    // id é o que separa as duas sem fundir o trabalho de uma na outra.
-    const chave = etapa.demanda?.id ?? null;
-    let mes = conta.meses.find((m) => (m.demanda?.id ?? null) === chave);
-    if (!mes) {
-      mes = { demanda: etapa.demanda, etapas: [] };
-      conta.meses.push(mes);
-    }
-    mes.etapas.push(etapa);
-  }
-
-  // O avulso primeiro dentro de cada conta, e o resto na ordem em que chegou
-  // — que é a ordem de prazo que a camada de dados já entregou.
-  for (const conta of contas.values()) {
-    conta.meses.sort((a, b) => {
-      if (!a.demanda && b.demanda) return -1;
-      if (a.demanda && !b.demanda) return 1;
-      return 0;
-    });
-  }
-
-  return [...contas.values()];
-}
