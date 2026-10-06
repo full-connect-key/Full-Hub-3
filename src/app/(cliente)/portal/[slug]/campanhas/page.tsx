@@ -29,9 +29,6 @@ export default async function CampanhasDoClienteVistasPelaEquipe({
     <div className="space-y-8">
       <div>
         <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">Campanhas</h1>
-        <p className="text-text-muted mt-1">
-          As campanhas que {cliente?.nome_empresa ?? "este cliente"} vê.
-        </p>
       </div>
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>

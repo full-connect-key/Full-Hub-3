@@ -273,9 +273,6 @@ function EsperandoOCliente({ itens }: { itens: EsperandoCliente[] }) {
         Esperando o cliente
         <span className="text-text-muted ml-auto text-xs tabular-nums">{itens.length}</span>
       </h2>
-      <p className="text-text-secondary mt-1 text-sm">
-        Material enviado e ainda sem decisão. A bola não é da agência — mas a cobrança é.
-      </p>
 
       {itens.length === 0 ? (
         <p className="text-text-muted mt-3 text-sm">Nada esperando decisão de cliente.</p>

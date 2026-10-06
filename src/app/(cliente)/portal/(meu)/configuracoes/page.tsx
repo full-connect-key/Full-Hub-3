@@ -42,9 +42,6 @@ async function Conteudo() {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em]">Avisos</h2>
-          <p className="text-text-muted mt-1 text-sm">
-            O que você quer receber, e com que frequência.
-          </p>
         </div>
         <Preferencias iniciais={preferencias} />
       </section>
@@ -54,9 +51,6 @@ async function Conteudo() {
           <h2 className="text-xl font-bold tracking-[-0.02em]">
             Dados da empresa
           </h2>
-          <p className="text-text-muted mt-1 text-sm">
-            O contato que a Full usa para falar com vocês.
-          </p>
         </div>
 
         <div className="space-y-8">
@@ -80,9 +74,6 @@ async function Conteudo() {
           <h2 className="text-xl font-bold tracking-[-0.02em]">
             Quem tem acesso
           </h2>
-          <p className="text-text-muted mt-1 text-sm">
-            As pessoas da sua empresa que entram neste portal.
-          </p>
         </div>
 
         <div className="bg-surface-card rounded-card shadow-cartao divide-y border">
@@ -124,9 +115,6 @@ export default async function PaginaDeConfiguracoesDoPortal() {
         <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">
           Configurações
         </h1>
-        <p className="text-text-muted mt-1">
-          Seus avisos e os dados da sua empresa.
-        </p>
       </div>
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>

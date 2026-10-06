@@ -34,11 +34,6 @@ export function VisitasAoPortal({ visitas }: { visitas: VisitaAoPortal[] }) {
         <h2 className="text-base font-semibold">Quem da agência abriu o portal</h2>
       </div>
 
-      <p className="text-text-secondary text-sm">
-        A visualização administrativa é só leitura — nenhuma decisão do cliente
-        sai daqui. Estas são as últimas aberturas.
-      </p>
-
       <ul className="divide-y text-sm">
         {visitas.map((visita) => (
           <li

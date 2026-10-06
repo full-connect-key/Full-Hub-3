@@ -48,9 +48,6 @@ export default async function SocialDoClienteVistaPelaEquipe({
     <div className="space-y-8">
       <div>
         <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">Social Media</h1>
-        <p className="text-text-muted mt-1">
-          O calendário que {cliente?.nome_empresa ?? "este cliente"} vê.
-        </p>
       </div>
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>

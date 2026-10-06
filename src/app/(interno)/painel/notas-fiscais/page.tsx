@@ -79,7 +79,7 @@ export default async function Pagina({
             a mesma razão pela qual a Academy escreve "só você lê isto" ao lado
             da anotação. */}
         <p className="text-muted-foreground mt-1 text-sm">
-          Envie a sua nota do mês e acompanhe o pagamento. Só você e o sócio enxergam a sua.
+          Só você e o sócio enxergam a sua.
         </p>
       </div>
 

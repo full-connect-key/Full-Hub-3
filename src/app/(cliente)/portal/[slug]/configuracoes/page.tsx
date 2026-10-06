@@ -41,9 +41,6 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em]">Avisos</h2>
-          <p className="text-text-muted mt-1 text-sm">
-            O que cada pessoa do cliente quer receber, e com que frequência.
-          </p>
         </div>
 
         <p className="text-text-muted bg-surface-card rounded-card shadow-cartao flex items-start gap-2 border p-4 text-sm">
@@ -57,8 +54,7 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em]">Dados da empresa</h2>
           <p className="text-text-muted mt-1 text-sm">
-            O contato que a Full usa para falar com eles. O cliente edita estes
-            três campos no portal dele; aqui é leitura.
+            O cliente edita estes três campos no portal dele; aqui é leitura.
           </p>
         </div>
 
@@ -80,9 +76,6 @@ async function Conteudo({ cliente }: { cliente: Client | null }) {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold tracking-[-0.02em]">Quem tem acesso</h2>
-          <p className="text-text-muted mt-1 text-sm">
-            As pessoas desta empresa que entram no portal.
-          </p>
         </div>
 
         {usuarios.length === 0 ? (
@@ -131,10 +124,6 @@ export default async function ConfiguracoesDoClienteVistasPelaEquipe({
     <div className="space-y-8">
       <div>
         <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">Configurações</h1>
-        <p className="text-text-muted mt-1">
-          Os avisos e os dados de contato de{" "}
-          {cliente?.nome_empresa ?? "este cliente"}.
-        </p>
       </div>
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={5} />}>

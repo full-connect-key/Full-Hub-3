@@ -40,10 +40,6 @@ export function PortaisDeClientes({
         <h2 className="text-text-primary text-sm font-semibold tracking-wide uppercase">
           Portais de Clientes
         </h2>
-        <p className="text-text-secondary text-sm">
-          Acesse administrativamente o portal de qualquer cliente ativo mantendo sua identidade
-          interna.
-        </p>
       </div>
 
       {clientes.length > LIMITE_PARA_BUSCA ? (

@@ -31,10 +31,6 @@ export function ClientesEmAtencao({ clientes }: { clientes: ResumoDaHome["client
           : `${clientes.length} clientes com trabalho parado`}
       </h2>
 
-      <p className="text-text-secondary mt-1 text-sm">
-        Etapa em aberto que passou do prazo há mais de três dias.
-      </p>
-
       <ul className="mt-3 space-y-1">
         {clientes.map((cliente) => (
           <li key={cliente.cliente_id} className="flex flex-wrap items-baseline gap-x-2 text-sm">

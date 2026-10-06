@@ -258,14 +258,10 @@ export async function InicioDoPortal({
               {/* O NOME CONTINUA "ativas", e não "em produção": é o mesmo
                   nome da aba da listagem. Duas palavras para o mesmo conjunto
                   é como se aprende a ler errado as duas — o produto já pagou
-                  esse preço uma vez, com dois nomes para o mesmo módulo. Quem
-                  diz o que "ativa" significa é a linha embaixo. */}
+                  esse preço uma vez, com dois nomes para o mesmo módulo. */}
               <h2 className="text-xl font-bold tracking-[-0.02em]">
                 Campanhas ativas
               </h2>
-              <p className="text-text-muted text-sm">
-                O que a Full está produzindo para você agora.
-              </p>
             </div>
             <Link
               href={`${base}/campanhas`}

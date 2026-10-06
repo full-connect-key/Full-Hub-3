@@ -555,10 +555,6 @@ export function SocialMedia({
                     {semData.length}
                   </span>
                 </div>
-                <p className="text-text-muted mt-0.5 text-xs">
-                  Abertos e esperando alguém escolher o dia. Eles não vão ao
-                  cliente enquanto não tiverem data.
-                </p>
                 <ul className="mt-2 flex max-h-56 flex-wrap gap-1.5 overflow-y-auto">
                   {semData.map((p) => (
                     <li key={p.id}>

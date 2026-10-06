@@ -113,10 +113,6 @@ export function Fila({ fila }: { fila: FilaDeAprovacoes }) {
               {fila.prontasParaOCliente.length}
             </span>
           </div>
-          <p className="text-muted-foreground text-xs">
-            Já passaram pelo aval interno. Aprovar diz que o material está bom;
-            enviar diz que é agora — e é uma decisão sua.
-          </p>
           <ul className="space-y-2">
             {fila.prontasParaOCliente.map((item) => (
               <ItemProntaParaOCliente
