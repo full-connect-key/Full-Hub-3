@@ -439,7 +439,15 @@ $$;
 -- "cannot change return type of existing function". A lista NAO muda aqui --
 -- mas `dias_concedidos` e `dias_usados` passam a querer dizer outra coisa, e
 -- por isso o corpo inteiro vem junto.
+--
+-- E O `drop` TEM QUE ESTAR AQUI, nao so no comentario: a primeira versao
+-- desta migration escreveu a explicacao e esqueceu a linha, e o banco recusou
+-- com exatamente o erro que ela descreve. A lista de colunas e identica a da
+-- 0074, entao quem levou a recusa tinha a versao da 0039 -- de sete colunas,
+-- sem `proximo_em` -- e a 0074 nao estava aplicada ali.
 -- ---------------------------------------------------------------------------
+drop function if exists public.descanso_do_ciclo(uuid);
+
 create or replace function public.descanso_do_ciclo(p_user_id uuid)
 returns table (
   inicio_do_ciclo       date,
