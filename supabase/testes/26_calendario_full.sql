@@ -204,14 +204,31 @@ select teste.conferir_como(
   '0'
 );
 
--- A VIEW NAO LE MAIS `subtasks` NEM `tasks`, e este cenario mede o TEXTO dela.
--- E a mesma forma do `sem_na_view` do `onde-esta-o-banco.sql`: os quatro
--- cenarios de cima contam linhas, e um banco sem nenhuma demanda passaria por
--- todos eles com as origens de pe.
+-- A VIEW NAO LE MAIS A ETAPA DE DEMANDA, e este cenario mede o TEXTO dela. E a
+-- mesma forma do `sem_na_view` do `onde-esta-o-banco.sql`: os quatro cenarios
+-- de cima contam linhas, e um banco sem nenhuma demanda passaria por todos
+-- eles com as origens de pe.
+--
+-- A SONDA MUDOU NA 0090, e a razao e que a antiga deixou de medir o que diz.
+-- Ela procurava `subtasks` -- e a view voltou a ler aquela tabela, porque a
+-- FASE do mes de social e uma subtarefa e ela e camada de novo desde a 0090.
+-- Procurar o nome da tabela passou a acusar a origem certa.
+--
+-- O que distingue as duas e a ROTA: a etapa de demanda levava a Gestao de
+-- Tasks, e a fase leva ao Social Media. A sonda nova e o link, que e a
+-- assinatura de cada origem e nao o nome da tabela que as duas compartilham.
 select teste.conferir(
-  'A definicao da view nao cita mais subtasks',
-  (select (pg_get_viewdef('public.calendar_events'::regclass) like '%subtasks%')::text),
+  'A definicao da view nao cita mais a rota de Gestao de Tasks',
+  (select (pg_get_viewdef('public.calendar_events'::regclass) like '%gestao-tasks%')::text),
   'false'
+);
+
+-- E A METADE POSITIVA, sem a qual a de cima passaria numa view que perdeu as
+-- SEIS origens: a fase do social tem de estar na definicao.
+select teste.conferir(
+  'E a fase do mes de social esta na definicao',
+  (select (pg_get_viewdef('public.calendar_events'::regclass) like '%fase_de_social%')::text),
+  'true'
 );
 
 -- E O QUE CONTINUA ENTRANDO, porque um arquivo que so confere zeros passaria

@@ -419,6 +419,9 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     decidido_por: r.status === "pendente" ? null : DIEGO.id,
     decidido_em: r.status === "pendente" ? null : "2026-09-19T16:00:00.000Z",
     comentario: r.comentario ?? null,
+    // Nulo: a rodada de uma ETAPA de demanda nunca vem de um lote, que é do
+    // mês de social (0090).
+    lote_id: null,
     created_at: "2026-09-19T10:00:00.000Z",
   }));
 
@@ -455,6 +458,10 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     social_papel: semente.socialPapel ?? null,
     social_campo: semente.socialPapel === "producao" ? "legenda" : null,
     social_portao: false,
+    // Nula, e não `false`: estas são etapas de demanda comum, e a coluna só
+    // existe em etapa de mês de social (0090). `false` afirmaria que o aval
+    // interno está desligado nelas, que é uma frase sobre o social.
+    social_aval_interno: null,
     iniciada_em: null,
     concluida_em: semente.status === "concluida" ? "2026-09-20T11:00:00.000Z" : null,
     // O cronometro. Fixo, porque a imagem do prototipo precisa sair igual a
@@ -677,6 +684,9 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     publicada_em: "2026-09-10T09:00:00.000Z",
     arquivada_em: null,
   social_flow_id: null,
+  // No protótipo nenhum mês de social é montado por aqui, então o mês nunca
+  // anda em paralelo: o padrão do produto é andar junto (0090).
+  social_paralelo: false,
     briefing_rico: (semente.briefing_rico ?? null) as TaskDaLista["briefing_rico"],
     briefing_texto: semente.briefing_texto ?? null,
     prioridade: semente.prioridade,

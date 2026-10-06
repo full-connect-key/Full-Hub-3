@@ -111,6 +111,21 @@ select public.salvar_fluxo_de_social(
   ),
   :FLUXOPAUTA);
 
+-- E ELE AVANCA EM PARALELO (0090), e esta linha e o que faz o arquivo medir o
+-- que ele diz que mede.
+--
+-- Este arquivo e sobre a corrente PECA POR PECA: *"a etapa e do mes, a decisao
+-- e de cada post"*. O padrao do produto desde a 0090 e o contrario -- o mes
+-- anda junto, e um portao so vence quando toda peca passou por ele --, e com
+-- ele ligado a trava do MES recusa antes da trava da PECA. Os cenarios
+-- continuariam vermelhos... de verde: eles esperam uma recusa, levariam uma
+-- recusa, e nenhum deles estaria medindo a regra que o arquivo existe para
+-- provar.
+--
+-- Com o paralelismo ligado quem recusa e a trava B, que e a pergunta deste
+-- arquivo. O modo PADRAO tem cenarios proprios, no arquivo 43.
+update public.social_flows set avanca_em_paralelo = true where id = :FLUXOPAUTA;
+
 insert into public.client_flow_defaults (client_id, social_flow_id)
 values (:VERDE, :FLUXOPAUTA)
 on conflict (client_id) do update set social_flow_id = :FLUXOPAUTA;

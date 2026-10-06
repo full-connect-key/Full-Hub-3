@@ -159,7 +159,7 @@ select teste.recusa_com('O colaborador nao envia ao cliente', :BRUNO,
   format($fmt$insert into public.approval_rounds
     (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
     values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :BRUNO),
-  'Enviar para o cliente');
+  'Enviar ao cliente');
 
 -- VIRADO DO AVESSO NA 0060, e o cenario fica por isso. Ate ela o banco
 -- recusava a gestao que tinha produzido; agora aceita, por decisao do

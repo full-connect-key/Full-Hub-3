@@ -134,10 +134,14 @@ select teste.cenario('Bruno nao envia ao cliente, mesmo sendo dele o post', :BRU
     values ('post', %L, 1, 'cliente', %L)$fmt$, :ENVIADO, :BRUNO),
   'recusa');
 
-select teste.recusa_com('E a recusa diz que enviar e do Desenvolvedor', :BRUNO,
+-- A FRASE MUDOU NA 0090, e o colaborador continua recusado. Enviar ao cliente
+-- passou a ser `is_gestor() or is_atendimento()` por decisao do usuario -- o
+-- Atendimento abre o mes desde a 0046 e e quem fala com a conta --, e o Bruno
+-- e Design: ele nao passa em nenhuma das duas.
+select teste.recusa_com('E a recusa diz de quem e o envio ao cliente', :BRUNO,
   format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
     values ('post', %L, 1, 'cliente', %L)$fmt$, :ENVIADO, :BRUNO),
-  'Enviar para o cliente é do Desenvolvedor');
+  'Enviar ao cliente é da gestão ou do Atendimento');
 
 select teste.recusa_com('Sem aval interno, o post nao vai ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)

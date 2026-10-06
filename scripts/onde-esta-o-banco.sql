@@ -305,7 +305,8 @@ from (
     -- e a pergunta certa: `etapas_do_fluxo()` existe desde a 0087 e responderia
     -- ok num banco parado la.
     ('0089', 'social_flow_steps.comeca_dias_antes saiu', 'sem_coluna',
-             'social_flow_steps.comeca_dias_antes')
+             'social_flow_steps.comeca_dias_antes'),
+    ('0090', 'social_lotes (o envio e do mes)', 'tabela', 'social_lotes')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

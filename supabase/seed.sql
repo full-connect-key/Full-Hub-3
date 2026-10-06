@@ -366,6 +366,25 @@ select public.salvar_fluxo_de_social(
 where not exists (select 1 from public.social_flows
                    where id = 'f1000000-0000-4000-8000-00000000000a');
 
+-- E ESTE FLUXO AVANCA EM PARALELO (0090), que e a segunda metade da mesma
+-- decisao de ter uma conta diferente em desenvolvimento.
+--
+-- O padrao do produto e o mes andar junto -- um portao so vence quando toda
+-- peca passou por ele --, e e ele que a Optica Visao e a Matriz usam. Numa
+-- conta com TRES portoes antes da entrega, esperar as dezoito a cada um deles
+-- para ninguem com o resto, e e exatamente a conta em que o paralelismo existe
+-- para ser ligado.
+--
+-- O QUE ISSO GARANTE EM DESENVOLVIMENTO: um fluxo em cada modo. Sem ele, a
+-- trava do mes andando junto nunca aparece numa tela e o seed so sabe mostrar
+-- um dos dois comportamentos -- a licao da Optica Visao sem atendente (0062) e
+-- da peca combinada (0082). E foi o seed que mostrou que ela precisava existir:
+-- aplicado do zero, ele recusava a si mesmo, porque descreve um mes em que uma
+-- peca passou da Pauta e dez nao.
+update public.social_flows
+   set avanca_em_paralelo = true
+ where id = 'f1000000-0000-4000-8000-00000000000a';
+
 insert into public.client_flow_defaults
   (client_id, aprovador_interno_id, pasta_entrega_url, prazo_aprovacao_cliente_dias,
    social_flow_id)
@@ -1166,19 +1185,31 @@ begin
           '/exemplos/arte-3.svg', '/exemplos/arte-3.svg', bruno)
   returning id into p;
 
+  -- A ORDEM AQUI E A DA VIDA, E ELA NAO ERA. A v2 estava gravada ANTES das
+  -- rodadas, e a trava da 0090 recusa isso com razao: o aval interno e
+  -- perguntado contra `posts.versao_atual`, entao uma rodada de cliente
+  -- gravada com a v2 ja no ar afirma que o cliente recebeu material que
+  -- ninguem avaliou. A historia que este post conta -- o cliente pediu o logo
+  -- maior, e a v2 e a resposta -- exige a v1, a decisao, e so depois a v2.
+  --
+  -- Antes da 0090 isto passava porque a trava comparava o NUMERO das duas
+  -- rodadas (1 e 1) e nao a versao: o acaso de os dois numeros coincidirem
+  -- escondia a inversao. O cabecalho da 0090 chama isso pelo nome.
   insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
   values (p, '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
           'Panqueca de banana com granola.', 'Primeira arte', bruno);
-  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
-  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
-          'Panqueca de banana com granola. Cinco minutos.',
-          'Logo maior e tempo de preparo na legenda', bruno);
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '5 days');
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
   values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
           now() - interval '4 days', 'O logo ficou pequeno demais.');
+
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
+          'Panqueca de banana com granola. Cinco minutos.',
+          'Logo maior e tempo de preparo na legenda', bruno);
+
   update public.posts set status = 'ajustes' where id = p;
 
   insert into public.posts (client_id, tema, data_publicacao,
@@ -1205,16 +1236,14 @@ begin
           '/exemplos/arte-2.svg', '/exemplos/arte-2.svg', bruno)
   returning id into p;
 
+  -- AS TRES VERSOES INTERCALADAS COM AS DUAS DECISOES, pela razao do post
+  -- acima -- e aqui com uma diferenca que vale ler: o numero da rodada
+  -- INTERNA e a versao da arte, entao a segunda delas e a 3 e nao a 2. A
+  -- rodada de CLIENTE e que e a sequencia do post (1 e 2), e os dois numeros
+  -- deixaram de ser a mesma coisa na 0090.
   insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
   values (p, '/exemplos/arte-1.svg', '/exemplos/arte-1.svg',
           'Chegou a granola de cacau.', 'Primeira arte', bruno);
-  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
-  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
-          'Chegou. E tem cacau de verdade.', 'Fundo mais claro', bruno);
-  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
-  values (p, '/exemplos/arte-2.svg', '/exemplos/arte-2.svg',
-          'Chegou. E sim, tem pedaco de cacau de verdade.',
-          'Legenda mais solta, como o cliente pediu', bruno);
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '9 days');
@@ -1228,8 +1257,16 @@ begin
     values ('post', p, rodada, joana, 'A legenda ficou dura. Solta mais.');
   end if;
 
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
+          'Chegou. E tem cacau de verdade.', 'Fundo mais claro', bruno);
+  insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
+  values (p, '/exemplos/arte-2.svg', '/exemplos/arte-2.svg',
+          'Chegou. E sim, tem pedaco de cacau de verdade.',
+          'Legenda mais solta, como o cliente pediu', bruno);
+
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
-  values ('post', p, 2, 'interna', 'aprovada', bruno, diego, now() - interval '7 days');
+  values ('post', p, 3, 'interna', 'aprovada', bruno, diego, now() - interval '7 days');
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
   values ('post', p, 2, 'cliente', 'aprovada', diego, joana,
           now() - interval '6 days', 'Agora sim. Pode subir.');
@@ -1294,15 +1331,24 @@ begin
   -- `TM` le o `lc_time` do servidor, e no Postgres da bateria ele e `C` -- o
   -- titulo sairia "November/2026" numa tela em portugues. E a pegadinha que a
   -- 0044 registrou, e ela vale para o seed do mesmo jeito.
+  --
+  -- E `social_paralelo` E COPIADO DO FLUXO (0090), como `abrir_mes_de_social`
+  -- faz: ele e SNAPSHOT e nao chave, entao montar a demanda a mao sem ele
+  -- deixaria o mes no padrao -- andando junto -- com um fluxo configurado em
+  -- paralelo, e a trava da caixinha recusaria o proprio estado que o seed
+  -- descreve. Foi assim que ele falhou na primeira rodada da 0090.
   insert into public.tasks (client_id, titulo, briefing_texto, link_entrega,
-                            social_do_mes, social_flow_id, criado_por)
+                            social_do_mes, social_flow_id, criado_por,
+                            social_paralelo)
   values (verde,
           format('Social · %s/%s de Mundo Verde',
                  meses[extract(month from primeiro)::int],
                  extract(year from primeiro)::int),
           'O mes de social do cliente piloto.',
           'https://drive.google.com/drive/folders/mundo-verde-social',
-          primeiro, 'f1000000-0000-4000-8000-00000000000a', diego)
+          primeiro, 'f1000000-0000-4000-8000-00000000000a', diego,
+          coalesce((select f.avanca_em_paralelo from public.social_flows f
+                     where f.id = 'f1000000-0000-4000-8000-00000000000a'), false))
   returning id into mes_task;
 
   -- AS CINCO ETAPAS SAEM DO FLUXO DA CONTA, e nao de uma lista escrita aqui:
@@ -1324,7 +1370,9 @@ begin
   loop
     insert into public.subtasks
       (task_id, titulo, responsavel_id, ordem, data_inicio, prazo,
-       estimativa_minutos, social_papel, social_campo, social_portao)
+       estimativa_minutos, social_papel, social_campo, social_portao,
+       -- `social_aval_interno` TAMBEM E SNAPSHOT (0090), pela mesma razao.
+       social_aval_interno)
     values (mes_task, etapa.nome,
             case etapa.funcao
               when 'Social Media' then marina
@@ -1343,7 +1391,8 @@ begin
             primeiro - (2 + 30 - round((etapa.n - 1) * 30.0 / quantas))::integer,
             primeiro - (2 + 30 - round(etapa.n * 30.0 / quantas))::integer,
             case etapa.papel when 'producao' then 480 else 120 end,
-            etapa.papel, etapa.campo, etapa.aprovacao_cliente)
+            etapa.papel, etapa.campo, etapa.aprovacao_cliente,
+            etapa.aprovacao_interna)
     returning id into etapa_id;
 
     -- A CADEIA, como o workflow de task faz: a fase seguinte nao comeca antes

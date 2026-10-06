@@ -1847,6 +1847,21 @@ export interface Database {
            */
           social_flow_id: string | null;
           /**
+           * O MÊS ANDA JUNTO, ou as peças aprovadas avançam sozinhas
+           * (migration 0090). Snapshot de `social_flows.avanca_em_paralelo` no
+           * instante em que o mês foi aberto.
+           *
+           * **É snapshot e não chave**, pela razão de `subtasks.social_papel`:
+           * ler a configuração da conta na hora da trava faria o comportamento
+           * de um mês em produção mudar porque alguém marcou uma caixa na aba
+           * Fluxos.
+           *
+           * Fica FORA de Insert pela razão de `social_flow_id` — quem o
+           * preenche é `abrir_mes_de_social()` —, e DENTRO de Update: a tela do
+           * mês liga e desliga o paralelismo daquele mês sem mexer na conta.
+           */
+          social_paralelo: boolean;
+          /**
            * O pedido do cliente que virou esta demanda (0068).
            *
            * **Está no `Insert` e NÃO no `Update`**, e a assimetria é a regra do
@@ -1904,6 +1919,7 @@ export interface Database {
           task_type_id?: string | null;
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
+          social_paralelo?: boolean;
         };
         Relationships: [];
       };
@@ -1957,6 +1973,18 @@ export interface Database {
            *  `social_papel = 'entrega'` ela é falsa porque a entrega JÁ é o
            *  portão — e quem garante é o `check` `subtasks_social_coerente`. */
           social_portao: boolean;
+          /**
+           * Esta etapa do mês passa pelo AVAL INTERNO antes de ir ao cliente
+           * (migration 0090). Snapshot de `social_flow_steps.aprovacao_interna`,
+           * pela razão de `social_papel`: perguntar ao fluxo direto faria a
+           * trava de um mês em produção mudar porque alguém desligou o aval na
+           * configuração da conta.
+           *
+           * **Nula em toda subtarefa que não é etapa de mês**, e os chamadores
+           * fazem `?? true`: post avulso continua exigindo o aval, que é a
+           * forma anterior à 0045.
+           */
+          social_aval_interno: boolean | null;
           iniciada_em: string | null;
           concluida_em: string | null;
           // O cronômetro (migration 0021). Só o trigger escreve, e por isso
@@ -2032,6 +2060,16 @@ export interface Database {
           decidido_por: string | null;
           decidido_em: string | null;
           comentario: string | null;
+          /**
+           * O ENVIO EM LOTE que criou esta rodada (migration 0090).
+           *
+           * Nulo em toda rodada que não veio de um mês de social — etapa de
+           * demanda, peça de campanha, e os posts anteriores à 0090. É
+           * `on delete set null` e não `cascade`, pela razão de
+           * `recurrence_id` na 0040: a rodada é decisão de verdade, com quem
+           * decidiu e com que comentário, e apagar o lote não pode apagá-la.
+           */
+          lote_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -2047,6 +2085,7 @@ export interface Database {
           status?: StatusRodada;
           solicitado_por: string;
           comentario?: string | null;
+          lote_id?: string | null;
         };
         Update: {
           status?: StatusRodada;
@@ -2289,6 +2328,22 @@ export interface Database {
           nome: string;
           descricao: string | null;
           ativo: boolean;
+          /**
+           * Se as peças aprovadas num portão avançam sem esperar as demais
+           * (migration 0090).
+           *
+           * **O padrão é `false`: o mês anda junto** — um portão só vence
+           * quando toda peça passou por ele. É a frase do usuário: a peça é
+           * individual, mas faz parte de um conjunto.
+           *
+           * É do FLUXO e não do elo, porque a pergunta é "nesta conta o mês
+           * anda junto?" — uma política de como a agência trabalha a conta. Por
+           * elo ela daria um mês que espera na Pauta e não espera no Layout,
+           * que é um comportamento que ninguém consegue descrever em voz alta.
+           *
+           * Quem a lê na hora da trava é `tasks.social_paralelo`, o snapshot.
+           */
+          avanca_em_paralelo: boolean;
           criado_por: string | null;
           created_at: string;
           updated_at: string;
@@ -2308,7 +2363,7 @@ export interface Database {
          * revalidar a ficha do cliente.
          */
         Insert: never;
-        Update: { ativo?: boolean; updated_at?: string };
+        Update: { ativo?: boolean; avanca_em_paralelo?: boolean; updated_at?: string };
         Relationships: [];
       };
 
@@ -2335,6 +2390,21 @@ export interface Database {
           /** Só vale em elo de produção, e quem garante é um `check`: a
            *  entrega já É o portão e o pós-entrega vem depois da decisão. */
           aprovacao_cliente: boolean;
+          /**
+           * Se este elo passa pelo AVAL INTERNO antes de ir ao cliente
+           * (migration 0090).
+           *
+           * **Default `true`**, pela decisão do default `publicada` da 0028:
+           * esquecer o campo mantém o que já acontecia, e o erro contrário —
+           * uma conta que passa a mandar material sem revisão — ninguém
+           * descobre olhando a tela.
+           *
+           * **Independente de `aprovacao_cliente`**, e as quatro combinações
+           * são legítimas: o elo que passa pelos dois, o que passa só pelo aval
+           * interno (o normal), o que vai direto ao cliente, e o que não passa
+           * por ninguém. Nenhum `check` as amarra, de propósito.
+           */
+          aprovacao_interna: boolean;
           /** Qual campo do card este elo enche: `pauta`, `legenda` ou nenhum
            *  (0046, virado coluna na 0087). */
           campo: string | null;
@@ -2352,6 +2422,72 @@ export interface Database {
         };
         Insert: never;
         Update: never;
+        Relationships: [];
+      };
+
+      /**
+       * Um ENVIO do mês de social ao cliente (migration 0090).
+       *
+       * O conjunto de peças que saiu num portão, numa rodada. Decisão do
+       * usuário: a gestão deixa de clicar "Enviar ao cliente" peça por peça e
+       * passa a clicar "Enviar o mês ao cliente", uma vez — o cliente recebe o
+       * conjunto e decide peça por peça.
+       *
+       * **ELE NÃO GUARDA DECISÃO NENHUMA**, e nenhuma coluna aqui é negociável
+       * nesse ponto: quantas aprovadas, quantas com ajustes, quantas decididas
+       * — tudo sai das `approval_rounds` que apontam para ele por `lote_id`.
+       * Duas fontes de verdade para o mesmo fato é o que produziu a confusão
+       * que este sprint existe para desfazer. É a decisão de "atraso não é
+       * coluna" e de `maoDoPost()`.
+       *
+       * **Sem Insert**: quem cria é `enviar_mes_ao_cliente()`, porque o lote e
+       * as N rodadas são gravados juntos, numa transação só — a mesma decisão
+       * de `abrir_campanha()` (0051) e de `solicitar_notas_do_mes()` (0066).
+       * Pelo PostgREST seriam N+2 idas, e a terceira falhando deixaria um lote
+       * com metade das peças dentro, com o cliente vendo um conjunto incompleto
+       * e nada na tela dizendo o que faltou.
+       *
+       * **E o Update aceita UMA coluna**, `recado`: ela é a mensagem da agência
+       * e pode ser corrigida antes de o cliente abrir. `fechado_em` é escrito
+       * pelo gatilho `approval_rounds_fecha_o_lote`, que é `security definer` —
+       * é carimbo, não decisão.
+       */
+      social_lotes: {
+        Row: {
+          id: string;
+          /** A demanda do mês (`tasks.social_do_mes` preenchido). */
+          task_id: string;
+          /**
+           * A ETAPA DO MÊS que é o portão — uma subtarefa com `social_papel`.
+           *
+           * **Não é `social_flow_steps`**, e a escolha é mecânica: aqueles elos
+           * são apagados e reinseridos a cada edição do fluxo (0087), então uma
+           * chave estrangeira para eles travaria o `delete` e a aba Fluxos
+           * pararia de salvar em toda conta que já tivesse enviado um mês.
+           */
+          etapa_id: string;
+          /**
+           * Qual rodada deste portão: 1 na primeira vez, 2 quando as peças que
+           * voltaram são reenviadas.
+           *
+           * **Não é o `numero_rodada` das rodadas de aprovação** — aquele é a
+           * sequência de cada post, e o cabeçalho da 0090 explica por que os
+           * dois não podem ser o mesmo número: por portão ele reiniciaria em 1
+           * e colidiria com o índice único do post.
+           */
+          numero_rodada: number;
+          enviado_por: string | null;
+          enviado_em: string;
+          /** Quando a última peça recebeu resposta. Carimbo, escrito por
+           *  gatilho a partir das rodadas — nunca à mão. */
+          fechado_em: string | null;
+          /** A mensagem da agência que viajou com o envio. O cliente lê; é a
+           *  única coisa do lote que ele lê. */
+          recado: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: { recado?: string | null };
         Relationships: [];
       };
 
