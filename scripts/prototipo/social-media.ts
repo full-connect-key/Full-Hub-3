@@ -15,14 +15,18 @@
  * largura, e ela so aparece com mais de um.
  */
 import type {
+  MesDeSocial as MesReal,
   PostDaAgencia as PostReal,
   ReferenciaDoPost as ReferenciaReal,
+  SituacaoDoMes as SituacaoReal,
   VersaoDoPost as VersaoReal,
 } from "../../src/lib/dados/social-media";
 import type { CaixinhaDoPost, EtapaDoMes } from "../../src/lib/dominio/posts";
 import type { SocialFlowPapel } from "../../src/lib/supabase/database.types";
 
 export type PostDaAgencia = PostReal;
+export type MesDeSocial = MesReal;
+export type SituacaoDoMes = SituacaoReal;
 export type VersaoDoPost = VersaoReal;
 export type ReferenciaDoPost = ReferenciaReal;
 
@@ -567,4 +571,98 @@ export async function postsSemData(
     responsavel: "Marina Costa",
     status: "em_producao" as const,
   }));
+}
+
+/**
+ * OS MESES DA NAVEGACAO CONTA → ANO → MES.
+ *
+ * TRES CONTAS E DOIS ANOS, e as tres metades da imagem: uma conta com peca
+ * esperando o cliente (ela sobe para o topo, e o cabecalho dela diz "N
+ * esperando"), uma com dois anos (o segundo nivel de dobra so aparece com
+ * mais de um), e um mes ARQUIVADO -- que e o estado que o filtro de situacao
+ * existe para alcancar e que nenhuma outra fixture do produto tem.
+ *
+ * Sem a terceira, a imagem de "Arquivados" sairia vazia e a regra dos 90 dias
+ * nao apareceria em lugar nenhum: e a licao da Optica Visao sem responsavel de
+ * atendimento (0062), aplicada ao recorte de uma tela.
+ */
+const MESES_DE_SOCIAL: MesDeSocial[] = [
+  {
+    taskId: "mes-mv-10",
+    clienteId: "c0000000-0000-0000-0000-000000000001",
+    cliente: "Mundo Verde",
+    mes: "2026-11-01",
+    status: "em_andamento",
+    concluidaEm: null,
+    arquivadaEm: null,
+    pecas: 18,
+    aprovadas: 4,
+    esperandoCliente: 6,
+  },
+  {
+    taskId: "mes-mv-09",
+    clienteId: "c0000000-0000-0000-0000-000000000001",
+    cliente: "Mundo Verde",
+    mes: "2026-10-01",
+    status: "concluido",
+    concluidaEm: "2026-10-02T12:00:00Z",
+    arquivadaEm: null,
+    pecas: 18,
+    aprovadas: 18,
+    esperandoCliente: 0,
+  },
+  {
+    taskId: "mes-mv-2025",
+    clienteId: "c0000000-0000-0000-0000-000000000001",
+    cliente: "Mundo Verde",
+    mes: "2025-12-01",
+    status: "concluido",
+    concluidaEm: "2026-01-05T12:00:00Z",
+    arquivadaEm: "2026-04-05T12:00:00Z",
+    pecas: 12,
+    aprovadas: 12,
+    esperandoCliente: 0,
+  },
+  {
+    taskId: "mes-ov-10",
+    clienteId: "c0000000-0000-0000-0000-00000000000a",
+    cliente: "Óptica Visão",
+    mes: "2026-10-01",
+    status: "em_andamento",
+    concluidaEm: null,
+    arquivadaEm: null,
+    pecas: 8,
+    aprovadas: 0,
+    esperandoCliente: 0,
+  },
+  {
+    taskId: "mes-mz-10",
+    clienteId: "c0000000-0000-0000-0000-000000000002",
+    cliente: "Matriz Comunicação",
+    mes: "2026-10-01",
+    status: "em_andamento",
+    concluidaEm: null,
+    arquivadaEm: null,
+    pecas: 0,
+    aprovadas: 0,
+    esperandoCliente: 0,
+  },
+];
+
+export async function mesesDeSocialDaAgencia(
+  situacao: SituacaoDoMes = "producao",
+  clienteId?: string,
+): Promise<MesDeSocial[]> {
+  // O STUB APLICA O MESMO RECORTE DA CONSULTA, e nao devolve a lista inteira:
+  // uma imagem de "Arquivados" com o mes em producao dentro seria uma paleta
+  // conferindo o stub e nao o produto -- a licao da busca global.
+  return MESES_DE_SOCIAL.filter((m) => {
+    if (clienteId && m.clienteId !== clienteId) return false;
+    if (situacao === "arquivados") return m.arquivadaEm !== null;
+    if (situacao === "concluidos")
+      return m.status === "concluido" && m.arquivadaEm === null;
+    if (situacao === "producao")
+      return m.status !== "concluido" && m.arquivadaEm === null;
+    return true;
+  });
 }

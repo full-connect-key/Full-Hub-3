@@ -217,6 +217,17 @@ const TELAS = [
   // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
   // descreveu -- e uma desativada, que e o unico em que o selo e o botao
   // "Reativar" aparecem.
+  // A NAVEGACAO CONTA -> ANO -> MES, nas duas pontas do filtro: "Em producao",
+  // que e onde ela abre, e "Arquivados", que e o unico recorte em que a regra
+  // dos 90 dias aparece na tela. Sem a segunda, o filtro teria quatro botoes e
+  // tres deles sem imagem nenhuma.
+  { nome: "57b-social-meses", rota: "/painel/social-media?aba=meses", largura: 1440, altura: 1100, role: "socio" },
+  { nome: "57c-social-meses-arquivados", rota: "/painel/social-media?aba=meses&situacao=arquivados", largura: 1440, altura: 800, role: "socio" },
+  { nome: "57d-social-meses-375", rota: "/painel/social-media?aba=meses", largura: 375, altura: 1400, role: "socio" },
+  // E PARA O COLABORADOR, que e quem ganhou a barra: ate aqui ele alcancava uma
+  // secao so e via o `PageHeader` no lugar dela. A imagem prova que ele tem
+  // Posts e Meses, e NAO tem Fluxos.
+  { nome: "57e-social-meses-colaborador", rota: "/painel/social-media?aba=meses", largura: 1440, altura: 900, role: "colaborador-social" },
   { nome: "58-fluxos-de-social", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 1000, role: "socio" },
   // O EDITOR, aberto. Ele abre com o molde da casa, e e a unica imagem em que
   // se ve o seletor de papel, o interruptor do portao e as duas pontas

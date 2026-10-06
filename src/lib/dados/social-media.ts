@@ -14,6 +14,7 @@ import type {
   PlataformaSocial,
   PostMidia,
   SocialFlowPapel,
+  TaskStatus,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -196,9 +197,7 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
   const nomeDoCliente = new Map(
     (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
   );
-  const programados = new Set(
-    (marcadas.data ?? []).map((m) => m.post_id),
-  );
+  const programados = new Set((marcadas.data ?? []).map((m) => m.post_id));
   const porPost = new Map<
     string,
     { escopo: string; status: string; numero_rodada: number }[]
@@ -514,7 +513,8 @@ export async function correnteDoMes(taskId: string): Promise<{
   const total = new Map<string, number>();
   for (const m of marcacoes) {
     total.set(m.subtask_id, (total.get(m.subtask_id) ?? 0) + 1);
-    if (m.concluido) feitos.set(m.subtask_id, (feitos.get(m.subtask_id) ?? 0) + 1);
+    if (m.concluido)
+      feitos.set(m.subtask_id, (feitos.get(m.subtask_id) ?? 0) + 1);
   }
 
   return {
@@ -719,4 +719,157 @@ export async function referenciasDoPost(
     quando: l.created_at,
     minha: !!usuarioId && l.adicionado_por === usuarioId,
   }));
+}
+
+/**
+ * ---------------------------------------------------------------------------
+ * OS MESES DE SOCIAL DA AGÊNCIA, para a navegação Conta → Ano → Mês
+ *
+ * **O MÓDULO TINHA UMA PORTA SÓ, e ela era um recorte de UM mês.** `?mes=` e
+ * `?cliente=` existem desde o Sprint 14, e quem queria ver "o social de
+ * outubro da Mundo Verde" trocava os dois à mão — num ambiente com dez contas
+ * de social e doze meses por ano, são cento e vinte combinações alcançáveis
+ * só digitando a URL. O calendário respondia "o que vai ao ar quando" e nada
+ * respondia "quais meses existem".
+ *
+ * **ISTO É UMA CONSULTA, E NÃO UMA FUNÇÃO DE BANCO**, ao contrário das três
+ * do portão: aqui não há nada que a RLS não resolva. `tasks_select` já decide
+ * quem lê qual demanda, e `posts` já é filtrada por ela — então a pergunta
+ * "quais meses existem para mim" se responde com dois `select` e nenhum
+ * `security definer`. Uma função definer aqui seria a porta que devolve a
+ * carteira de contas da agência para quem tiver a chave anon.
+ *
+ * **SÃO TRÊS IDAS E NÃO UM `join`**, e os dois motivos são diferentes. As
+ * peças vêm à parte pela razão de `correnteDoMes()`: o PostgREST traria uma
+ * linha por POST com a demanda repetida, e o que esta tela desenha é uma
+ * linha por MÊS. **E o nome da empresa vem à parte pela razão da campanha que
+ * não aparecia em lugar nenhum:** o PostgREST recusa o `select` INTEIRO
+ * quando não acha a relação pelo nome escrito, e `ouFalha()` transforma isso
+ * em erro de página em vez de lista vazia — mas o jeito de não ter o problema
+ * é não escrever o embutido. Duas idas custam menos que essa classe de bug.
+ * ---------------------------------------------------------------------------
+ */
+export type SituacaoDoMes = "producao" | "concluidos" | "arquivados" | "todos";
+
+export type MesDeSocial = {
+  taskId: string;
+  clienteId: string;
+  cliente: string;
+  /** `AAAA-MM-DD`, sempre no dia 1 — é a coluna `tasks.social_do_mes`. */
+  mes: string;
+  status: TaskStatus;
+  concluidaEm: string | null;
+  arquivadaEm: string | null;
+  /** Quantas peças o mês tem. */
+  pecas: number;
+  /** Quantas o cliente já aprovou. */
+  aprovadas: number;
+  /** Quantas estão com ele agora, esperando decisão. */
+  esperandoCliente: number;
+};
+
+export async function mesesDeSocialDaAgencia(
+  situacao: SituacaoDoMes = "producao",
+  clienteId?: string,
+): Promise<MesDeSocial[]> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("tasks")
+    .select("id, client_id, social_do_mes, status, concluida_em, arquivada_em")
+    .not("social_do_mes", "is", null)
+    // O RASCUNHO NÃO ENTRA, que é a regra de toda listagem desde a 0028 — e
+    // aqui ele é impossível de qualquer forma, porque `abrir_mes_de_social`
+    // publica a demanda do mês. O filtro fica porque a regra vale em toda
+    // parte, e uma lista que o esquece é a que descobre a exceção depois.
+    .not("publicada_em", "is", null)
+    .order("social_do_mes", { ascending: false });
+
+  if (clienteId) consulta = consulta.eq("client_id", clienteId);
+
+  // ARQUIVADO É CARIMBO E NÃO STATUS (0086), então o filtro é por coluna nula
+  // ou não — e `concluido` e `arquivado` NÃO são a mesma pergunta: um mês
+  // concluído há uma semana ainda é o que a agência olha, e arquivado é o que
+  // ela parou de olhar. Por isso "Concluídos" exclui o arquivado em vez de
+  // incluí-lo: senão a aba de cima mostraria tudo o que a de baixo mostra, e a
+  // divisão não dividiria nada.
+  if (situacao === "arquivados") {
+    consulta = consulta.not("arquivada_em", "is", null);
+  } else if (situacao === "concluidos") {
+    consulta = consulta.eq("status", "concluido").is("arquivada_em", null);
+  } else if (situacao === "producao") {
+    consulta = consulta.neq("status", "concluido").is("arquivada_em", null);
+  }
+
+  const demandas = ouFalha("os meses de social da agência", await consulta);
+  if (demandas.length === 0) return [];
+
+  const contas = [
+    ...new Set(
+      demandas.map((d) => d.client_id).filter((i): i is string => !!i),
+    ),
+  ];
+
+  const [pecas, empresas] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("social_task_id, status")
+      .in(
+        "social_task_id",
+        demandas.map((d) => d.id),
+      )
+      .then((r) => ouFalha("as peças dos meses de social", r)),
+    supabase
+      .from("clients")
+      .select("id, nome_empresa")
+      .in("id", contas)
+      .then((r) => ouFalha("as contas dos meses de social", r)),
+  ]);
+
+  const nomeDaConta = new Map(empresas.map((c) => [c.id, c.nome_empresa]));
+
+  const total = new Map<string, number>();
+  const aprovadas = new Map<string, number>();
+  const esperando = new Map<string, number>();
+  for (const p of pecas) {
+    if (!p.social_task_id) continue;
+    total.set(p.social_task_id, (total.get(p.social_task_id) ?? 0) + 1);
+    if (p.status === "aprovado") {
+      aprovadas.set(
+        p.social_task_id,
+        (aprovadas.get(p.social_task_id) ?? 0) + 1,
+      );
+    }
+    if (p.status === "em_aprovacao") {
+      esperando.set(
+        p.social_task_id,
+        (esperando.get(p.social_task_id) ?? 0) + 1,
+      );
+    }
+  }
+
+  // A DEMANDA SEM EMPRESA FICA DE FORA, e a navegação é por CONTA: uma linha
+  // sem conta não tem grupo onde morar, e inventar um "sem cliente" poria na
+  // tela um agrupamento que o produto não tem. `tasks.client_id` é nulável
+  // desde a 0004, e `abrir_mes_de_social` sempre a preenche — então o filtro
+  // alcança zero linha hoje, e existe para a navegação não quebrar no dia em
+  // que um caminho novo deixe uma passar.
+  return demandas
+    .filter((d): d is typeof d & { client_id: string } => !!d.client_id)
+    .map((d) => ({
+      taskId: d.id,
+      clienteId: d.client_id,
+      // O `?? "—"` não é zelo: a RLS pode entregar a demanda e esconder a
+      // empresa, e um nome em branco viraria um grupo sem cabeçalho.
+      cliente: nomeDaConta.get(d.client_id) ?? "—",
+      // O `!` é para o tipo: o `not is null` acima garante a coluna, e o
+      // PostgREST não sabe ler o filtro.
+      mes: d.social_do_mes!,
+      status: d.status,
+      concluidaEm: d.concluida_em,
+      arquivadaEm: d.arquivada_em,
+      pecas: total.get(d.id) ?? 0,
+      aprovadas: aprovadas.get(d.id) ?? 0,
+      esperandoCliente: esperando.get(d.id) ?? 0,
+    }));
 }

@@ -876,3 +876,125 @@ export function rotuloDaData(formatada: string | null): string {
  * área, e é a decisão que trouxe os dois módulos para dentro desta tela.
  * ---------------------------------------------------------------------------
  */
+
+/**
+ * ---------------------------------------------------------------------------
+ * A NAVEGAÇÃO CONTA → ANO → MÊS
+ *
+ * **O MÓDULO TINHA UMA PORTA SÓ, e ela era um recorte de UM mês.** `?mes=` e
+ * `?cliente=` existem desde o Sprint 14, e nada na tela dizia quais meses
+ * existem: quem queria o social de outubro da Mundo Verde trocava os dois à
+ * mão. Com dez contas e doze meses são cento e vinte combinações alcançáveis
+ * só digitando a URL.
+ *
+ * **A ORDEM DOS TRÊS NÍVEIS É A DA PERGUNTA**, e não a do banco. Quem abre
+ * esta tela está pensando numa CONTA — "o que a gente tem da Mundo Verde?" —, e
+ * só então em quando. Pelo ano primeiro, a tela abriria com dez contas
+ * misturadas dentro de 2026, que é o board da agência de novo e não a
+ * navegação que faltava.
+ *
+ * **O ANO É NÍVEL E NÃO UM FILTRO**, pela razão do agrupamento por conta na
+ * lista: com dois anos de social de dez contas, uma lista corrida de meses
+ * ordenada por data põe outubro de 2026 da Óptica entre novembro e setembro da
+ * Mundo Verde. E ele dobra junto com a conta, porque a pergunta quase sempre é
+ * sobre o ano corrente — os anteriores ficam recolhidos dizendo quantos meses
+ * têm dentro, que é a regra do `GrupoDobravel`.
+ * ---------------------------------------------------------------------------
+ */
+
+/** Um mês na navegação. Só o que a árvore desenha; a leitura traz o resto. */
+export type MesNaArvore = {
+  taskId: string;
+  mes: string;
+  pecas: number;
+  aprovadas: number;
+  esperandoCliente: number;
+  arquivadaEm: string | null;
+  concluido: boolean;
+};
+
+export type AnoDeSocial = { ano: string; meses: MesNaArvore[] };
+export type ContaDeSocial = {
+  clienteId: string;
+  cliente: string;
+  anos: AnoDeSocial[];
+  /** Quantos meses a conta tem no recorte, somando os anos. */
+  meses: number;
+  /** Quantas peças desta conta estão esperando o cliente agora. */
+  esperandoCliente: number;
+};
+
+/**
+ * Agrupa os meses em Conta → Ano → Mês.
+ *
+ * **A ORDEM DAS CONTAS É QUEM ESPERA PRIMEIRO**, e depois o alfabeto: é a
+ * decisão da lista do Social Media, que põe as contas com coisa minha no topo
+ * — aqui o que cobra uma ação é peça esperando o cliente, porque o prazo dele
+ * está correndo. Quem não tem nada esperando vem em ordem de nome, que é como
+ * se procura uma conta pelo nome.
+ *
+ * **E DENTRO DO ANO A ORDEM É DO MÊS MAIS NOVO PARA O MAIS VELHO**, como toda
+ * listagem do produto: o mês que está sendo produzido é o que vem depois do
+ * corrente, e ele fica no topo em vez de no fim de doze linhas.
+ */
+export function porContaEAno(
+  meses: {
+    taskId: string;
+    clienteId: string;
+    cliente: string;
+    mes: string;
+    pecas: number;
+    aprovadas: number;
+    esperandoCliente: number;
+    arquivadaEm: string | null;
+    status: string;
+  }[],
+): ContaDeSocial[] {
+  const contas = new Map<string, ContaDeSocial>();
+
+  for (const m of meses) {
+    const conta =
+      contas.get(m.clienteId) ??
+      ({
+        clienteId: m.clienteId,
+        cliente: m.cliente,
+        anos: [],
+        meses: 0,
+        esperandoCliente: 0,
+      } satisfies ContaDeSocial);
+    contas.set(m.clienteId, conta);
+
+    const ano = m.mes.slice(0, 4);
+    let bloco = conta.anos.find((a) => a.ano === ano);
+    if (!bloco) {
+      bloco = { ano, meses: [] };
+      conta.anos.push(bloco);
+    }
+
+    bloco.meses.push({
+      taskId: m.taskId,
+      mes: m.mes,
+      pecas: m.pecas,
+      aprovadas: m.aprovadas,
+      esperandoCliente: m.esperandoCliente,
+      arquivadaEm: m.arquivadaEm,
+      concluido: m.status === "concluido",
+    });
+    conta.meses += 1;
+    conta.esperandoCliente += m.esperandoCliente;
+  }
+
+  const lista = [...contas.values()];
+  for (const conta of lista) {
+    conta.anos.sort((a, b) => b.ano.localeCompare(a.ano));
+    for (const ano of conta.anos) {
+      ano.meses.sort((a, b) => b.mes.localeCompare(a.mes));
+    }
+  }
+
+  return lista.sort(
+    (a, b) =>
+      (b.esperandoCliente > 0 ? 1 : 0) - (a.esperandoCliente > 0 ? 1 : 0) ||
+      a.cliente.localeCompare(b.cliente, "pt-BR"),
+  );
+}

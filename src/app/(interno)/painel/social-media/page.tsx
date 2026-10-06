@@ -2,19 +2,21 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import {
   filaDaAgencia,
+  mesesDeSocialDaAgencia,
   obterPostDaAgencia,
   postsDoMesDaAgencia,
   postsSemData,
+  type SituacaoDoMes,
 } from "@/lib/dados/social-media";
 import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { AbasDoSocial } from "./abas";
+import { ArvoreDeMeses } from "./arvore-de-meses";
 import { FluxosDeSocial } from "./fluxos-de-social";
 
 import { driveConfigurado } from "@/lib/drive/config";
@@ -102,6 +104,33 @@ async function Fluxos() {
   return <FluxosDeSocial fluxos={lista} podeEditar={ehGestor(sessao.profile.role)} />;
 }
 
+/**
+ * A SEÇÃO MESES: quais meses de social existem, por conta e por ano.
+ *
+ * **ELA É DE `EQUIPE` e não da gestão**, ao contrário de Fluxos: achar o mês
+ * em que se trabalha é o trabalho do dia, e esconder isto de quem produz é
+ * esconder o trabalho dele — o argumento que trouxe o módulo inteiro para
+ * `EQUIPE` na 0042. Quem decide o que ele enxerga continua sendo `tasks_select`,
+ * e não esta função: aqui não há nada que a RLS não resolva.
+ *
+ * **O RECORTE TORTO CAI EM "Em produção"**, nunca em erro: o valor vem da URL,
+ * e `?situacao=outubro` não pode derrubar a tela — é a decisão de
+ * `ehFaseDoMaterial` no portal e do `?aba=` torto logo abaixo.
+ */
+async function Meses({ parametros }: { parametros: Parametros }) {
+  await exigirAcessoARota("/painel/social-media");
+
+  const pedida = texto(parametros, "situacao");
+  const situacao: SituacaoDoMes =
+    pedida === "concluidos" || pedida === "arquivados" || pedida === "todos"
+      ? pedida
+      : "producao";
+
+  const meses = await mesesDeSocialDaAgencia(situacao, texto(parametros, "cliente"));
+
+  return <ArvoreDeMeses meses={meses} situacao={situacao} />;
+}
+
 export default async function PaginaDeSocialMedia({
   searchParams,
 }: {
@@ -112,12 +141,11 @@ export default async function PaginaDeSocialMedia({
   const souGestor = ehGestor(sessao.profile.role);
 
   /**
-   * A ABA FLUXOS É SÓ DA GESTÃO, e quem não é gestão não ganha a barra.
+   * A ABA FLUXOS É SÓ DA GESTÃO; MESES É DE TODA A EQUIPE.
    *
-   * **MENOS DE DUAS SEÇÕES NÃO VIRA BARRA** — a regra que os Comodatos e as
-   * Notas Fiscais já aplicavam: uma navegação de um item é moldura sem função.
-   * Para o colaborador o módulo continua sendo uma tela só, com o `PageHeader`
-   * dizendo o nome.
+   * A separação é a da 0046 e da 0068: desenhar a corrente que toda conta
+   * percorre é configuração do produto, e achar o mês em que se trabalha é o
+   * trabalho do dia.
    *
    * E `?aba=fluxos` digitado por quem não é gestão cai em Posts, em vez de
    * levar 403: a rota é de `is_staff()` e o que a aba mostra é leitura que
@@ -125,25 +153,38 @@ export default async function PaginaDeSocialMedia({
    * recusa é a policy de escrita. Recusar a rota inteira seria esconder dele a
    * corrente que ele percorre.
    */
-  const aba = souGestor && texto(parametros, "aba") === "fluxos" ? "fluxos" : "posts";
+  const pedida = texto(parametros, "aba");
+  const aba =
+    pedida === "meses"
+      ? "meses"
+      : souGestor && pedida === "fluxos"
+        ? "fluxos"
+        : "posts";
 
   return (
     <div className="space-y-6">
-      {souGestor ? (
-        // A BARRA MORA NUM ARQUIVO CLIENTE, e não aqui: a lista de seções
-        // carrega um componente de ícone, e componente não atravessa a
-        // fronteira dentro de um objeto. Montá-la aqui derruba a página com
-        // *"Functions cannot be passed directly to Client Components"* — e foi
-        // o gerador de protótipo que mostrou, porque nem o `tsc` nem o `build`
-        // pegam isso.
-        <AbasDoSocial atual={aba} />
-      ) : (
-        <PageHeader title="Social Media" />
-      )}
+      {/* A BARRA APARECE PARA TODO MUNDO DESDE QUE MESES EXISTE, e a regra não
+          mudou: "menos de duas seções não vira barra" continua valendo, e o
+          colaborador passou a alcançar DUAS — Posts e Meses. O `PageHeader`
+          ficou para o caso que não existe mais, e saiu com ele.
+
+          A BARRA MORA NUM ARQUIVO CLIENTE, e não aqui: a lista de seções
+          carrega um componente de ícone, e componente não atravessa a fronteira
+          dentro de um objeto. Montá-la aqui derruba a página com *"Functions
+          cannot be passed directly to Client Components"* — e foi o gerador de
+          protótipo que mostrou, porque nem o `tsc` nem o `build` pegam isso. */}
+      <AbasDoSocial atual={aba} souGestor={souGestor} />
 
       {aba === "fluxos" ? (
         <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
           <Fluxos />
+        </Suspense>
+      ) : aba === "meses" ? (
+        <Suspense
+          key={JSON.stringify(parametros)}
+          fallback={<LoadingSkeleton variant="table" rows={5} />}
+        >
+          <Meses parametros={parametros} />
         </Suspense>
       ) : (
         <Suspense

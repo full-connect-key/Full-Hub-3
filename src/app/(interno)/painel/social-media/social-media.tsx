@@ -39,6 +39,7 @@ import { EditorDoPost, type QuemLe } from "./editor-do-post";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
 import { AbrirOMes } from "./abrir-o-mes";
+import { ContaLembrada } from "./conta-lembrada";
 import { NovoPost } from "./novo-post";
 
 const TODOS = "__todos__";
@@ -300,6 +301,7 @@ export function SocialMedia({
 
   return (
     <div className="space-y-4">
+      <ContaLembrada />
       <div className="flex flex-wrap items-center gap-2">
         <nav aria-label="Visão">
           <ul className="bg-muted inline-flex gap-1 rounded-xl p-1">
