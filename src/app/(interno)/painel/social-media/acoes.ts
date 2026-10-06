@@ -407,6 +407,94 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
   });
 }
 
+/**
+ * ENVIAR O MÊS AO CLIENTE, em lote.
+ *
+ * ---------------------------------------------------------------------------
+ * **UMA CHAMADA SÓ, e é `rpc` porque é uma transação só.**
+ * `enviar_mes_ao_cliente` grava o lote, abre uma rodada de cliente por peça e
+ * toca um sino por pessoa da empresa — com dezoito peças isso seriam vinte
+ * escritas pelo PostgREST, e a terceira falhando deixaria metade do mês fora
+ * da agência com o lote dizendo que tudo saiu. É a decisão de
+ * `abrir_campanha()` (0051) e de `solicitar_notas_do_mes()` (0066).
+ *
+ * **A GUARDA DAQUI É `exigirEquipeNaAcao`, e não a de gestão**, e a diferença
+ * é a 0090: enviar ao cliente passou a ser de `is_gestor() or
+ * is_atendimento()`, e `exigirGestorNaAcao` recusaria o Atendimento antes da
+ * viagem — sobre uma ação que o banco aceita dele. É a lição da 0059 com
+ * `abrirMesDeSocial`: quando a regra mora nos dois lados, o lado de cima
+ * ficando mais apertado é a pessoa lendo "seu perfil não permite" numa ação
+ * que é dela. Quem recusa de verdade é `validar_nova_rodada`.
+ *
+ * **E O AVISO AO CLIENTE É DO BANCO, nunca daqui.** `notificar()` nunca avisa
+ * quem causou o aviso, nunca avisa quem saiu, e devolve `null` sem derrubar a
+ * escrita quando não há a quem avisar — as três recusas da 0062, que uma
+ * notificação escrita na camada de aplicação perderia de uma vez. O que sai
+ * daqui é o e-mail, pela razão mecânica de sempre: o Postgres não fala com o
+ * Resend.
+ *
+ * **É UM E-MAIL POR PESSOA E UM SINO POR PESSOA, nunca um por peça.** Dezoito
+ * avisos para um envio é o caminho mais curto para o sino virar ruído, e a
+ * caixa de entrada do cliente é pior ainda.
+ * ---------------------------------------------------------------------------
+ */
+export async function enviarMesAoCliente(
+  taskId: string,
+  etapaId: string,
+  recado?: string | null,
+): Promise<Resultado<number>> {
+  return executarAcao("enviarMesAoCliente", async () => {
+    await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase.rpc("enviar_mes_ao_cliente", {
+      p_task_id: taskId,
+      p_etapa_id: etapaId,
+      p_recado: recado?.trim() || null,
+    });
+
+    if (error) {
+      // O `hint` É METADE DA RECUSA, e aqui mais que em qualquer outro lugar
+      // deste módulo: a recusa NOMEIA as peças que faltam, e a dica diz o que
+      // fazer com elas. É a concatenação de `atualizarTask`, pela razão da
+      // 0023 — dizer QUAIS é a diferença entre uma recusa e uma instrução.
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
+    }
+
+    const enviadas = data?.pecas ?? 0;
+
+    // O E-MAIL FALA DO MÊS, e não de uma peça. Um por peça seria dezoito
+    // mensagens sobre o mesmo envio, e a pessoa pararia de abrir a segunda.
+    const { data: demanda } = await supabase
+      .from("tasks")
+      .select("client_id, social_do_mes")
+      .eq("id", taskId)
+      .maybeSingle();
+
+    if (demanda?.client_id) {
+      despacharEmail(
+        await clientesQueQueremReceber(demanda.client_id, "novo_conteudo"),
+        materialParaAprovar({
+          titulo: `${enviadas} ${enviadas === 1 ? "material" : "materiais"} para a sua aprovação`,
+          oQueE: "o social do mês",
+          rota: demanda.social_do_mes
+            ? `/portal/social-media?mes=${demanda.social_do_mes.slice(0, 7)}`
+            : "/portal/social-media",
+        }),
+      );
+    }
+
+    revalidar();
+    revalidatePath("/painel/gestao-tasks");
+    return sucesso(
+      enviadas === 1
+        ? "Enviado. O cliente já vê o material no portal dele."
+        : `Enviadas ${enviadas} peças. O cliente já vê o mês no portal dele.`,
+      enviadas,
+    );
+  });
+}
+
 /** Excluir. **É da gestão** — `posts_delete` fecha em `is_gestor()` desde a 0032. */
 export async function excluirPost(id: string): Promise<Resultado> {
   return executarAcao("excluirPost", async () => {

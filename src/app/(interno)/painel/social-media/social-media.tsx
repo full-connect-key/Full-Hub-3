@@ -28,6 +28,7 @@ import {
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { cn } from "@/lib/utils";
 import type {
+  PortaoDoMes,
   PostDaAgencia,
   ReferenciaDoPost,
   VersaoDoPost,
@@ -148,6 +149,7 @@ export function SocialMedia({
   versoes,
   etapas,
   caixinhas,
+  portaoDoMes,
   aprovacoesDoCliente,
   referencias,
   clientes,
@@ -166,6 +168,8 @@ export function SocialMedia({
   etapas: EtapaDoMes[];
   /** As caixinhas do post aberto. */
   caixinhas: CaixinhaDoPost[];
+  /** O portão da vez do mês do post aberto. Nulo no post avulso. */
+  portaoDoMes: PortaoDoMes | null;
   /** Rodadas de cliente já aprovadas do post aberto — o `k` do portão. */
   aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
@@ -282,6 +286,7 @@ export function SocialMedia({
       versoes={versoes}
       etapas={etapas}
       caixinhas={caixinhas}
+      portaoDoMes={portaoDoMes}
       aprovacoesDoCliente={aprovacoesDoCliente}
       referencias={referencias}
       equipe={equipe}

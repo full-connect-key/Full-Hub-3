@@ -45,6 +45,12 @@ const esquemaDaEtapa = z.object({
   papel: z.enum(["producao", "entrega", "pos_entrega"]),
   campo: z.enum(["pauta", "legenda"]).nullable().optional(),
   aprovacao_cliente: z.boolean().optional(),
+  // O AVAL INTERNO É OPCIONAL (0090), e o default do banco é `true`. Aqui ele
+  // é `.optional()` sem default pela razão do `papel` acima: quem manda a
+  // chamada sem a chave está dizendo "o normal", e é `salvar_fluxo_de_social`
+  // que decide o que o normal é — um default nos dois lados seria o lugar onde
+  // os dois divergem no dia em que a casa mudasse de ideia.
+  aprovacao_interna: z.boolean().optional(),
   // AS DUAS PONTAS SAÍRAM NA 0089: o fluxo é a sequência de ações, e a data é do
   // mês. O esquema é `z.object()` e não `.strict()`, então uma chave a mais
   // passa por aqui — quem recusa a forma antiga com frase própria é
@@ -98,6 +104,9 @@ export async function salvarFluxoDeSocial(dados: unknown): Promise<Resultado<str
         papel: e.papel,
         campo: e.campo ?? null,
         aprovacao_cliente: e.aprovacao_cliente ?? false,
+        ...(e.aprovacao_interna === undefined
+          ? {}
+          : { aprovacao_interna: e.aprovacao_interna }),
       })),
       p_flow_id: lido.data.flow_id ?? null,
       p_descricao: lido.data.descricao ?? null,

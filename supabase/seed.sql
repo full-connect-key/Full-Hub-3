@@ -352,8 +352,14 @@ $notas$;
 select public.salvar_fluxo_de_social(
   'Três avaliações antes da arte',
   jsonb_build_array(
+    -- E A PAUTA DESTA CONTA VAI SEM AVAL INTERNO (0090), que e a segunda metade
+    -- da mesma decisao: uma pauta e um paragrafo de texto, e a conta que a
+    -- valida nao precisa da gestao revisando a frase antes. Sem esta linha, as
+    -- quatro combinacoes de `aprovacao_cliente` x `aprovacao_interna` existem
+    -- no banco e nenhum ambiente de desenvolvimento mostra a que a 0090 criou.
     jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
-                       'campo','pauta','aprovacao_cliente',true),
+                       'campo','pauta','aprovacao_cliente',true,
+                       'aprovacao_interna',false),
     jsonb_build_object('nome','Conteúdo','funcao','Redator','papel','producao',
                        'campo','legenda','aprovacao_cliente',true),
     jsonb_build_object('nome','Layout','funcao','Design','papel','producao',

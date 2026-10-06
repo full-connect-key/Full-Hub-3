@@ -13,6 +13,7 @@ import type {
   ContentStatus,
   PlataformaSocial,
   PostMidia,
+  SocialFlowPapel,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -358,6 +359,15 @@ export async function obterPostDaAgencia(id: string): Promise<{
    */
   aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
+  /**
+   * O portão da vez do MÊS, as peças do próximo lote e o que falta.
+   *
+   * Nulo no post avulso, que não tem mês — e é por isso que ele é lido aqui e
+   * não na página: o editor abre um post, e quem sabe se ele pertence a um mês
+   * é esta consulta. Pedir na página obrigaria a tela a perguntar duas vezes
+   * qual é a demanda dele.
+   */
+  portao: PortaoDoMes | null;
 } | null> {
   const supabase = await criarClienteServidor();
 
@@ -388,9 +398,12 @@ export async function obterPostDaAgencia(id: string): Promise<{
       .eq("status", "aprovada"),
   );
 
-  const corrente = linha.social_task_id
-    ? await correnteDoMes(linha.social_task_id)
-    : { etapas: [], caixinhas: [] };
+  const [corrente, portao] = linha.social_task_id
+    ? await Promise.all([
+        correnteDoMes(linha.social_task_id),
+        portaoDoMes(linha.social_task_id),
+      ])
+    : [{ etapas: [], caixinhas: [] }, null];
 
   const versoes = ouFalha(
     "as versões do post",
@@ -416,6 +429,7 @@ export async function obterPostDaAgencia(id: string): Promise<{
     caixinhas: corrente.caixinhas.filter((c) => c.postId === id),
     aprovacoesDoCliente: aprovadas.length,
     referencias: await referenciasDoPost(id),
+    portao,
     versoes: versoes.map((v) => ({
       id: v.id,
       numero: v.numero_versao,
@@ -556,6 +570,98 @@ export async function correnteDoMes(taskId: string): Promise<{
  * própria subtarefa.
  * ---------------------------------------------------------------------------
  */
+
+/**
+ * O PORTÃO DA VEZ DO MÊS, as peças que entram no próximo lote, e o que falta.
+ *
+ * ---------------------------------------------------------------------------
+ * **UMA LEITURA E NÃO TRÊS**, e o que a junta é que as três respondem sobre o
+ * MESMO botão: qual fase está esperando o cliente, quantas peças vão nela, e
+ * por que alguma não vai. Separadas, a tela chamaria três vezes e poderia
+ * desenhar "(18)" ao lado de uma recusa que fala de dezenove.
+ *
+ * **AS TRÊS SÃO `security definer` COM `is_staff()` NA PORTA** (0090), então a
+ * recusa chega como ERRO e não como lista vazia — e por isso elas não passam
+ * por `ouFalha()`: quem abre esta tela é da equipe por definição (`is_staff()`
+ * no módulo desde a 0042), e o que derrubaria a página é um erro de rede. Um
+ * portão nulo é a resposta normal: o mês cuja corrente ainda não chegou a
+ * nenhuma fase de decisão não tem portão nenhum.
+ *
+ * `portao_atual_do_mes` devolve `setof subtasks`, então o PostgREST entrega um
+ * objeto e não uma lista — ela é `returns public.subtasks`, não `returns
+ * table`.
+ * ---------------------------------------------------------------------------
+ */
+export type PortaoDoMes = {
+  /** A fase que está esperando a decisão do cliente, ou `null`. */
+  etapa: { id: string; titulo: string; papel: SocialFlowPapel } | null;
+  /** Quantas peças entram no próximo lote deste portão. */
+  pecas: number;
+  /** Uma linha por peça que NÃO entra, com o motivo por extenso. */
+  falta: { postId: string; tema: string; motivo: string }[];
+};
+
+export async function portaoDoMes(taskId: string): Promise<PortaoDoMes> {
+  const supabase = await criarClienteServidor();
+
+  const { data: etapa, error: erroDoPortao } = await supabase.rpc(
+    "portao_atual_do_mes",
+    { p_task_id: taskId },
+  );
+  if (erroDoPortao) {
+    console.error("[consulta:o portão da vez do mês]", erroDoPortao);
+    return { etapa: null, pecas: 0, falta: [] };
+  }
+  if (!etapa?.id || !etapa.social_papel) {
+    return { etapa: null, pecas: 0, falta: [] };
+  }
+
+  const [elegiveis, pendencias] = await Promise.all([
+    supabase.rpc("posts_elegiveis_do_portao", {
+      p_task_id: taskId,
+      p_etapa_id: etapa.id,
+    }),
+    supabase.rpc("o_que_falta_no_portao", {
+      p_task_id: taskId,
+      p_etapa_id: etapa.id,
+    }),
+  ]);
+
+  if (elegiveis.error) {
+    console.error("[consulta:as peças do portão]", elegiveis.error);
+  }
+  if (pendencias.error) {
+    console.error("[consulta:o que falta no portão]", pendencias.error);
+  }
+
+  const faltam = (pendencias.data ?? []).map((l) => ({
+    postId: l.post_id,
+    tema: l.tema,
+    motivo: l.motivo,
+  }));
+
+  // `pecas` É O TOTAL ELEGÍVEL, e NÃO o total menos o que falta — e eu tinha
+  // escrito o contrário aqui, com a conta subtraindo. **Foi o teste de fumaça
+  // contra o Postgres que mostrou**, e o erro era caro: a tela dizia "(7)" num
+  // mês de 13 e o banco recusava o envio INTEIRO, porque
+  // `enviar_mes_ao_cliente` confere `o_que_falta_no_portao()` antes de gravar
+  // qualquer coisa. Ela não manda as 7 e deixa 6 para trás.
+  //
+  // **E ela está certa:** o mês anda junto por padrão (0090), e um portão é do
+  // MÊS — mandar 7 de 13 partiria o mês no portão, que é exatamente o que
+  // `avanca_em_paralelo` existe para permitir e o que o padrão recusa.
+  //
+  // Então o número é o que vai sair quando nada mais faltar, e quem desliga o
+  // botão é `falta.length > 0`. É a decisão do "Enviar ao cliente" desligado
+  // com a razão escrita, e não um número que o clique desmente.
+  const pecas = (elegiveis.data ?? []).length;
+
+  return {
+    etapa: { id: etapa.id, titulo: etapa.titulo, papel: etapa.social_papel },
+    pecas,
+    falta: faltam,
+  };
+}
 
 /** Os posts que ninguém datou ainda — a faixa ao lado da grade do mês. */
 export async function postsSemData(

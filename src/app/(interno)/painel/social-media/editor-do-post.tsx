@@ -53,6 +53,8 @@ import { criarClienteNavegador } from "@/lib/supabase/client";
 
 import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
+import { EnvioDoMes } from "./envio-do-mes";
+import type { PortaoDoMes } from "@/lib/dados/social-media";
 import { ReferenciasDoPost } from "./referencias-do-post";
 import type {
   PostDaAgencia,
@@ -128,6 +130,7 @@ export function EditorDoPost({
   versoes,
   etapas,
   caixinhas,
+  portaoDoMes: portaoDoMesDaVez,
   aprovacoesDoCliente,
   referencias,
   equipe,
@@ -141,6 +144,8 @@ export function EditorDoPost({
   etapas: EtapaDoMes[];
   /** As caixinhas DESTE post, uma por etapa do mês. */
   caixinhas: CaixinhaDoPost[];
+  /** O portão da vez do MÊS. Nulo no post avulso, que não tem mês. */
+  portaoDoMes: PortaoDoMes | null;
   /** Quantas rodadas de cliente deste post já foram aprovadas — o `k` do portão. */
   aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
@@ -621,17 +626,30 @@ export function EditorDoPost({
             </Button>
           ) : null}
 
-          <Button
-            size="sm"
-            disabled={!envio.pode || emAcao}
-            title={envio.porque ?? undefined}
-            onClick={() =>
-              iniciar(() => agir(() => chamarAcao(() => enviarAoCliente(post.id))))
-            }
-          >
-            <Send aria-hidden className="size-4" />
-            {rotuloDoEnvio(portao)}
-          </Button>
+          {/* O ENVIO INDIVIDUAL FICOU SÓ PARA O POST AVULSO, e a divisão é
+              mecânica antes de ser de desenho: `enviar_mes_ao_cliente` precisa
+              de um mês, e um post sem `social_task_id` não tem nenhum — não há
+              lote a que ele pertença. Num post do mês este botão mandaria UMA
+              peça enquanto o lote manda dezoito, e as duas coisas lado a lado
+              na mesma tela são exatamente a confusão que a 0090 desfez: o
+              cliente recebendo material de um em um, sem nada dizendo que são
+              um conjunto.
+
+              Quem envia o mês é `EnvioDoMes`, logo abaixo, junto da corrente —
+              porque é lá que a fase da vez está escrita. */}
+          {!portaoDoMesDaVez ? (
+            <Button
+              size="sm"
+              disabled={!envio.pode || emAcao}
+              title={envio.porque ?? undefined}
+              onClick={() =>
+                iniciar(() => agir(() => chamarAcao(() => enviarAoCliente(post.id))))
+              }
+            >
+              <Send aria-hidden className="size-4" />
+              {rotuloDoEnvio(portao)}
+            </Button>
+          ) : null}
 
           {quemLe.ehGestor ? (
             <ConfirmDialog
@@ -664,7 +682,7 @@ export function EditorDoPost({
             resposta. `--warning` e nunca `--danger`: falta um passo, não há
             erro nenhum. O par é nomeado (`bg-warning-soft text-warning`), como
             todo selo de estado deste produto. */}
-        {!envio.pode && envio.porque ? (
+        {!portaoDoMesDaVez && !envio.pode && envio.porque ? (
           <p className="bg-warning-soft text-warning flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold">
             <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
             {envio.porque}
@@ -677,6 +695,12 @@ export function EditorDoPost({
           depois de quem é cada pedaço do caminho, e só então o que já
           aconteceu. Acima das ações ela empurraria "Enviar ao cliente" para
           fora da tela num post com oito etapas. */}
+      {portaoDoMesDaVez ? (
+        <div className="border-border border-t pt-4">
+          <EnvioDoMes taskId={post.socialTaskId!} portao={portaoDoMesDaVez} />
+        </div>
+      ) : null}
+
       {etapas.length > 0 ? (
         <div className="border-border border-t pt-4">
           <CorrenteDoPost

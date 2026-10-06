@@ -33,6 +33,7 @@ const CASA: FluxoDeSocial = {
       funcao: "Social Media",
       papel: "producao",
       aprovacao_cliente: false,
+      aprovacao_interna: true,
       campo: "pauta",
     },
     {
@@ -41,6 +42,7 @@ const CASA: FluxoDeSocial = {
       funcao: "Redator",
       papel: "producao",
       aprovacao_cliente: false,
+      aprovacao_interna: true,
       campo: "legenda",
     },
     {
@@ -49,6 +51,7 @@ const CASA: FluxoDeSocial = {
       funcao: "Design",
       papel: "producao",
       aprovacao_cliente: false,
+      aprovacao_interna: true,
       campo: null,
     },
     {
@@ -57,6 +60,7 @@ const CASA: FluxoDeSocial = {
       funcao: "Gestao",
       papel: "entrega",
       aprovacao_cliente: false,
+      aprovacao_interna: true,
       campo: null,
     },
     {
@@ -65,6 +69,7 @@ const CASA: FluxoDeSocial = {
       funcao: "Social Media",
       papel: "pos_entrega",
       aprovacao_cliente: false,
+      aprovacao_interna: true,
       campo: null,
     },
   ],
@@ -78,9 +83,15 @@ const FLUXOS: FluxoDeSocial[] = [
     descricao:
       "A conta valida a pauta, o texto e a arte, cada um na vez dele, antes de o material sair como peça fechada.",
     ativo: true,
+    // E A PAUTA VAI SEM AVAL INTERNO, que é o estado que a 0090 criou e que
+    // nenhum fluxo de exemplo tinha: uma pauta é texto, e a conta que a valida
+    // não precisa da gestão revisando um parágrafo antes. Sem esta linha o
+    // segundo interruptor do editor nunca aparece ligado em imagem nenhuma —
+    // é a lição da Óptica Visão sem responsável de atendimento (0062).
     etapas: CASA.etapas.map((e) => ({
       ...e,
       aprovacao_cliente: e.papel === "producao",
+      aprovacao_interna: e.nome !== "Pauta",
     })),
   },
   {

@@ -35,6 +35,20 @@ export type EtapaDoFluxo = {
   funcao: TeamFuncao;
   papel: SocialFlowPapel;
   aprovacao_cliente: boolean;
+  /**
+   * SE ESTE ELO PASSA PELO AVAL INTERNO ANTES DE IR AO CLIENTE (0090).
+   *
+   * **Ela é INDEPENDENTE de `aprovacao_cliente`**, e as duas juntas são quatro
+   * combinações legítimas: o elo que passa pelos dois, o que passa só pelo aval
+   * interno (o normal), o que vai direto ao cliente sem revisão, e o que não
+   * passa por ninguém. Nenhum `check` as amarra, de propósito.
+   *
+   * **Ela nasce `true`**, que é a decisão do default `publicada` da 0028:
+   * esquecer o campo mantém o que já acontecia, e o erro contrário — uma conta
+   * que para de exigir revisão sem ninguém ter decidido — não aparece em tela
+   * nenhuma.
+   */
+  aprovacao_interna: boolean;
   campo: string | null;
 };
 
@@ -112,6 +126,7 @@ export const MOLDE_DO_FLUXO: Omit<EtapaDoFluxo, "ordem">[] = [
     funcao: "Social Media",
     papel: "producao",
     aprovacao_cliente: false,
+    aprovacao_interna: true,
     campo: "pauta",
   },
   {
@@ -119,6 +134,7 @@ export const MOLDE_DO_FLUXO: Omit<EtapaDoFluxo, "ordem">[] = [
     funcao: "Redator",
     papel: "producao",
     aprovacao_cliente: false,
+    aprovacao_interna: true,
     campo: "legenda",
   },
   {
@@ -126,6 +142,7 @@ export const MOLDE_DO_FLUXO: Omit<EtapaDoFluxo, "ordem">[] = [
     funcao: "Design",
     papel: "producao",
     aprovacao_cliente: false,
+    aprovacao_interna: true,
     campo: null,
   },
   {
@@ -133,6 +150,7 @@ export const MOLDE_DO_FLUXO: Omit<EtapaDoFluxo, "ordem">[] = [
     funcao: "Gestao",
     papel: "entrega",
     aprovacao_cliente: false,
+    aprovacao_interna: true,
     campo: null,
   },
   {
@@ -140,6 +158,7 @@ export const MOLDE_DO_FLUXO: Omit<EtapaDoFluxo, "ordem">[] = [
     funcao: "Social Media",
     papel: "pos_entrega",
     aprovacao_cliente: false,
+    aprovacao_interna: true,
     campo: null,
   },
 ];

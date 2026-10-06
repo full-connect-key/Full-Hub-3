@@ -70,6 +70,7 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
       versoes={aberto?.versoes ?? []}
       etapas={aberto?.etapas ?? []}
       caixinhas={aberto?.caixinhas ?? []}
+      portaoDoMes={aberto?.portao ?? null}
       aprovacoesDoCliente={aberto?.aprovacoesDoCliente ?? 0}
       referencias={aberto?.referencias ?? []}
       clientes={clientes

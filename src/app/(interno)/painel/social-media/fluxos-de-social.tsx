@@ -224,7 +224,16 @@ function CartaoDoFluxo({
  * texto. Âmbar e nunca `--danger`: material esperando decisão é o estado normal
  * do mês, não um erro — é a regra do alerta de 7 dias das campanhas.
  */
-export function Corrente({ etapas }: { etapas: { nome: string; aprovacao_cliente: boolean; papel: SocialFlowPapel }[] }) {
+export function Corrente({
+  etapas,
+}: {
+  etapas: {
+    nome: string;
+    aprovacao_cliente: boolean;
+    aprovacao_interna?: boolean;
+    papel: SocialFlowPapel;
+  }[];
+}) {
   if (etapas.length === 0) {
     return (
       <p className="text-warning bg-warning-soft mt-3 rounded-lg px-3 py-2 text-xs">
@@ -267,6 +276,20 @@ export function Corrente({ etapas }: { etapas: { nome: string; aprovacao_cliente
           Só a entrega do material pronto passa pelo cliente.
         </p>
       )}
+      {/* A SEGUNDA FRASE SÓ APARECE QUANDO ALGUÉM DESLIGOU O AVAL, e é a razão
+          de ela não ter par: exigir revisão é o normal de toda conta desde o
+          primeiro dia, e uma linha dizendo "as cinco etapas passam pela
+          revisão" em todo fluxo é cinco palavras que ninguém lê. A ausência é
+          a resposta — a decisão do selo "A programar", que não existe. */}
+      {etapas.some((e) => e.aprovacao_interna === false) ? (
+        <p className="text-text-muted mt-1 text-xs">
+          {etapas
+            .filter((e) => e.aprovacao_interna === false)
+            .map((e) => e.nome)
+            .join(", ")}{" "}
+          vai ao cliente sem passar pela revisão da gestão.
+        </p>
+      ) : null}
     </>
   );
 }
@@ -281,6 +304,7 @@ function paraEdicao(fluxo: FluxoDeSocial | null): EloEmEdicao[] {
     funcao: e.funcao,
     papel: e.papel,
     aprovacao_cliente: e.aprovacao_cliente,
+    aprovacao_interna: e.aprovacao_interna,
     campo: e.campo,
   }));
 }
@@ -348,6 +372,7 @@ function EditorDoFluxo({
             papel: e.papel,
             campo: e.campo,
             aprovacao_cliente: e.aprovacao_cliente,
+            aprovacao_interna: e.aprovacao_interna,
           })),
         }),
       );
@@ -544,6 +569,7 @@ function EditorDoFluxo({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
                 {elo.papel === "producao" ? (
                   <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
                     {/* `flex-col items-start` NO PRÓPRIO LABEL: o do shadcn é
@@ -571,6 +597,52 @@ function EditorDoFluxo({
                     />
                   </div>
                 ) : null}
+
+                {/* O AVAL INTERNO É O SEGUNDO INTERRUPTOR (0090), e eles são
+                    INDEPENDENTES: as quatro combinações são legítimas, e nenhum
+                    `check` as amarra.
+
+                    **ELE APARECE SÓ ONDE O ELO É PORTÃO**, e é a decisão do
+                    interruptor de cima aplicada um nível adiante: a pergunta
+                    dele é "antes de ir ao cliente, isto passa pela revisão da
+                    gestão?", e num elo por onde nada sai da agência ela não
+                    decide nada. Um interruptor que não decide nada é pior que
+                    um a menos — ele afirma que existe uma escolha ali, e a
+                    pessoa volta procurando o efeito dela.
+
+                    **E O VALOR NÃO É APAGADO quando ele some**, ao contrário do
+                    `aprovacao_cliente` que o seletor de papel derruba: é a
+                    decisão da 0022 — quem desliga o portão num clique pode
+                    religá-lo no seguinte, e destruir a escolha por causa disso
+                    é destruir dado que a pessoa desfaz em seguida. O que caiu
+                    junto ali é a MARCA DO CLIENTE, que o `check` do banco recusa
+                    fora da produção; esta coluna o banco aceita em qualquer
+                    papel. */}
+                {elo.papel === "entrega" ||
+                (elo.papel === "producao" && elo.aprovacao_cliente) ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                    <Label
+                      htmlFor={`elo-aval-${elo.id}`}
+                      className="cursor-pointer flex-col items-start gap-0.5 text-xs"
+                    >
+                      Passa pelo aval interno
+                      <span className="text-text-muted font-normal">
+                        {elo.aprovacao_interna
+                          ? "a gestão revisa antes de o material sair da agência"
+                          : "vai direto ao cliente, sem revisão"}
+                      </span>
+                    </Label>
+                    <Switch
+                      id={`elo-aval-${elo.id}`}
+                      checked={elo.aprovacao_interna}
+                      disabled={salvando}
+                      onCheckedChange={(marcado) =>
+                        mexer(elo.id, { aprovacao_interna: marcado })
+                      }
+                    />
+                  </div>
+                ) : null}
+                </div>
               </div>
 
               {/* OS DOIS DIAS SAÍRAM DAQUI (0089), e a ausência é a entrega.
@@ -600,6 +672,7 @@ function EditorDoFluxo({
                 funcao: "Design" as TeamFuncao,
                 papel: "producao" as SocialFlowPapel,
                 aprovacao_cliente: false,
+                aprovacao_interna: true,
                 campo: null,
               },
             ])

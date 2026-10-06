@@ -3181,6 +3181,31 @@ export interface Database {
         Args: { p_task_id: string; p_etapa_id: string; p_recado?: string | null };
         Returns: { lote_id: string; portao: string; rodada: number; pecas: number };
       };
+      // A FASE DA VEZ do mes -- o primeiro portao do cliente ainda nao
+      // concluido. `returns public.subtasks` e nao `returns table`, entao o
+      // PostgREST entrega UM objeto e nao uma lista; sem portao ela devolve
+      // nulo, que e a resposta normal de um mes que ainda nao chegou a nenhuma
+      // fase de decisao.
+      //
+      // O `Returns` declara as TRES colunas que a tela le, e nao a linha
+      // inteira de `subtasks`: a forma honesta seria `Tables<"subtasks">`, e
+      // ela faria o `check:tipos` cobrar aqui cada coluna que a tabela ganhar
+      // -- numa funcao que existe para responder uma pergunta de tres campos.
+      portao_atual_do_mes: {
+        Args: { p_task_id: string };
+        Returns: {
+          id: string;
+          titulo: string;
+          social_papel: SocialFlowPapel | null;
+        } | null;
+      };
+      // As pecas que entram no proximo lote deste portao. `setof public.posts`,
+      // entao o PostgREST entrega uma lista de linhas de post -- e a tela le o
+      // `id` de cada uma, que e o que ela cruza com `o_que_falta_no_portao`.
+      posts_elegiveis_do_portao: {
+        Args: { p_task_id: string; p_etapa_id: string };
+        Returns: { id: string }[];
+      };
       // O que ainda nao pode sair, PECA POR PECA, com o motivo de cada uma. A
       // tela a chama para desligar o botao antes do clique e para montar o
       // link; `enviar_mes_ao_cliente` a chama para recusar nomeando.

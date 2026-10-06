@@ -20,6 +20,7 @@ import type {
   VersaoDoPost as VersaoReal,
 } from "../../src/lib/dados/social-media";
 import type { CaixinhaDoPost, EtapaDoMes } from "../../src/lib/dominio/posts";
+import type { SocialFlowPapel } from "../../src/lib/supabase/database.types";
 
 export type PostDaAgencia = PostReal;
 export type VersaoDoPost = VersaoReal;
@@ -305,8 +306,39 @@ export async function obterPostDaAgencia(id: string) {
     // acima, e a imagem mostraria dois fatos que se contradizem.
     aprovacoesDoCliente: post.socialTaskId ? 1 : 0,
     referencias: REFERENCIAS,
+    portao: post.socialTaskId ? PORTAO : null,
   };
 }
+
+/**
+ * O PORTAO DA VEZ DO MES, com peca de fora.
+ *
+ * As duas metades sao de proposito: o botao sai com "(4)" -- um numero, que e o
+ * que a imagem precisa provar -- e DUAS pecas ficam fora, nomeadas e com link.
+ * Sem a segunda metade a faixa ambar nao aparece em imagem nenhuma, e ela e
+ * justamente o que o envio em lote acrescentou a esta tela.
+ *
+ * E o portao e o da ENTREGA e nao um do meio: com um do meio o rotulo seria
+ * "Enviar a Pauta ao cliente", e a `CORRENTE` do stub tem a Pauta ja aprovada
+ * na caixinha -- a imagem mostraria dois fatos que se contradizem, que e a
+ * mesma armadilha que `aprovacoesDoCliente: 1` existe para evitar.
+ */
+const PORTAO: PortaoDoMes = {
+  etapa: { id: "e4", titulo: "Envio", papel: "entrega" },
+  pecas: 4,
+  falta: [
+    {
+      postId: "sd1",
+      tema: "Instagram 1 de 6 · mês que vem",
+      motivo: "ainda não tem data de publicação",
+    },
+    {
+      postId: "sd3",
+      tema: "Instagram 3 de 6 · mês que vem",
+      motivo: "é vídeo e ainda não tem o link",
+    },
+  ],
+};
 
 /**
  * DUAS REFERENCIAS DE DUAS PESSOAS, e uma so com endereco: a imagem precisa
@@ -489,6 +521,16 @@ export async function correnteDoMes(_taskId: string): Promise<{
   caixinhas: CaixinhaDoPost[];
 }> {
   return { etapas: CORRENTE, caixinhas: CAIXINHAS };
+}
+
+export type PortaoDoMes = {
+  etapa: { id: string; titulo: string; papel: SocialFlowPapel } | null;
+  pecas: number;
+  falta: { postId: string; tema: string; motivo: string }[];
+};
+
+export async function portaoDoMes(_taskId: string): Promise<PortaoDoMes> {
+  return PORTAO;
 }
 
 /**

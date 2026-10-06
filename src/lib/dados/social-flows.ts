@@ -36,7 +36,7 @@ export async function fluxosDeSocial(
     await supabase
       .from("social_flow_steps")
       .select(
-        "flow_id, ordem, nome, funcao, papel, aprovacao_cliente, campo",
+        "flow_id, ordem, nome, funcao, papel, aprovacao_cliente, aprovacao_interna, campo",
       )
       .in(
         "flow_id",
@@ -54,6 +54,7 @@ export async function fluxosDeSocial(
       funcao: elo.funcao,
       papel: elo.papel,
       aprovacao_cliente: elo.aprovacao_cliente,
+      aprovacao_interna: elo.aprovacao_interna,
       campo: elo.campo,
     });
     porFluxo.set(elo.flow_id, lista);
