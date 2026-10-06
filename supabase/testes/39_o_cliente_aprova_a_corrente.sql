@@ -11,6 +11,13 @@
 \set COMPAUTA  '''50760000-0000-0000-0000-000000000002'''
 \set AJUSTE    '''50760000-0000-0000-0000-000000000003'''
 
+-- OS FLUXOS DESTE ARQUIVO (0087). Ate ela a lista de portoes era
+-- `client_flow_defaults.social_aprovacoes`, um `text[]` com os nomes; hoje ela
+-- e a coluna `aprovacao_cliente` de cada elo do FLUXO, e a conta aponta para
+-- um. Os cenarios sao os mesmos, com a lista virando fluxo.
+\set FLUXOCASA  '''f1000000-0000-4000-8000-000000000001'''
+\set FLUXOPAUTA '''50870000-0000-0000-0000-000000000001'''
+
 -- ===========================================================================
 -- 0076 -- O CLIENTE APROVA A CORRENTE ETAPA POR ETAPA
 --
@@ -51,9 +58,24 @@ select teste.conferir('E a porta do cliente continua sendo o Envio',
 
 -- --- 2. A conta combina que aprova a pauta ---------------------------------
 
-insert into public.client_flow_defaults (client_id, social_aprovacoes)
-values (:VERDE, array['Pauta'])
-on conflict (client_id) do update set social_aprovacoes = array['Pauta'];
+-- O FLUXO E UMA COPIA DO DA CASA com a Pauta marcada, e e assim que a tela do
+-- editor o monta: parte do padrao e liga o portao que a conta combinou.
+select public.salvar_fluxo_de_social(
+  'Fluxo que aprova a pauta',
+  jsonb_build_array(
+    jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
+                       'campo','pauta','aprovacao_cliente',true),
+    jsonb_build_object('nome','Conteúdo','funcao','Redator','papel','producao',
+                       'campo','legenda'),
+    jsonb_build_object('nome','Layout','funcao','Design','papel','producao'),
+    jsonb_build_object('nome','Envio','funcao','Gestao','papel','entrega'),
+    jsonb_build_object('nome','Programar','funcao','Social Media','papel','pos_entrega')
+  ),
+  :FLUXOPAUTA);
+
+insert into public.client_flow_defaults (client_id, social_flow_id)
+values (:VERDE, :FLUXOPAUTA)
+on conflict (client_id) do update set social_flow_id = :FLUXOPAUTA;
 
 insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)
@@ -86,28 +108,26 @@ select teste.conferir('E a porta do cliente passou a ser ela',
 -- o segundo vem depois da decisao -- um portao ali esperaria o cliente aprovar
 -- que o post foi agendado.
 
-update public.client_flow_defaults
-   set social_aprovacoes = array['Pauta', 'Envio', 'Programar', 'Etapa que nao existe']
- where client_id = :VERDE;
+-- ATE A 0087 ESTE CENARIO ERA UM FILTRO: a lista da conta aceitava 'Envio' e
+-- 'Programar' escritos a mao, e `montar_etapas_do_post` os descartava na hora
+-- de montar a etapa. Hoje e TRAVA DE TABELA, e virado do avesso: o `check`
+-- `social_flow_steps_portao_coerente` recusa a marca fora de um elo de
+-- producao -- o que a 0076 filtrava na leitura o banco passou a recusar na
+-- escrita.
 
-\set TUDO '''50760000-0000-0000-0000-000000000004'''
+select teste.recusa_com('A entrega nao recebe a marca do cliente', :DIEGO,
+  format($fmt$update public.social_flow_steps set aprovacao_cliente = true
+     where flow_id = %L and papel = 'entrega'$fmt$, :FLUXOPAUTA),
+  'social_flow_steps_portao_coerente');
 
-insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
-                          midia, criado_por, responsavel_id)
-values (:TUDO, :VERDE, 'Lista com tudo dentro', '2027-03-12', '{instagram}',
-        'imagem', :ANA, :BRUNO);
+select teste.recusa_com('Nem o que vem depois da decisao', :DIEGO,
+  format($fmt$update public.social_flow_steps set aprovacao_cliente = true
+     where flow_id = %L and papel = 'pos_entrega'$fmt$, :FLUXOPAUTA),
+  'social_flow_steps_portao_coerente');
 
-select teste.conferir('Envio, Programar e nome inventado nao viram portao',
-  (select string_agg(nome, ', ' order by ordem) from public.post_etapas
-    where post_id = :TUDO and aprovacao_cliente), 'Pauta');
-
-select teste.conferir('E a lista do que da para escolher tem tres elos',
-  (select string_agg(nome, ' > ' order by ordem)
-     from public.etapas_que_o_cliente_pode_aprovar()),
-  'Pauta > Conteúdo > Layout');
-
-update public.client_flow_defaults
-   set social_aprovacoes = array['Pauta'] where client_id = :VERDE;
+select teste.conferir('E so a Pauta e portao neste fluxo',
+  (select string_agg(nome, ', ' order by ordem) from public.social_flow_steps
+    where flow_id = :FLUXOPAUTA and aprovacao_cliente), 'Pauta');
 
 
 -- --- 4. Quem escreve a pauta trabalha nela, e nao a fecha ------------------
@@ -335,7 +355,8 @@ select teste.conferir('E e do Bruno, que fez o Layout',
 -- nao pode ter apagado o caminho normal.
 \set NORMAL '''50760000-0000-0000-0000-000000000005'''
 
-update public.client_flow_defaults set social_aprovacoes = '{}'
+-- A CONTA VOLTA AO FLUXO DA CASA, que e o que "lista vazia" queria dizer.
+update public.client_flow_defaults set social_flow_id = :FLUXOCASA
  where client_id = :VERDE;
 
 insert into public.posts (id, client_id, tema, data_publicacao, plataformas,
@@ -393,7 +414,7 @@ select teste.conferir('Com o Envio concluido',
 -- entao a ordem dos dois comandos e a diferenca entre este post ter portao e
 -- nao ter.
 update public.client_flow_defaults
-   set social_aprovacoes = array['Pauta'] where client_id = :VERDE;
+   set social_flow_id = :FLUXOPAUTA where client_id = :VERDE;
 
 insert into public.posts (id, client_id, tema, pauta, data_publicacao, plataformas,
                           midia, criado_por, responsavel_id)

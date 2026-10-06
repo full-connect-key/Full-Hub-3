@@ -54,6 +54,7 @@ const ROTULOS = {
   data_publicacao: "data de publicação",
   plataformas: "redes",
   video_url: "link do vídeo",
+  flow_id: "fluxo deste mês",
 } as const;
 
 const esquemaDeAbertura = z.object({
@@ -504,6 +505,16 @@ const esquemaDoMes = z.object({
    * criar o segundo lugar onde as duas respostas divergem.
    */
   link_entrega: z.string().trim().url("A pasta precisa ser um endereço.").optional(),
+  /**
+   * O FLUXO que este mês percorre (0087).
+   *
+   * Nulo é "o padrão desta conta, senão o da casa", e quem responde isso é
+   * `fluxo_do_mes()` no banco — a tela não repete a ordem. E quem recusa um
+   * uuid que não é fluxo nenhum é a chave estrangeira de `tasks.social_flow_id`,
+   * não uma lista copiada aqui: foi assim que a lista de nomes de etapa da
+   * 0076 deixou de precisar de um `z.enum` montado à mão.
+   */
+  flow_id: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -572,6 +583,7 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
       p_responsaveis: responsaveis,
       p_prazos: prazos,
       p_link_entrega: lido.data.link_entrega ?? null,
+      p_flow_id: lido.data.flow_id ?? null,
     });
 
     if (error) {

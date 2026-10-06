@@ -2920,13 +2920,13 @@ décima terceira sairia diferente.
 o mesmo botão Salvar: um segundo botão para a mesma linha seriam duas escritas
 concorrentes na mesma tela.
 
-`social_aprovacoes` é `text[]` e não `jsonb` — a pergunta é de pertinência
-("a Pauta está nesta lista?"), não um número por chave, que é o critério de
-`post_versions.arquivos`. **E o `check` com os nomes não existe no banco de
-propósito:** ele seria a sexta cópia da corrente. Quem recusa "Revisão do sócio"
-digitado à mão é o `z.enum` da action, montado a partir de
-`ETAPAS_QUE_O_CLIENTE_PODE_APROVAR` — que é `etapas_que_o_cliente_pode_aprovar()`
-do outro lado, como `situacaoDoLancamento()` no Financeiro.
+**A lista era `client_flow_defaults.social_aprovacoes`, um `text[]` com os
+nomes dos elos — e ela não existe mais:** a 0087 a apagou, e a escolha da conta
+virou um FLUXO inteiro. O registro do que ela foi fica porque o argumento da
+coluna continua de pé onde ele vale (pertinência não é mapa de valores, que é o
+critério de `post_versions.arquivos`), e porque a conversão dela é a metade que
+importa daquela migration. O que mudou está em "A corrente do social deixou de
+ser fixa", logo abaixo.
 
 **O Envio e o Programar ficam de fora da lista, e por razões diferentes.** O
 Envio **já é** o portão de toda conta desde a 0032 — oferecê-lo seria oferecer
@@ -3024,6 +3024,205 @@ porque a frase nasce em `lib/dominio/` e a varredura procura o jargão em
 `src/app/(cliente)/` e `src/components/portal/` — é o caso da ausência que chega
 com a chave do enum no Calendário Full. Quem mexer nela mexe sem rede, e a
 decisão está escrita ao lado da função.
+
+#### A corrente do social DEIXOU DE SER FIXA
+
+Migration 0087, decisão do usuário: *"algumas contas possuem um fluxo de
+aprovação diferentes, por exemplo. Algumas contas validam pauta e conteúdo,
+antes de ir para Produção de Layout. E após o layout feito, ele também vai para
+aprovação do cliente. Preciso poder montar fluxos de Social diferentes, para
+serem aplicados em determinados socials, de meses de determinadas contas"*.
+
+**O CABEÇALHO DA 0045 PREVIU ESTA MIGRATION**, em quantas palavras: *"a cadeia
+mora em `etapas_padrao_do_social()`; se um dia precisar ser editável por
+cliente, vira tabela de modelo, e é decisão explícita"*. É esta.
+
+**O que a 0076 já fazia, e as três coisas que faltavam.** Ela já punha o
+cliente aprovando etapa por etapa — a marca em `post_etapas`, a lista na conta,
+o portão derivado da ordem. O que ela não fazia: a lista era da CONTA e não um
+fluxo com nome, então duas contas com o mesmo combinado eram duas listas
+escritas duas vezes; as etapas eram as cinco fixas que o usuário ditou na 0045,
+e não dava para acrescentar uma revisão, renomear "Layout" nem tirar a que uma
+conta não usa; e o combinado era da conta para sempre, não do MÊS — e a frase
+dele é *"aplicados em determinados socials, de meses de determinadas contas"*.
+
+**São DUAS TABELAS e não um `jsonb`** — `social_flows` e `social_flow_steps` —,
+pelo critério que o produto já escreveu para `post_versions.arquivos`: jsonb é
+para o que se escreve de uma vez e se lê inteiro, nunca consultado item a item.
+Um elo é consultado item a item: `montar_etapas_do_post` percorre um por um, a
+validação de `p_prazos` pergunta se existe etapa com aquele nome, e o editor
+mostra uma linha por elo. É a forma de `workflow_templates` + `workflow_steps`
+(0007), que é a cadeia da demanda um módulo ao lado.
+
+##### O PAPEL É COLUNA, E NÃO O NOME DA ETAPA — e é a decisão que faz o resto caber
+
+Com a cadeia fixa, `'Envio'` podia ser uma palavra: ela aparecia escrita em
+**seis comparações** — "o Envio não se marca à mão" (0045), "o portão é o Envio
+ou quem tem a marca" (0076), "o Envio e o Programar nunca recebem a marca", "o
+post volta para produção quando o portão não é o Envio", o rótulo do ajuste, e
+quem refaz a arte. Com a cadeia editável isso vira o furo clássico desta casa:
+**um fluxo que chame a entrega de "Entrega" ficaria SEM PORTÃO DO CLIENTE
+NENHUM**, sem erro em lugar nenhum — o mês abriria, os doze posts nasceriam, a
+corrente andaria, e ninguém conseguiria mandar nada para fora da agência.
+
+Então o papel é um enum de três valores, e as duas razões que a 0076 escreveu
+para excluir o Envio e o Programar da lista de portões passaram a ser **dados**:
+
+| Papel | O que é |
+| --- | --- |
+| `producao` | o trabalho de alguém. PODE virar portão do cliente |
+| `entrega` | **é** o portão: enviar ao cliente É abrir a rodada dele (0032). Uma por fluxo |
+| `pos_entrega` | vem DEPOIS da decisão — pôr o cliente a aprová-la seria pedir o aval de um trabalho que só existe porque ele já aprovou |
+
+**E o de-para do card virou coluna junto** (`campo`). Ele era
+`case e.nome when 'Pauta' then p.pauta when 'Conteúdo' then p.legenda` (0046), e
+renomear a etapa fazia a tela do portal abrir o portão com a caixa de texto
+**vazia** — o cliente lendo nada e decidindo sobre isso.
+
+**As duas viajam para `post_etapas`**, copiadas no instante em que o post nasce,
+que é a forma de `aprovacao_cliente` desde a 0076. E a migration faz uma passada
+nas correntes que já existem: sem ela, todo post anterior à 0087 ficaria com os
+cinco elos em `producao`, e `porta_do_cliente_no_post()` — que passou a
+perguntar pelo papel — não acharia portão nenhum nos posts que já estão no ar.
+
+##### A trava da corrente: produção*, entrega, pós-entrega*
+
+**Um fluxo com etapa e sem entrega é um mês cujos posts nunca chegam ao
+cliente**, e nada na tela diria por quê. É o modo de falha mais caro que a 0087
+cria, então é trava de banco e não validação de action:
+`conferir_fluxo_de_social()` recusa fluxo sem entrega, com duas, ou com elo do
+lado errado dela — e a recusa **nomeia** o elo fora de lugar, que é a decisão da
+0023.
+
+**E o gatilho é POR INSTRUÇÃO e não por linha**, com transition table: a
+pergunta é sobre o conjunto, e um gatilho `for each row` recusaria a PRIMEIRA
+etapa de um fluxo novo — naquele instante ele tem uma linha e nenhuma entrega.
+Por instrução, o `delete` que esvazia o fluxo não tem o que conferir e o
+`insert` que o remonta vê a corrente inteira. **A consequência é a regra**: um
+fluxo é gravado de uma vez, pela ação que o grava — quem montar os elos à mão,
+um `insert` por linha, leva a recusa. Foi a bateria que me obrigou a escrever
+isso: a primeira versão de `salvar_fluxo_de_social` inseria num laço, e caía na
+própria trava.
+
+**`deferrable initially deferred` seria a forma mais óbvia e foi recusada:** uma
+constraint diferida dispara no COMMIT da transação de cima, e não no fim de um
+bloco `begin ... exception` — que é exatamente onde `teste.recusa_com` espera a
+recusa. A trava existiria e a bateria não teria como medi-la, que é o mesmo que
+não ter trava.
+
+**O portão só cabe num elo de produção**, e esse é `check` de linha. Até a 0076
+era um FILTRO na leitura — `montar_etapas_do_post` descartava a marca do Envio e
+do Programar —, e virou trava de escrita.
+
+##### Onde o fluxo é escolhido: a conta e o MÊS
+
+A ordem é **mês → conta → casa**, e é a de `coalesce(etapa, padrão)` (0041) e de
+`etapas_resolvidas_do_workflow()` (0064): quem escreveu no lugar mais específico
+mandou. Lendo a conta primeiro, trocar o padrão dela reescreveria o fluxo dos
+meses que já estão correndo.
+
+**O mês guarda `tasks.social_flow_id`, e não um snapshot em `jsonb`.**
+`tasks.workflow_snapshot` existe porque o workflow carrega o que a subtarefa não
+guarda; aqui a materialização JÁ é o snapshot — `post_etapas` tem nome, função,
+papel e marca copiados, e editar o fluxo depois não encosta neles. O que a coluna
+responde é outra pergunta: **abrir o mesmo mês em duas vezes acrescenta posts à
+demanda que já existe** (0061), e sem ela a segunda chamada poderia usar outro
+fluxo — um mês com duas correntes diferentes dentro.
+
+**E o GUC `full_hub.fluxo_do_mes` existe por uma razão de ORDEM.**
+`abrir_mes_de_social` insere o post ANTES de criar a subtarefa do mês, então
+`montar_etapas_do_post` — que roda no `after insert` desde a 0045 — não tem como
+chegar a `tasks.social_flow_id` pela ponte `posts.subtask_id`. Sem o GUC o mês
+abriria com a corrente da CONTA, e o fluxo escolhido no diálogo não valeria para
+nada. É a forma de `full_hub.corrente` (0045), e ele é desligado antes de a
+função devolver — a saída de emergência não pode virar porta destrancada.
+
+##### `social_aprovacoes` foi APAGADA, e a conversão é a metade que importa
+
+A decisão da 0023: a coluna sai, não fica parada ao lado da nova. Duas listas
+dizendo quais etapas vão ao cliente seriam duas verdades, e a que divergiria é
+justamente a antiga — a aba passa a escrever no fluxo e ninguém mais olharia a
+coluna.
+
+**Sem a conversão, toda conta que combinou aprovar a pauta perderia o portão no
+instante em que a migration fosse aplicada:** o mês seguinte abriria com os
+posts indo direto ao Envio, e a frase do contrato deixaria de valer sem ninguém
+ter decidido isso. Cada conta com lista não vazia ganha um fluxo PRÓPRIO, com as
+mesmas marcas, e passa a apontar para ele. **Um por conta e não um por conjunto
+distinto de marcas**: o nome é o que o editor lista, e "Padrão da casa + Pauta"
+não diz a ninguém de quem é aquele combinado.
+
+**E ela não dá para medir na bateria**, o que fica dito em vez de escondido: o
+cenário depende de uma conta com a coluna preenchida ANTES da migration, e a
+coluna não existe mais no banco em que a bateria roda. O que o arquivo 42 mede é
+que ela SAIU; quem prova que o produto continua tendo portão do meio é o arquivo
+39, que monta um fluxo e o aponta. A conferência de verdade é no banco de
+produção, antes e depois — e é por isso que a migration escreve o `select` de
+conferência no fim.
+
+##### Quatro coisas saíram de `lib/dominio/posts.ts`
+
+`ETAPAS_DA_CORRENTE` (as cinco etapas com as duas pontas sugeridas de cada uma),
+`ETAPAS_QUE_O_CLIENTE_PODE_APROVAR`, `FUNCOES_DA_CORRENTE` + `ETAPAS_DA_FUNCAO`
+e `diaSugeridoDaEtapa`. As quatro foram **apagadas** e não aposentadas ao lado
+das novas, que é a decisão da 0023: uma lista que nenhuma tela lê é o que alguém
+reaproveita errado três sprints depois, achando que ela ainda diz a verdade sobre
+a corrente.
+
+**As duas pontas sugeridas passaram a viajar com o FLUXO**, e esse é o ponto:
+aquela lista sabia sugerir os dias das cinco etapas que ela mesma listava, e não
+saberia sugerir nada para uma etapa que alguém acrescentou — dez campos de data
+vazios fariam quem abre o mês inventar dez datas na hora.
+
+**E as funções a distribuir passaram a ser DERIVADAS**, por `funcoesDoFluxo()`:
+com a lista fixa das três, o diálogo pediria um Redator a uma conta cujo fluxo
+não tem etapa de texto, e não pediria ninguém para a etapa que alguém
+acrescentou. **A entrega fica de fora da lista** — ela não é trabalho de
+ninguém: é consequência da rodada de escopo cliente (0032), e o dono dela é a
+gestão desde a 0007.
+
+O lado de cá mora em `lib/dominio/social-flows.ts`, e `oQueFaltaNoFluxo()` é o
+par de `conferir_fluxo_de_social()` — a decisão da máquina de estados da
+subtarefa ao lado dos gatilhos da 0007: o banco é o que vale, a função da tela
+desliga o botão Salvar e escreve a frase antes de a pessoa clicar.
+
+##### A aba Fluxos, e por que ela mora no Social Media
+
+`/painel/social-media?aba=fluxos`. A proximidade com os workflows de Gestão de
+Tasks é tentadora — os dois são uma cadeia de etapas que uma demanda percorre —,
+e as duas coisas não se encontram em lugar nenhum do produto: o workflow
+materializa `subtasks` dentro de uma demanda, o fluxo materializa `post_etapas`
+dentro de um post, e a 0045 já escreveu por que um não serve ao outro (a pasta de
+entrega obrigatória e as cento e vinte linhas no board). Quem monta um fluxo de
+social está no Social Media, abrindo o mês.
+
+**SÓ A GESTÃO VÊ A ABA**, e é a separação da 0046 e da 0068: abrir o mês é
+trabalho do dia e é do Atendimento; desenhar a corrente que toda conta vai
+percorrer é configuração do produto. Para quem não é gestão **não há barra** —
+menos de duas seções não vira barra, a regra que os Comodatos e as Notas Fiscais
+já aplicavam —, e o módulo continua sendo uma tela só com o nome no cabeçalho. E
+`?aba=fluxos` digitado por ele cai em Posts em vez de levar 403: `social_flow_steps_select`
+é `is_staff()`, e ver a corrente é do trabalho dele; o que ele não tem é o botão.
+
+**O editor abre com o MOLDE DA CASA quando o fluxo é novo**, e não em branco: um
+editor vazio pede seis decisões antes de qualquer coisa aparecer, e a resposta
+certa para quase toda conta é a corrente de sempre com um portão a mais. É
+"modelo é ponto de partida, não contrato" (0033).
+
+**NÃO EXISTE APAGAR fluxo**, e a ausência é a regra: um fluxo que não serve mais
+se desativa, como a etiqueta da Academy (`skills.ativa`). Apagar levaria o nome
+que os meses já abertos apontam — `tasks.social_flow_id` é `on delete set null`,
+então a demanda ficaria apontando para ninguém e ninguém mais saberia com que
+corrente aquele mês nasceu. A corrente dos posts não se perde de qualquer jeito:
+ela está materializada em `post_etapas` desde que cada um nasceu.
+
+**O diálogo que abre o mês oferece só os ATIVOS; a aba lista os dois.** Um fluxo
+desativado é um que a agência tirou do ar sem apagar, e oferecê-lo abriria um mês
+com a corrente que ela aposentou — mas a aba é a tela onde se reativa um, e um
+fluxo que desaparece de lá é um fluxo que ninguém consegue trazer de volta. Na
+ficha do cliente, a conta combinada com um fluxo desativado lê isso numa frase em
+âmbar, em vez de o seletor cair em "O padrão da casa" e a aba afirmar que ela não
+tem combinado.
 
 #### As etapas de social aparecem em Minhas Tasks
 

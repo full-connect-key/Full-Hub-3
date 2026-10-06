@@ -7,7 +7,6 @@ import { exigirAtendimentoNaAcao } from "@/lib/acoes/guardas";
 import { falha, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { FUNCOES } from "@/lib/dominio/equipe";
-import { ETAPAS_QUE_O_CLIENTE_PODE_APROVAR } from "@/lib/dominio/posts";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -57,18 +56,18 @@ const esquemaDosPadroes = z.object({
     .min(1, "O prazo de aprovação é de pelo menos um dia.")
     .max(365, "Um prazo acima de um ano deixaria a conta fora de qualquer alerta."),
   /**
-   * Quais elos da corrente do social esta conta aprova (0076).
+   * O FLUXO de social que os meses desta conta usam por padrão (0087).
    *
-   * **O `enum` é a lista de `lib/dominio/posts.ts`, e não `z.string()`.** O
-   * banco não tem `check` com os nomes de propósito — ele seria a sexta cópia
-   * da corrente —, então quem recusa "Revisão do sócio" digitado à mão é esta
-   * linha. Sem ela o nome entraria, `montar_etapas_do_post` não casaria com
-   * nada, e a conta ficaria com um portão que nunca acende: uma configuração
-   * que a tela mostra ligada e o produto ignora.
+   * **Isto era uma lista de nomes de etapa** — `social_aprovacoes`, com um
+   * `z.enum` montado a partir da corrente escrita em TypeScript, porque o
+   * banco não tinha `check` com os nomes. Hoje a chave é um uuid e quem recusa
+   * um fluxo inventado é a chave estrangeira: a validação que precisava de uma
+   * lista copiada deixou de existir.
+   *
+   * Nulo volta ao padrão da casa, e é escolha de verdade — a conta que não tem
+   * combinado próprio não deve carregar um fluxo só para preencher o campo.
    */
-  social_aprovacoes: z
-    .array(z.enum(ETAPAS_QUE_O_CLIENTE_PODE_APROVAR.map((e) => e.nome) as [string, ...string[]]))
-    .optional(),
+  social_flow_id: z.string().uuid().nullable().optional(),
 });
 
 const ROTULOS_DOS_PADROES: Record<string, string> = {
@@ -76,7 +75,7 @@ const ROTULOS_DOS_PADROES: Record<string, string> = {
   aprovador_interno_id: "aprovador interno",
   pasta_entrega_url: "pasta de entrega",
   prazo_aprovacao_cliente_dias: "prazo de aprovação do cliente",
-  social_aprovacoes: "etapas que o cliente aprova no social",
+  social_flow_id: "fluxo de social desta conta",
 };
 
 export async function salvarPadroesDaConta(dados: unknown): Promise<Resultado> {
@@ -109,14 +108,7 @@ export async function salvarPadroesDaConta(dados: unknown): Promise<Resultado> {
           aprovador_interno_id: entrada.aprovador_interno_id ?? null,
           pasta_entrega_url: entrada.pasta_entrega_url?.trim() || null,
           prazo_aprovacao_cliente_dias: entrada.prazo_aprovacao_cliente_dias,
-          // A ORDEM DA CORRENTE, e não a ordem em que a pessoa clicou: a
-          // coluna é lida por `montar_etapas_do_post` com `= any(...)`, que não
-          // liga para ordem nenhuma — mas ela também aparece na tela de volta, e
-          // "Layout, Pauta" lido de cima para baixo desmente a corrente que a
-          // aba desenha três linhas acima.
-          social_aprovacoes: ETAPAS_QUE_O_CLIENTE_PODE_APROVAR.filter((e) =>
-            (entrada.social_aprovacoes ?? []).includes(e.nome),
-          ).map((e) => e.nome),
+          social_flow_id: entrada.social_flow_id ?? null,
         },
         { onConflict: "client_id" },
       )

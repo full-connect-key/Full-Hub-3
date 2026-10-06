@@ -607,101 +607,35 @@ export function etapaEsperaOCliente(etapa: EtapaDoPost): boolean {
   return etapa.aprovacaoCliente && etapa.nome !== ETAPA_DE_ENVIO;
 }
 
-/** As funções da corrente que o diálogo de abrir o mês pergunta. */
-export const FUNCOES_DA_CORRENTE = ["Social Media", "Redator", "Design"] as const;
-
 /**
- * O que cada função faz na corrente, para o diálogo dizer em vez de pedir três
- * nomes soltos. "Design" sozinho não conta a quem escolhe que essa pessoa vai
- * pegar também os ajustes que o cliente pedir.
- */
-/**
- * A corrente, na ordem, com o dia que cada etapa costuma pedir (0059/0083).
- *
  * ---------------------------------------------------------------------------
- * **O DIA É DO MÊS, e não de cada post** — decisão do usuário, corrigindo o
- * modelo da 0059: *"se o social é de Novembro, em um dia X de Outubro, a
- * Social Media vai ter um dia para fazer a pauta do mês todo. A redatora vai
- * ter um dia pra fazer o conteúdo, e o Designer vai ter um prazo X para fazer
- * os layouts"*.
+ * A CORRENTE SAIU DAQUI, e virou dado (migration 0087)
  *
- * A 0059 lia a corrente como a produção de CADA PEÇA — o Layout de um post
- * saía três dias antes daquele post ir ao ar —, e com doze posts espalhados
- * pelo mês isso punha o Design trabalhando doze vezes, em doze dias. Não é
- * assim que a agência produz: o mês inteiro é feito em bloco, antes de o mês
- * começar.
+ * Quatro coisas moravam neste arquivo e não moram mais:
  *
- * **Por isso o padrão é contado do DIA 1 DO MÊS que está sendo aberto**, e não
- * da publicação de cada post: `diasAntesDoMes` dias antes do dia 1. Para
- * novembro de 2027, os cinco caem em 5, 12, 20, 25 e 30 de outubro — que é a
- * frase do usuário desenhada. Contado assim ele se adapta sozinho a mês de 28,
- * 30 ou 31 dias; um dia fixo do mês anterior não faria isso.
+ * - `ETAPAS_DA_CORRENTE` — as cinco etapas, com as duas pontas sugeridas de
+ *   cada uma (0083/0084). Hoje são `social_flow_steps`, e as pontas viajam com
+ *   o fluxo: aquela lista não sabia sugerir nada para uma etapa que alguém
+ *   acrescentou.
+ * - `ETAPAS_QUE_O_CLIENTE_PODE_APROVAR` — quais elos podiam virar portão
+ *   (0076). A resposta virou a coluna `papel`, que o `check` de
+ *   `social_flow_steps` cobra.
+ * - `FUNCOES_DA_CORRENTE` e `ETAPAS_DA_FUNCAO` — as três funções e o que cada
+ *   uma leva. Hoje é `funcoesDoFluxo()`, derivada da corrente escolhida: com a
+ *   lista fixa, o diálogo pediria um Redator a uma conta cujo fluxo não tem
+ *   etapa de texto.
+ * - `diaSugeridoDaEtapa` — a conta de data, que mudou de casa junto com as
+ *   pontas.
+ *
+ * As quatro foram APAGADAS e não aposentadas ao lado das novas, que é a
+ * decisão da 0023: uma lista que nenhuma tela lê é o que alguém reaproveita
+ * errado três sprints depois, achando que ela ainda diz a verdade sobre a
+ * corrente. O que ficou aqui é o que não é dado do fluxo — `ETAPA_DE_ENVIO`,
+ * `maoDoPost()`, `podeEnviarAoCliente()`.
+ *
+ * O lado de cá do fluxo é `lib/dominio/social-flows.ts`.
  * ---------------------------------------------------------------------------
- *
- * **SÃO DUAS PONTAS E NÃO UMA** (0084), decisão do usuário: *"quero que
- * coloque data de início e final da task, que deve se repetir em todos os
- * posts"*. É a 0027 um nível abaixo — a etapa de demanda ganhou período pelo
- * mesmo argumento, *"duas etapas com o mesmo prazo podem ser uma de três dias
- * e uma de três horas"*. Aqui a falta dói mais: a Pauta do mês inteiro é um
- * BLOCO de trabalho, e com só o fim ela aparece inteira num dia e zero nos
- * outros na carga de quem produz.
- *
- * `comecaEm` e `diasAntesDoMes` são as duas pontas, contadas do dia 1. Os
- * blocos sugeridos se encostam sem se sobrepor — a Pauta fecha no dia em que
- * o Conteúdo começa a correr —, e quem quiser paralelismo arrasta o início.
- *
- * **É SUGESTÃO E NÃO CONTRATO**, como o modelo de campanha: a tela abre com os
- * cinco períodos preenchidos e a pessoa muda o que quiser. Dez campos vazios
- * fariam quem abre o mês inventar dez datas na hora.
- *
- * **A ordem aqui É a ordem da corrente**, e o banco recusa dias que andem para
- * trás dela: o Layout com prazo antes do Conteúdo é quase sempre um número
- * trocado, e a corrente já recusa começar o Layout antes de o Conteúdo fechar
- * — a pessoa veria no calendário uma etapa vencendo num dia em que o banco
- * ainda não deixa tocá-la.
  */
-export const ETAPAS_DA_CORRENTE = [
-  { nome: "Pauta", funcao: "Social Media", comecaEm: 31, diasAntesDoMes: 27 },
-  { nome: "Conteúdo", funcao: "Redator", comecaEm: 26, diasAntesDoMes: 20 },
-  { nome: "Layout", funcao: "Design", comecaEm: 19, diasAntesDoMes: 12 },
-  { nome: "Envio", funcao: "Social Media", comecaEm: 11, diasAntesDoMes: 7 },
-  { nome: "Programar", funcao: "Social Media", comecaEm: 6, diasAntesDoMes: 2 },
-] as const;
-
-/**
- * O dia sugerido de uma etapa, a partir do mês que está sendo aberto (0083).
- *
- * **Sem `Date` do navegador para a conta do calendário**: `new Date("2027-11")`
- * é interpretado como UTC e `getDate()` devolve o dia no fuso de quem está
- * olhando — a mesma armadilha que `hojeNaAgencia()` existe para fechar. Aqui a
- * conta é feita em UTC de ponta a ponta e o resultado sai como texto
- * `AAAA-MM-DD`, que é o que o `<input type="date">` e o Postgres falam.
- */
-export function diaSugeridoDaEtapa(mes: string, diasAntesDoMes: number): string {
-  const [ano, m] = mes.split("-").map(Number);
-  if (!Number.isFinite(ano) || !Number.isFinite(m)) return "";
-  const d = new Date(Date.UTC(ano, m - 1, 1));
-  d.setUTCDate(d.getUTCDate() - diasAntesDoMes);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Os elos da corrente que podem virar PORTÃO DO CLIENTE (migration 0076).
- *
- * É `etapas_que_o_cliente_pode_aprovar()` do outro lado, e os dois existem de
- * propósito, como `situacaoDoLancamento()` no Financeiro: o banco decide o que
- * uma conta pode gravar, esta lista decide o que a tela oferece. Sem a de cá, a
- * aba precisaria de uma ida ao banco para desenhar três interruptores.
- *
- * **O Envio e o Programar ficam de fora, e por razões diferentes.** O Envio já
- * É o portão de toda conta desde a 0032 — oferecê-lo seria oferecer ligar o que
- * está ligado. O Programar vem DEPOIS da decisão do cliente: pôr o cliente para
- * aprovar a programação seria pedir a ele o aval de um trabalho que só existe
- * porque ele já aprovou.
- */
-export const ETAPAS_QUE_O_CLIENTE_PODE_APROVAR = ETAPAS_DA_CORRENTE.filter(
-  (e) => e.nome !== "Envio" && e.nome !== "Programar",
-);
 
 /**
  * "terça, 5 de outubro" — o dia de uma etapa, escrito ao lado do campo.
@@ -752,12 +686,6 @@ export function nomeDaPastaDoMes(mes: string): string {
   if (!nome || !Number.isFinite(ano)) return "Social";
   return `Social · ${nome} de ${ano}`;
 }
-
-export const ETAPAS_DA_FUNCAO: Record<string, string> = {
-  "Social Media": "Pauta e Programar",
-  Redator: "Conteúdo",
-  Design: "Layout e os Ajustes que o cliente pedir",
-};
 
 /**
  * O rótulo de "quando" — e o que pôr quando ninguém definiu ainda.

@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -31,7 +30,7 @@ import {
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import { FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
-import { ETAPAS_QUE_O_CLIENTE_PODE_APROVAR } from "@/lib/dominio/posts";
+import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 import type { FluxoDaConta, PadroesDaConta, RecorrenciaDaConta } from "@/lib/dados/fluxo-do-cliente";
 import type { TeamFuncao, UserRole } from "@/lib/supabase/database.types";
 
@@ -90,6 +89,7 @@ export function ConfiguracoesDoFluxo({
   clienteId,
   padroes,
   fluxos,
+  fluxosDeSocial,
   recorrencias,
   equipe,
   atendimento,
@@ -99,6 +99,17 @@ export function ConfiguracoesDoFluxo({
   clienteId: string;
   padroes: PadroesDaConta;
   fluxos: FluxoDaConta[];
+  /**
+   * Os fluxos de social ATIVOS (0087).
+   *
+   * **A aba oferece só os ativos** — um fluxo desativado é um que a agência
+   * tirou do ar sem apagar, e combinar uma conta com ele seria combinar com a
+   * corrente que ela aposentou. O que já está gravado continua gravado: quem
+   * desativa um fluxo em uso tira ele da lista, não das contas, e o nome
+   * aparece abaixo do seletor para a aba não dizer "o padrão da casa" sobre uma
+   * conta que tem combinado próprio.
+   */
+  fluxosDeSocial: FluxoDeSocial[];
   recorrencias: RecorrenciaDaConta[];
   equipe: PessoaDaEquipe[];
   /** O nome de `clients.responsavel_atendimento_id`, que não mora nesta tabela. */
@@ -114,12 +125,32 @@ export function ConfiguracoesDoFluxo({
   const [prazo, setPrazo] = useState(
     String(padroes.linha?.prazo_aprovacao_cliente_dias ?? PRAZO_DE_APROVACAO_PADRAO),
   );
-  // UM `Set` E NÃO UM ARRAY, porque a pergunta que a tela faz é de pertinência
-  // — "a Pauta está ligada?" — e a ordem de gravação é decidida na action, pela
-  // ordem da corrente. Um array aqui gravaria a ordem dos cliques.
-  const [portoes, setPortoes] = useState<Set<string>>(
-    () => new Set(padroes.linha?.social_aprovacoes ?? []),
+  /**
+   * O FLUXO DE SOCIAL DESTA CONTA (0087).
+   *
+   * **Isto era um `Set` de nomes de etapa** — `social_aprovacoes`, três
+   * interruptores, um por elo que o cliente aprovava (0076). A aba escolhia
+   * quais etapas da corrente FIXA passavam por ele; hoje a corrente inteira é
+   * o que se escolhe, e os portões moram dentro dela.
+   *
+   * Vazio quer dizer "o padrão da casa", e é escolha de verdade: a conta que
+   * não tem combinado próprio não deve carregar um fluxo só para o campo não
+   * ficar em branco.
+   */
+  const [fluxoDeSocial, setFluxoDeSocial] = useState(
+    padroes.linha?.social_flow_id ?? SEM_NINGUEM,
   );
+
+  const fluxoEscolhido = fluxosDeSocial.find((f) => f.id === fluxoDeSocial);
+  /**
+   * O NOME DO FLUXO GRAVADO QUANDO ELE NÃO ESTÁ NA LISTA.
+   *
+   * A lista traz só os ativos, então uma conta combinada com um fluxo
+   * desativado cairia no seletor como "O padrão da casa" — a aba afirmando que
+   * esta conta não tem combinado, quando ela tem. Sem o nome não há o que
+   * mostrar, e a frase diz isso em vez de calar.
+   */
+  const fluxoForaDaLista = fluxoDeSocial !== SEM_NINGUEM && !fluxoEscolhido;
 
   const porFuncao = new Map(padroes.porFuncao.map((p) => [p.funcao, p.pessoa.id]));
 
@@ -135,7 +166,7 @@ export function ConfiguracoesDoFluxo({
           aprovador_interno_id: aprovador === SEM_NINGUEM ? null : aprovador,
           pasta_entrega_url: pasta.trim() || null,
           prazo_aprovacao_cliente_dias: Number(prazo) || PRAZO_DE_APROVACAO_PADRAO,
-          social_aprovacoes: [...portoes],
+          social_flow_id: fluxoDeSocial === SEM_NINGUEM ? null : fluxoDeSocial,
         }),
       );
       if (resultado?.ok) router.refresh();
@@ -402,91 +433,113 @@ export function ConfiguracoesDoFluxo({
             </div>
           </div>
 
-          {/* ----------------------------------------- o portão do cliente --
-              O QUE O CLIENTE APROVA NO SOCIAL (migration 0076), e ele mora
-              nesta seção por duas razões. A primeira é de conteúdo: a seção 3
-              é onde já vivem as perguntas sobre o cliente desta conta — o
-              prazo de resposta dele está a três linhas daqui. A segunda é
-              mecânica: as duas coisas são colunas da MESMA linha de
-              `client_flow_defaults`, e um segundo botão Salvar para a mesma
-              linha seria duas escritas concorrentes na mesma tela.
+          {/* ----------------------------------------- o fluxo do social --
+              QUAL CORRENTE OS MESES DESTA CONTA PERCORREM (0087), decisão do
+              usuário: *"algumas contas validam pauta e conteúdo, antes de ir
+              para Produção de Layout (…) Preciso poder montar fluxos de Social
+              diferentes, para serem aplicados em determinados socials, de meses
+              de determinadas contas"*.
 
-              É PADRÃO DA CONTA e não escolha por post: "algumas contas aprovam
-              pauta" é combinado de contrato, e uma pergunta na abertura de cada
-              mês obrigaria a repetir a mesma resposta doze vezes por ano, por
-              cliente — e a décima terceira sairia diferente. */}
+              ISTO ERAM TRÊS INTERRUPTORES — um por elo que o cliente aprovava
+              (0076), sobre a corrente fixa de cinco etapas. A escolha deixou de
+              ser "quais destas cinco" e passou a ser "qual corrente", porque as
+              etapas também mudam: uma conta pode ter uma revisão a mais, outra
+              pode não usar a etapa de programação.
+
+              E ELE MORA NESTA SEÇÃO pelas duas razões da 0076, que continuam
+              inteiras: é aqui que já vivem as perguntas sobre o cliente desta
+              conta — o prazo de resposta dele está a três linhas daqui —, e as
+              duas coisas são colunas da MESMA linha de `client_flow_defaults`.
+              Um segundo botão Salvar para a mesma linha seriam duas escritas
+              concorrentes na mesma tela. */}
           <div className="space-y-3 border-t pt-4">
             <div>
-              <p className="text-sm font-medium">O que o cliente aprova no social</p>
+              <p className="text-sm font-medium">O fluxo de social desta conta</p>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                O envio do material pronto passa sempre por ele. Aqui se escolhe o
-                que mais desta conta espera o aval dele antes de seguir.
+                A corrente que os posts de cada mês desta conta percorrem, e o
+                que dela espera o aval do cliente. Quem abre o mês pode escolher
+                outro fluxo naquele mês.
               </p>
             </div>
 
-            <ul className="space-y-2">
-              {ETAPAS_QUE_O_CLIENTE_PODE_APROVAR.map((etapa) => {
-                const ligado = portoes.has(etapa.nome);
-                return (
-                  <li
-                    key={etapa.nome}
-                    className="flex items-start justify-between gap-3 rounded-lg border p-3"
-                  >
-                    <div className="min-w-0">
-                      <Label
-                        htmlFor={`portao-${etapa.nome}`}
-                        className="cursor-pointer text-sm"
-                      >
-                        {etapa.nome}
-                        <span className="text-muted-foreground font-normal">
-                          · {ROTULOS_DE_FUNCAO[etapa.funcao]}
-                        </span>
-                      </Label>
-                      {/* A FRASE DIZ O QUE ACONTECE COM A CORRENTE, não que o
-                          interruptor está ligado — isso o próprio interruptor
-                          já diz. Ligado, o trabalho para ali e espera alguém de
-                          fora da agência; é essa consequência que decide. */}
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {ligado ? (
-                          <span className="text-warning inline-flex items-center gap-1">
-                            <UserCheck aria-hidden className="size-3 shrink-0" />
-                            a corrente para aqui e espera o cliente aprovar
-                          </span>
-                        ) : (
-                          "segue direto para a etapa seguinte"
-                        )}
-                      </p>
-                    </div>
-                    <Switch
-                      id={`portao-${etapa.nome}`}
-                      checked={ligado}
-                      disabled={salvando}
-                      onCheckedChange={(marcado) =>
-                        setPortoes((atual) => {
-                          const proximo = new Set(atual);
-                          if (marcado) proximo.add(etapa.nome);
-                          else proximo.delete(etapa.nome);
-                          return proximo;
-                        })
-                      }
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+            <Select value={fluxoDeSocial} onValueChange={setFluxoDeSocial} disabled={salvando}>
+              <SelectTrigger aria-label="Fluxo de social desta conta" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SEM_NINGUEM}>O padrão da casa</SelectItem>
+                {fluxosDeSocial.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            {/* O QUE MUDA PARA O CLIENTE É DITO AQUI, e não descoberto depois.
-                A pauta é conversa interna em toda conta que não liga este
-                interruptor — está escrito assim desde a 0046. Ligando, ela vira
-                a primeira coisa que o cliente lê sobre aquele post, e quem
-                configura a conta é quem precisa saber disso antes de salvar. */}
-            {portoes.size > 0 ? (
+            {/* A CORRENTE INTEIRA APARECE, com os portões em âmbar, e não só o
+                nome do fluxo: "Três avaliações do cliente" não conta a quem
+                configura a conta que a Pauta vai parar e esperar alguém de fora
+                da agência. É a decisão da frase do interruptor da 0076 —
+                dizer o que ACONTECE, e não que a opção está escolhida. */}
+            {fluxoEscolhido ? (
+              <div className="rounded-lg border p-3">
+                <p className="text-xs">
+                  {fluxoEscolhido.etapas.map((e, i) => (
+                    <span key={e.nome}>
+                      {i > 0 ? " → " : ""}
+                      <span
+                        className={
+                          e.aprovacao_cliente
+                            ? "text-warning font-medium"
+                            : "text-text-secondary"
+                        }
+                      >
+                        {e.nome}
+                      </span>
+                    </span>
+                  ))}
+                </p>
+                {fluxoEscolhido.etapas.some((e) => e.aprovacao_cliente) ? (
+                  <p className="text-warning mt-2 inline-flex items-start gap-1 text-xs">
+                    <UserCheck aria-hidden className="mt-0.5 size-3 shrink-0" />
+                    <span>
+                      Nos elos em âmbar a corrente para e espera o cliente
+                      aprovar. O texto de cada um passa a aparecer no portal
+                      dele.
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    Só o envio do material pronto passa pelo cliente.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {fluxoForaDaLista ? (
               <p className="bg-warning-soft text-warning rounded-lg px-3 py-2 text-xs">
-                O texto de cada etapa marcada passa a aparecer no portal deste
-                cliente. Vale para os posts abertos daqui em diante: o mês que já
-                está aberto continua com a corrente que nasceu com ele.
+                Esta conta está combinada com um fluxo que foi desativado. Ele
+                continua valendo para os meses que já abriram; para os próximos,
+                escolha um da lista.
               </p>
             ) : null}
+
+            {/* O QUE MUDA NOS MESES QUE JÁ ESTÃO ABERTOS É DITO AQUI, e não
+                descoberto depois: a corrente de um post é materializada quando
+                ele nasce, então trocar o fluxo não encosta no mês que está
+                correndo. Quem configura a conta é quem precisa saber disso
+                antes de salvar. */}
+            <p className="text-muted-foreground text-xs">
+              Vale para os meses abertos daqui em diante: o que já está aberto
+              continua com a corrente que nasceu com ele.
+            </p>
+
+            <Button asChild variant="outline" size="sm">
+              <Link href="/painel/social-media?aba=fluxos">
+                Montar e editar fluxos
+                <ArrowUpRight aria-hidden />
+              </Link>
+            </Button>
           </div>
 
           <div className="flex justify-end border-t pt-4">

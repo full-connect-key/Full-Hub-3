@@ -287,7 +287,12 @@ from (
     -- aponta para a funcao que apaga os dois juntos: `arquivada_em` tambem
     -- serviria, mas uma coluna nao prova que o TRIGGER esta de pe, e e ele a
     -- trava.
-    ('0086', 'apagar_mes_de_social()', 'funcao', 'apagar_mes_de_social')
+    ('0086', 'apagar_mes_de_social()', 'funcao', 'apagar_mes_de_social'),
+    -- A 0087 torna a corrente do social editavel. A linha aponta para a
+    -- TABELA dos elos e nao para `social_flows`: o fluxo sem corrente nao
+    -- abre mes nenhum, e e `social_flow_steps` que o PASSO 7 le em
+    -- `montar_etapas_do_post`.
+    ('0087', 'social_flow_steps',        'tabela',       'social_flow_steps')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

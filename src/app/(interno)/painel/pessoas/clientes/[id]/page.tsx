@@ -21,6 +21,7 @@ import {
   padroesDaConta,
   recorrenciasDaConta,
 } from "@/lib/dados/fluxo-do-cliente";
+import { fluxosDeSocial } from "@/lib/dados/social-flows";
 
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
@@ -38,8 +39,19 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
   // Os padrões da conta (0064) descem junto com o resto: a aba é uma das
   // quatro e trocar de aba não recarrega a página, então buscar só quando ela
   // abrisse exigiria uma rota própria para desenhar o que já está aqui.
-  const [usuarios, equipe, vinculos, identidade, padroes, fluxos, recorrencias] =
-    await Promise.all([
+  const [
+    usuarios,
+    equipe,
+    vinculos,
+    identidade,
+    padroes,
+    fluxos,
+    recorrencias,
+    // `correntes` E NÃO `fluxosDeSocial`: este arquivo já importa a leitura com
+    // esse nome, e a variável local a sombrearia — o `tsc` acusa, e sem ele o
+    // `Promise.all` estaria se referindo a si mesmo.
+    correntes,
+  ] = await Promise.all([
       usuariosDoCliente(id),
       listarEquipeAtiva(),
       vinculosDoCliente(id),
@@ -47,6 +59,10 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
       padroesDaConta(id),
       fluxosDaConta(id),
       recorrenciasDaConta(id),
+      // SÓ OS ATIVOS: a aba combina a conta com uma corrente, e um fluxo
+      // desativado é um que a agência tirou do ar sem apagar. O que já está
+      // gravado continua gravado — a aba diz isso numa frase em vez de calar.
+      fluxosDeSocial({ apenasAtivos: true }),
     ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
@@ -102,7 +118,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
         vinculos={vinculos}
         ehSocio={ehSocio(sessao.profile.role)}
         ehGestor={ehDaGestao}
-        fluxo={{ padroes, fluxos, recorrencias }}
+        fluxo={{ padroes, fluxos, fluxosDeSocial: correntes, recorrencias }}
       />
     </div>
   );

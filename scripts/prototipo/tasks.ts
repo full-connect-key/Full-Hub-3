@@ -587,6 +587,7 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     // montando, e nenhuma das imagens mostra esse momento.
     publicada_em: "2026-09-10T09:00:00.000Z",
     arquivada_em: null,
+  social_flow_id: null,
     briefing_rico: (semente.briefing_rico ?? null) as TaskDaLista["briefing_rico"],
     briefing_texto: semente.briefing_texto ?? null,
     prioridade: semente.prioridade,

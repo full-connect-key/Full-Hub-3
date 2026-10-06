@@ -365,12 +365,17 @@ select teste.recusa_com(
 -- ignorando as datas, sem erro nenhum.
 -- ---------------------------------------------------------------------------
 
+-- A 0087 ACRESCENTOU `p_flow_id`, e e por isso que ela faz o `drop` da
+-- assinatura de sete ANTES do `create` da de oito: sem o `drop`, as duas
+-- existiriam, o PostgREST continuaria resolvendo a chamada antiga na funcao
+-- antiga -- a que ignora o fluxo --, e o dialogo escolheria o fluxo sem efeito
+-- nenhum. Este cenario e o que cai se alguem tirar aquele `drop`.
 select teste.conferir(
-  'existe UMA abrir_mes_de_social, e ela recebe os prazos',
+  'existe UMA abrir_mes_de_social, e ela recebe os prazos e o fluxo',
   (select string_agg(pg_get_function_identity_arguments(p.oid), ' | ')
      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'abrir_mes_de_social'),
-  'p_client_id uuid, p_mes text, p_quantidades jsonb, p_responsavel_id uuid, p_responsaveis jsonb, p_prazos jsonb, p_link_entrega text');
+  'p_client_id uuid, p_mes text, p_quantidades jsonb, p_responsavel_id uuid, p_responsaveis jsonb, p_prazos jsonb, p_link_entrega text, p_flow_id uuid');
 
 -- E A VIEW CONTINUA COM `security_invoker`. O `create or replace view` da 0059
 -- teve que repetir a clausula: ele NAO herda a do objeto que substitui, e sem

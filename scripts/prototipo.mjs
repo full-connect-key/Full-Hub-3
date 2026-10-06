@@ -213,6 +213,20 @@ const TELAS = [
   { nome: "55-social-sem-data-375", rota: "/painel/social-media?visao=calendario", largura: 375, altura: 1600, role: "socio" },
   { nome: "56-abrir-o-mes", rota: "/painel/social-media", largura: 1440, altura: 1200, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
   { nome: "57-abrir-o-mes-375", rota: "/painel/social-media", largura: 375, altura: 1500, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
+  // A ABA FLUXOS (0087). A lista mostra os tres estados que importam: a
+  // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
+  // descreveu -- e uma desativada, que e o unico em que o selo e o botao
+  // "Reativar" aparecem.
+  { nome: "58-fluxos-de-social", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 1000, role: "socio" },
+  // O EDITOR, aberto. Ele abre com o molde da casa, e e a unica imagem em que
+  // se ve o seletor de papel, o interruptor do portao e as duas pontas
+  // sugeridas de cada elo.
+  { nome: "59-fluxo-editor", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 2200, role: "socio", clicar: 'button:has-text("Novo fluxo")' },
+  { nome: "60-fluxo-editor-375", rota: "/painel/social-media?aba=fluxos", largura: 375, altura: 2600, role: "socio", clicar: 'button:has-text("Novo fluxo")' },
+  // O COLABORADOR NAO VE A ABA, e esta imagem e a outra metade da decisao: com
+  // uma secao so, nao ha barra -- o modulo continua sendo uma tela com o nome
+  // no cabecalho, como os Comodatos fazem.
+  { nome: "61-fluxos-colaborador", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 900, role: "colaborador-social" },
   // O CARROSSEL NAVEGÁVEL (0048): a imagem precisa mostrar o slide 2, e não o
   // primeiro — é o clique na seta que prova que ele anda, e uma imagem do
   // estado inicial pareceria igual à tira antiga.
@@ -590,6 +604,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/portal-aprovacoes": ["./scripts/prototipo/portal-aprovacoes.ts"],
   "@/lib/dados/portal": ["./scripts/prototipo/portal.ts"],
   "@/lib/dados/posts": ["./scripts/prototipo/posts.ts"],
+  "@/lib/dados/social-flows": ["./scripts/prototipo/social-flows.ts"],
   "@/lib/dados/social-media": ["./scripts/prototipo/social-media.ts"],
   "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],

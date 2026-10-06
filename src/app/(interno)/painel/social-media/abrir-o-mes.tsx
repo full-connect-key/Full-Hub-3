@@ -26,15 +26,18 @@ import {
 } from "@/components/ui/select";
 import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import {
-  ETAPAS_DA_CORRENTE,
-  ETAPAS_DA_FUNCAO,
-  FUNCOES_DA_CORRENTE,
   ROTULO_DA_PLATAFORMA,
-  diaSugeridoDaEtapa,
   nomeDaPastaDoMes,
   rotuloDoDiaDaEtapa,
 } from "@/lib/dominio/posts";
+import {
+  diaSugeridoDaEtapa,
+  funcoesDoFluxo,
+  type EtapaDoFluxo,
+  type FluxoDeSocial,
+} from "@/lib/dominio/social-flows";
 
 import { abrirMesDeSocial, criarPastaDoMesDeSocial } from "./acoes";
 
@@ -58,13 +61,22 @@ type Linha = {
 /** As duas pontas de uma etapa da corrente, em texto de `<input type="date">`. */
 type Periodo = { inicio: string; fim: string };
 
-function periodosSugeridos(mes: string): Record<string, Periodo> {
+/**
+ * Os períodos sugeridos de uma corrente, a partir do mês.
+ *
+ * **AS DUAS PONTAS SAEM DO FLUXO** (0087), e não de uma lista fixa em
+ * TypeScript: `ETAPAS_DA_CORRENTE` sabia sugerir os dias das cinco etapas que
+ * ela mesma listava, e com a cadeia editável ela não saberia sugerir nada para
+ * uma etapa que alguém acrescentou — dez campos de data vazios fariam quem abre
+ * o mês inventar dez datas na hora.
+ */
+function periodosSugeridos(mes: string, etapas: EtapaDoFluxo[]): Record<string, Periodo> {
   return Object.fromEntries(
-    ETAPAS_DA_CORRENTE.map((e) => [
+    etapas.map((e) => [
       e.nome,
       {
-        inicio: diaSugeridoDaEtapa(mes, e.comecaEm),
-        fim: diaSugeridoDaEtapa(mes, e.diasAntesDoMes),
+        inicio: diaSugeridoDaEtapa(mes, e.comeca_dias_antes),
+        fim: diaSugeridoDaEtapa(mes, e.termina_dias_antes),
       },
     ]),
   );
@@ -92,10 +104,20 @@ const TETO = 60;
 export function AbrirOMes({
   clientes,
   equipe,
+  fluxos,
   driveLigado = false,
 }: {
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
+  /**
+   * Os fluxos ATIVOS, com a corrente de cada um (0087).
+   *
+   * **Eles vêm de cima e não de uma consulta aqui**, pela razão de
+   * `driveLigado`: `lib/dados/social-flows.ts` é `server-only`. E a corrente
+   * inteira viaja, não só o nome — é dela que saem os campos de período, as
+   * funções a distribuir e os portões que a tela anuncia.
+   */
+  fluxos: FluxoDeSocial[];
   /**
    * A integração com o Drive está configurada?
    *
@@ -184,8 +206,38 @@ export function AbrirOMes({
    * mais: a Pauta do mês inteiro é um bloco de trabalho, e com só o fim ela
    * aparecia inteira num dia e zero nos outros na carga de quem produz.
    */
+  /**
+   * QUAL FLUXO ESTE MÊS VAI PERCORRER (0087).
+   *
+   * **Vazio quer dizer "o padrão da conta"**, e é o valor com que o diálogo
+   * abre: quem já combinou o fluxo da Mundo Verde na ficha dela não deve
+   * escolhê-lo de novo todo mês — é a decisão de a lista ser da CONTA desde a
+   * 0076. Quem escolhe aqui está dizendo "este mês é diferente", que é a frase
+   * do usuário: *"aplicados em determinados socials, de meses de determinadas
+   * contas"*.
+   */
+  const [fluxoId, setFluxoId] = useState("");
+
+  /**
+   * A corrente que a tela desenha: a do fluxo escolhido, senão a do primeiro
+   * da lista.
+   *
+   * **O FALLBACK É UMA ESCOLHA DE DESENHO E NÃO A REGRA**: quem decide de
+   * verdade é `fluxo_do_mes()` no banco — conta, depois casa —, e a tela não
+   * sabe o padrão da conta sem uma ida a mais. Desenhar os campos do primeiro
+   * fluxo é melhor que desenhar nenhum: sem corrente, a seção de períodos
+   * aparece vazia e parece quebrada. E a frase embaixo do seletor diz que a
+   * conta pode mandar outra coisa, em vez de a tela afirmar o que não sabe.
+   */
+  const etapasDoFluxo = useMemo(() => {
+    const escolhido = fluxos.find((f) => f.id === fluxoId);
+    return (escolhido ?? fluxos[0])?.etapas ?? [];
+  }, [fluxos, fluxoId]);
+
+  const funcoesAPedir = useMemo(() => funcoesDoFluxo(etapasDoFluxo), [etapasDoFluxo]);
+
   const [prazos, setPrazos] = useState<Record<string, Periodo>>(() =>
-    periodosSugeridos(mes),
+    periodosSugeridos(mes, fluxos[0]?.etapas ?? []),
   );
 
   /**
@@ -202,11 +254,11 @@ export function AbrirOMes({
    * é a ordem de `coalesce(etapa, padrão)` da 0041, aqui no navegador.
    */
   function trocarMes(novo: string) {
-    const antes = periodosSugeridos(mes);
-    const depois = periodosSugeridos(novo);
+    const antes = periodosSugeridos(mes, etapasDoFluxo);
+    const depois = periodosSugeridos(novo, etapasDoFluxo);
     setPrazos((atual) =>
       Object.fromEntries(
-        ETAPAS_DA_CORRENTE.map((e) => {
+        etapasDoFluxo.map((e) => {
           const meu = atual[e.nome] ?? { inicio: "", fim: "" };
           // PONTA A PONTA, e não o par inteiro: quem ajustou só o fim da Pauta
           // continua tendo o início refeito pelo mês novo, que é o que ela
@@ -215,14 +267,30 @@ export function AbrirOMes({
           return [
             e.nome,
             {
-              inicio: meu.inicio === antes[e.nome].inicio ? depois[e.nome].inicio : meu.inicio,
-              fim: meu.fim === antes[e.nome].fim ? depois[e.nome].fim : meu.fim,
+              inicio:
+                meu.inicio === antes[e.nome]?.inicio ? depois[e.nome]?.inicio : meu.inicio,
+              fim: meu.fim === antes[e.nome]?.fim ? depois[e.nome]?.fim : meu.fim,
             },
           ];
         }),
       ),
     );
     setMes(novo);
+  }
+
+  /**
+   * TROCAR O FLUXO REFAZ A CORRENTE INTEIRA, e aqui não há o que preservar.
+   *
+   * Ao contrário de trocar o mês — onde quem já mexeu num campo mandou (0041) —,
+   * um fluxo diferente tem OUTRAS etapas: os períodos antigos são de nomes que
+   * a corrente nova não tem, e `abrir_mes_de_social` recusaria o mês dizendo
+   * que o fluxo não tem etapa chamada "Pauta". Guardar o que a pessoa digitou
+   * seria guardar valores sem onde cair.
+   */
+  function trocarFluxo(novo: string) {
+    const escolhido = fluxos.find((f) => f.id === novo);
+    setFluxoId(novo);
+    setPrazos(periodosSugeridos(mes, (escolhido ?? fluxos[0])?.etapas ?? []));
   }
 
   const excede = total > TETO;
@@ -236,7 +304,7 @@ export function AbrirOMes({
   // UMA ETAPA INVERTIDA DESLIGA O BOTÃO, e não deixa a recusa chegar depois de
   // dez campos preenchidos. Quem recusa de verdade é a função — e, para quem
   // montar a chamada à mão, o `check` `post_etapas_periodo` da tabela.
-  const periodoInvertido = ETAPAS_DA_CORRENTE.some((e) => {
+  const periodoInvertido = etapasDoFluxo.some((e) => {
     const p = prazos[e.nome];
     return !!p && p.inicio !== "" && p.fim !== "" && p.inicio > p.fim;
   });
@@ -274,6 +342,10 @@ export function AbrirOMes({
         abrirMesDeSocial({
           client_id: cliente,
           mes,
+          // NULO E NÃO "" QUANDO NINGUÉM ESCOLHEU: a função lê nulo como "o
+          // padrão da conta, senão o da casa", e o uuid vazio seria um valor
+          // inválido num campo que a validação recusaria.
+          flow_id: fluxoId || null,
           quantidades: combinacoes,
           responsaveis: Object.fromEntries(
             Object.entries(responsaveis).map(([f, v]) => [f, v === SEM_VALOR ? null : v]),
@@ -300,7 +372,7 @@ export function AbrirOMes({
       toast.success(r.mensagem);
       setAberto(false);
       setLinhas([{ id: proximoId.current++, redes: ["instagram"], quantidade: "" }]);
-      setPrazos(periodosSugeridos(mes));
+      setPrazos(periodosSugeridos(mes, etapasDoFluxo));
       setPasta("");
       router.refresh();
     });
@@ -529,6 +601,64 @@ export function AbrirOMes({
             ) : null}
           </section>
 
+          {/* ------------------------------------------------- o fluxo --
+              QUAL CORRENTE ESTE MÊS PERCORRE (0087), decisão do usuário:
+              *"preciso poder montar fluxos de Social diferentes, para serem
+              aplicados em determinados socials, de meses de determinadas
+              contas"*.
+
+              ELE VEM ANTES DE "QUEM FAZ CADA PARTE" e antes dos períodos, e a
+              ordem é a razão: o fluxo decide QUAIS funções a tela pede e QUAIS
+              campos de data existem. Embaixo, a pessoa escolheria responsáveis
+              e datas e veria as duas seções trocarem debaixo dela. */}
+          <section className="space-y-2">
+            <h3 className="text-text-primary text-sm font-semibold">O fluxo deste mês</h3>
+            <Select value={fluxoId || SEM_VALOR} onValueChange={(v) => trocarFluxo(v === SEM_VALOR ? "" : v)}>
+              <SelectTrigger aria-label="Fluxo de social deste mês" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SEM_VALOR}>O padrão desta conta</SelectItem>
+                {fluxos.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* A FRASE DIZ A CORRENTE INTEIRA, com os portões marcados, e não
+                só o nome do fluxo: "Três avaliações do cliente" não conta a
+                quem está abrindo o mês que a Pauta vai parar e esperar alguém
+                de fora da agência. É a mesma razão pela qual a prévia das cinco
+                próximas existe na recorrência — quem configura trabalho em lote
+                não tem outro jeito de conferir antes de salvar. */}
+            <p className="text-text-secondary text-xs">
+              {etapasDoFluxo.length > 0 ? (
+                <>
+                  {etapasDoFluxo.map((e, i) => (
+                    <span key={e.nome}>
+                      {i > 0 ? " → " : ""}
+                      <span className={e.aprovacao_cliente ? "text-warning font-medium" : undefined}>
+                        {e.nome}
+                      </span>
+                    </span>
+                  ))}
+                  {etapasDoFluxo.some((e) => e.aprovacao_cliente)
+                    ? " — em âmbar, o que espera o aval do cliente antes de seguir."
+                    : null}
+                </>
+              ) : (
+                "Nenhum fluxo montado ainda. Monte um na aba Fluxos antes de abrir o mês."
+              )}
+            </p>
+            {!fluxoId ? (
+              <p className="text-text-muted text-xs">
+                Sem escolher, vale o fluxo combinado na ficha desta conta — e, se
+                ela não tem nenhum, o padrão da casa.
+              </p>
+            ) : null}
+          </section>
+
           <section className="space-y-2">
             <h3 className="text-text-primary text-sm font-semibold">
               Quem faz cada parte
@@ -539,13 +669,20 @@ export function AbrirOMes({
                 senão "Design" não conta a quem escolhe que essa pessoa pega
                 também os ajustes que o cliente pedir. */}
             <div className="space-y-2">
-              {FUNCOES_DA_CORRENTE.map((funcao) => (
+              {funcoesAPedir.map(({ funcao, etapas }) => (
                 <div key={funcao} className="grid gap-1.5 sm:grid-cols-[1fr_1.4fr] sm:items-center">
                   <Label htmlFor={`resp-${funcao}`} className="block">
-                    <span className="text-text-primary text-sm">{funcao}</span>
-                    <span className="text-text-muted block text-xs">
-                      {ETAPAS_DA_FUNCAO[funcao]}
+                    {/* O RÓTULO E NÃO A CHAVE DO ENUM: `team_funcao` guarda
+                        "Gestao" e "Trafego" sem acento, e a corrente fixa das
+                        três nunca mostrou isso porque nenhuma delas tinha
+                        acento. Com o fluxo editável qualquer função pode
+                        aparecer aqui, e `check:cores` não pegaria — ele procura
+                        as formas ACENTUADAS, e o que sairia na tela é a sem. É
+                        a ausência que o Calendário Full já pagou com `ferias`. */}
+                    <span className="text-text-primary text-sm">
+                      {ROTULOS_DE_FUNCAO[funcao]}
                     </span>
+                    <span className="text-text-muted block text-xs">{etapas}</span>
                   </Label>
                   <Select
                     value={responsaveis[funcao] ?? SEM_VALOR}
@@ -584,7 +721,7 @@ export function AbrirOMes({
             </div>
 
             <div className="grid gap-2">
-              {ETAPAS_DA_CORRENTE.map((etapa) => {
+              {etapasDoFluxo.map((etapa) => {
                 const periodo = prazos[etapa.nome] ?? { inicio: "", fim: "" };
                 const invertido =
                   periodo.inicio !== "" &&

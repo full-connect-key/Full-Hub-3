@@ -67,7 +67,7 @@ export async function padroesDaConta(clienteId: string): Promise<PadroesDaConta>
       // mostrar o interruptor ligado com a consequência escrita embaixo dele.
       // Com a lista vazia, a seção sairia igual em toda conta — e o que ela
       // acrescenta é justamente o estado que quase nenhuma conta tem.
-      social_aprovacoes: ["Pauta"],
+      social_flow_id: "f1000000-0000-4000-8000-00000000000a",
       created_at: "2027-01-10T12:00:00.000Z",
       updated_at: "2027-03-02T09:30:00.000Z",
     },

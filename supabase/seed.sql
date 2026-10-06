@@ -334,20 +334,51 @@ $notas$;
 -- abertura da demanda tem que dizer QUAL funcao falta. Com as nove funcoes
 -- preenchidas, esse aviso nunca apareceria em desenvolvimento.
 --
--- E A MUNDO VERDE APROVA A PAUTA (0076), que e a segunda razao pela qual a
--- Optica Visao fica sem linha: as duas metades da decisao precisam existir em
--- desenvolvimento. Sem uma conta com portao no meio da corrente, o ambiente
--- mostraria o produto no unico arranjo em que o Envio e o unico portao -- e a
--- tela do portal sem arte, que e a que o sprint inteiro existe para desenhar,
--- nunca apareceria.
+-- E A MUNDO VERDE TEM UM FLUXO PROPRIO (0076, e 0087), que e a segunda razao
+-- pela qual a Optica Visao fica sem linha: as duas metades da decisao precisam
+-- existir em desenvolvimento. Sem uma conta com portao no meio da corrente, o
+-- ambiente mostraria o produto no unico arranjo em que o Envio e o unico
+-- portao -- e a tela do portal sem arte, que e a que o Sprint 12 existe para
+-- desenhar, nunca apareceria.
+--
+-- O FLUXO DELA E O CASO QUE O USUARIO DESCREVEU PALAVRA POR PALAVRA ao pedir
+-- a 0087: *"algumas contas validam pauta e conteudo, antes de ir para Producao
+-- de Layout. E apos o layout feito, ele tambem vai para aprovacao do
+-- cliente."* Sao TRES portoes antes da entrega, e e justamente o arranjo que a
+-- corrente fixa nao sabia representar -- sem ele o ambiente de desenvolvimento
+-- mostraria o produto no unico estado em que a 0087 nao faz diferenca
+-- nenhuma. E a licao da Optica Visao sem responsavel de atendimento (0062) e
+-- da peca combinada (0082), aplicada antes do bug em vez de depois.
+select public.salvar_fluxo_de_social(
+  'Três avaliações antes da arte',
+  jsonb_build_array(
+    jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
+                       'campo','pauta','aprovacao_cliente',true,
+                       'comeca_dias_antes',31,'termina_dias_antes',27),
+    jsonb_build_object('nome','Conteúdo','funcao','Redator','papel','producao',
+                       'campo','legenda','aprovacao_cliente',true,
+                       'comeca_dias_antes',26,'termina_dias_antes',20),
+    jsonb_build_object('nome','Layout','funcao','Design','papel','producao',
+                       'aprovacao_cliente',true,
+                       'comeca_dias_antes',19,'termina_dias_antes',12),
+    jsonb_build_object('nome','Envio','funcao','Gestao','papel','entrega',
+                       'comeca_dias_antes',11,'termina_dias_antes',7),
+    jsonb_build_object('nome','Programar','funcao','Social Media','papel','pos_entrega',
+                       'comeca_dias_antes',6,'termina_dias_antes',2)
+  ),
+  'f1000000-0000-4000-8000-00000000000a',
+  'A conta valida a pauta, o texto e a arte, cada um na vez dele, antes de o material sair como peça fechada.')
+where not exists (select 1 from public.social_flows
+                   where id = 'f1000000-0000-4000-8000-00000000000a');
+
 insert into public.client_flow_defaults
   (client_id, aprovador_interno_id, pasta_entrega_url, prazo_aprovacao_cliente_dias,
-   social_aprovacoes)
+   social_flow_id)
 select 'c0000000-0000-0000-0000-00000000000a'::uuid,
        'a0000000-0000-0000-0000-000000000002'::uuid,
        'https://drive.google.com/drive/folders/mundo-verde-entregas',
        2,
-       array['Pauta']
+       'f1000000-0000-4000-8000-00000000000a'::uuid
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000002')
 on conflict (client_id) do nothing;
 

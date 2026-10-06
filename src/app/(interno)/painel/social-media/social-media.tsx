@@ -35,6 +35,8 @@ import type {
 import type { EtapaDoPost } from "@/lib/dominio/posts";
 
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
+import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
+
 import { AbrirOMes } from "./abrir-o-mes";
 import { NovoPost } from "./novo-post";
 
@@ -148,6 +150,7 @@ export function SocialMedia({
   referencias,
   clientes,
   equipe,
+  fluxos,
   driveLigado = false,
   quemLe,
   mes,
@@ -162,6 +165,8 @@ export function SocialMedia({
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
   /** A integração com o Drive está ligada? Decide o botão "Criar no Drive". */
+  /** Os fluxos de social ATIVOS, com a corrente de cada um (0087). */
+  fluxos: FluxoDeSocial[];
   driveLigado?: boolean;
   quemLe: QuemLe;
   mes: string;
@@ -384,6 +389,7 @@ export function SocialMedia({
               <AbrirOMes
                 clientes={clientes}
                 equipe={equipe}
+                fluxos={fluxos}
                 driveLigado={driveLigado}
               />
               <NovoPost clientes={clientes} equipe={equipe} />

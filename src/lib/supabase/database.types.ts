@@ -183,6 +183,26 @@ export type PlataformaSocial =
   | "pinterest";
 
 /**
+ * O papel de um elo da corrente do social (`social_flow_papel`, 0087).
+ *
+ * **ELE EXISTE PARA O PRODUTO PARAR DE PERGUNTAR PELO NOME.** Até a 0087 a
+ * corrente era fixa — Pauta, Conteúdo, Layout, Envio, Programar — e 'Envio'
+ * podia ser uma palavra: ela aparecia escrita em SEIS comparações. Com fluxos
+ * editáveis, um que chame aquele elo de "Entrega" ficaria sem portão do
+ * cliente nenhum, sem erro em lugar nenhum.
+ *
+ * As duas razões que a 0076 escreveu para excluir o Envio e o Programar da
+ * lista de portões viraram dados:
+ *
+ * - `producao` — o trabalho de alguém. PODE virar portão do cliente.
+ * - `entrega` — ela É o portão: enviar ao cliente É abrir a rodada dele
+ *   (0032). Uma por fluxo, nem zero nem duas.
+ * - `pos_entrega` — vem DEPOIS da decisão. Pôr o cliente para aprová-la seria
+ *   pedir o aval de um trabalho que só existe porque ele já aprovou.
+ */
+export type SocialFlowPapel = "producao" | "entrega" | "pos_entrega";
+
+/**
  * O ciclo de vida da campanha como PROJETO (`campaign_status`, 0033).
  *
  * Distinto de `ContentStatus`, e de propósito: aquele é o estado de uma peça
@@ -580,16 +600,19 @@ export interface Database {
           pasta_entrega_url: string | null;
           prazo_aprovacao_cliente_dias: number;
           /**
-           * Os elos da corrente do social que ESTA conta aprova, além do
-           * Envio (0076) — *"algumas contas aprovam pauta, antes de entrar em
-           * produção"*.
+           * O fluxo de social que os meses desta conta usam por padrão
+           * (migration 0087).
            *
-           * É `text[]` e não `jsonb` como o `p_prazos`, que também é por nome
-           * de etapa: lá a pergunta pede um VALOR por chave, e um mapa é a
-           * forma certa; aqui ela é de pertencimento, e um mapa com valores
-           * `false` guarda o que ninguém quis dizer.
+           * **Ele substituiu `social_aprovacoes`**, que era um `text[]` com os
+           * nomes dos elos que esta conta aprovava (0076). A coluna foi
+           * APAGADA e não aposentada ao lado — duas listas dizendo quais
+           * etapas vão ao cliente seriam duas verdades, e no dia em que uma
+           * divergisse o portal mostraria um portão que a corrente não tem.
+           *
+           * Nulo vale o padrão da casa, e o MÊS pode escolher outro: a ordem é
+           * mês → conta → casa, que é a de `coalesce(etapa, padrão)` (0041).
            */
-          social_aprovacoes: string[];
+          social_flow_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -599,13 +622,13 @@ export interface Database {
           aprovador_interno_id?: string | null;
           pasta_entrega_url?: string | null;
           prazo_aprovacao_cliente_dias?: number;
-          social_aprovacoes?: string[];
+          social_flow_id?: string | null;
         };
         Update: {
           aprovador_interno_id?: string | null;
           pasta_entrega_url?: string | null;
           prazo_aprovacao_cliente_dias?: number;
-          social_aprovacoes?: string[];
+          social_flow_id?: string | null;
         };
         Relationships: [];
       };
@@ -1811,6 +1834,19 @@ export interface Database {
           // de um mês mentiria no selo que a tela mostra.
           social_do_mes: string | null;
           /**
+           * O FLUXO que o mês de social desta demanda percorre (0087).
+           *
+           * Preenchido só em demanda de mês, e é ele que faz abrir o mesmo mês
+           * em duas vezes usar a MESMA corrente: sem ele a segunda chamada
+           * poderia usar outro fluxo, e o mês ficaria com metade dos posts
+           * indo ao cliente por um caminho e metade por outro.
+           *
+           * Fica FORA de Insert e de Update pela razão de `social_do_mes`:
+           * quem o preenche é `abrir_mes_de_social()`, e uma demanda comum
+           * apontando para um fluxo de social não quer dizer nada.
+           */
+          social_flow_id: string | null;
+          /**
            * O pedido do cliente que virou esta demanda (0068).
            *
            * **Está no `Insert` e NÃO no `Update`**, e a assimetria é a regra do
@@ -2198,6 +2234,99 @@ export interface Database {
        * a partir da rodada. Tentar gravá-los é erro de tipo antes de ser
        * recusa do banco — a mesma decisão do cronômetro da subtarefa.
        */
+      /**
+       * Um FLUXO de social: a corrente de etapas que os posts de um mês
+       * percorrem, com os portões do cliente dentro dela (migration 0087).
+       *
+       * Decisão do usuário: *"algumas contas validam pauta e conteúdo, antes
+       * de ir para Produção de Layout. E após o layout feito, ele também vai
+       * para aprovação do cliente. Preciso poder montar fluxos de Social
+       * diferentes, para serem aplicados em determinados socials, de meses de
+       * determinadas contas"*.
+       *
+       * **SÃO DUAS TABELAS E NÃO UM `jsonb`**, pelo critério que o produto já
+       * escreveu para `post_versions.arquivos`: jsonb é para o que se escreve
+       * de uma vez e se lê inteiro, nunca consultado item a item. Um elo é
+       * consultado item a item — `montar_etapas_do_post` percorre um por um, a
+       * validação de `p_prazos` pergunta se existe etapa com aquele nome. É a
+       * forma de `workflow_templates` + `workflow_steps` (0007), que é a
+       * cadeia da demanda um módulo ao lado.
+       *
+       * `nome` é ÚNICO: a tela lista fluxos por nome, e dois "Padrão da casa"
+       * na mesma lista são uma escolha que ninguém consegue fazer. Fluxo que
+       * não serve mais se desativa — apagar levaria o nome que os meses já
+       * abertos apontam.
+       */
+      social_flows: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          ativo: boolean;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        /**
+         * **Sem Insert**: quem cria é `salvar_fluxo_de_social()`, porque o
+         * fluxo e os elos dele são gravados juntos, numa transação só — a mesma
+         * decisão de `workflow_templates` (0007). Pelo PostgREST seriam N+1
+         * idas, e a terceira falhando deixaria um fluxo com metade da corrente,
+         * que é exatamente o estado que o gatilho recusa.
+         *
+         * **E o Update aceita UMA coluna**, `ativo`: ela não encosta na
+         * corrente, então o interruptor que tira um fluxo do ar não precisa
+         * passar pela função que reescreve os elos. Nome e descrição ficam de
+         * fora porque viajam JUNTO com a corrente na tela do editor — dois
+         * caminhos para gravar o nome seriam dois lugares para esquecer de
+         * revalidar a ficha do cliente.
+         */
+        Insert: never;
+        Update: { ativo?: boolean; updated_at?: string };
+        Relationships: [];
+      };
+
+      /**
+       * Os elos de um fluxo de social, em ordem (migration 0087).
+       *
+       * **Sem Insert nem Update**, e aqui a ausência é mais forte que uma
+       * convenção: o gatilho de coerência é POR INSTRUÇÃO, então um `insert`
+       * por linha é recusado — a primeira volta deixaria o fluxo com um elo e
+       * nenhuma entrega. Um fluxo é gravado de uma vez, pela ação que o grava.
+       */
+      social_flow_steps: {
+        Row: {
+          id: string;
+          flow_id: string;
+          /** Com folga de dez (10,20,30…) pela razão de `post_etapas.ordem`
+           *  (0045): a etapa de Ajustes nasce ENTRE duas. */
+          ordem: number;
+          nome: string;
+          funcao: TeamFuncao;
+          papel: SocialFlowPapel;
+          /** Só vale em elo de produção, e quem garante é um `check`: a
+           *  entrega já É o portão e o pós-entrega vem depois da decisão. */
+          aprovacao_cliente: boolean;
+          /** Qual campo do card este elo enche: `pauta`, `legenda` ou nenhum
+           *  (0046, virado coluna na 0087). */
+          campo: string | null;
+          /**
+           * As duas pontas SUGERIDAS, contadas do dia 1 do mês (0083/0084).
+           *
+           * Elas viajam com o FLUXO e não com a tela, e a razão é a cadeia
+           * editável: `ETAPAS_DA_CORRENTE` em TypeScript sabia sugerir os dias
+           * das cinco etapas que ela mesma listava, e não sabe sugerir nada
+           * para uma etapa que alguém acrescentou.
+           */
+          comeca_dias_antes: number | null;
+          termina_dias_antes: number | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+
       posts: {
         Row: {
           id: string;
@@ -2368,13 +2497,36 @@ export interface Database {
           /**
            * Esta etapa passa pelo CLIENTE antes de a próxima começar (0076).
            *
-           * Nasce da lista da conta (`client_flow_defaults.social_aprovacoes`)
-           * e a gestão troca por post. O Envio não precisa dela: ele É o
-           * portão do cliente desde a 0045 — e quem for marcá-lo aqui por
-           * engano não consegue, porque `montar_etapas_do_post` o deixa de
-           * fora.
+           * Nasce do elo do FLUXO que o post percorre (0087) e a gestão troca
+           * por post. A entrega não precisa dela: ela É o portão do cliente
+           * desde a 0045 — e quem for marcá-la aqui por engano não consegue,
+           * porque o `check` de `social_flow_steps` a recusa fora de um elo de
+           * produção.
            */
           aprovacao_cliente: boolean;
+          /**
+           * O PAPEL deste elo (0087), e ele é a coluna que tirou a palavra
+           * 'Envio' de seis comparações do produto.
+           *
+           * Com a corrente fixa, `nome = 'Envio'` respondia "esta é a entrega
+           * ao cliente". Com fluxos editáveis isso vira o furo mais caro que
+           * a 0087 podia criar: um fluxo que chame aquele elo de "Entrega"
+           * ficaria SEM PORTÃO NENHUM, sem erro em lugar nenhum — o mês abre,
+           * os posts nascem, e "Enviar ao cliente" fica desligado para sempre.
+           *
+           * Copiado do fluxo no instante em que o post nasceu, nunca deduzido
+           * do nome.
+           */
+          papel: SocialFlowPapel;
+          /**
+           * Qual campo do card este elo enche (0046, virado coluna na 0087):
+           * `pauta`, `legenda` ou nenhum.
+           *
+           * O de-para era `case e.nome when 'Pauta' then p.pauta`, e renomear
+           * a etapa fazia a tela do portal abrir o portão com a caixa de texto
+           * VAZIA — o cliente decidindo sobre nada.
+           */
+          campo: string | null;
           concluida_em: string | null;
           created_at: string;
           updated_at: string;
@@ -2389,6 +2541,8 @@ export interface Database {
           status?: SubtaskStatus;
           prazo?: string | null;
           aprovacao_cliente?: boolean;
+          papel?: SocialFlowPapel;
+          campo?: string | null;
         };
         Update: {
           /** O que o RESPONSÁVEL troca é o status, e mais nada — o resto o
@@ -2401,6 +2555,8 @@ export interface Database {
           responsavel_id?: string | null;
           prazo?: string | null;
           aprovacao_cliente?: boolean;
+          papel?: SocialFlowPapel;
+          campo?: string | null;
         };
         Relationships: [];
       };
@@ -3043,8 +3199,94 @@ export interface Database {
            * mês duas vezes acrescenta etapas à que existe.
            */
           p_link_entrega?: string | null;
+          /**
+           * O FLUXO que este mês percorre (0087). Nulo cai no padrão da conta,
+           * e depois no da casa.
+           *
+           * **Ele é ignorado quando o mês JÁ existe**, e é para isso que
+           * `tasks.social_flow_id` serve: abrir o mesmo mês em duas vezes
+           * acrescenta posts à demanda que está lá (0061), e sem aquela
+           * leitura a segunda chamada daria ao mês duas correntes diferentes
+           * dentro.
+           */
+          p_flow_id?: string | null;
         };
         Returns: number;
+      };
+      /**
+       * Grava um fluxo de social com a corrente dele, numa transação só
+       * (0087).
+       *
+       * **Não é `security definer`**, de propósito: `social_flows_write` é
+       * `is_gestor()`, e é a policy que decide quem pode — não a função. Um
+       * definer aqui entregaria a edição do fluxo ao colaborador, que é quem a
+       * corrente manda trabalhar.
+       *
+       * `p_flow_id` com um fluxo que não existe CRIA com aquele id, e não
+       * recusa: é o que deixa o seed e a bateria fixarem o id de um fluxo.
+       */
+      salvar_fluxo_de_social: {
+        Args: {
+          p_nome: string;
+          /**
+           * A corrente na ORDEM. `ordem` sai da posição na lista, com folga de
+           * dez (0045) — a tela não a manda.
+           */
+          p_etapas: {
+            nome: string;
+            funcao: TeamFuncao;
+            papel?: SocialFlowPapel;
+            campo?: string | null;
+            aprovacao_cliente?: boolean;
+            comeca_dias_antes?: number | null;
+            termina_dias_antes?: number | null;
+          }[];
+          p_flow_id?: string | null;
+          p_descricao?: string | null;
+          p_ativo?: boolean;
+        };
+        Returns: string;
+      };
+      /**
+       * Os elos de um fluxo, em ordem (0087). Substitui
+       * `etapas_padrao_do_social()` da 0045, que respondia pela única corrente
+       * que existia.
+       *
+       * `security definer` pela razão de `porta_do_cliente_no_post`: ela é
+       * chamada de dentro de `posts_corrente_do_cliente`, que roda com o
+       * `auth.uid()` DO CLIENTE — e o cliente não tem policy em
+       * `social_flow_steps`.
+       */
+      etapas_do_fluxo: {
+        Args: { p_flow_id: string };
+        Returns: {
+          ordem: number;
+          nome: string;
+          funcao: TeamFuncao;
+          papel: SocialFlowPapel;
+          aprovacao_cliente: boolean;
+          campo: string | null;
+          comeca_dias_antes: number | null;
+          termina_dias_antes: number | null;
+        }[];
+      };
+      /** O fluxo que um mês de social vai usar: o escolhido, senão o padrão da
+       *  conta, senão o da casa (0087). */
+      fluxo_do_mes: {
+        Args: { p_client_id: string; p_flow_id?: string | null };
+        Returns: string | null;
+      };
+      /** O fluxo que vale para um post: o do mês dele, senão o da conta, senão
+       *  o da casa (0087). */
+      fluxo_do_post: {
+        Args: { p_post_id: string };
+        Returns: string | null;
+      };
+      /** O fluxo de social usado quando a conta e o mês não escolheram nenhum.
+       *  Nulo quando não há fluxo ativo no banco (0087). */
+      fluxo_padrao_da_casa: {
+        Args: Record<string, never>;
+        Returns: string | null;
       };
       /**
        * Esta etapa e o agrupador de um post de social? Se sim: sem dono, sem
