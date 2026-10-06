@@ -752,10 +752,69 @@ a 0081 roda, e não há onde pô-la: o `rodar.sh` carrega o fixture depois da 00
 e a coluna nasce na 0055, dezenas de migrations adiante. Quem tirar aquele
 `where` não derruba cenário nenhum.
 
-**E a TELA de delegar é outra entrega.** A 0081 é a metade de banco do Sprint
-3I; o calendário que mostra os dias de quem vai receber o trabalho, com o aviso
-de sobrecarga que não trava, ainda não existe. Nenhuma linha de `src/` chama
-`disponibilidade()` hoje.
+#### A tela: a faixa dentro do painel da etapa
+
+`components/shared/faixa-de-disponibilidade.tsx`, no painel lateral da etapa
+em Gestão de Tasks. **É a travessia da ponte:** `disponibilidade()` estava no
+banco desde a 0081 e nenhuma linha de `src/` a chamava, então esta entrega não
+tem migration nenhuma — é tipo, leitura e desenho.
+
+**ELA MORA NO PAINEL E NÃO NUM DIÁLOGO**, e o motivo é mecânico antes de ser
+de desenho: aquele painel **salva campo a campo**, sem botão de salvar, desde
+a 0028. Um diálogo de confirmação prometeria uma etapa de "revisar antes de
+gravar" que não existe ali — e cobriria justamente a etapa que a pessoa está
+datando. A faixa é consulta, e **o clique no dia é o salvamento**.
+
+**Ela entra logo depois do Início e do Prazo**, partindo a grade de campos em
+duas: é a ordem da decisão — escolher a pessoa, ver os dias dela, escrever a
+data —, e os dois campos que o clique preenche ficam encostados nela. Acima
+dos campos ela responderia sobre um responsável que ainda não existe.
+
+**A LEGENDA É A DA LINHA DO TEMPO**, pelos mesmos quatro degraus e com os
+mesmos limiares: `nivelDaCarga()` e `COR_DO_NIVEL` vêm de
+`lib/dominio/calendario.ts`. Duas escalas para a mesma pergunta seriam
+descobertas pela pessoa no dia em que uma tela pintasse de verde o dia que a
+outra pintou de âmbar. **E `nivelDaCarga()` teve a assinatura estreitada** para
+`{ minutos, etapas }`: pedindo `CargaDeUmDia` inteiro, quem tem o número de
+outra consulta precisaria inventar `userId`, `dia` e `ausente` — e o molde
+errado mente com mais convicção que a ausência.
+
+**O dia se explica EMBAIXO da grade.** A célula tem cerca de 62px num painel de
+512px: cabe o número e o fio de carga, e mais nada — nem um título de etapa
+truncado, que não identifica nenhuma. O rótulo acessível de cada célula carrega
+o que ela não cabe, porque quem usa leitor de tela não tem a cor.
+
+**O AVISO É UM SÓ, e não há botão de "registrar mesmo assim".** Ele fala do dia
+escolhido e de mais nenhum, em `--warning`, e diz o que ACONTECEU — *"A Ana
+fica com 12h em 9 de março. Ficou registrado assim mesmo."* Os três perfis
+conseguem registrar de qualquer forma porque **nada nunca pergunta**: o painel
+grava no clique, e o aviso é a consequência, não o portão. Construir um diálogo
+de confirmação para depois oferecer o "mesmo assim" seria inventar a trava só
+para ter o que destravar — e a trava nova barraria também quem o usuário quer
+que passe.
+
+**O motivo da ausência passa pelo mapa do Full Days**, `ROTULOS_DE_PRESENCA`. A
+função devolve a chave do enum (`ferias`), e desenhar isso cru poria na tela a
+palavra que a 0016 e a 0018 tiraram de propósito — e `check:cores` não pegaria,
+porque o texto vem do banco e não de `src/`.
+
+**É LEITURA NUMA ACTION**, `buscarDisponibilidade` em `acoes-de-itens.ts`, e
+tem precedente: `buscarPreviaDoLink` faz o mesmo. A convenção manda leitura
+para `lib/dados/`, que é `server-only` e serve quem renderiza no servidor; aqui
+quem pergunta é a faixa, que é `"use client"` e troca de mês sem recarregar a
+página. E ela usa o cliente da própria pessoa, então `is_staff()` dentro da
+função continua decidindo.
+
+**O axe pegou a minha própria regra, na primeira rodada.** As células do mês
+vizinho saíram com `opacity-40`, e opacidade em texto dá uma cor que ninguém
+mediu — a mesma regra que o `opacity-80` do `DateBadge` já pagou uma vez. Elas
+recuam pelo tom agora.
+
+*O que fica em aberto, e é dito em vez de escondido:* o arrasto de um dia a
+outro escreveria o PERÍODO (início mais prazo), e o clique simples resolve o
+caso comum. E a faixa não aparece na abertura do mês de social nem da campanha,
+que são os outros dois lugares onde alguém distribui trabalho — lá a pergunta é
+sobre cinco pessoas de uma vez, e o desenho é outro.
 
 **Medido com seis mutações**, e os números estão no cabeçalho da 0081: devolver
 o zero da etapa em branco derruba 6 cenários, devolver o bug da janela derruba

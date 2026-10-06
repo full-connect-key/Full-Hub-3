@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -33,6 +34,7 @@ import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import {
   anexarEntrega,
   atualizarSubtarefa,
+  buscarDisponibilidade,
   desvincularDependencia,
   moverSubtarefa,
   removerEntrega,
@@ -230,6 +232,33 @@ export function PainelDaSubtarefa({
                 </span>
               )}
             </Campo>
+          </div>
+
+          {/* OS DIAS DE QUEM VAI RECEBER O TRABALHO (migration 0081).
+
+              Ela nasce no instante em que há responsável, e só para quem pode
+              gerenciar: para quem não pode, os campos de data são texto e um
+              calendário que não escreve nada seria a agenda de um colega
+              exposta sem motivo.
+
+              ELA ENTRA LOGO DEPOIS DO INÍCIO E DO PRAZO, e a grade de campos
+              se parte em duas por causa disso. É a ordem da decisão: escolher
+              a pessoa, ver os dias dela, escrever a data — e os dois campos
+              que o clique no dia preenche ficam encostados nela. Acima dos
+              campos ela responderia sobre um responsável que ainda não
+              existe; lá embaixo, depois da estimativa e das dependências,
+              ninguém a veria ao datar. */}
+          {podeGerenciar && subtarefa.responsavel ? (
+            <FaixaDeDisponibilidade
+              userId={subtarefa.responsavel.id}
+              nome={subtarefa.responsavel.nome}
+              prazo={subtarefa.prazo}
+              aoEscolher={(data: string) => salvar({ prazo: data })}
+              buscar={buscarDisponibilidade}
+            />
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
 
             <Campo rotulo="Estimativa">
               {podeMexer ? (

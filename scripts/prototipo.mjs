@@ -594,6 +594,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],
   "@/lib/dados/calendario": ["./scripts/prototipo/calendario.ts"],
+  "@/lib/dados/disponibilidade": ["./scripts/prototipo/disponibilidade.ts"],
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/home": ["./scripts/prototipo/home.ts"],

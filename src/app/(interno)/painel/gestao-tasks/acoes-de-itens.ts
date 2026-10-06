@@ -7,6 +7,8 @@ import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { anunciar } from "@/lib/acoes/ao-vivo";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
+import { disponibilidadeDe } from "@/lib/dados/disponibilidade";
+import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database, Json, SubtaskStatus } from "@/lib/supabase/database.types";
@@ -529,5 +531,33 @@ export async function removerEntrega(id: string, taskId: string): Promise<Result
     if (!data) return falha(RECUSA_DO_BANCO);
     revalidar(taskId);
     return sucesso("Entrega removida.");
+  });
+}
+
+/**
+ * Os dias de quem vai receber o trabalho (migration 0081).
+ *
+ * **É LEITURA NUMA ACTION, e isso tem precedente:** `buscarPreviaDoLink` das
+ * Recomendações faz o mesmo. A convenção manda leitura para `lib/dados/`, que
+ * é `server-only` e serve quem renderiza no servidor; aqui quem pergunta é a
+ * faixa dentro do painel lateral, que é `"use client"` e troca de mês sem
+ * recarregar a página. Ou vira action, ou vira rota de API com guarda escrita
+ * à mão.
+ *
+ * **Ela usa o cliente da própria pessoa**, então `is_staff()` dentro de
+ * `disponibilidade()` continua sendo quem decide. A guarda de rota aqui é a
+ * primeira barreira, não a única.
+ *
+ * E ela mora NESTE arquivo e não em `acoes.ts`: a pergunta é sobre o
+ * responsável de uma ETAPA, e é aqui que as ações da etapa vivem.
+ */
+export async function buscarDisponibilidade(
+  userId: string,
+  inicio: string,
+  fim: string,
+): Promise<Resultado<DiaDeDisponibilidade[]>> {
+  return executarAcao("buscarDisponibilidade", async () => {
+    await exigirRotaNaAcao(ROTA);
+    return sucesso("", await disponibilidadeDe(userId, inicio, fim));
   });
 }

@@ -269,7 +269,19 @@ export type NivelDeCarga = "vazio" | "folgado" | "cheio" | "estourado";
  * O número mora no `coalesce` de `disponibilidade_bruta()` e em mais nenhum
  * lugar — nem aqui: esta função recebe os minutos que o banco já somou.
  */
-export function nivelDaCarga(carga: CargaDeUmDia, capacidadeMinutos: number): NivelDeCarga {
+/**
+ * O PARÂMETRO É ESTREITO DE PROPÓSITO, e não `CargaDeUmDia`.
+ *
+ * Ela lê dois campos. Pedindo o tipo inteiro, quem tem o número de outra
+ * consulta — a faixa de disponibilidade, que traz o dia de UMA pessoa e não
+ * da equipe — precisaria inventar `userId`, `dia` e `ausente` para chamar, e
+ * o molde errado mente com mais convicção que a ausência. `CargaDeUmDia`
+ * continua servindo: ele satisfaz esta forma.
+ */
+export function nivelDaCarga(
+  carga: { minutos: number; etapas: number },
+  capacidadeMinutos: number,
+): NivelDeCarga {
   if (carga.etapas === 0) return "vazio";
   if (capacidadeMinutos <= 0) return "cheio";
   const fracao = carga.minutos / capacidadeMinutos;

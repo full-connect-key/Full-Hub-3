@@ -3174,6 +3174,43 @@ export interface Database {
        * 0035 — não recalcula. Recusa período acima de 62 dias: a tela busca
        * o mês visível com uma semana de folga, e nunca o ano.
        */
+      /**
+       * A DISPONIBILIDADE DE QUEM VAI RECEBER O TRABALHO (0081).
+       *
+       * É a porta de quem delega, e `is_staff()` na primeira linha: ela
+       * devolve título e cliente das etapas de OUTRA pessoa. A conta mora em
+       * `disponibilidade_bruta()`, que não é chamável de fora — e por isso não
+       * está declarada aqui.
+       *
+       * `p_modo` é `'distribuida'` (a estimativa repartida pela janela da
+       * etapa) ou `'entregas'` (o que vence naquele dia, que é a outra
+       * pergunta). Os dois últimos têm default e a tela manda os dois
+       * explicitamente, porque quem lê a chamada precisa ver o que ela pede.
+       */
+      disponibilidade: {
+        Args: {
+          p_user_id: string;
+          p_inicio: string;
+          p_fim: string;
+          p_modo?: string;
+          p_incluir_concluidas?: boolean;
+          p_daqui_pra_frente?: boolean;
+        };
+        Returns: {
+          data: string;
+          dia_util: boolean;
+          capacidade_minutos: number;
+          indisponivel_motivo: string | null;
+          carga_minutos: number;
+          etapas_count: number;
+          etapas_sem_estimativa: number;
+          entregas_count: number;
+          entregas_minutos: number;
+          ocupacao_pct: number | null;
+          evento: string | null;
+          itens: Json;
+        }[];
+      };
       carga_da_equipe: {
         Args: { p_inicio: string; p_fim: string };
         Returns: {
