@@ -651,6 +651,120 @@ tendo o meu nome.
 duas fontes, a tela abriria com a camada que o link diz e trocaria sozinha um
 instante depois para a que o navegador lembrava.
 
+### A carga: como o produto mede o dia de alguém
+
+Migration 0081, e as quatro regras são decisão do usuário, palavra por palavra:
+*"cada task deve contabilizar o tempo que foi preenchido (…). Se o tempo
+estiver em branco, deve contar 3 horas automaticamente, sem mostrar para a
+pessoa. O expediente tem 9 horas. (…) Se eu preencho o dia com 3 tasks em
+branco, e a pessoa finaliza uma delas antes do tempo, deve já liberar para ser
+colocadas mais tasks sem o aviso. De qualquer maneira, deve aparecer apenas um
+aviso de sobrecarga, o atendimento, os sócios e desenvolvedores devem poder
+registrar mesmo assim."*
+
+**As quatro cabem numa frase que a pessoa guarda de cabeça: TRÊS ETAPAS EM
+BRANCO ENCHEM UM DIA.** 3h + 3h + 3h = 9h.
+
+| A regra | Onde ela mora |
+| --- | --- |
+| etapa sem estimativa conta **180 minutos** | o `coalesce` de `disponibilidade_bruta()` |
+| o expediente é de **540 minutos** | `team_members.capacidade_minutos_dia`, por pessoa |
+| **concluída libera o dia** | o `status <> 'concluida'` do `where` |
+| **sobrecarga avisa, nunca recusa** | em lugar nenhum — é a ausência de trava |
+
+**A conta é UMA, e isso é o que a 0081 existe para garantir.** Havia duas
+perguntas iguais com duas respostas possíveis: `carga_do_dia()` (0035) somava a
+estimativa inteira em cada dia coberto, e o calendário de delegar ia distribuir
+pela janela — a Linha do Tempo pintaria o dia a partir de 8h e a tela de
+delegar diria 1h36 sobre o mesmo dia. Hoje `disponibilidade_bruta()` é a única
+implementação, `disponibilidade()` é a porta de quem delega e
+`carga_do_dia()` é o recorte de um dia dela.
+
+**A ESTIMATIVA SE DISTRIBUI PELA JANELA**, e não cai no dia do prazo: janela é
+do início possível até o prazo, fatia é a estimativa dividida pelos dias úteis
+dela. Uma etapa de 8h de segunda a sexta ocupa 1h36 por dia. Contar inteira dá
+o retrato falso que a 0035 dava — cinco etapas de 4h vencendo na sexta mostram
+20h na sexta e a semana vazia, quando na vida a pessoa trabalha nelas a semana
+toda. **O que vence no dia continua existindo**, no modo `entregas`: são duas
+perguntas, e quem monta a agenda da semana precisa das duas.
+
+**E O INÍCIO DA DEMANDA NÃO É O INÍCIO DA ETAPA**, que foi o bug que a bateria
+achou e não era expectativa errada. A primeira versão caía em
+`tasks.data_inicio` quando a etapa não tinha início próprio — e aquela coluna é
+**derivada** das etapas desde a 0028: ela é o menor prazo da demanda inteira.
+A etapa herdava a janela da demanda, então quatro etapas datadas ao longo de um
+mês cobriam o mês cada uma, e a carga de um dia somava trinta e oito etapas em
+vez de quatro. É a conta dobrada que a 0083 desfez um nível acima.
+
+**Os números na tela caíram, e é o ponto da mudança.** A Linha do Tempo do
+Calendário Full, o bloco de carga do Início e os alertas do Feedback (0075)
+mostram menos — e o limiar de sobrecarga daquele módulo, 110% em dois períodos
+seguidos, foi calibrado contra os números inflados, então ele dispara menos. É
+o número ficando honesto.
+
+**A PERGUNTA DAS DUAS PORTAS É DIFERENTE, e é a única coisa que as separa.**
+`disponibilidade()` **projeta**: a etapa vencida compete pelo tempo de HOJE,
+porque ela continua pendente e esconder isso é o jeito mais fácil de
+sobrecarregar alguém sem perceber. `carga_do_dia()` **não projeta**: o retrato
+histórico do Feedback olha um mês que passou, e lá o que aconteceu aconteceu —
+sem essa separação, toda etapa vencida da agência desaguava no dia de hoje.
+É um booleano e não uma segunda função.
+
+**A estimativa presumida saiu, e a troca é boa por um motivo que não é
+simplicidade.** A versão inacabada tinha três degraus — mediana do mesmo
+workflow nos últimos 90 dias, mediana da agência, 60 minutos — e a tela marcava
+a etapa com `~` porque o número era inventado. A mediana adaptava o palpite ao
+tipo de trabalho, e isso se perde. O que se ganha é maior: **ela mudava
+sozinha.** A mesma etapa em branco ocupava uma fatia diferente a cada mês,
+conforme o histórico andava, e nada na tela dizia por quê — quem delegou
+segunda e voltou sexta via outro número sem ninguém ter mexido. E o `~` saiu
+junto: o til existia para avisar que o número era chute, e uma regra declarada
+da casa não é chute.
+
+**A capacidade é por pessoa, e a migration mexeu em linha que já existia.**
+`alter column set default` só vale para linha nova, então sem o `update` a
+decisão valeria apenas para quem entrasse amanhã. Ele alcança quem carrega 480
+— o default herdado da 0055 — e mais ninguém; meio período existe, e é a razão
+pela qual a coluna é por pessoa. *O que ele não sabe distinguir, e fica dito:*
+quem escolheu 480 de propósito. Não há como separar o herdado do escolhido,
+porque a coluna não guarda quem a escreveu — e o lado escolhido é o de
+aplicar, porque quem tem contrato de 8 horas se corrige num campo, sem deploy.
+
+**SOBRECARGA AVISA E NUNCA RECUSA, e a segunda metade da frase não tem a quem
+recusar.** Nenhuma trava deste produto olha carga. E *"o atendimento, os sócios
+e desenvolvedores devem poder registrar mesmo assim"* descreve exatamente quem
+`is_atendimento()` já deixa passar desde a 0006 — Atendimento mais gestão: é a
+0060 de novo, uma segunda pergunta embaixo de uma primeira que já barra todo
+mundo não barra ninguém. **O aviso é um só**, e é da tela: uma linha por dia
+sobrecarregado seria um parágrafo de avisos onde a pessoa precisa de uma frase.
+
+**A conta crua não é chamável de fora.** `disponibilidade_bruta()` devolve
+título e cliente das etapas de outra pessoa, e sem o `revoke` seria a agenda da
+equipe inteira ao alcance de quem tiver a chave anon. As duas portas são
+`security definer` com a pergunta de cada uma — e `is_staff()` e não
+`is_gestor()`, porque quem distribui numa demanda pode ser o colaborador do
+Atendimento.
+
+**O que a bateria NÃO consegue medir, e fica escrito em vez de escondido:** a
+outra metade do `where` da capacidade — meio período escolhido não ser
+sobrescrito. Para provar isso seria preciso uma ficha em 240 no instante em que
+a 0081 roda, e não há onde pô-la: o `rodar.sh` carrega o fixture depois da 0006
+e a coluna nasce na 0055, dezenas de migrations adiante. Quem tirar aquele
+`where` não derruba cenário nenhum.
+
+**E a TELA de delegar é outra entrega.** A 0081 é a metade de banco do Sprint
+3I; o calendário que mostra os dias de quem vai receber o trabalho, com o aviso
+de sobrecarga que não trava, ainda não existe. Nenhuma linha de `src/` chama
+`disponibilidade()` hoje.
+
+**Medido com seis mutações**, e os números estão no cabeçalho da 0081: devolver
+o zero da etapa em branco derruba 6 cenários, devolver o bug da janela derruba
+**10** — entre eles os cinco que a migration tinha deixado vermelhos —, tirar o
+`update` da capacidade derruba 6, fazer `carga_do_dia()` projetar derruba 3, e
+contar a estimativa inteira em cada dia derruba 2. **A sexta não derruba
+nenhum**, e é a do `where` da capacidade: é a que está escrita acima como não
+mensurável, e o zero é o que prova que a frase é verdadeira.
+
 ### Dependências
 
 Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não

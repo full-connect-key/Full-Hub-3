@@ -201,9 +201,15 @@ select teste.conferir('A carga de hoje soma as folhas e nao a mae',
   (select minutos_comprometidos::text from public.carga_do_dia(:BRUNO, current_date)),
   '120');
 
--- ETAPA SEM ESTIMATIVA ENTRA COMO ZERO E APARECE NA CONTAGEM: ela ocupa a
--- pessoa, so ninguem disse quanto. Sumir com ela faria a barra de carga dizer
--- que o dia esta livre.
+-- ETAPA SEM ESTIMATIVA ENTRA COMO TRES HORAS E APARECE NA CONTAGEM. Ela
+-- ocupava a pessoa e entrava como ZERO ate a 0081 -- e e isso que a decisao do
+-- usuario desfez: "se o tempo estiver em branco, deve contar 3 horas
+-- automaticamente, sem mostrar para a pessoa".
+--
+-- ZERO ERA O PIOR DOS DOIS MUNDOS: a etapa aparecia na contagem (entao a
+-- pessoa via "3 etapas") e nao somava minuto nenhum (entao a barra dizia que
+-- o dia estava livre). Tres etapas em branco enchem um dia de 540, que e a
+-- conta que ele pediu.
 insert into public.subtasks (task_id, titulo, ordem, responsavel_id, prazo, status)
 values (:TDEMANDA, 'Sem estimativa', 6, :BRUNO, current_date, 'nao_iniciada');
 
@@ -211,9 +217,12 @@ select teste.conferir('A etapa sem estimativa e contada a parte',
   (select etapas_sem_estimativa::text from public.carga_do_dia(:BRUNO, current_date)),
   '1');
 
-select teste.conferir('E a soma de minutos nao muda por causa dela',
+-- 300 SAO OS 120 DAS DUAS FOLHAS MAIS OS 180 DELA. Quem trocar o 180 do
+-- `coalesce` da 0081 por zero -- que era o comportamento da 0035 -- derruba
+-- este cenario e diz qual numero voltou.
+select teste.conferir('E a soma de minutos ganha as tres horas dela',
   (select minutos_comprometidos::text from public.carga_do_dia(:BRUNO, current_date)),
-  '120');
+  '300');
 
 
 -- --- 5. Producao do periodo -----------------------------------------------

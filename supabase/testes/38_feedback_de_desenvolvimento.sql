@@ -371,10 +371,12 @@ select teste.conferir_como('A carga de um mes fechado nao e zero', :ANA,
   '300');
 
 -- E COM POUCO TRABALHO DATADO, A RESSALVA DE OCIOSIDADE SAI -- e esta certa:
--- 300 minutos em 21 dias uteis e 3% da capacidade dela.
+-- 300 minutos em 21 dias uteis de 540 sao 2,6% da capacidade dela. Era 3,0%
+-- com o expediente de oito horas, e o expediente passou a ser de nove na
+-- 0081: o mesmo trabalho ocupa uma fatia menor de um dia maior.
 select teste.conferir_como('Carga baixa de verdade vira ressalva de ociosidade', :ANA,
   $q$select (public.feedback_contexto('33333333-3333-3333-3333-333333333333', '2027-04-01', '2027-04-30') -> 'ressalvas' ->> 0)$q$,
-  'A carga atribuída a esta pessoa no período foi de 3.0% da capacidade dela. Entrega baixa aqui é distribuição de trabalho, não desempenho.');
+  'A carga atribuída a esta pessoa no período foi de 2.6% da capacidade dela. Entrega baixa aqui é distribuição de trabalho, não desempenho.');
 
 -- DEZ DIAS FORA em abril de 2027, que tem 22 uteis: 45%.
 insert into public.team_presence (user_id, data, status)
@@ -406,10 +408,11 @@ select teste.conferir_como('Feriado nao conta como ausencia dela', :ANA,
   '10');
 
 -- A CAPACIDADE E POR PESSOA, e vem de `team_members` -- meio periodo existe, e
--- mudar contrato nao pode exigir deploy (0055).
+-- mudar contrato nao pode exigir deploy (0055). O numero e 540 desde a 0081:
+-- o expediente da casa passou a ser de nove horas, por decisao do usuario.
 select teste.conferir_como('A capacidade diaria vem da ficha da pessoa', :ANA,
   $q$select (public.feedback_contexto('33333333-3333-3333-3333-333333333333', '2027-04-01', '2027-04-30') -> 'carga' ->> 'capacidade_minutos_dia')$q$,
-  '480');
+  '540');
 
 
 -- ---------------------------------------------------------------------------

@@ -1,29 +1,111 @@
 -- ===========================================================================
--- ATENCAO: ESTA MIGRATION AINDA NAO ESTA PRONTA. NAO APLIQUE.
+-- A MEDICAO DA CARGA, COMO O USUARIO A DEFINIU
 --
--- Ela esta commitada em andamento para o trabalho nao se perder, e nao
--- porque esta terminada. O que falta:
+-- Esta migration subiu inacabada de proposito, com o cabecalho mandando nao
+-- aplicar e cinco cenarios vermelhos. O que faltava nao era codigo: era a
+-- DECISAO de como a carga se mede. Ela veio, e e dele, palavra por palavra:
 --
---   - a bateria tem 5 cenarios vermelhos. Quatro sao a consequencia
---     aritmetica da distribuicao (120 -> 45, 120 -> 64, 300 -> 173,
---     ociosidade 3,0% -> 1,7%) e precisam da expectativa atualizada COM a
---     razao escrita ao lado; o quinto ("As quatro etapas sem estimativa
---     aparecem na contagem", esperado 4, achado 38) ainda esta sendo
---     investigado -- parece etapa vencida chegando ao dia de hoje por
---     `carga_do_dia()`, que deveria passar `p_daqui_pra_frente = false`;
---   - faltam os cenarios que PROVAM a distribuicao, que e o criterio de
---     aceite do sprint: "uma subtarefa de 8h com janela de 5 dias uteis
---     aparece como ~1h36 por dia, nao 8h no ultimo dia";
---   - falta a prova por mutacao.
+--   "cada task deve contabilizar o tempo que foi preenchido, em que ela deve
+--    demorar. Se o tempo estiver em branco, deve contar 3 horas
+--    automaticamente, sem mostrar para a pessoa. O expediente tem 9 horas.
+--    Uma variavel que deve ser feita e: Se eu preencho o dia com 3 tasks em
+--    branco, e a pessoa finaliza uma delas antes do tempo, deve ja liberar
+--    para ser colocadas mais tasks sem o aviso. De qualquer maneira, deve
+--    aparecer apenas um aviso de sobrecarga, o atendimento, os socios e
+--    desenvolvedores devem poder registrar mesmo assim."
 --
--- E ela MUDA NUMERO QUE JA ESTA NA TELA: `carga_do_dia()` passou a dividir
--- a estimativa pela janela em vez de somar a estimativa inteira em cada dia
--- coberto. A Linha do Tempo do Calendario Full, o Inicio e os alertas de
--- carga do Feedback (0075) vao mostrar valores MENORES -- e o limiar de
--- sobrecarga do Feedback (110% em dois periodos seguidos) foi calibrado
--- contra os numeros inflados, entao ele vai disparar menos. Isso e o numero
--- ficando honesto, e e mudanca visivel: aplicar sem decidir isso e trocar o
--- significado de uma tela sem ninguem ter escolhido.
+-- Sao quatro regras, e as quatro cabem numa frase que a pessoa guarda de
+-- cabeca: TRES ETAPAS EM BRANCO ENCHEM UM DIA. 3h + 3h + 3h = 9h.
+--
+-- 1. ETAPA SEM ESTIMATIVA CONTA 180 MINUTOS, e nada na tela diz isso.
+-- 2. O EXPEDIENTE E DE 540 MINUTOS, e e o default da ficha da pessoa.
+-- 3. ETAPA CONCLUIDA LIBERA O DIA -- a conta e do que esta EM ABERTO.
+-- 4. SOBRECARGA AVISA, NUNCA RECUSA -- nenhuma trava do banco olha carga.
+--
+-- ---------------------------------------------------------------------------
+-- O QUE A REGRA 1 DESFAZ, E POR QUE A TROCA E BOA
+--
+-- A versao inacabada tinha `estimativa_presumida()`: tres degraus -- mediana
+-- do mesmo workflow nos ultimos 90 dias, mediana da agencia, 60 minutos --,
+-- e a tela marcava a etapa com `~` porque o numero era inventado. Ela sai
+-- inteira, e o `drop` e explicito: deixa-la de pe seria uma segunda resposta
+-- para a mesma pergunta, que e a decisao da 0023.
+--
+-- A mediana adaptava o palpite ao tipo de trabalho, e isso se perde. O que se
+-- ganha e maior: ela MUDAVA SOZINHA. A mesma etapa em branco ocupava uma
+-- fatia diferente a cada mes, conforme o historico da agencia andava, e nada
+-- na tela dizia por que -- quem delegou segunda e voltou sexta via outro
+-- numero sem ninguem ter mexido. Um valor de casa de 3 horas e previsivel, e
+-- por isso o `~` sai junto: o til existia para avisar que o numero era
+-- chute. Uma regra declarada da casa nao e chute, e dizer "~3h" sobre ela
+-- seria pedir desconfianca de uma coisa que esta certa.
+--
+-- ---------------------------------------------------------------------------
+-- A REGRA 2 MEXE EM LINHA QUE JA EXISTE, e e a unica parte com risco
+--
+-- `capacidade_minutos_dia` nasceu `not null default 480` na 0055. O default
+-- vira 540 -- e `alter column set default` SO VALE PARA LINHA NOVA, entao
+-- quem ja esta cadastrado continuaria em 8h e a regra que ele acabou de
+-- definir nao valeria para ninguem que existe.
+--
+-- Entao a migration atualiza as linhas que ainda carregam 480, E SO ELAS.
+-- Quem esta em 240 -- meio periodo existe, e e a razao pela qual a coluna e
+-- por pessoa -- fica como esta.
+--
+-- **O QUE ISSO NAO SABE DISTINGUIR, e fica dito em vez de escondido:** quem
+-- escolheu 480 de proposito. Nao ha como separar o 480 herdado do 480
+-- escolhido, porque a coluna nao guarda quem a escreveu. O lado escolhido e
+-- o de aplicar: 480 era o default da casa, a casa passou a ser de 9 horas, e
+-- deixar todo mundo em 8h faria a decisao valer so para quem entrar amanha.
+-- Quem tiver contrato de 8 horas se corrige num campo, sem deploy.
+--
+-- ---------------------------------------------------------------------------
+-- A REGRA 3 JA ESTAVA DE PE, E E POR ISSO QUE ELA GANHOU CENARIO
+--
+-- "Finaliza uma delas e ja libera" e o `status <> ''concluida''` do `where`,
+-- que esta ali desde a primeira linha desta funcao. Nao mudou nada -- e
+-- justamente por isso ela precisava de um cenario que a PROVE: uma regra que
+-- funciona por acidente de implementacao e uma regra que o proximo refactor
+-- apaga sem ninguem notar. O cenario monta o exemplo dele: tres etapas em
+-- branco no mesmo dia (540, 100%), conclui uma, e confere 360 e 67%.
+--
+-- ---------------------------------------------------------------------------
+-- A REGRA 4 NAO TEM CODIGO AQUI, E ISSO E A AFIRMACAO
+--
+-- Nenhuma trava deste produto olha carga, e nenhuma passa a olhar. O aviso de
+-- sobrecarga e da TELA, e o teto de 120 dias desta funcao e a unica recusa
+-- que ela tem -- e e sobre o tamanho do periodo pedido, nao sobre quanto
+-- trabalho a pessoa tem.
+--
+-- E a segunda metade da frase dele -- "o atendimento, os socios e
+-- desenvolvedores devem poder registrar mesmo assim" -- **nao tem a quem
+-- recusar**, e vale saber disso antes de alguem escrever um `if`: quem
+-- distribui trabalho numa demanda e `is_atendimento()` desde a 0006, que e
+-- exatamente Atendimento mais gestao. Os tres que ele nomeou sao os tres que
+-- a policy ja deixa passar. E a 0060 de novo -- uma segunda pergunta embaixo
+-- de uma primeira que ja barra todo mundo nao barra ninguem.
+--
+-- O cenario que prova isso esta na bateria, e e um `insert` de etapa num dia
+-- que ja esta a 180% passando sem recusa nenhuma.
+--
+-- ---------------------------------------------------------------------------
+-- MEDIDO COM SEIS MUTACOES, e uma delas nao derruba nada
+--
+--   180 -> 0 (a etapa em branco volta a contar zero) ........  6 cenarios
+--   a janela volta a cair em `t.data_inicio` (o bug) ........ 10 cenarios
+--   o `update` das fichas herdadas sai ......................  6 cenarios
+--   o `where` do `update` fica incondicional ................  0 cenarios
+--   `carga_do_dia()` volta a projetar .......................  3 cenarios
+--   a estimativa volta a contar inteira em cada dia .........  2 cenarios
+--
+-- O ZERO E A LINHA QUE IMPORTA LER. Meio periodo escolhido nao ser
+-- sobrescrito nao tem como ser provado nesta bateria: seria preciso uma ficha
+-- em 240 no instante em que esta migration roda, e o `rodar.sh` carrega o
+-- fixture depois da 0006 -- a coluna nasce na 0055, dezenas de migrations
+-- adiante. Quem tirar aquele `where` nao derruba cenario nenhum, e e por isso
+-- que isto esta escrito aqui em vez de ficar implicito num teste verde.
+--
+-- Roda mais de uma vez sem erro.
 -- ===========================================================================
 
 -- ---------------------------------------------------------------------------
@@ -98,68 +180,66 @@
 --
 -- 3. **"tipo de tarefa" e o WORKFLOW**, nome que o produto trocou no Sprint 9
 --    e que `check:cores` varre para nao voltar. E a ETAPA nao tem tipo
---    proprio: quem tem workflow e a demanda (`tasks.task_type_id`). A media
---    da estimativa sai dali, com a mediana da agencia como segundo degrau.
+--    proprio: quem tem workflow e a demanda (`tasks.task_type_id`). O sprint
+--    pedia a media da estimativa por tipo; a decisao do usuario trocou isso
+--    pelas 3 horas fixas do PASSO 1, e `task_type_id` deixou de ser lido
+--    aqui.
 --
 -- 4. **`capacidade_minutos_dia` nao tem default nulo**: a 0055 a criou
---    `not null default 480`. O `coalesce` abaixo cobre quem nao tem ficha de
---    equipe, que e outro caso.
+--    `not null default 480`, e o PASSO 0 o leva para 540 por decisao do
+--    usuario. O `coalesce` dentro da funcao cobre quem nao tem ficha de
+--    equipe, que e outro caso e por isso aparece duas vezes.
+-- ---------------------------------------------------------------------------
+
+
+-- ---------------------------------------------------------------------------
+-- PASSO 0 - O EXPEDIENTE PASSA A SER DE NOVE HORAS
 --
--- Roda mais de uma vez sem erro.
+-- Decisao do usuario: "o expediente tem 9 horas". A coluna nasceu
+-- `not null default 480` na 0055, e e POR PESSOA de proposito -- meio
+-- periodo existe, e mudar contrato nao pode exigir deploy.
+--
+-- O `update` alcanca so quem carrega 480, que e o default herdado; quem
+-- escolheu outro numero fica. O que ele nao sabe distinguir -- o 480 herdado
+-- do 480 escolhido -- esta no cabecalho, junto com a razao de aplicar mesmo
+-- assim.
 -- ---------------------------------------------------------------------------
+alter table public.team_members
+  alter column capacidade_minutos_dia set default 540;
+
+update public.team_members
+   set capacidade_minutos_dia = 540
+ where capacidade_minutos_dia = 480;
+
+comment on column public.team_members.capacidade_minutos_dia is
+  'Quantos minutos de trabalho cabem num dia desta pessoa. O expediente da casa e de 9 horas -- 540 minutos, decisao do usuario na 0081 -- e a coluna e por pessoa porque meio periodo existe, e mudar contrato nao pode exigir deploy.';
 
 
 -- ---------------------------------------------------------------------------
--- PASSO 1 - A ESTIMATIVA DE QUEM NAO TEM ESTIMATIVA
+-- PASSO 1 - A ETAPA EM BRANCO CONTA TRES HORAS
+--
+-- Decisao do usuario: "se o tempo estiver em branco, deve contar 3 horas
+-- automaticamente, sem mostrar para a pessoa".
 --
 -- Etapa sem `estimativa_minutos` nao pode sumir da conta: ela e trabalho, e
--- um calendario que a ignora mostra a pessoa mais livre do que ela esta. Mas
--- tambem nao pode entrar com um numero inventado sem aviso -- por isso a
--- funcao devolve um valor E a tela marca a etapa com `~`.
+-- um calendario que a ignora mostra a pessoa mais livre do que ela esta. O
+-- valor e 180 minutos, fixo, e a conta que ele faz e a que importa: TRES
+-- ETAPAS EM BRANCO ENCHEM UM DIA de 540.
 --
--- SAO TRES DEGRAUS, e a ordem importa: a mediana das etapas do mesmo
--- workflow nos ultimos 90 dias, a mediana da agencia no mesmo periodo, e 60
--- minutos. **Mediana e nao media**, porque uma etapa de 40h entre dez de 1h
--- puxa a media para 5h e a mediana continua em 1h -- e o que se quer e o
--- caso tipico, nao o excepcional.
+-- **E ELE NAO APARECE NA TELA**, que e a outra metade do pedido -- e por isso
+-- `estimativa_presumida()` sai inteira, junto com o `~` que a marcava. O til
+-- existia porque o numero era um chute que mudava sozinho; uma regra
+-- declarada da casa nao e chute, e pedir desconfianca dela seria errado.
 --
--- O NUMERO 60 MORA SO AQUI. Um gemeo em TypeScript seria a segunda verdade
--- de sempre, e a tela nao precisa dele: ela le o que esta funcao devolveu.
+-- O `drop` e explicito e nao preguica de `create or replace`: funcao de pe
+-- que nada chama e a segunda verdade esperando alguem reaproveita-la, que e
+-- a decisao da 0023 com a coluna apagada.
+--
+-- O NUMERO 180 MORA SO AQUI, no `coalesce` do PASSO 2. Um gemeo em TypeScript
+-- seria a segunda verdade de sempre -- e a tela nao precisa dele, porque ela
+-- nunca mostra este numero: ela le os minutos que esta funcao ja somou.
 -- ---------------------------------------------------------------------------
-create or replace function public.estimativa_presumida(p_workflow uuid default null)
-returns integer
-language plpgsql
-stable
-set search_path = public
-as $funcao$
-declare
-  resposta integer;
-begin
-  if p_workflow is not null then
-    select percentile_cont(0.5) within group (order by s.estimativa_minutos)
-      into resposta
-      from public.subtasks s
-      join public.tasks t on t.id = s.task_id
-     where t.task_type_id = p_workflow
-       and s.estimativa_minutos is not null
-       and s.created_at >= now() - interval '90 days';
-    if resposta is not null and resposta > 0 then
-      return resposta;
-    end if;
-  end if;
-
-  select percentile_cont(0.5) within group (order by s.estimativa_minutos)
-    into resposta
-    from public.subtasks s
-   where s.estimativa_minutos is not null
-     and s.created_at >= now() - interval '90 days';
-
-  return greatest(coalesce(resposta, 60), 1);
-end
-$funcao$;
-
-comment on function public.estimativa_presumida(uuid) is
-  'A estimativa de uma etapa que nao tem a propria (0081): mediana do workflow nos ultimos 90 dias, mediana da agencia, 60 minutos. Mediana e nao media -- uma etapa de 40h entre dez de 1h puxa a media e nao a mediana.';
+drop function if exists public.estimativa_presumida(uuid);
 
 
 -- ---------------------------------------------------------------------------
@@ -212,9 +292,13 @@ begin
       using hint = 'O calendário pede um mês por vez.';
   end if;
 
-  select coalesce(tm.capacidade_minutos_dia, 480) into cap
+  -- O 540 AQUI E PARA QUEM NAO TEM FICHA DE EQUIPE, e nao o default da
+  -- coluna -- aquele e do PASSO 0. Sao dois casos diferentes com o mesmo
+  -- numero, pela razao de `PRAZO_DE_APROVACAO_PADRAO`: um decide o que fica
+  -- gravado, o outro decide o que a conta usa para quem nao tem linha.
+  select coalesce(tm.capacidade_minutos_dia, 540) into cap
     from public.team_members tm where tm.user_id = p_user_id;
-  cap := coalesce(cap, 480);
+  cap := coalesce(cap, 540);
 
   return query
   with dias as (
@@ -228,12 +312,24 @@ begin
       c.nome_empresa as cliente,
       s.prazo,
       (s.estimativa_minutos is null) as estimada,
-      coalesce(s.estimativa_minutos, public.estimativa_presumida(t.task_type_id)) as minutos,
+      -- TRES HORAS PARA QUEM NAO TEM ESTIMATIVA, e o numero mora so aqui
+      -- (PASSO 1). Tres etapas em branco enchem um dia de 540.
+      coalesce(s.estimativa_minutos, 180) as minutos,
       greatest(
         -- O CHAO DA JANELA. Sem projetar, ela e o periodo que a etapa
         -- declara: `data_inicio` ate `prazo`, e so o prazo quando nao ha
         -- inicio -- que e o recorte que `carga_do_dia()` sempre teve.
-        coalesce(s.data_inicio, t.data_inicio, s.prazo),
+        --
+        -- E `t.data_inicio` NAO ENTRA AQUI, e tirar isso foi conserto de bug
+        -- e nao ajuste de gosto. A primeira versao caia nele quando a etapa
+        -- nao tinha inicio proprio, e `tasks.data_inicio` e DERIVADO das
+        -- etapas desde a 0028: ele e o menor prazo da demanda inteira. A
+        -- etapa herdava a janela da DEMANDA, entao quatro etapas datadas ao
+        -- longo de um mes passavam a cobrir o mes todo cada uma -- a carga de
+        -- um dia somava trinta e oito etapas em vez de quatro, e foi assim
+        -- que a bateria achou. E a mesma conta dobrada que a 0083 desfez um
+        -- nivel acima: o inicio do agrupador nao e o inicio do trabalho.
+        coalesce(s.data_inicio, s.prazo),
         -- HOJE, so olhando para a frente. Projetando, uma etapa vencida e
         -- trabalho de HOJE: ela continua pendente, e escondê-la e o jeito
         -- mais facil de sobrecarregar alguem sem perceber.

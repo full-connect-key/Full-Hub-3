@@ -427,11 +427,16 @@ select teste.cenario(
 -- ---------------------------------------------------------------------------
 -- 9. A CAPACIDADE DA PESSOA
 -- ---------------------------------------------------------------------------
+-- 540 E O EXPEDIENTE DE NOVE HORAS, decisao do usuario na 0081. A ficha nasce
+-- em 480 pelo `add column ... default 480` da 0055 -- que e o estado em que
+-- producao estava --, e a 0081 leva para 540 as linhas que ainda carregam o
+-- default herdado. Quem escolheu outro numero fica, porque a coluna e por
+-- pessoa: meio periodo existe.
 select teste.conferir(
-  'Capacidade nasce em 480 minutos (8h)',
+  'Capacidade nasce no expediente de nove horas (540)',
   (select capacidade_minutos_dia::text from public.team_members
     where user_id = '44444444-4444-4444-4444-444444444444'),
-  '480'
+  '540'
 );
 
 select teste.cenario(
