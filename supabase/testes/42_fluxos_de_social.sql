@@ -34,6 +34,7 @@
 \set FCLI   '''e0870000-0000-0000-0000-0000000000c1'''
 \set FTRES  '''e0870000-0000-0000-0000-0000000000f1'''
 \set FNOMES '''e0870000-0000-0000-0000-0000000000f2'''
+\set FENTR  '''e0890000-0000-0000-0000-0000000000f3'''
 
 select teste.limpar();
 
@@ -67,14 +68,41 @@ select teste.conferir('E o Envio e a entrega, nao o Programar',
 select teste.conferir('Sem conta nem mes escolhendo, o fluxo e o da casa',
   (select public.fluxo_do_mes(:FCLI)::text), :CASA);
 
--- AS DUAS PONTAS SUGERIDAS VIAJAM COM O FLUXO (0083 e 0084). Elas moravam em
--- `ETAPAS_DA_CORRENTE`, em TypeScript, e aquela lista nao sabe sugerir nada
--- para uma etapa que alguem acrescentou -- dez campos de data vazios fariam
--- quem abre o mes inventar dez datas na hora.
-select teste.conferir('A Pauta sugere comecar 31 dias antes do mes',
-  (select comeca_dias_antes || '/' || termina_dias_antes
-     from public.social_flow_steps where flow_id = :CASA and nome = 'Pauta'),
-  '31/27');
+-- AS DUAS PONTAS SUGERIDAS CHEGARAM A VIAJAR COM O FLUXO (0087) E SAIRAM NA
+-- 0089 -- decisao do usuario: *"tem uma aba comeca quantos dias antes do mes,
+-- e termina quantos dias antes do mes, nao faz sentido, por que cada mes tem um
+-- prazo de fluxo diferente, mas sempre que for aberto o social, o fluxo, deve
+-- ter a mesma sequencia de acoes"*.
+--
+-- O CENARIO FICOU, VIRADO DO AVESSO: ele provava que a Pauta sugeria 31/27, e
+-- hoje confere que as colunas SAIRAM. Quem as devolver derruba este e o de
+-- baixo, e o de baixo diz o que acontece com quem mandar a forma antiga.
+select teste.conferir('As duas pontas de data sairam do fluxo',
+  (select count(*)::text from information_schema.columns
+    where table_schema = 'public' and table_name = 'social_flow_steps'
+      and column_name in ('comeca_dias_antes', 'termina_dias_antes')),
+  '0');
+
+-- E A FORMA ANTIGA DE `p_etapas` E RECUSADA COM FRASE PROPRIA, nao ignorada.
+-- `p_etapas` e `jsonb`, entao uma chave a mais entra CALADA: quem mandar
+-- `comeca_dias_antes` gravaria o fluxo sem erro nenhum e descobriria no mes
+-- seguinte que as datas que ele acha que combinou nao estao em lugar nenhum. E
+-- a decisao do objeto de quantidades (0082) e da data solta (0084).
+select teste.recusa_com_dica('A forma antiga de p_etapas e recusada dizendo qual e a nova', :DIEGO,
+  $$select public.salvar_fluxo_de_social('Fluxo com os dias de volta',
+      jsonb_build_array(
+        jsonb_build_object('nome','Faz','funcao','Design','papel','producao',
+                           'comeca_dias_antes',19,'termina_dias_antes',12),
+        jsonb_build_object('nome','Manda','funcao','Gestao','papel','entrega')))$$,
+  'as datas são do mês');
+
+select teste.recusa_com('E a mensagem diz que o fluxo nao guarda mais os dias', :DIEGO,
+  $$select public.salvar_fluxo_de_social('Fluxo com os dias de volta',
+      jsonb_build_array(
+        jsonb_build_object('nome','Faz','funcao','Design','papel','producao',
+                           'termina_dias_antes',12),
+        jsonb_build_object('nome','Manda','funcao','Gestao','papel','entrega')))$$,
+  'não guarda mais os dias de cada etapa');
 
 -- E O DE-PARA DO CARD (0046) VIROU COLUNA, e nao o nome da etapa: renomear
 -- "Pauta" fazia a tela do portal abrir o portao com a caixa de texto vazia.
@@ -162,6 +190,71 @@ select teste.recusa_com('Fluxo sem entrega e recusado', :DIEGO,
         jsonb_build_object('nome','Layout','funcao','Design','papel','producao')))$$,
   'precisa de uma etapa de entrega');
 
+-- E QUANDO HA UM PORTAO DE CLIENTE E NENHUMA ENTREGA, A RECUSA NOMEIA O ELO.
+--
+-- Relato do usuario: *"quando tento montar um fluxo, ele aparece: Falta a etapa
+-- de entrega ao cliente -- mas essa etapa ja esta vinculada ao fato que o
+-- cliente, aprova a etapa de layout, que e a ultima de producao"*. O fluxo dele
+-- E representavel -- Layout com `papel = 'entrega'`, porque o papel e coluna
+-- desde a 0087 exatamente para o NOME ser livre --, e a recusa generica nomeava
+-- o que falta a quem acabou de marcar, na mesma tela, um interruptor escrito "o
+-- cliente aprova esta etapa". As duas frases falam do cliente. Dizer QUAL etapa
+-- marcar e a diferenca entre uma recusa e uma instrucao (0023).
+--
+-- O ELO NOMEADO E O ULTIMO PORTAO e nao o primeiro: numa conta que aprova pauta
+-- e layout, mandar a pessoa marcar a Pauta como entrega poria o envio ao
+-- cliente no inicio da corrente.
+select teste.recusa_com_dica('Sem entrega mas com portao, a recusa nomeia o ultimo portao', :DIEGO,
+  $$select public.salvar_fluxo_de_social('Fluxo que acha que entregou',
+      jsonb_build_array(
+        jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
+                           'aprovacao_cliente',true),
+        jsonb_build_object('nome','Layout','funcao','Design','papel','producao',
+                           'aprovacao_cliente',true)))$$,
+  'Se é em Layout que o cliente dá a palavra final');
+
+select teste.recusa_com('E a mensagem diz que marcar "o cliente aprova" nao entrega', :DIEGO,
+  $$select public.salvar_fluxo_de_social('Fluxo que acha que entregou',
+      jsonb_build_array(
+        jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
+                           'aprovacao_cliente',true),
+        jsonb_build_object('nome','Layout','funcao','Design','papel','producao',
+                           'aprovacao_cliente',true)))$$,
+  'Marcar "o cliente aprova" em Layout não entrega o material');
+
+-- E O FLUXO QUE O USUARIO QUERIA PASSA: a entrega E a ultima producao, com o
+-- nome dela e a funcao de quem a faz. E o cenario que prova que a recusa de
+-- cima e uma instrucao e nao um beco.
+select teste.conferir_como('A entrega pode ser a ultima producao, com nome proprio', :DIEGO,
+  format($q$select (public.salvar_fluxo_de_social(
+    'Layout é a palavra final',
+    jsonb_build_array(
+      jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
+                         'campo','pauta','aprovacao_cliente',true),
+      jsonb_build_object('nome','Conteúdo','funcao','Redator','papel','producao',
+                         'campo','legenda'),
+      jsonb_build_object('nome','Layout','funcao','Design','papel','entrega'),
+      jsonb_build_object('nome','Programar','funcao','Social Media','papel','pos_entrega')
+    ), %L) = %L)::text$q$, :FENTR, :FENTR),
+  'true');
+
+-- E ELA CONTINUA SENDO O PORTAO FINAL, que e a unica coisa que a 0089 nao
+-- afrouxou: `portoes_do_mes()` entra pelo PAPEL e nao pelo nome, entao a
+-- entrega chamada "Layout" e portao do mesmo jeito.
+select teste.conferir('E a entrega chamada Layout e portao, pelo papel',
+  (select string_agg(nome, ', ' order by ordem) from public.social_flow_steps
+    where flow_id = :FENTR and (aprovacao_cliente or papel = 'entrega')),
+  'Pauta, Layout');
+
+-- E A FUNCAO DELA E PERGUNTADA: `funcoesDoFluxo()` pulava a entrega com o
+-- argumento de que ela nao e trabalho de ninguem (0087) -- verdadeiro do 'Envio'
+-- da casa, falso aqui. Desde a 0088 ela e uma subtarefa de verdade, e entrega
+-- sem dono nao aparece no "Minhas Tasks" de ninguem.
+select teste.conferir('E o Design continua sendo quem faz a entrega dela',
+  (select funcao::text from public.social_flow_steps
+    where flow_id = :FENTR and papel = 'entrega'),
+  'Design');
+
 select teste.recusa_com('Duas entregas tambem', :DIEGO,
   $$select public.salvar_fluxo_de_social('Fluxo com duas entregas',
       jsonb_build_array(
@@ -173,10 +266,16 @@ select teste.recusa_com('Duas entregas tambem', :DIEGO,
 -- escreve a frase antes de gravar nada -- a decisao da maquina de estados da
 -- subtarefa ao lado dos gatilhos da 0007. Estas duas vao direto na tabela, que
 -- e o caminho de quem monta a chamada a mao.
+-- E A FRASE E A MESMA DOS DOIS LADOS, que e a licao da 0029 e da 0060: uma
+-- regra que mora em dois lugares com duas frases diferentes manda a pessoa a
+-- dois lugares diferentes. `:FTRES` tem os tres portoes do meio marcados, entao
+-- a recusa certa aqui e a ESPECIFICA -- a que nomeia o Layout --, e e ela que o
+-- gatilho precisa dizer tambem. Era 'precisa de uma etapa de entrega' ate a
+-- 0089, e o cenario mudou de agulha porque a frase mudou dos dois lados juntos.
 select teste.recusa_com('E o gatilho recusa o mesmo, na tabela', :DIEGO,
   format($q$delete from public.social_flow_steps
             where flow_id = %L and papel = 'entrega'$q$, :FTRES),
-  'precisa de uma etapa de entrega');
+  'Marcar "o cliente aprova" em Layout não entrega o material');
 
 -- O ELO ESCOLHIDO AQUI E O PROGRAMAR e nao o Layout, e a razao e um achado da
 -- propria bateria: o Layout carrega a marca do cliente neste fluxo, entao o

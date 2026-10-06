@@ -45,12 +45,11 @@ const esquemaDaEtapa = z.object({
   papel: z.enum(["producao", "entrega", "pos_entrega"]),
   campo: z.enum(["pauta", "legenda"]).nullable().optional(),
   aprovacao_cliente: z.boolean().optional(),
-  // AS DUAS PONTAS SÃO DIAS ANTES DO DIA 1 do mês, e podem ser nulas: o fluxo
-  // que não sugere nada deixa os campos de data em branco, e quem abre o mês
-  // escolhe. Negativo seria "depois do dia 1", que é caso real — a corrente
-  // pode atravessar a virada do mês — e por isso o mínimo não é zero.
-  comeca_dias_antes: z.number().int().min(-365).max(365).nullable().optional(),
-  termina_dias_antes: z.number().int().min(-365).max(365).nullable().optional(),
+  // AS DUAS PONTAS SAÍRAM NA 0089: o fluxo é a sequência de ações, e a data é do
+  // mês. O esquema é `z.object()` e não `.strict()`, então uma chave a mais
+  // passa por aqui — quem recusa a forma antiga com frase própria é
+  // `salvar_fluxo_de_social`, no banco, que é o lado que vale para quem monta a
+  // chamada à mão.
 });
 
 const esquemaDoFluxo = z.object({
@@ -99,8 +98,6 @@ export async function salvarFluxoDeSocial(dados: unknown): Promise<Resultado<str
         papel: e.papel,
         campo: e.campo ?? null,
         aprovacao_cliente: e.aprovacao_cliente ?? false,
-        comeca_dias_antes: e.comeca_dias_antes ?? null,
-        termina_dias_antes: e.termina_dias_antes ?? null,
       })),
       p_flow_id: lido.data.flow_id ?? null,
       p_descricao: lido.data.descricao ?? null,

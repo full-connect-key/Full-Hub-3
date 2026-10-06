@@ -529,14 +529,33 @@ select set_config('t39.semlayout',
   (select id::text from public.etapas_do_mes(current_setting('t39.marco')::uuid)
     where titulo = 'Layout'), false);
 
+-- UMA CAIXINHA POR VEZ, EM ORDEM, e nao um `update` com `in (...)`.
+--
+-- O ACHADO E DO DIA EM QUE ESTE CENARIO FALHOU SOZINHO, sem ninguem ter tocado
+-- nele: a trava A de `post_etapa_progresso_regras` e POR LINHA, e o Postgres
+-- nao garante a ordem em que as tres linhas de um `update` sao processadas.
+-- Caindo o Layout antes do Conteudo, a trava recusa com "Neste post falta
+-- Conteúdo antes desta etapa" -- que e a trava funcionando, sobre um caminho
+-- que o produto nao tem: na tela a pessoa marca uma caixinha por clique.
+--
+-- Ele passou dezenas de rodadas por sorte, que e exatamente o que um cenario
+-- nao pode fazer -- a mesma licao do `select` antes do `insert` na idempotencia
+-- da recorrencia: um teste que depende da ordem das linhas afirma sem provar.
 do $$
+declare
+  fase uuid;
 begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
-  update public.post_etapa_progresso set concluido = true
-   where post_id = current_setting('t39.sem')::uuid
-     and subtask_id in (select id from public.etapas_do_mes(current_setting('t39.marco')::uuid)
-                         where titulo in ('Pauta', 'Conteúdo', 'Layout'));
+  for fase in
+    select id from public.etapas_do_mes(current_setting('t39.marco')::uuid)
+     where titulo in ('Pauta', 'Conteúdo', 'Layout')
+     order by ordem
+  loop
+    update public.post_etapa_progresso set concluido = true
+     where post_id = current_setting('t39.sem')::uuid
+       and subtask_id = fase;
+  end loop;
   reset role;
 end $$;
 

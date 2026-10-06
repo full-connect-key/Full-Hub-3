@@ -353,18 +353,13 @@ select public.salvar_fluxo_de_social(
   'Três avaliações antes da arte',
   jsonb_build_array(
     jsonb_build_object('nome','Pauta','funcao','Social Media','papel','producao',
-                       'campo','pauta','aprovacao_cliente',true,
-                       'comeca_dias_antes',31,'termina_dias_antes',27),
+                       'campo','pauta','aprovacao_cliente',true),
     jsonb_build_object('nome','Conteúdo','funcao','Redator','papel','producao',
-                       'campo','legenda','aprovacao_cliente',true,
-                       'comeca_dias_antes',26,'termina_dias_antes',20),
+                       'campo','legenda','aprovacao_cliente',true),
     jsonb_build_object('nome','Layout','funcao','Design','papel','producao',
-                       'aprovacao_cliente',true,
-                       'comeca_dias_antes',19,'termina_dias_antes',12),
-    jsonb_build_object('nome','Envio','funcao','Gestao','papel','entrega',
-                       'comeca_dias_antes',11,'termina_dias_antes',7),
-    jsonb_build_object('nome','Programar','funcao','Social Media','papel','pos_entrega',
-                       'comeca_dias_antes',6,'termina_dias_antes',2)
+                       'aprovacao_cliente',true),
+    jsonb_build_object('nome','Envio','funcao','Gestao','papel','entrega'),
+    jsonb_build_object('nome','Programar','funcao','Social Media','papel','pos_entrega')
   ),
   'f1000000-0000-4000-8000-00000000000a',
   'A conta valida a pauta, o texto e a arte, cada um na vez dele, antes de o material sair como peça fechada.')
@@ -1041,6 +1036,8 @@ declare
   etapa    record;
   etapa_id uuid;
   anterior uuid;
+  -- QUANTOS ELOS O FLUXO TEM: a janela da corrente e dividida por ele (0089).
+  quantas  integer;
 begin
   select id into verde from public.clients where slug = 'mundo-verde' limit 1;
   if verde is null then
@@ -1316,6 +1313,9 @@ begin
   -- 0041 visto de outro angulo: sem ele as cinco etapas nasceriam sem dono, e
   -- etapa sem dono nao aparece no "Minhas Tasks" de ninguem -- o pior tipo de
   -- trabalho gerado automaticamente, o que ninguem sabe que nasceu.
+  select count(*) into quantas from public.social_flow_steps
+   where flow_id = 'f1000000-0000-4000-8000-00000000000a';
+
   for etapa in
     select e.*, row_number() over (order by e.ordem) as n
       from public.social_flow_steps e
@@ -1333,8 +1333,15 @@ begin
               else diego
             end,
             etapa.ordem,
-            primeiro - etapa.comeca_dias_antes,
-            primeiro - etapa.termina_dias_antes,
+            -- AS DUAS PONTAS SAEM DA SEQUENCIA (0089), e nao mais de duas
+            -- colunas do fluxo: a janela da corrente fecha dois dias antes do
+            -- dia 1 e tem trinta dias, divididos pelos elos, encostados sem se
+            -- sobrepor. E a mesma conta de `periodosSugeridosDoFluxo()` no
+            -- navegador -- escrita aqui porque o seed nao e a tela, e nao ha
+            -- par desta conta no Postgres de proposito: ela e uma sugestao que
+            -- aparece num campo editavel, nao uma regra que o banco cobra.
+            primeiro - (2 + 30 - round((etapa.n - 1) * 30.0 / quantas))::integer,
+            primeiro - (2 + 30 - round(etapa.n * 30.0 / quantas))::integer,
             case etapa.papel when 'producao' then 480 else 120 end,
             etapa.papel, etapa.campo, etapa.aprovacao_cliente)
     returning id into etapa_id;

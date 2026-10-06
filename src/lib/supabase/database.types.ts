@@ -2339,15 +2339,15 @@ export interface Database {
            *  (0046, virado coluna na 0087). */
           campo: string | null;
           /**
-           * As duas pontas SUGERIDAS, contadas do dia 1 do mês (0083/0084).
+           * AS DUAS PONTAS SUGERIDAS SAÍRAM NA 0089, e com elas as colunas.
            *
-           * Elas viajam com o FLUXO e não com a tela, e a razão é a cadeia
-           * editável: `ETAPAS_DA_CORRENTE` em TypeScript sabia sugerir os dias
-           * das cinco etapas que ela mesma listava, e não sabe sugerir nada
-           * para uma etapa que alguém acrescentou.
+           * Decisão do usuário: o fluxo é a sequência de ações, e cada mês tem
+           * calendário próprio. A sugestão continua existindo e é DERIVADA da
+           * ordem do elo na corrente — `periodosSugeridosDoFluxo()` em
+           * `lib/dominio/social-flows.ts` —, então ela serve a um fluxo de três
+           * elos e a um de dez sem nada guardado. É "atraso não é coluna"
+           * aplicado a uma sugestão: o que dá para calcular não se guarda.
            */
-          comeca_dias_antes: number | null;
-          termina_dias_antes: number | null;
           created_at: string;
         };
         Insert: never;
@@ -3219,8 +3219,6 @@ export interface Database {
             papel?: SocialFlowPapel;
             campo?: string | null;
             aprovacao_cliente?: boolean;
-            comeca_dias_antes?: number | null;
-            termina_dias_antes?: number | null;
           }[];
           p_flow_id?: string | null;
           p_descricao?: string | null;
@@ -3247,8 +3245,6 @@ export interface Database {
           papel: SocialFlowPapel;
           aprovacao_cliente: boolean;
           campo: string | null;
-          comeca_dias_antes: number | null;
-          termina_dias_antes: number | null;
         }[];
       };
       /** O fluxo que um mês de social vai usar: o escolhido, senão o padrão da

@@ -33,9 +33,9 @@ import {
   rotuloDoDiaDaEtapa,
 } from "@/lib/dominio/posts";
 import {
-  diaSugeridoDaEtapa,
   funcoesDoFluxo,
-  type EtapaDoFluxo,
+  periodosSugeridosDoFluxo,
+  type PeriodoSugerido as Periodo,
   type FluxoDeSocial,
 } from "@/lib/dominio/social-flows";
 
@@ -58,29 +58,17 @@ type Linha = {
   quantidade: string;
 };
 
-/** As duas pontas de uma etapa da corrente, em texto de `<input type="date">`. */
-type Periodo = { inicio: string; fim: string };
-
 /**
  * Os períodos sugeridos de uma corrente, a partir do mês.
  *
- * **AS DUAS PONTAS SAEM DO FLUXO** (0087), e não de uma lista fixa em
- * TypeScript: `ETAPAS_DA_CORRENTE` sabia sugerir os dias das cinco etapas que
- * ela mesma listava, e com a cadeia editável ela não saberia sugerir nada para
- * uma etapa que alguém acrescentou — dez campos de data vazios fariam quem abre
- * o mês inventar dez datas na hora.
+ * **ELES SÃO DERIVADOS DA SEQUÊNCIA (0089)**, e não mais de dois números
+ * guardados em cada elo do fluxo — decisão do usuário: o fluxo é a sequência de
+ * ações, e a data é do mês. A conta mora em `lib/dominio/social-flows.ts`, num
+ * lugar só: ela é chamada aqui no estado inicial e de novo ao trocar o mês, e
+ * duas cópias divergiriam na primeira vez que alguém mexesse numa.
  */
-function periodosSugeridos(mes: string, etapas: EtapaDoFluxo[]): Record<string, Periodo> {
-  return Object.fromEntries(
-    etapas.map((e) => [
-      e.nome,
-      {
-        inicio: diaSugeridoDaEtapa(mes, e.comeca_dias_antes),
-        fim: diaSugeridoDaEtapa(mes, e.termina_dias_antes),
-      },
-    ]),
-  );
-}
+const periodosSugeridos = periodosSugeridosDoFluxo;
+
 const TETO = 60;
 
 /**

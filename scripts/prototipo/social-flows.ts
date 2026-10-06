@@ -34,8 +34,6 @@ const CASA: FluxoDeSocial = {
       papel: "producao",
       aprovacao_cliente: false,
       campo: "pauta",
-      comeca_dias_antes: 31,
-      termina_dias_antes: 27,
     },
     {
       ordem: 20,
@@ -44,8 +42,6 @@ const CASA: FluxoDeSocial = {
       papel: "producao",
       aprovacao_cliente: false,
       campo: "legenda",
-      comeca_dias_antes: 26,
-      termina_dias_antes: 20,
     },
     {
       ordem: 30,
@@ -54,8 +50,6 @@ const CASA: FluxoDeSocial = {
       papel: "producao",
       aprovacao_cliente: false,
       campo: null,
-      comeca_dias_antes: 19,
-      termina_dias_antes: 12,
     },
     {
       ordem: 40,
@@ -64,8 +58,6 @@ const CASA: FluxoDeSocial = {
       papel: "entrega",
       aprovacao_cliente: false,
       campo: null,
-      comeca_dias_antes: 11,
-      termina_dias_antes: 7,
     },
     {
       ordem: 50,
@@ -74,8 +66,6 @@ const CASA: FluxoDeSocial = {
       papel: "pos_entrega",
       aprovacao_cliente: false,
       campo: null,
-      comeca_dias_antes: 6,
-      termina_dias_antes: 2,
     },
   ],
 };

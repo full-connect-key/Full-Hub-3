@@ -298,7 +298,14 @@ from (
     -- para `subtasks.social_papel`: a coluna nasce facil e a tabela e o que
     -- prova que o modelo novo esta de pe -- um banco com a coluna e sem a
     -- tabela nao tem onde guardar o "12 de 18".
-    ('0088', 'post_etapa_progresso',     'tabela',       'post_etapa_progresso')
+    ('0088', 'post_etapa_progresso',     'tabela',       'post_etapa_progresso'),
+    -- A 0089 tira as duas pontas de data do FLUXO: ele e a sequencia de acoes,
+    -- e a data e do mes. A linha e `sem_coluna` porque esta migration nao cria
+    -- objeto nenhum -- ela APAGA, e reescreve tres funcoes. A coluna que sumiu
+    -- e a pergunta certa: `etapas_do_fluxo()` existe desde a 0087 e responderia
+    -- ok num banco parado la.
+    ('0089', 'social_flow_steps.comeca_dias_antes saiu', 'sem_coluna',
+             'social_flow_steps.comeca_dias_antes')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -111,9 +111,11 @@ export function FluxosDeSocial({
         <p className="text-sm font-medium">O que é um fluxo de social</p>
         <p className="text-text-secondary mt-1 text-xs">
           A corrente de etapas que todo post de um mês percorre, na ordem: o
-          trabalho que acontece antes de enviar, a entrega ao cliente, e o que
-          vem depois da decisão dele. Cada conta combina o fluxo dela na ficha
-          do cliente, e quem abre o mês pode escolher outro naquele mês.
+          trabalho que acontece antes de enviar, a entrega ao cliente — que pode
+          ser o próprio trabalho que ele aprova — e o que vem depois da decisão
+          dele. As datas não ficam aqui: elas são de cada mês, e quem abre o mês
+          as escolhe. Cada conta combina o fluxo dela na ficha do cliente, e quem
+          abre o mês pode escolher outro naquele mês.
         </p>
       </div>
 
@@ -280,8 +282,6 @@ function paraEdicao(fluxo: FluxoDeSocial | null): EloEmEdicao[] {
     papel: e.papel,
     aprovacao_cliente: e.aprovacao_cliente,
     campo: e.campo,
-    comeca_dias_antes: e.comeca_dias_antes,
-    termina_dias_antes: e.termina_dias_antes,
   }));
 }
 
@@ -348,8 +348,6 @@ function EditorDoFluxo({
             papel: e.papel,
             campo: e.campo,
             aprovacao_cliente: e.aprovacao_cliente,
-            comeca_dias_antes: e.comeca_dias_antes,
-            termina_dias_antes: e.termina_dias_antes,
           })),
         }),
       );
@@ -502,13 +500,51 @@ function EditorDoFluxo({
 
               <p className="text-text-muted text-xs">{EXPLICACAO_DO_PAPEL[elo.papel]}</p>
 
-              {/* O PORTÃO DO CLIENTE SÓ APARECE EM ELO DE PRODUÇÃO, e o campo
-                  do card também. Desenhá-los desligados nos outros dois seria
-                  oferecer uma escolha que o banco recusa — e a entrega já É o
-                  portão, então um interruptor nela leria como "dá para
-                  desligar o envio ao cliente", que não dá. */}
-              {elo.papel === "producao" ? (
-                <div className="grid gap-2 sm:grid-cols-2">
+              {/* O PORTÃO DO CLIENTE SÓ APARECE EM ELO DE PRODUÇÃO: a entrega
+                  JÁ é o portão, então um interruptor nela leria como "dá para
+                  desligar o envio ao cliente", que não dá — e o `check` do banco
+                  recusa a marca fora da produção.
+
+                  **O CAMPO DO CARD APARECE EM TODOS (0089)**, e antes só na
+                  produção: `social_flow_steps_campo_conhecido` sempre aceitou
+                  campo em qualquer papel, e um fluxo cuja entrega é o "Conteúdo"
+                  enche a legenda. Esconder o seletor era a tela recusando o que o
+                  banco aceita.
+
+                  **E POR ISSO ELE VEM PRIMEIRO**, com o interruptor em segundo: o
+                  que está em toda linha ocupa a coluna da esquerda, e o que só
+                  existe em algumas ocupa a da direita. Na ordem contrária o mesmo
+                  seletor TROCA DE COLUNA entre uma linha e a seguinte — foi a
+                  imagem do protótipo que mostrou, com o campo da entrega sozinho
+                  à esquerda e o das três produções à direita. */}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor={`elo-campo-${elo.id}`} className="text-xs">
+                    O que ela preenche no post
+                  </Label>
+                  <Select
+                    value={elo.campo ?? SEM_CAMPO}
+                    onValueChange={(v) => mexer(elo.id, { campo: v === SEM_CAMPO ? null : v })}
+                    disabled={salvando}
+                  >
+                    <SelectTrigger
+                      id={`elo-campo-${elo.id}`}
+                      aria-label="Campo do post que esta etapa preenche"
+                      className="w-full"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SEM_CAMPO}>Nada — a arte, ou outra coisa</SelectItem>
+                      {CAMPOS_DA_ETAPA.map((c) => (
+                        <SelectItem key={c.valor} value={c.valor}>
+                          {c.rotulo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {elo.papel === "producao" ? (
                   <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
                     {/* `flex-col items-start` NO PRÓPRIO LABEL: o do shadcn é
                         `flex items-center gap-2`, então um `block` no filho não
@@ -521,7 +557,7 @@ function EditorDoFluxo({
                       O cliente aprova esta etapa
                       <span className="text-text-muted font-normal">
                         {elo.aprovacao_cliente
-                          ? "a corrente para aqui e espera ele"
+                          ? "a corrente para aqui e espera ele, e a peça fecha só na entrega"
                           : "segue direto para a etapa seguinte"}
                       </span>
                     </Label>
@@ -534,79 +570,20 @@ function EditorDoFluxo({
                       }
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`elo-campo-${elo.id}`} className="text-xs">
-                      O que ela preenche no post
-                    </Label>
-                    <Select
-                      value={elo.campo ?? SEM_CAMPO}
-                      onValueChange={(v) =>
-                        mexer(elo.id, { campo: v === SEM_CAMPO ? null : v })
-                      }
-                      disabled={salvando}
-                    >
-                      <SelectTrigger
-                        id={`elo-campo-${elo.id}`}
-                        aria-label="Campo do post que esta etapa preenche"
-                        className="w-full"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SEM_CAMPO}>Nada — a arte, ou outra coisa</SelectItem>
-                        {CAMPOS_DA_ETAPA.map((c) => (
-                          <SelectItem key={c.valor} value={c.valor}>
-                            {c.rotulo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* OS DOIS DIAS SÃO SUGESTÃO, contados do dia 1 do mês (0083 e
-                  0084) — quem abre o mês ajusta cada um. Eles vivem aqui e não
-                  na tela de abrir o mês porque a corrente é editável: uma lista
-                  fixa em TypeScript não sabe sugerir nada para uma etapa que
-                  alguém acrescentou, e dez campos de data vazios fariam quem
-                  abre o mês inventar dez datas na hora. */}
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor={`elo-comeca-${elo.id}`} className="text-xs">
-                    Começa quantos dias antes do mês
-                  </Label>
-                  <Input
-                    id={`elo-comeca-${elo.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    value={elo.comeca_dias_antes ?? ""}
-                    onChange={(e) =>
-                      mexer(elo.id, {
-                        comeca_dias_antes: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    disabled={salvando}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`elo-termina-${elo.id}`} className="text-xs">
-                    Termina quantos dias antes do mês
-                  </Label>
-                  <Input
-                    id={`elo-termina-${elo.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    value={elo.termina_dias_antes ?? ""}
-                    onChange={(e) =>
-                      mexer(elo.id, {
-                        termina_dias_antes: e.target.value === "" ? null : Number(e.target.value),
-                      })
-                    }
-                    disabled={salvando}
-                  />
-                </div>
+                ) : null}
               </div>
+
+              {/* OS DOIS DIAS SAÍRAM DAQUI (0089), e a ausência é a entrega.
+                  Decisão do usuário: *"tem uma aba começa quantos dias antes do
+                  mês, e termina quantos dias antes do mês, não faz sentido,
+                  porque cada mês tem um prazo de fluxo diferente, mas sempre que
+                  for aberto o social, o fluxo deve ter a mesma sequência de
+                  ações"*. O fluxo diz o que acontece e em que ordem; a data é do
+                  mês, e quem abre o mês a escolhe. A sugestão não se perdeu — ela
+                  é derivada da ordem do elo na corrente, por
+                  `periodosSugeridosDoFluxo()`, então um fluxo de três elos e um
+                  de dez chegam ao diálogo com as duas pontas preenchidas sem
+                  ninguém ter digitado número nenhum aqui. */}
             </li>
           ))}
         </ul>
@@ -624,8 +601,6 @@ function EditorDoFluxo({
                 papel: "producao" as SocialFlowPapel,
                 aprovacao_cliente: false,
                 campo: null,
-                comeca_dias_antes: null,
-                termina_dias_antes: null,
               },
             ])
           }

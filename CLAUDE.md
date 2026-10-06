@@ -2511,9 +2511,10 @@ o trabalho parado. O que continua travado é a corrente vencer de trás para a
 frente, agora comparando datas.
 
 **O padrão é contado do DIA 1 do mês que está sendo aberto**, e não de uma data
-literal: `diasAntesDoMes` em `ETAPAS_DA_CORRENTE` põe os cinco em 5, 12, 20, 25
-e 30 de outubro para novembro de 2027. Contado assim ele se adapta sozinho a
-mês de 28, 30 ou 31 dias; um dia fixo do mês anterior não faria isso.
+literal — contado assim ele se adapta sozinho a mês de 28, 30 ou 31 dias, e um
+dia fixo do mês anterior não faria isso. Ele morou em `ETAPAS_DA_CORRENTE`, foi
+para o FLUXO na 0087 e **saiu dele na 0089**: hoje é derivado da sequência, e o
+que vale está em "O fluxo é a sequência de ações", abaixo.
 
 **Trocar o mês no diálogo refaz as cinco datas**, e isto é o que o offset dava
 de graça: com número, "10 dias antes" valia para qualquer mês; com data, abrir
@@ -2592,8 +2593,9 @@ produz, onde ninguém vai procurar.
 
 **Os blocos sugeridos se encostam sem se sobrepor** — a Pauta fecha no dia em
 que o Conteúdo começa a correr. Quem quiser paralelismo arrasta o início, e as
-duas pontas são contadas do dia 1 do mês (`comecaEm` e `diasAntesDoMes`), então
-elas se adaptam a mês de 28, 30 ou 31 dias.
+duas pontas são contadas do dia 1 do mês, então elas se adaptam a mês de 28, 30
+ou 31 dias. Desde a 0089 elas são DERIVADAS da sequência em vez de guardadas,
+e quem as calcula é `periodosSugeridosDoFluxo()`.
 
 **Trocar o mês refaz ponta a ponta, e não o par inteiro:** quem ajustou só o
 fim da Pauta continua tendo o início refeito pelo mês novo, que é o que ela
@@ -3186,17 +3188,19 @@ das novas, que é a decisão da 0023: uma lista que nenhuma tela lê é o que al
 reaproveita errado três sprints depois, achando que ela ainda diz a verdade sobre
 a corrente.
 
-**As duas pontas sugeridas passaram a viajar com o FLUXO**, e esse é o ponto:
-aquela lista sabia sugerir os dias das cinco etapas que ela mesma listava, e não
-saberia sugerir nada para uma etapa que alguém acrescentou — dez campos de data
-vazios fariam quem abre o mês inventar dez datas na hora.
+**As duas pontas sugeridas passaram a viajar com o FLUXO**, e o argumento era
+este: aquela lista sabia sugerir os dias das cinco etapas que ela mesma listava,
+e não saberia sugerir nada para uma etapa que alguém acrescentou — dez campos de
+data vazios fariam quem abre o mês inventar dez datas na hora. **Elas saíram do
+fluxo na 0089**, e o custo continua pago: a sugestão virou derivada. O que vale
+está logo abaixo.
 
 **E as funções a distribuir passaram a ser DERIVADAS**, por `funcoesDoFluxo()`:
 com a lista fixa das três, o diálogo pediria um Redator a uma conta cujo fluxo
 não tem etapa de texto, e não pediria ninguém para a etapa que alguém
-acrescentou. **A entrega fica de fora da lista** — ela não é trabalho de
-ninguém: é consequência da rodada de escopo cliente (0032), e o dono dela é a
-gestão desde a 0007.
+acrescentou. **A entrega ficou de fora da lista até a 0089**, com o argumento de
+que ela não é trabalho de ninguém — verdadeiro do 'Envio' da casa, e falso como
+regra; hoje pergunta-se por toda função que o fluxo nomeia.
 
 O lado de cá mora em `lib/dominio/social-flows.ts`, e `oQueFaltaNoFluxo()` é o
 par de `conferir_fluxo_de_social()` — a decisão da máquina de estados da
@@ -3245,6 +3249,109 @@ fluxo que desaparece de lá é um fluxo que ninguém consegue trazer de volta. N
 ficha do cliente, a conta combinada com um fluxo desativado lê isso numa frase em
 âmbar, em vez de o seletor cair em "O padrão da casa" e a aba afirmar que ela não
 tem combinado.
+
+#### O FLUXO É A SEQUÊNCIA DE AÇÕES, E A DATA É DO MÊS
+
+Migration 0089, decisão do usuário: *"na criação do fluxo, tem uma aba começa
+quantos dias antes do mês, e termina quantos dias antes do mês, não faz sentido,
+por que cada mês tem um prazo de fluxo diferente, mas sempre que for aberto o
+social, o fluxo, deve ter a mesma sequência de ações"*.
+
+**O fluxo responde UMA pergunta — o que acontece, em que ordem, por quem — e as
+duas pontas de cada elo nunca foram resposta dela.** "Vinte dias antes" não é um
+combinado de contrato: é um número que quem abre novembro escolhe olhando o
+calendário de novembro.
+
+**COMO ELAS CHEGARAM AO FLUXO, porque o argumento era bom.** A 0083 tirou o
+offset de `post_etapas` e as duas pontas viraram data literal no diálogo; a 0084
+acrescentou o início; a 0087 tornou a corrente editável, e foi aí que elas
+subiram — com a razão escrita: `ETAPAS_DA_CORRENTE` sabia sugerir os dias das
+cinco etapas que ela mesma listava e não saberia sugerir nada para uma etapa
+acrescentada, e *"dez campos de data vazios fariam quem abre o mês inventar dez
+datas na hora"*.
+
+**AQUELE CUSTO CONTINUA PAGO, e é por isso que os campos não ficaram em
+branco.** O que estava errado não era sugerir, era **guardar** a sugestão no
+fluxo como se ela fosse parte do combinado — e ela é derivável da própria
+sequência: N elos encostados dentro da janela que antecede o dia 1. É "atraso
+não é coluna" aplicado a uma sugestão: **o que dá para calcular não se guarda**,
+senão são duas verdades e a guardada é a que envelhece.
+
+**A JANELA SÃO TRINTA DIAS FECHANDO DOIS ANTES DO DIA 1**, dividida pelos elos:
+cinco recebem seis dias cada, três recebem dez, dez recebem três. Os blocos se
+encostam sem se sobrepor, que é a decisão da 0084 — a Pauta fecha no dia em que
+o Conteúdo começa. **Com mais elos que dias a janela ESTICA** em vez de dar
+blocos de meio dia: o piso de um dia por elo é o que mantém `data_inicio <=
+prazo` e os prazos andando na mesma direção, que é o que o banco cobra.
+
+**Não há par no Postgres, e a ausência é decisão.** Isto não é
+`situacaoDoLancamento()`, que decide o que contar nos dois lados: é uma sugestão
+que aparece num campo editável antes de alguém salvar, e `abrir_mes_de_social`
+continua recebendo em `p_prazos` as datas que a pessoa confirmou.
+
+**E a forma antiga de `p_etapas` é recusada com frase própria.** Ele é `jsonb`,
+então uma chave a mais entra **calada** — quem mandar `comeca_dias_antes`
+gravaria o fluxo sem erro nenhum e descobriria no mês seguinte que as datas que
+acha que combinou não estão em lugar nenhum. É a decisão do objeto de
+quantidades (0082) e da data solta (0084).
+
+##### E A ENTREGA PODE SER A ÚLTIMA PRODUÇÃO
+
+Relato do usuário, na mesma tela: *"quando tento montar um fluxo, ele aparece:
+Falta a etapa de entrega ao cliente — mas essa etapa já está vinculada ao fato
+que o cliente aprova a etapa de layout, que é a última de produção"*.
+
+**O FLUXO DELE É REPRESENTÁVEL, e sempre foi:** Layout com `papel = 'entrega'`.
+O papel é coluna desde a 0087 exatamente para o NOME do elo ser livre. O que
+estava errado eram três coisas em volta disso, e nenhuma é o modelo:
+
+**1. A recusa não dizia o que fazer.** "Falta a etapa de entrega ao cliente"
+nomeia o que falta a quem acabou de marcar, na mesma tela, um interruptor
+escrito *"o cliente aprova esta etapa"* — as duas frases falam do cliente, e a
+pessoa concluiu com razão que uma satisfazia a outra. Agora ela nomeia o elo:
+*"Marcar 'o cliente aprova' em Layout não entrega o material"*, com a dica
+dizendo onde clicar. É a decisão da 0023 — dizer QUAL é a diferença entre uma
+recusa e uma instrução. **E a frase é a mesma dos dois lados**, na função e no
+gatilho, que é a lição da 0029 e da 0060.
+
+**2. Marcar o Layout como entrega perdia o Design.** `funcoesDoFluxo()` pulava a
+entrega, com o argumento da 0087 de que *"a entrega não é trabalho de ninguém"*
+— verdadeiro do 'Envio' da casa, que é um elo sem trabalho, e **falso como
+regra**: quem diz se ela é trabalho é o FLUXO, pela função que alguém escolheu
+nela. Desde a 0088 ela é uma subtarefa de verdade, com responsável, cronômetro e
+carga, e **entrega sem dono não aparece no "Minhas Tasks" de ninguém** (0041).
+A regra virou uma frase sem exceção: **pergunta-se por toda função que o fluxo
+nomeia**. De quebra isso conserta um aviso que mentia em todo mês aberto desde a
+0087 — o 'Envio' nascia com *"a conta não tem ninguém nessa função"*, e a conta
+nunca tinha sido perguntada.
+
+**3. E o campo do card não aparecia nela**, só na produção: o `check` do banco
+sempre aceitou campo em qualquer papel, e um fluxo cuja entrega é o "Conteúdo"
+enche a legenda. **Ele vem primeiro e o interruptor em segundo**, porque o que
+está em toda linha ocupa a coluna da esquerda — na ordem contrária o mesmo
+seletor troca de coluna entre uma linha e a seguinte, e foi a imagem do
+protótipo que mostrou.
+
+**O que NÃO muda é a trava inteira:** a entrega continua sendo UMA, nem zero nem
+duas, e continua sendo o portão final — é a aprovação dela que faz
+`posts.status = 'aprovado'` (0088). O que ela deixa de ser é obrigatoriamente um
+elo separado do trabalho.
+
+**Medido com quatro mutações:** devolver as duas colunas derruba **1** cenário,
+não recusar a forma antiga derruba 2, tirar o ramo do portão de
+`salvar_fluxo_de_social` derruba 2, e tirá-lo do gatilho derruba 1. **O primeiro
+é o que precisa de explicação:** nenhum outro cai, porque devolver uma coluna
+que ninguém lê não quebra nada — que é exatamente a razão pela qual ela não
+podia ficar. **E o último derruba um e não dois**, o que separa "a regra está no
+banco" de "a regra está na função".
+
+**De quebra, um cenário do arquivo 39 passava por SORTE.** Ele marcava três
+caixinhas num `update` só, e a trava A é por LINHA: o Postgres não garante a
+ordem em que as três são processadas, e caindo o Layout antes do Conteúdo a
+trava recusa — sobre um caminho que o produto não tem, porque na tela a pessoa
+marca uma caixinha por clique. Ele falhou sozinho, sem ninguém o ter tocado, e
+virou um laço em ordem. É a lição do `select` antes do `insert` na idempotência
+da recorrência: um teste que depende da ordem das linhas afirma sem provar.
 
 #### A PRODUÇÃO VIRA MENSAL, E A APROVAÇÃO CONTINUA POR POST
 
@@ -8910,6 +9017,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | Sprint | Entrega |
 | --- | --- |
 | A porta | **A tela de login ganhou identidade nova**, em cinco rodadas de proposta — e as quatro primeiras foram recusadas com *"não gostei de nenhuma"*. O que estava errado era a **composição**, não o fundo, e a instrução que fechou é do usuário: *"centralize as informações, deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula se dividindo e se juntando (…) apenas o logo da agência, sem escrever Full Hub, uma letra mais contemporânea, tecnológica"*. **A molécula é metaball**, e o efeito inteiro são duas linhas de filtro SVG: desfoca os seis círculos e **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os halos somados, e o corte transforma a soma numa borda só. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece* molécula e não é. Duas animações empilhadas em tempos que não batem: os átomos fundem e se partem em 26s, o conjunto atravessa em 64s. **O vidro é 82% opaco, e o número foi MEDIDO:** a proposta usava 58%, e com a molécula passando atrás o pior caso — o vidro sobre o ponto mais claro dela — dava `--auth-apoio` em **2,71:1**, o subtítulo e o link ilegíveis por um instante a cada volta, num tempo que ninguém reproduz de propósito. É a regra do selo de estado de outro ângulo: **ninguém mede uma cor que anda**. `--vidro-no-pior-caso` é um token que nada pinta, e existe só para o `check:cores` ter contra o que medir — contra o preto os três textos passariam por larga margem afirmando algo que a tela não garante; medido com mutação, três cenários caem. **A letra era Sora, carregada só em `(auth)`** — e deixou de ser: a Google Sans passou a valer no produto inteiro, por decisão do usuário, e a porta não tem mais letra própria. O título do login **alterna** entre a saudação e o lema da agência com as palavras subindo do desfoque, em CSS puro — a porta é a tela que alguém abre quando nada mais funciona, e uma frase que depende de hidratar pode não aparecer. **O `<h1>` continua "Entrar" e é `sr-only`:** sem isso a mesma tela teria dois títulos diferentes conforme o segundo em que alguém chegasse nela. **Dois achados foram da imagem e não do build:** os átomos saíram chapados (na proposta cada um era degradê radial), e o quadro em repouso era o de máxima separação — seis discos num canto —, consertado com atraso negativo nas duas animações. De quebra, **o wordmark de três linhas saiu do produto** junto com a coluna escura que existia para dar largura a ele, e isso fica escrito em vez de virar ausência silenciosa. |
+| Ajustes: o fluxo | **O fluxo é a sequência de ações, e a data é do mês** (0089). Decisão do usuário: *"na criação do fluxo, tem uma aba começa quantos dias antes do mês, e termina quantos dias antes do mês, não faz sentido, por que cada mês tem um prazo de fluxo diferente, mas sempre que for aberto o social, o fluxo, deve ter a mesma sequência de ações"*. As duas colunas saíram de `social_flow_steps` — **apagar e não aposentar** (0023) —, e a sugestão continua existindo DERIVADA da própria sequência: trinta dias fechando dois antes do dia 1, divididos pelos elos, encostados sem se sobrepor (0084). O custo que a 0087 pagava continua pago — nenhum campo de data nasce vazio —, e ela serve a um fluxo de três elos e a um de dez sem nada guardado. **E a forma antiga de `p_etapas` é recusada com frase própria**, porque `jsonb` aceita chave a mais calada. **A segunda metade é um blocker que o usuário encontrou:** *"quando tento montar um fluxo, ele aparece: Falta a etapa de entrega ao cliente — mas essa etapa já está vinculada ao fato que o cliente aprova a etapa de layout, que é a última de produção"*. O fluxo dele **era representável** — Layout com `papel = 'entrega'`, porque o papel é coluna desde a 0087 para o nome ser livre —, e o que estava errado eram três coisas em volta: a recusa não dizia qual etapa marcar (agora nomeia, nos dois lados); `funcoesDoFluxo()` pulava a entrega e marcá-la perdia o Design (hoje pergunta-se por toda função que o fluxo nomeia, o que de quebra conserta um aviso que mentia em todo mês desde a 0087); e o campo do card não aparecia nela, que o banco sempre aceitou. **1814 cenários, quatro mutações medidas** (1 / 2 / 2 / 1). **E um cenário do arquivo 39 passava por sorte** — três caixinhas num `update` só, com a trava A sendo por linha: ele falhou sozinho, sem ninguém o ter tocado, e virou um laço em ordem. |
 | Sprint 3J / Parte 1 | **A produção do social virou mensal, e a aprovação continua por post.** Migration 0088, com o recorte na frase do usuário: *"A produção vira mensal, a aprovação continua por post."* Era uma corrente POR PEÇA — com doze posts, `post_etapas` guardava sessenta etapas e a redatora via **doze linhas "Conteúdo" vencendo juntas**, doze trabalhos onde a frase dele descreve UM. A 0083 já tinha consertado a DATA e deixado o modelo de pé, e a 0084 registrou a pendência em voz alta: *"colapsar a corrente para uma por MÊS é mudança de modelo bem maior que a data, e não foi pedida; fica registrada aqui porque é a pergunta seguinte natural"*. Agora a fase é **uma subtarefa do mês** (`subtasks.social_papel`), e o trabalho por peça é **a caixinha** (`post_etapa_progresso`). **`post_etapas` foi APAGADA**, com os cinco triggers que a serviam e com `posts.subtask_id` — a decisão da 0023, e não aposentada ao lado. **O que o sprint comprou é o que a fase ganha de graça por SER uma subtarefa:** cronômetro, período, estimativa, as travas da 0007, a carga de `disponibilidade_bruta()` (0081) sem uma linha nova, e as TRÊS visões de Minhas Tasks — então `etapas-de-social.tsx` saiu, e com ele os três níveis `conta › demanda do mês › post`, que deixaram de existir como problema porque a etapa de Layout do mês é UMA linha e não doze. **O chip da área fica, com a contagem**, e as três passaram a sair da mesma `areaDaLinha()`, que pergunta `social_papel` — pelo caminho longo uma etapa acrescentada à mão no mês responderia "social", e pelo título um fluxo renomeado deixaria a área vazia. **Duas travas na caixinha, e a ordem entre elas foi medida:** o portão anterior sem a aprovação daquela peça vem ANTES da fase anterior aberta, senão na última fase a pessoa lia *"falta Envio"*, que é verdade e não diz o que fazer. **A caixinha da entrega não se marca à mão** (a regra da 0045 um nível abaixo), e `observacao` é o que sobrou da etapa de Ajustes — criar uma "Ajustes" por pedido afirmaria que o mês inteiro voltou por causa de uma peça. **A sexta origem do Calendário Full saiu**, por decisão do usuário (*"a corrente do social vive só em minhas tasks e na carga"*) — da VIEW e não só da lista de camadas, com `security_invoker = true` repetida pela quarta vez; o que ela não perde é a CARGA, porque a fase é subtarefa. **O bug que o teste de fumaça achou era meu, e caro:** `posts_corrente_do_cliente` lia o portão da decisão depois de a rodada já estar `aprovada`, então `k` contava a própria decisão e a função devolvia o portão SEGUINTE — um portão do meio aprovado deixava o post em `aprovado`, afirmando ao cliente, ao calendário e à grade do feed que a peça inteira fechou. A saída é `portao_do_mes_na_posicao()`, um lugar só com a conta posicional; **mutação: 7 cenários caem**. **E a bateria encontrou um furo de segurança que eu havia deixado:** nada protegia as três colunas novas, e `subtasks_update` aceita o dono da etapa — um colaborador poria `social_papel = 'entrega'` na própria fase; entrou `subtasks_protege_o_social`, pela razão de sempre, **policy não limita coluna**. **1805 cenários, sete mutações medidas** (2 / 6 / 3 / 7 / 5 / 9 / 3). De quebra, duas coisas do seed: ele apagava os posts e deixava a demanda do mês para trás, o que fazia a segunda passada estourar em `tasks_social_do_mes_unico` — e um `case` com dois literais de array virava `text` e era recusado pela coluna de enum, um bug latente desde a 0082 que só apareceu quando o seed voltou a chegar àquela linha. |
 | Sprint 3H | **Feedback de desenvolvimento assistido por IA.** Migration 0075: quatro tabelas, sete funções, e a exposição jurídica registrada no cabeçalho — **isto não é avaliação de desempenho**, e se um dia for, a regra muda inteira e passa pelo jurídico antes (LGPD, Art. 20). As três regras do módulo têm consequência de schema: comparação só consigo mesma (nenhuma função devolve duas pessoas lado a lado), os números crus na mesma linha do texto, e revisão humana por padrão. **Um rascunho vazado é pior que nenhum feedback**, e os cenários guardam os CINCO status que não são `enviado`. Quatro divergências do texto do sprint, todas sobre o produto como ele está: rascunho é `publicada_em is null` e não um valor de enum (quarto sprint a errar nisso); a tabela de autoavaliação foi apagada na 0043, então "o que ela quer desenvolver" virou "o que ela estudou"; não há Edge Functions aqui, e a geração periódica continua pendente da URL do app; e metade das métricas já existia — o que se copia da 0035 é a FORMA de cada conta, para a tela de Métricas e o feedback não discordarem sobre a mesma pessoa. **Três achados da bateria, e os três eram bugs**: `carga_do_dia()` devolvia zero num período fechado e o texto dizia a quem entregou o mês inteiro que a entrega baixa dela foi distribuição de trabalho; a proporção da capacidade acusava ociosidade num mês em que ninguém estimou; e `recebe_feedback_ia` nasceu inalcançável por quem ela é para. **83 cenários novos, 1494 no total**, medidos com quatro mutações. O `check:feedback` achou um bug meu na primeira rodada — o teto de três dígitos deixava a checagem de número cega para `2400` —, e o `check:cores` pegou os meus próprios comentários citando os dois nomes mortos que a varredura proíbe, pela sétima vez. |
 | Sprint 3F | **Comodatos: qual equipamento está com quem.** Migration 0069, e o **segundo módulo do zero em poucos sprints** — não havia ponte para atravessar desta vez, nem tabela nem coluna esperando alguém. `assets`, `asset_loans`, `asset_photos`, `asset_events` e `asset_term_template`, com duas visões da mesma informação numa rota só: o colaborador vê o que está com ele, a gestão vê o inventário inteiro. **A divergência do texto do sprint é de segurança**, e as duas frases dele não cabiam juntas: ele manda deixar o colaborador ler a linha do equipamento e, na linha seguinte, esconder `valor_aquisicao` numa view — mas **uma view não limita a tabela de baixo**, e com a policy permitindo a linha o valor sai por um `select=valor_aquisicao` no PostgREST. É a regra que o produto já escreveu três vezes de outro jeito: policy não limita coluna. Então a linha ficou **fora do alcance** e o recorte vem de `meus_comodatos()`, `security definer` — a forma de `usuarios_do_meu_cliente()`. **O índice único parcial é a trava** contra dois empréstimos do mesmo item, e não a consulta (0040); **o status é escrito pelo empréstimo**, por trigger; **atraso é derivado**, nunca coluna. **O termo é SNAPSHOT e não arquivo:** o corpo congela na entrega, porque o modelo é editável e um termo é o que a pessoa aceitou naquele dia — e o PDF é montado no download, porque o próprio sprint descreve o documento como vivo (o aceite aparece nele depois de acontecer), e um PDF gravado na entrega não tem como ganhar uma linha. Por isso não há bucket de termos. **A folha do equipamento é tabela própria e não o `audit_log`**: aquela trilha é só do sócio desde a 0058, e o que ela grava é diff de coluna, não fato. No desligamento, o equipamento em aberto **avisa com caixa obrigatória em vez de recusar** — travar deixaria a agência sem conseguir desligar quem já foi embora; o que ela impede é desligar sem ver. **61 cenários novos, 1355 no total**, e quatro bugs reais na primeira rodada: um `case` devolvendo texto para coluna de enum, emprestar criando DOIS eventos `emprestado` (o trigger de status e o do empréstimo), e `asset_term_template` com `id boolean primary key` — engenhoso, e quebra `registrar_auditoria()`, que grava o id num `uuid`. **E um cenário que passava pelo motivo errado:** a mutação que tirava a checagem de dono de `confirmar_recebimento()` não era pega, porque o teste procurava o empréstimo por um `select` que a RLS da outra pessoa não resolve — ele media a policy de SELECT, não a pergunta de propriedade. Com o id literal, a mutação cai. **E o seed passou a ter alguém desligada**, com uma lente em aberto: sem ela o alerta mais caro do módulo nunca aparece em desenvolvimento — a lição da 0062 aplicada antes do bug em vez de depois. |
