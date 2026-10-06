@@ -3,6 +3,8 @@ import { ptBR } from "date-fns/locale";
 import { CalendarX } from "lucide-react";
 
 import { CalendarioDePosts } from "@/components/portal/calendario-de-posts";
+import { BandejaSemData } from "@/components/portal/bandeja-sem-data";
+import { CabecalhoDoLote } from "@/components/portal/cabecalho-do-lote";
 import { CartaoDePost } from "@/components/portal/cartao-de-post";
 import { FiltrosDePosts } from "@/components/portal/filtros-de-post";
 import { GradeDoFeed } from "@/components/portal/grade-do-feed";
@@ -13,7 +15,11 @@ import {
   rotuloDoStatus,
 } from "@/components/shared/status-badge";
 import { enderecoDaArte } from "@/lib/dados/conteudo";
-import { postsDoMes, urlsDasArtes } from "@/lib/dados/posts";
+import {
+  loteAbertoDoMes,
+  postsDoMes,
+  urlsDasArtes,
+} from "@/lib/dados/posts";
 import { prazosDoPortal } from "@/lib/dados/portal";
 import {
   ehFaseDoMaterial,
@@ -26,6 +32,7 @@ import {
   mesDe,
   PLATAFORMAS,
   porDia,
+  semData,
   type FiltrosDePost,
   type PostDoPortal,
 } from "@/lib/dominio/posts";
@@ -99,11 +106,20 @@ export async function SocialDoPortal({
   filtros: FiltrosDePost;
 }) {
   const { hoje } = prazosDoPortal();
-  const todos = await postsDoMes(mes, clienteId ?? undefined);
+  const [todos, lote] = await Promise.all([
+    postsDoMes(mes, clienteId ?? undefined),
+    loteAbertoDoMes(mes, clienteId ?? undefined),
+  ]);
   const posts = todos.filter((post) => combinaComFiltroDePost(post, filtros));
 
   const artes = await urlsDasArtes(posts.map((p) => p.thumbnailUrl));
   const doDia = dia ? (porDia(posts).get(dia) ?? []) : [];
+
+  // AS PEÇAS SEM DIA MARCADO, que antes da 0091 não apareciam em lugar
+  // nenhum desta tela. `semData()` sai do mesmo `posts` já filtrado: o filtro
+  // de fase e de rede vale para elas como para qualquer outra.
+  const aindaSemData = semData(posts);
+  const datados = posts.filter((p) => p.dataPublicacao);
 
   // As duas coisas que a faixa de filtros precisa, e as duas saem do MÊS
   // INTEIRO — nunca do que sobrou do filtro.
@@ -143,6 +159,11 @@ export async function SocialDoPortal({
           para o BOTÃO: lá a rodada aberta precisa existir, senão o clique cai
           na recusa "esta rodada já foi decidida". Aqui a pergunta é outra —
           em que pé está o material deste mês. */}
+      {/* O CABEÇALHO DO LOTE vem ANTES dos filtros, e não depois: ele diz o
+          que chegou, e os filtros são como se recorta o que chegou. Depois
+          deles, a faixa leria como o resultado de um filtro. */}
+      <CabecalhoDoLote lote={lote} />
+
       <FiltrosDePosts
         filtros={filtros}
         contagens={contagens}
@@ -175,18 +196,30 @@ export async function SocialDoPortal({
           redes={[...new Set(posts.flatMap((p) => p.plataformas))]}
         />
       ) : visao === "lista" ? (
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <CartaoDePost
-              key={post.id}
-              post={post}
-              arte={enderecoDaArte(post.thumbnailUrl, artes)}
-              base={base}
-            />
-          ))}
+        /* NA LISTA A BANDEJA VAI NO FIM, e no calendário ela vai no topo: aqui
+           a ordem é cronológica, e o que não tem data não tem lugar na
+           cronologia — pô-las antes do dia 1 diria que elas vêm primeiro. */
+        <div className="space-y-6">
+          <div className="space-y-3">
+            {datados.map((post) => (
+              <CartaoDePost
+                key={post.id}
+                post={post}
+                arte={enderecoDaArte(post.thumbnailUrl, artes)}
+                base={base}
+              />
+            ))}
+          </div>
+
+          <BandejaSemData posts={aindaSemData} artes={artes} base={base} />
         </div>
       ) : (
         <>
+          {/* ACIMA DA GRADE: o cliente entrou aqui para decidir material, e
+              uma peça esperando a decisão dele não fica depois de seis semanas
+              de calendário. */}
+          <BandejaSemData posts={aindaSemData} artes={artes} base={base} />
+
           <CalendarioDePosts
             mes={mes}
             posts={posts}

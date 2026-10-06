@@ -65,9 +65,17 @@ export function GradeDoFeed({
 }) {
   // DO MAIS NOVO PARA O MAIS ANTIGO. `slice()` antes de ordenar porque o array
   // vem de cima e ordenar no lugar mudaria a ordem das outras visões.
-  const emOrdem = posts
-    .slice()
-    .sort((a, b) => b.dataPublicacao.localeCompare(a.dataPublicacao));
+  // DO MAIS NOVO PARA O MAIS ANTIGO, e as SEM DATA no fim: elas ainda não têm
+  // lugar na composição do feed -- é justamente o que a agência vai combinar
+  // --, e pô-las no topo diria que elas vão ao ar primeiro. Entre elas a ordem
+  // é a do tema, que já é sequencial no nome de fábrica.
+  const emOrdem = posts.slice().sort((a, b) => {
+    if (!a.dataPublicacao && !b.dataPublicacao)
+      return a.tema.localeCompare(b.tema, "pt-BR");
+    if (!a.dataPublicacao) return 1;
+    if (!b.dataPublicacao) return -1;
+    return b.dataPublicacao.localeCompare(a.dataPublicacao);
+  });
 
   return (
     <div className="space-y-4">
@@ -91,9 +99,11 @@ export function GradeDoFeed({
           // não carregou. Era esta linha, repetida em três lugares.
           const arte = enderecoDaArte(post.thumbnailUrl, artes);
           const estado = rotuloDoStatus(post.status);
-          const quando = format(parseISO(post.dataPublicacao), "d 'de' MMMM", {
-            locale: ptBR,
-          });
+          const quando = post.dataPublicacao
+            ? format(parseISO(post.dataPublicacao), "d 'de' MMMM", {
+                locale: ptBR,
+              })
+            : "Sem data definida";
 
           return (
             <li key={post.id}>

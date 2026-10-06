@@ -69,7 +69,31 @@ export type PostDoPortal = {
   clienteId: string;
   tema: string;
   legenda: string | null;
-  dataPublicacao: string;
+  /**
+   * O DIA EM QUE A PEÇA VAI AO AR, **ou nulo**.
+   *
+   * O tipo dizia `string`, e a coluna aceita nulo desde a 0044 — o mês de
+   * social abre em branco e quem produz distribui os dias depois. A mentira
+   * era barata e custou caro: foi ela que deixou toda a tela do portal
+   * assumir que um post sempre tem data, e é por isso que o filtro
+   * `data_publicacao` dentro do mês passou meses escondendo do cliente a peça
+   * enviada num portão do meio (o bug 1 da 0090) sem ninguém desconfiar.
+   *
+   * Com `| null` o TypeScript cobra o caso em cada tela, que é o que faz a
+   * bandeja "Sem data definida" existir em vez de ser lembrada.
+   */
+  dataPublicacao: string | null;
+  /**
+   * A DEMANDA DO MÊS a que esta peça pertence (`posts.social_task_id`, 0088).
+   *
+   * É por ela que o mês recorta a lista desde o Sprint 3K, e não mais pela
+   * data: a peça enviada num portão do meio não tem data nenhuma, e um
+   * recorte por data a escondia da área de Social do cliente.
+   *
+   * Nula no post AVULSO — fora de um mês aberto, que é a forma anterior à
+   * 0045. Esse continua entrando pela data, que é a única coisa que ele tem.
+   */
+  mesId: string | null;
   horario: string | null;
   /**
    * AS REDES em que esta peça sai (0082). Lista e não valor único: a mesma
@@ -180,7 +204,14 @@ export function porDia(posts: PostDoPortal[]): Map<string, PostDoPortal[]> {
   const mapa = new Map<string, PostDoPortal[]>();
 
   for (const post of posts) {
+    // POST SEM DATA NAO ENTRA NO MAPA DE DIAS, e nao vira a chave `"null"`:
+    // ele existe, o cliente precisa decidi-lo, e o lugar dele e a bandeja
+    // "Sem data definida" -- que e `semData()` logo abaixo. Agrupa-lo num dia
+    // inventado era a unica saida que o tipo antigo permitia, e e por isso que
+    // ele dizia `string`.
     const dia = post.dataPublicacao;
+    if (!dia) continue;
+
     const lista = mapa.get(dia);
     if (lista) lista.push(post);
     else mapa.set(dia, [post]);
@@ -196,6 +227,29 @@ export function porDia(posts: PostDoPortal[]): Map<string, PostDoPortal[]> {
   }
 
   return mapa;
+}
+
+/**
+ * AS PEÇAS SEM DIA MARCADO, do mês que está na tela.
+ *
+ * **Elas existem, e é esse o ponto do Sprint 3K.** Desde a 0044 o mês de
+ * social abre em branco e quem produz distribui os dias depois; e desde a 0076
+ * uma peça pode ir ao cliente num portão do MEIO — a pauta, a legenda —, onde
+ * a data ainda não existe e exigi-la seria uma recusa que a corrente não tem
+ * como satisfazer.
+ *
+ * Até aqui elas não apareciam em lugar nenhum da área de Social dele: a
+ * consulta filtrava por `data_publicacao` dentro do mês, a RLS liberava e a
+ * tela escondia. O cliente via um item em "esperando você" na tela inicial e
+ * uma área de Social vazia — que é a tela em que ele vai olhar.
+ *
+ * A ORDEM É A DO TEMA, e não a de criação: sem data não há cronologia, e o
+ * nome de fábrica delas ("Instagram 3 de 12 · Outubro/2026") já é sequencial.
+ */
+export function semData(posts: PostDoPortal[]): PostDoPortal[] {
+  return posts
+    .filter((p) => !p.dataPublicacao)
+    .sort((a, b) => a.tema.localeCompare(b.tema, "pt-BR"));
 }
 
 /**

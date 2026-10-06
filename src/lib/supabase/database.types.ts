@@ -3171,6 +3171,34 @@ export interface Database {
       };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
 
+      // --- O envio em lote do mes de social (migrations 0090 e 0091) -------
+      //
+      // `enviar_mes_ao_cliente` abre UM `social_lotes` e uma rodada de escopo
+      // cliente por peca elegivel, numa transacao so. Decisao do usuario: a
+      // unidade de envio passou a ser o MES; a decisao continua sendo de cada
+      // peca.
+      enviar_mes_ao_cliente: {
+        Args: { p_task_id: string; p_etapa_id: string; p_recado?: string | null };
+        Returns: { lote_id: string; portao: string; rodada: number; pecas: number };
+      };
+      // O que ainda nao pode sair, PECA POR PECA, com o motivo de cada uma. A
+      // tela a chama para desligar o botao antes do clique e para montar o
+      // link; `enviar_mes_ao_cliente` a chama para recusar nomeando.
+      o_que_falta_no_portao: {
+        Args: { p_task_id: string; p_etapa_id: string };
+        Returns: { post_id: string; tema: string; motivo: string }[];
+      };
+      // A DEMANDA do mes, para o portal recortar a lista por ela e nao pela
+      // data (0091). `security definer` porque o cliente nao enxerga `tasks`.
+      mes_de_social_do_portal: {
+        Args: { p_mes: string; p_client_id?: string | null };
+        Returns: string | null;
+      };
+      meses_de_social_do_portal: {
+        Args: { p_client_id?: string | null };
+        Returns: { mes: string; pecas: number }[];
+      };
+
       // --- Cronometro da subtarefa (migration 0021) -----------------------
       // O gemeo em TypeScript e `minutosMedidos()`, em `lib/dominio/tempo.ts`.
       // Esta aqui serve a consulta e ao relatorio; a tela usa a de la, que

@@ -359,6 +359,46 @@ const PARES = [
 
 const NOMES_MORTOS = [
   // ---------------------------------------------------------------------
+  // A DATA NÃO DECIDE SE UMA PEÇA DE SOCIAL EXISTE PARA O CLIENTE.
+  //
+  // É a regra do Sprint 3K, e a varredura existe porque o bug que ela
+  // conserta não quebra nada: desde a 0044 o mês de social abre sem data em
+  // nenhum post, e desde a 0076 a peça pode ir ao cliente num portão do MEIO
+  // — a pauta, a legenda —, onde a data ainda não existe. Um filtro
+  // `data_publicacao` dentro do mês passa no build, passa no tipo, passa na
+  // bateria (que é de SQL), e esconde do cliente material que ele precisa
+  // decidir. A RLS libera, a consulta esconde, e o sintoma é uma área de
+  // Social vazia com um item em "esperando você" na tela inicial.
+  //
+  // O recorte certo é a DEMANDA do mês (`posts.social_task_id`), resolvida
+  // por `mes_de_social_do_portal()` — o cliente não enxerga `tasks`.
+  //
+  // SÃO DOIS ARQUIVOS SALVOS, e os dois por razões diferentes.
+  //
+  // `lib/dados/posts.ts` é salvo pela razão de `datas.ts` na varredura
+  // abaixo: é lá que mora a explicação, e ela precisa citar o que proíbe. Lá
+  // dentro a data entra só no ramo do post AVULSO, que nunca teve mês — e no
+  // `or()` ela acompanha `social_task_id.is.null`.
+  //
+  // `lib/dados/social-media.ts` é salvo porque ela é a leitura do lado da
+  // AGÊNCIA, e lá o recorte por data está certo: aquela consulta desenha uma
+  // GRADE DE DIAS, e peça sem dia não tem célula. Quem responde pelos sem
+  // data ali é `postsSemData()`, uma consulta própria que alimenta a faixa
+  // "Sem data ainda" (0044) — a decisão que o lado do cliente não tinha, e
+  // que é justamente o que esta varredura passou a cobrar dele.
+  //
+  // `onde` continua sendo `src/` inteiro, e não os dois arquivos: o que a
+  // regra protege é a leitura NOVA, a que alguém escrever amanhã noutro
+  // lugar.
+  {
+    nome: 'gte("data_publicacao"',
+    onde: "src/",
+    salvo: ["src/lib/dados/posts.ts", "src/lib/dados/social-media.ts"],
+    porque:
+      "a data não decide se a peça existe para o cliente — recorte pela demanda do mês",
+  },
+
+  // ---------------------------------------------------------------------
   // O HOJE DA AGÊNCIA É UM SÓ, e estas são as duas formas que o produto
   // tinha espalhado por quinze arquivos.
   //
@@ -609,14 +649,16 @@ for (const { nome, onde, porque, salvo } of NOMES_MORTOS) {
   // O próprio check-cores.mjs cita os nomes na lista acima: ignorar este
   // arquivo é o que impede a verificação de acusar a si mesma. `salvo` é a
   // mesma ideia declarada caso a caso, para a regra que só pode ser
-  // explicada citando o que ela proíbe.
+  // explicada citando o que ela proíbe — um arquivo ou uma lista deles,
+  // porque uma regra pode ter mais de uma exceção com motivos diferentes.
+  const salvos = salvo ? (Array.isArray(salvo) ? salvo : [salvo]) : [];
   const linhas = achados
     .split("\n")
     .filter(
       (l) =>
         l &&
         !l.startsWith("scripts/check-cores.mjs") &&
-        !(salvo && l.startsWith(salvo)),
+        !salvos.some((s) => l.startsWith(s)),
     );
 
   if (linhas.length === 0) {

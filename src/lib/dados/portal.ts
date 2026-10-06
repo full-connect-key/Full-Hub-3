@@ -4,6 +4,7 @@ import { ouFalha } from "./consulta";
 import { fimDaSemanaNaAgencia, hojeNaAgencia } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
+import { lerPostsDoCliente } from "./posts";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
 import type { StatusRodada } from "@/lib/supabase/database.types";
 
@@ -201,21 +202,26 @@ export async function materiaisDaDemanda(
 async function postsComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
   const supabase = await criarClienteServidor();
 
+  // ---------------------------------------------------------------------
+  // A LEITURA É A MESMA DA ÁREA DE SOCIAL (Sprint 3K), e não um `select`
+  // próprio aqui.
+  //
+  // O sintoma mais revelador do bug 1 era justamente esta divergência: este
+  // arquivo não filtrava por data e `postsDoMes` filtrava, então a peça
+  // enviada num portão do meio aparecia na tela inicial e sumia na área de
+  // Social. O cliente lia "1 material esperando você" e abria uma tela vazia.
+  //
+  // `lerPostsDoCliente()` é a fonte única. Com um lugar só não há onde a
+  // divergência morar — é a decisão de `linhasDoPrecisaDeMim()`, que desenha
+  // as linhas e conta o número com a mesma função.
+  //
   // Sem filtro de `enviado_em`: `posts_select_cliente` já recusa o que não foi
   // enviado, e repetir a regra aqui criaria um segundo lugar onde ela pode
   // divergir. O `clienteId` é outra coisa — ele existe para a visualização
   // administrativa, onde quem pergunta é da equipe e enxerga todas as
   // empresas.
-  let consulta = supabase
-    .from("posts")
-    .select(
-      "id, client_id, tema, data_publicacao, prazo_aprovacao, status, thumbnail_url, arte_url, enviado_em, plataformas",
-    )
-    .order("data_publicacao");
-
-  if (clienteId) consulta = consulta.eq("client_id", clienteId);
-
-  const posts = ouFalha("os materiais do portal", await consulta);
+  // ---------------------------------------------------------------------
+  const posts = await lerPostsDoCliente(clienteId);
   if (posts.length === 0) return [];
 
   const rodadas = ouFalha(

@@ -10,7 +10,7 @@ import { doPost } from "@/lib/aprovacoes/conteudo";
 import { comentariosDe, enderecoDaArte } from "@/lib/dados/conteudo";
 import {
   obterPost,
-  postsDoMes,
+  postsDoMesmoMes,
   urlsDasArtes,
   versoesDoPost,
 } from "@/lib/dados/posts";
@@ -60,11 +60,25 @@ export async function DetalheDoPost({
   // exatamente o que alguém varrendo uuids quer saber.
   if (!post) notFound();
 
+  // `postsDoMesmoMes` E NAO `postsDoMes(mesDe(data))`: a peca enviada num
+  // portao do meio nao tem data (0044, 0076), e `mesDe(null)` estourava. A
+  // vizinhanca sai do MES da peca -- `posts.social_task_id` --, que e o mesmo
+  // recorte que a listagem passou a usar desde a 0091.
   const [versoes, comentarios, doMes] = await Promise.all([
     versoesDoPost(post.id),
     comentariosDe(doPost(post.id)),
-    postsDoMes(mesDe(post.dataPublicacao), clienteId ?? undefined),
+    postsDoMesmoMes(post, clienteId ?? undefined),
   ]);
+
+  // O MES PARA O LINK DE VOLTA sai da primeira vizinha DATADA, e nao do post:
+  // ele pode nao ter data nenhuma. Num mes em que nenhuma peca foi datada
+  // ainda, o link volta sem o parametro e o calendario abre no mes corrente --
+  // o que fica dito em vez de escondido: e o unico estado em que ele nao sabe
+  // para onde voltar, e e justamente o mes que a agencia acabou de abrir.
+  const mesDaVolta =
+    post.dataPublicacao ??
+    doMes.find((p) => p.dataPublicacao)?.dataPublicacao ??
+    null;
 
   // OS SLIDES DA VERSÃO CORRENTE, e não só a capa: é o que o cliente percorre
   // antes de decidir. `versoes` já vem da mais nova para a mais velha.
@@ -147,7 +161,9 @@ export async function DetalheDoPost({
     decididoPor: post.decididoPor,
     decididoEm: post.decididoEm,
     voltar: {
-      href: `${base}/social-media?mes=${mesDe(post.dataPublicacao)}`,
+      href: mesDaVolta
+        ? `${base}/social-media?mes=${mesDe(mesDaVolta)}`
+        : `${base}/social-media`,
       rotulo: "Voltar ao calendário",
     },
     vizinhos: {
@@ -178,7 +194,16 @@ export async function DetalheDoPost({
  * era o de baixo na lista.
  */
 function vizinhosDe(post: PostDoPortal, doMes: PostDoPortal[]) {
+  // AS SEM DATA FICAM NO FIM, e entre elas a ordem é a do tema: é a mesma
+  // ordem da bandeja "Sem data definida" e da grade do feed, e três ordens
+  // diferentes para a mesma lista fariam "próximo" levar a uma peça que não é
+  // a de baixo na tela.
   const ordenados = [...doMes].sort((a, b) => {
+    if (!a.dataPublicacao && !b.dataPublicacao)
+      return a.tema.localeCompare(b.tema, "pt-BR");
+    if (!a.dataPublicacao) return 1;
+    if (!b.dataPublicacao) return -1;
+
     const porData = a.dataPublicacao.localeCompare(b.dataPublicacao);
     if (porData !== 0) return porData;
     return (a.horario ?? "99:99").localeCompare(b.horario ?? "99:99");

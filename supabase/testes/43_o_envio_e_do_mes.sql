@@ -726,3 +726,99 @@ select teste.conferir('E ela nao arquiva demanda que nao e de social',
 select teste.conferir('Que continua sem carimbo de arquivo',
   (select (arquivada_em is null)::text from public.tasks
     where id = '43000000-0000-0000-0000-00000000aaaa'), 'true');
+
+
+-- --- 13. O MES VISTO DO PORTAL (0091) -------------------------------------
+--
+-- As duas funcoes que fazem o portal recortar o mes pela DEMANDA em vez de
+-- pela data. Elas sao `security definer` -- passam por cima da RLS de `tasks`,
+-- que o cliente nao enxerga --, entao o que estes cenarios medem e a guarda
+-- escrita no corpo delas. Sem ela a funcao responde sobre o mes de qualquer
+-- empresa para quem tiver o uuid, e o furo passa despercebido num banco com um
+-- cliente so.
+
+-- O CLIENTE LE O PROPRIO MES, e este e o conserto do bug 1 pelo lado do banco:
+-- `social_task_id in (select id from tasks ...)` devolveria vazio para ele.
+select teste.conferir_como('O cliente le a demanda do proprio mes', :JOANA,
+  format($fmt$select (public.mes_de_social_do_portal('2027-05') = %L)::text$fmt$,
+    current_setting('t43.maio')), 'true');
+
+-- E O CLIENTE DA OUTRA EMPRESA NAO LE, nem passando o client_id certo: para
+-- quem nao e da equipe o parametro e IGNORADO, e quem decide e `my_client_ids()`.
+select teste.conferir_como('O cliente da outra empresa nao le o mes desta', :OTTO,
+  $$select coalesce(public.mes_de_social_do_portal('2027-05')::text, 'nulo')$$, 'nulo');
+
+select teste.conferir_como('Nem passando o client_id da Mundo Verde', :OTTO,
+  format($fmt$select coalesce(
+    public.mes_de_social_do_portal('2027-05', %L)::text, 'nulo')$fmt$, :VERDE), 'nulo');
+
+-- A EQUIPE PRECISA DIZER DE QUAL EMPRESA, porque ela enxerga todas. Sem o
+-- parametro a funcao devolve nulo em vez de escolher uma -- a tela sem mes e
+-- melhor que a tela com o mes de outra conta.
+select teste.conferir_como('A equipe sem client_id nao recebe mes nenhum', :ANA,
+  $$select coalesce(public.mes_de_social_do_portal('2027-05')::text, 'nulo')$$, 'nulo');
+
+select teste.conferir_como('E com o client_id recebe o mes daquela conta', :ANA,
+  format($fmt$select (public.mes_de_social_do_portal('2027-05', %L) = %L)::text$fmt$,
+    :VERDE, current_setting('t43.maio')), 'true');
+
+-- MES TORTO VIRA NULO, e nao erro: o valor vem da URL, e `?mes=abril` nao pode
+-- derrubar a tela do cliente. E a decisao de `ehFaseDoMaterial` recusando o que
+-- nao existe.
+select teste.conferir_como('Mes torto na URL devolve nulo e nao estoura', :JOANA,
+  $$select coalesce(public.mes_de_social_do_portal('abril')::text, 'nulo')$$, 'nulo');
+
+select teste.conferir_como('E um mes que a conta nao tem tambem', :JOANA,
+  $$select coalesce(public.mes_de_social_do_portal('2019-02')::text, 'nulo')$$, 'nulo');
+
+-- OS MESES QUE A CONTA TEM, para a navegacao nao oferecer mes vazio. Maio
+-- aparece com as duas pecas enviadas; junho tambem, com a sua.
+select teste.conferir_como('O cliente le os meses que tem material enviado', :JOANA,
+  $$select count(*)::text from public.meses_de_social_do_portal()
+     where mes in ('2027-05-01', '2027-06-01')$$, '2');
+
+select teste.conferir_como('E maio conta as duas pecas', :JOANA,
+  $$select pecas::text from public.meses_de_social_do_portal()
+     where mes = '2027-05-01'$$, '2');
+
+select teste.conferir_como('O cliente da outra empresa nao le mes nenhum destes', :OTTO,
+  $$select count(*)::text from public.meses_de_social_do_portal()
+     where mes in ('2027-05-01', '2027-06-01')$$, '0');
+
+select teste.conferir_como('A equipe sem client_id nao le mes nenhum', :ANA,
+  $$select count(*)::text from public.meses_de_social_do_portal()$$, '0');
+
+select teste.conferir_como('E com o client_id le os da conta', :ANA,
+  format($fmt$select count(*)::text from public.meses_de_social_do_portal(%L)
+     where mes in ('2027-05-01', '2027-06-01')$fmt$, :VERDE), '2');
+
+-- MES SEM PECA ENVIADA NAO EXISTE PARA O CLIENTE, que e a linha da 0032
+-- aplicada a navegacao: oferecer o mes que a agencia abriu e ainda nao mandou
+-- seria oferecer uma tela vazia com a cara de material que nao chegou.
+select teste.cenario('A gestao abre julho e nao envia nada', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-07', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb,
+    %L, '{}'::jsonb, '{}'::jsonb,
+    'https://drive.google.com/drive/folders/JULHO', null)$fmt$,
+    :VERDE, :MARINA), 'ok', 1);
+
+select teste.conferir_como('E julho nao aparece na navegacao do cliente', :JOANA,
+  $$select count(*)::text from public.meses_de_social_do_portal()
+     where mes = '2027-07-01'$$, '0');
+
+-- E A CONTA CRUA NAO E CHAMAVEL SEM SESSAO. As duas sao `definer`, entao o
+-- `revoke` de `anon` e o que impede que a chave publica -- a que vai no bundle
+-- que o navegador baixa -- leia o mes de qualquer empresa.
+select teste.conferir('anon nao executa mes_de_social_do_portal',
+  (select has_function_privilege('anon',
+     'public.mes_de_social_do_portal(text, uuid)', 'execute')::text), 'false');
+
+select teste.conferir('anon nao executa meses_de_social_do_portal',
+  (select has_function_privilege('anon',
+     'public.meses_de_social_do_portal(uuid)', 'execute')::text), 'false');
+
+select teste.conferir('E authenticated executa as duas',
+  (select format('%s/%s',
+     has_function_privilege('authenticated', 'public.mes_de_social_do_portal(text, uuid)', 'execute')::text,
+     has_function_privilege('authenticated', 'public.meses_de_social_do_portal(uuid)', 'execute')::text)),
+  'true/true');

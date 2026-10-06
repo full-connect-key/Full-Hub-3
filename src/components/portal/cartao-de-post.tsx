@@ -52,10 +52,17 @@ export function CartaoDePost({
 
         <p className="leading-snug font-medium">{post.tema}</p>
 
+        {/* SEM DATA A LINHA DIZ ISSO, e não desaparece: a peça está esperando
+            uma decisão, e uma linha a menos faria o cartão parecer igual ao de
+            uma peça datada — com um vão onde estava a data. "Sem data
+            definida" é o que a agência ainda vai combinar, e o cliente decide
+            a pauta antes disso (0044, 0076). */}
         <p className="text-text-muted text-sm tabular-nums">
-          {format(parseISO(post.dataPublicacao), "dd 'de' MMMM", {
-            locale: ptBR,
-          })}
+          {post.dataPublicacao
+            ? format(parseISO(post.dataPublicacao), "dd 'de' MMMM", {
+                locale: ptBR,
+              })
+            : "Sem data definida"}
           {post.horario ? ` · ${post.horario}` : ""}
         </p>
       </div>

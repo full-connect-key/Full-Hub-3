@@ -306,7 +306,8 @@ from (
     -- ok num banco parado la.
     ('0089', 'social_flow_steps.comeca_dias_antes saiu', 'sem_coluna',
              'social_flow_steps.comeca_dias_antes'),
-    ('0090', 'social_lotes (o envio e do mes)', 'tabela', 'social_lotes')
+    ('0090', 'social_lotes (o envio e do mes)', 'tabela', 'social_lotes'),
+    ('0091', 'mes_de_social_do_portal()', 'funcao', 'mes_de_social_do_portal')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
