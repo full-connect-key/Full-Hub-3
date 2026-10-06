@@ -1826,6 +1826,7 @@ export interface Database {
           // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
           // dela conta em lista, contador, notificação ou portal.
           publicada_em: string | null;
+          arquivada_em: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1836,6 +1837,7 @@ export interface Database {
           // Omitido, a demanda nasce PUBLICADA (o default do banco é now()).
           // Rascunho se pede explicitamente, com null.
           publicada_em?: string | null;
+          arquivada_em?: string | null;
           briefing_rico?: Json | null;
           briefing_texto?: string | null;
           prioridade?: TaskPrioridade;
@@ -1853,6 +1855,7 @@ export interface Database {
           titulo?: string;
           client_id?: string | null;
           publicada_em?: string | null;
+          arquivada_em?: string | null;
           briefing_rico?: Json | null;
           briefing_texto?: string | null;
           prioridade?: TaskPrioridade;
@@ -3209,6 +3212,41 @@ export interface Database {
           ocupacao_pct: number | null;
           evento: string | null;
           itens: Json;
+        }[];
+      };
+      /**
+       * O MÊS DE SOCIAL E A DEMANDA DELE SÃO UMA COISA SÓ (0086).
+       *
+       * Decisão do usuário. `apagar_mes_de_social` apaga os posts e a
+       * demanda numa transação só; `limpar_posts_do_mes` apaga só os posts e
+       * deixa a estrutura, para quem errou a grade; `o_que_vai_com_o_mes`
+       * conta antes, para o diálogo dizer o que sai em vez de perguntar "tem
+       * certeza?".
+       *
+       * As três recusam quando algum post já foi ao cliente — e quem vale é o
+       * trigger `tasks_apaga_o_social`, não elas: com a trava só aqui, apagar
+       * a demanda no board seria a porta dos fundos.
+       *
+       * `posts_do_mes` não está declarada: ela é a ponte que as três usam por
+       * dentro, e nenhuma tela a chama.
+       */
+      apagar_mes_de_social: {
+        Args: { p_task_id: string };
+        Returns: number;
+      };
+      limpar_posts_do_mes: {
+        Args: { p_task_id: string };
+        Returns: number;
+      };
+      o_que_vai_com_o_mes: {
+        Args: { p_task_id: string };
+        Returns: {
+          posts: number;
+          enviados: number;
+          aprovados: number;
+          versoes: number;
+          etapas: number;
+          comentarios: number;
         }[];
       };
       carga_da_equipe: {

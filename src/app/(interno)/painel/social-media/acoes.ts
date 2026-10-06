@@ -874,3 +874,122 @@ export async function criarPastaDoMesDeSocial(
     );
   });
 }
+
+/**
+ * O que sai junto ao apagar um mês inteiro.
+ *
+ * O diálogo CONTA o que vai junto em vez de perguntar "tem certeza?" — a
+ * decisão do diálogo de apagar campanha. E a contagem sai da MESMA ponte que
+ * o apagamento usa, pela razão de `quem_deve_nota()` na 0066: duas contas
+ * dariam um diálogo prometendo doze e um apagamento alcançando onze.
+ */
+export async function oQueVaiComOMes(taskId: string): Promise<
+  Resultado<{
+    posts: number;
+    enviados: number;
+    aprovados: number;
+    versoes: number;
+    etapas: number;
+    comentarios: number;
+  }>
+> {
+  return executarAcao("oQueVaiComOMes", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase.rpc("o_que_vai_com_o_mes", { p_task_id: taskId });
+    if (error) return falha(error.message);
+
+    const linha = data?.[0];
+    if (!linha) return falha("Esta demanda não é um mês de social.");
+    return sucesso("", linha);
+  });
+}
+
+/**
+ * Apaga o mês inteiro: os posts e a demanda, numa transação só.
+ *
+ * **O VÍNCULO É NOS DOIS SENTIDOS** (migration 0086, decisão do usuário): se
+ * a demanda é apagada o social vai junto, e se o mês é apagado a demanda vai
+ * junto. Quem garante isso é o trigger `tasks_apaga_o_social` e não esta
+ * action — com a trava escrita só aqui, apagar a demanda no board de Gestão
+ * de Tasks seria a porta dos fundos dela, e é a que não pergunta nada.
+ *
+ * A recusa do banco vem com `hint`, e ele diz as duas saídas — arquivar e
+ * limpar os posts. Por isso a mensagem concatena os dois: uma trava que só diz
+ * "não pode" devolve a pessoa ao apagar um por um, que é o que o pedido
+ * existe para resolver.
+ */
+export async function apagarMesDeSocial(taskId: string): Promise<Resultado> {
+  return executarAcao("apagarMesDeSocial", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase.rpc("apagar_mes_de_social", { p_task_id: taskId });
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+
+    revalidatePath(ROTA);
+    revalidatePath("/painel/gestao-tasks");
+    await anunciar("task");
+    return sucesso(`Mês apagado, com ${data ?? 0} post(s).`);
+  });
+}
+
+/**
+ * Apaga só os posts e deixa a demanda, as etapas e os prazos de pé.
+ *
+ * Para quem errou a grade mas acertou os responsáveis. A trava do post já
+ * enviado vale aqui também: ela é sobre o MATERIAL que o cliente viu, não
+ * sobre a casca.
+ */
+export async function limparPostsDoMes(taskId: string): Promise<Resultado> {
+  return executarAcao("limparPostsDoMes", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase.rpc("limpar_posts_do_mes", { p_task_id: taskId });
+    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+
+    revalidatePath(ROTA);
+    revalidatePath("/painel/gestao-tasks");
+    await anunciar("task");
+    return sucesso(`${data ?? 0} post(s) apagado(s). A demanda e as etapas ficaram.`);
+  });
+}
+
+/**
+ * Tira o mês da navegação padrão, ou devolve.
+ *
+ * É o que a recusa oferece no lugar quando o cliente já viu alguma coisa, e é
+ * **reversível e não apaga nada** — por isso ele é um carimbo
+ * (`tasks.arquivada_em`) e não um valor de enum: `task_status` tem sete e
+ * nenhum deles é "arquivado", e no enum ele entraria no seletor dos sete e
+ * viraria coluna no board. É a decisão de `publicada_em` (0028).
+ *
+ * Ela escreve por `update` e não por RPC: a policy de `tasks` já decide quem
+ * mexe numa demanda, e uma função só para carimbar uma coluna seria uma
+ * segunda porta para o que a policy já governa.
+ */
+export async function arquivarMesDeSocial(
+  taskId: string,
+  arquivar: boolean,
+): Promise<Resultado> {
+  return executarAcao("arquivarMesDeSocial", async () => {
+    await exigirGestorNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("tasks")
+      .update({ arquivada_em: arquivar ? new Date().toISOString() : null })
+      .eq("id", taskId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(error.message);
+    if (!data) return falha("O banco recusou. Arquivar um mês é do desenvolvedor ou do sócio.");
+
+    revalidatePath(ROTA);
+    revalidatePath("/painel/gestao-tasks");
+    return sucesso(arquivar ? "Mês arquivado." : "Mês de volta à navegação.");
+  });
+}

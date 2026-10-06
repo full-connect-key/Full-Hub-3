@@ -282,7 +282,12 @@ from (
     -- A 0085 reescreve `saldo_de_ferias()` e cria `descanso_usado_no_ciclo()`.
     -- A linha aponta para a NOVA: o saldo existe desde a 0011 e responderia ok
     -- num banco parado la, com a conta acumulativa.
-    ('0085', 'descanso_usado_no_ciclo()', 'funcao', 'descanso_usado_no_ciclo')
+    ('0085', 'descanso_usado_no_ciclo()', 'funcao', 'descanso_usado_no_ciclo'),
+    -- A 0086 liga o mes de social a demanda dele nos dois sentidos. A linha
+    -- aponta para a funcao que apaga os dois juntos: `arquivada_em` tambem
+    -- serviria, mas uma coluna nao prova que o TRIGGER esta de pe, e e ele a
+    -- trava.
+    ('0086', 'apagar_mes_de_social()', 'funcao', 'apagar_mes_de_social')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -148,8 +148,27 @@ export function AcoesDaTask({
         />
       ) : (
         <ConfirmDialog
-          title="Excluir esta task?"
-          description="A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
+          title={task.social_do_mes ? "Excluir este mês de social?" : "Excluir esta task?"}
+          /* O MÊS DE SOCIAL E A DEMANDA DELE SÃO UMA COISA SÓ desde a 0086,
+             decisão do usuário — então apagar a demanda apaga os posts, as
+             versões, as artes e o registro de cada aprovação.
+
+             E A FRASE TEM QUE DIZER ISSO AQUI, nesta tela, porque é aqui que
+             o clique acontece: quem abre o board não está pensando em social,
+             está apagando uma linha. Sem esta frase, a simetria que ele pediu
+             vira uma armadilha — e a trava do banco só recusa quando o
+             cliente já viu alguma coisa; o mês inteiro em produção sai sem
+             nenhuma recusa, que é exatamente o caso de "errei a montagem".
+
+             A contagem exata fica no diálogo do Social Media, que lê
+             `o_que_vai_com_o_mes()`. Aqui ela não cabe: este componente não
+             tem os números e buscá-los custaria uma consulta por abertura da
+             tela de task, para uma frase que quase nenhuma delas mostra. */
+          description={
+            task.social_do_mes
+              ? "Os posts do mês somem junto — as artes, as versões, os comentários e o registro de cada aprovação. Não dá para desfazer, e o banco recusa se algum post já tiver ido ao cliente."
+              : "A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
+          }
           confirmLabel="Excluir"
           destructive
           onConfirm={async () => {

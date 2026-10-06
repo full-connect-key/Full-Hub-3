@@ -2657,6 +2657,70 @@ itens na aba lateral"*. O que está escrito sobre as duas remoções — por que
 entrada sai e a rota fica, e o que passou a ser a porta — está em **"As duas
 entradas saem da barra"**, logo abaixo da seção de Minhas Tasks.
 
+#### O mês e a demanda dele são UMA COISA SÓ
+
+Migration 0086, decisão do usuário: *"preciso que o social seja vinculado como
+um todo. Se eu apago a demanda, o social deve ser deletado em todos os locais.
+Se eu apago o social, a demanda deve ser deletada."* E antes dela o pedido que
+a motivou: *"gostaria que desse pra deletar tudo que eu montei do mês, caso
+tenha errado"* — hoje só dava post a post, e a demanda ficava para trás, vazia.
+
+**O VÍNCULO SE DESFAZIA EM SILÊNCIO, e isso era um furo de verdade.**
+`posts.subtask_id` é `on delete set null` desde a 0032, então apagar a demanda
+do mês em Gestão de Tasks apagava as subtarefas e deixava os **posts órfãos**:
+continuavam no Social Media, continuavam no portal do cliente, e não tinham
+mais mês nenhum. Sem erro, sem aviso, e sem nada na tela ligando uma coisa à
+outra.
+
+**A TRAVA MORA NO TRIGGER, E NÃO NA ACTION.** É a linha que mais importa desta
+migration. Com a simetria ligada existem duas portas para o mesmo estrago — o
+botão do Social Media e o "Excluir task" do board —, e uma trava escrita só no
+diálogo do Social Media transformaria a outra na porta dos fundos dela: a que
+não pergunta nada. É a lição da 0029 e da 0060, as duas vezes em que a regra
+morava em dois lados e desfazer um não desfez nada.
+
+**E ele não vira laço.** O trigger em `tasks` apaga os posts do mês; a função
+apaga os posts e **depois** a demanda, e aí o trigger encontra zero post e não
+faz nada. É a forma da 0080, onde o espelho vai num sentido só de propósito.
+
+**`before delete` e não `after`**, e a bateria mostrou por quê: num `after` as
+subtarefas já saíram pelo cascade e `posts.subtask_id` já está nulo —
+`posts_do_mes()` acharia zero, e os posts ficariam órfãos sem erro nenhum. É a
+pegadinha que a 0080 pagou com o espelho da campanha.
+
+**A trava recusa quando o cliente já viu**, e a recusa diz as duas saídas:
+arquivar, ou limpar só os posts. Uma trava que só diz "não pode" devolve a
+pessoa ao apagar um por um, que é justamente o que o pedido existe para
+resolver. **E ela vale para "limpar os posts" também** — ela é sobre o
+material, não sobre a casca: sem isso, limpar seria o caminho de apagar o que o
+cliente aprovou sem passar por recusa nenhuma.
+
+**`arquivada_em` é CARIMBO e não valor de enum**, pela razão de `publicada_em`
+(0028): `task_status` tem sete valores e nenhum deles é "arquivado", um valor
+de enum não pode ser usado na mesma transação em que nasce, e arquivado é
+estado do ciclo de vida e não do trabalho — no enum entraria no seletor dos
+sete e viraria coluna no board.
+
+**Uma divergência do texto do sprint, e ela é para MAIS.** O 3J abre o "Excluir
+mês" para `is_gestor() or is_atendimento()`; aqui é `is_gestor()` e mais nada,
+que é quem já apaga UM post desde a 0042. Apagar sessenta posts não pode ser
+mais fácil que apagar um — e o Atendimento, que **abre** o mês desde a 0046,
+continua abrindo: abrir trabalho e destruir trabalho são duas decisões.
+
+**O diálogo do board passou a dizer o que vai junto.** Quem abre Gestão de
+Tasks não está pensando em social, está apagando uma linha — e sem a frase a
+simetria vira armadilha, porque a trava do banco só recusa quando o cliente já
+viu: o mês inteiro em produção sai sem nenhuma recusa, que é exatamente o caso
+de "errei a montagem". A contagem exata fica no Social Media, que lê
+`o_que_vai_com_o_mes()`; ali no board ela custaria uma consulta por abertura de
+tela de task para uma frase que quase nenhuma mostra.
+
+**Medido com três mutações, e a do meio é a que vale ler:** tirar o trigger
+derruba 10 cenários, trocar `before` por `after` derruba os mesmos 10, e tirar
+a trava do trigger deixando-a na função derruba **um** — "E apagar a demanda
+dele no board também". Um cenário só separa "a regra está no banco" de "a regra
+está na tela", e sem ele a diferença não apareceria em lugar nenhum.
+
 #### O mês de social é UMA demanda, e cada post é uma etapa dela
 
 Migration 0061, decisão do usuário: *"atualmente quando abro o mês de social,
