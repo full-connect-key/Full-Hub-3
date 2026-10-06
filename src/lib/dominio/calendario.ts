@@ -260,9 +260,14 @@ export type NivelDeCarga = "vazio" | "folgado" | "cheio" | "estourado";
  * exatamente o que a Matriz do Full Days evita ao não contar "remoto" como
  * fora.
  *
- * **Etapa sem estimativa conta como zero minuto e aparece na contagem**, e é
- * honesto: ela ocupa a pessoa, só ninguém disse quanto. A tela diz "3 etapas,
- * 1 sem estimativa" em vez de fingir um número.
+ * **Etapa sem estimativa conta TRÊS HORAS**, e não mais zero — decisão do
+ * usuário na migration 0081. Zero era o pior dos dois mundos: a etapa
+ * aparecia na contagem (a pessoa lia "3 etapas") e não somava minuto nenhum
+ * (a barra dizia que o dia estava livre). A conta da casa é que três etapas
+ * em branco enchem um dia de nove horas.
+ *
+ * O número mora no `coalesce` de `disponibilidade_bruta()` e em mais nenhum
+ * lugar — nem aqui: esta função recebe os minutos que o banco já somou.
  */
 export function nivelDaCarga(carga: CargaDeUmDia, capacidadeMinutos: number): NivelDeCarga {
   if (carga.etapas === 0) return "vazio";
