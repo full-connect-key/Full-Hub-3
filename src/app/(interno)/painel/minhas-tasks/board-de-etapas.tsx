@@ -74,7 +74,7 @@ import { STATUS_EM_ORDEM, type LinhaPessoal } from "./linhas";
  * — mover o card aqui é a própria ação, e ela vale.
  *
  * Quem recusa uma transição impossível é o banco, e a recusa dele diz o
- * caminho ("A rodada é criada pela ação Enviar para aprovação"). É a mesma
+ * caminho ("A rodada é criada pela ação Pedir aval interno"). É a mesma
  * decisão do seletor de status: nada aparece desligado, e a pessoa descobre o
  * porquê onde ela tentou. O card volta para a coluna de origem sozinho.
  */

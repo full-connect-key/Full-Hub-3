@@ -199,8 +199,8 @@ export type AcaoDeSubtarefa = {
  * A tabela da Parte 3.2 do sprint, em código:
  *
  *   requer_aprovacao = false          → Concluir
- *   requer_aprovacao = true, interna  → Enviar para aprovação
- *   requer_aprovacao = true, cliente  → Enviar para aprovação
+ *   requer_aprovacao = true, interna  → Pedir aval interno
+ *   requer_aprovacao = true, cliente  → Pedir aval interno
  *
  * O responsável NUNCA vê "Concluir", "Entregar", "Finalizar" nem "Enviar para
  * o cliente" quando há aprovação — e não é só uma questão de layout: o banco
@@ -242,7 +242,7 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
       if (ctx.requerAprovacao) {
         acoes.push({
           id: "enviar_aprovacao",
-          rotulo: "Enviar para aprovação",
+          rotulo: "Pedir aval interno",
           principal: true,
           desabilitada: false,
         });
@@ -290,14 +290,26 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
     });
   }
 
-  // "Enviar para o cliente" é do Desenvolvedor, e só depois do aval interno.
+  // "Enviar ao cliente" é da gestão, e só depois do aval interno.
   //
-  // `!souOResponsavel` não é excesso de zelo: quem produziu não manda material
-  // ao cliente em circunstância nenhuma, nem sendo desenvolvedor. Quem deu o
-  // aval interno já foi outra pessoa — é ela quem envia.
+  // **É UMA PERGUNTA SÓ desde a 0060**, e aqui ela era duas: havia um
+  // `!souOResponsavel` ao lado do `souGestor`. Aquela migration tirou a
+  // segunda pergunta dos TRÊS ramos de `validar_nova_rodada` — subtarefa
+  // inclusive —, e este lado ficou para trás: o desenvolvedor dono de uma
+  // etapa que pede aval do cliente não via o botão, embora o banco aceitasse
+  // o clique dele. O motivo está no cabeçalho da 0060 e no CLAUDE.md, fora de
+  // `src/`, porque `check:cores` varre a frase que saiu.
+  //
+  // **É a lição da 0029 na direção contrária.** Lá a bateria ficou verde com
+  // a action ainda recusando; aqui o banco liberou e a TELA continuou
+  // escondendo — o mesmo furo, com o lado que sobrou invertido. E a varredura
+  // não pegou porque o comentário dizia a mesma coisa com outras palavras;
+  // ela ganhou essa forma também.
+  //
+  // A regra que o usuário pediu continua inteira: `souGestor` já recusa todo
+  // colaborador, dono do material ou não.
   if (
     ctx.souGestor &&
-    !ctx.souOResponsavel &&
     ctx.requerAprovacao &&
     ctx.tipoAprovacao === "cliente" &&
     ctx.avalInterno &&
@@ -306,7 +318,7 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
   ) {
     acoes.push({
       id: "enviar_cliente",
-      rotulo: "Enviar para o cliente",
+      rotulo: "Enviar ao cliente",
       principal: true,
       desabilitada: false,
     });

@@ -48,13 +48,32 @@ export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
 // e ela sai de `carga_da_equipe()` chamando `carga_do_dia()` (0035) — nenhuma
 // das duas lê esta view: elas leem `subtasks` direto. Sai a barra da etapa e
 // fica o peso dela, que é o que responde "a equipe aguenta?".
+//
+// ---------------------------------------------------------------------------
+// E A SEXTA VOLTOU COM OUTRO RECORTE, que é a lista acima dizendo a verdade.
+//
+// A 0088 tirou a `etapa_de_post` da view, e ESTA LISTA FICOU COM ELA: um
+// interruptor chamado "Etapas de post" que ligava e desligava zero linha.
+// Nada quebrou, nada avisou, e foi a 0090 que mostrou — ela devolveu a
+// origem com o nome `fase_de_social`, e o `in("tipo", camadas)` de
+// `itensDoCalendario` passou a FILTRAR FORA exatamente as linhas que a
+// migration acabara de criar. Quem abrisse o calendário com qualquer camada
+// escolhida não veria fase nenhuma; sem camada na URL elas chegavam e caíam
+// num `ROTULOS_DE_CAMADA[tipo]` indefinido, com o selo em branco e sem cor.
+//
+// **As duas não são a mesma coisa, e é por isso que o nome mudou.** A que
+// saiu era uma linha por PEÇA por fase — com doze posts, sessenta linhas no
+// mês de uma conta só. A que entrou é uma linha por FASE: cinco por mês, cada
+// uma o trabalho de uma pessoa num dia, que é exatamente o que esta tela
+// responde. Manter o nome antigo faria o interruptor nomear o que ele não
+// liga mais.
 // ---------------------------------------------------------------------------
 
 export const CAMADAS: TipoNoCalendario[] = [
   "ausencia",
   "evento",
   "post",
-  "etapa_de_post",
+  "fase_de_social",
   "campanha",
   "entregavel",
 ];
@@ -63,9 +82,12 @@ export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
   ausencia: "Quem está fora",
   evento: "Eventos",
   post: "Posts",
-  // "Etapas de post" e não "Produção do social": o rótulo tem que dizer a
-  // ENTIDADE, porque o interruptor liga e desliga exatamente estas linhas.
-  etapa_de_post: "Etapas de post",
+  // O RÓTULO DIZ A ENTIDADE, porque o interruptor liga e desliga exatamente
+  // estas linhas — e a entidade mudou na 0090: era "Etapas de post", uma
+  // linha por peça, e virou a FASE do mês, uma linha por fase. Trocar a
+  // origem e deixar o rótulo antigo é a tela nomeando o que ela não mostra
+  // mais.
+  fase_de_social: "Fases do social",
   campanha: "Campanhas",
   entregavel: "Materiais de campanha",
 };
@@ -89,11 +111,11 @@ export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
   post: "bg-success-soft text-success",
   // O MESMO PAR DO POST, e é escolha. A legenda AGRUPA quem divide a cor —
   // como a do Social Media já faz com as duas mãos que dividem o azul, e a do
-  // portal com os sete status em cinco tons. A etapa é o trabalho por trás da
-  // peça, e a camada tem interruptor próprio: quem quiser separar as duas na
+  // portal com os sete status em cinco tons. A fase é o trabalho por trás das
+  // peças, e a camada tem interruptor próprio: quem quiser separar as duas na
   // tela desliga uma. Inventar um sexto par aqui seria pintar de cor nova uma
   // coisa que pertence à mesma família.
-  etapa_de_post: "bg-success-soft text-success",
+  fase_de_social: "bg-success-soft text-success",
   campanha: "bg-warning-soft text-warning",
   entregavel: "bg-warning-soft text-warning",
 };

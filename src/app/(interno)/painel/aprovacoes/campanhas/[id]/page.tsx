@@ -89,7 +89,7 @@ export default async function PaginaDaCampanha({
   );
 
   // O ESTADO DO AVAL INTERNO DE CADA PEÇA, numa consulta para a árvore
-  // inteira. É ele que decide entre "Enviar para análise" e "Enviar ao
+  // inteira. É ele que decide entre "Pedir aval interno" e "Enviar ao
   // cliente", e a pergunta é a MESMA que `validar_nova_rodada` faz no banco —
   // esta existe só para escrever a frase do botão desligado.
   const analise = await analiseDosEntregaveis(

@@ -210,7 +210,7 @@ try {
   const NAO_PODE_CASAR = [
     "Esta demanda tem 3 etapas sem aprovação: Conceito, Layout, Revisão.",
     "Ninguém envia ao cliente a própria entrega.",
-    "A rodada é criada pela ação Enviar para aprovação",
+    "A rodada é criada pela ação Pedir aval interno",
     "Task não encontrada.",
     "new row violates row-level security policy for table \"tasks\"",
     "Cliente não encontrado.",

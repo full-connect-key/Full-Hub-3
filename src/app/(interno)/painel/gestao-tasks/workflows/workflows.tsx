@@ -567,7 +567,7 @@ export function Workflows({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={SEM_VALOR}>Sem aprovação</SelectItem>
-                            <SelectItem value="interna">Aprovação interna</SelectItem>
+                            <SelectItem value="interna">Aval interno</SelectItem>
                             <SelectItem value="cliente">Aprovação do cliente</SelectItem>
                           </SelectContent>
                         </Select>

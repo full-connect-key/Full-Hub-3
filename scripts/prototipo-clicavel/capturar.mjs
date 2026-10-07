@@ -131,7 +131,7 @@ const DIALOGOS = [
     // esta.
     nome: "enviar-aprovacao",
     rota: "/painel/gestao-tasks/77777777-7777-7777-7777-777777777777",
-    passos: ['button:has-text("Enviar para aprovação")'],
+    passos: ['button:has-text("Pedir aval interno")'],
   },
   {
     nome: "aprovacao-ajustes",

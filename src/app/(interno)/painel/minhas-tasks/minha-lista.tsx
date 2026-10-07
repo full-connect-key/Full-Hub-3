@@ -46,7 +46,7 @@ const IconeDaCampanha = ICONE_DA_AREA.campanhas;
  *
  * O botão de cada etapa sai de `AcoesDaSubtarefa`, o mesmo componente do
  * detalhe da Task e da fila de aprovações. Por isso "Concluir" nunca aparece
- * numa etapa que exige aprovação, e "Enviar para o cliente" nunca aparece aqui
+ * numa etapa que exige aprovação, e "Enviar ao cliente" nunca aparece aqui
  * — esse botão é do Desenvolvedor, na fila dele.
  */
 export function MinhaLista({

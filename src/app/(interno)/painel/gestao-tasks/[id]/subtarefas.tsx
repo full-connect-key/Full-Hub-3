@@ -113,7 +113,7 @@ export function Subtarefas({
    * Trocar o status da etapa pelo seletor.
    *
    * NADA É PRÉ-BLOQUEADO na lista de status: quem recusa é o banco, e a recusa
-   * dele diz o caminho — "A rodada é criada pela ação Enviar para aprovação",
+   * dele diz o caminho — "A rodada é criada pela ação Pedir aval interno",
    * "exige aprovação interna e não pode ser concluída direto". Um item cinza
    * não ensina nada; a frase ensina.
    */

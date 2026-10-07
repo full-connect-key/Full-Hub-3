@@ -290,10 +290,10 @@ function Peca({
             {analise.ajuste ? (
               <span className="text-warning font-semibold">
                 {analise.ajuste.recusada
-                  ? " · recusada na análise"
+                  ? " · recusada no aval interno"
                   : " · ajustes pedidos"}
               </span>
-            ) : analise.pendente ? " · na análise" : ""}
+            ) : analise.pendente ? " · no aval interno" : ""}
           </span>
         </span>
 
@@ -348,10 +348,10 @@ function Peca({
                 a agência passasse a usar, e o erro seria o seletor recusando
                 um arquivo sem dizer por quê. Quem decide o que vira capa é o
                 banco, pela extensão. */}
-            {/* ------------------------------------------------- a análise --
-                "ENVIAR PARA ANÁLISE" É O BOTÃO DE QUEM PRODUZ — decisão do
+            {/* ------------------------------------------- o aval interno --
+                "PEDIR AVAL INTERNO" É O BOTÃO DE QUEM PRODUZ — decisão do
                 usuário. Ele abre a rodada INTERNA, a gestão decide na fila de
-                aprovações, e só então o envio ao cliente se liga.
+                aprovações internas, e só então o envio ao cliente se liga.
 
                 A regra está no banco desde a 0033: `validar_nova_rodada`
                 recusa a rodada de cliente enquanto não houver a interna do
@@ -370,7 +370,7 @@ function Peca({
               ) : (
                 <ShieldCheck aria-hidden className="size-4" />
               )}
-              {analise.aprovado ? "Mandar para análise de novo" : "Enviar para análise"}
+              {analise.aprovado ? "Pedir aval interno de novo" : "Pedir aval interno"}
             </Button>
 
             {/* O ENVIO AO CLIENTE SÓ APARECE PARA A GESTÃO, e não desligado:
@@ -403,7 +403,7 @@ function Peca({
               de distância. É a decisão do selo que some dentro do grupo. */}
           {analise.pendente ? (
             <p className="bg-blue-soft text-blue-strong rounded-lg px-3 py-2 text-sm">
-              Na fila de análise da gestão — v{item.versaoAtual}.
+              Na fila de aval interno da gestão — v{item.versaoAtual}.
             </p>
           ) : analise.ajuste ? (
             /* ----------------------------------------------- o que a gestão pediu --

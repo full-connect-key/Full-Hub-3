@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
  * aprovação, ir para "Enviada para aprovação" sem rodada, estacionar em "Em
  * ajustes" sem ninguém ter pedido ajuste. A diferença é onde a pessoa
  * descobre — antes num item cinza que ela não podia clicar, agora numa frase
- * que diz o caminho ("A rodada é criada pela ação Enviar para aprovação").
+ * que diz o caminho ("A rodada é criada pela ação Pedir aval interno").
  * Cinza não ensina nada; a recusa do banco ensina.
  */
 

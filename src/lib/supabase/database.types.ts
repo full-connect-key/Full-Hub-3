@@ -293,12 +293,18 @@ export type TipoNoCalendario =
   | "post"
   | "campanha"
   | "entregavel"
-  // A etapa da corrente de um post, que nasceu como oitava origem na 0059 e
-  // hoje é a sexta. Ela é diferente de `post` — aquele é o dia em que a peça
-  // vai ao ar, este é o dia em que o trabalho de alguém precisa estar pronto,
-  // e as duas datas raramente são a mesma. Sem esta camada, a etapa do redator
-  // tinha prazo na tabela e não aparecia no calendário de ninguém.
-  | "etapa_de_post";
+  // A FASE do mês de social — uma subtarefa com `social_papel` preenchido.
+  //
+  // Ela é diferente de `post`: aquele é o dia em que a peça vai ao ar, esta é
+  // o dia em que o trabalho de alguém precisa estar pronto, e as duas datas
+  // raramente são a mesma.
+  //
+  // **E ela não é a `etapa_de_post` que saiu na 0088**, embora ocupe o mesmo
+  // lugar nesta união. Aquela era uma linha por PEÇA por fase — com doze
+  // posts, sessenta linhas no mês de uma conta só, que é o que fez o usuário
+  // pedir a remoção. Esta é uma linha por FASE: cinco por mês, cada uma o
+  // trabalho de uma pessoa num dia. A 0090 a devolveu com esse recorte.
+  | "fase_de_social";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
 

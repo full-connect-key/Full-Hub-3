@@ -622,7 +622,7 @@ export function EditorDoPost({
               }
             >
               <UserPlus aria-hidden className="size-4" />
-              Marcar como pronto
+              Pedir aval interno
             </Button>
           ) : null}
 

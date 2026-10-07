@@ -112,6 +112,26 @@ select teste.cenario('enviada_aprovacao sem rodada pendente e recusado', :BRUNO,
   'update public.subtasks set status = ''enviada_aprovacao'' where id = ''dddddddd-0000-0000-0000-000000000002''',
   'recusa');
 
+-- AS DUAS DICAS NOMEIAM O BOTAO, e e por isso que elas sao medidas (0092).
+--
+-- `atualizarTask` concatena o `hint` do Postgres na mensagem, entao esta frase
+-- chega inteira a quem clicou. Ate a 0092 ela dizia *"Enviar para aprovacao"*,
+-- que era o nome do botao na etapa de demanda enquanto o post dizia "Marcar
+-- como pronto" e a peca de campanha dizia "Enviar para analise" -- tres nomes
+-- para a mesma acao, e uma recusa que nomeia o botao do modulo errado manda a
+-- pessoa procurar o que nao esta na tela dela.
+--
+-- E a MENSAGEM nao basta: uma trava com a dica apagada passaria por
+-- `teste.cenario`, que so pergunta se a escrita foi recusada. E a licao do
+-- `tasks_sem_cancelada` na 0020.
+select teste.recusa_com_dica('E a dica nomeia "Pedir aval interno"', :BRUNO,
+  'update public.subtasks set status = ''enviada_aprovacao'' where id = ''dddddddd-0000-0000-0000-000000000002''',
+  'Pedir aval interno');
+
+select teste.recusa_com_dica('A dica de concluir sem aval tambem nomeia ele', :ANA,
+  'update public.subtasks set status = ''concluida'' where id = ''dddddddd-0000-0000-0000-000000000002''',
+  'Pedir aval interno');
+
 select teste.cenario('Bruno anexa a entrega dele', :BRUNO,
   format('insert into public.subtask_entregas (subtask_id, tipo, url, nome, enviado_por) values (''dddddddd-0000-0000-0000-000000000002'', ''link'', ''https://drive/kv'', ''KV v1'', %L)', :BRUNO),
   'ok', 1);

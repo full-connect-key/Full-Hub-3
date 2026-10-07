@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
  *
  * São subtarefas, sempre: é a unidade de trabalho, e é o que a pessoa
  * efetivamente entrega. O botão de cada linha vem da máquina de estados — o
- * que exige aprovação mostra "Enviar para aprovação", não "Concluir".
+ * que exige aprovação mostra "Pedir aval interno", não "Concluir".
  *
  * Fica num componente separado de propósito, e a Home do Sprint 15 mostra o
  * MESMO bloco, alimentado pela mesma função `meuDia()`. Duas listas parecidas

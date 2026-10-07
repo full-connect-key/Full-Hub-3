@@ -423,12 +423,13 @@ export function duracaoEmDias(inicio: string, fim: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// A ANÁLISE INTERNA DA PEÇA — decisão do usuário.
+// O AVAL INTERNO DA PEÇA — decisão do usuário, citada no CLAUDE.md.
 //
-// *"quando o colaborador sobe uma arte dentro de uma campanha, apareça um
-// botão de enviar para análise ao invés de enviar para o cliente (…) os
-// desenvolvedores e sócios devem avaliar a arte e enviar para o cliente, ou
-// solicitar alteração"*.
+// A arte que o colaborador sobe passa pela gestão antes de sair da agência:
+// quem produz pede o aval, a gestão decide na fila, e é ela que manda a peça
+// para fora. A frase do usuário mora no CLAUDE.md e não aqui, porque ela
+// nomeia o rótulo que a 0092 aposentou e `check:cores` varre `src/` atrás
+// dele — a explicação não pode carregar o que ela proíbe.
 //
 // **A REGRA JÁ ESTAVA NO BANCO, E NINGUÉM A ATRAVESSAVA.** `validar_nova_rodada`
 // recusa uma rodada de escopo `cliente` num entregável enquanto não houver a
@@ -454,7 +455,7 @@ export type AnaliseDaPeca = {
    * Sem ele a tela não tinha como dizer que a peça voltou: a rodada
    * `ajustes_solicitados` deixava de ser `pendente`, deixava de ser
    * `aprovado`, e as duas bandeiras ficavam idênticas ao estado de uma peça
-   * que nunca foi para análise. O botão "Enviar para análise" aparecia
+   * que nunca pediu o aval. O botão "Pedir aval interno" aparecia
    * habilitado e o banco recusava o clique — era o relato do usuário.
    *
    * O comentário vem junto porque ele é a razão de a peça ter voltado, e
@@ -478,10 +479,10 @@ export function podeEnviarPecaAoCliente(
     return { pode: false, porque: "Suba pelo menos um arquivo antes de enviar." };
   }
   if (analise.pendente) {
-    return { pode: false, porque: "A análise interna está em andamento." };
+    return { pode: false, porque: "O aval interno está em andamento." };
   }
   if (!analise.aprovado) {
-    return { pode: false, porque: "Falta o aval interno — mande para análise primeiro." };
+    return { pode: false, porque: "Falta o aval interno — peça o aval interno primeiro." };
   }
   return { pode: true, porque: null };
 }
@@ -491,10 +492,10 @@ export function podePedirAnalise(
   analise: AnaliseDaPeca,
 ): { pode: boolean; porque: string | null } {
   if (!item.arteUrl) {
-    return { pode: false, porque: "Suba pelo menos um arquivo antes de mandar para análise." };
+    return { pode: false, porque: "Suba pelo menos um arquivo antes de pedir o aval interno." };
   }
   if (analise.pendente) {
-    return { pode: false, porque: "Já está na fila de análise." };
+    return { pode: false, porque: "Já está na fila de aval interno." };
   }
   // ---------------------------------------------------------------------------
   // A MESMA VERSÃO NÃO VOLTA PARA A FILA, e a tela diz isso ANTES do clique.

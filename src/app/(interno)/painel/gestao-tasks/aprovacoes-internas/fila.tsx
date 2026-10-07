@@ -351,7 +351,7 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
         ) : (
           <Send aria-hidden />
         )}
-        Enviar para o cliente
+        Enviar ao cliente
       </Button>
     </li>
   );

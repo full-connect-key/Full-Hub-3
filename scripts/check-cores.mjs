@@ -505,6 +505,45 @@ const NOMES_MORTOS = [
   { nome: "decide a própria entrega", onde: "src/", porque: "a trava saiu na 0029 — a gestão decide a própria rodada" },
   { nome: "envia ao cliente a própria entrega", onde: "src/", porque: "a trava saiu na 0060 — a gestão envia inclusive o que produziu" },
 
+  // E A TERCEIRA FORMA ENTROU NA 3K, porque a varredura não pegou a
+  // paráfrase. `state-machine.ts` carregava a trava do envio por mais cinco
+  // migrations depois da 0060: o `!souOResponsavel` estava lá, com um
+  // comentário dizendo a mesma coisa com outras palavras — e as três linhas
+  // acima procuram a frase do usuário, não o sentido dela. O desenvolvedor
+  // dono de uma etapa que pede aval do cliente não via o botão, num caminho
+  // que o banco aceita desde a 0060.
+  //
+  // **É a 0029 virada do avesso**, e é o que torna esta linha diferente das
+  // três de cima: lá a bateria ficava verde com a action recusando; aqui o
+  // banco liberou e a TELA continuou escondendo. Nenhuma das duas formas
+  // aparece como erro — a primeira é uma recusa que ninguém esperava, a
+  // segunda é um botão que não existe.
+  { nome: "manda material ao cliente", onde: "src/", porque: "a mesma trava da 0060, parafraseada — foi assim que ela sobreviveu em state-machine.ts" },
+
+  // ---------------------------------------------------------------------------
+  // UM NOME PARA CADA AÇÃO DO FLUXO DE APROVAÇÃO (Sprint 3K, migration 0092).
+  //
+  // O produto chamava a MESMA ação de três nomes conforme a tela: "Enviar
+  // para aprovação" na etapa de demanda, "Marcar como pronto" no post e
+  // "Enviar para análise" na peça de campanha. As três abrem uma rodada de
+  // escopo `interna`, decidida pela mesma função, na mesma fila — e quem
+  // atravessava os três módulos tinha que descobrir isso sozinho.
+  //
+  // **E a recusa do banco nomeava o botão.** As duas dicas de
+  // `validar_transicao_de_subtarefa` diziam *Enviar para aprovação*, e
+  // `atualizarTask` as concatena na mensagem: trocar o rótulo só aqui faria o
+  // Postgres mandar a pessoa usar um botão que não existe mais. Por isso a
+  // 0092 é migration, e não só um `sed` em `src/`.
+  //
+  // "Enviada para aprovação" NÃO é alcançada por estas linhas, e é de
+  // propósito: ela é o rótulo do STATUS `enviada_aprovacao`, não o nome de
+  // uma ação. Padronizar é fazer o nome ser um só, não trocar o nome de tudo.
+  { nome: "Enviar para aprovação", onde: "src/ scripts/", porque: "a ação se chama Pedir aval interno desde a 0092" },
+  { nome: "Enviar para análise", onde: "src/ scripts/", porque: "era o nome dela na campanha; virou Pedir aval interno na 0092" },
+  { nome: "Mandar para análise", onde: "src/ scripts/", porque: "a mesma ação, pedida de novo — virou Pedir aval interno de novo" },
+  { nome: "Marcar como pronto", onde: "src/ scripts/", porque: "era o nome dela no post; virou Pedir aval interno na 0092" },
+  { nome: "Enviar para o cliente", onde: "src/ scripts/", porque: "a ação se chama Enviar ao cliente — um nome só, nos três módulos" },
+
   // DOIS MÓDULOS QUE SAÍRAM DO PRODUTO, por decisão do usuário.
   //
   // O Resumo Semanal e o Financeiro Pessoal foram apagados: tela, rota, dados

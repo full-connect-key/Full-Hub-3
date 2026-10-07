@@ -587,12 +587,13 @@ export async function editarCampanha(
 }
 
 /**
- * "Enviar para análise" — a rodada INTERNA da peça de campanha.
+ * "Pedir aval interno" — a rodada INTERNA da peça de campanha.
  *
  * ---------------------------------------------------------------------------
- * Decisão do usuário: *"quando o colaborador sobe uma arte dentro de uma
- * campanha, apareça um botão de enviar para análise ao invés de enviar para o
- * cliente, que quando clicado, notifica os desenvolvedores e sócios"*.
+ * Decisão do usuário, citada no CLAUDE.md: a arte que o colaborador sobe
+ * passa pelo aval da gestão antes de sair da agência, e é a gestão que avisa
+ * quem produziu quando ela pede ajuste. A frase dele mora lá, e não aqui,
+ * porque ela nomeia o rótulo antigo e `check:cores` varre `src/` atrás dele.
  *
  * **NÃO HÁ MIGRATION, e é a parte que importa.** `validar_nova_rodada` recusa
  * uma rodada de escopo `cliente` num entregável enquanto não houver a INTERNA
@@ -635,7 +636,7 @@ export async function pedirAnaliseDoEntregavel(
 
     if (!peca) return falha("Este material não existe, ou o seu acesso não o alcança.");
     if (!peca.arte_url) {
-      return falha("Suba pelo menos um arquivo antes de mandar para análise.");
+      return falha("Suba pelo menos um arquivo antes de pedir o aval interno.");
     }
 
     const { data: jaTem } = await supabase
@@ -648,7 +649,7 @@ export async function pedirAnaliseDoEntregavel(
       .limit(1);
 
     if (jaTem && jaTem.length > 0) {
-      return falha("Esta versão já foi para análise. Suba uma versão nova para pedir de novo.");
+      return falha("Esta versão já pediu o aval interno. Suba uma versão nova para pedir de novo.");
     }
 
     const { data, error } = await supabase
@@ -663,13 +664,13 @@ export async function pedirAnaliseDoEntregavel(
 
     if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
     if (!data || data.length === 0) {
-      return falha("O banco recusou: só quem produziu o material o manda para análise.");
+      return falha("O banco recusou: só quem produziu o material pede o aval interno dele.");
     }
 
     revalidatePath(ROTA);
     revalidatePath(`${ROTA}/campanhas/${peca.campaign_id}`);
     // A FILA MORA EM GESTÃO DE TASKS desde que as três telas viraram uma.
     revalidatePath("/painel/gestao-tasks");
-    return sucesso("Mandado para análise. A gestão decide na fila de aprovações.");
+    return sucesso("Aval interno pedido. A gestão decide na fila de aprovações internas.");
   });
 }

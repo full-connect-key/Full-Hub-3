@@ -307,7 +307,14 @@ from (
     ('0089', 'social_flow_steps.comeca_dias_antes saiu', 'sem_coluna',
              'social_flow_steps.comeca_dias_antes'),
     ('0090', 'social_lotes (o envio e do mes)', 'tabela', 'social_lotes'),
-    ('0091', 'mes_de_social_do_portal()', 'funcao', 'mes_de_social_do_portal')
+    ('0091', 'mes_de_social_do_portal()', 'funcao', 'mes_de_social_do_portal'),
+    -- A 0092 da UM NOME a cada acao do fluxo de aprovacao, e ela nao cria
+    -- objeto nenhum: reescreve `validar_transicao_de_subtarefa` com as duas
+    -- DICAS nomeando "Pedir aval interno". Entao a linha e `no_corpo` -- a
+    -- funcao existe desde a 0007 e responderia ok num banco parado la, que e
+    -- exatamente o estado que esta linha tem que acusar.
+    ('0092', 'a dica nomeia Pedir aval interno', 'no_corpo',
+             'validar_transicao_de_subtarefa|Pedir aval interno')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

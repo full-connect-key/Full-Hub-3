@@ -348,7 +348,7 @@ export async function aprovarInterna(
       mensagem = "Aprovada — subtarefa concluída.";
     } else {
       mensagem =
-        'Aprovada internamente. Agora dá para usar "Enviar para o cliente".';
+        'Aprovada internamente. Agora dá para usar "Enviar ao cliente".';
     }
 
     await registrar(supabase, {
@@ -505,7 +505,7 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
       ctx.subtarefa.tipo_aprovacao,
     );
     if (!situacao.avalInterno) {
-      return falha("Esta rodada ainda não passou pela aprovação interna.");
+      return falha("Esta rodada ainda não passou pelo aval interno.");
     }
     if (situacao.enviadaAoCliente) {
       return falha("Esta rodada já foi enviada ao cliente.");
@@ -678,7 +678,7 @@ async function decidirRodadaDePost(
  * sobrou foi uma decisão sem consequência: a rodada virava
  * `ajustes_solicitados`, a peça ficava onde estava, a etapa ficava onde
  * estava, e quem produziu não via diferença nenhuma — e, pior, o botão
- * "Enviar para análise" aparecia habilitado e o banco recusava o clique.
+ * "Pedir aval interno" aparecia habilitado e o banco recusava o clique.
  * Era o relato do usuário, palavra por palavra: *"ela não está voltando"*.
  *
  * Hoje a devolução inteira — status da peça, status da etapa, o pedido como

@@ -866,7 +866,7 @@ export function rotuloDaData(formatada: string | null): string {
  * O bloco "Social" separado saiu junto, pela mesma razão: ele existia porque
  * uma etapa de post não era `SubtarefaDetalhada` — não tinha rodada,
  * cronômetro nem dependência, e fabricar os campos faria a tela oferecer
- * "Enviar para aprovação" onde o banco responde outra coisa. A etapa do mês
+ * "Pedir aval interno" onde o banco responde outra coisa. A etapa do mês
  * TEM os três, então ela cabe no molde — e o molde certo é o que não mente.
  *
  * **O que fica é o ÍCONE e o CHIP da área**, em `minhas-tasks/linhas.ts`:

@@ -265,7 +265,7 @@ const TELAS = [
   // 375px: a previa vai para BAIXO do formulario no celular, e a grade de
   // chips das variaveis e o que primeiro estoura a largura.
   { nome: "44c-recorrencia-375", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 375, altura: 1600, role: "socio" },
-  { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Enviar para aprovação")' },
+  { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Pedir aval interno")' },
   { nome: "49-aprovacao-propria", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
@@ -538,7 +538,7 @@ const TELAS = [
   // so a arvore fechada -- que e justamente o que ja existia.
   { nome: "20l-campanha-producao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1300, role: "socio",
     clicar: 'button:has-text("Lâmina customizável A5")' },
-  // E A MESMA PECA PARA QUEM PRODUZ: ele ve "Enviar para análise" e NAO ve o
+  // E A MESMA PECA PARA QUEM PRODUZ: ele ve "Pedir aval interno" e NAO ve o
   // envio ao cliente, que e de `is_gestor()`. Sem as duas imagens lado a lado,
   // "o botao aparece para quem deve" e uma afirmacao que ninguem conferiu --
   // e nenhum build sabe quem esta logado.

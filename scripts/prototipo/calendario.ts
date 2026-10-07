@@ -124,10 +124,14 @@ const ITENS: ItemDoCalendario[] = [
     status: "em_producao",
     link: "/painel/aprovacoes/campanhas/camp-wave?item=ent-lamina",
   },
+  // A FASE DO MÊS, e não a etapa de uma peça: o título é o nome da fase e o
+  // link vai para o MÊS, que é o que a origem da 0090 escreve
+  // (`'/painel/social-media?mes=' || t.id`). Com o título de uma peça aqui, a
+  // imagem mostraria a camada que a 0088 tirou.
   {
-    id: "etapa-post-layout",
-    tipo: "etapa_de_post",
-    titulo: "Layout · dica do dia",
+    id: "fase-layout-mv",
+    tipo: "fase_de_social",
+    titulo: "Layout",
     dataInicio: dia(2),
     dataFim: dia(2),
     clientId: VERDE,
@@ -136,7 +140,7 @@ const ITENS: ItemDoCalendario[] = [
     pessoa: BRUNO,
     prioridade: null,
     status: "em_andamento",
-    link: "/painel/social-media?post=post-0",
+    link: "/painel/social-media?mes=mes-mv-10",
   },
 ];
 

@@ -58,7 +58,7 @@ import { moverSubtarefa } from "@/app/(interno)/painel/gestao-tasks/acoes-de-ite
  * Quem decide o que aparece é `acoesDaSubtarefa`, em `lib/tasks/state-machine`
  * — a mesma máquina que o servidor consulta. Este componente só desenha o
  * resultado e cuida dos diálogos que cada ação precisa: o tempo real ao
- * concluir, o motivo ao pedir ajustes, a confirmação ao enviar para o cliente.
+ * concluir, o motivo ao pedir ajustes, a confirmação ao enviar ao cliente.
  *
  * Por que um componente só, usado no detalhe, em Minhas Tasks e na fila de
  * aprovações: são três telas que precisam responder a mesma pergunta. Se cada
@@ -317,13 +317,13 @@ export function AcoesDaSubtarefa({
           <DialogHeader>
             <DialogTitle>
               {confirmando === "enviar_cliente"
-                ? "Enviar para o cliente"
-                : "Enviar para aprovação"}
+                ? "Enviar ao cliente"
+                : "Pedir aval interno"}
             </DialogTitle>
             <DialogDescription>
               {confirmando === "enviar_cliente"
                 ? "A entrega aparece no Portal do Cliente e ele passa a poder aprovar ou pedir ajustes. Registra quem enviou e quando."
-                : "Abre uma rodada de aprovação interna. Enquanto ela estiver aberta, a subtarefa fica esperando a decisão."}
+                : "Abre uma rodada de aval interno. Enquanto ela estiver aberta, a subtarefa fica esperando a decisão."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-between">

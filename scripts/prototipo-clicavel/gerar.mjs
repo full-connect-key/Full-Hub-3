@@ -642,8 +642,8 @@ ${telasHtml}
     // Na lista o botao de concluir e so icone: casa pelo aria-label.
     { rota: "/painel/minhas-tasks", texto: "Concluir",               dialogo: "concluir-com-tempo" },
     { rota: "/painel/minhas-tasks", aria: "Concluir",                dialogo: "concluir-com-tempo" },
-    { rota: "/painel/minhas-tasks", texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
-    { rota: VITRINE_EXEMPLO,       texto: "Enviar para aprovação",  dialogo: "enviar-aprovacao" },
+    { rota: "/painel/minhas-tasks", texto: "Pedir aval interno",  dialogo: "enviar-aprovacao" },
+    { rota: VITRINE_EXEMPLO,       texto: "Pedir aval interno",  dialogo: "enviar-aprovacao" },
     { rota: TASK_EXEMPLO,          texto: "Criar KV",                dialogo: "subtarefa-painel" },
     { rota: "/painel/gestao-tasks?aba=aprovacoes-internas", texto: "Solicitar ajustes", dialogo: "aprovacao-ajustes" },
     { rota: "/painel/gestao-tasks?aba=workflows",   texto: "Novo tipo de tarefa",     dialogo: "tipo-novo" },
