@@ -3652,6 +3652,250 @@ fase do calendário e fica o PESO dela na Linha do Tempo.
   as datas pelo `mode()` da corrente antiga, e onde as peças divergiam o
   `aviso_geracao` diz isso por extenso em vez de escolher calado.
 
+#### O ENVIO AO CLIENTE É DO MÊS, EM LOTE
+
+Migrations 0090, 0091, 0092 e 0093 — o Sprint 3K. A frase que o abre é do
+usuário: o cliente recebia o social **peça por peça**, e o que ele combina com
+a agência é um mês.
+
+**A 0088 fez a produção virar mensal e deixou a APROVAÇÃO onde estava.** Isso
+estava certo e continua — *"a aprovação continua por post"* é decisão dele, e
+é o que permite ele aprovar dezesseis e pedir ajuste em duas. O que estava
+errado era o ENVIO: dezoito cliques, dezoito avisos, dezoito rodadas abertas
+em dezoito instantes diferentes, e nada na tela do cliente dizendo que aquilo
+era um mês.
+
+| | A peça | O lote |
+| --- | --- | --- |
+| o que é | uma rodada de cliente de um post | o carimbo de que N saíram juntas |
+| quem decide | o cliente, uma a uma | ninguém — ele não guarda decisão |
+| onde mora | `approval_rounds` | `social_lotes`, e `approval_rounds.lote_id` |
+
+**O LOTE NÃO GUARDA DECISÃO NENHUMA, e é a linha que faz o resto caber.** A
+tentação é um `status` nele — e aí "o mês foi aprovado" passaria a ser um fato
+ao lado de dezoito fatos, e divergiria do primeiro pedido de ajuste. Ele
+guarda o ENVIO: quem mandou, quando, com que recado, e qual portão. Quem
+decide continua sendo cada rodada, uma por peça. É "bloqueio não é status" e
+"atraso não é coluna" pela enésima vez.
+
+##### O portão do mês é o MÍNIMO das peças
+
+`portao_atual_do_mes(task_id)` devolve o `(min(k)+1)`-ésimo portão, onde `k`
+são as rodadas de cliente aprovadas de cada peça. Com o mês andando junto —
+que é o padrão — todas têm o mesmo `k`; com `avanca_em_paralelo` ligado, o
+mínimo é a peça mais atrasada, que é justamente o portão que ainda tem gente
+dentro.
+
+**Ela NÃO substitui `porta_do_cliente_no_post()`**, e o sprint pedia a troca de
+nome como se fossem a mesma pergunta. São duas: uma é *"o que este mês está
+esperando"* e a outra é *"que portão esta peça abre agora"* — e a segunda
+continua sendo quem decide o que o cliente vê ao abrir um post. Renomear teria
+deixado o produto com uma função só respondendo mal às duas.
+
+**Mês sem post devolve nulo**, e não o primeiro portão: um mês vazio não está
+esperando nada, e devolver o primeiro faria a tela oferecer "Enviar o mês (0)".
+
+##### O envio espera o mês inteiro, e eu tinha escrito o contrário
+
+A primeira versão desta tela dizia, em comentário e em código, que as peças que
+ainda não podem ir ficam de fora e o resto vai. **Não é o que o banco faz**:
+`enviar_mes_ao_cliente` chama `o_que_falta_no_portao()` ANTES de escrever
+qualquer coisa e recusa o envio inteiro, nomeando as peças. A tela diria "(7)"
+num mês de treze e o clique seria recusado.
+
+**O banco está certo, e é a frase do usuário:** o mês vai junto. Mandar sete de
+treze parte o mês no portão, que é exatamente o que `avanca_em_paralelo` existe
+para permitir quando a conta escolhe isso. Quem encontrou foi um teste de
+fumaça escrito à mão contra o Postgres — a bateria media a função, não o que a
+tela fazia com ela, que é a lição da 0029 outra vez.
+
+Então o botão conta as peças ELEGÍVEIS e fica **desligado** enquanto faltar
+alguma, com a lista em âmbar dizendo quais e por quê — cada uma um link para a
+peça, em linha própria. (O link no meio do parágrafo foi reprovado pelo axe em
+`link-in-text-block`: ali a cor é a única coisa que o separa do texto em volta,
+e é a regra que o pedido concluído do portal já pagou uma vez.)
+
+##### O cliente vê o mês, e não dezoito avisos
+
+`mes_de_social_do_portal()` e `meses_de_social_do_portal()` (0091) são
+`security definer` com a pergunta de quem pode escrita dentro — a forma de
+`usuarios_do_meu_cliente()` (0031) e de `meus_comodatos()` (0069). A equipe
+passa o `p_client_id`; o cliente é recortado por `my_client_ids()` e não pode
+passar nenhum.
+
+**E o recorte do mês NÃO é por `data_publicacao`.** Era, e estava errado: a
+0044 abre o mês em branco, então uma peça sem data ficava fora de um mês a que
+ela pertence — e a data é de quem produz, que pode trocá-la. O recorte é pela
+DEMANDA do mês, que é o fato. `check:cores` passou a varrer `gte("data_publicacao"`
+em `src/`, com uma exceção escrita: o calendário da AGÊNCIA filtra por data de
+propósito, porque ele desenha uma grade de dias.
+
+##### O aval interno é de CADA ELO, e não do fluxo inteiro
+
+`social_flow_steps.aprovacao_interna`, copiada para `subtasks.social_aval_interno`
+no instante em que o mês abre — snapshot, pela razão de `social_papel`: editar
+o fluxo não pode mudar a trava de um mês em produção.
+
+**São DUAS caixinhas independentes no montador de fluxos**, e a segunda só
+aparece onde o elo é portão: *"o cliente aprova esta etapa"* e *"passa pelo
+aval interno"*. Até aqui o aval interno era obrigatório em todo portão, e isso
+é verdade para quase toda conta e falso para a que valida a pauta — ninguém
+revisa internamente um parágrafo de texto antes de mandá-lo para quem o pediu.
+
+##### Um nome para cada ação (0092)
+
+O produto chamava a MESMA ação de três nomes conforme a tela: **"Enviar para
+aprovação"** na etapa de demanda, **"Marcar como pronto"** no post e **"Enviar
+para análise"** na peça de campanha. As três abrem uma rodada de escopo
+`interna`, decidida pela mesma função, na mesma fila.
+
+Os seis termos, e são um só cada:
+
+| O que acontece | Como se chama |
+| --- | --- |
+| abrir a rodada interna | **Pedir aval interno** |
+| a rodada interna, como fato | **Aval interno** |
+| abrir a rodada do cliente | **Enviar ao cliente** |
+| a rodada recusada por quem decide | **Ajustes solicitados** |
+| cada ciclo de decisão | **Rodada** |
+| a fila onde a gestão decide | **Aprovações internas** |
+
+**E A MIGRATION EXISTE PORQUE DUAS DICAS NOMEIAM O BOTÃO.**
+`validar_transicao_de_subtarefa` manda a pessoa usar *"Enviar para aprovação"*,
+e `atualizarTask` concatena o `hint` do Postgres na mensagem — trocar o rótulo
+só em `src/` faria o banco nomear um botão que não existe mais. É diferente dos
+comentários datados da 0028 e da 0031: `comment on` ninguém que usa o sistema
+lê, `hint` aparece na tela. A terceira dica não muda, e vale dizer por quê —
+*"em_ajustes vem de 'Solicitar ajustes'"* nomeia um botão que continua se
+chamando assim nas três telas. **Padronizar é fazer o nome ser um só, não
+trocar o nome de tudo.**
+
+**"Enviada para aprovação" fica**, e é o rótulo do STATUS `enviada_aprovacao` —
+não o nome de uma ação. As cinco formas que saíram entraram no `check:cores`, e
+ele pegou na primeira rodada a **citação do usuário dentro de `src/`**, que
+carregava o nome proibido: ela foi para cá, que é onde a explicação mora. É a
+armadilha que este projeto já pagou sete vezes.
+
+**Os identificadores ficam como estão** — `pedirAnaliseDoEntregavel`,
+`podePedirAnalise`, `AnaliseDaPeca`. É a decisão de `dias_uteis` e de
+`saldo_de_ferias()` depois da 0016: renomear o que está em uso é mexer em
+muito lugar sem nada em troca, e ninguém que usa o sistema vê esses nomes.
+
+##### A fase do social VOLTOU ao Calendário Full, e a camada tinha ficado para trás
+
+A 0088 tirou a origem `etapa_de_post` da view **e a lista de camadas ficou com
+ela** — um interruptor chamado "Etapas de post" que ligava e desligava zero
+linha. Nada quebrou e nada avisou.
+
+Quem mostrou foi a 0090, que devolveu a origem com o nome `fase_de_social`: o
+`in("tipo", camadas)` de `itensDoCalendario` passou a **filtrar fora exatamente
+as linhas que a migration acabara de criar**. Com qualquer camada escolhida,
+nenhuma fase; sem camada na URL, elas chegavam e caíam num
+`ROTULOS_DE_CAMADA[tipo]` indefinido — selo em branco, sem cor.
+
+**As duas não são a mesma coisa, e é por isso que o nome mudou junto.** A que
+saiu era uma linha por PEÇA por fase — sessenta linhas no mês de uma conta só,
+que é o que fez o usuário pedir a remoção. A que entrou é uma linha por FASE:
+cinco por mês, cada uma o trabalho de uma pessoa num dia.
+
+##### A trava do envio da 0060 sobreviveu em `state-machine.ts`
+
+Aquela migration tirou a segunda pergunta — *não enviar o que você produziu* —
+dos TRÊS ramos de `validar_nova_rodada`, subtarefa inclusive. Em
+`state-machine.ts` o `!souOResponsavel` ficou, e o desenvolvedor dono de uma
+etapa que pede aval do cliente **não via o botão** num caminho que o banco
+aceita desde então.
+
+**É a 0029 virada do avesso.** Lá a bateria ficou verde com a action ainda
+recusando; aqui o banco liberou e a TELA continuou escondendo. E a varredura
+não pegou porque a frase estava parafraseada — ela procura a frase do usuário,
+não o sentido dela. Ganhou essa forma também.
+
+#### A CAIXINHA FECHA A FASE, E A FASE NÃO SE FECHA POR FORA
+
+Migration 0093. Relato do usuário, com imagem: *"se eu considero completo uma
+tarefa, ela deve ser considerada pronta, mas se você reparar, a plataforma
+permita que você tique a tarefa, e ao mesmo tempo, clique no botão considerar
+concluir"*.
+
+**O que a imagem mostra é pior que a frase.** Na corrente do mês, a fase
+"Pauta" aparecia com a caixinha daquela peça MARCADA e com o selo escrito
+**"Não iniciada"** a trinta pixels de distância. E o cabeçalho dizia **"0 de 5
+fases do mês"**, com uma peça da Pauta pronta. Três fatos sobre a mesma linha,
+dois deles errados.
+
+**A causa é uma assimetria da 0088.** Ela criou dois caminhos entre a caixinha
+e o status da fase e construiu um: `post_etapa_progresso_reabre` devolvia a
+fase para `em_andamento` quando uma caixinha DESMARCA — o pedido de ajustes do
+cliente voltando o trabalho. O caminho da caixinha que MARCA não existia. Então
+marcar as dezoito não fechava a fase, marcar a primeira não a tirava de
+`nao_iniciada`, e o status continuava sendo escrito à mão pelo seletor que ela
+tem por ser uma subtarefa comum.
+
+**O status da fase passou a ser DERIVADO**, e é a regra que o produto já aplica
+um nível acima: *"quem tem filha vira agrupadora"* (0022) e
+`recalcular_status_task()` (0007). A fase do mês é o terceiro caso do mesmo
+desenho, e estava sem a trava — **as caixinhas são as folhas dela**. A conta é
+a de `progresso_da_etapa()`, que já existia e já é a fonte do "12 de 18" na
+tela: nenhuma marcada → `nao_iniciada`, algumas → `em_andamento`, todas →
+`concluida`.
+
+**Menos `aguardando_informacoes` e `em_ajustes`, e a exceção é deliberada.** Os
+dois dizem alguma coisa que a contagem não sabe dizer — *parou esperando o
+cliente responder*, *o cliente pediu ajuste*. O que o trigger faz com eles é só
+o que a contagem sabe afirmar: com TODAS marcadas, a fase fecha.
+
+**E a fase sem caixinha nenhuma não é tocada.** Um mês recém-aberto tem as
+fases e nenhum post; zero de zero é "todas marcadas" em qualquer conta ingênua,
+e as cinco nasceriam concluídas. É o `count(*) = 0` da campanha que se finaliza
+sozinha (0051) outra vez.
+
+**A OUTRA METADE: a fase não se fecha por fora.** Derivar sozinho resolve
+metade — o seletor continuaria oferecendo "Concluída" numa fase com dezoito
+peças em aberto, e o clique passaria. Seria a 0025 invertida: lá o usuário
+pediu que os sete status da Task fossem marcáveis à mão e `status_manual`
+passou a travar o recálculo inteiro, porque *aceitar e desfazer calado é pior
+que recusar com explicação*. Então `subtasks_fase_fecha_pelas_caixinhas` recusa,
+e a recusa **conta quantas faltam** e diz **onde marcá-las** — as caixinhas
+moram no painel do post, dentro do mês, e não na linha da fase em Minhas Tasks,
+que é justamente a tela onde o botão "Concluir" aparece.
+
+**O botão aparece DESLIGADO com a razão**, em vez de sumir: um botão que some
+ensina que não existe; um desligado que diz por quê ensina a regra — a decisão
+do "Enviar ao cliente" do Social Media. Os dois lados saíram no mesmo commit, e
+isso é a lição da 0029.
+
+**A MUDANÇA É TENTADA, E NUNCA DERRUBA A MARCAÇÃO DA CAIXINHA.** É a linha de
+`etapa_acompanha_o_entregavel` (0052) letra por letra: o trigger está do outro
+lado, sem ninguém por perto, e uma recusa dele apareceria como o clique DA
+PESSOA falhando, com uma mensagem sobre outra coisa. A trava que recusa de
+verdade é a 2 de `validar_transicao_de_subtarefa` — a corrente do social é
+SERIAL, as fases dependem umas das outras, e sair de `nao_iniciada` com a
+anterior aberta é recusado. Foi a bateria que mostrou, com o erro subindo de
+dentro do trigger numa tela que estava marcando uma caixinha. **E a pergunta
+vem antes**, em vez de um `exception when others` em volta, que engoliria
+também o erro que ninguém previu — a forma da 0061.
+
+`post_etapa_progresso_reabre` foi **apagada** e não deixada ao lado: ela é
+metade da conta que a função nova faz inteira, e duas funções escrevendo o
+mesmo status são duas verdades esperando divergir.
+
+**E o SEED parou de escrever status de fase.** Havia três `update subtasks set
+status = ...` fechando a Pauta e o Conteúdo — eles descreviam o estado certo e
+o escreviam pelo caminho errado, que é literalmente o bug. Hoje quem escreve é
+o laço das caixinhas, pelo mesmo caminho que a tela usa, e o ambiente de
+desenvolvimento mostra o produto como ele é: Pauta 12 de 18, Conteúdo 2 de 18,
+o resto por começar.
+
+**Medido com cinco mutações**, e a terceira merece ser lida: ela derruba UM
+cenário porque a primeira versão dele media nada. Eu havia posto a afirmação
+logo depois da primeira caixinha da Pauta — e a Pauta já estava em
+`em_andamento` desde uma seção anterior do arquivo, onde alguém a começa à mão.
+O cenário passava com o ramo ligado E desligado. Quem mede é o Conteúdo, que
+começa de verdade em `nao_iniciada`. É a lição do `select` antes do `insert` na
+idempotência da recorrência: **um teste que não separa a resposta certa da
+errada é um teste que afirma sem provar.**
+
 #### A lista do Social Media agrupa por CONTA
 
 Decisão do usuário, na mesma conversa: *"na aba de Social media, todos os posts
@@ -8995,6 +9239,26 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   próprio script** (`-- SEM LINHA: 0026 - …`) com o motivo junto. Quem
   acrescentar a 0056 escreve a linha dela ou escreve por que ela não dá para
   conferir; as duas são decisão, esquecer não é.
+
+  **E `check:migrations` NÃO confere se a linha diz a verdade**, só se ela
+  existe — o que deixou passar **cinco linhas quebradas**, encontradas de uma
+  vez quando o pacote do Sprint 3K foi aplicado contra um banco parado na 0080
+  e o script terminou com cinco vermelhas num banco que acabara de ficar em
+  dia. O modo de falha é sempre o mesmo: o marcador aponta para uma coisa que
+  uma migration POSTERIOR desfez.
+
+  Quatro apontavam para objeto apagado — `post_etapas` e as colunas dela, que
+  a 0083 e a 0088 levaram —, e essas se veem olhando. **A quinta é a que
+  ensina:** a linha da 0060 procurava a AUSÊNCIA de uma frase no corpo de
+  `validar_nova_rodada`, e a 0090 devolveu a frase com outra razão — o
+  Atendimento passou a enviar ao cliente, e a segunda pergunta voltou a ter a
+  quem recusar. O script passou a dizer FALTA num banco em dia, e quem o
+  consultasse recolaria a 0060.
+
+  **Marcador por ausência envelhece diferente de marcador por presença**: o
+  primeiro quebra quando alguém acrescenta, e acrescentar é o que as migrations
+  fazem. Onde der, aponte para uma coisa que nasceu; onde não der, prefira a
+  isenção declarada à checagem que mente.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a

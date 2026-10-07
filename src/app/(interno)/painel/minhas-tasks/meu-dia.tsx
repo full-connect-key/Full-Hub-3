@@ -169,6 +169,7 @@ export function MeuDia({
                   tempo_medido_segundos: item.tempoMedidoSegundos,
                   andando_desde: item.andandoDesde,
                   dependenciasAbertas: item.dependenciasAbertas,
+                  social_papel: item.socialPapel,
                   rodadaPendente: false,
                   avalInterno: false,
                   avalFinal: false,

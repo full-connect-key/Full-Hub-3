@@ -422,6 +422,14 @@ export type ItemDoDia = {
   tipoAprovacao: "interna" | "cliente" | null;
   dependenciasAbertas: string[];
   status: Subtask["status"];
+  /**
+   * O papel dela na corrente do mês de social, quando ela é uma fase.
+   *
+   * "Meu dia" monta o objeto da ação à mão — ao contrário da Lista, que
+   * espalha a linha inteira —, então sem este campo o botão "Concluir"
+   * apareceria ligado aqui e desligado lá, na mesma etapa.
+   */
+  socialPapel: string | null;
 };
 
 /**
@@ -460,6 +468,7 @@ export async function meuDia(userId: string, prazos: Prazos = prazosDeHoje()): P
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,
         status: sub.status,
+        socialPapel: sub.social_papel,
       });
     }
   }

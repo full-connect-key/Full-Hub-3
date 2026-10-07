@@ -185,6 +185,7 @@ export async function meuDia(
         tipoAprovacao: sub.tipo_aprovacao,
         dependenciasAbertas: sub.dependenciasAbertas,
         status: sub.status,
+        socialPapel: sub.social_papel ?? null,
       });
     }
   }

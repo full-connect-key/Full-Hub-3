@@ -1418,21 +1418,19 @@ begin
    where client_id = verde and social_task_id is null;
 
   -- --------------------------------------------------------------------- 8b -
-  -- A CORRENTE NO MEIO DO CAMINHO, que e o caso que importa: as duas primeiras
-  -- fases do mes fechadas, o Layout na mao do Bruno agora.
+  -- A CORRENTE NO MEIO DO CAMINHO, e ELE NAO ESCREVE STATUS NENHUM (0093).
   --
-  -- UM `update` POR FASE, NA ORDEM, e nao um so com `ordem <= 20`: a cadeia de
-  -- dependencias que o laco acima criou e quem recusa, e num comando so a
-  -- ordem das linhas nao e garantida -- o Conteudo poderia ser escrito antes
-  -- da Pauta e a trava 3 de `validar_transicao_de_subtarefa` derrubaria o
-  -- seed. E a ordem dos dois E A PROPRIA TRAVA: o segundo passa porque o
-  -- primeiro fechou.
-  update public.subtasks set status = 'concluida'
-   where task_id = mes_task and ordem = 10;
-  update public.subtasks set status = 'concluida'
-   where task_id = mes_task and ordem = 20;
-  update public.subtasks set status = 'em_andamento'
-   where task_id = mes_task and ordem = 30;
+  -- Ate a 0093 estavam aqui tres `update public.subtasks set status = ...`,
+  -- fechando a Pauta e o Conteudo e pondo o Layout em andamento. Eles
+  -- descreviam o estado certo e o escreviam pelo caminho errado -- que e
+  -- exatamente o bug que o usuario encontrou na tela: *"a plataforma permita
+  -- que voce tique a tarefa, e ao mesmo tempo, clique no botao considerar
+  -- concluir"*. Hoje o banco recusa, contando quantas pecas faltam.
+  --
+  -- O QUE ESCREVE O STATUS E O LACO DAS CAIXINHAS, logo abaixo, pelo mesmo
+  -- caminho que a tela usa. O resultado e melhor do que o que estava escrito
+  -- aqui: a fase so fecha quando as doze pecas dela fecham, e e assim que o
+  -- ambiente de desenvolvimento mostra o produto.
 
   -- E AS CAIXINHAS PELA METADE, que e a razao do sprint inteiro.
   --
@@ -1481,6 +1479,57 @@ begin
           where h.post_id = g.post_id and q.task_id = mes_task
             and q.ordem < etapa.ordem and not h.concluido);
   end loop;
+
+  -- --------------------------------------------------------------------- 8c -
+  -- UM LOTE ABERTO, que e o estado que o Sprint 3K existe para desenhar.
+  --
+  -- Sem ele o ambiente de desenvolvimento mostra o produto no unico estado em
+  -- que o envio em lote nao aconteceu: o cabecalho do portal que diz *"a Full
+  -- enviou N peças de uma vez"* nao aparece em imagem nenhuma, e o indice de
+  -- Social nunca escreve "N com o cliente". E a licao da Optica Visao sem
+  -- responsavel de atendimento (0062) e da pessoa desligada (0069) --
+  -- semear o caso, e nao esperar o bug.
+  --
+  -- ELE PEGA AS RODADAS QUE JA EXISTEM, e nao cria rodada nenhuma: as tres
+  -- `pendente` deste mes sao as pecas que estao com o cliente agora, e o
+  -- lote e o carimbo que diz que elas sairam JUNTAS. Criar rodadas novas
+  -- daria ao mesmo post duas decisoes abertas, que e o estado que
+  -- `posts_elegiveis_do_portao` existe para nao ter.
+  --
+  -- `fechado_em` fica nulo -- e um lote ABERTO, que e o ponto.
+  -- `novo_lote` E NAO `lote_id`: um nome de variavel igual ao da coluna torna
+  -- `set lote_id = lote_id` ambiguo dentro de plpgsql -- ele resolve para a
+  -- coluna e o `update` grava o valor nela mesma, sem erro nenhum.
+  declare
+    novo_lote uuid;
+    etapa_portao uuid;
+  begin
+    select e.id into etapa_portao
+      from public.subtasks e
+     where e.task_id = mes_task
+       and (e.social_portao or e.social_papel = 'entrega')
+     order by e.ordem limit 1;
+
+    if etapa_portao is not null and exists (
+      select 1 from public.approval_rounds r
+        join public.posts po on po.id = r.content_id
+       where r.content_type = 'post' and r.escopo = 'cliente'
+         and r.status = 'pendente' and po.social_task_id = mes_task
+    ) then
+      insert into public.social_lotes
+        (task_id, etapa_id, numero_rodada, enviado_por, recado)
+      values (mes_task, etapa_portao, 1, diego,
+              'As três de outubro saíram juntas. A de feriado vem na semana que vem.')
+      returning id into novo_lote;
+
+      update public.approval_rounds r
+         set lote_id = novo_lote
+        from public.posts po
+       where po.id = r.content_id and r.content_type = 'post'
+         and r.escopo = 'cliente' and r.status = 'pendente'
+         and po.social_task_id = mes_task;
+    end if;
+  end;
 
   -- UMA CAIXINHA COM O PEDIDO DO CLIENTE, e e o que sobrou da etapa de
   -- Ajustes da 0045: o Layout daquela peca voltou, com a razao escrita. Sem

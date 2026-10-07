@@ -236,6 +236,21 @@ select set_config('t21.envio',
 select set_config('t21.programar',
   (select id::text from public.etapas_do_mes(current_setting('t21.mes')::uuid) where titulo = 'Programar'), false);
 
+-- A LINHA DE BASE, e ela existe porque a primeira versao deste trecho mediu
+-- nada. Eu afirmei aqui que a Pauta "saiu de nao_iniciada" na primeira
+-- caixinha -- e ela ja estava em `em_andamento` desde a secao 3, onde a Marina
+-- a comeca A MAO. O cenario passava com a regra da 0093 ligada E desligada: a
+-- mutacao que apaga o ramo nao derrubava nada.
+--
+-- E a licao do `select` antes do `insert` na idempotencia da recorrencia: um
+-- teste que nao separa a resposta certa da errada e um teste que afirma sem
+-- provar. Quem mede o ramo e o Conteudo, mais abaixo, que comeca de verdade em
+-- `nao_iniciada`.
+select teste.conferir('Quatro das cinco fases ainda nao comecaram',
+  (select count(*)::text from public.etapas_do_mes(current_setting('t21.mes')::uuid) e
+     join public.subtasks s on s.id = e.id
+    where s.status = 'nao_iniciada'), '4');
+
 -- QUEM MARCA E QUEM ESTA COM A ETAPA, e `minha_etapa_do_mes()` e a porta.
 select teste.cenario('A Marina marca a Pauta de um post', :MARINA,
   format($fmt$update public.post_etapa_progresso set concluido = true
@@ -245,6 +260,17 @@ select teste.cenario('A Marina marca a Pauta de um post', :MARINA,
 select teste.conferir('E o cabecalho dela anda',
   (select feitos || ' de ' || total
      from public.progresso_da_etapa(current_setting('t21.pauta')::uuid)), '1 de 3');
+
+-- FASE SEM PECA NENHUMA NAO E TOCADA, e e o `count(*) = 0` da campanha que se
+-- finaliza sozinha (0051) outra vez: zero de zero e "todas marcadas" em
+-- qualquer conta ingenua, e um mes recem-aberto nasceria com as cinco fases
+-- concluidas. A etapa comum da demanda do mes nao tem caixinha nenhuma.
+select teste.conferir('Etapa sem caixinha nenhuma fica como esta',
+  (select count(*)::text from public.subtasks s
+    where s.social_papel is not null
+      and s.status = 'concluida'
+      and not exists (select 1 from public.post_etapa_progresso g
+                       where g.subtask_id = s.id)), '0');
 
 select teste.conferir('Com o carimbo de quem marcou',
   (select concluido_por::text from public.post_etapa_progresso
@@ -286,6 +312,19 @@ select teste.cenario('Com o Conteudo marcado, o Layout passa', :CARLA,
   format($fmt$update public.post_etapa_progresso set concluido = true
      where post_id = %L and subtask_id = %L$fmt$,
      current_setting('t21.post'), current_setting('t21.conteudo')), 'ok', 1);
+
+-- E A FASE NAO ANDOU, PORQUE A CORRENTE AINDA NAO CHEGOU NELA. A Pauta tem
+-- duas pecas em aberto, entao a trava 2 de `validar_transicao_de_subtarefa`
+-- recusa o Conteudo sair de `nao_iniciada` -- e o trigger da 0093 PERGUNTA
+-- antes de escrever, em vez de deixar a recusa subir.
+--
+-- E a linha de `etapa_acompanha_o_entregavel` (0052): o trigger esta do outro
+-- lado, sem ninguem por perto, e derrubar a marcacao da caixinha faria a
+-- pessoa ver o clique DELA falhando com uma mensagem sobre a Pauta. Foi a
+-- bateria que mostrou: antes desta guarda, o cenario estourava.
+select teste.conferir('Mas a fase do Conteudo nao andou: a Pauta esta aberta',
+  (select status::text from public.subtasks where id = current_setting('t21.conteudo')::uuid),
+  'nao_iniciada');
 
 select teste.cenario('E agora o Bruno marca o Layout', :BRUNO,
   format($fmt$update public.post_etapa_progresso set concluido = true
@@ -346,20 +385,70 @@ select teste.recusa_com('Caixinha em subtarefa comum e recusada', :ANA,
 -- portal, que foi o que a 0045 registrou.
 -- ---------------------------------------------------------------------------
 
--- A CORRENTE DO MES SE FECHA EM ORDEM, e quem recusa fora de ordem e
--- `validar_transicao_de_subtarefa` (0007): a etapa de Layout nao conclui antes
--- de o Conteudo fechar. Era `post_etapas_regras` que reimplementava isso.
-select teste.cenario('A Pauta do mes se conclui', :MARINA,
+-- A FASE FECHA PELA ULTIMA CAIXINHA, E NAO PELA MAO DE NINGUEM (0093).
+--
+-- ESTES CENARIOS ESTAO VIRADOS DO AVESSO. Ate aqui eles fechavam as tres fases
+-- com `update public.subtasks set status = 'concluida'` e passavam -- e era
+-- justamente o bug que o usuario encontrou: *"a plataforma permita que voce
+-- tique a tarefa, e ao mesmo tempo, clique no botao considerar concluir"*. Com
+-- uma peca marcada de tres, a fase fechava assim mesmo e o "1 de 3" ao lado
+-- dizia o contrario.
+--
+-- Agora a recusa conta quantas faltam, e fechar e marcar as que faltam.
+select teste.recusa_com('A Pauta nao se fecha com peca em aberto', :MARINA,
   format($fmt$update public.subtasks set status = 'concluida' where id = %L$fmt$,
-     current_setting('t21.pauta')), 'ok', 1);
+     current_setting('t21.pauta')),
+  'ainda tem 2 de 3 peças por marcar');
 
-select teste.cenario('O Conteudo tambem', :CARLA,
+select teste.recusa_com_dica('E a recusa diz onde marcar as que faltam', :MARINA,
   format($fmt$update public.subtasks set status = 'concluida' where id = %L$fmt$,
+     current_setting('t21.pauta')),
+  'painel de cada post');
+
+-- AS OUTRAS DUAS PECAS, em ordem: a trava A da caixinha e por POST, entao o
+-- Conteudo de um post espera a Pauta DELE.
+select teste.cenario('A Marina marca a Pauta dos outros dois posts', :MARINA,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where subtask_id = %L and not concluido$fmt$,
+     current_setting('t21.pauta')), 'ok', 2);
+
+select teste.conferir('E a Pauta do mes fechou sozinha',
+  (select status::text from public.subtasks where id = current_setting('t21.pauta')::uuid),
+  'concluida');
+
+-- E AGORA O RAMO DO PRINT DO USUARIO: com a Pauta fechada, a corrente chegou
+-- no Conteudo, e a PRIMEIRA caixinha dele tira a fase de `nao_iniciada`. Era
+-- exatamente este o estado da imagem -- a caixinha marcada e o selo escrito
+-- "Nao iniciada" a trinta pixels dela.
+select teste.cenario('A Carla marca o Conteudo de mais um post', :CARLA,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where subtask_id = %L and not concluido
+       and post_id = (select g.post_id from public.post_etapa_progresso g
+                       where g.subtask_id = %L and not g.concluido
+                       order by g.post_id limit 1)$fmt$,
+     current_setting('t21.conteudo'), current_setting('t21.conteudo')), 'ok', 1);
+
+select teste.conferir('E a fase do Conteudo saiu de nao iniciada',
+  (select status::text from public.subtasks where id = current_setting('t21.conteudo')::uuid),
+  'em_andamento');
+
+select teste.cenario('A Carla marca o ultimo Conteudo', :CARLA,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where subtask_id = %L and not concluido$fmt$,
      current_setting('t21.conteudo')), 'ok', 1);
 
-select teste.cenario('E agora a de Layout', :BRUNO,
-  format($fmt$update public.subtasks set status = 'concluida' where id = %L$fmt$,
-     current_setting('t21.layout')), 'ok', 1);
+select teste.conferir('O Conteudo tambem fechou sozinho',
+  (select status::text from public.subtasks where id = current_setting('t21.conteudo')::uuid),
+  'concluida');
+
+select teste.cenario('E o Bruno marca o Layout dos outros dois', :BRUNO,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where subtask_id = %L and not concluido$fmt$,
+     current_setting('t21.layout')), 'ok', 2);
+
+select teste.conferir('E agora a de Layout',
+  (select status::text from public.subtasks where id = current_setting('t21.layout')::uuid),
+  'concluida');
 
 -- POST SEM DATA NAO VAI AO CLIENTE (0044), e o mes abre em branco: a data e de
 -- quem produz, e sem ela o cliente abriria a tela para decidir sobre a arte
@@ -549,9 +638,21 @@ select teste.conferir('E as caixinhas dele foram junto',
   (select count(*)::text from public.post_etapa_progresso
     where post_id = current_setting('t21.post')::uuid), '0');
 
+-- O DENOMINADOR CAI JUNTO COM A PECA, e o numerador tambem quando ela estava
+-- marcada. Era `0 de 2` ate a 0093, porque a secao 6 fechava as fases a mao e
+-- so uma das tres Pautas estava marcada; agora as tres estao, e apagar um post
+-- deixa duas de duas.
 select teste.conferir('A etapa continua, com o denominador certo',
   (select feitos || ' de ' || total
-     from public.progresso_da_etapa(current_setting('t21.pauta')::uuid)), '0 de 2');
+     from public.progresso_da_etapa(current_setting('t21.pauta')::uuid)), '2 de 2');
+
+-- E A FASE CONTINUA FECHADA. Apagar uma peca marcada nao reabre a fase: as
+-- duas que sobraram continuam prontas, e o trigger da 0093 roda no DELETE
+-- justamente para o caso contrario -- apagar a unica peca em aberto FECHA a
+-- fase, em vez de deixa-la parada esperando uma peca que nao existe mais.
+select teste.conferir('E ela continua fechada',
+  (select status::text from public.subtasks where id = current_setting('t21.pauta')::uuid),
+  'concluida');
 
 -- E APAGAR A ETAPA LEVA AS CAIXINHAS DELA. Nao existe policy de DELETE em
 -- `post_etapa_progresso`, e a ausencia e a regra: apagar uma a mao deixaria a

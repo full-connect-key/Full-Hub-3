@@ -112,6 +112,16 @@ export type ContextoDaSubtarefa = {
   souOResponsavel: boolean;
   /** Quem está olhando é desenvolvedor ou sócio? */
   souGestor: boolean;
+  /**
+   * Ela é uma FASE do mês de social (`subtasks.social_papel` preenchido)?
+   *
+   * Quem fecha uma fase é a última caixinha dela, e não a mão de ninguém
+   * (0093). Sem este campo o botão "Concluir" apareceria ligado numa fase com
+   * dezoito peças em aberto e o banco recusaria o clique — que é a frase do
+   * cabeçalho desta função: o botão não é questão de layout, ele não pode
+   * oferecer o que o banco recusa.
+   */
+  faseDeSocial?: boolean;
   /** Títulos das dependências que ainda não terminaram. Vazio = liberada. */
   dependenciasAbertas: string[];
   /** Existe rodada esperando decisão? */
@@ -247,11 +257,22 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
           desabilitada: false,
         });
       } else {
+        // A FASE DO MÊS NÃO SE CONCLUI À MÃO (0093), e o botão aparece
+        // DESLIGADO com a razão em vez de sumir: um botão que some ensina que
+        // não existe; um desligado que diz por quê ensina a regra — a mesma
+        // decisão do "Enviar ao cliente" do Social Media.
+        //
+        // E a regra é do banco: `subtasks_fase_fecha_pelas_caixinhas` recusa,
+        // contando quantas peças faltam. Aqui a frase é escrita antes do
+        // clique, e as duas saíram no mesmo commit — a lição da 0029.
         acoes.push({
           id: "concluir",
           rotulo: "Concluir",
           principal: true,
-          desabilitada: false,
+          desabilitada: Boolean(ctx.faseDeSocial),
+          motivo: ctx.faseDeSocial
+            ? "Ela fecha sozinha quando a última peça for marcada, no painel de cada post dentro do mês."
+            : undefined,
         });
       }
       acoes.push({

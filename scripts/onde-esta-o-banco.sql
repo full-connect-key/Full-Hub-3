@@ -142,7 +142,14 @@ from (
     ('0042', 'posts.midia',                     'coluna',       'posts.midia'),
     ('0043', 'user_skills APAGADA',             'sem_tabela',   'user_skills'),
     ('0044', 'abrir_mes_de_social()',           'funcao',       'abrir_mes_de_social'),
-    ('0045', 'post_etapas',                     'tabela',       'post_etapas'),
+    -- SEM LINHA: 0045 - a tabela que ela cria nao existe mais. A 0045 criou
+    -- `post_etapas`, a corrente de cada post, e a 0088 a APAGOU ao colapsar a
+    -- corrente para uma fase por mes. Num banco em dia nao sobra objeto que
+    -- diga se a 0045 passou por aqui.
+    --
+    -- Quem responde por ela e a 0088: um banco que tem `post_etapa_progresso`
+    -- passou pela 0045 no caminho -- as migrations se aplicam em ordem, e a
+    -- 0088 nao roda sem a tabela que ela apaga.
     ('0046', 'post_referencias',                'tabela',       'post_referencias'),
     ('0047', 'tenho_etapa_no_post()',           'funcao',       'tenho_etapa_no_post'),
     ('0048', 'post_versions.removeu_arquivos',  'coluna',       'post_versions.removeu_arquivos'),
@@ -166,12 +173,30 @@ from (
     ('0056', 'rate_limits',                     'tabela',       'rate_limits'),
     ('0057', 'equipe_ouve_o_canal',            'policy_fora',  'realtime|messages|equipe_ouve_o_canal'),
     ('0058', 'audit_log',                       'tabela',       'audit_log'),
-    ('0059', 'post_etapas.prazo_offset_dias',   'coluna',       'post_etapas.prazo_offset_dias'),
+    -- SEM LINHA: 0059 - as DUAS coisas que ela deixa foram desfeitas depois.
+    -- Ela criou `post_etapas.prazo_offset_dias` (a 0083 apagou a coluna) e a
+    -- oitava origem da `calendar_events` (a 0088 tirou). A linha antiga
+    -- procurava a coluna e dizia FALTA para sempre.
+    --
+    -- Quem responde por ela e a 0083, logo abaixo, que confere a AUSENCIA do
+    -- offset -- e um banco so chega la depois de passar pela 0059.
     -- A 0060 TIRA UMA TRAVA, entao a checagem e pela AUSENCIA -- a mesma
     -- forma da 0029, que tambem desfez uma. Um banco parado na 0059 ainda tem
     -- a frase no corpo de `validar_nova_rodada` e diz FALTA; depois de
     -- aplicada, nao tem.
-    ('0060', 'trava de enviar o proprio fora',  'sem_no_corpo', 'validar_nova_rodada|a própria entrega'),
+    -- SEM LINHA: 0060 - o corpo que ela deixou foi reescrito pela 0090, e a
+    -- frase VOLTOU com outra razao. A 0060 tirou "ninguem envia ao cliente a
+    -- propria entrega" porque `is_gestor()` acima ja barrava todo colaborador
+    -- -- ela nao alcancava ninguem. A 0090 abriu o envio para o Atendimento, e
+    -- com isso a pergunta passou a alcancar exatamente uma pessoa: o
+    -- colaborador do Atendimento que produziu a peca. A regra do usuario
+    -- continua inteira; o marcador e que deixou de marcar.
+    --
+    -- E ESTE FOI O ACHADO MAIS CARO DOS CINCO. As outras quatro linhas
+    -- quebradas apontavam para objeto apagado -- erro obvio quando se olha.
+    -- Esta apontava para a AUSENCIA de um texto, e o texto voltou: o script
+    -- dizia FALTA num banco em dia, e quem o consultasse concluiria que a
+    -- 0060 nao foi aplicada e a recolaria.
     ('0061', 'tasks.social_do_mes',             'coluna',       'tasks.social_do_mes'),
     -- A 0062 ACRESCENTA UMA GUARDA dentro de uma funcao que ja existia desde a
     -- 0011, entao nao ha objeto novo a procurar: a checagem e pelo TRECHO no
@@ -244,12 +269,21 @@ from (
     -- cliente estoura com "function does not exist", que e o sintoma que se
     -- vai investigar.
     ('0076', 'porta_do_cliente_no_post()', 'funcao',       'porta_do_cliente_no_post'),
-    -- A 0077 nao cria nada: ela tira DUAS origens da `calendar_events`. A
-    -- linha procura `subtasks` no texto da view -- a tabela que so a origem da
-    -- etapa lia, e que depois da 0077 nao aparece em nenhuma das seis. Apontar
-    -- para a view seria responder ok desde a 0055.
-    ('0077', 'demanda e etapa fora do calendario', 'sem_na_view',
-             'calendar_events|subtasks'),
+    -- A 0077 nao cria nada: ela tira DUAS origens da `calendar_events`.
+    --
+    -- O MARCADOR ERA `subtasks` NO TEXTO DA VIEW, e ele virou mentira na 0090:
+    -- aquela migration devolveu a fase do mes de social como origem, e a fase
+    -- E uma subtarefa -- entao a view voltou a citar a tabela e esta linha
+    -- passou a dizer FALTA num banco em dia. Foi o `aplicar-no-supabase.sql`
+    -- do Sprint 3K que mostrou, rodando contra um banco parado na 0080 e
+    -- terminando com duas linhas vermelhas.
+    --
+    -- Hoje o marcador e o TIPO da origem que saiu: `'demanda'` nao aparece no
+    -- texto de nenhuma das seis, e nenhuma migration posterior tem motivo para
+    -- devolve-lo -- a decisao do usuario foi que a demanda vive so em Minhas
+    -- Tasks.
+    ('0077', 'demanda fora do calendario', 'sem_na_view',
+             'calendar_events|''demanda'''),
     -- A 0078 cria DOIS triggers em `campaigns`, e a linha aponta para o que
     -- protege as colunas: sem ele a tela de editar campanha existe e qualquer
     -- colaborador troca o periodo combinado com o cliente -- que e o pior dos
@@ -278,7 +312,19 @@ from (
     -- com a corrente ainda andando atras da data de cada post.
     ('0083', 'post_etapas sem prazo_offset_dias', 'sem_coluna',
              'post_etapas.prazo_offset_dias'),
-    ('0084', 'post_etapas.data_inicio',  'coluna',       'post_etapas.data_inicio'),
+    -- SEM LINHA: 0084 - a tabela que ela alterou nao existe mais. A 0084
+    -- acrescentou `data_inicio` a `post_etapas`, e a 0088 APAGOU a tabela
+    -- inteira ao colapsar a corrente para uma fase por mes. Num banco em dia
+    -- nao sobra coluna nem objeto que diga se a 0084 passou por aqui, e a
+    -- linha antiga (`coluna post_etapas.data_inicio`) dizia FALTA para
+    -- sempre -- exatamente o erro que esta lista existe para nao cometer.
+    --
+    -- Quem responde por ela e a 0088, logo abaixo: um banco que tem
+    -- `post_etapa_progresso` passou pela 0084 no caminho.
+    --
+    -- E ela e a segunda isencao do arquivo, ao lado da 0026. As duas tem a
+    -- mesma forma -- uma migration desfeita por outra depois --, e as duas
+    -- sao DECLARADAS aqui: esquecer nao e decisao.
     -- A 0085 reescreve `saldo_de_ferias()` e cria `descanso_usado_no_ciclo()`.
     -- A linha aponta para a NOVA: o saldo existe desde a 0011 e responderia ok
     -- num banco parado la, com a conta acumulativa.
@@ -314,7 +360,13 @@ from (
     -- funcao existe desde a 0007 e responderia ok num banco parado la, que e
     -- exatamente o estado que esta linha tem que acusar.
     ('0092', 'a dica nomeia Pedir aval interno', 'no_corpo',
-             'validar_transicao_de_subtarefa|Pedir aval interno')
+             'validar_transicao_de_subtarefa|Pedir aval interno'),
+    -- A 0093 faz a caixinha fechar a fase do mes de social, e a fase nao se
+    -- fechar por fora. A linha aponta para a funcao do PASSO 1 e nao para a
+    -- do PASSO 2: as duas nascem juntas, e esta e a que tem o nome que nao
+    -- existia antes -- `post_etapa_progresso_reabre`, que ela substitui, some
+    -- na mesma migration.
+    ('0093', 'fase_acompanha_as_caixinhas()', 'funcao', 'fase_acompanha_as_caixinhas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

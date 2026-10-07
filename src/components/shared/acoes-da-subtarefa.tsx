@@ -88,6 +88,14 @@ export type SubtarefaParaAcao = {
   avalInterno: boolean;
   avalFinal: boolean;
   enviadaAoCliente: boolean;
+  /**
+   * O papel dela na corrente do mês de social, quando ela é uma fase (0088).
+   *
+   * Opcional porque nem toda tela carrega a coluna — e a ausência cai no lado
+   * certo: sem ela o botão "Concluir" aparece ligado, que é o que ele faz em
+   * toda subtarefa comum.
+   */
+  social_papel?: string | null;
 };
 
 export function AcoesDaSubtarefa({
@@ -132,6 +140,7 @@ export function AcoesDaSubtarefa({
     avalInterno: subtarefa.avalInterno,
     avalFinal: subtarefa.avalFinal,
     enviadaAoCliente: subtarefa.enviadaAoCliente,
+    faseDeSocial: Boolean(subtarefa.social_papel),
   });
 
   if (acoes.length === 0) return null;
