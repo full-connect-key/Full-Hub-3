@@ -2735,6 +2735,113 @@ a trava do trigger deixando-a na função derruba **um** — "E apagar a demanda
 dele no board também". Um cenário só separa "a regra está no banco" de "a regra
 está na tela", e sem ele a diferença não apareceria em lugar nenhum.
 
+##### E A PRIMEIRA PORTA NUNCA EXISTIU
+
+Relato do usuário, meses depois: *"Ainda não consigo deletar um mês inteiro de
+social, consegue me ajudar com isso?"*. Ele estava certo, e o furo é meu: **o
+botão do Social Media não existia.**
+
+**Tudo o mais estava de pé.** As três funções, o trigger, os vinte e sete
+cenários, e as **quatro Server Actions** — `apagarMesDeSocial`,
+`limparPostsDoMes`, `oQueVaiComOMes` e `arquivarMesDeSocial`, escritas no mesmo
+commit da 0086. O que faltava era alguém as chamar: nenhuma tinha chamador em
+`src/`, e o parágrafo acima aponta para um diálogo que ninguém construiu. Só a
+porta do board foi feita.
+
+**É A DÉCIMA SEGUNDA PONTE, e a mais caríssima delas.** As outras onze eram
+colunas esperando uma tela — `clients.drive_folder_id`, `posts.subtask_id`,
+`deliverables.subtask_id`, `notifications.origem_id`. Esta era uma TELA
+esperando um botão, com a regra, a bateria e a camada de ação inteiras prontas:
+o produto sabia apagar o mês e não tinha onde clicar.
+
+**A ponte que faltava de verdade era uma consulta de uma linha.** As quatro
+ações recebem `task_id`, e a tela do mês só conhecia `?mes=` e `?cliente=` —
+uma competência e uma empresa, que é o que o índice escreve no link. Quem liga
+os dois é `demandaDoMes()`, e ela pode devolver UMA linha porque o par é o
+índice único da 0061: `(client_id, social_do_mes)`.
+
+**E ela EXIGE a empresa.** Em "Todos os clientes" há tantos meses quantas
+contas têm social naquela competência, e não existe "o mês" para apagar — a
+seção não é desenhada. Apagar o primeiro que a consulta achasse seria apagar o
+mês de uma conta que ninguém escolheu.
+
+**A SEÇÃO FICA NO FIM DA TELA**, que é a decisão do detalhe da Task palavra por
+palavra: *"excluir não é propriedade, é ação sobre a demanda — vai para o fim
+da página, que é onde se procura o que encerra alguma coisa"*. Na barra de
+filtros, um botão que apaga dezoito peças dividiria a linha com o que cria uma.
+**E ela aparece com o mês VAZIO**, de propósito: "abri errado e quero desfazer"
+é o caso que o pedido original descreveu, e é justamente o mês sem peça nenhuma.
+
+**SÃO TRÊS SAÍDAS porque a recusa do banco oferece três.** Com alguma peça já
+no cliente, o trigger recusa e a dica nomeia as outras duas — arquivar, ou
+limpar só os posts. Uma tela com um botão só mandaria a pessoa ler a recusa e
+procurar sozinha onde fazer o que ela acabou de sugerir.
+
+| A saída | Para quem | Desfaz? |
+| --- | --- | --- |
+| Arquivar | o mês acabou e polui a navegação | **sim**, é carimbo |
+| Limpar os posts | errou a grade, acertou responsáveis e datas | não |
+| Apagar o mês | errou a montagem inteira | não |
+
+**O nome digitado é só do "apagar o mês inteiro"**, e é a trava do diálogo de
+campanha: limpar os posts preserva a demanda, as fases, os responsáveis e as
+datas — cobrar a digitação dele seria cobrar do caso mais provável a cerimônia
+do mais raro. **E ele não é pedido num mês sem peça nenhuma**, que é quem abriu
+errado e desfez em seguida: cerimônia por uma linha vazia.
+
+**A CONTAGEM CHEGA NA ABERTURA DO DIÁLOGO, nunca quando a tela monta** — é o
+argumento que o diálogo do board escreveu para não trazê-la, aplicado aqui ao
+contrário: lá ela custaria uma consulta em toda abertura de tela de task; aqui
+ela É o conteúdo do diálogo. E ela **conta em vez de perguntar "tem certeza?"**,
+com as peças já aprovadas pelo cliente numa linha própria em âmbar: é esse
+número que o banco vai usar para recusar, e quem lê "18 peças" sem ele clica e
+leva uma recusa que parece defeito da tela.
+
+**De quebra, o tipo da contagem estava na forma de SEIS colunas da 0086.** A
+0088 fez `drop function` antes do `create` — `create or replace` não troca o
+tipo de retorno de uma função `returns table` — e acrescentou `marcacoes` no
+meio. `database.types.ts` e a action ficaram com a forma antiga, e **nada
+reclamou**: `check:tipos` liga coluna e parâmetro, e não confere a forma de um
+`returns table` recriado. O diálogo contaria as fases e esqueceria as noventa
+caixinhas.
+
+##### A varredura que isto criou: `npm run check:acoes`
+
+**NENHUMA VERIFICAÇÃO DO PROJETO PEGAVA ISTO, e vale a lista.** O `tsc` não
+reclama de um `export` sem consumidor; o `lint` reclama de variável não usada e
+não de função exportada; o `build` compila; `check:tipos` confere a chamada que
+existe **dentro** da action; `check:fronteira` liga servidor a cliente;
+`check:cores` mede cor e nome morto. Uma action órfã atravessa a verificação
+inteira — ela só aparece para quem vai procurar o botão. Foi o usuário.
+
+Ela mede o nome aparecendo em **qualquer outro arquivo** de `src/` ou de
+`scripts/prototipo/`, e não a FORMA da chamada: uma action chegou a uma tela
+por três caminhos neste produto — direta, como prop, dentro de um
+`chamarAcao(() => ...)` —, e uma varredura que exigisse a forma reprovaria o
+caminho novo em vez do furo.
+
+**E A ISENÇÃO É DECLARADA, com o motivo escrito**, que é a decisão do
+`-- SEM LINHA:` do `onde-esta-o-banco.sql`: uma lista de nomes a ignorar sem
+razão ao lado é onde o furo seguinte se esconde. **A isenção que deixou de ser
+verdade também reprova** — sem isso, conectar a tela de uma action isenta
+deixaria ali uma frase afirmando que ela não tem tela, lida justamente por quem
+está em dúvida. É a armadilha da tabela de migrations pendentes, que já custou
+uma vez.
+
+**Medida com duas mutações:** tirando `acoes-do-mes.tsx`, a varredura nomeia as
+**quatro** ações desta seção — é a prova de que ela teria pegado o furo da 0086
+no dia; e isentando uma que tem chamador, ela reprova pelo outro ramo.
+
+**ELA ACHOU SETE MAIS, na primeira rodada**, e nenhuma foi resolvida aqui: o
+pedido era uma tela, e cinco telas a mais num commit de conserto é escopo que
+ninguém pediu. Elas estão nomeadas em `ISENTAS`, com o que falta em cada uma —
+`criarTask` é **código morto** desde a 0028 e pela 0023 se apaga; `registrarFoto`
+é a que mais dói, porque o CLAUDE.md diz que as fotos *"são o que resolve
+discussão na devolução"* e não há por onde subir uma; `editarRecomendacao` é uma
+promessa escrita aqui que o produto não cumpre; as outras quatro são
+`reordenarSubtarefas`, `marcarFeedbackExplicado`, `moverEntregavel` e
+`excluirTrilha`. **São sete decisões de quem usa o produto**, não sete bugs.
+
 #### O mês de social é UMA demanda, e cada post é uma etapa dela
 
 Migration 0061, decisão do usuário: *"atualmente quando abro o mês de social,
@@ -9369,6 +9476,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:mensagens` | Confere que nenhuma action devolve a mensagem crua do zod, e que o nome da action no log bate com o `executarAcao` em volta |
 | `npm run check:migrations` | Confere que nenhuma migration cita `$$` dentro de comentário, que todo marcador de dollar quoting abre e fecha, **e que a lista do `onde-esta-o-banco.sql` não ficou para trás da pasta** — migration sem linha lá é banco desatualizado lendo como banco em dia |
 | `npm run check:tipos` | Confere que o `database.types.ts` acompanha as migrations, nos **dois sentidos**: coluna que o banco tem e o `Row` não — o `select("*")` a traz e o TypeScript não a conhece, então o campo fica invisível no produto sem nada quebrar (foi o caso de `clients.logo_url`, doze sprints como campo de anotação) — e coluna no `Row` que o banco não tem, que é a pior das duas porque **compila e o editor a autocompleta**: a recusa chega na tela de quem usa o sistema. Ele lê as migrations como quem as aplicaria (`create table`, as cláusulas de `alter table`, `drop column`, `rename`, `drop table`, `drop type`) e não consulta banco nenhum. Tabela alcançada só por RPC precisa de **motivo escrito** na lista de isentas, como o `-- SEM LINHA: 0026` do `onde-esta-o-banco.sql`. **E ele confere a mesma corrente um andar abaixo, em PARÂMETRO DE FUNÇÃO**: argumento que o tipo declara e a função não tem, parâmetro que a função tem e o tipo não oferece, e — a ponta que faltava — chave que uma chamada `.rpc()` manda e o tipo não declara. Esta última **não é erro de tipo**, e é por isso que ela precisa de checagem própria |
+| `npm run check:acoes` | Confere que toda Server Action exportada tem CHAMADOR. **A falha que ela pega é uma tela esperando um botão**, e ela atravessa tudo o mais: o `tsc` não reclama de um `export` sem consumidor, o `lint` reclama de variável e não de função exportada, o `build` compila, e `check:tipos` confere a chamada que existe DENTRO da action. Foi assim que as quatro ações de apagar o mês de social ficaram meses sem botão — com a regra no banco, vinte e sete cenários verdes e o cabeçalho da 0086 afirmando que a tela existia. **É a ponte construída e nunca atravessada vista do outro lado**, e a pior das doze: as outras eram colunas esperando uma tela, esta era uma tela esperando um clique. Ela mede o NOME em qualquer outro arquivo e não a forma da chamada — uma action chega à tela por três caminhos neste produto —, e cada isenção carrega o motivo escrito, como o `-- SEM LINHA:` do `onde-esta-o-banco.sql`. **A isenção que deixou de ser verdade também reprova**, senão ela viraria prosa mantida à mão afirmando que uma action resolvida continua sem tela |
 | `npm run check:drive` | Prova que o nome digitado — a empresa, o título da demanda — não alcança a linguagem de consulta do Drive. Duas travas independentes, e a ordem do escape |
 | `npm run check:preview` | Prova que o servidor recusa buscar rede interna — os doze endereços, do `169.254.169.254` da nuvem ao `gopher://` do Redis, **pelos dois caminhos que buscam**: a prévia do link, com o endereço que a pessoa colou, e a capa da recomendação, com o que o site apontou. Ele confere o MOTIVO e não só a recusa: "o site não respondeu" é recusa da rede, e numa máquina onde o endereço responde ela vira um preview |
 | `npm run check:feedback` | Prova que a verificação do texto do feedback continua pegando o que não pode chegar a uma pessoa: comparação com terceiros, julgamento de caráter, elogio vazio, nota, número que não está nos dados. **Mede os dois sentidos** — o primeiro caso é um texto limpo, que tem de sair com zero achados, senão uma função que acusa SEMPRE passaria em todos os outros. É a família do `check:email` e do `check:preview`: uma trava que, quando some, faz o programa fazer MAIS coisas não derruba build, nem tipo, nem a bateria de SQL |

@@ -7,6 +7,7 @@ import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import {
+  demandaDoMes,
   filaDaAgencia,
   mesesDeSocialDaAgencia,
   obterPostDaAgencia,
@@ -43,7 +44,7 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
 
   const filtros = { clienteId, foco, usuarioId: sessao.usuarioId };
 
-  const [posts, semData, clientes, equipe, aberto, fluxos] = await Promise.all([
+  const [posts, semData, clientes, equipe, aberto, fluxos, demanda] = await Promise.all([
     // CADA VISÃO CARREGA SÓ A PRÓPRIA CONSULTA. O calendário quer um mês; a
     // lista quer a fila dos próximos três, porque quem abre a lista está
     // procurando trabalho e o que tem para fazer hoje quase sempre publica no
@@ -62,6 +63,16 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
     // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
     // abriria um mês com a corrente que ela aposentou.
     fluxosDeSocial({ apenasAtivos: true }),
+    // A DEMANDA DESTE MÊS, e ela só existe com uma empresa escolhida: o mês é
+    // identificado pelo par `(?mes=, ?cliente=)`, que é o índice único da
+    // 0061. Em "Todos os clientes" há tantos meses quantas contas têm social
+    // naquela competência, e apagar o primeiro que a consulta achasse seria
+    // apagar o mês de uma conta que ninguém escolheu.
+    //
+    // **É A PONTE QUE FALTAVA PARA AS QUATRO AÇÕES DA 0086.** Elas recebem
+    // `task_id` e esta tela só conhecia a competência, então o botão de
+    // apagar o mês não tinha o que apagar — ver `acoes-do-mes.tsx`.
+    clienteId ? demandaDoMes(mes, clienteId) : Promise.resolve(null),
   ]);
 
   return (
@@ -86,6 +97,7 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
       driveLigado={driveConfigurado()}
       quemLe={{ id: sessao.usuarioId, ehGestor: souGestor }}
       mes={mes}
+      demanda={demanda}
     />
   );
 }

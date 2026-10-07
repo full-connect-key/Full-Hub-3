@@ -239,6 +239,26 @@ const TELAS = [
   // secao so e via o `PageHeader` no lugar dela. A imagem prova que ele tem
   // Posts e Meses, e NAO tem Fluxos.
   { nome: "57e-social-indice-colaborador", rota: "/painel/social-media", largura: 1440, altura: 900, role: "colaborador-social" },
+  // ENCERRAR O MES, no fim da tela do mes aberto.
+  //
+  // SEM `post=`, de proposito: com uma peca aberta o editor ocupa a coluna da
+  // direita com a corrente e o envio do mes, e a secao nao e desenhada --
+  // "Apagar o mes inteiro" embaixo daquela coluna leria como se fosse sobre a
+  // peca que esta aberta.
+  //
+  // E A COLABORADORA PROVA A OUTRA METADE: as tres acoes do mes sao
+  // `is_gestor()` desde a 0086, e a secao nao aparece para ela. So a imagem do
+  // socio passaria numa tela que mostra os botoes para todo mundo.
+  //
+  // *O QUE ESTAS IMAGENS NAO PEGAM, e fica dito:* o DIALOGO, com a contagem.
+  // Ele chama `oQueVaiComOMes` na abertura, que e Server Action -- e o
+  // protótipo troca `lib/dados/`, nunca `_actions`. Sem Supabase ela recusa, e
+  // o diálogo sairia com a linha de erro: uma imagem provando o caminho de
+  // falha no lugar do que se queria conferir. Trocar acao exigiria um
+  // mecanismo que este gerador nao tem, e e decisao explicita quando valer.
+  { nome: "57f-social-encerrar-o-mes", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 1440, altura: 1500, role: "socio" },
+  { nome: "57g-social-encerrar-375", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 375, altura: 2000, role: "socio" },
+  { nome: "57h-social-encerrar-colaborador", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 1440, altura: 1300, role: "colaborador-social" },
   { nome: "58-fluxos-de-social", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 1000, role: "socio" },
   // O EDITOR, aberto. Ele abre com o molde da casa, e e a unica imagem em que
   // se ve o seletor de papel, o interruptor do portao e as duas pontas

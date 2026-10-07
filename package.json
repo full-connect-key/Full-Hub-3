@@ -21,6 +21,7 @@
     "check:feedback": "npx --yes tsx scripts/check-feedback.mjs",
     "check:prototipo": "node scripts/check-prototipo.mjs",
     "check:drive": "node scripts/check-drive.mjs",
+    "check:acoes": "node scripts/check-acoes.mjs",
     "check:sprint9": "node scripts/verificar-9.mjs"
   },
   "dependencies": {

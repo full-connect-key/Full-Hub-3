@@ -929,3 +929,64 @@ function faseDoCartao(
     responsavel: fase.responsavelId ? (nomes.get(fase.responsavelId) ?? null) : null,
   };
 }
+
+/**
+ * A DEMANDA de um mês de social, pelo par (competência, empresa).
+ *
+ * **Ela existe porque a tela do mês não sabe o id da demanda dele.** O mês é
+ * identificado na URL por `?mes=` e `?cliente=` — uma competência e uma
+ * empresa, que é o que o índice escreve no link —, e as quatro ações do mês
+ * (apagar, limpar os posts, arquivar, contar o que vai junto) todas recebem
+ * `task_id`. Sem esta ponte o botão de apagar o mês não tem o que apagar.
+ *
+ * **O PAR É A CHAVE, e isso é o índice único da 0061** —
+ * `(client_id, social_do_mes)`. É ele que faz abrir o mesmo mês duas vezes
+ * acrescentar posts à demanda que já existe em vez de criar uma segunda, e é
+ * por isso que esta consulta pode devolver UMA linha: o banco garante que não
+ * há duas.
+ *
+ * **E ela exige a empresa.** Com "Todos os clientes" na barra há tantos meses
+ * quantas contas têm social naquela competência, e não há "o mês" para apagar
+ * — a tela devolve `null` e a seção de encerrar o mês não é desenhada. Apagar
+ * o primeiro que a consulta achasse seria apagar o mês de uma conta que a
+ * pessoa não escolheu.
+ */
+export type DemandaDoMes = {
+  taskId: string;
+  titulo: string;
+  arquivadaEm: string | null;
+};
+
+export async function demandaDoMes(
+  mes: string,
+  clienteId: string,
+): Promise<DemandaDoMes | null> {
+  const supabase = await criarClienteServidor();
+
+  // `?mes=` chega como `AAAA-MM` e a coluna guarda o dia 1 (0061), então o
+  // sufixo é escrito aqui em vez de a consulta comparar por prefixo: um
+  // `like` numa coluna `date` não usa o índice único e aceitaria um mês
+  // vizinho se o formato mudasse.
+  // `.limit(1)` e o primeiro, e nunca `.maybeSingle()`: a resposta dele é uma
+  // união de duas formas e o genérico de `ouFalha` a resolve para `never` —
+  // o erro sai setenta linhas abaixo, num `return`. Está escrito no cabeçalho
+  // de `consulta.ts`, e foram seis lugares.
+  const linhas = ouFalha(
+    "demanda do mês de social",
+    await supabase
+      .from("tasks")
+      .select("id, titulo, arquivada_em")
+      .eq("client_id", clienteId)
+      .eq("social_do_mes", `${mes}-01`)
+      .limit(1),
+  );
+
+  const linha = linhas[0];
+  if (!linha) return null;
+
+  return {
+    taskId: linha.id,
+    titulo: linha.titulo,
+    arquivadaEm: linha.arquivada_em,
+  };
+}

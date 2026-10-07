@@ -15,6 +15,7 @@
  * largura, e ela so aparece com mais de um.
  */
 import type {
+  DemandaDoMes as DemandaReal,
   MesDeSocial as MesReal,
   PostDaAgencia as PostReal,
   ReferenciaDoPost as ReferenciaReal,
@@ -26,6 +27,7 @@ import type { SocialFlowPapel } from "../../src/lib/supabase/database.types";
 
 export type PostDaAgencia = PostReal;
 export type MesDeSocial = MesReal;
+export type DemandaDoMes = DemandaReal;
 export type SituacaoDoMes = SituacaoReal;
 export type VersaoDoPost = VersaoReal;
 export type ReferenciaDoPost = ReferenciaReal;
@@ -670,4 +672,36 @@ export async function mesesDeSocialDaAgencia(
       return m.status !== "concluido" && m.arquivadaEm === null;
     return true;
   });
+}
+
+/**
+ * A DEMANDA DO MÊS, para a seção "Encerrar o mês" sair na imagem.
+ *
+ * **O RECORTE QUE ELE APLICA É A EMPRESA, e não o mês.** É ela a condição que
+ * decide se a seção é desenhada — em "Todos os clientes" não existe "o mês" —,
+ * e devolvendo um mês sempre a imagem mostraria os três botões numa tela que o
+ * produto deixa sem eles: uma imagem conferindo o stub em vez do produto.
+ *
+ * **O mês não entra na comparação porque as duas pontas têm calendários
+ * diferentes:** `MESES_DE_SOCIAL` é datado em literais fixos e a URL do
+ * protótipo pede o mês CORRENTE, porque os posts de exemplo nascem a partir
+ * do dia 1 de hoje. Casando os dois a seção sumiria da imagem sozinha na
+ * virada do mês, sem ninguém ter tocado em nada — e uma tela que desaparece
+ * do protótipo em silêncio é a que ninguém descobre que perdeu.
+ *
+ * **E o título sai do mês PEDIDO, não do da ficha**, porque ele é o texto que
+ * a confirmação por digitação cobra: vindo da ficha, o diálogo da imagem
+ * pediria um nome que o cabeçalho da tela não mostra.
+ */
+export async function demandaDoMes(
+  mes: string,
+  clienteId: string,
+): Promise<DemandaDoMes | null> {
+  const achado = MESES_DE_SOCIAL.find((m) => m.clienteId === clienteId);
+  if (!achado) return null;
+  return {
+    taskId: achado.taskId,
+    titulo: `Social · ${mes} de ${achado.cliente}`,
+    arquivadaEm: achado.arquivadaEm,
+  };
 }

@@ -28,6 +28,7 @@ import {
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { cn } from "@/lib/utils";
 import type {
+  DemandaDoMes,
   PortaoDoMes,
   PostDaAgencia,
   ReferenciaDoPost,
@@ -38,6 +39,7 @@ import type { CaixinhaDoPost, EtapaDoMes } from "@/lib/dominio/posts";
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
+import { AcoesDoMes } from "./acoes-do-mes";
 import { NovoPost } from "./novo-post";
 
 const TODOS = "__todos__";
@@ -157,6 +159,7 @@ export function SocialMedia({
   driveLigado = false,
   quemLe,
   mes,
+  demanda,
 }: {
   posts: PostDaAgencia[];
   /** Os que ninguém datou ainda. Só o calendário os recebe — ver page.tsx. */
@@ -180,6 +183,16 @@ export function SocialMedia({
   driveLigado?: boolean;
   quemLe: QuemLe;
   mes: string;
+  /**
+   * A DEMANDA deste mês, quando há uma — ou seja, quando a barra tem uma
+   * empresa escolhida. Nula em "Todos os clientes", onde não existe "o mês":
+   * há tantos quantas contas têm social naquela competência.
+   *
+   * É ela que carrega o `task_id` que as quatro ações do mês recebem. A tela
+   * só conhecia `?mes=`, que é uma competência, e era essa a razão pela qual
+   * o botão de apagar o mês não tinha o que apagar.
+   */
+  demanda: DemandaDoMes | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -706,6 +719,33 @@ export function SocialMedia({
           ) : null}
         </div>
       )}
+
+      {/* ENCERRAR O MÊS FICA NO FIM, e é a decisão do detalhe da Task: ação
+          que termina alguma coisa não divide a barra com a que começa — no
+          meio dos filtros, um botão que apaga dezoito peças ficaria ao lado do
+          que cria uma, na faixa onde a pessoa clica sem olhar.
+
+          TRÊS CONDIÇÕES, e cada uma é de natureza diferente:
+          — `quemLe.ehGestor`, porque apagar o mês é `is_gestor()` desde a
+            0086. Esconder NÃO é a proteção: a action chama
+            `exigirGestorNaAcao()` e as três funções conferem no banco. O que
+            não desenhar faz é não oferecer o que vai ser recusado;
+          — `demanda`, porque sem uma empresa escolhida não existe "o mês":
+            há tantos quantas contas têm social naquela competência;
+          — e nenhum post aberto, porque o editor já ocupa a coluna da direita
+            com a corrente e o envio do mês, e um "Apagar o mês inteiro"
+            embaixo dela leria como se fosse sobre a peça que está aberta.
+
+          E ela aparece com o mês VAZIO, de propósito: "abri errado e quero
+          desfazer" é o caso que o pedido do usuário descreveu, e é justamente
+          o mês sem peça nenhuma. */}
+      {quemLe.ehGestor && demanda && !aberto ? (
+        <AcoesDoMes
+          taskId={demanda.taskId}
+          rotulo={demanda.titulo}
+          arquivadaEm={demanda.arquivadaEm}
+        />
+      ) : null}
     </div>
   );
 }

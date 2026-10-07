@@ -3652,6 +3652,14 @@ export interface Database {
         Args: { p_task_id: string };
         Returns: number;
       };
+      /**
+       * As ETAPAS e as MARCAÇÕES são duas colunas desde a 0088, e juntá-las
+       * daria "noventa etapas" num mês de cinco: a etapa é a fase do mês
+       * (cinco) e a marcação é a caixinha de uma peça em uma fase (uma por
+       * post × fase). A 0088 fez `drop function` antes do `create` porque
+       * `create or replace` não troca o tipo de retorno de uma função
+       * `returns table`, e acrescentar coluna troca.
+       */
       o_que_vai_com_o_mes: {
         Args: { p_task_id: string };
         Returns: {
@@ -3660,6 +3668,7 @@ export interface Database {
           aprovados: number;
           versoes: number;
           etapas: number;
+          marcacoes: number;
           comentarios: number;
         }[];
       };

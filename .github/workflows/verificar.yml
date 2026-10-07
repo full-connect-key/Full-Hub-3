@@ -114,6 +114,16 @@ jobs:
       - name: O escape da consulta do Drive
         run: npm run check:drive
 
+      - name: Toda Server Action tem tela
+        # A FALHA QUE ELA PEGA É UMA TELA ESPERANDO UM BOTÃO, e ela atravessa
+        # tudo o que vem acima: o `tsc` não reclama de um `export` sem
+        # consumidor, o `lint` reclama de variável e não de função exportada, o
+        # `build` compila, e `check:tipos` confere a chamada que existe DENTRO
+        # da action. Foi assim que as quatro ações de apagar o mês de social
+        # ficaram meses sem botão, com a regra no banco e vinte e sete
+        # cenários verdes — e quem encontrou foi o usuário.
+        run: npm run check:acoes
+
       # Sem variável de ambiente nenhuma, e isso é deliberado: `lib/env.ts`
       # não lança no import justamente para o projeto compilar antes de as
       # credenciais existirem. Se um dia o build passar a exigir credencial,

@@ -968,6 +968,13 @@ export async function criarPastaDoMesDeSocial(
  * decisão do diálogo de apagar campanha. E a contagem sai da MESMA ponte que
  * o apagamento usa, pela razão de `quem_deve_nota()` na 0066: duas contas
  * dariam um diálogo prometendo doze e um apagamento alcançando onze.
+ *
+ * **AS FASES E AS MARCAÇÕES SÃO DOIS NÚMEROS desde a 0088**, e juntá-los
+ * daria "noventa etapas" num mês de cinco: a fase é do mês, a marcação é a
+ * caixinha de uma peça dentro dela. O tipo deste arquivo tinha ficado na
+ * forma de seis colunas da 0086 — `create or replace` não troca o tipo de
+ * retorno de uma função `returns table`, então a 0088 fez `drop` antes, e a
+ * coluna nova entrou no meio sem nada aqui reclamar.
  */
 export async function oQueVaiComOMes(taskId: string): Promise<
   Resultado<{
@@ -975,7 +982,10 @@ export async function oQueVaiComOMes(taskId: string): Promise<
     enviados: number;
     aprovados: number;
     versoes: number;
+    /** As fases do mês — cinco num fluxo padrão. */
     etapas: number;
+    /** As caixinhas: uma por peça em cada fase. Dezoito posts × cinco = 90. */
+    marcacoes: number;
     comentarios: number;
   }>
 > {
