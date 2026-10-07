@@ -598,6 +598,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     pecas: 18,
     aprovadas: 4,
     esperandoCliente: 6,
+    fase: { titulo: "Envio", responsavel: "Ana Souza" },
   },
   {
     taskId: "mes-mv-09",
@@ -610,6 +611,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     pecas: 18,
     aprovadas: 18,
     esperandoCliente: 0,
+    fase: null,
   },
   {
     taskId: "mes-mv-2025",
@@ -622,6 +624,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     pecas: 12,
     aprovadas: 12,
     esperandoCliente: 0,
+    fase: null,
   },
   {
     taskId: "mes-ov-10",
@@ -634,6 +637,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     pecas: 8,
     aprovadas: 0,
     esperandoCliente: 0,
+    fase: { titulo: "Layout", responsavel: "Bruno Lima" },
   },
   {
     taskId: "mes-mz-10",
@@ -646,6 +650,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     pecas: 0,
     aprovadas: 0,
     esperandoCliente: 0,
+    fase: { titulo: "Pauta", responsavel: null },
   },
 ];
 

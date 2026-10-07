@@ -1,13 +1,25 @@
 "use client";
 
-import { CalendarRange, Images, Workflow } from "lucide-react";
+import { CalendarRange, Workflow } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
-export type AbaDoSocial = "posts" | "meses" | "fluxos";
+export type AbaDoSocial = "social" | "fluxos";
 
 /**
- * As seções de Social Media — duas na 0087, três desde a navegação por mês.
+ * As DUAS seções de Social Media.
+ *
+ * ---------------------------------------------------------------------------
+ * **A ABA POSTS SAIU, e "Meses" virou "Social"** — decisão do usuário: *"a aba
+ * Posts pode deletar, quero que a visualização seja apenas por contas e
+ * separada por meses, (…) quero que mude de meses para Social"*. Elas chegaram
+ * a ser três.
+ *
+ * **"Social" e não "Meses" porque a seção deixou de ser uma navegação e passou
+ * a ser O MÓDULO**: é por ela que se chega a tudo — a conta, o mês, e os posts
+ * dentro dele. Um rótulo que nomeia o nível de cima da árvore descreveria o
+ * índice, e o índice é só a primeira tela dela.
+ * ---------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------
  * **ESTE ARQUIVO É CLIENTE, E A RAZÃO É MECÂNICA.** `SecaoDoModulo` carrega um
@@ -32,13 +44,7 @@ export type AbaDoSocial = "posts" | "meses" | "fluxos";
  * ---------------------------------------------------------------------------
  */
 const SECOES: SecaoDoModulo<AbaDoSocial>[] = [
-  { chave: "posts", rotulo: "Posts", Icone: Images },
-  // MESES VEM NO MEIO, e não no fim: a ordem das seções é a da pergunta — o
-  // que está acontecendo (Posts), onde mais há trabalho (Meses), e como a
-  // corrente é montada (Fluxos, que é configuração). No fim, a navegação que
-  // esta seção acrescenta ficaria depois da configuração que quase ninguém
-  // abre.
-  { chave: "meses", rotulo: "Meses", Icone: CalendarRange },
+  { chave: "social", rotulo: "Social", Icone: CalendarRange },
   { chave: "fluxos", rotulo: "Fluxos", Icone: Workflow },
 ];
 
@@ -64,15 +70,24 @@ export function AbasDoSocial({
       // `?cliente=` sobrevivendo até a volta filtraria a lista de posts por uma
       // conta que a pessoa escolheu antes de ir montar um fluxo. É a decisão
       // das quatro abas de Gestão de Tasks.
-      limparAoSair={(destino) => {
-        // OS FILTROS DOS POSTS SÃO LIMPOS AO SAIR PARA AS DUAS OUTRAS, e as
-        // razões são diferentes. Em Fluxos eles não filtram nada. Em Meses eles
-        // filtram: `?cliente=` é o parâmetro que a árvore usa para estreitar, e
-        // chegar nela com a conta que a pessoa escolheu antes de ir procurar um
-        // mês mostraria UMA conta onde ela veio ver todas.
-        if (destino === "posts") return ["situacao", "contas", "anos"];
-        return ["visao", "mes", "cliente", "foco", "post"];
-      }}
+      // SAIR PARA FLUXOS LIMPA TUDO O QUE É DO SOCIAL, e não é zelo: um
+      // `?cliente=` sobrevivendo até a volta traria a pessoa de Fluxos direto
+      // para dentro de uma conta, em vez do índice que ela veio ver. É a
+      // decisão das quatro abas de Gestão de Tasks.
+      //
+      // **E voltar para Social limpa `?mes=` também**, que é o que faz o
+      // clique na própria seção ser o caminho de volta ao índice: sem isso,
+      // quem está num mês aberto clicaria em "Social" e continuaria nele.
+      limparAoSair={() => [
+        "visao",
+        "mes",
+        "cliente",
+        "foco",
+        "post",
+        "situacao",
+        "contas",
+        "anos",
+      ]}
     />
   );
 }

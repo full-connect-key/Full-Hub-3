@@ -44,6 +44,13 @@ import path from "node:path";
 //   semRolagem -> captura so a janela. Necessario para lista suspensa aberta:
 //                 `fullPage` rola a pagina, e o Select do Radix fecha ao rolar.
 // ---------------------------------------------------------------------------
+// O recorte que a secao Social usa para abrir um MES em vez do indice.
+const MES_DO_SOCIAL = (() => {
+  const hoje = new Date();
+  const mes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  return `mes=${mes}&cliente=c0000000-0000-0000-0000-00000000000a`;
+})();
+
 const TELAS = [
   // --- A PORTA -----------------------------------------------------------
   // A casca e UMA para as quatro telas de (auth), e cada imagem daqui prova
@@ -198,36 +205,40 @@ const TELAS = [
   { nome: "42-aprovacoes-ajustes", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "43-workflows", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-workflow-editor", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
-  { nome: "50-social-lista", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "socio" },
-  { nome: "51-social-calendario", rota: "/painel/social-media?visao=calendario&post=p1", largura: 1600, altura: 1100, role: "socio" },
+  // O MES ABERTO PRECISA DO RECORTE NA URL, desde que a aba Posts saiu: sem
+  // `mes` e `cliente` a secao Social desenha o INDICE, que e outra tela. O mes
+  // e o corrente porque os posts de exemplo sao datados a partir do dia 1 de
+  // hoje -- um mes fixo poria o calendario num mes sem peca nenhuma.
+  { nome: "50-social-lista", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1100, role: "socio" },
+  { nome: "51-social-calendario", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1600, altura: 1100, role: "socio" },
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
   // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.
-  { nome: "52-social-colaborador", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1100, role: "colaborador-social" },
-  { nome: "53-social-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
+  { nome: "52-social-colaborador", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1100, role: "colaborador-social" },
+  { nome: "53-social-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 375, altura: 1900, role: "socio" },
   // A CORRENTE (0045) E A FAIXA SEM DATA (0044).
   // O calendario e onde as duas convivem: a grade do mes em cima e os posts que
   // ninguem datou embaixo. Em 375px e onde se ve se a lista da faixa rola em
   // vez de estourar a largura -- foi assim que o calendario do Full Days saiu
   // errado na primeira imagem.
-  { nome: "54-social-sem-data", rota: "/painel/social-media?visao=calendario&post=p1", largura: 1440, altura: 1500, role: "socio" },
-  { nome: "55-social-sem-data-375", rota: "/painel/social-media?visao=calendario", largura: 375, altura: 1600, role: "socio" },
+  { nome: "54-social-sem-data", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1440, altura: 1500, role: "socio" },
+  { nome: "55-social-sem-data-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario`, largura: 375, altura: 1600, role: "socio" },
   { nome: "56-abrir-o-mes", rota: "/painel/social-media", largura: 1440, altura: 1200, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
   { nome: "57-abrir-o-mes-375", rota: "/painel/social-media", largura: 375, altura: 1500, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
   // A ABA FLUXOS (0087). A lista mostra os tres estados que importam: a
   // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
   // descreveu -- e uma desativada, que e o unico em que o selo e o botao
   // "Reativar" aparecem.
-  // A NAVEGACAO CONTA -> ANO -> MES, nas duas pontas do filtro: "Em producao",
-  // que e onde ela abre, e "Arquivados", que e o unico recorte em que a regra
-  // dos 90 dias aparece na tela. Sem a segunda, o filtro teria quatro botoes e
-  // tres deles sem imagem nenhuma.
-  { nome: "57b-social-meses", rota: "/painel/social-media?aba=meses", largura: 1440, altura: 1100, role: "socio" },
-  { nome: "57c-social-meses-arquivados", rota: "/painel/social-media?aba=meses&situacao=arquivados", largura: 1440, altura: 800, role: "socio" },
-  { nome: "57d-social-meses-375", rota: "/painel/social-media?aba=meses", largura: 375, altura: 1400, role: "socio" },
+  // O INDICE DO SOCIAL -- a porta do modulo desde que a aba Posts saiu --, nas
+  // duas pontas do filtro: "Em producao", que e onde ele abre, e "Arquivados",
+  // que e o unico recorte em que a regra dos 90 dias aparece na tela. Sem a
+  // segunda, o filtro teria quatro botoes e tres deles sem imagem nenhuma.
+  { nome: "57b-social-indice", rota: "/painel/social-media", largura: 1440, altura: 1100, role: "socio" },
+  { nome: "57c-social-indice-arquivados", rota: "/painel/social-media?aba=social&situacao=arquivados", largura: 1440, altura: 800, role: "socio" },
+  { nome: "57d-social-indice-375", rota: "/painel/social-media", largura: 375, altura: 1400, role: "socio" },
   // E PARA O COLABORADOR, que e quem ganhou a barra: ate aqui ele alcancava uma
   // secao so e via o `PageHeader` no lugar dela. A imagem prova que ele tem
   // Posts e Meses, e NAO tem Fluxos.
-  { nome: "57e-social-meses-colaborador", rota: "/painel/social-media?aba=meses", largura: 1440, altura: 900, role: "colaborador-social" },
+  { nome: "57e-social-indice-colaborador", rota: "/painel/social-media", largura: 1440, altura: 900, role: "colaborador-social" },
   { nome: "58-fluxos-de-social", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 1000, role: "socio" },
   // O EDITOR, aberto. Ele abre com o molde da casa, e e a unica imagem em que
   // se ve o seletor de papel, o interruptor do portao e as duas pontas
@@ -245,9 +256,9 @@ const TELAS = [
   // (decisao do usuario), entao nao ha "proximo slide" para clicar -- e nao
   // ha porque a peça toda ja esta na tela. O seletor era o do desenho
   // anterior, uma imagem por vez com setas.
-  { nome: "59-carrossel", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio" },
-  { nome: "60-carrossel-375", rota: "/painel/social-media?post=p1", largura: 375, altura: 1900, role: "socio" },
-  { nome: "58-corrente-escuro", rota: "/painel/social-media?post=p1", largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
+  { nome: "59-carrossel", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1300, role: "socio" },
+  { nome: "60-carrossel-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 375, altura: 1900, role: "socio" },
+  { nome: "58-corrente-escuro", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
 
   { nome: "44-recorrencias", rota: "/painel/gestao-tasks?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
   { nome: "44b-recorrencia-editor", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },

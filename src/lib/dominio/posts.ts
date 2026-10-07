@@ -902,7 +902,7 @@ export function rotuloDaData(formatada: string | null): string {
  * ---------------------------------------------------------------------------
  */
 
-/** Um mês na navegação. Só o que a árvore desenha; a leitura traz o resto. */
+/** Um mês na navegação. Só o que o índice desenha; a leitura traz o resto. */
 export type MesNaArvore = {
   taskId: string;
   mes: string;
@@ -911,6 +911,8 @@ export type MesNaArvore = {
   esperandoCliente: number;
   arquivadaEm: string | null;
   concluido: boolean;
+  /** A fase da vez e quem a tem. `null` num mês concluído ou sem corrente. */
+  fase: { titulo: string; responsavel: string | null } | null;
 };
 
 export type AnoDeSocial = { ano: string; meses: MesNaArvore[] };
@@ -948,6 +950,7 @@ export function porContaEAno(
     esperandoCliente: number;
     arquivadaEm: string | null;
     status: string;
+    fase: { titulo: string; responsavel: string | null } | null;
   }[],
 ): ContaDeSocial[] {
   const contas = new Map<string, ContaDeSocial>();
@@ -979,6 +982,7 @@ export function porContaEAno(
       esperandoCliente: m.esperandoCliente,
       arquivadaEm: m.arquivadaEm,
       concluido: m.status === "concluido",
+      fase: m.fase,
     });
     conta.meses += 1;
     conta.esperandoCliente += m.esperandoCliente;

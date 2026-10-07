@@ -16,7 +16,7 @@ import {
 } from "@/lib/dados/social-media";
 import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { AbasDoSocial } from "./abas";
-import { ArvoreDeMeses } from "./arvore-de-meses";
+import { IndiceDoSocial } from "./indice-do-social";
 import { FluxosDeSocial } from "./fluxos-de-social";
 
 import { driveConfigurado } from "@/lib/drive/config";
@@ -105,7 +105,7 @@ async function Fluxos() {
 }
 
 /**
- * A SEÇÃO MESES: quais meses de social existem, por conta e por ano.
+ * O ÍNDICE DO SOCIAL: uma conta por cartão, com os meses dela dentro.
  *
  * **ELA É DE `EQUIPE` e não da gestão**, ao contrário de Fluxos: achar o mês
  * em que se trabalha é o trabalho do dia, e esconder isto de quem produz é
@@ -117,8 +117,8 @@ async function Fluxos() {
  * e `?situacao=outubro` não pode derrubar a tela — é a decisão de
  * `ehFaseDoMaterial` no portal e do `?aba=` torto logo abaixo.
  */
-async function Meses({ parametros }: { parametros: Parametros }) {
-  await exigirAcessoARota("/painel/social-media");
+async function Indice({ parametros }: { parametros: Parametros }) {
+  const sessao = await exigirAcessoARota("/painel/social-media");
 
   const pedida = texto(parametros, "situacao");
   const situacao: SituacaoDoMes =
@@ -126,9 +126,32 @@ async function Meses({ parametros }: { parametros: Parametros }) {
       ? pedida
       : "producao";
 
-  const meses = await mesesDeSocialDaAgencia(situacao, texto(parametros, "cliente"));
+  const conta = texto(parametros, "cliente") ?? null;
 
-  return <ArvoreDeMeses meses={meses} situacao={situacao} />;
+  const [meses, clientes, equipe, fluxos] = await Promise.all([
+    mesesDeSocialDaAgencia(situacao, conta ?? undefined),
+    listarClientes(),
+    listarEquipeAtiva(),
+    // SÓ OS ATIVOS: o diálogo oferece o que dá para aplicar, e um fluxo
+    // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
+    // abriria um mês com a corrente que ela aposentou.
+    fluxosDeSocial({ apenasAtivos: true }),
+  ]);
+
+  return (
+    <IndiceDoSocial
+      meses={meses}
+      situacao={situacao}
+      contaFixada={conta}
+      clientes={clientes
+        .filter((c) => c.ativo)
+        .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
+      equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
+      fluxos={fluxos}
+      driveLigado={driveConfigurado()}
+      souGestor={ehGestor(sessao.profile.role)}
+    />
+  );
 }
 
 export default async function PaginaDeSocialMedia({
@@ -153,13 +176,24 @@ export default async function PaginaDeSocialMedia({
    * recusa é a policy de escrita. Recusar a rota inteira seria esconder dele a
    * corrente que ele percorre.
    */
-  const pedida = texto(parametros, "aba");
-  const aba =
-    pedida === "meses"
-      ? "meses"
-      : souGestor && pedida === "fluxos"
-        ? "fluxos"
-        : "posts";
+  const aba = souGestor && texto(parametros, "aba") === "fluxos" ? "fluxos" : "social";
+
+  /**
+   * DENTRO DE SOCIAL HÁ DOIS ESTADOS, e quem os separa é `?mes=`.
+   *
+   * Sem ele, o índice: as contas com os meses de cada uma. Com ele, o MÊS
+   * ABERTO — o calendário, a lista, o feed e o editor do post, que até aqui
+   * eram a aba Posts.
+   *
+   * **ELES SÃO O MESMO `?aba=`, e não duas seções**, porque são dois níveis da
+   * mesma pergunta e não duas coisas: a barra de contexto navega entre assuntos,
+   * e "o índice" e "um mês" são o mesmo assunto a uma profundidade de distância.
+   * É a ficha do equipamento em Comodatos, que também não é uma aba.
+   *
+   * **E `?cliente=` SOZINHO NÃO ABRE MÊS NENHUM**: ele estreita o índice a uma
+   * conta, que é para onde "Todos os meses →" leva.
+   */
+  const mesAberto = aba === "social" ? texto(parametros, "mes") : undefined;
 
   return (
     <div className="space-y-6">
@@ -179,19 +213,19 @@ export default async function PaginaDeSocialMedia({
         <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
           <Fluxos />
         </Suspense>
-      ) : aba === "meses" ? (
-        <Suspense
-          key={JSON.stringify(parametros)}
-          fallback={<LoadingSkeleton variant="table" rows={5} />}
-        >
-          <Meses parametros={parametros} />
-        </Suspense>
-      ) : (
+      ) : mesAberto ? (
         <Suspense
           key={JSON.stringify(parametros)}
           fallback={<LoadingSkeleton variant="table" rows={6} />}
         >
           <Conteudo parametros={parametros} />
+        </Suspense>
+      ) : (
+        <Suspense
+          key={JSON.stringify(parametros)}
+          fallback={<LoadingSkeleton variant="table" rows={5} />}
+        >
+          <Indice parametros={parametros} />
         </Suspense>
       )}
     </div>

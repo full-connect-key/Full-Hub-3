@@ -3207,6 +3207,118 @@ par de `conferir_fluxo_de_social()` — a decisão da máquina de estados da
 subtarefa ao lado dos gatilhos da 0007: o banco é o que vale, a função da tela
 desliga o botão Salvar e escreve a frase antes de a pessoa clicar.
 
+#### O MÓDULO É CONTA → MÊS, e a aba Posts não existe mais
+
+Decisão do usuário: *"a aba Posts pode deletar, quero que a visualização seja
+apenas por contas e separada por meses (…) quero que mude de meses para
+Social"*. O módulo tem **duas** seções — Social e Fluxos —, e é por Social que
+se chega a tudo.
+
+**O MÓDULO TINHA UMA PORTA SÓ, e ela era um recorte de UM mês.** `?mes=` e
+`?cliente=` existem desde o Sprint 14, e nada na tela dizia quais meses
+existem: quem queria o social de outubro da Mundo Verde trocava os dois à mão,
+e as cento e vinte combinações de dez contas por doze meses eram alcançáveis só
+digitando a URL. A lista abria com os posts de todas as contas misturados, que
+é a pergunta que ninguém faz.
+
+**OS POSTS NÃO SUMIRAM: eles passaram a morar DENTRO do mês.** Clicar num mês
+troca o conteúdo da própria seção pelo calendário, a lista, o feed e o editor —
+tudo o que a aba Posts era —, com a trilha `‹ Social › Mundo Verde ›
+Novembro de 2026` no topo. É a ficha do equipamento em Comodatos: o índice
+responde **onde**, e a tela de dentro responde **o quê**.
+
+**São dois ESTADOS do mesmo `?aba=social`, e não duas seções**, e quem os
+separa é `?mes=`. A barra de contexto navega entre assuntos, e "o índice" e
+"um mês" são o mesmo assunto a uma profundidade de distância — duas seções ali
+dariam uma barra em que a de baixo troca de conteúdo conforme a de cima.
+`?cliente=` sozinho não abre mês nenhum: ele estreita o índice a uma conta, que
+é para onde "Todos os meses →" leva.
+
+**"Social" e não "Meses"**, e o rótulo é sobre o que a seção é: ela deixou de
+ser uma navegação e passou a ser o módulo. Um nome que descreve o nível de cima
+da árvore descreveria o índice, e o índice é só a primeira tela dela.
+
+##### O cartão da conta, com a faixa de meses
+
+**O DESENHO É A PROPOSTA A, escolhida pelo usuário entre três num protótipo.**
+Uma conta por cartão, e dentro dela os quatro meses mais recentes do recorte,
+cada um com barra de andamento e a fase da vez com o nome de quem a tem.
+
+**As outras duas ficam registradas porque a decisão pode voltar:** **B**, uma
+matriz conta × mês com um quadradinho colorido por célula — a única das três
+que respondia de relance *"o mês que vem já foi aberto para todas as contas?"*,
+e que em troca não dizia quem está com o quê; e **C**, uma linha larga por conta
+com só o mês da vez em destaque e os demais atrás de um contador — a mais
+parecida com um painel de operação, e a pior para achar um mês antigo.
+
+**A TERCEIRA LINHA DO CARTÃO É A FASE COM O NOME DE QUEM A TEM**, e é ela que
+separa este cartão de uma linha de inventário: "Layout · Bruno" responde o que
+está acontecendo agora, e nenhum dos dois números acima responde isso. Ela sai
+da primeira subtarefa com `social_papel` que ainda não fechou — a mesma pergunta
+que a corrente responde no painel do post, reduzida a duas palavras. **Sem dono
+a frase diz isso**, e não some: etapa sem responsável não aparece no "Minhas
+Tasks" de ninguém, e é o pior tipo de trabalho — o que existe e ninguém sabe
+que é seu.
+
+**A BARRA É O ANDAMENTO DO CLIENTE, e não o da produção** — quantas peças ele
+já aprovou sobre quantas o mês tem. É o número que fecha o mês: a produção pode
+estar inteira pronta e o mês continua aberto enquanto o cliente não responde, e
+uma barra cheia num mês que ninguém aprovou seria a tela dizendo que acabou.
+
+**A ordem das perguntas do TOM é a da urgência** — peça esperando o cliente
+ganha de tudo, depois concluído, depois em produção, e o cinza para o mês que
+nasceu e ainda não tem peça. Com peça esperando, a frase deixa de nomear quem
+produz: o mês está parado FORA da agência, e é isso que precisa ser dito.
+
+**A FAIXA É GRADE DE COLUNAS FIXAS DE 250px, e as duas metades saíram da
+imagem.** Grade e não `flex` porque em `flex` cada mês fica do tamanho do
+próprio texto e as faixas de duas contas deixam de se alinhar — que é o que
+permite comparar uma conta com a de baixo. E coluna fixa e não quatro iguais,
+que foi a primeira versão: com "Em produção" quase toda conta tem UM mês, e um
+cartão de 350px sozinho num cartão de conta de 1500 deixava três quartos da
+linha vazios.
+
+**"ABRIR O MÊS" MUDOU DE TELA**, e é consequência da aba Posts ter saído: ele
+vivia no cabeçalho da lista de posts, que era a porta do módulo. A porta agora é
+o índice, e um botão de criar que mora dentro de um mês já aberto é um botão que
+só se encontra depois de entrar em outro lugar. **O "+ Novo post" ficou no mês**,
+porque ele é o post AVULSO — o story que o cliente pediu hoje —, e é ali que
+alguém está quando pensa nele.
+
+**AS QUATRO SITUAÇÕES, e "Todos" é a última e não a primeira.** É o contrário
+das abas de Pedidos do portal: lá a pergunta é "o que eu mandei?", e uma conta
+cujos três pedidos estão em produção cairia numa tela vazia; aqui a pergunta é
+"onde eu trabalho hoje", e abrir em "Todos" poria dois anos de meses arquivados
+no caminho do mês da semana que vem. Trocar de situação derruba as dobras,
+senão uma conta que a pessoa acabou de pedir para ver viria fechada por um
+recorte anterior.
+
+**E A REGRA DOS 90 DIAS FICA ESCRITA.** Um mês que sai da lista sem nada ter
+dito que ele sairia lê como mês perdido, e a pessoa vai procurá-lo no board. A
+frase não cita rotina nem agendamento — vocabulário de desenvolvimento não vai
+para a tela.
+
+**A SEÇÃO É DE `EQUIPE` e Fluxos continua sendo da gestão**, pela separação da
+0046 e da 0068: desenhar a corrente que toda conta percorre é configuração do
+produto, achar o mês em que se trabalha é o trabalho do dia. **E com isso o
+colaborador ganhou a barra de contexto**, que ele não tinha: "menos de duas
+seções não vira barra" continua valendo, e ele passou a alcançar duas.
+
+**A LEITURA É UMA CONSULTA E NÃO UMA FUNÇÃO DE BANCO**, ao contrário das três
+do portão: aqui não há nada que a RLS não resolva, e uma `security definer`
+seria a porta que devolve a carteira de contas da agência para quem tiver a
+chave anon. São quatro idas — as demandas, as peças, as contas e as fases —, e
+as três últimas à parte pela razão de `correnteDoMes()` e da campanha que não
+aparecia em lugar nenhum: o PostgREST recusa o `select` inteiro quando não acha
+a relação pelo nome escrito.
+
+**E A ÚLTIMA ESCOLHA DEIXOU DE SER LEMBRADA.** Houve um `ContaLembrada` que, com
+a URL vazia, levava direto ao último mês aberto — e ele existia enquanto a porta
+do módulo era a lista de posts. Com o índice sendo a porta, pular o índice é
+contrariar o que ele existe para ser: *"a visualização seja apenas por contas e
+separada por meses"*. O arquivo foi **apagado** e não deixado sem chamador, que
+é a decisão da 0023.
+
 ##### A aba Fluxos, e por que ela mora no Social Media
 
 `/painel/social-media?aba=fluxos`. A proximidade com os workflows de Gestão de

@@ -766,6 +766,19 @@ export type MesDeSocial = {
   aprovadas: number;
   /** Quantas estão com ele agora, esperando decisão. */
   esperandoCliente: number;
+  /**
+   * A FASE DA VEZ, e quem está com ela.
+   *
+   * É a primeira fase do mês que ainda não fechou — a mesma pergunta que a
+   * corrente responde no painel do post, aqui reduzida a duas palavras. `null`
+   * num mês concluído, e num mês que ainda não ganhou corrente nenhuma.
+   *
+   * **Ela é o que separa o cartão desta tela de uma linha de inventário.** Sem
+   * ela a conta diz quantas peças tem e quantas foram aprovadas, e nada diz o
+   * que está acontecendo AGORA nem com quem — que é a pergunta de quem abre o
+   * módulo de manhã.
+   */
+  fase: { titulo: string; responsavel: string | null } | null;
 };
 
 export async function mesesDeSocialDaAgencia(
@@ -810,7 +823,7 @@ export async function mesesDeSocialDaAgencia(
     ),
   ];
 
-  const [pecas, empresas] = await Promise.all([
+  const [pecas, empresas, fases] = await Promise.all([
     supabase
       .from("posts")
       .select("social_task_id, status")
@@ -824,9 +837,39 @@ export async function mesesDeSocialDaAgencia(
       .select("id, nome_empresa")
       .in("id", contas)
       .then((r) => ouFalha("as contas dos meses de social", r)),
+    // A FASE DA VEZ DE CADA MÊS, numa ida só para todos eles.
+    //
+    // `social_papel is not null` é a mesma pergunta de `correnteDoMes()`, e é
+    // essa e não "as subtarefas do mês": uma demanda de social pode ganhar uma
+    // etapa à mão como qualquer outra, e ela não é elo da corrente.
+    //
+    // E o recorte é por `status` e não pela caixinha: a fase do mês fecha
+    // quando quem a tem a conclui, e é esse o fato que o cartão mostra. Contar
+    // caixinha aqui seriam dezoito linhas por fase para dizer uma palavra.
+    supabase
+      .from("subtasks")
+      .select("task_id, ordem, titulo, status, responsavel_id")
+      .in(
+        "task_id",
+        demandas.map((d) => d.id),
+      )
+      .not("social_papel", "is", null)
+      .neq("status", "concluida")
+      .order("ordem")
+      .then((r) => ouFalha("as fases dos meses de social", r)),
   ]);
 
   const nomeDaConta = new Map(empresas.map((c) => [c.id, c.nome_empresa]));
+
+  // A PRIMEIRA DE CADA MÊS, e o `order("ordem")` acima é o que garante que ela
+  // chegue primeiro — por isso o `continue` que preserva a já guardada.
+  const faseDoMes = new Map<string, { titulo: string; responsavelId: string | null }>();
+  for (const f of fases) {
+    if (faseDoMes.has(f.task_id)) continue;
+    faseDoMes.set(f.task_id, { titulo: f.titulo, responsavelId: f.responsavel_id });
+  }
+
+  const nomes = await nomesDe([...faseDoMes.values()].map((f) => f.responsavelId));
 
   const total = new Map<string, number>();
   const aprovadas = new Map<string, number>();
@@ -871,5 +914,18 @@ export async function mesesDeSocialDaAgencia(
       pecas: total.get(d.id) ?? 0,
       aprovadas: aprovadas.get(d.id) ?? 0,
       esperandoCliente: esperando.get(d.id) ?? 0,
+      fase: faseDoCartao(faseDoMes.get(d.id), nomes),
     }));
+}
+
+/** A fase da vez com o nome de quem a tem, ou `null`. */
+function faseDoCartao(
+  fase: { titulo: string; responsavelId: string | null } | undefined,
+  nomes: Map<string, string>,
+): MesDeSocial["fase"] {
+  if (!fase) return null;
+  return {
+    titulo: fase.titulo,
+    responsavel: fase.responsavelId ? (nomes.get(fase.responsavelId) ?? null) : null,
+  };
 }

@@ -149,16 +149,22 @@ export function EnvioDoMes({
               ? "Uma peça ainda não pode ir, e o envio espera por ela:"
               : `${portao.falta.length} peças ainda não podem ir, e o envio espera por elas:`}
           </p>
-          <ul className="mt-1.5 space-y-0.5">
+          {/* O LINK FICA EM LINHA PRÓPRIA, e o motivo embaixo dele. **Foi o
+              axe que pegou**, com a regra `link-in-text-block`: dentro do
+              parágrafo, a cor era a única coisa que separava o nome da peça do
+              texto em volta — e todo link deste produto é `hover:underline`,
+              que não vale para quem não passa o mouse. É o mesmo achado que o
+              pedido concluído do portal já pagou, e o conserto é o mesmo. */}
+          <ul className="mt-1.5 space-y-1">
             {portao.falta.map((f) => (
               <li key={f.postId} className="text-xs">
                 <Link
                   href={`/painel/social-media?post=${f.postId}`}
-                  className="text-accent-strong hover:underline"
+                  className="text-accent-strong block font-medium hover:underline"
                 >
                   {f.tema}
                 </Link>
-                <span className="text-text-secondary"> — {f.motivo}</span>
+                <span className="text-text-secondary">{f.motivo}</span>
               </li>
             ))}
           </ul>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, CalendarDays, List } from "lucide-react";
+import { CalendarCheck, CalendarDays, ChevronLeft, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,8 +38,6 @@ import type { CaixinhaDoPost, EtapaDoMes } from "@/lib/dominio/posts";
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
-import { AbrirOMes } from "./abrir-o-mes";
-import { ContaLembrada } from "./conta-lembrada";
 import { NovoPost } from "./novo-post";
 
 const TODOS = "__todos__";
@@ -299,9 +297,57 @@ export function SocialMedia({
     />
   ) : null;
 
+  const nomeDaConta =
+    clientes.find((c) => c.id === cliente)?.nome_empresa ?? null;
+
   return (
     <div className="space-y-4">
-      <ContaLembrada />
+      {/* A TRILHA DE VOLTA, e ela é o que faz o mês ser um NÍVEL e não uma
+          tela solta.
+
+          Com a aba Posts fora, chegar aqui é sempre ter escolhido uma conta e
+          um mês no índice — e sem o caminho de volta a pessoa usaria o botão do
+          navegador, que é o que uma tela sem saída ensina. O primeiro elo
+          limpa `mes` e `cliente` juntos, porque o índice é o estado SEM os
+          dois; o segundo volta ao índice daquela conta, que é onde estão os
+          outros meses dela.
+
+          Ela é `<nav>` e não um `PageHeader`: o nome do módulo já está na
+          barra de contexto três centímetros acima, e o que falta aqui é o
+          caminho — a decisão do Sprint 9, "o nome do módulo aparece uma vez
+          só". */}
+      <nav
+        aria-label="Onde estou"
+        className="text-text-muted flex flex-wrap items-center gap-1.5 text-sm"
+      >
+        <Link
+          href={comParametro({ mes: null, cliente: null, post: null, foco: null })}
+          className="text-accent-strong inline-flex items-center gap-1 font-semibold hover:underline"
+          scroll={false}
+        >
+          <ChevronLeft aria-hidden className="size-3.5" />
+          Social
+        </Link>
+        {nomeDaConta ? (
+          <>
+            <span aria-hidden>›</span>
+            <Link
+              href={comParametro({ mes: null, post: null, foco: null })}
+              className="hover:text-text-primary"
+              scroll={false}
+            >
+              {nomeDaConta}
+            </Link>
+          </>
+        ) : null}
+        <span aria-hidden>›</span>
+        <span className="text-text-primary font-semibold">
+          {comInicialMaiuscula(
+            format(parseISO(`${mes}-01`), "MMMM 'de' yyyy", { locale: ptBR }),
+          )}
+        </span>
+      </nav>
+
       <div className="flex flex-wrap items-center gap-2">
         <nav aria-label="Visão">
           <ul className="bg-muted inline-flex gap-1 rounded-xl p-1">
@@ -396,20 +442,12 @@ export function SocialMedia({
             </SelectContent>
           </Select>
 
-          {/* ABRIR O MÊS VEM ANTES DE "+ NOVO POST", e a ordem é a frequência:
-              com dez clientes de social, abrir o mês é o que se faz uma vez por
-              cliente por mês; o post avulso é a exceção — o story que o cliente
-              pediu hoje. */}
+          {/* "ABRIR O MÊS" SAIU DAQUI e ficou no índice, que é a porta do
+              módulo desde que a aba Posts saiu. O que fica é o post AVULSO —
+              o story que o cliente pediu hoje —, e ele fica aqui porque é
+              aqui que alguém está quando pensa nele. */}
           {quemLe.ehGestor ? (
-            <>
-              <AbrirOMes
-                clientes={clientes}
-                equipe={equipe}
-                fluxos={fluxos}
-                driveLigado={driveLigado}
-              />
-              <NovoPost clientes={clientes} equipe={equipe} />
-            </>
+            <NovoPost clientes={clientes} equipe={equipe} />
           ) : null}
         </div>
       </div>
@@ -670,4 +708,13 @@ export function SocialMedia({
       )}
     </div>
   );
+}
+
+/**
+ * `MMMM` do date-fns devolve "outubro" em minúscula, porque é assim que o mês
+ * se escreve no meio de uma frase. Na trilha ele é o último elo, e elo de
+ * trilha começa com maiúscula.
+ */
+function comInicialMaiuscula(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
