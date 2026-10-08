@@ -163,6 +163,20 @@ const PEDIDOS: HrRequest[] = [
   },
 ];
 
+/** Todos os dias entre duas datas -- a forma do descanso, que conta corrido. */
+function diasCorridosEntre(inicio: string, fim: string): string[] {
+  const dias: string[] = [];
+  const cursor = new Date(`${inicio}T12:00:00`);
+  const ate = new Date(`${fim}T12:00:00`);
+  while (cursor <= ate) {
+    const mes = String(cursor.getMonth() + 1).padStart(2, "0");
+    const dia = String(cursor.getDate()).padStart(2, "0");
+    dias.push(`${cursor.getFullYear()}-${mes}-${dia}`);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
+}
+
 /** Os dias uteis entre duas datas, pulando fim de semana. */
 function diasUteisEntre(inicio: string, fim: string): string[] {
   const dias: string[] = [];
@@ -280,11 +294,41 @@ export async function diasBloqueadosDaArea(
   void usuarioId;
   void inicio;
   void fim;
-  // As ferias aprovadas da Marina bloqueiam o calendario de quem e da Criacao.
+
+  // ---------------------------------------------------------------------
+  // QUATRO BLOCOS, E CADA UM PROVA UMA COISA DO CARTAO "Quem esta fora".
+  //
+  // Ele era UM so -- as ferias da Marina deste mes --, e com um bloco a
+  // imagem nao separa "lista blocos" de "lista min..max", nem mostra o que
+  // acontece com um periodo que ja acabou. Foi exatamente isso que o usuario
+  // relatou: *"quando eu registro um descanso, mesmo que antigo, ele fica
+  // aparecendo aqui, mas essas pessoas ja voltaram"*.
+  //
+  //   1. O passado do Bruno NAO APARECE  -- o relato, virado do avesso.
+  //   2. A Marina esta fora AGORA        -- o caso principal do cartao.
+  //   3. E ela tem um SEGUNDO bloco      -- com min..max as duas viram uma
+  //                                         faixa so, de hoje ate la.
+  //   4. O Bruno tem um bloco de UTEIS   -- ele atravessa um fim de semana,
+  //                                         e sem a ponte do vao ele sairia
+  //                                         partido em dois ou tres.
+  //
+  // As datas sao RELATIVAS porque o recorte do cartao e `fim >= hoje`: uma
+  // data fixa deixa de ser passado ou futuro sozinha, e a imagem conferida
+  // passaria a ser outra sem ninguem tocar no arquivo.
+  // ---------------------------------------------------------------------
   const bloqueados = new Map<string, string[]>();
-  for (const dia of diasUteisEntre(PEDIDOS[0].data_inicio, PEDIDOS[0].data_fim)) {
-    bloqueados.set(dia, [MARINA.nome]);
-  }
+
+  const por = (nome: string, de: string, ate: string, soUteis = false) => {
+    for (const dia of soUteis ? diasUteisEntre(de, ate) : diasCorridosEntre(de, ate)) {
+      bloqueados.set(dia, [...(bloqueados.get(dia) ?? []), nome]);
+    }
+  };
+
+  por(BRUNO.nome, emDias(-40), emDias(-33));
+  por(MARINA.nome, emDias(-2), emDias(5));
+  por(MARINA.nome, emDias(30), emDias(34));
+  por(BRUNO.nome, emDias(10), emDias(20), true);
+
   return bloqueados;
 }
 

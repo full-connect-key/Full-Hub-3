@@ -18,8 +18,10 @@ import type { DescansoDoCiclo } from "@/lib/dados/full-days";
 import {
   ROTULOS_DE_STATUS,
   ROTULOS_DE_TIPO,
+  blocosDeAusencia,
   bloqueiosNoIntervalo,
   contarDiasDoPedido,
+  faixaDoBloco,
   motivoDoBloqueio,
   rotuloDosDias,
 } from "@/lib/dominio/full-days";
@@ -80,21 +82,6 @@ export function Solicitar({
   );
 
   /**
-   * QUEM DA MINHA ÁREA JÁ ESTÁ FORA, lido do mapa que o calendário já recebe.
-   *
-   * `bloqueados` é dia → nomes, que é a forma de que a grade precisa para
-   * pintar cada célula. Aqui a pergunta é a outra metade — por PESSOA, com o
-   * intervalo dela —, e a volta é uma leitura do mesmo objeto, não uma
-   * consulta nova: pedir ao banco a mesma coisa de outro jeito é abrir a porta
-   * para os dois números discordarem.
-   *
-   * A faixa é o primeiro e o último dia em que o nome aparece, e ela é
-   * honesta sobre o que não sabe: dois períodos separados da mesma pessoa no
-   * mesmo mês se leem como um só. Guardar cada bloco exigiria a data de
-   * início e de fim de cada pedido alheio — informação que esta tela não tem e
-   * não deve ter, porque ela é do calendário de quem propõe, não da matriz.
-   */
-  /**
    * O BOTÃO DE PÉ, derivado uma vez — e é ele que decide se a pílula aparece.
    *
    * Desabilitada, a pílula com degradê continuava parecendo clicável: o
@@ -103,34 +90,31 @@ export function Solicitar({
    * um botão cinza chapado — que é a forma que o produto inteiro usa para
    * dizer isso, e a única que não promete nada.
    */
-  const foraDaMinhaArea = useMemo(() => {
-    const porPessoa = new Map<string, string[]>();
-    for (const [dia, nomes] of Object.entries(bloqueados)) {
-      for (const nome of nomes) {
-        const dias = porPessoa.get(nome);
-        if (dias) dias.push(dia);
-        else porPessoa.set(nome, [dia]);
-      }
-    }
-    return [...porPessoa.entries()]
-      .map(([nome, dias]) => {
-        const ordenados = [...dias].sort();
-        const primeiro = ordenados[0];
-        const ultimo = ordenados[ordenados.length - 1];
-        return {
-          nome,
-          faixa:
-            primeiro === ultimo
-              ? format(parseISO(primeiro), "dd/MM")
-              : `${format(parseISO(primeiro), "dd/MM")} a ${format(parseISO(ultimo), "dd/MM")}`,
-          desde: primeiro,
-        };
-      })
-      .sort((a, b) => a.desde.localeCompare(b.desde));
-  }, [bloqueados]);
   const conjuntoDeFeriados = useMemo(
     () => new Set(feriados.map((f) => f.data)),
     [feriados],
+  );
+
+  /**
+   * QUEM DA MINHA ÁREA ESTÁ FORA, lido do mapa que o calendário já recebe.
+   *
+   * `bloqueados` é dia → nomes, que é a forma de que a grade precisa para
+   * pintar cada célula. Aqui a pergunta é a outra metade — por PESSOA, e por
+   * BLOCO —, e a volta é uma leitura do mesmo objeto, não uma consulta nova:
+   * pedir ao banco a mesma coisa de outro jeito é abrir a porta para os dois
+   * números discordarem.
+   *
+   * **O QUE MUDOU É O RECORTE**, e foi relato do usuário: *"quando eu registro
+   * um descanso, mesmo que antigo, ele fica aparecendo aqui, mas essas pessoas
+   * já voltaram para a agência"*. Ele estava certo duas vezes — o cartão lia
+   * os seis anos que a grade cobre, e reduzia tudo a min..max por pessoa, o
+   * que juntava períodos de anos diferentes numa faixa que andava para trás.
+   * `blocosDeAusencia()` corta por bloco contíguo e descarta o que já acabou;
+   * o porquê de cada metade está escrito lá, em `lib/dominio/`.
+   */
+  const foraDaMinhaArea = useMemo(
+    () => blocosDeAusencia(bloqueados, hojeISO, conjuntoDeFeriados),
+    [bloqueados, hojeISO, conjuntoDeFeriados],
   );
 
   const inicioSel = de;
@@ -629,23 +613,35 @@ export function Solicitar({
           <section className="bg-surface-card rounded-card shadow-cartao border p-4">
             <h2 className="text-text-secondary flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
               <TriangleAlert aria-hidden className="size-4" />
-              Quem já está fora
+              Quem está fora
             </h2>
             <ul className="mt-3 space-y-2">
-              {foraDaMinhaArea.map((pessoa) => (
-                <li key={pessoa.nome} className="flex items-center gap-2">
+              {/* A CHAVE É PESSOA + INÍCIO, e não o nome: desde que a lista
+                  passou a separar por bloco, a mesma pessoa pode ter dois
+                  períodos à frente — dois descansos combinados, ou um
+                  afastamento e uma ausência pontual. */}
+              {foraDaMinhaArea.map((bloco) => (
+                <li
+                  key={`${bloco.nome}-${bloco.inicio}`}
+                  className="flex items-center gap-2"
+                >
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                    {pessoa.nome}
+                    {bloco.nome}
                   </span>
                   <span className="bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums">
-                    {pessoa.faixa}
+                    {faixaDoBloco(bloco, hojeISO)}
                   </span>
                 </li>
               ))}
             </ul>
+            {/* O TÍTULO PERDEU O "JÁ", e é consequência do recorte: a lista
+                carrega quem está fora agora E quem já tem período combinado
+                para a frente — um descanso de dezembro lido em outubro sob
+                "quem JÁ está fora" é a tela afirmando o que não é. O que ela
+                não carrega mais é quem voltou, que era o relato. */}
             <p className="text-text-muted mt-3 text-xs">
-              Da sua área, {minhaArea}. Os dias deles ficam em âmbar no
-              calendário, e o pedido que passar por cima é recusado.
+              Da sua área, {minhaArea}, de hoje em diante. Os dias deles ficam em
+              âmbar no calendário, e o pedido que passar por cima é recusado.
             </p>
           </section>
         ) : null}

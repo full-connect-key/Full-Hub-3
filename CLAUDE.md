@@ -7219,16 +7219,61 @@ lado oposto do tempo — lá o passado, aqui o futuro. Se uma tivesse a coluna
 estreita à esquerda e a outra à direita, trocar de aba reorganizaria a tela
 debaixo de quem está no meio de um registro.
 
-**O cartão "Quem já está fora" é a única peça nova, e não custa consulta.**
+**O cartão "Quem está fora" é a única peça nova, e não custa consulta.**
 `bloqueados` é o mapa dia → nomes que o calendário já recebe para pintar de
-âmbar; o cartão é o mesmo dado lido por PESSOA, com o intervalo dela. Ele
-existe porque em 390px a célula tem cerca de 45px: "Marina" vira "Ma…", e
-truncar não identifica ninguém — o dia fica só em âmbar e o nome mora ali. No
-desktop ele continua servindo, porque quem vai propor uma semana lê a lista
-antes de clicar em vez de descobrir a recusa no arrasto. *O que ele não sabe,
-e é dito:* dois períodos separados da mesma pessoa no mesmo mês se leem como
-um só — guardar cada bloco exigiria a data de início e de fim de cada pedido
-alheio, informação que esta tela não tem e não deve ter.
+âmbar; o cartão é o mesmo dado lido por PESSOA, e por BLOCO. Ele existe porque
+em 390px a célula tem cerca de 45px: "Marina" vira "Ma…", e truncar não
+identifica ninguém — o dia fica só em âmbar e o nome mora ali. No desktop ele
+continua servindo, porque quem vai propor uma semana lê a lista antes de
+clicar em vez de descobrir a recusa no arrasto.
+
+**ELE MOSTRAVA QUEM JÁ TINHA VOLTADO, e eram dois erros empilhados.** Relato
+do usuário, com imagem: *"quando eu registro um descanso, mesmo que antigo,
+ele fica aparecendo aqui, mas essas pessoas já voltaram para a agência"* — e a
+imagem mostrava "24/10 a 03/10", uma faixa que anda para trás.
+
+A causa é a mesma das duas: **o cartão lia o mapa do CALENDÁRIO, que cobre
+2025 a 2030**, e reduzia tudo a `min`..`max` por pessoa. A janela larga está
+certa para a GRADE, que precisa pintar qualquer dia até onde a pessoa rolar, e
+é o conjunto errado para uma lista de quem está fora: um descanso de um ano e
+outro do ano seguinte viravam uma faixa só — e em `dd/MM`, sem o ano, ela sai
+invertida. **O segundo erro escondia o primeiro:** quem lia aquela faixa via
+uma data estranha, não um período que já passou.
+
+**A SAÍDA FOI SEPARAR POR BLOCO CONTÍGUO**, e com ela o `dd/MM` volta a poder
+ser lido. O comentário antigo dizia que isso não dava — *"guardar cada bloco
+exigiria a data de início e de fim de cada pedido alheio, informação que esta
+tela não tem"* —, e estava errado: dias consecutivos são um bloco, e o mapa já
+tem os dias.
+
+**O que separa um bloco do seguinte não é qualquer vão.** Descanso pinta todos
+os dias (0024) e os outros dois tipos pintam só os ÚTEIS, então uma ausência
+de duas semanas chega aqui sem os fins de semana — um corte ingênuo a
+quebraria em três. O vão só corta quando tem dia útil dentro, e quem responde
+isso é `ehDiaUtil()`, a mesma função que conta os dias do pedido.
+
+**O recorte é `fim >= hoje` e não `inicio >= hoje`**: quem está fora AGORA é o
+caso principal do cartão, e um período que começou semana passada e termina
+sexta tem de aparecer. **E o título perdeu o "já"** — a lista carrega também o
+que ainda vai acontecer, e "quem JÁ está fora" sobre um descanso de dezembro
+lido em outubro é a tela afirmando o que não é.
+
+**O ano entra na faixa quando QUALQUER das pontas não é deste ano**, e não só
+a primeira: um descanso de 28/12 a 05/01 atravessa a virada, e o ano numa
+ponta só é pior que em nenhuma.
+
+*O que ele continua não sabendo, e fica dito:* dois pedidos emendados da mesma
+pessoa — um que fecha na sexta e outro que abre na segunda — se leem como um
+bloco só, porque o vão entre eles não tem dia útil. Aí sim seria preciso a
+data de cada pedido alheio, que esta tela não tem e não deve ter.
+
+**Medido com duas mutações**, contra um calendário montado à mão: tirando a
+ponte do fim de semana, o bloco de úteis que atravessa dois sábados sai
+partido em três; tirando o filtro de `fim >= hoje`, os dois períodos antigos
+reaparecem — que é o relato, reproduzido. **E o protótipo guarda os quatro
+casos**, com datas relativas: o passado que não aparece, quem está fora agora,
+um segundo bloco da mesma pessoa (que o `min`..`max` juntaria no primeiro) e
+um bloco de dias úteis atravessando o fim de semana.
 
 **O vocabulário não mudou em nenhuma das cinco.** Descanso, afastamento,
 ausência pontual, sem alocação, "de acordo" e "preciso remarcar" — a decisão

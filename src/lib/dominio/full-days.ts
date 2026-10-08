@@ -386,3 +386,131 @@ function formatarDiaMes(iso: string): string {
   const [, mes, dia] = iso.split("-");
   return `${dia}/${mes}`;
 }
+
+// ---------------------------------------------------------------------------
+// QUEM ESTÁ FORA, EM BLOCOS — e não em min..max
+//
+// Relato do usuário, com imagem: *"quando eu registro um descanso, mesmo que
+// antigo, ele fica aparecendo aqui, mas essas pessoas já voltaram para a
+// agência"*. O cartão mostrava "Giovanna Marino · 24/10 a 03/10", que é uma
+// faixa que anda para trás — e as duas coisas têm a mesma causa.
+//
+// **O CARTÃO LIA O MAPA DO CALENDÁRIO, QUE COBRE SEIS ANOS.** `bloqueados` é
+// dia → nomes, e a página o pede de `PRIMEIRO_MES_DO_CALENDARIO` a
+// `ULTIMO_MES_DO_CALENDARIO` — 2025 a 2030 — porque a grade precisa pintar de
+// âmbar qualquer dia que alguém role até. Isso está certo para a GRADE e é o
+// conjunto errado para o cartão: ele reduzia tudo a `min` e `max` por pessoa,
+// então um descanso de 2025 e outro de 2026 viravam uma faixa só — e em
+// `dd/MM`, sem o ano, ela sai invertida.
+//
+// Eram portanto dois erros empilhados, e o segundo escondia o primeiro: quem
+// lia "24/10 a 03/10" via uma data estranha, não um período que já passou.
+//
+// **A SAÍDA É SEPARAR POR BLOCO CONTÍGUO**, e com ela o `dd/MM` volta a poder
+// ser lido: cada bloco é um período de verdade. O comentário antigo do cartão
+// dizia que isso não dava — *"guardar cada bloco exigiria a data de início e
+// de fim de cada pedido alheio, informação que esta tela não tem"* —, e
+// estava errado: dias consecutivos são um bloco, e o mapa já tem os dias.
+//
+// **O QUE SEPARA UM BLOCO DO SEGUINTE NÃO É QUALQUER VÃO.** Descanso pinta
+// todos os dias (0024), mas afastamento e ausência pontual pintam só os
+// ÚTEIS — então uma ausência de duas semanas chega aqui com os sábados e
+// domingos faltando, e um corte ingênuo a quebraria em três blocos. O vão só
+// corta quando tem pelo menos um dia de trabalho dentro, e quem sabe disso é
+// `ehDiaUtil()`, a mesma função que conta os dias do pedido.
+// ---------------------------------------------------------------------------
+
+export type BlocoDeAusencia = {
+  nome: string;
+  /** O primeiro dia do bloco, em ISO — é por ele que a lista ordena. */
+  inicio: string;
+  fim: string;
+};
+
+/**
+ * Os períodos de quem está fora, um por bloco, e só os que ainda não
+ * terminaram.
+ *
+ * **O RECORTE É `fim >= hoje`, e não `inicio >= hoje`.** Quem está fora AGORA
+ * é o caso principal do cartão — a frase dele é "quem está fora" —, e um
+ * período que começou semana passada e termina sexta tem de aparecer. O que
+ * sai é o que já acabou: ali a pessoa voltou, e o bloqueio não decide mais
+ * nada para quem está escolhendo um período.
+ *
+ * *O que ele continua não sabendo, e fica dito:* dois pedidos emendados da
+ * mesma pessoa — um que termina na sexta e outro que começa na segunda — se
+ * leem como um bloco só, porque o vão entre eles não tem dia útil. Separá-los
+ * exigiria a data de cada pedido alheio, que esta tela não tem e não deve
+ * ter.
+ */
+export function blocosDeAusencia(
+  bloqueados: Record<string, string[]>,
+  hojeISO: string,
+  feriados: Set<string>,
+): BlocoDeAusencia[] {
+  const porPessoa = new Map<string, string[]>();
+  for (const [dia, nomes] of Object.entries(bloqueados)) {
+    for (const nome of nomes) {
+      const dias = porPessoa.get(nome);
+      if (dias) dias.push(dia);
+      else porPessoa.set(nome, [dia]);
+    }
+  }
+
+  const blocos: BlocoDeAusencia[] = [];
+  for (const [nome, dias] of porPessoa) {
+    const ordenados = [...dias].sort();
+    let inicio = ordenados[0];
+    let anterior = ordenados[0];
+
+    for (const dia of ordenados.slice(1)) {
+      if (temDiaUtilEntre(anterior, dia, feriados)) {
+        blocos.push({ nome, inicio, fim: anterior });
+        inicio = dia;
+      }
+      anterior = dia;
+    }
+    blocos.push({ nome, inicio, fim: anterior });
+  }
+
+  return blocos
+    .filter((bloco) => bloco.fim >= hojeISO)
+    .sort((a, b) => a.inicio.localeCompare(b.inicio) || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/** Há pelo menos um dia de trabalho estritamente entre os dois? */
+function temDiaUtilEntre(depoisDe: string, antesDe: string, feriados: Set<string>): boolean {
+  const cursor = lerData(depoisDe);
+  const fim = lerData(antesDe);
+  if (!cursor || !fim) return true;
+
+  cursor.setDate(cursor.getDate() + 1);
+  while (cursor < fim) {
+    if (ehDiaUtil(cursor, feriados)) return true;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return false;
+}
+
+/**
+ * "24/09 a 03/10", e com o ano quando ele não é o de hoje.
+ *
+ * O `dd/MM` cabe no selo e é o que a pessoa lê sem traduzir; o ano só entra
+ * quando a ausência não é deste ano — senão ele ocupa seis caracteres em toda
+ * linha para repetir o que já é óbvio. **E ele entra quando QUALQUER uma das
+ * pontas é de outro ano**, não só a primeira: um descanso de 28/12 a 05/01
+ * atravessa a virada, e mostrar o ano numa ponta só é pior que não mostrar em
+ * nenhuma.
+ */
+export function faixaDoBloco(bloco: BlocoDeAusencia, hojeISO: string): string {
+  const anoDeHoje = hojeISO.slice(0, 4);
+  const outroAno =
+    bloco.inicio.slice(0, 4) !== anoDeHoje || bloco.fim.slice(0, 4) !== anoDeHoje;
+
+  const escrever = (iso: string) =>
+    outroAno ? `${formatarDiaMes(iso)}/${iso.slice(2, 4)}` : formatarDiaMes(iso);
+
+  return bloco.inicio === bloco.fim
+    ? escrever(bloco.inicio)
+    : `${escrever(bloco.inicio)} a ${escrever(bloco.fim)}`;
+}
