@@ -5796,15 +5796,153 @@ afirmação falsa com toda a confiança.
 pede ação, e o motivo é o que decide o que a pessoa faz em seguida. Num
 `title`, ele não existe para quem usa toque.
 
-**A fila do sócio tem três listas, e a divisão é por quem espera o quê**: "A
-conferir" espera uma leitura, "Aprovadas" esperam uma transferência — com o
-**total a pagar no cabeçalho**, que é a pergunta que se faz antes de abrir o
-banco —, e "Encerradas" não esperam nada.
-
 **E o sino toca nos dois sentidos**: todo sócio ativo é avisado quando chega
 nota, e quem emitiu é avisado quando ela é decidida. Sem isso o módulo vira uma
 tela que alguém lembra de abrir, e o que espera do outro lado é o pagamento de
 alguém.
+
+#### A fila do sócio é um KANBAN de quatro colunas, com dois filtros
+
+Decisão do usuário: *"filtrar os envios de NF por mês · separar por status:
+recusado, aguardando pagamento, pago (tipo kanban) · opção de filtrar por
+pessoa"*.
+
+**ERAM TRÊS LISTAS EMPILHADAS, e a do meio juntava dois fatos opostos.** "A
+conferir" espera uma leitura, "Aprovadas" esperam uma transferência, e
+"Encerradas" tinha a nota **paga** e a nota **recusada** na mesma caixa — o
+pagamento que saiu e o material que a pessoa precisa mandar de novo. A recusada
+não tinha onde ser procurada.
+
+**Ele nomeou TRÊS e são QUATRO.** "A conferir" ficou porque é o trabalho da
+tela: é a coluna de onde tudo sai, e tirá-la deixaria a fila sem a fila. Os três
+que ele nomeou são exatamente os que não davam para ver separados.
+
+**A ORDEM CONTINUA SENDO POR QUEM ESTÁ ESPERANDO O QUÊ**, que é o argumento das
+três listas antigas mantido inteiro: as duas primeiras são trabalho do sócio —
+uma leitura e uma transferência —, a terceira espera a PESSOA mandar outra, e a
+quarta não espera ninguém. Pela ordem do ciclo a recusada cairia no fim, ao lado
+da paga, que é de onde ela acabou de sair.
+
+**O CARD NÃO ARRASTA, e aqui a ausência é mecânica antes de ser de desenho.**
+Recusar exige o motivo — o check `team_invoices_recusa_com_motivo` — e pagar
+exige a data digitada, que o arrasto não tem como carregar; e paga e recusada
+não mudam mais de estado, nem pelo sócio. Das transições possíveis entre as
+quatro colunas o banco recusa quase todas, e um alvo de solta que recusa tudo é
+um gesto que não faz nada. É a decisão do board de demandas e da Linha do Tempo:
+a coluna é leitura, o botão é a ação.
+
+**O corte mora em `COLUNAS_DA_FILA` e em `porColunaDaFila()`**, em
+`lib/dominio/`, e não na consulta: `filaDeNotas()` devolvia as três listas
+prontas, então o corte por estado morava no banco de dados e o desenho na tela —
+duas verdades sobre a mesma divisão. Hoje a fila desenha e a barra de contexto
+conta pelo mesmo lugar. **E uma checagem no carregamento do módulo** estoura se
+um valor novo de `nf_status` ficar fora de toda coluna: sem ela a nota existiria
+no banco e não apareceria em coluna nenhuma, sem erro — a mesma checagem do
+seletor de status.
+
+**OS DOIS FILTROS MORAM NA URL**, como toda listagem do produto, e aqui a razão
+é dupla: "olha as notas de setembro da Carla" precisa ser um link, e o recorte
+precisa sobreviver ao `router.refresh()` que cada decisão dispara — em estado do
+componente, aprovar uma nota devolveria a fila inteira para quem estava olhando
+um mês só.
+
+**E as opções dos dois saem da fila INTEIRA**, nunca do que sobrou do outro:
+escolhendo a Carla, setembro continua na lista de meses. Dois filtros que se
+estreitam um ao outro tiram da pessoa o caminho de volta — é a decisão das abas
+de Pedidos e dos contadores de Minhas Tasks. **O selo da aba também conta a fila
+inteira**: ele cobra quantas esperam conferência, e um número que encolhe porque
+o sócio escolheu setembro cobraria menos do que existe.
+
+**O total a pagar DESCEU do cabeçalho para a linha de baixo**, e foi a imagem
+que mandou: ao lado do título ele comia a linha — "AGUARDANDO PAGAMENTO" mais um
+valor em reais não cabem numa coluna de board — e tirava daquela coluna a
+contagem que as outras três mostram. Numa linha própria ele continua
+respondendo a pergunta que se faz antes de abrir o banco: quanto sai hoje. **E
+ele segue o filtro**, que é o certo — quem filtrou setembro quer o total de
+setembro.
+
+**AS COLUNAS SÃO GRADE, e não a faixa rolável dos outros boards.** O de demandas
+tem sete colunas e o de etapas tem seis: ali não há como não rolar. Quatro
+cabem — e com largura fixa cabiam por pouco: a imagem saiu com "Pagas" cortada
+pela borda do invólucro, uns vinte pixels além. Um board de sete que rola é um
+board; um de quatro que rola por vinte pixels parece defeito. Na grade a coluna
+se mede pelo espaço que existe, e abaixo de `xl` ela quebra em duas e depois em
+uma — que é como as três listas antigas já se liam no celular.
+
+**O selo de estado saiu do card**, porque o cabeçalho da coluna já o disse: é a
+decisão do selo de status dentro do grupo da Lista de Minhas Tasks. **E o vazio
+tem duas frases**: a fila sem nota nenhuma é o `EmptyState` de sempre; o recorte
+sem resultado diz *"nenhuma nota neste recorte"*, senão quatro colunas em branco
+fariam o sócio concluir que a agência não tem nota quando ele acabou de escolher
+um filtro.
+
+*O que NÃO ganhou filtro, e é dito em vez de escondido:* **"Minhas notas"**. Ali
+é uma pessoa só — o filtro por pessoa não tem o que filtrar — e o histórico é de
+no máximo doze linhas, já em ordem de competência: um seletor de mês acima dele
+custaria mais do que devolve. Se um dia o histórico crescer, é o mesmo par de
+parâmetros, na mesma barra.
+
+#### A recusada SAI da tela quando a nova chega
+
+Relato do usuário: *"quando a NF é recusada, recebo a mensagem de 'Corrija e
+envie uma nota nova para o mesmo mês'. Mas não tem como substituir ou reenviar
+dentro do envio já feito, então se eu mando uma nova NF, ainda continua com a
+antiga recusada e o aviso fixo na página."*
+
+São duas coisas, e as duas eram minhas.
+
+**A PRIMEIRA É UM BUG: a mesma pergunta estava respondida em dois lugares, e o
+lado errado era o da tela.** `minhasNotasRecusadas()` descontava o mês já
+reenviado desde a 0065 — é o que faz o aviso sair da Home —, e `minhas-notas.tsx`
+filtrava só por `status === "recusada"`: quem corrigia e mandava a nota nova
+continuava lendo *"Uma nota precisa ser reenviada"* para sempre, na mesma tela
+onde ela acabara de mandar.
+
+**Pior, o conjunto dos meses vivos já era calculado três linhas abaixo**, para
+decidir o que o seletor oferece. As duas metades estavam na mesma função e não
+se encontravam. Hoje a regra é `recusadasPendentes()` em `lib/dominio/`, e os
+dois lados a chamam — como `situacaoDoLancamento()` no Financeiro e
+`faseDoPedido()` nas Solicitações.
+
+**A SEGUNDA NÃO É BUG, É UM CAMINHO QUE NÃO SE ENCONTRAVA.** O reenvio sempre
+funcionou — o índice único de `team_invoices` é **parcial**
+(`where status <> 'recusada'`) exatamente para a nova nascer ao lado da antiga —,
+e de dentro da linha recusada não havia nada dizendo isso: quem lia o motivo
+tinha de voltar ao topo, abrir "Enviar nota" e lembrar de qual mês era. Agora a
+linha carrega **"Enviar outra"**, que abre o MESMO diálogo com o mês escolhido.
+
+**E não existe "substituir", de propósito.** A recusada fica, com o motivo — é a
+regra do módulo desde a 0065, a mesma pela qual rodada de aprovação fechada
+nunca é reescrita. Um segundo formulário chamado "substituir" diria o contrário
+com a própria existência; o que o produto faz é dizer em voz alta o que vai
+acontecer: quando o mês escolhido tem uma recusada, o diálogo escreve que ela
+continua no histórico e que **esta é uma nota nova, não uma troca**.
+
+**O botão some quando o mês já tem nota viva** — aí não há o que reenviar — e
+quando o mês está fora dos doze que o seletor oferece: abrir o diálogo deixaria
+o campo de mês em branco, um formulário pedindo uma escolha que ele não tem. Uma
+nota recusada há mais de um ano é conversa com a contabilidade, que é a regra de
+`mesesParaEmitir`.
+
+**E a frase do bloco vermelho passou a dizer ONDE CLICAR.** Ela mandava
+"corrija e envie uma nota nova para o mesmo mês" sem dizer por onde — é a
+diferença entre uma instrução e uma descrição, a mesma lição da recusa que
+nomeia cada etapa sem aprovação.
+
+**Nenhuma migration, e nenhuma consulta nova.** O banco estava certo nos dois
+pontos desde a 0065: o índice parcial já aceitava a segunda nota, e a função da
+Home já descontava o mês. O que faltava era a tela fazer as duas perguntas do
+mesmo jeito.
+
+**E os meses do protótipo deixaram de ser literais.** Eles eram de 2027, com a
+razão escrita no arquivo: *"são etiquetas de mês, e uma data fixa serve"*. Deixou
+de ser verdade no dia em que o botão passou a depender de o mês da nota estar
+entre os doze de `mesesParaEmitir(hoje)` — e `hoje` no protótipo é o dia de
+verdade. Com 2027 fixo, nenhuma nota caía na janela e o botão não saía em imagem
+nenhuma: a tela conferida seria a que não tem a peça nova. **O exemplo tem duas
+recusadas**, uma em aberto e uma já reenviada, e é ela o cenário virado do
+avesso: devolvendo o filtro antigo à tela, o bloco passa a dizer "2 notas
+precisam ser reenviadas" e a imagem mostra o mês resolvido cobrando de novo.
 
 #### O quarto item da Home, que esperou a tabela existir
 

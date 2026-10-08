@@ -1,9 +1,10 @@
 import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import { recusadasPendentes } from "@/lib/dominio/notas-fiscais";
 import type { PedidoDeNota } from "@/lib/dominio/notas-fiscais";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { NfStatus, TeamInvoice } from "@/lib/supabase/database.types";
+import type { TeamInvoice } from "@/lib/supabase/database.types";
 
 /**
  * As notas fiscais da equipe (0065).
@@ -131,20 +132,32 @@ export async function mesesJaEnviados(): Promise<string[]> {
 }
 
 /**
- * A fila do sócio.
+ * A fila do sócio: TODAS as notas da agência, numa lista só.
  *
  * **Sem `eq` de pessoa nenhuma**, ao contrário da de cima: aqui a pergunta é
  * "o que a agência deve". Quem não é sócio recebe lista vazia pelo RLS — e por
  * isso a rota confere o perfil antes, em vez de desenhar uma fila vazia que
  * afirma que não há nota nenhuma para pagar.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA NÃO DEVOLVE MAIS AS LISTAS PRONTAS, e a mudança é o que permite
+ * filtrar.** Ela devolvia três recortes (`aConferir` / `aPagar` /
+ * `encerradas`), e com isso o corte por estado morava aqui e o desenho das
+ * colunas lá — duas verdades sobre a mesma divisão, e a tela não tinha como
+ * mostrar a recusada separada sem mexer no banco de dados da consulta.
+ *
+ * Hoje o corte é de `porColunaDaFila()`, em `lib/dominio/`, e os dois
+ * chamadores passam por ele: a fila para desenhar as quatro colunas e a barra
+ * de contexto para contar o selo. Um lugar só nomeia os estados.
+ *
+ * **E os filtros de mês e de pessoa NÃO entram nesta consulta**, de propósito:
+ * é na tela que eles recortam, porque as listas de meses e de pessoas que os
+ * seletores oferecem saem da fila INTEIRA — com o `where` aqui, escolher
+ * outubro apagaria setembro do seletor e a pessoa perderia o caminho de volta.
+ * É a decisão das abas de Pedidos e dos contadores de Minhas Tasks.
+ * ---------------------------------------------------------------------------
  */
-export type FilaDeNotas = {
-  aConferir: NotaDaEquipe[];
-  aPagar: NotaDaEquipe[];
-  encerradas: NotaDaEquipe[];
-};
-
-export async function filaDeNotas(): Promise<FilaDeNotas> {
+export async function filaDeNotas(): Promise<NotaDaEquipe[]> {
   const supabase = await criarClienteServidor();
 
   const linhas = ouFalha(
@@ -156,14 +169,7 @@ export async function filaDeNotas(): Promise<FilaDeNotas> {
       .order("created_at", { ascending: false }),
   );
 
-  const todas = await montar((linhas ?? []) as TeamInvoice[]);
-  const de = (...estados: NfStatus[]) => todas.filter((n) => estados.includes(n.status));
-
-  return {
-    aConferir: de("enviada"),
-    aPagar: de("aprovada"),
-    encerradas: de("paga", "recusada"),
-  };
+  return montar((linhas ?? []) as TeamInvoice[]);
 }
 
 /**
@@ -207,11 +213,12 @@ export async function minhasNotasRecusadas(): Promise<NotaDaEquipe[]> {
   const recusadas = (linhas ?? []) as TeamInvoice[];
   if (recusadas.length === 0) return [];
 
-  // UMA RECUSADA CUJO MÊS JÁ TEM NOTA NOVA NÃO É PENDÊNCIA. Sem esta conta, a
-  // Home cobraria para sempre um mês que a pessoa já reenviou — e um aviso que
-  // não sai depois de resolvido é o que ensina a ignorar o aviso.
-  const vivas = new Set(await mesesJaEnviados());
-  return montar(recusadas.filter((n) => !vivas.has(n.competencia.slice(0, 7))));
+  // UMA RECUSADA CUJO MÊS JÁ TEM NOTA NOVA NÃO É PENDÊNCIA, e quem responde
+  // isso é `recusadasPendentes()` — a mesma função que a tela de "Minhas
+  // notas" chama. Até ela, a conta estava escrita aqui e a tela tinha a dela:
+  // a Home descontava o mês reenviado e a tela não, então o bloco vermelho
+  // ficava para sempre em quem já havia mandado a nota nova.
+  return montar(recusadasPendentes(recusadas, await mesesJaEnviados()));
 }
 
 // ===========================================================================

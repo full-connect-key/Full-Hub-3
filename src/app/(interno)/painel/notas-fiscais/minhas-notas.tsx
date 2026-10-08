@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Paperclip, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { FileText, Loader2, Paperclip, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -35,7 +35,9 @@ import {
   ROTULOS_DE_NF,
   emReais,
   interpretarValor,
+  mesDaCompetencia,
   mesPorExtenso,
+  recusadasPendentes,
 } from "@/lib/dominio/notas-fiscais";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -85,11 +87,60 @@ export function MinhasNotas({
   const [observacoes, setObservacoes] = useState("");
   const [arquivo, setArquivo] = useState<{ caminho: string; nome: string } | null>(null);
 
-  const recusadas = notas.filter((n) => n.status === "recusada");
   const mesesVivos = new Set(
-    notas.filter((n) => n.status !== "recusada").map((n) => n.competencia.slice(0, 7)),
+    notas.filter((n) => n.status !== "recusada").map((n) => mesDaCompetencia(n.competencia)),
   );
   const oferecidos = mesesDisponiveis.filter((m) => !mesesVivos.has(m.valor));
+
+  // A RECUSADA CUJO MÊS JÁ TEM NOTA NOVA NÃO ENTRA AQUI, e isto é um conserto.
+  //
+  // A linha era `notas.filter((n) => n.status === "recusada")`, e o bloco
+  // vermelho ficava na tela para sempre: a pessoa corrigia, mandava a nota
+  // nova, e continuava lendo "Uma nota precisa ser reenviada" — na mesma tela
+  // onde ela acabara de mandar. Relato do usuário.
+  //
+  // A conta já existia, certa, em `minhasNotasRecusadas()`, que é o que faz o
+  // aviso sair da Home — e o conjunto dos meses vivos já estava calculado na
+  // linha acima, para decidir o que o seletor oferece. Eram duas metades na
+  // mesma função que não se encontravam. Hoje a pergunta tem um lugar só, em
+  // `lib/dominio/`, e os dois lados a fazem.
+  const recusadas = recusadasPendentes(
+    notas.filter((n) => n.status === "recusada"),
+    mesesVivos,
+  );
+
+  // E A RECUSADA DE UM MÊS QUE O SELETOR NÃO OFERECE NÃO GANHA O BOTÃO: fora
+  // dos doze meses, abrir o diálogo deixaria o campo de mês em branco — um
+  // formulário que pede uma escolha que ele não tem. Uma nota recusada há mais
+  // de um ano é conversa com a contabilidade, que é a regra de
+  // `mesesParaEmitir`.
+  const reenviaveis = new Set(
+    recusadas
+      .map((n) => mesDaCompetencia(n.competencia))
+      .filter((mesDaNota) => oferecidos.some((m) => m.valor === mesDaNota)),
+  );
+
+  /**
+   * Abre o envio JÁ NO MÊS da nota recusada.
+   *
+   * Decisão do usuário: *"não tem como substituir ou reenviar dentro do envio
+   * já feito"*. O caminho existia — "Enviar nota" e escolher o mês na lista —,
+   * e de dentro da linha recusada não havia nada dizendo isso: quem olhava o
+   * motivo tinha de voltar ao topo, abrir o diálogo e lembrar de qual mês era.
+   *
+   * **É O MESMO DIÁLOGO, com o mês escolhido**, e não uma tela de "substituir":
+   * substituir não existe neste módulo, de propósito — a recusada fica com o
+   * motivo, e o índice único do banco é parcial justamente para a nova nascer
+   * ao lado dela. Um segundo formulário diria o contrário com a própria
+   * existência.
+   */
+  function abrirPara(mesDaNota: string) {
+    setMes(mesDaNota);
+    setAberto(true);
+  }
+
+  const recusadaDoMesEscolhido =
+    recusadas.find((n) => mesDaCompetencia(n.competencia) === mes) ?? null;
 
   async function subir(escolhido: File | undefined) {
     if (!escolhido) return;
@@ -168,9 +219,14 @@ export function MinhasNotas({
               </li>
             ))}
           </ul>
+          {/* A FRASE DIZ ONDE CLICAR, e não só o que fazer. Ela mandava
+              "corrija e envie uma nota nova para o mesmo mês" sem dizer por
+              onde — é a diferença entre uma instrução e uma descrição, a mesma
+              lição da recusa que nomeia cada etapa sem aprovação. */}
           <p className="text-text-secondary mt-2 text-xs">
-            Corrija e envie uma nota nova para o mesmo mês. A recusada continua aqui,
-            com o motivo, para você saber o que já foi apontado.
+            Cada uma tem um botão <strong>Enviar outra</strong> na lista abaixo. A
+            recusada não é substituída: ela fica com o motivo, para você saber o que
+            já foi apontado.
           </p>
         </section>
       ) : null}
@@ -244,6 +300,24 @@ export function MinhasNotas({
                   </Button>
                 ) : null}
 
+                {/* "ENVIAR OUTRA" MORA NA LINHA DA RECUSADA, que é onde a
+                    pessoa está quando lê o motivo — e é o que o usuário não
+                    encontrava. Ele abre o mesmo diálogo com o mês escolhido.
+
+                    Some quando o mês já tem nota nova: aí não há o que
+                    reenviar, e o botão prometeria uma segunda nota que o
+                    índice único do banco recusa. */}
+                {nota.status === "recusada" &&
+                reenviaveis.has(mesDaCompetencia(nota.competencia)) ? (
+                  <Button
+                    size="sm"
+                    onClick={() => abrirPara(mesDaCompetencia(nota.competencia))}
+                  >
+                    <RotateCcw aria-hidden />
+                    Enviar outra
+                  </Button>
+                ) : null}
+
                 {/* APAGAR SÓ ENQUANTO NINGUÉM CONFERIU, e o botão some depois:
                     o banco recusa de qualquer jeito, e oferecer o que ele
                     recusa ensina a desconfiar do botão. */}
@@ -276,6 +350,18 @@ export function MinhasNotas({
             <DialogTitle>Enviar nota fiscal</DialogTitle>
             <DialogDescription>
               O sócio é avisado assim que ela chega, e você acompanha o pagamento por aqui.
+              {/* QUANDO O MÊS ESCOLHIDO TEM UMA RECUSADA, o diálogo diz o que
+                  vai acontecer com ela — porque "substituir" é exatamente o que
+                  a pessoa espera e não é o que o produto faz. Derivado do mês
+                  escolhido, nunca um segundo estado: trocar o mês no seletor
+                  troca a frase. */}
+              {recusadaDoMesEscolhido ? (
+                <>
+                  {" "}
+                  A nota recusada de {mesPorExtenso(recusadaDoMesEscolhido.competencia)} continua
+                  no histórico, com o motivo — esta é uma nota nova, não uma troca.
+                </>
+              ) : null}
             </DialogDescription>
           </DialogHeader>
 

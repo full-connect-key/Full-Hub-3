@@ -4,7 +4,7 @@ import { forbidden } from "next/navigation";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehSocio } from "@/lib/auth/roles";
 import { filaDeNotas, meusPedidosDeNota, minhasNotas } from "@/lib/dados/notas-fiscais";
-import { mesesParaEmitir } from "@/lib/dominio/notas-fiscais";
+import { mesesParaEmitir, porColunaDaFila } from "@/lib/dominio/notas-fiscais";
 
 import { AbasDaNota } from "./abas";
 import { lerAba, type Aba } from "./vocabulario";
@@ -61,6 +61,14 @@ export default async function Pagina({
   const souSocio = ehSocio(sessao.profile.role);
   const fila = souSocio ? await filaDeNotas() : null;
 
+  // O SELO DA ABA CONTA A FILA INTEIRA, nunca o que sobrou do filtro de mês ou
+  // de pessoa: ele diz quantas notas esperam conferência, e um número que
+  // encolhe porque o sócio escolheu setembro cobraria menos do que existe. O
+  // corte por estado é o mesmo da fila — `porColunaDaFila()` —, e não um
+  // `filter` escrito aqui: dois lugares nomeando os estados é onde um deles
+  // esquece do estado novo.
+  const aConferir = fila ? porColunaDaFila(fila).enviada.length : 0;
+
   // HOJE SAI DO SERVIDOR e desce pronto, como em toda tela do produto: se a
   // lista de meses fosse montada no navegador, quem estivesse num fuso à frente
   // veria um mês que ainda não terminou no topo do seletor.
@@ -83,10 +91,10 @@ export default async function Pagina({
         </p>
       </div>
 
-      <AbasDaNota ativa={aba} visiveis={visiveis} aConferir={fila?.aConferir.length ?? 0} />
+      <AbasDaNota ativa={aba} visiveis={visiveis} aConferir={aConferir} />
 
       {aba === "conferir" && fila ? (
-        <FilaDoSocio fila={fila} />
+        <FilaDoSocio notas={fila} />
       ) : (
         <>
           {/* A FAIXA FICA ACIMA DA LISTA, e não dentro do diálogo de envio:

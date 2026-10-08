@@ -99,13 +99,30 @@ const TELAS = [
   { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
-  // AS NOTAS FISCAIS (0065). Duas telas porque sao dois lados do mesmo modulo:
-  // o colaborador ve a nota dele que voltou, o socio ve a fila da agencia. E a
-  // do colaborador e a que carrega o bloco da recusada, que e o unico que pede
-  // acao.
-  { nome: "10o-notas-fiscais-minhas", rota: "/painel/notas-fiscais", largura: 1440, altura: 1000, role: "colaborador" },
-  { nome: "10p-notas-fiscais-fila", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 1200, role: "socio" },
-  { nome: "10q-notas-fiscais-375", rota: "/painel/notas-fiscais", largura: 375, altura: 1100, role: "colaborador" },
+  // AS NOTAS FISCAIS (0065). Dois lados do mesmo modulo: o colaborador ve a
+  // nota dele que voltou, o socio ve a fila da agencia. E a do colaborador e a
+  // que carrega o bloco da recusada, que e o unico que pede acao.
+  //
+  // O QUE CADA UMA CONFERE DEPOIS DO KANBAN:
+  //  - a do colaborador tem DUAS recusadas, e so UMA no bloco vermelho: a do
+  //    mes passado ja foi reenviada. A imagem prova o desconto que a tela nao
+  //    fazia, e o botao "Enviar outra" aparecendo so na que ainda pede acao;
+  //  - a fila tem as quatro colunas com peca, tres pessoas e tres meses -- com
+  //    uma pessoa so, os dois seletores nascem com uma opcao cada e a imagem
+  //    nao prova que eles filtram;
+  //  - a filtrada por pessoa mostra o outro vazio: as colunas que a Carla nao
+  //    tem, cada uma com a frase dela.
+  { nome: "10o-notas-fiscais-minhas", rota: "/painel/notas-fiscais", largura: 1440, altura: 1100, role: "colaborador" },
+  { nome: "10p-notas-fiscais-fila", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 900, role: "socio" },
+  { nome: "10q-notas-fiscais-375", rota: "/painel/notas-fiscais", largura: 375, altura: 1200, role: "colaborador" },
+  {
+    nome: "10r-notas-fiscais-fila-filtrada",
+    rota: "/painel/notas-fiscais?aba=conferir&pessoa=a0000000-0000-0000-0000-000000000003",
+    largura: 1440,
+    altura: 800,
+    role: "socio",
+  },
+  { nome: "10s-notas-fiscais-fila-375", rota: "/painel/notas-fiscais?aba=conferir", largura: 375, altura: 1200, role: "socio" },
   { nome: "10e-equipe-lista", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "socio" },
   { nome: "10f-colaborador-dados", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
   { nome: "10g-desligamento", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },

@@ -186,3 +186,120 @@ export function diaEMes(iso: string): string {
   const [, mes, dia] = iso.split("-");
   return `${dia}/${mes}`;
 }
+
+/** "2027-09-01" → "2027-09". O inverso de `competenciaDoMes`. */
+export function mesDaCompetencia(competencia: string): string {
+  return competencia.slice(0, 7);
+}
+
+/**
+ * UMA RECUSADA CUJO MÊS JÁ TEM NOTA VIVA NÃO É PENDÊNCIA.
+ *
+ * ---------------------------------------------------------------------------
+ * **A mesma pergunta estava respondida em DOIS lugares, e o lado errado era o
+ * da tela.** `minhasNotasRecusadas()` descontava o mês reenviado desde a 0065 —
+ * é o que faz o aviso sair da Home —, e `minhas-notas.tsx` filtrava só por
+ * `status === "recusada"`: quem corrigia a nota e mandava outra continuava
+ * lendo *"Uma nota precisa ser reenviada"* para sempre, na tela onde ela
+ * acabara de mandar. Foi o usuário quem encontrou.
+ *
+ * Pior: o conjunto dos meses vivos já era calculado três linhas abaixo, para
+ * decidir o que o seletor oferece. As duas metades estavam na mesma função e
+ * não se encontravam.
+ *
+ * Então a regra vira UMA função que os dois lados chamam, como
+ * `situacaoDoLancamento()` no Financeiro e `faseDoPedido()` nas Solicitações.
+ * Um aviso que não sai depois de resolvido é o que ensina a ignorar o aviso.
+ * ---------------------------------------------------------------------------
+ *
+ * Recebe as duas metades em vez de derivá-las da lista inteira porque os dois
+ * chamadores têm formas diferentes: a tela tem o histórico todo em memória, e
+ * a Home pergunta ao banco por duas consultas estreitas — a das recusadas e a
+ * dos meses vivos.
+ */
+export function recusadasPendentes<T extends { competencia: string }>(
+  recusadas: T[],
+  mesesComNotaViva: Iterable<string>,
+): T[] {
+  const vivos = new Set(mesesComNotaViva);
+  return recusadas.filter((nota) => !vivos.has(mesDaCompetencia(nota.competencia)));
+}
+
+/**
+ * As QUATRO colunas da fila do sócio.
+ *
+ * ---------------------------------------------------------------------------
+ * **Eram TRÊS LISTAS empilhadas, e a do meio juntava dois fatos opostos.**
+ * "Encerradas" tinha a paga e a recusada na mesma caixa — o pagamento que saiu
+ * e a nota que a pessoa precisa mandar de novo —, e a recusada não tinha onde
+ * ser procurada. Decisão do usuário: *"separar por status: recusado,
+ * aguardando pagamento, pago (tipo kanban)"*.
+ *
+ * **Ele nomeou três, e são quatro.** "A conferir" ficou porque é o trabalho da
+ * tela: é a coluna de onde tudo sai, e tirá-la deixaria a fila sem a fila. Os
+ * três que ele nomeou são exatamente os que não davam para ver separados.
+ *
+ * **A ORDEM É POR QUEM ESTÁ ESPERANDO O QUÊ**, que é o argumento das três
+ * listas antigas mantido inteiro: as duas primeiras são trabalho do sócio — uma
+ * leitura e uma transferência —, a terceira espera a PESSOA mandar outra, e a
+ * quarta não espera ninguém. Pela ordem do ciclo a recusada cairia no fim, ao
+ * lado da paga, que é de onde ela acabou de sair.
+ * ---------------------------------------------------------------------------
+ *
+ * **O card NÃO ARRASTA, e aqui a ausência é mecânica antes de ser de desenho.**
+ * Recusar exige o motivo (o check `team_invoices_recusa_com_motivo`) e pagar
+ * exige a data digitada, que o arrasto não tem como carregar; e paga e recusada
+ * não mudam mais de estado, nem pelo sócio. Das transições possíveis entre as
+ * quatro colunas, o banco recusa quase todas — e um alvo de solta que recusa
+ * tudo é um gesto que não faz nada. É a decisão do board de demandas e da Linha
+ * do Tempo: a coluna é leitura, o botão é a ação.
+ */
+export const COLUNAS_DA_FILA = [
+  {
+    status: "enviada",
+    titulo: "A conferir",
+    vazio: "Nenhuma nota esperando.",
+  },
+  {
+    status: "aprovada",
+    titulo: "Aguardando pagamento",
+    vazio: "Nada a transferir.",
+  },
+  {
+    status: "recusada",
+    titulo: "Recusadas",
+    vazio: "Nenhuma recusada.",
+  },
+  {
+    status: "paga",
+    titulo: "Pagas",
+    vazio: "Nada pago neste recorte.",
+  },
+] as const satisfies readonly { status: NfStatus; titulo: string; vazio: string }[];
+
+/**
+ * Uma checagem no carregamento do módulo: toda nota cai em exatamente uma
+ * coluna.
+ *
+ * Sem ela, um valor novo em `nf_status` sumiria da fila sem erro e sem aviso —
+ * a nota existiria no banco, não apareceria em coluna nenhuma, e só alguém
+ * procurando por ela descobriria. É a mesma checagem de
+ * `seletor-de-status.tsx` e de `STATUS_EM_ORDEM`.
+ */
+const FALTA_NA_FILA = (Object.keys(ROTULOS_DE_NF) as NfStatus[]).filter(
+  (status) => !COLUNAS_DA_FILA.some((coluna) => (coluna.status as string) === status),
+);
+if (FALTA_NA_FILA.length > 0) {
+  throw new Error(
+    `Estado de nota fiscal fora de toda coluna da fila: ${FALTA_NA_FILA.join(", ")}`,
+  );
+}
+
+/** As notas de cada estado, para a fila desenhar e para a aba contar. */
+export function porColunaDaFila<T extends { status: NfStatus }>(
+  notas: T[],
+): Record<NfStatus, T[]> {
+  const mapa = { enviada: [], aprovada: [], recusada: [], paga: [] } as Record<NfStatus, T[]>;
+  for (const nota of notas) mapa[nota.status].push(nota);
+  return mapa;
+}
