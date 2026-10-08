@@ -521,6 +521,50 @@ const NOMES_MORTOS = [
   { nome: "manda material ao cliente", onde: "src/", porque: "a mesma trava da 0060, parafraseada — foi assim que ela sobreviveu em state-machine.ts" },
 
   // ---------------------------------------------------------------------------
+  // A TRAVA DO MÊS DE SOCIAL COM PEÇA JÁ NO CLIENTE, que saiu na 0094.
+  //
+  // Ela recusava apagar — e limpar — um mês em que alguma peça já tinha ido
+  // ao cliente, pelas TRÊS portas: o trigger `tasks_apaga_o_social`, a função
+  // `apagar_mes_de_social()` e a `limpar_posts_do_mes()`. Saiu por decisão do
+  // usuário: *"libera para ser excluido mesmo assim"*.
+  //
+  // **A varredura é de `src/` e das três frases que a TELA dizia**, e é a
+  // lição da 0029 e da 0060 pela terceira vez: a regra morava nos dois lados,
+  // e o lado de cá a repetia em prosa — o diálogo do board prometia que *"o
+  // banco recusa se algum post já tiver ido ao cliente"* e a linha em âmbar
+  // do Social Media mandava arquivar porque *"o banco recusa"*. Desfazer só o
+  // SQL deixaria as duas frases afirmando uma trava que não existe mais, na
+  // tela de quem está decidindo apagar sessenta peças.
+  //
+  // A frase do banco (`já foram ao cliente`) NÃO entra aqui, e é de propósito:
+  // ela vive em `supabase/migrations/0086` e nos cenários da bateria, que
+  // precisam nomeá-la para medir que ela saiu — e `supabase/` não está na
+  // lista de `onde`. Quem confere o corpo das três funções é o `select` no
+  // rodapé da 0094.
+  { nome: "o banco recusa apagar", onde: "src/", porque: "a trava do mês com peça no cliente saiu na 0094 — nada recusa mais" },
+  { nome: "banco recusa se algum post", onde: "src/", porque: "a mesma trava da 0094, na frase do diálogo do board" },
+  { nome: "recusa apagar um mês", onde: "src/", porque: "a mesma trava da 0094, parafraseada" },
+
+  // E O NOME DIGITADO, que saiu junto, na mesma frase do usuário: *"tire a
+  // função de pedir para digitar uma frase quando vou excluir algo"*.
+  //
+  // `confirmationText` foi APAGADA do `ConfirmDialog` (a decisão da 0023, e
+  // não deixada opcional), e o input à mão do diálogo do mês saiu com ela. A
+  // varredura procura o TEXTO que a pessoa lia, porque é ele que volta: quem
+  // copiar um diálogo antigo copia a frase antes de copiar a prop.
+  //
+  // `desligamento.tsx` é a exceção declarada, e ela está escrita no cabeçalho
+  // do `ConfirmDialog`: desligar alguém não é apagar — ninguém com histórico
+  // é apagado neste produto —, é o fluxo que transfere o trabalho em aberto
+  // antes de desativar o acesso. A frase de lá é "Digite o nome completo",
+  // que nenhuma das duas linhas abaixo casa.
+  // O MARCADOR É "digite o nome", e a primeira versão desta linha usava
+  // "para confirmar" — que acusou três frases legítimas de Comodatos ("a
+  // pessoa foi avisada para confirmar o recebimento"). Um alarme que toca no
+  // que está certo é um alarme que alguém desliga.
+  { nome: "digite o nome", onde: "src/", porque: "o nome digitado antes de excluir saiu do produto (decisão do usuário)", salvo: ["src/components/shared/confirm-dialog.tsx", "src/app/(interno)/painel/pessoas/equipe/[id]/desligamento.tsx"] },
+
+  // ---------------------------------------------------------------------------
   // UM NOME PARA CADA AÇÃO DO FLUXO DE APROVAÇÃO (Sprint 3K, migration 0092).
   //
   // O produto chamava a MESMA ação de três nomes conforme a tela: "Enviar

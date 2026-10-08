@@ -156,9 +156,10 @@ export function AcoesDaTask({
              E A FRASE TEM QUE DIZER ISSO AQUI, nesta tela, porque é aqui que
              o clique acontece: quem abre o board não está pensando em social,
              está apagando uma linha. Sem esta frase, a simetria que ele pediu
-             vira uma armadilha — e a trava do banco só recusa quando o
-             cliente já viu alguma coisa; o mês inteiro em produção sai sem
-             nenhuma recusa, que é exatamente o caso de "errei a montagem".
+             vira uma armadilha — e desde a 0094 **não há recusa nenhuma**: a
+             trava que segurava o mês com peça já no cliente saiu por decisão
+             do usuário, então esta frase é a única coisa entre o clique e o
+             apagamento de um mês inteiro.
 
              A contagem exata fica no diálogo do Social Media, que lê
              `o_que_vai_com_o_mes()`. Aqui ela não cabe: este componente não
@@ -166,7 +167,7 @@ export function AcoesDaTask({
              tela de task, para uma frase que quase nenhuma delas mostra. */
           description={
             task.social_do_mes
-              ? "Os posts do mês somem junto — as artes, as versões, os comentários e o registro de cada aprovação. Não dá para desfazer, e o banco recusa se algum post já tiver ido ao cliente."
+              ? "Os posts do mês somem junto — as artes, as versões, os comentários e o registro de cada aprovação, inclusive das peças que o cliente já aprovou. Não dá para desfazer. Para tirar o mês da navegação sem apagar nada, arquive-o no Social Media."
               : "A demanda, as subtarefas, as rodadas de aprovação e o histórico somem junto. Não dá para desfazer."
           }
           confirmLabel="Excluir"

@@ -67,7 +67,6 @@ export function ApagarCampanha({
       title={`Apagar "${nome}"?`}
       destructive
       confirmLabel="Apagar campanha"
-      confirmationText={nome}
       description={
         <>
           <span className="block">
@@ -78,7 +77,7 @@ export function ApagarCampanha({
                 : `Vão junto ${materiais} ${materiais === 1 ? "material" : "materiais"} — ${aprovados} ${aprovados === 1 ? "já aprovado" : "já aprovados"} pelo cliente —, com as versões, os comentários e o registro de cada aprovação.`}
           </span>
           <span className="mt-2 block">
-            Não há como desfazer. Para confirmar, digite o nome da campanha.
+            Não há como desfazer.
           </span>
         </>
       }

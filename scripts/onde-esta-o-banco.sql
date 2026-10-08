@@ -366,7 +366,19 @@ from (
     -- do PASSO 2: as duas nascem juntas, e esta e a que tem o nome que nao
     -- existia antes -- `post_etapa_progresso_reabre`, que ela substitui, some
     -- na mesma migration.
-    ('0093', 'fase_acompanha_as_caixinhas()', 'funcao', 'fase_acompanha_as_caixinhas')
+    ('0093', 'fase_acompanha_as_caixinhas()', 'funcao', 'fase_acompanha_as_caixinhas'),
+    -- A 0094 TIRA a recusa do mes de social com peca ja no cliente, das tres
+    -- portas. Ela nao cria objeto nenhum, e a linha PODIA ser por ausencia
+    -- (`sem_no_corpo` com a frase da recusa) -- e marcador por ausencia e
+    -- justamente o que a 0090 mostrou envelhecer mal: a linha da 0060 passou
+    -- a dizer FALTA num banco em dia porque outra migration devolveu a frase
+    -- com outra razao.
+    --
+    -- Entao ela aponta para o que NASCEU: o `raise notice` que substituiu a
+    -- recusa. Num banco parado na 0093 a funcao existe e nao tem essa frase,
+    -- que e exatamente o estado que esta linha precisa acusar.
+    ('0094', 'o mes de social se apaga mesmo com peca no cliente', 'no_corpo',
+             'tasks_apaga_o_social|Mês de social apagado com')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

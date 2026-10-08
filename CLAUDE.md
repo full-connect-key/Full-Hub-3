@@ -2702,12 +2702,40 @@ subtarefas já saíram pelo cascade e `posts.subtask_id` já está nulo —
 `posts_do_mes()` acharia zero, e os posts ficariam órfãos sem erro nenhum. É a
 pegadinha que a 0080 pagou com o espelho da campanha.
 
-**A trava recusa quando o cliente já viu**, e a recusa diz as duas saídas:
-arquivar, ou limpar só os posts. Uma trava que só diz "não pode" devolve a
-pessoa ao apagar um por um, que é justamente o que o pedido existe para
-resolver. **E ela vale para "limpar os posts" também** — ela é sobre o
-material, não sobre a casca: sem isso, limpar seria o caminho de apagar o que o
-cliente aprovou sem passar por recusa nenhuma.
+**A TRAVA DO CLIENTE JÁ TER VISTO SAIU NA 0094**, e o registro do que ela era
+fica porque o argumento dela continua descrevendo o que se perde. Ela recusava
+quando alguma peça já tinha ido ao cliente, pelas três portas — o trigger, a
+função do Social Media e o "limpar os posts" —, com a dica nomeando as duas
+saídas. Decisão do usuário, depois de bater nela: *"libera para ser excluido
+mesmo assim"*.
+
+**O argumento era uma DESCRIÇÃO do custo, e nunca foi uma razão para o produto
+decidir no lugar de quem responde pela agência.** Quem apaga continua sendo
+`is_gestor()`, e essa guarda fica; o que saiu é a segunda pergunta embaixo
+dela, que é a 0060 pela terceira vez — a primeira já barra todo mundo que não
+deve apagar, e a de baixo só alcançava exatamente as duas pessoas que ele
+liberou.
+
+**O que se perde está dito, e é consequência aceita:** com os posts vão as
+versões, as artes, os comentários e `approval_rounds` — quem aprovou, quando,
+com que comentário. As duas saídas que a recusa oferecia continuam existindo e
+continuam sendo melhores quando servem; o que mudou é que elas passaram a ser
+escolha, e não o único caminho.
+
+**A trava estava em TRÊS lugares, e desfazer um só não desfaz nada.** Tirando-a
+só de `apagar_mes_de_social()`, o botão do Social Media passaria a levar a
+recusa do TRIGGER, com a mesma frase — e quem lesse o diff concluiria que a
+mudança não funcionou. Tirando-a das duas e deixando o "limpar os posts",
+continuaria recusado justamente o caso mais provável: quem errou a grade de um
+mês que já saiu. As três frases entraram no `check:cores` ao lado das duas da
+0029 e das duas da 0060 — e ele pegou, na primeira rodada, uma frase de tela
+que eu tinha deixado para trás no diálogo de apagar campanha.
+
+**Os cenários ficaram, virados do avesso**, e cada porta tem um mês próprio:
+reintroduzindo a recusa em qualquer um dos três lugares, um deles falha e diz
+qual. O do board mede a AUSÊNCIA da recusa e não o apagamento dos posts — eles
+saem pelo `on delete cascade` de `posts.social_task_id` (0088) de qualquer
+jeito, então contá-los daria zero com o trigger ligado e desligado.
 
 **`arquivada_em` é CARIMBO e não valor de enum**, pela razão de `publicada_em`
 (0028): `task_status` tem sete valores e nenhum deles é "arquivado", um valor
@@ -2772,10 +2800,10 @@ filtros, um botão que apaga dezoito peças dividiria a linha com o que cria uma
 **E ela aparece com o mês VAZIO**, de propósito: "abri errado e quero desfazer"
 é o caso que o pedido original descreveu, e é justamente o mês sem peça nenhuma.
 
-**SÃO TRÊS SAÍDAS porque a recusa do banco oferece três.** Com alguma peça já
-no cliente, o trigger recusa e a dica nomeia as outras duas — arquivar, ou
-limpar só os posts. Uma tela com um botão só mandaria a pessoa ler a recusa e
-procurar sozinha onde fazer o que ela acabou de sugerir.
+**SÃO TRÊS SAÍDAS, e elas sobreviveram à queda da recusa que as criou.** Elas
+nasceram porque a dica do banco nomeava as outras duas, e com a 0094 nenhuma
+delas é mais obrigatória — continuam porque as três perguntas são diferentes, e
+a tela com um botão só obrigaria quem quer tirar o mês da navegação a apagá-lo.
 
 | A saída | Para quem | Desfaz? |
 | --- | --- | --- |
@@ -2783,19 +2811,38 @@ procurar sozinha onde fazer o que ela acabou de sugerir.
 | Limpar os posts | errou a grade, acertou responsáveis e datas | não |
 | Apagar o mês | errou a montagem inteira | não |
 
-**O nome digitado é só do "apagar o mês inteiro"**, e é a trava do diálogo de
-campanha: limpar os posts preserva a demanda, as fases, os responsáveis e as
-datas — cobrar a digitação dele seria cobrar do caso mais provável a cerimônia
-do mais raro. **E ele não é pedido num mês sem peça nenhuma**, que é quem abriu
-errado e desfez em seguida: cerimônia por uma linha vazia.
+**O NOME DIGITADO SAIU DO PRODUTO INTEIRO**, por decisão do usuário na mesma
+frase: *"tire a função de pedir para digitar uma frase quando vou excluir
+algo"*. `confirmationText` foi **apagada** do `ConfirmDialog` — e não deixada
+opcional, que é a decisão da 0023 — e com ela saíram os quatro chamadores: o
+workflow com demandas, a empresa na zona de perigo, a campanha e este diálogo.
+
+**O argumento dela era bom para um diálogo que só pergunta "tem certeza?", e o
+produto deixou de ter desses.** A decisão de apagar campanha já tinha trocado a
+pergunta pela CONTAGEM, e este diálogo nasceu lendo `o_que_vai_com_o_mes()` na
+abertura pela mesma razão. Com o número na tela, a digitação deixou de ser o
+que faz parar e passou a ser o que atrasa quem já leu — e quem apaga três
+campanhas numa tarde aprende a copiar e colar o nome sem olhar para a frase
+acima dele. **Uma cerimônia que vira hábito protege menos que o número que ela
+esconde.**
+
+**O que ficou no lugar é o TÍTULO**, que passou a nomear o mês — *"Apagar
+Social · Outubro de 2026 de Mundo Verde?"*. É o trabalho que a digitação fazia
+de útil: dizer QUAL mês vai sair, para quem chegou ali com duas abas abertas.
+
+*A exceção declarada é o desligamento*, na ficha da pessoa: ele não é um
+apagamento — ninguém com histórico é apagado neste produto —, é o fluxo que
+transfere o trabalho em aberto antes de desativar o acesso, e a digitação lá
+divide a tela com a lista de vínculos que a pessoa precisa ler. Ela está
+escrita no `salvo` da varredura, que procura "digite o nome" em `src/`.
 
 **A CONTAGEM CHEGA NA ABERTURA DO DIÁLOGO, nunca quando a tela monta** — é o
 argumento que o diálogo do board escreveu para não trazê-la, aplicado aqui ao
 contrário: lá ela custaria uma consulta em toda abertura de tela de task; aqui
 ela É o conteúdo do diálogo. E ela **conta em vez de perguntar "tem certeza?"**,
 com as peças já aprovadas pelo cliente numa linha própria em âmbar: é esse
-número que o banco vai usar para recusar, e quem lê "18 peças" sem ele clica e
-leva uma recusa que parece defeito da tela.
+número que diz o tamanho do estrago, e desde a 0094 ele é a ÚNICA coisa entre
+o clique e o apagamento — não há mais recusa nenhuma depois dele.
 
 **De quebra, o tipo da contagem estava na forma de SEIS colunas da 0086.** A
 0088 fez `drop function` antes do `create` — `create or replace` não troca o

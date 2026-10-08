@@ -335,7 +335,7 @@ export function DemonstracaoDeComponentes({
         />
       </Secao>
 
-      <Secao titulo="ConfirmDialog" descricao="Confirmação simples e, para o que não tem volta, a exigência de digitar o nome.">
+      <Secao titulo="ConfirmDialog" descricao="Confirmação antes de uma ação. O que não tem volta diz o que se perde — a contagem é o que faz alguém parar, e o nome digitado saiu do produto.">
         <div className="flex flex-wrap gap-2">
           <ConfirmDialog
             trigger={<Button variant="outline">Arquivar projeto</Button>}
@@ -356,7 +356,6 @@ export function DemonstracaoDeComponentes({
             title="Excluir Cliente Alfa?"
             description="Isso apaga o cliente, os vínculos de acesso ao portal e todo o histórico. Não dá para desfazer."
             confirmLabel="Excluir definitivamente"
-            confirmationText="Cliente Alfa"
             destructive
             onConfirm={() => {
               toast.success("Cliente excluído.");

@@ -15,8 +15,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
@@ -166,11 +164,17 @@ export function AcoesDoMes({
  * peças já aprovadas pelo cliente à parte, em âmbar — é esse número que
  * decide se a pessoa continua, e é ele que o banco vai usar para recusar.
  *
- * **O NOME DIGITADO É SÓ DO MODO "TUDO".** Limpar os posts preserva a demanda,
- * as fases, os responsáveis e as datas — é o desfazer de quem errou a grade,
- * e cobrar a digitação dele seria cobrar do caso mais provável a cerimônia do
- * mais raro. Apagar o mês inteiro leva tudo, e é a mesma trava do diálogo de
- * campanha.
+ * **O NOME DIGITADO SAIU (decisão do usuário), e o que ficou no lugar dele é
+ * o TÍTULO.** O diálogo do modo "tudo" nomeia o mês — "Apagar Social ·
+ * Outubro de 2026 de Mundo Verde?" —, que é o trabalho que a digitação fazia
+ * de útil: dizer QUAL mês vai sair, para quem chegou aqui com duas abas
+ * abertas. O que ela fazia de inútil era cobrar a cerimônia depois de a
+ * contagem já ter dito o que se perde.
+ *
+ * **E A RECUSA DO BANCO SAIU JUNTO (0094).** Um mês com peça já no cliente
+ * era recusado pelas três portas; hoje ele sai, e a linha em âmbar deixou de
+ * dizer "o banco recusa" para dizer o que vai junto — a aprovação do cliente
+ * é parte do que se perde, não mais um portão.
  */
 function DialogoDeApagar({
   modo,
@@ -185,16 +189,13 @@ function DialogoDeApagar({
   const [aberto, setAberto] = useState(false);
   const [contagem, setContagem] = useState<Contagem | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [digitado, setDigitado] = useState("");
   const [executando, setExecutando] = useState(false);
 
   const ehTudo = modo === "tudo";
-  const liberado = !ehTudo || digitado.trim() === rotulo;
 
   async function abrir(proximo: boolean) {
     setAberto(proximo);
     if (!proximo) {
-      setDigitado("");
       setErro(null);
       return;
     }
@@ -207,7 +208,7 @@ function DialogoDeApagar({
   }
 
   async function confirmar() {
-    if (!liberado || executando) return;
+    if (executando) return;
     setExecutando(true);
     try {
       const resultado = await chamarAcao(() =>
@@ -219,7 +220,6 @@ function DialogoDeApagar({
       }
       toast.success(resultado.mensagem);
       setAberto(false);
-      setDigitado("");
       // APAGADO O MÊS INTEIRO, ESTA TELA DEIXOU DE EXISTIR: a demanda sumiu e
       // `?mes=` aponta para nada. Ela volta para o índice, que é o estado sem
       // `mes` nem `cliente` — ficar aqui deixaria a pessoa olhando uma lista
@@ -252,7 +252,7 @@ function DialogoDeApagar({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {ehTudo ? "Apagar este mês de social?" : "Apagar os posts deste mês?"}
+            {ehTudo ? `Apagar ${rotulo}?` : "Apagar os posts deste mês?"}
           </DialogTitle>
           <DialogDescription>
             {ehTudo
@@ -322,30 +322,13 @@ function DialogoDeApagar({
                       ele
                     </>
                   ) : null}
-                  . O banco recusa apagar um mês nesse estado — arquive, para tirá-lo da
-                  navegação sem destruir nada.
+                  . O registro de cada aprovação sai junto. Se a ideia é só tirar o mês da
+                  navegação, arquivar faz isso sem apagar nada.
                 </p>
               ) : null}
             </>
           )}
 
-          {/* O NOME SÓ É PEDIDO QUANDO HÁ O QUE PERDER. Num mês sem peça
-              nenhuma — o caso de quem abriu errado e desfez em seguida — a
-              digitação cobraria cerimônia por uma linha vazia. */}
-          {ehTudo && contagem && contagem.posts > 0 ? (
-            <div className="space-y-2">
-              <Label htmlFor="confirmar-apagar-o-mes">
-                Digite <span className="font-mono font-semibold">{rotulo}</span> para
-                confirmar
-              </Label>
-              <Input
-                id="confirmar-apagar-o-mes"
-                value={digitado}
-                onChange={(evento) => setDigitado(evento.target.value)}
-                autoComplete="off"
-              />
-            </div>
-          ) : null}
         </div>
 
         <DialogFooter>
@@ -355,12 +338,11 @@ function DialogoDeApagar({
           <Button
             variant="destructive"
             onClick={confirmar}
-            disabled={
-              !contagem ||
-              executando ||
-              (!ehTudo && contagem.posts === 0) ||
-              (ehTudo && contagem.posts > 0 && !liberado)
-            }
+            /* ELE ESPERA A CONTAGEM, e isso não é cerimônia: é a frase acima
+               dele. Liberado antes, o diálogo abriria com "Contando o que sai
+               junto…" e um botão de apagar ao lado, e o clique rápido
+               destruiria o mês sem ninguém ter lido o número. */
+            disabled={!contagem || executando || (!ehTudo && contagem.posts === 0)}
           >
             {executando ? <Loader2 aria-hidden className="animate-spin" /> : null}
             {ehTudo ? "Apagar o mês" : "Apagar os posts"}

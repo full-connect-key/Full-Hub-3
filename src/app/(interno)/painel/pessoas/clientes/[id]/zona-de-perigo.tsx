@@ -147,8 +147,8 @@ export function ZonaDePerigoDoCliente({
                   <Alert variant="warning">
                     <AlertTriangle />
                     <AlertDescription>
-                      Esta empresa está vazia, então a exclusão é permitida. Na próxima etapa você
-                      vai precisar digitar o nome dela.
+                      Esta empresa está vazia, então a exclusão é permitida. A próxima etapa
+                      apaga o registro, e não tem volta.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -161,10 +161,9 @@ export function ZonaDePerigoDoCliente({
                 {!vinculos.impedeExclusao ? (
                   <ConfirmDialog
                     trigger={<Button variant="destructive">Continuar</Button>}
-                    title="Confirme o nome da empresa"
-                    description="Esta é a última etapa. Depois disso o registro é apagado."
+                    title={`Excluir ${nomeDaEmpresa}?`}
+                    description="Esta é a última etapa. Depois disso o registro é apagado, e não tem volta."
                     confirmLabel="Excluir definitivamente"
-                    confirmationText={nomeDaEmpresa}
                     destructive
                     onConfirm={() => {
                       setPrimeiraEtapa(false);

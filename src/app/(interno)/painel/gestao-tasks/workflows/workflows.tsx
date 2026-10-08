@@ -320,7 +320,6 @@ export function Workflows({
                       )
                     }
                     confirmLabel="Apagar workflow"
-                    confirmationText={tipo.demandas > 0 ? tipo.nome : undefined}
                     trigger={
                       <Button
                         variant="ghost"
