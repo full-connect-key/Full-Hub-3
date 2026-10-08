@@ -66,6 +66,7 @@ export function CalendarioRolavel({
   ultimoMes = ULTIMO_MES_DO_CALENDARIO,
   feriados,
   bloqueados,
+  jaCombinados,
   recusaDoDia,
   recusaDoIntervalo,
   aoRecusar,
@@ -83,6 +84,20 @@ export function CalendarioRolavel({
   feriados: Map<string, string>;
   /** Data ISO → nomes de quem está fora naquele dia. */
   bloqueados: Record<string, string[]>;
+  /**
+   * Data ISO → o rótulo de um período de QUEM ESTÁ OLHANDO que já cobre o dia.
+   *
+   * Separado de `bloqueados` de propósito: aquele diz "um colega da sua área
+   * está fora", e este diz "este dia já é seu". São dois fatos, duas cores e
+   * duas recusas — pôr o próprio nome em `bloqueados` faria a frase sair como
+   * *"Ana já está fora. Você e essa pessoa são do Criação — combine com
+   * ela"*, que é a tela mandando a pessoa falar consigo mesma.
+   *
+   * Opcional porque a aba de registrar período retroativo não o passa: lá o
+   * calendário recusa o futuro, e um período combinado para a frente não tem
+   * o que dizer sobre um dia que já passou.
+   */
+  jaCombinados?: Record<string, string>;
   /** Por que este dia não pode ser escolhido, ou null. */
   recusaDoDia: RecusaDeDia;
   /** Por que este intervalo não pode, ou string vazia. */
@@ -420,6 +435,7 @@ export function CalendarioRolavel({
               fimSel={fimSel}
               feriados={feriados}
               bloqueados={bloqueados}
+              jaCombinados={jaCombinados}
               recusaDoDia={recusaDoDia}
               aoClicar={clicar}
               aoPassar={passarPor}
@@ -438,6 +454,7 @@ function Mes({
   fimSel,
   feriados,
   bloqueados,
+  jaCombinados,
   recusaDoDia,
   aoClicar,
   aoPassar,
@@ -448,6 +465,7 @@ function Mes({
   fimSel: string | null;
   feriados: Map<string, string>;
   bloqueados: Record<string, string[]>;
+  jaCombinados: Record<string, string> | undefined;
   recusaDoDia: RecusaDeDia;
   aoClicar: (dia: string) => void;
   aoPassar: (dia: string) => void;
@@ -486,6 +504,7 @@ function Mes({
             hoje={dia === hojeISO}
             feriado={feriados.get(dia)}
             quemEstaFora={bloqueados[dia]}
+            meuPeriodo={jaCombinados?.[dia]}
             recusa={recusaDoDia(dia)}
             dentroDaSelecao={Boolean(
               inicioSel && fimSel && dia >= inicioSel && dia <= fimSel,
@@ -506,6 +525,7 @@ function Dia({
   hoje,
   feriado,
   quemEstaFora,
+  meuPeriodo,
   recusa,
   dentroDaSelecao,
   pontaInicial,
@@ -517,6 +537,8 @@ function Dia({
   hoje: boolean;
   feriado: string | undefined;
   quemEstaFora: string[] | undefined;
+  /** "Descanso", "Descanso · aguardando" — um período de quem está olhando. */
+  meuPeriodo: string | undefined;
   recusa: string | null;
   dentroDaSelecao: boolean;
   pontaInicial: boolean;
@@ -528,12 +550,19 @@ function Dia({
   const numero = data ? data.getDate() : 0;
   const fimDeSemana = data ? data.getDay() === 0 || data.getDay() === 6 : false;
   const bloqueado = Boolean(quemEstaFora?.length);
+  // O MEU PERÍODO GANHA DO COLEGA quando os dois cobrem o mesmo dia, e é
+  // escolha: o do colega é um combinado a fazer, o meu é uma recusa que nem o
+  // envio deixa passar. Entre as duas, a que decide o que a pessoa faz em
+  // seguida é a minha — e quem aplica a precedência são as classes abaixo,
+  // onde o âmbar pede `!combinado`.
+  const combinado = meuPeriodo;
 
   // O título carrega o motivo inteiro: um dia que recusa sem dizer por quê
   // manda a pessoa clicar de novo, mais forte, e desistir.
   const titulo = [
     format(data ?? new Date(), "dd/MM/yyyy"),
     feriado,
+    combinado ? `Seu período: ${combinado}` : null,
     bloqueado ? `Fora: ${quemEstaFora!.join(", ")}` : null,
     recusa,
   ]
@@ -587,9 +616,16 @@ function Dia({
         recusa && !dentroDaSelecao && "text-text-muted cursor-not-allowed",
         bloqueado &&
           !dentroDaSelecao &&
+          !combinado &&
           "bg-warning-soft border-warning text-warning",
+        // O PAR É O MESMO DO SELO DE DESCANSO, que o `check:cores` já mede —
+        // e é o roxo que a matriz usa para "esta pessoa está fora". Aqui ele
+        // quer dizer a mesma coisa de dentro: este dia já é seu.
+        combinado &&
+          !dentroDaSelecao &&
+          "bg-ferias-soft border-ferias text-ferias",
         dentroDaSelecao && "bg-accent-strong border-accent-strong text-white",
-        !dentroDaSelecao && !recusa && !bloqueado && "hover:bg-accent",
+        !dentroDaSelecao && !recusa && !bloqueado && !combinado && "hover:bg-accent",
         hoje && !dentroDaSelecao && "ring-ring ring-2",
       )}
     >
@@ -607,6 +643,10 @@ function Dia({
         <span className="text-[11px] leading-tight">início</span>
       ) : dentroDaSelecao && pontaFinal ? (
         <span className="text-[11px] leading-tight">fim</span>
+      ) : combinado && !dentroDaSelecao ? (
+        <span className="w-full truncate text-[11px] leading-tight">
+          {combinado}
+        </span>
       ) : bloqueado && !dentroDaSelecao ? (
         <span className="w-full truncate text-[11px] leading-tight">
           {maisDeUm

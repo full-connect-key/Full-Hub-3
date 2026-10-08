@@ -7164,6 +7164,70 @@ e não explica manda a pessoa clicar de novo, mais forte, e desistir —
 seleção não passa do bloqueio, porque um toast por movimento do mouse
 empilharia dez avisos iguais antes de a pessoa soltar o botão.
 
+#### E O CALENDÁRIO MOSTRA OS PERÍODOS QUE JÁ SÃO SEUS
+
+Decisão do usuário: *"preciso que quando eu tenha proposto um período (…)
+apareça caso tenha sido aceito, o período na aba de propor período, para que
+eu não perca tempo preenchendo uma data que já não está disponível"*.
+
+**A REGRA JÁ EXISTIA NO BANCO, E SÓ NO BANCO.** `validar_solicitacao` recusa
+desde sempre um pedido que cubra um dia de outro pedido MEU em `pendente` ou
+`aprovada` — *"Você já tem um período combinado cobrindo parte dessas
+datas."* O que faltava era a tela dizer isso ANTES: a pessoa escolhia dez
+dias, escrevia a observação, clicava em Enviar, e só então descobria. É a
+decisão da máquina de estados da subtarefa — o banco é o que vale, a função
+da tela escreve a frase antes de a pessoa clicar.
+
+**E NÃO HÁ CONSULTA NOVA.** `minhasSolicitacoes()` já devolve todos os meus
+pedidos com status, e esta tela já os recebe: é ela que desenha "Meus
+períodos" no rodapé. **É a décima terceira ponte construída e não
+atravessada** — o calendário nascia sem saber nada do que a própria pessoa
+tinha combinado, com a resposta a dois componentes de distância.
+
+**SÃO DOIS FATOS E DUAS CORES, e `jaCombinados` é prop separada de
+`bloqueados` por isso.** Aquele diz "um colega da sua área está fora" e é
+âmbar; este diz "este dia já é seu" e é o roxo de `--ferias`, o mesmo par que
+a matriz usa para descanso e que o `check:cores` já media. Pôr o próprio nome
+em `bloqueados` seria mais barato e faria a frase sair como *"Ana já está
+fora. Você e essa pessoa são do Criação — combine com ela"*: a tela mandando
+a pessoa falar consigo mesma.
+
+**O MEU GANHA DO COLEGA quando os dois cobrem o dia**, na cor e na recusa: o
+dele é um combinado a fazer, o meu o envio não aceita de jeito nenhum. Dizer
+o dele primeiro mandaria alguém negociar um dia que não poderia pedir nem com
+a área inteira livre.
+
+**OS DIAS SÃO TODOS, E NÃO SÓ OS ÚTEIS**, ao contrário da contagem do pedido:
+a trava do banco compara `data_inicio <= fim and data_fim >= inicio`, que é o
+período inteiro. Pintar só os úteis deixaria o sábado do meio clicável e
+recusado no envio — exatamente o que isto existe para evitar. **E pendente
+conta**, pela mesma razão: o banco recusa a sobreposição com um pedido que
+ainda espera resposta, e mostrar só os aprovados faria a tela liberar um dia
+que o envio nega.
+
+**A CÉLULA DIZ SÓ O TIPO, e a imagem é que decidiu.** O rótulo carregava o
+status — "Descanso · aguardando" — e saía *"Descanso · a…"*: a célula tem uns
+120px, o sufixo não cabe, e truncado ele não distingue nada. O que ele
+distinguia não se perde: os dois pedem a mesma coisa de quem está escolhendo
+datas, e a diferença entre eles — esperar a resposta ou cancelar o pedido
+antigo — aparece onde decide algo, na frase da recusa e no selo de status de
+"Meus períodos".
+
+**NÃO HÁ UM TERCEIRO CARTÃO listando os meus períodos no alto**, e a ausência
+é decisão: "Meus períodos" já está na mesma tela, e um bloco acima repetindo
+as mesmas linhas é o cartão de "11 entregues" com sete na lista embaixo. O
+que faltava era o CALENDÁRIO saber. A ponte entre as duas metades é uma frase
+embaixo daquele título, e ela some quando não há período nenhum.
+
+*O que fica em aberto, e é dito em vez de escondido:* o colega de OUTRA área
+continua sem aparecer, e é o desenho do módulo — o bloqueio é por área desde
+o Sprint 6, e pintar todas faria a tela sugerir uma recusa que não existe.
+
+**E a rodada do protótipo pegou o preço disso na hora:** o stub de bloqueios
+ganhou quatro blocos, um deles cobrindo o dia que duas telas clicavam — as
+imagens saíram com a frase de recusa na cara, com o nome de uma tela que elas
+não eram. As datas do clique mudaram.
+
 #### O resto do módulo na interface aprovada
 
 Quarta tela do redesenho, depois dos tokens, de Minhas Tasks e do Início — e a

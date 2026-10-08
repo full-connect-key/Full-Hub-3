@@ -20,8 +20,12 @@ import {
   ROTULOS_DE_TIPO,
   blocosDeAusencia,
   bloqueiosNoIntervalo,
+  combinadosNoIntervalo,
   contarDiasDoPedido,
+  diasJaCombinados,
   faixaDoBloco,
+  motivoDoCombinado,
+  rotuloDoDiaCombinado,
   motivoDoBloqueio,
   rotuloDosDias,
 } from "@/lib/dominio/full-days";
@@ -112,6 +116,29 @@ export function Solicitar({
    * `blocosDeAusencia()` corta por bloco contíguo e descarta o que já acabou;
    * o porquê de cada metade está escrito lá, em `lib/dominio/`.
    */
+  /**
+   * OS MEUS DIAS JÁ COMBINADOS, e eles não custam consulta nenhuma.
+   *
+   * `solicitacoes` é a mesma lista que desenha "Meus períodos" no rodapé
+   * desta tela — `minhasSolicitacoes()` traz todos os meus pedidos, com
+   * status, desde o Sprint 6. A ponte estava construída e ninguém a
+   * atravessava até aqui: o calendário nascia sem saber nada do que a própria
+   * pessoa já tinha combinado.
+   *
+   * Decisão do usuário: *"para que eu não perca tempo preenchendo uma data
+   * que já não está disponível"*. O banco recusa a sobreposição desde sempre
+   * (`validar_solicitacao`); o que faltava era a tela dizer antes do envio.
+   */
+  const jaCombinados = useMemo(() => diasJaCombinados(solicitacoes), [solicitacoes]);
+
+  const rotulosDosMeusDias = useMemo(() => {
+    const mapa: Record<string, string> = {};
+    for (const [dia, combinado] of Object.entries(jaCombinados)) {
+      mapa[dia] = rotuloDoDiaCombinado(combinado);
+    }
+    return mapa;
+  }, [jaCombinados]);
+
   const foraDaMinhaArea = useMemo(
     () => blocosDeAusencia(bloqueados, hojeISO, conjuntoDeFeriados),
     [bloqueados, hojeISO, conjuntoDeFeriados],
@@ -175,6 +202,13 @@ export function Solicitar({
    * acontecer — foi ontem que a pessoa faltou.
    */
   function recusaDoDia(dia: string): string | null {
+    // O MEU PERÍODO VEM ANTES DO COLEGA, e é a mesma precedência da célula:
+    // a dele é um combinado a fazer, o meu o envio não aceita de jeito
+    // nenhum. Dizer a do colega primeiro mandaria a pessoa negociar um dia
+    // que ela não poderia pedir nem com a área inteira livre.
+    const meu = jaCombinados[dia];
+    if (meu) return motivoDoCombinado([{ dia, combinado: meu }]);
+
     const fora = bloqueados[dia];
     if (fora?.length) {
       return `${fora.join(", ")} ${fora.length === 1 ? "está" : "estão"} fora neste dia, e ${
@@ -196,6 +230,9 @@ export function Solicitar({
    * conforme o caminho do clique.
    */
   function recusaDoIntervalo(inicio: string, fim: string): string {
+    const meus = combinadosNoIntervalo(inicio, fim, jaCombinados);
+    if (meus.length > 0) return motivoDoCombinado(meus);
+
     return motivoDoBloqueio(
       bloqueiosNoIntervalo(inicio, fim, bloqueados),
       minhaArea,
@@ -362,6 +399,7 @@ export function Solicitar({
               hojeISO={hojeISO}
               feriados={feriadoDe}
               bloqueados={bloqueados}
+              jaCombinados={rotulosDosMeusDias}
               recusaDoDia={recusaDoDia}
               recusaDoIntervalo={recusaDoIntervalo}
               aoRecusar={(frase) => toast.error(frase)}
@@ -375,6 +413,13 @@ export function Solicitar({
                 className="bg-accent-strong size-3 rounded-sm"
               />
               Selecionado
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-ferias-soft border-ferias size-3 rounded-sm border"
+              />
+              Você já tem período aqui
             </li>
             <li className="inline-flex items-center gap-1.5">
               <span
@@ -652,6 +697,19 @@ export function Solicitar({
         <h2 className="text-text-secondary text-xs font-bold tracking-wider uppercase">
           Meus períodos
         </h2>
+
+        {/* NÃO HÁ UM TERCEIRO CARTÃO LISTANDO OS MEUS PERÍODOS NO ALTO, e a
+            ausência é decisão: esta lista já está na mesma tela, e um bloco
+            acima repetindo as mesmas linhas é o cartão de "11 entregues" com
+            sete na lista embaixo. O que o alto precisava era que o CALENDÁRIO
+            soubesse — e ele sabe, em roxo. Esta frase é a ponte entre as duas
+            metades, e some quando não há nenhum combinado para a frente. */}
+        {Object.keys(jaCombinados).length > 0 ? (
+          <p className="text-text-muted text-xs">
+            Os combinados e os que esperam resposta aparecem em roxo no
+            calendário acima — não dá para pedir outro período por cima deles.
+          </p>
+        ) : null}
 
         {solicitacoes.length === 0 ? (
           <EmptyState

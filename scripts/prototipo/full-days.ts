@@ -251,7 +251,13 @@ export async function minhasSolicitacoes(usuarioId: string): Promise<HrRequest[]
   const meus = PEDIDOS.filter((p) => p.user_id === usuarioId);
   // Quem esta vendo o prototipo pode ser a socia, que nao tem pedido proprio.
   // Mostrar a lista vazia esconderia a tela que interessa validar.
-  return meus.length > 0 ? meus : PEDIDOS;
+  //
+  // O FALLBACK PASSOU A REESCREVER O `user_id`, e deixou de ser cosmetico: o
+  // calendario de Propor agora pinta de roxo os dias de um periodo DE QUEM
+  // ESTA OLHANDO, e devolver os pedidos dos outros com o dono original faria
+  // a tela afirmar que sao dela sem que o dado diga isso. Com a troca, a
+  // ficcao fecha: na imagem eles sao mesmo dela.
+  return meus.length > 0 ? meus : PEDIDOS.map((p) => ({ ...p, user_id: usuarioId }));
 }
 
 export async function filaDeAprovacoes(status: HrStatus): Promise<SolicitacaoNaTela[]> {

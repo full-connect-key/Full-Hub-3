@@ -381,6 +381,133 @@ export function motivoDoBloqueio(bloqueios: BloqueioDeArea[], area: string): str
   return `${quem} ${quando}. Você e ${nomes.length === 1 ? "essa pessoa" : "essas pessoas"} são do ${area} — escolha outro período ou combine com ${nomes.length === 1 ? "ela" : "elas"}.`;
 }
 
+// ---------------------------------------------------------------------------
+// OS MEUS PERÍODOS JÁ COMBINADOS, NO CALENDÁRIO DE PROPOR
+//
+// Decisão do usuário: *"preciso que quando eu tenha proposto um período (…)
+// apareça caso tenha sido aceito, o período na aba de propor período, para
+// que eu não perca tempo preenchendo uma data que já não está disponível"*.
+//
+// **A REGRA JÁ EXISTIA NO BANCO, E SÓ NO BANCO.** `validar_solicitacao`
+// recusa desde sempre um pedido que cubra um dia de outro pedido MEU em
+// `pendente` ou `aprovada`, com a frase *"Você já tem um período combinado
+// cobrindo parte dessas datas"*. O que faltava era a tela dizer isso ANTES:
+// a pessoa escolhia dez dias, escrevia a observação, clicava em Enviar, e só
+// então descobria. É a decisão da máquina de estados da subtarefa — o banco é
+// o que vale, a função da tela escreve a frase antes de a pessoa clicar.
+//
+// **E NÃO HÁ CONSULTA NOVA.** `minhasSolicitacoes()` já devolve todos os meus
+// pedidos, com status, e a tela de Propor já os recebe — é ela que desenha
+// "Meus períodos" no rodapé. A ponte estava construída; o que faltava era
+// atravessá-la para dentro do calendário.
+//
+// **OS DIAS SÃO TODOS, E NÃO SÓ OS ÚTEIS**, ao contrário da contagem do
+// pedido: a trava do banco compara `data_inicio <= fim and data_fim >=
+// inicio`, que é o período inteiro. Pintar só os úteis deixaria o sábado do
+// meio clicável e recusado no envio — exatamente o que isto existe para
+// evitar.
+//
+// **PENDENTE CONTA**, pela mesma razão: o banco recusa a sobreposição com um
+// pedido que ainda espera resposta. Mostrar só os aprovados faria a tela
+// liberar um dia que o envio recusa.
+// ---------------------------------------------------------------------------
+
+export type DiaCombinado = { tipo: HrTipo; status: HrStatus };
+
+type PedidoParaOCalendario = {
+  tipo: HrTipo;
+  status: HrStatus;
+  data_inicio: string;
+  data_fim: string;
+};
+
+/** Dia ISO → o período meu que já o ocupa. */
+export function diasJaCombinados(
+  solicitacoes: PedidoParaOCalendario[],
+): Record<string, DiaCombinado> {
+  const mapa: Record<string, DiaCombinado> = {};
+  for (const pedido of solicitacoes) {
+    if (pedido.status !== "pendente" && pedido.status !== "aprovada") continue;
+    for (const dia of diasEntre(pedido.data_inicio, pedido.data_fim)) {
+      // O APROVADO GANHA DO PENDENTE quando os dois cobrem o mesmo dia. Não
+      // deveria acontecer — a trava do banco impede —, e acontece em base
+      // antiga ou escrita à mão. Entre as duas verdades, a que vale é a
+      // combinada.
+      if (mapa[dia]?.status === "aprovada") continue;
+      mapa[dia] = { tipo: pedido.tipo, status: pedido.status };
+    }
+  }
+  return mapa;
+}
+
+/**
+ * O rótulo da célula: o TIPO, e só ele.
+ *
+ * **Ele já carregou o status — "Descanso · aguardando" — e a imagem mostrou
+ * por quê não.** A célula tem cerca de 120px num calendário de 1600, e a
+ * frase saía "Descanso · a…": o sufixo não cabia em lugar nenhum, e truncado
+ * ele não distingue nada, só suja a linha.
+ *
+ * **E o que ele distinguia não se perde**, que é o que torna o corte barato:
+ * o combinado e o que espera resposta pedem a mesma coisa de quem está
+ * escolhendo datas — outro período —, e a diferença entre eles (esperar a
+ * resposta ou cancelar o pedido) aparece onde ela decide algo: na frase da
+ * recusa, que `motivoDoCombinado()` escreve inteira, e na lista "Meus
+ * períodos", que carrega o selo de status de cada um.
+ */
+export function rotuloDoDiaCombinado(combinado: DiaCombinado): string {
+  return ROTULOS_DE_TIPO[combinado.tipo];
+}
+
+/** Os dias do intervalo que já são de um período meu, na ordem. */
+export function combinadosNoIntervalo(
+  inicio: string,
+  fim: string,
+  combinados: Record<string, DiaCombinado>,
+): { dia: string; combinado: DiaCombinado }[] {
+  const [de, ate] = ordenar(inicio, fim);
+  const encontrados: { dia: string; combinado: DiaCombinado }[] = [];
+  for (const dia of diasEntre(de, ate)) {
+    const combinado = combinados[dia];
+    if (combinado) encontrados.push({ dia, combinado });
+  }
+  return encontrados;
+}
+
+/**
+ * A frase da recusa por período meu.
+ *
+ * Ela NOMEIA O TIPO e o DIA, pela razão de `motivoDoBloqueio()`: "você já tem
+ * um período aqui" num intervalo de duas semanas não ajuda a escolher outro.
+ * E ela distingue o pendente do aprovado — num o caminho é esperar a
+ * resposta, no outro é cancelar o pedido antigo, e as duas saídas estão na
+ * lista "Meus períodos" logo abaixo.
+ */
+export function motivoDoCombinado(
+  encontrados: { dia: string; combinado: DiaCombinado }[],
+): string {
+  if (encontrados.length === 0) return "";
+
+  const dias = encontrados.map((e) => formatarDiaMes(e.dia));
+  const quando =
+    dias.length === 1
+      ? `em ${dias[0]}`
+      : dias.length <= 3
+        ? `em ${dias.slice(0, -1).join(", ")} e ${dias.at(-1)}`
+        : `em ${dias.length} dias desse período, a partir de ${dias[0]}`;
+
+  // O TIPO É O DO PRIMEIRO DIA, e não uma lista: dois períodos meus diferentes
+  // dentro do mesmo intervalo é caso raro, e nomear os dois daria uma frase
+  // que ninguém lê até o fim. O que decide a saída é o STATUS, e esse a frase
+  // carrega inteiro.
+  const { tipo, status } = encontrados[0].combinado;
+  const nome = ROTULOS_DE_TIPO[tipo];
+
+  return status === "pendente"
+    ? `Você já pediu ${nome} ${quando}, e esse pedido ainda espera resposta. Cancele-o em "Meus períodos" ou escolha outras datas.`
+    : `Você já tem ${nome} combinado ${quando}. Dois períodos seus não podem cobrir o mesmo dia.`;
+}
+
 /** "08/09". Sem date-fns para esta função continuar pura e sem locale. */
 function formatarDiaMes(iso: string): string {
   const [, mes, dia] = iso.split("-");

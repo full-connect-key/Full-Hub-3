@@ -339,10 +339,15 @@ const TELAS = [
   // segundo dia, que é o gesto exato que perdia a seleção quando o mês vivia
   // na URL e entrava no `key` do Suspense. Se a seleção não sobreviver, a
   // imagem sai com um dia só pintado — dá para ver.
+  //
+  // AS DATAS MUDARAM DE 28/10 PARA 30/10 porque o stub de bloqueios ganhou
+  // quatro blocos — e o do Bruno, de dias úteis, cobre o 28. O clique era
+  // recusado, a imagem saía com a frase de erro na cara, e quem a conferisse
+  // veria uma tela que o nome não promete. Foi o aviso da rodada que pegou.
   { nome: "65b-full-days-selecao-atravessa-mes", rota: "/painel/full-days", largura: 1600, altura: 1100, role: "colaborador",
-    clicar: ['[data-dia="2026-10-28"]', '[data-dia="2026-11-03"]'] },
+    clicar: ['[data-dia="2026-10-30"]', '[data-dia="2026-11-03"]'] },
   { nome: "65c-full-days-375", rota: "/painel/full-days", largura: 375, altura: 1500, role: "colaborador",
-    clicar: ['[data-dia="2026-10-28"]', '[data-dia="2026-11-03"]'] },
+    clicar: ['[data-dia="2026-10-30"]', '[data-dia="2026-11-03"]'] },
   { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
   // A aba de registrar periodo, e a PROVA de que ela e da gestao: a mesma
   // rota como colaborador tem que devolver 403. Uma imagem so mostraria a
