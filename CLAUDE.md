@@ -5956,16 +5956,57 @@ funcionou — o índice único de `team_invoices` é **parcial**
 (`where status <> 'recusada'`) exatamente para a nova nascer ao lado da antiga —,
 e de dentro da linha recusada não havia nada dizendo isso: quem lia o motivo
 tinha de voltar ao topo, abrir "Enviar nota" e lembrar de qual mês era. Agora a
-linha carrega **"Enviar outra"**, que abre o MESMO diálogo com o mês escolhido.
+linha carrega **"Substituir"**, que abre o MESMO diálogo com o mês escolhido.
 
-**E não existe "substituir", de propósito.** A recusada fica, com o motivo — é a
-regra do módulo desde a 0065, a mesma pela qual rodada de aprovação fechada
-nunca é reescrita. Um segundo formulário chamado "substituir" diria o contrário
-com a própria existência; o que o produto faz é dizer em voz alta o que vai
-acontecer: quando o mês escolhido tem uma recusada, o diálogo escreve que ela
-continua no histórico e que **esta é uma nota nova, não uma troca**.
+#### E ELA SE CHAMA SUBSTITUIR, e a recusada sai quando a nova é aceita
 
-**O botão some quando o mês já tem nota viva** — aí não há o que reenviar — e
+Decisão do usuário, depois: *"Quando uma nota é recusada, preciso que a pessoa
+possa substituir a nota, e que após a nota ser aprovada, somente a nota aceita
+fique aparente, excluindo as notas recusadas."*
+
+**Isto desfaz metade de uma decisão minha, e a metade certa.** Estava escrito
+aqui que substituir não existia de propósito — a recusada fica com o motivo,
+pela mesma razão que uma rodada de aprovação fechada nunca é reescrita —, e o
+botão se chamava "Enviar outra" para não prometer o que o produto não fazia.
+**O argumento valia enquanto o mês estava em aberto**, e só então: o motivo é
+o que diz o que corrigir, e tirá-lo cedo manda a pessoa adivinhar. Depois que
+a nota nova é ACEITA ele deixou de decidir alguma coisa, e o que sobra na tela
+é uma linha vermelha permanente sobre um mês resolvido.
+
+**O CORTE É "ACEITA" E NÃO "ENVIADA", e é a frase dele palavra por palavra.**
+Com a nova apenas enviada o mês ainda pode voltar, e aí o motivo da primeira é
+exatamente o que a pessoa relê. `recusadasPendentes()` responde outra pergunta
+— *ainda falta mandar?* — e desconta já no envio; `semRecusadasResolvidas()`
+responde *ainda interessa ler?*. Duas perguntas, duas funções, e é por isso que
+elas não viraram uma.
+
+**A MECÂNICA NÃO MUDOU, e é o que torna o rótulo honesto.** A nota nova
+continua nascendo AO LADO da recusada — o índice único parcial existe para isso
+—, e não há um segundo formulário chamado "substituir", que divergiria do
+primeiro na primeira mudança. Do lado de quem envia, mandar a correção e ver a
+antiga sair da lista **é** substituir; o banco é que continua guardando as
+duas.
+
+**ELA ESCONDE, E NÃO APAGA.** Nada sai de `team_invoices`: a linha fica com o
+motivo, e é ela que a trilha de auditoria e o índice único parcial usam. Apagar
+de verdade exigiria afrouxar a policy que diz que nota recusada não se apaga
+nem pelo sócio — e destruiria o registro de que houve uma correção, que é o
+oposto do que o módulo guarda.
+
+**A CHAVE É PESSOA + MÊS, e o mês sozinho era um furo caro.** Na tela de
+"Minhas notas" as duas formas dão o mesmo resultado, porque é uma pessoa só;
+na fila do sócio, outubro tem nota de todo mundo — a recusada da Marina sumiria
+porque a Carla teve a dela aprovada no mesmo mês, e sumiria exatamente da
+coluna que existe para cobrar uma nota nova. **O protótipo guarda o par**: a
+recusada da Marina de outubro fica, a da Carla do mesmo mês some, e as duas
+juntas são o que separa as duas chaves.
+
+**E O CORTE VALE NA FILA DO SÓCIO TAMBÉM**, pela mesma função. Ele foi pedido
+sobre a tela de quem envia, e a coluna "Recusadas" tem o mesmo problema um
+nível acima: sem ele, ela é a única das quatro que só cresce — que é
+exatamente o que o kanban nasceu para resolver.
+
+**O botão some quando o mês já tem nota viva** — aí não há o que substituir — e
 quando o mês está fora dos doze que o seletor oferece: abrir o diálogo deixaria
 o campo de mês em branco, um formulário pedindo uma escolha que ele não tem. Uma
 nota recusada há mais de um ano é conversa com a contabilidade, que é a regra de
@@ -5987,7 +6028,9 @@ de ser verdade no dia em que o botão passou a depender de o mês da nota estar
 entre os doze de `mesesParaEmitir(hoje)` — e `hoje` no protótipo é o dia de
 verdade. Com 2027 fixo, nenhuma nota caía na janela e o botão não saía em imagem
 nenhuma: a tela conferida seria a que não tem a peça nova. **O exemplo tem duas
-recusadas**, uma em aberto e uma já reenviada, e é ela o cenário virado do
+recusadas**, uma em aberto e uma já substituída e aprovada — esta não aparece
+em imagem nenhuma, e **fica no stub justamente por não aparecer**: ela é o
+cenário virado do avesso de dois bugs de uma vez. É ela o cenário virado do
 avesso: devolvendo o filtro antigo à tela, o bloco passa a dizer "2 notas
 precisam ser reenviadas" e a imagem mostra o mês resolvido cobrando de novo.
 

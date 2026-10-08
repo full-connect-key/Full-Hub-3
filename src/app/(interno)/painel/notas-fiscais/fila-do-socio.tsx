@@ -27,6 +27,7 @@ import {
   mesDaCompetencia,
   mesPorExtenso,
   porColunaDaFila,
+  semRecusadasResolvidas,
 } from "@/lib/dominio/notas-fiscais";
 
 import { decidirNota } from "./acoes";
@@ -97,10 +98,31 @@ export function FilaDoSocio({ notas }: { notas: NotaDaEquipe[] }) {
   // AS OPÇÕES SAEM DA FILA INTEIRA, e só os valores que ela tem. Um mês sem
   // nota nenhuma no seletor não é uma resposta, é ruído — a mesma decisão das
   // redes do mês na faixa de filtros do portal.
+  /**
+   * A RECUSADA DE UM MÊS JÁ ACEITO SAI DA FILA TAMBÉM.
+   *
+   * Decisão do usuário: *"após a nota ser aprovada, somente a nota aceita
+   * fique aparente"*. Ela foi escrita sobre a tela de quem envia, e vale
+   * igual aqui — **a coluna "Recusadas" existe para o sócio ver o que espera
+   * uma nota nova**, e uma recusada cujo mês já foi aprovado não espera nada.
+   * Sem isso ela seria a única coluna das quatro que só cresce, que é o
+   * problema que ela nasceu para resolver.
+   *
+   * É o MESMO corte da tela da pessoa, pela mesma função: duas respostas para
+   * "esta recusada ainda interessa?" divergiriam no dia em que alguém mexesse
+   * numa — e os dois lados olham a mesma linha.
+   *
+   * **Ele vem ANTES dos seletores**, então o mês e a pessoa de uma recusada
+   * resolvida não entram nas opções por causa dela. Na prática não muda nada:
+   * o mês tem a nota aceita e a pessoa a enviou. O que a ordem garante é que
+   * a lista de opções e as colunas respondam sobre o mesmo conjunto.
+   */
+  const visiveis = semRecusadasResolvidas(notas);
+
   const { meses, pessoas } = useMemo(() => {
     const porMes = new Set<string>();
     const porPessoa = new Map<string, string>();
-    for (const nota of notas) {
+    for (const nota of visiveis) {
       porMes.add(mesDaCompetencia(nota.competencia));
       if (nota.pessoa) porPessoa.set(nota.pessoa.id, nota.pessoa.nome);
     }
@@ -108,9 +130,9 @@ export function FilaDoSocio({ notas }: { notas: NotaDaEquipe[] }) {
       meses: [...porMes].sort().reverse(),
       pessoas: [...porPessoa].sort((a, b) => a[1].localeCompare(b[1], "pt-BR")),
     };
-  }, [notas]);
+  }, [visiveis]);
 
-  const filtradas = notas.filter(
+  const filtradas = visiveis.filter(
     (nota) =>
       (mes === SEM_FILTRO || mesDaCompetencia(nota.competencia) === mes) &&
       (pessoa === SEM_FILTRO || nota.pessoa?.id === pessoa),
@@ -277,7 +299,7 @@ export function FilaDoSocio({ notas }: { notas: NotaDaEquipe[] }) {
         onClear={() => navegar({ mes: "", pessoa: "" })}
       />
 
-      {notas.length === 0 ? (
+      {visiveis.length === 0 ? (
         <EmptyState
           icon={Inbox}
           title="Nenhuma nota esperando"

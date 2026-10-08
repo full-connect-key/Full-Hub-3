@@ -226,6 +226,69 @@ export function recusadasPendentes<T extends { competencia: string }>(
 }
 
 /**
+ * ---------------------------------------------------------------------------
+ * A RECUSADA SAI DA LISTA QUANDO O MÊS FOI ACEITO
+ *
+ * Decisão do usuário: *"Quando uma nota é recusada, preciso que a pessoa possa
+ * substituir a nota, e que após a nota ser aprovada, somente a nota aceita
+ * fique aparente, excluindo as notas recusadas."*
+ *
+ * **Isto desfaz metade de uma decisão minha, e a metade certa.** Estava
+ * escrito aqui que a recusada FICA com o motivo, pela razão de uma rodada de
+ * aprovação fechada nunca ser reescrita — e aquilo valia enquanto o mês ainda
+ * estava em aberto: o motivo é o que diz à pessoa o que corrigir, e tirá-lo
+ * cedo demais a manda adivinhar. **Depois que a nota nova é ACEITA, ele deixou
+ * de decidir alguma coisa**: a correção foi feita, o sócio conferiu, e o que
+ * sobra na tela é uma linha vermelha permanente sobre um mês resolvido.
+ *
+ * **O CORTE É "ACEITA" E NÃO "ENVIADA", e é a frase dele palavra por palavra.**
+ * Com a nova apenas enviada o mês ainda pode voltar, e aí o motivo da primeira
+ * é exatamente o que a pessoa relê. `recusadasPendentes()` responde outra
+ * pergunta — *ainda falta mandar?* — e por isso desconta já no envio; esta
+ * responde *ainda interessa ler?*. Duas perguntas, duas funções, e é por isso
+ * que elas não foram juntadas numa só.
+ *
+ * **ELA ESCONDE, E NÃO APAGA.** Nada sai de `team_invoices`: a linha continua
+ * no banco com o motivo, e é ela que a trilha de auditoria e o índice único
+ * parcial (`where status <> 'recusada'`) usam. Apagar de verdade exigiria
+ * afrouxar a policy que diz que nota recusada não se apaga nem pelo sócio — e
+ * destruiria o registro de que houve uma correção, que é o oposto do que o
+ * módulo guarda.
+ * ---------------------------------------------------------------------------
+ */
+const ACEITAS: NfStatus[] = ["aprovada", "paga"];
+
+/**
+ * A CHAVE É PESSOA + MÊS, e não o mês sozinho.
+ *
+ * Na tela de "Minhas notas" as duas formas dariam o mesmo resultado — é uma
+ * pessoa só. **Na fila do sócio o mês sozinho é um furo**, e dos caros:
+ * outubro tem nota de todo mundo, então a recusada da Marina sumiria porque a
+ * Carla teve a dela aprovada no mesmo mês — e ela sumiria exatamente da
+ * coluna que existe para cobrar uma nota nova.
+ *
+ * O `user_id` vem da própria linha e não da pessoa embutida: `pessoa` é nula
+ * quando o perfil não veio junto, e uma chave que cai em `undefined` junta
+ * gente diferente no mesmo balde — que é o mesmo furo com outro nome.
+ */
+function chave(nota: { user_id: string; competencia: string }): string {
+  return `${nota.user_id}|${mesDaCompetencia(nota.competencia)}`;
+}
+
+type NotaParaResolver = { user_id: string; status: NfStatus; competencia: string };
+
+/** Os pares pessoa/mês que já têm nota aceita — conferida pelo sócio, paga ou não. */
+export function mesesAceitos<T extends NotaParaResolver>(notas: T[]): Set<string> {
+  return new Set(notas.filter((nota) => ACEITAS.includes(nota.status)).map(chave));
+}
+
+/** A lista sem as recusadas de um mês que aquela pessoa já teve aceito. */
+export function semRecusadasResolvidas<T extends NotaParaResolver>(notas: T[]): T[] {
+  const aceitos = mesesAceitos(notas);
+  return notas.filter((nota) => nota.status !== "recusada" || !aceitos.has(chave(nota)));
+}
+
+/**
  * As QUATRO colunas da fila do sócio.
  *
  * ---------------------------------------------------------------------------

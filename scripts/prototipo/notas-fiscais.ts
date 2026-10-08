@@ -66,14 +66,17 @@ function nota(dados: Partial<NotaDaEquipe> & { id: string; competencia: string; 
  * O historico de quem envia, com DOIS tipos de recusada.
  *
  * A do mes corrente esta em aberto: ela abre o bloco vermelho e carrega o
- * botao "Enviar outra". A do mes passado JA FOI REENVIADA -- o mes tem uma
- * aprovada ao lado --, e por isso ela NAO entra no bloco e NAO ganha botao:
- * fica no historico, com o motivo, que e o que o produto promete.
+ * botao "Substituir". A do mes passado JA FOI SUBSTITUIDA e a nova foi
+ * APROVADA -- e por isso ela nao aparece em imagem nenhuma: a lista a esconde,
+ * por decisao do usuario (*"apos a nota ser aprovada, somente a nota aceita
+ * fique aparente"*).
  *
- * E ela e o cenario virado do avesso do bug que o usuario relatou: devolvendo
- * `notas.filter((n) => n.status === "recusada")` a tela, o bloco passa a dizer
- * "2 notas precisam ser reenviadas" e a imagem mostra o mes resolvido cobrando
- * de novo.
+ * **ELA FICA NO STUB JUSTAMENTE POR NAO APARECER**, e e o cenario virado do
+ * avesso de dois bugs de uma vez: devolvendo
+ * `notas.filter((n) => n.status === "recusada")` ao bloco vermelho, ele volta
+ * a dizer "2 notas precisam ser reenviadas"; tirando
+ * `semRecusadasResolvidas()` da lista, a linha vermelha de um mes resolvido
+ * reaparece no historico. Sem ela no stub, as duas mutacoes passariam.
  */
 export async function minhasNotas(): Promise<NotaDaEquipe[]> {
   return [
@@ -138,6 +141,20 @@ export async function filaDeNotas(): Promise<NotaDaEquipe[]> {
       motivo_recusa: "Valor divergente do combinado para o mês.",
       pessoa: MARINA,
       user_id: MARINA.id,
+    }),
+    // A RECUSADA DA CARLA NO MESMO MES NAO APARECE, e e o par da de cima: ela
+    // tem a `f4` aprovada no mes passado, entao a dela esta resolvida. As
+    // duas juntas sao o que prova que a chave e PESSOA + MES -- com a chave
+    // so do mes, a recusada da Marina sumiria junto, porque a Carla teve a
+    // dela aprovada naquele mes.
+    nota({
+      id: "f7",
+      competencia: MES_PASSADO,
+      valor: 5300,
+      status: "recusada",
+      motivo_recusa: "PDF ilegível.",
+      pessoa: CARLA,
+      user_id: CARLA.id,
     }),
     nota({
       id: "f5",

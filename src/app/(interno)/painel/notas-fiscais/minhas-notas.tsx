@@ -38,6 +38,7 @@ import {
   mesDaCompetencia,
   mesPorExtenso,
   recusadasPendentes,
+  semRecusadasResolvidas,
 } from "@/lib/dominio/notas-fiscais";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -128,11 +129,12 @@ export function MinhasNotas({
    * e de dentro da linha recusada não havia nada dizendo isso: quem olhava o
    * motivo tinha de voltar ao topo, abrir o diálogo e lembrar de qual mês era.
    *
-   * **É O MESMO DIÁLOGO, com o mês escolhido**, e não uma tela de "substituir":
-   * substituir não existe neste módulo, de propósito — a recusada fica com o
-   * motivo, e o índice único do banco é parcial justamente para a nova nascer
-   * ao lado dela. Um segundo formulário diria o contrário com a própria
-   * existência.
+   * **É O MESMO DIÁLOGO, com o mês escolhido**, e não um segundo formulário
+   * chamado "substituir": a nota nova nasce ao lado da recusada — o índice
+   * único do banco é parcial justamente para isso —, e quando o sócio aceita,
+   * a antiga sai da lista. Do lado de quem envia isso É substituir, e é por
+   * isso que o botão passou a se chamar assim; o que não existe é uma segunda
+   * tela, que divergiria desta na primeira mudança.
    */
   function abrirPara(mesDaNota: string) {
     setMes(mesDaNota);
@@ -141,6 +143,24 @@ export function MinhasNotas({
 
   const recusadaDoMesEscolhido =
     recusadas.find((n) => mesDaCompetencia(n.competencia) === mes) ?? null;
+
+  /**
+   * A LISTA ESCONDE A RECUSADA DE UM MÊS JÁ ACEITO.
+   *
+   * Decisão do usuário: *"após a nota ser aprovada, somente a nota aceita
+   * fique aparente, excluindo as notas recusadas"*.
+   *
+   * **O recorte é na TELA e não na consulta**, que é a decisão das abas de
+   * Pedidos e dos contadores de Minhas Tasks: `minhasNotas()` continua
+   * trazendo o histórico inteiro, e é ele que decide o que o seletor oferece
+   * (`mesesVivos`) e o que o bloco vermelho cobra (`recusadas`). Com o
+   * `where` no banco, as duas contas passariam a enxergar menos do que
+   * existe — e a primeira delas é a que impede uma segunda nota do mesmo mês.
+   *
+   * Ela esconde e não apaga: a linha fica no banco com o motivo, e é ela que
+   * o índice único parcial e a trilha de auditoria usam.
+   */
+  const visiveis = semRecusadasResolvidas(notas);
 
   async function subir(escolhido: File | undefined) {
     if (!escolhido) return;
@@ -224,18 +244,18 @@ export function MinhasNotas({
               onde — é a diferença entre uma instrução e uma descrição, a mesma
               lição da recusa que nomeia cada etapa sem aprovação. */}
           <p className="text-text-secondary mt-2 text-xs">
-            Cada uma tem um botão <strong>Enviar outra</strong> na lista abaixo. A
-            recusada não é substituída: ela fica com o motivo, para você saber o que
-            já foi apontado.
+            Cada uma tem um botão <strong>Substituir</strong> na lista abaixo. Até a
+            nova ser aprovada, a recusada fica aqui com o motivo — é ele que diz o
+            que corrigir.
           </p>
         </section>
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
-          {notas.length === 0
+          {visiveis.length === 0
             ? "Nenhuma nota enviada ainda."
-            : `${notas.length} nota${notas.length === 1 ? "" : "s"} no histórico.`}
+            : `${visiveis.length} nota${visiveis.length === 1 ? "" : "s"} no histórico.`}
         </p>
         <Button onClick={() => setAberto(true)} disabled={oferecidos.length === 0}>
           <Plus aria-hidden />
@@ -243,13 +263,13 @@ export function MinhasNotas({
         </Button>
       </div>
 
-      {oferecidos.length === 0 && notas.length > 0 ? (
+      {oferecidos.length === 0 && visiveis.length > 0 ? (
         <p className="text-muted-foreground text-xs">
           Os doze últimos meses já têm nota enviada.
         </p>
       ) : null}
 
-      {notas.length === 0 ? (
+      {visiveis.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="Você ainda não enviou nenhuma nota"
@@ -257,7 +277,7 @@ export function MinhasNotas({
         />
       ) : (
         <ul className="divide-y rounded-xl border">
-          {notas.map((nota) => (
+          {visiveis.map((nota) => (
             <li key={nota.id} className="flex flex-wrap items-start gap-3 p-4">
               <div className="min-w-[10rem] flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -300,13 +320,22 @@ export function MinhasNotas({
                   </Button>
                 ) : null}
 
-                {/* "ENVIAR OUTRA" MORA NA LINHA DA RECUSADA, que é onde a
+                {/* "SUBSTITUIR" MORA NA LINHA DA RECUSADA, que é onde a
                     pessoa está quando lê o motivo — e é o que o usuário não
                     encontrava. Ele abre o mesmo diálogo com o mês escolhido.
 
-                    Some quando o mês já tem nota nova: aí não há o que
-                    reenviar, e o botão prometeria uma segunda nota que o
-                    índice único do banco recusa. */}
+                    **O RÓTULO É "SUBSTITUIR" E A MECÂNICA NÃO MUDOU**, e as
+                    duas coisas são compatíveis desde que a recusada deixou de
+                    ficar na tela depois de resolvida: a nota nova nasce ao
+                    lado — o índice único de `team_invoices` é parcial
+                    (`where status <> 'recusada'`) exatamente para isso —, e
+                    quando o sócio aceita, a antiga sai da lista. Do lado de
+                    quem envia, isso É substituir; o banco é que continua
+                    guardando as duas, com o motivo.
+
+                    Some quando o mês já tem nota viva: aí não há o que
+                    substituir, e o botão prometeria uma segunda nota que o
+                    índice único recusa. */}
                 {nota.status === "recusada" &&
                 reenviaveis.has(mesDaCompetencia(nota.competencia)) ? (
                   <Button
@@ -314,7 +343,7 @@ export function MinhasNotas({
                     onClick={() => abrirPara(mesDaCompetencia(nota.competencia))}
                   >
                     <RotateCcw aria-hidden />
-                    Enviar outra
+                    Substituir
                   </Button>
                 ) : null}
 
@@ -351,15 +380,13 @@ export function MinhasNotas({
             <DialogDescription>
               O sócio é avisado assim que ela chega, e você acompanha o pagamento por aqui.
               {/* QUANDO O MÊS ESCOLHIDO TEM UMA RECUSADA, o diálogo diz o que
-                  vai acontecer com ela — porque "substituir" é exatamente o que
-                  a pessoa espera e não é o que o produto faz. Derivado do mês
-                  escolhido, nunca um segundo estado: trocar o mês no seletor
-                  troca a frase. */}
+                  vai acontecer com ela. Derivado do mês escolhido, nunca um
+                  segundo estado: trocar o mês no seletor troca a frase. */}
               {recusadaDoMesEscolhido ? (
                 <>
                   {" "}
-                  A nota recusada de {mesPorExtenso(recusadaDoMesEscolhido.competencia)} continua
-                  no histórico, com o motivo — esta é uma nota nova, não uma troca.
+                  A recusada de {mesPorExtenso(recusadaDoMesEscolhido.competencia)} continua
+                  visível com o motivo até esta ser aprovada — aí ela sai da lista.
                 </>
               ) : null}
             </DialogDescription>
