@@ -5,10 +5,9 @@ import { cache } from "react";
 import { ouFalha } from "@/lib/dados/consulta";
 import { ROTULOS_DE_TIPO } from "@/lib/dominio/full-days";
 import type {
-  CargaDeUmDia,
   EventoDetalhado,
   ItemDoCalendario,
-  PessoaDaLinha,
+  PessoaDoCalendario,
 } from "@/lib/dominio/calendario";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { TipoNoCalendario } from "@/lib/supabase/database.types";
@@ -203,54 +202,47 @@ export const obterEvento = cache(
   },
 );
 
-/**
- * A carga de cada pessoa em cada dia útil do período.
- *
- * **Uma chamada só, e ela não recalcula nada:** `carga_da_equipe()` percorre e
- * chama `carga_do_dia()`, que é a fonte única desde a 0035. Uma chamada por
- * célula seriam trezentas idas ao banco para desenhar uma tela.
- */
-export const cargaDaEquipe = cache(
-  async (inicio: string, fim: string): Promise<CargaDeUmDia[]> => {
-    const supabase = await criarClienteServidor();
-
-    const linhas = ouFalha(
-      "carga da equipe",
-      await supabase.rpc("carga_da_equipe", { p_inicio: inicio, p_fim: fim }),
-    );
-
-    return (linhas ?? []).map((l) => ({
-      userId: l.user_id,
-      dia: l.dia,
-      minutos: l.minutos_comprometidos,
-      etapas: l.etapas,
-      semEstimativa: l.etapas_sem_estimativa,
-      ausente: l.ausente,
-    }));
-  },
-);
+// ---------------------------------------------------------------------------
+// `cargaDaEquipe()` SAIU COM A LINHA DO TEMPO.
+//
+// Ela era a única leitora de `carga_da_equipe()`, e aquela grade era a única
+// tela que a desenhava. Deixá-la aqui seria um `export` sem chamador — a
+// classe de código morto que atravessa o `tsc`, o `lint` e o `build`, e que
+// `check:acoes` existe para pegar um andar acima.
+//
+// **A função do banco fica**, e não vira migration: ela não é schema que
+// alguém consulte por engano, e quem ela chama — `carga_do_dia()` (0035) —
+// continua sendo a fonte única da conta para o Feedback e para
+// `disponibilidade_bruta()`. Devolver a visão é devolver esta função, que o
+// git guarda.
+// ---------------------------------------------------------------------------
 
 /**
- * As linhas da Linha do Tempo: quem é da equipe, agrupado por área.
+ * Quem é da equipe: o filtro "Filtrar por responsável" e os participantes do
+ * evento.
  *
- * Pessoa desligada fica de fora — ela não recebe trabalho novo, e uma linha
- * vazia por alguém que saiu empurra para baixo quem está trabalhando.
+ * **O NOME MUDOU COM A VISÃO.** Ela se chamava `pessoasDaLinhaDoTempo` e
+ * devolvia área e capacidade, porque era a Linha do Tempo que agrupava por
+ * área e dividia os minutos. Um identificador nomeando uma tela que não
+ * existe mais manda quem vier depois procurar por ela — é a camada que a 0088
+ * deixou para trás, uma camada acima.
+ *
+ * Pessoa desligada fica de fora — ela não recebe trabalho novo, e oferecê-la
+ * num filtro de responsável é oferecer um recorte que volta sempre vazio.
  */
-export const pessoasDaLinhaDoTempo = cache(async (): Promise<PessoaDaLinha[]> => {
+export const pessoasDaEquipeNoCalendario = cache(
+  async (): Promise<PessoaDoCalendario[]> => {
   const supabase = await criarClienteServidor();
 
   const membros = ouFalha(
-    "equipe da linha do tempo",
-    await supabase
-      .from("team_members")
-      .select("user_id, area, capacidade_minutos_dia, ativo")
-      .eq("ativo", true),
+    "equipe do calendário",
+    await supabase.from("team_members").select("user_id, ativo").eq("ativo", true),
   );
 
   if (membros.length === 0) return [];
 
   const perfis = ouFalha(
-    "perfis da linha do tempo",
+    "perfis da equipe do calendário",
     await supabase
       .from("profiles")
       .select("id, nome, avatar_url, ativo")
@@ -270,14 +262,9 @@ export const pessoasDaLinhaDoTempo = cache(async (): Promise<PessoaDaLinha[]> =>
         id: perfil.id,
         nome: perfil.nome,
         avatar_url: perfil.avatar_url,
-        area: m.area,
-        capacidadeMinutos: m.capacidade_minutos_dia,
       };
     })
-    .filter((p): p is PessoaDaLinha => p !== null)
-    .sort(
-      (a, b) =>
-        (a.area ?? "zzz").localeCompare(b.area ?? "zzz", "pt-BR") ||
-        a.nome.localeCompare(b.nome, "pt-BR"),
-    );
-});
+    .filter((p): p is PessoaDoCalendario => p !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  },
+);

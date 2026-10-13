@@ -28,11 +28,10 @@ import {
   ROTULOS_DE_VISAO,
   VISOES,
   montarIcs,
-  type CargaDeUmDia,
   type ItemDoCalendario,
   type VisaoDoCalendario,
   type EventoDetalhado,
-  type PessoaDaLinha,
+  type PessoaDoCalendario,
 } from "@/lib/dominio/calendario";
 
 import type { TipoNoCalendario } from "@/lib/supabase/database.types";
@@ -41,13 +40,18 @@ import { cn } from "@/lib/utils";
 import { DetalheDoEvento } from "./detalhe-do-evento";
 import { FormularioDeEvento } from "./formulario-de-evento";
 import { somarMeses, type Janela } from "./periodo";
-import { VisaoDeLinha } from "./visao-linha";
-import { VisaoDeLista } from "./visao-lista";
 import { VisaoDeMes } from "./visao-mes";
 import { VisaoDeSemana } from "./visao-semana";
 
 /**
  * O casco do Calendário Full: navegação, camadas, filtros e a visão escolhida.
+ *
+ * ---------------------------------------------------------------------------
+ * SÃO DUAS VISÕES, e eram quatro — a decisão e o que ela custou estão em
+ * `lib/dominio/calendario.ts`, ao lado da união que as define. Aqui sobra a
+ * consequência: um `? :` de dois ramos em vez de quatro, e o `.ics` do
+ * cabeçalho passando a ser o único jeito de levar o mês embora.
+ * ---------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------
  * AS CAMADAS SÃO LINKS, e não caixas de seleção com estado.
@@ -66,7 +70,6 @@ export function CalendarioFull({
   itens,
   clientes,
   pessoas,
-  carga,
   camadas,
   foco,
   evento,
@@ -78,8 +81,7 @@ export function CalendarioFull({
   janela: Janela;
   itens: ItemDoCalendario[];
   clientes: { id: string; nome: string }[];
-  pessoas: PessoaDaLinha[];
-  carga: CargaDeUmDia[];
+  pessoas: PessoaDoCalendario[];
   camadas: TipoNoCalendario[];
   foco: "minhas" | "todos";
   evento: EventoDetalhado | null;
@@ -320,18 +322,8 @@ export function CalendarioFull({
           aoAbrir={setEmFoco}
           aoSelecionar={podeEscrever ? setAbrindo : undefined}
         />
-      ) : visao === "semana" ? (
-        <VisaoDeSemana janela={janela} itens={itens} aoAbrir={setEmFoco} />
-      ) : visao === "linha" ? (
-        <VisaoDeLinha
-          janela={janela}
-          itens={itens}
-          pessoas={pessoas}
-          carga={carga}
-          aoAbrir={setEmFoco}
-        />
       ) : (
-        <VisaoDeLista janela={janela} itens={itens} />
+        <VisaoDeSemana janela={janela} itens={itens} aoAbrir={setEmFoco} />
       )}
 
       {/* O DETALHE, em painel lateral: quem está varrendo o mês volta para o
@@ -389,11 +381,7 @@ export function CalendarioFull({
           inicial={editando && evento ? evento : null}
           periodo={abrindo}
           clientes={clientes}
-          pessoas={pessoas.map((p) => ({
-            id: p.id,
-            nome: p.nome,
-            avatar_url: p.avatar_url,
-          }))}
+          pessoas={pessoas}
           usuarioId={usuarioId}
           aoFechar={() => {
             setAbrindo(null);

@@ -1,25 +1,27 @@
 /**
  * Versao de prototipo de src/lib/dados/calendario.ts.
  *
- * Um mes com as sete origens ao mesmo tempo, que e o unico estado em que a
+ * Um mes com as seis camadas ao mesmo tempo, que e o unico estado em que a
  * tela tem o que mostrar:
  *
  *   - uma FEIRA de tres dias, para a faixa atravessar a semana (item dia a dia
  *     nao provaria nada);
  *   - uma CONVENCAO que bloqueia periodo, com participantes;
- *   - uma CAMPANHA de trinta dias, que na grade do mes precisa aparecer NUM
- *     dia so -- e na Linha do Tempo como barra longa. E o par que prova o
- *     `diaNaGrade()`;
- *   - etapas espalhadas por varias pessoas, com uma sobrecarregada, para a
- *     Linha do Tempo ter o que pintar de vermelho;
- *   - uma AUSENCIA de cinco dias em cima de uma etapa, que e exatamente o
- *     caso que o calendario existe para mostrar.
+ *   - uma CAMPANHA de trinta dias, que na grade do mes aparece NUM dia so, o
+ *     do encerramento: e ela que prova o `diaNaGrade()`;
+ *   - uma AUSENCIA de cinco dias, que e exatamente o caso que o calendario
+ *     existe para mostrar;
+ *   - um DIA COM MAIS DE TRES itens, para o "+ N mais" sair em imagem.
+ *
+ * A CARGA SAIU COM A LINHA DO TEMPO. Havia aqui uma lista de etapas por
+ * pessoa, com uma sobrecarregada, que alimentava `cargaDaEquipe()` e mais
+ * nada -- e a visao que a pintava nao existe mais. Quem continua provando a
+ * escala de carga em imagem e a faixa de disponibilidade, no painel da etapa.
  */
 import type {
-  CargaDeUmDia,
   EventoDetalhado,
   ItemDoCalendario,
-  PessoaDaLinha,
+  PessoaDoCalendario,
 } from "../../src/lib/dominio/calendario";
 
 const HOJE = new Date();
@@ -35,19 +37,14 @@ const MARINA = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Costa
 const CARLA = { id: "a0000000-0000-0000-0000-000000000003", nome: "Carla Nunes", avatar_url: null };
 const RAFAEL = { id: "a0000000-0000-0000-0000-000000000006", nome: "Rafael Dias", avatar_url: null };
 
-export const PESSOAS: PessoaDaLinha[] = [
-  { ...CARLA, area: "Atendimento", capacidadeMinutos: 480 },
-  { ...BRUNO, area: "Criação", capacidadeMinutos: 480 },
-  { ...MARINA, area: "Criação", capacidadeMinutos: 480 },
-  // MEIO PERIODO, e e por isso que a capacidade e coluna e nao constante: a
-  // mesma carga que e folga para quem tem 8h estoura para quem tem 4h.
-  { ...RAFAEL, area: "Mídia", capacidadeMinutos: 240 },
-  { ...ANA, area: "Direção", capacidadeMinutos: 480 },
-];
+// A LISTA SERVE AO FILTRO DE RESPONSAVEL e aos participantes do evento, e
+// mais nada: area e capacidade sairam do tipo junto com a Linha do Tempo, que
+// era quem agrupava por area e dividia os minutos pela capacidade.
+export const PESSOAS: PessoaDoCalendario[] = [CARLA, BRUNO, MARINA, RAFAEL, ANA];
 
 const ITENS: ItemDoCalendario[] = [
-  // A CAMPANHA DE TRINTA DIAS. Na grade do mes ela sai no dia em que acaba;
-  // na Linha do Tempo, como barra. Uma linha, dois desenhos.
+  // A CAMPANHA DE TRINTA DIAS. Na grade do mes ela sai no dia em que ACABA, e
+  // nao como faixa de trinta celulas: e ela que prova o `diaNaGrade()`.
   {
     id: "camp-wave",
     tipo: "campanha",
@@ -144,38 +141,10 @@ const ITENS: ItemDoCalendario[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// AS ETAPAS NAO SAO MAIS ITEM DO CALENDARIO, E CONTINUAM SENDO CARGA.
-//
-// A 0077 tirou a demanda e a etapa da `calendar_events` -- elas vivem em
-// Minhas Tasks. O que NAO saiu e o peso delas: a cor da celula da Linha do
-// Tempo e OCUPACAO, e ela vem de `carga_da_equipe()` chamando `carga_do_dia()`
-// (0035), que leem `subtasks` direto e nao a view.
-//
-// Por isso esta lista deixou de ser empurrada para `ITENS` e passou a
-// alimentar so a carga -- que e exatamente a separacao do produto. Deixa-la
-// nos itens faria a imagem do prototipo mostrar uma camada que a tela nao tem,
-// e e esse tipo de dado de exemplo que mostra o produto como ele nao e.
-//
-// Com o Bruno carregado e o Rafael estourado: sem uma pessoa em cada extremo,
-// a barra de carga sairia toda da mesma cor e a legenda nao significaria nada.
-// ---------------------------------------------------------------------------
-const ETAPAS: [number, typeof BRUNO][] = [
-  [1, BRUNO],
-  [2, BRUNO],
-  [2, MARINA],
-  [3, RAFAEL],
-  [3, RAFAEL],
-  [5, CARLA],
-  [6, MARINA],
-];
-
-const ETAPAS_POR_DIA = ETAPAS.map(([delta, pessoa]) => ({
-  dia: dia(delta),
-  userId: pessoa.id,
-}));
-
-const POSTS = [1, 1, 2, 5, 5, 8];
+// QUATRO NO MESMO DIA, e nao tres: a celula do mes corta em tres, e sem o
+// quarto o "+ N mais" nao sai em imagem nenhuma -- que e justamente a linha
+// que nenhuma outra tela do produto desenha.
+const POSTS = [1, 1, 1, 1, 2, 5, 5, 8];
 POSTS.forEach((delta, i) => {
   ITENS.push({
     id: `post-${i}`,
@@ -229,43 +198,8 @@ export async function itensDoCalendario(filtros: {
   return visiveis;
 }
 
-export async function pessoasDaLinhaDoTempo(): Promise<PessoaDaLinha[]> {
+export async function pessoasDaEquipeNoCalendario(): Promise<PessoaDoCalendario[]> {
   return PESSOAS;
-}
-
-export async function cargaDaEquipe(inicio: string, fim: string): Promise<CargaDeUmDia[]> {
-  const carga: CargaDeUmDia[] = [];
-  const cursor = new Date(`${inicio}T12:00:00Z`);
-  const ate = new Date(`${fim}T12:00:00Z`);
-
-  while (cursor <= ate) {
-    const iso = cursor.toISOString().slice(0, 10);
-    const diaDaSemana = cursor.getUTCDay();
-    if (diaDaSemana !== 0 && diaDaSemana !== 6) {
-      for (const pessoa of PESSOAS) {
-        const dela = ETAPAS_POR_DIA.filter((e) => e.userId === pessoa.id && e.dia === iso);
-        carga.push({
-          userId: pessoa.id,
-          dia: iso,
-          // 300 minutos por etapa e o que faz DUAS etapas estourarem um dia
-          // de 8h -- e uma so ja estourar o de meio periodo do Rafael.
-          minutos: dela.length * 300,
-          etapas: dela.length,
-          semEstimativa: 0,
-          ausente: ITENS.some(
-            (i) =>
-              i.tipo === "ausencia" &&
-              i.userId === pessoa.id &&
-              iso >= i.dataInicio &&
-              iso <= i.dataFim,
-          ),
-        });
-      }
-    }
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  return carga;
 }
 
 export async function obterEvento(id: string): Promise<EventoDetalhado | null> {

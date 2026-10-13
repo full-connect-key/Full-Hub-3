@@ -388,14 +388,16 @@ const TELAS = [
   { nome: "84-academy-gestao", rota: "/painel/academy?aba=gestao", largura: 1700, altura: 1400, role: "socio" },
   { nome: "85-academy-escuro", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio", tema: "escuro" },
 
-  // O CALENDARIO FULL. A grade do mes e a Linha do Tempo sao o par que prova
-  // o `diaNaGrade()`: a MESMA campanha de trinta dias aparece num dia so na
-  // primeira e como barra longa na segunda. Uma imagem so nao mostraria isso.
-  { nome: "90-calendario-mes", rota: "/painel/calendario", largura: 1600, altura: 1400, role: "socio" },
-  { nome: "90b-calendario-mes-375", rota: "/painel/calendario", largura: 375, altura: 1500, role: "socio" },
-  { nome: "91-calendario-linha", rota: "/painel/calendario?visao=linha", largura: 1700, altura: 1000, role: "socio" },
+  // O CALENDARIO FULL, em DUAS visoes -- a Linha do Tempo e a Lista sairam por
+  // decisao do usuario, e com elas as imagens 91 e 93.
+  //
+  // A 90 e a que decide o chip: ela precisa mostrar a faixa da feira
+  // atravessando a semana, a campanha num dia so (o `diaNaGrade()`), e a
+  // celula com quatro itens, que e onde o "+ N mais" aparece. Com o chip em
+  // duas linhas a grade ficou mais alta, e por isso a altura subiu.
+  { nome: "90-calendario-mes", rota: "/painel/calendario", largura: 1600, altura: 1700, role: "socio" },
+  { nome: "90b-calendario-mes-375", rota: "/painel/calendario", largura: 375, altura: 1800, role: "socio" },
   { nome: "92-calendario-semana", rota: "/painel/calendario?visao=semana", largura: 1600, altura: 900, role: "socio" },
-  { nome: "93-calendario-lista", rota: "/painel/calendario?visao=lista", largura: 1400, altura: 1300, role: "socio" },
   { nome: "94-calendario-evento", rota: "/painel/calendario?evento=ev-convencao", largura: 1600, altura: 1000, role: "socio" },
   { nome: "95-calendario-novo-evento", rota: "/painel/calendario", largura: 1500, altura: 1400, role: "socio",
     clicar: 'button:has-text("Novo evento")' },

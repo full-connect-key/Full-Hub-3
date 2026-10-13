@@ -530,11 +530,12 @@ graça ao próximo consumidor da view — a exportação, um relatório, uma tel
 nova. É a decisão da 0023, que apagou `tasks.exigencia_aprovacao` em vez de
 deixá-la parada.
 
-**O que a Linha do Tempo NÃO perde é a carga**, e é o que faz a remoção
-caber. A cor de cada célula é ocupação, e ela sai de `carga_da_equipe()`
-chamando `carga_do_dia()` (0035) — nenhuma das duas lê a view: elas leem
-`subtasks` direto. Sai a BARRA da etapa e fica o PESO dela, que é o que
-responde "a equipe aguenta?".
+**O que a Linha do Tempo NÃO perdia era a carga**, e era o que fazia aquela
+remoção caber: a cor de cada célula era ocupação, e ela saía de
+`carga_da_equipe()` chamando `carga_do_dia()` (0035) — nenhuma das duas lê a
+view, elas leem `subtasks` direto. **A própria Linha do Tempo saiu depois**,
+por decisão do usuário, e quem responde "a equipe aguenta?" hoje está logo
+abaixo, em "As DUAS visões".
 
 **E o arrasto saiu junto.** Ele valia para uma camada só — a etapa, porque o
 prazo dela é escrito por quem a faz; nos outros ele prometia uma mudança que o
@@ -574,39 +575,118 @@ sócio. Devolvendo um dos dois `union all`, um deles falha e diz qual. **E um
 deles mede o TEXTO da view** e não a contagem: num banco sem demanda nenhuma,
 todos os outros passariam com as origens de pé.
 
-#### As quatro visões, e o que cada uma responde
+#### As DUAS visões, e o que cada uma responde
 
 | Visão | A pergunta |
 | --- | --- |
 | Mês | o que acontece quando |
 | Semana | a mesma coisa, com espaço para o texto caber |
-| Linha do tempo | **a equipe aguenta?** |
-| Lista | me manda isso (CSV) |
 
-**A campanha entra pelo ENCERRAMENTO na grade do mês e como BARRA na Linha do
-Tempo**, e a view carrega o período inteiro. São as duas metades da mesma
-decisão: a view guarda a verdade, e `diaNaGrade()` em
-`lib/dominio/calendario.ts` é o único lugar onde a escolha de desenho mora.
-Com ela espalhada, a grade e a lista discordariam sobre em que dia a mesma
-campanha está.
+**ERAM QUATRO**, e a Linha do Tempo e a Lista saíram por decisão do usuário:
+*"tirar visualização de 'Linha do tempo' e 'Lista'"*.
+
+**Saíram do TIPO, e não só da fileira de pílulas.** `VisaoDoCalendario` é uma
+união de dois valores — quem mexer nisso leva erro de tipo —, e `ehVisao()`
+manda o link antigo para o mês, que é o que um endereço salvo tem de fazer:
+abrir, e não quebrar. Deixar o valor no enum e tirar só o botão é a camada que
+a 0088 deixou para trás, e que a 0090 encontrou filtrando fora exatamente as
+linhas que ela acabara de criar.
+
+**O QUE SE PERDE ESTÁ DITO, porque é informação e não enfeite.** A Linha do
+Tempo era a única tela que respondia *"a equipe aguenta?"* — a cor da célula
+dela era OCUPAÇÃO e não camada, e por isso ela tinha legenda própria. **A
+pergunta continua tendo resposta em dois lugares**, e os dois são onde ela é
+feita de verdade: a **faixa de disponibilidade** no painel da etapa (quem está
+distribuindo trabalho, antes de escrever a data) e os **alertas de carga do
+Feedback** (quem olha o mês que passou). O que não existe mais é o retrato da
+equipe inteira num mês. A Lista era o **CSV**; o que fica no lugar é o `.ics`
+do cabeçalho, que responde a mesma pergunta — *me manda isso* — num formato
+que é um calendário de verdade e não uma planilha de linhas de calendário.
+
+**A ESCALA DE CARGA SOBREVIVEU SEM UMA LINHA DE MUDANÇA**, e é a assinatura
+estreita que fez isso: `nivelDaCarga()` pede `{ minutos, etapas }` e não um
+tipo de linha inteira, então a faixa — que traz o dia de UMA pessoa e não da
+equipe — já chamava sem inventar campo nenhum. `COR_DO_NIVEL` e
+`ROTULOS_DE_NIVEL` ficam onde estão: carga de um dia é vocabulário do
+calendário, e mover a escala por causa de um leitor a menos é churn sem nada
+em troca.
+
+**`cargaDaEquipe()` e `CargaDeUmDia` SAÍRAM**, pela 0023: eram leitor e molde
+de uma visão que não existe mais, e um `export` sem chamador atravessa o
+`tsc`, o `lint` e o `build` — é a classe que `check:acoes` existe para pegar
+um andar acima. **`carga_da_equipe()` fica no banco, sem leitor**, e isso não
+vira migration: ela não é schema que alguém consulte por engano, e quem ela
+chama — `carga_do_dia()` (0035) — continua sendo a fonte única da conta para o
+Feedback e para `disponibilidade_bruta()`. Devolver a visão é devolver uma
+função em `lib/dados/`, que o git guarda.
+
+**E `pessoasDaLinhaDoTempo` virou `pessoasDaEquipeNoCalendario`**, perdendo
+`area` e `capacidadeMinutos` junto: eram a Linha do Tempo que agrupava por
+área e dividia os minutos pela capacidade. Um identificador nomeando uma tela
+que não existe manda quem vier depois procurar por ela, e um campo que nenhuma
+tela lê é o que alguém reaproveita três sprints depois achando que ele quer
+dizer alguma coisa. O que sobrou serve a quem pergunta: o filtro "Filtrar por
+responsável" e os participantes do evento.
+
+**Nenhum nome morto entrou no `check:cores`, e a ausência é decisão.** "Lista"
+é o nome de uma visão em Minhas Tasks e na Gestão de Tasks, e "Linha do tempo"
+aparece em comentários que EXPLICAM decisões — o `overflow-hidden` que a
+matriz do Full Days cita, por exemplo. Uma entrada ali reprovaria o
+vocabulário do próprio produto, que é a armadilha que a lista de nomes mortos
+já pagou sete vezes. Quem protege a remoção é o TIPO, e ele é conferido toda
+vez.
+
+#### O CHIP DO DIA CARREGA A COR, e não mais um ponto de seis pixels
+
+Decisão do usuário, na mesma conversa: *"mudar a visualização do evento, para
+dar mais destaque dentro da data, está muito minimalista"*.
+
+**A incoerência estava dentro de um arquivo só.** A FAIXA de três dias já saía
+como pílula inteira no par nomeado da camada; o item de um dia saía como texto
+cinza com um pontinho de seis pixels ao lado. E a visão de Semana pintava o
+chip inteiro desde que nasceu — eram **três desenhos para a mesma coisa no
+mesmo módulo**, dois deles a dois centímetros de distância.
+
+**É a decisão que o calendário da Gestão de Tasks já tomou**, com a mesma
+queixa: *"quatro fios de quatro pixels numa célula não se leem à distância de
+que a grade do mês é olhada"*. A barra cheia fica, como borda de leitura entre
+duas linhas do mesmo tom.
+
+**A SEGUNDA LINHA É O CLIENTE, e só um dos dois aparece.** "Layout" é o nome
+de uma fase em todo mês de social da agência e "Lâmina A5" é peça de várias
+campanhas — sem a empresa, o chip não diz de que trabalho ele é. Sem empresa
+(a convenção, o feriado da casa), o primeiro nome responde a pergunta
+seguinte. **Os dois juntos não cabem**: a célula tem cerca de 90px numa grade
+de sete colunas, e "Mundo Verde · Mar" truncado não identifica nem a empresa
+nem a pessoa. A lista inteira continua no `title` e no rótulo acessível.
+
+**Nenhum par de cor novo**, e é o que torna a mudança barata: as cores saem de
+`COR_DA_CAMADA`, que o `check:cores` já mede nos dois temas, e a segunda linha
+herda o primeiro-plano do chip — o mesmo par medido. Par nomeado, nunca
+opacidade.
+
+***O que o chip custa, e é dito em vez de escondido:*** ele passou de uma
+linha para duas, então um dia com três itens ocupa a célula inteira e a linha
+da semana cresce. É o preço de a célula dizer de quem é o trabalho em vez de
+só nomeá-lo, e é a conta que o calendário da Gestão de Tasks já pagou.
+
+**E o exemplo do protótipo ganhou um QUARTO item no mesmo dia**, pela razão
+pela qual a demanda da Ana tem duas etapas de outras pessoas: a célula corta
+em três, e sem o quarto o "+ N mais" não sai em imagem nenhuma — e ele é
+justamente a linha que nenhuma outra tela do produto desenha.
+
+**A campanha entra pelo ENCERRAMENTO na grade do mês**, e a view carrega o
+período inteiro. São as duas metades da mesma decisão: a view guarda a
+verdade — e é dela que o `.ics` monta o evento de trinta dias que a pessoa
+assina no Google —, e `diaNaGrade()` em `lib/dominio/calendario.ts` é o único
+lugar onde a escolha de desenho mora. Havia um segundo leitor do período, a
+Linha do Tempo, e ele saiu; a separação fica, porque é ela que impede a grade
+e o arquivo de discordarem sobre a mesma campanha.
 
 **O que atravessa dias vira faixa no topo da semana**, e não item da lista de
 cada dia: uma feira de três dias listada dia a dia são três linhas que a
 pessoa junta de cabeça, competindo com os prazos daquele dia. E **sempre seis
 semanas**, senão a grade muda de altura ao trocar de mês e a página pula.
-
-**Na Linha do Tempo a coluna de nomes é fixa**, e ela quase não foi: o
-invólucro tinha `overflow-hidden` para arredondar as pontas, e `overflow:
-hidden` cria um novo scrollport — o `sticky` passa a se medir por ele e a
-coluna sai da tela junto com os dias. Foi a imagem que mostrou, com "Carla
-Nunes" lida como "nes".
-
-**A cor da célula ali é OCUPAÇÃO, não camada**, e por isso a visão tem
-legenda própria. `carga_da_equipe()` percorre e CHAMA `carga_do_dia()`, que é
-a fonte única desde a 0035 — uma chamada por célula seriam trezentas idas ao
-banco para desenhar uma tela, e uma segunda conta daria dois números para a
-mesma pessoa no mesmo dia. A capacidade é `team_members.capacidade_minutos_dia`,
-por pessoa: meio período existe, e mudar contrato não pode exigir deploy.
 
 **A ausência chega com a chave do enum no título**, e a tela não pode
 mostrá-la crua: a view escreve `h.tipo::text`, que é `ferias` — a camada em

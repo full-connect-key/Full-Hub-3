@@ -20,6 +20,25 @@ const DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 const NO_DIA = 3;
 
 /**
+ * A segunda linha do chip: de quem é isto.
+ *
+ * **O CLIENTE GANHA DO NOME, e só um dos dois aparece.** "Layout" é o nome de
+ * uma fase em todo mês de social da agência e "Lâmina A5" é peça de várias
+ * campanhas — sem a empresa, o chip não diz de que trabalho ele é. Quando não
+ * há empresa (a convenção, o feriado da casa), o primeiro nome responde a
+ * pergunta seguinte, que é quem está nisso.
+ *
+ * **Os dois juntos não cabem.** A célula tem cerca de 90px numa grade de sete
+ * colunas, e "Mundo Verde · Mar" truncado não identifica nem a empresa nem a
+ * pessoa. A lista inteira continua no `title` e no rótulo acessível do chip.
+ */
+function segundaLinha(item: ItemDoCalendario): string | null {
+  if (item.cliente) return item.cliente;
+  if (item.pessoa) return item.pessoa.nome.split(" ")[0];
+  return null;
+}
+
+/**
  * A grade do mês.
  *
  * ---------------------------------------------------------------------------
@@ -33,13 +52,43 @@ const NO_DIA = 3;
  *
  * **E a campanha não vira faixa de trinta células.** `diaNaGrade()` a coloca
  * no dia em que ela acaba, que é o dia em que ela cobra alguma coisa de
- * alguém. A view carrega o período inteiro para a Linha do Tempo desenhar a
- * barra longa; a decisão de qual dia a grade pinta mora num lugar só.
+ * alguém. A view continua carregando o PERÍODO INTEIRO — ela guarda a
+ * verdade, e é dela que o `.ics` monta o evento de trinta dias que a pessoa
+ * assina no Google —, e a decisão de qual dia a grade pinta mora num lugar
+ * só. Havia um segundo leitor do período, a Linha do Tempo, e ele saiu; a
+ * separação fica, porque é ela que impede a grade e o arquivo de discordarem
+ * sobre a mesma campanha.
  * ---------------------------------------------------------------------------
  *
  * **Sempre seis semanas.** Um mês que cabe em cinco e outro que precisa de
  * seis fazem a grade mudar de altura ao trocar de mês, e a página inteira
  * pula debaixo do cursor.
+ *
+ * ---------------------------------------------------------------------------
+ * A COR É O CHIP, e não mais um ponto de seis pixels.
+ *
+ * Decisão do usuário: *"mudar a visualização do evento, para dar mais
+ * destaque dentro da data, está muito minimalista"*. Ele estava certo, e a
+ * incoerência estava dentro deste arquivo: a FAIXA de três dias já saía como
+ * pílula inteira no par nomeado da camada, e o item de um dia só saía como
+ * texto cinza com um pontinho ao lado — duas respostas para a mesma pergunta,
+ * a dois centímetros de distância. A visão de Semana já pintava o chip
+ * inteiro desde que nasceu, então eram três desenhos no mesmo módulo.
+ *
+ * **É a mesma decisão que o calendário da Gestão de Tasks tomou** quando a
+ * queixa foi esta: *"quatro fios de quatro pixels numa célula não se leem à
+ * distância de que a grade do mês é olhada"*. A barra cheia fica, como borda
+ * de leitura entre duas linhas do mesmo tom.
+ *
+ * **Par nomeado, nunca opacidade**, e nenhum par novo: as cores saem de
+ * `COR_DA_CAMADA`, que `check:cores` já mede nos dois temas — a segunda linha
+ * herda o primeiro-plano do chip, então ela é o mesmo par medido.
+ *
+ * *O que o chip custa, e é dito em vez de escondido:* ele passou de uma linha
+ * para duas, então um dia com três itens ocupa a célula inteira e a linha da
+ * semana cresce. É o preço de a célula dizer de quem é o trabalho em vez de
+ * só nomeá-lo, e é a conta que o calendário da Gestão de Tasks já pagou.
+ * ---------------------------------------------------------------------------
  */
 export function VisaoDeMes({
   mes,
@@ -124,12 +173,12 @@ export function VisaoDeMes({
                             title={`${ROTULOS_DE_CAMADA[faixa.tipo]}: ${faixa.titulo}`}
                             style={{ gridColumnStart: inicio + 1, gridColumnEnd: fim + 2 }}
                             className={cn(
-                              "truncate rounded px-2 py-0.5 text-left text-xs font-medium",
+                              "truncate rounded px-2 py-1 text-left text-xs font-semibold",
                               COR_DA_CAMADA[faixa.tipo],
                             )}
                           >
                             {faixa.titulo}
-                            {faixa.pessoa ? ` · ${faixa.pessoa.nome.split(" ")[0]}` : ""}
+                            {segundaLinha(faixa) ? ` · ${segundaLinha(faixa)}` : ""}
                           </button>
                         </div>
                       );
@@ -147,7 +196,7 @@ export function VisaoDeMes({
                       <div
                         key={dia}
                         className={cn(
-                          "min-h-28 p-1 text-xs",
+                          "min-h-32 p-1 text-xs",
                           // TRÊS ESTADOS E NÃO DOIS: dia do mês, fim de
                           // semana e dia de outro mês. A primeira versão
                           // pintava os dois últimos com a mesma cor, e o
@@ -212,25 +261,34 @@ export function VisaoDeMes({
                           ) : null}
                         </div>
 
-                        <ul className="mt-1 space-y-0.5">
-                          {trabalho.slice(0, NO_DIA).map((item) => (
-                            <li key={item.id}>
-                              <button
-                                type="button"
-                                onClick={() => aoAbrir(item)}
-                                title={`${ROTULOS_DE_CAMADA[item.tipo]}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
-                                className="hover:bg-muted flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left"
-                              >
-                                <span
-                                  aria-hidden
-                                  className={cn("size-1.5 shrink-0 rounded-full", COR_DA_CAMADA[item.tipo])}
-                                />
-                                <span className="truncate">{item.titulo}</span>
-                              </button>
-                            </li>
-                          ))}
+                        <ul className="mt-1 space-y-1">
+                          {trabalho.slice(0, NO_DIA).map((item) => {
+                            const abaixo = segundaLinha(item);
+                            return (
+                              <li key={item.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => aoAbrir(item)}
+                                  title={`${ROTULOS_DE_CAMADA[item.tipo]}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
+                                  className={cn(
+                                    "block w-full rounded px-1.5 py-1 text-left leading-tight",
+                                    COR_DA_CAMADA[item.tipo],
+                                  )}
+                                >
+                                  <span className="block truncate font-semibold">
+                                    {item.titulo}
+                                  </span>
+                                  {abaixo ? (
+                                    <span className="block truncate text-[0.6875rem]">
+                                      {abaixo}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            );
+                          })}
                           {trabalho.length > NO_DIA ? (
-                            <li className="text-text-muted px-1">
+                            <li className="text-text-muted px-1.5">
                               + {trabalho.length - NO_DIA} mais
                             </li>
                           ) : null}

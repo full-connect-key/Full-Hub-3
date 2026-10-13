@@ -12,9 +12,12 @@
  * três de propósito:
  *
  *   - o NÍVEL de carga sai de `nivelDaCarga()` em `lib/dominio/calendario.ts`.
- *     A Linha do Tempo do Calendário Full pinta pelos mesmos quatro degraus, e
- *     duas escalas para a mesma pergunta seriam descobertas pela pessoa no dia
- *     em que uma tela mostrasse verde e a outra âmbar para o mesmo dia;
+ *     Ele era compartilhado com a Linha do Tempo do Calendário Full, que
+ *     pintava pelos mesmos quatro degraus — duas escalas para a mesma
+ *     pergunta seriam descobertas pela pessoa no dia em que uma tela mostrasse
+ *     verde e a outra âmbar para o mesmo dia. Aquela visão saiu do produto, e
+ *     a escala ficou onde estava: carga de um dia é vocabulário do
+ *     calendário;
  *   - o rótulo do motivo sai de `ROTULOS_DE_PRESENCA` do Full Days;
  *   - as horas saem de `formatarMinutosCurto()` de `lib/dominio/tempo.ts`.
  */

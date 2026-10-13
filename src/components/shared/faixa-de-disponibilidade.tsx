@@ -26,11 +26,16 @@ import { cn } from "@/lib/utils";
  * gravar" que não existe ali — e cobriria justamente a etapa que a pessoa está
  * datando. A faixa é consulta, e **o clique no dia é o salvamento**.
  *
- * **A LEGENDA É A DA LINHA DO TEMPO**, pelos mesmos quatro degraus e com os
- * mesmos limiares (80% e 100%): `nivelDaCarga()` e `COR_DO_NIVEL` vêm de
- * `lib/dominio/calendario.ts`. Duas escalas para a mesma pergunta seriam
- * descobertas pela pessoa no dia em que uma tela pintasse de verde o dia que a
- * outra pintou de âmbar.
+ * **A ESCALA DE CARGA VEM DE `lib/dominio/calendario.ts`**, e é por isso que
+ * ela sobreviveu: `nivelDaCarga()`, `COR_DO_NIVEL` e `ROTULOS_DE_NIVEL` eram
+ * compartilhados com a Linha do Tempo do Calendário Full — quatro degraus,
+ * limiares de 80% e 100% —, porque duas escalas para a mesma pergunta seriam
+ * descobertas pela pessoa no dia em que uma tela pintasse de verde o dia que
+ * a outra pintou de âmbar. **Aquela visão saiu do produto**, por decisão do
+ * usuário, e esta faixa passou a ser a única tela que pinta um dia por
+ * ocupação. As três continuam onde estão: carga de um dia é vocabulário do
+ * calendário, e mover a escala por causa de um leitor a menos é churn sem
+ * nada em troca.
  *
  * **O DIA SE EXPLICA EMBAIXO DA GRADE.** A célula tem cerca de 62px num painel
  * de 512px: cabe o número e um fio de carga, e mais nada — nem um título de

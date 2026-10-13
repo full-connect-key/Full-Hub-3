@@ -51,7 +51,7 @@ import { decidirNota } from "./acoes";
  * **O CARD NÃO ARRASTA**, e a ausência é mecânica: recusar exige o motivo e
  * pagar exige a data digitada, que o arrasto não carrega; paga e recusada não
  * mudam mais de estado. A coluna é leitura, o botão é a ação — a decisão do
- * board de demandas e da Linha do Tempo.
+ * board de demandas: a coluna é leitura, o botão é a ação.
  * ---------------------------------------------------------------------------
  *
  * **OS DOIS FILTROS MORAM NA URL**, como em toda listagem do produto: "olha as

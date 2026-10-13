@@ -6,10 +6,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import {
-  cargaDaEquipe,
   itensDoCalendario,
   obterEvento,
-  pessoasDaLinhaDoTempo,
+  pessoasDaEquipeNoCalendario,
 } from "@/lib/dados/calendario";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { CAMADAS, ehVisao, type VisaoDoCalendario } from "@/lib/dominio/calendario";
@@ -91,7 +90,13 @@ async function Conteudo({
   const soMinhas = focoValendo === "minhas" ? usuarioId : null;
   const eventoAberto = typeof parametros.evento === "string" ? parametros.evento : null;
 
-  const [itens, clientes, pessoas, carga, evento] = await Promise.all([
+  // A CARGA DA EQUIPE SAIU COM A LINHA DO TEMPO. Ela era a única visão que a
+  // desenhava, e a quarta chamada deste `Promise.all` existia com um
+  // `visao === "linha" ?` na frente justamente porque pedi-la nas outras três
+  // seriam trinta consultas por pessoa para montar uma grade que não a mostra.
+  // Sem a visão não sobra ramo nenhum: a chamada saiu inteira, e
+  // `cargaDaEquipe()` com ela.
+  const [itens, clientes, pessoas, evento] = await Promise.all([
     itensDoCalendario({
       de: janela.de,
       ate: janela.ate,
@@ -101,11 +106,7 @@ async function Conteudo({
       soMinhas,
     }),
     listarClientes(),
-    pessoasDaLinhaDoTempo(),
-    // A CARGA SÓ NA LINHA DO TEMPO. É a única visão que a desenha, e pedi-la
-    // nas outras três seriam trinta consultas por pessoa para montar uma
-    // grade que não a mostra.
-    visao === "linha" ? cargaDaEquipe(janela.de, janela.ate) : Promise.resolve([]),
+    pessoasDaEquipeNoCalendario(),
     eventoAberto ? obterEvento(eventoAberto) : Promise.resolve(null),
   ]);
 
@@ -117,7 +118,6 @@ async function Conteudo({
       itens={itens}
       clientes={clientes.map((c) => ({ id: c.id, nome: c.nome_empresa }))}
       pessoas={pessoas}
-      carga={carga}
       camadas={camadas}
       foco={focoValendo}
       evento={evento}

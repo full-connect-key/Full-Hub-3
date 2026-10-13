@@ -11,17 +11,42 @@ import type { EventoTipo, TipoNoCalendario } from "@/lib/supabase/database.types
  */
 
 // ---------------------------------------------------------------------------
-// AS QUATRO VISÕES
+// AS DUAS VISÕES
+//
+// ---------------------------------------------------------------------------
+// ERAM QUATRO, e a Linha do Tempo e a Lista saíram por decisão do usuário:
+// *"tirar visualização de 'Linha do tempo' e 'Lista'"*.
+//
+// **Saíram do TIPO, e não só da fileira de pílulas**, que é a decisão da 0023
+// e a lição da camada que a 0088 deixou para trás: tirar o interruptor e
+// deixar o valor no enum dá um `?visao=linha` que atravessa a tela inteira
+// até cair num `ROTULOS_DE_VISAO[visao]` indefinido. Com a união de dois,
+// quem mexer nisso leva erro de tipo, e `ehVisao()` manda o link antigo para
+// o mês — que é o que um endereço salvo tem de fazer: abrir, e não quebrar.
+//
+// **O QUE SE PERDE ESTÁ DITO, porque é informação e não enfeite.** A Linha do
+// Tempo era a única tela que respondia *"a equipe aguenta?"* — a cor da
+// célula dela era OCUPAÇÃO, não camada, vinda de `carga_da_equipe()`. A
+// pergunta continua tendo resposta em dois lugares, e os dois são onde ela é
+// feita de verdade: a faixa de disponibilidade no painel da etapa (quem está
+// distribuindo trabalho) e os alertas de carga do Feedback (quem olha o mês
+// que passou). O que não existe mais é o retrato da equipe inteira num mês.
+//
+// A Lista era o CSV. O que fica no lugar é o **.ics** do cabeçalho, que
+// responde a mesma pergunta — *"me manda isso"* — num formato que é um
+// calendário de verdade, e não uma planilha de linhas de calendário.
+//
+// `nivelDaCarga()`, `COR_DO_NIVEL` e `ROTULOS_DE_NIVEL` continuam aqui, mais
+// abaixo: a faixa de disponibilidade os usa, e é por eles que as duas telas
+// de carga do produto têm os mesmos quatro degraus.
 // ---------------------------------------------------------------------------
 
-export const VISOES = ["mes", "semana", "linha", "lista"] as const;
+export const VISOES = ["mes", "semana"] as const;
 export type VisaoDoCalendario = (typeof VISOES)[number];
 
 export const ROTULOS_DE_VISAO: Record<VisaoDoCalendario, string> = {
   mes: "Mês",
   semana: "Semana",
-  linha: "Linha do tempo",
-  lista: "Lista",
 };
 
 export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
@@ -228,20 +253,25 @@ export function ehFaixa(item: ItemDoCalendario): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Uma pessoa na Linha do Tempo.
+ * Uma pessoa da equipe, como esta tela precisa dela.
  *
  * **Mora aqui e não em `lib/dados/`**, junto com todo tipo que a tela usa: os
- * quatro desenhos são cliente, `lib/dados/` é `server-only`, e o gerador de
+ * dois desenhos são cliente, `lib/dados/` é `server-only`, e o gerador de
  * protótipo TROCA aquele módulo por um de exemplo. Com o tipo lá, a troca
  * levava a declaração junto e a compilação do protótipo quebrava — que foi
  * exatamente o que aconteceu.
+ *
+ * **`area` e `capacidadeMinutos` SAÍRAM com a Linha do Tempo**, que era quem
+ * agrupava por área e dividia os minutos pela capacidade. Hoje a lista serve
+ * ao filtro "Filtrar por responsável" e aos participantes do evento, e os
+ * dois querem três campos. Um campo que nenhuma tela lê é o que alguém
+ * reaproveita três sprints depois achando que ele quer dizer alguma coisa —
+ * a decisão da 0023, aplicada a um tipo.
  */
-export type PessoaDaLinha = {
+export type PessoaDoCalendario = {
   id: string;
   nome: string;
   avatar_url: string | null;
-  area: string | null;
-  capacidadeMinutos: number;
 };
 
 export type EventoDetalhado = {
@@ -262,14 +292,18 @@ export type EventoDetalhado = {
   participantes: { id: string; nome: string; avatar_url: string | null }[];
 };
 
-export type CargaDeUmDia = {
-  userId: string;
-  dia: string;
-  minutos: number;
-  etapas: number;
-  semEstimativa: number;
-  ausente: boolean;
-};
+// ---------------------------------------------------------------------------
+// `CargaDeUmDia` SAIU COM A LINHA DO TEMPO, e com ele `cargaDaEquipe()` em
+// `lib/dados/calendario.ts`: era aquela grade a única tela que lia a carga da
+// equipe inteira. A função `carga_da_equipe()` continua no banco, sem leitor —
+// e é por isso que ela não sai por migration: ela não é schema que alguém
+// consulte por engano, é um `select` a mais ali dentro, e quem ela chama
+// (`carga_do_dia()`, 0035) continua sendo a fonte única da conta para o
+// Feedback e para `disponibilidade_bruta()`. Devolver a visão é devolver uma
+// função em `lib/dados/`, que o git guarda.
+//
+// O que fica abaixo é a ESCALA, e ela tem leitor: a faixa de disponibilidade.
+// ---------------------------------------------------------------------------
 
 export type NivelDeCarga = "vazio" | "folgado" | "cheio" | "estourado";
 
@@ -292,13 +326,14 @@ export type NivelDeCarga = "vazio" | "folgado" | "cheio" | "estourado";
  * lugar — nem aqui: esta função recebe os minutos que o banco já somou.
  */
 /**
- * O PARÂMETRO É ESTREITO DE PROPÓSITO, e não `CargaDeUmDia`.
+ * O PARÂMETRO É ESTREITO DE PROPÓSITO.
  *
- * Ela lê dois campos. Pedindo o tipo inteiro, quem tem o número de outra
- * consulta — a faixa de disponibilidade, que traz o dia de UMA pessoa e não
- * da equipe — precisaria inventar `userId`, `dia` e `ausente` para chamar, e
- * o molde errado mente com mais convicção que a ausência. `CargaDeUmDia`
- * continua servindo: ele satisfaz esta forma.
+ * Ela lê dois campos, e pede exatamente dois. Pedindo um tipo de linha
+ * inteira, quem tem o número de outra consulta — a faixa de disponibilidade,
+ * que traz o dia de UMA pessoa e não da equipe — precisaria inventar os
+ * campos que falta para chamar, e o molde errado mente com mais convicção que
+ * a ausência. Foi essa forma estreita que fez a escala sobreviver à saída da
+ * Linha do Tempo sem uma linha de mudança.
  */
 export function nivelDaCarga(
   carga: { minutos: number; etapas: number },

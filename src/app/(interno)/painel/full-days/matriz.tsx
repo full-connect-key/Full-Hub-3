@@ -176,7 +176,7 @@ export function MatrizDaEquipe({
           pontas, que é a tentação óbvia: `overflow: hidden` cria um novo
           scrollport, e a coluna de nomes — que é `sticky left-0` — passa a
           se medir por ele e sai da tela junto com os dias. Foi o que a
-          Linha do Tempo do Calendário Full pagou, com "Carla Nunes" lida
+          Linha do Tempo do Calendário Full pagou quando existia, com "Carla Nunes" lida
           como "nes". `auto` arredonda igual e é o scrollport de verdade. */}
       {linhas.length === 0 ? (
         <p className="text-muted-foreground rounded-card border border-dashed p-6 text-center text-sm">
