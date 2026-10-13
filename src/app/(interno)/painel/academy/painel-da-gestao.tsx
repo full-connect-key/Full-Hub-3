@@ -1,340 +1,203 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Download, Loader2, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react";
 
-import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { chamarAcao } from "@/lib/acoes/cliente";
-import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
-import type { LinhaDoAcompanhamento, TrilhaDaGrade } from "@/lib/dados/academy";
+import { ROTULOS_DE_ESTADO, ROTULOS_DE_TIPO, TOM_DO_ESTADO } from "@/lib/dominio/academy";
+import { semAcento } from "@/lib/dominio/academy";
+import type { LinhaDoAcompanhamento } from "@/lib/dados/academy";
+import { montarCSV } from "@/lib/dominio/csv";
 import { cn } from "@/lib/utils";
 
-import { salvarTrilha } from "./acoes";
-import { hojeNaAgencia } from "@/lib/dominio/datas";
-
 /**
- * A gestão da Academy.
+ * O ACOMPANHAMENTO: pessoa × item obrigatório.
  *
- * O ACOMPANHAMENTO COMEÇA PELAS OBRIGATÓRIAS, e dentro delas por quem está
- * mais atrás. É a única ordenação que responde à pergunta que faz a aba
- * existir: "quem ainda não fez?". Ordenar por nome deixaria isso espalhado por
- * três telas de rolagem.
+ * **É A ABA QUE FAZ O MÓDULO EXISTIR**, e o cabeçalho da 0096 diz por quê:
+ * trilha obrigatória sem quem confira é recado, não trilha.
  *
- * A tabela lê da view `academy_progresso_da_equipe`, que NÃO tem a coluna de
- * anotações — a anotação de cada pessoa é dela. Veja `lib/dados/academy.ts`.
+ * **O QUE ELA NÃO MOSTRA, e é a regra do módulo:** nota, ranking, comparação
+ * entre pessoas. A tabela diz quem fez e quem não fez um item OBRIGATÓRIO —
+ * um fato sobre o combinado, não uma medida sobre a pessoa. O que a pessoa leu
+ * por conta própria não entra aqui, e a anotação dela não existe nesta tela
+ * nem na consulta que a alimenta: ela mora em tabela própria porque policy não
+ * limita coluna.
+ *
+ * **O VENCIDO É `--warning` E NUNCA `--danger`.** Uma leitura atrasada é uma
+ * cobrança, não um erro — e vermelho numa tela que se abre uma vez por semana
+ * treina o hábito de ignorar vermelho.
  */
-export function PainelDaGestao({
-  trilhas,
-  acompanhamento,
-}: {
-  trilhas: TrilhaDaGrade[];
-  acompanhamento: LinhaDoAcompanhamento[];
-}) {
-  const router = useRouter();
-  const [executando, iniciar] = useTransition();
-  const [criando, setCriando] = useState(false);
-  const [soObrigatorias, setSoObrigatorias] = useState(true);
+export function PainelDaGestao({ linhas }: { linhas: LinhaDoAcompanhamento[] }) {
+  const [termo, setTermo] = useState("");
+  const [so, setSo] = useState<"tudo" | "pendentes" | "vencidos">("tudo");
 
-  const visiveis = soObrigatorias
-    ? acompanhamento.filter((l) => l.obrigatoria)
-    : acompanhamento;
+  const alvo = semAcento(termo.trim());
+  const visiveis = linhas.filter((l) => {
+    if (so === "pendentes" && l.estado === "concluido") return false;
+    if (so === "vencidos" && !l.vencido) return false;
+    if (!alvo) return true;
+    return semAcento(l.pessoa).includes(alvo) || semAcento(l.item).includes(alvo);
+  });
 
-  function exportar() {
+  const pendentes = linhas.filter((l) => l.estado !== "concluido").length;
+  const vencidos = linhas.filter((l) => l.vencido).length;
+  const pessoas = new Set(linhas.map((l) => l.user_id)).size;
+
+  function baixar() {
     const csv = montarCSV(
-      [
-        "Pessoa",
-        "Trilha",
-        "Obrigatória",
-        "Concluídos",
-        "Total",
-        "%",
-        "Concluída em",
-      ],
+      ["Pessoa", "Função", "Item", "Formato", "Situação", "Prazo", "Fora do prazo"],
       visiveis.map((l) => [
-        l.nome,
-        l.trilha,
-        l.obrigatoria ? "sim" : "não",
-        l.concluidos,
-        l.total,
-        l.percentual,
-        l.concluidaEm ? format(parseISO(l.concluidaEm), "dd/MM/yyyy") : "",
+        l.pessoa,
+        l.funcao ?? "",
+        l.item,
+        ROTULOS_DE_TIPO[l.tipo],
+        ROTULOS_DE_ESTADO[l.estado],
+        l.prazo ?? "",
+        l.vencido ? "sim" : "não",
       ]),
     );
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "acompanhamento-da-formacao.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
-    baixarCSV(
-      csv,
-      `academy-acompanhamento-${hojeNaAgencia()}.csv`,
+  if (linhas.length === 0) {
+    return (
+      <EmptyState
+        title="Nenhum item obrigatório ainda"
+        description="Enquanto nada for marcado como obrigatório, não há o que acompanhar. A obrigatoriedade se define na página de cada item do acervo."
+        className="bg-card rounded-card shadow-cartao border-solid"
+      />
     );
   }
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <h2 className="text-text-primary text-sm font-semibold">Trilhas</h2>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setCriando(true)}>
-            <Plus aria-hidden />
-            Nova trilha
-          </Button>
-        </div>
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <CartaoDeNumero rotulo="Pessoas com obrigatório" valor={pessoas} />
+        <CartaoDeNumero
+          rotulo="Leituras pendentes"
+          valor={pendentes}
+          tom={pendentes > 0 ? "atencao" : "neutro"}
+        />
+        <CartaoDeNumero
+          rotulo="Fora do prazo"
+          valor={vencidos}
+          tom={vencidos > 0 ? "atencao" : "neutro"}
+        />
+      </div>
 
-        {criando ? (
-          <FormularioDeTrilha
-            executando={executando}
-            aoFechar={() => setCriando(false)}
-            aoSalvar={(dados) =>
-              iniciar(async () => {
-                const r = await chamarAcao(() => salvarTrilha(null, dados));
-                if (r.ok) {
-                  toast.success(r.mensagem ?? "Criada.");
-                  setCriando(false);
-                  router.refresh();
-                  if (r.dados) router.push(`/painel/academy/${r.dados}`);
-                } else {
-                  toast.error(r.error ?? "Não foi possível.");
-                }
-              })
-            }
-          />
-        ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="search"
+          value={termo}
+          onChange={(evento) => setTermo(evento.target.value)}
+          placeholder="Buscar por pessoa ou item"
+          aria-label="Buscar no acompanhamento"
+          className="min-w-55 flex-1"
+        />
 
-        {trilhas.length === 0 ? (
-          <EmptyState
-            title="Nenhuma trilha ainda"
-            description="Comece por uma: “Onboarding da casa”, “Como a agência escreve briefing”."
-          />
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {trilhas.map((trilha) => (
-              <li key={trilha.id}>
-                <Link
-                  href={`/painel/academy/${trilha.id}`}
-                  className="rounded-card bg-surface-card flex items-center justify-between gap-3 border p-3 hover:shadow-sm"
-                >
-                  <span className="min-w-0">
-                    <span className="text-text-primary block truncate text-sm font-medium">
-                      {trilha.titulo}
-                    </span>
-                    <span className="text-text-muted text-xs">
-                      {trilha.quantosMateriais}{" "}
-                      {trilha.quantosMateriais === 1 ? "material" : "materiais"}
-                      {trilha.area ? ` · ${trilha.area}` : ""}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 gap-1">
-                    {trilha.obrigatoria ? (
-                      <span className="bg-warning-soft text-warning rounded-full px-2 py-0.5 text-[11px]">
-                        Obrigatória
-                      </span>
+        {(["tudo", "pendentes", "vencidos"] as const).map((chave) => (
+          <button
+            key={chave}
+            type="button"
+            onClick={() => setSo(chave)}
+            aria-pressed={so === chave}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              so === chave
+                ? "bg-action-soft text-action-text"
+                : "bg-card text-text-secondary hover:text-text-primary border",
+            )}
+          >
+            {chave === "tudo" ? "Tudo" : chave === "pendentes" ? "Pendentes" : "Fora do prazo"}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={baixar}
+          className="bg-card text-text-secondary hover:text-text-primary rounded-full border px-3 py-1.5 text-xs font-medium"
+        >
+          Baixar CSV
+        </button>
+      </div>
+
+      {visiveis.length === 0 ? (
+        <EmptyState
+          title="Nada neste recorte"
+          description="Troque o filtro ou o termo acima."
+          className="bg-card rounded-card shadow-cartao border-solid"
+        />
+      ) : (
+        <div className="bg-card rounded-card shadow-cartao overflow-x-auto border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-text-muted border-b text-left text-xs">
+                <th className="px-4 py-2.5 font-medium">Pessoa</th>
+                <th className="px-4 py-2.5 font-medium">Item</th>
+                <th className="px-4 py-2.5 font-medium">Situação</th>
+                <th className="px-4 py-2.5 font-medium">Prazo</th>
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {visiveis.map((l) => (
+                <tr key={`${l.user_id}-${l.item_id}`}>
+                  <td className="px-4 py-2.5">
+                    <span className="text-text-primary font-medium">{l.pessoa}</span>
+                    {l.funcao ? (
+                      <span className="text-text-muted block text-xs">{l.funcao}</span>
                     ) : null}
+                  </td>
+                  <td className="text-text-secondary px-4 py-2.5">
+                    {l.item}
+                    <span className="text-text-muted block text-xs">
+                      {ROTULOS_DE_TIPO[l.tipo]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[11px]",
-                        trilha.publicada
-                          ? "bg-success-soft text-success"
-                          : "bg-neutral-soft text-neutral",
+                        "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                        TOM_DO_ESTADO[l.estado] === "sucesso" && "bg-success-soft text-success",
+                        TOM_DO_ESTADO[l.estado] === "atencao" && "bg-warning-soft text-warning",
+                        TOM_DO_ESTADO[l.estado] === "acao" && "bg-action-soft text-action-text",
+                        TOM_DO_ESTADO[l.estado] === "neutro" && "bg-neutral-soft text-neutral",
                       )}
                     >
-                      {trilha.publicada ? "Publicada" : "Rascunho"}
+                      {ROTULOS_DE_ESTADO[l.estado]}
                     </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-text-primary text-sm font-semibold">
-            Acompanhamento
-          </h2>
-          <div className="flex items-center gap-2">
-            <label className="text-text-secondary flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                className="accent-brand size-4"
-                checked={soObrigatorias}
-                onChange={(e) => setSoObrigatorias(e.target.checked)}
-              />
-              Só as obrigatórias
-            </label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportar}
-              disabled={visiveis.length === 0}
-            >
-              <Download aria-hidden />
-              Exportar CSV
-            </Button>
-          </div>
-        </div>
-
-        {visiveis.length === 0 ? (
-          <EmptyState
-            title={
-              soObrigatorias
-                ? "Nenhuma trilha obrigatória publicada"
-                : "Nada a acompanhar"
-            }
-            description={
-              soObrigatorias
-                ? "Marque uma trilha como obrigatória para acompanhar quem já fez."
-                : "Publique uma trilha com materiais e o acompanhamento começa a existir."
-            }
-          />
-        ) : (
-          <div className="rounded-card overflow-x-auto border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pessoa</TableHead>
-                  <TableHead>Trilha</TableHead>
-                  <TableHead className="w-48">Progresso</TableHead>
-                  <TableHead className="text-right">Concluída em</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visiveis.map((linha) => (
-                  <TableRow key={`${linha.usuarioId}-${linha.trilhaId}`}>
-                    <TableCell className="font-medium">{linha.nome}</TableCell>
-                    <TableCell>
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        {linha.trilha}
-                        {linha.obrigatoria ? (
-                          <span className="bg-warning-soft text-warning rounded-full px-2 py-0.5 text-[11px]">
-                            Obrigatória
-                          </span>
-                        ) : null}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs tabular-nums">
+                    {l.prazo ? (
+                      <span className={l.vencido ? "text-warning font-medium" : "text-text-muted"}>
+                        {l.prazo.split("-").reverse().join("/")}
+                        {l.vencido ? " · fora do prazo" : ""}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      <BarraDeProgresso
-                        nome="Materiais concluídos"
-                        valor={linha.concluidos}
-                        total={linha.total}
-                        tom={
-                          linha.concluidos >= linha.total ? "sucesso" : "marca"
-                        }
-                        rotulo={`${linha.concluidos} de ${linha.total}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
-                      {/* Data de conclusão é registro do que ACONTECEU, e por
-                          isso sai com date-fns e não com DateBadge — o badge
-                          pinta o passado de vermelho como se fosse atraso. */}
-                      {linha.concluidaEm
-                        ? format(parseISO(linha.concluidaEm), "dd/MM/yyyy", {
-                            locale: ptBR,
-                          })
-                        : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function FormularioDeTrilha({
-  aoFechar,
-  aoSalvar,
-  executando,
-}: {
-  aoFechar: () => void;
-  aoSalvar: (dados: Record<string, unknown>) => void;
-  executando: boolean;
-}) {
-  const [titulo, setTitulo] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [area, setArea] = useState("");
-  const [obrigatoria, setObrigatoria] = useState(false);
-
-  return (
-    <div className="rounded-card bg-surface-card space-y-3 border p-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="trilha-titulo">Nome da trilha *</Label>
-          <Input
-            id="trilha-titulo"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Onboarding da casa"
-            autoFocus
-          />
+                    ) : (
+                      <span className="text-text-muted">sem prazo</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="trilha-area">Área</Label>
-          <Input
-            id="trilha-area"
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-            placeholder="Processos, Design, Atendimento…"
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="trilha-descricao">Descrição</Label>
-          <Textarea
-            id="trilha-descricao"
-            rows={2}
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-          />
-        </div>
-      </div>
+      )}
 
-      <label className="text-text-secondary flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="accent-brand size-4"
-          checked={obrigatoria}
-          onChange={(e) => setObrigatoria(e.target.checked)}
-        />
-        Obrigatória para toda a equipe
-      </label>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={aoFechar} disabled={executando}>
-          Cancelar
-        </Button>
-        <Button
-          disabled={executando}
-          onClick={() =>
-            // Nasce SEM publicar, sempre. Uma trilha vazia que já aparece para
-            // a equipe é um convite a abrir e não encontrar nada.
-            aoSalvar({ titulo, descricao, area, obrigatoria, publicada: false })
-          }
-        >
-          {executando ? <Loader2 className="animate-spin" /> : null}
-          Criar e montar os materiais
-        </Button>
-      </div>
+      <p className="text-text-muted text-xs">
+        A tabela conta só o que é <strong>obrigatório</strong>. O que cada pessoa leu por
+        conta própria não aparece aqui — e a anotação dela não é lida por ninguém, nem
+        pelo sócio.{" "}
+        <Link href="/painel/academy" className="text-accent-strong hover:underline">
+          Voltar ao acervo
+        </Link>
+      </p>
     </div>
   );
 }

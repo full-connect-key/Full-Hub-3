@@ -392,15 +392,23 @@ const TELAS = [
 
   { nome: "80-academy", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio" },
   { nome: "81-academy-colaborador", rota: "/painel/academy", largura: 1600, altura: 1200, role: "colaborador" },
-  { nome: "82-academy-trilha", rota: "/painel/academy/t1", largura: 1500, altura: 1200, role: "colaborador" },
+  // OS TRÊS FORMATOS, UM POR IMAGEM. O playbook em releitura é o que mais
+  // importa: é o único estado que desenha a faixa âmbar, e é ele que
+  // justifica o módulo ser versionado.
+  { nome: "82-academy-playbook", rota: "/painel/academy/briefing-que-nao-volta-com-duvida", largura: 1500, altura: 1300, role: "colaborador" },
+  { nome: "82b-academy-playbook-releitura", rota: "/painel/academy/como-a-gente-apresenta-para-o-cliente", largura: 1500, altura: 1300, role: "colaborador" },
+  { nome: "82c-academy-ebook", rota: "/painel/academy/a-marca-da-full-por-dentro", largura: 1500, altura: 1000, role: "colaborador" },
+  { nome: "82d-academy-curso", rota: "/painel/academy/trafego-pago-do-zero", largura: 1500, altura: 1400, role: "colaborador" },
+  // A TELA DE QUEM MONTA, que é outra pessoa e outra pergunta: o painel de
+  // montagem só é desenhado para a gestão, e ele fica no FIM da página.
+  { nome: "82e-academy-montar", rota: "/painel/academy/briefing-que-nao-volta-com-duvida", largura: 1500, altura: 2000, role: "socio" },
+  { nome: "82f-academy-novo", rota: "/painel/academy/novo", largura: 1300, altura: 1100, role: "socio" },
   // DUAS capturas para o material aberto, e nao uma com dois cliques: a lista
   // e sanfona de um so aberto por vez, entao o segundo clique fecha o
   // primeiro -- foi o que a imagem mostrou. Cada caminho tem a sua:
   //   83  -- video, que incorpora o player, e ja vem com anotacao escrita
   //          (campo vazio nao mostra que a anotacao e por material);
   //   83b -- artigo, o unico que cai no "Abrir em nova aba".
-  { nome: "83-academy-material-aberto", rota: "/painel/academy/t1", largura: 1500, altura: 1500, role: "colaborador", clicar: 'button:has-text("Boas-vindas da Ana")' },
-  { nome: "83b-academy-material-link", rota: "/painel/academy/t1", largura: 1500, altura: 1200, role: "colaborador", clicar: 'button:has-text("O caminho de uma demanda")' },
   { nome: "84-academy-gestao", rota: "/painel/academy?aba=gestao", largura: 1700, altura: 1400, role: "socio" },
   { nome: "85-academy-escuro", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio", tema: "escuro" },
 

@@ -1,283 +1,333 @@
 /**
  * Versao de prototipo de src/lib/dados/academy.ts.
  *
- * Tres trilhas, e as tres existem para mostrar coisa diferente:
+ * SEIS ITENS, e cada um existe para mostrar um estado que os outros nao
+ * mostram:
  *
- *   "Onboarding da casa"  -- obrigatoria, comecada pela metade. E o estado em
- *                            que a barra de progresso significa alguma coisa.
- *   "Escrita para redes"  -- ligada a uma skill que a pessoa quer desenvolver,
- *                            entao ela aparece em "Recomendadas para voce".
- *   "Midia paga do zero"  -- RASCUNHO. So aparece porque o prototipo roda como
- *                            gestao; no app, a RLS a esconde da equipe.
+ *   playbook "Briefing que nao volta"  -- lido, e na versao CORRENTE. E o
+ *                                         estado bom, e sem ele nao ha com
+ *                                         que comparar o de baixo.
+ *   playbook "Como a gente apresenta"  -- a pessoa lei a v1 e a v2 EXIGE
+ *                                         releitura. E o estado que justifica
+ *                                         o modulo inteiro existir, e o unico
+ *                                         que desenha a faixa ambar.
+ *   playbook "Padroes de nomeacao"     -- RASCUNHO. So aparece porque o
+ *                                         prototipo roda como gestao; no app,
+ *                                         a RLS o esconde da equipe.
+ *   ebook    "Marca da Full"           -- nao lido, com arquivo.
+ *   curso    "Trafego do zero"         -- pela metade: 2 de 5 aulas. E o unico
+ *                                         estado em que a barra significa
+ *                                         alguma coisa.
+ *   curso    "Primeiros 30 dias"       -- OBRIGATORIO e FORA DO PRAZO. Sem ele
+ *                                         o selo ambar e a frase de pendencia
+ *                                         nao saem em imagem nenhuma.
  *
- * Uma grade onde tudo esta zerado ou tudo concluido nao valida nada: os dois
+ * Um acervo onde tudo esta zerado ou tudo concluido nao valida nada: os dois
  * extremos escondem justamente o que a tela serve para mostrar.
  */
 import type {
+  AchadoDaBusca,
+  ItemAberto,
+  ItemDoAcervo,
   LinhaDoAcompanhamento,
-  MaterialComProgresso,
-  TrilhaCompleta,
-  TrilhaDaGrade,
 } from "../../src/lib/dados/academy";
 
-export type { LinhaDoAcompanhamento, MaterialComProgresso, TrilhaCompleta, TrilhaDaGrade };
+export type { AchadoDaBusca, ItemAberto, ItemDoAcervo, LinhaDoAcompanhamento };
 
 const AGORA = "2026-09-20T10:00:00.000Z";
 
-type SementeDeMaterial = {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  tipo: MaterialComProgresso["tipo"];
-  url: string | null;
-  duracao: number | null;
-  concluido: boolean;
-  anotacoes?: string;
-  skillNome?: string;
-};
-
-const MATERIAIS: Record<string, SementeDeMaterial[]> = {
-  t1: [
-    {
-      id: "m1",
-      titulo: "Boas-vindas da Ana",
-      descricao: "O que a Full Connect Key faz e para quem.",
-      tipo: "video",
-      url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
-      duracao: 12,
-      concluido: true,
-      anotacoes: "Rever a parte de quem aprova o quê.",
-    },
-    {
-      id: "m2",
-      titulo: "O caminho de uma demanda",
-      descricao: "Da abertura da task à entrega aprovada.",
-      tipo: "artigo",
-      url: "https://exemplo.invalid/fluxo-da-demanda",
-      duracao: 20,
-      concluido: false,
-    },
-    {
-      id: "m3",
-      titulo: "Modelo de briefing",
-      descricao: "O que todo briefing precisa responder.",
-      tipo: "template",
-      url: null,
-      duracao: null,
-      concluido: false,
-    },
-  ],
-  t2: [
-    {
-      id: "m4",
-      titulo: "Copy que para o dedo",
-      descricao: "Os três primeiros segundos de uma legenda.",
-      tipo: "video",
-      url: "https://vimeo.com/76979871",
-      duracao: 18,
-      concluido: false,
-      skillNome: "Copywriting",
-    },
-    {
-      id: "m5",
-      titulo: "Guia de tom de voz",
-      descricao: "Como cada cliente fala, e como não falar por ele.",
-      tipo: "pdf",
-      url: null,
-      duracao: 25,
-      concluido: false,
-      skillNome: "Copywriting",
-    },
-  ],
-  t3: [
-    {
-      id: "m6",
-      titulo: "Estrutura de campanha",
-      descricao: null,
-      tipo: "artigo",
-      url: "https://exemplo.invalid/midia",
-      duracao: 30,
-      concluido: false,
-    },
-  ],
-};
-
-type SementeDeTrilha = {
-  id: string;
-  titulo: string;
-  descricao: string;
-  area: string;
-  obrigatoria: boolean;
-  publicada: boolean;
-};
-
-const TRILHAS: SementeDeTrilha[] = [
-  {
-    id: "t1",
-    titulo: "Onboarding da casa",
-    descricao:
-      "Como a agência trabalha: o fluxo de uma demanda, quem aprova o quê, e onde cada coisa mora.",
-    area: "Processos",
-    obrigatoria: true,
-    publicada: true,
-  },
-  {
-    id: "t2",
-    titulo: "Escrita para redes",
-    descricao: "Copy que funciona em feed, em story e em legenda.",
-    area: "Conteúdo",
-    obrigatoria: false,
-    publicada: true,
-  },
-  {
-    id: "t3",
-    titulo: "Mídia paga do zero",
-    descricao: "Em produção. Só a gestão vê esta enquanto não for publicada.",
-    area: "Mídia",
-    obrigatoria: false,
-    publicada: false,
-  },
-];
-
-function materiaisDe(trilhaId: string): MaterialComProgresso[] {
-  return (MATERIAIS[trilhaId] ?? []).map((m, indice) => ({
-    id: m.id,
-    track_id: trilhaId,
-    titulo: m.titulo,
-    descricao: m.descricao,
-    tipo: m.tipo,
-    url: m.url,
-    arquivo_url: null,
-    duracao_minutos: m.duracao,
-    ordem: indice + 1,
-    skill_id: m.skillNome ? "sk4" : null,
-    created_at: AGORA,
-    concluido: m.concluido,
-    concluidoEm: m.concluido ? AGORA : null,
-    anotacoes: m.anotacoes ?? null,
-    skillNome: m.skillNome ?? null,
-  }));
-}
-
-function montar(semente: SementeDeTrilha): TrilhaDaGrade {
-  const materiais = materiaisDe(semente.id);
-  const concluidos = materiais.filter((m) => m.concluido).length;
-  const duracoes = materiais
-    .map((m) => m.duracao_minutos)
-    .filter((d): d is number => typeof d === "number");
-
+function item(
+  parcial: Partial<ItemDoAcervo> & Pick<ItemDoAcervo, "id" | "tipo" | "titulo" | "slug">,
+): ItemDoAcervo {
   return {
-    id: semente.id,
-    titulo: semente.titulo,
-    descricao: semente.descricao,
-    area: semente.area,
+    resumo: null,
+    descricao: null,
+    categoria: null,
     capa_url: null,
-    obrigatoria: semente.obrigatoria,
-    publicada: semente.publicada,
+    tags: [],
+    autor_id: null,
+    publicado: true,
     ordem: 0,
-    criado_por: "a0000000-0000-0000-0000-000000000002",
+    duracao_estimada_minutos: null,
     created_at: AGORA,
-    quantosMateriais: materiais.length,
-    quantosConcluidos: concluidos,
-    duracaoMinutos: duracoes.length > 0 ? duracoes.reduce((t, d) => t + d, 0) : null,
-    situacao:
-      materiais.length > 0 && concluidos >= materiais.length
-        ? "concluida"
-        : concluidos > 0
-          ? "em_andamento"
-          : "nao_iniciada",
-    percentual:
-      materiais.length > 0 ? Math.round((concluidos / materiais.length) * 100) : 0,
+    updated_at: AGORA,
+    estado: "nao_iniciado",
+    vistos: 0,
+    total: 1,
+    percentual: 0,
+    duracaoMinutos: null,
+    obrigatorio: false,
+    prazo: null,
+    vencido: false,
+    ...parcial,
   };
 }
 
-/**
- * O rascunho so volta para a gestao -- e AQUI isso e imitacao, nao regra.
- *
- * No app, `listarTrilhas` nao filtra por `publicada`: quem esconde a trilha
- * em rascunho e a policy `academy_tracks_select`, e e ela que vale. O
- * prototipo nao tem Supabase atras, entao sem esta linha o cartao "Midia
- * paga do zero" aparecia na captura do colaborador -- uma imagem afirmando
- * o contrario do produto.
- *
- * A recusa de verdade esta em supabase/testes/09_academy_e_recomendacoes.sql.
- */
-const GESTAO = ["socio", "desenvolvedor"].includes(process.env.PROTOTIPO_ROLE ?? "socio");
+const ACERVO: ItemDoAcervo[] = [
+  item({
+    id: "aca00001-0000-4000-8000-000000000001",
+    tipo: "playbook",
+    titulo: "Briefing que não volta com dúvida",
+    slug: "briefing-que-nao-volta-com-duvida",
+    resumo: "As sete perguntas que todo briefing responde antes de sair da mesa.",
+    categoria: "Atendimento",
+    tags: ["briefing", "atendimento"],
+    estado: "concluido",
+    vistos: 1,
+    percentual: 100,
+  }),
+  item({
+    id: "aca00002-0000-4000-8000-000000000002",
+    tipo: "playbook",
+    titulo: "Como a gente apresenta para o cliente",
+    slug: "como-a-gente-apresenta-para-o-cliente",
+    resumo: "A ordem da conversa, o que mostrar primeiro e o que nunca abrir em reunião.",
+    categoria: "Atendimento",
+    tags: ["apresentação", "cliente"],
+    estado: "releitura",
+  }),
+  item({
+    id: "aca00003-0000-4000-8000-000000000003",
+    tipo: "playbook",
+    titulo: "Padrões de nomeação de arquivo",
+    slug: "padroes-de-nomeacao-de-arquivo",
+    resumo: "Como nomear pasta, arte e versão para o próximo achar.",
+    categoria: "Produção",
+    publicado: false,
+  }),
+  item({
+    id: "aca00004-0000-4000-8000-000000000004",
+    tipo: "ebook",
+    titulo: "A marca da Full, por dentro",
+    slug: "a-marca-da-full-por-dentro",
+    resumo: "O símbolo, a paleta e os usos que a gente não faz.",
+    categoria: "Cultura",
+    tags: ["marca"],
+    duracaoMinutos: 40,
+  }),
+  item({
+    id: "aca00005-0000-4000-8000-000000000005",
+    tipo: "curso",
+    titulo: "Tráfego pago do zero",
+    slug: "trafego-pago-do-zero",
+    resumo: "Da conta de anúncios ao primeiro relatório que o cliente entende.",
+    categoria: "Mídia",
+    tags: ["tráfego", "mídia"],
+    estado: "em_andamento",
+    vistos: 2,
+    total: 5,
+    percentual: 40,
+    duracaoMinutos: 185,
+  }),
+  item({
+    id: "aca00006-0000-4000-8000-000000000006",
+    tipo: "curso",
+    titulo: "Primeiros 30 dias na Full",
+    slug: "primeiros-30-dias-na-full",
+    resumo: "O que você precisa saber na primeira semana, e o que pode esperar.",
+    categoria: "Cultura",
+    estado: "em_andamento",
+    vistos: 1,
+    total: 4,
+    percentual: 25,
+    obrigatorio: true,
+    prazo: "2026-09-10",
+    vencido: true,
+    duracaoMinutos: 95,
+  }),
+];
 
-const visiveis = () => TRILHAS.filter((t) => t.publicada || GESTAO);
-
-// As assinaturas espelham as reais mesmo quando o argumento nao e usado: o
-// `npm run build` do prototipo faz typecheck contra as telas de verdade, e foi
-// ele que pegou esta divergencia.
-export async function listarTrilhas(_usuarioId: string): Promise<TrilhaDaGrade[]> {
-  return visiveis().map(montar);
+export async function listarAcervo(_usuarioId: string): Promise<ItemDoAcervo[]> {
+  return ACERVO;
 }
 
-export async function obterTrilha(
-  id: string,
+export async function abrirItem(
+  slug: string,
   _usuarioId: string,
-): Promise<TrilhaCompleta | null> {
-  const semente = visiveis().find((t) => t.id === id);
-  if (!semente) return null;
-  return { ...montar(semente), materiais: materiaisDe(semente.id) };
+): Promise<ItemAberto | null> {
+  const achado = ACERVO.find((i) => i.slug === slug);
+  if (!achado) return null;
+
+  const base = {
+    item: achado,
+    estado: achado.estado,
+    vistos: achado.vistos,
+    total: achado.total,
+    playbook: null,
+    arquivo: null,
+    curso: null,
+  } satisfies ItemAberto;
+
+  if (achado.tipo === "playbook") {
+    const texto = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "Antes de qualquer coisa, pergunte o que o cliente quer que aconteça depois que a peça for ao ar. É a única pergunta que separa um briefing de um pedido.",
+            },
+          ],
+        },
+      ],
+    };
+    const releitura = achado.estado === "releitura";
+    return {
+      ...base,
+      playbook: {
+        versaoCorrente: {
+          id: "ver00001-0000-4000-8000-000000000001",
+          item_id: achado.id,
+          numero_versao: releitura ? 2 : 1,
+          conteudo_rico: texto,
+          conteudo_texto: "Antes de qualquer coisa, pergunte o que o cliente quer.",
+          notas_mudanca: releitura
+            ? "A ordem da apresentação mudou: o preço passa a vir depois do conceito."
+            : null,
+          exige_releitura: releitura,
+          publicado_por: null,
+          publicado_em: AGORA,
+        },
+        historico: [],
+        versaoConfirmada: achado.estado === "nao_iniciado" ? null : 1,
+        versaoDeReleitura: releitura ? 2 : null,
+      },
+    };
+  }
+
+  if (achado.tipo === "ebook") {
+    return {
+      ...base,
+      arquivo: {
+        id: "arq00001-0000-4000-8000-000000000001",
+        item_id: achado.id,
+        url: "/exemplos/marca.pdf",
+        nome: "a-marca-da-full.pdf",
+        tamanho_bytes: 4_200_000,
+        paginas: 28,
+        created_at: AGORA,
+      },
+    };
+  }
+
+  return {
+    ...base,
+    curso: {
+      modulos: [
+        {
+          id: "mod00001-0000-4000-8000-000000000001",
+          item_id: achado.id,
+          titulo: "O começo",
+          descricao: "O que precisa estar pronto antes da primeira campanha.",
+          ordem: 0,
+          aulas: [
+            {
+              id: "aul00001-0000-4000-8000-000000000001",
+              modulo_id: "mod00001-0000-4000-8000-000000000001",
+              titulo: "Por que medir antes de anunciar",
+              tipo: "video",
+              url: "https://www.youtube.com/watch?v=exemplo",
+              conteudo_rico: null,
+              arquivo_url: null,
+              duracao_minutos: 12,
+              ordem: 0,
+            },
+            {
+              id: "aul00002-0000-4000-8000-000000000002",
+              modulo_id: "mod00001-0000-4000-8000-000000000001",
+              titulo: "A conta de anúncios, passo a passo",
+              tipo: "texto",
+              url: null,
+              conteudo_rico: null,
+              arquivo_url: null,
+              duracao_minutos: 20,
+              ordem: 1,
+            },
+            {
+              id: "aul00003-0000-4000-8000-000000000003",
+              modulo_id: "mod00001-0000-4000-8000-000000000001",
+              titulo: "Checklist de primeira campanha",
+              tipo: "pdf",
+              url: null,
+              conteudo_rico: null,
+              arquivo_url: "/exemplos/checklist.pdf",
+              duracao_minutos: null,
+              ordem: 2,
+            },
+          ],
+        },
+      ],
+      vistas: new Set(["aul00001-0000-4000-8000-000000000001"]),
+    },
+  };
+}
+
+export async function minhaAnotacao(
+  _itemId: string,
+  _aulaId: string | null,
+  _usuarioId: string,
+): Promise<string> {
+  return "Perguntar à Carla como ela faz a parte do orçamento.";
+}
+
+export async function buscarNoAcervo(
+  _termo: string,
+  _usuarioId: string,
+): Promise<AchadoDaBusca[]> {
+  return ACERVO.slice(0, 2).map((i) => ({ ...i, trecho: null }));
 }
 
 export async function acompanhamentoDaEquipe(): Promise<LinhaDoAcompanhamento[]> {
-  // O Bruno terminou a obrigatoria e a Carla esta na metade: e o contraste que
-  // faz a coluna de progresso dizer alguma coisa. Uma tabela onde todo mundo
-  // esta em 0% nao mostra que a tela funciona.
   return [
     {
-      usuarioId: "a0000000-0000-0000-0000-000000000004",
-      nome: "Bruno Alves",
-      trilhaId: "t1",
-      trilha: "Onboarding da casa",
-      obrigatoria: true,
-      concluidos: 3,
-      total: 3,
-      percentual: 100,
-      concluidaEm: "2026-09-12T14:00:00.000Z",
+      user_id: "11111111-1111-1111-1111-111111111111",
+      pessoa: "Ana Souza",
+      funcao: "Gestao",
+      item_id: "aca00006-0000-4000-8000-000000000006",
+      item: "Primeiros 30 dias na Full",
+      tipo: "curso",
+      estado: "concluido",
+      prazo: "2026-02-10",
+      vencido: false,
     },
     {
-      usuarioId: "a0000000-0000-0000-0000-000000000003",
-      nome: "Carla Reis",
-      trilhaId: "t1",
-      trilha: "Onboarding da casa",
-      obrigatoria: true,
-      concluidos: 1,
-      total: 3,
-      percentual: 33,
-      concluidaEm: null,
+      user_id: "33333333-3333-3333-3333-333333333333",
+      pessoa: "Carla Reis",
+      funcao: "Atendimento",
+      item_id: "aca00001-0000-4000-8000-000000000001",
+      item: "Briefing que não volta com dúvida",
+      tipo: "playbook",
+      estado: "releitura",
+      prazo: "2026-09-15",
+      vencido: true,
     },
     {
-      usuarioId: "a0000000-0000-0000-0000-000000000005",
-      nome: "Marina Costa",
-      trilhaId: "t1",
-      trilha: "Onboarding da casa",
-      obrigatoria: true,
-      concluidos: 0,
-      total: 3,
-      percentual: 0,
-      concluidaEm: null,
+      user_id: "44444444-4444-4444-4444-444444444444",
+      pessoa: "Bruno Alves",
+      funcao: "Design",
+      item_id: "aca00006-0000-4000-8000-000000000006",
+      item: "Primeiros 30 dias na Full",
+      tipo: "curso",
+      estado: "em_andamento",
+      prazo: "2026-09-10",
+      vencido: true,
     },
     {
-      usuarioId: "a0000000-0000-0000-0000-000000000005",
-      nome: "Marina Costa",
-      trilhaId: "t2",
-      trilha: "Escrita para redes",
-      obrigatoria: false,
-      concluidos: 1,
-      total: 2,
-      percentual: 50,
-      concluidaEm: null,
+      user_id: "55555555-5555-5555-5555-555555555555",
+      pessoa: "Marina Costa",
+      funcao: "Social Media",
+      item_id: "aca00006-0000-4000-8000-000000000006",
+      item: "Primeiros 30 dias na Full",
+      tipo: "curso",
+      estado: "nao_iniciado",
+      prazo: null,
+      vencido: false,
     },
   ];
 }
 
-export async function skillsParaVincular() {
-  return [
-    { id: "sk1", nome: "Design Gráfico" },
-    { id: "sk4", nome: "Copywriting" },
-    { id: "sk5", nome: "Social Media" },
-  ];
+export async function listarTrilhas() {
+  return [];
 }

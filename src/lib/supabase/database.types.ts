@@ -114,7 +114,28 @@ export type ContentStatus =
   | "rejeitado"
   | "stand_by";
 
-/** O que o material É. O ícone e o jeito de abrir saem daqui. */
+/**
+ * O FORMATO de um item do acervo (0096).
+ *
+ * São três e não mais, e a diferença entre eles é ONDE o conteúdo mora: o
+ * playbook em `academy_playbook_versoes`, o e-book em `academy_arquivos`, o
+ * curso em `academy_modulos`/`academy_aulas`.
+ */
+export type AcademyTipo = "playbook" | "ebook" | "curso";
+
+/** O que uma aula de curso É. O ícone e o jeito de abrir saem daqui. */
+export type AcademyAulaTipo = "video" | "texto" | "pdf" | "link" | "exercicio";
+
+/**
+ * O tipo do material no modelo ANTIGO (0017), que a 0096 converteu.
+ *
+ * Ele fica como `pf_tipo` ficou na 0034: o enum continua no banco porque
+ * `alter type ... drop value` não existe no Postgres, e nenhuma coluna aponta
+ * para ele. **Nenhuma tela do produto o lê** — o de-para para
+ * `AcademyAulaTipo` está no PASSO 14 da 0096, e os dois enums compartilham
+ * DOIS valores, não quatro: foi essa frase errada num comentário que fez a
+ * primeira versão daquela migration ser recusada ao ser aplicada.
+ */
 export type MaterialTipo =
   | "video"
   | "artigo"
@@ -1575,37 +1596,296 @@ export interface Database {
         };
         Relationships: [];
       };
-      academy_tracks: {
+      // ----------------------------------------------------------------
+      // FULL ACADEMY (0096): playbook, e-book e curso.
+      //
+      // `academy_items` e UMA tabela para os tres formatos -- o que muda e
+      // onde o conteudo mora, e e isso que as tres tabelas abaixo respondem.
+      // ----------------------------------------------------------------
+      academy_items: {
         Row: {
           id: string;
+          tipo: AcademyTipo;
           titulo: string;
+          slug: string;
+          resumo: string | null;
           descricao: string | null;
-          area: string | null;
+          categoria: string | null;
           capa_url: string | null;
-          obrigatoria: boolean;
-          publicada: boolean;
+          tags: string[];
+          autor_id: string | null;
+          publicado: boolean;
           ordem: number;
-          criado_por: string;
+          duracao_estimada_minutos: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: AcademyTipo;
+          titulo: string;
+          slug: string;
+          resumo?: string | null;
+          descricao?: string | null;
+          categoria?: string | null;
+          capa_url?: string | null;
+          tags?: string[];
+          autor_id?: string | null;
+          publicado?: boolean;
+          ordem?: number;
+          duracao_estimada_minutos?: number | null;
+        };
+        Update: {
+          titulo?: string;
+          slug?: string;
+          resumo?: string | null;
+          descricao?: string | null;
+          categoria?: string | null;
+          capa_url?: string | null;
+          tags?: string[];
+          publicado?: boolean;
+          ordem?: number;
+          duracao_estimada_minutos?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      // VERSAO FECHADA NUNCA E REESCRITA NEM APAGADA, e e por isso que nao ha
+      // `Update` aqui: tentar gravar numa versao publicada passa a ser erro de
+      // tipo antes de ser recusa do banco. E a forma de `tempo_medido_segundos`
+      // ficar fora de `Insert` na 0021.
+      academy_playbook_versoes: {
+        Row: {
+          id: string;
+          item_id: string;
+          numero_versao: number;
+          conteudo_rico: Json;
+          conteudo_texto: string;
+          notas_mudanca: string | null;
+          exige_releitura: boolean;
+          publicado_por: string | null;
+          publicado_em: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          numero_versao: number;
+          conteudo_rico: Json;
+          conteudo_texto: string;
+          notas_mudanca?: string | null;
+          exige_releitura?: boolean;
+          publicado_por?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      academy_arquivos: {
+        Row: {
+          id: string;
+          item_id: string;
+          url: string;
+          nome: string;
+          tamanho_bytes: number | null;
+          paginas: number | null;
           created_at: string;
         };
         Insert: {
           id?: string;
+          item_id: string;
+          url: string;
+          nome: string;
+          tamanho_bytes?: number | null;
+          paginas?: number | null;
+        };
+        Update: {
+          url?: string;
+          nome?: string;
+          tamanho_bytes?: number | null;
+          paginas?: number | null;
+        };
+        Relationships: [];
+      };
+      academy_modulos: {
+        Row: {
+          id: string;
+          item_id: string;
+          titulo: string;
+          descricao: string | null;
+          ordem: number;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
           titulo: string;
           descricao?: string | null;
-          area?: string | null;
-          capa_url?: string | null;
-          obrigatoria?: boolean;
-          publicada?: boolean;
           ordem?: number;
-          criado_por: string;
         };
         Update: {
           titulo?: string;
           descricao?: string | null;
-          area?: string | null;
-          capa_url?: string | null;
+          ordem?: number;
+        };
+        Relationships: [];
+      };
+      academy_aulas: {
+        Row: {
+          id: string;
+          modulo_id: string;
+          titulo: string;
+          tipo: AcademyAulaTipo;
+          url: string | null;
+          conteudo_rico: Json | null;
+          arquivo_url: string | null;
+          duracao_minutos: number | null;
+          ordem: number;
+        };
+        Insert: {
+          id?: string;
+          modulo_id: string;
+          titulo: string;
+          tipo: AcademyAulaTipo;
+          url?: string | null;
+          conteudo_rico?: Json | null;
+          arquivo_url?: string | null;
+          duracao_minutos?: number | null;
+          ordem?: number;
+        };
+        Update: {
+          titulo?: string;
+          tipo?: AcademyAulaTipo;
+          url?: string | null;
+          conteudo_rico?: Json | null;
+          arquivo_url?: string | null;
+          duracao_minutos?: number | null;
+          ordem?: number;
+        };
+        Relationships: [];
+      };
+      // `concluido_em` fica FORA de Insert e de Update: quem o carimba e o
+      // trigger `academy_progresso_carimbar`, e o relogio do navegador nao e
+      // prova de nada. E a forma do cronometro da subtarefa (0021).
+      academy_progresso: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_id: string;
+          aula_id: string | null;
+          concluido: boolean;
+          concluido_em: string | null;
+          versao_confirmada: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_id: string;
+          aula_id?: string | null;
+          concluido?: boolean;
+          versao_confirmada?: number | null;
+        };
+        Update: {
+          concluido?: boolean;
+          versao_confirmada?: number | null;
+        };
+        Relationships: [];
+      };
+      academy_anotacoes: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_id: string;
+          aula_id: string | null;
+          texto: string;
+          updated_at: string;
+        };
+        // `updated_at` ENTRA no Insert, ao contrário de quase toda outra
+        // tabela: o default é `now()` e nenhum trigger o reescreve, então quem
+        // grava por `upsert` precisa carimbá-lo. Sem isso a anotação editada
+        // continuaria dizendo a data em que foi escrita pela primeira vez.
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_id: string;
+          aula_id?: string | null;
+          texto: string;
+          updated_at?: string;
+        };
+        Update: {
+          texto?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      academy_obrigatorios: {
+        Row: {
+          id: string;
+          item_id: string;
+          funcao: TeamFuncao | null;
+          role: UserRole | null;
+          prazo_dias_apos_admissao: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          funcao?: TeamFuncao | null;
+          role?: UserRole | null;
+          prazo_dias_apos_admissao?: number | null;
+        };
+        Update: {
+          funcao?: TeamFuncao | null;
+          role?: UserRole | null;
+          prazo_dias_apos_admissao?: number | null;
+        };
+        Relationships: [];
+      };
+      academy_trilhas: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          funcao: TeamFuncao | null;
+          obrigatoria: boolean;
+          capa_url: string | null;
+          ordem: number;
+          publicada: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          descricao?: string | null;
+          funcao?: TeamFuncao | null;
           obrigatoria?: boolean;
+          capa_url?: string | null;
+          ordem?: number;
           publicada?: boolean;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          funcao?: TeamFuncao | null;
+          obrigatoria?: boolean;
+          capa_url?: string | null;
+          ordem?: number;
+          publicada?: boolean;
+        };
+        Relationships: [];
+      };
+      academy_trilha_itens: {
+        Row: {
+          id: string;
+          trilha_id: string;
+          item_id: string;
+          ordem: number;
+        };
+        Insert: {
+          id?: string;
+          trilha_id: string;
+          item_id: string;
+          ordem?: number;
+        };
+        Update: {
           ordem?: number;
         };
         Relationships: [];
@@ -1641,67 +1921,6 @@ export interface Database {
         Relationships: [];
       };
 
-      academy_materials: {
-        Row: {
-          id: string;
-          track_id: string;
-          titulo: string;
-          descricao: string | null;
-          tipo: MaterialTipo;
-          url: string | null;
-          arquivo_url: string | null;
-          duracao_minutos: number | null;
-          ordem: number;
-          skill_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          track_id: string;
-          titulo: string;
-          descricao?: string | null;
-          tipo: MaterialTipo;
-          url?: string | null;
-          arquivo_url?: string | null;
-          duracao_minutos?: number | null;
-          ordem?: number;
-          skill_id?: string | null;
-        };
-        Update: {
-          titulo?: string;
-          descricao?: string | null;
-          tipo?: MaterialTipo;
-          url?: string | null;
-          arquivo_url?: string | null;
-          duracao_minutos?: number | null;
-          ordem?: number;
-          skill_id?: string | null;
-        };
-        Relationships: [];
-      };
-      academy_progress: {
-        Row: {
-          id: string;
-          user_id: string;
-          material_id: string;
-          concluido: boolean;
-          concluido_em: string | null;
-          anotacoes: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          material_id: string;
-          concluido?: boolean;
-          anotacoes?: string | null;
-        };
-        Update: {
-          concluido?: boolean;
-          anotacoes?: string | null;
-        };
-        Relationships: [];
-      };
       recommendations: {
         Row: {
           id: string;
@@ -2982,7 +3201,42 @@ export interface Database {
       };
     };
     Functions: {
-      academy_reordenar: { Args: { p_track_id: string; p_ids: string[] }; Returns: number };
+      // As quatro perguntas derivadas do Academy (0096). Nenhuma escreve: o
+      // estado de uma pessoa num item, a versão corrente, a versão que cobra
+      // releitura, e as duas listas da obrigatoriedade.
+      academy_estado_do_item: {
+        Args: { p_user: string; p_item: string };
+        Returns: string;
+      };
+      academy_versao_corrente: { Args: { p_item: string }; Returns: number };
+      academy_versao_de_releitura: { Args: { p_item: string }; Returns: number };
+      academy_obrigatorios_de: {
+        Args: { p_user: string };
+        Returns: {
+          item_id: string;
+          titulo: string;
+          tipo: AcademyTipo;
+          slug: string;
+          categoria: string | null;
+          estado: string;
+          prazo: string | null;
+          vencido: boolean;
+        }[];
+      };
+      academy_acompanhamento: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string;
+          pessoa: string;
+          funcao: TeamFuncao | null;
+          item_id: string;
+          item: string;
+          tipo: AcademyTipo;
+          estado: string;
+          prazo: string | null;
+          vencido: boolean;
+        }[];
+      };
       auth_role: { Args: Record<string, never>; Returns: UserRole };
       is_staff: { Args: Record<string, never>; Returns: boolean };
       is_socio: { Args: Record<string, never>; Returns: boolean };
@@ -3834,16 +4088,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      academy_progresso_da_equipe: {
-        Row: {
-          user_id: string;
-          track_id: string;
-          material_id: string;
-          concluido: boolean;
-          concluido_em: string | null;
-        };
-        Relationships: [];
-      };
     };
     Enums: {
       user_role: UserRole;
@@ -3853,6 +4097,8 @@ export interface Database {
       subtask_status: SubtaskStatus;
       tipo_aprovacao: TipoAprovacao;
       escopo_rodada: EscopoRodada;
+      academy_tipo: AcademyTipo;
+      academy_aula_tipo: AcademyAulaTipo;
       material_tipo: MaterialTipo;
       rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
@@ -3875,9 +4121,17 @@ export interface Database {
 }
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-export type AcademyTrack = Database["public"]["Tables"]["academy_tracks"]["Row"];
-export type AcademyMaterial = Database["public"]["Tables"]["academy_materials"]["Row"];
-export type AcademyProgress = Database["public"]["Tables"]["academy_progress"]["Row"];
+export type AcademyItem = Database["public"]["Tables"]["academy_items"]["Row"];
+export type AcademyVersao =
+  Database["public"]["Tables"]["academy_playbook_versoes"]["Row"];
+export type AcademyArquivo = Database["public"]["Tables"]["academy_arquivos"]["Row"];
+export type AcademyModulo = Database["public"]["Tables"]["academy_modulos"]["Row"];
+export type AcademyAula = Database["public"]["Tables"]["academy_aulas"]["Row"];
+export type AcademyProgresso = Database["public"]["Tables"]["academy_progresso"]["Row"];
+export type AcademyAnotacao = Database["public"]["Tables"]["academy_anotacoes"]["Row"];
+export type AcademyObrigatorio =
+  Database["public"]["Tables"]["academy_obrigatorios"]["Row"];
+export type AcademyTrilha = Database["public"]["Tables"]["academy_trilhas"]["Row"];
 export type Recomendacao = Database["public"]["Tables"]["recommendations"]["Row"];
 export type RecomendacaoComentario =
   Database["public"]["Tables"]["recommendation_comments"]["Row"];

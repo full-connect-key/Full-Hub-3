@@ -4,293 +4,532 @@ import { ouFalha } from "./consulta";
 
 import { cache } from "react";
 
-import { duracaoDaTrilha, percentual, situacaoDaTrilha } from "@/lib/dominio/academy";
-import type { SituacaoDaTrilha } from "@/lib/dominio/academy";
+import {
+  duracaoSomada,
+  ehEstadoDoItem,
+  estadoDoCurso,
+  estadoDoPlaybook,
+  percentual,
+  semAcento,
+  trechoDoCasamento,
+  MINIMO_PARA_BUSCAR,
+} from "@/lib/dominio/academy";
+import type { EstadoDoItem } from "@/lib/dominio/academy";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { AcademyMaterial, AcademyTrack } from "@/lib/supabase/database.types";
+import type {
+  AcademyArquivo,
+  AcademyAula,
+  AcademyItem,
+  AcademyModulo,
+  AcademyTipo,
+  AcademyVersao,
+} from "@/lib/supabase/database.types";
 
 /**
- * As consultas da Full Academy.
+ * As consultas do Full Academy (0096).
  *
- * A RLS já resolve o que cada um enxerga: trilha em rascunho não volta para
- * quem não é gestão, e o progresso de outra pessoa não volta para ninguém.
- * Esta camada NÃO repete essas regras — repetir seria criar um segundo lugar
- * onde a mesma verdade pode divergir.
+ * A RLS já resolve o que cada um enxerga: item em rascunho não volta para quem
+ * não é autor nem gestão, e a anotação de outra pessoa não volta para ninguém
+ * — nem para o sócio. Esta camada **NÃO repete essas regras**: repetir seria
+ * criar um segundo lugar onde a mesma verdade pode divergir, e o segundo é
+ * sempre o que esquece.
  *
- * O que ela faz é o arranjo: juntar trilha, materiais e o progresso de quem
- * está logado numa coisa só, para a tela não fazer três consultas por cartão.
+ * O que ela faz é o arranjo — juntar o item, o conteúdo dele e o progresso de
+ * quem está logado numa coisa só, para a tela não fazer três consultas por
+ * cartão.
+ *
+ * **A ANOTAÇÃO NÃO ENTRA EM NENHUMA LEITURA DE LISTA**, e é deliberado: ela
+ * mora em tabela própria justamente porque policy não limita coluna, e trazê-la
+ * num `select *` ao lado do progresso desfaria em TypeScript a separação que a
+ * 0096 montou no banco. Quem a lê é `minhaAnotacao()`, uma pergunta de cada
+ * vez, sobre a própria pessoa.
  */
 
-export type TrilhaDaGrade = AcademyTrack & {
-  quantosMateriais: number;
-  quantosConcluidos: number;
-  duracaoMinutos: number | null;
-  situacao: SituacaoDaTrilha;
+// ---------------------------------------------------------------------------
+// O ACERVO
+// ---------------------------------------------------------------------------
+
+export type ItemDoAcervo = AcademyItem & {
+  estado: EstadoDoItem;
+  /** Quantos pedaços já foram vistos, e de quantos. Playbook e e-book são 0/1
+   *  ou 1/1; o curso é o número de aulas. */
+  vistos: number;
+  total: number;
   percentual: number;
+  duracaoMinutos: number | null;
+  /** Obrigatório para quem está pedindo, com o prazo que a conta do banco deu. */
+  obrigatorio: boolean;
+  prazo: string | null;
+  vencido: boolean;
 };
 
-/*
- * **A TRILHA NÃO TEM MAIS VITRINE DE SUGESTÃO** (migration 0043).
- *
- * O sinal que a alimentava saiu do produto junto com o módulo que o coletava,
- * e sem origem não há o que sugerir: manter a seção lendo outra coisa seria
- * inventar uma preferência que a pessoa nunca declarou, e uma sugestão
- * inventada gasta a credibilidade da seção inteira. O porquê está no cabeçalho
- * da 0043 e no CLAUDE.md — não aqui, porque a varredura de nomes mortos
- * acusaria o próprio texto que a explica.
- *
- * `academy_materials.skill_id` CONTINUA, e é decisão do usuário: o catálogo
- * fica como vocabulário de etiquetas.
- */
+type LinhaObrigatoria = {
+  item_id: string;
+  titulo: string;
+  tipo: AcademyTipo;
+  slug: string;
+  categoria: string | null;
+  estado: string;
+  prazo: string | null;
+  vencido: boolean;
+};
 
 /**
- * A grade de trilhas, já com o progresso de quem está pedindo.
+ * O acervo inteiro, já com o estado de quem está pedindo.
  *
- * Três consultas e não uma por trilha: a lista de trilhas, todos os materiais
- * delas e o progresso da pessoa. Com trinta trilhas na tela, uma consulta por
- * cartão seriam noventa idas ao banco para montar uma grade.
+ * SÃO CINCO IDAS AO BANCO, e nenhuma por cartão: os itens, as versões de
+ * playbook, as aulas de curso, o progresso da pessoa e a obrigatoriedade dela.
+ * Com quarenta itens na tela, uma consulta por cartão seriam duzentas idas
+ * para montar uma grade — e o estado de cada um precisa das quatro.
+ *
+ * **O ESTADO É CALCULADO AQUI E NÃO POR `academy_estado_do_item()`**, embora a
+ * função exista e seja a mesma conta. A razão é a forma da pergunta: aquela
+ * responde sobre UM par (pessoa, item), e o acervo precisa de quarenta — seriam
+ * quarenta chamadas de RPC. A função continua sendo quem responde no
+ * acompanhamento e na obrigatoriedade, que é onde o banco precisa decidir
+ * sozinho; aqui a tela faz a mesma conta com os dados que já trouxe. É a
+ * decisão de `situacaoDoLancamento()` no Financeiro.
  */
-export const listarTrilhas = cache(async (usuarioId: string): Promise<TrilhaDaGrade[]> => {
+export const listarAcervo = cache(async (usuarioId: string): Promise<ItemDoAcervo[]> => {
   const supabase = await criarClienteServidor();
 
-  const trilhas = ouFalha(
-    "as trilhas do Full Academy",
+  const itens = ouFalha(
+    "o acervo do Full Academy",
     await supabase
-      .from("academy_tracks")
+      .from("academy_items")
       .select("*")
       .order("ordem")
-      .order("created_at"),
+      .order("titulo"),
   );
 
-  if (!trilhas || trilhas.length === 0) return [];
+  if (itens.length === 0) return [];
 
-  const ids = trilhas.map((t) => t.id);
+  const ids = itens.map((i) => i.id);
 
-  const [resposta0, resposta1] = await Promise.all([
-      supabase
-        .from("academy_materials")
-        .select("id, track_id, duracao_minutos, skill_id")
-        .in("track_id", ids),
-      supabase
-        .from("academy_progress")
-        .select("material_id, concluido")
-        .eq("user_id", usuarioId)
-        .eq("concluido", true),
-    ]);
-  const materiais = ouFalha("os materiais das trilhas", resposta0);
-  const progresso = ouFalha("o meu progresso nas trilhas", resposta1);
+  const [versoes, modulos, progresso, obrigatorios] = await Promise.all([
+    supabase
+      .from("academy_playbook_versoes")
+      .select("item_id, numero_versao, exige_releitura")
+      .in("item_id", ids)
+      .then((r) => ouFalha("as versões dos playbooks", r)),
+    supabase
+      .from("academy_modulos")
+      .select("id, item_id")
+      .in("item_id", ids)
+      .then((r) => ouFalha("os módulos dos cursos", r)),
+    supabase
+      .from("academy_progresso")
+      .select("item_id, aula_id, concluido, versao_confirmada")
+      .eq("user_id", usuarioId)
+      .in("item_id", ids)
+      .then((r) => ouFalha("o seu progresso no acervo", r)),
+    supabase
+      .rpc("academy_obrigatorios_de", { p_user: usuarioId })
+      .then((r) => ouFalha("os itens obrigatórios para você", r)),
+  ]);
 
-  const concluidos = new Set(progresso.map((p) => p.material_id));
+  // As aulas vêm pelos módulos, numa ida: o curso não tem `item_id` na aula, e
+  // perguntar por item seria uma consulta por curso.
+  const aulas =
+    modulos.length === 0
+      ? []
+      : ouFalha(
+          "as aulas dos cursos",
+          await supabase
+            .from("academy_aulas")
+            .select("id, modulo_id, duracao_minutos")
+            .in(
+              "modulo_id",
+              modulos.map((m) => m.id),
+            ),
+        );
 
-  return trilhas.map((trilha) => {
-    const meus = materiais.filter((m) => m.track_id === trilha.id);
-    const quantosConcluidos = meus.filter((m) => concluidos.has(m.id)).length;
-    const situacao = situacaoDaTrilha(quantosConcluidos, meus.length);
+  const moduloDoItem = new Map(modulos.map((m) => [m.id, m.item_id]));
+  const aulasPorItem = new Map<string, { id: string; duracao_minutos: number | null }[]>();
+  for (const aula of aulas) {
+    const item = moduloDoItem.get(aula.modulo_id);
+    if (!item) continue;
+    const lista = aulasPorItem.get(item) ?? [];
+    lista.push({ id: aula.id, duracao_minutos: aula.duracao_minutos });
+    aulasPorItem.set(item, lista);
+  }
+
+  // A versão de releitura é o MAIOR número entre as que exigem releitura, e é
+  // a comparação que decide se a pendência volta. Nunca a corrente: uma
+  // publicação leve não cobra de novo quem já leu.
+  const releituraPorItem = new Map<string, number>();
+  for (const v of versoes) {
+    if (!v.exige_releitura) continue;
+    const atual = releituraPorItem.get(v.item_id) ?? 0;
+    if (v.numero_versao > atual) releituraPorItem.set(v.item_id, v.numero_versao);
+  }
+
+  const doItem = new Map<string, typeof progresso>();
+  for (const p of progresso) {
+    const lista = doItem.get(p.item_id) ?? [];
+    lista.push(p);
+    doItem.set(p.item_id, lista);
+  }
+
+  const obrigatorioPorItem = new Map<string, LinhaObrigatoria>(
+    (obrigatorios as LinhaObrigatoria[]).map((o) => [o.item_id, o]),
+  );
+
+  return itens.map((item) => {
+    const linhas = doItem.get(item.id) ?? [];
+    const doItemTodo = linhas.find((l) => l.aula_id === null);
+    const aulasDele = aulasPorItem.get(item.id) ?? [];
+
+    let estado: EstadoDoItem;
+    let vistos = 0;
+    let total = 1;
+
+    if (item.tipo === "playbook") {
+      estado = estadoDoPlaybook(
+        doItemTodo?.versao_confirmada ?? null,
+        releituraPorItem.get(item.id) ?? null,
+      );
+      vistos = estado === "concluido" ? 1 : 0;
+    } else if (item.tipo === "curso") {
+      total = aulasDele.length;
+      vistos = linhas.filter((l) => l.aula_id !== null && l.concluido).length;
+      estado = estadoDoCurso(vistos, total);
+    } else {
+      vistos = doItemTodo?.concluido ? 1 : 0;
+      estado = vistos === 1 ? "concluido" : "nao_iniciado";
+    }
+
+    const obrigatorio = obrigatorioPorItem.get(item.id);
 
     return {
-      ...trilha,
-      quantosMateriais: meus.length,
-      quantosConcluidos,
-      duracaoMinutos: duracaoDaTrilha(meus.map((m) => m.duracao_minutos)),
-      situacao,
-      percentual: percentual(quantosConcluidos, meus.length),
+      ...item,
+      estado,
+      vistos,
+      total,
+      percentual: percentual(vistos, total),
+      duracaoMinutos:
+        duracaoSomada(aulasDele.map((a) => a.duracao_minutos)) ??
+        item.duracao_estimada_minutos,
+      obrigatorio: Boolean(obrigatorio),
+      prazo: obrigatorio?.prazo ?? null,
+      vencido: obrigatorio?.vencido ?? false,
     };
   });
 });
 
-export type MaterialComProgresso = AcademyMaterial & {
-  concluido: boolean;
-  concluidoEm: string | null;
-  /** A anotação de QUEM ESTÁ PEDINDO, e de mais ninguém. A RLS garante isso;
-   *  a tela nunca recebe a de outra pessoa. */
-  anotacoes: string | null;
-  skillNome: string | null;
+// ---------------------------------------------------------------------------
+// UM ITEM
+// ---------------------------------------------------------------------------
+
+export type PlaybookAberto = {
+  versaoCorrente: AcademyVersao | null;
+  historico: AcademyVersao[];
+  versaoConfirmada: number | null;
+  versaoDeReleitura: number | null;
 };
 
-export type TrilhaCompleta = TrilhaDaGrade & {
-  materiais: MaterialComProgresso[];
+export type CursoAberto = {
+  modulos: (AcademyModulo & { aulas: AcademyAula[] })[];
+  vistas: Set<string>;
 };
 
-export const obterTrilha = cache(
-  async (id: string, usuarioId: string): Promise<TrilhaCompleta | null> => {
-    const supabase = await criarClienteServidor();
-
-    // `limit(1)` E NÃO `maybeSingle()`, e não é estilo: a resposta de
-    // `maybeSingle()` é uma UNIÃO de duas formas, e o genérico de `ouFalha`
-    // resolve a união para `never`. O erro não sai aqui — sai no `...trilha` do
-    // `return`, setenta linhas abaixo, dizendo que não se espalha `never`.
-    const [trilha] = ouFalha(
-      "a trilha pedida",
-      await supabase.from("academy_tracks").select("*").eq("id", id).limit(1),
-    );
-
-    // Null aqui pode ser "não existe" ou "a RLS recusou" — e a tela trata os
-    // dois como 404 de propósito. Dizer "existe, mas você não pode ver"
-    // entrega que a trilha existe, que é justamente o que o rascunho não pode
-    // contar.
-    if (!trilha) return null;
-
-    const materiais = ouFalha(
-      "os materiais da trilha",
-      await supabase
-        .from("academy_materials")
-        .select("*")
-        .eq("track_id", id)
-        .order("ordem")
-        .order("created_at"),
-    );
-
-    const listaDeMateriais = materiais;
-    const idsDeMaterial = listaDeMateriais.map((m) => m.id);
-    const idsDeSkill = [
-      ...new Set(listaDeMateriais.map((m) => m.skill_id).filter((s): s is string => !!s)),
-    ];
-
-    // O VAZIO SAI FORA DO `Promise.all`, e não como um `Promise.resolve({ data:
-    // [] })` dentro dele. O ramo falso levava um `[] as never[]`, e aí o tipo
-    // que `ouFalha` devolve é a UNIÃO dos dois ramos — o TypeScript resolve para
-    // `never`, e o erro sai três blocos abaixo, num `...material` que não tem
-    // nada a ver com progresso.
-    const [progresso, skills] = await Promise.all([
-      idsDeMaterial.length > 0
-        ? supabase
-            .from("academy_progress")
-            .select("material_id, concluido, concluido_em, anotacoes")
-            .eq("user_id", usuarioId)
-            .in("material_id", idsDeMaterial)
-            .then((r) => ouFalha("o meu progresso na trilha", r))
-        : Promise.resolve([]),
-      idsDeSkill.length > 0
-        ? supabase
-            .from("skills")
-            .select("id, nome")
-            .in("id", idsDeSkill)
-            .then((r) => ouFalha("as etiquetas da trilha", r))
-        : Promise.resolve([]),
-    ]);
-
-    const porMaterial = new Map(progresso.map((p) => [p.material_id, p]));
-    const nomeDaSkill = new Map(skills.map((s) => [s.id, s.nome]));
-
-    const comProgresso: MaterialComProgresso[] = listaDeMateriais.map((material) => {
-      const meu = porMaterial.get(material.id);
-      return {
-        ...material,
-        concluido: meu?.concluido ?? false,
-        concluidoEm: meu?.concluido_em ?? null,
-        anotacoes: meu?.anotacoes ?? null,
-        skillNome: material.skill_id ? (nomeDaSkill.get(material.skill_id) ?? null) : null,
-      };
-    });
-
-    const quantosConcluidos = comProgresso.filter((m) => m.concluido).length;
-    const situacao = situacaoDaTrilha(quantosConcluidos, comProgresso.length);
-
-    return {
-      ...trilha,
-      materiais: comProgresso,
-      quantosMateriais: comProgresso.length,
-      quantosConcluidos,
-      duracaoMinutos: duracaoDaTrilha(comProgresso.map((m) => m.duracao_minutos)),
-      situacao,
-      percentual: percentual(quantosConcluidos, comProgresso.length),
-    };
-  },
-);
-
-export type LinhaDoAcompanhamento = {
-  usuarioId: string;
-  nome: string;
-  trilhaId: string;
-  trilha: string;
-  obrigatoria: boolean;
-  concluidos: number;
+export type ItemAberto = {
+  item: AcademyItem;
+  estado: EstadoDoItem;
+  vistos: number;
   total: number;
-  percentual: number;
-  /** A data em que o ÚLTIMO material foi concluído. Null enquanto falta
-   *  algum: a trilha só tem data de conclusão quando está concluída. */
-  concluidaEm: string | null;
+  playbook: PlaybookAberto | null;
+  arquivo: AcademyArquivo | null;
+  curso: CursoAberto | null;
 };
 
 /**
- * A aba Acompanhamento.
+ * Um item com o conteúdo do formato dele, e só do dele.
  *
- * LÊ PELA VIEW `academy_progresso_da_equipe`, e nunca por `academy_progress`.
- * A view não tem a coluna `anotacoes`, e é isso que mantém a anotação pessoal
- * privada — policy não limita coluna, então a separação é esta. Trocar a view
- * pela tabela aqui entregaria à gestão o que cada pessoa escreveu para si.
+ * O `switch` por tipo acontece AQUI e não na tela, e isso é o que permite a
+ * tela de dentro ser uma só: ela recebe `playbook`, `arquivo` ou `curso`
+ * preenchido e desenha o que veio. Três telas parecidas divergiriam na
+ * primeira mudança — e a que divergiria é a do e-book, que é a que ninguém
+ * abre para testar.
  *
- * Trilha obrigatória primeiro: é a única em que "quem não fez" é uma pergunta
- * que alguém precisa responder.
+ * Devolve `null` quando não há item com aquele slug: a RLS esconde o rascunho
+ * de quem não é autor nem gestão, então "não achei" e "não é seu" chegam
+ * iguais, e a tela responde 404 nos dois casos. É o certo — dizer "existe, mas
+ * não é seu" contaria que ele existe.
  */
-export const acompanhamentoDaEquipe = cache(
-  async (): Promise<LinhaDoAcompanhamento[]> => {
-    const supabase = await criarClienteServidor();
-
-    const [resposta0, resposta1, resposta2, resposta3] = await Promise.all([
-        supabase.from("academy_tracks").select("id, titulo, obrigatoria").eq("publicada", true),
-        supabase.from("profiles").select("id, nome").eq("ativo", true).neq("role", "cliente"),
-        supabase.from("academy_materials").select("id, track_id"),
-        supabase.from("academy_progresso_da_equipe").select("*").eq("concluido", true),
-      ]);
-    const trilhas = ouFalha("as trilhas do acompanhamento", resposta0);
-    const pessoas = ouFalha("a equipe do acompanhamento", resposta1);
-    const materiais = ouFalha("os materiais do acompanhamento", resposta2);
-    const progresso = ouFalha("o progresso da equipe", resposta3);
-
-    if (!trilhas || !pessoas) return [];
-
-    const linhas: LinhaDoAcompanhamento[] = [];
-
-    for (const trilha of trilhas) {
-      const total = materiais.filter((m) => m.track_id === trilha.id).length;
-      if (total === 0) continue;
-
-      for (const pessoa of pessoas) {
-        const meus = progresso.filter(
-          (p) => p.track_id === trilha.id && p.user_id === pessoa.id,
-        );
-        const concluidos = meus.length;
-
-        const datas = meus
-          .map((p) => p.concluido_em)
-          .filter((d): d is string => !!d)
-          .sort();
-
-        linhas.push({
-          usuarioId: pessoa.id,
-          nome: pessoa.nome,
-          trilhaId: trilha.id,
-          trilha: trilha.titulo,
-          obrigatoria: trilha.obrigatoria,
-          concluidos,
-          total,
-          percentual: percentual(concluidos, total),
-          concluidaEm: concluidos >= total ? (datas.at(-1) ?? null) : null,
-        });
-      }
-    }
-
-    return linhas.sort(
-      (a, b) =>
-        Number(b.obrigatoria) - Number(a.obrigatoria) ||
-        a.trilha.localeCompare(b.trilha) ||
-        a.percentual - b.percentual ||
-        a.nome.localeCompare(b.nome),
-    );
-  },
-);
-
-/** O catálogo de skills, para vincular material a skill na tela de gestão. */
-export const skillsParaVincular = cache(async () => {
+export async function abrirItem(
+  slug: string,
+  usuarioId: string,
+): Promise<ItemAberto | null> {
   const supabase = await criarClienteServidor();
-  const data = ouFalha(
-    "as trilhas recomendadas",
-    await supabase
-      .from("skills")
-      .select("id, nome")
-      .eq("ativa", true)
-      .order("nome"),
+
+  const achados = ouFalha(
+    "o item do Full Academy",
+    await supabase.from("academy_items").select("*").eq("slug", slug).limit(1),
   );
-  return data;
+  const item = achados[0];
+  if (!item) return null;
+
+  const progresso = ouFalha(
+    "o seu progresso neste item",
+    await supabase
+      .from("academy_progresso")
+      .select("aula_id, concluido, versao_confirmada")
+      .eq("user_id", usuarioId)
+      .eq("item_id", item.id),
+  );
+  const doItemTodo = progresso.find((p) => p.aula_id === null);
+
+  if (item.tipo === "playbook") {
+    const historico = ouFalha(
+      "o histórico de versões",
+      await supabase
+        .from("academy_playbook_versoes")
+        .select("*")
+        .eq("item_id", item.id)
+        .order("numero_versao", { ascending: false }),
+    );
+    const releitura =
+      historico.filter((v) => v.exige_releitura).map((v) => v.numero_versao)[0] ?? null;
+    const confirmada = doItemTodo?.versao_confirmada ?? null;
+    const estado = estadoDoPlaybook(confirmada, releitura);
+
+    return {
+      item,
+      estado,
+      vistos: estado === "concluido" ? 1 : 0,
+      total: 1,
+      playbook: {
+        versaoCorrente: historico[0] ?? null,
+        historico,
+        versaoConfirmada: confirmada,
+        versaoDeReleitura: releitura,
+      },
+      arquivo: null,
+      curso: null,
+    };
+  }
+
+  if (item.tipo === "ebook") {
+    const arquivos = ouFalha(
+      "o arquivo do e-book",
+      await supabase
+        .from("academy_arquivos")
+        .select("*")
+        .eq("item_id", item.id)
+        .order("created_at", { ascending: false })
+        .limit(1),
+    );
+    const feito = Boolean(doItemTodo?.concluido);
+
+    return {
+      item,
+      estado: feito ? "concluido" : "nao_iniciado",
+      vistos: feito ? 1 : 0,
+      total: 1,
+      playbook: null,
+      arquivo: arquivos[0] ?? null,
+      curso: null,
+    };
+  }
+
+  const modulos = ouFalha(
+    "os módulos do curso",
+    await supabase
+      .from("academy_modulos")
+      .select("*")
+      .eq("item_id", item.id)
+      .order("ordem"),
+  );
+
+  const aulas =
+    modulos.length === 0
+      ? []
+      : ouFalha(
+          "as aulas do curso",
+          await supabase
+            .from("academy_aulas")
+            .select("*")
+            .in(
+              "modulo_id",
+              modulos.map((m) => m.id),
+            )
+            .order("ordem"),
+        );
+
+  const vistas = new Set(
+    progresso.filter((p) => p.aula_id !== null && p.concluido).map((p) => p.aula_id as string),
+  );
+
+  return {
+    item,
+    estado: estadoDoCurso(vistas.size, aulas.length),
+    vistos: vistas.size,
+    total: aulas.length,
+    playbook: null,
+    arquivo: null,
+    curso: {
+      modulos: modulos.map((m) => ({
+        ...m,
+        aulas: aulas.filter((a) => a.modulo_id === m.id),
+      })),
+      vistas,
+    },
+  };
+}
+
+/**
+ * A anotação da própria pessoa. Consulta separada, e é o ponto.
+ *
+ * Ela não viaja junto com o progresso em lugar nenhum desta camada: a 0096 pôs
+ * a anotação em tabela própria porque **policy não limita coluna** e a gestão
+ * precisa ler `academy_progresso` para a aba Acompanhamento existir. Trazer as
+ * duas no mesmo objeto refaria em TypeScript o acoplamento que o banco
+ * desfez — e seria o lugar onde alguém, um dia, passa o objeto inteiro para a
+ * tela da gestão.
+ */
+export async function minhaAnotacao(
+  itemId: string,
+  aulaId: string | null,
+  usuarioId: string,
+): Promise<string> {
+  const supabase = await criarClienteServidor();
+  let consulta = supabase
+    .from("academy_anotacoes")
+    .select("texto")
+    .eq("user_id", usuarioId)
+    .eq("item_id", itemId);
+  consulta = aulaId ? consulta.eq("aula_id", aulaId) : consulta.is("aula_id", null);
+
+  const linhas = ouFalha("a sua anotação", await consulta.limit(1));
+  return linhas[0]?.texto ?? "";
+}
+
+// ---------------------------------------------------------------------------
+// A BUSCA DO MÓDULO
+// ---------------------------------------------------------------------------
+
+export type AchadoDaBusca = ItemDoAcervo & {
+  /** O trecho onde o termo casou, com reticências. `null` quando casou só no
+   *  título — aí a tela mostra o resumo. */
+  trecho: string | null;
+};
+
+/**
+ * A BUSCA ACHA DENTRO DO CORPO DO PLAYBOOK, e é por isso que ela existe.
+ *
+ * A paleta da topbar busca o NOME, e o faz de propósito: uma linha que casou
+ * no corpo não tem onde mostrar o porquê. Aqui tem — a linha carrega o trecho
+ * com o termo no meio, e aí "onde está escrito como a gente faz briefing" vira
+ * uma pergunta que o módulo responde.
+ *
+ * Duas consultas e não uma: o acervo (que já traz o estado de cada item) e o
+ * texto das versões correntes. Juntar seria um `or` com `ilike` em duas
+ * tabelas, que o PostgREST não faz num `select` só — e a alternativa, uma
+ * função no banco, devolveria o item sem o estado da pessoa.
+ */
+export async function buscarNoAcervo(
+  termo: string,
+  usuarioId: string,
+): Promise<AchadoDaBusca[]> {
+  if (termo.trim().length < MINIMO_PARA_BUSCAR) return [];
+
+  const [acervo, textos] = await Promise.all([
+    listarAcervo(usuarioId),
+    (async () => {
+      const supabase = await criarClienteServidor();
+      return ouFalha(
+        "o texto dos playbooks",
+        await supabase
+          .from("academy_playbook_versoes")
+          .select("item_id, numero_versao, conteudo_texto")
+          .order("numero_versao", { ascending: false }),
+      );
+    })(),
+  ]);
+
+  // Só a versão CORRENTE de cada playbook entra na busca. Sem este corte, uma
+  // frase apagada há três versões continuaria devolvendo o item — e o trecho
+  // mostrado não estaria na tela que a pessoa abriria.
+  const correnteDoItem = new Map<string, string>();
+  for (const v of textos) {
+    if (!correnteDoItem.has(v.item_id)) correnteDoItem.set(v.item_id, v.conteudo_texto);
+  }
+
+  const alvo = semAcento(termo.trim());
+
+  return acervo
+    .map((item) => {
+      const noTitulo = semAcento(item.titulo).includes(alvo);
+      const noResumo = semAcento(item.resumo ?? "").includes(alvo);
+      const nasTags = item.tags.some((t) => semAcento(t).includes(alvo));
+      const corpo = correnteDoItem.get(item.id) ?? null;
+      const trecho = trechoDoCasamento(corpo, termo.trim());
+
+      if (!noTitulo && !noResumo && !nasTags && !trecho) return null;
+      return { ...item, trecho };
+    })
+    .filter((x): x is AchadoDaBusca => x !== null);
+}
+
+// ---------------------------------------------------------------------------
+// A GESTÃO
+// ---------------------------------------------------------------------------
+
+export type LinhaDoAcompanhamento = {
+  user_id: string;
+  pessoa: string;
+  funcao: string | null;
+  item_id: string;
+  item: string;
+  tipo: AcademyTipo;
+  estado: EstadoDoItem;
+  prazo: string | null;
+  vencido: boolean;
+};
+
+/**
+ * Pessoa × item obrigatório, para a aba de gestão.
+ *
+ * `ouFalha()` e não um `?? []`: `academy_acompanhamento()` recusa quem não é
+ * gestão com uma EXCEÇÃO, e sem ele a tela desenharia uma tabela vazia — que
+ * se lê como "ninguém deve nada", uma afirmação falsa com toda a confiança. É
+ * a mesma razão das funções de métrica da 0035.
+ */
+export async function acompanhamentoDaEquipe(): Promise<LinhaDoAcompanhamento[]> {
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "o acompanhamento da formação",
+    await supabase.rpc("academy_acompanhamento"),
+  );
+  return linhas.map((l) => ({ ...l, estado: ehEstadoDoItem(l.estado) }));
+}
+
+/** As trilhas publicadas, para a prateleira. Elas não têm conteúdo próprio —
+ *  são uma ordem sobre itens que já existem. */
+export const listarTrilhas = cache(async () => {
+  const supabase = await criarClienteServidor();
+
+  const trilhas = ouFalha(
+    "as trilhas do Full Academy",
+    await supabase.from("academy_trilhas").select("*").order("ordem").order("nome"),
+  );
+  if (trilhas.length === 0) return [];
+
+  const itens = ouFalha(
+    "os itens das trilhas",
+    await supabase
+      .from("academy_trilha_itens")
+      .select("trilha_id, item_id, ordem")
+      .in(
+        "trilha_id",
+        trilhas.map((t) => t.id),
+      )
+      .order("ordem"),
+  );
+
+  return trilhas.map((trilha) => ({
+    ...trilha,
+    itens: itens.filter((i) => i.trilha_id === trilha.id).map((i) => i.item_id),
+  }));
 });
