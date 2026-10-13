@@ -995,16 +995,24 @@ select teste.conferir('E as dez tabelas novas estao todas de pe',
        'academy_trilha_itens')),
   '10');
 
--- E AS DEZ TEM RLS LIGADA. Uma tabela nova sem RLS e legivel por qualquer
--- pessoa com a chave anon -- e essa chave vai no bundle que o navegador baixa.
--- O numero esta escrito e nao derivado da lista acima de proposito: um cenario
--- que contasse "todas as que achou" passaria num banco onde metade nao existe.
-select teste.conferir('E as dez tem RLS ligada',
+-- E TODA TABELA `academy_` TEM RLS LIGADA. Uma tabela nova sem RLS e legivel
+-- por qualquer pessoa com a chave anon -- e essa chave vai no bundle que o
+-- navegador baixa. O numero esta escrito e nao derivado da lista acima de
+-- proposito: um cenario que contasse "todas as que achou" passaria num banco
+-- onde metade nao existe.
+--
+-- **O NUMERO SUBIU DE 10 PARA 12 NA 0102**, e e o cenario fazendo o trabalho
+-- dele: ele reprovou no dia em que `academy_ebook_capitulos` e
+-- `academy_ebook_checklists` nasceram, e so voltou a passar depois de alguem
+-- conferir que as duas tem RLS. E por isso que ele conta pelo PREFIXO e nao
+-- pela lista nominal de cima: a lista so sabe das que alguem lembrou de
+-- escrever nela, e o prefixo pega a decima terceira.
+select teste.conferir('E toda tabela do acervo tem RLS ligada',
   (select count(*)::text from pg_class c
      join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relrowsecurity
       and c.relname like 'academy\_%'),
-  '10');
+  '12');
 
 -- ---------------------------------------------------------------------------
 -- A ETIQUETA DO MATERIAL SAIU COM O MATERIAL; O CATALOGO FICA

@@ -452,7 +452,17 @@ from (
     -- alguem tenha colado so o comeco, a resposta certa e FALTA -- e um
     -- marcador na tabela responderia ok sobre um banco sem trigger, sem RLS e
     -- sem a funcao que a tela de gestao chama.
-    ('0101', 'tour_acompanhamento()', 'funcao', 'tour_acompanhamento')
+    ('0101', 'tour_acompanhamento()', 'funcao', 'tour_acompanhamento'),
+    -- A 0102 traz o e-book interativo: o enum do formato, as quatro colunas de
+    -- versao em `academy_arquivos`, os capitulos, o progresso por capitulo e os
+    -- checklists.
+    --
+    -- A linha aponta para `academy_ebook_checklists`, que e a ULTIMA tabela que
+    -- o arquivo cria -- e nao para `academy_ebook_capitulos`, que e a segunda:
+    -- num banco onde alguem colou so o comeco, a resposta certa e FALTA, e um
+    -- marcador nos capitulos responderia ok sobre um banco sem o progresso por
+    -- capitulo e sem os indices que o protegem.
+    ('0102', 'academy_ebook_checklists', 'tabela', 'academy_ebook_checklists')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
