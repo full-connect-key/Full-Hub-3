@@ -443,7 +443,16 @@ from (
     -- `funcao` responderia ok num banco parado la -- que e exatamente o estado
     -- que esta linha tem de acusar.
     ('0100', 'meses_de_social_do_portal devolve a demanda e o que espera',
-             'no_corpo', 'meses_de_social_do_portal|filter (')
+             'no_corpo', 'meses_de_social_do_portal|filter ('),
+    -- A 0101 cria o tour de primeiro acesso: o enum, `tour_progresso`, o
+    -- trigger das duas datas, as tres policies e o acompanhamento da gestao.
+    --
+    -- A linha aponta para `tour_acompanhamento()`, que e a ULTIMA coisa que o
+    -- arquivo cria, e nao para a tabela, que e a segunda: num banco onde
+    -- alguem tenha colado so o comeco, a resposta certa e FALTA -- e um
+    -- marcador na tabela responderia ok sobre um banco sem trigger, sem RLS e
+    -- sem a funcao que a tela de gestao chama.
+    ('0101', 'tour_acompanhamento()', 'funcao', 'tour_acompanhamento')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

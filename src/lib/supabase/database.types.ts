@@ -60,6 +60,13 @@ export type FinStatus = "previsto" | "faturado" | "pago" | "atrasado" | "cancela
 
 
 export type PfTipo = "entrada" | "saida";
+/**
+ * O tour de primeiro acesso (0101). ENUM e não `text`, ao contrário do que o
+ * sprint pedia: é a decisão de `midia` na 0042 — o que a tela desenha por cima
+ * precisa ser um nome que o compilador confere, e a mesma palavra com acento
+ * entraria calada num `text`.
+ */
+export type TourStatus = "em_andamento" | "concluido" | "pulado";
 
 export type TaskStatus =
   | "nao_iniciada"
@@ -3199,6 +3206,57 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      /**
+       * POR ONDE CADA PESSOA PASSOU EM CADA TOUR (0101).
+       *
+       * Os PASSOS não estão aqui, e isso é a decisão da migration: eles são
+       * interface — o seletor, a rota, a frase — e moram em `src/lib/tour/`,
+       * versionando junto com a tela. O banco guarda uma coisa só.
+       *
+       * `iniciado_em` e `finalizado_em` ficam **fora** de `Insert` e de
+       * `Update`: quem as escreve é o trigger `tour_progresso_carimba`, que
+       * descarta o que vier no pedido — a mesma razão pela qual
+       * `tempo_medido_segundos` e `andando_desde` ficam de fora em `subtasks`.
+       * Tentar gravá-las passa a ser erro de tipo antes de ser recusa calada
+       * do banco.
+       *
+       * `user_id` entra no `Insert` porque o `with check` da policy exige que
+       * ele seja o de quem está gravando — a tela manda, e o banco confere. E
+       * não entra no `Update`: mover a linha para outro nome é recusado, e o
+       * campo aqui só serviria para alguém tentar.
+       */
+      tour_progresso: {
+        Row: {
+          id: string;
+          user_id: string;
+          tour_id: string;
+          versao: number;
+          status: TourStatus;
+          passo_atual: number;
+          passos_pulados: string[];
+          passos_sem_ancora: string[];
+          iniciado_em: string;
+          finalizado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tour_id: string;
+          versao?: number;
+          status?: TourStatus;
+          passo_atual?: number;
+          passos_pulados?: string[];
+          passos_sem_ancora?: string[];
+        };
+        Update: {
+          versao?: number;
+          status?: TourStatus;
+          passo_atual?: number;
+          passos_pulados?: string[];
+          passos_sem_ancora?: string[];
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       // As quatro perguntas derivadas do Academy (0096). Nenhuma escreve: o
@@ -4069,6 +4127,35 @@ export interface Database {
         };
         Returns: string | null;
       };
+      /**
+       * PESSOA × TOUR, para a gestão (0101).
+       *
+       * Ela **não** é `security definer`, e a recusa chega como ERRO em vez de
+       * lista vazia: a diferença entre "você não pode" e "ninguém começou
+       * nenhum tour". `is_gestor()` está na primeira linha dela.
+       *
+       * E ela devolve linha com `tour_id` nulo para quem nunca começou — é
+       * justamente essa pessoa que a tela procura, e um `select` em
+       * `tour_progresso` seria cego para ela. O `left join` é o que produz
+       * isso, então tudo o que vem da tabela é nulável aqui.
+       */
+      tour_acompanhamento: {
+        Args: Record<string, never>;
+        Returns: {
+          user_id: string;
+          pessoa: string;
+          role: UserRole;
+          funcao: TeamFuncao | null;
+          tour_id: string | null;
+          versao: number | null;
+          status: TourStatus | null;
+          passo_atual: number | null;
+          passos_pulados: string[] | null;
+          passos_sem_ancora: string[] | null;
+          iniciado_em: string | null;
+          finalizado_em: string | null;
+        }[];
+      };
     };
     Views: {
       /** Progresso SEM a coluna `anotacoes`. É por aqui que a aba
@@ -4124,12 +4211,15 @@ export interface Database {
       skill_nivel: SkillNivel;
       fin_status: FinStatus;
       pf_tipo: PfTipo;
+      tour_status: TourStatus;
     };
     CompositeTypes: Record<string, never>;
   };
 }
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type TourProgresso =
+  Database["public"]["Tables"]["tour_progresso"]["Row"];
 export type AcademyItem = Database["public"]["Tables"]["academy_items"]["Row"];
 export type AcademyVersao =
   Database["public"]["Tables"]["academy_playbook_versoes"]["Row"];
