@@ -233,9 +233,19 @@ select teste.conferir('E o pedido virou comentario publico da rodada',
     where content_type = 'post' and content_id = :ENVIADO
       and interno = false and approval_round_id is not null), '1');
 
-select teste.conferir('A equipe foi avisada pelo sino',
+-- FILTRADO PELO TEMA DO POST, e nao so por pessoa e tipo. A primeira versao
+-- contava TODO aviso de `aprovacao` da Marina, e isso nunca mediu o que o nome
+-- do cenario diz: `teste.limpar()` nao mexe em `notifications`, entao qualquer
+-- aviso de aprovacao que ela receba num arquivo anterior faz a conta fechar
+-- sozinha. Foi a 0098 que mostrou -- ela passou a avisar quem tem a etapa
+-- quando ela volta para `em_ajustes`, a Marina ganhou um "Pediram ajuste em
+-- 'Conceito'" no arquivo 12, e este cenario reprovou com 2. O numero estava
+-- certo pelo motivo errado, que e a mesma armadilha do `select` antes do
+-- `insert` na idempotencia da recorrencia.
+select teste.conferir('A equipe foi avisada pelo sino, com o nome do post',
   (select count(*)::text from public.notifications
-    where user_id = :MARINA and tipo = 'aprovacao'), '1');
+    where user_id = :MARINA and tipo = 'aprovacao'
+      and titulo like '%Promocao de outubro%'), '1');
 
 select teste.recusa_com('Rodada decidida nao se redecide', :JOANA,
   format($fmt$select public.decidir_rodada_do_cliente(

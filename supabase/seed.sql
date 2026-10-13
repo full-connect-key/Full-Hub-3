@@ -1440,9 +1440,11 @@ begin
      order by ordem
   loop
     -- A ENTREGA PARA O LACO: a caixinha dela nao se marca a mao -- ela fecha
-    -- com a aprovacao do cliente, e e `posts_corrente_do_cliente` quem a
-    -- escreve. O `pos_entrega` nem e alcancado, que e o certo: ninguem
-    -- programa o que o cliente nao aprovou.
+    -- no ENVIO daquela peca desde a 0099, e quem a escreve e
+    -- `entrega_fecha_no_envio`, no instante em que a rodada de escopo cliente
+    -- nasce. O `pos_entrega` nem e alcancado, que e o certo: ninguem programa
+    -- o que o cliente nao aprovou -- e quem garante isso e a trava B, que
+    -- cobra a rodada APROVADA desta peca.
     exit when etapa.social_papel <> 'producao';
 
     update public.post_etapa_progresso g

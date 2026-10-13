@@ -333,7 +333,8 @@ select teste.cenario('E agora o Bruno marca o Layout', :BRUNO,
 
 -- A CAIXINHA DA ENTREGA NAO SE MARCA A MAO, NEM PELA SOCIA. E a regra da 0045
 -- um nivel abaixo: a etapa Envio era consequencia da rodada de escopo cliente,
--- e a caixinha dela e consequencia da APROVACAO daquele post.
+-- e a caixinha dela e consequencia do ENVIO daquela peca (0099) -- marcar a
+-- mao afirmaria que ela saiu sem nada ter saido.
 select teste.recusa_com('Nem a socia marca a caixinha da entrega', :ANA,
   format($fmt$update public.post_etapa_progresso set concluido = true
      where post_id = %L and subtask_id = %L$fmt$,
@@ -467,6 +468,48 @@ select teste.cenario('A gestao envia o post ao cliente', :DIEGO,
     values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
     current_setting('t21.post'), :DIEGO), 'ok', 1);
 
+-- ---------------------------------------------------------------------------
+-- A CAIXINHA DA ENTREGA FECHA AQUI (0099), E NAO NA APROVACAO
+--
+-- Decisao do usuario: *"a etapa chamada envio seja considerado concluido no
+-- momento em que todos os posts cheguem ao cliente"*. Enviar e o ato da
+-- agencia -- com hora, autor e rodada gravados --, e e ele que a fase de Envio
+-- mede; a decisao que vem depois e trabalho do cliente.
+--
+-- E O QUE ESTA MIGRATION PRECISAVA PROVAR E O CENARIO DE BAIXO: nada foi
+-- destravado. Quem garante "ninguem programa o que o cliente nao aprovou"
+-- nunca foi esta caixinha -- e a TRAVA B, que conta as rodadas APROVADAS desta
+-- peca contra os portoes anteriores. Com o Envio marcado e o cliente ainda
+-- calado, o Programar continua recusado.
+-- ---------------------------------------------------------------------------
+select teste.conferir('A caixinha da entrega fechou no ENVIO',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t21.post')::uuid
+      and subtask_id = current_setting('t21.envio')::uuid), 'true');
+
+select teste.conferir('E so a daquele post: a fase esta 1 de 3',
+  (select feitos || ' de ' || total
+     from public.progresso_da_etapa(current_setting('t21.envio')::uuid)), '1 de 3');
+
+select teste.conferir('O cliente ainda nao aprovou nada nesta peca',
+  public.aprovacoes_do_cliente_no_post(current_setting('t21.post')::uuid)::text, '0');
+
+-- O CENARIO QUE PROVA QUE NADA FOI DESTRAVADO. Antes da 0099 as DUAS travas
+-- disparavam aqui -- a caixinha da entrega estava aberta, entao a corrente
+-- tambem reclamava. Agora a A nem dispara, e a recusa que sobra e a certa.
+select teste.recusa_com('E o Programar continua travado, com o Envio marcado', :MARINA,
+  format($fmt$update public.post_etapa_progresso set concluido = true
+     where post_id = %L and subtask_id = %L$fmt$,
+     current_setting('t21.post'), current_setting('t21.programar')),
+  'ainda não aprovou Envio');
+
+-- QUEM FECHOU FOI QUEM ENVIOU, e nao o gatilho: `concluido_por` sai de
+-- `solicitado_por` da rodada.
+select teste.conferir('E a caixinha ficou assinada por quem enviou',
+  (select (concluido_por = :DIEGO)::text from public.post_etapa_progresso
+    where post_id = current_setting('t21.post')::uuid
+      and subtask_id = current_setting('t21.envio')::uuid), 'true');
+
 select teste.cenario('A Joana pede ajustes', :JOANA,
   format($fmt$select public.decidir_rodada_do_cliente(
     (select id from public.approval_rounds
@@ -498,6 +541,20 @@ select teste.conferir('E o pedido dele ficou na observacao daquela caixinha',
     where post_id = current_setting('t21.post')::uuid
       and subtask_id = current_setting('t21.layout')::uuid),
   'O logo ficou pequeno no rodape.');
+
+-- E A CAIXINHA DA ENTREGA DESMARCA JUNTO: a peca nao foi entregue, foi
+-- devolvida -- ela nao esta mais com o cliente, esta na agencia. Depois da
+-- 0099 este cenario mede mais do que media: a caixinha estava FECHADA (pelo
+-- envio), entao aqui ela e desmarcada de verdade em vez de confirmar um `false`
+-- que nunca tinha sido `true`.
+select teste.conferir('E a caixinha da entrega desmarcou junto',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t21.post')::uuid
+      and subtask_id = current_setting('t21.envio')::uuid), 'false');
+
+select teste.conferir('E a fase do Envio voltou a zero de tres',
+  (select feitos || ' de ' || total
+     from public.progresso_da_etapa(current_setting('t21.envio')::uuid)), '0 de 3');
 
 -- A CAIXINHA DO CONTEUDO NAO DESMARCA, e e a metade que importa: o cliente
 -- recusou a ARTE, nao o texto. Desmarcar a corrente inteira poria o redator
@@ -536,7 +593,11 @@ select teste.recusa_com('E a trava da entrega continua de pe depois disso', :ANA
 
 
 -- ---------------------------------------------------------------------------
--- 7. APROVAR FECHA A CAIXINHA DA ENTREGA
+-- 7. REENVIAR FECHA A CAIXINHA DA ENTREGA, E APROVAR LIBERA O PROGRAMAR
+--
+-- A secao se chamava "aprovar fecha a caixinha da entrega", e a 0099 partiu
+-- esse fato em dois: quem fecha a caixinha e o ENVIO, e o que a aprovacao
+-- libera e a fase seguinte daquela peca.
 -- ---------------------------------------------------------------------------
 
 select teste.cenario('O Bruno refaz e marca de novo', :BRUNO,
@@ -554,6 +615,15 @@ select teste.cenario('Segunda volta ao cliente', :DIEGO,
     values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$,
     current_setting('t21.post'), :DIEGO), 'ok', 1);
 
+-- E O REENVIO FECHA A CAIXINHA DE NOVO, pelo mesmo caminho: um lugar so, nos
+-- dois sentidos. E ela fecha ANTES de a Joana decidir -- e por isso que o
+-- cenario de baixo, que antes media o fechamento, hoje mede que a decisao nao
+-- mexe nela.
+select teste.conferir('O reenvio fechou a caixinha da entrega outra vez',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t21.post')::uuid
+      and subtask_id = current_setting('t21.envio')::uuid), 'true');
+
 select teste.cenario('E agora ela aprova', :JOANA,
   format($fmt$select public.decidir_rodada_do_cliente(
     (select id from public.approval_rounds
@@ -561,7 +631,7 @@ select teste.cenario('E agora ela aprova', :JOANA,
         and numero_rodada = 2),
     'aprovada', 'Ficou ótimo.')$fmt$, current_setting('t21.post')), 'ok', 1);
 
-select teste.conferir('A caixinha da entrega fechou sozinha',
+select teste.conferir('E a caixinha continua fechada depois da decisao',
   (select concluido::text from public.post_etapa_progresso
     where post_id = current_setting('t21.post')::uuid
       and subtask_id = current_setting('t21.envio')::uuid), 'true');
@@ -578,9 +648,9 @@ select teste.cenario('O Programar daquele post passa', :MARINA,
      current_setting('t21.post'), current_setting('t21.programar')), 'ok', 1);
 
 -- E A RECUSA DO OUTRO POST NOMEIA O PORTAO, e nao a corrente: a trava B vem
--- antes da A de proposito -- a caixinha da entrega so fecha pela aprovacao,
--- entao as duas valeriam, e "falta Envio" e verdade sem dizer de quem a bola
--- esta.
+-- antes da A de proposito. Aqui as duas valem de verdade -- aqueles dois posts
+-- nao foram enviados, entao a caixinha da entrega deles esta aberta --, e
+-- "falta Envio" e verdade sem dizer de quem a bola esta.
 select teste.recusa_com('E o de outro post continua travado', :MARINA,
   format($fmt$update public.post_etapa_progresso set concluido = true
      where subtask_id = %L and post_id <> %L$fmt$,

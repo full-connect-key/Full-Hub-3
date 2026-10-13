@@ -4229,6 +4229,99 @@ começa de verdade em `nao_iniciada`. É a lição do `select` antes do `insert`
 idempotência da recorrência: **um teste que não separa a resposta certa da
 errada é um teste que afirma sem provar.**
 
+#### E A FASE DE ENVIO FECHA NO ENVIO, não na aprovação
+
+Migration 0099. Decisão do usuário, com print: *"Preciso que a etapa do fluxo
+de social, chamada envio, seja considerado concluído no momento em que todos os
+posts cheguem ao cliente, e não seja necessário que se dê ok, em post por
+post."*
+
+**O print era a recusa da 0093** — *"A fase 'Envio' ainda tem 16 de 16 peças
+por marcar"* — num mês com a Pauta, o Conteúdo e o Layout concluídos, as
+dezesseis peças enviadas, e o Envio parado em "Em andamento" **sem nenhum
+caminho para fechar**.
+
+**O que estava errado não era a trava da 0093, era o que a caixinha da entrega
+SIGNIFICAVA.** A 0088 escolheu fechá-la na APROVAÇÃO daquela peça e escreveu a
+razão: *"marcar à mão afirmaria que a peça foi e voltou aprovada sem nada ter
+saído da agência"*. A frase está certa sobre marcar à MÃO e é um non sequitur
+sobre o evento: o que ela protege é que ninguém afirme a decisão do cliente por
+ele — e o ENVIO não é a decisão dele, é um ato da agência, com hora, autor e
+rodada gravados. **A caixinha continua sendo consequência e não clique; o que
+muda é DE QUE consequência ela é.**
+
+**E a consequência disso era uma fase sem saída.** A fase do mês é a soma das
+caixinhas desde a 0093 — com as dezesseis esperando resposta, a fase cujo
+trabalho (enviar) estava inteiro feito ficava em `em_andamento` até a última
+resposta chegar. Ela media o trabalho do CLIENTE, numa tela que existe para
+mostrar o trabalho da agência.
+
+**NINGUÉM PROGRAMA O QUE O CLIENTE NÃO APROVOU, e a trava continua inteira** —
+é a única coisa que esta migration precisava provar antes de existir. Quem
+garante aquilo nunca foi a caixinha da entrega: é a **trava B** de
+`post_etapa_progresso_regras` (0088), que conta `aprovacoes_do_cliente_no_post()`
+contra o número de portões anteriores àquela fase — e a entrega É um portão. A
+caixinha do Programar daquela peça continua recusada com *"O cliente ainda não
+aprovou Envio neste post"*, peça por peça, que é a metade "a aprovação continua
+por post" da 0088.
+
+A trava A — a corrente, neste post — é a que afrouxa, e de propósito: ela passa
+a dizer "esta peça saiu", que é verdade. **Era esse o argumento da ordem entre
+as duas**, e ele fica de pé pelo outro lado: lá a B vinha primeiro porque as
+duas disparavam e a A dizia *"falta Envio"* sem dizer o que fazer; aqui a A nem
+dispara, e o caso que sobra é a peça que NÃO foi enviada.
+
+**O gatilho mora em `approval_rounds`**, e não dentro de
+`marcar_conteudo_como_enviado()` (0033) nem de `enviar_mes_ao_cliente()` (0090):
+é a decisão da 0045 e da 0090 palavra por palavra — *"aquela função já foi
+reescrita inteira várias vezes, e cada reescrita é uma chance de o trecho ficar
+para trás"* —, a de 0033 já foi reescrita duas vezes, e o envio acontece por
+DOIS caminhos (o lote do mês e o post avulso). De quebra ele pega todo caminho
+que abre a rodada, o seed e um PATCH montado à mão inclusive.
+
+**Qual portão a rodada abre é POSICIONAL**, e a conta já existia:
+`porta_do_cliente_no_post()` devolve o (k+1)-ésimo portão, e no `after insert` a
+rodada nova está `pendente` — que não conta desde a 0023 —, então ela devolve
+exatamente o portão que aquela rodada veio decidir. **Um portão do MEIO não
+fecha caixinha nenhuma:** aquela caixinha é de quem escreveu a pauta, e marcá-la
+no envio afirmaria que a pessoa terminou um trabalho que a agência acabou de
+mandar para fora.
+
+**O pedido de ajustes continua desmarcando**, e o reenvio fecha de novo pelo
+mesmo caminho: a peça voltou para a agência, não está mais com o cliente, e a
+fase reabre pelo gatilho da 0093.
+
+**Três coisas ficam ditas em vez de escondidas:**
+
+- **`o_que_falta_no_portao()` tira a entrega da exigência de caixinha marcada**,
+  e a exclusão continua obrigatória: exigi-la seria pedir que a caixinha esteja
+  fechada para o envio acontecer, e ela fecha NO envio. O comentário dentro
+  daquela função dá a razão antiga, e não foi reescrito — rewrite de sessenta
+  linhas por um comentário é o risco de deriva que a 0052 pagou. A razão certa
+  mora aqui.
+- **A terceira linha do cartão da conta perdeu o nome da fase.** Ela dizia
+  `${fase} · N com o cliente`, e a fase da vez era o Envio justamente porque as
+  caixinhas dele ficavam abertas; com elas fechando no envio ela passa a ser o
+  Programar, e o cartão diria *"Programar · 18 com o cliente"* — a tela
+  afirmando que alguém agenda uma peça que o cliente não aprovou. O fato é a
+  contagem.
+- **A passada de conversão carimba `concluido_em` com o instante da migration**,
+  e não com a hora do envio: quem escreve aquela coluna é o gatilho da caixinha,
+  fora de todo `if travas` de propósito (0088), e preservar a data exigiria
+  desligar a trava que protege a tabela. `concluido_por` sobrevive, porque o
+  carimbo faz `coalesce` — a passada informa quem enviou.
+
+**Medido com três mutações, e a do meio é a que vale ler:** tirar o gatilho
+derruba **12** cenários; fechar a caixinha de um portão do MEIO derruba **1**, e
+o cenário que o pega é novo — ele acrescenta uma peça a um mês aberto (0061) e
+manda a pauta dela ao cliente sem ninguém ter marcado nada, que é o estado que
+o produto não alcança pelo botão e um PATCH alcança. **E devolver o fechamento
+na aprovação não derruba NENHUM**, e o zero é o argumento: aquele `update` é
+idempotente, o estado em que as duas versões diferem não é alcançável, e o que
+sobra é código morto que escreve um fato — exatamente o que a 0093 apagou em
+`post_etapa_progresso_reabre`. Quem o mede é a leitura do diff, como o `where`
+da capacidade na 0081.
+
 #### A lista do Social Media agrupa por CONTA
 
 Decisão do usuário, na mesma conversa: *"na aba de Social media, todos os posts
@@ -8489,6 +8582,58 @@ relato. Os dois passaram a usar `chamarEMostrar()`.
 
 Abrir a lista não marca tudo como lido: quem abre está conferindo, e muitas
 vezes fecha para resolver depois.
+
+#### E ELE TOCA NOS DOIS LADOS (migration 0098)
+
+Decisão do usuário: *"A plataforma tanto da agência, quanto o portal do cliente
+não tem notificações ativas, preciso que tudo que aconteça gere uma
+notificação. Ao ser marcado em uma task, ao receber um pedido de ajuste."*
+
+**O sino existia e a função que o escreve estava certa desde a 0062** — o que
+faltava eram os CHAMADORES. `notificar()` era chamada de vinte e três lugares,
+e nenhum deles cobria os quatro fatos mais comuns do dia:
+
+| O fato | Quem avisa |
+| --- | --- |
+| a agência mandou material ao cliente | `approval_rounds_avisa_o_cliente` |
+| você ganhou uma etapa | `subtasks_avisa_responsavel` |
+| pediram ajuste na sua etapa | `subtasks_avisa_ajuste` |
+| alguém comentou na demanda | `task_comentarios_avisa` |
+
+**São quatro GATILHOS e nenhuma action**, pela razão da auditoria e da 0045: a
+escrita acontece por mais de um caminho — o lote do mês, o post avulso, o
+`update` do seed, um PATCH montado à mão —, e um aviso escrito na camada de
+aplicação registra o que passou pela tela e perde o resto.
+
+**O aviso do lote NÃO sai por peça**, e é a linha que impede o sino de virar
+ruído: `approval_rounds_avisa_o_cliente` se cala quando a rodada tem `lote_id`,
+porque `enviar_mes_ao_cliente()` (0090) já toca UM sino por pessoa da empresa.
+Sem isso, um mês de dezoito peças daria dezoito sinos para o mesmo fato — que é
+o que ensina a ignorar o sino.
+
+**`task_comentarios` não tinha gatilho nenhum**, de nenhum tipo, desde que
+nasceu: escrever ali era escrever para a parede. O aviso vai para os
+responsáveis das etapas **e** para quem abriu a demanda, uma vez por PESSOA e
+não por etapa — quem tem três etapas na mesma demanda recebe um aviso, que é a
+conta da pilha de avatares de Minhas Tasks.
+
+**E o tipo é `'task'`, não um valor novo no enum.** `notification_tipo` tem oito
+valores e o sino desenha um ícone por valor, com o mapa escrito à mão: um
+`'comentario'` novo sairia sem ícone nenhum. Um comentário numa demanda É
+notícia de uma task, e o link leva para ela.
+
+**Rascunho não avisa ninguém**, nos dois gatilhos que tocam demanda: ele é de
+quem o criou e não existe para mais ninguém (0028) — não há outra pessoa nele
+para avisar. E a etapa do social não é avisada por aqui: a corrente já tem o
+aviso dela desde a 0088, e o segundo seria o mesmo fato duas vezes.
+
+**Dois cenários da bateria mudaram, e os dois mediam o número certo pelo motivo
+errado.** Um contava TODO aviso de `aprovacao` de uma pessoa — e
+`teste.limpar()` não mexe em `notifications`, então qualquer aviso de um arquivo
+anterior fazia a conta fechar sozinha; o outro contava a tabela inteira para
+dizer que o aprovador interno da conta não é chamado numa rodada de cliente. Os
+dois passaram a nomear o fato: o título do post, e a pessoa. É a lição do
+`select` antes do `insert` na idempotência da recorrência.
 
 ### O e-mail que sai do Full Hub
 

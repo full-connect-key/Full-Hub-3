@@ -600,7 +600,10 @@ select teste.conferir('E AGORA o post fica aprovado',
   (select status::text from public.posts where id = current_setting('t39.sem')::uuid),
   'aprovado');
 
-select teste.conferir('Com a caixinha da entrega fechada pela aprovacao',
+-- A CAIXINHA DA ENTREGA FECHOU NO ENVIO (0099), e nao nesta aprovacao -- o
+-- titulo deste cenario dizia "pela aprovacao" e deixou de ser verdade. O que
+-- ele mede continua valendo: ela esta fechada no fim do caminho normal.
+select teste.conferir('Com a caixinha da entrega fechada desde o envio',
   (select concluido::text from public.post_etapa_progresso
     where post_id = current_setting('t39.sem')::uuid
       and subtask_id = current_setting('t39.semenvio')::uuid), 'true');
@@ -672,3 +675,68 @@ values ('50760000-0000-0000-0000-00000000000a', :VERDE, 'Story avulso', '2027-04
 select teste.conferir('E o post avulso nao tem portao nenhum',
   coalesce((public.porta_do_cliente_no_post(
     '50760000-0000-0000-0000-00000000000a'::uuid)).titulo, '(nenhum)'), '(nenhum)');
+
+
+-- ---------------------------------------------------------------------------
+-- 11. UM PORTAO DO MEIO NAO FECHA CAIXINHA DE NINGUEM (0099)
+--
+-- A caixinha da ENTREGA fecha quando a peca sai, e e a entrega desta migration.
+-- A caixinha de um portao do MEIO nao: ela marca que a PESSOA escreveu a pauta,
+-- e marca-la no envio afirmaria que ela terminou um trabalho que a agencia
+-- acabou de mandar para fora -- e, pior, liberaria o Conteudo daquela peca pela
+-- trava A sem ninguem ter escrito a pauta.
+--
+-- A PECA NOVA NASCE PELA PORTA DO PRODUTO, e nao por um `insert` a mao: abrir o
+-- MESMO mes de novo acrescenta posts a demanda que ja existe (0061), e as
+-- caixinhas dela nascem todas abertas pelos dois gatilhos da 0088. E o estado
+-- que o produto nao alcanca pelo botao de enviar -- `o_que_falta_no_portao`
+-- (0090) exige a caixinha marcada num portao de producao --, e que um PATCH
+-- montado a mao alcanca.
+--
+-- Medido com mutacao: tirando o `porta.social_papel <> 'entrega'` do gatilho,
+-- este cenario cai e diz que a Pauta fechou sozinha.
+-- ---------------------------------------------------------------------------
+
+select teste.cenario('A gestao acrescenta uma peca a abril', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-04', '[{"redes": ["instagram"], "quantidade": 1}]'::jsonb,
+    %L, jsonb_build_object('Social Media', %L::text, 'Redator', %L::text, 'Design', %L::text),
+    '{}'::jsonb, 'https://drive.google.com/drive/folders/ABRIL')$fmt$,
+    :VERDE, :BRUNO, :MARINA, :CARLA, :BRUNO), 'ok', 1);
+
+select set_config('t39.terceiro',
+  (select id::text from public.posts_do_mes(current_setting('t39.abril')::uuid)
+    where id not in (current_setting('t39.post')::uuid, current_setting('t39.outro')::uuid)
+    limit 1), false);
+
+select teste.conferir('A peca nova nasceu com as caixinhas todas abertas',
+  (select count(*) filter (where concluido)::text || ' de ' || count(*)::text
+     from public.post_etapa_progresso
+    where post_id = current_setting('t39.terceiro')::uuid), '0 de 5');
+
+-- E O PORTAO ABERTO DELA E A PAUTA, que e o portao do meio deste fluxo.
+select teste.conferir('E o portao aberto dela e a Pauta',
+  (public.porta_do_cliente_no_post(current_setting('t39.terceiro')::uuid)).titulo,
+  'Pauta');
+
+insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, decidido_por)
+values ('post', current_setting('t39.terceiro')::uuid, 1, 'interna', :BRUNO, 'aprovada', :DIEGO);
+
+select teste.cenario('A gestao manda a pauta dela ao cliente sem ninguem ter marcado', :DIEGO,
+  format($fmt$insert into public.approval_rounds
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
+    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+    current_setting('t39.terceiro'), :DIEGO), 'ok', 1);
+
+select teste.conferir('E a caixinha da Pauta dela continua aberta',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t39.terceiro')::uuid
+      and subtask_id = current_setting('t39.pauta')::uuid), 'false');
+
+-- E A DA ENTREGA TAMBEM, porque o que saiu nao foi a arte: o gatilho olha o
+-- PAPEL do portao que a rodada abre, e nao o fato de haver uma rodada.
+select teste.conferir('E a da entrega dela tambem',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t39.terceiro')::uuid
+      and subtask_id = current_setting('t39.envio')::uuid), 'false');

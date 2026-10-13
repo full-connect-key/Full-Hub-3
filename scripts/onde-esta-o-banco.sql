@@ -422,7 +422,21 @@ from (
     ('0097', 'feedback_metricas le academy_progresso', 'no_corpo',
              'feedback_metricas|public.academy_progresso'),
     ('0097', 'academy_vencidos fora do alcance de authenticated', 'sem_execute',
-             'academy_vencidos|authenticated')
+             'academy_vencidos|authenticated'),
+    -- A 0098 liga o sino nos dois lados: quatro gatilhos, nenhuma tabela e
+    -- nenhuma coluna nova. A linha aponta para a funcao do PRIMEIRO deles --
+    -- o aviso ao cliente --, e nao para a do comentario, que e o ultimo: num
+    -- banco onde alguem tenha colado so metade do arquivo, a resposta certa e
+    -- FALTA, e a primeira funcao e a unica que nao distingue "aplicou" de
+    -- "aplicou pela metade" para o lado errado.
+    ('0098', 'approval_rounds_avisa_o_cliente()', 'funcao',
+             'approval_rounds_avisa_o_cliente'),
+    -- A 0099 faz a caixinha da entrega fechar no ENVIO. A linha aponta para
+    -- `entrega_fecha_no_envio()`, que e a funcao que NASCE -- e nao para o
+    -- corpo das duas que ela reescreve (`posts_corrente_do_cliente` e
+    -- `post_etapa_progresso_regras`), que existem desde a 0045 e a 0088 e
+    -- responderiam ok num banco parado la.
+    ('0099', 'entrega_fecha_no_envio()', 'funcao', 'entrega_fecha_no_envio')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

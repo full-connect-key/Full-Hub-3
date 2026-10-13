@@ -717,9 +717,10 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
  * caixinha, e o "12 de 18" do cabeçalho é a soma delas.
  *
  * **Quem recusa é `post_etapa_progresso_regras`**, e as duas travas estão lá:
- * a caixinha da entrega não se marca à mão (ela é consequência da aprovação
- * daquele post) e nenhuma caixinha fecha com um portão anterior ainda não
- * aprovado pelo cliente. `bloqueioDaCaixinha()` faz a mesma pergunta na tela,
+ * a caixinha da entrega não se marca à mão (ela é consequência do ENVIO
+ * daquela peça, desde a 0099) e nenhuma caixinha fecha com um portão anterior
+ * ainda não aprovado pelo cliente — e é a segunda, e nunca a primeira, que
+ * garante que ninguém programa o que o cliente não aprovou. `bloqueioDaCaixinha()` faz a mesma pergunta na tela,
  * para a caixa aparecer desligada com a razão escrita em vez de recusar no
  * clique — a dupla de sempre, e a tela nunca é a trava.
  *

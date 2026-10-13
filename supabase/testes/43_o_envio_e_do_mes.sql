@@ -530,6 +530,40 @@ select teste.cenario('E a entrega vai ao cliente', :ANA,
   format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
     current_setting('t43.junho'), current_setting('t43.jentrega')), 'ok', 1);
 
+-- ---------------------------------------------------------------------------
+-- A FASE DE ENTREGA FECHA NO ENVIO (0099), E ESTE E O CENARIO QUE MEDE A
+-- FRASE DO USUARIO: *"a etapa chamada envio seja considerado concluido no
+-- momento em que todos os posts cheguem ao cliente, e nao seja necessario que
+-- se de ok, em post por post."*
+--
+-- Junho tem UMA peca, entao o envio dela e "todos os posts chegaram": a
+-- caixinha fecha por `entrega_fecha_no_envio` e a fase fecha pela conta da
+-- 0093. E e AQUI que isso tem de valer -- antes de o cliente decidir
+-- qualquer coisa --, senao a fase mede o trabalho DELE numa tela que existe
+-- para mostrar o trabalho da agencia.
+--
+-- Medido com mutacao: tirando o gatilho da 0099, os tres caem e o ultimo diz
+-- `nao_iniciada`.
+-- ---------------------------------------------------------------------------
+select teste.conferir('A caixinha da entrega fechou no ENVIO, e nao na decisao',
+  (select concluido::text from public.post_etapa_progresso
+    where post_id = current_setting('t43.jpost')::uuid
+      and subtask_id = current_setting('t43.jentrega')::uuid), 'true');
+
+-- E A ASSINATURA E DE QUEM ENVIOU. `concluido_por` sai de `solicitado_por` da
+-- rodada e nao de `auth.uid()`: aqui as duas sao a Ana, e num envio feito por
+-- uma rotina futura nao seriam.
+select teste.conferir('E ela ficou assinada por quem enviou',
+  (select (concluido_por = :ANA)::text from public.post_etapa_progresso
+    where post_id = current_setting('t43.jpost')::uuid
+      and subtask_id = current_setting('t43.jentrega')::uuid), 'true');
+
+select teste.conferir('E a fase do mes fechou sozinha, com o cliente ainda decidindo',
+  (select format('%s/%s',
+     (select status::text from public.subtasks where id = current_setting('t43.jentrega')::uuid),
+     (select status::text from public.posts where id = current_setting('t43.jpost')::uuid))),
+  'concluida/em_aprovacao');
+
 -- E A APROVACAO DA ENTREGA FECHA A PECA, que e a regra da 0032 de pe.
 select teste.cenario('O cliente aprova a entrega', :JOANA,
   format($fmt$select public.decidir_rodada_do_cliente(
@@ -541,7 +575,11 @@ select teste.conferir('E AGORA a peca esta aprovada, e nao antes',
   (select status::text from public.posts where id = current_setting('t43.jpost')::uuid),
   'aprovado');
 
-select teste.conferir('E a caixinha da entrega fechou sozinha',
+-- E A CAIXINHA CONTINUA FECHADA, que e outra pergunta: ela fechou no envio, e
+-- a aprovacao nao a reabre nem a reescreve. Antes da 0099 este cenario media o
+-- FECHAMENTO -- hoje ele mede que a decisao nao mexe nela, e e por isso que o
+-- titulo mudou.
+select teste.conferir('E a caixinha continua fechada depois da decisao',
   (select concluido::text from public.post_etapa_progresso
     where post_id = current_setting('t43.jpost')::uuid
       and subtask_id = current_setting('t43.jentrega')::uuid), 'true');

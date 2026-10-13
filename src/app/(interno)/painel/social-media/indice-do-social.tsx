@@ -355,7 +355,17 @@ function CartaoDoMes({
  */
 function oQueEstaAcontecendo(mes: MesNaArvore): string {
   if (mes.esperandoCliente > 0) {
-    return `${mes.fase?.titulo ?? "Envio"} · ${mes.esperandoCliente} com o cliente`;
+    // O NOME DA FASE SAIU DESTA FRASE (0099), e a ausência é conserto.
+    //
+    // Ela dizia `${fase.titulo} · N com o cliente`, e a fase da vez era o Envio
+    // justamente porque as caixinhas dele ficavam abertas até o cliente
+    // responder. Com elas fechando no ENVIO, a fase da vez passa a ser a
+    // seguinte — e o cartão diria *"Programar · 18 com o cliente"*, que é a
+    // tela afirmando que alguém agenda uma peça que o cliente não aprovou.
+    //
+    // O fato é a contagem, e ela não dependia da fase: o mês está parado FORA
+    // da agência, que é o que esta linha existe para dizer.
+    return `${mes.esperandoCliente} ${mes.esperandoCliente === 1 ? "peça" : "peças"} com o cliente`;
   }
   if (mes.pecas === 0) return "Aberto, sem peça ainda";
   if (!mes.fase) return `${mes.aprovadas} de ${mes.pecas} aprovadas`;

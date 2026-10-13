@@ -230,17 +230,21 @@ export function CorrenteDoPost({
               {bloqueio ? (
                 <p className="text-text-muted mt-1.5 ml-8 text-xs">{bloqueio}</p>
               ) : !aMao ? (
-                /* A CAIXINHA DA ENTREGA É CONSEQUÊNCIA DA APROVAÇÃO, nunca da
-                   mão de ninguém — a regra da 0045 um nível abaixo. Marcar
-                   afirmaria que a peça foi e voltou aprovada sem nada ter
-                   saído da agência.
+                /* A CAIXINHA DA ENTREGA É CONSEQUÊNCIA DO ENVIO, nunca da
+                   mão de ninguém — a regra da 0045 um nível abaixo, com o
+                   evento que a 0099 corrigiu. Marcar afirmaria que a peça saiu
+                   sem nada ter saído da agência.
+
+                   E A FRASE DIZ O EVENTO CERTO: ela mandava esperar a
+                   aprovação, e esperar deixou de fechar a caixinha — quem a
+                   lesse ficaria esperando um evento que não vem mais. É a
+                   mesma troca que a dica do banco levou no passo 3 da 0099.
 
                    O nome do botão sai de `rotuloDoEnvio`, e não escrito aqui:
                    a instrução e o botão que ela manda apertar divergiriam na
                    primeira vez que alguém mexesse num dos dois. */
                 <p className="text-text-muted mt-1.5 ml-8 text-xs">
-                  Fecha com a aprovação do cliente — use a ação{" "}
-                  {rotuloDoEnvio(etapa)}.
+                  Fecha no envio desta peça — use a ação {rotuloDoEnvio(etapa)}.
                 </p>
               ) : etapa.portao && !feito ? (
                 <p className="text-text-muted mt-1.5 ml-8 text-xs">

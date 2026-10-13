@@ -454,10 +454,28 @@ select teste.cenario('A etapa vai ao cliente numa rodada de escopo cliente', :DI
           values ('dddddddd-0064-0000-0000-000000000001', 2, 'cliente', %L)$fmt$, :DIEGO),
   'ok', 1);
 
+-- A CONTA E SO DA APROVADORA, e nao de todo aviso de `aprovacao`. A primeira
+-- versao contava a tabela inteira, e a 0098 mostrou por que isso nao media o
+-- que o nome diz: desde ela a rodada de escopo cliente avisa as PESSOAS DA
+-- EMPRESA -- que e o pedido do usuario, *"se eles receberam um mes de social,
+-- preciso que isso apareca"* -- e o cenario reprovou com 2. O fato que ele
+-- existe para guardar e outro: a aprovadora interna da conta nao e chamada
+-- para uma decisao que nao e dela.
 select teste.conferir(
   'A rodada de cliente nao chama o aprovador interno da conta',
-  (select count(*)::text from public.notifications where tipo = 'aprovacao'),
+  (select count(*)::text from public.notifications
+    where tipo = 'aprovacao' and user_id = :ANA),
   '0');
+
+-- E A OUTRA METADE, que e a entrega da 0098: quem decide aquela rodada e o
+-- cliente, e e ele que recebe o aviso. A conta sai de `client_users` em vez de
+-- um numero literal -- com `2` escrito aqui, acrescentar uma pessoa ao portal
+-- da Mundo Verde derrubaria este cenario sem nada ter mudado de regra.
+select teste.conferir(
+  'E as pessoas da empresa sao avisadas (0098)',
+  (select count(*)::text from public.notifications
+    where tipo = 'aprovacao' and user_id <> :ANA),
+  (select count(*)::text from public.client_users where client_id = :VERDE));
 
 -- ---------------------------------------------------------------------------
 -- SEM APROVADOR CONFIGURADO A ESCRITA PASSA, e este e o cenario que a 0062

@@ -687,9 +687,17 @@ export function andamentoDoMes(etapas: EtapaDoMes[]): {
  *
  * É a regra da 0045 um nível abaixo, letra por letra: a etapa Envio era
  * consequência da rodada de escopo cliente, e a caixinha dela é consequência
- * da APROVAÇÃO daquele post. Marcar à mão afirmaria que a peça foi e voltou
- * aprovada sem nada ter saído da agência — e desmarcar afirmaria o contrário
- * de uma aprovação que está gravada na rodada.
+ * do **ENVIO** daquela peça — desde a 0099, e não mais da aprovação. Marcar à
+ * mão afirmaria que a peça saiu sem nada ter saído da agência, e desmarcar
+ * afirmaria o contrário de uma rodada que está gravada.
+ *
+ * **O QUE A 0099 TROCOU FOI O EVENTO, e não a trava.** Decisão do usuário:
+ * *"preciso que a etapa chamada envio seja considerado concluído no momento em
+ * que todos os posts cheguem ao cliente, e não seja necessário que se dê ok,
+ * em post por post"*. Enviar é o ato da agência, e é ele que a fase de Envio
+ * mede; a decisão que vem depois é trabalho do cliente, e cobrá-la aqui
+ * deixava a fase sem saída — "16 de 16 peças por marcar" num mês inteiro
+ * enviado.
  *
  * A tela mostra o selo em vez da caixa, e a razão escrita: uma caixa
  * desligada não diz nada.
@@ -706,10 +714,17 @@ export function caixinhaSeMarcaAMao(etapa: EtapaDoMes): boolean {
  * clicar, aquela é a que vale. Duas telas perguntando por conta própria
  * acabariam oferecendo a caixa onde o banco recusa.
  *
- * **A ORDEM É A DO BANCO: o portão primeiro.** Na última etapa as duas valem —
- * a caixinha da entrega só fecha pela aprovação, então ela está desmarcada e a
- * corrente também reclamaria. Com a corrente primeiro a pessoa lia *"falta
- * Envio"*, que é verdade e não diz o que fazer.
+ * **A ORDEM É A DO BANCO: o portão primeiro.** Ela nasceu porque na última
+ * etapa as duas valiam — a caixinha da entrega só fechava pela aprovação,
+ * então ela estava desmarcada e a corrente também reclamaria —, e com a
+ * corrente primeiro a pessoa lia *"falta Envio"*, que é verdade e não diz o
+ * que fazer.
+ *
+ * **A ORDEM FICA, e o argumento mudou de lado (0099).** Com a caixinha da
+ * entrega fechando no envio, numa peça já enviada a corrente nem reclama: ela
+ * diz "esta peça saiu". O caso que sobra é a peça que NÃO foi enviada, onde as
+ * duas voltam a disparar — e lá o portão continua sendo a recusa que diz de
+ * quem a bola está.
  */
 export function bloqueioDaCaixinha(
   etapa: EtapaDoMes,
