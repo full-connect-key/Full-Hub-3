@@ -10,6 +10,10 @@
 -- DADO, uma vez, no banco que alguem escolheu. E a mesma distincao do
 -- `campanhas-sem-demanda.sql` e do `agendar-rotinas.sql`.
 --
+-- VER TAMBEM: `scripts/zerar-full-days.sql`, que zera os periodos e a matriz
+-- do Full Days. Sao dois arquivos e nao um porque sao duas decisoes -- um
+-- apagamento vale exatamente o que alguem pediu.
+--
 -- ---------------------------------------------------------------------------
 -- O PASSO 1 NAO APAGA NADA, e e ele que decide.
 --
