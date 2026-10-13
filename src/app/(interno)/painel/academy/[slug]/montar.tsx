@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
@@ -14,12 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { ROTULOS_DE_AULA, TIPOS_DE_AULA } from "@/lib/dominio/academy";
+import {
+  BUCKET_DO_ACERVO,
+  ROTULOS_DE_AULA,
+  TIPOS_DE_AULA,
+} from "@/lib/dominio/academy";
 import { FUNCOES, rotuloDaFuncao } from "@/lib/dominio/equipe";
 import type { ItemAberto } from "@/lib/dados/academy";
 import type { AcademyAulaTipo } from "@/lib/supabase/database.types";
 
+import { criarClienteNavegador } from "@/lib/supabase/client";
+
 import {
+  anexarArquivo,
   excluirAula,
   excluirItem,
   publicarItem,
@@ -45,7 +52,7 @@ import {
  * quem vai ser recusado é ensinar a clicar e levar erro.
  */
 export function MontarOItem({ aberto }: { aberto: ItemAberto }) {
-  const { item, playbook, curso } = aberto;
+  const { item, playbook, arquivo, curso } = aberto;
 
   return (
     <section className="space-y-4 border-t pt-6">
@@ -53,6 +60,7 @@ export function MontarOItem({ aberto }: { aberto: ItemAberto }) {
 
       <Propriedades item={item} />
       {playbook ? <NovaVersao itemId={item.id} proxima={(playbook.versaoCorrente?.numero_versao ?? 0) + 1} /> : null}
+      {item.tipo === "ebook" ? <ArquivoDoEbook itemId={item.id} atual={arquivo} /> : null}
       {curso ? <MontarCurso itemId={item.id} curso={curso} /> : null}
       <Obrigatoriedade itemId={item.id} />
       <Publicacao item={item} />
@@ -224,6 +232,187 @@ function NovaVersao({ itemId, proxima }: { itemId: string; proxima: number }) {
       <Button size="sm" onClick={publicar} disabled={enviando}>
         Publicar versão {proxima}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * O ARQUIVO DO E-BOOK, e o espaço que não existia.
+ *
+ * ---------------------------------------------------------------------------
+ * Relato do usuário: *"quando eu seleciono que vou montar um e-book, ele não
+ * me dá nem sequer o espaço para enviar um PDF"*. Ele estava certo, e o furo
+ * era meu: esta seção tinha ramo para o playbook e ramo para o curso, e
+ * NENHUM para o e-book — escolher o formato levava a uma tela de montar sem
+ * nada do formato escolhido.
+ *
+ * **TODO O RESTO JÁ EXISTIA desde a 0096**: a tabela `academy_arquivos`, as
+ * duas policies dela, o bucket privado, a leitura em `abrirItem()` e o cartão
+ * de download no detalhe. É a ponte construída e nunca atravessada pela
+ * enésima vez — e ela passou porque `82e-academy-montar` fotografa a
+ * montagem de um PLAYBOOK, que é o único dos três formatos cujo editor
+ * existia. A tela do e-book não saía em imagem nenhuma.
+ * ---------------------------------------------------------------------------
+ *
+ * **O CONDICIONAL É `item.tipo`, e não `arquivo`.** É a diferença entre
+ * consertar e não consertar: `arquivo` é nulo justamente no e-book que ainda
+ * não tem PDF, que é o único estado em que esta seção precisa aparecer. Pelo
+ * dado, ela só apareceria para quem já tinha subido um — e quem já subiu é
+ * quem não precisa dela.
+ *
+ * **O NAVEGADOR FALA COM O STORAGE DIRETO, e não a action.** Um PDF de quatro
+ * megabytes atravessando uma Server Action é o arquivo inteiro no corpo de uma
+ * requisição; o caminho é a forma da nota fiscal e da foto do comodato — sobe
+ * o arquivo, e a action grava a LINHA que aponta para ele.
+ *
+ * **E SUBIR OUTRO SUBSTITUI, sem apagar nada.** `abrirItem()` lê o mais
+ * recente desde a 0096, então a linha nova é o que o e-book mostra e a antiga
+ * fica no histórico — a regra das versões de post e de campanha. Por isso não
+ * há botão de remover: o caminho é subir de novo.
+ */
+function ArquivoDoEbook({
+  itemId,
+  atual,
+}: {
+  itemId: string;
+  atual: ItemAberto["arquivo"];
+}) {
+  const router = useRouter();
+  const [enviando, começar] = useTransition();
+  const [subindo, setSubindo] = useState(false);
+  const [escolhido, setEscolhido] = useState<{
+    caminho: string;
+    nome: string;
+    bytes: number;
+  } | null>(null);
+  const [paginas, setPaginas] = useState("");
+  const campo = useRef<HTMLInputElement>(null);
+
+  async function subir(arquivo: File | undefined) {
+    if (!arquivo) return;
+    setSubindo(true);
+    try {
+      const supabase = criarClienteNavegador();
+      const extensao = arquivo.name.split(".").pop()?.toLowerCase() ?? "pdf";
+      // A PASTA É A DO ITEM, e o nome carrega o instante: dois PDFs do mesmo
+      // e-book são duas linhas no histórico, e com o nome fixo o segundo
+      // sobrescreveria o arquivo que a primeira linha aponta.
+      const caminho = `${itemId}/${Date.now()}.${extensao}`;
+
+      const { error } = await supabase.storage
+        .from(BUCKET_DO_ACERVO)
+        .upload(caminho, arquivo, { contentType: arquivo.type });
+
+      if (error) {
+        toast.error(`Não foi possível anexar: ${error.message}`);
+        return;
+      }
+      setEscolhido({ caminho, nome: arquivo.name, bytes: arquivo.size });
+    } finally {
+      setSubindo(false);
+    }
+  }
+
+  function salvar() {
+    if (!escolhido) {
+      toast.error("Escolha o arquivo antes de salvar.");
+      return;
+    }
+    começar(async () => {
+      const r = await chamarAcao(() =>
+        anexarArquivo({
+          item_id: itemId,
+          url: escolhido.caminho,
+          nome: escolhido.nome,
+          tamanho_bytes: escolhido.bytes,
+          paginas: paginas ? Number(paginas) : null,
+        }),
+      );
+      if (!r.ok) toast.error(r.error);
+      else {
+        toast.success(r.mensagem);
+        setEscolhido(null);
+        setPaginas("");
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <div className="bg-card rounded-card shadow-cartao space-y-3 border p-4">
+      <h4 className="text-text-primary text-sm font-medium">
+        {atual ? "Trocar o arquivo" : "Anexar o arquivo"}
+      </h4>
+
+      {/* O QUE JÁ ESTÁ NO AR VEM PRIMEIRO, e não como aviso: quem abre esta
+          seção num e-book que já tem PDF está trocando um arquivo, e precisa
+          saber qual. Sem a linha, "Trocar o arquivo" não diz trocar o quê. */}
+      {atual ? (
+        <p className="text-text-secondary text-xs">
+          Hoje o e-book entrega <span className="font-medium">{atual.nome}</span>. Subir
+          outro passa a entregar o novo — o anterior continua no histórico.
+        </p>
+      ) : (
+        <p className="text-text-secondary text-xs">
+          Um e-book sem arquivo não tem o que entregar: a tela de quem abrir mostra o
+          título e nada para baixar.
+        </p>
+      )}
+
+      {/* O `<input type="file">` É `sr-only` E O BOTÃO O ACIONA, que é a forma
+          do produto inteiro — e ele continua na árvore de acessibilidade com
+          `aria-label` próprio, porque escondido não é ausente: sem o rótulo
+          ele é anunciado como "editar" e mais nada. Foi o achado do axe. */}
+      <input
+        ref={campo}
+        type="file"
+        accept="application/pdf,.pdf,.epub"
+        aria-label="Arquivo do e-book"
+        className="sr-only"
+        onChange={(e) => void subir(e.target.files?.[0])}
+      />
+
+      <div className="flex flex-wrap items-end gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={subindo || enviando}
+          onClick={() => campo.current?.click()}
+        >
+          <Upload aria-hidden className="size-4" />
+          {subindo ? "Enviando…" : escolhido ? "Escolher outro" : "Escolher o PDF"}
+        </Button>
+
+        {/* PÁGINAS É DIGITADO, e não lido do arquivo: contar as páginas de um
+            PDF exigiria um leitor de PDF no navegador para um número que a
+            tela usa numa linha só. Em branco ela diz "PDF", que é verdade —
+            e um número inventado é pior que campo vazio, a decisão do tempo
+            real da etapa. */}
+        <div className="w-32 space-y-1.5">
+          <Label htmlFor="e-paginas">Páginas</Label>
+          <Input
+            id="e-paginas"
+            type="number"
+            min={1}
+            value={paginas}
+            onChange={(e) => setPaginas(e.target.value)}
+            placeholder="opcional"
+          />
+        </div>
+
+        <Button size="sm" onClick={salvar} disabled={enviando || subindo || !escolhido}>
+          Salvar o arquivo
+        </Button>
+      </div>
+
+      {escolhido ? (
+        <p className="text-text-muted text-xs">
+          {escolhido.nome} · {Math.max(1, Math.round(escolhido.bytes / 1024 / 1024))} MB —
+          clique em <span className="font-medium">Salvar o arquivo</span> para ele passar a
+          valer.
+        </p>
+      ) : null}
     </div>
   );
 }

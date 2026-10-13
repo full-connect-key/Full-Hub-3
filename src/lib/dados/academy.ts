@@ -1,10 +1,12 @@
 import "server-only";
 
+import { assinarArquivos, enderecoDaArte } from "./conteudo";
 import { ouFalha } from "./consulta";
 
 import { cache } from "react";
 
 import {
+  BUCKET_DO_ACERVO,
   duracaoSomada,
   ehEstadoDoItem,
   estadoDoCurso,
@@ -240,6 +242,22 @@ export type ItemAberto = {
   total: number;
   playbook: PlaybookAberto | null;
   arquivo: AcademyArquivo | null;
+  /**
+   * O ENDEREÇO ASSINADO DO ARQUIVO, ao lado do caminho cru.
+   *
+   * São dois campos e não um, como `capa_url` e `capaAssinada` nas campanhas:
+   * `arquivo.url` é o caminho no bucket — o que está GRAVADO, e o que a
+   * próxima assinatura usa —, e este é o endereço que vale uma hora e serve a
+   * um `href`. Sobrescrever um com o outro faria a tela e a action
+   * discordarem sobre o que a coluna significa.
+   *
+   * **NULO QUANDO A ASSINATURA FALHA**, por `enderecoDaArte`: o bucket é
+   * privado, então o caminho cru não é endereço de nada — o `href` apontaria
+   * para uma rota do próprio site, que responde 404. É a decisão daquela
+   * função palavra por palavra: quebrado é pior que ausente, porque a tela já
+   * tem o estado de "sem arquivo" desenhado.
+   */
+  arquivoAssinado: string | null;
   curso: CursoAberto | null;
 };
 
@@ -306,6 +324,7 @@ export async function abrirItem(
         versaoDeReleitura: releitura,
       },
       arquivo: null,
+      arquivoAssinado: null,
       curso: null,
     };
   }
@@ -321,6 +340,14 @@ export async function abrirItem(
         .limit(1),
     );
     const feito = Boolean(doItemTodo?.concluido);
+    const arquivo = arquivos[0] ?? null;
+
+    // O BUCKET É PRIVADO, ENTÃO O ENDEREÇO SE ASSINA AQUI. Sem esta linha o
+    // botão Baixar do e-book aponta para `uuid/1234.pdf`, que o navegador lê
+    // como rota do próprio site e o servidor responde 404 — o arquivo existe,
+    // está certo, e não abre. `assinarArquivos` deixa passar o que já começa
+    // com `http`, então um e-book que seja link de fora continua valendo.
+    const assinadas = await assinarArquivos(BUCKET_DO_ACERVO, [arquivo?.url ?? null]);
 
     return {
       item,
@@ -328,7 +355,8 @@ export async function abrirItem(
       vistos: feito ? 1 : 0,
       total: 1,
       playbook: null,
-      arquivo: arquivos[0] ?? null,
+      arquivo,
+      arquivoAssinado: enderecoDaArte(arquivo?.url ?? null, assinadas),
       curso: null,
     };
   }
@@ -368,6 +396,7 @@ export async function abrirItem(
     total: aulas.length,
     playbook: null,
     arquivo: null,
+    arquivoAssinado: null,
     curso: {
       modulos: modulos.map((m) => ({
         ...m,

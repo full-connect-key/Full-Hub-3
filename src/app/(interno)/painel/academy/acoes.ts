@@ -293,6 +293,81 @@ export async function confirmarLeitura(
 }
 
 // ---------------------------------------------------------------------------
+// O ARQUIVO DO E-BOOK
+// ---------------------------------------------------------------------------
+
+const esquemaDeArquivo = z.object({
+  item_id: z.string().uuid(),
+  // O CAMINHO NO BUCKET, e não o endereço assinado. A assinatura vale uma hora
+  // e o e-book vive anos: gravar a assinada deixaria o acervo cheio de links
+  // vencidos, e quem abrisse o item em novembro baixaria um 400.
+  url: z.string().trim().min(3, "Anexe o arquivo antes de salvar."),
+  nome: z.string().trim().min(1, "O arquivo precisa de um nome."),
+  tamanho_bytes: z.number().int().positive().optional().nullable(),
+  paginas: z.number().int().positive().optional().nullable(),
+});
+
+/**
+ * Anexa o arquivo de um e-book.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA INSERE, E NUNCA REESCREVE A LINHA ANTERIOR**, e a decisão não é minha:
+ * ela já estava tomada do outro lado. `abrirItem()` lê
+ * `order created_at desc limit 1` desde a 0096 — o e-book mostra o arquivo
+ * MAIS NOVO —, e um `update` na linha existente faria aquela ordenação não
+ * decidir nada. É a regra de `post_versions` e das versões de campanha vista
+ * de outro ângulo: trocar o arquivo é gravar um a mais, não apagar um.
+ *
+ * **O ARQUIVO ANTERIOR CONTINUA NO BUCKET**, como na 0048: a linha antiga
+ * aponta para ele, e apagar o objeto deixaria o histórico apontando para o
+ * vazio. Apagar não é desfazer.
+ *
+ * **E NÃO EXISTE AÇÃO DE TIRAR O ARQUIVO.** Subir outro substitui o que a tela
+ * mostra, que é o que alguém quer dizer com "errei o PDF"; uma segunda ação
+ * para esvaziar o e-book deixaria um item publicado sem conteúdo nenhum, que
+ * é exatamente o que a 0096 semeia dezoito vezes contra.
+ * ---------------------------------------------------------------------------
+ */
+export async function anexarArquivo(dados: unknown): Promise<Resultado> {
+  return executarAcao("anexarArquivo", async () => {
+    await exigirGestorNaAcao();
+
+    const validacao = esquemaDeArquivo.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "anexarArquivo",
+          validacao.error,
+          dados,
+          "Confira o arquivo do e-book.",
+        ),
+      );
+    }
+    const entrada = validacao.data;
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("academy_arquivos")
+      .insert({
+        item_id: entrada.item_id,
+        url: entrada.url,
+        nome: entrada.nome,
+        tamanho_bytes: entrada.tamanho_bytes ?? null,
+        paginas: entrada.paginas ?? null,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível anexar: ${error.message}`);
+    if (!data) return falha(RECUSA);
+
+    revalidatePath(ROTA);
+    return sucesso("Arquivo anexado.");
+  });
+}
+
+
+// ---------------------------------------------------------------------------
 // O CURSO
 // ---------------------------------------------------------------------------
 

@@ -41,6 +41,24 @@ export const EXPLICACAO_DO_TIPO: Record<AcademyTipo, string> = {
   curso: "Formação em módulos e aulas, com o seu andamento.",
 };
 
+/**
+ * O bucket do arquivo do e-book.
+ *
+ * **EM `lib/dominio/` E NÃO EM `lib/dados/`**, e isso é mecânica e não gosto:
+ * quem sobe o arquivo é a tela de montar, que é `"use client"` — o navegador
+ * fala com o Storage direto, porque um PDF de quatro megabytes atravessando
+ * uma Server Action seria o arquivo inteiro no corpo de uma requisição. E
+ * `lib/dados/` é `server-only`: o valor morando lá não chega ao navegador, e
+ * o `npm run build` reprova com um erro sobre `next/headers`. É a lição do
+ * bucket das Solicitações, letra por letra.
+ *
+ * Ele é PRIVADO, como todos: o acervo de formação é documentação interna, e um
+ * bucket público poria o playbook de processo da agência num endereço que
+ * qualquer pessoa abre. Quem lê é a equipe, quem escreve é a gestão, e quem
+ * entrega o endereço é uma URL assinada que vale uma hora.
+ */
+export const BUCKET_DO_ACERVO = "academy-arquivos";
+
 export const TIPOS_DE_AULA: AcademyAulaTipo[] = [
   "video",
   "texto",

@@ -58,7 +58,8 @@ export function DetalheDoItem({
   anotacaoInicial: string;
   podeEditar: boolean;
 }) {
-  const { item, estado, vistos, total, playbook, arquivo, curso } = aberto;
+  const { item, estado, vistos, total, playbook, arquivo, arquivoAssinado, curso } =
+    aberto;
   const tom = TOM_DO_ESTADO[estado];
 
   return (
@@ -120,7 +121,14 @@ export function DetalheDoItem({
       </header>
 
       {playbook ? <Playbook item={item.id} dados={playbook} /> : null}
-      {arquivo ? <Ebook item={item.id} arquivo={arquivo} lido={estado === "concluido"} /> : null}
+      {arquivo ? (
+        <Ebook
+          item={item.id}
+          arquivo={arquivo}
+          endereco={arquivoAssinado}
+          lido={estado === "concluido"}
+        />
+      ) : null}
       {curso ? <Curso item={item.id} dados={curso} /> : null}
 
       <Anotacao itemId={item.id} inicial={anotacaoInicial} />
@@ -249,10 +257,12 @@ function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto
 function Ebook({
   item,
   arquivo,
+  endereco,
   lido,
 }: {
   item: string;
   arquivo: NonNullable<ItemAberto["arquivo"]>;
+  endereco: string | null;
   lido: boolean;
 }) {
   const router = useRouter();
@@ -289,12 +299,29 @@ function Ebook({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <a href={arquivo.url} target="_blank" rel="noreferrer">
+        {/* SEM ENDEREÇO, O BOTÃO SAI DESLIGADO COM A RAZÃO, e não some: o
+            arquivo existe — o nome dele está na linha de cima —, e quem não
+            conseguir baixar precisa saber que o problema não é a ausência do
+            material. É a decisão do "Enviar ao cliente" do Social Media: um
+            botão que some ensina que não existe. */}
+        {endereco ? (
+          <Button asChild variant="outline" size="sm">
+            <a href={endereco} target="_blank" rel="noreferrer">
+              <Download aria-hidden className="size-4" />
+              Baixar
+            </a>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="O endereço do arquivo não foi liberado. Recarregue a página; se continuar, fale com a gestão."
+          >
             <Download aria-hidden className="size-4" />
             Baixar
-          </a>
-        </Button>
+          </Button>
+        )}
         <Button size="sm" variant={lido ? "outline" : "default"} onClick={marcar} disabled={enviando}>
           {lido ? "Desmarcar" : "Marcar como lido"}
         </Button>

@@ -105,6 +105,22 @@ const ACERVO: ItemDoAcervo[] = [
     tags: ["marca"],
     duracaoMinutos: 40,
   }),
+  // O E-BOOK RECEM-CRIADO, QUE AINDA NAO TEM ARQUIVO, e ele e o estado que
+  // doi: foi dele a queixa do usuario -- *"quando eu seleciono que vou montar
+  // um e-book, ele nao me da nem sequer o espaco para enviar um PDF"*. Com um
+  // e-book so no acervo, e ele COM arquivo, o prototipo mostrava o modulo no
+  // unico estado em que o furo nao aparece. E a licao da Optica Visao sem
+  // atendente (0062) e da pessoa desligada (0069), aplicada ao formato.
+  item({
+    id: "aca00009-0000-4000-8000-000000000009",
+    tipo: "ebook",
+    titulo: "Guia de tom de voz",
+    slug: "guia-de-tom-de-voz",
+    resumo: "Como a Full escreve para cada rede e para cada cliente.",
+    categoria: "Cultura",
+    tags: ["escrita"],
+    publicado: false,
+  }),
   item({
     id: "aca00005-0000-4000-8000-000000000005",
     tipo: "curso",
@@ -155,6 +171,7 @@ export async function abrirItem(
     total: achado.total,
     playbook: null,
     arquivo: null,
+    arquivoAssinado: null,
     curso: null,
   } satisfies ItemAberto;
 
@@ -198,6 +215,10 @@ export async function abrirItem(
   }
 
   if (achado.tipo === "ebook") {
+    // O SEGUNDO E-BOOK NAO TEM ARQUIVO, de proposito: e ele que desenha o
+    // "Anexar o arquivo" na tela de montar e a frase que diz o que falta.
+    if (achado.slug === "guia-de-tom-de-voz") return base;
+
     return {
       ...base,
       arquivo: {
@@ -209,6 +230,10 @@ export async function abrirItem(
         paginas: 28,
         created_at: AGORA,
       },
+      // JA E UM ENDERECO, e por isso ele passa igual: o stub aponta para
+      // `/exemplos/`, e `assinarArquivos` deixa passar o que nao e caminho de
+      // bucket. No produto este campo e a URL assinada que vale uma hora.
+      arquivoAssinado: "/exemplos/marca.pdf",
     };
   }
 

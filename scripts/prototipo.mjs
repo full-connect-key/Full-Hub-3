@@ -402,6 +402,22 @@ const TELAS = [
   // A TELA DE QUEM MONTA, que é outra pessoa e outra pergunta: o painel de
   // montagem só é desenhado para a gestão, e ele fica no FIM da página.
   { nome: "82e-academy-montar", rota: "/painel/academy/briefing-que-nao-volta-com-duvida", largura: 1500, altura: 2000, role: "socio" },
+  // E A MONTAGEM DO E-BOOK, que e uma tela PROPRIA e nao uma variacao: o que
+  // cada formato tem para montar e diferente -- o playbook tem o editor e a
+  // caixa de releitura, o curso tem modulo e aula, o e-book tem o arquivo.
+  //
+  // ELA FALTAVA, e a ausencia dela e a razao pela qual o e-book ficou sem
+  // onde anexar o PDF por um sprint inteiro: `82e` fotografa a montagem de um
+  // PLAYBOOK, e a imagem saia certa. O bloco do e-book nao existia em `src/`,
+  // nenhuma verificacao o cobrava -- `check:acoes` liga action a chamador, e
+  // nao havia action --, e so quem fosse montar um e-book descobriria. Foi o
+  // usuario. Uma tela por formato e o que impede isso de voltar no terceiro.
+  { nome: "82g-academy-montar-ebook", rota: "/painel/academy/a-marca-da-full-por-dentro", largura: 1500, altura: 1500, role: "socio" },
+  // E A DO E-BOOK VAZIO, que e o estado da queixa: um e-book recem-criado,
+  // sem arquivo nenhum. Sao duas imagens e nao uma porque a secao troca de
+  // frase e de titulo entre os dois -- "Anexar" contra "Trocar" --, e e a
+  // primeira que diz o que falta para o item ter o que entregar.
+  { nome: "82h-academy-montar-ebook-vazio", rota: "/painel/academy/guia-de-tom-de-voz", largura: 1500, altura: 1300, role: "socio" },
   { nome: "82f-academy-novo", rota: "/painel/academy/novo", largura: 1300, altura: 1100, role: "socio" },
   // DUAS capturas para o material aberto, e nao uma com dois cliques: a lista
   // e sanfona de um so aberto por vez, entao o segundo clique fecha o
