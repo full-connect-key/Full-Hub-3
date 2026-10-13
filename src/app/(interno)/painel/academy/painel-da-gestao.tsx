@@ -193,11 +193,22 @@ export function PainelDaGestao({ linhas }: { linhas: LinhaDoAcompanhamento[] }) 
       <p className="text-text-muted text-xs">
         A tabela conta só o que é <strong>obrigatório</strong>. O que cada pessoa leu por
         conta própria não aparece aqui — e a anotação dela não é lida por ninguém, nem
-        pelo sócio.{" "}
-        <Link href="/painel/academy" className="text-accent-strong hover:underline">
-          Voltar ao acervo
-        </Link>
+        pelo sócio.
       </p>
+
+      {/* O LINK SAIU DE DENTRO DO PARÁGRAFO, e quem cobrou foi o axe:
+          `link-in-text-block` é `serious`, e a razão é que ali a COR é a única
+          coisa que separa o link do texto em volta. Todo link do produto é
+          `hover:underline` e nenhum outro foi acusado — porque nenhum outro
+          morava dentro de uma frase. É a mesma regra que o pedido concluído do
+          portal já pagou uma vez, e ela aparece aqui porque esta seção passou a
+          dividir a tela com o acompanhamento dos tours. */}
+      <Link
+        href="/painel/academy"
+        className="text-accent-strong block text-xs hover:underline"
+      >
+        Voltar ao acervo
+      </Link>
     </div>
   );
 }

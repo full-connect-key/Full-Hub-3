@@ -638,6 +638,43 @@ const TELAS = [
   { nome: "18-painel-celular", rota: "/painel", largura: 390, altura: 844, role: "socio" },
   { nome: "19-portal-celular", rota: "/portal", largura: 390, altura: 900 },
   { nome: "19b-portal-itens-375", rota: "/portal/itens", largura: 375, altura: 1100 },
+
+  // --- O TOUR DE PRIMEIRO ACESSO (0101) ------------------------------------
+  //
+  // SAO QUATRO TELAS, e nenhuma delas sai nas outras cento e cinquenta: o
+  // estado que o tour serve e o primeiro minuto, e o stub de
+  // `lib/dados/tour.ts` devolve "ja fez" para todo mundo justamente para o
+  // dialogo nao cobrir o produto inteiro.
+  //
+  // E SAO DUAS PESSOAS porque sao dois estados que nao cabem na mesma tela: o
+  // dialogo de boas-vindas cobre o bloco "Primeiros passos" que ele mesmo
+  // cita. O Pedro nunca comecou; a Luiza ja fez o tour e ainda esta se
+  // ambientando.
+  { nome: "80-tour-boas-vindas", rota: "/painel", largura: 1280, altura: 900, role: "colaborador-recem-chegada" },
+  // O PRIMEIRO PASSO, com o recorte e o balao. O clique e no botao do dialogo,
+  // e o passo 1 aponta para o menu -- que no desktop e a barra lateral.
+  { nome: "81-tour-primeiro-passo", rota: "/painel", largura: 1280, altura: 900, role: "colaborador-recem-chegada", clicar: 'button:has-text("Começar o tour")' },
+  // PRIMEIROS PASSOS, sem dialogo na frente: dois de cinco feitos, porque o
+  // zero nao prova que o risco do item concluido funciona.
+  { nome: "82-tour-primeiros-passos", rota: "/painel", largura: 1280, altura: 1100, role: "colaborador-ambientando" },
+  // O CONVITE DO MICRO-TOUR, no canto. Ele aparece porque a Luiza nao tem
+  // linha nenhuma de `modulo:*` -- e so neste modulo porque e a rota desta
+  // tela.
+  //
+  // E A ROTA E O CALENDARIO, nao a Gestao de Tasks: aquela e `GESTAO`, e a
+  // Luiza e colaboradora -- `exigirAcessoARota` devolve 403, e a imagem saiu
+  // sendo a tela de acesso negado com o nome do modulo no `<title>`. Foi a
+  // conferencia do dump que mostrou, e nao o gerador: um 403 renderiza com
+  // sucesso, entao a rodada termina dizendo "Pronto" e a peca nova nao aparece
+  // em imagem nenhuma. Toda tela de prototipo tem que caber no perfil que ela
+  // pede.
+  { nome: "83-tour-micro-convite", rota: "/painel/calendario", largura: 1280, altura: 900, role: "colaborador-ambientando" },
+  // O ACOMPANHAMENTO DA GESTAO, com a faixa do alarme de tour quebrado -- a
+  // peca que nenhuma outra tela do produto desenha.
+  { nome: "84-tour-acompanhamento", rota: "/painel/academy?aba=gestao", largura: 1440, altura: 1400, role: "socio" },
+  // E EM 375px, porque o balao do tour tem botoes: um balao cortado pela
+  // direita esconde justamente o "Proximo".
+  { nome: "80b-tour-boas-vindas-375", rota: "/painel", largura: 375, altura: 800, role: "colaborador-recem-chegada" },
 ];
 
 const PORTA = 3100;
@@ -718,6 +755,12 @@ const SUBSTITUICOES = {
   // na topbar do layout, e sem o stub a acao chamaria o Supabase de dentro
   // de uma rodada em que o dominio das consultas e `.invalid`.
   "@/lib/dados/busca": ["./scripts/prototipo/busca.ts"],
+  // O TOUR ENTRA AQUI PELA MESMA RAZAO DA BUSCA: ele mora no LAYOUT, e sem o
+  // stub toda tela do prototipo chamaria o Supabase num dominio `.invalid`.
+  // E o padrao do stub e "ja fez": com lista vazia, as cento e cinquenta telas
+  // sairiam com um dialogo de boas-vindas por cima.
+  "@/lib/dados/tour": ["./scripts/prototipo/tour.ts"],
+  "@/lib/dados/primeiros-passos": ["./scripts/prototipo/primeiros-passos.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
@@ -801,6 +844,14 @@ const PERFIS = {
   // acesso: o gerador ja sobe um servidor por perfil, e a tela vazia precisava
   // de uma imagem -- ela e o estado em que a queixa de hierarquia aparecia.
   "colaborador-sem-trabalho": { role: "colaborador", funcao: "Redator" },
+  // AS DUAS PESSOAS DO TOUR, e sao duas porque sao dois estados que nao cabem
+  // na mesma tela: o dialogo de boas-vindas cobre o bloco "Primeiros passos"
+  // que ele mesmo cita. A funcao e o discriminador (o stub de `dal.ts` a le),
+  // e `Design` e `Audiovisual` entram por eliminacao -- as outras tres ja
+  // estao tomadas, e `colaborador-primeiro-acesso` ja quer dizer outra coisa
+  // aqui: quem nao trocou a senha provisoria.
+  "colaborador-recem-chegada": { role: "colaborador", funcao: "Design" },
+  "colaborador-ambientando": { role: "colaborador", funcao: "Audiovisual" },
   // Quem acabou de ser cadastrado e ainda nao trocou a senha provisoria. E um
   // PERFIL e nao um parametro de tela porque o gerador ja sobe um servidor por
   // perfil -- assim nao inventa um mecanismo novo para uma tela so.
@@ -1046,6 +1097,29 @@ try {
   const quebradas = [];
 
   // ------------------------------------------------------------------------
+  // TELAS QUE RESPONDERAM 403, e esta e a familia do 500 com a cara boa.
+  //
+  // `forbidden()` renderiza com SUCESSO: a imagem sai, com o nome do modulo
+  // no `<title>` e a tela de acesso negado no corpo. A rodada termina dizendo
+  // "Pronto", e quem abre a imagem precisa conhecer a peca nova para notar
+  // que ela nao esta ali. Foi o que custou uma rodada no Sprint 3M: o convite
+  // de micro-tour foi fotografado em `/painel/gestao-tasks`, que e `GESTAO`,
+  // com uma persona colaboradora.
+  //
+  // E A CHECAGEM E DE MAO DUPLA, como a do `check:sprint9`: o nome da tela e
+  // a declaracao. Quem QUER o 403 escreve `403` no nome -- as duas que
+  // existem ja escreviam --, e uma tela assim que PARA de levar 403 tambem
+  // reprova: sem o outro ramo, uma guarda que caisse deixaria para tras uma
+  // imagem chamada "acesso negado" mostrando a tela liberada.
+  //
+  // MEDIDA COM DUAS MUTACOES, uma por ramo: devolvendo `83-tour-micro-convite`
+  // a `/painel/gestao-tasks`, a lista nomeia a tela e diz para trocar a rota
+  // ou o perfil; apontando `13-acesso-negado-403` para `/status`, a outra
+  // lista nomeia ela e diz que a recusa nao acontece mais.
+  const negadas = [];
+  const liberadas = [];
+
+  // ------------------------------------------------------------------------
   // TELAS QUE SAIRAM COM UM AVISO DE ERRO NA CARA, e esta e a falha que o
   // "sem o clique" NAO pega -- porque o clique DEU CERTO.
   //
@@ -1168,9 +1242,13 @@ try {
       // rodada termina dizendo "Pronto" -- com noventa imagens, ninguem abre
       // a que quebrou. O rastro sai do log do servidor, so a parte escrita
       // DEPOIS deste goto: o arquivo acumula a rodada inteira.
-      if ((resposta?.status() ?? 200) >= 500) {
+      const codigoDaTela = resposta?.status() ?? 200;
+      if (codigoDaTela >= 500) {
         quebradas.push({ nome: tela.nome, rastro: rastroDesde(antesDoLog) });
       }
+      const queria403 = tela.nome.includes("403");
+      if (codigoDaTela === 403 && !queria403) negadas.push(tela.nome);
+      if (codigoDaTela !== 403 && queria403) liberadas.push(tela.nome);
 
       // Algumas telas só aparecem depois de um clique -- uma aba, um diálogo.
       // O app roda de verdade aqui, então o Radix responde normalmente.
@@ -1472,6 +1550,28 @@ try {
     console.error(`\n  ${quebradas.length} tela(s) responderam 500 -- a imagem e da pagina de erro:`);
     for (const q of quebradas) console.error(`    ${q.nome}\n      ${q.rastro}`);
     console.error(`\n  Log completo: ${path.relative(RAIZ, LOG_DO_SERVIDOR)}`);
+    process.exitCode = 1;
+  }
+
+  if (negadas.length > 0) {
+    console.error(
+      `\n  ${negadas.length} tela(s) responderam 403 -- a imagem e a de acesso negado:`,
+    );
+    for (const n of negadas) console.error(`    ${n}`);
+    console.error(
+      "\n  A rota nao cabe no perfil que a tela pede. Troque um dos dois, ou\n  escreva 403 no nome se o acesso negado E o que a imagem mostra.",
+    );
+    process.exitCode = 1;
+  }
+
+  if (liberadas.length > 0) {
+    console.error(
+      `\n  ${liberadas.length} tela(s) tem 403 no nome e NAO levaram 403:`,
+    );
+    for (const l of liberadas) console.error(`    ${l}`);
+    console.error(
+      "\n  Ou a guarda da rota caiu, ou a tela mudou de proposito e o nome\n  ficou para tras afirmando uma recusa que nao acontece mais.",
+    );
     process.exitCode = 1;
   }
 

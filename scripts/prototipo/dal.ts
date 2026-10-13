@@ -65,13 +65,38 @@ const NOMES: Record<string, { id: string; nome: string; email: string }> = {
     nome: "Helena Dias",
     email: "redacao@fullconnectkey.com.br",
   },
+  // ALGUEM NO PRIMEIRO ACESSO, para o diálogo de boas-vindas do tour sair em
+  // imagem. O id e o que o stub de `lib/dados/tour.ts` reconhece como "nunca
+  // comecou": com uma pessoa so, todas as cento e cinquenta telas do prototipo
+  // sairiam com um dialogo por cima -- e o estado que o tour existe para
+  // servir e justamente o primeiro minuto, que nenhuma outra tela mostra.
+  "colaborador-recem-chegada": {
+    id: "a0000000-0000-0000-0000-0000000000fe",
+    nome: "Pedro Antunes",
+    email: "novo@fullconnectkey.com.br",
+  },
+  // E ALGUEM QUE JA FEZ O TOUR E AINDA ESTA SE AMBIENTANDO: sem o dialogo na
+  // frente, ela e quem mostra o bloco "Primeiros passos" e o convite de
+  // micro-tour. Sao duas pessoas porque sao dois estados que nao cabem na
+  // mesma tela -- o dialogo cobre o bloco que ele mesmo cita.
+  "colaborador-ambientando": {
+    id: "a0000000-0000-0000-0000-0000000000fd",
+    nome: "Luiza Prado",
+    email: "ambienta@fullconnectkey.com.br",
+  },
 };
 
 /**
- * Colaborador tem TRES variantes: a do Atendimento, a de Social Media e a que
- * nao tem etapa nenhuma. A funcao e o discriminador porque o gerador ja a
- * passa por ambiente -- e inventar uma segunda variavel para uma tela so seria
- * um mecanismo novo onde ja existe um.
+ * Colaborador tem CINCO variantes: a do Atendimento, a de Social Media, a que
+ * nao tem etapa nenhuma, a que acabou de entrar e a que esta se ambientando. A
+ * funcao e o discriminador porque o gerador ja a passa por ambiente -- e
+ * inventar uma segunda variavel para duas telas seria um mecanismo novo onde ja
+ * existe um.
+ *
+ * As duas ultimas usam `Design` e `Audiovisual` por eliminacao: `Atendimento`,
+ * `Social Media` e `Redator` ja estao tomadas acima, e a chave
+ * `colaborador-primeiro-acesso` ja existe no gerador querendo dizer outra coisa
+ * -- quem ainda nao trocou a senha provisoria.
  */
 function chaveDoUsuario(): string {
   const role = roleDoAmbiente();
@@ -79,6 +104,8 @@ function chaveDoUsuario(): string {
   const funcao = process.env["PROTOTIPO_FUNCAO"];
   if (funcao === "Atendimento") return "colaborador";
   if (funcao === "Redator") return "colaborador-sem-trabalho";
+  if (funcao === "Design") return "colaborador-recem-chegada";
+  if (funcao === "Audiovisual") return "colaborador-ambientando";
   return "colaborador-social";
 }
 

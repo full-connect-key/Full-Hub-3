@@ -9540,6 +9540,326 @@ campo depois dos cliques, e espera mais que o debounce de 300 ms — senão a
 imagem sai com o rodinha de carregando, que passaria como se fosse a tela
 pronta.
 
+### O tour de primeiro acesso
+
+Migration 0101. Quem entra pela primeira vez é conduzido por um tour
+interativo: o sistema destaca o elemento, explica o que ele é, e em alguns
+passos espera a pessoa clicar de verdade antes de seguir.
+
+**O tour ensina a INTERFACE; o processo é do Full Academy.** Nenhuma frase de
+balão explica como a agência trabalha — isso mora nos playbooks, e duplicá-lo
+criaria duas versões do mesmo combinado, com a do balão envelhecendo primeiro
+porque ninguém a revisa.
+
+#### Os passos moram no CÓDIGO, e o banco guarda uma coisa só
+
+`src/lib/tour/passos.ts` e `src/lib/tour/micro-tours.ts`. Um passo é um pedaço
+da interface — o seletor que ele aponta, a rota onde ele acontece, a frase que
+ele diz —, e isso muda no mesmo commit em que a tela muda. Uma tabela de passos
+obrigaria uma migration a cada ajuste de layout, e no dia em que alguém
+esquecesse de aplicar, o tour apontaria para um elemento que não existe mais —
+**e isso não dá erro: dá um balão apontando para o nada**, que é exatamente o
+que este sprint existe para não acontecer.
+
+`tour_progresso` guarda **por onde cada pessoa passou**, uma linha por pessoa
+por tour.
+
+#### SÃO TRÊS SITUAÇÕES DE PASSO PULADO, e não duas
+
+O sprint pede duas, em frases separadas: *"no passo interativo, deixe Pular
+este passo disponível"* e *"mostre os passos pulados por elemento ausente,
+agregados — é o alarme de tour quebrado"*. Falta a terceira, que ele também
+pede sem notar: *"pula se a pessoa não tiver nenhuma subtarefa"*.
+
+| A situação | Onde ela mora | Por quê |
+| --- | --- | --- |
+| a pessoa **escolheu** pular | `passos_pulados` | é decisão dela |
+| o seletor **envelheceu** | `passos_sem_ancora` | é defeito, e é o ALARME |
+| a tela não tem aquilo hoje | em lugar nenhum | é estado normal do produto |
+
+**Numa coluna só, o alarme de tour quebrado contaria quem clicou em "pular"** —
+e o número ficaria alto, plausível e sem significado, que é o modo de falha
+desta casa. E sem a bandeira `opcional` do passo, a terceira cairia no alarme:
+cada tour feito por quem acabou de entrar na agência gravaria um "defeito" que
+é a pessoa ainda não ter trabalho.
+
+#### As duas datas são do trigger, e o "lembrete uma única vez" sai daí
+
+`tour_progresso_carimba` é dono de `iniciado_em` e de `finalizado_em` e
+descarta o que vier no pedido — **policy não limita coluna**, e a tela escreve
+a própria linha a cada passo que avança. Ele reescreve as duas a partir do
+status, e o ramo que mais importa é o terceiro: *status que não mudou → a data
+fica onde estava*. Sem ele, qualquer escrita numa linha já encerrada moveria a
+conclusão para hoje.
+
+**E é dele que sai o lembrete do dia seguinte, sem nenhuma coluna.** O sprint
+pede *"um lembrete uma única vez no dia seguinte"*, e a tentação é um
+`lembrete_mostrado_em`. Pular de novo escreve `pulado` sobre `pulado`, o ramo
+`old.status = new.status` devolve a data como estava, e ela continua apontando
+para o dia do primeiro pulo: no dia seguinte `dias = 1` e o convite aparece;
+pulando outra vez a data NÃO anda, e dois dias depois `dias = 2` e ele não
+volta mais. Uma vez, derivado. A conta mora em `lib/tour/convite.ts`, e se
+aquele ramo do trigger cair o lembrete passa a aparecer todo dia.
+
+#### Não há biblioteca, e a decisão foi MEDIDA
+
+O sprint sugere o driver.js e diz que *"o resto deste sprint vale para as
+duas"* opções, então a escolha é da casa. O que a medição mostrou: a folha de
+estilo dele são 3938 bytes com **doze cores literais** e **zero** `var(--` —
+ele não tem por onde ler os tokens, então ou ele entra como a quarta exceção do
+`check:cores` num arquivo de `node_modules` que ninguém revisa, ou a interface
+do tour é a única peça do produto que não troca com o tema.
+
+E o que ele traz, ele traz bem — o recorte em SVG, a posição do balão, o
+teclado. **O que ele não tem é justamente o que o sprint pede:**
+`DriveStep.element` é síncrono, então não há passo interativo, não há navegação
+entre rotas, não há a espera de dois segundos com pulo em silêncio, e não há
+persistência. Sobrando metade do pedido para escrever à mão, a metade que ele
+traz custa 21KB de script e uma folha fora dos tokens. **O recorte aqui é uma
+linha de CSS** — `box-shadow: 0 0 0 9999px` num elemento do tamanho do alvo, em
+`.tour-recorte`.
+
+#### A TELA NUNCA É BLOQUEADA, e isso é mecânico antes de ser de desenho
+
+O véu é `pointer-events-none`: ele escurece e não intercepta nada, então todo
+clique da página continua chegando onde chegava — **que é o que o passo
+INTERATIVO precisa para existir**, e é a leitura literal de *"nunca bloquear a
+tela inteira"*. Só o balão recebe ponteiro, para os botões dele funcionarem.
+`Esc` sai de qualquer passo, → avança, ← volta, e o foco vai para o balão a
+cada passo.
+
+**E `Esc` grava `em_andamento`, não `pulado`.** Sair no meio não é desistir: a
+pessoa volta pelo `?` da topbar e retoma de onde parou, e é `passo_atual` que
+diz onde. `pulado` é o que o "Pular por agora" do diálogo escreve — ali ela
+está dizendo que não quer o tour, que é outra coisa.
+
+#### O diálogo de boas-vindas BLOQUEIA, ao contrário do tour
+
+A assimetria é a decisão: ali a única pergunta da tela é "quer ou não quer", e
+as duas respostas são botões do diálogo. Um convite que a pessoa ignora
+clicando em volta é um convite que ela ignora sem decidir, e amanhã ele volta.
+
+**Os três cartões saem dos PASSOS**, por `destaquesDoTour()`: o primeiro depois
+do menu, o do meio, e o último — e é o último que difere por perfil
+("Métricas" para o sócio, "Workflows" para o desenvolvedor, "Seu perfil" para
+quem só executa), que é o que faz os cartões serem adaptados sem uma segunda
+lista. Uma lista própria por perfil seria a segunda verdade sobre o mesmo
+tour, e a que divergiria é a dos cartões, porque ninguém a relê ao
+acrescentar um passo.
+
+#### O bloco por perfil é UM, nunca somado
+
+O sprint lista Atendimento +4, desenvolvedor +4 e sócio +3 como se empilhassem,
+e também diz *"nunca mais de 12 passos"*. As duas coisas não cabem juntas — o
+sócio chegaria a dezoito. **O teto é a regra dura**, e uma checagem no
+carregamento do módulo estoura se algum tour passar dele: sem ela, um passo a
+mais não dá erro em lugar nenhum, dá um tour de catorze passos que a pessoa
+abandona no nono — e o acompanhamento registraria isso como desistência dela.
+
+| Perfil | Passos |
+| --- | --- |
+| colaborador | 7 |
+| Atendimento | 7 + 2 |
+| desenvolvedor | 7 + 4 |
+| sócio | 7 + 4 |
+
+**O que o sócio perde está dito:** os dois passos do desenvolvedor sobre Gestão
+de Tasks e os workflows. Ele alcança as duas telas, e o micro-tour de cada
+módulo cobre a primeira visita — que é onde a pessoa está olhando a coisa de
+verdade, e não ouvindo falar dela.
+
+**E o teto de texto não prova as duas linhas**, e dizer que prova seria afirmar
+sem provar: quantas linhas uma frase ocupa depende da largura, do corpo da
+letra e da língua. O balão tem 360px, duas linhas são por volta de 100
+caracteres, e a frase mais longa que o sprint escreve tem 105. O que o teto de
+140 impede de verdade é o PARÁGRAFO, que é o que ele proíbe em voz alta.
+
+#### Toda âncora do tour do painel existe SEM DADO NENHUM
+
+Item de menu, aba, topbar. É a regra que faz o teto ser alcançável e o alarme
+ser honesto: **um passo que precisa de uma demanda ABERTA não tem como existir
+no primeiro acesso**, quando não há nenhuma. O briefing, o responsável de uma
+etapa e o "Enviar ao cliente" são micro-tour do módulo deles, e é lá que eles
+estão. A exceção declarada é "A subtarefa", que o sprint põe no tour grande com
+as próprias palavras — e ela é `opcional`.
+
+**O passo do menu é EXPLICATIVO e não interativo**, ao contrário do que o
+sprint pede ("clique para abrir"). No desktop a barra lateral já está aberta:
+não há o que abrir, e um passo que espera um clique sem razão para acontecer é
+exatamente o travamento que o próprio sprint proíbe. No celular quem carrega a
+âncora é o botão da gaveta, e **o provedor escolhe o primeiro VISÍVEL** dos dois
+elementos que levam o mesmo nome.
+
+**E todo passo de item de menu é `opcional`, por causa do celular.** A gaveta do
+Radix não existe na página enquanto está fechada: os itens não têm como ser
+encontrados, e o tour os pula. Sem a bandeira, cada tour feito num celular
+gravaria cinco linhas no alarme — que passaria a acusar o desenho responsivo do
+menu. **O tour não abre a gaveta**: ele poderia, e aí mexeria no estado de um
+componente que não é dele, e a navegação do passo seguinte a fecharia de novo.
+*O que se perde, e é dito:* no celular o tour do painel tem quatro passos em vez
+de sete ou onze — e o sprint pede 375px para o **Portal**, com essas palavras,
+cujo tour aponta para conteúdo de página.
+
+#### `data-tour`, e NUNCA classe, posição ou texto do botão
+
+`src/lib/tour/ancoras.ts`, com os nomes em constantes e o atributo saindo de
+`ancora()`. As três alternativas falham do mesmo jeito: elas envelhecem junto
+com a tela e **não dão erro** — uma classe muda no dia em que alguém troca o
+espaçamento, um `nth-child` muda no dia em que um item entra no meio da lista,
+o texto muda no dia em que o rótulo é reescrito.
+
+**O nome é uma constante porque o typo é invisível:** `data-tour="menu-minhas-taks"`
+passa pelo compilador, o passo não acha o elemento, o tour pula em silêncio — e
+o pior é que isso vira linha no alarme de tour quebrado, apontando para um
+defeito que é um erro de digitação.
+
+**QUAL ITEM DO MENU CARREGA QUAL ÂNCORA SAI DO `href`**, por `ANCORA_DO_MENU`, e
+a chave é a ROTA e não o rótulo. Isso resolve dois problemas: a barra lateral e
+a gaveta são dois componentes que desenham a MESMA lista, e marcar item por
+item em cada um deixaria o tour funcionando numa largura e pulando passos na
+outra — a classe de bug que `ICONE_DA_AREA` pagou com três cópias, duas delas já
+divergidas.
+
+> **E TODO SPRINT DE TELA ACRESCENTA OS `data-tour` DA TELA NOVA.** É a
+> instrução do usuário, e a razão é a de cima: uma tela nova sem âncora não
+> quebra nada — ela simplesmente não tem como ser ensinada, e ninguém descobre
+> isso olhando o diff. Os nomes vão em `lib/tour/ancoras.ts`, e o atributo sai
+> de `ancora()`.
+
+#### Os micro-tours: as âncoras são as da CASCA, e o que muda é o TEXTO
+
+Primeira visita a um módulo → um balão discreto no canto, *"Primeira vez aqui.
+Quer uma volta rápida?"*. Cada um é `tour_id` próprio, pulável e refazível
+independente.
+
+**Nove módulos com três a cinco passos cada seriam trinta e cinco elementos
+marcados em nove telas** — e trinta e cinco lugares onde um seletor envelhece.
+A barra de contexto, a fileira de ações do módulo, a área de conteúdo e o
+seletor de visão são o esqueleto de todas elas: quatro atributos neles dão a
+todo módulo o micro-tour dele. O passo que aponta a barra do Financeiro diz
+"notas recebidas e gastos da casa"; o do Full Days diz "a matriz, o relatório e
+a sua proposta". Mesma âncora, frases diferentes. Onde o módulo JÁ tem âncora
+própria — o "+ Nova task", a aba de aprovações internas, a dos pedidos do Full
+Days —, o passo aponta para ela.
+
+*O que fica em aberto, e é dito em vez de escondido:* um passo que aponte para
+um widget DENTRO de um módulo (a coluna do kanban de notas, a linha da matriz
+do Full Days) é uma âncora nova e um atributo na tela dele. É acréscimo de um
+passo, não de um mecanismo.
+
+**O convite mora no LAYOUT e o módulo é descoberto pela ROTA**, por
+`microTourDaRota()` — prefixo mais longo, a forma de `findMenuItem`. Montá-lo em
+nove páginas faria a décima, a que alguém criar depois, nascer sem micro-tour
+sem nada dizendo. **E ele é um balão no canto, nunca um diálogo:** quem chega
+num módulo pela primeira vez chegou para FAZER alguma coisa, e a tela tem um
+trabalho atrás do balão.
+
+**O X faz a mesma coisa que "Não, obrigado"**, e é de propósito: um fechar que
+não grava faria a oferta voltar na próxima visita, e quem fechou duas vezes
+concluiria que o botão não funciona.
+
+#### Primeiros passos: CINCO itens, e cada um é DERIVADO
+
+Bloco na tela Início, nos primeiros 14 dias ou enquanto houver pendência. Cada
+item sai do estado real — *"derivar evita o bug clássico: a pessoa faz a coisa
+por outro caminho e a lista continua dizendo que falta"*. Nenhuma coluna de
+checklist, nenhum `marcar_como_feito`: quem subiu a foto pelo Meu Perfil, quem
+concluiu a primeira etapa pelo board, quem leu o playbook pelo Academy já
+riscou o item sem passar por aqui. É "atraso não é coluna" aplicado a uma lista
+de boas-vindas.
+
+**São cinco e não seis**, e o que falta é o item da autoavaliação de skills: o
+módulo que a abrigava saiu do produto na 0043, com as duas tabelas dele. Um
+item apontando para uma tela que não existe é o pior tipo de pendência — ela
+não tem como ser resolvida, e a lista nunca fecha. Se a autoavaliação voltar, o
+item volta com ela.
+
+**E o playbook não é um título escrito no código.** O sprint nomeia um; uma
+constante com aquele texto teria de casar com uma linha do banco, e no dia em
+que alguém renomeasse o playbook a pendência ficaria para sempre em aberto, sem
+erro em lugar nenhum. Quem responde é `academy_obrigatorios_de()`, que é a
+fonte da obrigatoriedade por função desde a 0096 — e **zero obrigatórios conta
+como feito**, pela mesma razão: um item que não tem como fechar é o mesmo
+problema do módulo que saiu.
+
+*O que fica dito em vez de escondido:* o sprint pede a linha de parabéns *"por
+um dia"*, e aqui ela vale pela janela de boas-vindas inteira. Saber QUANDO o
+último item foi riscado exigiria um carimbo — e não há nenhum, de propósito,
+porque os itens são derivados e nenhum deles é um clique nesta tela.
+
+#### O acompanhamento: três perguntas, as MESMAS linhas
+
+Dentro da gestão do Full Academy, para `is_gestor()`. A proximidade é o
+argumento: aquela aba responde "quem leu o que a agência escreveu", e esta
+seção responde "quem se ambientou na interface" — as duas são a mesma pergunta
+a dois níveis, e numa rota própria a segunda seria uma tela que ninguém abre
+por hábito.
+
+As três perguntas do sprint — quem concluiu, **em qual passo as pessoas
+desistem** (*"se metade abandona no passo 4, o problema é o passo 4, não as
+pessoas"*) e **os passos pulados por elemento ausente, agregados** — saem das
+mesmas linhas, e a agregação acontece na tela. Uma segunda função somando no
+banco daria dois lugares onde a conta pode divergir da lista desenhada ao lado,
+que é o cartão de "11 entregues" com sete na lista embaixo.
+
+**O ALARME DE TOUR QUEBRADO VEM PRIMEIRO**, porque é a única coisa daquela tela
+que pede ação: as outras duas são leitura. Ele é `--warning` e nunca
+`--danger` — um seletor que envelheceu é um conserto, não um incidente —, e
+**some quando está vazio**, que é o resultado bom.
+
+**`tour_acompanhamento()` NÃO é `security definer`**, e a recusa chega como ERRO
+e não como lista vazia: a diferença entre "você não pode" e "ninguém começou
+nenhum tour". E ela parte de `profiles` por `left join`, então **devolve linha
+para quem NUNCA começou** — é justamente essa pessoa que a tela procura, e um
+`select` em `tour_progresso` seria cego para ela. **E ela inclui o cliente**,
+porque o tour do portal é o único que pode quebrar sem ninguém notar: o Portal
+é a área que a equipe nunca abre, e o produto já pagou por essa frase duas
+vezes.
+
+#### Dois achados da imagem, e o segundo virou guarda do gerador
+
+**O PRIMEIRO: os stubs liam o id do exemplo, e nenhuma das três telas do tour
+saiu.** `scripts/prototipo/tour.ts` e `primeiros-passos.ts` perguntavam a
+`USUARIO_EXEMPLO.id`, que é **fixo** — quem decide a persona é a `funcao` que o
+gerador passa por ambiente, lida por `chaveDoUsuario()` no stub de `dal.ts`.
+Lendo o id, os dois respondiam o mesmo para todo mundo: o diálogo de
+boas-vindas não apareceu em tela nenhuma, o bloco de Primeiros passos não
+apareceu, e as três imagens saíram iguais às outras cento e cinquenta. **Nada
+na rodada reclamou** — as imagens existem, e só quem conhece a peça nova nota
+que ela não está ali.
+
+**O SEGUNDO: o convite do micro-tour foi fotografado numa rota que a persona
+não alcança.** A tela pedia `/painel/gestao-tasks`, que é `GESTAO`, com uma
+colaboradora — `exigirAcessoARota` devolve 403, e a imagem saiu sendo a tela de
+acesso negado **com o nome do módulo no `<title>`**, que é o que a fazia passar
+por uma imagem do módulo.
+
+**ESSE SEGUNDO ENTROU NO GERADOR, e é a família do 500 com a cara boa.**
+`forbidden()` renderiza com SUCESSO: a rodada termina dizendo "Pronto", porque
+não há erro nenhum a reportar. A checagem é de **mão dupla** e o NOME da tela é
+a declaração — quem quer o 403 escreve `403` no nome, e as duas telas que o
+querem já escreviam; uma tela assim que PARA de levar 403 também reprova, senão
+uma guarda de rota que caísse deixaria para trás uma imagem chamada "acesso
+negado" mostrando a tela liberada. **Medida com duas mutações**, uma por ramo.
+
+#### O que o sprint pede e NÃO foi feito, com o motivo
+
+- **"Falar com o suporte interno" não entra no menu de ajuda**, porque o
+  produto não tem canal nenhum — não há fila, não há endereço, não há tela. Um
+  item que abre o cliente de e-mail com um endereço inventado é pior que item
+  nenhum: ele promete uma resposta que não vai chegar. No dia em que houver o
+  canal, é uma linha em `menu-de-ajuda.tsx`.
+- **"Refazer o tour desta tela" também não.** O item precisaria oferecer o
+  micro-tour da rota atual, e nos módulos sem micro-tour ele ou desapareceria
+  (o que ensina que não existe) ou apareceria desligado em metade das telas. O
+  caminho que existe é o convite do canto na primeira visita e o tour grande no
+  menu.
+- **O tour não tem cenário de bateria próprio além dos da 0101.** O que o banco
+  garante está medido com 45 cenários e oito mutações; o que a TELA faz — a
+  espera de dois segundos, o pulo em silêncio, o foco no balão — é propriedade
+  de navegador, e quem a confere é a imagem do protótipo. É a mesma fronteira
+  do canal de Realtime, escrita no fim daquela seção.
+
 ### Timeout de sessão
 
 Só o perfil `cliente` cai por inatividade: aviso aos 28 minutos, saída aos 30.
@@ -9969,6 +10289,16 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   HTML do servidor divergir do que o navegador monta. O rótulo acessível de um
   gráfico vai num `<span className="sr-only">` ao lado, apontado por
   `aria-labelledby`.
+- **TELA NOVA ACRESCENTA OS `data-tour` DELA.** É a instrução do usuário no
+  Sprint 3M, e a razão é mecânica: uma tela sem âncora não quebra nada — ela
+  simplesmente não tem como ser ensinada pelo tour, e ninguém descobre isso
+  olhando o diff. Os nomes vão em `lib/tour/ancoras.ts`, com o atributo saindo
+  de `ancora()`, e **nunca** classe do Tailwind, seletor de posição nem texto
+  de botão: os três envelhecem junto com o layout e não dão erro. A casca
+  compartilhada — a barra de contexto, as ações do módulo, a área de conteúdo,
+  o seletor de visão — já carrega quatro âncoras genéricas, então uma tela que
+  usa a casca não precisa de nenhuma; o que precisa de atributo é o elemento
+  específico que um passo nomeia.
 - **NENHUM TEXTO VISÍVEL AO USUÁRIO CITA NÚMERO DE SPRINT, nome de arquivo do
   roteiro ou vocabulário de desenvolvimento.** Espaço reservado se explica em
   português comum ou não existe.
@@ -10327,6 +10657,7 @@ src/
   hooks/
   lib/auth/                   roles, DAL, actions, esquemas zod
   lib/tasks/                  máquina de estados da subtarefa e da Task
+  lib/tour/                   o tour de primeiro acesso: âncoras, passos, micro-tours, convite
   lib/acoes/                  contrato das Server Actions, guardas e contas
   lib/reports/                o resumo da semana da agência, montado para a tela e para o envio que ainda não existe
   lib/email/                  o e-mail que sai: a trava de sandbox, os destinatários, as mensagens
@@ -10357,7 +10688,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:feedback` | Prova que a verificação do texto do feedback continua pegando o que não pode chegar a uma pessoa: comparação com terceiros, julgamento de caráter, elogio vazio, nota, número que não está nos dados. **Mede os dois sentidos** — o primeiro caso é um texto limpo, que tem de sair com zero achados, senão uma função que acusa SEMPRE passaria em todos os outros. É a família do `check:email` e do `check:preview`: uma trava que, quando some, faz o programa fazer MAIS coisas não derruba build, nem tipo, nem a bateria de SQL |
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. **Ela ATRAVESSA LINHA desde a busca global, e não atravessava:** a expressão exigia o `nome:` e o `clicar:` na MESMA linha, então toda entrada escrita em mais de uma — que é como as longas são escritas — ficava fora da conferência. Ela dizia "31 textos, todos no produto" sem nunca ter olhado para treze deles; hoje são 44. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
-| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. **A rodada completa que termina em zero APAGA o arquivo**, e a filtrada não: deixado para trás, ele continuaria no disco com os achados da semana passada e cara de atual — a armadilha da tabela de migrations pendentes —, mas numa rodada de três telas "zero" quer dizer zero nelas, e apagar o relatório inteiro por causa de um recorte trocaria um arquivo velho por nenhum. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou |
+| `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. **A rodada completa que termina em zero APAGA o arquivo**, e a filtrada não: deixado para trás, ele continuaria no disco com os achados da semana passada e cara de atual — a armadilha da tabela de migrations pendentes —, mas numa rodada de três telas "zero" quer dizer zero nelas, e apagar o relatório inteiro por causa de um recorte trocaria um arquivo velho por nenhum. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou. **E a que respondeu 403**, que é a família do 500 com a cara boa: `forbidden()` renderiza com SUCESSO, então a imagem sai com o nome do módulo no `<title>` e a tela de acesso negado no corpo, e a rodada termina dizendo "Pronto" — quem abre a imagem precisa conhecer a peça nova para notar que ela não está ali. A checagem é de **mão dupla** e o NOME da tela é a declaração: quem quer o 403 escreve `403` no nome, e uma tela assim que para de levar 403 também reprova |
 | `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Full Academy não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
 | `scripts/agendar-rotinas.sql` | **Liga as rotinas diárias**, por `pg_cron`. Cola no SQL Editor uma vez, depois de habilitar a extensão em Database → Extensions. É **script e não migration** por duas razões: a extensão se habilita no painel, então um `create extension` falharia em qualquer ambiente sem ela; e agendamento não é schema, é escolha de operação. Traz também o `select` que confere e o `cron.job_run_details` que mostra cada execução — o único lugar onde se vê que a rotina rodou e não fez nada por não haver o que fazer, que é o caso normal e é indistinguível de não ter rodado. E o `unschedule` para desligar: aí `rotinas_agendadas()` volta a devolver false e as duas telas voltam a dizer que a geração é manual, sozinhas |
 | `scripts/rodar-rotinas.sh` | As rotinas diárias: gerar as demandas recorrentes que venceram e apagar rascunho parado há mais de 7 dias. **É o mesmo arquivo que a Action chama de madrugada**, e não uma cópia — a decisão do `verificar.yml` ser chamado pelo deploy. Pede `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente; a chave entra pela **entrada padrão** do curl e nunca pela linha de comando, porque `ps` de um processo lê argumento de outro e o log do Actions ecoa o comando que falhou |
@@ -10380,6 +10711,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint 3M | **O tutorial interativo de primeiro acesso** (migration 0101). Quem entra pela primeira vez é conduzido: o sistema destaca o elemento, explica o que ele é, e em alguns passos espera a pessoa clicar de verdade. **Os passos moram no CÓDIGO** — eles são interface, e uma tabela de passos obrigaria uma migration a cada ajuste de layout; no dia em que alguém esquecesse de aplicar, o tour apontaria para um elemento que não existe mais, e isso não dá erro: dá um balão apontando para o nada. **NÃO HÁ BIBLIOTECA, e a decisão foi medida:** o driver.js traz doze cores literais e zero `var(--`, e não tem o passo interativo, a navegação entre rotas, a espera de dois segundos nem a persistência — sobrando metade do pedido à mão, os 21KB dele e a folha fora dos tokens não se pagam; o recorte aqui é uma linha de `box-shadow`. **A tela nunca é bloqueada**, e isso é mecânico: o véu é `pointer-events-none`, então o clique da página continua chegando — que é o que o passo interativo precisa, e é a leitura literal de *"nunca bloquear a tela inteira"*. **SÃO TRÊS SITUAÇÕES DE PASSO PULADO e não duas:** a escolha (`passos_pulados`), o defeito (`passos_sem_ancora`, o alarme de tour quebrado) e a tela que não tem aquilo hoje (a bandeira `opcional`, em lugar nenhum do banco) — numa coluna só, o alarme contaria quem clicou em "pular". **E o "lembrete uma única vez no dia seguinte" é derivado do trigger**, sem coluna nenhuma: `tour_progresso_carimba` só move `finalizado_em` quando o status MUDA, então pular de novo não move a data e o dia seguinte passa uma vez só. Quatro divergências do texto do sprint, todas com o motivo escrito: o passo do menu é explicativo (no desktop não há o que abrir, e esperar um clique sem razão é o travamento que o sprint proíbe); o bloco por perfil é UM e nunca somado (empilhados dariam dezoito passos ao sócio contra o teto de 12); toda âncora do tour grande existe sem dado nenhum (um passo que precisa de demanda aberta não existe no primeiro acesso — ele é micro-tour); e "Falar com o suporte interno" não entra, porque o produto não tem canal. Os micro-tours apontam as âncoras da CASCA e o que muda é o TEXTO — nove módulos com cinco passos seriam trinta e cinco seletores para envelhecer. "Primeiros passos" tem CINCO itens e não seis, cada um DERIVADO do estado real, e o que falta é o da autoavaliação, cujo módulo saiu na 0043. **45 cenários novos, 2122 no total, medidos com oito mutações** — e a do `with check` do UPDATE derruba ZERO, o que derrubou uma frase que eu havia escrito como se fosse trava: num policy de UPDATE o Postgres usa o `using` também como check. |
 | A porta | **A tela de login ganhou identidade nova**, em cinco rodadas de proposta — e as quatro primeiras foram recusadas com *"não gostei de nenhuma"*. O que estava errado era a **composição**, não o fundo, e a instrução que fechou é do usuário: *"centralize as informações, deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula se dividindo e se juntando (…) apenas o logo da agência, sem escrever Full Hub, uma letra mais contemporânea, tecnológica"*. **A molécula é metaball**, e o efeito inteiro são duas linhas de filtro SVG: desfoca os seis círculos e **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os halos somados, e o corte transforma a soma numa borda só. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece* molécula e não é. Duas animações empilhadas em tempos que não batem: os átomos fundem e se partem em 26s, o conjunto atravessa em 64s. **O vidro é 82% opaco, e o número foi MEDIDO:** a proposta usava 58%, e com a molécula passando atrás o pior caso — o vidro sobre o ponto mais claro dela — dava `--auth-apoio` em **2,71:1**, o subtítulo e o link ilegíveis por um instante a cada volta, num tempo que ninguém reproduz de propósito. É a regra do selo de estado de outro ângulo: **ninguém mede uma cor que anda**. `--vidro-no-pior-caso` é um token que nada pinta, e existe só para o `check:cores` ter contra o que medir — contra o preto os três textos passariam por larga margem afirmando algo que a tela não garante; medido com mutação, três cenários caem. **A letra era Sora, carregada só em `(auth)`** — e deixou de ser: a Google Sans passou a valer no produto inteiro, por decisão do usuário, e a porta não tem mais letra própria. O título do login **alterna** entre a saudação e o lema da agência com as palavras subindo do desfoque, em CSS puro — a porta é a tela que alguém abre quando nada mais funciona, e uma frase que depende de hidratar pode não aparecer. **O `<h1>` continua "Entrar" e é `sr-only`:** sem isso a mesma tela teria dois títulos diferentes conforme o segundo em que alguém chegasse nela. **Dois achados foram da imagem e não do build:** os átomos saíram chapados (na proposta cada um era degradê radial), e o quadro em repouso era o de máxima separação — seis discos num canto —, consertado com atraso negativo nas duas animações. De quebra, **o wordmark de três linhas saiu do produto** junto com a coluna escura que existia para dar largura a ele, e isso fica escrito em vez de virar ausência silenciosa. |
 | Ajustes: o fluxo | **O fluxo é a sequência de ações, e a data é do mês** (0089). Decisão do usuário: *"na criação do fluxo, tem uma aba começa quantos dias antes do mês, e termina quantos dias antes do mês, não faz sentido, por que cada mês tem um prazo de fluxo diferente, mas sempre que for aberto o social, o fluxo, deve ter a mesma sequência de ações"*. As duas colunas saíram de `social_flow_steps` — **apagar e não aposentar** (0023) —, e a sugestão continua existindo DERIVADA da própria sequência: trinta dias fechando dois antes do dia 1, divididos pelos elos, encostados sem se sobrepor (0084). O custo que a 0087 pagava continua pago — nenhum campo de data nasce vazio —, e ela serve a um fluxo de três elos e a um de dez sem nada guardado. **E a forma antiga de `p_etapas` é recusada com frase própria**, porque `jsonb` aceita chave a mais calada. **A segunda metade é um blocker que o usuário encontrou:** *"quando tento montar um fluxo, ele aparece: Falta a etapa de entrega ao cliente — mas essa etapa já está vinculada ao fato que o cliente aprova a etapa de layout, que é a última de produção"*. O fluxo dele **era representável** — Layout com `papel = 'entrega'`, porque o papel é coluna desde a 0087 para o nome ser livre —, e o que estava errado eram três coisas em volta: a recusa não dizia qual etapa marcar (agora nomeia, nos dois lados); `funcoesDoFluxo()` pulava a entrega e marcá-la perdia o Design (hoje pergunta-se por toda função que o fluxo nomeia, o que de quebra conserta um aviso que mentia em todo mês desde a 0087); e o campo do card não aparecia nela, que o banco sempre aceitou. **1814 cenários, quatro mutações medidas** (1 / 2 / 2 / 1). **E um cenário do arquivo 39 passava por sorte** — três caixinhas num `update` só, com a trava A sendo por linha: ele falhou sozinho, sem ninguém o ter tocado, e virou um laço em ordem. |
 | Sprint 3J / Parte 1 | **A produção do social virou mensal, e a aprovação continua por post.** Migration 0088, com o recorte na frase do usuário: *"A produção vira mensal, a aprovação continua por post."* Era uma corrente POR PEÇA — com doze posts, `post_etapas` guardava sessenta etapas e a redatora via **doze linhas "Conteúdo" vencendo juntas**, doze trabalhos onde a frase dele descreve UM. A 0083 já tinha consertado a DATA e deixado o modelo de pé, e a 0084 registrou a pendência em voz alta: *"colapsar a corrente para uma por MÊS é mudança de modelo bem maior que a data, e não foi pedida; fica registrada aqui porque é a pergunta seguinte natural"*. Agora a fase é **uma subtarefa do mês** (`subtasks.social_papel`), e o trabalho por peça é **a caixinha** (`post_etapa_progresso`). **`post_etapas` foi APAGADA**, com os cinco triggers que a serviam e com `posts.subtask_id` — a decisão da 0023, e não aposentada ao lado. **O que o sprint comprou é o que a fase ganha de graça por SER uma subtarefa:** cronômetro, período, estimativa, as travas da 0007, a carga de `disponibilidade_bruta()` (0081) sem uma linha nova, e as TRÊS visões de Minhas Tasks — então `etapas-de-social.tsx` saiu, e com ele os três níveis `conta › demanda do mês › post`, que deixaram de existir como problema porque a etapa de Layout do mês é UMA linha e não doze. **O chip da área fica, com a contagem**, e as três passaram a sair da mesma `areaDaLinha()`, que pergunta `social_papel` — pelo caminho longo uma etapa acrescentada à mão no mês responderia "social", e pelo título um fluxo renomeado deixaria a área vazia. **Duas travas na caixinha, e a ordem entre elas foi medida:** o portão anterior sem a aprovação daquela peça vem ANTES da fase anterior aberta, senão na última fase a pessoa lia *"falta Envio"*, que é verdade e não diz o que fazer. **A caixinha da entrega não se marca à mão** (a regra da 0045 um nível abaixo), e `observacao` é o que sobrou da etapa de Ajustes — criar uma "Ajustes" por pedido afirmaria que o mês inteiro voltou por causa de uma peça. **A sexta origem do Calendário Full saiu**, por decisão do usuário (*"a corrente do social vive só em minhas tasks e na carga"*) — da VIEW e não só da lista de camadas, com `security_invoker = true` repetida pela quarta vez; o que ela não perde é a CARGA, porque a fase é subtarefa. **O bug que o teste de fumaça achou era meu, e caro:** `posts_corrente_do_cliente` lia o portão da decisão depois de a rodada já estar `aprovada`, então `k` contava a própria decisão e a função devolvia o portão SEGUINTE — um portão do meio aprovado deixava o post em `aprovado`, afirmando ao cliente, ao calendário e à grade do feed que a peça inteira fechou. A saída é `portao_do_mes_na_posicao()`, um lugar só com a conta posicional; **mutação: 7 cenários caem**. **E a bateria encontrou um furo de segurança que eu havia deixado:** nada protegia as três colunas novas, e `subtasks_update` aceita o dono da etapa — um colaborador poria `social_papel = 'entrega'` na própria fase; entrou `subtasks_protege_o_social`, pela razão de sempre, **policy não limita coluna**. **1805 cenários, sete mutações medidas** (2 / 6 / 3 / 7 / 5 / 9 / 3). De quebra, duas coisas do seed: ele apagava os posts e deixava a demanda do mês para trás, o que fazia a segunda passada estourar em `tasks_social_do_mes_unico` — e um `case` com dois literais de array virava `text` e era recusado pela coluna de enum, um bug latente desde a 0082 que só apareceu quando o seed voltou a chegar àquela linha. |

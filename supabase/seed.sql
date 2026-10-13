@@ -2775,3 +2775,87 @@ begin
   raise notice 'Sprint 3H: 1 feedback enviado (com resposta), 1 rascunho, e os alertas de carga do periodo.';
 end
 $bloco$;
+
+
+-- ===========================================================================
+-- SPRINT 3M - O TOUR DE PRIMEIRO ACESSO (0101)
+--
+-- QUATRO ESTADOS, e eles existem porque o ambiente de exemplo tem de mostrar o
+-- produto nos estados em que ele doi -- a licao da Optica Visao sem atendente
+-- (0062) e da pessoa desligada (0069).
+--
+--   * alguem que NUNCA COMECOU -> o dialogo de boas-vindas abre para ela, e
+--     ela e a linha que o acompanhamento da gestao existe para encontrar;
+--   * alguem PARADA NO MEIO    -> e a resposta de "em qual passo as pessoas
+--     desistem", que sem uma linha dessas e uma tabela vazia;
+--   * alguem que PULOU         -> o caminho de volta pelo menu de ajuda;
+--   * e alguem com um PASSO SEM ANCORA -> o ALARME DE TOUR QUEBRADO, que e a
+--     unica peca daquela tela que pede acao. Sem ele a faixa em ambar nunca
+--     aparece em desenvolvimento, e ninguem sabe que ela existe.
+--
+-- A VERSAO DE QUEM CONCLUIU E 1, a de hoje: subir o numero aqui faria todo
+-- ambiente de desenvolvimento abrir com o convite para rever, que e o estado
+-- excepcional e nao o normal.
+--
+-- O BLOCO FOI EXERCITADO, e a conferencia precisou de um desvio: o seed inteiro
+-- nao roda hoje, porque ele ainda escreve em `academy_tracks`, que a 0096
+-- apagou. Entao este bloco foi recortado e rodado sozinho contra o banco da
+-- bateria, com os e-mails trocados pelos de la e dentro de uma transacao que
+-- se desfaz -- as cinco linhas nascem, o Bruno fica sem nenhuma, e o trigger
+-- carimba `finalizado_em` em quem concluiu e em quem pulou e deixa nulo em
+-- quem esta no meio. *O que isso NAO prova:* que o arquivo inteiro roda. Isso
+-- continua pendendo do academy.
+-- ===========================================================================
+do $bloco$
+declare
+  ana     uuid;
+  diego   uuid;
+  carla   uuid;
+  bruno   uuid;
+  marina  uuid;
+begin
+  select id into ana    from public.profiles where email = 'socia@fullconnectkey.com.br';
+  select id into diego  from public.profiles where email = 'dev@fullconnectkey.com.br';
+  select id into carla  from public.profiles where email = 'colab@fullconnectkey.com.br';
+  select id into bruno  from public.profiles where email = 'design@fullconnectkey.com.br';
+  select id into marina from public.profiles where email = 'social@fullconnectkey.com.br';
+
+  if ana is null then
+    raise notice 'Sprint 3M: sem equipe semeada, nada a fazer.';
+    return;
+  end if;
+
+  -- AS DATAS SAO DO TRIGGER, e nao estao aqui: `tour_progresso_carimba`
+  -- reescreve `iniciado_em` e `finalizado_em` a partir do status e descarta o
+  -- que vier no pedido (policy nao limita coluna). Mandar uma data aqui seria
+  -- escrever um valor que o banco joga fora -- e passar a impressao, para quem
+  -- ler este arquivo, de que ela e gravavel.
+  insert into public.tour_progresso
+    (user_id, tour_id, versao, status, passo_atual, passos_pulados, passos_sem_ancora)
+  values
+    -- A gestao concluiu os dois grandes e um micro-tour.
+    (ana,    'painel',               1, 'concluido',    10, '{}',          '{}'),
+    (ana,    'modulo:financeiro',    1, 'concluido',     1, '{}',          '{}'),
+    -- O DIEGO PAROU NO PASSO 4, e e ele a resposta de "onde as pessoas
+    -- desistem". Ele tambem pulou um passo a mao: a ESCOLHA, que nao pode
+    -- aparecer no alarme.
+    (diego,  'painel',               1, 'em_andamento',  3, '{etapa}',     '{}'),
+    -- A CARLA TEM UM PASSO SEM ANCORA, e e o alarme de tour quebrado. O id do
+    -- passo e real -- `workflows`, do bloco da gestao --, porque um id
+    -- inventado apareceria na tela como um nome que ninguem acha no codigo.
+    (carla,  'painel',               1, 'concluido',    10, '{}',          '{workflows}'),
+    -- A MARINA PULOU, e e o caminho de volta pelo menu de ajuda.
+    (marina, 'painel',               1, 'pulado',        0, '{}',          '{}')
+  on conflict (user_id, tour_id) do nothing;
+
+  -- E O BRUNO NAO TEM LINHA NENHUMA, de proposito: ele e quem nunca comecou, e
+  -- e a linha que `tour_acompanhamento()` produz pelo `left join`. A AUSENCIA e
+  -- o dado -- um `insert` para ele apagaria justamente o caso que a tela
+  -- procura.
+  if bruno is null then
+    raise notice 'Sprint 3M: 5 linhas de tour.';
+  else
+    raise notice 'Sprint 3M: 5 linhas de tour, e o Bruno de proposito sem nenhuma.';
+  end if;
+end
+$bloco$;
