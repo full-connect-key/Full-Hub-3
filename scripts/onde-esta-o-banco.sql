@@ -400,7 +400,17 @@ from (
     -- aquela funcao existe desde a 0065 e responderia ok num banco parado la,
     -- que e exatamente o estado que esta linha tem que acusar.
     ('0095', 'finance_categories_nome_key (a receita saiu)', 'constraint',
-             'finance_categories|finance_categories_nome_key')
+             'finance_categories|finance_categories_nome_key'),
+    -- A 0096 refaz o Full Academy em playbook, e-book e curso. A linha aponta
+    -- para `academy_anotacoes`, que e a tabela que NASCE -- e nao para
+    -- `academy_items`, que tambem nasce: num banco onde alguem tenha aplicado
+    -- so metade do arquivo, a anotacao e a ultima coisa que entra antes da
+    -- conversao do modelo antigo, entao ela e a que distingue "aplicou" de
+    -- "aplicou pela metade".
+    ('0096', 'academy_anotacoes (a anotacao fora do progresso)', 'tabela',
+             'academy_anotacoes'),
+    ('0096', 'academy_tracks saiu (o modelo antigo foi convertido)', 'sem_tabela',
+             'academy_tracks')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
