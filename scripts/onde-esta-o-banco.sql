@@ -436,7 +436,14 @@ from (
     -- corpo das duas que ela reescreve (`posts_corrente_do_cliente` e
     -- `post_etapa_progresso_regras`), que existem desde a 0045 e a 0088 e
     -- responderiam ok num banco parado la.
-    ('0099', 'entrega_fecha_no_envio()', 'funcao', 'entrega_fecha_no_envio')
+    ('0099', 'entrega_fecha_no_envio()', 'funcao', 'entrega_fecha_no_envio'),
+    -- A 0100 reshapeia `meses_de_social_do_portal()` para o bloco da tela
+    -- inicial do portal. A linha e `no_corpo` e aponta para `esperando`, que e
+    -- a coluna que NASCE: a funcao existe desde a 0091, entao um marcador
+    -- `funcao` responderia ok num banco parado la -- que e exatamente o estado
+    -- que esta linha tem de acusar.
+    ('0100', 'meses_de_social_do_portal devolve a demanda e o que espera',
+             'no_corpo', 'meses_de_social_do_portal|filter (')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

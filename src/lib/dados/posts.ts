@@ -449,3 +449,62 @@ export function urlsDasArtes(
 ): Promise<Record<string, string>> {
   return assinarArquivos("posts-artes", caminhos);
 }
+
+/**
+ * OS MESES DE SOCIAL QUE CHEGARAM A ESTA EMPRESA, do mais novo para o mais
+ * antigo, com quantas peças de cada um esperam a decisão do cliente.
+ *
+ * ---------------------------------------------------------------------------
+ * **É a décima quarta ponte, e ela esperou nove sprints.**
+ * `meses_de_social_do_portal()` nasceu na 0091 para a navegação do portal, que
+ * acabou sendo por FLECHA (`NavegacaoDoMes`) e não por lista — e nenhuma linha
+ * de `src/` a leu desde então. A 0100 deu a ela a demanda e a contagem do que
+ * espera, e esta função é quem atravessa.
+ *
+ * **UMA IDA AO BANCO, e é por isso que `task_id` viajou para o SQL.** O
+ * caminho sem ele seria uma RPC por mês para resolver a demanda — doze idas
+ * para desenhar um bloco da primeira dobra —, e `tasks` o cliente não enxerga
+ * (`tasks_select_cliente` exige uma rodada de escopo cliente numa subtarefa da
+ * demanda, e a demanda do mês não tem nenhuma).
+ *
+ * **E a contagem sai do SQL e não daqui**, pela razão da fonte única: ela é
+ * sobre `approval_rounds`, e contada no TypeScript dependeria de a tela ter
+ * trazido todas as peças de todos os meses — que não é o que a tela inicial
+ * carrega. Duas somas para o mesmo fato é o bug que a fonte única evita.
+ *
+ * **`ouFalha` NÃO**, e a exceção é a de `loteAbertoDoMes()`: a tela inicial
+ * funciona inteira sem este bloco, e derrubá-la por causa de uma faixa que
+ * quase sempre não tem nada a dizer seria trocar uma informação a menos por
+ * uma falha total. O que ela não pode é falhar calada.
+ * ---------------------------------------------------------------------------
+ */
+export type MesDoPortal = {
+  /** `AAAA-MM`, que é a forma que a aba de Social lê na URL. */
+  mes: string;
+  pecas: number;
+  esperando: number;
+};
+
+export async function mesesDeSocialDoCliente(
+  clienteId?: string,
+): Promise<MesDoPortal[]> {
+  const supabase = await criarClienteServidor();
+
+  const { data, error } = await supabase.rpc("meses_de_social_do_portal", {
+    p_client_id: clienteId ?? null,
+  });
+
+  if (error) {
+    console.error("[consulta:os meses de social do portal]", error);
+    return [];
+  }
+
+  return (data ?? []).map((linha) => ({
+    // `mes` VEM COMO DATA e a aba de Social lê `AAAA-MM`: o corte acontece
+    // aqui, num lugar só, em vez de em cada chamador — é a decisão de o bucket
+    // morar em `urlsDasArtes` e não na tela.
+    mes: linha.mes.slice(0, 7),
+    pecas: linha.pecas,
+    esperando: linha.esperando,
+  }));
+}

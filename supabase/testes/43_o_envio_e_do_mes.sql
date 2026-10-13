@@ -819,6 +819,91 @@ select teste.conferir_como('E maio conta as duas pecas', :JOANA,
   $$select pecas::text from public.meses_de_social_do_portal()
      where mes = '2027-05-01'$$, '2');
 
+-- ---------------------------------------------------------------------------
+-- E AS DUAS COLUNAS DA 0100, que sao o que a tela inicial do portal desenha.
+--
+-- A funcao nasceu na 0091 e NINGUEM a chamava -- a navegacao do portal acabou
+-- sendo por flecha e nao por lista. A 0100 deu a ela a DEMANDA e a contagem do
+-- que ESPERA, e com isso o bloco da tela inicial sai numa ida ao banco: sem o
+-- `task_id` seriam doze RPCs para resolver doze meses, e `tasks` o cliente nao
+-- enxerga.
+--
+-- `esperando` CONTA SO A RODADA PENDENTE, e e a regra da 0023 pelo avesso:
+-- pedir aprovacao nao e ter aprovacao, e rodada recusada nao esta esperando
+-- ninguem do lado de fora -- ela esta esperando a agencia refazer.
+--
+-- MAIO MEDE ISSO COM AS DUAS PECAS EM ESTADOS OPOSTOS, e foi a bateria que me
+-- corrigiu: eu esperava ZERO aqui. A peca A o cliente aprovou na Pauta -- ela
+-- nao espera ninguem; a peca B teve ajustes pedidos, a Marina refez a pauta e
+-- a rodada 2 do portao saiu -- ela VOLTOU a esperar. O numero certo e UM, e e
+-- ele que separa "conta o que esta pendente" de "conta o que nao foi
+-- aprovado": com a segunda leitura as duas contariam.
+-- ---------------------------------------------------------------------------
+select teste.conferir_como('E maio devolve a demanda do mes', :JOANA,
+  format($fmt$select (task_id = %L)::text
+     from public.meses_de_social_do_portal() where mes = '2027-05-01'$fmt$,
+    current_setting('t43.maio')), 'true');
+
+select teste.conferir_como('E so a peca reenviada de maio espera o cliente', :JOANA,
+  $$select esperando::text from public.meses_de_social_do_portal()
+     where mes = '2027-05-01'$$, '1');
+
+-- JULHO ESPERA, e e o cenario que o bloco existe para desenhar: a peca saiu e
+-- ninguem decidiu ainda.
+select teste.cenario('A gestao abre e envia um mes que ninguem decidiu', :ANA,
+  format($fmt$select public.abrir_mes_de_social(
+    %L, '2027-08', '[{"redes": ["instagram"], "quantidade": 2}]'::jsonb,
+    %L, jsonb_build_object('Social Media', %L::text, 'Design', %L::text),
+    '{}'::jsonb, 'https://drive.google.com/drive/folders/AGOSTO', %L)$fmt$,
+    :VERDE, :MARINA, :MARINA, :BRUNO, :FLUXOSEMAVAL), 'ok', 1);
+
+select set_config('t43.agosto',
+  (select id::text from public.tasks where client_id = :VERDE and social_do_mes = '2027-08-01'),
+  false);
+
+-- AS DUAS PECAS PASSAM PELA PAUTA, que e o portao do meio deste fluxo, e so
+-- depois pela entrega: e a corrente, e o que o bloco mostra e o estado final.
+select teste.cenario('A Marina marca a Pauta das duas', :MARINA,
+  format($fmt$update public.post_etapa_progresso g set concluido = true
+     where g.subtask_id = (select id from public.etapas_do_mes(%L::uuid) where titulo = 'Pauta')$fmt$,
+    current_setting('t43.agosto')), 'ok', 2);
+
+select teste.cenario('E a gestao manda a pauta ao cliente', :ANA,
+  format($fmt$select public.enviar_mes_ao_cliente(%L,
+    (select id from public.etapas_do_mes(%L::uuid) where titulo = 'Pauta'), null)$fmt$,
+    current_setting('t43.agosto'), current_setting('t43.agosto')), 'ok', 1);
+
+select teste.conferir_como('Agosto aparece com as DUAS pecas esperando', :JOANA,
+  $$select pecas || ' e ' || esperando from public.meses_de_social_do_portal()
+     where mes = '2027-08-01'$$, '2 e 2');
+
+-- E A PECA QUE VOLTOU PARA A AGENCIA SAI DA CONTA, que e o cenario que separa
+-- "pendente" de "nao aprovada" -- e sem ele a mutacao do filtro nao derruba
+-- nada, porque a peca reenviada de maio tem DUAS rodadas (uma recusada e uma
+-- pendente) e o `exists` casa pelas duas leituras. Aqui a peca tem UMA rodada
+-- e ela esta recusada: o cliente ja respondeu, quem deve agora e a agencia, e
+-- o bloco da tela inicial dele nao pode cobrar uma decisao que ele tomou.
+--
+-- Medido com mutacao: trocando `status = 'pendente'` por `status <>
+-- 'aprovada'`, este cenario cai e diz 2.
+select teste.cenario('O cliente pede ajustes numa das duas', :JOANA,
+  format($fmt$select public.decidir_rodada_do_cliente(
+    (select r.id from public.approval_rounds r
+       join public.posts p on p.id = r.content_id
+      where p.social_task_id = %L::uuid and r.escopo = 'cliente'
+        and r.status = 'pendente'
+      order by p.tema limit 1),
+    'ajustes_solicitados', 'A pauta do primeiro ficou genérica.')$fmt$,
+    current_setting('t43.agosto')), 'ok', 1);
+
+select teste.conferir_como('E agora agosto espera UMA, das duas', :JOANA,
+  $$select pecas || ' e ' || esperando from public.meses_de_social_do_portal()
+     where mes = '2027-08-01'$$, '2 e 1');
+
+select teste.conferir_como('E o cliente da outra empresa nao ve agosto', :OTTO,
+  $$select count(*)::text from public.meses_de_social_do_portal()
+     where mes = '2027-08-01'$$, '0');
+
 select teste.conferir_como('O cliente da outra empresa nao le mes nenhum destes', :OTTO,
   $$select count(*)::text from public.meses_de_social_do_portal()
      where mes in ('2027-05-01', '2027-06-01')$$, '0');

@@ -3432,9 +3432,18 @@ export interface Database {
         Args: { p_mes: string; p_client_id?: string | null };
         Returns: string | null;
       };
+      // A FORMA E A DA 0100, e nao a da 0091: `task_id` e `esperando` entraram
+      // para o bloco da tela inicial do portal sair numa ida ao banco. O
+      // `drop function` antes do `create` e obrigatorio -- `create or replace`
+      // nao troca o tipo de retorno de uma funcao `returns table`.
       meses_de_social_do_portal: {
         Args: { p_client_id?: string | null };
-        Returns: { mes: string; pecas: number }[];
+        Returns: {
+          mes: string;
+          task_id: string;
+          pecas: number;
+          esperando: number;
+        }[];
       };
 
       // --- Cronometro da subtarefa (migration 0021) -----------------------

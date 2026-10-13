@@ -343,6 +343,12 @@ export async function postsDoMes(
  *
  * As duas pecas sem data sao as duas pendentes: doze decididas de catorze.
  */
+export type MesDoPortal = {
+  mes: string;
+  pecas: number;
+  esperando: number;
+};
+
 export type LoteDoPortal = {
   portao: string;
   recado: string | null;
@@ -361,6 +367,32 @@ export async function loteAbertoDoMes(
     pecas: 14,
     decididas: 12,
   };
+}
+
+/**
+ * OS MESES DE SOCIAL QUE CHEGARAM, para o bloco da tela inicial do portal.
+ *
+ * DOIS MESES E NAO UM, e so o primeiro espera: e a razao da peca combinada e
+ * da Optica Visao sem atendente (0062) -- com um mes so, a imagem nao prova
+ * que o bloco filtra o que ja foi decidido, prova so que ele desenha um
+ * cartao. O mes de tras tem as doze pecas decididas e nao aparece.
+ *
+ * E O MES DO EXEMPLO E O CORRENTE, calculado de `HOJE` e nao escrito: um mes
+ * literal sai da janela que a aba de Social abre e o botao levaria a um mes
+ * vazio na imagem -- e a lição das notas fiscais de 2027, que deixaram de ser
+ * literais quando o botao passou a depender da janela de doze meses.
+ */
+export async function mesesDeSocialDoCliente(
+  _clienteId?: string,
+): Promise<MesDoPortal[]> {
+  const mes = (deslocamento: number) => {
+    const d = new Date(HOJE.getFullYear(), HOJE.getMonth() + deslocamento, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  return [
+    { mes: mes(0), pecas: 14, esperando: 2 },
+    { mes: mes(-1), pecas: 12, esperando: 0 },
+  ];
 }
 
 /** A vizinhanca do detalhe: tudo do mesmo mes de exemplo. */

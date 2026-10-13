@@ -8627,6 +8627,63 @@ quem o criou e não existe para mais ninguém (0028) — não há outra pessoa n
 para avisar. E a etapa do social não é avisada por aqui: a corrente já tem o
 aviso dela desde a 0088, e o segundo seria o mesmo fato duas vezes.
 
+#### E O MÊS QUE CHEGOU APARECE NA PRIMEIRA DOBRA DO PORTAL (0100)
+
+A outra metade da mesma frase: *"no caso dos clientes, se eles receberam um mês
+de social, preciso que isso apareça na página inicial do portal do cliente, com
+um botão para direcionar para a aba de social, para ele realizar a aprovação."*
+
+**O SINO NÃO BASTA, e é a razão de o bloco existir.** Ele se apaga no primeiro
+clique, e depois disso o que ele avisou não existe em tela nenhuma — é a razão
+pela qual o pedido de nota fiscal ganhou faixa em `/painel/notas-fiscais`
+(0066) em vez de só um aviso. A tela que a pessoa abre é que tem de dizer o que
+está esperando por ela.
+
+**ELE NÃO É O MESMO FATO QUE "Para a sua aprovação" logo abaixo**, e é por isso
+que os dois convivem: aquela lista é PEÇA por peça, cortada em cinco; a faixa é
+o MÊS como unidade, que é o que a empresa contratou. Dezoito peças de outubro
+são uma entrega, e sem a faixa um mês inteiro chega e a tela mostra cinco
+linhas soltas sem dizer de onde vêm. **E ela abre a tela, acima da lista:** lida
+depois, ela explicaria o que a pessoa já tentou entender sozinha.
+
+**A FUNÇÃO EXISTIA E NINGUÉM A CHAMAVA — é a décima quarta ponte.**
+`meses_de_social_do_portal()` nasceu na 0091 para a navegação do portal, que
+acabou sendo por FLECHA (`NavegacaoDoMes`) e não por lista, e em nove sprints
+nenhuma linha de `src/` a leu. A 0100 **reshapeia** em vez de criar uma ao
+lado: uma segunda função respondendo "os meses que esta empresa tem material"
+seria a segunda verdade sobre o mesmo fato, e a que divergiria é justamente a
+sem chamador.
+
+**As duas colunas novas têm razão cada uma.** `task_id` é a demanda do mês, e
+sem ela a tela resolveria o mês com uma RPC por mês — doze idas ao banco para
+desenhar um bloco da primeira dobra —, porque o cliente não enxerga `tasks`.
+`esperando` é a contagem que decide se o bloco aparece, e ela sai do SQL por uma
+razão que não é desempenho: a pergunta é sobre `approval_rounds`, e contada no
+TypeScript dependeria de a tela ter trazido todas as peças de todos os meses,
+que não é o que a tela inicial carrega.
+
+**`pendente` é o único estado que conta**, e é a regra da 0023 pelo avesso:
+pedir aprovação não é ter aprovação, e rodada recusada não está esperando
+ninguém do lado de fora — ela está esperando a agência refazer. **A bateria me
+corrigiu numa expectativa aqui:** eu esperava zero em maio, e o certo é um — a
+peça que voltou com ajustes foi reenviada, e ela VOLTOU a esperar. O cenário que
+separa "pendente" de "não aprovada" precisou de uma peça com UMA rodada
+recusada e nenhuma pendente; sem ele a mutação do filtro não derrubava nada,
+porque o `exists` casa pelas duas leituras numa peça com duas rodadas.
+
+**O `drop function` antes do `create` é obrigatório**, e é a pegadinha que a
+0088 pagou: `create or replace` não troca o tipo de retorno de uma função
+`returns table`. E com ele vão os grants — o `revoke`/`grant` da 0091 é repetido
+inteiro, senão a função nasce com o `execute` de `public` que o Postgres concede
+sozinho e `anon` lê os meses de qualquer empresa. É a lição da 0097 com
+`academy_vencidos()`.
+
+*O que muda de comportamento, e fica dito:* ela passa a agrupar por DEMANDA e
+não só por competência. Para quem responde por uma empresa é o mesmo resultado,
+porque `(client_id, social_do_mes)` é único desde a 0061; para quem responde por
+duas, outubro vem em duas linhas — uma por conta, que é a resposta certa para um
+botão que leva a um mês específico.
+
 **Dois cenários da bateria mudaram, e os dois mediam o número certo pelo motivo
 errado.** Um contava TODO aviso de `aprovacao` de uma pessoa — e
 `teste.limpar()` não mexe em `notifications`, então qualquer aviso de um arquivo

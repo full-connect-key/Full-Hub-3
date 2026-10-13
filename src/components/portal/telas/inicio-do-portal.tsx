@@ -8,11 +8,13 @@ import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { identidadeDoPortal } from "@/lib/dados/clientes";
 import { IdentidadeDoCliente } from "@/components/portal/identidade-do-cliente";
+import { SocialQueChegou } from "@/components/portal/social-que-chegou";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
 } from "@/lib/dados/campanhas";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
+import { mesesDeSocialDoCliente } from "@/lib/dados/posts";
 import {
   atividadeRecente,
   itensDoPortal,
@@ -57,12 +59,17 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
-  const [itens, atividade, campanhas, identidade] = await Promise.all([
-    itensDoPortal(clienteId ?? undefined),
-    atividadeRecente(clienteId ?? undefined, comoEquipe),
-    campanhasDoCliente(clienteId ?? undefined),
-    identidadeDoPortal(clienteId ?? undefined),
-  ]);
+  const [itens, atividade, campanhas, identidade, mesesDeSocial] =
+    await Promise.all([
+      itensDoPortal(clienteId ?? undefined),
+      atividadeRecente(clienteId ?? undefined, comoEquipe),
+      campanhasDoCliente(clienteId ?? undefined),
+      identidadeDoPortal(clienteId ?? undefined),
+      // UMA IDA A MAIS, no mesmo `Promise.all`: a contagem do que espera sai
+      // do SQL (0100), então o bloco não custa uma consulta por mês nem uma
+      // soma em TypeScript que divergiria da que a aba de Social mostra.
+      mesesDeSocialDoCliente(clienteId ?? undefined),
+    ]);
 
   // TODAS AS ATIVAS, e não as três primeiras — decisão do usuário: "as
   // campanhas devem aparecer na página inicial do Portal do Cliente, para ele
@@ -149,6 +156,26 @@ export async function InicioDoPortal({
           }
         />
       ) : null}
+
+      {/* --------------------------------------- o mês de social que chegou --
+          ELE ABRE A TELA, depois da identidade: decisão do usuário — *"se eles
+          receberam um mês de social, preciso que isso apareça na página
+          inicial do portal do cliente, com um botão para direcionar para a aba
+          de social, para ele realizar a aprovação"*.
+
+          ACIMA DE "Para a sua aprovação" e não abaixo, e a razão é o que cada
+          um responde: a lista de baixo é peça por peça, cortada em cinco, e
+          sozinha ela mostra cinco linhas soltas sem dizer de onde vêm; a faixa
+          diz que um MÊS chegou, que é a unidade que a empresa contratou. Lida
+          depois da lista ela explicaria o que a pessoa já tentou entender.
+
+          E ELA SOME quando não há mês esperando — o bloco de exceção da Home
+          visto de outro ângulo. */}
+      <SocialQueChegou
+        base={base}
+        comoEquipe={comoEquipe}
+        meses={mesesDeSocial}
+      />
 
       {/* ------------------------------------------ os números viram UMA LINHA --
           ELES ERAM TRÊS LADRILHOS, o primeiro com o número em tamanho de
