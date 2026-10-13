@@ -29,9 +29,14 @@ export const ROTULOS_DE_TABELA: Record<string, string> = {
   clients: "Cliente",
   client_users: "Acesso ao portal",
   team_members: "Ficha da equipe",
-  contracts: "Contrato",
-  finance_entries: "Lançamento financeiro",
-  finance_categories: "Categoria financeira",
+  // `contracts` SAIU DA LISTA com a tabela (0095): um rótulo para uma tabela
+  // que não existe é prosa mantida à mão afirmando que ela existe, lida por
+  // quem está procurando uma linha dela. O laço da 0058 pula o que
+  // `to_regclass()` não acha, então nenhuma linha nova aponta para lá — e as
+  // ANTIGAS, essas continuam no log com `contracts` cru, que é o desenho: o
+  // `??` devolve a chave, e aparecer feia é melhor que não aparecer.
+  finance_entries: "Gasto",
+  finance_categories: "Categoria de gasto",
   hr_requests: "Full Days",
   tasks: "Demanda",
   subtasks: "Etapa",

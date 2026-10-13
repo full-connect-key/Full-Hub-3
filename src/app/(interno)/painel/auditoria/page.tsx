@@ -37,7 +37,7 @@ const POR_PAGINA = 80;
  * chamar a API do Supabase direto com a chave anon leva a recusa do banco.
  *
  * E o motivo de ser só o sócio não é hierarquia: a auditoria copia o trecho que
- * mudou de `finance_entries` e de `contracts`, que fecham em `is_socio()` desde
+ * mudou de `finance_entries` e de `team_invoices`, que fecham em `is_socio()` desde
  * a 0013. Um log legível pela gestão seria a porta dos fundos daquela regra —
  * **um log é tão sensível quanto a coisa mais sensível que tem dentro dele.**
  * ---------------------------------------------------------------------------

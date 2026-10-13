@@ -222,16 +222,20 @@ select teste.cenario('A socia paga a nota aprovada', :ANA,
   'ok', 1);
 
 -- A DECISAO DO USUARIO, medida: sem esta linha o maior custo da casa fica fora
--- do relatorio de margem.
+-- da aba Softwares, que e onde a agencia olha quanto gasta.
+--
+-- O FILTRO POR `tipo = 'despesa'` SAIU com a coluna (0095): toda linha de
+-- `finance_entries` e gasto agora, e quem garante que esta e a unica e o
+-- `delete` do estado de partida la em cima.
 select teste.conferir(
-  'A nota paga virou UMA despesa no Financeiro',
-  (select count(*)::text from public.finance_entries where tipo = 'despesa'),
+  'A nota paga virou UM gasto no Financeiro',
+  (select count(*)::text from public.finance_entries),
   '1');
 
 select teste.conferir(
   'Com o valor, a competencia e a data de pagamento da nota',
   (select valor::text || ' | ' || competencia::text || ' | ' || pagamento::text || ' | ' || status::text
-     from public.finance_entries where tipo = 'despesa'),
+     from public.finance_entries),
   '4250.00 | 2027-09-01 | 2027-10-05 | pago');
 
 -- A PONTE NOS DOIS SENTIDOS: sem ela, quem abre o lancamento no Financeiro nao
@@ -241,7 +245,7 @@ select teste.conferir(
   'E a nota aponta para o lancamento que ela gerou',
   (select case when i.finance_entry_id = f.id then 'ligados' else 'soltos' end
      from public.team_invoices i, public.finance_entries f
-    where i.user_id = :BRUNO and i.competencia = '2027-09-01' and f.tipo = 'despesa'),
+    where i.user_id = :BRUNO and i.competencia = '2027-09-01'),
   'ligados');
 
 select teste.cenario('Nota paga nao muda mais de estado', :ANA,

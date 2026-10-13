@@ -391,11 +391,10 @@ export const MENU: MenuItem[] = [
     description: "Quem é da casa e quem é cliente: função, área e acessos.",
   },
   {
-    // GESTÃO, e não só o sócio — mas a aba de rentabilidade dentro dela é
-    // dele. É o mesmo desenho da 0035: quatro funções exigem `is_gestor()`,
-    // a quinta exige `is_socio()`. O desenvolvedor distribui trabalho e
-    // responde por prazo, então produção, tempo e qualidade são dele; o que
-    // ele não alcança é faturamento por cliente.
+    // GESTÃO INTEIRA, e as quatro abas também — a quinta, a Rentabilidade,
+    // era a única de `is_socio()` e saiu com a receita na 0095. O
+    // desenvolvedor distribui trabalho e responde por prazo, então produção,
+    // tempo, estimativa e qualidade são dele.
     // AO LADO DAS MÉTRICAS, e a diferença entre as duas é o que cada uma
     // serve: as Métricas respondem "como a agência vai" num recorte que a
     // pessoa escolhe; este responde "o que aconteceu nesta semana e o que vem
@@ -419,21 +418,24 @@ export const MENU: MenuItem[] = [
   },
   {
     // SÓ O SÓCIO. O desenvolvedor é gestão para todo o resto do sistema e
-    // aqui não: faturamento por cliente, margem e inadimplência são a
-    // informação mais sensível da casa. Esconder o item não é a proteção —
-    // ela está em `exigirAcessoARota` e, principalmente, na RLS da 0013.
+    // aqui não: a fila de notas recebidas é a folha de pagamento da agência
+    // vista de outro ângulo — quem a abre lê quanto cada colega ganha.
+    // Esconder o item não é a proteção: ela está em `exigirAcessoARota` e,
+    // principalmente, na RLS da 0013 e da 0065.
+    //
+    // **DUAS ABAS desde a 0095** (notas recebidas e gastos), e nenhuma delas é
+    // sobre faturamento: a receita saiu do produto por decisão do usuário.
     label: "Financeiro",
     href: "/painel/financeiro",
     icon: CircleDollarSign,
     roles: SOCIO,
     section: "gestao",
-    description:
-      "Contratos, receitas, despesas e a rentabilidade de cada conta.",
+    description: "As notas da equipe para conferir e pagar, e os gastos da agência.",
   },
   {
     // SÓ O SÓCIO, e pelo mesmo motivo do Financeiro — na verdade POR CAUSA
     // dele. A auditoria copia o trecho que mudou de `finance_entries` e de
-    // `contracts`, que fecham em `is_socio()` desde a 0013. Um log legível
+    // `team_invoices`, que fecham em `is_socio()` desde a 0013 e a 0065. Um log legível
     // pela gestão seria a porta dos fundos daquela regra: o desenvolvedor não
     // lê a tabela e leria o valor no `depois`.
     //

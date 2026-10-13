@@ -769,103 +769,35 @@ on conflict (user_id, data) do nothing;
 
 
 -- ===========================================================================
--- SPRINT 8 -- Financeiro da agencia
+-- 0095 -- OS GASTOS DA AGENCIA (nao ha mais receita)
 --
--- Dados que fazem a tela contar uma historia em vez de so existir: dois
--- contratos mensais vivos, um trimestral, um titulo JA VENCIDO (para o
--- "atrasado" derivado aparecer sem ninguem ter mexido), um recebido, e
--- despesas espalhadas por seis meses para a serie do grafico nao ser uma
--- linha reta.
+-- Dados que fazem a aba Softwares contar uma historia em vez de so existir:
+-- gastos espalhados por seis meses (para a competencia anterior ter linha),
+-- um JA VENCIDO no mes corrente -- e o "atrasado" derivado aparece sem
+-- ninguem ter mexido --, um vencido de DOIS meses atras -- que e o que faz a
+-- faixa ambar de atraso de meses anteriores aparecer --, e um gasto DE UMA
+-- CONTA, para a coluna Cliente mostrar alguma coisa.
+--
+-- NAO HA CONTRATO NEM RECEITA: a 0095 apagou `contracts`, a coluna `tipo` e
+-- as categorias de receita, por decisao do usuario. Um seed que continuasse
+-- gravando faturamento mostraria o produto no unico estado em que ele nao
+-- existe mais -- o pior tipo de dado de exemplo, o que afirma o que nao e.
 --
 -- So o socio ve qualquer coisa disto. O seed grava como superusuario, o que
 -- ignora RLS -- e e por isso que a bateria de testes existe: ela roda como
 -- gente de verdade.
 -- ===========================================================================
 
-insert into public.contracts
-  (id, client_id, nome, valor, recorrencia, dia_vencimento, data_inicio, data_fim, ativo)
-values
-  ('c7000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-00000000000a',
-   'Fee mensal — social media', 4800.00, 'mensal', 10, (current_date - interval '8 months')::date, null, true),
-  ('c7000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-00000000000b',
-   'Fee mensal — conteúdo e mídia', 3200.00, 'mensal', 5, (current_date - interval '5 months')::date,
-   (current_date + interval '45 days')::date, true),
-  ('c7000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-00000000000c',
-   'Campanha trimestral', 9000.00, 'trimestral', 20, (current_date - interval '6 months')::date, null, true)
-on conflict (id) do nothing;
-
--- Receitas dos ultimos seis meses, vindas dos dois contratos mensais.
+-- Gastos dos ultimos seis meses. Valores variados de proposito: gasto
+-- constante nao mostra se a tela esta somando o recorte certo.
 insert into public.finance_entries
-  (tipo, client_id, contract_id, category_id, descricao, valor, competencia, vencimento, pagamento, status, criado_por)
-select 'receita',
-       ct.client_id,
-       ct.id,
-       (select id from public.finance_categories where nome = 'Fee mensal' and tipo = 'receita'),
-       ct.nome,
-       ct.valor,
-       (date_trunc('month', current_date) - (n || ' months')::interval)::date,
-       (date_trunc('month', current_date) - (n || ' months')::interval)::date + (ct.dia_vencimento - 1),
-       -- O mes corrente fica EM ABERTO; os anteriores ja foram pagos.
-       case when n = 0 then null
-            else (date_trunc('month', current_date) - (n || ' months')::interval)::date + (ct.dia_vencimento + 1)
-       end,
-       case when n = 0 then 'previsto' else 'pago' end::public.fin_status,
-       'a0000000-0000-0000-0000-000000000001'::uuid
-  from public.contracts ct
- cross join generate_series(0, 5) as n
- where ct.id in ('c7000000-0000-0000-0000-000000000001', 'c7000000-0000-0000-0000-000000000002')
-   and exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
--- O `where` repete o predicado do indice PARCIAL da 0013. Sem ele o Postgres
--- recusa com "no unique or exclusion constraint matching the ON CONFLICT
--- specification": a inferencia so casa com um indice parcial quando o
--- predicado e informado.
-on conflict (contract_id, competencia) where contract_id is not null do nothing;
-
--- Um titulo VENCIDO e nao pago. E ele que faz o cartao "Em atraso" ter numero
--- e o selo vermelho aparecer na lista, sem ninguem ter gravado "atrasado".
-insert into public.finance_entries
-  (id, tipo, client_id, category_id, descricao, valor, competencia, vencimento, status, criado_por)
-select 'f7000000-0000-0000-0000-000000000001'::uuid,
-       'receita',
-       'c0000000-0000-0000-0000-00000000000c',
-       (select id from public.finance_categories where nome = 'Projeto pontual' and tipo = 'receita'),
-       'Produção de vídeo institucional',
-       6500.00,
-       date_trunc('month', current_date)::date,
-       (current_date - 9)::date,
-       'faturado',
-       'a0000000-0000-0000-0000-000000000001'::uuid
-where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
-on conflict (id) do nothing;
-
--- Um titulo vencendo nos proximos dias, para a lista de alertas ter as duas
--- caras -- o que ja passou e o que esta por vir.
-insert into public.finance_entries
-  (id, tipo, client_id, category_id, descricao, valor, competencia, vencimento, status, criado_por)
-select 'f7000000-0000-0000-0000-000000000002'::uuid,
-       'receita',
-       'c0000000-0000-0000-0000-00000000000a',
-       (select id from public.finance_categories where nome = 'Verba de mídia' and tipo = 'receita'),
-       'Verba de mídia de outubro',
-       5200.00,
-       date_trunc('month', current_date)::date,
-       (current_date + 4)::date,
-       'faturado',
-       'a0000000-0000-0000-0000-000000000001'::uuid
-where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
-on conflict (id) do nothing;
-
--- Despesas dos mesmos seis meses. Valores variados de proposito: despesa
--- constante faria o grafico virar uma reta, e uma reta nao mostra se a
--- ferramenta de visualizacao esta funcionando.
-insert into public.finance_entries
-  (tipo, category_id, descricao, valor, competencia, vencimento, pagamento, status, fornecedor, criado_por)
-select 'despesa',
-       (select id from public.finance_categories where nome = d.categoria and tipo = 'despesa'),
+  (category_id, descricao, valor, competencia, vencimento, pagamento, status, fornecedor, criado_por)
+select (select id from public.finance_categories where nome = d.categoria),
        d.descricao,
        d.valor + (n * d.variacao),
        (date_trunc('month', current_date) - (n || ' months')::interval)::date,
        (date_trunc('month', current_date) - (n || ' months')::interval)::date + 14,
+       -- O mes corrente fica EM ABERTO; os anteriores ja foram pagos.
        case when n = 0 then null
             else (date_trunc('month', current_date) - (n || ' months')::interval)::date + 15
        end,
@@ -873,10 +805,10 @@ select 'despesa',
        d.fornecedor,
        'a0000000-0000-0000-0000-000000000001'::uuid
   from (values
-        ('Salários e pró-labore', 'Folha da equipe',        14200.00, 180.00, null),
-        ('Ferramentas e software','Assinaturas e licenças',   890.00,  25.00, 'Adobe, Meta, Google'),
-        ('Estrutura',             'Aluguel e contas',        2400.00,  40.00, null),
-        ('Freelancers',           'Freela de edição',        1800.00, 260.00, 'Studio Ponto')
+        ('Salários e pró-labore', 'Folha da equipe',         14200.00, 180.00, null),
+        ('Ferramentas e software','Adobe Creative Cloud',      890.00,  25.00, 'Adobe'),
+        ('Estrutura',             'Aluguel e contas',         2400.00,  40.00, null),
+        ('Freelancers',           'Freela de edição',         1800.00, 260.00, 'Studio Ponto')
        ) as d(categoria, descricao, valor, variacao, fornecedor)
  cross join generate_series(0, 5) as n
  where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
@@ -885,6 +817,58 @@ select 'despesa',
       where fe.descricao = d.descricao
         and fe.competencia = (date_trunc('month', current_date) - (n || ' months')::interval)::date
    );
+
+-- Um gasto VENCIDO e nao pago no mes corrente. E ele que faz "Atrasado"
+-- aparecer na lista sem ninguem ter gravado esse status.
+insert into public.finance_entries
+  (id, category_id, descricao, valor, competencia, vencimento, status, fornecedor, criado_por)
+select 'f7000000-0000-0000-0000-000000000001'::uuid,
+       (select id from public.finance_categories where nome = 'Freelancers'),
+       'Edição de vídeo — freelancer',
+       1800.00,
+       date_trunc('month', current_date)::date,
+       (current_date - 9)::date,
+       'previsto',
+       'Lucas Ferraz',
+       'a0000000-0000-0000-0000-000000000001'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (id) do nothing;
+
+-- Um gasto vencido de DOIS MESES ATRAS, que e o que faz a faixa ambar de
+-- "venceram em meses anteriores" ter numero. Sem ele a faixa nao aparece em
+-- ambiente nenhum, e ela e justamente a linha que nenhuma outra tela desenha.
+insert into public.finance_entries
+  (id, category_id, descricao, valor, competencia, vencimento, status, fornecedor, criado_por)
+select 'f7000000-0000-0000-0000-000000000003'::uuid,
+       (select id from public.finance_categories where nome = 'Ferramentas e software'),
+       'Licença do Figma',
+       1240.00,
+       (date_trunc('month', current_date) - interval '2 months')::date,
+       (date_trunc('month', current_date) - interval '2 months')::date + 14,
+       'previsto',
+       'Figma',
+       'a0000000-0000-0000-0000-000000000001'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (id) do nothing;
+
+-- Um gasto DE UMA CONTA, e nao da casa: midia paga de campanha. Sem ele a
+-- coluna Cliente da aba Softwares e uma fileira de travessoes, e ninguem
+-- descobre que o campo existe.
+insert into public.finance_entries
+  (id, client_id, category_id, descricao, valor, competencia, vencimento, status, fornecedor, criado_por)
+select 'f7000000-0000-0000-0000-000000000002'::uuid,
+       'c0000000-0000-0000-0000-00000000000a',
+       (select id from public.finance_categories where nome = 'Mídia paga'),
+       'Impulsionamento de outubro',
+       3500.00,
+       date_trunc('month', current_date)::date,
+       (current_date + 4)::date,
+       'faturado',
+       'Meta',
+       'a0000000-0000-0000-0000-000000000001'::uuid
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000001')
+on conflict (id) do nothing;
+
 
 
 -- ===========================================================================

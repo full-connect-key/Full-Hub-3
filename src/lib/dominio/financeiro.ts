@@ -1,9 +1,4 @@
-import type {
-  ContratoRecorrencia,
-  FinStatus,
-  FinTipo,
-  PfTipo,
-} from "@/lib/supabase/database.types";
+import type { FinStatus } from "@/lib/supabase/database.types";
 
 /**
  * O vocabulário e as contas do financeiro.
@@ -135,11 +130,6 @@ export function contaNoTotal(lancamento: { status: FinStatus }): boolean {
 // Rótulos
 // ---------------------------------------------------------------------------
 
-export const ROTULOS_DE_TIPO: Record<FinTipo, string> = {
-  receita: "Receita",
-  despesa: "Despesa",
-};
-
 export const ROTULOS_DE_STATUS: Record<FinStatus, string> = {
   previsto: "Previsto",
   faturado: "Faturado",
@@ -175,26 +165,6 @@ export const STATUS_ESCOLHIVEIS: FinStatus[] = [
   "cancelado",
 ];
 
-export const ROTULOS_DE_RECORRENCIA: Record<ContratoRecorrencia, string> = {
-  mensal: "Mensal",
-  trimestral: "Trimestral",
-  anual: "Anual",
-  pontual: "Pontual",
-};
-
-/** Quantas vezes por ano o contrato cobra. Pontual não é receita recorrente. */
-export const VEZES_POR_ANO: Record<ContratoRecorrencia, number> = {
-  mensal: 12,
-  trimestral: 4,
-  anual: 1,
-  pontual: 0,
-};
-
-export const ROTULOS_DE_PF_TIPO: Record<PfTipo, string> = {
-  entrada: "Entrada",
-  saida: "Saída",
-};
-
 // ---------------------------------------------------------------------------
 // Meses
 // ---------------------------------------------------------------------------
@@ -222,60 +192,6 @@ export function deslocarCompetencia(competencia: string, n: number): string {
 /** As últimas `n` competências terminando na informada, da mais antiga à atual. */
 export function ultimasCompetencias(competencia: string, n: number): string[] {
   return Array.from({ length: n }, (_, i) => deslocarCompetencia(competencia, i - (n - 1)));
-}
-
-/**
- * O vencimento de um contrato numa competência.
- *
- * Dia 31 em fevereiro vira o último dia de fevereiro em vez de escorregar
- * para março — um contrato que vence "no último dia" não pode pular de mês.
- */
-export function vencimentoNaCompetencia(
-  competencia: string,
-  diaVencimento: number | null,
-): string | null {
-  if (!diaVencimento) return null;
-  const [ano, mes] = competencia.split("-").map(Number);
-  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-  const dia = Math.min(diaVencimento, ultimoDia);
-  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-}
-
-/**
- * O contrato cobra nesta competência?
- *
- * Trimestral e anual contam a partir do mês de início, não do mês do
- * calendário: um contrato anual assinado em março cobra em março, não em
- * janeiro.
- */
-export function contratoCobraEm(
-  contrato: {
-    recorrencia: ContratoRecorrencia;
-    data_inicio: string;
-    data_fim: string | null;
-    ativo: boolean;
-  },
-  competencia: string,
-): boolean {
-  if (!contrato.ativo) return false;
-
-  const inicio = competenciaDe(contrato.data_inicio);
-  if (competencia < inicio) return false;
-  if (contrato.data_fim && competencia > competenciaDe(contrato.data_fim)) return false;
-
-  const mesesDesdeOInicio = mesesEntre(inicio, competencia);
-
-  switch (contrato.recorrencia) {
-    case "mensal":
-      return true;
-    case "trimestral":
-      return mesesDesdeOInicio % 3 === 0;
-    case "anual":
-      return mesesDesdeOInicio % 12 === 0;
-    case "pontual":
-      // Cobra uma vez só, no mês em que começou.
-      return mesesDesdeOInicio === 0;
-  }
 }
 
 export function mesesEntre(de: string, ate: string): number {

@@ -10,17 +10,15 @@
  * escala aqui e proporcional aos dias do recorte, que e o que a pessoa espera
  * ver mudar ao trocar o seletor.
  *
- * A rentabilidade continua devolvendo lista: quem decide se o socio a alcanca
- * e a pagina, pelo mesmo `QUEM_VE` que o banco espelha -- o stub nao pode ser
- * o lugar que esconde, senao a imagem do desenvolvedor provaria a regra
- * errada.
+ * SAO QUATRO, e nao cinco (0095): a Rentabilidade saiu com a receita. Um stub
+ * que continuasse devolvendo faturamento por cliente poria numa imagem uma aba
+ * que o produto nao tem mais -- e, pior, seria a unica prova de que ela existe.
  * ---------------------------------------------------------------------------
  */
 import type {
   DesvioDaPessoa,
   Producao,
   QualidadeDoCliente,
-  RentabilidadeDoCliente,
   TempoDeAprovacao,
   TempoEmStatus,
 } from "../../src/lib/dados/metricas";
@@ -29,7 +27,6 @@ export type {
   DesvioDaPessoa,
   Producao,
   QualidadeDoCliente,
-  RentabilidadeDoCliente,
   TempoDeAprovacao,
   TempoEmStatus,
 };
@@ -111,31 +108,4 @@ export async function qualidadeDaEntrega(de: string, ate: string): Promise<Quali
     { clienteId: "c0000000-0000-0000-0000-00000000000a", cliente: "Mundo Verde", conteudos: base, aprovadosDePrima: Math.round(base * 0.7), rodadasMedia: 1.4, rejeitados: 0 },
     { clienteId: "c0000000-0000-0000-0000-00000000000b", cliente: "Óptica Visão", conteudos: Math.max(1, Math.round(base * 0.6)), aprovadosDePrima: Math.round(base * 0.2), rodadasMedia: 2.3, rejeitados: 2 },
   ].sort((a, b) => b.conteudos - a.conteudos);
-}
-
-export async function rentabilidadeDoPeriodo(
-  de: string,
-  ate: string,
-): Promise<RentabilidadeDoCliente[]> {
-  const meses = Math.max(1, Math.round(dias(de, ate) / 30));
-  return [
-    {
-      clienteId: "c0000000-0000-0000-0000-00000000000a",
-      cliente: "Mundo Verde",
-      receita: 8500 * meses,
-      despesa: 1200 * meses,
-      horas: 64 * meses,
-      receitaPorHora: Math.round((8500 / 64) * 100) / 100,
-    },
-    {
-      // SEM HORA LANCADA: o caso que a tela escreve por extenso em vez de
-      // mostrar zero. Sem ele na imagem, a regra nao aparece em lugar nenhum.
-      clienteId: "c0000000-0000-0000-0000-00000000000b",
-      cliente: "Óptica Visão",
-      receita: 4200 * meses,
-      despesa: 600 * meses,
-      horas: 0,
-      receitaPorHora: null,
-    },
-  ];
 }

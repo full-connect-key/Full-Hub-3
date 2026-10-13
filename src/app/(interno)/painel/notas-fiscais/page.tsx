@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { forbidden } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { ehSocio } from "@/lib/auth/roles";
-import { filaDeNotas, meusPedidosDeNota, minhasNotas } from "@/lib/dados/notas-fiscais";
-import { mesesParaEmitir, porColunaDaFila } from "@/lib/dominio/notas-fiscais";
+import { meusPedidosDeNota, minhasNotas } from "@/lib/dados/notas-fiscais";
+import { mesesParaEmitir } from "@/lib/dominio/notas-fiscais";
 
-import { AbasDaNota } from "./abas";
-import { lerAba, type Aba } from "./vocabulario";
 import { FaixaDoPedido } from "./faixa-do-pedido";
-import { FilaDoSocio } from "./fila-do-socio";
 import { MinhasNotas } from "./minhas-notas";
 
 export const metadata: Metadata = { title: "Notas Fiscais" };
@@ -24,50 +21,49 @@ export const metadata: Metadata = { title: "Notas Fiscais" };
  * onde mandar a nota dele.
  *
  * ---------------------------------------------------------------------------
- * **A ABA DA FILA É DO SÓCIO, e esconder não é a proteção.**
+ * **ERAM DUAS ABAS E É UMA TELA (0095).** A fila do sócio — conferir, recusar,
+ * pagar — virou a primeira aba do Financeiro, ao lado do gasto que ela gera.
+ * Com uma seção só não há barra: *menos de duas seções não vira barra*, a
+ * regra que os Comodatos e as Notas já aplicavam, e `vocabulario.ts` e
+ * `abas.tsx` foram APAGADOS em vez de ficarem com um valor de enum cada — a
+ * decisão da 0023.
  *
- * `?aba=conferir` digitado na barra leva 403, a policy `team_invoices_select`
- * devolve lista vazia para quem não é sócio, e a action confere de novo. São
- * as três camadas de sempre, e a terceira é a que vale.
+ * **E O ENDEREÇO ANTIGO NÃO PODE DAR 404**, porque ele está GRAVADO em linhas
+ * que já existem no banco de produção: `notificar()` é chamada de dentro de
+ * trigger desde a 0065, com `/painel/notas-fiscais?aba=conferir` escrito no
+ * corpo da função. Sem o redirect, todo sino antigo do sócio cairia numa tela
+ * que não tem mais aquela seção — e ele continua nascendo assim a cada nota
+ * nova. Reescrever o corpo daquela função seria uma migration cujo único efeito
+ * é trocar um texto que o redirect já resolve, e migration que não muda
+ * comportamento é migration que alguém aplica por engano achando que muda: a
+ * mesma decisão dos comentários datados da 0028 e da 0031, e do 308 das duas
+ * rotas que entraram em Gestão de Tasks.
  *
- * E a guarda existe além do RLS por uma razão específica: sem ela, quem não é
- * sócio abriria a fila e leria "Nenhuma nota esperando" — uma afirmação falsa
- * com toda a confiança, sobre uma tela que ele não devia ver. É a mesma razão
- * pela qual o bloco de visitas ao portal não é desenhado para quem não é
- * gestão.
+ * **O redirect não pergunta o perfil**, de propósito: quem não é sócio leva o
+ * 403 do `exigirAcessoARota` do Financeiro, que é exatamente a resposta que ele
+ * recebia aqui — só vinda do lugar certo. Perguntar duas vezes seria a segunda
+ * pergunta embaixo de uma primeira que já barra todo mundo.
  * ---------------------------------------------------------------------------
  */
-const QUEM_VE: Record<Aba, (role: Parameters<typeof ehSocio>[0]) => boolean> = {
-  minhas: () => true,
-  conferir: ehSocio,
-};
-
 export default async function Pagina({
   searchParams,
 }: PageProps<"/painel/notas-fiscais">) {
   const sessao = await exigirAcessoARota("/painel/notas-fiscais");
   const parametros = await searchParams;
-  const aba = lerAba(typeof parametros.aba === "string" ? parametros.aba : undefined);
 
-  if (!QUEM_VE[aba](sessao.profile.role)) forbidden();
-
-  const visiveis = (Object.keys(QUEM_VE) as Aba[]).filter((chave) =>
-    QUEM_VE[chave](sessao.profile.role),
-  );
-
-  // A CONSULTA DA FILA SÓ ACONTECE PARA O SÓCIO. Chamá-la sempre e esconder o
-  // resultado gastaria uma ida ao banco para desenhar nada — e ela voltaria
-  // vazia pelo RLS de qualquer forma.
-  const souSocio = ehSocio(sessao.profile.role);
-  const fila = souSocio ? await filaDeNotas() : null;
-
-  // O SELO DA ABA CONTA A FILA INTEIRA, nunca o que sobrou do filtro de mês ou
-  // de pessoa: ele diz quantas notas esperam conferência, e um número que
-  // encolhe porque o sócio escolheu setembro cobraria menos do que existe. O
-  // corte por estado é o mesmo da fila — `porColunaDaFila()` —, e não um
-  // `filter` escrito aqui: dois lugares nomeando os estados é onde um deles
-  // esquece do estado novo.
-  const aConferir = fila ? porColunaDaFila(fila).enviada.length : 0;
+  if (parametros.aba === "conferir") {
+    // O FILTRO VIAJA JUNTO: o sino não o carrega, mas um link colado numa
+    // conversa carrega — "olha as notas de setembro da Carla" é um endereço
+    // que alguém mandou, e perdê-lo no caminho faria o redirect abrir a fila
+    // inteira para quem pediu um recorte.
+    const destino = new URLSearchParams();
+    for (const chave of ["mes", "pessoa"]) {
+      const valor = parametros[chave];
+      if (typeof valor === "string") destino.set(chave, valor);
+    }
+    destino.set("aba", "notas");
+    redirect(`/painel/financeiro?${destino.toString()}`);
+  }
 
   // HOJE SAI DO SERVIDOR e desce pronto, como em toda tela do produto: se a
   // lista de meses fosse montada no navegador, quem estivesse num fuso à frente
@@ -78,38 +74,30 @@ export default async function Pagina({
 
   return (
     <div className="space-y-6">
-      <div>
-        {/* Sem `PageHeader`: a topbar já diz "Notas Fiscais". O `<h1>` mora
-            na barra de contexto, invisível. */}
-        {/* A FRASE DA PRIVACIDADE FICA NA TELA, e não num texto de ajuda: ela
-            é o que faz a pessoa anexar o PDF sem hesitar. Uma promessa que o
-            banco cumpre e a tela não diz é uma promessa que ninguém conhece —
-            a mesma razão pela qual a Academy escreve "só você lê isto" ao lado
-            da anotação. */}
-        <p className="text-muted-foreground mt-1 text-sm">
-          Só você e o sócio enxergam a sua.
-        </p>
-      </div>
+      {/* O `PageHeader` VOLTOU a esta tela, e não é um `<h1>` escrito aqui.
+          Com a barra de contexto, o título morava nela, `sr-only`; sem a
+          barra, o nome do módulo precisa aparecer na escala do desenho — e a
+          escala mora num lugar só, senão a segunda tela a precisar dela sai
+          com outro tamanho.
 
-      <AbasDaNota ativa={aba} visiveis={visiveis} aConferir={aConferir} />
+          A FRASE DA PRIVACIDADE É O SUBTÍTULO, e não um texto de ajuda: ela
+          é o que faz a pessoa anexar o PDF sem hesitar. Uma promessa que o
+          banco cumpre e a tela não diz é uma promessa que ninguém conhece —
+          a mesma razão pela qual a Academy escreve "só você lê isto" ao lado
+          da anotação. */}
+      <PageHeader title="Notas Fiscais" subtitulo="Só você e o sócio enxergam a sua." />
 
-      {aba === "conferir" && fila ? (
-        <FilaDoSocio notas={fila} />
-      ) : (
-        <>
-          {/* A FAIXA FICA ACIMA DA LISTA, e não dentro do diálogo de envio:
-              quem abre esta tela precisa saber que foi cobrado ANTES de decidir
-              se vai mandar algo hoje. Dentro do diálogo ela só apareceria para
-              quem já tinha decidido. */}
-          <FaixaDoPedido pedidos={await meusPedidosDeNota()} hojeISO={hojeISO} />
+      {/* A FAIXA FICA ACIMA DA LISTA, e não dentro do diálogo de envio:
+          quem abre esta tela precisa saber que foi cobrado ANTES de decidir
+          se vai mandar algo hoje. Dentro do diálogo ela só apareceria para
+          quem já tinha decidido. */}
+      <FaixaDoPedido pedidos={await meusPedidosDeNota()} hojeISO={hojeISO} />
 
-          <MinhasNotas
-            notas={await minhasNotas()}
-            usuarioId={sessao.usuarioId}
-            mesesDisponiveis={mesesParaEmitir(hoje)}
-          />
-        </>
-      )}
+      <MinhasNotas
+        notas={await minhasNotas()}
+        usuarioId={sessao.usuarioId}
+        mesesDisponiveis={mesesParaEmitir(hoje)}
+      />
     </div>
   );
 }

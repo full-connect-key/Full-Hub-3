@@ -92,13 +92,26 @@ export function ehData(valor: unknown): boolean {
 // AS ABAS
 // ---------------------------------------------------------------------------
 
-export const ABAS_DE_METRICA = [
-  "producao",
-  "tempo",
-  "equipe",
-  "qualidade",
-  "rentabilidade",
-] as const;
+/**
+ * ERAM CINCO ABAS E SÃO QUATRO (0095).
+ *
+ * A Rentabilidade cruzava a receita de cada conta com as horas das subtarefas,
+ * e a receita saiu do produto — decisão do usuário. Sem ela a aba devolveria
+ * uma coluna de zeros, que é uma AFIRMAÇÃO sobre a conta onde o que se quer
+ * dizer é que ninguém mede mais isso.
+ *
+ * **Ela saiu do TIPO, e não só da fileira de pílulas**: `AbaDeMetrica` é a
+ * união dos quatro, quem mexer nisso leva erro de tipo, e `ehAbaDeMetrica()`
+ * manda `?aba=rentabilidade` de um link salvo para a padrão — que é o que um
+ * endereço salvo tem de fazer: abrir, e não quebrar. É a decisão da 0023 e a
+ * das duas visões do Calendário Full.
+ *
+ * **E com ela saiu `QUEM_VE`.** As quatro que ficam são todas `is_gestor()`,
+ * e um mapa de perfil por aba num conjunto em que todas respondem igual é uma
+ * segunda pergunta embaixo de uma primeira que já barra todo mundo — a lição
+ * da 0060. Quem decide é `roles: GESTAO` da rota, em `permissions.ts`.
+ */
+export const ABAS_DE_METRICA = ["producao", "tempo", "equipe", "qualidade"] as const;
 export type AbaDeMetrica = (typeof ABAS_DE_METRICA)[number];
 
 export const ROTULOS_DE_ABA: Record<AbaDeMetrica, string> = {
@@ -106,7 +119,6 @@ export const ROTULOS_DE_ABA: Record<AbaDeMetrica, string> = {
   tempo: "Onde o tempo vai",
   equipe: "Estimativa × real",
   qualidade: "Qualidade da entrega",
-  rentabilidade: "Rentabilidade",
 };
 
 export function ehAbaDeMetrica(valor: unknown): valor is AbaDeMetrica {

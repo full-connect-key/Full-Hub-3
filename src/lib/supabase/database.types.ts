@@ -49,7 +49,6 @@ export type TeamFuncao =
 
 export type TaskPrioridade = "baixa" | "normal" | "alta" | "urgente";
 
-export type FinTipo = "receita" | "despesa";
 
 /**
  * `atrasado` existe no enum, mas NUNCA é gravado: ele é derivado do
@@ -59,7 +58,6 @@ export type FinTipo = "receita" | "despesa";
  */
 export type FinStatus = "previsto" | "faturado" | "pago" | "atrasado" | "cancelado";
 
-export type ContratoRecorrencia = "mensal" | "trimestral" | "anual" | "pontual";
 
 export type PfTipo = "entrada" | "saida";
 
@@ -1314,57 +1312,16 @@ export interface Database {
        * gestao. `skills` continua, agora como vocabulario de etiquetas do
        * Full Academy -- decisao do usuario.
        */
-      contracts: {
-        Row: {
-          id: string;
-          client_id: string;
-          nome: string;
-          valor: number;
-          recorrencia: ContratoRecorrencia;
-          dia_vencimento: number | null;
-          data_inicio: string;
-          data_fim: string | null;
-          ativo: boolean;
-          observacoes: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          client_id: string;
-          nome: string;
-          valor: number;
-          recorrencia?: ContratoRecorrencia;
-          dia_vencimento?: number | null;
-          data_inicio: string;
-          data_fim?: string | null;
-          ativo?: boolean;
-          observacoes?: string | null;
-        };
-        Update: {
-          client_id?: string;
-          nome?: string;
-          valor?: number;
-          recorrencia?: ContratoRecorrencia;
-          dia_vencimento?: number | null;
-          data_inicio?: string;
-          data_fim?: string | null;
-          ativo?: boolean;
-          observacoes?: string | null;
-        };
-        Relationships: [];
-      };
       finance_categories: {
-        Row: { id: string; nome: string; tipo: FinTipo };
-        Insert: { id?: string; nome: string; tipo: FinTipo };
-        Update: { nome?: string; tipo?: FinTipo };
+        Row: { id: string; nome: string };
+        Insert: { id?: string; nome: string };
+        Update: { nome?: string };
         Relationships: [];
       };
       finance_entries: {
         Row: {
           id: string;
-          tipo: FinTipo;
           client_id: string | null;
-          contract_id: string | null;
           category_id: string | null;
           descricao: string;
           valor: number;
@@ -1379,9 +1336,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          tipo: FinTipo;
           client_id?: string | null;
-          contract_id?: string | null;
           category_id?: string | null;
           descricao: string;
           valor: number;
@@ -1394,9 +1349,7 @@ export interface Database {
           criado_por: string;
         };
         Update: {
-          tipo?: FinTipo;
           client_id?: string | null;
-          contract_id?: string | null;
           category_id?: string | null;
           descricao?: string;
           valor?: number;
@@ -3686,12 +3639,15 @@ export interface Database {
       /**
        * A CAMADA DE INDICADORES (0035).
        *
-       * As cinco são `security definer` e recusam na PRIMEIRA linha quem não
-       * pode: quatro exigem `is_gestor()`, e `rentabilidade_do_periodo`
-       * exige `is_socio()` — faturamento por cliente é a informação mais
-       * sensível da casa, e aqui não existe "só leitura para o gestor". Uma
-       * recusa chega como erro do PostgREST, não como lista vazia: é a
-       * diferença entre "você não pode" e "não há nada".
+       * As quatro são `security definer` e recusam na PRIMEIRA linha quem não
+       * pode: todas exigem `is_gestor()`. Uma recusa chega como erro do
+       * PostgREST, não como lista vazia: é a diferença entre "você não pode" e
+       * "não há nada".
+       *
+       * **Eram CINCO.** `rentabilidade_do_periodo()` cruzava receita com as
+       * horas das subtarefas, e a 0095 a apagou com a receita — sem ela a
+       * função devolveria uma coluna de zeros, que é uma afirmação sobre a
+       * conta onde o que se quer dizer é que ninguém mede mais isso.
        *
        * Todas contam SÓ FOLHA e ignoram rascunho, e o filtro é
        * `publicada_em is not null` — `rascunho` não é valor de enum.
@@ -3740,17 +3696,6 @@ export interface Database {
           aprovados_de_prima: number;
           rodadas_media: number;
           rejeitados: number;
-        }[];
-      };
-      /** Só o sócio. `receita_por_hora` vem NULA quando ninguém lançou hora. */
-      rentabilidade_do_periodo: {
-        Args: { p_de: string; p_ate: string };
-        Returns: {
-          client_id: string | null;
-          receita: number;
-          despesa: number;
-          horas: number;
-          receita_por_hora: number | null;
         }[];
       };
       /**
@@ -3922,9 +3867,7 @@ export interface Database {
       recorrencia_frequencia: RecorrenciaFrequencia;
       presenca_status: PresencaStatus;
       skill_nivel: SkillNivel;
-      fin_tipo: FinTipo;
       fin_status: FinStatus;
-      contrato_recorrencia: ContratoRecorrencia;
       pf_tipo: PfTipo;
     };
     CompositeTypes: Record<string, never>;
@@ -3971,7 +3914,6 @@ export type HrRequest = Database["public"]["Tables"]["hr_requests"]["Row"];
 export type TeamPresence = Database["public"]["Tables"]["team_presence"]["Row"];
 export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
-export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
 export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]["Row"];
 export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];

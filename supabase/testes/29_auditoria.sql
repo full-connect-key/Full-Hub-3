@@ -7,7 +7,7 @@
 --   1. NAO REGISTRAR o que deveria. A tela abre, mostra vinte linhas, e
 --      ninguem desconfia da que falta.
 --   2. REGISTRAR PARA QUEM NAO DEVERIA. Ela copia trecho de `finance_entries`
---      e de `contracts`, que fecham em `is_socio()` -- um log legivel pela
+--      e de `team_invoices`, que fecham em `is_socio()` -- um log legivel pela
 --      gestao seria a porta dos fundos daquela regra.
 --
 -- Os cenarios deste arquivo sao os dois, e o segundo e o que importa mais.
@@ -96,7 +96,9 @@ select teste.conferir(
 -- E AQUI O ESTADO DE PARTIDA TAMBEM E ESCRITO, pelo mesmo motivo -- mas este
 -- custou mais caro para aparecer. Na primeira versao o arquivo inseria a
 -- categoria sem limpar antes, e na segunda rodada ele ESTOURAVA na chave
--- unica: `finance_categories_nome_tipo_key`.
+-- unica -- `finance_categories_nome_tipo_key` naquele dia, e
+-- `finance_categories_nome_key` desde a 0095, que apagou a coluna `tipo` com
+-- a receita.
 --
 -- O que isso escondeu e a parte que importa. A bateria de verdade usa
 -- `ON_ERROR_STOP=1` e reprova a rodada, entao lá o erro apareceria. Mas o
@@ -109,9 +111,8 @@ select teste.conferir(
 -- E o modo de falha de sempre, virado contra a propria verificacao: uma
 -- checagem que so sabe dizer "ok" nao verifica nada -- nem quando a checagem
 -- e a minha.
-delete from public.finance_entries where descricao = 'Contrato secreto';
-delete from public.finance_categories
- where nome = 'Categoria da auditoria' and tipo = 'receita';
+delete from public.finance_entries where descricao = 'Assinatura secreta';
+delete from public.finance_categories where nome = 'Categoria da auditoria';
 delete from public.tasks where titulo = 'Demanda que vai sumir';
 
 do $$
@@ -121,18 +122,18 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub',
                      '11111111-1111-1111-1111-111111111111', true);
-  insert into public.finance_categories (nome, tipo)
-  values ('Categoria da auditoria', 'receita')
+  insert into public.finance_categories (nome)
+  values ('Categoria da auditoria')
   returning id into v_cat;
   insert into public.finance_entries
-    (tipo, category_id, descricao, valor, competencia, vencimento, criado_por)
-  values ('receita', v_cat, 'Contrato secreto', 987654.32, '2026-09-01', '2026-09-10',
+    (category_id, descricao, valor, competencia, vencimento, criado_por)
+  values (v_cat, 'Assinatura secreta', 987654.32, '2026-09-01', '2026-09-10',
           '11111111-1111-1111-1111-111111111111');
   reset role;
 end $$;
 
 select teste.conferir(
-  'o lancamento financeiro entrou na auditoria',
+  'o gasto entrou na auditoria',
   (select count(*)::text from public.audit_log where tabela = 'finance_entries'),
   '1');
 
@@ -243,13 +244,19 @@ select teste.conferir(
       and tgname like 'auditar%'),
   '0');
 
--- OITO TABELAS COM AS QUATRO OPERACOES, MAIS CINCO SO NO DELETE = 13.
--- O numero esta escrito porque acrescentar uma tabela a lista e uma decisao:
--- este cenario falha, e quem o consertar tem que olhar a lista e dizer por
--- que ela cresceu. Uma tabela que entra sem ninguem notar enche a tela de
--- ruido, e a tela cheia de ruido e a que ninguem abre.
+-- SETE TABELAS COM AS QUATRO OPERACOES, MAIS CINCO SO NO DELETE = 12.
+-- O numero esta escrito porque mexer na lista e uma decisao: este cenario
+-- falha, e quem o consertar tem que olhar a lista e dizer por que ela mudou de
+-- tamanho. Uma tabela que entra sem ninguem notar enche a tela de ruido, e a
+-- tela cheia de ruido e a que ninguem abre.
+--
+-- ERAM TREZE, com `contracts` entre as completas, e a 0095 apagou a tabela com
+-- a receita. O laco da 0058 se ajusta sozinho -- ele pula o que
+-- `to_regclass()` nao acha --, e e por isso que nenhuma migration precisou
+-- tirar o nome da lista dele. Este numero e o unico lugar que registra a
+-- mudanca, e e para isso que ele existe.
 select teste.conferir(
-  'a auditoria esta em 13 tabelas: 8 completas e 5 so no apagamento',
+  'a auditoria esta em 12 tabelas: 7 completas e 5 so no apagamento',
   (select count(distinct tgrelid)::text from pg_trigger
     where tgname like 'auditar_%' and not tgisinternal),
-  '13');
+  '12');

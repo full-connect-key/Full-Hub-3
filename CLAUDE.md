@@ -6824,32 +6824,197 @@ uma segunda cópia de cada rascunho descartado, numa tabela que a própria pesso
 não alcança. Quem revisou, quando, e quando enviou já moram na própria linha. É
 a razão pela qual `approval_rounds` também ficou de fora.
 
-### O Financeiro da agência é só do sócio
+### O Financeiro da agência é só do sócio, e tem DUAS ABAS
 
-`contracts`, `finance_categories` e `finance_entries` fecham em `is_socio()`
-nos quatro comandos. **Não existe "só leitura para o gestor", e a omissão é
-deliberada:** o desenvolvedor é gestão para todo o resto do sistema — cadastra
-cliente, aprova entrega, distribui trabalho — e aqui não. Faturamento por
-cliente, margem e inadimplência são a informação mais sensível da casa; quem
-pode lê-la é quem responde por ela.
+`finance_categories` e `finance_entries` fecham em `is_socio()` nos quatro
+comandos. **Não existe "só leitura para o gestor", e a omissão é deliberada:**
+o desenvolvedor é gestão para todo o resto do sistema — cadastra cliente,
+aprova entrega, distribui trabalho — e aqui não. A fila de notas recebidas é a
+folha de pagamento da agência vista de outro ângulo — quem a abre lê quanto
+cada colega ganha —, e os gastos da casa são a informação mais sensível que
+sobrou.
 
 **Ele é o extremo do sigilo que sobrou.** Houve o outro — dois módulos onde
 nem o sócio entrava —, e eles saíram do produto na 0034. Aqui é o inverso: só
 ele entra. O que continua valendo é a razão de a policy ser por comando e não
-por tabela: quem mexer numa delas vê as outras três na mesma tela.
+por tabela: quem mexer numa delas vê a outra na mesma tela.
 
-**A aba de Notas Fiscais que o sprint pedia não existe.** A agência emitir NF
-para cliente ficou fora do Full Hub por decisão do usuário; o módulo de nota
-fiscal que existe é o **da pessoa** (`/painel/notas-fiscais`), a nota que o
-colaborador manda para a agência pagar — e desde a 0065 ele é tela de verdade,
-com a despesa caindo aqui quando o sócio marca a nota como paga.
+| Aba | O que é |
+| --- | --- |
+| **Notas recebidas** | a fila da equipe: conferir, recusar, pagar |
+| **Softwares** | todo gasto da agência, por competência |
+
+**AS DUAS SÃO SOBRE DINHEIRO SAINDO, e é isso que as põe na mesma tela:** a
+nota que o sócio marca como paga vira, no mesmo instante, uma linha da aba ao
+lado — `nota_paga_vira_despesa()` desde a 0065.
+
+#### A RECEITA SAIU DO PRODUTO (migration 0095)
+
+Decisão do usuário: *"Preciso que o financeiro tenha apenas duas abas, a aba de
+visualizar as notas recebidas, e pagar, ou recusar, e a aba de Softwares - em
+que a pessoa responsável consegue fazer controle, de todos os gastos da
+agência"*.
+
+Duas abas, e nenhuma delas é sobre faturamento. Então o que sai é a receita: o
+contrato que a gera, a coluna que separa uma da outra, e a conta que cruzava as
+duas com as horas da equipe.
+
+**`finance_entries` FICA, e essa é a linha que mais importa da migration.** A
+primeira leitura do pedido foi apagar as duas tabelas, e ela não sobrevive a
+uma chave estrangeira: `team_invoices.finance_entry_id` aponta para
+`finance_entries` desde a 0065, e `nota_paga_vira_despesa()` grava ali. Apagar
+a tabela quebraria o botão Pagar — que é a OUTRA aba que o pedido descreve. E
+ela é, literalmente, a tabela de gastos: a aba Softwares não precisa de tabela
+nova, precisa que esta pare de carregar receita junto.
+
+**A pergunta foi feita e respondida duas vezes, e a segunda consertou um
+mal-entendido meu.** Eu havia escrito a opção "apaga de verdade" nomeando as
+duas tabelas, como se `finance_entries` fosse só de receita — ela nunca foi. O
+usuário escolheu aquela opção E a que dizia "reaproveito `finance_entries`", e
+as duas não cabem juntas; a chave estrangeira é que decidiu, não preferência
+minha.
+
+**AS LINHAS DE RECEITA SAEM ANTES DA COLUNA, e a ordem não é zelo.**
+`drop column tipo` sozinho não apaga receita nenhuma: ele apaga a DISTINÇÃO.
+Toda linha que era receita continuaria lá, indistinguível, e a aba de gastos
+abriria somando o faturamento da agência como se fosse despesa. O número sairia
+alto, plausível, e errado — que é o modo de falha desta casa.
+
+**`finance_categories.tipo` sai junto, e ela quase passou batida.** A categoria
+também era tipada (`unique (nome, tipo)`), então "Software" podia existir duas
+vezes, uma de cada lado. Sem receita sobra um lado só: as categorias de receita
+saem, a coluna sai, e a unicidade passa a ser o nome. Deixar a coluna manteria
+no cadastro uma pergunta que não decide mais nada — o pior tipo de campo,
+porque quem responde acha que garantiu alguma coisa. É a decisão da 0023.
+
+**O tipo sai, e isto NÃO contradiz a regra de `cancelada`.** O que o Postgres
+recusa é `alter type ... drop value` — tirar UM valor de um enum em uso. Apagar
+o tipo inteiro, quando nenhuma coluna o referencia, é `drop type`, e foi o que
+a 0023 fez com `exigencia_aprovacao`. `fin_tipo` e `contrato_recorrencia` saem
+de verdade em vez de ficarem órfãos como `pf_tipo` ficou na 0034.
+
+**E A BATERIA ACHOU O QUE EU QUASE DEIXEI PASSAR:**
+`nota_paga_vira_despesa()` escrevia `tipo = 'despesa'` no insert. O cabeçalho da
+migration já dizia que ela "continua inteira" e que passa a ser o caminho
+PRINCIPAL da despesa — e sem a reescrita, marcar uma nota como paga passaria a
+levar *"column tipo of relation finance_entries does not exist"*: a migration
+que existe para arrumar a aba de gastos quebraria a aba de notas. **A lição é a
+de sempre, de outro ângulo: `drop column` não avisa quem escrevia nela.** O
+corpo de uma função é texto para o Postgres até a hora de rodar, e a hora de
+rodar é o clique de alguém. *Medido: sem a reescrita, 4 cenários caem.*
+
+**O que se perde, e é consequência aceita por quem decidiu:**
+
+- faturamento por cliente, margem e inadimplência — a agência deixa de ter
+  onde ver quanto entra;
+- o DRE por categoria;
+- `rentabilidade_do_periodo()` (0035) e a aba dela em `/painel/metricas`. Ela
+  cruzava receita com as horas das subtarefas, e sem receita devolveria uma
+  coluna de zeros — que é uma afirmação sobre a conta, e o que se quer dizer é
+  que ninguém mede mais isso.
+
+**As Métricas passaram de cinco abas para quatro, e `QUEM_VE` saiu com a
+quinta.** Ele existia por causa de UMA aba: a Rentabilidade era `is_socio()`
+enquanto as outras quatro são `is_gestor()`. Com as quatro respondendo igual,
+um mapa de perfil por aba seria uma segunda pergunta embaixo de uma primeira
+que já barra todo mundo — a lição da 0060. **E ela saiu do TIPO**, não só da
+fileira de pílulas: `ehAbaDeMetrica()` manda `?aba=rentabilidade` de um link
+salvo para a padrão, que é o que um endereço antigo tem de fazer — abrir, e não
+quebrar.
+
+**Os cenários da receita ficaram, virados do avesso.** Eram seis de `contracts`
+e cinco de receita; hoje cada um mede a AUSÊNCIA de uma peça e diz qual voltou
+— a tabela, cada uma das três colunas, os dois enums, a função da
+rentabilidade, e a unicidade por nome. Apagá-los junto deixaria a remoção sem
+guarda nenhuma. **E um deles não é sobre schema:** `insert` com `tipo` tem que
+ser RECUSADO, porque sem ele a diferença entre "a coluna saiu" e "ninguém
+escreve mais nela" não apareceria em lugar nenhum.
+
+**A trilha de auditoria passou de 13 tabelas para 12**, e nenhuma migration
+precisou tirar o nome da lista: o laço da 0058 pula o que `to_regclass()` não
+acha. O número escrito na bateria é o único lugar que registra a mudança, e é
+para isso que ele existe. `ROTULOS_DE_TABELA` perdeu a entrada de `contracts`
+— rótulo para uma tabela que não existe é prosa mantida à mão afirmando que ela
+existe —, e as linhas ANTIGAS do log continuam aparecendo com `contracts` cru,
+que é o desenho: o `??` devolve a chave, e aparecer feia é melhor que não
+aparecer.
+
+#### A aba de notas recebidas MUDOU DE MÓDULO
+
+Ela morava em `/painel/notas-fiscais?aba=conferir`. Aquela rota é a tela de
+QUEM ENVIA — cada um manda a nota do mês e acompanha o próprio pagamento —, e
+esta é a tela de quem PAGA. Juntas na mesma rota, as duas obrigavam o
+colaborador a ler uma barra de abas com uma seção que ele não alcança;
+separadas, `/painel/notas-fiscais` voltou a ser **uma tela só** (menos de duas
+seções não vira barra, e `vocabulario.ts` e `abas.tsx` de lá foram apagados), e
+esta virou a primeira aba do Financeiro.
+
+**O ARQUIVO MUDOU DE PASTA E A AÇÃO NÃO.** `decidirNota` continua em
+`notas-fiscais/acoes.ts`: ela escreve em `team_invoices`, que é a tabela
+daquele módulo, e uma cópia aqui seria a segunda porta para o mesmo `update` —
+com a trava de sócio repetida nos dois lugares para divergir num.
+
+**E O ENDEREÇO ANTIGO NÃO PODE DAR 404, porque ele está GRAVADO em linhas que
+já existem no banco de produção.** `notificar()` é chamada de dentro de trigger
+desde a 0065, com `/painel/notas-fiscais?aba=conferir` escrito no corpo da
+função — e ele continua nascendo assim a cada nota nova. O redirect mora na
+página, leva `mes` e `pessoa` junto, e **não pergunta o perfil**: quem não é
+sócio leva o 403 do Financeiro, que é a mesma resposta que recebia aqui, só
+vinda do lugar certo. Reescrever o corpo daquela função seria uma migration
+cujo único efeito é trocar um texto que o redirect já resolve — a decisão dos
+comentários datados da 0028 e da 0031, e do 308 das duas rotas que entraram em
+Gestão de Tasks.
+
+**O selo da aba custa uma consulta nas duas abas, e é escolha:** um selo que só
+aparece quando a pessoa já está na aba das notas não cobra nada de quem abriu
+os gastos — que é justamente quem precisa saber que há nota esperando.
+
+#### A aba Softwares: todo gasto, numa lista
+
+**"Softwares" é o nome da aba e ela guarda TODO gasto da agência** — pergunta
+feita e respondida: *"Todos os gastos, e 'Softwares' é só o nome da aba"*. É o
+nome que a casa usa porque a assinatura é o gasto que mais aparece ali, e a
+tela não estreita por causa do rótulo.
+
+**ERAM QUATRO TELAS E É UMA.** A Visão Geral, os Lançamentos, os Contratos e os
+Relatórios respondiam sobre faturamento, margem e inadimplência; o que sobra de
+verdade é a lista — toda linha é um gasto, com categoria, competência,
+vencimento, pagamento e fornecedor.
+
+**OS NÚMEROS SÃO UMA LINHA DE TEXTO, e não três ladrilhos.** A lista logo
+abaixo É esses números, item por item: um cartão grande dizendo "R$ 4.300 no
+mês" acima de nove linhas que somam isso é o cartão de "11 entregues" com sete
+na lista embaixo, que o Resumo da Agência já pagou uma vez. E eles saem da
+MESMA lista que desenha as linhas — o recorte acontece na tela, então filtrar
+por categoria muda a soma e o total continua concordando com o que está à
+vista.
+
+**O ATRASO DE OUTROS MESES É CONSULTA PRÓPRIA, e essa é a parte que não dá para
+derivar.** A assinatura de março que ninguém pagou não está na lista de
+setembro: sem `gastosVencidos()` a tela diria "nada atrasado" num mês em que há
+seis meses de atraso logo atrás — uma afirmação falsa com toda a confiança. A
+faixa desconta o que é do mês que está na tela, senão a mesma linha contaria
+duas vezes, que é o caso mais comum. Ela é `--warning` e nunca `--danger` — uma
+assinatura vencida é uma cobrança, não um erro — e **some quando não há nada
+atrasado**, como os blocos de exceção do Início.
+
+**O cliente continua existindo no gasto**, e é o que permite saber quanto uma
+conta custa: a mídia paga de uma campanha, a licença comprada para ela. Sem
+dono fica "—", que é a verdade: gasto da casa.
+
+**A importação de CSV deixou de ler a coluna `tipo` e NÃO recusa a planilha que
+a traga.** Desde a 0095 toda linha é gasto, então a coluna deixou de decidir
+alguma coisa — recusar o arquivo por causa dela faria o extrato do contador
+parar de importar por um motivo que não existe mais. A chave da categoria
+passou a ser só o NOME: um prefixo de tipo nunca casaria com nada, e todo gasto
+importado entraria sem categoria, sem erro nenhum.
 
 #### Três datas, e elas não são a mesma coisa
 
-`competencia` é o mês **a que** o valor se refere, `vencimento` é quando
-deveria entrar ou sair, `pagamento` é quando entrou ou saiu. Um campo só
-obrigaria a escolher entre "quanto a agência produziu em setembro" e "quanto
-entrou no caixa em setembro", que são as duas perguntas que o sócio faz.
+`competencia` é o mês **a que** o gasto se refere, `vencimento` é quando
+deveria sair, `pagamento` é quando saiu. Um campo só obrigaria a escolher entre
+"quanto a agência gastou em setembro" e "quanto saiu do caixa em setembro", que
+são as duas perguntas que o sócio faz.
 
 A competência é gravada sempre no dia 1, por trigger: guardar `2026-09-17`
 faria "setembro" depender de qual dia foi digitado.
@@ -6867,43 +7032,35 @@ data de hoje. Uma coluna precisaria de uma rotina noturna para continuar
 verdadeira, e no dia em que ela não rodasse o relatório mentiria sem avisar
 ninguém. Por isso `atrasado` também não é opção no formulário.
 
-#### Gerar lançamentos do mês não duplica
+#### Não há mais índice único nesta tabela, e a ausência é decisão
 
-A trava é o índice único `(contract_id, competencia)`, parcial, **não** a
-consulta da action: duas abas abertas clicando ao mesmo tempo passariam pelas
-duas consultas antes de qualquer uma gravar. E não roda sozinho ao virar o mês
-— receita que aparece sem ninguém ter mandado é receita que o sócio confere uma
-por uma antes de confiar no relatório.
+A trava contra duplicar era `(contract_id, competencia)`, parcial: ela impedia
+gerar duas vezes a receita do mesmo contrato no mesmo mês e deixava passar o
+avulso. Sem contrato não há o que gerar, então ela saiu com a coluna — e o que
+fica é a metade que SEMPRE valeu: **a agência paga quatro coisas diferentes no
+mesmo mês**, e devolver qualquer trava de unicidade aqui seria recusar o caso
+normal. O cenário da bateria fica para o dia em que alguém tentar.
 
-A recorrência conta a partir do mês de início, não do calendário: um contrato
-anual assinado em março cobra em março. Dia 31 em fevereiro vira o último dia
-do mês, senão um contrato que vence "no fim" pularia para março.
-
-#### A rentabilidade cruza receita com o tempo das SUBTAREFAS
-
-O sprint pedia `tasks.tempo_real_horas`, que **não existe desde o Sprint 3B**.
-Quem tem tempo é a subtarefa (`tempo_real_minutos`), e ressuscitar a coluna
-antiga contrariaria a regra de que nenhuma consulta pode trazê-la de volta — o
-número sairia zerado de qualquer jeito.
-
-Cliente sem hora lançada aparece com "sem hora registrada", nunca com zero:
-zero é uma afirmação sobre a conta, e o que se quer dizer é que ninguém mediu.
+E "gerar lançamentos do mês" saiu junto com o contrato — não existe mais fonte
+de onde gerar.
 
 #### Cor de gráfico não é cor de estado
 
-`--serie-1`, `--serie-2` e `--serie-neg` são tokens próprios, e os valores
-foram **medidos, não escolhidos**. Receita em verde e despesa em vermelho é o
-encode óbvio e reprova: o par dá ΔE 4,2 em deuteranopia — as duas linhas ficam
-idênticas para quem tem daltonismo vermelho-verde, que é o mais comum. O par
-azul/roxo dá 9,4; o eixo azul/laranja do saldo dá 20,5.
+Os gráficos saíram com a Visão Geral e os Relatórios, e os tokens ficam:
+`--serie-1`, `--serie-2` e `--serie-neg` continuam servindo o Full Days e as
+Métricas, e os valores foram **medidos, não escolhidos**. Receita em verde e
+despesa em vermelho é o encode óbvio e reprova: o par dá ΔE 4,2 em
+deuteranopia — as duas linhas ficam idênticas para quem tem daltonismo
+vermelho-verde, que é o mais comum. O par azul/roxo dá 9,4; o eixo azul/laranja
+do saldo dá 20,5.
 
 No tema escuro os valores **não** são os claros invertidos: são passos próprios
 medidos contra o fundo escuro, porque clarear os do tema claro estoura a faixa
 de luminosidade e as marcas perdem croma — viram cinza.
 
-Os gráficos são SVG à mão, sem biblioteca: a cor tem que sair dos tokens (toda
-lib traz a própria paleta, e `check:cores` recusa hex solto), e assim o tema
-escuro funciona sozinho.
+Os gráficos que ficaram são SVG à mão, sem biblioteca: a cor tem que sair dos
+tokens (toda lib traz a própria paleta, e `check:cores` recusa hex solto), e
+assim o tema escuro funciona sozinho.
 
 ### Full Days: recesso, indisponibilidade e ausência
 
@@ -10009,7 +10166,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `scripts/zerar-tasks-social-campanhas.sql` | Cola no SQL Editor e **zera as demandas, o social e as campanhas** — decisão do usuário antes da apresentação, *"tudo que foi feito nela até agora era de teste"*. **O PASSO 1 não apaga nada**, e é ele que decide: a CONTAGEM é a única coisa entre o clique e o apagamento, porque nenhuma trava do produto recusa um `delete` vindo do SQL Editor. **A ordem não é estilo, e cada passo existe por um gatilho:** os posts primeiro, porque `tasks_apaga_o_social` (0086) recusa apagar um mês com peça já enviada enquanto a 0094 não for aplicada — com os posts fora, `posts_do_mes()` acha zero e o arquivo funciona com ela aplicada ou não; as campanhas antes das demandas, por `subtasks_espelha_ao_apagar` (0080); e **as regras recorrentes junto**, senão a demanda de teste volta sozinha na madrugada seguinte. Gente, empresas e a configuração que faz o produto abrir funcionando — workflows, fluxos de social, modelos de campanha, tipos de pedido, padrões de conta — ficam; os outros módulos também. **Rodado e medido**, não só escrito: contra um Postgres 16 com as migrations e o seed, com a trava da 0086 reposta por cima — a varredura final de `approval_rounds` apaga **zero**, porque os três gatilhos de limpeza já levaram as rodadas, e as 14 tabelas dependentes ficam em zero sem órfão |
 | `scripts/zerar-full-days.sql` | Cola no SQL Editor e **zera o Full Days** — decisão do usuário: *"coloquei que iria tirar férias só para testar a funcionalidade, mas ficou marcando como se eu tivesse tirado férias"*. **A ordem É a armadilha, e ela é o próprio relato:** `team_presence.hr_request_id` é `on delete SET NULL` (0011), então apagar só os PEDIDOS deixa os dias pintados na matriz — eles perdem o vínculo e continuam lá, em roxo. O `set null` está certo onde ele existe (um pedido desfeito não leva junto, em silêncio, um dia corrigido à mão); ele é errado só aqui, onde se quer zerar os dois. A matriz sai primeiro, explícita, e `proteger_presenca_de_pedido` não morde porque é `before UPDATE`. **O saldo não tem coluna para zerar:** `saldo_de_ferias()` e `descanso_do_ciclo()` contam `hr_requests` no ciclo corrente (0039, 0085), então todo mundo volta aos 15 dias sozinho — é a regra de "atraso não é coluna" pagando dividendo. Feriados, contrato de cada pessoa (`data_admissao`, `dias_ferias_ano`, `max_parcelas_ferias`) e os eventos do Calendário Full ficam. **Rodado e medido:** o arquivo inteiro leva matriz e pedidos a zero com os 78 feriados de pé e o saldo voltando de 11 para 15; só o `delete from hr_requests` deixa os 5 dias pintados, 4 ainda em descanso |
 | `scripts/conferir-a-regra-do-descanso.sql` | Cola no SQL Editor e responde **se a regra do descanso vale neste banco**: 15 dias a cada ciclo de 12 meses contado da entrada, conquistados no FIM do ciclo, que **restauram** em vez de acumular. **Não escreve nada** — nem numa transação que se desfaz. **E nenhuma das quatro checagens procura texto no corpo da função:** a primeira versão procurava, e deu NÃO VALE num banco com tudo aplicado — o comentário da 0085 *explica* a mudança citando a expressão antiga, e `pg_get_functiondef` devolve o corpo com os comentários dentro. É a armadilha que este projeto já pagou sete vezes, agora de dentro do banco. Duas perguntam se uma função EXISTE (`descanso_usado_no_ciclo` nasceu na 0085; a `saldo_de_ferias` de dois argumentos foi apagada pela 0039) e duas medem o que o banco RESPONDE (ciclos de um uuid que não é de ninguém; dias corridos contra dias úteis). **E o diagnóstico não depende do que ele diagnostica:** `descanso_usado_no_ciclo()` e `proximo_descanso_em()` vão inline, senão o arquivo estoura num banco antigo em vez de dizer qual migration falta. **Medido com três bancos:** parado em 0073 acusa 0074 e 0085, parado em 0084 acusa só a 0085, em dia dá VALE nas quatro — e zero erro nos três |
-| `scripts/zerar-notas-fiscais.sql` | Cola no SQL Editor e **apaga as notas fiscais recebidas** — decisão do usuário antes da apresentação. **A armadilha é a do Full Days noutro lugar, e aqui ela custa dinheiro na tela do sócio:** `team_invoices.finance_entry_id` é `on delete set null`, e toda nota marcada como paga criou uma DESPESA em `finance_entries` (0065) — apagar só as notas deixa a despesa lá, sem nota do outro lado. O `set null` está certo onde existe (um lançamento é fato contábil e não some porque alguém mexeu na nota); é errado só aqui. A despesa sai primeiro, encontrada **pela ponte**, então lançamento escrito à mão no Financeiro não é tocado. Saem junto os pedidos de "notas do mês" e os avisos do sino do módulo. **Rodado e medido**, com as notas levadas a `paga` pela máquina de estados de verdade: apagando só as notas sobram 3 despesas somando R$ 13.450,00; com o arquivo inteiro, as 5 notas e as 3 despesas saem e os 38 lançamentos, 3 contratos e 13 categorias ficam |
+| `scripts/zerar-notas-fiscais.sql` | Cola no SQL Editor e **apaga as notas fiscais recebidas** — decisão do usuário antes da apresentação. **A armadilha é a do Full Days noutro lugar, e aqui ela custa dinheiro na tela do sócio:** `team_invoices.finance_entry_id` é `on delete set null`, e toda nota marcada como paga criou uma DESPESA em `finance_entries` (0065) — apagar só as notas deixa a despesa lá, sem nota do outro lado. O `set null` está certo onde existe (um lançamento é fato contábil e não some porque alguém mexeu na nota); é errado só aqui. A despesa sai primeiro, encontrada **pela ponte**, então lançamento escrito à mão no Financeiro não é tocado. Saem junto os pedidos de "notas do mês" e os avisos do sino do módulo. **Rodado e medido**, com as notas levadas a `paga` pela máquina de estados de verdade: apagando só as notas sobram 3 despesas somando R$ 13.450,00; com o arquivo inteiro, as 5 notas e as 3 despesas saem e as categorias ficam. *Os números são de antes da 0095, quando havia contrato e receita ao lado; o que ele apaga não mudou* |
+| `scripts/zerar-despesas.sql` | Cola no SQL Editor e **zera os gastos da agência** — decisão do usuário junto com as duas abas do Financeiro: *"Zera as despesas também"*. **O PASSO 1 não apaga nada**, e é ele que decide: a CONTAGEM é a única coisa entre o clique e o apagamento, porque nenhuma trava recusa um `delete` vindo do SQL Editor. **A armadilha é a do `zerar-notas-fiscais.sql` virada do avesso:** `team_invoices.finance_entry_id` é `on delete set null`, então apagar os gastos NÃO apaga as notas — e está certo, a nota é o documento que a pessoa emitiu, não o lançamento que ela gerou. O que ela perde é o vínculo, e isso fica escrito porque é consequência que aparece um ano depois: a guarda de `nota_paga_vira_despesa()` é `finance_entry_id is not null`. Quem quer zerar as duas pontas usa o arquivo das notas, que apaga na ordem certa. **O plano de contas FICA** — categoria é configuração, e sem ela a aba abre com o seletor vazio —, e `audit_log` também: a trilha é justamente o registro de que houve lançamento e de que ele saiu. **Rodado contra um Postgres com as migrations e a bateria aplicadas**, numa transação só com a conferência antes do `commit` |
 | `scripts/campanhas-sem-demanda.sql` | Cola no SQL Editor: as campanhas abertas ANTES da 0051 ficaram com `task_id` nulo e sem etapa nenhuma. O PASSO 1 lista e já escreve as linhas do PASSO 2 prontas; o PASSO 2 grava. **Não é migration porque teria que inventar a pasta de entrega** — e a 0015 diz que inventar endereço é pior que não ter |
 | `scripts/onde-esta-o-banco.sql` | Cola no SQL Editor e diz em que migration este banco está: uma linha por migration, e a primeira que disser FALTA é por onde continuar. É o curto, e é o que se roda antes de aplicar. **Quem confere que a lista acompanha a pasta é o `check:migrations`**, no CI. **E é a única resposta para "o que falta aplicar" — esta tabela não responde mais.** Ela já listou dezesseis migrations como pendentes, uma linha cada, com o que traziam e o que quebrava sem elas, e ficou **errada no dia em que cinco foram aplicadas e ninguém editou a prosa** — que é justamente o dia em que alguém a consulta. Pendência escrita à mão num arquivo de decisões é a armadilha do comentário datado da 0028: ela responde com confiança sobre um estado que não é mais o dela. O script pergunta ao banco; o que cada migration traz continua no cabeçalho dela, onde não envelhece |
 | `scripts/conferir-migrations.sql` | O longo: item por item, para quando alguma coisa já parece errada. **305 linhas não sobrevivem a uma colagem de navegador** — foi o que aconteceu, e é por isso que existe o curto acima. **Ele vai da 0019 à 0040 e o cabeçalho diz isso**: sem a frase, um banco parado na 0054 leria tudo "ok" |

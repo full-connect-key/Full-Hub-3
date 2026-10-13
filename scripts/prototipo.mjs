@@ -113,16 +113,20 @@ const TELAS = [
   //  - a filtrada por pessoa mostra o outro vazio: as colunas que a Carla nao
   //    tem, cada uma com a frase dela.
   { nome: "10o-notas-fiscais-minhas", rota: "/painel/notas-fiscais", largura: 1440, altura: 1100, role: "colaborador" },
-  { nome: "10p-notas-fiscais-fila", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 900, role: "socio" },
+  // A FILA MUDOU DE MODULO (0095): ela e a primeira aba do Financeiro agora.
+  // A rota antiga continua respondendo -- com um redirect, porque ela esta
+  // GRAVADA nas notificacoes que o banco ja escreveu --, e e isso que a tela
+  // `10p-notas-fiscais-redirect` confere: o endereco velho abre a fila nova.
+  { nome: "10p-notas-fiscais-redirect", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 900, role: "socio" },
   { nome: "10q-notas-fiscais-375", rota: "/painel/notas-fiscais", largura: 375, altura: 1200, role: "colaborador" },
   {
     nome: "10r-notas-fiscais-fila-filtrada",
-    rota: "/painel/notas-fiscais?aba=conferir&pessoa=a0000000-0000-0000-0000-000000000003",
+    rota: "/painel/financeiro?aba=notas&pessoa=a0000000-0000-0000-0000-000000000003",
     largura: 1440,
     altura: 800,
     role: "socio",
   },
-  { nome: "10s-notas-fiscais-fila-375", rota: "/painel/notas-fiscais?aba=conferir", largura: 375, altura: 1200, role: "socio" },
+  { nome: "10s-financeiro-notas-375", rota: "/painel/financeiro?aba=notas", largura: 375, altura: 1200, role: "socio" },
   { nome: "10e-equipe-lista", rota: "/painel/pessoas?aba=equipe", largura: 1440, altura: 900, role: "socio" },
   { nome: "10f-colaborador-dados", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1400, role: "socio" },
   { nome: "10g-desligamento", rota: "/painel/pessoas/equipe/a0000000-0000-0000-0000-000000000003", largura: 1440, altura: 1000, role: "socio", clicar: 'button:has-text("Desligar da equipe")' },
@@ -362,13 +366,19 @@ const TELAS = [
   { nome: "67b-full-days-registrar-403", rota: "/painel/full-days?aba=lancamentos", largura: 1200, altura: 700, role: "colaborador" },
 
 
-  // --- Sprint 8: Financeiro ----------------------------------------------
-  { nome: "72-financeiro-visao-geral", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio" },
-  { nome: "73-financeiro-lancamentos", rota: "/painel/financeiro?aba=lancamentos", largura: 1700, altura: 1100, role: "socio" },
-  { nome: "74-financeiro-novo-lancamento", rota: "/painel/financeiro?aba=lancamentos", largura: 1300, altura: 1100, role: "socio", clicar: 'button:has-text("Novo lançamento")' },
-  { nome: "75-financeiro-contratos", rota: "/painel/financeiro?aba=contratos", largura: 1700, altura: 800, role: "socio" },
-  { nome: "76-financeiro-relatorios", rota: "/painel/financeiro?aba=relatorios", largura: 1700, altura: 1400, role: "socio" },
-  { nome: "77-financeiro-visao-geral-escuro", rota: "/painel/financeiro", largura: 1700, altura: 1500, role: "socio", tema: "escuro" },
+  // --- Sprint 8 + 0095: Financeiro, DUAS ABAS ----------------------------
+  // Eram cinco telas (visao geral, lancamentos, contratos, relatorios); a
+  // receita saiu do produto e sobraram duas abas: as notas recebidas da equipe
+  // e os gastos.
+  { nome: "72-financeiro-notas", rota: "/painel/financeiro", largura: 1700, altura: 1100, role: "socio" },
+  { nome: "73-financeiro-softwares", rota: "/painel/financeiro?aba=softwares", largura: 1700, altura: 1100, role: "socio" },
+  { nome: "74-financeiro-novo-gasto", rota: "/painel/financeiro?aba=softwares", largura: 1300, altura: 1100, role: "socio", clicar: 'button:has-text("Novo gasto")' },
+  // O RECORTE POR CATEGORIA, que e o que faz a aba servir de "controle": sem
+  // ele a imagem so prova que a lista desenha, nao que ela filtra -- e os tres
+  // numeros da linha de cima tem que acompanhar.
+  { nome: "75-financeiro-softwares-filtrada", rota: "/painel/financeiro?aba=softwares&categoria=cat-5", largura: 1700, altura: 800, role: "socio" },
+  { nome: "76-financeiro-softwares-375", rota: "/painel/financeiro?aba=softwares", largura: 375, altura: 1400, role: "socio" },
+  { nome: "77-financeiro-softwares-escuro", rota: "/painel/financeiro?aba=softwares", largura: 1700, altura: 1100, role: "socio", tema: "escuro" },
   // O DIALOGO DO PEDIDO DE NOTAS (0066). Sem o clique, a unica coisa que a
   // imagem prova e que o botao existe -- e o que precisa ser conferido e a
   // lista de nomes e a frase do prazo, que so aparecem dentro dele.

@@ -48,6 +48,15 @@ from (
          where n.nspname = 'public' and p.proname = v.nome)
       when 'trigger' then exists (
         select 1 from pg_trigger g where g.tgname = v.nome)
+      -- CONSTRAINT QUE NASCEU, e nao coluna que sumiu: a 0095 apaga
+      -- `finance_categories.tipo` e troca a unicidade `(nome, tipo)` pela de
+      -- `(nome)`. `sem_coluna` responderia a mesma coisa e e marcador por
+      -- AUSENCIA, que a 0090 mostrou envelhecer mal; a constraint nova nao
+      -- existe em banco nenhum antes desta migration. `tabela|nome`.
+      when 'constraint' then exists (
+        select 1 from pg_constraint k
+         where k.conrelid = ('public.' || split_part(v.nome, '|', 1))::regclass
+           and k.conname = split_part(v.nome, '|', 2))
       -- GRANT QUE FOI TIRADO, e nao objeto que nasceu: a 0071 nao cria nada --
       -- ela REVOGA `execute`. Sem este tipo a unica pergunta possivel seria
       -- "a funcao existe?", e ela existe desde a 0028. `papel|assinatura`.
@@ -378,7 +387,20 @@ from (
     -- recusa. Num banco parado na 0093 a funcao existe e nao tem essa frase,
     -- que e exatamente o estado que esta linha precisa acusar.
     ('0094', 'o mes de social se apaga mesmo com peca no cliente', 'no_corpo',
-             'tasks_apaga_o_social|Mês de social apagado com')
+             'tasks_apaga_o_social|Mês de social apagado com'),
+    -- A 0095 TIRA a receita do Financeiro: `contracts`, `finance_entries.tipo`,
+    -- `finance_categories.tipo`, os dois enums e `rentabilidade_do_periodo()`.
+    --
+    -- A linha podia ser por AUSENCIA (`sem_coluna`), e marcador por ausencia e
+    -- justamente o que a 0090 mostrou envelhecer mal. Entao ela aponta para o
+    -- que NASCEU: a constraint `finance_categories_nome_key`, que substituiu a
+    -- `(nome, tipo)` e nao existe em banco nenhum antes desta migration.
+    --
+    -- E ela NAO aponta para `nota_paga_vira_despesa()`, que a 0095 reescreve:
+    -- aquela funcao existe desde a 0065 e responderia ok num banco parado la,
+    -- que e exatamente o estado que esta linha tem que acusar.
+    ('0095', 'finance_categories_nome_key (a receita saiu)', 'constraint',
+             'finance_categories|finance_categories_nome_key')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

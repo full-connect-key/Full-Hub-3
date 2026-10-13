@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CircleDollarSign, Download, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Loader2, Pencil, Plus, Receipt, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -33,10 +33,9 @@ import {
   formatarDinheiro,
   lerDinheiro,
   ROTULOS_DE_STATUS,
-  ROTULOS_DE_TIPO,
   STATUS_ESCOLHIVEIS,
 } from "@/lib/dominio/financeiro";
-import type { FinanceCategory, FinStatus, FinTipo } from "@/lib/supabase/database.types";
+import type { FinanceCategory, FinStatus } from "@/lib/supabase/database.types";
 
 import {
   criarLancamento,
@@ -47,10 +46,26 @@ import {
 } from "./acoes";
 
 /**
- * Os lançamentos do mês.
+ * OS GASTOS DA AGÊNCIA — a aba Softwares.
+ *
+ * ---------------------------------------------------------------------------
+ * **ERAM QUATRO TELAS E É UMA (0095).** A Visão Geral, os Lançamentos, os
+ * Contratos e os Relatórios respondiam sobre faturamento, margem e
+ * inadimplência; a receita saiu do produto, e o que sobrou de verdade é esta
+ * lista — toda linha é um gasto, com categoria, competência, vencimento,
+ * pagamento e fornecedor.
+ *
+ * **OS NÚMEROS SÃO UMA LINHA DE TEXTO, e não três ladrilhos.** A lista logo
+ * abaixo É esses números, item por item: um cartão grande dizendo "R$ 4.300 no
+ * mês" acima de nove linhas que somam isso é o cartão de "11 entregues" com
+ * sete na lista embaixo, que o Resumo da Agência já pagou uma vez. E eles saem
+ * da MESMA lista que desenha as linhas — o recorte acontece na tela, então
+ * filtrar por categoria muda a soma e o total continua concordando com o que
+ * está à vista.
+ * ---------------------------------------------------------------------------
  *
  * Os filtros moram na URL, como em toda listagem do produto: o sócio precisa
- * poder mandar "olha as despesas atrasadas de agosto" por mensagem.
+ * poder mandar "olha os gastos atrasados de agosto" por mensagem.
  *
  * A SITUAÇÃO mostrada é a derivada (`lancamento.situacao`), não o `status`
  * gravado. É por isso que "Atrasado" aparece sem ninguém ter mexido na linha —
@@ -62,14 +77,23 @@ type Cliente = { id: string; nome_empresa: string };
 
 const SEM_VALOR = "__sem__";
 
-export function Lancamentos({
-  lancamentos,
+export function Softwares({
+  gastos,
+  vencidos,
   clientes,
   categorias,
   competencia,
   hojeISO,
 }: {
-  lancamentos: LancamentoComRelacoes[];
+  gastos: LancamentoComRelacoes[];
+  /**
+   * O que venceu e ninguém pagou, de QUALQUER competência.
+   *
+   * Consulta à parte de propósito: a assinatura de março que ninguém pagou não
+   * está na lista de setembro, e sem ela a tela diria "nada atrasado" num mês
+   * em que há seis meses de atraso logo atrás.
+   */
+  vencidos: LancamentoComRelacoes[];
   clientes: Cliente[];
   categorias: FinanceCategory[];
   competencia: string;
@@ -83,7 +107,6 @@ export function Lancamentos({
   const [editando, setEditando] = useState<LancamentoComRelacoes | "novo" | null>(null);
   const [importando, setImportando] = useState(false);
 
-  const filtroDeTipo = parametros.get("tipo") ?? SEM_FILTRO;
   const filtroDeCliente = parametros.get("cliente") ?? SEM_FILTRO;
   const filtroDeCategoria = parametros.get("categoria") ?? SEM_FILTRO;
   const filtroDeSituacao = parametros.get("situacao") ?? SEM_FILTRO;
@@ -97,33 +120,48 @@ export function Lancamentos({
 
   function limparFiltros() {
     const destino = new URLSearchParams(parametros.toString());
-    for (const chave of ["tipo", "cliente", "categoria", "situacao"]) destino.delete(chave);
+    for (const chave of ["cliente", "categoria", "situacao"]) destino.delete(chave);
     router.replace(`${pathname}?${destino.toString()}`, { scroll: false });
   }
 
   const visiveis = useMemo(
     () =>
-      lancamentos.filter((l) => {
-        if (filtroDeTipo !== SEM_FILTRO && l.tipo !== filtroDeTipo) return false;
-        if (filtroDeCliente !== SEM_FILTRO && l.client_id !== filtroDeCliente) return false;
-        if (filtroDeCategoria !== SEM_FILTRO && l.category_id !== filtroDeCategoria) return false;
-        if (filtroDeSituacao !== SEM_FILTRO && l.situacao !== filtroDeSituacao) return false;
+      gastos.filter((g) => {
+        if (filtroDeCliente !== SEM_FILTRO && g.client_id !== filtroDeCliente) return false;
+        if (filtroDeCategoria !== SEM_FILTRO && g.category_id !== filtroDeCategoria) return false;
+        if (filtroDeSituacao !== SEM_FILTRO && g.situacao !== filtroDeSituacao) return false;
         return true;
       }),
-    [lancamentos, filtroDeTipo, filtroDeCliente, filtroDeCategoria, filtroDeSituacao],
+    [gastos, filtroDeCliente, filtroDeCategoria, filtroDeSituacao],
   );
 
   const totais = useMemo(() => {
-    const conta = (tipo: FinTipo) =>
-      visiveis
-        .filter((l) => l.tipo === tipo && l.situacao !== "cancelado")
-        .reduce((t, l) => t + Number(l.valor), 0);
-    return { receita: conta("receita"), despesa: conta("despesa") };
+    const noMes = visiveis.filter((g) => g.situacao !== "cancelado");
+    const somar = (lista: LancamentoComRelacoes[]) =>
+      lista.reduce((t, g) => t + Number(g.valor), 0);
+    const pago = noMes.filter((g) => g.situacao === "pago");
+    return {
+      total: somar(noMes),
+      pago: somar(pago),
+      falta: somar(noMes.filter((g) => g.situacao !== "pago")),
+    };
   }, [visiveis]);
 
-  function pagar(lancamento: LancamentoComRelacoes) {
+  /**
+   * O ATRASO DO MÊS SAI DA LISTA; o de fora dela, da consulta própria.
+   *
+   * Contar os dois juntos somaria a mesma linha duas vezes quando o atrasado
+   * for do mês que está na tela — e é o caso mais comum.
+   */
+  const atrasados = useMemo(
+    () => vencidos.filter((g) => g.competencia !== competencia),
+    [vencidos, competencia],
+  );
+  const atrasadoDeFora = atrasados.reduce((t, g) => t + Number(g.valor), 0);
+
+  function pagar(gasto: LancamentoComRelacoes) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => marcarComoPago(lancamento.id, hojeISO));
+      const resultado = await chamarAcao(() => marcarComoPago(gasto.id, hojeISO));
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success(resultado.mensagem);
@@ -134,124 +172,113 @@ export function Lancamentos({
 
   function exportar() {
     const csv = montarCSV(
-      ["competencia", "tipo", "cliente", "categoria", "descricao", "valor", "vencimento", "pagamento", "situacao"],
-      visiveis.map((l) => [
-        l.competencia,
-        ROTULOS_DE_TIPO[l.tipo],
-        l.cliente?.nome_empresa ?? "",
-        l.categoria?.nome ?? "",
-        l.descricao,
+      [
+        "competencia",
+        "categoria",
+        "descricao",
+        "fornecedor",
+        "cliente",
+        "valor",
+        "vencimento",
+        "pagamento",
+        "situacao",
+      ],
+      visiveis.map((g) => [
+        g.competencia,
+        g.categoria?.nome ?? "",
+        g.descricao,
+        g.fornecedor ?? "",
+        g.cliente?.nome_empresa ?? "",
         // Vírgula decimal: o arquivo abre no Excel em português, e lá
         // "1234.56" vira mil duzentos e trinta e quatro vírgula cinquenta e
         // seis só por acidente de configuração.
-        Number(l.valor).toFixed(2).replace(".", ","),
-        l.vencimento ?? "",
-        l.pagamento ?? "",
-        ROTULOS_DE_STATUS[l.situacao],
+        Number(g.valor).toFixed(2).replace(".", ","),
+        g.vencimento ?? "",
+        g.pagamento ?? "",
+        ROTULOS_DE_STATUS[g.situacao],
       ]),
     );
-    baixarCSV(csv, `lancamentos-${competencia.slice(0, 7)}.csv`);
+    baixarCSV(csv, `gastos-${competencia.slice(0, 7)}.csv`);
   }
 
   const colunas: Column<LancamentoComRelacoes>[] = [
     {
-      id: "competencia",
-      header: "Competência",
-      cell: (l) => (
-        <span className="text-text-muted text-xs whitespace-nowrap first-letter:uppercase">
-          {format(parseISO(l.competencia), "MMM/yy", { locale: ptBR })}
-        </span>
-      ),
-      sortValue: (l) => l.competencia,
-    },
-    {
-      id: "tipo",
-      header: "Tipo",
-      cell: (l) => (
-        <Badge variant="outline" className="whitespace-nowrap">
-          {ROTULOS_DE_TIPO[l.tipo]}
-        </Badge>
-      ),
-      sortValue: (l) => l.tipo,
-      searchValue: (l) => ROTULOS_DE_TIPO[l.tipo],
-    },
-    {
       id: "descricao",
-      header: "Descrição",
-      cell: (l) => (
+      header: "Gasto",
+      cell: (g) => (
         <div className="min-w-0">
-          <p className="truncate text-sm">{l.descricao}</p>
-          {l.contrato ? (
-            <p className="text-text-muted truncate text-xs">de {l.contrato.nome}</p>
-          ) : l.fornecedor ? (
-            <p className="text-text-muted truncate text-xs">{l.fornecedor}</p>
+          <p className="truncate text-sm">{g.descricao}</p>
+          {g.fornecedor ? (
+            <p className="text-text-muted truncate text-xs">{g.fornecedor}</p>
           ) : null}
         </div>
       ),
-      sortValue: (l) => l.descricao,
-      searchValue: (l) => `${l.descricao} ${l.fornecedor ?? ""} ${l.contrato?.nome ?? ""}`,
-    },
-    {
-      id: "cliente",
-      header: "Cliente",
-      cell: (l) => (
-        <span className="text-text-secondary text-sm">{l.cliente?.nome_empresa ?? "—"}</span>
-      ),
-      sortValue: (l) => l.cliente?.nome_empresa ?? null,
-      searchValue: (l) => l.cliente?.nome_empresa ?? "",
+      sortValue: (g) => g.descricao,
+      searchValue: (g) => `${g.descricao} ${g.fornecedor ?? ""}`,
     },
     {
       id: "categoria",
       header: "Categoria",
-      cell: (l) => <span className="text-text-secondary text-sm">{l.categoria?.nome ?? "—"}</span>,
-      sortValue: (l) => l.categoria?.nome ?? null,
-      searchValue: (l) => l.categoria?.nome ?? "",
+      cell: (g) => <span className="text-text-secondary text-sm">{g.categoria?.nome ?? "—"}</span>,
+      sortValue: (g) => g.categoria?.nome ?? null,
+      searchValue: (g) => g.categoria?.nome ?? "",
+    },
+    {
+      id: "cliente",
+      header: "Cliente",
+      // Gasto de cliente existe — a mídia paga de uma campanha, a ferramenta
+      // assinada para uma conta — e é o que permite saber quanto uma conta
+      // custa. Sem dono fica "—", que é a verdade: gasto da casa.
+      cell: (g) => (
+        <span className="text-text-secondary text-sm">{g.cliente?.nome_empresa ?? "—"}</span>
+      ),
+      sortValue: (g) => g.cliente?.nome_empresa ?? null,
+      searchValue: (g) => g.cliente?.nome_empresa ?? "",
     },
     {
       id: "valor",
       header: "Valor",
       align: "right",
-      cell: (l) => (
+      cell: (g) => (
         <span className="text-sm tabular-nums whitespace-nowrap">
-          {l.tipo === "despesa" ? "−" : ""}
-          {formatarDinheiro(Number(l.valor))}
+          {formatarDinheiro(Number(g.valor))}
         </span>
       ),
-      sortValue: (l) => Number(l.valor),
+      sortValue: (g) => Number(g.valor),
     },
     {
       id: "vencimento",
       header: "Vencimento",
-      cell: (l) => (
+      cell: (g) => (
         <span className="text-text-secondary text-xs whitespace-nowrap">
-          {l.vencimento ? format(parseISO(l.vencimento), "dd/MM/yyyy") : "—"}
+          {g.vencimento ? format(parseISO(g.vencimento), "dd/MM/yyyy") : "—"}
         </span>
       ),
-      sortValue: (l) => l.vencimento ?? null,
+      sortValue: (g) => g.vencimento ?? null,
     },
     {
       id: "situacao",
       header: "Situação",
-      cell: (l) => (
-        <Badge variant="outline" className={`${CORES_DE_STATUS[l.situacao]} border-0 whitespace-nowrap`}>
-          {ROTULOS_DE_STATUS[l.situacao]}
+      cell: (g) => (
+        <Badge variant="outline" className={`${CORES_DE_STATUS[g.situacao]} border-0 whitespace-nowrap`}>
+          {ROTULOS_DE_STATUS[g.situacao]}
         </Badge>
       ),
-      sortValue: (l) => l.situacao,
-      searchValue: (l) => ROTULOS_DE_STATUS[l.situacao],
+      sortValue: (g) => g.situacao,
+      searchValue: (g) => ROTULOS_DE_STATUS[g.situacao],
     },
     {
       id: "acoes",
       header: "",
       align: "right",
-      cell: (l) => (
+      cell: (g) => (
         <div className="flex justify-end gap-1">
-          {l.situacao !== "pago" && l.situacao !== "cancelado" ? (
+          {g.situacao !== "pago" && g.situacao !== "cancelado" ? (
             <Button
               variant="outline"
               size="sm"
               disabled={salvando}
-              onClick={() => pagar(l)}
+              onClick={() => pagar(g)}
               className="text-xs"
             >
               Marcar pago
@@ -260,23 +287,23 @@ export function Lancamentos({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`Editar ${l.descricao}`}
-            onClick={() => setEditando(l)}
+            aria-label={`Editar ${g.descricao}`}
+            onClick={() => setEditando(g)}
           >
             <Pencil aria-hidden />
           </Button>
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon" aria-label={`Excluir ${l.descricao}`}>
+              <Button variant="ghost" size="icon" aria-label={`Excluir ${g.descricao}`}>
                 <Trash2 aria-hidden />
               </Button>
             }
-            title="Excluir este lançamento?"
-            description={`“${l.descricao}” sai do financeiro. Não dá para desfazer.`}
+            title="Excluir este gasto?"
+            description={`“${g.descricao}” sai do financeiro. Não dá para desfazer.`}
             confirmLabel="Excluir"
             destructive
             onConfirm={async () => {
-              const resultado = await chamarAcao(() => excluirLancamento(l.id));
+              const resultado = await chamarAcao(() => excluirLancamento(g.id));
               if (!resultado.ok) toast.error(resultado.error);
               else {
                 toast.success(resultado.mensagem);
@@ -305,49 +332,66 @@ export function Lancamentos({
           </Button>
           <Button size="sm" onClick={() => setEditando("novo")}>
             <Plus aria-hidden />
-            Novo lançamento
+            Novo gasto
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <p className="text-text-secondary text-sm">
-          Receitas <strong className="text-text-primary tabular-nums">{formatarDinheiro(totais.receita)}</strong>
-        </p>
-        <p className="text-text-secondary text-sm">
-          Despesas <strong className="text-text-primary tabular-nums">{formatarDinheiro(totais.despesa)}</strong>
-        </p>
-        <p className="text-text-secondary text-sm">
-          Resultado{" "}
           <strong className="text-text-primary tabular-nums">
-            {formatarDinheiro(totais.receita - totais.despesa)}
-          </strong>
+            {formatarDinheiro(totais.total)}
+          </strong>{" "}
+          no mês
+        </p>
+        <p className="text-text-secondary text-sm">
+          <strong className="text-text-primary tabular-nums">{formatarDinheiro(totais.pago)}</strong>{" "}
+          pago
+        </p>
+        <p className="text-text-secondary text-sm">
+          <strong className="text-text-primary tabular-nums">
+            {formatarDinheiro(totais.falta)}
+          </strong>{" "}
+          a pagar
         </p>
       </div>
+
+      {/* O ATRASO DE OUTROS MESES É UM AVISO, e `--warning` e nunca
+          `--danger`: uma assinatura vencida é uma cobrança, não um erro — e
+          vermelho numa tela que se abre uma vez por mês treina o hábito de
+          ignorar vermelho. Ele SOME quando não há nada atrasado, como os
+          blocos de exceção do Início: uma caixa fixa dizendo "nada atrasado"
+          gastaria a linha todo mês para informar em alguns. */}
+      {atrasados.length > 0 ? (
+        <p className="bg-warning-soft text-warning rounded-card px-3 py-2 text-sm">
+          <strong className="tabular-nums">{formatarDinheiro(atrasadoDeFora)}</strong> venceram em
+          meses anteriores e continuam sem pagamento ({atrasados.length}{" "}
+          {atrasados.length === 1 ? "gasto" : "gastos"}
+          ). O mais antigo é de{" "}
+          {format(parseISO(atrasados[0].competencia), "MMMM 'de' yyyy", { locale: ptBR })}.
+        </p>
+      ) : null}
 
       <DataTable
         data={visiveis}
         columns={colunas}
-        getRowId={(l) => l.id}
-        searchPlaceholder="Buscar por descrição, cliente ou fornecedor…"
+        getRowId={(g) => g.id}
+        searchPlaceholder="Buscar por gasto, fornecedor ou cliente…"
         pageSize={15}
         initialSort={{ colunaId: "vencimento", direcao: "asc" }}
-        emptyIcon={CircleDollarSign}
-        emptyTitle="Nenhum lançamento neste mês"
-        emptyDescription="Cadastre um lançamento avulso, gere os do contrato na aba Contratos, ou importe um CSV."
+        emptyIcon={Receipt}
+        emptyTitle="Nenhum gasto neste mês"
+        emptyDescription="Cadastre um gasto avulso ou importe a planilha do mês. A nota fiscal que você marcar como paga entra aqui sozinha."
         toolbar={
           <FilterBar
             selects={[
               {
-                id: "tipo",
-                label: "Tipo",
-                value: filtroDeTipo,
-                allLabel: "Receitas e despesas",
-                options: [
-                  { value: "receita", label: "Receitas" },
-                  { value: "despesa", label: "Despesas" },
-                ],
-                onChange: (v) => aplicarFiltro("tipo", v),
+                id: "categoria",
+                label: "Categoria",
+                value: filtroDeCategoria,
+                allLabel: "Todas as categorias",
+                options: categorias.map((c) => ({ value: c.id, label: c.nome })),
+                onChange: (v) => aplicarFiltro("categoria", v),
               },
               {
                 id: "cliente",
@@ -356,17 +400,6 @@ export function Lancamentos({
                 allLabel: "Todos os clientes",
                 options: clientes.map((c) => ({ value: c.id, label: c.nome_empresa })),
                 onChange: (v) => aplicarFiltro("cliente", v),
-              },
-              {
-                id: "categoria",
-                label: "Categoria",
-                value: filtroDeCategoria,
-                allLabel: "Todas as categorias",
-                options: categorias.map((c) => ({
-                  value: c.id,
-                  label: `${c.nome} (${ROTULOS_DE_TIPO[c.tipo].toLowerCase()})`,
-                })),
-                onChange: (v) => aplicarFiltro("categoria", v),
               },
               {
                 id: "situacao",
@@ -384,9 +417,9 @@ export function Lancamentos({
         }
       />
 
-      <FormularioDeLancamento
+      <FormularioDeGasto
         aberto={editando !== null}
-        lancamento={editando === "novo" ? null : editando}
+        gasto={editando === "novo" ? null : editando}
         competencia={competencia}
         clientes={clientes}
         categorias={categorias}
@@ -412,9 +445,9 @@ export function Lancamentos({
 
 // ---------------------------------------------------------------------------
 
-function FormularioDeLancamento({
+function FormularioDeGasto({
   aberto,
-  lancamento,
+  gasto,
   competencia,
   clientes,
   categorias,
@@ -422,7 +455,7 @@ function FormularioDeLancamento({
   aoSalvar,
 }: {
   aberto: boolean;
-  lancamento: LancamentoComRelacoes | null;
+  gasto: LancamentoComRelacoes | null;
   competencia: string;
   clientes: Cliente[];
   categorias: FinanceCategory[];
@@ -434,22 +467,22 @@ function FormularioDeLancamento({
   // `key` no Dialog remonta o formulário a cada abertura, e é por isso que o
   // estado pode nascer dos props sem um efeito de sincronização — remontar é
   // o caminho que evita o setState-dentro-de-efeito.
-  const chave = lancamento?.id ?? `novo-${competencia}`;
+  const chave = gasto?.id ?? `novo-${competencia}`;
 
   return (
     <Dialog open={aberto} onOpenChange={(a) => !a && aoFechar()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{lancamento ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
+          <DialogTitle>{gasto ? "Editar gasto" : "Novo gasto"}</DialogTitle>
           <DialogDescription>
-            Competência é o mês a que o valor se refere. Vencimento e pagamento são outras duas
-            datas, e é a diferença entre elas que mostra o que falta receber.
+            Competência é o mês a que o gasto se refere. Vencimento e pagamento são outras duas
+            datas, e é a diferença entre elas que mostra o que falta pagar.
           </DialogDescription>
         </DialogHeader>
 
         <Campos
           key={chave}
-          lancamento={lancamento}
+          gasto={gasto}
           competencia={competencia}
           clientes={clientes}
           categorias={categorias}
@@ -457,7 +490,7 @@ function FormularioDeLancamento({
           aoEnviar={(carga) => {
             iniciar(async () => {
               const resultado = await chamarAcao(() =>
-                lancamento ? editarLancamento(lancamento.id, carga) : criarLancamento(carga),
+                gasto ? editarLancamento(gasto.id, carga) : criarLancamento(carga),
               );
               if (!resultado.ok) toast.error(resultado.error);
               else {
@@ -474,7 +507,7 @@ function FormularioDeLancamento({
 }
 
 function Campos({
-  lancamento,
+  gasto,
   competencia,
   clientes,
   categorias,
@@ -482,7 +515,7 @@ function Campos({
   aoEnviar,
   aoCancelar,
 }: {
-  lancamento: LancamentoComRelacoes | null;
+  gasto: LancamentoComRelacoes | null;
   competencia: string;
   clientes: Cliente[];
   categorias: FinanceCategory[];
@@ -490,26 +523,24 @@ function Campos({
   aoEnviar: (carga: Record<string, unknown>) => void;
   aoCancelar: () => void;
 }) {
-  const [tipo, setTipo] = useState<FinTipo>(lancamento?.tipo ?? "receita");
-  const [descricao, setDescricao] = useState(lancamento?.descricao ?? "");
+  const [descricao, setDescricao] = useState(gasto?.descricao ?? "");
   const [valor, setValor] = useState(
-    lancamento ? Number(lancamento.valor).toFixed(2).replace(".", ",") : "",
+    gasto ? Number(gasto.valor).toFixed(2).replace(".", ",") : "",
   );
-  const [mes, setMes] = useState((lancamento?.competencia ?? competencia).slice(0, 7));
-  const [vencimento, setVencimento] = useState(lancamento?.vencimento ?? "");
-  const [pagamento, setPagamento] = useState(lancamento?.pagamento ?? "");
+  const [mes, setMes] = useState((gasto?.competencia ?? competencia).slice(0, 7));
+  const [vencimento, setVencimento] = useState(gasto?.vencimento ?? "");
+  const [pagamento, setPagamento] = useState(gasto?.pagamento ?? "");
   const [status, setStatus] = useState<FinStatus>(
-    lancamento && STATUS_ESCOLHIVEIS.includes(lancamento.status) ? lancamento.status : "previsto",
+    gasto && STATUS_ESCOLHIVEIS.includes(gasto.status) ? gasto.status : "previsto",
   );
-  const [cliente, setCliente] = useState(lancamento?.client_id ?? SEM_VALOR);
-  const [categoria, setCategoria] = useState(lancamento?.category_id ?? SEM_VALOR);
-  const [fornecedor, setFornecedor] = useState(lancamento?.fornecedor ?? "");
-  const [observacoes, setObservacoes] = useState(lancamento?.observacoes ?? "");
+  const [cliente, setCliente] = useState(gasto?.client_id ?? SEM_VALOR);
+  const [categoria, setCategoria] = useState(gasto?.category_id ?? SEM_VALOR);
+  const [fornecedor, setFornecedor] = useState(gasto?.fornecedor ?? "");
+  const [observacoes, setObservacoes] = useState(gasto?.observacoes ?? "");
 
   const valorLido = lerDinheiro(valor);
-  const valorInvalido = valor.trim() !== "" && (valorLido === undefined || valorLido === null || valorLido === 0);
-
-  const categoriasDoTipo = categorias.filter((c) => c.tipo === tipo);
+  const valorInvalido =
+    valor.trim() !== "" && (valorLido === undefined || valorLido === null || valorLido === 0);
 
   function enviar() {
     if (valorLido === undefined || valorLido === null || valorLido === 0) {
@@ -517,7 +548,6 @@ function Campos({
       return;
     }
     aoEnviar({
-      tipo,
       descricao,
       valor: Math.abs(valorLido),
       competencia: `${mes}-01`,
@@ -536,31 +566,21 @@ function Campos({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="lanc-tipo">Tipo</Label>
-          <Select
-            value={tipo}
-            onValueChange={(v) => {
-              setTipo(v as FinTipo);
-              // A categoria é por tipo: manter a de receita numa despesa
-              // gravaria um vínculo que o relatório não sabe ler.
-              setCategoria(SEM_VALOR);
-            }}
-          >
-            <SelectTrigger aria-label="Tipo" id="lanc-tipo" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="receita">Receita</SelectItem>
-              <SelectItem value="despesa">Despesa</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="gasto-descricao">Descrição *</Label>
+          <Input
+            id="gasto-descricao"
+            autoFocus
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            placeholder="Assinatura do Adobe"
+          />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-valor">Valor *</Label>
+          <Label htmlFor="gasto-valor">Valor *</Label>
           <Input
-            id="lanc-valor"
+            id="gasto-valor"
             inputMode="decimal"
             placeholder="1.234,56"
             aria-invalid={valorInvalido}
@@ -572,27 +592,26 @@ function Campos({
           ) : null}
         </div>
 
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="lanc-descricao">Descrição *</Label>
+        <div className="space-y-2">
+          <Label htmlFor="gasto-fornecedor">Fornecedor</Label>
           <Input
-            id="lanc-descricao"
-            autoFocus
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder={tipo === "receita" ? "Fee de setembro" : "Assinatura do Adobe"}
+            id="gasto-fornecedor"
+            value={fornecedor}
+            onChange={(e) => setFornecedor(e.target.value)}
+            placeholder="Adobe"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-mes">Competência *</Label>
-          <Input id="lanc-mes" type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
-          <p className="text-text-muted text-xs">O mês a que o valor se refere.</p>
+          <Label htmlFor="gasto-mes">Competência *</Label>
+          <Input id="gasto-mes" type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
+          <p className="text-text-muted text-xs">O mês a que o gasto se refere.</p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-vencimento">Vencimento</Label>
+          <Label htmlFor="gasto-vencimento">Vencimento</Label>
           <Input
-            id="lanc-vencimento"
+            id="gasto-vencimento"
             type="date"
             value={vencimento}
             onChange={(e) => setVencimento(e.target.value)}
@@ -601,31 +620,14 @@ function Campos({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-cliente">Cliente</Label>
-          <Select value={cliente} onValueChange={setCliente}>
-            <SelectTrigger aria-label="Cliente" id="lanc-cliente" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SEM_VALOR}>Sem cliente</SelectItem>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome_empresa}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lanc-categoria">Categoria</Label>
+          <Label htmlFor="gasto-categoria">Categoria</Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger aria-label="Categoria" id="lanc-categoria" className="w-full">
+            <SelectTrigger aria-label="Categoria" id="gasto-categoria" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={SEM_VALOR}>Sem categoria</SelectItem>
-              {categoriasDoTipo.map((c) => (
+              {categorias.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.nome}
                 </SelectItem>
@@ -635,9 +637,29 @@ function Campos({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-pagamento">Pagamento</Label>
+          <Label htmlFor="gasto-cliente">Cliente</Label>
+          <Select value={cliente} onValueChange={setCliente}>
+            <SelectTrigger aria-label="Cliente" id="gasto-cliente" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SEM_VALOR}>Gasto da casa</SelectItem>
+              {clientes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome_empresa}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-text-muted text-xs">
+            Só quando o gasto é de uma conta — mídia paga, ferramenta assinada para ela.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="gasto-pagamento">Pagamento</Label>
           <Input
-            id="lanc-pagamento"
+            id="gasto-pagamento"
             type="date"
             value={pagamento}
             onChange={(e) => setPagamento(e.target.value)}
@@ -646,13 +668,13 @@ function Campos({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lanc-status">Situação</Label>
+          <Label htmlFor="gasto-status">Situação</Label>
           <Select
             value={pagamento ? "pago" : status}
             disabled={!!pagamento}
             onValueChange={(v) => setStatus(v as FinStatus)}
           >
-            <SelectTrigger aria-label="Situação" id="lanc-status" className="w-full">
+            <SelectTrigger aria-label="Situação" id="gasto-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -669,21 +691,10 @@ function Campos({
           <p className="text-text-muted text-xs">“Atrasado” o sistema calcula.</p>
         </div>
 
-        {tipo === "despesa" ? (
-          <div className="space-y-2">
-            <Label htmlFor="lanc-fornecedor">Fornecedor</Label>
-            <Input
-              id="lanc-fornecedor"
-              value={fornecedor}
-              onChange={(e) => setFornecedor(e.target.value)}
-            />
-          </div>
-        ) : null}
-
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="lanc-obs">Observações</Label>
+          <Label htmlFor="gasto-obs">Observações</Label>
           <Textarea
-            id="lanc-obs"
+            id="gasto-obs"
             rows={2}
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
@@ -743,10 +754,10 @@ function ImportadorDeCSV({
     <Dialog open={aberto} onOpenChange={(a) => !a && aoFechar()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Importar lançamentos</DialogTitle>
+          <DialogTitle>Importar gastos</DialogTitle>
           <DialogDescription>
             A primeira linha é o cabeçalho, e é ele que manda — a ordem das colunas não importa.
-            Obrigatórias: <code>tipo</code>, <code>descricao</code>, <code>valor</code>. Opcionais:{" "}
+            Obrigatórias: <code>descricao</code> e <code>valor</code>. Opcionais:{" "}
             <code>competencia</code>, <code>vencimento</code>, <code>cliente</code>,{" "}
             <code>categoria</code>, <code>fornecedor</code>.
           </DialogDescription>
@@ -759,6 +770,7 @@ function ImportadorDeCSV({
               id="csv-arquivo"
               type="file"
               accept=".csv,text/csv,text/plain"
+              aria-label="Arquivo CSV com os gastos"
               onChange={async (e) => {
                 const arquivo = e.target.files?.[0];
                 if (arquivo) setTexto(await arquivo.text());
@@ -772,7 +784,9 @@ function ImportadorDeCSV({
               id="csv-texto"
               rows={8}
               className="font-mono text-xs"
-              placeholder={"tipo;descricao;valor;vencimento;cliente\nreceita;Fee de setembro;4500,00;2026-09-10;Mundo Verde"}
+              placeholder={
+                "descricao;valor;vencimento;categoria;fornecedor\nAssinatura do Adobe;289,00;2026-09-10;Software;Adobe"
+              }
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
             />
@@ -792,4 +806,3 @@ function ImportadorDeCSV({
     </Dialog>
   );
 }
-

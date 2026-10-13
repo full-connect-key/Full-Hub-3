@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, ChartColumn, CircleDollarSign, Hourglass, Scale } from "lucide-react";
+import { BadgeCheck, ChartColumn, Hourglass, Scale } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 import { ABAS_DE_METRICA, ROTULOS_DE_ABA, type AbaDeMetrica } from "@/lib/dominio/metricas";
@@ -10,13 +10,12 @@ const ICONES: Record<AbaDeMetrica, typeof ChartColumn> = {
   tempo: Hourglass,
   equipe: Scale,
   qualidade: BadgeCheck,
-  rentabilidade: CircleDollarSign,
 };
 
 /**
  * As seções, na URL — como em toda listagem do produto.
  *
- * "Olha a rentabilidade do trimestre" precisa ser um link, e com estado
+ * "Olha a qualidade da entrega do trimestre" precisa ser um link, e com estado
  * interno ele cairia na seção padrão com o período padrão.
  *
  * **Trocar de seção NÃO reseta o período.** O recorte é a pergunta que a
@@ -24,21 +23,18 @@ const ICONES: Record<AbaDeMetrica, typeof ChartColumn> = {
  * 30 dias" a cada troca faria quem está comparando o trimestre refazer a
  * escolha cinco vezes.
  *
- * **`visiveis` espelha a primeira linha de cada função da 0035**, e é o módulo
- * que decide: quatro exigem `is_gestor()` e a rentabilidade exige
- * `is_socio()`. Esconder a seção não é a proteção — `?aba=rentabilidade`
- * digitado leva 403 e a RPC chamada direto leva a recusa do Postgres.
+ * **NÃO HÁ `visiveis`, e a prop saiu junto com a quinta aba (0095).** Ela
+ * existia por causa de uma só: a Rentabilidade era `is_socio()` enquanto as
+ * outras quatro são `is_gestor()`. Com as quatro respondendo igual, filtrar
+ * por perfil aqui seria uma segunda pergunta embaixo de uma primeira que já
+ * barra todo mundo — a lição da 0060. Quem decide é `roles: GESTAO` da rota.
  */
-export function AbasDeMetrica({
-  atual,
-  visiveis,
-}: {
-  atual: AbaDeMetrica;
-  visiveis: AbaDeMetrica[];
-}) {
-  const secoes: SecaoDoModulo<AbaDeMetrica>[] = ABAS_DE_METRICA.filter((aba) =>
-    visiveis.includes(aba),
-  ).map((aba) => ({ chave: aba, rotulo: ROTULOS_DE_ABA[aba], Icone: ICONES[aba] }));
+export function AbasDeMetrica({ atual }: { atual: AbaDeMetrica }) {
+  const secoes: SecaoDoModulo<AbaDeMetrica>[] = ABAS_DE_METRICA.map((aba) => ({
+    chave: aba,
+    rotulo: ROTULOS_DE_ABA[aba],
+    Icone: ICONES[aba],
+  }));
 
   return (
     <BarraDeContexto

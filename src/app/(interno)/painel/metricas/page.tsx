@@ -1,26 +1,21 @@
 import type { Metadata } from "next";
-import { forbidden } from "next/navigation";
 
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { ehSocio } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import {
   desvioDeEstimativa,
   producaoDoPeriodo,
   qualidadeDaEntrega,
-  rentabilidadeDoPeriodo,
   tempoDeAprovacao,
   tempoPorStatus,
 } from "@/lib/dados/metricas";
 import {
-  ABAS_DE_METRICA,
   datasDoPeriodo,
   ehAbaDeMetrica,
   ehPeriodo,
   type AbaDeMetrica,
   type Periodo,
 } from "@/lib/dominio/metricas";
-import type { UserRole } from "@/lib/supabase/database.types";
 
 import { AbasDeMetrica } from "./abas";
 import { BarraDePeriodo } from "./barra-de-periodo";
@@ -28,35 +23,25 @@ import {
   PainelDaEquipe,
   PainelDeProducao,
   PainelDeQualidade,
-  PainelDeRentabilidade,
   PainelDeTempo,
 } from "./paineis";
 
 export const metadata: Metadata = { title: "Métricas" };
 
 /**
- * Quem enxerga cada aba.
+ * NÃO EXISTE `QUEM_VE` AQUI, e a ausência é decisão (0095).
  *
- * **Sai daqui e de mais nenhum lugar**, como em Full Days: a lista de abas
- * visíveis e a guarda da rota leem a mesma constante, então não existe o caso
- * de a aba aparecer e a página recusar.
+ * Ele existia por causa de UMA aba: a Rentabilidade era `is_socio()` enquanto
+ * as outras quatro são `is_gestor()`. A 0095 apagou
+ * `rentabilidade_do_periodo()` com a receita, e as quatro que ficam respondem
+ * todas à mesma pergunta de perfil — então um mapa de perfil por aba seria uma
+ * segunda pergunta embaixo de uma primeira que já barra todo mundo, que é a
+ * lição da 0060.
  *
- * **E ela ESPELHA a primeira linha de cada função da 0035** — quatro exigem
- * `is_gestor()`, a rentabilidade exige `is_socio()`. Esconder a aba não é a
- * proteção: quem digitar `?aba=rentabilidade` leva 403 aqui, e quem chamar a
- * RPC direto leva a recusa do Postgres. São as três camadas de sempre.
+ * Quem decide continua sendo `roles: GESTAO` da rota em `permissions.ts`, mais
+ * o `is_gestor()` na primeira linha de cada função da 0035 — que é a camada
+ * que vale, e que recusa quem chamar a RPC direto.
  */
-const QUEM_VE: Record<AbaDeMetrica, (role: UserRole) => boolean> = {
-  producao: () => true,
-  tempo: () => true,
-  equipe: () => true,
-  qualidade: () => true,
-  // O desenvolvedor é gestão para todo o resto do sistema e aqui não.
-  // Faturamento por cliente é a informação mais sensível da casa, e "só
-  // leitura para o gestor" não existe neste produto — nem agregado.
-  rentabilidade: (role) => ehSocio(role),
-};
-
 const PADRAO: AbaDeMetrica = "producao";
 
 const texto = (valor: string | string[] | undefined) =>
@@ -66,11 +51,11 @@ export default async function PaginaDeMetricas({ searchParams }: PageProps<"/pai
   const sessao = await exigirAcessoARota("/painel/metricas");
   const parametros = await searchParams;
 
+  // `?aba=rentabilidade` de um link salvo cai na padrão em vez de quebrar:
+  // `ehAbaDeMetrica()` recusa o que não existe mais na união. É o que um
+  // endereço antigo tem de fazer — abrir.
   const pedida = texto(parametros.aba);
   const aba: AbaDeMetrica = ehAbaDeMetrica(pedida) ? pedida : PADRAO;
-  if (!QUEM_VE[aba](sessao.profile.role)) forbidden();
-
-  const visiveis = ABAS_DE_METRICA.filter((chave) => QUEM_VE[chave](sessao.profile.role));
 
   const pedido = texto(parametros.periodo);
   const periodo: Periodo = ehPeriodo(pedido) ? pedido : "30d";
@@ -86,9 +71,8 @@ export default async function PaginaDeMetricas({ searchParams }: PageProps<"/pai
 
   const clienteId = aba === "producao" ? (texto(parametros.cliente) ?? null) : null;
 
-  // SÓ A CONSULTA DA ABA ABERTA. Buscar as cinco a cada visita faria seis
-  // idas ao banco para desenhar uma tabela — e a rentabilidade, que só o
-  // sócio alcança, levaria recusa na tela de todo desenvolvedor.
+  // SÓ A CONSULTA DA ABA ABERTA. Buscar as quatro a cada visita faria cinco
+  // idas ao banco para desenhar uma tabela.
   const [clientes, dados] = await Promise.all([
     aba === "producao" ? listarClientes() : Promise.resolve([]),
     carregar(aba, de, ate, clienteId),
@@ -98,7 +82,7 @@ export default async function PaginaDeMetricas({ searchParams }: PageProps<"/pai
     <div className="space-y-6">
       {/* Sem `PageHeader`: a topbar já diz "Métricas". O `<h1>` mora na
           barra de contexto, invisível. */}
-      <AbasDeMetrica atual={aba} visiveis={visiveis} />
+      <AbasDeMetrica atual={aba} />
 
       <BarraDePeriodo
         periodo={periodo}
@@ -129,9 +113,6 @@ export default async function PaginaDeMetricas({ searchParams }: PageProps<"/pai
       {dados.tipo === "qualidade" ? (
         <PainelDeQualidade linhas={dados.linhas} de={de} ate={ate} />
       ) : null}
-      {dados.tipo === "rentabilidade" ? (
-        <PainelDeRentabilidade linhas={dados.linhas} de={de} ate={ate} />
-      ) : null}
     </div>
   );
 }
@@ -150,9 +131,6 @@ async function carregar(aba: AbaDeMetrica, de: string, ate: string, clienteId: s
   }
   if (aba === "qualidade") {
     return { tipo: "qualidade" as const, linhas: await qualidadeDaEntrega(de, ate) };
-  }
-  if (aba === "rentabilidade") {
-    return { tipo: "rentabilidade" as const, linhas: await rentabilidadeDoPeriodo(de, ate) };
   }
   return { tipo: "producao" as const, producao: await producaoDoPeriodo(de, ate, clienteId) };
 }

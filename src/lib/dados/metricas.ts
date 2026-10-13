@@ -9,9 +9,13 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * ---------------------------------------------------------------------------
  * `ouFalha()` EM TODAS, E AQUI ELE FAZ MAIS QUE O DE COSTUME
  *
- * As seis funções são `security definer` e recusam na PRIMEIRA linha quem não
- * pode — `is_gestor()` em cinco, `is_socio()` na rentabilidade. Essa recusa
- * chega como ERRO do PostgREST, não como lista vazia.
+ * As cinco funções são `security definer` e recusam na PRIMEIRA linha quem
+ * não pode — `is_gestor()` em todas. Essa recusa chega como ERRO do PostgREST,
+ * não como lista vazia.
+ *
+ * **ERAM SEIS, e a sexta era `rentabilidade_do_periodo()`** — a única que
+ * exigia `is_socio()`, porque faturamento por cliente é a informação mais
+ * sensível da casa. A 0095 a apagou com a receita, e com ela saiu a aba.
  *
  * Sem `ouFalha()`, `const { data } = await` jogaria a recusa fora e a tela
  * mostraria zeros: o colaborador que digitasse a URL veria um painel de
@@ -173,39 +177,6 @@ export async function qualidadeDaEntrega(de: string, ate: string): Promise<Quali
     .sort((a, b) => b.conteudos - a.conteudos);
 }
 
-export type RentabilidadeDoCliente = {
-  clienteId: string | null;
-  cliente: string;
-  receita: number;
-  despesa: number;
-  horas: number;
-  /** NULA e não zero quando ninguém lançou hora: zero afirma sobre a conta. */
-  receitaPorHora: number | null;
-};
-
-export async function rentabilidadeDoPeriodo(
-  de: string,
-  ate: string,
-): Promise<RentabilidadeDoCliente[]> {
-  const supabase = await criarClienteServidor();
-  const [linhas, clientes] = await Promise.all([
-    supabase
-      .rpc("rentabilidade_do_periodo", { p_de: de, p_ate: ate })
-      .then((r) => ouFalha("rentabilidade do período", r)),
-    nomesDeClientes(),
-  ]);
-
-  return (linhas ?? [])
-    .map((linha) => ({
-      clienteId: linha.client_id,
-      cliente: linha.client_id ? (clientes.get(linha.client_id) ?? "—") : "Sem cliente",
-      receita: Number(linha.receita ?? 0),
-      despesa: Number(linha.despesa ?? 0),
-      horas: Number(linha.horas ?? 0),
-      receitaPorHora: linha.receita_por_hora === null ? null : Number(linha.receita_por_hora),
-    }))
-    .sort((a, b) => b.receita - a.receita);
-}
 
 // ---------------------------------------------------------------------------
 // OS NOMES

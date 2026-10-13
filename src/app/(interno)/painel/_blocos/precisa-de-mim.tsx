@@ -181,7 +181,7 @@ export function linhasDoPrecisaDeMim({
     },
     {
       quantos: notasEsperandoOSocio,
-      href: "/painel/notas-fiscais?aba=conferir",
+      href: "/painel/financeiro?aba=notas",
       singular: "nota fiscal da equipe esperando você",
       plural: "notas fiscais da equipe esperando você",
       Icone: Banknote,

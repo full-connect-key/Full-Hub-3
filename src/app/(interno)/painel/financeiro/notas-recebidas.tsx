@@ -30,10 +30,24 @@ import {
   semRecusadasResolvidas,
 } from "@/lib/dominio/notas-fiscais";
 
-import { decidirNota } from "./acoes";
+import { decidirNota } from "../notas-fiscais/acoes";
 
 /**
- * A fila do sócio: conferir, recusar e pagar — em QUATRO COLUNAS.
+ * As notas recebidas da equipe: conferir, recusar e pagar — em QUATRO COLUNAS.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA MORAVA EM `/painel/notas-fiscais`, e mudou de módulo na 0095.** Aquela
+ * rota é a tela de QUEM ENVIA — cada um manda a nota do mês e acompanha o
+ * próprio pagamento —, e esta é a tela de quem PAGA. Juntas na mesma rota, as
+ * duas obrigavam o colaborador a ler uma barra de abas com uma seção que ele
+ * não alcança; separadas, `/painel/notas-fiscais` voltou a ser uma tela só, e
+ * esta virou a primeira aba do Financeiro, ao lado dos gastos que ela gera.
+ *
+ * **O ARQUIVO MUDOU DE PASTA E A AÇÃO NÃO.** `decidirNota` continua em
+ * `notas-fiscais/acoes.ts`: ela escreve em `team_invoices`, que é a tabela
+ * daquele módulo, e uma cópia aqui seria a segunda porta para o mesmo
+ * `update` — com a trava de sócio repetida nos dois lugares para divergir num.
+ * ---------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------
  * **ERAM TRÊS LISTAS EMPILHADAS, e a do meio juntava dois fatos opostos.**
@@ -70,7 +84,7 @@ import { decidirNota } from "./acoes";
  * tipo de conta que a tela existe para não pedir. **E ele segue o filtro**, que
  * é o certo: quem filtrou por setembro quer saber quanto sai de setembro.
  */
-export function FilaDoSocio({ notas }: { notas: NotaDaEquipe[] }) {
+export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const parametros = useSearchParams();
@@ -434,7 +448,7 @@ export function FilaDoSocio({ notas }: { notas: NotaDaEquipe[] }) {
             <DialogTitle>Marcar como paga</DialogTitle>
             <DialogDescription>
               {pagando ? `${emReais(pagando.valor)} para ${pagando.pessoa?.nome ?? "a pessoa"}.` : null}{" "}
-              Isto lança a despesa no Financeiro da agência, na competência da nota.
+              Isto lança a despesa na aba Softwares, na competência da nota.
             </DialogDescription>
           </DialogHeader>
 

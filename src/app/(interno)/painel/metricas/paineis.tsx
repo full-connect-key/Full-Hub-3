@@ -10,17 +10,16 @@ import type {
   DesvioDaPessoa,
   Producao,
   QualidadeDoCliente,
-  RentabilidadeDoCliente,
   TempoDeAprovacao,
   TempoEmStatus,
 } from "@/lib/dados/metricas";
 import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
-import { formatarDinheiro } from "@/lib/dominio/financeiro";
 import { horasEMinutos, rotuloDeStatusDoHistorico, taxaNoPrazo } from "@/lib/dominio/metricas";
 import { cn } from "@/lib/utils";
 
 /**
- * As cinco abas das Métricas.
+ * As quatro abas das Métricas (eram cinco; a Rentabilidade saiu com a receita
+ * na 0095).
  *
  * ---------------------------------------------------------------------------
  * O CSV SAI DO QUE ESTÁ NA TELA, sempre — mesmas linhas, mesma ordem, mesmo
@@ -467,84 +466,6 @@ export function PainelDeQualidade({
                 </tr>
               );
             })}
-          </tbody>
-        </Tabela>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// RENTABILIDADE — SÓ O SÓCIO
-// ---------------------------------------------------------------------------
-
-export function PainelDeRentabilidade({
-  linhas,
-  de,
-  ate,
-}: {
-  linhas: RentabilidadeDoCliente[];
-  de: string;
-  ate: string;
-}) {
-  function exportar() {
-    baixarCSV(
-      montarCSV(
-        ["Cliente", "Receita", "Despesa", "Horas lançadas", "Receita por hora"],
-        linhas.map((l) => [
-          l.cliente,
-          l.receita,
-          l.despesa,
-          l.horas.toFixed(1),
-          l.receitaPorHora ?? "sem hora registrada",
-        ]),
-      ),
-      `metricas-rentabilidade-${de}-a-${ate}.csv`,
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-text-muted max-w-2xl text-sm">
-          Receita cruzada com o tempo das etapas. Quem tem hora lançada tem receita por hora; quem
-          não tem aparece como <strong>sem hora registrada</strong> e nunca como zero — zero é uma
-          afirmação sobre a conta, e o que se quer dizer é que ninguém mediu.
-        </p>
-        <BotaoDeCsv onClick={exportar} />
-      </div>
-
-      {linhas.length === 0 ? (
-        <Vazio frase="Nenhuma receita, despesa ou hora lançada no período." />
-      ) : (
-        <Tabela>
-          <thead className="bg-muted">
-            <tr>
-              <th className={TH}>Cliente</th>
-              <th className={cn(TH, "text-right")}>Receita</th>
-              <th className={cn(TH, "text-right")}>Despesa</th>
-              <th className={cn(TH, "text-right")}>Horas</th>
-              <th className={cn(TH, "text-right")}>Receita / hora</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {linhas.map((linha) => (
-              <tr key={linha.clienteId ?? "sem"}>
-                <td className={TD}>{linha.cliente}</td>
-                <td className={NUM}>{formatarDinheiro(linha.receita)}</td>
-                <td className={NUM}>{formatarDinheiro(linha.despesa)}</td>
-                <td className={NUM}>{linha.horas > 0 ? linha.horas.toFixed(1) : "—"}</td>
-                <td className={cn(NUM, "font-medium")}>
-                  {linha.receitaPorHora === null ? (
-                    <span className="text-text-muted text-xs font-normal">
-                      sem hora registrada
-                    </span>
-                  ) : (
-                    formatarDinheiro(linha.receitaPorHora)
-                  )}
-                </td>
-              </tr>
-            ))}
           </tbody>
         </Tabela>
       )}

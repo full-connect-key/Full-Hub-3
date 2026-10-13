@@ -8,8 +8,8 @@
 --
 -- A segunda e onde mora o risco. Se a mae continuar somando tempo, contando
 -- como etapa e sendo concluida a mao, cada desdobramento passa a contar duas
--- vezes -- e o relatorio de rentabilidade, que cruza receita com o tempo das
--- subtarefas, cobra do cliente um trabalho que aconteceu uma vez so.
+-- vezes -- e as Metricas cobram da pessoa, no desvio de estimativa, um
+-- trabalho que aconteceu uma vez so.
 --
 -- Roda como GENTE: Ana e socia, Diego desenvolvedor, Carla do Atendimento,
 -- Marina executa. Como postgres tudo passaria.
