@@ -27,6 +27,38 @@
 -- que nenhuma tela le e schema que alguem reaproveita errado tres sprints
 -- depois. E a decisao da 0023.
 --
+-- **E O DE-PARA DOS TIPOS DE MATERIAL CUSTOU UMA APLICACAO RECUSADA.** A
+-- primeira versao desta migration convertia `academy_materials.tipo` com
+-- `::text::academy_aula_tipo`, e o comentario que eu escrevi ao lado afirmava
+-- que os dois enums compartilhavam quatro valores. Eles compartilham DOIS. A
+-- recusa chegou a quem aplicou, no SQL Editor:
+--
+--   invalid input value for enum academy_aula_tipo: "aula_interna"
+--
+-- Duas licoes, e nenhuma e sobre enum:
+--
+-- **1. O CAST DE ENUM PARA ENUM POR TEXTO NAO COMPARA AS DUAS LISTAS.** Ele
+-- falha na primeira LINHA sem par -- entao num acervo onde todo material
+-- fosse video ou pdf ele teria passado, e a bomba ficaria para o primeiro
+-- artigo que alguem cadastrasse. O que entrou no lugar e um `case` com os
+-- seis valores escritos, no PASSO 14.
+--
+-- **2. A EXPLICACAO NAO PODE CARREGAR O ERRO QUE ELA DEVERIA PEGAR.** O
+-- comentario estava ali justamente para dizer por que o cast era seguro, e
+-- era ele que estava errado -- um leitor que conferisse a frase em vez dos
+-- dois `create type` concluiria que esta tudo bem. E a armadilha desta casa
+-- pela oitava vez, de um angulo novo: a explicacao afirmando a propriedade
+-- que ninguem mediu.
+--
+-- E A GUARDA VEM ANTES DO LACO, nomeando o valor. Sem ela a recusa seria
+-- *null value in column "tipo" violates not-null constraint* com o despejo da
+-- linha -- que e verdade e nao diz qual valor nao tem par. **Medido com duas
+-- mutacoes, contra um Postgres 16 com o modelo velho povoado com um material
+-- de cada um dos seis tipos:** devolvendo o cast, a migration e recusada em
+-- `artigo` (o primeiro sem par daquele acervo); acrescentando um valor novo a
+-- `material_tipo` e tirando a guarda, ela e recusada pelo `not null` em vez de
+-- nomear o valor.
+--
 --
 -- AS ANOTACOES SAO TABELA PROPRIA, E ISSO DIVERGE DO TEXTO DO SPRINT
 --
@@ -1009,14 +1041,46 @@ $bloco$;
 -- ---------------------------------------------------------------------------
 do $migracao$
 declare
-  v_trilha   record;
-  v_item     uuid;
-  v_modulo   uuid;
-  v_quantas  integer := 0;
+  v_trilha        record;
+  v_modulo        uuid;
+  v_quantas       integer := 0;
+  v_desconhecidos text;
 begin
   if to_regclass('public.academy_tracks') is null then
     raise notice '0096: nao ha modelo antigo para converter.';
     return;
+  end if;
+
+  -- O DE-PARA DOS TIPOS NAO E UM CAST, E ESTA MIGRATION JA ERROU ISSO.
+  --
+  -- A primeira versao fazia `m.tipo::text::academy_aula_tipo` com um
+  -- comentario ao lado afirmando que os dois enums compartilhavam quatro
+  -- valores. Eles compartilham DOIS -- `video` e `pdf`:
+  --
+  --   material_tipo (0017)  video  artigo  pdf  curso_externo  template  aula_interna
+  --   academy_aula_tipo     video  texto   pdf  link           exercicio
+  --
+  -- O resultado foi a recusa que quem aplicou leu na tela:
+  -- *invalid input value for enum academy_aula_tipo: "aula_interna"*. **O
+  -- cast de enum para enum por texto nao avisa que a lista do outro lado e
+  -- outra** -- ele falha na primeira LINHA que carrega um valor sem par, e
+  -- num banco onde todo material fosse video ou pdf ele teria passado,
+  -- deixando a bomba para o primeiro artigo que alguem cadastrasse.
+  --
+  -- A GUARDA VEM ANTES DO LACO, e nao um `else` dentro do `case`: a coluna
+  -- `tipo` e `not null`, entao um valor sem par daria *null value in column
+  -- tipo violates not-null constraint* -- que e verdade e nao diz qual
+  -- material, nem qual valor. Aqui a recusa nomeia o que falta e para antes
+  -- de converter metade do acervo.
+  select string_agg(distinct m.tipo::text, ', ' order by m.tipo::text)
+    into v_desconhecidos
+    from public.academy_materials m
+   where m.tipo::text not in
+         ('video', 'artigo', 'pdf', 'curso_externo', 'template', 'aula_interna');
+
+  if v_desconhecidos is not null then
+    raise exception '0096: material com tipo sem de-para: %', v_desconhecidos
+      using hint = 'Acrescente o valor ao case do PASSO 14 antes de aplicar.';
   end if;
 
   for v_trilha in select * from public.academy_tracks loop
@@ -1044,7 +1108,22 @@ begin
 
     insert into public.academy_aulas
       (id, modulo_id, titulo, tipo, url, arquivo_url, duracao_minutos, ordem)
-    select m.id, v_modulo, m.titulo, m.tipo::text::public.academy_aula_tipo,
+    select m.id, v_modulo, m.titulo,
+           -- `artigo` e texto; `curso_externo` e `template` abrem FORA, que e
+           -- o que `link` quer dizer. E `aula_interna` depende do que ela tem:
+           -- com endereco ela e um link, sem endereco ela e o texto que
+           -- alguem escreveu aqui dentro. `exercicio` nao recebe ninguem --
+           -- ele e valor novo deste sprint, e inventar um dono para ele seria
+           -- afirmar que um material antigo era exercicio.
+           case m.tipo::text
+             when 'video'         then 'video'
+             when 'pdf'           then 'pdf'
+             when 'artigo'        then 'texto'
+             when 'curso_externo' then 'link'
+             when 'template'      then 'link'
+             when 'aula_interna'  then
+               case when coalesce(btrim(m.url), '') <> '' then 'link' else 'texto' end
+           end::public.academy_aula_tipo,
            m.url, m.arquivo_url, m.duracao_minutos, m.ordem
       from public.academy_materials m
      where m.track_id = v_trilha.id;
@@ -1102,11 +1181,17 @@ drop table if exists public.academy_tracks    cascade;
 drop function if exists public.academy_progress_carimbar() cascade;
 drop view if exists public.academy_progresso_da_equipe cascade;
 
--- `material_tipo` fica: ele e o enum dos tipos de material da 0017, e
--- `academy_aula_tipo` tem os mesmos quatro valores mais `exercicio`. Apagar o
--- antigo seria `drop type`, que e legal aqui -- e ele nao sai porque a
--- conversao acima faz `m.tipo::text::academy_aula_tipo` e uma re-execucao da
--- migration num banco que ainda tenha o modelo velho precisaria dele de pe.
+-- **`material_tipo` FICA, e a razao que estava escrita aqui era falsa.** Ela
+-- dizia que `academy_aula_tipo` tem "os mesmos quatro valores mais
+-- `exercicio`", e e dela que nasceu o cast que falhou em `aula_interna`. Os
+-- dois enums compartilham DOIS valores; o de-para esta no PASSO 14.
+--
+-- A razao de verdade e de FORA do banco: `database.types.ts` declara
+-- `MaterialTipo`, e `lib/dominio/academy.ts` e a tela antiga do modulo ainda
+-- o importam -- elas sao reescritas nas partes seguintes deste sprint.
+-- `drop type` aqui faria `check:tipos` reprovar por um tipo que `src/` ainda
+-- usa, e a varredura estaria certa. Ele sai junto com aquelas telas, pela
+-- regra da 0023; ate la fica orfao, como `pf_tipo` ficou na 0034.
 
 
 -- ---------------------------------------------------------------------------
