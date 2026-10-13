@@ -36,6 +36,7 @@ export function CascaDoPortal({
   nomeDaEmpresa,
   empresas = [],
   empresaSelecionada = null,
+  ajuda,
   base = "/portal",
   hrefDosDados = "/portal/configuracoes",
   aviso,
@@ -52,6 +53,16 @@ export function CascaDoPortal({
   /** Para onde vai "Meus dados" no menu do canto. */
   hrefDosDados?: string;
   aviso?: React.ReactNode;
+  /**
+   * O `?` da topbar, quando a área tem tour.
+   *
+   * Ele vem de FORA e não é montado aqui porque esta casca serve a DOIS donos
+   * com tours diferentes: `/portal` do cliente e `/portal/{slug}`, que é a
+   * visualização administrativa — e lá quem está olhando é da equipe, que já
+   * tem o tour do painel. Montá-lo aqui daria à equipe um "fazer o tour do
+   * portal" sobre uma tela que ela abriu para conferir o que o cliente vê.
+   */
+  ajuda?: React.ReactNode;
   /**
    * A foto de perfil da empresa, assinada (0063).
    *
@@ -128,6 +139,7 @@ export function CascaDoPortal({
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
               <SinoDeNotificacoes />
+              {ajuda}
               <MenuDoCliente
                 nome={nome}
                 email={email}

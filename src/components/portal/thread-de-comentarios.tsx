@@ -13,6 +13,7 @@ import type { Conteudo } from "@/lib/aprovacoes/conteudo";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { tempoRelativo } from "@/lib/dominio/recomendacoes";
 import { cn } from "@/lib/utils";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
  * A conversa sobre o material — a mesma, para post e para entregável.
@@ -75,7 +76,7 @@ export function ThreadDeComentarios({
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" {...ancora(ANCORAS.portalComentarios)}>
       <h2 className="text-xl font-bold tracking-[-0.02em]">Comentários</h2>
 
       {raizes.length === 0 ? (

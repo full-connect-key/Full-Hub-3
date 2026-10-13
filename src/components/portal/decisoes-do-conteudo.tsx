@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { ContentStatus } from "@/lib/supabase/database.types";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
  * As três decisões do cliente, sobre qualquer material.
@@ -150,7 +151,18 @@ export function DecisoesDoConteudo({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      {/*
+        A ÂNCORA DO TOUR vai na FILEIRA DOS TRÊS BOTÕES, e não no fragmento —
+        que não tem elemento onde pô-la. O passo diz "três respostas
+        possíveis", e o recorte dele são exatamente os três.
+
+        **E ela não existe no ramo de cima**, o do material já decidido: ali
+        não há decisão a tomar, e o passo é `opcional` justamente por isso.
+        Apontar para a frase "aprovado por Joana em 12/03" com o texto dos três
+        botões seria a tela dizendo a coisa errada sobre o que a pessoa está
+        lendo.
+      */}
+      <div className="flex flex-wrap gap-2" {...ancora(ANCORAS.portalDecisoes)}>
         <Button
           onClick={() => decidir("aprovada", "")}
           disabled={enviando || somenteLeitura}

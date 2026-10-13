@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
+import type { Ancora } from "@/lib/tour/ancoras";
 import { cn } from "@/lib/utils";
 
 export type SecaoDoModulo<C extends string = string> = {
@@ -19,6 +20,16 @@ export type SecaoDoModulo<C extends string = string> = {
   contagem?: number;
   /** O que o selo diz para quem usa leitor de tela. */
   rotuloDaContagem?: string;
+  /**
+   * A ÂNCORA DO TOUR, quando algum passo aponta para esta seção.
+   *
+   * Ela vem do MÓDULO e não de um mapa aqui, pela razão que este arquivo já
+   * escreve: o que a barra centraliza é o desenho e o mecanismo, nunca a
+   * lista. Um mapa central de âncoras teria de conhecer as seções das nove
+   * barras — e a que faltasse não daria erro, daria um passo pulado em
+   * silêncio.
+   */
+  ancora?: Ancora;
 };
 
 /**
@@ -151,13 +162,14 @@ export function BarraDeContexto<C extends string>({
             >
               <ul className="bg-muted inline-flex min-w-max gap-1 rounded-xl p-1">
                 {secoes.map(
-                  ({ chave, rotulo, Icone, contagem, rotuloDaContagem }) => {
+                  ({ chave, rotulo, Icone, contagem, rotuloDaContagem, ancora }) => {
                     const ativo = chave === atual;
                     return (
                       <li key={chave}>
                         <Link
                           href={href(chave)}
                           aria-current={ativo ? "page" : undefined}
+                          data-tour={ancora}
                           className={cn(
                             "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm whitespace-nowrap transition-colors",
                             ativo

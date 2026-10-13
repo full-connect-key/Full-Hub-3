@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
+import { ANCORAS } from "@/lib/tour/ancoras";
 
 export type Aba =
   | "matriz"
@@ -61,7 +62,14 @@ export function AbasDoFullDays({
   visiveis: Aba[];
   acoes?: React.ReactNode;
 }) {
-  const secoes: SecaoDoModulo<Aba>[] = visiveis.map((aba) => ({ chave: aba, ...ROTULOS[aba] }));
+  const secoes: SecaoDoModulo<Aba>[] = visiveis.map((aba) => ({
+    chave: aba,
+    ...ROTULOS[aba],
+    // A ÚNICA COM ÂNCORA, e é a do passo do sócio: responder aos períodos é a
+    // coisa deste módulo que só ele faz. As outras quatro são o trabalho de
+    // todo mundo, e a tela abre numa delas.
+    ancora: aba === "aprovacoes" ? ANCORAS.abaAprovacoesFullDays : undefined,
+  }));
 
   return (
     <BarraDeContexto

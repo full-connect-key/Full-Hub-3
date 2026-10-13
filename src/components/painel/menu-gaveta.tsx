@@ -14,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import type { UserRole } from "@/lib/supabase/database.types";
 
 /**
@@ -28,7 +29,17 @@ export function MenuGaveta({ role }: { role: UserRole }) {
   return (
     <Sheet open={aberto} onOpenChange={setAberto}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Abrir menu">
+        {/* A MESMA ÂNCORA DA `<nav>` da barra lateral, de propósito: no
+            celular esta é a única das duas que existe na página, e o provedor
+            do tour escolhe o primeiro VISÍVEL. Sem isso o primeiro passo do
+            tour seria pulado em silêncio em toda largura abaixo de 1024px. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          aria-label="Abrir menu"
+          {...ancora(ANCORAS.menu)}
+        >
           <Menu aria-hidden />
         </Button>
       </SheetTrigger>

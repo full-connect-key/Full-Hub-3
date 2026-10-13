@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { situacaoDoPrazo } from "@/lib/dominio/tasks";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import { cn } from "@/lib/utils";
 
 import type { Prazos } from "@/lib/dados/minhas-tasks";
@@ -196,7 +197,7 @@ function Linhas({
       uma lista com fio, mais e a coluna vira uma pilha de blocos sem relação.
     */
     <div className="flex flex-col gap-2">
-      {linhas.map((linha) => {
+      {linhas.map((linha, indice) => {
         const sub = linha.subtarefa;
         const situacao = situacaoDoPrazo(
           sub.prazo,
@@ -208,6 +209,18 @@ function Linhas({
         return (
           <div
             key={linha.chave}
+            /*
+              A ÂNCORA DO TOUR VAI NA PRIMEIRA LINHA SÓ (0101). O passo "o
+              trabalho acontece nas etapas" aponta para UMA etapa, e marcar as
+              doze poria doze elementos com o mesmo `data-tour` na página —
+              o provedor escolhe o primeiro visível de qualquer forma, então o
+              resto seria ruído na árvore que ninguém leria como decisão.
+
+              E ela fica aqui e não no grupo: o passo é `opcional`, então quem
+              não tem etapa nenhuma simplesmente não o vê — e isso NÃO entra no
+              alarme de tour quebrado, que é a razão de a bandeira existir.
+            */
+            {...(indice === 0 ? ancora(ANCORAS.etapaDaLista) : {})}
             className={cn(
               "bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-2 border p-3.5",
               // A LINHA ATRASADA PRECISA SER ACHADA, e `bg-destructive/5`

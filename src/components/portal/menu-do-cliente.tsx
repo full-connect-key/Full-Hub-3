@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { sair } from "@/lib/auth/acoes";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
  * `hrefDosDados` existe por causa da visualização administrativa. Na tela do
@@ -40,11 +41,16 @@ export function MenuDoCliente({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/* O ÚLTIMO PASSO DO TOUR DO PORTAL aponta para cá, e não para o item
+            "Meus dados" de dentro: a lista do menu só existe na página com ele
+            aberto, e o tour não abre menu de ninguém — quem abre é quem o
+            encontrou, que é exatamente o que este passo ensina. */}
         <Button
           variant="ghost"
           size="icon"
           className="disco-da-topbar rounded-full"
           aria-label="Menu do usuário"
+          {...ancora(ANCORAS.portalConfiguracoes)}
         >
           <Avatar className="size-8">
             <AvatarFallback className="text-xs font-medium">

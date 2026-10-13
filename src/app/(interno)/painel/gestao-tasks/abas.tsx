@@ -3,6 +3,7 @@
 import { BadgeCheck, ClipboardList, Repeat, Workflow } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
+import { ANCORAS, type Ancora } from "@/lib/tour/ancoras";
 
 import { ABAS, type Aba } from "./vocabulario";
 
@@ -21,6 +22,19 @@ const ROTULOS: Record<Aba, { rotulo: string; Icone: typeof Workflow }> = {
  * na URL parâmetros que não mudam nada na tela — e pior, um `?status=entregue`
  * sobrevivendo até a volta para Demandas, onde ele filtra de verdade.
  */
+/**
+ * As duas seções que o tour de primeiro acesso aponta (0101).
+ *
+ * As outras duas não têm âncora, e a ausência é a regra: nenhum passo do tour
+ * aponta para um módulo que ele não explica. "Demandas" é a seção padrão — a
+ * pessoa já está nela quando o passo de Gestão de Tasks acontece — e
+ * "Recorrências" é micro-tour do módulo.
+ */
+const ANCORA_DA_SECAO: Partial<Record<Aba, Ancora>> = {
+  workflows: ANCORAS.abaWorkflows,
+  "aprovacoes-internas": ANCORAS.abaAprovacoesInternas,
+};
+
 const SO_DA_LISTA = ["situacao", "modo", "regra", "deTask"];
 const SO_DO_BOARD = [
   "cliente",
@@ -75,6 +89,7 @@ export function AbasDeGestaoDeTasks({ atual, aguardando }: { atual: Aba; aguarda
   const secoes: SecaoDoModulo<Aba>[] = ABAS.map((aba) => ({
     chave: aba,
     ...ROTULOS[aba],
+    ancora: ANCORA_DA_SECAO[aba],
     ...(aba === "aprovacoes-internas"
       ? { contagem: aguardando, rotuloDaContagem: `${aguardando} esperando aval` }
       : {}),

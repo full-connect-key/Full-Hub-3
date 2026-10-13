@@ -222,6 +222,19 @@
      a borda — que é exatamente o contrário do desenho. */
   --surface-page: #EDEEF0;
   --surface-card: #FFFFFF;
+  /* O VÉU DO TOUR (0101), e ele é escuro nos DOIS temas — como a porta e como
+     a barra lateral era até a interface "Leve". Não há par no `.dark` de
+     propósito: o que o véu faz é apagar a página em volta do elemento
+     destacado, e um véu que clareia no tema escuro apagaria o destaque em vez
+     do resto.
+
+     O alfa é 55%, e ele é alto por um motivo que não é gosto: o recorte é o
+     ÚNICO sinal de onde o passo está, e abaixo de uns 40% a página em volta
+     continua competindo pela atenção — o destaque passa a parecer um realce,
+     não um recorte. Ele não entra no `check:cores` porque nada escreve texto
+     sobre ele: o balão tem superfície própria, e é esse par que a varredura
+     mede. */
+  --tour-veu: color-mix(in srgb, #0B0D12 55%, transparent);
 
   /* --- Texto -------------------------------------------------------------- */
   /* A ESCALA DE TEXTO ESCURECEU INTEIRA, e a razão foi o usuário olhando a
@@ -955,4 +968,41 @@
 }
 .disco-da-topbar:hover {
   background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+}
+
+/* --- O RECORTE DO TOUR ------------------------------------------------------
+   **O VÉU E O BURACO SÃO O MESMO ELEMENTO**, e é essa linha que faz o tour
+   caber sem biblioteca: um retângulo do tamanho do alvo com uma sombra de
+   9999px escurece tudo o que está em volta e deixa o alvo em claro. A
+   alternativa — quatro retângulos em volta de um vão — precisa de quatro
+   medidas e erra nos cantos.
+
+   Ela é classe e não utilitário porque `shadow-*` do Tailwind gera a sombra da
+   escala do tema, e o que esta precisa é de um raio que cobre a tela inteira.
+   É a razão de `.pilula-de-acao` ser classe: o que ela pinta não é o que o
+   utilitário gera.
+
+   O ANEL É `--action`, o azul de ação, e não `--warning` nem `--danger`: o
+   destaque não é alerta nem erro — ele é "olhe aqui", que é exatamente o que a
+   cor de ação diz no resto do produto.
+
+   E a transição é do RETÂNGULO e não um `all`: `all` animaria a sombra de
+   9999px a cada passo, que é a única propriedade caríssima daqui. Com
+   `prefers-reduced-motion` ela sai inteira — texto e destaque que se movem
+   sozinhos é justamente o que essa preferência pede para não acontecer. */
+.tour-recorte {
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px var(--tour-veu);
+  outline: 2px solid var(--action);
+  transition:
+    top 160ms ease,
+    left 160ms ease,
+    width 160ms ease,
+    height 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-recorte {
+    transition: none;
+  }
 }

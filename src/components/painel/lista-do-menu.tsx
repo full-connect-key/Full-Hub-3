@@ -9,6 +9,7 @@ import {
   getMenuForRole,
   type MenuItem,
 } from "@/lib/auth/permissions";
+import { ANCORA_DO_MENU, ANCORAS, ancora } from "@/lib/tour/ancoras";
 import type { UserRole } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,22 @@ export function ListaDoMenu({
   const secoes = getMenuForRole(role);
 
   return (
-    <nav className="flex flex-col gap-6" aria-label="Módulos do painel">
+    /*
+      A ÂNCORA DO MENU MORA AQUI, e não na barra lateral nem na gaveta: as
+      duas desenham esta mesma lista, e marcar item por item em cada uma
+      deixaria o tour funcionando numa largura e pulando passos na outra — a
+      classe de bug que `ICONE_DA_AREA` pagou com três cópias, duas delas já
+      divergidas.
+
+      O botão da gaveta carrega `menu` também, e é de propósito: no celular
+      esta `<nav>` só existe com a gaveta aberta, e o provedor escolhe o
+      PRIMEIRO VISÍVEL dos dois.
+    */
+    <nav
+      className="flex flex-col gap-6"
+      aria-label="Módulos do painel"
+      {...ancora(ANCORAS.menu)}
+    >
       {secoes.map(({ section, items }) => {
         const pill = SECTION_PILLS[section];
         return (
@@ -75,6 +91,11 @@ export function ListaDoMenu({
                   href={item.href}
                   onClick={aoNavegar}
                   title={item.label}
+                  // A CHAVE É A ROTA e nunca o rótulo: rótulo é texto de tela
+                  // e muda, e texto de tela não vira seletor. Item sem entrada
+                  // em `ANCORA_DO_MENU` simplesmente não ganha atributo — e é
+                  // a maioria deles.
+                  data-tour={ANCORA_DO_MENU[item.href]}
                   aria-current={ativo ? "page" : undefined}
                   className={cn(
                     "relative flex items-center gap-3 rounded-md py-2 pr-3 pl-3 text-sm transition-colors",

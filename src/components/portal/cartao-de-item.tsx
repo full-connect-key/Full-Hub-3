@@ -15,6 +15,7 @@ import {
   type TipoDeItem,
 } from "@/lib/dominio/portal";
 import { cn } from "@/lib/utils";
+import type { Ancora } from "@/lib/tour/ancoras";
 
 /**
  * Um material, do jeito que o cliente lê.
@@ -36,6 +37,7 @@ export function CartaoDeItem({
   hoje,
   aoAbrir,
   href,
+  ancora,
 }: {
   item: ItemDoPortal;
   hoje: string;
@@ -48,6 +50,18 @@ export function CartaoDeItem({
    * nenhum link.
    */
   href?: string;
+  /**
+   * A ÂNCORA DO TOUR, quando este é o cartão que o passo interativo aponta.
+   *
+   * Ela vem de QUEM MONTA A LISTA e não de uma condição aqui: o cartão não
+   * sabe se é o primeiro, e uma marca em todos os cinco poria cinco elementos
+   * com o mesmo `data-tour` na página.
+   *
+   * **E ela vai no `<article>` e não no invólucro clicável**, porque o
+   * invólucro muda de tag conforme o cartão é link, botão ou nenhum dos dois —
+   * e o destaque do tour precisa do mesmo retângulo nos três casos.
+   */
+  ancora?: Ancora;
 }) {
   const Icone = ICONE[item.tipo];
 
@@ -63,6 +77,7 @@ export function CartaoDeItem({
 
   const conteudo = (
     <article
+      data-tour={ancora}
       className={cn(
         "bg-surface-card rounded-card shadow-cartao flex gap-4 border p-4 text-left transition-colors sm:p-5",
         (aoAbrir || href) && "hover:border-accent-strong",

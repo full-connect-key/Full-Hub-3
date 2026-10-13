@@ -3,8 +3,15 @@ import { ArrowLeft } from "lucide-react";
 
 import { CascaDoPortal } from "@/components/portal/casca-do-portal";
 import { Logo } from "@/components/shared/logo";
+import { BoasVindas } from "@/components/tour/boas-vindas";
+import { MenuDeAjuda } from "@/components/tour/menu-de-ajuda";
+import { ProvedorDoTour } from "@/components/tour/provedor-do-tour";
 import { exigirAreaDoCliente } from "@/lib/auth/portal-administrativo";
 import { identidadeDoPortal, obterMinhasEmpresas } from "@/lib/dados/clientes";
+import { meusTours } from "@/lib/dados/tour";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
+import { convidaARever, devoConvidar, tourComecado } from "@/lib/tour/convite";
+import { TOUR_DO_PORTAL, tourDoPortal } from "@/lib/tour/passos";
 
 /**
  * O portal da pessoa cliente — e, para a gestão, a escolha de qual portal abrir.
@@ -63,6 +70,16 @@ export default async function LayoutDoMeuPortal({
     );
   }
 
+  // O TOUR DO PORTAL É SÓ PARA O CLIENTE, e por isso a leitura vem depois do
+  // `if (comoEquipe)` acima: quem é da agência abriu `/portal` para escolher
+  // um portal, e oferecer a ela o tutorial do cliente numa bifurcação é
+  // ensinar uma tela que não é dela.
+  const tours = await meusTours();
+  const tour = tourDoPortal();
+  const convite = devoConvidar(TOUR_DO_PORTAL, tours, hojeNaAgencia());
+  const primeiroNome =
+    sessao.profile.nome.trim().split(/\s+/)[0] ?? sessao.profile.nome;
+
   const empresas = await obterMinhasEmpresas();
   // SÓ COM UMA EMPRESA. Com duas, o cabeçalho troca o nome pelo seletor, e uma
   // foto ao lado de um controle que lista N empresas diria que ela é de todas.
@@ -73,14 +90,32 @@ export default async function LayoutDoMeuPortal({
     .join(", ");
 
   return (
-    <CascaDoPortal
-      nome={sessao.profile.nome}
-      email={sessao.email}
-      nomeDaEmpresa={nomeDaEmpresa || null}
-      fotoDaEmpresa={identidade?.fotoAssinada ?? null}
-      empresas={empresas}
-    >
-      {children}
-    </CascaDoPortal>
+    <ProvedorDoTour>
+      <CascaDoPortal
+        nome={sessao.profile.nome}
+        email={sessao.email}
+        nomeDaEmpresa={nomeDaEmpresa || null}
+        fotoDaEmpresa={identidade?.fotoAssinada ?? null}
+        empresas={empresas}
+        ajuda={
+          <MenuDeAjuda
+            tour={tour}
+            rotuloDoTour="o tour do portal"
+            comecado={tourComecado(TOUR_DO_PORTAL, tours)}
+            convidaARever={convidaARever(TOUR_DO_PORTAL, tours)}
+            // O FULL ACADEMY É INTERNO, e o cliente não o alcança: nenhuma
+            // entrada do `MENU` aceita o perfil `cliente` e a RLS recusa nas
+            // seis tabelas. Um item apontando para lá daria 403 a quem
+            // clicasse — e um menu de AJUDA que leva a uma recusa é o oposto
+            // do que ele serve.
+            hrefDosPlaybooks={null}
+          />
+        }
+      >
+        {children}
+      </CascaDoPortal>
+
+      <BoasVindas convite={convite} primeiroNome={primeiroNome} tour={tour} />
+    </ProvedorDoTour>
   );
 }

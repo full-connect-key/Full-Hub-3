@@ -29,6 +29,7 @@ import {
   progresso,
 } from "@/lib/dominio/campanhas";
 import { ordenarPorUrgencia } from "@/lib/dominio/portal";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
  * A tela inicial do Portal, num bloco só.
@@ -189,7 +190,12 @@ export async function InicioDoPortal({
           é o que ainda não chegou, "aprovados no mês" é o que já saiu daqui.
           Eles viram texto, e o primeiro vira o link que leva à própria lista,
           como o "ver quais" da Gestão de Tasks. */}
-      <section className="space-y-6">
+      {/* A ÂNCORA DO TOUR DO PORTAL (0101) vai na SEÇÃO e não no título: o
+          passo diz "tudo o que a Full enviou e ainda não teve resposta aparece
+          aqui", e o recorte dele é o bloco inteiro — contagem, lista e o "ver
+          tudo". Com a âncora no `<h2>`, o destaque seria uma linha de texto
+          com a lista inteira fora dele. */}
+      <section className="space-y-6" {...ancora(ANCORAS.portalPendencias)}>
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
           <h2 className="text-xl font-bold tracking-[-0.02em]">
             {comoEquipe
@@ -246,12 +252,17 @@ export async function InicioDoPortal({
              Tasks: num contêiner com fios o que se lê primeiro é a CAIXA, e
              aqui cada linha é uma decisão separada, sobre uma peça diferente. */
           <div className="space-y-[9px]">
-            {pendentes.slice(0, 5).map((item) => (
+            {pendentes.slice(0, 5).map((item, indice) => (
               <CartaoDeItem
                 key={item.conteudoId}
                 item={item}
                 hoje={hoje}
                 href={item.caminho ? `${base}${item.caminho}` : undefined}
+                /* O PASSO INTERATIVO DO TOUR aponta para UM cartão, e é o
+                   primeiro: marcar os cinco poria cinco elementos com o mesmo
+                   `data-tour` na página, e o provedor escolhe o primeiro
+                   visível de qualquer forma. */
+                ancora={indice === 0 ? ANCORAS.portalMaterial : undefined}
               />
             ))}
             {pendentes.length > 5 ? (

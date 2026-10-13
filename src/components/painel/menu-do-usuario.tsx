@@ -7,6 +7,7 @@ import { LogOut, Moon, Sun, UserRound } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ export function MenuDoUsuario({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          {...ancora(ANCORAS.menuDoUsuario)}
           variant="ghost"
           size="icon"
           className="disco-da-topbar rounded-full"

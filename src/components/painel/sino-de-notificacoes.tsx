@@ -9,6 +9,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import {
   Popover,
   PopoverContent,
@@ -75,6 +76,7 @@ export function SinoDeNotificacoes({
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>
         <Button
+          {...ancora(ANCORAS.sino)}
           variant="ghost"
           size="icon"
           className="disco-da-topbar relative rounded-full"

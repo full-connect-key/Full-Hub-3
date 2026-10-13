@@ -6,6 +6,7 @@ import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { criarRascunho } from "@/app/(interno)/painel/gestao-tasks/acoes";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export function BotaoDeNovaTask({
   return (
     <Button
       id={id}
+      {...ancora(ANCORAS.novaTask)}
       className={cn(
         destaque &&
           "pilula-de-acao text-action-foreground h-11 rounded-full text-sm font-bold hover:brightness-105",

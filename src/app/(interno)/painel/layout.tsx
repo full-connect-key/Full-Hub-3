@@ -4,9 +4,17 @@ import { MenuGaveta } from "@/components/painel/menu-gaveta";
 import { MenuLateral } from "@/components/painel/menu-lateral";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { AtualizacaoAoVivo } from "@/components/shared/atualizacao-ao-vivo";
+import { BoasVindas } from "@/components/tour/boas-vindas";
+import { MenuDeAjuda } from "@/components/tour/menu-de-ajuda";
+import { ProvedorDoTour } from "@/components/tour/provedor-do-tour";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
+import { meusTours } from "@/lib/dados/tour";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
+import { convidaARever, devoConvidar, tourComecado } from "@/lib/tour/convite";
+import { TOUR_DO_PAINEL, tourDoPainel } from "@/lib/tour/passos";
 import { quandoFoiPublicado, rotuloDaVersao } from "@/lib/versao";
 
 /**
@@ -38,13 +46,38 @@ export default async function LayoutDoPainel({
   children,
 }: LayoutProps<"/painel">) {
   const { email, profile } = await exigirEquipe();
-  const [ficha, avisos] = await Promise.all([
+  // AS DUAS LEITURAS DO TOUR CUSTAM UMA IDA CADA, e o custo está dito: elas
+  // acontecem em toda navegação do painel, porque o menu de ajuda precisa dos
+  // passos para saber o que oferecer. São uma RPC que devolve um booleano e um
+  // `select` de no máximo uma dúzia de linhas pela própria pessoa — e a
+  // alternativa, carregá-las sob demanda, exigiria um segundo caminho de
+  // leitura para responder a mesma pergunta.
+  const [ficha, avisos, tours, ehAtendimento] = await Promise.all([
     obterMinhaFicha(),
     minhasNotificacoes(),
+    meusTours(),
+    souDoAtendimento(),
   ]);
 
+  // O TOUR É MONTADO NO SERVIDOR e desce como dado: `tourDoPainel()` é um
+  // módulo compartilhado, então chamá-lo aqui e no cliente daria o mesmo
+  // resultado — e descendo pronto, o navegador não precisa saber o perfil nem
+  // perguntar ao banco quem é do Atendimento.
+  const tour = tourDoPainel({ role: profile.role, ehAtendimento });
+  // `hojeNaAgencia()` E NÃO `new Date()`: o container roda em UTC, e às 21h de
+  // São Paulo "hoje" já é amanhã lá — o lembrete do dia seguinte apareceria um
+  // dia antes para quem abre o painel à noite.
+  const convite = devoConvidar(TOUR_DO_PAINEL, tours, hojeNaAgencia());
+  const primeiroNome = profile.nome.trim().split(/\s+/)[0] ?? profile.nome;
+
   return (
-    <>
+    /*
+      O PROVEDOR ENVOLVE O LAYOUT INTEIRO, e não cada tela: o tour navega entre
+      rotas, e um provedor por página perderia o passo no meio da travessia —
+      remontar o provedor é zerar o estado dele. É a mesma razão pela qual
+      `AtualizacaoAoVivo` mora aqui: o que ele faz não é específico de tela.
+    */
+    <ProvedorDoTour>
       <script dangerouslySetInnerHTML={{ __html: SCRIPT_DO_MENU }} />
 
       <div className="bg-surface-page flex min-h-dvh">
@@ -109,6 +142,16 @@ export default async function LayoutDoPainel({
                 policy da 0057 é o que garante.
               */}
               <AtualizacaoAoVivo className="mr-1" />
+              {/* O `?` FICA AO LADO DO SINO, que é onde o sprint o pede — e
+                  antes dele, porque a ordem da topbar é da ajuda para o
+                  pessoal: ajuda, avisos, você. */}
+              <MenuDeAjuda
+                tour={tour}
+                rotuloDoTour="o tour do painel"
+                comecado={tourComecado(TOUR_DO_PAINEL, tours)}
+                convidaARever={convidaARever(TOUR_DO_PAINEL, tours)}
+                hrefDosPlaybooks="/painel/academy"
+              />
               <SinoDeNotificacoes
                 notificacoes={avisos.lista}
                 naoLidas={avisos.naoLidas}
@@ -141,6 +184,12 @@ export default async function LayoutDoPainel({
           </footer>
         </div>
       </div>
-    </>
+
+      <BoasVindas
+        convite={convite}
+        primeiroNome={primeiroNome}
+        tour={tour}
+      />
+    </ProvedorDoTour>
   );
 }
