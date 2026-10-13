@@ -410,7 +410,19 @@ from (
     ('0096', 'academy_anotacoes (a anotacao fora do progresso)', 'tabela',
              'academy_anotacoes'),
     ('0096', 'academy_tracks saiu (o modelo antigo foi convertido)', 'sem_tabela',
-             'academy_tracks')
+             'academy_tracks'),
+    -- A 0097 conserta as DUAS funcoes que a 0096 deixou lendo tabela apagada.
+    -- As linhas sao `no_corpo` e nao `sem_no_corpo`: marcador por AUSENCIA e o
+    -- que a 0090 mostrou envelhecer mal, e aqui a ausencia seria frageil de um
+    -- jeito a mais -- o corpo novo CITA `academy_tracks` num comentario, para
+    -- explicar o conserto, entao um marcador por ausencia responderia FALTA
+    -- num banco em dia.
+    ('0097', 'busca_global le academy_items (a 0096 quebrou a busca inteira)',
+             'no_corpo', 'busca_global|public.academy_items'),
+    ('0097', 'feedback_metricas le academy_progresso', 'no_corpo',
+             'feedback_metricas|public.academy_progresso'),
+    ('0097', 'academy_vencidos fora do alcance de authenticated', 'sem_execute',
+             'academy_vencidos|authenticated')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

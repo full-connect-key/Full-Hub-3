@@ -23,7 +23,7 @@ export const TIPOS_DA_BUSCA = [
   "post",
   "equipamento",
   "pedido",
-  "trilha",
+  "academy",
 ] as const;
 
 export type TipoDaBusca = (typeof TIPOS_DA_BUSCA)[number];
@@ -68,7 +68,7 @@ export const ROTULOS_DA_BUSCA: Record<TipoDaBusca, string> = {
   post: "Social Media",
   equipamento: "Equipamentos",
   pedido: "Pedidos do cliente",
-  trilha: "Full Academy",
+  academy: "Full Academy",
 };
 
 /**
@@ -93,7 +93,7 @@ export const ORDEM_DOS_GRUPOS: readonly TipoDaBusca[] = [
   "post",
   "equipamento",
   "pedido",
-  "trilha",
+  "academy",
 ] as const;
 
 /**

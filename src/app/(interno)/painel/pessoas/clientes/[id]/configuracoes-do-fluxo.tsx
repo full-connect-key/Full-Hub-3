@@ -203,7 +203,7 @@ export function ConfiguracoesDoFluxo({
   return (
     <div className="space-y-8">
       <SecaoDoFormulario numero={1} titulo="Responsáveis da conta">
-        <div className="space-y-4 rounded-xl border p-5">
+        <div className="bg-card rounded-card shadow-cartao space-y-4 border p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             {/* O ATENDIMENTO NÃO É CAMPO DESTA ABA, e é de propósito: ele é
                 `clients.responsavel_atendimento_id`, a pessoa que o Portal avisa
@@ -393,7 +393,7 @@ export function ConfiguracoesDoFluxo({
       </SecaoDoFormulario>
 
       <SecaoDoFormulario numero={3} titulo="Entrega, prazos e o que o cliente aprova">
-        <div className="space-y-4 rounded-xl border p-5">
+        <div className="bg-card rounded-card shadow-cartao space-y-4 border p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label htmlFor="pasta-da-conta">Pasta de entrega padrão</Label>
@@ -587,7 +587,7 @@ export function ConfiguracoesDoFluxo({
       </SecaoDoFormulario>
 
       <SecaoDoFormulario numero={5} titulo="Particularidades da conta">
-        <div className="rounded-xl border p-5">
+        <div className="bg-card rounded-card shadow-cartao border p-5">
           {observacoes?.trim() ? (
             <p className="text-sm whitespace-pre-wrap">{observacoes}</p>
           ) : (

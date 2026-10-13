@@ -75,7 +75,7 @@ const ICONE_DO_TIPO: Record<TipoDaBusca, typeof Search> = {
   pessoa: Users,
   equipamento: CircleDashed,
   pedido: Inbox,
-  trilha: GraduationCap,
+  academy: GraduationCap,
 };
 
 /** A pausa de digitação. É a mesma do salvamento automático da tela de task. */
@@ -149,8 +149,8 @@ export function BuscaGlobal() {
           <DialogTitle className="sr-only">Buscar na plataforma</DialogTitle>
           <DialogDescription className="sr-only">
             Digite para achar demandas, etapas, clientes, pessoas, campanhas,
-            posts, equipamentos, pedidos e trilhas. Use as setas para escolher e
-            Enter para abrir.
+            posts, equipamentos, pedidos e o acervo do Full Academy. Use as
+            setas para escolher e Enter para abrir.
           </DialogDescription>
           {aberta ? <Paleta aoEscolher={() => setAberta(false)} /> : null}
         </DialogContent>

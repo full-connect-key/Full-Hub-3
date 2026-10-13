@@ -96,7 +96,15 @@ export type MetricasDoFeedback = {
   qualidade: Qualidade;
   palavras_nos_pedidos_de_ajuste: PalavraDoAjuste[];
   desenvolvimento: {
-    trilhas: { titulo: string; materiais_concluidos: number }[];
+    /**
+     * O que a pessoa concluiu no período, UM por item do acervo. Era `trilhas`
+     * até a 0097 — a 0096 trocou o modelo da Academy, e a trilha deixou de ser
+     * a unidade do que se estuda: ela virou a prateleira, e quase nada está
+     * numa. `concluidos` é 1 num playbook ou e-book e o número de aulas num
+     * curso.
+     */
+    itens: { titulo: string; concluidos: number }[];
+    /** As tags dos itens concluídos. Eram as skills, que saíram com o material. */
     etiquetas_estudadas: string[];
     workflows_novos: string[];
   };

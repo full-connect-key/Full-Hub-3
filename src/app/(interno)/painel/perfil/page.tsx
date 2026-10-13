@@ -50,7 +50,7 @@ export default async function PaginaDoMeuPerfil() {
       <div className="space-y-6">
           <FormularioDoPerfil profile={sessao.profile} />
 
-          <section className="rounded-card border p-5">
+          <section className="bg-card rounded-card shadow-cartao border p-5">
             <h2 className="mb-4 text-sm font-semibold">Sua ficha na agência</h2>
             <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               <Campo rotulo="Cargo" valor={pessoa?.membro?.cargo ?? "—"} />
@@ -68,7 +68,7 @@ export default async function PaginaDoMeuPerfil() {
               mora aqui, junto da explicação, porque um interruptor sem a
               explicação ao lado é um interruptor que se desliga sem saber o que
               se está desligando. */}
-          <section className="rounded-card border p-5">
+          <section className="bg-card rounded-card shadow-cartao border p-5">
             <h2 className="mb-2 text-sm font-semibold">
               Feedback de desenvolvimento
             </h2>

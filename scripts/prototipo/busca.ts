@@ -132,7 +132,7 @@ const EXEMPLOS: Omit<ResultadoDaBusca, "posicao" | "total">[] = [
     selo: null,
   },
   {
-    tipo: "trilha",
+    tipo: "academy",
     id: "99999999-9999-9999-9999-999999999991",
     titulo: "Briefing que não volta com dúvida",
     contexto: "Atendimento",

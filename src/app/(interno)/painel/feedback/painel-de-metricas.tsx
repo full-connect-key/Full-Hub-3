@@ -327,15 +327,24 @@ export function PainelDeMetricas({
         </Bloco>
       ) : null}
 
-      {m.desenvolvimento?.trilhas?.length ||
+      {m.desenvolvimento?.itens?.length ||
       m.desenvolvimento?.workflows_novos?.length ? (
         <Bloco titulo="O que você estudou e o que pegou de novo">
           <ul className="text-text-secondary space-y-1 pt-1 text-sm">
-            {m.desenvolvimento.trilhas?.map((t) => (
+            {/* A CONTAGEM SÓ APARECE QUANDO ELA DIZ ALGUMA COISA. Um playbook
+                ou um e-book vale um, e "1 aula concluída" num playbook é a
+                tela nomeando uma coisa que aquele formato não tem — o número
+                serve ao curso, onde ele é o andamento. */}
+            {m.desenvolvimento.itens?.map((t) => (
               <li key={t.titulo}>
-                {t.titulo} ·{" "}
-                <span className="tabular-nums">{t.materiais_concluidos}</span>{" "}
-                material(is) concluído(s)
+                {t.titulo}
+                {t.concluidos > 1 ? (
+                  <>
+                    {" · "}
+                    <span className="tabular-nums">{t.concluidos}</span> aulas
+                    concluídas
+                  </>
+                ) : null}
               </li>
             ))}
             {m.desenvolvimento.workflows_novos?.length ? (

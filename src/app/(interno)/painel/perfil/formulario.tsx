@@ -87,7 +87,7 @@ export function FormularioDoPerfil({ profile }: { profile: Profile }) {
   }
 
   return (
-    <form onSubmit={salvarNome} className="space-y-6 rounded-xl border p-5">
+    <form onSubmit={salvarNome} className="bg-card rounded-card shadow-cartao space-y-6 border p-5">
       <div className="flex flex-wrap items-center gap-4">
         <UserAvatar name={nome || profile.nome} src={avatarUrl} size="lg" />
         <div>
@@ -159,7 +159,7 @@ export function TrocaDeSenha() {
   }
 
   return (
-    <form onSubmit={enviar} className="space-y-4 rounded-xl border p-5">
+    <form onSubmit={enviar} className="bg-card rounded-card shadow-cartao space-y-4 border p-5">
       <div>
         <h2 className="text-sm font-semibold">Trocar senha</h2>
         <p className="text-muted-foreground mt-0.5 text-sm">Use pelo menos 8 caracteres.</p>

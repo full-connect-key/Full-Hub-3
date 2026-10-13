@@ -49,7 +49,7 @@ export function LoadingSkeleton({
         aria-live="polite"
       >
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="space-y-3 rounded-xl border p-5">
+          <div key={i} className="bg-card rounded-card shadow-cartao space-y-3 border p-5">
             <Skeleton className="size-9 rounded-lg" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-3 w-full" />

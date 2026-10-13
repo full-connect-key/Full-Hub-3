@@ -117,7 +117,7 @@ export function DetalheDoColaborador({
       </TabsList>
 
       <TabsContent value="dados" className="space-y-6">
-        <form onSubmit={enviar} noValidate className="space-y-5 rounded-xl border p-5">
+        <form onSubmit={enviar} noValidate className="bg-card rounded-card shadow-cartao space-y-5 border p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome completo</Label>
@@ -227,7 +227,7 @@ export function DetalheDoColaborador({
         </form>
 
         {ehGestor && !ehVoceMesmo ? (
-          <section className="space-y-3 rounded-xl border p-5">
+          <section className="bg-card rounded-card shadow-cartao space-y-3 border p-5">
             <div>
               <h2 className="text-sm font-semibold">Acesso à plataforma</h2>
               <p className="text-muted-foreground mt-1 text-sm">
@@ -257,7 +257,7 @@ export function DetalheDoColaborador({
         ) : null}
 
         {ehSocio && !desligada && !ehVoceMesmo ? (
-          <section className="border-destructive/30 space-y-4 rounded-xl border p-5">
+          <section className="bg-card rounded-card shadow-cartao border-destructive/30 space-y-4 border p-5">
             <div>
               <h2 className="text-destructive text-sm font-semibold">Zona de perigo</h2>
               <p className="text-muted-foreground mt-1 text-sm">

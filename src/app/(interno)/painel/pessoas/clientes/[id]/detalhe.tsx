@@ -54,7 +54,7 @@ export function DetalheDoCliente({
       </TabsList>
 
       <TabsContent value="dados" className="space-y-6">
-        <div className="rounded-xl border p-5">
+        <div className="bg-card rounded-card shadow-cartao border p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Dados da empresa</h2>
             <FormularioDeCliente

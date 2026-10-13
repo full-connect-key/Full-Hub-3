@@ -82,7 +82,7 @@ export function ZonaDePerigoDoCliente({
   }
 
   return (
-    <section className="border-destructive/30 space-y-4 rounded-xl border p-5">
+    <section className="bg-card rounded-card shadow-cartao border-destructive/30 space-y-4 border p-5">
       <div>
         <h2 className="text-destructive text-sm font-semibold">Zona de perigo</h2>
         <p className="text-muted-foreground mt-1 text-sm">
