@@ -196,6 +196,12 @@ const TELAS = [
   { nome: "25b-task-status-aberto", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1100, role: "socio", clicar: '[aria-label="Status da demanda"]', semRolagem: true },
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
   { nome: "30-minhas-tasks-lista", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio" },
+  // A TELA VAZIA, e ela e a que decide a hierarquia. Sem etapa nenhuma o que
+  // sobra sao os conteineres -- "Meu dia", o seletor de visao, os chips e a
+  // lista --, e era exatamente ai que eles apareciam como um bloco cinza so,
+  // porque tres deles nao pintavam fundo. Uma imagem do estado CHEIO nao prova
+  // nada sobre o estado que foi reclamado.
+  { nome: "30b-minhas-tasks-vazia", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-sem-trabalho" },
   { nome: "31-minhas-tasks-board", rota: "/painel/minhas-tasks?visao=board", largura: 1600, altura: 1100, role: "socio" },
   { nome: "32-minhas-tasks-calendario", rota: "/painel/minhas-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio" },
   { nome: "33-minhas-tasks-atrasadas", rota: "/painel/minhas-tasks?foco=atrasadas", largura: 1600, altura: 1000, role: "socio" },
@@ -773,6 +779,10 @@ const PERFIS = {
   desenvolvedor: { role: "desenvolvedor" },
   colaborador: { role: "colaborador", funcao: "Atendimento" },
   "colaborador-social": { role: "colaborador", funcao: "Social Media" },
+  // QUEM NAO TEM ETAPA NENHUMA. Entra como PERFIL pela mesma razao do primeiro
+  // acesso: o gerador ja sobe um servidor por perfil, e a tela vazia precisava
+  // de uma imagem -- ela e o estado em que a queixa de hierarquia aparecia.
+  "colaborador-sem-trabalho": { role: "colaborador", funcao: "Redator" },
   // Quem acabou de ser cadastrado e ainda nao trocou a senha provisoria. E um
   // PERFIL e nao um parametro de tela porque o gerador ja sobe um servidor por
   // perfil -- assim nao inventa um mecanismo novo para uma tela so.

@@ -237,7 +237,10 @@ export function PainelPessoal({
               key={area}
               href={ROTA_DA_AREA[area]}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                // `bg-card` pela razão do bloco "Meu dia": sem fundo, o chip
+                // é a página com uma borda, e três deles em fila leem como
+                // uma faixa cinza. Com fundo, eles leem como três botões.
+                "bg-card inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
                 "hover:bg-accent",
                 quantas === 0 && "text-muted-foreground",
               )}
@@ -379,7 +382,11 @@ export function PainelPessoal({
                   aria-pressed={ativo}
                   onClick={() => navegar({ foco: ativo ? null : id })}
                   className={cn(
-                    "bg-card rounded-card border p-3 text-left transition-colors",
+                    // A SOMBRA ENTRA PARA IGUALAR: eles já eram brancos, e
+                    // eram os únicos cartões da tela sem a elevação que o
+                    // resto tem — o que os fazia parecer recortados na página
+                    // em vez de pousados nela.
+                    "bg-card rounded-card shadow-cartao border p-3 text-left transition-colors",
                     ativo
                       ? "border-accent-strong"
                       : "border-border hover:border-accent-strong/40",

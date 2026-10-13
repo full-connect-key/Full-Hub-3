@@ -53,7 +53,20 @@ export function MeuDia({
   const atrasadas = itens.filter((item) => item.atrasada).length;
 
   return (
-    <section className="rounded-xl border">
+    // ---------------------------------------------------------------------
+    // O BLOCO PINTA O FUNDO, e até aqui ele não pintava: era
+    // `rounded-xl border` e mais nada, então o que aparecia dentro dele era a
+    // PÁGINA. Numa tela sem entrega nenhuma isso é um retângulo cinza com uma
+    // borda em volta, e foi o que o usuário viu: *"está toda chapada em
+    // cinza"*.
+    //
+    // O par `bg-card rounded-card shadow-cartao` é o mesmo que a linha de
+    // Minhas Tasks já usa desde a interface "Leve" — este bloco é que estava
+    // fora da convenção, e não a convenção que estava faltando. **Nenhum
+    // token muda**: `--surface-card` já era branco puro — o que faltava era
+    // alguém pintá-lo aqui.
+    // ---------------------------------------------------------------------
+    <section className="bg-card rounded-card shadow-cartao border">
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <h2 className="text-sm font-semibold">Meu dia</h2>
         {atrasadas > 0 ? (
@@ -69,6 +82,13 @@ export function MeuDia({
       {itens.length === 0 ? (
         <div className="p-2">
           <EmptyState
+            // SEM A MOLDURA TRACEJADA, porque aqui ela é cartão dentro de
+            // cartão: a seção já é a superfície branca. O `className` é a
+            // saída que o componente sempre teve, e é por ela que os outros
+            // 38 lugares que o usam continuam como estão — onde ele cai
+            // direto sobre a página, a moldura é o que diz que existe uma
+            // região ali.
+            className="border-0 py-10"
             icon={PartyPopper}
             title={`Dia limpo, ${primeiroNome}`}
             description="Nada vence hoje e nada está atrasado no seu nome. Bom momento para adiantar o que vem pela frente."

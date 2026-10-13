@@ -51,13 +51,35 @@ const NOMES: Record<string, { id: string; nome: string; email: string }> = {
     nome: "Marina Costa",
     email: "social@fullconnectkey.com.br",
   },
+  // ALGUEM SEM ETAPA NENHUMA, e o id e de proposito um que nao aparece em
+  // `dados-exemplo.ts`: `carregar()` filtra as subtarefas por `responsavel_id`,
+  // entao esta pessoa cai no estado VAZIO de Minhas Tasks.
+  //
+  // Ela existe porque a tela vazia nao tinha imagem nenhuma -- e e justamente
+  // nela que a queixa do usuario aparecia: sem entrega, o que sobra na tela
+  // sao os conteineres, e eram eles que nao pintavam fundo. Uma proposta de
+  // hierarquia conferida so no estado cheio e uma proposta conferida no estado
+  // que nao foi reclamado.
+  "colaborador-sem-trabalho": {
+    id: "a0000000-0000-0000-0000-0000000000ff",
+    nome: "Helena Dias",
+    email: "redacao@fullconnectkey.com.br",
+  },
 };
 
-/** Colaborador tem duas variantes: a do Atendimento e a de Social Media. */
+/**
+ * Colaborador tem TRES variantes: a do Atendimento, a de Social Media e a que
+ * nao tem etapa nenhuma. A funcao e o discriminador porque o gerador ja a
+ * passa por ambiente -- e inventar uma segunda variavel para uma tela so seria
+ * um mecanismo novo onde ja existe um.
+ */
 function chaveDoUsuario(): string {
   const role = roleDoAmbiente();
   if (role !== "colaborador") return role;
-  return process.env["PROTOTIPO_FUNCAO"] === "Atendimento" ? "colaborador" : "colaborador-social";
+  const funcao = process.env["PROTOTIPO_FUNCAO"];
+  if (funcao === "Atendimento") return "colaborador";
+  if (funcao === "Redator") return "colaborador-sem-trabalho";
+  return "colaborador-social";
 }
 
 function profileDaEquipe(): Profile {

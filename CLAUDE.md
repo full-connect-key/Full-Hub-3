@@ -1605,6 +1605,105 @@ continua de pé: **grupo vazio não vira cabeçalho**, porque aí sim não há o
 dizer.
 
 
+#### O BRANCO É O CONTEÚDO, e três contêineres desta tela não pintavam nada
+
+Relato do usuário, com imagem: *"gere uma proposta visual, para melhorar a
+hierarquia visual dessa página, ela está toda chapada em cinza, quero um
+protótipo, com algumas partes em branco"*.
+
+**A CAUSA NÃO ERA DE TOKEN, e isso é o que faz a entrega ser pequena.**
+`--surface-card` já era branco puro desde a interface "Leve"; `shadow-cartao` e
+`rounded-card` já existiam; a linha de cada etapa já era cartão solto. O que
+havia era **três contêineres desta tela que não pintavam fundo nenhum** — e o
+que aparecia dentro deles era a PÁGINA:
+
+| O contêiner | O que ele tinha | O que isso dava |
+| --- | --- | --- |
+| o bloco "Meu dia" | `rounded-xl border`, e nada mais | um retângulo cinza com borda |
+| o estado vazio da Lista | só a moldura tracejada do `EmptyState` | outro retângulo cinza |
+| o seletor de visão | `bg-muted/60` | cinza sobre cinza: a caixa sumia no chão |
+
+**E a imagem que ele mandou era o pior caso dos três ao mesmo tempo:** a tela
+de quem não tem etapa nenhuma, onde os dois primeiros aparecem vazios e o
+terceiro é a única peça colorida que sobrou. Não havia um pixel branco na
+primeira dobra, e ele estava descrevendo exatamente o que a tela fazia.
+
+**`bg-muted/60` era a regra da casa sendo quebrada em silêncio.** *Opacidade
+sobre um fundo qualquer dá uma cor que ninguém mediu, e no tema escuro dá
+outra* está escrita neste arquivo para selo de estado desde sempre, e aqui ela
+valia igual: sessenta por cento de `--neutral-soft` sobre `--surface-page` dá
+quase exatamente a página. O que entra é **par nomeado** — a caixa branca como
+todo contêiner de conteúdo, e o item ativo em `--action-soft` com
+`--action-text`, que é o mesmo par do item ativo da barra lateral e **já estava
+medido** em `check:cores` (5,88:1). O `bg-background` + `shadow-xs` de antes era
+branco sobre quase-branco: separava por SOMBRA o que agora separa por COR.
+
+**Os ladrilhos de número já eram brancos, e eram os únicos cartões da tela sem
+a elevação** — o que os fazia parecer recortados na página em vez de pousados
+nela. Ganharam `shadow-cartao`, e mais nada.
+
+##### `EmptyState` NÃO foi tocado, e é a decisão que faz isto caber numa tela
+
+Ele é usado em **quarenta arquivos**, e a moldura tracejada está certa em
+quase todos: onde ele cai direto sobre a página, ela é o que diz que existe uma
+região ali. Mudar o componente consertaria esta tela e apagaria a borda de
+trinta e oito outras. O `className` é a saída que ele sempre teve, e é por ela
+que as duas chamadas desta tela passam — **em sentidos opostos**, o que é a
+prova de que a regra não era do componente:
+
+- dentro de "Meu dia" a moldura **sai** (`border-0`), porque ali é cartão
+  dentro de cartão: a seção já é a superfície branca;
+- como corpo da Lista ela **vira o cartão** (`bg-card rounded-card
+  shadow-cartao border-solid`), porque ali o vazio não está dentro de nada —
+  ele É a região, e tem que ser a mesma superfície das linhas que aparecem no
+  lugar dele quando há trabalho. Senão a tela troca de fundo conforme a pessoa
+  tem ou não tem etapa.
+
+**O `SeletorDeVisao` é compartilhado e mudou mesmo assim**, e a diferença é a
+contagem: dois chamadores, as duas telas de task, e as duas querem a mesma
+coisa. Trocar um componente de dois donos que concordam é trocar um componente;
+trocar um de quarenta é trocar quarenta telas.
+
+##### As outras duas propostas, e por que elas ficam registradas
+
+Foram três num canvas, e ele escolheu a **A**. As outras duas ficam escritas
+porque a decisão pode voltar:
+
+**B — a página escurece e o cartão levanta.** Em vez de pintar os contêineres,
+aprofundar `--surface-page` para o branco do conteúdo se ler como elevado.
+Recusada porque mexe num token que as **63 telas** leem, para resolver um
+problema que mora em três contêineres de uma; e porque a página ser a
+superfície mais clara da casa é escolha da interface "Leve", não acaso.
+
+**C — uma folha para o trabalho.** Uma única folha branca segurando a coluna
+inteira, com as etapas como linhas dentro dela. Recusada pelo argumento que
+esta mesma tela já escreveu: **cada etapa é um cartão solto porque cada linha é
+uma decisão separada** — numa folha única o que se lê primeiro é a FOLHA.
+
+##### Dois achados da verificação, e nenhum é de build
+
+**O `check:cores` pegou os meus próprios comentários**, na primeira rodada: as
+explicações que eu escrevi em `meu-dia.tsx` e em `seletor-de-visao.tsx`
+**citavam o hexadecimal** do branco e dos dois cinzas para contar a conta. É a
+armadilha deste projeto pela sétima vez — *a explicação não pode carregar o que
+ela proíbe* —, e a saída é a mesma: nomear o token, nunca o valor.
+
+**E o protótipo não tinha a tela que ele fotografou.** As oito imagens de
+Minhas Tasks são todas de gente com trabalho, e o estado vazio — que é onde os
+três contêineres aparecem nus — não saía em imagem nenhuma. Entrou
+`30b-minhas-tasks-vazia`, e **por perfil e não por um mecanismo novo**: o
+fixture decide quem é a pessoa pela `funcao`, então uma Redatora sem etapa é um
+estado de verdade do produto, e não um caso montado para a foto. É a lição da
+Óptica Visão sem atendente (0062) e da pessoa desligada (0069) — o ambiente de
+exemplo mostrando o produto nos estados em que ele dói.
+
+*O que fica em aberto, e é dito em vez de escondido:* o Início tem a mesma
+coluna de 306px e os mesmos ladrilhos, e os dele **já pintam fundo** — o que
+não foi conferido é se algum outro módulo repetiu o `rounded-xl border` sem
+`bg-card`. `check:cores` não pega isso: a ausência de uma classe não é cor
+literal nem classe inexistente.
+
+
 #### O Início ganhou a composição, e passou a dizer o que ele É
 
 Terceira tela do redesenho, depois de Minhas Tasks — mesmo cabeçalho grande,

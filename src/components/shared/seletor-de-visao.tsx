@@ -55,7 +55,24 @@ export function SeletorDeVisao({
   aoTrocar: (visao: Visao) => void;
 }) {
   return (
-    <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
+    // ---------------------------------------------------------------------
+    // `bg-muted/60` SAIU, e ele era a regra da casa sendo quebrada em
+    // silêncio: **opacidade sobre um fundo qualquer dá uma cor que ninguém
+    // mediu**, e no tema escuro dá outra. Sessenta por cento de
+    // `--neutral-soft` sobre `--surface-page` dá quase exatamente a página —
+    // o seletor desaparecia no chão. (E o hexadecimal dos dois não entra
+    // nesta frase: `check:cores` varre cor literal em `src/`, e pegou esta
+    // explicação na primeira rodada. A explicação não pode carregar o que
+    // ela proíbe.)
+    //
+    // O que entra é o par nomeado: a caixa é branca como todo contêiner de
+    // conteúdo, e o item ativo usa `--action-soft` com `--action-text`, que é
+    // o mesmo par do item ativo da barra lateral e já está medido em
+    // `check:cores` (5,88:1). O `bg-background`/`shadow-xs` de antes era
+    // branco sobre quase-branco: separava por sombra o que agora separa por
+    // cor.
+    // ---------------------------------------------------------------------
+    <div className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5">
       {VISOES.map(({ chave, rotulo, Icone }) => (
         <button
           key={chave}
@@ -65,7 +82,7 @@ export function SeletorDeVisao({
           className={cn(
             "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
             atual === chave
-              ? "bg-background text-foreground font-medium shadow-xs"
+              ? "bg-action-soft text-action-text font-semibold"
               : "text-muted-foreground hover:text-foreground",
           )}
         >

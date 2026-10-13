@@ -65,6 +65,12 @@ export function MinhaLista({
   if (linhas.length === 0) {
     return (
       <EmptyState
+        // AQUI É O CONTRÁRIO DO "Meu dia": o estado vazio não está DENTRO de
+        // um cartão, ele É a região. Então ele vira a superfície branca, com
+        // o mesmo raio e a mesma sombra das linhas que aparecem no lugar dele
+        // quando há trabalho — senão a tela troca de fundo conforme a pessoa
+        // tem ou não tem etapa.
+        className="bg-card rounded-card shadow-cartao border-solid"
         icon={ListChecks}
         title="Nada por aqui"
         description="Nenhuma etapa sua com este filtro. Troque o foco no cabeçalho para ver o resto."
