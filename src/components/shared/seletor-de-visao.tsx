@@ -3,6 +3,7 @@
 import { CalendarDays, Columns3, List, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 export type Visao = "board" | "lista" | "calendario";
 
@@ -72,7 +73,10 @@ export function SeletorDeVisao({
     // branco sobre quase-branco: separava por sombra o que agora separa por
     // cor.
     // ---------------------------------------------------------------------
-    <div className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5">
+    <div
+      className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5"
+      {...ancora(ANCORAS.seletorDeVisao)}
+    >
       {VISOES.map(({ chave, rotulo, Icone }) => (
         <button
           key={chave}

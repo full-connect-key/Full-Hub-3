@@ -37,6 +37,9 @@ import { PrecisaDeMim, linhasDoPrecisaDeMim } from "./_blocos/precisa-de-mim";
 import { PulsoDaAgencia } from "./_blocos/pulso-da-agencia";
 import { QuemEstaForaHoje } from "./_blocos/quem-esta-fora-hoje";
 import { RascunhosAExpirar } from "./_blocos/rascunhos-a-expirar";
+import { PrimeirosPassos } from "@/components/tour/primeiros-passos";
+import { meusPrimeirosPassos } from "@/lib/dados/primeiros-passos";
+import { tourDoPainel } from "@/lib/tour/passos";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -86,6 +89,8 @@ export default async function PaginaInicialDoPainel() {
     alertasDeCargaAbertos,
     correndoAgora,
     podeAbrirDemanda,
+    primeirosPassos,
+    ehAtendimento,
   ] = await Promise.all([
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
@@ -122,6 +127,16 @@ export default async function PaginaInicialDoPainel() {
     // 0006, por RPC. A pílula de "Nova task" é a ação principal da coluna da
     // direita, e oferecê-la a quem o banco recusa seria um botão que existe
     // para dar erro.
+    souDoAtendimento(),
+    // OS PRIMEIROS PASSOS (0101). Cada item é DERIVADO do estado real — a
+    // foto, o playbook obrigatório, a primeira etapa concluída —, então não há
+    // coluna de checklist para ficar errada quando a pessoa faz a coisa por
+    // outro caminho. O bloco some sozinho quando não há pendência e a janela
+    // de boas-vindas passou.
+    meusPrimeirosPassos(),
+    // E o tour precisa saber quem é do Atendimento, porque o bloco carrega o
+    // botão que o começa. É a MESMA pergunta que o layout faz — e a resposta
+    // é a mesma RPC, que o React cacheia por requisição.
     souDoAtendimento(),
   ]);
 
@@ -194,6 +209,18 @@ export default async function PaginaInicialDoPainel() {
               some sozinha quando não há nada a dizer, como todo bloco de
               exceção desta tela. */}
           <RascunhosAExpirar />
+
+          {/* PRIMEIROS PASSOS FICA ACIMA DE "Precisa de mim", e só nas
+              primeiras semanas: para quem acabou de entrar, o que está
+              esperando ela é quase sempre nada — e a lista de ambientação é o
+              único conteúdo útil da tela. Para quem já está em casa o bloco
+              não existe, e a ordem volta a ser a de sempre. */}
+          {primeirosPassos ? (
+            <PrimeirosPassos
+              dados={primeirosPassos}
+              tour={tourDoPainel({ role: profile.role, ehAtendimento })}
+            />
+          ) : null}
 
           <PrecisaDeMim
             dados={resumo.precisa_de_mim}

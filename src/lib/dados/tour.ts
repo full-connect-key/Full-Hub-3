@@ -1,7 +1,9 @@
 import "server-only";
 
 import { obterSessao } from "@/lib/auth/dal";
+import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import type { TourStatus, UserRole } from "@/lib/supabase/database.types";
 import type { ProgressoDeTour } from "@/lib/tour/passos";
 
 /**
@@ -50,5 +52,52 @@ export async function meusTours(): Promise<ProgressoDeTour[]> {
     status: linha.status,
     passoAtual: linha.passo_atual,
     finalizadoEm: linha.finalizado_em,
+  }));
+}
+
+/**
+ * PESSOA × TOUR, para a gestão.
+ *
+ * ---------------------------------------------------------------------------
+ * **A RECUSA CHEGA COMO ERRO E NÃO COMO LISTA VAZIA**, e é por isso que esta é
+ * a única leitura do módulo com `ouFalha()`: a diferença entre "você não pode"
+ * e "ninguém começou nenhum tour" é tudo numa tela de acompanhamento. Quem
+ * recusa é `is_gestor()` na primeira linha de `tour_acompanhamento()`, e não
+ * esta função.
+ *
+ * **E A LISTA INCLUI QUEM NUNCA COMEÇOU**, com `tourId` nulo — é justamente
+ * essa pessoa que a tela procura, e um `select` em `tour_progresso` seria cego
+ * para ela. A conta inteira está no cabeçalho da 0101.
+ * ---------------------------------------------------------------------------
+ */
+export type LinhaDoAcompanhamentoDeTour = {
+  userId: string;
+  pessoa: string;
+  role: UserRole;
+  tourId: string | null;
+  status: TourStatus | null;
+  passoAtual: number | null;
+  pulados: string[];
+  semAncora: string[];
+};
+
+export async function acompanhamentoDosTours(): Promise<
+  LinhaDoAcompanhamentoDeTour[]
+> {
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "o acompanhamento dos tours",
+    await supabase.rpc("tour_acompanhamento"),
+  );
+
+  return linhas.map((l) => ({
+    userId: l.user_id,
+    pessoa: l.pessoa,
+    role: l.role,
+    tourId: l.tour_id,
+    status: l.status,
+    passoAtual: l.passo_atual,
+    pulados: l.passos_pulados ?? [],
+    semAncora: l.passos_sem_ancora ?? [],
   }));
 }

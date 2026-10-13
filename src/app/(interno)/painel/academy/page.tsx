@@ -5,11 +5,13 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { acompanhamentoDaEquipe, listarAcervo } from "@/lib/dados/academy";
+import { acompanhamentoDosTours } from "@/lib/dados/tour";
 import { lerFiltro } from "@/lib/dominio/academy";
 
 import { Acervo } from "./acervo";
 import { BarraDaAcademy } from "./barra";
 import { PainelDaGestao } from "./painel-da-gestao";
+import { AcompanhamentoDosTours } from "./acompanhamento-dos-tours";
 
 export const metadata: Metadata = { title: "Full Academy" };
 
@@ -89,6 +91,19 @@ async function Conteudo({
 }
 
 async function Gestao() {
-  const linhas = await acompanhamentoDaEquipe();
-  return <PainelDaGestao linhas={linhas} />;
+  // AS DUAS LEITURAS JUNTAS, e as duas recusam para quem não é gestão — a
+  // primeira pela view `academy_progresso_da_equipe`, a segunda por
+  // `is_gestor()` na primeira linha de `tour_acompanhamento()`. Chegar aqui
+  // sem ser gestão já foi recusado pela aba.
+  const [linhas, tours] = await Promise.all([
+    acompanhamentoDaEquipe(),
+    acompanhamentoDosTours(),
+  ]);
+
+  return (
+    <div className="space-y-8">
+      <PainelDaGestao linhas={linhas} />
+      <AcompanhamentoDosTours linhas={tours} />
+    </div>
+  );
 }

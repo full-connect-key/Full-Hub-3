@@ -5,8 +5,10 @@ import { MenuLateral } from "@/components/painel/menu-lateral";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { AtualizacaoAoVivo } from "@/components/shared/atualizacao-ao-vivo";
 import { BoasVindas } from "@/components/tour/boas-vindas";
+import { ConviteDeMicroTour } from "@/components/tour/convite-de-micro-tour";
 import { MenuDeAjuda } from "@/components/tour/menu-de-ajuda";
 import { ProvedorDoTour } from "@/components/tour/provedor-do-tour";
+import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
@@ -165,7 +167,13 @@ export default async function LayoutDoPainel({
             </div>
           </header>
 
-          <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
+          {/* A TERCEIRA ÂNCORA GENÉRICA dos micro-tours: a área de conteúdo
+              do módulo. Ela é o passo "é aqui que o trabalho acontece" de
+              qualquer um deles, sem um atributo por tela. */}
+          <main
+            className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8"
+            {...ancora(ANCORAS.conteudoDoModulo)}
+          >
             {children}
           </main>
 
@@ -190,6 +198,11 @@ export default async function LayoutDoPainel({
         primeiroNome={primeiroNome}
         tour={tour}
       />
+
+      {/* O CONVITE DO MÓDULO descobre a tela pela ROTA, então ele mora aqui e
+          não em nove páginas — a décima, a que alguém criar depois, nasceria
+          sem micro-tour sem nada dizendo. */}
+      <ConviteDeMicroTour tours={tours} />
     </ProvedorDoTour>
   );
 }

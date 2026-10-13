@@ -53,6 +53,33 @@ export const ANCORAS = {
   menuMetricas: "menu-metricas",
   abaAprovacoesFullDays: "aba-aprovacoes-full-days",
 
+  // --- A CASCA DE TODO MÓDULO, e é ela que faz os micro-tours caberem ------
+  //
+  // **NOVE MÓDULOS COM TRÊS A CINCO PASSOS CADA SERIAM TRINTA E CINCO
+  // ELEMENTOS MARCADOS EM NOVE TELAS** — e trinta e cinco lugares onde um
+  // seletor envelhece junto com o layout. A casca compartilhada já é o
+  // esqueleto de todas elas: a barra de contexto, as ações do módulo, a área
+  // de conteúdo e o seletor de visão. Três atributos nela dão a todo módulo o
+  // micro-tour dele de graça.
+  //
+  // **E O QUE DISTINGUE UM MICRO-TOUR DO OUTRO É O TEXTO**, que é o que o
+  // sprint pede — *"3 a 5 passos sobre aquela tela"*. O passo que aponta a
+  // barra de contexto do Financeiro diz "notas recebidas e gastos da casa"; o
+  // do Full Days diz "a matriz, o relatório e a sua proposta". Mesma âncora,
+  // frases diferentes, nenhum seletor a mais para envelhecer.
+  //
+  // *O que fica em aberto, e é dito em vez de escondido:* um passo que aponte
+  // para um widget DENTRO de um módulo — a coluna do kanban de notas, a linha
+  // da matriz do Full Days — é uma âncora nova aqui e um atributo na tela
+  // dele. É acréscimo de um passo, não de um mecanismo.
+  secoesDoModulo: "secoes-do-modulo",
+  acoesDoModulo: "acoes-do-modulo",
+  conteudoDoModulo: "conteudo-do-modulo",
+  seletorDeVisao: "seletor-de-visao",
+
+  // --- a tela Início -------------------------------------------------------
+  primeirosPassos: "primeiros-passos",
+
   // --- o portal do cliente -------------------------------------------------
   portalPendencias: "portal-pendencias",
   portalMaterial: "portal-material",

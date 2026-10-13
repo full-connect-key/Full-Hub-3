@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
-import type { Ancora } from "@/lib/tour/ancoras";
+import { ANCORAS, ancora, type Ancora } from "@/lib/tour/ancoras";
 import { cn } from "@/lib/utils";
 
 export type SecaoDoModulo<C extends string = string> = {
@@ -156,9 +156,15 @@ export function BarraDeContexto<C extends string>({
       {temBarra ? (
         <div className="bg-surface-page/75 sticky top-16 z-20 flex flex-wrap items-center gap-3 py-2 backdrop-blur-xl">
           {secoes.length > 1 ? (
+            /* AS DUAS ÂNCORAS GENÉRICAS DOS MICRO-TOURS (0101), aqui e na
+               fileira de ações logo abaixo. Elas existem porque nove módulos
+               com três passos cada seriam trinta e cinco elementos marcados em
+               nove telas — e a casca já é o esqueleto de todas. O que muda de
+               um micro-tour para o outro é o TEXTO do balão. */
             <nav
               aria-label={rotuloAcessivel}
               className="min-w-0 overflow-x-auto"
+              {...ancora(ANCORAS.secoesDoModulo)}
             >
               <ul className="bg-muted inline-flex min-w-max gap-1 rounded-xl p-1">
                 {secoes.map(
@@ -197,7 +203,12 @@ export function BarraDeContexto<C extends string>({
           ) : null}
 
           {acoes ? (
-            <div className="ml-auto flex items-center gap-2">{acoes}</div>
+            <div
+              className="ml-auto flex items-center gap-2"
+              {...ancora(ANCORAS.acoesDoModulo)}
+            >
+              {acoes}
+            </div>
           ) : null}
         </div>
       ) : null}
