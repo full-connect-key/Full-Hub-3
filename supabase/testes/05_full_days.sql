@@ -830,3 +830,254 @@ delete from public.team_presence;
 delete from public.hr_requests;
 update public.team_members set data_admissao = current_date - interval '14 months'
  where user_id in (:BRUNO, :CARLA);
+
+
+-- ===========================================================================
+-- 0106 -- CANCELAR UM PERIODO JA COMBINADO
+--
+-- Decisao do usuario: *"preciso da opcao de cancelar um periodo de descanso
+-- depois que ja foi aprovado pelo socio"*.
+--
+-- A 0011 escreveu este caminho e o deixou fechado, com o comentario dizendo
+-- em quantas palavras que "quando um dia isso for permitido, o caminho sera
+-- este mesmo, com a limpeza de team_presence junto". E o dia.
+--
+-- O QUE ESTES CENARIOS GUARDAM:
+--
+--   1. QUEM cancela -- o dono ou o socio, e mais ninguem. `is_socio()` e nao
+--      `is_gestor()`: o Day Off e o unico modulo em que o desenvolvedor nao e
+--      gestao, e o Diego e quem prova isso aqui.
+--   2. QUE O PERIODO NAO PODE TER COMECADO. Um periodo em curso tem dias
+--      vividos, e cancela-lo despintaria a matriz sobre um passado que
+--      aconteceu.
+--   3. QUE A MATRIZ E LIMPA JUNTO -- e a metade que a 0011 prometeu, e sem
+--      ela o periodo sairia da conta do saldo e continuaria pintado.
+--   4. QUE O SALDO VOLTA SOZINHO, sem uma linha de mudanca em
+--      `descanso_usado_no_ciclo()`: ela conta `pendente` e `aprovada`, e
+--      cancelada nao e nenhum dos dois.
+--   5. QUE O MOTIVO E OBRIGATORIO de quem nao e o dono, e so dele.
+-- ===========================================================================
+
+delete from public.team_presence;
+delete from public.hr_requests;
+delete from public.notifications;
+
+\set P_FUTURO  '''d0000000-0000-0000-0000-00000000f001'''
+\set P_CURSO   '''d0000000-0000-0000-0000-00000000f002'''
+\set P_PEND    '''d0000000-0000-0000-0000-00000000f003'''
+
+-- O BRUNO COMBINOU CINCO DIAS, e o socio aprovou: e o estado que a 0011
+-- deixava sem saida.
+select teste.cenario('O Bruno propoe cinco dias para o mes que vem', :BRUNO,
+  format($$insert into public.hr_requests
+            (id, user_id, tipo, data_inicio, data_fim, dias_uteis)
+          values (%L, %L, 'ferias', current_date + 30, current_date + 34, 5)$$,
+         :P_FUTURO, :BRUNO), 'ok', 1);
+
+select teste.cenario('E a socia combina', :ANA,
+  format($$select public.decidir_solicitacao(%L, 'aprovada', null)$$, :P_FUTURO),
+  'ok');
+
+select teste.conferir('O saldo ja conta os cinco',
+  public.saldo_de_ferias(:BRUNO)::text, '10');
+
+-- A MATRIZ PINTOU OS CINCO DIAS, e e o que a limpeza precisa desfazer. Sao os
+-- cinco corridos da 0024: descanso pinta todos os dias do periodo.
+select teste.conferir('E a matriz pintou os cinco dias',
+  (select count(*)::text from public.team_presence
+    where hr_request_id = :P_FUTURO), '5');
+
+
+-- --- 1. QUEM CANCELA ------------------------------------------------------
+
+-- A CARLA E COLABORADORA, e o periodo nao e dela.
+select teste.recusa_com('Colega nao cancela o periodo de outra pessoa', :CARLA,
+  format($$select public.cancelar_solicitacao(%L, 'mudei de ideia')$$, :P_FUTURO),
+  'só o sócio cancela o de outra pessoa');
+
+-- O DIEGO E DESENVOLVEDOR, e aqui ele NAO e gestao. E o cenario que falha se
+-- alguem trocar `is_socio()` por `is_gestor()` -- a mesma pergunta que o
+-- `decidir_solicitacao` faz desde a 0011.
+select teste.recusa_com('Nem o desenvolvedor, que aqui nao e gestao', :DIEGO,
+  format($$select public.cancelar_solicitacao(%L, 'reorganizando a semana')$$, :P_FUTURO),
+  'só o sócio cancela o de outra pessoa');
+
+-- E O CLIENTE NAO ALCANCA NADA DISTO.
+select teste.cenario('E o cliente nao cancela periodo nenhum', :JOANA,
+  format($$select public.cancelar_solicitacao(%L, 'qualquer coisa')$$, :P_FUTURO),
+  'recusa');
+
+-- O MOTIVO E DE QUEM NAO E O DONO, e sem ele a socia leva recusa.
+select teste.recusa_com('A socia sem motivo e recusada', :ANA,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_FUTURO),
+  'Diga por que o período está sendo cancelado');
+
+-- E SO ESPACO TAMBEM E AUSENCIA DE MOTIVO: o `btrim` da funcao e o que
+-- impede a cerimonia vazia de passar por motivo.
+select teste.recusa_com('E so espaco em branco nao e motivo', :ANA,
+  format($$select public.cancelar_solicitacao(%L, '   ')$$, :P_FUTURO),
+  'Diga por que o período está sendo cancelado');
+
+select teste.recusa_com_dica('E a dica diz por que o motivo importa', :ANA,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_FUTURO),
+  'precisa saber o que mudou');
+
+
+-- --- 2. O PERIODO EM CURSO NAO SE CANCELA ---------------------------------
+--
+-- A FIXTURE DESLIGA `validar_solicitacao`, e a razao e que o estado so se
+-- alcanca pelo CALENDARIO ANDANDO. Um periodo em curso e um que foi combinado
+-- semana passada e comecou ontem: a aba Solicitar recusa descanso que comeca
+-- no passado, e o lancamento retroativo recusa periodo que ainda nao terminou
+-- -- as duas travas estao certas, e entre elas nao ha porta para criar isto
+-- hoje. Desligar o gatilho e montar o cenario, que nao e o que se verifica; o
+-- que se verifica e quem consegue cancelar isto depois.
+alter table public.hr_requests disable trigger hr_requests_validar;
+
+insert into public.hr_requests
+  (id, user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem)
+values (:P_CURSO, :BRUNO, 'ferias', current_date - 2, current_date + 2, 5,
+        'aprovada', 'solicitacao');
+
+alter table public.hr_requests enable trigger hr_requests_validar;
+
+select teste.recusa_com('Periodo em curso nao se cancela, nem pelo dono', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_CURSO),
+  'um período em curso não se cancela');
+
+-- E A RECUSA DIZ A DATA, e nao so "nao da": quem le precisa reconhecer QUAL
+-- periodo o banco esta falando. E a decisao da 0023, que nomeia cada etapa
+-- sem aprovacao em vez de dizer "ha etapa sem aprovacao".
+select teste.recusa_com('E ela diz em que dia ele comecou', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_CURSO),
+  to_char(current_date - 2, 'DD/MM/YYYY'));
+
+select teste.recusa_com('Nem pela socia', :ANA,
+  format($$select public.cancelar_solicitacao(%L, 'precisamos de voce')$$, :P_CURSO),
+  'um período em curso não se cancela');
+
+delete from public.hr_requests where id = :P_CURSO;
+
+
+-- --- 3. O DONO CANCELA O PROPRIO, SEM MOTIVO ------------------------------
+
+select teste.cenario('O dono cancela o proprio periodo combinado', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_FUTURO), 'ok');
+
+select teste.conferir('Ele ficou cancelado',
+  (select status::text from public.hr_requests where id = :P_FUTURO), 'cancelada');
+
+-- A LIMPEZA DA MATRIZ, que e a metade que a 0011 prometeu. Sem ela o periodo
+-- sai da conta do saldo e continua pintado -- a equipe planejaria em cima de
+-- uma ausencia que nao existe mais.
+select teste.conferir('E a matriz foi limpa junto',
+  (select count(*)::text from public.team_presence
+    where hr_request_id = :P_FUTURO), '0');
+
+-- O SALDO VOLTA SOZINHO, e e `descanso_usado_no_ciclo()` contando
+-- `pendente`/`aprovada` desde a 0085: nenhuma linha mudou para isto valer.
+select teste.conferir('E os cinco dias voltaram para o saldo',
+  public.saldo_de_ferias(:BRUNO)::text, '15');
+
+-- E OS MESMOS DIAS VOLTAM A PODER SER PEDIDOS. A trava de sobreposicao de
+-- `validar_solicitacao` olha os mesmos dois status, entao ela tambem solta.
+select teste.cenario('E os mesmos dias voltam a poder ser combinados', :BRUNO,
+  format($$insert into public.hr_requests
+            (user_id, tipo, data_inicio, data_fim, dias_uteis)
+          values (%L, 'ferias', current_date + 30, current_date + 34, 5)$$, :BRUNO),
+  'ok', 1);
+
+-- E JA ENCERRADO NAO SE CANCELA DE NOVO, com a dica dizendo o que fazer.
+select teste.recusa_com('E o cancelado nao se cancela de novo', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_FUTURO),
+  'já está encerrado');
+
+-- A DICA DIZ O QUE FAZER NO LUGAR, e e ela que separa uma recusa de uma
+-- instrucao -- a decisao da 0023.
+select teste.recusa_com_dica('E a dica manda propor um periodo novo', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_FUTURO),
+  'proponha um período novo');
+
+delete from public.team_presence;
+delete from public.hr_requests;
+
+
+-- --- 4. A SOCIA CANCELA O DE OUTRA PESSOA, COM MOTIVO ---------------------
+
+select teste.cenario('A Carla propoe e a socia combina', :CARLA,
+  format($$insert into public.hr_requests
+            (id, user_id, tipo, data_inicio, data_fim, dias_uteis)
+          values (%L, %L, 'ferias', current_date + 20, current_date + 24, 5)$$,
+         :P_FUTURO, :CARLA), 'ok', 1);
+
+select teste.cenario('A socia combina', :ANA,
+  format($$select public.decidir_solicitacao(%L, 'aprovada', null)$$, :P_FUTURO),
+  'ok');
+
+delete from public.notifications;
+
+select teste.cenario('E depois cancela, com o motivo', :ANA,
+  format($$select public.cancelar_solicitacao(%L, 'A conta nova entra nesta semana')$$,
+         :P_FUTURO), 'ok');
+
+select teste.conferir('O motivo ficou gravado',
+  (select motivo_cancelamento from public.hr_requests where id = :P_FUTURO),
+  'A conta nova entra nesta semana');
+
+-- O SINO VAI PARA A PESSOA, e leva o motivo junto: ela vai descobrir pela
+-- matriz se ninguem contar.
+select teste.conferir('E a Carla foi avisada, com o motivo no corpo',
+  (select count(*)::text from public.notifications
+    where user_id = :CARLA and titulo = 'O seu período foi cancelado'
+      and corpo like '%A conta nova entra nesta semana%'), '1');
+
+-- E A SOCIA NAO RECEBE O PROPRIO AVISO -- `notificar()` nunca avisa quem
+-- causou o aviso, desde a 0011.
+select teste.conferir('E a socia nao recebe o proprio aviso',
+  (select count(*)::text from public.notifications where user_id = :ANA), '0');
+
+delete from public.team_presence;
+delete from public.hr_requests;
+delete from public.notifications;
+
+
+-- --- 5. O PENDENTE CONTINUA COMO ERA --------------------------------------
+--
+-- A 0106 nao mexe neste caminho, e o cenario existe para provar isso: so o
+-- dono, sem motivo, e sem matriz para limpar.
+
+select teste.cenario('O Bruno propoe de novo', :BRUNO,
+  format($$insert into public.hr_requests
+            (id, user_id, tipo, data_inicio, data_fim, dias_uteis)
+          values (%L, %L, 'ferias', current_date + 40, current_date + 44, 5)$$,
+         :P_PEND, :BRUNO), 'ok', 1);
+
+select teste.recusa_com('E a Carla nao cancela o pendente dele', :CARLA,
+  format($$select public.cancelar_solicitacao(%L, 'por que nao')$$, :P_PEND),
+  'só o sócio cancela o de outra pessoa');
+
+select teste.cenario('E o dono cancela o proprio pendente', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_PEND), 'ok');
+
+select teste.conferir('Ele saiu da fila',
+  (select status::text from public.hr_requests where id = :P_PEND), 'cancelada');
+
+-- E UM PENDENTE QUE JA VENCEU TAMBEM SE CANCELA. A trava da data vale so para
+-- o APROVADO: um pendente nao pintou dia nenhum, entao nao ha passado a
+-- desfazer -- e recusa-lo deixaria a pessoa com um pedido preso na fila para
+-- sempre.
+alter table public.hr_requests disable trigger hr_requests_validar;
+
+insert into public.hr_requests
+  (id, user_id, tipo, data_inicio, data_fim, dias_uteis, status, origem)
+values (:P_CURSO, :BRUNO, 'ferias', current_date - 10, current_date - 6, 5,
+        'pendente', 'solicitacao');
+
+alter table public.hr_requests enable trigger hr_requests_validar;
+
+select teste.cenario('E o pendente que ja venceu sai da fila', :BRUNO,
+  format($$select public.cancelar_solicitacao(%L)$$, :P_CURSO), 'ok');
+
+delete from public.team_presence;
+delete from public.hr_requests;
+delete from public.notifications;

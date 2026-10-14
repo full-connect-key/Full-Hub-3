@@ -1,4 +1,4 @@
-import type { HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase/database.types";
+import type { HrRequest, HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase/database.types";
 
 /**
  * O vocabulário do Full Days, e as contas que os dois lados fazem.
@@ -640,4 +640,44 @@ export function faixaDoBloco(bloco: BlocoDeAusencia, hojeISO: string): string {
   return bloco.inicio === bloco.fim
     ? escrever(bloco.inicio)
     : `${escrever(bloco.inicio)} a ${escrever(bloco.fim)}`;
+}
+
+/**
+ * Dá para cancelar este período?
+ *
+ * ---------------------------------------------------------------------------
+ * ELA É A MESMA PERGUNTA QUE A FUNÇÃO DO BANCO FAZ, e existe para escrever o
+ * botão antes de a pessoa clicar — a decisão da máquina de estados da
+ * subtarefa ao lado dos gatilhos da 0007: o banco é o que vale, e esta aqui
+ * decide o que desenhar.
+ *
+ * **E ELA MORA AQUI PORQUE SÃO DUAS TELAS** (0106): a aba Solicitar, onde a
+ * pessoa devolve o próprio período, e a fila do sócio, onde ele desfaz a
+ * decisão dele. Duas cópias divergiriam na primeira vez que alguém mexesse
+ * numa — e a divergência apareceria no pior lugar, com uma das duas telas
+ * oferecendo um botão que o banco recusa. É a razão de `souDoAtendimento()`
+ * perguntar ao banco em vez de cada tela repetir a consulta.
+ *
+ * **O COMBINADO SÓ SE CANCELA ANTES DE COMEÇAR:** um período em curso tem
+ * dias vividos, e desfazê-lo despintaria a matriz sobre um passado que
+ * aconteceu. O corte é `>=` e não `>` porque um período que começa HOJE ainda
+ * é decisão de hoje.
+ *
+ * **O pendente não tem a trava da data**, e a assimetria é do banco: ele não
+ * pintou dia nenhum, então não há passado a desfazer — e escondê-lo deixaria
+ * um pedido vencido preso na fila para sempre.
+ *
+ * **O `hojeISO` VEM DO SERVIDOR**, pela prop que as duas telas recebem, e não
+ * de um `new Date()` aqui: o navegador em outro fuso classificaria a mesma
+ * data de outro jeito, e o botão sumiria algumas horas antes da conta do
+ * banco mudar. É a regra de `hojeNaAgencia()` vista do lado do cliente.
+ * ---------------------------------------------------------------------------
+ */
+export function podeCancelar(
+  pedido: Pick<HrRequest, "status" | "data_inicio">,
+  hojeISO: string,
+): boolean {
+  if (pedido.status === "pendente") return true;
+  if (pedido.status !== "aprovada") return false;
+  return pedido.data_inicio >= hojeISO;
 }

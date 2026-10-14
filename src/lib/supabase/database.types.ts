@@ -1231,6 +1231,15 @@ export interface Database {
           motivo: string | null;
           status: HrStatus;
           motivo_reprovacao: string | null;
+          /**
+           * Por que o período combinado foi cancelado (0106).
+           *
+           * Obrigatório quando quem cancela NÃO é o dono — desfazer o
+           * combinado de alguém sem dizer por quê manda a pessoa adivinhar.
+           * Quem cancelou e quando moram na trilha de auditoria (0058), que
+           * já cobre esta tabela: uma segunda cópia seria a segunda verdade.
+           */
+          motivo_cancelamento: string | null;
           aprovado_por: string | null;
           decidido_em: string | null;
           origem: HrOrigem;
@@ -3637,7 +3646,10 @@ export interface Database {
         Args: { p_request_id: string; p_decisao: HrStatus; p_motivo: string | null };
         Returns: void;
       };
-      cancelar_solicitacao: { Args: { p_request_id: string }; Returns: void };
+      cancelar_solicitacao: {
+        Args: { p_request_id: string; p_motivo?: string | null };
+        Returns: void;
+      };
       /**
        * Abre N posts de um cliente para um mês, SEM DATA (0044/0045).
        *

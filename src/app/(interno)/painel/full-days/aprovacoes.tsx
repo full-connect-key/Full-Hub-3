@@ -22,16 +22,33 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { SolicitacaoNaTela } from "@/lib/dados/full-days";
-import { ROTULOS_DE_TIPO, rotuloDosDias } from "@/lib/dominio/full-days";
+import {
+  ROTULOS_DE_TIPO,
+  podeCancelar,
+  rotuloDosDias,
+} from "@/lib/dominio/full-days";
 import type { HrStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-import { aprovarEmLote, decidir } from "./acoes";
+import { aprovarEmLote, cancelarSolicitacao, decidir } from "./acoes";
 
+/**
+ * AS QUATRO FILAS, e a quarta entrou com o cancelamento (0106).
+ *
+ * `cancelada` está no enum desde a 0011 e **não tinha fila nenhuma**: era um
+ * status que o banco produzia e que tela nenhuma listava — a entrada que sai
+ * da barra e a rota que fica, vista do avesso. Com o cancelamento existindo
+ * nos dois sentidos, é aqui que o motivo escrito pelo sócio e o período que a
+ * pessoa devolveu podem ser lidos depois.
+ *
+ * `contarPorStatus()` já contava as quatro, e o `Record<HrStatus, number>` já
+ * era total — a fila nova não custou uma linha de consulta.
+ */
 const FILTROS: { chave: HrStatus; label: string }[] = [
   { chave: "pendente", label: "Pendentes" },
   { chave: "aprovada", label: "De acordo" },
   { chave: "reprovada", label: "A remarcar" },
+  { chave: "cancelada", label: "Canceladas" },
 ];
 
 /**
@@ -58,18 +75,37 @@ export function Aprovacoes({
   fila,
   contagem,
   filaAtual,
+  hojeISO,
+  quemSouEu,
 }: {
   fila: SolicitacaoNaTela[];
   contagem: Record<HrStatus, number>;
   filaAtual: HrStatus;
+  hojeISO: string;
+  quemSouEu: string;
 }) {
   const router = useRouter();
   const parametros = useSearchParams();
   const [executando, iniciar] = useTransition();
 
   const [selecionados, setSelecionados] = useState<string[]>([]);
-  const [reprovando, setReprovando] = useState<SolicitacaoNaTela | null>(null);
+  // UM PAR DE ESTADO PARA AS DUAS AÇÕES, e não dois diálogos: as duas pedem
+  // um motivo pelo mesmo caminho, e duas cópias divergiriam no tratamento
+  // dele — que é justamente a parte que o banco cobra numa e não na outra.
+  const [emFoco, setEmFoco] = useState<{
+    pedido: SolicitacaoNaTela;
+    acao: "remarcar" | "cancelar";
+  } | null>(null);
   const [motivo, setMotivo] = useState("");
+
+  // O MOTIVO É OBRIGATÓRIO QUANDO QUEM CANCELA NÃO É O DONO, e a pergunta é a
+  // da própria função do banco (0106): desfazer o período de outra pessoa sem
+  // dizer por quê manda ela adivinhar. O sócio desfazendo o PRÓPRIO período
+  // está fazendo o que ele faz na aba Solicitar, onde nada é pedido — cobrar
+  // uma explicação dele para ele mesmo seria a tela inventando uma trava.
+  const souODono = emFoco?.pedido.user_id === quemSouEu;
+  const motivoObrigatorio = emFoco?.acao === "cancelar" && !souODono;
+  const motivoEmFalta = motivoObrigatorio && motivo.trim().length === 0;
 
   function trocarFila(status: HrStatus) {
     const destino = new URLSearchParams(parametros.toString());
@@ -83,7 +119,7 @@ export function Aprovacoes({
     else {
       toast.success(resultado.mensagem ?? "Pronto.");
       setSelecionados([]);
-      setReprovando(null);
+      setEmFoco(null);
       router.refresh();
     }
   }
@@ -92,10 +128,23 @@ export function Aprovacoes({
     iniciar(async () => responder(await chamarAcao(() => decidir(id, "aprovada", ""))));
   }
 
-  function confirmarReprovacao() {
-    const alvo = reprovando;
-    if (!alvo) return;
-    iniciar(async () => responder(await chamarAcao(() => decidir(alvo.id, "reprovada", motivo))));
+  function confirmar() {
+    const alvo = emFoco;
+    if (!alvo || motivoEmFalta) return;
+    iniciar(async () =>
+      responder(
+        await chamarAcao(() =>
+          alvo.acao === "cancelar"
+            ? cancelarSolicitacao(alvo.pedido.id, motivo)
+            : decidir(alvo.pedido.id, "reprovada", motivo),
+        ),
+      ),
+    );
+  }
+
+  function abrir(pedido: SolicitacaoNaTela, acao: "remarcar" | "cancelar") {
+    setMotivo("");
+    setEmFoco({ pedido, acao });
   }
 
   function aprovarSelecionados() {
@@ -215,6 +264,18 @@ export function Aprovacoes({
                       Remarcar: {pedido.motivo_reprovacao}
                     </p>
                   ) : null}
+
+                  {/* O MOTIVO DO CANCELAMENTO (0106), em `--warning` e nunca
+                      `--danger`: o período foi desfeito, não houve erro — a
+                      mesma régua do alerta de 7 dias do portal. Ele some
+                      quando quem cancelou foi a própria pessoa, que não
+                      escreve motivo nenhum, e aí o selo "Cancelada" é a
+                      resposta inteira. */}
+                  {pedido.status === "cancelada" && pedido.motivo_cancelamento ? (
+                    <p className="bg-warning-soft text-warning mt-2 rounded-md p-2 text-xs">
+                      Cancelado pela agência: {pedido.motivo_cancelamento}
+                    </p>
+                  ) : null}
                 </div>
 
                 <span className="text-text-muted shrink-0 text-xs tabular-nums">
@@ -244,12 +305,33 @@ export function Aprovacoes({
                     size="sm"
                     className="rounded-full px-5"
                     disabled={executando}
-                    onClick={() => {
-                      setMotivo("");
-                      setReprovando(pedido);
-                    }}
+                    onClick={() => abrir(pedido, "remarcar")}
                   >
                     Preciso remarcar
+                  </Button>
+                </div>
+              ) : null}
+
+              {/* CANCELAR O QUE JÁ FOI COMBINADO (0106), e ele mora na fila
+                  "De acordo" em vez de numa seção nova: é lá que o sócio
+                  encontra o que ele combinou, e a fila já existia. Um bloco
+                  próprio seria um segundo lugar listando as mesmas linhas.
+
+                  O botão SOME depois de o período começar, e não aparece
+                  desligado: a razão — "tem dias vividos" — não é um passo que
+                  falta, é uma porta que fechou, e um botão permanentemente
+                  desligado em toda linha antiga é ruído. Quem recusa de
+                  verdade é o banco, nomeando a data. */}
+              {pedido.status === "aprovada" && podeCancelar(pedido, hojeISO) ? (
+                <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full px-5"
+                    disabled={executando}
+                    onClick={() => abrir(pedido, "cancelar")}
+                  >
+                    Cancelar o período
                   </Button>
                 </div>
               ) : null}
@@ -258,14 +340,42 @@ export function Aprovacoes({
         </ul>
       )}
 
-      <Dialog open={reprovando !== null} onOpenChange={(aberto) => !aberto && setReprovando(null)}>
+      {/* UM DIÁLOGO PARA AS DUAS AÇÕES, e o que troca é o texto: as duas
+          pedem um motivo, e a diferença é quem o cobra. Dois diálogos seriam
+          dois tratamentos do mesmo campo, e o que divergiria é o do
+          cancelamento — o que o sócio usa menos. */}
+      <Dialog open={emFoco !== null} onOpenChange={(aberto) => !aberto && setEmFoco(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pedir para {reprovando?.pessoa?.nome ?? "—"} remarcar?</DialogTitle>
+            <DialogTitle>
+              {emFoco?.acao === "cancelar"
+                ? souODono
+                  ? "Cancelar este período combinado?"
+                  : `Cancelar o período de ${emFoco?.pedido.pessoa?.nome ?? "—"}?`
+                : `Pedir para ${emFoco?.pedido.pessoa?.nome ?? "—"} remarcar?`}
+            </DialogTitle>
+            {/* A DESCRIÇÃO DIZ O QUE ACONTECE, e ela é diferente nas duas: o
+                "remarcar" devolve um pedido para quem o fez, o cancelamento
+                apaga dias que já estão PINTADOS na matriz e devolve o saldo —
+                e quem combinou precisa saber disso antes de clicar. "Tem
+                certeza?" não informa nada, que é a decisão do diálogo de
+                apagar campanha. */}
             <DialogDescription>
-              O motivo não é obrigatório, mas vale escrever: um &ldquo;remarca&rdquo; sem
-              explicação volta como pergunta, e a conversa acontece de qualquer forma — só que
-              fora do sistema.
+              {emFoco?.acao === "cancelar" ? (
+                <>
+                  Os dias saem da matriz, o saldo volta
+                  {souODono ? "" : " para a pessoa"}, e o aviso chega pelo sino.
+                  {motivoObrigatorio
+                    ? " O motivo é obrigatório — é o que ela vai ler."
+                    : ""}
+                </>
+              ) : (
+                <>
+                  O motivo não é obrigatório, mas vale escrever: um &ldquo;remarca&rdquo; sem
+                  explicação volta como pergunta, e a conversa acontece de qualquer forma — só
+                  que fora do sistema.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -274,16 +384,32 @@ export function Aprovacoes({
             rows={3}
             value={motivo}
             onChange={(evento) => setMotivo(evento.target.value)}
-            placeholder="A Marina já está fora nessa semana e ficaríamos sem design."
+            aria-label={emFoco?.acao === "cancelar" ? "Motivo do cancelamento" : "Motivo"}
+            placeholder={
+              emFoco?.acao === "cancelar"
+                ? "Precisamos de você na semana do lançamento da Mundo Verde."
+                : "A Marina já está fora nessa semana e ficaríamos sem design."
+            }
           />
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReprovando(null)}>
+            <Button variant="outline" onClick={() => setEmFoco(null)}>
               Voltar
             </Button>
-            <Button variant="destructive" disabled={executando} onClick={confirmarReprovacao}>
+            {/* DESLIGADO COM A RAZÃO ESCRITA quando o motivo falta, em vez de
+                aceitar e levar a recusa do banco: a trava é dele, e esta
+                linha existe só para dizer o que falta antes do clique. */}
+            <Button
+              variant="destructive"
+              disabled={executando || motivoEmFalta}
+              onClick={confirmar}
+            >
               {executando ? <Loader2 className="animate-spin" /> : null}
-              Pedir para remarcar
+              {emFoco?.acao === "cancelar"
+                ? motivoEmFalta
+                  ? "Escreva o motivo"
+                  : "Cancelar o período"
+                : "Pedir para remarcar"}
             </Button>
           </DialogFooter>
         </DialogContent>

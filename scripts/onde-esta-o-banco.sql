@@ -500,7 +500,21 @@ from (
     -- Nenhuma migration posterior tem motivo para devolver este literal: a
     -- decisao do usuario foi que a ausencia e lancada e lida no Full Days.
     ('0105', 'ausencia fora do calendario', 'sem_na_view',
-             'calendar_events|''ausencia''')
+             'calendar_events|''ausencia'''),
+    -- A LINHA NAO APONTA PARA A COLUNA, e e de proposito. A 0106 acrescenta
+    -- `hr_requests.motivo_cancelamento` no PASSO 1 e reescreve
+    -- `cancelar_solicitacao` no PASSO 2 -- um marcador na coluna responderia
+    -- ok num banco onde alguem colou so o primeiro, e e justamente o segundo
+    -- que o produto precisa: sem ele o botao novo leva
+    -- "function public.cancelar_solicitacao(p_request_id, p_motivo) does not
+    -- exist", que foi a classe de erro que a 0039 custou ao usuario.
+    --
+    -- E `no_corpo` e nao `funcao`: a de UM argumento existe desde a 0011, e
+    -- perguntar pelo nome responderia ok desde entao. O trecho e a limpeza da
+    -- matriz, que a versao antiga nao fazia -- ele distingue os tres estados
+    -- (a antiga de pe, a nova aplicada, nenhuma).
+    ('0106', 'cancelar_solicitacao apaga a matriz', 'no_corpo',
+             'cancelar_solicitacao|delete from public.team_presence')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

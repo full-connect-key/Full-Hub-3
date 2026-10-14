@@ -27,6 +27,7 @@ import {
   motivoDoCombinado,
   rotuloDoDiaCombinado,
   motivoDoBloqueio,
+  podeCancelar,
   rotuloDosDias,
 } from "@/lib/dominio/full-days";
 import type { HrRequest, HrTipo } from "@/lib/supabase/database.types";
@@ -741,16 +742,29 @@ export function Solicitar({
                   pedido em {format(parseISO(pedido.created_at), "dd/MM/yy")}
                 </span>
 
-                {pedido.status === "pendente" ? (
+                {podeCancelar(pedido, hojeISO) ? (
                   <ConfirmDialog
                     trigger={
                       <Button variant="ghost" size="sm">
                         Cancelar
                       </Button>
                     }
-                    title="Cancelar este pedido?"
-                    description="Ele sai da fila dos sócios e o saldo volta para você."
-                    confirmLabel="Cancelar pedido"
+                    title={
+                      pedido.status === "pendente"
+                        ? "Cancelar este pedido?"
+                        : "Cancelar este período combinado?"
+                    }
+                    // A DESCRIÇÃO DIZ O QUE ACONTECE, e ela muda com o estado:
+                    // um pendente sai de uma FILA, um combinado sai da MATRIZ
+                    // — e quem combinou precisa saber. "Tem certeza?" não
+                    // informa nada, que é a decisão do diálogo de apagar
+                    // campanha.
+                    description={
+                      pedido.status === "pendente"
+                        ? "Ele sai da fila dos sócios e o saldo volta para você."
+                        : "Os dias saem da matriz da equipe, o saldo volta para você, e os sócios são avisados."
+                    }
+                    confirmLabel="Cancelar período"
                     destructive
                     onConfirm={async () => {
                       const resultado = await chamarAcao(() =>
@@ -768,6 +782,17 @@ export function Solicitar({
                 {pedido.status === "reprovada" && pedido.motivo_reprovacao ? (
                   <p className="text-text-secondary w-full text-sm">
                     Motivo: {pedido.motivo_reprovacao}
+                  </p>
+                ) : null}
+
+                {/* O MOTIVO DO CANCELAMENTO, e ele só existe quando quem
+                    cancelou NÃO foi o dono — a função não o exige de quem
+                    desfaz o próprio período. Em `--warning` e nunca
+                    `--danger`: o período foi desfeito, não houve erro — a
+                    mesma régua do alerta de 7 dias do portal. */}
+                {pedido.status === "cancelada" && pedido.motivo_cancelamento ? (
+                  <p className="bg-warning-soft text-warning w-full rounded-md p-2.5 text-xs">
+                    Cancelado pela agência: {pedido.motivo_cancelamento}
                   </p>
                 ) : null}
               </li>

@@ -761,6 +761,34 @@ select 'fd000000-0000-0000-0000-000000000002'::uuid,
 where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000006')
 on conflict (id) do nothing;
 
+-- UM PERIODO COMBINADO E DEPOIS CANCELADO PELA SOCIA (0106), com o motivo.
+--
+-- Sem ele a fila "Canceladas" nasce vazia no ambiente de desenvolvimento, e
+-- `cancelada` -- que esta no enum desde a 0011 e ganhou fila agora -- aparece
+-- como uma aba que nao faz nada. E a licao da Optica Visao sem atendente
+-- (0062) e da pessoa desligada (0069): o exemplo mostra o produto nos estados
+-- em que ele dói.
+--
+-- E ELE NAO TEM LINHA EM `team_presence`, de proposito: cancelar apaga os dias
+-- da matriz, e e isso que a tela nova faz. Um cancelado com dias pintados
+-- seria o seed descrevendo um estado que o produto nao alcanca.
+insert into public.hr_requests
+  (id, user_id, tipo, data_inicio, data_fim, dias_uteis, motivo, status,
+   motivo_cancelamento, aprovado_por, decidido_em)
+select 'fd000000-0000-0000-0000-000000000003'::uuid,
+       'a0000000-0000-0000-0000-000000000003'::uuid,
+       'ferias',
+       (current_date + 40)::date,
+       (current_date + 44)::date,
+       public.dias_uteis((current_date + 40)::date, (current_date + 44)::date),
+       'Emenda do feriado',
+       'cancelada',
+       'A conta nova entra nessa semana.',
+       'a0000000-0000-0000-0000-000000000001'::uuid,
+       now() - interval '3 days'
+where exists (select 1 from public.profiles where id = 'a0000000-0000-0000-0000-000000000003')
+on conflict (id) do nothing;
+
 -- Carla trabalhou remoto ontem. Marcado a mao, sem pedido por tras.
 insert into public.team_presence (user_id, data, status)
 select 'a0000000-0000-0000-0000-000000000003'::uuid, (current_date - 1)::date, 'remoto'

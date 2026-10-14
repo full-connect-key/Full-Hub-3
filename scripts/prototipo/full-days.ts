@@ -120,6 +120,7 @@ const PEDIDOS: HrRequest[] = [
     motivo: "Viagem em família",
     status: "aprovada",
     motivo_reprovacao: null,
+    motivo_cancelamento: null,
     aprovado_por: TIME[0].id,
     decidido_em: new Date().toISOString(),
     origem: "solicitacao",
@@ -137,12 +138,73 @@ const PEDIDOS: HrRequest[] = [
     motivo: "Casamento da irmã",
     status: "pendente",
     motivo_reprovacao: null,
+    motivo_cancelamento: null,
     aprovado_por: null,
     decidido_em: null,
     origem: "solicitacao",
     lancado_por: null,
     lancado_em: null,
     created_at: new Date(Date.now() - 864e5).toISOString(),
+  },
+  // UM COMBINADO QUE AINDA NAO COMECOU (0106), e ele e a peca que faz o botao
+  // de cancelar sair em imagem.
+  //
+  // O `fd1` acima comeca no dia 8 DESTE MES, e num dia 14 ele ja comecou --
+  // `podeCancelar` responde false, e a fila "De acordo" sairia sem o botao
+  // novo. Seria o ambiente de exemplo mostrando o produto no unico estado em
+  // que a peca nova nao existe, que e a licao da Optica Visao sem atendente
+  // (0062) e da pessoa desligada (0069).
+  //
+  // E ele nao SUBSTITUI o `fd1`, ele entra ao lado: os dois juntos sao o que
+  // mede a trava -- um combinado em curso sem botao e um que ainda nao comecou
+  // com botao, na mesma lista. Com um so, a imagem nao separa "o botao
+  // aparece" de "o botao aparece sempre".
+  //
+  // A data e RELATIVA pela razao dos quatro blocos abaixo: uma data fixa deixa
+  // de ser futuro sozinha, e a imagem conferida passaria a ser outra sem
+  // ninguem tocar no arquivo.
+  {
+    id: "fd5",
+    user_id: MARINA.id,
+    tipo: "ferias",
+    data_inicio: emDias(18),
+    data_fim: emDias(22),
+    dias_uteis: 5,
+    motivo: "Emenda do feriado",
+    status: "aprovada",
+    motivo_reprovacao: null,
+    motivo_cancelamento: null,
+    aprovado_por: TIME[0].id,
+    decidido_em: new Date(Date.now() - 2 * 864e5).toISOString(),
+    origem: "solicitacao",
+    lancado_por: null,
+    lancado_em: null,
+    created_at: new Date(Date.now() - 8 * 864e5).toISOString(),
+  },
+  // UM PERIODO COMBINADO E DEPOIS CANCELADO PELA SOCIA (0106), com o motivo.
+  //
+  // Sem ele a linha nova nao sai em imagem nenhuma: o estado "cancelada" ja
+  // existia desde a 0011, mas so pelo pendente que o dono desfazia -- e aquele
+  // nao carrega motivo. E a licao da Optica Visao sem atendente (0062) e da
+  // pessoa desligada (0069): o ambiente de exemplo mostra o produto nos
+  // estados em que ele dói.
+  {
+    id: "fd4",
+    user_id: BRUNO.id,
+    tipo: "ferias",
+    data_inicio: emDias(25),
+    data_fim: emDias(29),
+    dias_uteis: 5,
+    motivo: "Semana de descanso",
+    status: "cancelada",
+    motivo_reprovacao: null,
+    motivo_cancelamento: "A conta nova entra nesta semana.",
+    aprovado_por: TIME[0].id,
+    decidido_em: new Date(Date.now() - 3 * 864e5).toISOString(),
+    origem: "solicitacao",
+    lancado_por: null,
+    lancado_em: null,
+    created_at: new Date(Date.now() - 9 * 864e5).toISOString(),
   },
   {
     id: "fd3",
@@ -154,6 +216,7 @@ const PEDIDOS: HrRequest[] = [
     motivo: "Consulta médica",
     status: "reprovada",
     motivo_reprovacao: "A semana já tinha duas pessoas do Atendimento fora.",
+    motivo_cancelamento: null,
     aprovado_por: TIME[0].id,
     decidido_em: new Date(Date.now() - 38 * 864e5).toISOString(),
     origem: "solicitacao",
@@ -405,6 +468,7 @@ export async function lancamentosDaGestao(): Promise<
       motivo: "Planilha de 2025, fechamento do ano.",
       status: "aprovada",
       motivo_reprovacao: null,
+      motivo_cancelamento: null,
       aprovado_por: TIME[0].id,
       decidido_em: new Date(Date.now() - 30 * 864e5).toISOString(),
       origem: "lancamento_retroativo",
@@ -424,6 +488,7 @@ export async function lancamentosDaGestao(): Promise<
       motivo: "Avisou por mensagem na hora, entrou depois.",
       status: "aprovada",
       motivo_reprovacao: null,
+      motivo_cancelamento: null,
       aprovado_por: TIME[0].id,
       decidido_em: new Date(Date.now() - 8 * 864e5).toISOString(),
       origem: "lancamento_retroativo",

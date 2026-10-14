@@ -148,7 +148,11 @@ export default async function PaginaDoFullDays({
             hojeISO={hojeISO}
           />
         ) : aba === "aprovacoes" ? (
-          <ConteudoDasAprovacoes status={lerStatus(parametros.fila)} />
+          <ConteudoDasAprovacoes
+            status={lerStatus(parametros.fila)}
+            hojeISO={hojeISO}
+            quemSouEu={sessao.usuarioId}
+          />
         ) : aba === "lancamentos" ? (
           <ConteudoDosLancamentos hojeISO={hojeISO} />
         ) : (
@@ -161,7 +165,7 @@ export default async function PaginaDoFullDays({
 
 function lerStatus(valor: string | string[] | undefined): HrStatus {
   const texto = typeof valor === "string" ? valor : "pendente";
-  return (["pendente", "aprovada", "reprovada"] as HrStatus[]).includes(
+  return (["pendente", "aprovada", "reprovada", "cancelada"] as HrStatus[]).includes(
     texto as HrStatus,
   )
     ? (texto as HrStatus)
@@ -231,12 +235,28 @@ async function ConteudoDoRelatorio({
   );
 }
 
-async function ConteudoDasAprovacoes({ status }: { status: HrStatus }) {
+async function ConteudoDasAprovacoes({
+  status,
+  hojeISO,
+  quemSouEu,
+}: {
+  status: HrStatus;
+  hojeISO: string;
+  quemSouEu: string;
+}) {
   const [fila, contagem] = await Promise.all([
     filaDeAprovacoes(status),
     contarPorStatus(),
   ]);
-  return <Aprovacoes fila={fila} contagem={contagem} filaAtual={status} />;
+  return (
+    <Aprovacoes
+      fila={fila}
+      contagem={contagem}
+      filaAtual={status}
+      hojeISO={hojeISO}
+      quemSouEu={quemSouEu}
+    />
+  );
 }
 
 async function ConteudoDeSolicitar({

@@ -8376,6 +8376,118 @@ impede a demanda de seguir é o sócio, que vê "quem mais da área está fora" 
 fila antes de responder. Se um dia isso precisar ser trava, é trigger em
 `validar_solicitacao`, não mais `if` na tela.
 
+#### O COMBINADO SE DESFAZ, e a trava é a data
+
+Migration 0106, decisão do usuário: *"preciso da opção de cancelar um período
+de descanso depois que já foi aprovado pelo sócio"*.
+
+**`cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado só.** Ela
+recusava o que não fosse `pendente`, com o argumento de que um período já
+combinado é um combinado entre duas partes — e isso está certo sobre quem
+decide, e não sobre se dá para desfazer. A vida muda: a viagem não aconteceu, a
+conta nova entrou, a pessoa quer os dias de volta. Sem a porta, a saída era a
+gestão corrigir por fora — e o lançamento retroativo **não alcança o futuro**,
+de propósito, então não havia saída nenhuma.
+
+**QUEM CANCELA É O DONO OU O SÓCIO, e as duas razões são diferentes.** O dono
+porque devolver os próprios dias não tira nada de ninguém — é a mesma mão que
+propôs. O sócio porque foi ELE quem combinou, e desfazer a decisão dele é dele:
+é a separação que o módulo já faz desde a 0011, onde responder a um pedido é do
+sócio e não de `is_gestor()`. **O desenvolvedor continua fora**, como está na
+fila de pedidos e na de notas fiscais.
+
+**E A TRAVA É A DATA, não o status.** Um período **em curso** tem dias vividos,
+e desfazê-lo despintaria a matriz sobre um passado que aconteceu — a matriz
+diria que a pessoa estava aqui numa semana em que ela não estava, e o relatório
+e a carga iriam junto. A recusa **nomeia a data** em vez de dizer "não dá":
+dizer qual é a diferença entre uma recusa e uma instrução, que é a decisão da
+0023. O corte é `>=` e não `>` — um período que começa HOJE ainda é decisão de
+hoje, e ninguém trabalhou nele ainda.
+
+**O pendente não tem essa trava**, e a assimetria é do banco: ele não pintou
+dia nenhum, então não há passado a desfazer. Esconder o botão dele deixaria um
+pedido vencido preso na fila para sempre.
+
+**A LIMPEZA DE `team_presence` É A METADE QUE IMPORTA, e ela não estava
+escrita em lugar nenhum.** `team_presence.hr_request_id` é `on delete set
+null` desde a 0011: apagar o PEDIDO deixa os dias pintados na matriz, órfãos,
+em roxo. O `set null` está certo onde ele existe — um pedido desfeito não leva
+junto, em silêncio, um dia que alguém corrigiu à mão —, e é por isso que a
+função apaga os dias **explicitamente** antes de mudar o status. **É o mesmo
+achado do `zerar-full-days.sql`**, que é o relato do usuário em outra forma:
+*"coloquei que iria tirar férias só para testar, mas ficou marcando como se eu
+tivesse tirado"*. Um cenário da bateria separa "cancelado" de "cancelado e
+limpo" — ele é o único que cai quando a linha sai.
+
+**O SALDO VOLTA SOZINHO, e nenhuma linha o devolve.**
+`descanso_usado_no_ciclo()` conta `pendente` e `aprovada`, e `cancelada` não é
+nenhum dos dois — é "atraso não é coluna" pagando dividendo pela enésima vez:
+o que é derivado não precisa ser desfeito.
+
+**O MOTIVO É OBRIGATÓRIO PARA QUEM NÃO É O DONO, e só para ele.** Desfazer o
+período de outra pessoa sem dizer por quê manda ela adivinhar, e é a razão de
+"pedir ajustes exige comentário" e de "recusar nota exige motivo". Quem desfaz
+o PRÓPRIO período não explica nada a ninguém — cobrar dele uma justificativa
+para ele mesmo seria a tela inventando uma trava que o banco não tem.
+`motivo_cancelamento` é coluna própria e não reaproveita `motivo_reprovacao`:
+são dois fatos diferentes — *remarca* e *não vai acontecer* —, e a mesma coluna
+para os dois faria a linha afirmar uma coisa e o status outra, que é a decisão
+de `rejeitada` ao lado de `ajustes_solicitados` no social.
+
+**E O SINO TOCA NOS DOIS SENTIDOS**, que é o que separa um cancelamento de um
+sumiço: o dono cancelando avisa os sócios ativos — a forma de
+`solicitar_notas_do_mes()` e de `quem_atende()` —, e o sócio cancelando avisa a
+pessoa, com o motivo no corpo. `notificar()` faz o resto de sempre: não avisa
+quem causou o aviso, não avisa quem saiu, e devolve `null` sem derrubar a
+escrita quando não há a quem avisar (0062).
+
+##### A tela: a mesma pergunta nos dois lados
+
+`podeCancelar()` mora em `lib/dominio/full-days.ts` e **é a mesma pergunta que
+a função do banco faz** — a decisão da máquina de estados da subtarefa ao lado
+dos gatilhos da 0007: o banco é o que vale, e esta escreve o botão antes do
+clique. **Ela não é privada de uma tela porque são DUAS**: a aba Propor
+período, onde a pessoa devolve o próprio período, e a fila do sócio, onde ele
+desfaz a decisão dele. Duas cópias divergiriam, e a divergência apareceria no
+pior lugar — uma das duas oferecendo um botão que o banco recusa.
+
+**O botão SOME depois de o período começar, em vez de aparecer desligado.** A
+razão — "tem dias vividos" — não é um passo que falta, é uma porta que fechou,
+e um botão permanentemente desligado em toda linha antiga é ruído. É a
+distinção que o "Enviar ao cliente" do Social Media faz do outro lado: lá ele
+fica desligado COM a razão porque a razão é um passo que alguém pode dar.
+
+**O DIÁLOGO DO SÓCIO É UM SÓ PARA AS DUAS AÇÕES**, e o que troca é o texto:
+"preciso remarcar" e "cancelar" pedem um motivo pelo mesmo caminho, e dois
+diálogos seriam dois tratamentos do mesmo campo — o que divergiria é o do
+cancelamento, que ele usa menos. Com o motivo em falta o botão fica desligado
+dizendo **"Escreva o motivo"**, em vez de aceitar e levar a recusa do banco.
+
+**A descrição diz O QUE ACONTECE, e ela é diferente nas duas:** o "remarcar"
+devolve um pedido para quem o fez; o cancelamento apaga dias que já estão
+PINTADOS na matriz e devolve o saldo. "Tem certeza?" não informa nada, que é a
+decisão do diálogo de apagar campanha.
+
+**E A FILA GANHOU A QUARTA, "Canceladas".** `cancelada` está no enum desde a
+0011 e **tela nenhuma a listava**: era um status que o banco produzia e que não
+existia em lugar nenhum — a entrada que sai da barra e a rota que fica, vista
+do avesso. É ali que o motivo escrito pelo sócio pode ser lido depois.
+`contarPorStatus()` já contava as quatro e o `Record<HrStatus, number>` já era
+total, então ela não custou uma linha de consulta. **E o selo de status não
+entra no cartão**, porque o cabeçalho da fila já disse o que está embaixo dele.
+
+**Medido com quatro mutações**, sobre 2227 cenários: tirar a limpeza de
+`team_presence` derruba **1** — e esse 1 é o cenário inteiro, porque é o único
+que separa as duas versões —, trocar `is_socio()` por `is_gestor()` derruba
+**5**, tirar a trava da data derruba **6**, e tirar a exigência do motivo
+derruba **4**.
+
+*O que fica em aberto, e é dito em vez de escondido:* o cancelamento não tem
+desfazer. Quem cancelar por engano um período que já estava combinado propõe
+outro, e ele volta para a fila do sócio — a decisão acontece de novo. Guardar o
+estado anterior para "restaurar" seria uma segunda verdade sobre o mesmo
+período, e é justamente o que a rodada fechada nunca sofre.
+
 ### Acervo: organizar conteúdo, não avaliar gente
 
 **Ele se chamava FULL ACADEMY, e a LISTA dentro dele se chamava "Acervo"** —
@@ -11191,6 +11303,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O descanso se cancela | **Um período já combinado pode ser desfeito** (migration 0106), por decisão do usuário: *"preciso da opção de cancelar um período de descanso depois que já foi aprovado pelo sócio"*. `cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado — o `pendente` —, e a saída que sobrava, o lançamento retroativo, **não alcança o futuro** de propósito: não havia saída nenhuma. **Quem cancela é o DONO ou o SÓCIO**, e as razões são diferentes: devolver os próprios dias não tira nada de ninguém, e desfazer a decisão do sócio é dele. **A TRAVA É A DATA e não o status** — um período em curso tem dias vividos, e despintar a matriz sobre um passado que aconteceu faria ela afirmar que a pessoa estava aqui numa semana em que não estava; a recusa NOMEIA a data, que é a decisão da 0023. **A limpeza de `team_presence` é a metade que importa, e não estava escrita em lugar nenhum:** `hr_request_id` é `on delete set null`, então apagar o pedido deixaria os dias órfãos e pintados — é o mesmo achado do `zerar-full-days.sql`, que foi o relato do usuário em outra forma. **O saldo volta sozinho**, porque `descanso_usado_no_ciclo()` conta `pendente` e `aprovada` e `cancelada` não é nenhum dos dois: o que é derivado não precisa ser desfeito. **O motivo é obrigatório para quem não é o dono**, e `motivo_cancelamento` é coluna própria — *remarca* e *não vai acontecer* são dois fatos, e a mesma coluna para os dois faria a linha afirmar uma coisa e o status outra. **O sino toca nos dois sentidos.** Na tela, `podeCancelar()` desceu para `lib/dominio/` porque são DUAS que perguntam, o botão SOME em vez de aparecer desligado (a razão é uma porta que fechou, não um passo que falta), e a fila do sócio ganhou a QUARTA aba, "Canceladas" — `cancelada` estava no enum desde a 0011 e **tela nenhuma a listava**. **2227 cenários, quatro mutações medidas** (1 / 5 / 6 / 4), e a primeira derruba UM porque é o único cenário que separa "cancelado" de "cancelado e limpo". O protótipo ganhou um combinado FUTURO ao lado do que já começou: com um só, a imagem não separa "o botão aparece" de "o botão aparece sempre". |
 | Os nomes das páginas | **Full Days virou Day Off e Full Academy virou Acervo**, e dentro do Acervo a lista que se chamava "Acervo" virou **Biblioteca** — decisão do usuário. **As rotas e os identificadores ficam** (`/painel/full-days`, `/painel/academy`, `?aba=acervo`, `hr_requests`, `ItemDoAcervo`), que é a decisão de `dias_uteis` e de `saldo_de_ferias()` depois da 0016: renomear o que está em uso é mexer em muito lugar sem nada em troca, e ninguém que usa o sistema vê esses nomes — e trocar a rota alcançaria os links que `notificar()` já gravou em linhas do banco de produção. **Nenhuma migration**: as frases que nascem no Postgres não citam os dois nomes desde que a 0016 reescreveu as de `validar_solicitacao` e `decidir_solicitacao`. **E o nome velho NÃO entrou na lista de nomes mortos do `check:cores`**, porque ele aparece em dezenas de comentários que explicam decisões — é a armadilha que aquela lista já pagou sete vezes, e a mesma razão pela qual "Lista" e "Linha do tempo" ficaram de fora. Quem protege a troca é o `check:sprint9`, que lê o TEXTO RENDERIZADO da barra lateral e mede de mão dupla nos três perfis. |
 | O Calendário Full | **Ele passou a ser só de eventos** (migration 0105), por decisão do usuário: *"No calendário da full, ainda estao aparecendo tasks, e social, campanhas, entre outros, ele deve ser apenas para eventos que serao lançados nele, nada de outros abas"*. A view nasceu na 0055 juntando OITO origens; a demanda e a etapa saíram na 0077, a etapa de post na 0088 e voltou na 0090 como a FASE do mês — e esta migration tirou as CINCO que sobravam. **A ausência saiu junto, e foi a única pergunta que precisou ser feita:** ela é lançada no Day Off, que é outra aba, e o que se perde está dito — esta era a única tela onde se via a agenda da agência junto com quem não vai estar; a pergunta *"quem está disponível"* continua na matriz do Day Off e na faixa de disponibilidade do painel da etapa. **Saíram da VIEW e não só da lista de camadas**, e as duas pontas no mesmo commit: foi a 0088 tirar a origem e DEIXAR o interruptor que fez a 0090 nascer filtrando fora as linhas que ela acabara de criar. **Com elas foram três filtros**, porque os três passariam a mentir — o de camadas não tinha o que desligar, "Filtrar por responsável" devolveria zero sempre e "Só minha pauta" deixaria passar tudo, já que `user_id` não é escrita por ninguém. **O TIPO estreitou para um valor**, que é o que pega quem mexer nisto, e com ele caíram `CAMADAS`, `COR_DA_CAMADA`, `ROTULOS_DE_CAMADA`, `diaNaGrade()` e dois campos de `ItemDoCalendario` — mais uma ida ao banco. **A cor do chip passou a sair do TIPO DO EVENTO**, que já viajava na view, e a fileira de camadas virou a legenda dos quatro pares: sem isso o mês inteiro sairia num tom só e o `title` diria "Eventos:" em cima de todo item. **Nenhum par de cor novo — e um conserto:** os dois azuis usavam `--blue-strong` sobre `--blue-soft`, que dá 2,35:1 no ESCURO, e passavam despercebidos em duas telas que a imagem não captura lá. `security_invoker` foi repetida pela SEXTA vez. **2196 cenários, quatro mutações medidas** (3 / 11 / 6 / 4), e a sonda do `security_invoker` precisou de um evento da Óptica na fixture: a antiga era a CAMPANHA daquela empresa, e ela saiu da view — o cenário passaria a contar zero de nada. **E a peça de campanha nunca teve fixture**, o que só o teste de mutação mostrou. O axe pegou a legenda nova em 375px por `scrollable-region-focusable`: a fileira antiga rolava porque eram botões, e esta é estática — ela quebra de linha em vez de rolar. |
 | Sprint 3M | **O tutorial interativo de primeiro acesso** (migration 0101). Quem entra pela primeira vez é conduzido: o sistema destaca o elemento, explica o que ele é, e em alguns passos espera a pessoa clicar de verdade. **Os passos moram no CÓDIGO** — eles são interface, e uma tabela de passos obrigaria uma migration a cada ajuste de layout; no dia em que alguém esquecesse de aplicar, o tour apontaria para um elemento que não existe mais, e isso não dá erro: dá um balão apontando para o nada. **NÃO HÁ BIBLIOTECA, e a decisão foi medida:** o driver.js traz doze cores literais e zero `var(--`, e não tem o passo interativo, a navegação entre rotas, a espera de dois segundos nem a persistência — sobrando metade do pedido à mão, os 21KB dele e a folha fora dos tokens não se pagam; o recorte aqui é uma linha de `box-shadow`. **A tela nunca é bloqueada**, e isso é mecânico: o véu é `pointer-events-none`, então o clique da página continua chegando — que é o que o passo interativo precisa, e é a leitura literal de *"nunca bloquear a tela inteira"*. **SÃO TRÊS SITUAÇÕES DE PASSO PULADO e não duas:** a escolha (`passos_pulados`), o defeito (`passos_sem_ancora`, o alarme de tour quebrado) e a tela que não tem aquilo hoje (a bandeira `opcional`, em lugar nenhum do banco) — numa coluna só, o alarme contaria quem clicou em "pular". **E o "lembrete uma única vez no dia seguinte" é derivado do trigger**, sem coluna nenhuma: `tour_progresso_carimba` só move `finalizado_em` quando o status MUDA, então pular de novo não move a data e o dia seguinte passa uma vez só. Quatro divergências do texto do sprint, todas com o motivo escrito: o passo do menu é explicativo (no desktop não há o que abrir, e esperar um clique sem razão é o travamento que o sprint proíbe); o bloco por perfil é UM e nunca somado (empilhados dariam dezoito passos ao sócio contra o teto de 12); toda âncora do tour grande existe sem dado nenhum (um passo que precisa de demanda aberta não existe no primeiro acesso — ele é micro-tour); e "Falar com o suporte interno" não entra, porque o produto não tem canal. Os micro-tours apontam as âncoras da CASCA e o que muda é o TEXTO — nove módulos com cinco passos seriam trinta e cinco seletores para envelhecer. "Primeiros passos" tem CINCO itens e não seis, cada um DERIVADO do estado real, e o que falta é o da autoavaliação, cujo módulo saiu na 0043. **45 cenários novos, 2122 no total, medidos com oito mutações** — e a do `with check` do UPDATE derruba ZERO, o que derrubou uma frase que eu havia escrito como se fosse trava: num policy de UPDATE o Postgres usa o `using` também como check. |

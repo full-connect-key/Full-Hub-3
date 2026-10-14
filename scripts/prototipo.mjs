@@ -335,6 +335,21 @@ const TELAS = [
   { nome: "62-full-days-relatorio", rota: "/painel/full-days?aba=relatorio", largura: 1600, altura: 1300, role: "socio" },
   { nome: "63-full-days-aprovacoes", rota: "/painel/full-days?aba=aprovacoes", largura: 1500, altura: 900, role: "socio" },
   { nome: "64-full-days-remarcar", rota: "/painel/full-days?aba=aprovacoes", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Preciso remarcar")' },
+  // CANCELAR O QUE JA FOI COMBINADO (0106). Sao tres imagens porque sao tres
+  // coisas diferentes, e nenhuma aparece na fila padrao:
+  //
+  //   a. a fila "De acordo" com o botao em UM dos dois combinados -- o que
+  //      comeca daqui a dezoito dias tem botao, o que comecou dia 8 nao tem.
+  //      E a trava da data medida na imagem, com os dois lado a lado;
+  //   b. o dialogo, com o motivo OBRIGATORIO e o botao desligado dizendo o
+  //      que falta -- "Escreva o motivo" em vez de aceitar e levar a recusa
+  //      do banco;
+  //   c. a fila "Canceladas", que e a quarta e nao existia: `cancelada` esta
+  //      no enum desde a 0011 e tela nenhuma a listava. E ali que o motivo
+  //      escrito pela socia pode ser lido depois.
+  { nome: "64b-full-days-combinados", rota: "/painel/full-days?aba=aprovacoes&fila=aprovada", largura: 1500, altura: 900, role: "socio" },
+  { nome: "64c-full-days-cancelar", rota: "/painel/full-days?aba=aprovacoes&fila=aprovada", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Cancelar o período")' },
+  { nome: "64d-full-days-canceladas", rota: "/painel/full-days?aba=aprovacoes&fila=cancelada", largura: 1500, altura: 800, role: "socio" },
   { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
   // QUEM AINDA NAO CONQUISTOU DIA NENHUM (0074). E o estado de todo mundo por
   // doze meses, e a tela dele nao e "saldo zero": ela troca o numero pela DATA

@@ -142,16 +142,48 @@ async function avisarOsSocios(
   }
 }
 
-export async function cancelarSolicitacao(id: string): Promise<Resultado> {
+/**
+ * Cancelar um período — pendente ou JÁ COMBINADO (0106).
+ *
+ * ---------------------------------------------------------------------------
+ * AS TRÊS PERGUNTAS MORAM NO BANCO, e não aqui.
+ *
+ * Quem cancela (o dono ou o sócio), se o período já começou, e se o motivo
+ * veio: as três estão dentro de `cancelar_solicitacao`, que é `security
+ * definer` — a policy de UPDATE de `hr_requests` só deixa o dono mexer num
+ * `pendente`, e abri-la para o aprovado daria o direito de reescrever as
+ * datas, os dias e o tipo de um período já decidido.
+ *
+ * **A action continua exigindo a equipe**, que é a guarda de sempre: o
+ * cliente não tem Day Off, e deixá-lo chegar à RPC seria oferecer a recusa em
+ * vez de não oferecer o caminho.
+ *
+ * E ela NÃO repete nenhuma das três perguntas. Repetir criaria o segundo
+ * lugar onde a regra pode divergir, e já se sabe qual lado fica para trás: é
+ * a lição da 0029 e da 0060, em que a trava morava nos dois lados e desfazer
+ * um não desfez nada.
+ * ---------------------------------------------------------------------------
+ */
+export async function cancelarSolicitacao(
+  id: string,
+  motivo?: string,
+): Promise<Resultado> {
   return executarAcao("cancelarSolicitacao", async () => {
     await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
-    const { error } = await supabase.rpc("cancelar_solicitacao", { p_request_id: id });
+    const { error } = await supabase.rpc("cancelar_solicitacao", {
+      p_request_id: id,
+      // `?? null` E NAO deixar de fora: uma chave ausente faz o PostgREST
+      // resolver a função sem aquele argumento, e o default `null` dela daria
+      // no mesmo — mas só por enquanto. Mandando a chave sempre, a assinatura
+      // que a tela chama é uma só.
+      p_motivo: motivo?.trim() || null,
+    });
     if (error) return falha(error.message);
 
     revalidatePath(ROTA);
-    return sucesso("Pedido cancelado.");
+    return sucesso("Período cancelado.");
   });
 }
 
