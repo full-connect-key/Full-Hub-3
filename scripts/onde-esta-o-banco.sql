@@ -462,7 +462,17 @@ from (
     -- num banco onde alguem colou so o comeco, a resposta certa e FALTA, e um
     -- marcador nos capitulos responderia ok sobre um banco sem o progresso por
     -- capitulo e sem os indices que o protegem.
-    ('0102', 'academy_ebook_checklists', 'tabela', 'academy_ebook_checklists')
+    ('0102', 'academy_ebook_checklists', 'tabela', 'academy_ebook_checklists'),
+    -- A 0103 faz todo o Atendimento ser avisado de um pedido novo, com a
+    -- gestao ativa como fallback quando a agencia nao tem ninguem no
+    -- Atendimento.
+    --
+    -- A linha aponta para `quem_atende()`, que e a funcao que NASCE -- e nao
+    -- para o corpo das duas que ela reescreve
+    -- (`client_requests_avisa_atendimento` e `request_messages_avisa`), que
+    -- existem desde a 0068 e responderiam ok num banco parado la, que e
+    -- exatamente o estado que esta linha tem de acusar.
+    ('0103', 'quem_atende()', 'funcao', 'quem_atende')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

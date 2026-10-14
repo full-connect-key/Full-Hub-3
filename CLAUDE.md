@@ -5296,7 +5296,7 @@ feito no navegador dependeria de os padrões terem carregado antes.
 
 | O que | Onde mora | Por quê |
 | --- | --- | --- |
-| o atendimento da conta | `clients.responsavel_atendimento_id` | é quem o Portal avisa desde a 0062; uma segunda coluna divergiria calada |
+| o atendimento da conta | `clients.responsavel_atendimento_id` | é quem o Portal avisa desde a 0062 — e desde a 0103 ela entra na lista de `quem_atende()`, ao lado de quem tem a função; uma segunda coluna divergiria calada |
 | as particularidades | `clients.observacoes` | existe desde o Sprint 2 — o que faltava era ela aparecer no detalhe da demanda, que é onde decide algo |
 | as etapas do fluxo | `workflow_steps` | o editor continua na aba Workflows de Gestão de Tasks, e a ficha leva para lá |
 
@@ -5556,11 +5556,96 @@ administrativa** (`/portal/{slug}/solicitacoes`) não faz é abrir pedido em nom
 dele: seria a agência escrevendo como se fosse o cliente, e o caminho é a fila
 do painel, onde o pedido nasce assinado.
 
-**O aviso de pedido novo vai para `clients.responsavel_atendimento_id`** (0062)
-e não para uma coluna nova em `client_flow_defaults` — a decisão da 0064. Conta
-sem atendente não derruba o pedido: `notificar()` devolve `null` quando não há
-a quem avisar. O que se perde é o sino; o pedido está na caixa de entrada, que
-é onde o Atendimento olha.
+##### TODO O ATENDIMENTO É AVISADO, e não uma pessoa
+
+Migration 0103, decisão do usuário: *"preciso que sempre que uma solicitação
+entre, todas as pessoas do atendimento, sejam avisadas"*.
+
+**O aviso existia desde a 0068 e chegava a UMA pessoa** —
+`clients.responsavel_atendimento_id`, e não uma coluna nova em
+`client_flow_defaults`, que é a decisão da 0064 e continua de pé. O que estava
+errado eram duas consequências dela:
+
+- **a pessoa do atendimento num dia de folga é o pedido esperando.** Uma fila
+  que depende de um sino que tocou para alguém que não está aqui é uma fila que
+  ninguém abre, e o prazo do cliente corre nesse tempo;
+- **e a conta SEM atendente não avisava ninguém.** A coluna é opcional desde o
+  Sprint 2, então esse é o estado normal — `notificar()` devolve `null` quando
+  não há a quem avisar (0062), e por isso o pedido nascia sem derrubar nada e
+  sem tocar nada. **E `on delete set null` transforma isso em bomba com
+  relógio**, que é a lição da 0062 letra por letra: no dia em que a pessoa do
+  atendimento sai da agência, os pedidos daquelas contas param de avisar
+  qualquer pessoa, sem nada mudando na tela.
+
+**Quem responde é `quem_atende(client_id)`, e não `is_atendimento()`.** Aquela
+função pergunta sobre **quem está logado** (`auth.uid()`) desde a 0003 — ela
+decide se ESTA pessoa abre uma task, e não tem como devolver uma lista. A nova
+é `setof uuid`, e é a mesma pergunta virada para fora.
+
+**A lista é quem tem `funcao = 'Atendimento'` MAIS o responsável da conta**, e
+o `union` é o que torna a coluna compatível em vez de aposentada: quem foi
+nomeado atende aquela conta, tenha a função ou não — o gestor que assumiu uma
+conta grande continua recebendo.
+
+**E a gestão ativa é FALLBACK, nunca soma.** Sem ninguém no Atendimento, o
+aviso vai para `desenvolvedor` e `socio` — é a forma da 0079, *a pessoa
+configurada quando existe, a gestão inteira quando não existe*, e o lado certo
+do erro. **Quem a mantém fallback é o `not exists`**, e ele é a linha medida:
+somando as duas listas, todo gestor receberia o sino de todo pedido de toda
+conta — que é o ruído que o lote do mês (0090) existe para não produzir.
+
+**`profiles.ativo` e não `pessoa_desligada()`:** a pergunta aqui é quem ESTÁ na
+agência, e quem saiu não recebe de qualquer forma — `notificar()` já barra
+desde a 0062. A checagem na lista é o que impede a pessoa desligada de **ocupar
+o lugar** do fallback: com ela fora, uma agência cujo único atendente saiu
+volta a avisar a gestão em vez de avisar ninguém.
+
+**A MESMA FUNÇÃO SERVE OS DOIS AVISOS, e o segundo ninguém pediu.**
+`request_messages_avisa` tinha o mesmo furo: a mensagem que o cliente escreve
+na conversa do pedido ia para o atendente da conta, e para ninguém quando não
+havia um. Consertar só o pedido novo deixaria a metade mais frequente do módulo
+— a conversa — avisando uma pessoa. Com as duas chamando `quem_atende()`, elas
+não têm como divergir de novo.
+
+**E ela foi copiada INTEIRA e não remendada**, que é a lição da 0030:
+`create or replace function` reescreve a partir do texto que se escreve agora, e
+não avisa quando o texto novo tem menos coisa que o velho — o ramo
+agência→cliente daquela função continua inteiro porque ele está no arquivo, não
+porque o Postgres o preservou. O cenário que prova isso entrou na bateria.
+
+**O que NÃO muda, e é decisão:**
+
+- **a fila continua sendo o lugar onde o pedido mora.** O sino é o aviso, a
+  caixa de entrada é o trabalho — e ela ordena do mais antigo para o mais novo
+  desde a 0068, justamente porque a pergunta dela é quem está esperando há mais
+  tempo;
+- **o pedido do cliente não entra no "Precisa de mim" da Home.** Ele é o bloco
+  do que está parado me esperando, e um pedido novo é da FILA, não de uma
+  pessoa — pôr ali uma linha por pedido daria ao Atendimento inteiro a mesma
+  cobrança cinco vezes.
+
+**Medido com quatro mutações**, sobre 2175 cenários: devolver o aviso ao
+atendente único derruba **3**, fazer o fallback somar derruba **2**, tirar o
+`p.ativo` da lista derruba **1**, e devolver a mensagem do cliente ao atendente
+único derruba **1**.
+
+**E a bateria achou um vazamento de fixture de doze arquivos atrás.**
+`25_campanha_com_demanda.sql` punha a Marina no Atendimento e **nunca a
+devolvia** — então doze arquivos adiante rodavam com uma Social Media que o
+banco achava ser do Atendimento. Nada quebrava enquanto o aviso era de uma
+pessoa; com o aviso sendo de todo o Atendimento, dois cenários passaram a
+falhar de uma vez: o fallback nunca disparava (a lista nunca estava vazia) e a
+Marina recebia o sino de um pedido que não era dela. **E um cenário do 32
+andava de carona na função emprestada** — ele escrevia `client_function_defaults`
+como "colaborador do Atendimento" e só passava porque a Marina ainda estava
+lá. A função dela volta ao `'Social Media'` no fim do 25, e o cenário do 32
+afirma a própria premissa: *um cenário que depende de uma premissa afirma essa
+premissa.*
+
+**E um cenário da 0068 ficou, virado do avesso.** Ele dizia "ninguém foi
+avisado do pedido da conta sem atendente" e esperava zero — **aquele zero era o
+furo, não a regra**. Hoje ele mede o que continua valendo ali: quem registra o
+pedido não avisa a si mesma.
 
 **O menu leva a entrada para a PRINCIPAL e a abre para `EQUIPE`**, porque
 `is_atendimento()` é verdadeira para colaborador do Atendimento — e é ele quem

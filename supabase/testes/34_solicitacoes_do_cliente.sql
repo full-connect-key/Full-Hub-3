@@ -116,13 +116,18 @@ update public.clients set aceita_solicitacoes = true where id = :OPTICA;
 -- ---------------------------------------------------------------------------
 -- A CONTA SEM ATENDENTE NAO DERRUBA O PEDIDO
 --
--- E a licao da 0062, virada do avesso: `notificar()` devolve null quando nao
--- ha a quem avisar, em vez de estourar o `not null` de `notifications.user_id`
--- e levar junto a escrita que a chamou. A Optica nao tem atendente, e o insert
--- acima passou -- este cenario e o que prova que passou POR ISSO, e nao por
--- acaso.
+-- E a licao da 0062: `notificar()` devolve null quando nao ha a quem avisar, em
+-- vez de estourar o `not null` de `notifications.user_id` e levar junto a
+-- escrita que a chamou. A Optica nao tem atendente, e o insert acima passou.
+--
+-- ESTE CENARIO ESTA VIRADO DO AVESSO desde a 0103. Ele dizia *"ninguem foi
+-- avisado do pedido da conta sem atendente"* e esperava ZERO -- e aquele zero
+-- era o furo, nao a regra: a conta sem atendente nao tocava sino nenhum. O que
+-- ele mede agora e a outra metade, a que continua de pe: quem REGISTRA o pedido
+-- nao e avisado do proprio registro, e isso e de `notificar()`. A Carla
+-- registrou, e ela e a unica pessoa do Atendimento neste ponto do arquivo.
 -- ---------------------------------------------------------------------------
-select teste.conferir('Ninguem foi avisado do pedido da conta sem atendente',
+select teste.conferir('Quem registrou o pedido nao avisa a si mesma',
   (select count(*)::text from public.notifications
     where tipo = 'solicitacao' and corpo = 'Pedido que chegou por telefone'), '0');
 
@@ -438,3 +443,174 @@ select teste.conferir_como('Otto nao enxerga o arquivo da Mundo Verde', :OTTO,
 select teste.conferir_como('A equipe enxerga o arquivo', :BRUNO,
   $$select count(*)::text from storage.objects
      where bucket_id = 'solicitacoes-arquivos'$$, '1');
+
+
+-- ===========================================================================
+-- O AVISO DO PEDIDO NOVO (migration 0103)
+--
+-- Ate a 0103 o sino alcancava UMA pessoa -- `clients.responsavel_atendimento_id`
+-- --, e NINGUEM quando ela era nula. A Optica Visao nasce sem atendente neste
+-- arquivo justamente por isso: ela e o cenario, e nao descuido.
+--
+-- A pergunta: um pedido que entra toca o sino de todo o Atendimento?
+--
+-- `teste.limpar()` NAO mexe em `notifications`, e e por isso que cada
+-- conferencia nomeia o titulo em vez de contar a tabela: um aviso de qualquer
+-- arquivo anterior faria a conta fechar sozinha, e o cenario passaria pelo
+-- motivo errado. E a licao que a 0100 pagou.
+-- ===========================================================================
+
+\set RAFAEL  '''66666666-6666-6666-6666-666666666666'''
+
+-- UMA SEGUNDA PESSOA NO ATENDIMENTO, porque com uma so "todo o Atendimento" e
+-- indistinguivel de "o atendente da conta" -- as duas respostas dao 1. A funcao
+-- do Rafael e devolvida no fim do arquivo.
+update public.team_members set funcao = 'Atendimento' where user_id = :RAFAEL;
+
+delete from public.notifications;
+
+select teste.cenario('Joana abre um pedido na Mundo Verde (tem atendente)', :JOANA,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo)
+    values ('dddddddd-0000-0000-0000-00000000aaa1', %L, 'Aviso: conta com atendente')
+  $fmt$, :VERDE), 'ok');
+
+select teste.conferir('A Carla, que atende a conta, foi avisada',
+  (select count(*)::text from public.notifications
+    where user_id = :CARLA and titulo = 'Pedido novo de Mundo Verde'), '1');
+
+-- O RAFAEL NAO ATENDE ESTA CONTA e e avisado do mesmo jeito, e e exatamente o
+-- que o pedido do usuario diz: *"todas as pessoas do atendimento"*.
+select teste.conferir('E o Rafael, que e do Atendimento, tambem',
+  (select count(*)::text from public.notifications
+    where user_id = :RAFAEL and titulo = 'Pedido novo de Mundo Verde'), '1');
+
+select teste.conferir('O Bruno, que e do Design, nao foi avisado',
+  (select count(*)::text from public.notifications
+    where user_id = :BRUNO and titulo = 'Pedido novo de Mundo Verde'), '0');
+
+-- A CONTA SEM ATENDENTE E O CENARIO QUE MEDE O FURO: antes da 0103 esta
+-- contagem era ZERO, porque `notificar(null, ...)` devolve null sem avisar
+-- ninguem (0062) -- o pedido entrava na caixa de entrada em silencio.
+select teste.cenario('Otto abre um pedido na Optica (SEM atendente)', :OTTO,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo)
+    values ('dddddddd-0000-0000-0000-00000000aaa2', %L, 'Aviso: conta sem atendente')
+  $fmt$, :OPTICA), 'ok');
+
+select teste.conferir('O Atendimento inteiro foi avisado mesmo sem atendente na conta',
+  (select count(*)::text from public.notifications
+    where titulo = 'Pedido novo de Óptica Visão'
+      and user_id in (:CARLA, :RAFAEL)), '2');
+
+
+-- ---------------------------------------------------------------------------
+-- QUEM SAIU DA AGENCIA NAO E AVISADO
+--
+-- E a pergunta de `pessoa_desligada()` (0041, 0064) feita pelas duas colunas
+-- que `is_atendimento()` ja combina: a ficha e o acesso.
+-- ---------------------------------------------------------------------------
+update public.profiles set ativo = false where id = :RAFAEL;
+delete from public.notifications;
+
+select teste.cenario('Joana abre um pedido com o Rafael desligado', :JOANA,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo)
+    values ('dddddddd-0000-0000-0000-00000000aaa3', %L, 'Aviso: com gente desligada')
+  $fmt$, :VERDE), 'ok');
+
+select teste.conferir('A pessoa desligada nao recebe',
+  (select count(*)::text from public.notifications
+    where user_id = :RAFAEL and titulo = 'Pedido novo de Mundo Verde'), '0');
+
+select teste.conferir('E a Carla continua recebendo',
+  (select count(*)::text from public.notifications
+    where user_id = :CARLA and titulo = 'Pedido novo de Mundo Verde'), '1');
+
+update public.profiles set ativo = true where id = :RAFAEL;
+
+
+-- ---------------------------------------------------------------------------
+-- SEM NINGUEM NO ATENDIMENTO, A GESTAO ATIVA
+--
+-- O fallback da 0079, e o lado certo do erro: um aviso a mais na caixa de quem
+-- decide, em vez de um pedido de cliente que nao toca sino nenhum. A Optica nao
+-- tem atendente, entao aqui a lista de verdade sai vazia.
+-- ---------------------------------------------------------------------------
+update public.team_members set funcao = 'Outro'
+ where user_id in (:CARLA, :RAFAEL);
+delete from public.notifications;
+
+select teste.cenario('Otto abre um pedido sem ninguem no Atendimento', :OTTO,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo)
+    values ('dddddddd-0000-0000-0000-00000000aaa4', %L, 'Aviso: sem Atendimento')
+  $fmt$, :OPTICA), 'ok');
+
+select teste.conferir('A gestao ativa inteira foi avisada',
+  (select count(*)::text from public.notifications
+    where titulo = 'Pedido novo de Óptica Visão'
+      and user_id in (:ANA, :DIEGO)), '2');
+
+-- E O FALLBACK NAO SOMA: com gente no Atendimento, a gestao nao e avisada so
+-- por ser gestao. Sem este cenario, um `union all` sem o `not exists` passaria
+-- -- e todo gestor receberia o sino de todo pedido da agencia.
+update public.team_members set funcao = 'Atendimento'
+ where user_id in (:CARLA, :RAFAEL);
+delete from public.notifications;
+
+select teste.cenario('Otto abre um pedido com o Atendimento de pe', :OTTO,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo)
+    values ('dddddddd-0000-0000-0000-00000000aaa5', %L, 'Aviso: fallback nao soma')
+  $fmt$, :OPTICA), 'ok');
+
+select teste.conferir('A gestao NAO e avisada quando ha Atendimento',
+  (select count(*)::text from public.notifications
+    where titulo = 'Pedido novo de Óptica Visão'
+      and user_id in (:ANA, :DIEGO)), '0');
+
+
+-- ---------------------------------------------------------------------------
+-- A MENSAGEM DA CONVERSA SEGUE A MESMA LISTA
+--
+-- Os dois triggers passam pela MESMA funcao, e e isso que impede o produto de
+-- avisar a equipe inteira na abertura do pedido e uma pessoa so na pergunta
+-- seguinte.
+-- ---------------------------------------------------------------------------
+delete from public.notifications;
+
+select teste.cenario('Otto escreve na conversa do pedido dele', :OTTO,
+  $$insert into public.request_messages (request_id, autor_id, texto)
+    values ('dddddddd-0000-0000-0000-00000000aaa5',
+            '88888888-8888-8888-8888-888888888888', 'Uma pergunta')$$, 'ok');
+
+select teste.conferir('A mensagem do cliente avisa o Atendimento inteiro',
+  (select count(*)::text from public.notifications
+    where titulo = 'Mensagem de Óptica Visão'
+      and user_id in (:CARLA, :RAFAEL)), '2');
+
+-- E O RAMO DA AGENCIA PARA O CLIENTE CONTINUA INTEIRO. Ele veio copiado da
+-- 0068 sem uma virgula de diferenca, e este cenario e o que mede isso: `create
+-- or replace` nao avisa quando o texto novo tem menos coisa que o antigo, que e
+-- a licao da 0030.
+delete from public.notifications;
+
+select teste.cenario('A Carla responde na conversa', :CARLA,
+  $$insert into public.request_messages (request_id, autor_id, texto)
+    values ('dddddddd-0000-0000-0000-00000000aaa5',
+            '33333333-3333-3333-3333-333333333333', 'Respondendo')$$, 'ok');
+
+select teste.conferir('A resposta da agencia avisa o cliente',
+  (select count(*)::text from public.notifications
+    where user_id = :OTTO and titulo = 'Resposta no seu pedido'), '1');
+
+select teste.conferir('E nao avisa o Atendimento da propria agencia',
+  (select count(*)::text from public.notifications
+    where user_id = :RAFAEL and titulo like 'Mensagem de%'), '0');
+
+
+-- A FUNCAO DO RAFAEL VOLTA AO QUE ERA, senao este arquivo mudaria o fixture
+-- para os arquivos seguintes -- a conveniencia de fixture ocupando o lugar do
+-- cenario, que e o furo que a 0062 pagou.
+update public.team_members set funcao = 'Trafego' where user_id = :RAFAEL;

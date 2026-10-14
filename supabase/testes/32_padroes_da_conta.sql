@@ -228,10 +228,19 @@ select teste.cenario('Desenvolvedor tambem define', :DIEGO,
              set prazo_aprovacao_cliente_dias = 5 where client_id = %L$fmt$, :VERDE),
   'ok', 1);
 
+-- A MARINA E DO ATENDIMENTO NESTE CENARIO, e o `update` e dele e nao herdado.
+-- Ele vinha de carona do arquivo 25, que a punha no Atendimento para provar que
+-- `is_atendimento()` nao e `is_gestor()` e nunca a devolvia -- e no dia em que o
+-- 25 passou a restaurar, este cenario caiu com *"new row violates row-level
+-- security policy"*. Um cenario que depende de uma premissa afirma essa premissa.
+update public.team_members set funcao = 'Atendimento' where user_id = :MARINA;
+
 select teste.cenario('Colaborador DO ATENDIMENTO define a equipe por funcao', :MARINA,
   format($fmt$insert into public.client_function_defaults (client_id, funcao, user_id)
           values (%L, 'Audiovisual', %L)$fmt$, :VERDE, :RAFAEL),
   'ok');
+
+update public.team_members set funcao = 'Social Media' where user_id = :MARINA;
 
 select teste.cenario('Colaborador que NAO e do Atendimento nao define nada', :BRUNO,
   format($fmt$insert into public.client_function_defaults (client_id, funcao, user_id)

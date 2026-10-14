@@ -1000,3 +1000,20 @@ select teste.cenario('Uma etapa de demanda comum', :MARINA,
 select teste.conferir('Ela nao virou peca de campanha nenhuma',
   (select count(*)::text from public.deliverables d where d.nome = 'Etapa solta'),
   '0');
+
+
+-- ---------------------------------------------------------------------------
+-- A FUNCAO DA MARINA VOLTA AO QUE ERA
+--
+-- O `update` da secao 5 a poe no Atendimento para provar que `is_atendimento()`
+-- nao e `is_gestor()`, e ele nunca era desfeito: dos arquivos 26 ao 45 a Marina
+-- era uma Social Media que o banco achava do Atendimento. Isso nao quebrou nada
+-- por doze arquivos e quebrou no 34, quando a 0103 passou a avisar o
+-- Atendimento INTEIRO de um pedido novo -- o aviso chegava a ela, e o cenario
+-- da conta sem atendente achava 1 onde esperava 0.
+--
+-- E conveniencia de fixture atravessando para quem nao a pediu, que e o furo
+-- que a 0062 pagou com mil cenarios verdes: o cenario fica, e a restauracao
+-- entra ao lado dele.
+-- ---------------------------------------------------------------------------
+update public.team_members set funcao = 'Social Media' where user_id = :MARINA;
