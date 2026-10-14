@@ -73,8 +73,8 @@ export function AbasDoFullDays({
 
   return (
     <BarraDeContexto
-      rotuloAcessivel="Seções do Full Days"
-      titulo="Full Days"
+      rotuloAcessivel="Seções do Day Off"
+      titulo="Day Off"
       atual={atual}
       secoes={secoes}
       acoes={acoes}

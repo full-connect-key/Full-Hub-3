@@ -55,7 +55,7 @@ export function MenuDeAjuda({
   comecado: boolean;
   /** O tour mudou de verdade desde que ela o concluiu. */
   convidaARever: boolean;
-  /** `null` no portal: o Full Academy é interno, e o cliente não o alcança. */
+  /** `null` no portal: o Acervo é interno, e o cliente não o alcança. */
   hrefDosPlaybooks: string | null;
 }) {
   const { comecar, andando } = useTour();
@@ -104,7 +104,7 @@ export function MenuDeAjuda({
           <DropdownMenuItem asChild>
             <Link href={hrefDosPlaybooks}>
               <BookOpen aria-hidden />
-              Playbooks no Full Academy
+              Playbooks no Acervo
             </Link>
           </DropdownMenuItem>
         ) : null}

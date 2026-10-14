@@ -26,16 +26,16 @@ export function BarraDaAcademy({
 }) {
   return (
     <BarraDeContexto
-      rotuloAcessivel="Seções do Full Academy"
-      titulo="Full Academy"
+      rotuloAcessivel="Seções do Acervo"
+      titulo="Acervo"
       atual={atual}
       secoes={
         gestor
           ? [
-              { chave: "acervo" as const, rotulo: "Acervo", Icone: BookOpen },
+              { chave: "acervo" as const, rotulo: "Biblioteca", Icone: BookOpen },
               { chave: "gestao" as const, rotulo: "Acompanhamento", Icone: ClipboardList },
             ]
-          : [{ chave: "acervo" as const, rotulo: "Acervo", Icone: BookOpen }]
+          : [{ chave: "acervo" as const, rotulo: "Biblioteca", Icone: BookOpen }]
       }
       // O termo buscado e o filtro são do ACERVO: levados para o
       // acompanhamento eles não filtram nada e ficam na URL mentindo que

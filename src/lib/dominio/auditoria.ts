@@ -37,7 +37,7 @@ export const ROTULOS_DE_TABELA: Record<string, string> = {
   // `??` devolve a chave, e aparecer feia é melhor que não aparecer.
   finance_entries: "Gasto",
   finance_categories: "Categoria de gasto",
-  hr_requests: "Full Days",
+  hr_requests: "Day Off",
   tasks: "Demanda",
   subtasks: "Etapa",
   campaigns: "Campanha",

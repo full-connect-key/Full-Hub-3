@@ -474,7 +474,7 @@ export function EditorDeRecorrencia({
             <span>
               Pular feriado
               <span className="text-text-muted block text-xs">
-                Os feriados são os da tabela do Full Days, que vai até 2030.
+                Os feriados são os da tabela do Day Off, que vai até 2030.
               </span>
             </span>
           </label>

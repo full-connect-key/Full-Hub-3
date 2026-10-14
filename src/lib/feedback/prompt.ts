@@ -70,7 +70,7 @@ ESTRUTURA — quatro blocos curtos, em texto corrido, SEM cabeçalho de seção:
 1. O que ela entregou no período, em números concretos.
 2. O que mudou em relação ao período anterior dela — para melhor ou para pior, com o número.
 3. No máximo dois pontos com espaço para crescer, cada um ligado a um dado específico, com uma sugestão prática.
-4. Uma sugestão de desenvolvimento ligada ao que ela estudou no período ou às trilhas do Full Academy que aparecem nos dados. Se não houver nada sobre estudo nos dados, sugira a partir do tipo de trabalho que ela mais fez, sem inventar trilha que não está listada.
+4. Uma sugestão de desenvolvimento ligada ao que ela estudou no período ou às trilhas do Acervo que aparecem nos dados. Se não houver nada sobre estudo nos dados, sugira a partir do tipo de trabalho que ela mais fez, sem inventar trilha que não está listada.
 
 TOM: direto, específico, respeitoso. Como um gestor atento que olhou os dados com cuidado e conversa de igual para igual. Português do Brasil. Entre 150 e 250 palavras. Sem emoji. Sem título. Devolva apenas o texto do feedback.`;
 

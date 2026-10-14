@@ -111,7 +111,7 @@ export function DetalheDoEvento({
           {evento.bloqueiaFerias ? (
             <p className="bg-warning-soft text-warning flex items-start gap-2 rounded-md px-3 py-2 text-xs">
               <CalendarOff aria-hidden className="mt-0.5 size-4 shrink-0" />
-              Estes dias ficam bloqueados no Full Days
+              Estes dias ficam bloqueados no Day Off
               {evento.participantes.length > 0 ? " para quem vai." : " para toda a equipe."}
             </p>
           ) : null}
@@ -144,7 +144,7 @@ export function DetalheDoEvento({
               </Button>
               <ConfirmDialog
                 title="Excluir este evento?"
-                description={`"${evento.nome}" sai do calendário de todo mundo. Se ele bloqueava dias no Full Days, eles voltam a ficar livres.`}
+                description={`"${evento.nome}" sai do calendário de todo mundo. Se ele bloqueava dias no Day Off, eles voltam a ficar livres.`}
                 confirmLabel="Excluir"
                 onConfirm={() =>
                   iniciar(async () => {

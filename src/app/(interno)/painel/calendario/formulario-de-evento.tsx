@@ -282,7 +282,7 @@ export function FormularioDeEvento({
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <Switch id="ev-bloq" checked={bloqueia} onCheckedChange={setBloqueia} />
-              <Label htmlFor="ev-bloq">Bloquear estes dias no Full Days</Label>
+              <Label htmlFor="ev-bloq">Bloquear estes dias no Day Off</Label>
             </div>
             <p className="text-text-muted text-xs">
               Quem tentar propor um período nestes dias vê o nome do evento e não consegue

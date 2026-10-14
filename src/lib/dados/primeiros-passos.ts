@@ -13,7 +13,7 @@ import { TOUR_DO_PAINEL } from "@/lib/tour/passos";
  * *"derivar evita o bug clássico — a pessoa faz a coisa por outro caminho e a
  * lista continua dizendo que falta"*. Nenhuma coluna de checklist, nenhum
  * `marcar_como_feito`: quem subiu a foto pelo Meu Perfil, quem concluiu a
- * primeira etapa pelo board, quem leu o playbook pelo Academy já riscou o
+ * primeira etapa pelo board, quem leu o playbook pelo Acervo já riscou o
  * item sem passar por aqui.
  *
  * É a decisão de "atraso não é coluna" aplicada a uma lista de boas-vindas.
@@ -133,7 +133,7 @@ export async function meusPrimeirosPassos(): Promise<PrimeirosPassos | null> {
     },
     {
       chave: "full-day",
-      titulo: "Propor seu primeiro período no Full Days",
+      titulo: "Propor seu primeiro período no Day Off",
       href: "/painel/full-days?aba=solicitar",
       feito: (periodos.count ?? 0) > 0,
     },

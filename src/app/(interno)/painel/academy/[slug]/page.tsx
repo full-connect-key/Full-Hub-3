@@ -9,7 +9,7 @@ import { abrirItem, minhaAnotacao } from "@/lib/dados/academy";
 
 import { DetalheDoItem } from "./detalhe";
 
-export const metadata: Metadata = { title: "Full Academy" };
+export const metadata: Metadata = { title: "Acervo" };
 
 /**
  * A tela de um item do acervo.

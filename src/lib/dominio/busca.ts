@@ -68,7 +68,7 @@ export const ROTULOS_DA_BUSCA: Record<TipoDaBusca, string> = {
   post: "Social Media",
   equipamento: "Equipamentos",
   pedido: "Pedidos do cliente",
-  academy: "Full Academy",
+  academy: "Acervo",
 };
 
 /**

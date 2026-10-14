@@ -32,7 +32,7 @@ import { MatrizDaEquipe } from "./matriz";
 import { RelatorioGerencial } from "./relatorio";
 import { Solicitar } from "./solicitar";
 
-export const metadata: Metadata = { title: "Full Days" };
+export const metadata: Metadata = { title: "Day Off" };
 
 /**
  * Quem enxerga cada aba.
@@ -101,11 +101,11 @@ export default async function PaginaDoFullDays({
   return (
     <div className="space-y-6">
       {/* QUEM RESPONDE FICA NO CABEÇALHO, e é informação e não enfeite: o
-          Full Days é o único módulo em que o desenvolvedor NÃO é gestão — a
+          O Day Off é o único módulo em que o desenvolvedor NÃO é gestão — a
           primeira linha de `decidir_solicitacao()` exige sócio. Sem essa
           linha, o desenvolvedor abre a tela, não acha a aba de pedidos da
           equipe e conclui que falta permissão a ele. */}
-      {/* Sem `PageHeader`: a topbar já diz "Full Days". "Quem responde"
+      {/* Sem `PageHeader`: a topbar já diz "Day Off". "Quem responde"
           subiu para a barra de contexto — ele é a resposta de "para quem
           estou mandando isto", e ali fica à vista enquanto a pessoa escolhe
           os dias, em vez de sair da tela na rolagem. O `<h1>` mora na barra,

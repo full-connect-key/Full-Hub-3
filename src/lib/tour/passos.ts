@@ -108,7 +108,7 @@ export const MAXIMO_DE_PASSOS = 12;
  *
  * O que o teto impede de verdade é o PARÁGRAFO, que é o que o sprint proíbe em
  * voz alta. Quem passar de 140 está escrevendo documentação dentro de um
- * balão, e o lugar disso é o Full Academy.
+ * balão, e o lugar disso é o Acervo.
  */
 export const MAXIMO_DE_TEXTO = 140;
 
@@ -197,7 +197,7 @@ const BASE_DO_PAINEL: PassoDoTour[] = [
   {
     id: "full-days",
     ancora: ANCORAS.menuFullDays,
-    titulo: "Full Days",
+    titulo: "Day Off",
     texto: "Descanso, afastamento e ausência pontual são propostos por aqui.",
     tipo: "explicativo",
     opcional: true,
@@ -451,7 +451,7 @@ for (const tour of TODOS_OS_TOURS) {
     if (passo.texto.length > MAXIMO_DE_TEXTO) {
       throw new Error(
         `O passo "${passo.id}" do tour "${tour.id}" tem ${passo.texto.length} caracteres, ` +
-          `e o teto é ${MAXIMO_DE_TEXTO}. Balão não é documentação — isso é Full Academy.`,
+          `e o teto é ${MAXIMO_DE_TEXTO}. Balão não é documentação — isso é Acervo.`,
       );
     }
   }

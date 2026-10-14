@@ -169,7 +169,7 @@ export function DemonstracaoDeComponentes({
 
       <Secao
         titulo="SecaoDoFormulario"
-        descricao="O cabeçalho numerado de formulário longo. O número dá à conversa um jeito de apontar (“faltou a 2”) sem descrever onde o campo fica. Usado no Nova Task e no pedido do Full Days — por isso mora aqui, e não dentro de um dos dois."
+        descricao="O cabeçalho numerado de formulário longo. O número dá à conversa um jeito de apontar (“faltou a 2”) sem descrever onde o campo fica. Usado no Nova Task e no pedido do Day Off — por isso mora aqui, e não dentro de um dos dois."
       >
         <div className="max-w-md space-y-6">
           <SecaoDoFormulario numero={1} titulo="Informações gerais">

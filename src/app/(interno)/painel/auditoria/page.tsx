@@ -100,7 +100,7 @@ async function Conteudo({
       {pagina.linhas.length === 0 ? (
         <p className="text-muted-foreground bg-surface-card rounded-lg border p-6 text-sm">
           Nada registrado neste recorte. A trilha guarda mudanças de perfil de
-          acesso, de cliente, de ficha da equipe, do Financeiro e do Full Days —
+          acesso, de cliente, de ficha da equipe, do Financeiro e do Day Off —
           e o apagamento de demanda, etapa, campanha, post e material.
         </p>
       ) : (

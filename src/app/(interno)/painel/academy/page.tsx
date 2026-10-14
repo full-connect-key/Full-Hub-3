@@ -13,7 +13,7 @@ import { BarraDaAcademy } from "./barra";
 import { PainelDaGestao } from "./painel-da-gestao";
 import { AcompanhamentoDosTours } from "./acompanhamento-dos-tours";
 
-export const metadata: Metadata = { title: "Full Academy" };
+export const metadata: Metadata = { title: "Acervo" };
 
 /**
  * O Full Academy.

@@ -65,7 +65,7 @@ export async function meusPrimeirosPassos(): Promise<PrimeirosPassos | null> {
     },
     {
       chave: "full-day",
-      titulo: "Propor seu primeiro período no Full Days",
+      titulo: "Propor seu primeiro período no Day Off",
       href: "/painel/full-days?aba=solicitar",
       feito: false,
     },

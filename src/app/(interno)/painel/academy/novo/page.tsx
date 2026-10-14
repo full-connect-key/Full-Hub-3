@@ -8,7 +8,7 @@ import { forbidden } from "next/navigation";
 
 import { FormularioDoItem } from "./formulario";
 
-export const metadata: Metadata = { title: "Novo item · Full Academy" };
+export const metadata: Metadata = { title: "Novo item · Acervo" };
 
 /**
  * A abertura de um item do acervo.

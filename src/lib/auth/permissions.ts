@@ -185,7 +185,7 @@ export const MENU: MenuItem[] = [
     hiddenFromMenu: true,
   },
   {
-    label: "Full Days",
+    label: "Day Off",
     href: "/painel/full-days",
     icon: Sun,
     roles: EQUIPE,
@@ -193,7 +193,7 @@ export const MENU: MenuItem[] = [
     description: "Combinar períodos fora e responder a quem combinou.",
   },
   {
-    label: "Full Academy",
+    label: "Acervo",
     href: "/painel/academy",
     icon: BookOpen,
     roles: EQUIPE,

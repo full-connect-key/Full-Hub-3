@@ -96,7 +96,7 @@ export default async function Pagina() {
             quantas rodadas de aprovação o material passou até o cliente aceitar;
           </li>
           <li>
-            as trilhas do Full Academy que você tocou e os materiais que
+            as trilhas do Acervo que você tocou e os materiais que
             concluiu;
           </li>
           <li>
@@ -113,7 +113,7 @@ export default async function Pagina() {
         <p className="text-text-secondary text-sm">
           <strong className="text-text-primary">O que não é usado:</strong>{" "}
           horário de login, tempo de tela, atividade minuto a minuto, o que você
-          escreve em anotação da Academy, e nada do seu Full Days além de quantos
+          escreve em anotação do Acervo, e nada do seu Day Off além de quantos
           dias você esteve fora. O Full Hub não mede nenhuma dessas coisas.
         </p>
       </section>

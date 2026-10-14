@@ -220,28 +220,45 @@ const POR_PERFIL = [
  * ausência. "Auditoria" fica de fora desta lista de propósito — quem responde
  * por ela é `POR_PERFIL`, e duas checagens dizendo a mesma coisa são o lugar
  * onde as duas começam a discordar.
+ *
+ * ---------------------------------------------------------------------------
+ * E "Day Off" E "Acervo" ENTRARAM AQUI, com os nomes que eles tinham do outro
+ * lado, por decisão do usuário: *"mudar o nome das páginas: Full Days > Day
+ * Off, Full Academy > Acervo"*.
+ *
+ * **É AQUI E NÃO NA LISTA DE NOMES MORTOS do `check:cores`**, e a distinção é
+ * a mesma que aquela lista já fez com "Lista" e "Linha do tempo": "Full Days"
+ * e "Full Academy" aparecem em dezenas de comentários que EXPLICAM decisões —
+ * a matriz do Full Days, o vocabulário da 0016, a etiqueta do Full Academy —,
+ * e uma entrada lá reprovaria o vocabulário do próprio projeto. É a armadilha
+ * que aquela lista já pagou sete vezes.
+ *
+ * Esta checagem lê o TEXTO RENDERIZADO: comentário não conta, e o que ela
+ * mede é o que a pessoa lê. **E ela é de mão dupla pela razão de sempre** —
+ * só a metade da ausência passaria numa barra que parou de desenhar os dois.
+ * ---------------------------------------------------------------------------
  */
 const MARCA_DA_BARRA = 'aria-label="Módulos do painel"';
 
 const NA_BARRA = [
   {
     tela: "08-painel-colaborador",
-    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais"],
-    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro"],
+    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo"],
+    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy"],
     porque:
       "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
   },
   {
     tela: "05-painel-socio",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro"],
-    naoTem: ["Social Media", "Campanhas"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro", "Day Off", "Acervo"],
+    naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy"],
     porque:
       "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria",
   },
   {
     tela: "09-painel-desenvolvedor",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas"],
-    naoTem: ["Social Media", "Campanhas", "Financeiro"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Day Off", "Acervo"],
+    naoTem: ["Social Media", "Campanhas", "Financeiro", "Full Days", "Full Academy"],
     porque:
       "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",
   },

@@ -146,8 +146,8 @@ export function Acervo({
               setTermo(evento.target.value);
               navegar("q", evento.target.value || null);
             }}
-            placeholder="Buscar no acervo"
-            aria-label="Buscar no acervo do Full Academy"
+            placeholder="Buscar na biblioteca"
+            aria-label="Buscar na biblioteca do Acervo"
             className="pl-9"
           />
         </div>

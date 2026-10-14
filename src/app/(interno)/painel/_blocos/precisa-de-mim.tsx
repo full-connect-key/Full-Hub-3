@@ -166,8 +166,8 @@ export function linhasDoPrecisaDeMim({
     {
       quantos: dados?.pedidos_rh ?? 0,
       href: "/painel/full-days?aba=aprovacoes",
-      singular: "pedido de Full Days esperando você",
-      plural: "pedidos de Full Days esperando você",
+      singular: "pedido de Day Off esperando você",
+      plural: "pedidos de Day Off esperando você",
       Icone: Sun,
       tom: "bg-warning-soft text-warning",
     },

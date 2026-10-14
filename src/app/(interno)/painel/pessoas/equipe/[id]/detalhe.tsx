@@ -113,7 +113,7 @@ export function DetalheDoColaborador({
     <Tabs defaultValue="dados">
       <TabsList>
         <TabsTrigger value="dados">Dados</TabsTrigger>
-        <TabsTrigger value="full-days">Full Days</TabsTrigger>
+        <TabsTrigger value="full-days">Day Off</TabsTrigger>
       </TabsList>
 
       <TabsContent value="dados" className="space-y-6">
@@ -289,11 +289,11 @@ export function DetalheDoColaborador({
             onde a informação está, em vez de prometer um sprint já entregue. */}
         <EmptyState
           icon={CalendarDays}
-          title="O saldo e os pedidos desta pessoa ficam no Full Days"
+          title="O saldo e os pedidos desta pessoa ficam no Day Off"
           description="A matriz da equipe mostra os dias dela ao lado dos colegas da mesma área, que é o arranjo em que a informação decide alguma coisa."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link href="/painel/full-days?aba=matriz">Abrir o Full Days</Link>
+              <Link href="/painel/full-days?aba=matriz">Abrir o Day Off</Link>
             </Button>
           }
         />

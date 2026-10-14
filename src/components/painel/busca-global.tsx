@@ -149,7 +149,7 @@ export function BuscaGlobal() {
           <DialogTitle className="sr-only">Buscar na plataforma</DialogTitle>
           <DialogDescription className="sr-only">
             Digite para achar demandas, etapas, clientes, pessoas, campanhas,
-            posts, equipamentos, pedidos e o acervo do Full Academy. Use as
+            posts, equipamentos, pedidos e a biblioteca do Acervo. Use as
             setas para escolher e Enter para abrir.
           </DialogDescription>
           {aberta ? <Paleta aoEscolher={() => setAberta(false)} /> : null}
