@@ -98,7 +98,7 @@ select teste.conferir('Quem lancou fica gravado na linha',
 -- O NUMERO SAI DE `dias_do_pedido()`, NUNCA DO PARAMETRO. Se viesse de quem
 -- chamou, bastaria mandar 1 num periodo de quinze dias para o saldo nao mexer.
 -- De -50 a -46 sao cinco dias CORRIDOS -- descanso conta corrido.
-select teste.conferir('O descanso conta corrido, e o numero vem do banco',
+select teste.conferir('O day off conta corrido, e o numero vem do banco',
   (select dias_uteis::text from public.hr_requests
     where user_id = :BRUNO and data_inicio = current_date - 50), '5');
 
@@ -131,7 +131,7 @@ select teste.conferir_como('E o usado que a tela mostra e o do ciclo', :BRUNO,
 
 -- A PORTA DELA CONTINUA SENDO `is_staff()`, e o `drop`/`create` da 0085 e
 -- exatamente o lugar onde uma guarda se perde: a funcao foi reescrita inteira.
-select teste.recusa_com('Cliente nao le o saldo de descanso de ninguem', :JOANA,
+select teste.recusa_com('Cliente nao le o saldo de day off de ninguem', :JOANA,
   format($fmt$ select * from public.descanso_do_ciclo(%L) $fmt$, :BRUNO),
   'da equipe');
 
@@ -154,7 +154,7 @@ select teste.conferir('E nao existe mais um saldo por ano ao lado deste',
 -- lancamento descontava "no ciclo seguinte tambem", e hoje prova que nao.
 -- Devolvendo a soma, ou tirando o recorte `data_inicio >= comeca` de
 -- `descanso_usado_no_ciclo()`, ele cai e diz qual.
-select teste.cenario('Um descanso do ciclo passado, lancado agora', :ANA,
+select teste.cenario('Um day off do ciclo passado, lancado agora', :ANA,
   format($fmt$ select public.lancar_periodo(%L, 'ferias', current_date - 150, current_date - 146, 'Planilha do ciclo passado') $fmt$,
     :BRUNO), 'ok');
 
@@ -196,7 +196,7 @@ select teste.conferir('A coluna ano_referencia nao existe mais',
 -- saiu. Contando dia a dia, os dias -20 e -19 cairiam no ciclo novo tambem --
 -- duas contas de saldo para o mesmo pedido, que e exatamente o que a 0039
 -- desfez ao tirar a trava do descanso atravessando o ano.
-select teste.cenario('Descanso atravessando a virada do ciclo dela', :ANA,
+select teste.cenario('Day off atravessando a virada do ciclo dela', :ANA,
   format($fmt$ select public.lancar_periodo(%L, 'ferias', current_date - 23, current_date - 19, 'Virada') $fmt$,
     :MARINA), 'ok');
 
@@ -209,7 +209,7 @@ select teste.conferir('Os cinco dias dela ficaram no ciclo de onde sairam',
 -- implementacao errada mais provavel, porque parece a mesma coisa -- o
 -- descanso da virada e contado INTEIRO nos dois ciclos, e o numero sai 7 aqui
 -- e 10 no cenario de cima. Medido: trocando a coluna, os dois caem.
-select teste.cenario('E um descanso de tres dias, todo dentro do ciclo novo', :ANA,
+select teste.cenario('E um day off de tres dias, todo dentro do ciclo novo', :ANA,
   format($fmt$ select public.lancar_periodo(%L, 'ferias', current_date - 15, current_date - 13, 'Dentro do ciclo') $fmt$,
     :MARINA), 'ok');
 

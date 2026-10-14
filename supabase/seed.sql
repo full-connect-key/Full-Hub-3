@@ -717,7 +717,7 @@ order by t.titulo;
 -- reconhece.
 -- ===========================================================================
 
--- Marina (Criação) de ferias daqui a duas semanas, ja aprovadas pela socia.
+-- Marina (Criação) com day off daqui a duas semanas, ja combinado pela socia.
 insert into public.hr_requests
   (id, user_id, tipo, data_inicio, data_fim, dias_uteis, motivo, status, aprovado_por, decidido_em)
 select 'fd000000-0000-0000-0000-000000000001'::uuid,

@@ -59,7 +59,7 @@ type Linha = {
  *   dizem nada.
  *
  *   **Dias seguidos com o mesmo estado viram UMA faixa.** Vinte quadradinhos
- *   soltos obrigam a contar de um em um para saber que o descanso foi de
+ *   soltos obrigam a contar de um em um para saber que o day off foi de
  *   segunda a sexta; a faixa mostra o período de relance, que é a leitura que
  *   a grade existe para dar. A junção é só visual — cada dia continua sendo
  *   seu próprio alvo de clique, senão a gestão perderia a edição por dia.
@@ -456,7 +456,7 @@ function Celula({
   //
   // Fim de semana e feriado ficam com um cinza CLARO, e não em branco: eles
   // não são exceção, mas também não são dia útil — sem a distinção, uma faixa
-  // de descanso de sexta a segunda parece ter um buraco no meio.
+  // de day off de sexta a segunda parece ter um buraco no meio.
   const discreto = status === "presente";
   const faixa = (
     <span

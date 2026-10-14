@@ -51,6 +51,22 @@ const MES_DO_SOCIAL = (() => {
   return `mes=${mes}&cliente=c0000000-0000-0000-0000-00000000000a`;
 })();
 
+// A VIRADA entre o mes seguinte e o subsequente, para as duas telas que
+// provam que a selecao do calendario sobrevive a troca de mes. Calculada e
+// nao literal: o stub de bloqueios do Full Days e todo relativo a hoje, e um
+// dia fixo colide com ele sozinho conforme os dias passam. O porque esta
+// escrito junto das duas telas, em `65b-full-days-selecao-atravessa-mes`.
+const [FIM_DO_MES_SEGUINTE, INICIO_DO_MES_SUBSEQUENTE] = (() => {
+  const hoje = new Date();
+  const iso = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Dia 0 do mes +2 e o ULTIMO dia do mes +1 -- a conta que nao precisa saber
+  // se o mes tem 28, 30 ou 31 dias.
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 0);
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 1);
+  return [iso(fim), iso(inicio)];
+})();
+
 const TELAS = [
   // --- A PORTA -----------------------------------------------------------
   // A casca e UMA para as quatro telas de (auth), e cada imagem daqui prova
@@ -359,20 +375,37 @@ const TELAS = [
   // foto.
   { nome: "65d-full-days-primeiro-ciclo", rota: "/painel/full-days", largura: 1600, altura: 1200,
     role: "colaborador", env: { PROTOTIPO_PRIMEIRO_CICLO: "1" } },
-  // A PROVA DO AJUSTE 03, e não uma tela bonita: clicar em 28/10, alcançar
-  // novembro e clicar em 03/11. O Playwright rola sozinho para chegar no
-  // segundo dia, que é o gesto exato que perdia a seleção quando o mês vivia
-  // na URL e entrava no `key` do Suspense. Se a seleção não sobreviver, a
-  // imagem sai com um dia só pintado — dá para ver.
+  // A PROVA DO AJUSTE 03, e não uma tela bonita: escolher um dia, alcançar o
+  // mês seguinte e escolher outro, com a seleção de pé nos dois.
   //
-  // AS DATAS MUDARAM DE 28/10 PARA 30/10 porque o stub de bloqueios ganhou
-  // quatro blocos — e o do Bruno, de dias úteis, cobre o 28. O clique era
-  // recusado, a imagem saía com a frase de erro na cara, e quem a conferisse
-  // veria uma tela que o nome não promete. Foi o aviso da rodada que pegou.
+  // AS DATAS SÃO CALCULADAS, e o motivo é uma colisão que já aconteceu DUAS
+  // vezes: o stub de bloqueios é todo RELATIVO (`emDias`) e o clique era
+  // LITERAL — a cada dia que passa os blocos andam e o dia clicado não. Na
+  // primeira vez o bloco de dias úteis do Bruno cobriu o 28, e as datas
+  // foram de 28/10 para 30/10; duas semanas depois o mesmo bloco alcançou o
+  // 03/11, as duas imagens voltaram a sair com a frase de recusa na cara, e
+  // quem as conferisse veria uma tela que o nome não promete.
+  //
+  // **Mover o dia de novo seria comprar a mesma colisão pela terceira vez.**
+  // O conserto é um CORREDOR combinado com o stub: nenhum bloco dele passa
+  // de `emDias(24)`, e a virada entre o mês seguinte e o subsequente está
+  // sempre a 31 dias ou mais de hoje. Os dois lados andam juntos agora.
+  //
+  // **E a virada é a do mês SEGUINTE e não a do corrente**, porque o
+  // calendário monta três meses na abertura (`0..2` em
+  // `calendario-rolavel.tsx`) e cresce só quando a pessoa chega na ponta: um
+  // dia fora dessa janela não existe no DOM, e o clique falha sem recusa
+  // nenhuma. Uma primeira tentativa usou 2027 e as duas telas saíram sem o
+  // clique — a imagem existia e não era a tela.
+  //
+  // O que a imagem prova não muda: clicar num dia, alcançar o mês seguinte e
+  // clicar nele é o gesto exato que perdia a seleção quando o mês vivia na
+  // URL e entrava no `key` do Suspense. Se a seleção não sobreviver, a imagem
+  // sai com um dia só pintado — dá para ver.
   { nome: "65b-full-days-selecao-atravessa-mes", rota: "/painel/full-days", largura: 1600, altura: 1100, role: "colaborador",
-    clicar: ['[data-dia="2026-10-30"]', '[data-dia="2026-11-03"]'] },
+    clicar: [`[data-dia="${FIM_DO_MES_SEGUINTE}"]`, `[data-dia="${INICIO_DO_MES_SUBSEQUENTE}"]`] },
   { nome: "65c-full-days-375", rota: "/painel/full-days", largura: 375, altura: 1500, role: "colaborador",
-    clicar: ['[data-dia="2026-10-30"]', '[data-dia="2026-11-03"]'] },
+    clicar: [`[data-dia="${FIM_DO_MES_SEGUINTE}"]`, `[data-dia="${INICIO_DO_MES_SUBSEQUENTE}"]`] },
   { nome: "66-full-days-matriz-escuro", rota: "/painel/full-days?aba=matriz", largura: 1700, altura: 900, role: "socio", tema: "escuro" },
   // A aba de registrar periodo, e a PROVA de que ela e da gestao: a mesma
   // rota como colaborador tem que devolver 403. Uma imagem so mostraria a

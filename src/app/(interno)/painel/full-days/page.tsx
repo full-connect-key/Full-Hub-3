@@ -86,7 +86,7 @@ export default async function PaginaDoFullDays({
 
   // Hoje, o início e o fim do período são calculados AQUI e descem prontos.
   // Se cada componente lesse o próprio relógio, o navegador em outro fuso
-  // classificaria um dia de descanso num mês diferente do que o contador soma.
+  // classificaria um dia de day off num mês diferente do que o contador soma.
   const hoje = new Date();
   const hojeISO = format(hoje, "yyyy-MM-dd");
   const mes =

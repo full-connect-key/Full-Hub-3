@@ -184,7 +184,7 @@ insert into public.team_presence (user_id, data, status)
 values (:MARINA, current_date, 'ferias'),
        (:CARLA,  current_date, 'remoto');
 
-select teste.conferir_como('Quem esta de descanso aparece', :DIEGO,
+select teste.conferir_como('Quem esta de day off aparece', :DIEGO,
   $q$select jsonb_array_length(public.home_summary()->'fora_hoje')::text$q$, '1');
 
 select teste.conferir_como('E e o nome certo', :DIEGO,

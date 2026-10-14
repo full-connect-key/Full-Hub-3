@@ -7375,20 +7375,42 @@ O produto fala de **disponibilidade**, não de direito:
 
 | Era | É | Por quê |
 | --- | --- | --- |
-| Férias | **Descanso** | o período longo previsto em contrato |
+| Férias | **Day off** | o período longo previsto em contrato |
 | Licença | **Afastamento** | o período sem previsão de volta |
 | Ausência | **Ausência pontual** | um dia ou dois |
 | Folga | **Sem alocação** | "folga" pressupõe jornada, e jornada pressupõe vínculo |
 | Aprovar / Reprovar | **De acordo / Preciso remarcar** | hierarquia de aprovação é indício de subordinação |
 
-**Duas rodadas, e a segunda foi decisão explícita.** A migration 0016 trocou
-por "recesso programado" e "indisponibilidade"; a **0018** trocou de novo, para
-as palavras da tabela. Ficou registrado no cabeçalho da 0018, e vale repetir
-aqui para não ser desfeito como se fosse descuido: **foi observado que
-"afastamento" é palavra corrente na CLT e na previdência** — afastamento por
-doença, afastamento previdenciário — e que por isso ela é mais carregada que
-"indisponibilidade", não menos. A decisão foi mantida por quem responde pela
-exposição. Quem for mexer nisso de novo, mexa sabendo disso.
+**TRÊS RODADAS, e as três foram decisão explícita.** A migration 0016 trocou
+"férias" por "recesso programado" e "licença" por "indisponibilidade"; a
+**0018** trocou de novo, para "descanso" e "afastamento"; e a **0107** trocou
+a primeira coluna uma terceira vez, para **"day off"** — decisão do usuário:
+*"vamos usar sempre essa nomenclatura para tudo que se refere as 'férias' (que
+também não podemos falar) OU SEJA, os dias tirados são DAY OFF"*.
+
+**AS DUAS PRIMEIRAS ERAM EXPOSIÇÃO; A TERCEIRA É O NOME QUE A AGÊNCIA USA.**
+"Descanso" não é palavra da CLT — o que a 0107 faz é o produto passar a chamar
+a coisa pelo nome do módulo, que é o nome que se fala no dia a dia. A
+consequência é que ela custa menos que as outras duas: nada precisa SAIR do
+produto, só o rótulo precisa mudar.
+
+A da 0018 ficou registrada no cabeçalho dela, e vale repetir aqui para não ser
+desfeita como se fosse descuido: **foi observado que "afastamento" é palavra
+corrente na CLT e na previdência** — afastamento por doença, afastamento
+previdenciário — e que por isso ela é mais carregada que "indisponibilidade",
+não menos. A decisão foi mantida por quem responde pela exposição. Quem for
+mexer nisso de novo, mexa sabendo disso.
+
+**SÃO TRÊS CAMADAS DE NOME DEPOIS DA 0107, e isso fica dito em vez de
+escondido:** o enum e as colunas dizem `ferias` (`dias_ferias_ano`,
+`saldo_de_ferias()`, o token `--ferias`), as funções e os tipos dizem
+`descanso` (`descanso_do_ciclo()`, `ciclos_de_descanso()`, `DescansoDoCiclo`,
+`DIAS_DE_DESCANSO_PADRAO`), e a tela diz **"Day off"**. Três é uma a mais do
+que seria confortável, e a escolha é a mesma das duas rodadas anteriores:
+renomear valor de enum, coluna ou função em uso é migration arriscada, e
+ninguém que usa o sistema vê esses nomes. **Quem ler um parágrafo antigo deste
+arquivo falando de "descanso" está lendo sobre day off** — a conta e as travas
+não mudaram em nada.
 
 **"Feriado" fica**, e a diferença importa: feriado é data do calendário
 nacional, um fato sobre o dia. Não é direito concedido a ninguém.
@@ -7400,10 +7422,14 @@ Onde a regra é aplicada, e onde ela **não** é:
   É por existir esse lugar único que a troca coube num arquivo.
 - As mensagens que **nascem no Postgres** não passam por esse mapa: chegam
   prontas. A migration 0016 reescreve as frases de `validar_solicitacao`,
-  `decidir_solicitacao` e `proteger_presenca_de_pedido`, e
-  `05_full_days.sql` varre o corpo dessas funções atrás das frases antigas
-  **e** confere que as novas estão lá — apagar a mensagem inteira passaria
-  por uma varredura que só procurasse o que saiu.
+  `decidir_solicitacao` e `proteger_presenca_de_pedido`; a **0107** reescreve
+  as seis recusas de `validar_solicitacao`, a de `descanso_do_ciclo` e o
+  título do sino que `decidir_solicitacao` monta. `05_full_days.sql` varre o
+  corpo dessas funções atrás das frases antigas **e** confere que as novas
+  estão lá — apagar a mensagem inteira passaria por uma varredura que só
+  procurasse o que saiu. **É por isso que trocar um rótulo deste módulo é
+  migration e não uma linha de tela:** sem ela, a pessoa leria "Day off" no
+  seletor e "O descanso não acumula" na recusa do clique seguinte.
 - **Nome de coluna, valor de enum e nome de função continuam como estavam**
   (`hr_tipo` com `ferias`/`licenca`, `dias_ferias_ano`, `saldo_de_ferias()`,
   o token `--ferias`). As constantes em TypeScript, essas sim, acompanharam:
@@ -7416,7 +7442,18 @@ Onde a regra é aplicada, e onde ela **não** é:
   ficaram — **e também atrás de "recesso" e "indisponibilidade"**, que foram o
   vocabulário entre a 0016 e a 0018. A lista **cresce** em vez de ser
   substituída: nenhuma geração de palavra pode voltar, não só a última, senão
-  alguém copiando uma tela antiga ressuscita a penúltima sem ninguém notar. E varre sem exceção de arquivo: a explicação da regra mora aqui e
+  alguém copiando uma tela antiga ressuscita a penúltima sem ninguém notar.
+  **"DESCANSO" NÃO ENTROU NESSA LISTA, e a ausência é decisão.** As quatro
+  palavras de lá tiveram de sair do produto inteiro; esta não foi aposentada —
+  ela continua sendo o nome da camada do meio, em `descanso_do_ciclo()`,
+  `ciclos_de_descanso()`, `proximo_descanso_em()`, `descanso_usado_no_ciclo()`,
+  `DescansoDoCiclo` e `DIAS_DE_DESCANSO_PADRAO`, todos lidos de dentro de
+  `src/`. Pô-la lá exigiria `salvo` para metade do módulo, e **uma exceção que
+  cobre metade do módulo é onde o furo seguinte se esconde**. Quem protege a
+  troca é o `check:sprint9`, que lê o TEXTO RENDERIZADO do protótipo — ali
+  comentário e identificador não contam — e mede de MÃO DUPLA em cinco telas:
+  "Day off" de pé e "Descanso" fora. Só a metade da ausência passaria numa tela
+  que parou de desenhar o rótulo. E varre sem exceção de arquivo: a explicação da regra mora aqui e
   no cabeçalho da 0016, fora de `src/`, senão a varredura acusaria o texto
   que a proíbe.
 
@@ -7432,7 +7469,7 @@ afirmação, não.
 > dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
 
 
-**15 dias de descanso a CADA CICLO DE 12 MESES, em até duas parcelas por
+**15 dias de day off a CADA CICLO DE 12 MESES, em até duas parcelas por
 ciclo.** Os dois números são colunas de `team_members` (`dias_ferias_ano`,
 `max_parcelas_ferias` — nomes anteriores à troca de vocabulário), não
 constantes no código: contrato muda por pessoa, e mudar contrato não pode
@@ -7629,12 +7666,12 @@ verdade para quem abrir o schema é o comentário da coluna.
   pinta os dias em `team_presence` e avisa quem propôs; três chamadas pelo
   PostgREST seriam três transações, e a segunda falhando deixaria um pedido já
   combinado sem nenhum dia pintado.
-- **O descanso pinta TODOS os dias do período**, fim de semana e feriado
+- **O day off pinta TODOS os dias do período**, fim de semana e feriado
   inclusive; os outros dois, só os úteis. Antes só os úteis viravam linha,
   para a contagem visual bater com o número combinado — e agora é o contrário:
   o número é corrido, então pular o sábado do meio é que faria a matriz
   mostrar menos dias do que o pedido diz. De quebra a faixa fica inteira, que
-  é como um descanso se parece.
+  é como um day off se parece.
 - **Dia que veio de período combinado não se edita na matriz.** Um clique
   apagaria o recesso de alguém e o pedido continuaria dizendo "de acordo" —
   duas verdades sobre o mesmo dia.
@@ -7822,7 +7859,7 @@ tinha combinado, com a resposta a dois componentes de distância.
 **SÃO DOIS FATOS E DUAS CORES, e `jaCombinados` é prop separada de
 `bloqueados` por isso.** Aquele diz "um colega da sua área está fora" e é
 âmbar; este diz "este dia já é seu" e é o roxo de `--ferias`, o mesmo par que
-a matriz usa para descanso e que o `check:cores` já media. Pôr o próprio nome
+a matriz usa para o day off e que o `check:cores` já media. Pôr o próprio nome
 em `bloqueados` seria mais barato e faria a frase sair como *"Ana já está
 fora. Você e essa pessoa são do Criação — combine com ela"*: a tela mandando
 a pessoa falar consigo mesma.
@@ -7841,7 +7878,7 @@ ainda espera resposta, e mostrar só os aprovados faria a tela liberar um dia
 que o envio nega.
 
 **A CÉLULA DIZ SÓ O TIPO, e a imagem é que decidiu.** O rótulo carregava o
-status — "Descanso · aguardando" — e saía *"Descanso · a…"*: a célula tem uns
+status — "Day off · aguardando" — e saía *"Day off · ag…"*: a célula tem uns
 120px, o sufixo não cabe, e truncado ele não distingue nada. O que ele
 distinguia não se perde: os dois pedem a mesma coisa de quem está escolhendo
 datas, e a diferença entre eles — esperar a resposta ou cancelar o pedido
@@ -7974,10 +8011,11 @@ casos**, com datas relativas: o passado que não aparece, quem está fora agora,
 um segundo bloco da mesma pessoa (que o `min`..`max` juntaria no primeiro) e
 um bloco de dias úteis atravessando o fim de semana.
 
-**O vocabulário não mudou em nenhuma das cinco.** Descanso, afastamento,
-ausência pontual, sem alocação, "de acordo" e "preciso remarcar" — a decisão
-da 0016 e da 0018 continua inteira, e uma mudança de layout não é lugar de
-desfazê-la.
+**O vocabulário não mudou em nenhuma das cinco.** Afastamento, ausência
+pontual, sem alocação, "de acordo" e "preciso remarcar" — a decisão da 0016 e
+da 0018 continua inteira, e uma mudança de layout não é lugar de desfazê-la.
+*(O primeiro tipo passou a se chamar "Day off" depois, na 0107, e por decisão
+do usuário — não por causa deste redesenho.)*
 
 #### As três áreas de trabalho: Gestão de Tasks, Social Media e Campanhas
 
@@ -11281,7 +11319,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | `npm run check:fronteira` | Confere que nenhum arquivo de servidor importa **valor** de arquivo `"use client"` — componente pode, função e constante não. É o erro que passa no build, no lint e no tipo, e só aparece quando alguém pede a página |
 | `npm run check:prototipo` | Duas coisas, e as duas existem porque o protótipo não está no CI. **Que os stubs de `scripts/prototipo/` exportem tudo o que `src/` importa deles:** o `typecheck` não vê os stubs — ele checa contra os módulos de verdade, e a troca só acontece na cópia temporária, então um export que falta atravessa build, lint e tipo e só quebra depois de dois minutos compilando. **E que o TEXTO de cada seletor de clique ainda exista** em `src/` ou nos exemplos: a tela que muda de palavra deixa o seletor morto, e a imagem sai assim mesmo, com o nome de uma tela que ela não é. A busca cobre os exemplos de propósito — metade dos seletores aponta para dado semeado. **Ela ATRAVESSA LINHA desde a busca global, e não atravessava:** a expressão exigia o `nome:` e o `clicar:` na MESMA linha, então toda entrada escrita em mais de uma — que é como as longas são escritas — ficava fora da conferência. Ela dizia "31 textos, todos no produto" sem nunca ter olhado para treze deles; hoje são 44. Ela **não** prova que o seletor casa naquela rota, nem vê ambiguidade: isso é da rodada |
 | `npm run prototipo` | Gera imagens das telas em `prototipos/`, grava o **HTML renderizado** de cada uma em `prototipos/html/` e, na rodada completa, roda o `check:sprint9` em cima dele. Roda o **axe-core** em cada tela viva depois do clique; o terminal mostra três exemplos por regra e a lista inteira, com o motivo de cada nó, vai para `prototipos/acessibilidade.json` — o corte serve para ser lido, o arquivo para ser consertado. **A rodada completa que termina em zero APAGA o arquivo**, e a filtrada não: deixado para trás, ele continuaria no disco com os achados da semana passada e cara de atual — a armadilha da tabela de migrations pendentes —, mas numa rodada de três telas "zero" quer dizer zero nelas, e apagar o relatório inteiro por causa de um recorte trocaria um arquivo velho por nenhum. Ele lista à parte a tela que respondeu 500, a que saiu **sem o clique** (o seletor não casou) e a que saiu **com um aviso de erro na cara** — esta última é a que o "sem o clique" nunca pega, porque o clique deu certo e foi a ação que falhou. **E a que respondeu 403**, que é a família do 500 com a cara boa: `forbidden()` renderiza com SUCESSO, então a imagem sai com o nome do módulo no `<title>` e a tela de acesso negado no corpo, e a rodada termina dizendo "Pronto" — quem abre a imagem precisa conhecer a peça nova para notar que ela não está ali. A checagem é de **mão dupla** e o NOME da tela é a declaração: quem quer o 403 escreve `403` no nome, e uma tela assim que para de levar 403 também reprova |
-| `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Acervo não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu |
+| `npm run check:sprint9` | O que a tela NÃO mostra: o vocabulário que o Acervo não tem, **o vocabulário de desenvolvimento que nenhuma tela pode ter** (número de sprint, "em construção", `TODO`) e o que cada perfil alcança. Lê o texto RENDERIZADO dos dumps do protótipo — comentário não conta —; **sem eles, FALHA** em vez de passar em branco. **E o que a BARRA LATERAL lista**, esse recortado do `<nav>` e não da página inteira: "Campanhas ativas" é um cartão do Pulso, e a página toda diria que a entrada continua no menu. **E o VOCABULÁRIO DO DAY OFF** (0107), em cinco telas e de mão dupla: "Day off" de pé e "Descanso" fora — é aqui e não na lista de nomes mortos do `check:cores`, porque "descanso" continua sendo o nome de seis identificadores lidos de dentro de `src/` |
 | `scripts/agendar-rotinas.sql` | **Liga as rotinas diárias**, por `pg_cron`. Cola no SQL Editor uma vez, depois de habilitar a extensão em Database → Extensions. É **script e não migration** por duas razões: a extensão se habilita no painel, então um `create extension` falharia em qualquer ambiente sem ela; e agendamento não é schema, é escolha de operação. Traz também o `select` que confere e o `cron.job_run_details` que mostra cada execução — o único lugar onde se vê que a rotina rodou e não fez nada por não haver o que fazer, que é o caso normal e é indistinguível de não ter rodado. E o `unschedule` para desligar: aí `rotinas_agendadas()` volta a devolver false e as duas telas voltam a dizer que a geração é manual, sozinhas |
 | `scripts/rodar-rotinas.sh` | As rotinas diárias: gerar as demandas recorrentes que venceram e apagar rascunho parado há mais de 7 dias. **É o mesmo arquivo que a Action chama de madrugada**, e não uma cópia — a decisão do `verificar.yml` ser chamado pelo deploy. Pede `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no ambiente; a chave entra pela **entrada padrão** do curl e nunca pela linha de comando, porque `ps` de um processo lê argumento de outro e o log do Actions ecoa o comando que falhou |
 | `supabase/testes/rodar.sh` | Roda a bateria inteira contra um Postgres 16 de verdade, do zero |
@@ -11304,6 +11342,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | Sprint | Entrega |
 | --- | --- |
 | O descanso se cancela | **Um período já combinado pode ser desfeito** (migration 0106), por decisão do usuário: *"preciso da opção de cancelar um período de descanso depois que já foi aprovado pelo sócio"*. `cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado — o `pendente` —, e a saída que sobrava, o lançamento retroativo, **não alcança o futuro** de propósito: não havia saída nenhuma. **Quem cancela é o DONO ou o SÓCIO**, e as razões são diferentes: devolver os próprios dias não tira nada de ninguém, e desfazer a decisão do sócio é dele. **A TRAVA É A DATA e não o status** — um período em curso tem dias vividos, e despintar a matriz sobre um passado que aconteceu faria ela afirmar que a pessoa estava aqui numa semana em que não estava; a recusa NOMEIA a data, que é a decisão da 0023. **A limpeza de `team_presence` é a metade que importa, e não estava escrita em lugar nenhum:** `hr_request_id` é `on delete set null`, então apagar o pedido deixaria os dias órfãos e pintados — é o mesmo achado do `zerar-full-days.sql`, que foi o relato do usuário em outra forma. **O saldo volta sozinho**, porque `descanso_usado_no_ciclo()` conta `pendente` e `aprovada` e `cancelada` não é nenhum dos dois: o que é derivado não precisa ser desfeito. **O motivo é obrigatório para quem não é o dono**, e `motivo_cancelamento` é coluna própria — *remarca* e *não vai acontecer* são dois fatos, e a mesma coluna para os dois faria a linha afirmar uma coisa e o status outra. **O sino toca nos dois sentidos.** Na tela, `podeCancelar()` desceu para `lib/dominio/` porque são DUAS que perguntam, o botão SOME em vez de aparecer desligado (a razão é uma porta que fechou, não um passo que falta), e a fila do sócio ganhou a QUARTA aba, "Canceladas" — `cancelada` estava no enum desde a 0011 e **tela nenhuma a listava**. **2227 cenários, quatro mutações medidas** (1 / 5 / 6 / 4), e a primeira derruba UM porque é o único cenário que separa "cancelado" de "cancelado e limpo". O protótipo ganhou um combinado FUTURO ao lado do que já começou: com um só, a imagem não separa "o botão aparece" de "o botão aparece sempre". |
+| O tipo vira Day off | **"Descanso" passa a se chamar DAY OFF** (migration 0107), por decisão do usuário: *"dentro do Day Off mudar o nome o tipo de solicitação 'Descanso' por 'Day off' também. vamos usar sempre essa nomenclatura para tudo que se refere as 'férias' (que também não podemos falar) OU SEJA, os dias tirados são DAY OFF"*. **É a TERCEIRA rodada de vocabulário do módulo, e a primeira que não é sobre exposição:** a 0016 e a 0018 trocaram palavra da CLT, e esta troca o nome interno pelo nome que a agência usa falando. **E ELA É MIGRATION, e não uma linha de tela**, porque `ROTULOS_DE_TIPO` é a porta de todo rótulo e as frases que NASCEM NO POSTGRES não passam por ela: são as seis recusas de `validar_solicitacao`, a de `descanso_do_ciclo` e o título do sino — sem a migration, a pessoa leria "Day off" no seletor e "O descanso não acumula" na recusa do clique seguinte, a dois centímetros de distância. **As três funções foram COPIADAS INTEIRAS e não remendadas**, que é a lição da 0030: `create or replace` se reescreve a partir do texto de agora e não avisa quando o texto novo tem menos coisa que o velho. **SÃO TRÊS CAMADAS DE NOME AGORA, e isso fica dito:** `ferias` no enum e nas colunas, `descanso` nas funções e nos tipos, "Day off" na tela — renomear coluna ou função em uso é migration arriscada, e ninguém que usa o sistema vê esses nomes. **"Descanso" NÃO entrou na lista de nomes mortos do `check:cores`**, ao contrário de "recesso" e "indisponibilidade": ela não foi aposentada — continua sendo o nome da camada do meio, lido de dentro de `src/` por seis identificadores —, e pô-la lá exigiria `salvo` para metade do módulo, que é onde o furo seguinte se esconde. Quem protege a troca é o `check:sprint9`, de MÃO DUPLA em cinco telas, lendo o texto renderizado. **2227 cenários, e a mutação é o arquivo inteiro:** sem a 0107 caem **5** — a recusa por saldo, o título do sino, a dica que diz quando os dias voltam, e as duas varreduras de frase, cada uma nomeando o que voltou. O marcador do `onde-esta-o-banco.sql` aponta para o PASSO 3 e não para o 1, e é por PRESENÇA: medido nos dois sentidos num banco em dia e num sem a migration. |
 | Os nomes das páginas | **Full Days virou Day Off e Full Academy virou Acervo**, e dentro do Acervo a lista que se chamava "Acervo" virou **Biblioteca** — decisão do usuário. **As rotas e os identificadores ficam** (`/painel/full-days`, `/painel/academy`, `?aba=acervo`, `hr_requests`, `ItemDoAcervo`), que é a decisão de `dias_uteis` e de `saldo_de_ferias()` depois da 0016: renomear o que está em uso é mexer em muito lugar sem nada em troca, e ninguém que usa o sistema vê esses nomes — e trocar a rota alcançaria os links que `notificar()` já gravou em linhas do banco de produção. **Nenhuma migration**: as frases que nascem no Postgres não citam os dois nomes desde que a 0016 reescreveu as de `validar_solicitacao` e `decidir_solicitacao`. **E o nome velho NÃO entrou na lista de nomes mortos do `check:cores`**, porque ele aparece em dezenas de comentários que explicam decisões — é a armadilha que aquela lista já pagou sete vezes, e a mesma razão pela qual "Lista" e "Linha do tempo" ficaram de fora. Quem protege a troca é o `check:sprint9`, que lê o TEXTO RENDERIZADO da barra lateral e mede de mão dupla nos três perfis. |
 | O Calendário Full | **Ele passou a ser só de eventos** (migration 0105), por decisão do usuário: *"No calendário da full, ainda estao aparecendo tasks, e social, campanhas, entre outros, ele deve ser apenas para eventos que serao lançados nele, nada de outros abas"*. A view nasceu na 0055 juntando OITO origens; a demanda e a etapa saíram na 0077, a etapa de post na 0088 e voltou na 0090 como a FASE do mês — e esta migration tirou as CINCO que sobravam. **A ausência saiu junto, e foi a única pergunta que precisou ser feita:** ela é lançada no Day Off, que é outra aba, e o que se perde está dito — esta era a única tela onde se via a agenda da agência junto com quem não vai estar; a pergunta *"quem está disponível"* continua na matriz do Day Off e na faixa de disponibilidade do painel da etapa. **Saíram da VIEW e não só da lista de camadas**, e as duas pontas no mesmo commit: foi a 0088 tirar a origem e DEIXAR o interruptor que fez a 0090 nascer filtrando fora as linhas que ela acabara de criar. **Com elas foram três filtros**, porque os três passariam a mentir — o de camadas não tinha o que desligar, "Filtrar por responsável" devolveria zero sempre e "Só minha pauta" deixaria passar tudo, já que `user_id` não é escrita por ninguém. **O TIPO estreitou para um valor**, que é o que pega quem mexer nisto, e com ele caíram `CAMADAS`, `COR_DA_CAMADA`, `ROTULOS_DE_CAMADA`, `diaNaGrade()` e dois campos de `ItemDoCalendario` — mais uma ida ao banco. **A cor do chip passou a sair do TIPO DO EVENTO**, que já viajava na view, e a fileira de camadas virou a legenda dos quatro pares: sem isso o mês inteiro sairia num tom só e o `title` diria "Eventos:" em cima de todo item. **Nenhum par de cor novo — e um conserto:** os dois azuis usavam `--blue-strong` sobre `--blue-soft`, que dá 2,35:1 no ESCURO, e passavam despercebidos em duas telas que a imagem não captura lá. `security_invoker` foi repetida pela SEXTA vez. **2196 cenários, quatro mutações medidas** (3 / 11 / 6 / 4), e a sonda do `security_invoker` precisou de um evento da Óptica na fixture: a antiga era a CAMPANHA daquela empresa, e ela saiu da view — o cenário passaria a contar zero de nada. **E a peça de campanha nunca teve fixture**, o que só o teste de mutação mostrou. O axe pegou a legenda nova em 375px por `scrollable-region-focusable`: a fileira antiga rolava porque eram botões, e esta é estática — ela quebra de linha em vez de rolar. |
 | Sprint 3M | **O tutorial interativo de primeiro acesso** (migration 0101). Quem entra pela primeira vez é conduzido: o sistema destaca o elemento, explica o que ele é, e em alguns passos espera a pessoa clicar de verdade. **Os passos moram no CÓDIGO** — eles são interface, e uma tabela de passos obrigaria uma migration a cada ajuste de layout; no dia em que alguém esquecesse de aplicar, o tour apontaria para um elemento que não existe mais, e isso não dá erro: dá um balão apontando para o nada. **NÃO HÁ BIBLIOTECA, e a decisão foi medida:** o driver.js traz doze cores literais e zero `var(--`, e não tem o passo interativo, a navegação entre rotas, a espera de dois segundos nem a persistência — sobrando metade do pedido à mão, os 21KB dele e a folha fora dos tokens não se pagam; o recorte aqui é uma linha de `box-shadow`. **A tela nunca é bloqueada**, e isso é mecânico: o véu é `pointer-events-none`, então o clique da página continua chegando — que é o que o passo interativo precisa, e é a leitura literal de *"nunca bloquear a tela inteira"*. **SÃO TRÊS SITUAÇÕES DE PASSO PULADO e não duas:** a escolha (`passos_pulados`), o defeito (`passos_sem_ancora`, o alarme de tour quebrado) e a tela que não tem aquilo hoje (a bandeira `opcional`, em lugar nenhum do banco) — numa coluna só, o alarme contaria quem clicou em "pular". **E o "lembrete uma única vez no dia seguinte" é derivado do trigger**, sem coluna nenhuma: `tour_progresso_carimba` só move `finalizado_em` quando o status MUDA, então pular de novo não move a data e o dia seguinte passa uma vez só. Quatro divergências do texto do sprint, todas com o motivo escrito: o passo do menu é explicativo (no desktop não há o que abrir, e esperar um clique sem razão é o travamento que o sprint proíbe); o bloco por perfil é UM e nunca somado (empilhados dariam dezoito passos ao sócio contra o teto de 12); toda âncora do tour grande existe sem dado nenhum (um passo que precisa de demanda aberta não existe no primeiro acesso — ele é micro-tour); e "Falar com o suporte interno" não entra, porque o produto não tem canal. Os micro-tours apontam as âncoras da CASCA e o que muda é o TEXTO — nove módulos com cinco passos seriam trinta e cinco seletores para envelhecer. "Primeiros passos" tem CINCO itens e não seis, cada um DERIVADO do estado real, e o que falta é o da autoavaliação, cujo módulo saiu na 0043. **45 cenários novos, 2122 no total, medidos com oito mutações** — e a do `with check` do UPDATE derruba ZERO, o que derrubou uma frase que eu havia escrito como se fosse trava: num policy de UPDATE o Postgres usa o `using` também como check. |

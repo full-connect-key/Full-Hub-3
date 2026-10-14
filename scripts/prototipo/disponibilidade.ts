@@ -12,7 +12,7 @@ import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
  *
  * O PADRÃO NÃO É ALEATÓRIO, e sim escolhido para a imagem mostrar os quatro
  * degraus da legenda ao mesmo tempo: um dia acima da capacidade, dois quase
- * cheios, dias com folga, dias sem etapa e uma semana inteira de descanso.
+ * cheios, dias com folga, dias sem etapa e uma semana inteira de day off.
  * Uma grade só com folga provaria apenas que a cor sabe existir.
  */
 export async function disponibilidadeDe(

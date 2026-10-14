@@ -119,13 +119,35 @@ const DE_DESENVOLVIMENTO = [
  */
 const MARCADORES = ["TODO", "FIXME", "XXX", "HACK"];
 
-/** As telas do sprint, por perfil de quem as capturou. */
+/**
+ * As telas do sprint, por perfil de quem as capturou.
+ *
+ * TRÊS NOMES AQUI ESTAVAM MORTOS, e a varredura não reclamava — este é o
+ * achado mais caro deste arquivo até hoje. `82-academy-trilha`,
+ * `83-academy-material-aberto` e `83b-academy-material-link` eram as telas da
+ * Academy ANTES da 0096, que apagou `academy_tracks` e as trocou por playbook,
+ * e-book e curso. O gerador deixou de produzi-las no mesmo commit; esta lista
+ * não acompanhou.
+ *
+ * **E ela ficou verde por meses, porque o dump ANTIGO continuava no disco.**
+ * `prototipos/` não é versionado e uma rodada filtrada só sobrescreve as telas
+ * que ela gera, então os três arquivos sobreviveram a todas as rodadas
+ * parciais — a checagem lia a tela de um produto que já não existia e dizia
+ * "ok". A primeira rodada COMPLETA depois disso limpou a pasta e a falha
+ * apareceu de uma vez, nomeando os três.
+ *
+ * É a armadilha da tabela de migrations pendentes, outra vez: **prosseguir
+ * sobre um arquivo que ninguém regenera é afirmar sobre um estado que não é
+ * mais o dele.** A trava que pega isso já existia e é a de baixo — "tela do
+ * sprint sem dump" FALHA em vez de passar em branco; o que faltava era alguém
+ * rodar o protótipo inteiro.
+ */
 const DO_SPRINT_9 = [
   "80-academy",
   "81-academy-colaborador",
-  "82-academy-trilha",
-  "83-academy-material-aberto",
-  "83b-academy-material-link",
+  "82-academy-playbook",
+  "82c-academy-ebook",
+  "82d-academy-curso",
   "84-academy-gestao",
   "85-academy-escuro",
   "86-recomendacoes",
@@ -168,7 +190,7 @@ const POR_PERFIL = [
   },
   {
     frase: "Só você lê isto",
-    tem: "83-academy-material-aberto",
+    tem: "82-academy-playbook",
     naoTem: null,
     porque:
       "é a promessa que faz a pessoa escrever de verdade na anotação — sem a frase na tela, ela não tem por que acreditar",
@@ -270,6 +292,66 @@ const A_PORTA = {
   porque:
     "a faixa das três áreas é a porta que substituiu as duas entradas da barra; sem os nomes nela, o módulo sumiu do produto",
 };
+
+/**
+ * O VOCABULÁRIO DO DAY OFF, de mão dupla.
+ *
+ * Decisão do usuário: *"dentro do Day Off mudar o nome o tipo de solicitação
+ * 'Descanso' por 'Day off' também. vamos usar sempre essa nomenclatura para
+ * tudo que se refere as 'férias'"*. É a TERCEIRA rodada de vocabulário do
+ * módulo — "férias" virou "recesso programado" (0016), que virou "descanso"
+ * (0018), que virou "day off" (0107).
+ *
+ * **E ELA ESTÁ AQUI, E NÃO NA LISTA DE NOMES MORTOS DO `check:cores`.** As
+ * duas rodadas anteriores entraram naquela lista porque as palavras tinham de
+ * sair do produto inteiro: eram vocabulário da CLT, ou o vocabulário que o
+ * substituiu. "Descanso" é diferente — ela NÃO foi aposentada: continua sendo
+ * o nome da camada do meio, em `descanso_do_ciclo()`, `ciclos_de_descanso()`,
+ * `proximo_descanso_em()`, `descanso_usado_no_ciclo()`, `DescansoDoCiclo` e
+ * `DIAS_DE_DESCANSO_PADRAO`, todos lidos de dentro de `src/`. Pô-la lá
+ * exigiria `salvo` para metade do módulo, e uma exceção que cobre metade do
+ * módulo é onde o furo seguinte se esconde.
+ *
+ * Quem protege a troca é esta checagem, que lê o TEXTO RENDERIZADO: ali
+ * comentário e identificador não contam, e o que se mede é o que a pessoa lê.
+ *
+ * **As duas metades, pela razão de sempre:** só a ausência passaria numa tela
+ * que parou de desenhar o rótulo — e só a presença passaria numa tela que
+ * desenha os dois, que é justamente o estado que esta entrega existe para não
+ * deixar para trás.
+ */
+const O_VOCABULARIO_DO_DAY_OFF = [
+  {
+    tela: "60-full-days-solicitar",
+    tem: ["Day off", "Afastamento", "Ausência pontual"],
+    naoTem: ["Descanso"],
+    porque: "é o seletor de tipo, onde o rótulo decide o que a pessoa escolhe",
+  },
+  {
+    tela: "61-full-days-matriz",
+    tem: ["Day off"],
+    naoTem: ["Descanso"],
+    porque: "a legenda da matriz nomeia o estado que o roxo pinta",
+  },
+  {
+    tela: "62-full-days-relatorio",
+    tem: ["Day off"],
+    naoTem: ["Descanso"],
+    porque: "o cartão e a coluna do alerta nomeiam o período",
+  },
+  {
+    tela: "63-full-days-aprovacoes",
+    tem: ["Day off"],
+    naoTem: ["Descanso"],
+    porque: "a fila do sócio nomeia o tipo de cada pedido",
+  },
+  {
+    tela: "67a-full-days-registrar-periodo",
+    tem: ["Day off"],
+    naoTem: ["Descanso"],
+    porque: "a gestão lança o histórico pelos mesmos três tipos",
+  },
+];
 
 /**
  * O `<nav>` da barra, recortado da página.
@@ -397,6 +479,7 @@ const NECESSARIAS = [
     ...POR_PERFIL.flatMap(({ tem, naoTem }) => (naoTem ? [tem, naoTem] : [tem])),
     ...NA_BARRA.map(({ tela }) => tela),
     A_PORTA.tela,
+    ...O_VOCABULARIO_DO_DAY_OFF.map(({ tela }) => tela),
   ]),
 ];
 
@@ -553,6 +636,33 @@ if (daPorta.length > 0) {
   );
 } else {
   certo(`${A_PORTA.tela} nomeia as três áreas`);
+}
+
+// ---------------------------------------------------------------------------
+// O vocabulário do Day Off (0107)
+// ---------------------------------------------------------------------------
+console.log("\nO vocabulário do Day Off\n");
+
+for (const { tela, tem, naoTem, porque } of O_VOCABULARIO_DO_DAY_OFF) {
+  const texto = textos.get(tela) ?? "";
+  const sumiram = tem.filter((p) => !apareceInteira(texto, p));
+  const voltaram = naoTem.filter((p) => apareceInteira(texto, p));
+
+  if (sumiram.length > 0) {
+    problemas.push(
+      `${tela} não diz ${sumiram.join(", ")} — ${porque}.\n` +
+        "          Esta é a metade positiva: sem ela, a checagem de ausência\n" +
+        "          passaria numa tela que parou de desenhar o rótulo.",
+    );
+  } else if (voltaram.length > 0) {
+    problemas.push(
+      `${tela} voltou a dizer ${voltaram.join(", ")} — ${porque}.\n` +
+        "          O rótulo da tela é \"Day off\" desde a 0107, e a palavra\n" +
+        "          antiga continua valendo só para coluna e função do banco.",
+    );
+  } else {
+    certo(`${tela}: ${tem.length} rótulo(s) de pé, ${naoTem.length} fora`);
+  }
 }
 
 relatar();

@@ -17,7 +17,7 @@ import type {
  * As consultas do Full Days.
  *
  * O que atravessa todas elas: **a área é o agrupamento que importa.** Quem
- * decide o descanso precisa saber quem mais do mesmo time está fora, porque duas
+ * decide o day off precisa saber quem mais do mesmo time está fora, porque duas
  * designers fora na mesma semana param a produção — e dois redatores fora não
  * se notam se o time de redação tem cinco pessoas. Por isso quase toda consulta
  * aqui devolve a área junto.
@@ -44,7 +44,7 @@ export type DiaDaMatriz = {
 export type LinhaDaMatriz = PessoaDoTime & {
   dias: Map<string, DiaDaMatriz>;
   /**
-   * Dias de descanso que ainda restam no ano.
+   * Dias de day off que ainda restam no ano.
    *
    * Fica ao lado do nome na matriz porque é a pergunta seguinte de quem está
    * olhando a grade: vi que fulana está fora, e agora quero saber quanto ela
@@ -357,7 +357,7 @@ export async function diasBloqueadosDaArea(
  * dezembro tem saldo zero, mas a agência ainda vai ficar sem essa pessoa uma
  * semana. Um número só esconderia isso.
  *
- * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DESCANSO é risco de entrega e de
+ * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DAY OFF é risco de entrega e de
  * esgotamento: ninguém entrega no mesmo ritmo por doze meses seguidos. Por
  * isso ele não é mais uma coluna da tabela — aparece em destaque próprio.
  *
@@ -372,10 +372,10 @@ export type LinhaDoRelatorio = PessoaDoTime & {
   saldo: number;
   ausencias: number;
   licencas: number;
-  /** Null quando nunca houve descanso: aí a conta é desde o início do contrato. */
+  /** Null quando nunca houve day off: aí a conta é desde o início do contrato. */
   ultimasFerias: string | null;
   admissao: string | null;
-  /** Meses desde o último descanso. Null quando não há admissão cadastrada. */
+  /** Meses desde o último day off. Null quando não há admissão cadastrada. */
   mesesSemFerias: number | null;
   vencendo: boolean;
 };
@@ -409,7 +409,7 @@ export async function relatorioDoPeriodo(
     );
 
     // Usada é a que já começou; agendada é a combinada que ainda vem. A régua
-    // é a data de início comparada com hoje, e não o status: um descanso
+    // é a data de início comparada com hoje, e não o status: um day off
     // combinado em janeiro para dezembro não foi "usado".
     const tiradas = feriasDoAno
       .filter((p) => p.status === "aprovada" && p.data_inicio <= hojeISO)
@@ -554,10 +554,10 @@ export type DescansoDoCiclo = {
   /** Quantos ciclos de 12 meses ela já COMPLETOU. Zero no primeiro ano. */
   ciclos: number;
   /**
-   * **OS QUATRO SÃO DO CICLO CORRENTE, e não da vida dela** (0085). O descanso
+   * **OS QUATRO SÃO DO CICLO CORRENTE, e não da vida dela** (0085). O day off
    * deixou de acumular: `diasConcedidos` é o que o contrato dá por ciclo, e
    * `diasUsados` conta só o que COMEÇOU dentro do ciclo em que ela está — um
-   * descanso que atravessa o aniversário pertence ao ciclo de onde saiu.
+   * day off que atravessa o aniversário pertence ao ciclo de onde saiu.
    *
    * Até a 0085 eram a soma de tudo: alguém com três ciclos lia 45 concedidos.
    * `ciclos` continua acima porque ele ainda decide uma coisa — zero é o
@@ -572,7 +572,7 @@ export type DescansoDoCiclo = {
 };
 
 /**
- * O saldo de descanso, perguntado ao banco.
+ * O saldo de day off, perguntado ao banco.
  *
  * **A TELA NÃO SOMA MAIS ISTO SOZINHA**, e não é preferência de estilo. Até a
  * 0039 o saldo era `15 - (soma dos pedidos deste ano)`, uma conta que o

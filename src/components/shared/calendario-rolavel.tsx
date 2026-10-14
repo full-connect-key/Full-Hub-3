@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
  * está sob o cursor. A seleção pertence a quem vai enviá-la, e é por isso que
  * ela sobrevive a rolar para frente e para trás quantas vezes for.
  *
- * O componente não sabe nada de descanso, de área nem de saldo: quem responde
+ * O componente não sabe nada de day off, de área nem de saldo: quem responde
  * "este dia pode?" é `recusaDoDia`, e "este intervalo pode?" é
  * `recusaDoIntervalo`, as duas de quem chamou. Assim o mesmo calendário serve
  * ao pedido da pessoa e ao lançamento retroativo da gestão, que têm regras
@@ -537,7 +537,7 @@ function Dia({
   hoje: boolean;
   feriado: string | undefined;
   quemEstaFora: string[] | undefined;
-  /** "Descanso", "Descanso · aguardando" — um período de quem está olhando. */
+  /** "Day off", "Afastamento" — um período de quem está olhando. */
   meuPeriodo: string | undefined;
   recusa: string | null;
   dentroDaSelecao: boolean;
@@ -618,7 +618,7 @@ function Dia({
           !dentroDaSelecao &&
           !combinado &&
           "bg-warning-soft border-warning text-warning",
-        // O PAR É O MESMO DO SELO DE DESCANSO, que o `check:cores` já mede —
+        // O PAR É O MESMO DO SELO DE DAY OFF, que o `check:cores` já mede —
         // e é o roxo que a matriz usa para "esta pessoa está fora". Aqui ele
         // quer dizer a mesma coisa de dentro: este dia já é seu.
         combinado &&

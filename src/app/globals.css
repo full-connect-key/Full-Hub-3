@@ -373,11 +373,11 @@
      Alta e Urgente, que é onde ele precisa estar. */
   --neutral: #545960;
   --neutral-soft: #F1F3F5;
-  /* Descanso, na matriz da equipe. O roxo não estava na paleta e precisou
+  /* Day off, na matriz da equipe. O roxo não estava na paleta e precisou
      entrar: a matriz tem sete estados no mesmo quadrado pequeno, e sem ele
-     descanso e afastamento cairiam os dois no âmbar. Não é um terceiro
+     day off e afastamento cairiam os dois no âmbar. Não é um terceiro
      tom de marca — é cor de estado, como o verde e o vermelho, e só aparece
-     ali. O nome do token é anterior à troca de vocabulário (migration 0016). */
+     ali. O nome do token é anterior às trocas de vocabulário (0016 e 0107). */
   --ferias: #7E22CE;
   --ferias-soft: #F3E8FF;
 

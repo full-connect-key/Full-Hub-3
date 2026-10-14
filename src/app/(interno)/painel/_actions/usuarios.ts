@@ -60,7 +60,7 @@ const ROTULOS_DO_COLABORADOR = {
   area: "área",
   funcao: "função",
   data_admissao: "data de admissão",
-  dias_ferias_ano: "dias de descanso por ano",
+  dias_ferias_ano: "dias de day off por ano",
 };
 
 const ROTULOS_DO_USUARIO_CLIENTE = {

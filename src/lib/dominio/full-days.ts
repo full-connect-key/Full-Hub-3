@@ -58,25 +58,34 @@ export const ULTIMO_MES_DO_CALENDARIO = "2030-12";
  *
  * O produto fala de DISPONIBILIDADE, não de direito:
  *
- *   descanso         — o período longo previsto em contrato
+ *   day off          — o período longo previsto em contrato
  *   afastamento      — o período sem previsão de volta
  *   ausência pontual — um dia ou dois
  *
- * Estas palavras são a SEGUNDA rodada de vocabulário. A primeira, e por que
- * ela foi substituída, está no cabeçalho da migration 0018 — fora de `src/`,
- * pela mesma razão de sempre: `npm run check:cores` varre `src/` atrás das
+ * "Day off" é a TERCEIRA rodada de vocabulário, e é decisão do usuário: *"os
+ * dias tirados são DAY OFF"*. As duas primeiras, e por que cada uma foi
+ * substituída, estão nos cabeçalhos das migrations 0018 e 0107 — fora de
+ * `src/`, pela razão de sempre: `npm run check:cores` varre `src/` atrás das
  * palavras que saíram, e acusaria o texto que as proíbe.
  *
  * `feriado` fica, e a diferença importa: feriado é data do calendário
  * nacional, um fato sobre o dia. Não é direito concedido a ninguém.
  *
- * As chaves do enum no banco continuam como estão, por decisão do usuário:
- * renomear valor de enum em uso é migration arriscada, e ninguém que usa o
- * sistema vê esses nomes. É este mapa que a pessoa lê — e é por ele passar
- * TODO rótulo da tela que a troca cabe num lugar só.
+ * SÃO TRÊS CAMADAS DE NOME, e isso fica dito em vez de escondido:
+ *
+ *   enum e coluna   `ferias`, `dias_ferias_ano`, `saldo_de_ferias()`
+ *   função e tipo   `descanso_do_ciclo()`, `DescansoDoCiclo`, as constantes daqui
+ *   tela            "Day off"
+ *
+ * Três é uma a mais do que seria confortável, e a escolha é a mesma das duas
+ * rodadas anteriores: renomear valor de enum, coluna ou função em uso é
+ * migration arriscada, e ninguém que usa o sistema vê esses nomes. É este
+ * mapa que a pessoa lê — e é por ele passar TODO rótulo da tela que a troca
+ * cabe num lugar só. **Menos as frases que nascem no Postgres**, que chegam
+ * prontas e não passam por aqui: quem as trocou foi a 0107.
  */
 export const ROTULOS_DE_TIPO: Record<HrTipo, string> = {
-  ferias: "Descanso",
+  ferias: "Day off",
   licenca: "Afastamento",
   ausencia: "Ausência pontual",
 };
@@ -102,7 +111,7 @@ export const ROTULOS_DE_STATUS: Record<HrStatus, string> = {
 export const ROTULOS_DE_PRESENCA: Record<PresencaStatus, string> = {
   presente: "Disponível",
   remoto: "Remoto",
-  ferias: "Descanso",
+  ferias: "Day off",
   licenca: "Afastado",
   ausente: "Ausente",
   // "Folga" pressupõe jornada, e jornada pressupõe vínculo. O que este estado
@@ -226,7 +235,7 @@ export function contarDiasUteis(
 /**
  * Quantos dias o pedido consome, por tipo.
  *
- * **O DESCANSO CONTA CORRIDO**: quinze dias são quinze dias de calendário —
+ * **O DAY OFF CONTA CORRIDO**: quinze dias são quinze dias de calendário —
  * sai numa segunda, volta na terceira segunda —, e não quinze dias úteis, que
  * na prática seriam três semanas inteiras.
  *
@@ -294,7 +303,7 @@ export function diasEntre(inicioISO: string, fimISO: string): string[] {
  * Data ISO -> Date local, sem fuso.
  *
  * `new Date("2026-03-02")` é interpretado como UTC e, a oeste de Greenwich,
- * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de descanso é
+ * vira 1º de março às 21h. Um dia inteiro de diferença num módulo de day off é
  * a diferença entre o pedido certo e o errado.
  */
 export function lerData(iso: string): Date | null {
@@ -443,9 +452,9 @@ export function diasJaCombinados(
 /**
  * O rótulo da célula: o TIPO, e só ele.
  *
- * **Ele já carregou o status — "Descanso · aguardando" — e a imagem mostrou
+ * **Ele já carregou o status — "Day off · aguardando" — e a imagem mostrou
  * por quê não.** A célula tem cerca de 120px num calendário de 1600, e a
- * frase saía "Descanso · a…": o sufixo não cabia em lugar nenhum, e truncado
+ * frase saía "Day off · ag…": o sufixo não cabia em lugar nenhum, e truncado
  * ele não distingue nada, só suja a linha.
  *
  * **E o que ele distinguia não se perde**, que é o que torna o corte barato:
@@ -527,7 +536,7 @@ function formatarDiaMes(iso: string): string {
 // `ULTIMO_MES_DO_CALENDARIO` — 2025 a 2030 — porque a grade precisa pintar de
 // âmbar qualquer dia que alguém role até. Isso está certo para a GRADE e é o
 // conjunto errado para o cartão: ele reduzia tudo a `min` e `max` por pessoa,
-// então um descanso de 2025 e outro de 2026 viravam uma faixa só — e em
+// então um day off de 2025 e outro de 2026 viravam uma faixa só — e em
 // `dd/MM`, sem o ano, ela sai invertida.
 //
 // Eram portanto dois erros empilhados, e o segundo escondia o primeiro: quem
@@ -539,7 +548,7 @@ function formatarDiaMes(iso: string): string {
 // de fim de cada pedido alheio, informação que esta tela não tem"* —, e
 // estava errado: dias consecutivos são um bloco, e o mapa já tem os dias.
 //
-// **O QUE SEPARA UM BLOCO DO SEGUINTE NÃO É QUALQUER VÃO.** Descanso pinta
+// **O QUE SEPARA UM BLOCO DO SEGUINTE NÃO É QUALQUER VÃO.** O day off pinta
 // todos os dias (0024), mas afastamento e ausência pontual pintam só os
 // ÚTEIS — então uma ausência de duas semanas chega aqui com os sábados e
 // domingos faltando, e um corte ingênuo a quebraria em três blocos. O vão só
@@ -625,7 +634,7 @@ function temDiaUtilEntre(depoisDe: string, antesDe: string, feriados: Set<string
  * O `dd/MM` cabe no selo e é o que a pessoa lê sem traduzir; o ano só entra
  * quando a ausência não é deste ano — senão ele ocupa seis caracteres em toda
  * linha para repetir o que já é óbvio. **E ele entra quando QUALQUER uma das
- * pontas é de outro ano**, não só a primeira: um descanso de 28/12 a 05/01
+ * pontas é de outro ano**, não só a primeira: um day off de 28/12 a 05/01
  * atravessa a virada, e mostrar o ano numa ponta só é pior que não mostrar em
  * nenhuma.
  */

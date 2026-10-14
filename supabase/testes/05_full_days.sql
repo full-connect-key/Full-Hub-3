@@ -114,7 +114,7 @@ select teste.cenario('Carla pede 16 dias de uma vez e o banco recusa', :CARLA,
 --
 -- O cenario fica virado do avesso em vez de sumir: se alguem trouxer a trava
 -- de volta junto com o modelo de ano, este e o que avisa.
-select teste.cenario('Descanso atravessando o ano PASSA desde o ciclo de 12 meses', :CARLA,
+select teste.cenario('Day off atravessando o ano PASSA desde o ciclo de 12 meses', :CARLA,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2026-12-28', '2027-01-05', 5)
@@ -130,7 +130,7 @@ select teste.cenario('Licenca nao desconta do saldo de ferias', :CARLA,
     values (%L, 'licenca', '2026-08-03', '2026-08-28', 20)
   $fmt$, :CARLA), 'ok', 1);
 
-select teste.conferir('O saldo da Carla segue nos 10 do descanso dela',
+select teste.conferir('O saldo da Carla segue nos 10 do day off dela',
   public.saldo_de_ferias('33333333-3333-3333-3333-333333333333')::text, '10');
 
 select teste.conferir('O do Bruno zerou',
@@ -332,12 +332,12 @@ delete from public.notifications;
 -- A FRASE MUDOU NA 0085: ela dizia "conquistados a cada 12 meses", que
 -- descrevia a SOMA -- cada ciclo acrescentava 15. Agora e "por ciclo de 12
 -- meses", porque os dias se restauram em vez de somar.
-select teste.recusa_com('A recusa por saldo fala de descanso, nao de ferias', :BRUNO,
+select teste.recusa_com('A recusa por saldo fala de day off, nao de ferias', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
   $fmt$, :BRUNO),
-  'dias de descanso por ciclo de 12 meses');
+  'dias de day off por ciclo de 12 meses');
 
 -- E A FRASE DIZ A CONTA INTEIRA: quantos o contrato da, quantos ja estao
 -- comprometidos, quantos sobram. Quem leva um "nao" com um numero so vai
@@ -359,18 +359,19 @@ select teste.recusa_com('Nem o desenvolvedor responde, e a recusa nao diz "aprov
   $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
   'So o socio responde aos periodos fora');
 
--- E o aviso do sino. Ja mudou duas vezes: "Ferias aprovada" virou "Recesso
--- combinado" na 0016, e "Descanso combinado" na 0018.
+-- E o aviso do sino. Ja mudou TRES vezes: "Ferias aprovada" virou "Recesso
+-- combinado" na 0016, "Descanso combinado" na 0018 e "Day off combinado" na
+-- 0107.
 select teste.cenario('A socia responde, de acordo', :ANA,
   $$select public.decidir_solicitacao('dadadada-0000-0000-0000-00000000000a', 'aprovada', null)$$,
   'ok');
 
-select teste.conferir('O sino diz "Descanso combinado", nunca "Ferias aprovada"',
+select teste.conferir('O sino diz "Day off combinado", nunca "Ferias aprovada"',
   (select titulo from public.notifications
     where user_id = '44444444-4444-4444-4444-444444444444'
       and tipo = 'full_days'
     order by created_at desc limit 1),
-  'Descanso combinado');
+  'Day off combinado');
 
 -- E a matriz recusa editar o dia sem falar de solicitacao aprovada.
 select teste.recusa_com('A matriz fala de periodo combinado', :ANA,
@@ -421,7 +422,19 @@ declare
     'Um descanso que atravessa o ano',
     'then ''Recesso''',
     'then ''Indisponibilidade''',
-    'recesso programado, indisponibilidade'
+    'recesso programado, indisponibilidade',
+    -- Quarta rodada (0107). "Descanso" virou "day off" por decisao do
+    -- usuario, e so no que a pessoa LE: coluna, funcao e tipo continuam se
+    -- chamando `descanso_*`, entao o que entra aqui sao as FRASES e nada
+    -- mais -- um trecho curto como "descanso" casaria dentro de
+    -- `descanso_usado_no_ciclo()`, que esta no corpo de
+    -- `validar_solicitacao` de proposito.
+    'dias de descanso por ciclo',
+    'O descanso nao acumula',
+    'O descanso pode ser partido',
+    'O descanso e conquistado',
+    'Saldo de descanso',
+    'then ''Descanso'''
   ];
 begin
   foreach frase in array antigas loop
@@ -430,7 +443,7 @@ begin
         join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public'
          and p.proname in ('validar_solicitacao', 'decidir_solicitacao',
-                           'proteger_presenca_de_pedido')
+                           'proteger_presenca_de_pedido', 'descanso_do_ciclo')
          and position(frase in p.prosrc) > 0
     ) then
       achados := achados || frase;
@@ -455,18 +468,24 @@ declare
   novas   text[] := array[
     -- A FRASE DA 0085, que substituiu "conquistados a cada 12 meses": aquela
     -- descrevia a soma, e os dias pararam de somar.
-    'dias de descanso por ciclo de 12 meses',
+    'dias de day off por ciclo de 12 meses',
     -- E A DICA QUE ELA GANHOU. Quem leva a recusa precisa saber QUANDO os dias
     -- voltam, senao a regra nova se lê como a antiga com um número menor.
-    'O descanso nao acumula',
-    'O descanso pode ser partido',
+    'O day off nao acumula',
+    'O day off pode ser partido',
     -- A FRASE DO PRIMEIRO CICLO (0074). Ela e a unica recusa do modulo que
     -- nomeia uma DATA em vez de contar numeros, e e o que separa "voce nao
     -- pode" de "voce ainda nao pode, e e em tal dia". Sem esta linha, alguem
     -- que simplificasse a recusa de volta para "sobram 0" passaria aqui.
-    'O descanso e conquistado a cada 12 meses de casa',
+    'O day off e conquistado a cada 12 meses de casa',
     'So o socio responde aos periodos fora',
-    'then ''Descanso''',
+    -- A TERCEIRA RODADA DE VOCABULARIO (0107), por decisao do usuario: *"os
+    -- dias tirados sao DAY OFF"*. "Saldo de day off" vive em
+    -- `descanso_do_ciclo`, que entrou na lista de funcoes abaixo por causa
+    -- dela -- sem a funcao na lista, a frase passaria a faltar sem ninguem
+    -- reclamar, porque o `exists` procura em qualquer uma das listadas.
+    'then ''Day off''',
+    'Saldo de day off',
     'then ''Afastamento''',
     'periodo ja combinado'
   ];
@@ -477,7 +496,7 @@ begin
         join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public'
          and p.proname in ('validar_solicitacao', 'decidir_solicitacao',
-                           'proteger_presenca_de_pedido')
+                           'proteger_presenca_de_pedido', 'descanso_do_ciclo')
          and position(frase in p.prosrc) > 0
     ) then
       faltam := faltam || frase;
@@ -508,7 +527,7 @@ $$;
 -- provar nada.
 -- ===========================================================================
 
-select teste.conferir('Descanso de sexta a segunda: 4 dias corridos',
+select teste.conferir('Day off de sexta a segunda: 4 dias corridos',
   public.dias_do_pedido('ferias', '2026-07-10', '2026-07-13')::text, '4');
 
 select teste.conferir('Ausencia no mesmo intervalo: 2 dias uteis',
@@ -522,7 +541,7 @@ select teste.conferir('Periodo invertido nao vira numero negativo',
 
 -- E a pintura da matriz acompanha: o descanso ocupa o fim de semana do meio,
 -- senao a matriz mostraria menos dias do que o pedido diz que sao.
-select teste.cenario('Bruno combina o descanso de sexta a segunda', :BRUNO,
+select teste.cenario('Bruno combina o day off de sexta a segunda', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis, motivo)
     values (%L, 'ferias', '2026-07-10', '2026-07-13',
@@ -553,7 +572,7 @@ select teste.conferir('E o sabado esta la',
 -- cinco. Quinze menos nove deixam seis.
 --
 -- ERAM ONZE ATE A 0039, e a diferenca e a mudanca inteira: com a conta por ano
--- civil, o descanso de 2027 nao entrava no saldo de 2026 -- eram duas contas
+-- civil, o day off de 2027 nao entrava no saldo de 2026 -- eram duas contas
 -- que nao se viam. Agora ha uma so, corrida.
 select teste.conferir('O saldo desconta os dias corridos, de todos os anos',
   public.saldo_de_ferias('44444444-4444-4444-4444-444444444444')::text, '6');
@@ -627,7 +646,7 @@ select teste.conferir('Os primeiros dias chegam no primeiro aniversario',
 
 -- A RECUSA CARREGA A DATA, e nao os tres numeros da outra frase: "voce ja tem
 -- 0 comprometidos, entao sobram 0" e verdade e nao ensina nada.
-select teste.recusa_com('Pedir descanso no primeiro ano recusa dizendo a data', :BRUNO,
+select teste.recusa_com('Pedir day off no primeiro ano recusa dizendo a data', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 40, current_date + 44, 5)
@@ -650,7 +669,7 @@ delete from public.hr_requests where user_id = :BRUNO;
 update public.team_members set data_admissao = current_date - interval '6 months'
  where user_id = :BRUNO;
 
-select teste.cenario('A gestao lanca um descanso do primeiro ano', :ANA,
+select teste.cenario('A gestao lanca um day off do primeiro ano', :ANA,
   format($fmt$
     select public.lancar_periodo(%L, 'ferias',
       (current_date - interval '2 months')::date,
@@ -724,7 +743,7 @@ select teste.conferir('E NAO acumulam: continuam 15',
 -- mesma regra. Se os dias usados continuassem pesando enquanto os concedidos
 -- se restauram, a conta andaria numa direcao so -- e quem tirou vinte dias em
 -- tres anos teria saldo negativo para sempre.
-select teste.cenario('Um descanso de dois anos atras, lancado pela socia', :ANA,
+select teste.cenario('Um day off de dois anos atras, lancado pela socia', :ANA,
   format($fmt$
     select public.lancar_periodo(%L, 'ferias',
       (current_date - interval '2 years')::date,
@@ -746,7 +765,7 @@ select teste.conferir('Que sao duas, e nao seis: elas tambem nao acumulam',
 -- A TRAVA DO PEDIDO USA A MESMA CONTA. Sem isso a tela mostraria um numero e o
 -- banco recusaria, que e o pior dos dois mundos: um numero que promete o que a
 -- trava nao cumpre.
-select teste.cenario('Com 15 de saldo, um descanso de 12 dias passa', :BRUNO,
+select teste.cenario('Com 15 de saldo, um day off de 12 dias passa', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 40, current_date + 51, 12)
@@ -767,7 +786,7 @@ select teste.recusa_com_dica('E a dica diz que os dias voltam, e quando', :BRUNO
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 200, current_date + 209, 10)
-  $fmt$, :BRUNO), 'O descanso nao acumula: os 15 dias voltam inteiros em');
+  $fmt$, :BRUNO), 'O day off nao acumula: os 15 dias voltam inteiros em');
 
 -- ---------------------------------------------------------------------------
 -- E O ANIVERSARIO RESTAURA, que e a frase do usuario letra por letra:

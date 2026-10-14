@@ -209,7 +209,7 @@ export function DetalheDoColaborador({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dias_ferias_ano">Dias de descanso por ano</Label>
+              <Label htmlFor="dias_ferias_ano">Dias de day off por ano</Label>
               <Input
                 id="dias_ferias_ano"
                 type="number"

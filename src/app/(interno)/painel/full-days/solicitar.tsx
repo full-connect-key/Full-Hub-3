@@ -48,7 +48,7 @@ import { cancelarSolicitacao, solicitar } from "./acoes";
  * remontado.
  *
  * A conta aparece aqui para mostrar o número enquanto se escolhe — corrido no
- * descanso, dias úteis nos outros dois. O número GRAVADO sai do banco: se
+ * day off, dias úteis nos outros dois. O número GRAVADO sai do banco: se
  * viesse desta conta, bastaria alterar o corpo da requisição para pedir 15
  * dias dizendo que são 3.
  */
@@ -148,7 +148,7 @@ export function Solicitar({
   const inicioSel = de;
   const fimSel = ate;
 
-  // A conta MUDA COM O TIPO: o descanso é corrido, os outros dois contam dias
+  // A conta MUDA COM O TIPO: o day off é corrido, os outros dois contam dias
   // úteis. Trocar o tipo com um período já selecionado troca o número na hora,
   // que é onde a pessoa percebe a diferença sem ninguém precisar explicar.
   const diasSelecionados =
@@ -198,7 +198,7 @@ export function Solicitar({
    * Por que este dia não pode ser escolhido, ou null.
    *
    * **O PASSADO DEPENDE DO TIPO**, e essa é a regra que o calendário não tem
-   * como saber sozinho: descanso e afastamento são combinados antes, então
+   * como saber sozinho: day off e afastamento são combinados antes, então
    * para trás não faz sentido; ausência pontual é registrada DEPOIS de
    * acontecer — foi ontem que a pessoa faltou.
    */
@@ -285,7 +285,7 @@ export function Solicitar({
         <section className="bg-action-soft rounded-card flex flex-wrap items-center justify-between gap-6 border p-6">
           <div className="min-w-0 space-y-1.5">
             <p className="text-accent-strong text-xs font-semibold tracking-widest uppercase">
-              Saldo de descanso
+              Saldo de day off
             </p>
             <p className="text-text-primary text-[26px] leading-tight font-bold tracking-[-0.035em]">
               {primeiroCiclo
@@ -310,7 +310,7 @@ export function Solicitar({
                 carrega a mesma data. */}
             {!primeiroCiclo && chegamEm ? (
               <p className="text-accent-strong text-sm">
-                O descanso não acumula: os {concedidos} dias voltam inteiros em{" "}
+                O day off não acumula: os {concedidos} dias voltam inteiros em{" "}
                 {chegamEm}, e o que sobrar deste ciclo se perde.
               </p>
             ) : null}
@@ -360,7 +360,7 @@ export function Solicitar({
           inversão desfaz uma decisão minha, com o argumento dela virado.
 
           A versão anterior punha o painel à esquerda porque *"o tipo de pedido
-          muda o que o calendário significa"* — descanso conta corrido, os
+          muda o que o calendário significa"* — day off conta corrido, os
           outros contam útil — e queria que a regra fosse lida antes das datas.
           O que ela não notou é que isso deixava o Full Days sendo o INVERSO
           das outras telas do produto: em Minhas Tasks e no Início a peça
@@ -448,7 +448,7 @@ export function Solicitar({
           {/* TRÊS BOTÕES À VISTA, e não uma lista suspensa. São três opções e
               nunca mais, e cada uma carrega a informação que decide a escolha:
               se desconta do saldo ou não. Dentro de um `select` isso só
-              aparecia depois de abrir — e a diferença entre descanso e
+              aparecia depois de abrir — e a diferença entre day off e
               ausência pontual é exatamente essa.
 
               **E ELES EMPILHAM, em vez de dividir a linha em três.** Numa
@@ -567,8 +567,8 @@ export function Solicitar({
           {primeiroCiclo ? (
             <Aviso tom="erro">
               {chegamEm
-                ? `O descanso é conquistado a cada 12 meses de casa. Os seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}.`
-                : "O descanso é conquistado a cada 12 meses de casa, e esta ficha não tem data de entrada."}
+                ? `O day off é conquistado a cada 12 meses de casa. Os seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}.`
+                : "O day off é conquistado a cada 12 meses de casa, e esta ficha não tem data de entrada."}
             </Aviso>
           ) : null}
 
@@ -592,7 +592,7 @@ export function Solicitar({
               própria frase já negava ao dizer "por ciclo". */}
           {semParcela ? (
             <Aviso tom="erro">
-              O descanso pode ser partido em até {parcelasPorCiclo} vezes por
+              O day off pode ser partido em até {parcelasPorCiclo} vezes por
               ciclo de 12 meses, e você já usou as {parcelasConcedidas} deste
               ciclo.
             </Aviso>
@@ -664,7 +664,7 @@ export function Solicitar({
             <ul className="mt-3 space-y-2">
               {/* A CHAVE É PESSOA + INÍCIO, e não o nome: desde que a lista
                   passou a separar por bloco, a mesma pessoa pode ter dois
-                  períodos à frente — dois descansos combinados, ou um
+                  períodos à frente — dois day offs combinados, ou um
                   afastamento e uma ausência pontual. */}
               {foraDaMinhaArea.map((bloco) => (
                 <li
@@ -682,7 +682,7 @@ export function Solicitar({
             </ul>
             {/* O TÍTULO PERDEU O "JÁ", e é consequência do recorte: a lista
                 carrega quem está fora agora E quem já tem período combinado
-                para a frente — um descanso de dezembro lido em outubro sob
+                para a frente — um day off de dezembro lido em outubro sob
                 "quem JÁ está fora" é a tela afirmando o que não é. O que ela
                 não carrega mais é quem voltou, que era o relato. */}
             <p className="text-text-muted mt-3 text-xs">

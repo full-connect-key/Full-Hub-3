@@ -95,7 +95,7 @@ export function Lancamentos({
 
   /**
    * O calendário aqui recusa o FUTURO, e é o espelho exato da aba de propor —
-   * lá o passado é que é recusado para descanso e afastamento.
+   * lá o passado é que é recusado para day off e afastamento.
    *
    * O motivo não é simetria: é que um registro nasce aprovado, sem ninguém
    * responder. Para um período que ainda não aconteceu a decisão AINDA EXISTE
@@ -357,7 +357,7 @@ export function Lancamentos({
 
             {tipo === "ferias" && alvo ? (
               <p className="text-text-muted text-xs">
-                {alvo.nome} tem {alvo.diasFeriasAno} dias de descanso por ano.
+                {alvo.nome} tem {alvo.diasFeriasAno} dias de day off por ano.
                 Este registro desconta {dias || 0} deles.
               </p>
             ) : null}

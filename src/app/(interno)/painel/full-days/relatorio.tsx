@@ -27,13 +27,13 @@ const TODAS = "__todas__";
 /**
  * O relatório gerencial.
  *
- * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DESCANSO vem antes da tabela, e não
+ * O ALERTA DE QUEM ESTÁ HÁ MUITO TEMPO SEM DAY OFF vem antes da tabela, e não
  * como mais uma coluna dentro dela: alguém que não para há mais de um ano é
  * um problema de capacidade e de saúde, e uma coluna a mais numa tabela de
  * nove colunas não seria lida.
  *
  * ESTE TEXTO JÁ FOI OUTRO, e a versão anterior era o problema. Ela afirmava
- * na tela que, passados 12 meses sem descanso, a empresa passava a dever em
+ * na tela que, passados 12 meses sem day off, a empresa passava a dever em
  * dobro — o art. 137 da CLT escrito dentro de um produto usado por uma equipe
  * toda PJ. Um sistema da própria empresa afirmando dever verba trabalhista a
  * prestador de serviço é prova pronta num processo de reconhecimento de
@@ -96,7 +96,7 @@ export function RelatorioGerencial({
   function exportar() {
     const cabecalho = [
       "Pessoa", "Área", "Dias no ano", "Tiradas", "Agendadas", "Pendentes",
-      "Saldo", "Ausências no período", "Afastamentos no período", "Meses sem descanso",
+      "Saldo", "Ausências no período", "Afastamentos no período", "Meses sem day off",
     ];
     const corpo = visiveis.map((l) => [
       l.nome, l.area, l.diasFeriasAno, l.tiradas, l.agendadas, l.pendentes,
@@ -152,7 +152,7 @@ export function RelatorioGerencial({
           menu para chegar na tela que resolve os três. */}
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <CartaoDeNumero
-          rotulo="Descanso no ano"
+          rotulo="Day off no ano"
           valor={`${tiradas} de ${contratadas}`}
           apoio="dias usados, do total previsto em contrato"
         />
@@ -171,7 +171,7 @@ export function RelatorioGerencial({
         <CartaoDeNumero
           rotulo="Afastamentos"
           valor={licencas}
-          apoio={`e ${foraHoje} pessoa(s) em descanso agora`}
+          apoio={`e ${foraHoje} pessoa(s) em day off agora`}
         />
       </div>
 
@@ -188,14 +188,14 @@ export function RelatorioGerencial({
             <AlertTriangle aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-warning text-sm font-semibold">
-                Há mais de um ano sem descanso — {vencendo.length} pessoa(s)
+                Há mais de um ano sem day off — {vencendo.length} pessoa(s)
               </h2>
               <ul className="mt-2 space-y-0.5">
                 {vencendo.map((l) => (
                   <li key={l.id} className="text-text-primary text-sm">
                     <strong>{l.nome}</strong> — {l.mesesSemFerias} meses desde{" "}
                     {l.ultimasFerias
-                      ? `o último descanso (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
+                      ? `o último day off (${format(parseISO(l.ultimasFerias), "dd/MM/yyyy")})`
                       : l.admissao
                         ? `o início do contrato (${format(parseISO(l.admissao), "dd/MM/yyyy")})`
                         : "o início"}
@@ -263,7 +263,7 @@ export function RelatorioGerencial({
                       <div
                         className="bg-neutral-soft h-2 w-full overflow-hidden rounded-full"
                         role="img"
-                        aria-label={`${proporcao}% do descanso comprometido`}
+                        aria-label={`${proporcao}% do day off comprometido`}
                       >
                         <div
                           className={cn("h-full rounded-full", proporcao >= 100 ? "bg-warning" : "bg-ferias")}

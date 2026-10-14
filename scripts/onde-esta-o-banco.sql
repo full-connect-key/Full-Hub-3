@@ -514,7 +514,16 @@ from (
     -- matriz, que a versao antiga nao fazia -- ele distingue os tres estados
     -- (a antiga de pe, a nova aplicada, nenhuma).
     ('0106', 'cancelar_solicitacao apaga a matriz', 'no_corpo',
-             'cancelar_solicitacao|delete from public.team_presence')
+             'cancelar_solicitacao|delete from public.team_presence'),
+    -- O MARCADOR APONTA PARA O TITULO DO SINO, que esta no PASSO 3 -- o
+    -- ULTIMO dos quatro. Um marcador numa das seis recusas do PASSO 1
+    -- responderia ok num banco onde alguem colou so o comeco, e o que fica
+    -- para tras ali e o que a pessoa ve mais: o sino chega a cada periodo
+    -- combinado. E ele e por PRESENCA e nao por ausencia da frase antiga: um
+    -- marcador por ausencia quebra no dia em que alguem acrescenta uma frase
+    -- nova com a palavra velha dentro, que foi o que a linha da 0060 custou.
+    ('0107', 'o sino diz "Day off combinado"', 'no_corpo',
+             'decidir_solicitacao|then ''Day off''')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -57,7 +57,7 @@ export async function solicitar(dados: unknown): Promise<Resultado<string>> {
     // bastaria alterar o corpo da requisição para pedir 15 dias dizendo que
     // são 3.
     //
-    // E quem decide a REGRA da contagem é o tipo: o descanso conta corrido,
+    // E quem decide a REGRA da contagem é o tipo: o day off conta corrido,
     // os outros dois em dias úteis (migration 0024).
     const { data: dias, error: erroDosDias } = await supabase.rpc("dias_do_pedido", {
       p_tipo: entrada.tipo,
@@ -83,7 +83,7 @@ export async function solicitar(dados: unknown): Promise<Resultado<string>> {
       .select("id")
       .single();
 
-    // Os triggers do descanso devolvem a mensagem já escrita para gente ler —
+    // Os triggers do day off devolvem a mensagem já escrita para gente ler —
     // "são 15 dias por ano, você já tem 10 comprometidos". Repassar o texto do
     // banco é melhor que traduzir aqui e arriscar as duas versões divergirem.
     if (error) return falha(error.message);
@@ -126,7 +126,7 @@ async function avisarOsSocios(
       .maybeSingle();
 
     const rotulo =
-      tipo === "ferias" ? "descanso" : tipo === "licenca" ? "afastamento" : "ausência";
+      tipo === "ferias" ? "day off" : tipo === "licenca" ? "afastamento" : "ausência";
 
     for (const socio of socios ?? []) {
       await supabase.rpc("notificar", {
@@ -261,7 +261,7 @@ const esquemaDePresenca = z.object({
  * Trocar o status de um dia na matriz.
  *
  * Gestão. O dia que veio de pedido aprovado é recusado pelo trigger
- * `team_presence_proteger` — sem ele, um clique apagaria o descanso de alguém e
+ * `team_presence_proteger` — sem ele, um clique apagaria o day off de alguém e
  * o pedido continuaria dizendo "aprovada", duas verdades sobre o mesmo dia.
  */
 export async function marcarPresenca(dados: unknown): Promise<Resultado> {
@@ -315,7 +315,7 @@ const esquemaDeLancamento = z.object({
   //
   // E DESDE A 0085 ELE NÃO ACUMULA: o lançamento de um ciclo anterior continua
   // na matriz e no relatório, e não desconta do saldo de hoje. Era o contrário
-  // na 0039, onde o número corria e um descanso de três anos atrás descontava
+  // na 0039, onde o número corria e um day off de três anos atrás descontava
   // para sempre.
   observacao: z.string().trim().max(1000).nullable().optional(),
 });

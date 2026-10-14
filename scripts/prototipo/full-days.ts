@@ -195,7 +195,7 @@ const PEDIDOS: HrRequest[] = [
     data_inicio: emDias(25),
     data_fim: emDias(29),
     dias_uteis: 5,
-    motivo: "Semana de descanso",
+    motivo: "Semana de day off",
     status: "cancelada",
     motivo_reprovacao: null,
     motivo_cancelamento: "A conta nova entra nesta semana.",
@@ -226,7 +226,7 @@ const PEDIDOS: HrRequest[] = [
   },
 ];
 
-/** Todos os dias entre duas datas -- a forma do descanso, que conta corrido. */
+/** Todos os dias entre duas datas -- a forma do day off, que conta corrido. */
 function diasCorridosEntre(inicio: string, fim: string): string[] {
   const dias: string[] = [];
   const cursor = new Date(`${inicio}T12:00:00`);
@@ -301,7 +301,7 @@ export async function matrizDoPeriodo(
     }
 
     // O saldo espelha a mesma regra da camada real: pendente conta como usado.
-    // A Marina tem o descanso combinado, e por isso aparece com menos dias.
+    // A Marina tem o day off combinado, e por isso aparece com menos dias.
     const usados = PEDIDOS.filter(
       (p) => p.user_id === pessoa.id && p.tipo === "ferias" && p.status !== "reprovada",
     ).reduce((total, p) => total + p.dias_uteis, 0);
@@ -384,6 +384,16 @@ export async function diasBloqueadosDaArea(
   // As datas sao RELATIVAS porque o recorte do cartao e `fim >= hoje`: uma
   // data fixa deixa de ser passado ou futuro sozinha, e a imagem conferida
   // passaria a ser outra sem ninguem tocar no arquivo.
+  //
+  // E NENHUM BLOCO PASSA DE `emDias(24)`, que e um CORREDOR combinado com o
+  // gerador e nao um numero solto. `65b-full-days-selecao-atravessa-mes` e
+  // `65c-full-days-375` clicam na virada entre o mes seguinte e o
+  // subsequente -- que esta sempre a 31 dias ou mais de hoje --, e com um
+  // bloco alem disso o clique e RECUSADO: a imagem sai com a frase "esta
+  // fora neste dia, e e da sua area" na cara, com o nome de uma tela que ela
+  // nao e. Isso ja aconteceu duas vezes, e as duas foram o mesmo erro visto
+  // de angulos diferentes -- bloco relativo contra dia literal. O terceiro
+  // bloco da Marina veio de `emDias(30..34)` para ca por isso.
   // ---------------------------------------------------------------------
   const bloqueados = new Map<string, string[]>();
 
@@ -395,7 +405,7 @@ export async function diasBloqueadosDaArea(
 
   por(BRUNO.nome, emDias(-40), emDias(-33));
   por(MARINA.nome, emDias(-2), emDias(5));
-  por(MARINA.nome, emDias(30), emDias(34));
+  por(MARINA.nome, emDias(20), emDias(24));
   por(BRUNO.nome, emDias(10), emDias(20), true);
 
   return bloqueados;
@@ -447,7 +457,7 @@ export type { LancamentoNaTela } from "../../src/lib/dados/full-days";
 
 /**
  * Dois registros lancados pela gestao, para a aba nascer com o que ela
- * existe para mostrar: um descanso do ANO PASSADO (o caso real -- historico
+ * existe para mostrar: um day off do ANO PASSADO (o caso real -- historico
  * anterior ao Full Hub) e uma ausencia pontual de um dia, combinada por fora.
  *
  * Nenhum deles e `solicitacao`: esta lista e justamente o que a fila de

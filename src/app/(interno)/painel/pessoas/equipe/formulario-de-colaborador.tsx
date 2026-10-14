@@ -246,7 +246,7 @@ export function FormularioDeColaborador({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="colab-ferias">Dias de descanso por ano</Label>
+            <Label htmlFor="colab-ferias">Dias de day off por ano</Label>
             <Input
               id="colab-ferias"
               type="number"

@@ -27,7 +27,7 @@
 -- `team_presence.hr_request_id` e `on delete SET NULL` (0011), e nao cascade.
 -- Isso quer dizer que apagar so os PEDIDOS **deixa os dias pintados na
 -- matriz** -- eles perdem o vinculo com o pedido e continuam la, em roxo,
--- dizendo que a pessoa esta de descanso. E exatamente o sintoma: *"ficou
+-- dizendo que a pessoa esta de day off. E exatamente o sintoma: *"ficou
 -- marcando como se eu tivesse tirado ferias"*.
 --
 -- E o `set null` esta CERTO onde ele existe: ele e o que faz um pedido
@@ -62,7 +62,7 @@
 --     feriados continuam, e o saldo volta sozinho -- o Bruno e a Marina saem
 --     de 11 e voltam para 15, sem nenhum `update` em `team_members`;
 --   - rodando SO o `delete from hr_requests`, sem a matriz, sobram os 5 dias
---     pintados -- 4 deles ainda em descanso, todos com o vinculo nulo. E o
+--     pintados -- 4 deles ainda em day off, todos com o vinculo nulo. E o
 --     relato reproduzido: o pedido some e a pessoa continua de ferias na tela.
 -- ---------------------------------------------------------------------------
 --
@@ -88,7 +88,7 @@
 -- ===========================================================================
 
 select 'pedidos (hr_requests)'          as o_que, count(*) as quantos from public.hr_requests
-union all select '  desses, de descanso',         count(*) from public.hr_requests where tipo = 'ferias'
+union all select '  desses, de day off',          count(*) from public.hr_requests where tipo = 'ferias'
 union all select '  desses, aguardando resposta', count(*) from public.hr_requests where status = 'pendente'
 union all select '  desses, com "de acordo"',     count(*) from public.hr_requests where status = 'aprovada'
 union all select '  desses, lancados a mao',      count(*) from public.hr_requests where origem <> 'solicitacao'
