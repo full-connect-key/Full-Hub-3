@@ -642,54 +642,55 @@ select teste.recusa_com('E um portao sem peca esperando nao abre lote', :ANA,
   'Não há peça esperando a sua vez');
 
 
--- --- 11. A fase do social voltou ao Calendario Full ------------------------
+-- --- 11. A fase do social NAO esta mais no Calendario Full (0105) ---------
 --
--- Decisao do usuario. Ela entrou na 0059 como etapa de POST -- uma linha por
--- peca --, saiu na 0088, e volta como a fase do MES: cinco pontos por mes, nao
--- dezoito. A diferenca e o que torna a volta barata.
-
--- AS FASES PRECISAM DE PRAZO PARA ENTRAR, e os meses deste arquivo nascem sem
--- nenhum -- `p_prazos` e `'{}'` nas tres chamadas. A primeira versao desta
--- secao nao media NADA por causa disso: a view devolvia zero, a subconsulta
--- tambem, e `0 = 0` passava. Foi o teste de mutacao que mostrou -- desligando
--- a origem inteira, nenhum cenario caia.
+-- ESTA SECAO ESTA VIRADA DO AVESSO, e a volta e a ida ficam registradas porque
+-- cada passo foi uma decisao do usuario. A fase entrou na 0059 como etapa de
+-- POST -- uma linha por peca, dezoito por mes --, saiu na 0088 (*"a corrente do
+-- social vive so em minhas tasks e na carga"*), voltou na 0090 como a fase do
+-- MES -- cinco pontos, nao dezoito -- e saiu de novo na 0105, com todas as
+-- outras: *"ele deve ser apenas para eventos que serao lancados nele, nada de
+-- outros abas"*.
 --
--- E O `p_linhas` E A OUTRA METADE do mesmo descuido: `teste.cenario(..., 'ok')`
--- sem contagem aceita ZERO linhas, entao ele passava com a camada desligada.
+-- AS DUAS DATAS CONTINUAM SENDO ESCRITAS, e e o que faz os cenarios medirem:
+-- os meses deste arquivo nascem sem prazo nenhum (`p_prazos` e `'{}'` nas tres
+-- chamadas), e uma origem desligada contra zero material da `0 = 0` -- o teste
+-- que afirma sem provar. Com as duas fases datadas, devolver o `union all`
+-- faz o primeiro cenario achar 2 onde espera 0.
 update public.subtasks set prazo = '2027-04-20'
  where id = current_setting('t43.pauta')::uuid;
 update public.subtasks set prazo = '2027-04-25'
  where id = current_setting('t43.conteudo')::uuid;
 
-select teste.cenario('As fases com prazo aparecem no calendario da equipe', :ANA,
-  format($fmt$select 1 from public.calendar_events
-     where tipo = 'fase_de_social' and client_id = %L$fmt$, :VERDE), 'ok', 2);
+select teste.conferir_como('As fases com prazo NAO aparecem mais no calendario', :ANA,
+  format($fmt$select count(*)::text from public.calendar_events
+     where tipo = 'fase_de_social' and client_id = %L$fmt$, :VERDE), '0');
 
--- E SO AS QUE TEM PRAZO, que e a regra de toda origem desta view. A terceira
--- fase de maio -- o Envio -- continua sem prazo, e fica de fora.
-select teste.conferir_como('E a fase sem prazo fica de fora', :ANA,
+-- PELO TITULO TAMBEM: uma origem devolvida com outro rotulo de `tipo` passaria
+-- pelo cenario de cima.
+select teste.conferir_como('E nem pelo titulo da fase', :ANA,
   $$select count(*)::text from public.calendar_events
-     where tipo = 'fase_de_social' and titulo = 'Envio'$$, '0');
+     where titulo in ('Pauta', 'Conteúdo')$$, '0');
 
-select teste.conferir_como('E o titulo que entra e o da fase, nao o do post', :ANA,
-  format($fmt$select string_agg(titulo, ', ' order by titulo) from public.calendar_events
-     where tipo = 'fase_de_social' and client_id = %L$fmt$, :VERDE), 'Conteúdo, Pauta');
+-- E A VIEW NAO CITA MAIS `social_papel`, que e a sonda que a contagem nao sabe
+-- fazer -- um banco sem mes de social nenhum passaria pelos dois de cima com a
+-- origem de pe.
+select teste.conferir('E a definicao da view nao cita mais `social_papel`',
+  (select (pg_get_viewdef('public.calendar_events'::regclass) like '%social_papel%')::text),
+  'false');
 
--- E O CLIENTE NAO ALCANCA NENHUMA. A corrente e conversa interna -- quem esta
--- com o material, qual fase travou, quem atrasou.
-select teste.cenario('E o cliente nao ve fase nenhuma', :JOANA,
-  $$select 1 from public.calendar_events where tipo = 'fase_de_social'$$, 'recusa');
+-- O QUE FICA DE PE E A CARGA, e e o que fez a remocao caber: a fase e uma
+-- subtarefa desde a 0088, e `disponibilidade_bruta()` (0081) le `subtasks`
+-- direto -- nunca leu esta view. Sai a BARRA da fase do calendario e fica o
+-- PESO dela para quem distribui trabalho.
+select teste.conferir_como('E a fase continua existindo como etapa de quem produz', :ANA,
+  format($fmt$select count(*)::text from public.subtasks
+     where social_papel is not null and task_id = %L$fmt$,
+     current_setting('t43.maio')), '3');
 
--- E O LINK LEVA AO SOCIAL MEDIA, e nao a Gestao de Tasks: e o que distingue
--- esta origem da etapa de demanda que a 0077 tirou, e e a sonda que o arquivo
--- 26 usa desde a 0090.
-select teste.conferir_como('E o link dela leva ao Social Media', :ANA,
-  $$select (bool_and(link like '/painel/social-media%'))::text
-     from public.calendar_events where tipo = 'fase_de_social'$$, 'true');
-
--- `security_invoker` FOI REPETIDA PELA QUINTA VEZ, e este cenario e o unico
--- que a mede. Sem a clausula a view roda com os direitos de quem a criou e le
--- as tabelas de origem inteiras para qualquer pessoa autenticada.
+-- `security_invoker` FOI REPETIDA PELA SEXTA VEZ, e este cenario e o unico
+-- deste arquivo que a mede. Sem a clausula a view roda com os direitos de quem
+-- a criou e le `events` inteira para qualquer pessoa autenticada.
 select teste.conferir('E a view continua com security_invoker',
   (select (array_to_string(reloptions, ',') like '%security_invoker=true%')::text
      from pg_class where relname = 'calendar_events'), 'true');

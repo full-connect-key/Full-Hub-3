@@ -54,96 +54,34 @@ export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
 }
 
 // ---------------------------------------------------------------------------
-// AS CAMADAS
+// NÃO EXISTEM MAIS CAMADAS, E A AUSÊNCIA É A ENTREGA DA 0105
 //
-// Uma camada é uma origem da view que dá para desligar. Elas são as MESMAS
-// seis que a `calendar_events` produz, e é de propósito: uma camada que não
-// casasse com um `tipo` seria um interruptor que não apaga nada.
+// Uma camada era uma origem da view que dava para desligar, e elas eram as
+// MESMAS seis que a `calendar_events` produzia. Com uma origem só não há o que
+// desligar: um interruptor que apaga a tela inteira não é filtro, é um
+// interruptor de luz — a mesma razão pela qual menos de duas seções não vira
+// barra de contexto.
 //
-// ---------------------------------------------------------------------------
-// A DEMANDA E A ETAPA NÃO ESTÃO AQUI, e a ausência é decisão do usuário
-// (0077): *"quero que elas fiquem apenas dentro do Minhas Tasks"*.
-//
-// Elas saíram da VIEW, e não só desta lista — tirar o interruptor e deixar a
-// origem produzindo esconderia as linhas desta tela e as entregaria de graça
-// ao próximo consumidor da view, que é a porta por onde elas voltam sem
-// ninguém ter decidido isso.
-//
-// **O que a Linha do Tempo não perde é a CARGA.** A cor da célula é ocupação,
-// e ela sai de `carga_da_equipe()` chamando `carga_do_dia()` (0035) — nenhuma
-// das duas lê esta view: elas leem `subtasks` direto. Sai a barra da etapa e
-// fica o peso dela, que é o que responde "a equipe aguenta?".
+// Saíram com elas `CAMADAS`, `ROTULOS_DE_CAMADA` e `COR_DA_CAMADA`, e a
+// remoção é a decisão da 0023: uma lista que nenhuma tela lê é o que alguém
+// reaproveita errado três sprints depois.
 //
 // ---------------------------------------------------------------------------
-// E A SEXTA VOLTOU COM OUTRO RECORTE, que é a lista acima dizendo a verdade.
+// O QUE ENTROU NO LUGAR É A COR DO TIPO DE EVENTO, logo abaixo.
 //
-// A 0088 tirou a `etapa_de_post` da view, e ESTA LISTA FICOU COM ELA: um
-// interruptor chamado "Etapas de post" que ligava e desligava zero linha.
-// Nada quebrou, nada avisou, e foi a 0090 que mostrou — ela devolveu a
-// origem com o nome `fase_de_social`, e o `in("tipo", camadas)` de
-// `itensDoCalendario` passou a FILTRAR FORA exatamente as linhas que a
-// migration acabara de criar. Quem abrisse o calendário com qualquer camada
-// escolhida não veria fase nenhuma; sem camada na URL elas chegavam e caíam
-// num `ROTULOS_DE_CAMADA[tipo]` indefinido, com o selo em branco e sem cor.
+// Com uma camada só, a cor do chip deixou de distinguir coisa alguma — o mês
+// inteiro saía num tom único — e o rótulo do `title` passou a dizer "Eventos:"
+// em cima de todo item, que é a tela nomeando onde a pessoa já está. O que
+// sobra como distinção é o que o evento É, e ele já viaja na view (a coluna
+// `status` carrega `events.tipo`) e já tem mapa de cor e de rótulo.
 //
-// **As duas não são a mesma coisa, e é por isso que o nome mudou.** A que
-// saiu era uma linha por PEÇA por fase — com doze posts, sessenta linhas no
-// mês de uma conta só. A que entrou é uma linha por FASE: cinco por mês, cada
-// uma o trabalho de uma pessoa num dia, que é exatamente o que esta tela
-// responde. Manter o nome antigo faria o interruptor nomear o que ele não
-// liga mais.
+// **NENHUM PAR DE COR NOVO**, e é o que torna a troca barata: os quatro de
+// `COR_DO_TIPO_DE_EVENTO` já existiam. Os dois azuis trocaram de par — eles
+// usavam `--blue-strong` sobre `--blue-soft`, que dá 2,35:1 no ESCURO, e isso
+// passava despercebido porque viviam em duas telas que a imagem do protótipo
+// não captura no escuro. Hoje usam `--accent-foreground` sobre `--accent`,
+// que é o par medido em `check:cores` desde o selo Admin da barra.
 // ---------------------------------------------------------------------------
-
-export const CAMADAS: TipoNoCalendario[] = [
-  "ausencia",
-  "evento",
-  "post",
-  "fase_de_social",
-  "campanha",
-  "entregavel",
-];
-
-export const ROTULOS_DE_CAMADA: Record<TipoNoCalendario, string> = {
-  ausencia: "Quem está fora",
-  evento: "Eventos",
-  post: "Posts",
-  // O RÓTULO DIZ A ENTIDADE, porque o interruptor liga e desliga exatamente
-  // estas linhas — e a entidade mudou na 0090: era "Etapas de post", uma
-  // linha por peça, e virou a FASE do mês, uma linha por fase. Trocar a
-  // origem e deixar o rótulo antigo é a tela nomeando o que ela não mostra
-  // mais.
-  fase_de_social: "Fases do social",
-  campanha: "Campanhas",
-  entregavel: "Materiais de campanha",
-};
-
-/**
- * A cor de cada camada, em PAR NOMEADO.
- *
- * Nunca opacidade: `bg-warning/10` sobre um fundo qualquer dá uma cor que
- * ninguém mediu, e no tema escuro dá outra. Os pares abaixo estão todos em
- * `check:cores`.
- */
-export const COR_DA_CAMADA: Record<TipoNoCalendario, string> = {
-  // `text-neutral` E NAO `text-text-muted`: o par
-  // `--text-muted` sobre `--muted` dá 4,43:1 — passa raspando POR BAIXO do
-  // mínimo de 4.5, e o axe reprovou nas três visões do mês. `--neutral` é o
-  // primeiro-plano nomeado de `--neutral-soft`, que é o que `--muted` aponta,
-  // e dá 6,3:1. O par nomeado existe justamente para isto não depender de
-  // quem escolhe a classe.
-  ausencia: "bg-muted text-neutral",
-  evento: "bg-blue-soft text-blue-strong",
-  post: "bg-success-soft text-success",
-  // O MESMO PAR DO POST, e é escolha. A legenda AGRUPA quem divide a cor —
-  // como a do Social Media já faz com as duas mãos que dividem o azul, e a do
-  // portal com os sete status em cinco tons. A fase é o trabalho por trás das
-  // peças, e a camada tem interruptor próprio: quem quiser separar as duas na
-  // tela desliga uma. Inventar um sexto par aqui seria pintar de cor nova uma
-  // coisa que pertence à mesma família.
-  fase_de_social: "bg-success-soft text-success",
-  campanha: "bg-warning-soft text-warning",
-  entregavel: "bg-warning-soft text-warning",
-};
 
 // ---------------------------------------------------------------------------
 // OS TIPOS DE EVENTO
@@ -179,8 +117,14 @@ export const ROTULOS_DE_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
  * sinal**.
  */
 export const COR_DO_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
-  convencao: "bg-blue-soft text-blue-strong",
-  feira: "bg-blue-soft text-blue-strong",
+  // `bg-accent text-accent-foreground` E NAO `bg-blue-soft text-blue-strong`,
+  // e a troca é da 0105: aquele par dá 5,24:1 no claro e **2,35:1 no escuro**,
+  // porque lá os dois tokens são escuros. É o mesmo achado que o selo "Admin"
+  // da barra lateral já tinha pagado, e ele reaparece aqui porque a cor do
+  // evento passou a desenhar o chip do mês — a peça mais repetida da tela.
+  // `--accent` é "o azul legível no tema de agora", e o par está medido.
+  convencao: "bg-accent text-accent-foreground",
+  feira: "bg-accent text-accent-foreground",
   lancamento: "bg-success-soft text-success",
   reuniao: "bg-muted text-text-secondary",
   treinamento: "bg-muted text-text-secondary",
@@ -188,64 +132,105 @@ export const COR_DO_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
   outro: "bg-muted text-text-secondary",
 };
 
+/**
+ * O tipo do evento que a view devolve, já conferido.
+ *
+ * A `calendar_events` escreve `events.tipo::text` na coluna `status`, então o
+ * que chega à tela é uma STRING — e `COR_DO_TIPO_DE_EVENTO[status]` num valor
+ * que não existe no enum devolve `undefined`, que no Tailwind é um chip sem
+ * cor nenhuma: sem erro, sem log, e só aparece para quem conhece a peça.
+ *
+ * O `outro` é o fallback porque ele é o "não sei dizer" do próprio enum.
+ */
+export function tipoDoEvento(item: ItemDoCalendario): EventoTipo {
+  return (TIPOS_DE_EVENTO as readonly string[]).includes(item.status ?? "")
+    ? (item.status as EventoTipo)
+    : "outro";
+}
+
+/** A cor do chip. Par nomeado, nunca opacidade. */
+export function corDoEvento(item: ItemDoCalendario): string {
+  return COR_DO_TIPO_DE_EVENTO[tipoDoEvento(item)];
+}
+
+/** O que a pessoa lê: "Feira", "Convenção". Nunca a chave do enum. */
+export function rotuloDoEvento(item: ItemDoCalendario): string {
+  return ROTULOS_DE_TIPO_DE_EVENTO[tipoDoEvento(item)];
+}
+
 // ---------------------------------------------------------------------------
 // O ITEM
 // ---------------------------------------------------------------------------
 
 export type ItemDoCalendario = {
   id: string;
+  /**
+   * Um valor só desde a 0105, e ele fica: a view o escreve, o `.ics` o usa no
+   * `UID`, e tirá-lo daqui seria churn no mapeamento do Row sem nada em troca.
+   */
   tipo: TipoNoCalendario;
   titulo: string;
   dataInicio: string;
   dataFim: string;
   clientId: string | null;
   cliente: string | null;
-  userId: string | null;
-  pessoa: { id: string; nome: string; avatar_url: string | null } | null;
   /**
-   * **Sempre nula desde a 0077**, e a coluna continua na view de propósito:
-   * `create or replace view` não deixa TIRAR coluna — só acrescentar no fim —,
-   * e um `drop`/`create` derrubaria junto os grants de um objeto que o
-   * PostgREST publica. É a situação de `cancelada` no enum de status: o valor
-   * fica, e nenhum caminho o produz. Quem a escrevia era a etapa, que saiu.
+   * O TIPO DO EVENTO, como `events.tipo::text`.
+   *
+   * A view chama a coluna de `status` porque ela já se chamava assim quando
+   * oito origens escreviam oito coisas diferentes nela. Quem a lê passa por
+   * `tipoDoEvento()`, que confere o valor contra o enum — um `status` que não
+   * esteja lá daria um chip sem cor, calado.
    */
-  prioridade: string | null;
   status: string | null;
   link: string;
 };
 
-/**
- * OS DIAS QUE A GRADE DO MÊS PINTA para este item.
- *
- * ---------------------------------------------------------------------------
- * A CAMPANHA ENTRA PELO ENCERRAMENTO, e a view carrega o período inteiro.
- *
- * São as duas metades da mesma decisão. A view guarda a VERDADE — a Wave
- * começa dia 1 e acaba dia 30 —, porque a Linha do Tempo precisa da barra
- * longa. A grade do mês não: uma Wave de trinta dias pintaria trinta células
- * e empurraria para baixo tudo o que acontece em cada uma. Então na grade ela
- * aparece no dia em que ACABA, que é o dia em que ela exige alguma coisa de
- * alguém.
- *
- * Esta função é o único lugar onde essa escolha mora. Com ela espalhada, a
- * grade e a lista discordariam sobre em que dia a mesma campanha está.
- * ---------------------------------------------------------------------------
- */
-export function diaNaGrade(item: ItemDoCalendario): { de: string; ate: string } {
-  if (item.tipo === "campanha") return { de: item.dataFim, ate: item.dataFim };
-  return { de: item.dataInicio, ate: item.dataFim };
-}
+// ---------------------------------------------------------------------------
+// `userId`, `pessoa` E `prioridade` SAÍRAM NA 0105.
+//
+// As duas colunas continuam na view — `create or replace view` não deixa tirar
+// coluna, e a razão está em `database.types.ts` —, e aqui elas não ficam: o
+// tipo de domínio não é o Row, e quem escrevia `user_id` eram a ausência, o
+// post, a fase do mês e a peça de campanha. O evento tem PARTICIPANTES, que
+// são vários por linha: um responsável aqui teria que escolher um deles.
+//
+// `pessoa` ia junto com `userId`, e com ela saiu uma ida ao banco: a consulta
+// buscava os `profiles` de todos os responsáveis do mês para desenhar o avatar
+// de quem estava fora e a segunda linha do chip. As duas peças eram da
+// ausência.
+// ---------------------------------------------------------------------------
 
-/** O item ocupa este dia? Usa a regra da grade, não o período cru. */
+// ---------------------------------------------------------------------------
+// `diaNaGrade()` SAIU COM A CAMPANHA (0105), e o registro fica porque a
+// decisão pode voltar.
+//
+// Ela era o único lugar onde morava a escolha de QUAL dia a grade do mês
+// pinta, e existia por causa de UMA origem: a campanha. A view carregava o
+// período inteiro — a Wave começa dia 1 e acaba dia 30, e é dela que o `.ics`
+// monta o evento de trinta dias que a pessoa assina no Google —, e a grade a
+// desenhava no dia em que ela ACABA, porque trinta células empurrariam para
+// baixo tudo o que acontece em cada uma.
+//
+// Com a campanha fora da view não há mais duas respostas para a mesma
+// pergunta: o evento ocupa os dias dele, do início ao fim. A função seria um
+// `if` que nunca é verdadeiro — e um ramo morto num lugar que decide desenho é
+// o que alguém reaproveita achando que ele ainda escolhe alguma coisa.
+//
+// **O argumento FICA de pé**, e é o que importa guardar: no dia em que uma
+// origem de período longo voltar a esta view, é aqui que a escolha mora, e não
+// espalhada entre a grade e o arquivo — senão as duas discordam sobre a mesma
+// linha.
+// ---------------------------------------------------------------------------
+
+/** O item ocupa este dia? */
 export function ocupaODia(item: ItemDoCalendario, dia: string): boolean {
-  const { de, ate } = diaNaGrade(item);
-  return dia >= de && dia <= ate;
+  return dia >= item.dataInicio && dia <= item.dataFim;
 }
 
-/** Mais de um dia: é faixa, e não item da lista do dia. */
+/** Mais de um dia: é faixa no topo da semana, e não item da lista do dia. */
 export function ehFaixa(item: ItemDoCalendario): boolean {
-  const { de, ate } = diaNaGrade(item);
-  return ate > de;
+  return item.dataFim > item.dataInicio;
 }
 
 // ---------------------------------------------------------------------------
@@ -418,7 +403,10 @@ export function montarIcs(itens: ItemDoCalendario[], agoraISO: string): string {
       `DTSTART;VALUE=DATE:${semTraco(item.dataInicio)}`,
       `DTEND;VALUE=DATE:${semTraco(diaSeguinte(item.dataFim))}`,
       `SUMMARY:${escapar(item.titulo)}`,
-      `CATEGORIES:${escapar(ROTULOS_DE_CAMADA[item.tipo])}`,
+      // O TIPO DO EVENTO, e não mais o nome da camada: com uma origem só,
+      // `CATEGORIES:Eventos` em toda linha é uma categoria que não categoriza.
+      // "Feira", "Convenção" e "Feriado do cliente" é o que o Google mostra.
+      `CATEGORIES:${escapar(rotuloDoEvento(item))}`,
     );
     if (item.cliente) linhas.push(`DESCRIPTION:${escapar(item.cliente)}`);
     linhas.push("END:VEVENT");

@@ -3,11 +3,10 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import { UserAvatar } from "@/components/shared/user-avatar";
 import {
-  COR_DA_CAMADA,
-  ROTULOS_DE_CAMADA,
+  corDoEvento,
   ocupaODia,
+  rotuloDoEvento,
   type ItemDoCalendario,
 } from "@/lib/dominio/calendario";
 import { cn } from "@/lib/utils";
@@ -39,16 +38,17 @@ export function VisaoDeSemana({
     <div className="overflow-x-auto">
       <div className="bg-border grid min-w-[52rem] grid-cols-7 gap-px overflow-hidden rounded-lg border">
         {dias.map((dia) => {
+          // A PILHA DE AVATARES DE QUEM ESTAVA FORA saiu com a camada de
+          // ausência (0105), aqui e na grade do mês: ela vinha de
+          // `item.pessoa`, que a view não escreve mais.
           const doDia = itens.filter((i) => ocupaODia(i, dia));
-          const ausencias = doDia.filter((i) => i.tipo === "ausencia");
-          const trabalho = doDia.filter((i) => i.tipo !== "ausencia");
 
           return (
             <div
               key={dia}
               className={cn("min-h-64 p-2", ehFimDeSemana(dia) ? "bg-muted" : "bg-surface-card")}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center">
                 <span
                   className={cn(
                     "text-xs font-medium capitalize",
@@ -57,33 +57,18 @@ export function VisaoDeSemana({
                 >
                   {format(parseISO(dia), "EEE dd", { locale: ptBR })}
                 </span>
-                {ausencias.length > 0 ? (
-                  <span
-                    className="flex -space-x-1"
-                    title={`Fora: ${ausencias.map((a) => a.pessoa?.nome ?? "—").join(", ")}`}
-                  >
-                    {ausencias.slice(0, 3).map((a) => (
-                      <UserAvatar
-                        key={a.id}
-                        name={a.pessoa?.nome ?? "—"}
-                        src={a.pessoa?.avatar_url ?? null}
-                        size="sm"
-                      />
-                    ))}
-                  </span>
-                ) : null}
               </div>
 
               <ul className="mt-2 space-y-1">
-                {trabalho.map((item) => (
+                {doDia.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
                       onClick={() => aoAbrir(item)}
-                      title={`${ROTULOS_DE_CAMADA[item.tipo]}: ${item.titulo}`}
+                      title={`${rotuloDoEvento(item)}: ${item.titulo}`}
                       className={cn(
                         "w-full rounded px-2 py-1 text-left text-xs",
-                        COR_DA_CAMADA[item.tipo],
+                        corDoEvento(item),
                       )}
                     >
                       <span className="block truncate font-medium">{item.titulo}</span>

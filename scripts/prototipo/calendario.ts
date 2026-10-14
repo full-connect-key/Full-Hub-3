@@ -1,22 +1,32 @@
 /**
  * Versao de prototipo de src/lib/dados/calendario.ts.
  *
- * Um mes com as seis camadas ao mesmo tempo, que e o unico estado em que a
- * tela tem o que mostrar:
+ * ---------------------------------------------------------------------------
+ * UM MES DE EVENTOS, E SO DELES (0105).
  *
- *   - uma FEIRA de tres dias, para a faixa atravessar a semana (item dia a dia
- *     nao provaria nada);
- *   - uma CONVENCAO que bloqueia periodo, com participantes;
- *   - uma CAMPANHA de trinta dias, que na grade do mes aparece NUM dia so, o
- *     do encerramento: e ela que prova o `diaNaGrade()`;
- *   - uma AUSENCIA de cinco dias, que e exatamente o caso que o calendario
- *     existe para mostrar;
- *   - um DIA COM MAIS DE TRES itens, para o "+ N mais" sair em imagem.
+ * Ele tinha as seis camadas ao mesmo tempo -- a campanha de trinta dias que
+ * provava o `diaNaGrade()`, a ausencia de cinco dias, a peca de campanha, a
+ * fase do mes de social e oito posts. As cinco origens sairam da view por
+ * decisao do usuario, e com elas a razao de cada um daqueles itens existir
+ * aqui: *"ele deve ser apenas para eventos que serao lancados nele, nada de
+ * outros abas"*.
  *
- * A CARGA SAIU COM A LINHA DO TEMPO. Havia aqui uma lista de etapas por
- * pessoa, com uma sobrecarregada, que alimentava `cargaDaEquipe()` e mais
- * nada -- e a visao que a pintava nao existe mais. Quem continua provando a
- * escala de carga em imagem e a faixa de disponibilidade, no painel da etapa.
+ * O QUE O EXEMPLO PRECISA PROVAR MUDOU, e sao quatro coisas:
+ *
+ *   - UMA FAIXA DE TRES DIAS, para a faixa do topo da semana atravessar a
+ *     grade (um item de um dia nao provaria nada);
+ *   - UM DIA COM MAIS DE TRES ITENS, para o "+ N mais" sair em imagem -- e ele
+ *     e a unica linha que nenhuma outra tela do produto desenha;
+ *   - OS QUATRO PARES DE COR da legenda, um evento de cada, senao a imagem
+ *     mostra quatro entradas de legenda e um tom so na grade;
+ *   - UM EVENTO SEM EMPRESA e um COM, porque a segunda linha do chip e o
+ *     cliente e ela nao aparece quando nao ha -- a convencao da casa.
+ *
+ * E ELE NAO TEM MAIS `userId` NEM `pessoa`: a view nao escreve `user_id` desde
+ * a 0105, e `ItemDoCalendario` perdeu os dois campos. Um stub que os mandasse
+ * nao compilaria, o que e o desenho -- `check:prototipo` existe porque o
+ * `typecheck` nao ve os stubs.
+ * ---------------------------------------------------------------------------
  */
 import type {
   EventoDetalhado,
@@ -37,162 +47,72 @@ const MARINA = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Costa
 const CARLA = { id: "a0000000-0000-0000-0000-000000000003", nome: "Carla Nunes", avatar_url: null };
 const RAFAEL = { id: "a0000000-0000-0000-0000-000000000006", nome: "Rafael Dias", avatar_url: null };
 
-// A LISTA SERVE AO FILTRO DE RESPONSAVEL e aos participantes do evento, e
-// mais nada: area e capacidade sairam do tipo junto com a Linha do Tempo, que
-// era quem agrupava por area e dividia os minutos pela capacidade.
+// A LISTA SERVE AOS PARTICIPANTES DO EVENTO, e mais nada: o filtro "Filtrar
+// por responsavel" saiu na 0105, porque a view nao escreve `user_id` e ele
+// devolveria zero sempre.
 export const PESSOAS: PessoaDoCalendario[] = [CARLA, BRUNO, MARINA, RAFAEL, ANA];
 
-const ITENS: ItemDoCalendario[] = [
-  // A CAMPANHA DE TRINTA DIAS. Na grade do mes ela sai no dia em que ACABA, e
-  // nao como faixa de trinta celulas: e ela que prova o `diaNaGrade()`.
-  {
-    id: "camp-wave",
-    tipo: "campanha",
-    titulo: "Wave Outubro Rosa",
-    dataInicio: dia(-12),
-    dataFim: dia(8),
-    clientId: VERDE,
-    cliente: "Mundo Verde",
-    userId: null,
-    pessoa: null,
-    prioridade: null,
-    status: "ativa",
-    link: "/painel/aprovacoes/campanhas/camp-wave",
-  },
-  {
-    id: "ev-feira",
-    tipo: "evento",
-    titulo: "Feira do Mundo Verde",
-    dataInicio: dia(2),
-    dataFim: dia(4),
-    clientId: VERDE,
-    cliente: "Mundo Verde",
-    userId: null,
-    pessoa: null,
-    prioridade: null,
-    status: "feira",
-    link: "/painel/calendario?evento=ev-feira",
-  },
-  {
-    id: "ev-convencao",
-    tipo: "evento",
-    titulo: "Convenção da agência",
-    dataInicio: dia(9),
-    dataFim: dia(10),
-    clientId: null,
-    cliente: null,
-    userId: null,
-    pessoa: null,
-    prioridade: null,
-    status: "convencao",
-    link: "/painel/calendario?evento=ev-convencao",
-  },
-  // A AUSENCIA EM CIMA DAS ETAPAS DO BRUNO: o caso que o calendario existe
-  // para mostrar.
-  {
-    id: "aus-bruno",
-    tipo: "ausencia",
-    titulo: "Descanso",
-    dataInicio: dia(3),
-    dataFim: dia(7),
-    clientId: null,
-    cliente: null,
-    userId: BRUNO.id,
-    pessoa: BRUNO,
-    prioridade: null,
-    status: "aprovada",
-    link: "/painel/full-days",
-  },
-  // A PECA DA CAMPANHA E A ETAPA DO POST: as duas camadas que o stub nao
-  // cobria. Depois da 0077 a `calendar_events` tem SEIS origens, e uma imagem
-  // que mostra quatro delas nao prova a legenda -- e e ela que o protótipo
-  // existe para conferir.
-  {
-    id: "ent-lamina",
-    tipo: "entregavel",
-    titulo: "Lâmina A5",
-    dataInicio: dia(4),
-    dataFim: dia(4),
-    clientId: OPTICA,
-    cliente: "Óptica Visão",
-    userId: CARLA.id,
-    pessoa: CARLA,
-    prioridade: null,
-    status: "em_producao",
-    link: "/painel/aprovacoes/campanhas/camp-wave?item=ent-lamina",
-  },
-  // A FASE DO MÊS, e não a etapa de uma peça: o título é o nome da fase e o
-  // link vai para o MÊS, que é o que a origem da 0090 escreve
-  // (`'/painel/social-media?mes=' || t.id`). Com o título de uma peça aqui, a
-  // imagem mostraria a camada que a 0088 tirou.
-  {
-    id: "fase-layout-mv",
-    tipo: "fase_de_social",
-    titulo: "Layout",
-    dataInicio: dia(2),
-    dataFim: dia(2),
-    clientId: VERDE,
-    cliente: "Mundo Verde",
-    userId: BRUNO.id,
-    pessoa: BRUNO,
-    prioridade: null,
-    status: "em_andamento",
-    link: "/painel/social-media?mes=mes-mv-10",
-  },
-];
-
-// QUATRO NO MESMO DIA, e nao tres: a celula do mes corta em tres, e sem o
-// quarto o "+ N mais" nao sai em imagem nenhuma -- que e justamente a linha
-// que nenhuma outra tela do produto desenha.
-const POSTS = [1, 1, 1, 1, 2, 5, 5, 8];
-POSTS.forEach((delta, i) => {
-  ITENS.push({
-    id: `post-${i}`,
-    tipo: "post",
-    titulo: `Post ${i + 1} — dica do dia`,
-    dataInicio: dia(delta),
-    dataFim: dia(delta),
-    clientId: VERDE,
-    cliente: "Mundo Verde",
-    userId: MARINA.id,
-    pessoa: MARINA,
-    prioridade: null,
-    status: "em_aprovacao",
-    link: `/painel/social-media?post=post-${i}`,
-  });
+/** `status` carrega `events.tipo`, e e dele que sai a cor do chip. */
+const evento = (
+  id: string,
+  titulo: string,
+  tipo: string,
+  de: number,
+  ate: number,
+  cliente: { id: string; nome: string } | null,
+): ItemDoCalendario => ({
+  id,
+  tipo: "evento",
+  titulo,
+  dataInicio: dia(de),
+  dataFim: dia(ate),
+  clientId: cliente?.id ?? null,
+  cliente: cliente?.nome ?? null,
+  status: tipo,
+  link: `/painel/calendario?evento=${id}`,
 });
+
+const MV = { id: VERDE, nome: "Mundo Verde" };
+const OV = { id: OPTICA, nome: "Óptica Visão" };
+
+const ITENS: ItemDoCalendario[] = [
+  // A FAIXA DE TRES DIAS, que e o que atravessa a semana no topo da grade.
+  evento("ev-feira", "Feira do Mundo Verde", "feira", 2, 4, MV),
+  // SEM EMPRESA: a segunda linha do chip nao aparece, que e o estado da
+  // convencao e do feriado da casa.
+  evento("ev-convencao", "Convenção da agência", "convencao", 9, 10, null),
+  // OS OUTROS TRES PARES DA LEGENDA, um de cada.
+  evento("ev-lancamento", "Lançamento da linha Verão", "lancamento", 5, 5, MV),
+  evento("ev-feriado", "Feriado da Óptica Visão", "feriado_cliente", 5, 5, OV),
+  evento("ev-reuniao", "Reunião de planejamento", "reuniao", 5, 5, MV),
+  evento("ev-treinamento", "Treinamento de atendimento", "treinamento", 5, 5, null),
+  // O QUARTO ITEM DO MESMO DIA, e nao o terceiro: a celula do mes corta em
+  // tres, e sem ele o "+ N mais" nao sai em imagem nenhuma.
+  evento("ev-outro", "Visita do fornecedor", "outro", 5, 5, OV),
+  evento("ev-reuniao-2", "Reunião com a Óptica", "reuniao", 1, 1, OV),
+  evento("ev-lancamento-2", "Lançamento do app", "lancamento", 16, 16, MV),
+];
 
 /**
  * O STUB HONRA OS FILTROS, e nao devolve a lista inteira sempre.
  *
- * A primeira versao ignorava tudo. A imagem do colaborador saia com o chip
- * "So minha pauta" aceso e as mesmas vinte linhas de antes -- uma imagem que
- * afirma que o filtro existe e nao prova que ele filtra. E o mesmo defeito de
- * uma checagem que so sabe dizer "ok".
+ * A primeira versao ignorava tudo, e a imagem saia com o chip aceso e as
+ * mesmas vinte linhas de antes -- uma imagem que afirma que o filtro existe e
+ * nao prova que ele filtra.
+ *
+ * SOBROU UM FILTRO, e ele e o unico que a 0105 deixou de pe: `camadas`,
+ * `responsaveis` e `soMinhas` sairam porque os tres perguntavam por uma coisa
+ * que a view nao escreve mais.
  */
 export async function itensDoCalendario(filtros: {
   de: string;
   ate: string;
-  camadas?: string[];
   clientes?: string[];
-  responsaveis?: string[];
-  soMinhas?: string | null;
 }): Promise<ItemDoCalendario[]> {
   let visiveis = ITENS;
 
-  if (filtros.camadas?.length) {
-    visiveis = visiveis.filter((i) => filtros.camadas!.includes(i.tipo));
-  }
   if (filtros.clientes?.length) {
     visiveis = visiveis.filter((i) => i.clientId && filtros.clientes!.includes(i.clientId));
-  }
-  if (filtros.responsaveis?.length) {
-    visiveis = visiveis.filter((i) => i.userId && filtros.responsaveis!.includes(i.userId));
-  }
-  if (filtros.soMinhas) {
-    // O que e meu MAIS o que e da agencia -- a mesma regra do app: a convencao
-    // da semana que vem muda o meu dia sem ter o meu nome.
-    visiveis = visiveis.filter((i) => i.userId === filtros.soMinhas || i.userId === null);
   }
 
   return visiveis;

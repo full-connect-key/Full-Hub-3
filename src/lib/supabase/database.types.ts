@@ -310,36 +310,30 @@ export type EventoTipo =
   | "outro";
 
 /**
- * As SEIS origens da `calendar_events`.
+ * A UNICA origem da `calendar_events`.
  *
- * O nome de cada uma é o que a view escreve na coluna `tipo`, e é por isso
- * que ele fica em INGLÊS de um lado e em português do outro: aqui é valor de
- * dado, e o rótulo que a pessoa lê sai de `ROTULOS_DE_CAMADA`.
+ * O nome dela é o que a view escreve na coluna `tipo`, e é por isso que ele
+ * fica em INGLÊS de um lado e em português do outro: aqui é valor de dado, e
+ * o rótulo que a pessoa lê sai de `ROTULOS_DE_TIPO_DE_EVENTO`.
  *
- * **`task` e `subtarefa` saíram na 0077**, por decisão do usuário: a demanda
- * e a etapa vivem em Minhas Tasks e em Gestão de Tasks. Os dois valores saem
- * do tipo junto com os `union all` que os produziam — um valor que a view não
- * escreve mais é um filtro que o compilador aceitaria e o banco responderia
- * com zero linhas, calado.
+ * ---------------------------------------------------------------------------
+ * ERAM OITO, E A 0105 DEIXOU UMA — decisão do usuário: *"ele deve ser apenas
+ * para eventos que serao lancados nele, nada de outros abas"*.
+ *
+ * `task` e `subtarefa` saíram na 0077, `etapa_de_post` na 0088, e `ausencia`,
+ * `post`, `campanha`, `entregavel` e `fase_de_social` na 0105. **Cada uma
+ * saiu da VIEW e do TIPO no mesmo commit**, e as duas metades importam: um
+ * valor que a view não escreve mais é um filtro que o compilador aceitaria e
+ * o banco responderia com zero linhas, calado.
+ *
+ * **A UNIÃO DE UM VALOR É O QUE PEGA QUEM MEXER NISTO.** Ela não é churn: foi
+ * a camada deixada para trás na 0088 que custou a 0090 — o `in("tipo",
+ * camadas)` da tela filtrando fora exatamente as linhas que a migration
+ * acabara de criar, sem erro em lugar nenhum. Com um valor só, acrescentar
+ * uma origem obriga a mexer aqui, e mexer aqui obriga a mexer na tela.
+ * ---------------------------------------------------------------------------
  */
-export type TipoNoCalendario =
-  | "ausencia"
-  | "evento"
-  | "post"
-  | "campanha"
-  | "entregavel"
-  // A FASE do mês de social — uma subtarefa com `social_papel` preenchido.
-  //
-  // Ela é diferente de `post`: aquele é o dia em que a peça vai ao ar, esta é
-  // o dia em que o trabalho de alguém precisa estar pronto, e as duas datas
-  // raramente são a mesma.
-  //
-  // **E ela não é a `etapa_de_post` que saiu na 0088**, embora ocupe o mesmo
-  // lugar nesta união. Aquela era uma linha por PEÇA por fase — com doze
-  // posts, sessenta linhas no mês de uma conta só, que é o que fez o usuário
-  // pedir a remoção. Esta é uma linha por FASE: cinco por mês, cada uma o
-  // trabalho de uma pessoa num dia. A 0090 a devolveu com esse recorte.
-  | "fase_de_social";
+export type TipoNoCalendario = "evento";
 
 export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
 
@@ -4236,12 +4230,26 @@ export interface Database {
        *  Acompanhamento lê — policy não limita coluna, e a anotação é
        *  privada. Veja a migration 0017. */
       /**
-       * Tudo o que tem data, num formato só (migration 0055).
+       * O Calendário Full, e ele é só de eventos desde a 0105.
        *
-       * `security_invoker`: a RLS de cada tabela de origem continua valendo
-       * por baixo. É SÓ LEITURA — não existe Insert nem Update, e é a forma
-       * de dizer em tipo o que o banco diz em estrutura: escrever no
-       * calendário é escrever na tabela de origem.
+       * `security_invoker`: a RLS de `events` continua valendo por baixo. É SÓ
+       * LEITURA — não existe Insert nem Update, e é a forma de dizer em tipo o
+       * que o banco diz em estrutura: escrever no calendário é escrever na
+       * tabela de origem.
+       *
+       * **`user_id` E `prioridade` FICAM SEM NINGUÉM QUE AS ESCREVA.**
+       * `create or replace view` não deixa TIRAR coluna — só acrescentar no
+       * fim —, e um `drop`/`create` derrubaria junto os grants de um objeto
+       * que o PostgREST publica. A `prioridade` está nessa situação desde a
+       * 0077 (quem a escrevia era a etapa de demanda) e a `user_id` entrou na
+       * 0105 (a ausência, o post, a fase do mês e a peça de campanha). É
+       * `cancelada` no enum de `task_status` visto de outro ângulo: a coluna
+       * fica, e nenhum caminho a produz.
+       *
+       * **E é por isso que elas não estão em `ItemDoCalendario`**: o tipo de
+       * domínio não é o Row, e um campo que nenhuma tela lê é o que alguém
+       * reaproveita três sprints depois achando que ele quer dizer alguma
+       * coisa.
        */
       calendar_events: {
         Row: {

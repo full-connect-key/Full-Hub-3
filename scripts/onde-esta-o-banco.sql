@@ -485,7 +485,22 @@ from (
     -- FALTA -- e um marcador no progresso responderia ok sobre um banco em que
     -- salvar anotacao continua recusado.
     ('0104', 'academy_anotacoes_alvo_unico', 'constraint',
-             'academy_anotacoes|academy_anotacoes_alvo_unico')
+             'academy_anotacoes|academy_anotacoes_alvo_unico'),
+    -- A 0105 nao cria nada: ela deixa a `calendar_events` com UMA origem, o
+    -- evento. E o mesmo caso da 0077, com o mesmo tipo de marcador -- perguntar
+    -- "a view existe?" responderia ok desde a 0055.
+    --
+    -- O TRECHO E `'ausencia'`, que e o `tipo` que a camada do Full Days
+    -- escrevia, e a escolha e a da 0077 letra por letra: ela aponta para o
+    -- literal da origem, e nao para o nome da TABELA. `hr_requests` serviria
+    -- hoje e e o marcador que envelhece -- a 0077 apontava para `subtasks` e
+    -- virou mentira na 0090, quando a fase do mes voltou e a view passou a ler
+    -- aquela tabela de novo.
+    --
+    -- Nenhuma migration posterior tem motivo para devolver este literal: a
+    -- decisao do usuario foi que a ausencia e lancada e lida no Full Days.
+    ('0105', 'ausencia fora do calendario', 'sem_na_view',
+             'calendar_events|''ausencia''')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

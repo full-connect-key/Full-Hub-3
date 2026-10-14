@@ -11,8 +11,7 @@ import {
   pessoasDaEquipeNoCalendario,
 } from "@/lib/dados/calendario";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
-import { CAMADAS, ehVisao, type VisaoDoCalendario } from "@/lib/dominio/calendario";
-import type { TipoNoCalendario } from "@/lib/supabase/database.types";
+import { ehVisao, type VisaoDoCalendario } from "@/lib/dominio/calendario";
 
 import { CalendarioFull } from "./calendario-full";
 import { janelaDoPeriodo, lerMes } from "./periodo";
@@ -23,23 +22,27 @@ export const metadata: Metadata = { title: "Calendário Full" };
  * O Calendário Full.
  *
  * ---------------------------------------------------------------------------
- * TUDO MORA NA URL — mês, visão, camadas e filtros.
+ * TUDO MORA NA URL — mês, visão e o filtro de cliente.
  *
  * É a mesma regra de toda listagem do produto, e aqui ela vale duas vezes:
  * "olha a semana do dia 15" precisa ser um link que abre no mesmo lugar para
  * quem recebe. Com estado interno, o link abriria sempre no mês corrente, na
- * visão padrão, com as camadas de quem clicou.
+ * visão padrão.
+ * ---------------------------------------------------------------------------
  *
- * **A exceção é a lembrança das camadas**, que o sprint pede em
- * `localStorage`. Ela não entra: duas fontes para a mesma escolha dariam a
- * tela abrindo com a camada que o link diz e trocando sozinha no instante
- * seguinte para a que o navegador lembrava. Quem quer a configuração de volta
- * salva o link.
+ * ---------------------------------------------------------------------------
+ * TRÊS PARÂMETROS SAÍRAM COM AS CINCO ORIGENS (0105): `camadas`, `responsavel`
+ * e `foco`. A razão de cada um está em `lib/dados/calendario.ts`, e a de todos
+ * é a mesma — eles perguntavam por `user_id` e por uma escolha entre origens
+ * que não existe mais. **E eles saem do código, não só da tela:** um
+ * parâmetro que a página continua lendo e não usa é o interruptor que a 0088
+ * deixou para trás, em outra forma.
+ *
+ * Link antigo com `?camadas=post,evento` abre no mês inteiro, que é o que um
+ * endereço salvo tem de fazer: abrir, e não quebrar.
  * ---------------------------------------------------------------------------
  *
  * **A busca é só da janela visível**, com uma semana de folga em cada ponta.
- * A view lê sete tabelas: pedir o ano seriam sete varreduras grandes para
- * desenhar trinta e um dias.
  */
 async function Conteudo({
   visao,
@@ -47,15 +50,12 @@ async function Conteudo({
   parametros,
   usuarioId,
   podeEscrever,
-  padraoDeFoco,
 }: {
   visao: VisaoDoCalendario;
   mes: string;
   parametros: Record<string, string | string[] | undefined>;
   usuarioId: string;
   podeEscrever: boolean;
-  /** O colaborador abre em "só minha pauta"; a gestão, na agência inteira. */
-  padraoDeFoco: boolean;
 }) {
   const janela = janelaDoPeriodo(mes, visao);
 
@@ -65,45 +65,16 @@ async function Conteudo({
     return (Array.isArray(valor) ? valor : valor.split(",")).filter(Boolean);
   };
 
-  const camadasPedidas = lista("camadas") as TipoNoCalendario[];
-  const camadas = camadasPedidas.length
-    ? CAMADAS.filter((c) => camadasPedidas.includes(c))
-    : CAMADAS;
-
-  // "SÓ MINHA PAUTA" JÁ VEM LIGADO PARA O COLABORADOR, e é decisão do sprint:
-  // quem executa abre o calendário para saber o que ELE faz, e a agenda da
-  // agência inteira enterra isso em duzentas linhas. A gestão abre no
-  // contrário, porque a pergunta dela é "a equipe aguenta?".
-  //
-  // O PADRÃO NÃO TRANCA NADA: o chip continua lá, e desligá-lo grava `todos`
-  // na URL — um link compartilhado abre igual para quem recebe, qualquer que
-  // seja o perfil de quem clicou. Sem esse valor explícito, o mesmo link
-  // mostraria coisas diferentes para o sócio e para o redator, que é a pior
-  // forma de um link mentir.
-  const focoPedido = parametros.foco;
-  const focoValendo =
-    focoPedido === "minhas" || focoPedido === "todos"
-      ? focoPedido
-      : padraoDeFoco
-        ? "minhas"
-        : "todos";
-  const soMinhas = focoValendo === "minhas" ? usuarioId : null;
   const eventoAberto = typeof parametros.evento === "string" ? parametros.evento : null;
 
-  // A CARGA DA EQUIPE SAIU COM A LINHA DO TEMPO. Ela era a única visão que a
-  // desenhava, e a quarta chamada deste `Promise.all` existia com um
-  // `visao === "linha" ?` na frente justamente porque pedi-la nas outras três
-  // seriam trinta consultas por pessoa para montar uma grade que não a mostra.
-  // Sem a visão não sobra ramo nenhum: a chamada saiu inteira, e
-  // `cargaDaEquipe()` com ela.
+  // A LISTA DE PESSOAS FICA, e ela não é filtro: quem a lê é o formulário de
+  // evento (os participantes) e o detalhe. Foi o FILTRO "Filtrar por
+  // responsável" que saiu na 0105, não a consulta.
   const [itens, clientes, pessoas, evento] = await Promise.all([
     itensDoCalendario({
       de: janela.de,
       ate: janela.ate,
       clientes: lista("cliente"),
-      responsaveis: lista("responsavel"),
-      camadas,
-      soMinhas,
     }),
     listarClientes(),
     pessoasDaEquipeNoCalendario(),
@@ -118,8 +89,6 @@ async function Conteudo({
       itens={itens}
       clientes={clientes.map((c) => ({ id: c.id, nome: c.nome_empresa }))}
       pessoas={pessoas}
-      camadas={camadas}
-      foco={focoValendo}
       evento={evento}
       usuarioId={usuarioId}
       podeEscrever={podeEscrever}
@@ -152,7 +121,6 @@ export default async function PaginaDoCalendario({
           parametros={parametros}
           usuarioId={sessao.usuarioId}
           podeEscrever={podeEscrever}
-          padraoDeFoco={sessao.profile.role === "colaborador"}
         />
       </Suspense>
     </div>

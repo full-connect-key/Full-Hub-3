@@ -245,7 +245,15 @@ const PARES = [
   // tokens são escuros. O par que serve nos dois é o que o produto já usa no
   // quadrado de ícone — `--accent` com `--accent-foreground` —, e ele existe
   // exatamente para isso: é "o azul legível no tema de agora".
-  ["--accent-foreground", "--accent", NORMAL, "selo Admin na barra"],
+  // E ELE PASSOU A COBRIR O CHIP DO CALENDARIO TAMBEM (0105). Com uma camada
+  // só, a cor do chip do mês deixou de distinguir coisa alguma e passou a sair
+  // do TIPO do evento — e as duas entradas azuis de `COR_DO_TIPO_DE_EVENTO`
+  // usavam justamente `--blue-strong` sobre `--blue-soft`, o par que o
+  // parágrafo acima reprova no escuro. Elas trocaram para este, que é "o azul
+  // legível no tema de agora", então a 0105 não traz par de cor novo: ela
+  // conserta um que ninguém tinha medido porque ele vivia em duas telas que a
+  // imagem do protótipo não captura no escuro.
+  ["--accent-foreground", "--accent", NORMAL, "selo Admin na barra e chip do calendário"],
 
   // A MALHA DO TOPO, medida contra o composto e não contra a página. Estes
   // quatro pares foram o que decidiu o alfa dela: com o 0,75 da proposta os

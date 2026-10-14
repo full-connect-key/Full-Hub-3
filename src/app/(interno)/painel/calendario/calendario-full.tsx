@@ -22,19 +22,17 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  CAMADAS,
-  COR_DA_CAMADA,
-  ROTULOS_DE_CAMADA,
+  COR_DO_TIPO_DE_EVENTO,
   ROTULOS_DE_VISAO,
   VISOES,
   montarIcs,
+  rotuloDoEvento,
   type ItemDoCalendario,
   type VisaoDoCalendario,
   type EventoDetalhado,
   type PessoaDoCalendario,
 } from "@/lib/dominio/calendario";
 
-import type { TipoNoCalendario } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { DetalheDoEvento } from "./detalhe-do-evento";
@@ -42,6 +40,28 @@ import { FormularioDeEvento } from "./formulario-de-evento";
 import { somarMeses, type Janela } from "./periodo";
 import { VisaoDeMes } from "./visao-mes";
 import { VisaoDeSemana } from "./visao-semana";
+
+/**
+ * A LEGENDA, e ela AGRUPA quem divide a cor.
+ *
+ * São sete tipos de evento em quatro pares — a decisão está em
+ * `COR_DO_TIPO_DE_EVENTO` —, e quatro entradas com sete nomes é o que a
+ * legenda do portal já faz com os sete status em cinco tons. Sete linhas e
+ * quatro cores seria pior que quatro: a pessoa procura a diferença entre duas
+ * amostras iguais, não acha, e passa a desconfiar do resto.
+ *
+ * **ELA É LEGENDA E NÃO FILTRO, e isso é a 0105.** Até aqui a fileira era as
+ * duas coisas na mesma peça — "a legenda e o interruptor são a mesma coisa, e
+ * separá-los daria uma legenda que pode discordar do que está desenhado" —, e
+ * o que a mantém honesta hoje é a cor sair do MESMO mapa que desenha o chip.
+ * Um filtro por tipo de evento é outra decisão, e ninguém a pediu.
+ */
+const LEGENDA: { cor: string; rotulo: string }[] = [
+  { cor: COR_DO_TIPO_DE_EVENTO.convencao, rotulo: "Convenção e feira" },
+  { cor: COR_DO_TIPO_DE_EVENTO.lancamento, rotulo: "Lançamento" },
+  { cor: COR_DO_TIPO_DE_EVENTO.feriado_cliente, rotulo: "Feriado do cliente" },
+  { cor: COR_DO_TIPO_DE_EVENTO.reuniao, rotulo: "Reunião, treinamento e outro" },
+];
 
 /**
  * O casco do Calendário Full: navegação, camadas, filtros e a visão escolhida.
@@ -54,13 +74,17 @@ import { VisaoDeSemana } from "./visao-semana";
  * ---------------------------------------------------------------------------
  *
  * ---------------------------------------------------------------------------
- * AS CAMADAS SÃO LINKS, e não caixas de seleção com estado.
+ * AS CAMADAS NÃO EXISTEM MAIS, e com elas saíram dois filtros (0105).
  *
- * O sprint pede caixas guardadas no `localStorage`. Elas viram links na URL
- * pela mesma razão que todo filtro do produto: "olha a semana do dia 15 sem
- * as ausências" precisa ser um link que abre igual para quem recebe. E com as
- * duas fontes — URL e navegador — a tela abriria com a camada que o link diz
- * e trocaria sozinha um instante depois para a que estava lembrada.
+ * Elas eram seis links na URL — nunca caixas no `localStorage`, pela razão de
+ * todo filtro do produto. Com uma origem só não há o que desligar, e os dois
+ * filtros que perguntavam por `user_id` passariam a mentir: "Filtrar por
+ * responsável" devolveria zero sempre, e "Só minha pauta" deixaria passar
+ * tudo. Um filtro que só sabe esvaziar a tela e um botão que não muda nada são
+ * o interruptor que a 0088 deixou para trás, em outra forma.
+ *
+ * O filtro de CLIENTE fica, e é o único que continua respondendo: a feira e o
+ * feriado de uma conta têm empresa, a convenção da casa não tem.
  * ---------------------------------------------------------------------------
  */
 export function CalendarioFull({
@@ -70,8 +94,6 @@ export function CalendarioFull({
   itens,
   clientes,
   pessoas,
-  camadas,
-  foco,
   evento,
   usuarioId,
   podeEscrever,
@@ -81,9 +103,8 @@ export function CalendarioFull({
   janela: Janela;
   itens: ItemDoCalendario[];
   clientes: { id: string; nome: string }[];
+  /** Os participantes do formulário e do detalhe. Não é filtro desde a 0105. */
   pessoas: PessoaDoCalendario[];
-  camadas: TipoNoCalendario[];
-  foco: "minhas" | "todos";
   evento: EventoDetalhado | null;
   usuarioId: string;
   podeEscrever: boolean;
@@ -108,26 +129,6 @@ export function CalendarioFull({
   }
 
   const clienteFiltrado = parametros.get("cliente");
-  const responsavelFiltrado = parametros.get("responsavel");
-  const soMinhas = foco === "minhas";
-  const todasAsCamadas = camadas.length === CAMADAS.length;
-
-  function alternarCamada(camada: TipoNoCalendario) {
-    // Ligadas todas, clicar numa DESLIGA só ela. É o gesto que a pessoa
-    // espera: "quero ver tudo menos as ausências" em um clique, e não em seis.
-    const proximas = todasAsCamadas
-      ? CAMADAS.filter((c) => c !== camada)
-      : camadas.includes(camada)
-        ? camadas.filter((c) => c !== camada)
-        : [...camadas, camada];
-
-    navegar({
-      camadas:
-        proximas.length === 0 || proximas.length === CAMADAS.length
-          ? null
-          : proximas.join(","),
-    });
-  }
 
   const titulo = useMemo(
     () => format(parseISO(`${mes}-01`), "MMMM 'de' yyyy", { locale: ptBR }),
@@ -223,35 +224,29 @@ export function CalendarioFull({
         </div>
       </div>
 
-      {/* AS CAMADAS. Cada uma carrega a própria cor: a legenda e o
-          interruptor são a mesma coisa, e separá-los daria uma legenda que
-          pode discordar do que está desenhado. */}
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-        {CAMADAS.map((camada) => {
-          const ligada = camadas.includes(camada);
-          return (
-            <button
-              key={camada}
-              type="button"
-              onClick={() => alternarCamada(camada)}
-              aria-pressed={ligada}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
-                ligada ? "text-text-primary" : "text-text-muted",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-2.5 rounded-full",
-                  ligada ? COR_DA_CAMADA[camada] : "bg-muted",
-                )}
-              />
-              {ROTULOS_DE_CAMADA[camada]}
-            </button>
-          );
-        })}
-      </div>
+      {/* A LEGENDA DOS TIPOS DE EVENTO. A amostra é a MESMA classe do chip
+          de verdade, pelo mapa compartilhado: uma legenda que mostra outra
+          coisa que a tela é uma legenda que ensina errado.
+
+          ELA QUEBRA DE LINHA, e não rola para o lado: a fileira das camadas
+          rolava porque eram seis BOTÕES, e um botão dá acesso de teclado à
+          região que rola. Esta é estática — não há o que clicar —, e o axe
+          reprovou a primeira versão em 375px por `scrollable-region-focusable`:
+          uma região rolável sem nada focável dentro é uma região que o teclado
+          não alcança. A saída não é um `tabIndex` numa lista que não decide
+          nada (uma parada de Tab que não faz coisa alguma); é não rolar. Com
+          quatro entradas, duas linhas no celular é o resultado certo. */}
+      <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        {LEGENDA.map((entrada) => (
+          <li
+            key={entrada.rotulo}
+            className="text-text-secondary flex shrink-0 items-center gap-1.5"
+          >
+            <span aria-hidden className={cn("size-2.5 rounded-full", entrada.cor)} />
+            {entrada.rotulo}
+          </li>
+        ))}
+      </ul>
 
       {/* FILTROS */}
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -269,36 +264,6 @@ export function CalendarioFull({
           ))}
         </select>
 
-        <select
-          value={responsavelFiltrado ?? ""}
-          onChange={(e) => navegar({ responsavel: e.target.value || null })}
-          aria-label="Filtrar por responsável"
-          className="border-border bg-surface-card text-text-primary rounded-md border px-2 py-1.5"
-        >
-          <option value="">Toda a equipe</option>
-          {pessoas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome}
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          // GRAVA O VALOR NOS DOIS SENTIDOS, e nunca `null`: com o
-          // padrão vindo do perfil, tirar o parâmetro devolveria a escolha
-          // para o perfil e o clique não faria nada para o colaborador.
-          onClick={() => navegar({ foco: soMinhas ? "todos" : "minhas" })}
-          aria-pressed={soMinhas}
-          className={cn(
-            "rounded-full border px-3 py-1.5 transition-colors",
-            soMinhas
-              ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
-              : "text-text-secondary hover:bg-muted",
-          )}
-        >
-          Só minha pauta
-        </button>
       </div>
 
       {/* A VISÃO */}
@@ -307,12 +272,9 @@ export function CalendarioFull({
           icon={CalendarDays}
           title="Nada neste período"
           description={
-            camadas.length < CAMADAS.length ||
-            clienteFiltrado ||
-            responsavelFiltrado ||
-            soMinhas
-              ? "Nenhum item combina com os filtros ligados."
-              : "Nem entrega, nem ausência, nem evento marcado."
+            clienteFiltrado
+              ? "Nenhum evento desta conta neste período."
+              : "Nenhum evento marcado."
           }
         />
       ) : visao === "mes" ? (
@@ -338,7 +300,7 @@ export function CalendarioFull({
               </SheetHeader>
               <div className="space-y-4 p-4">
                 <p className="text-text-muted text-xs">
-                  {ROTULOS_DE_CAMADA[emFoco.tipo]}
+                  {rotuloDoEvento(emFoco)}
                   {emFoco.cliente ? ` · ${emFoco.cliente}` : ""}
                 </p>
                 <p className="text-sm">
@@ -348,11 +310,6 @@ export function CalendarioFull({
                       })
                     : `${format(parseISO(emFoco.dataInicio), "dd/MM")} a ${format(parseISO(emFoco.dataFim), "dd/MM")}`}
                 </p>
-                {emFoco.pessoa ? (
-                  <p className="text-text-secondary text-sm">
-                    {emFoco.pessoa.nome}
-                  </p>
-                ) : null}
                 <Button asChild variant="outline" className="w-full">
                   <a href={emFoco.link}>Abrir</a>
                 </Button>

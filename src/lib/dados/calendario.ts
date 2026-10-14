@@ -3,14 +3,12 @@ import "server-only";
 import { cache } from "react";
 
 import { ouFalha } from "@/lib/dados/consulta";
-import { ROTULOS_DE_TIPO } from "@/lib/dominio/full-days";
 import type {
   EventoDetalhado,
   ItemDoCalendario,
   PessoaDoCalendario,
 } from "@/lib/dominio/calendario";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { TipoNoCalendario } from "@/lib/supabase/database.types";
 
 /**
  * As consultas do Calendário Full.
@@ -19,14 +17,29 @@ import type { TipoNoCalendario } from "@/lib/supabase/database.types";
  * TUDO SAI DA VIEW `calendar_events`, e nenhuma consulta aqui repete o filtro
  * de quem pode ver o quê.
  *
- * A view tem `security_invoker`, então a RLS das sete tabelas de origem
- * continua valendo por baixo: a equipe vê a agência, o cliente vê o que foi
- * enviado para ele, e o rascunho não existe para ninguém. Repetir esses
- * filtros aqui criaria um segundo lugar onde a regra pode divergir — e o
- * segundo lugar é sempre o que esquece.
+ * A view tem `security_invoker`, então a RLS de `events` continua valendo por
+ * baixo: a equipe vê a agência e o cliente não alcança evento nenhum, nem o da
+ * própria empresa. Repetir esse filtro aqui criaria um segundo lugar onde a
+ * regra pode divergir — e o segundo lugar é sempre o que esquece.
  *
- * O que ESTA camada filtra é o que a pessoa PEDIU: o período visível, os
- * clientes, os responsáveis. Isso é escolha de quem olha, não permissão.
+ * O que ESTA camada filtra é o que a pessoa PEDIU: o período visível e os
+ * clientes. Isso é escolha de quem olha, não permissão.
+ * ---------------------------------------------------------------------------
+ *
+ * ---------------------------------------------------------------------------
+ * TRÊS FILTROS SAÍRAM COM AS CINCO ORIGENS (0105), e os três teriam ficado
+ * mentindo.
+ *
+ *   - `camadas` escolhia entre as seis origens, e sobrou uma;
+ *   - `responsaveis` perguntava por `user_id`, que nenhuma origem escreve mais
+ *     — ele devolveria ZERO sempre, que é um filtro que só sabe esvaziar a
+ *     tela;
+ *   - `soMinhas` deixava passar o que tem o meu nome MAIS o que é da agência,
+ *     e com `user_id` sempre nulo ele passou a deixar passar tudo — um botão
+ *     que não muda nada.
+ *
+ * `clientes` fica, e é o único que continua respondendo: a feira e o feriado
+ * de uma conta têm empresa, a convenção da casa não tem.
  * ---------------------------------------------------------------------------
  */
 
@@ -35,19 +48,18 @@ export type FiltrosDoCalendario = {
   de: string;
   ate: string;
   clientes?: string[];
-  responsaveis?: string[];
-  camadas?: TipoNoCalendario[];
-  /** "Só minha pauta": o que tem o meu nome, mais o que é da agência inteira. */
-  soMinhas?: string | null;
 };
 
 /**
  * Os itens do período.
  *
- * **Só a janela visível, nunca o ano.** A view lê sete tabelas; pedir doze
- * meses de uma vez é pedir sete varreduras grandes para desenhar trinta e um
- * dias. A folga de uma semana em cada ponta é o que faz a grade do mês
- * mostrar os dias vizinhos sem uma segunda ida ao banco.
+ * **Só a janela visível, nunca o ano.** A folga de uma semana em cada ponta é
+ * o que faz a grade do mês mostrar os dias vizinhos sem uma segunda ida ao
+ * banco.
+ *
+ * **SÃO DUAS IDAS, E ERAM TRÊS.** A terceira buscava os `profiles` de todos os
+ * responsáveis do mês, para desenhar o avatar de quem estava fora e a segunda
+ * linha do chip — as duas peças eram da camada de ausência, que saiu na 0105.
  */
 export const itensDoCalendario = cache(
   async (filtros: FiltrosDoCalendario): Promise<ItemDoCalendario[]> => {
@@ -62,77 +74,48 @@ export const itensDoCalendario = cache(
       .lte("data_inicio", filtros.ate)
       .gte("data_fim", filtros.de);
 
-    if (filtros.camadas?.length) consulta = consulta.in("tipo", filtros.camadas);
     if (filtros.clientes?.length) consulta = consulta.in("client_id", filtros.clientes);
-    if (filtros.responsaveis?.length)
-      consulta = consulta.in("user_id", filtros.responsaveis);
 
     const linhas = ouFalha("itens do calendário", await consulta);
 
     const idsDeClientes = [
       ...new Set(linhas.map((l) => l.client_id).filter(Boolean)),
     ] as string[];
-    const idsDePessoas = [
-      ...new Set(linhas.map((l) => l.user_id).filter(Boolean)),
-    ] as string[];
 
-    const [clientes, pessoas] = await Promise.all([
-      idsDeClientes.length
-        ? supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes)
-        : Promise.resolve({ data: [], error: null }),
-      idsDePessoas.length
-        ? supabase.from("profiles").select("id, nome, avatar_url").in("id", idsDePessoas)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+    const nomeDoCliente = idsDeClientes.length
+      ? new Map(
+          ouFalha(
+            "clientes do calendário",
+            await supabase
+              .from("clients")
+              .select("id, nome_empresa")
+              .in("id", idsDeClientes),
+          ).map((c) => [c.id, c.nome_empresa]),
+        )
+      : new Map<string, string>();
 
-    const nomeDoCliente = new Map(
-      ouFalha("clientes do calendário", clientes).map((c) => [c.id, c.nome_empresa]),
-    );
-    const porPessoa = new Map(
-      ouFalha("pessoas do calendário", pessoas).map((p) => [p.id, p]),
-    );
-
+    // A TRADUÇÃO DO TÍTULO SAIU COM A AUSÊNCIA, e vale dizer por quê: a view
+    // escrevia `h.tipo::text` ali, que é a chave do enum em inglês — a palavra
+    // que a 0016 e a 0018 tiraram do produto de propósito —, e a tela a
+    // passava por `ROTULOS_DE_TIPO` do Full Days para não desenhá-la crua.
+    // `check:cores` não pegaria aquilo, porque o texto vinha do banco. Com a
+    // camada fora, o título é `events.nome`, que é o que alguém digitou.
     const itens: ItemDoCalendario[] = linhas.map((l) => ({
       id: l.id,
       tipo: l.tipo,
-      // A AUSÊNCIA CHEGA COM A CHAVE DO ENUM NO TÍTULO, e a tela não pode
-      // mostrá-la crua.
-      //
-      // A view escreve `h.tipo::text`, que é `ferias` | `licenca` |
-      // `ausencia` — a camada em inglês, sem acento, que ficou como estava
-      // quando a 0016 trocou o vocabulário. Desenhar isso na grade colocaria
-      // a palavra que o produto tirou de propósito de volta na tela, e
-      // `check:cores` não pegaria: ele procura as formas ACENTUADAS, porque
-      // as sem acento são justamente as chaves de enum que ficaram.
-      //
-      // A tradução passa por `ROTULOS_DE_TIPO`, que é o mapa único por onde
-      // todo rótulo do Full Days passa. Um segundo mapa aqui seria a segunda
-      // verdade que a troca de vocabulário custou uma migration para evitar.
-      titulo:
-        l.tipo === "ausencia"
-          ? (ROTULOS_DE_TIPO[l.titulo as keyof typeof ROTULOS_DE_TIPO] ?? l.titulo)
-          : l.titulo,
+      titulo: l.titulo,
       dataInicio: l.data_inicio,
       dataFim: l.data_fim,
       clientId: l.client_id,
       cliente: l.client_id ? (nomeDoCliente.get(l.client_id) ?? null) : null,
-      userId: l.user_id,
-      pessoa: l.user_id ? (porPessoa.get(l.user_id) ?? null) : null,
-      prioridade: l.prioridade,
       status: l.status,
       link: l.link,
     }));
 
-    // "SÓ MINHA PAUTA" INCLUI O QUE É DA AGÊNCIA, e é o ponto do filtro. Ele
-    // responde "o que eu preciso saber hoje", e a convenção da semana que vem
-    // é parte disso mesmo não tendo o meu nome. Filtrar só por `user_id`
-    // esconderia justamente o que muda o meu dia sem ser meu.
-    const meus = filtros.soMinhas
-      ? itens.filter((i) => i.userId === filtros.soMinhas || i.userId === null)
-      : itens;
-
-    return meus.sort(
-      (a, b) => a.dataInicio.localeCompare(b.dataInicio) || a.titulo.localeCompare(b.titulo, "pt-BR"),
+    return itens.sort(
+      (a, b) =>
+        a.dataInicio.localeCompare(b.dataInicio) ||
+        a.titulo.localeCompare(b.titulo, "pt-BR"),
     );
   },
 );

@@ -504,24 +504,37 @@ por conta própria acabariam oferecendo "Concluir" onde o banco recusa.
 `/painel/calendario` — migration 0055. Até ele o produto tinha DOIS
 calendários parciais: o de Gestão de Tasks (prazo de demanda e de etapa, post
 e campanha) e o do Full Days (quem está fora). Nenhum dos dois respondia a
-pergunta que a agência faz toda segunda: **"o que acontece nesta semana, e
-quem está disponível para fazer?"**
+pergunta que a agência faz toda segunda: **"o que acontece nesta semana?"**
 
-**Tudo sai de UMA view, `calendar_events`**, que junta CINCO origens num
-formato só: ausência, evento, post, campanha e entregável.
-Nenhuma tabela de evento agregado: uma tabela que copia data de post e período
-de campanha precisa ser reescrita por vários caminhos para continuar
-verdadeira, e no dia em que um deles falhar o calendário mente sem avisar. É a
-mesma razão pela qual bloqueio de subtarefa não é status e atraso do Financeiro
-não é coluna.
+**ELE É SÓ DE EVENTOS**, e isso é a migration 0105 — decisão do usuário: *"No
+calendário da full, ainda estao aparecendo tasks, e social, campanhas, entre
+outros, ele deve ser apenas para eventos que serao lançados nele, nada de
+outros abas"*. Convenção, feira, lançamento, reunião, treinamento e feriado de
+cliente: o que alguém LANÇA nesta tela, e nada que já é lançado e lido em
+outro módulo.
 
-**Eram OITO, e já saíram três.** A demanda e a etapa de demanda saíram na
-0077 — decisão do usuário: *"quero que elas fiquem apenas dentro do Minhas
-Tasks"* —, e a **etapa de post** saiu na 0088, pela mesma frase aplicada ao
-social: *"a corrente do social vive só em minhas tasks e na carga"*. Aquela
-oitava origem entrou na 0059 exatamente como este parágrafo dizia que
-entraria, com um `union all` a mais; as três saíram do mesmo jeito, tirando
-três.
+**ERAM OITO, E A SEQUÊNCIA INTEIRA FOI DO USUÁRIO.** A view nasceu na 0055
+juntando demanda, etapa, ausência, evento, post, campanha, entregável e — a
+partir da 0059 — a etapa de post. A demanda e a etapa saíram na 0077 (*"quero
+que elas fiquem apenas dentro do Minhas Tasks"*), a etapa de post saiu na 0088
+(*"a corrente do social vive só em minhas tasks e na carga"*) e voltou na 0090
+como a FASE do mês, que é outra coisa — cinco pontos por mês, não dezoito. A
+0105 tirou as cinco que sobravam. **Tudo continua saindo de UMA view**, e a
+razão de ela não ser uma tabela de evento agregado continua valendo para o dia
+em que uma segunda origem voltar: uma tabela que copia data precisa ser
+reescrita por vários caminhos para continuar verdadeira, e no dia em que um
+deles falhar o calendário mente sem avisar.
+
+**A AUSÊNCIA SAIU TAMBÉM, e foi a única pergunta que precisou ser feita.** Ela
+era a outra camada que ninguém "lança" com a mesma cara em outro módulo, e a
+leitura literal da frase ganhou: a ausência é lançada no Full Days, que é
+outra aba. **O que se perde está dito, porque é informação e não enfeite:**
+esta era a única tela onde se via a agenda da agência JUNTO com quem não vai
+estar. A pergunta *"quem está disponível"* continua tendo resposta em dois
+lugares, e os dois são onde ela é feita de verdade — a matriz do Full Days
+(quem olha a semana da equipe) e a faixa de disponibilidade no painel da etapa
+(quem está distribuindo trabalho, antes de escrever a data). O que não existe
+mais é o retrato das duas coisas na mesma grade.
 
 **Saíram da VIEW, e não só da lista de camadas**, e a diferença é o que
 impede que voltem: uma camada é um interruptor, e tirar o interruptor
@@ -530,50 +543,76 @@ graça ao próximo consumidor da view — a exportação, um relatório, uma tel
 nova. É a decisão da 0023, que apagou `tasks.exigencia_aprovacao` em vez de
 deixá-la parada.
 
-**O que a Linha do Tempo NÃO perdia era a carga**, e era o que fazia aquela
-remoção caber: a cor de cada célula era ocupação, e ela saía de
-`carga_da_equipe()` chamando `carga_do_dia()` (0035) — nenhuma das duas lê a
-view, elas leem `subtasks` direto. **A própria Linha do Tempo saiu depois**,
-por decisão do usuário, e quem responde "a equipe aguenta?" hoje está logo
-abaixo, em "As DUAS visões".
+**E O CAMINHO CONTRÁRIO JÁ COBROU UMA VEZ**, que é por que as duas pontas
+saem sempre no mesmo commit: a 0088 tirou a origem da view e DEIXOU o
+interruptor, e quando a 0090 devolveu uma origem com nome novo o `in("tipo",
+camadas)` da tela passou a filtrar fora exatamente as linhas que a migration
+acabara de criar — sem erro em lugar nenhum.
 
-**E o arrasto saiu junto.** Ele valia para uma camada só — a etapa, porque o
-prazo dela é escrito por quem a faz; nos outros ele prometia uma mudança que o
-banco desfaz ou recusa. Sem aquela camada não sobra nada nesta grade que se
-mova arrastando, e um alvo de solta que recusa tudo é um gesto que não faz
-nada. Quem arrasta agora é o board de etapas de Minhas Tasks.
+**NÃO EXISTEM MAIS CAMADAS, e com elas saíram DOIS filtros.** Com uma origem
+só não há o que desligar — um interruptor que apaga a tela inteira não é
+filtro, é um interruptor de luz, a mesma razão pela qual menos de duas seções
+não vira barra de contexto. E os dois filtros que perguntavam por `user_id`
+passariam a mentir: **"Filtrar por responsável" devolveria zero sempre**, e
+**"Só minha pauta" deixaria passar tudo** — um filtro que só sabe esvaziar a
+tela e um botão que não muda nada são o interruptor da 0088 em outra forma.
+Ficou o filtro de CLIENTE, que é o único que continua respondendo: a feira e o
+feriado de uma conta têm empresa, a convenção da casa não tem.
 
-**A coluna `prioridade` continua na view, e nenhuma origem a escreve.**
-`create or replace view` não deixa TIRAR coluna — só acrescentar no fim —, e
-um `drop`/`create` derrubaria junto os grants de um objeto que o PostgREST
-publica. É `cancelada` no enum de status visto de outro ângulo: o valor fica,
-e nenhum caminho o produz.
+**DUAS COLUNAS CONTINUAM NA VIEW, e nenhuma origem as escreve.** `prioridade`
+está assim desde a 0077 (quem a escrevia era a etapa de demanda) e `user_id`
+entrou na 0105. `create or replace view` não deixa TIRAR coluna — só
+acrescentar no fim —, e um `drop`/`create` derrubaria junto os grants de um
+objeto que o PostgREST publica. É `cancelada` no enum de status visto de outro
+ângulo: o valor fica, e nenhum caminho o produz. **Em `ItemDoCalendario` elas
+não estão**, e com `userId` saiu `pessoa` e uma ida ao banco: o tipo de
+domínio não é o Row.
 
-**`security_invoker = true` é a linha mais importante da migration.** Uma
-view comum no Postgres roda com os direitos de QUEM A CRIOU — o superusuário
-da migration —, e sem essa cláusula a `calendar_events` lê as tabelas de
-origem inteiras para qualquer pessoa autenticada, furando a RLS de todas de uma vez
-num objeto que o PostgREST publica sozinho. **E o furo passa despercebido num
-banco com um cliente só:** ele vê seis campanhas, que é o total, e "seis de
-seis" tem a mesma cara com a RLS ligada e desligada. Por isso a bateria cria
-material de DUAS empresas — tirando a cláusula, seis cenários falham e dizem
-o que vazaria.
+**O ARRASTO JÁ TINHA SAÍDO**, com a etapa: ele valia para uma camada só —
+porque o prazo dela é escrito por quem a faz —, e nas outras prometia uma
+mudança que o banco desfaz ou recusa. Quem arrasta hoje é o board de etapas de
+Minhas Tasks.
 
-**O filtro de rascunho saiu com as duas origens que o usavam**, e o registro
-fica porque a regra continua valendo em toda parte: a RLS restritiva esconde o
-rascunho dos outros e a consulta esconde o meu. Na view ele era
-`publicada_em is not null`, e com a demanda e a etapa fora não há mais o que
-filtrar. E **`rascunho` e `cancelada` não existem como status** — o sprint da
-0055 filtrava por eles, e `rascunho` nem é valor do enum: o Postgres recusaria
-a criação da view, com um erro falando de enum e não de rascunho.
+**`security_invoker = true` é a linha mais importante da migration, e ela foi
+repetida SEIS vezes** — 0055, 0059, 0077, 0088, 0090 e 0105 —, porque `create
+or replace view` NÃO herda a cláusula do objeto que substitui. Uma view comum
+no Postgres roda com os direitos de QUEM A CRIOU — o superusuário da
+migration —, e sem ela a `calendar_events` lê a tabela de origem inteira para
+qualquer pessoa autenticada, num objeto que o PostgREST publica sozinho.
 
-**Os cenários que mediam os dois filtros ficaram, virados do avesso.** A
-bateria da 0055 provava que o rascunho não vazava e que só a folha entrava; as
-fixtures continuam todas de pé — demanda publicada, rascunho, mãe e filha com
-prazo — e hoje o que se confere é que nenhuma atravessa a view, nem para o
-sócio. Devolvendo um dos dois `union all`, um deles falha e diz qual. **E um
-deles mede o TEXTO da view** e não a contagem: num banco sem demanda nenhuma,
-todos os outros passariam com as origens de pé.
+**E O FURO PASSA DESPERCEBIDO NUM BANCO COM UM CLIENTE SÓ**, que é por que a
+bateria cria material de DUAS empresas. **A sonda mudou na 0105, e a razão é
+que a antiga deixou de medir o que diz:** ela contava a CAMPANHA da Óptica que
+o cliente do Mundo Verde não alcança, e a campanha saiu da view — aquele
+cenário passaria a contar zero de nada. Hoje quem a povoa é um EVENTO da
+Óptica, criado na fixture exatamente para isto: `events_select` é
+`is_staff()`, então o cliente conta zero com a cláusula e um sem ela.
+
+**Os cenários de cada origem ficaram, virados do avesso.** As fixtures das
+sete continuam todas de pé — demanda publicada, rascunho, mãe e filha com
+prazo, duas campanhas, uma peça com prazo, dois posts enviados e duas
+ausências —, e o que se confere é que NENHUMA atravessa a view, nem para o
+sócio. **E três cenários medem o TEXTO da view** e não a contagem: num banco
+sem campanha nenhuma, todos os outros passariam com as origens de pé. O
+terceiro é a metade POSITIVA — a view TEM de ler `events` —, sem a qual os
+dois primeiros passariam numa view que perdeu a última origem também.
+
+**A peça de campanha não tinha fixture, e só o teste de mutação mostrou.** O
+arquivo apagava `deliverables` no início e nunca inseria nenhuma, então o
+cenário dela contava zero de nada: passava com a origem ligada E desligada. É
+a lição do `select` antes do `insert` na idempotência da recorrência.
+
+**Medido com quatro mutações:** devolver a ausência derruba 3 cenários, fazer
+a 0105 virar no-op (as seis origens de volta) derruba **11**, tirar o
+`security_invoker` derruba 6 — e dois deles são os de dados, que são os que
+provam a sonda nova —, e devolver só o entregável derruba 4.
+
+**O filtro de rascunho saiu com as origens que o usavam**, e o registro fica
+porque a regra continua valendo em toda parte: a RLS restritiva esconde o
+rascunho dos outros e a consulta esconde o meu. E **`rascunho` e `cancelada`
+não existem como status** — o sprint da 0055 filtrava por eles, e `rascunho`
+nem é valor do enum: o Postgres recusaria a criação da view, com um erro
+falando de enum e não de rascunho.
 
 #### As DUAS visões, e o que cada uma responde
 
@@ -625,8 +664,9 @@ função em `lib/dados/`, que o git guarda.
 área e dividia os minutos pela capacidade. Um identificador nomeando uma tela
 que não existe manda quem vier depois procurar por ela, e um campo que nenhuma
 tela lê é o que alguém reaproveita três sprints depois achando que ele quer
-dizer alguma coisa. O que sobrou serve a quem pergunta: o filtro "Filtrar por
-responsável" e os participantes do evento.
+dizer alguma coisa. **O filtro "Filtrar por responsável" saiu depois**, na
+0105, e a lista ficou: quem a lê hoje é o formulário de evento (os
+participantes) e o detalhe. Foi o FILTRO que saiu, não a consulta.
 
 **Nenhum nome morto entrou no `check:cores`, e a ausência é decisão.** "Lista"
 é o nome de uma visão em Minhas Tasks e na Gestão de Tasks, e "Linha do tempo"
@@ -638,8 +678,8 @@ vez.
 
 #### O CHIP DO DIA CARREGA A COR, e não mais um ponto de seis pixels
 
-Decisão do usuário, na mesma conversa: *"mudar a visualização do evento, para
-dar mais destaque dentro da data, está muito minimalista"*.
+Decisão do usuário: *"mudar a visualização do evento, para dar mais destaque
+dentro da data, está muito minimalista"*.
 
 **A incoerência estava dentro de um arquivo só.** A FAIXA de três dias já saía
 como pílula inteira no par nomeado da camada; o item de um dia saía como texto
@@ -652,48 +692,88 @@ queixa: *"quatro fios de quatro pixels numa célula não se leem à distância d
 que a grade do mês é olhada"*. A barra cheia fica, como borda de leitura entre
 duas linhas do mesmo tom.
 
-**A SEGUNDA LINHA É O CLIENTE, e só um dos dois aparece.** "Layout" é o nome
-de uma fase em todo mês de social da agência e "Lâmina A5" é peça de várias
-campanhas — sem a empresa, o chip não diz de que trabalho ele é. Sem empresa
-(a convenção, o feriado da casa), o primeiro nome responde a pergunta
-seguinte. **Os dois juntos não cabem**: a célula tem cerca de 90px numa grade
-de sete colunas, e "Mundo Verde · Mar" truncado não identifica nem a empresa
-nem a pessoa. A lista inteira continua no `title` e no rótulo acessível.
+##### E A COR PASSOU A SAIR DO TIPO DO EVENTO (0105)
 
-**Nenhum par de cor novo**, e é o que torna a mudança barata: as cores saem de
-`COR_DA_CAMADA`, que o `check:cores` já mede nos dois temas, e a segunda linha
-herda o primeiro-plano do chip — o mesmo par medido. Par nomeado, nunca
-opacidade.
+Ela saía da CAMADA, e com uma camada só o mês inteiro saía num tom único — e
+o rótulo do `title` dizia *"Eventos:"* em cima de todo item, que é a tela
+nomeando onde a pessoa já está. O que sobra como distinção é o que o evento
+**é**, e ele já viajava na view: a coluna `status` carrega `events.tipo` desde
+a 0055.
+
+**NENHUM PAR DE COR NOVO**, e é o que torna a troca barata: os quatro de
+`COR_DO_TIPO_DE_EVENTO` já existiam, e são **sete tipos em quatro pares** pela
+mesma decisão das oito categorias das Recomendações — sete cores numa grade de
+mês viram confete. **A cor nunca é o único sinal**: o nome exato vai no
+`title` e no rótulo acessível.
+
+**E os dois azuis trocaram de par, o que é um conserto e não um ajuste.** Eles
+usavam `--blue-strong` sobre `--blue-soft`, que dá 5,24:1 no claro e **2,35:1
+no escuro**, porque lá os dois tokens são escuros — é o mesmo achado que o selo
+"Admin" da barra lateral já tinha pagado. Ele passava despercebido porque vivia
+em duas telas que a imagem do protótipo não captura no escuro; com a cor
+desenhando o chip do mês, ele passou a ser a peça mais repetida da tela.
+`--accent-foreground` sobre `--accent` é "o azul legível no tema de agora", e
+está medido em `check:cores` desde aquele selo.
+
+**A FILEIRA DE CAMADAS VIROU LEGENDA**, e ela AGRUPA quem divide a cor — como
+a do portal já faz com os sete status em cinco tons. Quatro entradas com sete
+nomes: sete linhas e quatro cores seria pior, porque a pessoa procura a
+diferença entre duas amostras iguais, não acha, e passa a desconfiar do resto.
+**Ela é legenda e não filtro**, e o que a mantém honesta é a cor sair do MESMO
+mapa que desenha o chip — "a legenda e o interruptor eram a mesma coisa, e
+separá-los daria uma legenda que pode discordar do que está desenhado". Um
+filtro por tipo de evento é outra decisão, e ninguém a pediu.
+
+**E ELA QUEBRA DE LINHA em vez de rolar para o lado**, o que o axe pegou na
+primeira rodada. A fileira antiga rolava porque eram seis BOTÕES, e um botão dá
+acesso de teclado à região que rola; esta é estática, e em 375px ela reprovou
+em `scrollable-region-focusable` — uma região rolável sem nada focável dentro é
+uma região que o teclado não alcança. A saída não é um `tabIndex` numa lista
+que não decide nada: é não rolar.
+
+**A SEGUNDA LINHA É O CLIENTE**, e ela era o cliente OU o primeiro nome de
+quem era responsável. O segundo ramo saiu com `user_id` (0105): o evento tem
+PARTICIPANTES, vários por linha, e não há um nome para pôr ali — a lista deles
+continua no detalhe, que é onde ela cabe. **Os dois nunca couberam juntos**: a
+célula tem cerca de 90px numa grade de sete colunas, e "Mundo Verde · Mar"
+truncado não identifica nem a empresa nem a pessoa.
 
 ***O que o chip custa, e é dito em vez de escondido:*** ele passou de uma
 linha para duas, então um dia com três itens ocupa a célula inteira e a linha
 da semana cresce. É o preço de a célula dizer de quem é o trabalho em vez de
 só nomeá-lo, e é a conta que o calendário da Gestão de Tasks já pagou.
 
-**E o exemplo do protótipo ganhou um QUARTO item no mesmo dia**, pela razão
-pela qual a demanda da Ana tem duas etapas de outras pessoas: a célula corta
-em três, e sem o quarto o "+ N mais" não sai em imagem nenhuma — e ele é
-justamente a linha que nenhuma outra tela do produto desenha.
+**E o exemplo do protótipo mudou com a tela.** Ele tinha as seis camadas ao
+mesmo tempo, e o que ele precisa provar agora são quatro coisas: a faixa de
+três dias (um item de um dia não provaria nada), **um dia com mais de três
+itens** para o "+ N mais" sair em imagem — a linha que nenhuma outra tela do
+produto desenha —, **um evento de cada par da legenda**, senão a imagem mostra
+quatro entradas e um tom só na grade, e **um com empresa e um sem**, porque a
+segunda linha do chip some quando não há.
 
-**A campanha entra pelo ENCERRAMENTO na grade do mês**, e a view carrega o
-período inteiro. São as duas metades da mesma decisão: a view guarda a
-verdade — e é dela que o `.ics` monta o evento de trinta dias que a pessoa
-assina no Google —, e `diaNaGrade()` em `lib/dominio/calendario.ts` é o único
-lugar onde a escolha de desenho mora. Havia um segundo leitor do período, a
-Linha do Tempo, e ele saiu; a separação fica, porque é ela que impede a grade
-e o arquivo de discordarem sobre a mesma campanha.
+**`diaNaGrade()` SAIU COM A CAMPANHA**, e o argumento fica registrado no lugar
+da função. Ela era o único lugar onde morava a escolha de QUAL dia a grade
+pinta, e existia por uma origem só: a view carregava o período inteiro da Wave
+— é dela que o `.ics` monta o evento de trinta dias que a pessoa assina no
+Google — e a grade a desenhava no dia em que ela ACABA, porque trinta células
+empurrariam para baixo tudo o que acontece em cada uma. Sem a campanha não há
+mais duas respostas para a mesma pergunta, e um `if` que nunca é verdadeiro num
+lugar que decide desenho é o que alguém reaproveita achando que ele ainda
+escolhe alguma coisa. **No dia em que uma origem de período longo voltar, é ali
+que a escolha mora** — senão a grade e o arquivo discordam sobre a mesma linha.
 
 **O que atravessa dias vira faixa no topo da semana**, e não item da lista de
 cada dia: uma feira de três dias listada dia a dia são três linhas que a
-pessoa junta de cabeça, competindo com os prazos daquele dia. E **sempre seis
-semanas**, senão a grade muda de altura ao trocar de mês e a página pula.
+pessoa junta de cabeça, competindo com o que acontece naquele dia. E **sempre
+seis semanas**, senão a grade muda de altura ao trocar de mês e a página pula.
 
-**A ausência chega com a chave do enum no título**, e a tela não pode
-mostrá-la crua: a view escreve `h.tipo::text`, que é `ferias` — a camada em
-inglês que ficou como estava quando a 0016 trocou o vocabulário. Desenhar
-isso poria na tela a palavra que o produto tirou de propósito, e
-`check:cores` não pegaria, porque ele procura as formas ACENTUADAS. A
-tradução passa por `ROTULOS_DE_TIPO`, o mesmo mapa do Full Days.
+**A TRADUÇÃO DO TÍTULO SAIU COM A AUSÊNCIA, e vale dizer por quê.** A view
+escrevia `h.tipo::text` naquela origem, que é `ferias` — a camada em inglês que
+ficou como estava quando a 0016 trocou o vocabulário —, e a tela a passava por
+`ROTULOS_DE_TIPO` do Full Days para não desenhar na grade a palavra que o
+produto tirou de propósito. **`check:cores` não pegaria aquilo**, porque o
+texto vinha do banco. Com a camada fora, o título é `events.nome`, que é o que
+alguém digitou.
 
 #### Eventos
 
@@ -718,20 +798,25 @@ dois formatos dariam duas frases de recusa diferentes na mesma tela.
 **O cliente não alcança evento nenhum**, nem o da própria empresa: o Portal
 mostra material enviado, não a agenda interna da agência.
 
-#### O que cada perfil vê, e o arrasto
+#### O que TODO MUNDO vê, e os três filtros que saíram
 
-**O colaborador abre em "só minha pauta"; a gestão, na agência inteira.** O
-padrão vem do perfil, mas **o valor vai para a URL nos dois sentidos** — sem
-isso, o mesmo link mostraria coisas diferentes para o sócio e para o redator,
-que é a pior forma de um link mentir.
+**A TELA É A MESMA PARA OS QUATRO PERFIS desde a 0105**, e a diferença que
+havia era o padrão de "Só minha pauta": o colaborador abria na pauta dele e a
+gestão na agência inteira. Os três filtros que sustentavam isso — as camadas,
+o responsável e o foco — saíram com as cinco origens, e a razão de cada um
+está em "O Calendário Full", acima: com `user_id` sempre nulo, um devolveria
+zero sempre e o outro deixaria passar tudo.
 
-**"Só minha pauta" inclui o que é da agência.** Ele responde "o que eu
-preciso saber hoje", e a convenção da semana que vem é parte disso mesmo não
-tendo o meu nome.
+***O que se perde, e é consequência aceita:*** o colaborador passa a abrir na
+agenda inteira da agência. Ela é o que ele precisa saber — a convenção da
+semana que vem muda o dia dele sem ter o nome dele, que era o argumento do
+"Só minha pauta" incluir o que é da agência —, e sem as outras cinco camadas
+ela deixou de ser as duzentas linhas que o padrão existia para evitar.
 
-**As camadas são links, e não caixas com estado no `localStorage`.** Com as
-duas fontes, a tela abriria com a camada que o link diz e trocaria sozinha um
-instante depois para a que o navegador lembrava.
+**O FILTRO DE CLIENTE FICOU, e ele é link na URL** como todo filtro de
+listagem do produto. A regra que sustentava as camadas continua valendo para
+ele: nada de estado no `localStorage`, senão a tela abriria com o que o link
+diz e trocaria sozinha um instante depois para o que o navegador lembrava.
 
 ### A carga: como o produto mede o dia de alguém
 
@@ -2171,10 +2256,11 @@ portal.** Reverter muda o que vai ao ar, e quem responde por isso é a agência.
 A trava não é a ausência do botão: o cliente não tem policy de escrita em
 `post_versions`, e a bateria prova isso com o comando cru.
 
-**O post entra no calendário da agência** (`itensDoCalendario`), com a data de
-PUBLICAÇÃO — lá a pergunta é "o que vai ao ar quando". Ele abre a visualização
-do portal daquele cliente, que é a tela que existe hoje; a de produção é de
-outro sprint.
+**O post ENTRAVA no calendário da agência** (`itensDoCalendario`), com a data
+de PUBLICAÇÃO — lá a pergunta era "o que vai ao ar quando". A origem saiu na
+0105, com as outras quatro: o Calendário Full é só de eventos, e o dia em que
+a peça vai ao ar é lido no calendário do próprio Social Media, que é onde se
+abre o mês.
 
 #### O lado da agência: a corrente de mão em mão
 
@@ -2679,7 +2765,7 @@ da Pauta do mês inteiro porque alguém trocou a data de **um** post — que é
 exatamente o comportamento que ele pediu para tirar. Tirar só a tela deixaria o
 banco desfazendo a escolha por baixo, que é a lição da 0029. O que fica é
 `post_etapas.prazo`, o dia em si: a origem do Calendário Full (que saiu na
-0088), a linha de
+0088, voltou na 0090 como a fase do mês e saiu de vez na 0105), a linha de
 Minhas Tasks e o card da corrente não mudaram.
 
 **A data pode cair fora do mês, e isso é decisão.** A trava óbvia seria "a
@@ -2741,7 +2827,8 @@ Calendário Full existe para responder.
 
 **`prazo` continua sendo o fim, e não virou `data_fim`.** É a decisão da 0027
 palavra por palavra: ele era lido pela sexta origem da `calendar_events` (que
-saiu na 0088), pelo card da corrente, por Minhas Tasks e pela trava da ordem. Renomear coluna em
+saiu na 0088 e, depois de voltar na 0090, de vez na 0105), pelo card da
+corrente, por Minhas Tasks e pela trava da ordem. Renomear coluna em
 uso é migration arriscada sem nada em troca, e quem diz a verdade para quem
 abrir o schema é o `comment`.
 
@@ -3969,6 +4056,9 @@ A bateria mede com material de duas empresas.
 subtarefa, e `disponibilidade_bruta()` lê `subtasks` direto. Sai a BARRA da
 fase do calendário e fica o PESO dela na Linha do Tempo.
 
+*(A origem voltou na 0090 com outro recorte — uma linha por FASE e não por
+peça — e saiu de vez na 0105, quando o calendário passou a ser só de eventos.)*
+
 ##### O que o sprint pedia e NÃO foi feito, com o motivo
 
 - **A fase-portão não é `requer_aprovacao = true`.** A trava de `subtasks` cobra
@@ -4130,6 +4220,13 @@ nenhuma fase; sem camada na URL, elas chegavam e caíam num
 saiu era uma linha por PEÇA por fase — sessenta linhas no mês de uma conta só,
 que é o que fez o usuário pedir a remoção. A que entrou é uma linha por FASE:
 cinco por mês, cada uma o trabalho de uma pessoa num dia.
+
+**E ELA SAIU DE NOVO NA 0105**, com as outras quatro, pela frase que fechou o
+calendário: *"ele deve ser apenas para eventos que serao lancados nele"*. O
+registro das três idas e vindas fica inteiro porque cada passo foi uma decisão
+do usuário, e porque a lição é do MEIO delas — não da última: **as duas pontas
+saem sempre no mesmo commit**, senão a camada deixada para trás vira o filtro
+que descarta as linhas da migration seguinte.
 
 ##### A trava do envio da 0060 sobreviveu em `state-machine.ts`
 
@@ -4722,11 +4819,11 @@ entregável, e o rótulo viaja no modelo — com a palavra fixa no componente, a
 tela do entregável mostrava a seção "Descrição" e, logo abaixo, um botão
 dizendo "Copiar legenda".
 
-**No calendário da agência a campanha entra pelo ENCERRAMENTO**, não como
-faixa do período: uma Wave de trinta dias pintaria trinta células e empurraria
-para baixo tudo o que acontece em cada uma. É a mesma decisão que o calendário
-já toma com o período da etapa. O entregável entra pelo prazo dele; sem prazo
-fica de fora.
+**A campanha e a peça SAÍRAM do calendário da agência na 0105**, com as
+outras três origens. Elas entravam — a campanha pelo ENCERRAMENTO, nunca como
+faixa de trinta células, e o entregável pelo prazo dele —, e `diaNaGrade()`
+saiu junto com elas; o argumento continua registrado em "O CHIP DO DIA CARREGA
+A COR", que é onde a função morava.
 
 **O cliente não edita estrutura, prazo nem arquivo**, e não existe botão de
 reverter versão em lugar nenhum do portal — ele não tem policy de escrita em
@@ -11063,6 +11160,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O Calendário Full | **Ele passou a ser só de eventos** (migration 0105), por decisão do usuário: *"No calendário da full, ainda estao aparecendo tasks, e social, campanhas, entre outros, ele deve ser apenas para eventos que serao lançados nele, nada de outros abas"*. A view nasceu na 0055 juntando OITO origens; a demanda e a etapa saíram na 0077, a etapa de post na 0088 e voltou na 0090 como a FASE do mês — e esta migration tirou as CINCO que sobravam. **A ausência saiu junto, e foi a única pergunta que precisou ser feita:** ela é lançada no Full Days, que é outra aba, e o que se perde está dito — esta era a única tela onde se via a agenda da agência junto com quem não vai estar; a pergunta *"quem está disponível"* continua na matriz do Full Days e na faixa de disponibilidade do painel da etapa. **Saíram da VIEW e não só da lista de camadas**, e as duas pontas no mesmo commit: foi a 0088 tirar a origem e DEIXAR o interruptor que fez a 0090 nascer filtrando fora as linhas que ela acabara de criar. **Com elas foram três filtros**, porque os três passariam a mentir — o de camadas não tinha o que desligar, "Filtrar por responsável" devolveria zero sempre e "Só minha pauta" deixaria passar tudo, já que `user_id` não é escrita por ninguém. **O TIPO estreitou para um valor**, que é o que pega quem mexer nisto, e com ele caíram `CAMADAS`, `COR_DA_CAMADA`, `ROTULOS_DE_CAMADA`, `diaNaGrade()` e dois campos de `ItemDoCalendario` — mais uma ida ao banco. **A cor do chip passou a sair do TIPO DO EVENTO**, que já viajava na view, e a fileira de camadas virou a legenda dos quatro pares: sem isso o mês inteiro sairia num tom só e o `title` diria "Eventos:" em cima de todo item. **Nenhum par de cor novo — e um conserto:** os dois azuis usavam `--blue-strong` sobre `--blue-soft`, que dá 2,35:1 no ESCURO, e passavam despercebidos em duas telas que a imagem não captura lá. `security_invoker` foi repetida pela SEXTA vez. **2196 cenários, quatro mutações medidas** (3 / 11 / 6 / 4), e a sonda do `security_invoker` precisou de um evento da Óptica na fixture: a antiga era a CAMPANHA daquela empresa, e ela saiu da view — o cenário passaria a contar zero de nada. **E a peça de campanha nunca teve fixture**, o que só o teste de mutação mostrou. O axe pegou a legenda nova em 375px por `scrollable-region-focusable`: a fileira antiga rolava porque eram botões, e esta é estática — ela quebra de linha em vez de rolar. |
 | Sprint 3M | **O tutorial interativo de primeiro acesso** (migration 0101). Quem entra pela primeira vez é conduzido: o sistema destaca o elemento, explica o que ele é, e em alguns passos espera a pessoa clicar de verdade. **Os passos moram no CÓDIGO** — eles são interface, e uma tabela de passos obrigaria uma migration a cada ajuste de layout; no dia em que alguém esquecesse de aplicar, o tour apontaria para um elemento que não existe mais, e isso não dá erro: dá um balão apontando para o nada. **NÃO HÁ BIBLIOTECA, e a decisão foi medida:** o driver.js traz doze cores literais e zero `var(--`, e não tem o passo interativo, a navegação entre rotas, a espera de dois segundos nem a persistência — sobrando metade do pedido à mão, os 21KB dele e a folha fora dos tokens não se pagam; o recorte aqui é uma linha de `box-shadow`. **A tela nunca é bloqueada**, e isso é mecânico: o véu é `pointer-events-none`, então o clique da página continua chegando — que é o que o passo interativo precisa, e é a leitura literal de *"nunca bloquear a tela inteira"*. **SÃO TRÊS SITUAÇÕES DE PASSO PULADO e não duas:** a escolha (`passos_pulados`), o defeito (`passos_sem_ancora`, o alarme de tour quebrado) e a tela que não tem aquilo hoje (a bandeira `opcional`, em lugar nenhum do banco) — numa coluna só, o alarme contaria quem clicou em "pular". **E o "lembrete uma única vez no dia seguinte" é derivado do trigger**, sem coluna nenhuma: `tour_progresso_carimba` só move `finalizado_em` quando o status MUDA, então pular de novo não move a data e o dia seguinte passa uma vez só. Quatro divergências do texto do sprint, todas com o motivo escrito: o passo do menu é explicativo (no desktop não há o que abrir, e esperar um clique sem razão é o travamento que o sprint proíbe); o bloco por perfil é UM e nunca somado (empilhados dariam dezoito passos ao sócio contra o teto de 12); toda âncora do tour grande existe sem dado nenhum (um passo que precisa de demanda aberta não existe no primeiro acesso — ele é micro-tour); e "Falar com o suporte interno" não entra, porque o produto não tem canal. Os micro-tours apontam as âncoras da CASCA e o que muda é o TEXTO — nove módulos com cinco passos seriam trinta e cinco seletores para envelhecer. "Primeiros passos" tem CINCO itens e não seis, cada um DERIVADO do estado real, e o que falta é o da autoavaliação, cujo módulo saiu na 0043. **45 cenários novos, 2122 no total, medidos com oito mutações** — e a do `with check` do UPDATE derruba ZERO, o que derrubou uma frase que eu havia escrito como se fosse trava: num policy de UPDATE o Postgres usa o `using` também como check. |
 | A porta | **A tela de login ganhou identidade nova**, em cinco rodadas de proposta — e as quatro primeiras foram recusadas com *"não gostei de nenhuma"*. O que estava errado era a **composição**, não o fundo, e a instrução que fechou é do usuário: *"centralize as informações, deixe o fundo preto, com um degradê azul passando, como se fosse uma molécula se dividindo e se juntando (…) apenas o logo da agência, sem escrever Full Hub, uma letra mais contemporânea, tecnológica"*. **A molécula é metaball**, e o efeito inteiro são duas linhas de filtro SVG: desfoca os seis círculos e **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os halos somados, e o corte transforma a soma numa borda só. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece* molécula e não é. Duas animações empilhadas em tempos que não batem: os átomos fundem e se partem em 26s, o conjunto atravessa em 64s. **O vidro é 82% opaco, e o número foi MEDIDO:** a proposta usava 58%, e com a molécula passando atrás o pior caso — o vidro sobre o ponto mais claro dela — dava `--auth-apoio` em **2,71:1**, o subtítulo e o link ilegíveis por um instante a cada volta, num tempo que ninguém reproduz de propósito. É a regra do selo de estado de outro ângulo: **ninguém mede uma cor que anda**. `--vidro-no-pior-caso` é um token que nada pinta, e existe só para o `check:cores` ter contra o que medir — contra o preto os três textos passariam por larga margem afirmando algo que a tela não garante; medido com mutação, três cenários caem. **A letra era Sora, carregada só em `(auth)`** — e deixou de ser: a Google Sans passou a valer no produto inteiro, por decisão do usuário, e a porta não tem mais letra própria. O título do login **alterna** entre a saudação e o lema da agência com as palavras subindo do desfoque, em CSS puro — a porta é a tela que alguém abre quando nada mais funciona, e uma frase que depende de hidratar pode não aparecer. **O `<h1>` continua "Entrar" e é `sr-only`:** sem isso a mesma tela teria dois títulos diferentes conforme o segundo em que alguém chegasse nela. **Dois achados foram da imagem e não do build:** os átomos saíram chapados (na proposta cada um era degradê radial), e o quadro em repouso era o de máxima separação — seis discos num canto —, consertado com atraso negativo nas duas animações. De quebra, **o wordmark de três linhas saiu do produto** junto com a coluna escura que existia para dar largura a ele, e isso fica escrito em vez de virar ausência silenciosa. |
 | Ajustes: o fluxo | **O fluxo é a sequência de ações, e a data é do mês** (0089). Decisão do usuário: *"na criação do fluxo, tem uma aba começa quantos dias antes do mês, e termina quantos dias antes do mês, não faz sentido, por que cada mês tem um prazo de fluxo diferente, mas sempre que for aberto o social, o fluxo, deve ter a mesma sequência de ações"*. As duas colunas saíram de `social_flow_steps` — **apagar e não aposentar** (0023) —, e a sugestão continua existindo DERIVADA da própria sequência: trinta dias fechando dois antes do dia 1, divididos pelos elos, encostados sem se sobrepor (0084). O custo que a 0087 pagava continua pago — nenhum campo de data nasce vazio —, e ela serve a um fluxo de três elos e a um de dez sem nada guardado. **E a forma antiga de `p_etapas` é recusada com frase própria**, porque `jsonb` aceita chave a mais calada. **A segunda metade é um blocker que o usuário encontrou:** *"quando tento montar um fluxo, ele aparece: Falta a etapa de entrega ao cliente — mas essa etapa já está vinculada ao fato que o cliente aprova a etapa de layout, que é a última de produção"*. O fluxo dele **era representável** — Layout com `papel = 'entrega'`, porque o papel é coluna desde a 0087 para o nome ser livre —, e o que estava errado eram três coisas em volta: a recusa não dizia qual etapa marcar (agora nomeia, nos dois lados); `funcoesDoFluxo()` pulava a entrega e marcá-la perdia o Design (hoje pergunta-se por toda função que o fluxo nomeia, o que de quebra conserta um aviso que mentia em todo mês desde a 0087); e o campo do card não aparecia nela, que o banco sempre aceitou. **1814 cenários, quatro mutações medidas** (1 / 2 / 2 / 1). **E um cenário do arquivo 39 passava por sorte** — três caixinhas num `update` só, com a trava A sendo por linha: ele falhou sozinho, sem ninguém o ter tocado, e virou um laço em ordem. |

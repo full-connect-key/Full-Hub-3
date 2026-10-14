@@ -1,12 +1,10 @@
 "use client";
 
-import { UserAvatar } from "@/components/shared/user-avatar";
 import {
-  COR_DA_CAMADA,
-  ROTULOS_DE_CAMADA,
-  diaNaGrade,
+  corDoEvento,
   ehFaixa,
   ocupaODia,
+  rotuloDoEvento,
   type ItemDoCalendario,
 } from "@/lib/dominio/calendario";
 import { cn } from "@/lib/utils";
@@ -22,20 +20,18 @@ const NO_DIA = 3;
 /**
  * A segunda linha do chip: de quem é isto.
  *
- * **O CLIENTE GANHA DO NOME, e só um dos dois aparece.** "Layout" é o nome de
- * uma fase em todo mês de social da agência e "Lâmina A5" é peça de várias
- * campanhas — sem a empresa, o chip não diz de que trabalho ele é. Quando não
- * há empresa (a convenção, o feriado da casa), o primeiro nome responde a
- * pergunta seguinte, que é quem está nisso.
+ * **É A EMPRESA, e ela é a única das duas que sobrou.** "Feira" e "Lançamento"
+ * são nomes que se repetem na agenda de várias contas, e sem a empresa o chip
+ * não diz de que trabalho ele é; a convenção e o feriado da casa não têm
+ * empresa, e aí a linha não aparece.
  *
- * **Os dois juntos não cabem.** A célula tem cerca de 90px numa grade de sete
- * colunas, e "Mundo Verde · Mar" truncado não identifica nem a empresa nem a
- * pessoa. A lista inteira continua no `title` e no rótulo acessível do chip.
+ * O SEGUNDO RAMO ERA O PRIMEIRO NOME de quem era responsável, e ele saiu com a
+ * camada de ausência (0105): a view não escreve mais `user_id`, e o evento tem
+ * PARTICIPANTES — vários por linha —, então não há um nome para pôr aqui. A
+ * lista deles continua no detalhe, que é onde ela cabe.
  */
 function segundaLinha(item: ItemDoCalendario): string | null {
-  if (item.cliente) return item.cliente;
-  if (item.pessoa) return item.pessoa.nome.split(" ")[0];
-  return null;
+  return item.cliente;
 }
 
 /**
@@ -50,14 +46,13 @@ function segundaLinha(item: ItemDoCalendario): string | null {
  * dia — que é a informação que a célula existe para mostrar. Como faixa, ela
  * se lê como um bloco contínuo e ocupa uma linha só.
  *
- * **E a campanha não vira faixa de trinta células.** `diaNaGrade()` a coloca
- * no dia em que ela acaba, que é o dia em que ela cobra alguma coisa de
- * alguém. A view continua carregando o PERÍODO INTEIRO — ela guarda a
- * verdade, e é dela que o `.ics` monta o evento de trinta dias que a pessoa
- * assina no Google —, e a decisão de qual dia a grade pinta mora num lugar
- * só. Havia um segundo leitor do período, a Linha do Tempo, e ele saiu; a
- * separação fica, porque é ela que impede a grade e o arquivo de discordarem
- * sobre a mesma campanha.
+ * **E A FAIXA É O PERÍODO CRU desde a 0105.** Havia um desvio aqui —
+ * `diaNaGrade()`, que punha a campanha no dia em que ela ACABA, porque uma
+ * Wave de trinta dias pintaria trinta células e empurraria para baixo tudo o
+ * que acontece em cada uma. Com a campanha fora da view não há mais duas
+ * respostas para a mesma pergunta, e o argumento ficou registrado em
+ * `lib/dominio/calendario.ts`, no lugar da função: ele volta a valer no dia em
+ * que uma origem de período longo voltar a esta tela.
  * ---------------------------------------------------------------------------
  *
  * **Sempre seis semanas.** Um mês que cabe em cinco e outro que precisa de
@@ -144,7 +139,8 @@ export function VisaoDeMes({
                 {daSemana.length > 0 ? (
                   <div className="bg-surface-card space-y-1 p-1">
                     {daSemana.map((faixa) => {
-                      const { de, ate } = diaNaGrade(faixa);
+                      const de = faixa.dataInicio;
+                      const ate = faixa.dataFim;
                       // Quem começa antes da semana entra na coluna 1; quem
                       // acaba depois vai até a 7. É isso que faz uma feira de
                       // 27 a 29 sair colada na borda direita numa semana e na
@@ -170,11 +166,11 @@ export function VisaoDeMes({
                           <button
                             type="button"
                             onClick={() => aoAbrir(faixa)}
-                            title={`${ROTULOS_DE_CAMADA[faixa.tipo]}: ${faixa.titulo}`}
+                            title={`${rotuloDoEvento(faixa)}: ${faixa.titulo}`}
                             style={{ gridColumnStart: inicio + 1, gridColumnEnd: fim + 2 }}
                             className={cn(
                               "truncate rounded px-2 py-1 text-left text-xs font-semibold",
-                              COR_DA_CAMADA[faixa.tipo],
+                              corDoEvento(faixa),
                             )}
                           >
                             {faixa.titulo}
@@ -188,9 +184,13 @@ export function VisaoDeMes({
 
                 <div className="bg-border grid grid-cols-7 gap-px">
                   {semana.map((dia) => {
+                    // ERAM DUAS LISTAS, e a segunda era a pilha de avatares
+                    // de quem estava fora, no topo da célula. Ela saiu com a
+                    // camada de ausência (0105): o avatar vinha de
+                    // `item.pessoa`, que a view não escreve mais, e a pergunta
+                    // "quem está disponível" é respondida na matriz do Full
+                    // Days e na faixa de disponibilidade do painel da etapa.
                     const doDia = pontuais.filter((i) => ocupaODia(i, dia));
-                    const ausencias = doDia.filter((i) => i.tipo === "ausencia");
-                    const trabalho = doDia.filter((i) => i.tipo !== "ausencia");
 
                     return (
                       <div
@@ -225,7 +225,7 @@ export function VisaoDeMes({
                         )}
                         onDoubleClick={() => aoSelecionar?.({ de: dia, ate: dia })}
                       >
-                        <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center px-1">
                           <span
                             className={cn(
                               "tabular-nums",
@@ -239,40 +239,20 @@ export function VisaoDeMes({
                             {Number(dia.slice(8, 10))}
                           </span>
 
-                          {/* QUEM ESTÁ FORA fica no topo da célula, com a foto.
-                              É o que evita marcar entrega no dia em que o
-                              responsável não está — e um avatar se lê de
-                              relance, enquanto uma linha na lista some no
-                              meio dos prazos. */}
-                          {ausencias.length > 0 ? (
-                            <span
-                              className="flex -space-x-1"
-                              title={`Fora: ${ausencias.map((a) => a.pessoa?.nome ?? "—").join(", ")}`}
-                            >
-                              {ausencias.slice(0, 3).map((a) => (
-                                <UserAvatar
-                                  key={a.id}
-                                  name={a.pessoa?.nome ?? "—"}
-                                  src={a.pessoa?.avatar_url ?? null}
-                                  size="sm"
-                                />
-                              ))}
-                            </span>
-                          ) : null}
                         </div>
 
                         <ul className="mt-1 space-y-1">
-                          {trabalho.slice(0, NO_DIA).map((item) => {
+                          {doDia.slice(0, NO_DIA).map((item) => {
                             const abaixo = segundaLinha(item);
                             return (
                               <li key={item.id}>
                                 <button
                                   type="button"
                                   onClick={() => aoAbrir(item)}
-                                  title={`${ROTULOS_DE_CAMADA[item.tipo]}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
+                                  title={`${rotuloDoEvento(item)}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
                                   className={cn(
                                     "block w-full rounded px-1.5 py-1 text-left leading-tight",
-                                    COR_DA_CAMADA[item.tipo],
+                                    corDoEvento(item),
                                   )}
                                 >
                                   <span className="block truncate font-semibold">
@@ -287,9 +267,9 @@ export function VisaoDeMes({
                               </li>
                             );
                           })}
-                          {trabalho.length > NO_DIA ? (
+                          {doDia.length > NO_DIA ? (
                             <li className="text-text-muted px-1.5">
-                              + {trabalho.length - NO_DIA} mais
+                              + {doDia.length - NO_DIA} mais
                             </li>
                           ) : null}
                         </ul>
