@@ -8220,6 +8220,188 @@ contra um Postgres de verdade. Uma é propriedade de tela, a outra é do banco.
   A vitrine sai da tela quando há filtro ativo: "Concluídas" e ainda ver uma
   vitrine de não iniciadas seria a tela contradizendo o próprio filtro.
 
+#### O e-book pode ser uma PÁGINA, e não só um PDF
+
+Migration 0102, sprint 3L-B. O primeiro e-book da Full não é um PDF: é uma
+página interativa, com busca no texto inteiro, checklists marcáveis, matriz de
+responsabilidades filtrável e progresso por capítulo. O módulo precisou
+aprender a hospedar isso.
+
+**O QUE A 0102 RESOLVE NÃO É HOSPEDAR O HTML** — o bucket privado já fazia
+isso desde a 0096. É o **progresso**: a página guarda o estado dela no
+`localStorage`, e `localStorage` morre quando a pessoa troca de máquina, limpa
+o navegador ou abre pelo celular. E é invisível para a gestão — um e-book
+obrigatório cuja leitura não se registra em lugar nenhum é um e-book que
+ninguém acompanha.
+
+**O IFRAME NÃO TEM `allow-same-origin`, e isso é o desenho inteiro.** Sem ele
+a página roda em origem OPACA: não alcança a sessão do Full Hub, não lê
+cookie, não escreve no `localStorage` do app. É o que permite hospedar no
+painel um arquivo HTML com script próprio — que alguém subiu, e que amanhã
+pode ser outro — sem lhe dar as chaves da casa. O preço é que o
+`localStorage` dela também fica isolado, e é por isso que a ponte existe:
+quem carrega e salva o estado passa a ser o HOST, por mensagem.
+
+**E A IDENTIDADE DE QUEM MANDA VEM DO `source`, NUNCA DO `origin`.** Com o
+sandbox a origem chega como a string `"null"` — comparar com ela aceitaria
+qualquer outro quadro sandboxado da aba. Quem compara é `veioDoQuadro()`, e
+quem confere a FORMA de cada campo é `lerMensagemDaPagina()`: tudo o que vem
+do quadro é dado de fora, e um `switch` direto no `tipo` deixaria um
+`{tipo:"fullhub:capitulo", chave:{}}` chegar ao banco.
+
+**O ESTADO VAI UMA VEZ SÓ POR CARREGAMENTO, e não é otimização: é o que
+impede um laço.** A página recarrega a si mesma ao receber o estado — é assim
+que ela reaplica o que já foi lido antes de alguém tocar em nada —, e o
+recarregamento manda outro `fullhub:pronto`. Respondendo de novo, ela
+recarregaria de novo, para sempre. **E ele não vai quando não há nada para
+restaurar**, pela mesma razão vista do outro lado: um estado vazio custaria um
+recarregamento que não muda nada, logo na abertura, onde ele aparece como a
+página piscando.
+
+**O DEBOUNCE É POR CHAVE**, e não um só para tudo: um temporizador único faria
+a segunda caixinha marcada em meio segundo cancelar a gravação da primeira — e
+a primeira nunca chegaria ao banco.
+
+##### Dois desvios do texto do sprint, e o primeiro quebraria a entrega
+
+**1. A constraint que ele manda derrubar não existe aqui, e o furo que ela
+descreve também não.** O sprint manda trocar
+`academy_progresso_user_id_item_id_aula_id_key` por um `unique nulls not
+distinct`, com a razão escrita — NULLs são distintos no Postgres. A 0096 viu a
+mesma pegadinha e a resolveu com **dois índices parciais**, e o cabeçalho dela
+diz isso em quantas palavras. Não há o que derrubar, e o `delete` de
+deduplicação apagaria zero linhas.
+
+**E seguir o texto ao pé da letra quebraria a marcação de capítulo:**
+`academy_progresso_item_unico` é `(user_id, item_id) where aula_id is null`, e
+a linha de um capítulo também tem `aula_id` nulo — ela cairia dentro daquele
+índice e colidiria com a do item inteiro. **Medido: devolver o índice àquela
+forma derruba 5 cenários, e o primeiro traz a recusa no PRIMEIRO capítulo
+marcado.** O conserto é a segunda condição no índice do item mais um terceiro
+índice parcial para o capítulo; o `check` de alvo único fica, porque ele diz o
+que os índices não dizem — uma linha que aponta para uma aula E um capítulo ao
+mesmo tempo não é repetição de nada.
+
+**2. A releitura precisou de uma ORDEM que o sprint não menciona.** Quem
+confirmou a v1 **tem** a linha concluída, então perguntar `concluido` primeiro
+devolveria `concluido` e a v2 com `exige_releitura` não cobraria ninguém — a
+marca seria uma caixa que não faz nada. Medido com mutação: 1 cenário cai.
+
+##### A versão, os capítulos e os checklists
+
+**Não existe coluna `atual` em `academy_arquivos`**, e a vigente é a de maior
+`versao` — a decisão de `academy_playbook_versoes.numero_versao`. Uma bandeira
+ao lado seria a segunda verdade sobre o mesmo fato, e divergiria na primeira
+publicação concorrente. A renumeração das linhas que já existem vem **antes**
+do índice único: sem ela a migration falha em qualquer banco onde alguém já
+trocou o arquivo de um e-book.
+
+**`chave` é o contrato entre o HTML e o banco**, e é a parte frágil: a página
+manda `'grafica'` e o banco resolve para o capítulo. Se alguém renomear um id
+dentro do arquivo, aquele capítulo deixa de casar — e a saída **não é recusar,
+é ignorar em silêncio**. Uma chave gravada solta seria progresso apontando
+para nada, que infla o "X de 23" sem ninguém conseguir dizer qual capítulo é;
+e uma recusa barulhenta quebraria a leitura inteira por causa de um id
+trocado. O que fica é a contagem honesta.
+
+**E a tabela de capítulos é do ITEM e não do arquivo:** o capítulo é do
+e-book, não da versão dele. Amarrá-lo à versão faria toda publicação zerar a
+leitura de todo mundo — o oposto de `exige_releitura`, que existe justamente
+para a gestão ESCOLHER quando zerar.
+
+**`versao` FAZ PARTE DA CHAVE DO CHECKLIST**, e é a decisão que mais pesa: a
+chave de um item de checklist no HTML é POSICIONAL (`capítulo-bloco-item`),
+então editar o e-book move posições. Guardando por versão, uma versão nova
+começa limpa — e **limpo é melhor que errado**: com o estado atravessando
+versões, alguém abriria a v2 e veria marcada uma caixa que agora quer dizer
+outra coisa, e daria por conferido o que não conferiu.
+
+**OS CHECKLISTS FECHAM EM `auth.uid()` NAS QUATRO OPERAÇÕES, e a gestão não
+lê.** É a régua de `academy_anotacoes` palavra por palavra: checklist é
+instrumento de trabalho, não de controle — o que a gestão acompanha é a
+CONCLUSÃO, que mora em `academy_progresso` e que ela lê. E é tabela própria e
+não coluna daquela pela razão de sempre: **policy não limita coluna**.
+
+##### O CSP recusava o quadro, e o build passava
+
+`frame-src` tinha `'self'` mais YouTube e Vimeo, e o e-book vem do domínio do
+Storage por URL assinada — **ele ficaria em branco em produção**, com a única
+pista no console do navegador. O `npm run build` passa, e passou.
+
+**Quem encontrou foi o protótipo**, que serve o mesmo arquivo pela própria
+origem e levou a recusa por `frame-ancestors` — o sintoma vizinho, numa rodada
+de quinze segundos. Sem aquela tela, a descoberta seria alguém abrindo o
+e-book em produção.
+
+**`frame-ancestors 'none'` fica como está**, e afrouxa só na cópia do gerador,
+pela razão do código que pula o login: em produção o e-book vem de outro
+domínio, e o header que impede alguém de embutir o Full Hub num iframe
+continua inteiro.
+
+##### O arquivo mora em `arquivos/`, e NÃO em `public/`
+
+`arquivos/operacoes-criacao.html` é a fonte, com o bloco da ponte acrescentado
+no fim — e ele **não muda nada do que está acima**: o documento continua
+funcionando sozinho, no navegador, sem o Full Hub, porque o bloco se desliga
+quando `window.parent === window`.
+
+Em `public/` ele ficaria num endereço que qualquer pessoa abre, que é
+exatamente o que a 0102 existe para evitar. O gerador de protótipo o copia
+para dentro da cópia temporária — e é o arquivo **de verdade**, porque um
+stand-in de dez linhas fotografaria a moldura em vez do conteúdo.
+
+**O total de capítulos é contado NA PÁGINA**, e não escrito como 23 dentro do
+bloco da ponte: o número é o de capítulos que aquele arquivo tem, e uma
+constante mentiria na versão em que alguém acrescentar o vigésimo quarto — sem
+erro em lugar nenhum, só a conclusão que nunca mais dispara.
+
+*O que fica em aberto, e é dito em vez de escondido:* o estado que existia só
+no navegador antes de o e-book entrar no Full Hub **não é importado**. A
+primeira marcação depois disso é o que começa o registro. Para este e-book não
+custa nada — ele é novo para todo mundo —, e para um que já circulasse solto
+custaria a leitura de quem já tinha lido.
+
+##### O cadastro
+
+`scripts/cadastrar-operacoes-criacao.sql`, em dois passos com um upload no
+meio. **O id do item é literal**, e é o que torna isso possível: com um uuid
+sorteado, o caminho do arquivo só existiria depois do insert, e alguém teria de
+copiar o id da saída de um passo para o nome de uma pasta do outro, à mão. Fixo,
+o caminho está escrito no script e no passo que o grava, e os dois nunca
+discordam.
+
+**E o PASSO 2 só grava se o arquivo estiver no bucket** — é a única trava do
+script. Sem ela o e-book apareceria publicado com um iframe em branco, e quem
+abrisse concluiria que a plataforma quebrou, não que faltou um upload. Rodado
+contra o Postgres da bateria: recusa sem o objeto, grava com ele, e rodar duas
+vezes não duplica nada.
+
+**O item nasce PUBLICADO**, ao contrário de todo item criado pela tela, e a
+regra da 0096 continua inteira: *não publicar item sem conteúdo apenas para
+preencher o acervo* — este tem conteúdo, e ele está pronto. O errado seria o
+contrário: em rascunho, alguém teria de lembrar de publicar depois, e um
+e-book obrigatório que ninguém enxerga é uma obrigatoriedade que não cobra
+nada.
+
+**A dívida editorial não vira tabela de pendência.** O texto cita uma
+ferramenta externa de gestão em vários pontos do fluxo, e o documento repetia
+um título de capítulo. São duas correções: elas viram a **versão 2** com
+`exige_releitura` — exatamente o caso que a releitura existe para cobrir — e
+duas tasks no Full Hub quando a agência decidir revisar.
+
+##### O que o sprint pede e NÃO foi feito, com o motivo
+
+- **O curso ainda não aceita HTML.** `academy_aula_tipo` não tem o valor, e a
+  tela de montar um curso não tem upload nenhum — `academy_aulas.arquivo_url`
+  é lida pela tela de leitura e nunca escrita por ninguém, então até a aula de
+  **PDF** não tem como receber o arquivo dela. É a mesma ponte do e-book, um
+  nível abaixo, e o uploader desta entrega serve as duas; o que falta é a
+  decisão de onde o checklist de uma AULA moraria, porque a tabela é por item
+  + versão e uma aula não tem versão.
+- **O seed não cadastra o e-book.** Ele não roda desde a 0096 — ainda escreve
+  em `academy_tracks`, que aquela migration apagou —, e consertá-lo é outra
+  entrega. O protótipo mostra o item pelo stub.
+
 ### Recomendações: o módulo mais leve, e o desenho respeita isso
 
 `recommendations`, `recommendation_likes` e `recommendation_comments`. Alguém
