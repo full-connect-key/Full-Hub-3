@@ -21,6 +21,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   AcademyArquivo,
   AcademyAula,
+  AcademyCapitulo,
   AcademyItem,
   AcademyModulo,
   AcademyTipo,
@@ -258,7 +259,29 @@ export type ItemAberto = {
    * tem o estado de "sem arquivo" desenhado.
    */
   arquivoAssinado: string | null;
+  /**
+   * O e-book interativo: os capítulos, o que esta pessoa já leu e as caixas
+   * que ela marcou — tudo da VERSÃO vigente.
+   *
+   * Nulo quando o e-book é um PDF, que é o caso de `formato = 'pdf'`: a tela
+   * desenha o cartão de download e nada disto existe. É o mesmo `switch` por
+   * tipo da camada de dados, um nível abaixo — e ele acontece AQUI e não na
+   * tela pela mesma razão: três telas parecidas divergiriam.
+   */
+  interativo: EbookInterativo | null;
   curso: CursoAberto | null;
+};
+
+export type EbookInterativo = {
+  capitulos: AcademyCapitulo[];
+  /** As CHAVES dos capítulos já lidos — é isso que a página entende. */
+  lidos: string[];
+  /** O que a página chama de `checks`: id do item marcado → 1. */
+  checks: Record<string, number>;
+  versao: number;
+  versaoConfirmada: number | null;
+  versaoDeReleitura: number | null;
+  notasDaVersao: string | null;
 };
 
 /**
@@ -292,11 +315,17 @@ export async function abrirItem(
     "o seu progresso neste item",
     await supabase
       .from("academy_progresso")
-      .select("aula_id, concluido, versao_confirmada")
+      .select("aula_id, capitulo_id, concluido, versao_confirmada")
       .eq("user_id", usuarioId)
       .eq("item_id", item.id),
   );
-  const doItemTodo = progresso.find((p) => p.aula_id === null);
+  // A LINHA DO ITEM INTEIRO AGORA PEDE AS DUAS CONDIÇÕES, e sem a segunda ela
+  // acharia a primeira linha de CAPÍTULO — que também tem `aula_id` nulo — e o
+  // playbook passaria a ler a versão confirmada de um capítulo que não existe
+  // nele. É a mesma segunda condição que o índice da 0102 ganhou.
+  const doItemTodo = progresso.find(
+    (p) => p.aula_id === null && p.capitulo_id === null,
+  );
 
   if (item.tipo === "playbook") {
     const historico = ouFalha(
@@ -325,6 +354,7 @@ export async function abrirItem(
       },
       arquivo: null,
       arquivoAssinado: null,
+      interativo: null,
       curso: null,
     };
   }
@@ -349,14 +379,92 @@ export async function abrirItem(
     // com `http`, então um e-book que seja link de fora continua valendo.
     const assinadas = await assinarArquivos(BUCKET_DO_ACERVO, [arquivo?.url ?? null]);
 
+    // O PDF PARA AQUI, e o `return` adiantado e o que evita quatro consultas
+    // para um e-book que nao tem capitulo nenhum.
+    if (!arquivo || arquivo.formato !== "html_interativo") {
+      return {
+        item,
+        estado: feito ? "concluido" : "nao_iniciado",
+        vistos: feito ? 1 : 0,
+        total: 1,
+        playbook: null,
+        arquivo,
+        arquivoAssinado: enderecoDaArte(arquivo?.url ?? null, assinadas),
+        interativo: null,
+        curso: null,
+      };
+    }
+
+    const capitulos = ouFalha(
+      "os capítulos do e-book",
+      await supabase
+        .from("academy_ebook_capitulos")
+        .select("*")
+        .eq("item_id", item.id)
+        .order("ordem", { ascending: true }),
+    );
+
+    // AS CHAVES, E NÃO OS IDS, é o que volta para a página: o contrato entre
+    // os dois lados é a `chave` do capítulo dentro do HTML. Mandar o uuid
+    // faria a página procurar um capítulo que ela não tem.
+    const porId = new Map(capitulos.map((c) => [c.id, c.chave]));
+    const lidos = progresso
+      .filter((p) => p.capitulo_id && p.concluido)
+      .map((p) => porId.get(p.capitulo_id!))
+      .filter((c): c is string => Boolean(c));
+
+    const marcados = ouFalha(
+      "os seus checklists do e-book",
+      await supabase
+        .from("academy_ebook_checklists")
+        .select("*")
+        .eq("item_id", item.id)
+        .eq("versao", arquivo.versao),
+    );
+
+    const checks: Record<string, number> = {};
+    for (const bloco of marcados) {
+      for (const id of bloco.itens_marcados) checks[id] = 1;
+    }
+
+    // A VERSÃO DE RELEITURA É A MAIOR MARCADA, e não a mais nova: quem
+    // confirmou a v3 não é cobrado pela v2 que exigia releitura, porque a v3
+    // veio depois dela. É a mesma conta do playbook, do lado do arquivo.
+    const releitura = ouFalha(
+      "as versões do e-book",
+      await supabase
+        .from("academy_arquivos")
+        .select("versao")
+        .eq("item_id", item.id)
+        .eq("exige_releitura", true)
+        .order("versao", { ascending: false })
+        .limit(1),
+    );
+
+    const total = capitulos.length;
+    const estado: EstadoDoItem = feito
+      ? "concluido"
+      : lidos.length > 0
+        ? "em_andamento"
+        : "nao_iniciado";
+
     return {
       item,
-      estado: feito ? "concluido" : "nao_iniciado",
-      vistos: feito ? 1 : 0,
-      total: 1,
+      estado,
+      vistos: feito ? total : lidos.length,
+      total: Math.max(total, 1),
       playbook: null,
       arquivo,
-      arquivoAssinado: enderecoDaArte(arquivo?.url ?? null, assinadas),
+      arquivoAssinado: enderecoDaArte(arquivo.url, assinadas),
+      interativo: {
+        capitulos,
+        lidos,
+        checks,
+        versao: arquivo.versao,
+        versaoConfirmada: doItemTodo?.versao_confirmada ?? null,
+        versaoDeReleitura: releitura[0]?.versao ?? null,
+        notasDaVersao: arquivo.notas_mudanca,
+      },
       curso: null,
     };
   }
@@ -397,6 +505,7 @@ export async function abrirItem(
     playbook: null,
     arquivo: null,
     arquivoAssinado: null,
+    interativo: null,
     curso: {
       modulos: modulos.map((m) => ({
         ...m,

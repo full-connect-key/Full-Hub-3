@@ -134,6 +134,15 @@ export type AcademyTipo = "playbook" | "ebook" | "curso";
 export type AcademyAulaTipo = "video" | "texto" | "pdf" | "link" | "exercicio";
 
 /**
+ * O QUE O ARQUIVO DE UM E-BOOK E (0102), e nao so que extensao ele tem.
+ *
+ * E enum e nao texto pela razao de `posts.midia`: e ele que decide qual tela
+ * aparece por cima -- visualizador de PDF ou iframe --, e um `'HTML'` com
+ * caixa trocada faria a tela cair no ramo errado sem erro nenhum.
+ */
+export type AcademyEbookFormato = "pdf" | "html_interativo";
+
+/**
  * O tipo do material no modelo ANTIGO (0017), que a 0096 converteu.
  *
  * Ele fica como `pf_tipo` ficou na 0034: o enum continua no banco porque
@@ -1622,6 +1631,7 @@ export interface Database {
           tags: string[];
           autor_id: string | null;
           publicado: boolean;
+          exige_confirmacao_leitura: boolean;
           ordem: number;
           duracao_estimada_minutos: number | null;
           created_at: string;
@@ -1639,6 +1649,7 @@ export interface Database {
           tags?: string[];
           autor_id?: string | null;
           publicado?: boolean;
+          exige_confirmacao_leitura?: boolean;
           ordem?: number;
           duracao_estimada_minutos?: number | null;
         };
@@ -1651,6 +1662,7 @@ export interface Database {
           capa_url?: string | null;
           tags?: string[];
           publicado?: boolean;
+          exige_confirmacao_leitura?: boolean;
           ordem?: number;
           duracao_estimada_minutos?: number | null;
           updated_at?: string;
@@ -1694,6 +1706,11 @@ export interface Database {
           nome: string;
           tamanho_bytes: number | null;
           paginas: number | null;
+          formato: AcademyEbookFormato;
+          versao: number;
+          notas_mudanca: string | null;
+          exige_releitura: boolean;
+          publicado_em: string;
           created_at: string;
         };
         Insert: {
@@ -1703,12 +1720,63 @@ export interface Database {
           nome: string;
           tamanho_bytes?: number | null;
           paginas?: number | null;
+          formato?: AcademyEbookFormato;
+          versao?: number;
+          notas_mudanca?: string | null;
+          exige_releitura?: boolean;
         };
         Update: {
           url?: string;
           nome?: string;
           tamanho_bytes?: number | null;
           paginas?: number | null;
+          notas_mudanca?: string | null;
+          exige_releitura?: boolean;
+        };
+        Relationships: [];
+      };
+      academy_ebook_capitulos: {
+        Row: {
+          id: string;
+          item_id: string;
+          chave: string;
+          titulo: string;
+          ordem: number;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          chave: string;
+          titulo: string;
+          ordem?: number;
+        };
+        Update: {
+          chave?: string;
+          titulo?: string;
+          ordem?: number;
+        };
+        Relationships: [];
+      };
+      academy_ebook_checklists: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_id: string;
+          versao: number;
+          chave: string;
+          itens_marcados: string[];
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_id: string;
+          versao: number;
+          chave: string;
+          itens_marcados?: string[];
+        };
+        Update: {
+          itens_marcados?: string[];
         };
         Relationships: [];
       };
@@ -1777,16 +1845,22 @@ export interface Database {
           user_id: string;
           item_id: string;
           aula_id: string | null;
+          capitulo_id: string | null;
           concluido: boolean;
           concluido_em: string | null;
           versao_confirmada: number | null;
           created_at: string;
         };
+        // `concluido_em` fica FORA do Insert e do Update: quem o escreve é o
+        // trigger `academy_progresso_carimbar`, e a data de conclusão é o
+        // único dado do progresso que alguém poderia querer forjar. Tentar
+        // gravá-la é erro de tipo antes de ser descarte do banco.
         Insert: {
           id?: string;
           user_id: string;
           item_id: string;
           aula_id?: string | null;
+          capitulo_id?: string | null;
           concluido?: boolean;
           versao_confirmada?: number | null;
         };
@@ -4224,6 +4298,10 @@ export type AcademyItem = Database["public"]["Tables"]["academy_items"]["Row"];
 export type AcademyVersao =
   Database["public"]["Tables"]["academy_playbook_versoes"]["Row"];
 export type AcademyArquivo = Database["public"]["Tables"]["academy_arquivos"]["Row"];
+export type AcademyCapitulo =
+  Database["public"]["Tables"]["academy_ebook_capitulos"]["Row"];
+export type AcademyChecklist =
+  Database["public"]["Tables"]["academy_ebook_checklists"]["Row"];
 export type AcademyModulo = Database["public"]["Tables"]["academy_modulos"]["Row"];
 export type AcademyAula = Database["public"]["Tables"]["academy_aulas"]["Row"];
 export type AcademyProgresso = Database["public"]["Tables"]["academy_progresso"]["Row"];

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { LeitorDoEbook } from "@/components/academy/leitor-do-ebook";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { VisualizadorRico } from "@/components/shared/editor-rico";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,22 @@ import {
   enderecoDeIncorporacao,
   modoDeAbrir,
 } from "@/lib/dominio/academy";
+import {
+  avisoDeConfirmacaoIncompleta,
+  precisaReler,
+  progressoDoEbook,
+} from "@/lib/dominio/ebook-interativo";
 import type { ItemAberto } from "@/lib/dados/academy";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { cn } from "@/lib/utils";
 
-import { confirmarLeitura, marcarAula, marcarItem, salvarAnotacao } from "../acoes";
+import {
+  confirmarLeitura,
+  confirmarLeituraDoEbook,
+  marcarAula,
+  marcarItem,
+  salvarAnotacao,
+} from "../acoes";
 import { MontarOItem } from "./montar";
 
 /**
@@ -58,7 +70,7 @@ export function DetalheDoItem({
   anotacaoInicial: string;
   podeEditar: boolean;
 }) {
-  const { item, estado, vistos, total, playbook, arquivo, arquivoAssinado, curso } =
+  const { item, estado, vistos, total, playbook, arquivo, arquivoAssinado, interativo, curso } =
     aberto;
   const tom = TOM_DO_ESTADO[estado];
 
@@ -121,7 +133,22 @@ export function DetalheDoItem({
       </header>
 
       {playbook ? <Playbook item={item.id} dados={playbook} /> : null}
-      {arquivo ? (
+      {interativo && arquivoAssinado ? (
+        <EbookInterativoNaTela
+          itemId={item.id}
+          titulo={item.titulo}
+          endereco={arquivoAssinado}
+          dados={interativo}
+          exigeConfirmacao={item.exige_confirmacao_leitura}
+          jaConcluido={estado === "concluido"}
+        />
+      ) : null}
+
+      {/* O CARTÃO DE DOWNLOAD SÓ APARECE PARA O PDF, e a condição é
+          `!interativo` e não o tipo: um e-book interativo não tem o que
+          baixar — ele É a tela —, e os dois juntos dariam a mesma peça duas
+          vezes, uma delas prometendo um arquivo que ninguém abre fora. */}
+      {arquivo && !interativo ? (
         <Ebook
           item={item.id}
           arquivo={arquivo}
@@ -326,6 +353,133 @@ function Ebook({
           {lido ? "Desmarcar" : "Marcar como lido"}
         </Button>
       </div>
+    </section>
+  );
+}
+
+/**
+ * O E-BOOK INTERATIVO: cabeçalho fino, e o resto é a página.
+ *
+ * ---------------------------------------------------------------------------
+ * **O QUE O FULL HUB DESENHA POR FORA É SÓ O QUE ELE SABE E A PÁGINA NÃO:**
+ * quantos capítulos foram registrados, se o processo mudou desde a última
+ * leitura, e o botão de dizer que leu. Índice, busca e matriz ficam DENTRO —
+ * duplicá-los por fora daria duas buscas na mesma tela, e a de fora não
+ * acharia nada, porque o texto não está aqui.
+ *
+ * **"Baixar" NÃO SE APLICA**, e o que entra no lugar é *Abrir em nova aba*,
+ * com o mesmo endereço assinado: um HTML baixado para a pasta de Downloads
+ * perde o estado, perde a ponte e vira uma cópia que envelhece — exatamente o
+ * problema que a versão existe para resolver.
+ * ---------------------------------------------------------------------------
+ */
+function EbookInterativoNaTela({
+  itemId,
+  titulo,
+  endereco,
+  dados,
+  exigeConfirmacao,
+  jaConcluido,
+}: {
+  itemId: string;
+  titulo: string;
+  endereco: string;
+  dados: NonNullable<ItemAberto["interativo"]>;
+  exigeConfirmacao: boolean;
+  jaConcluido: boolean;
+}) {
+  const router = useRouter();
+  const [enviando, começar] = useTransition();
+  const [lidos, setLidos] = useState<string[]>(dados.lidos);
+
+  const progresso = progressoDoEbook(lidos, dados.capitulos.length);
+  const releitura = precisaReler(dados.versaoConfirmada, dados.versaoDeReleitura);
+
+  function confirmar() {
+    const aviso = avisoDeConfirmacaoIncompleta(progresso.lidos, progresso.total);
+    // O AVISO É UM `confirm` E NÃO UM DIÁLOGO DESENHADO, e é a única vez que o
+    // produto usa um: a pergunta tem duas respostas, não tem campo nenhum, e
+    // ela acontece no meio de uma leitura — um diálogo em cima do e-book
+    // cobriria justamente o que a pessoa precisaria reler para decidir.
+    if (aviso && !window.confirm(aviso)) return;
+
+    começar(async () => {
+      const r = await chamarAcao(() => confirmarLeituraDoEbook(itemId));
+      if (!r.ok) toast.error(r.error);
+      else {
+        toast.success(r.mensagem);
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-x-5 gap-y-3 border p-4">
+        <div className="min-w-50 flex-1">
+          {/* A CONTAGEM É O RÓTULO DA BARRA, e por isso ela sai `rotuloOculto`:
+              com as duas, "9 de 23 capítulos" apareceria uma vez acima e outra
+              ao lado, a um centímetro de distância. */}
+          <p className="text-text-primary text-sm font-medium">
+            {progresso.lidos} de {progresso.total} capítulos
+          </p>
+          <BarraDeProgresso
+            valor={progresso.lidos}
+            total={progresso.total}
+            rotulo={`${progresso.lidos} de ${progresso.total} capítulos lidos`}
+            rotuloOculto
+            tom={progresso.lidos >= progresso.total ? "sucesso" : "marca"}
+            className="mt-2"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href={endereco} target="_blank" rel="noreferrer">
+              <ExternalLink aria-hidden className="size-4" />
+              Abrir em nova aba
+            </a>
+          </Button>
+
+          {exigeConfirmacao ? (
+            <Button
+              size="sm"
+              variant={jaConcluido && !releitura ? "outline" : "default"}
+              onClick={confirmar}
+              disabled={enviando || (jaConcluido && !releitura)}
+            >
+              <Check aria-hidden className="size-4" />
+              {jaConcluido && !releitura ? "Leitura confirmada" : "Li e estou ciente"}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* O AVISO DE RELEITURA VEM COM AS NOTAS DO QUE MUDOU, e sem elas ele
+          manda a pessoa reler 109 páginas para descobrir o que mudou — que é
+          o jeito mais rápido de ninguém reler nada. `--warning` e nunca
+          `--danger`: o processo mudou, não há erro de ninguém. */}
+      {releitura ? (
+        <div className="bg-warning-soft text-warning rounded-card flex items-start gap-2.5 p-3 text-sm">
+          <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-medium">
+              Este material mudou desde a sua última leitura.
+            </p>
+            {dados.notasDaVersao ? (
+              <p className="mt-0.5">{dados.notasDaVersao}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <LeitorDoEbook
+        itemId={itemId}
+        endereco={endereco}
+        titulo={titulo}
+        dados={dados}
+        onProgresso={setLidos}
+      />
     </section>
   );
 }

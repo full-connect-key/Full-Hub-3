@@ -27,12 +27,19 @@
  */
 import type {
   AchadoDaBusca,
+  EbookInterativo,
   ItemAberto,
   ItemDoAcervo,
   LinhaDoAcompanhamento,
 } from "../../src/lib/dados/academy";
 
-export type { AchadoDaBusca, ItemAberto, ItemDoAcervo, LinhaDoAcompanhamento };
+export type {
+  AchadoDaBusca,
+  EbookInterativo,
+  ItemAberto,
+  ItemDoAcervo,
+  LinhaDoAcompanhamento,
+};
 
 const AGORA = "2026-09-20T10:00:00.000Z";
 
@@ -47,6 +54,7 @@ function item(
     tags: [],
     autor_id: null,
     publicado: true,
+    exige_confirmacao_leitura: false,
     ordem: 0,
     duracao_estimada_minutos: null,
     created_at: AGORA,
@@ -104,6 +112,27 @@ const ACERVO: ItemDoAcervo[] = [
     categoria: "Cultura",
     tags: ["marca"],
     duracaoMinutos: 40,
+  }),
+  // O E-BOOK INTERATIVO, que e o primeiro item publicado do acervo de verdade.
+  // Ele existe aqui porque a tela dele nao e a do PDF: e um iframe com a
+  // pagina inteira dentro, com barra de capitulos lidos e "Li e estou ciente"
+  // no cabecalho. Sem ele, o unico e-book em imagem seria o do cartao de
+  // download -- e o formato novo nao sairia em tela nenhuma.
+  item({
+    id: "aca00010-0000-4000-8000-000000000010",
+    tipo: "ebook",
+    titulo: "Operações | Criação",
+    slug: "operacoes-criacao",
+    resumo:
+      "Como a Criação da Full opera: do briefing que chega ao arquivo aberto que fica.",
+    categoria: "Produção",
+    tags: ["criação", "processo", "onboarding"],
+    estado: "em_andamento",
+    vistos: 9,
+    total: 23,
+    percentual: 39,
+    duracaoMinutos: 90,
+    exige_confirmacao_leitura: true,
   }),
   // O E-BOOK RECEM-CRIADO, QUE AINDA NAO TEM ARQUIVO, e ele e o estado que
   // doi: foi dele a queixa do usuario -- *"quando eu seleciono que vou montar
@@ -172,6 +201,7 @@ export async function abrirItem(
     playbook: null,
     arquivo: null,
     arquivoAssinado: null,
+    interativo: null,
     curso: null,
   } satisfies ItemAberto;
 
@@ -219,6 +249,70 @@ export async function abrirItem(
     // "Anexar o arquivo" na tela de montar e a frase que diz o que falta.
     if (achado.slug === "guia-de-tom-de-voz") return base;
 
+    // O INTERATIVO, com 9 de 23 capitulos lidos: nem zerado nem completo, que
+    // sao os dois extremos que escondem o que a barra serve para mostrar.
+    if (achado.slug === "operacoes-criacao") {
+      const CAPITULOS = [
+        ["como-usar", "Como usar este documento"],
+        ["escopos", "Escopos e responsabilidades"],
+        ["papel", "Papel da equipe de Criação"],
+        ["clientes", "Clientes atendidos"],
+        ["integracao", "Guia de integração das equipes"],
+        ["ferramentas", "Ferramentas de apoio"],
+        ["entrada", "Fluxo de entrada de demandas"],
+        ["organizacao", "Organização do processo"],
+        ["inicio", "Início do processo"],
+        ["desenvolvimento", "Desenvolvimento criativo"],
+        ["autorrevisao", "Autorrevisão da demanda"],
+        ["grafica", "Fechamento de arquivos para gráfica"],
+        ["pesquisa", "Pesquisa e referência visual"],
+        ["identidade", "Identidade visual dos clientes"],
+        ["social", "Criação para social media"],
+        ["performance", "Criação para criativos de performance"],
+        ["audiovisual", "Criação para audiovisual"],
+        ["imagens", "Imagens, ilustrações e inteligência artificial"],
+        ["qualidade", "Controle de qualidade"],
+        ["aprovacao", "Apresentação e aprovação"],
+        ["alteracoes", "Alterações e retrabalho"],
+        ["drive", "Organização do Google Drive"],
+        ["arquivo-aberto", "Arquivo aberto"],
+      ] as const;
+
+      return {
+        ...base,
+        arquivo: {
+          id: "arq00002-0000-4000-8000-000000000002",
+          item_id: achado.id,
+          url: "ebooks/aca00010/v1/index.html",
+          nome: "operacoes-criacao.html",
+          tamanho_bytes: 152_322,
+          paginas: 109,
+          formato: "html_interativo",
+          versao: 1,
+          notas_mudanca: "Primeira publicação.",
+          exige_releitura: false,
+          publicado_em: AGORA,
+          created_at: AGORA,
+        },
+        arquivoAssinado: "/exemplos/operacoes-criacao.html",
+        interativo: {
+          capitulos: CAPITULOS.map(([chave, titulo], i) => ({
+            id: `cap0${String(i).padStart(4, "0")}-0000-4000-8000-00000000000${i % 10}`,
+            item_id: achado.id,
+            chave,
+            titulo,
+            ordem: i + 1,
+          })),
+          lidos: CAPITULOS.slice(0, 9).map(([chave]) => chave),
+          checks: { "inicio-7-0": 1, "inicio-7-2": 1 },
+          versao: 1,
+          versaoConfirmada: null,
+          versaoDeReleitura: null,
+          notasDaVersao: "Primeira publicação.",
+        },
+      };
+    }
+
     return {
       ...base,
       arquivo: {
@@ -228,6 +322,11 @@ export async function abrirItem(
         nome: "a-marca-da-full.pdf",
         tamanho_bytes: 4_200_000,
         paginas: 28,
+        formato: "pdf",
+        versao: 1,
+        notas_mudanca: null,
+        exige_releitura: false,
+        publicado_em: AGORA,
         created_at: AGORA,
       },
       // JA E UM ENDERECO, e por isso ele passa igual: o stub aponta para

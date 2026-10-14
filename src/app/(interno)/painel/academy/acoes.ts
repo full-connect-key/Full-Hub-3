@@ -305,6 +305,10 @@ const esquemaDeArquivo = z.object({
   nome: z.string().trim().min(1, "O arquivo precisa de um nome."),
   tamanho_bytes: z.number().int().positive().optional().nullable(),
   paginas: z.number().int().positive().optional().nullable(),
+  formato: z.enum(["pdf", "html_interativo"]).default("pdf"),
+  versao: z.number().int().positive().default(1),
+  notas_mudanca: z.string().trim().optional().nullable(),
+  exige_releitura: z.boolean().default(false),
 });
 
 /**
@@ -354,6 +358,10 @@ export async function anexarArquivo(dados: unknown): Promise<Resultado> {
         nome: entrada.nome,
         tamanho_bytes: entrada.tamanho_bytes ?? null,
         paginas: entrada.paginas ?? null,
+        formato: entrada.formato,
+        versao: entrada.versao,
+        notas_mudanca: entrada.notas_mudanca || null,
+        exige_releitura: entrada.exige_releitura,
       })
       .select("id")
       .maybeSingle();
@@ -362,7 +370,222 @@ export async function anexarArquivo(dados: unknown): Promise<Resultado> {
     if (!data) return falha(RECUSA);
 
     revalidatePath(ROTA);
-    return sucesso("Arquivo anexado.");
+    return sucesso(
+      entrada.versao > 1 ? `Versão ${entrada.versao} publicada.` : "Arquivo anexado.",
+    );
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// A PONTE DO E-BOOK INTERATIVO
+//
+// As tres acoes que o iframe alimenta. **Elas sao de `exigirEquipeNaAcao` e
+// nao da gestao**: quem marca capitulo e quem le, e a RLS fecha cada tabela no
+// proprio `auth.uid()` -- a guarda aqui existe para a mensagem ser legivel.
+//
+// **E NENHUMA DELAS RECEBE `user_id`.** Ele sai da sessao, dentro da action:
+// com o id vindo do corpo, a pagina -- que roda num iframe sandboxado e cujo
+// script veio de um arquivo que alguem subiu -- poderia gravar progresso no
+// nome de outra pessoa. A policy recusaria, mas a recusa chegaria como erro
+// numa tela de leitura, e o furo so nao existe porque o parametro nao existe.
+// ---------------------------------------------------------------------------
+
+const esquemaDeCapitulo = z.object({
+  item_id: z.string().uuid(),
+  chave: z.string().trim().min(1),
+  lido: z.boolean(),
+});
+
+/**
+ * Marca (ou desmarca) um capitulo lido.
+ *
+ * **CHAVE DESCONHECIDA E IGNORADA EM SILENCIO, e devolve sucesso.** A `chave`
+ * e o contrato entre o HTML e o banco: se alguem renomear um id dentro do
+ * arquivo, aquele capitulo deixa de casar. Gravar a linha solta seria um
+ * progresso apontando para nada -- ele inflaria o "X de 23" sem ninguem
+ * conseguir dizer qual capitulo e. E devolver erro quebraria a leitura inteira
+ * por causa de um id trocado, numa tela onde a pessoa nao tem o que fazer com
+ * a mensagem. O que fica e a contagem honesta: aquele capitulo aparece como
+ * nao lido, que e a verdade do ponto de vista do banco.
+ */
+export async function marcarCapitulo(dados: unknown): Promise<Resultado> {
+  return executarAcao("marcarCapitulo", async () => {
+    const sessao = await exigirEquipeNaAcao();
+
+    const validacao = esquemaDeCapitulo.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "marcarCapitulo",
+          validacao.error,
+          dados,
+          "Não deu para registrar a leitura deste capítulo.",
+        ),
+      );
+    }
+    const entrada = validacao.data;
+    const supabase = await criarClienteServidor();
+
+    const achados = await supabase
+      .from("academy_ebook_capitulos")
+      .select("id")
+      .eq("item_id", entrada.item_id)
+      .eq("chave", entrada.chave)
+      .limit(1);
+
+    if (achados.error) return falha(`Não foi possível registrar: ${achados.error.message}`);
+    const capitulo = achados.data?.[0];
+    if (!capitulo) {
+      console.warn("[academy] capítulo sem correspondência:", entrada.chave);
+      return sucesso("Capítulo desconhecido, ignorado.");
+    }
+
+    const { data, error } = await supabase
+      .from("academy_progresso")
+      .upsert(
+        {
+          user_id: sessao.usuarioId,
+          item_id: entrada.item_id,
+          capitulo_id: capitulo.id,
+          concluido: entrada.lido,
+        },
+        { onConflict: "user_id,item_id,capitulo_id" },
+      )
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível registrar: ${error.message}`);
+    if (!data) return falha(RECUSA);
+
+    revalidatePath(ROTA);
+    return sucesso(entrada.lido ? "Capítulo lido." : "Capítulo desmarcado.");
+  });
+}
+
+const esquemaDeChecklist = z.object({
+  item_id: z.string().uuid(),
+  versao: z.number().int().positive(),
+  chave: z.string().trim().min(1),
+  marcados: z.array(z.string().trim().min(1)).max(200),
+});
+
+/**
+ * Grava um bloco de checklist inteiro.
+ *
+ * **O BLOCO VAI INTEIRO, e nao um item por vez.** A pagina ja manda a lista
+ * completa do bloco a cada clique, e gravar assim faz desmarcar ser a mesma
+ * escrita que marcar -- sem uma segunda acao para "tirar", que e onde as duas
+ * divergiriam. E o criterio de `post_versions.arquivos`: escrito de uma vez,
+ * lido inteiro.
+ *
+ * **A VERSAO VEM DE FORA e e conferida contra a vigente.** Sem isso, uma aba
+ * velha aberta na v1 continuaria gravando na v1 depois de a v2 ser publicada
+ * -- e a v2, que deve comecar limpa, voltaria com marcacoes de um texto que
+ * nao existe mais.
+ */
+export async function salvarChecklist(dados: unknown): Promise<Resultado> {
+  return executarAcao("salvarChecklist", async () => {
+    const sessao = await exigirEquipeNaAcao();
+
+    const validacao = esquemaDeChecklist.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "salvarChecklist",
+          validacao.error,
+          dados,
+          "Não deu para registrar as marcações.",
+        ),
+      );
+    }
+    const entrada = validacao.data;
+    const supabase = await criarClienteServidor();
+
+    const vigente = await supabase
+      .from("academy_arquivos")
+      .select("versao")
+      .eq("item_id", entrada.item_id)
+      .order("versao", { ascending: false })
+      .limit(1);
+
+    if (vigente.error) return falha(`Não foi possível registrar: ${vigente.error.message}`);
+    if (vigente.data?.[0]?.versao !== entrada.versao) {
+      // A ABA VELHA NAO ESCREVE NA VERSAO NOVA, e nao e erro de ninguem:
+      // alguem deixou a pagina aberta e o e-book foi republicado no meio.
+      return sucesso("Este e-book tem uma versão nova. Recarregue a página.");
+    }
+
+    const { data, error } = await supabase
+      .from("academy_ebook_checklists")
+      .upsert(
+        {
+          user_id: sessao.usuarioId,
+          item_id: entrada.item_id,
+          versao: entrada.versao,
+          chave: entrada.chave,
+          itens_marcados: entrada.marcados,
+        },
+        { onConflict: "user_id,item_id,versao,chave" },
+      )
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível registrar: ${error.message}`);
+    if (!data) return falha(RECUSA);
+
+    return sucesso("Marcações salvas.");
+  });
+}
+
+/**
+ * "Li e estou ciente" de um e-book.
+ *
+ * **A VERSAO CONFIRMADA SAI DO BANCO, nunca do corpo do pedido.** Ela e o que
+ * a releitura compara: aceitando um numero de fora, qualquer pessoa marcaria
+ * `versao_confirmada = 99` e nunca mais seria cobrada por releitura nenhuma --
+ * numa coluna que existe justamente para dizer que o processo mudou e ela
+ * precisa ler de novo.
+ *
+ * **E ela NAO exige os capitulos todos marcados.** Quem ja conhece o processo
+ * nao vai clicar em vinte e tres caixas para poder dizer que esta ciente; o
+ * que o produto faz e NOMEAR o que falta antes de aceitar, e isso acontece na
+ * tela. A regra escrita e `exige_confirmacao_leitura` do item, e nao a
+ * contagem.
+ */
+export async function confirmarLeituraDoEbook(itemId: string): Promise<Resultado> {
+  return executarAcao("confirmarLeituraDoEbook", async () => {
+    const sessao = await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const vigente = await supabase
+      .from("academy_arquivos")
+      .select("versao")
+      .eq("item_id", itemId)
+      .order("versao", { ascending: false })
+      .limit(1);
+
+    if (vigente.error) return falha(`Não foi possível confirmar: ${vigente.error.message}`);
+
+    const { data, error } = await supabase
+      .from("academy_progresso")
+      .upsert(
+        {
+          user_id: sessao.usuarioId,
+          item_id: itemId,
+          concluido: true,
+          versao_confirmada: vigente.data?.[0]?.versao ?? 1,
+        },
+        { onConflict: "user_id,item_id" },
+      )
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível confirmar: ${error.message}`);
+    if (!data) return falha(RECUSA);
+
+    revalidatePath(ROTA);
+    return sucesso("Leitura confirmada.");
   });
 }
 

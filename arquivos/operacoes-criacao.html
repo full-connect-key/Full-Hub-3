@@ -1,0 +1,1330 @@
+<title>Operações de Criação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Layout: rail de capítulos fixo à esquerda + coluna de leitura; no telefone o rail vira gaveta. */
+:root{
+  --paper:#ffffff;
+  --surface:#f3f6f8;
+  --surface-2:#e8eef2;
+  --ink:#15191d;
+  --muted:#545960;
+  --faint:#7c848c;
+  --rule:#dde4e9;
+  --rule-forte:#c6d1d9;
+  --azul:#7fcff5;
+  --azul-forte:#0b6e9c;
+  --azul-claro:#e4f4fd;
+  --alerta:#9a5208;
+  --alerta-claro:#fdf2e3;
+  --ok:#15803d;
+
+  --display:'Archivo','Helvetica Neue',Arial,sans-serif;
+  --body:'Literata',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14181b; --surface:#1b2024; --surface-2:#252c32;
+    --ink:#eef2f5; --muted:#a2abb3; --faint:#848d95;
+    --rule:#2b3238; --rule-forte:#3a434a;
+    --azul:#7fcff5; --azul-forte:#7fcff5; --azul-claro:#11303f;
+    --alerta:#f0b36a; --alerta-claro:#2e2316; --ok:#5fbf84;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14181b; --surface:#1b2024; --surface-2:#252c32;
+  --ink:#eef2f5; --muted:#a2abb3; --faint:#848d95;
+  --rule:#2b3238; --rule-forte:#3a434a;
+  --azul:#7fcff5; --azul-forte:#7fcff5; --azul-claro:#11303f;
+  --alerta:#f0b36a; --alerta-claro:#2e2316; --ok:#5fbf84;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.18;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--azul-forte)}
+button{font:inherit}
+
+/* progresso de leitura */
+#barra{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);height:3px;z-index:60;pointer-events:none}
+#barra i{display:block;height:100%;width:0;background:var(--azul)}
+
+/* ---------- capa ---------- */
+.capa{background:var(--surface);border-bottom:1px solid var(--rule);padding-block:clamp(40px,7vw,80px);padding-inline:16px}
+.capa-in{max-width:1240px;margin:0 auto}
+.marca{font-family:var(--display);font-weight:700;font-size:12.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.marca::after{content:"";flex:1;height:1px;background:var(--rule-forte);max-width:200px}
+.capa h1{font-size:clamp(36px,7vw,72px);font-weight:700;letter-spacing:-.025em;max-width:15ch}
+.capa .sub{font-size:clamp(15px,2vw,19px);color:var(--muted);margin-top:16px;max-width:52ch}
+.capa-meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:30px;font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--faint);text-transform:uppercase}
+.capa-meta b{color:var(--ink);font-weight:500}
+
+/* ---------- estrutura ---------- */
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:0 90px;display:grid;grid-template-columns:256px minmax(0,1fr);gap:52px;align-items:start}
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}}
+
+/* ---------- rail ---------- */
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);padding-top:40px;max-height:calc(100vh - 60px);display:flex;flex-direction:column;gap:12px}
+@media (max-width:980px){
+  .rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;padding-top:0;margin-inline:-16px;padding-inline:16px;background:var(--paper);border-bottom:1px solid var(--rule);max-height:none}
+}
+.busca{position:relative}
+.busca input{width:100%;font:inherit;font-size:14px;font-family:var(--display);padding:9px 12px 9px 32px;border:1px solid var(--rule-forte);border-radius:8px;background:var(--paper);color:var(--ink)}
+.busca input::placeholder{color:var(--faint)}
+.busca svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--faint)}
+@media (max-width:980px){.busca{margin-top:12px}}
+.rail-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+#abrir-rail{display:none;color:var(--azul-forte);background:none;border:0;padding:6px 0;cursor:pointer;letter-spacing:.13em;font-family:var(--mono);font-size:10.5px;text-transform:uppercase}
+@media (max-width:980px){#abrir-rail{display:block}.rail-topo{padding-block:12px}}
+.sumario{list-style:none;margin:0;padding:0 0 16px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;min-height:0}
+@media (max-width:980px){.sumario{max-height:58vh;padding-bottom:14px}}
+.sumario a{display:flex;gap:9px;align-items:baseline;text-decoration:none;color:var(--muted);font-family:var(--display);font-size:13px;font-weight:500;line-height:1.3;padding:6px 9px;border-radius:6px;border-left:2px solid transparent}
+.sumario a:hover{background:var(--surface);color:var(--ink)}
+.sumario a.ativo{color:var(--ink);background:var(--surface);border-left-color:var(--azul)}
+.sumario a .nn{font-family:var(--mono);font-size:10px;color:var(--faint);min-width:1.6em;flex:none}
+.sumario a.lido .nn::after{content:"✓";color:var(--ok);margin-left:1px}
+.rail-pe{font-family:var(--mono);font-size:10.5px;color:var(--faint);padding:9px 0 0;border-top:1px solid var(--rule);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.rail-pe button{background:none;border:0;color:var(--azul-forte);cursor:pointer;font-family:var(--mono);font-size:10.5px;padding:0}
+
+/* ---------- conteúdo ---------- */
+main{padding-top:40px;min-width:0}
+@media (max-width:980px){main{padding-top:30px}}
+.cap{scroll-margin-top:92px;margin-bottom:78px}
+.cap-topo{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:26px}
+.cap-n{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--azul-forte);margin-bottom:10px}
+.cap h2{font-size:clamp(25px,3.6vw,34px);font-weight:700;letter-spacing:-.018em;max-width:22ch}
+.cap .resumo{color:var(--muted);font-size:16.5px;margin-top:12px;max-width:62ch}
+
+.bloco{max-width:64ch}
+.cap h3{font-size:19px;font-weight:600;margin-top:36px;margin-bottom:12px;letter-spacing:-.008em;max-width:40ch}
+.cap p{margin-top:14px;font-size:16.5px}
+.cap p:first-child{margin-top:0}
+.cap ul,.cap ol{margin:14px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:7px}
+.cap li{font-size:16px}
+.cap ol{padding-left:24px}
+
+.destaque{border-left:2px solid var(--azul);background:var(--surface);padding:16px 20px;border-radius:0 8px 8px 0;margin-top:20px;font-size:16px}
+.citacao{font-family:var(--display);font-size:clamp(19px,2.6vw,23px);font-weight:600;line-height:1.35;color:var(--ink);margin-top:24px;padding-left:18px;border-left:3px solid var(--azul);max-width:30ch}
+.principio{margin-top:34px;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:20px 22px}
+.principio .rot{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--azul-forte);margin-bottom:10px}
+.principio p{margin-top:9px;font-size:16.5px}
+.principio p:first-of-type{margin-top:0}
+
+.nota{display:flex;gap:14px;align-items:flex-start;background:var(--alerta-claro);border:1px solid color-mix(in srgb,var(--alerta) 30%,transparent);border-radius:8px;padding:15px 17px;margin-top:20px}
+.nota .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--alerta);white-space:nowrap;padding-top:4px;flex:none}
+.nota p{margin-top:0;font-size:15.5px}
+
+/* checklist interativo */
+.check{margin-top:18px;border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.check-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);padding:11px 16px;border-bottom:1px solid var(--rule)}
+.check-topo span{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.check-topo button{background:none;border:0;color:var(--azul-forte);cursor:pointer;font-family:var(--mono);font-size:10.5px}
+.check ul{list-style:none;margin:0;padding:6px 0;gap:0}
+.check li{padding:0}
+.check label{display:flex;gap:11px;align-items:flex-start;padding:8px 16px;cursor:pointer;font-size:15.5px;line-height:1.5}
+.check label:hover{background:var(--surface)}
+.check input{appearance:none;width:17px;height:17px;flex:none;margin-top:3px;border:1.5px solid var(--rule-forte);border-radius:4px;display:grid;place-items:center;cursor:pointer;background:var(--paper)}
+.check input:checked{background:var(--azul);border-color:var(--azul)}
+.check input:checked::after{content:"✓";font-size:11px;color:#15191d;font-family:var(--display);font-weight:700}
+.check input:checked + span{color:var(--faint);text-decoration:line-through}
+
+/* tabelas */
+.tab-rolo{margin-top:18px;overflow-x:auto;border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th{background:var(--surface-2);text-align:left;font-family:var(--display);font-size:12.5px;font-weight:600;letter-spacing:.02em;padding:11px 14px;color:var(--ink);border-bottom:1px solid var(--rule)}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.5}
+tr:last-child td{border-bottom:0}
+
+/* matriz filtrável */
+.filtros{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px;align-items:center}
+.filtros .rot{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-right:3px}
+.chip{font-family:var(--display);font-size:12.5px;font-weight:500;background:var(--paper);color:var(--muted);border:1px solid var(--rule-forte);border-radius:999px;padding:5px 13px;cursor:pointer}
+.chip:hover{border-color:var(--azul-forte);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--azul);border-color:var(--azul);color:#15191d;font-weight:600}
+.matriz{margin-top:16px;border-top:1px solid var(--rule)}
+.linha{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--rule)}
+@media (max-width:620px){.linha{grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}}
+.linha[hidden]{display:none}
+.linha .oq{font-size:15.5px;min-width:0}
+.areas{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}
+@media (max-width:620px){.areas{justify-content:flex-start}}
+.area{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap;background:var(--surface-2);color:var(--muted);border:0;cursor:pointer}
+.area.pri{background:var(--azul-claro);color:var(--azul-forte)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.stat{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:12px 16px;min-width:118px}
+.stat b{display:block;font-family:var(--display);font-size:27px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat span{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+
+/* marcar lido */
+.marcar{margin-top:30px;display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-size:13px;font-weight:500;background:var(--paper);color:var(--muted);border:1px solid var(--rule-forte);border-radius:999px;padding:7px 15px;cursor:pointer}
+.marcar:hover{border-color:var(--azul-forte);color:var(--ink)}
+.marcar[aria-pressed="true"]{background:var(--azul-claro);border-color:var(--azul);color:var(--azul-forte)}
+.marcar .cx{width:14px;height:14px;border:1.5px solid currentColor;border-radius:4px;display:grid;place-items:center;font-size:9px;line-height:1}
+
+/* busca */
+.resultados{margin-top:4px;border:1px solid var(--rule);border-radius:10px;background:var(--paper);max-height:46vh;overflow-y:auto}
+.res{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);padding:10px 13px;cursor:pointer;color:inherit}
+.res:last-child{border-bottom:0}
+.res:hover{background:var(--surface)}
+.res b{display:block;font-family:var(--display);font-size:12.5px;font-weight:600;margin-bottom:2px}
+.res small{font-size:12px;color:var(--muted);line-height:1.45;display:block}
+.res mark{background:var(--azul-claro);color:var(--azul-forte);padding:0 2px;border-radius:2px}
+.sem-res{padding:14px;font-size:13.5px;color:var(--faint)}
+
+.chip:focus-visible,.marcar:focus-visible,.sumario a:focus-visible,#abrir-rail:focus-visible,.area:focus-visible,.res:focus-visible,.check input:focus-visible,.check-topo button:focus-visible,.rail-pe button:focus-visible,.busca input:focus-visible{outline:2px solid var(--azul-forte);outline-offset:2px}
+
+footer{border-top:1px solid var(--rule);background:var(--surface);padding-block:34px;padding-inline:16px}
+.pe{max-width:1240px;margin:0 auto;display:flex;flex-wrap:wrap;gap:14px 34px;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--faint);text-transform:uppercase}
+
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div id="barra"><i></i></div>
+
+<header class="capa">
+  <div class="capa-in">
+    <div class="marca">Full Connect Key</div>
+    <h1>Operações de Criação</h1>
+    <p class="sub">Documento de processos, onboarding e treinamento da área de Criação.</p>
+    <div class="capa-meta">
+      <span>Capítulos <b id="m-caps">—</b></span>
+      <span>Escopos mapeados <b>16</b></span>
+      <span>Contas atendidas <b>10</b></span>
+      <span>Leitura <b id="m-tempo">—</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="rail" aria-label="Sumário">
+    <div class="rail-topo">
+      <span>Sumário</span>
+      <button id="abrir-rail" type="button" aria-expanded="false" aria-controls="painel-rail">Abrir</button>
+    </div>
+    <div id="painel-rail" style="display:contents">
+      <div class="busca">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Buscar no playbook" aria-label="Buscar no playbook" autocomplete="off">
+      </div>
+      <div id="resultados" class="resultados" hidden></div>
+      <ol class="sumario" id="sumario"></ol>
+      <div class="rail-pe">
+        <span id="contagem">0 de 0 lidos</span>
+        <button id="zerar" type="button">Zerar</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<footer>
+  <div class="pe">
+    <span>Full Connect Key · Operações de Criação</span>
+    <span>Documento vivo — atualize quando o processo mudar</span>
+  </div>
+</footer>
+
+<script>
+const LIVRO = [];
+
+/* === CAPITULOS === */
+
+LIVRO.push({id:'como-usar',t:'Como usar este documento',r:'Para que serve este playbook, o que significam os trechos entre colchetes e quando ele precisa ser atualizado.',b:[
+{t:'p',c:'Este playbook documenta os principais processos executados pela área de Criação da agência, desde o recebimento e a interpretação dos briefings até o desenvolvimento, a revisão, a apresentação e a entrega das peças.'},
+{t:'p',c:'O objetivo é permitir que qualquer pessoa da equipe, mesmo sem conhecimento prévio da rotina, consiga compreender os fluxos, acessar as ferramentas e os materiais necessários e executar as atividades com segurança, organização e autonomia.'},
+{t:'destaque',c:'Os trechos entre colchetes, como <b>[INSERIR LINK]</b>, indicam informações que ainda precisam ser adicionadas ou confirmadas: links de pastas, documentos, ferramentas, acessos, responsáveis e particularidades dos clientes.'},
+{t:'p',c:'Sempre que houver uma mudança relevante em um processo, ferramenta, acesso, padrão de entrega ou responsabilidade, este documento deverá ser atualizado.'},
+{t:'nota',c:'Este playbook cita o <b>ClickUp</b> como ferramenta oficial de registro. Com a migração para o <b>Full Hub</b>, cada menção precisa ser revista para indicar onde a etapa passa a ser registrada.'}
+]});
+
+LIVRO.push({id:'escopos',t:'Escopos e responsabilidades',r:'Diagnóstico operacional: as 16 frentes que passam pela Criação e quem responde por cada uma.',b:[
+{t:'matriz'},
+{t:'p',c:'A área de Criação atua de forma integrada com Estratégia, Atendimento, Redação, Social Media, Performance e Produção. Por isso, é fundamental que briefings, referências, orientações, aprovações e alterações estejam devidamente documentados, e que o sistema de gestão seja atualizado em todas as etapas do processo, garantindo clareza, rastreabilidade e alinhamento entre as áreas envolvidas.'}
+]});
+
+LIVRO.push({id:'papel',t:'Papel da equipe de Criação',r:'O que se espera do profissional de Criação, da interpretação do briefing à preparação técnica dos materiais.',b:[
+{t:'p',c:'A equipe de Criação é responsável por transformar estratégias, informações e objetivos de comunicação em soluções visuais claras, relevantes e coerentes com cada marca.'},
+{t:'p',c:'O trabalho criativo não se limita à execução de peças. Ele envolve interpretação de briefing, pesquisa, desenvolvimento de conceito, direção visual, aplicação da identidade da marca, revisão e preparação técnica dos materiais.'},
+{t:'p',c:'Antes de iniciar uma demanda, o profissional de Criação deve compreender o que está sendo solicitado e qual problema aquela peça precisa resolver. Sempre que houver informações insuficientes, conflitantes ou pouco claras, é responsabilidade do criativo sinalizar essas questões antes de avançar na produção.'},
+{t:'p',c:'Durante o desenvolvimento, espera-se que o profissional tenha autonomia para propor soluções, identificar oportunidades de melhoria e tomar decisões visuais alinhadas ao objetivo da comunicação.'},
+{t:'h3',c:'Tópicos de responsabilidade do setor'},
+{t:'lista',c:['Manter consistência com a identidade visual de cada cliente','Respeitar formatos, especificações e características de cada canal','Organizar corretamente arquivos e materiais de trabalho','Revisar as peças antes de encaminhá-las para aprovação','Cumprir os prazos estabelecidos ou sinalizar antecipadamente quando houver algum impedimento','Registrar corretamente o andamento das tarefas nas ferramentas utilizadas pela agência','Zelar pela qualidade técnica e visual das entregas','Compartilhar informações relevantes com outros profissionais envolvidos no projeto']},
+{t:'p',c:'Cada profissional é responsável pelas próprias entregas, mas o resultado final deve ser entendido como responsabilidade coletiva da equipe de criação.'},
+{t:'destaque',c:'Sempre que necessário, designers, diretores de arte e demais profissionais podem solicitar uma segunda opinião, compartilhar referências ou pedir uma revisão antes de uma entrega importante. A troca entre a equipe deve ser incentivada como parte do processo criativo e não apenas como uma etapa de correção.'}
+]});
+
+LIVRO.push({id:'clientes',t:'Clientes atendidos',r:'As contas da agência, com diretor de arte, materiais desenvolvidos e atendimento responsável.',b:[
+{t:'p',c:'A lista de clientes atendidos deve ser mantida atualizada neste documento. Para cada conta, podemos registrar: nome do cliente, diretor de arte responsável, materiais desenvolvidos e atendimento.'},
+{t:'clientes'},
+{t:'h3',c:'Distribuição e responsabilidade das contas'},
+{t:'destaque',c:'Todas as contas pertencem à <b>Full Connect Key</b>, e não exclusivamente ao Diretor de Arte responsável por cada cliente.'},
+{t:'p',c:'A definição de um profissional responsável por determinada conta indica que ele concentrará a maior parte das demandas, acompanhará seu histórico e terá maior familiaridade com suas particularidades, materiais, linguagem e identidade visual. Essa responsabilidade, no entanto, não representa exclusividade sobre a conta.'},
+{t:'p',c:'De acordo com o volume de trabalho, os prazos, as prioridades e a disponibilidade da equipe, as demandas poderão ser redistribuídas entre outros profissionais da Criação.'},
+{t:'p',c:'Por isso, arquivos, referências, orientações, históricos, materiais aprovados e demais informações relevantes devem permanecer devidamente organizados e acessíveis, permitindo que qualquer integrante da equipe consiga dar continuidade ao trabalho com segurança, agilidade e consistência.'}
+]});
+
+LIVRO.push({id:'integracao',t:'Guia de integração das equipes',r:'O papel de cada área e a quem recorrer em cada etapa do processo.',b:[
+{t:'p',c:'A área de Criação atua de forma integrada com diferentes equipes da agência. Para garantir que as demandas sejam desenvolvidas com clareza, agilidade e alinhamento estratégico, é fundamental compreender o papel de cada área e saber a quem recorrer em cada etapa do processo.'},
+{t:'h3',c:'Atendimento'},
+{t:'p',c:'O Atendimento é responsável por centralizar a comunicação com o cliente, organizar e encaminhar os briefings, validar prioridades e transmitir aprovações, alterações e feedbacks para as áreas envolvidas.'},
+{t:'p',c:'A equipe de Criação deve manter contato frequente com o Atendimento para compreender:'},
+{t:'lista',c:['Quais tarefas são prioritárias','Quais entregas possuem prazos mais urgentes','Quais materiais ainda dependem de informações ou retornos do cliente','Quais peças foram aprovadas','Quais materiais precisam de alterações','Se existem mudanças no briefing, no escopo ou no direcionamento da demanda','Se houve mudanças estratégicas que impactam o desenvolvimento criativo']},
+{t:'p',c:'Todas as orientações, aprovações e solicitações de alteração devem estar devidamente registradas no sistema de gestão ou nos canais oficiais definidos pela agência, evitando ruídos de comunicação e garantindo a rastreabilidade das decisões.'},
+{t:'destaque',c:'<b>Atendimento:</b> Gabriela · Mariela · Lívia'},
+{t:'h3',c:'Redação'},
+{t:'p',c:'A Redação é responsável por transformar pautas e estratégias em textos, legendas, chamadas, roteiros, títulos e copies adequados ao objetivo de cada comunicação.'},
+{t:'p',c:'Para que a equipe de Criação consiga desenvolver as peças com clareza e eficiência, a Redação deve fornecer:'},
+{t:'lista',c:['Texto final ou versão aprovada do conteúdo','Título, chamada ou destaque principal','Hierarquia das informações','CTA, quando houver','Informações obrigatórias','Restrições ou cuidados específicos do cliente','Indicação dos trechos que devem receber maior destaque','Divisão do conteúdo por slide ou cena, quando aplicável','Orientações relacionadas ao tom de voz','Referências complementares, quando necessárias','Confirmação da revisão de nomes, datas, valores e demais informações relevantes']},
+{t:'p',c:'Sempre que o volume de texto comprometer a legibilidade, a hierarquia das informações ou a qualidade visual da peça, a equipe de Criação deverá sinalizar a Redação para que o conteúdo seja revisado antes da finalização.'},
+{t:'p',c:'Alterações relevantes no texto após o início da criação também devem ser comunicadas de forma clara, evitando retrabalho e inconsistências entre versões.'},
+{t:'h3',c:'Performance'},
+{t:'p',c:'As demandas relacionadas a mídia paga, impulsionamentos e campanhas de performance devem ser alinhadas com a equipe responsável por cada projeto.'},
+{t:'p',c:'A área de Mídia e Performance é responsável por definir:'},
+{t:'lista',c:['Em quais plataformas a campanha será veiculada','Quais peças serão utilizadas nas campanhas','Quais formatos e dimensões serão necessários','Quais públicos, objetivos e etapas do funil serão trabalhados','Quais criativos devem ser pausados','Quais peças precisam ser substituídas ou atualizadas','Quais variações de texto, imagem, formato ou abordagem devem ser produzidas','Quais aprendizados de desempenho devem orientar os próximos criativos']},
+{t:'p',c:'A equipe de Criação deve receber briefings claros, contendo, sempre que aplicável: objetivo da campanha, canal de veiculação, formatos e dimensões, prazo, público, mensagem principal, CTA, referências e informações obrigatórias.'},
+{t:'p',c:'Sempre que possível, os resultados das campanhas devem ser compartilhados com a equipe de Criação. Esses dados ajudam a identificar quais abordagens, formatos e elementos visuais apresentam melhor desempenho e contribuem para o desenvolvimento de criativos cada vez mais eficientes.'},
+{t:'h3',c:'Social Media'},
+{t:'p',c:'A área de Social Media é responsável pelo planejamento das pautas, organização dos calendários editoriais, desenvolvimento dos direcionamentos de conteúdo e acompanhamento das publicações de cada cliente.'},
+{t:'p',c:'A equipe de Criação deve consultar os profissionais de Social Media sempre que necessário para compreender ou comunicar:'},
+{t:'lista',c:['O objetivo de cada conteúdo','O contexto e a estratégia da pauta','O formato e o canal de publicação','A ordem e a hierarquia das informações','Quais conteúdos são prioritários','Quais materiais já foram aprovados','Quais peças ainda dependem de textos, informações ou validações','Quais conteúdos precisam de ajustes','Se existem referências, tendências ou direcionamentos específicos','Se houve mudanças no calendário, na estratégia ou no posicionamento da conta']},
+{t:'p',c:'Os briefings encaminhados pela área de Social Media devem conter todas as informações necessárias para o desenvolvimento das peças, incluindo textos finais, formatos, dimensões, referências, prazos e orientações específicas.'},
+{t:'p',c:'Caso alguma informação necessária esteja ausente, a equipe de Criação deverá solicitar a complementação antes de avançar para etapas que possam gerar retrabalho.'},
+{t:'h3',c:'Comercial, contratos, imprensa e assuntos institucionais'},
+{t:'p',c:'Dúvidas ou demandas relacionadas a contratos, acordos comerciais, imprensa ou assuntos institucionais devem ser direcionadas aos responsáveis por essas frentes.'},
+{t:'destaque',c:'<b>Responsáveis:</b> Rita · Emerson'}
+]});
+
+LIVRO.push({id:'ferramentas',t:'Ferramentas de apoio',r:'Para que serve cada plataforma utilizada pela Criação e o que se espera do uso de cada uma.',b:[
+{t:'h3',c:'Sistema de gestão de demandas'},
+{t:'p',c:'É a ferramenta oficial utilizada para organizar, acompanhar e documentar as demandas da área de Criação. A plataforma deve ser utilizada para:'},
+{t:'lista',c:['Receber e organizar tarefas','Consultar briefings, referências e materiais de apoio','Identificar prioridades','Controlar prazos','Acompanhar responsáveis','Informar o status das atividades','Mensurar o tempo de produção','Registrar dúvidas, alterações e orientações','Documentar o andamento e o histórico das demandas']},
+{t:'p',c:'Sempre que uma tarefa for iniciada, o responsável deverá alterar o status para <b>Em produção</b> e iniciar o registro do tempo, quando esse recurso estiver disponível.'},
+{t:'p',c:'Ao concluir a peça e encaminhá-la para revisão, aprovação ou entrega, o status deverá ser atualizado conforme a etapa correspondente definida no fluxo da agência, como <b>Em aprovação</b> ou <b>Entregue</b>.'},
+{t:'nota',c:'No documento original esta ferramenta é o <b>ClickUp</b>. Com a migração para o <b>Full Hub</b>, os nomes de status e o caminho de registro precisam ser revistos aqui.'},
+{t:'h3',c:'Google Drive'},
+{t:'p',c:'Ferramenta oficial para armazenar, organizar, consultar e compartilhar os arquivos relacionados aos clientes e às demandas. Deve ser utilizada para:'},
+{t:'lista',c:['Armazenar arquivos editáveis e materiais finalizados','Organizar as peças por cliente, campanha, projeto ou período','Consultar brandbooks, manuais e diretrizes de identidade visual','Localizar logos, fontes, imagens, ícones e outros materiais dos clientes','Armazenar apresentações, planejamentos e documentos de referência','Compartilhar arquivos com as áreas envolvidas','Manter o histórico de campanhas e materiais aprovados','Disponibilizar arquivos finais para publicação, produção ou envio ao cliente','Consultar referências e peças produzidas anteriormente','Facilitar a continuidade das demandas por outros integrantes da equipe']},
+{t:'destaque',c:'Não é permitido manter a única versão de uma peça apenas no computador pessoal, em pastas locais ou em contas particulares. Qualquer integrante da equipe precisa conseguir localizar os arquivos sem depender do profissional responsável pela conta.'},
+{t:'h3',c:'Pacote Adobe'},
+{t:'p',c:'Reúne as principais ferramentas utilizadas para desenvolver, editar, diagramar, animar e finalizar materiais gráficos e audiovisuais: criar peças digitais e impressas, editar e tratar imagens, desenvolver arquivos vetoriais, diagramar apresentações e materiais editoriais, produzir animações e vídeos, e preparar arquivos finais para publicação ou impressão.'},
+{t:'p',c:'Os programas devem ser utilizados de acordo com a finalidade de cada demanda, respeitando os padrões técnicos, a organização dos arquivos e as licenças disponibilizadas pela agência.'},
+{t:'h3',c:'Figma'},
+{t:'p',c:'Utilizado para desenvolver interfaces, landing pages, layouts digitais, apresentações e projetos colaborativos: criar wireframes e layouts, organizar componentes e sistemas visuais, compartilhar projetos, registrar comentários e ajustes, e apresentar propostas para aprovação.'},
+{t:'p',c:'Os arquivos devem ser organizados por páginas, versões e projetos, seguindo o padrão de nomenclatura definido pela agência.'},
+{t:'h3',c:'CapCut'},
+{t:'p',c:'Utilizado para editar vídeos curtos, reels, stories e outros conteúdos audiovisuais destinados principalmente às redes sociais: cortar e organizar cenas, inserir textos, legendas e trilhas, aplicar transições e efeitos, ajustar enquadramento, velocidade e duração, adaptar vídeos para diferentes formatos e exportar conteúdos prontos para publicação.'},
+{t:'p',c:'Os projetos devem seguir a identidade visual de cada cliente, respeitando os padrões de tipografia, cores, legibilidade e qualidade definidos pela agência.'},
+{t:'h3',c:'Wake Performance'},
+{t:'p',c:'Utilizada para criação, configuração, disparo e acompanhamento de campanhas de e-mail marketing: montar e diagramar e-mails, inserir textos, imagens, links e botões, configurar listas e segmentações, realizar testes antes do disparo, programar campanhas e acompanhar métricas.'},
+{t:'destaque',c:'Antes do envio, todos os links, textos, imagens, versões responsivas e informações obrigatórias devem ser revisados e aprovados pelo cliente e pelo atendimento da conta.'},
+{t:'h3',c:'Pinterest'},
+{t:'p',c:'Ferramenta de pesquisa e referência visual para campanhas, identidades, peças gráficas e projetos diversos: pesquisar tendências e estilos, criar painéis de referências, reunir inspirações de composição, tipografia, fotografia e direção de arte, apoiar moodboards e organizar referências por cliente ou campanha.'},
+{t:'p',c:'As referências devem servir como ponto de partida para o processo criativo, evitando cópias diretas e garantindo o desenvolvimento de soluções originais e adequadas à identidade de cada cliente.'},
+{t:'h3',c:'Planilha de senhas'},
+{t:'p',c:'Centraliza os dados de login das plataformas, bancos de imagens, ferramentas de criação, sites, blogs e demais recursos utilizados pela equipe. A área de Social é responsável por mantê-la organizada e atualizada.'},
+{t:'destaque',c:'Os acessos são confidenciais e <b>não devem ser compartilhados fora dos canais oficiais da agência</b>.'},
+{t:'h3',c:'Agenda pessoal (opcional)'},
+{t:'p',c:'Pode ser utilizada como ferramenta complementar para organizar demandas individuais, lembretes, prazos, reuniões, revisões, entregas e atividades extras.'},
+{t:'p',c:'No entanto, toda demanda oficial deve estar registrada e atualizada no sistema de gestão. A agenda pessoal não substitui a ferramenta da agência e deve ser utilizada apenas como apoio à organização individual.'},
+{t:'h3',c:'Novas ferramentas'},
+{t:'p',c:'A agência e a área de Criação estão abertas à adoção de novas ferramentas de apoio, desde que sejam compatíveis com o fluxo de trabalho e contribuam para melhorar a organização, a produtividade, a colaboração ou a qualidade das entregas.'},
+{t:'p',c:'Antes de incorporar uma nova ferramenta à rotina, sua utilização deve ser alinhada com a liderança e com as áreas envolvidas, considerando custos, acessos, segurança das informações, facilidade de uso e integração com os processos existentes.'}
+]});
+
+LIVRO.push({id:'entrada',t:'Fluxo de entrada de demandas',r:'O que fazer ao receber uma tarefa, o que um briefing precisa conter e como lidar com informação faltando.',b:[
+{t:'p',c:'Toda demanda deve começar pela leitura completa da tarefa antes do início da produção.'},
+{t:'citacao',c:'Abrir um software de criação não deve ser o primeiro passo.'},
+{t:'p',c:'Antes disso, o profissional precisa compreender o contexto da solicitação, identificar as informações disponíveis e verificar se possui todos os materiais necessários para desenvolver a peça.'},
+{t:'p',c:'Ao receber uma nova tarefa, a Criação deve analisar:'},
+{t:'lista',c:['Qual é o objetivo da comunicação','Qual peça ou material precisa ser desenvolvido','Para qual público a comunicação será direcionada','Onde a peça será publicada ou utilizada','Quais formatos e dimensões são necessários','Qual é o prazo da entrega','Quais textos, imagens, logos e demais materiais estão disponíveis','Quais referências ou campanhas anteriores devem ser consideradas','Se existe alguma orientação específica do cliente','Se a demanda faz parte de uma campanha ou possui relação com outras peças']},
+{t:'p',c:'Também é importante consultar materiais anteriores sempre que necessário. Brandbooks, campanhas já aprovadas, arquivos de referência e peças recentes ajudam a manter consistência visual e evitam que decisões já tomadas precisem ser refeitas.'},
+{t:'p',c:'Caso alguma informação essencial esteja ausente ou apresente conflito, o profissional deve sinalizar a dúvida antes de avançar para etapas que possam gerar retrabalho.'},
+{t:'destaque',c:'Nem toda dúvida precisa interromper a produção. O criativo deve desenvolver autonomia para identificar o que realmente impede o andamento da tarefa e o que pode ser resolvido utilizando referências existentes, padrões já definidos ou decisões técnicas da própria área.'},
+{t:'p',c:'Uma boa leitura inicial reduz alterações, melhora a qualidade da primeira entrega e permite que o tempo de criação seja utilizado de maneira mais estratégica.'},
+{t:'h3',c:'Recebimento da demanda'},
+{t:'p',c:'Todas as demandas oficiais destinadas à área de Criação devem estar registradas no sistema de gestão, que funciona como o principal canal de organização, acompanhamento e histórico das tarefas.'},
+{t:'p',c:'Solicitações realizadas por WhatsApp, reuniões, conversas presenciais ou outros canais podem complementar informações e alinhamentos, mas <b>não substituem o registro da demanda na plataforma</b>.'},
+{t:'p',c:'Em situações excepcionais ou urgentes, o processo pode ser flexibilizado com bom senso para não comprometer a entrega. Ainda assim, a demanda deverá ser registrada posteriormente, garantindo que as informações e decisões permaneçam documentadas.'},
+{t:'h3',c:'O que um briefing deve conter'},
+{t:'p',c:'A criação e o preenchimento das tarefas são, prioritariamente, responsabilidade da equipe de Atendimento, podendo ser realizados por outras áreas quando a dinâmica de determinado projeto exigir.'},
+{t:'check',titulo:'Itens do briefing',c:['Cliente','Nome ou identificação da campanha, pauta ou projeto','Objetivo da comunicação','Material que deverá ser desenvolvido','Formato e dimensões','Canal de publicação ou utilização','Texto ou conteúdo da peça','CTA, quando houver','Referências visuais ou estratégicas','Prazo de entrega','Links, arquivos e materiais necessários para o desenvolvimento']},
+{t:'destaque',c:'Nem todas as demandas exigirão todos esses itens. O mais importante é que estejam disponíveis as informações necessárias para que a Criação compreenda o objetivo da tarefa e consiga executá-la <b>sem depender de interpretações ou suposições desnecessárias</b>.'},
+{t:'h3',c:'Antes de iniciar'},
+{t:'check',titulo:'Conferência inicial',c:['Ler o briefing por completo','Conferir anexos, links e referências','Verificar o prazo e a prioridade da demanda','Confirmar formatos, dimensões e canais de utilização','Conferir se os textos e demais informações necessárias estão disponíveis','Consultar materiais anteriores, brandbooks ou referências da marca quando necessário','Identificar possíveis dúvidas, inconsistências ou informações ausentes','Alterar o status da tarefa para Em produção ao iniciar efetivamente o desenvolvimento']},
+{t:'p',c:'Essa conferência inicial faz parte do processo criativo e ajuda a reduzir retrabalhos, erros de execução e dúvidas durante o desenvolvimento.'},
+{t:'h3',c:'Briefing incompleto ou com dúvidas'},
+{t:'p',c:'Quando uma informação essencial estiver ausente, contraditória ou pouco clara, o profissional de Criação deve sinalizar o responsável pela demanda antes de avançar com etapas que possam resultar em retrabalho. Algumas situações que podem exigir um novo alinhamento:'},
+{t:'lista',c:['Ausência do texto ou conteúdo necessário para a peça','Falta de definição de formato ou dimensão','Informações conflitantes no briefing','Ausência de arquivos indispensáveis','Dúvidas sobre o objetivo da comunicação','Falta de definição sobre qual versão de um material deve ser utilizada','Divergências entre o briefing e materiais anteriormente aprovados']},
+{t:'p',c:'Sempre que possível, as dúvidas devem ser reunidas em uma única mensagem ou comentário, tornando a comunicação mais objetiva e evitando interrupções fragmentadas ao longo do processo.'},
+{t:'h3',c:'Alterações no briefing'},
+{t:'p',c:'Mudanças realizadas após o início da produção devem ser registradas na própria tarefa, mantendo o histórico atualizado e acessível para todos os envolvidos. São consideradas alterações relevantes:'},
+{t:'lista',c:['Mudança de formato','Alteração de conceito ou direcionamento','Troca significativa de texto','Inclusão de novas informações','Mudança de público','Alteração de prazo','Mudança de KV ou identidade visual','Inclusão de novas peças que não faziam parte do escopo inicial']},
+{t:'p',c:'Quando uma alteração modificar de maneira significativa o escopo originalmente previsto, o profissional deverá avaliar o impacto dessa mudança e, quando necessário, sinalizar ao Atendimento a necessidade de revisão do prazo.'},
+{t:'p',c:'O objetivo não é impedir alterações, mas garantir que mudanças de escopo também sejam consideradas no planejamento da produção.'},
+{t:'h3',c:'Demandas recebidas fora do fluxo'},
+{t:'p',c:'Caso uma solicitação seja encaminhada diretamente à equipe de Criação sem uma tarefa registrada, o profissional deverá orientar o solicitante a formalizar a demanda ou solicitar que o responsável pelo projeto faça esse registro.'},
+{t:'p',c:'Demandas urgentes também devem ser documentadas. Um prazo curto não elimina a necessidade de alinhamento das informações essenciais, definição de prioridade e registro da solicitação.'},
+{t:'p',c:'O fluxo poderá ser flexibilizado quando houver uma urgência real ou uma necessidade fora da rotina habitual, desde que os envolvidos estejam alinhados e que a tarefa seja registrada ou atualizada posteriormente, preservando o histórico e a rastreabilidade.'},
+{t:'h3',c:'Responsabilidade sobre o briefing'},
+{t:'p',c:'Para a equipe de Criação, a responsabilidade está em <b>interpretar criticamente o briefing antes de iniciar a produção</b>, identificar possíveis lacunas e garantir que existam condições suficientes para realizar a entrega.'},
+{t:'p',c:'O criativo não deve apenas receber informações e executá-las de maneira automática. Faz parte do processo compreender o objetivo da comunicação, consultar materiais existentes e identificar quando determinado direcionamento precisa de esclarecimento.'},
+{t:'destaque',c:'Um bom briefing não precisa necessariamente ser extenso. Ele precisa ser <b>claro, objetivo e completo o suficiente</b> para orientar a criação e reduzir interpretações desnecessárias durante o desenvolvimento.'}
+]});
+
+LIVRO.push({id:'organizacao',t:'Organização do processo',r:'Como as prioridades são definidas, o que fazer em conflito de prazos e como sinalizar sobrecarga.',b:[
+{t:'p',c:'A priorização das demandas deve considerar prazo, impacto, urgência, dependências e capacidade de produção da equipe. O objetivo é garantir que as entregas mais importantes sejam realizadas no momento correto, sem comprometer a qualidade do trabalho ou gerar sobrecarga desnecessária.'},
+{t:'h3',c:'Definição de prioridades'},
+{t:'p',c:'A ordem de execução das demandas deve ser alinhada entre a equipe de Criação e o Atendimento, considerando:'},
+{t:'lista',c:['Prazo de entrega','Data de publicação ou veiculação','Impacto da demanda','Dependência de outras áreas','Campanhas ou ações com data fixa','Materiais já aguardados pelo cliente','Urgências reais','Volume e complexidade de produção','Capacidade disponível da equipe']},
+{t:'destaque',c:'Uma tarefa com prazo mais próximo nem sempre será automaticamente a mais prioritária. O contexto da demanda deve ser considerado antes da definição da ordem de execução.'},
+{t:'h3',c:'Alinhamento diário'},
+{t:'p',c:'A equipe de Criação deve acompanhar diariamente as prioridades junto ao Atendimento e consultar o sistema para identificar alterações de prazo, novas demandas ou mudanças de direcionamento. Sempre que houver uma mudança relevante na ordem das entregas, os profissionais impactados devem ser informados.'},
+{t:'h3',c:'Conflito entre demandas'},
+{t:'p',c:'Quando duas ou mais demandas apresentarem prazos conflitantes ou não puderem ser executadas dentro do período disponível, o profissional responsável deverá sinalizar a situação antes que o prazo seja comprometido. Nesses casos, devem ser avaliados:'},
+{t:'lista',c:['Qual entrega possui maior impacto','Qual demanda possui data fixa','Qual material depende de terceiros','Qual tarefa pode ser redistribuída','Qual prazo pode ser renegociado','Se existe possibilidade de simplificação ou adaptação da entrega']},
+{t:'p',c:'A decisão sobre qual demanda deve avançar primeiro deve ser tomada em conjunto com o Atendimento ou com a liderança responsável.'},
+{t:'h3',c:'Sinalização de sobrecarga'},
+{t:'p',c:'Caso o volume de demandas ultrapasse a capacidade de produção do período, a equipe de Criação deve sinalizar a situação com antecedência.'},
+{t:'citacao',c:'A sinalização de sobrecarga não representa falta de comprometimento.'},
+{t:'p',c:'Ela permite que a equipe reorganize prioridades, redistribua demandas ou negocie prazos antes que a qualidade das entregas seja impactada. Sempre que possível, o profissional deve informar:'},
+{t:'lista',c:['Quais tarefas já estão em produção','Quais prazos estão em risco','Qual demanda adicional gerou o conflito','Se existe possibilidade de redistribuição','Qual seria um novo prazo viável']},
+{t:'h3',c:'Demandas urgentes'},
+{t:'p',c:'Uma demanda urgente deve ser tratada como exceção e ter sua prioridade alinhada com o atendimento. Quando uma nova urgência for inserida no fluxo, é importante avaliar quais tarefas em andamento poderão ser impactadas.'},
+{t:'p',c:'A inclusão de uma demanda prioritária pode exigir a reorganização de outras entregas. Por isso, a urgência deve ser comunicada de forma clara e acompanhada de uma definição sobre o que deverá ser priorizado ou postergado.'},
+{t:'h3',c:'Mudanças de prioridade'},
+{t:'p',c:'As prioridades podem mudar ao longo do dia de acordo com retornos de clientes, alterações de calendário, necessidades comerciais ou situações excepcionais. Quando isso ocorrer, a equipe deve se adaptar ao novo direcionamento, desde que a mudança seja comunicada de forma clara e que seus impactos sobre as demais tarefas sejam considerados.'},
+{t:'h3',c:'Responsabilidade compartilhada'},
+{t:'p',c:'A organização das prioridades é uma responsabilidade compartilhada entre Criação, Atendimento e liderança. Cabe ao Atendimento fornecer contexto sobre prazos, clientes e urgências, enquanto a Criação deve comunicar sua capacidade de produção, complexidade das demandas e possíveis riscos de execução.'},
+{t:'destaque',c:'A prioridade deve ser definida com base no contexto geral da operação, e não apenas na ordem em que as solicitações chegam.'}
+]});
+
+LIVRO.push({id:'inicio',t:'Início do processo',r:'O que consultar antes de abrir o arquivo, como pesquisar e como definir o caminho criativo.',b:[
+{t:'p',c:'O processo criativo começa antes da execução visual. Após compreender o briefing e definir a prioridade da tarefa, o profissional deve reunir as informações e referências necessárias para iniciar o desenvolvimento de maneira consciente.'},
+{t:'p',c:'O objetivo dessa etapa é evitar que a criação comece apenas pela experimentação visual, sem uma compreensão clara do problema que precisa ser resolvido.'},
+{t:'h3',c:'Antes de abrir o arquivo'},
+{t:'check',titulo:'Materiais a consultar',c:['Brandbook ou manual de identidade visual','Campanhas anteriores','Key Visual vigente','Peças já aprovadas','Banco de imagens ou materiais disponibilizados pelo cliente','Referências incluídas no briefing','Arquivos abertos existentes','Diretrizes específicas do canal ou formato','Histórico da comunicação da marca']},
+{t:'p',c:'Em clientes recorrentes, é importante conhecer o universo visual já desenvolvido para evitar soluções desconectadas da comunicação existente. Isso não significa repetir constantemente as mesmas composições, mas compreender os códigos visuais da marca antes de propor novas soluções.'},
+{t:'h3',c:'Pesquisa e referências'},
+{t:'p',c:'A pesquisa visual pode fazer parte do início de uma demanda, principalmente quando existe necessidade de criação de conceito, KV, campanha, identidade ou solução ainda não explorada.'},
+{t:'p',c:'As referências devem funcionar como ferramenta de repertório e direcionamento, e não como modelos a serem reproduzidos. Ao pesquisar, observe aspectos como composição, hierarquia, fotografia, tipografia, uso de cor, texturas, linguagem visual, soluções gráficas, tratamento de imagem e, quando aplicável, movimento e ritmo.'},
+{t:'destaque',c:'O objetivo é entender <b>por que</b> determinada solução funciona e utilizar esse aprendizado para construir uma resposta própria e adequada ao projeto.'},
+{t:'h3',c:'Definição do caminho criativo'},
+{t:'p',c:'Antes de aprofundar a execução, é importante estabelecer uma ideia inicial para a peça. Essa decisão pode envolver:'},
+{t:'lista',c:['Qual informação deve receber maior destaque','Qual será o principal elemento visual','Qual sensação a comunicação precisa transmitir','Qual linguagem fotográfica ou gráfica será utilizada','Como a peça se conecta à campanha ou à identidade da marca','Qual ação se espera do público após visualizar o material']},
+{t:'p',c:'Nem toda demanda exige uma etapa formal de conceito. Desdobramentos e peças mais operacionais podem seguir caminhos já definidos anteriormente. Em projetos que exigem criação de uma linguagem nova, porém, dedicar tempo ao conceito antes de avançar para o acabamento costuma tornar o processo mais eficiente.'},
+{t:'h3',c:'Preparação dos arquivos'},
+{t:'p',c:'Sempre que possível, o desenvolvimento deve partir dos arquivos e templates oficiais da marca ou campanha. Antes de iniciar, verifique:'},
+{t:'check',titulo:'Configuração do documento',c:['Dimensões corretas do documento','Perfil de cor adequado','Margens e áreas de segurança','Sangria, quando aplicável','Organização das camadas','Fontes utilizadas','Logos e elementos atualizados','Links e imagens necessários']},
+{t:'p',c:'Criar o arquivo corretamente desde o início reduz problemas durante a finalização e evita ajustes técnicos desnecessários próximos ao prazo de entrega.'}
+]});
+
+LIVRO.push({id:'desenvolvimento',t:'Desenvolvimento criativo',r:'Hierarquia, consistência com a marca, adequação ao formato e o que faz uma peça estar realmente pronta.',b:[
+{t:'p',c:'Durante o desenvolvimento, a principal responsabilidade da Criação é transformar o briefing em uma solução visual que seja funcional, coerente com a marca e adequada ao objetivo da comunicação.'},
+{t:'p',c:'Uma peça não deve ser avaliada apenas por sua estética. Ela também precisa comunicar corretamente, possuir hierarquia clara, funcionar no formato proposto e atender à necessidade que originou a demanda.'},
+{t:'h3',c:'Hierarquia da informação'},
+{t:'p',c:'Antes de trabalhar detalhes estéticos, determine quais informações precisam ser percebidas primeiro. Nem todos os elementos de uma peça possuem a mesma importância. Estabeleça uma hierarquia visual considerando mensagem principal, informação complementar, produto ou serviço, CTA, marca e informações obrigatórias ou legais.'},
+{t:'destaque',c:'Sempre que todos os elementos possuem o mesmo peso visual, a peça tende a perder clareza.'},
+{t:'h3',c:'Consistência com a marca'},
+{t:'p',c:'Toda criação deve respeitar a identidade e o posicionamento do cliente. Isso envolve mais do que aplicar corretamente logo, cores e tipografia. A consistência também deve estar presente na linguagem fotográfica, direção de arte, estilo de ilustração, uso de grafismos, composição, tom da comunicação, nível de sofisticação visual e na forma como produtos, serviços ou pessoas são apresentados.'},
+{t:'p',c:'Quando houver liberdade para experimentar novos caminhos, essas propostas devem ampliar o universo da marca sem descaracterizá-la.'},
+{t:'h3',c:'Adequação ao formato'},
+{t:'p',c:'Uma mesma ideia pode precisar de soluções diferentes dependendo do canal em que será utilizada. Um post de feed, story, banner digital, material impresso, apresentação ou peça de mídia exterior possuem tempos de leitura, proporções e necessidades diferentes.'},
+{t:'citacao',c:'Desdobrar uma peça não significa apenas redimensioná-la.'},
+{t:'p',c:'Sempre que necessário, elementos devem ser reposicionados, reduzidos, ampliados ou reorganizados para preservar legibilidade, impacto e hierarquia.'},
+{t:'h3',c:'Uso de imagens e elementos visuais'},
+{t:'p',c:'Imagens, ilustrações, ícones, texturas e demais recursos visuais devem contribuir para a mensagem da peça. Evite adicionar elementos apenas para preencher espaços ou tornar a composição visualmente mais complexa. Ao selecionar ou produzir uma imagem, avalie:'},
+{t:'lista',c:['Qualidade e resolução','Coerência com a identidade da marca','Representatividade do público','Contexto da comunicação','Possibilidade de recorte','Espaço disponível para aplicação de texto','Iluminação, perspectiva e tratamento','Direitos de uso, quando aplicável']},
+{t:'p',c:'Quando houver manipulação, composição ou geração de imagens por inteligência artificial, o material deve receber o mesmo nível de revisão aplicado a qualquer outro recurso visual.'},
+{t:'h3',c:'Desenvolvimento de alternativas'},
+{t:'p',c:'Nem toda tarefa exige a criação de diversas opções. Quando o briefing apresenta um direcionamento claro, o ideal é investir tempo no desenvolvimento de uma solução bem construída em vez de produzir diferentes versões sem justificativa.'},
+{t:'p',c:'Alternativas podem ser úteis quando existem caminhos conceituais realmente distintos ou quando o projeto ainda está em fase de definição. Nesse caso, cada proposta deve apresentar uma lógica própria e não apenas pequenas variações de cor, posição ou tipografia.'},
+{t:'h3',c:'Tomada de decisão criativa'},
+{t:'p',c:'Espera-se que o profissional de Criação exerça julgamento visual durante o desenvolvimento. O briefing orienta o trabalho, mas nem sempre define todas as decisões necessárias para a execução. Cabe ao criativo avaliar aspectos como equilíbrio, composição, escala, legibilidade, contraste, ritmo, respiro e coerência visual.'},
+{t:'p',c:'A autonomia criativa também envolve saber quando uma solicitação pode ser executada diretamente e quando determinada decisão precisa ser discutida por impactar significativamente o conceito, a identidade ou a qualidade da entrega.'},
+{t:'h3',c:'Atenção ao acabamento'},
+{t:'p',c:'Antes de considerar uma peça finalizada, observe também os pequenos detalhes: alinhamentos, espaçamentos, recortes, tratamento de imagens, pesos tipográficos, proporções, contraste e consistência entre elementos.'},
+{t:'destaque',c:'Sempre que possível, afaste-se momentaneamente do arquivo e volte a observá-lo como se estivesse vendo a peça pela primeira vez. Uma criação deve ser considerada concluída apenas quando o conceito, a informação e o acabamento estiverem funcionando em conjunto.'}
+]});
+
+LIVRO.push({id:'autorrevisao',t:'Autorrevisão da demanda',r:'A revisão completa que acontece antes de qualquer material sair da Criação.',b:[
+{t:'p',c:'Antes de encaminhar qualquer material para aprovação, o profissional de Criação deve realizar uma revisão completa da peça.'},
+{t:'p',c:'A autorrevisão faz parte do processo criativo e é responsabilidade de quem desenvolveu o material. Ela deve acontecer antes que a tarefa seja considerada pronta para seguir para Atendimento, cliente ou qualquer outra etapa de validação.'},
+{t:'h3',c:'Revisão de conteúdo'},
+{t:'check',titulo:'Conferir no conteúdo',c:['Ortografia e gramática','Datas e horários','Valores e porcentagens','Telefones, endereços e contatos','URLs e @ de redes sociais','Nomes de pessoas, produtos, serviços ou eventos','CTA','Informações obrigatórias','Versão correta do texto','Ausência de textos provisórios ou placeholders']},
+{t:'destaque',c:'Sempre que possível, o texto deve ser lido diretamente na arte final e não apenas comparado visualmente com o briefing. Essa leitura ajuda a identificar erros que podem passar despercebidos durante o desenvolvimento.'},
+{t:'h3',c:'Revisão visual'},
+{t:'check',titulo:'Conferir na composição',c:['Hierarquia das informações','Legibilidade','Contraste','Alinhamentos','Espaçamentos','Margens','Proporções','Respiros','Consistência tipográfica','Recortes de imagens','Qualidade dos elementos visuais','Equilíbrio da composição']},
+{t:'p',c:'Também é importante verificar se nenhum elemento ficou acidentalmente desalinhado, cortado, oculto ou fora da área segura. Pequenos problemas de acabamento podem comprometer a percepção de qualidade mesmo quando o conceito da peça está correto.'},
+{t:'h3',c:'Revisão de marca'},
+{t:'check',titulo:'Conferir na identidade',c:['Logo correto e atualizado','Proporção e área de proteção da marca','Cores adequadas','Tipografias previstas','Uso correto de grafismos e elementos proprietários','Linguagem fotográfica','Coerência com campanhas e materiais recentes']},
+{t:'p',c:'Quando existir um brandbook ou guideline, ele deve ser utilizado como referência durante essa conferência.'},
+{t:'h3',c:'Revisão técnica'},
+{t:'p',c:'A revisão técnica varia de acordo com o tipo de material, mas deve garantir que o arquivo esteja adequado ao canal de utilização.'},
+{t:'tabela',cab:['Tipo de material','O que conferir'],linhas:[
+['<b>Peças digitais</b>','Dimensões · proporção · resolução · peso do arquivo, quando houver limite · formato de exportação · qualidade da imagem · legibilidade em telas menores'],
+['<b>Materiais impressos</b>','Dimensão final · sangria · margem de segurança · perfil de cor · resolução das imagens · fontes e elementos vetoriais · marcas de corte, quando necessário · configurações específicas da gráfica'],
+['<b>Vídeos e motion</b>','Duração · resolução · proporção · frame rate · qualidade de exportação · áudio · legibilidade dos textos · tempo de permanência das informações na tela · início e término corretos da animação']
+]},
+{t:'h3',c:'Conferência dos desdobramentos'},
+{t:'p',c:'Quando uma campanha possuir vários formatos ou peças relacionadas, a revisão deve considerar também a consistência entre elas. Confira se as mesmas informações foram mantidas em todas as versões, se o conceito visual permanece consistente, se as adaptações respeitam cada formato, se não existem elementos ou textos diferentes sem justificativa e se a hierarquia continua funcionando após os redimensionamentos.'},
+{t:'destaque',c:'Desdobrar uma peça exige uma nova conferência. <b>A aprovação da peça principal não garante automaticamente que todas as adaptações estejam corretas.</b>'},
+{t:'h3',c:'Visualização fora do software'},
+{t:'p',c:'Sempre que possível, antes da entrega, exporte uma prévia e visualize o material fora do software de criação. Essa etapa ajuda a perceber erros de composição, legibilidade, recorte ou informação que podem passar despercebidos.'},
+{t:'p',c:'Em peças digitais, também é recomendado observar o material aproximadamente no tamanho em que será consumido. Uma arte desenvolvida em uma tela grande pode parecer legível durante a produção e perder clareza quando visualizada em um celular.'},
+{t:'h3',c:'Segunda revisão'},
+{t:'p',c:'Em materiais de maior importância, campanhas, peças com grande volume de informação, anúncios, impressos de grande tiragem ou projetos que envolvam maior risco de erro, é recomendado que outro profissional da equipe faça uma segunda revisão. Essa revisão não substitui a responsabilidade de quem desenvolveu a peça — ela acrescenta uma nova camada de segurança.'},
+{t:'h3',c:'Checklist final'},
+{t:'check',titulo:'Antes de considerar a tarefa pronta',c:['A peça responde corretamente ao briefing?','A mensagem principal está clara?','Todos os textos e informações estão corretos?','A identidade visual foi respeitada?','A hierarquia funciona?','As imagens estão em boa qualidade?','O formato e as dimensões estão corretos?','O arquivo foi exportado corretamente?','Há algum elemento provisório ou informação faltando?','Eu enviaria este material diretamente ao cliente?']},
+{t:'destaque',c:'Se alguma dessas respostas gerar dúvida, a peça ainda deve passar por uma nova conferência. A revisão não é opcional nem algo feito só quando sobra tempo: ela faz parte da produção e deve ser considerada dentro do prazo de desenvolvimento.'}
+]});
+
+LIVRO.push({id:'grafica',t:'Fechamento de arquivos para gráfica',r:'Configuração, sangria, fontes, exportação e a revisão final antes de enviar para impressão.',b:[
+{t:'p',c:'Materiais destinados à impressão exigem uma atenção técnica diferente das peças digitais. A equipe de Criação deve garantir que todo arquivo enviado para gráfica esteja configurado, desenvolvido, revisado e exportado corretamente. Esse cuidado reduz riscos de erro de impressão, problemas de corte, alterações de cor, perda de qualidade e necessidade de reimpressão.'},
+{t:'h3',c:'Configuração inicial do arquivo'},
+{t:'p',c:'Para materiais impressos, o arquivo deve ser desenvolvido preferencialmente em um software que permita trabalhar e exportar em <b>CMYK</b>. A configuração correta desde o início ajuda a reduzir diferenças entre as cores visualizadas na tela e o resultado impresso. Também devem ser conferidos:'},
+{t:'lista',c:['Largura e altura da peça','Unidade de medida utilizada','Formato final solicitado','Necessidade de sangria','Margem de segurança','Tipo de acabamento previsto']},
+{t:'p',c:'As medidas devem sempre seguir as especificações recebidas para produção, evitando adaptações ou proporções definidas sem confirmação.'},
+{t:'h3',c:'Sangria e margem de segurança'},
+{t:'p',c:'Sempre que fundos, imagens, cores ou outros elementos chegarem até a extremidade da peça, deve ser utilizada sangria. Sua função é criar uma área adicional que compense pequenas variações durante o corte e evite o aparecimento de bordas brancas.'},
+{t:'tabela',cab:['Tamanho da peça','Sangria de referência'],linhas:[
+['De 50 cm a 1 metro','entre 3 mm e 5 mm'],
+['De 1 a 2 metros','1 cm'],
+['De 2 a 3 metros','1,5 cm'],
+['Acima disso','aumentar proporcionalmente ao tamanho da peça']
+]},
+{t:'p',c:'Além da sangria, deve ser considerada a área de segurança interna. Textos, logos, informações de contato e elementos importantes nunca devem ficar próximos demais das extremidades.'},
+{t:'destaque',c:'Materiais com ilhós, dobras, costuras, suportes, bastões, molduras ou outros tipos de acabamento exigem atenção especial. Em peças com ilhós ou sistemas semelhantes de fixação, recomenda-se manter pelo menos <b>5 cm de margem de segurança interna</b>.'},
+{t:'h3',c:'Desenvolvimento da arte'},
+{t:'p',c:'Durante a criação, o plano de fundo deve ocupar toda a área do arquivo, incluindo a sangria. Já as informações essenciais devem permanecer dentro da margem de segurança. Isso evita que textos, logos ou outros conteúdos sejam cortados, perfurados ou comprometidos durante a produção e o acabamento.'},
+{t:'p',c:'Também é responsabilidade da Criação verificar se as cores utilizadas possuem reprodução adequada em CMYK. Quando o próprio software indicar que determinada cor está fora do espectro de impressão, deve-se considerar a alternativa CMYK mais próxima.'},
+{t:'h3',c:'Fontes, vetores e imagens'},
+{t:'p',c:'Antes do fechamento, as fontes devem ser preferencialmente expandidas ou convertidas em curvas/vetores. Dessa forma, o layout não fica dependente da instalação das fontes no computador utilizado pela gráfica.'},
+{t:'p',c:'Sempre que possível, logos, ícones, ilustrações, formas e demais elementos gráficos devem permanecer em vetor. Fotografias, texturas, renders e outras imagens rasterizadas devem estar em alta resolução — a referência é de <b>300 dpi ou mais no tamanho real de aplicação</b>.'},
+{t:'h3',c:'Salvamento do arquivo aberto'},
+{t:'p',c:'Antes de gerar a versão final para impressão, o projeto deve ser salvo no formato editável do software utilizado: <b>.AI</b> para Illustrator, <b>.PSD</b> para Photoshop, <b>.INDD</b> para InDesign, <b>.CDR</b> para CorelDRAW.'},
+{t:'p',c:'Manter o arquivo aberto é importante para permitir futuras correções, alterações de texto, ajustes de medida ou adaptações para novos formatos.'},
+{t:'h3',c:'Exportação para gráfica'},
+{t:'p',c:'O formato principal utilizado é o PDF, preferencialmente no padrão <b>PDF/X-1a</b>, por preservar as informações necessárias para produção gráfica. Durante a exportação, as configurações de marcas e sangrias devem ser conferidas.'},
+{t:'h3',c:'Revisão final'},
+{t:'destaque',c:'Nenhum arquivo deve ser enviado para gráfica imediatamente após a exportação. O PDF final deve ser aberto e revisado novamente pela pessoa responsável pela peça.'},
+{t:'check',titulo:'Revisão do PDF final',c:['Todos os elementos aparecem corretamente','Nenhum objeto foi deslocado','Todas as imagens foram carregadas','Textos e vetores estão corretos','As informações estão legíveis','As imagens mantêm boa qualidade','Não há pixelização ou perda de definição','O tamanho final do documento está correto','A sangria foi preservada','As propriedades do PDF correspondem às especificações solicitadas']},
+{t:'p',c:'Caso qualquer problema seja identificado, a correção deve ser feita no arquivo aberto e o PDF deve ser exportado novamente.'},
+{t:'h3',c:'Responsabilidade da Criação'},
+{t:'p',c:'O fechamento técnico do arquivo faz parte do processo de criação e não deve ser tratado apenas como uma etapa operacional de envio. Cabe ao profissional responsável garantir que o material saia da área de Criação tecnicamente preparado para produção, dentro das especificações recebidas e com todos os elementos revisados.'},
+{t:'p',c:'Em caso de dúvida sobre formato, acabamento, sangria, material ou qualquer especificação técnica, a equipe deve buscar a confirmação antes do envio para gráfica.'}
+]});
+
+LIVRO.push({id:'pesquisa',t:'Pesquisa e referência visual',r:'Onde buscar, como pesquisar, o que observar numa referência e onde está a linha entre referência e cópia.',b:[
+{t:'p',c:'A pesquisa visual faz parte do processo de criação e deve acontecer antes do desenvolvimento das primeiras propostas.'},
+{t:'p',c:'Buscar referências não significa reproduzir soluções existentes. O objetivo é ampliar repertório, compreender possibilidades estéticas, identificar caminhos relevantes para o projeto e construir uma direção visual coerente com o cliente, com o briefing e com o objetivo da peça.'},
+{t:'h3',c:'Antes de começar a criar'},
+{t:'p',c:'Antes de abrir o software e iniciar o layout, considere: o objetivo da peça, o público que será impactado, o canal em que o material será utilizado, a identidade visual do cliente, o histórico de comunicação da marca, o formato solicitado, o conteúdo que precisa ser destacado e as referências fornecidas no briefing.'},
+{t:'p',c:'Nem toda demanda exige uma pesquisa extensa. Peças recorrentes, adaptações ou desdobramentos de campanhas já aprovadas podem partir de materiais existentes. Demandas que envolvam novos conceitos, campanhas, key visuals, identidades ou mudanças relevantes de linguagem normalmente exigem uma etapa mais aprofundada.'},
+{t:'h3',c:'Onde buscar referências'},
+{t:'lista',c:['Pinterest','Behance','Instagram','Sites de marcas e concorrentes','Portfólios de estúdios e agências','Bancos de imagem','Campanhas publicitárias','Referências editoriais','Livros, revistas e projetos gráficos','Design de embalagens','Arquitetura, fotografia, moda, cinema e outras áreas criativas']},
+{t:'destaque',c:'A pesquisa não precisa se limitar ao segmento do cliente. Referências de outros mercados podem gerar soluções mais interessantes e menos previsíveis. Uma campanha de tecnologia pode encontrar boas referências em moda, arquitetura, cinema ou design editorial.'},
+{t:'h3',c:'Como pesquisar'},
+{t:'p',c:'Evite pesquisas excessivamente genéricas. Termos como “post bonito”, “design moderno” ou “layout criativo” normalmente geram resultados pouco direcionados. A busca deve partir de características específicas do projeto.'},
+{t:'tabela',cab:['Em vez de','Pesquisar'],linhas:[
+['“design de academia”','“sports campaign editorial typography”<br>“fitness brand art direction”<br>“running campaign photography”<br>“bold typography sports advertising”']
+]},
+{t:'p',c:'Combinar segmento, estilo, linguagem, fotografia, composição e formato costuma gerar referências mais relevantes. Pesquisas em inglês também são recomendadas quando ampliarem a quantidade e a qualidade dos resultados.'},
+{t:'h3',c:'O que observar em uma referência'},
+{t:'p',c:'Uma referência não deve ser analisada apenas porque é visualmente bonita. Ao selecionar um material, procure entender por que aquela solução funciona. Observe:'},
+{t:'lista',c:['Composição','Hierarquia da informação','Uso da tipografia','Escala dos elementos','Fotografia','Direção de arte','Paleta de cores','Contraste','Uso de espaços vazios','Grid','Texturas','Ilustrações','Formas gráficas','Ritmo visual','Tratamento de imagem','Interação entre texto e imagem']},
+{t:'p',c:'A referência deve ajudar a responder uma questão do projeto. Pode ser uma referência de fotografia, outra de tipografia, outra de composição e outra de tratamento gráfico. Não é necessário encontrar uma única peça que represente exatamente o resultado final desejado.'},
+{t:'h3',c:'Moodboards e painéis de referência'},
+{t:'p',c:'Quando a complexidade da demanda justificar, recomenda-se organizar as referências selecionadas em um moodboard ou painel visual, reunindo fotografias, cores, tipografias, texturas, ilustrações, formas, interfaces, embalagens, campanhas e composições.'},
+{t:'p',c:'O moodboard não precisa ser elaborado como uma apresentação final. Ele pode funcionar como ferramenta interna de raciocínio e alinhamento. Em projetos maiores, organizar as referências de maneira mais estruturada facilita a apresentação do conceito.'},
+{t:'h3',c:'Referência não é cópia'},
+{t:'p',c:'Toda referência deve ser utilizada como ponto de partida e não como modelo para reprodução. Não devem ser reproduzidos de maneira direta:'},
+{t:'lista',c:['Layouts completos','Ilustrações autorais','Identidades visuais','Personagens','Fotografias protegidas','Elementos proprietários de outras marcas','Conceitos visuais claramente associados a uma campanha específica']},
+{t:'destaque',c:'O objetivo da pesquisa é alimentar o repertório criativo, e não substituir o processo de criação.'},
+{t:'h3',c:'Referências enviadas pelo cliente'},
+{t:'p',c:'Quando o cliente fornecer referências, elas devem ser analisadas antes do início da criação. Entretanto, uma referência enviada pelo cliente não significa que todos os seus elementos devem ser reproduzidos.'},
+{t:'p',c:'É papel da Criação interpretar o que o cliente está tentando comunicar através daquela referência. Ele pode estar interessado na organização, na fotografia, na cor, na tipografia, na sensação transmitida, na quantidade de informação, no estilo, ou apenas em algum elemento específico.'},
+{t:'p',c:'Quando houver dúvida sobre o que exatamente deve ser considerado, o ponto deve ser alinhado antes de seguir com a produção.'},
+{t:'h3',c:'Pesquisa de concorrentes'},
+{t:'p',c:'Em projetos estratégicos, também pode ser necessário analisar a comunicação de concorrentes ou outras marcas do mesmo segmento. Essa pesquisa ajuda a compreender quais códigos visuais são comuns ao mercado, quais soluções já estão sendo utilizadas, como outras marcas se posicionam, quais padrões podem ser evitados e onde existem oportunidades de diferenciação.'},
+{t:'p',c:'O objetivo não é fazer algo parecido com a concorrência, mas entender o cenário no qual a comunicação será inserida.'},
+{t:'h3',c:'Construção de repertório'},
+{t:'p',c:'A pesquisa visual não precisa acontecer somente quando uma demanda chega. A equipe deve manter uma rotina contínua de construção de repertório, salvando campanhas, identidades, fotografias, layouts e referências tipográficas interessantes.'},
+{t:'p',c:'Quanto maior o repertório disponível, menor a dependência de soluções óbvias e maior a capacidade de encontrar caminhos criativos diferentes.'},
+{t:'h3',c:'Bom senso na pesquisa'},
+{t:'p',c:'A etapa de pesquisa deve contribuir para a produção, e não impedir que ela aconteça. Não é necessário reunir dezenas de referências antes de começar qualquer peça.'},
+{t:'citacao',c:'Pesquisar é parte do processo criativo, mas criar continua sendo o objetivo final.'}
+]});
+
+LIVRO.push({id:'identidade',t:'Identidade visual dos clientes',r:'Como conhecer, respeitar e aplicar o universo visual de cada marca sem transformar consistência em repetição.',b:[
+{t:'p',c:'Cada cliente possui uma identidade própria, formada por elementos visuais, escolhas estéticas, padrões de comunicação e características que ajudam a tornar a marca reconhecível.'},
+{t:'p',c:'Mais do que seguir um logo e uma paleta de cores, trabalhar dentro de uma identidade visual significa compreender como aquela marca se comporta visualmente.'},
+{t:'h3',c:'Antes de começar qualquer peça'},
+{t:'check',titulo:'Materiais do cliente a consultar',c:['Brandbook','Manual de identidade visual','Guia de marca','Key visuals aprovados','Campanhas anteriores','Templates','Arquivos editáveis','Banco de imagens','Referências já aprovadas pelo cliente','Peças recentes utilizadas pela marca']},
+{t:'p',c:'A consulta ao histórico ajuda a evitar que cada nova peça seja tratada como um projeto completamente independente.'},
+{t:'h3',c:'Elementos que devem ser observados'},
+{t:'lista',c:['Logo e suas variações','Cores institucionais','Tipografias e hierarquia tipográfica','Elementos gráficos, formas, patterns e ícones','Ilustrações','Estilo fotográfico e tratamento de imagens','Composição e uso de fundos','Assinaturas, selos e CTAs','Aplicação de parceiros e patrocinadores']},
+{t:'p',c:'Nem todos os clientes possuem todos esses elementos formalizados em um brandbook. Nesses casos, a própria produção já aprovada anteriormente também deve ser utilizada como referência.'},
+{t:'h3',c:'Uso do logo'},
+{t:'p',c:'O logo deve sempre ser utilizado a partir dos arquivos oficiais disponibilizados para a equipe. Evite reconstruir logos manualmente ou utilizar versões encontradas na internet. Devem ser respeitados proporções, área de proteção, versões positivas e negativas, aplicações sobre fundos, tamanho mínimo, orientações de redução e restrições definidas pela marca.'},
+{t:'destaque',c:'Não devem ser aplicados efeitos, sombras, contornos, distorções, alterações de proporção ou mudanças de cor que não estejam previstas na identidade.'},
+{t:'h3',c:'Paleta de cores'},
+{t:'p',c:'As cores institucionais devem ser utilizadas de acordo com os códigos definidos pelo cliente. Dependendo da aplicação, podem existir especificações diferentes para <b>RGB</b>, <b>HEX</b>, <b>CMYK</b> e <b>Pantone</b>.'},
+{t:'p',c:'Materiais digitais devem considerar os códigos destinados a tela, enquanto materiais impressos devem trabalhar com as especificações adequadas para impressão. Cores secundárias podem ser utilizadas quando fizerem parte do sistema visual ou quando a campanha possuir uma direção própria aprovada.'},
+{t:'h3',c:'Tipografia'},
+{t:'p',c:'Sempre que o cliente possuir tipografias institucionais definidas, elas devem ser priorizadas. É importante observar não apenas qual fonte é utilizada, mas também como ela é utilizada: pesos, tamanhos, entrelinhas, espaçamento, caixa alta ou baixa, destaques, hierarquia entre títulos e textos e combinação entre famílias.'},
+{t:'p',c:'Quando uma fonte não estiver disponível, não deve ser substituída aleatoriamente. A equipe deve verificar se existe uma alternativa previamente definida ou buscar uma solução visualmente compatível com a identidade.'},
+{t:'h3',c:'Universo fotográfico'},
+{t:'p',c:'A escolha de imagens deve estar alinhada ao posicionamento da marca. Algumas trabalham com imagens mais espontâneas e humanas, enquanto outras utilizam fotografias mais publicitárias, conceituais, minimalistas ou aspiracionais. Antes de selecionar ou produzir uma imagem, observe:'},
+{t:'lista',c:['Perfil das pessoas e faixa etária','Cenário','Iluminação','Enquadramento','Paleta','Expressão','Figurino','Nível de espontaneidade','Presença do produto','Tratamento final']},
+{t:'destaque',c:'A escolha de uma imagem visualmente bonita, mas incompatível com o universo da marca, pode comprometer toda a peça.'},
+{t:'h3',c:'Elementos gráficos'},
+{t:'p',c:'Formas, grafismos, ícones, texturas, ilustrações e patterns também fazem parte da identidade e devem ser utilizados com intenção e consistência. Evite adicionar elementos apenas para preencher espaços ou tornar a peça visualmente mais complexa.'},
+{t:'h3',c:'Consistência não significa repetição'},
+{t:'p',c:'Respeitar uma identidade visual não significa reproduzir sempre o mesmo layout. A identidade deve funcionar como um sistema capaz de gerar diferentes soluções sem perder reconhecimento. É possível variar composição, escala, fotografia, distribuição dos elementos, uso de cores, tipografia e ritmo visual.'},
+{t:'citacao',c:'O importante é que a peça continue sendo reconhecida como pertencente àquela marca.'},
+{t:'h3',c:'Campanhas com identidade própria'},
+{t:'p',c:'Algumas campanhas podem possuir uma linguagem visual específica dentro da identidade principal do cliente. Nesses casos, a equipe deve compreender quais elementos pertencem à marca institucional e quais pertencem exclusivamente à campanha: paleta complementar, key visual próprio, elementos gráficos exclusivos, tratamento fotográfico específico, tipografia de apoio e assinatura própria.'},
+{t:'p',c:'Enquanto a campanha estiver ativa, seus desdobramentos devem manter coerência com o conceito aprovado.'},
+{t:'h3',c:'Evolução da identidade'},
+{t:'p',c:'A identidade visual de um cliente não precisa permanecer completamente estática. Pequenos ajustes de composição, fotografia ou hierarquia podem ajudar a atualizar a comunicação sem descaracterizar a marca.'},
+{t:'p',c:'Mudanças maiores, como novas cores, tipografias, grafismos ou linguagem visual, devem ser tratadas como uma decisão estratégica e não como uma escolha isolada dentro de uma única peça.'},
+{t:'h3',c:'Quando não existe um manual de marca'},
+{t:'p',c:'Quando não houver um manual oficial, a equipe deve buscar consistência a partir do histórico disponível: materiais anteriormente aprovados, site, redes sociais, apresentações, campanhas, embalagens, comunicação física e arquivos fornecidos pelo cliente.'},
+{t:'p',c:'A partir disso, a Criação deve identificar padrões e evitar mudanças bruscas de linguagem entre uma demanda e outra. Quando necessário, também pode ser interessante construir internamente um pequeno guia visual de apoio para aquele cliente.'},
+{t:'h3',c:'Clientes atendidos por mais de um profissional'},
+{t:'p',c:'Quando diferentes profissionais trabalham para o mesmo cliente, a atenção à consistência deve ser ainda maior. Antes de iniciar uma demanda, é recomendado consultar os trabalhos mais recentes e, sempre que possível, conversar com profissionais que já possuem histórico naquela conta.'},
+{t:'p',c:'Muitas vezes, um profissional acumulou informações, preferências e particularidades que não estão registradas em brandbooks ou documentos oficiais — preferências recorrentes do cliente, soluções que costumam ser bem recebidas, aplicações que já foram testadas e não funcionaram, restrições não documentadas, formas específicas de utilizar cores ou elementos, particularidades de campanhas anteriores e ajustes que o cliente costuma solicitar com frequência.'},
+{t:'destaque',c:'Sempre que uma informação for recorrente e relevante, é interessante que ela seja registrada e compartilhada, evitando que o conhecimento sobre um cliente fique concentrado em apenas uma pessoa. O objetivo é construir uma <b>memória coletiva da conta</b>.'},
+{t:'p',c:'A identidade deve pertencer ao cliente, e não ao profissional responsável por uma peça específica.'},
+{t:'h3',c:'Em caso de dúvida'},
+{t:'p',c:'Quando existir dúvida sobre a aplicação de algum elemento da identidade, o primeiro passo deve ser consultar os materiais existentes e o histórico do cliente. Caso a informação não esteja disponível, busque alinhamento com a liderança de Criação ou com quem possui maior histórico sobre aquela conta.'},
+{t:'p',c:'É preferível confirmar uma decisão visual antes de produzir uma série inteira de peças utilizando um padrão incorreto.'},
+{t:'principio',c:['A identidade visual deve servir como base para a criação, e não como uma limitação criativa.','O papel da equipe é encontrar novas formas de comunicar dentro daquele universo, mantendo reconhecimento, coerência e qualidade.','Uma peça pode ser nova, diferente e criativa sem deixar de parecer parte da mesma marca.']}
+]});
+
+LIVRO.push({id:'social',t:'Criação para social media',r:'Como manter intenção e qualidade no formato que representa a maior parte do volume de produção.',b:[
+{t:'p',c:'Social media costuma representar uma parte significativa do volume de produção da área de Criação. Justamente por serem demandas frequentes, existe o risco de que essas peças sejam tratadas apenas como algo operacional ou repetitivo.'},
+{t:'destaque',c:'Mesmo um post simples é um ponto de contato entre uma marca e seu público. Para muitas pessoas, as redes sociais serão o principal — ou até o único — lugar onde terão contato com aquele cliente.'},
+{t:'h3',c:'Não trabalhe no automático'},
+{t:'p',c:'A existência de um template, de uma identidade consolidada ou de um grande volume de conteúdos não significa que todas as peças precisam ser resolvidas da mesma maneira. Antes de começar, pergunte-se:'},
+{t:'lista',c:['O que precisa chamar atenção nessa peça?','Qual é a mensagem mais importante?','Existe uma maneira mais interessante de apresentar esse conteúdo?','A solução está coerente com a marca?','Eu estou tomando uma decisão ou apenas repetindo o que foi feito anteriormente?']},
+{t:'h3',c:'Não entregue apenas o que foi pedido'},
+{t:'p',c:'O briefing deve orientar o trabalho, mas não precisa limitar a contribuição do designer. Se durante o desenvolvimento você perceber que existe uma maneira melhor de organizar uma informação, utilizar uma imagem ou construir uma composição, vale explorar essa possibilidade.'},
+{t:'citacao',c:'O papel da Criação não é transportar um texto para dentro de uma arte. É transformar informação em comunicação visual.'},
+{t:'h3',c:'Qualidade também está nas pequenas demandas'},
+{t:'p',c:'Nem todo trabalho será uma grande campanha, um key visual ou um projeto de branding. Grande parte da rotina pode ser formada por posts, adaptações, datas comemorativas, comunicados e conteúdos recorrentes.'},
+{t:'p',c:'Ainda assim, essas peças também constroem a percepção sobre o trabalho da agência e sobre a marca do cliente. Uma demanda ser simples não significa que ela precisa parecer descuidada.'},
+{t:'h3',c:'Evite a repetição sem motivo'},
+{t:'p',c:'O problema acontece quando a repetição deixa de ser consistência e passa a ser falta de exploração. Templates devem ajudar a equipe a ganhar velocidade, mas não podem impedir novas soluções. Sempre que perceber que uma comunicação está ficando repetitiva, procure explorar:'},
+{t:'lista',c:['Novos enquadramentos','Diferentes usos da fotografia','Novas proporções','Outras composições','Variações dentro da própria identidade','Novas maneiras de trabalhar os elementos gráficos da marca']},
+{t:'h3',c:'Conheça o cliente para criar melhor'},
+{t:'p',c:'Observe os trabalhos anteriores, acompanhe as peças aprovadas e procure entender quais decisões visuais fazem parte daquele universo. Também converse com outros designers — alguém que trabalha há bastante tempo com determinada conta provavelmente acumulou conhecimentos que não aparecem em nenhum brandbook.'},
+{t:'h3',c:'Use referências para ampliar, não para limitar'},
+{t:'p',c:'Nem toda peça precisa de um grande moodboard, mas manter contato com bons projetos, campanhas, fotografias e soluções de design ajuda a evitar que o repertório fique restrito apenas ao que a própria agência já produz.'},
+{t:'p',c:'Olhar somente para os trabalhos anteriores daquele cliente pode fazer com que a comunicação se torne um ciclo de repetição.'},
+{t:'h3',c:'Olhe para o perfil como um todo'},
+{t:'p',c:'Uma peça pode funcionar isoladamente e ainda assim não contribuir para uma comunicação interessante ao longo do tempo. Observe se todas as peças estão utilizando as mesmas soluções, se existe variedade suficiente e se o conjunto continua transmitindo a identidade desejada. Isso é especialmente importante quando vários designers trabalham para o mesmo cliente.'},
+{t:'h3',c:'Não tenha medo de propor'},
+{t:'p',c:'A equipe deve se sentir confortável para apresentar novas possibilidades quando acreditar que elas podem melhorar o trabalho. Nem toda proposta será aprovada e nem toda peça precisa trazer uma grande inovação, mas a vontade de melhorar o que está sendo produzido deve fazer parte da rotina.'},
+{t:'h3',c:'Peça opinião'},
+{t:'p',c:'Ficar muito tempo trabalhando em uma mesma peça pode fazer com que alguns problemas deixem de ser percebidos. Quando estiver em dúvida, peça a opinião de outro designer. Essa troca não deve ser entendida como insegurança ou falta de autonomia.'},
+{t:'h3',c:'Revise com olhar crítico'},
+{t:'p',c:'Antes de considerar uma peça finalizada, procure observá-la como se estivesse vendo pela primeira vez. Não revise apenas procurando erros. Pergunte-se:'},
+{t:'citacao',c:'Está bom ou apenas está pronto?'},
+{t:'p',c:'Existe uma diferença importante entre os dois. Ao mesmo tempo, é importante desenvolver senso crítico para entender quando a peça já resolveu aquilo que precisava resolver. Buscar qualidade não significa trabalhar indefinidamente em cada demanda.'},
+{t:'h3',c:'Use o tempo de maneira inteligente'},
+{t:'p',c:'O nível de exploração precisa ser proporcional à importância e à complexidade da demanda. Uma grande campanha naturalmente exige mais pesquisa e desenvolvimento do que uma adaptação simples. Isso não significa tratar trabalhos menores com menos cuidado, mas saber direcionar energia para aquilo que realmente pode melhorar o resultado.'},
+{t:'h3',c:'O seu trabalho também constrói repertório'},
+{t:'p',c:'Cada peça desenvolvida pode ensinar alguma coisa. Uma solução tipográfica que funcionou bem, um tratamento de imagem interessante ou um feedback recebido podem servir como aprendizado para trabalhos futuros.'},
+{t:'destaque',c:'Uma área de Criação saudável não deve possuir apenas bons designers individualmente. Ela deve desenvolver um <b>repertório coletivo</b>, no qual as experiências de uma pessoa contribuem para melhorar o trabalho de todas as outras.'},
+{t:'principio',c:['O volume de trabalho nunca deve fazer a equipe esquecer que existe criação mesmo nas demandas mais simples.','Nem todo post precisa ser revolucionário. Mas todo post pode ser bem pensado, bem executado e feito com intenção.','O objetivo não é transformar cada peça em um projeto complexo, e sim evitar que a rotina transforme o trabalho criativo em produção automática.']}
+]});
+
+LIVRO.push({id:'performance',t:'Criação para criativos de performance',r:'Como equilibrar design e resultado quando a peça existe para gerar uma ação.',b:[
+{t:'p',c:'Criativos de performance possuem uma função bastante objetiva: gerar uma ação — um clique, cadastro, compra, inscrição, contato, download ou qualquer outro objetivo definido pela campanha.'},
+{t:'p',c:'Por isso, diferente de algumas peças institucionais, o sucesso de um criativo de performance não pode ser avaliado apenas pela qualidade estética. A peça precisa ser visualmente bem resolvida, mas também precisa funcionar.'},
+{t:'h3',c:'Performance não significa fazer uma peça ruim'},
+{t:'p',c:'Existe uma ideia equivocada de que peças de performance precisam ser visualmente agressivas, extremamente carregadas ou distantes da identidade da marca para gerar resultado. Nem sempre é assim. Um bom criativo pode ser claro, direto, visualmente interessante, coerente com a identidade, fácil de compreender — e ainda assim performar muito bem.'},
+{t:'citacao',c:'O desafio não é escolher entre design e resultado. É utilizar o design para potencializar o resultado.'},
+{t:'h3',c:'Entenda o que estamos tentando vender'},
+{t:'p',c:'Não basta saber que a campanha vende um produto ou serviço. Procure compreender qual é o principal benefício, qual problema ele resolve, por que alguém deveria se interessar, qual é o diferencial, qual é a oferta e qual percepção queremos gerar.'},
+{t:'p',c:'Um briefing pode trazer um título e uma CTA. O designer deve tentar compreender a lógica por trás deles.'},
+{t:'h3',c:'Clareza é uma ferramenta criativa'},
+{t:'p',c:'Em performance, a mensagem precisa ser compreendida rapidamente. Isso não significa que todas as peças devam ser simples ou minimalistas — significa que a criatividade não pode dificultar o entendimento. O usuário ainda precisa entender:'},
+{t:'lista',c:['O que é isso?','Por que isso pode me interessar?','O que eu devo fazer agora?']},
+{t:'p',c:'Se a ideia visual prejudicar essas respostas, provavelmente ela precisa ser revista.'},
+{t:'h3',c:'Não existe um único criativo perfeito'},
+{t:'p',c:'Muitas vezes não estamos tentando descobrir uma única solução definitiva, e sim diferentes caminhos para entender o que funciona melhor. Não encare as variações apenas como versões obrigatórias da mesma peça — elas são oportunidades de testar hipóteses diferentes. Uma campanha pode explorar:'},
+{t:'lista',c:['Produto','Benefício','Oferta','Dor','Desejo','Prova social','Urgência','Diferencial','Lifestyle','Demonstração','Comparação','Conteúdo mais racional ou mais emocional']},
+{t:'h3',c:'Variar não é apenas trocar a cor'},
+{t:'p',c:'Criar variações deve significar testar alguma coisa. Mudar apenas uma fotografia, uma cor ou a posição de um elemento pode ser válido quando existe uma intenção por trás da mudança. Mas, sempre que possível, pense também em variações conceituais.'},
+{t:'p',c:'Quanto mais claras forem as diferenças entre os criativos, mais fácil será entender posteriormente o que gerou um resultado diferente.'},
+{t:'h3',c:'Dados também fazem parte do processo criativo'},
+{t:'p',c:'Saber que determinada abordagem, fotografia, linguagem ou estrutura teve um resultado melhor pode ajudar a construir peças mais eficientes no futuro. Esses dados não devem ficar restritos à equipe de mídia ou performance.'},
+{t:'citacao',c:'O criativo não termina quando o arquivo é entregue.'},
+{t:'h3',c:'Mas cuidado com conclusões rápidas'},
+{t:'p',c:'Uma peça ter performado melhor não significa automaticamente que determinada cor, fotografia ou composição seja a única responsável pelo resultado. Existem diversas variáveis envolvidas em uma campanha.'},
+{t:'p',c:'Os aprendizados de performance devem ser utilizados como orientação, e não como regras absolutas. Evite transformar um resultado positivo em uma fórmula que será repetida indefinidamente — o que funcionou ontem pode deixar de funcionar quando o público se acostumar com aquela linguagem.'},
+{t:'h3',c:'Não mate a marca em busca de resultado'},
+{t:'p',c:'Performance trabalha muito com curto prazo. Marca é construída no longo prazo. Esses dois objetivos precisam conversar.'},
+{t:'p',c:'Toda peça patrocinada continua sendo comunicação da marca. Uma pessoa que conhece a empresa através de um anúncio também está formando uma percepção sobre ela naquele momento.'},
+{t:'h3',c:'O anúncio concorre por atenção'},
+{t:'p',c:'Nas redes sociais, um anúncio não aparece sozinho. Ele disputa atenção com vídeos, memes, notícias, amigos, influenciadores, outras marcas e dezenas de estímulos diferentes. Por isso, a primeira pergunta não deve ser apenas “essa peça está bonita?”, mas também:'},
+{t:'citacao',c:'Existe alguma coisa aqui que faria alguém parar para olhar?'},
+{t:'h3',c:'Nem sempre parecer publicidade é a melhor solução'},
+{t:'p',c:'Dependendo da estratégia, algumas peças podem funcionar melhor quando se aproximam da linguagem natural da plataforma. Em outros casos, uma estética claramente publicitária pode ser exatamente o que a campanha precisa. Não existe uma resposta única.'},
+{t:'h3',c:'Aprenda com os criativos vencedores'},
+{t:'p',c:'Quando uma peça apresentar bons resultados, observe a ideia utilizada, o benefício apresentado, a imagem, o nível de simplicidade, a linguagem, a oferta, o formato e a forma como o produto aparece. Mas isso não significa duplicar o criativo vencedor até ele deixar de funcionar.'},
+{t:'h3',c:'Aprenda também com o que não funcionou'},
+{t:'p',c:'Criativos com baixo desempenho também oferecem informação. Talvez a mensagem estivesse pouco clara, o conceito não tenha gerado atenção, a oferta não estivesse evidente — ou talvez o problema sequer estivesse no criativo.'},
+{t:'h3',c:'Volume não pode significar descuido'},
+{t:'p',c:'Campanhas de performance podem exigir muitas peças, formatos e variações em pouco tempo. Mas agilidade não significa abandonar critérios básicos de qualidade. Erros de texto, informações incorretas, imagens ruins ou peças mal finalizadas também impactam resultado.'},
+{t:'h3',c:'Criação e performance devem conversar'},
+{t:'p',c:'A relação ideal não é uma equipe pedindo peças e outra simplesmente executando. A Criação pode contribuir propondo caminhos, a Performance trazendo dados, o Atendimento trazendo contexto sobre o cliente e a estratégia ajudando a definir hipóteses.'},
+{t:'principio',c:['Um bom criativo de performance não é apenas aquele que parece bom dentro do arquivo de criação. É aquele que comunica, chama atenção, respeita a marca e ajuda a gerar resultado.','Performance não deve transformar o designer em um operador de variações. Pelo contrário: é uma oportunidade de utilizar criatividade, repertório e dados para descobrir maneiras cada vez mais eficientes de se comunicar.']}
+]});
+
+LIVRO.push({id:'audiovisual',t:'Criação para audiovisual',r:'Intenção, ritmo e clareza em vídeo, motion e conteúdos em movimento.',b:[
+{t:'p',c:'Vídeos, animações, motion graphics, reels, stories e demais formatos em movimento devem ser tratados com o mesmo cuidado estratégico e visual aplicado às peças estáticas.'},
+{t:'p',c:'A velocidade do formato não deve resultar em decisões apressadas. Um bom material audiovisual precisa ter intenção, clareza, ritmo e coerência com a identidade do cliente.'},
+{t:'h3',c:'Entendimento da proposta'},
+{t:'p',c:'Antes de iniciar, compreenda qual é a função do material dentro da comunicação. Um vídeo pode ter objetivos muito diferentes: apresentar um produto, divulgar uma campanha, explicar uma informação, gerar reconhecimento, criar desejo, registrar um evento, gerar interação, direcionar para uma ação ou fortalecer o posicionamento da marca.'},
+{t:'destaque',c:'Nem todo vídeo precisa de grandes efeitos, muitas transições ou uma edição complexa. Em muitos casos, uma ideia simples e bem executada possui mais força do que uma produção excessivamente carregada.'},
+{t:'h3',c:'Pense além da estética'},
+{t:'p',c:'Um vídeo visualmente bonito não necessariamente é um bom vídeo. A qualidade audiovisual também está relacionada à capacidade de manter interesse, transmitir a mensagem e fazer com que o conteúdo seja compreendido.'},
+{t:'p',c:'Avalie não apenas a estética dos frames individualmente, mas como eles funcionam em sequência. Imagem, texto, movimento, ritmo, áudio e tempo de exposição precisam trabalhar juntos.'},
+{t:'h3',c:'Movimento deve ter intenção'},
+{t:'p',c:'Evite movimentar elementos apenas porque o formato permite. Um movimento pode ser utilizado para direcionar a atenção, destacar uma informação, criar continuidade, reforçar uma mudança, apresentar um produto, construir uma narrativa ou gerar ritmo.'},
+{t:'citacao',c:'Quando todos os elementos se movimentam ao mesmo tempo, a animação perde hierarquia.'},
+{t:'h3',c:'Respeite o tempo de quem assiste'},
+{t:'p',c:'Evite introduções excessivamente demoradas ou cenas que permanecem por muito tempo sem acrescentar informação. Ao mesmo tempo, não acelere o conteúdo a ponto de prejudicar a leitura e a compreensão.'},
+{t:'p',c:'O ritmo deve acompanhar a proposta. Uma campanha institucional pode exigir uma construção mais contemplativa, enquanto um anúncio de performance pode precisar de uma entrada muito mais direta.'},
+{t:'h3',c:'Nem tudo precisa aparecer'},
+{t:'p',c:'O vídeo não precisa apresentar todas as informações disponíveis no briefing. Quando houver muito conteúdo, identifique aquilo que realmente precisa aparecer e o que pode ser direcionado para outras etapas da comunicação.'},
+{t:'p',c:'A seleção também faz parte do trabalho criativo. Em muitos casos, comunicar menos informações com maior clareza gera um resultado melhor.'},
+{t:'h3',c:'A identidade precisa continuar presente'},
+{t:'p',c:'Tipografia, cores, fotografia, grafismos, linguagem, ritmo e tratamento de imagem devem continuar coerentes com o universo visual do cliente. Ao mesmo tempo, o audiovisual pode revelar novas possibilidades: elementos estáticos em outros formatos podem ganhar comportamento, ritmo e interação.'},
+{t:'h3',c:'Áudio também é parte da criação'},
+{t:'p',c:'Trilha, locução ou efeitos sonoros devem ser tratados como parte da experiência e não apenas como complemento. A trilha deve estar alinhada ao posicionamento da marca, ao ritmo do material, ao público, ao objetivo da comunicação e à sensação que se deseja transmitir.'},
+{t:'destaque',c:'Quando o conteúdo depender de áudio para ser compreendido, considere que parte do público poderá assisti-lo sem som. A informação principal deve permanecer acessível visualmente.'},
+{t:'h3',c:'Trabalhe pensando no formato final'},
+{t:'p',c:'Considere desde o início onde o material será publicado e como será consumido. Uma composição horizontal nem sempre se adapta de maneira eficiente para um formato vertical. Quando houver diferentes formatos, procure preservar a ideia central da peça em vez de simplesmente recortar ou redimensionar.'},
+{t:'h3',c:'Atenção aos materiais recebidos'},
+{t:'p',c:'Nem sempre a Criação terá controle sobre a qualidade dos vídeos, fotografias ou outros arquivos recebidos. Arquivos com baixa resolução, gravações instáveis, enquadramentos inadequados ou problemas de áudio podem exigir adaptações criativas.'},
+{t:'p',c:'Quando uma limitação comprometer diretamente a qualidade da entrega, ela deve ser sinalizada. O objetivo não é esconder um problema técnico a qualquer custo, mas encontrar a melhor solução possível dentro das condições disponíveis.'},
+{t:'h3',c:'Use ferramentas como apoio, não como solução'},
+{t:'p',c:'Ferramentas de edição, bancos de vídeo, inteligência artificial, templates e recursos automatizados podem ampliar muito as possibilidades. Entretanto, o acesso a essas ferramentas não substitui direção de arte e pensamento criativo.'},
+{t:'citacao',c:'Primeiro deve existir uma intenção. Depois, escolhe-se o recurso mais adequado para executá-la.'},
+{t:'h3',c:'Revise assistindo como público'},
+{t:'check',titulo:'Antes da entrega, assista ao conteúdo completo',c:['A mensagem está clara','A leitura acontece com naturalidade','Nenhuma informação passa rápido demais','Não existem momentos desnecessariamente longos','As transições fazem sentido','Os elementos possuem boa continuidade','O áudio está coerente','O resultado parece finalizado']},
+{t:'p',c:'Quando possível, peça que outra pessoa da equipe assista ao material. Quem não participou da edição pode perceber problemas que já se tornaram invisíveis para quem passou muito tempo no projeto.'},
+{t:'h3',c:'Troca de repertório'},
+{t:'p',c:'Referências de publicidade, cinema, videoclipes, conteúdo digital, motion design e fotografia podem ajudar a ampliar as possibilidades da equipe. Uma técnica, referência ou solução encontrada por um profissional pode facilitar o trabalho de toda a equipe.'},
+{t:'h3',c:'Não utilize efeitos apenas para impressionar'},
+{t:'p',c:'Um recurso visual pode ser tecnicamente interessante e ainda assim não contribuir para a comunicação. A melhor edição não é necessariamente aquela em que o trabalho do editor fica mais evidente — muitas vezes, uma boa edição é justamente aquela em que tudo parece acontecer de maneira natural.'},
+{t:'principio',c:['Materiais audiovisuais devem unir ideia, estética, ritmo e clareza. O movimento deve reforçar a mensagem, não competir com ela.','Um bom audiovisual não precisa ser complexo. Ele precisa ser bem pensado, coerente e intencional.']}
+]});
+
+LIVRO.push({id:'imagens',t:'Imagens, ilustrações e inteligência artificial',r:'Critério na escolha de imagem, uso de IA, licenciamento e responsabilidade sobre os direitos de uso.',b:[
+{t:'p',c:'Imagens, ilustrações e recursos gerados por inteligência artificial fazem parte do repertório disponível para a área de Criação e podem ampliar significativamente as possibilidades visuais de um projeto. Esses recursos, porém, devem ser utilizados com critério.'},
+{t:'h3',c:'Escolha imagem com intenção'},
+{t:'p',c:'A imagem utilizada em uma peça não deve funcionar apenas como preenchimento. Ela precisa contribuir para a mensagem, reforçar uma sensação, representar o público, contextualizar um produto ou ajudar a construir o posicionamento da marca.'},
+{t:'p',c:'Antes de utilizá-la, observe se ela conversa com o conceito, o cliente, o público, o tom da comunicação, a campanha e o contexto em que será aplicada.'},
+{t:'h3',c:'Evite imagens genéricas'},
+{t:'p',c:'Bancos de imagem são ferramentas úteis, mas seu uso excessivamente previsível pode fazer com que diferentes marcas comecem a parecer iguais. Procure imagens com personalidade, enquadramentos interessantes e situações menos artificiais.'},
+{t:'citacao',c:'Isso não significa evitar bancos de imagem. Significa utilizá-los com curadoria.'},
+{t:'h3',c:'Observe os detalhes'},
+{t:'p',c:'Ao selecionar uma fotografia, não olhe apenas para o elemento principal. Cenário, roupas, objetos, expressões, arquitetura, produtos, iluminação e pequenos detalhes também fazem parte da comunicação. Essa análise é especialmente importante em imagens produzidas ou alteradas por inteligência artificial.'},
+{t:'h3',c:'Representação deve fazer sentido'},
+{t:'p',c:'Ao trabalhar com pessoas, considere quem aquela marca deseja representar. Idade, perfil, estilo, contexto, comportamento e diversidade precisam estar coerentes com o público e com a mensagem. Procure evitar personagens que pareçam escolhidos apenas porque estavam disponíveis no banco de imagem.'},
+{t:'h3',c:'Fotografia deve respeitar o universo da marca'},
+{t:'p',c:'Antes de buscar uma imagem, procure entender qual tipo de fotografia pertence àquela marca. Isso inclui observar iluminação, enquadramento, tratamento, cores, cenários, perfil dos personagens, nível de produção, espontaneidade e presença do produto.'},
+{t:'h3',c:'Ilustração também precisa ter linguagem'},
+{t:'p',c:'Ilustrações não devem ser escolhidas apenas porque combinam com determinada cor ou tema. Traço, proporção, textura, acabamento e nível de detalhamento também constroem linguagem. Misturar estilos muito diferentes sem uma intenção clara pode enfraquecer o sistema visual.'},
+{t:'h3',c:'Inteligência artificial é uma ferramenta de criação'},
+{t:'p',c:'Ferramentas de IA podem ajudar na geração de imagens, composição de cenas, exploração de conceitos, tratamento visual e criação de alternativas difíceis por outros meios. Elas devem ser entendidas como ferramentas de apoio à Criação.'},
+{t:'citacao',c:'Gerar uma imagem não significa que ela esteja pronta para ser utilizada.'},
+{t:'h3',c:'Não utilize a primeira geração como resultado final'},
+{t:'p',c:'Imagens geradas por IA frequentemente exigem ajustes. Pode ser necessário corrigir anatomia, objetos, perspectiva, iluminação, texturas, proporções, produtos, logotipos, cenários e detalhes inconsistentes.'},
+{t:'destaque',c:'Se um problema seria considerado inadequado em uma fotografia tradicional ou em um trabalho de manipulação, também deve ser considerado inadequado em uma imagem gerada por IA.'},
+{t:'h3',c:'IA não substitui direção de arte'},
+{t:'p',c:'Ferramentas generativas respondem ao direcionamento que recebem. Quanto mais clara for a intenção visual, maiores as chances de chegar a um bom resultado. O designer deve continuar tomando decisões sobre conceito, composição, iluminação, paleta, enquadramento, linguagem, atmosfera e relação com a identidade.'},
+{t:'p',c:'A tecnologia deve executar uma intenção criativa, e não substituir essa intenção.'},
+{t:'h3',c:'Mantenha consistência entre imagens'},
+{t:'p',c:'Uma campanha pode combinar fotografias próprias, banco de imagens, renders e conteúdos gerados por IA. Quando isso acontecer, procure aproximar esses materiais visualmente — tratamento de cor, contraste, luz, enquadramento e acabamento ajudam a criar uma linguagem mais consistente.'},
+{t:'citacao',c:'O público não precisa identificar como cada imagem foi produzida. Precisa perceber que todas pertencem ao mesmo universo.'},
+{t:'h3',c:'Cuidado com produtos e elementos de marca'},
+{t:'p',c:'Quando uma imagem apresentar produtos, embalagens, logos ou outros elementos específicos de um cliente, a atenção deve ser redobrada. Ferramentas generativas podem alterar tipografia, formatos, rótulos, cores, proporções, informações e características do produto.'},
+{t:'p',c:'Sempre que o produto real estiver disponível, ele deve ser utilizado como referência e conferido com atenção.'},
+{t:'h3',c:'Direitos de uso e licenciamento'},
+{t:'p',c:'Todo material utilizado em uma peça deve possuir autorização ou licença compatível com o contexto em que será publicado. Isso se aplica a fotografias, ilustrações, vídeos, músicas e efeitos sonoros, elementos gráficos, templates, bancos de imagem e arquivos produzidos por terceiros.'},
+{t:'destaque',c:'Uma imagem encontrada no Pinterest, Google, Behance ou Instagram pode ser utilizada como <b>referência visual</b>, mas isso não significa que esteja autorizada para utilização comercial. Referência e material de produção não são a mesma coisa.'},
+{t:'h3',c:'Uso do Envato'},
+{t:'p',c:'Sempre que um material do Envato for utilizado em um trabalho para cliente, é importante realizar corretamente o <b>registro/licenciamento do item para o respectivo projeto ou cliente</b>, garantindo que exista um histórico da licença associado àquela utilização.'},
+{t:'h3',c:'Criação de novos clientes e projetos no Envato'},
+{t:'p',c:'Nenhum Diretor de Arte possui autorização para cadastrar livremente novos clientes ou projetos no Envato em nome de empresas que não façam parte oficialmente da carteira da agência. Os registros devem estar vinculados exclusivamente a clientes oficiais, identificados como pessoa jurídica/CNPJ.'},
+{t:'p',c:'Não devem ser criados registros para:'},
+{t:'lista',c:['Projetos pessoais','Freelances particulares','Amigos ou familiares','Empresas que não sejam clientes da agência','Trabalhos externos','Projetos sem vínculo comercial oficial com a agência']},
+{t:'p',c:'A assinatura, os acessos e as licenças disponibilizadas pela agência são recursos profissionais destinados exclusivamente às atividades desenvolvidas dentro da operação da empresa. Em caso de dúvida, consulte a liderança antes de realizar qualquer inclusão.'},
+{t:'h3',c:'Responsabilidade de quem utiliza o material'},
+{t:'p',c:'O fato de um arquivo estar disponível para download não elimina a responsabilidade sobre sua utilização. Sempre que houver dúvida sobre licença, origem ou possibilidade de uso, a orientação é confirmar antes de publicar ou enviar para produção.'},
+{t:'p',c:'O cuidado com direitos de uso protege não apenas o cliente, mas também o profissional e a própria agência.'},
+{t:'h3',c:'Não dependa de uma única ferramenta'},
+{t:'p',c:'Bancos de imagem, fotografia, ilustração, 3D, manipulação e inteligência artificial podem ser utilizados de maneira complementar. Em alguns casos, uma fotografia real será a melhor escolha. Em outros, uma ilustração ou uma imagem gerada pode abrir possibilidades muito mais interessantes.'},
+{t:'h3',c:'Revise imagens com atenção redobrada'},
+{t:'p',c:'Quanto mais complexa for a manipulação ou geração de uma imagem, maior deve ser o cuidado na revisão. Observe a peça em diferentes escalas e procure detalhes que possam denunciar erros. Não confie apenas na primeira impressão.'},
+{t:'principio',c:['O valor não está na ferramenta utilizada, mas na qualidade da decisão visual.','Uma boa imagem precisa parecer parte da marca, contribuir para a mensagem e estar tecnicamente bem resolvida.','A tecnologia pode ampliar as possibilidades da Criação, mas o senso crítico continua sendo indispensável.']}
+]});
+
+LIVRO.push({id:'qualidade',t:'Controle de qualidade',r:'Por que revisar vai muito além de procurar erro de português, e como calibrar o nível de revisão ao risco.',b:[
+{t:'p',c:'A revisão faz parte do processo criativo e deve ser tratada como uma etapa essencial da entrega. Uma peça pode estar visualmente bem resolvida e ainda assim apresentar erros de texto, informações incorretas, problemas de aplicação de marca ou pequenos detalhes que comprometem a percepção de qualidade.'},
+{t:'citacao',c:'Revisar não significa apenas procurar erros de português.'},
+{t:'h3',c:'Responsabilidade sobre a própria entrega'},
+{t:'p',c:'Cada profissional é responsável por realizar uma primeira revisão completa do próprio trabalho antes de encaminhá-lo para aprovação interna, atendimento ou cliente. É importante desenvolver o hábito de se perguntar:'},
+{t:'lista',c:['A informação está correta?','A peça realmente responde ao briefing?','Existe algum detalhe visual que pode ser melhorado?','A aplicação da marca está correta?','O resultado parece finalizado?','Eu me sentiria confortável vendo essa peça publicada?']},
+{t:'h3',c:'Revisar é olhar além da estética'},
+{t:'p',c:'Além da composição visual, devem ser observados: ortografia e gramática, datas, horários, endereços, telefones, URLs, valores, nomes próprios, logos, patrocinadores, informações legais, CTAs, dimensões e formatos, qualidade de imagens e coerência com a identidade visual.'},
+{t:'destaque',c:'Quanto mais sensível for a informação, maior deve ser a atenção. Uma data errada, um preço incorreto ou um nome de produto trocado pode causar um problema muito maior do que um pequeno desalinhamento visual.'},
+{t:'h3',c:'Não confie apenas na memória'},
+{t:'p',c:'Mesmo quando o profissional conhece bem uma conta, as informações devem ser conferidas no briefing ou nos materiais oficiais disponíveis. O fato de determinado dado ter sido utilizado em uma campanha anterior não significa que ele permaneça válido.'},
+{t:'h3',c:'Faça uma segunda leitura'},
+{t:'p',c:'Depois de finalizar uma peça, crie uma pequena distância antes da revisão sempre que o prazo permitir. Voltar para o arquivo alguns minutos depois, visualizar a peça em outro tamanho ou abrir o material exportado pode ajudar a perceber problemas que estavam passando despercebidos.'},
+{t:'p',c:'Também é útil revisar o conteúdo em uma ordem diferente daquela utilizada durante a criação. Quando o cérebro já conhece aquilo que deveria estar escrito, ele tende a completar informações automaticamente.'},
+{t:'h3',c:'A troca entre a equipe melhora a qualidade'},
+{t:'p',c:'Em demandas mais importantes, complexas ou com grande exposição, a revisão de uma segunda pessoa pode ser extremamente valiosa. Essa troca não deve ser vista como falta de autonomia — ela funciona como uma camada adicional de segurança.'},
+{t:'h3',c:'O nível de revisão deve acompanhar o risco'},
+{t:'p',c:'Nem todas as peças possuem o mesmo impacto. Quanto maior a exposição, o investimento, a quantidade produzida, a dificuldade de correção e a importância da informação, maior deve ser o nível de atenção dedicado à revisão.'},
+{t:'h3',c:'Cuidado com adaptações'},
+{t:'p',c:'Adaptações são uma fonte frequente de erros porque muitas vezes são percebidas como demandas simples. Ao transformar uma peça para outro formato, é comum que elementos sejam reposicionados, textos reduzidos ou informações reorganizadas — e é justamente nesse momento que surgem problemas de leitura, cortes e diferenças entre versões.'},
+{t:'citacao',c:'Uma adaptação também precisa ser revisada como uma peça nova.'},
+{t:'h3',c:'Cuidado com arquivos utilizados como base'},
+{t:'p',c:'Reaproveitar arquivos anteriores pode agilizar a produção, mas também pode carregar informações antigas para uma nova demanda. Datas, preços, logos, rodapés, chamadas e textos ocultos podem permanecer no arquivo sem que o profissional perceba.'},
+{t:'p',c:'O fato de algo já ter sido aprovado anteriormente não significa que continue correto para a nova peça.'},
+{t:'h3',c:'Não normalize pequenos erros'},
+{t:'p',c:'Quando a equipe trabalha com alto volume, existe o risco de pequenos problemas começarem a ser tratados como aceitáveis. Um alinhamento mal resolvido, uma imagem de baixa qualidade ou uma aplicação incorreta de marca podem parecer pequenos isoladamente, mas a repetição desses problemas diminui gradualmente a qualidade percebida do trabalho.'},
+{t:'citacao',c:'Qualidade é construída pela soma dos detalhes.'},
+{t:'h3',c:'Feedback também é ferramenta de qualidade'},
+{t:'p',c:'Quando um mesmo tipo de correção aparece com frequência, vale entender se existe algum padrão por trás dela. Talvez uma informação esteja sendo interpretada de maneira incorreta, uma regra da marca não esteja clara ou um detalhe esteja escapando repetidamente durante as revisões.'},
+{t:'h3',c:'Revisar não significa buscar perfeição infinita'},
+{t:'p',c:'Existe um momento em que a peça já cumpre bem seu objetivo e está pronta para seguir. O senso crítico também envolve saber identificar quando um ajuste realmente melhora o trabalho e quando ele representa apenas uma preferência pessoal.'},
+{t:'principio',c:['Uma boa revisão protege a Criação, o Atendimento, a agência e o cliente.','O ideal é que erros sejam encontrados antes que a peça saia da área de Criação.','Qualidade não é apenas fazer uma boa ideia. É garantir que essa ideia chegue ao público de forma correta, consistente e bem executada.']}
+]});
+
+LIVRO.push({id:'aprovacao',t:'Apresentação e aprovação',r:'Como apresentar uma solução, entender um feedback e saber quando defender e quando ceder.',b:[
+{t:'nota',c:'No documento original este capítulo aparece repetindo o título “Controle de Qualidade”. O conteúdo é sobre <b>apresentação e aprovação</b> — vale corrigir o título na próxima atualização.'},
+{t:'p',c:'A aprovação é uma etapa natural do trabalho de Criação e deve ser entendida como parte do desenvolvimento da peça, e não apenas como o momento em que o trabalho é enviado para receber um “sim” ou “não”.'},
+{t:'h3',c:'Entregue um trabalho que você considera pronto'},
+{t:'p',c:'Uma peça não deve ser encaminhada para aprovação apenas para descobrir se “está no caminho certo”, salvo quando o projeto exigir deliberadamente uma apresentação de caminhos ou estudos preliminares.'},
+{t:'destaque',c:'Antes de encaminhar, o designer deve ter feito sua própria revisão e estar confortável em defender as decisões tomadas. A aprovação não deve substituir o senso crítico da Criação.'},
+{t:'h3',c:'Apresente soluções, não apenas arquivos'},
+{t:'p',c:'Em projetos que envolvam conceitos, campanhas, identidades ou key visuals, o contexto pode ser tão importante quanto a própria peça. Nem sempre quem recebe o material participou de todo o raciocínio. Quando necessário, a Criação deve ajudar a explicar:'},
+{t:'lista',c:['Qual foi o conceito utilizado','Qual problema a solução procura resolver','Por que determinada direção foi escolhida','Como a proposta se relaciona com a marca','Como ela pode se desdobrar em outros formatos']},
+{t:'h3',c:'Evite apresentar opções sem necessidade'},
+{t:'p',c:'Mais opções não significam necessariamente uma aprovação melhor. Criar muitas alternativas apenas para oferecer escolha pode aumentar o tempo de produção e transformar decisões estratégicas em uma comparação baseada apenas em gosto pessoal.'},
+{t:'p',c:'Quando houver mais de uma proposta, é importante que existam diferenças reais entre os caminhos. Três versões praticamente iguais dificilmente ajudam na tomada de decisão.'},
+{t:'h3',c:'Saiba explicar suas decisões'},
+{t:'p',c:'O designer não precisa transformar toda aprovação em uma defesa longa do projeto, mas deve ser capaz de explicar as principais escolhas quando necessário — hierarquia, público, identidade, legibilidade, conceito, formato, aplicação e objetivo da comunicação.'},
+{t:'p',c:'Ao mesmo tempo, nem toda decisão precisa ser defendida até o fim. Em alguns casos, um feedback pode revelar um problema real ou uma informação que a Criação ainda não possuía.'},
+{t:'h3',c:'Não transforme aprovação em disputa'},
+{t:'p',c:'O cliente conhece seu negócio. O Atendimento possui contexto sobre a relação com a conta. A Criação possui conhecimento visual e técnico. O melhor resultado normalmente acontece quando essas perspectivas conseguem conversar.'},
+{t:'h3',c:'Entenda o motivo antes de alterar'},
+{t:'p',c:'Comentários como “não gostei”, “está estranho”, “quero mais moderno” ou “precisa chamar mais atenção” podem possuir interpretações muito diferentes. Antes de alterar toda a peça tentando adivinhar uma solução, vale buscar mais contexto.'},
+{t:'citacao',c:'Entender corretamente o problema reduz consideravelmente a quantidade de alterações necessárias.'},
+{t:'h3',c:'Feedback consolidado melhora o processo'},
+{t:'p',c:'Receber pequenos feedbacks separados ao longo do dia pode fazer com que a mesma peça seja aberta, alterada e exportada diversas vezes sem necessidade. Além de consumir tempo, isso aumenta a possibilidade de versões conflitantes.'},
+{t:'p',c:'Quando houver diferentes pessoas participando da aprovação, é importante que exista alinhamento entre elas antes que as alterações sejam encaminhadas para a produção.'},
+{t:'h3',c:'Diferencie preferência de problema'},
+{t:'p',c:'Um texto ilegível, uma informação incorreta ou uma aplicação errada de marca são problemas que precisam ser corrigidos. Já determinadas escolhas de composição, cor, imagem ou estilo podem envolver interpretação.'},
+{t:'p',c:'Quando uma preferência não comprometer o trabalho e fizer sentido para o cliente, muitas vezes não existe razão para transformar aquela alteração em um conflito. Por outro lado, quando uma solicitação puder prejudicar significativamente a qualidade, vale explicar os impactos e propor uma alternativa.'},
+{t:'h3',c:'Aprenda a propor alternativas'},
+{t:'p',c:'Nem toda alteração precisa ser respondida apenas com “sim” ou “não”. Em vez de simplesmente recusar uma mudança, procure entender o objetivo por trás dela e sugerir outra maneira de alcançá-lo.'},
+{t:'h3',c:'Saiba quando ceder'},
+{t:'p',c:'É importante defender decisões que realmente impactem a qualidade, a identidade ou a funcionalidade da comunicação. Mas também é importante reconhecer quando uma alteração representa apenas uma preferência do cliente e não compromete significativamente o resultado.'},
+{t:'citacao',c:'O objetivo não é provar quem está certo. É chegar ao melhor resultado possível.'},
+{t:'h3',c:'Aprovações constroem conhecimento sobre o cliente'},
+{t:'p',c:'Com o tempo, é possível identificar preferências recorrentes, elementos que costumam gerar resistência, formas de apresentação que funcionam melhor, particularidades da identidade e necessidades que não estão formalizadas em documentos. Esses aprendizados devem circular entre os designers que trabalham com aquela marca.'},
+{t:'h3',c:'Evite alterações por interpretação incorreta'},
+{t:'p',c:'Quando o feedback permitir diferentes interpretações, uma confirmação rápida pode evitar uma rodada inteira de retrabalho. Isso é especialmente importante em alterações que envolvam mudança de conceito, substituição de imagens, inclusão ou retirada de informações, mudanças significativas de layout, alterações de identidade ou refação completa.'},
+{t:'h3',c:'Respeite a versão aprovada'},
+{t:'p',c:'Quando uma peça for aprovada, essa versão passa a ser a referência para seus desdobramentos. Evite aproveitar uma adaptação para alterar novamente conceitos, cores, tipografias ou imagens que já passaram pelo processo de aprovação.'},
+{t:'p',c:'Caso seja identificada uma oportunidade real de melhoria, ela pode ser discutida, mas não deve ser aplicada silenciosamente.'},
+{t:'h3',c:'Aprovação final não elimina a responsabilidade da Criação'},
+{t:'p',c:'Mesmo depois que o cliente aprovar uma peça, ainda é responsabilidade da equipe verificar se o arquivo final está correto antes da publicação ou produção.'},
+{t:'destaque',c:'Nunca mantenha um erro conhecido apenas porque ele estava presente na versão aprovada.'},
+{t:'h3',c:'Mantenha o histórico das decisões'},
+{t:'p',c:'As alterações e aprovações relevantes devem permanecer registradas nos canais oficiais. Isso facilita a consulta posterior e ajuda a responder: qual versão foi aprovada? Quem solicitou determinada alteração? Uma informação já havia sido confirmada? Uma decisão visual já havia sido validada?'},
+{t:'principio',c:['O processo de aprovação deve ser uma extensão do processo criativo.','Uma boa relação de aprovação não acontece quando o cliente nunca pede alterações. Ela acontece quando as pessoas envolvidas conseguem utilizar o feedback para chegar a um resultado melhor, com clareza, respeito e o mínimo possível de retrabalho.']}
+]});
+
+LIVRO.push({id:'alteracoes',t:'Alterações e retrabalho',r:'Como lidar com mudanças sem normalizar o retrabalho evitável.',b:[
+{t:'p',c:'Alterações fazem parte da rotina da área de Criação. Nem todo trabalho será aprovado na primeira versão, e nem toda mudança solicitada significa que houve um erro no processo.'},
+{t:'p',c:'O retrabalho se torna um problema quando acontece de forma recorrente, desorganizada ou por motivos que poderiam ter sido evitados com mais clareza, alinhamento ou documentação.'},
+{t:'h3',c:'Entenda antes de executar'},
+{t:'p',c:'Quando o feedback estiver genérico, contraditório ou permitir diferentes interpretações, é melhor esclarecer antes de refazer a peça. Uma alteração mal compreendida pode gerar uma nova rodada de ajustes.'},
+{t:'h3',c:'Diferencie ajuste de refação'},
+{t:'p',c:'Trocar um texto, ajustar uma imagem ou reposicionar um elemento é diferente de reconstruir uma peça inteira, mudar o conceito ou alterar uma direção visual já aprovada.'},
+{t:'p',c:'Quando uma solicitação representar uma mudança significativa de escopo, conceito ou estratégia, ela não deve ser tratada automaticamente como uma pequena alteração.'},
+{t:'h3',c:'Retrabalho evitável deve gerar aprendizado'},
+{t:'p',c:'Quando uma alteração acontece porque uma informação não foi conferida ou um briefing foi interpretado de maneira incorreta, o objetivo não deve ser apenas corrigir a peça. Pode ser necessário:'},
+{t:'lista',c:['Melhorar o briefing','Registrar uma preferência do cliente','Atualizar um template','Compartilhar uma informação com a equipe','Consultar o histórico da conta','Reforçar alguma etapa de revisão']},
+{t:'citacao',c:'O erro só deixa de ser útil quando não gera nenhum aprendizado.'},
+{t:'h3',c:'Evite alterar por alterar'},
+{t:'p',c:'Quando a Criação perceber que uma alteração pode prejudicar significativamente a qualidade, a legibilidade, a identidade ou a funcionalidade da peça, vale sinalizar isso e propor uma alternativa.'},
+{t:'h3',c:'Respeite decisões já aprovadas'},
+{t:'p',c:'Se um conceito, uma direção visual ou uma estrutura já foi aprovada, mudanças que contradigam essas decisões precisam ser avaliadas com atenção. Isso evita que o trabalho entre em um ciclo no qual decisões são feitas e desfeitas repetidamente.'},
+{t:'h3',c:'Evite múltiplas versões sem controle'},
+{t:'p',c:'Sem organização, fica fácil trabalhar sobre uma versão antiga, enviar o arquivo incorreto ou perder uma decisão importante. A equipe precisa conseguir identificar com facilidade:'},
+{t:'lista',c:['Qual é a versão mais recente','Qual foi aprovada','Qual está em alteração','Qual arquivo não deve mais ser utilizado']},
+{t:'h3',c:'Alterações precisam estar registradas'},
+{t:'p',c:'Conversas rápidas podem ajudar a esclarecer uma demanda, mas decisões importantes não devem depender apenas da memória de quem participou de uma reunião. O registro facilita o acompanhamento e protege todas as pessoas envolvidas.'},
+{t:'h3',c:'Feedbacks contraditórios precisam ser alinhados'},
+{t:'p',c:'Quando diferentes pessoas apresentarem orientações conflitantes, a Criação não deve escolher silenciosamente qual delas seguir. Trabalhar sobre instruções contraditórias aumenta o risco de retrabalho e coloca o profissional em uma posição desnecessariamente vulnerável.'},
+{t:'h3',c:'Mudança de briefing é mudança de contexto'},
+{t:'p',c:'Mudanças de objetivo, público, mensagem, formato ou conceito podem exigir uma nova solução. A equipe deve estar aberta a essas mudanças, mas também precisa ter clareza de que elas podem impactar prazo e volume de trabalho.'},
+{t:'h3',c:'Cuidado com alterações feitas em cascata'},
+{t:'p',c:'Uma pequena mudança em uma peça principal pode afetar muitos outros materiais. Por isso, antes de iniciar desdobramentos em escala, é importante garantir que os elementos principais estejam suficientemente alinhados.'},
+{t:'h3',c:'Retrabalho não deve ser normalizado'},
+{t:'p',c:'Se uma conta apresenta muitas rodadas de alteração com frequência, vale observar o padrão. Talvez exista algum problema de comunicação, briefing, aprovação, expectativa ou conhecimento sobre o cliente que precise ser tratado de maneira mais ampla.'},
+{t:'h3',c:'Não tenha receio de recomeçar quando necessário'},
+{t:'p',c:'Se o direcionamento mudou significativamente ou se a estrutura inicial deixou de fazer sentido, pode ser mais eficiente recomeçar determinada parte do projeto. O importante é que essa decisão seja consciente.'},
+{t:'h3',c:'Compartilhe padrões de alteração'},
+{t:'p',c:'Se determinado tipo de imagem sempre é recusado, se existe uma preferência de composição ou se alguma regra específica aparece constantemente nos feedbacks, esse conhecimento pode evitar alterações futuras. O histórico de retrabalho também faz parte da memória da conta.'},
+{t:'principio',c:['O objetivo não é evitar alterações a qualquer custo, mas garantir que aconteçam por motivos que realmente façam sentido.','Quando o retrabalho acontece, a equipe deve buscar não apenas corrigir a peça, mas entender como tornar o próximo processo melhor.']}
+]});
+
+LIVRO.push({id:'drive',t:'Organização do Google Drive',r:'Onde cada coisa mora, como nomear arquivos e por que a organização é um sistema coletivo.',b:[
+{t:'p',c:'O Google Drive funciona como parte da memória da área de Criação. É nele que ficam concentrados arquivos, referências, materiais aprovados, planejamentos, apresentações, identidades visuais e conteúdos que podem ser necessários novamente no futuro.'},
+{t:'h3',c:'Organize pensando em quem vem depois'},
+{t:'p',c:'Uma boa organização deve permitir que qualquer pessoa da equipe consiga localizar um arquivo sem depender de quem o criou. Ao salvar materiais, pense se outra pessoa conseguiria encontrar aquele conteúdo semanas ou meses depois sem precisar pedir ajuda.'},
+{t:'h3',c:'Evite estruturas pessoais demais'},
+{t:'p',c:'Pastas com nomes vagos, abreviações particulares ou estruturas que só fazem sentido para quem as criou dificultam o trabalho da equipe. Utilize nomes claros, objetivos e coerentes com a organização já existente para aquele cliente.'},
+{t:'h3',c:'A pasta de entrega deve estar vinculada à task'},
+{t:'p',c:'O Atendimento é responsável por inserir, dentro de cada task, o link da pasta de entrega correspondente àquela demanda. Dessa forma, o profissional de Criação acessa diretamente pela task o local correto onde os arquivos finais precisam ser salvos. Isso evita:'},
+{t:'lista',c:['Buscas desnecessárias no Drive','Arquivos salvos em pastas incorretas','Duplicação de pastas','Dificuldade para localizar entregas posteriormente','Dependência de mensagens paralelas para descobrir onde o material deve ser armazenado']},
+{t:'h3',c:'O nome do arquivo deve seguir o nome da task'},
+{t:'p',c:'Os arquivos desenvolvidos para uma demanda devem utilizar como base a mesma nomenclatura definida na task. O padrão deve ser preservado no salvamento:'},
+{t:'tabela',cab:['Uso','Exemplo'],linhas:[
+['Nome-base (igual à task)','<code>ABF_07.26_04_SOCIAL AGOSTO</code>'],
+['Formato específico','<code>ABF_07.26_04_SOCIAL AGOSTO_FEED</code>'],
+['Outro formato','<code>ABF_07.26_04_SOCIAL AGOSTO_STORY</code>'],
+['Versão','<code>ABF_07.26_04_SOCIAL AGOSTO_V02</code>']
+]},
+{t:'destaque',c:'O princípio é simples: <b>o nome da task deve ser também o nome-base do arquivo</b>. Evite criar abreviações pessoais, apelidos ou nomenclaturas diferentes da utilizada oficialmente na tarefa.'},
+{t:'h3',c:'Salve no local correto'},
+{t:'p',c:'Arquivos oficiais não devem ficar espalhados em pastas pessoais, áreas temporárias ou locais sem relação com a conta. Isso vale especialmente para arquivos aprovados, apresentações, planejamentos, materiais enviados pelo cliente, referências importantes, documentos institucionais, arquivos finais e materiais que podem ser reutilizados.'},
+{t:'h3',c:'Não transforme o Drive em depósito'},
+{t:'p',c:'Organizar não significa simplesmente salvar tudo. Arquivos duplicados, versões temporárias, downloads e materiais sem utilidade podem dificultar a busca tanto quanto a falta de organização.'},
+{t:'h3',c:'Separe o que está em uso do que é histórico'},
+{t:'p',c:'Campanhas antigas, identidades anteriores e projetos encerrados podem continuar sendo importantes como referência, mas não devem gerar dúvida sobre o que está vigente. Diferencie claramente materiais atuais, materiais aprovados, projetos encerrados, histórico e arquivos antigos.'},
+{t:'h3',c:'Não deixe conhecimento apenas no computador'},
+{t:'p',c:'Um arquivo que existe apenas no computador de um profissional não está realmente disponível para a equipe. Isso é especialmente importante antes de férias, ausências, mudança de conta, troca de profissional ou encerramento de projeto.'},
+{t:'citacao',c:'O fluxo da agência não deve depender da disponibilidade de uma única pessoa.'},
+{t:'h3',c:'Materiais enviados pelo cliente também devem ser organizados'},
+{t:'p',c:'Arquivos recebidos por e-mail, WhatsApp ou reuniões podem ser importantes durante muito tempo. Quando forem relevantes para a produção ou para o histórico da conta, devem ser direcionados ao local adequado no Drive.'},
+{t:'h3',c:'Mantenha os materiais de identidade fáceis de encontrar'},
+{t:'p',c:'Brandbooks, logos, fontes, elementos gráficos, key visuals e guias de fotografia precisam estar em locais de fácil acesso. Quando houver atualização de identidade, deixe claro qual versão está vigente.'},
+{t:'h3',c:'Faça pequenas manutenções'},
+{t:'check',titulo:'Ao finalizar um projeto, confira',c:['Os arquivos importantes estão no local correto','O nome dos arquivos corresponde à task','As versões aprovadas estão identificadas','Materiais temporários não estão causando confusão','A pasta de entrega está organizada','Outra pessoa conseguiria localizar aquele trabalho futuramente']},
+{t:'h3',c:'Evite criar novas estruturas sem necessidade'},
+{t:'p',c:'Antes de criar uma nova pasta, verifique se já existe um local destinado àquele tipo de material. Criar estruturas paralelas para resolver o mesmo problema fragmenta a informação e aumenta a dificuldade de localização.'},
+{t:'principio',c:['O sistema de gestão e o Google Drive precisam funcionar de forma conectada. A task deve indicar onde o arquivo será entregue, e o arquivo deve carregar a mesma nomenclatura da task.','O objetivo não é criar a estrutura mais complexa possível, mas garantir que qualquer pessoa da equipe consiga encontrar, entender e continuar um trabalho com facilidade.']}
+]});
+
+LIVRO.push({id:'arquivo-aberto',t:'Arquivo aberto',r:'O patrimônio de produção da Criação: o que preservar, em que condição e por quê.',b:[
+{t:'p',c:'Os arquivos abertos fazem parte do patrimônio de produção da área de Criação. Eles permitem que uma peça seja ajustada, adaptada, reaproveitada ou retomada futuramente sem a necessidade de reconstruir um trabalho do zero.'},
+{t:'h3',c:'Todo trabalho relevante deve ter seu arquivo aberto preservado'},
+{t:'p',c:'Sempre que uma peça possuir potencial de adaptação, continuidade ou consulta futura, seu arquivo aberto deve ser mantido. Isso vale principalmente para:'},
+{t:'lista',c:['Campanhas','Key visuals','Peças de social media','Apresentações','Materiais gráficos','Materiais institucionais','Identidades visuais','Templates','Peças de performance','Materiais audiovisuais editáveis']},
+{t:'h3',c:'O arquivo precisa estar utilizável'},
+{t:'p',c:'Guardar um arquivo aberto não significa apenas salvar qualquer versão do projeto. Sempre que possível, evite deixar arquivos com:'},
+{t:'lista',c:['Links quebrados','Imagens ausentes','Elementos importantes fora da prancheta','Camadas completamente desorganizadas','Objetos sem identificação quando isso dificultar a continuidade','Versões antigas misturadas sem necessidade','Recursos externos impossíveis de localizar']},
+{t:'destaque',c:'O arquivo não precisa estar perfeito internamente, mas precisa ser compreensível e funcional.'},
+{t:'h3',c:'Organize pensando em outra pessoa'},
+{t:'citacao',c:'Se outra pessoa precisar abrir esse arquivo amanhã, ela conseguirá entender o projeto?'},
+{t:'p',c:'Um arquivo excessivamente desorganizado pode consumir quase tanto tempo quanto reconstruir parte da peça. Principalmente em projetos maiores, vale manter uma organização mínima de pranchetas, camadas, grupos, links, elementos recorrentes e versões.'},
+{t:'h3',c:'Não achate arquivos sem necessidade'},
+{t:'p',c:'Textos, vetores, objetos, imagens e demais componentes devem continuar acessíveis para futuras alterações. Quando houver necessidade de criar uma versão fechada ou simplificada, preserve também o arquivo editável original.'},
+{t:'h3',c:'Preserve os materiais vinculados'},
+{t:'p',c:'Fotografias, vídeos, fontes, áudios e ilustrações podem precisar ser mantidos junto ao projeto. É importante evitar situações em que o arquivo aberto exista, mas metade de seus componentes esteja perdida em pastas pessoais ou na pasta de Downloads.'},
+{t:'h3',c:'Fontes também precisam de atenção'},
+{t:'p',c:'Nem todas as fontes utilizadas em um projeto podem ser compartilhadas livremente. Quando houver tipografias licenciadas, é importante respeitar suas condições de uso. Quando fizer sentido, podem ser mantidas versões de referência com textos convertidos em vetor, sem substituir o arquivo editável original.'},
+{t:'h3',c:'Arquivos de Adobe'},
+{t:'tabela',cab:['Software','Formato aberto'],linhas:[
+['Illustrator','<code>.AI</code>'],['Photoshop','<code>.PSD</code>'],['InDesign','<code>.INDD</code>'],['After Effects','<code>.AE</code> ou projeto correspondente'],['Premiere','<code>.PRPROJ</code>']
+]},
+{t:'h3',c:'Figma e ferramentas em nuvem'},
+{t:'p',c:'O arquivo já existe em ambiente compartilhado, mas ainda precisa estar organizado e acessível. Evite criar projetos importantes exclusivamente em contas pessoais ou espaços que não possam ser acessados pela equipe.'},
+{t:'h3',c:'Arquivos audiovisuais exigem atenção especial'},
+{t:'p',c:'Projetos de vídeo costumam depender de uma quantidade maior de materiais externos: vídeos brutos, trilhas, locuções, imagens e gráficos. Um projeto de edição sem os arquivos utilizados pode se tornar praticamente inutilizável.'},
+{t:'h3',c:'Não dependa apenas do seu computador'},
+{t:'p',c:'Arquivos locais podem ser utilizados durante a produção, mas o material relevante precisa estar disponível na estrutura oficial da agência. Essa preocupação se torna ainda mais importante em férias, ausências, mudanças de equipe, desligamentos, troca de responsável por uma conta ou demandas urgentes.'},
+{t:'h3',c:'Preserve o que pode gerar valor no futuro'},
+{t:'p',c:'Nem todo rascunho precisa ser guardado para sempre. Vale preservar principalmente aquilo que pode servir como base para adaptações, referência, histórico, template, material de campanha, fonte de elementos ou continuidade de uma identidade.'},
+{t:'h3',c:'Não exclua arquivos importantes sem alinhamento'},
+{t:'p',c:'Arquivos antigos podem parecer desnecessários para quem está trabalhando na conta naquele momento, mas ainda possuir valor histórico ou estratégico. Quando houver dúvida, preservar de forma organizada costuma ser uma escolha mais segura do que eliminar.'},
+{t:'h3',c:'Ao encerrar ou transferir uma conta'},
+{t:'p',c:'Quando houver troca de responsável por um cliente, os arquivos abertos relevantes precisam estar acessíveis para quem assumirá a conta. É importante evitar que a transição aconteça apenas por meio de conversas — campanhas recentes, templates, apresentações e arquivos-base devem estar disponíveis e organizados.'},
+{t:'principio',c:['O arquivo final é aquilo que o cliente vê. O arquivo aberto é aquilo que permite que a agência continue trabalhando.','Um bom arquivo aberto deve permitir que o trabalho continue mesmo quando quem o criou não estiver mais envolvido naquela demanda.']}
+]});
+
+/* === FIM CAPITULOS === */
+
+(function(){
+  "use strict";
+
+  var ESCOPOS=[
+    {o:"Interpretação de briefings",a:["Criação","Atendimento"]},
+    {o:"Criação de peças gráficas para redes sociais",a:["Criação","Redação","Social Media"]},
+    {o:"Desenvolvimento de conceitos visuais",a:["Criação"]},
+    {o:"Desdobramento e adaptação de materiais",a:["Criação"]},
+    {o:"Aplicação e preservação da identidade visual",a:["Criação"]},
+    {o:"Tratamento e seleção de imagens",a:["Criação"]},
+    {o:"Diagramação e organização de informações",a:["Criação","Redação"]},
+    {o:"Revisão técnica e controle de qualidade",a:["Criação","Atendimento"]},
+    {o:"Alterações e ajustes",a:["Criação"]},
+    {o:"Preparação, fechamento e entrega de arquivos",a:["Criação"]},
+    {o:"Organização e arquivamento",a:["Criação"]},
+    {o:"Gestão de prazos e prioridades",a:["Atendimento","Criação"]},
+    {o:"Comunicação com outras áreas para desenvolvimento de artes",a:["Criação"]},
+    {o:"Pesquisar tendências visuais",a:["Criação"]},
+    {o:"Edição, planejamento e desenvolvimento de materiais audiovisuais",a:["Criação"]},
+    {o:"Desenvolvimento de criativos de performance",a:["Criação","Redação"]}
+  ];
+
+  var CLIENTES=[
+    ["Mundo Verde e Lojas Próprias","Giovanna Oliveira Marino e Giovanna Belucci","Campanhas periódicas, KVs, posts de redes sociais, desdobramentos de peças, criativos de performance, banner site, e-mail marketing, solicitações de franqueados e material audiovisual","Gabriela / Lívia"],
+    ["ABF Expo","Victor Hugo Fávaro","Peças de comunicação visual, KV anual, posts de redes sociais, criativos de performance, desdobramentos e material audiovisual","Gabriela"],
+    ["Itatiba Mall","Marcela Setta","Posts de redes sociais e materiais gráficos diversos, além de identidade visual e desdobramentos","Mariela"],
+    ["Loctok","Marcela Setta","Posts de redes sociais","Lívia"],
+    ["4Real","Marcela Setta","Posts de redes sociais","Gabriela"],
+    ["Mapho","Marcela Setta","Posts de redes sociais","Gabriela"],
+    ["Full Connect Key","Victor Hugo Fávaro e Marcela Setta","Material institucional digital e impresso, e posts de redes sociais","Gabriela"],
+    ["Franquias Brasil","Victor Hugo Fávaro","KV, identidade visual, posts de redes sociais, criativos de performance, desdobramentos e material audiovisual","Mariela"],
+    ["Fisa","Victor Hugo Fávaro","Criativos de performance, desdobramentos e material audiovisual","Mariela"],
+    ["Brasil Windpower","Victor Hugo Fávaro","Criativos de performance, desdobramentos e material audiovisual","Mariela"]
+  ];
+
+  var CHAVE="fck-criacao-v1";
+  function $(s,r){return (r||document).querySelector(s)}
+  function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+  function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+  function nn(i){return String(i+1).padStart(2,"0")}
+
+  /* ---------- estado ---------- */
+  function ler(){try{var c=localStorage.getItem(CHAVE);return c?JSON.parse(c):{lidos:[],checks:{}}}catch(e){return {lidos:[],checks:{}}}}
+  function gravar(s){try{localStorage.setItem(CHAVE,JSON.stringify(s))}catch(e){}}
+  var estado=ler();
+  if(!Array.isArray(estado.lidos))estado.lidos=[];
+  if(!estado.checks||typeof estado.checks!=="object")estado.checks={};
+
+  /* ---------- render ---------- */
+  var main=$("#main"), sumario=$("#sumario");
+
+  function blocoHTML(b,capId,idx){
+    switch(b.t){
+      case 'p': return '<p>'+b.c+'</p>';
+      case 'h3': return '<h3>'+esc(b.c)+'</h3>';
+      case 'lista': return '<ul>'+b.c.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ul>';
+      case 'numerada': return '<ol>'+b.c.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ol>';
+      case 'destaque': return '<div class="destaque">'+b.c+'</div>';
+      case 'citacao': return '<p class="citacao">'+esc(b.c)+'</p>';
+      case 'nota': return '<div class="nota"><span class="tag">Atualizar</span><p>'+b.c+'</p></div>';
+      case 'principio': return '<div class="principio"><div class="rot">Princípio geral</div>'+b.c.map(function(x){return '<p>'+x+'</p>'}).join('')+'</div>';
+      case 'check': return checkHTML(b,capId,idx);
+      case 'tabela': return tabelaHTML(b);
+      case 'matriz': return matrizHTML();
+      case 'clientes': return clientesHTML();
+      default: return '';
+    }
+  }
+
+  function checkHTML(b,capId,idx){
+    var base=capId+'-'+idx;
+    var itens=b.c.map(function(x,i){
+      var id=base+'-'+i, on=estado.checks[id]?' checked':'';
+      return '<li><label><input type="checkbox" data-ck="'+id+'"'+on+'><span>'+x+'</span></label></li>';
+    }).join('');
+    return '<div class="check" data-base="'+base+'">'
+      +'<div class="check-topo"><span>'+esc(b.titulo||'Checklist')+'</span><button type="button" data-limpar="'+base+'">Limpar</button></div>'
+      +'<ul>'+itens+'</ul></div>';
+  }
+
+  function tabelaHTML(b){
+    return '<div class="tab-rolo"><table><thead><tr>'
+      +b.cab.map(function(h){return '<th>'+esc(h)+'</th>'}).join('')
+      +'</tr></thead><tbody>'
+      +b.linhas.map(function(l){return '<tr>'+l.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}).join('')
+      +'</tbody></table></div>';
+  }
+
+  function matrizHTML(){
+    var solo=ESCOPOS.filter(function(e){return e.a.length===1}).length;
+    var html='<div class="stats">'
+      +'<div class="stat"><b>'+ESCOPOS.length+'</b><span>Escopos</span></div>'
+      +'<div class="stat"><b>'+solo+'</b><span>Só da Criação</span></div>'
+      +'<div class="stat"><b>'+(ESCOPOS.length-solo)+'</b><span>Compartilhados</span></div>'
+      +'</div>';
+    html+='<div class="filtros" role="group" aria-label="Filtrar por área"><span class="rot">Filtrar</span>'
+      +['todas','Criação','Atendimento','Redação','Social Media'].map(function(f){
+        return '<button class="chip" type="button" data-f="'+esc(f)+'" aria-pressed="'+(f==='todas')+'">'+(f==='todas'?'Todas':esc(f))+'</button>'
+      }).join('')+'</div>';
+    html+='<div class="matriz" id="matriz">'+ESCOPOS.map(function(e){
+      return '<div class="linha" data-areas="'+esc(e.a.join('|'))+'"><div class="oq">'+esc(e.o)+'</div><div class="areas">'
+        +e.a.map(function(a){return '<button type="button" class="area'+(a==='Criação'?' pri':'')+'" data-area="'+esc(a)+'">'+esc(a)+'</button>'}).join('')
+        +'</div></div>';
+    }).join('')+'</div>';
+    return html;
+  }
+
+  function clientesHTML(){
+    return tabelaHTML({cab:['Cliente','Diretor de Arte','Materiais desenvolvidos','Atendimento'],linhas:CLIENTES.map(function(l){return l.map(esc)})});
+  }
+
+  function montar(){
+    main.innerHTML = LIVRO.map(function(cap,i){
+      var corpo = cap.b.map(function(b,j){return blocoHTML(b,cap.id,j)}).join('');
+      return '<section class="cap" id="'+cap.id+'">'
+        +'<div class="cap-topo"><div class="cap-n">Capítulo '+nn(i)+'</div><h2>'+esc(cap.t)+'</h2>'
+        +(cap.r?'<p class="resumo">'+esc(cap.r)+'</p>':'')+'</div>'
+        +'<div class="bloco">'+corpo+'</div>'
+        +'<button class="marcar" type="button" data-cap="'+cap.id+'" aria-pressed="false"><span class="cx" aria-hidden="true"></span><span>Marcar como lido</span></button>'
+        +'</section>';
+    }).join('');
+
+    sumario.innerHTML = LIVRO.map(function(cap,i){
+      return '<li><a href="#'+cap.id+'" data-cap="'+cap.id+'"><span class="nn">'+nn(i)+'</span><span>'+esc(cap.t)+'</span></a></li>';
+    }).join('');
+
+    $("#m-caps").textContent = LIVRO.length;
+    var palavras = JSON.stringify(LIVRO).split(/\s+/).length;
+    $("#m-tempo").textContent = Math.max(1,Math.round(palavras/200)) + " min";
+  }
+
+  /* ---------- lidos ---------- */
+  function pintarLidos(){
+    $$("[data-cap]").forEach(function(el){
+      var id=el.getAttribute("data-cap"), on=estado.lidos.indexOf(id)!==-1;
+      if(el.classList.contains("marcar")){
+        el.setAttribute("aria-pressed",String(on));
+        $(".cx",el).textContent = on?"✓":"";
+        el.lastElementChild.textContent = on?"Lido":"Marcar como lido";
+      } else {
+        el.classList.toggle("lido",on);
+      }
+    });
+    $("#contagem").textContent = estado.lidos.length+" de "+LIVRO.length+" lidos";
+  }
+
+  /* ---------- eventos ---------- */
+  document.addEventListener("click",function(ev){
+    var m=ev.target.closest(".marcar");
+    if(m){
+      var id=m.getAttribute("data-cap"), i=estado.lidos.indexOf(id);
+      if(i===-1)estado.lidos.push(id);else estado.lidos.splice(i,1);
+      gravar(estado); pintarLidos(); return;
+    }
+    var chip=ev.target.closest(".chip");
+    if(chip){ filtrar(chip.getAttribute("data-f")); return; }
+    var area=ev.target.closest(".area");
+    if(area){ filtrar(area.getAttribute("data-area")); return; }
+    var limpar=ev.target.closest("[data-limpar]");
+    if(limpar){
+      var base=limpar.getAttribute("data-limpar");
+      $$('input[data-ck^="'+base+'"]').forEach(function(c){c.checked=false;delete estado.checks[c.getAttribute("data-ck")]});
+      gravar(estado); return;
+    }
+  });
+
+  document.addEventListener("change",function(ev){
+    var ck=ev.target.closest("input[data-ck]");
+    if(!ck)return;
+    var id=ck.getAttribute("data-ck");
+    if(ck.checked)estado.checks[id]=1; else delete estado.checks[id];
+    gravar(estado);
+  });
+
+  $("#zerar").addEventListener("click",function(){
+    estado={lidos:[],checks:{}}; gravar(estado);
+    $$("input[data-ck]").forEach(function(c){c.checked=false});
+    pintarLidos();
+  });
+
+  function filtrar(area){
+    var mz=$("#matriz"); if(!mz)return;
+    $$(".linha",mz).forEach(function(l){
+      l.hidden = area!=="todas" && l.getAttribute("data-areas").split("|").indexOf(area)===-1;
+    });
+    $$(".chip").forEach(function(c){c.setAttribute("aria-pressed",String(c.getAttribute("data-f")===area))});
+  }
+
+  /* ---------- busca ---------- */
+  var q=$("#q"), caixa=$("#resultados");
+  function textoDoBloco(b){
+    if(typeof b.c==="string")return b.c;
+    if(Array.isArray(b.c))return b.c.join(" ");
+    return "";
+  }
+  q.addEventListener("input",function(){
+    var termo=q.value.trim().toLowerCase();
+    if(termo.length<3){caixa.hidden=true;caixa.innerHTML="";return}
+    var achados=[];
+    LIVRO.forEach(function(cap,i){
+      cap.b.forEach(function(b){
+        var txt=textoDoBloco(b).replace(/<[^>]+>/g," ");
+        var p=txt.toLowerCase().indexOf(termo);
+        if(p!==-1 && achados.length<24){
+          var ini=Math.max(0,p-45), fim=Math.min(txt.length,p+termo.length+65);
+          var trecho=(ini>0?"…":"")+txt.slice(ini,fim)+(fim<txt.length?"…":"");
+          achados.push({id:cap.id,cap:nn(i)+" · "+cap.t,trecho:trecho,termo:termo});
+        }
+      });
+    });
+    if(!achados.length){caixa.innerHTML='<p class="sem-res">Nada encontrado.</p>';caixa.hidden=false;return}
+    caixa.innerHTML=achados.map(function(a){
+      var t=esc(a.trecho);
+      var re=new RegExp("("+a.termo.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");
+      return '<button class="res" type="button" data-ir="'+a.id+'"><b>'+esc(a.cap)+'</b><small>'+t.replace(re,"<mark>$1</mark>")+'</small></button>';
+    }).join('');
+    caixa.hidden=false;
+  });
+  caixa.addEventListener("click",function(ev){
+    var r=ev.target.closest("[data-ir]"); if(!r)return;
+    var alvo=document.getElementById(r.getAttribute("data-ir"));
+    if(alvo)alvo.scrollIntoView({behavior:"smooth",block:"start"});
+    caixa.hidden=true; q.value="";
+    if(estreito.matches)fecharRail();
+  });
+  q.addEventListener("keydown",function(e){if(e.key==="Escape"){q.value="";caixa.hidden=true}});
+
+  /* ---------- rail no telefone ---------- */
+  var painel=$("#painel-rail"), btnRail=$("#abrir-rail");
+  var estreito=window.matchMedia("(max-width: 980px)");
+  function fecharRail(){btnRail.setAttribute("aria-expanded","false");btnRail.textContent="Abrir";ajustar()}
+  function ajustar(){
+    if(estreito.matches){
+      var ab=btnRail.getAttribute("aria-expanded")==="true";
+      painel.style.display = ab?"contents":"none";
+    } else { painel.style.display="contents"; }
+  }
+  btnRail.addEventListener("click",function(){
+    var ab=btnRail.getAttribute("aria-expanded")==="true";
+    btnRail.setAttribute("aria-expanded",String(!ab));
+    btnRail.textContent=ab?"Abrir":"Fechar";
+    ajustar();
+  });
+  sumario.addEventListener("click",function(ev){ if(ev.target.closest("a")&&estreito.matches)fecharRail() });
+  if(estreito.addEventListener)estreito.addEventListener("change",ajustar);
+
+  /* ---------- progresso e capítulo ativo ---------- */
+  var barra=$("#barra i");
+  function aoRolar(){
+    var alt=document.documentElement.scrollHeight-window.innerHeight;
+    barra.style.width=(alt>0?Math.min(100,Math.max(0,window.scrollY/alt*100)):0)+"%";
+    var caps=$$(".cap"), atual=caps[0];
+    caps.forEach(function(s){ if(s.getBoundingClientRect().top<=150)atual=s });
+    if(!atual)return;
+    $$(".sumario a").forEach(function(a){
+      var on=a.getAttribute("href")==="#"+atual.id;
+      a.classList.toggle("ativo",on);
+      if(on && !estreito.matches){
+        var r=a.getBoundingClientRect(), c=sumario.getBoundingClientRect();
+        if(r.top<c.top||r.bottom>c.bottom)a.scrollIntoView({block:"nearest"});
+      }
+    });
+  }
+  var pend=false;
+  window.addEventListener("scroll",function(){
+    if(pend)return; pend=true;
+    requestAnimationFrame(function(){aoRolar();pend=false});
+  },{passive:true});
+  window.addEventListener("resize",aoRolar,{passive:true});
+
+  montar(); pintarLidos(); ajustar(); aoRolar();
+})();
+</script>
+
+<!--
+  ===========================================================================
+  A PONTE COM O FULL HUB (0102)
+
+  Este bloco é acrescentado ao e-book quando ele entra no acervo, e **ele não
+  muda nada do que está acima**: o documento continua funcionando sozinho, no
+  navegador, sem o Full Hub. O que ele faz é espelhar para fora o que já é
+  gravado no `localStorage`, e aceitar de fora o estado que o banco guardou.
+
+  ELE SE DESLIGA SOZINHO FORA DO PAINEL -- `window.parent === window` quer
+  dizer que não há host, e aí ele devolve sem registrar nada. É por isso que o
+  mesmo arquivo serve para abrir solto e para abrir dentro do Full Hub.
+  ===========================================================================
+-->
+<script>
+(function(){
+  if (window.parent === window) return;
+  var CHAVE = "fck-criacao-v1";
+
+  function estado(){
+    try { return JSON.parse(localStorage.getItem(CHAVE)) || {lidos:[],checks:{}}; }
+    catch(e){ return {lidos:[],checks:{}}; }
+  }
+  function enviar(m){ try { window.parent.postMessage(m, "*"); } catch(e){} }
+
+  /* O ESTADO VEM DO BANCO E A PÁGINA SE RECARREGA UMA VEZ, antes de a pessoa
+     tocar em nada: é assim que ela reaplica o que já foi lido sem reescrever
+     o render inteiro. O host manda isto UMA vez por carregamento -- se ele
+     respondesse ao `pronto` que nasce do próprio recarregamento, seria laço. */
+  window.addEventListener("message", function(ev){
+    if (ev.source !== window.parent) return;
+    var d = ev.data;
+    if (!d || d.tipo !== "fullhub:estado") return;
+    try {
+      localStorage.setItem(CHAVE, JSON.stringify({
+        lidos: Array.isArray(d.lidos) ? d.lidos : [],
+        checks: (d.checks && typeof d.checks === "object") ? d.checks : {}
+      }));
+      location.reload();
+    } catch(e){}
+  });
+
+  /* O ESPELHO É UM OUVINTE NA FASE DE CAPTURA, no documento inteiro: ele não
+     depende de qual elemento o render criou nem de quando, então acrescentar
+     um capítulo ao LIVRO não exige mexer aqui. */
+  document.addEventListener("change", function(e){
+    var alvo = e.target;
+    if (!alvo || !alvo.hasAttribute) return;
+
+    if (alvo.hasAttribute("data-cap")) {
+      enviar({ tipo:"fullhub:capitulo", chave: alvo.getAttribute("data-cap"), lido: !!alvo.checked });
+
+      /* O TOTAL É CONTADO NA PÁGINA, e não escrito como 23: o número é o de
+         capítulos que ESTE arquivo tem, e uma constante aqui mentiria na
+         versão em que alguém acrescentar o vigésimo quarto -- sem erro em
+         lugar nenhum, só a conclusão que nunca mais dispara. */
+      var total = document.querySelectorAll('input[data-cap]').length;
+      var s = estado();
+      if (total > 0 && s.lidos.length >= total) enviar({ tipo:"fullhub:concluido" });
+      return;
+    }
+
+    if (alvo.hasAttribute("data-ck")) {
+      var id = alvo.getAttribute("data-ck");
+      var base = id.split("-").slice(0, -1).join("-");
+      var marcados = [];
+      Array.prototype.forEach.call(
+        document.querySelectorAll('input[data-ck^="' + base + '-"]'),
+        function(c){ if (c.checked) marcados.push(c.getAttribute("data-ck")); }
+      );
+      enviar({ tipo:"fullhub:checklist", chave: base, marcados: marcados });
+    }
+  }, true);
+
+  enviar({ tipo:"fullhub:pronto" });
+})();
+</script>

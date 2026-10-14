@@ -215,7 +215,18 @@ const nextConfig: NextConfig = {
       // A Academy INCORPORA video do YouTube e do Vimeo, e so deles: o
       // `modoDeAbrir()` manda o resto para aba nova justamente porque iframe
       // de terceiro quebra login e cookie.
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
+      //
+      // E O SUPABASE ENTROU NA LISTA NA 0102, por causa do e-book interativo:
+      // ele e um HTML no bucket PRIVADO, servido por URL assinada -- entao o
+      // iframe dele aponta para o dominio do Storage, e nao para `'self'`. Sem
+      // esta origem o quadro sai em branco e a unica pista e uma linha no
+      // console do navegador; o `npm run build` passa, e passou.
+      //
+      // **Quem encontrou foi o prototipo**, que serve o mesmo arquivo pela
+      // propria origem e levou a recusa por `frame-ancestors` -- o sintoma
+      // vizinho, numa rodada de quinze segundos. Sem aquela tela, a descoberta
+      // seria alguem abrindo o e-book em producao.
+      `frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com ${supabase}`,
       "base-uri 'self'",
       "object-src 'none'",
       "upgrade-insecure-requests",

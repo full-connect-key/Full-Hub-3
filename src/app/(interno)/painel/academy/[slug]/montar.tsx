@@ -19,6 +19,11 @@ import {
   ROTULOS_DE_AULA,
   TIPOS_DE_AULA,
 } from "@/lib/dominio/academy";
+import {
+  EXTENSOES_DO_FORMATO,
+  ROTULOS_DO_FORMATO,
+  formatoPeloNome,
+} from "@/lib/dominio/ebook-interativo";
 import { FUNCOES, rotuloDaFuncao } from "@/lib/dominio/equipe";
 import type { ItemAberto } from "@/lib/dados/academy";
 import type { AcademyAulaTipo } from "@/lib/supabase/database.types";
@@ -286,7 +291,17 @@ function ArquivoDoEbook({
     bytes: number;
   } | null>(null);
   const [paginas, setPaginas] = useState("");
+  const [notas, setNotas] = useState("");
+  const [releitura, setReleitura] = useState(false);
   const campo = useRef<HTMLInputElement>(null);
+
+  // O FORMATO SAI DO NOME DO ARQUIVO ESCOLHIDO, e não de um seletor que a
+  // pessoa preenche antes: ela já disse qual é o arquivo, e perguntar de novo
+  // é pedir que ela repita o que o `.html` do nome já diz. Enquanto nada foi
+  // escolhido, o campo aceita os dois — senão o seletor de arquivos esconderia
+  // metade do que ele deve oferecer.
+  const formato = escolhido ? formatoPeloNome(escolhido.nome) : null;
+  const proxima = (atual?.versao ?? 0) + 1;
 
   async function subir(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -297,7 +312,10 @@ function ArquivoDoEbook({
       // A PASTA É A DO ITEM, e o nome carrega o instante: dois PDFs do mesmo
       // e-book são duas linhas no histórico, e com o nome fixo o segundo
       // sobrescreveria o arquivo que a primeira linha aponta.
-      const caminho = `${itemId}/${Date.now()}.${extensao}`;
+      // A PASTA CARREGA A VERSÃO, e o nome o instante: `ebooks/{item}/v3/…`
+      // é o que o sprint pede e é o que torna o bucket legível por quem abre
+      // o painel do Supabase para conferir qual arquivo está no ar.
+      const caminho = `ebooks/${itemId}/v${proxima}/${Date.now()}.${extensao}`;
 
       const { error } = await supabase.storage
         .from(BUCKET_DO_ACERVO)
@@ -326,6 +344,10 @@ function ArquivoDoEbook({
           nome: escolhido.nome,
           tamanho_bytes: escolhido.bytes,
           paginas: paginas ? Number(paginas) : null,
+          formato: formatoPeloNome(escolhido.nome),
+          versao: proxima,
+          notas_mudanca: notas || null,
+          exige_releitura: releitura,
         }),
       );
       if (!r.ok) toast.error(r.error);
@@ -333,6 +355,8 @@ function ArquivoDoEbook({
         toast.success(r.mensagem);
         setEscolhido(null);
         setPaginas("");
+        setNotas("");
+        setReleitura(false);
         router.refresh();
       }
     });
@@ -341,7 +365,7 @@ function ArquivoDoEbook({
   return (
     <div className="bg-card rounded-card shadow-cartao space-y-3 border p-4">
       <h4 className="text-text-primary text-sm font-medium">
-        {atual ? "Trocar o arquivo" : "Anexar o arquivo"}
+        {atual ? `Publicar a versão ${proxima}` : "Anexar o arquivo"}
       </h4>
 
       {/* O QUE JÁ ESTÁ NO AR VEM PRIMEIRO, e não como aviso: quem abre esta
@@ -349,13 +373,14 @@ function ArquivoDoEbook({
           saber qual. Sem a linha, "Trocar o arquivo" não diz trocar o quê. */}
       {atual ? (
         <p className="text-text-secondary text-xs">
-          Hoje o e-book entrega <span className="font-medium">{atual.nome}</span>. Subir
-          outro passa a entregar o novo — o anterior continua no histórico.
+          Hoje o e-book entrega <span className="font-medium">{atual.nome}</span> (versão{" "}
+          {atual.versao}, {ROTULOS_DO_FORMATO[atual.formato]}). Subir outro passa a
+          entregar o novo — o anterior continua no histórico.
         </p>
       ) : (
         <p className="text-text-secondary text-xs">
           Um e-book sem arquivo não tem o que entregar: a tela de quem abrir mostra o
-          título e nada para baixar.
+          título e nada mais. Aceita PDF e página interativa (.html).
         </p>
       )}
 
@@ -366,7 +391,7 @@ function ArquivoDoEbook({
       <input
         ref={campo}
         type="file"
-        accept="application/pdf,.pdf,.epub"
+        accept={`${EXTENSOES_DO_FORMATO.pdf},${EXTENSOES_DO_FORMATO.html_interativo}`}
         aria-label="Arquivo do e-book"
         className="sr-only"
         onChange={(e) => void subir(e.target.files?.[0])}
@@ -381,7 +406,7 @@ function ArquivoDoEbook({
           onClick={() => campo.current?.click()}
         >
           <Upload aria-hidden className="size-4" />
-          {subindo ? "Enviando…" : escolhido ? "Escolher outro" : "Escolher o PDF"}
+          {subindo ? "Enviando…" : escolhido ? "Escolher outro" : "Escolher o arquivo"}
         </Button>
 
         {/* PÁGINAS É DIGITADO, e não lido do arquivo: contar as páginas de um
@@ -405,6 +430,53 @@ function ArquivoDoEbook({
           Salvar o arquivo
         </Button>
       </div>
+
+      {escolhido ? (
+        <p className="text-text-muted text-xs">
+          O Full Hub vai tratar este arquivo como{" "}
+          <span className="font-medium">
+            {ROTULOS_DO_FORMATO[formato ?? "pdf"]}
+          </span>
+          {formato === "html_interativo"
+            ? " — ele abre dentro do painel, com o progresso de leitura registrado por capítulo."
+            : " — ele abre no visualizador, com um botão de baixar."}
+        </p>
+      ) : null}
+
+      {/* AS NOTAS E A RELEITURA SÓ APARECEM A PARTIR DA SEGUNDA VERSÃO, e a
+          ausência é a decisão: na primeira não há o que dizer que mudou, e não
+          há quem reler — pedir as duas ali seria um campo que ninguém sabe
+          preencher no único momento em que ele é obrigatório pelo costume. */}
+      {atual ? (
+        <div className="space-y-3 border-t pt-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="e-notas">O que mudou</Label>
+            <Textarea
+              id="e-notas"
+              rows={2}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Quem já leu a versão anterior lê isto antes de reler."
+            />
+          </div>
+
+          <label className="flex items-start gap-2.5">
+            <Switch
+              checked={releitura}
+              onCheckedChange={setReleitura}
+              aria-label="Exigir que quem já leu leia de novo"
+            />
+            <span className="text-sm">
+              <span className="text-text-primary font-medium">Exigir releitura</span>
+              <span className="text-text-muted block text-xs">
+                Devolve a pendência a todo mundo que já tinha confirmado. Deixe
+                desmarcado para correção de texto — senão o aviso vira ruído e
+                ninguém mais o lê.
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
 
       {escolhido ? (
         <p className="text-text-muted text-xs">

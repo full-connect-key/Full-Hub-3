@@ -148,7 +148,19 @@ const DO_SPRINT_9 = [
  */
 const POR_PERFIL = [
   {
-    frase: "Gestão e acompanhamento",
+    // A FRASE ERA "Gestão e acompanhamento" E O PRODUTO DIZ "Acompanhamento"
+    // desde que a barra da Academy foi reescrita — e esta checagem continuou
+    // passando, porque o dump de `80-academy` no disco era de um build
+    // anterior e ainda carregava o texto velho. Ela só reprovou no dia em que
+    // a tela foi refotografada por outro motivo.
+    //
+    // **É a armadilha da tabela de migrations pendentes, na camada de
+    // verificação:** uma checagem cuja expectativa envelheceu continua verde
+    // afirmando sobre uma tela que ninguém olhou. O dump é cache, e cache que
+    // ninguém invalida vira a resposta errada com cara de certa. Quem mexer no
+    // rótulo de uma aba mexe aqui no mesmo commit — e refotografa as duas
+    // telas, a do `tem` e a do `naoTem`.
+    frase: "Acompanhamento",
     tem: "80-academy",
     naoTem: "81-academy-colaborador",
     porque:

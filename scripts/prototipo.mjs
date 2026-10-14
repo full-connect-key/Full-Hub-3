@@ -418,6 +418,16 @@ const TELAS = [
   // frase e de titulo entre os dois -- "Anexar" contra "Trocar" --, e e a
   // primeira que diz o que falta para o item ter o que entregar.
   { nome: "82h-academy-montar-ebook-vazio", rota: "/painel/academy/guia-de-tom-de-voz", largura: 1500, altura: 1300, role: "socio" },
+  // O E-BOOK INTERATIVO, que e a tela nova da 0102: o cabecalho fino do Full
+  // Hub -- quantos capitulos, "Abrir em nova aba", "Li e estou ciente" -- e o
+  // e-book inteiro dentro de um iframe sandboxado.
+  //
+  // A ALTURA E GRANDE DE PROPOSITO: o quadro e `calc(100vh - 13rem)`, entao
+  // numa janela curta a imagem sairia com um e-book de duzentos pixels. O que
+  // se confere aqui e que o indice lateral, a busca e o texto do e-book
+  // aparecem DENTRO do painel -- que e a prova de que o sandbox nao quebrou
+  // nada.
+  { nome: "82i-academy-ebook-interativo", rota: "/painel/academy/operacoes-criacao", largura: 1500, altura: 1400, role: "colaborador" },
   { nome: "82f-academy-novo", rota: "/painel/academy/novo", largura: 1300, altura: 1100, role: "socio" },
   // DUAS capturas para o material aberto, e nao uma com dois cliques: a lista
   // e sanfona de um so aberto por vez, entao o segundo clique fecha o
@@ -1004,6 +1014,35 @@ try {
   await cp(path.join(RAIZ, "scripts", "prototipo", "extras"), path.join(COPIA, "src", "app"), {
     recursive: true,
   });
+
+  // O E-BOOK INTERATIVO ENTRA SO NA COPIA, e e a mesma razao do codigo que
+  // pula o login: em producao ele mora no bucket PRIVADO e sai por URL
+  // assinada -- posto em `public/` do app publicado, ele ficaria num endereco
+  // que qualquer pessoa abre, que e exatamente o que a 0102 existe para
+  // evitar. Aqui ele serve o iframe da tela de leitura.
+  //
+  // E E O ARQUIVO DE VERDADE, nao um arquivo de exemplo: a tela nova e um
+  // quadro com a pagina inteira dentro, e um stand-in de dez linhas fotografa
+  // a moldura em vez do conteudo.
+  await cp(
+    path.join(RAIZ, "arquivos", "operacoes-criacao.html"),
+    path.join(COPIA, "public", "exemplos", "operacoes-criacao.html"),
+  );
+
+  // E O `frame-ancestors` AFROUXA SO NA COPIA, pela mesma razao do codigo que
+  // pula o login. Em producao o e-book vem do dominio do Storage, que nao manda
+  // esse header; aqui ele vem da PROPRIA origem, e `frame-ancestors 'none'`
+  // -- que existe para ninguem embutir o Full Hub num iframe -- recusa o
+  // quadro. Trocar por `'self'` na copia e o que permite fotografar a tela sem
+  // mexer no header que protege o app publicado.
+  const configDaCopia = path.join(COPIA, "next.config.ts");
+  await writeFile(
+    configDaCopia,
+    (await readFile(configDaCopia, "utf8")).replace(
+      `"frame-ancestors 'none'"`,
+      `"frame-ancestors 'self'"`,
+    ),
+  );
 
   // O proxy e carregado pelo Next por caminho fixo, e nao por apelido, entao a
   // substituicao dele e uma copia por cima. Sem isso /login redirecionaria
