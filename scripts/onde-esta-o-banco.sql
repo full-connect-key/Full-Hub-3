@@ -472,7 +472,20 @@ from (
     -- (`client_requests_avisa_atendimento` e `request_messages_avisa`), que
     -- existem desde a 0068 e responderiam ok num banco parado la, que e
     -- exatamente o estado que esta linha tem de acusar.
-    ('0103', 'quem_atende()', 'funcao', 'quem_atende')
+    ('0103', 'quem_atende()', 'funcao', 'quem_atende'),
+    -- A 0104 troca os indices unicos PARCIAIS do progresso e da anotacao do
+    -- Academy por constraints `unique nulls not distinct`, que e o que o
+    -- `on_conflict` do PostgREST tem como inferir: sem ela as seis actions que
+    -- fazem `upsert` morrem com "there is no unique or exclusion constraint
+    -- matching the ON CONFLICT specification", que foi o relato do usuario.
+    --
+    -- A linha aponta para a constraint de `academy_anotacoes`, que e a ULTIMA
+    -- que o arquivo cria, e nao para a de `academy_progresso`, que e a
+    -- primeira: num banco onde alguem colou so o PASSO 1, a resposta certa e
+    -- FALTA -- e um marcador no progresso responderia ok sobre um banco em que
+    -- salvar anotacao continua recusado.
+    ('0104', 'academy_anotacoes_alvo_unico', 'constraint',
+             'academy_anotacoes|academy_anotacoes_alvo_unico')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

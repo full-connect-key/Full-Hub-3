@@ -8305,6 +8305,80 @@ contra um Postgres de verdade. Uma é propriedade de tela, a outra é do banco.
   A vitrine sai da tela quando há filtro ativo: "Concluídas" e ainda ver uma
   vitrine de não iniciadas seria a tela contradizendo o próprio filtro.
 
+#### E NADA DISSO SE MARCAVA: o `on conflict` do PostgREST (0104)
+
+Relato do usuário: *"quando tento marcar um documento do full academy como
+lido, ele me responde: Não foi possível marcar: there is no unique or exclusion
+constraint matching the ON CONFLICT specification"*.
+
+**NÃO É UM CASO, SÃO SEIS, E A CAMADA DE LEITURA DO MÓDULO NUNCA FUNCIONOU.**
+`confirmarLeitura`, `confirmarLeituraDoEbook`, `marcarItem`, `marcarAula`,
+`marcarCapitulo` e `salvarAnotacao` fazem `upsert` — as seis morrem com a mesma
+frase, as cinco primeiras desde a 0096 e a do capítulo desde a 0102. O que
+funcionava era o checklist do e-book, e **funcionava por acidente**:
+`academy_ebook_checklists` tem `unique (user_id, item_id, versao, chave)`
+escrito na TABELA.
+
+**A CAUSA É A FORMA DO ÍNDICE, e não o que a action escreve.**
+`academy_progresso` e `academy_anotacoes` resolveram a unicidade com índices
+únicos **parciais** — `where aula_id is null`, `where capitulo_id is not null`.
+O Postgres aceita inferir um índice parcial num `on conflict`, mas **só quando o
+pedido repete o predicado dele**; o `on_conflict` do PostgREST é uma lista de
+COLUNAS, e ele monta `on conflict (user_id, item_id)` e mais nada. Sem o
+`where` não há índice que case. Medido contra um Postgres 16: o mesmo insert
+passa com o predicado e estoura sem ele.
+
+**A BATERIA MEDIA A UNICIDADE E NUNCA MEDIU A ESCRITA**, e é por isso que 2173
+cenários ficavam verdes com o módulo quebrado. O arquivo 45 prova que a
+repetição é recusada e que os três alvos convivem — as duas coisas estavam
+certas desde a 0096. Nenhum cenário tinha um `on conflict`, que é o comando que
+o produto manda.
+
+**O conserto é de SCHEMA e não uma função.** A outra saída era uma RPC em
+plpgsql com o predicado escrito dentro — ela funciona, mantém a RLS, e é o que
+a casa faria se os índices parciais fossem necessários. Eles não são:
+`unique nulls not distinct` (Postgres 15+) diz a MESMA coisa numa constraint de
+verdade, que o PostgREST sabe inferir. Entre acrescentar uma camada e tirar três
+índices, a casa tira — uma constraint no lugar de três é um lugar a menos onde a
+regra pode divergir, e as seis actions voltam trocando uma string.
+
+**O `nulls not distinct` NÃO afrouxa nada, e quem garante isso é o `check` ao
+lado.** `academy_progresso_um_alvo` (0102) recusa uma linha que aponte para uma
+aula E um capítulo ao mesmo tempo, então a chave de quatro colunas endereça
+exatamente os três alvos que os três parciais endereçavam: as duas nulas são o
+item inteiro, a aula é um alvo, o capítulo é outro. Sem o `check` a chave de
+quatro aceitaria um quarto alvo que nenhuma tela desenha — por isso ele fica, e
+não é redundante.
+
+**E NÃO HÁ PASSADA DE DEDUPLICAÇÃO, de propósito.** Os parciais já recusavam
+exatamente as linhas que a constraint nova recusa, e `capitulo_id` nasceu na
+0102 — não existe banco com duas linhas do mesmo alvo. Um `delete` aqui seria a
+passada que a 0102 recusou do texto do sprint: ele apagaria zero linhas e daria
+a impressão de ter limpado alguma coisa.
+
+**A STRING DO `onConflict` É UMA CONSTANTE, e as duas colunas nulas vão
+EXPLÍCITAS no payload.** Ela aparecia em cinco lugares, e `salvarAnotacao` a
+montava com um ternário (`aulaId ? "user_id, item_id, aula_id" : "user_id,
+item_id"`) — que é o índice parcial escrito na tela, e a sexta cópia seria a que
+divergisse. E o payload tem de carregar `aula_id: null` e `capitulo_id: null`:
+coluna ausente num `upsert` do PostgREST não entra na linha, e uma chave de
+quatro colunas em que duas não viajam é um alvo que o banco não reconhece.
+
+**A anotação é o único dos seis em que se perde TEXTO**, e é por isso que ela
+tem cenário próprio em vez de carona no do progresso: é outra tabela, com chave
+de TRÊS colunas — anotação é do item ou de uma aula, nunca de um capítulo —, e o
+cenário do progresso passaria num banco em que só metade da 0104 foi aplicada. O
+apagar não passava por este caminho (ele é `delete`), e é por isso que a tela
+parecia funcionar pela metade.
+
+**Medido com duas mutações**, sobre 2191 cenários: devolver os três parciais do
+progresso derruba **11** — e cinco deles dizem a frase que o usuário leu —, e
+devolver os dois da anotação derruba **4**. **E o marcador do
+`onde-esta-o-banco.sql` aponta para a constraint da ANOTAÇÃO**, que é a última
+que o arquivo cria: num banco onde alguém colou só o PASSO 1, a resposta certa é
+FALTA, e um marcador no progresso diria ok sobre um banco em que salvar anotação
+continua recusado. Medido nos dois sentidos.
+
 #### O e-book pode ser uma PÁGINA, e não só um PDF
 
 Migration 0102, sprint 3L-B. O primeiro e-book da Full não é um PDF: é uma
@@ -8366,6 +8440,17 @@ marcado.** O conserto é a segunda condição no índice do item mais um terceir
 índice parcial para o capítulo; o `check` de alvo único fica, porque ele diz o
 que os índices não dizem — uma linha que aponta para uma aula E um capítulo ao
 mesmo tempo não é repetição de nada.
+
+**E O SPRINT ESTAVA MEIO CERTO, o que eu não vi: a 0104 desfez este desvio.**
+O que ele pedia — `unique nulls not distinct` — é exatamente o que o produto
+tem hoje, e a razão não é a que ele dava: os parciais garantiam a unicidade
+direito, e o que eles não garantem é a ESCRITA, porque o `on_conflict` do
+PostgREST não tem como inferir índice parcial. Eu li "a constraint que ele
+manda derrubar não existe" e paguei dois índices a mais; a frase certa era "ela
+não existe, e é ela que precisa existir". O que fica de pé deste parágrafo é a
+segunda metade — o `check` de alvo único continua sendo o que os índices não
+diziam, e é ele que faz a chave de quatro colunas endereçar três alvos e não
+quatro. A história inteira está em "E NADA DISSO SE MARCAVA", acima.
 
 **2. A releitura precisou de uma ORDEM que o sprint não menciona.** Quem
 confirmou a v1 **tem** a linha concluída, então perguntar `concluido` primeiro

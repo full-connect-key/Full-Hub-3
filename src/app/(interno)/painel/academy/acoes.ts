@@ -25,6 +25,35 @@ const ROTA = "/painel/academy";
 const RECUSA =
   "O banco recusou a operação. Se você não é da gestão, montar o acervo não é seu — o conteúdo é.";
 
+/**
+ * O ALVO DE UM REGISTRO DE PROGRESSO, numa string só (migration 0104).
+ *
+ * **São QUATRO colunas e não duas, e o motivo é mecânico.** A 0096 e a 0102
+ * garantiram a unicidade com índices únicos **parciais** — `where aula_id is
+ * null`, `where capitulo_id is not null` —, e o Postgres só infere um índice
+ * parcial num `on conflict` quando o pedido repete o predicado dele. O
+ * `on_conflict` do PostgREST é uma lista de COLUNAS: ele não tem onde escrever
+ * o `where`. Resultado, com o alvo de duas colunas: *"there is no unique or
+ * exclusion constraint matching the ON CONFLICT specification"* — e as CINCO
+ * ações de progresso deste arquivo morriam nisso desde a 0096.
+ *
+ * A 0104 trocou os três índices parciais por uma constraint de verdade,
+ * `unique nulls not distinct (user_id, item_id, aula_id, capitulo_id)`, que
+ * endereça os três alvos com uma chave só: as duas colunas nulas são o item
+ * inteiro, uma delas preenchida é a aula ou o capítulo. **Por isso as duas vão
+ * explícitas no corpo, mesmo nulas** — o `null` escrito diz qual alvo é, e
+ * omitir uma delas deixaria a leitura do payload dependendo do default da
+ * coluna.
+ *
+ * **E ela é uma constante e não a string em cinco lugares**: cinco cópias são
+ * cinco chances de a sexta ação nascer com o alvo antigo, que compila, passa
+ * no lint e só recusa no clique de quem usa.
+ */
+const ALVO_DO_PROGRESSO = "user_id,item_id,aula_id,capitulo_id";
+
+/** O mesmo da anotação, que não tem capítulo: ela é do item ou de uma aula. */
+const ALVO_DA_ANOTACAO = "user_id,item_id,aula_id";
+
 // ---------------------------------------------------------------------------
 // O ITEM
 // ---------------------------------------------------------------------------
@@ -276,10 +305,11 @@ export async function confirmarLeitura(
           user_id: sessao.usuarioId,
           item_id: itemId,
           aula_id: null,
+          capitulo_id: null,
           concluido: true,
           versao_confirmada: numeroVersao,
         },
-        { onConflict: "user_id, item_id" },
+        { onConflict: ALVO_DO_PROGRESSO },
       )
       .select("id")
       .maybeSingle();
@@ -447,10 +477,11 @@ export async function marcarCapitulo(dados: unknown): Promise<Resultado> {
         {
           user_id: sessao.usuarioId,
           item_id: entrada.item_id,
+          aula_id: null,
           capitulo_id: capitulo.id,
           concluido: entrada.lido,
         },
-        { onConflict: "user_id,item_id,capitulo_id" },
+        { onConflict: ALVO_DO_PROGRESSO },
       )
       .select("id")
       .maybeSingle();
@@ -573,10 +604,12 @@ export async function confirmarLeituraDoEbook(itemId: string): Promise<Resultado
         {
           user_id: sessao.usuarioId,
           item_id: itemId,
+          aula_id: null,
+          capitulo_id: null,
           concluido: true,
           versao_confirmada: vigente.data?.[0]?.versao ?? 1,
         },
-        { onConflict: "user_id,item_id" },
+        { onConflict: ALVO_DO_PROGRESSO },
       )
       .select("id")
       .maybeSingle();
@@ -737,8 +770,14 @@ export async function marcarAula(
     const { data, error } = await supabase
       .from("academy_progresso")
       .upsert(
-        { user_id: sessao.usuarioId, item_id: itemId, aula_id: aulaId, concluido },
-        { onConflict: "user_id, item_id, aula_id" },
+        {
+          user_id: sessao.usuarioId,
+          item_id: itemId,
+          aula_id: aulaId,
+          capitulo_id: null,
+          concluido,
+        },
+        { onConflict: ALVO_DO_PROGRESSO },
       )
       .select("id")
       .maybeSingle();
@@ -761,8 +800,14 @@ export async function marcarItem(itemId: string, concluido: boolean): Promise<Re
     const { data, error } = await supabase
       .from("academy_progresso")
       .upsert(
-        { user_id: sessao.usuarioId, item_id: itemId, aula_id: null, concluido },
-        { onConflict: "user_id, item_id" },
+        {
+          user_id: sessao.usuarioId,
+          item_id: itemId,
+          aula_id: null,
+          capitulo_id: null,
+          concluido,
+        },
+        { onConflict: ALVO_DO_PROGRESSO },
       )
       .select("id")
       .maybeSingle();
@@ -825,7 +870,7 @@ export async function salvarAnotacao(
           texto: texto.trim(),
           updated_at: new Date().toISOString(),
         },
-        { onConflict: aulaId ? "user_id, item_id, aula_id" : "user_id, item_id" },
+        { onConflict: ALVO_DA_ANOTACAO },
       )
       .select("id")
       .maybeSingle();

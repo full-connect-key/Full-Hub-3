@@ -16,7 +16,7 @@
 --
 --   1. A LINHA DE UM CAPITULO E A LINHA DO ITEM INTEIRO CONVIVEM. As duas tem
 --      `aula_id` nulo, entao a do capitulo cai dentro do
---      `academy_progresso_item_unico` da 0096 -- que e `(user_id, item_id)
+--      `academy_progresso_item_unico` da 0096 -- que era `(user_id, item_id)
 --      where aula_id is null` -- e colide com a do item. **O texto do sprint
 --      nao sabia desse indice**: ele manda derrubar uma constraint que nao
 --      existe aqui e trocar por um `unique nulls not distinct`, o que
@@ -40,6 +40,18 @@
 --      `authenticated` com o uid da pessoa, que e o mesmo caminho do
 --      PostgREST. Checklist e instrumento de trabalho; o que a gestao
 --      acompanha e a CONCLUSAO.
+--
+--   5. E O UPSERT PASSA, NA FORMA QUE O PostgREST MANDA (0104). Os quatro
+--      itens acima medem a UNICIDADE, e ela estava certa desde a 0096 -- o que
+--      nunca funcionou foi ESCREVER: as seis actions do Academy fazem `upsert`,
+--      o `on_conflict` do PostgREST e uma lista de COLUNAS, e indice unico
+--      PARCIAL so e inferido quando o pedido repete o predicado dele. As seis
+--      morriam com "there is no unique or exclusion constraint matching the ON
+--      CONFLICT specification", que foi o relato do usuario. A 0104 trocou os
+--      tres parciais por uma constraint `unique nulls not distinct` de quatro
+--      colunas, e os cenarios da secao nova sao escritos com o `on conflict`
+--      sem `where` -- devolvendo os parciais, eles caem e os quatro de cima
+--      continuam passando.
 -- ===========================================================================
 
 select teste.limpar();
@@ -94,9 +106,9 @@ values ('ebb00001-0000-4000-8000-000000000001',
 -- OS INDICES: O CAPITULO E O ITEM INTEIRO SAO LINHAS DIFERENTES
 -- ===========================================================================
 
--- ESTE E O CENARIO DO DESVIO. Com os indices da 0096 intactos, o segundo
+-- ESTE E O CENARIO DO DESVIO. Com a unicidade da 0096 intacta, o segundo
 -- insert leva "duplicate key value violates unique constraint
--- academy_progresso_item_unico" -- a linha do capitulo e a do item inteiro
+-- academy_progresso_alvo_unico" -- a linha do capitulo e a do item inteiro
 -- disputam o mesmo indice parcial.
 insert into public.academy_progresso (user_id, item_id, concluido)
 values ('33333333-3333-3333-3333-333333333333',
@@ -127,9 +139,14 @@ select teste.cenario(
              'caa00002-0000-4000-8000-000000000002', true)$c$,
   'ok', 1);
 
--- O MESMO CAPITULO DUAS VEZES E RECUSADO, que e o que o indice novo protege:
--- sem ele, cada clique na caixinha empilharia uma linha e a contagem de
--- "X de 23" passaria de 23.
+-- O MESMO CAPITULO DUAS VEZES E RECUSADO, que e o que a chave protege: sem
+-- ela, cada clique na caixinha empilharia uma linha e a contagem de "X de 23"
+-- passaria de 23.
+--
+-- QUEM RECUSA PASSOU A SER `academy_progresso_alvo_unico` (0104), e nao mais o
+-- indice parcial da 0102: o FATO nao mudou -- a repeticao continua recusada --,
+-- mudou a forma da regra, porque indice parcial e o que o `on_conflict` do
+-- PostgREST nao tem como inferir.
 select teste.recusa_com(
   'Mas o mesmo capitulo duas vezes nao',
   :CARLA,
@@ -137,18 +154,20 @@ select teste.recusa_com(
      values ('33333333-3333-3333-3333-333333333333',
              'ebb00001-0000-4000-8000-000000000001',
              'caa00001-0000-4000-8000-000000000001', true)$c$,
-  'academy_progresso_capitulo_unico');
+  'academy_progresso_alvo_unico');
 
 -- E A SEGUNDA LINHA DE ITEM INTEIRO TAMBEM, que e o que o sprint queria
 -- garantir -- e que a 0096 ja garantia, com o indice parcial que o texto dele
--- nao conhecia.
+-- nao conhecia. Desde a 0104 quem garante e a mesma chave de quatro colunas: as
+-- duas nulas SAO o alvo "item inteiro", e e para isso que ela e
+-- `nulls not distinct`.
 select teste.recusa_com(
   'E uma segunda linha de conclusao do mesmo item tambem nao',
   :CARLA,
   $c$insert into public.academy_progresso (user_id, item_id, concluido)
      values ('33333333-3333-3333-3333-333333333333',
              'ebb00001-0000-4000-8000-000000000001', true)$c$,
-  'academy_progresso_item_unico');
+  'academy_progresso_alvo_unico');
 
 -- O `check` DIZ O QUE OS INDICES NAO DIZEM: uma linha que aponta para uma aula
 -- E um capitulo ao mesmo tempo nao e repeticao de nada -- nenhum indice a
@@ -162,6 +181,223 @@ select teste.recusa_com(
             a.id, 'caa00003-0000-4000-8000-000000000003'
        from public.academy_aulas a limit 1$c$,
   'academy_progresso_um_alvo');
+
+-- ===========================================================================
+-- O UPSERT NA FORMA QUE O PostgREST MANDA (0104)
+-- ===========================================================================
+--
+-- ESTA SECAO E O RELATO DO USUARIO, virado em cenario: "quando tento marcar um
+-- documento do full academy como lido, ele me responde: there is no unique or
+-- exclusion constraint matching the ON CONFLICT specification".
+--
+-- Os cenarios de cima medem a UNICIDADE -- que a repeticao e recusada e que os
+-- tres alvos convivem --, e ela estava certa desde a 0096. O que nunca
+-- funcionou foi ESCREVER: as seis actions do Academy fazem `upsert`, e o
+-- `on_conflict` do PostgREST e uma lista de COLUNAS. Indice unico PARCIAL so e
+-- inferido quando o pedido repete o predicado dele, entao nenhum dos tres
+-- parciais casava e as seis morriam com a mesma frase.
+--
+-- Por isso o `on conflict` daqui e escrito com as QUATRO colunas e sem
+-- `where`: e exatamente o que a camada de dados emite. Devolvendo os tres
+-- indices parciais da 0096 e da 0102, todos os cenarios desta secao caem com a
+-- frase que o usuario leu -- e os de cima continuam passando, que e a razao de
+-- esta secao existir ao lado deles e nao no lugar deles.
+
+select teste.cenario(
+  'A Carla marca o item inteiro como lido, e o upsert passa',
+  :CARLA,
+  $c$insert into public.academy_progresso
+       (user_id, item_id, aula_id, capitulo_id, concluido, concluido_em)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null, null, true, now())
+     on conflict (user_id, item_id, aula_id, capitulo_id)
+       do update set concluido = excluded.concluido,
+                     concluido_em = excluded.concluido_em$c$,
+  'ok', 1);
+
+-- E ELE ATUALIZA EM VEZ DE ACRESCENTAR, que e a outra metade: um upsert que
+-- insere linha nova a cada clique passaria neste cenario e faria a contagem de
+-- "X de 23" crescer sem limite. A linha do item inteiro ja existia -- a de
+-- `concluido = false` do topo deste arquivo --, e continua sendo uma.
+select teste.conferir(
+  'E as tres linhas da Carla continuam tres',
+  (select count(*)::text from public.academy_progresso
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'),
+  '3');
+
+select teste.conferir(
+  'E a linha do item inteiro passou a dizer lido',
+  (select concluido::text from public.academy_progresso
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'
+      and aula_id is null and capitulo_id is null),
+  'true');
+
+-- O CAPITULO JA MARCADO DESMARCA, e e o caminho de desmarcar uma caixinha: a
+-- action manda o mesmo upsert com `concluido = false`.
+select teste.cenario(
+  'E a caixinha de um capitulo desmarca pelo mesmo caminho',
+  :CARLA,
+  $c$insert into public.academy_progresso
+       (user_id, item_id, aula_id, capitulo_id, concluido)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null,
+             'caa00001-0000-4000-8000-000000000001', false)
+     on conflict (user_id, item_id, aula_id, capitulo_id)
+       do update set concluido = excluded.concluido$c$,
+  'ok', 1);
+
+select teste.conferir(
+  'E ela desmarcou sem virar uma quarta linha',
+  (select concluido::text || ' / ' || (
+     select count(*)::text from public.academy_progresso
+      where user_id = '33333333-3333-3333-3333-333333333333'
+        and item_id = 'ebb00001-0000-4000-8000-000000000001')
+    from public.academy_progresso
+   where user_id = '33333333-3333-3333-3333-333333333333'
+     and capitulo_id = 'caa00001-0000-4000-8000-000000000001'),
+  'false / 3');
+
+-- E O MESMO PEDIDO INSERE quando a linha nao existe. Os dois ramos do upsert
+-- passam pelo mesmo `on conflict`, e e isso que faz uma string servir aos
+-- seis caminhos: marcar a primeira caixinha e marcar a decima sao o mesmo
+-- comando.
+select teste.cenario(
+  'E o terceiro capitulo, que nao tinha linha, ganha a dele',
+  :CARLA,
+  $c$insert into public.academy_progresso
+       (user_id, item_id, aula_id, capitulo_id, concluido)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null,
+             'caa00003-0000-4000-8000-000000000003', true)
+     on conflict (user_id, item_id, aula_id, capitulo_id)
+       do update set concluido = excluded.concluido$c$,
+  'ok', 1);
+
+select teste.conferir(
+  'E agora sao quatro',
+  (select count(*)::text from public.academy_progresso
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'),
+  '4');
+
+-- O TERCEIRO ALVO E A AULA, e `marcarAula` morria com a mesma frase. A aula e
+-- a do curso do arquivo 09 -- e o cenario abaixo AFIRMA a premissa em vez de
+-- depender dela calado: sem a ficha, o upsert da aula estouraria na chave
+-- estrangeira e a falha falaria de outra coisa.
+select teste.conferir(
+  'A aula do arquivo 09 continua no banco',
+  (select count(*)::text from public.academy_aulas
+    where id = 'ac00000b-0000-4000-8000-00000000000b'),
+  '1');
+
+select teste.cenario(
+  'E a aula se marca pelo mesmo on conflict de quatro colunas',
+  :CARLA,
+  $c$insert into public.academy_progresso
+       (user_id, item_id, aula_id, capitulo_id, concluido)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001',
+             'ac00000b-0000-4000-8000-00000000000b', null, true)
+     on conflict (user_id, item_id, aula_id, capitulo_id)
+       do update set concluido = excluded.concluido$c$,
+  'ok', 1);
+
+select teste.cenario(
+  'E marcar a mesma aula de novo nao acrescenta nada',
+  :CARLA,
+  $c$insert into public.academy_progresso
+       (user_id, item_id, aula_id, capitulo_id, concluido)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001',
+             'ac00000b-0000-4000-8000-00000000000b', null, false)
+     on conflict (user_id, item_id, aula_id, capitulo_id)
+       do update set concluido = excluded.concluido$c$,
+  'ok', 1);
+
+select teste.conferir(
+  'E as linhas da Carla sao cinco, uma por alvo',
+  (select count(*)::text from public.academy_progresso
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'),
+  '5');
+
+-- ---------------------------------------------------------------------------
+-- A ANOTACAO, que e o unico dos seis caminhos em que se perde TEXTO
+--
+-- `academy_anotacoes` tinha o mesmo furo com dois indices parciais, e a chave
+-- dela e de TRES colunas -- anotacao e do item ou de uma aula, nunca de um
+-- capitulo. E uma tabela diferente com uma chave diferente, entao ela precisa
+-- do cenario dela: o de `academy_progresso` passaria num banco em que so
+-- metade da 0104 foi aplicada.
+--
+-- E aqui doi diferente. Nos outros cinco a pessoa perde um clique; aqui ela
+-- perde o que escreveu -- e o apagar nao passava por este caminho (ele e
+-- `delete`), que e por que a tela parecia funcionar pela metade.
+-- ---------------------------------------------------------------------------
+select teste.cenario(
+  'A Carla escreve uma anotacao do item inteiro',
+  :CARLA,
+  $c$insert into public.academy_anotacoes (user_id, item_id, aula_id, texto)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null,
+             'Conferir a tabela de gramaturas com a grafica')
+     on conflict (user_id, item_id, aula_id)
+       do update set texto = excluded.texto, updated_at = now()$c$,
+  'ok', 1);
+
+select teste.cenario(
+  'E salvar de novo reescreve a dela, nao abre uma segunda',
+  :CARLA,
+  $c$insert into public.academy_anotacoes (user_id, item_id, aula_id, texto)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null,
+             'A grafica confirmou: 300g no miolo')
+     on conflict (user_id, item_id, aula_id)
+       do update set texto = excluded.texto, updated_at = now()$c$,
+  'ok', 1);
+
+select teste.conferir(
+  'E o que ficou gravado e o texto novo, numa linha so',
+  (select count(*)::text || ' / ' || max(texto)
+     from public.academy_anotacoes
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'),
+  '1 / A grafica confirmou: 300g no miolo');
+
+-- E A REPETICAO CONTINUA RECUSADA do outro lado, que e o que prova que a
+-- constraint nova nao afrouxou a tabela: `nulls not distinct` e o que faz as
+-- duas linhas de "anotacao do item" colidirem.
+select teste.recusa_com(
+  'E uma segunda anotacao do mesmo item nao entra sem on conflict',
+  :CARLA,
+  $c$insert into public.academy_anotacoes (user_id, item_id, aula_id, texto)
+     values ('33333333-3333-3333-3333-333333333333',
+             'ebb00001-0000-4000-8000-000000000001', null, 'Forjada')$c$,
+  'academy_anotacoes_alvo_unico');
+
+-- E A CARLA VOLTA A NAO TER O ITEM INTEIRO MARCADO, por FIXTURE e nao por
+-- cenario. Esta secao mediu a ESCRITA, e as de baixo medem o ESTADO:
+-- `academy_estado_do_item` responde 'concluido' no instante em que essa linha
+-- diz true, e a pergunta delas e sobre quem leu DOIS de tres capitulos. O que
+-- um cenario deixou gravado nao e premissa de ninguem -- e o cenario que
+-- depende de uma premissa afirma essa premissa, que e o que as duas contagens
+-- acima fazem.
+update public.academy_progresso
+   set concluido = false, concluido_em = null
+ where user_id = '33333333-3333-3333-3333-333333333333'
+   and item_id = 'ebb00001-0000-4000-8000-000000000001'
+   and aula_id is null and capitulo_id is null;
+
+select teste.conferir(
+  'E a Carla fica com dois dos tres capitulos lidos',
+  (select count(*)::text from public.academy_progresso
+    where user_id = '33333333-3333-3333-3333-333333333333'
+      and item_id = 'ebb00001-0000-4000-8000-000000000001'
+      and capitulo_id is not null and concluido),
+  '2');
+
 
 
 -- ===========================================================================
