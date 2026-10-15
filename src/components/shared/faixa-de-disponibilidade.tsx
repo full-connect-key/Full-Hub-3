@@ -61,11 +61,31 @@ type Props = {
     inicio: string,
     fim: string,
   ) => Promise<Resultado<DiaDeDisponibilidade[]>>;
+  /**
+   * A FRASE DO RODAPE: o que o clique num dia escreve.
+   *
+   * Ela era fixa — *"escreve o prazo da etapa"* —, e é verdade no painel da
+   * etapa em Gestão de Tasks, onde o clique É o salvamento do prazo. Na tela de
+   * abrir o mês de social ele escreve o DIA da etapa, e a frase fixa nomeava o
+   * campo errado a dois centímetros do campo certo. Um rodapé que descreve
+   * outra coisa é pior que rodapé nenhum: ele ensina errado com toda a
+   * confiança.
+   *
+   * O padrão é o do primeiro chamador, então nada muda onde já estava certo.
+   */
+  rotuloDoClique?: string;
 };
 
 const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
-export function FaixaDeDisponibilidade({ userId, nome, prazo, aoEscolher, buscar }: Props) {
+export function FaixaDeDisponibilidade({
+  userId,
+  nome,
+  prazo,
+  aoEscolher,
+  buscar,
+  rotuloDoClique = "Clicar num dia escreve o prazo da etapa.",
+}: Props) {
   // O MÊS ABRE NO DO PRAZO quando há um, e no corrente quando não há: quem
   // está mexendo numa etapa já datada quer ver aquele mês, não este.
   const [ancora, setAncora] = useState(() =>
@@ -203,7 +223,7 @@ export function FaixaDeDisponibilidade({ userId, nome, prazo, aoEscolher, buscar
       ) : null}
 
       <p className="text-muted-foreground text-[11px]">
-        Clicar num dia escreve o prazo da etapa.
+        {rotuloDoClique}
       </p>
     </div>
   );

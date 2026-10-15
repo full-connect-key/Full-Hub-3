@@ -2689,6 +2689,129 @@ meio do fluxo.
 chance de o trecho ficar para trás. De quebra, o gatilho pega todo caminho que
 põe o post em ajustes, não só o botão do portal.
 
+#### ABRIR O MÊS É UMA TELA, e quem faz cada etapa fica ao lado de quando
+
+Duas decisões do usuário, na mesma conversa, e as duas atacam o mesmo
+diálogo. A primeira: *"quando vou abrir uma task do social, gostaria que a
+visualização de abertura seja igual a do rascunho de quando vou abrir uma task
+comum, mas com todas as informações que ele já me pede para preencher
+atualmente. Quero que o calendário da pessoa que vai fazer cada etapa mostre
+também a carga de tasks que a pessoa já está, igual é feito atualmente"*. A
+segunda: *"junte a parte de escolher a pessoa que vai fazer a etapa com a data
+que a etapa tem que ser feita. Quero que a data de final fique sempre em
+branco, pois na maioria dos casos a task dura apenas um dia"*.
+
+**O DIÁLOGO COBRAVA DOS DOIS LADOS, e os dois pioraram com o tempo.** Ele
+nasceu com quatro campos na 0044 e chegou com seis seções — cliente e mês,
+pasta, as combinações de rede, o fluxo, as funções a distribuir e o período de
+cada etapa —, numa coluna de 512px que rola dentro de si mesma: quem está no
+período da quinta etapa não vê mais o mês escolhido na primeira, e é o mês que
+decide as cinco datas.
+
+**ELA NÃO É A TELA DE RASCUNHO, e a diferença é mecânica.** O rascunho de
+demanda existe desde a 0028 porque subtarefa, referência e comentário precisam
+de um `task_id` para serem gravados — a linha nasce no clique e tudo salva
+sozinho. Aqui nada pode nascer antes: `abrir_mes_de_social()` é UMA transação
+que cria a demanda, os N posts, as fases e as noventa caixinhas, e um rascunho
+de mês seria uma demanda de social pela metade no board da agência. O que esta
+tela copia do rascunho é a COMPOSIÇÃO — a página inteira, o título grande, as
+seções numeradas de `SecaoDoFormulario` —, e o botão do fim continua sendo o
+que grava.
+
+**E O ÍNDICE PERDEU TRÊS CONSULTAS**, que é o que a mudança devolve de troco:
+clientes, equipe e fluxos eram carregados em toda visita ao índice para
+alimentar um diálogo que quase ninguém abria. Hoje são da rota que os usa.
+
+**O BOTÃO PASSOU A SER DE `is_atendimento()`, e isso conserta uma divergência.**
+Ele aparecia só para a gestão, e `abrir_mes_de_social()` é do Atendimento desde
+a 0046 — o colaborador do Atendimento não encontrava a ação que o produto diz
+que é dele. É a lição da 0059 um andar acima: lá o lado que ficou para trás foi
+a guarda da action, aqui foi o botão. A rota faz a MESMA pergunta, ao banco, por
+`souDoAtendimento()`.
+
+##### As duas seções viraram uma, e a entrega nasce em branco
+
+**ERAM DUAS LISTAS COM A MESMA SEQUÊNCIA, lidas duas vezes.** "Quem faz cada
+parte" trazia uma linha por função com as etapas dela em cinza ao lado; "O
+período de cada etapa" trazia uma linha por etapa, na mesma ordem, quarenta
+pixels abaixo. Quem data a Pauta está escolhendo um dia DAQUELA pessoa, e a
+tela separava as duas metades da mesma decisão.
+
+**E ERA A SEPARAÇÃO QUE DEIXAVA A CARGA SEM LUGAR.** A faixa é o calendário de
+UMA pessoa; na lista de datas ela não tinha a quem pertencer.
+
+**A PESSOA CONTINUA SENDO POR FUNÇÃO**, e isso não mudou: `p_responsaveis` é por
+função desde a 0046, e são as mesmas pessoas todo mês. O que mudou é onde o
+seletor aparece. **E quando uma função carrega duas etapas, a linha diz isso** —
+Pauta e Programar são as duas de Social Media, o exemplo que a 0059 já usava
+para explicar por que o PRAZO é por nome de etapa e não por função. Sem a frase,
+quem escolhe a pessoa na Pauta vê o Programar trocar sozinho e conclui que a
+tela tem um defeito.
+
+**A ENTREGA NASCE EM BRANCO, E O VAZIO QUER DIZER "UM DIA".** O campo preenchido
+é o DIA da etapa; a entrega só se preenche quando o trabalho dura mais de um.
+
+**E ela não viaja nula, que é o que a leitura literal faria.**
+`disponibilidade_bruta()` filtra `prazo is not null` (0081), então uma fase sem
+prazo **sai da carga de todo mundo** e não tem prazo em Minhas Tasks — seria
+desfazer a outra metade do que ele pediu na mesma conversa. O que viaja é
+`fim = inicio`, que é a verdade de uma etapa de um dia: ela começa e vence no
+mesmo dia. **A tela diz isso por extenso**, embaixo do campo, em vez de
+preencher calado — é a regra da 0025 vista do outro lado: aceitar e fazer outra
+coisa em silêncio é pior que recusar com explicação, e aqui não há recusa, há
+uma frase.
+
+**O BLOCO SUGERIDO CONTINUA SENDO CALCULADO, e é dele que sai o dia.**
+`periodosSugeridosDoFluxo()` divide a janela de trinta dias que antecede o mês
+pelos elos (0089), e o INÍCIO de cada bloco já é o que esta tela precisa: N dias
+espalhados pela janela, em ordem, um por etapa. Refazer a conta aqui seriam duas
+respostas para a mesma pergunta — e a de lá já atende o fluxo de três elos e o
+de dez. **A função não mudou**, e o wrapper que apaga o fim mora na tela, porque
+"a etapa dura um dia" é decisão desta tela e não do fluxo.
+
+**TROCAR O MÊS REFAZ SÓ O DIA.** Ele tem sugestão, então "quem mexeu mandou" se
+mede comparando com ela (a ordem de `coalesce(etapa, padrão)` da 0041); a
+entrega não tem sugestão nenhuma, e toda data que estiver ali foi digitada por
+alguém. *O custo está dito:* quem digitou a entrega em novembro e trocou para
+janeiro fica com uma entrega antes do dia — e isso APARECE, em vermelho, com o
+botão desligado. Apagar calado seria pior.
+
+##### A faixa de disponibilidade, por etapa
+
+**É A MESMA `FaixaDeDisponibilidade` do painel da etapa em Gestão de Tasks**,
+com a mesma escala de quatro degraus de `lib/dominio/calendario.ts` — a pergunta
+aqui é a de lá, feita cinco vezes de uma vez. Duas escalas para a mesma pergunta
+seriam descobertas pela pessoa no dia em que uma tela pintasse de verde o dia
+que a outra pintou de âmbar.
+
+**ELA NASCE FECHADA, E ABRE UMA POR VEZ.** Cinco grades de mês abertas ocupariam
+a tela inteira e disputariam com os campos que elas existem para preencher — e a
+faixa é consulta, não o trabalho. Uma por vez e não um conjunto aberto porque a
+pergunta é sobre UMA pessoa num dia: duas grades lado a lado convidam a comparar
+duas pessoas, que é outra tela.
+
+**O CLIQUE NO DIA ESCREVE O DIA DA ETAPA**, e não a entrega: é o campo que
+sempre existe, e é dele que a etapa de um dia tira as duas pontas.
+
+**E AQUI ELA NÃO É O SALVAMENTO, ao contrário de lá.** Aquele painel grava campo
+a campo e o clique no dia É a escrita; esta tela tem um botão no fim, e o clique
+preenche o campo que a pessoa vai confirmar. **Por isso a frase do rodapé virou
+prop:** ela dizia *"Clicar num dia escreve o prazo da etapa"*, que é verdade no
+painel e nomeia o campo errado aqui — um rodapé que descreve outra coisa ensina
+errado com toda a confiança. O padrão continua sendo o do primeiro chamador,
+então nada mudou onde já estava certo.
+
+**E A CARGA NÃO SAI EM REPOUSO**, que é por que o protótipo tem uma imagem com
+três cliques: o seletor de quem faz nasce em "Decidir depois", e sem pessoa
+escolhida não há calendário de ninguém para abrir. Sem ela, a imagem provaria
+que a faixa sabe sumir.
+
+*O que fica em aberto, e é dito em vez de escondido:* a pessoa de cada função
+**não** vem preenchida de `client_function_defaults` (0064), que é onde a conta
+já guarda quem faz o quê — `etapas_resolvidas_do_workflow()` faz exatamente isso
+um módulo ao lado. Preenchê-la aqui é uma leitura a cada troca de cliente, e é
+decisão própria.
+
 #### A data de cada etapa, escolhida ao abrir o mês
 
 Migration 0059, decisão do usuário: *"quando eu abra um mês de social, eu

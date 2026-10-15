@@ -7,6 +7,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
   demandaDoMes,
   filaDaAgencia,
@@ -132,7 +133,7 @@ async function Fluxos() {
  * `ehFaseDoMaterial` no portal e do `?aba=` torto logo abaixo.
  */
 async function Indice({ parametros }: { parametros: Parametros }) {
-  const sessao = await exigirAcessoARota("/painel/social-media");
+  await exigirAcessoARota("/painel/social-media");
 
   const pedida = texto(parametros, "situacao");
   const situacao: SituacaoDoMes =
@@ -142,14 +143,16 @@ async function Indice({ parametros }: { parametros: Parametros }) {
 
   const conta = texto(parametros, "cliente") ?? null;
 
-  const [meses, clientes, equipe, fluxos] = await Promise.all([
+  // TRÊS CONSULTAS SAÍRAM DAQUI, e é consequência de a abertura do mês ter
+  // virado tela: clientes, equipe e fluxos alimentavam o diálogo, e o índice
+  // as carregava em toda visita para um diálogo que quase ninguém abria. Agora
+  // elas são de `/painel/social-media/abrir`, que é quem as usa.
+  const [meses, podeAbrirMes] = await Promise.all([
     mesesDeSocialDaAgencia(situacao, conta ?? undefined),
-    listarClientes(),
-    listarEquipeAtiva(),
-    // SÓ OS ATIVOS: o diálogo oferece o que dá para aplicar, e um fluxo
-    // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
-    // abriria um mês com a corrente que ela aposentou.
-    fluxosDeSocial({ apenasAtivos: true }),
+    // QUEM ABRE O MÊS É `is_atendimento()` desde a 0046, e a pergunta vai ao
+    // BANCO pela mesma função que a policy usa — perfil de acesso e função na
+    // agência são coisas diferentes, e o colaborador do Atendimento abre o mês.
+    souDoAtendimento(),
   ]);
 
   return (
@@ -157,13 +160,7 @@ async function Indice({ parametros }: { parametros: Parametros }) {
       meses={meses}
       situacao={situacao}
       contaFixada={conta}
-      clientes={clientes
-        .filter((c) => c.ativo)
-        .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
-      equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
-      fluxos={fluxos}
-      driveLigado={driveConfigurado()}
-      souGestor={ehGestor(sessao.profile.role)}
+      podeAbrirMes={podeAbrirMes}
     />
   );
 }

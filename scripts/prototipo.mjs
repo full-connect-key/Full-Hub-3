@@ -278,8 +278,26 @@ const TELAS = [
   // errado na primeira imagem.
   { nome: "54-social-sem-data", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1440, altura: 1500, role: "socio" },
   { nome: "55-social-sem-data-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario`, largura: 375, altura: 1600, role: "socio" },
-  { nome: "56-abrir-o-mes", rota: "/painel/social-media", largura: 1440, altura: 1200, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
-  { nome: "57-abrir-o-mes-375", rota: "/painel/social-media", largura: 375, altura: 1500, role: "socio", clicar: 'button:has-text("Abrir o mês")' },
+  // ABRIR O MES: UMA TELA, e nao mais um dialogo aberto por clique.
+  //
+  // Decisao do usuario: a visualizacao de abertura ficou como a do rascunho de
+  // demanda -- pagina inteira, titulo grande, secoes numeradas. As duas imagens
+  // apontam a ROTA direto e nao tem `clicar`: o botao do indice virou link, e
+  // clicar nele navegaria -- fotografar o destino e o que importa, e a
+  // navegacao do indice e provada pela imagem 57b, onde o botao aparece.
+  { nome: "56-abrir-o-mes", rota: "/painel/social-media/abrir", largura: 1440, altura: 1900, role: "socio" },
+  { nome: "57-abrir-o-mes-375", rota: "/painel/social-media/abrir", largura: 375, altura: 3000, role: "socio" },
+  // E A CARGA DA PESSOA, que e a peca nova da tela e nao sai em repouso: o
+  // seletor de quem faz nasce em "Decidir depois", e sem pessoa escolhida nao
+  // ha calendario de ninguem para abrir. Os tres cliques sao a sequencia da
+  // decisao -- escolher a pessoa da Pauta e pedir os dias dela.
+  //
+  // O SELETOR FECHA ANTES DA FOTO, de proposito: o `Select` do Radix marca o
+  // resto da pagina como `aria-hidden` enquanto esta aberto, e o axe reprova
+  // isso em `aria-hidden-focus`. Escolhendo o item, ele fecha -- e o que a
+  // imagem precisa provar e a faixa, nao a lista de nomes.
+  { nome: "56b-abrir-o-mes-carga", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
+    clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")'] },
   // A ABA FLUXOS (0087). A lista mostra os tres estados que importam: a
   // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
   // descreveu -- e uma desativada, que e o unico em que o selo e o botao

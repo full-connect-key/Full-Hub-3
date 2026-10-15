@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Archive, CalendarRange, CheckCircle2 } from "lucide-react";
+import { Archive, CalendarPlus, CalendarRange, CheckCircle2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -10,9 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { porContaEAno, type MesNaArvore } from "@/lib/dominio/posts";
 import type { MesDeSocial, SituacaoDoMes } from "@/lib/dados/social-media";
-import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 import { cn } from "@/lib/utils";
-import { AbrirOMes } from "./abrir-o-mes";
 
 /**
  * A PORTA DO SOCIAL: uma conta por cartão, com os meses dela dentro.
@@ -70,21 +68,22 @@ export function IndiceDoSocial({
   meses,
   situacao,
   contaFixada,
-  clientes,
-  equipe,
-  fluxos,
-  driveLigado,
-  souGestor,
+  podeAbrirMes,
 }: {
   meses: MesDeSocial[];
   situacao: SituacaoDoMes;
   /** Quando a URL traz `?cliente=`, o índice mostra só ela — e todos os meses. */
   contaFixada: string | null;
-  clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
-  fluxos: FluxoDeSocial[];
-  driveLigado: boolean;
-  souGestor: boolean;
+  /**
+   * QUEM ABRE O MÊS, e a pergunta mudou de `ehGestor` para `is_atendimento()`.
+   *
+   * `abrir_mes_de_social()` é de `is_atendimento()` desde a 0046 — "o
+   * Atendimento abre o mês", decisão do usuário —, e esta tela escondia o botão
+   * de quem não era gestão: o colaborador do Atendimento não encontrava a ação
+   * que o produto diz que é dele. É a lição da 0059, um andar acima — lá o lado
+   * que ficou para trás foi a guarda da action, aqui foi o botão.
+   */
+  podeAbrirMes: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -145,13 +144,18 @@ export function IndiceDoSocial({
             módulo. A porta agora é este índice, e um botão de criar que mora
             dentro de um mês já aberto é um botão que só se encontra depois de
             entrar em outro lugar. */}
-        {souGestor ? (
-          <AbrirOMes
-            clientes={clientes}
-            equipe={equipe}
-            fluxos={fluxos}
-            driveLigado={driveLigado}
-          />
+        {/* ELE É UM LINK E NÃO MAIS UM DIÁLOGO, por decisão do usuário: a
+            abertura do mês virou tela. E com ela saíram QUATRO PROPS desta
+            lista — clientes, equipe, fluxos e a bandeira do Drive —, que esta
+            tela carregava em três consultas só para alimentar um diálogo que
+            quase ninguém abria. Agora elas são da rota que as usa. */}
+        {podeAbrirMes ? (
+          <Button variant="outline" asChild>
+            <Link href="/painel/social-media/abrir">
+              <CalendarPlus aria-hidden className="size-4" />
+              Abrir o mês
+            </Link>
+          </Button>
         ) : null}
       </div>
 
