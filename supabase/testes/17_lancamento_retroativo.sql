@@ -75,9 +75,15 @@ select teste.cenario('A SOCIA registra o periodo do Bruno', :ANA,
 -- pedido e decidir sobre o trabalho de alguem, e isso o produto reserva ao
 -- socio; registrar o que ja aconteceu e lancar historico, e travar isso numa
 -- pessoa so para a agencia no dia em que ela estiver fora.
+-- O DIA UTIL E ESCOLHIDO AQUI FORA, e nao dentro do cenario: o corpo de
+-- `teste.cenario` roda como A PESSOA, e `authenticated` nao alcanca o schema
+-- `teste` -- a chamada de dentro leva "permission denied for schema teste".
+-- Entao ele e resolvido como dono do banco e entra no cenario como literal.
+select teste.dia_util_ha(40)::text as dia_util_40 \gset
+
 select teste.cenario('O DESENVOLVEDOR tambem registra -- aqui ele e gestao', :DIEGO,
-  format($fmt$ select public.lancar_periodo(%L, 'ausencia', current_date - 40, current_date - 40, 'Avisou por mensagem') $fmt$,
-    :MARINA), 'ok');
+  format($fmt$ select public.lancar_periodo(%L, 'ausencia', %L, %L, 'Avisou por mensagem') $fmt$,
+    :MARINA, :'dia_util_40', :'dia_util_40'), 'ok');
 
 
 -- --- O que o registro carrega ----------------------------------------------
@@ -264,8 +270,14 @@ select teste.recusa_com('A funcao de lancar nao cria pedido normal', :ANA,
 
 -- SOBREPOSICAO: a mensagem muda de pessoa. No pedido ela diz "Voce ja tem";
 -- no lancamento quem le e a gestao, e o periodo e de outra pessoa.
+-- O PERIODO INTEIRO e nao um dia, e aqui a razao e outra: o que este cenario
+-- afirma e a SOBREPOSICAO com o periodo que a socia combinou acima
+-- (current_date - 50 a - 46). Um dia util escolhido por `teste.dia_util_ha`
+-- poderia andar para tras de um feriado e SAIR daquela janela -- e o cenario
+-- passaria a medir um lancamento que nao se sobrepoe a nada. Cinco dias
+-- corridos sempre contem um dia util, entao o span resolve as duas coisas.
 select teste.recusa_com('Lancar em cima de periodo ja combinado e recusado', :ANA,
-  format($fmt$ select public.lancar_periodo(%L, 'ausencia', current_date - 48, current_date - 48) $fmt$, :BRUNO),
+  format($fmt$ select public.lancar_periodo(%L, 'ausencia', current_date - 50, current_date - 46) $fmt$, :BRUNO),
   'Esta pessoa ja tem');
 
 

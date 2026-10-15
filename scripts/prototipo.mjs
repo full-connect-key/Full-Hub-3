@@ -248,6 +248,12 @@ const TELAS = [
   { nome: "42-aprovacoes-ajustes", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "43-workflows", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-workflow-editor", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
+  // O EDITOR COM A ARVORE (migration 0108): abre o workflow de dois niveis e
+  // fotografa o recuo, a numeracao "2.1" e a frase que explica por que a mae
+  // nao pede aval nem espera outra etapa. O editor VAZIO nao prova nada disso
+  // -- ele abre com uma etapa de topo e nenhum filho.
+  { nome: "45b-workflow-arvore", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1500, role: "socio",
+    clicar: 'button:has-text("Campanha com enxoval")' },
   // O MES ABERTO PRECISA DO RECORTE NA URL, desde que a aba Posts saiu: sem
   // `mes` e `cliente` a secao Social desenha o INDICE, que e outra tela. O mes
   // e o corrente porque os posts de exemplo sao datados a partir do dia 1 de
@@ -678,6 +684,24 @@ const TELAS = [
     clicar: ['button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
   { nome: "20j-nova-campanha-375", rota: "/painel/aprovacoes/campanhas/nova", largura: 375, altura: 1900, role: "socio",
     clicar: ['button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
+  // A CAMPANHA COM O WORKFLOW APLICADO NAO TEM IMAGEM, e fica dito em vez de
+  // escondido (migration 0108). A arvore vem de `arvoreDoWorkflowParaCampanha`,
+  // e `exigirAtendimentoNaAcao` chama `is_atendimento()` NO BANCO -- o
+  // prototipo nao tem Supabase, entao a action recusa e a tela sai com o aviso
+  // de erro na cara, que o proprio gerador acusa.
+  //
+  // DUAS SAIDAS FORAM RECUSADAS. Fingir a guarda no prototipo esconderia toda
+  // recusa de verdade que ela protege, que e o contrario do que o gerador
+  // existe para mostrar. E fotografar o SELETOR ABERTO custaria um vermelho
+  // permanente no axe: o `Select` do Radix e modal e marca o resto da pagina
+  // com `aria-hidden`, o que faz `aria-hidden-focus` acusar os focaveis de
+  // tras -- comportamento de todos os 52 Selects do produto, e um segundo
+  // vermelho fixo gastaria o sinal do primeiro, que e a decisao da paleta do
+  // editor esperando resposta.
+  //
+  // O que a imagem provaria -- as duas origens no seletor, e a arvore com
+  // responsavel e prazo -- se confere na tela, logado. A metade do EDITOR,
+  // essa tem imagem: `45b-workflow-arvore`.
   // A LISTA DA AGÊNCIA não tinha imagem, e foi onde o bug morava: "Nenhuma
   // campanha aberta" com campanha criada. A tela que o usuário olhou é
   // justamente esta, e sem ela no protótipo a correção ficava sem prova.

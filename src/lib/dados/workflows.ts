@@ -230,6 +230,17 @@ export type EtapaAplicada = {
   requer_aprovacao: boolean;
   tipo_aprovacao: WorkflowStep["tipo_aprovacao"];
   depende_de: number | null;
+  /**
+   * A POSIÇÃO da etapa de cima na lista, de 1 em diante, ou null no topo
+   * (migration 0108).
+   *
+   * **É posição e não id**, como `depende_de` ao lado: nada foi gravado ainda
+   * quando esta lista é montada, então não existe uuid para apontar. Quem
+   * materializa resolve as duas na mesma passada — e as duas pela mesma razão,
+   * que é a de `modeloDeUmaTask()`: "a dependência não viaja, ela aponta para
+   * uuid e o modelo grava posição".
+   */
+  parent_de: number | null;
 };
 
 export type FluxoAplicado = {
@@ -327,6 +338,14 @@ export async function etapasDoWorkflow(
         etapa.depende_de_ordem !== null
           ? (posicaoPorOrdem.get(etapa.depende_de_ordem) ?? null)
           : null,
+      // O PAI PELA MESMA TRADUÇÃO que a dependência: a `ordem` do modelo vira
+      // a posição nesta lista. Elas não são a mesma coisa — `ordem` tem folga
+      // (10, 20, 30) justamente para alguém acrescentar no meio sem renumerar,
+      // e a posição é 1, 2, 3.
+      parent_de:
+        etapa.parent_ordem !== null
+          ? (posicaoPorOrdem.get(etapa.parent_ordem) ?? null)
+          : null,
     })),
   };
 }
@@ -342,6 +361,7 @@ type EtapaDoModelo = {
   requer_aprovacao: boolean;
   tipo_aprovacao: WorkflowStep["tipo_aprovacao"];
   depende_de_ordem: number | null;
+  parent_ordem: number | null;
 };
 
 async function resolvidasPelaConta(
@@ -383,6 +403,7 @@ async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
     requer_aprovacao: etapa.requer_aprovacao,
     tipo_aprovacao: etapa.tipo_aprovacao,
     depende_de_ordem: etapa.depende_de_ordem,
+    parent_ordem: etapa.parent_ordem,
   }));
 }
 

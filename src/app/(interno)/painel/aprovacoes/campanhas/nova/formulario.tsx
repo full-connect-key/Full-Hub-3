@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -21,12 +23,16 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   entregaveisDoTemplate,
   ROTULO_DA_CAMPANHA,
+  type NoDeModelo,
 } from "@/lib/dominio/campanhas";
 import type { CampaignStatus } from "@/lib/supabase/database.types";
 import type { JSONContent } from "@tiptap/react";
 import type { TemplateDeCampanha } from "@/lib/dados/campanhas";
 
-import { criarCampanha } from "../../acoes-de-campanha";
+import {
+  arvoreDoWorkflowParaCampanha,
+  criarCampanha,
+} from "../../acoes-de-campanha";
 
 /**
  * Abrir uma campanha, na versão que dá para usar.
@@ -73,17 +79,39 @@ function item(nome = ""): ItemEmEdicao {
   return { chave: chave(), nome, prazo: "", responsavelId: SEM_DONO };
 }
 
+/** `AAAA-MM-DD` mais N dias, em UTC para não escorregar de fuso. */
+function somarDias(data: string, dias: number): string {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia + dias)).toISOString().slice(0, 10);
+}
+
 export function FormularioDeCampanha({
   clientes,
   templates,
+  workflows,
   pessoas,
 }: {
   clientes: { id: string; nome: string }[];
   templates: TemplateDeCampanha[];
+  /**
+   * OS WORKFLOWS, que o seletor passou a oferecer ao lado dos modelos de
+   * campanha (migration 0108).
+   *
+   * **A árvore deles NÃO vem pronta daqui**, ao contrário da do modelo de
+   * campanha: o responsável de cada etapa é resolvido pela CONTA
+   * (`etapas_resolvidas_do_workflow`, 0064), e a conta é escolhida nesta tela
+   * — pré-resolver na página seria resolver todo workflow para todo cliente.
+   * Quem responde é `arvoreDoWorkflowParaCampanha`, no clique.
+   */
+  workflows: { id: string; nome: string; descricao: string | null; etapas: number }[];
   pessoas: { id: string; nome: string; funcao: string | null }[];
 }) {
   const router = useRouter();
   const [salvando, salvar] = useTransition();
+  // A MONTAGEM DA ÁRVORE TEM TRANSIÇÃO PRÓPRIA, separada do salvamento: as
+  // duas acontecem em momentos diferentes, e um `salvando` só deixaria o botão
+  // "Criar campanha" em "Salvando…" enquanto a pessoa só escolheu um modelo.
+  const [montando, montar] = useTransition();
 
   const [clienteId, setClienteId] = useState("");
   const [nome, setNome] = useState("");
@@ -130,14 +158,61 @@ export function FormularioDeCampanha({
     }
 
     const modelo = templates.find((t) => t.id === id);
-    if (!modelo) return;
+    if (modelo) {
+      plantar(entregaveisDoTemplate(modelo.estrutura));
+      return;
+    }
 
-    setArvore(
-      entregaveisDoTemplate(modelo.estrutura).map((no) => ({
-        ...item(no.nome),
-        filhos: no.filhos.map((filho) => item(filho)),
+    /**
+     * O WORKFLOW É A SEGUNDA ORIGEM, e ela custa uma ida ao servidor.
+     *
+     * O modelo de campanha expande aqui mesmo — ele é uma lista de nomes que
+     * já veio na página. O workflow precisa do servidor porque o responsável
+     * de cada etapa depende da CONTA (0064) e o prazo depende da data de
+     * início, e as duas estão nesta tela.
+     *
+     * **A árvore anterior só sai quando a nova chega.** Limpando antes, uma
+     * recusa deixaria a pessoa com a tela vazia e o modelo antigo perdido —
+     * que é a decisão do "trocar de modelo refaz a lista" ao contrário: ali o
+     * trabalho se perde porque ela disse que podia, aqui se perderia por uma
+     * falha.
+     */
+    const workflow = workflows.find((w) => w.id === id);
+    if (!workflow) return;
+
+    montar(async () => {
+      const r = await chamarAcao(() =>
+        arvoreDoWorkflowParaCampanha(id, clienteId || null, dataInicio),
+      );
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      plantar(r.dados ?? []);
+      if (r.mensagem) toast.success(r.mensagem);
+    });
+  }
+
+  /** Põe uma árvore de modelo na tela, de qualquer origem. */
+  function plantar(nos: NoDeModelo[]) {
+    const paraEdicao = (no: NoDeModelo): NoEmEdicao => ({
+      ...item(no.nome),
+      // O RESPONSÁVEL E O PRAZO ENTRAM QUANDO O MODELO OS SABE, e é isso que
+      // faz o workflow "aparecer montado completo": o modelo de campanha
+      // guarda nomes e deixa os dois em branco, como já deixava.
+      responsavelId: no.responsavelId ?? SEM_DONO,
+      prazo: no.offsetDias !== null && dataInicio ? somarDias(dataInicio, no.offsetDias) : "",
+      filhos: no.filhos.map((filho) => ({
+        ...item(filho.nome),
+        responsavelId: filho.responsavelId ?? SEM_DONO,
+        prazo:
+          filho.offsetDias !== null && dataInicio
+            ? somarDias(dataInicio, filho.offsetDias)
+            : "",
       })),
-    );
+    });
+
+    setArvore(nos.map(paraEdicao));
   }
 
   function mudarNo(chaveDoNo: string, mudanca: Partial<ItemEmEdicao>) {
@@ -205,7 +280,11 @@ export function FormularioDeCampanha({
     });
   }
 
-  const modelo = templates.find((t) => t.id === templateId);
+  // A DESCRIÇÃO VEM DA ORIGEM ESCOLHIDA, qualquer das duas. Procurar só em
+  // `templates` deixaria a linha de ajuda em branco para todo workflow.
+  const escolhido =
+    templates.find((t) => t.id === templateId) ??
+    workflows.find((w) => w.id === templateId);
 
   return (
     <div className="space-y-8">
@@ -349,15 +428,45 @@ export function FormularioDeCampanha({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={SEM_MODELO}>Montar do zero</SelectItem>
-              {templates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.nome}
-                </SelectItem>
-              ))}
+
+              {/* AS DUAS ORIGENS APARECEM NOMEADAS, e não misturadas numa lista
+                  só: elas não são a mesma coisa. O modelo de campanha guarda
+                  uma lista de nomes — a Wave, com a quantidade de Feed/Storys
+                  que `workflow_steps` não tem coluna para expressar —, e o
+                  workflow carrega função, responsável e prazo relativo de cada
+                  etapa. Juntas sem rótulo, a pessoa não saberia por que um
+                  traz os responsáveis preenchidos e o outro não. */}
+              {templates.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>Modelos de campanha</SelectLabel>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
+
+              {workflows.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>Workflows</SelectLabel>
+                  {workflows.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.nome}
+                      {w.etapas > 0 ? ` · ${w.etapas} etapa(s)` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
             </SelectContent>
           </Select>
-          {modelo?.descricao ? (
-            <p className="text-text-muted text-sm">{modelo.descricao}</p>
+          {montando ? (
+            <p className="text-text-muted flex items-center gap-2 text-sm">
+              <Loader2 aria-hidden className="size-4 animate-spin" />
+              Montando a árvore deste workflow…
+            </p>
+          ) : escolhido?.descricao ? (
+            <p className="text-text-muted text-sm">{escolhido.descricao}</p>
           ) : null}
         </div>
 

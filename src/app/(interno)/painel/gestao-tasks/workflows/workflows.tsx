@@ -11,6 +11,7 @@ import {
   Lock,
   Plus,
   RotateCcw,
+  ListPlus,
   Trash2,
   X,
 } from "lucide-react";
@@ -61,13 +62,23 @@ type EtapaEmEdicao = {
   offset: string;
   aprovacao: string;
   dependeDe: string;
+  /**
+   * A CHAVE da etapa de cima, ou null no topo (migration 0108).
+   *
+   * **É a chave da linha e não a posição**, ao contrário do que vai para o
+   * banco: aqui a lista é reordenada com as setas, e uma posição guardada
+   * apontaria para outra etapa depois do primeiro `mover()`. A tradução para
+   * `parent_ordem` acontece uma vez, no salvamento, pelo mesmo mapa que a
+   * dependência usa.
+   */
+  paiChave: string | null;
 };
 
 function novaChave() {
   return Math.random().toString(36).slice(2);
 }
 
-function etapaVazia(): EtapaEmEdicao {
+function etapaVazia(paiChave: string | null = null): EtapaEmEdicao {
   return {
     chave: novaChave(),
     nome: "",
@@ -77,7 +88,47 @@ function etapaVazia(): EtapaEmEdicao {
     offset: "",
     aprovacao: SEM_VALOR,
     dependeDe: SEM_VALOR,
+    paiChave,
   };
+}
+
+/**
+ * O NÚMERO QUE A LINHA MOSTRA: "3" no topo, "3.2" na sub-etapa.
+ *
+ * Ele é derivado da lista e não guardado, porque muda a cada `mover()` — é
+ * "atraso não é coluna" numa numeração de tela.
+ */
+function numeroNaTela(etapas: EtapaEmEdicao[], indice: number): string {
+  const eu = etapas[indice];
+  if (!eu.paiChave) {
+    return String(etapas.filter((e, i) => i <= indice && e.paiChave === null).length);
+  }
+  const ondeEstaOPai = etapas.findIndex((e) => e.chave === eu.paiChave);
+  const numeroDoPai =
+    ondeEstaOPai < 0
+      ? "?"
+      : String(etapas.filter((e, i) => i <= ondeEstaOPai && e.paiChave === null).length);
+  const entreIrmas = etapas.filter(
+    (e, i) => i <= indice && e.paiChave === eu.paiChave,
+  ).length;
+  return `${numeroDoPai}.${entreIrmas}`;
+}
+
+/**
+ * Se a seta faz alguma coisa: há vizinha do MESMO nível naquela direção.
+ *
+ * A regra antiga era `indice === 0` e `indice === length - 1`, e com a árvore
+ * na mesma lista ela mentiria nos dois sentidos — a primeira sub-etapa de uma
+ * mãe tem linha acima e não tem irmã acima, então a seta ficaria ligada sem
+ * ter para onde ir.
+ */
+function podeAndar(etapas: EtapaEmEdicao[], indice: number, direcao: -1 | 1): boolean {
+  const eu = etapas[indice];
+  const mesmoNivel = etapas
+    .map((e, i) => ({ e, i }))
+    .filter(({ e }) => e.paiChave === eu.paiChave);
+  const ondeEstou = mesmoNivel.findIndex(({ i }) => i === indice);
+  return mesmoNivel[ondeEstou + direcao] !== undefined;
 }
 
 /**
@@ -154,6 +205,12 @@ export function Workflows({
             ? SEM_VALOR
             : (chaves[tipo.etapas.findIndex((e) => e.ordem === etapa.depende_de_ordem)] ??
               SEM_VALOR),
+        // A VOLTA DO PAI É PELA MESMA TRADUÇÃO da dependência: `parent_ordem`
+        // é a `ordem` do pai, e aqui ela vira a chave da linha dele.
+        paiChave:
+          etapa.parent_ordem === null
+            ? null
+            : (chaves[tipo.etapas.findIndex((e) => e.ordem === etapa.parent_ordem)] ?? null),
       })),
     );
   }
@@ -162,15 +219,106 @@ export function Workflows({
     setEtapas((atual) => atual.map((e) => (e.chave === chave ? { ...e, ...campos } : e)));
   }
 
+  /**
+   * MOVER TROCA COM A VIZINHA DO MESMO NÍVEL, e não com a linha de cima
+   * (migration 0108).
+   *
+   * Com a árvore na mesma lista, trocar com a linha vizinha moveria uma
+   * sub-etapa para fora da mãe — ou a mãe para dentro de outra —, e a ordem da
+   * tela deixaria de bater com a árvore que o `parent_ordem` descreve. Quem
+   * tem pai só anda entre irmãs; quem é de topo só anda entre etapas de topo,
+   * levando as filhas consigo.
+   */
   function mover(chave: string, direcao: -1 | 1) {
     setEtapas((atual) => {
       const indice = atual.findIndex((e) => e.chave === chave);
-      const destino = indice + direcao;
-      if (indice < 0 || destino < 0 || destino >= atual.length) return atual;
-      const copia = [...atual];
-      [copia[indice], copia[destino]] = [copia[destino], copia[indice]];
-      return copia;
+      if (indice < 0) return atual;
+      const eu = atual[indice];
+
+      if (eu.paiChave) {
+        // A VIZINHA É A IRMÃ MAIS PRÓXIMA na direção pedida.
+        const irmas = atual
+          .map((e, i) => ({ e, i }))
+          .filter(({ e }) => e.paiChave === eu.paiChave);
+        const ondeEstou = irmas.findIndex(({ e }) => e.chave === chave);
+        const vizinha = irmas[ondeEstou + direcao];
+        if (!vizinha) return atual;
+        const copia = [...atual];
+        [copia[indice], copia[vizinha.i]] = [copia[vizinha.i], copia[indice]];
+        return copia;
+      }
+
+      // ETAPA DE TOPO ANDA COM O BLOCO DELA. As filhas vêm imediatamente
+      // depois dela na lista (é assim que `acrescentarFilha` as insere), então
+      // o bloco é contíguo e se move inteiro.
+      const blocoDe = (inicio: number) => {
+        let fim = inicio + 1;
+        while (fim < atual.length && atual[fim].paiChave === atual[inicio].chave) fim++;
+        return { inicio, fim };
+      };
+
+      const meu = blocoDe(indice);
+      if (direcao === -1) {
+        const anterior = [...atual.keys()]
+          .filter((i) => i < indice && atual[i].paiChave === null)
+          .pop();
+        if (anterior === undefined) return atual;
+        const dele = blocoDe(anterior);
+        return [
+          ...atual.slice(0, dele.inicio),
+          ...atual.slice(meu.inicio, meu.fim),
+          ...atual.slice(dele.inicio, dele.fim),
+          ...atual.slice(meu.fim),
+        ];
+      }
+
+      const seguinte = atual.findIndex((e, i) => i >= meu.fim && e.paiChave === null);
+      if (seguinte < 0) return atual;
+      const dele = blocoDe(seguinte);
+      return [
+        ...atual.slice(0, meu.inicio),
+        ...atual.slice(dele.inicio, dele.fim),
+        ...atual.slice(meu.inicio, meu.fim),
+        ...atual.slice(dele.fim),
+      ];
     });
+  }
+
+  /**
+   * ACRESCENTA UMA SUB-ETAPA, logo depois da última irmã.
+   *
+   * **A posição na lista não é só estética**: ela é o que torna o bloco de
+   * cada mãe contíguo, e é desse bloco que `mover()` depende para andar com as
+   * filhas. Jogada no fim da lista, a sub-etapa apareceria longe da mãe e a
+   * seta de subir teria de procurá-la na lista inteira.
+   */
+  function acrescentarFilha(paiChave: string) {
+    setEtapas((atual) => {
+      const ondeEstaOPai = atual.findIndex((e) => e.chave === paiChave);
+      if (ondeEstaOPai < 0) return atual;
+      let depois = ondeEstaOPai + 1;
+      while (depois < atual.length && atual[depois].paiChave === paiChave) depois++;
+      return [
+        ...atual.slice(0, depois),
+        etapaVazia(paiChave),
+        ...atual.slice(depois),
+      ];
+    });
+  }
+
+  /**
+   * REMOVER UMA ETAPA LEVA AS SUB-ETAPAS DELA, e isso não é zelo: uma filha
+   * sem mãe é recusada pelo banco (`parent_ordem` apontando para posição que
+   * não existe), e a recusa chegaria no clique de Salvar falando de uma etapa
+   * que a pessoa acabou de apagar.
+   */
+  function remover(chave: string) {
+    setEtapas((atual) => atual.filter((e) => e.chave !== chave && e.paiChave !== chave));
+  }
+
+  /** Quem tem sub-etapa: não exige aprovação nem espera outra etapa (0108). */
+  function temFilha(chave: string) {
+    return etapas.some((e) => e.paiChave === chave);
   }
 
   function salvar() {
@@ -195,6 +343,9 @@ export function Workflows({
             tipo_aprovacao:
               etapa.aprovacao === SEM_VALOR ? null : (etapa.aprovacao as "interna" | "cliente"),
             depende_de_ordem: ordemPorChave.get(etapa.dependeDe) ?? null,
+            parent_ordem: etapa.paiChave
+              ? (ordemPorChave.get(etapa.paiChave) ?? null)
+              : null,
           })),
         }),
       );
@@ -446,10 +597,25 @@ export function Workflows({
               ) : (
                 <ul className="space-y-2">
                   {etapas.map((etapa, indice) => (
-                    <li key={etapa.chave} className="space-y-2 rounded-md border p-3">
+                    <li
+                      key={etapa.chave}
+                      // O RECUO É A ÁRVORE, e vem com um fio à esquerda: sem
+                      // ele, duas sub-etapas seguidas se leem como duas etapas
+                      // de topo mais estreitas. É a decisão da árvore de
+                      // entregáveis, onde o rótulo diz onde o grupo começa e o
+                      // fio diz onde ele termina.
+                      className={
+                        etapa.paiChave
+                          ? "border-border ml-6 space-y-2 rounded-md border border-l-2 p-3"
+                          : "space-y-2 rounded-md border p-3"
+                      }
+                    >
                       <div className="flex items-start gap-2">
                         <span className="text-muted-foreground w-5 shrink-0 pt-2 text-xs tabular-nums">
-                          {indice + 1}
+                          {/* A NUMERAÇÃO DA SUB-ETAPA É DENTRO DA MÃE, e não a
+                              posição na lista: "3.2" diz de quem ela é, e "7"
+                              não diria nada. */}
+                          {numeroNaTela(etapas, indice)}
                         </span>
                         <Input
                           className="flex-1"
@@ -457,12 +623,30 @@ export function Workflows({
                           value={etapa.nome}
                           onChange={(e) => mudar(etapa.chave, { nome: e.target.value })}
                         />
+                        {/* SÓ ETAPA DE TOPO RECEBE SUB-ETAPA (0108): são dois
+                            níveis no modelo porque o workflow materializa
+                            subtarefa, e `subtasks_agrupadora` (0022) recusa a
+                            neta. Na sub-etapa o botão não aparece, em vez de
+                            aparecer desligado: não é um passo que falta, é uma
+                            porta que não existe naquele nível. */}
+                        {etapa.paiChave === null ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Acrescentar sub-etapa em ${etapa.nome || "esta etapa"}`}
+                            title="Acrescentar sub-etapa"
+                            onClick={() => acrescentarFilha(etapa.chave)}
+                          >
+                            <ListPlus aria-hidden />
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           aria-label="Subir"
-                          disabled={indice === 0}
+                          disabled={!podeAndar(etapas, indice, -1)}
                           onClick={() => mover(etapa.chave, -1)}
                         >
                           <ChevronUp aria-hidden />
@@ -472,7 +656,7 @@ export function Workflows({
                           variant="ghost"
                           size="icon"
                           aria-label="Descer"
-                          disabled={indice === etapas.length - 1}
+                          disabled={!podeAndar(etapas, indice, 1)}
                           onClick={() => mover(etapa.chave, 1)}
                         >
                           <ChevronDown aria-hidden />
@@ -482,9 +666,7 @@ export function Workflows({
                           variant="ghost"
                           size="icon"
                           aria-label="Remover etapa"
-                          onClick={() =>
-                            setEtapas((atual) => atual.filter((e) => e.chave !== etapa.chave))
-                          }
+                          onClick={() => remover(etapa.chave)}
                         >
                           <X aria-hidden />
                         </Button>
@@ -561,7 +743,11 @@ export function Workflows({
                           value={etapa.aprovacao}
                           onValueChange={(v) => mudar(etapa.chave, { aprovacao: v })}
                         >
-                          <SelectTrigger className="w-full" aria-label="Aprovação">
+                          <SelectTrigger
+                            className="w-full"
+                            aria-label="Aprovação"
+                            disabled={temFilha(etapa.chave)}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -574,22 +760,46 @@ export function Workflows({
                         <Select
                           value={etapa.dependeDe}
                           onValueChange={(v) => mudar(etapa.chave, { dependeDe: v })}
+                          disabled={temFilha(etapa.chave)}
                         >
                           <SelectTrigger className="w-full" aria-label="Depende de">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value={SEM_VALOR}>Não depende de nada</SelectItem>
+                            {/* SÓ ETAPAS DO MESMO NÍVEL, e antes desta: uma
+                                sub-etapa esperando a mãe de outra seria uma
+                                dependência que atravessa a árvore, e o número
+                                que o rótulo mostra ("Depende de 3.") não
+                                existe fora do nível. */}
                             {etapas
-                              .filter((outra, i) => i < indice)
-                              .map((outra, i) => (
+                              .filter(
+                                (outra, i) => i < indice && outra.paiChave === etapa.paiChave,
+                              )
+                              .map((outra) => (
                                 <SelectItem key={outra.chave} value={outra.chave}>
-                                  Depende de {i + 1}. {outra.nome || "(sem nome)"}
+                                  Depende de {numeroNaTela(etapas, etapas.indexOf(outra))}.{" "}
+                                  {outra.nome || "(sem nome)"}
                                 </SelectItem>
                               ))}
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {/* A RAZÃO FICA ESCRITA, e os dois seletores desligados
+                          em vez de sumirem: é a decisão do "Enviar ao cliente"
+                          do Social Media — um botão que some ensina que não
+                          existe; um desligado que diz por quê ensina a regra. E
+                          a regra é do banco: `workflow_steps_confere_*` (0108)
+                          recusa, porque `subtasks_agrupadora` (0022) recusaria
+                          na hora de aplicar. */}
+                      {temFilha(etapa.chave) ? (
+                        <p className="text-text-muted pl-7 text-xs">
+                          Esta etapa tem sub-etapas, então ela agrupa em vez de
+                          ser trabalho: quem entrega e quem espera são as
+                          sub-etapas. Marque a aprovação e a dependência nelas.
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

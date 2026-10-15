@@ -523,7 +523,14 @@ from (
     -- marcador por ausencia quebra no dia em que alguem acrescenta uma frase
     -- nova com a palavra velha dentro, que foi o que a linha da 0060 custou.
     ('0107', 'o sino diz "Day off combinado"', 'no_corpo',
-             'decidir_solicitacao|then ''Day off''')
+             'decidir_solicitacao|then ''Day off'''),
+    -- A 0108 aponta para o PASSO 3, que e o ultimo: num banco onde alguem
+    -- colou so a coluna e os gatilhos, a resposta certa e FALTA. E ela e por
+    -- PRESENCA e nao por ausencia -- marcador por ausencia envelhece quando
+    -- alguem ACRESCENTA, e acrescentar e o que as migrations fazem (foi assim
+    -- que a linha da 0060 passou a mentir quando a 0090 devolveu a frase).
+    ('0108', 'a resolucao do workflow devolve parent_ordem', 'no_corpo',
+             'etapas_resolvidas_do_workflow|parent_ordem')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

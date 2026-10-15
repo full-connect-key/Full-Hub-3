@@ -267,27 +267,121 @@ export function alertaDePrazo(
  * deixaria a pessoa sem saída na tela de criação, enquanto o banco continua
  * recusando o neto de verdade, que é onde a regra vale.
  */
+/**
+ * UM NÓ DA ÁRVORE QUE O FORMULÁRIO DE ABERTURA MONTA, de qualquer origem.
+ *
+ * São DUAS origens desde a 0108 — o modelo de campanha e o WORKFLOW —, e a
+ * forma é a mesma para as duas não precisarem de dois caminhos na tela. O que
+ * o modelo de campanha não sabe preencher vem nulo: ele guarda uma lista de
+ * nomes, e a tela deixa o campo em branco como já deixava.
+ */
+export type NoDeModelo = {
+  nome: string;
+  /** Quem o modelo sugere. Só o workflow responde — e resolvido pela conta. */
+  responsavelId: string | null;
+  /** Dias contados do INÍCIO da campanha. Só o workflow responde. */
+  offsetDias: number | null;
+  filhos: NoDeModelo[];
+};
+
 export function entregaveisDoTemplate(
   estrutura: EstruturaDeTemplate,
-): { nome: string; filhos: string[] }[] {
-  return estrutura.map((no) => {
-    if (no.itens && no.itens.length > 0) {
-      return { nome: no.nome, filhos: no.itens.map((i) => i.nome) };
+): NoDeModelo[] {
+  const no = (nome: string): NoDeModelo => ({
+    nome,
+    responsavelId: null,
+    offsetDias: null,
+    filhos: [],
+  });
+
+  return estrutura.map((raiz) => {
+    if (raiz.itens && raiz.itens.length > 0) {
+      return { ...no(raiz.nome), filhos: raiz.itens.map((i) => no(i.nome)) };
     }
 
-    if (no.quantidade && no.quantidade > 0) {
-      const base = singularDoGrupo(no.nome);
+    if (raiz.quantidade && raiz.quantidade > 0) {
+      const base = singularDoGrupo(raiz.nome);
       return {
-        nome: no.nome,
-        filhos: Array.from(
-          { length: no.quantidade },
-          (_, i) => `${base} ${i + 1}`,
+        ...no(raiz.nome),
+        filhos: Array.from({ length: raiz.quantidade }, (_, i) =>
+          no(`${base} ${i + 1}`),
         ),
       };
     }
 
-    return { nome: no.nome, filhos: [] };
+    return no(raiz.nome);
   });
+}
+
+/**
+ * O WORKFLOW VIRA A ÁRVORE DA CAMPANHA (migration 0108).
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário: *"quando crio um workflow, ele nao está permitindo que
+ * eu aplique ela na campanha"*. Ele estava certo, e a causa era que "Partir de
+ * um modelo" lê `campaign_templates` — outra tabela, que **nenhuma tela do
+ * produto cria**. Quem monta uma cadeia de etapas no Full Hub monta um
+ * workflow, e aquele seletor nunca o listou.
+ *
+ * **E O QUE TORNOU ISSO POSSÍVEL foi o segundo nível**: a campanha precisa de
+ * uma árvore de dois níveis (`deliverables_dois_niveis`, 0033), e o workflow
+ * só sabia cadeia reta até a 0108. São os dois pedidos dele, e uma mudança.
+ *
+ * **A árvore de um workflow é mais rica que a de um modelo de campanha**, e é
+ * nisso que ela cumpre o "já aparecer montado completo": cada etapa carrega o
+ * RESPONSÁVEL — resolvido pela conta por `etapas_resolvidas_do_workflow()`
+ * (0064), com quem saiu da agência fora — e o PRAZO em dias do início.
+ * ---------------------------------------------------------------------------
+ *
+ * **A ORDEM DOS FILHOS É A DA LISTA, e não a `ordem` do modelo**, porque elas
+ * não são a mesma coisa: `ordem` tem folga (10, 20, 30) para alguém
+ * acrescentar no meio sem renumerar. Quem já traduziu uma na outra é
+ * `fluxoDoWorkflow()`, e é de lá que `parent_de` chega — por posição.
+ */
+export function entregaveisDoWorkflow(
+  etapas: {
+    titulo: string;
+    responsavel_id: string | null;
+    prazo: string | null;
+    parent_de: number | null;
+  }[],
+  dataInicio: string,
+): NoDeModelo[] {
+  const no = (etapa: (typeof etapas)[number]): NoDeModelo => ({
+    nome: etapa.titulo,
+    responsavelId: etapa.responsavel_id,
+    // O PRAZO CHEGA COMO DATA e volta a ser offset, porque o formulário da
+    // campanha tem data de início própria e a pessoa pode trocá-la depois de
+    // escolher o modelo. `fluxoDoWorkflow()` já somou o offset a uma data de
+    // início; aqui ela é desfeita contra a MESMA data, então a volta é exata.
+    offsetDias: etapa.prazo ? diasEntre(dataInicio, etapa.prazo) : null,
+    filhos: [],
+  });
+
+  const arvore: NoDeModelo[] = [];
+  const porPosicao = new Map<number, NoDeModelo>();
+
+  etapas.forEach((etapa, indice) => {
+    const atual = no(etapa);
+    porPosicao.set(indice + 1, atual);
+
+    // SEM PAI ENCONTRADO A ETAPA SOBE PARA O TOPO, e não desaparece: ela é
+    // trabalho que o modelo descreve, e a árvore da campanha aceita item de
+    // topo. É a decisão do sub-item órfão do portal, que sobe em vez de sumir.
+    const pai = etapa.parent_de !== null ? porPosicao.get(etapa.parent_de) : null;
+    if (pai) pai.filhos.push(atual);
+    else arvore.push(atual);
+  });
+
+  return arvore;
+}
+
+/** Quantos dias de `de` até `ate`, nas duas datas em `AAAA-MM-DD`. */
+function diasEntre(de: string, ate: string): number {
+  const [a1, m1, d1] = de.split("-").map(Number);
+  const [a2, m2, d2] = ate.split("-").map(Number);
+  const umDia = 86_400_000;
+  return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / umDia);
 }
 
 /** "Feed/Storys" → "Feed/Story"; "Vídeos TV" → "Vídeo TV". */

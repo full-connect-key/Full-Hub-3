@@ -2473,6 +2473,13 @@ export interface Database {
           requer_aprovacao: boolean;
           tipo_aprovacao: TipoAprovacao | null;
           depende_de_ordem: number | null;
+          /**
+           * A POSIÇÃO da etapa de cima no mesmo modelo (migration 0108), ou
+           * null no topo. É posição e não uuid porque `regravarEtapas()` apaga
+           * e reinsere a cadeia a cada salvamento — a decisão de
+           * `depende_de_ordem` ao lado.
+           */
+          parent_ordem: number | null;
           created_at: string;
         };
         Insert: {
@@ -2487,6 +2494,7 @@ export interface Database {
           requer_aprovacao?: boolean;
           tipo_aprovacao?: TipoAprovacao | null;
           depende_de_ordem?: number | null;
+          parent_ordem?: number | null;
         };
         Update: {
           nome?: string;
@@ -2498,6 +2506,7 @@ export interface Database {
           requer_aprovacao?: boolean;
           tipo_aprovacao?: TipoAprovacao | null;
           depende_de_ordem?: number | null;
+          parent_ordem?: number | null;
         };
         Relationships: [];
       };
@@ -3446,6 +3455,15 @@ export interface Database {
           requer_aprovacao: boolean;
           tipo_aprovacao: TipoAprovacao | null;
           depende_de_ordem: number | null;
+          /**
+           * O pai de cada etapa, por posição (0108). A função foi RECRIADA com
+           * `drop` antes do `create` — `create or replace` não troca o tipo de
+           * retorno de uma `returns table` —, e esta linha acompanha à mão
+           * porque `check:tipos` liga coluna e parâmetro e NÃO confere a forma
+           * de um `returns table` recriado. Quem leria a coluna que falta é a
+           * tela.
+           */
+          parent_ordem: number | null;
         }[];
       };
       /**

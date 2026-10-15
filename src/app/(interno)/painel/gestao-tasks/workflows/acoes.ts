@@ -52,6 +52,8 @@ const esquemaDeEtapa = z.object({
   requer_aprovacao: z.boolean().default(false),
   tipo_aprovacao: z.enum(["interna", "cliente"]).nullable().optional(),
   depende_de_ordem: z.number().int().positive().nullable().optional(),
+  /** A POSIÇÃO da etapa de cima, ou null no topo (migration 0108). */
+  parent_ordem: z.number().int().positive().nullable().optional(),
 });
 
 const esquemaDeTipo = z.object({
@@ -91,6 +93,7 @@ async function regravarEtapas(
       requer_aprovacao: etapa.requer_aprovacao,
       tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
       depende_de_ordem: etapa.depende_de_ordem ?? null,
+      parent_ordem: etapa.parent_ordem ?? null,
     })),
   );
   return error ? error.message : null;
@@ -117,9 +120,40 @@ export async function salvarWorkflow(
     }
     const entrada = validacao.data;
 
+    /**
+     * AS TRÊS CONFERÊNCIAS DA TELA, e nenhuma delas é a trava.
+     *
+     * Quem vale é o banco: `workflow_steps_confere_*` (0108) recusa as duas de
+     * baixo, e o check de tipo de aprovação é da 0007. Estas existem para a
+     * frase ser em português e NOMEAR a etapa antes de a pessoa levar um erro
+     * de constraint — a decisão da máquina de estados ao lado dos gatilhos.
+     */
+    const comFilha = new Set(
+      entrada.etapas
+        .map((e) => e.parent_ordem)
+        .filter((o): o is number => typeof o === "number"),
+    );
+
     for (const etapa of entrada.etapas) {
       if (etapa.requer_aprovacao && !etapa.tipo_aprovacao) {
         return falha(`Diga de que tipo é a aprovação de "${etapa.nome}": interna ou do cliente.`);
+      }
+
+      if (!comFilha.has(etapa.ordem)) continue;
+
+      // A 0022 UM NÍVEL ACIMA: quem entrega é a folha, e quem espera é a
+      // folha. `subtasks_agrupadora` recusa a filha de uma etapa que pede aval
+      // ou que depende de outra — sem estas duas, o workflow seria gravado e a
+      // recusa apareceria no dia em que alguém o aplicasse.
+      if (etapa.requer_aprovacao) {
+        return falha(
+          `"${etapa.nome}" tem sub-etapas e por isso não pode exigir aprovação. Marque a aprovação nas sub-etapas, que são quem entrega.`,
+        );
+      }
+      if (etapa.depende_de_ordem) {
+        return falha(
+          `"${etapa.nome}" tem sub-etapas e por isso não pode esperar outra etapa. Marque a dependência nas sub-etapas, que são quem espera.`,
+        );
       }
     }
 

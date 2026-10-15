@@ -7,6 +7,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { templatesDeCampanha } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { listarWorkflows } from "@/lib/dados/workflows";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 
 import { FormularioDeCampanha } from "./formulario";
@@ -38,9 +39,18 @@ export default async function PaginaDeNovaCampanha() {
   // direto.
   if (!(await souDoAtendimento())) forbidden();
 
-  const [clientes, templates, pessoas] = await Promise.all([
+  const [clientes, templates, workflows, pessoas] = await Promise.all([
     listarClientes(),
     templatesDeCampanha(),
+    // OS WORKFLOWS ENTRAM NO SELETOR (migration 0108), e o que vem daqui é a
+    // LISTA e não a árvore: a árvore depende da conta escolhida nesta tela, e
+    // quem a monta é `arvoreDoWorkflowParaCampanha` no clique.
+    //
+    // SEM `clienteId`: os globais mais os de TODA conta, porque o cliente da
+    // campanha ainda não existe quando a tela carrega. Um workflow de outra
+    // empresa aplicado aqui é a árvore dela — e `listarWorkflows` diz de quem
+    // é cada um, que é a informação que falta para isso ser erro de quem lê.
+    listarWorkflows(),
     listarEquipeAtiva(),
   ]);
 
@@ -61,6 +71,17 @@ export default async function PaginaDeNovaCampanha() {
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome: c.nome_empresa }))}
         templates={templates}
+        workflows={workflows
+          .filter((w) => w.ativo && w.workflow !== null)
+          .map((w) => ({
+            id: w.workflow!.id,
+            // O NOME DIZ DE QUEM É quando o workflow é de uma conta: no
+            // seletor de uma campanha da Mundo Verde, "Campanha" da Óptica
+            // Visão e "Campanha" da casa seriam duas linhas iguais.
+            nome: w.cliente ? `${w.nome} · ${w.cliente.nome_empresa}` : w.nome,
+            descricao: w.descricao,
+            etapas: w.workflow!.etapas,
+          }))}
         pessoas={pessoas.map((p) => ({
           id: p.id,
           nome: p.nome,

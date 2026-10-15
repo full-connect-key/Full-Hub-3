@@ -31,6 +31,7 @@ type FluxoDeExemplo = {
 };
 
 const POST = "w0000000-0000-0000-0000-000000000001";
+const ENXOVAL = "t0108000-0000-4000-8000-000000000001";
 const LANDING = "w0000000-0000-0000-0000-000000000002";
 
 const FLUXOS: FluxoDeExemplo[] = [
@@ -66,6 +67,33 @@ const FLUXOS: FluxoDeExemplo[] = [
       etapa(LANDING, "e8", "Publicação", 4, "Desenvolvimento", 16, false, null, 3),
     ],
   },
+  {
+    id: ENXOVAL,
+    nome: "Campanha com enxoval",
+    descricao:
+      "A estrutura de uma campanha: KV, o enxoval de peças e o tabloide. É o workflow de DOIS NÍVEIS, que a tela de abrir campanha oferece.",
+    client_id: null,
+    ativo: true,
+    criado_por: null,
+    created_at: "2026-09-10T10:00:00.000Z",
+    cliente: null,
+    // A ARVORE DE DOIS NIVEIS (migration 0108), e ela existe no stub por duas
+    // razoes: o editor de workflow precisa de um exemplo COM sub-etapa para a
+    // imagem provar o recuo e a numeracao "2.1", e a tela de abrir campanha
+    // precisa de um workflow que valha escolher -- um de cadeia reta viraria
+    // uma lista de entregaveis sem grupo, que e o que o modelo de campanha ja
+    // fazia.
+    etapas: [
+      etapa(ENXOVAL, "e9", "KV", 10, "Design", 3, true, "cliente", null),
+      // A MAE NAO PEDE AVAL E NAO ESPERA NINGUEM, e nao e escolha de exemplo:
+      // a 0108 recusa as duas coisas numa etapa com filha, porque
+      // `subtasks_agrupadora` (0022) recusaria na hora de aplicar.
+      etapa(ENXOVAL, "e10", "Enxoval", 20, "Design", 10, false, null, null),
+      etapa(ENXOVAL, "e11", "Lâmina A5", 21, "Design", 8, true, "interna", null, 20),
+      etapa(ENXOVAL, "e12", "Banner A5", 22, "Design", 9, true, "interna", null, 20),
+      etapa(ENXOVAL, "e13", "Tabloide", 30, "Design", 12, true, "cliente", null),
+    ],
+  },
 ];
 
 function etapa(
@@ -78,6 +106,7 @@ function etapa(
   aprovacao: boolean,
   tipo: TipoComFluxo["etapas"][number]["tipo_aprovacao"],
   depende: number | null,
+  pai?: number | null,
 ): TipoComFluxo["etapas"][number] {
   return {
     id,
@@ -91,6 +120,9 @@ function etapa(
     requer_aprovacao: aprovacao,
     tipo_aprovacao: tipo,
     depende_de_ordem: depende,
+    // O PAI (0108) entra com default: so o exemplo que mostra a arvore o
+    // passa, e as outras oito etapas continuam de topo sem mudar de linha.
+    parent_ordem: pai ?? null,
     created_at: "2026-09-01T10:00:00.000Z",
     responsavelPadrao: null,
   };
@@ -118,6 +150,19 @@ export const TIPOS: WorkflowDaAgencia[] = [
     created_at: "2026-09-05T10:00:00.000Z",
     cliente: ALFA,
     workflow: { id: LANDING, nome: "Landing page — Mundo Verde", etapas: 4 },
+  },
+  // O WORKFLOW DE DOIS NIVEIS (0108): e ele que a tela de abrir campanha
+  // oferece em "Partir de um modelo", ao lado dos modelos de campanha.
+  {
+    id: "t0108000-0000-4000-8000-000000000011",
+    nome: "Campanha com enxoval",
+    descricao: "KV, o enxoval de pecas e o tabloide. Dois niveis.",
+    client_id: null,
+    workflow_template_id: ENXOVAL,
+    ativo: true,
+    created_at: "2026-09-10T10:00:00.000Z",
+    cliente: null,
+    workflow: { id: ENXOVAL, nome: "Campanha com enxoval", etapas: 5 },
   },
   {
     id: "t0000000-0000-0000-0000-000000000003",
@@ -201,6 +246,10 @@ export async function etapasDoWorkflow(
       prioridade: etapa.prioridade,
       requer_aprovacao: etapa.requer_aprovacao,
       tipo_aprovacao: etapa.tipo_aprovacao,
+      parent_de:
+        etapa.parent_ordem === null
+          ? null
+          : (posicaoPorOrdem.get(etapa.parent_ordem) ?? null),
       depende_de:
         etapa.depende_de_ordem === null
           ? null

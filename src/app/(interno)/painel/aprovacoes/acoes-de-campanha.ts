@@ -16,6 +16,9 @@ import {
 } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { colunasDoConteudo, doEntregavel } from "@/lib/aprovacoes/conteudo";
+import { entregaveisDoWorkflow, type NoDeModelo } from "@/lib/dominio/campanhas";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
+import { fluxoDoWorkflow } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -672,5 +675,59 @@ export async function pedirAnaliseDoEntregavel(
     // A FILA MORA EM GESTÃO DE TASKS desde que as três telas viraram uma.
     revalidatePath("/painel/gestao-tasks");
     return sucesso("Aval interno pedido. A gestão decide na fila de aprovações internas.");
+  });
+}
+
+/**
+ * A ÁRVORE QUE UM WORKFLOW SUGERE PARA ESTA CAMPANHA (migration 0108).
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário: *"quando crio um workflow, ele nao está permitindo que
+ * eu aplique ela na campanha"*. O seletor "Partir de um modelo" lia
+ * `campaign_templates` e nada mais — outra tabela, que nenhuma tela do produto
+ * cria. Agora ele oferece as duas origens, e esta é a leitura da segunda.
+ *
+ * **É LEITURA NUMA ACTION, e tem precedente**: `buscarDisponibilidade` e
+ * `buscarPreviaDoLink` fazem o mesmo. A convenção manda leitura para
+ * `lib/dados/`, que é `server-only` e serve quem renderiza no servidor; aqui
+ * quem pergunta é o formulário, que é `"use client"` e só sabe o cliente
+ * depois de a pessoa escolher.
+ *
+ * **E É POR ISSO QUE ELA NÃO PODE SER RESOLVIDA NA PÁGINA**: o responsável de
+ * cada etapa sai de `etapas_resolvidas_do_workflow()` (0064), que recebe a
+ * CONTA — e a conta é escolhida na tela. Pré-resolver na página exigiria
+ * resolver todo workflow para todo cliente, que é a matriz inteira para usar
+ * uma linha dela.
+ * ---------------------------------------------------------------------------
+ *
+ * Ela usa o cliente da própria pessoa, então a RLS de `workflow_templates` e
+ * `workflow_steps` continua decidindo o que volta — e a guarda é a mesma de
+ * `criarCampanha`, porque quem monta a árvore é quem vai abrir a campanha.
+ */
+export async function arvoreDoWorkflowParaCampanha(
+  templateId: string,
+  clienteId: string | null,
+  dataInicio: string,
+): Promise<Resultado<NoDeModelo[]>> {
+  return executarAcao("arvoreDoWorkflowParaCampanha", async () => {
+    await exigirAtendimentoNaAcao();
+
+    // SEM DATA DE INÍCIO NÃO HÁ PRAZO A SUGERIR, e a volta é uma árvore de
+    // nomes: `prazo_offset_dias` é contado do início, e inventar uma data aqui
+    // faria toda peça nascer com um prazo que ninguém escolheu. É a razão pela
+    // qual o offset existe no modelo (0008).
+    const base = dataInicio || hojeNaAgencia();
+
+    const aplicado = await fluxoDoWorkflow(templateId, base, clienteId);
+    if (!aplicado) {
+      return falha("Este workflow não foi encontrado, ou não tem cadeia de etapas.");
+    }
+
+    return sucesso(
+      aplicado.semDono.length > 0
+        ? `Árvore montada. Sem ninguém na conta para: ${aplicado.semDono.join(", ")}.`
+        : "Árvore montada a partir do workflow.",
+      entregaveisDoWorkflow(aplicado.etapas, base),
+    );
   });
 }

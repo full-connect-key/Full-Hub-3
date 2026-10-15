@@ -263,3 +263,49 @@ begin
   end if;
 end;
 $$;
+
+
+-- ---------------------------------------------------------------------------
+-- UM DIA UTIL NO PASSADO
+--
+-- Dois cenarios do lancamento retroativo (17) registravam uma ausencia de UM
+-- DIA em `current_date - 40` e `current_date - 48`, e ausencia conta em dias
+-- UTEIS desde a 0024: no dia em que aquele deslocamento cai num sabado,
+-- `lancar_periodo` recusa com "O periodo escolhido nao tem nenhum dia util" e
+-- a bateria fica vermelha por um motivo que nao e do produto. Em dois de cada
+-- sete dias, cada um.
+--
+-- **E a armadilha que este projeto ja nomeou duas vezes**: as datas de clique
+-- do prototipo passaram a ser CALCULADAS pela mesma razao, e a 0085 datou os
+-- cenarios de saldo em `current_date` porque data fixa mede uma coisa hoje e
+-- outra no ano que vem. Um cenario que passa conforme o dia da semana nao
+-- prova o que ele diz.
+--
+-- Ela anda PARA TRAS a partir do deslocamento pedido, dia a dia, ate achar um
+-- que `dias_uteis()` conte -- entao ela pula sabado, domingo E feriado, pela
+-- mesma funcao que a trava usa. Andar para tras e nao para frente mantem a
+-- data no passado, que e a premissa do lancamento retroativo.
+--
+-- O teto de 10 passos e para ela nao virar laco infinito num banco sem
+-- `holidays` povoada: dez dias corridos sempre contem um dia util.
+-- ---------------------------------------------------------------------------
+create or replace function teste.dia_util_ha(p_dias integer)
+returns date
+language plpgsql
+stable
+as $$
+declare
+  alvo date := current_date - p_dias;
+  i    integer := 0;
+begin
+  while i < 10 loop
+    if public.dias_uteis(alvo, alvo) = 1 then
+      return alvo;
+    end if;
+    alvo := alvo - 1;
+    i := i + 1;
+  end loop;
+
+  raise exception 'teste.dia_util_ha(%): nenhum dia util nos 10 dias anteriores', p_dias;
+end;
+$$;

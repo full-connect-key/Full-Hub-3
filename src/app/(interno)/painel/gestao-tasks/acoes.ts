@@ -769,21 +769,121 @@ export async function aplicarWorkflowNaTask(
     // Fora as antigas. A pergunta já foi feita na tela; aqui só se executa.
     await supabase.from("subtasks").delete().eq("task_id", taskId);
 
-    const { error: erroDasEtapas } = await supabase.from("subtasks").insert(
-      aplicado.etapas.map((etapa, indice) => ({
-        task_id: taskId,
-        titulo: etapa.titulo,
-        prazo: etapa.prazo,
-        responsavel_id: etapa.responsavel_id,
-        prioridade: etapa.prioridade,
-        requer_aprovacao: etapa.requer_aprovacao,
-        tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
-        ordem: indice + 1,
-      })),
-    );
+    /**
+     * AS ETAPAS DE TOPO PRIMEIRO, E AS SUB-ETAPAS DEPOIS (migration 0108).
+     *
+     * `subtasks.parent_id` é uuid, e o modelo guarda POSIÇÃO — então o pai
+     * precisa existir e ter id antes de a filha ser escrita. São dois
+     * `insert` e não um, e não há como ser um: a filha do primeiro `insert`
+     * não teria para onde apontar.
+     *
+     * **E a ordem dos dois é o que faz a árvore nascer certa pelo lado do
+     * banco também**: `subtasks_agrupadora` (0022) confere o pai no instante
+     * em que a filha entra, e quem RECUSA a mãe que pede aval ou que espera
+     * outra etapa é ele. As duas situações já foram barradas no modelo pela
+     * 0108, então o que chega aqui é uma árvore que ele aceita.
+     */
+    const linha = (etapa: (typeof aplicado.etapas)[number], ordem: number) => ({
+      task_id: taskId,
+      titulo: etapa.titulo,
+      prazo: etapa.prazo,
+      responsavel_id: etapa.responsavel_id,
+      prioridade: etapa.prioridade,
+      requer_aprovacao: etapa.requer_aprovacao,
+      tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
+      ordem,
+    });
+
+    const posicoes = aplicado.etapas.map((etapa, indice) => ({ etapa, posicao: indice + 1 }));
+    const topo = posicoes.filter(({ etapa }) => etapa.parent_de === null);
+    const filhas = posicoes.filter(({ etapa }) => etapa.parent_de !== null);
+
+    const { data: deTopo, error: erroDasEtapas } = await supabase
+      .from("subtasks")
+      .insert(topo.map(({ etapa }, indice) => linha(etapa, indice + 1)))
+      .select("id");
 
     if (erroDasEtapas) {
       return falha(`As etapas não entraram: ${erroDasEtapas.message}`);
+    }
+
+    // O `insert` do PostgREST devolve na ORDEM em que as linhas foram
+    // mandadas, e é isso que liga cada posição ao uuid que acabou de nascer.
+    const idPorPosicao = new Map<number, string>();
+    topo.forEach(({ posicao }, indice) => {
+      const id = deTopo?.[indice]?.id;
+      if (id) idPorPosicao.set(posicao, id);
+    });
+
+    if (filhas.length > 0) {
+      // A ORDEM DA SUB-ETAPA É DENTRO DA MÃE, de 1 em diante: `subtasks.ordem`
+      // não é único por demanda (só indexado), e a lista de cada mãe é
+      // desenhada por ela mesma.
+      const ordemNaMae = new Map<number, number>();
+      const linhasDasFilhas = filhas.flatMap(({ etapa }) => {
+        const pai = idPorPosicao.get(etapa.parent_de as number);
+        // SEM PAI A FILHA NÃO VIRA ÓRFÃ DE TOPO: ela entra sem `parent_id`
+        // seria uma etapa que o modelo diz ser parte de outra aparecendo solta
+        // no board. Isso só acontece se o pai não tiver nascido, e aí o que
+        // falta é visível — a etapa não aparece, em vez de aparecer errada.
+        if (!pai) return [];
+        const proxima = (ordemNaMae.get(etapa.parent_de as number) ?? 0) + 1;
+        ordemNaMae.set(etapa.parent_de as number, proxima);
+        return [{ ...linha(etapa, proxima), parent_id: pai }];
+      });
+
+      if (linhasDasFilhas.length > 0) {
+        const { error: erroDasFilhas } = await supabase
+          .from("subtasks")
+          .insert(linhasDasFilhas)
+          .select("id");
+
+        if (erroDasFilhas) {
+          return falha(`As sub-etapas não entraram: ${erroDasFilhas.message}`);
+        }
+      }
+    }
+
+    /**
+     * E AS DEPENDÊNCIAS, que esta ação vinha DESCARTANDO.
+     *
+     * `fluxoDoWorkflow()` calcula `depende_de` desde o Sprint 3B e nada aqui o
+     * lia — então `workflow_steps.depende_de_ordem` era escrita pelo editor e
+     * materializada em lugar nenhum. É uma ponte construída e nunca
+     * atravessada, e ela ficou invisível porque a única tela que gravava
+     * dependência ao aplicar um workflow era o diálogo de criação, que saiu do
+     * produto na 0028 — `criarTask` é código morto desde então, e é lá que o
+     * `insert` em `subtask_dependencies` continuou vivo.
+     *
+     * **Só entre etapas de TOPO**, e isso não é recorte: `subtasks_agrupadora`
+     * recusa a mãe que espera outra etapa, e a 0108 já barra isso no modelo —
+     * uma etapa com filha não tem `depende_de_ordem`. O que sobra é folha
+     * esperando folha, que é o normal.
+     */
+    const vinculos = topo.flatMap(({ etapa, posicao }) => {
+      if (etapa.depende_de === null) return [];
+      const subtask_id = idPorPosicao.get(posicao);
+      const depende_de_id = idPorPosicao.get(etapa.depende_de);
+      if (!subtask_id || !depende_de_id || subtask_id === depende_de_id) return [];
+      return [{ subtask_id, depende_de_id }];
+    });
+
+    if (vinculos.length > 0) {
+      // ELA NÃO DERRUBA AS ETAPAS, e a assimetria é a da 0052: as subtarefas
+      // já estão gravadas, e recusar aqui apagaria o trabalho inteiro por
+      // causa de um ciclo que o modelo declarou. O trigger da 0007 recusa o
+      // ciclo; o que a pessoa vê é o aviso, com as etapas de pé.
+      const { error: erroDosVinculos } = await supabase
+        .from("subtask_dependencies")
+        .insert(vinculos)
+        .select("subtask_id");
+
+      if (erroDosVinculos) {
+        revalidatePath(`${ROTA}/${taskId}`);
+        return sucesso(
+          `${mensagemDoFluxo(aplicado)} As dependências não entraram (${erroDosVinculos.message}) — marque-as à mão.`,
+        );
+      }
     }
 
     revalidatePath(`${ROTA}/${taskId}`);
