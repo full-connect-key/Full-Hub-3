@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -11,6 +12,7 @@ import {
   filaDaAgencia,
   mesesDeSocialDaAgencia,
   obterPostDaAgencia,
+  ondeMoraOPost,
   postsDoMesDaAgencia,
   postsSemData,
   type SituacaoDoMes,
@@ -206,6 +208,64 @@ export default async function PaginaDeSocialMedia({
    * conta, que é para onde "Todos os meses →" leva.
    */
   const mesAberto = aba === "social" ? texto(parametros, "mes") : undefined;
+
+  /**
+   * `?post=` SOZINHO ABRE O POST, e este bloco é o que devolve isso.
+   *
+   * -------------------------------------------------------------------------
+   * Relato do usuário: *"quando clico em um post que está em aval interno, a
+   * plataforma me direciona para o social geral daquela conta e não direto
+   * para o post"*. Ele estava certo, e o alcance é maior que a fila: **todo
+   * link `?post=` do produto caía no índice** — os avisos do sino (0042, 0088,
+   * 0090), a busca global (0073, 0088, 0097), o resumo da semana e a própria
+   * fila de aprovações internas.
+   *
+   * A causa é a linha de cima: quem separa o índice do mês aberto é `?mes=`, e
+   * nenhum daqueles links o carrega — eles foram escritos quando o módulo era
+   * uma lista corrida de posts. O `?post=` chegava, era lido, e a tela
+   * desenhava os cartões das contas.
+   *
+   * **O CONSERTO É AQUI E NÃO EM CADA LINK, porque a maioria deles já está
+   * GRAVADA no banco de produção**: `notificar()` é chamada de dentro de
+   * trigger com o endereço escrito no corpo da função. É o argumento dos 308
+   * das duas rotas que entraram em Gestão de Tasks, e o dos comentários
+   * datados da 0028 e da 0031 — a razão está inteira em `ondeMoraOPost()`.
+   *
+   * **É `redirect` e não montar o mês aqui**, e a diferença aparece na tela:
+   * o endereço canônico passa a estar na barra, então a trilha diz a conta e o
+   * mês, a lista em volta é a daquele mês, e a seção de apagar o mês encontra
+   * a demanda. Abrindo o editor sem o par, o post apareceria dentro de uma
+   * tela que não sabe de onde ele é — e o link não sobreviveria a um
+   * compartilhamento, que é a razão de todo filtro deste produto morar na URL.
+   *
+   * **Ele é 307 e não 308**, que é o default do `redirect` do Next: o destino
+   * depende de onde o post mora, e ele muda quando a data dele muda. Um
+   * permanente ficaria no cache do navegador de quem clicou, apontando para o
+   * mês antigo.
+   *
+   * **Post avulso sem data nenhuma não redireciona**, e a razão está no leitor:
+   * ele não mora em mês nenhum, e mandá-lo para o mês corrente abriria uma
+   * tela com a trilha dizendo uma competência inventada. Ele cai no índice,
+   * como hoje.
+   * -------------------------------------------------------------------------
+   */
+  const postPedido = aba === "social" ? texto(parametros, "post") : undefined;
+  if (postPedido && !mesAberto) {
+    const onde = await ondeMoraOPost(postPedido);
+    if (onde) {
+      const destino = new URLSearchParams({
+        cliente: onde.clienteId,
+        mes: onde.mes,
+        post: postPedido,
+      });
+      // A VISÃO VIAJA quando ela veio no link, e não é zelo: o link do
+      // calendário do Calendário Full manda `?visao=calendario`, e perdê-la
+      // aqui abriria a lista para quem clicou numa grade de dias.
+      const visao = texto(parametros, "visao");
+      if (visao) destino.set("visao", visao);
+      redirect(`/painel/social-media?${destino.toString()}`);
+    }
+  }
 
   return (
     <div className="space-y-6">

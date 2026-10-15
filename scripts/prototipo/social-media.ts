@@ -705,3 +705,24 @@ export async function demandaDoMes(
     arquivadaEm: achado.arquivadaEm,
   };
 }
+
+export type OndeMoraOPost = { clienteId: string; mes: string };
+
+/**
+ * Onde o post mora, para o `?post=` sozinho achar o mês dele.
+ *
+ * **AQUI ELA RESPONDE PELA DATA, e a de verdade pergunta à DEMANDA**
+ * (`posts.social_task_id` -> `tasks.social_do_mes`, pela lição da 0091). O
+ * protótipo não tem `tasks`, e o par que ele precisa devolver é o mesmo:
+ * `MES_DO_SOCIAL` de `prototipo.mjs` é o mês corrente da Mundo Verde, que é
+ * exatamente onde o `p1` publica.
+ *
+ * **E ela devolve nulo sem data**, como a de verdade faz com o post avulso sem
+ * mês: é esse ramo que deixa a tela cair no índice em vez de inventar uma
+ * competência.
+ */
+export async function ondeMoraOPost(postId: string): Promise<OndeMoraOPost | null> {
+  const post = POSTS.find((p) => p.id === postId);
+  if (!post?.dataPublicacao) return null;
+  return { clienteId: post.clienteId, mes: post.dataPublicacao.slice(0, 7) };
+}

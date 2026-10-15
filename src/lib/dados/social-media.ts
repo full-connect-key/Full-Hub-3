@@ -990,3 +990,95 @@ export async function demandaDoMes(
     arquivadaEm: linha.arquivada_em,
   };
 }
+
+export type OndeMoraOPost = {
+  clienteId: string;
+  /** `AAAA-MM`, a competência do mês em que ele está. */
+  mes: string;
+};
+
+/**
+ * Onde este post mora: a conta e o mês.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE EXISTE PORQUE `?post=` SOZINHO DEIXOU DE ABRIR O POST, e todo link do
+ * produto é assim.** Relato do usuário: *"quando clico em um post que está em
+ * aval interno, a plataforma me direciona para o social geral daquela conta e
+ * não direto para o post"*.
+ *
+ * `/painel/social-media?post=<id>` era um endereço completo enquanto o módulo
+ * tinha uma lista corrida de posts. Ele passou a ser Conta → Mês, e quem
+ * separa o ÍNDICE do MÊS ABERTO é `?mes=`: sem ele a tela desenha o índice —
+ * os cartões das contas —, que é exatamente "o social geral". O `?post=`
+ * continuava na URL, lido e ignorado.
+ *
+ * **E O CONSERTO NÃO É PATCH EM CADA LINK, porque a maioria deles já está
+ * GRAVADA no banco de produção.** `notificar()` é chamada de dentro de trigger
+ * desde a 0042, com o endereço escrito no corpo da função: os avisos do sino
+ * de todo post liberado, de toda decisão do cliente e de todo pedido de ajuste
+ * apontam para lá, em linhas que já existem. A busca global monta o mesmo
+ * endereço (0073, 0088, 0097), e o resumo da semana também. Reescrever o corpo
+ * daquelas funções seria uma migration cujo único efeito é trocar um texto — a
+ * decisão dos comentários datados da 0028 e da 0031, e a dos 308 das duas
+ * rotas que entraram em Gestão de Tasks.
+ *
+ * Então quem conserta é a TELA: com `?post=` e sem `?mes=`, ela resolve o par
+ * aqui e manda para o endereço canônico. Um lugar, e os links que já existem
+ * voltam a funcionar sem ninguém tocar neles.
+ * ---------------------------------------------------------------------------
+ *
+ * **O MÊS SAI DA DEMANDA, e não de `data_publicacao`.** É a lição da 0091
+ * inteira: o mês abre em branco (0044), então uma peça sem data pertence a um
+ * mês que a data dela não sabe dizer — e a data é de quem produz, que pode
+ * trocá-la. `check:cores` varre `gte("data_publicacao"` em `src/` por causa
+ * disso. O fato é `posts.social_task_id` (0088) apontando para a demanda, e
+ * `tasks.social_do_mes` dizendo qual competência ela é.
+ *
+ * **A data entra como SEGUNDA resposta, e só para o post avulso** — o story
+ * que o cliente pediu hoje, que nasce sem mês nenhum (`social_task_id` nulo).
+ * Para ele a competência da data de publicação é a única pergunta que tem
+ * resposta, e o mês aberto por ela é onde ele aparece na lista.
+ *
+ * **Sem as duas, devolve nulo e a tela não redireciona.** Um post avulso sem
+ * data não mora em mês nenhum: mandá-lo para o mês corrente abriria uma tela
+ * que não é a dele, com a trilha dizendo uma competência inventada. O editor
+ * continua abrindo por `?post=` quando o mês vem na URL, que é o caminho de
+ * quem chega pelo mês.
+ */
+export async function ondeMoraOPost(postId: string): Promise<OndeMoraOPost | null> {
+  const supabase = await criarClienteServidor();
+
+  const posts = ouFalha(
+    "onde este post mora",
+    await supabase
+      .from("posts")
+      .select("client_id, social_task_id, data_publicacao")
+      .eq("id", postId)
+      .limit(1),
+  );
+
+  const post = posts[0];
+  if (!post) return null;
+
+  if (post.social_task_id) {
+    const demandas = ouFalha(
+      "o mês da demanda deste post",
+      await supabase
+        .from("tasks")
+        .select("social_do_mes")
+        .eq("id", post.social_task_id)
+        .limit(1),
+    );
+
+    const competencia = demandas[0]?.social_do_mes;
+    if (competencia) {
+      return { clienteId: post.client_id, mes: competencia.slice(0, 7) };
+    }
+  }
+
+  if (post.data_publicacao) {
+    return { clienteId: post.client_id, mes: post.data_publicacao.slice(0, 7) };
+  }
+
+  return null;
+}

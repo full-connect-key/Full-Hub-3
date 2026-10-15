@@ -253,6 +253,13 @@ const TELAS = [
   // e o corrente porque os posts de exemplo sao datados a partir do dia 1 de
   // hoje -- um mes fixo poria o calendario num mes sem peca nenhuma.
   { nome: "50-social-lista", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1100, role: "socio" },
+  // O `?post=` SOZINHO, sem `?mes=`: e o endereco que o sino, a busca global e
+  // a fila de aprovacoes internas montam, e o que o usuario clicou. Se o
+  // redirecionamento de `page.tsx` quebrar, esta imagem sai sendo o INDICE --
+  // os cartoes das contas -- em vez do mes com o editor aberto, que e
+  // exatamente o relato. Ela nao tem `clicar`, entao nao tem seletor para
+  // envelhecer.
+  { nome: "50b-social-post-direto", rota: `/painel/social-media?post=p1`, largura: 1440, altura: 1100, role: "socio" },
   { nome: "51-social-calendario", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1600, altura: 1100, role: "socio" },
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
   // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.
