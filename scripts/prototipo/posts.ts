@@ -49,6 +49,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: null,
+    programado: false,
   },
   {
     id: "p2",
@@ -71,6 +72,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: null,
+    programado: false,
   },
   {
     id: "p3",
@@ -93,6 +95,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: null,
+    programado: false,
   },
   {
     id: "p4",
@@ -115,6 +118,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 4 * 864e5).toISOString(),
+    programado: false,
   },
   {
     id: "p5",
@@ -137,6 +141,11 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 6 * 864e5).toISOString(),
+    // A p5 E A UNICA PECA PROGRAMADA DO EXEMPLO, e a p6 -- tambem aprovada --
+    // continua sem o selo: com as duas programadas a imagem provaria que o
+    // selo aparece, e nao que ele DISTINGUE duas pecas aprovadas. E a razao
+    // pela qual o exemplo do calendario tem um evento de cada par da legenda.
+    programado: true,
   },
   {
     id: "p6",
@@ -159,6 +168,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 10 * 864e5).toISOString(),
+    programado: false,
   },
   {
     id: "p7",
@@ -181,6 +191,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 12 * 864e5).toISOString(),
+    programado: false,
   },
   {
     id: "p8",
@@ -203,6 +214,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 2 * 864e5).toISOString(),
+    programado: false,
   },
   {
     id: "p9",
@@ -225,6 +237,7 @@ const POSTS: PostDoPortal[] = [
     portaoDoCliente: null,
     textoDoPortao: null,
     decididoEm: null,
+    programado: false,
   },
   // O PORTAO DO MEIO DA CORRENTE (0076), e ele existe aqui pela razao pela qual
   // o seed tem uma pessoa desligada: sem um post neste estado, a imagem do
@@ -253,6 +266,7 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao:
       "Carrossel de cinco telas contando a história de três clientes que compram na loja desde a inauguração. Tom de conversa, sem promoção nenhuma — a ideia é a data, não a venda. Fecha com um convite para marcar quem apresentou a marca à pessoa.",
     decididoEm: null,
+    programado: false,
   },
 
   // ----------------------------------------------------------------------
@@ -291,6 +305,7 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao:
       "Receita da semana com a granola de cacau, em três passos, com a embalagem nova aparecendo no último.",
     decididoEm: null,
+    programado: false,
   },
   {
     id: "p12",
@@ -314,6 +329,7 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao:
       "Depoimento de quem trocou o café da manhã, em carrossel de dois slides.",
     decididoEm: null,
+    programado: false,
   },
 ];
 

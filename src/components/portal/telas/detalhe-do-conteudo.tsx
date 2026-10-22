@@ -83,6 +83,28 @@ export type ModeloDoConteudo = {
    * ------------------------------------------------------------------------
    */
   aviso?: string | null;
+  /**
+   * UM FATO BOM SOBRE A PEÇA, ao lado do status (migration 0111).
+   *
+   * ------------------------------------------------------------------------
+   * Hoje há um: o post já programado na rede. Ele NÃO cabe em `aviso` por
+   * duas razões, e as duas são mecânicas antes de serem de tom: `aviso` é
+   * `--warning`, que diz "falta um passo" — e aqui não falta nenhum —, e é
+   * ele que decide se a moldura de arte aparece, então um aviso numa peça sem
+   * arte esconderia a moldura que diz que a arte está faltando.
+   *
+   * **E ele vem DEPOIS do status, não antes.** Os dois não se repetem: o
+   * status é o ciclo com o cliente ("Aprovado" — ele decidiu), e este é o que
+   * a agência fez depois da decisão. Lido antes, ele pareceria o estado da
+   * peça, e aí a tela teria dois.
+   *
+   * **O entregável de campanha não preenche este campo**, e a ausência é
+   * decisão: a peça de campanha não é agendada em rede nenhuma — ela vai para
+   * a gráfica ou para o cliente. É `React.ReactNode` e não `string` pela razão de
+   * `selo`: quem sabe desenhar o fato é quem o tem.
+   * ------------------------------------------------------------------------
+   */
+  confirmacao?: React.ReactNode;
   /** A peça, em ordem. Um entregável tem uma; um carrossel tem as que o
    *  cliente vai percorrer antes de decidir — e decidir sobre a primeira,
    *  quando há cinco, é decidir sobre um quinto do material. */
@@ -141,6 +163,7 @@ export function DetalheDoConteudo({
             <div className="flex flex-wrap items-center gap-2">
               {modelo.selo}
               <StatusBadge status={modelo.status} />
+              {modelo.confirmacao}
             </div>
             <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">{modelo.titulo}</h1>
             {modelo.linhaDeContexto ? (

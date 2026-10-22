@@ -1,3 +1,4 @@
+import { CalendarCheck2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
@@ -185,7 +186,9 @@ function Miniatura({
   return (
     <Link
       href={`${base}/social-media/${post.id}`}
-      title={`${post.tema} · ${rotuloDoStatus(post.status)}`}
+      title={`${post.tema} · ${rotuloDoStatus(post.status)}${
+        post.programado ? " · Programado" : ""
+      }`}
       className={cn(
         "hover:bg-accent flex items-center gap-1.5 rounded p-1 transition-colors",
         larga && "bg-surface-card border p-2",
@@ -210,6 +213,27 @@ function Miniatura({
             <span className="text-text-muted text-[0.65rem] tabular-nums">
               {post.horario}
             </span>
+          ) : null}
+          {/* AQUI ELE É ÍCONE E NÃO A PALAVRA, e é a decisão que o selo do
+              lado da agência já tomou: a célula de um dia com três peças não
+              tem onze pixels para "Programado". O nome inteiro está no
+              `title` da miniatura, junto do status.
+
+              `--success` sobre a célula, sem fundo próprio: um segundo chip
+              colorido ao lado da sigla da rede e da faixa de status seria o
+              terceiro sinal na mesma linha de 28px. */}
+          {post.programado ? (
+            <>
+              <CalendarCheck2
+                aria-hidden
+                className="text-success size-3 shrink-0"
+              />
+              {/* O NOME VAI NUM `sr-only` E NÃO SÓ NO `title`, que é a regra
+                  da sigla da rede: o `title` de um link com texto dentro vira
+                  DESCRIÇÃO, e descrição é o que muitos leitores de tela
+                  deixam de fora. Quem usa leitor não tem a cor nem o ícone. */}
+              <span className="sr-only">Programado</span>
+            </>
           ) : null}
         </span>
         <span className="block truncate text-xs">{post.tema}</span>

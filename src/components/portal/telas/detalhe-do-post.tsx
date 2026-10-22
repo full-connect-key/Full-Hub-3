@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { SeloDeProgramado } from "@/components/portal/selo-de-programado";
 import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import {
   DetalheDoConteudo,
@@ -114,6 +115,11 @@ export async function DetalheDoPost({
       (post.horario ? ` · ${post.horario}` : ""),
     status: post.status,
     selo: <SelosDasRedes plataformas={post.plataformas} />,
+    // "PROGRAMADO", quando a peça já está agendada na rede (0111). Ele fica
+    // ao lado do status e a `linhaDeContexto` logo abaixo já carrega o dia e
+    // o horário — juntos, os três dizem a frase inteira: o cliente aprovou, a
+    // agência agendou, e vai ao ar no dia 14 às 18h.
+    confirmacao: post.programado ? <SeloDeProgramado /> : null,
     // O tema NÃO se repete aqui: ele é o título da página, logo acima. Um
     // campo que repete o cabeçalho ocupa a linha que o formato ou o prazo
     // poderiam ocupar.

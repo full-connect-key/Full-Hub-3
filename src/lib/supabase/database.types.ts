@@ -3536,6 +3536,19 @@ export interface Database {
         Args: { p_post_id: string };
         Returns: { etapa: string; texto: string | null }[];
       };
+      /**
+       * QUAIS DESTAS PECAS JA FORAM PROGRAMADAS (migration 0111).
+       *
+       * Decisao do usuario: o cliente precisa saber, no portal dele, que a
+       * peca aprovada ja foi agendada na rede. O fato e DERIVADO -- a caixinha
+       * da fase `pos_entrega` fechada (0088) --, e ele nao tem policy na
+       * corrente: a funcao e `security definer` e devolve so o agregado.
+       *
+       * `setof uuid` e NAO uma linha por peca com um booleano dentro: a
+       * ausencia e a resposta, e e o que faz a tela nao precisar distinguir
+       * "nao programada" de "a funcao nao respondeu".
+       */
+      pecas_programadas: { Args: { p_ids: string[] }; Returns: string[] };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
 
       // --- O envio em lote do mes de social (migrations 0090 e 0091) -------

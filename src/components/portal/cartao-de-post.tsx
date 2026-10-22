@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ImageOff } from "lucide-react";
 
+import { SeloDeProgramado } from "@/components/portal/selo-de-programado";
 import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { PostDoPortal } from "@/lib/dominio/posts";
@@ -45,6 +46,12 @@ export function CartaoDePost({
         <div className="flex flex-wrap items-center gap-2">
           <SelosDasRedes plataformas={post.plataformas} />
           <StatusBadge status={post.status} />
+          {/* "PROGRAMADO" VEM DEPOIS DO STATUS, e os dois não se repetem: o
+              status é o ciclo com o cliente — ele aprovou —, e este é o que a
+              agência fez depois. Antes da 0111 a linha era IDÊNTICA para a
+              peça aprovada que ninguém agendou e para a que já está na fila
+              da rede, que é a mesma queixa que criou o selo do lado de cá. */}
+          {post.programado ? <SeloDeProgramado /> : null}
           {post.formato ? (
             <span className="text-text-muted text-xs">{post.formato}</span>
           ) : null}

@@ -577,7 +577,24 @@ from (
     -- pulado inteiro onde `storage.objects` nao existe, e marcador num passo
     -- que metade dos ambientes nao executa e marcador que mente.
     ('0110', 'a leitura das solicitacoes e do atendimento', 'policy',
-             'client_requests|client_requests_select|is_atendimento')
+             'client_requests|client_requests_select|is_atendimento'),
+    -- A 0111 cria UMA funcao e mais nada: `pecas_programadas()`, que e como o
+    -- cliente passa a saber que a peca foi agendada na rede. Sem ela a tela
+    -- do portal nao mostra o selo e NAO QUEBRA -- a leitura trata o erro na
+    -- mao, porque derrubar o mes do cliente por causa de um selo seria trocar
+    -- uma informacao a menos por uma falha total. E por isso que a falta dela
+    -- nao aparece como erro em lugar nenhum, e e por isso que ela tem linha
+    -- aqui.
+    --
+    -- O marcador e `funcao` e nao `sem_execute`: aquele tipo chama
+    -- `has_function_privilege`, que ESTOURA quando a funcao nao existe -- e um
+    -- erro aqui derrubaria a consulta inteira, que e o trabalho que o
+    -- `to_regrole` da 0071 ja protege para uma funcao que ja existia. *O vao
+    -- que sobra, e ele fica dito:* uma colagem que morreu entre o `create` e o
+    -- `revoke` responde ok com `anon` ainda alcancando a funcao. Quem fecha
+    -- isso e o `select` de conferencia no fim da migration.
+    ('0111', 'pecas_programadas() para o portal', 'funcao',
+             'pecas_programadas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

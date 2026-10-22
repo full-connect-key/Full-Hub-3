@@ -2576,6 +2576,96 @@ linhas de um mês recém-aberto é trinta selos que não informam nada. A ausên
 a exceção. No calendário ele vira ícone: a célula de um dia com três posts não
 tem onze pixels para a palavra, e o nome inteiro está no `title`.
 
+##### E O CLIENTE PASSOU A SABER DISSO TAMBÉM (0111)
+
+Decisão do usuário: *"preciso que o cliente saiba, quando o post foi programado
+já no portal do cliente, pode adicionar esse aviso para os clientes?"*.
+
+**É A MESMA QUEIXA DO PARÁGRAFO ACIMA, do outro lado da porta.** Ele lia
+"Aprovado" e, quando alguém já tinha datado a peça, o dia — e aquilo era
+**idêntico** para a peça que ele aprovou e ninguém agendou e para a que já está
+na fila da rede. Duas situações opostas com a mesma cara, agora na tela de quem
+contratou.
+
+**NÃO HÁ COLUNA NOVA E NÃO HÁ VALOR NOVO DE ENUM.** O fato continua derivado da
+caixinha da fase `pos_entrega` (0088), pela razão escrita acima; e um oitavo
+valor em `content_status` seria pior que uma coluna: aquele enum é o CICLO COM
+O CLIENTE, e programar é trabalho da agência DEPOIS da decisão dele. Pondo
+`programado` lá, a peça agendada deixaria de ser `aprovado` — e tudo o que
+conta aprovação passaria a contar menos do que existe: a barra do cartão da
+conta, a fase do material no portal, o chip "Aprovados" do mês.
+
+**E ELE NÃO GANHOU POLICY NA CORRENTE, que é a linha que mais importa.** A
+regra da 0045 fica inteira — a corrente é conversa interna, e ele não tem
+policy em `subtasks` nem em `post_etapa_progresso`. O que chega é o AGREGADO,
+por `pecas_programadas()`, `security definer` devolvendo um booleano por peça e
+mais nada: nem quem programou, nem quando, nem que fase é. É a forma de
+`o_que_o_cliente_decide()` (0076) e de `meus_comodatos()` (0069).
+
+**A guarda é escrita à mão, e é a parte que a bateria mede:** `security
+definer` não passa pela RLS de `posts`, então as duas condições que repetem
+`posts_select_cliente` são o que impede a função de responder sobre a peça de
+qualquer empresa para quem tiver o uuid — e o furo passa despercebido num banco
+com um cliente só, que é a lição da `calendar_events`.
+
+**ELA RECEBE UMA LISTA, e não um post.** `o_que_o_cliente_decide()` é de um post
+porque quem a chama é a tela de decisão; aqui os chamadores são o MÊS — o
+calendário, a lista e a grade — e o mês cheio tem trinta peças. É a decisão de
+"as rodadas de todos os posts numa consulta só". E ela devolve **só os ids das
+programadas**, nunca uma linha por peça com um `false` dentro: a ausência é a
+resposta.
+
+**`false` QUER DIZER TRÊS COISAS, e é por isso que a tela nunca escreve a
+negativa:** ninguém agendou, a conta tem um fluxo sem elo de pós-entrega, ou a
+leitura falhou. Um selo "A programar" afirmaria a primeira sobre as três — e
+seria, de quebra, o selo cinza em trinta linhas que o par da agência já recusou.
+
+**A pergunta é pelo PAPEL `pos_entrega`, nunca pelo nome "Programar"** (0087):
+a corrente é editável por conta, e um fluxo que chame esse elo de "Agendar na
+rede" deixaria o aviso apagado para sempre, sem erro em lugar nenhum.
+
+**A leitura não derruba a tela**, e é a exceção de `portaoDoPost()`: a área de
+Social funciona inteira sem esta resposta — ela acrescenta um selo a peças que
+já estão todas na tela. O erro vai para o log, senão um aviso que parasse de
+chegar a todos os clientes seria descoberto por alguém perguntando à agência se
+a peça foi agendada.
+
+**TRÊS LUGARES, E TRÊS FORMAS.** Na Lista é a pílula escrita, **depois** do
+status: os dois não se repetem — um é o ciclo com o cliente, o outro é o que a
+agência fez depois. No detalhe é a mesma pílula ao lado do status, e a linha de
+contexto logo abaixo já carrega o dia e a hora: juntos, os três dizem a frase
+inteira. No calendário é **ícone**, pela razão do lado de cá — a célula de um
+dia com três peças não tem onze pixels para a palavra —, com o nome no `title`
+**e num `sr-only`**: o `title` de um link com texto dentro vira *descrição*, e
+descrição é o que muitos leitores de tela deixam de fora.
+
+**A GRADE DO FEED NÃO GANHOU NADA**, e a ausência é decisão: ela já carrega o
+canto de cima (carrossel ou vídeo) e o ponto de status, e um terceiro marcador
+numa miniatura quadrada vira confete — exatamente o que a decisão das oito
+categorias em cinco cores existe para evitar. Ela é sobre a COMPOSIÇÃO entre as
+artes, e o dia em que cada uma sai é a pergunta do calendário ao lado.
+
+**Medido com quatro mutações**, sobre 2260 cenários: tirar a guarda escrita à
+mão derruba **1** — o cliente da outra empresa —, tirar o filtro da caixinha
+fechada derruba **1**, tirar o `revoke` do `anon` derruba **1**, e **perguntar
+pelo nome em vez do papel não derruba nenhum**. O zero é honesto e fica dito: o
+fluxo da fixture chama o elo de "Programar", então as duas versões respondem
+igual ali — quem mede essa é a leitura do diff, como o `where` da capacidade na
+0081.
+
+**E UM CENÁRIO MEU NÃO MEDIA NADA, pela segunda vez neste arquivo.** O que
+confere "só ela, nas três peças do mês" rodava como a CLIENTE — e ela enxerga
+UMA peça, porque `posts_select_cliente` exige `enviado_em` e só aquela foi
+enviada. O array chegava com um id, a função devolvia um, e o cenário passava
+com o filtro ligado **e** desligado. Quem mostrou foi o teste de mutação, e
+quem o conserta é rodá-lo como a equipe, que enxerga as três. É a lição do
+`select` antes do `insert` na idempotência da recorrência.
+
+**E o exemplo do protótipo tem UMA das duas aprovadas programada**, nunca as
+duas: com as duas, a imagem provaria que o selo aparece e não que ele
+**distingue** duas peças aprovadas. É a razão pela qual o exemplo do calendário
+tem um evento de cada par da legenda.
+
 **Liberar avisa quem recebeu, e o aviso é do banco** — `posts_avisa_responsavel`
 chama `notificar()`, que nunca avisa quem causou o aviso. A gestão que libera um
 post para si mesma não recebe nada, e está certo.

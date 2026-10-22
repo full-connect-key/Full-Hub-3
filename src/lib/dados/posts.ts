@@ -65,6 +65,14 @@ function montar(
    * que é de um post só.
    */
   portao?: { etapa: string; texto: string | null } | null,
+  /**
+   * A peça já foi programada na rede? (migration 0111)
+   *
+   * Falso por padrão, e o padrão é o lado certo do erro: um selo "Programado"
+   * que aparece sem o fato afirma ao cliente que a peça está na fila da rede.
+   * A ausência do selo não afirma nada.
+   */
+  programado = false,
 ): PostDoPortal {
   return {
     id: linha.id,
@@ -89,7 +97,44 @@ function montar(
     decididoEm: rodada?.decidido_em ?? null,
     portaoDoCliente: portao?.etapa ?? null,
     textoDoPortao: portao?.texto ?? null,
+    programado,
   };
+}
+
+/**
+ * Quais destas peças já foram programadas (migration 0111).
+ *
+ * ---------------------------------------------------------------------------
+ * **UMA IDA PARA A LISTA INTEIRA, e não uma por peça.** `o_que_o_cliente_decide()`
+ * é de um post porque quem a chama é a tela de decisão; aqui os chamadores são
+ * o MÊS — o calendário, a lista, a grade — e o mês cheio tem trinta peças. É a
+ * mesma decisão de "as rodadas de todos os posts numa consulta só".
+ *
+ * **ELA NÃO DERRUBA A TELA**, e a exceção é a de `portaoDoPost()`: a área de
+ * Social funciona inteira sem esta resposta — ela acrescenta um selo a peças
+ * que já estão todas na tela. Derrubar o mês do cliente por causa de um selo
+ * seria trocar uma informação a menos por uma falha total.
+ *
+ * O que ela não pode é falhar calada do outro lado: sem o log, um aviso que
+ * parasse de aparecer para todos os clientes seria descoberto por alguém
+ * perguntando à agência se a peça foi agendada.
+ * ---------------------------------------------------------------------------
+ */
+async function programadas(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  ids: string[],
+): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+
+  const { data, error } = await supabase.rpc("pecas_programadas", {
+    p_ids: ids,
+  });
+
+  if (error) {
+    console.error("[consulta:as peças já programadas]", error);
+    return new Set();
+  }
+  return new Set(data ?? []);
 }
 
 /**
@@ -167,8 +212,14 @@ export async function postsDoMes(
     linhas.map((l) => l.id),
   );
   const nomes = await nomesDe([...rodadas.values()].map((r) => r.decidido_por));
+  const agendadas = await programadas(
+    supabase,
+    linhas.map((l) => l.id),
+  );
 
-  return linhas.map((linha) => montar(linha, rodadas.get(linha.id), nomes));
+  return linhas.map((linha) =>
+    montar(linha, rodadas.get(linha.id), nomes, null, agendadas.has(linha.id)),
+  );
 }
 
 /**
@@ -342,8 +393,14 @@ export async function postsDoMesmoMes(
     linhas.map((l) => l.id),
   );
   const nomes = await nomesDe([...rodadas.values()].map((r) => r.decidido_por));
+  const agendadas = await programadas(
+    supabase,
+    linhas.map((l) => l.id),
+  );
 
-  return linhas.map((linha) => montar(linha, rodadas.get(linha.id), nomes));
+  return linhas.map((linha) =>
+    montar(linha, rodadas.get(linha.id), nomes, null, agendadas.has(linha.id)),
+  );
 }
 
 /** Um post, ou null quando o RLS não deixa ver. */
@@ -368,7 +425,18 @@ export async function obterPost(
   const rodadas = await rodadasDo("post", [linha.id]);
   const nomes = await nomesDe([rodadas.get(linha.id)?.decidido_por ?? null]);
 
-  return montar(linha, rodadas.get(linha.id), nomes, await portaoDoPost(supabase, linha.id));
+  const [portao, agendadas] = await Promise.all([
+    portaoDoPost(supabase, linha.id),
+    programadas(supabase, [linha.id]),
+  ]);
+
+  return montar(
+    linha,
+    rodadas.get(linha.id),
+    nomes,
+    portao,
+    agendadas.has(linha.id),
+  );
 }
 
 /**

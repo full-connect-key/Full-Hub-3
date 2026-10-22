@@ -123,6 +123,32 @@ export type PostDoPortal = {
   decididoPor: string | null;
   decididoEm: string | null;
   /**
+   * A PEÇA JÁ FOI PROGRAMADA NA REDE? (migration 0111)
+   *
+   * -------------------------------------------------------------------------
+   * Decisão do usuário: *"preciso que o cliente saiba, quando o post foi
+   * programado já no portal do cliente"*.
+   *
+   * **É DERIVADO, como do lado da agência:** a caixinha da fase `pos_entrega`
+   * fechada (0088). Uma coluna ao lado criaria duas verdades sobre o mesmo
+   * fato, e elas divergiriam no primeiro pedido de ajustes — que desmarca a
+   * caixinha e não teria como desmarcar a coluna.
+   *
+   * **E o cliente não ganhou policy na corrente para isto.** Quem responde é
+   * `pecas_programadas()`, `security definer`, devolvendo um booleano por peça
+   * e mais nada — nem quem programou, nem quando, nem que fase é. A corrente
+   * continua sendo conversa interna, que é a regra da 0045.
+   *
+   * **Falso também quer dizer "não sei"**, e é por isso que a tela nunca
+   * escreve a negativa: `false` é a peça que ninguém agendou, a peça de uma
+   * conta cujo fluxo não tem elo de pós-entrega, e a leitura que falhou. Um
+   * selo "A programar" afirmaria a primeira sobre as três — e seria, de
+   * quebra, um selo cinza em trinta linhas de um mês recém-aberto, que é a
+   * mesma razão pela qual o par não existe do lado da agência.
+   * -------------------------------------------------------------------------
+   */
+  programado: boolean;
+  /**
    * A etapa da corrente que está esperando o cliente, quando não é o Envio
    * (migration 0076). Nula no caminho de sempre.
    *

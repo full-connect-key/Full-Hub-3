@@ -4,6 +4,10 @@
 \set BRUNO   '''44444444-4444-4444-4444-444444444444'''
 \set MARINA  '''55555555-5555-5555-5555-555555555555'''
 \set JOANA   '''77777777-7777-7777-7777-777777777777'''
+-- O OTTO E CLIENTE DA OPTICA, e ele existe neste arquivo por um cenario so: o
+-- da guarda de `pecas_programadas()` (0111). Um banco com um cliente so nao
+-- separa "ela responde o certo" de "ela responde tudo".
+\set OTTO    '''88888888-8888-8888-8888-888888888888'''
 \set VERDE   '''aaaaaaaa-0000-0000-0000-000000000001'''
 
 -- ===========================================================================
@@ -690,6 +694,79 @@ select teste.cenario('Nem cria uma', :JOANA,
 select teste.conferir_como('E `o_que_o_cliente_decide` nao anuncia a entrega', :JOANA,
   format($fmt$select count(*)::text from public.o_que_o_cliente_decide(%L)$fmt$,
     current_setting('t21.post')), '0');
+
+-- ---------------------------------------------------------------------------
+-- E O QUE ELE PASSA A SABER E QUE A PECA FOI PROGRAMADA (migration 0111)
+--
+-- Decisao do usuario: *"preciso que o cliente saiba, quando o post foi
+-- programado ja no portal do cliente"*. Ate aqui ele lia `aprovado` e a data,
+-- e aquilo era IGUAL para a peca que ninguem agendou e para a que ja esta na
+-- fila da rede -- a mesma queixa que criou o selo do lado da agencia.
+--
+-- E ELE CONTINUA SEM POLICY NA CORRENTE, que e o ponto: os quatro cenarios
+-- acima ficam de pe, e o fato chega por `pecas_programadas()` -- `security
+-- definer` devolvendo um booleano por peca e mais nada. Nem quem programou,
+-- nem quando, nem que fase e.
+-- ---------------------------------------------------------------------------
+
+select teste.conferir_como('A peca programada chega ao cliente dela', :JOANA,
+  format($fmt$select count(*)::text
+    from public.pecas_programadas(array[%L]::uuid[])$fmt$,
+    current_setting('t21.post')), '1');
+
+-- E SO ELA, NAS TRES PECAS DO MES: as outras duas tem o Programar em aberto --
+-- a recusa delas esta na secao 7. Pedindo as TRES, a funcao devolve uma, que e
+-- o que separa "ela sabe responder" de "ela diz sim para tudo".
+--
+-- **ESTE CENARIO RODA COMO A CARLA, E A PRIMEIRA VERSAO DELE MEDIA NADA.** Ele
+-- rodava como a Joana, pedindo `array_agg(id)` de `posts` -- e ela enxerga UMA
+-- peca, porque `posts_select_cliente` exige `enviado_em` e so aquela foi
+-- enviada. O array chegava com um id, a funcao devolvia um, e o cenario
+-- passava com o filtro da caixinha fechada LIGADO e DESLIGADO. Quem mostrou
+-- foi o teste de mutacao: tirar `g.concluido` nao derrubava nenhum cenario.
+--
+-- E a licao do `select` antes do `insert` na idempotencia da recorrencia: um
+-- teste que nao separa a resposta certa da errada e um teste que afirma sem
+-- provar. Quem enxerga as tres e a equipe, e e por ela que a contagem passa.
+select teste.conferir_como('E so ela, nas tres pecas do mes', :CARLA,
+  format($fmt$select count(*)::text from public.pecas_programadas(
+    (select array_agg(id) from public.posts where social_task_id = %L))$fmt$,
+    current_setting('t21.mes')), '1');
+
+select teste.conferir_como('E a equipe enxerga as tres', :CARLA,
+  format($fmt$select count(*)::text from public.posts where social_task_id = %L$fmt$,
+    current_setting('t21.mes')), '3');
+
+-- A GUARDA ESCRITA A MAO E A PARTE QUE ESTE CENARIO MEDE. `security definer`
+-- nao passa pela RLS de `posts`, entao as duas condicoes que repetem
+-- `posts_select_cliente` sao o que impede a funcao de responder sobre a peca
+-- de qualquer empresa para quem tiver o uuid -- e o furo passa despercebido
+-- num banco com um cliente so, que e a licao da `calendar_events`.
+select teste.conferir_como('O cliente de outra empresa nao conta a peca', :OTTO,
+  format($fmt$select count(*)::text
+    from public.pecas_programadas(array[%L]::uuid[])$fmt$,
+    current_setting('t21.post')), '0');
+
+-- UMA LISTA VAZIA NAO ESTOURA, e ela acontece: o mes recem-aberto nao tem
+-- peca nenhuma, e a tela chama a funcao de qualquer forma.
+select teste.conferir_como('Lista vazia devolve nada, sem erro', :JOANA,
+  $fmt$select count(*)::text from public.pecas_programadas(array[]::uuid[])$fmt$,
+  '0');
+
+-- E A PORTA TEM DONO. O Supabase concede `execute` a `public` em toda funcao
+-- nova, e o PostgREST publica o schema sozinho -- sem o revoke, a funcao fica
+-- ao alcance da chave anon, que vai no bundle que o navegador baixa. E a
+-- licao da 0071, e o cenario mede o PRIVILEGIO e nao a mensagem de recusa:
+-- uma funcao pode recusar por dentro e continuar executavel.
+select teste.conferir(
+  'anon NAO tem execute em pecas_programadas',
+  has_function_privilege('anon', 'public.pecas_programadas(uuid[])', 'execute')::text,
+  'false');
+
+select teste.conferir(
+  'authenticated TEM execute em pecas_programadas',
+  has_function_privilege('authenticated', 'public.pecas_programadas(uuid[])', 'execute')::text,
+  'true');
 
 
 -- ---------------------------------------------------------------------------
