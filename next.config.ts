@@ -106,6 +106,37 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
+    /**
+     * QUANTOS PROCESSOS O BUILD ABRE para coletar os dados das paginas e
+     * gerar as estaticas -- as duas unicas etapas que este numero alcanca.
+     *
+     * -------------------------------------------------------------------
+     * **O padrao do Next e `os.cpus().length - 1`, e o problema e de ONDE
+     * esse numero vem.** Numa hospedagem compartilhada `os.cpus()` responde
+     * os nucleos da MAQUINA FISICA, nao os que o plano concede: um host de
+     * dezesseis nucleos faz o build abrir quinze processos num plano que da
+     * um ou dois. Cada um e um Node novo, com heap proprio -- o
+     * `isolatedMemory: true` do pool tira de proposito o
+     * `--max-old-space-size` herdado --, e o que acontece e o que ja
+     * aconteceu aqui com o Turbopack: o processo e MORTO saindo com status
+     * 0, que nao se le como erro de build.
+     *
+     * Fixar em 2 nao e sintonia fina, e parar de herdar: o numero passa a
+     * ser o que este projeto escolheu, e nao o que a hospedagem seguinte
+     * acontecer de reportar. E a mesma razao pela qual `hojeNaAgencia()`
+     * nao le o fuso do processo.
+     *
+     * **O QUE ELE NAO ALCANCA, e fica dito para ninguem procurar aqui a
+     * resposta errada:** a compilacao. Ela ja e sequencial -- um processo
+     * por vez, `server`, depois `edge-server`, depois `client`, cada um
+     * encerrado antes do proximo --, e e nela que mora o pico de memoria.
+     * Quem resolveu aquele pico foi o `--webpack` do `package.json`; o
+     * passo seguinte, se um dia o pico voltar, e `NODE_OPTIONS`, e nao este
+     * numero.
+     * -------------------------------------------------------------------
+     */
+    cpus: 2,
+
     // Habilita forbidden(), que devolve HTTP 403 de verdade quando alguem
     // tenta abrir uma area que nao e do seu perfil. Sem isso so daria para
     // mostrar uma tela bonita com status 200, o que engana monitoramento e
