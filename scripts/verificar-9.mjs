@@ -271,11 +271,33 @@ const MARCA_DA_BARRA = 'aria-label="Módulos do painel"';
 
 const NA_BARRA = [
   {
+    // ESTA PESSOA É DO ATENDIMENTO (`role: "colaborador"` é mapeado para
+    // `funcao: "Atendimento"` no gerador), e é por isso que ela TEM
+    // Solicitações. O par dela é a Redatora logo abaixo.
     tela: "08-painel-colaborador",
     tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo"],
     naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy"],
     porque:
       "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
+  },
+  {
+    // SOLICITAÇÕES É DO ATENDIMENTO (migration 0110), e esta é a metade da
+    // AUSÊNCIA — a Redatora, que é `colaborador` igualzinho à pessoa de cima.
+    //
+    // **É por isso que o par tem de existir, e não só a linha de cima.** O
+    // que distingue as duas não é o perfil de acesso: é a função na agência,
+    // e `roles` não sabe responder isso. Medindo só a presença, um
+    // `exigeAtendimento` que sempre devolvesse `true` passaria; medindo só a
+    // ausência, passaria um que escondesse o item de todo mundo — que é
+    // esconder o módulo exatamente de quem ele é.
+    //
+    // E os dois itens que ela TEM existem para a checagem não passar por uma
+    // barra que parou de desenhar qualquer coisa.
+    tela: "30b-minhas-tasks-vazia",
+    tem: ["Início", "Minhas Tasks"],
+    naoTem: ["Solicitações"],
+    porque:
+      "a Redatora é colaboradora como a de cima e não é do Atendimento: a leitura dos pedidos é `is_atendimento()` desde a 0110",
   },
   {
     tela: "05-painel-socio",

@@ -85,6 +85,29 @@ export type MenuItem = {
   description: string;
   /** Fora do menu, mas a rota existe e continua validando o perfil. */
   hiddenFromMenu?: boolean;
+  /**
+   * O ITEM SÓ APARECE PARA QUEM É DO ATENDIMENTO (`is_atendimento()`).
+   *
+   * -------------------------------------------------------------------------
+   * **`roles` não sabe responder isto, e é por isso que o campo existe.**
+   * Perfil de acesso e função na agência são coisas diferentes desde a 0006:
+   * o colaborador do Atendimento tem o perfil `colaborador`, exatamente igual
+   * ao do Design, e `roles: EQUIPE` mostra o item para os dois enquanto
+   * `roles: GESTAO` esconde dos dois — inclusive de quem o módulo é.
+   *
+   * **Ele é só o MENU, e não a trava.** Quem recusa é a policy no Postgres
+   * (`client_requests_select`, estreitada na 0110) e o `forbidden()` da
+   * própria rota, que pergunta ao banco por `souDoAtendimento()`. Este campo
+   * existe para a barra não oferecer um caminho que termina em 403 — e
+   * esconder o link nunca foi segurança neste produto.
+   *
+   * `canAccess()` e `findMenuItem()` continuam respondendo pelo `MENU` e não
+   * olham este campo: sem isso a rota viraria desconhecida, e com ela sairiam
+   * a trilha e o `<title>` da aba — é a decisão de `hiddenFromMenu`, e a razão
+   * pela qual as duas bandeiras são campos e não linhas apagadas.
+   * -------------------------------------------------------------------------
+   */
+  exigeAtendimento?: boolean;
 };
 
 export const MENU: MenuItem[] = [
@@ -282,21 +305,27 @@ export const MENU: MenuItem[] = [
     //
     // **`EQUIPE` e não `GESTAO`** porque `is_atendimento()` é verdadeira para
     // COLABORADOR que está no Atendimento, e é ele quem vive nesta fila. Uma
-    // entrada de `GESTAO` esconderia o módulo exatamente de quem o usa — e o
-    // menu não é a trava: quem recusa é `client_requests_update`, que é
-    // `is_atendimento()`. O designer que abrir a tela lê a fila (o SELECT é
-    // `is_staff()`) e não consegue triar nada.
+    // entrada de `GESTAO` esconderia o módulo exatamente de quem o usa — e é
+    // isso que `exigeAtendimento` resolve sem mexer no `roles`.
     //
-    // *O que fica em aberto, e é dito em vez de escondido:* um colaborador
-    // fora do Atendimento vê a lista dos pedidos de todos os clientes. Ele já
-    // vê as demandas deles no board, então não há nada aqui que o board não
-    // mostre — mas se um dia isso precisar ser fechado, é uma policy de SELECT
-    // mais estreita, não um `roles` mais curto.
+    // **E A DECISÃO QUE FICAVA EM ABERTO AQUI FOI FECHADA** (migration 0110),
+    // por decisão do usuário: *"as solicitações devem ser visualizadas apenas
+    // pelo atendimento, por desenvolvedores, ou sócios"*. O parágrafo que
+    // estava escrito neste lugar dizia que o colaborador fora do Atendimento
+    // via a lista inteira, que o board já mostrava o mesmo, e que **se um dia
+    // isso precisasse ser fechado seria uma policy de SELECT mais estreita e
+    // não um `roles` mais curto**. Foi exatamente o que a 0110 fez.
+    //
+    // O que o board NÃO mostrava, e é por isso que a frase antiga deixou de
+    // valer: o pedido recusado com o motivo, a conversa inteira entre as duas
+    // empresas (`request_messages` não tem coluna `interno`), os anexos que o
+    // cliente mandou, e o que ele pediu e a agência nunca aceitou.
     label: "Solicitações",
     href: "/painel/solicitacoes",
     icon: Inbox,
     roles: EQUIPE,
     section: "principal",
+    exigeAtendimento: true,
     description: "O que os clientes pediram pelo Portal, e o que virou demanda.",
   },
   {
@@ -559,9 +588,18 @@ export function canAccess(role: UserRole, href: string): boolean {
   return item.roles.includes(role);
 }
 
-/** Os itens visíveis no menu deste perfil, agrupados por seção e em ordem. */
+/**
+ * Os itens visíveis no menu deste perfil, agrupados por seção e em ordem.
+ *
+ * **`ehAtendimento` É OBRIGATÓRIO, e não tem padrão.** Um default aqui seria
+ * uma escolha tomada em silêncio por quem esquecesse de passá-lo: `true`
+ * ofereceria a Solicitações um caminho que termina em 403, `false` esconderia
+ * o módulo de quem ele é. A resposta não tem como ser deduzida do perfil — ela
+ * vem do banco, por `souDoAtendimento()` —, então quem chama responde.
+ */
 export function getMenuForRole(
   role: UserRole,
+  { ehAtendimento }: { ehAtendimento: boolean },
 ): { section: MenuSection; items: MenuItem[] }[] {
   return SECTION_ORDER.map((section) => ({
     section,
@@ -569,6 +607,7 @@ export function getMenuForRole(
       (item) =>
         item.section === section &&
         !item.hiddenFromMenu &&
+        (!item.exigeAtendimento || ehAtendimento) &&
         item.roles.includes(role),
     ),
   })).filter((grupo) => grupo.items.length > 0);

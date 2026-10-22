@@ -62,8 +62,37 @@ select teste.cenario('Joana NAO abre pedido na empresa do Otto', :JOANA,
 select teste.conferir_como('Otto nao enxerga o pedido da Mundo Verde', :OTTO,
   $$select count(*)::text from public.client_requests$$, '0');
 
-select teste.conferir_como('A equipe enxerga o pedido', :BRUNO,
+-- QUEM DA AGENCIA ENXERGA O PEDIDO E `is_atendimento()` (0110), e nao
+-- `is_staff()`. Decisao do usuario: *"as solicitacoes devem ser visualizadas
+-- apenas pelo atendimento, por desenvolvedores, ou socios"* -- que e, letra
+-- por letra, essa funcao.
+--
+-- OS TRES CENARIOS SAO UM SO VIRADO DO AVESSO: o do Bruno media '1' ate a
+-- 0110, e era ele que provava a decisao em aberto que a 0068 deixou escrita
+-- em `permissions.ts` (*"se um dia isso precisar ser fechado, e uma policy de
+-- SELECT mais estreita"*). Devolvendo `is_staff()` a policy, o terceiro falha
+-- e diz qual.
+select teste.conferir_como('Carla (Atendimento) enxerga o pedido', :CARLA,
   $$select count(*)::text from public.client_requests$$, '1');
+
+select teste.conferir_como('Diego (gestao) enxerga o pedido', :DIEGO,
+  $$select count(*)::text from public.client_requests$$, '1');
+
+select teste.conferir_como('Bruno (Design) NAO enxerga o pedido', :BRUNO,
+  $$select count(*)::text from public.client_requests$$, '0');
+
+-- E A BUSCA GLOBAL ACOMPANHA SEM UMA LINHA, porque `busca_global()` nao e
+-- `security definer` (0073) -- a policy vale dentro dela. ESTE CENARIO E O
+-- QUE PROVA QUE NAO EXISTE UM SEGUNDO LUGAR PARA LEMBRAR: e a classe de furo
+-- que a 0029 e a 0060 pagaram, as duas em que a regra morava em dois lados e
+-- desfazer um nao desfez nada.
+select teste.conferir_como('A paleta do Bruno nao acha o pedido', :BRUNO,
+  $$select count(*)::text from public.busca_global('dia das maes')
+     where tipo = 'pedido'$$, '0');
+
+select teste.conferir_como('E a da Carla acha', :CARLA,
+  $$select count(*)::text from public.busca_global('dia das maes')
+     where tipo = 'pedido'$$, '1');
 
 -- O PEDIDO NASCE `nova`, E QUEM ESCREVE NAO ESCOLHE.
 --
@@ -209,6 +238,13 @@ select teste.cenario('Otto NAO anexa no pedido da Joana', :OTTO,
 select teste.conferir_como('Otto nao enxerga o anexo da Joana', :OTTO,
   $$select count(*)::text from public.request_attachments$$, '0');
 
+-- O ANEXO ACOMPANHA SEM UMA LINHA DE POLICY, e e por isso que a 0068 criou
+-- `posso_ver_solicitacao()` em vez de repetir a pergunta nas quatro policies
+-- que `request_attachments` e `request_messages` tem: a 0110 trocou o corpo
+-- da funcao, e os dois lados estreitaram juntos.
+select teste.conferir_como('Bruno (Design) NAO enxerga o anexo', :BRUNO,
+  $$select count(*)::text from public.request_attachments$$, '0');
+
 -- O TETO E DEZ, E ELE RECUSA EM VEZ DE CORTAR.
 --
 -- Ao contrario do limite por task da recorrencia: la o excesso vem de uma
@@ -250,6 +286,15 @@ select teste.cenario('A Carla responde', :CARLA,
 select teste.conferir('A resposta da agencia avisou a Joana',
   (select count(*)::text from public.notifications
     where user_id = :JOANA and titulo = 'Resposta no seu pedido'), '1');
+
+-- A CONVERSA E O OUTRO LADO DA MESMA FUNCAO. Ela nao tem coluna `interno`
+-- (0068) de proposito -- tudo ali e combinado entre duas empresas --, e e
+-- justamente isso que faz a leitura dela ser do Atendimento desde a 0110.
+select teste.conferir_como('Bruno (Design) NAO le a conversa', :BRUNO,
+  $$select count(*)::text from public.request_messages$$, '0');
+
+select teste.conferir_como('Carla le a conversa', :CARLA,
+  $$select count(*)::text from public.request_messages$$, '2');
 
 -- E O AUTOR E QUEM ESTA LOGADO, dos dois lados.
 select teste.cenario('Joana tenta escrever no nome da Carla', :JOANA,
@@ -440,7 +485,18 @@ select teste.conferir_como('Otto nao enxerga o arquivo da Mundo Verde', :OTTO,
   $$select count(*)::text from storage.objects
      where bucket_id = 'solicitacoes-arquivos'$$, '0');
 
-select teste.conferir_como('A equipe enxerga o arquivo', :BRUNO,
+-- E O BUCKET ESTREITOU JUNTO (0110), que e a metade que uma policy de tabela
+-- nao alcanca: `storage.objects` nao enxerga `client_requests`, entao
+-- `posso_ver_solicitacao()` nao vale la -- a pergunta tem que ser escrita de
+-- novo, e foi por isso que ela ficou para tras uma vez neste produto.
+--
+-- O cenario do Bruno media '1' ate a 0110, e virou do avesso: devolvendo
+-- `is_staff()` a policy de leitura do bucket, ele falha e diz qual.
+select teste.conferir_como('Bruno (Design) NAO enxerga o arquivo', :BRUNO,
+  $$select count(*)::text from storage.objects
+     where bucket_id = 'solicitacoes-arquivos'$$, '0');
+
+select teste.conferir_como('Carla (Atendimento) enxerga o arquivo', :CARLA,
   $$select count(*)::text from storage.objects
      where bucket_id = 'solicitacoes-arquivos'$$, '1');
 

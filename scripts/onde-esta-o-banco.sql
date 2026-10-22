@@ -568,7 +568,16 @@ from (
     -- recusa com um erro sobre enum -- a tela prometendo o que o banco nao
     -- aceita, que e o par que `check:tipos` existe para pegar um andar acima.
     ('0109', 'o tipo de evento "Eventos Fullers"', 'valor_de_enum',
-             'evento_tipo|evento_fullers')
+             'evento_tipo|evento_fullers'),
+    -- A 0110 estreita a LEITURA das solicitacoes para `is_atendimento()`, e o
+    -- marcador mede o CORPO da policy: ela existe desde a 0068 com
+    -- `is_staff()` dentro, entao perguntar "a policy existe?" responderia ok
+    -- num banco que nunca viu esta migration. Ela e a ULTIMA coisa que o
+    -- arquivo muda -- o bucket vem antes de proposito, porque aquele passo e
+    -- pulado inteiro onde `storage.objects` nao existe, e marcador num passo
+    -- que metade dos ambientes nao executa e marcador que mente.
+    ('0110', 'a leitura das solicitacoes e do atendimento', 'policy',
+             'client_requests|client_requests_select|is_atendimento')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

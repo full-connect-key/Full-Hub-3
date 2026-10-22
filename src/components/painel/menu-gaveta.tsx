@@ -23,7 +23,14 @@ import type { UserRole } from "@/lib/supabase/database.types";
  * Mesmo fundo escuro da barra do desktop: os itens do menu foram escritos para
  * ler sobre escuro, e uma gaveta clara os deixaria quase invisíveis.
  */
-export function MenuGaveta({ role }: { role: UserRole }) {
+export function MenuGaveta({
+  role,
+  ehAtendimento,
+}: {
+  role: UserRole;
+  /** Repassado a `ListaDoMenu`: o item de Solicitações é do Atendimento. */
+  ehAtendimento: boolean;
+}) {
   const [aberto, setAberto] = useState(false);
 
   return (
@@ -51,7 +58,11 @@ export function MenuGaveta({ role }: { role: UserRole }) {
           <SheetDescription className="sr-only">Módulos do painel interno</SheetDescription>
         </SheetHeader>
         <div className="overflow-y-auto px-3 pb-6">
-          <ListaDoMenu role={role} aoNavegar={() => setAberto(false)} />
+          <ListaDoMenu
+            role={role}
+            ehAtendimento={ehAtendimento}
+            aoNavegar={() => setAberto(false)}
+          />
         </div>
       </SheetContent>
     </Sheet>

@@ -41,14 +41,25 @@ function estaAtivo(pathname: string, item: MenuItem): boolean {
  */
 export function ListaDoMenu({
   role,
+  ehAtendimento,
   aoNavegar,
 }: {
   role: UserRole;
+  /**
+   * A pessoa está no Atendimento? (`is_atendimento()`, lido no servidor.)
+   *
+   * Ela desce como DADO e não é perguntada aqui: este arquivo é `"use
+   * client"`, e um `useEffect` chamando a RPC faria a barra lateral nascer com
+   * um item a menos e ganhá-lo um instante depois — a cada navegação. Quem
+   * pergunta é o layout, uma vez, e ele já perguntava antes desta prop existir
+   * (é o mesmo booleano que monta o tour).
+   */
+  ehAtendimento: boolean;
   /** Usado na gaveta do celular, para fechar ao escolher um item. */
   aoNavegar?: () => void;
 }) {
   const pathname = usePathname();
-  const secoes = getMenuForRole(role);
+  const secoes = getMenuForRole(role, { ehAtendimento });
 
   return (
     /*

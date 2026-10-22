@@ -85,6 +85,7 @@ export default async function LayoutDoPainel({
       <div className="bg-surface-page flex min-h-dvh">
         <MenuLateral
           role={profile.role}
+          ehAtendimento={ehAtendimento}
           nome={profile.nome}
           cargo={ficha?.cargo ?? null}
           avatarUrl={profile.avatar_url}
@@ -127,7 +128,7 @@ export default async function LayoutDoPainel({
             seções, que é a que precisa.
           */}
           <header className="sticky top-0 z-30 flex h-16 items-center gap-2 px-3 sm:gap-3 lg:px-6">
-            <MenuGaveta role={profile.role} />
+            <MenuGaveta role={profile.role} ehAtendimento={ehAtendimento} />
             <BuscaGlobal />
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">

@@ -5927,10 +5927,95 @@ pedido não avisa a si mesma.
 **O menu leva a entrada para a PRINCIPAL e a abre para `EQUIPE`**, porque
 `is_atendimento()` é verdadeira para colaborador do Atendimento — e é ele quem
 vive nesta fila. Uma entrada de `GESTAO` esconderia o módulo exatamente de quem
-o usa. *O que fica em aberto, e é dito em vez de escondido:* um colaborador
-fora do Atendimento vê a lista de todos os clientes; ele já vê as demandas
-deles no board, mas se um dia isso precisar ser fechado é uma policy de SELECT
-mais estreita, não um `roles` mais curto.
+o usa.
+
+##### E A LEITURA PASSOU A SER DO ATENDIMENTO (0110)
+
+Decisão do usuário: *"as solicitações devem ser visualizadas apenas pelo
+atendimento, por desenvolvedores, ou sócios"*. Essa lista é, letra por letra,
+`is_atendimento()` — quem tem `funcao = 'Atendimento'` mais a gestão —, e não
+uma função nova: é a MESMA que `tasks_insert` usa desde a 0006 e que
+`client_requests_update` já usava para triar.
+
+**ISTO FECHA UMA DECISÃO QUE ESTAVA ESCRITA AQUI EM ABERTO**, e o parágrafo
+dela previu a migration inteira: *"um colaborador fora do Atendimento vê a
+lista de todos os clientes; ele já vê as demandas deles no board, mas se um dia
+isso precisar ser fechado é uma policy de SELECT mais estreita, não um `roles`
+mais curto"*. Foi exatamente isso.
+
+**UM `roles` MAIS CURTO NÃO RESOLVERIA, e a razão é mecânica antes de ser de
+princípio:** o colaborador do Atendimento tem o perfil `colaborador`,
+exatamente igual ao do Design — `roles: EQUIPE` mostra para os dois e
+`roles: GESTAO` esconde dos dois, inclusive de quem o módulo é. Perfil de
+acesso e função na agência são coisas diferentes desde a 0006.
+
+**O QUE O BOARD NÃO MOSTRAVA, e é por isso que a frase antiga deixou de
+valer:** o pedido recusado com o motivo escrito por quem recusou; a conversa
+inteira entre as duas empresas — `request_messages` não tem coluna `interno`,
+então tudo ali é combinado sobre o que vai ser feito; os anexos que o cliente
+mandou; e o que ele pediu e a agência nunca aceitou, que por definição não está
+no board.
+
+**UMA TROCA DE LINHA ESTREITOU ANEXO E CONVERSA JUNTO**, e é o que a 0068
+comprou ao criar `posso_ver_solicitacao()` em vez de repetir a pergunta nas
+quatro policies que as duas tabelas têm. O bucket, esse precisou ser escrito de
+novo: `storage.objects` não enxerga `client_requests`, então a pergunta não tem
+como ser a mesma função — e é essa metade que fica para trás quando alguém
+estreita só a tabela.
+
+**E A BUSCA GLOBAL ACOMPANHOU SEM UMA LINHA**, porque `busca_global()` não é
+`security definer` (0073) justamente para a policy valer dentro dela. O cenário
+que mede isso existe porque é a classe de furo que a 0029 e a 0060 pagaram — a
+regra em dois lados, e desfazer um não desfaz nada.
+
+**`request_types_select` FICOU COMO ESTAVA**, e a ausência é decisão: aquela
+tabela é o catálogo de roteiros de briefing, igual para todas as contas, sem
+dado de cliente dentro. Estreitá-la mudaria uma coisa só — o colaborador fora
+do Atendimento passaria a ler apenas os tipos ativos, como o cliente já lê — e
+ele não tem tela que a leia.
+
+**O MENU ESCONDE POR `exigeAtendimento`, que é um campo novo do `MenuItem`.**
+`roles` não sabe responder isso, e `canAccess()` e `findMenuItem()` continuam
+respondendo pelo `MENU` — é a forma de `hiddenFromMenu`: sem a entrada, a rota
+viraria desconhecida e sairiam a trilha e o `<title>` da aba. **E
+`getMenuForRole()` passou a exigir a resposta**, sem padrão: um default aqui
+seria a escolha tomada em silêncio por quem esquecesse de passá-la — `true`
+ofereceria um caminho que termina em 403, `false` esconderia o módulo de quem
+ele é. **Ela não custa consulta nenhuma**: o layout do painel já perguntava
+`souDoAtendimento()` para montar o tour.
+
+**A CAIXA DE ENTRADA LEVA `forbidden()`, E O DETALHE NÃO.** Sem o 403, quem não
+alcança abriria a fila e leria *"Nenhum pedido esperando"* — uma afirmação
+falsa com toda a confiança, que é o modo de falha que a aba do sócio nas Notas
+Fiscais existe para não cometer: lista vazia é indistinguível da verdade. O
+detalhe já responde **404** para quem a RLS não devolve a linha, e 404 é a
+resposta certa ali, a mesma do post no portal — um 403 confirmaria que existe um
+pedido com aquele id.
+
+**Medido com três mutações**, sobre 2253 cenários: devolver `is_staff()` a
+`client_requests_select` derruba **2** — o cenário do Design e o da paleta de
+busca —, devolvê-lo a `posso_ver_solicitacao()` derruba **2** (o anexo e a
+conversa), e devolvê-lo ao bucket derruba **1**.
+
+**E O PROTÓTIPO GUARDA O PAR, de mão dupla.** A pessoa do `08-painel-colaborador`
+é do Atendimento — o gerador mapeia `role: "colaborador"` para
+`funcao: "Atendimento"` — e TEM o item; a Redatora do
+`30b-minhas-tasks-vazia` é `colaborador` igualzinho e NÃO tem. Medindo só a
+presença, um `exigeAtendimento` que sempre devolvesse `true` passaria; medindo
+só a ausência, passaria um que escondesse o item de todo mundo.
+
+**O marcador do `onde-esta-o-banco.sql` aponta para `client_requests_select` e
+mede o CORPO dela**, não a existência: a policy existe desde a 0068 com
+`is_staff()` dentro. **E o bucket vem PRIMEIRO na migration** por causa disso —
+o tipo `policy` do script fecha em `schemaname = 'public'`, e o único que
+alcança outro schema confere existência, que aqui não distingue nada. Deixando
+o bucket por último, o marcador apontaria para o penúltimo passo e diria `ok`
+num banco onde a colagem morreu antes do fim.
+
+*A primeira versão da migration dizia que o bucket é pulado no Postgres da
+bateria, e a bateria me corrigiu:* o fixture cria `storage.objects`, e os dois
+cenários do bucket rodam de verdade. A guarda `if to_regclass(...) is null` é
+sobre um banco servido sem o Storage, que é a mesma razão que a 0068 escreveu.
 
 **E o build pegou o que `check:fronteira` não pega.** O nome do bucket estava
 em `lib/dados/solicitacoes.ts`, que é `server-only`, e a tela do pedido — que é

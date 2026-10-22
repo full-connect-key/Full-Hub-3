@@ -30,11 +30,14 @@ import type { UserRole } from "@/lib/supabase/database.types";
  */
 export function MenuLateral({
   role,
+  ehAtendimento,
   nome,
   cargo,
   avatarUrl,
 }: {
   role: UserRole;
+  /** Repassado a `ListaDoMenu`: o item de Solicitações é do Atendimento. */
+  ehAtendimento: boolean;
   nome: string;
   cargo: string | null;
   avatarUrl: string | null;
@@ -59,7 +62,7 @@ export function MenuLateral({
         </div>
 
         <div className="flex-1 overflow-y-auto px-3">
-          <ListaDoMenu role={role} />
+          <ListaDoMenu role={role} ehAtendimento={ehAtendimento} />
         </div>
 
         <div className="space-y-2 px-3">

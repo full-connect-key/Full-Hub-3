@@ -18,7 +18,9 @@ import type {
  * **NENHUMA CONSULTA AQUI FILTRA POR EMPRESA, e é de propósito.**
  *
  * Quem separa "o pedido da minha empresa" do "pedido da outra" é
- * `client_requests_select` no banco: `is_staff()` ou `my_client_ids()`.
+ * `client_requests_select` no banco: `is_atendimento()` ou `my_client_ids()`
+ * — era `is_staff()` até a 0110, quando a leitura passou a ser do Atendimento
+ * mais a gestão, por decisão do usuário.
  * Repetir o filtro aqui criaria um segundo lugar onde a regra pode divergir —
  * e o lado que esquecesse seria o que mostra o pedido de um cliente para
  * outro. É a decisão de `lib/dados/portal.ts` e de `lib/dados/posts.ts`.
