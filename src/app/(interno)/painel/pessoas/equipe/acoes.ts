@@ -6,7 +6,7 @@ import { z } from "zod";
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
-import { FUNCOES } from "@/lib/dominio/equipe";
+import { FUNCOES, areaDaFuncao } from "@/lib/dominio/equipe";
 import { ehSocio } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -23,7 +23,6 @@ const esquema = z.object({
   nome: z.string().min(2, "Informe o nome completo.").max(120),
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().max(120).optional().nullable(),
-  area: z.string().max(120).optional().nullable(),
   funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
   dias_ferias_ano: z.number().int().min(0).max(365),
@@ -94,7 +93,11 @@ export async function salvarColaborador(dados: unknown): Promise<Resultado> {
         {
           user_id: id,
           cargo: vazioParaNulo(ficha.cargo),
-          area: vazioParaNulo(ficha.area),
+          // A ÁREA É DERIVADA DA FUNÇÃO, e o servidor é quem a escreve: a
+          // razão inteira está em `areaDaFuncao()`. O campo saiu das duas
+          // telas, e derivá-la aqui — e não lá — é o que impede o cadastro e
+          // a edição de discordarem sobre a área da mesma pessoa.
+          area: areaDaFuncao(ficha.funcao),
           funcao: ficha.funcao,
           data_admissao: vazioParaNulo(ficha.data_admissao),
           dias_ferias_ano: ficha.dias_ferias_ano,

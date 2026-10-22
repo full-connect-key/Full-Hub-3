@@ -65,13 +65,60 @@ export function podeConcederRole(quemConcede: UserRole, roleDesejado: UserRole):
   return quemConcede === "socio" || quemConcede === "desenvolvedor";
 }
 
-/** Áreas sugeridas. Campo livre: a agência pode criar outras. */
-export const AREAS_SUGERIDAS = [
-  "Atendimento",
-  "Criação",
-  "Mídia",
-  "Audiovisual",
-  "Tecnologia",
-  "Direção",
-  "Administrativo",
-];
+/**
+ * A ÁREA DE CADA FUNÇÃO — e ela deixou de ser um campo.
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário: *"tem opção de área e função que fica duplicado,
+ * mantenha apenas a 'função' e tire 'área'"*. Ele estava certo: o cadastro
+ * tinha dois seletores lado a lado com vocabulários que se sobrepunham —
+ * "Atendimento" e "Audiovisual" apareciam nos dois, palavra por palavra.
+ *
+ * **MAS A ÁREA NÃO PODIA SIMPLESMENTE SUMIR**, e é o que esta função resolve:
+ * ela é o agrupamento de que o Day Off inteiro depende. A matriz da equipe
+ * agrupa por área, o relatório filtra por área, e o calendário de propor
+ * período **bloqueia os dias de quem é da mesma área** — *"quem responde
+ * precisa saber quem mais do mesmo time está fora"*. Tirar o campo e deixar a
+ * coluna em branco poria toda pessoa nova num balde "Sem área", e o bloqueio
+ * passaria a tratar a agência inteira como um time só.
+ *
+ * Então a coluna continua existindo e continua sendo escrita — **só que
+ * derivada**, e não digitada. É a regra que o produto já aplica em toda parte:
+ * o que dá para calcular não se guarda duas vezes, senão são duas verdades e
+ * a digitada é a que envelhece. É `atraso` não ser coluna no Financeiro, e
+ * `maoDoPost()` no Social.
+ *
+ * **O VOCABULÁRIO É O DA LISTA ANTIGA**, menos "Administrativo": ele não é a
+ * área de nenhuma das nove funções, e inventar um dono para ele seria pôr
+ * gente num grupo que ninguém escolheu. `Outro` vira a área `Outro`, que é
+ * honesta — e é também o único grupo em que duas pessoas de ofícios
+ * diferentes podem cair juntas.
+ *
+ * **QUEM ESCREVE É O SERVIDOR**, nas duas ações que gravam a ficha, e nunca a
+ * tela: a derivação num lugar só é o que impede o cadastro e a edição de
+ * discordarem sobre a área da mesma pessoa.
+ *
+ * *O que fica em aberto, e é dito em vez de escondido:* as fichas que já
+ * existem mantêm a área que alguém digitou até a próxima vez que alguém as
+ * salvar. Não há passada de conversão, de propósito — ela reescreveria uma
+ * escolha que ninguém pediu para desfazer. Quem quiser alinhar a tabela
+ * inteira de uma vez faz um `update` com este mesmo de-para.
+ * ---------------------------------------------------------------------------
+ */
+export const AREA_DA_FUNCAO: Record<TeamFuncao, string> = {
+  Atendimento: "Atendimento",
+  "Social Media": "Criação",
+  Redator: "Criação",
+  Design: "Criação",
+  Audiovisual: "Audiovisual",
+  Trafego: "Mídia",
+  Desenvolvimento: "Tecnologia",
+  Gestao: "Direção",
+  Outro: "Outro",
+};
+
+/** A área de quem tem esta função. Nulo vira nulo: ficha sem função não tem área. */
+export function areaDaFuncao(funcao: string | null | undefined): string | null {
+  if (!funcao) return null;
+  return AREA_DA_FUNCAO[funcao as TeamFuncao] ?? "Outro";
+}

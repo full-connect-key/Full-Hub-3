@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
-import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
+import { AREA_DA_FUNCAO, FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { DIAS_DE_DESCANSO_PADRAO } from "@/lib/dominio/full-days";
 import type { MembroDaEquipe } from "@/lib/dados/equipe";
 
@@ -31,7 +31,6 @@ const esquema = z.object({
   nome: z.string().min(2, "Informe o nome completo."),
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().optional(),
-  area: z.string().optional(),
   // Obrigatória: é ela que libera a criação de tasks para o Atendimento.
   funcao: z.string().min(1, "Escolha a função da pessoa na agência."),
   data_admissao: z.string().optional(),
@@ -70,7 +69,6 @@ export function DetalheDoColaborador({
       nome: pessoa.nome,
       role: pessoa.role as Dados["role"],
       cargo: pessoa.membro?.cargo ?? "",
-      area: pessoa.membro?.area ?? "",
       funcao: pessoa.membro?.funcao ?? "",
       data_admissao: pessoa.membro?.data_admissao ?? "",
       dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? DIAS_DE_DESCANSO_PADRAO,
@@ -80,7 +78,6 @@ export function DetalheDoColaborador({
   // useWatch em vez de watch(): watch() devolve uma função nova a cada
   // render, que o compilador do React não consegue memoizar com segurança.
   const role = useWatch({ control, name: "role" });
-  const area = useWatch({ control, name: "area" });
   const funcao = useWatch({ control, name: "funcao" });
 
   const enviar = handleSubmit((dados) => {
@@ -161,20 +158,27 @@ export function DetalheDoColaborador({
               <Input id="cargo" {...register("cargo")} />
             </div>
 
+            {/* A ÁREA NÃO É MAIS UM CAMPO, e aparece como FATO: ela é
+                derivada da função desde que o seletor saiu — a razão inteira
+                está em `areaDaFuncao()`. Ela fica à vista porque decide o
+                agrupamento da matriz do Day Off e o bloqueio de dias de quem
+                é do mesmo time, e esconder isso faria a remoção parecer um
+                sumiço.
+
+                E ela mostra a área DERIVADA, não a que está gravada: é a que
+                vai para o banco no próximo Salvar, e mostrar a antiga seria a
+                tela prometendo o que o botão não faz. */}
             <div className="space-y-2">
-              <Label htmlFor="area">Área</Label>
-              <Select value={area || undefined} onValueChange={(valor) => setValue("area", valor)}>
-                <SelectTrigger aria-label="Área" id="area" className="w-full">
-                  <SelectValue placeholder="Escolha a área" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AREAS_SUGERIDAS.map((opcao) => (
-                    <SelectItem key={opcao} value={opcao}>
-                      {opcao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="area-derivada">Área</Label>
+              <p
+                id="area-derivada"
+                className="border-input bg-muted/40 text-text-secondary flex h-9 items-center rounded-md border px-3 text-sm"
+              >
+                {funcao
+                  ? AREA_DA_FUNCAO[funcao as keyof typeof AREA_DA_FUNCAO]
+                  : "—"}
+              </p>
+              <p className="text-muted-foreground text-xs">Vem da função.</p>
             </div>
 
             <div className="space-y-2">

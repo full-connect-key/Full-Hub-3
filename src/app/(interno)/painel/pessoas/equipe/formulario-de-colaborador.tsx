@@ -23,7 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
-import { AREAS_SUGERIDAS, FUNCOES, ROTULOS_DE_FUNCAO, podeConcederRole } from "@/lib/dominio/equipe";
+import {
+  AREA_DA_FUNCAO,
+  FUNCOES,
+  ROTULOS_DE_FUNCAO,
+  podeConcederRole,
+} from "@/lib/dominio/equipe";
+import { DIAS_DE_DESCANSO_PADRAO } from "@/lib/dominio/full-days";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { UserRole } from "@/lib/supabase/database.types";
 
@@ -34,7 +40,6 @@ const esquema = z.object({
   email: z.string().email("Esse e-mail não parece válido."),
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().optional(),
-  area: z.string().optional(),
   // Obrigatória: é ela que libera a criação de tasks para quem é do
   // Atendimento, e sem ela a pessoa entra na equipe sem papel definido.
   funcao: z.string().min(1, "Escolha a função da pessoa na agência."),
@@ -87,17 +92,28 @@ export function FormularioDeColaborador({
       email: "",
       role: "colaborador",
       cargo: "",
-      area: "",
       funcao: "",
       data_admissao: "",
-      dias_ferias_ano: 30,
+      // **ERA 30, E A COLUNA É 15 DESDE A 0011** — relato do usuário: *"quando
+      // vou adicionar um novo colaborador ele está automaticamente dizendo que
+      // a pessoa tem 30 dias off por ano sendo que o padrão é 15"*.
+      //
+      // O 30 é o default que a 0003 deu à coluna e que a 0011 trocou por 15, no
+      // banco e só lá: este formulário nasceu com o número copiado e ficou com
+      // ele. E um default de tela **ganha do default da coluna**, porque o
+      // formulário sempre manda o valor — então toda pessoa cadastrada desde a
+      // 0011 entrou com o dobro do contrato da casa.
+      //
+      // A constante e não o literal: ela é a mesma que a faixa do saldo e a
+      // recusa do banco usam, e um segundo 15 escrito aqui seria o 30 de novo
+      // daqui a três sprints.
+      dias_ferias_ano: DIAS_DE_DESCANSO_PADRAO,
     },
   });
 
   // useWatch em vez de watch(): watch() devolve uma função nova a cada
   // render, que o compilador do React não consegue memoizar com segurança.
   const role = useWatch({ control, name: "role" });
-  const area = useWatch({ control, name: "area" });
   const funcao = useWatch({ control, name: "funcao" });
 
   const enviar = handleSubmit(async (dados) => {
@@ -108,7 +124,6 @@ export function FormularioDeColaborador({
       criarColaborador({
         ...dados,
         cargo: dados.cargo || null,
-        area: dados.area || null,
         data_admissao: dados.data_admissao || null,
       }),
     );
@@ -203,21 +218,6 @@ export function FormularioDeColaborador({
               <Input id="colab-cargo" placeholder="Analista de contas" {...register("cargo")} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="colab-area">Área</Label>
-              <Select value={area || undefined} onValueChange={(valor) => setValue("area", valor)}>
-                <SelectTrigger aria-label="Área" id="colab-area" className="w-full">
-                  <SelectValue placeholder="Escolha a área" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AREAS_SUGERIDAS.map((opcao) => (
-                    <SelectItem key={opcao} value={opcao}>
-                      {opcao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="colab-funcao">Função *</Label>
               <Select value={funcao || undefined} onValueChange={(valor) => setValue("funcao", valor, { shouldValidate: true })}>
                 <SelectTrigger aria-label="Função" id="colab-funcao" aria-invalid={!!errors.funcao} className="w-full">
@@ -235,6 +235,19 @@ export function FormularioDeColaborador({
                 <p className="text-destructive text-xs">{errors.funcao.message}</p>
               ) : (
                 <p className="text-muted-foreground text-xs">
+                  {/* A ÁREA APARECE AQUI, e não num campo: ela é derivada da
+                      função desde que o seletor dela saiu — a razão inteira
+                      está em `areaDaFuncao()`. Mostrá-la é o que impede a
+                      remoção de virar um sumiço: a área decide o agrupamento
+                      da matriz do Day Off e o bloqueio de dias de quem é do
+                      mesmo time, e quem cadastra precisa ver em qual a pessoa
+                      vai cair. */}
+                  {funcao ? (
+                    <>
+                      Área: <strong className="font-medium">{AREA_DA_FUNCAO[funcao as keyof typeof AREA_DA_FUNCAO]}</strong> — vem
+                      da função.{" "}
+                    </>
+                  ) : null}
                   Quem está no Atendimento pode criar tasks mesmo sendo colaborador.
                 </p>
               )}

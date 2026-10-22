@@ -7,7 +7,7 @@ import { adminOuErro, criarConta, desfazerConta } from "@/lib/acoes/contas";
 import { exigirGestorNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
-import { FUNCOES, podeConcederRole } from "@/lib/dominio/equipe";
+import { FUNCOES, podeConcederRole, areaDaFuncao } from "@/lib/dominio/equipe";
 import { SUBTAREFAS_EM_ABERTO } from "@/lib/dominio/tasks";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 
@@ -44,7 +44,6 @@ const esquemaDeColaborador = z.object({
   email: z.string().email("Esse e-mail não parece válido."),
   role: z.enum(["colaborador", "desenvolvedor", "socio"]),
   cargo: z.string().max(120).optional().nullable(),
-  area: z.string().max(120).optional().nullable(),
   // Obrigatória: é a função que libera a criação de tasks para o Atendimento.
   funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
@@ -57,7 +56,6 @@ const ROTULOS_DO_COLABORADOR = {
   email: "e-mail",
   role: "perfil de acesso",
   cargo: "cargo",
-  area: "área",
   funcao: "função",
   data_admissao: "data de admissão",
   dias_ferias_ano: "dias de day off por ano",
@@ -104,7 +102,10 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
       {
         user_id: usuarioId,
         cargo: textoOuNulo(pedido.cargo),
-        area: textoOuNulo(pedido.area),
+        // DERIVADA DA FUNÇÃO, nunca digitada — a razão está em
+        // `areaDaFuncao()`. As duas ações que gravam ficha derivam no
+        // servidor, pelo mesmo lugar.
+        area: areaDaFuncao(pedido.funcao),
         funcao: pedido.funcao,
         data_admissao: textoOuNulo(pedido.data_admissao),
         dias_ferias_ano: pedido.dias_ferias_ano,

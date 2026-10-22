@@ -6349,6 +6349,66 @@ antigos viram 308 em `ROTAS_RENOMEADAS`, e **as fichas vêm primeiro na lista**:
 o Next casa na ordem, e `/painel/clientes/:id` precisa ser testado antes de
 `/painel/clientes`, senão a ficha cai na lista e o id se perde no caminho.
 
+#### A ÁREA DEIXOU DE SER UM CAMPO, e o day off nasce com 15 e não 30
+
+Duas correções na mesma tela, as duas relatadas pelo usuário: *"quando vou
+adicionar um novo colaborador ele está automaticamente dizendo que a pessoa tem
+30 dias off por ano sendo que o padrão é 15, altere. além disso, tem opção de
+área e função que fica duplicado, mantenha apenas a 'função' e tire 'área'"*.
+
+**O 30 ERA UM DEFAULT DE TELA, e ele ganhava do default da coluna.** A 0003 deu
+à coluna o padrão 30, a 0011 trocou por 15 — no banco, e só lá. O formulário
+tinha nascido com o número copiado e ficou com ele, e como ele **sempre manda o
+valor**, o default da coluna nunca chegava a ser usado: toda pessoa cadastrada
+desde a 0011 entrou com o dobro do contrato da casa. O que entra no lugar é
+`DIAS_DE_DESCANSO_PADRAO`, a constante que a faixa do saldo e a recusa do banco
+já usam — um segundo 15 escrito ali seria o 30 de novo daqui a três sprints.
+
+**E A ÁREA ESTAVA MESMO DUPLICADA**, palavra por palavra: `AREAS_SUGERIDAS`
+trazia "Atendimento" e "Audiovisual", que são dois dos nove valores de
+`team_funcao`. Dois seletores lado a lado oferecendo a mesma palavra é a tela
+pedindo duas vezes a mesma coisa.
+
+**MAS ELA NÃO PODIA SIMPLESMENTE SUMIR, e é o que torna a entrega maior que o
+pedido.** A área é o agrupamento de que o Day Off inteiro depende: a matriz
+agrupa por ela, o relatório filtra por ela, e o calendário de propor período
+**bloqueia os dias de quem é da mesma área** — *"quem responde precisa saber
+quem mais do mesmo time está fora"*. Tirar o campo e deixar a coluna em branco
+poria toda pessoa nova num balde "Sem área", e o bloqueio passaria a tratar a
+agência inteira como um time só.
+
+Então a coluna fica e continua sendo escrita, **derivada e não digitada**:
+`areaDaFuncao()` em `lib/dominio/equipe.ts`. É a regra que o produto aplica em
+toda parte — o que dá para calcular não se guarda duas vezes, senão são duas
+verdades e a digitada é a que envelhece. É `atraso` não ser coluna no
+Financeiro, e `maoDoPost()` no Social.
+
+**QUEM DERIVA É O SERVIDOR**, nas duas ações que gravam ficha, e nunca a tela:
+a derivação num lugar só é o que impede o cadastro e a edição de discordarem
+sobre a área da mesma pessoa. O campo saiu do esquema zod dos dois lados, então
+mandá-la deixou de ser possível.
+
+**O vocabulário é o da lista antiga, menos "Administrativo"**: ele não é a área
+de nenhuma das nove funções, e inventar um dono para ele seria pôr gente num
+grupo que ninguém escolheu. `Outro` vira a área `Outro`.
+
+**E ELA APARECE, em vez de sumir.** No cadastro, como uma linha embaixo do
+seletor de função — *"Área: Criação — vem da função"* —, que só nasce depois de
+alguém escolher; na ficha, como um campo de leitura com a mesma frase embaixo.
+Esconder faria a remoção parecer um sumiço, e quem cadastra precisa ver em que
+grupo do Day Off a pessoa vai cair. **E a ficha mostra a área DERIVADA, não a
+gravada:** é a que vai para o banco no próximo Salvar, e mostrar a antiga seria
+a tela prometendo o que o botão não faz.
+
+*O que fica em aberto, e é dito em vez de escondido:* **não há passada de
+conversão**. As fichas que já existem mantêm a área que alguém digitou até a
+próxima vez que forem salvas — reescrevê-las seria desfazer uma escolha que
+ninguém pediu para desfazer, e a maioria já concorda com o de-para, porque as
+duas listas saíram do mesmo vocabulário. Quem quiser alinhar a tabela inteira
+de uma vez faz um `update` com o mesmo mapa. `AREAS_SUGERIDAS` foi **apagada** e
+não deixada ao lado, que é a decisão da 0023: uma lista que nenhuma tela lê é o
+que alguém reaproveita errado três sprints depois.
+
 ### Dois módulos que saíram: Resumo Semanal e Financeiro Pessoal
 
 Apagados na migration 0034, por decisão do usuário: tela, rota, dados e
