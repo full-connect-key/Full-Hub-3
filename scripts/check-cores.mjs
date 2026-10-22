@@ -324,6 +324,13 @@ const PARES = [
   ["--danger", "--danger-soft", NORMAL, "selo de erro"],
   ["--neutral", "--neutral-soft", NORMAL, "selo neutro (prioridade Normal)"],
   ["--ferias", "--ferias-soft", NORMAL, "selo de férias"],
+  // O MESMO VALOR POR OUTRO NOME, e as duas linhas ficam. `--ferias` aponta
+  // para `--roxo` desde a 0109, então medir uma mediria as duas — e é
+  // justamente por isso que as duas estão aqui: no dia em que alguém desfizer
+  // a cadeia e der um valor próprio a `--ferias`, uma linha mede a matriz do
+  // Day Off e a outra mede o chip do calendário, em vez de uma afirmar sobre
+  // a outra. É a decisão do par nomeado aplicada à lista que o confere.
+  ["--roxo", "--roxo-soft", NORMAL, "chip de convenção e feira no calendário"],
   // Na matriz o quadrado de férias é só cor, sem texto: vale a régua de
   // elemento de interface.
   ["--ferias", "--surface-card", GRANDE, "quadrado de férias na matriz"],
@@ -805,7 +812,16 @@ for (const [frente, fundo, minimo, descricao] of PARES) {
 
 console.log("\nOpacidade onde o par nomeado é a regra\n");
 
-const COM_PAR_SUAVE = ["warning", "success", "danger", "neutral", "ferias", "info", "brand"];
+const COM_PAR_SUAVE = [
+  "warning",
+  "success",
+  "danger",
+  "neutral",
+  "ferias",
+  "roxo",
+  "info",
+  "brand",
+];
 
 {
   let achados = "";

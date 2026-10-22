@@ -86,10 +86,10 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
  * coisa. O nome viaja no `title` e no `aria-label` do chip, junto com o resto.
  *
  * **Etapa sem dono não ganha círculo genérico**, que é a regra da pilha de
- * avatares: um círculo ali afirmaria que existe alguém. Post, campanha e
- * entregável também não têm — o post não tem a coluna, e a peça de campanha é
- * uma subtarefa desde a 0051, então ela já aparece pelo ramo da etapa, com o
- * rosto certo.
+ * avatares: um círculo ali afirmaria que existe alguém. A campanha também não
+ * tem — o encerramento dela não é trabalho de ninguém, e a peça dela é uma
+ * subtarefa desde a 0051, então ela já aparece pelo ramo da etapa, com o rosto
+ * certo.
  * ---------------------------------------------------------------------------
  */
 export function CalendarioDeTasks({
@@ -188,11 +188,24 @@ export function CalendarioDeTasks({
             <SelectTrigger aria-label="Responsável" size="sm" className="w-48">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
+            {/* "PAUTA DE" FICA SÓ NO GENÉRICO, e sai dos nomes — decisão do
+                usuário: *"está escrito a todo momento 'pauta de Emerson
+                Aguiar, Pauta de Gabriela Oliveira…', isso está repetitivo e
+                ruim"*. Ele estava certo: com quinze pessoas a lista repetia a
+                mesma preposição quinze vezes, e o que a pessoa procura ali é
+                um NOME — as duas palavras na frente empurravam o sobrenome
+                para fora dos 192px do seletor.
+
+                A primeira linha mantém a frase porque ela não é um nome: ela
+                é o que o filtro faz quando ninguém escolhe ninguém, e
+                "Toda a equipe" sozinho não diz de que a tela está falando.
+                Quem diz para o leitor de tela é o `aria-label` do gatilho, que
+                continua sendo "Responsável". */}
             <SelectContent>
               <SelectItem value={SEM_FILTRO}>Pauta de toda a equipe</SelectItem>
               {equipe.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  Pauta de {p.nome}
+                  {p.nome}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -287,10 +300,9 @@ export function CalendarioDeTasks({
                         <button
                           type="button"
                           onClick={() =>
-                            // Post, campanha e entregável têm destino
-                            // próprio e não abrem o painel lateral de demanda:
-                            // não são uma, e o painel mostraria campos que
-                            // eles não têm.
+                            // A campanha tem destino próprio e não abre o
+                            // painel lateral de demanda: ela não é uma, e o
+                            // painel mostraria campos que ela não tem.
                             item.href
                               ? router.push(item.href)
                               : aoAbrir
@@ -309,8 +321,8 @@ export function CalendarioDeTasks({
                             // olhada.
                             tinta.chip,
                             // Pontilhado para o que não é etapa de demanda:
-                            // post, campanha e entregável vivem em outro
-                            // módulo, e o traço diz isso sem ocupar espaço.
+                            // a campanha vive em outro módulo, e o traço diz
+                            // isso sem ocupar espaço.
                             rotulo && "border-border border-dotted",
                           )}
                         >
@@ -423,7 +435,7 @@ export function CalendarioDeTasks({
             aria-hidden
             className="border-border size-2.5 rounded border border-dotted"
           />
-          Post, campanha e entregável — abrem em outro módulo
+          Campanha — abre em outro módulo
         </span>
       </div>
     </div>

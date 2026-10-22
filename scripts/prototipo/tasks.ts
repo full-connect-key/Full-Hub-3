@@ -870,6 +870,9 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
 
   // A linha da Demanda saiu daqui junto com o produto: `tasks.data_fim` é
   // `max(prazo das folhas)`, então ela caía no mesmo dia que a última etapa.
+  // O post e o entregável sairam depois, com a decisao de o calendario mostrar
+  // so o que e job interno -- e o stub nunca os produziu, que e por que a
+  // imagem nao mostrava o que o usuario estava vendo.
 
   for (const sub of SUBTAREFAS) {
     const mae = tasks.find((t) => t.id === sub.task_id);
@@ -887,6 +890,30 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
       concluida: sub.status === "concluida",
       responsavel: sub.responsavel,
       cliente: mae.cliente?.nome_empresa ?? null,
+    });
+  }
+
+  // A CAMPANHA, que e a unica origem que sobrou ao lado da etapa -- e sem ela
+  // a legenda mostraria o quadrado pontilhado escrito "Campanha" com nenhum
+  // chip pontilhado na grade, que e a legenda ensinando errado. Ela nao tem
+  // responsavel (o encerramento nao e trabalho de ninguem) e some quando
+  // alguem filtra por pessoa, como no produto.
+  if (!filtros.responsavel) {
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() + 9);
+    itens.push({
+      chave: "campanha-cmp1",
+      tipo: "campanha",
+      taskId: "cmp1",
+      titulo: "Wave Saúde do Homem",
+      demanda: null,
+      prazo: fecha.toISOString().slice(0, 10),
+      prioridade: "normal",
+      status: "em_andamento",
+      concluida: false,
+      responsavel: null,
+      cliente: "Mundo Verde",
+      href: "/painel/aprovacoes/campanhas/cmp1",
     });
   }
 

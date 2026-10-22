@@ -44,11 +44,15 @@ import { VisaoDeSemana } from "./visao-semana";
 /**
  * A LEGENDA, e ela AGRUPA quem divide a cor.
  *
- * São sete tipos de evento em quatro pares — a decisão está em
- * `COR_DO_TIPO_DE_EVENTO` —, e quatro entradas com sete nomes é o que a
- * legenda do portal já faz com os sete status em cinco tons. Sete linhas e
- * quatro cores seria pior que quatro: a pessoa procura a diferença entre duas
+ * São oito tipos de evento em cinco pares — a decisão está em
+ * `COR_DO_TIPO_DE_EVENTO` —, e cinco entradas com oito nomes é o que a
+ * legenda do portal já faz com os sete status em cinco tons. Oito linhas e
+ * cinco cores seria pior que cinco: a pessoa procura a diferença entre duas
  * amostras iguais, não acha, e passa a desconfiar do resto.
+ *
+ * **"Eventos Fullers" ABRE A LISTA e carrega o azul** (0109, decisão do
+ * usuário). Ele é o único par de um tipo só, e por isso é também o único cujo
+ * rótulo na legenda é o mesmo do seletor: não há o que agrupar.
  *
  * **ELA É LEGENDA E NÃO FILTRO, e isso é a 0105.** Até aqui a fileira era as
  * duas coisas na mesma peça — "a legenda e o interruptor são a mesma coisa, e
@@ -57,6 +61,7 @@ import { VisaoDeSemana } from "./visao-semana";
  * Um filtro por tipo de evento é outra decisão, e ninguém a pediu.
  */
 const LEGENDA: { cor: string; rotulo: string }[] = [
+  { cor: COR_DO_TIPO_DE_EVENTO.evento_fullers, rotulo: "Eventos Fullers" },
   { cor: COR_DO_TIPO_DE_EVENTO.convencao, rotulo: "Convenção e feira" },
   { cor: COR_DO_TIPO_DE_EVENTO.lancamento, rotulo: "Lançamento" },
   { cor: COR_DO_TIPO_DE_EVENTO.feriado_cliente, rotulo: "Feriado do cliente" },

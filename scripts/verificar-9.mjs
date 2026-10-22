@@ -222,6 +222,13 @@ const POR_PERFIL = [
  * diria que a entrada continua no menu quando ela não está. Por isso o recorte
  * é o `<nav>` da barra, achado pelo rótulo acessível que ele já carregava.
  *
+ * **E "FEEDBACK" ENTROU NO `naoTem` DOS DOIS PERFIS DE GESTÃO**, e só neles:
+ * ele era `GESTAO`, então o colaborador nunca o teve — uma linha na tela dele
+ * afirmaria uma ausência que já era verdade antes da mudança, e uma checagem
+ * que não tem como falhar pelo motivo certo é uma checagem que afirma sem
+ * provar. Decisão do usuário: *"excluir a aba de 'feedback' dentro de gestão,
+ * não vamos usar"*.
+ *
  * **POR QUE ELA EXISTE:** Social Media e Campanhas saíram da barra por decisão
  * do usuário — *"quero que social media e campanhas saiam da aba lateral, elas
  * devem ficar dentro de minhas tasks para diminuir a quantidade de itens"*. As
@@ -273,14 +280,14 @@ const NA_BARRA = [
   {
     tela: "05-painel-socio",
     tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro", "Day Off", "Acervo"],
-    naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy"],
+    naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy", "Feedback"],
     porque:
-      "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria",
+      "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria; e o Feedback saiu com eles",
   },
   {
     tela: "09-painel-desenvolvedor",
     tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Day Off", "Acervo"],
-    naoTem: ["Social Media", "Campanhas", "Financeiro", "Full Days", "Full Academy"],
+    naoTem: ["Social Media", "Campanhas", "Financeiro", "Full Days", "Full Academy", "Feedback"],
     porque:
       "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",
   },

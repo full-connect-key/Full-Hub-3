@@ -406,6 +406,13 @@ const TELAS = [
   // foto.
   { nome: "65d-full-days-primeiro-ciclo", rota: "/painel/full-days", largura: 1600, altura: 1200,
     role: "colaborador", env: { PROTOTIPO_PRIMEIRO_CICLO: "1" } },
+  // O SALDO QUE NAO VEIO, e ela existe porque o estado nasceu de um relato: a
+  // faixa dizia "voce tem 15 de 15 dias disponiveis" para quem tinha day off
+  // aprovado, porque a leitura falhava calada e o fallback preenchia um ciclo
+  // cheio. O que a imagem confere e que a tela DIZ que nao sabe -- a barra de
+  // uso some, o "Saldo depois" sai do resumo, e o envio continua de pe.
+  { nome: "65e-full-days-saldo-sem-resposta", rota: "/painel/full-days", largura: 1600, altura: 1200,
+    role: "colaborador", env: { PROTOTIPO_SALDO_SEM_RESPOSTA: "1" } },
   // A PROVA DO AJUSTE 03, e não uma tela bonita: escolher um dia, alcançar o
   // mês seguinte e escolher outro, com a seleção de pé nos dois.
   //

@@ -74,6 +74,17 @@ from (
              split_part(v.nome, '|', 1), split_part(v.nome, '|', 2), 'execute')
       when 'feriado' then exists (
         select 1 from public.holidays h where h.data = v.nome::date)
+      -- VALOR DE ENUM, e a 0109 e a primeira migration do produto que cria
+      -- UM e mais nada. Nenhum dos tipos acima responde por ela: nao nasce
+      -- tabela, coluna, funcao nem trigger -- e o `comment on type` que ela
+      -- reescreve seria marcador por prosa, que ninguem le e que a proxima
+      -- reescrita apaga. `tipo|valor`.
+      when 'valor_de_enum' then exists (
+        select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+          join pg_namespace n on n.oid = t.typnamespace
+         where n.nspname = 'public'
+           and t.typname = split_part(v.nome, '|', 1)
+           and e.enumlabel = split_part(v.nome, '|', 2))
       -- Corpo de funcao, e nao ausencia de objeto: a 0029 nao cria nada, ela
       -- TIRA a pergunta de dentro de `pode_aprovar_subtarefa()`. Procurar um
       -- objeto que sumiu diria "ok" tambem para um banco que nunca teve a
@@ -335,9 +346,30 @@ from (
     -- mesma forma -- uma migration desfeita por outra depois --, e as duas
     -- sao DECLARADAS aqui: esquecer nao e decisao.
     -- A 0085 reescreve `saldo_de_ferias()` e cria `descanso_usado_no_ciclo()`.
-    -- A linha aponta para a NOVA: o saldo existe desde a 0011 e responderia ok
-    -- num banco parado la, com a conta acumulativa.
-    ('0085', 'descanso_usado_no_ciclo()', 'funcao', 'descanso_usado_no_ciclo'),
+    -- A linha NAO pode apontar para o saldo: ele existe desde a 0011 e
+    -- responderia ok num banco parado la, com a conta acumulativa.
+    --
+    -- E ELA APONTAVA PARA `descanso_usado_no_ciclo`, QUE A 0085 CRIA NO PASSO
+    -- 1 -- e esse marcador mentiu, do jeito mais caro que um marcador deste
+    -- arquivo pode mentir. O que a tela do saldo chama e
+    -- `descanso_do_ciclo()`, que a 0085 recria no PASSO 6, depois de um `drop
+    -- function if exists`. Uma colagem que morre entre os dois passos deixa o
+    -- banco com a funcao do PASSO 1 de pe e **sem `descanso_do_ciclo` nenhuma**
+    -- -- e o marcador dizia `ok`.
+    --
+    -- O custo foi um relato do usuario: a faixa do Day Off dizia *"voce tem 15
+    -- de 15 dias disponiveis"* para quem tinha day off aprovado. A RPC
+    -- recusava, `descansoDoCiclo` devolvia nulo, e a tela preenchia um ciclo
+    -- cheio -- os dois lados consertados no mesmo commit. O marcador e a
+    -- terceira metade: sem ele, quem fosse procurar a causa leria `ok` aqui.
+    --
+    -- Entao ele aponta para a ULTIMA coisa que a migration cria, e por
+    -- PRESENCA e nao por ausencia (a licao da 0090): o corpo de
+    -- `descanso_do_ciclo` chamando `descanso_usado_no_ciclo`. A versao da 0074
+    -- nao tem como citar uma funcao que ainda nao existia, e um banco sem a
+    -- funcao responde FALTA em vez de estourar.
+    ('0085', 'descanso_do_ciclo() ja le o usado do ciclo', 'no_corpo',
+             'descanso_do_ciclo|descanso_usado_no_ciclo'),
     -- A 0086 liga o mes de social a demanda dele nos dois sentidos. A linha
     -- aponta para a funcao que apaga os dois juntos: `arquivada_em` tambem
     -- serviria, mas uma coluna nao prova que o TRIGGER esta de pe, e e ele a
@@ -530,7 +562,13 @@ from (
     -- alguem ACRESCENTA, e acrescentar e o que as migrations fazem (foi assim
     -- que a linha da 0060 passou a mentir quando a 0090 devolveu a frase).
     ('0108', 'a resolucao do workflow devolve parent_ordem', 'no_corpo',
-             'etapas_resolvidas_do_workflow|parent_ordem')
+             'etapas_resolvidas_do_workflow|parent_ordem'),
+    -- A 0109 cria UM valor de enum e mais nada: "Eventos Fullers" no
+    -- calendario. Sem ela o seletor de tipo oferece a categoria e o `insert`
+    -- recusa com um erro sobre enum -- a tela prometendo o que o banco nao
+    -- aceita, que e o par que `check:tipos` existe para pegar um andar acima.
+    ('0109', 'o tipo de evento "Eventos Fullers"', 'valor_de_enum',
+             'evento_tipo|evento_fullers')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

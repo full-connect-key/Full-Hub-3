@@ -590,9 +590,31 @@ export async function descansoDoCiclo(
   usuarioId: string,
 ): Promise<DescansoDoCiclo | null> {
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.rpc("descanso_do_ciclo", {
+  const { data, error } = await supabase.rpc("descanso_do_ciclo", {
     p_user_id: usuarioId,
   });
+
+  // **ELA TRATAVA O ERRO NA MÃO E NÃO TRATAVA NENHUM.** `lib/dados/consulta.ts`
+  // nomeia esta leitura entre as que ficam fora do `ouFalha()` de propósito —
+  // e o que havia aqui era `const { data } = await`, que descarta a recusa:
+  // sem log, sem tela, sem jeito de saber que ela aconteceu.
+  //
+  // **O custo disso foi um relato do usuário**, e é o pior formato possível:
+  // *"mesmo eu já tendo dias solicitados e aprovados, ainda aparece que tenho
+  // 15 dias disponíveis"*. A conta estava certa — para um período que ainda
+  // não passou, `inicio_do_ciclo() <= hoje < data_inicio`, então o recorte da
+  // 0085 é sempre verdadeiro e `descanso_usado_no_ciclo()` **não tem como**
+  // devolver zero. O 15 era o fallback da tela, que preenchia um ciclo cheio
+  // por causa de uma leitura que ninguém soube que falhou.
+  //
+  // Continua devolvendo nulo, e não lançando: a tela do pedido funciona sem o
+  // saldo — quem recusa de verdade é a trava do `insert` —, e derrubá-la por
+  // causa do número trancaria a equipe fora do pedido. É a decisão do limite
+  // de tentativas: falhar para o lado aberto, com barulho no log.
+  if (error) {
+    console.error("[consulta:saldo de day off]", error);
+    return null;
+  }
 
   const linha = data?.[0];
   if (!linha) return null;

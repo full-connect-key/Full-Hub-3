@@ -373,13 +373,27 @@
      Alta e Urgente, que é onde ele precisa estar. */
   --neutral: #545960;
   --neutral-soft: #F1F3F5;
-  /* Day off, na matriz da equipe. O roxo não estava na paleta e precisou
-     entrar: a matriz tem sete estados no mesmo quadrado pequeno, e sem ele
-     day off e afastamento cairiam os dois no âmbar. Não é um terceiro
-     tom de marca — é cor de estado, como o verde e o vermelho, e só aparece
-     ali. O nome do token é anterior às trocas de vocabulário (0016 e 0107). */
-  --ferias: #7E22CE;
-  --ferias-soft: #F3E8FF;
+  /* O ROXO, e ele tem DOIS consumidores desde a 0109 — por isso o valor mora
+     num nome que não promete nenhum dos dois.
+
+     Ele entrou pela matriz do Day Off: sete estados no mesmo quadrado pequeno,
+     e sem ele day off e afastamento cairiam os dois no âmbar. Não é um
+     terceiro tom de marca — é cor de estado, como o verde e o vermelho.
+
+     A 0109 deu o azul a "Eventos Fullers" e mandou convenção e feira para cá,
+     e aí o nome passou a decidir alguma coisa: `bg-ferias-soft` num chip de
+     convenção manda quem vier depois procurar um day off que não existe ali —
+     é `pessoasDaLinhaDoTempo` de novo. E dois tokens com o MESMO valor seriam
+     duas verdades esperando divergir, que é a razão pela qual `--font-porta`
+     foi apagado em vez de repontado.
+
+     Então é um valor e dois nomes: `--roxo` é a cor, `--ferias` aponta para
+     ela. É a forma de `--acao-fundo → --text-primary` e de
+     `--accent-strong → --action-text`, e `check:cores` resolve a cadeia. */
+  --roxo: #7E22CE;
+  --roxo-soft: #F3E8FF;
+  --ferias: var(--roxo);
+  --ferias-soft: var(--roxo-soft);
 
   /* --- Cores de gráfico -------------------------------------------------
      Separadas das cores de estado DE PROPÓSITO. Receita em verde e despesa
@@ -516,8 +530,12 @@
   --danger-soft: #3A1717;
   --neutral: #B6BCC4;
   --neutral-soft: #2C3137;
-  --ferias: #C084FC;
-  --ferias-soft: #2A1A3D;
+  /* Passos próprios, medidos contra os fundos do escuro — não os do claro
+     invertidos, que é a decisão das cores de série logo abaixo. */
+  --roxo: #C084FC;
+  --roxo-soft: #2A1A3D;
+  --ferias: var(--roxo);
+  --ferias-soft: var(--roxo-soft);
 
   /* No escuro as cores de gráfico NÃO são as claras invertidas: são passos
      próprios, medidos contra --surface-card do tema escuro. Clarear as do
@@ -652,6 +670,8 @@
   --color-danger-soft: var(--danger-soft);
   --color-neutral: var(--neutral);
   --color-neutral-soft: var(--neutral-soft);
+  --color-roxo: var(--roxo);
+  --color-roxo-soft: var(--roxo-soft);
   --color-ferias: var(--ferias);
   --color-ferias-soft: var(--ferias-soft);
   --color-serie-1: var(--serie-1);

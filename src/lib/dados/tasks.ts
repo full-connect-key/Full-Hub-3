@@ -756,7 +756,28 @@ export async function itensDoCalendario(
     });
   }
 
-  itens.push(...(await postsNoCalendario(filtros)));
+  // **O POST SAIU DAQUI, e o entregável com ele** — decisão do usuário: *"está
+  // considerando também os posts dos clientes que vai ser postado naquela
+  // data, mas essa visualização eu só preciso saber as pautas e demandas do
+  // time, apenas o que de fato é um job internamente"*.
+  //
+  // O post entrava pela data de PUBLICAÇÃO, que não é trabalho de ninguém: é
+  // o dia em que a peça vai ao ar. O trabalho dela já está nesta tela pelo
+  // caminho certo — a corrente do mês é uma subtarefa desde a 0088, com dono,
+  // prazo e cronômetro —, e o dia em que a peça sobe se lê no calendário do
+  // próprio Social Media, que é onde se abre o mês.
+  //
+  // **E O ENTREGÁVEL ERA DUPLICATA ESTRITA**, que é a mesma razão pela qual a
+  // linha da Demanda saiu: a peça de campanha é uma subtarefa desde a 0051, e
+  // o espelho da 0080 copia nome e prazo de uma para a outra — então ela caía
+  // no MESMO dia, com o MESMO nome, duas vezes. A linha que fica é a melhor
+  // das duas: ela carrega o responsável e o rosto, que o entregável não tem.
+  // Nada se perde; o que sai é a contagem dobrada.
+  //
+  // **A CAMPANHA FICA, e o que isso custa está dito:** o encerramento dela não
+  // é um job de ninguém — não tem responsável, e some assim que alguém filtra
+  // por pessoa. Ela fica porque é a única linha desta tela que diz quando uma
+  // campanha fecha, e tirá-la perderia um fato que nada mais mostra aqui.
   itens.push(...(await campanhasNoCalendario(filtros)));
 
   return itens.sort((a, b) => a.prazo.localeCompare(b.prazo));
@@ -772,9 +793,9 @@ export async function itensDoCalendario(
  * "quando isso começou?". É a mesma decisão que o calendário já toma com o
  * período da etapa, que mostra só o prazo.
  *
- * **O entregável entra pelo prazo DELE**, e o sem prazo fica de fora: item
- * sem data não ocupa dia nenhum, e colocá-lo em algum dia seria inventar a
- * data que ninguém definiu.
+ * **O ENTREGÁVEL NÃO ENTRA MAIS**, e a razão está no chamador: ele é uma
+ * subtarefa desde a 0051, o espelho da 0080 copia nome e prazo de uma para a
+ * outra, e a mesma peça saía duas vezes no mesmo dia.
  */
 async function campanhasNoCalendario(
   filtros: FiltrosDeTask,
@@ -798,30 +819,23 @@ async function campanhasNoCalendario(
   const campanhas = linhasDeCampanha.filter((c) => c.status !== "cancelada");
   if (campanhas.length === 0) return [];
 
-  const [{ data: clientes }, { data: entregaveis }] = await Promise.all([
-    supabase
+  // UMA IDA SÓ: a consulta de `deliverables` saiu com as linhas deles.
+  const clientes = ouFalha(
+    "os clientes das campanhas do calendário",
+    await supabase
       .from("clients")
       .select("id, nome_empresa, slug")
       .in("id", [...new Set(campanhas.map((c) => c.client_id))]),
-    supabase
-      .from("deliverables")
-      .select("id, campaign_id, nome, prazo, status")
-      .in(
-        "campaign_id",
-        campanhas.map((c) => c.id),
-      )
-      .not("prazo", "is", null),
-  ]);
+  );
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c]));
-  const porCampanha = new Map(campanhas.map((c) => [c.id, c]));
+  const porCliente = new Map(clientes.map((c) => [c.id, c]));
 
   const destino = (clienteId: string, resto: string) => {
     const slug = porCliente.get(clienteId)?.slug;
     return slug ? `/portal/${slug}/campanhas/${resto}` : undefined;
   };
 
-  const itens: ItemDeCalendario[] = campanhas.map((campanha) => ({
+  return campanhas.map((campanha) => ({
     chave: `campanha-${campanha.id}`,
     tipo: "campanha" as const,
     taskId: campanha.id,
@@ -835,96 +849,6 @@ async function campanhasNoCalendario(
     cliente: porCliente.get(campanha.client_id)?.nome_empresa ?? null,
     href: destino(campanha.client_id, campanha.id),
   }));
-
-  for (const item of entregaveis ?? []) {
-    const campanha = porCampanha.get(item.campaign_id);
-    if (!campanha || !item.prazo) continue;
-
-    itens.push({
-      chave: `entregavel-${item.id}`,
-      tipo: "entregavel",
-      taskId: item.id,
-      titulo: item.nome,
-      demanda: campanha.nome,
-      prazo: item.prazo,
-      prioridade: "normal",
-      status: "em_andamento",
-      concluida: item.status === "aprovado",
-      responsavel: null,
-      cliente: porCliente.get(campanha.client_id)?.nome_empresa ?? null,
-      href: destino(campanha.client_id, `${campanha.id}/${item.id}`),
-    });
-  }
-
-  return itens;
-}
-
-/**
- * Os posts agendados, no mesmo calendário das demandas.
- *
- * **A data que conta aqui é a de PUBLICAÇÃO**, e não a de aprovação: o
- * calendário da agência responde "o que vai ao ar quando". O prazo de decidir
- * é do cliente, e aparece no portal dele.
- *
- * O post não tem prioridade nem responsável — as duas colunas não existem na
- * tabela. `normal` é o que o calendário usa para a cor, e é honesto: um post
- * não é mais nem menos urgente que outro por natureza.
- */
-async function postsNoCalendario(
-  filtros: FiltrosDeTask,
-): Promise<ItemDeCalendario[]> {
-  // O filtro por pessoa esvazia a lista de posts em vez de ignorá-la: com
-  // "pauta da Marina" selecionado, mostrar todos os posts da agência seria a
-  // tela desmentindo o próprio filtro.
-  if (filtros.responsavel) return [];
-
-  const supabase = await criarClienteServidor();
-
-  // POST SEM DATA NAO ENTRA NO CALENDARIO, e o filtro é `not null` e não um
-  // descarte depois: desde a 0044 o mês de social abre em branco, e um post
-  // sem data não tem célula onde caber. Ele existe na tela de Social Media,
-  // na faixa "sem data ainda" — que é onde alguém vai buscá-lo para marcar o
-  // dia.
-  let consulta = supabase
-    .from("posts")
-    .select("id, client_id, tema, data_publicacao, status")
-    .not("data_publicacao", "is", null)
-    .order("data_publicacao");
-
-  if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
-
-  const posts = ouFalha("os posts do calendário", await consulta);
-  if (posts.length === 0) return [];
-
-  const clientes = ouFalha(
-    "os clientes dos posts do calendário",
-    await supabase
-      .from("clients")
-      .select("id, nome_empresa, slug")
-      .in("id", [...new Set(posts.map((p) => p.client_id))]),
-  );
-
-  const porCliente = new Map(clientes.map((c) => [c.id, c]));
-
-  return posts.map((post) => {
-    const cliente = porCliente.get(post.client_id);
-    return {
-      chave: `post-${post.id}`,
-      tipo: "post" as const,
-      taskId: post.id,
-      titulo: post.tema,
-      demanda: null,
-      prazo: post.data_publicacao as string,
-      prioridade: "normal" as TaskPrioridade,
-      status: "em_andamento" as TaskStatus,
-      concluida: post.status === "aprovado",
-      responsavel: null,
-      cliente: cliente?.nome_empresa ?? null,
-      href: cliente?.slug
-        ? `/portal/${cliente.slug}/social-media/${post.id}`
-        : undefined,
-    };
-  });
 }
 
 /**

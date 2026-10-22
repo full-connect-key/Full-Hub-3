@@ -350,11 +350,18 @@ export function emArvore<T extends ComPai & { ordem: number }>(
  * sprints depois, achando que ainda significa alguma coisa.
  * ---------------------------------------------------------------------------
  */
-export type TipoDeItemDeCalendario =
-  | "subtarefa"
-  | "post"
-  | "campanha"
-  | "entregavel";
+/**
+ * **E "post" E "entregavel" SAÍRAM JUNTOS**, por decisão do usuário: *"essa
+ * visualização eu só preciso saber as pautas e demandas do time, apenas o que
+ * de fato é um job internamente"*.
+ *
+ * O post entrava pela data de PUBLICAÇÃO — o dia em que a peça vai ao ar, que
+ * não é trabalho de ninguém. O entregável era duplicata estrita: a peça de
+ * campanha é subtarefa desde a 0051, e o espelho da 0080 copia nome e prazo
+ * de uma para a outra. Os dois saíram do TIPO e não só do loop, pela razão
+ * escrita acima para a Demanda.
+ */
+export type TipoDeItemDeCalendario = "subtarefa" | "campanha";
 
 /**
  * O rótulo de MÓDULO de cada linha — e a etapa não tem nenhum.
@@ -374,11 +381,14 @@ export type TipoDeItemDeCalendario =
  * o Sprint 10, e ela responde a pergunta que o rótulo não respondia — *"de
  * que demanda é este Layout?"*, numa agência com três campanhas correndo.
  *
- * **Post, campanha e entregável FICAM com rótulo**, e a assimetria é o ponto:
- * eles vêm de outro módulo, abrem em outra tela, e o rótulo é o que diz isso
- * sem gastar uma linha. O `Record` continua total sobre a união — e `null`
- * é explícito — justamente para um tipo novo não cair calado no último ramo
- * de um `? :`, que é como "entregável" quase virou "Etapa".
+ * **A CAMPANHA FICA com rótulo**, e a assimetria é o ponto: ela vem de outro
+ * módulo, abre em outra tela, e o rótulo é o que diz isso sem gastar uma
+ * linha. O `Record` continua total sobre a união — e `null` é explícito —
+ * justamente para um tipo novo não cair calado no último ramo de um `? :`,
+ * que é como "entregável" quase virou "Etapa".
+ *
+ * **E ele tem DOIS valores e não quatro**: post e entregável saíram com as
+ * origens deles, pela razão escrita em `TipoDeItemDeCalendario`.
  * ---------------------------------------------------------------------------
  */
 export const ROTULO_DO_ITEM_DE_CALENDARIO: Record<
@@ -386,9 +396,7 @@ export const ROTULO_DO_ITEM_DE_CALENDARIO: Record<
   string | null
 > = {
   subtarefa: null,
-  post: "Post",
   campanha: "Campanha",
-  entregavel: "Entregável",
 };
 
 /**

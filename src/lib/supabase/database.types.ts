@@ -301,6 +301,7 @@ export type NotificationTipo =
 
 /** O que o evento é. Decide a cor quando `events.cor` não diz outra coisa. */
 export type EventoTipo =
+  | "evento_fullers"
   | "convencao"
   | "feira"
   | "lancamento"

@@ -310,11 +310,30 @@ export const MENU: MenuItem[] = [
     // 0043 — então o feedback dela chega onde ela já abre todo dia. O nome
     // daquele módulo está na lista de nomes mortos do `check:cores`, e a
     // explicação mora em CLAUDE.md, fora de `src/`.
+    // **E ELA SAIU DA BARRA**, por decisão do usuário: *"excluir a aba de
+    // 'feedback' dentro de gestão, não vamos usar"*.
+    //
+    // `hiddenFromMenu` e NÃO a linha apagada, que é a decisão das duas
+    // entradas que saíram antes desta: o item sai do MENU, não do alcance de
+    // quem o abria. Sem a entrada, `findMenuItem` não acharia a rota,
+    // `exigirAcessoARota` devolveria 403 e a trilha e o `<title>` sairiam em
+    // branco — e as duas rotas filhas (`/sobre` e `/configuracoes`) casariam
+    // no item errado. Nenhuma policy mudou, nenhum perfil perdeu nada.
+    //
+    // **O QUE ISTO NÃO FAZ, e fica dito em vez de escondido:** o módulo
+    // continua inteiro — as quatro tabelas da 0075, as telas e os dois blocos
+    // do Início. Eles somem sozinhos, porque são blocos de exceção: sem
+    // ninguém gerando relatório não há o que mostrar a ninguém, e sem ninguém
+    // abrindo a tela não nascem alertas de carga para o Pulso. Apagar o módulo
+    // é outra decisão, e ela passa por um script de exportação antes, como a
+    // 0034 e a 0043 — `feedback_replies` guarda o que cada pessoa respondeu
+    // sobre o que foi escrito a respeito dela.
     label: "Feedback",
     href: "/painel/feedback",
     icon: MessageSquareHeart,
     roles: GESTAO,
     section: "gestao",
+    hiddenFromMenu: true,
     description: "Gere, revise e envie o feedback de desenvolvimento da equipe.",
   },
   {

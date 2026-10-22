@@ -17,8 +17,11 @@
  *     grade (um item de um dia nao provaria nada);
  *   - UM DIA COM MAIS DE TRES ITENS, para o "+ N mais" sair em imagem -- e ele
  *     e a unica linha que nenhuma outra tela do produto desenha;
- *   - OS QUATRO PARES DE COR da legenda, um evento de cada, senao a imagem
- *     mostra quatro entradas de legenda e um tom so na grade;
+ *   - OS CINCO PARES DE COR da legenda, um evento de cada, senao a imagem
+ *     mostra cinco entradas de legenda e um tom so na grade. Eram quatro ate a
+ *     0109, que deu o azul a "Eventos Fullers" e mandou convencao e feira
+ *     para o roxo -- e sem um evento da casa a imagem mostraria a legenda
+ *     nova com a amostra azul e nenhum chip azul na grade;
  *   - UM EVENTO SEM EMPRESA e um COM, porque a segunda linha do chip e o
  *     cliente e ela nao aparece quando nao ha -- a convencao da casa.
  *
@@ -81,6 +84,9 @@ const ITENS: ItemDoCalendario[] = [
   // SEM EMPRESA: a segunda linha do chip nao aparece, que e o estado da
   // convencao e do feriado da casa.
   evento("ev-convencao", "Convenção da agência", "convencao", 9, 10, null),
+  // O PAR DO AZUL, que e o da propria agencia (0109). Sem empresa pela
+  // definicao da categoria: um evento dos Fullers nao e de conta nenhuma.
+  evento("ev-fullers", "Confraternização dos Fullers", "evento_fullers", 12, 12, null),
   // OS OUTROS TRES PARES DA LEGENDA, um de cada.
   evento("ev-lancamento", "Lançamento da linha Verão", "lancamento", 5, 5, MV),
   evento("ev-feriado", "Feriado da Óptica Visão", "feriado_cliente", 5, 5, OV),

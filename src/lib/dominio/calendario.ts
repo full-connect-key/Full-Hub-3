@@ -87,7 +87,13 @@ export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
 // OS TIPOS DE EVENTO
 // ---------------------------------------------------------------------------
 
+// "EVENTOS FULLERS" VEM PRIMEIRO, e a ordem daqui é a do seletor do
+// formulário — nada no produto ordena pelo enum, e é por isso que a 0109
+// appendou o valor em vez de usar `add value ... before`. O que é da própria
+// agência abre a lista porque é o que mais se lança nesta tela: a convenção
+// da casa, o treinamento, a reunião de planejamento.
 export const TIPOS_DE_EVENTO: EventoTipo[] = [
+  "evento_fullers",
   "convencao",
   "feira",
   "lancamento",
@@ -98,6 +104,7 @@ export const TIPOS_DE_EVENTO: EventoTipo[] = [
 ];
 
 export const ROTULOS_DE_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
+  evento_fullers: "Eventos Fullers",
   convencao: "Convenção",
   feira: "Feira",
   lancamento: "Lançamento",
@@ -110,21 +117,34 @@ export const ROTULOS_DE_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
 /**
  * A cor por tipo de evento.
  *
- * **Sete tipos em quatro pares**, e é a mesma decisão das oito categorias das
- * Recomendações: sete cores distintas numa grade de mês viram confete, e o
- * que o selo precisa dizer é "isto é de ir / é do cliente / é interno". O
- * nome exato vai no `title` e no rótulo acessível — **a cor nunca é o único
- * sinal**.
+ * **Oito tipos em cinco pares** desde a 0109 — eram sete em quatro —, e é a
+ * mesma decisão das oito categorias das Recomendações: oito cores distintas
+ * numa grade de mês viram confete, e o que o selo precisa dizer é "isto é
+ * nosso / é de ir / é do cliente / é interno". O nome exato vai no `title` e
+ * no rótulo acessível — **a cor nunca é o único sinal**.
  */
 export const COR_DO_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
+  // O AZUL É DOS EVENTOS DA CASA, e isso é a 0109 — decisão do usuário. Ele
+  // era de convenção e feira desde a 0105, e com a categoria nova existindo
+  // a pergunta mudou: numa grade de mês em que quase tudo é da agência, a cor
+  // mais forte é a que diz "isto é nosso".
+  //
   // `bg-accent text-accent-foreground` E NAO `bg-blue-soft text-blue-strong`,
   // e a troca é da 0105: aquele par dá 5,24:1 no claro e **2,35:1 no escuro**,
   // porque lá os dois tokens são escuros. É o mesmo achado que o selo "Admin"
   // da barra lateral já tinha pagado, e ele reaparece aqui porque a cor do
   // evento passou a desenhar o chip do mês — a peça mais repetida da tela.
   // `--accent` é "o azul legível no tema de agora", e o par está medido.
-  convencao: "bg-accent text-accent-foreground",
-  feira: "bg-accent text-accent-foreground",
+  evento_fullers: "bg-accent text-accent-foreground",
+  // O ROXO, que a 0109 trouxe para a paleta sob um nome que não é o da matriz
+  // do Day Off — a razão está no `globals.css`, ao lado do valor. Medido em
+  // `check:cores`: 5,92:1 no claro e 6,05:1 no escuro.
+  //
+  // **CONVENÇÃO E FEIRA CONTINUAM DIVIDINDO O PAR**, e é a decisão original
+  // desta lista: oito tipos em cinco cores, porque oito tons distintos numa
+  // grade de mês viram confete. A legenda agrupa quem divide.
+  convencao: "bg-roxo-soft text-roxo",
+  feira: "bg-roxo-soft text-roxo",
   lancamento: "bg-success-soft text-success",
   reuniao: "bg-muted text-text-secondary",
   treinamento: "bg-muted text-text-secondary",

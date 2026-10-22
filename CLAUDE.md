@@ -701,10 +701,11 @@ nomeando onde a pessoa já está. O que sobra como distinção é o que o evento
 a 0055.
 
 **NENHUM PAR DE COR NOVO**, e é o que torna a troca barata: os quatro de
-`COR_DO_TIPO_DE_EVENTO` já existiam, e são **sete tipos em quatro pares** pela
+`COR_DO_TIPO_DE_EVENTO` já existiam, e eram **sete tipos em quatro pares** pela
 mesma decisão das oito categorias das Recomendações — sete cores numa grade de
-mês viram confete. **A cor nunca é o único sinal**: o nome exato vai no
-`title` e no rótulo acessível.
+mês viram confete. (Hoje são oito em cinco: o roxo entrou na 0109, logo
+abaixo.) **A cor nunca é o único sinal**: o nome exato vai no `title` e no
+rótulo acessível.
 
 **E os dois azuis trocaram de par, o que é um conserto e não um ajuste.** Eles
 usavam `--blue-strong` sobre `--blue-soft`, que dá 5,24:1 no claro e **2,35:1
@@ -716,9 +717,10 @@ desenhando o chip do mês, ele passou a ser a peça mais repetida da tela.
 está medido em `check:cores` desde aquele selo.
 
 **A FILEIRA DE CAMADAS VIROU LEGENDA**, e ela AGRUPA quem divide a cor — como
-a do portal já faz com os sete status em cinco tons. Quatro entradas com sete
-nomes: sete linhas e quatro cores seria pior, porque a pessoa procura a
-diferença entre duas amostras iguais, não acha, e passa a desconfiar do resto.
+a do portal já faz com os sete status em cinco tons. Eram quatro entradas com
+sete nomes, e são cinco com oito desde a 0109: oito linhas e cinco cores seria
+pior, porque a pessoa procura a diferença entre duas amostras iguais, não acha,
+e passa a desconfiar do resto.
 **Ela é legenda e não filtro**, e o que a mantém honesta é a cor sair do MESMO
 mapa que desenha o chip — "a legenda e o interruptor eram a mesma coisa, e
 separá-los daria uma legenda que pode discordar do que está desenhado". Um
@@ -730,6 +732,59 @@ acesso de teclado à região que rola; esta é estática, e em 375px ela reprovo
 em `scrollable-region-focusable` — uma região rolável sem nada focável dentro é
 uma região que o teclado não alcança. A saída não é um `tabIndex` numa lista
 que não decide nada: é não rolar.
+
+##### E O AZUL PASSOU A SER DOS "EVENTOS FULLERS" (0109)
+
+Decisão do usuário: *"inclua uma categoria de eventos para o calendário da
+Full, que seja 'Eventos Fullers' e coloque uma cor tipo azul, sendo assim mudar
+a cor da categoria 'Convenção e feira' pra outra cor tipo um roxinho"*.
+
+**A MIGRATION É UMA LINHA, e isso é consequência da 0105.** Um valor no enum, e
+mais nada: a cor, o rótulo e a legenda são da tela e saem do MESMO mapa que
+desenha o chip — que é justamente o que mantém a legenda honesta. **Oito tipos
+em cinco pares** agora, e convenção e feira continuam dividindo o par: oito
+tons distintos numa grade de mês viram confete, e a legenda agrupa quem divide.
+
+**E ELA NÃO USA O VALOR QUE CRIA, de propósito.** O SQL Editor roda o arquivo
+colado como UMA transação, e o Postgres recusa usar um valor de enum na mesma
+transação em que ele nasce — é a razão escrita na 0028 para `rascunho` não ter
+virado valor de enum, e aqui ela vira uma regra sobre o arquivo: não há
+`check`, não há `update`, e **não há o `select` de conferência no fim** que as
+outras migrations costumam trazer. Ele fica escrito no cabeçalho, para a
+segunda colagem.
+
+**O valor entra no FIM do enum** e não antes de `convencao`, porque nada no
+produto ordena por ele: a ordem do seletor é a de `TIPOS_DE_EVENTO`, em
+TypeScript, e a da legenda é escrita à mão. Lá o "Eventos Fullers" abre as duas
+listas — é o que mais se lança nesta tela, e é o único par de um tipo só, então
+é também o único cujo rótulo na legenda é igual ao do seletor: não há o que
+agrupar.
+
+**O ROXO ENTROU NA PALETA SOB UM NOME NOVO, e a razão não é estética.** Havia
+um roxo medido — o `--ferias` da matriz do Day Off —, e `bg-ferias-soft` num
+chip de convenção manda quem vier depois procurar um day off que não existe
+ali: é `pessoasDaLinhaDoTempo` de novo. Dois tokens com o mesmo valor seriam
+duas verdades esperando divergir, que é a razão pela qual `--font-porta` foi
+apagado em vez de repontado. Então é **um valor e dois nomes**: `--roxo` é a
+cor, `--ferias` aponta para ela — a forma de `--acao-fundo → --text-primary` e
+de `--accent-strong → --action-text`, e `check:cores` resolve a cadeia.
+
+**As DUAS linhas ficam na lista de pares medidos**, e a duplicação é
+deliberada: hoje uma mediria as duas, e no dia em que alguém desfizer a cadeia
+uma mede a matriz do Day Off e a outra mede o chip do calendário, em vez de uma
+afirmar sobre a outra. Medido: **5,92:1 no claro e 6,05:1 no escuro**.
+
+**O marcador da 0109 é o primeiro do tipo `valor_de_enum`**, e ele nasceu
+porque nenhum dos outros responde por uma migration que cria só isso: não nasce
+tabela, coluna, função nem trigger, e o `comment on type` que ela reescreve
+seria marcador por prosa — que ninguém lê e que a próxima reescrita apaga.
+Medido nos dois sentidos, e a migration foi aplicada a um Postgres de verdade
+antes de ser escrita aqui.
+
+**E o exemplo do protótipo ganhou o quinto par.** Sem um evento da casa a
+imagem mostraria a legenda nova com a amostra azul e **nenhum chip azul na
+grade** — é a mesma razão pela qual ele já tinha um de cada um dos outros
+quatro, e pela qual tem um dia com mais de três itens.
 
 **A SEGUNDA LINHA É O CLIENTE**, e ela era o cliente OU o primeiro nome de
 quem era responsável. O segundo ramo saiu com `user_id` (0105): o evento tem
@@ -4791,7 +4846,9 @@ idas ao banco custam menos que essa classe de bug.
 
 Decisão do usuário: *"quero que social media e campanhas saiam da aba lateral,
 elas devem ficar dentro de minhas tasks para diminuir a quantidade de itens na
-aba lateral"*. A barra tinha dezoito linhas para o sócio; ficou com dezesseis.
+aba lateral"*. A barra tinha dezoito linhas para o sócio; ficou com dezesseis
+— e com quinze depois que o Feedback saiu, pela mesma bandeira e por outra
+razão (*"não vamos usar"*).
 
 **E SÓ FOI POSSÍVEL PORQUE A FAIXA DAS TRÊS ÁREAS EXISTE.** Tirar um item de
 menu de um módulo que não aparece em mais lugar nenhum não é enxugar a barra,
@@ -6118,10 +6175,48 @@ com as duas na mesma célula ele era a única coisa que dizia qual era qual. Sem
 a Demanda, a etapa é a entidade desta tela, e nomear a entidade da tela dentro
 de cada linha dela gasta a largura do título para repetir onde a pessoa está.
 
-**Post, campanha e entregável FICAM com rótulo**, e a assimetria é o ponto:
-eles vêm de outro módulo e abrem em outra tela. O `Record` continua total sobre
-a união — e `subtarefa: null` é explícito — para um tipo novo não cair calado
-no último ramo de um `? :`, que é como "entregável" quase virou "Etapa".
+**A CAMPANHA FICA com rótulo**, e a assimetria é o ponto: ela vem de outro
+módulo e abre em outra tela. O `Record` continua total sobre a união — e
+`subtarefa: null` é explícito — para um tipo novo não cair calado no último
+ramo de um `? :`, que é como "entregável" quase virou "Etapa".
+
+**E O POST SAIU, COM O ENTREGÁVEL JUNTO** — decisão do usuário: *"está
+considerando também os posts dos clientes que vai ser postado naquela data,
+mas essa visualização eu só preciso saber as pautas e demandas do time, apenas
+o que de fato é um job internamente"*.
+
+**O post entrava pela data de PUBLICAÇÃO**, e ela não é trabalho de ninguém: é
+o dia em que a peça vai ao ar. O trabalho dela já está nesta tela pelo caminho
+certo — a corrente do mês é uma subtarefa desde a 0088, com dono, prazo e
+cronômetro —, e o dia em que ela sobe se lê no calendário do próprio Social
+Media, que é onde se abre o mês. É a mesma frase que fechou o Calendário Full
+na 0105, aplicada um módulo ao lado.
+
+**E O ENTREGÁVEL ERA DUPLICATA ESTRITA, que é a razão pela qual a Demanda já
+tinha saído daqui.** A peça de campanha é uma subtarefa desde a 0051, e o
+espelho da 0080 copia nome, prazo e responsável de uma para a outra — então
+ela caía no MESMO dia, com o MESMO nome, duas vezes. **Nada se perde:** a
+linha que fica é a melhor das duas, porque carrega o responsável e o rosto,
+que o entregável não tem. O que sai é a contagem dobrada.
+
+**A CAMPANHA FICA, e o que isso custa está dito:** o encerramento dela não é
+um job de ninguém — não tem responsável, e some assim que alguém filtra por
+pessoa. Ela fica porque é a única linha desta tela que diz quando uma campanha
+fecha, e tirá-la perderia um fato que nada mais mostra aqui. Se um dia ela
+também sair, é uma decisão explícita e o tipo fica com um valor só.
+
+**Os dois saíram do TIPO**, e não só do loop que os produzia: é a decisão da
+0023, a mesma que tirou a Demanda daqui — um valor de união que nenhum caminho
+produz é o que alguém reaproveita errado três sprints depois. Com eles saiu a
+consulta de `deliverables` e a função inteira dos posts, e `campanhasNoCalendario`
+passou a fazer uma ida ao banco a menos.
+
+**E A IMAGEM DO PROTÓTIPO NUNCA MOSTROU O PROBLEMA**, que é por que ele durou:
+o stub produzia só etapas, então a grade saía sem post, sem entregável e sem
+campanha — e a legenda escrevia "Post, campanha e entregável" embaixo de uma
+grade que não tinha nenhum dos três. Agora ele produz **uma campanha**, pela
+razão de sempre: uma legenda que mostra outra coisa que a tela é uma legenda
+que ensina errado.
 
 **O QUE ENTROU NO LUGAR SÃO TRÊS LINHAS** — *"que apareça o nome da task mãe,
 junto com o nome da Subtarefa (…) pode manter o nome do cliente, e o ícone da
@@ -6192,6 +6287,19 @@ calendário"*. Ele **não custou consulta nenhuma**: `itensDoCalendario` já tra
 o que alimenta o filtro "pauta de" deste mesmo cabeçalho. A ponte estava
 construída e ninguém a atravessava, e quem a atravessa é a linha — que é onde a
 pergunta é feita: *a arte vence quinta, quem está com ela?*
+
+**E O FILTRO DE PESSOA PERDEU O "PAUTA DE" DE CADA NOME**, por decisão do
+usuário: *"está escrito a todo momento 'pauta de Emerson Aguiar, Pauta de
+Gabriela Oliveira, Pauta de Marcela Antunes…', isso está repetitivo e ruim,
+deixe o genérico de 'pauta de toda equipe' mas no restante, deixar somente o
+nome das pessoas"*. Com quinze pessoas a lista repetia a mesma preposição
+quinze vezes, e o que se procura ali é um NOME — as duas palavras na frente
+empurravam o sobrenome para fora dos 192px do seletor.
+
+**A PRIMEIRA LINHA FICA COM A FRASE**, e a assimetria é o ponto: ela não é um
+nome, é o que o filtro faz quando ninguém escolhe ninguém, e "Toda a equipe"
+sozinho não diz de que a tela está falando. Quem diz isso para quem usa leitor
+de tela é o `aria-label` do gatilho, que continua sendo "Responsável".
 
 **Ele é `tooltip={false}`, e a bandeira nasceu aqui.** O chip inteiro é um
 `<button>`, e o `TooltipTrigger` do Radix dentro dele é `nested-interactive` —
@@ -6994,6 +7102,31 @@ junto.
 
 ### Feedback de desenvolvimento: um retrato do próprio trabalho
 
+> **A ENTRADA SAIU DA BARRA, e a rota ficou** — decisão do usuário: *"excluir
+> a aba de 'feedback' dentro de gestão, não vamos usar"*. Quem a tira é
+> `hiddenFromMenu` em `lib/auth/permissions.ts`, nunca a linha apagada: é a
+> decisão das duas entradas que saíram antes desta. Sem a entrada,
+> `findMenuItem` não acharia a rota, `exigirAcessoARota` devolveria 403 a quem
+> chegasse por um link, a trilha e o `<title>` sairiam em branco, e as duas
+> rotas filhas — `/sobre`, que é de toda a equipe, e `/configuracoes`, que é do
+> sócio — casariam no item errado. **Nenhuma policy mudou, e nenhum perfil
+> perdeu nada.**
+>
+> **O módulo continua inteiro**, e o que ele tem no Início some sozinho: os
+> dois blocos de lá são blocos de exceção, então sem ninguém gerando relatório
+> não há o que mostrar, e sem ninguém abrindo a tela não nascem alertas de
+> carga para o Pulso. **Apagá-lo é outra decisão**, e ela passa por um script
+> de exportação antes — como a 0034 e a 0043 —, porque `feedback_replies`
+> guarda o que cada pessoa respondeu sobre o que foi escrito a respeito dela.
+>
+> O que protege a remoção é o `check:sprint9`, de mão dupla: "Feedback" entrou
+> no `naoTem` da barra do sócio e do desenvolvedor, e **só deles** — ele era
+> `GESTAO`, então o colaborador nunca o teve, e uma linha na tela dele
+> afirmaria uma ausência que já era verdade antes da mudança.
+>
+> **O resto desta seção descreve o módulo como ele continua sendo**, e fica
+> inteiro porque a decisão pode voltar: o que saiu foi um item de menu.
+
 `feedback_reports`, `feedback_replies`, `workload_alerts` e `feedback_config` —
 migration 0075. Cada pessoa da equipe recebe, periodicamente, o que entregou, o
 que mudou em relação a ela mesma, onde há espaço para crescer e o que estudar
@@ -7746,6 +7879,75 @@ negava.
   `is_staff()` na porta, e avaliada como dono do banco — sem sessão — recusa a
   si mesma.
 
+#### E A FAIXA DIZIA "15 DE 15" PARA QUEM TINHA DAY OFF APROVADO
+
+Relato do usuário: *"na área de Day Off, mesmo eu já tendo dias solicitados e
+aprovados, ainda aparece que tenho 15 dias disponiveis… mesmo que o período de
+day off não tenha passado, só de estar aprovado e previsto, deve contabilizar
+no saldo de dias"*.
+
+**A REGRA QUE ELE DESCREVE JÁ ERA A DO PRODUTO, e a conta estava certa.**
+`descanso_usado_no_ciclo()` conta `pendente` **e** `aprovada` desde a 0085, e
+não pergunta se o período passou. Mais que isso: para um período que ainda não
+passou ela **não tem como** devolver zero — `inicio_do_ciclo() <= hoje <
+data_inicio` faz o recorte ser sempre verdadeiro. Está medido na bateria desde
+a 0085, com um day off aprovado para quarenta dias à frente descontando do
+saldo, e medido de novo contra um Postgres de verdade pelo caminho que a tela
+usa: autenticada, como a pessoa, 15 concedidos e 5 usados.
+
+**O 15 ERA A TELA, e ela o escrevia por causa de uma leitura que ninguém soube
+que falhou.** `descansoDoCiclo` era `const { data } = await supabase.rpc(…)` —
+a recusa ia para o lixo, sem log e sem mensagem —, e `solicitar.tsx` lia o nulo
+como "a ficha não respondeu" e preenchia um **ciclo cheio**. O comentário que
+estava ali defendia isso: *"mostrar um ciclo cheio é melhor que mostrar zero,
+que pareceria uma pessoa sem direito nenhum"*. **As duas saídas estavam
+erradas, e pelo mesmo motivo: as duas AFIRMAM um número que ninguém leu.**
+
+É a regra da leitura que falha calada um andar acima. Lá a lista vazia é
+indistinguível da verdade; aqui o ciclo cheio é **pior**, porque uma lista
+vazia convida a desconfiar e um "15 de 15" responde com confiança exatamente a
+pergunta que a pessoa veio fazer. E `lib/dados/consulta.ts` nomeia esta leitura
+entre as que ficam fora do `ouFalha()` *"de propósito, porque tratam o erro na
+mão"* — ela não tratava nenhum.
+
+**O QUE A TELA FAZ AGORA É DIZER QUE NÃO SABE.** Um terceiro estado ao lado do
+primeiro ciclo: a faixa escreve *"Não foi possível ler o seu saldo agora"*, a
+barra de uso **some** — ela desenharia `0 / 15`, que é o mesmo 15 em forma de
+desenho — e o "Saldo depois" sai do resumo. O aviso é `--warning` e nunca
+`--danger`: não há erro da pessoa aqui.
+
+**E A TELA PARA DE RECUSAR POR UM NÚMERO QUE NÃO VEIO**, que é a outra metade
+do mesmo conserto: com o fallback de 15, um pedido de 20 dias era barrado e um
+de 12 passava afirmando que sobravam 3. Quem decide é a trava do `insert`. É a
+decisão do `ciclos ?? 1` ao lado — falhar para o lado aberto, porque quem
+recusa quando quebra recusa justamente na hora em que já há outro problema.
+
+**E O MARCADOR DA 0085 MENTIA, que é a terceira metade e a mais cara.** Ele
+apontava para `descanso_usado_no_ciclo`, que a migration cria no **PASSO 1** —
+e quem a tela chama é `descanso_do_ciclo()`, recriada no **PASSO 6**, depois de
+um `drop function if exists`. Uma colagem que morre entre os dois deixa o banco
+com a função do PASSO 1 de pé e **sem `descanso_do_ciclo` nenhuma**, e o
+`onde-esta-o-banco.sql` dizia `ok`. É a armadilha que aquele arquivo já pagou
+com a 0055 e com as cinco linhas quebradas do pacote da 3K, e aqui ela mandava
+quem fosse procurar a causa procurá-la no código.
+
+Hoje ele aponta para a **última** coisa que a migration cria, e por PRESENÇA:
+o corpo de `descanso_do_ciclo` chamando `descanso_usado_no_ciclo`. A versão da
+0074 não tem como citar uma função que ainda não existia, um banco sem a função
+responde FALTA em vez de estourar, e **medido nos dois sentidos** — com a
+função apagada ele diz FALTA enquanto a do PASSO 1 continua de pé, que é
+exatamente o banco em que o marcador antigo dizia `ok`.
+
+**E `conferir-a-regra-do-descanso.sql` ganhou a quinta pergunta**, que é a
+única que aquele arquivo não fazia: *a tela tem como PERGUNTAR o saldo?* As
+quatro de cima mediam a regra e continuavam dando VALE num banco onde a função
+que a tela chama não existe. O PASSO 2 e o PASSO 3 dele já respondiam o resto
+do relato — o `usados_neste_ciclo` de cada pessoa e, por pedido, se ele
+*"desconta do ciclo corrente"* ou *"ficou no ciclo anterior"*.
+
+**Nenhuma migration, e nenhuma linha de SQL.** O banco estava certo; o que
+faltava era a tela não inventar.
+
 > **O que isto custa, e foi dito a quem decidiu, três vezes:** ciclo de 12
 > meses contado da entrada da pessoa é, **estruturalmente**, o desenho do
 > período aquisitivo da CLT — mais parecido com ele que o ano civil, não
@@ -8367,7 +8569,7 @@ proposta B; a C punha ainda a coluna de 306px. As duas ficaram de fora, e os
 motivos são estes:
 
 - **No celular ela cobra um toque.** No painel a barra vira gaveta porque são
-  dezesseis itens e não há como mostrá-los; aqui são cinco, e eles cabem na
+  quinze itens e não há como mostrá-los; aqui são cinco, e eles cabem na
   tela. Trocar de seção passaria de um toque para dois, num portal que se abre
   quase sempre pelo celular — que é a razão pela qual esta navegação nasceu em
   cima, e ela não mudou.

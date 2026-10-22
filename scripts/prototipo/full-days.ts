@@ -553,6 +553,17 @@ export async function descansoDoCiclo(
   // Ele nao e um `_usuarioId` diferente porque nenhum perfil do prototipo
   // corresponde a quem acabou de entrar -- e inventar um contradiria o seed,
   // onde a Marina tem um ciclo fechado.
+  // O SALDO QUE NAO RESPONDEU, pela razao do primeiro ciclo: e a terceira
+  // forma que esta faixa tem, e a unica que nasceu de um relato -- a tela
+  // dizia "voce tem 15 de 15 dias disponiveis" para quem tinha day off
+  // aprovado, porque o fallback preenchia um ciclo cheio. Sem a imagem, o
+  // estado que o conserto criou ficaria sem foto, que e a licao de
+  // `30b-minhas-tasks-vazia`: o ambiente de exemplo mostra o produto nos
+  // estados em que ele doi.
+  if (process.env["PROTOTIPO_SALDO_SEM_RESPOSTA"] === "1") {
+    return null;
+  }
+
   if (process.env["PROTOTIPO_PRIMEIRO_CICLO"] === "1") {
     const entrou = new Date();
     entrou.setMonth(entrou.getMonth() - 4);

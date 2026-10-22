@@ -36,7 +36,7 @@
 -- ===========================================================================
 -- PASSO 1 -- QUAL VERSAO DA REGRA ESTA INSTALADA
 --
--- As quatro linhas tem de dar VALE. Qualquer "NAO VALE" diz, na ultima coluna,
+-- As cinco linhas tem de dar VALE. Qualquer "NAO VALE" diz, na ultima coluna,
 -- a migration que falta aplicar.
 --
 -- ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@
 -- `pg_get_functiondef` devolve o corpo com os comentarios dentro. A explicacao
 -- nao pode carregar o que ela proibe.
 --
--- Entao duas perguntam se uma funcao EXISTE e duas medem o que o banco
+-- Entao tres perguntam se uma funcao EXISTE e duas medem o que o banco
 -- RESPONDE. Comentario nenhum falsifica nenhuma das duas.
 -- ---------------------------------------------------------------------------
 
@@ -100,6 +100,26 @@ select * from (
          case when public.dias_do_pedido('ferias', date '2026-11-02', date '2026-11-16') = 15
                 then ''
               else 'aplicar supabase/migrations/0024_o_descanso_conta_corrido.sql' end
+  union all
+  -- 5. A FUNCAO QUE A TELA CHAMA, e ela e a quinta porque custou um relato:
+  --    a faixa do Day Off dizia *"voce tem 15 de 15 dias disponiveis"* para
+  --    quem tinha day off aprovado. A conta estava certa nas quatro linhas
+  --    acima -- quem nao respondia era `descanso_do_ciclo()`, que a 0085
+  --    recria no PASSO 6 depois de um `drop function if exists`. Uma colagem
+  --    que morre entre o PASSO 1 e o 6 deixa o banco sem ela, e as quatro
+  --    perguntas de cima continuam dando VALE.
+  --
+  --    A tela lia o nulo como "nao ha saldo" e preenchia um ciclo cheio. Os
+  --    dois lados foram consertados; esta linha e o terceiro, porque quem for
+  --    procurar a causa de novo comeca por aqui.
+  select 5,
+         'A tela tem como PERGUNTAR o saldo',
+         case when to_regprocedure('public.descanso_do_ciclo(uuid)') is not null
+                then 'VALE'
+              else 'NAO VALE -- a faixa do Day Off nao recebe numero nenhum' end,
+         case when to_regprocedure('public.descanso_do_ciclo(uuid)') is not null
+                then ''
+              else 'recolar supabase/migrations/0085_o_descanso_nao_acumula.sql do PASSO 6 em diante' end
 ) t order by n;
 
 
