@@ -10,7 +10,7 @@ import { ehFaseDoPedido, type FaseDoPedido } from "@/lib/dominio/solicitacoes";
 
 import { ListaDePedidos } from "./lista";
 
-export const metadata: Metadata = { title: "Pedidos" };
+export const metadata: Metadata = { title: "Solicitações" };
 
 /**
  * Os pedidos da empresa — a única seção do Portal em que o cliente ESCREVE.
@@ -59,7 +59,7 @@ export default async function Pagina({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pedidos" />
+      <PageHeader title="Solicitações" />
 
       <Suspense
         key={fase ?? "todos"}

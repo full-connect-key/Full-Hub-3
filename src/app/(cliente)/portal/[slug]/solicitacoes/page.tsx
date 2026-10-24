@@ -64,7 +64,7 @@ export default async function Pagina({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pedidos" />
+      <PageHeader title="Solicitações" />
 
       <Suspense
         key={fase ?? "todos"}

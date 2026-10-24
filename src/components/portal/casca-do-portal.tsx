@@ -1,6 +1,7 @@
+import { BarraLateralDoPortal } from "@/components/portal/barra-lateral-do-portal";
+import { GavetaDoPortal } from "@/components/portal/gaveta-do-portal";
 import { MenuDoCliente } from "@/components/portal/menu-do-cliente";
 import { SeletorDeEmpresa } from "@/components/portal/seletor-de-empresa";
-import { NavegacaoDoPortal } from "@/components/portal/navegacao-do-portal";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
 import { Logo } from "@/components/shared/logo";
 
@@ -8,21 +9,31 @@ import { Logo } from "@/components/shared/logo";
  * A casca do Portal do Cliente.
  *
  * ---------------------------------------------------------------------------
- * **ELA É A CASCA DO PAINEL, e não mais uma casca própria** (decisão do
- * usuário: *"quero que o portal do cliente tenha o layout mais parecido com o
- * restante da plataforma"*). A malha de cor no topo, a topbar sem faixa e sem
- * fio, os discos de vidro e a largura de `max-w-6xl` são os mesmos de lá — a
- * paleta já era a mesma desde a camada anterior, e o que ainda fazia o portal
- * parecer outro produto era a MOLDURA.
+ * **ELA GANHOU A BARRA LATERAL, e isso desfaz uma escolha que estava escrita
+ * aqui.** A versão anterior tinha recusado a barra entre três propostas e
+ * ficado com a casca do painel sem ela — topbar, faixa de seções em pílula,
+ * conteúdo em `max-w-6xl`. A proposta aprovada pede a barra fixa de 244px, e as
+ * três razões da recusa estão respondidas no cabeçalho de
+ * `barra-lateral-do-portal.tsx`: a gaveta cobre o celular, o cartão do pé não
+ * carrega vocabulário da agência, e a coluna de 306px nunca era esta.
  *
- * **O que NÃO veio junto é a barra lateral**, e a ausência é escolha entre
- * três propostas. Ela é o item que mais aproximaria as duas áreas e o único
- * que cobra: no painel ela vira gaveta no celular porque são dezesseis itens;
- * aqui são cinco, e eles cabem na tela — trocar de seção passaria de um toque
- * para dois, num portal que se abre quase sempre pelo celular. E ela carrega o
- * cartão da pessoa no pé, que diz perfil de acesso e cargo: vocabulário da
- * agência, não do cliente.
+ * **O QUE A FAIXA DE SEÇÕES DEIXA PARA TRÁS, e é dito em vez de escondido:**
+ * no celular, trocar de seção passou de um toque para dois. Era a objeção
+ * principal, e ela continua verdadeira — o que mudou é que a proposta a aceita
+ * de propósito, em troca de as sete seções caberem numa lista legível em vez
+ * de numa faixa que rola para o lado.
  * ---------------------------------------------------------------------------
+ *
+ * **A MALHA E A TOPBAR CONTINUAM SENDO AS DO PAINEL**, pela decisão que
+ * continua de pé: *"quero que o portal do cliente tenha o layout mais parecido
+ * com o restante da plataforma"*. E a malha mora na COLUNA DE CONTEÚDO e não
+ * no invólucro de fora, pela mesma razão de lá — a barra lateral tem fundo
+ * próprio, e a malha apareceria nas bordas dela.
+ *
+ * **A TOPBAR DEIXOU DE CARREGAR O LOGO NO DESKTOP**, porque a barra lateral já
+ * o carrega três centímetros à esquerda. No celular, onde a barra é gaveta,
+ * ele volta ao lado do botão que a abre: sem isso o portal abriria sem nada
+ * dizendo de quem ele é.
  *
  * A mesma casca serve as duas entradas — o portal do próprio cliente e a
  * visualização administrativa em /portal/{slug} —, e é isso que faz a segunda
@@ -41,6 +52,7 @@ export function CascaDoPortal({
   hrefDosDados = "/portal/configuracoes",
   aviso,
   fotoDaEmpresa = null,
+  aprovacoesPendentes = 0,
   children,
 }: {
   nome: string;
@@ -73,68 +85,60 @@ export function CascaDoPortal({
    * 28px ao lado do nome que já estava lá.
    */
   fotoDaEmpresa?: string | null;
+  /** Quantas esperam a decisão do cliente, para o selo de Aprovações. */
+  aprovacoesPendentes?: number;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-surface-page flex min-h-dvh flex-col">
       {aviso}
 
-      {/* A MALHA FICA DENTRO DESTE INVÓLUCRO, e não do `body`, pela mesma razão
-          que no painel ela mora na coluna de conteúdo: lá a barra lateral tem
-          fundo próprio, e aqui a faixa da visualização administrativa é
-          `sticky top-0` e ocuparia os primeiros pixels dela. */}
-      <div className="relative flex flex-1 flex-col">
-        <div
-          aria-hidden
-          className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[170px]"
+      <div className="flex min-h-0 flex-1">
+        <BarraLateralDoPortal
+          base={base}
+          nome={nome}
+          nomeDaEmpresa={nomeDaEmpresa}
+          aprovacoesPendentes={aprovacoesPendentes}
         />
 
-        {/* A TOPBAR PERDEU A FAIXA BRANCA E O FIO, como a do painel: sobre a
-            malha, uma faixa translúcida criava uma segunda borda horizontal
-            onde o desenho não tem nenhuma.
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <div
+            aria-hidden
+            className="malha-do-painel pointer-events-none absolute inset-x-0 top-0 z-0 h-[170px]"
+          />
 
-            **E ela é ALINHADA AO CONTEÚDO**, ao contrário da do painel, que
-            vai de ponta a ponta. Lá a barra lateral já encosta o conteúdo à
-            esquerda; aqui, sem ela, o logo ficaria na borda de uma janela de
-            1440 e os cartões começariam 144px adentro — a mesma decisão da
-            capa do cliente e da barra de contexto. */}
-        <header className="relative z-10 flex h-16 items-center px-4 lg:px-8">
-          <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
-            <Logo tamanho="sm" />
+          <header className="relative z-10 flex h-16 shrink-0 items-center gap-2 px-4 lg:px-8">
+            <GavetaDoPortal
+              base={base}
+              nome={nome}
+              nomeDaEmpresa={nomeDaEmpresa}
+              aprovacoesPendentes={aprovacoesPendentes}
+            />
 
-            {/* Com uma empresa só, o nome é um fato e fica como texto. Com
-                mais de uma, ele vira escolha — e escolha pede um controle. */}
+            {/* O LOGO SÓ NO CELULAR: no desktop a barra lateral já o tem. */}
+            <Logo tamanho="sm" assinatura="nenhuma" className="lg:hidden" />
+
+            {/* Com uma empresa só, o nome é um fato e ele já está no pé da
+                barra lateral — aqui ele seria a terceira vez na mesma tela.
+                Com mais de uma, ele vira ESCOLHA, e escolha pede um controle:
+                é a única coisa que a barra lateral não sabe fazer. */}
             {empresas.length > 1 ? (
-              <>
-                <span aria-hidden className="text-text-muted">
-                  |
-                </span>
-                <SeletorDeEmpresa
-                  empresas={empresas}
-                  selecionada={empresaSelecionada}
-                />
-              </>
-            ) : nomeDaEmpresa ? (
-              <>
-                <span aria-hidden className="text-text-muted">
-                  |
-                </span>
-                {/* A foto ANTES do nome, e `alt=""`: ela não acrescenta
-                    informação nenhuma ao texto que vem logo ao lado, e um
-                    leitor de tela que anuncia "Mundo Verde, Mundo Verde" lê
-                    duas vezes a mesma coisa. */}
-                {fotoDaEmpresa ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={fotoDaEmpresa}
-                    alt=""
-                    className="size-7 shrink-0 rounded-full object-cover"
-                  />
-                ) : null}
-                <span className="truncate text-sm font-medium">
-                  {nomeDaEmpresa}
-                </span>
-              </>
+              <SeletorDeEmpresa
+                empresas={empresas}
+                selecionada={empresaSelecionada}
+              />
+            ) : fotoDaEmpresa ? (
+              /* A foto fica, mesmo com o nome na barra: ela é a identidade
+                 constante, e no celular a barra está fechada. `alt=""` porque
+                 o nome da empresa já está escrito na gaveta e no cabeçalho da
+                 página — um leitor de tela que o anuncia aqui lê três vezes a
+                 mesma coisa. */
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={fotoDaEmpresa}
+                alt=""
+                className="size-7 shrink-0 rounded-full object-cover"
+              />
             ) : null}
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
@@ -146,26 +150,21 @@ export function CascaDoPortal({
                 hrefDosDados={hrefDosDados}
               />
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* A BARRA DE SEÇÕES NÃO GRUDA, e é a única coisa que esta casca não
-            copia da `BarraDeContexto`. Duas razões: as listas daqui são curtas
-            — dois materiais esperando, três campanhas —, e não quarenta
-            demandas; e a faixa da visualização administrativa já é
-            `sticky top-0`, então duas coisas grudadas no mesmo lugar seriam
-            uma cobrindo a outra. */}
-        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 lg:px-8">
-          <NavegacaoDoPortal base={base} />
+          {/* O PADDING É O DA PROPOSTA — 28px por 36px —, e o `max-w-6xl`
+              continua: com a barra de 244px, a coluna de conteúdo numa janela
+              de 1440 já fica em 1196, então o limite quase nunca morde. Ele
+              existe para a janela de 2560, onde uma grade de três colunas sem
+              teto dá cartões de 800px. */}
+          <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-7 lg:px-9">
+            {children}
+          </main>
+
+          <footer className="text-text-muted relative z-10 px-4 py-6 text-center text-xs lg:px-9">
+            Full Hub — Full Connect Key
+          </footer>
         </div>
-
-        <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          {children}
-        </main>
-
-        <footer className="text-text-muted relative z-10 px-4 py-6 text-center text-xs lg:px-8">
-          Full Hub — Full Connect Key
-        </footer>
       </div>
     </div>
   );

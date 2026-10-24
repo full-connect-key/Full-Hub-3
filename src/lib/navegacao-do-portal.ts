@@ -38,10 +38,30 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     description: "O panorama do que está acontecendo na sua conta.",
   },
   {
-    label: "Aprovações",
-    href: "/portal/aprovacoes",
-    icon: BadgeCheck,
-    description: "O que a agência enviou para a sua aprovação.",
+    // SOLICITAÇÕES SOBE PARA A SEGUNDA POSIÇÃO, e isto desfaz uma decisão que
+    // estava escrita aqui. O argumento de então era que esta é a única seção
+    // em que o cliente ESCREVE — as outras respondem "o que a Full fez para
+    // mim", esta responde "o que eu preciso" — e que pôr a de escrever no meio
+    // das de ler faria quem veio aprovar um post tropeçar num formulário.
+    //
+    // **O sprint do portal inverte isso de propósito**, e a promessa dele é a
+    // razão: *"o cliente abre um pedido em segundos e ele cai direto na
+    // operação do time"*. Abrir trabalho deixou de ser o movimento raro da
+    // tela e passou a ser o que ela existe para facilitar.
+    //
+    // *O que se perde, e é consequência aceita:* quem entra para aprovar passa
+    // o olho por um item de abrir pedido antes de chegar em Aprovações. O que
+    // segura o tropeço é que nada aqui é formulário — o item leva a uma LISTA,
+    // e o painel de abrir só aparece no clique do botão.
+    //
+    // **Ela aparece para todo cliente, mesmo na conta que não aceita pedido**,
+    // e é escolha: o histórico do que já foi pedido continua sendo dele. O que
+    // some na conta desligada é o botão de abrir um novo — e a tela diz a quem
+    // falar, em vez de sumir e deixá-lo procurando.
+    label: "Solicitações",
+    href: "/portal/solicitacoes",
+    icon: MessageSquarePlus,
+    description: "O que você pediu para a agência, e em que pé está.",
   },
   {
     label: "Social Media",
@@ -56,21 +76,10 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     description: "Suas campanhas, o que já foi aprovado e o que espera você.",
   },
   {
-    // PEDIDOS É A ÚNICA SEÇÃO EM QUE O CLIENTE ESCREVE, e por isso ela fica
-    // por último entre as quatro que ele lê.
-    //
-    // As outras respondem "o que a Full fez para mim"; esta responde "o que eu
-    // preciso". São movimentos opostos, e pôr a de escrever no meio das de ler
-    // faria a pessoa que veio aprovar um post tropeçar num formulário.
-    //
-    // **Ela aparece para todo cliente, mesmo na conta que não aceita pedido**,
-    // e é escolha: o histórico do que já foi pedido continua sendo dele. O que
-    // some na conta desligada é o botão de abrir um novo — e a tela diz a quem
-    // falar, em vez de sumir e deixá-lo procurando.
-    label: "Pedidos",
-    href: "/portal/solicitacoes",
-    icon: MessageSquarePlus,
-    description: "O que você pediu para a agência, e em que pé está.",
+    label: "Aprovações",
+    href: "/portal/aprovacoes",
+    icon: BadgeCheck,
+    description: "O que a agência enviou para a sua aprovação.",
   },
   {
     // FORA DA NAVEGAÇÃO, e a rota de pé — decisão do usuário: "um caminho só

@@ -671,6 +671,12 @@ const TELAS = [
 
   { nome: "15-portal", rota: "/portal", largura: 1280, altura: 1100 },
   { nome: "15a-portal-375", rota: "/portal", largura: 375, altura: 1700 },
+  // A GAVETA SO EXISTE ABAIXO DE 1024px, e e ela que responde a objecao que
+  // tinha mantido o portal sem barra lateral: no celular trocar de secao
+  // passa a custar dois toques. Sem esta imagem, a peca que paga esse preco
+  // nao aparece em lugar nenhum -- e o que se confere nela e que a lista e a
+  // MESMA da barra fixa, com o cartao de quem entrou no pe.
+  { nome: "15a2-portal-gaveta-375", rota: "/portal", largura: 375, altura: 900, clicar: 'button[aria-label="Abrir as seções do portal"]' },
   // O PORTAL NO ESCURO, e ele nunca tinha sido olhado. As doze telas escuras
   // do gerador eram todas do Painel — e o Portal é a área em que a equipe não
   // entra, então um defeito de tema escuro ali espera o cliente encontrar. Foi
