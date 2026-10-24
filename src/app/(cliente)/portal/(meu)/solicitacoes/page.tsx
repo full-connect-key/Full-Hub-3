@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirCliente } from "@/lib/auth/dal";
+import { campanhasParaEscolher } from "@/lib/dados/campanhas";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import {
   contaAceitaPedidos,
@@ -26,10 +27,14 @@ export const metadata: Metadata = { title: "Solicitações" };
  * para outro.
  */
 async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
-  const [pedidos, empresas, tipos] = await Promise.all([
+  const [pedidos, empresas, tipos, campanhas] = await Promise.all([
     meusPedidos(),
     obterMinhasEmpresas(),
     tiposDePedido(),
+    // SEM `clienteId`: o RLS já recorta por empresa, e quem responde por duas
+    // contas precisa das duas listas — o formulário filtra pela empresa que
+    // estiver escolhida no momento.
+    campanhasParaEscolher(),
   ]);
 
   // COM MAIS DE UMA EMPRESA, o botão aparece se QUALQUER uma aceitar — e a
@@ -63,6 +68,7 @@ async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
         <PainelDeNovaSolicitacao
           empresas={podeAbrir}
           tipos={tipos.filter((t) => t.ativo)}
+          campanhas={campanhas}
           base="/portal"
         />
       ) : null}

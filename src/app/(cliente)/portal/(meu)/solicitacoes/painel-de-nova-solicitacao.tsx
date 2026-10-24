@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
 import type { RequestType } from "@/lib/supabase/database.types";
 
 import { FormularioDePedido } from "./formulario";
@@ -46,19 +47,36 @@ import { FormularioDePedido } from "./formulario";
 export function PainelDeNovaSolicitacao({
   empresas,
   tipos,
+  campanhas,
   base = "/portal",
 }: {
   empresas: { id: string; nome_empresa: string }[];
   tipos: RequestType[];
+  campanhas: CampanhaParaEscolher[];
   base?: string;
 }) {
   const router = useRouter();
   const parametros = useSearchParams();
   const aberto = parametros.get("novo") === "1";
 
+  /**
+   * `?campanha=` É O QUE O BOTÃO DA CAMPANHA ESCREVE, e é por isso que o
+   * estado do painel mora na URL: *"abre o pedido já nesta campanha"* precisa
+   * ser um link, e em estado de componente não teria como ser.
+   *
+   * Valor torto não é recusado aqui — ele chega ao formulário, que só o aceita
+   * se estiver na lista das campanhas abertas daquela empresa. É a convenção
+   * de `ehVisao()`: o endereço estranho abre a tela, e não quebra.
+   */
+  const campanhaInicial = parametros.get("campanha") ?? undefined;
+
   function fechar() {
     const outros = new URLSearchParams(parametros);
     outros.delete("novo");
+    // A CAMPANHA SAI COM O PAINEL. Ela é o estado DELE, não um filtro da
+    // lista: deixá-la no endereço faria o próximo "+ Nova solicitação" abrir
+    // já dentro de uma campanha que ninguém escolheu agora.
+    outros.delete("campanha");
     const consulta = outros.toString();
     // `scroll: false` porque fechar o painel não é trocar de página: sem ele a
     // lista volta para o topo, e quem estava no fim de quarenta pedidos perde
@@ -84,8 +102,11 @@ export function PainelDeNovaSolicitacao({
 
         <div className="px-6 pb-8">
           <FormularioDePedido
+            key={campanhaInicial ?? "solto"}
             empresas={empresas}
             tipos={tipos}
+            campanhas={campanhas}
+            campanhaInicial={campanhaInicial}
             aoConcluir={() => {
               fechar();
               // A LISTA ATRÁS JÁ ESTÁ EM ORDEM DO MAIS NOVO PARA O MAIS

@@ -220,6 +220,28 @@ export async function campanhasDoCliente(
   return CAMPANHAS;
 }
 
+export type CampanhaParaEscolher = {
+  id: string;
+  nome: string;
+  clientId: string;
+};
+
+/**
+ * As campanhas que o seletor do pedido oferece (0112).
+ *
+ * Ele FILTRA por status como a consulta de verdade, em vez de devolver as
+ * tres: a terceira e `finalizada`, e a imagem do painel precisa mostrar que
+ * uma campanha encerrada nao e oferecida -- senao ela prova so que o seletor
+ * sabe listar.
+ */
+export async function campanhasParaEscolher(
+  _clienteId?: string,
+): Promise<CampanhaParaEscolher[]> {
+  return CAMPANHAS.filter(
+    (c) => c.status === "ativa" || c.status === "planejamento",
+  ).map((c) => ({ id: c.id, nome: c.nome, clientId: c.clienteId }));
+}
+
 export async function obterCampanha(
   id: string,
   _clienteId?: string,

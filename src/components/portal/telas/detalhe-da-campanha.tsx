@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Plus, TriangleAlert } from "lucide-react";
 
 import { ArvoreDeEntregaveis } from "@/components/portal/arvore-de-entregaveis";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
+import { Button } from "@/components/ui/button";
 import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
@@ -18,6 +20,7 @@ import {
   emArvore,
   folhas,
   pendentes,
+  esperandoOCliente,
   periodoCurto,
   progresso,
   ROTULO_DA_CAMPANHA,
@@ -58,19 +61,62 @@ export async function DetalheDaCampanha({
 
   const miniaturas = await urlsDosArquivos(itens.map((i) => i.thumbnailUrl));
 
+  const esperando = esperandoOCliente(itens);
+  /**
+   * "EM ANDAMENTO" É O QUE NÃO ESTÁ NEM PRONTO NEM NA MÃO DELE.
+   *
+   * Ela é derivada por subtração e não por uma lista de status, e é de
+   * propósito: `content_status` tem sete valores, três deles — "em produção",
+   * "aguardando informações" e "stand by" — que do lado de fora dizem a mesma
+   * coisa (*a Full está trabalhando nisso*), e um quarto que pode nascer
+   * amanhã cairia fora de toda conta sem ninguém notar. Subtraindo, todo valor
+   * novo entra aqui, que é a resposta certa para o cliente.
+   */
+  const emAndamento = conta.total - conta.aprovados - esperando;
+
   const alerta = alertaDePrazo(campanha, pendentes(itens), hoje);
   const restantes = diasAte(campanha.dataFim, hoje);
 
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <Link
-          href={base}
-          className="text-text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft aria-hidden className="size-4" />
-          Voltar às campanhas
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href={base}
+            className="text-text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Voltar às campanhas
+          </Link>
+
+          {/* ---------------------------------------------------------------
+              "+ NOVA SOLICITAÇÃO NESTA CAMPANHA" (0112).
+
+              Ele é um LINK e não um botão com estado, porque o painel mora na
+              URL: `?novo=1&campanha={id}` é um endereço que abre o pedido já
+              dentro desta campanha — e é justamente por isso que o estado do
+              painel não mora em estado de componente.
+
+              **E ele só aparece em `/portal`, nunca na visualização
+              administrativa.** `base` começa com `/portal/{slug}` quando quem
+              olha é a equipe, e ali o painel não é montado: abrir um pedido em
+              nome do cliente seria a agência escrevendo como se fosse ele —
+              o caminho é a fila do painel, onde o pedido nasce assinado.
+              --------------------------------------------------------------- */}
+          {base === "/portal/campanhas" ? (
+            // `asChild` E NÃO CLASSES À MÃO: o par de hover da pílula preta é
+            // medido (19,43:1) e mora no `Button`. Reescrevê-lo aqui seria a
+            // segunda definição do mesmo botão, e a que divergisse é esta.
+            <Button asChild>
+              <Link
+                href={`/portal/solicitacoes?novo=1&campanha=${campanha.id}`}
+              >
+                <Plus aria-hidden />
+                Nova solicitação nesta campanha
+              </Link>
+            </Button>
+          ) : null}
+        </div>
 
         {/* A MESMA CAPA DO CARTÃO (0050). Quem clicou no cartão clicou na
             imagem: chegar a uma tela sem ela é perder a confirmação de que
@@ -102,27 +148,78 @@ export async function DetalheDaCampanha({
         </div>
       </div>
 
-      <section className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4">
-        {conta.total > 0 ? (
-          <BarraDeProgresso
-            nome="Materiais aprovados"
-            valor={conta.aprovados}
-            total={conta.total}
-            tom={conta.aprovados === conta.total ? "sucesso" : "marca"}
-            rotulo={`${conta.aprovados} de ${conta.total} ${
-              conta.total === 1 ? "material aprovado" : "materiais aprovados"
-            } · ${conta.percentual}%`}
-          />
-        ) : (
+      {/* ---------------------------------------------------------------------
+          OS QUATRO NÚMEROS, E A BARRA CONTINUA EMBAIXO DELES.
+
+          Eles ENTRAM NO LUGAR da linha que contava — "9 de 12 materiais
+          aprovados · 75%" era o rótulo da barra, e é exatamente o que os
+          ladrilhos dizem agora com dois fatos a mais: quantos estão na mão da
+          agência e quantos estão na dele. É a decisão do Início do portal: o
+          ladrilho substitui o texto que repetia, nunca se soma a ele.
+
+          **A BARRA FICA porque ela não é um número, é uma FORMA.** Ela
+          responde "quanto falta" de relance, antes de alguém ler quatro
+          algarismos — e o percentual mora nela, e não no ladrilho de
+          "Aprovados", para o mesmo fato não aparecer duas vezes a dois
+          centímetros de distância.
+
+          **"ESPERANDO VOCÊ" É O ÚNICO EM ÂMBAR, e o único que é link.** Os
+          outros três respondem onde o trabalho está; este diz que alguém está
+          esperando — e `--warning` e nunca `--danger`, porque material
+          esperando decisão é o estado normal de uma campanha, não um erro.
+          --------------------------------------------------------------------- */}
+      {conta.total > 0 ? (
+        <section className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <CartaoDeNumero rotulo="Materiais" valor={conta.total} />
+            <CartaoDeNumero rotulo="Em produção" valor={emAndamento} />
+            <CartaoDeNumero
+              rotulo="Esperando você"
+              valor={esperando}
+              tom={esperando > 0 ? "atencao" : "neutro"}
+              href={esperando > 0 ? "#materiais" : undefined}
+            />
+            <CartaoDeNumero
+              rotulo="Aprovados"
+              valor={conta.aprovados}
+              tom={conta.aprovados === conta.total ? "bom" : "neutro"}
+            />
+          </div>
+
+          <div className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4">
+            <BarraDeProgresso
+              nome="Materiais aprovados"
+              valor={conta.aprovados}
+              total={conta.total}
+              tom={conta.aprovados === conta.total ? "sucesso" : "marca"}
+              rotulo={`${conta.percentual}% aprovado`}
+            />
+            {/* A LINHA DOS DIAS SOME QUANDO HÁ ALERTA, e foi a imagem que
+                mostrou: `alertaDePrazo()` começa com *"Faltam 6 dias para o
+                fim da campanha"* e acrescenta quantos materiais faltam — ele
+                CONTÉM esta frase. Os dois a sessenta pixels de distância são
+                o mesmo fato duas vezes, e o de cima é o que diz menos. */}
+            {alerta ? null : (
+              <p className="text-text-muted text-sm tabular-nums">
+                {textoDosDias(restantes)}
+              </p>
+            )}
+          </div>
+        </section>
+      ) : (
+        // SEM MATERIAL ENVIADO não há quatro números para mostrar: quatro
+        // zeros numa fileira leem como campanha que deu errado, e o que está
+        // acontecendo é que ela está sendo montada. A frase diz isso, e os
+        // dias restantes continuam, porque eles existem desde o planejamento.
+        <section className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4">
           <p className="text-text-muted text-sm">
             Os materiais desta campanha ainda estão em produção.
           </p>
-        )}
-
-        <p className="text-text-muted text-sm tabular-nums">
-          {textoDosDias(restantes)}
-        </p>
-      </section>
+          <p className="text-text-muted text-sm tabular-nums">
+            {textoDosDias(restantes)}
+          </p>
+        </section>
+      )}
 
       {/* O ALERTA É `--warning`, NUNCA `--danger`. Ele avisa que o tempo está
           acabando com material na mão do cliente — é um lembrete, não um erro,
@@ -138,7 +235,7 @@ export async function DetalheDaCampanha({
         </p>
       ) : null}
 
-      <section className="space-y-4">
+      <section id="materiais" className="scroll-mt-20 space-y-4">
         <h2 className="text-xl font-bold tracking-[-0.02em]">Materiais</h2>
 
         {arvore.length === 0 ? (

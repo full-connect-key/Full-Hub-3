@@ -53,6 +53,15 @@ const esquemaDoPedido = z.object({
   request_type_id: z.string().uuid().optional().nullable(),
   titulo: z.string().trim().min(3, "Dê um nome ao que você precisa."),
   descricao: z.string().trim().max(4000).optional().nullable(),
+  /**
+   * A CAMPANHA É OPCIONAL, E A COERÊNCIA É DO BANCO (0112).
+   *
+   * O `uuid()` aqui recusa texto torto; quem recusa a campanha de OUTRA
+   * empresa é o trigger `client_requests_campanha_coerente`, e tem de ser ele:
+   * a pergunta é uma subconsulta, que o Postgres não aceita em `check`, e uma
+   * conferência escrita aqui só alcançaria o que passou por esta tela.
+   */
+  campaign_id: z.string().uuid("Escolha uma campanha da lista.").optional().nullable(),
   respostas: z.record(z.string(), z.string()).default({}),
   data_desejada: z
     .string()
@@ -66,6 +75,7 @@ const ROTULOS = {
   client_id: "empresa",
   titulo: "o que você precisa",
   data_desejada: "data desejada",
+  campaign_id: "campanha",
 };
 
 /**
@@ -104,6 +114,7 @@ export async function abrirSolicitacao(dados: unknown): Promise<Resultado<string
       .insert({
         client_id: entrada.client_id,
         request_type_id: entrada.request_type_id || null,
+        campaign_id: entrada.campaign_id || null,
         titulo: entrada.titulo,
         descricao: entrada.descricao?.trim() || null,
         respostas: entrada.respostas,

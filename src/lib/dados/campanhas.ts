@@ -157,6 +157,56 @@ function montarEntregavel(
   };
 }
 
+/** O par que o seletor de campanha do pedido precisa, e nada mais. */
+export type CampanhaParaEscolher = {
+  id: string;
+  nome: string;
+  clientId: string;
+};
+
+/**
+ * As campanhas que uma solicitação pode apontar (0112).
+ *
+ * **ELA LÊ TRÊS COLUNAS, e não é economia de rede: é o que impede o seletor
+ * de carregar a capa.** `campanhasDoCliente()` assina a URL de cada capa no
+ * bucket privado — uma ida à rede para desenhar oito cartões, que é o certo
+ * numa GRADE e é desperdício inteiro num `<Select>` que mostra texto.
+ *
+ * **E ELA DEVOLVE `clientId`**, que é o que faz o seletor ser filtrável na
+ * tela: o formulário pode ter mais de uma empresa, e a 0112 recusa a campanha
+ * de outra. Sem a coluna, a tela ofereceria a campanha errada e a pessoa
+ * descobriria isso na recusa do banco — que é a diferença entre uma tela que
+ * ensina e uma que reprova depois do clique.
+ *
+ * `cancelada` fica fora pela razão de `combinaComFiltro`: uma campanha
+ * cancelada não é trabalho que alguém possa pedir dentro. `finalizada`
+ * TAMBÉM fica — pedir material dentro de uma campanha encerrada é quase
+ * sempre o pedido que deveria abrir outra, e oferecê-la convida ao engano.
+ */
+export async function campanhasParaEscolher(
+  clienteId?: string,
+): Promise<CampanhaParaEscolher[]> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("campaigns")
+    .select("id, nome, client_id")
+    .in("status", ["planejamento", "ativa"])
+    .order("data_fim", { ascending: false });
+
+  if (clienteId) consulta = consulta.eq("client_id", clienteId);
+
+  const linhas =
+    ouFalha("campanhas para escolher", await consulta) ??
+    ([] as { id: string; nome: string; client_id: string }[]);
+
+  return linhas.map((l) => ({
+    id: l.id,
+    nome: l.nome,
+    clientId: l.client_id,
+  }));
+}
+
 /**
  * As campanhas, da que termina primeiro para a que termina depois.
  *

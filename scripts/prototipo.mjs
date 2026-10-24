@@ -655,6 +655,10 @@ const TELAS = [
   { nome: "98g-feedback-na-home-375", rota: "/painel", largura: 375, altura: 3200, role: "colaborador" },
   { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes?novo=1", largura: 375, altura: 1900, role: "cliente" },
+  // O PAINEL ABERTO JA DENTRO DE UMA CAMPANHA (0112). Ele e o unico lugar em
+  // que o campo "De que campanha e" aparece PREENCHIDO -- em `?novo=1` solto
+  // ele nasce em "Nenhuma", e a imagem provaria so que o seletor existe.
+  { nome: "93c-portal-pedido-na-campanha", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 1500, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
   // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
   // telas: a de cima prova que o material aparece, a de baixo prova que o

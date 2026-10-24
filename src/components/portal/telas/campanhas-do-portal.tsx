@@ -8,6 +8,7 @@ import {
 } from "@/lib/dados/campanhas";
 import {
   combinaComFiltro,
+  contagemPorFase,
   emArvore,
   esperandoOCliente,
   FILTROS_DE_CAMPANHA,
@@ -60,6 +61,7 @@ export async function CampanhasDoPortal({
         campanha,
         progresso: progresso(itens),
         esperando: esperandoOCliente(itens),
+        fases: contagemPorFase(itens),
       };
     })
     .sort((a, b) => a.campanha.dataFim.localeCompare(b.campanha.dataFim));
@@ -102,13 +104,18 @@ export async function CampanhasDoPortal({
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ordenadas.map(({ campanha, progresso: p, esperando }) => (
+        // `items-start` PORQUE O CONTEÚDO DECIDE A ALTURA. Sem ele a grade
+        // estica os cartões até o mais alto da linha, e a campanha que ainda
+        // não tem material sai com um palmo de branco embaixo — ela parece
+        // quebrada, quando o que está acontecendo é que ela tem menos a dizer.
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ordenadas.map(({ campanha, progresso: p, esperando, fases }) => (
             <CartaoDeCampanha
               key={campanha.id}
               campanha={campanha}
               progresso={p}
               esperando={esperando}
+              fases={fases}
               href={`${base}/${campanha.id}`}
             />
           ))}

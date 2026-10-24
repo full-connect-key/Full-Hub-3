@@ -500,6 +500,37 @@ export function pendentes(itens: EntregavelDoPortal[]): number {
   ).length;
 }
 
+/**
+ * Os três números que o cartão mostra, e eles SOMAM o total.
+ *
+ * **É a contagem por FASE e não por status, pela razão de `FASES_DO_MATERIAL`
+ * no portal:** "em produção", "aguardando informações" e "stand by" descrevem
+ * onde o trabalho está DENTRO da agência, e do lado de fora os três dizem a
+ * mesma coisa. Três chips onde o cliente precisa de um é pedir a ele que
+ * escolha entre distinções que não são dele.
+ *
+ * **`producao` é derivado por SUBTRAÇÃO**, e não de uma lista de status: um
+ * oitavo valor em `content_status` cairia fora de toda conta sem ninguém
+ * notar, e aqui ele entra onde é verdade — a agência está com ele.
+ */
+export type ContagemPorFase = {
+  producao: number;
+  esperando: number;
+  aprovados: number;
+};
+
+export function contagemPorFase(
+  itens: EntregavelDoPortal[],
+): ContagemPorFase {
+  const aprovados = itens.filter((i) => i.status === "aprovado").length;
+  const esperando = esperandoOCliente(itens);
+  return {
+    producao: itens.length - aprovados - esperando,
+    esperando,
+    aprovados,
+  };
+}
+
 /** Quantos esperam a decisão DELE agora — é o que merece destaque na lista. */
 export function esperandoOCliente(itens: EntregavelDoPortal[]): number {
   return itens.filter(esperaDecisao).length;

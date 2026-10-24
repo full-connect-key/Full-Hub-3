@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
+import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
 import {
   camposDoRoteiro,
   respostasQueFaltam,
@@ -57,10 +58,23 @@ const ICONES = { Share2, Printer, Video, CircleHelp } as const;
 export function FormularioDePedido({
   empresas,
   tipos,
+  campanhas,
+  campanhaInicial,
   aoConcluir,
 }: {
   empresas: { id: string; nome_empresa: string }[];
   tipos: RequestType[];
+  /**
+   * As campanhas abertas das empresas desta pessoa (0112).
+   *
+   * Elas chegam TODAS e a tela filtra pela empresa escolhida, em vez de uma
+   * consulta por troca de empresa: quem responde por duas contas tem duas
+   * listas curtas, e uma ida ao banco a cada clique no seletor de empresa
+   * seria latência no meio de um formulário.
+   */
+  campanhas: CampanhaParaEscolher[];
+  /** A campanha que já vem escolhida, quando o pedido nasce de dentro de uma. */
+  campanhaInicial?: string;
   /**
    * O que fazer depois de o pedido nascer.
    *
@@ -77,6 +91,7 @@ export function FormularioDePedido({
 
   const [clienteId, setClienteId] = useState(empresas[0]?.id ?? "");
   const [tipoId, setTipoId] = useState<string>(tipos[0]?.id ?? "");
+  const [campanhaId, setCampanhaId] = useState<string>(campanhaInicial ?? "");
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
@@ -97,6 +112,19 @@ export function FormularioDePedido({
    */
   const [tentou, setTentou] = useState(false);
 
+  /**
+   * SÓ AS CAMPANHAS DA EMPRESA ESCOLHIDA, e a escolha se desfaz ao trocar.
+   *
+   * A 0112 recusa a campanha de outra empresa, então oferecê-la seria oferecer
+   * um caminho que termina em recusa. E guardar a escolha anterior ao trocar de
+   * empresa é pior que apagá-la: o `<Select>` ficaria com um valor que não está
+   * mais na lista, mostrando o placeholder e enviando a campanha antiga.
+   */
+  const daEmpresa = campanhas.filter((c) => c.clientId === clienteId);
+  const campanhaEscolhida = daEmpresa.some((c) => c.id === campanhaId)
+    ? campanhaId
+    : "";
+
   const tipo = tipos.find((t) => t.id === tipoId) ?? null;
   const campos = camposDoRoteiro(tipo?.campos_json);
   const faltando = respostasQueFaltam(campos, respostas);
@@ -115,6 +143,7 @@ export function FormularioDePedido({
         abrirSolicitacao({
           client_id: clienteId,
           request_type_id: tipoId || null,
+          campaign_id: campanhaEscolhida || null,
           titulo,
           descricao,
           respostas,
@@ -229,6 +258,51 @@ export function FormularioDePedido({
           })}
         </div>
       </fieldset>
+
+      {/* ------------------------------------------------------------------
+          A CAMPANHA VEM DEPOIS DO TIPO E ANTES DO TÍTULO, e a ordem é a da
+          decisão: que trabalho é, de que campanha ele faz parte, e só então
+          como ele se chama. Depois do título ela leria como um detalhe de
+          classificação, quando ela é contexto do pedido inteiro.
+
+          **E O CAMPO SÓ EXISTE QUANDO HÁ CAMPANHA ABERTA.** Um seletor com a
+          única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
+          está — a mesma razão pela qual o seletor de empresa só aparece com
+          mais de uma.
+          ------------------------------------------------------------------ */}
+      {daEmpresa.length > 0 ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="pedido-campanha">De que campanha é</Label>
+          <Select
+            value={campanhaEscolhida || "nenhuma"}
+            onValueChange={(v) => setCampanhaId(v === "nenhuma" ? "" : v)}
+          >
+            <SelectTrigger
+              aria-label="Campanha"
+              id="pedido-campanha"
+              className="w-full sm:w-80"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* O VALOR VAZIO NÃO É ACEITO PELO `<Select>` do shadcn — ele
+                  trata `""` como "sem valor" e volta ao placeholder. Então o
+                  "nenhuma" é uma opção de verdade, traduzida para nulo no
+                  envio: é o que permite DESFAZER a escolha, que um placeholder
+                  não permite. */}
+              <SelectItem value="nenhuma">Nenhuma, é um pedido solto</SelectItem>
+              {daEmpresa.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-text-muted text-sm">
+            Assim este pedido aparece junto do resto da campanha.
+          </p>
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="pedido-titulo">Em uma linha, o que é *</Label>
