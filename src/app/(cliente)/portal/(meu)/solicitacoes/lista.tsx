@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessageSquare, MessageSquarePlus, Paperclip } from "lucide-react";
+import { MessageSquarePlus } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
@@ -190,66 +190,90 @@ export function ListaDePedidos({
           }
         />
       ) : (
-        <ul className="space-y-[9px]">
-          {visiveis.map(({ p, f }) => (
-            <li key={p.id}>
-              <Link
-                href={`${base}/solicitacoes/${p.id}`}
-                className="bg-surface-card rounded-card shadow-cartao hover:border-accent-strong flex flex-wrap items-center gap-3 border p-3 transition-colors sm:p-4"
-              >
-                {/* `basis-56` É O PISO, e sem ele o título é o ÚNICO a
-                    ceder largura: o selo, a data e os contadores são todos
-                    `shrink-0`, e em 375px "Arte para o Dia das Mães" saía
-                    "Arte para o Dia da…" com a linha inteira cabendo. Com o
-                    piso, o resto quebra para a linha de baixo — que é o que o
-                    `flex-wrap` do pai está aqui para fazer. */}
-                <div className="min-w-0 flex-1 basis-56">
-                  <p className="truncate text-sm font-medium">{p.titulo}</p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {explicacaoDoPedido(p.status, f)}
-                  </p>
-                </div>
+        <div>
+          {/* O CABEÇALHO DA TABELA SÓ EXISTE NO DESKTOP. Abaixo de `md` não há
+              colunas para ele nomear — cada linha vira um cartão, e um
+              cabeçalho sobre cartões empilhados nomeia a primeira e mente
+              sobre as outras quatro. */}
+          <div className="text-text-muted hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto] gap-x-4 px-4 pb-2 text-[11px] font-semibold tracking-wider uppercase md:grid">
+            <span>Solicitação</span>
+            <span>Tipo</span>
+            <span>Campanha</span>
+            <span>Prazo desejado</span>
+            <span className="text-right">Status</span>
+          </div>
 
-                {p.quantosAnexos > 0 ? (
-                  <span
-                    className="text-muted-foreground inline-flex items-center gap-1 text-xs"
-                    title={`${p.quantosAnexos} arquivo(s)`}
-                  >
-                    <Paperclip aria-hidden className="size-3.5" />
-                    {p.quantosAnexos}
-                  </span>
-                ) : null}
+          <ul className="space-y-[9px]">
+            {visiveis.map(({ p, f }) => (
+              <li key={p.id}>
+                <Link
+                  href={`${base}/solicitacoes/${p.id}`}
+                  className="bg-surface-card rounded-card shadow-cartao hover:border-accent-strong grid grid-cols-1 items-center gap-x-4 gap-y-2 border p-3 transition-colors sm:p-4 md:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{p.titulo}</p>
+                    {/* QUEM ABRIU E QUANDO, que é o que a proposta pede na
+                        segunda linha. A frase do que falta continua, depois:
+                        ela é a única coisa da linha que diz o que ACONTECE
+                        agora, e as colunas todas dizem o que o pedido É. */}
+                    <p className="text-text-muted truncate text-xs">
+                      {p.autor?.nome ? `${p.autor.nome} · ` : ""}
+                      {format(parseISO(p.created_at), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })}
+                      {p.quantosAnexos > 0 ? ` · ${p.quantosAnexos} anexo${p.quantosAnexos > 1 ? "s" : ""}` : ""}
+                      {p.quantasMensagens > 0 ? ` · ${p.quantasMensagens} mensage${p.quantasMensagens > 1 ? "ns" : "m"}` : ""}
+                    </p>
+                    <p className="text-text-secondary truncate text-xs">
+                      {explicacaoDoPedido(p.status, f)}
+                    </p>
+                  </div>
 
-                {p.quantasMensagens > 0 ? (
-                  <span
-                    className="text-muted-foreground inline-flex items-center gap-1 text-xs"
-                    title={`${p.quantasMensagens} mensagem(ns)`}
-                  >
-                    <MessageSquare aria-hidden className="size-3.5" />
-                    {p.quantasMensagens}
-                  </span>
-                ) : null}
+                  {/* `md:contents` É O QUE FAZ UMA MARCAÇÃO SÓ VIRAR DUAS
+                      COISAS. No celular estas três são uma linha de metadados
+                      separada por ponto; no desktop o `display: contents`
+                      dissolve o invólucro e elas viram as colunas 2, 3 e 4 da
+                      grade. Duas marcações — uma de cartão e uma de tabela —
+                      divergiriam na primeira coluna nova, e a que ficaria para
+                      trás é a do celular, que é por onde o cliente abre o
+                      portal quase sempre. */}
+                  <div className="text-text-muted flex flex-wrap items-center gap-x-2 gap-y-1 text-xs md:contents">
+                    <span className="truncate md:text-sm">
+                      {p.tipo ?? "—"}
+                    </span>
+                    <span aria-hidden className="md:hidden">
+                      ·
+                    </span>
+                    <span className="truncate md:text-sm">
+                      {p.campanha ?? "—"}
+                    </span>
+                    <span aria-hidden className="md:hidden">
+                      ·
+                    </span>
+                    {/* "PRAZO DESEJADO" E NÃO "PRAZO", e a palavra inteira
+                        importa: `data_desejada` é o que o cliente gostaria, e
+                        `tasks.data_fim` é o que a agência assume. A coluna
+                        chamada só "Prazo" seria lida como combinado — que é
+                        exatamente o que o campo do formulário explica por
+                        extenso embaixo dele para não ser. */}
+                    <span className="whitespace-nowrap tabular-nums md:text-sm">
+                      {p.data_desejada
+                        ? format(parseISO(p.data_desejada), "dd/MM/yyyy", {
+                            locale: ptBR,
+                          })
+                        : "—"}
+                    </span>
+                  </div>
 
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {format(parseISO(p.created_at), "dd/MM/yyyy", {
-                    locale: ptBR,
-                  })}
-                </span>
+                  <div className="md:text-right">
+                    <SeloDaSolicitacao status={p.status} lado="cliente" />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-                {/* O SELO SOME DENTRO DA ABA, porque o cabeçalho já o disse —
-                    é a decisão da Lista de Minhas Tasks, e ele volta em
-                    "Todos", que é onde não há cabeçalho nenhum. Pior que
-                    repetir: na aba "Em análise" o selo de um pedido `nova` diz
-                    "Enviado", e duas palavras diferentes para a mesma linha a
-                    um centímetro de distância é a tela se desmentindo. A frase
-                    de baixo continua dizendo o que falta. */}
-                {fase === null ? (
-                  <SeloDaSolicitacao status={p.status} lado="cliente" />
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
       )}
     </div>
   );

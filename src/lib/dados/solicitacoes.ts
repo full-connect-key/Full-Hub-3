@@ -42,6 +42,15 @@ export type Pessoa = { id: string; nome: string; avatar_url: string | null };
 
 export type PedidoNaLista = ClientRequest & {
   empresa: string | null;
+  /**
+   * O nome da campanha, quando o pedido nasceu de uma (0112).
+   *
+   * `null` tanto no pedido avulso quanto na campanha que foi apagada depois —
+   * `campaign_id` é `on delete set null`, e a tela desenha "—" nos dois casos.
+   * São estados diferentes no banco e a mesma coisa para quem lê: este pedido
+   * não está em campanha nenhuma.
+   */
+  campanha: string | null;
   autor: Pessoa | null;
   tipo: string | null;
   quantosAnexos: number;
@@ -99,8 +108,12 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
   const empresas = [...new Set(pedidos.map((p) => p.client_id))];
   const autores = [...new Set(pedidos.map((p) => p.criado_por).filter(Boolean))] as string[];
   const tipos = [...new Set(pedidos.map((p) => p.request_type_id).filter(Boolean))] as string[];
+  const campanhas = [
+    ...new Set(pedidos.map((p) => p.campaign_id).filter(Boolean)),
+  ] as string[];
 
-  const [rEmpresas, rAutores, rTipos, rAnexos, rMensagens, rDemandas] = await Promise.all([
+  const [rEmpresas, rAutores, rTipos, rAnexos, rMensagens, rDemandas, rCampanhas] =
+    await Promise.all([
     supabase.from("clients").select("id, nome_empresa").in("id", empresas),
     autores.length
       ? supabase.from("profiles").select("id, nome, avatar_url").in("id", autores)
@@ -112,6 +125,16 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     // fase "Em ajustes", e uma segunda leitura do mesmo fato é onde as duas
     // divergem.
     supabase.from("tasks").select("id, titulo, request_id, status").in("request_id", ids),
+    // UMA IDA A MAIS, e so quando ha campanha: a coluna CAMPANHA da tabela
+    // precisa do NOME, e `campaign_id` traz o uuid. Em `pedidos.map` isso
+    // seria uma consulta por linha; aqui e uma por lista, como as outras seis.
+    //
+    // E ela NAO repete o filtro por empresa: quem separa e
+    // `campaigns_select_cliente`. Repetir criaria o segundo lugar onde a regra
+    // pode divergir.
+    campanhas.length
+      ? supabase.from("campaigns").select("id, nome").in("id", campanhas)
+      : null,
   ]);
 
   const porEmpresa = new Map(
@@ -124,6 +147,12 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     (rTipos ? (ouFalha("tipos dos pedidos", rTipos) ?? []) : []).map((t) => [t.id, t.nome]),
   );
 
+  const porCampanha = new Map(
+    (rCampanhas ? (ouFalha("campanhas dos pedidos", rCampanhas) ?? []) : []).map(
+      (c) => [c.id, c.nome],
+    ),
+  );
+
   const anexos = ouFalha("anexos dos pedidos", rAnexos) ?? [];
   const mensagens = ouFalha("mensagens dos pedidos", rMensagens) ?? [];
   const demandas = ouFalha("demandas dos pedidos", rDemandas) ?? [];
@@ -132,6 +161,7 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
   return pedidos.map((p) => ({
     ...p,
     empresa: porEmpresa.get(p.client_id) ?? null,
+    campanha: p.campaign_id ? (porCampanha.get(p.campaign_id) ?? null) : null,
     autor: p.criado_por ? (porAutor.get(p.criado_por) ?? null) : null,
     tipo: p.request_type_id ? (porTipo.get(p.request_type_id) ?? null) : null,
     quantosAnexos: anexos.filter((a) => a.request_id === p.id).length,

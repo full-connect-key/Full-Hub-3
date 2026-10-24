@@ -155,6 +155,7 @@ const PEDIDOS: PedidoNaLista[] = [
     // dois estados, a coluna CAMPANHA sai em imagem provando so que ela sabe
     // ficar vazia.
     campaign_id: "camp-1",
+    campanha: "Wave Outubro Rosa",
     status: "nova",
     motivo_recusa: null,
     decidida_em: null,
@@ -178,6 +179,7 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { peca: "Lâmina A5, frente e verso", medida: "14,8 × 21 cm" },
     data_desejada: null,
     campaign_id: null,
+    campanha: null,
     status: "em_analise",
     motivo_recusa: null,
     decidida_em: null,
@@ -201,6 +203,7 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { duracao: "30 segundos", mensagem: "A coleção nova chegou." },
     data_desejada: null,
     campaign_id: "camp-1",
+    campanha: "Wave Outubro Rosa",
     status: "em_andamento",
     motivo_recusa: null,
     decidida_em: null,
@@ -229,6 +232,7 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { mensagem: "Os mesmos do ano passado, sem mudar nada." },
     data_desejada: null,
     campaign_id: null,
+    campanha: null,
     status: "recusada",
     motivo_recusa:
       "A arte do ano passado usa o logo antigo. Vale refazer com a marca nova — abrimos outro pedido?",
@@ -260,6 +264,7 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { rede: "Site", formato: "Banner", mensagem: "Até 40% em toda a loja." },
     data_desejada: diasAtras(6),
     campaign_id: null,
+    campanha: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(3),
@@ -286,6 +291,7 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { mensagem: "O número mudou na semana passada." },
     data_desejada: null,
     campaign_id: null,
+    campanha: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(8),
