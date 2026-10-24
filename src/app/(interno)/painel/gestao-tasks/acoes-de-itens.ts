@@ -157,6 +157,61 @@ export async function criarSubtarefa(
  * Edição dos campos da subtarefa. O STATUS não passa por aqui: ele tem ação
  * própria (`moverSubtarefa`), que checa a máquina de estados antes.
  */
+/**
+ * Põe ou tira a SEGUNDA pessoa de uma etapa (0114).
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA NÃO É `atualizarSubtarefa` COM UM CAMPO A MAIS**, e a razão é o que a
+ * 0114 decidiu: `subtasks.responsavel_id` continua sendo a PRIMEIRA pessoa, e
+ * quem manda é `subtask_responsaveis`. Uma lista dentro daquele `update`
+ * passaria a escrever nos dois lugares pela mesma ação — e o gatilho que
+ * mantém a coluna em dia escreve de volta, então a ordem entre os dois viraria
+ * a coisa que decide o resultado.
+ *
+ * Aqui a escrita é só na tabela, e a coluna acompanha sozinha.
+ * ---------------------------------------------------------------------------
+ *
+ * **O BANCO É QUEM RECUSA.** `subtask_responsaveis_write` pergunta
+ * `pode_editar_task()` da demanda — a mesma pergunta que a policy de
+ * `subtasks` faz —, então quem não pode distribuir trabalho não consegue se
+ * pôr numa etapa. A guarda da rota existe para a mensagem, não para a trava.
+ */
+export async function mudarResponsavelExtra(
+  subtarefaId: string,
+  taskId: string,
+  usuarioId: string,
+  entra: boolean,
+): Promise<Resultado> {
+  return executarAcao("mudarResponsavelExtra", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    if (entra) {
+      const { error } = await supabase
+        .from("subtask_responsaveis")
+        .insert({ subtask_id: subtarefaId, user_id: usuarioId });
+      if (error) return falha(`Não foi possível acrescentar: ${error.message}`);
+    } else {
+      // `.select()` PORQUE O RLS PODE BARRAR EM SILÊNCIO: um `delete` recusado
+      // volta sem erro e sem linha, e a tela diria "pronto" à toa.
+      const { data, error } = await supabase
+        .from("subtask_responsaveis")
+        .delete()
+        .eq("subtask_id", subtarefaId)
+        .eq("user_id", usuarioId)
+        .select("user_id");
+      if (error) return falha(`Não foi possível tirar: ${error.message}`);
+      if (!data || data.length === 0) {
+        return falha("O banco recusou. Distribuir trabalho é de quem edita a demanda.");
+      }
+    }
+
+    revalidatePath(`${ROTA}/${taskId}`);
+    anunciar("etapa");
+    return sucesso(entra ? "Pessoa acrescentada à etapa." : "Pessoa tirada da etapa.");
+  });
+}
+
 export async function atualizarSubtarefa(
   id: string,
   taskId: string,

@@ -615,7 +615,18 @@ from (
     -- fazem -- foi assim que a linha da 0060 passou a mentir quando a 0090
     -- devolveu a frase que ela procurava.
     ('0113', 'gerar_ocorrencia gera por conta', 'no_corpo',
-             'gerar_ocorrencia|contas_da_recorrencia')
+             'gerar_ocorrencia|contas_da_recorrencia'),
+    -- A 0114 APONTA PARA O CORPO DE `disponibilidade_bruta`, que e o PASSO 4.
+    -- Um marcador na tabela (PASSO 1) diria `ok` sobre o banco em que ela
+    -- existe, ja convertida pelo PASSO 2, e a CARGA continua lendo a coluna --
+    -- entao a segunda pessoa de uma etapa aparece na tela e nao ocupa dia
+    -- nenhum. O numero sai baixo, plausivel, e errado.
+    --
+    -- O PASSO 5 vem depois, e um marcador nele seria mais estrito; ele nao foi
+    -- escolhido porque `responsaveis_da_subtarefa` e lida pela TELA, e uma
+    -- tela que nao carrega e um problema que se ve. A carga errada nao.
+    ('0114', 'a carga le os dois responsaveis', 'no_corpo',
+             'disponibilidade_bruta|subtask_responsaveis')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

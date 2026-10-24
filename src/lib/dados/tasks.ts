@@ -424,6 +424,15 @@ export type EntregaDetalhada = SubtaskEntrega & { autor: Pessoa | null };
 
 export type SubtarefaDetalhada = Subtask & {
   responsavel: Pessoa | null;
+  /**
+   * Quem mais faz esta etapa, além do `responsavel` (0114).
+   *
+   * **A primeira pessoa fica FORA desta lista**, e não dentro com um índice
+   * zero: `responsavel` já é ela, e tê-la nos dois lugares faria a tela ter de
+   * escolher qual ler — e a que divergisse seria esta, que quase nenhuma tela
+   * usa.
+   */
+  outrosResponsaveis: Pessoa[];
   /** De quem ela depende, com o estado de cada uma. */
   dependeDe: { id: string; titulo: string; status: SubtaskStatus }[];
   /** Só os títulos do que ainda não terminou — é o texto do cadeado. */
@@ -522,11 +531,26 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const entregas = ouFalha("as entregas das etapas", respEntregas);
   const dependencias = ouFalha("as dependências das etapas", respDependencias);
 
+  // QUEM MAIS FAZ CADA ETAPA (0114), numa ida só para a demanda inteira.
+  //
+  // Ela vem ANTES do mapa de pessoas porque os ids dela entram nele: sem isso,
+  // a segunda pessoa de uma etapa apareceria como um círculo vazio — a tela
+  // teria o id e não o nome.
+  const extras = ouFalha(
+    "quem mais faz cada etapa",
+    await supabase
+      .from("subtask_responsaveis")
+      .select("subtask_id, user_id")
+      .in("subtask_id", subtarefas.map((s) => s.id))
+      .order("created_at"),
+  );
+
   const ids = [
     ...new Set(
       [
         task.criado_por,
         ...subtarefas.map((s) => s.responsavel_id),
+        ...extras.map((e) => e.user_id),
         ...comentarios.map((c) => c.autor_id),
         ...historico.map((h) => h.autor_id),
         ...rodadas.flatMap((r) => [r.solicitado_por, r.decidido_por]),
@@ -579,6 +603,10 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       responsavel: sub.responsavel_id
         ? (porPessoa.get(sub.responsavel_id) ?? null)
         : null,
+      outrosResponsaveis: extras
+        .filter((e) => e.subtask_id === sub.id && e.user_id !== sub.responsavel_id)
+        .map((e) => porPessoa.get(e.user_id))
+        .filter((p): p is Pessoa => Boolean(p)),
       dependeDe,
       dependenciasAbertas: dependeDe
         .filter((d) => d.status !== "concluida")

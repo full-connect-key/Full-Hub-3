@@ -474,6 +474,14 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     created_at: "2026-09-10T09:05:00.000Z",
     updated_at: "2026-09-19T15:30:00.000Z",
     responsavel: semente.responsavel,
+    // A SEGUNDA PESSOA NA ETAPA (0114), e ela esta no "Criar KV" porque e essa
+    // a etapa que o prototipo ABRE no painel. Posta em outra, a imagem do
+    // painel sairia sem ela -- e provaria so que a linha sabe sumir.
+    //
+    // E e UMA e nao duas: o que a imagem precisa mostrar e a linha da pessoa
+    // com o botao de tirar, mais o seletor de acrescentar embaixo. Duas
+    // empilhadas nao provam nada a mais e empurram os campos para baixo.
+    outrosResponsaveis: semente.titulo === "Criar KV" ? [MARINA] : [],
     dependeDe,
     dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
     rodadas: rodadas.map((r) => ({

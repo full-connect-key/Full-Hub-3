@@ -347,3 +347,134 @@ select teste.recusa_com_dica('Um ano de uma vez e recusado, com o que fazer no l
   $q$select * from public.disponibilidade(
        '55555555-5555-5555-5555-555555555555', '2027-01-01', '2027-12-31')$q$,
   'O calendário pede um mês por vez.');
+
+
+-- ===========================================================================
+-- 0114 -- A etapa pode ter DOIS responsaveis
+-- ===========================================================================
+
+-- O QUE ESTA SECAO PROVA, e ela existe por causa de um numero: com uma pessoa
+-- so, a carga lendo a coluna e a carga lendo a tabela devolvem exatamente o
+-- mesmo. Separa-las exige uma etapa com DUAS.
+--
+-- E ELA MEDE VARIACAO E NAO VALOR ABSOLUTO, o que foi a bateria que ensinou:
+-- a primeira versao afirmava que o dia do Bruno comecava vazio, e ele tem
+-- etapas proprias no fixture desde o arquivo 01. Um cenario que supoe a
+-- premissa em vez de a medir passa por sorte -- e o dia em que o fixture
+-- mudar, ele acusa a entrega errada.
+
+-- ESTE CENARIO MEDE O GATILHO, E NAO A CONVERSAO -- e a distincao importa.
+--
+-- A conversao do PASSO 2 so alcanca linhas anteriores a migration, e a bateria
+-- nao tem esse ponto: `01_permissoes_e_fluxo.sql` apaga `subtasks` na linha
+-- 12, e toda etapa que os cenarios veem nasce depois. Tirar o `insert` daquele
+-- passo nao derruba cenario nenhum, e o zero esta dito no cabecalho da 0114 --
+-- quem confere a conversao e o `select` no fim dela, rodado no banco de
+-- verdade.
+--
+-- O que este cenario prova e o gatilho: toda etapa que ganha dono ganha a
+-- linha, por qualquer caminho -- a materializacao do workflow, a rotina da
+-- recorrencia, o espelho da campanha, o insert colado a mao.
+select teste.conferir('Toda etapa com dono tem a linha dela (o gatilho)',
+  (select (count(*) = (select count(*) from public.subtasks where responsavel_id is not null))::text
+     from public.subtask_responsaveis), 'true');
+
+-- A ETAPA ESCOLHIDA FICA GRAVADA, e nao reencontrada a cada cenario por uma
+-- consulta que pode casar com outra: `where user_id = BRUNO` acha tambem as
+-- etapas que ja eram dele.
+do $$
+declare
+  alvo uuid;
+begin
+  select id into alvo from public.subtasks
+   where responsavel_id = '55555555-5555-5555-5555-555555555555'
+     and prazo = '2027-03-03'
+   order by created_at limit 1;
+  perform set_config('teste.etapa_de_duas', alvo::text, false);
+  perform set_config('teste.bruno_antes_etapas',
+    (select etapas::text from public.carga_do_dia(
+       '44444444-4444-4444-4444-444444444444', '2027-03-03')), false);
+  perform set_config('teste.bruno_antes_minutos',
+    (select minutos_comprometidos::text from public.carga_do_dia(
+       '44444444-4444-4444-4444-444444444444', '2027-03-03')), false);
+  perform set_config('teste.marina_antes_minutos',
+    (select minutos_comprometidos::text from public.carga_do_dia(
+       '55555555-5555-5555-5555-555555555555', '2027-03-03')), false);
+end
+$$;
+
+select teste.cenario('O Bruno entra junto numa etapa da Marina', :ANA,
+  format($fmt$
+    insert into public.subtask_responsaveis (subtask_id, user_id)
+    values (%L, %L)
+  $fmt$, current_setting('teste.etapa_de_duas'), :BRUNO), 'ok', 1);
+
+-- O CENARIO QUE SEPARA A ENTREGA DO QUE HAVIA ANTES. Lendo a coluna, o dia do
+-- Bruno nao mudaria em nada -- `responsavel_id` daquela etapa e da Marina.
+select teste.conferir('O dia do Bruno ganhou UMA etapa',
+  (select (etapas - current_setting('teste.bruno_antes_etapas')::integer)::text
+     from public.carga_do_dia(:BRUNO, '2027-03-03')), '1');
+
+-- E A ESTIMATIVA CONTA INTEIRA PARA CADA UMA, nao dividida: duas pessoas numa
+-- etapa em branco nao sao duas de 1h30 -- as duas estao ocupadas com aquilo. O
+-- lado certo do erro e contar demais, porque sobrecarga avisa e nunca recusa.
+select teste.conferir('E as tres horas inteiras, nao a metade delas',
+  (select (minutos_comprometidos - current_setting('teste.bruno_antes_minutos')::integer)::text
+     from public.carga_do_dia(:BRUNO, '2027-03-03')), '180');
+
+-- E O DIA DA MARINA NAO MUDOU EM NADA, que e a outra metade: a segunda pessoa
+-- entrando numa etapa nao tira a etapa de quem ja estava nela. Medido como
+-- VARIACAO porque este arquivo acrescenta trabalho a ela em cada secao -- o
+-- 540 de "tres etapas em branco enchem um dia" e o estado daquele ponto, e nao
+-- deste.
+select teste.conferir('E o dia da Marina nao mudou em nada',
+  (select (minutos_comprometidos - current_setting('teste.marina_antes_minutos')::integer)::text
+     from public.carga_do_dia(:MARINA, '2027-03-03')), '0');
+
+-- --- A coluna acompanha a tabela -------------------------------------------
+
+-- `subtasks.responsavel_id` e lida por 524 linhas do produto, e precisa
+-- continuar apontando para alguem que de fato faz a etapa. Tirando a primeira
+-- pessoa, a coluna passa a ser a que sobrou.
+select teste.cenario('A Marina sai da etapa', :ANA,
+  format($fmt$
+    delete from public.subtask_responsaveis where subtask_id = %L and user_id = %L
+  $fmt$, current_setting('teste.etapa_de_duas'), :MARINA), 'ok', 1);
+
+select teste.conferir('E a coluna passou a apontar para o Bruno',
+  (select (responsavel_id = :BRUNO)::text from public.subtasks
+    where id = current_setting('teste.etapa_de_duas')::uuid), 'true');
+
+-- --- Trocar o responsavel TIRA o antigo ------------------------------------
+
+-- Sem esta metade do gatilho, o seletor de UMA pessoa deixaria de significar o
+-- que sempre significou: trocar a pessoa ACRESCENTARIA uma, e quem saiu
+-- continuaria com a etapa no "Minhas Tasks" dela, sem nada dizendo por que.
+select teste.cenario('A etapa volta para a Marina pelo seletor de sempre', :ANA,
+  format($fmt$
+    update public.subtasks set responsavel_id = %L where id = %L
+  $fmt$, :MARINA, current_setting('teste.etapa_de_duas')), 'ok', 1);
+
+select teste.conferir('E o Bruno saiu da etapa junto',
+  (select count(*)::text from public.subtask_responsaveis
+    where subtask_id = current_setting('teste.etapa_de_duas')::uuid
+      and user_id = :BRUNO), '0');
+
+select teste.conferir('E o dia dele voltou ao que era',
+  (select (etapas - current_setting('teste.bruno_antes_etapas')::integer)::text
+     from public.carga_do_dia(:BRUNO, '2027-03-03')), '0');
+
+-- --- A ultima pessoa pode sair, e a etapa fica SEM DONO --------------------
+
+-- AO CONTRARIO DA 0113, aqui a ultima nao e recusada: "etapa sem responsavel"
+-- e um estado que o produto ja desenha -- ela aparece no board dizendo isso, e
+-- a abertura do mes de social avisa por extenso quando a conta nao tem ninguem
+-- naquela funcao. Recusar criaria uma trava que nenhuma tela sabe explicar.
+select teste.cenario('A Marina sai, e nao sobra ninguem', :ANA,
+  format($fmt$
+    delete from public.subtask_responsaveis where subtask_id = %L
+  $fmt$, current_setting('teste.etapa_de_duas')), 'ok', 1);
+
+select teste.conferir('A etapa ficou sem dono, que e um estado de verdade',
+  (select (responsavel_id is null)::text from public.subtasks
+    where id = current_setting('teste.etapa_de_duas')::uuid), 'true');

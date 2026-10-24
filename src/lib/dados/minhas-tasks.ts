@@ -101,9 +101,33 @@ export function prazosDeHoje(): Prazos {
 async function carregar(userId: string): Promise<MinhaTask[]> {
   const supabase = await criarClienteServidor();
 
+  /**
+   * AS ETAPAS QUE SÃO MINHAS — pela TABELA, e não pela coluna (0114).
+   *
+   * `subtasks.responsavel_id` é a PRIMEIRA pessoa da etapa; quem diz que ela é
+   * minha é `subtask_responsaveis`. Lendo a coluna, a segunda pessoa de uma
+   * etapa não a veria em lugar nenhum — e aí a etapa existiria, contaria na
+   * carga dela, e não apareceria no "Minhas Tasks" de quem a faz: o pior tipo
+   * de trabalho, o que existe e ninguém sabe que é seu.
+   *
+   * São DUAS idas e não um embutido porque o PostgREST recusa o `select`
+   * INTEIRO quando não acha a relação pelo nome escrito — a classe de bug que
+   * fez uma campanha recém-criada não aparecer em lugar nenhum.
+   */
+  const meusVinculos = ouFalha(
+    "as etapas que são minhas",
+    await supabase
+      .from("subtask_responsaveis")
+      .select("subtask_id")
+      .eq("user_id", userId),
+  );
+
+  const idsDasMinhas = (meusVinculos ?? []).map((v) => v.subtask_id);
+  if (idsDasMinhas.length === 0) return [];
+
   const minhasSubs = ouFalha(
     "as minhas etapas",
-    await supabase.from("subtasks").select("*").eq("responsavel_id", userId),
+    await supabase.from("subtasks").select("*").in("id", idsDasMinhas),
   );
 
   const candidatas = (minhasSubs ?? []) as Subtask[];
@@ -199,7 +223,11 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
   // As dos outros, como contexto — também só as folhas: ver "Arte" em cinza
   // ao lado de "Conceito" e "Layout", que são o que ela agrupa, é ver a mesma
   // coisa três vezes.
-  const outras = folhas(todasAsSubs ?? []).filter((s) => s.responsavel_id !== userId);
+  // "AS OUTRAS" SÃO AS QUE NÃO SÃO MINHAS, e a pergunta é a mesma de cima:
+  // uma etapa em que eu sou a SEGUNDA pessoa é minha, e sairia aqui como
+  // contexto em cinza se a conta fosse por `responsavel_id`.
+  const meusIds = new Set(idsDasMinhas);
+  const outras = folhas(todasAsSubs ?? []).filter((s) => !meusIds.has(s.id));
   const idsDePessoas = [...new Set(outras.map((s) => s.responsavel_id).filter(Boolean))] as string[];
 
   const pessoas: Pessoa[] =
@@ -239,6 +267,11 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
       etapaDeCima: sub.parent_id ? (porId.get(sub.parent_id)?.titulo ?? null) : null,
       campanha: campanhaPorSubtarefa.get(sub.id) ?? null,
       responsavel: (eu as Pessoa | null) ?? null,
+      // QUEM MAIS ESTÁ NESTA ETAPA fica para o detalhe (0114). Aqui a lista é
+      // o MEU dia, e `quemMaisEstaNa()` já responde quem mais está na DEMANDA
+      // — a pilha de avatares da linha. Duas pilhas na mesma linha, uma da
+      // etapa e outra da demanda, seriam dois círculos quase sempre iguais.
+      outrosResponsaveis: [],
       dependeDe,
       dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
       // O painel pessoal não abre as rodadas em detalhe: ele precisa saber se
@@ -530,7 +563,20 @@ export async function etapaEmAndamento(userId: string): Promise<EtapaEmAndamento
     await supabase
       .from("subtasks")
       .select("id, task_id, titulo, tempo_medido_segundos, andando_desde")
-      .eq("responsavel_id", userId)
+      // PELA TABELA (0114): o relógio esquecido aberto é de quem está com a
+      // etapa, e a segunda pessoa está com ela do mesmo jeito.
+      .in(
+        "id",
+        (
+          ouFalha(
+            "as etapas que são minhas",
+            await supabase
+              .from("subtask_responsaveis")
+              .select("subtask_id")
+              .eq("user_id", userId),
+          ) ?? []
+        ).map((v) => v.subtask_id),
+      )
       .not("andando_desde", "is", null)
       // A mais antiga primeiro: é a que a pessoa esqueceu.
       .order("andando_desde", { ascending: true }),

@@ -1147,6 +1147,29 @@ export interface Database {
       };
       /** Pedidos de ferias, licenca e ausencia (migration 0011). */
       /**
+       * Quem faz uma etapa (migration 0114).
+       *
+       * `subtasks.responsavel_id` e a PRIMEIRA pessoa e continua existindo --
+       * ela e lida por 524 linhas do produto, e um gatilho a mantem apontando
+       * para alguem que de fato faz a etapa. Esta tabela e quem manda.
+       *
+       * `created_at` fica FORA de `Insert`: a ordem das pessoas sai dele, e
+       * quem gravasse a propria data escolheria qual delas e a "primeira".
+       */
+      subtask_responsaveis: {
+        Row: {
+          subtask_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          subtask_id: string;
+          user_id: string;
+        };
+        Update: { user_id?: string };
+        Relationships: [];
+      };
+      /**
        * As contas que uma regra de recorrencia atende (migration 0113).
        *
        * `created_at` fica FORA de `Insert`: o default e `now()`, e a ordem das
@@ -3417,6 +3440,11 @@ export interface Database {
       is_socio: { Args: Record<string, never>; Returns: boolean };
       is_gestor: { Args: Record<string, never>; Returns: boolean };
       is_atendimento: { Args: Record<string, never>; Returns: boolean };
+      /** Quem faz a etapa, na ordem em que entrou (0114). */
+      responsaveis_da_subtarefa: {
+        Args: { p_subtask_id: string };
+        Returns: string[];
+      };
       /** As contas que a regra atende (0113). */
       contas_da_recorrencia: {
         Args: { p_recurrence_id: string };

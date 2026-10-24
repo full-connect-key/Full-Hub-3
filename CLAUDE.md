@@ -1046,6 +1046,78 @@ contar a estimativa inteira em cada dia derruba 2. **A sexta não derruba
 nenhum**, e é a do `where` da capacidade: é a que está escrita acima como não
 mensurável, e o zero é o que prova que a frase é verdadeira.
 
+#### A ETAPA PODE TER DOIS RESPONSÁVEIS
+
+Migration 0114, decisão do usuário: *"Preciso que seja possível colocar dois
+responsáveis na sub tarefa, se necessário"*.
+
+**`subtasks.responsavel_id` CONTINUA, e isso não é meia mudança.** Ela é lida
+por **524 linhas** — 27 arquivos de `src/`, 16 migrations e a bateria inteira.
+Trocá-la por um array seria a 0082 (`posts.plataforma` → `plataformas`)
+multiplicada por dez, e aquela migration, que este arquivo descreve como
+mexendo na *"coluna mais lida do módulo"*, teve um décimo deste alcance.
+
+A forma é a que a 0113 acabou de provar: **a coluna passa a ser a PRIMEIRA
+pessoa, e `subtask_responsaveis` é quem manda.** Tudo o que lê
+`responsavel_id` continua certo — ele aponta para alguém que de fato faz a
+etapa —, e quem precisa das duas lê a tabela.
+
+**Dois gatilhos mantêm os dois lados em dia.** Um vincula a pessoa no instante
+em que a etapa ganha dono, por qualquer caminho — a materialização do
+workflow, a rotina da recorrência, o espelho da campanha, o `insert` colado no
+SQL Editor: sem ele, a etapa nasceria com a coluna preenchida e carga **zero**.
+O mesmo gatilho **tira a antiga quando a pessoa é trocada**, e é o que faz o
+seletor de uma pessoa continuar significando o que sempre significou — sem
+isso, trocar a pessoa na tela *acrescentaria* uma, e quem saiu continuaria com
+a etapa no "Minhas Tasks" dela. O outro faz a coluna acompanhar a tabela.
+
+**A última pessoa PODE sair, ao contrário da última conta da 0113.** "Etapa sem
+responsável" é um estado que o produto já desenha — o board diz isso, e a
+abertura do mês de social avisa por extenso. Recusar criaria uma trava que
+nenhuma tela sabe explicar.
+
+**A CARGA CONTA A ESTIMATIVA INTEIRA PARA CADA UMA, e não dividida.** Duas
+pessoas numa etapa de 8h não são duas de 4h: elas estão as duas ocupadas com
+aquilo, e é isso que a faixa de disponibilidade existe para mostrar a quem vai
+datar a próxima. Dividir faria as duas parecerem meio livres, que é o jeito
+mais fácil de sobrecarregar alguém sem perceber — e a regra do módulo é
+*sobrecarga avisa, nunca recusa*, então o lado certo do erro é contar demais.
+*Se um dia a agência quiser dividir, é um `count(*) over (partition by s.id)`
+em `disponibilidade_bruta()`, e mais nada.*
+
+**E "Minhas Tasks" lê a TABELA.** Pela coluna, a segunda pessoa não veria a
+etapa em lugar nenhum — ela existiria, contaria na carga dela, e não apareceria
+na lista de quem a faz: o pior tipo de trabalho, o que existe e ninguém sabe
+que é seu.
+
+**O que continua olhando só a primeira, e o motivo de cada um:** o avatar do
+board e do calendário (a célula tem ~90px, e dois círculos empurram o título
+para fora — a pilha de avatares já existe e é de quem está na DEMANDA); o
+aviso de recesso e o descarte de pessoa desligada na geração da recorrência
+(eles decidem o que GRAVAR em `responsavel_id`, e a segunda pessoa entra
+depois, pela tela); e o espelho da campanha (0080) e a corrente do social
+(0088), porque um par de listas espelhadas é onde as duas verdades começam a
+divergir. Nenhum é furo: são decisões de onde a segunda pessoa aparece.
+
+**Na tela, ela mora DENTRO do campo Responsável** e não ao lado: é a mesma
+pergunta — quem faz isto —, e um segundo campo na grade faria a etapa parecer
+ter dois conceitos de dono. A linha some quando não há ninguém a mais, e quem
+já está fica fora da lista de acrescentar, porque a chave composta faria o
+banco recusar.
+
+**Medido com seis mutações**, sobre 2307 cenários: a etapa que ganha dono não
+ganhar a linha derruba **27**, a coluna deixar de acompanhar a tabela derruba
+5, trocar o responsável acrescentando em vez de trocar derruba 3, a carga
+voltar a ler a coluna derruba 2 — **e dois zeros, que são diferentes.** A
+conversão do PASSO 2 não tem ponto de medição: ela só alcança linhas
+anteriores à migration, e `01_permissoes_e_fluxo.sql` apaga `subtasks` na linha
+12, então toda etapa que os cenários veem nasce depois. Quem a confere é o
+`select` no fim do arquivo, rodado no banco de verdade — é o `where` da
+capacidade da 0081 de novo. O outro zero é porque a guarda do cascade ali **não
+é trava, é economia**: sem ela, o `update` roda uma vez por linha em todo
+apagamento de etapa, e apagar uma demanda com sessenta etapas são sessenta
+updates que não mudam nada.
+
 ### Dependências
 
 Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não

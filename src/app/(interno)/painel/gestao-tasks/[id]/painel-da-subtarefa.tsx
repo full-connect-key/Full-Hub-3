@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Trash2 } from "lucide-react";
+import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
@@ -34,6 +34,7 @@ import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import {
   anexarEntrega,
   atualizarSubtarefa,
+  mudarResponsavelExtra,
   buscarDisponibilidade,
   desvincularDependencia,
   moverSubtarefa,
@@ -89,6 +90,25 @@ export function PainelDaSubtarefa({
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
       const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
+
+  /**
+   * Põe ou tira a segunda pessoa (0114).
+   *
+   * Ela não passa por `salvar()` porque a escrita é em OUTRA tabela: `salvar`
+   * manda campos para `atualizarSubtarefa`, e um `responsaveis` ali passaria a
+   * escrever nos dois lugares pela mesma ação — com o gatilho que mantém a
+   * coluna em dia escrevendo de volta, a ordem entre os dois viraria a coisa
+   * que decide o resultado.
+   */
+  function mudarExtra(usuarioId: string, entra: boolean) {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() =>
+        mudarResponsavelExtra(subtarefa.id, taskId, usuarioId, entra),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
@@ -159,6 +179,81 @@ export function PainelDaSubtarefa({
               ) : (
                 <span className="text-muted-foreground text-sm">Sem responsável</span>
               )}
+
+              {/* ----------------------------------------------------------
+                  QUEM MAIS FAZ ESTA ETAPA (0114).
+
+                  **Ela mora DENTRO do campo Responsável, e não ao lado**: é a
+                  mesma pergunta — quem faz isto —, e um segundo campo chamado
+                  "Outros responsáveis" na grade faria a etapa parecer ter dois
+                  conceitos de dono. O seletor de cima continua significando o
+                  que sempre significou: trocar nele TROCA a pessoa, e o
+                  gatilho da 0114 tira a antiga.
+
+                  **E a linha some quando não há ninguém a mais**, em vez de
+                  um "nenhum" permanente: a segunda pessoa é a exceção, e um
+                  rótulo que aparece sempre para dizer que não há nada é o que
+                  gasta a linha de toda etapa da agência.
+                  ---------------------------------------------------------- */}
+              {subtarefa.outrosResponsaveis.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {subtarefa.outrosResponsaveis.map((pessoa) => (
+                    <li key={pessoa.id} className="flex items-center gap-2 text-sm">
+                      <UserAvatar name={pessoa.nome} src={pessoa.avatar_url} size="sm" />
+                      <span className="min-w-0 flex-1 truncate">{pessoa.nome}</span>
+                      {podeGerenciar ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            mudarExtra(pessoa.id, false)
+                          }
+                          className="text-text-muted hover:text-danger shrink-0 transition-colors"
+                          aria-label={`Tirar ${pessoa.nome} desta etapa`}
+                        >
+                          <X aria-hidden className="size-4" />
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {podeGerenciar && subtarefa.responsavel_id ? (
+                <Select
+                  value={SEM_VALOR}
+                  onValueChange={(valor) =>
+                    mudarExtra(valor, true)
+                  }
+                >
+                  <SelectTrigger
+                    aria-label="Acrescentar outra pessoa a esta etapa"
+                    className="mt-2 w-full"
+                  >
+                    <span className="text-text-muted inline-flex items-center gap-1.5 text-sm">
+                      <Plus aria-hidden className="size-4" />
+                      Mais alguém nesta etapa
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* QUEM JÁ ESTÁ FICA FORA DA LISTA, e não aparece
+                        desabilitado: a chave de `subtask_responsaveis` é
+                        composta, então o banco recusaria — e oferecer um
+                        caminho que termina em recusa é o que a tela existe
+                        para não fazer. */}
+                    {equipe
+                      .filter(
+                        (pessoa) =>
+                          pessoa.id !== subtarefa.responsavel_id &&
+                          !subtarefa.outrosResponsaveis.some((o) => o.id === pessoa.id),
+                      )
+                      .map((pessoa) => (
+                        <SelectItem key={pessoa.id} value={pessoa.id}>
+                          {pessoa.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
             </Campo>
 
             <Campo rotulo="Prioridade">
