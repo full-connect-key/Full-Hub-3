@@ -139,7 +139,16 @@ export async function listarRecorrencias(): Promise<RecorrenciaNaTela[]> {
 }
 
 export async function buscarRecorrencia(id: string) {
-  return (REGRAS.find((r) => r.id === id) ?? REGRAS[0]) as never;
+  const regra = REGRAS.find((r) => r.id === id) ?? REGRAS[0];
+  return {
+    ...regra,
+    // A REGRA ATENDE AS DUAS CONTAS (0113), e a segunda nao tem pasta padrao
+    // no stub de `fluxo-do-cliente`. E esse par que a imagem precisa: o chip
+    // marcado prova que a lista existe, e o selo ambar nele prova que a tela
+    // sabe nomear a conta que falta configurar -- que e a frase que o banco
+    // gravaria as tres da manha.
+    outras_contas: ["c0000000-0000-0000-0000-00000000000b"],
+  } as never;
 }
 
 export async function execucoesDaRecorrencia(

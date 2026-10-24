@@ -41,6 +41,7 @@ const ROTA = "/painel/gestao-tasks";
 const ROTULOS = {
   nome: "nome da regra",
   client_id: "cliente",
+  client_ids: "clientes",
   modelo: "modelo da demanda",
   data_inicio: "data de início",
 } as const;
@@ -48,6 +49,15 @@ const ROTULOS = {
 const esquemaDeRecorrencia = z.object({
   nome: z.string().trim().min(2, "Dê um nome à regra."),
   client_id: z.string().uuid("Escolha o cliente."),
+  /**
+   * AS OUTRAS CONTAS QUE A REGRA ATENDE (0113).
+   *
+   * `client_id` continua sendo a PRIMEIRA, e nao uma de duas listas: ela e a
+   * que o `on delete cascade` usa, e o gatilho da 0113 ja a vincula sozinha
+   * no insert. Esta lista e o resto -- e ela aceita a primeira de volta sem
+   * problema, porque a chave da tabela de vinculo e composta.
+   */
+  client_ids: z.array(z.string().uuid()).optional(),
   modo: z.enum(["mensal_agrupada", "task_por_ocorrencia"]),
   frequencia: z.enum(["diaria", "semanal", "quinzenal", "mensal"]),
   dias_semana: z.array(z.number().int().min(1).max(7)).nullable().optional(),
@@ -65,10 +75,26 @@ const esquemaDeRecorrencia = z.object({
     responsavel_padrao: z.string().uuid().nullable().optional(),
     briefing_rico: z.unknown().nullable().optional(),
     prioridade: z.enum(["baixa", "normal", "alta", "urgente"]),
+    /**
+     * A PASTA FICA NO ESQUEMA E DEIXOU DE SER OBRIGATORIA (0113).
+     *
+     * Ela saiu da TELA -- o campo nao existe mais, porque com N contas uma
+     * pasta digitada esta errada para N-1 delas, e a origem passou a ser
+     * `client_flow_defaults.pasta_entrega_url` de cada conta.
+     *
+     * **E ela continua aqui porque as regras antigas a tem gravada**, e
+     * `gerar_ocorrencia()` ainda a usa como fallback: tirando-a do esquema,
+     * o primeiro salvamento de uma regra antiga apagaria o unico endereco
+     * que faz ela gerar hoje. Quem a envia continua sendo so ela mesma.
+     */
     pasta_entrega: z
       .string()
       .trim()
-      .regex(/^https?:\/\//i, "A pasta de entrega precisa começar com http:// ou https://."),
+      .refine((v) => v === "" || /^https?:\/\//i.test(v), {
+        message: "A pasta de entrega precisa começar com http:// ou https://.",
+      })
+      .optional()
+      .default(""),
     subtarefa_diaria: z.unknown().nullable().optional(),
     subtarefas: z.array(z.unknown()),
     referencias: z.array(z.unknown()),
@@ -130,9 +156,70 @@ export async function criarRecorrencia(dados: unknown): Promise<Resultado<string
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou. Configurar recorrência é do Atendimento e da gestão.");
 
+    // O GATILHO DA 0113 JA VINCULOU `client_id`; aqui entram as outras.
+    const problemaDasContas = await acertarAsContas(
+      supabase,
+      data.id,
+      [entrada.client_id, ...(entrada.client_ids ?? [])],
+    );
+    if (problemaDasContas) return falha(problemaDasContas);
+
     revalidatePath(ROTA);
     return sucesso("Recorrência criada. Nada foi gerado ainda — a primeira vem na data.", data.id);
   });
+}
+
+/**
+ * Acerta as contas que a regra atende (0113).
+ *
+ * **ELA ACRESCENTA E TIRA, em vez de apagar tudo e reinserir.** O apagar-tudo
+ * e o reflexo, e ele bate no gatilho `task_recurrence_clients_acompanha`: o
+ * `delete` da ultima linha e recusado com *"uma recorrencia precisa de pelo
+ * menos uma conta"* -- a trava existe para a tela, e ela morderia a propria
+ * acao que mantem a tela em dia. E e o argumento que `salvar_fluxo_de_social`
+ * ja pagou uma vez, de outro jeito: uma funcao que cai na propria trava.
+ *
+ * A ORDEM TAMBEM E ESCOLHA: acrescenta primeiro, tira depois. Invertida, uma
+ * troca completa de contas passaria pelo instante em que a regra nao tem
+ * nenhuma -- e e exatamente esse instante que o gatilho recusa.
+ */
+async function acertarAsContas(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  recurrenceId: string,
+  contas: string[],
+): Promise<string | null> {
+  const alvo = [...new Set(contas)].filter(Boolean);
+  if (alvo.length === 0) return "Escolha ao menos uma conta para a regra.";
+
+  const atuais =
+    (
+      await supabase
+        .from("task_recurrence_clients")
+        .select("client_id")
+        .eq("recurrence_id", recurrenceId)
+    ).data ?? [];
+
+  const tenho = new Set(atuais.map((l) => l.client_id));
+  const entram = alvo.filter((c) => !tenho.has(c));
+  const saem = [...tenho].filter((c) => !alvo.includes(c));
+
+  if (entram.length > 0) {
+    const { error } = await supabase
+      .from("task_recurrence_clients")
+      .insert(entram.map((client_id) => ({ recurrence_id: recurrenceId, client_id })));
+    if (error) return `Não foi possível ligar as contas: ${error.message}`;
+  }
+
+  if (saem.length > 0) {
+    const { error } = await supabase
+      .from("task_recurrence_clients")
+      .delete()
+      .eq("recurrence_id", recurrenceId)
+      .in("client_id", saem);
+    if (error) return `Não foi possível tirar as contas: ${error.message}`;
+  }
+
+  return null;
 }
 
 export async function atualizarRecorrencia(
@@ -179,6 +266,13 @@ export async function atualizarRecorrencia(
 
     if (error) return falha(error.message);
     if (!data) return falha("O banco recusou a alteração.");
+
+    const problemaDasContas = await acertarAsContas(
+      supabase,
+      id,
+      [entrada.client_id, ...(entrada.client_ids ?? [])],
+    );
+    if (problemaDasContas) return falha(problemaDasContas);
 
     revalidatePath(ROTA);
     return sucesso("Regra atualizada. As demandas já geradas continuam como estão.");

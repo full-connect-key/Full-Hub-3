@@ -55,6 +55,7 @@ import {
   atualizarRecorrencia,
   criarRecorrencia,
 } from "../acoes-de-recorrencia";
+import { cn } from "@/lib/utils";
 
 const SEM_VALOR = "__sem__";
 const VOLTAR = "/painel/gestao-tasks?aba=recorrencias";
@@ -102,8 +103,29 @@ export function EditorDeRecorrencia({
   feriados,
   hojeISO,
 }: {
-  regra: TaskRecurrence | null;
-  clientes: { id: string; nome_empresa: string; slug: string | null }[];
+  /**
+   * A regra, com as outras contas que ela atende (0113).
+   *
+   * `outras_contas` não é coluna de `task_recurrences` — ela vem da tabela de
+   * vínculo, numa segunda consulta — então o tipo é o Row MAIS o campo, e não
+   * um `TaskRecurrence` alterado: o Row descreve a tabela, e acrescentar nele
+   * um campo que o banco não tem é a primeira linha de uma divergência.
+   */
+  regra: (TaskRecurrence & { outras_contas: string[] }) | null;
+  /**
+   * As contas, com a pasta padrão de cada uma (0113).
+   *
+   * `pastaPadrao` vem junto porque é ela que decide se a regra PODE salvar: a
+   * demanda gerada precisa de pasta (0015), e a origem dela deixou de ser o
+   * modelo. Buscá-la por conta escolhida seria uma ida ao servidor a cada
+   * clique num chip.
+   */
+  clientes: {
+    id: string;
+    nome_empresa: string;
+    slug: string | null;
+    pastaPadrao: string | null;
+  }[];
   equipe: { id: string; nome: string }[];
   workflows: { id: string; nome: string; etapas: number }[];
   /**
@@ -167,7 +189,29 @@ export function EditorDeRecorrencia({
   );
   const [modelo, setModelo] = useState<ModeloDaRecorrencia>(modeloInicial);
 
+  /**
+   * AS OUTRAS CONTAS DA REGRA (0113).
+   *
+   * `clienteId` continua sendo a primeira — ela decide a prévia (que resolve
+   * `{CLIENTE}` no título) e é a que o banco guarda em `task_recurrences`. Um
+   * estado só com todas elas seria mais arrumado e perderia essa ordem: a
+   * prévia não teria por qual nome começar.
+   */
+  const [outrasContas, setOutrasContas] = useState<string[]>(
+    regra?.outras_contas ?? [],
+  );
+
   const cliente = clientes.find((c) => c.id === clienteId) ?? null;
+
+  const contasDaRegra = clienteId
+    ? [clienteId, ...outrasContas.filter((c) => c !== clienteId)]
+    : [];
+
+  // A TELA DIZ A FRASE QUE O BANCO DIRIA ÀS TRÊS DA MANHÃ, antes do clique.
+  const contasSemPasta = contasDaRegra
+    .map((id) => clientes.find((c) => c.id === id))
+    .filter((c) => c && !c.pastaPadrao?.trim())
+    .map((c) => c!.nome_empresa);
   const conjuntoDeFeriados = useMemo(() => new Set(feriados), [feriados]);
 
   const regraAtual = {
@@ -227,7 +271,10 @@ export function EditorDeRecorrencia({
     workflows,
   ]);
 
-  const faltam = faltaParaSalvar({ ...regraAtual, nome, clienteId }, modelo);
+  const faltam = faltaParaSalvar(
+    { ...regraAtual, nome, clienteId, contasSemPasta },
+    modelo,
+  );
 
   function alternarDia(valor: number) {
     setDiasSemana((atual) =>
@@ -254,6 +301,7 @@ export function EditorDeRecorrencia({
     const dados = {
       nome: nome.trim(),
       client_id: clienteId,
+      client_ids: contasDaRegra,
       modo,
       frequencia,
       dias_semana: regraAtual.diasSemana,
@@ -329,6 +377,73 @@ export function EditorDeRecorrencia({
               </Select>
             </div>
           </div>
+
+          {/* ------------------------------------------------------------------
+              AS OUTRAS CONTAS (0113).
+
+              **SÃO CHIPS E NÃO UM `<select multiple>`**, pela razão do seletor
+              de redes do social: `<select multiple>` existe e é pior — no
+              celular, marcar o segundo item desmarca o primeiro em metade dos
+              navegadores. E não é um segundo `<Select>` com "acrescentar"
+              porque o que a pessoa precisa ver é QUAIS estão marcadas, não
+              qual está sendo escolhida.
+
+              **O PRIMEIRO CLIENTE FICA DE FORA DA LISTA**, e não aparece como
+              um chip permanentemente marcado que não se desmarca: um controle
+              que não responde ao clique é um controle quebrado. Quem quiser
+              tirá-lo troca o seletor acima.
+
+              **E A CONTA SEM PASTA É MARCADA AQUI**, em âmbar, no próprio chip
+              — e não só na frase do rodapé. A frase diz o que falta; o chip diz
+              ONDE, que é a diferença entre uma recusa e uma instrução.
+              ------------------------------------------------------------------ */}
+          {clientes.length > 1 ? (
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-sm font-medium">
+                Esta regra também atende
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {clientes
+                  .filter((c) => c.id !== clienteId)
+                  .map((c) => {
+                    const marcada = outrasContas.includes(c.id);
+                    const semPasta = !c.pastaPadrao?.trim();
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={marcada}
+                        onClick={() =>
+                          setOutrasContas((atual) =>
+                            atual.includes(c.id)
+                              ? atual.filter((x) => x !== c.id)
+                              : [...atual, c.id],
+                          )
+                        }
+                        className={cn(
+                          "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors",
+                          marcada
+                            ? "border-accent-strong bg-accent text-accent-foreground font-medium"
+                            : "hover:bg-accent",
+                        )}
+                      >
+                        {c.nome_empresa}
+                        {marcada && semPasta ? (
+                          <span className="bg-warning-soft text-warning rounded px-1.5 text-xs">
+                            sem pasta
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-text-muted text-sm">
+                Uma demanda por conta, a cada ocorrência. A pasta de entrega de
+                cada uma vem da ficha dela.
+              </p>
+            </fieldset>
+          ) : null}
         </SecaoDoFormulario>
 
         <SecaoDoFormulario numero={2} titulo="Como a demanda nasce">
@@ -535,18 +650,13 @@ export function EditorDeRecorrencia({
             </div>
           </div>
 
+          {/* A PASTA DE ENTREGA SAIU DAQUI (0113), por decisão do usuário.
+              Com a regra atendendo N contas, uma pasta digitada aqui estaria
+              errada para N-1 delas — a origem é a ficha de cada conta, e a
+              recusa, quando falta, nomeia QUAL. O campo não virou oculto nem
+              desabilitado: ele não existe mais, e o valor que as regras
+              antigas têm gravado continua servindo de fallback no banco. */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="rec-pasta">Pasta de entrega</Label>
-              <Input
-                id="rec-pasta"
-                value={modelo.pasta_entrega}
-                onChange={(e) =>
-                  setModelo((m) => ({ ...m, pasta_entrega: e.target.value }))
-                }
-                placeholder="https://drive.google.com/..."
-              />
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="rec-responsavel">Responsável</Label>
               <Select

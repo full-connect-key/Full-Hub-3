@@ -199,11 +199,24 @@ select teste.conferir('E UMA linha no historico de execucao',
 select teste.como_a_rotina('A rotina roda', 'select * from public.gerar_recorrencias()');
 select teste.como_a_rotina('A rotina roda de novo', 'select * from public.gerar_recorrencias()');
 
+-- A CHAVE LEVA A CONTA desde a 0113 -- `YYYY-MM|<client_id>` --, e este
+-- cenario mede o PREFIXO e nao a chave inteira: escrever o uuid aqui ligaria o
+-- teste a um dado do fixture, e o que ele existe para provar e que duas
+-- rodadas no mesmo dia nao duplicam a ocorrencia daquela conta.
 select teste.conferir('Duas rodadas da rotina nao duplicaram o mes corrente',
   (select count(*)::text from public.recurrence_runs r
      join public.task_recurrences reg on reg.id = r.recurrence_id
     where reg.nome = 'Stories Mundo Verde'
-      and r.chave_ocorrencia = to_char(current_date, 'YYYY-MM')), '1');
+      and r.chave_ocorrencia like to_char(current_date, 'YYYY-MM') || '|%'), '1');
+
+-- E A CHAVE ANTIGA NAO EXISTE MAIS EM LUGAR NENHUM. Sem este cenario, uma
+-- versao da funcao que voltasse a gravar `YYYY-MM` passaria no de cima --
+-- ele conta `like '...|%'`, e `0 = 0` nunca seria a resposta esperada... mas
+-- o de cima acharia zero e falharia dizendo "esperado 1, achado 0", que e uma
+-- recusa que nao diz o que aconteceu. Este diz.
+select teste.conferir('Nenhuma execucao ficou com a chave sem conta',
+  (select count(*)::text from public.recurrence_runs
+    where position('|' in chave_ocorrencia) = 0), '0');
 
 
 -- --- Nunca retroativo ------------------------------------------------------
@@ -533,8 +546,15 @@ select teste.cenario('Gerar nao estoura: vira registro de erro', :ANA,
   $$select public.gerar_ocorrencia(
       (select id from public.task_recurrences where nome = 'Sem pasta'), current_date)$$, 'ok');
 
-select teste.conferir('O erro ficou gravado no historico, com o nome da regra',
-  (select (status = 'erro' and detalhes->>'motivo' like '%Sem pasta%')::text
+-- A RECUSA NOMEIA A CONTA, E NAO MAIS A REGRA (0113).
+--
+-- Ate a 0112 a pasta era do modelo, entao o nome da regra era a unica coisa
+-- que havia para dizer. Com a regra atendendo varias contas, o nome dela nao
+-- diz QUAL delas precisa ser configurada -- e dizer qual e a diferenca entre
+-- uma recusa e uma instrucao, que e a decisao da 0023.
+select teste.conferir('O erro ficou gravado no historico, com o nome da CONTA',
+  (select (status = 'erro'
+           and detalhes->>'motivo' like '%' || (select nome_empresa from public.clients where id = :OPTICA) || '%')::text
      from public.recurrence_runs rr
      join public.task_recurrences r on r.id = rr.recurrence_id
     where r.nome = 'Sem pasta'), 'true');
@@ -543,6 +563,22 @@ select teste.conferir('E nenhuma task foi criada por ela',
   (select count(*)::text from public.tasks t
      join public.task_recurrences r on r.id = t.recurrence_id
     where r.nome = 'Sem pasta'), '0');
+
+-- E O RELOGIO DA REGRA NAO ANDOU (0113).
+--
+-- Este cenario existe porque o teste de mutacao disse que a guarda
+-- `primeira is not null` nao derrubava NENHUM cenario -- e ela e o que
+-- preserva o comportamento da 0041, onde a funcao devolvia cedo sem tocar no
+-- relogio quando faltava a pasta.
+--
+-- Sem a guarda, uma regra cuja unica conta nao tem pasta avancaria
+-- `ultima_geracao_em` e `proxima_geracao_em` a cada madrugada: o periodo que
+-- falhou ficaria para tras, e a demanda daquele mes nunca nasceria. O
+-- historico diria 'erro' uma vez e a regra seguiria adiante como se nada
+-- tivesse acontecido.
+select teste.conferir('O relogio da regra NAO andou, porque nada foi gerado',
+  (select (ultima_geracao_em is null)::text
+     from public.task_recurrences where nome = 'Sem pasta'), 'true');
 
 -- UMA REGRA COM ERRO NAO IMPEDE AS OUTRAS DE RODAREM. Sem o bloco `exception`
 -- dentro do laco, a agencia acordaria sem nenhuma demanda gerada --
@@ -784,7 +820,224 @@ select teste.conferir('E a ocorrencia recusada continua por gerar',
   (select count(*)::text from public.recurrence_runs r
      join public.task_recurrences t on t.id = r.recurrence_id
     where t.nome = 'Com padrao'
-      and r.chave_ocorrencia = current_setting('teste.pausada_periodo')),
+      and r.chave_ocorrencia like current_setting('teste.pausada_periodo') || '|%'),
   '0');
 
 update public.task_recurrences set ativo = true where nome = 'Com padrao';
+
+
+-- ===========================================================================
+-- 0113 -- A regra atende VARIAS contas, e a pasta vem de cada uma
+-- ===========================================================================
+
+-- O QUE ESTA SECAO PROVA, e ela existe por causa de um numero: com uma conta
+-- so, a regra gerando certo e a regra gerando para a conta errada tem
+-- exatamente a mesma cara. E a licao da `calendar_events` -- num banco com um
+-- cliente so, vazar tudo e mostrar o certo sao indistinguiveis.
+
+-- As duas contas precisam de pasta padrao, porque a pasta deixou de vir do
+-- modelo: e isto que o PASSO 4 da migration le.
+insert into public.client_flow_defaults (client_id, pasta_entrega_url)
+values (:VERDE,  'https://drive.google.com/pasta-do-mundo-verde'),
+       (:OPTICA, 'https://drive.google.com/pasta-da-optica')
+on conflict (client_id) do update set pasta_entrega_url = excluded.pasta_entrega_url;
+
+select teste.cenario('Uma regra sem pasta no modelo, para duas contas', :ANA,
+  format($fmt$
+    insert into public.task_recurrences
+      (client_id, nome, modo, frequencia, dias_semana, data_inicio, modelo, criado_por)
+    values (%L, 'Relatorio das duas', 'task_por_ocorrencia', 'semanal',
+            array[extract(isodow from current_date)::smallint], current_date,
+            jsonb_build_object('titulo', 'Relatorio {DATA}',
+              'subtarefas', jsonb_build_array(
+                jsonb_build_object('titulo', 'Montar', 'prazo_offset_dias', 0))),
+            %L)
+  $fmt$, :VERDE, :ANA), 'ok', 1);
+
+-- A SEGUNDA CONTA ENTRA PELA TABELA DE VINCULO. A primeira ja esta la pelo
+-- `union` de compatibilidade de `contas_da_recorrencia()` -- e por isso que
+-- este insert e de UMA linha e nao de duas: se ele precisasse das duas, o
+-- `union` nao estaria funcionando e o cenario abaixo diria 1 em vez de 2.
+select teste.cenario('A Optica entra na mesma regra', :ANA,
+  format($fmt$
+    insert into public.task_recurrence_clients (recurrence_id, client_id)
+    values ((select id from public.task_recurrences where nome = 'Relatorio das duas'), %L)
+  $fmt$, :OPTICA), 'ok', 1);
+
+select teste.conferir('A regra responde pelas DUAS contas',
+  (select count(*)::text from public.contas_da_recorrencia(
+     (select id from public.task_recurrences where nome = 'Relatorio das duas'))), '2');
+
+select teste.cenario('Gerar a ocorrencia das duas', :ANA,
+  $$select public.gerar_ocorrencia(
+      (select id from public.task_recurrences where nome = 'Relatorio das duas'),
+      current_date)$$, 'ok');
+
+-- O CENARIO QUE SEPARA A ENTREGA DO QUE HAVIA ANTES. Uma ocorrencia, duas
+-- demandas, uma por conta.
+select teste.conferir('Nasceram DUAS demandas, uma por conta',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas'), '2');
+
+select teste.conferir('Uma delas e do Mundo Verde',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas' and t.client_id = :VERDE), '1');
+
+select teste.conferir('E a outra e da Optica',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas' and t.client_id = :OPTICA), '1');
+
+-- A PASTA DE CADA UMA E A DELA, e este e o cenario que falha se alguem
+-- devolver a pasta do modelo: com uma origem so, as duas demandas sairiam com
+-- o mesmo endereco -- e ninguem notaria, porque as duas TERIAM pasta.
+select teste.conferir('Cada demanda saiu com a pasta da conta dela',
+  (select count(distinct t.link_entrega)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas'), '2');
+
+select teste.conferir('A do Mundo Verde aponta para a pasta do Mundo Verde',
+  (select t.link_entrega from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas' and t.client_id = :VERDE),
+  'https://drive.google.com/pasta-do-mundo-verde');
+
+-- E DUAS EXECUCOES, uma por conta: e isso que faz o indice unico continuar
+-- sendo a idempotencia com N contas.
+select teste.conferir('E duas linhas no historico, uma por conta',
+  (select count(*)::text from public.recurrence_runs rr
+     join public.task_recurrences r on r.id = rr.recurrence_id
+    where r.nome = 'Relatorio das duas'), '2');
+
+-- RODAR DE NOVO NAO DUPLICA NADA. O cenario tem de rodar a funcao INTEIRA de
+-- novo, e nao so conferir a contagem: e a segunda chamada que passa pelo
+-- `on conflict`, e sem ela o indice unico nao e medido -- so afirmado.
+select teste.cenario('Gerar a mesma ocorrencia de novo', :ANA,
+  $$select public.gerar_ocorrencia(
+      (select id from public.task_recurrences where nome = 'Relatorio das duas'),
+      current_date)$$, 'ok');
+
+select teste.conferir('Continuam DUAS demandas, e nao quatro',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas'), '2');
+
+-- --- A conta sem pasta nao leva junto as outras ----------------------------
+
+-- ESTE E O CENARIO DO `continue`. Uma terceira conta sem pasta padrao entra na
+-- regra: a ocorrencia seguinte tem de gerar para as duas que tem pasta e
+-- gravar erro so para ela. Com `return` no lugar de `continue`, a conta sem
+-- pasta derrubaria a ocorrencia inteira -- e qual das tres cai primeiro
+-- depende da ordem que o Postgres devolver, que e o pior tipo de defeito.
+insert into public.clients (id, nome_empresa, slug, ativo)
+values ('aaaaaaaa-0000-0000-0000-00000000f113', 'Conta Sem Pasta', 'conta-sem-pasta', true)
+on conflict (id) do nothing;
+
+select teste.cenario('A conta sem pasta entra na regra', :ANA,
+  $$insert into public.task_recurrence_clients (recurrence_id, client_id)
+    values ((select id from public.task_recurrences where nome = 'Relatorio das duas'),
+            'aaaaaaaa-0000-0000-0000-00000000f113')$$, 'ok', 1);
+
+select teste.cenario('Gerar a ocorrencia de amanha', :ANA,
+  $$select public.gerar_ocorrencia(
+      (select id from public.task_recurrences where nome = 'Relatorio das duas'),
+      current_date + 1)$$, 'ok');
+
+select teste.conferir('As duas contas com pasta geraram mesmo assim',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas'
+      and t.data_inicio = current_date + 1), '2');
+
+select teste.conferir('E a conta sem pasta virou erro, com o nome dela',
+  (select (rr.status = 'erro' and rr.detalhes->>'motivo' like '%Conta Sem Pasta%')::text
+     from public.recurrence_runs rr
+     join public.task_recurrences r on r.id = rr.recurrence_id
+    where r.nome = 'Relatorio das duas'
+      and rr.chave_ocorrencia like to_char(current_date + 1, 'YYYY-MM-DD') || '|aaaaaaaa-0000-0000-0000-00000000f113'), 'true');
+
+-- --- O relogio da regra e por ocorrencia -----------------------------------
+
+-- A BATERIA PEGOU ISTO: na primeira versao da 0113, `recalcular_proxima_geracao()`
+-- ficou DENTRO do laco, e deixava de rodar sempre que a ultima conta caia num
+-- `continue`. A regra ficava com `proxima_geracao_em` parada no passado, e a
+-- rotina a escolheria de novo toda noite para sempre, sem gerar nada.
+--
+-- Este cenario mede a ocorrencia de amanha, que e justamente a que termina
+-- numa conta pulada.
+select teste.conferir('O relogio da regra andou mesmo com uma conta pulada',
+  (select (proxima_geracao_em is not null and ultima_geracao_em is not null)::text
+     from public.task_recurrences where nome = 'Relatorio das duas'), 'true');
+
+
+-- --- A ultima conta nao se tira --------------------------------------------
+
+-- UMA REGRA SEM CONTA NENHUMA NAO GERA NADA, E NAO AVISA: ela continua na
+-- lista, ativa, com a proxima geracao preenchida, parecendo que funciona. A
+-- recusa e o que transforma isso num erro na hora, com a saida escrita na
+-- dica -- apagar a regra, ou escolher outra conta antes.
+select teste.cenario('Uma regra de uma conta so', :ANA,
+  format($fmt$
+    insert into public.task_recurrences
+      (client_id, nome, modo, frequencia, dias_semana, data_inicio, modelo, criado_por)
+    values (%L, 'So uma conta', 'task_por_ocorrencia', 'semanal',
+            array[extract(isodow from current_date)::smallint], current_date,
+            jsonb_build_object('titulo', 'Unica {DATA}',
+              'subtarefas', jsonb_build_array(
+                jsonb_build_object('titulo', 'Fazer', 'prazo_offset_dias', 0))),
+            %L)
+  $fmt$, :VERDE, :ANA), 'ok', 1);
+
+select teste.recusa_com('Tirar a unica conta e recusado', :ANA,
+  $$delete from public.task_recurrence_clients
+     where recurrence_id = (select id from public.task_recurrences where nome = 'So uma conta')$$,
+  'pelo menos uma conta');
+
+-- E A DICA DIZ O QUE FAZER NO LUGAR. O `hint` e o que a tela mostra, e uma
+-- trava com a dica apagada passaria por uma checagem que so le a mensagem --
+-- e a decisao do `tasks_sem_cancelada` (0020).
+select teste.recusa_com_dica('E a recusa diz a saida: apagar, ou trocar a conta', :ANA,
+  $$delete from public.task_recurrence_clients
+     where recurrence_id = (select id from public.task_recurrences where nome = 'So uma conta')$$,
+  'Apague a regra');
+
+select teste.conferir('E a conta continua la',
+  (select count(*)::text from public.contas_da_recorrencia(
+     (select id from public.task_recurrences where nome = 'So uma conta'))), '1');
+
+-- --- A conta que entra depois gera a partir da proxima ocorrencia -----------
+
+-- ESTE E O CENARIO DO `continue`, e ele mede o caminho que o `return null`
+-- derrubaria: a conta A ja tem execucao daquela ocorrencia, a B nao. Com
+-- `return` no lugar de `continue`, a funcao desistiria na A -- e a B nunca
+-- geraria, porque a A SEMPRE vai ter a execucao dela primeiro.
+--
+-- E ele prova as duas metades de "nunca retroativo": a B gera a ocorrencia de
+-- HOJE, que ainda nao tinha execucao dela, e nao gera a de ONTEM.
+select teste.cenario('Gerar a de ontem so para a conta que ja estava', :ANA,
+  $$select public.gerar_ocorrencia(
+      (select id from public.task_recurrences where nome = 'So uma conta'),
+      current_date - 1)$$, 'ok');
+
+select teste.cenario('A Optica entra na regra depois', :ANA,
+  format($fmt$
+    insert into public.task_recurrence_clients (recurrence_id, client_id)
+    values ((select id from public.task_recurrences where nome = 'So uma conta'), %L)
+  $fmt$, :OPTICA), 'ok', 1);
+
+select teste.cenario('Gerar a de ontem de novo, agora com duas contas', :ANA,
+  $$select public.gerar_ocorrencia(
+      (select id from public.task_recurrences where nome = 'So uma conta'),
+      current_date - 1)$$, 'ok');
+
+select teste.conferir('A conta nova TAMBEM gerou a de ontem, e a antiga nao repetiu',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'So uma conta'), '2');
+
+select teste.conferir('E cada uma e de uma empresa',
+  (select count(distinct t.client_id)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'So uma conta'), '2');

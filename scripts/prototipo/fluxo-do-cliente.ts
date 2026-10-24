@@ -140,3 +140,17 @@ export async function recorrenciasDaConta(clienteId: string): Promise<Recorrenci
     },
   ];
 }
+
+/**
+ * As pastas padrao das contas (0113).
+ *
+ * UMA DAS DUAS NAO TEM PASTA, de proposito: e o unico jeito de a imagem do
+ * editor de recorrencia provar que o chip marca a conta sem pasta. Com as
+ * duas configuradas, ela provaria so que o chip sabe ficar limpo -- e a
+ * frase que desliga o botao Salvar nao sairia em imagem nenhuma.
+ */
+export async function pastasPadraoDasContas(): Promise<Map<string, string>> {
+  return new Map([
+    ["c0000000-0000-0000-0000-00000000000a", "https://drive.google.com/mundo-verde"],
+  ]);
+}

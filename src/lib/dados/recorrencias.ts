@@ -164,7 +164,28 @@ export async function buscarRecorrencia(id: string) {
     "a regra de recorrência",
     await supabase.from("task_recurrences").select("*").eq("id", id).limit(1),
   );
-  return regra ?? null;
+  if (!regra) return null;
+
+  // AS OUTRAS CONTAS DA REGRA (0113), numa segunda ida.
+  //
+  // Embutida no `select` acima ela custaria o `select` INTEIRO quando o nome
+  // da relação não casasse — a classe de bug que fez uma campanha
+  // recém-criada não aparecer em lugar nenhum. Duas idas custam menos.
+  const vinculos = ouFalha(
+    "as contas da recorrência",
+    await supabase
+      .from("task_recurrence_clients")
+      .select("client_id")
+      .eq("recurrence_id", id)
+      .order("created_at"),
+  );
+
+  return {
+    ...regra,
+    outras_contas: vinculos
+      .map((v) => v.client_id)
+      .filter((c) => c !== regra.client_id),
+  };
 }
 
 /**

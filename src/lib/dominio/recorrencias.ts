@@ -384,16 +384,40 @@ export function modeloVazio(): ModeloDaRecorrencia {
  * esta função é o que evita chegar lá.
  */
 export function faltaParaSalvar(
-  regra: RegraDeRecorrencia & { nome: string; clienteId: string | null },
+  regra: RegraDeRecorrencia & {
+    nome: string;
+    clienteId: string | null;
+    /**
+     * As contas escolhidas que ainda não têm pasta padrão, pelo NOME.
+     *
+     * Pelo nome e não pelo id porque a frase vai para a tela: "a pasta de
+     * entrega de aaaa-0000-…" manda a pessoa procurar o que ela já está
+     * olhando.
+     */
+    contasSemPasta?: string[];
+  },
   modelo: ModeloDaRecorrencia,
 ): string[] {
   const faltam: string[] = [];
   if (!regra.nome.trim()) faltam.push("o nome da regra");
   if (!regra.clienteId) faltam.push("o cliente");
   if (!modelo.titulo.trim()) faltam.push("o título das demandas");
-  if (!modelo.pasta_entrega.trim()) faltam.push("a pasta de entrega");
-  else if (!/^https?:\/\//i.test(modelo.pasta_entrega.trim())) {
-    faltam.push("uma pasta de entrega que comece com http:// ou https://");
+
+  // A PASTA SAIU DAQUI (0113), e a ausência é a entrega.
+  //
+  // Ela era obrigatória porque `tasks_exige_pasta_de_entrega` (0015) recusa
+  // demanda nova sem uma, e uma regra sem pasta falharia toda madrugada em
+  // silêncio. Agora a pasta vem de `client_flow_defaults.pasta_entrega_url`
+  // de CADA conta — com N contas, uma pasta digitada estaria errada para N-1
+  // delas.
+  //
+  // **O QUE ENTRA NO LUGAR É A CONTA SEM PASTA**, nomeada. É a mesma frase
+  // que `gerar_ocorrencia()` grava no histórico às três da manhã, dita aqui
+  // antes de alguém salvar — a decisão da máquina de estados da subtarefa ao
+  // lado dos gatilhos: o banco é o que vale, e isto escreve a frase antes do
+  // clique.
+  for (const conta of regra.contasSemPasta ?? []) {
+    faltam.push(`a pasta de entrega de ${conta}`);
   }
   if (regra.frequencia === "mensal" && !regra.diaMes) faltam.push("o dia do mês");
   if (

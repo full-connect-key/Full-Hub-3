@@ -1144,6 +1144,92 @@ como a limpeza de rascunhos.
 junto as outras dezenove daquela madrugada — o erro vira linha no histórico
 dela, e a próxima regra continua.
 
+#### UMA REGRA ATENDE VÁRIAS CONTAS, e a pasta vem da conta
+
+Migration 0113, decisão do usuário: *"na hora de criar uma recorrência de job,
+tire o campo de pasta de entrega, deixar também que escolha mais de um cliente
+que contempla aquela tarefa"*.
+
+**AS DUAS METADES SÃO A MESMA MUDANÇA**, e é por isso que elas saem no mesmo
+commit: com N contas na regra, UMA pasta digitada no modelo está errada para
+N-1 delas. E tirar o campo sem dar outra origem à pasta seria pior que
+deixá-lo — `tasks_exige_pasta_de_entrega` (0015) recusa demanda nova sem
+pasta, então a rotina das três da manhã passaria a falhar **toda noite**, em
+silêncio, num histórico que ninguém abre: exatamente o modo de falha que o
+cabeçalho da 0040 já descrevia.
+
+**A origem nova já existia:** `client_flow_defaults.pasta_entrega_url` (0064),
+que aquela migration descreve como *"a pasta que viaja para o campo
+`link_entrega` de toda demanda daquele cliente"*. É a décima sexta ponte
+construída e nunca atravessada por esta rotina.
+
+**A CHAVE DA OCORRÊNCIA PASSA A LEVAR A CONTA**, e é a linha que faz o resto
+caber. `recurrence_runs (recurrence_id, chave_ocorrencia)` é único desde a
+0040 e ele **é** a idempotência. Havia duas formas:
+
+| | O que seria |
+| --- | --- |
+| uma execução por ocorrência, N tasks | `task_id` viraria array, e a conta acrescentada depois nunca receberia aquela ocorrência — a chave já estaria consumida |
+| a chave vira `<período>\|<client_id>` | uma execução por conta, `task_id` continua uma, e a conta nova não tem chave nenhuma do passado |
+
+É a segunda, e com ela **"nunca retroativo" (0040) acontece sozinho** em vez
+de precisar de um `if`. Ela cobra uma passada: as execuções que já existem têm
+a chave antiga, e sem reescrevê-las a rotina da madrugada seguinte acharia que
+nenhuma ocorrência passada aconteceu e geraria **todas** de novo.
+
+**E QUEM LÊ A CHAVE QUASE FICOU PARA TRÁS.**
+`proximo_periodo_da_recorrencia()` decide qual ocorrência ainda falta
+perguntando se existe execução com aquela chave. Mudar o formato sem mexer
+nela deixa a função sem achar nada — e o efeito **não** é gerar em dobro (o
+índice único recusa), é a regra ficar com `proxima_geracao_em` apontando para
+um mês que já aconteceu, **para sempre**: a rotina a escolhe toda madrugada,
+não gera nada, e nada na tela diz por quê. Quem pegou foi um cenário de 2040
+que comparava as duas pontas; sem ele, o sintoma seria uma regra parada em
+produção, descoberta por alguém perguntando por que a demanda do mês não
+nasceu. A pergunta passou a ser o **prefixo**, e isso define o que "período
+gerado" significa com N contas: **basta uma execução**.
+
+**`client_id` FICA, e não é indecisão.** Ela deixou de ser "a conta da regra"
+e passou a ser a **primeira** delas — o que o `on delete cascade` usa, e o que
+mantém de pé as oito citações de `r.client_id` que a 0040 e a 0041
+escreveram. Quem manda é `task_recurrence_clients`, e a regra de leitura é uma
+só: `contas_da_recorrencia()`. Isto **não** desfaz a decisão da 0023: lá a
+coluna apagada não decidia mais nada, aqui ela continua decidindo uma coisa.
+
+**Dois gatilhos a mantêm honesta.** Um vincula a conta no instante em que a
+regra nasce — sem ele, `contas_da_recorrencia()` precisaria de um `union` com
+`client_id`, e **a primeira versão tinha esse `union`: a bateria mostrou que
+ele é tudo-ou-nada**, então vincular a segunda conta *expulsava* a primeira. O
+outro faz `client_id` acompanhar o vínculo, e recusa tirar a última conta —
+uma regra sem conta nenhuma não gera nada e não avisa: ela continua na lista,
+ativa, parecendo que funciona.
+
+**O relógio da regra é por OCORRÊNCIA, nunca por conta**, e isso também foi a
+bateria: na primeira versão `recalcular_proxima_geracao()` ficou **dentro** do
+laço e deixava de rodar sempre que a última conta caía num `continue`.
+
+**E a conta que falha não leva junto as outras:** `continue` e não `return`,
+que é o `exception` dentro do laço da 0040 um nível abaixo. A recusa da pasta
+nomeia a **conta** e não mais a regra — com N contas, o nome da regra não diz
+qual delas precisa ser configurada, e dizer qual é a diferença entre uma
+recusa e uma instrução (0023).
+
+**Na tela**, as outras contas são **chips** e não um `<select multiple>`, pela
+razão do seletor de redes do social: no celular, marcar o segundo item
+desmarca o primeiro em metade dos navegadores. O primeiro cliente fica **fora**
+da fileira em vez de aparecer como um chip permanentemente marcado — um
+controle que não responde ao clique é um controle quebrado. E **a conta sem
+pasta é marcada no próprio chip**, em âmbar: a frase do rodapé diz o que
+falta, o chip diz **onde**.
+
+**Medido com sete mutações**, sobre 2295 cenários: a chave sem a conta derruba
+9, a pasta deixando de vir da conta derruba 8, poder tirar a última conta
+derruba 5, `run_id` nulo derrubando a ocorrência inteira derruba 2, o leitor
+da chave voltando à igualdade derruba 1, o relógio andando sem nada gerado
+derruba 1 — e tirar a guarda do cascade **aborta a bateria**, porque `delete
+from task_recurrences` passa a ser recusado pelo próprio gatilho que protege a
+última conta.
+
 #### O responsável padrão é FALLBACK, nunca substituição
 
 `modelo->>'responsavel_padrao'` (migration 0041, decisão do usuário) preenche

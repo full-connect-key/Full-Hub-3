@@ -1146,6 +1146,26 @@ export interface Database {
         Relationships: [];
       };
       /** Pedidos de ferias, licenca e ausencia (migration 0011). */
+      /**
+       * As contas que uma regra de recorrencia atende (migration 0113).
+       *
+       * `created_at` fica FORA de `Insert`: o default e `now()`, e a ordem das
+       * contas sai dele -- quem gravasse a propria data escolheria qual conta
+       * e a "primeira" quando a outra for tirada.
+       */
+      task_recurrence_clients: {
+        Row: {
+          recurrence_id: string;
+          client_id: string;
+          created_at: string;
+        };
+        Insert: {
+          recurrence_id: string;
+          client_id: string;
+        };
+        Update: { client_id?: string };
+        Relationships: [];
+      };
       /** Uma regra de demanda recorrente (migration 0040). */
       task_recurrences: {
         Row: {
@@ -3397,6 +3417,16 @@ export interface Database {
       is_socio: { Args: Record<string, never>; Returns: boolean };
       is_gestor: { Args: Record<string, never>; Returns: boolean };
       is_atendimento: { Args: Record<string, never>; Returns: boolean };
+      /** As contas que a regra atende (0113). */
+      contas_da_recorrencia: {
+        Args: { p_recurrence_id: string };
+        Returns: string[];
+      };
+      /** A pasta padrao da conta, ou nula (0113). */
+      pasta_de_entrega_da_conta: {
+        Args: { p_client_id: string };
+        Returns: string | null;
+      };
       pode_editar_task: { Args: { p_task_id: string }; Returns: boolean };
       /**
        * Os equipamentos que estao e que estiveram comigo (0069).

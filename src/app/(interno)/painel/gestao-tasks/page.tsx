@@ -5,6 +5,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
 import { listarClientes } from "@/lib/dados/clientes";
+import { pastasPadraoDasContas } from "@/lib/dados/fluxo-do-cliente";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { rotinasAgendadas } from "@/lib/dados/rotinas";
@@ -78,6 +79,22 @@ async function clientesAtivos() {
   return clientes
     .filter((c) => c.ativo)
     .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa, slug: c.slug }));
+}
+
+/**
+ * As contas com a pasta padrão de cada uma — só o editor de recorrência pede.
+ *
+ * Ela é SEPARADA de `clientesAtivos()` de propósito: aquela serve três abas
+ * desta tela, e a pasta padrão é uma segunda ida ao banco que nenhuma delas
+ * precisa. Somá-la ali custaria a consulta em toda abertura de Gestão de
+ * Tasks para alimentar uma tela que quase ninguém abre.
+ */
+async function clientesComPasta() {
+  const [clientes, pastas] = await Promise.all([
+    clientesAtivos(),
+    pastasPadraoDasContas(),
+  ]);
+  return clientes.map((c) => ({ ...c, pastaPadrao: pastas.get(c.id) ?? null }));
 }
 
 async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
@@ -158,7 +175,7 @@ async function AbaDeRecorrencias({
   // para uma lista recarregada do zero.
   if (regra) {
     const [clientes, equipe, tipos, feriados, atual, daTask] = await Promise.all([
-      clientesAtivos(),
+      clientesComPasta(),
       listarEquipeAtiva(),
       listarTiposComFluxo(),
       feriadosParaAPrevia(),

@@ -278,3 +278,30 @@ export type EtapaResumida = Pick<
   WorkflowStep,
   "nome" | "requer_aprovacao" | "funcao_padrao"
 >;
+
+
+/**
+ * A pasta padrão de cada conta, num mapa (0113).
+ *
+ * UMA IDA PARA A LISTA INTEIRA, e não uma por conta: o editor de recorrência
+ * precisa dela para TODAS, porque qualquer uma pode virar um chip marcado — e
+ * uma consulta por clique seria latência no meio de um formulário.
+ *
+ * `client_flow_defaults` só tem linha para quem já foi configurado, então a
+ * ausência é o caso normal e o mapa simplesmente não traz a chave.
+ */
+export async function pastasPadraoDasContas(): Promise<Map<string, string>> {
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "as pastas padrão das contas",
+    await supabase
+      .from("client_flow_defaults")
+      .select("client_id, pasta_entrega_url")
+      .not("pasta_entrega_url", "is", null),
+  );
+  return new Map(
+    linhas
+      .filter((l) => l.pasta_entrega_url)
+      .map((l) => [l.client_id, l.pasta_entrega_url as string]),
+  );
+}

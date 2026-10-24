@@ -602,7 +602,20 @@ from (
     -- e um marcador na coluna responderia `ok` sobre um banco em que o cliente
     -- pendura o pedido dele na campanha de outra empresa.
     ('0112', 'client_requests_campanha_coerente', 'trigger',
-             'client_requests_campanha_coerente')
+             'client_requests_campanha_coerente'),
+    -- A 0113 APONTA PARA O CORPO DE `gerar_ocorrencia`, que e o PASSO 5 e o
+    -- ultimo. Um marcador na tabela de vinculo (PASSO 1) diria `ok` sobre o
+    -- banco mais perigoso que esta migration cria: a tabela de pe, as chaves
+    -- de `recurrence_runs` JA reescritas com a conta pelo PASSO 2, e a funcao
+    -- ainda procurando a chave antiga -- a rotina da madrugada seguinte
+    -- geraria de novo toda ocorrencia que ja aconteceu.
+    --
+    -- E ele e por PRESENCA, pela razao da 0108: marcador por ausencia
+    -- envelhece no dia em que alguem ACRESCENTA, que e o que as migrations
+    -- fazem -- foi assim que a linha da 0060 passou a mentir quando a 0090
+    -- devolveu a frase que ela procurava.
+    ('0113', 'gerar_ocorrencia gera por conta', 'no_corpo',
+             'gerar_ocorrencia|contas_da_recorrencia')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
