@@ -151,9 +151,14 @@ export function ListaDePedidos({
 
         {podeAbrir && !somenteLeitura ? (
           <Button asChild className="ml-auto">
-            <Link href={`${base}/solicitacoes/novo`}>
+            {/* `?novo=1` E NÃO UMA ROTA: o formulário virou painel lateral,
+                e o estado dele mora na URL como todo filtro de listagem —
+                é o que faz "abre o pedido já nesta campanha" poder ser um
+                link. `scroll: false` não cabe num `<Link>`, e aqui não faz
+                falta: o painel entra por cima, a lista não se mexe. */}
+            <Link href={`${base}/solicitacoes?novo=1`} scroll={false}>
               <MessageSquarePlus aria-hidden />
-              Pedir alguma coisa
+              Nova solicitação
             </Link>
           </Button>
         ) : null}

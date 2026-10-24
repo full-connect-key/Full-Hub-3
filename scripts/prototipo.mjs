@@ -653,8 +653,8 @@ const TELAS = [
   // feedback e o ultimo item de "quem sou eu" antes do resto do dia.
   { nome: "98f-feedback-na-home", rota: "/painel", largura: 1400, altura: 2600, role: "colaborador" },
   { nome: "98g-feedback-na-home-375", rota: "/painel", largura: 375, altura: 3200, role: "colaborador" },
-  { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes/novo", largura: 1400, altura: 1500, role: "cliente" },
-  { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes/novo", largura: 375, altura: 1900, role: "cliente" },
+  { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 1500, role: "cliente" },
+  { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes?novo=1", largura: 375, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
   // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
   // telas: a de cima prova que o material aparece, a de baixo prova que o

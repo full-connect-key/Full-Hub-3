@@ -24,7 +24,7 @@ import {
 } from "@/lib/dominio/solicitacoes";
 import type { RequestType } from "@/lib/supabase/database.types";
 
-import { subirAnexoDoPedido } from "../subir-anexo";
+import { subirAnexoDoPedido } from "./subir-anexo";
 
 /** O teto é do banco; a tela conta para não oferecer um caminho sem saída. */
 const TETO_DE_ARQUIVOS = 10;
@@ -57,9 +57,20 @@ const ICONES = { Share2, Printer, Video, CircleHelp } as const;
 export function FormularioDePedido({
   empresas,
   tipos,
+  aoConcluir,
 }: {
   empresas: { id: string; nome_empresa: string }[];
   tipos: RequestType[];
+  /**
+   * O que fazer depois de o pedido nascer.
+   *
+   * Sem ela o formulário leva para a tela do pedido recém-criado, que era o
+   * certo quando ele morava numa ROTA própria: a pessoa saía de uma tela e
+   * precisava chegar em alguma. Dentro do painel lateral ela não saiu de
+   * lugar nenhum — a lista está atrás, com o pedido novo no topo —, e levá-la
+   * para outra tela desfaria a razão de o painel existir.
+   */
+  aoConcluir?: (id: string) => void;
 }) {
   const router = useRouter();
   const [executando, comecar] = useTransition();
@@ -142,9 +153,14 @@ export function FormularioDePedido({
         }
       }
 
-      // Leva para o pedido recém-criado: é lá que ele anexa mais arquivo e
-      // conversa. Voltar para a lista faria a pessoa procurar o que acabou
-      // de mandar.
+      // QUEM DECIDE O DESFECHO É QUEM ABRIU O FORMULÁRIO. No painel lateral
+      // ele fecha e a lista atrás ganha a linha nova no topo; sem `aoConcluir`
+      // — se um dia ele voltar a morar numa rota — o caminho é a tela do
+      // pedido, que é onde se anexa mais arquivo e se conversa.
+      if (aoConcluir) {
+        aoConcluir(r.dados);
+        return;
+      }
       router.push(`/portal/solicitacoes/${r.dados}`);
     });
   }
@@ -427,7 +443,11 @@ export function FormularioDePedido({
           onClick={enviar}
           disabled={executando || titulo.trim().length < 3 || !clienteId}
         >
-          Enviar pedido
+          {/* O BOTÃO DIZ QUE ESTÁ ENVIANDO, e não só fica desabilitado.
+              Com anexo, o envio é o pedido mais uma ida ao bucket por
+              arquivo — tempo suficiente para quem clicou achar que o clique
+              não pegou e clicar de novo. */}
+          {executando ? "Enviando…" : "Enviar solicitação"}
         </Button>
       </div>
 

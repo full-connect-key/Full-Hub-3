@@ -5,10 +5,15 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirCliente } from "@/lib/auth/dal";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
-import { contaAceitaPedidos, meusPedidos } from "@/lib/dados/solicitacoes";
+import {
+  contaAceitaPedidos,
+  meusPedidos,
+  tiposDePedido,
+} from "@/lib/dados/solicitacoes";
 import { ehFaseDoPedido, type FaseDoPedido } from "@/lib/dominio/solicitacoes";
 
 import { ListaDePedidos } from "./lista";
+import { PainelDeNovaSolicitacao } from "./painel-de-nova-solicitacao";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
@@ -21,9 +26,10 @@ export const metadata: Metadata = { title: "Solicitações" };
  * para outro.
  */
 async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
-  const [pedidos, empresas] = await Promise.all([
+  const [pedidos, empresas, tipos] = await Promise.all([
     meusPedidos(),
     obterMinhasEmpresas(),
+    tiposDePedido(),
   ]);
 
   // COM MAIS DE UMA EMPRESA, o botão aparece se QUALQUER uma aceitar — e a
@@ -34,13 +40,33 @@ async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
     empresas.map((e) => contaAceitaPedidos(e.id)),
   );
 
+  // SÓ AS EMPRESAS QUE ACEITAM entram no painel: o formulário pergunta para
+  // qual delas é o pedido, e oferecer a desligada seria oferecer um caminho
+  // que o `with check` da policy recusa no clique de enviar.
+  const podeAbrir = empresas.filter((_, i) => aceitam[i]);
+
   return (
-    <ListaDePedidos
-      pedidos={pedidos}
-      base="/portal"
-      podeAbrir={aceitam.some(Boolean)}
-      fase={fase}
-    />
+    <>
+      <ListaDePedidos
+        pedidos={pedidos}
+        base="/portal"
+        podeAbrir={podeAbrir.length > 0}
+        fase={fase}
+      />
+
+      {/* O PAINEL É MONTADO SEMPRE E SÓ ABRE COM `?novo=1`. Montá-lo no clique
+          custaria uma ida ao servidor para buscar os tipos de trabalho no
+          instante em que a pessoa já quer escrever — e o roteiro de briefing
+          muda com o tipo, então ele precisa deles para desenhar o primeiro
+          campo. */}
+      {podeAbrir.length > 0 ? (
+        <PainelDeNovaSolicitacao
+          empresas={podeAbrir}
+          tipos={tipos.filter((t) => t.ativo)}
+          base="/portal"
+        />
+      ) : null}
+    </>
   );
 }
 
