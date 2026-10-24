@@ -151,6 +151,10 @@ const PEDIDOS: PedidoNaLista[] = [
       mensagem: "Que a gente tem uma seleção de presentes até R$ 80.",
     },
     data_desejada: daquiA(20),
+    // DOIS DOS SEIS NASCEM DE UMA CAMPANHA, e os outros quatro nao: sem os
+    // dois estados, a coluna CAMPANHA sai em imagem provando so que ela sabe
+    // ficar vazia.
+    campaign_id: "camp-1",
     status: "nova",
     motivo_recusa: null,
     decidida_em: null,
@@ -173,6 +177,7 @@ const PEDIDOS: PedidoNaLista[] = [
     descricao: null,
     respostas: { peca: "Lâmina A5, frente e verso", medida: "14,8 × 21 cm" },
     data_desejada: null,
+    campaign_id: null,
     status: "em_analise",
     motivo_recusa: null,
     decidida_em: null,
@@ -195,6 +200,7 @@ const PEDIDOS: PedidoNaLista[] = [
     descricao: null,
     respostas: { duracao: "30 segundos", mensagem: "A coleção nova chegou." },
     data_desejada: null,
+    campaign_id: "camp-1",
     status: "em_andamento",
     motivo_recusa: null,
     decidida_em: null,
@@ -222,6 +228,7 @@ const PEDIDOS: PedidoNaLista[] = [
     descricao: null,
     respostas: { mensagem: "Os mesmos do ano passado, sem mudar nada." },
     data_desejada: null,
+    campaign_id: null,
     status: "recusada",
     motivo_recusa:
       "A arte do ano passado usa o logo antigo. Vale refazer com a marca nova — abrimos outro pedido?",
@@ -252,6 +259,7 @@ const PEDIDOS: PedidoNaLista[] = [
     descricao: "Um para a home e um quadrado para o feed, com o desconto em destaque.",
     respostas: { rede: "Site", formato: "Banner", mensagem: "Até 40% em toda a loja." },
     data_desejada: diasAtras(6),
+    campaign_id: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(3),
@@ -277,6 +285,7 @@ const PEDIDOS: PedidoNaLista[] = [
     descricao: null,
     respostas: { mensagem: "O número mudou na semana passada." },
     data_desejada: null,
+    campaign_id: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(8),

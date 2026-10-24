@@ -670,3 +670,89 @@ select teste.conferir('E nao avisa o Atendimento da propria agencia',
 -- para os arquivos seguintes -- a conveniencia de fixture ocupando o lugar do
 -- cenario, que e o furo que a 0062 pagou.
 update public.team_members set funcao = 'Trafego' where user_id = :RAFAEL;
+
+
+-- ---------------------------------------------------------------------------
+-- A CAMPANHA DO PEDIDO (0112)
+--
+-- A coluna e opcional -- a maioria dos pedidos e avulsa --, e o que a trava
+-- recusa nao e vazamento: `campaigns_select_cliente` ja impede o cliente de
+-- LER a campanha de outra empresa. O que nada impedia e ele ESCREVER o uuid de
+-- uma delas aqui, penduando o pedido dele numa conta que nao e a sua.
+--
+-- Os dois ramos da funcao sao medidos um a um, e o quarto cenario e o
+-- `on delete set null`: apagar a campanha nao pode levar junto o pedido, que e
+-- o que o cliente escreveu.
+-- ---------------------------------------------------------------------------
+\set CAMP    '''c1120000-0000-0000-0000-000000000001'''
+\set OUTRA   '''c1120000-0000-0000-0000-000000000002'''
+
+-- AS DUAS CAMPANHAS SAO DESTE ARQUIVO, e nao as do 16: `teste.limpar()` passa
+-- por `campaigns`, entao as de la nao chegam aqui. Reaproveita-las deixaria os
+-- quatro cenarios medindo "a campanha nao existe" nos quatro -- que foi
+-- exatamente o que a primeira rodada devolveu.
+insert into public.campaigns (id, client_id, nome, data_inicio, data_fim, criado_por, status)
+values (:CAMP,  :VERDE,  'Wave do Mundo Verde', current_date, current_date + 10, :DIEGO, 'ativa'),
+       (:OUTRA, :OPTICA, 'Wave da Óptica',      current_date, current_date + 10, :DIEGO, 'ativa');
+
+-- A conta do Otto volta a aceitar pedido: o bloco la em cima a desligou para
+-- medir a recusa, e sem isto estes quatro cenarios mediriam aquela trava e nao
+-- esta. E a licao da funcao do Rafael, logo acima.
+update public.clients set aceita_solicitacoes = true where id = :OPTICA;
+
+select teste.cenario('O cliente liga o pedido a uma campanha da conta dele', :OTTO,
+  format($fmt$insert into public.client_requests
+           (id, client_id, criado_por, titulo, campaign_id)
+         values ('dddddddd-0000-0000-0000-00000000bbb1', %L,
+                 '88888888-8888-8888-8888-888888888888',
+                 'Arte da Wave da Optica', %L)$fmt$, :OPTICA, :OUTRA), 'ok');
+
+select teste.conferir('E ela ficou gravada no pedido',
+  (select campaign_id::text from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000bbb1'),
+  'c1120000-0000-0000-0000-000000000002');
+
+-- O RAMO QUE IMPORTA: a campanha da outra empresa.
+select teste.recusa_com_dica(
+  'Ele NAO pendura o pedido na campanha de outra empresa', :OTTO,
+  format($fmt$insert into public.client_requests
+           (id, client_id, criado_por, titulo, campaign_id)
+         values ('dddddddd-0000-0000-0000-00000000bbb2', %L,
+                 '88888888-8888-8888-8888-888888888888',
+                 'Tentando a campanha alheia', %L)$fmt$, :OPTICA, :CAMP),
+  'mesma conta');
+
+-- E A MENSAGEM, nao so a dica: a recusa que diz "de outra empresa" e o que a
+-- tela mostra, e a dica e o que fazer. A bateria confere as duas desde a
+-- 0020 -- uma trava com a dica apagada passaria por uma checagem que so le a
+-- mensagem.
+select teste.recusa_com(
+  'E a recusa diz de quem e a campanha', :OTTO,
+  format($fmt$insert into public.client_requests
+           (id, client_id, criado_por, titulo, campaign_id)
+         values ('dddddddd-0000-0000-0000-00000000bbb4', %L,
+                 '88888888-8888-8888-8888-888888888888',
+                 'Tentando de novo', %L)$fmt$, :OPTICA, :CAMP),
+  'Essa campanha é de outra empresa.');
+
+select teste.recusa_com(
+  'Nem numa campanha que nao existe', :OTTO,
+  format($fmt$insert into public.client_requests
+           (id, client_id, criado_por, titulo, campaign_id)
+         values ('dddddddd-0000-0000-0000-00000000bbb3', %L,
+                 '88888888-8888-8888-8888-888888888888',
+                 'Campanha inventada',
+                 'c1120000-0000-0000-0000-0000000000ff')$fmt$, :OPTICA),
+  'Essa campanha não existe.');
+
+-- E APAGAR A CAMPANHA NAO LEVA O PEDIDO JUNTO.
+delete from public.campaigns where id = :OUTRA;
+
+select teste.conferir('Apagar a campanha deixa o pedido de pe',
+  (select count(*)::text from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000bbb1'), '1');
+
+select teste.conferir('E ele fica sem campanha, nao apagado',
+  (select coalesce(campaign_id::text, 'sem campanha')
+     from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000bbb1'), 'sem campanha');

@@ -1009,6 +1009,14 @@ export interface Database {
           descricao: string | null;
           respostas: Record<string, string>;
           data_desejada: string | null;
+          /**
+           * A campanha a que o pedido pertence, quando ele nasce de uma (0112).
+           *
+           * O trigger `client_requests_campanha_coerente` recusa a campanha de
+           * outra empresa — a RLS impede LER a de outra conta, e nada impedia
+           * ESCREVER o uuid dela aqui.
+           */
+          campaign_id: string | null;
           status: SolicitacaoStatus;
           motivo_recusa: string | null;
           decidida_em: string | null;
@@ -1023,6 +1031,7 @@ export interface Database {
           descricao?: string | null;
           respostas?: Record<string, string>;
           data_desejada?: string | null;
+          campaign_id?: string | null;
         };
         Update: {
           /** Só `is_atendimento()` — a policy de UPDATE não aceita o cliente. */
@@ -1031,6 +1040,7 @@ export interface Database {
           titulo?: string;
           descricao?: string | null;
           request_type_id?: string | null;
+          campaign_id?: string | null;
         };
         Relationships: [];
       };

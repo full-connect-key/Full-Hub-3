@@ -595,6 +595,14 @@ from (
     -- isso e o `select` de conferencia no fim da migration.
     ('0111', 'pecas_programadas() para o portal', 'funcao',
              'pecas_programadas')
+,
+    -- O MARCADOR E O TRIGGER E NAO A COLUNA, e a razao e a mesma da 0107: ele
+    -- e a ULTIMA coisa que a migration cria. Uma colagem que morre entre o
+    -- `alter table` e o `create trigger` deixa a coluna de pe e a trava fora,
+    -- e um marcador na coluna responderia `ok` sobre um banco em que o cliente
+    -- pendura o pedido dele na campanha de outra empresa.
+    ('0112', 'client_requests_campanha_coerente', 'trigger',
+             'client_requests_campanha_coerente')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
