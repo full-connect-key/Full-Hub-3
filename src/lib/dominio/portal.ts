@@ -197,6 +197,43 @@ export const FASES_DO_MATERIAL: {
   { fase: "recusados", rotulo: "Recusados", soComItem: true },
 ];
 
+/**
+ * Quanto do caminho o material já andou, para a barra do bloco "Em andamento".
+ *
+ * ---------------------------------------------------------------------------
+ * **É UMA APROXIMAÇÃO, e isso é dito aqui porque a barra não tem como dizer.**
+ * Não existe "40% de uma arte pronta": o que o produto sabe é em que etapa do
+ * ciclo com o cliente o material está, e a barra traduz isso em comprimento
+ * para a tela responder de relance o que a lista responde por extenso.
+ *
+ * **Ela mora aqui e não na tela** pela razão de `STATUS_EM_ORDEM`: a mesma
+ * barra aparece no bloco do Início e vai aparecer no detalhe da entrega, e
+ * duas cópias divergiriam na primeira vez que alguém acrescentasse um status
+ * — o produto já pagou isso com `ICONE_DA_AREA`, que teve três cópias e duas
+ * já divergidas.
+ *
+ * **`rejeitado` é 0 e não 100**, embora ele seja um fim: a barra responde
+ * "quanto falta para isto ficar pronto", e uma peça recusada vai ser refeita
+ * do começo. Pintá-la cheia diria que acabou.
+ * ---------------------------------------------------------------------------
+ */
+export const PROGRESSO_DO_STATUS: Record<ContentStatus, number> = {
+  // Parou esperando alguma coisa — o trabalho mal começou.
+  aguardando_informacoes: 10,
+  stand_by: 10,
+  em_producao: 40,
+  // Voltou para a agência depois de uma primeira versão: andou mais que
+  // "em produção", e menos que o que está com o cliente.
+  ajustes: 65,
+  em_aprovacao: 90,
+  aprovado: 100,
+  rejeitado: 0,
+};
+
+export function progressoDoMaterial(status: ContentStatus): number {
+  return PROGRESSO_DO_STATUS[status];
+}
+
 export function faseDoMaterial(status: ContentStatus): FaseDoMaterial {
   return FASE_DO_STATUS[status];
 }

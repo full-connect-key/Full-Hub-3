@@ -4,6 +4,9 @@ import { ptBR } from "date-fns/locale";
 import { ArrowRight, PartyPopper } from "lucide-react";
 
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
+import { cn } from "@/lib/utils";
+import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { identidadeDoPortal } from "@/lib/dados/clientes";
@@ -15,6 +18,7 @@ import {
 } from "@/lib/dados/campanhas";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import { mesesDeSocialDoCliente } from "@/lib/dados/posts";
+import { meusPedidos } from "@/lib/dados/solicitacoes";
 import {
   atividadeRecente,
   itensDoPortal,
@@ -28,7 +32,7 @@ import {
   periodoCurto,
   progresso,
 } from "@/lib/dominio/campanhas";
-import { ordenarPorUrgencia } from "@/lib/dominio/portal";
+import { ordenarPorUrgencia, progressoDoMaterial } from "@/lib/dominio/portal";
 import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
@@ -60,7 +64,7 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
-  const [itens, atividade, campanhas, identidade, mesesDeSocial] =
+  const [itens, atividade, campanhas, identidade, mesesDeSocial, pedidos] =
     await Promise.all([
       itensDoPortal(clienteId ?? undefined),
       atividadeRecente(clienteId ?? undefined, comoEquipe),
@@ -70,6 +74,11 @@ export async function InicioDoPortal({
       // do SQL (0100), então o bloco não custa uma consulta por mês nem uma
       // soma em TypeScript que divergiria da que a aba de Social mostra.
       mesesDeSocialDoCliente(clienteId ?? undefined),
+      // OS PEDIDOS ENTRAM NO MESMO `Promise.all` porque um dos quatro números
+      // do topo é sobre eles — e é o único que a lista desta tela não
+      // responde de jeito nenhum: ela é sobre o que a Full ENVIOU, e o pedido
+      // é o que o cliente PEDIU.
+      meusPedidos(clienteId ?? undefined),
     ]);
 
   // TODAS AS ATIVAS, e não as três primeiras — decisão do usuário: "as
@@ -132,12 +141,84 @@ export async function InicioDoPortal({
   const pendentes = itens
     .filter((i) => i.status === "em_aprovacao")
     .sort(ordenarPorUrgencia);
-  const emProducao = itens.filter((i) => i.status === "em_producao").length;
 
   const inicioDoMes = `${hoje.slice(0, 7)}-01`;
   const aprovadosNoMes = itens.filter(
     (i) => i.status === "aprovado" && (i.enviadoEm ?? "") >= inicioDoMes,
   ).length;
+
+  // ---------------------------------------------------------------------
+  // OS QUATRO NÚMEROS DO TOPO.
+  //
+  // **Eles substituem a linha de texto que estava embaixo do título "Para a
+  // sua aprovação", e não se somam a ela.** A regra que esta tela já aplicava
+  // continua inteira: *quando a lista ao lado É o número, o número não vira
+  // cartão* — o que ela proíbe é o mesmo número aparecer duas vezes, e não o
+  // ladrilho existir. Três destes quatro a lista não responde (pedidos
+  // abertos, o que está em produção, o que já saiu no mês), e o quarto —
+  // "esperando você" — é o único que ela responde, e por isso ele é LINK para
+  // ela em vez de um número solto.
+  // ---------------------------------------------------------------------
+  const mesPassado = (() => {
+    const [ano, mes] = inicioDoMes.split("-").map(Number);
+    const anterior = mes === 1 ? `${ano - 1}-12` : `${ano}-${String(mes - 1).padStart(2, "0")}`;
+    return { inicio: `${anterior}-01`, fim: inicioDoMes };
+  })();
+  const aprovadosNoMesPassado = itens.filter(
+    (i) =>
+      i.status === "aprovado" &&
+      (i.enviadoEm ?? "") >= mesPassado.inicio &&
+      (i.enviadoEm ?? "") < mesPassado.fim,
+  ).length;
+
+  // EM ANDAMENTO é tudo o que está com a Full — inclusive o que voltou para
+  // ajuste e o que parou esperando informação. Do lado de cá da porta, os três
+  // dizem a mesma coisa: a agência está trabalhando nisso.
+  const emAndamento = itens.filter((i) =>
+    ["em_producao", "aguardando_informacoes", "stand_by", "ajustes"].includes(
+      i.status,
+    ),
+  );
+  const atrasadas = emAndamento.filter(
+    (i) => i.prazo !== null && i.prazo < hoje,
+  ).length;
+
+  // UM PEDIDO ABERTO É O QUE AINDA NÃO ACABOU, e "recusado" conta como
+  // encerrado: ele não espera mais nada de ninguém.
+  const pedidosAbertos = pedidos.filter(
+    (p) => p.status !== "concluida" && p.status !== "recusada",
+  ).length;
+  const seteDiasAtras = format(
+    new Date(parseISO(hoje).getTime() - 7 * 86400000),
+    "yyyy-MM-dd",
+  );
+  const pedidosNovos = pedidos.filter(
+    (p) => (p.created_at ?? "").slice(0, 10) >= seteDiasAtras,
+  ).length;
+
+  // ---------------------------------------------------------------------
+  // PRÓXIMAS ENTREGAS é a lente do QUANDO, e ela olha tudo o que está aberto
+  // — inclusive o que já está esperando a decisão do cliente, que também tem
+  // data e também "vem aí".
+  //
+  // **E ELA SOME QUANDO NÃO ACRESCENTA NADA.** Numa conta com poucas peças, as
+  // quatro primeiras por prazo são as mesmas que o cartão ao lado já lista uma
+  // a uma — e aí a coluna é o mesmo cartão duas vezes, a dois centímetros de
+  // distância. Foi a imagem do protótipo que mostrou: com um material só, os
+  // dois blocos diziam exatamente a mesma linha.
+  // ---------------------------------------------------------------------
+  const emAndamentoNaTela = emAndamento.slice(0, 5);
+  const chaveDo = (i: (typeof itens)[number]) => `${i.tipo}-${i.conteudoId}`;
+  const jaNaTela = new Set(emAndamentoNaTela.map(chaveDo));
+
+  const proximas = itens
+    .filter(
+      (i) =>
+        i.prazo !== null && i.status !== "aprovado" && i.status !== "rejeitado",
+    )
+    .sort((a, b) => (a.prazo ?? "").localeCompare(b.prazo ?? ""))
+    .slice(0, 4);
+  const proximasAcrescentam = proximas.some((i) => !jaNaTela.has(chaveDo(i)));
 
   return (
     <div className="space-y-10">
@@ -178,6 +259,166 @@ export async function InicioDoPortal({
         meses={mesesDeSocial}
       />
 
+      {/* ------------------------------------------------- os quatro números --
+
+          A razão de eles existirem — e de não repetirem a lista — está na
+          conta logo acima, onde eles são calculados.
+
+          **O de "Esperando você" é LINK e os outros três não**: ele é o único
+          cujo detalhe está nesta mesma tela, logo abaixo. Os outros respondem
+          sobre coisas que moram noutra seção, e um número que leva a lugar
+          nenhum é melhor que um que promete uma tela e abre outra. */}
+      <section
+        aria-label="Os números da sua conta"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <CartaoDeNumero
+          rotulo="Solicitações abertas"
+          valor={pedidosAbertos}
+          apoio={
+            pedidosNovos > 0
+              ? `${pedidosNovos} ${pedidosNovos === 1 ? "nova" : "novas"} esta semana`
+              : "nenhuma nova esta semana"
+          }
+          href={`${base}/solicitacoes`}
+        />
+        <CartaoDeNumero
+          rotulo="Em andamento"
+          valor={emAndamento.length}
+          // O TOM SEGUE O ATRASO, e só ele. Um ladrilho âmbar permanente num
+          // mês sem atraso é o alerta que ensina a ignorar alerta.
+          // O TOM NÃO MUDA COM O ATRASO, e isso é a regra do portal: o
+          // âmbar é de "Esperando você", que é o único que PEDE uma ação de
+          // quem está olhando. Dois ladrilhos âmbar na mesma fileira tiram do
+          // primeiro o que ele tem de dizer, e vermelho num portal que se
+          // abre uma vez por semana treina o hábito de ignorar vermelho. O
+          // atraso é dito na linha de apoio, por extenso.
+          apoio={
+            atrasadas > 0
+              ? `${atrasadas} ${atrasadas === 1 ? "atrasada" : "atrasadas"}`
+              : "no prazo"
+          }
+        />
+        <CartaoDeNumero
+          rotulo={comoEquipe ? "Esperando o cliente" : "Esperando você"}
+          valor={pendentes.length}
+          tom={pendentes.length > 0 ? "atencao" : "neutro"}
+          apoio={
+            pendentes.length > 0 ? "aguardando decisão" : "nada pendente"
+          }
+          href="#precisa-decidir"
+        />
+        <CartaoDeNumero
+          rotulo="Aprovados no mês"
+          valor={aprovadosNoMes}
+          apoio={
+            // A VARIAÇÃO SÓ APARECE COM COM QUE COMPARAR. No primeiro mês de
+            // portal de uma conta, "+3 em relação ao mês anterior" seria uma
+            // comparação com um mês que não existe.
+            aprovadosNoMesPassado === 0
+              ? undefined
+              : `${aprovadosNoMes - aprovadosNoMesPassado >= 0 ? "+" : ""}${
+                  aprovadosNoMes - aprovadosNoMesPassado
+                } em relação ao mês passado`
+          }
+        />
+      </section>
+
+      {/* ------------------------------- em andamento, e o que vem logo aí --
+
+          **SEM O AVATAR DE QUEM ESTÁ FAZENDO, e isso não é esquecimento.** A
+          proposta pede o rosto do responsável em cada linha, e o produto não
+          tem como mostrá-lo: `profiles_select` é "o próprio registro, ou a
+          gestão", então o cliente lê o uuid de quem produz e mais nada — o
+          nome não é legível para ele por desenho. Pôr o rosto ali exigiria
+          abrir a tabela de perfis da agência inteira para fora, que é decisão
+          de outra ordem. O que a linha diz é o que o cliente decide: o que é,
+          de que demanda veio, e quanto falta. */}
+      {emAndamento.length > 0 ? (
+        // `items-start` PARA CADA CARTÃO TER A ALTURA DO QUE ELE TEM DENTRO.
+        // Sem ele a grade estica os dois até o mais alto, e numa conta com um
+        // material em produção e três com prazo o da esquerda fica com metade
+        // da altura vazia.
+        <section className="grid items-start gap-4 lg:grid-cols-3">
+          <div
+            className={cn(
+              "bg-surface-card rounded-card shadow-cartao border-border border p-5",
+              proximas.length > 0 && proximasAcrescentam
+                ? "lg:col-span-2"
+                : "lg:col-span-3",
+            )}
+          >
+            <h2 className="text-base font-semibold">Em andamento</h2>
+            <p className="text-text-muted mt-0.5 text-sm">
+              O que a Full está produzindo para você agora.
+            </p>
+
+            <ul className="mt-4 space-y-4">
+              {emAndamentoNaTela.map((item) => (
+                <li key={`${item.tipo}-${item.conteudoId}`}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {item.titulo}
+                    </p>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <p className="text-text-muted mt-0.5 truncate text-xs">
+                    {item.demanda}
+                  </p>
+                  <BarraDeProgresso
+                    className="mt-2"
+                    valor={progressoDoMaterial(item.status)}
+                    total={100}
+                    rotulo={`${progressoDoMaterial(item.status)}%`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* PRÓXIMAS ENTREGAS com o bloco de data — dia grande e mês —, que é
+              o que faz a coluna responder "quando" antes de "o quê". Ela some
+              inteira quando nenhuma das que estão com a Full tem prazo: uma
+              coluna vazia ao lado de um cartão cheio parece defeito. */}
+          {proximas.length > 0 && proximasAcrescentam ? (
+            <div className="bg-surface-card rounded-card shadow-cartao border-border border p-5">
+              <h2 className="text-base font-semibold">Próximas entregas</h2>
+              <p className="text-text-muted mt-0.5 text-sm">
+                Pelo prazo mais próximo.
+              </p>
+
+              <ul className="mt-4 space-y-3">
+                {proximas.map((item) => (
+                  <li
+                    key={`p-${item.tipo}-${item.conteudoId}`}
+                    className="flex items-center gap-3"
+                  >
+                    <div className="bg-neutral-soft text-text-primary flex size-11 shrink-0 flex-col items-center justify-center rounded-lg leading-none">
+                      <span className="text-base font-bold tabular-nums">
+                        {format(parseISO(item.prazo as string), "dd")}
+                      </span>
+                      <span className="text-text-muted mt-0.5 text-[10px] font-semibold uppercase">
+                        {format(parseISO(item.prazo as string), "MMM", {
+                          locale: ptBR,
+                        })}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {item.titulo}
+                      </p>
+                      <p className="text-text-muted truncate text-xs">
+                        {item.demanda}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {/* ------------------------------------------ os números viram UMA LINHA --
           ELES ERAM TRÊS LADRILHOS, o primeiro com o número em tamanho de
           manchete — e o maior deles dizia "Esperando você: 3" com a lista
@@ -195,7 +436,11 @@ export async function InicioDoPortal({
           aqui", e o recorte dele é o bloco inteiro — contagem, lista e o "ver
           tudo". Com a âncora no `<h2>`, o destaque seria uma linha de texto
           com a lista inteira fora dele. */}
-      <section className="space-y-6" {...ancora(ANCORAS.portalPendencias)}>
+      <section
+        id="precisa-decidir"
+        className="scroll-mt-20 space-y-6"
+        {...ancora(ANCORAS.portalPendencias)}
+      >
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
           <h2 className="text-xl font-bold tracking-[-0.02em]">
             {comoEquipe
@@ -213,19 +458,10 @@ export async function InicioDoPortal({
           ) : null}
         </div>
 
-        <p className="text-text-secondary text-sm">
-          <span className="text-text-primary font-semibold tabular-nums">
-            {pendentes.length}
-          </span>{" "}
-          {pendentes.length === 1
-            ? "material esperando decisão"
-            : "materiais esperando decisão"}
-          <span aria-hidden> · </span>
-          <span className="tabular-nums">{emProducao}</span> em produção
-          <span aria-hidden> · </span>
-          <span className="tabular-nums">{aprovadosNoMes}</span> aprovados no
-          mês
-        </p>
+        {/* A LINHA DE CONTAGEM SAIU DAQUI, e subiu para os quatro
+            ladrilhos do topo. Os três números que ela dizia são os mesmos:
+            deixá-la seria exatamente o que a regra desta tela proíbe — o
+            mesmo número duas vezes, a dois centímetros de distância. */}
 
         {pendentes.length === 0 ? (
           // ZERO PENDÊNCIA É BOA NOTÍCIA, e a tela diz isso. Um vazio genérico
