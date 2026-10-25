@@ -497,9 +497,16 @@ export async function versoesDoPost(
 }
 
 export async function urlsDasArtes(
-  _caminhos: (string | null)[],
+  caminhos: (string | null)[],
 ): Promise<Record<string, string>> {
-  return {};
+  // DEVOLVE O PROPRIO CAMINHO, como o stub de campanhas ja fazia: as artes de
+  // exemplo moram em `public/`, e um mapa vazio so funcionava porque toda tela
+  // que o lia caia num `?? url`. Quem NAO cai e a biblioteca -- ela procura o
+  // endereco no mapa, e com o mapa vazio a miniatura some de toda peca de
+  // social na imagem.
+  const mapa: Record<string, string> = {};
+  for (const c of caminhos) if (c) mapa[c] = c;
+  return mapa;
 }
 
 export function enderecoDaArte(

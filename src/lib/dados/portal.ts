@@ -177,6 +177,31 @@ export async function itensDoPortal(
  * isto pode ser a equipe, na visualização administrativa, e `is_staff()`
  * enxerga todas as empresas.
  */
+/**
+ * OS ARQUIVOS ENTREGUES de um conjunto de etapas.
+ *
+ * **Ela mora aqui e não na biblioteca que a usa**, porque é este módulo que já
+ * lê `subtask_entregas` — para a miniatura de cada material. Uma segunda
+ * leitura da mesma tabela noutro arquivo seria o lugar onde as duas divergem,
+ * e é também o que tiraria da biblioteca a propriedade de não falar com o
+ * banco: sem isso ela chamaria o Supabase direto, e o gerador de protótipo
+ * teria que ganhar um stub dela — ou seja, a imagem passaria a conferir o
+ * stub em vez da agregação de verdade.
+ */
+export async function entregasDasEtapas(
+  ids: string[],
+): Promise<{ subtask_id: string; url: string; nome: string | null }[]> {
+  if (ids.length === 0) return [];
+  const supabase = await criarClienteServidor();
+  return ouFalha(
+    "os arquivos entregues das etapas",
+    await supabase
+      .from("subtask_entregas")
+      .select("subtask_id, url, nome")
+      .in("subtask_id", ids),
+  );
+}
+
 export async function materiaisDaDemanda(
   clienteId: string,
   demandaId: string,

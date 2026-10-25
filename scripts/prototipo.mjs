@@ -784,6 +784,11 @@ const TELAS = [
   { nome: "16m-portal-cronograma", rota: "/portal/cronograma", largura: 1280, altura: 1200 },
   { nome: "16n-portal-cronograma-social", rota: "/portal/cronograma?frente=social", largura: 1280, altura: 1100 },
   { nome: "16o-portal-cronograma-375", rota: "/portal/cronograma", largura: 375, altura: 1600 },
+
+  // A BIBLIOTECA. Duas telas: a grade cheia, e a busca com um termo digitado
+  // -- sem a segunda a imagem nao prova que o campo filtra, so que ele existe.
+  { nome: "16p-portal-biblioteca", rota: "/portal/biblioteca", largura: 1280, altura: 1200 },
+  { nome: "16q-portal-biblioteca-busca", rota: "/portal/biblioteca", largura: 1280, altura: 900, digitar: { onde: 'input[aria-label="Buscar material"]', texto: "banner" } },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
 

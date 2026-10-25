@@ -385,3 +385,15 @@ export async function analiseDosEntregaveis(
   });
   return mapa;
 }
+
+/** O arquivo de cada peca, para a biblioteca. */
+export async function arquivosDasPecas(
+  ids: string[],
+): Promise<{ id: string; arte_url: string | null; arquivo_nome: string | null }[]> {
+  const todos = DA_WAVE.map((peca) => ({
+    id: peca.id,
+    arte_url: peca.arteUrl,
+    arquivo_nome: peca.arquivoNome,
+  }));
+  return todos.filter((p) => ids.includes(p.id));
+}

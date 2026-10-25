@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   CalendarRange,
+  FolderOpen,
   Home,
   Megaphone,
   MessageSquarePlus,
@@ -86,6 +87,16 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     href: "/portal/cronograma",
     icon: CalendarRange,
     description: "O que acontece em cada dia do mês, nas três frentes.",
+  },
+  {
+    // A BIBLIOTECA É A ÚLTIMA DAS SEÇÕES DE MATERIAL, e a posição é a da
+    // pergunta: as de cima são sobre o que está acontecendo, esta é sobre o
+    // que já aconteceu. Quem a abre não está trabalhando — está procurando um
+    // arquivo de semanas atrás.
+    label: "Biblioteca",
+    href: "/portal/biblioteca",
+    icon: FolderOpen,
+    description: "Tudo o que você já aprovou, para baixar depois.",
   },
   {
     label: "Aprovações",

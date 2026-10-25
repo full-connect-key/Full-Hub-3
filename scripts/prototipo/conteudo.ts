@@ -68,9 +68,15 @@ export async function comentariosDe(
 
 export async function assinarArquivos(
   _bucket: string,
-  _caminhos: (string | null)[],
+  caminhos: (string | null)[],
 ): Promise<Record<string, string>> {
-  return {};
+  // DEVOLVE O PROPRIO CAMINHO, como os stubs de posts e de campanhas: as
+  // artes de exemplo moram em `public/`. O mapa vazio so funcionava para quem
+  // caia num `?? url` depois -- quem NAO cai e a biblioteca, que procura o
+  // endereco no mapa e deixaria a moldura vazia em toda peca.
+  const mapa: Record<string, string> = {};
+  for (const c of caminhos) if (c) mapa[c] = c;
+  return mapa;
 }
 
 export function enderecoDaArte(

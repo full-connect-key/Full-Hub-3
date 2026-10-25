@@ -116,7 +116,10 @@ const ITENS: ItemDoPortal[] = [
     status: "aprovado",
     prazo: dia(-4),
     enviadoEm: dia(-7),
-    miniatura: null,
+    // UMA MINIATURA NUMA PECA APROVADA: sem ela a grade da biblioteca sai
+    // inteira com a moldura vazia, e a imagem prova que a moldura sabe sumir
+    // em vez de provar que a miniatura aparece.
+    miniatura: "/exemplos/arte-2.svg",
     caminho: null,
   },
   {
@@ -255,4 +258,23 @@ export async function minhasPreferencias(): Promise<PreferenciasDeAviso> {
     lembrete_pendencias: false,
     frequencia: "diario",
   };
+}
+
+/**
+ * Os arquivos entregues das etapas.
+ *
+ * O stub entrega um LINK, que e o caso de verdade: a tela de producao so
+ * anexa link hoje -- a porta do arquivo existe no banco desde a 0007 e
+ * nenhuma tela a usa.
+ */
+export async function entregasDasEtapas(
+  ids: string[],
+): Promise<{ subtask_id: string; url: string; nome: string | null }[]> {
+  const comArquivo: Record<string, { url: string; nome: string }> = {
+    i5: { url: "https://drive.google.com/exemplo-banner-home", nome: "banner-1920x600.png" },
+    i6: { url: "https://drive.google.com/exemplo-banner-feed", nome: "banner-quadrado.png" },
+  };
+  return ids
+    .filter((id) => comArquivo[id])
+    .map((id) => ({ subtask_id: id, ...comArquivo[id] }));
 }

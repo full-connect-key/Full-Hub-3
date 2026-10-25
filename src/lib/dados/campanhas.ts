@@ -385,6 +385,27 @@ export async function versoesDoEntregavel(
  * pela primeira pasta do caminho, que é o id da empresa, e misturar os dois
  * faria uma regra ter de valer para material de dois módulos.
  */
+/**
+ * O ARQUIVO DE CADA PEÇA, para quem precisa do endereço e do nome.
+ *
+ * Mora aqui pela razão de `entregasDasEtapas` em `portal.ts`: este é o módulo
+ * que lê `deliverables`, e uma segunda leitura da mesma tabela noutro arquivo
+ * seria o lugar onde as duas divergem.
+ */
+export async function arquivosDasPecas(
+  ids: string[],
+): Promise<{ id: string; arte_url: string | null; arquivo_nome: string | null }[]> {
+  if (ids.length === 0) return [];
+  const supabase = await criarClienteServidor();
+  return ouFalha(
+    "os arquivos das peças de campanha",
+    await supabase
+      .from("deliverables")
+      .select("id, arte_url, arquivo_nome")
+      .in("id", ids),
+  );
+}
+
 export function urlsDosArquivos(
   caminhos: (string | null)[],
 ): Promise<Record<string, string>> {
