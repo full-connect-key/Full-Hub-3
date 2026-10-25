@@ -9068,6 +9068,225 @@ varredura não olha.
 - **O rodapé continua sem o commit.** Para a equipe ele é a resposta de "já
   subiu?"; para o cliente seria uma sigla sem significado.
 
+#### A ESCADA DE ANDAMENTO, e os passos que o produto consegue datar
+
+A tela em que o cliente decide um material ganhou duas colunas: a peça à
+esquerda, e à direita a legenda (no post) e um cartão de **Andamento** que diz
+onde o material está e quando cada coisa aconteceu. **A seção "Informações"
+deixou de existir como faixa própria** — campanha, frente, arquivo, versão e
+prazo viraram a metade de baixo desse cartão: quem decide consulta "esperando
+desde o dia 12" junto com "prazo dia 14", e as duas moravam em lugares
+diferentes da página.
+
+**A COLUNA ESTREITA FICA À DIREITA**, que é a regra escrita do produto: ela vai
+à direita quando é um RESUMO e à esquerda quando é um ÍNDICE. Aqui ela
+acompanha o que a pessoa veio fazer, e quem decide é a peça. A legenda continua
+ao lado da arte no post, que é decisão do usuário e não se desfaz aqui.
+
+**SÃO OS PASSOS QUE O PRODUTO CONSEGUE DATAR, e não os cinco do roteiro.** Ele
+pedia Recebida → Em criação → Em revisão → Para aprovar → Aprovada, cada um com
+o horário em que foi atingido. Três daqueles cinco não existem deste lado da
+porta, e a diferença não é de vocabulário:
+
+- **"Em criação" e "Em revisão" são elos da corrente interna** — `subtasks` com
+  `social_papel`, as caixinhas de `post_etapa_progresso`. O cliente não tem
+  policy em nenhuma das duas e não passa a ter: a corrente diz quem está com o
+  material na mão, qual fase travou e quem atrasou (0045).
+- **E o horário de cada passo não existe nem internamente.** Não há histórico
+  por status de um material. O que o produto guarda é o carimbo de envio, a
+  data de cada versão, e quando cada rodada abriu e foi decidida. Escrever
+  "hoje 10:40" num passo sem coluna que o date seria inventar um fato na tela
+  que o cliente usa para decidir.
+
+Então a escada é o **CICLO DE DECISÃO**, que é o que ele efetivamente percorre
+e o único recorte em que cada passo tem uma coluna por trás. O quarto — "Em
+produção na Full" — é o único sem data, e a ausência é dita em vez de
+preenchida: o que a agência faz aqui dentro não tem carimbo que ele possa ler.
+
+**"RECEBIDO" SÓ APARECE QUANDO DIZ ALGO QUE O PASSO SEGUINTE NÃO DIZ.** Na
+primeira rodada os dois são o MESMO evento, e isso é regra e não coincidência:
+enviar ao cliente É abrir a rodada dele (0032), então `enviado_em` e
+`solicitado_em` nascem do mesmo `now()`, na mesma transação. Dois carimbos
+iguais um embaixo do outro leem como defeito mesmo sendo verdade. A partir do
+segundo ciclo eles divergem, e aí cada um informa — "Recebido 12/10" com
+"Enviado para a sua decisão ontem" é a frase que diz, sem dizer, que esta peça
+já foi e voltou. A comparação é pelo MINUTO em UTC, que é a precisão que a tela
+mostra.
+
+**O REGISTRO DA DECISÃO DEIXOU DE EXISTIR EM DOIS LUGARES.**
+`DecisoesDoConteudo` desenhava *"Aprovado por Joana em 12/03 às 10:40"* embaixo
+de botões que já não existem — o mesmo fato que o terceiro passo da escada
+passou a dizer. O ramo saiu inteiro em vez de ficar atrás de uma bandeira:
+código que nenhuma tela desenha é o que alguém reaproveita depois achando que
+ele ainda diz a verdade (0023).
+
+**O relógio é o DA AGÊNCIA e nunca o do processo**, pela razão inteira de
+`lib/dominio/datas.ts`: o container roda em UTC, e três horas de erro num passo
+que diz a que horas alguém aprovou uma peça é a tela afirmando o que não
+aconteceu. E o "agora" vem de fora, como em `tempoRelativo()`.
+
+**Duas coisas que só a imagem pegou:** *"versão 3 de 2"* — `versaoAtual` é um
+contador da linha e `versoes` é o que o cliente consegue LER, e os dois
+divergem; sem o total, "versão 3" continua verdadeiro e não promete um
+histórico que a tela não tem. E o passo "Enviado para a sua decisão" sem data
+em toda peça já decidida, porque o instante da rodada só era exposto enquanto
+ela estava pendente: `decisaoPedidaEm` é a rodada pendente OU decidida, e fica
+ao lado de `esperandoDesde`, que continua respondendo outra coisa — há quanto
+tempo esta peça está parada, que é o "espera há 4 dias" da árvore da campanha.
+
+#### A fila de aprovações: por PRAZO, e as três frentes
+
+**Ela ordenava por chegada**, e a consulta traz por `solicitado_em`
+decrescente — a ordem certa para o histórico e a errada para a fila: o material
+que vence amanhã ficava embaixo do que chegou hoje e vence semana que vem. É a
+decisão da caixa de entrada das solicitações virada do avesso: lá a pergunta é
+quem espera há mais tempo, aqui é o que vence primeiro. Sem prazo vai para o
+FIM, e a chegada é o desempate. **E o prazo passou a aparecer no card**, no
+`DateBadge` de sempre: uma ordem que a tela não mostra lê como ordem
+arbitrária.
+
+**ELA COBRIA UMA FRENTE SÓ, e isso era uma incoerência visível na mesma tela.**
+A consulta listava só o material que vem de uma demanda — o comentário dela
+dizia, desde o Sprint 3B, que *"post e entregável entram nos Sprints 12 e 13"*,
+e eles entraram no produto sem entrar ali. Com o selo da barra lateral ligado,
+o resultado ficou à vista: ele contava 2 e o Início dizia "3 esperando você", a
+dois centímetros um do outro.
+
+**O QUE MUDA POR FRENTE É O QUE O CARD OFERECE**, não o que ele mostra: o
+material de demanda traz os arquivos entregues, a conversa e os botões — tudo o
+que se precisa para decidir está ali; o post e a peça de campanha trazem
+**"Abrir e decidir →"**, porque a decisão deles mora na tela em que a arte abre
+grande, e decidir sem olhar é o erro que aquela tela existe para evitar. De
+quebra, *"Sem arquivo anexado"* parou de aparecer neles: a frase é verdadeira
+no material de demanda e FALSA num post, cuja arte existe e só não mora nesta
+lista.
+
+**O SELO DA BARRA LATERAL EXISTIA DESDE QUE ELA NASCEU e nada o alimentava.** O
+comentário de `ListaDaBarraDoPortal` dizia que ele seria ligado *"quando a tela
+de Aprovações entrar"* — ela já estava lá. Quem conta é
+`quantasEsperamDecisao()`, uma CONTAGEM e não `minhasAprovacoes()`: esta roda
+no layout, ou seja em toda tela do portal, e aquela faz seis idas ao banco para
+montar a conversa de cada material. **Ela não recebe `clienteId`**, de
+propósito: quem a chama é o layout do portal do CLIENTE, onde a RLS já recorta,
+e a casca administrativa não desenha selo nenhum — se um dia desenhar, o
+recorte por empresa precisa de um filtro por tipo que esta contagem não tem.
+Não aceitar o parâmetro é o que impede alguém de passá-lo achando que funciona.
+No zero o selo não aparece, que é a regra do produto.
+
+#### O Cronograma: o que acontece quando, nas três frentes
+
+`/portal/cronograma`. O cliente tem três seções e **nenhum board**: o post
+aparece no calendário do Social, a peça de campanha na árvore da campanha, e o
+material de uma demanda numa lista — então *"o que acontece esta semana"* é a
+única pergunta da conta dele que não tem resposta em lugar nenhum.
+
+**ISTO ROÇA NUMA DECISÃO DO USUÁRIO, e a diferença é dita em vez de
+escondida.** A 0105 fechou o Calendário Full da agência em eventos, com a frase
+*"nada de outros abas"*: lá o calendário tinha virado o segundo lugar onde se
+lê o que já se lê no módulo de origem, e a agência tem quinze módulos para ler.
+O lado do cliente é o caso contrário. **O que o mantém do lado certo daquela
+decisão é que ele é SÓ LEITURA E SÓ LINK:** nada nasce aqui, e cada chip leva
+ao módulo onde aquilo se decide.
+
+**ELE NÃO LÊ NENHUMA TABELA POR CONTA PRÓPRIA.** As três leituras já existem e
+já são as que as telas de origem usam, então o cronograma nunca mostra um
+material que o Social, a campanha ou a fila não mostrem — uma consulta nova
+aqui seria um quarto lugar decidindo o que o cliente enxerga, e o que vaza é
+sempre o quarto.
+
+**AS TRÊS DATAS NÃO QUEREM DIZER A MESMA COISA**, e a legenda diz as duas
+palavras: o post carrega o dia em que ele VAI AO AR, a peça de campanha e o
+material de uma demanda carregam o dia em que VENCEM. Misturar "sai" com
+"vence" numa grade sem dizer qual é qual seria a tela afirmando o que não
+aconteceu — e o rótulo acessível de cada chip leva a palavra junto, porque quem
+usa leitor de tela não tem a legenda à vista quando chega no chip.
+
+**O recorte do social é a DEMANDA DO MÊS e não a data de publicação**, que é a
+regra do Sprint 3K e que a varredura de nomes mortos guarda. A borda fica dita:
+uma peça de outubro marcada para 2 de novembro não aparece em nenhuma das duas
+grades — na primeira porque o dia não está lá, na segunda porque ela é de outro
+mês de social.
+
+**AS ABAS NÃO SÃO AS DO ROTEIRO.** Ele pede *Tudo / Campanhas / Social / Site*,
+e "Site" não existe neste produto — não há módulo, tabela nem material de site,
+e uma aba que nunca tem nada dentro é pior que uma aba a menos: a pessoa clica,
+não acha nada, e passa a desconfiar das outras três. No lugar dela entra
+**Demandas**. As contagens saem do mês INTEIRO e nunca do que sobrou do
+recorte, que é o contador das abas de Pedidos pela quarta vez.
+
+**A "janela flutuante com Abrir entrega" virou o próprio chip:** a janela teria
+dentro dela um link por item e mais nada, e aí ela é um clique a mais para
+chegar onde o chip já chega. O "+N" abre o dia numa seção embaixo da grade, que
+o link da URL sabe reabrir. A cor do chip sai do MESMO mapa que desenha o selo
+de status.
+
+**E O TOUR GANHOU O PASSO, com `rota`, sem subir a versão:** subir reconvida
+todo cliente que já terminou — seis balões por causa de um passo novo, numa
+tela que eles abrem para aprovar material.
+
+**O BUG QUE O STUB ESCONDIA.** `itensDoPortal` não é só dos materiais de
+demanda: ela já agrega as três frentes. O cronograma a lia inteira E lia os
+posts e as peças das origens delas, então em produção **cada post aparecia duas
+vezes na grade** — e nenhuma imagem mostrava, porque o stub do protótipo só
+tinha `subtask`. Um ambiente de exemplo que mostra o produto num estado que ele
+não tem esconde uma classe inteira de bug. Medido com mutação, contra o dump:
+sem o filtro, o chip do mesmo post aparece 4 vezes no HTML; com ele, 2 — que é
+a grade e a lista do celular, as duas no DOM.
+
+**A fatia é tomada no cronograma e não a função inteira porque a DATA dela quer
+dizer outra coisa:** para o post, `itensDoPortal` devolve o prazo de DECIDIR,
+que é o certo numa fila por urgência e o errado numa grade que responde quando
+a peça vai ao ar — e numa peça já aprovada é uma data no passado que não quer
+dizer mais nada.
+
+*E duas coisas que só a imagem pegou, as duas de grade:* a coluna de domingo
+saía CORTADA pela borda da página, porque um item de grade nasce com
+`min-width: auto` e se recusa a ficar menor que o conteúdo; e o título saía
+cortado SEM as reticências, porque o `truncate` estava num `<span>` por dentro
+— num elemento inline as três propriedades não recortam nada.
+
+#### A Biblioteca: onde o material pronto se pega de volta
+
+`/portal/biblioteca`. Três colunas com miniatura, contexto, data e **Baixar**,
+com busca na URL.
+
+**O ROTEIRO PEDE CINCO ABAS, E QUATRO NÃO TÊM NADA POR TRÁS.** "Entregas
+finais", "Arquivos da marca", "Cronogramas", "Relatórios" e "Histórico": das
+cinco, só a primeira existe no produto. As outras três nomeadas pedem uma
+tabela, um bucket e uma tela do lado da AGÊNCIA para alguém subir o arquivo —
+nada disso existe —, e "Histórico" não diz de quê. É a decisão do "Site" no
+cronograma, e por isso a tela é **uma seção e nenhuma aba**: menos de duas não
+vira barra. **O que falta é decisão de quem usa, não de quem escreve:** no dia
+em que houver onde subir arquivo de marca, a aba entra aqui.
+
+**E a parte que existe era um buraco de verdade:** o material aprovado estava
+espalhado por três telas e nenhuma oferecia o arquivo de volta.
+
+**O POST NÃO TEM DOWNLOAD**, e é decisão escrita do produto e não omissão: quem
+publica é a agência, e o que o cliente leva é a peça no ar, não o arquivo. O
+que ele ganha é o link para a peça, onde a arte abre grande e o carrossel
+inteiro está — e um "Baixar" desligado em metade da grade seria ruído.
+
+**Ela parte de `itensDoPortal`, lida INTEIRA** ao contrário do cronograma: lá a
+fatia existe porque a data de cada frente quer dizer coisas diferentes, e aqui
+não há data decidindo nada — a pergunta é "o que ficou pronto", e ela é a mesma
+para as três.
+
+**E ESTE MÓDULO NÃO FALA COM O BANCO, de propósito.** As duas leituras que
+faltavam — `subtask_entregas` e o arquivo de cada peça — foram para os módulos
+que já leem aquelas tabelas. Com um `criarClienteServidor()` nele, o protótipo
+precisaria de um stub DELE, e a imagem passaria a conferir o stub em vez da
+agregação de verdade — que é exatamente onde a duplicata do cronograma se
+escondeu. **Cada caminho é assinado no bucket DELE** (`posts-artes`,
+`campanhas-arquivos`, `task-arquivos`): mandar todos para os três resolveria
+igual e pagaria três assinaturas por arquivo para esconder de quem lê depois
+qual arquivo mora onde.
+
+**TRÊS STUBS DE ASSINATURA DEVOLVIAM MAPA VAZIO**, e funcionava porque toda
+tela que os lia caía num `?? url` depois. Esta não cai — ela procura o endereço
+no mapa —, e a grade saía inteira com a moldura vazia. Os três passaram a
+devolver o próprio caminho, como o de campanhas já fazia.
+
 
 #### Registrar período que já aconteceu — da gestão, e só dela
 
@@ -12059,6 +12278,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Sprint do Portal | **O Portal do Cliente ganhou o detalhe com ANDAMENTO, a fila por prazo nas três frentes, o Cronograma e a Biblioteca.** Nenhuma migration: as quatro são tipo, leitura e desenho. A escada do detalhe tem os passos que o produto CONSEGUE datar e não os cinco do roteiro — "Em criação" e "Em revisão" são elos da corrente interna, em que o cliente não tem policy e não passa a ter, e não existe histórico por status de um material: o que há é o carimbo de envio, a data de cada versão e quando cada rodada abriu e foi decidida. O quarto passo, "Em produção na Full", é o único sem data, e a ausência é dita em vez de preenchida. A fila passou a ordenar por PRAZO e a cobrir as três frentes — ela listava só o material de demanda desde o Sprint 3B, e com o selo da barra lateral ligado isso virou "2" no selo contra "3 esperando você" no Início. O Cronograma responde o que nenhuma outra tela do cliente responde, e o que o mantém do lado certo da 0105 é ser só leitura e só link. A Biblioteca tem UMA seção e não as cinco abas do roteiro: quatro delas pedem tabela, bucket e tela de upload do lado da agência, e aba que nunca tem nada dentro é pior que aba a menos. **Três bugs que só a imagem e a mutação pegaram:** cada post aparecia DUAS VEZES na grade do cronograma — `itensDoPortal` já agrega as três frentes e o stub do protótipo só tinha `subtask`, então nenhuma imagem mostrava; a coluna de domingo saía cortada pela borda da página (`min-width: auto` num item de grade); e o título saía cortado SEM reticências, porque o `truncate` estava num elemento inline. E o `check:cores` pegou os meus próprios comentários duas vezes, pela oitava e nona. |
 | O descanso se cancela | **Um período já combinado pode ser desfeito** (migration 0106), por decisão do usuário: *"preciso da opção de cancelar um período de descanso depois que já foi aprovado pelo sócio"*. `cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado — o `pendente` —, e a saída que sobrava, o lançamento retroativo, **não alcança o futuro** de propósito: não havia saída nenhuma. **Quem cancela é o DONO ou o SÓCIO**, e as razões são diferentes: devolver os próprios dias não tira nada de ninguém, e desfazer a decisão do sócio é dele. **A TRAVA É A DATA e não o status** — um período em curso tem dias vividos, e despintar a matriz sobre um passado que aconteceu faria ela afirmar que a pessoa estava aqui numa semana em que não estava; a recusa NOMEIA a data, que é a decisão da 0023. **A limpeza de `team_presence` é a metade que importa, e não estava escrita em lugar nenhum:** `hr_request_id` é `on delete set null`, então apagar o pedido deixaria os dias órfãos e pintados — é o mesmo achado do `zerar-full-days.sql`, que foi o relato do usuário em outra forma. **O saldo volta sozinho**, porque `descanso_usado_no_ciclo()` conta `pendente` e `aprovada` e `cancelada` não é nenhum dos dois: o que é derivado não precisa ser desfeito. **O motivo é obrigatório para quem não é o dono**, e `motivo_cancelamento` é coluna própria — *remarca* e *não vai acontecer* são dois fatos, e a mesma coluna para os dois faria a linha afirmar uma coisa e o status outra. **O sino toca nos dois sentidos.** Na tela, `podeCancelar()` desceu para `lib/dominio/` porque são DUAS que perguntam, o botão SOME em vez de aparecer desligado (a razão é uma porta que fechou, não um passo que falta), e a fila do sócio ganhou a QUARTA aba, "Canceladas" — `cancelada` estava no enum desde a 0011 e **tela nenhuma a listava**. **2227 cenários, quatro mutações medidas** (1 / 5 / 6 / 4), e a primeira derruba UM porque é o único cenário que separa "cancelado" de "cancelado e limpo". O protótipo ganhou um combinado FUTURO ao lado do que já começou: com um só, a imagem não separa "o botão aparece" de "o botão aparece sempre". |
 | O tipo vira Day off | **"Descanso" passa a se chamar DAY OFF** (migration 0107), por decisão do usuário: *"dentro do Day Off mudar o nome o tipo de solicitação 'Descanso' por 'Day off' também. vamos usar sempre essa nomenclatura para tudo que se refere as 'férias' (que também não podemos falar) OU SEJA, os dias tirados são DAY OFF"*. **É a TERCEIRA rodada de vocabulário do módulo, e a primeira que não é sobre exposição:** a 0016 e a 0018 trocaram palavra da CLT, e esta troca o nome interno pelo nome que a agência usa falando. **E ELA É MIGRATION, e não uma linha de tela**, porque `ROTULOS_DE_TIPO` é a porta de todo rótulo e as frases que NASCEM NO POSTGRES não passam por ela: são as seis recusas de `validar_solicitacao`, a de `descanso_do_ciclo` e o título do sino — sem a migration, a pessoa leria "Day off" no seletor e "O descanso não acumula" na recusa do clique seguinte, a dois centímetros de distância. **As três funções foram COPIADAS INTEIRAS e não remendadas**, que é a lição da 0030: `create or replace` se reescreve a partir do texto de agora e não avisa quando o texto novo tem menos coisa que o velho. **SÃO TRÊS CAMADAS DE NOME AGORA, e isso fica dito:** `ferias` no enum e nas colunas, `descanso` nas funções e nos tipos, "Day off" na tela — renomear coluna ou função em uso é migration arriscada, e ninguém que usa o sistema vê esses nomes. **"Descanso" NÃO entrou na lista de nomes mortos do `check:cores`**, ao contrário de "recesso" e "indisponibilidade": ela não foi aposentada — continua sendo o nome da camada do meio, lido de dentro de `src/` por seis identificadores —, e pô-la lá exigiria `salvo` para metade do módulo, que é onde o furo seguinte se esconde. Quem protege a troca é o `check:sprint9`, de MÃO DUPLA em cinco telas, lendo o texto renderizado. **2227 cenários, e a mutação é o arquivo inteiro:** sem a 0107 caem **5** — a recusa por saldo, o título do sino, a dica que diz quando os dias voltam, e as duas varreduras de frase, cada uma nomeando o que voltou. O marcador do `onde-esta-o-banco.sql` aponta para o PASSO 3 e não para o 1, e é por PRESENÇA: medido nos dois sentidos num banco em dia e num sem a migration. |
 | Os nomes das páginas | **Full Days virou Day Off e Full Academy virou Acervo**, e dentro do Acervo a lista que se chamava "Acervo" virou **Biblioteca** — decisão do usuário. **As rotas e os identificadores ficam** (`/painel/full-days`, `/painel/academy`, `?aba=acervo`, `hr_requests`, `ItemDoAcervo`), que é a decisão de `dias_uteis` e de `saldo_de_ferias()` depois da 0016: renomear o que está em uso é mexer em muito lugar sem nada em troca, e ninguém que usa o sistema vê esses nomes — e trocar a rota alcançaria os links que `notificar()` já gravou em linhas do banco de produção. **Nenhuma migration**: as frases que nascem no Postgres não citam os dois nomes desde que a 0016 reescreveu as de `validar_solicitacao` e `decidir_solicitacao`. **E o nome velho NÃO entrou na lista de nomes mortos do `check:cores`**, porque ele aparece em dezenas de comentários que explicam decisões — é a armadilha que aquela lista já pagou sete vezes, e a mesma razão pela qual "Lista" e "Linha do tempo" ficaram de fora. Quem protege a troca é o `check:sprint9`, que lê o TEXTO RENDERIZADO da barra lateral e mede de mão dupla nos três perfis. |
