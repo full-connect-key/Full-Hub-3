@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { BadgeCheck, ExternalLink, Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 
+import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,15 +168,23 @@ function CartaoPendente({
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{item.titulo}</span>
         <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
-        <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-          enviado em{" "}
-          {format(parseISO(item.enviadaEm), "dd/MM/yy", { locale: ptBR })}
-        </span>
+        {/* O PRAZO NO CANTO, e não mais a data de envio.
+            A fila passou a ordenar por ele, e uma ordem que a tela não mostra
+            lê como ordem arbitrária: o material que vence amanhã aparece em
+            cima do que chegou hoje, e sem a data ninguém sabe por quê.
+            `DateBadge` é o mesmo de todo prazo do produto — vencido em
+            vermelho, hoje e amanhã em âmbar —, então "vence hoje" tem a mesma
+            cara aqui, no board e no calendário. */}
+        {item.prazo ? (
+          <DateBadge date={item.prazo} showIcon className="ml-auto" />
+        ) : null}
       </div>
 
-      {item.demanda ? (
-        <p className="text-muted-foreground text-xs">em {item.demanda}</p>
-      ) : null}
+      <p className="text-muted-foreground text-xs">
+        {item.demanda ? <>em {item.demanda} · </> : null}
+        enviado em{" "}
+        {format(parseISO(item.enviadaEm), "dd/MM/yy", { locale: ptBR })}
+      </p>
 
       {item.entregas.length > 0 ? (
         <ul className="flex flex-wrap gap-2">

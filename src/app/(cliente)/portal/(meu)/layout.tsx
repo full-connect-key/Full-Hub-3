@@ -8,6 +8,7 @@ import { MenuDeAjuda } from "@/components/tour/menu-de-ajuda";
 import { ProvedorDoTour } from "@/components/tour/provedor-do-tour";
 import { exigirAreaDoCliente } from "@/lib/auth/portal-administrativo";
 import { identidadeDoPortal, obterMinhasEmpresas } from "@/lib/dados/clientes";
+import { quantasEsperamDecisao } from "@/lib/dados/portal-aprovacoes";
 import { meusTours } from "@/lib/dados/tour";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { convidaARever, devoConvidar, tourComecado } from "@/lib/tour/convite";
@@ -81,6 +82,13 @@ export default async function LayoutDoMeuPortal({
     sessao.profile.nome.trim().split(/\s+/)[0] ?? sessao.profile.nome;
 
   const empresas = await obterMinhasEmpresas();
+
+  // O SELO DE APROVAÇÕES, ligado enfim: a barra lateral desenha o número desde
+  // que nasceu e nada o alimentava. É uma CONTAGEM e não a fila inteira —
+  // este layout serve toda tela do portal, e `minhasAprovacoes()` faz seis
+  // idas ao banco para montar a conversa de cada material. No zero o selo não
+  // aparece, que é a regra do produto: a ausência é a resposta.
+  const aprovacoesPendentes = await quantasEsperamDecisao();
   // SÓ COM UMA EMPRESA. Com duas, o cabeçalho troca o nome pelo seletor, e uma
   // foto ao lado de um controle que lista N empresas diria que ela é de todas.
   const identidade =
@@ -97,6 +105,7 @@ export default async function LayoutDoMeuPortal({
         nomeDaEmpresa={nomeDaEmpresa || null}
         fotoDaEmpresa={identidade?.fotoAssinada ?? null}
         empresas={empresas}
+        aprovacoesPendentes={aprovacoesPendentes}
         ajuda={
           <MenuDeAjuda
             tour={tour}

@@ -32,6 +32,8 @@ export type AprovacaoDoCliente = {
   /** A demanda a que o material pertence. */
   demanda: string;
   numeroRodada: number;
+  /** O prazo da etapa, quando ela tem um. É por ele que a fila ordena. */
+  prazo: string | null;
   status: ApprovalRound["status"];
   enviadaEm: string;
   decididaEm: string | null;
@@ -93,7 +95,7 @@ export async function minhasAprovacoes(
   const [respostaDeSubtarefas, respostaDeEntregas] = await Promise.all([
     supabase
       .from("subtasks")
-      .select("id, task_id, titulo")
+      .select("id, task_id, titulo, prazo")
       .in("id", idsDeSubtarefas),
     supabase
       .from("subtask_entregas")
@@ -131,6 +133,7 @@ export async function minhasAprovacoes(
       titulo: sub.titulo,
       demanda: porTask.get(sub.task_id)?.titulo ?? "",
       numeroRodada: rodada.numero_rodada,
+      prazo: sub.prazo,
       status: rodada.status,
       enviadaEm: rodada.solicitado_em,
       decididaEm: rodada.decidido_em,
@@ -150,7 +153,101 @@ export async function minhasAprovacoes(
   const montadas = todas.map(montar).filter(Boolean) as AprovacaoDoCliente[];
 
   return {
-    esperando: montadas.filter((a) => a.status === "pendente"),
+    // A FILA ORDENA POR PRAZO, e não pela ordem em que as coisas chegaram.
+    //
+    // A consulta traz por `solicitado_em` decrescente, que é a ordem certa
+    // para o HISTÓRICO — o que foi decidido por último em cima — e a errada
+    // para a fila: o material que vence amanhã ficava embaixo do que chegou
+    // hoje e vence semana que vem. É a decisão da caixa de entrada das
+    // solicitações, virada: lá a pergunta é quem espera há mais tempo, aqui é
+    // o que vence primeiro.
+    //
+    // **Sem prazo vai para o FIM**, nunca para o topo: um material sem data é
+    // o que menos cobra, e `null` ordenado como string o poria na frente de
+    // tudo. É a regra de `focoDoPrazo` e de `ordenarPorUrgencia`.
+    esperando: montadas
+      .filter((a) => a.status === "pendente")
+      .sort(porUrgencia),
     decididas: montadas.filter((a) => a.status !== "pendente"),
   };
+}
+
+/** Prazo crescente, e quem não tem prazo no fim. */
+function porUrgencia(a: AprovacaoDoCliente, b: AprovacaoDoCliente): number {
+  if (a.prazo !== b.prazo) {
+    if (!a.prazo) return 1;
+    if (!b.prazo) return -1;
+    return a.prazo.localeCompare(b.prazo);
+  }
+  // O DESEMPATE É A CHEGADA, da mais antiga para a mais nova: entre dois
+  // materiais que vencem no mesmo dia, o que está esperando há mais tempo vem
+  // primeiro.
+  return a.enviadaEm.localeCompare(b.enviadaEm);
+}
+
+/**
+ * QUANTOS MATERIAIS ESPERAM A DECISÃO — o número do selo de Aprovações.
+ *
+ * ---------------------------------------------------------------------------
+ * **O selo existia na barra lateral desde que ela nasceu, e nada o alimentava.**
+ * O comentário de `ListaDaBarraDoPortal` dizia que ele seria ligado "quando a
+ * tela de Aprovações entrar" — e ela já estava lá. Mais uma ponte construída e
+ * não atravessada.
+ *
+ * **É UMA CONTAGEM E NÃO `minhasAprovacoes()`**, que é a razão de ela existir:
+ * aquela função faz seis idas ao banco e monta a conversa de cada material,
+ * e esta roda no LAYOUT — ou seja, em toda tela do portal. O que o selo
+ * precisa é de um número.
+ *
+ * **E ela conta exatamente o que a fila lista**, `content_type = 'subtask'` e
+ * escopo cliente: um selo que cobrasse mais do que a tela de destino mostra
+ * mandaria a pessoa procurar um material que não está lá.
+ *
+ * **Ela não derruba a tela**, e é a decisão de `rotinasAgendadas()`: o portal
+ * funciona inteiro sem o selo, e trocar uma informação a menos por uma falha
+ * total seria o pior dos dois. O erro vai para o log, senão um selo que
+ * parasse de aparecer para todo mundo seria descoberto por alguém perguntando
+ * à agência se o material chegou.
+ * ---------------------------------------------------------------------------
+ */
+export async function quantasEsperamDecisao(
+  clienteId?: string,
+): Promise<number> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("approval_rounds")
+    .select("id", { count: "exact", head: true })
+    .eq("escopo", "cliente")
+    .eq("content_type", "subtask")
+    .eq("status", "pendente");
+
+  // A VISUALIZAÇÃO ADMINISTRATIVA PRECISA DO FILTRO, e a do cliente não: o
+  // RLS já recorta as linhas dele. Para quem é da equipe, `is_staff()`
+  // enxerga todos os clientes — sem isto o selo do portal da Mundo Verde
+  // contaria as aprovações da Óptica Visão.
+  if (clienteId) {
+    const tasks = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("client_id", clienteId);
+    const ids = (tasks.data ?? []).map((t) => t.id);
+    if (ids.length === 0) return 0;
+
+    const subs = await supabase
+      .from("subtasks")
+      .select("id")
+      .in("task_id", ids);
+    const idsDeSubtarefas = (subs.data ?? []).map((s) => s.id);
+    if (idsDeSubtarefas.length === 0) return 0;
+
+    consulta = consulta.in("content_id", idsDeSubtarefas);
+  }
+
+  const { count, error } = await consulta;
+  if (error) {
+    console.error("[consulta:o selo de aprovações do portal]", error);
+    return 0;
+  }
+  return count ?? 0;
 }
