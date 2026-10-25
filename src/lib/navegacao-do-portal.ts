@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  CalendarRange,
   Home,
   Megaphone,
   MessageSquarePlus,
@@ -74,6 +75,17 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     href: "/portal/campanhas",
     icon: Megaphone,
     description: "Suas campanhas, o que já foi aprovado e o que espera você.",
+  },
+  {
+    // O CRONOGRAMA ENTRA DEPOIS DAS TRÊS FRENTES e antes de Aprovações, porque
+    // é delas que ele é feito: ele não é uma quarta área de material, é a
+    // mesma coisa vista pela data. Acima delas, prometeria ser o lugar onde o
+    // trabalho mora; no fim, depois da fila que COBRA uma ação, seria a seção
+    // que ninguém abre.
+    label: "Cronograma",
+    href: "/portal/cronograma",
+    icon: CalendarRange,
+    description: "O que acontece em cada dia do mês, nas três frentes.",
   },
   {
     label: "Aprovações",

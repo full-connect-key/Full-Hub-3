@@ -352,6 +352,16 @@ export function tourDoPainel(quem: {
 // sem rede. É o caso da frase do portão que nasce em `lib/dominio/`.
 // ---------------------------------------------------------------------------
 
+/**
+ * Os passos do portal.
+ *
+ * **O "cronograma" entrou sem subir `VERSAO_DO_TOUR`, e é escolha.** Subir a
+ * versão reconvida TODO cliente que já terminou — seis balões por causa de um
+ * passo novo, numa tela que eles abrem para aprovar material. Quem entrar
+ * agora vê os seis; quem já fez o tour encontra a seção na barra lateral, que
+ * é onde ela está o tempo todo. Se um dia um passo mudar o que a pessoa
+ * precisa saber para usar o portal, aí a versão sobe.
+ */
 const PASSOS_DO_PORTAL: PassoDoTour[] = [
   {
     id: "pendencias",
@@ -359,6 +369,21 @@ const PASSOS_DO_PORTAL: PassoDoTour[] = [
     titulo: "O que espera você",
     texto: "Tudo o que a Full enviou e ainda não teve resposta aparece aqui.",
     tipo: "explicativo",
+  },
+  {
+    id: "cronograma",
+    ancora: ANCORAS.portalCronograma,
+    // O PASSO NAVEGA, que é o que `rota` existe para fazer: o tour começa no
+    // Início e o cronograma é outra tela. Ele é `opcional` porque a grade só
+    // nasce quando há material com data — numa conta que acabou de entrar não
+    // há o que apontar, e isso é estado normal e não defeito (é a terceira
+    // situação da bandeira).
+    rota: "/portal/cronograma",
+    titulo: "Quando sai o quê",
+    texto:
+      "O mês inteiro numa grade: o que vai ao ar, o que tem prazo, e em que pé está cada coisa.",
+    tipo: "explicativo",
+    opcional: true,
   },
   {
     id: "material",

@@ -81,6 +81,19 @@ export function corDoPontoDeStatus(status: Status): string {
   return PONTO[STATUS[status]?.tom ?? "neutro"];
 }
 
+/**
+ * O PAR NOMEADO do status, para quem desenha o próprio chip.
+ *
+ * Sai do MESMO `TONS` que o selo, pela razão de `corDoPontoDeStatus`: um
+ * segundo mapa de cor para os mesmos estados diverge na primeira vez que
+ * alguém acrescenta um status e só lembra de um deles. Quem o usa é o
+ * cronograma do portal, onde o chip precisa caber numa célula de 90px e o
+ * selo inteiro não cabe — mas a cor tem de ser a mesma que ele teria.
+ */
+export function classesDoChipDeStatus(status: Status): string {
+  return TONS[STATUS[status]?.tom ?? "neutro"];
+}
+
 const TONS: Record<Tom, string> = {
   neutro: "bg-neutral-soft text-neutral border-transparent",
   marca: "bg-accent text-accent-foreground border-blue-muted",

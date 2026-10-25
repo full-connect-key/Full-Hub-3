@@ -82,6 +82,7 @@ export const ANCORAS = {
 
   // --- o portal do cliente -------------------------------------------------
   portalPendencias: "portal-pendencias",
+  portalCronograma: "portal-cronograma",
   portalMaterial: "portal-material",
   portalDecisoes: "portal-decisoes",
   portalComentarios: "portal-comentarios",
