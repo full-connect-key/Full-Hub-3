@@ -166,6 +166,8 @@ export async function DetalheDoPost({
     rodadaPendenteId: post.rodadaPendenteId,
     decididoPor: post.decididoPor,
     decididoEm: post.decididoEm,
+    recebidoEm: post.enviadoEm,
+    decisaoPedidaEm: post.decisaoPedidaEm,
     voltar: {
       href: mesDaVolta
         ? `${base}/social-media?mes=${mesDe(mesDaVolta)}`

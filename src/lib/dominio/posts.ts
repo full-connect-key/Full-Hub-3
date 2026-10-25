@@ -123,6 +123,25 @@ export type PostDoPortal = {
   decididoPor: string | null;
   decididoEm: string | null;
   /**
+   * QUANDO A PEÇA FOI AO CLIENTE — `posts.enviado_em`.
+   *
+   * A coluna é selecionada desde sempre (é ela que `posts_select_cliente`
+   * exige), e não chegava a sair daqui: quem precisava dela era a escada de
+   * andamento do detalhe, que data nela o primeiro passo.
+   */
+  enviadoEm: string | null;
+  /**
+   * QUANDO A DECISÃO DESTA RODADA FOI PEDIDA — `approval_rounds.solicitado_em`.
+   *
+   * **Pendente ou decidida**, e é o que a separa de `esperandoDesde`: aquela
+   * responde *há quanto tempo esta peça está parada esperando*, e por isso só
+   * existe enquanto a rodada está aberta — é dela que sai o "espera há 4 dias"
+   * da árvore da campanha. Esta responde *quando este ciclo começou*, e
+   * continua valendo depois da decisão: é ela que data o passo "Enviado para a
+   * sua decisão" numa peça já aprovada.
+   */
+  decisaoPedidaEm: string | null;
+  /**
    * A PEÇA JÁ FOI PROGRAMADA NA REDE? (migration 0111)
    *
    * -------------------------------------------------------------------------

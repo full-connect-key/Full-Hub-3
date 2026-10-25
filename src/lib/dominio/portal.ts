@@ -1,3 +1,4 @@
+import { FUSO_DA_AGENCIA, hojeNaAgencia } from "@/lib/dominio/datas";
 import type {
   ContentStatus,
   StatusRodada,
@@ -339,4 +340,225 @@ export function ordenarPorUrgencia(a: ItemDoPortal, b: ItemDoPortal): number {
     return a.prazo.localeCompare(b.prazo);
   }
   return a.titulo.localeCompare(b.titulo, "pt-BR");
+}
+
+/* ========================================================================== *
+ *  O ANDAMENTO DO MATERIAL — onde ele está, e quando cada coisa aconteceu
+ * ========================================================================== */
+
+/**
+ * Um passo da linha de andamento.
+ *
+ * `quando` é nulo quando o passo aconteceu e o produto **não tem a data** — e
+ * isso é diferente de o passo não ter acontecido, que é `estado: "futuro"`. A
+ * tela desenha os dois de jeitos diferentes de propósito.
+ */
+export type PassoDoAndamento = {
+  rotulo: string;
+  estado: "concluido" | "atual" | "futuro";
+  /** O instante, quando existe uma coluna que o guarda. */
+  quando: string | null;
+};
+
+/**
+ * OS PASSOS DO MATERIAL, na língua do cliente.
+ *
+ * ---------------------------------------------------------------------------
+ * **O sprint pede uma escada de cinco passos — Recebida, Em criação, Em
+ * revisão, Para aprovar, Aprovada — cada um com o horário em que foi
+ * atingido. Três daqueles cinco não existem deste lado da porta, e a diferença
+ * não é de vocabulário: é de quem pode ler o quê.**
+ *
+ * "Em criação" e "Em revisão" são elos da corrente interna — `subtasks` com
+ * `social_papel`, e as caixinhas de `post_etapa_progresso`. O cliente não tem
+ * policy em nenhuma das duas, e não passa a ter: a corrente diz quem está com
+ * o material na mão, qual fase travou e quem atrasou (0045). Mostrá-los
+ * exigiria abrir a conversa interna da agência ou inventar uma função nova
+ * para devolver o que a regra do módulo mantém fechado.
+ *
+ * **E o horário de cada passo não existe nem internamente.** Não há histórico
+ * por status de um material: o que o produto guarda é o carimbo de quando ele
+ * foi enviado, a data de cada versão, e quando cada rodada abriu e foi
+ * decidida. Escrever "hoje 10:40" num passo sem coluna que o date seria
+ * inventar um fato na tela que o cliente usa para decidir — o oposto do que
+ * esta tela existe para fazer.
+ *
+ * **Então os passos são o CICLO DE DECISÃO** — que é o que o
+ * cliente efetivamente percorre, e o único recorte em que cada passo tem uma
+ * coluna por trás. O quarto só existe quando a bola está de volta com a
+ * agência, e ele é o único sem data: produção é trabalho interno, e o cliente
+ * sabe que ele está acontecendo, não quando cada parte dele aconteceu.
+ * ---------------------------------------------------------------------------
+ *
+ * **Tudo o que o cliente vê foi enviado**, então o primeiro passo está sempre
+ * cumprido: `posts_select_cliente` e `deliverables_select_cliente` exigem
+ * `enviado_em`. Um material em produção que nunca saiu não chega a esta tela.
+ *
+ * **E a escada conta o ciclo CORRENTE, não todos eles.** Pedido um ajuste, o
+ * segundo e o terceiro passo voltam a se datar pela rodada nova — os ciclos
+ * anteriores ficam no histórico de versões, logo abaixo, que é onde eles
+ * informam: lá cada versão tem número, data e o que mudou.
+ */
+export function andamentoDoMaterial(entrada: {
+  status: ContentStatus;
+  /** Quando o material chegou para o cliente — `enviado_em`. */
+  recebidoEm: string | null;
+  /** Quando a decisão desta rodada foi pedida — `solicitado_em`. */
+  decisaoPedidaEm: string | null;
+  /** Quando a última rodada fechada foi decidida. */
+  decididoEm: string | null;
+  /**
+   * QUEM decidiu, quando o nome é conhecido.
+   *
+   * **Ele entra no rótulo do desfecho, e não numa linha à parte**, porque o
+   * registro da decisão existia em DOIS lugares nesta tela: a escada e o
+   * parágrafo *"Aprovado por Joana em 12/03 às 10:40"* que ficava embaixo dos
+   * botões. Dois lugares dizendo o mesmo fato é o cartão de "11 entregues"
+   * com sete na lista embaixo — e aqui o que sobreviveu é a escada, porque ela
+   * já carrega o QUANDO.
+   */
+  decididoPor?: string | null;
+}): PassoDoAndamento[] {
+  const fase = FASE_DO_STATUS[entrada.status];
+  const esperando = fase === "esperando";
+  const decidido = fase === "aprovados" || fase === "ajustes" || fase === "recusados";
+  // A BOLA ESTÁ COM A AGÊNCIA: o cliente pediu ajuste e a versão nova ainda
+  // não voltou, ou o material reabriu por outro caminho.
+  const naAgencia = fase === "producao" || fase === "ajustes";
+
+  const passos: PassoDoAndamento[] = [];
+
+  // "RECEBIDO" SÓ APARECE QUANDO ELE DIZ ALGO QUE O PASSO SEGUINTE NÃO DIZ.
+  //
+  // Na primeira rodada os dois são o MESMO evento, e isso é regra do produto e
+  // não coincidência: enviar ao cliente É abrir a rodada dele (0032), então
+  // `enviado_em` e `solicitado_em` nascem do mesmo `now()`, na mesma
+  // transação. Desenhar os dois dava duas linhas com o mesmo horário — e dois
+  // carimbos iguais, um embaixo do outro, leem como defeito mesmo sendo
+  // verdade.
+  //
+  // A partir do segundo ciclo eles divergem, e aí cada um informa: "Recebido
+  // 12/10" com "Enviado para a sua decisão ontem" é a frase que diz, sem
+  // dizer, que esta peça já foi e voltou.
+  //
+  // A comparação é pelo MINUTO em UTC, que é a precisão que a tela mostra: o
+  // fuso é um deslocamento fixo, então minutos iguais em UTC são minutos
+  // iguais em São Paulo. Comparar o instante cru faria dois carimbos a um
+  // microssegundo de distância voltarem a desenhar a linha repetida.
+  const mesmoInstante =
+    entrada.recebidoEm !== null &&
+    entrada.decisaoPedidaEm !== null &&
+    entrada.recebidoEm.slice(0, 16) === entrada.decisaoPedidaEm.slice(0, 16);
+
+  if (entrada.recebidoEm && !mesmoInstante) {
+    passos.push({
+      rotulo: "Recebido",
+      estado: "concluido",
+      quando: entrada.recebidoEm,
+    });
+  }
+
+  passos.push(
+    {
+      // "ENVIADO PARA A SUA DECISÃO" e não "Esperando": o rótulo é lido nos
+      // dois tempos — como passo da vez, enquanto a peça espera, e como passo
+      // cumprido, depois que ela foi decidida. "Esperando a sua decisão" com
+      // um tique verde ao lado é a tela afirmando as duas coisas de uma vez.
+      rotulo: "Enviado para a sua decisão",
+      estado: esperando ? "atual" : decidido ? "concluido" : "futuro",
+      quando: entrada.decisaoPedidaEm ?? entrada.recebidoEm,
+    },
+    {
+      // O RÓTULO É O DESFECHO, e não a palavra "Decidido": quem abre a tela
+      // depois de decidir quer ler o que ele decidiu, e "Decidido" manda a
+      // pessoa procurar isso no selo de status lá em cima.
+      rotulo: rotuloDoDesfecho(entrada.status, entrada.decididoPor ?? null),
+      estado: decidido ? "concluido" : "futuro",
+      quando: decidido ? entrada.decididoEm : null,
+    },
+  );
+
+  if (naAgencia) {
+    passos.push({
+      rotulo: "Em produção na Full",
+      estado: "atual",
+      // SEM DATA, e é a ausência honesta: o que a agência faz aqui dentro não
+      // tem carimbo que o cliente possa ler. A próxima data que ele vê é a da
+      // versão nova, no histórico.
+      quando: null,
+    });
+  }
+
+  return passos;
+}
+
+/**
+ * O nome do desfecho, na língua de quem decidiu.
+ *
+ * **"por você" quando não há nome, e nunca "por alguém".** Múltiplos usuários
+ * da mesma empresa têm o mesmo acesso e os dois decidem — então quem lê pode
+ * não ter sido quem decidiu. Com o nome, a frase diz qual dos dois foi; sem
+ * ele, "por você" é verdade do lado de lá da porta: a decisão foi da empresa
+ * de quem está lendo, e é o que o selo de status já afirma.
+ *
+ * **Na visualização administrativa o nome vem preenchido**, que é justamente
+ * onde "por você" seria falso — quem está olhando é a agência.
+ */
+function rotuloDoDesfecho(
+  status: ContentStatus,
+  quem: string | null,
+): string {
+  const por = quem ? `por ${quem}` : "por você";
+  if (status === "aprovado") return `Aprovado ${por}`;
+  if (status === "ajustes") return `Ajustes pedidos ${por}`;
+  if (status === "rejeitado") return `Recusado ${por}`;
+  return "A sua decisão";
+}
+
+/**
+ * "hoje 10:40", "ontem 15:05", "12/11 09:12", "12/11/2025".
+ *
+ * **O relógio é o DA AGÊNCIA, nunca o do processo**, pela razão inteira de
+ * `lib/dominio/datas.ts`: o container roda em UTC, e `format(parseISO(iso))`
+ * mostraria 12:40 para uma decisão tomada às 09:40 em São Paulo. Num passo que
+ * diz a que horas alguém aprovou uma peça, três horas de erro é a tela
+ * afirmando o que não aconteceu.
+ *
+ * **E o "agora" vem de fora**, como em `tempoRelativo()` das Recomendações: se
+ * esta função lesse o relógio, o servidor escreveria "ontem" e o navegador
+ * recalcularia "hoje" na hidratação.
+ *
+ * O dia sai em `dd/MM` e não em "12 nov" porque é o formato que o produto usa
+ * em toda parte — `DateBadge`, a matriz do Day Off, o histórico de versões.
+ * Duas convenções de data na mesma tela é a pessoa lendo duas vezes para
+ * conferir que são a mesma coisa.
+ */
+export function quandoDoPasso(iso: string, agoraISO: string): string {
+  const hora = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_DA_AGENCIA,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+
+  // `hojeNaAgencia` responde o DIA DA AGÊNCIA de um instante qualquer — o
+  // "hoje" do nome é o caso do argumento padrão. Comparar os dois dias assim
+  // é o que faz a virada de meia-noite acontecer em São Paulo e não em UTC.
+  const dia = hojeNaAgencia(new Date(iso));
+  const hojeDaAgencia = hojeNaAgencia(new Date(agoraISO));
+
+  if (dia === hojeDaAgencia) return `hoje ${hora}`;
+
+  // A conta é em UTC sobre duas datas SIMPLES, como `fimDaSemanaNaAgencia`:
+  // não há instante envolvido, só dois dias do calendário.
+  const diferenca = Math.round(
+    (new Date(`${hojeDaAgencia}T00:00:00Z`).getTime() -
+      new Date(`${dia}T00:00:00Z`).getTime()) /
+      86400000,
+  );
+  if (diferenca === 1) return `ontem ${hora}`;
+
+  const [ano, mes, diaDoMes] = dia.split("-");
+  if (ano === hojeDaAgencia.slice(0, 4)) return `${diaDoMes}/${mes} ${hora}`;
+  return `${diaDoMes}/${mes}/${ano}`;
 }

@@ -2,8 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Check, MessageSquareWarning, X } from "lucide-react";
 
 import {
@@ -21,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import type { ContentStatus } from "@/lib/supabase/database.types";
 import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
@@ -65,9 +62,6 @@ const DIALOGO: Record<
 
 export function DecisoesDoConteudo({
   rodadaPendenteId,
-  status,
-  decididoPor,
-  decididoEm,
   somenteLeitura = false,
 }: {
   /**
@@ -80,9 +74,6 @@ export function DecisoesDoConteudo({
    * componente é justamente a divergência que a tela única existe para evitar.
    */
   rodadaPendenteId: string | null;
-  status: ContentStatus;
-  decididoPor: string | null;
-  decididoEm: string | null;
   /** Na visualização administrativa os botões existem, mas não decidem. */
   somenteLeitura?: boolean;
 }) {
@@ -124,30 +115,20 @@ export function DecisoesDoConteudo({
     });
   }
 
-  // JÁ DECIDIDO: os botões somem e fica o registro. Manter um "Aprovar"
-  // desligado ao lado de "Aprovado por Joana" seria oferecer de novo uma
-  // decisão que já foi tomada.
-  if (!rodadaPendenteId) {
-    if (!decididoEm) return null;
-
-    const verbo =
-      status === "aprovado"
-        ? "Aprovado"
-        : status === "rejeitado"
-          ? "Recusado"
-          : "Ajustes pedidos";
-
-    return (
-      <p className="bg-surface-card text-text-muted rounded-card shadow-cartao border p-4 text-sm">
-        {verbo}
-        {decididoPor ? ` por ${decididoPor}` : ""} em{" "}
-        {format(parseISO(decididoEm), "dd/MM/yyyy 'às' HH:mm", {
-          locale: ptBR,
-        })}
-        .
-      </p>
-    );
-  }
+  // JÁ DECIDIDO: os botões somem, e mais nada aparece no lugar deles. Manter
+  // um "Aprovar" desligado ao lado de "Aprovado por Joana" seria oferecer de
+  // novo uma decisão que já foi tomada.
+  //
+  // **E QUEM GUARDA O REGISTRO É A ESCADA DE ANDAMENTO**, não este componente.
+  // Ele desenhava aqui um parágrafo *"Aprovado por Joana em 12/03 às 10:40"* —
+  // que, com a escada na coluna ao lado dizendo o mesmo no terceiro passo,
+  // virou o mesmo fato escrito duas vezes na mesma tela. O que sobreviveu é a
+  // escada, porque lá a decisão aparece no lugar dela, no fim do caminho que a
+  // produziu; aqui ela era um bloco solto embaixo de botões que não existem
+  // mais. **E o ramo saiu em vez de ficar atrás de uma bandeira**: código que
+  // nenhuma tela desenha é o que alguém reaproveita três entregas depois
+  // achando que ele ainda diz a verdade (decisão da 0023).
+  if (!rodadaPendenteId) return null;
 
   return (
     <>

@@ -110,6 +110,7 @@ function entregavel(
     decididoEm: null,
     motivo: null,
     esperandoDesde: null,
+    decisaoPedidaEm: null,
     ...parcial,
   };
 }
@@ -136,6 +137,7 @@ const DA_WAVE: EntregavelDoPortal[] = [
     enviadoEm: dia(-20),
     decididoPor: "Joana Prado",
     decididoEm: `${dia(-19)}T14:20:00.000Z`,
+    decisaoPedidaEm: `${dia(-20)}T09:00:00.000Z`,
     versaoAtual: 2,
   }),
 
@@ -156,12 +158,14 @@ const DA_WAVE: EntregavelDoPortal[] = [
             status: "aprovado" as const,
             decididoPor: "Joana Prado",
             decididoEm: `${dia(-8)}T10:00:00.000Z`,
+            decisaoPedidaEm: `${dia(-9)}T09:00:00.000Z`,
           }
         : i === 3
           ? {
               status: "rejeitado" as const,
               decididoPor: "Joana Prado",
               decididoEm: `${dia(-7)}T16:40:00.000Z`,
+              decisaoPedidaEm: `${dia(-8)}T09:00:00.000Z`,
               motivo:
                 "O logo ficou pequeno demais no rodapé. Não dá para usar assim.",
             }
@@ -169,6 +173,7 @@ const DA_WAVE: EntregavelDoPortal[] = [
               status: "em_aprovacao" as const,
               rodadaPendenteId: "r-enx-4",
               esperandoDesde: `${dia(-3)}T09:00:00.000Z`,
+              decisaoPedidaEm: `${dia(-3)}T09:00:00.000Z`,
             }),
     }),
   ),
@@ -190,11 +195,13 @@ const DA_WAVE: EntregavelDoPortal[] = [
             status: "aprovado" as const,
             decididoPor: "Joana Prado",
             decididoEm: `${dia(-6)}T11:30:00.000Z`,
+            decisaoPedidaEm: `${dia(-7)}T09:00:00.000Z`,
           }
         : {
             status: "em_aprovacao" as const,
             rodadaPendenteId: `r-feed-${i}`,
             esperandoDesde: `${dia(-2)}T08:15:00.000Z`,
+            decisaoPedidaEm: `${dia(-2)}T08:15:00.000Z`,
           }),
     }),
   ),
@@ -211,6 +218,7 @@ const DA_WAVE: EntregavelDoPortal[] = [
     enviadoEm: dia(-14),
     decididoPor: "Joana Prado",
     decididoEm: `${dia(-11)}T09:05:00.000Z`,
+    decisaoPedidaEm: `${dia(-12)}T09:00:00.000Z`,
   }),
 ];
 

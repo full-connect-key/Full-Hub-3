@@ -15,6 +15,19 @@ const HOJE = new Date();
 const MES = `${HOJE.getFullYear()}-${String(HOJE.getMonth() + 1).padStart(2, "0")}`;
 const dia = (n: number) => `${MES}-${String(n).padStart(2, "0")}`;
 
+/**
+ * UM INSTANTE RELATIVO, e nunca uma data literal.
+ *
+ * A escada de andamento do detalhe escreve "hoje 10:40", "ontem 15:05" e
+ * "12/11 09:12" — os tres formatos saem de `quandoDoPasso()`, comparando com o
+ * dia da agencia. Com carimbo fixo no stub, a imagem mostraria sempre o
+ * terceiro, e os dois primeiros nao sairiam em imagem nenhuma: a tela
+ * conferida seria a que nao tem a peca nova. E a lição é a dos meses da nota
+ * fiscal, que deixaram de ser literais pelo mesmo motivo.
+ */
+const horasAtras = (n: number) =>
+  new Date(HOJE.getTime() - n * 3600000).toISOString();
+
 const VERDE = "c0000000-0000-0000-0000-00000000000a";
 
 // A DEMANDA DO MES. Todo post deste exemplo e do mesmo mes de social, que e o
@@ -50,6 +63,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
   {
     id: "p2",
@@ -73,6 +88,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
   {
     id: "p3",
@@ -96,6 +113,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
   {
     id: "p4",
@@ -119,6 +138,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 4 * 864e5).toISOString(),
     programado: false,
+    enviadoEm: horasAtras(24 * 9),
+    decisaoPedidaEm: horasAtras(24 * 9),
   },
   {
     id: "p5",
@@ -146,6 +167,8 @@ const POSTS: PostDoPortal[] = [
     // selo aparece, e nao que ele DISTINGUE duas pecas aprovadas. E a razao
     // pela qual o exemplo do calendario tem um evento de cada par da legenda.
     programado: true,
+    enviadoEm: horasAtras(24 * 9),
+    decisaoPedidaEm: horasAtras(24 * 9),
   },
   {
     id: "p6",
@@ -169,6 +192,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 10 * 864e5).toISOString(),
     programado: false,
+    enviadoEm: horasAtras(24 * 9),
+    decisaoPedidaEm: horasAtras(24 * 9),
   },
   {
     id: "p7",
@@ -192,6 +217,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 12 * 864e5).toISOString(),
     programado: false,
+    enviadoEm: horasAtras(24 * 9),
+    decisaoPedidaEm: horasAtras(24 * 9),
   },
   {
     id: "p8",
@@ -215,6 +242,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: new Date(HOJE.getTime() - 2 * 864e5).toISOString(),
     programado: false,
+    enviadoEm: horasAtras(24 * 9),
+    decisaoPedidaEm: horasAtras(24 * 9),
   },
   {
     id: "p9",
@@ -238,6 +267,8 @@ const POSTS: PostDoPortal[] = [
     textoDoPortao: null,
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 3),
+    decisaoPedidaEm: horasAtras(24 * 3),
   },
   // O PORTAO DO MEIO DA CORRENTE (0076), e ele existe aqui pela razao pela qual
   // o seed tem uma pessoa desligada: sem um post neste estado, a imagem do
@@ -267,6 +298,8 @@ const POSTS: PostDoPortal[] = [
       "Carrossel de cinco telas contando a história de três clientes que compram na loja desde a inauguração. Tom de conversa, sem promoção nenhuma — a ideia é a data, não a venda. Fecha com um convite para marcar quem apresentou a marca à pessoa.",
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
 
   // ----------------------------------------------------------------------
@@ -306,6 +339,8 @@ const POSTS: PostDoPortal[] = [
       "Receita da semana com a granola de cacau, em três passos, com a embalagem nova aparecendo no último.",
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
   {
     id: "p12",
@@ -330,6 +365,8 @@ const POSTS: PostDoPortal[] = [
       "Depoimento de quem trocou o café da manhã, em carrossel de dois slides.",
     decididoEm: null,
     programado: false,
+    enviadoEm: horasAtras(24 * 6),
+    decisaoPedidaEm: horasAtras(30),
   },
 ];
 

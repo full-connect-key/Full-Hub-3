@@ -117,6 +117,8 @@ export async function DetalheDoEntregavel({
     rodadaPendenteId: item.rodadaPendenteId,
     decididoPor: item.decididoPor,
     decididoEm: item.decididoEm,
+    recebidoEm: item.enviadoEm,
+    decisaoPedidaEm: item.decisaoPedidaEm,
     voltar: {
       href: `${base}/${campanha.id}`,
       rotulo: "Voltar à campanha",

@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
 
+import { AndamentoDoMaterial } from "@/components/portal/andamento-do-material";
 import { DecisoesDoConteudo } from "@/components/portal/decisoes-do-conteudo";
 import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
 import { TextoDoConteudo } from "@/components/portal/texto-do-conteudo";
@@ -114,6 +115,27 @@ export type ModeloDoConteudo = {
   decididoPor: string | null;
   decididoEm: string | null;
   /**
+   * QUANDO O MATERIAL CHEGOU PARA O CLIENTE — `enviado_em`.
+   *
+   * **Ele data o primeiro passo da escada de andamento**, e é o único instante
+   * desta tela que não vem de uma rodada. Cada módulo o lê da tabela dele:
+   * `posts.enviado_em` e `deliverables.enviado_em` — a casca não sabe de qual
+   * das duas, que é a razão de ele ser campo do modelo e não parâmetro.
+   *
+   * Nulo é possível e não é defeito: o material pode ter sido carimbado antes
+   * de a coluna existir. O passo aparece cumprido, sem hora — porque tudo o
+   * que o cliente enxerga foi enviado (as duas policies exigem `enviado_em`).
+   */
+  recebidoEm: string | null;
+  /**
+   * Quando a decisão desta rodada foi pedida — `approval_rounds.solicitado_em`.
+   *
+   * **Pendente ou decidida**: é ela que data o passo "Enviado para a sua
+   * decisão", e numa peça já aprovada esse passo é justamente o que alguém
+   * volta aqui para conferir — quanto tempo a decisão levou.
+   */
+  decisaoPedidaEm: string | null;
+  /**
    * O arquivo para baixar, quando existe um.
    *
    * **A escolha de resolução não está aqui, e não é esquecimento** — ela é de
@@ -146,6 +168,25 @@ export function DetalheDoConteudo({
   nomeDaEmpresa: string;
   comoEquipe: boolean;
 }) {
+  /**
+   * HÁ ALGO PARA MOSTRAR NO LUGAR DA PEÇA?
+   *
+   * A regra é a do campo `aviso`, e ela não muda: com aviso e sem arte, a
+   * moldura é omitida — ela diz *"este material ainda não tem arte anexada"*,
+   * que é verdade e lê como defeito, e ocuparia a primeira dobra inteira para
+   * informar que não há nada ali. Sem o aviso a moldura fica: aí a ausência de
+   * arte É uma falta, e esconder o quadro esconderia a falta.
+   */
+  const temPreview = modelo.artes.length > 0 || !modelo.aviso;
+
+  /**
+   * O TEXTO APARECE UMA VEZ SÓ, e em um de três lugares — o que decide é o que
+   * ele É naquele material: a legenda ao lado da arte (post), a peça inteira
+   * quando não há arte (o portão do meio), ou uma instrução de produção em
+   * largura inteira (entregável de campanha).
+   */
+  const textoNaColunaEstreita = modelo.textoAoLado === true && temPreview;
+
   return (
     <div className="space-y-8">
       {/* ------------------------------------------------------- cabeçalho -- */}
@@ -187,21 +228,29 @@ export function DetalheDoConteudo({
         </div>
       </div>
 
-      {/* ------------------------------------------- a arte e o que a acompanha --
-          A LEGENDA FICA AO LADO DA ARTE, como no Instagram aberto no
-          computador: a peça à esquerda, o texto numa coluna estreita à
-          direita. É o arranjo em que o cliente vai encontrar o post quando
-          ele for ao ar, e é ele que permite ler a legenda SEM tirar a arte do
-          campo de visão — que é a conferência que a pessoa veio fazer.
+      {/* ---------------------------------------------- a peça e o andamento --
+          DUAS COLUNAS, e a estreita fica à DIREITA — que é a regra escrita do
+          produto: a coluna de 340px vai à direita quando ela é um RESUMO, e à
+          esquerda quando ela é um ÍNDICE. Aqui ela acompanha o que a pessoa
+          veio fazer (em que pé está, qual o prazo, de que campanha é), e quem
+          decide é a peça: ela fica na coluna larga, que é onde a decisão
+          acontece.
 
-          A coluna é FIXA em 340px e não `1fr`, pela razão da coluna de 306px
-          do painel: em `1fr` ela encolheria junto com a arte, e o que importa
-          nela é caber uma linha de legenda sem quebrar a cada três palavras.
-          Abaixo de `lg` volta a empilhar — num celular não há "ao lado", e é
-          assim que o próprio Instagram se comporta.
+          **E A SEÇÃO "Informações" DEIXOU DE EXISTIR como faixa própria.** As
+          cinco linhas dela — campanha, frente, arquivo, versão, prazo —
+          moraram numa faixa de largura inteira abaixo da arte, e quem está
+          decidindo consulta aquilo JUNTO com o andamento: "esperando desde o
+          dia 12" e "prazo dia 14" são a mesma pergunta partida em dois
+          lugares da página. Elas são a metade de baixo do cartão de
+          andamento.
 
-          E ela NÃO vale para todo material: quem decide é o modelo. A
-          explicação está no campo `textoAoLado`, lá em cima. */}
+          A LEGENDA CONTINUA AO LADO DA ARTE no post, e é a decisão do usuário
+          que não se desfaz aqui: *"quero que na visualização do cliente, a
+          legenda apareça ao lado da imagem, para deixar o mais próximo do
+          instagram possível"*. Ela é o primeiro cartão da coluna estreita,
+          acima do andamento — a conferência que a pessoa veio fazer é o texto
+          contra a arte, e o andamento é consulta. A explicação inteira está em
+          `textoAoLado`, lá em cima. */}
       {/* O AVISO VEM ANTES DO MATERIAL, e não entre ele e os botões: é a
           frase que diz o que está sendo decidido, e ela só serve se for lida
           ANTES. `--warning` e nunca `--danger` — não há erro nenhum aqui, há
@@ -212,70 +261,104 @@ export function DetalheDoConteudo({
         </p>
       ) : null}
 
-      <div
-        className={
-          modelo.textoAoLado
-            ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"
-            : "space-y-8"
-        }
-      >
-        {modelo.artes.length > 0 || !modelo.aviso ? (
-          <VisualizadorDeArte
-            imagens={modelo.artes}
-            alt={`Arte de ${modelo.titulo}`}
-          />
-        ) : null}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
+          {temPreview ? (
+            <section
+              aria-labelledby="previa-do-material"
+              className="bg-surface-card rounded-card shadow-cartao space-y-3.5 border p-4"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2
+                  id="previa-do-material"
+                  className="text-text-secondary text-[11px] font-semibold tracking-wide uppercase"
+                >
+                  Prévia
+                </h2>
+                {/* "DE N" SÓ QUANDO O TOTAL FECHA COM O NÚMERO DA VERSÃO.
+                    `versaoAtual` é um contador da linha e `versoes` é o que o
+                    cliente consegue LER — e os dois divergem: a peça pode ter
+                    sido reenviada sem versão nova, e a imagem do protótipo
+                    saiu dizendo "versão 3 de 2", que é uma contagem que
+                    ninguém consegue conferir. Sem o total, "versão 3" continua
+                    verdadeiro e não promete um histórico que a tela não tem —
+                    e quem quer o histórico tem o botão logo abaixo, com a
+                    contagem dele. */}
+                {versoes.length >= modelo.versaoAtual ? (
+                  <p className="text-text-muted text-xs tabular-nums">
+                    versão {modelo.versaoAtual} de {versoes.length}
+                  </p>
+                ) : versoes.length > 0 ? (
+                  <p className="text-text-muted text-xs tabular-nums">
+                    versão {modelo.versaoAtual}
+                  </p>
+                ) : null}
+              </div>
 
-        <section className="min-w-0 space-y-3">
-          <h2 className="text-xl font-bold tracking-[-0.02em]">{modelo.texto.titulo}</h2>
-          <TextoDoConteudo
-            texto={modelo.texto.corpo}
-            rotulo={modelo.texto.rotulo}
+              <VisualizadorDeArte
+                imagens={modelo.artes}
+                alt={`Arte de ${modelo.titulo}`}
+              />
+            </section>
+          ) : (
+            /* SEM PREVIEW, O TEXTO É A PEÇA. É o portão do meio da corrente
+               (0076): numa conta que aprova a pauta, o que chegou ao cliente é
+               um parágrafo, e ele ocupa a coluna da decisão porque ele É o que
+               está sendo decidido. */
+            <Texto texto={modelo.texto} />
+          )}
+
+          {/* OS BOTÕES VÊM DEPOIS DA PEÇA, sempre — botão antes da arte
+              convida a aprovar sem olhar, e o material que volta "aprovado sem
+              ninguém ter visto" é o retrabalho mais caro. Eles ficam FORA do
+              cartão da prévia: um cartão dentro de outro faz quem lê encontrar
+              a caixa antes da ação. */}
+          <DecisoesDoConteudo
+            rodadaPendenteId={modelo.rodadaPendenteId}
+            somenteLeitura={comoEquipe}
           />
-        </section>
+
+          {modelo.download ? (
+            <a
+              href={modelo.download.href}
+              download={modelo.download.nome}
+              className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
+            >
+              <Download aria-hidden className="size-4" />
+              Baixar arquivo
+            </a>
+          ) : null}
+        </div>
+
+        <div className="space-y-4">
+          {textoNaColunaEstreita ? <Texto texto={modelo.texto} /> : null}
+
+          <AndamentoDoMaterial
+            status={modelo.status}
+            recebidoEm={modelo.recebidoEm}
+            decisaoPedidaEm={modelo.decisaoPedidaEm}
+            decididoEm={modelo.decididoEm}
+            decididoPor={modelo.decididoPor}
+            propriedades={modelo.propriedades}
+            agora={agora}
+          />
+        </div>
       </div>
 
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold tracking-[-0.02em]">Informações</h2>
-        <dl className="bg-surface-card rounded-card shadow-cartao grid gap-x-8 gap-y-3 border p-4 sm:grid-cols-2">
-          {modelo.propriedades.map((linha) => (
-            <div
-              key={linha.rotulo}
-              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
-            >
-              <dt className="text-text-muted text-sm">{linha.rotulo}</dt>
-              <dd className="min-w-0 text-sm font-medium">{linha.valor}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      {/* A DESCRIÇÃO DO ENTREGÁVEL FICA EM LARGURA INTEIRA, e não na coluna de
+          340px: ela é uma instrução de produção — a medida da lâmina, o papel,
+          o que vai no verso —, e não uma legenda que se lê em paralelo com a
+          arte. Espremê-la numa coluna estreita a quebra a cada três palavras. */}
+      {!textoNaColunaEstreita && temPreview ? (
+        <Texto texto={modelo.texto} />
+      ) : null}
 
-      <section className="space-y-4">
-        <DecisoesDoConteudo
-          rodadaPendenteId={modelo.rodadaPendenteId}
-          status={modelo.status}
-          decididoPor={modelo.decididoPor}
-          decididoEm={modelo.decididoEm}
-          somenteLeitura={comoEquipe}
-        />
-        {modelo.download ? (
-          <a
-            href={modelo.download.href}
-            download={modelo.download.nome}
-            className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
-          >
-            <Download aria-hidden className="size-4" />
-            Baixar arquivo
-          </a>
-        ) : null}
-
-        <HistoricoDeVersoes
-          versoes={versoes}
-          artes={artes}
-          versaoAtual={modelo.versaoAtual}
-          rotuloDoTexto={modelo.texto.titulo}
-        />
-      </section>
+      <HistoricoDeVersoes
+        versoes={versoes}
+        artes={artes}
+        versaoAtual={modelo.versaoAtual}
+        rotuloDoTexto={modelo.texto.titulo}
+      />
 
       <ThreadDeComentarios
         conteudo={modelo.conteudo}
@@ -285,6 +368,25 @@ export function DetalheDoConteudo({
         somenteLeitura={comoEquipe}
       />
     </div>
+  );
+}
+
+/**
+ * A legenda, a descrição, ou a pauta — num cartão.
+ *
+ * **Escrito uma vez e posicionado três**, porque as três posições são o MESMO
+ * conteúdo em papéis diferentes. Três cópias do bloco divergiriam na primeira
+ * mudança, e a que divergiria é a do portão do meio: a que aparece só nas
+ * contas que aprovam a pauta antes da produção.
+ */
+function Texto({ texto }: { texto: ModeloDoConteudo["texto"] }) {
+  return (
+    <section className="bg-surface-card rounded-card shadow-cartao min-w-0 space-y-3 border p-4">
+      <h2 className="text-text-secondary text-[11px] font-semibold tracking-wide uppercase">
+        {texto.titulo}
+      </h2>
+      <TextoDoConteudo texto={texto.corpo} rotulo={texto.rotulo} />
+    </section>
   );
 }
 
@@ -299,9 +401,14 @@ function Vizinho({
 }) {
   if (!href) {
     return (
+      // RECUA PELO TOM E NÃO POR OPACIDADE: opacidade em texto dá uma cor
+      // que ninguém mediu, e no tema escuro dá outra — a regra que o
+      // `opacity-80` do `DateBadge` e as células do mês vizinho da faixa de
+      // disponibilidade já pagaram duas vezes. `--text-muted` sobre `--muted`
+      // está medido.
       <span
         aria-hidden
-        className="text-text-muted inline-flex size-9 items-center justify-center rounded-md border opacity-40"
+        className="bg-muted text-text-muted inline-flex size-9 items-center justify-center rounded-md border"
       >
         {children}
       </span>

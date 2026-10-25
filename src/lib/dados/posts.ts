@@ -95,6 +95,8 @@ function montar(
       ? (nomes.get(rodada.decidido_por) ?? null)
       : null,
     decididoEm: rodada?.decidido_em ?? null,
+    enviadoEm: linha.enviado_em,
+    decisaoPedidaEm: rodada?.solicitado_em ?? null,
     portaoDoCliente: portao?.etapa ?? null,
     textoDoPortao: portao?.texto ?? null,
     programado,
