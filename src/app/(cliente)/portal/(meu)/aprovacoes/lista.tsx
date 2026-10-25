@@ -4,7 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { BadgeCheck, ExternalLink, Loader2, Paperclip } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  BadgeCheck,
+  ExternalLink,
+  Loader2,
+  Paperclip,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
@@ -51,10 +58,13 @@ import { decisaoCliente } from "./acoes";
 export function ListaDeAprovacoes({
   esperando,
   decididas,
+  base = "/portal",
   somenteLeitura = false,
 }: {
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
+  /** Prefixo dos links, para a peça abrir no portal certo. */
+  base?: string;
   somenteLeitura?: boolean;
 }) {
   if (esperando.length === 0 && decididas.length === 0) {
@@ -89,6 +99,7 @@ export function ListaDeAprovacoes({
               <CartaoPendente
                 key={item.rodadaId}
                 item={item}
+                base={base}
                 somenteLeitura={somenteLeitura}
               />
             ))}
@@ -139,9 +150,11 @@ export function ListaDeAprovacoes({
 
 function CartaoPendente({
   item,
+  base,
   somenteLeitura,
 }: {
   item: AprovacaoDoCliente;
+  base: string;
   somenteLeitura: boolean;
 }) {
   const router = useRouter();
@@ -167,7 +180,13 @@ function CartaoPendente({
     <li className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{item.titulo}</span>
-        <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
+        {/* O SELO DA RODADA SÓ APARECE COM NÚMERO. O post e a peça de
+            campanha chegam aqui sem ele — o número da rodada corrente não
+            viaja em `ItemDoPortal` —, e "Rodada 0" seria a tela contando uma
+            coisa que não existe. */}
+        {item.numeroRodada > 0 ? (
+          <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
+        ) : null}
         {/* O PRAZO NO CANTO, e não mais a data de envio.
             A fila passou a ordenar por ele, e uma ordem que a tela não mostra
             lê como ordem arbitrária: o material que vence amanhã aparece em
@@ -203,7 +222,13 @@ function CartaoPendente({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : item.caminho ? null : (
+        /* "SEM ARQUIVO ANEXADO" SÓ VALE PARA O MATERIAL DE DEMANDA, que
+           entrega por `subtask_entregas` e às vezes não entrega nada. Para o
+           post e a peça de campanha a frase é FALSA: a arte existe, ela só
+           não mora nesta lista — ela abre grande na tela do material, que é
+           para onde o botão leva. Afirmar que não há arquivo numa peça que
+           tem arte é a tela dizendo o contrário do que acontece. */
         <p className="text-muted-foreground text-sm italic">
           Sem arquivo anexado.
         </p>
@@ -225,7 +250,22 @@ function CartaoPendente({
         </ul>
       ) : null}
 
-      {somenteLeitura ? (
+      {/* ------------------------------------------- o que o card OFERECE --
+          O POST E A PEÇA DE CAMPANHA LEVAM À TELA DELES, e não trazem botão
+          de decidir aqui. É a regra que a tela de material escreve em voz
+          alta: a arte vem antes dos botões, porque o material que volta
+          "aprovado sem ninguém ter visto" é o retrabalho mais caro — e nesta
+          fila não há arte nenhuma para olhar. O material de demanda é o caso
+          contrário: os arquivos entregues e a conversa estão logo acima, e
+          decidir daqui é decidir com tudo à vista. */}
+      {item.caminho ? (
+        <Button variant="outline" asChild>
+          <Link href={`${base}${item.caminho}`}>
+            Abrir e decidir
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </Button>
+      ) : somenteLeitura ? (
         <Tooltip>
           <TooltipTrigger asChild>
             {/* O <span> existe para o tooltip ter o que escutar: botão

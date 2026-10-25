@@ -2,10 +2,16 @@ import "server-only";
 
 import { ouFalha } from "./consulta";
 
+// PELO ALIAS, e não por caminho relativo: o gerador de protótipo troca
+// `@/lib/dados/portal` por um stub através do `paths` do TypeScript, e um
+// `./portal` escaparia da troca.
+import { itensDoPortal } from "@/lib/dados/portal";
 import { criarClienteServidor } from "@/lib/supabase/server";
+
 import type {
   ApprovalRound,
   SubtaskEntrega,
+  TipoDeConteudo,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -27,6 +33,26 @@ import type {
 
 export type AprovacaoDoCliente = {
   rodadaId: string;
+  /**
+   * DE QUE FRENTE ELE É.
+   *
+   * **A fila cobre as TRÊS, e cobrir só uma era uma incoerência visível na
+   * mesma tela.** Ela listava só o material que vem de uma demanda — o
+   * comentário da consulta dizia, desde o Sprint 3B, que "post e entregável
+   * entram nos Sprints 12 e 13", e eles entraram no produto sem entrar aqui.
+   * O resultado: o selo da barra lateral contava 2 e o Início dizia "3
+   * esperando você", a dois centímetros um do outro.
+   *
+   * **O que muda por frente é o que o card OFERECE**, não o que ele mostra:
+   * o material de demanda traz os arquivos entregues, a conversa e os botões
+   * de decidir — tudo o que se precisa para decidir está ali; o post e a peça
+   * de campanha trazem um link, porque a decisão deles mora na tela em que a
+   * arte abre grande, e decidir sem olhar é o erro que aquela tela existe
+   * para evitar.
+   */
+  tipo: TipoDeConteudo;
+  /** Onde o material abre, quando ele tem tela própria. Relativo à base. */
+  caminho: string | null;
   subtaskId: string;
   titulo: string;
   /** A demanda a que o material pertence. */
@@ -110,7 +136,10 @@ export async function minhasAprovacoes(
   const [respostaDeTasks, respostaDeComentarios] = await Promise.all([
     idsDeTasks.length
       ? supabase.from("tasks").select("id, titulo").in("id", idsDeTasks)
-      : Promise.resolve({ data: [] as { id: string; titulo: string }[], error: null }),
+      : Promise.resolve({
+          data: [] as { id: string; titulo: string }[],
+          error: null,
+        }),
     supabase
       .from("task_comentarios")
       .select("id, subtask_id, autor_id, texto, created_at")
@@ -119,7 +148,10 @@ export async function minhasAprovacoes(
       .order("created_at"),
   ]);
   const tasks = ouFalha("as demandas em aprovação", respostaDeTasks);
-  const comentarios = ouFalha("a conversa de cada material", respostaDeComentarios);
+  const comentarios = ouFalha(
+    "a conversa de cada material",
+    respostaDeComentarios,
+  );
 
   const porSubtarefa = new Map(subtarefas.map((s) => [s.id, s]));
   const porTask = new Map(tasks.map((t) => [t.id, t]));
@@ -129,6 +161,8 @@ export async function minhasAprovacoes(
     if (!sub) return null;
     return {
       rodadaId: rodada.id,
+      tipo: "subtask",
+      caminho: null,
       subtaskId: sub.id,
       titulo: sub.titulo,
       demanda: porTask.get(sub.task_id)?.titulo ?? "",
@@ -152,6 +186,46 @@ export async function minhasAprovacoes(
 
   const montadas = todas.map(montar).filter(Boolean) as AprovacaoDoCliente[];
 
+  /* ----------------------------------------- o post e a peça de campanha --
+     ELES VÊM DE `itensDoPortal`, que já os agrega — e não de duas consultas
+     novas aqui: uma segunda leitura nomeando as mesmas colunas seria o lugar
+     onde as duas divergem, e a que divergiria é esta, que a equipe quase
+     nunca abre.
+
+     `rodadaId` preenchido é o que define "esperando": ele só existe quando a
+     rodada corrente está PENDENTE. E a fatia `subtask` fica de fora, porque
+     ela já veio inteira acima, com os arquivos e a conversa — somar as duas
+     poria o mesmo material duas vezes na mesma lista. */
+  const outros = (await itensDoPortal(clienteId))
+    .filter((item) => item.tipo !== "subtask" && item.rodadaId)
+    .map(
+      (item): AprovacaoDoCliente => ({
+        rodadaId: item.rodadaId!,
+        tipo: item.tipo,
+        caminho: item.caminho,
+        // SEM SUBTAREFA, e o campo fica vazio em vez de inventar um id: ele é
+        // a chave do material de demanda, e aqui não há um.
+        subtaskId: "",
+        titulo: item.titulo,
+        demanda: item.demanda,
+        // A RODADA é a corrente, e o número dela não viaja em `ItemDoPortal`.
+        // Um número inventado apareceria como "Rodada 1" numa peça que já foi
+        // e voltou três vezes — e a tela esconde o selo quando ele é zero.
+        numeroRodada: 0,
+        prazo: item.prazo,
+        status: "pendente",
+        enviadaEm: item.enviadoEm ?? "",
+        decididaEm: null,
+        comentario: null,
+        // OS ARQUIVOS E A CONVERSA FICAM VAZIOS DE PROPÓSITO: eles moram na
+        // tela do material, que é onde a arte abre grande. Trazê-los para cá
+        // seria oferecer a decisão sem a peça, que é o erro que aquela tela
+        // existe para evitar.
+        entregas: [],
+        conversa: [],
+      }),
+    );
+
   return {
     // A FILA ORDENA POR PRAZO, e não pela ordem em que as coisas chegaram.
     //
@@ -165,9 +239,10 @@ export async function minhasAprovacoes(
     // **Sem prazo vai para o FIM**, nunca para o topo: um material sem data é
     // o que menos cobra, e `null` ordenado como string o poria na frente de
     // tudo. É a regra de `focoDoPrazo` e de `ordenarPorUrgencia`.
-    esperando: montadas
-      .filter((a) => a.status === "pendente")
-      .sort(porUrgencia),
+    esperando: [
+      ...montadas.filter((a) => a.status === "pendente"),
+      ...outros,
+    ].sort(porUrgencia),
     decididas: montadas.filter((a) => a.status !== "pendente"),
   };
 }
@@ -203,6 +278,13 @@ function porUrgencia(a: AprovacaoDoCliente, b: AprovacaoDoCliente): number {
  * escopo cliente: um selo que cobrasse mais do que a tela de destino mostra
  * mandaria a pessoa procurar um material que não está lá.
  *
+ * **E ELA NÃO RECEBE `clienteId`**, de propósito: quem a chama é o layout do
+ * portal do CLIENTE, onde a RLS já recorta as linhas dele. A casca da
+ * visualização administrativa não desenha selo nenhum — e se um dia
+ * desenhar, o recorte por empresa precisa de um filtro por tipo de conteúdo
+ * que esta contagem não tem. Não aceitar o parâmetro é o que impede alguém de
+ * passá-lo achando que ele funciona.
+ *
  * **Ela não derruba a tela**, e é a decisão de `rotinasAgendadas()`: o portal
  * funciona inteiro sem o selo, e trocar uma informação a menos por uma falha
  * total seria o pior dos dois. O erro vai para o log, senão um selo que
@@ -210,41 +292,18 @@ function porUrgencia(a: AprovacaoDoCliente, b: AprovacaoDoCliente): number {
  * à agência se o material chegou.
  * ---------------------------------------------------------------------------
  */
-export async function quantasEsperamDecisao(
-  clienteId?: string,
-): Promise<number> {
+export async function quantasEsperamDecisao(): Promise<number> {
   const supabase = await criarClienteServidor();
 
-  let consulta = supabase
+  // AS TRÊS FRENTES, e não só `subtask`: o selo conta o que a fila lista, e
+  // ela passou a listar as três. Contar uma só fazia o selo dizer 2 numa tela
+  // em que o Início dizia "3 esperando você".
+  const { count, error } = await supabase
     .from("approval_rounds")
     .select("id", { count: "exact", head: true })
     .eq("escopo", "cliente")
-    .eq("content_type", "subtask")
     .eq("status", "pendente");
 
-  // A VISUALIZAÇÃO ADMINISTRATIVA PRECISA DO FILTRO, e a do cliente não: o
-  // RLS já recorta as linhas dele. Para quem é da equipe, `is_staff()`
-  // enxerga todos os clientes — sem isto o selo do portal da Mundo Verde
-  // contaria as aprovações da Óptica Visão.
-  if (clienteId) {
-    const tasks = await supabase
-      .from("tasks")
-      .select("id")
-      .eq("client_id", clienteId);
-    const ids = (tasks.data ?? []).map((t) => t.id);
-    if (ids.length === 0) return 0;
-
-    const subs = await supabase
-      .from("subtasks")
-      .select("id")
-      .in("task_id", ids);
-    const idsDeSubtarefas = (subs.data ?? []).map((s) => s.id);
-    if (idsDeSubtarefas.length === 0) return 0;
-
-    consulta = consulta.in("content_id", idsDeSubtarefas);
-  }
-
-  const { count, error } = await consulta;
   if (error) {
     console.error("[consulta:o selo de aprovações do portal]", error);
     return 0;

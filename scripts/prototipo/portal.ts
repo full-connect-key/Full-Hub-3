@@ -134,6 +134,50 @@ const ITENS: ItemDoPortal[] = [
     miniatura: null,
     caminho: null,
   },
+  // ---------------------------------------------------------------------
+  // UM POST E UMA PECA DE CAMPANHA, porque `itensDoPortal` do produto NAO e
+  // so dos materiais de demanda: ela agrega as tres frentes -- e o stub so
+  // tinha `subtask`.
+  //
+  // Um stub que mostra o produto num estado que ele nao tem esconde uma
+  // classe inteira de bug: o cronograma lia esta funcao INTEIRA e tambem
+  // lia os posts e as pecas de campanha das origens delas, entao em
+  // producao cada post aparecia DUAS VEZES na grade -- e nenhuma imagem
+  // mostrava, porque aqui nao havia post nenhum nesta lista.
+  //
+  // Os ids sao os mesmos dos stubs de posts e de campanhas, de proposito: e
+  // o que faz a duplicata aparecer se alguem desfizer o filtro.
+  // ---------------------------------------------------------------------
+  {
+    rodadaId: "r1",
+    tipo: "post",
+    conteudoId: "p1",
+    titulo: "Promoção de outubro",
+    demanda: "Instagram + Facebook",
+    demandaId: null,
+    clienteId: VERDE,
+    cliente: "Mundo Verde",
+    status: "em_aprovacao",
+    prazo: dia(-2),
+    enviadoEm: dia(-3),
+    miniatura: "/exemplos/arte-1.svg",
+    caminho: "/social-media/p1",
+  },
+  {
+    rodadaId: null,
+    tipo: "deliverable",
+    conteudoId: "d-kv",
+    titulo: "KV",
+    demanda: "Wave Outubro Rosa",
+    demandaId: null,
+    clienteId: VERDE,
+    cliente: "Mundo Verde",
+    status: "aprovado",
+    prazo: dia(-19),
+    enviadoEm: dia(-20),
+    miniatura: null,
+    caminho: "/campanhas/camp-wave/d-kv",
+  },
 ];
 
 export async function itensDoPortal(

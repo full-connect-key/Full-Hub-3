@@ -100,11 +100,26 @@ export async function cronogramaDoMes(
   }
 
   /* ----------------------------------------------------------- demandas --
+     **SÓ A FATIA `subtask` DE `itensDoPortal`, e sem ela a grade MOSTRA CADA
+     POST DUAS VEZES.** Aquela função não é só dos materiais de demanda: ela
+     já agrega as três frentes — `postsComoItens` e `entregaveisComoItens`
+     entram no `return` dela —, porque a pergunta que ela responde é "o que
+     está esperando por mim", e essa é uma pergunta só.
+
+     **A fatia é tomada aqui porque a DATA dela quer dizer outra coisa.** Para
+     o post, `itensDoPortal` devolve `prazo_aprovacao ?? data_publicacao`, que
+     é o prazo de DECIDIR — o certo para uma fila por urgência, e o errado
+     numa grade que responde quando a peça vai ao ar; e numa peça já aprovada
+     ele é uma data no passado que não quer dizer mais nada. Por isso as duas
+     outras frentes vêm das leituras que carregam a data que a grade precisa,
+     e desta vem o que só ela tem.
+
      O CHIP LEVA À FILA e não a uma tela própria: `ItemDoPortal.caminho` é
      nulo para este tipo de propósito — o material de uma demanda se decide na
      fila de Aprovações, e um link para uma tela que não existe é pior que
      link nenhum. */
   for (const material of materiais) {
+    if (material.tipo !== "subtask") continue;
     if (!noMes(material.prazo)) continue;
     itens.push({
       id: `material-${material.conteudoId}`,

@@ -14,9 +14,11 @@ export const metadata: Metadata = { title: "Aprovações do cliente" };
 async function Conteudo({
   usuarioId,
   clienteId,
+  base,
 }: {
   usuarioId: string;
   clienteId: string;
+  base: string;
 }) {
   // O clienteId é obrigatório aqui. Quem é da equipe enxerga todos os clientes
   // pelo RLS, e sem o filtro o portal de uma empresa mostraria as aprovações
@@ -26,6 +28,7 @@ async function Conteudo({
     <ListaDeAprovacoes
       esperando={esperando}
       decididas={decididas}
+      base={base}
       somenteLeitura
     />
   );
@@ -47,7 +50,11 @@ export default async function AprovacoesDoClienteVistasPelaEquipe({
       <PageHeader title="Aprovações" />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
-        <Conteudo usuarioId={sessao.usuarioId} clienteId={cliente?.id ?? ""} />
+        <Conteudo
+          usuarioId={sessao.usuarioId}
+          clienteId={cliente?.id ?? ""}
+          base={`/portal/${slug}`}
+        />
       </Suspense>
     </div>
   );

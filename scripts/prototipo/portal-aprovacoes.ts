@@ -30,7 +30,27 @@ export async function minhasAprovacoes(
   return {
     esperando: [
       {
+        rodadaId: "r1",
+        tipo: "post",
+        // O POST LEVA A TELA DELE e nao traz botao de decidir: a arte abre
+        // grande la, e decidir sem olhar e o erro que aquela tela evita.
+        caminho: "/social-media/p1",
+        subtaskId: "",
+        titulo: "Promoção de outubro",
+        demanda: "Instagram + Facebook",
+        numeroRodada: 0,
+        prazo: emDias(-2),
+        status: "pendente",
+        enviadaEm: diasAtras(3),
+        decididaEm: null,
+        comentario: null,
+        entregas: [],
+        conversa: [],
+      },
+      {
         rodadaId: "pc2",
+        tipo: "subtask",
+        caminho: null,
         subtaskId: "s5",
         titulo: "Banner da home",
         demanda: "Campanha de aniversário",
@@ -59,6 +79,8 @@ export async function minhasAprovacoes(
       },
       {
         rodadaId: "pc1",
+        tipo: "subtask",
+        caminho: null,
         subtaskId: "s4",
         titulo: "Roteiro do reels",
         demanda: "Reels institucional",
@@ -93,6 +115,8 @@ export async function minhasAprovacoes(
     decididas: [
       {
         rodadaId: "pc0",
+        tipo: "subtask",
+        caminho: null,
         subtaskId: "s0",
         titulo: "Arte do post de aniversário",
         demanda: "Aniversário da loja",
@@ -116,10 +140,7 @@ export async function minhasAprovacoes(
  * numero fixo diria uma coisa no selo e outra na tela, que e exatamente o que
  * o selo existe para nao fazer.
  */
-export async function quantasEsperamDecisao(
-  clienteId?: string,
-): Promise<number> {
-  void clienteId;
+export async function quantasEsperamDecisao(): Promise<number> {
   const { esperando } = await minhasAprovacoes("");
   return esperando.length;
 }
