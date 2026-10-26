@@ -342,7 +342,14 @@ const esquemaDeArquivo = z.object({
 });
 
 /**
- * Anexa o arquivo de um e-book.
+ * Anexa o arquivo de um item do acervo.
+ *
+ * **ELA SEMPRE FOI DOS TRÊS FORMATOS, e só o nome dizia o contrário:**
+ * `academy_arquivos` é `(item_id, versao)` desde a 0096 e nunca soube o tipo
+ * do item. O que prendia o anexo ao e-book era o condicional da TELA, e ele
+ * saiu — decisão do usuário. Por isso não há migration aqui.
+ *
+ * A antiga doc segue abaixo, porque o caminho não mudou:
  *
  * ---------------------------------------------------------------------------
  * **ELA INSERE, E NUNCA REESCREVE A LINHA ANTERIOR**, e a decisão não é minha:
@@ -373,7 +380,7 @@ export async function anexarArquivo(dados: unknown): Promise<Resultado> {
           "anexarArquivo",
           validacao.error,
           dados,
-          "Confira o arquivo do e-book.",
+          "Confira o arquivo.",
         ),
       );
     }

@@ -92,7 +92,21 @@ export function ehVisao(valor: unknown): valor is VisaoDoCalendario {
 // appendou o valor em vez de usar `add value ... before`. O que é da própria
 // agência abre a lista porque é o que mais se lança nesta tela: a convenção
 // da casa, o treinamento, a reunião de planejamento.
-export const TIPOS_DE_EVENTO: EventoTipo[] = [
+//
+// EM TUPLA E NÃO EM ARRAY, e isso é a lição de `FUNCOES` pagando o mesmo
+// preço de novo. Ela era `EventoTipo[]`, que **não serve para `z.enum`** —
+// ele pede `readonly [string, ...string[]]` —, então `acoes.ts` tinha a
+// lista escrita à mão ao lado. A 0109 acrescentou o oitavo valor ao enum do
+// banco e a esta lista, o chip apareceu no seletor, e a action recusou o
+// clique com *"Confira o campo: tipo."*: a tela oferecendo um tipo que a
+// validação não conhece. **Nada quebrou no caminho** — o `tsc` não liga as
+// duas listas, `check:tipos` liga migration a tipo e não lista a lista, e
+// o banco nem chegou a ser chamado.
+//
+// O `as const` é o que faz esta lista servir aos DOIS lados, e o
+// `satisfies` é a trava: um tipo que não exista em `evento_tipo` não
+// compila aqui, em vez de virar recusa do Postgres na tela de quem salvou.
+export const TIPOS_DE_EVENTO = [
   "evento_fullers",
   "convencao",
   "feira",
@@ -101,7 +115,7 @@ export const TIPOS_DE_EVENTO: EventoTipo[] = [
   "treinamento",
   "feriado_cliente",
   "outro",
-];
+] as const satisfies readonly EventoTipo[];
 
 export const ROTULOS_DE_TIPO_DE_EVENTO: Record<EventoTipo, string> = {
   evento_fullers: "Eventos Fullers",

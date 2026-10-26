@@ -285,6 +285,45 @@ export type EbookInterativo = {
 };
 
 /**
+ * O ARQUIVO ANEXADO AO ITEM, qualquer que seja o formato dele.
+ *
+ * **É UMA FUNÇÃO E NÃO TRÊS CONSULTAS**, e a razão é a de sempre: o e-book
+ * já lia esta tabela desde a 0096, e o playbook e o curso passaram a ler —
+ * decisão do usuário, *"não está dando para incluir anexos na biblioteca nos
+ * itens de Playbook e Cursos, faça igual está no item de Ebook"*. Três
+ * `select` iguais em três ramos seriam três lugares para a ordem divergir, e
+ * a que divergiria é a do curso, que é o ramo mais longo.
+ *
+ * **A VIGENTE É A MAIS RECENTE**, como no e-book: `academy_arquivos` não tem
+ * coluna `atual` de propósito (0102), e subir outro passa a entregar o novo
+ * com o anterior ficando no histórico.
+ *
+ * **O BUCKET É PRIVADO, ENTÃO O ENDEREÇO SE ASSINA AQUI** — sem isso o botão
+ * de baixar aponta para `uuid/1234.pdf`, que o navegador lê como rota do
+ * próprio site e o servidor responde 404: o arquivo existe, está certo, e não
+ * abre.
+ */
+async function anexoDoItem(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  itemId: string,
+): Promise<{ arquivo: AcademyArquivo | null; arquivoAssinado: string | null }> {
+  const arquivos = ouFalha(
+    "o anexo do item",
+    await supabase
+      .from("academy_arquivos")
+      .select("*")
+      .eq("item_id", itemId)
+      .order("created_at", { ascending: false })
+      .limit(1),
+  );
+
+  const arquivo = arquivos[0] ?? null;
+  const assinadas = await assinarArquivos(BUCKET_DO_ACERVO, [arquivo?.url ?? null]);
+
+  return { arquivo, arquivoAssinado: enderecoDaArte(arquivo?.url ?? null, assinadas) };
+}
+
+/**
  * Um item com o conteúdo do formato dele, e só do dele.
  *
  * O `switch` por tipo acontece AQUI e não na tela, e isso é o que permite a
@@ -341,6 +380,13 @@ export async function abrirItem(
     const confirmada = doItemTodo?.versao_confirmada ?? null;
     const estado = estadoDoPlaybook(confirmada, releitura);
 
+    // O ANEXO DO PLAYBOOK é material de apoio, e não o conteúdo dele: o que
+    // se lê é a VERSÃO, em texto, e é ela que a pessoa confirma. Por isso ele
+    // entra aqui e `interativo` continua nulo — o visualizador que registra
+    // leitura por capítulo é do e-book, e ligá-lo num playbook daria duas
+    // contagens de progresso no mesmo item.
+    const anexo = await anexoDoItem(supabase, item.id);
+
     return {
       item,
       estado,
@@ -352,8 +398,8 @@ export async function abrirItem(
         versaoConfirmada: confirmada,
         versaoDeReleitura: releitura,
       },
-      arquivo: null,
-      arquivoAssinado: null,
+      arquivo: anexo.arquivo,
+      arquivoAssinado: anexo.arquivoAssinado,
       interativo: null,
       curso: null,
     };
@@ -497,14 +543,19 @@ export async function abrirItem(
     progresso.filter((p) => p.aula_id !== null && p.concluido).map((p) => p.aula_id as string),
   );
 
+  // O ANEXO DO CURSO é a apostila ao lado das aulas, e não uma aula: quem
+  // conta progresso aqui são as aulas, e o anexo fica fora da conta de
+  // propósito — somá-lo faria "12 de 13" num curso de doze aulas.
+  const anexo = await anexoDoItem(supabase, item.id);
+
   return {
     item,
     estado: estadoDoCurso(vistas.size, aulas.length),
     vistos: vistas.size,
     total: aulas.length,
     playbook: null,
-    arquivo: null,
-    arquivoAssinado: null,
+    arquivo: anexo.arquivo,
+    arquivoAssinado: anexo.arquivoAssinado,
     interativo: null,
     curso: {
       modulos: modulos.map((m) => ({

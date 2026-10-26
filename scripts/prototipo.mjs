@@ -518,6 +518,15 @@ const TELAS = [
   // aparecem DENTRO do painel -- que e a prova de que o sandbox nao quebrou
   // nada.
   { nome: "82i-academy-ebook-interativo", rota: "/painel/academy/operacoes-criacao", largura: 1500, altura: 1400, role: "colaborador" },
+  // E A MONTAGEM DE UM CURSO, que e a tela que faltava pela MESMA razao do
+  // `82g`: o anexo passou a valer nos tres formatos -- decisao do usuario,
+  // *"nao esta dando para incluir anexos na biblioteca nos itens de Playbook
+  // e Cursos, faca igual esta no item de Ebook"* --, e sem uma imagem do
+  // montar de um CURSO a peca nova sairia so na do playbook. `82e` mostra o
+  // bloco VAZIO (o "Briefing" nao tem anexo no stub) e esta mostra o bloco
+  // com um arquivo ja anexado, que e a outra metade: sao dois titulos e duas
+  // frases diferentes, e so as duas juntas provam que ele sabe dizer as duas.
+  { nome: "82j-academy-montar-curso", rota: "/painel/academy/trafego-pago-do-zero", largura: 1500, altura: 2000, role: "socio" },
   { nome: "82f-academy-novo", rota: "/painel/academy/novo", largura: 1300, altura: 1100, role: "socio" },
   // DUAS capturas para o material aberto, e nao uma com dois cliques: a lista
   // e sanfona de um so aberto por vez, entao o segundo clique fecha o

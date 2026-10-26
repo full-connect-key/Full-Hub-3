@@ -786,6 +786,30 @@ imagem mostraria a legenda nova com a amostra azul e **nenhum chip azul na
 grade** — é a mesma razão pela qual ele já tinha um de cada um dos outros
 quatro, e pela qual tem um dia com mais de três itens.
 
+##### E O TIPO NOVO ERA RECUSADO NO CLIQUE
+
+Relato do usuário: *"está dando erro quando tento criar um evento no
+calendário na nova categoria 'Evento Fullers'"*, com a recusa na cara —
+**"Confira os dados. Confira o campo: tipo."**
+
+**A tela oferecia o chip e a action não conhecia o valor**, e a causa é uma
+LISTA COPIADA: `salvarEvento` tinha os sete tipos escritos à mão no `z.enum`,
+ao lado de `TIPOS_DE_EVENTO`. A 0109 acrescentou o oitavo ao enum do banco e
+à lista de domínio — que é quem desenha o seletor —, e a cópia ficou com
+sete. **O banco nunca chegou a ser chamado:** a frase vem de
+`recusaDeValidacao()`, que é zod, antes da ida ao Postgres.
+
+**É `FUNCOES` pagando o mesmo preço pela segunda vez**, e a saída é a de lá:
+`TIPOS_DE_EVENTO` virou TUPLA (`as const satisfies readonly EventoTipo[]`),
+porque `z.enum` pede `readonly [string, ...string[]]` e um `EventoTipo[]` não
+serve — era essa a razão de a cópia existir. Agora a action lê a lista, e o
+`satisfies` é a trava: um tipo que não exista em `evento_tipo` não compila.
+
+**NENHUMA VERIFICAÇÃO PEGARIA ISTO, e vale a lista:** o `tsc` não liga duas
+listas de literais, o `lint` não, o `build` não, `check:tipos` liga migration
+a tipo e não lista a lista, e o protótipo fotografa o seletor — que estava
+certo. Quem encontrou foi o usuário, clicando.
+
 **A SEGUNDA LINHA É O CLIENTE**, e ela era o cliente OU o primeiro nome de
 quem era responsável. O segundo ramo saiu com `user_id` (0105): o evento tem
 PARTICIPANTES, vários por linha, e não há um nome para pôr ali — a lista deles
@@ -8341,6 +8365,41 @@ do relato — o `usados_neste_ciclo` de cada pessoa e, por pedido, se ele
 **Nenhuma migration, e nenhuma linha de SQL.** O banco estava certo; o que
 faltava era a tela não inventar.
 
+##### E O TERCEIRO ESTADO DISPAROU DE VERDADE, por uma migration pulada
+
+Relato do usuário, meses depois: *"quando entro no Days Off, aparece a
+seguinte mensagem Não foi possível ler o seu saldo agora"*. **A tela estava
+certa, e é o ponto:** ela dizia que não sabe, em vez de afirmar "15 de 15"
+como a versão anterior — que é exatamente o que esta seção existe para
+garantir.
+
+**A CAUSA ERA A 0074, NUNCA APLICADA NAQUELE BANCO.**
+`proximo_descanso_em()` não existia, e `descanso_do_ciclo()` a chama desde a
+0074 — então a RPC estourava em toda chamada. O corpo de uma função plpgsql é
+texto até a hora de rodar, e a hora de rodar é quando alguém abre a tela.
+
+**E AS DUAS ESTAVAM NO MESMO BANCO AO MESMO TEMPO**, que é o que torna o caso
+instrutivo: a 0085 e a 0107 tinham sido coladas e a 0074 não — migrations
+aplicadas FORA DE ORDEM. `descanso_do_ciclo()` era a versão da 0107, com o
+vocabulário novo, chamando uma função da 0074 que ninguém criou. De quebra
+`ciclos_de_descanso()` ainda tinha o `+ 1` da 0039: quem entrou naquele ano
+aparecia com 15 dias em vez de zero, **sem erro em lugar nenhum**.
+
+**E A 0074 NÃO PODE SER COLADA INTEIRA DEPOIS DA 0085.** Ela reescreve quatro
+funções, e duas delas — `saldo_de_ferias()` e `descanso_do_ciclo()` — a 0085 e
+a 0107 reescreveram DEPOIS: colar o arquivo todo desfaria "o descanso não
+acumula" e o vocabulário do Day Off, em silêncio. `create or replace` se
+reescreve a partir do texto de agora e não avisa quando o texto novo tem menos
+coisa que o velho — a lição da 0030. O que foi aplicado são os **PASSOS 1 a
+3**, que são exatamente as três funções que nenhuma migration posterior toca.
+
+**O `onde-esta-o-banco.sql` RESPONDIA ISSO EM DEZ SEGUNDOS**, e dizia FALTA na
+linha da 0074 desde sempre — o marcador dela é `proximo_descanso_em`, com a
+razão escrita ao lado: *"a 0074 reescreve três funções que já existiam e cria
+UMA"*. Ele foi escrito para esta pergunta e ninguém o rodou. **Rodá-lo é o
+primeiro passo de todo relato que parece bug de tela**, e nesta rodada ele
+achou mais duas atrasadas junto.
+
 > **O que isto custa, e foi dito a quem decidiu, três vezes:** ciclo de 12
 > meses contado da entrada da pessoa é, **estruturalmente**, o desenho do
 > período aquisitivo da CLT — mais parecido com ele que o ano civil, não
@@ -9843,6 +9902,70 @@ duas tasks no Full Hub quando a agência decidir revisar.
 - **O seed não cadastra o e-book.** Ele não roda desde a 0096 — ainda escreve
   em `academy_tracks`, que aquela migration apagou —, e consertá-lo é outra
   entrega. O protótipo mostra o item pelo stub.
+
+#### O ANEXO VALE NOS TRÊS FORMATOS
+
+Decisão do usuário: *"na parte do Acervo, não está dando para incluir anexos
+na biblioteca nos itens de Playbook e Cursos, faça igual está no item de
+Ebook"*.
+
+**NÃO HÁ MIGRATION, e é o ponto.** `academy_arquivos` é `(item_id, versao)`
+desde a 0096 e **nunca soube o tipo do item**; as duas policies dela são de
+`is_staff()` para ler e `is_gestor()` para escrever, sem olhar formato, e
+`anexarArquivo` já era agnóstica — só a frase de recusa dizia "do e-book". O
+que prendia o upload a um formato era **um condicional de tela**,
+`item.tipo === "ebook"`. É a ponte construída e não atravessada pela enésima
+vez, e desta vez a ponte estava inteira dos dois lados: faltava a tela chamá-la.
+
+**O QUE MUDA ENTRE OS TRÊS NÃO É O UPLOADER, É O QUE O ARQUIVO É.** No e-book
+ele É o conteúdo — sem arquivo não há o que entregar, e quem abre vê o título
+e nada mais. No playbook e no curso ele é **ANEXO**: a apostila, o modelo, a
+planilha ao lado do que se lê ou se assiste. Daí as três ausências, e nenhuma
+é esquecimento:
+
+- **não carrega conclusão.** Quem fecha um playbook é a VERSÃO confirmada, e
+  quem fecha um curso são as aulas vistas. Um "Marcar como lido" no anexo
+  seria uma segunda porta para concluir o item, e ela fecharia o item sem
+  ninguém ter lido a versão — com o selo de estado ao lado dizendo o
+  contrário, na mesma tela. Por isso o cartão do detalhe é `Anexo` e não
+  `Ebook` com uma bandeira: uma prop `semConclusao` deixa o botão a um
+  booleano de distância de voltar na tela errada, e o que separa os dois não é
+  desenho, são dois fatos diferentes sobre o que aquele arquivo é;
+- **não carrega releitura.** A do playbook já mora em
+  `academy_playbook_versoes.exige_releitura`, e repeti-la no anexo seriam duas
+  verdades sobre o mesmo fato — a que divergiria é a do anexo, porque ninguém
+  a relê ao publicar uma versão de texto. No curso não há quem cobrar: ninguém
+  confirma leitura de um curso, confirma aula;
+- **não aceita `html_interativo`.** Aquele visualizador registra progresso por
+  capítulo e guarda checklist por `(item, versão)`; ligado num curso, seria
+  uma segunda contagem de progresso dentro do mesmo item — a conta dobrada que
+  este produto recusa em toda soma. O anexo de playbook e de curso nasce
+  sempre `pdf`, que **neste enum quer dizer "arquivo para baixar"** e não a
+  extensão: renomear o valor é migration em coluna em uso sem nada em troca, a
+  decisão de `prazo` e de `dias_uteis`.
+
+**E O ANEXO NÃO TEM `accept`**, ao contrário do e-book: um apoio de playbook é
+um PDF, um modelo de planilha ou um `.zip` de exemplos, e uma lista fechada
+recusaria o caso comum sem dizer por quê. No e-book ela fica, porque lá o
+formato **decide qual tela o item vira**.
+
+**A pasta do bucket passou a dizer o formato** — `playbooks/`, `cursos/`,
+`ebooks/` —, e não `ebooks/` para os três: o bucket é lido por quem abre o
+painel do Supabase para conferir qual arquivo está no ar, e um anexo de curso
+dentro de `ebooks/` manda essa pessoa procurar um e-book que não existe. Os
+que já estão lá ficam onde estão: o caminho é o que a linha aponta.
+
+**O STUB DO PROTÓTIPO GANHOU UM ANEXO, e UM SÓ.** Sem ele nenhuma imagem
+mostraria nem o cartão de baixar nem o uploader preenchido — a rodada
+terminaria dizendo "Pronto" e a peça nova não sairia em lugar nenhum, que é a
+lição da duplicata do Cronograma e do carrossel combinado. E **um só** porque
+`82e-academy-montar` fotografa o playbook que ficou SEM: com anexo nos dois, a
+imagem provaria que o bloco aparece e não que ele sabe dizer "Anexar um
+arquivo" quando ainda não há nada — a razão do evento de cada par da legenda
+do calendário. A montagem de um CURSO ganhou imagem própria
+(`82j-academy-montar-curso`), pela razão escrita no `82g`: uma tela por
+formato é o que impede o terceiro de ficar sem onde anexar por um sprint
+inteiro.
 
 ### Recomendações: o módulo mais leve, e o desenho respeita isso
 

@@ -7,6 +7,7 @@ import { exigirAtendimentoNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso } from "@/lib/acoes/resultado";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { TIPOS_DE_EVENTO } from "@/lib/dominio/calendario";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -22,15 +23,13 @@ const ROTA = "/painel/calendario";
 
 const esquemaDoEvento = z.object({
   nome: z.string().trim().min(2, "Dê um nome ao evento."),
-  tipo: z.enum([
-    "convencao",
-    "feira",
-    "lancamento",
-    "reuniao",
-    "treinamento",
-    "feriado_cliente",
-    "outro",
-  ]),
+  // A LISTA SAI DE `TIPOS_DE_EVENTO`, e nunca escrita aqui de novo. Ela
+  // vivia copiada, e a cópia era a que esquecia: a 0109 acrescentou
+  // "Eventos Fullers" ao enum do banco e ao seletor, e esta recusava o
+  // valor com *"Confira o campo: tipo."* — a tela oferecendo um tipo que a
+  // própria action não conhece. É `FUNCOES` de novo, e a razão de a lista
+  // de lá ser tupla é esta: `z.enum` pede `readonly [string, ...string[]]`.
+  tipo: z.enum(TIPOS_DE_EVENTO),
   descricao: z.string().trim().max(2000).optional().nullable(),
   client_id: z.string().uuid().optional().nullable(),
   data_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha a data de início."),

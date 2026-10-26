@@ -71,6 +71,43 @@ function item(
   };
 }
 
+/**
+ * UM ANEXO DE EXEMPLO, e ele existe porque o stub e quem decide o que a
+ * imagem prova.
+ *
+ * O anexo de playbook e de curso nasceu com a tela — `academy_arquivos` e por
+ * item desde a 0096, e o que prendia o upload ao e-book era o condicional da
+ * tela. Sem um anexo aqui, NENHUMA imagem mostraria nem o cartao de baixar
+ * nem o uploader preenchido: a rodada terminaria dizendo "Pronto" e a peca
+ * nova nao sairia em lugar nenhum. E a licao do carrossel combinado e da
+ * duplicata do Cronograma.
+ *
+ * **E UM SO TEM, de proposito.** O "Briefing que nao volta com duvida" fica
+ * SEM, porque e ele que `82e-academy-montar` fotografa: com anexo nos dois, a
+ * imagem provaria que o bloco aparece e nao que ele sabe dizer "Anexar um
+ * arquivo" quando ainda nao ha nada. E a razao do evento de cada par da
+ * legenda do calendario.
+ */
+function anexo(itemId: string, nome: string, bytes: number, paginas: number | null) {
+  return {
+    arquivo: {
+      id: `arq${itemId.slice(3, 11)}-0000-4000-8000-000000000009`,
+      item_id: itemId,
+      url: "/exemplos/checklist.pdf",
+      nome,
+      tamanho_bytes: bytes,
+      paginas,
+      formato: "pdf" as const,
+      versao: 1,
+      notas_mudanca: null,
+      exige_releitura: false,
+      publicado_em: AGORA,
+      created_at: AGORA,
+    },
+    arquivoAssinado: "/exemplos/checklist.pdf",
+  };
+}
+
 const ACERVO: ItemDoAcervo[] = [
   item({
     id: "aca00001-0000-4000-8000-000000000001",
@@ -241,6 +278,9 @@ export async function abrirItem(
         versaoConfirmada: achado.estado === "nao_iniciado" ? null : 1,
         versaoDeReleitura: releitura ? 2 : null,
       },
+      ...(achado.slug === "como-a-gente-apresenta-para-o-cliente"
+        ? anexo(achado.id, "roteiro-da-apresentacao.pdf", 1_800_000, 6)
+        : {}),
     };
   }
 
@@ -338,6 +378,7 @@ export async function abrirItem(
 
   return {
     ...base,
+    ...anexo(achado.id, "apostila-trafego-pago.pdf", 3_100_000, 42),
     curso: {
       modulos: [
         {

@@ -65,7 +65,7 @@ export function MontarOItem({ aberto }: { aberto: ItemAberto }) {
 
       <Propriedades item={item} />
       {playbook ? <NovaVersao itemId={item.id} proxima={(playbook.versaoCorrente?.numero_versao ?? 0) + 1} /> : null}
-      {item.tipo === "ebook" ? <ArquivoDoEbook itemId={item.id} atual={arquivo} /> : null}
+      <ArquivoDoItem tipo={item.tipo} itemId={item.id} atual={arquivo} />
       {curso ? <MontarCurso itemId={item.id} curso={curso} /> : null}
       <Obrigatoriedade itemId={item.id} />
       <Publicacao item={item} />
@@ -242,7 +242,43 @@ function NovaVersao({ itemId, proxima }: { itemId: string; proxima: number }) {
 }
 
 /**
- * O ARQUIVO DO E-BOOK, e o espaço que não existia.
+ * O ARQUIVO DO ITEM, nos TRÊS formatos.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE ERA SÓ DO E-BOOK, e isso é a segunda metade do mesmo furo.** Decisão
+ * do usuário: *"na parte do Acervo, não está dando para incluir anexos na
+ * biblioteca nos itens de Playbook e Cursos, faça igual está no item de
+ * Ebook"*. O condicional era `item.tipo === "ebook"`, e `academy_arquivos`
+ * nunca soube o formato do item — ela é `(item_id, versao)` desde a 0096.
+ *
+ * **O QUE MUDA ENTRE OS TRÊS NÃO É O UPLOADER, É O QUE O ARQUIVO É.** No
+ * e-book ele É o conteúdo: sem arquivo não há o que entregar, e quem abre vê
+ * o título e nada mais. No playbook e no curso ele é ANEXO — material de
+ * apoio ao lado do que se lê ou se assiste —, e é por isso que ele não
+ * carrega nem a conclusão nem a releitura:
+ *
+ * - **a conclusão** de um playbook é a VERSÃO confirmada, e a de um curso são
+ *   as aulas vistas. Uma segunda porta de "marcar como lido" no anexo faria o
+ *   item fechar sem ninguém ter lido a versão — e `estadoDoPlaybook()` e
+ *   `estadoDoCurso()` continuariam dizendo o contrário, na mesma tela;
+ * - **a releitura** de um playbook já mora em `academy_playbook_versoes.
+ *   exige_releitura`. Repeti-la aqui seriam duas verdades sobre o mesmo
+ *   fato, e a que divergiria é a do anexo, porque ninguém a relê ao publicar
+ *   uma versão de texto. No curso não há quem cobrar: ninguém confirma
+ *   leitura de um curso, confirma aula.
+ *
+ * **E `html_interativo` É DO E-BOOK E DE MAIS NENHUM.** Aquele visualizador
+ * registra progresso por capítulo e guarda checklist por `(item, versão)`;
+ * ligado num curso, ele seria uma segunda contagem de progresso dentro do
+ * mesmo item — a conta dobrada que este produto recusa em toda soma. Por isso
+ * o anexo de playbook e de curso nasce sempre `pdf`, que neste enum quer
+ * dizer *"arquivo para baixar"* e não a extensão: renomear o valor seria
+ * migration em coluna em uso sem nada em troca, que é a decisão de `prazo` e
+ * de `dias_uteis`.
+ * ---------------------------------------------------------------------------
+ *
+ * O QUE SEGUE É A HISTÓRIA DO RAMO DO E-BOOK, e ela fica porque o furo foi o
+ * mesmo duas vezes:
  *
  * ---------------------------------------------------------------------------
  * Relato do usuário: *"quando eu seleciono que vou montar um e-book, ele não
@@ -275,13 +311,16 @@ function NovaVersao({ itemId, proxima }: { itemId: string; proxima: number }) {
  * fica no histórico — a regra das versões de post e de campanha. Por isso não
  * há botão de remover: o caminho é subir de novo.
  */
-function ArquivoDoEbook({
+function ArquivoDoItem({
+  tipo,
   itemId,
   atual,
 }: {
+  tipo: ItemAberto["item"]["tipo"];
   itemId: string;
   atual: ItemAberto["arquivo"];
 }) {
+  const ehEbook = tipo === "ebook";
   const router = useRouter();
   const [enviando, começar] = useTransition();
   const [subindo, setSubindo] = useState(false);
@@ -300,7 +339,9 @@ function ArquivoDoEbook({
   // é pedir que ela repita o que o `.html` do nome já diz. Enquanto nada foi
   // escolhido, o campo aceita os dois — senão o seletor de arquivos esconderia
   // metade do que ele deve oferecer.
-  const formato = escolhido ? formatoPeloNome(escolhido.nome) : null;
+  // NO ANEXO O FORMATO NÃO SE ESCOLHE, e é a linha que impede um `.html`
+  // anexado a um curso de virar o visualizador interativo dentro dele.
+  const formato = !ehEbook ? "pdf" : escolhido ? formatoPeloNome(escolhido.nome) : null;
   const proxima = (atual?.versao ?? 0) + 1;
 
   async function subir(arquivo: File | undefined) {
@@ -315,7 +356,13 @@ function ArquivoDoEbook({
       // A PASTA CARREGA A VERSÃO, e o nome o instante: `ebooks/{item}/v3/…`
       // é o que o sprint pede e é o que torna o bucket legível por quem abre
       // o painel do Supabase para conferir qual arquivo está no ar.
-      const caminho = `ebooks/${itemId}/v${proxima}/${Date.now()}.${extensao}`;
+      // A PASTA DIZ DE QUE FORMATO É O ITEM, e não `ebooks/` para os três:
+      // o bucket é lido por quem abre o painel do Supabase para conferir qual
+      // arquivo está no ar, e um anexo de curso dentro de `ebooks/` manda essa
+      // pessoa procurar um e-book que não existe. Os que já estão lá ficam
+      // onde estão — o caminho é o que a linha aponta.
+      const pasta = tipo === "ebook" ? "ebooks" : tipo === "playbook" ? "playbooks" : "cursos";
+      const caminho = `${pasta}/${itemId}/v${proxima}/${Date.now()}.${extensao}`;
 
       const { error } = await supabase.storage
         .from(BUCKET_DO_ACERVO)
@@ -344,10 +391,10 @@ function ArquivoDoEbook({
           nome: escolhido.nome,
           tamanho_bytes: escolhido.bytes,
           paginas: paginas ? Number(paginas) : null,
-          formato: formatoPeloNome(escolhido.nome),
+          formato: ehEbook ? formatoPeloNome(escolhido.nome) : "pdf",
           versao: proxima,
-          notas_mudanca: notas || null,
-          exige_releitura: releitura,
+          notas_mudanca: ehEbook ? notas || null : null,
+          exige_releitura: ehEbook ? releitura : false,
         }),
       );
       if (!r.ok) toast.error(r.error);
@@ -365,7 +412,13 @@ function ArquivoDoEbook({
   return (
     <div className="bg-card rounded-card shadow-cartao space-y-3 border p-4">
       <h4 className="text-text-primary text-sm font-medium">
-        {atual ? `Publicar a versão ${proxima}` : "Anexar o arquivo"}
+        {ehEbook
+          ? atual
+            ? `Publicar a versão ${proxima}`
+            : "Anexar o arquivo"
+          : atual
+            ? `Trocar o anexo (versão ${proxima})`
+            : "Anexar um arquivo"}
       </h4>
 
       {/* O QUE JÁ ESTÁ NO AR VEM PRIMEIRO, e não como aviso: quem abre esta
@@ -373,14 +426,24 @@ function ArquivoDoEbook({
           saber qual. Sem a linha, "Trocar o arquivo" não diz trocar o quê. */}
       {atual ? (
         <p className="text-text-secondary text-xs">
-          Hoje o e-book entrega <span className="font-medium">{atual.nome}</span> (versão{" "}
-          {atual.versao}, {ROTULOS_DO_FORMATO[atual.formato]}). Subir outro passa a
-          entregar o novo — o anterior continua no histórico.
+          Hoje {ehEbook ? "o e-book entrega" : "o anexo é"}{" "}
+          <span className="font-medium">{atual.nome}</span> (versão {atual.versao}
+          {ehEbook ? `, ${ROTULOS_DO_FORMATO[atual.formato]}` : ""}). Subir outro
+          passa a entregar o novo — o anterior continua no histórico.
         </p>
-      ) : (
+      ) : ehEbook ? (
         <p className="text-text-secondary text-xs">
           Um e-book sem arquivo não tem o que entregar: a tela de quem abrir mostra o
           título e nada mais. Aceita PDF e página interativa (.html).
+        </p>
+      ) : (
+        <p className="text-text-secondary text-xs">
+          Material de apoio para quem abrir este{" "}
+          {tipo === "playbook" ? "playbook" : "curso"} baixar — a apostila, o
+          modelo, a planilha. Ele não conta como leitura:{" "}
+          {tipo === "playbook"
+            ? "quem confirma é a versão do texto."
+            : "quem conta são as aulas."}
         </p>
       )}
 
@@ -388,11 +451,19 @@ function ArquivoDoEbook({
           do produto inteiro — e ele continua na árvore de acessibilidade com
           `aria-label` próprio, porque escondido não é ausente: sem o rótulo
           ele é anunciado como "editar" e mais nada. Foi o achado do axe. */}
+      {/* SEM `accept` NO ANEXO, de propósito: um apoio de playbook é um PDF,
+          um modelo de planilha ou um .zip de exemplos, e uma lista fechada
+          aqui recusaria o caso comum sem dizer por quê. No e-book ela fica,
+          porque lá o formato DECIDE qual tela o item vira. */}
       <input
         ref={campo}
         type="file"
-        accept={`${EXTENSOES_DO_FORMATO.pdf},${EXTENSOES_DO_FORMATO.html_interativo}`}
-        aria-label="Arquivo do e-book"
+        accept={
+          ehEbook
+            ? `${EXTENSOES_DO_FORMATO.pdf},${EXTENSOES_DO_FORMATO.html_interativo}`
+            : undefined
+        }
+        aria-label={ehEbook ? "Arquivo do e-book" : "Arquivo anexado ao item"}
         className="sr-only"
         onChange={(e) => void subir(e.target.files?.[0])}
       />
@@ -431,7 +502,7 @@ function ArquivoDoEbook({
         </Button>
       </div>
 
-      {escolhido ? (
+      {escolhido && ehEbook ? (
         <p className="text-text-muted text-xs">
           O Full Hub vai tratar este arquivo como{" "}
           <span className="font-medium">
@@ -447,7 +518,7 @@ function ArquivoDoEbook({
           ausência é a decisão: na primeira não há o que dizer que mudou, e não
           há quem reler — pedir as duas ali seria um campo que ninguém sabe
           preencher no único momento em que ele é obrigatório pelo costume. */}
-      {atual ? (
+      {atual && ehEbook ? (
         <div className="space-y-3 border-t pt-3">
           <div className="space-y-1.5">
             <Label htmlFor="e-notas">O que mudou</Label>

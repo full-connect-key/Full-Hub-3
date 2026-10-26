@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Lock,
+  Paperclip,
   PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -147,14 +148,25 @@ export function DetalheDoItem({
       {/* O CARTÃO DE DOWNLOAD SÓ APARECE PARA O PDF, e a condição é
           `!interativo` e não o tipo: um e-book interativo não tem o que
           baixar — ele É a tela —, e os dois juntos dariam a mesma peça duas
-          vezes, uma delas prometendo um arquivo que ninguém abre fora. */}
+          vezes, uma delas prometendo um arquivo que ninguém abre fora.
+
+          E SÃO DOIS CARTÕES E NÃO UM, porque o arquivo é duas coisas: no
+          e-book ele É o conteúdo, e marcar lido ali é marcar o item lido; no
+          playbook e no curso ele é ANEXO, e o botão de conclusão seria uma
+          segunda porta para fechar um item cuja conclusão é a versão
+          confirmada ou as aulas vistas — o item fecharia sem ninguém ter
+          lido a versão, e o selo de estado ao lado diria o contrário. */}
       {arquivo && !interativo ? (
-        <Ebook
-          item={item.id}
-          arquivo={arquivo}
-          endereco={arquivoAssinado}
-          lido={estado === "concluido"}
-        />
+        item.tipo === "ebook" ? (
+          <Ebook
+            item={item.id}
+            arquivo={arquivo}
+            endereco={arquivoAssinado}
+            lido={estado === "concluido"}
+          />
+        ) : (
+          <Anexo arquivo={arquivo} endereco={arquivoAssinado} />
+        )
       ) : null}
       {curso ? <Curso item={item.id} dados={curso} /> : null}
 
@@ -280,6 +292,74 @@ function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto
 // ---------------------------------------------------------------------------
 // E-BOOK
 // ---------------------------------------------------------------------------
+
+/**
+ * O ANEXO de um playbook ou de um curso.
+ *
+ * **É O CARTÃO DO E-BOOK SEM O BOTÃO DE CONCLUSÃO**, e a ausência é a decisão
+ * inteira: aqui o arquivo é material de apoio, não o conteúdo — quem fecha um
+ * playbook é a versão confirmada, e quem fecha um curso são as aulas. O
+ * argumento está escrito por extenso em `ArquivoDoItem`, no montar.
+ *
+ * **E ELE NÃO REAPROVEITA `Ebook` com uma bandeira.** Uma prop `semConclusao`
+ * deixaria o botão a um booleano de distância de voltar na tela errada, e o
+ * que o separa não é um detalhe de desenho: são dois fatos diferentes sobre o
+ * que aquele arquivo é.
+ *
+ * O resto é igual de propósito — o mesmo ladrilho, a mesma linha de nome e
+ * tamanho, e o mesmo botão desligado com a razão quando a assinatura não
+ * volta: dois desenhos para o mesmo arquivo divergiriam na primeira mudança.
+ */
+function Anexo({
+  arquivo,
+  endereco,
+}: {
+  arquivo: NonNullable<ItemAberto["arquivo"]>;
+  endereco: string | null;
+}) {
+  return (
+    <section className="bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-4 border p-5">
+      <span
+        className="bg-neutral-soft text-neutral grid size-11 shrink-0 place-items-center rounded-lg"
+        aria-hidden
+      >
+        <Paperclip className="size-5" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-text-muted text-[11px] font-medium tracking-wide uppercase">
+          Anexo
+        </p>
+        <p className="text-text-primary text-sm font-medium">{arquivo.nome}</p>
+        <p className="text-text-muted text-xs">
+          {arquivo.paginas ? `${arquivo.paginas} páginas` : "Material de apoio"}
+          {arquivo.tamanho_bytes
+            ? ` · ${Math.round(arquivo.tamanho_bytes / 1024 / 1024)} MB`
+            : ""}
+        </p>
+      </div>
+
+      {endereco ? (
+        <Button asChild variant="outline" size="sm">
+          <a href={endereco} target="_blank" rel="noreferrer">
+            <Download aria-hidden className="size-4" />
+            Baixar
+          </a>
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled
+          title="O endereço do arquivo não foi liberado. Recarregue a página; se continuar, fale com a gestão."
+        >
+          <Download aria-hidden className="size-4" />
+          Baixar
+        </Button>
+      )}
+    </section>
+  );
+}
 
 function Ebook({
   item,
