@@ -8106,8 +8106,9 @@ Onde a regra é aplicada, e onde ela **não** é:
 - **Nome de coluna, valor de enum e nome de função continuam como estavam**
   (`hr_tipo` com `ferias`/`licenca`, `dias_ferias_ano`, `saldo_de_ferias()`,
   o token `--ferias`). As constantes em TypeScript, essas sim, acompanharam:
-  `DIAS_DE_DESCANSO_PADRAO` e `PARCELAS_DE_DESCANSO_PADRAO` — identificador em
-  português é a camada que a convenção manda traduzir. Decisão explícita: renomear valor de enum em uso é
+  `DIAS_DE_DESCANSO_PADRAO` — identificador em
+  português é a camada que a convenção manda traduzir. (O par dele,
+  `PARCELAS_DE_DESCANSO_PADRAO`, foi apagado na 0116.) Decisão explícita: renomear valor de enum em uso é
   migration arriscada, e ninguém que usa o sistema vê esses nomes. A
   consequência aceita é que quem ler o schema vê o vocabulário antigo.
 - `npm run check:cores` varre `src/` atrás de "férias" e "licença"
@@ -8142,11 +8143,12 @@ afirmação, não.
 > dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
 
 
-**15 dias de day off a CADA CICLO DE 12 MESES, em até duas parcelas por
-ciclo.** Os dois números são colunas de `team_members` (`dias_ferias_ano`,
-`max_parcelas_ferias` — nomes anteriores à troca de vocabulário), não
-constantes no código: contrato muda por pessoa, e mudar contrato não pode
-exigir deploy.
+**15 dias de day off a CADA CICLO DE 12 MESES, e eles são CORRIDOS dentro do
+ciclo.** O número é uma coluna de `team_members` (`dias_ferias_ano` — nome
+anterior à troca de vocabulário), não uma constante no código: contrato muda
+por pessoa, e mudar contrato não pode exigir deploy. **Em quantas vezes esses
+dias são partidos não é mais pergunta do produto** — a trava saiu na 0116, e o
+porquê está em "O DAY OFF NÃO TEM PARCELAS", logo abaixo.
 
 **O ciclo é contado da ENTRADA da pessoa, não do calendário** (migration 0039,
 decisão do usuário). O saldo deixou de zerar em 1º de janeiro e passou a ser do
@@ -8190,25 +8192,83 @@ intenção: o recorte errado mais provável é `data_fim >= comeca`, que parece 
 mesma coisa e conta o descanso da virada inteiro nos dois ciclos. Trocando a
 coluna, dois cenários caem e dizem 10 e 7 onde esperavam 15 e 12. Medido com
 três mutações — devolver `por_ciclo * ciclos` ao saldo derruba **10 cenários**,
-devolvê-lo às parcelas derruba 2, e trocar o recorte derruba os 2 da virada.
+devolvê-lo às parcelas derrubava 2 (a segunda mutação saiu com
+`parcelas_concedidas()`, na 0116), e trocar o recorte derruba os 2 da virada.
 
-**AS PARCELAS ACOMPANHAM, pela mesma razão.** `max_parcelas_ferias` é "quantas
-vezes o descanso pode ser partido", e a frase da recusa sempre disse *"por
-ciclo de 12 meses"*. Com o saldo restaurando e as parcelas acumulando, alguém
-com três ciclos poderia partir 15 dias em seis — o que a própria frase já
-negava.
+**AS PARCELAS ACOMPANHARAM A 0085 e saíram na 0116**, e o registro do que elas
+foram fica porque o argumento delas explica o que se perde.
+`max_parcelas_ferias` era "quantas vezes o day off pode ser partido", e a frase
+da recusa sempre disse *"por ciclo de 12 meses"* — com o saldo restaurando e as
+parcelas acumulando, alguém com três ciclos poderia partir 15 dias em seis, o
+que a própria frase já negava. O que vale hoje está logo abaixo.
+
+#### O DAY OFF NÃO TEM PARCELAS
+
+Migration 0116, decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas'
+mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é
+corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do
+saldo"*.
+
+**O PEDIDO É UMA LEGENDA E A MUDANÇA É DE BANCO, pela razão da 0025.** Aquela
+frase não era enfeite: ela descrevia uma trava que morava em
+`validar_solicitacao` desde o Sprint 6 — o terceiro pedido de um ciclo era
+recusado, com uma mensagem falando de um "esquema de parcelas" que o usuário
+acabara de dizer que não existe. Tirando só a legenda, a tela pararia de
+explicar a recusa e **continuaria levando a recusa**: é a 0029 e a 0060 pela
+terceira vez — regra que mora nos dois lados, e desfazer um não desfaz nada.
+
+**A COLUNA FICA, e isso não contradiz a 0023.** Lá a coluna apagada não decidia
+mais nada e continuava sendo PERGUNTADA na tela de abertura — o pior tipo de
+campo, porque quem responde acha que garantiu alguma coisa.
+`max_parcelas_ferias` não é perguntada em lugar nenhum: ela é um número de
+contrato que já está gravado, e apagá-la destruiria o que cada ficha trazia por
+causa de uma trava que saiu. Ela fica **sem leitor**, com o `comment on column`
+dizendo isso — a forma de `carga_da_equipe()`, que continua no banco depois de
+a Linha do Tempo sair.
+
+**`parcelas_concedidas()` SAIU, e `parcelas_no_ciclo()` ficou**, e a assimetria
+é a decisão inteira: a primeira respondia *"quantas ela PODE"*, que é o limite,
+e ninguém mais pergunta isso; a segunda responde *"quantas ela TIROU"*, que é um
+FATO sobre o ciclo e continua sendo lido pela bateria e por quem for conferir o
+banco. Deixar a primeira de pé, sem chamador, seria a constante morta de novo —
+o que alguém reaproveita três sprints depois achando que a regra ainda existe.
+
+**`descanso_do_ciclo()` PERDEU DUAS COLUNAS, e por isso é `drop` e não `create
+or replace`** — aquele comando não troca o tipo de retorno de uma função
+`returns table`, e o `revoke`/`grant` é repetido inteiro atrás dele, senão ela
+renasce com o `execute` que o Postgres concede a `public` sozinho. É a lição da
+0097. **E as duas colunas saem do TIPO junto**, não só da função: um `Returns`
+declarando um campo que o banco não devolve é a deriva que `check:tipos` existe
+para pegar um andar acima.
+
+**A LEGENDA DIZ DIAS, que é o que a porcentagem ao lado mede.** Ela dizia
+*"0 dias em 0 de 2 parcelas"*, e os dois números não eram da mesma conta — a
+barra media dias usados sobre dias concedidos, e a metade de baixo falava de
+outra coisa. Hoje é **"5 de 15 dias neste ciclo"**, e "neste ciclo" é a palavra
+que a 0085 acrescentou: sem ela, quem tirou dez no ciclo passado e cinco neste
+leria "5 de 15" e iria procurar os outros dez.
+
+**E O AVISO DE "sem parcela livre" SAIU COM A TRAVA.** Ele era um dos três que
+desligavam o botão de enviar, e os outros dois ficam — saldo insuficiente e
+primeiro ciclo. Um aviso que explica uma recusa que não acontece mais é pior
+que aviso nenhum: ele ensina uma regra que o banco não tem.
+
+**O que se perde está dito, e é consequência aceita:** a agência deixa de poder
+limitar em quantas vezes alguém parte o day off. Quem quiser a trava de volta
+devolve o bloco ao fim de `validar_solicitacao` — a coluna continua lá, com o
+número de cada pessoa.
 
 - `ciclos_de_descanso()` conta os ciclos, `inicio_do_ciclo()` diz quando o
   atual começou, e `saldo_de_ferias()` **perdeu o parâmetro de ano**. A âncora
   é `data_admissao`; sem ela, `created_at` da ficha. Depois da 0085, `ciclos`
   decide **uma** coisa — zero é o primeiro ciclo, que não concede nada —, e não
-  é mais um multiplicador: `descanso_do_ciclo()` devolve os quatro números do
-  ciclo corrente, e a tela os lê como estão.
+  é mais um multiplicador: `descanso_do_ciclo()` devolve os números do ciclo
+  corrente — quatro até a 0116, dois depois que o par de parcela saiu —, e a
+  tela os lê como estão.
 - **OS 15 SÃO CONQUISTADOS NO FIM DO CICLO, e não na abertura dele** (migration
   0074, decisão do usuário: *"entrou hj, nn tem dias disponíveis - fez 12
   meses, ganha 15 dias, fez 24 meses, ganha mais 15 dias"*). Quem entrou hoje
-  tem **zero** — zero dias, zero parcelas —, e o primeiro bloco entra no
-  primeiro aniversário.
+  tem **zero** dias, e o primeiro bloco entra no primeiro aniversário.
 
   **A 0039 tinha escolhido o contrário, e registrou a escolha.** O comentário
   dela dizia que havia duas leituras de "a cada 12 meses soma 15", que ela
@@ -12632,6 +12692,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O day off não tem parcelas | **A trava de "em até N vezes" saiu do produto** (migration 0116), por decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas' mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do saldo"*. **O pedido é uma legenda e a mudança é de banco:** aquela frase descrevia uma trava que morava em `validar_solicitacao` desde o Sprint 6 — tirando só o texto, a tela pararia de explicar a recusa e **continuaria levando a recusa**, que é a 0029 e a 0060 pela terceira vez. **A COLUNA FICA, e isso não contradiz a 0023:** lá a coluna apagada continuava sendo PERGUNTADA na tela; `max_parcelas_ferias` não é perguntada em lugar nenhum — é um número de contrato já gravado, e ela fica **sem leitor**, com o `comment on column` dizendo isso, na forma de `carga_da_equipe()`. **`parcelas_concedidas()` SAIU e `parcelas_no_ciclo()` FICOU**, e a assimetria é a decisão inteira: a primeira respondia *quantas ela PODE*, que é o limite que ninguém mais pergunta, e a segunda responde *quantas ela TIROU*, que é um FATO sobre o ciclo. **`descanso_do_ciclo()` perdeu duas colunas**, então é `drop` e não `create or replace` — aquele comando não troca o tipo de retorno de um `returns table` —, com o `revoke`/`grant` repetido atrás (a lição da 0097), e as duas saem do TIPO junto. A legenda passou a dizer **"5 de 15 dias neste ciclo"**, que é o que a barra ao lado mede: os dois números de antes não eram da mesma conta. **E o aviso de "sem parcela livre" saiu com a trava** — dos três que desligavam o botão de enviar ficaram dois. *O que se perde está dito:* a agência deixa de poder limitar em quantas vezes alguém parte o day off, e devolver é recolocar o bloco no fim de `validar_solicitacao`, porque a coluna continua lá. **A bateria NÃO pôde ser rodada** (sem Docker e sem Postgres local neste ambiente): os números dos cenários novos foram derivados da leitura do fixture, não medidos — fica dito em vez de escondido. |
 | Sprint do Portal | **O Portal do Cliente ganhou o detalhe com ANDAMENTO, a fila por prazo nas três frentes, o Cronograma e a Biblioteca.** Nenhuma migration: as quatro são tipo, leitura e desenho. A escada do detalhe tem os passos que o produto CONSEGUE datar e não os cinco do roteiro — "Em criação" e "Em revisão" são elos da corrente interna, em que o cliente não tem policy e não passa a ter, e não existe histórico por status de um material: o que há é o carimbo de envio, a data de cada versão e quando cada rodada abriu e foi decidida. O quarto passo, "Em produção na Full", é o único sem data, e a ausência é dita em vez de preenchida. A fila passou a ordenar por PRAZO e a cobrir as três frentes — ela listava só o material de demanda desde o Sprint 3B, e com o selo da barra lateral ligado isso virou "2" no selo contra "3 esperando você" no Início. O Cronograma responde o que nenhuma outra tela do cliente responde, e o que o mantém do lado certo da 0105 é ser só leitura e só link. A Biblioteca tem UMA seção e não as cinco abas do roteiro: quatro delas pedem tabela, bucket e tela de upload do lado da agência, e aba que nunca tem nada dentro é pior que aba a menos. **Três bugs que só a imagem e a mutação pegaram:** cada post aparecia DUAS VEZES na grade do cronograma — `itensDoPortal` já agrega as três frentes e o stub do protótipo só tinha `subtask`, então nenhuma imagem mostrava; a coluna de domingo saía cortada pela borda da página (`min-width: auto` num item de grade); e o título saía cortado SEM reticências, porque o `truncate` estava num elemento inline. E o `check:cores` pegou os meus próprios comentários duas vezes, pela oitava e nona. |
 | O descanso se cancela | **Um período já combinado pode ser desfeito** (migration 0106), por decisão do usuário: *"preciso da opção de cancelar um período de descanso depois que já foi aprovado pelo sócio"*. `cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado — o `pendente` —, e a saída que sobrava, o lançamento retroativo, **não alcança o futuro** de propósito: não havia saída nenhuma. **Quem cancela é o DONO ou o SÓCIO**, e as razões são diferentes: devolver os próprios dias não tira nada de ninguém, e desfazer a decisão do sócio é dele. **A TRAVA É A DATA e não o status** — um período em curso tem dias vividos, e despintar a matriz sobre um passado que aconteceu faria ela afirmar que a pessoa estava aqui numa semana em que não estava; a recusa NOMEIA a data, que é a decisão da 0023. **A limpeza de `team_presence` é a metade que importa, e não estava escrita em lugar nenhum:** `hr_request_id` é `on delete set null`, então apagar o pedido deixaria os dias órfãos e pintados — é o mesmo achado do `zerar-full-days.sql`, que foi o relato do usuário em outra forma. **O saldo volta sozinho**, porque `descanso_usado_no_ciclo()` conta `pendente` e `aprovada` e `cancelada` não é nenhum dos dois: o que é derivado não precisa ser desfeito. **O motivo é obrigatório para quem não é o dono**, e `motivo_cancelamento` é coluna própria — *remarca* e *não vai acontecer* são dois fatos, e a mesma coluna para os dois faria a linha afirmar uma coisa e o status outra. **O sino toca nos dois sentidos.** Na tela, `podeCancelar()` desceu para `lib/dominio/` porque são DUAS que perguntam, o botão SOME em vez de aparecer desligado (a razão é uma porta que fechou, não um passo que falta), e a fila do sócio ganhou a QUARTA aba, "Canceladas" — `cancelada` estava no enum desde a 0011 e **tela nenhuma a listava**. **2227 cenários, quatro mutações medidas** (1 / 5 / 6 / 4), e a primeira derruba UM porque é o único cenário que separa "cancelado" de "cancelado e limpo". O protótipo ganhou um combinado FUTURO ao lado do que já começou: com um só, a imagem não separa "o botão aparece" de "o botão aparece sempre". |
 | O tipo vira Day off | **"Descanso" passa a se chamar DAY OFF** (migration 0107), por decisão do usuário: *"dentro do Day Off mudar o nome o tipo de solicitação 'Descanso' por 'Day off' também. vamos usar sempre essa nomenclatura para tudo que se refere as 'férias' (que também não podemos falar) OU SEJA, os dias tirados são DAY OFF"*. **É a TERCEIRA rodada de vocabulário do módulo, e a primeira que não é sobre exposição:** a 0016 e a 0018 trocaram palavra da CLT, e esta troca o nome interno pelo nome que a agência usa falando. **E ELA É MIGRATION, e não uma linha de tela**, porque `ROTULOS_DE_TIPO` é a porta de todo rótulo e as frases que NASCEM NO POSTGRES não passam por ela: são as seis recusas de `validar_solicitacao`, a de `descanso_do_ciclo` e o título do sino — sem a migration, a pessoa leria "Day off" no seletor e "O descanso não acumula" na recusa do clique seguinte, a dois centímetros de distância. **As três funções foram COPIADAS INTEIRAS e não remendadas**, que é a lição da 0030: `create or replace` se reescreve a partir do texto de agora e não avisa quando o texto novo tem menos coisa que o velho. **SÃO TRÊS CAMADAS DE NOME AGORA, e isso fica dito:** `ferias` no enum e nas colunas, `descanso` nas funções e nos tipos, "Day off" na tela — renomear coluna ou função em uso é migration arriscada, e ninguém que usa o sistema vê esses nomes. **"Descanso" NÃO entrou na lista de nomes mortos do `check:cores`**, ao contrário de "recesso" e "indisponibilidade": ela não foi aposentada — continua sendo o nome da camada do meio, lido de dentro de `src/` por seis identificadores —, e pô-la lá exigiria `salvo` para metade do módulo, que é onde o furo seguinte se esconde. Quem protege a troca é o `check:sprint9`, de MÃO DUPLA em cinco telas, lendo o texto renderizado. **2227 cenários, e a mutação é o arquivo inteiro:** sem a 0107 caem **5** — a recusa por saldo, o título do sino, a dica que diz quando os dias voltam, e as duas varreduras de frase, cada uma nomeando o que voltou. O marcador do `onde-esta-o-banco.sql` aponta para o PASSO 3 e não para o 1, e é por PRESENÇA: medido nos dois sentidos num banco em dia e num sem a migration. |

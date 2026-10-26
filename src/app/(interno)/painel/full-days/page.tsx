@@ -298,7 +298,6 @@ async function ConteudoDeSolicitar({
       bloqueados={Object.fromEntries(bloqueados)}
       hojeISO={hojeISO}
       diasPorCiclo={eu?.diasFeriasAno ?? 15}
-      parcelasPorCiclo={eu?.maxParcelas ?? 2}
       descanso={descanso}
       minhaArea={eu?.area ?? "Sem área"}
     />

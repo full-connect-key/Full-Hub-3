@@ -10,16 +10,20 @@ import type { HrRequest, HrStatus, HrTipo, PresencaStatus } from "@/lib/supabase
  */
 
 /**
- * O contrato padrão da casa: 15 dias por ano, em até duas parcelas.
+ * O contrato padrão da casa: 15 dias por ciclo de 12 meses.
  *
  * É só o PADRÃO — o número que vale é o de `team_members`, coluna por pessoa,
  * porque contrato muda por pessoa e mudar contrato não pode exigir deploy.
  * A constante existe para a tela e a camada de dados caírem no mesmo valor
  * quando a ficha ainda não tem um: dois "senão" com números diferentes foi
  * como a regra dos 15 dias quase não valeu.
+ *
+ * **O par dela, `PARCELAS_DE_DESCANSO_PADRAO`, foi APAGADO na 0116** e não
+ * deixado ao lado — a decisão da 0023. O day off deixou de ser partido em
+ * número de vezes, e uma constante que nenhuma tela lê é o que alguém
+ * reaproveita três sprints depois achando que ela ainda diz a verdade.
  */
 export const DIAS_DE_DESCANSO_PADRAO = 15;
-export const PARCELAS_DE_DESCANSO_PADRAO = 2;
 
 /**
  * Até onde o calendário vai, nas duas pontas.

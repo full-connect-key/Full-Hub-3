@@ -66,7 +66,6 @@ const TIME: PessoaDoTime[] = [
     area: "Direção",
     cargo: "Sócia-diretora",
     diasFeriasAno: 15,
-    maxParcelas: 2,
   },
   {
     id: "a0000000-0000-0000-0000-000000000003",
@@ -75,7 +74,6 @@ const TIME: PessoaDoTime[] = [
     area: "Atendimento",
     cargo: "Analista de contas",
     diasFeriasAno: 15,
-    maxParcelas: 2,
   },
   {
     id: "a0000000-0000-0000-0000-000000000005",
@@ -84,7 +82,6 @@ const TIME: PessoaDoTime[] = [
     area: "Criação",
     cargo: "Designer",
     diasFeriasAno: 15,
-    maxParcelas: 2,
   },
   {
     id: "a0000000-0000-0000-0000-000000000006",
@@ -93,7 +90,6 @@ const TIME: PessoaDoTime[] = [
     area: "Criação",
     cargo: "Social media",
     diasFeriasAno: 15,
-    maxParcelas: 2,
   },
   {
     id: "a0000000-0000-0000-0000-000000000002",
@@ -102,7 +98,6 @@ const TIME: PessoaDoTime[] = [
     area: "Tecnologia",
     cargo: "Desenvolvedor",
     diasFeriasAno: 15,
-    maxParcelas: 2,
   },
 ];
 
@@ -576,8 +571,6 @@ export async function descansoDoCiclo(
       diasConcedidos: 0,
       diasUsados: 0,
       saldo: 0,
-      parcelasConcedidas: 0,
-      parcelasUsadas: 0,
     };
   }
 
@@ -588,7 +581,5 @@ export async function descansoDoCiclo(
     diasConcedidos: 15,
     diasUsados: 5,
     saldo: 10,
-    parcelasConcedidas: 2,
-    parcelasUsadas: 1,
   };
 }

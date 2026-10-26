@@ -10,7 +10,7 @@
 -- Ana e socia (a unica que decide), Diego desenvolvedor, Carla e Bruno
 -- colaboradores, Joana e cliente.
 --
--- A pergunta: as regras de ferias -- 15 dias por ano em ate duas parcelas --
+-- A pergunta: as regras de day off -- 15 dias corridos por ciclo de 12 meses --
 -- valem quando alguem chama o Supabase direto, sem passar pela tela?
 -- ===========================================================================
 
@@ -81,7 +81,7 @@ select teste.cenario('Periodo sem nenhum dia util e recusado', :BRUNO,
   $fmt$, :BRUNO), 'recusa');
 
 
--- --- As 15 e as duas parcelas ----------------------------------------------
+-- --- Os 15 dias do ciclo ---------------------------------------------------
 
 select teste.cenario('Sobreposicao com pedido proprio e recusada', :BRUNO,
   format($fmt$
@@ -89,13 +89,23 @@ select teste.cenario('Sobreposicao com pedido proprio e recusada', :BRUNO,
     values (%L, 'licenca', '2026-03-04', '2026-03-10', 5)
   $fmt$, :BRUNO), 'recusa');
 
-select teste.cenario('A segunda parcela cabe: 5 + 10 = 15', :BRUNO,
+select teste.cenario('O segundo periodo cabe: 5 + 10 = 15', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2026-07-06', '2026-07-17', 10)
   $fmt$, :BRUNO), 'ok', 1);
 
-select teste.cenario('A terceira parcela e recusada, mesmo com saldo zerado', :BRUNO,
+-- O TERCEIRO PERIODO E RECUSADO PELO SALDO, e nao mais por contagem de
+-- vezes. A trava de parcelas saiu na 0116 -- decisao do usuario, *"nao vamos
+-- trabalhar nesse esquema de parcelas, o periodo de 15 dias e corrido durante
+-- o periodo de 1 ano"* --, e este cenario fica porque a recusa continua: o
+-- Bruno ja comprometeu os 15 do ciclo, entao mais um dia estoura o saldo.
+--
+-- **O PROXIMO E QUE MEDE A REMOCAO**, e e ele virado do avesso: um pedido
+-- que CABE no saldo e seria a terceira vez. Ate a 0116 ele era recusado com
+-- "o day off pode ser partido em ate 2 vezes"; se alguem devolver a trava,
+-- e ele que falha e diz qual.
+select teste.cenario('O terceiro periodo sem saldo continua recusado', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2026-09-07', '2026-09-08', 1)
@@ -136,8 +146,45 @@ select teste.conferir('O saldo da Carla segue nos 10 do day off dela',
 select teste.conferir('O do Bruno zerou',
   public.saldo_de_ferias('44444444-4444-4444-4444-444444444444')::text, '0');
 
-select teste.conferir('E ele ja usou as duas parcelas',
+select teste.conferir('E ele tirou dois periodos no ciclo',
   public.parcelas_de_ferias('44444444-4444-4444-4444-444444444444')::text, '2');
+
+-- --- O TERCEIRO PERIODO, que e o cenario da 0116 --------------------------
+--
+-- A Carla tem UM periodo no ciclo (a virada do ano, 5 dias) e 10 de saldo.
+-- Os dois abaixo a levam a tres periodos, com saldo de sobra o tempo todo --
+-- e e o TERCEIRO que mede a remocao: ate a 0116 ele era recusado com *"o day
+-- off pode ser partido em ate 2 vezes por ciclo de 12 meses"*, com 6 dias
+-- ainda livres na conta dela.
+--
+-- As datas ficam dentro do ciclo (01/03/2026 a 01/03/2027) e longe do
+-- afastamento de agosto e do periodo da virada: a sobreposicao com registro
+-- proprio continua recusada, e ela recusaria pelo motivo errado.
+--
+-- Devolvendo a trava, o terceiro falha e diz qual.
+select teste.cenario('O segundo periodo da Carla passa', :CARLA,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ferias', '2026-10-05', '2026-10-06', 2)
+  $fmt$, :CARLA), 'ok', 1);
+
+select teste.cenario('E o TERCEIRO tambem, com saldo de sobra (0116)', :CARLA,
+  format($fmt$
+    insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
+    values (%L, 'ferias', '2026-11-09', '2026-11-10', 2)
+  $fmt$, :CARLA), 'ok', 1);
+
+select teste.conferir('Sao tres periodos dela no ciclo',
+  public.parcelas_de_ferias('33333333-3333-3333-3333-333333333333')::text, '3');
+
+select teste.conferir('E sobram 6 dos 15',
+  public.saldo_de_ferias('33333333-3333-3333-3333-333333333333')::text, '6');
+
+-- E `parcelas_concedidas()` NAO EXISTE MAIS (0116): ela devolvia o teto, e
+-- um teto que nao trava nada e o que alguem reaproveita tres sprints depois
+-- achando que ele vale. `parcelas_de_ferias()` fica, porque conta um FATO.
+select teste.conferir('parcelas_concedidas() foi apagada',
+  (to_regprocedure('public.parcelas_concedidas(uuid)') is null)::text, 'true');
 
 
 -- --- Quem le ---------------------------------------------------------------
@@ -600,9 +647,9 @@ select teste.recusa_com('Ausencia so no fim de semana continua recusada', :CARLA
 -- --- O ciclo de 12 meses (0039), conquistado no fim dele (0074) -----------
 --
 -- O saldo nao zera em 1 de janeiro: cada ciclo de 12 meses contado da ENTRADA
--- DA PESSOA soma 15 dias e 2 parcelas, e o que sobrou de um continua no
--- seguinte. A 0074 mudou QUANDO esse bloco chega -- no fim do ciclo, e nao na
--- abertura dele.
+-- DA PESSOA concede 15 dias. A 0074 mudou QUANDO esse bloco chega -- no fim
+-- do ciclo, e nao na abertura dele --, e a 0085 fez os dias se RESTAURAREM
+-- em vez de somarem.
 --
 -- Esta secao mexe na `data_admissao` de propósito e DEVOLVE no fim: os
 -- arquivos seguintes contam com a ficha como ela estava (catorze meses).
@@ -636,8 +683,9 @@ select teste.conferir('Quem entrou hoje nao completou ciclo nenhum',
 select teste.conferir('E nao tem dia nenhum ainda',
   public.saldo_de_ferias(:BRUNO)::text, '0');
 
-select teste.conferir('Nem parcela nenhuma',
-  public.parcelas_concedidas(:BRUNO)::text, '0');
+-- `parcelas_concedidas()` ERA CONFERIDA AQUI e foi apagada na 0116: ela
+-- devolvia o teto de vezes, e nao ha mais teto. O que o primeiro ciclo nega
+-- e o DIA, que a linha acima ja mede.
 
 -- E A TELA PRECISA DIZER QUANDO, senao a recusa e um "nao" sem instrucao.
 select teste.conferir('Os primeiros dias chegam no primeiro aniversario',
@@ -699,8 +747,8 @@ select teste.conferir('Doze meses completam o primeiro ciclo',
 select teste.conferir('E os 15 dias chegam',
   public.saldo_de_ferias(:BRUNO)::text, '15');
 
-select teste.conferir('Com as duas parcelas',
-  public.parcelas_concedidas(:BRUNO)::text, '2');
+select teste.conferir('E ele nao tirou periodo nenhum ainda',
+  public.parcelas_de_ferias(:BRUNO)::text, '0');
 
 -- O CICLO CORRENTE COMECOU NO ULTIMO ANIVERSARIO DA ENTRADA, e a tela mostra
 -- essa data: um numero que a pessoa nao sabe de onde veio e um numero em que
@@ -753,14 +801,13 @@ select teste.cenario('Um day off de dois anos atras, lancado pela socia', :ANA,
 select teste.conferir('Ele NAO desconta do saldo de hoje: continuam 15',
   public.saldo_de_ferias(:BRUNO)::text, '15');
 
-select teste.conferir('E nao gastou parcela deste ciclo',
+select teste.conferir('E nao gastou periodo deste ciclo',
   public.parcelas_de_ferias(:BRUNO)::text, '0');
 
--- AS PARCELAS TAMBEM SE RESTAURAM. A frase da recusa sempre disse "ate N vezes
--- POR CICLO de 12 meses" -- com elas acumulando, alguem com tres ciclos
--- poderia partir quinze dias em seis, o que a propria frase ja negava.
-select teste.conferir('Que sao duas, e nao seis: elas tambem nao acumulam',
-  public.parcelas_concedidas(:BRUNO)::text, '2');
+-- A CONTAGEM DE PERIODOS TAMBEM E DO CICLO, e e a linha de cima que mede:
+-- o lancamento do ciclo passado nao entra nela. Ate a 0116 havia aqui um
+-- `parcelas_concedidas()` conferindo que o TETO nao acumulava; o teto saiu, e
+-- o que continua valendo -- o recorte por ciclo -- e o mesmo.
 
 -- A TRAVA DO PEDIDO USA A MESMA CONTA. Sem isso a tela mostraria um numero e o
 -- banco recusaria, que e o pior dos dois mundos: um numero que promete o que a

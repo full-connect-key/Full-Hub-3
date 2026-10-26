@@ -3783,8 +3783,14 @@ export interface Database {
        * de coluna nao se renomeia em uso, e ninguem que usa o sistema os ve.
        */
       saldo_de_ferias: { Args: { p_user_id: string }; Returns: number };
+      /**
+       * Quantos PERÍODOS de day off a pessoa tirou no ciclo corrente.
+       *
+       * É um fato e não um limite: `parcelas_concedidas()` — que devolvia o
+       * teto — foi apagada na 0116, junto com a trava do terceiro pedido.
+       * Nenhuma tela do produto lê esta; quem a lê é a bateria.
+       */
       parcelas_de_ferias: { Args: { p_user_id: string }; Returns: number };
-      parcelas_concedidas: { Args: { p_user_id: string }; Returns: number };
       ciclos_de_descanso: { Args: { p_user_id: string }; Returns: number };
       inicio_do_ciclo: { Args: { p_user_id: string }; Returns: string | null };
       /**
@@ -3811,8 +3817,12 @@ export interface Database {
           dias_concedidos: number;
           dias_usados: number;
           saldo: number;
-          parcelas_concedidas: number;
-          parcelas_usadas: number;
+          /**
+           * **O PAR DE PARCELA SAIU NA 0116**, e com ele a trava do terceiro
+           * pedido do ciclo: decisão do usuário, *"não vamos trabalhar nesse
+           * esquema de parcelas, o período de 15 dias é corrido durante o
+           * período de 1 ano"*. O que restringe é `saldo`, e mais nada.
+           */
         }[];
       };
       /**

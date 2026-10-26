@@ -58,7 +58,6 @@ export function Solicitar({
   bloqueados,
   hojeISO,
   diasPorCiclo,
-  parcelasPorCiclo,
   descanso,
   minhaArea,
 }: {
@@ -68,7 +67,6 @@ export function Solicitar({
   hojeISO: string;
   /** O que o contrato dá a cada ciclo de 12 meses. */
   diasPorCiclo: number;
-  parcelasPorCiclo: number;
   /** O saldo já calculado pelo banco, ou null se a ficha não respondeu. */
   descanso: DescansoDoCiclo | null;
   minhaArea: string;
@@ -180,8 +178,6 @@ export function Solicitar({
 
   const concedidos = descanso?.diasConcedidos ?? diasPorCiclo;
   const usados = descanso?.diasUsados ?? 0;
-  const parcelasConcedidas = descanso?.parcelasConcedidas ?? parcelasPorCiclo;
-  const parcelasUsadas = descanso?.parcelasUsadas ?? 0;
   const ciclos = descanso?.ciclos ?? 1;
 
   const saldo = descanso?.saldo ?? diasPorCiclo;
@@ -212,11 +208,6 @@ export function Solicitar({
     !primeiroCiclo &&
     !saldoNaoRespondeu &&
     diasSelecionados > saldo;
-  const semParcela =
-    tipo === "ferias" &&
-    !primeiroCiclo &&
-    !saldoNaoRespondeu &&
-    parcelasUsadas >= parcelasConcedidas;
 
   // A DATA POR EXTENSO, uma vez só: ela aparece na faixa do topo e no aviso do
   // resumo, e duas formatações da mesma data é o começo de duas datas.
@@ -297,7 +288,6 @@ export function Solicitar({
     Boolean(inicioSel) &&
     diasSelecionados > 0 &&
     !excedeSaldo &&
-    !semParcela &&
     !primeiroCiclo;
 
   return (
@@ -361,8 +351,8 @@ export function Solicitar({
             ) : null}
           </div>
 
-          {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias em
-              0 de 0 parcelas" é uma linha de números que não decide nada, e
+          {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias" é
+              uma linha de números que não decide nada, e
               uma barra vazia pede para ser lida como "você já usou tudo" —
               que é o contrário do que está acontecendo. A faixa ao lado já
               diz a única coisa que há para dizer, que é a data.
@@ -386,10 +376,16 @@ export function Solicitar({
                   }}
                 />
               </div>
+              {/* A LEGENDA DIZ DIAS, e não mais "em N de M parcelas" (0116).
+                  Decisão do usuário: *"não vamos trabalhar nesse esquema de
+                  parcelas, o período de 15 dias é corrido durante o período de
+                  1 ano"*. A barra mede uma coisa — quanto do ciclo já foi
+                  comprometido —, e a linha embaixo dela tem de medir a mesma:
+                  com a contagem de parcelas ali, a porcentagem acima falava de
+                  dias e o texto logo abaixo falava de outra unidade. */}
               <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
-                {usados} {usados === 1 ? "dia" : "dias"} em {parcelasUsadas} de{" "}
-                {parcelasConcedidas}{" "}
-                {parcelasConcedidas === 1 ? "parcela" : "parcelas"}
+                {usados} de {concedidos} {concedidos === 1 ? "dia" : "dias"}{" "}
+                neste ciclo
               </p>
             </div>
           )}
@@ -620,11 +616,11 @@ export function Solicitar({
           ) : null}
 
           {/* UM AVISO SÓ, e ele é o do primeiro ciclo. Sem o `!primeiroCiclo`
-              nos dois derivados acima, quem entrou este ano veria os três
-              empilhados: "você tem 0 de saldo", "já usou as 0 parcelas que
-              tem" e este. Três recusas para um motivo é a tela parecendo
-              quebrada. A frase é a MESMA do banco, como as outras duas: quem
-              lê aqui e quem levar a recusa do `insert` precisa ler o mesmo. */}
+              em `excedeSaldo`, quem entrou este ano veria os dois empilhados:
+              "você tem 0 de saldo" e este. Duas recusas para um motivo é a
+              tela parecendo quebrada. A frase é a MESMA do banco, como a
+              outra: quem lê aqui e quem levar a recusa do `insert` precisa ler
+              o mesmo. (Eram TRÊS até a 0116, quando a de parcela saiu.) */}
           {primeiroCiclo ? (
             <Aviso tom="erro">
               {chegamEm
@@ -645,19 +641,12 @@ export function Solicitar({
             </Aviso>
           ) : null}
 
-          {/* A FRASE É A MESMA DO BANCO, de propósito: quem vê o aviso aqui e
-              quem levar a recusa do `insert` precisa ler a mesma coisa. A
-              contagem é a do CICLO CORRENTE (0085) — as parcelas se restauram
-              junto com os dias, e não somam. Com elas somando, quem tem três
-              ciclos poderia partir quinze dias em seis vezes, o que esta
-              própria frase já negava ao dizer "por ciclo". */}
-          {semParcela ? (
-            <Aviso tom="erro">
-              O day off pode ser partido em até {parcelasPorCiclo} vezes por
-              ciclo de 12 meses, e você já usou as {parcelasConcedidas} deste
-              ciclo.
-            </Aviso>
-          ) : null}
+          {/* O AVISO DE PARCELA SAIU DAQUI, e a trava do banco saiu no mesmo
+              commit (0116). Tirar só este deixaria a tela aceitando o clique e
+              o `insert` recusando com a frase de um esquema que o usuário
+              acabou de dizer que não existe — a 0029 e a 0060 pela enésima
+              vez. O que restringe um pedido agora é um número só: o saldo de
+              dias do ciclo, que o aviso logo acima já diz. */}
 
           <div className="space-y-2 border-t pt-3">
             <Label htmlFor="fd-motivo" className="text-text-secondary text-xs">

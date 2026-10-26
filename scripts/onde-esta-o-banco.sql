@@ -115,6 +115,20 @@ from (
          where pl.schemaname = split_part(v.nome, '|', 1)
            and pl.tablename  = split_part(v.nome, '|', 2)
            and pl.policyname = split_part(v.nome, '|', 3))
+      -- FUNCAO QUE FOI APAGADA. A 0116 nao cria objeto nenhum: ela tira uma
+      -- trava, encolhe um `returns table` e apaga `parcelas_concedidas()`.
+      -- Nenhum dos tipos de presenca responde por ela, e `sem_no_corpo` num
+      -- dos passos do meio diria `ok` sobre uma colagem que morreu antes do
+      -- fim -- o `drop` e a ULTIMA coisa que o arquivo faz.
+      --
+      -- Marcador por ausencia envelhece quando alguem ACRESCENTA, que e a
+      -- armadilha que a linha da 0060 pagou; aqui o risco e o menor da
+      -- familia, porque o que teria de voltar e uma funcao com este nome
+      -- exato, e devolve-la seria desfazer esta migration de proposito.
+      -- `funcao`.
+      when 'sem_funcao' then not exists (
+        select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public' and p.proname = v.nome)
       when 'sem_no_corpo' then not exists (
         select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
          where n.nspname = 'public'
@@ -633,7 +647,14 @@ from (
     -- um erro sobre enum -- a tela prometendo o que o banco nao aceita, que e
     -- exatamente o par do "Eventos Fullers" um modulo ao lado.
     ('0115', 'o formato de arquivo "link"', 'valor_de_enum',
-             'academy_ebook_formato|link')
+             'academy_ebook_formato|link'),
+    -- A 0116 tira a trava de parcelas do day off. `parcelas_concedidas()` e
+    -- o ULTIMO passo do arquivo -- a trava sai no PASSO 1 e o `returns table`
+    -- encolhe no PASSO 2 --, entao um marcador neles diria `ok` sobre um
+    -- banco em que a tela ja nao recusa e a funcao do saldo ainda devolve
+    -- oito colunas: o `select` da tela pede seis e leva um erro de forma.
+    ('0116', 'parcelas_concedidas() APAGADA', 'sem_funcao',
+             'parcelas_concedidas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

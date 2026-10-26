@@ -30,7 +30,6 @@ export type PessoaDoTime = {
   area: string;
   cargo: string | null;
   diasFeriasAno: number;
-  maxParcelas: number;
 };
 
 export type DiaDaMatriz = {
@@ -84,7 +83,7 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
     "as fichas da equipe",
     await supabase
       .from("team_members")
-      .select("user_id, area, cargo, ativo, dias_ferias_ano, max_parcelas_ferias")
+      .select("user_id, area, cargo, ativo, dias_ferias_ano")
       .in(
         "user_id",
         pessoas.map((p) => p.id),
@@ -107,7 +106,6 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
         area: ficha?.area?.trim() || SEM_AREA,
         cargo: ficha?.cargo ?? null,
         diasFeriasAno: ficha?.dias_ferias_ano ?? DIAS_DE_DESCANSO_PADRAO,
-        maxParcelas: ficha?.max_parcelas_ferias ?? 2,
       };
     });
 });
@@ -567,8 +565,6 @@ export type DescansoDoCiclo = {
   diasConcedidos: number;
   diasUsados: number;
   saldo: number;
-  parcelasConcedidas: number;
-  parcelasUsadas: number;
 };
 
 /**
@@ -626,7 +622,5 @@ export async function descansoDoCiclo(
     diasConcedidos: linha.dias_concedidos,
     diasUsados: linha.dias_usados,
     saldo: linha.saldo,
-    parcelasConcedidas: linha.parcelas_concedidas,
-    parcelasUsadas: linha.parcelas_usadas,
   };
 }

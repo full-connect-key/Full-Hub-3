@@ -174,12 +174,11 @@ select teste.conferir('E o saldo de hoje NAO se move: o ciclo ja se restaurou',
 select teste.conferir('O usado do ciclo conta so o que comecou dentro dele',
   public.descanso_usado_no_ciclo(:BRUNO)::text, '5');
 
--- E A PARCELA TAMBEM SE RESTAURA. Com as parcelas somando, Bruno teria seis --
--- tres ciclos de duas -- e poderia partir quinze dias em seis vezes, o que a
--- propria frase da recusa ja negava ao dizer "por ciclo de 12 meses".
-select teste.conferir('Duas parcelas por ciclo, e nao seis em tres ciclos',
-  public.parcelas_concedidas(:BRUNO)::text, '2');
-
+-- A CONTAGEM DE PERIODOS TAMBEM E DO CICLO. Havia aqui um segundo cenario,
+-- sobre o TETO de parcelas nao acumular com os ciclos; ele saiu com o teto na
+-- 0116 -- decisao do usuario, *"nao vamos trabalhar nesse esquema de
+-- parcelas"*. O recorte por ciclo e o que continua valendo, e e este que o
+-- mede.
 select teste.conferir('E a usada tambem e a do ciclo: uma, nao duas',
   public.parcelas_no_ciclo(:BRUNO)::text, '1');
 
