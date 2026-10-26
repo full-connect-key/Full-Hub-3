@@ -44,6 +44,11 @@
 -- menu nao e seguranca.
 --
 -- Roda mais de uma vez sem erro.
+--
+-- ESTA E A UNICA MIGRATION DO PRODUTO QUE ESCREVE FORA DE `public`, e foi
+-- isso que ela cobrou: o que vale para toda tabela nossa -- ligar a RLS na
+-- mesma migration que cria a tabela -- nao vale aqui, porque a tabela nao e
+-- nossa. A razao esta escrita no bloco abaixo, onde a linha saiu.
 -- ---------------------------------------------------------------------------
 
 do $migracao$
@@ -60,8 +65,25 @@ begin
         'tem onde ser autorizado e o Painel para de se atualizar sozinho.';
   end if;
 
-  alter table realtime.messages enable row level security;
-
+  -- NAO HA `alter table ... enable row level security` AQUI, e a ausencia e
+  -- o conserto. A primeira versao tinha, e ela NUNCA RODOU em projeto
+  -- nenhum: `realtime.messages` pertence a `supabase_realtime_admin`, e o
+  -- `postgres` do SQL Editor nao e dono nem membro dele --
+  --
+  --     ERROR: 42501: must be owner of table messages
+  --
+  -- -- entao a migration morria na primeira instrucao e as duas de baixo
+  -- nunca aconteciam. A tela ficava em "Sem atualizacao ao vivo" para
+  -- sempre, e o indicador existe justamente para isso aparecer.
+  --
+  -- E ELA ERA DESNECESSARIA: o Supabase ja entrega essa tabela com RLS
+  -- LIGADA. Medido no banco antes de tirar a linha -- `relrowsecurity` e
+  -- `true`, e zero policies. A instrucao nao mudava nada e recusava tudo.
+  --
+  -- `create policy` PASSA, e e a assimetria que faz esta migration caber:
+  -- o Postgres cobra `owner` nos dois comandos, e o Supabase abre o caminho
+  -- da policy para o `postgres` -- que e o que a documentacao de Realtime
+  -- Authorization manda fazer. Medido: a policy foi criada por aqui.
   drop policy if exists equipe_ouve_o_canal on realtime.messages;
 
   -- `for select`: no Realtime, ler `realtime.messages` E receber a mensagem.

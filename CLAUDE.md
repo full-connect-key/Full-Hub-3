@@ -10812,6 +10812,46 @@ projeto reprova.
 > resposta quase sempre é a 0057 — canal privado sem policy é
 > `CHANNEL_ERROR`.
 
+#### E A 0057 NUNCA TINHA RODADO, por uma linha que não era nossa
+
+O aviso acima estava certo — *"se aparecer 'Sem atualização ao vivo', a
+resposta quase sempre é a 0057"* — e a 0057 não tinha como ser aplicada:
+
+```
+ERROR: 42501: must be owner of table messages
+CONTEXT: alter table realtime.messages enable row level security
+```
+
+**`realtime.messages` NÃO É NOSSA**, e esta é a única migration do produto que
+escreve fora de `public`. A tabela pertence a `supabase_realtime_admin`, e o
+`postgres` do SQL Editor não é dono nem membro dele — medido: `pg_has_role`
+devolve false, e ele nem é superusuário. A migration morria na PRIMEIRA
+instrução, então as duas de baixo nunca aconteciam.
+
+**E A LINHA ERA DESNECESSÁRIA, que é o que torna o conserto uma remoção:** o
+Supabase entrega aquela tabela **com RLS já ligada**. Medido antes de tirar —
+`relrowsecurity` verdadeiro, zero policies. A instrução não mudava nada e
+recusava tudo.
+
+**`create policy` PASSA, e é a assimetria que faz a migration caber.** O
+Postgres cobra `owner` nos dois comandos; o Supabase abre o caminho da policy
+para o `postgres`, que é o que a documentação de Realtime Authorization manda
+fazer. Medido: a policy foi criada por ali, e está de pé.
+
+**A REGRA DA CASA NÃO VALE AQUI, e é só aqui.** *"RLS é obrigatório em toda
+tabela nova — `enable row level security` mais as policies, na mesma
+migration que cria a tabela"* é sobre tabela NOSSA. Numa tabela de um serviço
+que vem pronto, ligar a RLS não é nosso trabalho nem nosso direito: o que
+cabe é a policy. Quem escrever a próxima migration que toque em `realtime`,
+`storage` ou `auth` esbarra nisto na primeira linha.
+
+**E o modo de falha é o mais silencioso que este produto tem**, porque não é
+silencioso no banco e sim na tela: a migration recusa com erro na cara de
+quem a cola, e **quem não a cola não vê nada** — o Painel simplesmente não se
+atualiza sozinho, e "não mudou nada" é indistinguível de "parou de chegar". É
+exatamente para isso que o indicador de quatro estados existe, e foi ele que
+respondeu.
+
 ### A acessibilidade, e o que só a rodada COMPLETA do protótipo mostra
 
 O `npm run prototipo` roda o **axe-core** em cada tela viva, depois do clique —
