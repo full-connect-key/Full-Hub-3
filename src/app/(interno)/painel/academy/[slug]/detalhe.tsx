@@ -156,19 +156,26 @@ export function DetalheDoItem({
           segunda porta para fechar um item cuja conclusão é a versão
           confirmada ou as aulas vistas — o item fecharia sem ninguém ter
           lido a versão, e o selo de estado ao lado diria o contrário. */}
-      {arquivo && !interativo ? (
-        item.tipo === "ebook" ? (
-          <Ebook
-            item={item.id}
-            arquivo={arquivo}
-            endereco={arquivoAssinado}
-            lido={estado === "concluido"}
-          />
-        ) : (
-          <Anexo arquivo={arquivo} endereco={arquivoAssinado} />
-        )
+      {arquivo && !interativo && item.tipo === "ebook" ? (
+        <Ebook
+          item={item.id}
+          arquivo={arquivo}
+          endereco={arquivoAssinado}
+          lido={estado === "concluido"}
+        />
       ) : null}
       {curso ? <Curso item={item.id} dados={curso} /> : null}
+
+      {/* O ANEXO VEM DEPOIS DO CONTEÚDO, e não antes: ele é apoio, e quem
+          abre um curso abre para ver as aulas. Foi a imagem que mostrou —
+          no playbook ele já caía depois do texto, porque o `Playbook` é
+          desenhado acima; no curso ele subia para a primeira dobra e
+          empurrava os módulos para baixo. No e-book a ordem é a oposta de
+          propósito, e por isso o cartão dele continua lá em cima: lá o
+          arquivo não acompanha o conteúdo, ele É o conteúdo. */}
+      {arquivo && !interativo && item.tipo !== "ebook" ? (
+        <Anexo arquivo={arquivo} endereco={arquivoAssinado} />
+      ) : null}
 
       <Anotacao itemId={item.id} inicial={anotacaoInicial} />
 

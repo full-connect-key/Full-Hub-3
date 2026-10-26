@@ -9949,6 +9949,13 @@ um PDF, um modelo de planilha ou um `.zip` de exemplos, e uma lista fechada
 recusaria o caso comum sem dizer por quê. No e-book ela fica, porque lá o
 formato **decide qual tela o item vira**.
 
+**E ELE VEM DEPOIS DO CONTEÚDO**, não antes — o que no e-book é o
+contrário, de propósito: lá o arquivo não acompanha o conteúdo, ele É o
+conteúdo, e o cartão abre a tela. Foi a imagem que mostrou: no playbook o
+anexo já caía depois do texto porque o bloco da versão é desenhado acima,
+e no curso ele subia para a primeira dobra e empurrava os módulos para
+baixo — quem abre um curso abre para ver as aulas.
+
 **A pasta do bucket passou a dizer o formato** — `playbooks/`, `cursos/`,
 `ebooks/` —, e não `ebooks/` para os três: o bucket é lido por quem abre o
 painel do Supabase para conferir qual arquivo está no ar, e um anexo de curso
