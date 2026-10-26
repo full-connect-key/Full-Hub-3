@@ -76,6 +76,62 @@ export async function minhasAprovacoes(
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
 }> {
+  /* ------------------------------------------- AS DUAS METADES SÃO DUAS --
+     E JUNTÁ-LAS NUM CAMINHO SÓ FOI O BUG, encontrado pelo usuário: o selo
+     dizia 6 e a tela dizia "Nada esperando você", a dois centímetros um do
+     outro — exatamente a incoerência que o sprint anterior existiu para
+     desfazer, de volta pelo outro lado.
+
+     A causa: a leitura da ETAPA desistia cedo — sem demanda do cliente, sem
+     subtarefa, ou sem rodada de etapa nenhuma, ela devolvia a resposta
+     INTEIRA vazia — e o bloco que monta o post e a peça de campanha vinha
+     depois, então nunca rodava. Num banco em que toda rodada de cliente é de
+     post, isso é a fila inteira sumindo.
+
+     As duas perguntas são independentes: uma empresa pode ter social sem
+     nenhuma demanda, e uma demanda sem nenhuma etapa que peça aval. Cada
+     metade desiste por conta própria agora, devolvendo a lista dela vazia —
+     nunca a resposta das duas. */
+  const [montadas, outros] = await Promise.all([
+    aprovacoesDeEtapa(usuarioId, clienteId),
+    materiaisDasOutrasFrentes(clienteId),
+  ]);
+
+  return {
+    // A FILA ORDENA POR PRAZO, e não pela ordem em que as coisas chegaram.
+    //
+    // A consulta traz por `solicitado_em` decrescente, que é a ordem certa
+    // para o HISTÓRICO — o que foi decidido por último em cima — e a errada
+    // para a fila: o material que vence amanhã ficava embaixo do que chegou
+    // hoje e vence semana que vem. É a decisão da caixa de entrada das
+    // solicitações, virada: lá a pergunta é quem espera há mais tempo, aqui é
+    // o que vence primeiro.
+    //
+    // **Sem prazo vai para o FIM**, nunca para o topo: um material sem data é
+    // o que menos cobra, e `null` ordenado como string o poria na frente de
+    // tudo. É a regra de `focoDoPrazo` e de `ordenarPorUrgencia`.
+    esperando: [
+      ...montadas.filter((a) => a.status === "pendente"),
+      ...outros,
+    ].sort(porUrgencia),
+    decididas: montadas.filter((a) => a.status !== "pendente"),
+  };
+}
+
+/**
+ * O material que vem de uma DEMANDA: a etapa com rodada de escopo cliente.
+ *
+ * Ela é a única das três frentes que traz os arquivos entregues e a conversa,
+ * porque é a única que decide aqui dentro — o post e a peça de campanha
+ * decidem na tela em que a arte abre grande.
+ *
+ * **Ela desiste devolvendo `[]` e nunca a resposta inteira**: as outras duas
+ * frentes são perguntas separadas, e a ausência desta não diz nada sobre elas.
+ */
+async function aprovacoesDeEtapa(
+  usuarioId: string,
+  clienteId?: string,
+): Promise<AprovacaoDoCliente[]> {
   const supabase = await criarClienteServidor();
 
   // Com cliente definido, a pergunta começa pelas tasks dele: assim o filtro
@@ -88,7 +144,7 @@ export async function minhasAprovacoes(
     );
 
     const ids = tasksDoCliente.map((t) => t.id);
-    if (ids.length === 0) return { esperando: [], decididas: [] };
+    if (ids.length === 0) return [];
 
     const subtarefasDoCliente = ouFalha(
       "as etapas das demandas da empresa",
@@ -96,7 +152,7 @@ export async function minhasAprovacoes(
     );
 
     idsPermitidos = subtarefasDoCliente.map((s) => s.id);
-    if (idsPermitidos.length === 0) return { esperando: [], decididas: [] };
+    if (idsPermitidos.length === 0) return [];
   }
 
   let consulta = supabase
@@ -114,7 +170,7 @@ export async function minhasAprovacoes(
   );
 
   const todas = rodadas as ApprovalRound[];
-  if (todas.length === 0) return { esperando: [], decididas: [] };
+  if (todas.length === 0) return [];
 
   const idsDeSubtarefas = [...new Set(todas.map((r) => r.content_id))];
 
@@ -184,19 +240,31 @@ export async function minhasAprovacoes(
     };
   };
 
-  const montadas = todas.map(montar).filter(Boolean) as AprovacaoDoCliente[];
+  return todas.map(montar).filter(Boolean) as AprovacaoDoCliente[];
+}
 
-  /* ----------------------------------------- o post e a peça de campanha --
-     ELES VÊM DE `itensDoPortal`, que já os agrega — e não de duas consultas
-     novas aqui: uma segunda leitura nomeando as mesmas colunas seria o lugar
-     onde as duas divergem, e a que divergiria é esta, que a equipe quase
-     nunca abre.
-
-     `rodadaId` preenchido é o que define "esperando": ele só existe quando a
-     rodada corrente está PENDENTE. E a fatia `subtask` fica de fora, porque
-     ela já veio inteira acima, com os arquivos e a conversa — somar as duas
-     poria o mesmo material duas vezes na mesma lista. */
-  const outros = (await itensDoPortal(clienteId))
+/**
+ * O POST E A PEÇA DE CAMPANHA, no mesmo molde.
+ *
+ * **Eles vêm de `itensDoPortal`, que já os agrega** — e não de duas consultas
+ * novas aqui: uma segunda leitura nomeando as mesmas colunas seria o lugar
+ * onde as duas divergem, e a que divergiria é esta, que a equipe quase nunca
+ * abre.
+ *
+ * `rodadaId` preenchido é o que define "esperando": ele só existe quando a
+ * rodada corrente está PENDENTE. E a fatia `subtask` fica de fora, porque ela
+ * vem inteira do outro lado, com os arquivos e a conversa — somar as duas
+ * poria o mesmo material duas vezes na mesma lista.
+ *
+ * **Só o que espera decisão**, e a ausência das decididas é consequência e não
+ * esquecimento: o que diz que a rodada corrente está pendente é o `rodadaId`,
+ * e a decidida não traz nenhum. O histórico delas mora na tela de cada
+ * material, que é onde a arte abre grande.
+ */
+async function materiaisDasOutrasFrentes(
+  clienteId?: string,
+): Promise<AprovacaoDoCliente[]> {
+  return (await itensDoPortal(clienteId))
     .filter((item) => item.tipo !== "subtask" && item.rodadaId)
     .map(
       (item): AprovacaoDoCliente => ({
@@ -225,26 +293,6 @@ export async function minhasAprovacoes(
         conversa: [],
       }),
     );
-
-  return {
-    // A FILA ORDENA POR PRAZO, e não pela ordem em que as coisas chegaram.
-    //
-    // A consulta traz por `solicitado_em` decrescente, que é a ordem certa
-    // para o HISTÓRICO — o que foi decidido por último em cima — e a errada
-    // para a fila: o material que vence amanhã ficava embaixo do que chegou
-    // hoje e vence semana que vem. É a decisão da caixa de entrada das
-    // solicitações, virada: lá a pergunta é quem espera há mais tempo, aqui é
-    // o que vence primeiro.
-    //
-    // **Sem prazo vai para o FIM**, nunca para o topo: um material sem data é
-    // o que menos cobra, e `null` ordenado como string o poria na frente de
-    // tudo. É a regra de `focoDoPrazo` e de `ordenarPorUrgencia`.
-    esperando: [
-      ...montadas.filter((a) => a.status === "pendente"),
-      ...outros,
-    ].sort(porUrgencia),
-    decididas: montadas.filter((a) => a.status !== "pendente"),
-  };
 }
 
 /** Prazo crescente, e quem não tem prazo no fim. */

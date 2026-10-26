@@ -41,10 +41,39 @@ export function prazosDoPortal(): Prazos {
  * Uma consulta só para a tela inteira: o cartão de pendências, a lista e os
  * contadores saem daqui e são filtrados pela mesma função de domínio. É o que
  * faz o número bater com a quantidade de cartões.
+ *
+ * ---------------------------------------------------------------------------
+ * **AS TRÊS FRENTES DESISTEM SEPARADAS, e juntá-las num caminho só foi um bug
+ * que durou um sprint.** As três linhas abaixo eram o FIM de uma função que
+ * começava lendo a etapa — e os dois retornos antecipados dela (sem rodada de
+ * etapa, sem demanda) devolviam a resposta INTEIRA vazia, então as duas de
+ * baixo nunca rodavam. Numa conta que só tem social — que é a conta comum —
+ * isso esvazia o Início, a Biblioteca e a fila de aprovações de uma vez, com
+ * o selo da barra lateral continuando certo ao lado, porque ele conta direto
+ * em `approval_rounds`.
+ *
+ * Uma empresa pode ter social sem nenhuma demanda, e campanha sem nenhuma
+ * etapa que peça aval. Cada metade responde por si: a ausência de uma não diz
+ * nada sobre as outras duas.
+ * ---------------------------------------------------------------------------
  */
 export async function itensDoPortal(
   clienteId?: string,
 ): Promise<ItemDoPortal[]> {
+  return [
+    ...(await etapasComoItens(clienteId)),
+    ...(await postsComoItens(clienteId)),
+    ...(await entregaveisComoItens(clienteId)),
+  ];
+}
+
+/**
+ * A etapa de demanda com rodada de escopo cliente, no formato comum.
+ *
+ * **Ela desiste devolvendo `[]`**, nunca a resposta das três — ver o cabeçalho
+ * de `itensDoPortal()`.
+ */
+async function etapasComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
   const supabase = await criarClienteServidor();
 
   // Só as de escopo cliente. A aprovação interna inteira — quem pediu, quem
@@ -151,11 +180,7 @@ export async function itensDoPortal(
     });
   }
 
-  return [
-    ...itens,
-    ...(await postsComoItens(clienteId)),
-    ...(await entregaveisComoItens(clienteId)),
-  ];
+  return itens;
 }
 
 /**

@@ -9173,6 +9173,63 @@ recorte por empresa precisa de um filtro por tipo que esta contagem não tem.
 Não aceitar o parâmetro é o que impede alguém de passá-lo achando que funciona.
 No zero o selo não aparece, que é a regra do produto.
 
+##### E A FILA ESVAZIOU INTEIRA, com o selo dizendo 6 ao lado
+
+Relato do usuário, com imagem: *"está aparecendo 6 itens em aprovação, mas a
+aba aparece vazia — esses 6 itens sao de social, que nao aparecem ai"*. **Ele
+estava certo, e o furo é meu: é a mesma incoerência que a seção acima existe
+para desfazer, de volta pelo outro lado.** Lá o selo contava MENOS do que a
+tela mostrava; aqui ele contava tudo e a tela não mostrava nada.
+
+**O SELO SEMPRE ESTEVE CERTO**, e isso é o que separa este bug do anterior: ele
+conta direto em `approval_rounds`, com a RLS recortando, e no instante do print
+aquela conta tinha de fato seis rodadas pendentes — duas foram decididas
+naquela tarde, e quando fui conferir eram quatro. Quem estava errada era a
+lista.
+
+**A CAUSA É UM RETORNO ANTECIPADO NUMA FUNÇÃO QUE AGREGA TRÊS FRENTES.** As
+duas leituras — `itensDoPortal()` e `minhasAprovacoes()` — começavam pela
+ETAPA e **terminavam** com as linhas que montam o post e a peça de campanha.
+Entre as duas pontas havia um `if (…length === 0) return` para cada consulta
+que podia voltar vazia, e cada um deles devolvia a resposta **inteira**:
+
+```ts
+if (todas.length === 0) return [];          // nenhuma rodada de ETAPA
+…
+...(await postsComoItens(clienteId)),       // nunca executa
+```
+
+**Numa conta que só tem social — que é a conta comum — isso esvazia o portal
+inteiro**, e não só a fila: Início, Materiais, Biblioteca e Aprovações leem
+`itensDoPortal()`. A ABF Expo tem dezesseis peças de social, zero etapa e zero
+campanha; antes do conserto ela via quatro telas vazias, com doze peças
+aprovadas invisíveis na Biblioteca. **Só o Cronograma escapou**, e por acaso:
+ele lê o post pela origem dele, não por aqui.
+
+**O CONSERTO É A FORMA, e é ela que impede o bug de voltar.** Cada frente virou
+uma função que desiste **devolvendo a lista dela vazia**, nunca a resposta das
+três, e a agregadora passou a ser três `await` dentro de um `return` — não há
+mais statement antes dele de onde sair cedo. A regra cabe numa frase:
+**função que agrega N frentes não pode ter retorno antecipado antes da
+última.**
+
+**E NENHUMA VARREDURA PEGARIA ISTO, o que fica dito em vez de escondido.** O
+`tsc`, o `lint` e o `build` passam — um `return` cedo é código correto; o
+`check:tipos` liga migration e tipo; o `check:fronteira` liga servidor e
+cliente; `ouFalha()` não dispara, porque nada falhou: a consulta respondeu
+honestamente que não há rodada de etapa. **E o protótipo não pega porque o
+módulo é STUB** — a imagem `16b-portal-aprovacoes` mostra a fila cheia porque o
+exemplo tem uma rodada de etapa, e com ela o retorno antecipado nunca dispara.
+É a lição da duplicata do Cronograma pela segunda vez no mesmo sprint: **um
+ambiente de exemplo que mostra o produto num estado que ele não tem esconde uma
+classe inteira de bug.** Quem encontrou foi o usuário, olhando o selo.
+
+***O que fica como consequência declarada:*** "Já decididas" continua vazia
+numa conta só de social — o que define "esperando" é o `rodadaId`, que só
+existe enquanto a rodada corrente está pendente, e a decidida não traz nenhum.
+O histórico delas mora na tela de cada peça e na Biblioteca, e a seção não é
+desenhada quando não tem o que dizer.
+
 #### O Cronograma: o que acontece quando, nas três frentes
 
 `/portal/cronograma`. O cliente tem três seções e **nenhum board**: o post
