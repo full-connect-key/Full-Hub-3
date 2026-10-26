@@ -44,7 +44,8 @@ export type {
 const AGORA = "2026-09-20T10:00:00.000Z";
 
 function item(
-  parcial: Partial<ItemDoAcervo> & Pick<ItemDoAcervo, "id" | "tipo" | "titulo" | "slug">,
+  parcial: Partial<ItemDoAcervo> &
+    Pick<ItemDoAcervo, "id" | "tipo" | "titulo" | "slug">,
 ): ItemDoAcervo {
   return {
     resumo: null,
@@ -88,7 +89,46 @@ function item(
  * arquivo" quando ainda nao ha nada. E a razao do evento de cada par da
  * legenda do calendario.
  */
-function anexo(itemId: string, nome: string, bytes: number, paginas: number | null) {
+/**
+ * UM MATERIAL DE APOIO QUE MORA FORA (0115), e ele prova o que o `anexo()`
+ * acima nao prova: o cartao com "Abrir" em vez de "Baixar", o ladrilho com o
+ * icone de fora, e a linha que diz de que servico e o link.
+ *
+ * `url` E UM ENDERECO DE VERDADE, e tem de ser: quem desenha a linha de baixo
+ * e `servicoDoLink()`, que le o hostname e o caminho -- com um `/exemplos/…`
+ * no lugar ela devolveria nulo e a imagem mostraria "Link" generico, que e
+ * exatamente o estado que esta peca existe para nao mostrar. O clique sai do
+ * prototipo para o Google, e esta certo: e o que ele faz no produto.
+ */
+function linkDeApoio(itemId: string, nome: string, url: string) {
+  return {
+    arquivo: {
+      id: `arq${itemId.slice(3, 11)}-0000-4000-8000-00000000000b`,
+      item_id: itemId,
+      url,
+      nome,
+      tamanho_bytes: null,
+      paginas: null,
+      formato: "link" as const,
+      versao: 1,
+      notas_mudanca: null,
+      exige_releitura: false,
+      publicado_em: AGORA,
+      created_at: AGORA,
+    },
+    // O LINK PASSA IGUAL, e e a ponte que a 0115 nao precisou construir:
+    // `assinarArquivos()` nao manda ao Storage o que comeca com `http`, e
+    // `enderecoDaArte()` o aceita de volta sem assinatura.
+    arquivoAssinado: url,
+  };
+}
+
+function anexo(
+  itemId: string,
+  nome: string,
+  bytes: number,
+  paginas: number | null,
+) {
   return {
     arquivo: {
       id: `arq${itemId.slice(3, 11)}-0000-4000-8000-000000000009`,
@@ -114,7 +154,8 @@ const ACERVO: ItemDoAcervo[] = [
     tipo: "playbook",
     titulo: "Briefing que não volta com dúvida",
     slug: "briefing-que-nao-volta-com-duvida",
-    resumo: "As sete perguntas que todo briefing responde antes de sair da mesa.",
+    resumo:
+      "As sete perguntas que todo briefing responde antes de sair da mesa.",
     categoria: "Atendimento",
     tags: ["briefing", "atendimento"],
     estado: "concluido",
@@ -126,7 +167,8 @@ const ACERVO: ItemDoAcervo[] = [
     tipo: "playbook",
     titulo: "Como a gente apresenta para o cliente",
     slug: "como-a-gente-apresenta-para-o-cliente",
-    resumo: "A ordem da conversa, o que mostrar primeiro e o que nunca abrir em reunião.",
+    resumo:
+      "A ordem da conversa, o que mostrar primeiro e o que nunca abrir em reunião.",
     categoria: "Atendimento",
     tags: ["apresentação", "cliente"],
     estado: "releitura",
@@ -187,6 +229,23 @@ const ACERVO: ItemDoAcervo[] = [
     tags: ["escrita"],
     publicado: false,
   }),
+  // O E-BOOK QUE E UM LINK (0115), e ele e a peca do pedido: *"so preciso que
+  // a pessoa tenha acesso, e depois possa marcar como lido no acervo do
+  // FullHub"*. O caminho para isso e um e-book cujo conteudo mora no Drive --
+  // o cartao dele carrega "Abrir" e "Marcar como lido" lado a lado, que e a
+  // frase inteira numa linha. Sem ele a rodada terminaria dizendo "Pronto" e
+  // a peca nova nao sairia em imagem nenhuma.
+  item({
+    id: "aca00011-0000-4000-8000-000000000011",
+    tipo: "ebook",
+    titulo: "Modelo de relatório mensal",
+    slug: "modelo-de-relatorio-mensal",
+    resumo:
+      "A planilha que a Mídia preenche e o cliente lê, com as fórmulas prontas.",
+    categoria: "Mídia",
+    tags: ["relatório", "mídia"],
+    duracaoMinutos: 15,
+  }),
   item({
     id: "aca00005-0000-4000-8000-000000000005",
     tipo: "curso",
@@ -206,7 +265,8 @@ const ACERVO: ItemDoAcervo[] = [
     tipo: "curso",
     titulo: "Primeiros 30 dias na Full",
     slug: "primeiros-30-dias-na-full",
-    resumo: "O que você precisa saber na primeira semana, e o que pode esperar.",
+    resumo:
+      "O que você precisa saber na primeira semana, e o que pode esperar.",
     categoria: "Cultura",
     estado: "em_andamento",
     vistos: 1,
@@ -219,7 +279,9 @@ const ACERVO: ItemDoAcervo[] = [
   }),
 ];
 
-export async function listarAcervo(_usuarioId: string): Promise<ItemDoAcervo[]> {
+export async function listarAcervo(
+  _usuarioId: string,
+): Promise<ItemDoAcervo[]> {
   return ACERVO;
 }
 
@@ -266,7 +328,8 @@ export async function abrirItem(
           item_id: achado.id,
           numero_versao: releitura ? 2 : 1,
           conteudo_rico: texto,
-          conteudo_texto: "Antes de qualquer coisa, pergunte o que o cliente quer.",
+          conteudo_texto:
+            "Antes de qualquer coisa, pergunte o que o cliente quer.",
           notas_mudanca: releitura
             ? "A ordem da apresentação mudou: o preço passa a vir depois do conceito."
             : null,
@@ -278,16 +341,35 @@ export async function abrirItem(
         versaoConfirmada: achado.estado === "nao_iniciado" ? null : 1,
         versaoDeReleitura: releitura ? 2 : null,
       },
+      // O ANEXO DO PLAYBOOK E UM LINK (0115), e o do curso e um arquivo: e
+      // `82b-academy-playbook-releitura` que fotografa este, com o ladrilho
+      // de fora, o rotulo "Material de apoio" e o botao "Abrir" -- a metade
+      // que o cartao de baixar nao prova.
       ...(achado.slug === "como-a-gente-apresenta-para-o-cliente"
-        ? anexo(achado.id, "roteiro-da-apresentacao.pdf", 1_800_000, 6)
+        ? linkDeApoio(
+            achado.id,
+            "Roteiro da apresentação",
+            "https://docs.google.com/presentation/d/1fullhub-exemplo/edit",
+          )
         : {}),
     };
   }
 
   if (achado.tipo === "ebook") {
     // O SEGUNDO E-BOOK NAO TEM ARQUIVO, de proposito: e ele que desenha o
-    // "Anexar o arquivo" na tela de montar e a frase que diz o que falta.
+    // "Anexar o conteudo" na tela de montar e a frase que diz o que falta.
     if (achado.slug === "guia-de-tom-de-voz") return base;
+
+    if (achado.slug === "modelo-de-relatorio-mensal") {
+      return {
+        ...base,
+        ...linkDeApoio(
+          achado.id,
+          "Modelo de relatório mensal (Sheets)",
+          "https://docs.google.com/spreadsheets/d/1fullhub-exemplo/edit",
+        ),
+      };
+    }
 
     // O INTERATIVO, com 9 de 23 capitulos lidos: nem zerado nem completo, que
     // sao os dois extremos que escondem o que a barra serve para mostrar.
@@ -378,6 +460,14 @@ export async function abrirItem(
 
   return {
     ...base,
+    // O ANEXO DO CURSO E UM ARQUIVO e o do playbook e um LINK, um de cada:
+    // com os dois iguais a imagem provaria que o cartao aparece e nao que ele
+    // DISTINGUE as duas coisas. E a razao do evento de cada par da legenda do
+    // calendario, e a do mes de social com uma das duas aprovadas programada.
+    //
+    // E E ELE QUE `82j-academy-montar-curso` fotografa com o bloco preenchido:
+    // a linha "o anexo e X (versao 1)" de um ARQUIVO, que `82l` mostra do
+    // outro lado, com o link.
     ...anexo(achado.id, "apostila-trafego-pago.pdf", 3_100_000, 42),
     curso: {
       modulos: [
@@ -444,7 +534,9 @@ export async function buscarNoAcervo(
   return ACERVO.slice(0, 2).map((i) => ({ ...i, trecho: null }));
 }
 
-export async function acompanhamentoDaEquipe(): Promise<LinhaDoAcompanhamento[]> {
+export async function acompanhamentoDaEquipe(): Promise<
+  LinhaDoAcompanhamento[]
+> {
   return [
     {
       user_id: "11111111-1111-1111-1111-111111111111",

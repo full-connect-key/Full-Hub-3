@@ -94,7 +94,12 @@ export async function salvarItem(
     const validacao = esquemaDeItem.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("salvarItem", validacao.error, dados, "Confira os dados do item."),
+        recusaDeValidacao(
+          "salvarItem",
+          validacao.error,
+          dados,
+          "Confira os dados do item.",
+        ),
       );
     }
     const entrada = validacao.data;
@@ -153,14 +158,21 @@ export async function salvarItem(
       .select("id")
       .single();
 
-    if (error || !data) return falha(`Não foi possível criar: ${error?.message ?? RECUSA}`);
+    if (error || !data)
+      return falha(`Não foi possível criar: ${error?.message ?? RECUSA}`);
 
     revalidatePath(ROTA);
-    return sucesso("Rascunho criado. Ele só aparece para você e para a gestão.", data.id);
+    return sucesso(
+      "Rascunho criado. Ele só aparece para você e para a gestão.",
+      data.id,
+    );
   });
 }
 
-export async function publicarItem(id: string, publicado: boolean): Promise<Resultado> {
+export async function publicarItem(
+  id: string,
+  publicado: boolean,
+): Promise<Resultado> {
   return executarAcao("publicarItem", async () => {
     await exigirGestorNaAcao();
 
@@ -176,7 +188,9 @@ export async function publicarItem(id: string, publicado: boolean): Promise<Resu
     if (!data) return falha(RECUSA);
 
     revalidatePath(ROTA);
-    return sucesso(publicado ? "No acervo da equipe." : "Voltou a ser rascunho.");
+    return sucesso(
+      publicado ? "No acervo da equipe." : "Voltou a ser rascunho.",
+    );
   });
 }
 
@@ -231,14 +245,21 @@ const esquemaDeVersao = z.object({
  * ele divergiria do que o editor considera texto na primeira extensão nova.
  * Quem sabe ler o documento é o editor.
  */
-export async function publicarVersao(dados: unknown): Promise<Resultado<number>> {
+export async function publicarVersao(
+  dados: unknown,
+): Promise<Resultado<number>> {
   return executarAcao("publicarVersao", async () => {
     const sessao = await exigirGestorNaAcao();
 
     const validacao = esquemaDeVersao.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("publicarVersao", validacao.error, dados, "Confira o conteúdo."),
+        recusaDeValidacao(
+          "publicarVersao",
+          validacao.error,
+          dados,
+          "Confira o conteúdo.",
+        ),
       );
     }
     const entrada = validacao.data;
@@ -270,7 +291,8 @@ export async function publicarVersao(dados: unknown): Promise<Resultado<number>>
       .select("numero_versao")
       .single();
 
-    if (error || !data) return falha(`Não foi possível publicar: ${error?.message ?? RECUSA}`);
+    if (error || !data)
+      return falha(`Não foi possível publicar: ${error?.message ?? RECUSA}`);
 
     revalidatePath(ROTA);
     return sucesso(
@@ -326,20 +348,42 @@ export async function confirmarLeitura(
 // O ARQUIVO DO E-BOOK
 // ---------------------------------------------------------------------------
 
-const esquemaDeArquivo = z.object({
-  item_id: z.string().uuid(),
-  // O CAMINHO NO BUCKET, e não o endereço assinado. A assinatura vale uma hora
-  // e o e-book vive anos: gravar a assinada deixaria o acervo cheio de links
-  // vencidos, e quem abrisse o item em novembro baixaria um 400.
-  url: z.string().trim().min(3, "Anexe o arquivo antes de salvar."),
-  nome: z.string().trim().min(1, "O arquivo precisa de um nome."),
-  tamanho_bytes: z.number().int().positive().optional().nullable(),
-  paginas: z.number().int().positive().optional().nullable(),
-  formato: z.enum(["pdf", "html_interativo"]).default("pdf"),
-  versao: z.number().int().positive().default(1),
-  notas_mudanca: z.string().trim().optional().nullable(),
-  exige_releitura: z.boolean().default(false),
-});
+const esquemaDeArquivo = z
+  .object({
+    item_id: z.string().uuid(),
+    // O CAMINHO NO BUCKET, e não o endereço assinado. A assinatura vale uma hora
+    // e o e-book vive anos: gravar a assinada deixaria o acervo cheio de links
+    // vencidos, e quem abrisse o item em novembro baixaria um 400.
+    //
+    // **MENOS QUANDO `formato` É `link`** (0115), e aí é o contrário: o
+    // endereço de fora É o que se grava, e `assinarArquivos()` o deixa passar
+    // sem tocar no Storage. O `refine` abaixo é quem separa os dois.
+    url: z
+      .string()
+      .trim()
+      .min(3, "Anexe o arquivo ou cole o link antes de salvar."),
+    nome: z.string().trim().min(1, "O material precisa de um nome."),
+    tamanho_bytes: z.number().int().positive().optional().nullable(),
+    paginas: z.number().int().positive().optional().nullable(),
+    formato: z.enum(["pdf", "html_interativo", "link"]).default("pdf"),
+    versao: z.number().int().positive().default(1),
+    notas_mudanca: z.string().trim().optional().nullable(),
+    exige_releitura: z.boolean().default(false),
+  })
+  // A FORMA DE `url` TEM DE CASAR COM `formato`, NOS DOIS SENTIDOS.
+  //
+  // É a única trava desta regra, e a 0115 diz por que ela não é `check` no
+  // banco: um check citando `'link'` não cabe na migration que cria o valor.
+  // Os dois erros que ela pega são de ROTULO e não de dado — um link gravado
+  // como `pdf` sai com "Baixar" apontando para o Drive, e um caminho de bucket
+  // gravado como `link` cai no `enderecoDaArte()`, que devolve nulo e deixa o
+  // botão desligado. Nenhum corrompe linha; os dois fazem a tela afirmar o que
+  // não é, e é isso que a casa não deixa passar.
+  .refine((d) => (d.formato === "link") === /^https?:\/\//i.test(d.url), {
+    path: ["url"],
+    message:
+      "Link precisa começar com http:// ou https://; arquivo do bucket, não.",
+  });
 
 /**
  * Anexa o arquivo de um item do acervo.
@@ -380,7 +424,7 @@ export async function anexarArquivo(dados: unknown): Promise<Resultado> {
           "anexarArquivo",
           validacao.error,
           dados,
-          "Confira o arquivo.",
+          "Confira o arquivo ou o link.",
         ),
       );
     }
@@ -408,11 +452,12 @@ export async function anexarArquivo(dados: unknown): Promise<Resultado> {
 
     revalidatePath(ROTA);
     return sucesso(
-      entrada.versao > 1 ? `Versão ${entrada.versao} publicada.` : "Arquivo anexado.",
+      entrada.versao > 1
+        ? `Versão ${entrada.versao} publicada.`
+        : "Arquivo anexado.",
     );
   });
 }
-
 
 // ---------------------------------------------------------------------------
 // A PONTE DO E-BOOK INTERATIVO
@@ -471,7 +516,8 @@ export async function marcarCapitulo(dados: unknown): Promise<Resultado> {
       .eq("chave", entrada.chave)
       .limit(1);
 
-    if (achados.error) return falha(`Não foi possível registrar: ${achados.error.message}`);
+    if (achados.error)
+      return falha(`Não foi possível registrar: ${achados.error.message}`);
     const capitulo = achados.data?.[0];
     if (!capitulo) {
       console.warn("[academy] capítulo sem correspondência:", entrada.chave);
@@ -547,7 +593,8 @@ export async function salvarChecklist(dados: unknown): Promise<Resultado> {
       .order("versao", { ascending: false })
       .limit(1);
 
-    if (vigente.error) return falha(`Não foi possível registrar: ${vigente.error.message}`);
+    if (vigente.error)
+      return falha(`Não foi possível registrar: ${vigente.error.message}`);
     if (vigente.data?.[0]?.versao !== entrada.versao) {
       // A ABA VELHA NAO ESCREVE NA VERSAO NOVA, e nao e erro de ninguem:
       // alguem deixou a pagina aberta e o e-book foi republicado no meio.
@@ -591,7 +638,9 @@ export async function salvarChecklist(dados: unknown): Promise<Resultado> {
  * tela. A regra escrita e `exige_confirmacao_leitura` do item, e nao a
  * contagem.
  */
-export async function confirmarLeituraDoEbook(itemId: string): Promise<Resultado> {
+export async function confirmarLeituraDoEbook(
+  itemId: string,
+): Promise<Resultado> {
   return executarAcao("confirmarLeituraDoEbook", async () => {
     const sessao = await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
@@ -603,7 +652,8 @@ export async function confirmarLeituraDoEbook(itemId: string): Promise<Resultado
       .order("versao", { ascending: false })
       .limit(1);
 
-    if (vigente.error) return falha(`Não foi possível confirmar: ${vigente.error.message}`);
+    if (vigente.error)
+      return falha(`Não foi possível confirmar: ${vigente.error.message}`);
 
     const { data, error } = await supabase
       .from("academy_progresso")
@@ -629,7 +679,6 @@ export async function confirmarLeituraDoEbook(itemId: string): Promise<Resultado
   });
 }
 
-
 // ---------------------------------------------------------------------------
 // O CURSO
 // ---------------------------------------------------------------------------
@@ -641,14 +690,22 @@ const esquemaDeModulo = z.object({
   ordem: z.number().int().min(0).default(0),
 });
 
-export async function salvarModulo(id: string | null, dados: unknown): Promise<Resultado> {
+export async function salvarModulo(
+  id: string | null,
+  dados: unknown,
+): Promise<Resultado> {
   return executarAcao("salvarModulo", async () => {
     await exigirGestorNaAcao();
 
     const validacao = esquemaDeModulo.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("salvarModulo", validacao.error, dados, "Confira os dados do módulo."),
+        recusaDeValidacao(
+          "salvarModulo",
+          validacao.error,
+          dados,
+          "Confira os dados do módulo.",
+        ),
       );
     }
     const entrada = validacao.data;
@@ -694,14 +751,22 @@ const esquemaDeAula = z.object({
   ordem: z.number().int().min(0).default(0),
 });
 
-export async function salvarAula(id: string | null, dados: unknown): Promise<Resultado> {
+export async function salvarAula(
+  id: string | null,
+  dados: unknown,
+): Promise<Resultado> {
   return executarAcao("salvarAula", async () => {
     await exigirGestorNaAcao();
 
     const validacao = esquemaDeAula.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("salvarAula", validacao.error, dados, "Confira os dados da aula."),
+        recusaDeValidacao(
+          "salvarAula",
+          validacao.error,
+          dados,
+          "Confira os dados da aula.",
+        ),
       );
     }
     const entrada = validacao.data;
@@ -799,7 +864,10 @@ export async function marcarAula(
 
 /** O e-book se marca inteiro: não há aula para contar, e "li metade" não é um
  *  fato que o módulo guarda. */
-export async function marcarItem(itemId: string, concluido: boolean): Promise<Resultado> {
+export async function marcarItem(
+  itemId: string,
+  concluido: boolean,
+): Promise<Resultado> {
   return executarAcao("marcarItem", async () => {
     const sessao = await exigirEquipeNaAcao();
 
@@ -858,7 +926,9 @@ export async function salvarAnotacao(
         .delete()
         .eq("user_id", sessao.usuarioId)
         .eq("item_id", itemId);
-      apagar = aulaId ? apagar.eq("aula_id", aulaId) : apagar.is("aula_id", null);
+      apagar = aulaId
+        ? apagar.eq("aula_id", aulaId)
+        : apagar.is("aula_id", null);
 
       const { error } = await apagar;
       if (error) return falha(`Não foi possível apagar: ${error.message}`);
@@ -917,7 +987,12 @@ export async function tornarObrigatorio(dados: unknown): Promise<Resultado> {
     const validacao = esquemaDeObrigatorio.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("tornarObrigatorio", validacao.error, dados, "Confira a regra."),
+        recusaDeValidacao(
+          "tornarObrigatorio",
+          validacao.error,
+          dados,
+          "Confira a regra.",
+        ),
       );
     }
     const entrada = validacao.data;

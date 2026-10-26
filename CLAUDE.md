@@ -9974,6 +9974,133 @@ do calendário. A montagem de um CURSO ganhou imagem própria
 formato é o que impede o terceiro de ficar sem onde anexar por um sprint
 inteiro.
 
+##### E O ANEXO PODE SER UM LINK (0115)
+
+Decisão do usuário, na mesma conversa: *"além de opção de anexo eu quero opção
+de link também… pq temos diversos materiais de apoio que estão no nosso drive
+em diferentes formatos, tipo google slides, google docs, google sheets etc…
+só preciso que a pessoa tenha acesso, e depois possa marcar como lido no
+acervo do FullHub"*.
+
+**METADE DO ACERVO DE APOIO DA AGÊNCIA NÃO É ARQUIVO.** Um Google Doc não se
+sobe a bucket nenhum: ele mora no Drive, muda sozinho, e o que a equipe precisa
+dele é o endereço. O anexo que acabara de valer nos três formatos só sabia
+receber arquivo.
+
+**NÃO HÁ COLUNA NOVA, E A PONTE ESTAVA CONSTRUÍDA DOS DOIS LADOS.** O link mora
+em `academy_arquivos.url`, que é `text not null` sem `check` desde a 0096 — e
+`assinarArquivos()` **deixa passar o que começa com `http`** desde que nasceu,
+com a razão escrita no comentário dela: *"nem toda arte mora no bucket —
+algumas são link de Drive ou de Figma, e assinar um endereço que não é do
+Storage devolveria erro e apagaria a imagem da tela"*. `enderecoDaArte()` fecha
+o par do outro lado, aceitando de volta o que já é endereço. **`lib/dados/
+academy.ts` não tem uma linha diferente nesta entrega** — é a décima sétima
+ponte construída e não atravessada, e a primeira que estava inteira dos dois
+lados.
+
+**A MIGRATION É UMA LINHA**, e é a forma da 0109: um valor no enum, e mais
+nada. `formato` nunca foi "que extensão o arquivo tem" — a 0102 escreveu que
+*"é ele que decide qual tela aparece por cima"* —, e são três telas agora:
+`pdf` é arquivo do bucket com o botão de **baixar**, `html_interativo` é a
+página que abre dentro do painel com progresso por capítulo, e `link` é
+endereço de fora com o botão de **abrir** em nova aba. Sem o terceiro valor um
+Google Doc gravado como `pdf` sairia com "Baixar" apontando para o Drive e
+"PDF" escrito embaixo do nome — e o `download` de um `<a>` é ignorado em outro
+domínio, então o clique navega e o rótulo mente sobre o que acabou de
+acontecer.
+
+**E ela não usa o valor que cria**, pela regra que a 0109 fixou sobre o
+arquivo: o SQL Editor roda a colagem como uma transação, e o Postgres recusa
+usar um valor de enum na mesma transação em que ele nasce. Não há `check`, não
+há `update`, e não há o `select` de conferência no fim.
+
+###### A CONCLUSÃO É DO ITEM, E NUNCA DO ANEXO — e é ela que responde o pedido
+
+A frase termina em *"possa marcar como lido"*, e a regra do parágrafo acima
+continua inteira: o e-book fecha pelo cartão dele, o playbook pela VERSÃO
+confirmada, o curso pelas aulas. Um "marcar como lido" no anexo de um playbook
+seria uma segunda porta de conclusão — ela fecharia o item sem ninguém ter
+lido a versão, e `estadoDoPlaybook()` diria o contrário na mesma tela.
+
+**Então o caminho para o Google Doc solto que alguém lê e marca como lido é um
+E-BOOK cujo conteúdo é um link.** `EXPLICACAO_DO_TIPO.ebook` já diz *"material
+da agência, para ler de ponta a ponta"*, que é exatamente o que uma apresentação
+de apoio é, e o cartão do e-book já carrega o botão desde a 0096. *O que fica
+em aberto, e é dito em vez de escondido:* o rótulo do tipo continua sendo
+"E-book", que é levemente torto em cima de uma planilha. Renomeá-lo é mexer num
+tipo lido por quarenta telas por causa de um rótulo, e o que a tela ganhou no
+lugar é a linha que diz **"Google Sheets · abre em nova aba"** — ela responde o
+que a pessoa vai encontrar melhor que o nome do tipo.
+
+###### O serviço sai do ENDEREÇO, e o fallback é o hostname
+
+`servicoDoLink()` em `lib/dominio/academy.ts`. A linha de baixo do cartão
+escreve páginas e tamanho, e um link não tem nenhum dos dois: ficaria
+*"Material de apoio"* embaixo de todo link, que é o rótulo da seção repetido.
+
+**É DERIVADO E NÃO COLUNA**, pela razão de `maoDoPost()` e de `faseDoPedido()`:
+uma coluna `servico` precisaria ser reescrita por todo caminho que mexe no
+endereço, e o endereço é o único lugar onde o fato mora. **E o fallback é o
+hostname, nunca a palavra "Link"** — `notion.so` informa mais que "Link", e uma
+lista fechada de serviços seria a armadilha que a 0032 recusou em
+`posts.formato`: *"esses nomes mudam a cada temporada de produto das
+plataformas"*. O que entra por nome é só o que a casa usa todo dia.
+
+**A mesma função desenha a conferência antes de salvar**, embaixo do campo de
+endereço: colar o link errado é o erro provável aqui, e ler "Google Sheets"
+embaixo de um endereço que devia ser o Slides é o que pega. Duas contas dariam
+duas respostas para o mesmo endereço.
+
+###### O ACESSO É DO DRIVE, E ISSO FICA ESCRITO NA TELA
+
+*"Só preciso que a pessoa tenha acesso"* é a parte que o Full Hub **não** faz:
+ele guarda o endereço e quem marcou como lido, e não copia o arquivo nem libera
+permissão nenhuma. Sem a frase, alguém anexa um link restrito, a equipe bate
+numa tela de "pedir acesso" do Google e ninguém liga uma coisa à outra. Ela
+mora embaixo do campo, onde a pessoa está colando o link — não num aviso no
+topo que ela já rolou para passar.
+
+###### A forma de `url` tem de casar com `formato`, nos DOIS sentidos
+
+É a única trava da regra, e ela mora no `refine` de `esquemaDeArquivo` e só
+lá. **Não há `check` no banco**, e a ausência é decisão: um check citando
+`'link'` não cabe na migration que cria o valor — ele exigiria uma segunda
+colagem, e trava que depende de alguém colar duas vezes é trava que pode não
+existir. E o que ela protege é um RÓTULO e não um dado: um link gravado como
+`pdf` sai com o botão errado escrito, e um caminho de bucket gravado como
+`link` cai no `enderecoDaArte()`, que devolve nulo e deixa o botão desligado
+com a razão — que é o estado que a tela já desenha. Os dois só são alcançáveis
+por um PATCH montado à mão numa tabela cuja escrita é `is_gestor()`.
+
+###### O que mudou na tela, e o que o `82l` pegou
+
+O uploader ganhou **duas portas** — "Subir um arquivo" e "Usar um link" —, num
+`radiogroup` e não em dois botões soltos: duas escolhas mutuamente exclusivas
+sem o papel são dois botões que o leitor de tela anuncia sem dizer que um
+desliga o outro. O seletor vem **antes de qualquer campo**, porque é ele que
+decide quais campos existem; e o campo de **Páginas não existe no modo link**,
+porque página de uma planilha do Drive não quer dizer nada e um campo opcional
+que nunca se preenche é o que ensina a ignorar os outros.
+
+**E o botão de salvar virou UM SÓ, no fim — isso é conserto do que veio
+antes.** Ele morava na linha do seletor de arquivo, e a partir da segunda
+versão de um e-book as duas coisas que ele grava — *"o que mudou"* e *"exigir
+releitura"* — ficavam ABAIXO dele: quem escrevia a nota tinha de voltar para
+cima para salvá-la, e quem não voltasse gravava a versão sem ela, calada. **Foi
+a imagem que mostrou**, e nenhuma verificação pegaria — ordem de elementos não
+é tipo, não é cor e não é árvore de acessibilidade.
+
+**A releitura vale MAIS no link, e é dito por extenso:** um Google Doc vivo muda
+sem versão nova, então ela é o único jeito de cobrar de novo quem já tinha lido.
+
+**E o protótipo guarda um de cada.** O anexo do playbook virou link e o do curso
+continua arquivo — com os dois iguais a imagem provaria que o cartão aparece e
+não que ele **distingue** as duas coisas, que é a razão do evento de cada par da
+legenda do calendário. E entrou um e-book que É um link
+(`82k-academy-ebook-link`), porque é ele a peça do pedido: "Abrir" e "Marcar
+como lido" lado a lado no mesmo cartão. Sem ela a rodada terminaria dizendo
+"Pronto" e o que o usuário pediu não sairia em imagem nenhuma.
+
 ### Recomendações: o módulo mais leve, e o desenho respeita isso
 
 `recommendations`, `recommendation_likes` e `recommendation_comments`. Alguém

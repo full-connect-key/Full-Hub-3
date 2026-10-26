@@ -49,15 +49,18 @@ export type TeamFuncao =
 
 export type TaskPrioridade = "baixa" | "normal" | "alta" | "urgente";
 
-
 /**
  * `atrasado` existe no enum, mas NUNCA é gravado: ele é derivado do
  * vencimento a cada leitura, por `situacaoDoLancamento()` em
  * `lib/dominio/financeiro.ts` e por `situacao_do_lancamento()` no Postgres.
  * Um trigger reescreve para `previsto` quem tentar gravá-lo à mão.
  */
-export type FinStatus = "previsto" | "faturado" | "pago" | "atrasado" | "cancelado";
-
+export type FinStatus =
+  | "previsto"
+  | "faturado"
+  | "pago"
+  | "atrasado"
+  | "cancelado";
 
 export type PfTipo = "entrada" | "saida";
 /**
@@ -134,13 +137,23 @@ export type AcademyTipo = "playbook" | "ebook" | "curso";
 export type AcademyAulaTipo = "video" | "texto" | "pdf" | "link" | "exercicio";
 
 /**
- * O QUE O ARQUIVO DE UM E-BOOK E (0102), e nao so que extensao ele tem.
+ * O QUE O ARQUIVO DE UM ITEM DO ACERVO E (0102), e nao so que extensao ele tem.
  *
  * E enum e nao texto pela razao de `posts.midia`: e ele que decide qual tela
- * aparece por cima -- visualizador de PDF ou iframe --, e um `'HTML'` com
- * caixa trocada faria a tela cair no ramo errado sem erro nenhum.
+ * aparece por cima -- visualizador de PDF, iframe ou botao de abrir fora --, e
+ * um `'HTML'` com caixa trocada faria a tela cair no ramo errado sem erro
+ * nenhum.
+ *
+ * **`link` entrou na 0115** porque metade do acervo de apoio da agencia e
+ * Google Docs, Slides e Sheets, que nao se sobem a bucket nenhum. Sem o
+ * terceiro valor, um Google Doc gravado como `pdf` sairia com "Baixar"
+ * apontando para o Drive e "PDF" escrito embaixo do nome.
+ *
+ * O nome do tipo guarda o "ebook" de quando ele era so do e-book, pela razao
+ * de `prazo` e de `dias_uteis`: renomear tipo em uso e migration arriscada, e
+ * ninguem que usa o sistema ve este nome.
  */
-export type AcademyEbookFormato = "pdf" | "html_interativo";
+export type AcademyEbookFormato = "pdf" | "html_interativo" | "link";
 
 /**
  * O tipo do material no modelo ANTIGO (0017), que a 0096 converteu.
@@ -336,7 +349,11 @@ export type EventoTipo =
  */
 export type TipoNoCalendario = "evento";
 
-export type SkillNivel = "iniciante" | "intermediario" | "avancado" | "especialista";
+export type SkillNivel =
+  | "iniciante"
+  | "intermediario"
+  | "avancado"
+  | "especialista";
 
 /**
  * O QUE O EQUIPAMENTO E (migration 0069).
@@ -364,7 +381,11 @@ export type AssetTipo =
   | "outro";
 
 /** Onde o equipamento esta. Escrito pelo emprestimo, nunca pela tela. */
-export type AssetStatus = "disponivel" | "emprestado" | "manutencao" | "baixado";
+export type AssetStatus =
+  | "disponivel"
+  | "emprestado"
+  | "manutencao"
+  | "baixado";
 
 /** Quatro degraus, e nao cinco: escala com meio-degrau duas pessoas leem diferente. */
 export type AssetEstado = "novo" | "bom" | "regular" | "ruim";
@@ -402,7 +423,11 @@ export type HrOrigem = "solicitacao" | "lancamento_retroativo" | "importacao";
  * repetição, com as etapas do modelo dentro.
  */
 export type RecorrenciaModo = "mensal_agrupada" | "task_por_ocorrencia";
-export type RecorrenciaFrequencia = "diaria" | "semanal" | "quinzenal" | "mensal";
+export type RecorrenciaFrequencia =
+  | "diaria"
+  | "semanal"
+  | "quinzenal"
+  | "mensal";
 /** Mensal ou trimestral: como o feedback de desenvolvimento é gerado (0075). */
 export type FeedbackPeriodicidade = "mensal" | "trimestral";
 
@@ -433,7 +458,13 @@ export type PresencaStatus =
   | "folga"
   | "feriado";
 
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export interface Database {
   public: {
@@ -1457,8 +1488,18 @@ export interface Database {
         Relationships: [];
       };
       client_users: {
-        Row: { id: string; client_id: string; user_id: string; created_at: string };
-        Insert: { id?: string; client_id: string; user_id: string; created_at?: string };
+        Row: {
+          id: string;
+          client_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          user_id: string;
+          created_at?: string;
+        };
         Update: { client_id?: string; user_id?: string };
         Relationships: [];
       };
@@ -2688,7 +2729,11 @@ export interface Database {
          * revalidar a ficha do cliente.
          */
         Insert: never;
-        Update: { ativo?: boolean; avanca_em_paralelo?: boolean; updated_at?: string };
+        Update: {
+          ativo?: boolean;
+          avanca_em_paralelo?: boolean;
+          updated_at?: string;
+        };
         Relationships: [];
       };
 
@@ -3407,7 +3452,10 @@ export interface Database {
         Returns: string;
       };
       academy_versao_corrente: { Args: { p_item: string }; Returns: number };
-      academy_versao_de_releitura: { Args: { p_item: string }; Returns: number };
+      academy_versao_de_releitura: {
+        Args: { p_item: string };
+        Returns: number;
+      };
       academy_obrigatorios_de: {
         Args: { p_user: string };
         Returns: {
@@ -3487,7 +3535,10 @@ export interface Database {
           devolvido: boolean;
         }[];
       };
-      confirmar_recebimento: { Args: { p_loan_id: string }; Returns: undefined };
+      confirmar_recebimento: {
+        Args: { p_loan_id: string };
+        Returns: undefined;
+      };
       reportar_problema_do_comodato: {
         Args: { p_loan_id: string; p_texto: string };
         Returns: undefined;
@@ -3495,7 +3546,12 @@ export interface Database {
       /** O que ainda esta com uma pessoa — o que o desligamento mostra. */
       comodatos_em_aberto_de: {
         Args: { p_user_id: string };
-        Returns: { loan_id: string; codigo: string | null; nome: string; data_entrega: string }[];
+        Returns: {
+          loan_id: string;
+          codigo: string | null;
+          nome: string;
+          data_entrega: string;
+        }[];
       };
       /**
        * As etapas de um workflow com o responsavel JA RESOLVIDO para uma conta
@@ -3553,7 +3609,10 @@ export interface Database {
        * Avisa quem ainda nao mandou a nota do mes e grava o pedido (0066).
        * Devolve quantas pessoas foram alcancadas.
        */
-      solicitar_notas_do_mes: { Args: { p_competencia: string }; Returns: number };
+      solicitar_notas_do_mes: {
+        Args: { p_competencia: string };
+        Returns: number;
+      };
       /**
        * Os meses em que a equipe me cobrou a nota e eu ainda nao mandei, com a
        * data do ultimo pedido -- que E o prazo (0066).
@@ -3567,9 +3626,15 @@ export interface Database {
         Args: Record<string, never>;
         Returns: { competencia: string; pedido_em: string }[];
       };
-      pode_aprovar_subtarefa: { Args: { p_subtask_id: string }; Returns: boolean };
+      pode_aprovar_subtarefa: {
+        Args: { p_subtask_id: string };
+        Returns: boolean;
+      };
       subtask_liberada: { Args: { p_subtask_id: string }; Returns: boolean };
-      subtask_pendencias: { Args: { p_subtask_id: string }; Returns: string | null };
+      subtask_pendencias: {
+        Args: { p_subtask_id: string };
+        Returns: string | null;
+      };
       /**
        * As pessoas com acesso as empresas de quem pergunta, com a data do
        * ultimo login (migration 0031).
@@ -3589,7 +3654,11 @@ export interface Database {
         }[];
       };
       decidir_rodada_do_cliente: {
-        Args: { p_round_id: string; p_decisao: StatusRodada; p_comentario: string | null };
+        Args: {
+          p_round_id: string;
+          p_decisao: StatusRodada;
+          p_comentario: string | null;
+        };
         Returns: void;
       };
       /**
@@ -3626,8 +3695,17 @@ export interface Database {
       // unidade de envio passou a ser o MES; a decisao continua sendo de cada
       // peca.
       enviar_mes_ao_cliente: {
-        Args: { p_task_id: string; p_etapa_id: string; p_recado?: string | null };
-        Returns: { lote_id: string; portao: string; rodada: number; pecas: number };
+        Args: {
+          p_task_id: string;
+          p_etapa_id: string;
+          p_recado?: string | null;
+        };
+        Returns: {
+          lote_id: string;
+          portao: string;
+          rodada: number;
+          pecas: number;
+        };
       };
       // A FASE DA VEZ do mes -- o primeiro portao do cliente ainda nao
       // concluido. `returns public.subtasks` e nao `returns table`, entao o
@@ -3685,7 +3763,10 @@ export interface Database {
       // O gemeo em TypeScript e `minutosMedidos()`, em `lib/dominio/tempo.ts`.
       // Esta aqui serve a consulta e ao relatorio; a tela usa a de la, que
       // corre a cada segundo sem ir ao banco.
-      tempo_medido_da_subtarefa: { Args: { p_subtask_id: string }; Returns: number | null };
+      tempo_medido_da_subtarefa: {
+        Args: { p_subtask_id: string };
+        Returns: number | null;
+      };
 
       // --- Full Days e notificacoes (migration 0011) ----------------------
       dias_uteis: { Args: { inicio: string; fim: string }; Returns: number };
@@ -3741,9 +3822,16 @@ export interface Database {
        * direto: uma segunda ida ao banco para um campo que a primeira já
        * podia trazer é uma segunda chance de as duas discordarem.
        */
-      proximo_descanso_em: { Args: { p_user_id: string }; Returns: string | null };
+      proximo_descanso_em: {
+        Args: { p_user_id: string };
+        Returns: string | null;
+      };
       decidir_solicitacao: {
-        Args: { p_request_id: string; p_decisao: HrStatus; p_motivo: string | null };
+        Args: {
+          p_request_id: string;
+          p_decisao: HrStatus;
+          p_motivo: string | null;
+        };
         Returns: void;
       };
       cancelar_solicitacao: {
@@ -3989,7 +4077,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: { id: string; titulo: string; updated_at: string }[];
       };
-      limpar_rascunhos_abandonados: { Args: Record<string, never>; Returns: number };
+      limpar_rascunhos_abandonados: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
       /**
        * true quando as duas rotinas diarias estao agendadas e ativas no
        * pg_cron (0072). E o que faz a faixa de Recorrencias e o bloco de
@@ -4035,7 +4126,11 @@ export interface Database {
        */
       consumir_tentativa: {
         Args: { p_chave: string; p_max: number; p_janela: string };
-        Returns: { permitido: boolean; tentativas: number; espere_segundos: number }[];
+        Returns: {
+          permitido: boolean;
+          tentativas: number;
+          espere_segundos: number;
+        }[];
       };
       perdoar_tentativas: { Args: { p_chave: string }; Returns: undefined };
       /**
@@ -4417,19 +4512,25 @@ export type TourProgresso =
 export type AcademyItem = Database["public"]["Tables"]["academy_items"]["Row"];
 export type AcademyVersao =
   Database["public"]["Tables"]["academy_playbook_versoes"]["Row"];
-export type AcademyArquivo = Database["public"]["Tables"]["academy_arquivos"]["Row"];
+export type AcademyArquivo =
+  Database["public"]["Tables"]["academy_arquivos"]["Row"];
 export type AcademyCapitulo =
   Database["public"]["Tables"]["academy_ebook_capitulos"]["Row"];
 export type AcademyChecklist =
   Database["public"]["Tables"]["academy_ebook_checklists"]["Row"];
-export type AcademyModulo = Database["public"]["Tables"]["academy_modulos"]["Row"];
+export type AcademyModulo =
+  Database["public"]["Tables"]["academy_modulos"]["Row"];
 export type AcademyAula = Database["public"]["Tables"]["academy_aulas"]["Row"];
-export type AcademyProgresso = Database["public"]["Tables"]["academy_progresso"]["Row"];
-export type AcademyAnotacao = Database["public"]["Tables"]["academy_anotacoes"]["Row"];
+export type AcademyProgresso =
+  Database["public"]["Tables"]["academy_progresso"]["Row"];
+export type AcademyAnotacao =
+  Database["public"]["Tables"]["academy_anotacoes"]["Row"];
 export type AcademyObrigatorio =
   Database["public"]["Tables"]["academy_obrigatorios"]["Row"];
-export type AcademyTrilha = Database["public"]["Tables"]["academy_trilhas"]["Row"];
-export type Recomendacao = Database["public"]["Tables"]["recommendations"]["Row"];
+export type AcademyTrilha =
+  Database["public"]["Tables"]["academy_trilhas"]["Row"];
+export type Recomendacao =
+  Database["public"]["Tables"]["recommendations"]["Row"];
 export type RecomendacaoComentario =
   Database["public"]["Tables"]["recommendation_comments"]["Row"];
 export type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -4438,11 +4539,15 @@ export type ClientFlowDefaults =
 export type ClientFunctionDefault =
   Database["public"]["Tables"]["client_function_defaults"]["Row"];
 export type TeamInvoice = Database["public"]["Tables"]["team_invoices"]["Row"];
-export type InvoiceRequest = Database["public"]["Tables"]["invoice_requests"]["Row"];
+export type InvoiceRequest =
+  Database["public"]["Tables"]["invoice_requests"]["Row"];
 export type RequestType = Database["public"]["Tables"]["request_types"]["Row"];
-export type ClientRequest = Database["public"]["Tables"]["client_requests"]["Row"];
-export type RequestAttachment = Database["public"]["Tables"]["request_attachments"]["Row"];
-export type RequestMessage = Database["public"]["Tables"]["request_messages"]["Row"];
+export type ClientRequest =
+  Database["public"]["Tables"]["client_requests"]["Row"];
+export type RequestAttachment =
+  Database["public"]["Tables"]["request_attachments"]["Row"];
+export type RequestMessage =
+  Database["public"]["Tables"]["request_messages"]["Row"];
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"];
 export type ClientUser = Database["public"]["Tables"]["client_users"]["Row"];
 export type Task = Database["public"]["Tables"]["tasks"]["Row"];
@@ -4451,25 +4556,35 @@ export type TaskRecurrence =
 export type RecurrenceRun =
   Database["public"]["Tables"]["recurrence_runs"]["Row"];
 export type Subtask = Database["public"]["Tables"]["subtasks"]["Row"];
-export type TaskReferencia = Database["public"]["Tables"]["task_referencias"]["Row"];
-export type TaskComentario = Database["public"]["Tables"]["task_comentarios"]["Row"];
-export type SubtaskDependency = Database["public"]["Tables"]["subtask_dependencies"]["Row"];
-export type ApprovalRound = Database["public"]["Tables"]["approval_rounds"]["Row"];
-export type SubtaskEntrega = Database["public"]["Tables"]["subtask_entregas"]["Row"];
+export type TaskReferencia =
+  Database["public"]["Tables"]["task_referencias"]["Row"];
+export type TaskComentario =
+  Database["public"]["Tables"]["task_comentarios"]["Row"];
+export type SubtaskDependency =
+  Database["public"]["Tables"]["subtask_dependencies"]["Row"];
+export type ApprovalRound =
+  Database["public"]["Tables"]["approval_rounds"]["Row"];
+export type SubtaskEntrega =
+  Database["public"]["Tables"]["subtask_entregas"]["Row"];
 export type TaskHistory = Database["public"]["Tables"]["task_history"]["Row"];
 export type TaskType = Database["public"]["Tables"]["task_types"]["Row"];
-export type WorkflowTemplate = Database["public"]["Tables"]["workflow_templates"]["Row"];
-export type WorkflowStep = Database["public"]["Tables"]["workflow_steps"]["Row"];
+export type WorkflowTemplate =
+  Database["public"]["Tables"]["workflow_templates"]["Row"];
+export type WorkflowStep =
+  Database["public"]["Tables"]["workflow_steps"]["Row"];
 export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 export type HrRequest = Database["public"]["Tables"]["hr_requests"]["Row"];
 export type TeamPresence = Database["public"]["Tables"]["team_presence"]["Row"];
 export type Holiday = Database["public"]["Tables"]["holidays"]["Row"];
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
-export type FinanceCategory = Database["public"]["Tables"]["finance_categories"]["Row"];
-export type FinanceEntry = Database["public"]["Tables"]["finance_entries"]["Row"];
+export type FinanceCategory =
+  Database["public"]["Tables"]["finance_categories"]["Row"];
+export type FinanceEntry =
+  Database["public"]["Tables"]["finance_entries"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type PostVersion = Database["public"]["Tables"]["post_versions"]["Row"];
 export type PostEtapaProgresso =
   Database["public"]["Tables"]["post_etapa_progresso"]["Row"];
-export type PostReferencia = Database["public"]["Tables"]["post_referencias"]["Row"];
+export type PostReferencia =
+  Database["public"]["Tables"]["post_referencias"]["Row"];
 export type Comentario = Database["public"]["Tables"]["comments"]["Row"];

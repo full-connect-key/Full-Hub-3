@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Link2, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
@@ -18,6 +18,8 @@ import {
   BUCKET_DO_ACERVO,
   ROTULOS_DE_AULA,
   TIPOS_DE_AULA,
+  ehEnderecoDeFora,
+  servicoDoLink,
 } from "@/lib/dominio/academy";
 import {
   EXTENSOES_DO_FORMATO,
@@ -61,10 +63,17 @@ export function MontarOItem({ aberto }: { aberto: ItemAberto }) {
 
   return (
     <section className="space-y-4 border-t pt-6">
-      <h3 className="text-text-primary text-sm font-semibold">Montar este item</h3>
+      <h3 className="text-text-primary text-sm font-semibold">
+        Montar este item
+      </h3>
 
       <Propriedades item={item} />
-      {playbook ? <NovaVersao itemId={item.id} proxima={(playbook.versaoCorrente?.numero_versao ?? 0) + 1} /> : null}
+      {playbook ? (
+        <NovaVersao
+          itemId={item.id}
+          proxima={(playbook.versaoCorrente?.numero_versao ?? 0) + 1}
+        />
+      ) : null}
       <ArquivoDoItem tipo={item.tipo} itemId={item.id} atual={arquivo} />
       {curso ? <MontarCurso itemId={item.id} curso={curso} /> : null}
       <Obrigatoriedade itemId={item.id} />
@@ -105,12 +114,18 @@ function Propriedades({ item }: { item: ItemAberto["item"] }) {
 
   return (
     <div className="bg-card rounded-card shadow-cartao space-y-3 border p-4">
-      <h4 className="text-text-primary text-sm font-medium">Título e organização</h4>
+      <h4 className="text-text-primary text-sm font-medium">
+        Título e organização
+      </h4>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="m-titulo">Título</Label>
-          <Input id="m-titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Input
+            id="m-titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="m-resumo">Resumo</Label>
@@ -131,7 +146,11 @@ function Propriedades({ item }: { item: ItemAberto["item"] }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="m-tags">Etiquetas</Label>
-          <Input id="m-tags" value={tags} onChange={(e) => setTags(e.target.value)} />
+          <Input
+            id="m-tags"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+          />
         </div>
       </div>
 
@@ -142,8 +161,8 @@ function Propriedades({ item }: { item: ItemAberto["item"] }) {
       {/* O ENDEREÇO NÃO MUDA COM O TÍTULO, e a tela diz: um link colado numa
           conversa continua abrindo depois de alguém renomear o playbook. */}
       <p className="text-text-muted text-xs">
-        O endereço continua <code>/painel/academy/{item.slug}</code> mesmo trocando o
-        título — é ele que sobrevive num link que alguém já colou.
+        O endereço continua <code>/painel/academy/{item.slug}</code> mesmo
+        trocando o título — é ele que sobrevive num link que alguém já colou.
       </p>
     </div>
   );
@@ -164,7 +183,10 @@ function Propriedades({ item }: { item: ItemAberto["item"] }) {
 function NovaVersao({ itemId, proxima }: { itemId: string; proxima: number }) {
   const router = useRouter();
   const [enviando, começar] = useTransition();
-  const [conteudo, setConteudo] = useState<{ json: JSONContent; texto: string } | null>(null);
+  const [conteudo, setConteudo] = useState<{
+    json: JSONContent;
+    texto: string;
+  } | null>(null);
   const [notas, setNotas] = useState("");
   const [releitura, setReleitura] = useState(false);
 
@@ -226,10 +248,13 @@ function NovaVersao({ itemId, proxima }: { itemId: string; proxima: number }) {
           aria-label="Exigir que quem já leu leia de novo"
         />
         <span className="text-sm">
-          <span className="text-text-primary font-medium">Exigir releitura</span>
+          <span className="text-text-primary font-medium">
+            Exigir releitura
+          </span>
           <span className="text-text-muted block text-xs">
-            Devolve a pendência a todo mundo que já tinha confirmado. Deixe desmarcado
-            para correção de texto — senão o aviso vira ruído e ninguém mais o lê.
+            Devolve a pendência a todo mundo que já tinha confirmado. Deixe
+            desmarcado para correção de texto — senão o aviso vira ruído e
+            ninguém mais o lê.
           </span>
         </span>
       </label>
@@ -324,11 +349,14 @@ function ArquivoDoItem({
   const router = useRouter();
   const [enviando, começar] = useTransition();
   const [subindo, setSubindo] = useState(false);
+  const [modo, setModo] = useState<"arquivo" | "link">("arquivo");
   const [escolhido, setEscolhido] = useState<{
     caminho: string;
     nome: string;
     bytes: number;
   } | null>(null);
+  const [link, setLink] = useState("");
+  const [nomeDoLink, setNomeDoLink] = useState("");
   const [paginas, setPaginas] = useState("");
   const [notas, setNotas] = useState("");
   const [releitura, setReleitura] = useState(false);
@@ -341,8 +369,24 @@ function ArquivoDoItem({
   // metade do que ele deve oferecer.
   // NO ANEXO O FORMATO NÃO SE ESCOLHE, e é a linha que impede um `.html`
   // anexado a um curso de virar o visualizador interativo dentro dele.
-  const formato = !ehEbook ? "pdf" : escolhido ? formatoPeloNome(escolhido.nome) : null;
+  // NO MODO LINK ELE É O MODO, e não o nome: um `.../edit#gid=0` não tem
+  // extensão para adivinhar, e quem escolheu "Usar um link" já respondeu.
+  const formato =
+    modo === "link"
+      ? "link"
+      : !ehEbook
+        ? "pdf"
+        : escolhido
+          ? formatoPeloNome(escolhido.nome)
+          : null;
   const proxima = (atual?.versao ?? 0) + 1;
+
+  // O LINK SÓ VALE INTEIRO: endereço de fora E nome. O nome não vem de lugar
+  // nenhum — num arquivo ele é o nome do arquivo, aqui é a única coisa que a
+  // pessoa que abrir vai ler antes de clicar.
+  const servico = ehEnderecoDeFora(link) ? servicoDoLink(link) : null;
+  const linkPronto = ehEnderecoDeFora(link) && nomeDoLink.trim().length > 0;
+  const prontoParaSalvar = modo === "link" ? linkPronto : Boolean(escolhido);
 
   async function subir(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -361,7 +405,12 @@ function ArquivoDoItem({
       // arquivo está no ar, e um anexo de curso dentro de `ebooks/` manda essa
       // pessoa procurar um e-book que não existe. Os que já estão lá ficam
       // onde estão — o caminho é o que a linha aponta.
-      const pasta = tipo === "ebook" ? "ebooks" : tipo === "playbook" ? "playbooks" : "cursos";
+      const pasta =
+        tipo === "ebook"
+          ? "ebooks"
+          : tipo === "playbook"
+            ? "playbooks"
+            : "cursos";
       const caminho = `${pasta}/${itemId}/v${proxima}/${Date.now()}.${extensao}`;
 
       const { error } = await supabase.storage
@@ -379,19 +428,42 @@ function ArquivoDoItem({
   }
 
   function salvar() {
-    if (!escolhido) {
+    if (modo === "link" && !linkPronto) {
+      toast.error(
+        ehEnderecoDeFora(link)
+          ? "Dê um nome ao material antes de salvar."
+          : "Cole o endereço começando com https:// antes de salvar.",
+      );
+      return;
+    }
+    if (modo === "arquivo" && !escolhido) {
       toast.error("Escolha o arquivo antes de salvar.");
       return;
     }
+    const conteudo =
+      modo === "link"
+        ? {
+            url: link.trim(),
+            nome: nomeDoLink.trim(),
+            tamanho_bytes: null,
+            paginas: null,
+            formato: "link" as const,
+          }
+        : {
+            url: escolhido!.caminho,
+            nome: escolhido!.nome,
+            tamanho_bytes: escolhido!.bytes,
+            paginas: paginas ? Number(paginas) : null,
+            formato: ehEbook
+              ? formatoPeloNome(escolhido!.nome)
+              : ("pdf" as const),
+          };
+
     começar(async () => {
       const r = await chamarAcao(() =>
         anexarArquivo({
           item_id: itemId,
-          url: escolhido.caminho,
-          nome: escolhido.nome,
-          tamanho_bytes: escolhido.bytes,
-          paginas: paginas ? Number(paginas) : null,
-          formato: ehEbook ? formatoPeloNome(escolhido.nome) : "pdf",
+          ...conteudo,
           versao: proxima,
           notas_mudanca: ehEbook ? notas || null : null,
           exige_releitura: ehEbook ? releitura : false,
@@ -401,6 +473,8 @@ function ArquivoDoItem({
       else {
         toast.success(r.mensagem);
         setEscolhido(null);
+        setLink("");
+        setNomeDoLink("");
         setPaginas("");
         setNotas("");
         setReleitura(false);
@@ -415,92 +489,198 @@ function ArquivoDoItem({
         {ehEbook
           ? atual
             ? `Publicar a versão ${proxima}`
-            : "Anexar o arquivo"
+            : "Anexar o conteúdo"
           : atual
             ? `Trocar o anexo (versão ${proxima})`
-            : "Anexar um arquivo"}
+            : "Anexar um material"}
       </h4>
 
       {/* O QUE JÁ ESTÁ NO AR VEM PRIMEIRO, e não como aviso: quem abre esta
           seção num e-book que já tem PDF está trocando um arquivo, e precisa
-          saber qual. Sem a linha, "Trocar o arquivo" não diz trocar o quê. */}
+          saber qual. Sem a linha, "Trocar o arquivo" não diz trocar o quê.
+          E O FORMATO APARECE SEMPRE QUE É LINK, mesmo num playbook: ali ele
+          deixa de ser "PDF ou e-Pub" ao lado de um anexo — que é o rótulo
+          repetido — e passa a dizer que o material mora fora. */}
       {atual ? (
         <p className="text-text-secondary text-xs">
-          Hoje {ehEbook ? "o e-book entrega" : "o anexo é"}{" "}
-          <span className="font-medium">{atual.nome}</span> (versão {atual.versao}
-          {ehEbook ? `, ${ROTULOS_DO_FORMATO[atual.formato]}` : ""}). Subir outro
-          passa a entregar o novo — o anterior continua no histórico.
+          Hoje {ehEbook ? "este item entrega" : "o anexo é"}{" "}
+          <span className="font-medium">{atual.nome}</span> (versão{" "}
+          {atual.versao}
+          {ehEbook || atual.formato === "link"
+            ? `, ${ROTULOS_DO_FORMATO[atual.formato]}`
+            : ""}
+          ). {modo === "link" ? "Salvar o link" : "Subir outro"} passa a
+          entregar o novo — o anterior continua no histórico.
         </p>
       ) : ehEbook ? (
         <p className="text-text-secondary text-xs">
-          Um e-book sem arquivo não tem o que entregar: a tela de quem abrir mostra o
-          título e nada mais. Aceita PDF e página interativa (.html).
+          Um e-book sem conteúdo não tem o que entregar: a tela de quem abrir
+          mostra o título e nada mais. Pode ser um arquivo (PDF, e-Pub ou página
+          interativa) ou um link — um Google Doc, Slides ou planilha do Drive.
         </p>
       ) : (
         <p className="text-text-secondary text-xs">
           Material de apoio para quem abrir este{" "}
-          {tipo === "playbook" ? "playbook" : "curso"} baixar — a apostila, o
-          modelo, a planilha. Ele não conta como leitura:{" "}
+          {tipo === "playbook" ? "playbook" : "curso"} — a apostila, o modelo, a
+          planilha, ou o link dela no Drive. Ele não conta como leitura:{" "}
           {tipo === "playbook"
             ? "quem confirma é a versão do texto."
             : "quem conta são as aulas."}
         </p>
       )}
 
-      {/* O `<input type="file">` É `sr-only` E O BOTÃO O ACIONA, que é a forma
-          do produto inteiro — e ele continua na árvore de acessibilidade com
-          `aria-label` próprio, porque escondido não é ausente: sem o rótulo
-          ele é anunciado como "editar" e mais nada. Foi o achado do axe. */}
-      {/* SEM `accept` NO ANEXO, de propósito: um apoio de playbook é um PDF,
-          um modelo de planilha ou um .zip de exemplos, e uma lista fechada
-          aqui recusaria o caso comum sem dizer por quê. No e-book ela fica,
-          porque lá o formato DECIDE qual tela o item vira. */}
-      <input
-        ref={campo}
-        type="file"
-        accept={
-          ehEbook
-            ? `${EXTENSOES_DO_FORMATO.pdf},${EXTENSOES_DO_FORMATO.html_interativo}`
-            : undefined
-        }
-        aria-label={ehEbook ? "Arquivo do e-book" : "Arquivo anexado ao item"}
-        className="sr-only"
-        onChange={(e) => void subir(e.target.files?.[0])}
-      />
-
-      <div className="flex flex-wrap items-end gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={subindo || enviando}
-          onClick={() => campo.current?.click()}
-        >
-          <Upload aria-hidden className="size-4" />
-          {subindo ? "Enviando…" : escolhido ? "Escolher outro" : "Escolher o arquivo"}
-        </Button>
-
-        {/* PÁGINAS É DIGITADO, e não lido do arquivo: contar as páginas de um
-            PDF exigiria um leitor de PDF no navegador para um número que a
-            tela usa numa linha só. Em branco ela diz "PDF", que é verdade —
-            e um número inventado é pior que campo vazio, a decisão do tempo
-            real da etapa. */}
-        <div className="w-32 space-y-1.5">
-          <Label htmlFor="e-paginas">Páginas</Label>
-          <Input
-            id="e-paginas"
-            type="number"
-            min={1}
-            value={paginas}
-            onChange={(e) => setPaginas(e.target.value)}
-            placeholder="opcional"
-          />
-        </div>
-
-        <Button size="sm" onClick={salvar} disabled={enviando || subindo || !escolhido}>
-          Salvar o arquivo
-        </Button>
+      {/* ERA UM CAMPO DE ARQUIVO E SÃO DUAS PORTAS, e o seletor vem antes de
+          qualquer campo porque é ele que decide quais campos existem.
+          É `radiogroup` e não dois botões soltos: duas escolhas mutuamente
+          exclusivas sem o papel são dois botões que o leitor de tela anuncia
+          sem dizer que um desliga o outro — e o axe cobra `aria-checked` num
+          `role="radio"`, que é o que mantém o par honesto. */}
+      <div
+        role="radiogroup"
+        aria-label="Como anexar o material"
+        className="bg-card inline-flex gap-1 rounded-lg border p-1"
+      >
+        {(["arquivo", "link"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={modo === m}
+            disabled={subindo || enviando}
+            onClick={() => setModo(m)}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              modo === m
+                ? "bg-action-soft text-action-text"
+                : "text-text-secondary hover:bg-neutral-soft"
+            }`}
+          >
+            {m === "arquivo" ? (
+              <Upload aria-hidden className="size-3.5" />
+            ) : (
+              <Link2 aria-hidden className="size-3.5" />
+            )}
+            {m === "arquivo" ? "Subir um arquivo" : "Usar um link"}
+          </button>
+        ))}
       </div>
+
+      {modo === "arquivo" ? (
+        <>
+          {/* O `<input type="file">` É `sr-only` E O BOTÃO O ACIONA, que é a
+              forma do produto inteiro — e ele continua na árvore de
+              acessibilidade com `aria-label` próprio, porque escondido não é
+              ausente: sem o rótulo ele é anunciado como "editar" e mais nada.
+              Foi o achado do axe. */}
+          {/* SEM `accept` NO ANEXO, de propósito: um apoio de playbook é um PDF,
+              um modelo de planilha ou um .zip de exemplos, e uma lista fechada
+              aqui recusaria o caso comum sem dizer por quê. No e-book ela fica,
+              porque lá o formato DECIDE qual tela o item vira. */}
+          <input
+            ref={campo}
+            type="file"
+            accept={
+              ehEbook
+                ? `${EXTENSOES_DO_FORMATO.pdf},${EXTENSOES_DO_FORMATO.html_interativo}`
+                : undefined
+            }
+            aria-label={
+              ehEbook ? "Arquivo do e-book" : "Arquivo anexado ao item"
+            }
+            className="sr-only"
+            onChange={(e) => void subir(e.target.files?.[0])}
+          />
+
+          <div className="flex flex-wrap items-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={subindo || enviando}
+              onClick={() => campo.current?.click()}
+            >
+              <Upload aria-hidden className="size-4" />
+              {subindo
+                ? "Enviando…"
+                : escolhido
+                  ? "Escolher outro"
+                  : "Escolher o arquivo"}
+            </Button>
+
+            {/* PÁGINAS É DIGITADO, e não lido do arquivo: contar as páginas de
+                um PDF exigiria um leitor de PDF no navegador para um número que
+                a tela usa numa linha só. Em branco ela diz "PDF", que é verdade
+                — e um número inventado é pior que campo vazio, a decisão do
+                tempo real da etapa.
+                ELE NÃO EXISTE NO MODO LINK: página de uma planilha do Drive não
+                quer dizer nada, e um campo opcional que nunca se preenche é o
+                campo que ensina a ignorar os outros. */}
+            <div className="w-32 space-y-1.5">
+              <Label htmlFor="e-paginas">Páginas</Label>
+              <Input
+                id="e-paginas"
+                type="number"
+                min={1}
+                value={paginas}
+                onChange={(e) => setPaginas(e.target.value)}
+                placeholder="opcional"
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="e-link">Endereço</Label>
+              <Input
+                id="e-link"
+                type="url"
+                inputMode="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://docs.google.com/…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="e-link-nome">Nome do material</Label>
+              <Input
+                id="e-link-nome"
+                value={nomeDoLink}
+                onChange={(e) => setNomeDoLink(e.target.value)}
+                placeholder="Como aparece para quem abrir"
+              />
+            </div>
+          </div>
+
+          {/* O SERVIÇO APARECE ANTES DE SALVAR, e é a conferência: colar o
+              endereço errado é o erro provável aqui, e ler "Google Sheets"
+              embaixo de um link que devia ser o Slides é o que pega. Ele sai
+              da MESMA `servicoDoLink()` que desenha a linha do cartão — duas
+              contas dariam duas respostas para o mesmo endereço. */}
+          {servico ? (
+            <p className="text-text-muted text-xs">
+              Vai aparecer como <span className="font-medium">{servico}</span>,
+              com um botão de abrir em nova aba.
+            </p>
+          ) : link.trim() ? (
+            <p className="text-warning text-xs">
+              O endereço precisa começar com{" "}
+              <span className="font-medium">https://</span>.
+            </p>
+          ) : null}
+
+          {/* O ACESSO É DO DRIVE, E NÃO DO FULL HUB — e isto fica escrito na
+              tela de quem cola o link, não só aqui. Ele guarda o endereço e
+              quem leu; quem abre a porta é a permissão do arquivo. Sem a
+              frase, alguém anexa um link restrito, a equipe bate numa tela de
+              "pedir acesso" e ninguém liga uma coisa à outra. */}
+          <p className="text-text-secondary text-xs">
+            O Full Hub guarda o endereço e quem marcou como lido — ele não copia
+            o arquivo nem libera acesso. Confira se o material está
+            compartilhado com a equipe no Drive antes de salvar.
+          </p>
+        </>
+      )}
 
       {escolhido && ehEbook ? (
         <p className="text-text-muted text-xs">
@@ -517,7 +697,10 @@ function ArquivoDoItem({
       {/* AS NOTAS E A RELEITURA SÓ APARECEM A PARTIR DA SEGUNDA VERSÃO, e a
           ausência é a decisão: na primeira não há o que dizer que mudou, e não
           há quem reler — pedir as duas ali seria um campo que ninguém sabe
-          preencher no único momento em que ele é obrigatório pelo costume. */}
+          preencher no único momento em que ele é obrigatório pelo costume.
+          NO LINK A RELEITURA VALE MAIS, e é dito por extenso: um Google Doc
+          vivo muda sem versão nova, então ela é o único jeito de cobrar de
+          novo quem já tinha lido. */}
       {atual && ehEbook ? (
         <div className="space-y-3 border-t pt-3">
           <div className="space-y-1.5">
@@ -538,7 +721,9 @@ function ArquivoDoItem({
               aria-label="Exigir que quem já leu leia de novo"
             />
             <span className="text-sm">
-              <span className="text-text-primary font-medium">Exigir releitura</span>
+              <span className="text-text-primary font-medium">
+                Exigir releitura
+              </span>
               <span className="text-text-muted block text-xs">
                 Devolve a pendência a todo mundo que já tinha confirmado. Deixe
                 desmarcado para correção de texto — senão o aviso vira ruído e
@@ -551,11 +736,30 @@ function ArquivoDoItem({
 
       {escolhido ? (
         <p className="text-text-muted text-xs">
-          {escolhido.nome} · {Math.max(1, Math.round(escolhido.bytes / 1024 / 1024))} MB —
-          clique em <span className="font-medium">Salvar o arquivo</span> para ele passar a
+          {escolhido.nome} ·{" "}
+          {Math.max(1, Math.round(escolhido.bytes / 1024 / 1024))} MB — clique
+          em <span className="font-medium">Salvar</span> para ele passar a
           valer.
         </p>
       ) : null}
+
+      {/* O BOTÃO É UM SÓ E FICA NO FIM, e isto é um conserto de quem veio
+          antes: ele morava na linha do seletor de arquivo, e a partir da
+          segunda versão de um e-book as duas coisas que ele grava — "o que
+          mudou" e "exigir releitura" — ficavam ABAIXO dele. Quem escrevia a
+          nota tinha de voltar para cima para salvá-la, e quem não voltasse
+          gravaria a versão sem ela, calada. Foi a imagem que mostrou.
+
+          Um por modo seriam dois botões com a mesma `onClick` e dois rótulos
+          para divergir; o que troca é o rótulo, porque "Salvar o arquivo" num
+          link nomeia o que não está acontecendo. */}
+      <Button
+        size="sm"
+        onClick={salvar}
+        disabled={enviando || subindo || !prontoParaSalvar}
+      >
+        {modo === "link" ? "Salvar o link" : "Salvar o arquivo"}
+      </Button>
     </div>
   );
 }
@@ -594,7 +798,12 @@ function MontarCurso({
       <h4 className="text-text-primary text-sm font-medium">Módulos e aulas</h4>
 
       {curso.modulos.map((modulo) => (
-        <NovaAula key={modulo.id} moduloId={modulo.id} titulo={modulo.titulo} aulas={modulo.aulas} />
+        <NovaAula
+          key={modulo.id}
+          moduloId={modulo.id}
+          titulo={modulo.titulo}
+          aulas={modulo.aulas}
+        />
       ))}
 
       <div className="flex flex-wrap items-end gap-2 border-t pt-3">
@@ -675,8 +884,12 @@ function NovaAula({
       <ul className="divide-border divide-y text-sm">
         {aulas.map((aula) => (
           <li key={aula.id} className="flex items-center gap-2 py-1.5">
-            <span className="text-text-secondary min-w-0 flex-1">{aula.titulo}</span>
-            <span className="text-text-muted text-[11px]">{ROTULOS_DE_AULA[aula.tipo]}</span>
+            <span className="text-text-secondary min-w-0 flex-1">
+              {aula.titulo}
+            </span>
+            <span className="text-text-muted text-[11px]">
+              {ROTULOS_DE_AULA[aula.tipo]}
+            </span>
             <button
               type="button"
               onClick={() => apagar(aula.id)}
@@ -724,7 +937,12 @@ function NovaAula({
             placeholder="https://…"
           />
         </div>
-        <Button size="sm" variant="outline" onClick={criar} disabled={enviando || nome.trim().length < 2}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={criar}
+          disabled={enviando || nome.trim().length < 2}
+        >
           <Plus aria-hidden className="size-4" />
           Acrescentar
         </Button>
@@ -766,7 +984,9 @@ function Obrigatoriedade({ itemId }: { itemId: string }) {
 
   return (
     <div className="bg-card rounded-card shadow-cartao space-y-3 border p-4">
-      <h4 className="text-text-primary text-sm font-medium">Tornar obrigatório</h4>
+      <h4 className="text-text-primary text-sm font-medium">
+        Tornar obrigatório
+      </h4>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-40 flex-1 space-y-1.5">
@@ -798,15 +1018,20 @@ function Obrigatoriedade({ itemId }: { itemId: string }) {
           />
         </div>
 
-        <Button size="sm" variant="outline" onClick={tornar} disabled={enviando}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={tornar}
+          disabled={enviando}
+        >
           Marcar
         </Button>
       </div>
 
       <p className="text-text-muted text-xs">
-        O prazo conta a partir da data de admissão da pessoa — quem entrou ontem tem o
-        prazo inteiro, e quem está há dois anos já está fora dele se nunca leu. Em
-        branco, o item é obrigatório e não vence.
+        O prazo conta a partir da data de admissão da pessoa — quem entrou ontem
+        tem o prazo inteiro, e quem está há dois anos já está fora dele se nunca
+        leu. Em branco, o item é obrigatório e não vence.
       </p>
 
       <RegraAtual itemId={itemId} />
@@ -882,7 +1107,9 @@ function Publicacao({ item }: { item: ItemAberto["item"] }) {
         disabled={enviando}
         onClick={() =>
           começar(async () => {
-            const r = await chamarAcao(() => publicarItem(item.id, !item.publicado));
+            const r = await chamarAcao(() =>
+              publicarItem(item.id, !item.publicado),
+            );
             if (!r.ok) toast.error(r.error);
             else {
               toast.success(r.mensagem);

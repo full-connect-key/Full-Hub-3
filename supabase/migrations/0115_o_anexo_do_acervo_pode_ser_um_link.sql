@@ -1,0 +1,106 @@
+-- ===========================================================================
+-- 0115 - O ANEXO DO ACERVO PODE SER UM LINK
+--
+-- Decisao do usuario, palavra por palavra:
+--
+--   "ainda sobre o Acervo, alem de opcao de anexo eu quero opcao de link
+--    tambem... pq temos diversos materiais de apoio que estao no nosso drive
+--    em diferentes formatos, tipo google slides, google docs, google sheets
+--    etc... so preciso que a pessoa tenha acesso, e depois possa marcar como
+--    lido no acervo do FullHub"
+--
+-- O anexo passou a valer nos TRES formatos no commit anterior -- a tabela
+-- `academy_arquivos` e `(item_id, versao)` desde a 0096 e nunca soube o tipo
+-- do item; o que prendia o anexo ao e-book era um condicional de tela. Agora
+-- o que se anexa pode nao ser um arquivo: metade do acervo de apoio da
+-- agencia e Google Docs, Slides e Sheets, que nao se sobem a bucket nenhum.
+--
+-- ---------------------------------------------------------------------------
+-- NAO HA COLUNA NOVA, E A PONTE ESTAVA CONSTRUIDA
+--
+-- O link mora em `academy_arquivos.url`, que e `text not null` sem `check`
+-- desde a 0096 -- e `assinarArquivos()` em `lib/dados/conteudo.ts` DEIXA
+-- PASSAR o que comeca com `http` desde que nasceu, com a razao escrita no
+-- comentario dela: *"nem toda arte mora no bucket -- algumas sao link de
+-- Drive ou de Figma, e assinar um endereco que nao e do Storage devolveria
+-- erro e apagaria a imagem da tela"*. `enderecoDaArte()` fecha o par do outro
+-- lado, aceitando de volta o que ja e endereco.
+--
+-- Entao a camada de dados nunca precisou mudar: `abrirItem()` nao tem uma
+-- linha diferente nesta entrega. E a ponte construida e nao atravessada pela
+-- decima setima vez -- e desta vez ela estava inteira dos DOIS lados.
+--
+-- ---------------------------------------------------------------------------
+-- O QUE A MIGRATION FAZ, E E UMA LINHA
+--
+-- Um valor no enum `academy_ebook_formato`. Ele nunca foi "que extensao o
+-- arquivo tem": a 0102 escreveu que *"e ele que decide qual tela aparece por
+-- cima"*, e sao tres telas agora:
+--
+--   pdf             -- arquivo do bucket, com o botao de BAIXAR
+--   html_interativo -- a pagina que abre dentro do painel, com progresso
+--   link            -- endereco de fora, com o botao de ABRIR em nova aba
+--
+-- Sem o terceiro valor, um Google Doc gravado como `pdf` sairia com "Baixar"
+-- apontando para o Drive e com "PDF" escrito embaixo do nome: a tela
+-- afirmando o que nao e.
+--
+-- ---------------------------------------------------------------------------
+-- E ELA NAO USA O VALOR QUE ACABA DE CRIAR, de proposito.
+--
+-- O SQL Editor do Supabase roda o arquivo colado como UMA transacao, e o
+-- Postgres recusa usar um valor de enum na mesma transacao em que ele nasce
+-- ("unsafe use of new value of enum type"). E a razao escrita na 0028 para
+-- `rascunho` nao ter virado valor de enum, e e a regra que a 0109 fixou sobre
+-- o ARQUIVO: nao ha `check`, nao ha `update`, e **nao ha o `select` de
+-- conferencia no fim**. Quem quiser conferir roda, DEPOIS, numa segunda
+-- colagem:
+--
+--   select unnest(enum_range(null::public.academy_ebook_formato));
+--
+-- ---------------------------------------------------------------------------
+-- NAO HA CHECK LIGANDO `formato` A FORMA DE `url`, e a ausencia e decisao.
+--
+-- A regra -- *link e http, arquivo e caminho de bucket* -- mora no `refine`
+-- de `esquemaDeArquivo`, em `academy/acoes.ts`, e so la. Duas razoes:
+--
+--   1. um check que cite `'link'` nao cabe nesta migration, pelo paragrafo de
+--      cima -- ele exigiria uma segunda colagem para existir, e trava que
+--      depende de alguem colar duas vezes e trava que pode nao existir;
+--   2. o que ela protege e um ROTULO, nao um dado. Um link gravado como `pdf`
+--      sai com o botao errado escrito; um caminho de bucket gravado como
+--      `link` cai no `enderecoDaArte()`, que devolve nulo, e o botao sai
+--      desligado com a razao -- que e o estado que a tela ja desenha. Nenhum
+--      dos dois corrompe linha nem vaza nada, e os dois so sao alcancaveis
+--      por um PATCH montado a mao em `academy_arquivos`, cuja escrita e
+--      `is_gestor()` desde a 0096.
+--
+-- Fica dito em vez de escondido: no dia em que um deles doer, o check e uma
+-- migration propria de uma linha.
+--
+-- ---------------------------------------------------------------------------
+-- O QUE NAO MUDA, E E A LINHA QUE MAIS IMPORTA
+--
+-- **A CONCLUSAO E DO ITEM, E NUNCA DO ANEXO.** O pedido termina em *"possa
+-- marcar como lido"*, e quem responde isso continua sendo o tipo do item: o
+-- e-book fecha pelo cartao dele, o playbook pela VERSAO confirmada, o curso
+-- pelas aulas. Um "marcar como lido" no anexo de um playbook seria uma
+-- segunda porta de conclusao, fechando o item sem ninguem ter lido a versao
+-- -- e `estadoDoPlaybook()` diria o contrario na mesma tela.
+--
+-- Entao o caminho para o Google Doc solto que alguem le e marca como lido e
+-- um E-BOOK cujo arquivo e um link: `EXPLICACAO_DO_TIPO.ebook` ja diz
+-- *"material da agencia, para ler de ponta a ponta"*, e o cartao do e-book ja
+-- carrega o botao desde a 0096.
+--
+-- Roda mais de uma vez sem erro.
+-- ===========================================================================
+
+alter type public.academy_ebook_formato add value if not exists 'link';
+
+comment on type public.academy_ebook_formato is
+  'O QUE O ARQUIVO DE UM ITEM DO ACERVO E (0102), e nao so que extensao ele '
+  'tem: e ele que decide qual tela aparece por cima. `pdf` e arquivo do '
+  'bucket com botao de baixar, `html_interativo` e a pagina que abre dentro '
+  'do painel com progresso por capitulo, e `link` (0115) e endereco de fora '
+  '-- Google Docs, Slides, Sheets -- com botao de abrir em nova aba.';

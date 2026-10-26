@@ -1,3 +1,5 @@
+import type { AcademyEbookFormato } from "@/lib/supabase/database.types";
+
 /**
  * A PONTE ENTRE O E-BOOK INTERATIVO E O FULL HUB (0102).
  *
@@ -79,7 +81,11 @@ export function lerMensagemDaPagina(dado: unknown): MensagemDaPagina | null {
       // `[object Object]` dentro de um `text[]` do Postgres, e a marcação
       // voltaria errada na sessão seguinte em vez de não voltar.
       if (!m.marcados.every((x) => typeof x === "string")) return null;
-      return { tipo: "fullhub:checklist", chave: m.chave, marcados: m.marcados };
+      return {
+        tipo: "fullhub:checklist",
+        chave: m.chave,
+        marcados: m.marcados,
+      };
     }
 
     default:
@@ -119,7 +125,8 @@ export function progressoDoEbook(
   return {
     lidos: quantos,
     total: totalDeCapitulos,
-    percentual: totalDeCapitulos > 0 ? Math.round((quantos / totalDeCapitulos) * 100) : 0,
+    percentual:
+      totalDeCapitulos > 0 ? Math.round((quantos / totalDeCapitulos) * 100) : 0,
   };
 }
 
@@ -132,7 +139,10 @@ export function progressoDoEbook(
  * aceitar, que é a decisão da recusa que conta quantas etapas faltam em vez de
  * dizer "há etapa sem aprovação".
  */
-export function avisoDeConfirmacaoIncompleta(lidos: number, total: number): string | null {
+export function avisoDeConfirmacaoIncompleta(
+  lidos: number,
+  total: number,
+): string | null {
   if (lidos >= total) return null;
   return `Você marcou ${lidos} de ${total} capítulos. Confirmar mesmo assim?`;
 }
@@ -170,12 +180,31 @@ export const EXTENSOES_DO_FORMATO: Record<"pdf" | "html_interativo", string> = {
   html_interativo: "text/html,.html",
 };
 
-export const ROTULOS_DO_FORMATO: Record<"pdf" | "html_interativo", string> = {
+/**
+ * O rótulo de cada formato, e ele é `AcademyEbookFormato` INTEIRO.
+ *
+ * **`link` entrou aqui e NÃO em `EXTENSOES_DO_FORMATO`**, e a assimetria é o
+ * que separa as duas listas: aquela é o que o seletor de arquivos aceita, e um
+ * link não tem extensão para oferecer — ela continua sendo dos dois formatos
+ * que se sobem. Este mapa é lido com um valor que vem do BANCO, então ele tem
+ * de responder pelos três: faltando um, o `Record` deixa de ser total e a
+ * linha que diz o que o Full Hub vai fazer com o arquivo sai vazia.
+ */
+export const ROTULOS_DO_FORMATO: Record<AcademyEbookFormato, string> = {
   pdf: "PDF ou e-Pub",
   html_interativo: "Página interativa",
+  link: "Link de fora",
 };
 
-/** O formato que o nome do arquivo sugere. É sugestão, e a pessoa confirma. */
+/**
+ * O formato que o nome do arquivo sugere. É sugestão, e a pessoa confirma.
+ *
+ * Ela nunca devolve `link`, de propósito: quem escolhe o link é a PESSOA, no
+ * seletor de "subir um arquivo" ou "usar um link" — não há nome de arquivo
+ * para adivinhar. Por isso o retorno continua estreito nos dois valores que o
+ * nome sabe distinguir: alargá-lo para `AcademyEbookFormato` faria o chamador
+ * tratar um ramo que esta função não produz.
+ */
 export function formatoPeloNome(nome: string): "pdf" | "html_interativo" {
   return /\.html?$/i.test(nome) ? "html_interativo" : "pdf";
 }

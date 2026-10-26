@@ -29,6 +29,7 @@ import {
   TOM_DO_ESTADO,
   enderecoDeIncorporacao,
   modoDeAbrir,
+  servicoDoLink,
 } from "@/lib/dominio/academy";
 import {
   avisoDeConfirmacaoIncompleta,
@@ -71,8 +72,17 @@ export function DetalheDoItem({
   anotacaoInicial: string;
   podeEditar: boolean;
 }) {
-  const { item, estado, vistos, total, playbook, arquivo, arquivoAssinado, interativo, curso } =
-    aberto;
+  const {
+    item,
+    estado,
+    vistos,
+    total,
+    playbook,
+    arquivo,
+    arquivoAssinado,
+    interativo,
+    curso,
+  } = aberto;
   const tom = TOM_DO_ESTADO[estado];
 
   return (
@@ -84,7 +94,9 @@ export function DetalheDoItem({
               {ROTULOS_DE_TIPO[item.tipo]}
               {item.categoria ? ` · ${item.categoria}` : ""}
             </p>
-            <h2 className="text-text-primary mt-1 text-2xl font-semibold">{item.titulo}</h2>
+            <h2 className="text-text-primary mt-1 text-2xl font-semibold">
+              {item.titulo}
+            </h2>
             <p className="text-text-secondary mt-1 text-sm">
               {item.resumo || EXPLICACAO_DO_TIPO[item.tipo]}
             </p>
@@ -188,17 +200,24 @@ export function DetalheDoItem({
 // PLAYBOOK
 // ---------------------------------------------------------------------------
 
-function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto["playbook"]> }) {
+function Playbook({
+  item,
+  dados,
+}: {
+  item: string;
+  dados: NonNullable<ItemAberto["playbook"]>;
+}) {
   const router = useRouter();
   const [enviando, começar] = useTransition();
-  const { versaoCorrente, historico, versaoConfirmada, versaoDeReleitura } = dados;
+  const { versaoCorrente, historico, versaoConfirmada, versaoDeReleitura } =
+    dados;
 
   if (!versaoCorrente) {
     return (
       <section className="bg-card rounded-card shadow-cartao border p-5">
         <p className="text-text-secondary text-sm">
-          Este playbook ainda não tem nenhuma versão publicada. Enquanto não tiver, não há
-          o que ler — e é por isso que ele nasce como rascunho.
+          Este playbook ainda não tem nenhuma versão publicada. Enquanto não
+          tiver, não há o que ler — e é por isso que ele nasce como rascunho.
         </p>
       </section>
     );
@@ -230,13 +249,15 @@ function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto
       {precisaReler ? (
         <section className="bg-warning-soft text-warning rounded-card space-y-1 p-4">
           <p className="flex items-center gap-2 text-sm font-semibold">
-            <AlertTriangle aria-hidden className="size-4" />O processo mudou desde a sua
-            última leitura
+            <AlertTriangle aria-hidden className="size-4" />O processo mudou
+            desde a sua última leitura
           </p>
           <p className="text-sm">
             Você confirmou a versão {versaoConfirmada}. A atual é a{" "}
             {versaoCorrente.numero_versao}.
-            {versaoCorrente.notas_mudanca ? ` ${versaoCorrente.notas_mudanca}` : ""}
+            {versaoCorrente.notas_mudanca
+              ? ` ${versaoCorrente.notas_mudanca}`
+              : ""}
           </p>
         </section>
       ) : null}
@@ -269,10 +290,15 @@ function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto
           tabela não tem policy de UPDATE nem de DELETE. */}
       {historico.length > 1 ? (
         <section className="bg-card rounded-card shadow-cartao border p-5">
-          <h3 className="text-text-primary text-sm font-semibold">Versões anteriores</h3>
+          <h3 className="text-text-primary text-sm font-semibold">
+            Versões anteriores
+          </h3>
           <ul className="divide-border mt-3 divide-y text-sm">
             {historico.slice(1).map((v) => (
-              <li key={v.id} className="flex flex-wrap items-baseline gap-x-2 py-2">
+              <li
+                key={v.id}
+                className="flex flex-wrap items-baseline gap-x-2 py-2"
+              >
                 <span className="text-text-primary font-medium tabular-nums">
                   v{v.numero_versao}
                 </span>
@@ -317,6 +343,96 @@ function Playbook({ item, dados }: { item: string; dados: NonNullable<ItemAberto
  * tamanho, e o mesmo botão desligado com a razão quando a assinatura não
  * volta: dois desenhos para o mesmo arquivo divergiriam na primeira mudança.
  */
+/**
+ * A LINHA DE BAIXO DO CARTÃO, e ela é a mesma nos dois.
+ *
+ * Num arquivo do bucket ela diz páginas e tamanho; num LINK (0115) não há
+ * nenhum dos dois — ficaria *"Material de apoio"* embaixo de todo link, que é
+ * o rótulo da seção repetido. O que entra é o SERVIÇO, que sai do endereço
+ * por `servicoDoLink()`: *"Google Slides"* responde o que a pessoa vai
+ * encontrar do outro lado antes de ela clicar.
+ *
+ * **E é uma função e não duas linhas copiadas** porque são dois cartões e dois
+ * estados cada: quatro cópias da mesma conta é onde uma delas para de dizer
+ * "Link" no dia em que a outra passar a dizer.
+ */
+function LinhaDoArquivo({
+  arquivo,
+  semArquivo,
+}: {
+  arquivo: NonNullable<ItemAberto["arquivo"]>;
+  semArquivo: string;
+}) {
+  if (arquivo.formato === "link") {
+    return (
+      <p className="text-text-muted text-xs">
+        {servicoDoLink(arquivo.url) ?? "Link"} · abre em nova aba
+      </p>
+    );
+  }
+  return (
+    <p className="text-text-muted text-xs">
+      {arquivo.paginas ? `${arquivo.paginas} páginas` : semArquivo}
+      {arquivo.tamanho_bytes
+        ? ` · ${Math.round(arquivo.tamanho_bytes / 1024 / 1024)} MB`
+        : ""}
+    </p>
+  );
+}
+
+/**
+ * O BOTÃO DE CHEGAR AO MATERIAL: *Baixar* no arquivo, *Abrir* no link.
+ *
+ * **"Baixar" num Google Doc é a tela afirmando o que não é** — o `download` de
+ * um `<a>` é ignorado em endereço de outro domínio, então o clique navega para
+ * o Drive e o rótulo mente sobre o que acabou de acontecer. É a razão pela
+ * qual a 0115 criou o terceiro valor do enum em vez de gravar link como `pdf`.
+ *
+ * **SEM ENDEREÇO O BOTÃO SAI DESLIGADO COM A RAZÃO, e não some**: o arquivo
+ * existe — o nome dele está na linha de cima —, e quem não conseguir chegar
+ * nele precisa saber que o problema não é a ausência do material. É a decisão
+ * do "Enviar ao cliente" do Social Media: um botão que some ensina que não
+ * existe. **E a razão é outra no link**: ali o endereço nunca é assinado, então
+ * nulo quer dizer que o que foi gravado não é endereço de nada.
+ */
+function AcessoAoArquivo({
+  arquivo,
+  endereco,
+}: {
+  arquivo: NonNullable<ItemAberto["arquivo"]>;
+  endereco: string | null;
+}) {
+  const ehLink = arquivo.formato === "link";
+  const Icone = ehLink ? ExternalLink : Download;
+  const rotulo = ehLink ? "Abrir" : "Baixar";
+
+  if (endereco) {
+    return (
+      <Button asChild variant="outline" size="sm">
+        <a href={endereco} target="_blank" rel="noreferrer">
+          <Icone aria-hidden className="size-4" />
+          {rotulo}
+        </a>
+      </Button>
+    );
+  }
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled
+      title={
+        ehLink
+          ? "O endereço gravado neste material não é um link válido. Fale com a gestão."
+          : "O endereço do arquivo não foi liberado. Recarregue a página; se continuar, fale com a gestão."
+      }
+    >
+      <Icone aria-hidden className="size-4" />
+      {rotulo}
+    </Button>
+  );
+}
+
 function Anexo({
   arquivo,
   endereco,
@@ -324,46 +440,29 @@ function Anexo({
   arquivo: NonNullable<ItemAberto["arquivo"]>;
   endereco: string | null;
 }) {
+  const ehLink = arquivo.formato === "link";
   return (
     <section className="bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-4 border p-5">
       <span
         className="bg-neutral-soft text-neutral grid size-11 shrink-0 place-items-center rounded-lg"
         aria-hidden
       >
-        <Paperclip className="size-5" />
+        {ehLink ? (
+          <ExternalLink className="size-5" />
+        ) : (
+          <Paperclip className="size-5" />
+        )}
       </span>
 
       <div className="min-w-0 flex-1">
         <p className="text-text-muted text-[11px] font-medium tracking-wide uppercase">
-          Anexo
+          {ehLink ? "Material de apoio" : "Anexo"}
         </p>
         <p className="text-text-primary text-sm font-medium">{arquivo.nome}</p>
-        <p className="text-text-muted text-xs">
-          {arquivo.paginas ? `${arquivo.paginas} páginas` : "Material de apoio"}
-          {arquivo.tamanho_bytes
-            ? ` · ${Math.round(arquivo.tamanho_bytes / 1024 / 1024)} MB`
-            : ""}
-        </p>
+        <LinhaDoArquivo arquivo={arquivo} semArquivo="Material de apoio" />
       </div>
 
-      {endereco ? (
-        <Button asChild variant="outline" size="sm">
-          <a href={endereco} target="_blank" rel="noreferrer">
-            <Download aria-hidden className="size-4" />
-            Baixar
-          </a>
-        </Button>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="O endereço do arquivo não foi liberado. Recarregue a página; se continuar, fale com a gestão."
-        >
-          <Download aria-hidden className="size-4" />
-          Baixar
-        </Button>
-      )}
+      <AcessoAoArquivo arquivo={arquivo} endereco={endereco} />
     </section>
   );
 }
@@ -395,48 +494,34 @@ function Ebook({
 
   return (
     <section className="bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-4 border p-5">
+      {/* O LADRILHO DIZ O QUE É, e um link não é um documento do Full Hub:
+          o mesmo ícone de arquivo nos dois faria a tela prometer que o
+          material está aqui dentro. A cor fica — no e-book o ladrilho é
+          `--action-soft` porque ele É o conteúdo do item, link ou não. */}
       <span
         className="bg-action-soft text-action-text grid size-11 shrink-0 place-items-center rounded-lg"
         aria-hidden
       >
-        <FileText className="size-5" />
+        {arquivo.formato === "link" ? (
+          <ExternalLink className="size-5" />
+        ) : (
+          <FileText className="size-5" />
+        )}
       </span>
 
       <div className="min-w-0 flex-1">
         <p className="text-text-primary text-sm font-medium">{arquivo.nome}</p>
-        <p className="text-text-muted text-xs">
-          {arquivo.paginas ? `${arquivo.paginas} páginas` : "PDF"}
-          {arquivo.tamanho_bytes
-            ? ` · ${Math.round(arquivo.tamanho_bytes / 1024 / 1024)} MB`
-            : ""}
-        </p>
+        <LinhaDoArquivo arquivo={arquivo} semArquivo="PDF" />
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {/* SEM ENDEREÇO, O BOTÃO SAI DESLIGADO COM A RAZÃO, e não some: o
-            arquivo existe — o nome dele está na linha de cima —, e quem não
-            conseguir baixar precisa saber que o problema não é a ausência do
-            material. É a decisão do "Enviar ao cliente" do Social Media: um
-            botão que some ensina que não existe. */}
-        {endereco ? (
-          <Button asChild variant="outline" size="sm">
-            <a href={endereco} target="_blank" rel="noreferrer">
-              <Download aria-hidden className="size-4" />
-              Baixar
-            </a>
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="O endereço do arquivo não foi liberado. Recarregue a página; se continuar, fale com a gestão."
-          >
-            <Download aria-hidden className="size-4" />
-            Baixar
-          </Button>
-        )}
-        <Button size="sm" variant={lido ? "outline" : "default"} onClick={marcar} disabled={enviando}>
+        <AcessoAoArquivo arquivo={arquivo} endereco={endereco} />
+        <Button
+          size="sm"
+          variant={lido ? "outline" : "default"}
+          onClick={marcar}
+          disabled={enviando}
+        >
           {lido ? "Desmarcar" : "Marcar como lido"}
         </Button>
       </div>
@@ -480,10 +565,16 @@ function EbookInterativoNaTela({
   const [lidos, setLidos] = useState<string[]>(dados.lidos);
 
   const progresso = progressoDoEbook(lidos, dados.capitulos.length);
-  const releitura = precisaReler(dados.versaoConfirmada, dados.versaoDeReleitura);
+  const releitura = precisaReler(
+    dados.versaoConfirmada,
+    dados.versaoDeReleitura,
+  );
 
   function confirmar() {
-    const aviso = avisoDeConfirmacaoIncompleta(progresso.lidos, progresso.total);
+    const aviso = avisoDeConfirmacaoIncompleta(
+      progresso.lidos,
+      progresso.total,
+    );
     // O AVISO É UM `confirm` E NÃO UM DIÁLOGO DESENHADO, e é a única vez que o
     // produto usa um: a pergunta tem duas respostas, não tem campo nenhum, e
     // ela acontece no meio de uma leitura — um diálogo em cima do e-book
@@ -536,7 +627,9 @@ function EbookInterativoNaTela({
               disabled={enviando || (jaConcluido && !releitura)}
             >
               <Check aria-hidden className="size-4" />
-              {jaConcluido && !releitura ? "Leitura confirmada" : "Li e estou ciente"}
+              {jaConcluido && !releitura
+                ? "Leitura confirmada"
+                : "Li e estou ciente"}
             </Button>
           ) : null}
         </div>
@@ -575,7 +668,13 @@ function EbookInterativoNaTela({
 // CURSO
 // ---------------------------------------------------------------------------
 
-function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["curso"]> }) {
+function Curso({
+  item,
+  dados,
+}: {
+  item: string;
+  dados: NonNullable<ItemAberto["curso"]>;
+}) {
   const router = useRouter();
   const [enviando, começar] = useTransition();
 
@@ -591,7 +690,8 @@ function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["c
     return (
       <section className="bg-card rounded-card shadow-cartao border p-5">
         <p className="text-text-secondary text-sm">
-          Este curso ainda não tem módulos. Enquanto não tiver, não há o que estudar.
+          Este curso ainda não tem módulos. Enquanto não tiver, não há o que
+          estudar.
         </p>
       </section>
     );
@@ -600,10 +700,17 @@ function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["c
   return (
     <div className="space-y-3">
       {dados.modulos.map((modulo) => (
-        <section key={modulo.id} className="bg-card rounded-card shadow-cartao border p-5">
-          <h3 className="text-text-primary text-sm font-semibold">{modulo.titulo}</h3>
+        <section
+          key={modulo.id}
+          className="bg-card rounded-card shadow-cartao border p-5"
+        >
+          <h3 className="text-text-primary text-sm font-semibold">
+            {modulo.titulo}
+          </h3>
           {modulo.descricao ? (
-            <p className="text-text-secondary mt-0.5 text-xs">{modulo.descricao}</p>
+            <p className="text-text-secondary mt-0.5 text-xs">
+              {modulo.descricao}
+            </p>
           ) : null}
 
           <ul className="divide-border mt-3 divide-y">
@@ -611,7 +718,9 @@ function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["c
               const visto = dados.vistas.has(aula.id);
               const modo = modoDeAbrir(aula.tipo, aula.url);
               const incorporar =
-                modo === "embutido" && aula.url ? enderecoDeIncorporacao(aula.url) : null;
+                modo === "embutido" && aula.url
+                  ? enderecoDeIncorporacao(aula.url)
+                  : null;
 
               return (
                 <li key={aula.id} className="space-y-2 py-3">
@@ -633,7 +742,9 @@ function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["c
                           : "text-text-muted hover:border-action/40",
                       )}
                     >
-                      {visto ? <Check aria-hidden className="size-3.5" /> : null}
+                      {visto ? (
+                        <Check aria-hidden className="size-3.5" />
+                      ) : null}
                     </button>
 
                     <span className="text-text-primary min-w-0 flex-1 text-sm">
@@ -701,7 +812,9 @@ function Curso({ item, dados }: { item: string; dados: NonNullable<ItemAberto["c
           </ul>
 
           {modulo.aulas.length === 0 ? (
-            <p className="text-text-muted mt-2 text-xs">Este módulo ainda não tem aulas.</p>
+            <p className="text-text-muted mt-2 text-xs">
+              Este módulo ainda não tem aulas.
+            </p>
           ) : null}
         </section>
       ))}
@@ -753,8 +866,8 @@ function Anotacao({ itemId, inicial }: { itemId: string; inicial: string }) {
       </div>
 
       <p className="text-text-muted text-xs">
-        <strong>Só você lê isto.</strong> Nem a gestão, nem o sócio — a anotação mora numa
-        tabela que fecha no seu usuário nas quatro operações.
+        <strong>Só você lê isto.</strong> Nem a gestão, nem o sócio — a anotação
+        mora numa tabela que fecha no seu usuário nas quatro operações.
       </p>
 
       <Textarea

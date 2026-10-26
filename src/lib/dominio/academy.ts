@@ -1,4 +1,7 @@
-import type { AcademyAulaTipo, AcademyTipo } from "@/lib/supabase/database.types";
+import type {
+  AcademyAulaTipo,
+  AcademyTipo,
+} from "@/lib/supabase/database.types";
 
 /**
  * O vocabulário do Full Academy, e as contas que os dois lados fazem.
@@ -59,6 +62,62 @@ export const EXPLICACAO_DO_TIPO: Record<AcademyTipo, string> = {
  */
 export const BUCKET_DO_ACERVO = "academy-arquivos";
 
+/**
+ * DE QUE SERVIÇO É O LINK, para a linha do cartão dizer alguma coisa.
+ *
+ * O cartão do anexo escreve `paginas` e `tamanho_bytes` embaixo do nome, e um
+ * link não tem nenhum dos dois: ficaria *"Material de apoio"* em toda linha,
+ * que é o rótulo da seção repetido. O que ele pode dizer é o que a pessoa vai
+ * encontrar do outro lado — *"Google Slides"* —, e isso está no endereço.
+ *
+ * **É DERIVADO E NÃO COLUNA**, pela razão de `maoDoPost()` e de
+ * `faseDoPedido()`: uma coluna `servico` precisaria ser reescrita por todo
+ * caminho que mexe no endereço para continuar verdadeira, e o endereço é o
+ * único lugar onde o fato mora.
+ *
+ * **E O FALLBACK É O HOSTNAME, nunca a palavra "Link".** `notion.so` informa
+ * mais que "Link", e o produto não tem como manter uma lista de todo serviço
+ * que a agência vai usar — a lista fechada aqui seria a mesma armadilha de
+ * `formato` ter sido enum em `posts.formato`, que a 0032 recusou porque
+ * *"esses nomes mudam a cada temporada de produto das plataformas"*. O que
+ * entra por nome é só o que a casa usa todo dia, e o resto se identifica
+ * sozinho.
+ *
+ * Endereço torto devolve `null`, e aí a linha volta a dizer o genérico: um
+ * `catch` em volta do `URL` porque este valor vem do banco, e um link gravado
+ * antes de a tela conferir a forma derrubaria a página inteira num cartão.
+ */
+const SERVICOS_POR_HOST: { teste: RegExp; nome: string }[] = [
+  { teste: /^docs\.google\.com\/document/, nome: "Google Docs" },
+  { teste: /^docs\.google\.com\/spreadsheets/, nome: "Google Sheets" },
+  { teste: /^docs\.google\.com\/presentation/, nome: "Google Slides" },
+  { teste: /^docs\.google\.com\/forms/, nome: "Google Forms" },
+  { teste: /^drive\.google\.com/, nome: "Google Drive" },
+  { teste: /^(www\.)?figma\.com/, nome: "Figma" },
+  { teste: /^(www\.)?canva\.com/, nome: "Canva" },
+];
+
+export function servicoDoLink(url: string): string | null {
+  let endereco: URL;
+  try {
+    endereco = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(endereco.protocol)) return null;
+
+  const alvo = `${endereco.hostname}${endereco.pathname}`;
+  const conhecido = SERVICOS_POR_HOST.find((s) => s.teste.test(alvo));
+  if (conhecido) return conhecido.nome;
+
+  return endereco.hostname.replace(/^www\./, "") || null;
+}
+
+/** Dá para gravar isto em `academy_arquivos.url` como link? */
+export function ehEnderecoDeFora(url: string): boolean {
+  return /^https?:\/\//i.test(url.trim());
+}
+
 export const TIPOS_DE_AULA: AcademyAulaTipo[] = [
   "video",
   "texto",
@@ -90,10 +149,14 @@ export const ROTULOS_DE_AULA: Record<AcademyAulaTipo, string> = {
  */
 export type ModoDeAbrir = "embutido" | "visualizador" | "aqui" | "fora";
 
-export function modoDeAbrir(tipo: AcademyAulaTipo, url: string | null): ModoDeAbrir {
+export function modoDeAbrir(
+  tipo: AcademyAulaTipo,
+  url: string | null,
+): ModoDeAbrir {
   if (tipo === "texto" || tipo === "exercicio") return "aqui";
   if (tipo === "pdf") return "visualizador";
-  if (tipo === "video") return url && ehVideoEmbutivel(url) ? "embutido" : "fora";
+  if (tipo === "video")
+    return url && ehVideoEmbutivel(url) ? "embutido" : "fora";
   return "fora";
 }
 
@@ -164,13 +227,15 @@ export const ROTULOS_DE_ESTADO: Record<EstadoDoItem, string> = {
  * Feedback. Vermelho numa tela que a pessoa abre uma vez por semana treina o
  * hábito de ignorar vermelho.
  */
-export const TOM_DO_ESTADO: Record<EstadoDoItem, "neutro" | "acao" | "atencao" | "sucesso"> =
-  {
-    nao_iniciado: "neutro",
-    em_andamento: "acao",
-    releitura: "atencao",
-    concluido: "sucesso",
-  };
+export const TOM_DO_ESTADO: Record<
+  EstadoDoItem,
+  "neutro" | "acao" | "atencao" | "sucesso"
+> = {
+  nao_iniciado: "neutro",
+  em_andamento: "acao",
+  releitura: "atencao",
+  concluido: "sucesso",
+};
 
 /** Valor vindo do banco como `text`, estreitado para o tipo da tela. Um valor
  *  que a tela não conhece cai em `nao_iniciado` em vez de quebrar a página: é
@@ -228,7 +293,9 @@ export function percentual(vistas: number, total: number): number {
  * é que ninguém informou.
  */
 export function duracaoSomada(minutos: (number | null)[]): number | null {
-  const informados = minutos.filter((m): m is number => typeof m === "number" && m > 0);
+  const informados = minutos.filter(
+    (m): m is number => typeof m === "number" && m > 0,
+  );
   if (informados.length === 0) return null;
   return informados.reduce((total, m) => total + m, 0);
 }
@@ -280,8 +347,13 @@ export const ROTULOS_DE_FILTRO: Record<FiltroDoAcervo, string> = {
   curso: "Cursos",
 };
 
-export function lerFiltro(valor: string | string[] | undefined): FiltroDoAcervo {
-  if (typeof valor === "string" && (FILTROS_DO_ACERVO as readonly string[]).includes(valor)) {
+export function lerFiltro(
+  valor: string | string[] | undefined,
+): FiltroDoAcervo {
+  if (
+    typeof valor === "string" &&
+    (FILTROS_DO_ACERVO as readonly string[]).includes(valor)
+  ) {
     return valor as FiltroDoAcervo;
   }
   return "tudo";
@@ -304,7 +376,8 @@ export function combinaComFiltro(
 ): boolean {
   if (filtro === "tudo") return true;
   if (filtro === "para_voce") return obrigatorio || estado === "releitura";
-  if (filtro === "em_andamento") return estado === "em_andamento" || estado === "releitura";
+  if (filtro === "em_andamento")
+    return estado === "em_andamento" || estado === "releitura";
   if (filtro === "concluidos") return estado === "concluido";
   return tipo === filtro;
 }
@@ -321,10 +394,7 @@ export const MINIMO_PARA_BUSCAR = 2;
  *  Postgres escrito em JavaScript — e aqui ele dobra pelo Unicode, que é o que
  *  o `grep -i` do `check:cores` não fazia e custou um CI vermelho. */
 export function semAcento(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 /**

@@ -626,7 +626,14 @@ from (
     -- escolhido porque `responsaveis_da_subtarefa` e lida pela TELA, e uma
     -- tela que nao carrega e um problema que se ve. A carga errada nao.
     ('0114', 'a carga le os dois responsaveis', 'no_corpo',
-             'disponibilidade_bruta|subtask_responsaveis')
+             'disponibilidade_bruta|subtask_responsaveis'),
+    -- A 0115 cria UM valor de enum e mais nada, como a 0109: `link` em
+    -- `academy_ebook_formato`. Sem ela a tela do montar oferece "Usar um
+    -- link", a pessoa cola o endereco do Google Doc, e o `insert` recusa com
+    -- um erro sobre enum -- a tela prometendo o que o banco nao aceita, que e
+    -- exatamente o par do "Eventos Fullers" um modulo ao lado.
+    ('0115', 'o formato de arquivo "link"', 'valor_de_enum',
+             'academy_ebook_formato|link')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
