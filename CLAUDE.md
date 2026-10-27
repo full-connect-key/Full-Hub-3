@@ -6378,6 +6378,70 @@ de aviso presa no topo, os botões de decisão desligados, e
 `decidir_rodada_do_cliente` no Postgres, que recusa quem não é o cliente
 daquela rodada. Montar a chamada à mão não adianta.
 
+#### A LISTA SAIU DO INÍCIO E VIROU UM ITEM DA BARRA
+
+Decisão do usuário: *"tire a lista de clientes da aba inicial, e crie uma aba
+na lateral, com a lista dos clientes"*. A grade vive em `/painel/portais`.
+
+**A ENTRADA NO MENU É O QUE FAZ ISSO SER UMA MUDANÇA DE LUGAR E NÃO UM
+SUMIÇO**, e é a lição das duas entradas que saíram da barra no Sprint 3J:
+Social Media e Campanhas só puderam sair porque a faixa das três áreas de
+Minhas Tasks passou a nomeá-las — *tirar um item de menu de um módulo que não
+aparece em mais lugar nenhum não é enxugar a barra, é esconder o módulo*. Aqui
+o movimento é o contrário, e por isso a conta se inverte: a grade está
+**perdendo** a casa que tinha, então ela precisa ganhar uma. Sem a linha no
+`MENU`, o portal de um cliente passaria a ser alcançável só digitando
+`/portal/{slug}` na barra de endereço.
+
+***O que isso custa, e é dito em vez de escondido:*** a barra volta a crescer
+um item, na direção oposta à daquele sprint — *"para diminuir a quantidade de
+itens na aba lateral"*. É o preço de a grade continuar existindo em algum
+lugar.
+
+**O RÓTULO NÃO É "CLIENTES", e a escolha é o que impede o furo.** "Clientes"
+já é o nome de uma aba — a de Gestão de Pessoas —, e ela leva ao CADASTRO:
+ficha, contato, vínculos de acesso, zona de perigo. Esta tela responde outra
+pergunta, *o que este cliente está vendo?*, e abre o portal dele em aba nova.
+Dois itens com o mesmo nome levando a telas diferentes é como se aprende a
+procurar na errada — o argumento que renomeou "Aprovações & Conteúdo" para
+"Campanhas" e que desfez as duas entradas do Social Media no mesmo dia.
+
+**E ELA MORA AO LADO DE GESTÃO DE PESSOAS, na seção Gestão.** A divisão do
+menu é sobre a PESSOA, e conferir o que um cliente enxerga antes de uma
+reunião é "o que eu faço sobre os outros". As três camadas de sempre valem, e
+a terceira é a que conta: `roles: GESTAO` esconde o item, o `forbidden()` da
+rota estreita, e `client_portal_views_select` fecha em `is_gestor()` desde a
+0009 — esconder o link nunca foi segurança neste produto.
+
+**O ARQUIVO MUDOU DE PASTA**, e não ficou onde estava: `_blocos/` é a pasta dos
+blocos do Início, e um componente ali que o Início não desenha é o que alguém
+reaproveita três sprints depois achando que ele ainda é um bloco daquela tela
+— a decisão da 0023 aplicada a um arquivo. Com a mudança saiu o `<h2>` dele,
+que nomeava a seção no meio de nove blocos: aqui o nome do módulo já está no
+`PageHeader`, e repeti-lo dois centímetros abaixo é a decisão do Sprint 9 —
+*o nome do módulo aparece uma vez só*. **Menos de duas seções não vira barra**,
+então é o `PageHeader` que o carrega.
+
+**A grade ganhou a terceira coluna**, e é medida e não gosto: no Início ela
+vivia na coluna de conteúdo ao lado de um `aside` de 306px, onde duas colunas
+enchiam a linha; aqui o `main` é `max-w-6xl` inteiro, e em duas colunas cada
+cartão passaria de 550px para dizer um nome de empresa e um slug.
+
+**A frase que explica o que o clique faz vem ANTES da grade.** Abrir o portal
+de um cliente parece login como cliente, e não é — lida depois dos cartões,
+ela explicaria o que a pessoa já fez.
+
+**Medido de MÃO DUPLA no `check:sprint9`**, que é o que protege a troca: o
+item tem de estar na barra do sócio e do desenvolvedor **e** faltar na do
+colaborador. Só a metade da presença passaria num `roles` que mostrasse o item
+para todo mundo; só a da ausência passaria numa barra que parou de desenhá-lo.
+
+*O que a imagem do protótipo NÃO mostra, e fica dito:* a busca da grade só
+aparece acima de 8 clientes, e o exemplo tem dois. Inflar `CLIENTES_EXEMPLO`
+para fotografar um campo de busca trocaria o ambiente de exemplo de toda tela
+que lê aquela lista — a de Pessoas, os seletores de cliente, os filtros — por
+causa de uma peça. O limiar é antigo, e a ausência da foto dele também.
+
 Cada abertura vira linha em `client_portal_views`, e **agora ela é lida**: na
 ficha do cliente, num bloco que diz quem da agência abriu o portal dele e
 quando. Ela era gravada desde a 0009 e nenhuma tela a consultava — um rastro
@@ -10292,13 +10356,25 @@ chegar.
 O Sprint 15 é o que faz o Full Hub responder sobre si mesmo. A camada de
 indicadores já existia — migrations 0035 e 0049 — e nenhuma tela a lia.
 
-#### A Home tem NOVE blocos, e a ordem é a do dia da pessoa
+#### A Home tem OITO blocos, e a ordem é a do dia da pessoa
 
 Quem sou eu → o que eu entrego hoje → o que está parado me esperando → quem
 não está aqui → para onde eu vou. E só então, para a gestão, o panorama:
-Pulso, clientes parados, portais. **Quem abre esta tela abre para trabalhar**,
+Pulso e clientes parados. **Quem abre esta tela abre para trabalhar**,
 e o painel de indicadores no topo faria a gestão rolar todo dia por cima dele
 para achar as próprias entregas.
+
+**ERAM NOVE, e o nono era a grade de PORTAIS** — decisão do usuário: *"tire a
+lista de clientes da aba inicial, e crie uma aba na lateral, com a lista dos
+clientes"*. Ela virou um item da barra, e o que está escrito sobre a mudança
+está em "Portais de Clientes", acima.
+
+**E ela era a única seção desta tela que CRESCIA com a carteira da agência.**
+Os outros blocos da gestão são de exceção — o "clientes com trabalho parado"
+some quando nenhuma conta está parada, que é a regra desta tela —, e a grade
+listava todos os clientes ativos todo dia, no pé da coluna, numa tela que
+existe para dizer o que precisa de mim hoje. Com ela saiu uma ida ao banco por
+visita da gestão.
 
 **"Meu dia" é o MESMO componente de Minhas Tasks**, alimentado pela mesma
 função. São duas idas ao banco e não uma — `home_summary()` traz os
@@ -12692,6 +12768,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Os portais saem do Início | **A lista de clientes saiu da tela Início e virou um item da barra lateral**, por decisão do usuário: *"tire a lista de clientes, da aba inicial. e crie uma aba na lateral, com a lista dos clientes"*. Ela vive em `/painel/portais`, na seção Gestão, ao lado de Gestão de Pessoas. **A ENTRADA NO MENU É O QUE FAZ ISSO SER UMA MUDANÇA DE LUGAR E NÃO UM SUMIÇO**, e a conta é a do Sprint 3J invertida: lá as duas entradas só puderam sair porque a faixa de Minhas Tasks passou a nomeá-las — *tirar um item de um módulo que não aparece em mais lugar nenhum é esconder o módulo* —, e aqui a grade está PERDENDO a casa que tinha. *O custo está dito:* a barra volta a crescer um item, na direção oposta à daquele sprint. **O rótulo não é "Clientes"**, e é a escolha que impede o furo: aquele nome já é a aba de Gestão de Pessoas, que leva ao CADASTRO — dois itens com o mesmo nome levando a telas diferentes é como se aprende a procurar na errada. **O arquivo mudou de pasta** em vez de ficar em `_blocos/`, que é a pasta dos blocos do Início, e com ele saiu o `<h2>` da seção: o nome do módulo aparece uma vez só, e aqui ele está no `PageHeader`. **Com a grade saiu uma ida ao banco por visita da gestão** — ela era a única seção daquela tela que crescia com a carteira da agência, enquanto os outros blocos da gestão somem quando não têm o que dizer. **Medido de mão dupla no `check:sprint9`**, nos três perfis, e conferido por imagem: o item com a pílula ativa na barra do sócio, e o Início fechando sem buraco. Nenhuma migration, nenhuma policy, nenhum perfil perdeu nada. |
 | O day off não tem parcelas | **A trava de "em até N vezes" saiu do produto** (migration 0116), por decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas' mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do saldo"*. **O pedido é uma legenda e a mudança é de banco:** aquela frase descrevia uma trava que morava em `validar_solicitacao` desde o Sprint 6 — tirando só o texto, a tela pararia de explicar a recusa e **continuaria levando a recusa**, que é a 0029 e a 0060 pela terceira vez. **A COLUNA FICA, e isso não contradiz a 0023:** lá a coluna apagada continuava sendo PERGUNTADA na tela; `max_parcelas_ferias` não é perguntada em lugar nenhum — é um número de contrato já gravado, e ela fica **sem leitor**, com o `comment on column` dizendo isso, na forma de `carga_da_equipe()`. **`parcelas_concedidas()` SAIU e `parcelas_no_ciclo()` FICOU**, e a assimetria é a decisão inteira: a primeira respondia *quantas ela PODE*, que é o limite que ninguém mais pergunta, e a segunda responde *quantas ela TIROU*, que é um FATO sobre o ciclo. **`descanso_do_ciclo()` perdeu duas colunas**, então é `drop` e não `create or replace` — aquele comando não troca o tipo de retorno de um `returns table` —, com o `revoke`/`grant` repetido atrás (a lição da 0097), e as duas saem do TIPO junto. A legenda passou a dizer **"5 de 15 dias neste ciclo"**, que é o que a barra ao lado mede: os dois números de antes não eram da mesma conta. **E o aviso de "sem parcela livre" saiu com a trava** — dos três que desligavam o botão de enviar ficaram dois. *O que se perde está dito:* a agência deixa de poder limitar em quantas vezes alguém parte o day off, e devolver é recolocar o bloco no fim de `validar_solicitacao`, porque a coluna continua lá. **A bateria NÃO pôde ser rodada** (sem Docker e sem Postgres local neste ambiente): os números dos cenários novos foram derivados da leitura do fixture, não medidos — fica dito em vez de escondido. |
 | Sprint do Portal | **O Portal do Cliente ganhou o detalhe com ANDAMENTO, a fila por prazo nas três frentes, o Cronograma e a Biblioteca.** Nenhuma migration: as quatro são tipo, leitura e desenho. A escada do detalhe tem os passos que o produto CONSEGUE datar e não os cinco do roteiro — "Em criação" e "Em revisão" são elos da corrente interna, em que o cliente não tem policy e não passa a ter, e não existe histórico por status de um material: o que há é o carimbo de envio, a data de cada versão e quando cada rodada abriu e foi decidida. O quarto passo, "Em produção na Full", é o único sem data, e a ausência é dita em vez de preenchida. A fila passou a ordenar por PRAZO e a cobrir as três frentes — ela listava só o material de demanda desde o Sprint 3B, e com o selo da barra lateral ligado isso virou "2" no selo contra "3 esperando você" no Início. O Cronograma responde o que nenhuma outra tela do cliente responde, e o que o mantém do lado certo da 0105 é ser só leitura e só link. A Biblioteca tem UMA seção e não as cinco abas do roteiro: quatro delas pedem tabela, bucket e tela de upload do lado da agência, e aba que nunca tem nada dentro é pior que aba a menos. **Três bugs que só a imagem e a mutação pegaram:** cada post aparecia DUAS VEZES na grade do cronograma — `itensDoPortal` já agrega as três frentes e o stub do protótipo só tinha `subtask`, então nenhuma imagem mostrava; a coluna de domingo saía cortada pela borda da página (`min-width: auto` num item de grade); e o título saía cortado SEM reticências, porque o `truncate` estava num elemento inline. E o `check:cores` pegou os meus próprios comentários duas vezes, pela oitava e nona. |
 | O descanso se cancela | **Um período já combinado pode ser desfeito** (migration 0106), por decisão do usuário: *"preciso da opção de cancelar um período de descanso depois que já foi aprovado pelo sócio"*. `cancelar_solicitacao()` existe desde a 0011 e alcançava UM estado — o `pendente` —, e a saída que sobrava, o lançamento retroativo, **não alcança o futuro** de propósito: não havia saída nenhuma. **Quem cancela é o DONO ou o SÓCIO**, e as razões são diferentes: devolver os próprios dias não tira nada de ninguém, e desfazer a decisão do sócio é dele. **A TRAVA É A DATA e não o status** — um período em curso tem dias vividos, e despintar a matriz sobre um passado que aconteceu faria ela afirmar que a pessoa estava aqui numa semana em que não estava; a recusa NOMEIA a data, que é a decisão da 0023. **A limpeza de `team_presence` é a metade que importa, e não estava escrita em lugar nenhum:** `hr_request_id` é `on delete set null`, então apagar o pedido deixaria os dias órfãos e pintados — é o mesmo achado do `zerar-full-days.sql`, que foi o relato do usuário em outra forma. **O saldo volta sozinho**, porque `descanso_usado_no_ciclo()` conta `pendente` e `aprovada` e `cancelada` não é nenhum dos dois: o que é derivado não precisa ser desfeito. **O motivo é obrigatório para quem não é o dono**, e `motivo_cancelamento` é coluna própria — *remarca* e *não vai acontecer* são dois fatos, e a mesma coluna para os dois faria a linha afirmar uma coisa e o status outra. **O sino toca nos dois sentidos.** Na tela, `podeCancelar()` desceu para `lib/dominio/` porque são DUAS que perguntam, o botão SOME em vez de aparecer desligado (a razão é uma porta que fechou, não um passo que falta), e a fila do sócio ganhou a QUARTA aba, "Canceladas" — `cancelada` estava no enum desde a 0011 e **tela nenhuma a listava**. **2227 cenários, quatro mutações medidas** (1 / 5 / 6 / 4), e a primeira derruba UM porque é o único cenário que separa "cancelado" de "cancelado e limpo". O protótipo ganhou um combinado FUTURO ao lado do que já começou: com um só, a imagem não separa "o botão aparece" de "o botão aparece sempre". |

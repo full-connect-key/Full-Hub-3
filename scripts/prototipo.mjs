@@ -115,6 +115,18 @@ const TELAS = [
   { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
+  // OS PORTAIS DE CLIENTES, que sairam da tela Inicio e viraram item da barra.
+  //
+  // Ela entra aqui, na familia do cliente, e nao ao lado das telas do Inicio:
+  // a grade deixou de ser um bloco daquela tela.
+  //
+  // *O que esta imagem NAO mostra, e fica dito:* a busca da grade so aparece
+  // acima de 8 clientes, e o exemplo tem menos que isso. Inflar
+  // `CLIENTES_EXEMPLO` para fotografar um campo de busca trocaria o ambiente de
+  // exemplo de toda tela que le aquela lista -- a lista de Pessoas, os seletores
+  // de cliente, os filtros -- por causa de uma peca. O limiar e antigo e a
+  // ausencia da foto dele tambem.
+  { nome: "10o-portais-de-clientes", rota: "/painel/portais", largura: 1440, altura: 800, role: "socio" },
   // AS NOTAS FISCAIS (0065). Dois lados do mesmo modulo: o colaborador ve a
   // nota dele que voltou, o socio ve a fila da agencia. E a do colaborador e a
   // que carrega o bloco da recusada, que e o unico que pede acao.

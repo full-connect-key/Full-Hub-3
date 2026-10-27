@@ -25,14 +25,12 @@ import {
   meusFeedbacks,
   relatorioComConversa,
 } from "@/lib/dados/feedback";
-import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
 import { EmAndamentoAgora } from "./_blocos/em-andamento-agora";
 import { MeuFeedback } from "./_blocos/meu-feedback";
-import { PortaisDeClientes } from "./_blocos/portais-de-clientes";
 import { PrecisaDeMim, linhasDoPrecisaDeMim } from "./_blocos/precisa-de-mim";
 import { PulsoDaAgencia } from "./_blocos/pulso-da-agencia";
 import { QuemEstaForaHoje } from "./_blocos/quem-esta-fora-hoje";
@@ -81,7 +79,6 @@ export default async function PaginaInicialDoPainel() {
   const [
     resumo,
     itensDoDia,
-    portais,
     recusadas,
     esperandoOSocio,
     pedidosDeNotaAbertos,
@@ -94,9 +91,6 @@ export default async function PaginaInicialDoPainel() {
   ] = await Promise.all([
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
-    // Só a gestão enxerga a seção. A rota /portal/{slug} recusa colaborador no
-    // servidor de qualquer forma — não buscar aqui é economia, não é a trava.
-    gestao ? listarPortaisDeClientes() : Promise.resolve([]),
     // AS NOTAS FISCAIS ENTRAM AQUI (0065), e as duas consultas são baratas: a
     // primeira é do próprio usuário, a segunda é uma contagem que volta zero
     // pelo RLS para quem não é sócio. Não vale um `if` de perfil antes —
@@ -114,7 +108,7 @@ export default async function PaginaInicialDoPainel() {
     meusFeedbacks(),
     // OS SINAIS DE CARGA, para o Pulso. Volta lista vazia pelo RLS para quem
     // não é gestão, e não cai por conta própria: derrubar a tela inicial por
-    // causa de um bloco entre nove seria caro por nada.
+    // causa de um bloco entre oito seria caro por nada.
     gestao ? alertasAbertos() : Promise.resolve([]),
     // O RELÓGIO QUE ESTÁ CORRENDO (interface "Leve"). Ela NÃO sai de
     // `meuDia()`, e o porquê está em `etapaEmAndamento()`: o relógio esquecido
@@ -254,7 +248,20 @@ export default async function PaginaInicialDoPainel() {
                 alertasDeCarga={alertasDeCargaAbertos}
               />
               <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
-              <PortaisDeClientes clientes={portais} />
+
+              {/* A GRADE DE PORTAIS DE CLIENTES SAIU DAQUI, e virou um item
+                  da barra lateral — decisão do usuário: *"tire a lista de
+                  clientes da aba inicial e crie uma aba na lateral com a
+                  lista dos clientes"*. Ela mora em `/painel/portais`, e com
+                  ela saiu a consulta que a alimentava: `listarPortaisDeClientes()`
+                  era a terceira ida ao banco desta tela, feita em toda visita
+                  da gestão para desenhar uma seção no pé da coluna.
+
+                  O que FICA aqui é o "Clientes em atenção", e os dois não são
+                  a mesma coisa: aquele é bloco de EXCEÇÃO — ele some quando
+                  nenhuma conta está parada, que é a regra desta tela —, e a
+                  grade listava todos os clientes ativos todo dia. Era a única
+                  seção da Home que crescia com a carteira da agência. */}
             </>
           ) : null}
         </div>

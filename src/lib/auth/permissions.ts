@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  Building2,
   CalendarCheck,
   CalendarDays,
   ChartColumn,
@@ -437,6 +438,42 @@ export const MENU: MenuItem[] = [
     roles: GESTAO,
     section: "gestao",
     description: "Quem é da casa e quem é cliente: função, área e acessos.",
+  },
+  {
+    // A LISTA DE CLIENTES, COM O PORTAL DE CADA UM A UM CLIQUE.
+    //
+    // Ela era uma seção da tela Início e saiu de lá por decisão do usuário:
+    // *"tire a lista de clientes da aba inicial e crie uma aba na lateral com
+    // a lista dos clientes"*.
+    //
+    // **ESTA LINHA É O QUE FAZ A REMOÇÃO SER UMA MUDANÇA DE LUGAR**, e é a
+    // lição das duas entradas que saíram da barra: Social Media e Campanhas só
+    // puderam sair porque a faixa das três áreas de Minhas Tasks passou a
+    // nomeá-las — tirar um item de um módulo que não aparece em mais lugar
+    // nenhum é esconder o módulo. Aqui a grade está PERDENDO a casa que tinha,
+    // então ela precisa ganhar uma. Sem esta linha, o portal de um cliente
+    // passaria a ser alcançável só digitando o endereço.
+    //
+    // **E O RÓTULO NÃO É "CLIENTES", de propósito.** "Clientes" já é o nome de
+    // uma aba — a de Gestão de Pessoas, logo acima —, e ela leva ao CADASTRO:
+    // ficha, contato, vínculos, zona de perigo. Esta tela responde outra
+    // pergunta, *o que este cliente está vendo?*, e abre o portal dele em aba
+    // nova. Dois itens com o mesmo nome levando a telas diferentes é como se
+    // aprende a procurar na errada — o argumento que renomeou "Aprovações &
+    // Conteúdo" e que desfez as duas entradas do Social Media no mesmo dia.
+    //
+    // **EM GESTÃO, e ao lado de Gestão de Pessoas.** A divisão do menu é sobre
+    // a PESSOA, e conferir o que um cliente enxerga antes de uma reunião é "o
+    // que eu faço sobre os outros". `client_portal_views_select` fecha em
+    // `is_gestor()` desde a 0009, e `/portal/{slug}` recusa o colaborador no
+    // servidor — esconder o item nunca foi a proteção.
+    label: "Portais de Clientes",
+    href: "/painel/portais",
+    icon: Building2,
+    roles: GESTAO,
+    section: "gestao",
+    description:
+      "O portal de cada cliente, em modo leitura, para conferir o que ele enxerga.",
   },
   {
     // GESTÃO INTEIRA, e as quatro abas também — a quinta, a Rentabilidade,

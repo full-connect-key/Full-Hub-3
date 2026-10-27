@@ -18,6 +18,28 @@ const LIMITE_PARA_BUSCA = 8;
  *
  * Não é login como cliente. A sessão continua sendo a dela, e a tela do outro
  * lado diz isso numa faixa que não dá para não ver.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE MORAVA EM `_blocos/` E ERA UMA SEÇÃO DO INÍCIO**, com um `<h2>`
+ * próprio. Decisão do usuário: *"tire a lista de clientes da aba inicial e
+ * crie uma aba na lateral com a lista dos clientes"*.
+ *
+ * O arquivo MUDOU DE PASTA em vez de ficar onde estava: `_blocos/` é a pasta
+ * dos blocos do Início, e um componente ali que o Início não desenha é o que
+ * alguém reaproveita três sprints depois achando que ele ainda é um bloco
+ * daquela tela — a decisão da 0023 aplicada a um arquivo.
+ *
+ * **E O `<h2>` SAIU COM A MUDANÇA.** Ele existia para nomear a seção no meio
+ * de nove blocos; aqui o nome do módulo já está no `PageHeader`, e repeti-lo
+ * dois centímetros abaixo é a decisão do Sprint 9 — *o nome do módulo aparece
+ * uma vez só*. O que ficou no lugar dele é a busca, que é o controle da tela.
+ *
+ * **A GRADE GANHOU A TERCEIRA COLUNA**, e é medida e não gosto: no Início ela
+ * vivia na coluna de conteúdo ao lado de um `aside` de 306px, onde duas
+ * colunas enchiam a linha; aqui o `main` é `max-w-6xl` inteiro, e em duas
+ * colunas cada cartão passaria de 550px para dizer um nome de empresa e um
+ * slug — meia linha vazia em toda fileira.
+ * ---------------------------------------------------------------------------
  */
 export function PortaisDeClientes({
   clientes,
@@ -36,14 +58,8 @@ export function PortaisDeClientes({
 
   return (
     <section className="space-y-3">
-      <div className="space-y-1">
-        <h2 className="text-text-primary text-sm font-semibold tracking-wide uppercase">
-          Portais de Clientes
-        </h2>
-      </div>
-
       {clientes.length > LIMITE_PARA_BUSCA ? (
-        <div className="relative">
+        <div className="relative max-w-sm">
           <Search
             aria-hidden
             className="text-text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
@@ -67,11 +83,11 @@ export function PortaisDeClientes({
           Nenhum cliente com “{busca.trim()}”.
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visiveis.map((cliente) => (
             <li
               key={cliente.id}
-              className="bg-surface-card rounded-card flex items-center gap-3 border p-4"
+              className="bg-surface-card rounded-card shadow-cartao flex items-center gap-3 border p-4"
             >
               <span
                 aria-hidden

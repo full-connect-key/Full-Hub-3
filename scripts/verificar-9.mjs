@@ -276,7 +276,7 @@ const NA_BARRA = [
     // Solicitações. O par dela é a Redatora logo abaixo.
     tela: "08-painel-colaborador",
     tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo"],
-    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy"],
+    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy", "Portais de Clientes"],
     porque:
       "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
   },
@@ -301,14 +301,14 @@ const NA_BARRA = [
   },
   {
     tela: "05-painel-socio",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Financeiro", "Day Off", "Acervo"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Portais de Clientes", "Financeiro", "Day Off", "Acervo"],
     naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy", "Feedback"],
     porque:
       "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria; e o Feedback saiu com eles",
   },
   {
     tela: "09-painel-desenvolvedor",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Day Off", "Acervo"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Portais de Clientes", "Day Off", "Acervo"],
     naoTem: ["Social Media", "Campanhas", "Financeiro", "Full Days", "Full Academy", "Feedback"],
     porque:
       "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",
