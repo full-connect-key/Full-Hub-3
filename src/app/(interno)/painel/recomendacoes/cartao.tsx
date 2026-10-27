@@ -138,26 +138,25 @@ export function Cartao({
           <p className="text-text-muted line-clamp-3 text-sm">{post.descricao}</p>
         ) : null}
 
+        {/* O FAVICON SAIU, e a linha ficou. Ele vinha do serviço do Google, o
+            que fazia o navegador de cada pessoa da equipe contar ao Google o
+            domínio de CADA link recomendado — o custo estava anotado no
+            `img-src` do CSP desde que ele entrou, e a saída escrita ali era
+            esta: *"o cartão já tem o domínio escrito por extenso embaixo do
+            título, então o ícone é enfeite, não informação"*.
+
+            E ELE NUNCA APARECEU EM PRODUÇÃO, que é o que fechou a decisão: o
+            serviço do Google RESPONDE COM REDIRECIONAMENTO para `t*.gstatic.com`,
+            que não está no `img-src` — então o CSP recusava o destino e o
+            `onError` escondia a imagem. O custo de privacidade era pago (o
+            pedido sai, com o domínio dentro) e o ícone não chegava.
+
+            NÃO ENTRA UM ÍCONE GENÉRICO NO LUGAR, e a ausência é decisão: um
+            favicon dizia QUAL site é, e um globo diria "isto é um site" —
+            que é o que o domínio ao lado já diz. É a regra da pilha de
+            avatares, onde o círculo genérico afirmaria que existe alguém. */}
         {dominio ? (
-          <p className="text-text-muted flex items-center gap-1.5 text-xs">
-            {/* O FAVICON VEM DO SERVIÇO DO GOOGLE, e não de uma busca nossa no
-                site: buscar `/favicon.ico` em cada domínio seria a mesma porta
-                que `lib/link-preview.ts` fecha, e aqui quem busca é o
-                navegador de quem está olhando, não o servidor da agência.
-                Falhou, some — `onError` esconde. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://www.google.com/s2/favicons?domain=${dominio}&sz=32`}
-              alt=""
-              width={14}
-              height={14}
-              className="size-3.5 shrink-0 rounded-[3px]"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-            <span className="truncate">{dominio}</span>
-          </p>
+          <p className="text-text-muted truncate text-xs">{dominio}</p>
         ) : null}
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">

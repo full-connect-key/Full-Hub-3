@@ -12,19 +12,20 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * `recommendations.imagem_url` nasceu na 0017, está no formulário desde o
  * Sprint 9 e o cartão do feed a desenha. O que nunca existiu foi de onde ela
  * viesse sem alguém colar um endereço à mão — e, pior, o endereço colado **não
- * aparece**: o CSP fecha `img-src` em `'self' data: blob:` mais o Google e o
- * Supabase, então uma capa hospedada em qualquer outro lugar é recusada pelo
- * navegador e o cartão sai com a moldura quebrada. Nenhum build diz isso, e o
+ * aparece**: o CSP fecha `img-src` em `'self' data: blob:` mais o Supabase,
+ * então uma capa hospedada em qualquer outro lugar é recusada pelo navegador e
+ * o cartão sai com a moldura quebrada. Nenhum build diz isso, e o
  * protótipo não pega — os exemplos dele apontam para `/exemplos/`, caminho
  * local.
  * ---------------------------------------------------------------------------
  *
  * **Por que BAIXAR em vez de abrir o CSP**, e as três razões são mecânicas:
  *
- *   1. O comentário do próprio CSP já calculou o preço de UMA origem externa —
- *      o favicon do Google faz cada navegador da equipe contar ao Google o que
- *      a agência anda indicando. Abrir `img-src` para `https:` seria um host
- *      novo por recomendação, com o mesmo custo multiplicado.
+ *   1. O comentário do próprio CSP já calculou o preço de UMA origem externa,
+ *      e ela SAIU por causa dele: o favicon do Google fazia cada navegador da
+ *      equipe contar ao Google o que a agência anda indicando. Abrir `img-src`
+ *      para `https:` seria um host novo por recomendação, com o mesmo custo
+ *      multiplicado — e desta vez sem o lado de lá para decidir tirar.
  *   2. **Capa apontada lá fora SOME.** O poster muda de endereço, o site sai do
  *      ar, e o feed de três anos atrás fica cheio de moldura quebrada.
  *   3. Um `<img>` para fora vaza o `Referer` de quem está olhando.

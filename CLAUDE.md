@@ -10293,9 +10293,10 @@ e as três são mecânicas:
 
 1. **O CSP.** Abrir `img-src` para `https:` resolveria numa palavra e pagaria o
    custo que o comentário do próprio CSP já calculou para UMA origem — o
-   favicon do Google faz cada navegador da equipe contar ao Google o que a
+   favicon do Google fazia cada navegador da equipe contar ao Google o que a
    agência anda indicando. Com `https:` inteiro seria uma origem nova por
-   recomendação.
+   recomendação. **Aquela origem SAIU por causa desse custo**, e o parágrafo
+   logo abaixo conta o resto.
 2. **Capa apontada lá fora SOME.** O poster muda de endereço, o site sai do ar,
    e o feed de três anos atrás fica cheio de moldura quebrada.
 3. Um `<img>` para fora vaza o `Referer` de quem está olhando.
@@ -10304,6 +10305,44 @@ O bucket é privado como todos os outros, a equipe inteira lê (`is_staff()`), e
 a pasta é de quem indicou — a mesma forma do bucket de notas. **Poster de filme
 é público na internet, e "público lá" não é razão para abrir um bucket aqui:** a
 lista do que a agência indica internamente é dela.
+
+##### E O FAVICON DO GOOGLE SAIU, pelo custo que ele mesmo mediu
+
+Decisão do usuário. O cartão trazia o ícone do site indicado, por
+`https://www.google.com/s2/favicons`, e era ele a origem externa que o
+parágrafo acima usa como preço de referência. **A saída já estava escrita no
+comentário do CSP desde que a origem entrou:** *"o cartão já tem o domínio
+escrito por extenso embaixo do título, então o ícone é enfeite, não
+informação"*.
+
+**E ELE NUNCA APARECEU EM PRODUÇÃO, que é o que fechou a decisão.** O serviço
+do Google responde com **redirecionamento** para `t*.gstatic.com`, e esse host
+nunca esteve no `img-src` — então o navegador recusava o destino e o `onError`
+escondia a imagem. **O custo era pago e o ícone não chegava:** o pedido sai,
+com o domínio do link dentro, antes de qualquer redirecionamento. É a lição do
+`remotePatterns` vista de outro ângulo — a lista certa pela metade dá o mesmo
+sintoma da lista errada.
+
+**As duas pontas saíram no mesmo commit**, que é a regra desta casa: o `<img>`
+de `recomendacoes/cartao.tsx` e a origem do `img-src`. Tirando só o `<img>`, o
+CSP ficaria com uma permissão que nada usa — a camada deixada para trás que a
+0088 pagou, e que a 0090 encontrou filtrando fora as linhas que ela acabara de
+criar.
+
+**NÃO ENTRA UM ÍCONE GENÉRICO NO LUGAR**, e a ausência é decisão: um favicon
+dizia QUAL site é; um globo diria "isto é um site", que é o que o domínio ao
+lado já diz. É a regra da pilha de avatares, onde o círculo genérico afirmaria
+que existe alguém.
+
+**E ELE TRAVAVA SETE TELAS DO PROTÓTIPO, o que ninguém tinha ligado a ele.** O
+gerador espera `networkidle`, e um pedido que o CSP recusa depois de um
+redirecionamento não fecha a conta de requisições pendentes: das nove telas de
+Recomendações, duas saíam com imagem e **sete não saíam nem em imagem nem em
+dump**. Sem os dumps, `check:sprint9` FALHA — ele é escrito para falhar quando
+não encontra o que conferir, em vez de passar sobre um conjunto parcial —,
+então a varredura de vocabulário do produto inteiro ficava vermelha por causa
+de um ícone que nunca apareceu. Com o `<img>` fora, as nove telas voltam e ele
+fecha.
 
 **A BUSCA É A MESMA, e a trava também.** `lib/link-preview.ts` era a única parte
 do produto que fazia o servidor abrir um endereço escolhido por alguém; agora
@@ -12768,6 +12807,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O favicon das Recomendações | **O ícone do site indicado saiu do cartão**, por decisão do usuário. Ele vinha do serviço do Google, e era a única origem externa do `img-src` — **a saída já estava escrita no comentário do próprio CSP** desde que ela entrou: *"o cartão já tem o domínio escrito por extenso embaixo do título, então o ícone é enfeite, não informação"*. **E ele nunca apareceu em produção**, que é o que fechou a decisão: o serviço responde com REDIRECIONAMENTO para `t*.gstatic.com`, host que nunca esteve na lista — o navegador recusava o destino e o `onError` escondia a imagem. **O custo era pago e o ícone não chegava:** o pedido sai, com o domínio do link dentro, antes de qualquer redirecionamento. É a lição do `remotePatterns` de outro ângulo — a lista certa pela metade dá o mesmo sintoma da lista errada. **As duas pontas saíram no mesmo commit**, o `<img>` e a origem do CSP: tirando só o `<img>`, o CSP ficaria com uma permissão que nada usa, que é a camada deixada para trás da 0088. **Nenhum ícone genérico no lugar** — um favicon diz QUAL site é, um globo diria "isto é um site", que é o que o domínio ao lado já diz. **E ele travava SETE telas do protótipo**, o que ninguém tinha ligado a ele: o gerador espera `networkidle`, e um pedido recusado depois de um redirecionamento não fecha a conta — das nove telas de Recomendações, duas saíam e sete não saíam nem em imagem nem em dump, e sem os dumps o `check:sprint9` falha de propósito, em vez de passar sobre um conjunto parcial. Com o `<img>` fora, **as nove voltam e a varredura fecha**. |
 | Os portais saem do Início | **A lista de clientes saiu da tela Início e virou um item da barra lateral**, por decisão do usuário: *"tire a lista de clientes, da aba inicial. e crie uma aba na lateral, com a lista dos clientes"*. Ela vive em `/painel/portais`, na seção Gestão, ao lado de Gestão de Pessoas. **A ENTRADA NO MENU É O QUE FAZ ISSO SER UMA MUDANÇA DE LUGAR E NÃO UM SUMIÇO**, e a conta é a do Sprint 3J invertida: lá as duas entradas só puderam sair porque a faixa de Minhas Tasks passou a nomeá-las — *tirar um item de um módulo que não aparece em mais lugar nenhum é esconder o módulo* —, e aqui a grade está PERDENDO a casa que tinha. *O custo está dito:* a barra volta a crescer um item, na direção oposta à daquele sprint. **O rótulo não é "Clientes"**, e é a escolha que impede o furo: aquele nome já é a aba de Gestão de Pessoas, que leva ao CADASTRO — dois itens com o mesmo nome levando a telas diferentes é como se aprende a procurar na errada. **O arquivo mudou de pasta** em vez de ficar em `_blocos/`, que é a pasta dos blocos do Início, e com ele saiu o `<h2>` da seção: o nome do módulo aparece uma vez só, e aqui ele está no `PageHeader`. **Com a grade saiu uma ida ao banco por visita da gestão** — ela era a única seção daquela tela que crescia com a carteira da agência, enquanto os outros blocos da gestão somem quando não têm o que dizer. **Medido de mão dupla no `check:sprint9`**, nos três perfis, e conferido por imagem: o item com a pílula ativa na barra do sócio, e o Início fechando sem buraco. Nenhuma migration, nenhuma policy, nenhum perfil perdeu nada. |
 | O day off não tem parcelas | **A trava de "em até N vezes" saiu do produto** (migration 0116), por decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas' mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do saldo"*. **O pedido é uma legenda e a mudança é de banco:** aquela frase descrevia uma trava que morava em `validar_solicitacao` desde o Sprint 6 — tirando só o texto, a tela pararia de explicar a recusa e **continuaria levando a recusa**, que é a 0029 e a 0060 pela terceira vez. **A COLUNA FICA, e isso não contradiz a 0023:** lá a coluna apagada continuava sendo PERGUNTADA na tela; `max_parcelas_ferias` não é perguntada em lugar nenhum — é um número de contrato já gravado, e ela fica **sem leitor**, com o `comment on column` dizendo isso, na forma de `carga_da_equipe()`. **`parcelas_concedidas()` SAIU e `parcelas_no_ciclo()` FICOU**, e a assimetria é a decisão inteira: a primeira respondia *quantas ela PODE*, que é o limite que ninguém mais pergunta, e a segunda responde *quantas ela TIROU*, que é um FATO sobre o ciclo. **`descanso_do_ciclo()` perdeu duas colunas**, então é `drop` e não `create or replace` — aquele comando não troca o tipo de retorno de um `returns table` —, com o `revoke`/`grant` repetido atrás (a lição da 0097), e as duas saem do TIPO junto. A legenda passou a dizer **"5 de 15 dias neste ciclo"**, que é o que a barra ao lado mede: os dois números de antes não eram da mesma conta. **E o aviso de "sem parcela livre" saiu com a trava** — dos três que desligavam o botão de enviar ficaram dois. *O que se perde está dito:* a agência deixa de poder limitar em quantas vezes alguém parte o day off, e devolver é recolocar o bloco no fim de `validar_solicitacao`, porque a coluna continua lá. **A bateria NÃO pôde ser rodada** (sem Docker e sem Postgres local neste ambiente): os números dos cenários novos foram derivados da leitura do fixture, não medidos — fica dito em vez de escondido. |
 | Sprint do Portal | **O Portal do Cliente ganhou o detalhe com ANDAMENTO, a fila por prazo nas três frentes, o Cronograma e a Biblioteca.** Nenhuma migration: as quatro são tipo, leitura e desenho. A escada do detalhe tem os passos que o produto CONSEGUE datar e não os cinco do roteiro — "Em criação" e "Em revisão" são elos da corrente interna, em que o cliente não tem policy e não passa a ter, e não existe histórico por status de um material: o que há é o carimbo de envio, a data de cada versão e quando cada rodada abriu e foi decidida. O quarto passo, "Em produção na Full", é o único sem data, e a ausência é dita em vez de preenchida. A fila passou a ordenar por PRAZO e a cobrir as três frentes — ela listava só o material de demanda desde o Sprint 3B, e com o selo da barra lateral ligado isso virou "2" no selo contra "3 esperando você" no Início. O Cronograma responde o que nenhuma outra tela do cliente responde, e o que o mantém do lado certo da 0105 é ser só leitura e só link. A Biblioteca tem UMA seção e não as cinco abas do roteiro: quatro delas pedem tabela, bucket e tela de upload do lado da agência, e aba que nunca tem nada dentro é pior que aba a menos. **Três bugs que só a imagem e a mutação pegaram:** cada post aparecia DUAS VEZES na grade do cronograma — `itensDoPortal` já agrega as três frentes e o stub do protótipo só tinha `subtask`, então nenhuma imagem mostrava; a coluna de domingo saía cortada pela borda da página (`min-width: auto` num item de grade); e o título saía cortado SEM reticências, porque o `truncate` estava num elemento inline. E o `check:cores` pegou os meus próprios comentários duas vezes, pela oitava e nona. |

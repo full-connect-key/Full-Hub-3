@@ -214,18 +214,21 @@ const nextConfig: NextConfig = {
       // `data:` e dos SVG embutidos. O host do Supabase e de onde vem toda
       // imagem assinada.
       // -------------------------------------------------------------------
-      // `https://www.google.com` E O FAVICON DO FEED DE RECOMENDACOES, e ele
-      // so entrou aqui porque a conferencia o encontrou: a primeira versao
-      // deste CSP nao o tinha, e o cartao saia com a moldura quebrada no
-      // lugar do icone do site indicado. Nenhum build teria dito isso.
+      // `https://www.google.com` ESTEVE AQUI, pelo favicon do feed de
+      // Recomendacoes, e SAIU com ele. A entrada foi decidida pela
+      // conferencia -- sem ela o cartao saia com a moldura quebrada no lugar
+      // do icone --, e a saida pela decisao do usuario de tirar o `<img>`,
+      // que e a saida que este comentario ja apontava: *"o cartao ja tem o
+      // dominio escrito por extenso embaixo do titulo, entao o icone e
+      // enfeite, nao informacao"*.
       //
-      // O QUE ISSO CUSTA, e fica escrito para ser decidido e nao herdado: o
-      // navegador de cada pessoa da equipe pede um favicon ao Google para
-      // CADA link recomendado, e nesse pedido vai o dominio do link. Ou
-      // seja, o Google fica sabendo o que a agencia anda indicando
-      // internamente. Para fechar, e tirar o `<img>` de
-      // `recomendacoes/cartao.tsx` -- o cartao ja tem o dominio escrito por
-      // extenso embaixo do titulo, entao o icone e enfeite, nao informacao.
+      // O QUE ELA CUSTAVA, e fica registrado porque e o argumento contra
+      // reabrir: o navegador de cada pessoa da equipe pedia um favicon ao
+      // Google para CADA link recomendado, e nesse pedido ia o dominio do
+      // link -- o Google ficava sabendo o que a agencia anda indicando
+      // internamente. E A ORIGEM NAO BASTAVA: o servico responde com
+      // REDIRECIONAMENTO para `t*.gstatic.com`, que nunca esteve nesta
+      // lista, entao o custo era pago e o icone nao chegava.
       //
       // E A CAPA DA RECOMENDACAO NAO PRECISA DE HOST NENHUM AQUI, de
       // proposito: ela e BAIXADA pelo servidor para o bucket privado
@@ -235,7 +238,7 @@ const nextConfig: NextConfig = {
       // uma origem nova a cada link recomendado. Quem for tentado a abrir,
       // leia `lib/recomendacoes/capa.ts` antes.
       // -------------------------------------------------------------------
-      `img-src 'self' data: blob: https://www.google.com ${supabase}`,
+      `img-src 'self' data: blob: ${supabase}`,
       `connect-src 'self' ${supabase} ${supabaseWs}`,
       // O upload manda o arquivo para o Storage do Supabase.
       `form-action 'self'`,
