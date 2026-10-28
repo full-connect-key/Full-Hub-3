@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { forbidden } from "next/navigation";
 
 import { FormularioDoItem } from "./formulario";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Novo item · Acervo" };
 
@@ -29,13 +28,7 @@ export default async function PaginaDeNovoItem() {
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
-      <Link
-        href="/painel/academy"
-        className="text-text-secondary hover:text-text-primary inline-flex items-center gap-1.5 text-sm"
-      >
-        <ArrowLeft aria-hidden className="size-4" />
-        Todo o acervo
-      </Link>
+      <Voltar para="/painel/academy" rotulo="Acervo" />
 
       <FormularioDoItem />
     </div>

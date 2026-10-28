@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck, CalendarDays, ChevronLeft, List } from "lucide-react";
+import { CalendarCheck, CalendarDays, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +41,7 @@ import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
 import { AcoesDoMes } from "./acoes-do-mes";
 import { NovoPost } from "./novo-post";
+import { Voltar } from "@/components/shared/voltar";
 
 const TODOS = "__todos__";
 
@@ -333,14 +334,20 @@ export function SocialMedia({
         aria-label="Onde estou"
         className="text-text-muted flex flex-wrap items-center gap-1.5 text-sm"
       >
-        <Link
-          href={comParametro({ mes: null, cliente: null, post: null, foco: null })}
-          className="text-accent-strong inline-flex items-center gap-1 font-semibold hover:underline"
-          scroll={false}
-        >
-          <ChevronLeft aria-hidden className="size-3.5" />
-          Social
-        </Link>
+        {/* A PRIMEIRA CASA DA TRILHA É A SETA PADRÃO DA PLATAFORMA.
+
+            Ela era um `<Link>` próprio com um `ChevronLeft` de 3,5 — o nono
+            desenho de seta do produto, e o único que ia para um endereço fixo
+            em vez de voltar no histórico. Quem chegava a um mês pela busca
+            global clicava aqui e caía no ÍNDICE do Social, não na busca.
+
+            O resto da trilha fica: ela responde "onde estou", que é outra
+            pergunta — a seta dá o passo de trás, a trilha dá o nível. */}
+        <Voltar
+          para={comParametro({ mes: null, cliente: null, post: null, foco: null })}
+          rotulo="Social"
+          className="text-accent-strong -ms-1 font-semibold"
+        />
         {nomeDaConta ? (
           <>
             <span aria-hidden>›</span>

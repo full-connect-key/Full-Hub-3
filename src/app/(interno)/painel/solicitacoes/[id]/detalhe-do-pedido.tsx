@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  ArrowLeft,
   CalendarClock,
   Check,
   ExternalLink,
@@ -33,6 +32,7 @@ import {
   recusarSolicitacao,
   triarSolicitacao,
 } from "../acoes";
+import { Voltar } from "@/components/shared/voltar";
 
 /**
  * O pedido, do lado da agência.
@@ -85,12 +85,7 @@ export function DetalheDoPedido({
       <PageHeader
         title={pedido.titulo}
         actions={
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/painel/solicitacoes">
-              <ArrowLeft aria-hidden />
-              Voltar à fila
-            </Link>
-          </Button>
+          <Voltar para="/painel/solicitacoes" rotulo="A fila" />
         }
       />
 

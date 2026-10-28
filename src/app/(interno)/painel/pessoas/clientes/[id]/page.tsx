@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor, ehSocio } from "@/lib/auth/roles";
 import { ultimosAcessos, visitasAoPortal } from "@/lib/dados/acessos";
@@ -26,6 +23,7 @@ import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
 import { VisitasAoPortal } from "./visitas-ao-portal";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Cliente" };
 
@@ -77,12 +75,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
 
   return (
     <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/painel/pessoas?aba=clientes">
-          <ArrowLeft aria-hidden />
-          Clientes
-        </Link>
-      </Button>
+      <Voltar para="/painel/pessoas?aba=clientes" rotulo="Clientes" />
 
       <PageHeader
         title={cliente.nome_empresa}

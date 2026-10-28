@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, ListChecks } from "lucide-react";
+import { ExternalLink, ListChecks } from "lucide-react";
 
 import { CapaDaCampanha } from "../../capa-da-campanha";
 import { EditarCampanha } from "../../editar-campanha";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/dominio/campanhas";
 
 import { ArvoreDeProducao } from "./arvore-de-producao";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Campanha" };
 
@@ -104,13 +105,7 @@ export default async function PaginaDaCampanha({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/painel/aprovacoes"
-        className="text-text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-      >
-        <ArrowLeft aria-hidden className="size-4" />
-        Voltar às campanhas
-      </Link>
+      <Voltar para="/painel/aprovacoes" rotulo="Campanhas" />
 
       <PageHeader
         title={campanha.nome}

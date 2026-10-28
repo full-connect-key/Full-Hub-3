@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, Megaphone } from "lucide-react";
+import { Megaphone } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import { PrincipalDaTask } from "./principal";
 import { CabecalhoDaTask } from "./cabecalho-da-task";
 import { Referencias } from "./referencias";
 import { Subtarefas } from "./subtarefas";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -86,12 +87,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/painel/gestao-tasks">
-            <ArrowLeft aria-hidden />
-            Gestão de Tasks
-          </Link>
-        </Button>
+        <Voltar para="/painel/gestao-tasks" rotulo="Gestão de Tasks" />
 
         {ehRascunho ? (
           <Badge variant="outline" className="uppercase">

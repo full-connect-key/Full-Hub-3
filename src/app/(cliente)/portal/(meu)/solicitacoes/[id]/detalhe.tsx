@@ -6,7 +6,6 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarClock,
   ExternalLink,
@@ -34,6 +33,7 @@ import {
   camposDoRoteiro,
   respostasParaLer,
 } from "@/lib/dominio/solicitacoes";
+import { Voltar } from "@/components/shared/voltar";
 
 /** O teto é do banco; a tela conta para não oferecer um caminho sem saída. */
 const TETO_DE_ARQUIVOS = 10;
@@ -141,12 +141,7 @@ export function DetalheDoPedido({
       <PageHeader
         title={pedido.titulo}
         actions={
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`${base}/solicitacoes`}>
-              <ArrowLeft aria-hidden />
-              Meus pedidos
-            </Link>
-          </Button>
+          <Voltar para={`${base}/solicitacoes`} rotulo="Meus pedidos" />
         }
       />
 

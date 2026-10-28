@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
@@ -21,6 +18,7 @@ import {
   ROTULOS_DE_TIPO,
   TOM_DO_STATUS,
 } from "@/lib/dominio/comodatos";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Folha do equipamento" };
 
@@ -67,12 +65,7 @@ export default async function Pagina({ params }: PageProps<"/painel/comodatos/[i
   return (
     <div className="space-y-6">
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ms-2">
-          <Link href="/painel/comodatos?aba=geral">
-            <ArrowLeft aria-hidden className="size-4" />
-            Comodatos
-          </Link>
-        </Button>
+        <Voltar para="/painel/comodatos?aba=geral" rotulo="Comodatos" />
       </div>
 
       <div className="space-y-1">

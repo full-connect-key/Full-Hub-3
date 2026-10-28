@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { abrirItem, minhaAnotacao } from "@/lib/dados/academy";
 
 import { DetalheDoItem } from "./detalhe";
+import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Acervo" };
 
@@ -37,13 +36,7 @@ export default async function PaginaDoItem({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/painel/academy"
-        className="text-text-secondary hover:text-text-primary inline-flex items-center gap-1.5 text-sm"
-      >
-        <ArrowLeft aria-hidden className="size-4" />
-        Todo o acervo
-      </Link>
+      <Voltar para="/painel/academy" rotulo="Acervo" />
 
       <DetalheDoItem
         aberto={aberto}
