@@ -64,7 +64,25 @@ export function PulsoDaAgencia({
     <section className="space-y-3">
       <h2 className="text-text-primary flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
         <Gauge aria-hidden className="size-4" />
-        Pulso da agência
+        {/* "FULL PULSE", e não mais "Pulso da agência" — decisão do usuário,
+            entre sete nomes que ele mesmo listou: *"minha sugestão principal
+            é Full Pulse, pela consistência com os nomes do ecossistema
+            Full"*.
+
+            **O ARQUIVO E O COMPONENTE CONTINUAM `pulso-da-agencia`**, e é a
+            decisão de `dias_uteis` e de `saldo_de_ferias()` depois da 0016,
+            e de `pedirAnaliseDoEntregavel` depois da 0092: renomear o que
+            está em uso é mexer em muito lugar sem nada em troca, e ninguém
+            que usa o sistema vê esses nomes.
+
+            **E "Pulso" NÃO entra na lista de nomes mortos do `check:cores`**,
+            pela razão que "Descanso" já escreveu: ela não foi aposentada —
+            continua sendo o nome do arquivo, do componente e de meia dúzia de
+            comentários que EXPLICAM decisões. Pô-la lá reprovaria o
+            vocabulário do próprio projeto, que é a armadilha que aquela lista
+            já pagou sete vezes. Quem protege a troca é o `check:sprint9`, que
+            lê o texto renderizado e mede as duas metades. */}
+        Full Pulse
         <Link
           href="/painel/gestao-tasks"
           className="text-accent-strong ml-auto text-xs font-normal normal-case tracking-normal hover:underline"

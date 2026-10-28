@@ -1051,6 +1051,57 @@ quem pergunta é a faixa, que é `"use client"` e troca de mês sem recarregar a
 página. E ela usa o cliente da própria pessoa, então `is_staff()` dentro da
 função continua decidindo.
 
+**E A GUARDA DELA ERA A ROTA DE GESTÃO DE TASKS, que é mais apertada que o
+banco.** Ela abria com `exigirRotaNaAcao("/painel/gestao-tasks")`, que é
+`GESTAO` — e esta action tem **dois chamadores**: o painel da etapa e a tela de
+abrir o mês de social, que é `EQUIPE` na rota e `souDoAtendimento()` na porta
+desde a 0046. O colaborador do Atendimento abria o mês, escolhia quem faz a
+etapa, clicava para ver os dias dela e levava *"Seu perfil não permite esta
+ação"* — numa tela que o produto diz que é dele.
+
+**É a 0059 outra vez, com o mesmo diagnóstico:** `disponibilidade()` é
+`security definer` com `is_staff()` na primeira linha, e a 0081 escreveu por
+quê — *"`is_staff()` e não `is_gestor()`, porque quem distribui numa demanda
+pode ser o colaborador do Atendimento"*. Uma pergunta a mais na action não
+acrescentava trava nenhuma: ela só recusava quem o banco aceita. Hoje a guarda
+é `exigirEquipeNaAcao()`, que é a MESMA frase nos dois idiomas da casa.
+
+**O "carregando" era sempre falso, e isso é o que fazia uma falha parecer tela
+quebrada.** Ele vinha do primeiro elemento de um `useTransition`, com a busca
+dentro de `iniciarBusca(() => { void (async () => …)() })` — e aquele retorno
+de chamada devolve na hora: ele só DISPARA a promessa. A transição fechava
+antes do primeiro byte, então o `opacity-60` da grade nunca apareceu, e entre
+abrir a faixa e o erro não havia sinal nenhum. Hoje o estado é DERIVADO de uma
+chave (`pessoa|início|fim|tentativa`) comparada com a que voltou — é "atraso
+não é coluna" dentro de um componente. **O `useTransition` fica**, e só pelo
+embrulho: o `react-hooks/set-state-in-effect` do projeto reprova `setState` no
+corpo de um efeito, e `startTransition` é o que o satisfaz.
+
+**E A RECUSA GANHOU O CAMINHO DE VOLTA.** A faixa buscava uma vez na montagem,
+e uma falha de transporte deixava a grade morta até alguém fechar e reabrir o
+painel — que é perder de vista a etapa que estava sendo datada. O botão
+"Tentar de novo" soma um ao contador, que mora na lista de dependências do
+efeito. **E a mensagem continua crua**, de propósito: `chamarAcao` devolve
+*"Não foi possível falar com o servidor: Failed to fetch"* — português na
+frente e a causa atrás —, e trocá-la por uma frase redonda esconderia
+justamente o que separa rede de sessão de banco.
+
+**O que foi DESCARTADO com medida, e fica escrito para ninguém procurar de
+novo:** a migration 0081 está aplicada inteira naquele banco (assinatura,
+`security definer`, `authenticated` com EXECUTE, e `disponibilidade_bruta`
+sem grant); a função roda sem erro para **toda pessoa ativa da equipe × quatro
+meses**, devolvendo 30 ou 31 dias — as únicas recusas da varredura são de um
+perfil `cliente`, que é o desenho; e o CSP tem `'self'` em `connect-src`, então
+não é ele que barra o POST da action. Com o banco, o RLS e a política fora,
+"Failed to fetch" é falha de TRANSPORTE — o POST da Server Action que não
+recebeu resposta —, e o que sobra como causa é o que esta casa já mediu uma
+vez: **há uma CDN na frente deste host** (`server: hcdn`), e o Next recusa a
+action quando o `Origin` não bate com o host encaminhado. `serverActions.
+allowedOrigins` não está configurado. **Isso não foi consertado aqui porque
+não foi medido aqui** — a prova é uma requisição com os cabeçalhos de
+produção, e inventar a variável de ambiente antes disso seria mais um jeito de
+a hospedagem seguinte nascer errada sem nada na tela dizendo.
+
 **O axe pegou a minha própria regra, na primeira rodada.** As células do mês
 vizinho saíram com `opacity-40`, e opacidade em texto dá uma cor que ninguém
 mediu — a mesma regra que o `opacity-80` do `DateBadge` já pagou uma vez. Elas
@@ -2092,6 +2143,23 @@ regra escrita ganha da maquete.
 **O Pulso continua aparecendo com zero**, que é a exceção declarada entre os
 blocos desta tela: zero atrasada é a resposta boa, e um bloco que some nos dias
 bons ensina que ele só aparece quando há problema.
+
+**E ELE SE CHAMA "FULL PULSE"**, e não mais "Pulso da agência" — decisão do
+usuário, entre sete nomes que ele mesmo listou: *"minha sugestão principal é
+Full Pulse, pela consistência com os nomes do ecossistema Full"*.
+
+**O arquivo e o componente continuam `pulso-da-agencia`**, que é a decisão de
+`dias_uteis` e de `saldo_de_ferias()` depois da 0016, e de
+`pedirAnaliseDoEntregavel` depois da 0092: renomear o que está em uso é mexer
+em muito lugar sem nada em troca, e ninguém que usa o sistema vê esses nomes.
+**E "Pulso" NÃO entrou na lista de nomes mortos do `check:cores`**, pela razão
+que "Descanso" já escreveu: ela não foi aposentada — continua sendo o nome do
+arquivo, do componente e de meia dúzia de comentários que explicam por que o
+bloco existe. Uma entrada ali reprovaria o vocabulário do próprio projeto, que
+é a armadilha que aquela lista já pagou sete vezes. Quem protege a troca é o
+`check:sprint9`, que lê o TEXTO RENDERIZADO e mede de **mão dupla** — "Full
+Pulse" de pé e "Pulso da agência" fora. Medido com mutação: devolvendo o nome
+antigo ao dump, ele falha e diz qual.
 
 #### A barra de contexto, e as sete cópias que ela desfez
 
@@ -12807,6 +12875,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O calendário da etapa, e o Full Pulse | **A faixa de disponibilidade recusava quem o banco aceita, e não tinha como tentar de novo.** Relato do usuário: *"Failed to fetch ao abrir uma task e acessar o calendário de disponibilidade"*, com a instrução de **corrigir a causa, não ocultar a mensagem**. **O que foi descartado com medida:** a 0081 está aplicada inteira (assinatura, `security definer`, `authenticated` com EXECUTE, `disponibilidade_bruta` sem grant), a função roda sem erro para **toda pessoa ativa da equipe × quatro meses** — as únicas recusas são de um perfil `cliente`, que é o desenho —, e o CSP tem `'self'` em `connect-src`. Com banco, RLS e política fora, "Failed to fetch" é falha de TRANSPORTE. **O bug reproduzível que a varredura encontrou é outro, e é meu:** a guarda da action era `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e esta action tem **dois chamadores** — o segundo é abrir o mês de social, que é `souDoAtendimento()` desde a 0046. O colaborador do Atendimento levava *"Seu perfil não permite esta ação"* na tela que o produto diz que é dele. É a 0059 outra vez: **a guarda estava mais apertada que o banco**, e `disponibilidade()` pergunta `is_staff()` justamente porque *"quem distribui numa demanda pode ser o colaborador do Atendimento"*. **E o "carregando" era sempre falso:** ele vinha do `useTransition` cujo retorno de chamada só DISPARA a promessa — a transição fechava antes do primeiro byte, e entre abrir a faixa e o erro não havia sinal nenhum. Hoje é derivado de uma chave comparada com a que voltou, e o `useTransition` fica só pelo embrulho que o `react-hooks/set-state-in-effect` exige. **A recusa ganhou "Tentar de novo"**, com a mensagem crua preservada. **O que NÃO foi consertado, porque não foi medido:** há uma CDN na frente deste host (`server: hcdn`) e `serverActions.allowedOrigins` não está configurado — o Next recusa a action quando o `Origin` não bate com o host encaminhado. A prova é uma requisição com os cabeçalhos de produção. **De quebra, "Pulso da agência" virou "Full Pulse"**, decisão do usuário entre sete nomes. O arquivo e o componente ficam, que é a decisão de `dias_uteis`; "Pulso" não entra na lista de nomes mortos porque não foi aposentada; e quem protege a troca é o `check:sprint9` de mão dupla, medido com mutação. |
 | O favicon das Recomendações | **O ícone do site indicado saiu do cartão**, por decisão do usuário. Ele vinha do serviço do Google, e era a única origem externa do `img-src` — **a saída já estava escrita no comentário do próprio CSP** desde que ela entrou: *"o cartão já tem o domínio escrito por extenso embaixo do título, então o ícone é enfeite, não informação"*. **E ele nunca apareceu em produção**, que é o que fechou a decisão: o serviço responde com REDIRECIONAMENTO para `t*.gstatic.com`, host que nunca esteve na lista — o navegador recusava o destino e o `onError` escondia a imagem. **O custo era pago e o ícone não chegava:** o pedido sai, com o domínio do link dentro, antes de qualquer redirecionamento. É a lição do `remotePatterns` de outro ângulo — a lista certa pela metade dá o mesmo sintoma da lista errada. **As duas pontas saíram no mesmo commit**, o `<img>` e a origem do CSP: tirando só o `<img>`, o CSP ficaria com uma permissão que nada usa, que é a camada deixada para trás da 0088. **Nenhum ícone genérico no lugar** — um favicon diz QUAL site é, um globo diria "isto é um site", que é o que o domínio ao lado já diz. **E ele travava SETE telas do protótipo**, o que ninguém tinha ligado a ele: o gerador espera `networkidle`, e um pedido recusado depois de um redirecionamento não fecha a conta — das nove telas de Recomendações, duas saíam e sete não saíam nem em imagem nem em dump, e sem os dumps o `check:sprint9` falha de propósito, em vez de passar sobre um conjunto parcial. Com o `<img>` fora, **as nove voltam e a varredura fecha**. |
 | Os portais saem do Início | **A lista de clientes saiu da tela Início e virou um item da barra lateral**, por decisão do usuário: *"tire a lista de clientes, da aba inicial. e crie uma aba na lateral, com a lista dos clientes"*. Ela vive em `/painel/portais`, na seção Gestão, ao lado de Gestão de Pessoas. **A ENTRADA NO MENU É O QUE FAZ ISSO SER UMA MUDANÇA DE LUGAR E NÃO UM SUMIÇO**, e a conta é a do Sprint 3J invertida: lá as duas entradas só puderam sair porque a faixa de Minhas Tasks passou a nomeá-las — *tirar um item de um módulo que não aparece em mais lugar nenhum é esconder o módulo* —, e aqui a grade está PERDENDO a casa que tinha. *O custo está dito:* a barra volta a crescer um item, na direção oposta à daquele sprint. **O rótulo não é "Clientes"**, e é a escolha que impede o furo: aquele nome já é a aba de Gestão de Pessoas, que leva ao CADASTRO — dois itens com o mesmo nome levando a telas diferentes é como se aprende a procurar na errada. **O arquivo mudou de pasta** em vez de ficar em `_blocos/`, que é a pasta dos blocos do Início, e com ele saiu o `<h2>` da seção: o nome do módulo aparece uma vez só, e aqui ele está no `PageHeader`. **Com a grade saiu uma ida ao banco por visita da gestão** — ela era a única seção daquela tela que crescia com a carteira da agência, enquanto os outros blocos da gestão somem quando não têm o que dizer. **Medido de mão dupla no `check:sprint9`**, nos três perfis, e conferido por imagem: o item com a pílula ativa na barra do sócio, e o Início fechando sem buraco. Nenhuma migration, nenhuma policy, nenhum perfil perdeu nada. |
 | O day off não tem parcelas | **A trava de "em até N vezes" saiu do produto** (migration 0116), por decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas' mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do saldo"*. **O pedido é uma legenda e a mudança é de banco:** aquela frase descrevia uma trava que morava em `validar_solicitacao` desde o Sprint 6 — tirando só o texto, a tela pararia de explicar a recusa e **continuaria levando a recusa**, que é a 0029 e a 0060 pela terceira vez. **A COLUNA FICA, e isso não contradiz a 0023:** lá a coluna apagada continuava sendo PERGUNTADA na tela; `max_parcelas_ferias` não é perguntada em lugar nenhum — é um número de contrato já gravado, e ela fica **sem leitor**, com o `comment on column` dizendo isso, na forma de `carga_da_equipe()`. **`parcelas_concedidas()` SAIU e `parcelas_no_ciclo()` FICOU**, e a assimetria é a decisão inteira: a primeira respondia *quantas ela PODE*, que é o limite que ninguém mais pergunta, e a segunda responde *quantas ela TIROU*, que é um FATO sobre o ciclo. **`descanso_do_ciclo()` perdeu duas colunas**, então é `drop` e não `create or replace` — aquele comando não troca o tipo de retorno de um `returns table` —, com o `revoke`/`grant` repetido atrás (a lição da 0097), e as duas saem do TIPO junto. A legenda passou a dizer **"5 de 15 dias neste ciclo"**, que é o que a barra ao lado mede: os dois números de antes não eram da mesma conta. **E o aviso de "sem parcela livre" saiu com a trava** — dos três que desligavam o botão de enviar ficaram dois. *O que se perde está dito:* a agência deixa de poder limitar em quantas vezes alguém parte o day off, e devolver é recolocar o bloco no fim de `validar_solicitacao`, porque a coluna continua lá. **A bateria NÃO pôde ser rodada** (sem Docker e sem Postgres local neste ambiente): os números dos cenários novos foram derivados da leitura do fixture, não medidos — fica dito em vez de escondido. |

@@ -383,6 +383,33 @@ const O_VOCABULARIO_DO_DAY_OFF = [
 ];
 
 /**
+ * O NOME DO BLOCO DA GESTÃO NA TELA INICIAL.
+ *
+ * Decisão do usuário: "Pulso da agência" virou **"Full Pulse"**, entre sete
+ * nomes que ele listou — *"pela consistência com os nomes do ecossistema
+ * Full"*.
+ *
+ * **ESTÁ AQUI, E NÃO NA LISTA DE NOMES MORTOS DO `check:cores`**, pela mesma
+ * razão de "Descanso" logo acima: "Pulso" não foi aposentada. Ela continua
+ * sendo o nome do arquivo (`_blocos/pulso-da-agencia.tsx`), do componente
+ * (`PulsoDaAgencia`) e de meia dúzia de comentários que explicam por que o
+ * bloco existe e por que ele aparece com zero. Uma entrada naquela lista
+ * reprovaria o vocabulário do próprio projeto.
+ *
+ * **As duas metades, pela razão de sempre:** só a ausência passaria numa tela
+ * que parou de desenhar o bloco inteiro — e o bloco some sozinho para quem
+ * não é gestão, então a presença é o que prova que ele continua lá.
+ */
+const O_NOME_DO_FULL_PULSE = [
+  {
+    tela: "05-painel-socio",
+    tem: ["Full Pulse"],
+    naoTem: ["Pulso da agência"],
+    porque: "é o cabeçalho do bloco da gestão na tela inicial",
+  },
+];
+
+/**
  * O `<nav>` da barra, recortado da página.
  *
  * O recorte conta a profundidade em vez de procurar o primeiro `</nav>`: a
@@ -509,6 +536,7 @@ const NECESSARIAS = [
     ...NA_BARRA.map(({ tela }) => tela),
     A_PORTA.tela,
     ...O_VOCABULARIO_DO_DAY_OFF.map(({ tela }) => tela),
+    ...O_NOME_DO_FULL_PULSE.map(({ tela }) => tela),
   ]),
 ];
 
@@ -672,7 +700,10 @@ if (daPorta.length > 0) {
 // ---------------------------------------------------------------------------
 console.log("\nO vocabulário do Day Off\n");
 
-for (const { tela, tem, naoTem, porque } of O_VOCABULARIO_DO_DAY_OFF) {
+for (const { tela, tem, naoTem, porque } of [
+  ...O_VOCABULARIO_DO_DAY_OFF,
+  ...O_NOME_DO_FULL_PULSE,
+]) {
   const texto = textos.get(tela) ?? "";
   const sumiram = tem.filter((p) => !apareceInteira(texto, p));
   const voltaram = naoTem.filter((p) => apareceInteira(texto, p));

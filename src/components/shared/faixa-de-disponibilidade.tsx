@@ -93,17 +93,47 @@ export function FaixaDeDisponibilidade({
   );
   const [dias, setDias] = useState<DiaDeDisponibilidade[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [buscando, iniciarBusca] = useTransition();
+  // O CONTADOR É O BOTÃO "Tentar de novo", e ele mora na lista de dependências
+  // do efeito: um `tentativa + 1` refaz a mesma busca sem trocar de mês nem
+  // remontar o componente. Sem ele, a única saída de uma falha de transporte
+  // era fechar e reabrir o painel — e quem fecha o painel perde de vista a
+  // etapa que estava datando.
+  const [tentativa, setTentativa] = useState(0);
+  const [carregado, setCarregado] = useState<string | null>(null);
+
+  // `useTransition` CONTINUA, e só pelo embrulho das escritas: o
+  // `react-hooks/set-state-in-effect` do projeto reprova `setState` no corpo
+  // de um efeito, e `startTransition` é o que o satisfaz. O que ele NÃO serve
+  // é para dizer se a busca está em curso — a razão está logo abaixo.
+  const [, iniciarBusca] = useTransition();
 
   const inicio = format(ancora, "yyyy-MM-dd");
   const fim = format(endOfMonth(ancora), "yyyy-MM-dd");
 
+  // ------------------------------------------------------------------------
+  // O "CARREGANDO" É DERIVADO DE UMA CHAVE, e isso é um conserto.
+  //
+  // Ele era o primeiro elemento do `useTransition`, e aquele número era
+  // SEMPRE falso durante a requisição: a busca vivia dentro de
+  // `iniciarBusca(() => { void (async () => …)() })`, e aquele retorno de
+  // chamada devolve na hora — ele só DISPARA a promessa. A transição fechava
+  // antes do primeiro byte, então o `opacity-60` da grade nunca apareceu.
+  //
+  // Na prática era isso que fazia uma falha de transporte parecer tela
+  // quebrada em vez de tentativa que não voltou: não havia sinal nenhum entre
+  // abrir a faixa e o erro. Comparar a chave pedida com a chave que voltou
+  // responde a mesma pergunta sem guardar um segundo booleano — é "atraso não
+  // é coluna" dentro de um componente.
+  // ------------------------------------------------------------------------
+  const chave = `${userId}|${inicio}|${fim}|${tentativa}`;
+  const buscando = carregado !== chave;
+
   useEffect(() => {
     let cancelado = false;
-    iniciarBusca(() => {
-      void (async () => {
-        const r = await chamarAcao(() => buscar(userId, inicio, fim));
-        if (cancelado) return;
+    void (async () => {
+      const r = await chamarAcao(() => buscar(userId, inicio, fim));
+      if (cancelado) return;
+      iniciarBusca(() => {
         if (r.ok) {
           setDias(r.dados ?? []);
           setErro(null);
@@ -111,15 +141,22 @@ export function FaixaDeDisponibilidade({
           // A FALHA APARECE, e não vira grade vazia: aqui "não achei nada"
           // seria indistinguível de "a pessoa está livre o mês todo", que é a
           // resposta mais perigosa que esta tela pode dar.
+          //
+          // E ELA APARECE COM A MENSAGEM CRUA, de propósito: `chamarAcao` já
+          // devolve *"Não foi possível falar com o servidor: Failed to
+          // fetch"* — português na frente e a causa de verdade atrás. Trocar
+          // isso por uma frase redonda esconderia justamente o que diz se o
+          // problema foi a rede, a sessão ou o banco.
           setDias(null);
           setErro(r.error ?? "Não foi possível ler os dias.");
         }
-      })();
-    });
+        setCarregado(chave);
+      });
+    })();
     return () => {
       cancelado = true;
     };
-  }, [userId, inicio, fim, buscar]);
+  }, [userId, inicio, fim, buscar, chave]);
 
   const porData = useMemo(() => {
     const mapa = new Map<string, DiaDeDisponibilidade>();
@@ -167,8 +204,27 @@ export function FaixaDeDisponibilidade({
         </Button>
       </div>
 
+      {/* A RECUSA TRAZ O CAMINHO DE VOLTA, e é a diferença entre uma falha e
+          um beco. Uma leitura que não voltou costuma ser passageira — rede,
+          um processo reiniciando, a sessão renovando —, e sem o botão a
+          pessoa fica olhando a mesma mensagem até fechar o painel.
+
+          O BOTÃO USA O PAR NOMEADO DA PRÓPRIA CAIXA (`--danger` sobre
+          `--danger-soft`), que o `check:cores` já mede. Um `Button` do
+          shadcn aqui traria as cores dele para dentro de um fundo tingido —
+          opacidade e par não medido no mesmo lugar. */}
       {erro ? (
-        <p className="bg-danger-soft text-danger rounded-lg px-3 py-2 text-xs">{erro}</p>
+        <div className="bg-danger-soft text-danger space-y-1 rounded-lg px-3 py-2 text-xs">
+          <p>{erro}</p>
+          <button
+            type="button"
+            onClick={() => setTentativa((n) => n + 1)}
+            disabled={buscando}
+            className="font-semibold underline disabled:opacity-60"
+          >
+            {buscando ? "Tentando…" : "Tentar de novo"}
+          </button>
+        </div>
       ) : null}
 
       <div>

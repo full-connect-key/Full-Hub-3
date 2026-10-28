@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
+import { exigirEquipeNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { anunciar } from "@/lib/acoes/ao-vivo";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
@@ -600,11 +600,14 @@ export async function removerEntrega(id: string, taskId: string): Promise<Result
  * à mão.
  *
  * **Ela usa o cliente da própria pessoa**, então `is_staff()` dentro de
- * `disponibilidade()` continua sendo quem decide. A guarda de rota aqui é a
- * primeira barreira, não a única.
+ * `disponibilidade()` continua sendo quem decide. A guarda aqui é a primeira
+ * barreira, não a única — e ela faz a MESMA pergunta, pela razão escrita no
+ * corpo da função.
  *
  * E ela mora NESTE arquivo e não em `acoes.ts`: a pergunta é sobre o
- * responsável de uma ETAPA, e é aqui que as ações da etapa vivem.
+ * responsável de uma ETAPA, e é aqui que as ações da etapa vivem. **Os dois
+ * chamadores não são daqui**, e é o que fez a guarda de rota ser errada: o
+ * painel da etapa em Gestão de Tasks e a tela de abrir o mês de social.
  */
 export async function buscarDisponibilidade(
   userId: string,
@@ -612,7 +615,29 @@ export async function buscarDisponibilidade(
   fim: string,
 ): Promise<Resultado<DiaDeDisponibilidade[]>> {
   return executarAcao("buscarDisponibilidade", async () => {
-    await exigirRotaNaAcao(ROTA);
+    // ------------------------------------------------------------------
+    // A GUARDA É `is_staff()`, E NÃO A ROTA DE GESTÃO DE TASKS.
+    //
+    // Ela era `exigirRotaNaAcao(ROTA)`, e ROTA é `/painel/gestao-tasks`,
+    // que é `GESTAO`. **Esta action tem DOIS chamadores**, e o segundo é a
+    // tela de abrir o mês de social — que é `EQUIPE` na rota e
+    // `souDoAtendimento()` na porta desde a 0046. Então o colaborador do
+    // Atendimento abria o mês, escolhia quem faz a etapa, clicava para ver
+    // os dias dela e levava *"Seu perfil não permite esta ação"* — numa
+    // tela que o produto diz que é dele.
+    //
+    // **É a 0059 outra vez, e com o mesmo diagnóstico:** a guarda da action
+    // estava mais apertada que o banco. `disponibilidade()` é
+    // `security definer` com `is_staff()` na primeira linha (0081), porque
+    // quem distribui numa demanda pode ser o colaborador do Atendimento —
+    // está escrito lá, em quantas palavras. Uma pergunta a mais aqui não
+    // acrescenta trava nenhuma: ela só recusa quem o banco aceita.
+    //
+    // E a pergunta certa é a MESMA do banco, não uma parecida: `is_staff()`
+    // de um lado e `exigirEquipeNaAcao()` do outro são a mesma frase nos
+    // dois idiomas da casa.
+    // ------------------------------------------------------------------
+    await exigirEquipeNaAcao();
     return sucesso("", await disponibilidadeDe(userId, inicio, fim));
   });
 }
