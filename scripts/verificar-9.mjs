@@ -400,6 +400,15 @@ const O_VOCABULARIO_DO_DAY_OFF = [
  * que parou de desenhar o bloco inteiro — e o bloco some sozinho para quem
  * não é gestão, então a presença é o que prova que ele continua lá.
  */
+const O_LEMA_DA_AGENCIA = [
+  {
+    tela: "01-login",
+    tem: ["O que se conecta", "multiplica."],
+    naoTem: ["Conectar e Vender"],
+    porque: "é o lema que alterna com a saudação no título da porta",
+  },
+];
+
 const O_NOME_DO_FULL_PULSE = [
   {
     tela: "05-painel-socio",
@@ -537,6 +546,7 @@ const NECESSARIAS = [
     A_PORTA.tela,
     ...O_VOCABULARIO_DO_DAY_OFF.map(({ tela }) => tela),
     ...O_NOME_DO_FULL_PULSE.map(({ tela }) => tela),
+    ...O_LEMA_DA_AGENCIA.map(({ tela }) => tela),
   ]),
 ];
 
@@ -703,6 +713,7 @@ console.log("\nO vocabulário do Day Off\n");
 for (const { tela, tem, naoTem, porque } of [
   ...O_VOCABULARIO_DO_DAY_OFF,
   ...O_NOME_DO_FULL_PULSE,
+  ...O_LEMA_DA_AGENCIA,
 ]) {
   const texto = textos.get(tela) ?? "";
   const sumiram = tem.filter((p) => !apareceInteira(texto, p));

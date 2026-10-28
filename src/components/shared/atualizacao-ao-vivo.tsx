@@ -56,7 +56,39 @@ const PAUSA_MS = 1200;
  */
 type Situacao = "desligado" | "ligando" | "ligado" | "caiu";
 
-export function AtualizacaoAoVivo({ className }: { className?: string }) {
+export function AtualizacaoAoVivo({
+  className,
+  silencioso = false,
+}: {
+  className?: string;
+  /**
+   * ASSINA O CANAL E NÃO DESENHA NADA.
+   *
+   * Decisão do usuário: *"retirar o botão 'Visualização ao vivo' da página
+   * inicial"*, e, perguntado entre tirar só o estado ligado e tirar do painel
+   * inteiro, ele escolheu o painel inteiro.
+   *
+   * **Mas quem assina o canal e chama `router.refresh()` é este componente**,
+   * e não há um segundo. Tirá-lo do layout mataria a atualização ao vivo do
+   * painel inteiro — uma funcionalidade, não um enfeite —, e a orientação da
+   * mesma mensagem é *"preservar as funcionalidades existentes"*. Então o que
+   * sai é o DESENHO: a inscrição, a pausa que junta os avisos, a aba
+   * escondida que não recarrega e o `refresh` continuam exatamente iguais.
+   *
+   * ***O que se perde, e foi dito antes de ser feito:*** a decisão escrita
+   * deste indicador era que ele aparece TAMBÉM quando está funcionando,
+   * porque *"um indicador que só nasce quando quebra ensina que a ausência
+   * dele é boa notícia"*. Com ele mudo, uma inscrição que cai não avisa mais
+   * ninguém: a tela simplesmente deixa de se atualizar sozinha, e "não mudou
+   * nada" fica indistinguível de "parou de chegar". Quem quiser o aviso de
+   * volta tira esta bandeira do layout do painel — o estado `caiu` continua
+   * desenhado e continua medindo o que media.
+   *
+   * **O Portal do Cliente continua com o indicador à vista**, porque o pedido
+   * era sobre o painel.
+   */
+  silencioso?: boolean;
+}) {
   const router = useRouter();
   // NO INICIALIZADOR, e não num efeito: `supabaseConfigurado()` só lê variável
   // embutida no build, então a resposta é a mesma no servidor e no navegador e
@@ -132,6 +164,11 @@ export function AtualizacaoAoVivo({ className }: { className?: string }) {
       supabase.removeChannel(canal);
     };
   }, [router, situacao]);
+
+  // O MUDO SAI DEPOIS DOS GANCHOS, nunca antes: o efeito acima é quem assina
+  // o canal, e um `return` antes dele desligaria a atualização ao vivo em vez
+  // de só escondê-la.
+  if (silencioso) return null;
 
   if (situacao === "desligado" || situacao === "ligando") return null;
 

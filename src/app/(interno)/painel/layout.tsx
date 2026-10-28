@@ -144,7 +144,13 @@ export default async function LayoutDoPainel({
                 Só o Painel. O Portal do Cliente não ouve este canal, e a
                 policy da 0057 é o que garante.
               */}
-              <AtualizacaoAoVivo className="mr-1" />
+              {/* ELE É MUDO AQUI, por decisão do usuário: *"retirar o botão
+                  'Visualização ao vivo' da página inicial"*. O que sai é o
+                  desenho — a inscrição no canal, a pausa que junta os avisos e
+                  o `router.refresh()` continuam, porque é este componente que
+                  os carrega e não há um segundo. A consequência está escrita
+                  na prop: uma inscrição que cai deixou de avisar. */}
+              <AtualizacaoAoVivo silencioso />
               {/* O `?` FICA AO LADO DO SINO, que é onde o sprint o pede — e
                   antes dele, porque a ordem da topbar é da ajuda para o
                   pessoal: ajuda, avisos, você. */}

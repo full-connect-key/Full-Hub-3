@@ -15,8 +15,27 @@
  * aparecer. Este componente só monta as palavras e numera cada uma — o `--i` é
  * o que escalona a entrada.
  *
- * `*...*` marca a palavra que sai em azul. É "chave", que liga o lema ao nome
- * da agência.
+ * `*...*` marca a palavra que sai em azul.
+ *
+ * ---------------------------------------------------------------------------
+ * O LEMA MUDOU, E A PALAVRA AZUL TROCOU DE CRITÉRIO JUNTO
+ *
+ * Decisão do usuário: *"substituir 'Entender, Conectar e Vender' por 'O que se
+ * conecta, multiplica.'"*.
+ *
+ * No lema antigo a palavra azul era "chave", e ela atendia a DOIS critérios ao
+ * mesmo tempo: era a última palavra, onde a frase aterrissa, e era o elo com o
+ * nome da agência — Connect **Key**. No lema novo os dois se separam:
+ * "conecta" é o elo com o nome, "multiplica" é onde a frase aterrissa.
+ *
+ * **Fica "multiplica", e a razão é o ritmo.** O que o azul fazia na tela era
+ * marcar o fecho — a palavra que entra por último, depois das outras subirem
+ * do desfoque. Pô-lo em "conecta" acenderia o meio da frase e deixaria o fim
+ * apagado, que é o contrário do que a animação faz.
+ *
+ * *É uma palavra de distância, se a agência preferir o outro critério:* troque
+ * os asteriscos de lugar e nada mais muda.
+ * ---------------------------------------------------------------------------
  */
 
 const AZUL = "*";
@@ -24,7 +43,7 @@ const AZUL = "*";
 /** A saudação vem primeiro porque é ela que a pessoa vê ao abrir a tela. */
 const FRASES = [
   "Sejam bem-vindos!",
-  `Entender, Conectar e Vender, essa é a ${AZUL}chave!${AZUL}`,
+  `O que se conecta, ${AZUL}multiplica.${AZUL}`,
 ] as const;
 
 function Frase({ texto, ordem }: { texto: string; ordem: number }) {

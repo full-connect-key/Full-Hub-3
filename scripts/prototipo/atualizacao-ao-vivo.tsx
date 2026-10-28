@@ -18,6 +18,9 @@
  * o tipo passa. Foi a tela da Auditoria que mostrou, porque foi a primeira
  * gerada depois do componente entrar no layout.
  */
-export function AtualizacaoAoVivo(_props: { className?: string }) {
+export function AtualizacaoAoVivo(_props: {
+  className?: string;
+  silencioso?: boolean;
+}) {
   return null;
 }
