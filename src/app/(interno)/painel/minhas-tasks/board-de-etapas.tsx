@@ -304,7 +304,7 @@ function Coluna({
     <section
       ref={setNodeRef}
       className={cn(
-        "bg-muted/40 flex w-72 shrink-0 flex-col rounded-xl border transition-colors",
+        "bg-muted/40 flex min-w-0 flex-col rounded-xl border transition-colors",
         isOver && "border-accent-strong bg-accent",
       )}
     >
@@ -425,7 +425,34 @@ export function BoardDeEtapas({
 
   return (
     <DndContext sensors={sensores} onDragStart={aoComecar} onDragEnd={aoSoltar}>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      {/* -------------------------------------------------------------------
+          AS SEIS COLUNAS APARECEM JUNTAS, e nenhuma rolagem para o lado.
+
+          Era `flex gap-3 overflow-x-auto` com coluna de `w-72 shrink-0`: seis
+          colunas fixas de 288px dão 1788px, e o board vivia rolando dentro de
+          uma caixa de 72rem. Quem procurava "Em ajustes" tinha de arrastar a
+          barra de baixo para descobrir se havia algo lá — e uma coluna que só
+          existe depois de rolar é uma coluna que ninguém olha.
+
+          **É GRADE e não `flex-wrap`.** Em `flex-wrap` cada coluna fica do
+          tamanho do conteúdo dela e as da segunda linha não se alinham com as
+          da primeira; a grade dá a todas a mesma medida, que é o que permite
+          comparar uma coluna com a de baixo. É a decisão da faixa de meses do
+          cartão da conta.
+
+          **E a contagem de colunas é por LARGURA, não por breakpoint de
+          dispositivo:** seis cabem legíveis a partir de 2xl, três no meio —
+          em duas fileiras, que continua sendo todas à vista — e duas no
+          celular. "Todas aparecem simultaneamente" é sobre não esconder
+          nenhuma atrás de uma barra de rolagem, e uma segunda fileira não
+          esconde coisa nenhuma.
+
+          `min-w-0` em cada coluna é o que faz isso valer: sem ele o item de
+          grade se recusa a ficar menor que o conteúdo (`min-width: auto`) e a
+          grade estoura para fora da página — foi assim que a coluna de domingo
+          do Cronograma saiu cortada pela borda.
+          ------------------------------------------------------------------- */}
+      <div className="grid grid-cols-2 gap-3 pb-2 sm:grid-cols-3 2xl:grid-cols-6">
         {COLUNAS.map(({ status, titulo }) => (
           <Coluna
             key={status}

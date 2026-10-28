@@ -165,6 +165,57 @@ iniciada"** e não "Iniciar" — na Task ele é "Iniciar" porque o cabeçalho da
 coluna é a única coisa escrita ali; aqui cada card carrega o botão de ação, e
 o primeiro deles se chama exatamente "Iniciar".
 
+**AS SEIS COLUNAS APARECEM JUNTAS, e a página perde o teto de 72rem para
+isso** — decisão do usuário: *"o board está limitado ao espaço da caixa
+superior; ajustar para que ocupe toda a largura disponível da tela, todas as
+colunas aparecendo simultaneamente, sem rolagem horizontal"*.
+
+Eram `flex gap-3 overflow-x-auto` com coluna de `w-72 shrink-0`: seis colunas
+fixas de 288px dão 1788px, e o board vivia rolando dentro do `max-w-6xl` do
+`main`. Quem procurava "Em ajustes" tinha de arrastar a barra de baixo para
+descobrir se havia algo lá — e **uma coluna que só existe depois de rolar é
+uma coluna que ninguém olha**.
+
+**São DUAS pontas, e as duas no mesmo commit.** A tela marca `data-largo` e o
+`main` responde com `has-[[data-largo]]:max-w-none`; o board vira grade. Só a
+primeira daria seis colunas de 122px num 1440, e só a segunda daria largura
+sobrando com a rolagem de volta.
+
+**É `:has()` e NÃO margem negativa.** `-mx-4 lg:-mx-8` é a saída que a capa do
+cliente e a barra de contexto já pagaram duas vezes: com `mx-auto max-w-6xl`,
+tirar o respiro deixa a faixa mais larga que o conteúdo e ainda longe da borda
+da janela — nem alinhada nem de ponta a ponta, que é a única das três que
+parece defeito. E não é prop no layout, porque o layout é de servidor e a
+visão mora na URL de uma tela só.
+
+**A marca é só da visão de BOARD.** A Lista e o Calendário continuam nos 72rem:
+as duas são leitura de texto, e uma linha de 1600px é pior de ler que uma de
+1100.
+
+**É GRADE e não `flex-wrap`.** Em `flex-wrap` cada coluna fica do tamanho do
+conteúdo dela e as da segunda fileira não se alinham com as da primeira; a
+grade dá a todas a mesma medida, que é o que permite comparar uma coluna com a
+de baixo — a decisão da faixa de meses do cartão da conta. **E a contagem é por
+LARGURA:** seis a partir de 2xl, três no meio e duas no celular. "Todas
+aparecem simultaneamente" é sobre não esconder nenhuma atrás de uma barra de
+rolagem, e uma segunda fileira não esconde coisa nenhuma.
+
+**`min-w-0` em cada coluna é o que faz isso valer:** sem ele o item de grade se
+recusa a ficar menor que o conteúdo (`min-width: auto`) e a grade estoura para
+fora da página — foi assim que a coluna de domingo do Cronograma saiu cortada
+pela borda.
+
+**E O SELO DE PRAZO SAÍA CORTADO, o que só a imagem pegou.** `DateBadge` era
+`whitespace-nowrap` no invólucro inteiro com `w-fit`: numa coluna estreita ele
+ficava mais largo que o cartão e a borda arredondada o cortava — *"25/10/26 ·
+há 3 di"*. **Pior que truncar, porque não há reticências:** lê como defeito, e
+não como texto que não coube. Agora o `nowrap` é de cada PEDAÇO e o invólucro
+envolve: a data nunca parte no meio, e o "· há 3 dias" desce para a segunda
+linha quando não cabe. Onde já cabia, nada muda — quebra é consequência de
+falta de espaço, e antes a mesma falta virava corte. Ele é lido por dezenas de
+telas, e é por isso que a conferência foi por imagem no claro, no escuro e em
+375px.
+
 **E aqui o card ARRASTA**, ao contrário do board de demandas que estava nesta
 mesma tela. É a mesma razão invertida: o status da Task é calculado pelas
 subtarefas, então mover aquele card prometia uma mudança que o recálculo
@@ -1920,6 +1971,23 @@ tela vira um bloco só.
 prop e não `ReactNode` dentro de `title` porque o `<h1>` precisa do texto
 inteiro para o leitor de tela: quebrado em dois nós, o nome da página vira
 "Bom dia," e a pessoa fica sem saber onde está.
+
+**OS TRÊS DO TOPO FICAM GRUDADOS, e para isso os ladrilhos subiram** —
+decisão do usuário: *"manter os três botões permanentemente visíveis na parte
+superior da página de Minhas Tasks; eles não devem desaparecer durante a
+rolagem vertical do board"*.
+
+A coluna já era `lg:sticky lg:top-20`, e os três não eram contíguos: entre a
+pílula "Nova task" e os ladrilhos "Para hoje" e "Atrasadas" ficava o
+cronômetro, que é o bloco mais alto daqui. Numa janela baixa os dois ladrilhos
+caíam abaixo da dobra da própria coluna grudada — ou seja, **grudavam fora da
+tela**. Juntos no topo os três ocupam cerca de 150px e cabem em qualquer
+janela.
+
+**O cronômetro continua na primeira dobra**, que é a regra escrita dele: dois
+ladrilhos lado a lado não empurram nada para baixo da linha de corte. E a
+coluna segue `lg:`, porque abaixo disso ela empilha DEPOIS do conteúdo —
+grudar ali prenderia o resumo depois de a pessoa já ter rolado o board inteiro.
 
 **MINHAS TASKS GANHOU A COLUNA DA DIREITA, de 306px**, e o artifact diz o que
 ela carrega e por quê: o cronômetro, os contadores e quem está fora — *"as
@@ -12876,6 +12944,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 | Sprint | Entrega |
 | --- | --- |
 | O calendário da etapa, e o Full Pulse | **A faixa de disponibilidade recusava quem o banco aceita, e não tinha como tentar de novo.** Relato do usuário: *"Failed to fetch ao abrir uma task e acessar o calendário de disponibilidade"*, com a instrução de **corrigir a causa, não ocultar a mensagem**. **O que foi descartado com medida:** a 0081 está aplicada inteira (assinatura, `security definer`, `authenticated` com EXECUTE, `disponibilidade_bruta` sem grant), a função roda sem erro para **toda pessoa ativa da equipe × quatro meses** — as únicas recusas são de um perfil `cliente`, que é o desenho —, e o CSP tem `'self'` em `connect-src`. Com banco, RLS e política fora, "Failed to fetch" é falha de TRANSPORTE. **O bug reproduzível que a varredura encontrou é outro, e é meu:** a guarda da action era `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e esta action tem **dois chamadores** — o segundo é abrir o mês de social, que é `souDoAtendimento()` desde a 0046. O colaborador do Atendimento levava *"Seu perfil não permite esta ação"* na tela que o produto diz que é dele. É a 0059 outra vez: **a guarda estava mais apertada que o banco**, e `disponibilidade()` pergunta `is_staff()` justamente porque *"quem distribui numa demanda pode ser o colaborador do Atendimento"*. **E o "carregando" era sempre falso:** ele vinha do `useTransition` cujo retorno de chamada só DISPARA a promessa — a transição fechava antes do primeiro byte, e entre abrir a faixa e o erro não havia sinal nenhum. Hoje é derivado de uma chave comparada com a que voltou, e o `useTransition` fica só pelo embrulho que o `react-hooks/set-state-in-effect` exige. **A recusa ganhou "Tentar de novo"**, com a mensagem crua preservada. **O que NÃO foi consertado, porque não foi medido:** há uma CDN na frente deste host (`server: hcdn`) e `serverActions.allowedOrigins` não está configurado — o Next recusa a action quando o `Origin` não bate com o host encaminhado. A prova é uma requisição com os cabeçalhos de produção. **De quebra, "Pulso da agência" virou "Full Pulse"**, decisão do usuário entre sete nomes. O arquivo e o componente ficam, que é a decisão de `dias_uteis`; "Pulso" não entra na lista de nomes mortos porque não foi aposentada; e quem protege a troca é o `check:sprint9` de mão dupla, medido com mutação. |
+| O board inteiro na tela | **O board de Minhas Tasks passou a ocupar a largura da janela, com as seis colunas juntas** — decisão do usuário: *"o board está limitado ao espaço da caixa superior (…) todas as colunas devem aparecer simultaneamente, sem necessidade de rolagem horizontal"*. **São duas pontas no mesmo commit:** a tela marca `data-largo` e o `main` responde com `has-[[data-largo]]:max-w-none`; o board vira GRADE (seis colunas a partir de 2xl, três no meio, duas no celular) em vez de `flex` com coluna fixa de 288px e `overflow-x-auto`. Só a primeira daria seis colunas de 122px num 1440; só a segunda deixaria a largura sobrando com a rolagem de volta. **É `:has()` e não margem negativa**, que é o que a capa do cliente e a barra de contexto já pagaram duas vezes. **A marca é só da visão de board:** Lista e Calendário continuam nos 72rem, porque linha de 1600px é pior de ler que uma de 1100. **E o selo de prazo saía CORTADO, o que só a imagem pegou:** `DateBadge` era `whitespace-nowrap` no invólucro e, numa coluna estreita, ficava mais largo que o cartão — *"25/10/26 · há 3 di"*, sem reticências, que lê como defeito e não como texto que não coube. O `nowrap` passou a ser de cada pedaço e o invólucro envolve. Conferido por imagem no claro, no escuro e em 375px, porque ele é lido por dezenas de telas. **De quebra, os três botões do topo ficaram grudados:** a coluna já era `lg:sticky`, e entre "Nova task" e os ladrilhos ficava o cronômetro — numa janela baixa os dois ladrilhos grudavam FORA da tela. Os ladrilhos subiram, e o cronômetro continua na primeira dobra. |
 | O favicon das Recomendações | **O ícone do site indicado saiu do cartão**, por decisão do usuário. Ele vinha do serviço do Google, e era a única origem externa do `img-src` — **a saída já estava escrita no comentário do próprio CSP** desde que ela entrou: *"o cartão já tem o domínio escrito por extenso embaixo do título, então o ícone é enfeite, não informação"*. **E ele nunca apareceu em produção**, que é o que fechou a decisão: o serviço responde com REDIRECIONAMENTO para `t*.gstatic.com`, host que nunca esteve na lista — o navegador recusava o destino e o `onError` escondia a imagem. **O custo era pago e o ícone não chegava:** o pedido sai, com o domínio do link dentro, antes de qualquer redirecionamento. É a lição do `remotePatterns` de outro ângulo — a lista certa pela metade dá o mesmo sintoma da lista errada. **As duas pontas saíram no mesmo commit**, o `<img>` e a origem do CSP: tirando só o `<img>`, o CSP ficaria com uma permissão que nada usa, que é a camada deixada para trás da 0088. **Nenhum ícone genérico no lugar** — um favicon diz QUAL site é, um globo diria "isto é um site", que é o que o domínio ao lado já diz. **E ele travava SETE telas do protótipo**, o que ninguém tinha ligado a ele: o gerador espera `networkidle`, e um pedido recusado depois de um redirecionamento não fecha a conta — das nove telas de Recomendações, duas saíam e sete não saíam nem em imagem nem em dump, e sem os dumps o `check:sprint9` falha de propósito, em vez de passar sobre um conjunto parcial. Com o `<img>` fora, **as nove voltam e a varredura fecha**. |
 | Os portais saem do Início | **A lista de clientes saiu da tela Início e virou um item da barra lateral**, por decisão do usuário: *"tire a lista de clientes, da aba inicial. e crie uma aba na lateral, com a lista dos clientes"*. Ela vive em `/painel/portais`, na seção Gestão, ao lado de Gestão de Pessoas. **A ENTRADA NO MENU É O QUE FAZ ISSO SER UMA MUDANÇA DE LUGAR E NÃO UM SUMIÇO**, e a conta é a do Sprint 3J invertida: lá as duas entradas só puderam sair porque a faixa de Minhas Tasks passou a nomeá-las — *tirar um item de um módulo que não aparece em mais lugar nenhum é esconder o módulo* —, e aqui a grade está PERDENDO a casa que tinha. *O custo está dito:* a barra volta a crescer um item, na direção oposta à daquele sprint. **O rótulo não é "Clientes"**, e é a escolha que impede o furo: aquele nome já é a aba de Gestão de Pessoas, que leva ao CADASTRO — dois itens com o mesmo nome levando a telas diferentes é como se aprende a procurar na errada. **O arquivo mudou de pasta** em vez de ficar em `_blocos/`, que é a pasta dos blocos do Início, e com ele saiu o `<h2>` da seção: o nome do módulo aparece uma vez só, e aqui ele está no `PageHeader`. **Com a grade saiu uma ida ao banco por visita da gestão** — ela era a única seção daquela tela que crescia com a carteira da agência, enquanto os outros blocos da gestão somem quando não têm o que dizer. **Medido de mão dupla no `check:sprint9`**, nos três perfis, e conferido por imagem: o item com a pílula ativa na barra do sócio, e o Início fechando sem buraco. Nenhuma migration, nenhuma policy, nenhum perfil perdeu nada. |
 | O day off não tem parcelas | **A trava de "em até N vezes" saiu do produto** (migration 0116), por decisão do usuário: *"está dizendo '0 dias em 0 de 2 parcelas' mas não vamos trabalhar nesse esquema de parcelas, o período de 15 dias é corrido durante o periodo de 1 ano. Então tira essa legenda da porcentagem do saldo"*. **O pedido é uma legenda e a mudança é de banco:** aquela frase descrevia uma trava que morava em `validar_solicitacao` desde o Sprint 6 — tirando só o texto, a tela pararia de explicar a recusa e **continuaria levando a recusa**, que é a 0029 e a 0060 pela terceira vez. **A COLUNA FICA, e isso não contradiz a 0023:** lá a coluna apagada continuava sendo PERGUNTADA na tela; `max_parcelas_ferias` não é perguntada em lugar nenhum — é um número de contrato já gravado, e ela fica **sem leitor**, com o `comment on column` dizendo isso, na forma de `carga_da_equipe()`. **`parcelas_concedidas()` SAIU e `parcelas_no_ciclo()` FICOU**, e a assimetria é a decisão inteira: a primeira respondia *quantas ela PODE*, que é o limite que ninguém mais pergunta, e a segunda responde *quantas ela TIROU*, que é um FATO sobre o ciclo. **`descanso_do_ciclo()` perdeu duas colunas**, então é `drop` e não `create or replace` — aquele comando não troca o tipo de retorno de um `returns table` —, com o `revoke`/`grant` repetido atrás (a lição da 0097), e as duas saem do TIPO junto. A legenda passou a dizer **"5 de 15 dias neste ciclo"**, que é o que a barra ao lado mede: os dois números de antes não eram da mesma conta. **E o aviso de "sem parcela livre" saiu com a trava** — dos três que desligavam o botão de enviar ficaram dois. *O que se perde está dito:* a agência deixa de poder limitar em quantas vezes alguém parte o day off, e devolver é recolocar o bloco no fim de `validar_solicitacao`, porque a coluna continua lá. **A bateria NÃO pôde ser rodada** (sem Docker e sem Postgres local neste ambiente): os números dos cenários novos foram derivados da leitura do fixture, não medidos — fica dito em vez de escondido. |

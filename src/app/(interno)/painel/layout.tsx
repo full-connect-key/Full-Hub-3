@@ -171,8 +171,25 @@ export default async function LayoutDoPainel({
           {/* A TERCEIRA ÂNCORA GENÉRICA dos micro-tours: a área de conteúdo
               do módulo. Ela é o passo "é aqui que o trabalho acontece" de
               qualquer um deles, sem um atributo por tela. */}
+          {/* ----------------------------------------------------------------
+              A LARGURA É DE 72rem, E UMA TELA PODE PEDIR A INTEIRA.
+
+              `max-w-6xl` é o que faz as 63 telas terem a mesma medida de
+              leitura, e isso não muda. O que entra é a saída para a exceção:
+              uma tela que marca `data-largo` em qualquer lugar abaixo daqui
+              tira o teto — hoje só a visão de BOARD de Minhas Tasks, que
+              precisa de seis colunas lado a lado.
+
+              **É `:has()` e NÃO margem negativa.** `-mx-4 lg:-mx-8` é a saída
+              que parece óbvia e que a capa do cliente e a barra de contexto
+              já pagaram duas vezes: com `mx-auto max-w-6xl`, tirar o respiro
+              deixa a faixa mais larga que o conteúdo e ainda longe da borda da
+              janela — nem alinhada nem de ponta a ponta, que é a única das
+              três que parece defeito. E não é prop no layout porque o layout
+              é de servidor e a visão mora na URL de uma tela só.
+              ---------------------------------------------------------------- */}
           <main
-            className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-8 lg:py-8"
+            className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-6 has-[[data-largo]]:max-w-none lg:px-8 lg:py-8"
             {...ancora(ANCORAS.conteudoDoModulo)}
           >
             {children}

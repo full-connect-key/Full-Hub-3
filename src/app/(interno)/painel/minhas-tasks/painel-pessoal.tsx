@@ -140,7 +140,19 @@ export function PainelPessoal({
   }
 
   return (
-    <div className="space-y-5">
+    // ----------------------------------------------------------------------
+    // `data-largo` NA VISÃO DE BOARD, e só nela.
+    //
+    // O `main` do painel é `max-w-6xl`, e o board ficava espremido nos 72rem
+    // com a coluna de 306px ao lado: seis colunas de etapa não cabem ali sem
+    // rolar para o lado. A marca tira o teto (o `has-[[data-largo]]` está no
+    // layout), e o board passa a usar a largura que a janela tem, descontada
+    // a barra lateral — que é o que o `mx-auto` faz sozinho.
+    //
+    // A Lista e o Calendário NÃO recebem a marca: as duas são leitura de
+    // texto, e uma linha de 1600px de largura é pior de ler que uma de 1100.
+    // ----------------------------------------------------------------------
+    <div className="space-y-5" {...(visao === "board" ? { "data-largo": "" } : {})}>
       {/*
         O CABEÇALHO DA TELA, na composição aprovada: saudação grande em duas
         cores, e embaixo a data com a contagem da semana.
@@ -359,15 +371,24 @@ export function PainelPessoal({
             <BotaoDeNovaTask className="w-full" destaque />
           ) : null}
 
-          {/* O MESMO componente da Home, com os mesmos dados. Ele já sabe
-              sumir quando não há etapa correndo — e sumir é o certo: um cartão
-              dizendo "nenhuma etapa em andamento" ocupa a primeira dobra todo
-              dia para informar em alguns. */}
-          <EmAndamentoAgora
-            etapa={correndoAgora}
-            agoraDoServidor={agoraDoServidor}
-          />
+          {/* -----------------------------------------------------------
+              OS DOIS LADRILHOS SUBIRAM, e é o que faz os três ficarem à
+              vista.
 
+              Decisão do usuário: *"manter os três botões permanentemente
+              visíveis na parte superior da página de Minhas Tasks; eles não
+              devem desaparecer durante a rolagem vertical do board"*. A
+              coluna já era `lg:sticky lg:top-20`, mas os três não eram
+              contíguos: entre a pílula e os ladrilhos ficava o cronômetro,
+              que é o bloco mais alto daqui. Numa janela baixa, "Para hoje" e
+              "Atrasadas" caíam abaixo da dobra da própria coluna grudada — ou
+              seja, grudavam fora da tela.
+
+              Juntos no topo, os três ocupam cerca de 150px e cabem em
+              qualquer janela. **O cronômetro continua na primeira dobra**,
+              que é a regra escrita dele: dois ladrilhos lado a lado não
+              empurram nada para baixo da linha de corte.
+              ----------------------------------------------------------- */}
           <div className="grid grid-cols-2 gap-2.5">
             {LADRILHOS.map(({ id, Icone, tom }) => {
               const ativo = foco === id;
@@ -421,6 +442,15 @@ export function PainelPessoal({
               );
             })}
           </div>
+
+          {/* O MESMO componente da Home, com os mesmos dados. Ele já sabe
+              sumir quando não há etapa correndo — e sumir é o certo: um cartão
+              dizendo "nenhuma etapa em andamento" ocupa a primeira dobra todo
+              dia para informar em alguns. */}
+          <EmAndamentoAgora
+            etapa={correndoAgora}
+            agoraDoServidor={agoraDoServidor}
+          />
 
           {foco ? (
             <button

@@ -72,16 +72,33 @@ export function DateBadge({
   return (
     <span
       title={`${completa} (${textoRelativo(dias)})`}
+      // ---------------------------------------------------------------------
+      // ELE QUEBRA ENTRE A DATA E O RELATIVO, em vez de estourar o pai.
+      //
+      // Era `whitespace-nowrap` no invólucro inteiro com `w-fit`: numa coluna
+      // estreita o selo ficava mais largo que o cartão e saía CORTADO pela
+      // borda arredondada — "25/10/26 · há 3 di". Pior que truncar, porque não
+      // há reticências: lê como defeito, não como texto que não coube.
+      //
+      // Agora o `nowrap` é de cada PEDAÇO, e o invólucro envolve: a data nunca
+      // parte no meio, e o "· há 3 dias" desce para a segunda linha quando não
+      // cabe. Onde já cabia, nada muda — quebra é consequência de falta de
+      // espaço, e antes a mesma falta virava corte.
+      // ---------------------------------------------------------------------
       className={cn(
-        "inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap tabular-nums",
+        "inline-flex w-fit flex-wrap items-center gap-x-1.5 rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums",
         TONS[tone],
         className,
       )}
     >
-      {showIcon ? <CalendarClock aria-hidden className="size-3" /> : null}
-      {format(data, "dd/MM/yy", { locale: ptBR })}
+      {showIcon ? <CalendarClock aria-hidden className="size-3 shrink-0" /> : null}
+      <span className="whitespace-nowrap">
+        {format(data, "dd/MM/yy", { locale: ptBR })}
+      </span>
       {tone !== "neutra" ? (
-        <span className="font-normal">· {textoRelativo(dias)}</span>
+        <span className="font-normal whitespace-nowrap">
+          · {textoRelativo(dias)}
+        </span>
       ) : null}
     </span>
   );
