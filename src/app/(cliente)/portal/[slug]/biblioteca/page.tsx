@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { BibliotecaDoPortal } from "@/components/portal/telas/biblioteca-do-portal";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { obterClientePeloSlug } from "@/lib/dados/portais-de-clientes";
+import { lerFiltrosDaBiblioteca } from "@/lib/dominio/biblioteca";
 
 export const metadata: Metadata = { title: "Biblioteca do cliente" };
 
@@ -23,7 +24,7 @@ export default async function BibliotecaDoClienteVistaPelaEquipe({
     searchParams,
   ]);
 
-  const busca = typeof valores.busca === "string" ? valores.busca : "";
+  const filtros = lerFiltrosDaBiblioteca(valores);
 
   return (
     <div className="space-y-8">
@@ -40,7 +41,7 @@ export default async function BibliotecaDoClienteVistaPelaEquipe({
         <BibliotecaDoPortal
           base={`/portal/${slug}`}
           clienteId={cliente?.id ?? ""}
-          busca={busca}
+          filtros={filtros}
         />
       </Suspense>
     </div>

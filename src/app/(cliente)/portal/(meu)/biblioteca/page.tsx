@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { BibliotecaDoPortal } from "@/components/portal/telas/biblioteca-do-portal";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
+import { lerFiltrosDaBiblioteca } from "@/lib/dominio/biblioteca";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -13,8 +14,8 @@ export default async function PaginaDaBiblioteca({
   await exigirClienteNaTela();
   const params = await searchParams;
 
-  const busca = typeof params.busca === "string" ? params.busca : "";
   const empresa = typeof params.empresa === "string" ? params.empresa : null;
+  const filtros = lerFiltrosDaBiblioteca(params);
 
   return (
     <div className="space-y-8">
@@ -28,7 +29,11 @@ export default async function PaginaDaBiblioteca({
       </div>
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-        <BibliotecaDoPortal base="/portal" clienteId={empresa} busca={busca} />
+        <BibliotecaDoPortal
+          base="/portal"
+          clienteId={empresa}
+          filtros={filtros}
+        />
       </Suspense>
     </div>
   );

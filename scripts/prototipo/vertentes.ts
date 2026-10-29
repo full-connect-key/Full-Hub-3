@@ -46,3 +46,60 @@ export async function vertentesDasContas(
   }
   return mapa;
 }
+
+/**
+ * DE QUE VERTENTE É CADA MATERIAL (migration 0119).
+ *
+ * **A chave é `tipo-conteudoId`**, igual à da função de verdade, e os ids são
+ * os mesmos do stub de `portal.ts` — é o que faz a imagem conferir a ligação e
+ * não o stub.
+ *
+ * **E A ESCOLHA DE QUEM TEM O QUÊ É O QUE A IMAGEM PROVA:**
+ *
+ *  * DOIS materiais aprovados na MESMA vertente (os dois de E-commerce), senão
+ *    todo chip sairia com "1" e a contagem não provaria que ela conta;
+ *  * UM aprovado SEM vertente nenhuma, senão o chip "Sem vertente" não sairia
+ *    em imagem nenhuma — e ele é o estado comum de toda conta que não cadastrou
+ *    frente;
+ *  * a PEÇA DE CAMPANHA com vertente, porque ela é a razão de a migration
+ *    existir: a vertente dela mora na demanda da campanha, que o cliente não
+ *    enxerga. Sem ela, a imagem provaria só o caminho da etapa de demanda;
+ *  * e a maioria das seis vertentes SEM material, que é a resposta certa para
+ *    uma frente recém-cadastrada — e o que a fileira tem de dizer em vez de
+ *    esconder o chip.
+ */
+const VERTENTE_DO_MATERIAL: Record<string, string> = {
+  // Os dois de E-commerce: a contagem do chip sai "2".
+  "subtask-i3": "ee000000-0000-0000-0000-000000000005",
+  "subtask-i5": "ee000000-0000-0000-0000-000000000005",
+  // A peça de campanha — o caminho que só a 0119 alcança.
+  "deliverable-d-kv": "ee000000-0000-0000-0000-000000000001",
+  // `subtask-i6` fica FORA de propósito: é ele o "Sem vertente".
+  // Os de fora da Biblioteca (não aprovados) ficam porque a função é do
+  // material e não desta tela: o relatório por vertente vai lê-los.
+  "post-p1": "ee000000-0000-0000-0000-000000000002",
+  "subtask-i1": "ee000000-0000-0000-0000-000000000003",
+};
+
+export async function vertenteDosMateriais(ids: {
+  subtasks: string[];
+  posts: string[];
+  entregaveis: string[];
+}): Promise<Map<string, string>> {
+  // ELE FILTRA DE VERDADE, pelos ids recebidos. Um stub que devolve o mapa
+  // inteiro passaria por uma tela que mandou a lista errada — é a lição do
+  // filtro de vertente do board, que a imagem pegou porque o stub aplicava o
+  // cliente e não a vertente.
+  const chaves = [
+    ...ids.subtasks.map((id) => `subtask-${id}`),
+    ...ids.posts.map((id) => `post-${id}`),
+    ...ids.entregaveis.map((id) => `deliverable-${id}`),
+  ];
+
+  const mapa = new Map<string, string>();
+  for (const chave of chaves) {
+    const vertente = VERTENTE_DO_MATERIAL[chave];
+    if (vertente) mapa.set(chave, vertente);
+  }
+  return mapa;
+}

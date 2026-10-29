@@ -3743,6 +3743,36 @@ export interface Database {
       pecas_programadas: { Args: { p_ids: string[] }; Returns: string[] };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
 
+      /**
+       * DE QUE VERTENTE E CADA MATERIAL do portal (migration 0119).
+       *
+       * `security definer` porque o cliente NAO enxerga `tasks` -- a vertente
+       * de uma peca de social mora na demanda do mes e a de uma peca de
+       * campanha na demanda da campanha, e `tasks_select_cliente` exige uma
+       * rodada de escopo cliente numa SUBTAREFA, que nenhuma das duas tem. E a
+       * pegadinha que a 0090 e a 0091 pagaram: um `select` em `tasks` dentro de
+       * uma consulta do cliente sempre volta vazio.
+       *
+       * **Ela recebe os IDS e nao a empresa**, pela razao de
+       * `pecas_programadas`: devolvendo tudo o que a conta tem, ela entregaria
+       * ao cliente a lista de ids de etapa, post e peca -- inclusive das que
+       * ele nao pode ver.
+       *
+       * Devolve so o material que TEM vertente: a ausencia e a resposta.
+       */
+      vertente_dos_materiais: {
+        Args: {
+          p_subtasks?: string[];
+          p_posts?: string[];
+          p_entregaveis?: string[];
+        };
+        Returns: {
+          tipo: string;
+          conteudo_id: string;
+          vertente_id: string;
+        }[];
+      };
+
       // --- O envio em lote do mes de social (migrations 0090 e 0091) -------
       //
       // `enviar_mes_ao_cliente` abre UM `social_lotes` e uma rodada de escopo

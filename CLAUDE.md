@@ -6597,6 +6597,148 @@ sem a longa, o truncamento não apareceria em imagem nenhuma. **A Óptica Visão
 não tem vertente nenhuma**, que é o estado em que o campo e o filtro não são
 desenhados — a lição da Óptica sem atendente (0062).
 
+##### E A BIBLIOTECA DO CLIENTE NAVEGA POR ELAS (0119)
+
+Decisão do usuário, item 29: *"navegação por vertente dentro da Biblioteca,
+gerada a partir das vertentes cadastradas na conta"*, com *"opção de
+visualizar todos os materiais"*, *"filtros por data, formato, campanha, status
+e vertente"* e *"preservar o acesso por cliente"*.
+
+**METADE JÁ ESTAVA PRONTA, E É POR ISSO QUE A MIGRATION É UMA FUNÇÃO.** O
+SELECT de `client_vertentes` é `is_staff() or client_id in my_client_ids()`
+desde a 0118, escrito assim com a razão registrada no cabeçalho dela — *"o
+campo da demanda é de quem abre demanda e a Biblioteca do portal é do
+cliente"*. Os CHIPS saem dali, por `vertentesDoCliente()`, sem uma linha nova.
+
+**O QUE FALTAVA ERA UMA COISA SÓ, e ela é inalcançável pelo cliente:** de que
+vertente é cada MATERIAL. A de uma peça de social mora na demanda do MÊS
+(`posts.social_task_id`) e a de uma peça de campanha na demanda da campanha
+(`campaigns.task_id`) — e `tasks_select_cliente` exige uma rodada de escopo
+CLIENTE numa SUBTAREFA da demanda, que nenhuma das duas tem: as rodadas do mês
+são dos posts e as da campanha são dos entregáveis. **Esta casa já pagou por
+isso duas vezes**, e o cabeçalho da 0091 escreve a frase: *"um `exists` em
+`tasks` dentro de uma consulta do cliente sempre dá falso"*. Um `select` aqui
+devolveria vazio, a Biblioteca abriria com todo material em "Sem vertente", e
+nada na tela diria por quê.
+
+Então `vertente_dos_materiais()` é `security definer` com a guarda escrita à
+mão, uma por frente — a forma de `o_que_o_cliente_decide()` (0076), de
+`meus_comodatos()` (0069) e de `pecas_programadas()` (0111). **E ela recebe os
+IDS, nunca a empresa:** devolvendo tudo o que a conta tem, ela entregaria ao
+cliente a lista de ids de etapa, post e peça — inclusive das que ele não pode
+ver. São TRÊS arrays porque são três espaços de id, e um array só pediria um
+array paralelo de tipos. **A ausência é a resposta**, como em
+`pecas_programadas()`: só volta o material que TEM vertente.
+
+**A LEITURA NÃO MORA EM `lib/dados/biblioteca.ts`**, que é o módulo que não
+fala com o banco de propósito — ela vai para `lib/dados/vertentes.ts`, que é
+quem já lê aquela tabela. **E ela não sai de `itensDoPortal`**, e a escolha é
+de custo: aquela função serve também a tela inicial, a fila e o cronograma, e
+nenhuma delas recorta por vertente — a chamada ali seria uma ida ao banco a
+mais em toda visita ao portal. **A chave dos dois lados é `tipo-conteudoId`**,
+que é o `id` que `ArquivoDaBiblioteca` já montava: uma segunda forma de chave
+seria o lugar onde elas divergem.
+
+**E ELA TRATA A FALHA NA MÃO**, sem `ouFalha()`: a Biblioteca funciona inteira
+sem esta resposta — ela acrescenta um recorte a material que já está todo na
+tela. É a exceção de `portaoDoPost()` e do selo de programado.
+
+###### DOS CINCO FILTROS PEDIDOS, TRÊS SÃO DESENHADOS
+
+| pedido | aqui | a razão |
+| --- | --- | --- |
+| vertente | chips | é o item |
+| data | seletor de mês | `enviadoEm` existe em todo material |
+| campanha | seletor de FRENTE | abaixo |
+| status | **não** | a Biblioteca É o que foi aprovado |
+| formato | **não** | vem com o upload (item 30) |
+
+**O STATUS seria um filtro de um valor só.** `arquivosDaBiblioteca` já recorta
+em `aprovado`, porque é isso que a tela é. Um seletor com uma opção é o
+interruptor de luz das camadas do Calendário Full.
+
+**A CAMPANHA é o `contexto`, e o seletor dela listaria três coisas
+diferentes** — a campanha na peça de campanha, as redes no post, o título da
+demanda no material de demanda. Quem busca a campanha pelo nome tem a busca,
+que já compara o contexto; quem quer o conjunto tem o seletor de **frente**,
+que é a generalização honesta e já está escrita em cada cartão.
+
+**O FORMATO espera o item 30, e a ausência é medida:** hoje o formato de um
+material é a extensão do arquivo, e metade da grade não tem arquivo nenhum —
+o post não tem por decisão escrita, e o material entregue por link do Drive
+não tem extensão. Um seletor de "PDF / JPG / MP4" num acervo em que a maioria
+cai fora de todas as opções é a aba "Site" do cronograma outra vez.
+
+###### A NAVEGAÇÃO É CHIP, e os filtros são a linha de baixo
+
+São DUAS fileiras e elas fazem trabalhos diferentes: a de cima é a navegação
+por vertente, com **"Todos os materiais"** na primeira posição; a de baixo é a
+busca, a frente e o mês. Numa fileira só, dez chips de duas dimensões se leem
+como dez chips soltos — o que a faixa do Social já pagou uma vez.
+
+**A FRENTE EM CHIPS E O MÊS EM SELETOR**, e a diferença é quantos são: a
+frente tem três valores e não cresce; o mês cresce com a conta, e vinte e
+quatro chips são a fileira de catorze pílulas que aquela faixa desfez. O
+argumento do portal contra o `<select>` é sobre escolher *"entre três
+coisas"* — ele vale para a frente e é o contrário para o mês.
+
+**E a fileira só existe para UMA empresa.** Quem responde por duas contas e
+não escolheu nenhuma no cabeçalho vê o acervo das duas, e "Institucional"
+existe nas duas com ids diferentes: a fileira listaria a mesma palavra duas
+vezes sem dizer de quem é qual — a decisão da grade do Feed. Quem responde é
+`empresaUnicaDoAcervo()`, **sem consulta nenhuma**: o próprio acervo diz.
+
+###### CADA DIMENSÃO SE CONTA COM AS OUTRAS, e nunca com ela mesma
+
+Foi a imagem que mandou: com "setembro" escolhido, a fileira continuava
+dizendo **"E-commerce 2"** sobre um acervo que mostrava um material — e clicar
+naquele 2 esvaziava a grade, porque os dois de E-commerce são de outubro. **Um
+número que o clique não cumpre é pior que número nenhum**, e é o *"filtro que
+só sabe esvaziar a tela"* com outro nome.
+
+**E isso NÃO desfaz a regra das abas de Pedidos.** Ela diz que escolher um
+filtro não pode zerar os outros, e é exatamente por isso que cada dimensão é
+contada com ela mesma de fora: escolher E-commerce não muda nenhum número da
+fileira de vertentes, então o caminho de volta continua inteiro. O que ela
+passa a respeitar é o mês e a frente, que são outra pergunta. **E o que está
+ESCOLHIDO nunca some da própria lista**, senão o seletor abriria em branco
+sobre um recorte ativo — a tela negando o que a URL diz.
+
+###### O ZERO FICA, E A APOSENTADA COM ZERO NÃO
+
+**Uma vertente ATIVA com zero diz "esta frente existe e ainda não tem
+material"**, que é informação — é a faixa de áreas de Minhas Tasks, onde o
+zero é resposta, e é por isso que os chips saem das vertentes CADASTRADAS e
+não das que têm material. **Uma aposentada com zero não diz nada:** ela não
+vai receber material nunca mais, e "Feiras e eventos (desativada) 0" ocupava
+uma linha inteira do celular para dizer isso. O único motivo de ela continuar
+na fileira é o material que ela já tem — sem o chip, ele cairia em "Sem
+vertente", que é uma afirmação falsa. Foi a imagem de 375px que mostrou.
+
+**E "Sem vertente" só aparece quando há material nele**, ao contrário dos
+chips de vertente cadastrada: um chip de frente vazia diz que a frente existe;
+um "Sem vertente" com zero diz que existe uma categoria que não existe.
+
+###### Três coisas que só a imagem pegou
+
+**A BUSCA VIRAVA UM DISCO em 375px.** Com `flex-1 min-w-0` ela dividia a linha
+com os chips de frente e a contagem, e encolhia até sobrar o ícone da lupa e
+nada mais — sem onde digitar. **Um campo que some num tamanho de tela é pior
+que um campo a menos**, porque o controle continua ali parecendo um botão. Ela
+ocupa a linha inteira até `sm`.
+
+**O ACERVO DO EXEMPLO ATRAVESSA DOIS MESES**, e passou a atravessar: com tudo
+em outubro o seletor de mês não saía em imagem nenhuma — a tela conferida
+seria a que não tem a peça nova. **E o mês da tela do protótipo é CALCULADO**,
+não literal: `hoje` ali é o dia de verdade, então um `2026-09` escrito à mão
+para de casar na virada do mês e a imagem sai igual, com o seletor em
+"Qualquer data" e nada reclamando. É a lição dos meses da NF.
+
+**E o cartão diz a FRENTE e a VERTENTE na mesma linha de cima**, separadas por
+ponto. **O nome sai da lista da conta e não de uma coluna no material:** o
+material guarda o id, e é isso que faz renomear uma vertente aparecer em toda
+tela de uma vez — o item 33 do pedido, de graça.
+
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro

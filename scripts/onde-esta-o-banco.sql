@@ -671,7 +671,14 @@ from (
     -- O relatorio por vertente sairia contando a entrega da conta errada, que
     -- e um numero plausivel.
     ('0118', 'a vertente e da conta da demanda', 'funcao',
-             'tasks_vertente_da_conta')
+             'tasks_vertente_da_conta'),
+    -- A 0119 CRIA UMA FUNCAO E NADA MAIS, e e ela o marcador: nao nasce
+    -- tabela, coluna nem gatilho. Um banco sem ela abre a Biblioteca com todo
+    -- material em "Sem vertente" e os chips filtrando para o vazio -- e nada
+    -- na tela diz por que, porque `ouFalha` nao dispara: o erro e da RPC, e a
+    -- leitura dela trata a falha na mao de proposito.
+    ('0119', 'a vertente de cada material do portal', 'funcao',
+             'vertente_dos_materiais')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

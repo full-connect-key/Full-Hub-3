@@ -177,7 +177,12 @@ const ITENS: ItemDoPortal[] = [
     cliente: "Mundo Verde",
     status: "aprovado",
     prazo: dia(-19),
-    enviadoEm: dia(-20),
+    // ELA ATRAVESSA O MES, de proposito: o seletor de mes da Biblioteca so
+    // aparece quando o acervo tem mais de um, e com tudo no mesmo mes ele nao
+    // sairia em imagem nenhuma -- a tela conferida seria a que nao tem a peca
+    // nova. E um acervo que atravessa meses e o estado normal de uma conta
+    // com um ano de trabalho.
+    enviadoEm: dia(-45),
     miniatura: null,
     caminho: "/campanhas/camp-wave/d-kv",
   },

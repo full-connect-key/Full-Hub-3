@@ -51,6 +51,17 @@ const MES_DO_SOCIAL = (() => {
   return `mes=${mes}&cliente=c0000000-0000-0000-0000-00000000000a`;
 })();
 
+// O MES DA PECA MAIS ANTIGA DA BIBLIOTECA -- `dia(-45)` no stub do portal.
+// Calculado e nao literal pela razao dos meses da NF: `hoje` no prototipo e o
+// dia de verdade, entao um `2026-09` escrito a mao para de casar na virada do
+// mes e a tela conferida passa a ser a que NAO tem a peca nova -- sem nada
+// reclamar, porque a imagem sai igual: o seletor em "Qualquer data".
+const MES_ANTIGO_DA_BIBLIOTECA = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 45);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+})();
+
 // A VIRADA entre o mes seguinte e o subsequente, para as duas telas que
 // provam que a selecao do calendario sobrevive a troca de mes. Calculada e
 // nao literal: o stub de bloqueios do Full Days e todo relativo a hoje, e um
@@ -868,10 +879,28 @@ const TELAS = [
   { nome: "16n-portal-cronograma-social", rota: "/portal/cronograma?frente=social", largura: 1280, altura: 1100 },
   { nome: "16o-portal-cronograma-375", rota: "/portal/cronograma", largura: 375, altura: 1600 },
 
-  // A BIBLIOTECA. Duas telas: a grade cheia, e a busca com um termo digitado
-  // -- sem a segunda a imagem nao prova que o campo filtra, so que ele existe.
+  // A BIBLIOTECA. QUATRO telas, e cada uma prova uma coisa que as outras nao
+  // provam:
+  //
+  //   * a grade cheia, com a fileira de vertentes em repouso -- e nela a
+  //     maioria dos seis chips sai com ZERO, que e a resposta certa para uma
+  //     frente recem-cadastrada e o que a fileira tem de dizer em vez de
+  //     esconder o chip;
+  //   * a busca com um termo digitado, senao a imagem prova que o campo existe
+  //     e nao que ele filtra;
+  //   * UMA VERTENTE ESCOLHIDA (E-commerce, que tem dois materiais): e a tela
+  //     da entrega, e e ela que pega o bug do stub que nao filtra -- o board de
+  //     tasks pagou exatamente por isso no sprint anterior, com a imagem
+  //     mostrando o chip escolhido e o board inteiro embaixo;
+  //   * e o 375px, onde a fileira QUEBRA DE LINHA: seis chips com contagem nao
+  //     cabem em 375, e o que a imagem confere e que eles descem em vez de
+  //     rolar para o lado -- a decisao da legenda do Calendario Full, que o axe
+  //     reprovou em `scrollable-region-focusable`.
   { nome: "16p-portal-biblioteca", rota: "/portal/biblioteca", largura: 1280, altura: 1200 },
   { nome: "16q-portal-biblioteca-busca", rota: "/portal/biblioteca", largura: 1280, altura: 900, digitar: { onde: 'input[aria-label="Buscar material"]', texto: "banner" } },
+  { nome: "16r-portal-biblioteca-vertente", rota: "/portal/biblioteca?vertente=ee000000-0000-0000-0000-000000000005", largura: 1280, altura: 1000 },
+  { nome: "16s-portal-biblioteca-375", rota: "/portal/biblioteca", largura: 375, altura: 1900 },
+  { nome: "16t-portal-biblioteca-mes", rota: `/portal/biblioteca?mes=${MES_ANTIGO_DA_BIBLIOTECA}`, largura: 1280, altura: 900 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
 

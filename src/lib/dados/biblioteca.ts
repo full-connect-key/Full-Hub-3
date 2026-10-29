@@ -14,6 +14,7 @@ import { arquivosDasPecas, urlsDosArquivos } from "@/lib/dados/campanhas";
 import { assinarArquivos } from "@/lib/dados/conteudo";
 import { entregasDasEtapas, itensDoPortal } from "@/lib/dados/portal";
 import { urlsDasArtes } from "@/lib/dados/posts";
+import { vertenteDosMateriais } from "@/lib/dados/vertentes";
 import type { ArquivoDaBiblioteca } from "@/lib/dominio/biblioteca";
 
 /**
@@ -54,19 +55,38 @@ export async function arquivosDaBiblioteca(
      já é um endereço: às vezes um arquivo do bucket, às vezes um link do
      Drive. `assinarArquivos` deixa passar o que começa com `http`, então as
      duas formas atravessam o mesmo caminho. */
-  const idsDeSubtarefas = aprovados
-    .filter((item) => item.tipo === "subtask")
-    .map((item) => item.conteudoId);
+  // OS IDS DE CONTEÚDO POR FRENTE. `porFrente0` é o id do material;
+  // `porFrente`, mais abaixo, é o CAMINHO da miniatura dele — dois recortes
+  // diferentes da mesma lista, e juntá-los num só daria uma função que às
+  // vezes devolve id e às vezes devolve caminho.
+  const porFrente0 = (tipo: string) =>
+    aprovados.filter((item) => item.tipo === tipo).map((item) => item.conteudoId);
+
+  const idsDeSubtarefas = porFrente0("subtask");
 
   const entregas = await entregasDasEtapas(idsDeSubtarefas);
 
-  const idsDeEntregaveis = aprovados
-    .filter((item) => item.tipo === "deliverable")
-    .map((item) => item.conteudoId);
+  const idsDeEntregaveis = porFrente0("deliverable");
 
   const pecas = await arquivosDasPecas(idsDeEntregaveis);
 
   const porEntregavel = new Map(pecas.map((p) => [p.id, p]));
+
+  /* ------------------------------------------------- a vertente de cada um --
+     UMA IDA, pelas TRÊS frentes (migration 0119). Ela não sai de
+     `itensDoPortal`, e a escolha é de custo: aquela função serve também a tela
+     inicial, a fila e o cronograma, e nenhuma delas recorta por vertente — a
+     chamada ali seria uma ida ao banco a mais em toda visita ao portal para
+     responder uma pergunta que só esta tela faz.
+
+     E ela é RPC porque **o cliente não enxerga `tasks`**: a razão inteira está
+     em `vertenteDosMateriais()`, e ela é a pegadinha que a 0090 e a 0091
+     pagaram. */
+  const vertentes = await vertenteDosMateriais({
+    subtasks: idsDeSubtarefas,
+    posts: porFrente0("post"),
+    entregaveis: idsDeEntregaveis,
+  });
 
   // AS ASSINATURAS VÃO EM BLOCO, uma ida por BUCKET — e cada caminho vai no
   // bucket dele. Mandar todos para os três resolveria igual (o que não é do
@@ -127,8 +147,13 @@ export async function arquivosDaBiblioteca(
           })()
         : null;
 
+    const id = `${item.tipo}-${item.conteudoId}`;
+
     return {
-      id: `${item.tipo}-${item.conteudoId}`,
+      id,
+      clienteId: item.clienteId,
+      // A MESMA CHAVE dos dois lados, e é ela que dispensa um segundo mapa.
+      vertenteId: vertentes.get(id) ?? null,
       frente:
         item.tipo === "post"
           ? "social"

@@ -4,48 +4,78 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, Download, FolderOpen, ImageOff } from "lucide-react";
 
-import { BuscaDaBiblioteca } from "@/components/portal/busca-da-biblioteca";
+import { FiltrosDaBiblioteca as BarraDaBiblioteca } from "@/components/portal/filtros-da-biblioteca";
 import { EmptyState } from "@/components/shared/empty-state";
 import { arquivosDaBiblioteca } from "@/lib/dados/biblioteca";
+import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import {
-  combinaComBusca,
+  combinaComFiltros,
+  empresaUnicaDoAcervo,
+  opcoesDaBiblioteca,
   type ArquivoDaBiblioteca,
+  type FiltrosDaBiblioteca,
 } from "@/lib/dominio/biblioteca";
 import { ROTULO_DA_FRENTE } from "@/lib/dominio/cronograma";
+import type { Vertente } from "@/lib/dominio/vertentes";
 
 /**
  * A BIBLIOTECA — onde o cliente pega de volta o material pronto.
  *
  * **Uma seção e nenhuma aba**, e a razão está escrita em
  * `lib/dominio/biblioteca.ts`: das cinco abas do roteiro, quatro não têm
- * tabela, bucket nem tela de upload por trás.
+ * tabela, bucket nem tela de upload por trás. O que entrou no lugar é a
+ * **navegação por vertente** (item 29, migration 0119), que é a fileira de
+ * chips com "Todos os materiais" na primeira posição.
  *
- * **A busca mora na URL**, como todo filtro de listagem do produto: "manda o
+ * **Tudo mora na URL**, como todo filtro de listagem do produto: "manda o
  * link do KV" precisa ser um link.
  */
 export async function BibliotecaDoPortal({
   base,
   clienteId,
-  busca,
+  filtros,
 }: {
   base: string;
   clienteId: string | null;
-  busca: string;
+  filtros: FiltrosDaBiblioteca;
 }) {
   const todos = await arquivosDaBiblioteca(base, clienteId ?? undefined);
+
+  /* ------------------------------------------------- de quem é este acervo --
+     A FILEIRA DE VERTENTES SÓ EXISTE PARA UMA EMPRESA, e quem responde é o
+     próprio acervo: `empresaUnicaDoAcervo()`. Nenhuma consulta a mais para
+     descobrir isso — quem responde por duas contas e não escolheu nenhuma no
+     cabeçalho vê o material das duas, e "Institucional" existe nas duas com
+     ids diferentes.
+
+     **Ela sai de `clienteId` só quando ele vem**, que é a visualização
+     administrativa; no portal do cliente ele é nulo na maioria das visitas, e
+     aí é o acervo que diz. Perguntar `obterMinhasEmpresas()` daria a mesma
+     resposta e uma ida ao banco a mais. */
+  const empresa = empresaUnicaDoAcervo(todos);
+  const vertentes: Vertente[] = empresa
+    ? await vertentesDoCliente(empresa)
+    : [];
+
   const encontrados = todos.filter((arquivo) =>
-    combinaComBusca(arquivo, busca),
+    combinaComFiltros(arquivo, filtros),
   );
+
+  // CADA DIMENSÃO CONTADA COM AS OUTRAS APLICADAS, nunca com ela mesma — a
+  // razão inteira está em `opcoesDaBiblioteca()`, e ela veio da imagem: a
+  // fileira prometia "E-commerce 2" num mês que tem um material.
+  const opcoes = opcoesDaBiblioteca(todos, filtros);
 
   return (
     <div className="space-y-5">
-      <BuscaDaBiblioteca
-        busca={busca}
-        // A CONTAGEM É A DO RECORTE, e não a do acervo inteiro: ela está ao
-        // lado do campo que acabou de produzi-la, e um número que não muda
-        // quando se digita é um número sobre outra coisa.
+      <BarraDaBiblioteca
+        filtros={filtros}
         encontrados={encontrados.length}
         temAlgum={todos.length > 0}
+        vertentes={vertentes}
+        porVertente={opcoes.porVertente}
+        frentes={opcoes.frentes}
+        meses={opcoes.meses}
       />
 
       {todos.length === 0 ? (
@@ -57,10 +87,14 @@ export async function BibliotecaDoPortal({
         />
       ) : encontrados.length === 0 ? (
         /* O VAZIO DO RECORTE TEM FRASE PRÓPRIA. Repetir "nada aprovado ainda"
-           para quem acabou de digitar três letras seria a tela afirmando que
-           o acervo está vazio quando ela só não achou aquela palavra. */
+           para quem acabou de escolher uma vertente seria a tela afirmando que
+           o acervo está vazio quando ela só não achou nada NAQUELE recorte.
+
+           **E ela não nomeia o que foi escolhido**, de propósito: com quatro
+           controles a frase teria de dizer qual dos quatro esvaziou a grade —
+           e os quatro estão à vista, logo acima, com o "Limpar" ao lado. */
         <p className="text-text-muted rounded-card border border-dashed p-4 text-sm">
-          Nenhum material com esse nome.
+          Nenhum material neste recorte.
         </p>
       ) : (
         /* TRÊS COLUNAS, como o roteiro pede, e duas em tela média: num
@@ -68,7 +102,7 @@ export async function BibliotecaDoPortal({
            340px cabem com folga. Em 375px vira uma. */
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {encontrados.map((arquivo) => (
-            <Cartao key={arquivo.id} arquivo={arquivo} />
+            <Cartao key={arquivo.id} arquivo={arquivo} vertentes={vertentes} />
           ))}
         </ul>
       )}
@@ -76,7 +110,20 @@ export async function BibliotecaDoPortal({
   );
 }
 
-function Cartao({ arquivo }: { arquivo: ArquivoDaBiblioteca }) {
+function Cartao({
+  arquivo,
+  vertentes,
+}: {
+  arquivo: ArquivoDaBiblioteca;
+  vertentes: Vertente[];
+}) {
+  // O NOME DA VERTENTE SAI DA LISTA DA CONTA, não de uma coluna no material: o
+  // material guarda o id, e é isso que faz renomear uma vertente aparecer em
+  // toda tela de uma vez — o item 33 do pedido, de graça.
+  const vertente = arquivo.vertenteId
+    ? vertentes.find((v) => v.id === arquivo.vertenteId)
+    : null;
+
   return (
     <li className="bg-surface-card rounded-card shadow-cartao flex flex-col overflow-hidden border">
       {/* A MINIATURA TEM ALTURA RESERVADA mesmo sem imagem, e o vão é uma
@@ -100,8 +147,22 @@ function Cartao({ arquivo }: { arquivo: ArquivoDaBiblioteca }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3.5">
+        {/* A FRENTE E A VERTENTE NA MESMA LINHA DE CIMA, separadas por ponto:
+            as duas situam o material e nenhuma delas é o material. O ponto é o
+            separador que a lista do Social Media já usa, e sem ele "Campanhas
+            Institucional" se lê como uma coisa só.
+
+            **A vertente SOME quando não há**, e não vira "Sem vertente" aqui:
+            o cartão não é o lugar de afirmar uma ausência — quem a afirma é o
+            chip, que existe só quando há material nele. */}
         <p className="text-text-muted text-[11px] font-semibold tracking-wide uppercase">
           {ROTULO_DA_FRENTE[arquivo.frente]}
+          {vertente ? (
+            <>
+              {" · "}
+              <span className="normal-case">{vertente.nome}</span>
+            </>
+          ) : null}
         </p>
         <p className="text-sm leading-snug font-semibold">{arquivo.titulo}</p>
         {/* O CONTEXTO SOME QUANDO ELE REPETE O TÍTULO. A demanda de um

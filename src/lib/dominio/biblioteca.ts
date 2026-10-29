@@ -1,4 +1,8 @@
-import type { FrenteDoCronograma } from "@/lib/dominio/cronograma";
+import {
+  ehFrenteDoCronograma,
+  FRENTES_DO_CRONOGRAMA,
+  type FrenteDoCronograma,
+} from "@/lib/dominio/cronograma";
 
 /**
  * A BIBLIOTECA — onde o cliente pega de volta o material pronto.
@@ -18,11 +22,73 @@ import type { FrenteDoCronograma } from "@/lib/dominio/cronograma";
  * **O que falta é decisão de quem usa, não de quem escreve:** subir arquivo de
  * marca, cronograma em PDF e relatório é módulo novo na agência, com migration
  * própria. No dia em que existir, a aba entra aqui.
+ *
+ * ---------------------------------------------------------------------------
+ * **A NAVEGAÇÃO POR VERTENTE é o que entrou no lugar** (item 29 do pedido, e a
+ * migration 0119). Ela é a fileira de chips, gerada das vertentes CADASTRADAS
+ * na conta — e não das que têm material: uma frente recém-criada aparece
+ * vazia, que é a resposta, e um chip que só nasce quando há material esconde
+ * justamente a frente que ninguém abasteceu.
+ *
+ * **E ela não é aba, pela mesma regra.** Uma aba troca de conteúdo; aqui o
+ * conteúdo é o mesmo acervo recortado, e o chip "Todos os materiais" é a
+ * primeira posição dela — a *"opção de visualizar todos"* que o pedido nomeia.
+ * ---------------------------------------------------------------------------
+ * **DOS CINCO FILTROS PEDIDOS, TRÊS SÃO DESENHADOS. O que fica de fora e por
+ * quê:**
+ *
+ * | pedido | aqui | a razão |
+ * | --- | --- | --- |
+ * | vertente | chips | é o item |
+ * | data | seletor de mês | `enviadoEm` existe em todo material |
+ * | campanha | seletor de FRENTE | ver abaixo |
+ * | status | **não** | a Biblioteca É o que foi aprovado |
+ * | formato | **não** | vem com o upload (item 30) |
+ *
+ * **O STATUS seria um filtro de um valor só.** `arquivosDaBiblioteca` já
+ * recorta em `aprovado`, porque é isso que a tela é: o que o cliente pode pegar
+ * de volta. Um seletor com uma opção é o interruptor de luz das camadas do
+ * Calendário Full.
+ *
+ * **A CAMPANHA é o `contexto`, e o seletor dela listaria três coisas
+ * diferentes.** Aquele campo é a campanha na peça de campanha, as redes no
+ * post e o título da demanda no material de demanda — uma lista com os três
+ * misturados não é um recorte, é um despejo. Quem busca a campanha pelo nome
+ * tem a busca, que já compara o contexto; quem quer o conjunto tem o seletor de
+ * **frente**, que é a generalização honesta e já está escrita em cada cartão.
+ *
+ * **O FORMATO espera o item 30, e a ausência é medida.** Hoje o formato de um
+ * material é a extensão do arquivo dele — e metade da grade não tem arquivo
+ * nenhum: o post não tem por decisão escrita, e o material de demanda entregue
+ * por link do Drive não tem extensão. Um seletor de "PDF / JPG / MP4" num
+ * acervo em que a maioria cai fora de todas as opções é a aba "Site" do
+ * cronograma outra vez. Com o upload declarando o tipo, o filtro passa a ter o
+ * que filtrar.
  * ---------------------------------------------------------------------------
  */
 export type ArquivoDaBiblioteca = {
+  /** `tipo-conteudoId` — a MESMA chave que `vertenteDosMateriais()` devolve. */
   id: string;
   frente: FrenteDoCronograma;
+  /**
+   * A empresa do material.
+   *
+   * **Ela existe para decidir se a fileira de vertentes aparece.** Quem
+   * responde por duas contas e não escolheu nenhuma no cabeçalho vê o acervo
+   * das duas, e "Institucional" existe nas duas com ids diferentes: a fileira
+   * listaria a mesma palavra duas vezes sem dizer de quem é qual. É a decisão
+   * da grade do Feed, que é de uma rede só e nunca escolhida em silêncio.
+   */
+  clienteId: string;
+  /**
+   * A vertente, quando a demanda dele tem uma (migration 0119).
+   *
+   * **Nula quer dizer "sem vertente", e é um estado normal:** a reunião mensal
+   * e o relatório da conta não pertencem a nenhuma frente, e a conta que não
+   * cadastrou vertente nenhuma tem tudo assim. O chip "Sem vertente" só
+   * aparece quando existe material nele.
+   */
+  vertenteId: string | null;
   titulo: string;
   /** A campanha, a demanda, as redes. */
   contexto: string | null;
@@ -69,4 +135,162 @@ function semAcento(texto: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
+}
+
+/** O chip de quem não tem vertente. Não é id de nada — ver `SEM_VERTENTE`. */
+export const SEM_VERTENTE = "sem-vertente";
+
+export type FiltrosDaBiblioteca = {
+  busca: string;
+  /** O id da vertente, `SEM_VERTENTE`, ou `null` para todos os materiais. */
+  vertente: string | null;
+  frente: FrenteDoCronograma | null;
+  /** `YYYY-MM`, ou `null` para qualquer data. */
+  mes: string | null;
+};
+
+/**
+ * O recorte inteiro, num lugar só.
+ *
+ * **Os quatro juntos e não quatro `filter` em sequência**, pela razão do
+ * contador: a tela conta o resultado DESTA função, e quatro passagens em
+ * lugares diferentes seriam quatro lugares onde a contagem e a grade podem
+ * discordar — o cartão de "11 entregues" com sete na lista embaixo.
+ */
+export function combinaComFiltros(
+  arquivo: ArquivoDaBiblioteca,
+  filtros: FiltrosDaBiblioteca,
+): boolean {
+  if (!combinaComBusca(arquivo, filtros.busca)) return false;
+
+  if (filtros.vertente === SEM_VERTENTE) {
+    if (arquivo.vertenteId !== null) return false;
+  } else if (filtros.vertente && arquivo.vertenteId !== filtros.vertente) {
+    return false;
+  }
+
+  if (filtros.frente && arquivo.frente !== filtros.frente) return false;
+
+  // MATERIAL SEM DATA DE ENVIO SAI DE QUALQUER MÊS ESCOLHIDO, e é dito em vez
+  // de escondido: não há de onde tirar o mês dele. Deixá-lo passar em todos
+  // seria um recorte que deixa passar o que ele não sabe classificar — pior
+  // que um recorte a menos, porque a pessoa confere a tela e não tem como
+  // saber que aquela linha não foi filtrada.
+  if (filtros.mes && mesDoArquivo(arquivo) !== filtros.mes) return false;
+
+  return true;
+}
+
+/** `YYYY-MM` do envio, ou `null` quando ele não tem data. */
+export function mesDoArquivo(arquivo: ArquivoDaBiblioteca): string | null {
+  return arquivo.enviadoEm ? arquivo.enviadoEm.slice(0, 7) : null;
+}
+
+/**
+ * AS OPÇÕES DE CADA CONTROLE, e quantos materiais cada uma leva.
+ *
+ * ---------------------------------------------------------------------------
+ * **Cada dimensão se conta com as OUTRAS aplicadas, e nunca com ela mesma.**
+ * Foi a imagem que mandou: com "setembro" escolhido, a fileira continuava
+ * dizendo "E-commerce 2" sobre um acervo que mostrava um material — e clicar
+ * naquele 2 esvaziava a grade, porque os dois de E-commerce são de outubro.
+ * **Um número que o clique não cumpre é pior que número nenhum**, e é o
+ * "filtro que só sabe esvaziar a tela" com outro nome.
+ *
+ * **E isso NÃO desfaz a regra das abas de Pedidos** — ela diz que escolher um
+ * filtro não pode zerar os outros, e é por isso que cada dimensão é contada
+ * com ela mesma de fora: escolher E-commerce não muda nenhum número da
+ * fileira de vertentes, então o caminho de volta continua inteiro. O que ela
+ * passa a respeitar é o mês e a frente, que são outra pergunta.
+ *
+ * **E o que está ESCOLHIDO nunca some da própria lista.** Escolhendo uma
+ * vertente que o mês não tem, a opção do mês desapareceria da lista dele e o
+ * seletor abriria em branco sobre um recorte ativo — a tela negando o que a
+ * URL diz.
+ * ---------------------------------------------------------------------------
+ */
+export function opcoesDaBiblioteca(
+  arquivos: ArquivoDaBiblioteca[],
+  filtros: FiltrosDaBiblioteca,
+): {
+  porVertente: Record<string, number>;
+  frentes: FrenteDoCronograma[];
+  meses: string[];
+} {
+  const semA = (dimensao: keyof FiltrosDaBiblioteca) =>
+    arquivos.filter((a) =>
+      combinaComFiltros(a, { ...filtros, [dimensao]: null }),
+    );
+
+  const paraVertente = semA("vertente");
+  const porVertente: Record<string, number> = {};
+  for (const a of paraVertente) {
+    const chave = a.vertenteId ?? SEM_VERTENTE;
+    porVertente[chave] = (porVertente[chave] ?? 0) + 1;
+  }
+
+  const comFrente = new Set(semA("frente").map((a) => a.frente));
+  if (filtros.frente) comFrente.add(filtros.frente);
+
+  const comMes = new Set<string>();
+  for (const a of semA("mes")) {
+    const mes = mesDoArquivo(a);
+    if (mes) comMes.add(mes);
+  }
+  if (filtros.mes) comMes.add(filtros.mes);
+
+  return {
+    porVertente,
+    frentes: FRENTES_DO_CRONOGRAMA.filter((f) => comFrente.has(f)),
+    // Do mais novo para o mais antigo, e só os que TÊM material: um seletor
+    // com onze meses vazios é a aba que nunca tem nada dentro.
+    meses: [...comMes].sort().reverse(),
+  };
+}
+
+/**
+ * A empresa do acervo, quando é UMA.
+ *
+ * `null` quando o acervo mistura duas contas — e aí a fileira de vertentes não
+ * é desenhada, pela razão escrita em `ArquivoDaBiblioteca.clienteId`.
+ */
+export function empresaUnicaDoAcervo(
+  arquivos: ArquivoDaBiblioteca[],
+): string | null {
+  const empresas = new Set(arquivos.map((a) => a.clienteId));
+  return empresas.size === 1 ? [...empresas][0] : null;
+}
+
+/**
+ * OS FILTROS A PARTIR DA URL, num lugar só.
+ *
+ * **As duas páginas chamam esta função**, e não cada uma lê os quatro
+ * parâmetros por conta própria: são as duas entradas da MESMA tela — o portal
+ * do cliente e a visualização administrativa —, e a que divergisse seria a da
+ * equipe, que quase ninguém abre.
+ *
+ * **Valor torto vira nulo**, como `ehFaseDoMaterial` já faz com a fase e
+ * `PLATAFORMAS` com a rede: um `?frente=site` de um link antigo abre a tela
+ * inteira em vez de uma grade vazia explicando nada.
+ */
+export function lerFiltrosDaBiblioteca(params: {
+  [chave: string]: string | string[] | undefined;
+}): FiltrosDaBiblioteca {
+  const texto = (chave: string): string | null => {
+    const valor = params[chave];
+    return typeof valor === "string" && valor.trim() ? valor : null;
+  };
+
+  const frente = texto("frente");
+  const mes = texto("mes");
+
+  return {
+    busca: texto("busca") ?? "",
+    vertente: texto("vertente"),
+    frente: ehFrenteDoCronograma(frente) ? frente : null,
+    // `YYYY-MM` e nada mais: sem a forma conferida, um `?mes=outubro` sai da
+    // comparação como um mês que nenhum material tem — uma grade vazia que a
+    // pessoa não tem como explicar.
+    mes: mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(mes) ? mes : null,
+  };
 }

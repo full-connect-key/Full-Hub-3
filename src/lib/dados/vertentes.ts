@@ -81,3 +81,55 @@ export async function vertentesDasContas(
   }
   return mapa;
 }
+
+/**
+ * DE QUE VERTENTE É CADA MATERIAL do portal (migration 0119).
+ *
+ * ---------------------------------------------------------------------------
+ * **É RPC e não um `select`, e a razão é mecânica.** A vertente de uma peça de
+ * social mora na demanda do MÊS (`posts.social_task_id` → `tasks.vertente_id`)
+ * e a de uma peça de campanha na demanda da campanha (`campaigns.task_id`) —
+ * e **o cliente não enxerga `tasks`**: `tasks_select_cliente` exige uma rodada
+ * de escopo cliente numa SUBTAREFA da demanda, e nenhuma das duas tem.
+ *
+ * Esta casa já pagou por isso duas vezes, e o cabeçalho da 0091 escreve a
+ * frase: *"um `exists` em `tasks` dentro de uma consulta do cliente sempre dá
+ * falso"*. Um `select` aqui devolveria vazio para ele, a Biblioteca abriria com
+ * todo material em "Sem vertente", e nada na tela diria por quê.
+ *
+ * **A chave do mapa é `tipo-conteudoId`**, que é exatamente o `id` que
+ * `ArquivoDaBiblioteca` já monta. Uma segunda forma de chave seria o lugar onde
+ * as duas divergem.
+ *
+ * **E ela trata a falha na mão**, sem `ouFalha()`: a Biblioteca funciona
+ * inteira sem esta resposta — ela acrescenta um recorte a material que já está
+ * todo na tela. É a exceção de `portaoDoPost()` e do selo de programado, e o
+ * erro vai para o log: um recorte que parasse de chegar a todos os clientes
+ * seria descoberto por alguém perguntando à agência.
+ * ---------------------------------------------------------------------------
+ */
+export async function vertenteDosMateriais(ids: {
+  subtasks: string[];
+  posts: string[];
+  entregaveis: string[];
+}): Promise<Map<string, string>> {
+  const vazio =
+    ids.subtasks.length === 0 &&
+    ids.posts.length === 0 &&
+    ids.entregaveis.length === 0;
+  if (vazio) return new Map();
+
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("vertente_dos_materiais", {
+    p_subtasks: ids.subtasks,
+    p_posts: ids.posts,
+    p_entregaveis: ids.entregaveis,
+  });
+
+  if (error) {
+    console.error("[vertente dos materiais]", error);
+    return new Map();
+  }
+
+  return new Map((data ?? []).map((l) => [`${l.tipo}-${l.conteudo_id}`, l.vertente_id]));
+}
