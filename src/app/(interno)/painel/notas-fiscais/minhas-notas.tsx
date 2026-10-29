@@ -347,13 +347,30 @@ export function MinhasNotas({
                   </Button>
                 ) : null}
 
-                {/* APAGAR SÓ ENQUANTO NINGUÉM CONFERIU, e o botão some depois:
-                    o banco recusa de qualquer jeito, e oferecer o que ele
-                    recusa ensina a desconfiar do botão. */}
-                {nota.status === "enviada" ? (
+                {/* APAGAR ATÉ SER PAGA, e o botão some depois — decisão do
+                    usuário: "permitir que o usuário que enviou uma NF possa
+                    excluí-la, apenas enquanto a NF não estiver como 'Paga'".
+
+                    O botão SOME em vez de aparecer desligado, que é a regra
+                    da casa para uma porta que fechou: a nota paga virou
+                    despesa no Financeiro, e isso não é um passo que falta.
+                    E ele some pela MESMA pergunta que a policy faz — o banco
+                    recusa de qualquer jeito, e oferecer o que ele recusa
+                    ensina a desconfiar do botão.
+
+                    A DESCRIÇÃO MUDA NA RECUSADA, porque o que se perde é
+                    outro: ali a linha carrega o motivo que o sócio escreveu,
+                    e apagá-la leva a frase que explica por que a nota
+                    voltou. "Substituir", logo acima, é o caminho que guarda
+                    as duas. */}
+                {nota.status !== "paga" ? (
                   <ConfirmDialog
                     title="Apagar esta nota?"
-                    description={`A nota de ${mesPorExtenso(nota.competencia)} sai daqui e você pode enviar outra para o mesmo mês.`}
+                    description={
+                      nota.status === "recusada"
+                        ? `A nota recusada de ${mesPorExtenso(nota.competencia)} sai daqui, e o motivo que o sócio escreveu vai com ela. Para corrigir sem perder o motivo, use Substituir.`
+                        : `A nota de ${mesPorExtenso(nota.competencia)} sai daqui e você pode enviar outra para o mesmo mês.`
+                    }
                     confirmLabel="Apagar"
                     destructive
                     onConfirm={async () => {

@@ -32,8 +32,9 @@ achatada era uma imagem não quadrada dentro de uma caixa quadrada sem
 tarjas cinzas no topo e no pé são a régua: elas desaparecem no recorte certo e
 aparecem esticadas se alguém tirar o `object-cover`.
 
-**E ela não vai para todo mundo.** Duas pessoas a têm e o resto continua nulo:
-com todas, a imagem provaria que a foto aparece e não que o círculo **escolhe**
-entre foto e iniciais — é a razão pela qual o exemplo do calendário tem um
+**E ela não vai para todo mundo.** A Ana a tem — como persona logada e na
+lista de Equipe —, o Diego é a persona SEM foto, e as outras sete da equipe
+continuam nulas. Com todas de cara cheia, a imagem provaria que a foto aparece
+e não que o círculo **escolhe** entre foto e iniciais — é a razão pela qual o exemplo do calendário tem um
 evento de cada par da legenda, e a de só uma das duas peças aprovadas do social
 estar programada.

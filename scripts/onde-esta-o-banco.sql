@@ -654,7 +654,15 @@ from (
     -- banco em que a tela ja nao recusa e a funcao do saldo ainda devolve
     -- oito colunas: o `select` da tela pede seis e leva um erro de forma.
     ('0116', 'parcelas_concedidas() APAGADA', 'sem_funcao',
-             'parcelas_concedidas')
+             'parcelas_concedidas'),
+    -- A 0117 muda UMA policy e mais nada, entao o marcador e o CORPO dela:
+    -- `team_invoices_delete` existe desde a 0065, com `status = 'enviada'`
+    -- dentro. Perguntar "a policy existe?" responderia ok num banco que
+    -- nunca viu esta migration -- e o sintoma de um banco parado e o mesmo
+    -- de sempre: a tela oferece apagar a nota aprovada, a pessoa clica, e o
+    -- banco recusa sem dizer por que.
+    ('0117', 'a nota se apaga ate ser paga', 'policy',
+             'team_invoices|team_invoices_delete|paga')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -29,7 +29,20 @@ function roleDoAmbiente(): UserRole {
   return pedido && PERFIS_VALIDOS.includes(pedido) ? pedido : "socio";
 }
 
-const NOMES: Record<string, { id: string; nome: string; email: string }> = {
+/**
+ * `avatar_url` É OPCIONAL AQUI, e a razão é o outro ramo do círculo.
+ *
+ * `profileDaEquipe()` espalha o `PROFILE_EQUIPE` por cima, e ele tem foto —
+ * então, sem uma linha explícita, TODA persona logada aparece com o retrato e
+ * nenhuma das cento e cinquenta imagens mostra a pessoa sem foto no canto da
+ * topbar. É o mesmo furo que fez o avatar da topbar passar doze sprints sem
+ * `AvatarImage`, de cabeça para baixo: o exemplo mostrando o produto num
+ * estado só.
+ */
+const NOMES: Record<
+  string,
+  { id: string; nome: string; email: string; avatar_url?: string | null }
+> = {
   socio: {
     id: "a0000000-0000-0000-0000-000000000001",
     nome: "Ana Souza",
@@ -39,6 +52,11 @@ const NOMES: Record<string, { id: string; nome: string; email: string }> = {
     id: "a0000000-0000-0000-0000-000000000002",
     nome: "Diego Reis",
     email: "dev@fullconnectkey.com.br",
+    // O DIEGO É QUEM NÃO TEM FOTO, e é por isso que ele é o único com a linha
+    // escrita: as imagens do desenvolvedor são as que mostram as iniciais no
+    // disco da topbar e no pé da barra lateral. Com todas as personas de cara
+    // cheia, a imagem provaria que a foto aparece e não que o círculo ESCOLHE.
+    avatar_url: null,
   },
   colaborador: {
     id: "a0000000-0000-0000-0000-000000000003",

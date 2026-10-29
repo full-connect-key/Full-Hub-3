@@ -180,7 +180,21 @@ export async function decidirNota(dados: unknown): Promise<Resultado> {
   });
 }
 
-/** Apagar a nota que ainda ninguém conferiu — só a própria pessoa. */
+/**
+ * Apagar a própria nota, enquanto ela não foi paga.
+ *
+ * **A TRAVA É A POLICY, e esta função não repete a pergunta.** Quem recusa é
+ * `team_invoices_delete` (0117): `auth.uid() = user_id and status <> 'paga'`.
+ * Um `if` aqui seria a mesma regra em dois lados — a classe de furo que a
+ * 0029 e a 0060 pagaram, as duas vezes em que desfazer um lado não desfez
+ * nada. O `.select("id")` é o que transforma a recusa silenciosa do RLS numa
+ * frase: sem linha de volta, foi recusa.
+ *
+ * **O corte em `paga` é onde o dinheiro entra:** `nota_paga_vira_despesa()`
+ * grava em `finance_entries` naquela transição, e a chave estrangeira mora
+ * do lado da nota — apagar uma nota paga deixaria a despesa sozinha no
+ * Financeiro. A razão inteira está no cabeçalho da 0117.
+ */
 export async function apagarNota(id: string): Promise<Resultado> {
   return executarAcao("apagarNota", async () => {
     await exigirEquipeNaAcao();
@@ -194,7 +208,7 @@ export async function apagarNota(id: string): Promise<Resultado> {
 
     if (error) return falha(`Não foi possível apagar: ${error.message}`);
     if (!data || data.length === 0) {
-      return falha("Só dá para apagar a sua própria nota, e enquanto ela ainda não foi conferida.");
+      return falha("Só dá para apagar a sua própria nota, e enquanto ela não tiver sido paga.");
     }
 
     revalidatePath(ROTA);
