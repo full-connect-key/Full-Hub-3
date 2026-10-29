@@ -102,6 +102,7 @@ export default async function LayoutDoMeuPortal({
       <CascaDoPortal
         nome={sessao.profile.nome}
         email={sessao.email}
+        avatarUrl={sessao.profile.avatar_url}
         nomeDaEmpresa={nomeDaEmpresa || null}
         fotoDaEmpresa={identidade?.fotoAssinada ?? null}
         empresas={empresas}

@@ -45,6 +45,7 @@ export function CascaDoPortal({
   nome,
   email,
   nomeDaEmpresa,
+  avatarUrl = null,
   empresas = [],
   empresaSelecionada = null,
   ajuda,
@@ -58,6 +59,8 @@ export function CascaDoPortal({
   nome: string;
   email: string;
   nomeDaEmpresa: string | null;
+  /** A foto de quem está logado. Nulo cai nas iniciais. */
+  avatarUrl?: string | null;
   /** Quando há mais de uma, o cabeçalho ganha o seletor no lugar do nome. */
   empresas?: { id: string; nome_empresa: string }[];
   empresaSelecionada?: string | null;
@@ -98,6 +101,7 @@ export function CascaDoPortal({
           base={base}
           nome={nome}
           nomeDaEmpresa={nomeDaEmpresa}
+          avatarUrl={avatarUrl}
           aprovacoesPendentes={aprovacoesPendentes}
         />
 
@@ -112,6 +116,7 @@ export function CascaDoPortal({
               base={base}
               nome={nome}
               nomeDaEmpresa={nomeDaEmpresa}
+              avatarUrl={avatarUrl}
               aprovacoesPendentes={aprovacoesPendentes}
             />
 
@@ -147,6 +152,7 @@ export function CascaDoPortal({
               <MenuDoCliente
                 nome={nome}
                 email={email}
+                avatarUrl={avatarUrl}
                 hrefDosDados={hrefDosDados}
               />
             </div>

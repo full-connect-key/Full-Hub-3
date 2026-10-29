@@ -6,8 +6,7 @@ import { useTheme } from "next-themes";
 import { startTransition } from "react";
 import { LogOut, Moon, Sun, UserRound } from "lucide-react";
 
-import { iniciaisDe } from "@/components/shared/user-avatar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,10 +29,26 @@ import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 export function MenuDoCliente({
   nome,
   email,
+  avatarUrl = null,
   hrefDosDados = "/portal/configuracoes",
 }: {
   nome: string;
   email: string;
+  /**
+   * A foto de quem está logado.
+   *
+   * **QUEM ELA SERVE HOJE É A VISUALIZAÇÃO ADMINISTRATIVA**, e isso fica dito
+   * em vez de escondido: em `/portal/{slug}` quem está logado é da equipe, com
+   * a foto que ela subiu em Meu Perfil. Na sessão do CLIENTE ela cai nas
+   * iniciais quase sempre, porque o portal não tem onde subir foto de pessoa —
+   * o que ele tem é o logo da EMPRESA, que é outro campo e aparece no
+   * cabeçalho.
+   *
+   * Ela entra assim mesmo porque o custo é uma propriedade e o caminho é o
+   * mesmo: no dia em que o cliente ganhar onde subir a dele, não há segundo
+   * lugar para lembrar.
+   */
+  avatarUrl?: string | null;
   hrefDosDados?: string;
 }) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -52,11 +67,10 @@ export function MenuDoCliente({
           aria-label="Menu do usuário"
           {...ancora(ANCORAS.portalConfiguracoes)}
         >
-          <Avatar className="size-8">
-            <AvatarFallback className="text-xs font-medium">
-              {iniciaisDe(nome)}
-            </AvatarFallback>
-          </Avatar>
+          {/* `UserAvatar` com `tooltip={false}`: o círculo mora dentro deste
+              botão, e o `TooltipTrigger` do Radix dentro de um `<button>` é
+              `nested-interactive`. A razão inteira está em `user-avatar.tsx`. */}
+          <UserAvatar name={nome} src={avatarUrl} size="md" tooltip={false} />
         </Button>
       </DropdownMenuTrigger>
 

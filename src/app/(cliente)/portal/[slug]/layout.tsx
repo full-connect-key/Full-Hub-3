@@ -28,6 +28,7 @@ export default async function LayoutDaVisualizacao({
     <CascaDoPortal
       nome={profile.nome}
       email={email}
+      avatarUrl={profile.avatar_url}
       nomeDaEmpresa={cliente.nome_empresa}
       fotoDaEmpresa={identidade?.fotoAssinada ?? null}
       base={`/portal/${slug}`}

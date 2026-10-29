@@ -169,6 +169,7 @@ export default async function LayoutDoPainel({
                 nome={profile.nome}
                 email={email}
                 role={profile.role}
+                avatarUrl={profile.avatar_url}
                 hrefDoPerfil="/painel/perfil"
               />
             </div>

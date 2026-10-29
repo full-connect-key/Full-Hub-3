@@ -40,11 +40,13 @@ export function GavetaDoPortal({
   base = "/portal",
   nome,
   nomeDaEmpresa,
+  avatarUrl = null,
   aprovacoesPendentes = 0,
 }: {
   base?: string;
   nome: string;
   nomeDaEmpresa: string | null;
+  avatarUrl?: string | null;
   aprovacoesPendentes?: number;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -83,7 +85,11 @@ export function GavetaDoPortal({
           />
         </div>
 
-        <CartaoDeQuemEntrou nome={nome} nomeDaEmpresa={nomeDaEmpresa} />
+        <CartaoDeQuemEntrou
+          nome={nome}
+          nomeDaEmpresa={nomeDaEmpresa}
+          avatarUrl={avatarUrl}
+        />
       </SheetContent>
     </Sheet>
   );

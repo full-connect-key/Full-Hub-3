@@ -16,3 +16,24 @@ produção, é bug.
 a **capa da campanha** (0050), que é uma faixa. Uma quadrada ali entraria em
 `object-cover` e mostraria só a tira do meio — o protótipo pareceria um
 recorte errado, e o que se quer ver na imagem é o desenho do cartão.
+
+`retrato-1.svg` é a quinta, e ela existe por uma razão diferente das outras
+quatro: **todo `avatar_url` do protótipo era nulo**, nos oito exemplos de
+`dados-exemplo.ts` e nos cinco de `calendario.ts`. Quer dizer que as cento e
+cinquenta imagens mostravam o produto no único estado em que ninguém da
+agência tem foto — e foi isso que deixou o avatar da topbar do painel doze
+sprints sem `AvatarImage` nenhum, sem nada reclamando. É a lição da Óptica
+Visão sem atendente (0062) e da pessoa desligada (0069).
+
+**Ela é 3 por 4, de propósito, e isso é o que ela prova.** O bug da foto
+achatada era uma imagem não quadrada dentro de uma caixa quadrada sem
+`object-fit` — uma foto quadrada no exemplo passaria com e sem o
+`object-cover object-center` de `AvatarImage`, então não mediria nada. As duas
+tarjas cinzas no topo e no pé são a régua: elas desaparecem no recorte certo e
+aparecem esticadas se alguém tirar o `object-cover`.
+
+**E ela não vai para todo mundo.** Duas pessoas a têm e o resto continua nulo:
+com todas, a imagem provaria que a foto aparece e não que o círculo **escolhe**
+entre foto e iniciais — é a razão pela qual o exemplo do calendário tem um
+evento de cada par da legenda, e a de só uma das duas peças aprovadas do social
+estar programada.

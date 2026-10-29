@@ -14,7 +14,15 @@ export const PROFILE_EQUIPE: Profile = {
   email: "ana@fullconnectkey.com.br",
   nome: "Ana Souza",
   role: "socio",
-  avatar_url: null,
+  // A FOTO NÃO É ENFEITE DO EXEMPLO: ela é quem está logada em quase toda
+  // imagem do painel, então é o avatar dela que aparece na topbar, no pé da
+  // barra lateral e na pilha. Com `null` aqui, as cento e cinquenta imagens
+  // saem com iniciais e nenhuma delas confere a foto — que é exatamente como
+  // o avatar da topbar passou doze sprints sem `AvatarImage`.
+  //
+  // O arquivo é 3 por 4 de propósito; a razão está em
+  // `public/exemplos/LEIA-ME.md`.
+  avatar_url: "/exemplos/retrato-1.svg",
   ativo: true,
   deve_trocar_senha: false,
   created_at: "2026-01-15T10:00:00.000Z",
@@ -48,7 +56,12 @@ export const EQUIPE_EXEMPLO = [
     email: "socia@fullconnectkey.com.br",
     nome: "Ana Souza",
     role: "socio" as const,
-    avatar_url: null,
+    // A MESMA PESSOA DO `PROFILE_EQUIPE`, e a mesma foto: são dois registros
+    // do mesmo nome, e a lista de Equipe mostra este. Com um só preenchido, a
+    // topbar sairia com foto e a linha dela na lista com iniciais, na mesma
+    // tela. As outras sete continuam nulas de propósito — é o que faz a
+    // imagem provar que o círculo ESCOLHE, e não só que a foto aparece.
+    avatar_url: "/exemplos/retrato-1.svg",
     ativo: true,
     deve_trocar_senha: false,
     created_at: "2021-03-01T10:00:00.000Z",

@@ -146,13 +146,15 @@ export function ListaDaBarraDoPortal({
 export function CartaoDeQuemEntrou({
   nome,
   nomeDaEmpresa,
+  avatarUrl = null,
 }: {
   nome: string;
   nomeDaEmpresa: string | null;
+  avatarUrl?: string | null;
 }) {
   return (
     <div className="border-border flex items-center gap-2.5 border-t px-3 pt-3">
-      <UserAvatar name={nome} size="sm" tooltip={false} />
+      <UserAvatar name={nome} src={avatarUrl} size="sm" tooltip={false} />
       <div className="min-w-0">
         <p className="text-foreground truncate text-sm font-semibold">{nome}</p>
         {nomeDaEmpresa ? (
@@ -168,11 +170,13 @@ export function BarraLateralDoPortal({
   base = "/portal",
   nome,
   nomeDaEmpresa,
+  avatarUrl = null,
   aprovacoesPendentes = 0,
 }: {
   base?: string;
   nome: string;
   nomeDaEmpresa: string | null;
+  avatarUrl?: string | null;
   aprovacoesPendentes?: number;
 }) {
   return (
@@ -186,7 +190,11 @@ export function BarraLateralDoPortal({
           aprovacoesPendentes={aprovacoesPendentes}
         />
       </div>
-      <CartaoDeQuemEntrou nome={nome} nomeDaEmpresa={nomeDaEmpresa} />
+      <CartaoDeQuemEntrou
+        nome={nome}
+        nomeDaEmpresa={nomeDaEmpresa}
+        avatarUrl={avatarUrl}
+      />
     </aside>
   );
 }
