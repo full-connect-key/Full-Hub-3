@@ -176,7 +176,16 @@ export function FaixaDeDisponibilidade({
     : null;
 
   return (
-    <div className="space-y-3 rounded-xl border p-3">
+    // ELA PINTA O PRÓPRIO FUNDO, e não pintava — é o terceiro contêiner do
+    // produto com `border` e `rounded-xl` e mais nada, atrás do calendário de
+    // Gestão de Tasks e da legenda dele. Aqui ele doía mais do que parece: o
+    // `SheetContent` é `bg-background`, que aponta para `--surface-page`,
+    // então a grade dos dias saía CINZA dentro de um painel cinza — e é
+    // justamente ela o "indicador de sobrecarga" que a decisão do fundo
+    // branco manda preservar. Num contêiner que depende do pai, a cor muda
+    // conforme a tela que o abriga: a abertura do mês de social o põe sobre
+    // cartão branco e o painel da etapa sobre a página.
+    <div className="bg-surface-card space-y-3 rounded-xl border p-3">
       <div className="flex items-center gap-2">
         <p className="grow text-sm font-semibold">Os dias de {nome.split(" ")[0]}</p>
         <Button

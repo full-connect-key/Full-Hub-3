@@ -226,8 +226,27 @@ export function CalendarioDeTasks({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border">
-        <div className="bg-muted/40 text-muted-foreground grid grid-cols-7 border-b text-xs">
+      {/* O CALENDÁRIO NÃO PINTAVA FUNDO NENHUM, e o que aparecia dentro dele
+          era a PÁGINA — decisão do usuário: *"substituir o fundo cinza atual
+          do calendário por branco"*. Ele estava certo sobre o que via, e a
+          causa não era de token: `--surface-card` já é o branco puro desde a
+          interface Leve, e este contêiner tinha `border` e `rounded-xl` e
+          mais nada. (O hexadecimal que ele mandou é o valor daquele token, e
+          ele NÃO se escreve aqui: a explicação não pode carregar o que ela
+          proíbe — é a armadilha que esta casa já pagou sete vezes.) É o achado dos três contêineres de Minhas Tasks pela
+          segunda vez, agora na grade do mês — e aqui ele pega a tela inteira,
+          porque a grade É a tela.
+
+          SÃO TRÊS TONS E NENHUM VEM DE OPACIDADE. O dia é `--surface-card`, a
+          faixa dos nomes da semana é `--muted` e o dia de outro mês é
+          `--surface-page` — o mesmo par que o calendário do portal e o
+          Cronograma já usam, então os quatro calendários do produto passam a
+          dizer a mesma coisa com a mesma cor. O que saiu foi `bg-muted/40` e
+          `bg-muted/30`: opacidade sobre um fundo qualquer dá uma cor que
+          ninguém mediu, e no tema escuro dá outra — a regra que o produto
+          tem escrita para selo de estado desde sempre. */}
+      <div className="bg-surface-card overflow-hidden rounded-xl border">
+        <div className="bg-muted text-muted-foreground grid grid-cols-7 border-b text-xs">
           {DIAS_DA_SEMANA.map((dia) => (
             <div key={dia} className="px-2 py-1.5 text-center font-medium">
               {dia}
@@ -247,7 +266,7 @@ export function CalendarioDeTasks({
                 className={cn(
                   "min-h-32 border-r border-b p-1.5 last:border-r-0",
                   modo === "semana" && "min-h-64",
-                  foraDoMes && "bg-muted/30",
+                  foraDoMes && "bg-surface-page",
                 )}
               >
                 <div className="mb-1 flex items-center justify-between">
@@ -409,7 +428,11 @@ export function CalendarioDeTasks({
           que ensina errado. A lista e a ordem moram em
           `LEGENDA_DO_CALENDARIO`: duas cópias divergiriam na primeira vez que
           alguém mexesse numa, e a tela discordaria da própria legenda. */}
-      <div className="text-text-secondary flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2 text-xs">
+      {/* E A LEGENDA ERA O MESMO BURACO, numa caixa própria: `rounded-lg
+          border` sem fundo, logo abaixo da grade. Com a grade branca ela
+          ficaria sendo a única faixa cinza da tela. Branco e borda, sem
+          sombra: ela é informação subordinada, não um cartão a levantar. */}
+      <div className="bg-surface-card text-text-secondary flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-2 text-xs">
         <span className="text-text-primary font-medium">Legenda</span>
         {LEGENDA_DO_CALENDARIO.map(({ situacao, rotulo }) => {
           const tinta = TINTA_DA_SITUACAO[situacao];

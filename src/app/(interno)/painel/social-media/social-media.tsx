@@ -603,7 +603,12 @@ export function SocialMedia({
                     key={dia}
                     className={cn(
                       "bg-surface-card min-h-24 p-1.5",
-                      doMes ? "" : "bg-muted/40",
+                      // `--surface-page` E NÃO `bg-muted/40`: é o tom que o
+                      // calendário do portal, o Cronograma e o de Gestão de
+                      // Tasks usam para o dia de outro mês, e ele não vem de
+                      // opacidade — que dá uma cor que ninguém mediu, e outra
+                      // no tema escuro.
+                      doMes ? "" : "bg-surface-page",
                     )}
                   >
                     <p className="text-text-secondary mb-1 text-[11px]">
