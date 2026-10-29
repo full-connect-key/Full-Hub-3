@@ -276,6 +276,19 @@ const PARES = [
   // O da proposta passava no meio (4,50) e dava 2,02:1 na ponta ciano — medir
   // uma parada só é a mesma armadilha de medir o texto contra o branco em vez
   // de contra a malha.
+  // E O PREENCHIMENTO CHEIO, que nunca esteve aqui. Ele passou a ser o azul
+  // oficial do Full Hub, e o par branco/`--action` era o único do botão que
+  // ninguém media — o royal dava 4,50:1, raspando o mínimo, e isso só
+  // apareceu quando a troca de paleta obrigou a medir.
+  //
+  // O SEGUNDO É O MESMO PAR RESOLVIDO QUE "ITEM ATIVO do menu", e a
+  // duplicação é deliberada — é a decisão de `--roxo`/`--ferias`: hoje uma
+  // linha mediria as duas, e no dia em que alguém repontar
+  // `--sidebar-ativo-*` esta continua medindo os CHIPS, que são 20 telas
+  // escrevendo `bg-action-soft text-action-text` fora da barra lateral.
+  ["--action-foreground", "--action", NORMAL, "rótulo no botão cheio"],
+  ["--action-text", "--action-soft", NORMAL, "item ativo e chip de ação"],
+
   ["--action-foreground", "--action-grad-1", NORMAL, "rótulo no início do degradê"],
   ["--action-foreground", "--action-grad-2", NORMAL, "rótulo no meio do degradê"],
   ["--action-foreground", "--action-grad-3", NORMAL, "rótulo no fim do degradê"],

@@ -69,6 +69,17 @@
      superfície nem de texto em lugar nenhum — só o disco da marca. */
   --brand-navy: #15242C;
 
+  /* O AZUL OFICIAL DO FULL HUB, e ele é a cor da marca DO PRODUTO, não da
+     agência. Decisão do usuário, com o hexadecimal na mão.
+
+     Ele mora aqui, entre as cores cruas, porque é dele que saem DOIS papéis
+     que não trocam juntos: `--marca-hub`, que é tinta sobre a página e por
+     isso clareia no escuro, e `--action`, que é preenchimento com branco em
+     cima e por isso não clareia nunca. Um valor e vários nomes é a forma de
+     `--roxo` → `--ferias` e de `--acao-fundo` → `--text-primary`; dois
+     hexadecimais iguais seriam duas verdades esperando divergir. */
+  --brand-hub: #0267C1;
+
   /* --- O símbolo da marca ------------------------------------------------
      A agência entregou DUAS versões do disco, e as duas são a mesma marca:
      disco escuro com ponto azul e triângulo branco, e disco azul com ponto
@@ -89,22 +100,27 @@
      e ele existe porque a agência desenhou um, o que até aqui não era o caso.
 
      `--marca-hub` é o azul do arquivo, medido nos dois PNG entregues: os dois
-     dão exatamente #0267C1. Ele NÃO é `--action`, e a distinção é a mesma que
-     já separa `--brand-blue` de `--action-text`: azul de marca não é azul de
-     ação. Repontar um para o outro é decisão de paleta, e ela ainda não foi
-     tomada.
+     dão exatamente `--brand-hub`. **E ELE É O AZUL DE AÇÃO AGORA** — estava
+     escrito aqui que ele não era, e que repontar um para o outro era "decisão
+     de paleta, e ela ainda não foi tomada". Ela foi: o usuário mandou o
+     hexadecimal oficial, e o azul que a interface pinta passou a ser este.
 
-     NO ESCURO ELE CLAREIA, e o número é a razão: #0267C1 sobre o cartão
-     escuro dá 2,82:1 — abaixo até do mínimo de elemento de interface. O tom
-     claro é o MESMO azul, mesma matiz e mesma saturação, levado até passar de
-     4,5:1. É a decisão de `--marca-disco`, que já troca de versão por fundo.
+     OS DOIS NOMES FICAM, e é o que impede o erro seguinte. Eles apontam para o
+     mesmo valor no claro e DIVERGEM no escuro, porque os papéis são
+     diferentes: este é tinta sobre a página e precisa clarear para se ler;
+     `--action` é preenchimento, carrega o próprio chão, e clareá-lo tiraria o
+     branco do rótulo de cima dele.
+
+     NO ESCURO ELE CLAREIA, pela decisão de `--marca-disco` — a versão que se
+     enxerga contra o fundo atrás dela. Os números estão no `.dark`, ao lado
+     do tom.
 
      O NEUTRO DO LOCKUP NÃO É TOKEN NOVO: as letras pretas do arquivo saem em
      `--text-primary`, que já inverte sozinho no escuro e já está medido. É a
      forma de `--acao-fundo`, que aponta para o mesmo token em vez de repetir
      dois hexadecimais — e é o que faz o lockup se ler na barra lateral, que é
      branca no claro e escura no escuro. */
-  --marca-hub: #0267C1;
+  --marca-hub: var(--brand-hub);
 
   /* O ponto e o traço DENTRO do ladrilho. Eles não trocam por tema, e a
      ausência de um par no `.dark` é a decisão: o ladrilho tem fundo próprio,
@@ -128,31 +144,56 @@
   --blue-strong: #0A6B99;
   --blue-strong-hover: #08587D;
 
-  /* --- O AZUL DE AÇÃO, QUE NÃO É O AZUL DA MARCA --------------------------
-     É a TERCEIRA cor do produto, e a regra de "duas cores da Full Connect Key
-     e só" passa a ter esta exceção escrita. Decisão do usuário, ao aprovar a
-     interface Leve: **o royal é a cor de AÇÃO — botão, pílula do item ativo,
-     link e ícone — e o ciano `--brand-blue` fica reservado ao símbolo e aos
-     acentos de marca.**
+  /* --- O AZUL DE AÇÃO, QUE PASSOU A SER O AZUL DA MARCA ------------------
+     **ESTE BLOCO DIZIA O CONTRÁRIO, E FOI A PREMISSA QUE CAIU.** Ele era o
+     royal #2F6BFF, escolhido ao aprovar a interface Leve como "a TERCEIRA cor
+     do produto", com a regra em voz alta: *o royal é a cor de ação — botão,
+     pílula do item ativo, link e ícone — e o ciano `--brand-blue` fica
+     reservado ao símbolo e aos acentos de marca.*
 
-     O motivo de ela existir é de contraste, não de gosto. `--brand-blue` dá
-     1,18:1 sobre a malha cheia e 1,73:1 sobre o cartão: ele nunca foi cor de
-     texto, e é por isso que `--accent-strong` existia desde o Sprint 3C como
-     "o azul que dá para ler". O que a proposta trouxe foi um azul que serve
-     aos DOIS papéis com a mesma matiz — preenchimento e texto —, que o par
-     ciano nunca conseguiu.
+     O argumento daquele dia era de contraste e continua inteiro:
+     `--brand-blue` dá 1,18:1 sobre a malha cheia e 1,73:1 sobre o cartão —
+     ele nunca foi cor de texto, e é por isso que `--accent-strong` existe
+     desde o Sprint 3C como "o azul que dá para ler". O que mudou é que a
+     agência entregou o azul oficial do Full Hub, e **um azul de marca que
+     serve aos dois papéis não precisa de um terceiro ao lado**: o royal sai,
+     o ciano continua onde estava, e a interface passa a pintar de azul a cor
+     que a marca do produto usa. Decisão do usuário, item 4 da lista dele.
 
-     São dois tons e não um, pela mesma razão do par nomeado: `--action` é
-     fundo com texto branco por cima, `--action-text` é texto sobre fundo
-     claro. Trocá-los põe branco sobre azul claro, que é 1,7:1.
+     SÃO DOIS TONS E NÃO UM, e isso não muda — é a razão do par nomeado:
+     `--action` é fundo com texto branco por cima, `--action-text` é texto
+     sobre fundo claro. Trocá-los põe branco sobre azul claro, que é 1,7:1.
 
-       --action-text sobre a malha cheia   4,72:1
-       --action-text sobre o cartão        6,91:1
-       --action-text sobre a página        5,96:1
-       --action-text sobre --action-soft   5,88:1 */
-  --action: #2F6BFF;
-  --action-text: #1B4FCC;
-  --action-soft: #E4EDFF;
+     **E O TOM DE TEXTO NÃO É O HEXADECIMAL OFICIAL, porque a malha não
+     deixa.** `--brand-hub` sobre `--malha-no-pior-caso` dá **3,86:1** — o
+     link da faixa de cima ficaria abaixo do mínimo, que é exatamente o furo
+     que derrubou o alfa de 0,75 da proposta. `--action-text` é o MESMO azul,
+     mesma matiz e mesma saturação, escurecido até passar — e o que ele
+     devolve é melhor que o do royal nos quatro pares:
+
+                              royal    Full Hub
+       sobre a malha cheia     4,72  →   4,80
+       sobre o cartão          6,91  →   7,02
+       sobre a página          5,96  →   6,05
+       sobre --action-soft     5,88  →   5,93
+
+     E O PREENCHIMENTO GANHOU UM PONTO E MEIO: branco sobre `--action` era
+     4,50:1 e é **5,66:1**. Ele não estava medido, porque o par
+     branco/`--action` não estava na lista do `check:cores` — entrou, junto com
+     o do item ativo, que este arquivo afirmava há sprints sem ninguém conferir.
+
+     ***O QUE PIOROU, e é dito em vez de escondido:*** o azul oficial é mais
+     escuro que o royal, então `--action` como BORDA sobre superfície escura
+     caiu de 3,55:1 para 2,82:1 — abaixo do mínimo de elemento de interface.
+     É consequência aceita porque em toda ocorrência dele a cor é o SEGUNDO
+     sinal: a opção escolhida troca o fundo para `--action-soft` junto, o
+     recorte do tour vem com a tela inteira escurecida em volta, e os outros
+     dois usos são um fio e uma barra de progresso, nenhum deles com texto
+     dentro. **O anel de foco não é este token** — ele é `--ring`, que aponta
+     para `--blue-strong` e não foi tocado. */
+  --action: var(--brand-hub);
+  --action-text: #0259A7;
+  --action-soft: #DDEEFD;
   /* O branco do rótulo sobre o royal cheio e sobre o degradê. Nome do shadcn,
      como --success-foreground: é o que o par nomeado quer dizer. */
   --action-foreground: #FFFFFF;
@@ -182,8 +223,16 @@
      É a mesma conta que reprovou o vidro a 58% na porta, e a saída é a mesma:
      escurecer até o PIOR ponto passar. A ponta que escurece é a ciano, que é
      justamente a que ninguém lê como cor da marca — o azul→teal do desenho
-     continua inteiro. Medido com texto branco: 4,83 / 5,94 / 6,57. */
-  --action-gradiente: linear-gradient(145deg, #2B66F7 0%, #2158E0 48%, #14657F 100%);
+     continua inteiro.
+
+     **A PRIMEIRA PARADA É O HEXADECIMAL OFICIAL, e as outras duas saem dela.**
+     Com o royal fora da paleta, um degradê que começasse nele seria o único
+     lugar do produto ainda pintando a cor que saiu. A segunda é o mesmo azul
+     um passo mais escuro e a terceira é o teal de sempre, então as três
+     continuam escurecendo na ordem — o que importa, porque o rótulo é branco e
+     o pior ponto é justamente o primeiro. Medido: 5,66 / 6,48 / 6,57, contra
+     4,83 / 5,94 / 6,57 do royal. */
+  --action-gradiente: linear-gradient(145deg, var(--brand-hub) 0%, #025EB1 48%, #14657F 100%);
 
   /* OS TRÊS PARADAS DO DEGRADÊ, COMO TOKENS QUE NADA PINTA. É a forma de
      `--malha-no-pior-caso` e de `--vidro-no-pior-caso`, pela mesma razão: o
@@ -191,8 +240,8 @@
      estes três, a varredura não teria contra o que medir o branco do rótulo e
      diria que está tudo certo sobre um botão que ninguém conferiu. E é
      exatamente esse o furo que a proposta tinha: 2,02:1 na ponta ciano. */
-  --action-grad-1: #2B66F7;
-  --action-grad-2: #2158E0;
+  --action-grad-1: var(--brand-hub);
+  --action-grad-2: #025EB1;
   --action-grad-3: #14657F;
 
   /* --- A MALHA DO TOPO ----------------------------------------------------
@@ -500,24 +549,29 @@
   --blue-soft: #16303D;
   --blue-muted: #1E4C66;
 
-  /* O royal de PREENCHIMENTO não muda: ele carrega texto branco por cima nos
-     dois temas, e o que o mede é o branco, não o fundo atrás. O de TEXTO,
-     esse inverte — #1B4FCC sobre a página escura é azul escuro sobre escuro.
-     E não é o claro invertido: são passos próprios medidos contra os fundos
-     do escuro, como as cores de série do Financeiro.
+  /* O PREENCHIMENTO NÃO MUDA, e com o azul da marca isso passou a ser a regra
+     e não uma coincidência: ele carrega texto branco por cima nos dois temas,
+     e o que o mede é o branco, não o fundo atrás — então `--action` não tem
+     linha aqui, e é o único dos dois nomes de `--brand-hub` que atravessa o
+     tema inteiro. O de TEXTO inverte, porque texto se lê contra o fundo: o tom
+     claro sobre a página escura, no lugar do escuro sobre escuro.
 
-       --action-text sobre a malha escura  5,88:1
-       --action-text sobre o cartão        8,53:1
-       --action-text sobre a página        9,41:1
-       --action-text sobre --action-soft   7,62:1 */
-  --action: #2F6BFF;
-  --action-text: #9CBEFF;
-  --action-soft: #1E2A45;
+     E não é o claro invertido: são passos próprios na matiz da marca, medidos
+     contra os fundos do escuro, como as cores de série do Financeiro. Os
+     quatro pares ficaram melhores que os do royal.
+
+                              royal    Full Hub
+       sobre a malha escura    5,88  →   6,32
+       sobre o cartão          8,53  →   9,17
+       sobre a página          9,41  →  10,11
+       sobre --action-soft     7,62  →   7,89 */
+  --action-text: #90CAFE;
+  --action-soft: #1C2F40;
   --action-foreground: #FFFFFF;
 
-  /* No escuro o hover é o royal CLARO, que pede texto escuro em cima — o
-     branco sobre ele daria 2,4:1. Os outros dois tokens invertem sozinhos
-     porque apontam para `--text-primary` e `--surface-card`. */
+  /* No escuro o hover é o azul CLARO, que pede texto escuro em cima — o branco
+     sobre ele daria 1,9:1. Os outros dois tokens invertem sozinhos porque
+     apontam para `--text-primary` e `--surface-card`. */
   --acao-texto-hover: var(--surface-page);
 
   /* No escuro a malha não é a clara mais fraca: são azuis ESCUROS sobre o
@@ -586,6 +640,12 @@
   /* O mesmo azul do arquivo, clareado até se ler sobre fundo escuro. Medido:
      4,94:1 sobre --surface-card, 5,18:1 sobre --surface-sidebar e 5,45:1
      sobre --surface-page. */
+  /* O ÚNICO LUGAR ONDE OS DOIS NOMES DE `--brand-hub` DIVERGEM. #0267C1 sobre
+     o cartão escuro dá 2,82:1 — abaixo até do mínimo de elemento de interface
+     —, e o lockup é tinta sobre a página. O tom claro é o MESMO azul, mesma
+     matiz e mesma saturação, levado até passar de 4,5:1: 4,94 sobre o cartão,
+     5,18 sobre a barra, 5,45 sobre a página. `--action` NÃO acompanha, e a
+     razão é o branco que vai em cima dele: neste tom o rótulo daria 3,2:1. */
   --marca-hub: #1891FD;
 
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul

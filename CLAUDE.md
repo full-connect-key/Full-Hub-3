@@ -1695,9 +1695,13 @@ circunferência mesmo. O ponto é (316 / 180) com raio 48, e o triângulo é
 não traço, como no símbolo da agência.
 
 **`--marca-hub` É O AZUL DO ARQUIVO, #0267C1**, e os dois PNG dão exatamente o
-mesmo valor. **Ele NÃO é `--action`**, e a distinção é a mesma que já separa
-`--brand-blue` de `--action-text`: azul de marca não é azul de ação. Repontar
-um para o outro é decisão de paleta, e ela ainda não foi tomada.
+mesmo valor. **E ELE PASSOU A SER O AZUL DE AÇÃO** — estava escrito aqui que
+ele não era, e que repontar um para o outro era "decisão de paleta, e ela ainda
+não foi tomada". Ela foi tomada, e o que ela custou está em "A PALETA OFICIAL
+É ESTE AZUL", abaixo. **O valor mora em `--brand-hub`**, entre as cores cruas,
+e os dois papéis apontam para ele: um valor e vários nomes é a forma de
+`--roxo` → `--ferias`, e dois hexadecimais iguais seriam duas verdades
+esperando divergir.
 
 **NO ESCURO ELE CLAREIA, e o número é a razão:** #0267C1 sobre o cartão escuro
 dá **2,82:1** — abaixo até do mínimo de elemento de interface. O tom claro é o
@@ -1723,11 +1727,74 @@ Lanczos, e não do SVG rasterizado a 16px: o triângulo tem traço de 3% da
 largura, e a 16px um vetor rasterizado direto vira um borrão onde a redução de
 uma imagem grande ainda distingue as três formas.
 
-***O que fica em aberto, e é dito em vez de escondido:*** a **paleta oficial**
-(quais hexadecimais são ação, marca e neutros) e a **espiral** que deve
-substituir a molécula da porta. Os dois foram pedidos e ainda não chegaram, e
-até chegarem `--action` continua sendo o royal de antes — trocá-lo por
-`--marca-hub` seria escolher a paleta no lugar de quem a desenhou.
+***O que fica em aberto, e é dito em vez de escondido:*** a **espiral** que
+deve substituir a molécula da porta. Ela foi pedida e ainda não chegou, e até
+chegar a porta continua com as seis gotas — desenhar uma espiral de cabeça
+seria pôr no ar uma forma da identidade que a agência não desenhou, que é a
+frase que este sprint inteiro existe para não repetir.
+
+#### A PALETA OFICIAL É ESTE AZUL, e o royal saiu
+
+Decisão do usuário, item 4 da lista dele — *"atualizar a interface para as
+cores oficiais do Full Hub"* — respondida com um hexadecimal: **0267C1**. É o
+mesmo valor que os dois PNG do lockup já tinham dado, então a paleta e a marca
+são a mesma cor, e isso é o que torna a troca pequena.
+
+**O QUE SAI É O ROYAL `#2F6BFF`, e ele era a TERCEIRA cor do produto** — a
+exceção escrita à regra "duas cores da Full Connect Key e só", criada ao
+aprovar a interface Leve justamente porque o ciano `--brand-blue` dá 1,18:1
+sobre a malha e nunca foi cor de texto. **Aquele argumento continua inteiro, e
+é ele que fecha a conta:** um azul de marca que serve aos dois papéis não
+precisa de um terceiro ao lado. O royal sai, o ciano continua reservado ao
+símbolo e aos acentos, e o produto volta a ter duas cores mais a da marca do
+Full Hub.
+
+**SÃO DOIS TONS E NÃO UM, e isso não muda** — é a razão do par nomeado:
+`--action` é fundo com branco por cima, `--action-text` é texto sobre fundo
+claro. **E o tom de texto NÃO é o hexadecimal oficial, porque a malha não
+deixa:** `--brand-hub` sobre `--malha-no-pior-caso` dá **3,86:1**, e o link da
+faixa de cima ficaria abaixo do mínimo — é o mesmo furo que derrubou o alfa de
+0,75 da proposta. `--action-text` é o MESMO azul, mesma matiz e mesma
+saturação, escurecido até passar.
+
+**Tudo o que a troca mexe ficou melhor, e os números são o argumento:**
+
+| O par medido | royal | Full Hub |
+| --- | --- | --- |
+| branco sobre `--action` | 4,50 | **5,66** |
+| link sobre a malha cheia | 4,72 | **4,80** |
+| link sobre o cartão | 6,91 | **7,02** |
+| link sobre a página | 5,96 | **6,05** |
+| item ativo (`--action-text` sobre `--action-soft`) | 5,88 | **5,93** |
+| o degradê da pílula, nas três paradas | 4,83 / 5,94 / 6,57 | **5,66 / 6,48 / 6,57** |
+| no escuro: link sobre a malha escura | 5,88 | **6,32** |
+| no escuro: link sobre o cartão | 8,53 | **9,17** |
+
+**DOIS PARES NÃO ESTAVAM NA LISTA DO `check:cores`, e um deles raspava o
+mínimo.** Branco sobre `--action` dava **4,50:1** com o royal — o par do botão
+cheio, e ninguém o media. O outro é o do item ativo, que este arquivo afirmava
+em "5,88:1" desde a interface Leve enquanto vinte telas escreviam
+`bg-action-soft text-action-text`. Os dois entraram, e a duplicação com "ITEM
+ATIVO do menu" é deliberada pela razão de `--roxo`/`--ferias`: hoje as duas
+linhas medem o mesmo par resolvido, e no dia em que alguém repontar
+`--sidebar-ativo-*` uma delas continua medindo os chips.
+
+***O QUE PIOROU, e é dito em vez de escondido:*** o azul oficial é mais escuro
+que o royal, então **`--action` como BORDA sobre superfície escura caiu de
+3,55:1 para 2,82:1** — abaixo do mínimo de elemento de interface. É
+consequência aceita, e a razão é que em toda ocorrência dele a cor é o SEGUNDO
+sinal: a opção escolhida troca o fundo para `--action-soft` junto, o recorte do
+tour vem com a tela inteira escurecida em volta, e os outros dois usos são um
+fio e uma barra de progresso, nenhum com texto dentro. **O anel de foco não é
+este token** — ele é `--ring`, que aponta para `--blue-strong` e não foi
+tocado.
+
+**E `--action` É O ÚNICO DOS DOIS NOMES QUE ATRAVESSA O TEMA.** Ele não tem
+linha no `.dark`, porque preenchimento carrega o próprio chão — o que o mede é
+o branco em cima, não o fundo atrás. `--marca-hub` clareia, porque é tinta
+sobre a página; clarear `--action` junto tiraria o rótulo branco de cima dele
+(3,2:1 naquele tom). É a mesma assimetria de `--marca-hub-ponto`, que não troca
+por tema por ter fundo próprio.
 
 #### A porta: preto, a molécula, e o cartão de vidro no centro
 
@@ -2455,10 +2522,15 @@ não cabem. Ela é a faixa logo abaixo, grudada nele — e rolando a página as 
 se leem como uma só.
 
 **São TRÊS cores, e a terceira é o azul de AÇÃO.** Eram duas da Full Connect
-Key — o cinza `--brand-gray` e o azul claro `--brand-blue` —, e o royal
-`--action` entrou por decisão do usuário ao comparar a plataforma no ar com o
-artifact aprovado. **O royal é a cor de ação — botão, pílula do item ativo,
-link e ícone — e o ciano fica reservado ao símbolo e aos acentos de marca.**
+Key — o cinza `--brand-gray` e o azul claro `--brand-blue` —, e a de ação
+entrou por decisão do usuário ao comparar a plataforma no ar com o artifact
+aprovado. **Ela é a cor de ação — botão, pílula do item ativo, link e ícone —
+e o ciano fica reservado ao símbolo e aos acentos de marca.**
+
+**ELA ERA O ROYAL `#2F6BFF` E HOJE É O AZUL OFICIAL DO FULL HUB**, `#0267C1`,
+por decisão do usuário ao mandar o hexadecimal da paleta. A regra de papéis é
+a mesma, palavra por palavra; o que trocou foi o valor, e o que isso custou
+está em "A PALETA OFICIAL É ESTE AZUL", acima.
 
 Todo o resto continua derivado ou neutro, e **`src/app/globals.css` segue
 sendo o único arquivo com cor literal** — os nomes do shadcn (`--primary`,
@@ -2469,17 +2541,19 @@ quatro camadas do redesenho.
 **A terceira cor existe por contraste, não por gosto.** `--brand-blue` dá
 1,18:1 sobre a malha cheia e 1,73:1 sobre o cartão: ele nunca foi cor de
 texto, e é por isso que `--accent-strong` existe desde o Sprint 3C como "o
-azul que dá para ler". O royal serve aos DOIS papéis com a mesma matiz —
-preenchimento e texto —, que o par ciano nunca conseguiu.
+azul que dá para ler". A cor de ação serve aos DOIS papéis com a mesma matiz —
+preenchimento e texto —, que o par ciano nunca conseguiu. **E é esse mesmo
+argumento que permitiu o royal sair:** com um azul de marca que serve aos dois,
+não há terceiro a inventar.
 
-**A regra que não se quebra continua valendo, e agora é sobre o royal
+**A regra que não se quebra continua valendo, e agora é sobre o azul de ação
 também:** *azul claro pede texto escuro; texto branco pede azul escuro.* São
 dois tons e não um pela razão do par nomeado — `--action` é fundo com branco
 por cima, `--action-text` é texto sobre fundo claro, e trocá-los põe branco
 sobre azul claro.
 
 - **botão primário = a pílula PRETA** (`--acao-fundo`, que aponta para
-  `--text-primary`), com o hover indo para o royal. A regra antiga era "fundo
+  `--text-primary`), com o hover indo para o azul de ação. A regra antiga era "fundo
   `--brand-blue` + texto `--text-primary`", e ela existia porque branco sobre
   o ciano dá 1,7:1 — sai junto com o botão ciano. O par que entra é o mais
   folgado da casa: **19,43:1**. E ele **inverte sozinho no escuro**, porque
@@ -2490,8 +2564,8 @@ sobre azul claro.
   `bg-*` do Tailwind gera `background-color`, e o que ela pinta é
   `background-image`;
 - link e ícone em fundo claro = `--accent-strong`, que agora aponta para
-  `--action-text`: **4,72:1 sobre a malha cheia**, 6,91 sobre o cartão;
-- item ativo na barra lateral = `--action-soft` com `--action-text`, 5,88:1;
+  `--action-text`: **4,80:1 sobre a malha cheia**, 7,02 sobre o cartão;
+- item ativo na barra lateral = `--action-soft` com `--action-text`, 5,93:1;
 - fundo cheio de cor + texto branco = `--blue-strong`, para o que é da marca.
 
 **O DEGRADÊ DO BOTÃO NÃO É O DA PROPOSTA, e a diferença foi medida.** O da
@@ -2500,8 +2574,9 @@ proposta reprova nos TRÊS pontos com o texto branco que ela mesma põe em cima:
 **2,02:1** — o rótulo "Nova task" ficaria ilegível na ponta. É a conta que
 reprovou o vidro a 58% na porta, e a saída é a mesma: escurecer até o pior
 ponto passar. A ponta que escurece é a ciano, que é justamente a que ninguém
-lê como cor da marca, e o azul→teal do desenho continua inteiro: 4,83 / 5,94 /
-6,57.
+lê como cor da marca, e o azul→teal do desenho continua inteiro. **A primeira
+parada é o hexadecimal oficial desde a troca de paleta**, e as outras duas saem
+dela: 5,66 / 6,48 / 6,57, contra 4,83 / 5,94 / 6,57 do royal.
 
 `--action-grad-1/2/3` são tokens que **nada pinta**, a forma de
 `--malha-no-pior-caso` e de `--vidro-no-pior-caso`: o `check:cores` mede par de
@@ -2515,13 +2590,15 @@ mais forte é `#B9D9F8`, onde o `--accent-strong` antigo (`#0A6B99`) dava
 4,01:1. Não era gosto nem discrição — era contraste, e a proposta não esbarrou
 nisso porque **não tem nenhum link azul na faixa de cima**; o produto tem
 ("ver quais", "Ver a área", "Marcar como vistas"), e o conteúdo rola por baixo
-da malha. Com o royal de texto ela dá 4,72:1 e a malha pôde ficar como foi
-desenhada.
+da malha. Com o azul de ação como texto ela dá 4,80:1 e a malha pôde ficar como
+foi desenhada.
 
 **O escuro não é o claro invertido.** A proposta não tem tema escuro e diz isso
 no fecho dela; são passos próprios medidos contra os fundos do escuro, como as
-cores de série do Financeiro — `#9CBEFF` no texto, `#1E2A45` na pílula.
-`check:cores` passou de 34 para **37 pares**.
+cores de série do Financeiro — e com a paleta oficial eles passaram a ser
+passos da matiz da marca, `#90CAFE` no texto e `#1C2F40` na pílula, no lugar
+dos do royal. `check:cores` passou de 34 para 37 pares naquele sprint, e hoje
+mede **72**.
 
 Selo de estado usa o **par nomeado** (`bg-warning-soft text-warning`), nunca
 `bg-warning/10`: opacidade sobre um fundo qualquer dá uma cor que ninguém
@@ -2541,7 +2618,7 @@ pelo Unicode em qualquer sistema; o `grep` só acha os arquivos. Uma checagem
 cujo trabalho inteiro é afirmar que um nome não existe não pode depender de
 variável de ambiente para saber ler.
 
-`npm run check:cores` é a prova: mede 34 pares texto/fundo nos dois temas
+`npm run check:cores` é a prova: mede 72 pares texto/fundo nos dois temas
 (mínimo 4.5:1 normal, 3:1 grande e elemento de interface), acusa hex fora do
 arquivo de tokens, confere se toda classe de cor existe no `@theme inline` —
 no Tailwind v4 um utilitário desconhecido não dá erro, só não gera CSS, e a
@@ -8934,8 +9011,8 @@ saldo.
   cartão no painel lateral, e era preciso varrer o olho até a coluna da
   direita para achar a primeira coisa que quem entra ali quer saber. Quem pede
   afastamento ou ausência pontual não vê saldo nenhum — não desconta. (Ele era
-  `--blue-soft`, o ciano, e passou ao royal quando a ação do produto passou: o
-  ciano ficou reservado ao símbolo e aos acentos de marca.)
+  `--blue-soft`, o ciano, e passou à cor de ação quando a ação do produto
+  passou: o ciano ficou reservado ao símbolo e aos acentos de marca.)
 - **O CALENDÁRIO FICA À ESQUERDA e a configuração na coluna de 306px** — e
   isto desfaz uma decisão minha. A versão anterior punha o painel à esquerda
   com o argumento de que *"o tipo de pedido muda o que o calendário
@@ -9283,7 +9360,7 @@ o mesmo rótulo em caixa alta do board.
 **A CORRENTE VIROU CARTÕES COM LADRILHO DE ÍCONE**, que é o desenho do "Precisa
 de mim" da Home aplicado onde ele cabe melhor: cada elo é o trabalho de uma
 pessoa diferente. O círculo de 24px virou ladrilho quadrado de 32px, e o azul
-dele passou a ser o par nomeado `bg-action-soft text-action-text` — o royal de
+dele passou a ser o par nomeado `bg-action-soft text-action-text` — o azul de
 ação, como o resto do produto desde a troca de cor.
 
 **A razão do "Enviar ao cliente" desligado virou uma PÍLULA ÂMBAR.** Ela é a
@@ -13125,7 +13202,8 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
-| A marca do Full Hub | **A agência desenhou um lockup e um ícone para o PRODUTO, e isso desfaz uma decisão escrita aqui.** Estava registrado que *"não existe wordmark de Full Hub, e desenhar um seria pôr no ar uma marca que a agência não fez"* — ela fez, e com o arquivo na mão escrever o nome na letra do produto passou a ser o **contrário** do que a frase protegia. Fica como reversão e não como troca silenciosa, porque o argumento continua certo para o próximo caso: sem arquivo, não se desenha marca. **É o arquivo vetorizado e não uma letra parecida:** as duas cores do PNG viraram duas máscaras, cada uma um caminho `evenodd` seguindo a borda dos pixels, simplificado com desvio máximo de **0,45px** — medido, porque a 0,75px a silhueta já sai do lugar em 343 pixels — e emitido em comandos relativos, 3,6KB contra 10,2KB sem perder um pixel. **A conferência é a do símbolo:** rasterizado no Chromium e comparado pixel a pixel com o PNG, a silhueta bate dentro de 1px e os quatro pixels que divergem são pontas de canto. **O canto do ladrilho não era o que parecia** — o primeiro pixel opaco está em x=86 e o raio é **95,6**, por mínimos quadrados sobre 86 pontos da borda, com resíduo de 0,18px e expoente de superelipse 1,99 (ou seja, circunferência). **`--marca-hub` é #0267C1**, o mesmo valor nos dois arquivos, e **não é `--action`**: azul de marca não é azul de ação, e repontar um para o outro é decisão de paleta. **No escuro ele clareia**, porque #0267C1 sobre o cartão escuro dá **2,82:1** — o tom claro é o mesmo azul levado a 4,94:1. **O neutro do lockup não é token novo:** as letras saem em `--text-primary`, que já inverte sozinho, que é o que faz a marca se ler na barra branca e na escura sem uma segunda versão. **O símbolo da agência saiu do lockup e ficou na porta**, onde o usuário pediu *"apenas o logo da agência"*: o lockup novo já carrega o ponto e o triângulo, e pôr o disco ao lado repetiria o mesmo par de formas duas vezes em quarenta pixels. A barra recolhida troca o retângulo pelo quadrado, e **a troca mora na barra** e não dentro do `Logo`, porque `recolhido` é um atributo do `<html>` que o Portal também enxerga. O `favicon.ico` e o `apple-icon.png` saem do PNG reduzido e não do SVG rasterizado a 16px, onde o traço de 3% do triângulo vira borrão. ***Em aberto, e dito em vez de escondido:*** a paleta oficial e a espiral da porta ainda não chegaram. |
+| A paleta oficial | **O azul da interface passou a ser o azul da marca do produto, e o royal saiu** — decisão do usuário, item 4 da lista dele (*"atualizar a interface para as cores oficiais do Full Hub"*), respondida com um hexadecimal: **0267C1**. É o mesmo valor que os dois PNG do lockup já tinham dado, então a paleta e a marca são a mesma cor, e é isso que torna a troca pequena. **O QUE SAI ERA A TERCEIRA COR DO PRODUTO** — a exceção escrita à regra "duas cores da Full Connect Key e só", criada ao aprovar a interface Leve porque o ciano dá 1,18:1 sobre a malha e nunca foi cor de texto. **Aquele argumento continua inteiro, e é ele que fecha a conta:** um azul de marca que serve aos DOIS papéis — preenchimento e texto — não precisa de um terceiro ao lado. **E o tom de texto NÃO é o hexadecimal oficial, porque a malha não deixa:** `--brand-hub` sobre `--malha-no-pior-caso` dá **3,86:1**, e o link da faixa de cima ficaria abaixo do mínimo — é o mesmo furo que derrubou o alfa de 0,75 da proposta; `--action-text` é o MESMO azul, mesma matiz e mesma saturação, escurecido até passar. **Tudo o que a troca mexe ficou melhor:** branco sobre `--action` de 4,50 para **5,66**, o link sobre a malha de 4,72 para 4,80, sobre o cartão de 6,91 para 7,02, o item ativo de 5,88 para 5,93, as três paradas do degradê de 4,83/5,94/6,57 para 5,66/6,48/6,57, e no escuro o link sobre o cartão de 8,53 para 9,17. **DOIS PARES NÃO ESTAVAM NA LISTA DO `check:cores`, e um raspava o mínimo:** branco sobre `--action` dava 4,50:1 e ninguém o media; o do item ativo este arquivo afirmava em "5,88:1" desde a interface Leve, com vinte telas escrevendo `bg-action-soft text-action-text`. **O valor mora em `--brand-hub`**, entre as cores cruas, e os dois papéis apontam para ele — um valor e vários nomes, a forma de `--roxo` → `--ferias`. **E `--action` é o único dos dois que atravessa o tema:** preenchimento carrega o próprio chão, e clareá-lo no escuro como `--marca-hub` tiraria o rótulo branco de cima dele (3,2:1 naquele tom). ***O que piorou, e é dito em vez de escondido:*** o azul oficial é mais escuro que o royal, então `--action` como BORDA sobre superfície escura caiu de 3,55:1 para **2,82:1** — consequência aceita porque em toda ocorrência dele a cor é o SEGUNDO sinal (a opção escolhida troca o fundo junto, o recorte do tour vem com a tela escurecida em volta, e os outros dois usos são um fio e uma barra de progresso); **o anel de foco não é este token**, é `--ring`, que aponta para `--blue-strong` e não foi tocado. ***Em aberto:*** a **espiral** da porta, que foi pedida e ainda não chegou. |
+| A marca do Full Hub | **A agência desenhou um lockup e um ícone para o PRODUTO, e isso desfaz uma decisão escrita aqui.** Estava registrado que *"não existe wordmark de Full Hub, e desenhar um seria pôr no ar uma marca que a agência não fez"* — ela fez, e com o arquivo na mão escrever o nome na letra do produto passou a ser o **contrário** do que a frase protegia. Fica como reversão e não como troca silenciosa, porque o argumento continua certo para o próximo caso: sem arquivo, não se desenha marca. **É o arquivo vetorizado e não uma letra parecida:** as duas cores do PNG viraram duas máscaras, cada uma um caminho `evenodd` seguindo a borda dos pixels, simplificado com desvio máximo de **0,45px** — medido, porque a 0,75px a silhueta já sai do lugar em 343 pixels — e emitido em comandos relativos, 3,6KB contra 10,2KB sem perder um pixel. **A conferência é a do símbolo:** rasterizado no Chromium e comparado pixel a pixel com o PNG, a silhueta bate dentro de 1px e os quatro pixels que divergem são pontas de canto. **O canto do ladrilho não era o que parecia** — o primeiro pixel opaco está em x=86 e o raio é **95,6**, por mínimos quadrados sobre 86 pontos da borda, com resíduo de 0,18px e expoente de superelipse 1,99 (ou seja, circunferência). **`--marca-hub` é #0267C1**, o mesmo valor nos dois arquivos, e **não é `--action`**: azul de marca não é azul de ação, e repontar um para o outro é decisão de paleta. **No escuro ele clareia**, porque #0267C1 sobre o cartão escuro dá **2,82:1** — o tom claro é o mesmo azul levado a 4,94:1. **O neutro do lockup não é token novo:** as letras saem em `--text-primary`, que já inverte sozinho, que é o que faz a marca se ler na barra branca e na escura sem uma segunda versão. **O símbolo da agência saiu do lockup e ficou na porta**, onde o usuário pediu *"apenas o logo da agência"*: o lockup novo já carrega o ponto e o triângulo, e pôr o disco ao lado repetiria o mesmo par de formas duas vezes em quarenta pixels. A barra recolhida troca o retângulo pelo quadrado, e **a troca mora na barra** e não dentro do `Logo`, porque `recolhido` é um atributo do `<html>` que o Portal também enxerga. O `favicon.ico` e o `apple-icon.png` saem do PNG reduzido e não do SVG rasterizado a 16px, onde o traço de 3% do triângulo vira borrão. ***Em aberto, e dito em vez de escondido:*** a paleta oficial e a espiral da porta ainda não chegaram. *(A paleta chegou no sprint seguinte, logo acima.)* |
 | O calendário da etapa, e o Full Pulse | **A faixa de disponibilidade recusava quem o banco aceita, e não tinha como tentar de novo.** Relato do usuário: *"Failed to fetch ao abrir uma task e acessar o calendário de disponibilidade"*, com a instrução de **corrigir a causa, não ocultar a mensagem**. **O que foi descartado com medida:** a 0081 está aplicada inteira (assinatura, `security definer`, `authenticated` com EXECUTE, `disponibilidade_bruta` sem grant), a função roda sem erro para **toda pessoa ativa da equipe × quatro meses** — as únicas recusas são de um perfil `cliente`, que é o desenho —, e o CSP tem `'self'` em `connect-src`. Com banco, RLS e política fora, "Failed to fetch" é falha de TRANSPORTE. **O bug reproduzível que a varredura encontrou é outro, e é meu:** a guarda da action era `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e esta action tem **dois chamadores** — o segundo é abrir o mês de social, que é `souDoAtendimento()` desde a 0046. O colaborador do Atendimento levava *"Seu perfil não permite esta ação"* na tela que o produto diz que é dele. É a 0059 outra vez: **a guarda estava mais apertada que o banco**, e `disponibilidade()` pergunta `is_staff()` justamente porque *"quem distribui numa demanda pode ser o colaborador do Atendimento"*. **E o "carregando" era sempre falso:** ele vinha do `useTransition` cujo retorno de chamada só DISPARA a promessa — a transição fechava antes do primeiro byte, e entre abrir a faixa e o erro não havia sinal nenhum. Hoje é derivado de uma chave comparada com a que voltou, e o `useTransition` fica só pelo embrulho que o `react-hooks/set-state-in-effect` exige. **A recusa ganhou "Tentar de novo"**, com a mensagem crua preservada. **O que NÃO foi consertado, porque não foi medido:** há uma CDN na frente deste host (`server: hcdn`) e `serverActions.allowedOrigins` não está configurado — o Next recusa a action quando o `Origin` não bate com o host encaminhado. A prova é uma requisição com os cabeçalhos de produção. **De quebra, "Pulso da agência" virou "Full Pulse"**, decisão do usuário entre sete nomes. O arquivo e o componente ficam, que é a decisão de `dias_uteis`; "Pulso" não entra na lista de nomes mortos porque não foi aposentada; e quem protege a troca é o `check:sprint9` de mão dupla, medido com mutação. |
 | O board inteiro na tela | **O board de Minhas Tasks passou a ocupar a largura da janela, com as seis colunas juntas** — decisão do usuário: *"o board está limitado ao espaço da caixa superior (…) todas as colunas devem aparecer simultaneamente, sem necessidade de rolagem horizontal"*. **São duas pontas no mesmo commit:** a tela marca `data-largo` e o `main` responde com `has-[[data-largo]]:max-w-none`; o board vira GRADE (seis colunas a partir de 2xl, três no meio, duas no celular) em vez de `flex` com coluna fixa de 288px e `overflow-x-auto`. Só a primeira daria seis colunas de 122px num 1440; só a segunda deixaria a largura sobrando com a rolagem de volta. **É `:has()` e não margem negativa**, que é o que a capa do cliente e a barra de contexto já pagaram duas vezes. **A marca é só da visão de board:** Lista e Calendário continuam nos 72rem, porque linha de 1600px é pior de ler que uma de 1100. **E o selo de prazo saía CORTADO, o que só a imagem pegou:** `DateBadge` era `whitespace-nowrap` no invólucro e, numa coluna estreita, ficava mais largo que o cartão — *"25/10/26 · há 3 di"*, sem reticências, que lê como defeito e não como texto que não coube. O `nowrap` passou a ser de cada pedaço e o invólucro envolve. Conferido por imagem no claro, no escuro e em 375px, porque ele é lido por dezenas de telas. **De quebra, os três botões do topo ficaram grudados:** a coluna já era `lg:sticky`, e entre "Nova task" e os ladrilhos ficava o cronômetro — numa janela baixa os dois ladrilhos grudavam FORA da tela. Os ladrilhos subiram, e o cronômetro continua na primeira dobra. |
 | A seta de voltar | **Uma seta só para a plataforma** (`components/shared/voltar.tsx`) — decisão do usuário: *"adicionar uma seta de voltar nas páginas que ainda não possuem, como Campanha e Social; padronizar a posição e o estilo em toda a plataforma"*. **Eram QUATRO desenhos em NOVE telas:** dois `Button ghost sm` com margens negativas diferentes e setas de tamanhos diferentes, dois `<Link>` crus com pares de cor diferentes entre si, e um `ChevronLeft` dentro da trilha do Social. O rótulo ia de "Gestão de Tasks" a "Voltar às campanhas" — às vezes o destino, às vezes a ação. É a história das sete cópias de `abas.tsx`. **O que ela centraliza é o DESENHO e o MECANISMO, nunca o destino.** E ela passou a voltar no HISTÓRICO, caindo na rota só quando não há: as nove antigas eram `<Link href>` fixos, então quem chegava a uma ficha pela busca global voltava para a lista, e não para a busca. **É `<Link>` com o clique interceptado e não um `<button>`**, para não perder a aba nova com Ctrl ou o botão do meio — clique modificado passa direto. A pergunta é `window.history.length > 1`, exata no caso que importa (aba aberta direto tem comprimento 1); o que ela não distingue é quem veio de fora da plataforma, e isso fica dito. **No Social ela virou a primeira casa da trilha**, e o resto da trilha fica: a seta dá o passo de trás, a trilha dá o nível. |
