@@ -10,10 +10,12 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import type { Resultado } from "@/lib/acoes/resultado";
 import { COR_DO_NIVEL, nivelDaCarga, ROTULOS_DE_NIVEL } from "@/lib/dominio/calendario";
 import {
-  avisoDoDiaEscolhido,
+  avisoDoPeriodoEscolhido,
+  resumoDoPeriodo,
   rotuloDoMotivo,
   type DiaDeDisponibilidade,
 } from "@/lib/dominio/disponibilidade";
+import { diasEntre, ordenar } from "@/lib/dominio/full-days";
 import { formatarMinutosCurto } from "@/lib/dominio/tempo";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +39,39 @@ import { cn } from "@/lib/utils";
  * calendário, e mover a escala por causa de um leitor a menos é churn sem
  * nada em troca.
  *
+ * **ELA SELECIONA UM PERÍODO, e não mais um dia solto** — decisão do usuário:
+ * *"o primeiro dia clicado deve ser automaticamente a data de início, o
+ * segundo a data final; todos os dias entre as duas devem ser selecionados e
+ * contabilizados; um terceiro clique inicia uma nova seleção"*.
+ *
+ * **ISSO FECHA UMA PERGUNTA QUE ESTAVA ESCRITA AQUI EM ABERTO**, e o
+ * parágrafo dela previa exatamente isto: *"o arrasto de um dia a outro
+ * escreveria o PERÍODO (início mais prazo), e o clique simples resolve o caso
+ * comum"*. O caso comum continua resolvido por um clique — o que mudou é que
+ * o segundo deixou de ser uma nova escolha e passou a ser a outra ponta.
+ *
+ * **A FAIXA NÃO DECIDE O QUE FAZER COM AS DUAS PONTAS**, e isso é o que
+ * permite ela servir aos dois chamadores sem desfazer a decisão de nenhum.
+ * Ela devolve `(início, fim)`, com `fim` nulo no primeiro clique; quem grava
+ * resolve:
+ *
+ *   - no painel da etapa, o primeiro clique vira um período de UM DIA
+ *     (`data_inicio = prazo`), porque ali o clique é o salvamento e meio
+ *     período gravado é um período que o `check subtasks_periodo` pode
+ *     recusar;
+ *   - na abertura do mês de social, ele escreve só o DIA e deixa a entrega em
+ *     branco, que é a decisão da 0089 palavra por palavra — *"a data de final
+ *     fica sempre em branco, pois na maioria dos casos a task dura apenas um
+ *     dia"*. Lá o branco QUER DIZER um dia, e preenchê-lo sozinho seria
+ *     desfazer o que ele pediu na mesma conversa.
+ *
+ * **E A JANELA DE BUSCA COBRE A SELEÇÃO, não só o mês à vista.** Sem isso um
+ * período de 28/10 a 03/11 contaria os dias de outubro e ignoraria os três de
+ * novembro — o resumo sairia baixo, plausível e errado, que é o modo de falha
+ * desta casa. A busca pede a união do mês visível com o período escolhido, e
+ * a chave do efeito já carrega as duas pontas, então trocar de mês com uma
+ * seleção aberta não perde a primeira.
+ *
  * **O DIA SE EXPLICA EMBAIXO DA GRADE.** A célula tem cerca de 62px num painel
  * de 512px: cabe o número e um fio de carga, e mais nada — nem um título de
  * etapa truncado, que não identifica nenhuma. O detalhe fica numa faixa logo
@@ -47,10 +82,15 @@ type Props = {
   /** Quem vai receber o trabalho. */
   userId: string;
   nome: string;
-  /** O prazo gravado hoje, em ISO. É ele que a grade marca. */
-  prazo: string | null;
-  /** Grava o prazo. A faixa não sabe como — ela devolve a data escolhida. */
-  aoEscolher: (data: string) => void;
+  /** A primeira ponta do período gravado hoje, em ISO. */
+  inicio: string | null;
+  /** A segunda ponta. Igual ao início quer dizer um período de um dia. */
+  fim: string | null;
+  /**
+   * Devolve o período escolhido. `fim` é nulo no PRIMEIRO clique, e quem
+   * grava decide o que isso significa — a razão está no cabeçalho.
+   */
+  aoEscolher: (inicio: string, fim: string | null) => void;
   /**
    * Busca os dias. Vem de fora, e não de um import, para este componente não
    * puxar `lib/dados/`, que é `server-only` — um componente de cliente que o
@@ -76,21 +116,35 @@ type Props = {
   rotuloDoClique?: string;
 };
 
+/** Onde o dia cai dentro do período escolhido. */
+type NaSelecao = "fora" | "ponta" | "meio";
+
 const SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
 export function FaixaDeDisponibilidade({
   userId,
   nome,
-  prazo,
+  inicio,
+  fim,
   aoEscolher,
   buscar,
-  rotuloDoClique = "Clicar num dia escreve o prazo da etapa.",
+  rotuloDoClique = "Clique num dia para abrir o período e noutro para fechar.",
 }: Props) {
-  // O MÊS ABRE NO DO PRAZO quando há um, e no corrente quando não há: quem
-  // está mexendo numa etapa já datada quer ver aquele mês, não este.
+  // O MÊS ABRE NO DO PERÍODO quando há um, e no corrente quando não há: quem
+  // está mexendo numa etapa já datada quer ver aquele mês, não este. A
+  // primeira ponta manda — abrir no fim de um período de três semanas
+  // esconderia justamente o começo dele.
   const [ancora, setAncora] = useState(() =>
-    startOfMonth(prazo ? parseISO(prazo) : new Date()),
+    startOfMonth(inicio ?? fim ? parseISO((inicio ?? fim) as string) : new Date()),
   );
+  // A PONTA ABERTA: o primeiro clique de uma seleção que ainda espera a
+  // segunda. Ela mora AQUI e não no pai porque é transitório do gesto — o
+  // período gravado continua sendo propriedade, como no calendário rolável,
+  // e é isso que a faz sobreviver a trocar de mês quantas vezes for.
+  const [pendente, setPendente] = useState<string | null>(null);
+  // O dia sob o cursor, para a prévia do intervalo entre os dois cliques. Sem
+  // ela, o segundo clique é uma aposta: nada na tela diz o que ele vai pegar.
+  const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const [dias, setDias] = useState<DiaDeDisponibilidade[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   // O CONTADOR É O BOTÃO "Tentar de novo", e ele mora na lista de dependências
@@ -107,8 +161,14 @@ export function FaixaDeDisponibilidade({
   // é para dizer se a busca está em curso — a razão está logo abaixo.
   const [, iniciarBusca] = useTransition();
 
-  const inicio = format(ancora, "yyyy-MM-dd");
-  const fim = format(endOfMonth(ancora), "yyyy-MM-dd");
+  // A JANELA É A UNIÃO DO MÊS COM A SELEÇÃO, e é ela que faz o período
+  // atravessar meses sem mentir no resumo. `min`/`max` de texto bastam:
+  // `yyyy-MM-dd` ordena igual como string e como data.
+  const mesInicio = format(ancora, "yyyy-MM-dd");
+  const mesFim = format(endOfMonth(ancora), "yyyy-MM-dd");
+  const pontas = [inicio, fim, pendente].filter(Boolean) as string[];
+  const janelaInicio = [mesInicio, ...pontas].reduce((a, b) => (a <= b ? a : b));
+  const janelaFim = [mesFim, ...pontas].reduce((a, b) => (a >= b ? a : b));
 
   // ------------------------------------------------------------------------
   // O "CARREGANDO" É DERIVADO DE UMA CHAVE, e isso é um conserto.
@@ -125,13 +185,13 @@ export function FaixaDeDisponibilidade({
   // responde a mesma pergunta sem guardar um segundo booleano — é "atraso não
   // é coluna" dentro de um componente.
   // ------------------------------------------------------------------------
-  const chave = `${userId}|${inicio}|${fim}|${tentativa}`;
+  const chave = `${userId}|${janelaInicio}|${janelaFim}|${tentativa}`;
   const buscando = carregado !== chave;
 
   useEffect(() => {
     let cancelado = false;
     void (async () => {
-      const r = await chamarAcao(() => buscar(userId, inicio, fim));
+      const r = await chamarAcao(() => buscar(userId, janelaInicio, janelaFim));
       if (cancelado) return;
       iniciarBusca(() => {
         if (r.ok) {
@@ -156,7 +216,7 @@ export function FaixaDeDisponibilidade({
     return () => {
       cancelado = true;
     };
-  }, [userId, inicio, fim, buscar, chave]);
+  }, [userId, janelaInicio, janelaFim, buscar, chave]);
 
   const porData = useMemo(() => {
     const mapa = new Map<string, DiaDeDisponibilidade>();
@@ -165,15 +225,70 @@ export function FaixaDeDisponibilidade({
   }, [dias]);
 
   const celulas = useMemo(() => montarGrade(ancora), [ancora]);
-  const escolhido = prazo ? porData.get(prazo) : undefined;
 
-  const aviso = escolhido
-    ? avisoDoDiaEscolhido(
-        escolhido,
-        nome.split(" ")[0],
-        format(parseISO(escolhido.data), "d 'de' MMMM", { locale: ptBR }),
-      )
-    : null;
+  // ------------------------------------------------------------------------
+  // O QUE ESTÁ DESTACADO AGORA.
+  //
+  // Com a seleção aberta, o intervalo desenhado vai da ponta pendente até o
+  // dia sob o cursor — e ele cai de volta na própria ponta quando o ponteiro
+  // sai da grade, para a célula clicada continuar marcada. Fechada, ele é o
+  // período que o pai tem gravado.
+  //
+  // `ordenar()` é o que faz a seleção de trás para frente funcionar: clicar
+  // no 20 e depois no 12 dá o mesmo período que o caminho contrário, e é a
+  // mesma função que o calendário do Day Off usa desde o Sprint 6.
+  // ------------------------------------------------------------------------
+  const faixa = useMemo<[string, string] | null>(() => {
+    if (pendente) return ordenar(pendente, sobrevoo ?? pendente);
+    if (inicio && fim) return ordenar(inicio, fim);
+    if (inicio) return [inicio, inicio];
+    if (fim) return [fim, fim];
+    return null;
+  }, [pendente, sobrevoo, inicio, fim]);
+
+  const diasDaFaixa = useMemo(
+    () => (faixa ? diasEntre(faixa[0], faixa[1]) : []),
+    [faixa],
+  );
+
+  // OS DIAS DO PERÍODO QUE JÁ VOLTARAM DO BANCO. Enquanto a busca da janela
+  // nova não chega, o resumo conta o que tem — e é por isso que ele some
+  // durante o carregamento em vez de mostrar um número pela metade.
+  const diasEscolhidos = useMemo(
+    () => diasDaFaixa.map((d) => porData.get(d)).filter(Boolean) as DiaDeDisponibilidade[],
+    [diasDaFaixa, porData],
+  );
+
+  const aviso =
+    diasEscolhidos.length === diasDaFaixa.length
+      ? avisoDoPeriodoEscolhido(
+          diasEscolhidos,
+          nome.split(" ")[0],
+          diasEscolhidos[0]
+            ? format(parseISO(diasEscolhidos[0].data), "d 'de' MMMM", { locale: ptBR })
+            : "",
+        )
+      : null;
+
+  /**
+   * O CLIQUE: abre, fecha, e o terceiro recomeça.
+   *
+   * O primeiro devolve `(dia, null)` e deixa a ponta aberta. O segundo
+   * devolve o par ordenado e fecha. O terceiro cai no primeiro ramo de novo,
+   * porque `pendente` voltou a ser nulo — não existe um estado em que a faixa
+   * espere a terceira.
+   */
+  function aoClicar(dia: string) {
+    if (pendente) {
+      const [de, ate] = ordenar(pendente, dia);
+      setPendente(null);
+      setSobrevoo(null);
+      aoEscolher(de, ate);
+      return;
+    }
+    setPendente(dia);
+    aoEscolher(dia, null);
+  }
 
   return (
     // ELA PINTA O PRÓPRIO FUNDO, e não pintava — é o terceiro contêiner do
@@ -248,9 +363,28 @@ export function FaixaDeDisponibilidade({
             </div>
           ))}
         </div>
-        <div className={cn("grid grid-cols-7 gap-0.5", buscando && "opacity-60")}>
+        {/* O `gap` SAIU da grade e virou borda, e é o que faz o intervalo se
+            ler como um intervalo: com meio pixel de vão entre as células, um
+            período de sete dias aparece como sete retângulos soltos da mesma
+            cor em vez de uma faixa. O respiro de cada dia virou padding
+            dentro da própria célula.
+
+            `onMouseLeave` no contêiner zera o sobrevoo: sem ele, tirar o
+            ponteiro da grade deixa a prévia congelada no último dia tocado,
+            afirmando um período que ninguém escolheu. */}
+        <div
+          className={cn("grid grid-cols-7", buscando && "opacity-60")}
+          onMouseLeave={() => setSobrevoo(null)}
+        >
           {celulas.map((celula) => {
             const dia = porData.get(celula.iso);
+            const na: NaSelecao = !faixa
+              ? "fora"
+              : celula.iso === faixa[0] || celula.iso === faixa[1]
+                ? "ponta"
+                : celula.iso > faixa[0] && celula.iso < faixa[1]
+                  ? "meio"
+                  : "fora";
             return (
               <Celula
                 key={celula.iso}
@@ -258,8 +392,10 @@ export function FaixaDeDisponibilidade({
                 numero={celula.numero}
                 doMes={celula.doMes}
                 dia={dia}
-                escolhido={prazo === celula.iso}
-                aoEscolher={aoEscolher}
+                na={na}
+                aberta={pendente !== null}
+                aoClicar={aoClicar}
+                aoSobrevoar={setSobrevoo}
               />
             );
           })}
@@ -278,7 +414,28 @@ export function FaixaDeDisponibilidade({
         ))}
       </div>
 
-      {escolhido ? <DiaEscolhido dia={escolhido} /> : null}
+      {/* UM DIA SE EXPLICA ITEM A ITEM; UM PERÍODO SE EXPLICA CONTANDO.
+          Numa etapa de três semanas a lista detalhada seriam cinco linhas
+          por dia — cem linhas num painel de 512px, que é a lista que esconde
+          a informação em vez de dá-la. O que o período precisa dizer é o
+          total e quantos dias apertam. */}
+      {diasEscolhidos.length === 1 ? (
+        <DiaEscolhido dia={diasEscolhidos[0]} />
+      ) : diasEscolhidos.length > 1 ? (
+        <PeriodoEscolhido dias={diasEscolhidos} />
+      ) : null}
+
+      {/* A PONTA ABERTA DIZ QUE ESTÁ ABERTA. Sem esta linha, entre o primeiro
+          e o segundo clique a tela fica idêntica à de um dia escolhido, e
+          quem parou no meio não tem como saber que o próximo clique vai
+          esticar o período em vez de trocá-lo. */}
+      {pendente ? (
+        <p className="text-accent-strong text-[11px] font-medium">
+          Período aberto em{" "}
+          {format(parseISO(pendente), "d 'de' MMMM", { locale: ptBR })}. Clique
+          noutro dia para fechar.
+        </p>
+      ) : null}
 
       {aviso ? (
         <p className="bg-warning-soft text-warning flex items-start gap-2 rounded-lg px-3 py-2 text-xs">
@@ -299,15 +456,20 @@ function Celula({
   numero,
   doMes,
   dia,
-  escolhido,
-  aoEscolher,
+  na,
+  aberta,
+  aoClicar,
+  aoSobrevoar,
 }: {
   iso: string;
   numero: number;
   doMes: boolean;
   dia: DiaDeDisponibilidade | undefined;
-  escolhido: boolean;
-  aoEscolher: (data: string) => void;
+  na: NaSelecao;
+  /** Há uma ponta esperando a segunda: o rótulo acessível muda por isso. */
+  aberta: boolean;
+  aoClicar: (data: string) => void;
+  aoSobrevoar: (data: string | null) => void;
 }) {
   const motivo = rotuloDoMotivo(dia?.indisponivelMotivo ?? null);
   const semCapacidade = dia ? dia.capacidadeMinutos === 0 : false;
@@ -326,16 +488,28 @@ function Celula({
     );
   else partes.push(ROTULOS_DE_NIVEL.vazio);
 
+  // O RÓTULO ACESSÍVEL DIZ O QUE O CLIQUE FAZ, e ele muda com a ponta aberta:
+  // quem não vê a faixa azul não tem como saber se o próximo clique abre um
+  // período novo ou fecha o que está aberto.
+  partes.push(aberta ? "fecha o período aqui" : "abre o período aqui");
+
   return (
     <button
       type="button"
-      aria-pressed={escolhido}
+      aria-pressed={na !== "fora"}
       aria-label={partes.join(", ")}
       title={partes.join(" · ")}
-      onClick={() => aoEscolher(iso)}
+      onClick={() => aoClicar(iso)}
+      onMouseEnter={() => aoSobrevoar(iso)}
+      onFocus={() => aoSobrevoar(iso)}
       className={cn(
-        "flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent py-1.5 hover:border-input",
-        escolhido && "border-accent-strong bg-accent",
+        // A FAIXA É CONTÍNUA, e as pontas é que são arredondadas: um raio em
+        // toda célula partiria o intervalo em sete pílulas. É o desenho do
+        // calendário rolável do Day Off, que resolve a mesma seleção.
+        "flex cursor-pointer flex-col items-center gap-1 border border-transparent px-0.5 py-1.5",
+        na === "fora" && "rounded-lg hover:border-input",
+        na === "meio" && "bg-accent",
+        na === "ponta" && "bg-accent-strong rounded-lg text-white",
       )}
     >
       {/* O DIA DE FORA DO MÊS E O DIA SEM CAPACIDADE RECUAM PELO TOM, nunca
@@ -351,7 +525,10 @@ function Celula({
       <span
         className={cn(
           "text-xs font-semibold tabular-nums",
-          (!doMes || semCapacidade) && "text-muted-foreground",
+          // A PONTA LEVA O TEXTO BRANCO DO PRÓPRIO FUNDO, e o recuo de tom
+          // dos outros dois casos não vale sobre ela: `--text-muted` sobre
+          // `--accent-strong` seria um par que ninguém mediu.
+          na !== "ponta" && (!doMes || semCapacidade) && "text-muted-foreground",
         )}
       >
         {numero}
@@ -409,6 +586,70 @@ function DiaEscolhido({ dia }: { dia: DiaDeDisponibilidade }) {
           {dia.etapas - dia.itens.length === 1 ? "etapa" : "etapas"}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * O PERÍODO INTEIRO, contado — e não a lista de todos os dias dele.
+ *
+ * Um dia escolhido mostra as etapas que já ocupam aquele dia, item a item,
+ * porque cabem cinco linhas. Um período de três semanas mostraria cem, num
+ * painel de 512px: a lista que esconde a informação em vez de dar.
+ *
+ * O que ele diz são os três números que decidem a data: quanto tempo a pessoa
+ * já tem no período, quanto o período comporta, e em quantos dias ela passa
+ * disso. O quarto — os dias em que ela está fora — só aparece quando existe,
+ * porque é a exceção, e a regra do produto é pintar só a exceção.
+ */
+function PeriodoEscolhido({ dias }: { dias: DiaDeDisponibilidade[] }) {
+  const resumo = resumoDoPeriodo(dias);
+  const primeiro = dias[0];
+  const ultimo = dias[dias.length - 1];
+
+  return (
+    <div className="bg-accent space-y-1.5 rounded-lg px-3 py-2">
+      <p className="text-accent-strong text-xs font-semibold">
+        {format(parseISO(primeiro.data), "d 'de' MMM", { locale: ptBR })} a{" "}
+        {format(parseISO(ultimo.data), "d 'de' MMM", { locale: ptBR })} ·{" "}
+        {resumo.dias} dias
+      </p>
+
+      <dl className="space-y-0.5 text-[11px]">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">Dias de trabalho</dt>
+          <dd className="font-semibold tabular-nums">{resumo.diasComCapacidade}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">Já ocupado</dt>
+          <dd className="font-semibold tabular-nums">
+            {formatarMinutosCurto(resumo.cargaMinutos)} de{" "}
+            {formatarMinutosCurto(resumo.capacidadeMinutos)}
+          </dd>
+        </div>
+        {/* OS DOIS DE BAIXO SOMEM NO ZERO, e é a decisão da matriz do Day Off:
+            uma linha dizendo "0 dias acima da capacidade" em todo período
+            tranquilo é a linha que ensina a não ler o bloco. A ausência é a
+            resposta. */}
+        {resumo.diasEstourados > 0 ? (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Acima da capacidade</dt>
+            <dd className="text-warning font-semibold tabular-nums">
+              {resumo.diasEstourados}{" "}
+              {resumo.diasEstourados === 1 ? "dia" : "dias"}
+            </dd>
+          </div>
+        ) : null}
+        {resumo.diasIndisponiveis > 0 ? (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Fora</dt>
+            <dd className="text-warning font-semibold tabular-nums">
+              {resumo.diasIndisponiveis}{" "}
+              {resumo.diasIndisponiveis === 1 ? "dia" : "dias"}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
     </div>
   );
 }

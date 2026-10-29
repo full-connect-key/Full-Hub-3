@@ -310,6 +310,28 @@ const TELAS = [
   // imagem precisa provar e a faixa, nao a lista de nomes.
   { nome: "56b-abrir-o-mes-carga", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
     clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")'] },
+  // A SELECAO DE PERIODO (item 18), e ela precisa de DOIS cliques num dia:
+  // em repouso a faixa mostra uma ponta so, e a imagem provaria que o
+  // intervalo some, nao que ele aparece. Os dois dias estao a uma semana um
+  // do outro de proposito -- um par vizinho nao mostra o meio da faixa, que
+  // e justamente o que "destacar todo o intervalo" quer dizer.
+  //
+  // O seletor casa pelo PREFIXO do rotulo acessivel porque o resto dele muda
+  // com a selecao: depois do primeiro clique todo dia passa a dizer "fecha o
+  // periodo aqui" em vez de "abre".
+  { nome: "56c-abrir-o-mes-periodo", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
+    clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")',
+             'button[aria-label^="2 de setembro"]', 'button[aria-label^="8 de setembro"]'] },
+  // O PERIODO ATRAVESSANDO O MES, que o pedido nomeia em voz alta. Ele abre
+  // em 28 de setembro, vira o mes, e fecha em 3 de outubro -- e o que a
+  // imagem prova nao e a faixa, que sai pela metade porque a outra ponta
+  // ficou no mes anterior: e o RESUMO, que so conta seis dias se a busca
+  // tiver ido buscar os de outubro. Sem a janela unindo mes e selecao ele
+  // sairia contando tres, um numero baixo e plausivel.
+  { nome: "56d-abrir-o-mes-periodo-dois-meses", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
+    clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")',
+             'button[aria-label^="28 de setembro"]', 'button[aria-label="Mês seguinte"]',
+             'button[aria-label^="3 de outubro"]'] },
   // A ABA FLUXOS (0087). A lista mostra os tres estados que importam: a
   // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
   // descreveu -- e uma desativada, que e o unico em que o selo e o botao

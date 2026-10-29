@@ -128,3 +128,113 @@ export function avisoDoDiaEscolhido(
 
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// O PERÍODO, e não mais o dia solto
+//
+// Decisão do usuário: *"permitir a seleção de um período diretamente no
+// calendário (…) atualizar os indicadores de sobrecarga considerando o período
+// completo"*.
+//
+// O que muda aqui é só a LEITURA, e a regra do arquivo continua inteira: quem
+// soma minutos é `disponibilidade_bruta()` no Postgres, dia a dia. Estas duas
+// funções percorrem os dias que a função devolveu e contam — elas não
+// recalculam carga nenhuma, e é por isso que elas podem existir em TypeScript
+// sem criar o gêmeo que a 0035 proíbe.
+// ---------------------------------------------------------------------------
+
+export type ResumoDoPeriodo = {
+  /** Quantos dias o período cobre, de ponta a ponta. */
+  dias: number;
+  /** Quantos deles a pessoa de fato trabalha. */
+  diasComCapacidade: number;
+  cargaMinutos: number;
+  capacidadeMinutos: number;
+  /** Em quantos a carga passa da capacidade. */
+  diasEstourados: number;
+  /** Em quantos ela não está — day off, afastamento, ausência, evento. */
+  diasIndisponiveis: number;
+};
+
+export function resumoDoPeriodo(dias: DiaDeDisponibilidade[]): ResumoDoPeriodo {
+  let cargaMinutos = 0;
+  let capacidadeMinutos = 0;
+  let diasComCapacidade = 0;
+  let diasEstourados = 0;
+  let diasIndisponiveis = 0;
+
+  for (const dia of dias) {
+    cargaMinutos += dia.cargaMinutos;
+    capacidadeMinutos += dia.capacidadeMinutos;
+    if (dia.capacidadeMinutos > 0) diasComCapacidade += 1;
+    if (dia.ocupacaoPct !== null && dia.ocupacaoPct > 100) diasEstourados += 1;
+    // O DIA SEM CAPACIDADE SÓ CONTA COMO AUSÊNCIA QUANDO O MOTIVO É DA PESSOA:
+    // fim de semana e feriado zeram a capacidade de todo mundo, e contá-los
+    // faria um período de duas semanas acusar quatro ausências que não
+    // existem. É o mesmo `DO_CALENDARIO` que o aviso de um dia já usa.
+    if (
+      dia.capacidadeMinutos === 0 &&
+      dia.indisponivelMotivo !== null &&
+      !DO_CALENDARIO.has(dia.indisponivelMotivo)
+    ) {
+      diasIndisponiveis += 1;
+    }
+  }
+
+  return {
+    dias: dias.length,
+    diasComCapacidade,
+    cargaMinutos,
+    capacidadeMinutos,
+    diasEstourados,
+    diasIndisponiveis,
+  };
+}
+
+/**
+ * O AVISO CONTINUA SENDO UM SÓ, e a frase do usuário que o criou não mudou:
+ * *"deve aparecer apenas um aviso de sobrecarga"* (0081).
+ *
+ * Com um dia escolhido ele é exatamente o de antes, palavra por palavra —
+ * esta função delega. Com um período, ele passa a CONTAR em vez de nomear:
+ * *"a Marina passa da capacidade em 3 dos 7 dias deste período"*. Listar os
+ * três é a lista que a decisão de 0081 recusou, e nomear só o primeiro
+ * esconderia os outros dois.
+ *
+ * **E ele continua dizendo o que ACONTECEU, no passado.** Nenhuma trava deste
+ * produto olha carga: o painel da etapa grava no clique, e o aviso é a
+ * consequência e não o portão.
+ */
+export function avisoDoPeriodoEscolhido(
+  dias: DiaDeDisponibilidade[],
+  nome: string,
+  dataLegivelDoPrimeiro: string,
+): string | null {
+  if (dias.length === 0) return null;
+  if (dias.length === 1) {
+    return avisoDoDiaEscolhido(dias[0], nome, dataLegivelDoPrimeiro);
+  }
+
+  const resumo = resumoDoPeriodo(dias);
+
+  // A AUSÊNCIA VEM ANTES DA SOBRECARGA, e a ordem é a mesma do aviso de um
+  // dia: "ela não está" é um fato mais duro que "ela fica apertada", e os
+  // dois na mesma frase viram um parágrafo onde a pessoa precisa de uma linha.
+  if (resumo.diasIndisponiveis > 0) {
+    const d = resumo.diasIndisponiveis;
+    return (
+      `${nome} está fora em ${d} ${d === 1 ? "dia" : "dias"} deste período. ` +
+      `Ficou registrado assim mesmo.`
+    );
+  }
+
+  if (resumo.diasEstourados > 0) {
+    return (
+      `${nome} passa da capacidade em ${resumo.diasEstourados} dos ` +
+      `${resumo.diasComCapacidade} dias úteis deste período. ` +
+      `Ficou registrado assim mesmo.`
+    );
+  }
+
+  return null;
+}

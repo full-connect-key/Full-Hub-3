@@ -974,15 +974,33 @@ export function AbrirOMes({
                       <FaixaDeDisponibilidade
                         userId={pessoa.id}
                         nome={pessoa.nome}
-                        prazo={periodo.inicio || null}
-                        aoEscolher={(data) =>
+                        inicio={periodo.inicio || null}
+                        fim={periodo.fim || null}
+                        /*
+                         * AQUI O CLIQUE SOLTO NÃO PREENCHE A ENTREGA, e é a
+                         * decisão da 0089 palavra por palavra: *"quero que a
+                         * data de final fique sempre em branco, pois na
+                         * maioria dos casos a task dura apenas um dia"*. O
+                         * branco QUER DIZER um dia nesta tela — a frase
+                         * embaixo do campo explica isso —, e preenchê-lo
+                         * sozinho desfaria o que ele pediu.
+                         *
+                         * Um período escolhido de verdade, com as duas
+                         * pontas, escreve as duas: aí a pessoa disse que a
+                         * etapa dura mais de um dia.
+                         */
+                        aoEscolher={(de, ate) =>
                           setPrazos((atual) => ({
                             ...atual,
-                            [etapa.nome]: { ...periodo, inicio: data },
+                            [etapa.nome]: {
+                              ...periodo,
+                              inicio: de,
+                              fim: ate ?? periodo.fim,
+                            },
                           }))
                         }
                         buscar={buscarDisponibilidade}
-                        rotuloDoClique="Clicar num dia escreve o dia desta etapa."
+                        rotuloDoClique="Clique num dia para o dia da etapa, e noutro se ela durar mais de um."
                       />
                     ) : null}
                   </div>

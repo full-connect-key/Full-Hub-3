@@ -347,8 +347,25 @@ export function PainelDaSubtarefa({
             <FaixaDeDisponibilidade
               userId={subtarefa.responsavel.id}
               nome={subtarefa.responsavel.nome}
-              prazo={subtarefa.prazo}
-              aoEscolher={(data: string) => salvar({ prazo: data })}
+              inicio={subtarefa.data_inicio}
+              fim={subtarefa.prazo}
+              /*
+               * O PRIMEIRO CLIQUE GRAVA UM PERÍODO DE UM DIA, e o segundo o
+               * estica. A faixa devolve `fim` nulo na primeira ponta, e aqui
+               * ele vira `data_inicio = prazo`: neste painel o clique É o
+               * salvamento (0028), e meio período gravado é um período que o
+               * `check subtasks_periodo` pode recusar — com um início antigo
+               * à frente de um prazo novo, a recusa chegaria como um clique
+               * num dia que simplesmente não faz nada.
+               *
+               * O custo está dito: clicar um dia solto numa etapa que já
+               * tinha período encolhe os dois para aquele dia. É o que
+               * "iniciar uma nova seleção" quer dizer, e o segundo clique
+               * devolve a outra ponta na hora.
+               */
+              aoEscolher={(de: string, ate: string | null) =>
+                salvar({ data_inicio: de, prazo: ate ?? de })
+              }
               buscar={buscarDisponibilidade}
             />
           ) : null}
