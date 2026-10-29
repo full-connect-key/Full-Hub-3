@@ -1,27 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 632 632">
   <!--
-    O ícone da aba. É o ÚNICO arquivo de interface fora do globals.css com cor
-    literal, e não é descuido: um favicon é servido sozinho, sem a folha de
-    estilo do app, então não existe var(--marca-disco) para ele ler. Os
-    valores são os mesmos do arquivo da agência e os mesmos tokens
-    (#15242C, #7FCFF5, #545960).
+    O ícone da aba, e ele é o do FULL HUB — não mais o símbolo da Full Connect
+    Key. O arquivo da agência está em `public/marca/full-hub-icone.png`, e a
+    geometria foi medida nele: ladrilho de 632 com canto de raio 95,6, ponto
+    branco em (316 / 180) com raio 48, e o triângulo como duas voltas de um
+    caminho `evenodd` — a de fora e o furo — em vez de traço, porque é assim
+    que o arquivo desenha.
 
-    A troca por prefers-color-scheme é o mesmo raciocínio da tela: o disco
-    escuro desaparece numa barra de abas escura, então lá entra o disco azul.
-    Navegador que ignora a media query fica com a versão escura, que é a
-    principal.
+    É o ÚNICO arquivo de interface fora do globals.css com cor literal, e não é
+    descuido: um favicon é servido sozinho, sem a folha de estilo do app, então
+    não existe var(--marca-hub) para ele ler.
+
+    E ELE NÃO TEM MAIS A TROCA POR prefers-color-scheme, que a versão anterior
+    tinha. Ela existia porque o disco escuro da agência sumia numa barra de
+    abas escura; este ladrilho carrega o próprio fundo, então ele se lê em
+    qualquer barra e não há segunda versão a escolher.
   -->
-  <style>
-    .disco { fill: #15242C }
-    .ponto { fill: #7FCFF5 }
-    .traco { stroke: #FFFFFF }
-    @media (prefers-color-scheme: dark) {
-      .disco { fill: #7FCFF5 }
-      .ponto { fill: #FFFFFF }
-      .traco { stroke: #545960 }
-    }
-  </style>
-  <circle class="disco" cx="540" cy="540" r="540"/>
-  <circle class="ponto" cx="544.5" cy="320.4" r="88.6"/>
-  <path class="traco" d="M539 518.3 L731.8 860.5 L346.2 860.5 Z" fill="none" stroke-width="19" stroke-linejoin="miter"/>
+  <rect width="632" height="632" rx="95.6" fill="#0267C1"/>
+  <circle cx="316" cy="180" r="48" fill="#FFFFFF"/>
+  <path fill="#000000" fill-rule="evenodd" d="M315.5 257.4 L443.6 500 L187.4 500 Z M315.5 294.4 L413.5 481 L217.5 481 Z"/>
 </svg>

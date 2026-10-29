@@ -83,6 +83,36 @@
   --marca-ponto: var(--brand-blue);
   --marca-traco: #FFFFFF;
 
+  /* --- A MARCA DO FULL HUB, que é outra ----------------------------------
+     O bloco acima é o símbolo da Full Connect Key: a AGÊNCIA. Este é o do
+     PRODUTO — o ladrilho azul com ponto e triângulo, e o lockup "full hub" —
+     e ele existe porque a agência desenhou um, o que até aqui não era o caso.
+
+     `--marca-hub` é o azul do arquivo, medido nos dois PNG entregues: os dois
+     dão exatamente #0267C1. Ele NÃO é `--action`, e a distinção é a mesma que
+     já separa `--brand-blue` de `--action-text`: azul de marca não é azul de
+     ação. Repontar um para o outro é decisão de paleta, e ela ainda não foi
+     tomada.
+
+     NO ESCURO ELE CLAREIA, e o número é a razão: #0267C1 sobre o cartão
+     escuro dá 2,82:1 — abaixo até do mínimo de elemento de interface. O tom
+     claro é o MESMO azul, mesma matiz e mesma saturação, levado até passar de
+     4,5:1. É a decisão de `--marca-disco`, que já troca de versão por fundo.
+
+     O NEUTRO DO LOCKUP NÃO É TOKEN NOVO: as letras pretas do arquivo saem em
+     `--text-primary`, que já inverte sozinho no escuro e já está medido. É a
+     forma de `--acao-fundo`, que aponta para o mesmo token em vez de repetir
+     dois hexadecimais — e é o que faz o lockup se ler na barra lateral, que é
+     branca no claro e escura no escuro. */
+  --marca-hub: #0267C1;
+
+  /* O ponto e o traço DENTRO do ladrilho. Eles não trocam por tema, e a
+     ausência de um par no `.dark` é a decisão: o ladrilho tem fundo próprio,
+     então o fundo atrás deles é sempre o mesmo azul. Um token de tema ali
+     trocaria a cor por causa de um fundo que não é o deles. */
+  --marca-hub-ponto: #FFFFFF;
+  --marca-hub-traco: #000000;
+
   /* --- A escala do azul -------------------------------------------------- */
   /* Fundo de destaque leve: quadrado de ícone, pill, linha selecionada. */
   --blue-soft: #E3F5FD;
@@ -553,6 +583,11 @@
   --marca-ponto: #FFFFFF;
   --marca-traco: var(--brand-gray);
 
+  /* O mesmo azul do arquivo, clareado até se ler sobre fundo escuro. Medido:
+     4,94:1 sobre --surface-card, 5,18:1 sobre --surface-sidebar e 5,45:1
+     sobre --surface-page. */
+  --marca-hub: #1891FD;
+
   /* --blue-strong é escuro demais para ler sobre fundo escuro. Aqui o azul
      legível é o próprio azul da marca. */
   --accent-strong: var(--action-text);
@@ -591,11 +626,15 @@
   --ring: var(--brand-blue);
 }
 
-/* A barra lateral tem fundo escuro NOS DOIS temas — ela não acompanha a
-   página. Um seletor, e não uma terceira versão do símbolo: o componente
-   marca o `data-marca` e as três variáveis acima trocam juntas, como trocam
-   no tema escuro. Sem isso a marca sairia com o disco escuro sobre a barra
-   escura no tema claro, que é o único fundo onde ela não se enxerga. */
+/* A PORTA tem fundo preto NOS DOIS temas — ela não acompanha a página. Um
+   seletor, e não uma terceira versão do símbolo: o componente marca o
+   `data-marca` e as três variáveis acima trocam juntas, como trocam no tema
+   escuro. Sem isso a marca sairia com o disco escuro sobre o preto no tema
+   claro, que é o único fundo onde ela não se enxerga.
+
+   A BARRA LATERAL ERA O OUTRO CASO, e deixou de ser duas vezes: ela passou a
+   seguir o tema na interface "Leve", e o lockup dela passou a ser a marca do
+   Full Hub, que não usa estas três variáveis. */
 [data-marca="azul"] {
   --marca-disco: var(--brand-blue);
   --marca-ponto: #FFFFFF;
@@ -611,6 +650,9 @@
   --color-marca-disco: var(--marca-disco);
   --color-marca-ponto: var(--marca-ponto);
   --color-marca-traco: var(--marca-traco);
+  --color-marca-hub: var(--marca-hub);
+  --color-marca-hub-ponto: var(--marca-hub-ponto);
+  --color-marca-hub-traco: var(--marca-hub-traco);
   --color-blue-soft: var(--blue-soft);
   --color-blue-muted: var(--blue-muted);
   --color-blue-strong: var(--blue-strong);

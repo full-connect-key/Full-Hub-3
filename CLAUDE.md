@@ -1600,13 +1600,14 @@ triângulo branco, e disco azul com ponto branco e triângulo cinza. Qual delas
 aparece é decisão de fundo, e decisão de fundo mora no `globals.css`:
 `--marca-disco`, `--marca-ponto` e `--marca-traco` trocam juntas no tema
 escuro, onde o disco #15242C sobre #1F2227 daria 1,1:1 e sumiria. A barra
-lateral é escura nos **dois** temas e não acompanha a página, então ela marca
+porta é preta nos **dois** temas e não acompanha a página, então ela marca
 `data-marca="azul"` e as mesmas três variáveis trocam — um seletor, não uma
-terceira versão do símbolo.
+terceira versão do símbolo. *(A barra lateral era o outro caso, e deixou de
+ser duas vezes: ela passou a seguir o tema na interface "Leve", e o lockup
+dela passou a ser a marca do Full Hub, que não usa estas três variáveis.)*
 
-**"Full Hub" continua tipográfico, e é de propósito:** o símbolo é da Full
-Connect Key, "Full Hub" é o nome do produto. Não existe wordmark de Full Hub,
-e desenhar um seria pôr no ar uma marca que a agência não fez.
+**ESTE SÍMBOLO É DA AGÊNCIA, E O FULL HUB PASSOU A TER O DELE.** O que está
+logo abaixo é a decisão nova, e ela desfaz a que estava escrita aqui.
 
 **O wordmark "full connect key" NÃO APARECE MAIS NO PRODUTO**, e a ausência é
 consequência de uma decisão e não esquecimento. Ele é um lockup fechado — três
@@ -1635,10 +1636,98 @@ pegar o errado.
 **`src/app/icon.svg` é o TERCEIRO arquivo com cor literal**, e a exceção está
 registrada em `check:cores` — que passou a varrer `.svg` dentro de `src/` por
 causa dele. O navegador serve o ícone da aba sozinho, sem a folha de estilo do
-app, então não existe `var(--marca-disco)` para ele ler; a troca por tema vive
-num `prefers-color-scheme` dentro do próprio arquivo. Deixá-lo fora da
+app, então não existe `var(--marca-hub)` para ele ler. Deixá-lo fora da
 varredura faria a regra dizer que só há dois lugares com cor literal, e o
 terceiro ficaria invisível.
+
+**E ELE PERDEU A TROCA POR `prefers-color-scheme`**, que a versão do disco
+tinha. Ela existia porque o disco escuro da agência sumia numa barra de abas
+escura; o ladrilho do Full Hub carrega o próprio fundo, então ele se lê em
+qualquer barra e não há segunda versão a escolher. A ausência é consequência
+do desenho novo, não simplificação.
+
+#### A MARCA DO FULL HUB, e a decisão que ela desfaz
+
+Decisão do usuário, com os dois arquivos: *"segue o logo e o icone"*. Em
+`public/marca/` entraram `full-hub.png` — o lockup "full hub" — e
+`full-hub-icone.png` — o ladrilho azul com o ponto e o triângulo.
+
+**O NOME DO PRODUTO DEIXOU DE SER TIPOGRÁFICO, e o que caiu foi a premissa e
+não o gosto.** Estava escrito aqui, em quantas palavras: *"'Full Hub' continua
+tipográfico, e é de propósito: não existe wordmark de Full Hub, e desenhar um
+seria pôr no ar uma marca que a agência não fez"*. A agência fez. Com o
+arquivo na mão, escrever "Full Hub" na letra do produto passou a ser **o
+contrário** do que aquela frase protegia — é jogar fora a identidade que ela
+acabou de desenhar. Fica registrado como reversão e não como troca silenciosa,
+porque o argumento continua certo para o próximo caso: sem arquivo, não se
+desenha marca.
+
+**O SÍMBOLO DA AGÊNCIA SAIU DO LOCKUP JUNTO, e não é remoção da agência.** O
+lockup novo já carrega o ponto e o triângulo no fim do nome: pôr o disco ao
+lado repetiria o mesmo par de formas duas vezes em quarenta pixels. Quem
+continua nomeando a agência é a assinatura "FULL CONNECT KEY" em caixa alta,
+que se lê a 9px — e `SimboloDaMarca` continua de pé, na **porta**, que é onde
+o usuário pediu *"apenas o logo da agência"*.
+
+**SÃO DUAS FORMAS DA MESMA MARCA, e a tela escolhe pela largura que tem.**
+`MarcaDoFullHub` é o retângulo (538 × 363, duas linhas) e `IconeDoFullHub` é o
+quadrado. A barra lateral recolhida troca um pelo outro: o lockup tem quarenta
+e sete pixels de largura a 32px de altura e a coluna recolhida deixa quarenta
+— esconder metade dele seria pior que trocá-lo. **A troca mora na barra**, não
+dentro do `Logo`: `recolhido` é um atributo do `<html>` que o Portal também
+enxerga, e a decisão de qual forma cabe é de quem tem o estado.
+
+**É O ARQUIVO VETORIZADO, E NÃO UMA LETRA PARECIDA.** As duas cores do PNG
+foram separadas em duas máscaras e cada uma virou um caminho `evenodd`,
+seguindo a borda dos pixels e simplificada com desvio máximo de **0,45px** —
+medido: a 0,75px a silhueta já sai do lugar em 343 pixels. Em comandos
+relativos (`h`/`v`/`l`) isso dá 3,6KB de caminho contra 10,2KB em absolutos,
+sem perder um pixel. **A conferência é a do símbolo**, e não de olho: o SVG
+foi rasterizado no Chromium e comparado pixel a pixel com o PNG — a silhueta
+bate dentro de 1px, e os quatro pixels que divergem são pontas de canto.
+
+**A geometria do ladrilho também foi medida**, e o canto não era o que parecia:
+o primeiro pixel opaco da linha de cima está em x=86, que é o que se vê, e o
+raio é **95,6** — ajuste de mínimos quadrados sobre 86 pontos da borda, com
+resíduo de 0,18px. O expoente da superelipse saiu **1,99**, ou seja é
+circunferência mesmo. O ponto é (316 / 180) com raio 48, e o triângulo é
+`evenodd` com a volta de fora e o furo, porque é assim que o arquivo desenha —
+não traço, como no símbolo da agência.
+
+**`--marca-hub` É O AZUL DO ARQUIVO, #0267C1**, e os dois PNG dão exatamente o
+mesmo valor. **Ele NÃO é `--action`**, e a distinção é a mesma que já separa
+`--brand-blue` de `--action-text`: azul de marca não é azul de ação. Repontar
+um para o outro é decisão de paleta, e ela ainda não foi tomada.
+
+**NO ESCURO ELE CLAREIA, e o número é a razão:** #0267C1 sobre o cartão escuro
+dá **2,82:1** — abaixo até do mínimo de elemento de interface. O tom claro é o
+MESMO azul, mesma matiz e mesma saturação, levado até passar de 4,5:1:
+**4,94:1** sobre o cartão, 5,18:1 sobre a barra, 5,45:1 sobre a página. É a
+decisão de `--marca-disco`, que já troca de versão por fundo.
+
+**O NEUTRO DO LOCKUP NÃO É TOKEN NOVO.** As letras pretas do arquivo saem em
+`--text-primary`, que já inverte sozinho no escuro e já está medido — a forma
+de `--acao-fundo`, que aponta para o mesmo token em vez de repetir dois
+hexadecimais. É isso que faz o lockup se ler na barra lateral, que é branca no
+claro e escura no escuro, sem uma segunda versão do arquivo. A agência já
+entrega o wordmark dela numa versão branca, então inverter o neutro é a
+convenção dela e não uma invenção daqui.
+
+**O ponto e o traço DENTRO do ladrilho são tokens que NÃO trocam por tema**, e
+a ausência de par no `.dark` é a decisão: o ladrilho tem fundo próprio, então
+o fundo atrás deles é sempre o mesmo azul. Um token de tema ali trocaria a cor
+por causa de um fundo que não é o deles.
+
+**O `favicon.ico` e o `apple-icon.png` saem do PNG da agência**, reduzidos com
+Lanczos, e não do SVG rasterizado a 16px: o triângulo tem traço de 3% da
+largura, e a 16px um vetor rasterizado direto vira um borrão onde a redução de
+uma imagem grande ainda distingue as três formas.
+
+***O que fica em aberto, e é dito em vez de escondido:*** a **paleta oficial**
+(quais hexadecimais são ação, marca e neutros) e a **espiral** que deve
+substituir a molécula da porta. Os dois foram pedidos e ainda não chegaram, e
+até chegarem `--action` continua sendo o royal de antes — trocá-lo por
+`--marca-hub` seria escolher a paleta no lugar de quem a desenhou.
 
 #### A porta: preto, a molécula, e o cartão de vidro no centro
 
@@ -13036,6 +13125,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A marca do Full Hub | **A agência desenhou um lockup e um ícone para o PRODUTO, e isso desfaz uma decisão escrita aqui.** Estava registrado que *"não existe wordmark de Full Hub, e desenhar um seria pôr no ar uma marca que a agência não fez"* — ela fez, e com o arquivo na mão escrever o nome na letra do produto passou a ser o **contrário** do que a frase protegia. Fica como reversão e não como troca silenciosa, porque o argumento continua certo para o próximo caso: sem arquivo, não se desenha marca. **É o arquivo vetorizado e não uma letra parecida:** as duas cores do PNG viraram duas máscaras, cada uma um caminho `evenodd` seguindo a borda dos pixels, simplificado com desvio máximo de **0,45px** — medido, porque a 0,75px a silhueta já sai do lugar em 343 pixels — e emitido em comandos relativos, 3,6KB contra 10,2KB sem perder um pixel. **A conferência é a do símbolo:** rasterizado no Chromium e comparado pixel a pixel com o PNG, a silhueta bate dentro de 1px e os quatro pixels que divergem são pontas de canto. **O canto do ladrilho não era o que parecia** — o primeiro pixel opaco está em x=86 e o raio é **95,6**, por mínimos quadrados sobre 86 pontos da borda, com resíduo de 0,18px e expoente de superelipse 1,99 (ou seja, circunferência). **`--marca-hub` é #0267C1**, o mesmo valor nos dois arquivos, e **não é `--action`**: azul de marca não é azul de ação, e repontar um para o outro é decisão de paleta. **No escuro ele clareia**, porque #0267C1 sobre o cartão escuro dá **2,82:1** — o tom claro é o mesmo azul levado a 4,94:1. **O neutro do lockup não é token novo:** as letras saem em `--text-primary`, que já inverte sozinho, que é o que faz a marca se ler na barra branca e na escura sem uma segunda versão. **O símbolo da agência saiu do lockup e ficou na porta**, onde o usuário pediu *"apenas o logo da agência"*: o lockup novo já carrega o ponto e o triângulo, e pôr o disco ao lado repetiria o mesmo par de formas duas vezes em quarenta pixels. A barra recolhida troca o retângulo pelo quadrado, e **a troca mora na barra** e não dentro do `Logo`, porque `recolhido` é um atributo do `<html>` que o Portal também enxerga. O `favicon.ico` e o `apple-icon.png` saem do PNG reduzido e não do SVG rasterizado a 16px, onde o traço de 3% do triângulo vira borrão. ***Em aberto, e dito em vez de escondido:*** a paleta oficial e a espiral da porta ainda não chegaram. |
 | O calendário da etapa, e o Full Pulse | **A faixa de disponibilidade recusava quem o banco aceita, e não tinha como tentar de novo.** Relato do usuário: *"Failed to fetch ao abrir uma task e acessar o calendário de disponibilidade"*, com a instrução de **corrigir a causa, não ocultar a mensagem**. **O que foi descartado com medida:** a 0081 está aplicada inteira (assinatura, `security definer`, `authenticated` com EXECUTE, `disponibilidade_bruta` sem grant), a função roda sem erro para **toda pessoa ativa da equipe × quatro meses** — as únicas recusas são de um perfil `cliente`, que é o desenho —, e o CSP tem `'self'` em `connect-src`. Com banco, RLS e política fora, "Failed to fetch" é falha de TRANSPORTE. **O bug reproduzível que a varredura encontrou é outro, e é meu:** a guarda da action era `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e esta action tem **dois chamadores** — o segundo é abrir o mês de social, que é `souDoAtendimento()` desde a 0046. O colaborador do Atendimento levava *"Seu perfil não permite esta ação"* na tela que o produto diz que é dele. É a 0059 outra vez: **a guarda estava mais apertada que o banco**, e `disponibilidade()` pergunta `is_staff()` justamente porque *"quem distribui numa demanda pode ser o colaborador do Atendimento"*. **E o "carregando" era sempre falso:** ele vinha do `useTransition` cujo retorno de chamada só DISPARA a promessa — a transição fechava antes do primeiro byte, e entre abrir a faixa e o erro não havia sinal nenhum. Hoje é derivado de uma chave comparada com a que voltou, e o `useTransition` fica só pelo embrulho que o `react-hooks/set-state-in-effect` exige. **A recusa ganhou "Tentar de novo"**, com a mensagem crua preservada. **O que NÃO foi consertado, porque não foi medido:** há uma CDN na frente deste host (`server: hcdn`) e `serverActions.allowedOrigins` não está configurado — o Next recusa a action quando o `Origin` não bate com o host encaminhado. A prova é uma requisição com os cabeçalhos de produção. **De quebra, "Pulso da agência" virou "Full Pulse"**, decisão do usuário entre sete nomes. O arquivo e o componente ficam, que é a decisão de `dias_uteis`; "Pulso" não entra na lista de nomes mortos porque não foi aposentada; e quem protege a troca é o `check:sprint9` de mão dupla, medido com mutação. |
 | O board inteiro na tela | **O board de Minhas Tasks passou a ocupar a largura da janela, com as seis colunas juntas** — decisão do usuário: *"o board está limitado ao espaço da caixa superior (…) todas as colunas devem aparecer simultaneamente, sem necessidade de rolagem horizontal"*. **São duas pontas no mesmo commit:** a tela marca `data-largo` e o `main` responde com `has-[[data-largo]]:max-w-none`; o board vira GRADE (seis colunas a partir de 2xl, três no meio, duas no celular) em vez de `flex` com coluna fixa de 288px e `overflow-x-auto`. Só a primeira daria seis colunas de 122px num 1440; só a segunda deixaria a largura sobrando com a rolagem de volta. **É `:has()` e não margem negativa**, que é o que a capa do cliente e a barra de contexto já pagaram duas vezes. **A marca é só da visão de board:** Lista e Calendário continuam nos 72rem, porque linha de 1600px é pior de ler que uma de 1100. **E o selo de prazo saía CORTADO, o que só a imagem pegou:** `DateBadge` era `whitespace-nowrap` no invólucro e, numa coluna estreita, ficava mais largo que o cartão — *"25/10/26 · há 3 di"*, sem reticências, que lê como defeito e não como texto que não coube. O `nowrap` passou a ser de cada pedaço e o invólucro envolve. Conferido por imagem no claro, no escuro e em 375px, porque ele é lido por dezenas de telas. **De quebra, os três botões do topo ficaram grudados:** a coluna já era `lg:sticky`, e entre "Nova task" e os ladrilhos ficava o cronômetro — numa janela baixa os dois ladrilhos grudavam FORA da tela. Os ladrilhos subiram, e o cronômetro continua na primeira dobra. |
 | A seta de voltar | **Uma seta só para a plataforma** (`components/shared/voltar.tsx`) — decisão do usuário: *"adicionar uma seta de voltar nas páginas que ainda não possuem, como Campanha e Social; padronizar a posição e o estilo em toda a plataforma"*. **Eram QUATRO desenhos em NOVE telas:** dois `Button ghost sm` com margens negativas diferentes e setas de tamanhos diferentes, dois `<Link>` crus com pares de cor diferentes entre si, e um `ChevronLeft` dentro da trilha do Social. O rótulo ia de "Gestão de Tasks" a "Voltar às campanhas" — às vezes o destino, às vezes a ação. É a história das sete cópias de `abas.tsx`. **O que ela centraliza é o DESENHO e o MECANISMO, nunca o destino.** E ela passou a voltar no HISTÓRICO, caindo na rota só quando não há: as nove antigas eram `<Link href>` fixos, então quem chegava a uma ficha pela busca global voltava para a lista, e não para a busca. **É `<Link>` com o clique interceptado e não um `<button>`**, para não perder a aba nova com Ctrl ou o botão do meio — clique modificado passa direto. A pergunta é `window.history.length > 1`, exata no caso que importa (aba aberta direto tem comprimento 1); o que ela não distingue é quem veio de fora da plataforma, e isso fica dito. **No Social ela virou a primeira casa da trilha**, e o resto da trilha fica: a seta dá o passo de trás, a trilha dá o nível. |

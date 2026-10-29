@@ -4,7 +4,7 @@ import { PanelLeftClose } from "lucide-react";
 
 import { ListaDoMenu } from "@/components/painel/lista-do-menu";
 import { CartaoDaPessoa } from "@/components/painel/cartao-da-pessoa";
-import { Logo } from "@/components/shared/logo";
+import { IconeDoFullHub, Logo } from "@/components/shared/logo";
 import type { UserRole } from "@/lib/supabase/database.types";
 
 /**
@@ -19,9 +19,9 @@ import type { UserRole } from "@/lib/supabase/database.types";
  * de cor do topo — duas coisas pesadas na mesma dobra —, e a atenção precisa
  * ficar onde o trabalho está. **Por seguir o tema, nada aqui dentro usa mais
  * os tokens `--text-on-dark*`**: num fundo branco eles seriam texto branco
- * sobre branco. E o símbolo perdeu o `sobreEscuro` pelo mesmo motivo — os
- * tokens `--marca-*` já trocam as três cores por tema sozinhos, e forçar a
- * versão azul deixaria o disco claro em cima de uma barra clara.
+ * sobre branco. E é por seguir o tema que o lockup do Full Hub cabe aqui sem
+ * uma versão própria: o neutro dele é `--text-primary`, que já inverte
+ * sozinho — preto sobre a barra branca, claro sobre a escura.
  *
  * O estado recolhido não vive em estado do React, e sim no atributo data-menu
  * do <html>, gravado pelo script do layout antes da hidratação. Por isso a
@@ -58,7 +58,13 @@ export function MenuLateral({
     <aside className="bg-surface-sidebar border-border recolhido:lg:w-[4.5rem] border-r hidden w-64 shrink-0 transition-[width] duration-200 lg:block">
       <div className="sticky top-0 flex h-dvh flex-col gap-6 py-4">
         <div className="recolhido:lg:justify-center flex items-center px-4">
-          <Logo tamanho="sm" className="recolhido:lg:[&>span:last-child]:hidden" />
+          {/* RECOLHIDA, A BARRA TROCA O LOCKUP PELO LADRILHO, e não esconde
+              metade dele: o lockup do Full Hub tem quarenta e sete pixels de
+              largura a 32px de altura, e a coluna recolhida deixa quarenta.
+              São as duas formas que a agência entregou da mesma marca — o
+              retângulo onde há largura, o quadrado onde não há. */}
+          <IconeDoFullHub className="recolhido:lg:block hidden size-8" />
+          <Logo tamanho="sm" className="recolhido:lg:hidden" />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3">
