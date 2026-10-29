@@ -1,67 +1,86 @@
-/**
- * O fundo das telas de (auth): preto, com a molécula azul que se divide e se
- * junta enquanto atravessa a tela.
- *
- * **O efeito é metaball, e ele é o filtro daqui.** Duas linhas: desfoca os
- * círculos e depois AFIA o canal alpha. Duas gotas desfocadas que se aproximam
- * têm os halos somados, e o corte do alpha transforma essa soma numa borda só
- * — elas fundem. Afastando-se, a soma cai abaixo do corte e a borda se parte em
- * duas. Sem o afiamento seriam manchas se sobrepondo, que é o que PARECE
- * molécula e não é.
- *
- * **Os tempos e os caminhos moram no `globals.css`**, em `.molecula` e
- * `.atomo-1..6`. Aqui está só o desenho. Espalhados em `style` inline, os seis
- * átomos teriam seis fontes de verdade sobre o mesmo compasso.
- *
- * **É SVG à mão e a cor sai dos tokens**, pelo mesmo motivo dos gráficos e do
- * símbolo da marca: os cinco tons da molécula são `--molecula-1..5`, e os
- * intermediários saem de `color-mix` entre os dois azuis que já existem. Um
- * PNG aqui traria cinco cores literais para dentro da interface.
- *
- * **O grupo dos átomos aparece DUAS vezes.** A primeira é o halo — a mesma
- * molécula sem o corte do alpha, muito desfocada, que faz o azul sangrar no
- * preto em vez de terminar numa borda seca. A segunda é a molécula. Não é
- * `<use>`: a animação vive numa classe, e classe dentro do sub-árvore de um
- * `<use>` é terreno onde os navegadores divergem — duplicar seis círculos custa
- * menos que descobrir isso num só.
- */
-/**
- * Cada átomo é um DEGRADÊ RADIAL, e não um tom chapado — a diferença aparece na
- * imagem e não na tela em movimento: chapado, o átomo se lê como um disco de
- * cor, e o que deveria parecer líquido parece adesivo. O centro mais claro e a
- * borda mais escura são o que dá volume à gota antes de ela fundir.
- *
- * O centro de cada degradê é deslocado do meio (35%/30%) pelo mesmo motivo que
- * um brilho especular não fica no centro de uma esfera.
- */
-const ATOMOS = [
-  { classe: "atomo-1", r: 118, tom: "porta-gota-1" },
-  { classe: "atomo-2", r: 146, tom: "porta-gota-2" },
-  { classe: "atomo-3", r: 132, tom: "porta-gota-3" },
-  { classe: "atomo-4", r: 104, tom: "porta-gota-2" },
-  { classe: "atomo-5", r: 90, tom: "porta-gota-4" },
-  { classe: "atomo-6", r: 112, tom: "porta-gota-3" },
-] as const;
+import { PONTOS_DA_ESPIRAL, TRACOS_DA_ESPIRAL } from "./espiral";
 
-/** Do tom mais claro para o mais escuro: são os cinco de `--molecula-1..5`. */
-const GOTAS = [
-  { id: "porta-gota-1", centro: "var(--molecula-1)", borda: "var(--molecula-2)" },
-  { id: "porta-gota-2", centro: "var(--molecula-2)", borda: "var(--molecula-3)" },
-  { id: "porta-gota-3", centro: "var(--molecula-3)", borda: "var(--molecula-4)" },
-  { id: "porta-gota-4", centro: "var(--molecula-4)", borda: "var(--molecula-5)" },
-] as const;
-
-function Atomos() {
+/**
+ * O fundo das telas de (auth): preto, com a espiral da marca girando devagar.
+ *
+ * **ELA SUBSTITUI A MOLÉCULA, e é decisão do usuário** — *"substituir a
+ * animação das moléculas pela espiral da nova identidade, preservando a
+ * sensação de movimento e conexão"*. A molécula era metaball: seis gotas que
+ * fundiam e se partiam, com o efeito inteiro em duas linhas de filtro SVG. Ela
+ * sai porque era uma forma inventada aqui; a espiral é o arquivo da agência.
+ *
+ * **O MOVIMENTO SÃO DUAS ANIMAÇÕES EMPILHADAS, como eram as da molécula, e os
+ * tempos não batem de propósito:** a espiral dá uma volta em 120s e respira de
+ * escala em 26s — o mesmo 26s do ciclo de dividir e juntar que ela substitui.
+ * Sem a segunda, ela seria um carrossel de pontos; sem a primeira, um cartaz
+ * pulsando.
+ *
+ * **E A "CONEXÃO" PASSOU A SER A PRÓPRIA FORMA, o que é consequência e não
+ * perda.** A molécula afirmava conexão por um evento — duas gotas que viram
+ * uma. Uma filotaxia não precisa do evento: cada ponto está em dois braços ao
+ * mesmo tempo, e é girando que os braços aparecem. Quem olha vê o que a
+ * fusão dizia, sem o filtro que ela custava.
+ *
+ * **Os tempos moram no `globals.css`**, em `.espiral` e `.espiral-respira`,
+ * pela razão de sempre: Tailwind v4 não escreve `@keyframes` por utilitário, e
+ * um compasso em `style` inline é um compasso sem dono.
+ *
+ * **SAÍRAM O HALO E O VÉU, e as duas ausências são medidas.** O halo existia
+ * porque o corte do alpha do metaball deixava uma borda seca no preto — um
+ * ponto não tem esse problema, ele é borda por natureza. E o véu era uma malha
+ * de pontos parados, para o movimento ter contra o que se ler; aqui a
+ * referência é interna, porque numa rotação o centro fica quieto e a borda
+ * varre. Duas malhas de ponto na mesma tela seriam a mesma textura duas vezes.
+ *
+ * **A ESPIRAL APARECE INTEIRA, E A BORDA DELA FICA — isso inverteu duas
+ * vezes, e as duas por imagem.** A primeira versão a ampliava a 1,5 para tirar
+ * da tela a circunferência de pontos, que eu tratava como defeito: uma moeda
+ * no meio do preto. O que saiu foi um campo de bolinhas grandes e quase
+ * uniformes — **a 1,5 só a periferia cabe, e uma filotaxia não se reconhece
+ * sem o degradê de densidade.** O excesso de escala tirava da tela exatamente
+ * a parte que faz a forma ser a forma. (A conta também estava errada: eu tinha
+ * usado a meia-diagonal em vez da meia-largura e exigido 712, quando a borda
+ * sai da tela a partir de 1,053.)
+ *
+ * A 1,12 ainda era textura. **A 0,7 a espiral é um objeto:** o disco inteiro
+ * cabe na tela com ar preto em volta, os pontos crescem do miolo para a borda,
+ * e o cartão de vidro pousa no meio dele. A borda deixou de ser a moeda que eu
+ * queria esconder e passou a ser o contorno da marca — que é como os cinco
+ * arquivos da agência se apresentam. Escolhida entre quatro escalas, em
+ * imagem: 1,12 não tem forma, 0,85 sangra em cima e embaixo e perde o objeto,
+ * 0,55 fica menor que o cartão e é engolida por ele.
+ *
+ * *O que o cartão cobre, e é consequência aceita:* o miolo, onde os pontos são
+ * menores. O degradê continua legível — ele cresce da borda do cartão para
+ * fora —, e é a mesma troca que a molécula fazia de melhor, com a massa atrás
+ * do vidro sendo difundida por ele.
+ *
+ * **A OPACIDADE É DE GRUPO, e ela não quebra a regra do par nomeado.** O que
+ * aquela regra proíbe é opacidade sobre um fundo QUALQUER, porque o composto
+ * muda de tela para tela e ninguém o mede. Aqui o fundo é `--auth-fundo`,
+ * preto, um só e fixo: o composto é uma cor única e calculada, e ela está
+ * medida em `--vidro-no-pior-caso`. A alternativa seria um segundo azul
+ * literal, e aí sim estaria no arquivo uma cor de marca que a agência não
+ * entregou. Em 100% os pontos grandes brilham mais que o formulário e puxam o
+ * olho para fora dele — isto é fundo, não conteúdo.
+ */
+function Espiral() {
   return (
-    <g transform="translate(500 500)">
-      {ATOMOS.map(({ classe, r, tom }) => (
-        <circle
-          key={classe}
-          className={`atomo ${classe}`}
-          r={r}
-          fill={`url(#${tom})`}
-        />
-      ))}
+    <g className="fill-brand-blue stroke-brand-blue opacity-45">
+      {PONTOS_DA_ESPIRAL.map(([x, y, r], i) =>
+        i % 7 === 2 ? (
+          <circle
+            key={i}
+            cx={x}
+            cy={y}
+            r={r}
+            fill="none"
+            strokeWidth={TRACOS_DA_ESPIRAL[(i - 2) / 7]}
+          />
+        ) : (
+          <circle key={i} cx={x} cy={y} r={r} stroke="none" />
+        ),
+      )}
     </g>
   );
 }
@@ -77,50 +96,12 @@ export function FundoDaPorta() {
         preserveAspectRatio="xMidYMid slice"
         className="size-full"
       >
-        <defs>
-          {GOTAS.map(({ id, centro, borda }) => (
-            <radialGradient key={id} id={id} cx="35%" cy="30%">
-              <stop offset="0" stopColor={centro} />
-              <stop offset="1" stopColor={borda} />
-            </radialGradient>
-          ))}
-
-          {/* `color-interpolation-filters="sRGB"` não é detalhe: o padrão é
-              linearRGB, e nele o corte do alpha sai com a borda mordida e os
-              tons intermediários lavados. */}
-          <filter
-            id="molecula-gosma"
-            x="-35%"
-            y="-35%"
-            width="170%"
-            height="170%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feGaussianBlur in="SourceGraphic" stdDeviation="26" result="borrado" />
-            <feColorMatrix
-              in="borrado"
-              type="matrix"
-              result="afiado"
-              values="1 0 0 0 0
-                      0 1 0 0 0
-                      0 0 1 0 0
-                      0 0 0 22 -9"
-            />
-            {/* O último desfoque, pequeno, tira a borda seca que o corte do
-                alpha deixa. */}
-            <feGaussianBlur in="afiado" stdDeviation="1.6" />
-          </filter>
-        </defs>
-
-        <g className="molecula molecula-halo">
-          <Atomos />
-        </g>
-        <g className="molecula" filter="url(#molecula-gosma)">
-          <Atomos />
+        <g className="espiral">
+          <g className="espiral-respira">
+            <Espiral />
+          </g>
         </g>
       </svg>
-
-      <div className="veu-da-porta absolute inset-0" />
     </div>
   );
 }

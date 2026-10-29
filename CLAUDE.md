@@ -1727,11 +1727,12 @@ Lanczos, e não do SVG rasterizado a 16px: o triângulo tem traço de 3% da
 largura, e a 16px um vetor rasterizado direto vira um borrão onde a redução de
 uma imagem grande ainda distingue as três formas.
 
-***O que fica em aberto, e é dito em vez de escondido:*** a **espiral** que
-deve substituir a molécula da porta. Ela foi pedida e ainda não chegou, e até
-chegar a porta continua com as seis gotas — desenhar uma espiral de cabeça
-seria pôr no ar uma forma da identidade que a agência não desenhou, que é a
-frase que este sprint inteiro existe para não repetir.
+***O que ficava em aberto era a espiral***, e ela chegou no sprint seguinte: a
+agência mandou o arquivo e ela substituiu a molécula da porta. Fica registrado
+que, enquanto ele não chegou, a porta continuou com as seis gotas — desenhar
+uma espiral de cabeça seria pôr no ar uma forma da identidade que a agência não
+desenhou, que é a frase que este sprint inteiro existe para não repetir. O que
+ela virou está em "A ESPIRAL, e a molécula que ela substituiu", abaixo.
 
 #### A PALETA OFICIAL É ESTE AZUL, e o royal saiu
 
@@ -1796,11 +1797,11 @@ sobre a página; clarear `--action` junto tiraria o rótulo branco de cima dele
 (3,2:1 naquele tom). É a mesma assimetria de `--marca-hub-ponto`, que não troca
 por tema por ter fundo próprio.
 
-#### A porta: preto, a molécula, e o cartão de vidro no centro
+#### A porta: preto, a espiral, e o cartão de vidro no centro
 
 `components/auth/casca-de-autenticacao.tsx` envolve as quatro telas de
 `(auth)` — login, esqueci-senha, redefinir-senha e trocar-senha. Fundo preto
-com uma molécula azul atravessando, e um cartão de vidro centralizado com o
+com a espiral da marca girando devagar, e um cartão de vidro centralizado com o
 símbolo da agência no alto.
 
 **É a quinta rodada de uma proposta, e o caminho fica registrado porque cada
@@ -1813,49 +1814,149 @@ se dividindo e se juntando. Além disso, quero que deixe apenas o logo da
 agência, sem escrever Full Hub, quero uma letra mais contemporânea,
 tecnológica."*
 
-**A MOLÉCULA É METABALL, e o efeito inteiro são duas linhas de filtro SVG**
-(`components/auth/fundo-da-porta.tsx`): desfoca os seis círculos e depois
-**afia o canal alpha**. Duas gotas desfocadas que se aproximam têm os halos
-somados, e o corte do alpha transforma essa soma numa borda só — elas fundem.
-Afastando-se, a soma cai abaixo do corte e a borda se parte em duas. Sem o
-afiamento seriam manchas se sobrepondo, que é o que **parece** molécula e não é.
+##### A ESPIRAL, e a molécula que ela substituiu
 
-São **duas animações empilhadas**, e os tempos não batem de propósito: cada
-átomo converge para o centro e volta às bordas em 26s — é o dividir e juntar —,
-e o conjunto atravessa a tela em 64s — é o degradê passando pelo fundo. Sem a
-segunda, a molécula ficaria respirando parada no meio da tela.
+Decisão do usuário, item 5 da lista dele: *"substituir a animação das moléculas
+pela espiral da nova identidade, preservando a sensação de movimento e
+conexão"*. A agência entregou o arquivo — cinco SVG que, medido, diferem
+**só na cor**: tirando o hexadecimal, os cinco são byte a byte o mesmo desenho.
 
-**Os dois atrasos são NEGATIVOS, e isso saiu da imagem.** Em 0% os átomos estão
-no ponto mais afastado e o conjunto está no canto: o primeiro quadro da porta
-— o que a pessoa vê ao chegar, e o único que um print captura — era seis discos
-separados empilhados num canto, e a molécula só se reconhecia como molécula
-treze segundos depois. Com `-6.5s` nos átomos e `-10s` no conjunto, a tela em
-repouso já mostra o que o movimento faz. **Cada átomo é um degradê radial e não
-um tom chapado**, pela mesma razão: chapado, a gota se lê como adesivo.
+**O QUE SAIU ERA METABALL, e o registro fica porque a ideia pode voltar.** A
+molécula eram seis gotas num filtro SVG de duas linhas: desfoca os círculos e
+depois **afia o canal alpha** — duas gotas desfocadas que se aproximam têm os
+halos somados, e o corte do alpha transforma essa soma numa borda só, então
+elas fundem; afastando-se, a soma cai abaixo do corte e a borda se parte em
+duas. Sem o afiamento seriam manchas se sobrepondo, que é o que *parece*
+aquilo e não é. Ela sai porque era uma forma inventada aqui; a espiral é o
+arquivo da agência.
+
+**O DESENHO É LITERAL, e a medição é o que explica por quê.** A POSIÇÃO dos
+259 pontos é uma filotaxia de Vogel exata — distância `29,5 · √(i+1)` e ângulo
+de ouro (137,50776°) a cada passo —, e reconstruí-la por essa regra erra no
+máximo **0,0066 px**, que é o arredondamento de duas casas do próprio arquivo.
+O RAIO de cada ponto, não: ele cresce de 2,61 a 11,97 com o passo caindo de
+0,08 para 0,03, e nenhuma lei simples o descreve — o ajuste linear erra 0,69 px
+num ponto de 5. **Gerar a espiral por fórmula acertaria onde cada ponto está e
+inventaria o tamanho dele**, que é a definição de "desenho parecido". Os
+números moram em `components/auth/espiral.ts`; **a conferência é a do símbolo
+e a do lockup** — o módulo foi remontado em SVG, rasterizado no Chromium a
+1000 × 1000 ao lado do arquivo entregue, e a comparação deu **zero pixel de
+diferença em um milhão**. Com os números sendo os mesmos isso era o esperado;
+ela roda assim mesmo porque o que ela pega é o erro de transcrição, que não
+aparece em tela nenhuma. O vazado é `i % 7 === 2`,
+conferido ponto a ponto na geração do arquivo — são 37 dos 259, sem exceção, e
+por isso ele não é coluna.
+
+**O MOVIMENTO SÃO DUAS ANIMAÇÕES EMPILHADAS, como as da molécula, e os tempos
+não batem de propósito:** a espiral dá uma volta em 120s, linear, e respira de
+escala em 26s — o mesmo 26s do ciclo de dividir e juntar que ela substitui. Sem
+a segunda ela seria um carrossel de pontos; sem a primeira, um cartaz pulsando.
+O giro é `linear` e a respiração é `ease-in-out`: uma rotação com aceleração se
+lê como falha de quadro, e uma escala constante se lê como zoom de vídeo.
+
+**E A "CONEXÃO" PASSOU A SER A PRÓPRIA FORMA, o que é consequência e não
+perda.** A molécula afirmava conexão por um EVENTO — duas gotas que viram uma.
+Uma filotaxia não precisa do evento: cada ponto está em dois braços ao mesmo
+tempo, e é girando que os braços aparecem. Quem olha vê o que a fusão dizia,
+sem o filtro que ela custava.
+
+**A ESCALA INVERTEU DUAS VEZES, e as duas por imagem.** A primeira versão
+ampliava a espiral a 1,5 para tirar da tela a circunferência de pontos, que eu
+tratava como defeito — uma moeda no meio do preto. O que saiu foi **um campo de
+bolinhas grandes e quase uniformes**: a 1,5 só a periferia cabe, e uma
+filotaxia não se reconhece sem o degradê de densidade. O excesso de escala
+tirava da tela exatamente a parte que faz a forma ser a forma. *(A conta
+também estava errada — eu usei a meia-diagonal em vez da meia-largura e exigi
+712, quando a borda sai da tela a partir de 1,053.)* A 1,12 ainda era textura.
+**A 0,7 a espiral é um objeto:** o disco inteiro cabe com ar preto em volta, os
+pontos crescem do miolo para a borda, e o cartão pousa no meio dele. A borda
+deixou de ser a moeda que eu queria esconder e passou a ser o contorno da
+marca — que é como os cinco arquivos se apresentam. Escolhida entre quatro
+escalas, em imagem: 1,12 não tem forma, 0,85 sangra e perde o objeto, 0,55 fica
+menor que o cartão e é engolida.
+
+**E ELA MUDA NO CELULAR, por enquadramento e não por gosto.** Com `slice` a
+tela estreita recorta pela LARGURA: em 375px a área visível do desenho é
+462 × 1000, e a 0,7 a espiral vai de y=168 a y=832 — ela não alcança a faixa
+acima nem a abaixo do cartão, que é justamente onde o fundo aparece num
+celular, porque o cartão toma a largura inteira. O que se via eram duas franjas
+de pontos nos lados e preto no resto. A 1,05 ela preenche a altura e sangra
+pelos lados: numa tela estreita a espiral é textura, e é o que cabe. A escala
+base é **uma variável** e a respiração é +8,5% sobre ela, então um número só
+manda nos dois quadros e no repouso do `prefers-reduced-motion`.
+
+**O ATRASO NEGATIVO FICOU, e é a lição que os átomos já tinham deixado:** em 0%
+a espiral está no ponto mais fechado, e o primeiro quadro da porta — o que a
+pessoa vê ao chegar, e o único que um print captura — mostraria o estado mais
+apertado de todos. A `-6.5s` ela está a caminho, abrindo.
+
+**SAÍRAM O HALO E O VÉU, e as duas ausências são medidas.** O halo existia
+porque o corte do alpha do metaball deixava uma borda seca no preto — um ponto
+não tem esse problema, ele é borda por natureza. E o véu era uma malha de
+pontos parados, para o movimento ter contra o que se ler; aqui a referência é
+interna, porque numa rotação o centro fica quieto e a borda varre. Duas malhas
+de ponto na mesma tela seriam a mesma textura duas vezes.
+
+**A COR É `--brand-blue`, e a agência escolheu por nós.** Dois dos cinco
+arquivos vêm em cores que já são token deste produto — #7FCFF5 é
+`--brand-blue` e #545960 é `--brand-gray`. O quinto é um ciano um passo ao
+lado (#68CCF2), e ele **não** entra: dois cianos a um passo de distância são
+duas verdades esperando divergir, e a porta é preta, onde quem se lê é o claro.
+Isto é também o que a paleta nova decidiu em voz alta — *o ciano fica reservado
+ao símbolo e aos acentos de marca* —, e a espiral é um acento de marca.
+
+**A OPACIDADE É DE GRUPO, e ela não quebra a regra do par nomeado.** O que
+aquela regra proíbe é opacidade sobre um fundo QUALQUER, porque o composto muda
+de tela para tela e ninguém o mede. Aqui o fundo é `--auth-fundo`, preto, um só
+e fixo: o composto é uma cor única e calculada, e ela está medida em
+`--vidro-no-pior-caso`. A alternativa seria um segundo azul literal, e aí sim
+estaria no arquivo uma cor de marca que a agência não entregou. Em 100% os
+pontos grandes brilham mais que o formulário e puxam o olho para fora dele —
+isto é fundo, não conteúdo.
 
 **Os tempos moram no `globals.css` e o desenho no componente.** Tailwind v4 não
-escreve `@keyframes` por utilitário, e espalhá-los em `style` inline daria aos
-seis átomos seis fontes de verdade sobre o mesmo compasso.
+escreve `@keyframes` por utilitário, e um compasso em `style` inline é um
+compasso sem dono.
+
+**"Molécula" NÃO entrou na lista de nomes mortos do `check:cores`**, e a
+ausência é decisão: aquela lista existe para um nome não voltar à TELA, e esta
+palavra nunca esteve em tela nenhuma — era o nome de uma forma dentro de um
+componente. Não há por onde ela voltar, e uma entrada ali reprovaria o
+parágrafo acima, que é a armadilha que a lista já pagou sete vezes.
 
 **O VIDRO É 82% OPACO, E O NÚMERO FOI MEDIDO.** A proposta usava 58%, que é mais
-bonito e reprova: com a molécula passando atrás, o fundo efetivo do cartão vai
-de quase preto até o composto do vidro sobre o ponto mais claro dela, e nesse
-pior caso `--auth-apoio` dava **2,71:1** — o subtítulo, o link e o placeholder
+bonito e reprova: com a luz do fundo passando atrás, o fundo efetivo do cartão
+vai de quase preto até o composto do vidro sobre o ponto mais claro dela, e
+nesse pior caso — medido com a molécula, que era o fundo daquele dia —
+`--auth-apoio` dava **2,71:1** — o subtítulo, o link e o placeholder
 ilegíveis por um instante a cada volta, num tempo que ninguém consegue
 reproduzir de propósito. É a regra do selo de estado vista de outro ângulo:
 **ninguém mede uma cor que anda.** Quem garante o contraste é o cartão, e ele
 precisa ser escuro o bastante para o texto passar qualquer que seja a luz atrás.
 
 75% já passaria, em 4,74:1, e 82% é escolha e não mínimo: a folga é de dois
-centésimos e meio, e o pior caso medido é ele mesmo uma aproximação, porque o
-halo é uma segunda camada de luz por cima da primeira. O que se lê como vidro é
-o `backdrop-filter`, não a transparência.
+centésimos e meio. O que se lê como vidro é o `backdrop-filter`, não a
+transparência.
 
 **`--vidro-no-pior-caso` é um token que NADA pinta.** Ele é o composto
-calculado (`0,82 × #060C10 + 0,18 × #BCE4F9`) e existe para o `check:cores` ter
-contra o que medir: contra `--auth-fundo`, que é preto, os três textos passariam
-por larga margem afirmando algo que a tela não garante. **Medido com mutação:**
-devolvendo o token ao composto de 58%, três cenários caem e dizem quais.
+calculado e existe para o `check:cores` ter contra o que medir: contra
+`--auth-fundo`, que é preto, os três textos passariam por larga margem
+afirmando algo que a tela não garante. **Medido com mutação:** devolvendo o
+token ao composto de 58%, três cenários caem e dizem quais.
+
+**ELE ESCURECEU COM A ESPIRAL, e são DUAS contas porque nenhuma foi
+estimada.** O ponto mais claro atrás do vidro era `--blue-muted` #BCE4F9, o
+centro da gota mais clara da molécula; agora é um ponto cheio da espiral, que é
+`--brand-blue` a 45% sobre o preto — e ele é mesmo o mais claro, porque sem
+halo e sem véu a espiral é a única coisa entre o preto e o vidro. As contas:
+`0,45 × #7FCFF5 + 0,55 × #000000 = #395D6E`, e
+`0,82 × #060C10 + 0,18 × #395D6E = #0F1B21`. **Os três textos da porta ficaram
+mais legíveis**, e o que estava mais apertado é o que mais ganhou: o subtítulo,
+o link e o placeholder passaram de **5,92:1 para 8,00:1**.
+
+*E a minha primeira conta foi estimada, no mesmo arquivo que proíbe isso:* eu
+escrevi #1F2B33 de cabeça e o cálculo deu #1C2F39, dois pontos de diferença em
+dois canais. O comentário ao lado do token já avisava, e ele continua lá.
 
 **SÓ O SÍMBOLO, e "Full Hub" não aparece escrito em lugar nenhum da porta.** É o
 pedido do usuário. O símbolo é a versão **azul** do arquivo da agência — disco
@@ -1931,8 +2032,11 @@ conecta" e "multiplica." de pé, "Conectar e Vender" fora.
   mesmo arquivo do lema para as duas escalas de texto não divergirem.
 - **A alternância não acontece com `prefers-reduced-motion`**: a segunda frase
   sai da tela e a primeira fica inteira e parada. Texto que troca sozinho é
-  justamente o que essa preferência pede para não acontecer. A molécula para no
-  estado **separado**, que é o quadro em que se reconhece que são gotas.
+  justamente o que essa preferência pede para não acontecer. A espiral para no
+  quadro que o atraso negativo já mostrava — a escala a um quarto do ciclo —, e
+  não na base: parando na base ela daria um salto no instante em que alguém
+  liga a preferência, e quem a tem ligada veria uma tela mais apertada que a
+  dos outros sem nada dizendo por quê.
 
 **`CampoDaPorta` existe para as quatro telas não divergirem.** Cada uma montava
 os campos por conta própria; com o desenho novo isso passaria a significar
@@ -13202,6 +13306,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A espiral da porta | **A molécula saiu e a espiral da identidade entrou** — decisão do usuário, item 5 da lista dele: *"substituir a animação das moléculas pela espiral da nova identidade, preservando a sensação de movimento e conexão"*. A agência mandou cinco SVG que, medido, diferem **só na cor** — tirando o hexadecimal, os cinco são byte a byte o mesmo desenho, que é exatamente a fatoração que esta casa faz com token. **O DESENHO É LITERAL, e a medição explica por quê:** a POSIÇÃO dos 259 pontos é uma filotaxia de Vogel exata (distância `29,5 · √(i+1)`, ângulo de ouro a cada passo) e reconstrói por fórmula com **0,0066 px** de erro, que é o arredondamento do próprio arquivo; o RAIO de cada ponto, não — ele cresce de 2,61 a 11,97 com o passo caindo de 0,08 para 0,03, e o ajuste linear erra 0,69 px num ponto de 5. **Gerar por fórmula acertaria onde cada ponto está e inventaria o tamanho dele**, que é a definição de desenho parecido. O vazado é `i % 7 === 2`, conferido ponto a ponto: 37 dos 259, sem exceção. **O movimento são duas animações empilhadas, como as da molécula:** uma volta em 120s linear e a respiração de escala em 26s — o mesmo 26s do ciclo de dividir e juntar que ela substitui. **E a "conexão" passou a ser a própria forma:** a molécula afirmava conexão por um EVENTO, duas gotas que viram uma; numa filotaxia cada ponto está em dois braços ao mesmo tempo, e é girando que os braços aparecem. **A ESCALA INVERTEU DUAS VEZES, e as duas por imagem:** a 1,5 (que eu calculei com a meia-diagonal no lugar da meia-largura) só a periferia cabe e o que saiu foi **um campo de bolinhas**, porque uma filotaxia não se reconhece sem o degradê de densidade — o excesso de escala tirava da tela a parte que faz a forma ser a forma. A 0,7 ela é um objeto, e a borda deixou de ser a moeda que eu queria esconder para ser o contorno da marca. Escolhida entre quatro escalas, em imagem. **E ela muda no celular, por enquadramento:** a 0,7 em 375px a espiral não alcança a faixa acima nem a abaixo do cartão, que é onde o fundo aparece num celular — a 1,05 ela preenche a altura e sangra pelos lados. **Saíram o halo e o véu**, e as duas ausências são medidas: o halo existia pela borda seca do corte do alpha, que um ponto não tem, e o véu era uma malha de pontos parados para o movimento ter contra o que se ler — numa rotação a referência é interna. **A cor é `--brand-blue`, e a agência escolheu por nós:** dois dos cinco arquivos vêm em cores que já são token deste produto, e o quinto é um ciano um passo ao lado que não entra, porque dois cianos a um passo são duas verdades esperando divergir. **A opacidade é de grupo e não quebra a regra do par nomeado:** o que ela proíbe é opacidade sobre um fundo QUALQUER, e aqui o fundo é preto, um só e fixo, com o composto calculado em duas contas escritas. **Os três textos da porta ficaram mais legíveis**, e o mais apertado é o que mais ganhou: o subtítulo, o link e o placeholder passaram de **5,92:1 para 8,00:1**. ***E a minha primeira conta do pior caso foi estimada, no mesmo arquivo que proíbe isso*** — #1F2B33 de cabeça contra #1C2F39 calculado. **"Molécula" não entrou na lista de nomes mortos**, porque aquela lista existe para um nome não voltar à TELA e esta palavra nunca esteve em tela nenhuma. |
 | A paleta oficial | **O azul da interface passou a ser o azul da marca do produto, e o royal saiu** — decisão do usuário, item 4 da lista dele (*"atualizar a interface para as cores oficiais do Full Hub"*), respondida com um hexadecimal: **0267C1**. É o mesmo valor que os dois PNG do lockup já tinham dado, então a paleta e a marca são a mesma cor, e é isso que torna a troca pequena. **O QUE SAI ERA A TERCEIRA COR DO PRODUTO** — a exceção escrita à regra "duas cores da Full Connect Key e só", criada ao aprovar a interface Leve porque o ciano dá 1,18:1 sobre a malha e nunca foi cor de texto. **Aquele argumento continua inteiro, e é ele que fecha a conta:** um azul de marca que serve aos DOIS papéis — preenchimento e texto — não precisa de um terceiro ao lado. **E o tom de texto NÃO é o hexadecimal oficial, porque a malha não deixa:** `--brand-hub` sobre `--malha-no-pior-caso` dá **3,86:1**, e o link da faixa de cima ficaria abaixo do mínimo — é o mesmo furo que derrubou o alfa de 0,75 da proposta; `--action-text` é o MESMO azul, mesma matiz e mesma saturação, escurecido até passar. **Tudo o que a troca mexe ficou melhor:** branco sobre `--action` de 4,50 para **5,66**, o link sobre a malha de 4,72 para 4,80, sobre o cartão de 6,91 para 7,02, o item ativo de 5,88 para 5,93, as três paradas do degradê de 4,83/5,94/6,57 para 5,66/6,48/6,57, e no escuro o link sobre o cartão de 8,53 para 9,17. **DOIS PARES NÃO ESTAVAM NA LISTA DO `check:cores`, e um raspava o mínimo:** branco sobre `--action` dava 4,50:1 e ninguém o media; o do item ativo este arquivo afirmava em "5,88:1" desde a interface Leve, com vinte telas escrevendo `bg-action-soft text-action-text`. **O valor mora em `--brand-hub`**, entre as cores cruas, e os dois papéis apontam para ele — um valor e vários nomes, a forma de `--roxo` → `--ferias`. **E `--action` é o único dos dois que atravessa o tema:** preenchimento carrega o próprio chão, e clareá-lo no escuro como `--marca-hub` tiraria o rótulo branco de cima dele (3,2:1 naquele tom). ***O que piorou, e é dito em vez de escondido:*** o azul oficial é mais escuro que o royal, então `--action` como BORDA sobre superfície escura caiu de 3,55:1 para **2,82:1** — consequência aceita porque em toda ocorrência dele a cor é o SEGUNDO sinal (a opção escolhida troca o fundo junto, o recorte do tour vem com a tela escurecida em volta, e os outros dois usos são um fio e uma barra de progresso); **o anel de foco não é este token**, é `--ring`, que aponta para `--blue-strong` e não foi tocado. ***Em aberto:*** a **espiral** da porta, que foi pedida e ainda não chegou. |
 | A marca do Full Hub | **A agência desenhou um lockup e um ícone para o PRODUTO, e isso desfaz uma decisão escrita aqui.** Estava registrado que *"não existe wordmark de Full Hub, e desenhar um seria pôr no ar uma marca que a agência não fez"* — ela fez, e com o arquivo na mão escrever o nome na letra do produto passou a ser o **contrário** do que a frase protegia. Fica como reversão e não como troca silenciosa, porque o argumento continua certo para o próximo caso: sem arquivo, não se desenha marca. **É o arquivo vetorizado e não uma letra parecida:** as duas cores do PNG viraram duas máscaras, cada uma um caminho `evenodd` seguindo a borda dos pixels, simplificado com desvio máximo de **0,45px** — medido, porque a 0,75px a silhueta já sai do lugar em 343 pixels — e emitido em comandos relativos, 3,6KB contra 10,2KB sem perder um pixel. **A conferência é a do símbolo:** rasterizado no Chromium e comparado pixel a pixel com o PNG, a silhueta bate dentro de 1px e os quatro pixels que divergem são pontas de canto. **O canto do ladrilho não era o que parecia** — o primeiro pixel opaco está em x=86 e o raio é **95,6**, por mínimos quadrados sobre 86 pontos da borda, com resíduo de 0,18px e expoente de superelipse 1,99 (ou seja, circunferência). **`--marca-hub` é #0267C1**, o mesmo valor nos dois arquivos, e **não é `--action`**: azul de marca não é azul de ação, e repontar um para o outro é decisão de paleta. **No escuro ele clareia**, porque #0267C1 sobre o cartão escuro dá **2,82:1** — o tom claro é o mesmo azul levado a 4,94:1. **O neutro do lockup não é token novo:** as letras saem em `--text-primary`, que já inverte sozinho, que é o que faz a marca se ler na barra branca e na escura sem uma segunda versão. **O símbolo da agência saiu do lockup e ficou na porta**, onde o usuário pediu *"apenas o logo da agência"*: o lockup novo já carrega o ponto e o triângulo, e pôr o disco ao lado repetiria o mesmo par de formas duas vezes em quarenta pixels. A barra recolhida troca o retângulo pelo quadrado, e **a troca mora na barra** e não dentro do `Logo`, porque `recolhido` é um atributo do `<html>` que o Portal também enxerga. O `favicon.ico` e o `apple-icon.png` saem do PNG reduzido e não do SVG rasterizado a 16px, onde o traço de 3% do triângulo vira borrão. ***Em aberto, e dito em vez de escondido:*** a paleta oficial e a espiral da porta ainda não chegaram. *(A paleta chegou no sprint seguinte, logo acima.)* |
 | O calendário da etapa, e o Full Pulse | **A faixa de disponibilidade recusava quem o banco aceita, e não tinha como tentar de novo.** Relato do usuário: *"Failed to fetch ao abrir uma task e acessar o calendário de disponibilidade"*, com a instrução de **corrigir a causa, não ocultar a mensagem**. **O que foi descartado com medida:** a 0081 está aplicada inteira (assinatura, `security definer`, `authenticated` com EXECUTE, `disponibilidade_bruta` sem grant), a função roda sem erro para **toda pessoa ativa da equipe × quatro meses** — as únicas recusas são de um perfil `cliente`, que é o desenho —, e o CSP tem `'self'` em `connect-src`. Com banco, RLS e política fora, "Failed to fetch" é falha de TRANSPORTE. **O bug reproduzível que a varredura encontrou é outro, e é meu:** a guarda da action era `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e esta action tem **dois chamadores** — o segundo é abrir o mês de social, que é `souDoAtendimento()` desde a 0046. O colaborador do Atendimento levava *"Seu perfil não permite esta ação"* na tela que o produto diz que é dele. É a 0059 outra vez: **a guarda estava mais apertada que o banco**, e `disponibilidade()` pergunta `is_staff()` justamente porque *"quem distribui numa demanda pode ser o colaborador do Atendimento"*. **E o "carregando" era sempre falso:** ele vinha do `useTransition` cujo retorno de chamada só DISPARA a promessa — a transição fechava antes do primeiro byte, e entre abrir a faixa e o erro não havia sinal nenhum. Hoje é derivado de uma chave comparada com a que voltou, e o `useTransition` fica só pelo embrulho que o `react-hooks/set-state-in-effect` exige. **A recusa ganhou "Tentar de novo"**, com a mensagem crua preservada. **O que NÃO foi consertado, porque não foi medido:** há uma CDN na frente deste host (`server: hcdn`) e `serverActions.allowedOrigins` não está configurado — o Next recusa a action quando o `Origin` não bate com o host encaminhado. A prova é uma requisição com os cabeçalhos de produção. **De quebra, "Pulso da agência" virou "Full Pulse"**, decisão do usuário entre sete nomes. O arquivo e o componente ficam, que é a decisão de `dias_uteis`; "Pulso" não entra na lista de nomes mortos porque não foi aposentada; e quem protege a troca é o `check:sprint9` de mão dupla, medido com mutação. |
