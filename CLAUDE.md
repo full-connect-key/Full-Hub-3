@@ -1158,11 +1158,69 @@ vizinho saíram com `opacity-40`, e opacidade em texto dá uma cor que ninguém
 mediu — a mesma regra que o `opacity-80` do `DateBadge` já pagou uma vez. Elas
 recuam pelo tom agora.
 
-*O que fica em aberto, e é dito em vez de escondido:* o arrasto de um dia a
-outro escreveria o PERÍODO (início mais prazo), e o clique simples resolve o
-caso comum. E a faixa não aparece na abertura do mês de social nem da campanha,
-que são os outros dois lugares onde alguém distribui trabalho — lá a pergunta é
-sobre cinco pessoas de uma vez, e o desenho é outro.
+##### E ELA SELECIONA UM PERÍODO, que era a pergunta em aberto
+
+Decisão do usuário: *"o primeiro dia clicado deve ser automaticamente a data
+de início, o segundo a data final; todos os dias entre as duas devem ser
+selecionados e contabilizados; destacar visualmente todo o intervalo; um
+terceiro clique inicia uma nova seleção; atualizar os indicadores de
+sobrecarga considerando o período completo; garantir que funcione mesmo
+quando o período atravessar meses diferentes"*.
+
+**O PARÁGRAFO QUE ESTAVA AQUI PREVIA ISTO**, e fica registrado porque ele
+descreve o que mudou: *"o arrasto de um dia a outro escreveria o PERÍODO
+(início mais prazo), e o clique simples resolve o caso comum"*. O caso comum
+continua resolvido por um clique — o segundo deixou de ser uma escolha nova e
+passou a ser a outra ponta. (A outra metade daquele parágrafo já tinha
+vencido sozinha: a faixa **aparece** na abertura do mês de social desde a
+0089, uma por etapa.)
+
+**A FAIXA NÃO DECIDE O QUE FAZER COM AS DUAS PONTAS**, e é isso que a deixa
+servir aos dois chamadores sem desfazer a decisão de nenhum. Ela devolve
+`(início, fim)`, com `fim` nulo no primeiro clique, e quem grava resolve:
+
+- no **painel da etapa**, o primeiro clique vira um período de UM DIA
+  (`data_inicio = prazo`): ali o clique É o salvamento, e meio período gravado
+  é um período que o `check subtasks_periodo` pode recusar — a recusa chegaria
+  como um clique que simplesmente não faz nada. *O custo está dito:* clicar um
+  dia solto numa etapa que já tinha período encolhe os dois para aquele dia, e
+  é o que "iniciar uma nova seleção" quer dizer;
+- na **abertura do mês de social**, ele escreve só o DIA e deixa a entrega em
+  branco, que é a 0089 palavra por palavra — *"a data de final fica sempre em
+  branco, pois na maioria dos casos a task dura apenas um dia"*. Lá o branco
+  QUER DIZER um dia, e preenchê-lo sozinho desfaria o que ele pediu na mesma
+  conversa. Um período com as duas pontas escolhidas preenche as duas.
+
+**A JANELA DE BUSCA É A UNIÃO DO MÊS COM A SELEÇÃO**, e é ela que faz a
+travessia de mês não mentir: sem isso um período de 28/09 a 03/10 contaria os
+três dias de setembro e ignoraria os de outubro — um resumo baixo, plausível e
+errado. A chave do efeito já carrega as duas pontas, então trocar de mês com
+uma seleção aberta não perde a primeira.
+
+**UM DIA SE EXPLICA ITEM A ITEM; UM PERÍODO SE EXPLICA CONTANDO.** A lista
+detalhada de três semanas seriam cem linhas num painel de 512px.
+`PeriodoEscolhido` traz os dias de trabalho, quanto já está ocupado sobre a
+capacidade, e — **só quando existem** — os dias acima da capacidade e os dias
+em que a pessoa está fora, que é a decisão da matriz do Day Off: pinta-se a
+exceção.
+
+**E O AVISO CONTINUA SENDO UM SÓ**, que é a frase que o criou na 0081. Com um
+dia ele é o de antes, palavra por palavra; com um período ele **conta** —
+*"passa da capacidade em 3 dos 7 dias deste período"* — em vez de listar, que
+é justamente o que aquela decisão recusou. A ausência vem antes da sobrecarga
+na ordem da frase: "ela não está" é mais duro que "ela fica apertada", e os
+dois juntos viram parágrafo onde a pessoa precisa de uma linha.
+
+O `gap` da grade virou padding da célula: com meio pixel de vão, sete dias
+selecionados se leem como sete retângulos soltos em vez de uma faixa. As
+pontas arredondam, o meio não — o desenho do calendário rolável do Day Off,
+que resolve a mesma seleção; `ordenar()` é a mesma função de lá, e é ela que
+faz a seleção de trás para frente funcionar.
+
+**Medido por dump, em duas telas novas do protótipo:** 2 a 8 de setembro sai
+com 2 pontas, 5 células no meio, 28 fora e *"21h24 de 45h"* em 5 dias úteis;
+28 de setembro a 3 de outubro sai com *"6 dias"* e 45h — o número que só fecha
+se a busca tiver ido atrás dos dias do outro mês.
 
 **Medido com seis mutações**, e os números estão no cabeçalho da 0081: devolver
 o zero da etapa em branco derruba 6 cenários, devolver o bug da janela derruba
@@ -2205,6 +2263,43 @@ escolhendo onde o retrato é cortado.
 contraste e classe de cor, o `axe` mede árvore de acessibilidade, e uma imagem
 esticada não é nenhum dos dois — ela passa em todos e só aparece para quem
 conhece o rosto. Foi o usuário olhando a própria equipe.
+
+**E O AVATAR MAIS OLHADO DO PRODUTO NÃO MOSTRAVA FOTO NENHUMA** — decisão do
+usuário: *"em todos os locais onde o responsável por uma task é representado
+por iniciais, substituir pela foto de perfil do colaborador (…) alterações na
+foto devem ser refletidas em toda a plataforma"*.
+
+**A metade pedida já estava feita**, e isso é o que faz a entrega ser pequena:
+task, subtarefa, board, calendário, lista, card, pilha, fila de aprovações e
+ficha passam todas por `UserAvatar` com `src={...avatar_url}`, em dezesseis
+telas, e `lib/dados/` já traz a coluna em dezoito consultas. O que faltava era
+o avatar da PRÓPRIA pessoa: o disco da topbar do painel desenhava
+`AvatarFallback` sem `AvatarImage` nenhum. Quem subia a foto em Meu Perfil a
+via na ficha, no board e no pé da barra lateral — e não no canto que acompanha
+ela em toda tela. Com ele, o menu do portal, o pé da barra do portal e a
+gaveta.
+
+**`cabecalho.tsx` FOI APAGADO** junto: barra do topo do Sprint 0, sem um único
+importador, com o comentário dela ainda dizendo que *"o menu lateral completo
+entra no proximo sprint"*. Ela carregava a SEGUNDA função de iniciais do
+produto — `iniciais()` em `dal.ts`, idêntica letra por letra a `iniciaisDe()`
+—, e essa saiu com ela: é a decisão da 0023, e duas cópias da mesma conta são
+duas verdades esperando divergir. **O único `Avatar` à mão que sobrevive é o
+`CartaoDaPessoa`**, que já desenha `AvatarImage` e tem a razão escrita nele: a
+barra lateral tem fundo próprio e o fallback dela é outro par de cor.
+
+**TODO `avatar_url` DO PROTÓTIPO ERA NULO, e é por isso que isto durou doze
+sprints.** Oito registros em `dados-exemplo.ts` e cinco em `calendario.ts`: as
+cento e cinquenta imagens mostravam o produto no único estado em que ninguém
+da agência tem foto, então nenhuma delas podia pegar um avatar sem
+`AvatarImage`. É a lição da Óptica Visão sem atendente (0062) e da pessoa
+desligada (0069). `public/exemplos/retrato-1.svg` é **3 por 4 de propósito** —
+o bug da foto achatada era uma imagem não quadrada numa caixa quadrada, e uma
+foto quadrada no exemplo passaria com e sem o `object-cover` —, e ele vai para
+a Ana e **não** para o Diego: `profileDaEquipe()` espalha o `PROFILE_EQUIPE`
+por cima de cada persona, então sem uma linha explícita toda pessoa logada
+apareceria de cara cheia e nenhuma imagem mostraria as iniciais no disco da
+topbar.
 
 **O exemplo do protótipo ganhou duas etapas de outras pessoas** na demanda da
 Ana, pela mesma razão pela qual UMA etapa de exemplo é peça de campanha: sem
@@ -7174,6 +7269,40 @@ frase de legenda para ser entendida. *O que se perde, e é dito:* a prioridade
 sai da cor do calendário. Ela continua no `title` de cada chip, e no board e na
 Lista ela é selo.
 
+**E O CALENDÁRIO NÃO PINTAVA FUNDO NENHUM** — decisão do usuário:
+*"substituir o fundo cinza atual do calendário por branco; aplicar em todas as
+visualizações que utilizam o mesmo componente; preservar a diferenciação entre
+dias, eventos, períodos selecionados e indicadores de sobrecarga"*.
+
+**A causa não era de token**, e é isso que faz a entrega ser pequena:
+`--surface-card` já é o branco puro desde a interface Leve. Este contêiner
+tinha `overflow-hidden rounded-xl border` e NENHUM fundo — o que aparecia
+dentro dele era a PÁGINA. É o achado dos três contêineres de Minhas Tasks pela
+segunda vez, e aqui ele pega a tela inteira, porque a grade É a tela.
+
+**E ERAM TRÊS, não um:** a legenda logo abaixo tinha `rounded-lg border` sem
+fundo, e a faixa de disponibilidade também — essa dentro do `SheetContent`,
+que é `bg-background` e aponta para `--surface-page`. Quer dizer que a grade
+de dias que o pedido chama de "indicador de sobrecarga" saía cinza dentro de
+um painel cinza. **Um contêiner que não pinta troca de cor conforme a tela que
+o abriga:** a abertura do mês de social punha a mesma faixa sobre cartão
+branco.
+
+**SÃO TRÊS TONS E NENHUM VEM DE OPACIDADE.** Dia em `--surface-card`, faixa
+dos nomes da semana em `--muted`, dia de outro mês em `--surface-page` — o
+mesmo par que o calendário do portal e o Cronograma já usavam. Saíram
+`bg-muted/40` e `bg-muted/30` daqui e `bg-muted/40` do calendário do Social.
+
+**O Calendário Full fica como está**, e a ausência é decisão: ele já pinta os
+dias de branco com tokens nomeados, e os três estados dele têm o argumento
+escrito — o que separa o fim de semana do dia de outro mês é a borda
+tracejada, uma diferença de FORMA que sobrevive ao tema e ao daltonismo.
+Uniformizar o tom dele desfaria aquela decisão numa tela que não estava cinza.
+
+**E o `check:cores` pegou o meu próprio comentário citando o hexadecimal que o
+usuário mandou** — oitava vez nesta armadilha. A explicação não pode carregar
+o que ela proíbe: quem é nomeado é o token.
+
 **A legenda tem QUATRO entradas**, com a amostra sendo o chip de verdade — uma
 legenda que mostra outra coisa que a tela é uma legenda que ensina errado. A
 lista e a ordem moram em `LEGENDA_DO_CALENDARIO`: duas cópias divergiriam na
@@ -7467,7 +7596,30 @@ numa tabela que a gestão inteira já lê.
   em que lembra, e a transferência saiu no dia em que saiu. É a mesma razão das
   três datas do Financeiro.
 - **Nota paga e nota recusada não mudam mais de estado**, e nem se apagam —
-  nem pelo sócio. Apagar é só da própria pessoa e só enquanto ninguém conferiu.
+  nem pelo sócio. **Apagar é só da própria pessoa, e só enquanto a nota não
+  foi paga** (migration 0117, decisão do usuário: *"permitir que o usuário que
+  enviou uma NF possa excluí-la, apenas enquanto ela não estiver como
+  'Paga'"*). Era `status = 'enviada'` até ali, com o argumento de que nota
+  conferida é registro de uma decisão — e quem responde por esse registro é
+  quem o emitiu.
+
+  **O CORTE EM `paga` NÃO É ARBITRÁRIO: É ONDE O DINHEIRO ENTRA.**
+  `nota_paga_vira_despesa()` grava em `finance_entries` naquela transição, e a
+  chave estrangeira mora do lado da NOTA — apagar uma nota paga deixaria a
+  despesa sozinha no Financeiro, um gasto que ninguém tem mais como explicar.
+  É a mesma assimetria que o `zerar-notas-fiscais.sql` tem no cabeçalho, e é
+  literalmente o *"preservando controles financeiros"* do pedido.
+
+  **Três das quatro metades já existiam**: a confirmação é o `ConfirmDialog`
+  que já estava na linha, a lista já se refaz, e a auditoria é
+  `auditoria_team_invoices` (0065), que dispara em `after … delete` e grava o
+  `to_jsonb(old)` INTEIRO pelo ramo de DELETE de `registrar_auditoria()` —
+  número, competência, valor, arquivo e quem emitiu. O histórico de exclusão
+  já era verdade antes de a exclusão existir. Faltava uma linha de policy.
+
+  *O que isto custa:* `recusada` passa a ser apagável, e com ela sai o motivo
+  que o sócio escreveu. Por isso a descrição do diálogo muda nela e aponta
+  "Substituir", que é o caminho que guarda as duas.
 
 **UMA NOTA VIVA POR MÊS, E AS RECUSADAS ACUMULAM.** O índice único é
 **parcial** (`where status <> 'recusada'`), e é essa a diferença: a pessoa não
@@ -10052,6 +10204,23 @@ dono seria apagar os dias de um e pintar os de outro numa ação chamada
 histórico a preservar. Um registro errado é um fato que não aconteceu, e
 deixá-lo marcado como cancelado é deixar um dia pintado na matriz de alguém
 que trabalhou naquele dia.
+
+**A CAIXA DO TOPO SAIU**, por decisão do usuário: *"dentro da aba de Day Off,
+na seção 'Registrar Período', remover a caixa que contém título e informações
+explicativas; manter apenas os campos necessários; reorganizar o
+espaçamento"*. Era um bloco em âmbar de seis linhas dizendo que isto grava no
+saldo de outra pessoa e não passa pela fila — o argumento dela está acima e
+continuava certo; o que mudou é quem responde por ele.
+
+**O fato não se perdeu, ele é dito ONDE DECIDE ALGO.** A frase do topo falava
+em abstrato, antes de haver pessoa escolhida — ou seja, no único estado em que
+nada pode ser gravado. Quem diz a mesma coisa hoje é a linha da coluna da
+direita, com o nome e o número: *"Ana tem 15 dias de day off por ano. Este
+registro desconta 4 deles."*, encostada no botão que grava. **E o respiro
+duplo saiu com ela:** a instrução do calendário tinha `mb-3` dentro de um pai
+`space-y-3`, somando dois vãos — era o que a caixa escondia, e é a outra
+metade de "reorganizar o espaçamento". *O que se perde:* quem abre a aba por
+engano não lê mais, de cara, que esta tela escreve no saldo de outra pessoa.
 
 **Importar planilha ficou de fora, e é decisão do usuário.** O histórico que a
 agência tem cabe em algumas dezenas de linhas, e uma importação sem
