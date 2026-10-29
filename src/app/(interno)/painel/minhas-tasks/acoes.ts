@@ -5,6 +5,8 @@ import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/r
 import { ehGestor } from "@/lib/auth/roles";
 import { driveConfigurado } from "@/lib/drive/config";
 import { listarClientes } from "@/lib/dados/clientes";
+import { vertentesDoCliente } from "@/lib/dados/vertentes";
+import type { Vertente } from "@/lib/dominio/vertentes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { listarWorkflows } from "@/lib/dados/workflows";
@@ -23,6 +25,8 @@ export type DetalheParaOPainel = {
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null }[];
   tipos: { id: string; nome: string }[];
+  /** As vertentes da conta desta demanda (0118) — todas, inclusive as inativas. */
+  vertentes: Vertente[];
   urls: Record<string, string>;
   usuarioId: string;
   /** Atendimento ou gestão: mexe na demanda e nas etapas. */
@@ -59,11 +63,12 @@ export async function carregarDetalheDaTask(
     const task = await obterTask(taskId);
     if (!task) throw new ErroDeAcao("Task não encontrada, ou seu perfil não alcança ela.");
 
-    const [clientes, equipe, tipos, ehDoAtendimento] = await Promise.all([
+    const [clientes, equipe, tipos, ehDoAtendimento, vertentes] = await Promise.all([
       listarClientes(),
       listarEquipeAtiva(),
       listarWorkflows(task.client_id),
       souDoAtendimento(),
+      vertentesDoCliente(task.client_id),
     ]);
 
     const urls = await urlsDosArquivos(
@@ -83,6 +88,7 @@ export async function carregarDetalheDaTask(
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa })),
       equipe: equipe.map((p) => ({ id: p.id, nome: p.nome, avatar_url: p.avatar_url })),
       tipos: tipos.map((t) => ({ id: t.id, nome: t.nome })),
+      vertentes,
       urls,
       usuarioId: sessao.usuarioId,
       podeGerenciar: ehDoAtendimento || gestor,

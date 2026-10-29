@@ -32,6 +32,7 @@ export function PainelDeTasks({
   rascunhos,
   itensDeCalendario,
   clientes,
+  vertentes,
   equipe,
   prazos,
   podeConfigurarRecorrencia,
@@ -40,6 +41,8 @@ export function PainelDeTasks({
   tasks: TaskDaLista[];
   itensDeCalendario: ItemDeCalendario[];
   clientes: { id: string; nome_empresa: string }[];
+  /** As vertentes da conta escolhida no filtro, ou vazio (0118). */
+  vertentes: { id: string; nome: string; ativa: boolean }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
   prazos: { hoje: string; fimDaSemana: string };
   /** `is_atendimento()` — quem abre demanda é quem configura a rotina. */
@@ -111,7 +114,7 @@ export function PainelDeTasks({
         </div>
       </div>
 
-      <BarraDeFiltrosDeTask clientes={clientes} equipe={equipe} />
+      <BarraDeFiltrosDeTask clientes={clientes} equipe={equipe} vertentes={vertentes} />
 
       {filtros.visao === "board" ? (
         <BoardDeTasks tasks={tasks} colunas={COLUNAS_POR_STATUS} />

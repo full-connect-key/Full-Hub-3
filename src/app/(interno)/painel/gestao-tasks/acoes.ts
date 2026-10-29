@@ -134,6 +134,7 @@ const ROTULOS_DA_TASK = {
   titulo: "título da demanda",
   client_id: "cliente",
   task_type_id: "workflow",
+  vertente_id: "vertente",
   data_inicio: "data de início",
   data_fim: "data de encerramento",
   prioridade: "prioridade",
@@ -284,6 +285,11 @@ const esquemaDeEdicao = z.object({
   // pode estar vazio, e a lista o chama de "Sem título".
   titulo: z.string().optional(),
   client_id: z.string().uuid().optional(),
+  // NULAVEL, e e o que permite tirar a vertente de uma demanda que ja tem
+  // uma: a conta pode desativar a frente, e o campo volta a "Sem vertente".
+  // Quem recusa a vertente de OUTRA conta e o trigger da 0118, nos dois
+  // sentidos — nao esta aqui, porque um `uuid()` nao sabe de quem ele e.
+  vertente_id: z.string().uuid().nullable().optional(),
   task_type_id: z.string().uuid().nullable().optional(),
   briefing_rico: z.unknown().optional(),
   briefing_texto: z.string().nullable().optional(),
@@ -322,6 +328,7 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     if (entrada.titulo !== undefined) mudancas.titulo = entrada.titulo.trim();
     if (entrada.client_id !== undefined) mudancas.client_id = entrada.client_id;
+    if (entrada.vertente_id !== undefined) mudancas.vertente_id = entrada.vertente_id;
     if (entrada.task_type_id !== undefined) mudancas.task_type_id = entrada.task_type_id;
     // O conteúdo do editor chega como unknown (é JSON arbitrário do TipTap);
     // o banco guarda em jsonb, então a conversão é declarada aqui, num lugar só.
@@ -351,14 +358,38 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
     // ter carregado os padrões da conta antes, e a primeira demanda de um
     // cliente novo — que é justamente quando isso serve — nasceria sem nada.
     // ---------------------------------------------------------------------
-    if (mudancas.client_id && entrada.link_entrega === undefined) {
+    //
+    // ---------------------------------------------------------------------
+    // E TROCAR DE CLIENTE LIMPA A VERTENTE, pela outra ponta da mesma
+    // decisão: as duas consequências de escolher o cliente moram aqui, e a
+    // leitura da linha atual é UMA — ela responde às duas perguntas.
+    //
+    // `tasks_vertente_da_conta` (0118) recusa, nos dois sentidos, uma
+    // vertente de outra conta. Então classificar em "Lojas Próprias" da
+    // Mundo Verde e depois trocar para a Óptica Visão chegaria ao banco como
+    // a recusa do trigger — com o seletor de cliente simplesmente não
+    // salvando, que é um clique que não faz nada e não diz por quê. A pessoa
+    // trocou de conta: a frente da conta anterior deixou de existir para esta
+    // demanda.
+    //
+    // **A COMPARAÇÃO É COM O CLIENTE ATUAL, e não com a presença do campo.**
+    // Hoje quem manda `client_id` é um `<Select>`, que só dispara quando o
+    // valor muda; amanhã pode ser outra coisa, e aí apagar a vertente porque
+    // alguém regravou o mesmo cliente seria perder a classificação por causa
+    // de um salvamento que não mudou nada — o `update` que regrava o mesmo
+    // valor é o caso normal da tela que salva campo a campo.
+    //
+    // O `undefined` é a exceção declarada: quem manda os dois no mesmo
+    // salvamento está dizendo qual vertente quer.
+    // ---------------------------------------------------------------------
+    if (mudancas.client_id) {
       const { data: atual } = await supabase
         .from("tasks")
-        .select("link_entrega")
+        .select("link_entrega, client_id")
         .eq("id", id)
         .maybeSingle();
 
-      if (!atual?.link_entrega?.trim()) {
+      if (entrada.link_entrega === undefined && !atual?.link_entrega?.trim()) {
         const { data: padrao } = await supabase
           .from("client_flow_defaults")
           .select("pasta_entrega_url")
@@ -366,6 +397,14 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
           .maybeSingle();
 
         if (padrao?.pasta_entrega_url) mudancas.link_entrega = padrao.pasta_entrega_url;
+      }
+
+      if (
+        entrada.vertente_id === undefined &&
+        atual?.client_id &&
+        atual.client_id !== mudancas.client_id
+      ) {
+        mudancas.vertente_id = null;
       }
     }
 

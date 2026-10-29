@@ -18,6 +18,7 @@ export type Visao = "board" | "lista" | "calendario";
 
 export type Filtros = {
   cliente: string;
+  vertente: string;
   responsavel: string;
   prioridade: string;
   status: string;
@@ -31,6 +32,7 @@ export function lerFiltros(params: URLSearchParams): Filtros {
   const visao = params.get("visao");
   return {
     cliente: params.get("cliente") ?? SEM_FILTRO,
+    vertente: params.get("vertente") ?? SEM_FILTRO,
     responsavel: params.get("responsavel") ?? SEM_FILTRO,
     prioridade: params.get("prioridade") ?? SEM_FILTRO,
     status: params.get("status") ?? SEM_FILTRO,
@@ -187,9 +189,19 @@ function ChipDePrazo({
 export function BarraDeFiltrosDeTask({
   clientes,
   equipe,
+  vertentes,
 }: {
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
+  /**
+   * As vertentes da conta ESCOLHIDA no filtro acima (0118), ou lista vazia.
+   *
+   * Quem recorta é o servidor, que lê `?cliente=` da mesma URL — e é por isso
+   * que ela não vem com as vertentes de todas as contas: "Institucional"
+   * existe em duas empresas com o mesmo nome, e um seletor com as duas
+   * listaria a mesma palavra duas vezes sem dizer de quem é qual.
+   */
+  vertentes: { id: string; nome: string; ativa: boolean }[];
 }) {
   const { filtros, definir, limpar } = useFiltros();
 
@@ -201,9 +213,36 @@ export function BarraDeFiltrosDeTask({
           label: "Cliente",
           value: filtros.cliente,
           allLabel: "Todos os clientes",
-          onChange: (v) => definir({ cliente: v }),
+          // TROCAR DE CLIENTE LIMPA A VERTENTE, pela razão da tela de task:
+          // a frente é da conta, e um `?vertente=` da conta anterior
+          // sobrevivendo na URL filtraria a nova por um id que não é dela —
+          // zero resultados, com os dois seletores na tela afirmando um
+          // recorte que não existe.
+          onChange: (v) => definir({ cliente: v, vertente: SEM_FILTRO }),
           options: clientes.map((c) => ({ value: c.id, label: c.nome_empresa })),
         },
+        // A VERTENTE SÓ APARECE COM O CLIENTE ESCOLHIDO E A CONTA TENDO
+        // ALGUMA. Um seletor vazio em "Todos os clientes" é um filtro que não
+        // tem o que oferecer, e a maioria das contas não tem vertente
+        // nenhuma — é a mesma decisão do campo na tela da demanda.
+        ...(filtros.cliente !== SEM_FILTRO && vertentes.length > 0
+          ? [
+              {
+                id: "vertente",
+                label: "Vertente",
+                value: filtros.vertente,
+                allLabel: "Todas as vertentes",
+                onChange: (v: string) => definir({ vertente: v }),
+                options: vertentes.map((v) => ({
+                  value: v.id,
+                  // A DESATIVADA CONTINUA NA LISTA, dizendo que está: ela
+                  // classifica demandas que já existem, e sem ela não haveria
+                  // como achá-las.
+                  label: v.ativa ? v.nome : `${v.nome} (desativada)`,
+                })),
+              },
+            ]
+          : []),
         {
           id: "responsavel",
           label: "Responsável",

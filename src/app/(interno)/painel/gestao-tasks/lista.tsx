@@ -330,14 +330,25 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     {
       id: "cliente",
       header: "Cliente",
+      // A VERTENTE VEM EMBAIXO E NÃO AO LADO (0118). Aqui há largura de
+      // coluna, então o nome inteiro cabe — o que não cabe é um segundo selo
+      // na mesma linha sem empurrar a coluna de Equipe. E ela entra na BUSCA:
+      // quem digita "Lojas Próprias" no campo de cima está procurando a
+      // frente, e o filtro acima só existe com um cliente escolhido.
       cell: (task) =>
         task.cliente ? (
-          <Badge variant="outline">{task.cliente.nome_empresa}</Badge>
+          <div className="space-y-1">
+            <Badge variant="outline">{task.cliente.nome_empresa}</Badge>
+            {task.vertente ? (
+              <p className="text-text-muted text-xs">{task.vertente.nome}</p>
+            ) : null}
+          </div>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),
       sortValue: (task) => task.cliente?.nome_empresa ?? null,
-      searchValue: (task) => task.cliente?.nome_empresa ?? "",
+      searchValue: (task) =>
+        `${task.cliente?.nome_empresa ?? ""} ${task.vertente?.nome ?? ""}`.trim(),
     },
     {
       id: "equipe",

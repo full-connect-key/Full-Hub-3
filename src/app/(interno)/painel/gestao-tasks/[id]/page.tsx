@@ -18,6 +18,7 @@ import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { obterTask, urlsDosArquivos } from "@/lib/dados/tasks";
+import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { listarWorkflows } from "@/lib/dados/workflows";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 
@@ -40,11 +41,17 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   const task = await obterTask(id);
   if (!task) notFound();
 
-  const [clientes, equipe, tipos, ehDoAtendimento] = await Promise.all([
+  const [clientes, equipe, tipos, ehDoAtendimento, vertentes] = await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
     listarWorkflows(task.client_id),
     souDoAtendimento(),
+    // AS VERTENTES SÃO DA CONTA DESTA DEMANDA, e a leitura devolve lista
+    // vazia quando ela ainda não tem cliente — que é o rascunho recém-aberto.
+    // Ela traz as desativadas junto, e quem decide o que o seletor oferece é
+    // `vertentesParaEscolher()`: a frente que a conta tirou do ar sai da
+    // lista, menos quando é justamente a que esta demanda já aponta.
+    vertentesDoCliente(task.client_id),
   ]);
 
   const urls = await urlsDosArquivos(
@@ -133,6 +140,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
         task={task}
         podeEditar={podeGerenciar}
         temEtapas={task.subtarefas.length > 0}
+        contaTemVertente={vertentes.length > 0}
       />
 
       {/* As propriedades vêm ANTES das abas, e fora delas.
@@ -145,6 +153,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
         tipos={tipos.map((t) => ({ id: t.id, nome: t.nome }))}
+        vertentes={vertentes}
         podeEditar={podeGerenciar}
         driveLigado={driveConfigurado()}
       />

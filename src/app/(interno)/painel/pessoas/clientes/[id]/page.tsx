@@ -23,6 +23,7 @@ import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
 import { VisitasAoPortal } from "./visitas-ao-portal";
+import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Cliente" };
@@ -49,6 +50,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
     // esse nome, e a variável local a sombrearia — o `tsc` acusa, e sem ele o
     // `Promise.all` estaria se referindo a si mesmo.
     correntes,
+    vertentes,
   ] = await Promise.all([
       usuariosDoCliente(id),
       listarEquipeAtiva(),
@@ -61,6 +63,14 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
       // desativado é um que a agência tirou do ar sem apagar. O que já está
       // gravado continua gravado — a aba diz isso numa frase em vez de calar.
       fluxosDeSocial({ apenasAtivos: true }),
+      // A ABA DAS VERTENTES desce junto, pela mesma razão das outras: trocar
+      // de aba não recarrega a página, então buscar só quando ela abrisse
+      // exigiria uma rota própria para desenhar o que já está aqui.
+      //
+      // E ela traz as DESATIVADAS também: a lista desta tela é onde se
+      // reativa uma, e uma vertente que some de lá é uma que ninguém
+      // consegue trazer de volta — a decisão da aba Fluxos do Social Media.
+      vertentesDoCliente(id),
     ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
@@ -111,6 +121,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
         vinculos={vinculos}
         ehSocio={ehSocio(sessao.profile.role)}
         ehGestor={ehDaGestao}
+        vertentes={vertentes}
         fluxo={{ padroes, fluxos, fluxosDeSocial: correntes, recorrencias }}
       />
     </div>

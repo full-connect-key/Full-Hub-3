@@ -13,6 +13,7 @@ import {
   Flag,
   FolderOpen,
   FolderPlus,
+  Layers,
   Loader2,
   Users,
   Workflow,
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import { vertentesParaEscolher, type Vertente } from "@/lib/dominio/vertentes";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
@@ -84,12 +86,20 @@ export function PropriedadesDaTask({
   task,
   clientes,
   tipos,
+  vertentes,
   podeEditar,
   driveLigado,
 }: {
   task: TaskCompleta;
   clientes: { id: string; nome_empresa: string }[];
   tipos: { id: string; nome: string }[];
+  /**
+   * As vertentes da conta desta demanda (migration 0118) — todas, inclusive
+   * as desativadas. Quem decide o que o seletor oferece é
+   * `vertentesParaEscolher()`, e é ela que mantém na lista a frente que esta
+   * demanda já aponta mesmo depois de a conta tirá-la do ar.
+   */
+  vertentes: Vertente[];
   podeEditar: boolean;
   /**
    * A integração com o Drive está configurada?
@@ -270,6 +280,58 @@ export function PropriedadesDaTask({
             <p className="text-sm">{task.cliente?.nome_empresa ?? "—"}</p>
           )}
         </Campo>
+
+        {/* ---------------------------------------------------------------
+            A VERTENTE DA CONTA (migration 0118, decisão do usuário).
+
+            **ELE SÓ EXISTE QUANDO A CONTA TEM VERTENTE.** A maioria não tem
+            — e um seletor permanentemente vazio na grade de propriedades é
+            um campo que pede uma escolha que não existe, que é o pior tipo
+            de campo: quem responde acha que garantiu alguma coisa. A mesma
+            decisão da ficha do cliente, onde a aba abre num estado vazio
+            explicado em vez de um formulário em branco.
+
+            **E ELE VEM DEPOIS DO CLIENTE**, que é a frase do usuário: *"após
+            selecionar o cliente, exibir o campo Vertente / Área"*. É a ordem
+            da decisão — a conta decide quais frentes existem, então acima do
+            cliente ele perguntaria sobre uma conta que ainda não foi
+            escolhida.
+
+            **A opção "Sem vertente" fica**, e não é indecisão: uma demanda
+            interna da conta — a reunião mensal, o relatório — não pertence a
+            nenhuma frente, e obrigar uma escolha faria a pessoa classificar
+            na primeira da lista. Quem cobra a vertente na publicação é a
+            barra do rascunho, que avisa e deixa seguir.
+            --------------------------------------------------------------- */}
+        {vertentes.length > 0 ? (
+          <Campo icone={Layers} rotulo="Vertente / Área">
+            {podeEditar ? (
+              <Select
+                value={task.vertente_id ?? SEM_VALOR}
+                onValueChange={(valor) =>
+                  salvar({ vertente_id: valor === SEM_VALOR ? null : valor })
+                }
+              >
+                <SelectTrigger aria-label="Vertente da conta" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_VALOR}>Sem vertente</SelectItem>
+                  {vertentesParaEscolher(vertentes, task.vertente_id).map((vertente) => (
+                    <SelectItem key={vertente.id} value={vertente.id}>
+                      {vertente.nome}
+                      {vertente.ativa ? "" : " (desativada)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-sm">
+                {vertentes.find((v) => v.id === task.vertente_id)?.nome ?? "—"}
+              </p>
+            )}
+          </Campo>
+        ) : null}
 
         {/* ESCOLHER O WORKFLOW GERA AS ETAPAS AQUI MESMO. Antes isso só
             acontecia no diálogo de criação, e na tela de detalhe o campo era

@@ -6437,6 +6437,166 @@ banco ganharia o valor, uma tela ofereceria, e a action ao lado recusaria com
 uma mensagem sobre escolher a função. Hoje é uma tupla em `lib/dominio/equipe.ts`
 com `satisfies readonly TeamFuncao[]`, que serve aos dois lados.
 
+#### AS VERTENTES DA CONTA, e a demanda classificada por elas
+
+Migration 0118, decisão do usuário: *"preciso que seja possível cadastrar
+diferentes vertentes, áreas ou unidades de negócio dentro de uma mesma conta
+de cliente"*, com o exemplo da Mundo Verde — Institucional, Lojas Próprias,
+Marca Própria, Nutricionistas e Franqueados, E-commerce.
+
+**ELAS SÃO ESTRUTURA E NÃO FILTRO**, e a frase é dele: *"as vertentes devem se
+tornar parte da estrutura permanente dos clientes no banco de dados, e não
+apenas um filtro visual"*. Por isso é tabela com RLS e uma coluna em `tasks`,
+e não um `text[]` na ficha nem uma etiqueta derivada do título: o que é só
+visual não sobrevive ao primeiro relatório que precisar somar por frente.
+
+**É UMA TABELA E UMA COLUNA, e as duas metades saem no mesmo commit.** Uma
+conta com cinco frentes cadastradas e nenhuma demanda apontando para elas é um
+cadastro que não decide nada — o pior tipo de campo, porque quem responde acha
+que garantiu alguma coisa (0023). E o caminho contrário, uma coluna em `tasks`
+sem de onde escolher, é a ponte construída e nunca atravessada pela décima
+oitava vez.
+
+##### A TRAVA É A COERÊNCIA DE CONTA, e ela vale nos DOIS sentidos
+
+`tasks_vertente_da_conta` recusa uma demanda apontando para a vertente de
+OUTRA empresa, e dispara tanto quando a vertente muda quanto quando o CLIENTE
+muda. A segunda metade é a que não é óbvia: sem ela, classificar em "Lojas
+Próprias" da Mundo Verde e depois trocar a demanda para a Óptica Visão
+deixaria a linha apontando para uma frente de uma conta que não é mais a dela
+— e aí o filtro da Óptica não a acha, o da Mundo Verde a traz, e a Biblioteca
+do cliente mostra material de outra empresa. **É um vazamento entre contas que
+nenhuma tela mostraria**, que é a razão pela qual a 0078 recusa trocar a
+empresa de uma campanha.
+
+**E QUEM EVITA A RECUSA É A ACTION, não a tela**: `atualizarTask` limpa a
+vertente quando o cliente muda, no mesmo lugar onde a pasta padrão da conta é
+preenchida (0064) e pela mesma razão escrita lá — *"a pessoa escolhe o cliente
+num seletor que salva sozinho; uma limpeza feita no navegador dependeria de a
+tela ter carregado as vertentes das duas contas"*. Sem ela o clique no seletor
+de cliente simplesmente não salvaria, que é um clique que não faz nada e não
+diz por quê.
+
+**A comparação é com o cliente ATUAL, e não com a presença do campo.** Hoje
+quem manda `client_id` é um `<Select>`, que só dispara quando o valor muda;
+amanhã pode ser outra coisa, e apagar a classificação porque alguém regravou o
+mesmo cliente seria perder dado num salvamento que não mudou nada — e a tela
+de task salva campo a campo desde a 0028.
+
+##### Não há DELETE, e a desativada continua na tela
+
+`client_vertentes` não tem policy de DELETE, e a ausência é a regra: uma
+frente que a agência não usa mais se **desativa**, como a etiqueta do Acervo
+(`skills.ativa`) e o fluxo de social. Apagar levaria junto a classificação de
+toda demanda que aponta para ela — e `on delete set null` deixaria o histórico
+sem dizer de que frente era aquele trabalho, que é exatamente o que os
+relatórios por vertente existem para responder.
+
+**A desativada sai do SELETOR e fica na LISTA**, e quem separa os dois é
+`vertentesParaEscolher()`, do lado do domínio — a leitura devolve todas. Ela
+continua aparecendo em três lugares pela mesma razão: na ficha, porque é lá
+que se reativa uma e uma vertente que some de lá é uma que ninguém traz de
+volta; no campo da demanda que já aponta para ela, senão o seletor abriria em
+branco sobre uma linha classificada; e no filtro, senão as demandas daquela
+frente não teriam como ser achadas.
+
+##### Quem cadastra é a gestão; quem classifica é quem abre a demanda
+
+`client_vertentes_insert` e `_update` são `is_gestor()` — é a frase do usuário
+(*"apenas Sócios e Desenvolvedores podem gerenciar"*), e é a separação da 0046
+e da 0068: desenhar as frentes que toda demanda da conta vai percorrer é
+configuração do produto; escolher a de hoje é o trabalho do dia. O SELECT é
+`is_staff() or my_client_ids()`, porque o campo da demanda é de quem abre
+demanda e a Biblioteca do portal é do cliente.
+
+##### A SUBTAREFA HERDA SEM COLUNA, e é a regra do produto
+
+*"Todas as subtarefas devem herdar automaticamente a vertente da task"* — e a
+herança acontece por `subtasks` **não ter** a coluna: a vertente de uma etapa
+é a da demanda dela, lida pelo caminho que já existe. Uma coluna espelhada
+precisaria ser reescrita por todo caminho que troca a vertente da mãe, e
+divergiria no primeiro que esquecesse — é "bloqueio não é status", "atraso não
+é coluna" e `maoDoPost()` pela enésima vez.
+
+##### O campo só existe quando a conta tem vertente
+
+A maioria não tem, e um seletor permanentemente vazio na grade de propriedades
+pede uma escolha que não existe. **E ele vem DEPOIS do cliente**, que é a
+ordem da decisão — acima dele perguntaria sobre uma conta que ainda não foi
+escolhida.
+
+**"Sem vertente" fica como opção**, e não é indecisão: a reunião mensal e o
+relatório da conta não pertencem a nenhuma frente, e obrigar a escolha faria a
+pessoa classificar na primeira da lista — que é pior que não classificar,
+porque o relatório passaria a contá-la numa frente onde ela não está.
+
+##### A EXIGÊNCIA NA PUBLICAÇÃO É AVISO, e o adiamento é declarado
+
+O pedido é *"exigir a seleção antes de salvar quando o cliente possuir
+vertentes"*, e a trava que a cobraria é `tasks_publicar_exige_minimo` (0028) —
+que dispara em `before insert or update of publicada_em`, ou seja **também no
+INSERT**. Três caminhos deste produto inserem task JÁ PUBLICADA sem passar por
+tela nenhuma: `abrir_campanha()` (0051), `abrir_mes_de_social()` (0061) e
+`gerar_ocorrencia()` (0040), que é a rotina das três da manhã. Nenhum dos três
+sabe passar a vertente, então ligar a exigência agora pararia de gerar o
+social e a recorrência de **toda conta com vertente cadastrada** — em
+silêncio, num histórico que ninguém abre, que é exatamente o modo de falha que
+o cabeçalho da 0040 já descrevia.
+
+Então ela avisa e deixa seguir, que é o que o produto já faz com a subtarefa
+pelo mesmo argumento — *"publicar sem etapa avisa e deixa seguir, porque uma
+demanda pode nascer antes de alguém saber como ela se divide"*. **E o diálogo
+conta os dois de uma vez**: um por falta faria quem não tem nenhum dos dois
+confirmar duas vezes seguidas, com o segundo aparecendo depois do sim, que lê
+como o clique não ter funcionado.
+
+*O que falta para a trava entrar, e é decisão própria:* os três caminhos
+aprenderem a receber a vertente — o que para a recorrência significa uma
+coluna em `task_recurrences`, porque a regra é quem a guardaria.
+
+##### O filtro só aparece com o CLIENTE escolhido
+
+"Institucional" existe em duas contas com o mesmo nome e ids diferentes, e um
+seletor com as vertentes de todas listaria a mesma palavra duas vezes sem
+dizer de quem é qual. É a decisão da grade do Feed, que é de uma rede só.
+
+**E trocar de cliente limpa o `?vertente=`**, pela razão da tela de task: um
+id da conta anterior sobrevivendo na URL filtraria a nova por uma frente que
+não é dela — zero resultados, com os dois seletores afirmando um recorte que
+não existe.
+
+**A CAMPANHA SAI DO CALENDÁRIO quando alguém filtra por vertente**, e é a
+mesma razão pela qual ela some no filtro por pessoa: `campaigns` não tem
+vertente, e deixá-la passar afirmaria que o encerramento daquela campanha é da
+frente escolhida, quando ele é da conta inteira. **Um recorte que deixa passar
+o que ele não sabe classificar é pior que um recorte a menos**, porque a
+pessoa confere a tela e não tem como saber que aquela linha não foi filtrada.
+
+##### E o selo da vertente desceu para uma linha própria, por imagem
+
+A primeira versão punha a frente dentro do selo do cliente, separada por um
+ponto — o argumento era que as duas respondem a mesma pergunta, e a imagem o
+derrubou: a coluna do board tem uns 250px, e "Mundo Verde · Nutricionistas e
+Franqueados" saía **cortado pela borda do card, sem reticências**. É o bug do
+`DateBadge` pela segunda vez, e pela mesma mecânica — o `truncate` do Tailwind
+não alcança texto solto dentro de um `inline-flex`, onde ele é item anônimo de
+flex. **Pior que truncar, porque sem as reticências lê como defeito** e não
+como texto que não coube.
+
+**E o stub do protótipo escondia o filtro inteiro.** Ele aplicava `cliente` e
+não `vertente`, então a imagem saía com o chip "Lojas Próprias" escolhido e o
+board inteiro embaixo — ela provaria que o seletor existe e afirmaria que ele
+não faz nada. É a lição da duplicata do Cronograma: **um ambiente de exemplo
+que mostra o produto num estado que ele não tem esconde uma classe inteira de
+bug.**
+
+**O exemplo tem DUAS demandas classificadas e duas sem**, e as duas
+classificadas levam a frente mais curta e a mais longa das cinco: com todas
+classificadas a imagem provaria que o selo aparece, não que ele sabe faltar; e
+sem a longa, o truncamento não apareceria em imagem nenhuma. **A Óptica Visão
+não tem vertente nenhuma**, que é o estado em que o campo e o filtro não são
+desenhados — a lição da Óptica sem atendente (0062).
+
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro

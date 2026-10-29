@@ -9,6 +9,7 @@ import type { Client } from "@/lib/supabase/database.types";
 
 import { FormularioDeCliente } from "../formulario-de-cliente";
 import { ConfiguracoesDoFluxo, type PessoaDaEquipe } from "./configuracoes-do-fluxo";
+import { VertentesDaConta } from "./vertentes";
 import { UsuariosDoCliente, type UsuarioComAcesso } from "./usuarios";
 import { ZonaDePerigoDoCliente } from "./zona-de-perigo";
 
@@ -29,6 +30,7 @@ export function DetalheDoCliente({
   vinculos,
   ehSocio,
   ehGestor,
+  vertentes,
   fluxo,
 }: {
   cliente: Client;
@@ -38,6 +40,8 @@ export function DetalheDoCliente({
   vinculos: React.ComponentProps<typeof ZonaDePerigoDoCliente>["vinculos"];
   ehSocio: boolean;
   ehGestor: boolean;
+  /** As vertentes da conta (migration 0118), para a aba delas. */
+  vertentes: React.ComponentProps<typeof VertentesDaConta>["vertentes"];
   /** O que a aba Configurações do fluxo desenha (migration 0064). */
   fluxo: Omit<
     React.ComponentProps<typeof ConfiguracoesDoFluxo>,
@@ -49,6 +53,10 @@ export function DetalheDoCliente({
       <TabsList>
         <TabsTrigger value="dados">Dados</TabsTrigger>
         <TabsTrigger value="usuarios">Usuários com acesso</TabsTrigger>
+        {/* A VERTENTE VEM ANTES DO FLUXO, e a ordem é a da decisão: ela é a
+            estrutura da conta — o que a demanda, a Biblioteca e o relatório
+            vão usar —, e o fluxo é quem aprova o quê dentro dela. */}
+        <TabsTrigger value="vertentes">Vertentes</TabsTrigger>
         <TabsTrigger value="fluxo">Configurações do fluxo</TabsTrigger>
         <TabsTrigger value="atividade">Atividade</TabsTrigger>
       </TabsList>
@@ -104,6 +112,14 @@ export function DetalheDoCliente({
           clientId={cliente.id}
           nomeDaEmpresa={cliente.nome_empresa}
           usuarios={usuarios}
+        />
+      </TabsContent>
+
+      <TabsContent value="vertentes">
+        <VertentesDaConta
+          clienteId={cliente.id}
+          nomeDaEmpresa={cliente.nome_empresa}
+          vertentes={vertentes}
         />
       </TabsContent>
 

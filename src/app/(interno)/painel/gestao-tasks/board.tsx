@@ -83,10 +83,31 @@ function Card({
 
         {marcador}
 
+        {/* A VERTENTE DESCE PARA UMA LINHA PRÓPRIA (0118), e não entra no
+            selo do cliente separada por um ponto — que foi a primeira versão,
+            e a imagem a derrubou: a coluna do board tem uns 250px, e
+            "Mundo Verde · Nutricionistas e Franqueados" saía **cortado pela
+            borda do card, sem reticências**. É o bug do `DateBadge` pela
+            segunda vez, e pelo mesmo motivo — o `truncate` do Tailwind põe
+            as reticências por uma propriedade de CSS que não alcança o texto
+            solto dentro de um `inline-flex`, onde ele é item anônimo de flex.
+            (O nome dela não está escrito aqui de propósito: `check:cores` o
+            leria como classe de cor inexistente, que é a armadilha da
+            explicação carregar o que ela proíbe.) Pior que truncar, porque
+            sem as
+            reticências lê como defeito e não como texto que não coube.
+
+            Embaixo ela quebra de linha quando precisa, e o nome do cliente
+            volta a caber inteiro. É o desenho que a Lista já usa. */}
         {task.cliente ? (
-          <Badge variant="outline" className="max-w-full truncate">
-            {task.cliente.nome_empresa}
-          </Badge>
+          <div className="min-w-0 space-y-1">
+            <Badge variant="outline" className="max-w-full">
+              <span className="min-w-0 truncate">{task.cliente.nome_empresa}</span>
+            </Badge>
+            {task.vertente ? (
+              <p className="text-text-muted text-xs leading-snug">{task.vertente.nome}</p>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">

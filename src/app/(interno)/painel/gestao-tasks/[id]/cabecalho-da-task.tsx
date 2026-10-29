@@ -27,10 +27,18 @@ export function CabecalhoDaTask({
   task,
   podeEditar,
   temEtapas,
+  contaTemVertente,
 }: {
   task: TaskCompleta;
   podeEditar: boolean;
   temEtapas: boolean;
+  /**
+   * A conta desta demanda tem vertente cadastrada (0118)?
+   *
+   * Vem de cima porque a lista é leitura de servidor — e é o booleano e não a
+   * lista, porque o que a barra decide é só se o aviso existe.
+   */
+  contaTemVertente: boolean;
 }) {
   const [estado, setEstado] = useState<EstadoDoSalvamento>("parado");
   const ehRascunho = task.publicada_em === null;
@@ -38,7 +46,12 @@ export function CabecalhoDaTask({
   return (
     <div className="space-y-3">
       {ehRascunho ? (
-        <BarraDoRascunho taskId={task.id} temEtapas={temEtapas} estado={estado} />
+        <BarraDoRascunho
+          taskId={task.id}
+          temEtapas={temEtapas}
+          faltaVertente={contaTemVertente && task.vertente_id === null}
+          estado={estado}
+        />
       ) : null}
 
       <div className="flex items-center gap-3">

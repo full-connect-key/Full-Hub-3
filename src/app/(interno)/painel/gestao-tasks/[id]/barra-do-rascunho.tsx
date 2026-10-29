@@ -26,14 +26,41 @@ export type EstadoDoSalvamento = "parado" | "salvando" | "salvo" | { erro: strin
  * alguém saber como ela se divide; travar aqui obrigaria a inventar uma etapa
  * para poder criar. Quem trava de verdade — título, cliente e pasta — é o
  * banco, e a mensagem dele já diz qual dos três falta.
+ *
+ * **E A VERTENTE ENTROU NA MESMA LISTA, pela mesma razão** (migration 0118).
+ * O pedido do usuário é *"exigir a seleção antes de salvar quando o cliente
+ * possuir vertentes"*, e a trava de banco que a cobraria é
+ * `tasks_publicar_exige_minimo`, que dispara em `before insert or update of
+ * publicada_em` — ou seja, **também no INSERT**. Três caminhos deste produto
+ * inserem task JÁ PUBLICADA sem passar por tela nenhuma — `abrir_campanha()`
+ * (0051), `abrir_mes_de_social()` (0061) e `gerar_ocorrencia()` (0040), que é
+ * a rotina das três da manhã —, e nenhum dos três sabe passar a vertente:
+ * ligar a exigência agora pararia de gerar o social e a recorrência de toda
+ * conta com vertente cadastrada, **em silêncio**, num histórico que ninguém
+ * abre.
+ *
+ * Então ela é aviso até os três aprenderem a passá-la, e isso é decisão
+ * declarada e não esquecimento: o que o produto já faz com a subtarefa, feito
+ * aqui pelo mesmo argumento. Quando a trava entrar, esta tela perde o aviso e
+ * a recusa passa a vir do banco, com a dica dizendo o que falta — que é onde
+ * ela é verdade para todos os caminhos.
  */
 export function BarraDoRascunho({
   taskId,
   temEtapas,
+  faltaVertente,
   estado,
 }: {
   taskId: string;
   temEtapas: boolean;
+  /**
+   * A conta tem vertente cadastrada e esta demanda não aponta para nenhuma.
+   *
+   * Duas condições num booleano porque a pergunta é uma: a conta sem vertente
+   * nenhuma não tem o que escolher, e aí o aviso cobraria uma decisão que não
+   * existe.
+   */
+  faltaVertente: boolean;
   estado: EstadoDoSalvamento;
 }) {
   const router = useRouter();
@@ -50,6 +77,24 @@ export function BarraDoRascunho({
     });
   }
 
+  // A ORDEM É A DO ESTRAGO: etapa primeiro, porque sem ela ninguém é
+  // responsável por nada; a vertente é classificação, e dá para acertar
+  // depois sem o trabalho ficar parado.
+  const avisos = [
+    temEtapas
+      ? null
+      : {
+          titulo: "Esta task não tem subtarefas",
+          consequencia: "Ninguém vai ser responsável por nada.",
+        },
+    faltaVertente
+      ? {
+          titulo: "Esta task não tem vertente",
+          consequencia: "Ela não vai aparecer nos recortes por vertente desta conta.",
+        }
+      : null,
+  ].filter((a): a is { titulo: string; consequencia: string } => a !== null);
+
   return (
     <div className="bg-warning-soft flex flex-wrap items-center gap-3 rounded-card border px-4 py-3">
       <Badge variant="outline" className="shrink-0 uppercase">
@@ -62,15 +107,20 @@ export function BarraDoRascunho({
 
       <EstadoDoSalvamentoNaTela estado={estado} />
 
-      {temEtapas ? (
+      {avisos.length === 0 ? (
         <Button onClick={publicar} disabled={publicando} className="shrink-0">
           {publicando ? <Loader2 className="animate-spin" /> : <Rocket aria-hidden />}
           Criar task
         </Button>
       ) : (
-        // SEM ETAPA O AVISO VEM ANTES, e não é bloqueio: o diálogo diz o que
-        // vai acontecer e a pessoa decide. Travar obrigaria a inventar uma
-        // etapa só para conseguir criar a demanda.
+        // O AVISO VEM ANTES, e não é bloqueio: o diálogo diz o que vai
+        // acontecer e a pessoa decide. Travar obrigaria a inventar uma etapa,
+        // ou uma vertente, só para conseguir criar a demanda.
+        //
+        // **E ELE CONTA OS DOIS DE UMA VEZ.** Um diálogo por falta faria
+        // quem não tem nenhum dos dois confirmar duas vezes seguidas — e o
+        // segundo apareceria depois de a pessoa já ter dito que sim, que lê
+        // como o clique não ter funcionado.
         <ConfirmDialog
           trigger={
             <Button disabled={publicando} className="shrink-0">
@@ -78,8 +128,8 @@ export function BarraDoRascunho({
               Criar task
             </Button>
           }
-          title="Esta task não tem subtarefas"
-          description="Ninguém vai ser responsável por nada. Criar assim mesmo?"
+          title={avisos.length === 1 ? avisos[0].titulo : "Dois campos ficaram em branco"}
+          description={`${avisos.map((a) => a.consequencia).join(" ")} Criar assim mesmo?`}
           confirmLabel="Criar assim mesmo"
           onConfirm={async () => publicar()}
         />

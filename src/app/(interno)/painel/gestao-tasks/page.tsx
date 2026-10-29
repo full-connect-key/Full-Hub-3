@@ -5,6 +5,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
 import { listarClientes } from "@/lib/dados/clientes";
+import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { pastasPadraoDasContas } from "@/lib/dados/fluxo-do-cliente";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
@@ -64,6 +65,7 @@ function filtrosDaUrl(params: Record<string, string | string[] | undefined>): Fi
 
   return {
     cliente: texto("cliente"),
+    vertente: texto("vertente"),
     tipo: texto("tipo"),
     responsavel: texto("responsavel"),
     prioridade: texto("prioridade") as TaskPrioridade | undefined,
@@ -104,7 +106,7 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
   // contador de atrasadas de dizer um número que o board não mostra — duas
   // vezes o mesmo bug, e as duas vezes foi o usuário quem encontrou. A conta
   // mora em `demandasDaAba()`; aqui não se conta nada.
-  const [{ tasks, contadores }, itens, clientes, equipe, rascunhos, ehDoAtendimento] =
+  const [{ tasks, contadores }, itens, clientes, equipe, rascunhos, ehDoAtendimento, vertentes] =
     await Promise.all([
       demandasDaAba(filtros),
       itensDoCalendario(filtros),
@@ -115,6 +117,10 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
       // na tela. É o que faz "Nova recorrente" e `tasks_insert` não
       // divergirem, como já acontece com "Nova task".
       souDoAtendimento(),
+      // AS VERTENTES SÃO DA CONTA ESCOLHIDA NO FILTRO, e a leitura devolve
+      // lista vazia em "Todos os clientes" — que é o padrão da tela e o caso
+      // em que o seletor de vertente não tem o que oferecer.
+      vertentesDoCliente(filtros.cliente ?? null),
     ]);
 
   return (
@@ -137,6 +143,7 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
         clientes={clientes
           .filter((cliente) => cliente.ativo)
           .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
+        vertentes={vertentes.map((v) => ({ id: v.id, nome: v.nome, ativa: v.ativa }))}
         equipe={equipe}
         prazos={prazosDeHoje()}
         podeConfigurarRecorrencia={ehDoAtendimento}

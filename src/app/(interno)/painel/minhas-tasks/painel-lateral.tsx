@@ -122,6 +122,7 @@ export function PainelLateralDaTask({
                 task={detalhe.task}
                 clientes={detalhe.clientes}
                 tipos={detalhe.tipos}
+                vertentes={detalhe.vertentes}
                 podeEditar={detalhe.podeGerenciar}
                 driveLigado={detalhe.driveLigado}
               />

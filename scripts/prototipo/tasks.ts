@@ -12,6 +12,7 @@
  */
 import { situacaoDasRodadas } from "../../src/lib/tasks/state-machine";
 import { folhas } from "../../src/lib/dominio/tasks";
+import { VERTENTES_EXEMPLO } from "./vertentes";
 import type {
   ItemDeCalendario,
   FiltrosDeTask as FiltrosReais,
@@ -579,6 +580,8 @@ type SementeDeTask = {
   briefing_rico?: unknown;
   briefing_texto?: string | null;
   concluida_em?: string | null;
+  /** A vertente da conta (0118). Ausente é a demanda que ninguém classificou. */
+  vertente_id?: string | null;
 };
 
 const SEMENTES_DE_TASK: SementeDeTask[] = [
@@ -587,6 +590,10 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     client_id: ALFA.id,
     cliente: ALFA,
     titulo: "Campanha de Instagram — linha de verão",
+    // A VERTENTE DO EXEMPLO É "Lojas Próprias" (0118): ela é a mais curta das
+    // cinco que cabem no selo do board, e a outra demanda classificada leva a
+    // mais longa — é esse par que mostra o truncamento de verdade.
+    vertente_id: "ee000000-0000-0000-0000-000000000002",
     prioridade: "alta",
     status: "em_aprovacao",
     data_inicio: dia(-6),
@@ -620,6 +627,9 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     client_id: ALFA.id,
     cliente: ALFA,
     titulo: "Revisar o manual de atendimento",
+    // A MAIS LONGA DAS CINCO, de propósito: é ela que faz o selo do board
+    // truncar na imagem, e é o truncamento que o `title` existe para cobrir.
+    vertente_id: "ee000000-0000-0000-0000-000000000004",
     prioridade: "baixa",
     status: "em_andamento",
     data_inicio: dia(-2),
@@ -686,6 +696,17 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     ...BASE,
     id: semente.id,
     client_id: semente.client_id,
+    // A VERTENTE DO EXEMPLO VEM DA SEMENTE, e nem toda tem: a conta sem
+    // vertente cadastrada e a demanda antiga que ninguem classificou sao
+    // estados de verdade do produto, e uma imagem em que TODA linha tem
+    // vertente provaria que o selo aparece, nao que ele sabe faltar.
+    vertente_id: semente.vertente_id ?? null,
+    vertente: semente.vertente_id
+      ? (() => {
+          const v = VERTENTES_EXEMPLO.find((x) => x.id === semente.vertente_id);
+          return v ? { id: v.id, nome: v.nome, ativa: v.ativa } : null;
+        })()
+      : null,
     titulo: semente.titulo,
     // No protótipo tudo já nasce publicado: rascunho é a tela de quem está
     // montando, e nenhuma das imagens mostra esse momento.
@@ -724,6 +745,7 @@ export async function enriquecer(): Promise<TaskDaLista[]> {
 export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLista[]> {
   return TASKS.filter((task) => {
     if (filtros.cliente && task.client_id !== filtros.cliente) return false;
+    if (filtros.vertente && task.vertente_id !== filtros.vertente) return false;
     if (filtros.prioridade && task.prioridade !== filtros.prioridade) return false;
     if (filtros.status && task.status !== filtros.status) return false;
     if (filtros.responsavel) {

@@ -112,6 +112,13 @@ const TELAS = [
   // opostas: a Mundo Verde esta configurada -- com o aviso do Redator sem dono
   // nomeando a funcao --, e a Optica nunca foi. A segunda e o caso comum no dia
   // em que a aba nasce, e sem ela ninguem confere a tela vazia.
+  // AS VERTENTES DA CONTA (0118). Sao DUAS telas porque sao dois estados que
+  // o produto tem de verdade: a Mundo Verde com as cinco do pedido mais uma
+  // desativada, e a Optica Visao com nenhuma -- conta sem vertente e o estado
+  // em que a demanda simplesmente nao pede area, e com as duas cadastradas
+  // nenhuma imagem mostraria o vazio.
+  { nome: "10l1-cliente-vertentes", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1100, role: "socio", clicar: 'button:has-text("Vertentes")' },
+  { nome: "10l2-cliente-vertentes-vazia", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Vertentes")' },
   { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
@@ -202,6 +209,14 @@ const TELAS = [
   // falam da mesma coisa -- sem dump, "ver quais" e uma promessa que ninguem
   // conferiu.
   { nome: "23b-tasks-atrasadas", rota: "/painel/gestao-tasks?atrasadas=1", largura: 1600, altura: 1000, role: "socio" },
+  // O FILTRO DE VERTENTE SÓ EXISTE COM O CLIENTE ESCOLHIDO (0118), e é por
+  // isso que esta tela traz `?cliente=`: sem ele o seletor não é desenhado, e
+  // a imagem provaria que ele sabe sumir em vez de provar que ele existe.
+  { nome: "23c-tasks-vertente-filtro", rota: "/painel/gestao-tasks?visao=lista&cliente=c0000000-0000-0000-0000-00000000000a", largura: 1600, altura: 900, role: "socio" },
+  // E ESTA É A VERTENTE ESCOLHIDA, no board: o recorte de uma frente só, com
+  // o selo do card dizendo qual. É ela que mostra que o filtro faz alguma
+  // coisa — a de cima mostra só que ele está lá.
+  { nome: "23d-tasks-vertente-board", rota: "/painel/gestao-tasks?cliente=c0000000-0000-0000-0000-00000000000a&vertente=ee000000-0000-0000-0000-000000000002", largura: 1600, altura: 1000, role: "socio" },
   // SEM TELA DE "NOVA TASK", e a ausencia e mecanica.
   //
   // "+ Nova task" nao abre dialogo: ele chama `criarRascunho()` -- uma Server
@@ -945,6 +960,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/equipe": ["./scripts/prototipo/equipe.ts"],
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
   "@/lib/dados/fluxo-do-cliente": ["./scripts/prototipo/fluxo-do-cliente.ts"],
+  "@/lib/dados/vertentes": ["./scripts/prototipo/vertentes.ts"],
   "@/lib/dados/notas-fiscais": ["./scripts/prototipo/notas-fiscais.ts"],
   "@/lib/dados/novidades": ["./scripts/prototipo/novidades.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],

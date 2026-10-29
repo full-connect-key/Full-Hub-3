@@ -659,6 +659,42 @@ export interface Database {
        * `updated_at` fica fora de `Insert` e de `Update`: quem escreve e o
        * trigger `client_flow_defaults_touch`.
        */
+      /**
+       * As vertentes, áreas ou unidades de negócio de uma conta (0118).
+       *
+       * Elas NÃO se apagam — a tabela nasce sem policy de DELETE. O que não
+       * serve mais fica `ativa = false`: sai do seletor da task e continua
+       * valendo para as demandas que já apontam para ela, senão o relatório
+       * por vertente perderia o recorte do que já foi entregue.
+       */
+      client_vertentes: {
+        Row: {
+          id: string;
+          client_id: string;
+          nome: string;
+          /** Passo de dez, para inserir no meio sem renumerar o resto. */
+          ordem: number;
+          ativa: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          nome: string;
+          ordem?: number;
+          ativa?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          nome?: string;
+          ordem?: number;
+          ativa?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       client_flow_defaults: {
         Row: {
           id: string;
@@ -2177,6 +2213,23 @@ export interface Database {
           data_inicio: string;
           data_fim: string | null;
           task_type_id: string | null;
+          /**
+           * A vertente da conta (0118).
+           *
+           * Nula na demanda antiga e na conta que não tem vertente — a 0118
+           * não converte nada, que é o pedido: *"não modificar
+           * automaticamente as tasks antigas; permitir sua classificação
+           * posterior"*.
+           *
+           * **A SUBTAREFA NÃO TEM A DELA**: ela herda LENDO esta coluna. Uma
+           * coluna em `subtasks` seria uma segunda verdade, e ela divergiria
+           * no instante em que alguém trocasse a vertente da demanda.
+           *
+           * O gatilho `tasks_vertente_da_conta` recusa a vertente de OUTRA
+           * conta, nos dois sentidos — trocar o cliente de uma demanda que já
+           * tem vertente também é recusado.
+           */
+          vertente_id: string | null;
           workflow_snapshot: Json | null;
           link_entrega: string | null;
           // De qual regra recorrente esta task saiu (migration 0040). Fica
@@ -2254,6 +2307,7 @@ export interface Database {
           data_inicio?: string;
           data_fim?: string | null;
           task_type_id?: string | null;
+          vertente_id?: string | null;
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
           request_id?: string | null;
@@ -2274,6 +2328,7 @@ export interface Database {
           // Tentar gravá-los é erro de tipo aqui, antes de virar duas
           // verdades sobre a mesma demanda.
           task_type_id?: string | null;
+          vertente_id?: string | null;
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
           social_paralelo?: boolean;

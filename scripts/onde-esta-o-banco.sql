@@ -662,7 +662,16 @@ from (
     -- de sempre: a tela oferece apagar a nota aprovada, a pessoa clica, e o
     -- banco recusa sem dizer por que.
     ('0117', 'a nota se apaga ate ser paga', 'policy',
-             'team_invoices|team_invoices_delete|paga')
+             'team_invoices|team_invoices_delete|paga'),
+    -- A 0118 APONTA PARA O GATILHO, que e o PASSO 4 e a ultima coisa que o
+    -- arquivo cria. A tabela (PASSO 1) e a coluna (PASSO 3) diriam `ok` sobre
+    -- um banco onde a colagem morreu no meio -- e esse banco e pior que um
+    -- banco sem a migration: a tela ja oferece o seletor de vertente, o
+    -- `insert` passa, e a demanda de uma conta aceita a vertente de outra.
+    -- O relatorio por vertente sairia contando a entrega da conta errada, que
+    -- e um numero plausivel.
+    ('0118', 'a vertente e da conta da demanda', 'funcao',
+             'tasks_vertente_da_conta')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

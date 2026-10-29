@@ -1,5 +1,6 @@
 import "server-only";
 
+import { vertentesDasContas } from "@/lib/dados/vertentes";
 import { ouFalha } from "@/lib/dados/consulta";
 import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
 import { situacaoDasRodadas } from "@/lib/tasks/state-machine";
@@ -35,6 +36,16 @@ import type {
 
 export type FiltrosDeTask = {
   cliente?: string;
+  /**
+   * A vertente da conta (0118).
+   *
+   * **ELE SÓ FAZ SENTIDO COM O CLIENTE ESCOLHIDO**, e é por isso que a barra
+   * só o oferece ali: "Institucional" existe em duas contas com o mesmo nome
+   * e ids diferentes, e um seletor com as vertentes de todas listaria o mesmo
+   * nome duas vezes sem dizer de quem é qual. É a decisão da grade do Feed,
+   * que é de uma rede só.
+   */
+  vertente?: string;
   /** Quem trabalha na demanda — casa pelo responsável das SUBTAREFAS. */
   responsavel?: string;
   prioridade?: TaskPrioridade;
@@ -49,6 +60,14 @@ export type Pessoa = { id: string; nome: string; avatar_url: string | null };
 
 export type TaskDaLista = Task & {
   cliente: { id: string; nome_empresa: string } | null;
+  /**
+   * A vertente da conta (0118), quando a demanda aponta para uma.
+   *
+   * **É O NOME E NÃO SÓ O ID**, porque é ele que a linha desenha e o filtro
+   * oferece — e a coluna crua já viaja no `...task`. A desativada vem junto:
+   * sumir com o nome deixaria a demanda classificada sem dizer em quê.
+   */
+  vertente: { id: string; nome: string; ativa: boolean } | null;
   /** Quem está na demanda, pelos responsáveis das subtarefas. */
   equipe: Pessoa[];
   subtarefasTotal: number;
@@ -151,7 +170,7 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     ...new Set(tasks.map((t) => t.client_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: subtarefas }] = await Promise.all([
+  const [{ data: clientes }, { data: subtarefas }, vertentesPorConta] = await Promise.all([
     supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
     supabase
       .from("subtasks")
@@ -159,7 +178,18 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
         "id, task_id, parent_id, titulo, prazo, responsavel_id, status, estimativa_minutos, tempo_real_minutos",
       )
       .in("task_id", ids),
+    // AS VERTENTES VÊM NUMA CONSULTA À PARTE, e não num embutido do `select`
+    // das tasks. O PostgREST recusa o `select` INTEIRO quando não acha a
+    // relação pelo nome escrito — foi assim que uma campanha recém-criada não
+    // apareceu em lugar nenhum —, e aqui o estrago seria o board da agência
+    // inteiro voltando vazio por causa de um nome de embutido. Duas idas ao
+    // banco custam menos que essa classe de bug.
+    vertentesDasContas(idsDeClientes),
   ]);
+
+  const porVertente = new Map(
+    [...vertentesPorConta.values()].flat().map((v) => [v.id, v]),
+  );
 
   // SÓ AS FOLHAS ENTRAM NA CONTA. Uma etapa que virou agrupadora deixou de
   // ser unidade de trabalho: o tempo dela é o das filhas, e contá-la junto
@@ -235,6 +265,12 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     return {
       ...task,
       cliente: task.client_id ? (porCliente.get(task.client_id) ?? null) : null,
+      vertente: task.vertente_id
+        ? (() => {
+            const v = porVertente.get(task.vertente_id);
+            return v ? { id: v.id, nome: v.nome, ativa: v.ativa } : null;
+          })()
+        : null,
       equipe: r.equipe,
       subtarefasTotal: r.total,
       subtarefasConcluidas: r.concluidas,
@@ -290,6 +326,11 @@ export async function listarTasks(
 
   if (idsPorPessoa) consulta = consulta.in("id", idsPorPessoa);
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
+  // A VERTENTE É FILTRO DE COLUNA, e não de nome: `vertente_id` viaja na
+  // própria linha desde a 0118, então não há join nenhum aqui. É isso que
+  // faz o recorte valer no board, na lista e no calendário de uma vez — as
+  // três leem esta função.
+  if (filtros.vertente) consulta = consulta.eq("vertente_id", filtros.vertente);
   if (filtros.prioridade)
     consulta = consulta.eq("prioridade", filtros.prioridade);
   if (filtros.status) consulta = consulta.eq("status", filtros.status);
@@ -806,7 +847,16 @@ export async function itensDoCalendario(
   // é um job de ninguém — não tem responsável, e some assim que alguém filtra
   // por pessoa. Ela fica porque é a única linha desta tela que diz quando uma
   // campanha fecha, e tirá-la perderia um fato que nada mais mostra aqui.
-  itens.push(...(await campanhasNoCalendario(filtros)));
+  //
+  // **E ELA SAI QUANDO ALGUÉM FILTRA POR VERTENTE** (0118), pela mesma razão
+  // pela qual ela some no filtro por pessoa: `campaigns` não tem vertente, e
+  // deixá-la passar afirmaria que o encerramento daquela campanha é da frente
+  // escolhida — quando ele é da conta inteira. Um recorte que deixa passar o
+  // que ele não sabe classificar é pior que um recorte a menos: a pessoa
+  // confere a tela e não tem como saber que aquela linha não foi filtrada.
+  if (!filtros.vertente) {
+    itens.push(...(await campanhasNoCalendario(filtros)));
+  }
 
   return itens.sort((a, b) => a.prazo.localeCompare(b.prazo));
 }
