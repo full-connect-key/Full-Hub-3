@@ -53,6 +53,24 @@ import { apagarLancamento, corrigirLancamento, lancarPeriodo } from "./acoes";
  * no banco, não da conta desta tela — aqui ela existe para mostrar o número
  * enquanto a pessoa escolhe.
  *
+ * **A CAIXA DO TOPO SAIU**, por decisão do usuário: *"dentro da aba de Day
+ * Off, na seção 'Registrar Período', remover a caixa que contém título e
+ * informações explicativas"*. Ela era um bloco em âmbar de seis linhas
+ * dizendo que isto grava no saldo de outra pessoa e não passa pela fila — o
+ * argumento dela está logo acima e continuava certo; o que mudou é quem
+ * responde por ele.
+ *
+ * **O fato não se perdeu, ele é dito ONDE DECIDE ALGO.** A frase do topo
+ * falava em abstrato, antes de haver pessoa escolhida — ou seja, no único
+ * estado em que nada pode ser gravado. Quem diz a mesma coisa hoje é a linha
+ * da coluna da direita, que nomeia a pessoa e o número: *"Ana tem 15 dias de
+ * day off por ano. Este registro desconta 4 deles."* Ela aparece depois da
+ * escolha, encostada no botão que grava.
+ *
+ * *O que se perde, e é consequência aceita:* quem abre a aba por engano não lê
+ * mais, de cara, que esta tela escreve no saldo de outra pessoa. Devolvê-la é
+ * um `<section>` no topo deste arquivo.
+ *
  * **O que fica de fora, e é decisão:** importar planilha. O histórico que a
  * agência tem cabe em algumas dezenas de linhas, e uma importação sem
  * pré-visualização grava trinta registros errados de uma vez. Se vier, vem
@@ -180,24 +198,6 @@ export function Lancamentos({
 
   return (
     <div className="space-y-5">
-      {/* A FAIXA DIZ PARA QUE SERVE, e não é enfeite: esta é a única tela do
-          produto onde alguém escreve no saldo de outra pessoa. Quem abre sem
-          saber disso acha que é mais um formulário de pedido. */}
-      <section className="bg-warning-soft text-warning rounded-card border p-6">
-        <p className="text-xs font-semibold tracking-widest uppercase">
-          Registro de período que já aconteceu
-        </p>
-        <p className="text-text-primary mt-1.5 text-[26px] leading-tight font-bold tracking-[-0.035em]">
-          Isto grava no saldo de outra pessoa, e não passa pela fila
-        </p>
-        <p className="mt-1.5 text-sm">
-          É o caminho para o histórico anterior ao Full Hub, e para o período
-          combinado por fora. Nasce como acertado, aparece na matriz da equipe
-          e desconta o saldo do ano — quem propõe o próprio período continua
-          usando a aba Propor período.
-        </p>
-      </section>
-
       {/* A MESMA INVERSÃO DE "PROPOR PERÍODO", e por isso ela vale aqui: as
           duas telas são a mesma composição com o calendário recusando o lado
           oposto do tempo — lá o passado, aqui o futuro. Se uma tivesse a
@@ -205,7 +205,7 @@ export function Lancamentos({
           reorganizaria a tela debaixo de quem está no meio de um registro. */}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
         <div className="min-w-0 space-y-3">
-          <p className="text-text-muted mb-3 text-xs">
+          <p className="text-text-muted text-xs">
             Clique na data inicial e depois na final — ou arraste de uma até a
             outra. O calendário vai de janeiro de 2025 até ontem.
           </p>
