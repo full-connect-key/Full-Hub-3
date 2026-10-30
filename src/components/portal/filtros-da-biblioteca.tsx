@@ -100,6 +100,7 @@ export function FiltrosDaBiblioteca({
   porVertente,
   frentes,
   meses,
+  formatos,
 }: {
   filtros: FiltrosDaBiblioteca;
   encontrados: number;
@@ -125,6 +126,16 @@ export function FiltrosDaBiblioteca({
   frentes: FrenteDoCronograma[];
   /** Os meses que o acervo TEM, do mais novo para o mais antigo. */
   meses: string[];
+  /**
+   * OS FORMATOS que o acervo TEM — "JPG", "PDF", "MP4" —, em ordem.
+   *
+   * **Vazia é o caso normal de um acervo sem arquivo nenhum**, e aí o seletor
+   * não é desenhado: é essa ausência que faz este filtro poder existir sem a
+   * ressalva que o deixou de fora da 0119 — *"metade da grade não tem arquivo
+   * nenhum"*. Um seletor de três formatos num acervo onde nenhum material cai
+   * em nenhum deles é a aba "Site" do cronograma outra vez.
+   */
+  formatos: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -267,6 +278,34 @@ export function FiltrosDaBiblioteca({
               </Chip>
             ))
           : null}
+
+        {/* O FORMATO VEM DEPOIS DA FRENTE E ANTES DO MÊS, que é a ordem do
+            que a pessoa procura: a frente diz de que módulo o material é, o
+            formato diz o que ele É, e o mês é o recorte de tempo — o último
+            porque é o que ela afrouxa quando não acha. */}
+        {formatos.length > 1 ? (
+          <Select
+            value={filtros.formato ?? "todos"}
+            onValueChange={(valor) =>
+              navegar({ formato: valor === "todos" ? null : valor })
+            }
+          >
+            <SelectTrigger
+              className="w-auto min-w-36 rounded-full"
+              aria-label="Filtrar por formato de arquivo"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Qualquer formato</SelectItem>
+              {formatos.map((formato) => (
+                <SelectItem key={formato} value={formato}>
+                  {formato}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
 
         {meses.length > 1 ? (
           <Select

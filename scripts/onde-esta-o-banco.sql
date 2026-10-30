@@ -678,7 +678,19 @@ from (
     -- na tela diz por que, porque `ouFalha` nao dispara: o erro e da RPC, e a
     -- leitura dela trata a falha na mao de proposito.
     ('0119', 'a vertente de cada material do portal', 'funcao',
-             'vertente_dos_materiais')
+             'vertente_dos_materiais'),
+    -- A 0120 TEM SETE PASSOS, E O MARCADOR APONTA PARA O ULTIMO. `funcao` em
+    -- `post_tem_video` (PASSO 3) diria `ok` sobre uma colagem que morreu
+    -- antes de a trava do envio e a lista do portao aprenderem a chama-la --
+    -- e nesse banco o video continua precisando do LINK, com a tela ja
+    -- oferecendo o upload. E a armadilha que a linha da 0055 pagou e que a
+    -- 0110 escreveu por extenso.
+    --
+    -- `no_corpo` e nao `funcao`: `o_que_falta_no_portao` existe desde a 0090,
+    -- com a condicao antiga dentro. O que distingue os dois estados e o
+    -- trecho.
+    ('0120', 'o upload aceita video e arquivo de criacao', 'no_corpo',
+             'o_que_falta_no_portao|post_tem_video')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

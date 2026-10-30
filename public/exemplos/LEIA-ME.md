@@ -38,3 +38,21 @@ continuam nulas. Com todas de cara cheia, a imagem provaria que a foto aparece
 e não que o círculo **escolhe** entre foto e iniciais — é a razão pela qual o exemplo do calendário tem um
 evento de cada par da legenda, e a de só uma das duas peças aprovadas do social
 estar programada.
+
+`video-1.mp4` é o sexto, e é o primeiro que não é imagem. Ele existe porque o
+item 30 abriu o upload para MP4, MOV e WEBM, e o vídeo do post passou a poder
+ser **arquivo** e não só link (migration 0120): sem ele, nenhuma imagem do
+protótipo mostraria o player — a tela conferida seria a que não tem a peça
+nova, que é a lição da duplicata do Cronograma.
+
+**E ele vai para UM dos dois posts de vídeo, não para os dois.** O "Reels da
+receita" da Mundo Verde carrega o arquivo; o "Bastidores" da Óptica continua
+com o link do YouTube. Com os dois como arquivo a imagem provaria que o player
+aparece, e não que a tela **distingue** as duas formas — que é o que a 0120
+existe para fazer, e é a mesma razão pela qual o exemplo do calendário tem um
+evento de cada par da legenda.
+
+Ele é 480 × 854 (9/16) porque um Reels é vertical, tem 3 segundos e 4,7 KB:
+o que a imagem precisa provar é que o quadro do vídeo está no lugar e com os
+controles, não o conteúdo dele. As cores são as mesmas dos SVGs, pela mesma
+exceção declarada acima.

@@ -201,6 +201,21 @@ const nextConfig: NextConfig = {
     // na lista, a subscription cai sem dizer por que -- e o sintoma e uma
     // tela que simplesmente nao atualiza sozinha.
     const supabaseWs = supabase.replace(/^https:/, "wss:");
+    // O HOST DIRETO DO STORAGE, para onde o upload resumivel manda os pedacos
+    // de 6 MB. A derivacao e a MESMA de `SUPABASE_STORAGE_URL` em
+    // `lib/env.ts`, e as duas linhas sao o par -- a de la decide para onde o
+    // `tus` aponta, esta decide se o navegador deixa.
+    //
+    // OS DOIS HOSTS FICAM NA LISTA, e nao e cinto e suspensorio: aquela
+    // derivacao tem DOIS ramos. Num dominio proprio ou num Supabase
+    // auto-hospedado a URL nao casa com `*.supabase.co`, o `replace` devolve o
+    // valor intacto, e o upload sai pelo host normal. Uma lista com so o host
+    // derivado recusaria justamente esse caso -- e o sintoma seria um upload
+    // que nunca comeca, com uma linha no console por unica pista.
+    const supabaseStorage = supabase.replace(
+      /^https:\/\/([^./]+)\.supabase\.co\/?$/,
+      "https://$1.storage.supabase.co",
+    );
 
     const csp = [
       "default-src 'self'",
@@ -239,7 +254,23 @@ const nextConfig: NextConfig = {
       // leia `lib/recomendacoes/capa.ts` antes.
       // -------------------------------------------------------------------
       `img-src 'self' data: blob: ${supabase}`,
-      `connect-src 'self' ${supabase} ${supabaseWs}`,
+      `connect-src 'self' ${supabase} ${supabaseWs} ${supabaseStorage}`,
+      // O VIDEO PRECISA DE `media-src`, E A FALTA DELE NAO DAVA ERRO NENHUM.
+      //
+      // O item 30 abriu o upload para MP4, MOV e WEBM, e um `<video src>`
+      // aponta para o dominio do Storage -- nao para `'self'`. `media-src`
+      // nao estava nesta lista, entao a regra que valia era o
+      // `default-src 'self'` da primeira linha: o navegador RECUSA o video,
+      // o elemento fica preto, e a unica pista e uma linha no console.
+      //
+      // E o `npm run build` passa -- passou. **E a mesma familia do
+      // `frame-src` da 0102**, que custou o e-book interativo em branco em
+      // producao, e do `remotePatterns` do `next/image`: a lista certa pela
+      // metade da o mesmo sintoma da lista errada.
+      //
+      // `blob:` entra junto porque o visualizador pode receber um arquivo que
+      // a pessoa acabou de escolher, antes de ele subir.
+      `media-src 'self' blob: ${supabase}`,
       // O upload manda o arquivo para o Storage do Supabase.
       `form-action 'self'`,
       // NINGUEM EMBUTE O FULL HUB NUM IFRAME. E a mesma coisa que o

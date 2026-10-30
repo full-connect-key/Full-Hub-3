@@ -1,3 +1,4 @@
+import { formatoDoArquivo } from "@/lib/dominio/arquivos";
 import {
   ehFrenteDoCronograma,
   FRENTES_DO_CRONOGRAMA,
@@ -147,6 +148,31 @@ export type FiltrosDaBiblioteca = {
   frente: FrenteDoCronograma | null;
   /** `YYYY-MM`, ou `null` para qualquer data. */
   mes: string | null;
+  /**
+   * O FORMATO DO ARQUIVO — "PDF", "JPG", "MP4" —, ou `null` para qualquer um.
+   *
+   * ------------------------------------------------------------------------
+   * **ELE FICOU DE FORA DA 0119 COM A RAZÃO ESCRITA, e esta é a razão deixando
+   * de valer.** Estava registrado que *"hoje o formato de um material é a
+   * extensão do arquivo, e metade da grade não tem arquivo nenhum"* — o post
+   * não tem download por decisão escrita, e o material entregue por link do
+   * Drive não tem extensão. Um seletor de "PDF / JPG / MP4" num acervo em que
+   * a maioria cai fora de todas as opções é a aba "Site" do cronograma outra
+   * vez.
+   *
+   * **O que mudou foi o ACERVO e não a conta:** com o upload aceitando as nove
+   * extensões nas três telas de entrega (item 30), o arquivo passou a ser a
+   * regra e não a exceção. E o seletor continua mostrando **só os formatos que
+   * o recorte TEM** — então no acervo que ainda não tem arquivo nenhum ele não
+   * é desenhado, em vez de oferecer três opções vazias.
+   *
+   * **A pergunta é `formatoDoArquivo()`, do módulo das famílias**, e não uma
+   * `split(".")` aqui: é a mesma função que decide o teto e o `accept` do
+   * enviador, e duas respostas para "que formato é este arquivo" divergiriam
+   * no dia em que alguém normalizasse `jpeg` num lado só.
+   * ------------------------------------------------------------------------
+   */
+  formato: string | null;
 };
 
 /**
@@ -178,7 +204,33 @@ export function combinaComFiltros(
   // saber que aquela linha não foi filtrada.
   if (filtros.mes && mesDoArquivo(arquivo) !== filtros.mes) return false;
 
+  // SEM ARQUIVO SAI DE QUALQUER FORMATO ESCOLHIDO, pela mesma razão do mês: o
+  // post não tem download por decisão escrita, e um material sem arquivo não
+  // tem formato que se possa afirmar. Deixá-lo passar em todos seria o recorte
+  // que deixa passar o que não sabe classificar.
+  if (filtros.formato && formatoDoMaterial(arquivo) !== filtros.formato) {
+    return false;
+  }
+
   return true;
+}
+
+/**
+ * O FORMATO DO MATERIAL, ou `null` quando não há arquivo para responder.
+ *
+ * **A pergunta é o NOME do arquivo e não o caminho dele**, e a diferença
+ * aparece na peça de campanha: o caminho no bucket é
+ * `{cliente}/entregaveis/{id}-{carimbo}.pdf` — a extensão está lá —, mas o
+ * nome que a pessoa vê é o que ela subiu. Os dois dariam `PDF` aqui; o nome é
+ * o que continua certo no dia em que o caminho mudar de forma.
+ */
+export function formatoDoMaterial(
+  arquivo: ArquivoDaBiblioteca,
+): string | null {
+  return arquivo.arquivo
+    ? formatoDoArquivo(arquivo.arquivo.nome) ??
+        formatoDoArquivo(arquivo.arquivo.href)
+    : null;
 }
 
 /** `YYYY-MM` do envio, ou `null` quando ele não tem data. */
@@ -216,6 +268,7 @@ export function opcoesDaBiblioteca(
   porVertente: Record<string, number>;
   frentes: FrenteDoCronograma[];
   meses: string[];
+  formatos: string[];
 } {
   const semA = (dimensao: keyof FiltrosDaBiblioteca) =>
     arquivos.filter((a) =>
@@ -239,12 +292,23 @@ export function opcoesDaBiblioteca(
   }
   if (filtros.mes) comMes.add(filtros.mes);
 
+  const comFormato = new Set<string>();
+  for (const a of semA("formato")) {
+    const formato = formatoDoMaterial(a);
+    if (formato) comFormato.add(formato);
+  }
+  if (filtros.formato) comFormato.add(filtros.formato);
+
   return {
     porVertente,
     frentes: FRENTES_DO_CRONOGRAMA.filter((f) => comFrente.has(f)),
     // Do mais novo para o mais antigo, e só os que TÊM material: um seletor
     // com onze meses vazios é a aba que nunca tem nada dentro.
     meses: [...comMes].sort().reverse(),
+    // ALFABÉTICO, e só os que o recorte tem: num acervo sem arquivo nenhum a
+    // lista sai vazia e o seletor não é desenhado — que é o que faz este
+    // filtro poder existir sem a ressalva que o deixou de fora da 0119.
+    formatos: [...comFormato].sort(),
   };
 }
 
@@ -284,9 +348,15 @@ export function lerFiltrosDaBiblioteca(params: {
   const frente = texto("frente");
   const mes = texto("mes");
 
+  const formato = texto("formato");
+
   return {
     busca: texto("busca") ?? "",
     vertente: texto("vertente"),
+    // CAIXA ALTA, porque é a forma que `formatoDoArquivo()` devolve: um
+    // `?formato=pdf` de um link escrito à mão casaria com nada, e a grade
+    // sairia vazia sem a pessoa ter como explicar.
+    formato: formato ? formato.toUpperCase() : null,
     frente: ehFrenteDoCronograma(frente) ? frente : null,
     // `YYYY-MM` e nada mais: sem a forma conferida, um `?mes=outubro` sai da
     // comparação como um mês que nenhum material tem — uma grade vazia que a

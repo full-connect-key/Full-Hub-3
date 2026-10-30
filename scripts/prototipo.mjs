@@ -304,6 +304,14 @@ const TELAS = [
   // exatamente o relato. Ela nao tem `clicar`, entao nao tem seletor para
   // envelhecer.
   { nome: "50b-social-post-direto", rota: `/painel/social-media?post=p1`, largura: 1440, altura: 1100, role: "socio" },
+  // O EDITOR DE UM POST DE VIDEO (0120): o quadro que toca o arquivo, o
+  // enviador com a dica dos 500 MB, e o campo de link embaixo como a OUTRA
+  // forma. O `p3` e o que carrega o arquivo; o `p7` continua com o link do
+  // YouTube, e com os dois iguais a imagem provaria que o quadro aparece e nao
+  // que a tela distingue as duas formas.
+  { nome: "50c-social-post-video", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p3`, largura: 1440, altura: 1600, role: "socio" },
+  { nome: "50d-social-post-video-link", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p7`, largura: 1440, altura: 1500, role: "socio" },
+  { nome: "50e-social-post-video-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p3`, largura: 375, altura: 2400, role: "socio" },
   { nome: "51-social-calendario", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1600, altura: 1100, role: "socio" },
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
   // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.
@@ -796,6 +804,15 @@ const TELAS = [
   // O PORTÃO DO MEIO DA CORRENTE (0076): pauta sem arte, com o aviso dizendo
   // o que está sendo decidido. É a tela que o sprint inteiro existe para
   // desenhar, e ela não aparece em nenhuma das outras — nelas há arte.
+  // O VIDEO NA TELA DO CLIENTE, e e a primeira imagem do produto a ter uma.
+  // Nenhum dos oito posts do stub era `midia: "video"` (0120), e por isso o
+  // furo durou: a 0042 escreveu que "a tela avisa que o link abre fora" e
+  // aquele aviso nunca existiu -- nada em `src/components/portal/` lia
+  // `video_url` --, mas um post de video chega com `arte_url` nulo, entao o
+  // cliente recebia o visualizador de arte VAZIO com os dois botoes de decisao
+  // embaixo. A altura e a do `16e`: o quadro do video e vertical.
+  { nome: "16u-portal-post-video", rota: "/portal/social-media/p9b", largura: 1280, altura: 2100 },
+  { nome: "16v-portal-post-video-375", rota: "/portal/social-media/p9b", largura: 375, altura: 2000 },
   { nome: "16k-portal-post-pauta", rota: "/portal/social-media/p10", largura: 1280, altura: 1500 },
   { nome: "16l-portal-post-pauta-390", rota: "/portal/social-media/p10", largura: 390, altura: 1500 },
   { nome: "16g-portal-social-375", rota: "/portal/social-media", largura: 375, altura: 1400 },
@@ -901,6 +918,13 @@ const TELAS = [
   { nome: "16r-portal-biblioteca-vertente", rota: "/portal/biblioteca?vertente=ee000000-0000-0000-0000-000000000005", largura: 1280, altura: 1000 },
   { nome: "16s-portal-biblioteca-375", rota: "/portal/biblioteca", largura: 375, altura: 1900 },
   { nome: "16t-portal-biblioteca-mes", rota: `/portal/biblioteca?mes=${MES_ANTIGO_DA_BIBLIOTECA}`, largura: 1280, altura: 900 },
+  // O FILTRO DE FORMATO, que a 0119 deixou de fora com a razao escrita -- "o
+  // formato de um material e a extensao do arquivo, e metade da grade nao tem
+  // arquivo nenhum". O item 30 desfez a premissa, e esta imagem e o que prova
+  // que o seletor aparece: ele e desenhado SO quando o recorte tem mais de um
+  // formato, entao num acervo sem arquivo ele nao sai -- e e essa ausencia que
+  // faz ele poder existir.
+  { nome: "16w-portal-biblioteca-formato", rota: "/portal/biblioteca", largura: 1280, altura: 1000 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
 

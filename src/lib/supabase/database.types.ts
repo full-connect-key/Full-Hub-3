@@ -2952,10 +2952,30 @@ export interface Database {
           plataformas: PlataformaSocial[];
           formato: string | null;
           midia: PostMidia;
-          // Video e por LINK e nao por upload (0042, decisao do usuario): o
-          // visualizador do portal desenha <img>, e player e poster sao
-          // entrega propria.
+          /**
+           * O video em OUTRO LUGAR: Drive, YouTube (0042, decisao do usuario).
+           *
+           * O par dele e `video_caminho`, logo abaixo, e sao DUAS colunas
+           * porque o `check` `posts_video_url_http` cobra `^https?://` -- e
+           * caminho de bucket nao e endereco. Relaxa-lo faria esta coluna
+           * querer dizer duas coisas, e todo leitor teria que perguntar qual.
+           */
           video_url: string | null;
+          /**
+           * O video DENTRO do Full Hub: caminho em `posts-artes` (0120).
+           *
+           * O item 30 abriu o upload para MP4, MOV e WEBM, e o link nao saiu
+           * -- ganhou um irmao. Quem responde "este post tem video" e
+           * `post_tem_video()` no Postgres e `postTemVideo()` em
+           * `lib/dominio/posts.ts`, um de cada lado, como sempre nesta casa.
+           *
+           * **E o video NAO entra em `post_versions.arquivos`**, que era o
+           * caminho mais curto e esta errado: `sincronizar_post_com_a_versao`
+           * escreve `arte_url := arquivos->0->>'url'` -- o primeiro ARQUIVO e
+           * nao a primeira imagem --, entao um MP4 no inicio da lista viraria
+           * a CAPA e o card sairia com moldura quebrada.
+           */
+          video_caminho: string | null;
           status: ContentStatus;
           // A CAPA. Num carrossel e o primeiro slide, escrito pelo trigger
           // `post_versions_sincroniza` -- e por isso que o calendario, o card
@@ -2988,6 +3008,7 @@ export interface Database {
           formato?: string | null;
           midia?: PostMidia;
           video_url?: string | null;
+          video_caminho?: string | null;
           arte_url?: string | null;
           thumbnail_url?: string | null;
           prazo_aprovacao?: string | null;
@@ -3007,6 +3028,7 @@ export interface Database {
           formato?: string | null;
           midia?: PostMidia;
           video_url?: string | null;
+          video_caminho?: string | null;
           arte_url?: string | null;
           thumbnail_url?: string | null;
           prazo_aprovacao?: string | null;
@@ -3127,6 +3149,10 @@ export interface Database {
            *  o caso de toda versão que só mexe na legenda. */
           removeu_arquivos: boolean;
           video_url: string | null;
+          /** O caminho do video desta versao (0120). Sem ele, trocar o video
+           *  nao entraria no historico -- e a regra do modulo desde a 0032 e
+           *  que versao gravada nunca se reescreve. */
+          video_caminho: string | null;
           legenda: string | null;
           notas_mudanca: string | null;
           criado_por: string | null;
@@ -3140,6 +3166,7 @@ export interface Database {
           arquivos?: ArquivoDaVersao[];
           removeu_arquivos?: boolean;
           video_url?: string | null;
+          video_caminho?: string | null;
           legenda?: string | null;
           notas_mudanca?: string | null;
           criado_por?: string | null;

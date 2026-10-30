@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Link2, Loader2, Paperclip, Trash2 } from "lucide-react";
+import { ExternalLink, Link2, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { Button } from "@/components/ui/button";
 import { ehImagem } from "@/lib/dominio/tasks";
-import { criarClienteNavegador } from "@/lib/supabase/client";
 import type { TaskReferencia } from "@/lib/supabase/database.types";
 
 import { adicionarReferencia, removerReferencia, urlDoArquivo } from "../acoes-de-itens";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-const TAMANHO_MAXIMO = 15 * 1024 * 1024;
 
 /**
  * Referências da task: links e arquivos.
@@ -34,7 +33,6 @@ export function Referencias({
 }) {
   const router = useRouter();
   const [, iniciar] = useTransition();
-  const [enviando, setEnviando] = useState(false);
 
   const imagens = referencias.filter((r) => r.tipo === "arquivo" && ehImagem(r.arquivo_nome));
   const outras = referencias.filter((r) => !(r.tipo === "arquivo" && ehImagem(r.arquivo_nome)));
@@ -75,38 +73,34 @@ export function Referencias({
     });
   }
 
-  async function enviarArquivo(arquivo: File) {
-    if (arquivo.size > TAMANHO_MAXIMO) {
-      toast.error("O arquivo precisa ter no máximo 15 MB.");
-      return;
-    }
-    setEnviando(true);
-    try {
-      const supabase = criarClienteNavegador();
-      const caminho = `${taskId}/${Date.now()}-${arquivo.name}`;
-      const { error } = await supabase.storage
-        .from("task-arquivos")
-        .upload(caminho, arquivo, { contentType: arquivo.type });
-
-      if (error) {
-        toast.error(`Não foi possível enviar: ${error.message}`);
+  /**
+   * O QUE FAZER COM O QUE SUBIU — uma referência por arquivo.
+   *
+   * **O laço de upload saiu daqui** com o teto de 15 MB escrito à mão, que era
+   * o único dos três uploaders a ter um: ele valia para tudo, então um PSD de
+   * peça impressa era recusado com uma frase sobre 15 MB. O teto agora é por
+   * família (`TETO_DA_FAMILIA`), e quem o confere é `EnviarArquivos` — antes
+   * de um byte subir, e não depois.
+   */
+  async function anexar(subidos: { url: string; nome: string }[]) {
+    for (const arquivo of subidos) {
+      const resultado = await chamarAcao(() =>
+        adicionarReferencia(taskId, {
+          tipo: "arquivo",
+          url: arquivo.url,
+          titulo: arquivo.nome,
+          arquivo_nome: arquivo.nome,
+        }),
+      );
+      if (!resultado.ok) {
+        toast.error(resultado.error);
         return;
       }
-
-      const resultado = await chamarAcao(() => adicionarReferencia(taskId, {
-        tipo: "arquivo",
-        url: caminho,
-        titulo: arquivo.name,
-        arquivo_nome: arquivo.name,
-      }));
-      if (!resultado.ok) toast.error(resultado.error);
-      else {
-        toast.success("Arquivo anexado.");
-        router.refresh();
-      }
-    } finally {
-      setEnviando(false);
     }
+    toast.success(
+      subidos.length === 1 ? "Arquivo anexado." : `${subidos.length} arquivos anexados.`,
+    );
+    router.refresh();
   }
 
   return (
@@ -119,22 +113,22 @@ export function Referencias({
               <Link2 aria-hidden />
               Link
             </Button>
-            <Button variant="outline" size="sm" asChild>
-              <label className="cursor-pointer">
-                {enviando ? <Loader2 className="animate-spin" /> : <Paperclip aria-hidden />}
-                Arquivo
-                <input
-                  type="file"
-                  aria-label="Escolher um arquivo para anexar como referência"
-                  className="sr-only"
-                  onChange={(e) => {
-                    const arquivo = e.target.files?.[0];
-                    if (arquivo) void enviarArquivo(arquivo);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </Button>
+            {/* AS CINCO FAMÍLIAS: referência de produção é a arte de
+                inspiração, o PDF do briefing do cliente, o PSD que serve de
+                base e o vídeo de exemplo. `outro` entra porque esta tela
+                aceitava tudo e o item 30 é um piso — o que ela ganha é o teto
+                por família e a barra de progresso. */}
+            <EnviarArquivos
+              bucket="task-arquivos"
+              familias={["imagem", "documento", "criacao", "video", "outro"]}
+              varios
+              rotulo="Arquivo"
+              rotuloDoCampo="Escolher arquivos para anexar como referência"
+              caminho={(arquivo, i) =>
+                `${taskId}/${Date.now()}-${i}-${arquivo.name}`
+              }
+              onPronto={anexar}
+            />
           </div>
         ) : null}
       </div>

@@ -36,7 +36,7 @@ const BUCKET = "posts-artes";
 // String literal, e nao concatenacao: o supabase-js tipa o retorno a partir do
 // TEXTO do select, e um `+` no meio apaga esse tipo.
 // prettier-ignore
-const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataformas, formato, midia, video_url, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, social_task_id";
+const COLUNAS = "id, client_id, tema, legenda, pauta, data_publicacao, horario, plataformas, formato, midia, video_url, video_caminho, status, arte_url, thumbnail_url, versao_atual, prazo_aprovacao, enviado_em, responsavel_id, criado_por, social_task_id";
 
 export type PostDaAgencia = {
   id: string;
@@ -55,6 +55,9 @@ export type PostDaAgencia = {
   formato: string | null;
   midia: PostMidia;
   videoUrl: string | null;
+  /** O vídeo dentro do Full Hub, já com URL assinada quando existe (0120). */
+  videoCaminho: string | null;
+  videoAssinado: string | null;
   status: ContentStatus;
   /** A CAPA — num carrossel, o primeiro slide. Já assinada para a tela. */
   arteUrl: string | null;
@@ -117,6 +120,7 @@ type Linha = {
   formato: string | null;
   midia: PostMidia;
   video_url: string | null;
+  video_caminho: string | null;
   status: ContentStatus;
   arte_url: string | null;
   thumbnail_url: string | null;
@@ -170,10 +174,14 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
         ...linhas.map((l) => l.responsavel_id),
         ...linhas.map((l) => l.criado_por),
       ]),
-      assinarArquivos(
-        BUCKET,
-        linhas.map((l) => l.thumbnail_url ?? l.arte_url),
-      ),
+      assinarArquivos(BUCKET, [
+        ...linhas.map((l) => l.thumbnail_url ?? l.arte_url),
+        // O VÍDEO VAI NA MESMA IDA (0120). `assinarArquivos` já deduplica e
+        // já descarta o que é nulo, então a lista maior não custa consulta
+        // nenhuma — e uma segunda chamada só para o vídeo seria uma ida ao
+        // banco por tela de calendário.
+        ...linhas.map((l) => l.video_caminho),
+      ]),
       // AS RODADAS DE TODOS OS POSTS NUMA CONSULTA SÓ. Uma por post seria uma
       // consulta por linha do calendário — e o mês cheio tem trinta.
       supabase
@@ -224,6 +232,10 @@ async function montar(linhas: Linha[]): Promise<PostDaAgencia[]> {
       formato: l.formato,
       midia: l.midia,
       videoUrl: l.video_url,
+      videoCaminho: l.video_caminho,
+      videoAssinado: l.video_caminho
+        ? (assinadas[l.video_caminho] ?? null)
+        : null,
       status: l.status,
       arteUrl: l.arte_url,
       // O bucket é privado de propósito: arte de post não publicado é material
@@ -339,6 +351,9 @@ export type VersaoDoPost = {
   arteUrl: string | null;
   arteAssinada: string | null;
   videoUrl: string | null;
+  /** O vídeo dentro do Full Hub, já com URL assinada quando existe (0120). */
+  videoCaminho: string | null;
+  videoAssinado: string | null;
 };
 
 /** Um post com o histórico, para o editor. */
@@ -414,6 +429,8 @@ export async function obterPostDaAgencia(id: string): Promise<{
   );
   const caminhos = versoes.flatMap((v) => [
     v.arte_url,
+    // O vídeo desta versão, para o histórico poder tocá-lo (0120).
+    v.video_caminho,
     ...((v.arquivos ?? []) as ArquivoDaVersao[]).flatMap((a) => [
       a.url,
       a.thumbnail_url ?? null,
@@ -444,6 +461,10 @@ export async function obterPostDaAgencia(id: string): Promise<{
       arteUrl: v.arte_url,
       arteAssinada: v.arte_url ? (assinadas[v.arte_url] ?? null) : null,
       videoUrl: v.video_url,
+      videoCaminho: v.video_caminho,
+      videoAssinado: v.video_caminho
+        ? (assinadas[v.video_caminho] ?? null)
+        : null,
     })),
   };
 }

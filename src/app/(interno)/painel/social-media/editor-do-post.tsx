@@ -1,18 +1,15 @@
 "use client";
 
 import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CircleAlert,
   ExternalLink,
   Film,
-  Images,
-  Loader2,
   Send,
   Trash2,
-  Upload,
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +27,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
+import { QuadroDeVideo } from "@/components/shared/quadro-de-video";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   EXPLICACAO_DA_MIDIA,
@@ -49,7 +48,6 @@ import {
   type CaixinhaDoPost,
   type EtapaDoMes,
 } from "@/lib/dominio/posts";
-import { criarClienteNavegador } from "@/lib/supabase/client";
 
 import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
@@ -159,9 +157,7 @@ export function EditorDoPost({
   const [legenda, setLegenda] = useState(post.legenda ?? "");
   const [pauta, setPauta] = useState(post.pauta ?? "");
   const [videoUrl, setVideoUrl] = useState(post.videoUrl ?? "");
-  const [subindo, setSubindo] = useState(false);
   const [emAcao, iniciar] = useTransition();
-  const arquivoRef = useRef<HTMLInputElement>(null);
 
   const versaoAtual = versoes[0] ?? null;
   const slides = versaoAtual?.arquivos ?? [];
@@ -229,40 +225,44 @@ export function EditorDoPost({
    * empresas de quem está pedindo. Um arquivo solto na raiz a equipe vê e o
    * cliente não — e a arte aparece quebrada na tela dele.
    */
-  async function subir(arquivos: FileList | null) {
-    if (!arquivos || arquivos.length === 0) return;
-    setSubindo(true);
-    try {
-      const supabase = criarClienteNavegador();
-      const subidos: { url: string; nome: string }[] = [];
+  /**
+   * O QUE A VERSÃO GUARDA, por mídia.
+   *
+   * **O laço de upload saiu daqui**, e com ele o `accept="image/*"` que fazia
+   * desta a única das três telas com uma lista — e a lista errada: ela
+   * escondia do seletor o PSD e o AI, que é o que quem produz entrega junto
+   * da arte. O erro no meio também: cinco slides, o quarto falha, e os três
+   * anteriores ficavam no bucket sem versão nenhuma apontando para eles.
+   *
+   * **E O VÍDEO VAI PARA COLUNA PRÓPRIA (0120), não para `arquivos`.**
+   * `sincronizar_post_com_a_versao` escreve `arte_url := arquivos->0->>'url'`
+   * — o primeiro ARQUIVO e não a primeira imagem —, então um MP4 ali viraria
+   * a CAPA do post e o card, o calendário e a miniatura do portal sairiam com
+   * moldura quebrada.
+   */
+  async function gravarArte(subidos: { url: string; nome: string }[]) {
+    const r = await chamarAcao(() =>
+      gravarVersao(
+        post.id,
+        post.midia === "carrossel"
+          ? { arquivos: subidos, legenda }
+          : { arte_url: subidos[0].url, arquivos: [], legenda },
+      ),
+    );
+    if (r.ok) toast.success(r.mensagem);
+    else toast.error(r.error);
+  }
 
-      for (const arquivo of Array.from(arquivos)) {
-        const extensao = arquivo.name.split(".").pop() ?? "png";
-        const caminho = `${post.clienteId}/${post.id}-${Date.now()}-${subidos.length}.${extensao}`;
-        const { error } = await supabase.storage
-          .from(BUCKET)
-          .upload(caminho, arquivo, { contentType: arquivo.type });
-        if (error) {
-          toast.error(`Não foi possível enviar ${arquivo.name}: ${error.message}`);
-          return;
-        }
-        subidos.push({ url: caminho, nome: arquivo.name });
-      }
-
-      const r = await chamarAcao(() =>
-        gravarVersao(
-          post.id,
-          post.midia === "carrossel"
-            ? { arquivos: subidos, legenda }
-            : { arte_url: subidos[0].url, arquivos: [], legenda },
-        ),
-      );
-      if (r.ok) toast.success(r.mensagem);
-      else toast.error(r.error);
-    } finally {
-      setSubindo(false);
-      if (arquivoRef.current) arquivoRef.current.value = "";
-    }
+  async function gravarVideo(subidos: { url: string; nome: string }[]) {
+    const r = await chamarAcao(() =>
+      gravarVersao(post.id, {
+        video_caminho: subidos[0].url,
+        arquivos: [],
+        legenda,
+      }),
+    );
+    if (r.ok) toast.success(r.mensagem);
+    else toast.error(r.error);
   }
 
   const grade = compacto ? "grid gap-3" : "grid gap-3 sm:grid-cols-2";
@@ -312,23 +312,62 @@ export function EditorDoPost({
       {/* A ARTE ANTES DOS BOTÕES, como no portal: botão antes da arte convida
           a decidir sem olhar. Aqui a razão é a mesma, um passo antes. */}
       {post.midia === "video" ? (
-        <div className="space-y-2">
-          <Label htmlFor={`video-${post.id}`}>Link do vídeo</Label>
-          <Input
-            id={`video-${post.id}`}
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://drive.google.com/..."
-            disabled={!posso}
+        <div className="space-y-3">
+          {/* O ARQUIVO VEM PRIMEIRO (0120), e o link depois — é a ordem da
+              decisão: o vídeo dentro do Full Hub é a forma que o cliente
+              assiste sem sair do portal, e o link é a saída de quem já o tem
+              no Drive. Antes desta migration o campo de link era a única
+              forma, e o cabeçalho da 0042 escreveu o custo dela: *"o cliente
+              sai do portal para assistir, e decide longe do botão de
+              aprovar"*. */}
+          <QuadroDeVideo
+            src={post.videoAssinado}
+            poster={post.thumbnailUrl}
+            link={post.videoUrl}
+            titulo={post.tema}
           />
-          {videoUrl ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={videoUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink aria-hidden className="size-4" />
-                Abrir o vídeo
-              </a>
-            </Button>
+
+          {posso ? (
+            <EnviarArquivos
+              bucket={BUCKET}
+              familias={["video"]}
+              rotulo={post.videoCaminho ? "Trocar o vídeo" : "Subir o vídeo"}
+              rotuloDoCampo="Escolher o arquivo de vídeo"
+              dica="MP4, MOV ou WEBM, até 500 MB. O envio continua de onde parou se a conexão cair."
+              caminho={(arquivo) =>
+                // O CAMINHO COMEÇA PELO id DA EMPRESA, e não é capricho: a
+                // policy "posts-artes: cliente le" compara
+                // `(storage.foldername(name))[1]` com as empresas de quem
+                // está pedindo. Um arquivo solto na raiz a equipe vê e o
+                // cliente não — e o vídeo aparece quebrado na tela dele.
+                `${post.clienteId}/${post.id}-video-${Date.now()}.${
+                  arquivo.name.split(".").pop() ?? "mp4"
+                }`
+              }
+              onPronto={gravarVideo}
+            />
           ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor={`video-${post.id}`}>
+              Ou o link, se o vídeo está fora do Full Hub
+            </Label>
+            <Input
+              id={`video-${post.id}`}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              disabled={!posso}
+            />
+            {videoUrl ? (
+              <Button variant="outline" size="sm" asChild>
+                <a href={videoUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink aria-hidden className="size-4" />
+                  Abrir o vídeo
+                </a>
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -352,37 +391,32 @@ export function EditorDoPost({
           />
 
           {posso ? (
-            <>
-              <input
-                ref={arquivoRef}
-                type="file"
-                aria-label="Escolher a arte do post"
-                accept="image/*"
-                multiple={post.midia === "carrossel"}
-                className="sr-only"
-                onChange={(e) => subir(e.target.files)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-center"
-                disabled={subindo}
-                onClick={() => arquivoRef.current?.click()}
-              >
-                {subindo ? (
-                  <Loader2 aria-hidden className="size-4 animate-spin" />
-                ) : post.midia === "carrossel" ? (
-                  <Images aria-hidden className="size-4" />
-                ) : (
-                  <Upload aria-hidden className="size-4" />
-                )}
-                {post.midia === "carrossel"
+            /* SÓ IMAGEM AQUI, e é a única das três telas com a lista
+               fechada: `arte_url` é a CAPA, e ela é desenhada num `<img>` no
+               card, no calendário e na miniatura do portal. Um PDF ou um PSD
+               nesta posição sai como moldura quebrada nos três.
+               O arquivo aberto de criação entra pela referência da demanda,
+               que aceita as cinco famílias. */
+            <EnviarArquivos
+              bucket={BUCKET}
+              familias={["imagem"]}
+              varios={post.midia === "carrossel"}
+              rotulo={
+                post.midia === "carrossel"
                   ? "Subir os slides"
                   : post.arteUrl
                     ? "Trocar a arte"
-                    : "Subir a arte"}
-              </Button>
-            </>
+                    : "Subir a arte"
+              }
+              rotuloDoCampo="Escolher a arte do post"
+              dica="JPG ou PNG, até 15 MB."
+              caminho={(arquivo, i) =>
+                `${post.clienteId}/${post.id}-${Date.now()}-${i}.${
+                  arquivo.name.split(".").pop() ?? "png"
+                }`
+              }
+              onPronto={gravarArte}
+            />
           ) : null}
         </div>
       )}

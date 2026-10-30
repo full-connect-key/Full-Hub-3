@@ -11531,6 +11531,328 @@ porque `iniciada_em` vem da entrada em `em_andamento` — e de quebra o gatilho
 da 0035 grava as transições em `task_history`, sem as quais "onde o tempo da
 etapa fica" nasce vazia.
 
+### O upload: o que entra, quanto pesa, e como ele avisa
+
+`components/shared/enviar-arquivos.tsx`, `lib/dominio/arquivos.ts` e a
+migration 0120. Decisão do usuário, item 30: *"aceitar PDF / PSD, AI / JPG,
+JPEG, PNG / MP4, MOV, WEBM nas áreas de Social, Campanhas, Tasks e Biblioteca
+(…) múltiplos arquivos por entrega, barra de progresso e erros claros, prévia
+de imagens, PDFs e vídeos, download dos originais, limites de tamanho
+compatíveis com vídeo além de uploads resumíveis, armazenamento seguro com
+controle de acesso por cliente"*.
+
+**ERAM TRÊS UPLOADERS COM O MESMO CORPO E TRÊS COMPORTAMENTOS DIFERENTES**, e
+a conta é a das sete cópias de `abas.tsx`: a arte do post, os arquivos da peça
+de campanha e a referência da demanda escreviam o mesmo laço de
+`supabase.storage.upload()` — e já divergiam em tudo o que o item 30 pede.
+
+| | arte do post | peça de campanha | referência |
+| --- | --- | --- | --- |
+| o que aceita | `image/*` | **qualquer coisa** | **qualquer coisa** |
+| teto | nenhum | nenhum | 15 MB, para tudo |
+| progresso | giro | giro | giro |
+| erro no meio | **larga os anteriores no bucket** | **idem** | n/a |
+
+**A METADE QUE JÁ ESTAVA PRONTA É O "controle de acesso por cliente", e ela
+estava pronta bem.** Os três buckets são privados (`public = false`) desde que
+nasceram, a leitura sai por URL assinada de uma hora, e a PRIMEIRA PASTA do
+caminho é o id da empresa — `posts-artes/{client_id}/…` (0032) e
+`campanhas-arquivos/{client_id}/…` (0033) —, que é como a policy pergunta de
+quem é o arquivo sem abrir a tabela. Em `task-arquivos` a convenção é
+`entregas/{subtask_id}/…` (0007), e ali quem responde é
+`subtask_visivel_ao_cliente()`. **O vídeo entra pela mesma porta, no mesmo
+bucket e com o mesmo caminho, então nenhuma policy nova nasceu** — é a
+diferença entre acrescentar um tipo de arquivo e acrescentar um tipo de acesso.
+
+#### AS QUATRO FAMÍLIAS SÃO AS BARRAS DO PEDIDO, e a quinta é um comentário que já estava no produto
+
+`lib/dominio/arquivos.ts`. A frase do usuário separa os nove formatos com
+barras — `PDF / PSD, AI / JPG, JPEG, PNG / MP4, MOV, WEBM` —, e cada barra
+separa coisas que se comportam diferente: um PDF se lê, um PSD se abre no
+Photoshop, um JPG se olha, um MP4 se assiste. **O que muda por família é o TETO
+e a PRÉVIA**, e é por isso que a família é conceito do produto e não uma lista
+de extensões solta.
+
+| A família | O teto | Por quê |
+| --- | --- | --- |
+| imagem | 15 MB | é o teto que a referência já usava; um PNG de 1080×1350 a 24 bits tem 5,8 MB sem compressão nenhuma |
+| documento | 50 MB | um PDF de impressão com imagem em 300 dpi |
+| criação | 300 MB | **o número que mais dói e o mais honesto:** um PSD de peça impressa com vinte camadas passa de 200 MB com facilidade. Teto apertado aqui empurra a equipe de volta para o Drive, que é o que o item 30 existe para desfazer |
+| vídeo | 500 MB | um Reels de 60 s em 1080p sai por volta de 60 MB; um corte de 3 min em 4K passa de 400 |
+| **outro** | 300 MB | abaixo |
+
+**A QUINTA FAMÍLIA NASCEU DE UM COMENTÁRIO QUE JÁ ESTAVA NO PRODUTO.**
+`arvore-de-producao.tsx` sobe arquivo de campanha **sem `accept`** desde o
+Sprint 13, e a razão está escrita ali: *"a entrega de campanha é PDF, PSD, AI,
+ZIP, INDD — uma lista fechada erraria na primeira extensão que a agência
+passasse a usar, e o erro seria o seletor recusando um arquivo sem dizer por
+quê"*.
+
+**Aquele argumento continua inteiro, e o item 30 não o desfaz:** ele diz
+*"aceitar"*, que é um PISO e não um teto. Ler "aceitar" como "aceitar só"
+recusaria o `.zip` de exemplos que a agência entrega hoje, numa tela que
+ninguém pediu para apertar. Então `outro` é "um arquivo que a agência entrega e
+que não é nenhum dos quatro": tem teto, não tem prévia, e **zera o `accept`** —
+a tela que o aceita abre o seletor em "Todos os arquivos", que é o
+comportamento de hoje. Quem NÃO o aceita é a arte do post, onde um `.zip` não é
+arte.
+
+**E A PERGUNTA É A EXTENSÃO, NUNCA O `type` DO `File`.** É a decisão central do
+módulo, e ela é medida:
+
+| o arquivo | o que o navegador diz |
+| --- | --- |
+| `.psd` | `image/vnd.adobe.photoshop` no Chrome, **`application/octet-stream`** em metade dos sistemas, string vazia no resto |
+| `.ai` | `application/postscript`, `application/pdf` (um `.ai` moderno **é** um PDF) ou vazio |
+| `.mov` | `video/quicktime` — e `video/mp4` quando veio de um iPhone |
+
+Perguntar o mime recusaria justamente os dois formatos que a agência mais
+precisa, e **de um jeito que ninguém depura**: o mesmo `.psd` passa na máquina
+de quem escreveu e falha na de quem usa. É a lição do `grep -i` que dobrava
+acento pelo locale — uma checagem cujo trabalho é afirmar que um arquivo serve
+não pode depender do sistema de quem está clicando.
+
+#### O PROGRESSO NÃO DAVA PARA FAZER COM O CLIENTE DO SUPABASE, e é por isso que é TUS
+
+`supabase.storage.from().upload()` **não tem como** mostrar progresso: ele é
+escrito sobre `fetch`, que não emite evento de subida. Uma barra por cima
+daquela chamada seria uma barra inventada, e **inventar progresso é pior que um
+giro honesto** — num arquivo de 300 MB ela chegaria a 100% e ficaria lá, parada,
+pelos oito minutos seguintes.
+
+**Por isso é `tus-js-client`, e é a mesma decisão que dá o upload resumível.** O
+protocolo manda o arquivo em pedaços de 6 MB — número que a documentação do
+Supabase escreve em maiúsculas, *"it must be set to 6MB (for now) do not change
+it"* —, e cada pedaço que chega é um progresso de verdade e um ponto de onde
+continuar quando a conexão cai. `findPreviousUploads()` antes de começar é o que
+torna a retomada real: a URL do Supabase vale 24 horas, e quem perdeu a conexão
+no meio de um vídeo de 400 MB escolhe o mesmo arquivo e continua.
+
+**UM CAMINHO SÓ PARA ARQUIVO GRANDE E PEQUENO**, pela regra da casa: um JPG de
+2 MB é um pedaço só, com progresso, pelo mesmo código. Dois caminhos seriam
+dois lugares para divergir, e o que divergiria é o do arquivo grande — que é o
+que ninguém testa.
+
+**`getSession` E NÃO `getUser`, e esta é a exceção declarada à regra da casa.**
+A documentação do Supabase escreve por quê, e o argumento é exatamente o que a
+regra protege: aqui o código só precisa da STRING do token para encaminhar como
+credencial, e quem a valida é o Storage, no servidor. Nenhuma decisão de acesso
+é tomada a partir do que o cookie diz — se o token for velho, o Storage recusa.
+
+**E O HOST É O DIRETO DO STORAGE** (`projeto.storage.supabase.co`), que a
+documentação pede para arquivo grande. Ele é DERIVADO em `lib/env.ts`, como o
+`supabaseWs` do CSP, e **cai para o host normal quando a URL não é
+`*.supabase.co`** — domínio próprio e Supabase auto-hospedado não têm esse
+host. **O `connect-src` carrega os DOIS** justamente porque a derivação tem dois
+ramos: uma lista com só o derivado recusaria o segundo caso, e o sintoma seria
+um upload que nunca começa com uma linha no console por única pista.
+
+#### O ERRO NÃO DEIXA ÓRFÃO, e isto é conserto e não funcionalidade nova
+
+Nas três telas antigas o laço fazia `return` no primeiro erro: subindo cinco
+slides, se o quarto falha, **três arquivos ficam no bucket sem nada apontando
+para eles** e nenhuma versão é gravada — e o único jeito de achá-los é abrir o
+painel do Supabase. Aqui o que já subiu é APAGADO antes de a recusa aparecer.
+
+**A entrega é o CONJUNTO.** Uma versão com três de cinco slides é uma versão
+errada, e quem a vê não tem como saber. As três saídas possíveis eram: deixar
+os três órfãos, gravar uma versão com três de cinco, ou apagar e dizer o que
+falhou — e a terceira é a única em que ninguém fica com uma peça pela metade
+achando que ela está inteira.
+
+**E O LOTE É CONFERIDO ANTES DE UM BYTE SUBIR.** Conferindo dentro do laço, o
+segundo arquivo recusado pararia depois de o primeiro já ter subido — e aí ou
+se deixa um órfão, ou se apaga o que estava certo. Conferir antes custa nada e
+desfaz os dois casos.
+
+**A FRASE DO ERRO NÃO ESCONDE A CAUSA.** `tus-js-client` embrulha a resposta
+HTTP, e o corpo dela é onde o Storage diz o que recusou — `Payload too large`
+quando passa do `file_size_limit`, `mime type not supported` quando o tipo não
+está na lista da 0120. Trocar isso por "não foi possível enviar" esconderia
+justamente o que separa um arquivo grande de um tipo recusado de uma queda de
+rede, que são três consertos diferentes. É a decisão da recusa crua da faixa de
+disponibilidade.
+
+#### A TRAVA QUE A TELA NÃO TEM COMO DAR mora no bucket (0120)
+
+O `accept=` de um `<input type="file">` é SUGESTÃO: todo seletor do sistema
+oferece "Todos os arquivos" ao lado, e arrastar para a janela ignora o
+atributo. `conferirArquivo()` vale para quem passa pela tela. Quem recusa de
+verdade são as duas colunas de `storage.buckets`, que o Storage lê antes de
+gravar um byte — e isso é a instrução do usuário sobre as mudanças morarem
+também no banco.
+
+**`allowed_mime_types` É "O QUE O STORAGE PODE SERVIR", e não "só estes nove
+formatos".** Esta é a razão de ela existir: um `.html` servido pelo domínio do
+Storage, por URL assinada, é script rodando num domínio que carrega a sessão de
+quem abriu. **É a mesma decisão que `EH_IMAGEM` toma desde a 0053** ao excluir
+`svg` — *"SVG de terceiro dentro de `<img>` é vetor de script, e material de
+campanha vem de fora com frequência"* —, e até aqui aquela decisão protegia só
+o caminho do DESENHO: nada impedia o arquivo de subir e ser servido.
+
+***E `application/octet-stream` ESTÁ NA LISTA, o que é o custo desta trava e
+fica dito em vez de escondido:*** sem ele os dois formatos de criação seriam
+recusados pela razão da tabela acima. O que a lista continua garantindo com ele
+dentro é o que importa — **nada que o navegador RENDERIZE entra se não estiver
+nomeado**: um HTML declarado como octet-stream sobe, e o Storage o serve como
+octet-stream, que é download e não página.
+
+**ZIP, INDD e TIFF ENTRARAM SEM ESTAR NO PEDIDO**, pela mesma razão da família
+`outro`: o comentário do Sprint 13 nomeia o que a agência entrega, e uma lista
+que os recusasse quebraria um upload que funciona hoje — o sintoma seria uma
+capa ou um pacote de exemplos que simplesmente não sobe, num módulo que
+ninguém mexeu. **E as três imagens que o pedido não cita** — `gif`, `webp`,
+`avif` — entraram porque a capa da campanha (0050) e a do cliente (0063) sobem
+com `accept="image/*"` e `EH_IMAGEM` aceita as três desde a 0053.
+
+***O RISCO QUE SOBRA FICA DITO:*** um formato novo que chegue declarado com um
+tipo RENDERIZÁVEL fora da lista é recusado, e a frase do Storage aparece crua
+na tela. O conserto é uma linha numa migration. O caso provável não é esse: é o
+octet-stream.
+
+***E O TETO GLOBAL DO PROJETO GANHA DO DO BUCKET, e isto NÃO foi medido
+aqui:*** o Storage aplica `min(file_size_limit do bucket, limite do projeto)`, e
+o do projeto é configuração de painel (Storage → Settings → Upload file size
+limit) — não há SQL que a leia nem que a mude. **Com o limite do projeto em
+50 MB, estes 500 MB não valem nada** e o vídeo de 400 MB é recusado com
+"Payload too large". Quem aplicar a 0120 confere aquele número no painel, e é a
+mesma classe de pendência do `pg_cron`, que se habilita por lá e não por
+migration.
+
+**`allowed_mime_types` NÃO VAI PARA OS OUTROS NOVE BUCKETS**, e a ausência é
+decisão. `academy-arquivos` carrega o e-book interativo, que **é** um HTML
+servido por URL assinada (0102) — por desenho, e com o `frame-src` do CSP
+aberto para o domínio do Storage justamente por causa dele; uma lista de mimes
+ali mataria o módulo. Os outros oito têm cada um a tela dele com o `accept`
+dele, e apertar todos por causa de um pedido sobre três seria mexer em oito
+módulos sem ninguém ter pedido.
+
+#### O VÍDEO DO POST PASSOU A PODER SER ARQUIVO, e o link ganhou um irmão
+
+`posts.video_url` guarda o endereço no Drive ou no YouTube desde a 0042, por
+decisão do usuário, e o cabeçalho dela escreveu o custo: *"o cliente sai do
+portal para assistir, e decide longe do botão de aprovar"*. O item 30 é do
+mesmo usuário e é posterior: ele pede MP4, MOV e WEBM. **Então o link não sai —
+ele ganha um irmão.**
+
+**SÃO DUAS COLUNAS E NÃO UMA, e a razão é o `check` que já existia:**
+`posts_video_url_http` cobra `^https?://`, e caminho de bucket não é endereço.
+Relaxar aquele check faria `video_url` querer dizer duas coisas, e todo leitor
+teria que perguntar qual — que é onde as duas verdades começam a divergir.
+`video_caminho` quer dizer "o vídeo está no Full Hub"; `video_url`, "o vídeo
+está em outro lugar".
+
+**E O VÍDEO NÃO ENTRA EM `post_versions.arquivos`**, que era o caminho mais
+curto e está errado: `sincronizar_post_com_a_versao()` escreve
+`arte_url := arquivos->0->>'url'` — o PRIMEIRO ARQUIVO e não a primeira imagem
+—, então um MP4 no início da lista viraria a CAPA do post, e o card, o
+calendário e a miniatura do portal sairiam com moldura quebrada. A coluna
+própria é o que mantém a capa sendo uma imagem.
+
+**QUEM RESPONDE "ESTE POST TEM VÍDEO" É UMA FUNÇÃO**, e é ela que faz a trava
+do envio caber numa linha: `post_tem_video()` no Postgres e `postTemVideo()` em
+`lib/dominio/posts.ts`, um de cada lado, como `situacaoDoLancamento()` no
+Financeiro. A pergunta aparece em três lugares — `validar_nova_rodada`,
+`o_que_falta_no_portao()` e a frase do botão desligado —, e três cópias dela
+seriam três lugares para divergir.
+
+**AS DUAS FUNÇÕES GRANDES FORAM COPIADAS INTEIRAS, e o diff é UMA condição em
+cada.** `validar_nova_rodada` tem duzentas linhas e quatro ramos, e
+`create or replace` reescreve a partir do texto de agora **sem avisar quando o
+texto novo tem menos coisa que o velho** — a lição da 0030, que perdeu um bloco
+de carimbos inteiro assim e só apareceu na 0052. A linha trocada está marcada
+no corpo das duas.
+
+**E A RECUSA PASSOU A NOMEAR AS DUAS SAÍDAS.** Ela dizia *"este post é vídeo e
+ainda não tem o link"*; dizer isso a quem acabou de subir um MP4 manda a pessoa
+procurar um campo que ela não precisa preencher. Hoje é *"ainda não tem o
+vídeo"*, com a dica oferecendo o arquivo e o link — a decisão da 0023.
+
+#### E O CLIENTE NUNCA VIU VÍDEO NENHUM
+
+**A 0042 escreveu que *"a tela avisa que o link abre fora"*. Aquele aviso nunca
+existiu.** Nada em `src/components/portal/` nem em `lib/dados/posts.ts` lia
+`video_url` — e um post de vídeo chega com `arte_url` nulo, então o que o
+cliente recebia era o **visualizador de arte VAZIO**, com os dois botões de
+decisão embaixo: a tela pedindo que ele aprove o que ela não mostrou.
+
+É a ponte construída e não atravessada pela décima nona vez, e a mais barata de
+todas: as duas colunas já estavam na tabela, e `urlsDasArtes` já assina
+`posts-artes`.
+
+**`QuadroDeVideo` TEM DOIS ESTADOS E NÃO UM**, porque o vídeo tem duas formas: o
+arquivo, que toca na própria tela, e o link, que abre em outra aba **dizendo que
+abre fora antes do clique** — a frase que a 0042 prometeu. O terceiro estado é a
+peça de vídeo sem nada anexado, e ela precisa do quadro que diz isso, não do
+ramo onde o TEXTO vira a peça (que é o portão do meio da corrente, 0076).
+
+**Ele SUBSTITUI o visualizador de arte e não divide a tela com ele.**
+`VisualizadorDeArte` é zoom e pan sobre `<img>`, e um `.mp4` ali aparece
+quebrado — que é a razão escrita na 0042 para o vídeo não ter preview. O que
+muda é a peça, não o arranjo: o quadro fica no mesmo lugar, a legenda continua
+ao lado, e os botões continuam depois.
+
+**SEM `autoPlay`, e isso é regra e não gosto:** vídeo com som que começa sozinho
+é o que todo navegador passou a bloquear, e o que sobra dele é um player que
+parece travado. `preload="metadata"` traz o primeiro quadro e a duração sem
+baixar os 400 MB — num portal que se abre no celular, baixar o vídeo inteiro de
+uma peça que a pessoa talvez só vá olhar depois é a conta de dados dela.
+
+#### O `media-src` NÃO ESTAVA NO CSP, e a falta dele não dava erro nenhum
+
+Um `<video src>` aponta para o domínio do Storage, não para `'self'`.
+`media-src` não estava na lista, então a regra que valia era o
+`default-src 'self'` da primeira linha: **o navegador RECUSA o vídeo, o
+elemento fica preto, e a única pista é uma linha no console.** E o
+`npm run build` passa — passou.
+
+**É a mesma família do `frame-src` da 0102**, que custou o e-book interativo em
+branco em produção, e do `remotePatterns` do `next/image`: a lista certa pela
+metade dá o mesmo sintoma da lista errada.
+
+#### E O FILTRO DE FORMATO DA BIBLIOTECA LANDOU AQUI
+
+Ele ficou de fora da 0119 **com a razão escrita** — *"hoje o formato de um
+material é a extensão do arquivo, e metade da grade não tem arquivo nenhum"*: o
+post não tem download por decisão escrita, e o material entregue por link do
+Drive não tem extensão. Um seletor de "PDF / JPG / MP4" num acervo em que a
+maioria cai fora de todas as opções é a aba "Site" do cronograma outra vez.
+
+**O que mudou foi o ACERVO e não a conta.** Com o upload aceitando as nove
+extensões nas três telas de entrega, o arquivo passou a ser a regra. E o
+seletor continua mostrando **só os formatos que o recorte TEM** — num acervo
+sem arquivo nenhum ele não é desenhado, em vez de oferecer três opções vazias.
+É essa ausência que faz o filtro poder existir sem a ressalva que o atrasou.
+
+**A pergunta é `formatoDoArquivo()`, do módulo das famílias**, e não uma
+`split(".")` na Biblioteca: é a mesma função que decide o teto e o `accept` do
+enviador, e duas respostas para "que formato é este arquivo" divergiriam no dia
+em que alguém normalizasse `jpeg` num lado só.
+
+**E O FORMATO VAI NO PRÓPRIO BOTÃO DE BAIXAR.** É o que torna o filtro
+conferível: um seletor "PDF" cujo resultado não diz em nenhum cartão que aquele
+material É PDF é um recorte que a pessoa não tem como verificar. E ele fica ali
+e não numa linha própria porque é a resposta de *"o que eu vou receber se
+clicar"* — a pergunta que se faz no instante do clique.
+
+#### O que o item 30 pede e NÃO foi feito, com o motivo
+
+- **A prévia de PDF não é inline.** Um PDF hoje cai na lista de download e abre
+  no leitor do navegador, que é o estado honesto — não a moldura quebrada que o
+  vídeo tinha. Um visualizador embutido pede `<iframe>` para o domínio do
+  Storage (que o `frame-src` já permite desde a 0102) ou `pdf.js`, e é entrega
+  própria: o que ela acrescenta é ler sem sair da tela, não poder ler.
+- **O anexo de entrega de uma task continua sendo REFERÊNCIA.**
+  `subtask_entregas` existe desde a 0007, com a convenção de caminho e a policy
+  do cliente por etapa, e **a tela de produção só anexa LINK** — a porta do
+  arquivo existe no banco e ninguém a atravessa. É o item 31, e o enviador
+  desta entrega é o que ele vai usar.
+- **O `window.prompt` do link de referência continua lá**, e o CLAUDE.md diz
+  desde o Sprint 9 que ele não deveria: *"o prompt não dá para colar no teclado
+  do celular, não valida nada, some ao clicar fora"*. Está no arquivo que esta
+  entrega tocou e fica registrado em vez de corrigido — o pedido era o upload, e
+  trocar o diálogo do link é outra tela.
+
 ### O sino
 
 `notifications` **não tem policy de INSERT.** A única porta é a função

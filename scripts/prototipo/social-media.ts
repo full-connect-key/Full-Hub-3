@@ -65,6 +65,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Carrossel",
     midia: "carrossel",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
     status: "em_producao",
     arteUrl: "/exemplos/arte-1.svg",
     thumbnailUrl: "/exemplos/arte-1.svg",
@@ -92,6 +94,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Feed",
     midia: "imagem",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
     status: "em_producao",
     arteUrl: "/exemplos/arte-2.svg",
     thumbnailUrl: "/exemplos/arte-2.svg",
@@ -118,7 +122,12 @@ const POSTS: PostDaAgencia[] = [
     plataformas: ["instagram"],
     formato: "Reels",
     midia: "video",
-    videoUrl: "https://drive.google.com/file/d/exemplo/view",
+    // O VÍDEO DESTE É ARQUIVO (0120), e o do `p7` continua sendo LINK: com os
+    // dois iguais a imagem provaria que o player aparece e não que a tela
+    // distingue as duas formas.
+    videoUrl: null,
+    videoCaminho: `${VERDE}/p3-reels.mp4`,
+    videoAssinado: "/exemplos/video-1.mp4",
     status: "em_producao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -146,6 +155,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Feed",
     midia: "imagem",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
     status: "em_producao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -173,6 +184,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Stories",
     midia: "imagem",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
     status: "aguardando_informacoes",
     arteUrl: null,
     thumbnailUrl: null,
@@ -209,6 +222,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Feed",
     midia: "imagem",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
     status: "em_aprovacao",
     arteUrl: "/exemplos/arte-3.svg",
     thumbnailUrl: "/exemplos/arte-3.svg",
@@ -236,6 +251,8 @@ const POSTS: PostDaAgencia[] = [
     formato: "Reels",
     midia: "video",
     videoUrl: "https://youtu.be/exemplo",
+    videoCaminho: null,
+    videoAssinado: null,
     status: "aprovado",
     arteUrl: null,
     thumbnailUrl: null,
@@ -269,6 +286,8 @@ const VERSOES: VersaoDoPost[] = [
     arteUrl: null,
     arteAssinada: null,
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
   },
   {
     id: "v1",
@@ -281,6 +300,8 @@ const VERSOES: VersaoDoPost[] = [
     arteUrl: "/exemplos/arte-1.svg",
     arteAssinada: "/exemplos/arte-1.svg",
     videoUrl: null,
+    videoCaminho: null,
+    videoAssinado: null,
   },
 ];
 
@@ -341,7 +362,10 @@ const PORTAO: PortaoDoMes = {
     {
       postId: "sd3",
       tema: "Instagram 3 de 6 · mês que vem",
-      motivo: "é vídeo e ainda não tem o link",
+      // A FRASE DA 0120: a recusa nomeia as duas saídas, porque o vídeo
+      // pode ser arquivo. Dizer "falta o link" a quem acabou de subir um MP4
+      // manda a pessoa procurar um campo que ela não precisa preencher.
+      motivo: "é vídeo e ainda não tem o vídeo",
     },
   ],
 };

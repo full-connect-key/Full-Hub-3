@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -10,10 +10,10 @@ import {
   Loader2,
   Send,
   ShieldCheck,
-  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ import {
   type EntregavelDoPortal,
   type NoDaArvore,
 } from "@/lib/dominio/campanhas";
-import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import {
@@ -172,10 +171,8 @@ function Peca({
   ehGestao: boolean;
 }) {
   const router = useRouter();
-  const arquivoRef = useRef<HTMLInputElement>(null);
   const podeAnalise = podePedirAnalise(item, analise);
   const podeEnviar = podeEnviarPecaAoCliente(item, analise);
-  const [subindo, setSubindo] = useState(false);
   const [notas, setNotas] = useState("");
   const [enviando, enviar] = useTransition();
 
@@ -189,40 +186,28 @@ function Peca({
    * empresas de quem pede. Um arquivo na raiz a equipe vê e o cliente não —
    * e a arte aparece quebrada justamente na tela para a qual foi feita.
    */
-  async function subir(escolhidos: FileList | null) {
-    if (!escolhidos || escolhidos.length === 0) return;
-    setSubindo(true);
-    try {
-      const supabase = criarClienteNavegador();
-      const subidos: { url: string; nome: string }[] = [];
-
-      for (const arquivo of Array.from(escolhidos)) {
-        const extensao = arquivo.name.split(".").pop() ?? "bin";
-        const caminho = `${clienteId}/entregaveis/${item.id}-${Date.now()}-${subidos.length}.${extensao}`;
-        const { error } = await supabase.storage
-          .from(BUCKET)
-          .upload(caminho, arquivo, { contentType: arquivo.type });
-
-        if (error) {
-          toast.error(`Não foi possível enviar ${arquivo.name}: ${error.message}`);
-          return;
-        }
-        subidos.push({ url: caminho, nome: arquivo.name });
-      }
-
-      const r = await chamarAcao(() =>
-        gravarVersaoDoEntregavel(item.id, { arquivos: subidos, notas }),
-      );
-      if (r.ok) {
-        toast.success(r.mensagem);
-        setNotas("");
-        router.refresh();
-      } else {
-        toast.error(r.error);
-      }
-    } finally {
-      setSubindo(false);
-      if (arquivoRef.current) arquivoRef.current.value = "";
+  /**
+   * O QUE FAZER COM O QUE SUBIU.
+   *
+   * **O laço de upload saiu daqui**, e com ele três coisas que esta tela fazia
+   * errado: sem `accept` (um `.exe` passava), sem teto (o Storage recusava
+   * depois de a pessoa esperar), e com `return` no primeiro erro — subindo
+   * cinco arquivos, se o quarto falhasse, **três ficavam no bucket sem nada
+   * apontando para eles** e nenhuma versão era gravada. Quem cuida dos três é
+   * `EnviarArquivos`.
+   *
+   * O que FICA aqui é a única coisa que é desta tela: o que a versão guarda.
+   */
+  async function gravar(subidos: { url: string; nome: string }[]) {
+    const r = await chamarAcao(() =>
+      gravarVersaoDoEntregavel(item.id, { arquivos: subidos, notas }),
+    );
+    if (r.ok) {
+      toast.success(r.mensagem);
+      setNotas("");
+      router.refresh();
+    } else {
+      toast.error(r.error);
     }
   }
 
@@ -321,33 +306,35 @@ function Peca({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <input
-              ref={arquivoRef}
-              type="file"
-              aria-label="Escolher os arquivos desta entrega"
-              multiple
-              className="sr-only"
-              onChange={(e) => subir(e.target.files)}
+            {/* AS CINCO FAMÍLIAS, `outro` inclusive — e é a quinta que
+                preserva o argumento que estava escrito aqui: *"a entrega de
+                campanha é PDF, PSD, AI, ZIP, INDD — uma lista fechada erraria
+                na primeira extensão que a agência passasse a usar"*. Com
+                `outro` na lista o `accept` sai vazio, o seletor abre em "Todos
+                os arquivos" como hoje, e o que se ganha é o TETO por família e
+                a prévia. Quem decide o que vira capa continua sendo o banco,
+                pela extensão (0053). */}
+            <EnviarArquivos
+              bucket={BUCKET}
+              familias={["imagem", "documento", "criacao", "video", "outro"]}
+              varios
+              rotulo={
+                versoes.length === 0 ? "Subir os arquivos" : "Subir nova versão"
+              }
+              rotuloDoCampo="Escolher os arquivos desta entrega"
+              caminho={(arquivo, i) =>
+                // O CAMINHO COMEÇA PELA PASTA DO CLIENTE, e não é arrumação: a
+                // policy `"campanhas: cliente le"` compara
+                // `(storage.foldername(name))[1]` com as empresas de quem
+                // pede. Um arquivo na raiz a equipe vê e o cliente não — e a
+                // arte aparece quebrada justamente na tela para a qual foi
+                // feita.
+                `${clienteId}/entregaveis/${item.id}-${Date.now()}-${i}.${
+                  arquivo.name.split(".").pop() ?? "bin"
+                }`
+              }
+              onPronto={gravar}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={subindo}
-              onClick={() => arquivoRef.current?.click()}
-            >
-              {subindo ? (
-                <Loader2 aria-hidden className="size-4 animate-spin" />
-              ) : (
-                <Upload aria-hidden className="size-4" />
-              )}
-              {versoes.length === 0 ? "Subir os arquivos" : "Subir nova versão"}
-            </Button>
-
-            {/* SEM `accept`, e é escolha: a entrega de campanha é PDF, PSD, AI,
-                ZIP, INDD — uma lista fechada erraria na primeira extensão que
-                a agência passasse a usar, e o erro seria o seletor recusando
-                um arquivo sem dizer por quê. Quem decide o que vira capa é o
-                banco, pela extensão. */}
             {/* ------------------------------------------- o aval interno --
                 "PEDIR AVAL INTERNO" É O BOTÃO DE QUEM PRODUZ — decisão do
                 usuário. Ele abre a rodada INTERNA, a gestão decide na fila de

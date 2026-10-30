@@ -52,6 +52,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram", "facebook"],
     formato: "carrossel",
     midia: "carrossel",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: "/exemplos/arte-1.svg",
     thumbnailUrl: "/exemplos/arte-1.svg",
@@ -77,6 +79,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["linkedin"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: "/exemplos/arte-3.svg",
     thumbnailUrl: "/exemplos/arte-3.svg",
@@ -102,6 +106,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["twitter"],
     formato: "story",
     midia: "video",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -127,6 +133,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "ajustes",
     arteUrl: "/exemplos/arte-3.svg",
     thumbnailUrl: "/exemplos/arte-3.svg",
@@ -152,6 +160,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram"],
     formato: "carrossel",
     midia: "carrossel",
+    videoCaminho: null,
+    videoUrl: null,
     status: "aprovado",
     arteUrl: "/exemplos/arte-2.svg",
     thumbnailUrl: "/exemplos/arte-2.svg",
@@ -181,6 +191,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["pinterest"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "aprovado",
     arteUrl: "/exemplos/arte-1.svg",
     thumbnailUrl: "/exemplos/arte-1.svg",
@@ -206,6 +218,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "rejeitado",
     arteUrl: null,
     thumbnailUrl: null,
@@ -231,6 +245,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["facebook"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "ajustes",
     arteUrl: null,
     thumbnailUrl: null,
@@ -256,6 +272,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["facebook"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "stand_by",
     arteUrl: null,
     thumbnailUrl: null,
@@ -269,6 +287,46 @@ const POSTS: PostDoPortal[] = [
     programado: false,
     enviadoEm: horasAtras(24 * 3),
     decisaoPedidaEm: horasAtras(24 * 3),
+  },
+  // UMA PECA DE VIDEO ESPERANDO A DECISAO, E ELA E A PRIMEIRA DO PROTOTIPO.
+  //
+  // Nenhuma das oito entradas daqui era `midia: "video"`, e isso e o que fez o
+  // furo durar: a 0042 escreveu que "a tela avisa que o link abre fora" e
+  // aquele aviso nunca existiu -- nada em `src/components/portal/` lia
+  // `video_url` --, mas um post de video chega com `arte_url` nulo, entao o
+  // cliente recebia o visualizador de arte VAZIO com os dois botoes de decisao
+  // embaixo. As cento e cinquenta imagens mostravam o produto no unico estado
+  // em que nenhuma peca e video. E a licao da Optica sem atendente (0062).
+  //
+  // O VIDEO DELA E ARQUIVO (0120), que e a forma nova. Quem fica com o LINK e
+  // o `p3` do stub da agencia: com os dois iguais, a imagem provaria que o
+  // quadro aparece e nao que a tela distingue as duas formas.
+  {
+    id: "p9b",
+    clienteId: VERDE,
+    tema: "Reels da receita",
+    legenda: "A receita da nutricionista em 30 segundos.",
+    dataPublicacao: dia(20),
+    mesId: MES_ID,
+    horario: "18:00",
+    plataformas: ["instagram"],
+    formato: "Reels",
+    midia: "video",
+    videoCaminho: `${VERDE}/p9b-reels.mp4`,
+    videoUrl: null,
+    status: "em_aprovacao",
+    arteUrl: null,
+    thumbnailUrl: null,
+    versaoAtual: 1,
+    prazoAprovacao: dia(2),
+    rodadaPendenteId: "r-p9b",
+    decididoPor: null,
+    portaoDoCliente: null,
+    textoDoPortao: null,
+    decididoEm: null,
+    programado: false,
+    enviadoEm: horasAtras(20),
+    decisaoPedidaEm: horasAtras(20),
   },
   // O PORTAO DO MEIO DA CORRENTE (0076), e ele existe aqui pela razao pela qual
   // o seed tem uma pessoa desligada: sem um post neste estado, a imagem do
@@ -286,6 +344,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram"],
     formato: "feed",
     midia: "carrossel",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -327,6 +387,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -353,6 +415,8 @@ const POSTS: PostDoPortal[] = [
     plataformas: ["instagram", "facebook"],
     formato: "feed",
     midia: "imagem",
+    videoCaminho: null,
+    videoUrl: null,
     status: "em_aprovacao",
     arteUrl: null,
     thumbnailUrl: null,
@@ -505,7 +569,16 @@ export async function urlsDasArtes(
   // endereco no mapa, e com o mapa vazio a miniatura some de toda peca de
   // social na imagem.
   const mapa: Record<string, string> = {};
-  for (const c of caminhos) if (c) mapa[c] = c;
+  for (const c of caminhos) {
+    if (!c) continue;
+    // O VIDEO APONTA PARA UM ARQUIVO DE VERDADE, e e a unica traducao deste
+    // stub. As artes de exemplo ja sao caminhos de `public/` -- o proprio
+    // valor serve --, e o caminho do video imita o de producao
+    // (`{client_id}/...mp4`), que nao existe em `public/`: sem esta linha o
+    // `<video>` sairia preto com o icone de midia quebrada, que e justamente o
+    // estado que a imagem do protototipo existe para nao mostrar.
+    mapa[c] = c.endsWith(".mp4") ? "/exemplos/video-1.mp4" : c;
+  }
   return mapa;
 }
 

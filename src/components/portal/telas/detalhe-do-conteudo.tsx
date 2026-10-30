@@ -9,6 +9,7 @@ import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
 import { TextoDoConteudo } from "@/components/portal/texto-do-conteudo";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
 import { VisualizadorDeArte } from "@/components/portal/visualizador-de-arte";
+import { QuadroDeVideo } from "@/components/shared/quadro-de-video";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type {
   ComentarioDoConteudo,
@@ -110,6 +111,18 @@ export type ModeloDoConteudo = {
    *  cliente vai percorrer antes de decidir — e decidir sobre a primeira,
    *  quando há cinco, é decidir sobre um quinto do material. */
   artes: string[];
+  /**
+   * O VÍDEO DA PEÇA, quando é vídeo que ela é (0120).
+   *
+   * **Ele SUBSTITUI o visualizador de arte, e não divide a tela com ele.**
+   * `VisualizadorDeArte` é zoom e pan sobre `<img>` — um `.mp4` ali aparece
+   * quebrado, que é a razão escrita na 0042 para o vídeo não ter preview. O
+   * que muda é a peça, não o arranjo: o quadro fica no mesmo lugar, a legenda
+   * continua ao lado, e os botões continuam depois.
+   *
+   * Nulo em tudo que não é vídeo — e aí nada muda nesta tela.
+   */
+  video?: { src: string | null; poster: string | null; link: string | null } | null;
   versaoAtual: number;
   rodadaPendenteId: string | null;
   decididoPor: string | null;
@@ -177,7 +190,15 @@ export function DetalheDoConteudo({
    * informar que não há nada ali. Sem o aviso a moldura fica: aí a ausência de
    * arte É uma falta, e esconder o quadro esconderia a falta.
    */
-  const temPreview = modelo.artes.length > 0 || !modelo.aviso;
+  // O VÍDEO CONTA COMO PREVIEW (0120), e sem esta linha ele cairia no ramo de
+  // baixo — o do portão do meio, onde o TEXTO é a peça. Um post de vídeo com
+  // legenda mostraria a legenda em largura inteira e o vídeo em lugar nenhum.
+  // E A PERGUNTA É SE O MODELO TEM VÍDEO, não se o vídeo tem arquivo: a peça
+  // de vídeo sem arquivo anexado precisa do quadro que diz isso, e não do ramo
+  // de baixo, onde o TEXTO vira a peça. Esse ramo é do portão do meio (0076),
+  // onde a pauta É o material; aqui o material existe e está faltando.
+  const temPreview =
+    Boolean(modelo.video) || modelo.artes.length > 0 || !modelo.aviso;
 
   /**
    * O TEXTO APARECE UMA VEZ SÓ, e em um de três lugares — o que decide é o que
@@ -295,10 +316,19 @@ export function DetalheDoConteudo({
                 ) : null}
               </div>
 
-              <VisualizadorDeArte
-                imagens={modelo.artes}
-                alt={`Arte de ${modelo.titulo}`}
-              />
+              {modelo.video ? (
+                <QuadroDeVideo
+                  src={modelo.video.src}
+                  poster={modelo.video.poster}
+                  link={modelo.video.link}
+                  titulo={modelo.titulo}
+                />
+              ) : (
+                <VisualizadorDeArte
+                  imagens={modelo.artes}
+                  alt={`Arte de ${modelo.titulo}`}
+                />
+              )}
             </section>
           ) : (
             /* SEM PREVIEW, O TEXTO É A PEÇA. É o portão do meio da corrente

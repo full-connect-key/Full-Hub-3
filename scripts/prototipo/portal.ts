@@ -277,7 +277,12 @@ export async function entregasDasEtapas(
 ): Promise<{ subtask_id: string; url: string; nome: string | null }[]> {
   const comArquivo: Record<string, { url: string; nome: string }> = {
     i5: { url: "https://drive.google.com/exemplo-banner-home", nome: "banner-1920x600.png" },
-    i6: { url: "https://drive.google.com/exemplo-banner-feed", nome: "banner-quadrado.png" },
+    // UM ARQUIVO DE CRIACAO (0120), e e ele que faz o filtro de formato da
+    // Biblioteca ter mais de uma opcao -- com PNG e PDF so, o seletor sairia
+    // com dois, e nenhum dos dois seria dos formatos que o item 30 abriu. Um
+    // PSD na "versao quadrada para o feed" e o caso real: o arquivo aberto da
+    // peca, que a agencia entrega ao lado do fechado.
+    i6: { url: "https://drive.google.com/exemplo-banner-feed", nome: "banner-quadrado.psd" },
   };
   return ids
     .filter((id) => comArquivo[id])

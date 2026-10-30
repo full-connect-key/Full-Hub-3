@@ -11,6 +11,7 @@ import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import {
   combinaComFiltros,
   empresaUnicaDoAcervo,
+  formatoDoMaterial,
   opcoesDaBiblioteca,
   type ArquivoDaBiblioteca,
   type FiltrosDaBiblioteca,
@@ -76,6 +77,7 @@ export async function BibliotecaDoPortal({
         porVertente={opcoes.porVertente}
         frentes={opcoes.frentes}
         meses={opcoes.meses}
+        formatos={opcoes.formatos}
       />
 
       {todos.length === 0 ? (
@@ -123,6 +125,12 @@ function Cartao({
   const vertente = arquivo.vertenteId
     ? vertentes.find((v) => v.id === arquivo.vertenteId)
     : null;
+
+  // O MESMO `formatoDoMaterial` QUE O FILTRO USA. Duas respostas para "que
+  // formato é este arquivo" divergiriam no dia em que alguém normalizasse
+  // `jpeg` num lado só — e o sintoma seria um cartão escrito JPEG que o chip
+  // JPG não traz.
+  const formato = formatoDoMaterial(arquivo);
 
   return (
     <li className="bg-surface-card rounded-card shadow-cartao flex flex-col overflow-hidden border">
@@ -193,6 +201,17 @@ function Cartao({
             >
               <Download aria-hidden className="size-4" />
               Baixar
+              {/* O FORMATO NO PRÓPRIO BOTÃO, e é o que torna o filtro
+                  conferível: um seletor "PDF" cujo resultado não diz em
+                  nenhum cartão que aquele material É PDF é um recorte que a
+                  pessoa não tem como verificar. E ele vai aqui e não numa
+                  linha própria porque é a resposta de "o que eu vou receber
+                  se clicar" — a pergunta que se faz no instante do clique. */}
+              {formato ? (
+                <span className="text-text-muted text-[11px] font-semibold">
+                  {formato}
+                </span>
+              ) : null}
             </a>
           ) : arquivo.caminho ? (
             <Link

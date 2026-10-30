@@ -54,6 +54,7 @@ const ROTULOS = {
   data_publicacao: "data de publicação",
   plataformas: "redes",
   video_url: "link do vídeo",
+  video_caminho: "arquivo do vídeo",
   flow_id: "fluxo deste mês",
 } as const;
 
@@ -250,6 +251,10 @@ const esquemaDeVersao = z.object({
   arte_url: z.string().nullable().optional(),
   thumbnail_url: z.string().nullable().optional(),
   video_url: z.string().nullable().optional(),
+  // O VÍDEO DENTRO DO FULL HUB (0120) — caminho no bucket, não endereço. O
+  // par dele é `video_url`, que continua sendo o link de fora: são duas
+  // colunas porque o `check` `posts_video_url_http` cobra `^https?://`.
+  video_caminho: z.string().nullable().optional(),
   legenda: z.string().nullable().optional(),
   notas_mudanca: z.string().trim().nullable().optional(),
 });
@@ -282,6 +287,7 @@ export async function gravarVersao(postId: string, dados: unknown): Promise<Resu
       entrada.arquivos.length === 0 &&
       !entrada.arte_url &&
       !entrada.video_url &&
+      !entrada.video_caminho &&
       entrada.legenda === undefined
     ) {
       return falha("Não há nada de novo nesta versão.");
@@ -296,6 +302,7 @@ export async function gravarVersao(postId: string, dados: unknown): Promise<Resu
         arte_url: entrada.arte_url ?? null,
         thumbnail_url: entrada.thumbnail_url ?? null,
         video_url: entrada.video_url ?? null,
+        video_caminho: entrada.video_caminho ?? null,
         legenda: entrada.legenda ?? null,
         notas_mudanca: entrada.notas_mudanca || null,
         criado_por: sessao.usuarioId,

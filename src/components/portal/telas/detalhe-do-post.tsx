@@ -89,6 +89,11 @@ export async function DetalheDoPost({
     post.arteUrl,
     ...daVersao,
     ...versoes.map((v) => v.arteUrl),
+    // O VÍDEO VAI NA MESMA IDA (0120): mesmo bucket, mesma pasta do cliente,
+    // e `assinarArquivos` já deduplica e descarta o nulo — uma segunda
+    // chamada só para ele seria uma ida ao banco a mais em toda tela de
+    // decisão, inclusive nas que não têm vídeo nenhum.
+    post.videoCaminho,
   ]);
 
   // A CAPA ENTRA UMA VEZ SÓ. Ela é o primeiro slide, então mandá-la à frente
@@ -156,8 +161,23 @@ export async function DetalheDoPost({
     // post pode chegar sem arte nenhuma: numa coluna de 340px ao lado de nada, o
     // texto ficaria estreito de graça. Antes da 0076 os dois eram a mesma
     // coisa — post com o cliente sem arte era recusado pelo banco.
-    textoAoLado: artesDoPost.length > 0,
+    textoAoLado: artesDoPost.length > 0 || post.midia === "video",
     artes: artesDoPost,
+    // O VÍDEO, pelas duas formas (0120). **A pergunta é a MÍDIA e não a
+    // presença do arquivo**: uma peça de vídeo sem nada anexado precisa do
+    // quadro que diz isso, e `midia` é o enum que decide qual editor aparece
+    // do lado de cá desde a 0042 — é ele a resposta, e não a coluna que por
+    // acaso está preenchida.
+    video:
+      post.midia === "video"
+        ? {
+            src: post.videoCaminho
+              ? (artes[post.videoCaminho] ?? null)
+              : null,
+            poster: capa,
+            link: post.videoUrl,
+          }
+        : null,
     versaoAtual: post.versaoAtual,
     // O post ainda não oferece download: quem publica é a agência, e o
     // arquivo do cliente é o que vai ao ar, não o que ele guarda. Se um dia

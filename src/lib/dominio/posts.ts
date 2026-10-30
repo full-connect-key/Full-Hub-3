@@ -103,6 +103,21 @@ export type PostDoPortal = {
   plataformas: PlataformaSocial[];
   formato: string | null;
   /**
+   * O VÍDEO DA PEÇA, nas duas formas (0120).
+   *
+   * **E até aqui ele não chegava ao cliente de forma nenhuma.** A 0042 escreveu
+   * que *"o cliente sai do portal para assistir"* e que *"a tela avisa que o
+   * link abre fora"* — aquele aviso nunca existiu: nada em
+   * `src/components/portal/` nem em `lib/dados/posts.ts` lia `video_url`, e um
+   * post de vídeo chega com `arte_url` nulo. O que o cliente via era o
+   * visualizador de arte vazio, numa peça que ele precisa decidir.
+   *
+   * É a ponte construída e não atravessada pela décima nona vez, e a mais
+   * barata de todas: as duas colunas já estavam na tabela.
+   */
+  videoCaminho: string | null;
+  videoUrl: string | null;
+  /**
    * O QUE A TELA DESENHA — imagem, carrossel ou vídeo (0042).
    *
    * Ele entrou no modelo do portal com a grade do feed: numa miniatura
@@ -395,7 +410,12 @@ export const ROTULO_DA_MIDIA: Record<PostMidia, string> = {
 export const EXPLICACAO_DA_MIDIA: Record<PostMidia, string> = {
   imagem: "Uma arte só.",
   carrossel: "Várias artes em ordem — a primeira é a capa.",
-  video: "Por link do Drive ou do YouTube; o cliente assiste fora do portal.",
+  // ELA DIZIA "por link do Drive ou do YouTube; o cliente assiste fora do
+  // portal", e as duas metades deixaram de ser verdade na 0120: o vídeo pode
+  // ser arquivo, e aí o cliente assiste DENTRO do portal. Uma explicação ao
+  // lado da escolha que descreve o produto de antes é pior que nenhuma —
+  // quem a lê conclui que subir o arquivo não é caminho.
+  video: "O arquivo, ou o link do Drive ou do YouTube.",
 };
 
 /**
@@ -439,6 +459,8 @@ export type EstadoDoPost = {
   status: string;
   midia: PostMidia;
   videoUrl: string | null;
+  /** O vídeo dentro do Full Hub — caminho em `posts-artes` (0120). */
+  videoCaminho: string | null;
   arteUrl: string | null;
   /** Há rodada interna aprovada nesta versão? */
   avalInterno: boolean;
@@ -458,6 +480,28 @@ export function maoDoPost(post: EstadoDoPost): MaoDoPost {
   if (post.avalInterno) return "revisao";
   if (post.responsavelId) return "producao";
   return "briefing";
+}
+
+/**
+ * ESTE POST TEM VÍDEO? Por arquivo ou por link.
+ *
+ * ---------------------------------------------------------------------------
+ * **O par dela no Postgres é `post_tem_video()` (migration 0120)**, e as duas
+ * existem de propósito — a forma de `situacaoDoLancamento()` no Financeiro e da
+ * máquina de estados da subtarefa: esta escreve a frase do botão desligado
+ * antes de a pessoa clicar, e a do banco é a que vale.
+ *
+ * **Um lugar só dos dois lados.** A pergunta aparece na trava do envio
+ * (`validar_nova_rodada`), na lista do que falta no portão
+ * (`o_que_falta_no_portao`) e aqui; três cópias dela seriam três lugares para
+ * divergir, e o que divergiria é o terceiro.
+ * ---------------------------------------------------------------------------
+ */
+export function postTemVideo(post: {
+  videoCaminho: string | null;
+  videoUrl: string | null;
+}): boolean {
+  return Boolean(post.videoCaminho?.trim() || post.videoUrl?.trim());
 }
 
 /**
@@ -493,7 +537,11 @@ export function faltaParaEnviar(
   // mesmo commit: a lição da 0029 é que desfazer um lado só não desfaz nada.
   if (!doMeio) {
     if (post.midia === "video") {
-      if (!post.videoUrl?.trim()) faltam.push("o link do vídeo");
+      // AS DUAS FORMAS CONTAM (0120): o arquivo no bucket e o link de fora.
+      // A frase nomeia as duas saídas, pela decisão da 0023 — dizer "falta o
+      // link" a quem acabou de subir um MP4 manda a pessoa procurar um campo
+      // que ela não precisa preencher.
+      if (!postTemVideo(post)) faltam.push("o vídeo");
     } else if (!post.arteUrl) {
       faltam.push("a arte");
     }
