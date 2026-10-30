@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" role="img" aria-label="Arte de exemplo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Arte de exemplo">
   <rect width="1080" height="1080" fill="#0C75A6"/>
   <path d="M0 720 Q270 560 540 720 T1080 720 L1080 1080 L0 1080 Z" fill="#7FCFF5"/>
   <circle cx="800" cy="280" r="120" fill="#E3F5FD"/>

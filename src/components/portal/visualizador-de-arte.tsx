@@ -110,12 +110,43 @@ export function VisualizadorDeArte({
       <div
         ref={quadro}
         className={cn(
-          // A altura é LIMITADA, e a largura não. Um quadrado de largura
-          // inteira no desktop dá mais de 900px de altura e empurra as
+          // SEM MOLDURA, E NA PROPORÇÃO DA ARTE (item 10).
+          //
+          // Era `aspect-square ... rounded-xl border` com fundo próprio: um
+          // quadro QUADRADO para qualquer peça. Com `object-contain` dentro
+          // dele, um Reels 9:16 saía com duas tarjas cinzas largas nos lados e
+          // um banner 16:9 com duas em cima e embaixo — a "moldura" e as
+          // "margens artificiais" do pedido, e a razão pela qual a arte
+          // parecia errada mesmo estando inteira.
+          //
+          // **A CAIXA PASSOU A SER DO TAMANHO DA IMAGEM** (`w-fit`), então
+          // quadrado sai quadrado, vertical sai vertical e horizontal sai
+          // horizontal — sem recorte, sem distorção e sem tarja. Some a borda,
+          // some o fundo e some o arredondamento: canto arredondado num quadro
+          // que agora encosta na arte corta a própria arte.
+          //
+          // A ALTURA CONTINUA LIMITADA, e por quê não mudou: um quadrado de
+          // largura inteira no desktop dá mais de 900px e empurra as
           // informações e os botões para fora da primeira tela — quem abriu
-          // para decidir precisa ver os dois. No celular o teto nem é
-          // alcançado: lá o quadrado tem a largura da tela.
-          "bg-neutral-soft relative aspect-square max-h-[min(70vh,600px)] w-full touch-none overflow-hidden rounded-xl border select-none",
+          // para decidir precisa ver os dois.
+          //
+          // **`items-center` NÃO É CENTRALIZAÇÃO AQUI, e é a linha que a caixa
+          // nova não pode perder.** Item de flex nasce com
+          // `align-self: stretch`, e stretch vale para elemento substituído:
+          // sem ela a imagem é esticada até a altura da linha — a distorção
+          // que este trecho existe para impedir, criada justamente por ter
+          // trocado a caixa fixa por uma que se mede pela arte. Com ela a
+          // imagem guarda a própria proporção, e a caixa fica do tamanho dela.
+          //
+          // **E o arquivo precisa ter tamanho**, o que nenhuma peça do produto
+          // deixa de ter: a caixa se mede pela imagem, então um arquivo sem
+          // dimensão intrínseca colapsa. É o caso do SVG com `viewBox` e nada
+          // mais — que o bucket recusa desde a 0120 e que `EH_IMAGEM` já
+          // excluía desde a 0053 ("SVG de terceiro dentro de `<img>` é vetor
+          // de script"). As artes de exemplo do protótipo ganharam `width` e
+          // `height` por isso: sem elas a imagem mostrava o produto num estado
+          // que ele não tem — ao contrário.
+          "relative mx-auto flex max-h-[min(70vh,600px)] w-fit max-w-full items-center justify-center touch-none overflow-hidden select-none",
           escala > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in",
         )}
         onDoubleClick={() => (escala > 1 ? reiniciar() : aproximar(1.5))}
@@ -155,6 +186,10 @@ export function VisualizadorDeArte({
             real varia por peça, e o que se quer aqui é o pixel original sem
             redimensionamento no meio — que é justamente o que o otimizador
             faria. */}
+        {/* É A IMAGEM QUE DÁ O TAMANHO DA CAIXA, e não o contrário: com
+            `max-h` e `w-auto` ela chega na altura que couber e a largura sai
+            da proporção dela. `object-contain` dentro de uma caixa fixa fazia
+            o oposto — cabia a imagem no quadro e sobrava quadro. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={atual}
@@ -163,7 +198,7 @@ export function VisualizadorDeArte({
           style={{
             transform: `translate(${posicao.x}px, ${posicao.y}px) scale(${escala})`,
           }}
-          className="size-full object-contain transition-transform duration-75"
+          className="max-h-[min(70vh,600px)] w-auto max-w-full transition-transform duration-75"
         />
       </div>
 

@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ImageOff } from "lucide-react";
 
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { SeloDeProgramado } from "@/components/portal/selo-de-programado";
 import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -34,7 +34,7 @@ export function CartaoDePost({
     >
       <div className="bg-neutral-soft relative size-16 shrink-0 overflow-hidden rounded-lg border">
         {arte ? (
-          <Image src={arte} alt="" fill sizes="64px" className="object-cover" />
+          <ImagemAssinada src={arte} alt="" className="object-cover" />
         ) : (
           <span className="text-text-muted flex size-full items-center justify-center">
             <ImageOff aria-hidden className="size-5" />

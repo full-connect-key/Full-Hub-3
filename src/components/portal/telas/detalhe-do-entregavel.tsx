@@ -74,7 +74,7 @@ export async function DetalheDoEntregavel({
     ? (irmaos.find((i) => i.id === item.paiId) ?? null)
     : null;
 
-  const { anterior, proximo } = vizinhosDe(
+  const { anterior, proximo, posicao, total } = vizinhosDe(
     item,
     grupo
       ? (arvore.find((no) => no.item.id === grupo.id)?.filhos ?? [])
@@ -123,7 +123,12 @@ export async function DetalheDoEntregavel({
       href: `${base}/${campanha.id}`,
       rotulo: "Voltar à campanha",
     },
-    vizinhos: { anterior: linkDo(anterior), proximo: linkDo(proximo) },
+    vizinhos: {
+      anterior: linkDo(anterior),
+      proximo: linkDo(proximo),
+      posicao,
+      total,
+    },
     rotuloDosVizinhos: grupo
       ? `Outros materiais de ${grupo.nome}`
       : "Outros materiais da campanha",
@@ -156,5 +161,11 @@ function vizinhosDe(item: EntregavelDoPortal, irmaos: EntregavelDoPortal[]) {
     anterior: indice > 0 ? irmaos[indice - 1] : null,
     proximo:
       indice >= 0 && indice < irmaos.length - 1 ? irmaos[indice + 1] : null,
+    // O CONTADOR É DO RECORTE QUE AS SETAS PERCORREM, e aqui ele é o GRUPO
+    // quando a peça está dentro de um: "3 de 6 do Enxoval" é o que a pessoa
+    // está conferindo, e contar a campanha inteira daria um número que as
+    // setas não alcançam.
+    posicao: indice >= 0 ? indice + 1 : null,
+    total: irmaos.length,
   };
 }

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import { AndamentoDoMaterial } from "@/components/portal/andamento-do-material";
 import { DecisoesDoConteudo } from "@/components/portal/decisoes-do-conteudo";
 import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
+import { NavegacaoEntrePecas } from "@/components/portal/navegacao-entre-pecas";
 import { TextoDoConteudo } from "@/components/portal/texto-do-conteudo";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
 import { VisualizadorDeArte } from "@/components/portal/visualizador-de-arte";
@@ -158,7 +159,13 @@ export type ModeloDoConteudo = {
    */
   download: { href: string; nome: string } | null;
   voltar: { href: string; rotulo: string };
-  vizinhos: { anterior: string | null; proximo: string | null };
+  vizinhos: {
+    anterior: string | null;
+    proximo: string | null;
+    /** Qual peça desta sequência é esta — o "3" de "3 de 8" (item 11). */
+    posicao: number | null;
+    total: number;
+  };
   /** O rótulo acessível da navegação entre irmãos. */
   rotuloDosVizinhos: string;
 };
@@ -237,15 +244,24 @@ export function DetalheDoConteudo({
 
           {/* NAVEGAÇÃO ENTRE IRMÃOS: quem entra para aprovar raramente aprova
               um só. Voltar à lista a cada peça é o atrito que faz a pessoa
-              deixar os outros para depois. */}
-          <nav aria-label={modelo.rotuloDosVizinhos} className="flex gap-2">
-            <Vizinho href={modelo.vizinhos.anterior} rotulo="Material anterior">
-              <ChevronLeft aria-hidden className="size-4" />
-            </Vizinho>
-            <Vizinho href={modelo.vizinhos.proximo} rotulo="Próximo material">
-              <ChevronRight aria-hidden className="size-4" />
-            </Vizinho>
-          </nav>
+              deixar os outros para depois.
+
+              ELA GANHOU PALAVRA, CONTADOR E TECLADO (item 11). Eram dois
+              discos com uma seta dentro e mais nada: sem dizer o que fazem,
+              sem dizer onde a pessoa está na sequência, e sem saber quantas
+              faltam. *"O usuário não deve precisar arrastar a arte para
+              navegar"* — e com duas setas mudas a alternativa era voltar à
+              lista.
+
+              O CONTADOR FICA NO MEIO, entre as duas, porque é o que elas
+              percorrem: "Anterior | 3 de 8 | Próxima" se lê como uma frase. */}
+          <NavegacaoEntrePecas
+            anterior={modelo.vizinhos.anterior}
+            proximo={modelo.vizinhos.proximo}
+            posicao={modelo.vizinhos.posicao}
+            total={modelo.vizinhos.total}
+            rotulo={modelo.rotuloDosVizinhos}
+          />
         </div>
       </div>
 
@@ -420,43 +436,6 @@ function Texto({ texto }: { texto: ModeloDoConteudo["texto"] }) {
   );
 }
 
-function Vizinho({
-  href,
-  rotulo,
-  children,
-}: {
-  href: string | null;
-  rotulo: string;
-  children: React.ReactNode;
-}) {
-  if (!href) {
-    return (
-      // RECUA PELO TOM E NÃO POR OPACIDADE: opacidade em texto dá uma cor
-      // que ninguém mediu, e no tema escuro dá outra — a regra que o
-      // `opacity-80` do `DateBadge` e as células do mês vizinho da faixa de
-      // disponibilidade já pagaram duas vezes. `--text-muted` sobre `--muted`
-      // está medido.
-      <span
-        aria-hidden
-        className="bg-muted text-text-muted inline-flex size-9 items-center justify-center rounded-md border"
-      >
-        {children}
-      </span>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      aria-label={rotulo}
-      className="hover:bg-accent inline-flex size-9 items-center justify-center rounded-md border transition-colors"
-    >
-      {children}
-    </Link>
-  );
-}
-
-/** Formata uma data ISO para a linha de contexto, ou devolve o traço. */
 export function dataLonga(iso: string | null): string {
   if (!iso) return "—";
   return format(parseISO(iso), "d 'de' MMMM 'de' yyyy", { locale: ptBR });

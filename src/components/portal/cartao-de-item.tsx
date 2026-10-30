@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FileImage, Megaphone, Paperclip } from "lucide-react";
 
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -87,13 +87,7 @@ export function CartaoDeItem({
           que 96px de título quando a tela tem 375. */}
       {item.miniatura ? (
         <div className="relative hidden size-20 shrink-0 overflow-hidden rounded-lg border sm:block">
-          <Image
-            src={item.miniatura}
-            alt=""
-            fill
-            sizes="80px"
-            className="object-cover"
-          />
+          <ImagemAssinada src={item.miniatura} alt="" className="object-cover" />
         </div>
       ) : null}
 

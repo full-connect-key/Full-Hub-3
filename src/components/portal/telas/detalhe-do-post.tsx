@@ -104,7 +104,7 @@ export async function DetalheDoPost({
     .filter((u): u is string => !!u);
   const capa = enderecoDaArte(post.arteUrl, artes);
 
-  const { anterior, proximo } = vizinhosDe(post, doMes);
+  const { anterior, proximo, posicao, total } = vizinhosDe(post, doMes);
 
   // O QUE ESTÁ ESPERANDO ELE, quando não é o material pronto (0076). Numa conta
   // que aprova a pauta, o primeiro que chega aqui é um parágrafo de texto — e o
@@ -197,6 +197,8 @@ export async function DetalheDoPost({
     vizinhos: {
       anterior: anterior ? `${base}/social-media/${anterior.id}` : null,
       proximo: proximo ? `${base}/social-media/${proximo.id}` : null,
+      posicao,
+      total,
     },
     rotuloDosVizinhos: "Outros materiais do mês",
   };
@@ -244,5 +246,11 @@ function vizinhosDe(post: PostDoPortal, doMes: PostDoPortal[]) {
       indice >= 0 && indice < ordenados.length - 1
         ? ordenados[indice + 1]
         : null,
+    // O CONTADOR SAI DAQUI, e não de uma segunda contagem na tela: a ordem e
+    // o índice já foram calculados acima, e duas contagens para "qual é esta
+    // peça de quantas" divergiriam no dia em que alguém mexesse na ordem de
+    // uma delas — e o número está ao lado das setas que usam essa ordem.
+    posicao: indice >= 0 ? indice + 1 : null,
+    total: ordenados.length,
   };
 }

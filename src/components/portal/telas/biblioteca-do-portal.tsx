@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -6,6 +5,7 @@ import { ArrowRight, Download, FolderOpen, ImageOff } from "lucide-react";
 
 import { FiltrosDaBiblioteca as BarraDaBiblioteca } from "@/components/portal/filtros-da-biblioteca";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { arquivosDaBiblioteca } from "@/lib/dados/biblioteca";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import {
@@ -140,13 +140,7 @@ function Cartao({
           tem três respostas para "sem imagem" e usa a do FUNDO na grade. */}
       <div className="bg-neutral-soft relative aspect-[4/3] w-full">
         {arquivo.miniatura ? (
-          <Image
-            src={arquivo.miniatura}
-            alt=""
-            fill
-            sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
-          />
+          <ImagemAssinada src={arquivo.miniatura} alt="" className="object-cover" />
         ) : (
           <div className="text-text-muted flex h-full items-center justify-center">
             <ImageOff aria-hidden className="size-6" />

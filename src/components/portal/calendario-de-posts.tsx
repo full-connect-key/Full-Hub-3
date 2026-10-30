@@ -1,9 +1,9 @@
 import { CalendarCheck2 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import {
   corDoPontoDeStatus,
@@ -196,7 +196,15 @@ function Miniatura({
     >
       <span className="bg-neutral-soft relative size-7 shrink-0 overflow-hidden rounded">
         {arte ? (
-          <Image src={arte} alt="" fill sizes="28px" className="object-cover" />
+          <ImagemAssinada
+            src={arte}
+            alt=""
+            className="object-cover"
+            /* A CÉLULA TEM 28px: o aviso de falha nem cabe, e um bloco cinza com
+               um ícone dentro diz menos do que a ausência. Aqui o estado de
+               erro é não desenhar nada, e quem informa é a tela do post. */
+            aoFalhar={null}
+          />
         ) : null}
       </span>
 

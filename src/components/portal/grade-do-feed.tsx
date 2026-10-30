@@ -1,4 +1,3 @@
-import Image from "next/image";
 
 import { enderecoDaArte } from "@/lib/dados/conteudo";
 import Link from "next/link";
@@ -6,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Images, ImageOff, Play } from "lucide-react";
 
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { SelosDasRedes } from "@/components/portal/selo-da-rede";
 import { ROTULO_DA_PLATAFORMA, type PostDoPortal } from "@/lib/dominio/posts";
 import {
@@ -113,11 +113,9 @@ export function GradeDoFeed({
                 className="group bg-neutral-soft focus-visible:ring-accent-strong relative block aspect-square overflow-hidden focus-visible:ring-2 focus-visible:outline-none"
               >
                 {arte ? (
-                  <Image
+                  <ImagemAssinada
                     src={arte}
                     alt=""
-                    fill
-                    sizes="(max-width: 640px) 33vw, 240px"
                     className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                   />
                 ) : (

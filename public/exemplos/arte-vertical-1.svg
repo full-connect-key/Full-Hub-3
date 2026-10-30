@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920" role="img" aria-label="Arte vertical de exemplo">
+  <rect width="1080" height="1920" fill="#E3F5FD"/>
+  <circle cx="540" cy="640" r="260" fill="#7FCFF5"/>
+  <rect x="200" y="1100" width="680" height="44" rx="22" fill="#BCE4F9"/>
+  <rect x="280" y="1190" width="520" height="44" rx="22" fill="#BCE4F9"/>
+  <path d="M0 1560 Q 270 1460 540 1560 T 1080 1560 L1080 1920 L0 1920 Z" fill="#0267C1"/>
+  <text x="540" y="1790" font-family="sans-serif" font-size="84" fill="#FFFFFF" text-anchor="middle">9:16</text>
+</svg>

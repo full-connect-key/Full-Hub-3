@@ -828,6 +828,17 @@ const TELAS = [
   { nome: "16l-portal-post-pauta-390", rota: "/portal/social-media/p10", largura: 390, altura: 1500 },
   { nome: "16g-portal-social-375", rota: "/portal/social-media", largura: 375, altura: 1400 },
   { nome: "16h-portal-post-375", rota: "/portal/social-media/p1", largura: 375, altura: 2000 },
+  // A PROPORÇÃO ORIGINAL DA ARTE, nas duas que não são quadradas. Todo exemplo
+  // do protótipo era 1080×1080, então o quadro do visualizador podia ser
+  // `aspect-square` sem nenhuma imagem mostrar — era a lição da duplicata do
+  // Cronograma: um ambiente de exemplo que mostra o produto num estado que ele
+  // não tem esconde uma classe inteira de bug. São DUAS e não uma: com só a
+  // vertical, a imagem provaria que o quadro sabe ser alto, e não que ele
+  // acompanha o arquivo. O 375 é da vertical, que é a que tem como estourar a
+  // altura da tela.
+  { nome: "16w-portal-post-vertical", rota: "/portal/social-media/p2", largura: 1280, altura: 2200 },
+  { nome: "16x-portal-post-vertical-375", rota: "/portal/social-media/p2", largura: 375, altura: 2100 },
+  { nome: "16y-portal-post-larga", rota: "/portal/social-media/p6", largura: 1280, altura: 1700 },
   { nome: "20-portal-campanhas", rota: "/portal/campanhas", largura: 1280, altura: 900 },
   { nome: "20b-portal-campanha", rota: "/portal/campanhas/camp-wave", largura: 1280, altura: 1700 },
   { nome: "20c-portal-entregavel", rota: "/portal/campanhas/camp-wave/d-kv", largura: 1280, altura: 2000 },

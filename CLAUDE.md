@@ -10249,6 +10249,120 @@ ela estava pendente: `decisaoPedidaEm` é a rodada pendente OU decidida, e fica
 ao lado de `esperandoDesde`, que continua respondendo outra coisa — há quanto
 tempo esta peça está parada, que é o "espera há 4 dias" da árvore da campanha.
 
+#### A ARTE NÃO CARREGAVA, e a causa era uma regra que o produto já tinha escrita
+
+Relato do usuário: *"as imagens das aprovações aparecem corrompidas"*, com a
+instrução de **investigar a causa real** e de *"não enfraquecer a segurança dos
+arquivos para resolver o problema"*.
+
+**O QUE FOI DESCARTADO POR MEDIÇÃO, contra o banco de produção**, e fica escrito
+para ninguém procurar de novo: o caminho de cada peça existe no bucket (16 de 16
+`arte_url`, e 30 de 30 arquivos de versão); nenhum objeto tem zero byte e os
+tipos conferem, de 5KB a 8MB; a pasta do cliente bate com `client_id` em 16 de
+16; a policy de leitura do `posts-artes` está de pé e correta; e o
+`remotePatterns` cobre `/storage/v1/object/**`. **Nada estava corrompido, e nada
+de segurança precisou ser afrouxado.**
+
+**A CAUSA ESTAVA ESCRITA NO PRÓPRIO PRODUTO, em `capa-do-cartao.tsx`:** *"a URL
+assinada muda de assinatura a cada hora — o cache dele guardaria uma que
+vence"*. O otimizador do `next/image` busca a imagem **no servidor** e guarda o
+resultado com a URL inteira como chave; uma URL assinada é um endereço novo a
+cada hora, então ele ora busca um endereço que já venceu, ora não acha chave
+nenhuma — e o que sai na tela é a moldura quebrada, que lê como arquivo
+corrompido. **Dois componentes seguiam a regra e cinco não**, e entre os cinco
+estava o cartão da fila de aprovações, que é onde o usuário bateu.
+
+**`ImagemAssinada` é o lugar único dessa regra**, e é `<img>` com `onError`.
+Cinco telas passaram por ela — o cartão do post, a célula do calendário, o
+cartão da fila, a grade do feed e a Biblioteca. Uma sexta cópia escrita à mão
+seria a que voltaria a usar `next/image`.
+
+**E O ARQUIVO AUSENTE PASSOU A DIZER ISSO**, que é a outra metade do pedido: a
+moldura vazia afirma que a arte está lá e quebrada. O que entra no lugar é um
+ícone com *"Não foi possível carregar"* ou *"Arquivo indisponível"* — são dois
+fatos diferentes, e quem procura a causa precisa saber qual. **A célula do
+calendário é a exceção declarada:** ela tem 28px, o aviso não cabe, e ali o
+estado de erro é não desenhar nada — quem informa é a tela do post.
+
+#### A ARTE SAI NA PROPORÇÃO DELA, sem moldura
+
+Decisão do usuário: *"exibir a imagem diretamente, preservando a proporção
+original, sem recortar, sem distorcer e sem adicionar margens artificiais.
+Posts quadrados, verticais e horizontais devem manter suas respectivas
+proporções."*
+
+O quadro era `aspect-square` com `object-contain` dentro: um quadrado para
+qualquer peça. Um Reels 9:16 saía com duas tarjas cinzas largas nos lados, um
+banner 16:9 com duas em cima e embaixo — a "moldura" e as "margens artificiais"
+do pedido, e a razão pela qual a arte parecia errada estando inteira. **A caixa
+passou a ser do tamanho da imagem** (`w-fit`), e com ela saem a borda, o fundo e
+o arredondamento: canto arredondado num quadro que encosta na arte corta a
+própria arte.
+
+**O TETO DE ALTURA FICA, e o motivo não mudou:** um quadrado de largura inteira
+no desktop dá mais de 900px e empurra as informações e os botões para fora da
+primeira tela — quem abriu para decidir precisa ver os dois.
+
+**E A GRADE DO FEED CONTINUA QUADRADA, de propósito.** Ela existe para mostrar a
+composição entre as artes como o Instagram a mostra, e o Instagram recorta na
+grade: tirar o recorte dali desenharia um feed que não vai existir. O pedido é
+sobre a tela em que a peça é DECIDIDA, e é lá que a proporção é o conteúdo.
+
+**DOIS ACHADOS QUE SÓ A IMAGEM PEGOU, e os dois são meus.** O primeiro: a caixa
+nova é `flex`, e item de flex nasce com `align-self: stretch` — que **vale para
+elemento substituído**. Sem `items-center` a imagem é esticada até a altura da
+linha, que é exatamente a distorção que esta entrega existe para impedir: eu
+tinha criado o bug no mesmo commit que o proíbe. O segundo: uma caixa que se
+mede pela imagem **colapsa quando o arquivo não tem dimensão intrínseca**, que é
+o caso de um SVG só com `viewBox` — e todas as artes de exemplo eram assim.
+**O quadro saiu com altura zero em toda peça de imagem única, e o carrossel
+perdeu o slide grande**, sobrando só a faixa da composição embaixo; a imagem do
+`16e` passava por boa porque a faixa carregava o conteúdo.
+
+**As artes de exemplo ganharam `width` e `height`**, como `retrato-1.svg` já
+tinha. Elas são o único SVG que alcança este quadro — o bucket recusa
+`image/svg+xml` desde a 0120 e `EH_IMAGEM` já o excluía desde a 0053 —, então
+sem os dois atributos o protótipo mostrava o produto num estado que ele não tem,
+**ao contrário**: é a lição da duplicata do Cronograma pelo avesso.
+
+**E ENTRARAM TRÊS TELAS, porque nenhuma arte de exemplo era retangular.** Uma
+vertical e uma horizontal, e as duas: com só a vertical a imagem provaria que o
+quadro sabe ser alto, não que ele acompanha o arquivo. O 375 é da vertical, que
+é a única com como estourar a altura da tela.
+
+#### A NAVEGAÇÃO ENTRE PEÇAS, e o contador
+
+Decisão do usuário: *"← Anterior | Próxima →, contador '3 de 8', sem fechar o
+modal, desktop e mobile, teclado no desktop, desabilitar nas pontas"*.
+
+**A VIZINHANÇA JÁ ERA CALCULADA e a tela mostrava só os dois links**, soltos no
+rodapé. O que faltava era o número — e ele sai da MESMA função que ordena os
+vizinhos (`vizinhosDe`), nunca de uma segunda contagem: duas respostas para
+"qual é esta peça de quantas" divergiriam no dia em que alguém mexesse na ordem
+de uma delas, e o número está ao lado das setas que usam essa ordem.
+
+**É `<Link>` e não `<button>`**, pela razão de sempre neste produto: cada peça
+tem endereço próprio, e um botão perderia a aba nova com Ctrl ou com o botão do
+meio, o endereço na barra de status e o menu de contexto. "Sem fechar o modal"
+acontece porque não há modal — a peça é uma rota, e a navegação é do App Router.
+
+**O TECLADO DEIXA A TECLA PARA QUEM ESTÁ DIGITANDO.** ← e → navegam, e o
+atalho se cala quando o foco está num campo (`isContentEditable`, INPUT,
+TEXTAREA, SELECT): sem isso, mover o cursor dentro do comentário trocaria de
+peça e perderia o que foi escrito.
+
+**A PONTA FICA DESLIGADA E VISÍVEL**, nunca sumindo: um par de setas que vira
+uma só a cada ponta é um par que muda de lugar — e o desligado é par nomeado
+(`--text-muted` sobre `--muted`), nunca opacidade. **E a palavra some abaixo de
+`sm`**, ficando só a seta e o contador: em 375px "Anterior | 3 de 13 | Próxima"
+não cabe sem apertar o número, que é a parte que informa.
+
+**O contador tem DUAS formas, e o axe cobrou a primeira.** `aria-label` num
+`<span>` sem papel é `aria-prohibited-attr`, crítico: o que fica é uma frase
+inteira em `sr-only` — *"peça 3 de 13"* — com a forma curta `aria-hidden` ao
+lado. E o componente devolve `null` quando não há nem anterior nem próxima: uma
+barra de navegação com as duas pontas desligadas não navega para lugar nenhum.
+
 #### A fila de aprovações: por PRAZO, e as três frentes
 
 **Ela ordenava por chegada**, e a consulta traz por `solicitado_em`
