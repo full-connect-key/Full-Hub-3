@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JSONContent } from "@tiptap/react";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { EditorRico, VisualizadorRico } from "@/components/shared/editor-rico";
+import { NomeEditavel } from "@/components/shared/nome-editavel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
 import { atualizarTask } from "../acoes";
@@ -25,7 +25,13 @@ import { chamarAcao } from "@/lib/acoes/cliente";
  * O salvamento é explícito, num botão que só aparece quando há alteração
  * pendente: salvar a cada tecla mandaria uma escrita por letra digitada.
  */
-export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; podeEditar: boolean }) {
+export function PrincipalDaTask({
+  task,
+  podeEditar,
+}: {
+  task: TaskCompleta;
+  podeEditar: boolean;
+}) {
   const router = useRouter();
 
   const rascunho = useRef<{ json: JSONContent; texto: string } | null>(null);
@@ -64,7 +70,11 @@ export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; pode
           <h2 className="text-sm font-semibold">Briefing</h2>
           {podeEditar && temMudanca ? (
             <Button size="sm" onClick={salvarBriefing} disabled={salvando}>
-              {salvando ? <Loader2 className="animate-spin" /> : <Check aria-hidden />}
+              {salvando ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Check aria-hidden />
+              )}
               Salvar briefing
             </Button>
           ) : null}
@@ -97,10 +107,11 @@ export function PrincipalDaTask({ task, podeEditar }: { task: TaskCompleta; pode
  * 0028) a tela abre com o título VAZIO e o cursor dentro dele — um `h1` em
  * branco esperando dois cliques seria uma tela que não diz o que fazer.
  *
- * SALVA APÓS UMA PAUSA de 600 ms e também ao sair do campo. A pausa é para
- * não gravar letra a letra; o blur é para não perder o que foi digitado quem
- * fecha a aba logo depois. Os dois juntos, porque cada um cobre o que o outro
- * deixa passar.
+ * **A MECÂNICA SAIU DAQUI e virou `NomeEditavel`**, quando o nome da ETAPA
+ * passou a ser editável: a pausa de 600 ms, o `blur`, o `Enter` e o "o que
+ * falhou fica na tela" eram para ser escritos duas vezes, e o segundo é o que
+ * ninguém relê. O que fica aqui é o que é DESTA tela — a escala do texto, o
+ * foco no rascunho recém-nascido, e o aviso para a barra de estado.
  *
  * Componente separado porque mora FORA das abas: ele nomeia a Task inteira, e
  * o que troca entre Trabalho e Histórico é o conteúdo, não o assunto.
@@ -116,66 +127,35 @@ export function TituloDaTask({
   aoSalvar?: (estado: "salvando" | "salvo" | { erro: string }) => void;
 }) {
   const router = useRouter();
-  const [titulo, setTitulo] = useState(task.titulo);
-  const pendente = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const gravar = useCallback(
-    async (valor: string) => {
-      if (valor === task.titulo) return;
-      aoSalvar?.("salvando");
-      const resultado = await chamarAcao(() => atualizarTask(task.id, { titulo: valor }));
-      if (!resultado.ok) {
-        // O VALOR DIGITADO FICA NA TELA. Devolver o título antigo apagaria o
-        // que a pessoa escreveu por causa de uma falha de rede — e ela não
-        // tem como saber que perdeu.
-        aoSalvar?.({ erro: resultado.error });
-        toast.error(resultado.error);
-        return;
-      }
-      aoSalvar?.("salvo");
-      router.refresh();
-    },
-    [task.id, task.titulo, aoSalvar, router],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (pendente.current) clearTimeout(pendente.current);
-    };
-  }, []);
-
-  function digitou(valor: string) {
-    setTitulo(valor);
-    if (pendente.current) clearTimeout(pendente.current);
-    pendente.current = setTimeout(() => void gravar(valor), 600);
-  }
-
-  function saiu() {
-    if (pendente.current) clearTimeout(pendente.current);
-    void gravar(titulo);
-  }
-
-  if (!podeEditar) {
-    return (
-      <h1 className="text-xl font-semibold tracking-tight text-balance">
-        {task.titulo || "Sem título"}
-      </h1>
-    );
-  }
 
   return (
-    <Input
-      value={titulo}
+    <NomeEditavel
+      valor={task.titulo}
+      podeEditar={podeEditar}
+      rotulo="Título da demanda"
+      placeholder="Nome da task"
+      className="text-xl font-semibold md:text-xl"
       // O cursor começa aqui quando a demanda acabou de nascer. Numa que já
       // tem nome, roubar o foco atrapalharia quem veio ler o briefing.
       autoFocus={task.titulo === ""}
-      placeholder="Nome da task"
-      aria-label="Título da demanda"
-      className="h-auto border-transparent px-2 py-1 text-xl font-semibold shadow-none md:text-xl"
-      onChange={(e) => digitou(e.target.value)}
-      onBlur={saiu}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
+      comoTexto={() => (
+        <h1 className="text-xl font-semibold tracking-tight text-balance">
+          {task.titulo || "Sem título"}
+        </h1>
+      )}
+      aoGravar={async (novo) => {
+        aoSalvar?.("salvando");
+        const resultado = await chamarAcao(() =>
+          atualizarTask(task.id, { titulo: novo }),
+        );
+        if (!resultado.ok) {
+          aoSalvar?.({ erro: resultado.error });
+          toast.error(resultado.error);
+          return resultado.error;
+        }
+        aoSalvar?.("salvo");
+        router.refresh();
+        return null;
       }}
     />
   );

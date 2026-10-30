@@ -264,6 +264,13 @@ const TELAS = [
   // O PAINEL DA ETAPA com o enviador ligado: e ali que o arquivo entra, e a
   // 46 ja abre o painel -- o que faltava era ele ter por onde subir.
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
+  // A COLUNA DE STATUS, que é a primeira dos quatro e só aparece quando o
+  // agrupamento NÃO é por status — agrupada, o cabeçalho já o diz, e a coluna
+  // repetida tirava largura justamente do nome. O padrão da tela é agrupar,
+  // então sem esta imagem a ordem "status antes do nome" não sai em foto
+  // nenhuma: é a lição da duplicata do Cronograma.
+  { nome: "26b-tasks-sem-grupo", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 1000, role: "socio",
+    clicar: ['[aria-label="Agrupar por"]', '[role="option"]:has-text("Sem agrupamento")'] },
   { nome: "30-minhas-tasks-lista", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio" },
   // A TELA VAZIA, e ela e a que decide a hierarquia. Sem etapa nenhuma o que
   // sobra sao os conteineres -- "Meu dia", o seletor de visao, os chips e a

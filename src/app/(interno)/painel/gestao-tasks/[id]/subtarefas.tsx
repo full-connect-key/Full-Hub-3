@@ -19,22 +19,31 @@ import { toast } from "sonner";
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
+import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { emArvore, folhas } from "@/lib/dominio/tasks";
+import { emArvore, fazASubtarefa, folhas } from "@/lib/dominio/tasks";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
-import { criarSubtarefa, moverSubtarefa, removerSubtarefa } from "../acoes-de-itens";
+import {
+  criarSubtarefa,
+  moverSubtarefa,
+  removerSubtarefa,
+} from "../acoes-de-itens";
 import { PainelDaSubtarefa } from "./painel-da-subtarefa";
 
 /**
@@ -119,7 +128,9 @@ export function Subtarefas({
    */
   function trocarStatus(sub: SubtarefaDetalhada, destino: SubtaskStatus) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => moverSubtarefa(sub.id, taskId, destino));
+      const resultado = await chamarAcao(() =>
+        moverSubtarefa(sub.id, taskId, destino),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
@@ -127,7 +138,9 @@ export function Subtarefas({
 
   function remover(sub: SubtarefaDetalhada, quantasFilhas: number) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => removerSubtarefa(sub.id, taskId));
+      const resultado = await chamarAcao(() =>
+        removerSubtarefa(sub.id, taskId),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else {
         if (quantasFilhas > 0) {
@@ -154,10 +167,15 @@ export function Subtarefas({
               {concluidas} de {asFolhas.length} concluída
               {asFolhas.length === 1 ? "" : "s"}
             </span>
-            <span aria-hidden className="bg-neutral-soft h-1.5 w-24 overflow-hidden rounded-full">
+            <span
+              aria-hidden
+              className="bg-neutral-soft h-1.5 w-24 overflow-hidden rounded-full"
+            >
               <span
                 className="bg-success block h-full rounded-full"
-                style={{ width: `${Math.round((concluidas / asFolhas.length) * 100)}%` }}
+                style={{
+                  width: `${Math.round((concluidas / asFolhas.length) * 100)}%`,
+                }}
               />
             </span>
           </>
@@ -168,8 +186,9 @@ export function Subtarefas({
 
       {subtarefas.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-          Esta demanda ainda não tem etapas. A subtarefa é a unidade de trabalho: é nela que entra
-          o responsável, o prazo e a regra de aprovação.
+          Esta demanda ainda não tem etapas. A subtarefa é a unidade de
+          trabalho: é nela que entra o responsável, o prazo e a regra de
+          aprovação.
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">
@@ -183,7 +202,9 @@ export function Subtarefas({
                     ? {
                         real: somar(filhas, "tempo_real_minutos"),
                         estimado: somar(filhas, "estimativa_minutos"),
-                        concluidas: filhas.filter((f) => f.status === "concluida").length,
+                        concluidas: filhas.filter(
+                          (f) => f.status === "concluida",
+                        ).length,
                       }
                     : null
                 }
@@ -214,7 +235,9 @@ export function Subtarefas({
                         usuarioId={usuarioId}
                         agoraDoServidor={agoraDoServidor}
                         aoAbrir={() => setAberta(filha.id)}
-                        aoMudarStatus={(destino) => trocarStatus(filha, destino)}
+                        aoMudarStatus={(destino) =>
+                          trocarStatus(filha, destino)
+                        }
                         aoAninhar={null}
                         aoRemover={() => remover(filha, 0)}
                       />
@@ -238,11 +261,23 @@ export function Subtarefas({
                     placeholder={`Sub-etapa dentro de "${etapa.titulo}"`}
                     aria-label={`Título da nova sub-etapa de ${etapa.titulo}`}
                   />
-                  <Button type="submit" variant="outline" disabled={salvando || novaFilha.trim() === ""}>
-                    {salvando ? <Loader2 className="animate-spin" /> : <Plus aria-hidden />}
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={salvando || novaFilha.trim() === ""}
+                  >
+                    {salvando ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Plus aria-hidden />
+                    )}
                     Adicionar
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setAninhandoEm(null)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setAninhandoEm(null)}
+                  >
                     Cancelar
                   </Button>
                 </form>
@@ -254,8 +289,9 @@ export function Subtarefas({
 
       {asFolhas.length > 0 ? (
         <p className="text-muted-foreground text-xs">
-          Tempo somado: {formatarMinutos(somar(asFolhas, "tempo_real_minutos"))} realizado de{" "}
-          {formatarMinutos(somar(asFolhas, "estimativa_minutos"))} estimado.
+          Tempo somado: {formatarMinutos(somar(asFolhas, "tempo_real_minutos"))}{" "}
+          realizado de {formatarMinutos(somar(asFolhas, "estimativa_minutos"))}{" "}
+          estimado.
         </p>
       ) : null}
 
@@ -273,8 +309,16 @@ export function Subtarefas({
             placeholder="Nova subtarefa"
             aria-label="Título da nova subtarefa"
           />
-          <Button type="submit" variant="outline" disabled={salvando || novo.trim() === ""}>
-            {salvando ? <Loader2 className="animate-spin" /> : <Plus aria-hidden />}
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={salvando || novo.trim() === ""}
+          >
+            {salvando ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Plus aria-hidden />
+            )}
             Adicionar
           </Button>
         </form>
@@ -322,7 +366,11 @@ function Linha({
   sub: SubtarefaDetalhada;
   aninhada?: boolean;
   filhas: number;
-  somaDasFilhas: { real: number | null; estimado: number | null; concluidas: number } | null;
+  somaDasFilhas: {
+    real: number | null;
+    estimado: number | null;
+    concluidas: number;
+  } | null;
   podeGerenciar: boolean;
   souGestor: boolean;
   usuarioId: string;
@@ -335,165 +383,190 @@ function Linha({
 }) {
   const agrupadora = somaDasFilhas !== null;
 
+  const seletorDeStatus =
+    /* NA FOLHA, O SELO É O SELETOR. É o mesmo componente do status da
+       demanda, com os status da etapa: quem executa muda o próprio andamento
+       onde ele já estava olhando, sem abrir o modal. Na agrupadora continua
+       selo, e é honesto — o status dela é calculado pelas filhas e o banco
+       descarta o que vier escrito. */
+    agrupadora ? (
+      <StatusBadge status={sub.status} />
+    ) : (
+      <SeletorDeStatusDaSubtarefa
+        status={sub.status}
+        podeEditar={podeGerenciar || fazASubtarefa(sub, usuarioId)}
+        aoMudar={aoMudarStatus}
+        compacto
+      />
+    );
+
   return (
-    <div className={cn("flex flex-wrap items-center gap-2 p-3", aninhada && "pl-10")}>
-      {aninhada ? (
-        <CornerDownRight className="text-muted-foreground/50 size-4 shrink-0" aria-hidden />
-      ) : podeGerenciar ? (
-        <GripVertical className="text-muted-foreground/50 size-4 shrink-0" aria-hidden />
-      ) : null}
-
-      {/* UM PISO, e não só `min-w-0`. Com o mínimo em zero o título era o
-          único desta linha a ceder largura — o selo de prioridade, o prazo, o
-          seletor de status, o cronômetro e o botão de ação são todos
-          `shrink-0` —, e no painel lateral "Revisar o texto do manual" saía
-          como "Rev". Com o piso, o resto quebra para a linha de baixo, que é
-          o que o `flex-wrap` do pai está ali para fazer. É o mesmo conserto
-          de "Meu dia" no Sprint 15, e foi a imagem do protótipo que mostrou
-          de novo — desta vez com o painel aberto.
-
-          E o `truncate` vai no BOTÃO, não num `<span>` dentro dele: num
-          elemento inline as três propriedades não recortam nada, então o
-          título era cortado sem reticências. */}
-      <button
-        type="button"
-        className="hover:text-accent-strong block min-w-[10rem] flex-1 truncate text-left text-sm font-medium"
-        onClick={aoAbrir}
-      >
-        {sub.titulo}
-      </button>
-
-      <div className="flex shrink-0 items-center gap-2">
-        {agrupadora ? (
-          <>
-            {/* O que a agrupadora tem a dizer: quantas etapas ela junta, e a
-                soma do tempo delas. */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="text-text-secondary inline-flex cursor-help items-center gap-1 text-xs">
-                  <Layers className="size-3.5" aria-hidden />
-                  <span className="tabular-nums">
-                    {somaDasFilhas.concluidas}/{filhas}
-                  </span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Esta etapa agrupa {filhas} sub-etapa{filhas === 1 ? "" : "s"} — o responsável, o
-                prazo e o tempo são de cada uma delas. O status daqui é calculado pelo andamento
-                das filhas.
-              </TooltipContent>
-            </Tooltip>
-
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {formatarMinutos(somaDasFilhas.real)} de {formatarMinutos(somaDasFilhas.estimado)}
-            </span>
-
-            <StatusBadge status={sub.status} />
-          </>
+    <LinhaDeTrabalho
+      className={cn("p-3", aninhada && "pl-10")}
+      antes={
+        aninhada ? (
+          <CornerDownRight
+            className="text-muted-foreground/50 size-4 shrink-0"
+            aria-hidden
+          />
+        ) : podeGerenciar ? (
+          <GripVertical
+            className="text-muted-foreground/50 size-4 shrink-0"
+            aria-hidden
+          />
+        ) : null
+      }
+      status={seletorDeStatus}
+      nome={
+        /* O `truncate` vai no BOTÃO, não num `<span>` dentro dele: num
+           elemento inline as três propriedades não recortam nada, então o
+           título era cortado sem reticências. */
+        <button
+          type="button"
+          className="hover:text-accent-strong block max-w-full truncate text-left text-sm font-medium"
+          onClick={aoAbrir}
+        >
+          {sub.titulo}
+        </button>
+      }
+      /* A AGRUPADORA NÃO TEM PRIORIDADE NEM PRAZO, e a ausência é a regra da
+         0022: no instante em que ela ganha a primeira filha, o responsável, o
+         prazo e o relógio passam a ser de cada uma delas. O que ela tem a
+         dizer sobre tempo é a soma, e ela vai nos extras. */
+      prioridade={
+        agrupadora ? null : <PriorityBadge priority={sub.prioridade} />
+      }
+      vencimento={
+        agrupadora ||
+        !sub.prazo ? null /* DateBadge é para prazo a vencer. Etapa concluída
+             mostra a data crua, senão o passado apareceria em vermelho como
+             se fosse atraso. */ : sub.status === "concluida" ? (
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {format(parseISO(sub.prazo), "dd/MM/yy", { locale: ptBR })}
+          </span>
         ) : (
-          <>
-            {sub.requer_aprovacao ? (
+          <DateBadge date={sub.prazo} />
+        )
+      }
+      extras={
+        <>
+          {agrupadora ? (
+            <>
+              {/* O que a agrupadora tem a dizer: quantas etapas ela junta, e a
+                  soma do tempo delas. */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-muted-foreground inline-flex">
-                    <Lock className="size-3.5" aria-label="Exige aprovação" />
+                  <span className="text-text-secondary inline-flex cursor-help items-center gap-1 text-xs">
+                    <Layers className="size-3.5" aria-hidden />
+                    <span className="tabular-nums">
+                      {somaDasFilhas.concluidas}/{filhas}
+                    </span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Exige aprovação {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
+                <TooltipContent className="max-w-xs">
+                  Esta etapa agrupa {filhas} sub-etapa{filhas === 1 ? "" : "s"}{" "}
+                  — o responsável, o prazo e o tempo são de cada uma delas. O
+                  status daqui é calculado pelo andamento das filhas.
                 </TooltipContent>
               </Tooltip>
-            ) : null}
 
-            {sub.dependenciasAbertas.length > 0 ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-warning inline-flex">
-                    <Link2 className="size-3.5" aria-label="Aguardando outra etapa" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Aguardando: {sub.dependenciasAbertas.join(", ")}</TooltipContent>
-              </Tooltip>
-            ) : null}
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {formatarMinutos(somaDasFilhas.real)} de{" "}
+                {formatarMinutos(somaDasFilhas.estimado)}
+              </span>
+            </>
+          ) : (
+            <>
+              {sub.requer_aprovacao ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-muted-foreground inline-flex">
+                      <Lock className="size-3.5" aria-label="Exige aprovação" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Exige aprovação{" "}
+                    {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
 
-            {sub.responsavel ? (
-              <UserAvatar name={sub.responsavel.nome} src={sub.responsavel.avatar_url} size="sm" />
-            ) : (
-              <span className="text-muted-foreground text-xs">sem responsável</span>
-            )}
+              {sub.dependenciasAbertas.length > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-warning inline-flex">
+                      <Link2
+                        className="size-3.5"
+                        aria-label="Aguardando outra etapa"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Aguardando: {sub.dependenciasAbertas.join(", ")}
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
 
-            <PriorityBadge priority={sub.prioridade} />
-
-            {/* DateBadge é para prazo a vencer. Etapa concluída mostra a data
-                crua, senão o passado apareceria em vermelho como se fosse
-                atraso. */}
-            {sub.prazo ? (
-              sub.status === "concluida" ? (
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {format(parseISO(sub.prazo), "dd/MM/yy", { locale: ptBR })}
-                </span>
+              {sub.responsavel ? (
+                <UserAvatar
+                  name={sub.responsavel.nome}
+                  src={sub.responsavel.avatar_url}
+                  size="sm"
+                />
               ) : (
-                <DateBadge date={sub.prazo} />
-              )
-            ) : null}
+                <span className="text-muted-foreground text-xs">
+                  sem responsável
+                </span>
+              )}
 
-            {/* NA FOLHA, O SELO VIRA SELETOR. É o mesmo componente do status
-                da demanda, com os status da etapa: quem executa muda o próprio
-                andamento onde ele já estava olhando, sem abrir o painel. Na
-                agrupadora continua selo, e é honesto — o status dela é
-                calculado pelas filhas e o banco descarta o que vier escrito. */}
-            <SeletorDeStatusDaSubtarefa
-              status={sub.status}
-              podeEditar={podeGerenciar || sub.responsavel_id === usuarioId}
-              aoMudar={aoMudarStatus}
-              compacto
-            />
+              {/* O relógio à vista. Um cronômetro que ninguém vê é um número
+                  que aparece pronto no diálogo de conclusão, sem a pessoa ter
+                  como saber de onde veio — e sem reparar que esqueceu a etapa
+                  em andamento de um dia para o outro. */}
+              <Cronometro dados={sub} agoraDoServidor={agoraDoServidor} />
 
-            {/* O relógio à vista. Um cronômetro que ninguém vê é um número que
-                aparece pronto no diálogo de conclusão, sem a pessoa ter como
-                saber de onde veio — e sem reparar que esqueceu a etapa em
-                andamento de um dia para o outro. */}
-            <Cronometro dados={sub} agoraDoServidor={agoraDoServidor} />
+              <AcoesDaSubtarefa
+                subtarefa={sub}
+                usuarioId={usuarioId}
+                souGestor={souGestor}
+                rodadaPendenteId={
+                  sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
+                }
+              />
+            </>
+          )}
 
-            <AcoesDaSubtarefa
-              subtarefa={sub}
-              usuarioId={usuarioId}
-              souGestor={souGestor}
-              rodadaPendenteId={sub.rodadas.find((r) => r.status === "pendente")?.id ?? null}
-            />
-          </>
-        )}
+          {podeGerenciar && aoAninhar ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label={`Adicionar sub-etapa em ${sub.titulo}`}
+                  onClick={aoAninhar}
+                >
+                  <CornerDownRight aria-hidden />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Desdobrar em sub-etapas</TooltipContent>
+            </Tooltip>
+          ) : null}
 
-        {podeGerenciar && aoAninhar ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label={`Adicionar sub-etapa em ${sub.titulo}`}
-                onClick={aoAninhar}
-              >
-                <CornerDownRight aria-hidden />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Desdobrar em sub-etapas</TooltipContent>
-          </Tooltip>
-        ) : null}
-
-        {podeGerenciar ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label={`Remover ${sub.titulo}`}
-            onClick={aoRemover}
-          >
-            <Trash2 aria-hidden />
-          </Button>
-        ) : null}
-      </div>
-    </div>
+          {podeGerenciar ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label={`Remover ${sub.titulo}`}
+              onClick={aoRemover}
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          ) : null}
+        </>
+      }
+    />
   );
 }
 
@@ -501,6 +574,10 @@ function somar(
   subtarefas: SubtarefaDetalhada[],
   campo: "tempo_real_minutos" | "estimativa_minutos",
 ): number | null {
-  const valores = subtarefas.map((s) => s[campo]).filter((v): v is number => v !== null);
-  return valores.length === 0 ? null : valores.reduce((total, v) => total + v, 0);
+  const valores = subtarefas
+    .map((s) => s[campo])
+    .filter((v): v is number => v !== null);
+  return valores.length === 0
+    ? null
+    : valores.reduce((total, v) => total + v, 0);
 }

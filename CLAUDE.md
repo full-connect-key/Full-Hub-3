@@ -460,6 +460,159 @@ Uma checagem no carregamento do módulo estoura se algum status ficar fora de
 todo grupo. Sem ela, um valor novo no enum sumiria do seletor sem erro e sem
 aviso, e só apareceria no dia em que alguém fosse procurar por ele.
 
+#### A ORDEM DE TODA LINHA DE TRABALHO: status, nome, prioridade, vencimento
+
+Decisão do usuário, e ela é sobre CONSISTÊNCIA antes de ser sobre ordem: *"a
+mesma estrutura para tasks e subtarefas, consistente entre os módulos"*. O
+produto tinha QUATRO ordens — a tabela da Gestão de Tasks, a lista de etapas do
+detalhe, a de Minhas Tasks e a árvore da campanha —, e em três delas o status
+vinha DEPOIS do prazo; na tabela ele era a sétima coluna, depois de cliente,
+equipe e prazo. Quem trocava de módulo reaprendia onde olhar.
+
+**É UM COMPONENTE E NÃO UMA CONVENÇÃO ESCRITA.** `LinhaDeTrabalho` recebe os
+quatro em posições nomeadas, então a sequência é o TIPO — e a quinta tela não
+tem como inventar outra. Uma ordem combinada em prosa é uma ordem que alguém
+quebra sem ninguém notar, porque nada reprova: é a história das sete cópias de
+`abas.tsx`.
+
+**O QUE ELE NÃO DECIDE É O QUE VAI EM CADA POSIÇÃO**, que é a decisão da
+`BarraDeContexto` palavra por palavra — o que se centraliza é o desenho e o
+mecanismo, nunca a lista. A lista do detalhe põe o SELETOR de status na primeira
+posição, a de Minhas Tasks põe o selo, e a agrupadora não tem prioridade nem
+prazo porque a 0022 passou os dois para as filhas no instante em que ela ganhou
+a primeira.
+
+**O STATUS PODE VIR DE FORA DA LINHA, e isso não é exceção à regra.** Onde a
+lista é AGRUPADA por status o cabeçalho já o diz, e no board é a COLUNA que o
+carrega — repetir o selo em cada linha seria a mesma palavra duas vezes a dois
+centímetros de distância, que é a decisão escrita da Lista desde o Sprint 10 e
+a do card do board desde o 3. O que a posição garante é que, onde ele aparece,
+aparece ANTES do nome.
+
+**E NA TABELA ISSO DEIXOU DE SER SÓ RUÍDO: custava LARGURA.** Numa tabela de
+nove colunas o layout reparte pelo conteúdo, e com a coluna de status repetindo
+o cabeçalho do grupo o nome — a única frase inteira da linha — saía em quatro
+linhas enquanto "Estimativa" tinha espaço de sobra. A coluna some quando o
+agrupamento é por status, e o nome ganhou um piso de 14rem. Foi a imagem que
+mostrou, e só depois de a ordem mudar: antes o nome era a segunda coluna e
+ficava com a largura de graça.
+
+**A TABELA NÃO USA O COMPONENTE**, e a ausência é decisão: ela é uma tabela de
+verdade — ordena, seleciona em massa, esconde coluna —, e o que se compartilha
+com as listas é a ORDEM, não o desenho. Cliente e equipe vêm depois dos quatro,
+e é consequência aceita: eles respondem de quem é a demanda, não em que pé ela
+está.
+
+**A ÁRVORE DA CAMPANHA ENTROU COM DOIS DOS QUATRO.** A peça não tem prioridade
+nem prazo próprios — eles moram na etapa que a 0051 criou para ela —, então o
+que muda ali é o status passar do fim da linha para antes do nome. Ele fica
+DEPOIS da miniatura e não antes: a imagem identifica a peça, e separá-la do
+nome trocaria um problema por outro.
+
+**E NENHUMA TELA CITA A FERRAMENTA QUE O PEDIDO USOU COMO REFERÊNCIA**, que é a
+regra escrita deste arquivo desde o primeiro sprint: o Full Hub é o sistema
+único da agência, e o nome de uma ferramenta externa de gestão não aparece na
+interface, em texto de ajuda nem em nome de campo.
+
+#### A ETAPA SE EDITA NUM MODAL CENTRALIZADO, e o nome dela é um campo
+
+Decisão do usuário: *"substituir a aba lateral por um modal centralizado ou uma
+área integrada"*, com nome, status, responsável, prioridade e vencimento
+editáveis.
+
+**O NOME ERA TEXTO MORTO.** Ele era o `SheetTitle` do painel, e a única forma de
+corrigir uma etapa com o nome errado era apagar e criar outra — o que levava
+junto o tempo medido, as dependências, as entregas e as rodadas. **A ação já
+aceitava o campo:** `atualizarSubtarefa` grava `titulo` desde o Sprint 3B, e
+`esquemaDeSubtarefa` já o validava. É a ponte construída e nunca atravessada
+pela vigésima vez, e desta vez o que faltava era um `<input>`.
+
+**A GAVETA TINHA 512px E A ETAPA TEM DOZE CAMPOS.** Metade deles vivia abaixo da
+dobra, e os dois que mais se mexem — o período e a faixa de disponibilidade —
+eram justamente os que pediam rolagem. No centro a caixa chega a 768px e a
+grade abre em duas colunas.
+
+**E ELA ABRE POR CIMA, inclusive do painel de Minhas Tasks.** Lá a linha abre a
+DEMANDA inteira, que é decisão escrita — *"clicar abre o painel com ela inteira,
+onde se vê o que as outras pessoas estão fazendo nela"* —, e a etapa de dentro
+abria uma segunda gaveta por cima da primeira: duas gavetas do mesmo lado, uma
+comendo a outra. Um modal centralizado por cima de uma gaveta se lê como o que
+é.
+
+**O FOCO NÃO VAI PARA O NOME.** O Radix foca o primeiro elemento focável ao
+abrir, e aqui ele é o campo do nome — com o texto selecionado, então a primeira
+tecla apagaria o nome da etapa. O foco fica na própria caixa, que é o que o
+leitor de tela anuncia e de onde o Tab começa. **E o `DialogTitle` continua
+existindo, `sr-only`:** sem ele o Radix acusa um diálogo sem nome acessível, e o
+`<input>` não serve de título — ele é um campo, e o leitor anuncia o valor dele,
+não o nome da janela.
+
+##### `NomeEditavel`, e por que ele não nasceu com a tela de task
+
+O título da demanda salva sozinho desde a 0028 — 600 ms de pausa mais o `blur`,
+`Enter` que fecha o campo, e o valor que falhou ficando na tela. Com o nome da
+ETAPA passando a ser editável, aquilo era para ser escrito duas vezes, e o
+segundo é o que ninguém relê.
+
+**A PAUSA E O `blur` SÃO OS DOIS**, e cada um cobre o que o outro deixa passar:
+a pausa é para não gravar letra a letra, o `blur` é para não perder o que foi
+digitado por quem fecha a tela logo depois. **E ele não grava o que não mudou**
+— a tela de task salva campo a campo, e sem essa pergunta clicar fora de um nome
+sem digitar viraria uma escrita, que a trilha de auditoria registraria como
+alteração.
+
+**O ÚLTIMO VALOR GRAVADO MORA NUM `ref`, e não é a prop.** Entre a gravação e o
+`refresh` do servidor a prop ainda é a antiga, e sem isso o `blur` seguinte
+mandaria de novo exatamente o que acabou de ser gravado.
+
+**O QUE FICA EM CADA CHAMADOR é o que é da tela dele:** a escala do texto, o foco
+no rascunho recém-nascido (`autoFocus` quando o título está vazio, que é como a
+0028 abre a demanda), e o aviso para a barra de estado. O que some é a mecânica.
+
+***O que isto NÃO fez, e é dito em vez de escondido:*** não há edição do nome no
+lugar, dentro da linha da lista. O pedido fala em editar *"em todos os locais
+onde a subtarefa aparece"*, e a leitura que ficou é que o EDITOR é um só e toda
+tela chega nele — pela razão de sempre: seis campos de edição inline em seis
+telas são seis lugares para divergir, e são eles que fariam a sincronização
+entre as visualizações deixar de valer. Quem quiser a edição inline depois tem o
+componente pronto.
+
+#### O CARTÃO INTEIRO ABRE OS DETALHES
+
+Decisão do usuário: *"toda a superfície do card deve abrir os detalhes,
+preservando os botões, menus internos e o arrastar e soltar"*.
+
+**A SAÍDA ÓBVIA É A QUE O AXE REPROVA.** `role="button"` mais `tabIndex` no
+contêiner dá um botão com botões dentro — `nested-interactive`, crítico —, e na
+prática duas paradas de Tab para a mesma coisa. **Este produto já pagou isso uma
+vez**, no cartão do board que recebia os `attributes` do dnd-kit.
+
+Então o clique é do CONTÊINER e o foco continua no NOME, que já é um botão de
+verdade: o mouse ganha a superfície inteira, o teclado continua com uma parada
+só, e nada muda na árvore de acessibilidade. `useCliqueNoCartao` é o lugar único
+disso.
+
+**TRÊS COISAS ELE NÃO ROUBA:** clique em qualquer coisa que já responde (os
+botões de ação, o seletor de status, os links, e o item de um `Select` aberto,
+que vive num portal onde `closest` não acha botão nenhum acima); clique que
+terminou uma SELEÇÃO de texto, porque quem arrastou o cursor para copiar o nome
+de uma etapa não está pedindo para abrir nada; e **o fim de um ARRASTO** — o
+`PointerSensor` do dnd-kit começa a arrastar depois de 6px, e quando ele termina
+o navegador ainda dispara o `click` no elemento. Sem essa guarda, soltar um card
+numa coluna abriria o painel por cima do board que a pessoa acabou de
+reorganizar. A conta é a mesma dos 6px, e o `onPointerDown` é de CAPTURA: os
+`listeners` do dnd-kit também o escutam, e o bloco das ações chama
+`stopPropagation` nele.
+
+**A LINHA DA LISTA VIROU COMPONENTE por causa disso**, e não por tamanho: o
+gancho guarda onde o ponteiro desceu, e gancho não se chama de dentro de um
+`.map`.
+
+**O BOARD DA GESTÃO DE TASKS JÁ ERA ASSIM e não mudou**: o card inteiro é o
+`<button>` (ou o `<Link>`, quando não há painel), porque ali não existe controle
+nenhum dentro dele. É a prova de que o caso difícil é o outro — o card que
+carrega os próprios botões.
+
 #### Formulário longo vai em seções numeradas
 
 `components/shared/secao-do-formulario.tsx`. Nasceu no Nova Task e virou

@@ -4,7 +4,17 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Plus, Trash2, X } from "lucide-react";
+import {
+  ChevronRight,
+  ExternalLink,
+  Link2,
+  Loader2,
+  Lock,
+  Paperclip,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
@@ -16,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NomeEditavel } from "@/components/shared/nome-editavel";
 import {
   Select,
   SelectContent,
@@ -24,12 +35,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { FAMILIAS } from "@/lib/dominio/arquivos";
-import { fazASubtarefa, PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
-import { AJUDA_DE_TEMPO, formatarMinutos, tempoParaCampo } from "@/lib/dominio/tempo";
-import { ROTULO_DA_APROVACAO, ROTULO_DO_ESCOPO } from "@/lib/tasks/state-machine";
+import {
+  fazASubtarefa,
+  PRIORIDADES,
+  ROTULOS_DE_PRIORIDADE,
+} from "@/lib/dominio/tasks";
+import {
+  AJUDA_DE_TEMPO,
+  formatarMinutos,
+  tempoParaCampo,
+} from "@/lib/dominio/tempo";
+import {
+  ROTULO_DA_APROVACAO,
+  ROTULO_DO_ESCOPO,
+} from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
 
@@ -89,7 +117,9 @@ export function PainelDaSubtarefa({
 
   function trocarStatus(destino: SubtaskStatus) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => moverSubtarefa(subtarefa.id, taskId, destino));
+      const resultado = await chamarAcao(() =>
+        moverSubtarefa(subtarefa.id, taskId, destino),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
@@ -97,7 +127,9 @@ export function PainelDaSubtarefa({
 
   function salvar(campos: Record<string, unknown>) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => atualizarSubtarefa(subtarefa.id, taskId, campos));
+      const resultado = await chamarAcao(() =>
+        atualizarSubtarefa(subtarefa.id, taskId, campos),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else router.refresh();
     });
@@ -123,11 +155,75 @@ export function PainelDaSubtarefa({
   }
 
   return (
-    <Sheet open onOpenChange={(aberto) => !aberto && aoFechar()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle className="text-balance">{subtarefa.titulo}</SheetTitle>
-          <SheetDescription className="flex flex-wrap items-center gap-2">
+    <Dialog open onOpenChange={(aberto) => !aberto && aoFechar()}>
+      {/* ------------------------------------------------------------------
+          MODAL CENTRALIZADO, e não mais a gaveta da direita.
+
+          A gaveta tinha 512px e a etapa tem doze campos: metade deles vivia
+          abaixo da dobra, e os dois que mais se mexem — o período e a faixa
+          de disponibilidade — eram justamente os que pediam rolagem. No
+          centro a caixa chega a 768px e a grade abre em duas colunas, então o
+          que se edita cabe junto.
+
+          **E ELA ABRE POR CIMA, inclusive do painel de Minhas Tasks.** Lá a
+          linha abre a DEMANDA inteira — decisão escrita, *"clicar abre o
+          painel com ela inteira, onde se vê o que as outras pessoas estão
+          fazendo nela"* —, e a etapa de dentro abria uma segunda gaveta por
+          cima da primeira: duas gavetas do mesmo lado, uma comendo a outra.
+          Um modal centralizado por cima de uma gaveta se lê como o que é.
+
+          A altura é limitada em 85vh com rolagem PRÓPRIA: sem isso, numa
+          etapa com seis rodadas a caixa passa da janela e o topo — que é onde
+          está o nome — sai da tela. */}
+      <DialogContent
+        className="max-h-[85vh] gap-0 overflow-y-auto p-0 sm:max-w-3xl"
+        // O FOCO NÃO VAI PARA O NOME. O Radix foca o primeiro elemento
+        // focável ao abrir, e aqui ele é o campo do nome — com o texto
+        // selecionado, então a primeira tecla apagaria o nome da etapa. O
+        // foco fica na própria caixa (ela é `tabIndex={-1}`), que é o que o
+        // leitor de tela anuncia e de onde o Tab começa.
+        onOpenAutoFocus={(evento) => {
+          evento.preventDefault();
+          (evento.currentTarget as HTMLElement | null)?.focus();
+        }}
+      >
+        <DialogHeader className="px-4 pt-4 pr-12">
+          {/* O NOME SE EDITA AQUI. Ele era um `SheetTitle` — texto morto —,
+              e a única forma de corrigir uma etapa com o nome errado era
+              apagar e criar outra, o que levava junto o tempo medido, as
+              dependências e as rodadas.
+
+              O `DialogTitle` continua existindo, `sr-only`: sem ele o Radix
+              acusa um diálogo sem nome acessível, e o `<input>` abaixo não
+              serve de título — ele é um campo, e o leitor de tela anuncia o
+              valor dele, não o nome da janela. */}
+          <DialogTitle className="sr-only">
+            {subtarefa.titulo || "Etapa sem nome"}
+          </DialogTitle>
+          <NomeEditavel
+            valor={subtarefa.titulo}
+            podeEditar={podeMexer}
+            rotulo="Nome da etapa"
+            placeholder="Nome da etapa"
+            className="text-lg font-semibold md:text-lg"
+            comoTexto={(texto) => (
+              <p className="px-2 py-1 text-lg font-semibold text-balance">
+                {texto}
+              </p>
+            )}
+            aoGravar={async (novo) => {
+              const resultado = await chamarAcao(() =>
+                atualizarSubtarefa(subtarefa.id, taskId, { titulo: novo }),
+              );
+              if (!resultado.ok) {
+                toast.error(resultado.error);
+                return resultado.error;
+              }
+              router.refresh();
+              return null;
+            }}
+          />
+          <DialogDescription className="flex flex-wrap items-center gap-2 px-2">
             {/* O SELO É O SELETOR, como na linha do detalhe da Task. Era um
                 selo morto com um botão "Iniciar" logo abaixo dizendo a mesma
                 coisa por outro caminho — dois controles para um andamento só,
@@ -141,16 +237,18 @@ export function PainelDaSubtarefa({
             {subtarefa.requer_aprovacao ? (
               <Badge variant="outline" className="gap-1">
                 <Lock className="size-3" aria-hidden />
-                Requer aprovação: {ROTULO_DA_APROVACAO[subtarefa.tipo_aprovacao ?? "interna"]}
+                Requer aprovação:{" "}
+                {ROTULO_DA_APROVACAO[subtarefa.tipo_aprovacao ?? "interna"]}
               </Badge>
             ) : null}
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-6 px-4 pb-6">
           {subtarefa.dependenciasAbertas.length > 0 ? (
             <p className="bg-warning-soft text-warning border-transparent rounded-md border px-3 py-2 text-sm">
-              Aguardando: {subtarefa.dependenciasAbertas.join(", ")}. Enquanto isso, ela não inicia.
+              Aguardando: {subtarefa.dependenciasAbertas.join(", ")}. Enquanto
+              isso, ela não inicia.
             </p>
           ) : null}
 
@@ -160,7 +258,9 @@ export function PainelDaSubtarefa({
                 <Select
                   value={subtarefa.responsavel_id ?? SEM_VALOR}
                   onValueChange={(valor) =>
-                    salvar({ responsavel_id: valor === SEM_VALOR ? null : valor })
+                    salvar({
+                      responsavel_id: valor === SEM_VALOR ? null : valor,
+                    })
                   }
                 >
                   <SelectTrigger aria-label="Responsável" className="w-full">
@@ -185,7 +285,9 @@ export function PainelDaSubtarefa({
                   {subtarefa.responsavel.nome}
                 </span>
               ) : (
-                <span className="text-muted-foreground text-sm">Sem responsável</span>
+                <span className="text-muted-foreground text-sm">
+                  Sem responsável
+                </span>
               )}
 
               {/* ----------------------------------------------------------
@@ -206,15 +308,22 @@ export function PainelDaSubtarefa({
               {subtarefa.outrosResponsaveis.length > 0 ? (
                 <ul className="mt-2 space-y-1.5">
                   {subtarefa.outrosResponsaveis.map((pessoa) => (
-                    <li key={pessoa.id} className="flex items-center gap-2 text-sm">
-                      <UserAvatar name={pessoa.nome} src={pessoa.avatar_url} size="sm" />
-                      <span className="min-w-0 flex-1 truncate">{pessoa.nome}</span>
+                    <li
+                      key={pessoa.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <UserAvatar
+                        name={pessoa.nome}
+                        src={pessoa.avatar_url}
+                        size="sm"
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {pessoa.nome}
+                      </span>
                       {podeGerenciar ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            mudarExtra(pessoa.id, false)
-                          }
+                          onClick={() => mudarExtra(pessoa.id, false)}
                           className="text-text-muted hover:text-danger shrink-0 transition-colors"
                           aria-label={`Tirar ${pessoa.nome} desta etapa`}
                         >
@@ -229,9 +338,7 @@ export function PainelDaSubtarefa({
               {podeGerenciar && subtarefa.responsavel_id ? (
                 <Select
                   value={SEM_VALOR}
-                  onValueChange={(valor) =>
-                    mudarExtra(valor, true)
-                  }
+                  onValueChange={(valor) => mudarExtra(valor, true)}
                 >
                   <SelectTrigger
                     aria-label="Acrescentar outra pessoa a esta etapa"
@@ -252,7 +359,9 @@ export function PainelDaSubtarefa({
                       .filter(
                         (pessoa) =>
                           pessoa.id !== subtarefa.responsavel_id &&
-                          !subtarefa.outrosResponsaveis.some((o) => o.id === pessoa.id),
+                          !subtarefa.outrosResponsaveis.some(
+                            (o) => o.id === pessoa.id,
+                          ),
                       )
                       .map((pessoa) => (
                         <SelectItem key={pessoa.id} value={pessoa.id}>
@@ -282,11 +391,13 @@ export function PainelDaSubtarefa({
                   </SelectContent>
                 </Select>
               ) : (
-                <span className="text-sm">{ROTULOS_DE_PRIORIDADE[subtarefa.prioridade]}</span>
+                <span className="text-sm">
+                  {ROTULOS_DE_PRIORIDADE[subtarefa.prioridade]}
+                </span>
               )}
             </Campo>
 
-{/* O PERÍODO da etapa (migration 0027), e não só o prazo. Duas etapas
+            {/* O PERÍODO da etapa (migration 0027), e não só o prazo. Duas etapas
                 com o mesmo prazo podem ser uma de três dias e uma de três
                 horas — sem o início, quem monta a agenda da semana tem
                 metade da informação.
@@ -309,7 +420,9 @@ export function PainelDaSubtarefa({
               ) : (
                 <span className="text-sm">
                   {subtarefa.data_inicio
-                    ? format(parseISO(subtarefa.data_inicio), "dd/MM/yyyy", { locale: ptBR })
+                    ? format(parseISO(subtarefa.data_inicio), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })
                     : "—"}
                 </span>
               )}
@@ -330,7 +443,9 @@ export function PainelDaSubtarefa({
               ) : (
                 <span className="text-sm">
                   {subtarefa.prazo
-                    ? format(parseISO(subtarefa.prazo), "dd/MM/yyyy", { locale: ptBR })
+                    ? format(parseISO(subtarefa.prazo), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })
                     : "—"}
                 </span>
               )}
@@ -379,7 +494,6 @@ export function PainelDaSubtarefa({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-
             <Campo rotulo="Estimativa">
               {podeMexer ? (
                 <Input
@@ -392,18 +506,22 @@ export function PainelDaSubtarefa({
                   title={AJUDA_DE_TEMPO}
                   onBlur={(evento) => {
                     const atual = tempoParaCampo(subtarefa.estimativa_minutos);
-                    if (evento.target.value !== atual) salvar({ estimativa: evento.target.value });
+                    if (evento.target.value !== atual)
+                      salvar({ estimativa: evento.target.value });
                   }}
                 />
               ) : (
-                <span className="text-sm">{formatarMinutos(subtarefa.estimativa_minutos)}</span>
+                <span className="text-sm">
+                  {formatarMinutos(subtarefa.estimativa_minutos)}
+                </span>
               )}
             </Campo>
           </div>
 
           {subtarefa.tempo_real_minutos !== null ? (
             <p className="text-muted-foreground text-xs">
-              Tempo real registrado: {formatarMinutos(subtarefa.tempo_real_minutos)}.
+              Tempo real registrado:{" "}
+              {formatarMinutos(subtarefa.tempo_real_minutos)}.
             </p>
           ) : null}
 
@@ -420,8 +538,17 @@ export function PainelDaSubtarefa({
               <ul className="space-y-1">
                 {subtarefa.dependeDe.map((dep) => (
                   <li key={dep.id} className="flex items-center gap-2 text-sm">
-                    <Link2 className="text-muted-foreground size-3.5" aria-hidden />
-                    <span className={dep.status === "concluida" ? "text-muted-foreground" : ""}>
+                    <Link2
+                      className="text-muted-foreground size-3.5"
+                      aria-hidden
+                    />
+                    <span
+                      className={
+                        dep.status === "concluida"
+                          ? "text-muted-foreground"
+                          : ""
+                      }
+                    >
                       {dep.titulo}
                     </span>
                     <StatusBadge status={dep.status} />
@@ -434,7 +561,11 @@ export function PainelDaSubtarefa({
                         onClick={() =>
                           iniciar(async () => {
                             const r = await chamarAcao(() =>
-                              desvincularDependencia(taskId, subtarefa.id, dep.id),
+                              desvincularDependencia(
+                                taskId,
+                                subtarefa.id,
+                                dep.id,
+                              ),
                             );
                             if (!r.ok) toast.error(r.error);
                             else router.refresh();
@@ -462,7 +593,10 @@ export function PainelDaSubtarefa({
                   })
                 }
               >
-                <SelectTrigger className="w-full" aria-label="Adicionar dependência">
+                <SelectTrigger
+                  className="w-full"
+                  aria-label="Adicionar dependência"
+                >
                   <SelectValue placeholder="Adicionar dependência…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -497,8 +631,14 @@ export function PainelDaSubtarefa({
             ) : (
               <ul className="space-y-1">
                 {subtarefa.entregas.map((entrega) => (
-                  <li key={entrega.id} className="flex items-center gap-2 text-sm">
-                    <Paperclip className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
+                  <li
+                    key={entrega.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <Paperclip
+                      className="text-muted-foreground size-3.5 shrink-0"
+                      aria-hidden
+                    />
                     {/* O ENDEREÇO É O ASSINADO, e não o `url` cru (0121): um
                         arquivo do bucket tem como `url` o CAMINHO, e pô-lo
                         num `href` é um link que não leva a lugar nenhum. O
@@ -520,7 +660,10 @@ export function PainelDaSubtarefa({
                         {entrega.nome ?? entrega.url}
                       </span>
                     )}
-                    <ExternalLink className="text-muted-foreground size-3 shrink-0" aria-hidden />
+                    <ExternalLink
+                      className="text-muted-foreground size-3 shrink-0"
+                      aria-hidden
+                    />
                     {/* O BOTÃO SOME NO ARQUIVO QUE JÁ SAIU, em vez de aparecer
                         desligado: a razão não é um passo que falta, é uma
                         porta que fechou — a mesma distinção do "cancelar" do
@@ -535,7 +678,9 @@ export function PainelDaSubtarefa({
                         aria-label="Remover entrega"
                         onClick={() =>
                           iniciar(async () => {
-                            const r = await chamarAcao(() => removerEntrega(entrega.id, taskId));
+                            const r = await chamarAcao(() =>
+                              removerEntrega(entrega.id, taskId),
+                            );
                             if (!r.ok) toast.error(r.error);
                             else router.refresh();
                           })
@@ -609,7 +754,10 @@ export function PainelDaSubtarefa({
                     if (!link.trim()) return;
                     iniciar(async () => {
                       const r = await chamarAcao(() =>
-                        anexarEntrega(taskId, subtarefa.id, { tipo: "link", url: link }),
+                        anexarEntrega(taskId, subtarefa.id, {
+                          tipo: "link",
+                          url: link,
+                        }),
                       );
                       if (!r.ok) toast.error(r.error);
                       else {
@@ -650,12 +798,18 @@ export function PainelDaSubtarefa({
             )}
           </section>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+function Campo({
+  rotulo,
+  children,
+}: {
+  rotulo: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label className="text-muted-foreground text-xs">{rotulo}</Label>
@@ -673,7 +827,9 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
  * meses depois.
  */
 function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
-  const [abertas, setAbertas] = useState<Set<string>>(new Set([rodadas[0]?.id]));
+  const [abertas, setAbertas] = useState<Set<string>>(
+    new Set([rodadas[0]?.id]),
+  );
 
   return (
     <ul className="space-y-2">
@@ -699,7 +855,9 @@ function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
                 aria-hidden
               />
               <span className="font-medium">Rodada {rodada.numero_rodada}</span>
-              <span className="text-muted-foreground">{ROTULO_DO_ESCOPO[rodada.escopo]}</span>
+              <span className="text-muted-foreground">
+                {ROTULO_DO_ESCOPO[rodada.escopo]}
+              </span>
               <ResultadoDaRodada status={rodada.status} />
               <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                 {format(parseISO(quando), "dd/MM", { locale: ptBR })}
@@ -710,7 +868,11 @@ function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
               <div className="space-y-1 border-t px-3 py-2 text-sm">
                 <p className="text-muted-foreground text-xs">
                   Pedida por {rodada.solicitante?.nome ?? "—"} em{" "}
-                  {format(parseISO(rodada.solicitado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  {format(
+                    parseISO(rodada.solicitado_em),
+                    "dd/MM/yyyy 'às' HH:mm",
+                    { locale: ptBR },
+                  )}
                   {rodada.decidido_em
                     ? ` · decidida por ${rodada.decisor?.nome ?? "—"} em ${format(parseISO(rodada.decidido_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
                     : " · esperando decisão"}
@@ -725,7 +887,11 @@ function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
   );
 }
 
-function ResultadoDaRodada({ status }: { status: SubtarefaDetalhada["rodadas"][number]["status"] }) {
+function ResultadoDaRodada({
+  status,
+}: {
+  status: SubtarefaDetalhada["rodadas"][number]["status"];
+}) {
   const texto =
     status === "aprovada"
       ? "Aprovada"

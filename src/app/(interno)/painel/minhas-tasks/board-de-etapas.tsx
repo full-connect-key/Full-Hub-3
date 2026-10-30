@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
+import { useCliqueNoCartao } from "@/components/shared/clique-no-cartao";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import {
@@ -113,13 +114,16 @@ function Card({
     prazos.hoje,
     prazos.fimDaSemana,
   );
+  const cliqueNoCartao = useCliqueNoCartao(() => aoAbrir?.(linha.taskId));
 
   return (
     <article
+      {...(aoAbrir ? cliqueNoCartao : {})}
       className={cn(
         "bg-card relative overflow-hidden rounded-lg border p-3 shadow-xs",
         situacao === "atrasada" && "border-destructive/40",
         arrastando && "opacity-60",
+        aoAbrir && "hover:border-accent-strong/40 cursor-pointer transition-colors",
       )}
     >
       {/* Faixa de prioridade, como no board da demanda: dá para varrer a
@@ -133,9 +137,14 @@ function Card({
       />
 
       <div className="space-y-2 pl-2">
-        {/* SÓ O TÍTULO é botão, e não o card inteiro: as ações da etapa moram
-            aqui dentro, e botão dentro de botão é HTML inválido — o navegador
-            desfaz o aninhamento e o clique passa a cair no lugar errado. */}
+        {/* O CARTÃO INTEIRO ABRE A DEMANDA, e o título continua sendo o
+            BOTÃO. Aqui estava escrito que só ele podia ser clicável porque
+            "botão dentro de botão é HTML inválido" — e isso continua
+            verdadeiro: o que mudou é que o cartão não virou botão. O clique
+            é do `<article>`, por `useCliqueNoCartao`, que devolve o evento a
+            quem já responde por ele (as ações, o seletor, os links) e se cala
+            no fim de um arrasto. O título fica porque é ele a parada de Tab:
+            sem ele o cartão sairia do alcance do teclado. */}
         {aoAbrir ? (
           <button
             type="button"

@@ -262,6 +262,14 @@ function Peca({
           </span>
         )}
 
+        {/* O STATUS VEM ANTES DO NOME, que é a ordem de toda linha de
+            trabalho do produto (`LinhaDeTrabalho`). Ele ficava no fim da
+            linha, depois do nome do arquivo e dos avisos de aval — quem vinha
+            da lista de etapas procurava no começo e não achava. Fica DEPOIS
+            da miniatura e não antes: a imagem identifica a peça, e separá-la
+            do nome dela trocaria um problema por outro. */}
+        <StatusBadge status={item.status} />
+
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{item.nome}</span>
           {/* A LINHA FECHADA DIZ QUE A PEÇA VOLTOU, senão quem produz abre
@@ -281,8 +289,6 @@ function Peca({
             ) : analise.pendente ? " · no aval interno" : ""}
           </span>
         </span>
-
-        <StatusBadge status={item.status} />
       </button>
 
       {aberto ? (

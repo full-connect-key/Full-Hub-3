@@ -11,6 +11,8 @@ import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
+import { useCliqueNoCartao } from "@/components/shared/clique-no-cartao";
+import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import {
   StatusBadge,
@@ -197,19 +199,63 @@ function Linhas({
       uma lista com fio, mais e a coluna vira uma pilha de blocos sem relação.
     */
     <div className="flex flex-col gap-2">
-      {linhas.map((linha, indice) => {
-        const sub = linha.subtarefa;
-        const situacao = situacaoDoPrazo(
-          sub.prazo,
-          sub.status === "concluida",
-          prazos.hoje,
-          prazos.fimDaSemana,
-        );
+      {linhas.map((linha, indice) => (
+        <LinhaDaLista
+          key={linha.chave}
+          linha={linha}
+          indice={indice}
+          prazos={prazos}
+          usuarioId={usuarioId}
+          souGestor={souGestor}
+          aoAbrir={aoAbrir}
+          mostrarStatus={mostrarStatus}
+        />
+      ))}
+    </div>
+  );
+}
 
-        return (
-          <div
-            key={linha.chave}
-            /*
+/**
+ * Uma etapa minha.
+ *
+ * **Ela é um componente e não um laço**, desde que o cartão inteiro passou a
+ * abrir a demanda: `useCliqueNoCartao` guarda onde o ponteiro desceu para
+ * saber se aquilo foi um clique ou o fim de um arrasto, e gancho não se chama
+ * de dentro de um `.map`.
+ */
+function LinhaDaLista({
+  linha,
+  indice,
+  prazos,
+  usuarioId,
+  souGestor,
+  aoAbrir,
+  mostrarStatus,
+}: {
+  linha: LinhaPessoal;
+  indice: number;
+  prazos: Prazos;
+  usuarioId: string;
+  souGestor: boolean;
+  aoAbrir: (taskId: string) => void;
+  mostrarStatus: boolean;
+}) {
+  const sub = linha.subtarefa;
+  const situacao = situacaoDoPrazo(
+    sub.prazo,
+    sub.status === "concluida",
+    prazos.hoje,
+    prazos.fimDaSemana,
+  );
+  const cliqueNaLinha = useCliqueNoCartao(() => aoAbrir(linha.taskId));
+
+  return (
+    <LinhaDeTrabalho
+      /* O CARTÃO INTEIRO ABRE A DEMANDA. O nome continua sendo o botão
+               de verdade — é ele a parada de Tab —, e o contêiner só
+               acrescenta a superfície para o mouse. */
+      {...cliqueNaLinha}
+      /*
               A ÂNCORA DO TOUR VAI NA PRIMEIRA LINHA SÓ (0101). O passo "o
               trabalho acontece nas etapas" aponta para UMA etapa, e marcar as
               doze poria doze elementos com o mesmo `data-tour` na página —
@@ -220,191 +266,199 @@ function Linhas({
               não tem etapa nenhuma simplesmente não o vê — e isso NÃO entra no
               alarme de tour quebrado, que é a razão de a bandeira existir.
             */
-            {...(indice === 0 ? ancora(ANCORAS.etapaDaLista) : {})}
-            className={cn(
-              "bg-card rounded-card shadow-cartao flex flex-wrap items-center gap-2 border p-3.5",
-              // A LINHA ATRASADA PRECISA SER ACHADA, e `bg-destructive/5`
-              // não achava ninguém: 5% de uma cor sobre o fundo do cartão é
-              // um tom que não se distingue do branco. O contador dizia "1
-              // atrasada" e a pessoa varria a lista sem encontrar qual —
-              // que foi exatamente o relato.
-              //
-              // Par nomeado e não opacidade, que é a regra do produto desde
-              // o selo de estado: opacidade sobre um fundo qualquer dá uma
-              // cor que ninguém mediu, e no tema escuro dá outra. A borda
-              // esquerda é o que sobrevive à varredura do olho numa lista
-              // longa — o fundo sozinho se perde entre dois cartões.
-              situacao === "atrasada" &&
-                "bg-danger-soft border-danger border-l-4 pl-2.5",
-            )}
+      {...(indice === 0 ? ancora(ANCORAS.etapaDaLista) : {})}
+      className={cn(
+        "bg-card rounded-card shadow-cartao hover:border-accent-strong/40 cursor-pointer border p-3.5 transition-colors",
+        // A LINHA ATRASADA PRECISA SER ACHADA, e `bg-destructive/5`
+        // não achava ninguém: 5% de uma cor sobre o fundo do cartão é
+        // um tom que não se distingue do branco. O contador dizia "1
+        // atrasada" e a pessoa varria a lista sem encontrar qual —
+        // que foi exatamente o relato.
+        //
+        // Par nomeado e não opacidade, que é a regra do produto desde
+        // o selo de estado: opacidade sobre um fundo qualquer dá uma
+        // cor que ninguém mediu, e no tema escuro dá outra. A borda
+        // esquerda é o que sobrevive à varredura do olho numa lista
+        // longa — o fundo sozinho se perde entre dois cartões.
+        situacao === "atrasada" &&
+          "bg-danger-soft border-danger border-l-4 pl-2.5",
+      )}
+      status={
+        /* O STATUS VEM PRIMEIRO, e aqui ele só aparece quando NÃO há
+                 cabeçalho de grupo dizendo o mesmo: a Lista agrupa pelos
+                 seis status desde o Sprint 10, e o selo dentro do grupo
+                 seria a mesma palavra duas vezes a um centímetro de
+                 distância. Onde ele aparece, aparece antes do nome. */
+        mostrarStatus ? <StatusBadge status={sub.status} /> : null
+      }
+      nome={
+        <>
+          <button
+            type="button"
+            className="hover:text-accent-strong block max-w-full truncate text-left text-sm font-medium"
+            onClick={() => aoAbrir(linha.taskId)}
           >
-            <div className="min-w-0 flex-1">
-              <button
-                type="button"
-                className="hover:text-accent-strong block max-w-full truncate text-left text-sm font-medium"
-                onClick={() => aoAbrir(linha.taskId)}
-              >
-                {sub.titulo}
-              </button>
+            {sub.titulo}
+          </button>
 
-              {/* A LINHAGEM, e não uma linha de cabeçalho por demanda: ela
-                  responde "por que estou fazendo isto?" sem gastar uma linha
-                  inteira da lista, e clicar abre a demanda completa, onde se
-                  vê as etapas das outras pessoas.
+          {/* A LINHAGEM, e não uma linha de cabeçalho por demanda: ela
+                    responde "por que estou fazendo isto?" sem gastar uma linha
+                    inteira da lista, e clicar abre a demanda completa, onde se
+                    vê as etapas das outras pessoas.
 
-                  E A PILHA DE QUEM MAIS ESTÁ NELA vem logo depois, na mesma
-                  linha, porque é a pergunta seguinte: a linhagem diz por que
-                  estou fazendo isto, a pilha diz quem está com o resto — que é
-                  o que explica a etapa parada esperando a arte de outra
-                  pessoa. Ela é irmã do `<p>` e não filha dele: avatar é um
-                  `<div>`, e `<div>` dentro de `<p>` faz o navegador fechar o
-                  parágrafo antes da hora, partindo a linha em duas sem ninguém
-                  pedir.
+                    E A PILHA DE QUEM MAIS ESTÁ NELA vem logo depois, na mesma
+                    linha, porque é a pergunta seguinte: a linhagem diz por que
+                    estou fazendo isto, a pilha diz quem está com o resto — que é
+                    o que explica a etapa parada esperando a arte de outra
+                    pessoa. Ela é irmã do `<p>` e não filha dele: avatar é um
+                    `<div>`, e `<div>` dentro de `<p>` faz o navegador fechar o
+                    parágrafo antes da hora, partindo a linha em duas sem ninguém
+                    pedir.
 
-                  Não custa consulta nenhuma: `carregar()` já trazia as etapas
-                  dos outros com a ficha de cada responsável desde o Sprint 4,
-                  para o painel lateral. */}
-              <div className="flex min-w-0 items-center gap-2">
-                {/* A LINHAGEM QUEBRA EM VEZ DE TRUNCAR, e a coluna estreita foi
-                    quem cobrou. Sem `flex-wrap`, os três pedaços disputam a
-                    mesma linha e cada um encolhe até virar reticência — a
-                    imagem saiu com "Mund… · Revisar o manua…", que não
-                    identifica nem o cliente nem a demanda. Quebrando, o
-                    segundo pedaço desce inteiro. É a mesma decisão do título
-                    de "Meu dia" no Sprint 15: com um piso, o resto quebra
-                    para a linha de baixo, que é o que o `flex-wrap` do pai
-                    está ali para fazer. */}
-                <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-xs">
-                  {linha.demanda.cliente ? (
-                    <>
-                      <span className="truncate">{linha.demanda.cliente}</span>
-                      <span aria-hidden>·</span>
-                    </>
-                  ) : null}
-                  <span className="truncate">{linha.demanda.titulo}</span>
-                  {sub.etapaDeCima ? (
-                    <>
-                      <ChevronRight aria-hidden className="size-3 shrink-0" />
-                      <span className="truncate">{sub.etapaDeCima}</span>
-                    </>
-                  ) : null}
-                  {linha.demanda.minhas > 1 ? (
-                    <span className="shrink-0">
-                      {" "}
-                      · {linha.demanda.minhas} etapas minhas aqui
-                    </span>
-                  ) : null}
-                  {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
-                      sobe (0051 + Sprint das Campanhas).
-
-                      A peça de campanha já era uma etapa minha — abrir a
-                      campanha cria a demanda com uma etapa por entregável —, e
-                      o que faltava era o caminho de volta: clicar na linha abre
-                      a DEMANDA, e o PDF da lâmina sobe em
-                      `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
-                      produz lia "Lâmina A5" e caía numa tela sem lugar para o
-                      arquivo.
-
-                      `stopPropagation` porque a linha inteira abre o painel
-                      lateral: sem ele o clique no selo abriria os dois. */}
-                  {sub.campanha ? (
-                    <Link
-                      href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-                      title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
-                    >
-                      <IconeDaCampanha
-                        aria-hidden
-                        className="size-3 shrink-0"
-                      />
-                      {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
-                          Dentro da seção Campanhas ele repetiria o cabeçalho
-                          cinco vezes sem informar nada; o nome diz de qual peça
-                          é esta etapa — que é a pergunta de quem tem três
-                          campanhas correndo. */}
-                      <span className="truncate">{sub.campanha.nome}</span>
-                    </Link>
-                  ) : null}
-                </p>
-
-                {linha.demanda.outros.length > 0 ? (
-                  <UserAvatarGroup
-                    max={3}
-                    users={linha.demanda.outros.map((p) => ({
-                      name: p.nome,
-                      src: p.avatar_url,
-                    }))}
-                  />
-                ) : null}
-              </div>
-            </div>
-
-            {sub.requer_aprovacao ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-muted-foreground inline-flex">
-                    <Lock className="size-3.5" aria-label="Exige aprovação" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Exige aprovação{" "}
-                  {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-
-            {sub.dependenciasAbertas.length > 0 ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-warning inline-flex">
-                    <Link2
-                      className="size-3.5"
-                      aria-label="Aguardando outra etapa"
-                    />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Aguardando: {sub.dependenciasAbertas.join(", ")}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-
-            <PriorityBadge priority={sub.prioridade} />
-
-            {/* DateBadge é para prazo a vencer; etapa concluída mostra a data
-                crua, senão o passado apareceria em vermelho como atraso. */}
-            {sub.prazo ? (
-              sub.status === "concluida" ? (
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {format(parseISO(sub.prazo), "dd/MM/yy", { locale: ptBR })}
+                    Não custa consulta nenhuma: `carregar()` já trazia as etapas
+                    dos outros com a ficha de cada responsável desde o Sprint 4,
+                    para o painel lateral. */}
+          <div className="flex min-w-0 items-center gap-2">
+            {/* A LINHAGEM QUEBRA EM VEZ DE TRUNCAR, e a coluna estreita foi
+                      quem cobrou. Sem `flex-wrap`, os três pedaços disputam a
+                      mesma linha e cada um encolhe até virar reticência — a
+                      imagem saiu com "Mund… · Revisar o manua…", que não
+                      identifica nem o cliente nem a demanda. Quebrando, o
+                      segundo pedaço desce inteiro. É a mesma decisão do título
+                      de "Meu dia" no Sprint 15: com um piso, o resto quebra
+                      para a linha de baixo, que é o que o `flex-wrap` do pai
+                      está ali para fazer. */}
+            <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-xs">
+              {linha.demanda.cliente ? (
+                <>
+                  <span className="truncate">{linha.demanda.cliente}</span>
+                  <span aria-hidden>·</span>
+                </>
+              ) : null}
+              <span className="truncate">{linha.demanda.titulo}</span>
+              {sub.etapaDeCima ? (
+                <>
+                  <ChevronRight aria-hidden className="size-3 shrink-0" />
+                  <span className="truncate">{sub.etapaDeCima}</span>
+                </>
+              ) : null}
+              {linha.demanda.minhas > 1 ? (
+                <span className="shrink-0">
+                  {" "}
+                  · {linha.demanda.minhas} etapas minhas aqui
                 </span>
-              ) : (
-                <DateBadge date={sub.prazo} />
-              )
-            ) : (
-              <span className="text-muted-foreground text-xs">Sem prazo</span>
-            )}
+              ) : null}
+              {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
+                        sobe (0051 + Sprint das Campanhas).
 
-            {mostrarStatus ? <StatusBadge status={sub.status} /> : null}
+                        A peça de campanha já era uma etapa minha — abrir a
+                        campanha cria a demanda com uma etapa por entregável —, e
+                        o que faltava era o caminho de volta: clicar na linha abre
+                        a DEMANDA, e o PDF da lâmina sobe em
+                        `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
+                        produz lia "Lâmina A5" e caía numa tela sem lugar para o
+                        arquivo.
 
-            {/* O relógio corre enquanto a etapa está em andamento. Fica à
-                vista para a pessoa reparar que esqueceu a etapa aberta — é o
-                que impede o número de chegar pronto e estranho no diálogo de
-                conclusão. */}
-            <Cronometro dados={sub} agoraDoServidor={prazos.agora} />
+                        `stopPropagation` porque a linha inteira abre o painel
+                        lateral: sem ele o clique no selo abriria os dois. */}
+              {sub.campanha ? (
+                <Link
+                  href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                  title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
+                >
+                  <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
+                  {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
+                            Dentro da seção Campanhas ele repetiria o cabeçalho
+                            cinco vezes sem informar nada; o nome diz de qual peça
+                            é esta etapa — que é a pergunta de quem tem três
+                            campanhas correndo. */}
+                  <span className="truncate">{sub.campanha.nome}</span>
+                </Link>
+              ) : null}
+            </p>
 
-            <AcoesDaSubtarefa
-              subtarefa={sub}
-              usuarioId={usuarioId}
-              souGestor={souGestor}
-              rodadaPendenteId={
-                sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
-              }
-            />
+            {linha.demanda.outros.length > 0 ? (
+              <UserAvatarGroup
+                max={3}
+                users={linha.demanda.outros.map((p) => ({
+                  name: p.nome,
+                  src: p.avatar_url,
+                }))}
+              />
+            ) : null}
           </div>
-        );
-      })}
-    </div>
+        </>
+      }
+      prioridade={<PriorityBadge priority={sub.prioridade} />}
+      vencimento={
+        <>
+          {/* DateBadge é para prazo a vencer; etapa concluída mostra a data
+                    crua, senão o passado apareceria em vermelho como atraso. */}
+          {sub.prazo ? (
+            sub.status === "concluida" ? (
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {format(parseISO(sub.prazo), "dd/MM/yy", {
+                  locale: ptBR,
+                })}
+              </span>
+            ) : (
+              <DateBadge date={sub.prazo} />
+            )
+          ) : (
+            <span className="text-muted-foreground text-xs">Sem prazo</span>
+          )}
+        </>
+      }
+      extras={
+        <>
+          {sub.requer_aprovacao ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-muted-foreground inline-flex">
+                  <Lock className="size-3.5" aria-label="Exige aprovação" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Exige aprovação{" "}
+                {ROTULO_DA_APROVACAO[sub.tipo_aprovacao ?? "interna"]}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+
+          {sub.dependenciasAbertas.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-warning inline-flex">
+                  <Link2
+                    className="size-3.5"
+                    aria-label="Aguardando outra etapa"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Aguardando: {sub.dependenciasAbertas.join(", ")}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+
+          {/* O relógio corre enquanto a etapa está em andamento. Fica à
+                    vista para a pessoa reparar que esqueceu a etapa aberta — é o
+                    que impede o número de chegar pronto e estranho no diálogo de
+                    conclusão. */}
+          <Cronometro dados={sub} agoraDoServidor={prazos.agora} />
+
+          <AcoesDaSubtarefa
+            subtarefa={sub}
+            usuarioId={usuarioId}
+            souGestor={souGestor}
+            rodadaPendenteId={
+              sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
+            }
+          />
+        </>
+      }
+    />
   );
 }

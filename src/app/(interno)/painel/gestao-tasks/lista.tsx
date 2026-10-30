@@ -296,6 +296,16 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   }
 
   const colunas: Column<TaskDaLista>[] = [
+    /* --------------------------------------------------------------------
+       A ORDEM DAS COLUNAS É A DE `LinhaDeTrabalho`: status, nome, prioridade,
+       vencimento. Era título, cliente, equipe, prazo, prioridade, status — o
+       status no fim, depois de oito colunas —, e quem vinha da lista de
+       Minhas Tasks procurava no lugar errado. A tabela não usa o componente
+       porque ela é uma TABELA de verdade (ordena, seleciona em massa, esconde
+       coluna), e o que se compartilha é a ordem, não o desenho.
+
+       Cliente e equipe vêm DEPOIS dos quatro, e é consequência aceita: eles
+       respondem de quem é a demanda, não em que pé ela está. */
     {
       id: "selecao",
       header: "",
@@ -311,8 +321,22 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       ),
     },
     {
+      id: "status",
+      header: "Status",
+      cell: (task) => <StatusBadge status={task.status} />,
+      sortValue: (task) => task.status,
+    },
+    // A Task não tem tempo próprio: as duas colunas somam as subtarefas.
+    {
       id: "titulo",
       header: "Task",
+      // A COLUNA DO NOME É A QUE PRECISA DE LARGURA. Numa tabela de nove
+      // colunas o layout automático reparte pelo conteúdo, e o nome — que é
+      // a única frase inteira da linha — era o que mais quebrava: "Campanha
+      // de Instagram — linha de verão" saía em quatro linhas enquanto
+      // "Estimativa" ficava com 7h 30min e espaço de sobra. Foi a imagem que
+      // mostrou, quando o status passou a vir antes dele.
+      className: "min-w-[14rem]",
       cell: (task) => (
         <Link
           href={`/painel/gestao-tasks/${task.id}`}
@@ -326,6 +350,18 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       ),
       sortValue: (task) => task.titulo,
       searchValue: (task) => `${task.titulo} ${task.briefing_texto ?? ""}`,
+    },
+    {
+      id: "prioridade",
+      header: "Prioridade",
+      cell: (task) => <PrioridadeInline task={task} />,
+      sortValue: (task) => PESO_DA_PRIORIDADE[task.prioridade],
+    },
+    {
+      id: "prazo",
+      header: "Próximo prazo",
+      cell: (task) => <PeriodoInline task={task} />,
+      sortValue: (task) => task.proximoPrazo ?? task.data_fim,
     },
     {
       id: "cliente",
@@ -357,25 +393,6 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       sortValue: (task) => task.equipe[0]?.nome ?? null,
       searchValue: (task) => task.equipe.map((p) => p.nome).join(" "),
     },
-    {
-      id: "prazo",
-      header: "Próximo prazo",
-      cell: (task) => <PeriodoInline task={task} />,
-      sortValue: (task) => task.proximoPrazo ?? task.data_fim,
-    },
-    {
-      id: "prioridade",
-      header: "Prioridade",
-      cell: (task) => <PrioridadeInline task={task} />,
-      sortValue: (task) => PESO_DA_PRIORIDADE[task.prioridade],
-    },
-    {
-      id: "status",
-      header: "Status",
-      cell: (task) => <StatusBadge status={task.status} />,
-      sortValue: (task) => task.status,
-    },
-    // A Task não tem tempo próprio: as duas colunas somam as subtarefas.
     {
       id: "estimativa",
       header: "Estimativa",
@@ -416,6 +433,14 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   ];
 
   const agrupado = agrupamento !== "nenhum";
+
+  // O STATUS SOME QUANDO O GRUPO JÁ O DIZ, e é a mesma regra da Lista de
+  // Minhas Tasks: agrupada por status, cada linha repetia o selo que o
+  // cabeçalho dois centímetros acima já mostra — e numa tabela isso custa
+  // caro, porque a coluna repetida tira largura justamente do nome. Onde ele
+  // aparece, continua aparecendo ANTES do nome.
+  const colunasVisiveis =
+    agrupamento === "status" ? colunas.filter((c) => c.id !== "status") : colunas;
 
   // SEM `useMemo`, e de propósito.
   //
@@ -531,7 +556,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
         const tabela = (
           <DataTable
             data={grupo.tasks}
-            columns={colunas}
+            columns={colunasVisiveis}
             getRowId={(task) => task.id}
             pageSize={agrupado ? 50 : 15}
             semBusca={agrupado}
