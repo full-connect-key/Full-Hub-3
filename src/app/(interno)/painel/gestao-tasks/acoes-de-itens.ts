@@ -553,8 +553,11 @@ export async function anexarEntrega(
 
     if (error) return falha(`Não foi possível anexar: ${error.message}`);
     if (!data) {
+      // A FRASE NOMEIA AS DUAS PESSOAS DA ETAPA desde a 0121: a policy
+      // pergunta `faz_a_subtarefa()`, que lê `subtask_responsaveis` — e não
+      // mais a coluna `responsavel_id`, que é só a primeira delas.
       return falha(
-        "O banco recusou o anexo. Anexar entrega é do responsável pela subtarefa, do " +
+        "O banco recusou o anexo. Anexar entrega é de quem faz a etapa, do " +
           "Atendimento ou da gestão.",
       );
     }
@@ -572,18 +575,60 @@ export async function anexarEntrega(
   });
 }
 
+/**
+ * Tirar um arquivo da entrega de uma etapa.
+ *
+ * **O QUE SAI DAQUI FICA NO HISTÓRICO** (0121). Até aqui a remoção não
+ * deixava rastro nenhum: `anexarEntrega` gravava `entrega_anexada` em
+ * `task_history` e esta função não gravava nada — então um arquivo que
+ * alguém viu numa segunda-feira podia não existir mais na terça, sem nada
+ * dizendo quem o tirou. É a decisão da 0048 um módulo ao lado, onde apagar
+ * um slide **grava uma versão** com o que restou: remoção se registra, não
+ * se apaga.
+ *
+ * **E o arquivo que já saiu da agência nem chega aqui:** o gatilho
+ * `subtask_entregas_nao_apaga_enviada` recusa apagar uma entrega carimbada
+ * com uma rodada, nomeando o número dela. A tela já esconde o botão nesse
+ * caso; esta mensagem é para quem montar a chamada à mão — e é a recusa do
+ * banco que ela mostra, com o `hint` junto, porque ele diz o que fazer no
+ * lugar.
+ */
 export async function removerEntrega(id: string, taskId: string): Promise<Resultado> {
   return executarAcao("removerEntrega", async () => {
-    await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
+
+    // O NOME VEM ANTES DO `delete`, e não há como ser depois: a linha some, e
+    // com ela o nome que o histórico precisa. É a mesma ordem do diálogo que
+    // conta o que vai junto antes de apagar a campanha.
+    const { data: antes } = await supabase
+      .from("subtask_entregas")
+      .select("nome, url, subtask_id")
+      .eq("id", id)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from("subtask_entregas")
       .delete()
       .eq("id", id)
       .select("id")
       .maybeSingle();
-    if (error) return falha(`Não foi possível remover: ${error.message}`);
+    if (error) {
+      const dica = (error as { hint?: string | null }).hint;
+      return falha(dica ? `${error.message} ${dica}` : `Não foi possível remover: ${error.message}`);
+    }
     if (!data) return falha(RECUSA_DO_BANCO);
+
+    if (antes) {
+      await registrar(supabase, {
+        task_id: taskId,
+        subtask_id: antes.subtask_id,
+        acao: "entrega_removida",
+        de_valor: antes.nome ?? antes.url,
+        autor_id: sessao.usuarioId,
+      });
+    }
+
     revalidar(taskId);
     return sucesso("Entrega removida.");
   });

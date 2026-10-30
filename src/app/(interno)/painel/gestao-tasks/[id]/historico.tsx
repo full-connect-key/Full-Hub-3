@@ -26,6 +26,9 @@ const ROTULOS: Record<string, string> = {
   cliente_aprovou: "Cliente aprovou",
   cliente_pediu_ajustes: "Cliente pediu ajustes",
   entrega_anexada: "Entrega anexada",
+  // SEM RÓTULO, a tela mostra a chave crua (`?? evento.acao`) — e "entrega
+  // removida" é justamente o evento que alguém vai procurar meses depois.
+  entrega_removida: "Entrega removida",
 };
 
 export function HistoricoDaTask({ eventos }: { eventos: TaskCompleta["historico"] }) {

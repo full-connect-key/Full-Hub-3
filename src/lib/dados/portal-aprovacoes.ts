@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
 import { ouFalha } from "./consulta";
 
 // PELO ALIAS, e não por caminho relativo: o gerador de protótipo troca
@@ -64,7 +65,15 @@ export type AprovacaoDoCliente = {
   enviadaEm: string;
   decididaEm: string | null;
   comentario: string | null;
-  entregas: SubtaskEntrega[];
+  /**
+   * Os arquivos que a agência anexou, com o endereço que dá para clicar.
+   *
+   * `assinado` é a URL de uma hora quando o arquivo mora no bucket, o próprio
+   * `url` quando é link do Drive (0121). Até aqui o cru bastava porque toda
+   * entrega era link — com o upload ligado, ele é um caminho de bucket, e o
+   * cliente clicaria num link que não leva a lugar nenhum.
+   */
+  entregas: (SubtaskEntrega & { assinado: string | null })[];
   /** Os comentários que a agência marcou como visíveis ao cliente. */
   conversa: { id: string; texto: string; created_at: string; meu: boolean }[];
 };
@@ -187,6 +196,11 @@ async function aprovacoesDeEtapa(
   const subtarefas = ouFalha("as etapas em aprovação", respostaDeSubtarefas);
   const entregas = ouFalha("os arquivos entregues", respostaDeEntregas);
 
+  const assinadasDasEntregas = await assinarArquivos(
+    "task-arquivos",
+    entregas.map((e) => e.url),
+  );
+
   const idsDeTasks = [...new Set(subtarefas.map((s) => s.task_id))];
 
   const [respostaDeTasks, respostaDeComentarios] = await Promise.all([
@@ -228,7 +242,9 @@ async function aprovacoesDeEtapa(
       enviadaEm: rodada.solicitado_em,
       decididaEm: rodada.decidido_em,
       comentario: rodada.comentario,
-      entregas: entregas.filter((e) => e.subtask_id === sub.id),
+      entregas: entregas
+        .filter((e) => e.subtask_id === sub.id)
+        .map((e) => ({ ...e, assinado: enderecoDaArte(e.url, assinadasDasEntregas) })),
       conversa: comentarios
         .filter((c) => c.subtask_id === sub.id)
         .map((c) => ({

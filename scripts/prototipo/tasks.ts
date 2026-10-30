@@ -490,11 +490,47 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
       solicitante: semente.responsavel,
       decisor: r.decidido_por ? DIEGO : null,
     })),
+    // AS TRÊS FORMAS DE ENTREGA, e as três de propósito (0121).
+    //
+    // O ARQUIVO CARIMBADO é o que a trava protege: ele já viajou numa rodada,
+    // então a linha dele sai SEM o botão de remover. O ARQUIVO SEM CARIMBO é
+    // o outro lado da mesma trava — ainda não saiu da agência, e remove. Com
+    // só um dos dois a imagem provaria que o botão aparece, ou que ele some,
+    // e não que a tela **distingue** as duas — a razão do evento de cada par
+    // da legenda do calendário.
+    //
+    // E o LINK fica, porque era a única forma que existia até aqui: sem ele a
+    // imagem mostraria o produto num estado que ele não tem, onde toda
+    // entrega é arquivo.
     entregas:
       semente.rodadas && semente.rodadas.length > 0
         ? [
             {
               id: `${semente.id}-e1`,
+              subtask_id: semente.id,
+              approval_round_id: rodadas[rodadas.length - 1]?.id ?? null,
+              tipo: "arquivo" as const,
+              url: `entregas/${semente.id}/1758275400-0-${semente.titulo} final.pdf`,
+              nome: `${semente.titulo} final.pdf`,
+              enviado_por: semente.responsavel?.id ?? ANA.id,
+              created_at: "2026-09-19T09:50:00.000Z",
+              autor: semente.responsavel,
+              assinado: "/exemplos/arte-1.svg",
+            },
+            {
+              id: `${semente.id}-e2`,
+              subtask_id: semente.id,
+              approval_round_id: null,
+              tipo: "arquivo" as const,
+              url: `entregas/${semente.id}/1758361800-0-fontes.zip`,
+              nome: "fontes.zip",
+              enviado_por: semente.responsavel?.id ?? ANA.id,
+              created_at: "2026-09-20T09:50:00.000Z",
+              autor: semente.responsavel,
+              assinado: "/exemplos/arte-1.svg",
+            },
+            {
+              id: `${semente.id}-e3`,
               subtask_id: semente.id,
               approval_round_id: rodadas[rodadas.length - 1]?.id ?? null,
               tipo: "link" as const,
@@ -503,6 +539,7 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
               enviado_por: semente.responsavel?.id ?? ANA.id,
               created_at: "2026-09-19T09:50:00.000Z",
               autor: semente.responsavel,
+              assinado: "https://www.figma.com/file/exemplo",
             },
           ]
         : [],

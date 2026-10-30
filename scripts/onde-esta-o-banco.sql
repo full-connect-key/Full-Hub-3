@@ -690,7 +690,15 @@ from (
     -- com a condicao antiga dentro. O que distingue os dois estados e o
     -- trecho.
     ('0120', 'o upload aceita video e arquivo de criacao', 'no_corpo',
-             'o_que_falta_no_portao|post_tem_video')
+             'o_que_falta_no_portao|post_tem_video'),
+
+    -- O GATILHO DA EXCLUSAO, e nao `faz_a_subtarefa` nem o do carimbo: ele e
+    -- a ULTIMA coisa que a 0121 cria. Uma colagem que morra no PASSO 2 deixa
+    -- a funcao e o carimbo de pe, e um marcador neles diria `ok` sobre um
+    -- banco onde a trava da exclusao nao existe -- que e a armadilha que a
+    -- 0085 ja pagou ao apontar para o PASSO 1.
+    ('0121', 'o arquivo da entrega, e a rodada que o carrega', 'trigger',
+             'subtask_entregas_nao_apaga_enviada')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
 import { vertentesDasContas } from "@/lib/dados/vertentes";
 import { ouFalha } from "@/lib/dados/consulta";
 import { folhas, type TipoDeItemDeCalendario } from "@/lib/dominio/tasks";
@@ -461,7 +462,23 @@ export type RodadaDetalhada = ApprovalRound & {
   decisor: Pessoa | null;
 };
 
-export type EntregaDetalhada = SubtaskEntrega & { autor: Pessoa | null };
+export type EntregaDetalhada = SubtaskEntrega & {
+  autor: Pessoa | null;
+  /**
+   * O endereço que dá para clicar: a URL assinada quando o arquivo mora no
+   * bucket, o próprio `url` quando é link, e `null` quando a assinatura
+   * falhou.
+   *
+   * **Ele nasce aqui e não na tela** porque são QUATRO telas lendo esta lista
+   * — o painel da etapa, a área de arquivos da demanda, a fila de aprovações
+   * e o portal —, e até a 0121 nenhuma assinava: `tipo = 'arquivo'` existe no
+   * `check` desde a 0007 e **nenhum caminho do produto o produzia**, então o
+   * `url` cru sempre foi um `http` e nunca quebrou. No instante em que a tela
+   * passou a subir arquivo, as quatro passariam a desenhar um caminho de
+   * bucket dentro de um `href` — um link que não leva a lugar nenhum.
+   */
+  assinado: string | null;
+};
 
 export type SubtarefaDetalhada = Subtask & {
   responsavel: Pessoa | null;
@@ -586,6 +603,17 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       .order("created_at"),
   );
 
+  /* ------------------------------------------ o endereço de cada entrega --
+     UMA IDA, pela demanda inteira, e ela sai daqui e não de cada tela: são
+     quatro consumidoras desta lista (0121). `assinarArquivos` deixa passar o
+     que já começa com `http`, então o link do Drive atravessa sem assinatura
+     e o caminho do bucket vira URL de uma hora — as duas formas pelo mesmo
+     caminho, que é a razão de ela existir. */
+  const assinadasDasEntregas = await assinarArquivos(
+    "task-arquivos",
+    entregas.map((e) => e.url),
+  );
+
   const ids = [
     ...new Set(
       [
@@ -661,7 +689,11 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
       })),
       entregas: entregas
         .filter((e) => e.subtask_id === sub.id)
-        .map((e) => ({ ...e, autor: porPessoa.get(e.enviado_por) ?? null })),
+        .map((e) => ({
+          ...e,
+          autor: porPessoa.get(e.enviado_por) ?? null,
+          assinado: enderecoDaArte(e.url, assinadasDasEntregas),
+        })),
       ...situacao,
     };
   });

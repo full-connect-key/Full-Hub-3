@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
-import { assinarArquivos } from "@/lib/dados/conteudo";
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
 import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -228,6 +228,11 @@ async function etapasNaFila(): Promise<FilaCrua> {
       .then((r) => ouFalha("as entregas da fila", r)),
   ]);
 
+  const assinadasDasEntregas = await assinarArquivos(
+    "task-arquivos",
+    (entregas ?? []).map((e: SubtaskEntrega) => e.url),
+  );
+
   const idsDeTasks = [...new Set((subtarefas ?? []).map((s) => s.task_id))];
 
   const [tasks, pessoas] = await Promise.all([
@@ -290,13 +295,22 @@ async function etapasNaFila(): Promise<FilaCrua> {
         ? (porPessoa.get(sub.responsavel_id) ?? null)
         : null,
       tipoAprovacao: (sub.tipo_aprovacao ?? "interna") as TipoAprovacao,
+      // O ANEXO VAI ASSINADO (0121). Até aqui o `url` cru servia porque toda
+      // entrega era LINK — `tipo = 'arquivo'` existe no `check` desde a 0007
+      // e nenhuma tela o produzia. Com o upload ligado, o cru é um caminho de
+      // bucket: um "Aprovar" numa linha cujo anexo não abre é exatamente o
+      // erro que a arte na linha existe para evitar.
+      //
+      // Quem não assinou fica de FORA da lista, em vez de entrar com um link
+      // quebrado: a fila promete que dá para olhar antes de decidir.
       anexos: (entregas ?? [])
         .filter((e: SubtaskEntrega) => e.subtask_id === sub.id)
         .map((e: SubtaskEntrega) => ({
           id: e.id,
           nome: e.nome ?? "Entrega",
-          url: e.url,
-        })),
+          url: enderecoDaArte(e.url, assinadasDasEntregas),
+        }))
+        .filter((a): a is AnexoDaFila => a.url !== null),
     };
 
     const pendenteInterna = minhas.find(

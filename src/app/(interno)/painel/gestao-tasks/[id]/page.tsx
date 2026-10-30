@@ -28,6 +28,7 @@ import { AcoesDaTask } from "./acoes-da-task";
 import { PropriedadesDaTask } from "./propriedades";
 import { PrincipalDaTask } from "./principal";
 import { CabecalhoDaTask } from "./cabecalho-da-task";
+import { ArquivosDaEntrega } from "./arquivos-da-entrega";
 import { Referencias } from "./referencias";
 import { Subtarefas } from "./subtarefas";
 import { Voltar } from "@/components/shared/voltar";
@@ -211,6 +212,14 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                    chamada dessas no corpo de um componente. */
                 agoraDoServidor={prazosDeHoje().agora}
               />
+
+              {/* OS ARQUIVOS FINAIS VÊM DEPOIS DAS ETAPAS E ANTES DAS
+                  REFERÊNCIAS, e a ordem é o que cada seção é: as etapas
+                  produzem o material, esta seção o reúne, e a referência é
+                  material de APOIO — que a 0015 já separa do material final
+                  em quantas palavras ("o endereço do material final, um só,
+                  separado das referências de apoio"). */}
+              <ArquivosDaEntrega subtarefas={task.subtarefas} />
 
               <Referencias
                 taskId={task.id}

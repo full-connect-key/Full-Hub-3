@@ -207,10 +207,17 @@ function CartaoPendente({
 
       {item.entregas.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
-          {item.entregas.map((entrega) => (
+          {/* SÓ O QUE TEM ENDEREÇO (0121): um arquivo do bucket precisa da
+              URL assinada, e sem ela o botão levaria o cliente a um link que
+              não abre. Quem não assinou fica de fora — é melhor o material
+              não aparecer do que aparecer e não abrir, na tela em que ele
+              decide. */}
+          {item.entregas
+            .filter((entrega) => entrega.assinado !== null)
+            .map((entrega) => (
             <li key={entrega.id}>
               <a
-                href={entrega.url}
+                href={entrega.assinado!}
                 target="_blank"
                 rel="noreferrer"
                 className="hover:text-accent-strong inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"

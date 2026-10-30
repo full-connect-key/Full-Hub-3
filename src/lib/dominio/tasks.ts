@@ -430,3 +430,31 @@ export function quemMaisEstaNa<P extends { id: string }>(
   }
   return [...porPessoa.values()];
 }
+
+/**
+ * Sou uma das pessoas que FAZEM esta etapa?
+ *
+ * **É o par de `faz_a_subtarefa()` no Postgres** (migration 0121), e as duas
+ * existem pela razão de sempre: o banco é o que vale, e esta escreve o botão
+ * antes do clique — a decisão da máquina de estados da subtarefa ao lado dos
+ * gatilhos da 0007.
+ *
+ * **ELA PERGUNTA PELAS DUAS PESSOAS, e é esse o conserto.** A etapa tem dois
+ * responsáveis desde a 0114: `responsavel_id` passou a ser a PRIMEIRA e quem
+ * manda é `subtask_responsaveis`. Aquela migration reescreveu a carga e o
+ * "Minhas Tasks" para lerem a tabela, e deixou para trás a policy do banco e
+ * esta pergunta na tela — então a segunda pessoa via a etapa na lista dela,
+ * contava na carga dela, e **não conseguia anexar o que produziu**.
+ *
+ * `outrosResponsaveis` é exatamente a tabela menos a primeira pessoa (é assim
+ * que `obterTask` a monta), então as duas metades juntas são a tabela inteira.
+ */
+export function fazASubtarefa(
+  subtarefa: { responsavel_id: string | null; outrosResponsaveis: { id: string }[] },
+  usuarioId: string,
+): boolean {
+  return (
+    subtarefa.responsavel_id === usuarioId ||
+    subtarefa.outrosResponsaveis.some((p) => p.id === usuarioId)
+  );
+}

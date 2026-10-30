@@ -252,6 +252,17 @@ const TELAS = [
   // com a lista aberta -- fechada, a tela mostra um campo e nada prova que
   // os outros cinco estao la.
   { nome: "25b-task-status-aberto", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1100, role: "socio", clicar: '[aria-label="Status da demanda"]', semRolagem: true },
+  // A AREA DE ARQUIVOS FINAIS DA DEMANDA (item 31). Ela e a segunda metade da
+  // tela de detalhe e cai FORA da altura da 25 -- sem uma rota propria, a peca
+  // nova nao sai em imagem nenhuma, que e a licao da duplicata do Cronograma.
+  //
+  // E o que ela precisa provar sao TRES coisas que so aparecem juntas: o
+  // arquivo com o formato e o Baixar, o selo "enviado ao cliente" na entrega
+  // que ja viajou numa rodada, e o link do Drive ao lado dos dois -- porque
+  // ate aqui o link era a UNICA forma que existia.
+  { nome: "25c-task-arquivos-da-entrega", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111#arquivos-da-entrega", largura: 1600, altura: 1500, role: "socio" },
+  // O PAINEL DA ETAPA com o enviador ligado: e ali que o arquivo entra, e a
+  // 46 ja abre o painel -- o que faltava era ele ter por onde subir.
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
   { nome: "30-minhas-tasks-lista", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio" },
   // A TELA VAZIA, e ela e a que decide a hierarquia. Sem etapa nenhuma o que

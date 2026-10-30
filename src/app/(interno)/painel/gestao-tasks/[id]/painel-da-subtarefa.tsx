@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronRight, ExternalLink, Link2, Loader2, Lock, Paperclip, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -25,7 +26,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { chamarAcao } from "@/lib/acoes/cliente";
-import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import { FAMILIAS } from "@/lib/dominio/arquivos";
+import { fazASubtarefa, PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { AJUDA_DE_TEMPO, formatarMinutos, tempoParaCampo } from "@/lib/dominio/tempo";
 import { ROTULO_DA_APROVACAO, ROTULO_DO_ESCOPO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
@@ -76,7 +78,13 @@ export function PainelDaSubtarefa({
   const [salvando, iniciar] = useTransition();
   const [link, setLink] = useState("");
 
-  const souOResponsavel = subtarefa.responsavel_id === usuarioId;
+  // AS DUAS PESSOAS DA ETAPA, e não só a primeira (0114 + 0121).
+  //
+  // Era `subtarefa.responsavel_id === usuarioId`, que é a COLUNA — e desde a
+  // 0114 ela é apenas a primeira pessoa. A segunda via a etapa em Minhas
+  // Tasks, contava na carga dela, e esta tela desligava os campos para ela.
+  // É a mesma pergunta que `subtask_entregas_insert` faz no banco.
+  const souOResponsavel = fazASubtarefa(subtarefa, usuarioId);
   const podeMexer = podeGerenciar || souOResponsavel;
 
   function trocarStatus(destino: SubtaskStatus) {
@@ -491,16 +499,35 @@ export function PainelDaSubtarefa({
                 {subtarefa.entregas.map((entrega) => (
                   <li key={entrega.id} className="flex items-center gap-2 text-sm">
                     <Paperclip className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
-                    <a
-                      href={entrega.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="hover:text-accent-strong min-w-0 flex-1 truncate underline-offset-2 hover:underline"
-                    >
-                      {entrega.nome ?? entrega.url}
-                    </a>
+                    {/* O ENDEREÇO É O ASSINADO, e não o `url` cru (0121): um
+                        arquivo do bucket tem como `url` o CAMINHO, e pô-lo
+                        num `href` é um link que não leva a lugar nenhum. O
+                        link do Drive atravessa a mesma função sem assinatura.
+
+                        Sem `assinado`, a assinatura falhou — e aí o nome fica
+                        como texto, em vez de virar um link quebrado. */}
+                    {entrega.assinado ? (
+                      <a
+                        href={entrega.assinado}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-accent-strong min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+                      >
+                        {entrega.nome ?? entrega.url}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+                        {entrega.nome ?? entrega.url}
+                      </span>
+                    )}
                     <ExternalLink className="text-muted-foreground size-3 shrink-0" aria-hidden />
-                    {podeMexer ? (
+                    {/* O BOTÃO SOME NO ARQUIVO QUE JÁ SAIU, em vez de aparecer
+                        desligado: a razão não é um passo que falta, é uma
+                        porta que fechou — a mesma distinção do "cancelar" do
+                        Day Off. Quem recusa de verdade é o gatilho
+                        `subtask_entregas_nao_apaga_enviada` (0121), e a
+                        recusa dele nomeia a rodada. */}
+                    {podeMexer && entrega.approval_round_id === null ? (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -523,34 +550,87 @@ export function PainelDaSubtarefa({
             )}
 
             {podeMexer ? (
-              <form
-                className="flex gap-2"
-                onSubmit={(evento) => {
-                  evento.preventDefault();
-                  if (!link.trim()) return;
-                  iniciar(async () => {
-                    const r = await chamarAcao(() =>
-                      anexarEntrega(taskId, subtarefa.id, { tipo: "link", url: link }),
-                    );
-                    if (!r.ok) toast.error(r.error);
-                    else {
-                      setLink("");
+              <div className="space-y-2">
+                {/* O ARQUIVO VEM PRIMEIRO, E O LINK DEPOIS.
+                    `subtask_entregas.tipo` aceita os dois desde a 0007 e, até
+                    aqui, SÓ O LINK tinha tela — o valor `'arquivo'` estava no
+                    `check` e nenhum caminho do produto o produzia. A ordem é a
+                    do uso: o normal é subir o que se acabou de produzir; o
+                    link é o material que mora no Drive do cliente.
+
+                    AS CINCO FAMÍLIAS, como na peça de campanha e pela mesma
+                    razão escrita lá: a entrega de uma etapa é PDF, PSD, AI,
+                    ZIP, INDD — e uma lista fechada erraria na primeira
+                    extensão que a agência passasse a usar. */}
+                <EnviarArquivos
+                  bucket="task-arquivos"
+                  caminho={(arquivo, i) =>
+                    // `entregas/<subtask_id>/...` É A CONVENÇÃO DA 0007, e ela
+                    // é o que deixa a policy do Storage decidir por etapa sem
+                    // tabela intermediária: `"task-arquivos: cliente le
+                    // entrega"` compara `(storage.foldername(name))[2]` com
+                    // `subtask_visivel_ao_cliente()`. Fora dessa pasta, o
+                    // arquivo fica invisível para o cliente — e a Biblioteca
+                    // dele mostraria um cartão sem nada para baixar.
+                    //
+                    // O nome do arquivo fica inteiro no fim, como nas
+                    // referências: é ele que o cliente lê no "Baixar".
+                    `entregas/${subtarefa.id}/${Date.now()}-${i}-${arquivo.name}`
+                  }
+                  familias={FAMILIAS}
+                  varios
+                  rotulo="Anexar arquivos"
+                  rotuloDoCampo="Arquivos da entrega"
+                  desabilitado={salvando}
+                  onPronto={(arquivos) => {
+                    iniciar(async () => {
+                      for (const arquivo of arquivos) {
+                        const r = await chamarAcao(() =>
+                          anexarEntrega(taskId, subtarefa.id, {
+                            tipo: "arquivo",
+                            url: arquivo.url,
+                            nome: arquivo.nome,
+                          }),
+                        );
+                        if (!r.ok) {
+                          toast.error(r.error);
+                          return;
+                        }
+                      }
                       router.refresh();
-                    }
-                  });
-                }}
-              >
-                <Input
-                  value={link}
-                  onChange={(evento) => setLink(evento.target.value)}
-                  placeholder="https://…"
-                  aria-label="Link da entrega"
+                    });
+                  }}
                 />
-                <Button type="submit" variant="outline" disabled={salvando}>
-                  {salvando ? <Loader2 className="animate-spin" /> : null}
-                  Anexar
-                </Button>
-              </form>
+
+                <form
+                  className="flex gap-2"
+                  onSubmit={(evento) => {
+                    evento.preventDefault();
+                    if (!link.trim()) return;
+                    iniciar(async () => {
+                      const r = await chamarAcao(() =>
+                        anexarEntrega(taskId, subtarefa.id, { tipo: "link", url: link }),
+                      );
+                      if (!r.ok) toast.error(r.error);
+                      else {
+                        setLink("");
+                        router.refresh();
+                      }
+                    });
+                  }}
+                >
+                  <Input
+                    value={link}
+                    onChange={(evento) => setLink(evento.target.value)}
+                    placeholder="https://…"
+                    aria-label="Link da entrega"
+                  />
+                  <Button type="submit" variant="outline" disabled={salvando}>
+                    {salvando ? <Loader2 className="animate-spin" /> : null}
+                    Anexar
+                  </Button>
+                </form>
+              </div>
             ) : null}
           </section>
 
