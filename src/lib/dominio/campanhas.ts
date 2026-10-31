@@ -1,6 +1,7 @@
 import type {
   CampaignStatus,
   ContentStatus,
+  DeliverableTipo,
   EstruturaDeTemplate,
 } from "@/lib/supabase/database.types";
 
@@ -292,6 +293,16 @@ export type NoDeModelo = {
   responsavelId: string | null;
   /** Dias contados do INÍCIO da campanha. Só o workflow responde. */
   offsetDias: number | null;
+  /**
+   * De que tipo é o material (0122). Só a COMPOSIÇÃO responde.
+   *
+   * O modelo de campanha guarda uma lista de nomes e o workflow guarda uma
+   * cadeia de etapas — nenhum dos dois sabe se "Feed/Story site" é estático
+   * ou carrossel, e adivinhar pelo nome é a classe de palpite que esta casa
+   * não dá. Quem monta pela composição escolhe; quem parte de um modelo
+   * escolhe depois, na linha, ou deixa em branco.
+   */
+  tipo: DeliverableTipo | null;
   filhos: NoDeModelo[];
 };
 
@@ -302,6 +313,9 @@ export function entregaveisDoTemplate(
     nome,
     responsavelId: null,
     offsetDias: null,
+    // O MODELO DE CAMPANHA NÃO SABE O TIPO, e a ausência é honesta: ele
+    // guarda nomes. Quem escolhe é a composição, ou a pessoa na linha.
+    tipo: null,
     filhos: [],
   });
 
@@ -366,6 +380,10 @@ export function entregaveisDoWorkflow(
     // escolher o modelo. `fluxoDoWorkflow()` já somou o offset a uma data de
     // início; aqui ela é desfeita contra a MESMA data, então a volta é exata.
     offsetDias: etapa.prazo ? diasEntre(dataInicio, etapa.prazo) : null,
+    // O WORKFLOW TAMBÉM NÃO SABE O TIPO: ele guarda função, prazo relativo e
+    // responsável, e nenhum deles diz se a etapa produz um estático ou um
+    // vídeo. Fica em branco, e a pessoa escolhe na linha.
+    tipo: null,
     filhos: [],
   });
 
@@ -661,4 +679,152 @@ export function podePedirAnalise(
     };
   }
   return { pode: true, porque: null };
+}
+
+/* ---------------------------------------------------------------------------
+ * O TIPO DE MATERIAL, e a composição da campanha (migration 0122)
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Os tipos de material que uma campanha entrega.
+ *
+ * Decisão do usuário: *"uma campanha pode ter 10 posts estáticos, 5
+ * carrosséis, 3 vídeos, 15 stories, 2 banners e 1 landing page"*, com a
+ * quantidade variando a cada campanha.
+ *
+ * **É TUPLA e não `DeliverableTipo[]`**, pela razão que `TIPOS_DE_EVENTO`
+ * pagou uma vez: `z.enum` pede `readonly [string, ...string[]]`, e um array
+ * do tipo não serve — era essa a razão de a action do evento ter a lista
+ * copiada à mão, e de o oitavo tipo do calendário ter sido recusado no
+ * clique. O `satisfies` é a trava: um tipo que não exista em
+ * `deliverable_tipo` não compila.
+ */
+export const TIPOS_DE_MATERIAL = [
+  "estatico",
+  "carrossel",
+  "video",
+  "story",
+  "banner",
+  "landing",
+  "outro",
+] as const satisfies readonly DeliverableTipo[];
+
+/** O plural, que nomeia o GRUPO na árvore e a linha do relatório. */
+export const ROTULO_DO_TIPO: Record<DeliverableTipo, string> = {
+  estatico: "Estáticos",
+  carrossel: "Carrosséis",
+  video: "Vídeos",
+  story: "Stories",
+  banner: "Banners",
+  landing: "Landing pages",
+  outro: "Outros",
+};
+
+/**
+ * O singular, que nomeia cada PEÇA dentro do grupo.
+ *
+ * **Escrito à mão e não derivado**, ao contrário de `singularDoGrupo()`, que
+ * tira o "s" do fim por expressão regular: ela acerta "Estáticos" e erra
+ * "Carrosséis" e "Stories" — e um grupo chamado "Carrossei 1" é a tela
+ * mostrando um erro de português na peça que o cliente vai aprovar. Sete
+ * palavras escritas custam menos que uma regra que acerta cinco de sete.
+ */
+export const SINGULAR_DO_TIPO: Record<DeliverableTipo, string> = {
+  estatico: "Estático",
+  carrossel: "Carrossel",
+  video: "Vídeo",
+  story: "Story",
+  banner: "Banner",
+  landing: "Landing page",
+  outro: "Material",
+};
+
+export function ehTipoDeMaterial(valor: unknown): valor is DeliverableTipo {
+  return (
+    typeof valor === "string" &&
+    (TIPOS_DE_MATERIAL as readonly string[]).includes(valor)
+  );
+}
+
+/** Uma linha da composição: deste tipo, tantos. */
+export type LinhaDaComposicao = { tipo: DeliverableTipo; quantidade: number };
+
+/**
+ * A COMPOSIÇÃO VIRA A ÁRVORE, e é ela que responde o item 5 do pedido.
+ *
+ * Até aqui o único caminho para quinze stories era digitar quinze linhas à
+ * mão, uma a uma, com o nome de cada uma. Agora se diz "story, 15" e a
+ * árvore sai montada — que é exatamente o que o modelo da Wave já fazia com
+ * `quantidade`, só que escolhido na hora em vez de guardado num modelo.
+ *
+ * **QUANTIDADE 1 NÃO VIRA GRUPO.** Uma landing page é uma peça, e um grupo
+ * "Landing pages" com um filho "Landing page 1" é um nível de recuo que não
+ * diz nada — e, pior, faz a árvore ter um agrupador cujo status é calculado
+ * por um filho só (0033). Dois ou mais viram grupo, porque aí o recuo
+ * significa alguma coisa.
+ *
+ * **O TIPO VAI NO GRUPO E NAS FOLHAS.** No grupo porque a árvore o desenha;
+ * nas folhas porque é a FOLHA que o relatório conta (0022, 0033) — e
+ * `abrir_campanha()` faz o filho herdar o do grupo justamente para o caso de
+ * alguém acrescentar um sub-item à mão depois.
+ *
+ * **Quantidade zero não produz nada**, e é por isso que a tela pode aceitá-la:
+ * o pedido fala em *"permitir quantidade zero"*, e zero quer dizer que aquele
+ * tipo não entra nesta campanha. Uma linha com zero na árvore seria um grupo
+ * vazio, que o banco guarda e ninguém entrega.
+ */
+export function arvoreDaComposicao(linhas: LinhaDaComposicao[]): NoDeModelo[] {
+  const no = (nome: string, tipo: DeliverableTipo): NoDeModelo => ({
+    nome,
+    tipo,
+    responsavelId: null,
+    offsetDias: null,
+    filhos: [],
+  });
+
+  return linhas
+    .filter((linha) => linha.quantidade > 0)
+    .map((linha) => {
+      if (linha.quantidade === 1) {
+        return no(SINGULAR_DO_TIPO[linha.tipo], linha.tipo);
+      }
+
+      return {
+        ...no(ROTULO_DO_TIPO[linha.tipo], linha.tipo),
+        filhos: Array.from({ length: linha.quantidade }, (_, i) =>
+          no(`${SINGULAR_DO_TIPO[linha.tipo]} ${i + 1}`, linha.tipo),
+        ),
+      };
+    });
+}
+
+/**
+ * O que a campanha planejou, e onde cada tipo está.
+ *
+ * O par de `composicao_da_campanha()` no Postgres — a forma que a leitura
+ * devolve. Só `planejada` é gravada; as outras cinco são contadas das folhas.
+ */
+export type ComposicaoDaCampanha = {
+  tipo: DeliverableTipo;
+  planejada: number;
+  criadas: number;
+  produzidas: number;
+  entregues: number;
+  aprovadas: number;
+  emAjustes: number;
+};
+
+/**
+ * A campanha está entregando o que combinou?
+ *
+ * **Conta `criadas` e não `aprovadas`**, e a distinção é o que a frase quer
+ * dizer: "falta montar" é uma coisa — alguém ainda vai criar a peça —, e
+ * "falta aprovar" é outra, que a barra de progresso já responde. Esta linha
+ * existe para pegar a campanha que combinou quinze stories e tem dez.
+ */
+export function faltaMontar(composicao: ComposicaoDaCampanha[]): number {
+  return composicao.reduce(
+    (total, linha) => total + Math.max(0, linha.planejada - linha.criadas),
+    0,
+  );
 }

@@ -855,6 +855,12 @@ const TELAS = [
   // Ela existe desde a 0050 e o uploader morava só no cartão da listagem —
   // a moldura pontilhada aqui é a única coisa que diz onde clicar.
   { nome: "20f-campanha-producao-capa", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1440, altura: 900, role: "socio" },
+  // O PAINEL DA COMPOSICAO (0122), que e a tabela de quantos de cada tipo
+  // foram combinados contra quantos existem. A altura precisa chegar ate ele:
+  // ele fica ENTRE a identidade e a arvore, e a 900 do quadro acima a tela
+  // corta na barra de progresso.
+  { nome: "20s-campanha-composicao", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1250, role: "socio" },
+  { nome: "20t-campanha-composicao-375", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 375, altura: 1500, role: "socio" },
   { nome: "20f-nova-campanha", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1500, role: "socio" },
   // COM A ARVORE POVOADA: a secao 4 vazia nao mostra o que este sprint muda
   // -- o responsavel e o prazo de cada peca, que e o que faz a campanha virar
@@ -863,6 +869,26 @@ const TELAS = [
     clicar: ['button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
   { nome: "20j-nova-campanha-375", rota: "/painel/aprovacoes/campanhas/nova", largura: 375, altura: 1900, role: "socio",
     clicar: ['button:has-text("Entregável")', 'button:has-text("Sub-item") >> nth=0'] },
+  // A COMPOSICAO: "10 estaticos, 5 carrosseis, 3 videos" (item 5 do pedido).
+  //
+  // TRES CLIQUES EM "Tipo" e nenhum em "Montar a lista": a secao 4 preenchida
+  // e o que a imagem precisa provar, e a arvore gerada ja sai na tela do
+  // detalhe. Com um clique em "Montar" a secao 4 continuaria igual e a 5
+  // ficaria com trinta linhas -- a imagem perderia justamente a peca nova.
+  //
+  // E o seletor de tipo escolhe sozinho o PROXIMO livre, entao tres cliques
+  // dao estatico, carrossel e video sem precisar abrir tres popovers.
+  { nome: "20q-nova-campanha-composicao", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1700, role: "socio",
+    clicar: ['button:has-text("Tipo")', 'button:has-text("Tipo")', 'button:has-text("Tipo")'] },
+  { nome: "20r-nova-campanha-composicao-375", rota: "/painel/aprovacoes/campanhas/nova", largura: 375, altura: 1700, role: "socio",
+    clicar: ['button:has-text("Tipo")', 'button:has-text("Tipo")'] },
+  // A FRENTE DA CONTA (0118) no formulario da campanha, e ela so existe
+  // depois de escolher um cliente que TENHA vertente: a Mundo Verde tem
+  // cinco, a Optica Visao nao tem nenhuma. Sem os dois cliques o seletor nao
+  // sai em imagem nenhuma -- a tela conferida seria a que nao tem a peca
+  // nova. Dois passos: abrir o seletor de cliente, e escolher.
+  { nome: "20u-nova-campanha-vertente", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1000, role: "socio",
+    clicar: ['[aria-label="Cliente"]', '[role="option"]:has-text("Mundo Verde")'] },
   // A CAMPANHA COM O WORKFLOW APLICADO NAO TEM IMAGEM, e fica dito em vez de
   // escondido (migration 0108). A arvore vem de `arvoreDoWorkflowParaCampanha`,
   // e `exigirAtendimentoNaAcao` chama `is_atendimento()` NO BANCO -- o

@@ -265,6 +265,26 @@ export type CampaignStatus =
   | "cancelada";
 
 /**
+ * De que TIPO e cada peca de campanha (migration 0122).
+ *
+ * Decisao do usuario: uma campanha pode ter "10 posts estaticos, 5
+ * carrosseis, 3 videos, 15 stories, 2 banners e 1 landing page", com a
+ * quantidade variando a cada uma.
+ *
+ * **E enum e nao texto livre** porque ele e a dimensao por onde o resumo da
+ * agencia agrupa: com texto, "Estatico" e "estatico" viram duas linhas do
+ * mesmo material, e o relatorio passa a contar errado sem nada dizendo.
+ */
+export type DeliverableTipo =
+  | "estatico"
+  | "carrossel"
+  | "video"
+  | "story"
+  | "banner"
+  | "landing"
+  | "outro";
+
+/**
  * Um nó da árvore que o template guarda em `estrutura_json`.
  *
  * `itens` presente e vazio, com `quantidade`, é o caso do Feed/Storys: quantos
@@ -3322,6 +3342,10 @@ export interface Database {
           subtask_id: string | null;
           nome: string;
           descricao: string | null;
+          // De que tipo e esta peca (0122). OPCIONAL: a peca anterior a
+          // migration nao tem, e a que nasce de uma etapa acrescentada a mao
+          // na demanda tambem nao -- la nao ha onde escolher.
+          tipo: DeliverableTipo | null;
           ordem: number;
           status: ContentStatus;
           prazo: string | null;
@@ -3340,6 +3364,7 @@ export interface Database {
           subtask_id?: string | null;
           nome: string;
           descricao?: string | null;
+          tipo?: DeliverableTipo | null;
           ordem?: number;
           status?: ContentStatus;
           prazo?: string | null;
@@ -3351,6 +3376,7 @@ export interface Database {
         Update: {
           nome?: string;
           descricao?: string | null;
+          tipo?: DeliverableTipo | null;
           ordem?: number;
           status?: ContentStatus;
           prazo?: string | null;
@@ -3359,6 +3385,39 @@ export interface Database {
           arquivo_nome?: string | null;
           responsavel_id?: string | null;
           subtask_id?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /**
+       * QUANTOS MATERIAIS DE CADA TIPO A CAMPANHA COMBINOU (migration 0122).
+       *
+       * So a quantidade PLANEJADA e gravada. Produzida, entregue, aprovada e
+       * em ajustes sao contadas do estado de cada peca, pela regra de que o
+       * que da para calcular nao se guarda -- e quem conta e
+       * `composicao_da_campanha()`, num lugar so.
+       *
+       * Esta nao da para calcular: apagar uma peca nao pode reescrever o que
+       * foi combinado com o cliente.
+       *
+       * Sem Delete do lado do cliente, e a ausencia e a regra: o
+       * `on delete cascade` leva a composicao junto com a campanha, e nao ha
+       * o que apagar sozinho.
+       */
+      campaign_composicao: {
+        Row: {
+          campaign_id: string;
+          tipo: DeliverableTipo;
+          quantidade: number;
+          created_at: string;
+        };
+        Insert: {
+          campaign_id: string;
+          tipo: DeliverableTipo;
+          quantidade: number;
+        };
+        Update: {
+          quantidade?: number;
         };
         Relationships: [];
       };
@@ -4011,9 +4070,43 @@ export interface Database {
           p_briefing_rico: Json | null;
           p_briefing_texto: string | null;
           p_template: string | null;
+          /**
+           * A arvore como a pessoa a deixou. Cada no pode trazer `"tipo"`
+           * desde a 0122 -- ele vai para `deliverables.tipo` DEPOIS do
+           * espelho de `subtasks` (0080), e o filho herda o do grupo quando
+           * nao traz o dele.
+           *
+           * A assinatura nao mudou de proposito: `create or replace` nao
+           * troca a lista de argumentos, ele cria uma segunda funcao ao lado
+           * e a chamada antiga vira ambigua (a licao da 0061).
+           */
           p_estrutura: Json;
         };
         Returns: string;
+      };
+
+      /**
+       * O PLANO DA CAMPANHA POR TIPO, e onde cada tipo esta (0122).
+       *
+       * So `planejada` e gravada (`campaign_composicao`); as outras cinco sao
+       * contadas das FOLHAS, pela regra de toda soma deste modulo.
+       *
+       * `produzidas` e ter VERSAO gravada e nao um status: a peca pode estar
+       * "em producao" com a arte ja subida esperando o aval interno.
+       * `entregues` e o carimbo `enviado_em`, que e o que faz a peca existir
+       * para o cliente (0033).
+       */
+      composicao_da_campanha: {
+        Args: { p_campanha: string };
+        Returns: {
+          tipo: DeliverableTipo;
+          planejada: number;
+          criadas: number;
+          produzidas: number;
+          entregues: number;
+          aprovadas: number;
+          em_ajustes: number;
+        }[];
       };
       abrir_mes_de_social: {
         Args: {
@@ -4611,6 +4704,7 @@ export interface Database {
       status_rodada: StatusRodada;
       plataforma_social: PlataformaSocial;
       campaign_status: CampaignStatus;
+      deliverable_tipo: DeliverableTipo;
       notification_tipo: NotificationTipo;
       evento_tipo: EventoTipo;
       hr_tipo: HrTipo;

@@ -8,6 +8,7 @@ import { templatesDeCampanha } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { listarWorkflows } from "@/lib/dados/workflows";
+import { vertentesDasContas } from "@/lib/dados/vertentes";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 
 import { FormularioDeCampanha } from "./formulario";
@@ -54,6 +55,18 @@ export default async function PaginaDeNovaCampanha() {
     listarEquipeAtiva(),
   ]);
 
+  // AS VERTENTES DE TODAS AS CONTAS DE UMA VEZ, e não uma ida ao banco a cada
+  // troca de cliente no seletor.
+  //
+  // `vertentesDasContas` existe desde a 0118 exatamente para isto — o board e
+  // o calendário já precisavam do nome da frente de demandas de contas
+  // diferentes. A alternativa seria uma Server Action chamada no `onChange`
+  // do cliente, e ela custaria uma volta ao servidor no meio do preenchimento
+  // para responder uma lista que a página já poderia ter trazido.
+  const vertentesPorConta = await vertentesDasContas(
+    clientes.filter((c) => c.ativo).map((c) => c.id),
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -87,6 +100,17 @@ export default async function PaginaDeNovaCampanha() {
           nome: p.nome,
           funcao: p.funcao,
         }))}
+        vertentes={Object.fromEntries(
+          [...vertentesPorConta].map(([conta, lista]) => [
+            conta,
+            // SÓ AS ATIVAS, e aqui não há a exceção da "já escolhida" que
+            // `vertentesParaEscolher()` faz: uma campanha que está nascendo
+            // não aponta para frente nenhuma ainda.
+            lista
+              .filter((v) => v.ativa)
+              .map((v) => ({ id: v.id, nome: v.nome })),
+          ]),
+        )}
       />
     </div>
   );

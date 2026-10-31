@@ -12,6 +12,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import {
   analiseDosEntregaveis,
+  composicaoDaCampanha,
   entregaveisDaCampanha,
   obterCampanha,
   urlsDosArquivos,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/dominio/campanhas";
 
 import { ArvoreDeProducao } from "./arvore-de-producao";
+import { ComposicaoDaCampanhaPainel } from "./composicao";
 import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Campanha" };
@@ -96,6 +98,9 @@ export default async function PaginaDaCampanha({
   const analise = await analiseDosEntregaveis(
     itens.map((i) => ({ id: i.id, versaoAtual: i.versaoAtual })),
   );
+
+  // O PLANO POR TIPO (0122), numa chamada para a campanha inteira.
+  const composicao = await composicaoDaCampanha(campanha.id);
 
   const arquivosDasVersoes = await urlsDosArquivos(
     Object.values(versoes).flatMap((lista) =>
@@ -236,6 +241,12 @@ export default async function PaginaDaCampanha({
           )}
         </div>
       </section>
+
+      {/* A COMPOSIÇÃO FICA ENTRE A IDENTIDADE E A ÁRVORE, e a ordem é a de
+          quem abre a tela: o que foi combinado, e só então peça por peça.
+          Depois da árvore ela seria o resumo lido por último, que é o
+          contrário do que um resumo serve. */}
+      <ComposicaoDaCampanhaPainel composicao={composicao} />
 
       <ArvoreDeProducao
         clienteId={campanha.clienteId}

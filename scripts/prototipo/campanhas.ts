@@ -16,6 +16,7 @@ import type {
   CampanhaDoPortal,
   EntregavelDoPortal,
 } from "../../src/lib/dominio/campanhas";
+import type { ComposicaoDaCampanha } from "../../src/lib/dominio/campanhas";
 import type { EstruturaDeTemplate } from "../../src/lib/supabase/database.types";
 
 const HOJE = new Date();
@@ -396,4 +397,41 @@ export async function arquivosDasPecas(
     arquivo_nome: peca.arquivoNome,
   }));
   return todos.filter((p) => ids.includes(p.id));
+}
+
+/**
+ * A COMPOSIÇÃO DA WAVE (migration 0122).
+ *
+ * **O que a escolha dos números prova, e é por isso que eles não são
+ * redondos:**
+ *
+ *  * um tipo com `criadas` ABAIXO de `planejada` (os estáticos, 8 de 10),
+ *    senão a faixa âmbar "faltam montar" e a célula colorida não sairiam em
+ *    imagem nenhuma — e elas são a razão de a tabela existir;
+ *  * um tipo COMPLETO (os carrosséis), senão a imagem mostraria uma campanha
+ *    que só atrasa, e a célula sem cor não teria com o que ser comparada;
+ *  * um tipo com `planejada` ZERO e peça criada (os banners), que é a peça
+ *    classificada depois da abertura: ela só aparece por causa do
+ *    `full outer join`, e sem ela a imagem passaria com um `left join`;
+ *  * um tipo PLANEJADO E SEM NENHUMA PEÇA (as landing pages), que é o outro
+ *    lado do mesmo join — e a linha que diz "isto foi combinado e ninguém
+ *    começou";
+ *  * e um com peça EM AJUSTES, senão a última coluna sairia só com travessão.
+ */
+const COMPOSICAO_DA_WAVE: ComposicaoDaCampanha[] = [
+  { tipo: "estatico", planejada: 10, criadas: 8, produzidas: 6, entregues: 5, aprovadas: 3, emAjustes: 1 },
+  { tipo: "carrossel", planejada: 5, criadas: 5, produzidas: 5, entregues: 4, aprovadas: 4, emAjustes: 0 },
+  { tipo: "video", planejada: 3, criadas: 3, produzidas: 1, entregues: 0, aprovadas: 0, emAjustes: 0 },
+  { tipo: "story", planejada: 15, criadas: 15, produzidas: 12, entregues: 10, aprovadas: 9, emAjustes: 1 },
+  { tipo: "banner", planejada: 0, criadas: 2, produzidas: 2, entregues: 2, aprovadas: 2, emAjustes: 0 },
+  { tipo: "landing", planejada: 1, criadas: 0, produzidas: 0, entregues: 0, aprovadas: 0, emAjustes: 0 },
+];
+
+export async function composicaoDaCampanha(
+  campanhaId: string,
+): Promise<ComposicaoDaCampanha[]> {
+  // SÓ A WAVE TEM COMPOSIÇÃO, de propósito: a campanha anterior à 0122 não
+  // tem nenhuma, e é esse o estado em que a seção inteira some. Sem as duas,
+  // a imagem provaria que o painel aparece e não que ele sabe faltar.
+  return campanhaId === "camp-wave" ? COMPOSICAO_DA_WAVE : [];
 }

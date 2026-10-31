@@ -16,7 +16,11 @@ import {
 } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { colunasDoConteudo, doEntregavel } from "@/lib/aprovacoes/conteudo";
-import { entregaveisDoWorkflow, type NoDeModelo } from "@/lib/dominio/campanhas";
+import {
+  entregaveisDoWorkflow,
+  TIPOS_DE_MATERIAL,
+  type NoDeModelo,
+} from "@/lib/dominio/campanhas";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { fluxoDoWorkflow } from "@/lib/dados/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -52,6 +56,16 @@ const esquemaDoItem = z.object({
   nome: z.string().trim().min(1, "Todo item precisa de um nome."),
   prazo: dataOpcional,
   responsavelId: z.string().uuid().nullable().optional(),
+  /**
+   * De que tipo é o material (0122).
+   *
+   * **A lista vem de `TIPOS_DE_MATERIAL` e não é copiada aqui**, que é a
+   * lição que `TIPOS_DE_EVENTO` pagou: a 0109 acrescentou o oitavo tipo de
+   * evento ao enum do banco e à lista de domínio, a cópia escrita à mão
+   * dentro do `z.enum` da action ficou com sete, e o chip novo era recusado
+   * no clique com "Confira o campo: tipo" — sem o banco nunca ser chamado.
+   */
+  tipo: z.enum(TIPOS_DE_MATERIAL).nullable().optional(),
 });
 
 const esquemaDoNo = esquemaDoItem.extend({
@@ -67,6 +81,16 @@ const esquemaDaCampanha = z
     dataFim: data,
     /** De onde a estrutura saiu. Guardado como procedência, não como regra. */
     templateId: z.string().uuid().nullable().optional(),
+    /**
+     * A FRENTE DA CONTA a que esta campanha pertence (0118).
+     *
+     * Ela mora na DEMANDA e não em `campaigns`, pela razão de o briefing e a
+     * pasta de entrega também morarem lá: a campanha nasce com uma demanda, e
+     * uma segunda coluna com o mesmo papel em outra tabela é o lugar onde as
+     * duas divergem. Quem classifica por vertente — o filtro do board, a
+     * Biblioteca do cliente, o relatório — lê `tasks.vertente_id`.
+     */
+    vertenteId: z.string().uuid().nullable().optional(),
     /**
      * O estado da campanha, e ele PRECISA estar aqui.
      *
@@ -157,10 +181,15 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
         nome: no.nome,
         prazo: no.prazo || null,
         responsavel: no.responsavelId ?? null,
+        tipo: no.tipo ?? null,
         filhos: no.filhos.map((f) => ({
           nome: f.nome,
           prazo: f.prazo || null,
           responsavel: f.responsavelId ?? null,
+          // O FILHO MANDA O DELE quando tem; sem isso, `abrir_campanha()`
+          // faz ele herdar o do grupo — que é o caso normal de "dez
+          // estáticos", onde o tipo foi escolhido uma vez.
+          tipo: f.tipo ?? null,
         })),
       })) as unknown as Json,
     });
@@ -172,10 +201,58 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
       );
     }
 
+    // ------------------------------------------------- a vertente da demanda
+    //
+    // ELA É UMA SEGUNDA ESCRITA, e não um parâmetro de `abrir_campanha()`.
+    //
+    // `create or replace` não troca a lista de argumentos — ele cria uma
+    // SEGUNDA função ao lado, e a chamada antiga vira ambígua (a lição da
+    // 0061, que custou um "Could not find the function" ao usuário). Um
+    // `drop`+`create` abriria uma janela em que a tela no ar chama uma função
+    // que não existe, e este produto pagou por isso com a 0120.
+    //
+    // **E ela não pode derrubar a campanha que acabou de nascer.** A demanda,
+    // as etapas e as peças já estão gravadas; uma recusa aqui — o trigger
+    // `tasks_vertente_da_conta` (0118) recusando uma frente de outra empresa,
+    // por exemplo — não desfaz nada, então o que ela pode fazer é avisar. É a
+    // decisão de `etapa_acompanha_o_entregavel` (0052): o trigger está do
+    // outro lado, e uma recusa dele apareceria como o clique DA PESSOA
+    // falhando, com uma mensagem sobre outra coisa.
+    if (dados.vertenteId) {
+      const { error: erroDaVertente } = await supabase
+        .from("tasks")
+        .update({ vertente_id: dados.vertenteId })
+        .eq("id", (await demandaDaCampanha(supabase, data)) ?? "")
+        .select("id");
+
+      if (erroDaVertente) {
+        console.error("[criarCampanha] a vertente não foi gravada", erroDaVertente);
+        revalidatePath(ROTA);
+        revalidatePath("/portal/campanhas");
+        return sucesso(
+          "Campanha criada, mas a frente não foi gravada. Escolha-a no detalhe da demanda.",
+        );
+      }
+    }
+
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
     return sucesso("Campanha criada, com a demanda e as etapas.");
   });
+}
+
+/** O id da demanda que `abrir_campanha()` acabou de criar. */
+async function demandaDaCampanha(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  campanhaId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("campaigns")
+    .select("task_id")
+    .eq("id", campanhaId)
+    .limit(1);
+
+  return data?.[0]?.task_id ?? null;
 }
 
 /**

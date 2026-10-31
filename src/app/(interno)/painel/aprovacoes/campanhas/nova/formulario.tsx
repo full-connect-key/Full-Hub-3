@@ -21,11 +21,18 @@ import {
 } from "@/components/ui/select";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
+  arvoreDaComposicao,
   entregaveisDoTemplate,
   ROTULO_DA_CAMPANHA,
+  ROTULO_DO_TIPO,
+  TIPOS_DE_MATERIAL,
+  type LinhaDaComposicao,
   type NoDeModelo,
 } from "@/lib/dominio/campanhas";
-import type { CampaignStatus } from "@/lib/supabase/database.types";
+import type {
+  CampaignStatus,
+  DeliverableTipo,
+} from "@/lib/supabase/database.types";
 import type { JSONContent } from "@tiptap/react";
 import type { TemplateDeCampanha } from "@/lib/dados/campanhas";
 
@@ -66,17 +73,21 @@ type ItemEmEdicao = {
   nome: string;
   prazo: string;
   responsavelId: string;
+  /** De que tipo é o material (0122). `SEM_TIPO` é um balde de verdade. */
+  tipo: string;
 };
 type NoEmEdicao = ItemEmEdicao & { filhos: ItemEmEdicao[] };
 
 const SEM_DONO = "__sem_dono__";
+const SEM_TIPO = "__sem_tipo__";
+const SEM_VERTENTE = "__sem_vertente__";
 
 function chave() {
   return Math.random().toString(36).slice(2);
 }
 
-function item(nome = ""): ItemEmEdicao {
-  return { chave: chave(), nome, prazo: "", responsavelId: SEM_DONO };
+function item(nome = "", tipo: string = SEM_TIPO): ItemEmEdicao {
+  return { chave: chave(), nome, prazo: "", responsavelId: SEM_DONO, tipo };
 }
 
 /** `AAAA-MM-DD` mais N dias, em UTC para não escorregar de fuso. */
@@ -90,6 +101,7 @@ export function FormularioDeCampanha({
   templates,
   workflows,
   pessoas,
+  vertentes,
 }: {
   clientes: { id: string; nome: string }[];
   templates: TemplateDeCampanha[];
@@ -105,6 +117,15 @@ export function FormularioDeCampanha({
    */
   workflows: { id: string; nome: string; descricao: string | null; etapas: number }[];
   pessoas: { id: string; nome: string; funcao: string | null }[];
+  /**
+   * AS FRENTES DE CADA CONTA (0118), todas de uma vez.
+   *
+   * Mapa e não lista: a pergunta é "quais são as da conta escolhida", e uma
+   * lista única obrigaria a tela a carregar o `client_id` de cada vertente só
+   * para filtrar — e duas contas podem ter uma frente com o MESMO nome, que é
+   * a razão de a Biblioteca só desenhar os chips quando há uma empresa só.
+   */
+  vertentes: Record<string, { id: string; nome: string }[]>;
 }) {
   const router = useRouter();
   const [salvando, salvar] = useTransition();
@@ -114,6 +135,7 @@ export function FormularioDeCampanha({
   const [montando, montar] = useTransition();
 
   const [clienteId, setClienteId] = useState("");
+  const [vertenteId, setVertenteId] = useState(SEM_VERTENTE);
   const [nome, setNome] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -131,6 +153,59 @@ export function FormularioDeCampanha({
   const [linkEntrega, setLinkEntrega] = useState("");
   const [briefing, setBriefing] = useState<JSONContent | null>(null);
   const [arvore, setArvore] = useState<NoEmEdicao[]>([]);
+  /**
+   * A COMPOSIÇÃO: deste tipo, tantos.
+   *
+   * Ela não é gravada daqui — quem grava o plano é `abrir_campanha()`,
+   * contando as FOLHAS da árvore que esta tela mandou (0122). Aqui ela é o
+   * atalho que gera a árvore: "story, 15" em vez de quinze linhas digitadas
+   * uma a uma, que era o único caminho até agora.
+   */
+  const [composicao, setComposicao] = useState<LinhaDaComposicao[]>([]);
+
+  /**
+   * TROCAR DE CLIENTE LIMPA A FRENTE, e isso é obrigatório.
+   *
+   * `tasks_vertente_da_conta` (0118) recusa uma demanda apontando para a
+   * vertente de OUTRA empresa — e a recusa chegaria depois de a campanha
+   * inteira já ter nascido, porque a frente é gravada numa segunda escrita.
+   * É a mesma limpeza que `atualizarTask` faz na tela de task, pela mesma
+   * razão: "Institucional" existe em duas contas com ids diferentes.
+   */
+  function escolherCliente(id: string) {
+    setClienteId(id);
+    setVertenteId(SEM_VERTENTE);
+  }
+
+  /**
+   * A COMPOSIÇÃO GERA A ÁRVORE, e ela avisa antes de reescrever.
+   *
+   * Mesma decisão de "trocar de modelo refaz a lista": gerar por cima do que
+   * já foi ajustado daria uma árvore que não é nem a da composição nem a de
+   * antes, e ninguém conseguiria explicar de onde ela veio.
+   */
+  function gerarDaComposicao() {
+    const total = composicao.reduce((soma, l) => soma + l.quantidade, 0);
+    if (total === 0) {
+      toast.error("Nenhuma quantidade. Some ao menos um material.");
+      return;
+    }
+
+    if (
+      arvore.length > 0 &&
+      !window.confirm(
+        "Gerar refaz a lista de entregáveis. O que você já ajustou aqui se perde. Gerar mesmo assim?",
+      )
+    ) {
+      return;
+    }
+
+    // O MODELO VOLTA A "Montar do zero", e não é cosmético: o seletor acima
+    // diria que esta árvore saiu de um modelo que não a produziu, e
+    // `templateId` viaja para a action como PROCEDÊNCIA da estrutura.
+    setTemplateId(SEM_MODELO);
+    plantar(arvoreDaComposicao(composicao));
+  }
 
   /**
    * Trocar de modelo REESCREVE a árvore, e a tela avisa antes.
@@ -196,14 +271,14 @@ export function FormularioDeCampanha({
   /** Põe uma árvore de modelo na tela, de qualquer origem. */
   function plantar(nos: NoDeModelo[]) {
     const paraEdicao = (no: NoDeModelo): NoEmEdicao => ({
-      ...item(no.nome),
+      ...item(no.nome, no.tipo ?? SEM_TIPO),
       // O RESPONSÁVEL E O PRAZO ENTRAM QUANDO O MODELO OS SABE, e é isso que
       // faz o workflow "aparecer montado completo": o modelo de campanha
       // guarda nomes e deixa os dois em branco, como já deixava.
       responsavelId: no.responsavelId ?? SEM_DONO,
       prazo: no.offsetDias !== null && dataInicio ? somarDias(dataInicio, no.offsetDias) : "",
       filhos: no.filhos.map((filho) => ({
-        ...item(filho.nome),
+        ...item(filho.nome, filho.tipo ?? SEM_TIPO),
         responsavelId: filho.responsavelId ?? SEM_DONO,
         prazo:
           filho.offsetDias !== null && dataInicio
@@ -252,6 +327,7 @@ export function FormularioDeCampanha({
           linkEntrega,
           briefing,
           templateId: templateId === SEM_MODELO ? null : templateId,
+          vertenteId: vertenteId === SEM_VERTENTE ? null : vertenteId,
           estrutura: arvore
             // Linha em branco não vira entregável: quem clicou em "adicionar"
             // e desistiu não deve ganhar um material sem nome na campanha.
@@ -260,6 +336,7 @@ export function FormularioDeCampanha({
               nome: no.nome,
               prazo: no.prazo || null,
               responsavelId: no.responsavelId === SEM_DONO ? null : no.responsavelId,
+              tipo: no.tipo === SEM_TIPO ? null : (no.tipo as DeliverableTipo),
               filhos: no.filhos
                 .filter((f) => f.nome.trim().length > 0)
                 .map((f) => ({
@@ -267,6 +344,7 @@ export function FormularioDeCampanha({
                   prazo: f.prazo || null,
                   responsavelId:
                     f.responsavelId === SEM_DONO ? null : f.responsavelId,
+                  tipo: f.tipo === SEM_TIPO ? null : (f.tipo as DeliverableTipo),
                 })),
             })),
         }),
@@ -280,6 +358,9 @@ export function FormularioDeCampanha({
     });
   }
 
+  const frentesDaConta = clienteId ? (vertentes[clienteId] ?? []) : [];
+  const totalDaComposicao = composicao.reduce((s, l) => s + l.quantidade, 0);
+
   // A DESCRIÇÃO VEM DA ORIGEM ESCOLHIDA, qualquer das duas. Procurar só em
   // `templates` deixaria a linha de ajuda em branco para todo workflow.
   const escolhido =
@@ -292,7 +373,7 @@ export function FormularioDeCampanha({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="cliente">Cliente</Label>
-            <Select value={clienteId} onValueChange={setClienteId}>
+            <Select value={clienteId} onValueChange={escolherCliente}>
               <SelectTrigger aria-label="Cliente" id="cliente" className="w-full">
                 <SelectValue placeholder="Escolha o cliente" />
               </SelectTrigger>
@@ -315,6 +396,40 @@ export function FormularioDeCampanha({
               placeholder="Ex.: Wave Outubro Rosa"
             />
           </div>
+
+          {/* A FRENTE SÓ EXISTE QUANDO A CONTA TEM, e vem DEPOIS do cliente.
+              A maioria das contas não tem vertente nenhuma, e um seletor
+              permanentemente vazio na grade pede uma escolha que não existe;
+              acima do cliente ele perguntaria sobre uma conta que ainda não
+              foi escolhida. É a decisão do campo da tela de task. */}
+          {frentesDaConta.length > 0 ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="vertente">Frente da conta</Label>
+              <Select value={vertenteId} onValueChange={setVertenteId}>
+                <SelectTrigger
+                  aria-label="Frente da conta"
+                  id="vertente"
+                  className="w-full sm:max-w-sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* "Sem frente" FICA, e não é indecisão: a campanha
+                      institucional da conta não pertence a nenhuma das
+                      frentes, e obrigar a escolha faria a pessoa marcar a
+                      primeira da lista — que é pior que não classificar,
+                      porque o relatório passaria a contá-la onde ela não
+                      está. */}
+                  <SelectItem value={SEM_VERTENTE}>Sem frente</SelectItem>
+                  {frentesDaConta.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
       </SecaoDoFormulario>
 
@@ -404,8 +519,158 @@ export function FormularioDeCampanha({
         />
       </SecaoDoFormulario>
 
+      {/* A COMPOSIÇÃO VEM ANTES DA ÁRVORE, e é a ordem da decisão.
+          Quem abre uma Wave decide primeiro QUANTOS de cada coisa — é o que
+          está no contrato com o cliente — e só depois quem faz cada uma e
+          para quando. Invertido, a pessoa distribuiria responsáveis numa
+          lista que ainda vai ser refeita. */}
       <SecaoDoFormulario
         numero={4}
+        titulo="Quantos materiais de cada tipo"
+        acao={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const livre = TIPOS_DE_MATERIAL.find(
+                (t) => !composicao.some((l) => l.tipo === t),
+              );
+              if (!livre) return;
+              setComposicao((atual) => [
+                ...atual,
+                { tipo: livre, quantidade: 1 },
+              ]);
+            }}
+            disabled={composicao.length >= TIPOS_DE_MATERIAL.length}
+          >
+            <Plus aria-hidden className="size-4" />
+            Tipo
+          </Button>
+        }
+      >
+        <p className="text-text-muted text-sm">
+          Diga quantos de cada tipo a campanha entrega e o Full Hub monta a
+          lista — dez estáticos viram um grupo “Estáticos” com dez peças
+          dentro. Dá para montar a lista à mão embaixo, também.
+        </p>
+
+        {composicao.length === 0 ? (
+          <p className="text-text-muted rounded-xl border border-dashed p-4 text-sm">
+            Nenhum tipo ainda. Acrescente um acima — ou pule esta parte e monte
+            os entregáveis um a um.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {composicao.map((linha, i) => (
+              <li
+                key={linha.tipo}
+                className="bg-surface-card flex flex-wrap items-center gap-2 rounded-xl border p-2"
+              >
+                <Select
+                  value={linha.tipo}
+                  onValueChange={(v) =>
+                    setComposicao((atual) =>
+                      atual.map((l, j) =>
+                        j === i ? { ...l, tipo: v as DeliverableTipo } : l,
+                      ),
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    aria-label={`Tipo do material ${i + 1}`}
+                    className="w-48"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_DE_MATERIAL.map((t) => (
+                      <SelectItem
+                        key={t}
+                        value={t}
+                        // O TIPO JÁ ESCOLHIDO SAI DA LISTA dos outros, porque
+                        // a composição é por tipo: duas linhas de "estático"
+                        // seriam dois planos para o mesmo material, e o
+                        // `primary key (campaign_id, tipo)` do banco guarda
+                        // só o último.
+                        disabled={
+                          t !== linha.tipo &&
+                          composicao.some((l) => l.tipo === t)
+                        }
+                      >
+                        {ROTULO_DO_TIPO[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={linha.quantidade}
+                  onChange={(e) =>
+                    setComposicao((atual) =>
+                      atual.map((l, j) =>
+                        j === i
+                          ? {
+                              ...l,
+                              // ZERO É ACEITO, que é o pedido em quantas
+                              // palavras. Ele quer dizer "este tipo não entra
+                              // nesta campanha", e a árvore simplesmente não
+                              // ganha a linha — `arvoreDaComposicao()` filtra.
+                              quantidade: Math.max(
+                                0,
+                                Math.min(200, Number(e.target.value) || 0),
+                              ),
+                            }
+                          : l,
+                      ),
+                    )
+                  }
+                  aria-label={`Quantidade de ${ROTULO_DO_TIPO[linha.tipo]}`}
+                  className="w-24"
+                />
+
+                <span className="text-text-muted text-sm">
+                  {linha.quantidade === 0
+                    ? "não entra"
+                    : linha.quantidade === 1
+                      ? "uma peça"
+                      : `${linha.quantidade} peças`}
+                </span>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ms-auto"
+                  onClick={() =>
+                    setComposicao((atual) => atual.filter((_, j) => j !== i))
+                  }
+                  aria-label={`Remover ${ROTULO_DO_TIPO[linha.tipo]}`}
+                >
+                  <X aria-hidden className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {composicao.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={gerarDaComposicao}>
+              Montar a lista
+            </Button>
+            <p className="text-text-muted text-sm">
+              {totalDaComposicao === 0
+                ? "Todas as quantidades estão em zero."
+                : `${totalDaComposicao} peça(s) no total.`}
+            </p>
+          </div>
+        ) : null}
+      </SecaoDoFormulario>
+
+      <SecaoDoFormulario
+        numero={5}
         titulo="O que a campanha entrega, e quem faz cada peça"
         acao={
           <Button
@@ -602,6 +867,30 @@ function Linha({
         aria-label={placeholder}
         className="min-w-[10rem] flex-1"
       />
+
+      {/* O TIPO FICA ENTRE O NOME E O RESPONSÁVEL, e a ordem é a da pergunta:
+          o que é esta peça, quem faz, até quando. Ele vem preenchido quando a
+          composição montou a lista; quando a árvore veio de um modelo ou foi
+          digitada à mão, fica em branco — nem o modelo de campanha nem o
+          workflow sabem se "Feed/Story site" é estático ou carrossel, e
+          adivinhar pelo nome é a classe de palpite que esta casa não dá. */}
+      <Select value={valor.tipo} onValueChange={(v) => aoMudar({ tipo: v })}>
+        <SelectTrigger aria-label={`Tipo de ${nome}`} className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {/* "Sem tipo" É UMA OPÇÃO e fica no topo, pela razão de "Sem
+              responsável": a peça que ninguém classificou é um balde de
+              verdade no relatório, e inventar um valor afirmaria um material
+              que ninguém escolheu. */}
+          <SelectItem value={SEM_TIPO}>Sem tipo</SelectItem>
+          {TIPOS_DE_MATERIAL.map((t) => (
+            <SelectItem key={t} value={t}>
+              {ROTULO_DO_TIPO[t]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <Select
         value={valor.responsavelId}

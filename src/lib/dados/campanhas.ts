@@ -13,6 +13,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import type {
   AnaliseDaPeca,
   CampanhaDoPortal,
+  ComposicaoDaCampanha,
   EntregavelDoPortal,
 } from "@/lib/dominio/campanhas";
 import type { EstruturaDeTemplate } from "@/lib/supabase/database.types";
@@ -544,4 +545,46 @@ export async function analiseDosEntregaveis(
   }
 
   return mapa;
+}
+
+/**
+ * O PLANO DA CAMPANHA POR TIPO DE MATERIAL, e onde cada tipo está (0122).
+ *
+ * **É RPC e não um `select`**, e a razão é a de sempre: a conta é a mesma dos
+ * dois lados — a tela mostra "12 de 15 estáticos" e o relatório da agência
+ * soma a mesma coisa —, e duas consultas parecidas dariam dois números para a
+ * mesma campanha conforme a tela. `composicao_da_campanha()` é o lugar único,
+ * com o `full outer join` que faz o tipo planejado sem peça e a peça sem
+ * plano aparecerem os dois.
+ *
+ * **A FALHA NÃO DERRUBA A TELA**, e é a exceção de `portaoDoPost()` e do selo
+ * de programado: a campanha funciona inteira sem esta resposta — ela
+ * acrescenta um painel a uma árvore que já está toda desenhada. O erro vai
+ * para o log, senão um painel que parasse de chegar seria descoberto por
+ * alguém perguntando por que a campanha não diz mais quantos faltam.
+ */
+export async function composicaoDaCampanha(
+  campanhaId: string,
+): Promise<ComposicaoDaCampanha[]> {
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("composicao_da_campanha", {
+    p_campanha: campanhaId,
+  });
+
+  if (error) {
+    console.error("[composicaoDaCampanha]", error);
+    return [];
+  }
+
+  return (data ?? []).map((linha) => ({
+    tipo: linha.tipo,
+    planejada: linha.planejada,
+    criadas: linha.criadas,
+    produzidas: linha.produzidas,
+    entregues: linha.entregues,
+    aprovadas: linha.aprovadas,
+    // O NOME MUDA DE CAMADA AQUI, e é a convenção: o banco fala
+    // `em_ajustes`, o domínio fala `emAjustes`. O tipo de domínio não é o Row.
+    emAjustes: linha.em_ajustes,
+  }));
 }

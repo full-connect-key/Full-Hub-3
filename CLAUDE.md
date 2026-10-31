@@ -6292,6 +6292,201 @@ continuam com `task_id` nulo, e a resposta para elas continua sendo
 `scripts/campanhas-sem-demanda.sql`, que pede a pasta de entrega a quem sabe
 qual é.
 
+#### A COMPOSIÇÃO: quantos materiais de cada tipo
+
+Migration 0122, decisão do usuário: *"uma campanha pode ter 10 posts
+estáticos, 5 carrosséis, 3 vídeos, 15 stories, 2 banners e 1 landing page"*,
+com *"registro da quantidade planejada, produzida, entregue, aprovada e
+pendente de ajustes"*.
+
+**O ÚNICO CAMINHO PARA QUINZE STORIES ERA DIGITAR QUINZE LINHAS.** O modelo
+da Wave já sabia a conta — `quantidade` em `campaign_templates.estrutura_json`
+expande "Feed/Story 1" a "Feed/Story 6" desde a 0033 —, e ela estava
+**guardada num modelo**: o número é o que muda a cada campanha, e um modelo é
+justamente o que não muda. Quem abria uma campanha fora do molde não tinha
+nada.
+
+**O TIPO É ENUM E NÃO TEXTO LIVRE**, e a razão é o relatório: ele é a dimensão
+por onde o resumo da agência agrupa, e com texto "Estatico" e "estatico" viram
+duas linhas do mesmo material — o número sai plausível e errado, que é o modo
+de falha desta casa. É a decisão de `midia` na 0042, pela mesma frase: o que a
+tela desenha por cima precisa ser um nome que o compilador confere.
+
+**ELE MORA NA PEÇA, e não numa coluna de `subtasks`.** Tipo de material é
+propriedade da PEÇA e não do passo de trabalho, e nada do lado da demanda o
+lê. A coluna na tabela mais lida do produto só se paga quando a corrente
+inteira vive lá, que é o caso de `social_papel` (0088) e não deste.
+
+**E ELE É OPCIONAL.** A peça anterior à migration não tem, e a que nasce de
+uma etapa acrescentada à mão na demanda também não — ali não há onde escolher.
+"Sem tipo" é um balde de verdade no relatório; inventar um valor seria afirmar
+um material que ninguém classificou.
+
+##### Só a PLANEJADA é gravada
+
+`campaign_composicao (campaign_id, tipo, quantidade)`, e mais nada. Produzida,
+entregue, aprovada e em ajustes são contadas do estado de cada peça por
+`composicao_da_campanha()` — é a regra do produto inteiro: o que dá para
+calcular não se guarda, senão são duas verdades e a guardada é a que
+envelhece. É `atraso` não ser coluna e `maoDoPost()` pela enésima vez.
+
+**A planejada não dá para calcular**, e é por isso que ela é a exceção:
+apagar uma peça não pode reescrever o que foi combinado com o cliente.
+
+| A conta | O que ela é |
+| --- | --- |
+| planejada | o que a campanha combinou — gravado |
+| criadas | quantas folhas existem com aquele tipo |
+| produzidas | quantas têm VERSÃO gravada |
+| entregues | quantas têm `enviado_em` |
+| aprovadas | `status = 'aprovado'` |
+| em ajustes | `status = 'ajustes'` |
+
+**PRODUZIDA É TER ARQUIVO, e não um status.** A peça pode estar "em produção"
+com a arte já subida esperando o aval interno, e pode estar "aguardando
+informações" com duas versões atrás. O que diz que alguém produziu é o
+arquivo. **ENTREGUE é o carimbo** `enviado_em`, pela razão da 0033: é ele que
+faz a peça existir para o cliente, e não o status.
+
+**E A CONTA É DA FOLHA**, que é a regra de toda soma deste módulo (0022,
+0033): um grupo com dez filhos é uma linha na tela e dez entregas no trabalho.
+O grupo carrega o tipo para a árvore saber desenhá-lo e **não entra na conta**.
+
+**O `full outer join` é o ponto da leitura.** O tipo planejado que perdeu
+todas as peças continua aparecendo com zero — que é a frase que o relatório
+precisa dizer —, e a peça classificada depois da abertura aparece mesmo sem
+plano. Um `left join` de qualquer um dos lados esconderia um dos dois.
+
+##### `abrir_campanha()` mantém a assinatura, e isso é a decisão cara
+
+`create or replace` **não troca a lista de argumentos**: ele cria uma SEGUNDA
+função ao lado, e a chamada antiga vira ambígua — é a lição da 0061, que
+custou um *"Could not find the function"* ao usuário. Um `drop`+`create`
+abriria uma janela em que a tela no ar chama uma função que não existe, e este
+produto pagou por isso com a 0120.
+
+Então o que muda é o **conteúdo** de `p_estrutura`, que passou a aceitar
+`"tipo"` em cada nó. O tipo é escrito em `deliverables` **depois** do espelho
+de `subtasks` (0080), que é um `after insert` — naquele ponto a peça já
+existe.
+
+**E O FILHO HERDA O TIPO DO GRUPO quando não traz o dele.** Dez estáticos são
+um grupo "Estáticos" com dez filhos, e escrever o tipo só no grupo deixaria as
+dez FOLHAS sem classificação — que é exatamente o que o relatório conta.
+
+**De quebra, um bug latente da 0051:** o laço dos filhos relia `parent_id`
+depois de `a_etapa` já ter sido reusado pelo `returning` do filho. O pai mora
+em `o_pai`, escrito antes do laço.
+
+##### A tela: a composição vem ANTES da árvore
+
+Seção 4, "Quantos materiais de cada tipo", e a árvore virou a 5. **É a ordem
+da decisão:** quem abre uma Wave decide primeiro QUANTOS de cada coisa — é o
+que está no contrato com o cliente — e só depois quem faz cada uma e para
+quando. Invertido, a pessoa distribuiria responsáveis numa lista que ainda vai
+ser refeita.
+
+**QUANTIDADE 1 NÃO VIRA GRUPO.** Uma landing page é uma peça, e um grupo
+"Landing pages" com um filho "Landing page 1" é um nível de recuo que não diz
+nada — e, pior, faz a árvore ter um agrupador cujo status é calculado por um
+filho só (0033). Dois ou mais viram grupo, porque aí o recuo significa alguma
+coisa.
+
+**ZERO É ACEITO, e é o pedido em quantas palavras.** Ele quer dizer que aquele
+tipo não entra nesta campanha, e `arvoreDaComposicao()` simplesmente não gera
+a linha. **Uma linha com zero no banco afirmaria um plano de nenhum
+material**, e é por isso que o `check` é `quantidade > 0`.
+
+**O TIPO JÁ ESCOLHIDO SAI DA LISTA dos outros**, porque a composição é por
+tipo: duas linhas de "estático" seriam dois planos para o mesmo material, e o
+`primary key (campaign_id, tipo)` guarda só o último.
+
+**"Montar a lista" avisa antes de reescrever**, que é a decisão de "trocar de
+modelo refaz a lista": gerar por cima do que já foi ajustado daria uma árvore
+que não é nem a da composição nem a de antes. E ela **devolve o seletor de
+modelo a "Montar do zero"** — não é cosmético: `templateId` viaja para a
+action como PROCEDÊNCIA da estrutura, e dizer que esta árvore saiu de um
+modelo que não a produziu é gravar uma origem falsa.
+
+**O SINGULAR É ESCRITO À MÃO**, ao contrário de `singularDoGrupo()`, que tira
+o "s" do fim por expressão regular: ela acerta "Estáticos" e erra "Carrosséis"
+e "Stories" — e um grupo chamado "Carrossei 1" é a tela mostrando um erro de
+português na peça que o cliente vai aprovar. Sete palavras escritas custam
+menos que uma regra que acerta cinco de sete.
+
+##### O painel da campanha é TABELA, e não seis ladrilhos
+
+A pergunta da seção é uma COMPARAÇÃO — quantos foram combinados contra quantos
+existem, por tipo —, e comparação é o que uma tabela faz e uma fileira de
+cartões não: o olho desce a coluna. Seis cartões por tipo seriam trinta e seis
+números soltos numa campanha de seis tipos.
+
+**"Faltam montar" conta `criadas` e não `aprovadas`**, e a distinção é o que a
+frase quer dizer: "falta montar" é alguém ainda ir CRIAR a peça, e "falta
+aprovar" é outra coisa, que a barra de progresso acima já responde. Esta linha
+existe para pegar a campanha que combinou quinze stories e tem dez. `--warning`
+e nunca `--danger`: uma campanha incompleta no meio do mês é o estado normal
+dela.
+
+**A SEÇÃO SOME QUANDO NÃO HÁ COMPOSIÇÃO**, que é a regra dos blocos de exceção
+do Início: a campanha anterior à 0122, ou montada à mão sem classificar nada,
+não tem o que dizer — e uma tabela vazia ocuparia espaço em toda visita para
+informar em algumas.
+
+**E A TABELA É UMA REGIÃO FOCÁVEL, o que a legenda do Calendário Full
+recusou.** A diferença é o que está dentro: lá a saída foi NÃO ROLAR, porque a
+fileira era estática e cabia quebrando de linha — um `tabIndex` numa lista que
+não decide nada é uma parada de teclado para ler o que já estava à vista. Aqui
+o conteúdo é a comparação entre sete colunas de número, e empilhá-la por tipo
+destruiria a coluna. **Quando rolar é o conteúdo, a resposta do axe é dar ao
+teclado como chegar nele** — com nome, senão o leitor de tela anuncia uma
+região sem dizer de quê. Foi a imagem de 375px que cobrou.
+
+##### A FRENTE DA CONTA entra no formulário, e é uma SEGUNDA escrita
+
+Item 4 do pedido, que descreve o fluxo *"cliente → vertente → modelo →
+materiais e quantidades → etapas → responsáveis → prazos → confirmar"*.
+
+A vertente mora na DEMANDA (`tasks.vertente_id`, 0118) e não em `campaigns`,
+pela razão de o briefing e a pasta de entrega também morarem lá: a campanha
+nasce com uma demanda, e uma segunda coluna com o mesmo papel em outra tabela
+é o lugar onde as duas divergem. Quem classifica por vertente — o filtro do
+board, a Biblioteca do cliente, o relatório — lê `tasks.vertente_id`.
+
+**Ela é gravada DEPOIS de `abrir_campanha()` retornar**, pela mesma razão da
+assinatura: um parâmetro novo exigiria `drop`+`create`. E ela **não pode
+derrubar a campanha que acabou de nascer** — a demanda, as etapas e as peças
+já estão gravadas, então uma recusa aqui não desfaz nada e o que ela pode
+fazer é avisar. É a decisão de `etapa_acompanha_o_entregavel` (0052): o
+trigger está do outro lado, e uma recusa dele apareceria como o clique DA
+PESSOA falhando, com uma mensagem sobre outra coisa.
+
+**TROCAR DE CLIENTE LIMPA A FRENTE**, e é obrigatório: `tasks_vertente_da_conta`
+recusa uma demanda apontando para a vertente de OUTRA empresa, e a recusa
+chegaria depois de a campanha inteira já ter nascido. É a mesma limpeza que
+`atualizarTask` faz na tela de task, porque "Institucional" existe em duas
+contas com ids diferentes.
+
+**O campo só existe quando a conta TEM frente**, e vem depois do cliente — a
+decisão do seletor da tela de task, palavra por palavra. "Sem frente" fica
+como opção: a campanha institucional não pertence a nenhuma das frentes, e
+obrigar a escolha faria a pessoa marcar a primeira da lista, que é pior que
+não classificar.
+
+**As vertentes de TODAS as contas vêm de uma vez**, por `vertentesDasContas()`
+— a função existe desde a 0118 para o board e o calendário. A alternativa
+seria uma Server Action no `onChange` do cliente, custando uma volta ao
+servidor no meio do preenchimento para responder uma lista que a página já
+podia ter trazido.
+
+***O que fica em aberto, e é dito em vez de escondido:*** a composição não se
+edita depois que a campanha nasce. `campaign_composicao` tem policy de UPDATE
+para `is_atendimento()` desde a 0122 e **nenhuma tela a exerce** — é a ponte
+construída esperando a travessia, e a travessia é um diálogo no painel da
+campanha. Quem acrescenta uma peça hoje acrescenta uma etapa na demanda, e ela
+entra como `criadas` sem mexer no combinado — que é o estado honesto: o plano
+é o que foi combinado, e ele não muda porque alguém montou uma peça a mais.
+
 #### A campanha se edita depois de aberta
 
 Migration 0078, decisão do usuário: *"preciso poder editar as informações de
