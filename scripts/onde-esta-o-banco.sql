@@ -698,7 +698,15 @@ from (
     -- banco onde a trava da exclusao nao existe -- que e a armadilha que a
     -- 0085 ja pagou ao apontar para o PASSO 1.
     ('0121', 'o arquivo da entrega, e a rodada que o carrega', 'trigger',
-             'subtask_entregas_nao_apaga_enviada')
+             'subtask_entregas_nao_apaga_enviada'),
+
+    -- A LEITURA, que e a ULTIMA coisa que a 0122 cria. Apontar para o enum ou
+    -- para a coluna diria `ok` sobre um banco onde a colagem morreu antes de
+    -- `abrir_campanha` aprender a gravar o tipo -- e e justamente ela que a
+    -- tela nova chama. Pelo mesmo motivo nao e `campaign_composicao`: a
+    -- tabela nasce tres passos antes da funcao que a le.
+    ('0122', 'a composicao da campanha por tipo de material', 'funcao',
+             'composicao_da_campanha')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
