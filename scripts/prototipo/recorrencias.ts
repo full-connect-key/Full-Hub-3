@@ -37,6 +37,7 @@ const REGRAS: RecorrenciaNaTela[] = [
     data_fim: null,
     antecedencia_dias: 3,
     gerar_como_rascunho: false,
+    conta_no_resumo: true,
     modelo: {
       titulo: "Stories {MES}/{ANO} — {CLIENTE}",
       pasta_entrega: "https://drive.google.com/drive/folders/stories",
@@ -71,6 +72,7 @@ const REGRAS: RecorrenciaNaTela[] = [
     data_fim: null,
     antecedencia_dias: 5,
     gerar_como_rascunho: false,
+    conta_no_resumo: true,
     modelo: {
       titulo: "Relatório de mídia — {MES}/{ANO}",
       pasta_entrega: "https://drive.google.com/drive/folders/relatorios",
@@ -112,6 +114,7 @@ const REGRAS: RecorrenciaNaTela[] = [
     data_fim: null,
     antecedencia_dias: 2,
     gerar_como_rascunho: true,
+    conta_no_resumo: true,
     modelo: {
       titulo: "Newsletter {DATA}",
       pasta_entrega: "",
@@ -131,6 +134,50 @@ const REGRAS: RecorrenciaNaTela[] = [
     criadoPor: "Carla Nunes",
     geradas: 2,
     errosRecentes: 3,
+  },
+  {
+    // A REGRA QUE NAO E PRODUCAO DA AGENCIA (0123), e ela existe no exemplo
+    // justamente por ser a excecao: com as tres de cima todas contando, a
+    // imagem provaria que o selo sabe sumir e nao que ele DISTINGUE as duas
+    // coisas. E a razao pela qual o exemplo do calendario tem um evento de
+    // cada par da legenda.
+    //
+    // E ela tem cliente como toda regra: "interno" aqui nao quer dizer sem
+    // conta, quer dizer que o que nasce e rotina da equipe e nao entrega --
+    // ninguem recebe isto, e contar o conferido junto com o entregue infla o
+    // numero que a agencia usa para decidir.
+    id: "f0000000-0000-0000-0000-000000000004",
+    client_id: VERDE,
+    nome: "Conferir o Analytics da conta",
+    modo: "task_por_ocorrencia",
+    frequencia: "semanal",
+    dias_semana: [1],
+    dia_mes: null,
+    pular_feriados: false,
+    data_inicio: hojeMais(-120),
+    data_fim: null,
+    antecedencia_dias: 1,
+    gerar_como_rascunho: false,
+    conta_no_resumo: false,
+    modelo: {
+      titulo: "Conferir o Analytics — semana de {DATA}",
+      pasta_entrega: "https://drive.google.com/drive/folders/analytics",
+      prioridade: "baixa",
+      subtarefa_diaria: null,
+      subtarefas: [{ titulo: "Abrir o painel e anotar o que mudou", prazo_offset_dias: 0 }],
+      referencias: [],
+    },
+    task_type_id: null,
+    ativo: true,
+    ultima_geracao_em: hojeMais(-7),
+    proxima_geracao_em: hojeMais(0),
+    criado_por: "a0000000-0000-0000-0000-000000000003",
+    created_at: hojeMais(-120),
+    updated_at: hojeMais(-7),
+    cliente: "Mundo Verde",
+    criadoPor: "Carla Nunes",
+    geradas: 17,
+    errosRecentes: 0,
   },
 ] as unknown as RecorrenciaNaTela[];
 

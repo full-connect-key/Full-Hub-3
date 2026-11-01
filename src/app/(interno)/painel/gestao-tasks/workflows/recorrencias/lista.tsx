@@ -350,6 +350,12 @@ export function ListaDeRecorrencias({
                       {ROTULOS_DE_MODO[regra.modo]}
                       {regra.gerar_como_rascunho ? " · nasce como rascunho" : ""}
                       {regra.pular_feriados ? " · pula feriado" : ""}
+                      {/* SO O `false` APARECE (0123), que e a decisao da
+                          matriz do Day Off: contar no resumo e o estado de
+                          quase toda regra, e um "· conta no resumo" em nove
+                          de cada dez linhas e a mesma linha com tres palavras
+                          a mais. Pinta-se a excecao. */}
+                      {regra.conta_no_resumo ? "" : " · fora do resumo"}
                     </p>
                   </div>
 

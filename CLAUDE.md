@@ -1722,6 +1722,90 @@ o limite gera as primeiras e diz no histórico que cortou — recusar a
 ocorrência inteira deixaria o mês sem nada, que é pior que um mês incompleto
 e anotado.
 
+#### NEM TODA DEMANDA QUE A ROTINA CRIA É PRODUÇÃO DA AGÊNCIA
+
+Migration 0123, decisão do usuário: *"na criação de uma recorrência, incluir a
+opção 'Contabilizar no resumo da agência?' com Sim/Não por item"*, com três
+requisitos — *"permitir alterar depois, preservando o histórico"*, *"não
+alterar retroativamente os registros já gerados"* e *"impedir duplicidade"*.
+
+O stories de toda segunda é produção; o lembrete interno que alguém pôs para
+nascer todo dia 1 não é — e os dois entravam na mesma contagem de "criadas" e
+"concluídas" do Resumo da Agência e das Métricas, **inflando justamente o
+número que a agência usa para decidir**.
+
+**SÃO DUAS COLUNAS, E A SEGUNDA É QUE RESPONDE "NÃO RETROATIVO".**
+`task_recurrences.conta_no_resumo` é a REGRA, e muda quando alguém quiser;
+`tasks.conta_no_resumo` é o SNAPSHOT, copiado pela rotina no instante em que
+a demanda nasce. Com uma coluna só, o resumo leria a regra de HOJE para contar
+o trabalho de março: desligar o interruptor **reescreveria o passado**, e o
+relatório de um mês fechado mudaria de número sozinho. É a decisão de
+`tasks.workflow_snapshot` (0008) e de `subtasks.social_papel` (0088) pela razão
+escrita nas duas — editar o modelo não pode mudar o que já está correndo.
+
+**E ela mora em `tasks` e não em `recurrence_runs`** porque o resumo conta
+DEMANDA e não execução: a demanda gerada é editada, ganha etapa, muda de
+cliente — ela é o objeto que o relatório lê, e a execução é só o registro de
+que ela nasceu.
+
+**O DEFAULT É `true`, e o lado do erro é escolhido** — a decisão de
+`publicada_em` na 0028, palavra por palavra: esquecer o campo deixa a demanda
+VISÍVEL no resumo, e o erro contrário, uma demanda que some do número da
+agência inteira, **ninguém descobre**. É também por isso que toda demanda ganha
+a coluna e não só a gerada por recorrência: `true` em todas é exatamente o
+comportamento de hoje, então aplicar a migration não muda número nenhum.
+
+**O ÍNDICE É PARCIAL** (`where conta_no_resumo = false`), que é a forma certa
+para uma coluna que quase sempre vale `true`: quem o usa é o `where` que
+EXCLUI, e ele procura a minoria. Um índice cheio teria o tamanho da tabela
+para responder "quase todas".
+
+**"IMPEDIR DUPLICIDADE" JÁ ESTAVA RESPONDIDO, por duas regras que existem**, e
+nomeá-las vale mais que inventar uma terceira — é a 0060 de novo, uma segunda
+pergunta embaixo de uma primeira que já barra todo mundo: a mesma ocorrência
+não gera duas demandas porque o índice único `recurrence_runs (recurrence_id,
+chave_ocorrencia)` (0040) é a idempotência; e o mesmo trabalho não conta duas
+vezes porque **toda soma deste produto conta só as folhas** (0022).
+
+**SÃO DOIS LADOS, E OS DOIS NO MESMO COMMIT:** `producao_do_periodo()` ganha
+`and t.conta_no_resumo` ao lado do `publicada_em is not null` que ela já tinha,
+e `demandasPublicadas()` em `lib/reports/weekly.ts` ganha o par. Sem as duas, o
+cartão contaria uma coisa e a lista embaixo mostraria outra — o bug do "11
+entregues" com sete na lista, que o Resumo da Agência já pagou uma vez.
+
+**NA TELA O `false` É A ÚNICA COISA QUE APARECE.** A lista de regras escreve
+"· fora do resumo" e não escreve "· conta no resumo": contar é o estado de
+quase toda regra, e três palavras a mais em nove de cada dez linhas é a mesma
+linha com ruído — pinta-se a exceção, que é a decisão da matriz do Day Off. E
+a segunda linha de ajuda do interruptor — *"o que ela já gerou não muda"* — só
+sai na EDIÇÃO: numa regra nova não há nada gerado para mudar, e a frase seria
+ruído na tela de abertura.
+
+**E O REMENDO DA ROTINA RECUSA EM VEZ DE NÃO FAZER NADA**, que é a lição cara
+deste arquivo. O PASSO 3 lê `gerar_ocorrencia()` do catálogo e acrescenta a
+coluna por `replace()`, em vez de redigitar cento e quarenta linhas — que é o
+lado barato da 0030, onde `create or replace` se reescreve a partir do texto
+de agora e não avisa quando o texto novo tem menos coisa que o velho. **A
+primeira versão procurava um texto que a função deployada não tem**, e
+`replace()` que não acha devolve o texto inteiro, calado: o `execute` recriaria
+a função IDÊNTICA, a demanda nasceria sem o snapshot, e "não retroativo" — a
+frase que a migration existe para cumprir — deixaria de valer sem erro em lugar
+nenhum. Quem pegou foi uma medição contra o banco antes de colar; hoje o bloco
+CONTA as duas citações e estoura com a dica de onde mexer à mão.
+
+**O marcador do `onde-esta-o-banco.sql` aponta para o filtro dentro do
+indicador**, que é a última coisa que a 0123 cria. As duas colunas nascem três
+passos antes, e apontar para uma delas diria `ok` sobre uma colagem que morreu
+no PASSO 3 — que é o pior lugar para morrer, porque as colunas de pé com a
+cópia faltando são exatamente "não retroativo" deixando de valer.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** não há como desligar
+do resumo UMA demanda específica. `tasks.conta_no_resumo` fica fora de `Insert`
+e de `Update` em `database.types.ts` de propósito — quem a escreve é
+`gerar_ocorrencia()`, em SQL —, e expô-la sem tela seria a ponte construída e
+nunca atravessada, com uma porta que nenhuma tela saberia explicar. Se um dia
+a agência quiser isso, é um campo na tela de task e decisão própria.
+
 ### A etapa tem período, e não só prazo
 
 `subtasks.data_inicio` + `subtasks.prazo` (migration 0027). Duas etapas com o

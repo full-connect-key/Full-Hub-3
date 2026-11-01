@@ -67,3 +67,4 @@ next-env.d.ts
 /.captura
 /prototipo-full-hub.html
 prototipos/servidor.log
+.claude/settings.local.json

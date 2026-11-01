@@ -446,6 +446,11 @@ const TELAS = [
   // `regra=nova` nada esta escolhido, e a imagem prova so que a fileira de
   // chips existe -- nao que ela marca, nem que ela nomeia a conta sem pasta.
   { nome: "44d-recorrencia-duas-contas", rota: "/painel/gestao-tasks?aba=recorrencias&regra=f0000000-0000-0000-0000-000000000001", largura: 1440, altura: 1400, role: "socio" },
+  // A REGRA QUE NAO CONTA NO RESUMO (0123). As outras tres do exemplo contam,
+  // que e o default -- sem esta imagem o estado DESMARCADO nao sai em lugar
+  // nenhum, e a tela conferida seria a que nao tem a peca nova. Ela e tambem
+  // a unica que mostra a segunda linha de ajuda, que so aparece na EDICAO.
+  { nome: "44e-recorrencia-fora-do-resumo", rota: "/painel/gestao-tasks?aba=recorrencias&regra=f0000000-0000-0000-0000-000000000004", largura: 1440, altura: 1400, role: "socio" },
   // 375px: a previa vai para BAIXO do formulario no celular, e a grade de
   // chips das variaveis e o que primeiro estoura a largura.
   { nome: "44c-recorrencia-375", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 375, altura: 1600, role: "socio" },

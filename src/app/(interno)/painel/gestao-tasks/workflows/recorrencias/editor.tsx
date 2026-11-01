@@ -184,6 +184,13 @@ export function EditorDeRecorrencia({
   const [comoRascunho, setComoRascunho] = useState(
     regra?.gerar_como_rascunho ?? false,
   );
+  // `?? true` E NAO `?? false`: e o default do banco e o lado escolhido do
+  // erro (0123). Esquecer o campo deixa a demanda contando, e o erro
+  // contrario -- uma demanda que some do numero da agencia -- ninguem
+  // descobre.
+  const [contaNoResumo, setContaNoResumo] = useState(
+    regra?.conta_no_resumo ?? true,
+  );
   const [workflowId, setWorkflowId] = useState<string | null>(
     regra?.task_type_id ?? null,
   );
@@ -311,6 +318,7 @@ export function EditorDeRecorrencia({
       data_fim: dataFim || null,
       antecedencia_dias: Number(antecedencia) || 0,
       gerar_como_rascunho: comoRascunho,
+      conta_no_resumo: contaNoResumo,
       task_type_id: workflowId,
       modelo,
     };
@@ -611,6 +619,38 @@ export function EditorDeRecorrencia({
                 Ela não entra no board da equipe até alguém abrir e clicar em
                 Criar task.
               </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="accent-brand mt-0.5 size-4 shrink-0"
+              checked={contaNoResumo}
+              onChange={(e) => setContaNoResumo(e.target.checked)}
+            />
+            <span>
+              Contabilizar no resumo da agência
+              {/* NEM TODA DEMANDA QUE A ROTINA CRIA É PRODUÇÃO DA AGÊNCIA
+                  (0123): o stories de toda segunda é, o lembrete interno que
+                  alguém pôs para nascer todo dia 1 não é — e os dois entravam
+                  na mesma contagem de "criadas" e "concluídas", inflando o
+                  número que a agência usa para decidir. */}
+              <span className="text-text-muted block text-xs">
+                Desmarcado, as demandas desta regra continuam no board e em
+                Minhas Tasks — elas só saem do Resumo da Agência e das
+                Métricas.
+              </span>
+              {/* A SEGUNDA LINHA SÓ APARECE NA EDIÇÃO, e é aí que a pergunta
+                  é feita de verdade: numa regra nova não há nada gerado para
+                  mudar, e a frase seria ruído na tela de abertura. Pinta-se a
+                  exceção. */}
+              {regra ? (
+                <span className="text-text-muted block text-xs">
+                  O que ela já gerou não muda: cada demanda carrega a resposta
+                  do dia em que nasceu.
+                </span>
+              ) : null}
             </span>
           </label>
         </SecaoDoFormulario>

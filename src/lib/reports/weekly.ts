@@ -189,6 +189,9 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
   // não está publicado não entra em `demandasPublicadas`, e a etapa dele some
   // da lista. É o mesmo `publicada_em is not null` que a 0035 e a 0049 usam —
   // `rascunho` não é valor de enum, de propósito.
+  //
+  // E DESDE A 0123 A DEMANDA QUE NÃO CONTA SAI PELA MESMA PORTA: não há um
+  // segundo filtro aqui embaixo, porque a ausência no mapa já é o mecanismo.
   // ---------------------------------------------------------------------
   // SÓ FOLHA ENTRA, E É O QUE FAZ O CONTADOR DO BLOCO BATER COM O CARTÃO.
   //
@@ -384,6 +387,12 @@ async function demandasPublicadas(
       .select("id, titulo, client_id")
       .in("id", limpos)
       .not("publicada_em", "is", null)
+      // A LINHA DA 0123, ao lado do filtro de rascunho porque as duas
+      // respondem a mesma pergunta: isto é produção da agência? Ela é o par
+      // do `and t.conta_no_resumo` de `producao_do_periodo()` — sem as duas,
+      // o cartão contaria uma coisa e a lista embaixo mostraria outra, que é
+      // o bug do "11 entregues" com sete na lista.
+      .eq("conta_no_resumo", true)
       .then((r) => ouFalha("demandas do resumo", r)),
     nomesDeClientes(),
   ]);

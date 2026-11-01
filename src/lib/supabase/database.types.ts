@@ -1291,6 +1291,11 @@ export interface Database {
           data_fim: string | null;
           antecedencia_dias: number;
           gerar_como_rascunho: boolean;
+          // A REGRA (migration 0123): as demandas que esta regra gerar entram
+          // no Resumo da Agencia e nas Metricas? Ela muda quando alguem
+          // quiser, e o que ja nasceu nao muda junto -- cada demanda carrega
+          // a propria resposta em `tasks.conta_no_resumo`.
+          conta_no_resumo: boolean;
           modelo: Json;
           task_type_id: string | null;
           ativo: boolean;
@@ -1316,6 +1321,7 @@ export interface Database {
           data_fim?: string | null;
           antecedencia_dias?: number;
           gerar_como_rascunho?: boolean;
+          conta_no_resumo?: boolean;
           modelo: Json;
           task_type_id?: string | null;
           ativo?: boolean;
@@ -1332,6 +1338,7 @@ export interface Database {
           data_fim?: string | null;
           antecedencia_dias?: number;
           gerar_como_rascunho?: boolean;
+          conta_no_resumo?: boolean;
           modelo?: Json;
           task_type_id?: string | null;
           ativo?: boolean;
@@ -2307,6 +2314,21 @@ export interface Database {
           // NULO = rascunho (migration 0028). Só quem criou enxerga, e nada
           // dela conta em lista, contador, notificação ou portal.
           publicada_em: string | null;
+          /**
+           * O SNAPSHOT (migration 0123): esta demanda entra no Resumo da
+           * Agência e nas Métricas? Vizinha de `publicada_em` porque as duas
+           * respondem a mesma pergunta — isto é produção da agência?
+           *
+           * FICA FORA DE Insert E DE Update, e a razão não é um trigger como
+           * em `proxima_geracao_em`: é que ninguém a escreve pela API. Quem
+           * grava é `gerar_ocorrencia()`, em SQL, copiando a regra no
+           * instante em que a demanda nasce; e a demanda criada à mão nasce
+           * no default `true`, que é o comportamento de sempre. Expô-la aqui
+           * sem tela que a escreva seria a ponte construída e nunca
+           * atravessada — e, pior, uma porta para desligar do resumo UMA
+           * demanda, que ninguém pediu e que nenhuma tela saberia explicar.
+           */
+          conta_no_resumo: boolean;
           arquivada_em: string | null;
           created_at: string;
           updated_at: string;

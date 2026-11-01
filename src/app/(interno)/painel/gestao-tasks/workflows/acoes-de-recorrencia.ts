@@ -44,6 +44,7 @@ const ROTULOS = {
   client_ids: "clientes",
   modelo: "modelo da demanda",
   data_inicio: "data de início",
+  conta_no_resumo: "contabilizar no resumo da agência",
 } as const;
 
 const esquemaDeRecorrencia = z.object({
@@ -67,6 +68,7 @@ const esquemaDeRecorrencia = z.object({
   data_fim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   antecedencia_dias: z.number().int().min(0).max(90),
   gerar_como_rascunho: z.boolean(),
+  conta_no_resumo: z.boolean(),
   task_type_id: z.string().uuid().nullable().optional(),
   modelo: z.object({
     titulo: z.string().trim().min(1, "Escreva o título das demandas."),
@@ -146,6 +148,7 @@ export async function criarRecorrencia(dados: unknown): Promise<Resultado<string
         data_fim: entrada.data_fim ?? null,
         antecedencia_dias: entrada.antecedencia_dias,
         gerar_como_rascunho: entrada.gerar_como_rascunho,
+        conta_no_resumo: entrada.conta_no_resumo,
         task_type_id: entrada.task_type_id ?? null,
         modelo: entrada.modelo as unknown as Json,
         criado_por: sessao.usuarioId,
@@ -257,6 +260,11 @@ export async function atualizarRecorrencia(
         data_fim: entrada.data_fim ?? null,
         antecedencia_dias: entrada.antecedencia_dias,
         gerar_como_rascunho: entrada.gerar_como_rascunho,
+        // A REGRA MUDA, E O QUE JA NASCEU NAO MUDA JUNTO (0123). Nao ha
+        // escrita em `tasks` aqui, e a ausencia e a entrega: a demanda de
+        // marco carrega a resposta de marco, e desligar o interruptor hoje
+        // nao reescreve o relatorio de um mes fechado.
+        conta_no_resumo: entrada.conta_no_resumo,
         task_type_id: entrada.task_type_id ?? null,
         modelo: entrada.modelo as unknown as Json,
       })
@@ -366,6 +374,7 @@ export async function duplicarRecorrencia(id: string): Promise<Resultado<string>
         data_fim: origem.data_fim,
         antecedencia_dias: origem.antecedencia_dias,
         gerar_como_rascunho: origem.gerar_como_rascunho,
+        conta_no_resumo: origem.conta_no_resumo,
         task_type_id: origem.task_type_id,
         modelo: origem.modelo,
         ativo: false,

@@ -748,6 +748,10 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     // No protótipo tudo já nasce publicado: rascunho é a tela de quem está
     // montando, e nenhuma das imagens mostra esse momento.
     publicada_em: "2026-09-10T09:00:00.000Z",
+    // Toda demanda do exemplo CONTA no resumo (0123), que e o default do
+    // banco e o caso comum. Quem mostra o `false` e a lista de recorrencias,
+    // onde o selo decide algo -- aqui ele nao e desenhado em lugar nenhum.
+    conta_no_resumo: true,
     arquivada_em: null,
   social_flow_id: null,
   // No protótipo nenhum mês de social é montado por aqui, então o mês nunca

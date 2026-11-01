@@ -706,7 +706,23 @@ from (
     -- tela nova chama. Pelo mesmo motivo nao e `campaign_composicao`: a
     -- tabela nasce tres passos antes da funcao que a le.
     ('0122', 'a composicao da campanha por tipo de material', 'funcao',
-             'composicao_da_campanha')
+             'composicao_da_campanha'),
+
+    -- O FILTRO DENTRO DO INDICADOR, que e a ULTIMA coisa que a 0123 cria.
+    -- As duas colunas nascem tres passos antes, e apontar para uma delas
+    -- diria `ok` sobre uma colagem que morreu no PASSO 3 -- o passo que
+    -- ensina a rotina a COPIAR a regra. E aquele e o pior lugar para morrer:
+    -- as colunas de pe e a copia faltando e exatamente "nao retroativo"
+    -- deixando de valer, sem erro em lugar nenhum. E a armadilha que a 0085
+    -- pagou apontando para o PASSO 1.
+    --
+    -- `t.conta_no_resumo` e nao `conta_no_resumo`: o nome cru aparece
+    -- tambem em `gerar_ocorrencia`, e o `no_corpo` casa por funcao -- mas o
+    -- prefixo e o que distingue o filtro do indicador de uma mencao
+    -- qualquer no dia em que alguem acrescentar a coluna a outra consulta
+    -- dentro dela.
+    ('0123', 'contabilizar no resumo da agencia', 'no_corpo',
+             'producao_do_periodo|t.conta_no_resumo')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
