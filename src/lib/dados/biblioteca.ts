@@ -13,7 +13,6 @@ import "server-only";
 import { arquivosDasPecas, urlsDosArquivos } from "@/lib/dados/campanhas";
 import { assinarArquivos } from "@/lib/dados/conteudo";
 import { entregasDasEtapas, itensDoPortal } from "@/lib/dados/portal";
-import { urlsDasArtes } from "@/lib/dados/posts";
 import { vertenteDosMateriais } from "@/lib/dados/vertentes";
 import type { ArquivoDaBiblioteca } from "@/lib/dominio/biblioteca";
 
@@ -55,10 +54,7 @@ export async function arquivosDaBiblioteca(
      já é um endereço: às vezes um arquivo do bucket, às vezes um link do
      Drive. `assinarArquivos` deixa passar o que começa com `http`, então as
      duas formas atravessam o mesmo caminho. */
-  // OS IDS DE CONTEÚDO POR FRENTE. `porFrente0` é o id do material;
-  // `porFrente`, mais abaixo, é o CAMINHO da miniatura dele — dois recortes
-  // diferentes da mesma lista, e juntá-los num só daria uma função que às
-  // vezes devolve id e às vezes devolve caminho.
+  // OS IDS DE CONTEÚDO POR FRENTE.
   const porFrente0 = (tipo: string) =>
     aprovados.filter((item) => item.tipo === tipo).map((item) => item.conteudoId);
 
@@ -92,15 +88,14 @@ export async function arquivosDaBiblioteca(
   // bucket dele. Mandar todos para os três resolveria igual (o que não é do
   // bucket volta ausente) e pagaria três assinaturas por arquivo para
   // esconder de quem lê depois qual arquivo mora onde.
-  const porFrente = (tipo: string) =>
-    aprovados.filter((item) => item.tipo === tipo).map((item) => item.miniatura);
-
-  const [dasArtes, dosArquivos, dasEntregas] = await Promise.all([
-    urlsDasArtes(porFrente("post")),
-    urlsDosArquivos([
-      ...pecas.map((p) => p.arte_url),
-      ...porFrente("deliverable"),
-    ]),
+  //
+  // **A MINIATURA NÃO ESTÁ MAIS AQUI**, e a ausência é o conserto: ela sai de
+  // `itensDoPortal()` já assinada, para as CINCO telas e não só para esta. Era
+  // esta a única que assinava, e por isso era a única em que a arte aparecia.
+  // Repetir a assinatura aqui seria um no-op (o endereço já pronto não entra
+  // no lote) e a segunda verdade sobre quem assina o quê.
+  const [dosArquivos, dasEntregas] = await Promise.all([
+    urlsDosArquivos(pecas.map((p) => p.arte_url)),
     // `task-arquivos`, que é o bucket da demanda: o arquivo entregue segue a
     // convenção `entregas/<subtask_id>/<nome>` desde a 0007, e é por ela que
     // a policy do Storage decide, por etapa, se o cliente pode abri-lo. Hoje
@@ -108,10 +103,7 @@ export async function arquivosDaBiblioteca(
     // direto, sem assinatura —, mas a porta do arquivo existe no banco desde
     // então, e assinar o que vier dela é o que faz esta tela não precisar
     // mudar no dia em que ela for usada.
-    assinarArquivos("task-arquivos", [
-      ...entregas.map((e) => e.url),
-      ...porFrente("subtask"),
-    ]),
+    assinarArquivos("task-arquivos", entregas.map((e) => e.url)),
   ]);
 
   const endereco = (
@@ -163,14 +155,8 @@ export async function arquivosDaBiblioteca(
       titulo: item.titulo,
       contexto: item.demanda || null,
       enviadoEm: item.enviadoEm,
-      miniatura: endereco(
-        item.miniatura,
-        item.tipo === "post"
-          ? dasArtes
-          : item.tipo === "deliverable"
-            ? dosArquivos
-            : dasEntregas,
-      ),
+      // JÁ ASSINADA em `itensDoPortal()`, para as cinco telas de uma vez.
+      miniatura: item.miniatura,
       caminho: item.caminho ? `${base}${item.caminho}` : null,
       arquivo,
     };

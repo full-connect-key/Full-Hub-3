@@ -45,7 +45,32 @@ import { cn } from "@/lib/utils";
  * exibir uma mensagem clara"*. O ícone de imagem quebrada não distingue "não
  * existe" de "sua conexão caiu" de "o endereço venceu" — e quem está do lado
  * de fora da agência não tem como saber o que fazer com nenhum dos três.
+ *
+ * ===========================================================================
+ * E O CAMINHO DE BUCKET NÃO CHEGA A VIRAR PEDIDO
+ *
+ * `f80d…/arte.jpg` não é endereço de nada: o navegador o resolve contra o
+ * domínio do PRÓPRIO SITE e pede `https://<o-site>/f80d…/arte.jpg`, que
+ * responde 404. **E o Supabase não registra nada**, porque nenhum pedido
+ * chegou a ele — foi exatamente assim que este bug sobreviveu a uma rodada
+ * de medição contra produção, onde o que eu procurei foram erros do Storage.
+ *
+ * Quem devia ter impedido isso é `enderecoDaArte()`, que devolve `null` para
+ * o que não é endereço. Ela existe e é chamada em quase toda parte — e
+ * `itensDoPortal()` não a chamava, então QUATRO telas do portal punham o
+ * caminho cru aqui dentro. Esta guarda é a última: ela não substitui a
+ * função, ela pega a tela que esquecer de usá-la.
+ *
+ * **E ela não é silenciosa.** O estado desenhado é o de ausente — que é a
+ * verdade, porque não há endereço —, e o console diz o que aconteceu com o
+ * caminho no meio, senão o conserto continuaria dependendo de alguém
+ * desconfiar. É a regra de "nenhuma leitura falha calada" no último metro.
  */
+
+/** Dá para pôr num `src`? É a mesma pergunta de `enderecoDaArte()`. */
+function ehEndereco(valor: string): boolean {
+  return /^(https?:\/\/|\/|data:|blob:)/i.test(valor);
+}
 export function ImagemAssinada({
   src,
   alt,
@@ -61,14 +86,23 @@ export function ImagemAssinada({
 }) {
   const [falhou, setFalhou] = useState(false);
 
-  if (!src || falhou) {
+  // O CAMINHO CRU É TRATADO COMO AUSENTE, e não tentado: ver o cabeçalho.
+  const endereco = src && ehEndereco(src) ? src : null;
+  if (src && !endereco) {
+    console.error(
+      "[imagem] o caminho chegou sem assinatura, e não é endereço:",
+      src,
+    );
+  }
+
+  if (!endereco || falhou) {
     return (
       aoFalhar ?? (
         <span
           className="bg-neutral-soft text-text-muted absolute inset-0 flex flex-col items-center justify-center gap-1 p-2 text-center"
           role="img"
           aria-label={
-            src
+            endereco
               ? "O arquivo não pôde ser carregado"
               : "O arquivo não está disponível"
           }
@@ -85,7 +119,7 @@ export function ImagemAssinada({
               existe para isso. O rótulo acessível leva o texto inteiro de
               qualquer forma. */}
           <span className="line-clamp-2 text-[11px] leading-tight">
-            {src ? "Não foi possível carregar" : "Arquivo indisponível"}
+            {endereco ? "Não foi possível carregar" : "Arquivo indisponível"}
           </span>
         </span>
       )
@@ -95,7 +129,7 @@ export function ImagemAssinada({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={endereco}
       alt={alt}
       onError={() => setFalhou(true)}
       className={cn("absolute inset-0 size-full", className)}

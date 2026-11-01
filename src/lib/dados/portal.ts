@@ -4,7 +4,9 @@ import { ouFalha } from "./consulta";
 import { fimDaSemanaNaAgencia, hojeNaAgencia } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { statusParaOCliente, type ItemDoPortal } from "@/lib/dominio/portal";
-import { lerPostsDoCliente } from "./posts";
+import { assinarArquivos, enderecoDaArte } from "./conteudo";
+import { urlsDosArquivos } from "./campanhas";
+import { lerPostsDoCliente, urlsDasArtes } from "./posts";
 import { ROTULO_DA_PLATAFORMA } from "@/lib/dominio/posts";
 import type { StatusRodada } from "@/lib/supabase/database.types";
 
@@ -60,11 +62,82 @@ export function prazosDoPortal(): Prazos {
 export async function itensDoPortal(
   clienteId?: string,
 ): Promise<ItemDoPortal[]> {
-  return [
+  const itens = [
     ...(await etapasComoItens(clienteId)),
     ...(await postsComoItens(clienteId)),
     ...(await entregaveisComoItens(clienteId)),
   ];
+
+  return assinarAsMiniaturas(itens);
+}
+
+/**
+ * A MINIATURA SAI DAQUI JÁ ASSINADA, e antes ela saía como caminho cru.
+ *
+ * ===========================================================================
+ * O BUG, E POR QUE ELE NÃO ERA O QUE EU TINHA DIAGNOSTICADO
+ *
+ * As três frentes gravam em `miniatura` o caminho DENTRO do bucket — a
+ * entrega da etapa, `posts.arte_url`, `deliverables.arte_url` —, e nenhuma
+ * delas assinava. Dos cinco consumidores desta função, só a Biblioteca
+ * assinava por conta própria: o Início, os Materiais, a fila de aprovações e
+ * o Cronograma punham `f80d…/arte.jpg` num `<img src>`.
+ *
+ * **Um caminho de bucket não é endereço de nada.** O navegador o resolve
+ * contra o domínio do próprio site, pede
+ * `https://<o-site>/f80d…/arte.jpg`, leva 404 — e o Supabase não registra
+ * pedido nenhum, porque nenhum chegou a ele. Foi assim que este bug se
+ * distinguiu do outro: os logs do Storage mostram **200** nas artes do
+ * DETALHE de um post (que passa por `urlsDasArtes`) e **nada** nas
+ * miniaturas da fila, na mesma sessão, no mesmo minuto.
+ *
+ * O conserto anterior — tirar `next/image` do caminho da URL assinada — era
+ * um bug de verdade e não era ESTE. O que ele fez por este aqui foi dar a
+ * ele uma voz: a moldura vazia virou *"Não foi possível carregar"*, e foi o
+ * usuário lendo essa frase que mostrou que a causa continuava de pé.
+ *
+ * ===========================================================================
+ * POR QUE AQUI, E NÃO EM CADA FRENTE
+ *
+ * Porque é por aqui que todo consumidor passa. Assinando em `postsComoItens`
+ * eu consertaria a frente que o usuário apontou e deixaria as outras duas —
+ * e a sexta tela, a que alguém escrever depois, nasceria quebrada de novo
+ * sem nada avisando. É a decisão de `lerPostsDoCliente()` ser a fonte única,
+ * dois parágrafos acima: com um lugar só não há onde a divergência morar.
+ *
+ * **UMA IDA POR BUCKET, e cada caminho vai no bucket dele**, que é a frase
+ * que a Biblioteca já escrevia: mandar todos para os três resolveria igual
+ * (o que não é do bucket volta ausente) e pagaria três assinaturas por
+ * arquivo para esconder de quem lê depois qual arquivo mora onde.
+ *
+ * **O ENDEREÇO QUE JÁ É ENDEREÇO PASSA DIRETO** — o link de Drive ou de
+ * Figma que uma entrega de etapa pode ser —, e o que não assinou vira
+ * `null`, nunca o caminho cru: é `enderecoDaArte()` palavra por palavra, e
+ * é ele que faz o cartão cair no estado "sem arte" que ele já desenha, em
+ * vez de afirmar que a arte está lá e quebrada.
+ */
+async function assinarAsMiniaturas(
+  itens: ItemDoPortal[],
+): Promise<ItemDoPortal[]> {
+  const doTipo = (tipo: ItemDoPortal["tipo"]) =>
+    itens.filter((i) => i.tipo === tipo).map((i) => i.miniatura);
+
+  const [daEtapa, doPost, daPeca] = await Promise.all([
+    assinarArquivos("task-arquivos", doTipo("subtask")),
+    urlsDasArtes(doTipo("post")),
+    urlsDosArquivos(doTipo("deliverable")),
+  ]);
+
+  const mapa = {
+    subtask: daEtapa,
+    post: doPost,
+    deliverable: daPeca,
+  } as const;
+
+  return itens.map((item) => ({
+    ...item,
+    miniatura: enderecoDaArte(item.miniatura, mapa[item.tipo]),
+  }));
 }
 
 /**

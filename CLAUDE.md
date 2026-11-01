@@ -10910,6 +10910,68 @@ fatos diferentes, e quem procura a causa precisa saber qual. **A célula do
 calendário é a exceção declarada:** ela tem 28px, o aviso não cabe, e ali o
 estado de erro é não desenhar nada — quem informa é a tela do post.
 
+##### E A ARTE CONTINUOU NÃO CARREGANDO, porque a causa era OUTRA
+
+Relato do usuário, depois do conserto acima: *"ainda não está visivel os posts
+no portal do cliente"*, com a imagem de três peças na fila — e o que a imagem
+mostrava era **a frase que o conserto anterior tinha acabado de criar**,
+*"Não foi possível carregar"*, no lugar da moldura quebrada.
+
+**O CONSERTO ANTERIOR ERA UM BUG DE VERDADE E NÃO ERA ESTE.** As cinco telas
+passavam mesmo URL assinada por `next/image`, e isso quebra pela razão
+escrita. O que ele fez por este aqui foi dar a ele uma VOZ: a moldura vazia
+não dizia nada, e a frase honesta disse — e foi lendo a frase que o usuário
+mostrou que a causa continuava de pé. *Fica registrado como diagnóstico
+incompleto, e não como troca silenciosa: a lição é que uma medição contra
+produção pode confirmar uma causa verdadeira e parar antes da que importa.*
+
+**A CAUSA É `itensDoPortal()` DEVOLVENDO O CAMINHO CRU DO BUCKET.** As três
+frentes gravam em `miniatura` o caminho DENTRO do bucket — a entrega da etapa,
+`posts.arte_url`, `deliverables.arte_url` — e nenhuma assinava. Dos **cinco**
+consumidores daquela função, **só a Biblioteca assinava por conta própria**:
+o Início, os Materiais, a fila de aprovações e o Cronograma punham
+`f80d…/arte.jpg` num `<img src>`.
+
+**E ISSO NÃO APARECE EM MEDIÇÃO NENHUMA DO LADO DO SUPABASE.** Um caminho de
+bucket não é endereço: o navegador o resolve contra o domínio do PRÓPRIO SITE,
+pede `https://<o-site>/f80d…/arte.jpg`, leva 404 — e o Storage **não registra
+pedido nenhum, porque nenhum chegou a ele**. Eu tinha procurado erros do
+Storage e encontrado zero, e li o zero como "o Storage está saudável", que era
+verdade e não era a pergunta.
+
+**QUEM RESPONDEU FOI O LOG DE BORDA, e a assimetria é o achado:** na mesma
+sessão e no mesmo minuto, as quatro artes do DETALHE de um post saíram com
+**200** — aquela tela passa por `urlsDasArtes` — e as miniaturas da fila não
+aparecem em linha nenhuma. *Quando a falha é "o navegador pediu ao lugar
+errado", o sinal é a AUSÊNCIA do pedido, e não um erro.*
+
+**A ASSINATURA FOI PARA O AGREGADOR, e não para cada frente.** É por
+`itensDoPortal()` que todo consumidor passa: consertando dentro de
+`postsComoItens` eu arrumaria a frente que o usuário apontou e deixaria as
+outras duas — e a sexta tela, a que alguém escrever depois, nasceria quebrada
+de novo sem nada avisando. É a decisão de `lerPostsDoCliente()` ser a fonte
+única, três parágrafos acima dela no mesmo arquivo. **Uma ida por BUCKET**,
+que é a frase que a Biblioteca já escrevia — e a Biblioteca **parou de
+assinar**, porque repetir seria um no-op e a segunda verdade sobre quem
+assina o quê.
+
+**E `ImagemAssinada` GANHOU A ÚLTIMA GUARDA.** Ela trata o caminho cru como
+AUSENTE — não tenta, não gera o 404 — e escreve no console o que chegou. O
+estado desenhado passa a ser o honesto (*"Arquivo indisponível"*, porque não
+há endereço) em vez de *"Não foi possível carregar"*, que afirma uma
+tentativa. Ela **não substitui `enderecoDaArte()`**: aquela função existe, é
+chamada em quase toda parte, e foi justamente a tela que esqueceu de chamá-la
+que criou este bug. A guarda é para a próxima que esquecer — e ela não é
+silenciosa, que é "nenhuma leitura falha calada" aplicada no último metro.
+
+***O que isto NÃO consertou, e é dito em vez de escondido:*** não há varredura
+que pegue esta classe. Um caminho de bucket e uma URL assinada são os dois uma
+`string`, e nenhum dos sete `check:` do projeto distingue um do outro — o
+`tsc` menos ainda. O que existe agora são as duas pontas: a função que assina
+num lugar só, e o componente que recusa o que não é endereço e diz. Uma trava
+de tipo (um `EnderecoAssinado` ramificado) seria o passo seguinte, e é decisão
+própria.
+
 #### A ARTE SAI NA PROPORÇÃO DELA, sem moldura
 
 Decisão do usuário: *"exibir a imagem diretamente, preservando a proporção
