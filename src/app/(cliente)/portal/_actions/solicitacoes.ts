@@ -7,6 +7,7 @@ import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { FRENTES_DA_SOLICITACAO } from "@/lib/dominio/solicitacoes";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -62,6 +63,29 @@ const esquemaDoPedido = z.object({
    * conferência escrita aqui só alcançaria o que passou por esta tela.
    */
   campaign_id: z.string().uuid("Escolha uma campanha da lista.").optional().nullable(),
+  /**
+   * A FRENTE É OBRIGATÓRIA, e a lista sai do domínio (0124).
+   *
+   * `z.enum(FRENTES_DA_SOLICITACAO)` e nunca os dois valores escritos à mão
+   * aqui: foi essa cópia que recusou o oitavo tipo de evento no clique, com
+   * *"Confira o campo: tipo"* — a tela oferecia e a action não conhecia o
+   * valor. A tupla do domínio é a única lista, e o `satisfies` dela trava
+   * contra o enum do banco.
+   *
+   * **E o obrigatório é daqui para a frente de propósito:** quem recusa de
+   * verdade é o trigger `client_requests_classificacao`, e esta linha existe
+   * para a recusa ser uma frase em português antes da ida ao Postgres — o par
+   * tela/banco que este produto mantém em toda regra que vive nos dois lados.
+   */
+  frente: z.enum(FRENTES_DA_SOLICITACAO),
+  /**
+   * A VERTENTE É OPCIONAL, E A COERÊNCIA É DO BANCO — como a campanha.
+   *
+   * O `uuid()` recusa texto torto; quem recusa a vertente de OUTRA conta é o
+   * mesmo trigger, pela razão da 0112: a pergunta é uma subconsulta, e uma
+   * conferência escrita aqui só alcançaria o que passou por esta tela.
+   */
+  vertente_id: z.string().uuid("Escolha uma vertente da lista.").optional().nullable(),
   respostas: z.record(z.string(), z.string()).default({}),
   data_desejada: z
     .string()
@@ -76,6 +100,8 @@ const ROTULOS = {
   titulo: "o que você precisa",
   data_desejada: "data desejada",
   campaign_id: "campanha",
+  frente: "Social ou Campanha",
+  vertente_id: "vertente",
 };
 
 /**
@@ -115,6 +141,8 @@ export async function abrirSolicitacao(dados: unknown): Promise<Resultado<string
         client_id: entrada.client_id,
         request_type_id: entrada.request_type_id || null,
         campaign_id: entrada.campaign_id || null,
+        frente: entrada.frente,
+        vertente_id: entrada.vertente_id || null,
         titulo: entrada.titulo,
         descricao: entrada.descricao?.trim() || null,
         respostas: entrada.respostas,

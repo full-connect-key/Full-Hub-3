@@ -36,6 +36,21 @@ export type SolicitacaoStatus =
   | "concluida"
   | "recusada";
 
+/**
+ * A frente que produz o pedido (migration 0124).
+ *
+ * **Ela não é `request_type_id`**, e a diferença é o que o relatório separa:
+ * aquele é o roteiro de briefing — "Peça para redes", "Material impresso" —, e
+ * responde *o que é a peça*; esta responde *quem produz*, o mês de social ou
+ * uma Wave. Uma peça para redes nasce das duas.
+ *
+ * **E ela não é derivada de `campaign_id`**: campanha nula não quer dizer
+ * social — um material impresso avulso não é nenhuma das duas, e um pedido de
+ * campanha chega antes de a campanha existir. É uma declaração de quem abre, e
+ * é por isso que ela é coluna.
+ */
+export type SolicitacaoFrente = "social" | "campanha";
+
 export type TeamFuncao =
   | "Atendimento"
   | "Social Media"
@@ -1104,6 +1119,25 @@ export interface Database {
            * ESCREVER o uuid dela aqui.
            */
           campaign_id: string | null;
+          /**
+           * Social ou Campanha (0124), exigida na abertura pelo trigger
+           * `client_requests_classificacao`.
+           *
+           * **Nula no pedido anterior à regra**, e é a decisão da 0015: `not
+           * null` quebraria a migration em qualquer ambiente com um deles, e
+           * inventar o valor seria inventar o número que o relatório soma. A
+           * fila desenha "Sem classificação", que é a verdade.
+           */
+          frente: SolicitacaoFrente | null;
+          /**
+           * A vertente da conta a que o pedido pertence (0124, sobre a 0118).
+           *
+           * Opcional pela razão escrita na 0118: a maioria das contas não tem
+           * vertente, e obrigar a escolha faria a pessoa marcar a primeira da
+           * lista — pior que não classificar, porque o relatório passaria a
+           * contá-la numa frente onde ela não está.
+           */
+          vertente_id: string | null;
           status: SolicitacaoStatus;
           motivo_recusa: string | null;
           decidida_em: string | null;
@@ -1119,6 +1153,16 @@ export interface Database {
           respostas?: Record<string, string>;
           data_desejada?: string | null;
           campaign_id?: string | null;
+          /**
+           * OBRIGATÓRIA, e não opcional como as outras.
+           *
+           * `client_requests_classificacao` recusa o insert sem ela, e um `?`
+           * aqui faria a recusa chegar do banco em vez do compilador — que é a
+           * razão pela qual `tempo_medido_segundos` fica fora do Insert e esta
+           * fica dentro, exigida.
+           */
+          frente: SolicitacaoFrente;
+          vertente_id?: string | null;
         };
         Update: {
           /** Só `is_atendimento()` — a policy de UPDATE não aceita o cliente. */
@@ -1128,6 +1172,16 @@ export interface Database {
           descricao?: string | null;
           request_type_id?: string | null;
           campaign_id?: string | null;
+          /**
+           * Classificar depois, ou trocar de lado.
+           *
+           * **Nulo é recusado quando ela já existe** — o trigger não deixa
+           * esvaziar a classificação de um pedido classificado, que é a outra
+           * metade da 0015: a pasta de entrega é obrigatória na demanda nova E
+           * não se apaga na que já tem.
+           */
+          frente?: SolicitacaoFrente;
+          vertente_id?: string | null;
         };
         Relationships: [];
       };

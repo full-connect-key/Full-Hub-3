@@ -24,10 +24,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { PedidoCompleto } from "@/lib/dados/solicitacoes";
-import { camposDoRoteiro, respostasParaLer } from "@/lib/dominio/solicitacoes";
+import {
+  FRENTES_DA_SOLICITACAO,
+  ROTULOS_DE_FRENTE,
+  camposDoRoteiro,
+  respostasParaLer,
+  rotuloDaFrente,
+} from "@/lib/dominio/solicitacoes";
 
 import {
   apagarSolicitacao,
+  classificarSolicitacao,
   converterEmDemanda,
   recusarSolicitacao,
   triarSolicitacao,
@@ -91,7 +98,33 @@ export function DetalheDoPedido({
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <SeloDaSolicitacao status={pedido.status} lado="equipe" />
+
+        {/* A FRENTE AO LADO DO SELO (0124): o selo diz em que pé está, e esta
+            diz quem produz. São duas perguntas, e as duas decidem a próxima
+            ação de quem está lendo — converter para onde.
+
+            Par nomeado, neutro nas duas e `--warning` na ausência: aí sim é
+            exceção, e é a única das três que pede uma ação. */}
+        <span
+          className={
+            pedido.frente
+              ? "bg-neutral-soft text-neutral rounded-full px-2 py-0.5 text-[11px] font-medium"
+              : "bg-warning-soft text-warning rounded-full px-2 py-0.5 text-[11px] font-medium"
+          }
+        >
+          {rotuloDaFrente(pedido.frente)}
+        </span>
+
         <span className="text-muted-foreground">{pedido.empresa ?? "—"}</span>
+        {/* A VERTENTE ENCOSTA NA EMPRESA, e não numa posição própria: ela É
+            parte da conta, e "Mundo Verde · Lojas Próprias" se lê como um
+            endereço. */}
+        {pedido.vertente ? (
+          <>
+            <span aria-hidden className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">{pedido.vertente}</span>
+          </>
+        ) : null}
         {pedido.tipo ? (
           <>
             <span aria-hidden className="text-muted-foreground">·</span>
@@ -109,6 +142,53 @@ export function DetalheDoPedido({
           </span>
         ) : null}
       </div>
+
+      {/* ------------------------------------------------------------------
+          CLASSIFICAR — e o bloco SÓ EXISTE QUANDO FALTA.
+
+          A frente é exigida na abertura desde a 0124, então todo pedido novo
+          já chega classificado. Quem cai aqui é o pedido ANTERIOR à regra, e
+          ele precisa de uma saída: sem ela, o chip "Sem classificação" da fila
+          pediria uma ação que nenhuma tela sabe fazer.
+
+          **E o bloco desaparece depois**, em vez de virar um seletor
+          permanente: um campo de classificação em toda tela de pedido seria um
+          convite a trocar o que o cliente declarou. Quem precisa corrigir um
+          pedido já classificado usa a mesma ação pelo mesmo caminho — ela
+          aceita a troca, e o que o banco recusa é esvaziar.
+          ------------------------------------------------------------------ */}
+      {souAtendimento && !pedido.frente ? (
+        <div className="bg-warning-soft space-y-2 rounded-lg p-3">
+          <p className="text-warning text-sm font-medium">
+            Este pedido não está classificado.
+          </p>
+          <p className="text-text-primary text-sm">
+            A classificação decide quem produz, e é ela que o relatório da
+            agência soma. Os pedidos abertos pelo Portal já chegam
+            classificados — este é anterior à regra.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {FRENTES_DA_SOLICITACAO.map((f) => (
+              <Button
+                key={f}
+                size="sm"
+                variant="outline"
+                disabled={executando}
+                onClick={() =>
+                  comecar(async () => {
+                    await chamarEMostrar(() =>
+                      classificarSolicitacao(pedido.id, f),
+                    );
+                    router.refresh();
+                  })
+                }
+              >
+                {ROTULOS_DE_FRENTE[f]}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* O PRAZO DESEJADO É DESEJO, e a tela diz isso em vez de deixar a
           pessoa supor. É a mesma frase que vai para o briefing da demanda:

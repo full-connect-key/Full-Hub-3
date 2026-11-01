@@ -7,7 +7,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { caixaDeEntrada } from "@/lib/dados/solicitacoes";
-import { ehStatusDeSolicitacao } from "@/lib/dominio/solicitacoes";
+import {
+  ehFrenteDaSolicitacao,
+  ehStatusDeSolicitacao,
+} from "@/lib/dominio/solicitacoes";
+import type { RecorteDeFrente } from "@/lib/dados/solicitacoes";
 
 import { CaixaDeEntrada } from "./caixa-de-entrada";
 
@@ -50,9 +54,23 @@ export const metadata: Metadata = { title: "Solicitações" };
  * existe. Um 403 confirmaria que existe um pedido com aquele id.
  * ---------------------------------------------------------------------------
  */
-async function Conteudo({ status }: { status: string | undefined }) {
+function lerFrente(valor: string | undefined): RecorteDeFrente | null {
+  // VALOR TORTO CAI EM NULO, que é a convenção de `ehVisao()` e de `lerMes()`:
+  // o endereço estranho abre a tela inteira, e não quebra.
+  if (valor === "sem") return "sem";
+  return ehFrenteDaSolicitacao(valor) ? valor : null;
+}
+
+async function Conteudo({
+  status,
+  frente,
+}: {
+  status: string | undefined;
+  frente: string | undefined;
+}) {
   const pedidos = await caixaDeEntrada({
     status: ehStatusDeSolicitacao(status) ? status : null,
+    frente: lerFrente(frente),
   });
 
   // HOJE SAI DO SERVIDOR e desce pronto: se a idade de cada pedido fosse
@@ -60,7 +78,14 @@ async function Conteudo({ status }: { status: string | undefined }) {
   // diferente do colega ao lado — e é a idade que decide o destaque.
   const hojeISO = new Date().toISOString();
 
-  return <CaixaDeEntrada pedidos={pedidos} hojeISO={hojeISO} statusAtivo={status ?? null} />;
+  return (
+    <CaixaDeEntrada
+      pedidos={pedidos}
+      hojeISO={hojeISO}
+      statusAtivo={status ?? null}
+      frenteAtiva={lerFrente(frente)}
+    />
+  );
 }
 
 export default async function Pagina({ searchParams }: PageProps<"/painel/solicitacoes">) {
@@ -69,13 +94,14 @@ export default async function Pagina({ searchParams }: PageProps<"/painel/solici
 
   const parametros = await searchParams;
   const status = typeof parametros.status === "string" ? parametros.status : undefined;
+  const frente = typeof parametros.frente === "string" ? parametros.frente : undefined;
 
   return (
     <div className="space-y-6">
       <PageHeader title="Solicitações" />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-        <Conteudo status={status} />
+        <Conteudo status={status} frente={frente} />
       </Suspense>
     </div>
   );

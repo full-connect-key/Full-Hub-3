@@ -6,7 +6,13 @@ import { z } from "zod";
 import { exigirAtendimentoNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
-import { camposDoRoteiro, respostasParaLer } from "@/lib/dominio/solicitacoes";
+import {
+  FRENTES_DA_SOLICITACAO,
+  ROTULOS_DE_FRENTE,
+  camposDoRoteiro,
+  respostasParaLer,
+} from "@/lib/dominio/solicitacoes";
+import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -69,6 +75,72 @@ export async function triarSolicitacao(id: string): Promise<Resultado> {
 
     revalidarOsDoisLados(id);
     return sucesso("Pedido em análise.");
+  });
+}
+
+/**
+ * Classificar o pedido — Social ou Campanha (0124).
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA EXISTE POR CAUSA DO PEDIDO ANTERIOR À REGRA.**
+ *
+ * `client_requests_classificacao` exige a frente na ABERTURA, e a coluna
+ * aceita nulo justamente para a migration rodar num banco que já tem pedido
+ * — a decisão da 0015. Sem esta ação aquele pedido ficaria sem classificação
+ * para sempre: ele apareceria no chip "Sem classificação" da fila, em âmbar,
+ * pedindo uma ação que nenhuma tela sabe fazer. É a ponte construída e nunca
+ * atravessada, e ela custa uma action.
+ *
+ * **E ela serve o conserto também:** o cliente classificou como Social o que
+ * é de campanha, e quem lê o pedido vê isso. Trocar de lado continua valendo;
+ * o que o banco recusa é ESVAZIAR a classificação de um pedido classificado,
+ * que é a outra metade da 0015.
+ * ---------------------------------------------------------------------------
+ *
+ * **A campanha sai quando a frente vira Social**, e é obrigatório: o trigger
+ * recusa a linha que diz "social" com o uuid de uma campanha dentro, e a
+ * recusa chegaria como um clique que não faz nada. Tirar a campanha aqui é o
+ * que a tela já faz no formulário do cliente, do mesmo jeito e pela mesma
+ * razão.
+ */
+export async function classificarSolicitacao(
+  id: string,
+  frente: unknown,
+): Promise<Resultado> {
+  return executarAcao("classificarSolicitacao", async () => {
+    await exigirAtendimentoNaAcao("Classificar um pedido do cliente");
+
+    const validacao = z.enum(FRENTES_DA_SOLICITACAO).safeParse(frente);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "classificarSolicitacao",
+          validacao.error,
+          frente,
+          "Escolha Social ou Campanha.",
+        ),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("client_requests")
+      .update(
+        validacao.data === "social"
+          ? { frente: validacao.data, campaign_id: null }
+          : { frente: validacao.data },
+      )
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+
+    if (error) return falha(`Não foi possível classificar: ${error.message}`);
+    if (!data) return falha("O banco recusou. Classificar é de quem abre demanda.");
+
+    revalidarOsDoisLados(id);
+    return sucesso(
+      `Pedido classificado como ${ROTULOS_DE_FRENTE[validacao.data]}.`,
+    );
   });
 }
 
@@ -161,8 +233,37 @@ function briefingDoPedido(pedido: {
   respostas: Record<string, string>;
   data_desejada: string | null;
   empresa: string | null;
+  frente: SolicitacaoFrente | null;
 }, campos: ReturnType<typeof camposDoRoteiro>): string {
   const linhas: string[] = ["Pedido aberto pelo cliente no Portal.", ""];
+
+  // ---------------------------------------------------------------------
+  // A CLASSIFICAÇÃO ENTRA NO TEXTO, E NÃO NUMA COLUNA DE `tasks` (0124).
+  //
+  // A tentação é espelhar a frente na demanda para `producao_do_periodo()`
+  // agrupar por ela, e duas razões a desfazem: a demanda JÁ sabe a frente
+  // dela pela ESTRUTURA — um mês de social tem `social_do_mes`, uma campanha
+  // é apontada por `campaigns.task_id` —, e uma coluna ao lado seria a
+  // segunda verdade sobre o mesmo fato, que divergiria na primeira demanda
+  // convertida à mão que não é nem uma nem outra. É "atraso não é coluna"
+  // pela enésima vez.
+  //
+  // O que ela faz aqui é dizer ao Atendimento qual caminho de produção o
+  // cliente pediu — que é a decisão seguinte dele, na mesma tela: abrir o mês
+  // de social ou a campanha.
+  //
+  // **A VERTENTE NÃO ENTRA NO TEXTO**, e é o contrário: ela virou COLUNA da
+  // demanda, e a tela de task desenha o campo dela desde a 0118. Escrevê-la
+  // aqui também seria a segunda verdade sobre o mesmo fato — e a do texto é a
+  // que envelhece, porque ninguém reescreve o briefing no dia em que alguém
+  // troca a vertente da demanda.
+  // ---------------------------------------------------------------------
+  if (pedido.frente) {
+    linhas.push(
+      `O cliente classificou como: ${ROTULOS_DE_FRENTE[pedido.frente]}.`,
+      "",
+    );
+  }
 
   if (pedido.descricao?.trim()) {
     linhas.push(pedido.descricao.trim(), "");
@@ -272,6 +373,16 @@ export async function converterEmDemanda(id: string): Promise<Resultado<string>>
         // legítimo — `tasks_publicar_exige_minimo` é quem recusa publicar
         // assim, com a frase certa.
         link_entrega: padroes?.pasta_entrega_url ?? null,
+        // A VERTENTE PROPAGA, e é a metade do item 7 que os relatórios leem
+        // (0124). `tasks.vertente_id` existe desde a 0118, e é por ela que o
+        // board filtra, a Biblioteca do cliente navega e o relatório agrupa —
+        // então a classificação que o cliente deu no pedido chega a todos os
+        // três sem uma linha nova em nenhum.
+        //
+        // **E ela não pode ser incoerente:** a vertente do pedido já é da
+        // conta dele (0124), e a demanda nasce com o mesmo `client_id`, então
+        // `tasks_vertente_da_conta` (0118) aceita por construção.
+        vertente_id: pedido.vertente_id,
         criado_por: sessao.usuarioId,
         // RASCUNHO. O explícito é o que faz dela um: o default do banco é
         // publicada.

@@ -46,17 +46,17 @@ update public.clients set aceita_solicitacoes = true      where id = :VERDE;
 
 select teste.cenario('Joana abre pedido na empresa dela', :JOANA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo, descricao, data_desejada)
+    insert into public.client_requests (id, client_id, titulo, descricao, data_desejada, frente)
     values ('dddddddd-0000-0000-0000-000000000001', %L,
-            'Arte para o dia das maes', 'Uma peca de feed', '2027-05-01')
+            'Arte para o dia das maes', 'Uma peca de feed', '2027-05-01', 'social')
   $fmt$, :VERDE), 'ok');
 
 -- A TROCA DE EMPRESA E O FURO OBVIO, e a policy o fecha: `my_client_ids()`
 -- nao devolve a Optica para a Joana.
 select teste.cenario('Joana NAO abre pedido na empresa do Otto', :JOANA,
   format($fmt$
-    insert into public.client_requests (client_id, titulo)
-    values (%L, 'Pedido na conta errada')
+    insert into public.client_requests (client_id, titulo, frente)
+    values (%L, 'Pedido na conta errada', 'social')
   $fmt$, :OPTICA), 'recusa');
 
 select teste.conferir_como('Otto nao enxerga o pedido da Mundo Verde', :OTTO,
@@ -101,8 +101,8 @@ select teste.conferir_como('E a da Carla acha', :CARLA,
 -- tempo, nunca o mostraria. Pedido invisivel e pior que pedido recusado.
 select teste.cenario('Joana tenta nascer em_andamento', :JOANA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo, status)
-    values ('dddddddd-0000-0000-0000-000000000002', %L, 'Pedido esperto', 'em_andamento')
+    insert into public.client_requests (id, client_id, titulo, status, frente)
+    values ('dddddddd-0000-0000-0000-000000000002', %L, 'Pedido esperto', 'em_andamento', 'social')
   $fmt$, :VERDE), 'ok');
 
 select teste.conferir('E o banco devolveu ele para `nova`',
@@ -113,8 +113,8 @@ select teste.conferir('E o banco devolveu ele para `nova`',
 -- trigger, um PATCH assinaria o pedido com o nome de outra pessoa da empresa.
 select teste.cenario('Joana tenta assinar o pedido como o Otto', :JOANA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo, criado_por)
-    values ('dddddddd-0000-0000-0000-000000000003', %L, 'Pedido assinado errado', %L)
+    insert into public.client_requests (id, client_id, titulo, criado_por, frente)
+    values ('dddddddd-0000-0000-0000-000000000003', %L, 'Pedido assinado errado', %L, 'social')
   $fmt$, :VERDE, :OTTO), 'ok');
 
 select teste.conferir('E quem assina e a Joana',
@@ -127,16 +127,16 @@ update public.clients set aceita_solicitacoes = false where id = :OPTICA;
 
 select teste.cenario('Conta com pedidos desligados recusa o insert', :OTTO,
   format($fmt$
-    insert into public.client_requests (client_id, titulo)
-    values (%L, 'Pedido numa conta desligada')
+    insert into public.client_requests (client_id, titulo, frente)
+    values (%L, 'Pedido numa conta desligada', 'social')
   $fmt$, :OPTICA), 'recusa');
 
 -- E A EQUIPE CONTINUA PODENDO REGISTRAR: o Atendimento que recebeu o pedido
 -- por telefone poe ali, e a conversa passa a ter um lugar.
 select teste.cenario('O Atendimento registra pedido mesmo na conta desligada', :CARLA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-000000000004', %L, 'Pedido que chegou por telefone')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-000000000004', %L, 'Pedido que chegou por telefone', 'social')
   $fmt$, :OPTICA), 'ok');
 
 update public.clients set aceita_solicitacoes = true where id = :OPTICA;
@@ -335,9 +335,9 @@ select teste.cenario('Nem o socio apaga mensagem', :ANA,
 -- task em vez de na publicacao, ele falha e diz qual.
 -- ---------------------------------------------------------------------------
 
-insert into public.client_requests (id, client_id, titulo, criado_por, status)
+insert into public.client_requests (id, client_id, titulo, criado_por, status, frente)
 values ('dddddddd-0000-0000-0000-00000000000a', :VERDE,
-        'Banner para a feira', :JOANA, 'em_analise');
+        'Banner para a feira', :JOANA, 'em_analise', 'social');
 
 select teste.cenario('Carla abre o rascunho ligado ao pedido', :CARLA,
   format($fmt$
@@ -387,9 +387,9 @@ select teste.conferir('Entregar fechou o pedido',
 -- acontece: o Atendimento converte, alguem revisa e recusa -- nao pode fazer o
 -- pedido voltar a "em andamento" no portal do cliente, contando a ele uma
 -- historia que a agencia ja desmentiu.
-insert into public.client_requests (id, client_id, titulo, criado_por, status, motivo_recusa)
+insert into public.client_requests (id, client_id, titulo, criado_por, status, motivo_recusa, frente)
 values ('dddddddd-0000-0000-0000-00000000000b', :VERDE,
-        'Pedido recusado depois', :JOANA, 'recusada', 'Fora do escopo do contrato.');
+        'Pedido recusado depois', :JOANA, 'recusada', 'Fora do escopo do contrato.', 'social');
 
 insert into public.tasks (id, client_id, titulo, link_entrega, criado_por,
                           publicada_em, request_id)
@@ -527,8 +527,8 @@ delete from public.notifications;
 
 select teste.cenario('Joana abre um pedido na Mundo Verde (tem atendente)', :JOANA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-00000000aaa1', %L, 'Aviso: conta com atendente')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000aaa1', %L, 'Aviso: conta com atendente', 'social')
   $fmt$, :VERDE), 'ok');
 
 select teste.conferir('A Carla, que atende a conta, foi avisada',
@@ -550,8 +550,8 @@ select teste.conferir('O Bruno, que e do Design, nao foi avisado',
 -- ninguem (0062) -- o pedido entrava na caixa de entrada em silencio.
 select teste.cenario('Otto abre um pedido na Optica (SEM atendente)', :OTTO,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-00000000aaa2', %L, 'Aviso: conta sem atendente')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000aaa2', %L, 'Aviso: conta sem atendente', 'social')
   $fmt$, :OPTICA), 'ok');
 
 select teste.conferir('O Atendimento inteiro foi avisado mesmo sem atendente na conta',
@@ -571,8 +571,8 @@ delete from public.notifications;
 
 select teste.cenario('Joana abre um pedido com o Rafael desligado', :JOANA,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-00000000aaa3', %L, 'Aviso: com gente desligada')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000aaa3', %L, 'Aviso: com gente desligada', 'social')
   $fmt$, :VERDE), 'ok');
 
 select teste.conferir('A pessoa desligada nao recebe',
@@ -599,8 +599,8 @@ delete from public.notifications;
 
 select teste.cenario('Otto abre um pedido sem ninguem no Atendimento', :OTTO,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-00000000aaa4', %L, 'Aviso: sem Atendimento')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000aaa4', %L, 'Aviso: sem Atendimento', 'social')
   $fmt$, :OPTICA), 'ok');
 
 select teste.conferir('A gestao ativa inteira foi avisada',
@@ -617,8 +617,8 @@ delete from public.notifications;
 
 select teste.cenario('Otto abre um pedido com o Atendimento de pe', :OTTO,
   format($fmt$
-    insert into public.client_requests (id, client_id, titulo)
-    values ('dddddddd-0000-0000-0000-00000000aaa5', %L, 'Aviso: fallback nao soma')
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000aaa5', %L, 'Aviso: fallback nao soma', 'social')
   $fmt$, :OPTICA), 'ok');
 
 select teste.conferir('A gestao NAO e avisada quando ha Atendimento',
@@ -702,10 +702,10 @@ update public.clients set aceita_solicitacoes = true where id = :OPTICA;
 
 select teste.cenario('O cliente liga o pedido a uma campanha da conta dele', :OTTO,
   format($fmt$insert into public.client_requests
-           (id, client_id, criado_por, titulo, campaign_id)
+           (id, client_id, criado_por, titulo, campaign_id, frente)
          values ('dddddddd-0000-0000-0000-00000000bbb1', %L,
                  '88888888-8888-8888-8888-888888888888',
-                 'Arte da Wave da Optica', %L)$fmt$, :OPTICA, :OUTRA), 'ok');
+                 'Arte da Wave da Optica', %L, 'campanha')$fmt$, :OPTICA, :OUTRA), 'ok');
 
 select teste.conferir('E ela ficou gravada no pedido',
   (select campaign_id::text from public.client_requests
@@ -716,10 +716,10 @@ select teste.conferir('E ela ficou gravada no pedido',
 select teste.recusa_com_dica(
   'Ele NAO pendura o pedido na campanha de outra empresa', :OTTO,
   format($fmt$insert into public.client_requests
-           (id, client_id, criado_por, titulo, campaign_id)
+           (id, client_id, criado_por, titulo, campaign_id, frente)
          values ('dddddddd-0000-0000-0000-00000000bbb2', %L,
                  '88888888-8888-8888-8888-888888888888',
-                 'Tentando a campanha alheia', %L)$fmt$, :OPTICA, :CAMP),
+                 'Tentando a campanha alheia', %L, 'campanha')$fmt$, :OPTICA, :CAMP),
   'mesma conta');
 
 -- E A MENSAGEM, nao so a dica: a recusa que diz "de outra empresa" e o que a
@@ -729,20 +729,20 @@ select teste.recusa_com_dica(
 select teste.recusa_com(
   'E a recusa diz de quem e a campanha', :OTTO,
   format($fmt$insert into public.client_requests
-           (id, client_id, criado_por, titulo, campaign_id)
+           (id, client_id, criado_por, titulo, campaign_id, frente)
          values ('dddddddd-0000-0000-0000-00000000bbb4', %L,
                  '88888888-8888-8888-8888-888888888888',
-                 'Tentando de novo', %L)$fmt$, :OPTICA, :CAMP),
+                 'Tentando de novo', %L, 'campanha')$fmt$, :OPTICA, :CAMP),
   'Essa campanha é de outra empresa.');
 
 select teste.recusa_com(
   'Nem numa campanha que nao existe', :OTTO,
   format($fmt$insert into public.client_requests
-           (id, client_id, criado_por, titulo, campaign_id)
+           (id, client_id, criado_por, titulo, campaign_id, frente)
          values ('dddddddd-0000-0000-0000-00000000bbb3', %L,
                  '88888888-8888-8888-8888-888888888888',
                  'Campanha inventada',
-                 'c1120000-0000-0000-0000-0000000000ff')$fmt$, :OPTICA),
+                 'c1120000-0000-0000-0000-0000000000ff', 'campanha')$fmt$, :OPTICA),
   'Essa campanha não existe.');
 
 -- E APAGAR A CAMPANHA NAO LEVA O PEDIDO JUNTO.
@@ -756,3 +756,183 @@ select teste.conferir('E ele fica sem campanha, nao apagado',
   (select coalesce(campaign_id::text, 'sem campanha')
      from public.client_requests
     where id = 'dddddddd-0000-0000-0000-00000000bbb1'), 'sem campanha');
+
+
+-- ===========================================================================
+-- A CLASSIFICACAO DO PEDIDO -- Social ou Campanha, e a vertente (0124)
+--
+-- Decisao do usuario: *"na abertura de uma solicitacao, exigir a
+-- classificacao como Social ou Campanha, vinculando a conta e a vertente"*.
+--
+-- O QUE ESTA SECAO MEDE, e por que cada cenario existe:
+--
+--   * a frente e exigida NO INSERT -- a mensagem e a dica, porque uma trava
+--     com a dica apagada passa por uma checagem que so le a mensagem (0020);
+--   * ela NAO SE ESVAZIA num pedido classificado, que e a outra metade da
+--     0015: a pasta de entrega e obrigatoria na demanda nova E nao se apaga
+--     na que ja tem;
+--   * trocar de lado CONTINUA VALENDO -- a trava e sobre esvaziar, nao sobre
+--     corrigir, e um cenario que so medisse a recusa passaria numa trava que
+--     recusa as duas coisas;
+--   * campanha escolhida obriga frente Campanha, nos dois sentidos;
+--   * a vertente e da conta DO PEDIDO, e trocar o CLIENTE tambem e recusado
+--     -- a licao da 0118, onde o gatilho dispara nas duas colunas.
+--
+-- E O PEDIDO ANTERIOR A REGRA NAO DA PARA MEDIR AQUI, e fica dito em vez de
+-- escondido: a coluna aceita nulo justamente para a migration rodar num banco
+-- que ja tem pedido, e todo pedido que esta bateria ve nasce DEPOIS do gatilho
+-- -- `teste.limpar()` nao deixa linha anterior. Quem confere aquele lado e o
+-- `select` de conferencia da migration, rodado no banco de verdade, e a action
+-- `classificarSolicitacao` e quem da saida a ele. E o `where` da capacidade da
+-- 0081 de novo.
+-- ===========================================================================
+
+-- A OPTICA JA ACEITA PEDIDO desde a secao da campanha, acima.
+
+-- As vertentes, criadas como dono: a bateria nao tinha nenhuma -- a 0118
+-- nunca ganhou arquivo -- e sem elas os quatro cenarios da vertente nao
+-- teriam de que conta falar.
+insert into public.client_vertentes (id, client_id, nome, ordem)
+values ('ee110000-0000-0000-0000-000000000001', :VERDE,  'Lojas Proprias', 10),
+       ('ee110000-0000-0000-0000-000000000002', :OPTICA, 'Institucional',  10)
+on conflict (id) do nothing;
+
+\set VERT_VERDE  '''ee110000-0000-0000-0000-000000000001'''
+\set VERT_OPTICA '''ee110000-0000-0000-0000-000000000002'''
+
+-- ---------------------------------------------------------------------------
+-- 1. A frente e exigida na abertura
+-- ---------------------------------------------------------------------------
+select teste.recusa_com(
+  'Pedido sem classificacao e recusado', :JOANA,
+  format($fmt$insert into public.client_requests (client_id, titulo)
+              values (%L, 'Pedido sem frente')$fmt$, :VERDE),
+  'Social ou de Campanha');
+
+select teste.recusa_com_dica(
+  'E a dica diz por que ela importa', :JOANA,
+  format($fmt$insert into public.client_requests (client_id, titulo)
+              values (%L, 'Pedido sem frente, de novo')$fmt$, :VERDE),
+  'relatório');
+
+-- ---------------------------------------------------------------------------
+-- 2. Ela nao se esvazia, e TROCAR continua valendo
+-- ---------------------------------------------------------------------------
+select teste.cenario('Joana abre um pedido de social', :JOANA,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000c001', %L, 'Stories da semana', 'social')
+  $fmt$, :VERDE), 'ok');
+
+-- O ATENDIMENTO E QUEM CLASSIFICA DEPOIS -- `client_requests_update` e
+-- `is_atendimento()` desde a 0110, e a Joana e cliente: por ela o `update`
+-- nao devolve linha nenhuma. Quem troca de lado aqui e a Carla.
+select teste.cenario('A Carla troca a frente para campanha', :CARLA,
+  $cmd$
+    update public.client_requests set frente = 'campanha'
+     where id = 'dddddddd-0000-0000-0000-00000000c001'
+  $cmd$, 'ok', 1);
+
+select teste.conferir('E o pedido ficou em campanha',
+  (select frente::text from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000c001'), 'campanha');
+
+select teste.recusa_com(
+  'Mas esvaziar a classificacao e recusado', :CARLA,
+  $cmd$
+    update public.client_requests set frente = null
+     where id = 'dddddddd-0000-0000-0000-00000000c001'
+  $cmd$,
+  'não se apaga');
+
+-- ---------------------------------------------------------------------------
+-- 3. Campanha escolhida obriga frente Campanha
+-- ---------------------------------------------------------------------------
+select teste.recusa_com(
+  'Pedido de social com campanha dentro e recusado', :OTTO,
+  format($fmt$
+    insert into public.client_requests (client_id, criado_por, titulo, campaign_id, frente)
+    values (%L, %L, 'Social com campanha', %L, 'social')
+  $fmt$, :OPTICA, :OTTO, :CAMP),
+  'a frente é Campanha');
+
+-- O CONTRARIO NAO E TRAVA, e e o caso comum: o cliente pede uma acao nova, e
+-- a campanha nasce depois. Um cenario que so medisse a recusa de cima
+-- passaria numa trava que tambem recusasse este.
+select teste.cenario('Mas frente campanha SEM campanha passa', :OTTO,
+  format($fmt$
+    insert into public.client_requests (id, client_id, criado_por, titulo, frente)
+    values ('dddddddd-0000-0000-0000-00000000c002', %L, %L,
+            'Acao de fim de ano, campanha ainda nao existe', 'campanha')
+  $fmt$, :OPTICA, :OTTO), 'ok');
+
+-- ---------------------------------------------------------------------------
+-- 4. A vertente e da conta do pedido
+-- ---------------------------------------------------------------------------
+select teste.cenario('A vertente da propria conta grava', :JOANA,
+  format($fmt$
+    insert into public.client_requests (id, client_id, titulo, frente, vertente_id)
+    values ('dddddddd-0000-0000-0000-00000000c003', %L, 'Arte das lojas', 'social', %L)
+  $fmt$, :VERDE, :VERT_VERDE), 'ok');
+
+select teste.conferir('E ela ficou gravada',
+  (select vertente_id::text from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000c003'),
+  'ee110000-0000-0000-0000-000000000001');
+
+select teste.recusa_com(
+  'A vertente de OUTRA conta e recusada', :JOANA,
+  format($fmt$
+    insert into public.client_requests (client_id, titulo, frente, vertente_id)
+    values (%L, 'Vertente alheia', 'social', %L)
+  $fmt$, :VERDE, :VERT_OPTICA),
+  'é de outra conta');
+
+select teste.recusa_com_dica(
+  'E a dica diz o que fazer', :JOANA,
+  format($fmt$
+    insert into public.client_requests (client_id, titulo, frente, vertente_id)
+    values (%L, 'Vertente alheia, de novo', 'social', %L)
+  $fmt$, :VERDE, :VERT_OPTICA),
+  'mesma empresa');
+
+select teste.recusa_com(
+  'Nem uma vertente que nao existe', :JOANA,
+  format($fmt$
+    insert into public.client_requests (client_id, titulo, frente, vertente_id)
+    values (%L, 'Vertente inventada', 'social',
+            'ee110000-0000-0000-0000-0000000000ff')
+  $fmt$, :VERDE),
+  'Essa vertente não existe');
+
+-- O OUTRO LADO DO GATILHO: trocar o CLIENTE de um pedido que ja tem vertente.
+--
+-- Sem este ramo, a linha ficaria apontando para a vertente de uma conta que
+-- nao e mais a dela -- o filtro de uma conta nao a acharia e o da outra a
+-- traria, que e um vazamento entre contas que nenhuma tela mostraria. E a
+-- licao da 0118, e por isso o `update of` do gatilho lista `client_id`.
+select teste.recusa_com(
+  'Trocar o cliente de um pedido com vertente e recusado', :CARLA,
+  format($fmt$
+    update public.client_requests set client_id = %L
+     where id = 'dddddddd-0000-0000-0000-00000000c003'
+  $fmt$, :OPTICA),
+  'é de outra conta');
+
+-- E APAGAR A VERTENTE NAO LEVA O PEDIDO JUNTO -- `on delete set null`, a
+-- decisao de `campaign_id` na 0112: o pedido e o que o cliente escreveu.
+--
+-- **A 0118 nao tem policy de DELETE em `client_vertentes`** de proposito (a
+-- vertente se DESATIVA), entao quem apaga aqui e o dono do banco -- que e o
+-- unico caminho que existe, e e ele que o `on delete set null` precisa
+-- sobreviver.
+delete from public.client_vertentes where id = :VERT_VERDE;
+
+select teste.conferir('Apagar a vertente deixa o pedido de pe',
+  (select count(*)::text from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000c003'), '1');
+
+select teste.conferir('E ele fica sem vertente, nao apagado',
+  (select coalesce(vertente_id::text, 'sem vertente')
+     from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-00000000c003'), 'sem vertente');

@@ -692,8 +692,8 @@ const TELAS = [
   { nome: "99f-painel-desenvolvedor-sem-auditoria", rota: "/painel", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "99e-metricas-375", rota: "/painel/metricas?aba=tempo", largura: 375, altura: 1600, role: "socio" },
 
-  { nome: "99f-resumo-agencia", rota: "/painel/resumo-agencia", largura: 1500, altura: 1700, role: "socio" },
-  { nome: "99g-resumo-agencia-375", rota: "/painel/resumo-agencia", largura: 375, altura: 2000, role: "socio" },
+  { nome: "99f-resumo-agencia", rota: "/painel/resumo-agencia", largura: 1500, altura: 2050, role: "socio" },
+  { nome: "99g-resumo-agencia-375", rota: "/painel/resumo-agencia", largura: 375, altura: 2500, role: "socio" },
 
   { nome: "86-recomendacoes", rota: "/painel/recomendacoes", largura: 1600, altura: 1500, role: "socio" },
   // 375px: a grade de tres colunas vira UMA, e e a unica imagem que prova
@@ -728,7 +728,24 @@ const TELAS = [
   // ---------------------------------------------------------------------
   { nome: "90-solicitacoes-fila", rota: "/painel/solicitacoes", largura: 1500, altura: 1000, role: "colaborador" },
   { nome: "90b-solicitacoes-fila-375", rota: "/painel/solicitacoes", largura: 375, altura: 1200, role: "colaborador" },
+  // ------------------------------------------------------------------------
+  // A CLASSIFICACAO DO PEDIDO (0124), e as tres telas provam coisas
+  // diferentes:
+  //
+  //  * `90c` e o FILTRO funcionando -- o stub aplica o recorte, senao a
+  //    imagem sairia com o chip escolhido e a fila inteira embaixo,
+  //    afirmando que o seletor nao faz nada (a licao do stub do filtro de
+  //    vertente do board);
+  //  * `90d` e o balde do NAO CLASSIFICADO, que e onde mora o pedido
+  //    anterior a regra -- sem ela a pilula em ambar nao sai em imagem
+  //    nenhuma;
+  //  * `91b` e a SAIDA que ele tem: o bloco de classificar, que so existe
+  //    quando falta.
+  // ------------------------------------------------------------------------
+  { nome: "90c-solicitacoes-por-frente", rota: "/painel/solicitacoes?frente=campanha", largura: 1500, altura: 900, role: "colaborador" },
+  { nome: "90d-solicitacoes-sem-classificacao", rota: "/painel/solicitacoes?frente=sem", largura: 1500, altura: 800, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
+  { nome: "91b-solicitacao-classificar", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000004", largura: 1500, altura: 1300, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
   // A ABA FILTRADA, e nao so a de "Todos": a imagem de "Todos" mostra a faixa
   // de abas e nao prova que alguma delas RECORTA. Esta sai em "Em ajustes",
@@ -782,12 +799,12 @@ const TELAS = [
   // feedback e o ultimo item de "quem sou eu" antes do resto do dia.
   { nome: "98f-feedback-na-home", rota: "/painel", largura: 1400, altura: 2600, role: "colaborador" },
   { nome: "98g-feedback-na-home-375", rota: "/painel", largura: 375, altura: 3200, role: "colaborador" },
-  { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 1500, role: "cliente" },
-  { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes?novo=1", largura: 375, altura: 1900, role: "cliente" },
+  { nome: "93-portal-pedido-novo", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 1900, role: "cliente" },
+  { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes?novo=1", largura: 375, altura: 2400, role: "cliente" },
   // O PAINEL ABERTO JA DENTRO DE UMA CAMPANHA (0112). Ele e o unico lugar em
   // que o campo "De que campanha e" aparece PREENCHIDO -- em `?novo=1` solto
   // ele nasce em "Nenhuma", e a imagem provaria so que o seletor existe.
-  { nome: "93c-portal-pedido-na-campanha", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 1500, role: "cliente" },
+  { nome: "93c-portal-pedido-na-campanha", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 1900, role: "cliente" },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
   // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
   // telas: a de cima prova que o material aparece, a de baixo prova que o

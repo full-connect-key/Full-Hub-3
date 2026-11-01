@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
+import type { Vertente } from "@/lib/dominio/vertentes";
 import type { RequestType } from "@/lib/supabase/database.types";
 
 import { FormularioDePedido } from "./formulario";
@@ -48,11 +49,13 @@ export function PainelDeNovaSolicitacao({
   empresas,
   tipos,
   campanhas,
+  vertentes,
   base = "/portal",
 }: {
   empresas: { id: string; nome_empresa: string }[];
   tipos: RequestType[];
   campanhas: CampanhaParaEscolher[];
+  vertentes: Vertente[];
   base?: string;
 }) {
   const router = useRouter();
@@ -106,6 +109,7 @@ export function PainelDeNovaSolicitacao({
             empresas={empresas}
             tipos={tipos}
             campanhas={campanhas}
+            vertentes={vertentes}
             campanhaInicial={campanhaInicial}
             aoConcluir={() => {
               fechar();

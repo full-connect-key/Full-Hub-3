@@ -18,10 +18,11 @@ import type {
   MensagemDoPedido,
   PedidoCompleto,
   PedidoNaLista,
+  RecorteDeFrente,
 } from "../../src/lib/dados/solicitacoes";
 import type { RequestType } from "../../src/lib/supabase/database.types";
 
-export type { PedidoCompleto, PedidoNaLista, MensagemDoPedido };
+export type { PedidoCompleto, PedidoNaLista, MensagemDoPedido, RecorteDeFrente };
 
 export { BUCKET_DOS_PEDIDOS } from "../../src/lib/dominio/solicitacoes";
 
@@ -155,6 +156,9 @@ const PEDIDOS: PedidoNaLista[] = [
     // dois estados, a coluna CAMPANHA sai em imagem provando so que ela sabe
     // ficar vazia.
     campaign_id: "camp-1",
+    frente: "campanha",
+    vertente_id: "ee000000-0000-0000-0000-000000000002",
+    vertente: "Lojas Próprias",
     campanha: "Wave Outubro Rosa",
     status: "nova",
     motivo_recusa: null,
@@ -179,6 +183,9 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { peca: "Lâmina A5, frente e verso", medida: "14,8 × 21 cm" },
     data_desejada: null,
     campaign_id: null,
+    frente: "campanha",
+    vertente_id: null,
+    vertente: null,
     campanha: null,
     status: "em_analise",
     motivo_recusa: null,
@@ -203,6 +210,9 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { duracao: "30 segundos", mensagem: "A coleção nova chegou." },
     data_desejada: null,
     campaign_id: "camp-1",
+    frente: "campanha",
+    vertente_id: null,
+    vertente: null,
     campanha: "Wave Outubro Rosa",
     status: "em_andamento",
     motivo_recusa: null,
@@ -232,6 +242,9 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { mensagem: "Os mesmos do ano passado, sem mudar nada." },
     data_desejada: null,
     campaign_id: null,
+    frente: null,
+    vertente_id: null,
+    vertente: null,
     campanha: null,
     status: "recusada",
     motivo_recusa:
@@ -264,6 +277,9 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { rede: "Site", formato: "Banner", mensagem: "Até 40% em toda a loja." },
     data_desejada: diasAtras(6),
     campaign_id: null,
+    frente: "social",
+    vertente_id: "ee000000-0000-0000-0000-000000000001",
+    vertente: "Institucional",
     campanha: null,
     status: "concluida",
     motivo_recusa: null,
@@ -291,6 +307,9 @@ const PEDIDOS: PedidoNaLista[] = [
     respostas: { mensagem: "O número mudou na semana passada." },
     data_desejada: null,
     campaign_id: null,
+    frente: "social",
+    vertente_id: null,
+    vertente: null,
     campanha: null,
     status: "concluida",
     motivo_recusa: null,
@@ -382,12 +401,31 @@ export async function tiposDePedido(): Promise<RequestType[]> {
   return TIPOS;
 }
 
-export async function caixaDeEntrada(_filtros?: {
+export async function caixaDeEntrada(filtros?: {
   status?: PedidoNaLista["status"] | null;
   clienteId?: string | null;
+  frente?: RecorteDeFrente | null;
 }): Promise<PedidoNaLista[]> {
-  const abertos = PEDIDOS.filter((p) => p.status === "nova" || p.status === "em_analise");
-  const resto = PEDIDOS.filter((p) => p.status !== "nova" && p.status !== "em_analise");
+  const recortados = PEDIDOS.filter((p) => {
+    if (filtros?.status && p.status !== filtros.status) return false;
+    if (filtros?.clienteId && p.client_id !== filtros.clienteId) return false;
+    if (filtros?.frente === "sem" && p.frente !== null) return false;
+    if (
+      filtros?.frente &&
+      filtros.frente !== "sem" &&
+      p.frente !== filtros.frente
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const abertos = recortados.filter(
+    (p) => p.status === "nova" || p.status === "em_analise",
+  );
+  const resto = recortados.filter(
+    (p) => p.status !== "nova" && p.status !== "em_analise",
+  );
   return [...abertos, ...resto];
 }
 

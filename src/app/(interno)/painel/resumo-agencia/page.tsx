@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, Clock, Hourglass } from "lucide-react";
+import { AlertTriangle, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, Clock, Hourglass, Inbox } from "lucide-react";
 
 import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { horasEMinutos, taxaNoPrazo } from "@/lib/dominio/metricas";
+import { rotuloDaFrente } from "@/lib/dominio/solicitacoes";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 import {
   lerSemana,
@@ -153,6 +154,80 @@ export default async function PaginaDoResumoDaAgencia({
         sobraram={resumo.sobraram.proximaSemana}
         itens={resumo.proximaSemana}
       />
+
+      {/* ------------------------------------------------------------------
+          O QUE OS CLIENTES PEDIRAM — a classificação da 0124 virando número.
+
+          **ELE VEM DEPOIS DO QUE A AGÊNCIA FEZ, e antes de quem não estará.**
+          A ordem deste resumo é a da conversa de segunda: o que saiu, o que
+          ficou para trás, o que espera o cliente, o que vence — e só então o
+          que ENTROU, que é a pauta da semana que começa. Acima das entregas
+          ele abriria o resumo pela caixa de entrada, que é outra tela.
+
+          **AS TRÊS CONTAGENS SÃO UMA LINHA e não três ladrilhos**, e é a
+          decisão do Início: a lista logo abaixo É esses números, item por
+          item. Três cartões com número grande em cima de uma lista que soma o
+          mesmo é o cartão de "11 entregues" com sete na lista embaixo, que
+          este arquivo já pagou uma vez.
+
+          **E "sem classificação" só aparece quando existe**: num banco
+          classificado ele é zero para sempre, e a linha permanente dizendo
+          isso é a mesma linha com um número a mais. Pinta-se a exceção.
+          ------------------------------------------------------------------ */}
+      <section className="bg-surface-card rounded-card border p-4">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Inbox aria-hidden className="size-4" />O que os clientes pediram
+        </h2>
+        <p className="text-text-muted mt-1 text-sm">
+          {resumo.pedidos.social + resumo.pedidos.campanha + resumo.pedidos.semClassificacao === 0
+            ? "Nenhum pedido novo pelo Portal nesta semana."
+            : [
+                `${resumo.pedidos.social} de social`,
+                `${resumo.pedidos.campanha} de campanha`,
+                ...(resumo.pedidos.semClassificacao > 0
+                  ? [`${resumo.pedidos.semClassificacao} sem classificação`]
+                  : []),
+              ].join(" · ")}
+        </p>
+
+        {resumo.pedidos.lista.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {resumo.pedidos.lista.map((pedido) => (
+              <li key={pedido.id}>
+                <Link
+                  href={pedido.link}
+                  className="hover:bg-accent -mx-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg px-2 py-1.5 text-sm transition-colors"
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {pedido.titulo}
+                  </span>
+                  <span className="text-text-muted min-w-0 truncate text-xs">
+                    {[pedido.cliente, pedido.vertente].filter(Boolean).join(" · ")}
+                  </span>
+                  {/* O RÓTULO DA FRENTE EM CADA LINHA, e é o que faz as
+                      contagens de cima serem conferíveis: um "3 de campanha"
+                      cuja lista não diz quais é um número que a pessoa não
+                      tem como verificar. */}
+                  <span
+                    className={
+                      pedido.frente
+                        ? "bg-neutral-soft text-neutral shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        : "bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    }
+                  >
+                    {rotuloDaFrente(pedido.frente)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+            {resumo.pedidos.sobraram > 0 ? (
+              <li className="text-text-muted text-xs">
+                e mais {resumo.pedidos.sobraram} nesta semana.
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
+      </section>
 
       {resumo.foraNaProxima.length > 0 ? (
         <section className="bg-surface-card rounded-card border p-4">

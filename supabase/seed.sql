@@ -2264,23 +2264,24 @@ begin
   -- 1. O NOVO, esperando ha cinco dias.
   insert into public.client_requests
     (id, client_id, request_type_id, criado_por, titulo, descricao, respostas,
-     data_desejada, status, created_at)
+     data_desejada, status, created_at, frente)
   values
     ('e0000000-0000-0000-0000-000000000001', v_verde, v_tipo_redes, v_joana,
      'Arte para o Dia das Mães',
      'Queria uma peça bonita para o feed, com a linha visual da loja.',
      '{"rede":"Instagram","formato":"Feed","mensagem":"Que a gente tem uma seleção de presentes até R$ 80."}'::jsonb,
-     current_date + 20, 'nova', now() - interval '5 days')
+     current_date + 20, 'nova', now() - interval '5 days', 'social')
   on conflict (id) do nothing;
 
   -- 2. EM ANALISE, com conversa nos dois sentidos.
   insert into public.client_requests
-    (id, client_id, request_type_id, criado_por, titulo, respostas, status, created_at)
+    (id, client_id, request_type_id, criado_por, titulo, respostas, status,
+     created_at, frente)
   values
     ('e0000000-0000-0000-0000-000000000002', v_verde, v_tipo_impresso, v_joana,
      'Lâmina A5 para a feira',
      '{"peca":"Lâmina A5, frente e verso","medida":"14,8 × 21 cm"}'::jsonb,
-     'em_analise', now() - interval '2 days')
+     'em_analise', now() - interval '2 days', 'campanha')
   on conflict (id) do nothing;
 
   insert into public.request_messages (id, request_id, autor_id, texto, created_at)
@@ -2306,12 +2307,13 @@ begin
   -- vez de o insert ganhar um `where not exists`: a pergunta "o pedido nasceu
   -- agora?" e exatamente a que decide se a demanda tambem nasce.
   insert into public.client_requests
-    (id, client_id, request_type_id, criado_por, titulo, respostas, status, created_at)
+    (id, client_id, request_type_id, criado_por, titulo, respostas, status,
+     created_at, frente)
   values
     ('e0000000-0000-0000-0000-000000000003', v_verde, v_tipo_redes, v_joana,
      'Campanha de recompra para quem comprou em julho',
      '{"rede":"Mais de uma","mensagem":"Volte e leve 15% na segunda compra."}'::jsonb,
-     'em_analise', now() - interval '9 days')
+     'em_analise', now() - interval '9 days', 'social')
   on conflict (id) do nothing
   returning id into v_pedido;
 
@@ -2335,17 +2337,18 @@ begin
   -- 4. O RECUSADO, com motivo.
   insert into public.client_requests
     (id, client_id, request_type_id, criado_por, titulo, respostas,
-     status, motivo_recusa, decidida_em, created_at)
+     status, motivo_recusa, decidida_em, created_at, frente)
   values
     ('e0000000-0000-0000-0000-000000000004', v_verde, v_tipo_outro, v_joana,
      'Reimprimir os cartões antigos',
      '{"mensagem":"Os mesmos do ano passado, sem mudar nada."}'::jsonb,
      'recusada',
      'A arte do ano passado usa o logo antigo. Vale refazer com a marca nova — abrimos outro pedido?',
-     now() - interval '11 days', now() - interval '14 days')
+     now() - interval '11 days', now() - interval '14 days', 'campanha')
   on conflict (id) do nothing;
 
   raise notice 'Sprint 3E: 4 pedidos do cliente, um deles convertido em demanda pelo trigger.';
+  raise notice 'Sprint 3E: os quatro nascem classificados (0124) -- dois de social e dois de campanha. Banco novo NAO tem pedido sem frente: o trigger recusa o insert sem ela.';
 end
 $bloco$;
 

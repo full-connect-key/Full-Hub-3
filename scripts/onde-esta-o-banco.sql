@@ -722,7 +722,21 @@ from (
     -- qualquer no dia em que alguem acrescentar a coluna a outra consulta
     -- dentro dela.
     ('0123', 'contabilizar no resumo da agencia', 'no_corpo',
-             'producao_do_periodo|t.conta_no_resumo')
+             'producao_do_periodo|t.conta_no_resumo'),
+
+    -- O GATILHO, que e a ULTIMA coisa que a 0124 cria -- e a unica das
+    -- quatro que ESTABELECE a regra. O enum, as duas colunas e o indice
+    -- nascem antes dele, e apontar para qualquer um deles diria `ok` sobre
+    -- uma colagem que morreu no PASSO 3: as colunas de pe sem o gatilho sao
+    -- a classificacao OPCIONAL -- o pedido nasce sem ela, o relatorio soma
+    -- menos do que existe, e nada na tela diz por que. E a armadilha que a
+    -- 0085 pagou apontando para o PASSO 1.
+    --
+    -- E e `trigger` e nao `funcao`: a funcao pode estar criada e o
+    -- `create trigger` ter ficado para tras, e aquele e o estado em que a
+    -- regra existe escrita e nao vale para nada.
+    ('0124', 'a solicitacao diz de que frente e', 'trigger',
+             'client_requests_classificacao')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

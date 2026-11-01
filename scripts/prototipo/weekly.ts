@@ -65,6 +65,23 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     { id: "r3", titulo: "Lâmina A5 — impressão", cliente: "Mundo Verde", desdeEmDias: 0, link: DEMANDA },
   ];
 
+  /**
+   * O QUE OS CLIENTES PEDIRAM (0124), e o exemplo prova TRÊS coisas.
+   *
+   *  * as duas frentes com números DIFERENTES, senão a linha de contagem não
+   *    provaria que ela separa;
+   *  * um pedido SEM CLASSIFICAÇÃO, que é o anterior à regra — sem ele a
+   *    terceira contagem e a pílula em âmbar não saem em imagem nenhuma;
+   *  * um pedido COM vertente e um SEM, porque a segunda metade da linha de
+   *    contexto desaparece quando não há.
+   */
+  const pedidos = [
+    { id: "p1", titulo: "Arte para o Dia das Mães", cliente: "Mundo Verde", vertente: "Lojas Próprias", frente: "campanha" as const, link: "/painel/solicitacoes/p1" },
+    { id: "p2", titulo: "Stories da promoção da semana", cliente: "Mundo Verde", vertente: "E-commerce", frente: "social" as const, link: "/painel/solicitacoes/p2" },
+    { id: "p3", titulo: "Lâmina A5 para a feira", cliente: "Óptica Visão", vertente: null, frente: "campanha" as const, link: "/painel/solicitacoes/p3" },
+    { id: "p4", titulo: "Reimprimir os cartões antigos", cliente: "Óptica Visão", vertente: null, frente: null, link: "/painel/solicitacoes/p4" },
+  ];
+
   return {
     de,
     ate,
@@ -107,6 +124,13 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     // dizia 7 no bloco e 11 no cartao, e a imagem mostrou os dois numeros
     // lado a lado -- foi o que revelou que a consulta real contava
     // agrupadora e `producao_do_periodo` nao.
+    pedidos: {
+      social: pedidos.filter((p) => p.frente === "social").length,
+      campanha: pedidos.filter((p) => p.frente === "campanha").length,
+      semClassificacao: pedidos.filter((p) => p.frente === null).length,
+      lista: pedidos,
+      sobraram: 0,
+    },
     sobraram: { entregues: 7, atrasadas: 0, proximaSemana: 0 },
   };
 }

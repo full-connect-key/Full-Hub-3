@@ -7672,6 +7672,188 @@ que combinar; num pedido concluído ela promete uma conversa que não vai
 acontecer, e num recusado, uma data para o que não vai ser feito. É a razão
 pela qual o aviso do sino leva a data e nunca a palavra "hoje".
 
+#### A SOLICITAÇÃO DIZ DE QUE FRENTE ELA É, E DE QUE VERTENTE
+
+Migration 0124, decisão do usuário: *"na abertura de uma solicitação, exigir a
+classificação como Social ou Campanha, vinculando à conta e à vertente, e usar
+essa classificação nos relatórios"*.
+
+**SÃO QUATRO VÍNCULOS, E DOIS JÁ EXISTIAM.**
+
+| O que o pedido pede | Onde já estava |
+| --- | --- |
+| a **conta** | `client_requests.client_id`, `not null` desde a 0068 |
+| a **campanha** | `client_requests.campaign_id` (0112) |
+| a **frente** | **não existia** — é o que a 0124 cria |
+| a **vertente** | `client_vertentes` (0118), sem o vínculo |
+
+**POR QUE A FRENTE NÃO É DERIVADA**, que é a primeira pergunta desta casa. O
+atalho é `campaign_id is not null ? "campanha" : "social"`, e ele cai numa
+frase: **campanha nula não quer dizer social.** Um "Material impresso" para a
+inauguração de uma loja não é nenhuma das duas, e um pedido de campanha chega
+antes de a campanha existir — e nesse caso quem abre JÁ sabe a frente, e o
+produto não. É o contrário de `faseDoPedido()` e de `maoDoPost()`: ali o fato
+está nas colunas e guardá-lo seria a segunda verdade; aqui não há de onde
+calcular, e o que existe é a declaração de quem abre.
+
+**E ELA NÃO É `request_type_id`**, que é o outro candidato pronto. Aquele é o
+ROTEIRO DE BRIEFING — "Peça para redes", "Material impresso", "Vídeo", "Outro"
+(0068) —, e responde *o que é a peça*. A frente responde *quem produz*: o mês
+de social (`abrir_mes_de_social`) ou uma Wave (`abrir_campanha`). Uma peça para
+redes nasce das duas, e é justamente essa a conta que o relatório separa.
+
+**É ENUM E NÃO TEXTO**, pela razão da 0122 palavra por palavra: a frente é a
+dimensão por onde o relatório AGRUPA, e com texto livre "Social" e "social"
+viram duas linhas do mesmo trabalho — o número sai plausível e errado, que é o
+modo de falha desta casa.
+
+**É TRIGGER E NÃO `not null`, QUE É A DECISÃO DA 0015.** Há pedido gravado
+antes desta regra: `not null` quebraria a migration em qualquer ambiente com um
+deles, e preencher os antigos com um valor qualquer seria pior — escolher
+"social" para um pedido que ninguém classificou é inventar a resposta que o
+relatório vai somar. Então a coluna aceita nulo, o trigger exige **na
+abertura**, e o pedido antigo fica em "Sem classificação" — que é a verdade,
+aparece na fila com um chip próprio, e é classificável depois.
+
+**E ELA NÃO SE ESVAZIA**, que é a outra metade da 0015: a pasta de entrega é
+obrigatória na demanda nova E não se apaga na que já tem. Trocar de Social para
+Campanha continua valendo — a trava é sobre esvaziar, não sobre corrigir.
+
+**CAMPANHA ESCOLHIDA QUER DIZER FRENTE CAMPANHA.** A 0112 recusa a campanha de
+OUTRA empresa; o que nada impedia é a mesma linha dizer "social" com o uuid de
+uma campanha dentro — duas afirmações que se contradizem a uma coluna de
+distância, e o relatório somaria a primeira enquanto a aba Entregas da campanha
+mostraria a segunda. **O contrário não é trava:** frente `campanha` sem
+campanha nenhuma é o caso comum, porque o cliente pede e a campanha nasce
+depois.
+
+**A VERTENTE CONTINUA OPCIONAL, e isso é divergência declarada do pedido.**
+"Vinculando à conta e à vertente" ganhou o VÍNCULO: a coluna, a chave
+estrangeira, a coerência de conta, o campo na tela e o recorte no relatório. O
+que ela não ganhou é obrigatoriedade, pela razão que a 0118 escreveu na mesma
+dimensão — *"'Sem vertente' fica como opção, e não é indecisão: a reunião
+mensal e o relatório da conta não pertencem a nenhuma frente, e obrigar a
+escolha faria a pessoa classificar na primeira da lista, que é pior que não
+classificar"*. E a maioria das contas não tem vertente nenhuma: ali o campo não
+é desenhado, e uma trava cobraria uma lista vazia.
+
+**A COERÊNCIA DELA VALE NOS DOIS SENTIDOS**, que é a lição da 0118 copiada: o
+gatilho dispara também quando o CLIENTE muda, senão trocar a empresa de um
+pedido classificado deixaria a linha apontando para a vertente de uma conta que
+não é mais a dela — o filtro de uma conta não a acharia e o da outra a traria.
+É um vazamento entre contas que nenhuma tela mostraria.
+
+**NÃO NASCE COLUNA EM `tasks`, e a ausência é decisão.** A conversão cria uma
+demanda, e a tentação é espelhar a frente nela para `producao_do_periodo()`
+agrupar. Duas razões contra: a demanda JÁ sabe a frente dela pela ESTRUTURA —
+um mês de social tem `social_do_mes`, uma campanha é apontada por
+`campaigns.task_id` —, e uma coluna ao lado seria a segunda verdade sobre o
+mesmo fato, que divergiria na primeira demanda convertida à mão que não é nem
+uma nem outra.
+
+**O QUE A CONVERSÃO PROPAGA É A VERTENTE**, para `tasks.vertente_id` — a coluna
+que o board filtra, a Biblioteca do cliente navega e o relatório agrupa desde a
+0118. Então a classificação que o cliente deu chega aos três sem uma linha nova
+em nenhum, e ela não pode ser incoerente: a vertente do pedido já é da conta
+dele, e a demanda nasce com o mesmo `client_id`. **A frente vai para o
+BRIEFING**, em texto, porque é ali que ela diz ao Atendimento qual caminho de
+produção o cliente pediu — que é a decisão seguinte dele na mesma tela. **E a
+vertente NÃO vai para o texto**, pelo contrário: ela virou coluna, e
+escrevê-la também seria a segunda verdade — a do texto é a que envelhece,
+porque ninguém reescreve o briefing no dia em que alguém troca a vertente da
+demanda.
+
+##### "Usar nos relatórios" é um bloco no Resumo da Agência
+
+**Sem ele a frente seria uma coluna que a tela de abertura cobra e nenhum
+número lê** — a ponte construída e nunca atravessada pela vigésima vez. O
+Resumo da Agência ganhou **"O que os clientes pediram"**: a contagem por frente
+e as oito primeiras linhas, com o nome da conta, o da vertente e o rótulo da
+frente em cada uma.
+
+**ELE É O PEDIDO E NÃO A DEMANDA**, e a distinção é a razão de ele existir: as
+listas de cima contam o que a agência ENTREGOU, e esta conta o que ENTROU —
+inclusive o pedido que ninguém aceitou ainda, que por definição não está em
+`tasks` nenhuma e não aparece em lugar nenhum daquele resumo. **O recorte é
+`created_at` e não o status**, de propósito: o pedido que ninguém triou é
+justamente o que precisa aparecer na conversa de segunda.
+
+**AS TRÊS CONTAGENS SÃO UMA LINHA e não três ladrilhos**, que é a decisão do
+Início: a lista logo abaixo É esses números, item por item — três cartões com
+número grande em cima dela seriam o cartão de "11 entregues" com sete na lista
+embaixo, que este arquivo já pagou uma vez. E **elas saem do período inteiro**,
+nunca das oito linhas desenhadas, que é o contador das abas de Pedidos pela
+quinta vez.
+
+**E "sem classificação" só aparece quando existe.** Num banco classificado ele
+é zero para sempre, e a linha permanente dizendo isso é a mesma linha com um
+número a mais — pinta-se a exceção.
+
+##### Na fila, o recorte é a SEGUNDA fileira, e a frente aparece em toda linha
+
+**SÃO DUAS FILEIRAS E NÃO UMA, e cada uma leva o nome da dimensão.** Status e
+frente são perguntas diferentes, e numa fileira só os dez chips se leem como
+dez chips soltos — é a faixa de catorze pílulas do portal, que esta casa já
+desfez uma vez. O rótulo em caixa alta é o que separa as duas sem um segundo
+contêiner, que daria dois `gap` diferentes entre os chips. **E os dois recortes
+moram na URL e não se apagam um ao outro:** "os pedidos de campanha que estão
+novos" é um link.
+
+**"Sem classificação" é um chip de verdade**, e é onde mora o pedido anterior à
+regra: sem ele, aquele pedido só seria alcançável em "Todos" — no meio da fila
+inteira, que é onde ninguém o procura.
+
+**A FRENTE APARECE EM TODA LINHA, e não só quando falta.** A regra da matriz do
+Day Off — pinta-se a exceção — vale para ESTADO, e a frente não é estado: é a
+informação de quem produz, e é o recorte da fileira acima. Um filtro "Campanha"
+cujo resultado não diz em nenhuma linha que aquele pedido É de campanha é um
+recorte que a pessoa não tem como conferir, que é a lição do filtro de formato
+da Biblioteca. O par é **neutro** nas duas e `--warning` na ausência: aí sim é
+exceção, e é a única das três que pede uma ação.
+
+**E A VERTENTE ENCOSTA NA EMPRESA**, não numa linha nova: ela É parte da conta,
+e "Mundo Verde · Lojas Próprias" se lê como um endereço.
+
+##### `classificarSolicitacao` existe por causa do pedido anterior à regra
+
+Sem ela, o chip "Sem classificação" pediria uma ação que nenhuma tela sabe
+fazer — a ponte construída e nunca atravessada, que `check:acoes` existe para
+pegar um andar acima. O bloco **só aparece quando falta**, em vez de virar um
+seletor permanente: um campo de classificação em toda tela de pedido seria um
+convite a trocar o que o cliente declarou.
+
+**E a campanha sai quando a frente vira Social**, na action e no formulário do
+cliente, porque o trigger recusa a linha que tem as duas coisas — a recusa
+chegaria como um clique que não faz nada.
+
+##### Na abertura, a ordem é conta → vertente → frente → campanha
+
+É a ordem da decisão, e é a do seletor da tela de task (0118): de qual conta,
+de qual parte dela, de que frente, e só então de qual campanha. **A frente vem
+antes do tipo de trabalho**, porque as duas perguntas não são a mesma — o tipo é
+o roteiro de briefing, a frente é quem produz.
+
+**SÃO DOIS CARTÕES E NÃO UM `<Select>`**, pela razão do seletor de redes do
+social: a frase que explica cada lado é o que faz a escolha não ser palpite, e
+num `<Select>` ela ficaria escondida atrás de um clique — justamente o clique
+da decisão. **E a frente nasce vazia**, nunca em "Social": a opção pré-marcada
+é a que ninguém lê, e o relatório passaria a somar o padrão em vez da resposta.
+Menos quando o pedido nasce DENTRO de uma campanha, onde a resposta já está
+dada e o trigger recusaria qualquer outra.
+
+**O campo da campanha só existe na frente Campanha**, e quando a conta não tem
+nenhuma aberta o que aparece é uma frase: o pedido chega antes de a campanha
+existir, que é o caso comum de quem pede uma ação nova.
+
+***O que fica dito em vez de escondido:*** **a bateria não foi rodada.** Não há
+Docker nem Postgres local neste ambiente, então os vinte e um cenários novos do
+arquivo 34 — e os dezessete inserts que ganharam a coluna — estão escritos e
+não medidos. Os números de mutação que o cabeçalho da 0124 cita são a leitura
+do diff, não contagem. E **o seed deixou de ter pedido sem frente**: num banco
+novo o trigger recusa o insert sem ela, então os quatro nascem classificados, e
+quem mostra o estado "sem classificação" em imagem é o stub do protótipo — onde
+ele é o estado que a produção tem agora, numa linha anterior à migration.
+
 ### Portais de Clientes
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login

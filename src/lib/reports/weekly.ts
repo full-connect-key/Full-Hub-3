@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { ouFalha } from "@/lib/dados/consulta";
 import { producaoDoPeriodo, type Producao } from "@/lib/dados/metricas";
+import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -67,6 +68,24 @@ export type EsperandoCliente = {
   link: string;
 };
 
+/**
+ * O que um cliente pediu nesta semana (0124).
+ *
+ * **ELE É O PEDIDO E NÃO A DEMANDA**, e a distinção é a razão de o bloco
+ * existir: a lista de cima conta o que a agência ENTREGOU, e esta conta o que
+ * ENTROU — inclusive o pedido que ninguém aceitou ainda, que por definição não
+ * está em `tasks` nenhuma e não aparece em lugar nenhum deste resumo.
+ */
+export type PedidoDoResumo = {
+  id: string;
+  titulo: string;
+  cliente: string | null;
+  /** O nome da vertente, quando o pedido tem uma. */
+  vertente: string | null;
+  frente: SolicitacaoFrente | null;
+  link: string;
+};
+
 export type ResumoDaAgencia = {
   de: string;
   ate: string;
@@ -78,6 +97,39 @@ export type ResumoDaAgencia = {
   esperandoCliente: EsperandoCliente[];
   proximaSemana: ItemDoResumo[];
   foraNaProxima: { nome: string; dias: number }[];
+  /**
+   * O QUE OS CLIENTES PEDIRAM NESTA SEMANA, pela classificação da 0124.
+   *
+   * ---------------------------------------------------------------------------
+   * **É AQUI QUE A CLASSIFICAÇÃO VIRA RELATÓRIO**, que é a metade do item 7
+   * que o pedido chama de *"usar essa classificação nos relatórios"*. Sem este
+   * bloco, a frente seria uma coluna que a tela de abertura cobra e nenhum
+   * número lê — a ponte construída e nunca atravessada pela vigésima vez.
+   *
+   * **E ela não entra em `producao_do_periodo()`**, que é a tentação: aquela
+   * função conta DEMANDA, e a demanda sabe a frente dela pela estrutura (um
+   * mês de social tem `social_do_mes`, uma campanha é apontada por
+   * `campaigns.task_id`). Somar as duas respostas daria dois números para a
+   * mesma pergunta — e o pedido que ninguém converteu não tem demanda para
+   * contar, que é exatamente o que este bloco mostra e aquele não.
+   * ---------------------------------------------------------------------------
+   */
+  pedidos: {
+    /** A contagem por frente, do período inteiro e não da lista cortada. */
+    social: number;
+    campanha: number;
+    /**
+     * Os anteriores à 0124.
+     *
+     * **Ele aparece com zero?** Não — a tela o esconde, porque num banco
+     * classificado ele é zero para sempre, e uma linha permanente dizendo
+     * "0 sem classificação" é a mesma linha com um número a mais. Pinta-se a
+     * exceção.
+     */
+    semClassificacao: number;
+    lista: PedidoDoResumo[];
+    sobraram: number;
+  };
   /** Quantos ficaram de fora de cada lista, para a tela dizer em vez de cortar calada. */
   sobraram: { entregues: number; atrasadas: number; proximaSemana: number };
 };
@@ -122,7 +174,8 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
 
   const supabase = await criarClienteServidor();
 
-  const [numeros, concluidas, vencidas, proximas, rodadas, presenca] = await Promise.all([
+  const [numeros, concluidas, vencidas, proximas, rodadas, presenca, pedidos] =
+    await Promise.all([
     producaoDoPeriodo(de, ate),
 
     // ENTREGUE É `concluida_em` NA SEMANA, e não `updated_at`: aquele carimbo
@@ -173,17 +226,42 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
       .lte("data", proximaAte)
       .in("status", ["ferias", "licenca", "ausente"])
       .then((r) => ouFalha("quem está fora na próxima semana", r)),
+
+    // ---------------------------------------------------------------------
+    // O QUE ENTROU NA SEMANA (0124).
+    //
+    // **O recorte é `created_at` e não o status**, e é o ponto: o pedido que
+    // ninguém triou ainda é justamente o que precisa aparecer na conversa de
+    // segunda — ele não está em demanda nenhuma, então nenhuma outra lista
+    // deste resumo o alcança.
+    //
+    // **E ela não usa embutido**, como nenhuma consulta deste arquivo: o
+    // nome do cliente e o da vertente saem de dois mapas, logo abaixo. Um
+    // `clients(nome)` errado derrubaria o `select` INTEIRO e o bloco diria
+    // "nenhum pedido nesta semana" — que é a resposta mais plausível que ele
+    // tem.
+    // ---------------------------------------------------------------------
+    supabase
+      .from("client_requests")
+      .select("id, titulo, client_id, vertente_id, frente, created_at")
+      .gte("created_at", de)
+      .lt("created_at", somarDias(ate, 1))
+      .order("created_at", { ascending: false })
+      .then((r) => ouFalha("pedidos abertos na semana", r)),
   ]);
 
   const todasAsEtapas = [...concluidas, ...vencidas, ...proximas];
-  const [demandas, pessoas, agrupadoras] = await Promise.all([
-    demandasPublicadas(todasAsEtapas.map((l) => l.task_id)),
-    nomesDePessoas([
-      ...todasAsEtapas.map((l) => l.responsavel_id),
-      ...presenca.map((l) => l.user_id),
-    ]),
-    quemTemFilha(todasAsEtapas.map((l) => l.id)),
-  ]);
+  const [demandas, pessoas, agrupadoras, contas, vertentesDosPedidos] =
+    await Promise.all([
+      demandasPublicadas(todasAsEtapas.map((l) => l.task_id)),
+      nomesDePessoas([
+        ...todasAsEtapas.map((l) => l.responsavel_id),
+        ...presenca.map((l) => l.user_id),
+      ]),
+      quemTemFilha(todasAsEtapas.map((l) => l.id)),
+      nomesDeConta(pedidos.map((p) => p.client_id)),
+      nomesDeVertente(pedidos.map((p) => p.vertente_id)),
+    ]);
 
   // RASCUNHO FICA DE FORA, e o filtro é a AUSÊNCIA da demanda no mapa: quem
   // não está publicado não entra em `demandasPublicadas`, e a etapa dele some
@@ -234,6 +312,15 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     diasFora.set(linha.user_id, (diasFora.get(linha.user_id) ?? 0) + 1);
   }
 
+  // AS CONTAGENS SAEM DA LISTA INTEIRA, e nunca das oito linhas desenhadas:
+  // é o contador das abas de Pedidos pela quinta vez — o recorte acontece na
+  // tela, e o número vem do período todo.
+  const porFrente = {
+    social: pedidos.filter((p) => p.frente === "social").length,
+    campanha: pedidos.filter((p) => p.frente === "campanha").length,
+    semClassificacao: pedidos.filter((p) => p.frente === null).length,
+  };
+
   return {
     de,
     ate,
@@ -247,6 +334,20 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     foraNaProxima: [...diasFora.entries()]
       .map(([id, dias]) => ({ nome: pessoas.get(id) ?? "—", dias }))
       .sort((a, b) => b.dias - a.dias),
+    pedidos: {
+      ...porFrente,
+      lista: pedidos.slice(0, NO_MAXIMO).map((p) => ({
+        id: p.id,
+        titulo: p.titulo,
+        cliente: contas.get(p.client_id) ?? null,
+        vertente: p.vertente_id
+          ? (vertentesDosPedidos.get(p.vertente_id) ?? null)
+          : null,
+        frente: p.frente,
+        link: `/painel/solicitacoes/${p.id}`,
+      })),
+      sobraram: Math.max(0, pedidos.length - NO_MAXIMO),
+    },
     sobraram: {
       entregues: Math.max(0, entregues.length - NO_MAXIMO),
       atrasadas: Math.max(0, atrasadas.length - NO_MAXIMO),
@@ -437,6 +538,46 @@ const nomesDeClientes = cache(async (): Promise<Map<string, string>> => {
   );
   return new Map((linhas ?? []).map((c) => [c.id, c.nome_empresa]));
 });
+
+/**
+ * O nome de cada conta, para o bloco dos pedidos (0124).
+ *
+ * **Separado de `clientesDasCampanhas` de propósito:** aquele parte de
+ * `campaigns` para chegar ao cliente, e este já tem o `client_id` na mão. Um
+ * parâmetro a mais naquele faria uma função responder duas perguntas.
+ */
+async function nomesDeConta(ids: string[]): Promise<Map<string, string>> {
+  const limpos = [...new Set(ids.filter(Boolean))];
+  if (limpos.length === 0) return new Map();
+
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "nomes das contas dos pedidos",
+    await supabase.from("clients").select("id, nome_empresa").in("id", limpos),
+  );
+  return new Map(linhas.map((c) => [c.id, c.nome_empresa]));
+}
+
+/**
+ * O nome de cada vertente (0124, sobre a 0118).
+ *
+ * **A desativada vem junto**, pela razão escrita em `vertentesDasContas()`: o
+ * relatório desenha o nome da vertente de um pedido que aponta para ela, e
+ * sumir com a linha deixaria o pedido classificado sem nome na tela.
+ */
+async function nomesDeVertente(
+  ids: (string | null)[],
+): Promise<Map<string, string>> {
+  const limpos = [...new Set(ids.filter(Boolean))] as string[];
+  if (limpos.length === 0) return new Map();
+
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "nomes das vertentes dos pedidos",
+    await supabase.from("client_vertentes").select("id, nome").in("id", limpos),
+  );
+  return new Map(linhas.map((v) => [v.id, v.nome]));
+}
 
 async function nomesDePessoas(ids: (string | null)[]): Promise<Map<string, string>> {
   const limpos = [...new Set(ids.filter((id): id is string => Boolean(id)))];

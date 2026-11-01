@@ -8,6 +8,7 @@ import type {
   RequestAttachment,
   RequestMessage,
   RequestType,
+  SolicitacaoFrente,
   SolicitacaoStatus,
 } from "@/lib/supabase/database.types";
 
@@ -40,6 +41,9 @@ import { BUCKET_DOS_PEDIDOS } from "@/lib/dominio/solicitacoes";
 
 export type Pessoa = { id: string; nome: string; avatar_url: string | null };
 
+/** O recorte da fila por frente, com o balde do não classificado. */
+export type RecorteDeFrente = SolicitacaoFrente | "sem";
+
 export type PedidoNaLista = ClientRequest & {
   empresa: string | null;
   /**
@@ -51,6 +55,20 @@ export type PedidoNaLista = ClientRequest & {
    * não está em campanha nenhuma.
    */
   campanha: string | null;
+  /**
+   * O nome da vertente, quando o pedido tem uma (0124).
+   *
+   * `null` tanto no pedido sem vertente — que é a maioria, porque quase
+   * nenhuma conta tem vertente — quanto na que foi apagada depois. A tela
+   * desenha nada nos dois casos, e a frente ao lado continua dizendo o que
+   * importa.
+   *
+   * **A FRENTE não precisa de linha aqui**: ela é coluna de
+   * `client_requests`, então chega no `...p` com o resto da linha. O nome é
+   * `rotuloDaFrente()`, do domínio, que também dá nome ao nulo — "Sem
+   * classificação", que é o pedido anterior à 0124.
+   */
+  vertente: string | null;
   autor: Pessoa | null;
   tipo: string | null;
   quantosAnexos: number;
@@ -111,9 +129,20 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
   const campanhas = [
     ...new Set(pedidos.map((p) => p.campaign_id).filter(Boolean)),
   ] as string[];
+  const vertentes = [
+    ...new Set(pedidos.map((p) => p.vertente_id).filter(Boolean)),
+  ] as string[];
 
-  const [rEmpresas, rAutores, rTipos, rAnexos, rMensagens, rDemandas, rCampanhas] =
-    await Promise.all([
+  const [
+    rEmpresas,
+    rAutores,
+    rTipos,
+    rAnexos,
+    rMensagens,
+    rDemandas,
+    rCampanhas,
+    rVertentes,
+  ] = await Promise.all([
     supabase.from("clients").select("id, nome_empresa").in("id", empresas),
     autores.length
       ? supabase.from("profiles").select("id, nome, avatar_url").in("id", autores)
@@ -135,6 +164,15 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     campanhas.length
       ? supabase.from("campaigns").select("id, nome").in("id", campanhas)
       : null,
+    // A OITAVA IDA, e so quando ha vertente -- que e a minoria dos pedidos.
+    // Mesma forma das campanhas: a coluna da tela precisa do NOME, e
+    // `vertente_id` traz o uuid.
+    //
+    // E ela NAO filtra por conta: quem separa e `client_vertentes_select`
+    // (0118). Repetir criaria o segundo lugar onde a regra pode divergir.
+    vertentes.length
+      ? supabase.from("client_vertentes").select("id, nome").in("id", vertentes)
+      : null,
   ]);
 
   const porEmpresa = new Map(
@@ -153,6 +191,12 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     ),
   );
 
+  const porVertente = new Map(
+    (rVertentes ? (ouFalha("vertentes dos pedidos", rVertentes) ?? []) : []).map(
+      (v) => [v.id, v.nome],
+    ),
+  );
+
   const anexos = ouFalha("anexos dos pedidos", rAnexos) ?? [];
   const mensagens = ouFalha("mensagens dos pedidos", rMensagens) ?? [];
   const demandas = ouFalha("demandas dos pedidos", rDemandas) ?? [];
@@ -162,6 +206,7 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
     ...p,
     empresa: porEmpresa.get(p.client_id) ?? null,
     campanha: p.campaign_id ? (porCampanha.get(p.campaign_id) ?? null) : null,
+    vertente: p.vertente_id ? (porVertente.get(p.vertente_id) ?? null) : null,
     autor: p.criado_por ? (porAutor.get(p.criado_por) ?? null) : null,
     tipo: p.request_type_id ? (porTipo.get(p.request_type_id) ?? null) : null,
     quantosAnexos: anexos.filter((a) => a.request_id === p.id).length,
@@ -188,12 +233,23 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
 export async function caixaDeEntrada(filtros?: {
   status?: SolicitacaoStatus | null;
   clienteId?: string | null;
+  /**
+   * O recorte por frente (0124), com `"sem"` para o pedido não classificado.
+   *
+   * **O `"sem"` é um filtro de verdade e não um descuido:** é onde mora o
+   * pedido anterior à regra, e é justamente ele que o Atendimento precisa
+   * achar para classificar. Sem a opção, ele ficaria alcançável só em "Todas"
+   * — no meio da fila inteira, que é onde ninguém o procura.
+   */
+  frente?: RecorteDeFrente | null;
 }): Promise<PedidoNaLista[]> {
   const supabase = await criarClienteServidor();
 
   let consulta = supabase.from("client_requests").select("*");
   if (filtros?.status) consulta = consulta.eq("status", filtros.status);
   if (filtros?.clienteId) consulta = consulta.eq("client_id", filtros.clienteId);
+  if (filtros?.frente === "sem") consulta = consulta.is("frente", null);
+  else if (filtros?.frente) consulta = consulta.eq("frente", filtros.frente);
 
   const r = await consulta.order("created_at", { ascending: true });
   const pedidos = ouFalha("caixa de entrada de pedidos", r) ?? [];

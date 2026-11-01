@@ -1,6 +1,7 @@
 import type {
   CampoDoRoteiro,
   ClientRequest,
+  SolicitacaoFrente,
   SolicitacaoStatus,
 } from "@/lib/supabase/database.types";
 
@@ -99,6 +100,97 @@ export const TOM_DA_SOLICITACAO: Record<
   concluida: "ok",
   recusada: "erro",
 };
+
+// ---------------------------------------------------------------------------
+// A FRENTE: Social ou Campanha (migration 0124)
+//
+// Decisão do usuário: *"na abertura de uma solicitação, exigir a classificação
+// como Social ou Campanha, vinculando à conta e à vertente, e usar essa
+// classificação nos relatórios"*.
+//
+// **ELA RESPONDE "QUEM PRODUZ", e é isso que a separa das duas classificações
+// que já existiam.** `request_type_id` é o roteiro de briefing (0068) e
+// responde *o que é a peça* — "Peça para redes", "Material impresso", "Vídeo";
+// `campaign_id` (0112) responde *de qual campanha*, e é opcional porque a
+// maioria dos pedidos é avulsa. A frente responde de que lado da agência o
+// trabalho sai: o mês de social (`abrir_mes_de_social`) ou uma Wave
+// (`abrir_campanha`). Uma peça para redes nasce das duas, e é exatamente essa
+// a conta que o relatório precisa separar.
+//
+// **E ELA NÃO É DERIVADA**, que é a primeira pergunta deste produto. O atalho
+// seria `campaign_id is not null ? "campanha" : "social"`, e ele cai numa
+// frase: campanha nula não quer dizer social. Um material impresso avulso não
+// é nenhuma das duas, e um pedido de campanha chega antes de a campanha
+// existir — e aí quem abre JÁ sabe a frente, e o produto não. É o contrário de
+// `faseDoPedido()` logo abaixo: ali o fato está nas colunas e guardá-lo seria
+// a segunda verdade; aqui não há de onde calcular, e o que existe é a
+// declaração de quem abre.
+//
+// **São DOIS valores e não três.** "Nenhuma das duas" é a terceira opção
+// óbvia, e ela desfaz o pedido: *exigir a classificação* quer dizer escolher
+// um lado. O pedido que não é nem um nem outro existe — e é o pedido ANTERIOR
+// à regra, que fica nulo e aparece como "Sem classificação", não um valor que
+// a tela oferece.
+// ---------------------------------------------------------------------------
+
+export const FRENTES_DA_SOLICITACAO = ["social", "campanha"] as const;
+
+/**
+ * **É TUPLA e não `SolicitacaoFrente[]`**, e a razão é a lição de
+ * `TIPOS_DE_EVENTO` na 0109: `z.enum` pede `readonly [string, ...string[]]`, e
+ * um array simples não serve — foi essa a razão de a lista do evento existir
+ * copiada à mão na action, e de o oitavo tipo ser recusado no clique. O
+ * `satisfies` é a trava: uma frente que não exista no enum do banco não
+ * compila.
+ */
+const _conferir = FRENTES_DA_SOLICITACAO satisfies readonly SolicitacaoFrente[];
+void _conferir;
+
+/**
+ * **UM MAPA SÓ, ao contrário dos rótulos de status.**
+ *
+ * Aqueles são dois porque o mesmo valor quer dizer coisas diferentes dos dois
+ * lados — `nova` é cobrança aqui e recibo lá. A frente quer dizer a mesma
+ * coisa para os dois: de que lado da agência este trabalho sai. E as duas
+ * palavras são do vocabulário do cliente, não do nosso — o portal já escreve
+ * "De que campanha é" desde a 0112.
+ */
+export const ROTULOS_DE_FRENTE: Record<SolicitacaoFrente, string> = {
+  social: "Social",
+  campanha: "Campanha",
+};
+
+/**
+ * A frase embaixo de cada opção, na abertura.
+ *
+ * Ela existe porque o rótulo sozinho não decide: "Social" e "Campanha" são
+ * claros para quem trabalha na agência e ambíguos para quem está pedindo uma
+ * arte. Sem a frase, a escolha vira um palpite — e é ela que o relatório soma.
+ */
+export const EXPLICACAO_DA_FRENTE: Record<SolicitacaoFrente, string> = {
+  social: "Entra na linha do mês — feed, stories, o conteúdo que vai ao ar.",
+  campanha: "Faz parte de uma ação com começo e fim, com várias peças juntas.",
+};
+
+export function ehFrenteDaSolicitacao(
+  valor: string | undefined | null,
+): valor is SolicitacaoFrente {
+  return (
+    Boolean(valor) &&
+    (FRENTES_DA_SOLICITACAO as readonly string[]).includes(valor as string)
+  );
+}
+
+/**
+ * O rótulo da frente de um pedido, inclusive quando não há nenhuma.
+ *
+ * **O nulo tem nome, e não vira string vazia.** Ele é o pedido anterior à
+ * 0124, e some da tela como um espaço em branco — que lê como defeito. Dizer
+ * "Sem classificação" diz o que ele é, e é classificável depois.
+ */
+export function rotuloDaFrente(frente: SolicitacaoFrente | null): string {
+  return frente ? ROTULOS_DE_FRENTE[frente] : "Sem classificação";
+}
 
 // ---------------------------------------------------------------------------
 // AS FASES DO PEDIDO, na tela do cliente

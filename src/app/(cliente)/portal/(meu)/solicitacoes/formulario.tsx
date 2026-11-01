@@ -3,7 +3,15 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CircleHelp, Paperclip, Printer, Share2, Video, X } from "lucide-react";
+import {
+  CircleHelp,
+  Megaphone,
+  Paperclip,
+  Printer,
+  Share2,
+  Video,
+  X,
+} from "lucide-react";
 
 import { abrirSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { Button } from "@/components/ui/button";
@@ -20,10 +28,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
 import {
+  EXPLICACAO_DA_FRENTE,
+  FRENTES_DA_SOLICITACAO,
+  ROTULOS_DE_FRENTE,
   camposDoRoteiro,
   respostasQueFaltam,
 } from "@/lib/dominio/solicitacoes";
-import type { RequestType } from "@/lib/supabase/database.types";
+import { vertentesParaEscolher, type Vertente } from "@/lib/dominio/vertentes";
+import type {
+  RequestType,
+  SolicitacaoFrente,
+} from "@/lib/supabase/database.types";
 
 import { subirAnexoDoPedido } from "./subir-anexo";
 
@@ -59,6 +74,7 @@ export function FormularioDePedido({
   empresas,
   tipos,
   campanhas,
+  vertentes,
   campanhaInicial,
   aoConcluir,
 }: {
@@ -73,6 +89,15 @@ export function FormularioDePedido({
    * seria latência no meio de um formulário.
    */
   campanhas: CampanhaParaEscolher[];
+  /**
+   * As vertentes das empresas desta pessoa (0124, sobre a 0118).
+   *
+   * Chegam TODAS e a tela filtra pela empresa escolhida, pela razão das
+   * campanhas: uma consulta por troca de empresa seria latência no meio de um
+   * formulário. **E a desativada vem junto** — quem decide o que o seletor
+   * oferece é `vertentesParaEscolher()`, do lado do domínio.
+   */
+  vertentes: Vertente[];
   /** A campanha que já vem escolhida, quando o pedido nasce de dentro de uma. */
   campanhaInicial?: string;
   /**
@@ -92,6 +117,21 @@ export function FormularioDePedido({
   const [clienteId, setClienteId] = useState(empresas[0]?.id ?? "");
   const [tipoId, setTipoId] = useState<string>(tipos[0]?.id ?? "");
   const [campanhaId, setCampanhaId] = useState<string>(campanhaInicial ?? "");
+  /**
+   * A FRENTE NASCE VAZIA, e não em "Social".
+   *
+   * Um padrão aqui desfaz o pedido: *exigir a classificação* quer dizer que
+   * alguém escolhe, e a opção pré-marcada é a que ninguém lê — o relatório
+   * passaria a somar o padrão em vez da resposta. É a mesma razão pela qual o
+   * status não se escolhe no rascunho da demanda.
+   *
+   * **Menos quando o pedido nasce DENTRO de uma campanha:** ali a resposta já
+   * está dada, e `client_requests_classificacao` recusaria qualquer outra.
+   */
+  const [frente, setFrente] = useState<SolicitacaoFrente | "">(
+    campanhaInicial ? "campanha" : "",
+  );
+  const [vertenteId, setVertenteId] = useState<string>("");
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
@@ -125,16 +165,49 @@ export function FormularioDePedido({
     ? campanhaId
     : "";
 
+  /**
+   * AS VERTENTES DA EMPRESA ESCOLHIDA, e a escolha se desfaz ao trocar.
+   *
+   * É a mesma mecânica das campanhas, e pela mesma razão do banco: o trigger
+   * da 0124 recusa a vertente de outra conta — "Institucional" existe em duas
+   * empresas com ids diferentes, e guardar a escolha ao trocar de empresa
+   * deixaria o `<Select>` com um valor fora da lista, mostrando o placeholder
+   * e enviando a vertente antiga.
+   */
+  const vertentesDaEmpresa = vertentesParaEscolher(
+    vertentes.filter((v) => v.client_id === clienteId),
+    vertenteId,
+  );
+  const vertenteEscolhida = vertentesDaEmpresa.some((v) => v.id === vertenteId)
+    ? vertenteId
+    : "";
+
+  /**
+   * A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA, e trocar de lado a apaga.
+   *
+   * Sem a limpeza, quem escolhe uma campanha e volta para "Social" manda a
+   * linha que o trigger recusa — *"Este pedido está numa campanha, então a
+   * frente é Campanha"* —, e a recusa chegaria no clique de enviar, sobre um
+   * campo que a tela já tinha escondido.
+   */
+  const campanhaValida = frente === "campanha" ? campanhaEscolhida : "";
+
   const tipo = tipos.find((t) => t.id === tipoId) ?? null;
   const campos = camposDoRoteiro(tipo?.campos_json);
-  const faltando = respostasQueFaltam(campos, respostas);
+  const faltando = [
+    // A FRENTE VEM PRIMEIRO NA FRASE porque ela é a primeira pergunta da
+    // tela: listá-la depois das respostas do roteiro mandaria a pessoa rolar
+    // para baixo para achar o que está mais em cima.
+    ...(frente === "" ? ["Social ou Campanha"] : []),
+    ...respostasQueFaltam(campos, respostas),
+  ];
 
   function responder(chave: string, valor: string) {
     setRespostas((atual) => ({ ...atual, [chave]: valor }));
   }
 
   function enviar() {
-    if (faltando.length > 0) {
+    if (faltando.length > 0 || frente === "") {
       setTentou(true);
       return;
     }
@@ -143,7 +216,9 @@ export function FormularioDePedido({
         abrirSolicitacao({
           client_id: clienteId,
           request_type_id: tipoId || null,
-          campaign_id: campanhaEscolhida || null,
+          campaign_id: campanhaValida || null,
+          frente,
+          vertente_id: vertenteEscolhida || null,
           titulo,
           descricao,
           respostas,
@@ -220,6 +295,103 @@ export function FormularioDePedido({
         </div>
       ) : null}
 
+      {/* ------------------------------------------------------------------
+          A VERTENTE VEM DEPOIS DA EMPRESA, e é a ordem da decisão: de qual
+          conta, de qual parte dela, e só então de que frente. Acima da
+          empresa ela perguntaria sobre uma conta que ainda não foi escolhida
+          — a mesma ordem do seletor da tela de task (0118).
+
+          **E O CAMPO SÓ EXISTE QUANDO A CONTA TEM VERTENTE**, que é a maioria
+          ao contrário: quase nenhuma tem. Um seletor permanentemente vazio
+          pede uma escolha que não existe.
+          ------------------------------------------------------------------ */}
+      {vertentesDaEmpresa.length > 0 ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="pedido-vertente">De que parte da sua conta é</Label>
+          <Select
+            value={vertenteEscolhida || "nenhuma"}
+            onValueChange={(v) => setVertenteId(v === "nenhuma" ? "" : v)}
+          >
+            <SelectTrigger
+              aria-label="Vertente"
+              id="pedido-vertente"
+              className="w-full sm:w-80"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {/* "SEM VERTENTE" FICA COMO OPÇÃO, e não é indecisão: a reunião
+                  mensal e o material institucional não pertencem a nenhuma
+                  frente, e obrigar a escolha faria a pessoa marcar a primeira
+                  da lista — que é pior que não classificar, porque o relatório
+                  passaria a contá-la onde ela não está. É a decisão da 0118,
+                  palavra por palavra. */}
+              <SelectItem value="nenhuma">Não é de nenhuma em especial</SelectItem>
+              {vertentesDaEmpresa.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.nome}
+                  {v.ativa ? "" : " (desativada)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+
+      {/* ------------------------------------------------------------------
+          A CLASSIFICAÇÃO — decisão do usuário: *"exigir a classificação como
+          Social ou Campanha"*.
+
+          **ELA VEM ANTES DO TIPO DE TRABALHO**, e as duas perguntas não são a
+          mesma: o tipo é o roteiro de briefing — o que é a peça —, e a frente
+          é quem produz. Uma peça para redes nasce das duas, e é essa a conta
+          que o relatório da agência separa.
+
+          **E SÃO DOIS CARTÕES e não um `<Select>`**, pela razão do seletor de
+          redes do social: a frase que explica cada lado é o que faz a escolha
+          não ser palpite, e num `<Select>` ela não cabe — ficaria escondida
+          atrás de um clique, que é justamente o clique da decisão.
+          ------------------------------------------------------------------ */}
+      <fieldset className="space-y-2">
+        <legend className="mb-2 text-sm font-medium">É para o quê *</legend>
+        <div
+          role="radiogroup"
+          aria-label="Social ou Campanha"
+          className="grid gap-2 sm:grid-cols-2"
+        >
+          {FRENTES_DA_SOLICITACAO.map((f) => {
+            const Icone = f === "social" ? Share2 : Megaphone;
+            const escolhido = f === frente;
+            return (
+              <button
+                key={f}
+                type="button"
+                role="radio"
+                aria-checked={escolhido}
+                onClick={() => {
+                  setFrente(f);
+                  // TROCAR PARA SOCIAL APAGA A CAMPANHA, senão o envio
+                  // carregaria uma campanha num pedido que diz social — a
+                  // contradição que o trigger da 0124 recusa.
+                  if (f === "social") setCampanhaId("");
+                }}
+                className={
+                  escolhido
+                    ? "border-accent-strong bg-accent rounded-lg border p-3 text-left"
+                    : "hover:bg-accent rounded-lg border p-3 text-left transition-colors"
+                }
+              >
+                <Icone aria-hidden className="text-accent-strong mb-1 size-5" />
+                <p className="text-sm font-medium">{ROTULOS_DE_FRENTE[f]}</p>
+                <p className="text-muted-foreground text-xs">
+                  {EXPLICACAO_DA_FRENTE[f]}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
       <fieldset className="space-y-2">
         <legend className="mb-2 text-sm font-medium">
           Que tipo de trabalho é
@@ -269,8 +441,21 @@ export function FormularioDePedido({
           única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
           está — a mesma razão pela qual o seletor de empresa só aparece com
           mais de uma.
+
+          **E SÓ NA FRENTE CAMPANHA** (0124): na frente Social não há campanha
+          para escolher, e o trigger recusa a linha que tem as duas coisas.
+          Quando a frente é Campanha e a conta não tem nenhuma aberta, o que
+          aparece é a FRASE abaixo — o pedido chega antes de a campanha
+          existir, que é o caso comum de quem pede uma ação nova.
           ------------------------------------------------------------------ */}
-      {daEmpresa.length > 0 ? (
+      {frente === "campanha" && daEmpresa.length === 0 ? (
+        <p className="text-text-muted text-sm">
+          Esta empresa não tem campanha aberta no momento — a gente organiza
+          isso por aqui depois de ler o seu pedido.
+        </p>
+      ) : null}
+
+      {frente === "campanha" && daEmpresa.length > 0 ? (
         <div className="space-y-1.5">
           <Label htmlFor="pedido-campanha">De que campanha é</Label>
           <Select
