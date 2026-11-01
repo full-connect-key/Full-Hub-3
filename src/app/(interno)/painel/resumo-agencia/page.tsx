@@ -196,13 +196,20 @@ export default async function PaginaDoResumoDaAgencia({
               <li key={pedido.id}>
                 <Link
                   href={pedido.link}
-                  className="hover:bg-accent -mx-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg px-2 py-1.5 text-sm transition-colors"
+                  className="hover:bg-accent -mx-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg px-2 py-1.5 text-sm transition-colors"
                 >
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {pedido.titulo}
-                  </span>
-                  <span className="text-text-muted min-w-0 truncate text-xs">
-                    {[pedido.cliente, pedido.vertente].filter(Boolean).join(" · ")}
+                  {/* O CONTEXTO EM CIMA E O TÍTULO EMBAIXO, com piso de 12rem
+                      — a forma do Bloco que as outras quatro seções desta
+                      página usam. Numa linha só, o título era o único a ceder
+                      largura: em 375px ele saiu "Arte par…", e ele é a única
+                      coisa que a linha existe para dizer. Foi a imagem que
+                      mostrou, como em "Meu dia" e na lista de etapas do
+                      detalhe da Task. */}
+                  <span className="min-w-48 flex-1">
+                    <span className="text-text-muted block truncate text-xs">
+                      {[pedido.cliente, pedido.vertente].filter(Boolean).join(" · ")}
+                    </span>
+                    <span className="font-medium">{pedido.titulo}</span>
                   </span>
                   {/* O RÓTULO DA FRENTE EM CADA LINHA, e é o que faz as
                       contagens de cima serem conferíveis: um "3 de campanha"

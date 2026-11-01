@@ -7789,6 +7789,18 @@ quinta vez.
 é zero para sempre, e a linha permanente dizendo isso é a mesma linha com um
 número a mais — pinta-se a exceção.
 
+**E CADA LINHA EMPILHA O CONTEXTO EM CIMA E O TÍTULO EMBAIXO**, com piso de
+12rem, que é a forma do `Bloco` que as outras quatro seções desta página já
+usavam. A primeira versão pôs os três numa linha só — título, conta e pastilha
+— e **em 375px o título era o único a ceder largura**: ele saiu *"Arte par…"*,
+*"Stories da pr…"*, *"Reimprimir os c…"*, enquanto a conta e a pastilha ficavam
+inteiras. É a terceira vez que esta casa paga isso — "Meu dia" e a lista de
+etapas do detalhe da Task foram as outras duas — e a lição é sempre a mesma:
+**o título é a única coisa que a linha existe para dizer, e é a última que pode
+encolher.** O contexto truncar é o certo, porque ele é secundário. *Foi a
+imagem de 375px que mostrou, e nenhuma verificação pegaria: largura de texto
+não é tipo, não é cor e não é árvore de acessibilidade.*
+
 ##### Na fila, o recorte é a SEGUNDA fileira, e a frente aparece em toda linha
 
 **SÃO DUAS FILEIRAS E NÃO UMA, e cada uma leva o nome da dimensão.** Status e
