@@ -16,7 +16,10 @@ import type {
   CampanhaDoPortal,
   EntregavelDoPortal,
 } from "../../src/lib/dominio/campanhas";
-import type { ComposicaoDaCampanha } from "../../src/lib/dominio/campanhas";
+import type {
+  BriefingDaCampanha,
+  ComposicaoDaCampanha,
+} from "../../src/lib/dominio/campanhas";
 import type { EstruturaDeTemplate } from "../../src/lib/supabase/database.types";
 
 const HOJE = new Date();
@@ -418,14 +421,57 @@ export async function arquivosDasPecas(
  *    começou";
  *  * e um com peça EM AJUSTES, senão a última coluna sairia só com travessão.
  */
+/*
+ * E O FORMATO VEM EM ALGUMAS E NÃO EM TODAS (0125), pela razão do evento de
+ * cada par da legenda do calendário: com todos preenchidos a imagem provaria
+ * que a linha de especificação aparece, e não que ela sabe FALTAR — que é o
+ * estado de toda campanha anterior à migration. A do estático tem as duas
+ * pontas, a do story só o formato, e três não têm nada.
+ */
 const COMPOSICAO_DA_WAVE: ComposicaoDaCampanha[] = [
-  { tipo: "estatico", planejada: 10, criadas: 8, produzidas: 6, entregues: 5, aprovadas: 3, emAjustes: 1 },
-  { tipo: "carrossel", planejada: 5, criadas: 5, produzidas: 5, entregues: 4, aprovadas: 4, emAjustes: 0 },
-  { tipo: "video", planejada: 3, criadas: 3, produzidas: 1, entregues: 0, aprovadas: 0, emAjustes: 0 },
-  { tipo: "story", planejada: 15, criadas: 15, produzidas: 12, entregues: 10, aprovadas: 9, emAjustes: 1 },
-  { tipo: "banner", planejada: 0, criadas: 2, produzidas: 2, entregues: 2, aprovadas: 2, emAjustes: 0 },
-  { tipo: "landing", planejada: 1, criadas: 0, produzidas: 0, entregues: 0, aprovadas: 0, emAjustes: 0 },
+  { tipo: "estatico", planejada: 10, criadas: 8, produzidas: 6, entregues: 5, aprovadas: 3, emAjustes: 1, formato: "Feed", dimensoes: "1080x1350" },
+  { tipo: "carrossel", planejada: 5, criadas: 5, produzidas: 5, entregues: 4, aprovadas: 4, emAjustes: 0, formato: null, dimensoes: null },
+  { tipo: "video", planejada: 3, criadas: 3, produzidas: 1, entregues: 0, aprovadas: 0, emAjustes: 0, formato: "Reels", dimensoes: "9:16" },
+  { tipo: "story", planejada: 15, criadas: 15, produzidas: 12, entregues: 10, aprovadas: 9, emAjustes: 1, formato: "Story", dimensoes: null },
+  { tipo: "banner", planejada: 0, criadas: 2, produzidas: 2, entregues: 2, aprovadas: 2, emAjustes: 0, formato: null, dimensoes: null },
+  { tipo: "landing", planejada: 1, criadas: 0, produzidas: 0, entregues: 0, aprovadas: 0, emAjustes: 0, formato: null, dimensoes: null },
 ];
+
+/*
+ * O BRIEFING DO EXEMPLO (0125), e ele é CHEIO de propósito: a seção some
+ * quando não há briefing e não há quem o escreva, então um exemplo vazio
+ * fotografaria a ausência dela. O estado vazio tem tela própria, abaixo.
+ */
+const BRIEFING_DA_WAVE: BriefingDaCampanha = {
+  objetivo:
+    "Vender o combo de verão nas lojas próprias e no e-commerce, com foco nas duas semanas que antecedem o feriado.",
+  publico:
+    "Mães de 30 a 45 anos, moradoras da zona sul, que já compraram na loja física pelo menos uma vez.",
+  mensagem: "O verão começa em casa — e a Mundo Verde leva.",
+  produtos: "Combo Verão (3 itens), Kit Praia e a linha de protetor solar.",
+  tomDeVoz: "Próximo, sem gíria",
+  canais: ["Instagram", "Facebook", "E-mail", "Loja física"],
+  restricoes:
+    "Não usar a palavra “promoção” (o jurídico barra fora de período oficial) e não mostrar criança sem autorização de imagem.",
+};
+
+export async function briefingDaCampanha(
+  _campanhaId: string,
+): Promise<BriefingDaCampanha> {
+  return BRIEFING_DA_WAVE;
+}
+
+export async function briefingsParaCopiar(
+  _clienteId: string,
+  _excetoId?: string,
+): Promise<{ id: string; nome: string }[]> {
+  // DUAS E NÃO ZERO: com a lista vazia o seletor "partir do briefing de outra
+  // campanha" não é desenhado, e a peça nova não sairia em imagem nenhuma.
+  return [
+    { id: "camp-2", nome: "Wave Inverno 2026" },
+    { id: "camp-3", nome: "Dia das Mães 2026" },
+  ];
+}
 
 export async function composicaoDaCampanha(
   campanhaId: string,

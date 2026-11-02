@@ -10,8 +10,10 @@ import {
 } from "@/lib/dados/conteudo";
 import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { BRIEFING_VAZIO } from "@/lib/dominio/campanhas";
 import type {
   AnaliseDaPeca,
+  BriefingDaCampanha,
   CampanhaDoPortal,
   ComposicaoDaCampanha,
   EntregavelDoPortal,
@@ -268,6 +270,97 @@ export async function obterCampanha(
     ...montarCampanha(linha, await nomesDasEmpresas([linha.client_id])),
     capaAssinada: enderecoDaArte(linha.capa_url, capas),
   };
+}
+
+/**
+ * O BRIEFING ESTRUTURADO de uma campanha (0125).
+ *
+ * **É UMA LEITURA PRÓPRIA e não um campo de `CampanhaDoPortal`**, e a razão é
+ * de quem lê: aquele tipo é o que o PORTAL recebe — `obterCampanha()` serve a
+ * listagem e a tela do cliente —, e o briefing é o combinado INTERNO. Pô-lo
+ * ali mandaria o objetivo, o público e as restrições no payload de quem
+ * contratou, numa área que mostra material e não o acordo.
+ *
+ * É a decisão de `contatosDasMinhasEmpresas()`: *"ela não substitui
+ * `obterMinhasEmpresas()` — aquela responde 'de que empresas eu sou', esta
+ * traz as três colunas que só aquela tela edita"*. E é por isso que
+ * `COLUNAS_DA_CAMPANHA` não ganhou nenhuma das sete.
+ *
+ * **O vazio é um briefing vazio e não nulo**, porque a campanha anterior à
+ * 0125 tem as sete colunas nulas e o painel precisa desenhar os campos para
+ * poder preenchê-los — quem decide se a SEÇÃO aparece é
+ * `briefingEstaVazio()`, do lado do domínio.
+ */
+export async function briefingDaCampanha(
+  campanhaId: string,
+): Promise<BriefingDaCampanha> {
+  const supabase = await criarClienteServidor();
+
+  const data = ouFalha(
+    "o briefing da campanha",
+    await supabase
+      .from("campaigns")
+      .select(
+        "objetivo, publico, mensagem, produtos, tom_de_voz, canais, restricoes",
+      )
+      .eq("id", campanhaId)
+      .limit(1),
+  );
+
+  const linha = data[0];
+  if (!linha) return BRIEFING_VAZIO;
+
+  return {
+    objetivo: linha.objetivo ?? "",
+    publico: linha.publico ?? "",
+    mensagem: linha.mensagem ?? "",
+    produtos: linha.produtos ?? "",
+    // O NOME MUDA DE CAMADA AQUI, como em `emAjustes`: o banco fala
+    // `tom_de_voz`, o domínio fala `tomDeVoz`. O tipo de domínio não é o Row.
+    tomDeVoz: linha.tom_de_voz ?? "",
+    canais: linha.canais ?? [],
+    restricoes: linha.restricoes ?? "",
+  };
+}
+
+/**
+ * Os briefings das OUTRAS campanhas desta conta, para copiar de um.
+ *
+ * É o *"reutilizável"* do pedido, e ele é um SELETOR e não um modelo
+ * guardado: um `campaign_briefing_templates` seria uma terceira tabela de
+ * modelo ao lado de `campaign_templates` (0033) e de `workflow_templates`
+ * (0007), para guardar o que a campanha anterior da mesma conta já tem
+ * escrito. **O que se reusa aqui é uma campanha de verdade**, com o briefing
+ * que foi combinado — e não uma versão idealizada dele que alguém teria de
+ * manter em dia.
+ *
+ * **Só as da MESMA conta**, e isso não é zelo: o briefing carrega o público e
+ * as restrições daquela empresa, e oferecer o de outra seria a tela
+ * convidando a colar o acordo de um cliente no de outro.
+ */
+export async function briefingsParaCopiar(
+  clienteId: string,
+  excetoId?: string,
+): Promise<{ id: string; nome: string }[]> {
+  const supabase = await criarClienteServidor();
+
+  let consulta = supabase
+    .from("campaigns")
+    .select("id, nome, objetivo, publico, mensagem")
+    .eq("client_id", clienteId)
+    .order("data_inicio", { ascending: false })
+    .limit(20);
+
+  if (excetoId) consulta = consulta.neq("id", excetoId);
+
+  const data = ouFalha("os briefings para copiar", await consulta);
+
+  // SÓ AS QUE TÊM O QUE COPIAR. Uma campanha sem briefing nenhum na lista é
+  // uma opção que, escolhida, não faz nada — e um controle que não responde
+  // ao clique é um controle quebrado.
+  return data
+    .filter((c) => c.objetivo || c.publico || c.mensagem)
+    .map((c) => ({ id: c.id, nome: c.nome }));
 }
 
 /**
@@ -567,16 +660,53 @@ export async function composicaoDaCampanha(
   campanhaId: string,
 ): Promise<ComposicaoDaCampanha[]> {
   const supabase = await criarClienteServidor();
-  const { data, error } = await supabase.rpc("composicao_da_campanha", {
-    p_campanha: campanhaId,
-  });
 
-  if (error) {
-    console.error("[composicaoDaCampanha]", error);
+  // ---------------------------------------------------------------- DUAS IDAS
+  //
+  // O FORMATO E A MEDIDA NÃO VÊM DA RPC, e a ausência é uma decisão de custo
+  // em vez de preguiça.
+  //
+  // `composicao_da_campanha()` é `returns table`, e `create or replace` **não
+  // troca o tipo de retorno** de uma — a lição da 0088, que a 0116 pagou de
+  // novo. Acrescentar as duas colunas a ela exigiria `drop function` antes do
+  // `create`, e um `drop`+`create` abre a janela em que a tela no ar chama
+  // uma função que não existe: a 0120 pagou por isso.
+  //
+  // O que as duas colunas são é o lado PLANEJADO, que mora na tabela e que
+  // `campaign_composicao_select` (0122) já entrega a `is_staff()`. Então a
+  // RPC continua respondendo o que só ela sabe responder — as cinco contagens
+  // derivadas, com a conta sendo a mesma do relatório — e o plano vem da
+  // tabela, ao lado. É a decisão do índice do Social Media: *"são quatro idas,
+  // e as três últimas à parte"*.
+  const [derivadas, planejadas] = await Promise.all([
+    supabase.rpc("composicao_da_campanha", { p_campanha: campanhaId }),
+    supabase
+      .from("campaign_composicao")
+      .select("tipo, formato, dimensoes")
+      .eq("campaign_id", campanhaId),
+  ]);
+
+  if (derivadas.error) {
+    console.error("[composicaoDaCampanha]", derivadas.error);
     return [];
   }
 
-  return (data ?? []).map((linha) => ({
+  // A SEGUNDA IDA NÃO DERRUBA A PRIMEIRA, pela razão escrita acima: o painel
+  // funciona inteiro sem o formato — ele acrescenta duas células a uma tabela
+  // que já diz o que importa. Sem este ramo, uma falha aqui apagaria as
+  // cinco contagens junto.
+  if (planejadas.error) {
+    console.error("[composicaoDaCampanha] o plano", planejadas.error);
+  }
+
+  const plano = new Map(
+    (planejadas.data ?? []).map((l) => [
+      l.tipo,
+      { formato: l.formato, dimensoes: l.dimensoes },
+    ]),
+  );
+
+  return (derivadas.data ?? []).map((linha) => ({
     tipo: linha.tipo,
     planejada: linha.planejada,
     criadas: linha.criadas,
@@ -586,5 +716,7 @@ export async function composicaoDaCampanha(
     // O NOME MUDA DE CAMADA AQUI, e é a convenção: o banco fala
     // `em_ajustes`, o domínio fala `emAjustes`. O tipo de domínio não é o Row.
     emAjustes: linha.em_ajustes,
+    formato: plano.get(linha.tipo)?.formato ?? null,
+    dimensoes: plano.get(linha.tipo)?.dimensoes ?? null,
   }));
 }

@@ -12,6 +12,8 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import {
   analiseDosEntregaveis,
+  briefingDaCampanha,
+  briefingsParaCopiar,
   composicaoDaCampanha,
   entregaveisDaCampanha,
   obterCampanha,
@@ -19,6 +21,7 @@ import {
   versoesDoEntregavel,
 } from "@/lib/dados/campanhas";
 import { enderecoDaArte } from "@/lib/dados/conteudo";
+import { referenciasDaDemanda } from "@/lib/dados/tasks";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
   emArvore,
@@ -30,6 +33,8 @@ import {
 
 import { ArvoreDeProducao } from "./arvore-de-producao";
 import { ComposicaoDaCampanhaPainel } from "./composicao";
+import { BriefingDoPainel } from "./briefing";
+import { Referencias } from "@/app/(interno)/painel/gestao-tasks/[id]/referencias";
 import { Voltar } from "@/components/shared/voltar";
 
 export const metadata: Metadata = { title: "Campanha" };
@@ -101,6 +106,25 @@ export default async function PaginaDaCampanha({
 
   // O PLANO POR TIPO (0122), numa chamada para a campanha inteira.
   const composicao = await composicaoDaCampanha(campanha.id);
+
+  // O BRIEFING E AS REFERÊNCIAS (0125), em paralelo: nenhuma depende da
+  // outra, e três idas em série custariam três viagens ao banco numa tela
+  // que já faz várias.
+  const [briefing, paraCopiar, refs] = await Promise.all([
+    briefingDaCampanha(campanha.id),
+    // SÓ PARA QUEM PODE ESCREVER. Oferecer "partir de outra campanha" a quem
+    // não edita seria um seletor que não leva a nada — e custaria uma ida ao
+    // banco em toda visita de quem produz.
+    podeEditar
+      ? briefingsParaCopiar(campanha.clienteId, campanha.id)
+      : Promise.resolve([]),
+    // AS REFERÊNCIAS SÃO DA DEMANDA, e não de uma tabela nova: a decisão da
+    // 0051 — *"o briefing e a pasta de entrega são da DEMANDA"* — e
+    // `task_referencias` já tem link, arquivo, quem pôs e quando.
+    campanha.taskId
+      ? referenciasDaDemanda(campanha.taskId)
+      : Promise.resolve({ referencias: [], urls: {} }),
+  ]);
 
   const arquivosDasVersoes = await urlsDosArquivos(
     Object.values(versoes).flatMap((lista) =>
@@ -242,6 +266,18 @@ export default async function PaginaDaCampanha({
         </div>
       </section>
 
+      {/* O BRIEFING VEM ANTES DA COMPOSIÇÃO (0125), e a ordem é a de quem
+          abre a tela para produzir: o que esta campanha é, o que ela precisa
+          dizer, e só então quantas peças. Depois da árvore ele seria lido por
+          último, por quem já escolheu o que fazer. */}
+      <BriefingDoPainel
+        campanhaId={campanha.id}
+        briefing={briefing}
+        composicao={composicao}
+        paraCopiar={paraCopiar}
+        podeEditar={podeEditar}
+      />
+
       {/* A COMPOSIÇÃO FICA ENTRE A IDENTIDADE E A ÁRVORE, e a ordem é a de
           quem abre a tela: o que foi combinado, e só então peça por peça.
           Depois da árvore ela seria o resumo lido por último, que é o
@@ -262,6 +298,44 @@ export default async function PaginaDaCampanha({
         analise={Object.fromEntries(analise)}
         ehGestao={ehGestor(sessao.profile.role)}
       />
+
+      {/* AS REFERÊNCIAS DO BRIEFING (0125) — imagens, PDFs e links.
+
+          É o MESMO componente da tela da demanda, com os mesmos dados: a
+          campanha e a demanda são a mesma coisa desde a 0051, e `Referencias`
+          já sabe subir arquivo, listar miniatura e apagar uma a uma. Uma
+          segunda tela de anexo seria um segundo lugar para procurar o mesmo
+          material, e o briefing continuaria apontando para o primeiro.
+
+          *Por que ela está AQUI e não na tela de abertura:* os anexos só
+          podem ser subidos depois que a campanha existe, porque antes não há
+          `task_id` a que prendê-los — a razão escrita da 0028.
+
+          E ela fica no FIM, depois da árvore: a referência é consulta, e
+          quem abre o painel abre para ver as peças. */}
+      {campanha.taskId ? (
+        <section
+          aria-labelledby="titulo-das-referencias"
+          className="bg-surface-card shadow-cartao rounded-card space-y-3 border p-5"
+        >
+          <div>
+            <h2 id="titulo-das-referencias" className="text-lg font-semibold">
+              Referências do briefing
+            </h2>
+            <p className="text-text-muted text-sm">
+              Imagens, PDFs e links que quem produz precisa ter em mãos. Elas
+              ficam na demanda da campanha.
+            </p>
+          </div>
+
+          <Referencias
+            taskId={campanha.taskId}
+            referencias={refs.referencias}
+            urls={refs.urls}
+            podeEditar={podeEditar}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

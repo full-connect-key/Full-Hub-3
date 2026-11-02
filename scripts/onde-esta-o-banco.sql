@@ -736,7 +736,21 @@ from (
     -- `create trigger` ter ficado para tras, e aquele e o estado em que a
     -- regra existe escrita e nao vale para nada.
     ('0124', 'a solicitacao diz de que frente e', 'trigger',
-             'client_requests_classificacao')
+             'client_requests_classificacao'),
+
+    -- O CORPO DO TRIGGER, que e a ULTIMA coisa que a 0125 cria. As nove
+    -- colunas nascem nos dois primeiros passos, e um marcador numa delas
+    -- diria `ok` sobre uma colagem que morreu no PASSO 3 -- que e o pior
+    -- lugar para morrer, porque as colunas de pe SEM a protecao sao
+    -- justamente o briefing combinado com o cliente ao alcance de quem
+    -- produz, com `campaigns_update` sendo is_staff() desde a 0033. E a
+    -- armadilha que a 0085 pagou apontando para o PASSO 1.
+    --
+    -- E e `no_corpo` e nao `trigger`: o trigger existe desde a 0078 e
+    -- continua de pe com a funcao antiga dentro -- o que esta migration
+    -- acrescenta e a recusa, e e ela que precisa ser procurada.
+    ('0125', 'o briefing completo da campanha', 'no_corpo',
+             'proteger_colunas_da_campanha|O briefing da campanha')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -136,6 +136,24 @@ export function ComposicaoDaCampanhaPainel({
               <tr key={linha.tipo} className="border-b last:border-0">
                 <th scope="row" className="py-2 pr-3 text-left font-medium">
                   {ROTULO_DO_TIPO[linha.tipo]}
+                  {/* O FORMATO E A MEDIDA MORAM AQUI (0125) e não numa coluna
+                      própria: eles são texto de tamanho imprevisível
+                      ("1080x1350 feed e 1080x1920 story"), e uma oitava
+                      coluna numa tabela de sete números faria o layout
+                      repartir pelo conteúdo e espremer justamente as
+                      contagens — que é o que a tabela existe para comparar.
+
+                      Embaixo do nome do tipo e em tom fraco, eles se leem
+                      como o que são: a especificação daquela linha. E só
+                      aparecem quando existem, que é a regra da ficha técnica
+                      do equipamento (0070). */}
+                  {linha.formato || linha.dimensoes ? (
+                    <span className="text-text-muted block text-xs font-normal">
+                      {[linha.formato, linha.dimensoes]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  ) : null}
                 </th>
                 <td className="py-2 pr-3 text-right tabular-nums">
                   {linha.planejada > 0 ? linha.planejada : "—"}

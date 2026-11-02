@@ -3360,6 +3360,24 @@ export interface Database {
           template_id: string | null;
           status: CampaignStatus;
           capa_url: string | null;
+          // O BRIEFING ESTRUTURADO (0125). Sete colunas e nao um jsonb: elas
+          // sao consultadas item a item -- `publico` e a coluna por onde um
+          // relatorio agruparia --, e num jsonb a tela inventa as chaves ate
+          // a segunda escrever `tom_voz` onde a primeira escreveu
+          // `tom_de_voz`, sem erro em lugar nenhum. `check:tipos` liga
+          // migration a COLUNA e nao liga chave de jsonb a nada.
+          //
+          // Elas ficam fora de Insert de proposito: quem cria a campanha e
+          // `abrir_campanha()`, cuja assinatura nao muda (0061) -- o briefing
+          // e uma SEGUNDA escrita, depois de a RPC devolver, que e a forma da
+          // vertente na 0122.
+          objetivo: string | null;
+          publico: string | null;
+          mensagem: string | null;
+          produtos: string | null;
+          tom_de_voz: string | null;
+          canais: string[] | null;
+          restricoes: string | null;
           // A DEMANDA da campanha (0051). Fica FORA de Insert e de Update:
           // quem liga as duas e `abrir_campanha()`, numa transacao so. Ligar
           // a mao daria campanha apontando para demanda de outro cliente.
@@ -3389,6 +3407,18 @@ export interface Database {
           status?: CampaignStatus;
           capa_url?: string | null;
           drive_folder_id?: string | null;
+          // O briefing se edita (0125), e quem o banco deixa editar e
+          // `is_atendimento()` -- `campaigns_update` e is_staff() desde a
+          // 0033 porque e por ela que quem produz troca a CAPA, e a trava de
+          // coluna e o trigger `campaigns_protege_colunas`: policy nao limita
+          // coluna.
+          objetivo?: string | null;
+          publico?: string | null;
+          mensagem?: string | null;
+          produtos?: string | null;
+          tom_de_voz?: string | null;
+          canais?: string[] | null;
+          restricoes?: string | null;
         };
         Relationships: [];
       };
@@ -3485,15 +3515,25 @@ export interface Database {
           campaign_id: string;
           tipo: DeliverableTipo;
           quantidade: number;
+          // O formato e a medida combinados daquele tipo (0125). Texto pela
+          // razao de `posts.formato`: o vocabulario muda a cada temporada de
+          // produto das plataformas, e metade do que a agencia combina e
+          // proporcao ou nome de papel.
+          formato: string | null;
+          dimensoes: string | null;
           created_at: string;
         };
         Insert: {
           campaign_id: string;
           tipo: DeliverableTipo;
           quantidade: number;
+          formato?: string | null;
+          dimensoes?: string | null;
         };
         Update: {
           quantidade?: number;
+          formato?: string | null;
+          dimensoes?: string | null;
         };
         Relationships: [];
       };

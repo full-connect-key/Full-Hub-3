@@ -25,6 +25,7 @@ import type {
 import type {
   ApprovalRound,
   SocialFlowPapel,
+  TaskReferencia,
 } from "../../src/lib/supabase/database.types";
 
 export type FiltrosDeTask = FiltrosReais;
@@ -1024,4 +1025,45 @@ export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
  */
 export async function rascunhosAExpirar(): Promise<{ id: string; titulo: string }[]> {
   return [];
+}
+
+/**
+ * As referências da demanda, para o painel da campanha (0125).
+ *
+ * **DUAS E NÃO ZERO**, e uma delas é ARQUIVO: com a lista vazia a seção sai
+ * com o estado vazio, e a imagem provaria que ela sabe sumir em vez de
+ * provar que ela lista — e sem um arquivo a miniatura não aparece em imagem
+ * nenhuma.
+ */
+export async function referenciasDaDemanda(taskId: string): Promise<{
+  referencias: TaskReferencia[];
+  urls: Record<string, string>;
+}> {
+  const referencias: TaskReferencia[] = [
+    {
+      id: "ref-brief-1",
+      task_id: taskId,
+      tipo: "link",
+      url: "https://www.figma.com/file/wave-verao-referencias",
+      titulo: "Painel de referência no Figma",
+      arquivo_nome: null,
+      adicionado_por: ANA.id,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "ref-brief-2",
+      task_id: taskId,
+      tipo: "arquivo",
+      url: "exemplos/arte-vertical.svg",
+      titulo: "Moodboard do verão",
+      arquivo_nome: "moodboard-verao.png",
+      adicionado_por: ANA.id,
+      created_at: new Date().toISOString(),
+    },
+  ];
+
+  return {
+    referencias,
+    urls: { "exemplos/arte-vertical.svg": "/exemplos/arte-vertical.svg" },
+  };
 }

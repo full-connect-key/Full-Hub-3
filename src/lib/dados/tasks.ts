@@ -1086,3 +1086,39 @@ export async function rascunhosAExpirar(): Promise<
   );
   return linhas.map((r) => ({ id: r.id, titulo: r.titulo }));
 }
+
+/**
+ * As REFERÊNCIAS de uma demanda, e só elas (0125).
+ *
+ * **É uma leitura pequena e não `obterTask()`**, e a razão é o custo: aquela
+ * função faz nove idas ao banco — etapas, rodadas, entregas, dependências,
+ * comentários, histórico — para montar a tela da demanda inteira, e o painel
+ * da campanha quer uma tabela. É a decisão de `contatosDasMinhasEmpresas()`:
+ * uma leitura própria quando a pergunta é outra.
+ *
+ * **As duas pontas vêm juntas** — as linhas e as URLs assinadas — porque o
+ * bucket é privado e caminho cru não abre: separá-las deixaria o chamador
+ * podendo esquecer a segunda, que é o bug das miniaturas do portal visto de
+ * outro ângulo.
+ */
+export async function referenciasDaDemanda(taskId: string): Promise<{
+  referencias: TaskReferencia[];
+  urls: Record<string, string>;
+}> {
+  const supabase = await criarClienteServidor();
+
+  const referencias = ouFalha(
+    "as referências da demanda",
+    await supabase
+      .from("task_referencias")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at"),
+  );
+
+  const urls = await urlsDosArquivos(
+    referencias.filter((r) => r.tipo === "arquivo").map((r) => r.url),
+  );
+
+  return { referencias, urls };
+}
