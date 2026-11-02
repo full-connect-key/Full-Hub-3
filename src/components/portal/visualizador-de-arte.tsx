@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageOff, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
 
+import { useCardSelecionado } from "@/components/portal/card-selecionado";
 import { FaixaDaComposicao } from "@/components/shared/faixa-da-composicao";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,14 +33,27 @@ const MAXIMO = 6;
 export function VisualizadorDeArte({
   imagens,
   alt,
+  marcadores,
 }: {
   /** As artes em ordem. Num carrossel, todas — a faixa abaixo do quadro as
    *  mostra lado a lado, e o quadro é onde se aproxima a escolhida. */
   imagens: string[];
   alt: string;
+  /** Quantos comentários tem cada quadro — o indicador por card (0126). */
+  marcadores?: (number | undefined)[];
 }) {
   const quadro = useRef<HTMLDivElement>(null);
-  const [indice, setIndice] = useState(0);
+
+  // O FOCO É COMPARTILHADO QUANDO A TELA TEM PROVEDOR, e local quando não tem.
+  //
+  // Com provedor, quem mais lê o mesmo número é a thread por card: o cliente
+  // está olhando o terceiro quadro, e a conversa que ele precisa ler é a do
+  // terceiro. Sem ele — o painel lateral do calendário, por exemplo —, o
+  // visualizador continua cuidando do próprio índice, como sempre fez.
+  const foco = useCardSelecionado();
+  const [indiceLocal, setIndiceLocal] = useState(0);
+  const indice = foco ? foco.card : indiceLocal;
+  const setIndice = foco ? foco.escolher : setIndiceLocal;
   const [escala, setEscala] = useState(1);
   const [posicao, setPosicao] = useState({ x: 0, y: 0 });
   const arrasto = useRef<{ x: number; y: number } | null>(null);
@@ -60,7 +74,7 @@ export function VisualizadorDeArte({
       setIndice(novo);
       reiniciar();
     },
-    [reiniciar],
+    [reiniciar, setIndice],
   );
 
   const aproximar = useCallback((passo: number) => {
@@ -265,6 +279,7 @@ export function VisualizadorDeArte({
           rotulo={alt}
           atual={indice}
           aoEscolher={irPara}
+          marcadores={marcadores}
         />
       ) : null}
     </div>

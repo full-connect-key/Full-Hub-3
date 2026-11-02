@@ -14,6 +14,7 @@
  * E o carrossel tem cinco slides: a faixa em 375px e o que primeiro estoura a
  * largura, e ela so aparece com mais de um.
  */
+import { comentariosDe } from "./conteudo";
 import type {
   DemandaDoMes as DemandaReal,
   MesDeSocial as MesReal,
@@ -334,6 +335,13 @@ export async function obterPostDaAgencia(id: string) {
     aprovacoesDoCliente: post.socialTaskId ? 1 : 0,
     referencias: REFERENCIAS,
     portao: post.socialTaskId ? PORTAO : null,
+    // A CONVERSA SAI DO STUB DE `conteudo`, e nao de uma copia aqui.
+    //
+    // E a mesma funcao que a leitura de verdade chama, pela razao escrita
+    // nela: duas listas de comentario no prototipo divergiriam, e a imagem do
+    // painel passaria a conferir outra conversa que a do portal -- que e
+    // exatamente o par que esta entrega existe para manter igual.
+    comentarios: await comentariosDe({ tipo: "post", id: post.id }),
   };
 }
 

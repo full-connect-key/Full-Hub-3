@@ -224,12 +224,60 @@ for (const { alias, stub } of pares) {
 // para dado semeado (`button:has-text("Criar KV")` é o título de uma etapa do
 // stub), e procurar só em `src/` acusaria todos eles.
 //
+// **E O EXTRATOR ERA CEGO A UMA CLASSE INTEIRA, que é a mais comum das duas
+// formas que o parágrafo acima nomeia.** O `clicar` em ARRAY era casado por
+// `\[[^\]]*\]` — "abre colchete, nada que seja colchete, fecha" —, e todo
+// seletor de atributo tem um `]` DENTRO: `[aria-label="x"]`. O casamento
+// parava no primeiro colchete interno, e o resto do array não era conferido.
+//
+// Eram **21 textos em 7 telas**, e 15 deles anteriores a este sprint —
+// incluindo as três telas da faixa de disponibilidade, que é a entrega mais
+// recente a depender de clique encadeado. A checagem dizia "56 textos, todos
+// no produto" sem nunca ter olhado para nenhum deles.
+//
+// É a MESMA falha de um sprint atrás, uma camada acima: lá o `[^\n]*?` entre
+// o `nome:` e o `clicar:` deixava de fora toda entrada escrita em mais de uma
+// linha. As duas vezes o sintoma foi um número crescendo e nada reprovando —
+// e é por isso que a correção vem com a contagem antes e depois.
+//
 // **E ela NÃO prova que o seletor casa.** Texto presente em algum lugar não é
 // botão presente naquela rota, e ambiguidade — o mesmo texto duas vezes na
 // mesma tela, que é erro estrito no Playwright — ela não vê. Quem prova é a
 // rodada. O que ela pega é a classe que apodrece calada: a palavra que saiu
 // do produto.
 // ---------------------------------------------------------------------------
+
+/**
+ * O TEXTO QUE O PRODUTO MONTA, e não escreve literal.
+ *
+ * ---------------------------------------------------------------------------
+ * Um seletor pode apontar para um rótulo INTERPOLADO — `Card ${n + 1}`,
+ * `Escolher a arte ${i + 1}`, a data que o `date-fns` formata. A frase existe
+ * na tela e **não existe em `src/`**, então a regra desta varredura ("o texto
+ * do seletor aparece em algum lugar") a reprovaria sendo verdadeira.
+ *
+ * **A SAÍDA NÃO É UMA LISTA DE IGNORADOS**, que é a decisão do `-- SEM LINHA:`
+ * do `onde-esta-o-banco.sql` e das `ISENTAS` do `check:acoes`: cada entrada
+ * diz qual TRECHO de `src/` produz aquele texto, e é esse trecho que passa a
+ * ser conferido. A proteção continua inteira — trocar *"Escolher a arte"* por
+ * *"Escolher o slide"* derruba a checagem do mesmo jeito —, e o que se perde é
+ * só a conferência do número, que é justamente a parte que o produto calcula.
+ *
+ * **Uma isenção sem motivo escrito é onde o furo seguinte se esconde**, então
+ * a razão de cada uma fica aqui, ao lado.
+ */
+const INTERPOLADOS = {
+  // `aria-label={`Escolher a arte ${i + 1}`}` em faixa-da-composicao.tsx.
+  "Escolher a arte 3": "Escolher a arte ${",
+  // `` `Card ${cardEmFoco + 1}` `` no seletor de escopo da thread (0126).
+  "Card 3": "Card ${",
+  // `format(parseISO(iso), "d 'de' MMMM", { locale: ptBR })` na faixa de
+  // disponibilidade — o dia e o mês saem do date-fns, nunca escritos.
+  "2 de setembro": "d 'de' MMMM",
+  "8 de setembro": "d 'de' MMMM",
+  "28 de setembro": "d 'de' MMMM",
+  "3 de outubro": "d 'de' MMMM",
+};
 
 /** Os textos literais que dá para extrair de um seletor. */
 function textosDoSeletor(seletor) {
@@ -275,7 +323,7 @@ console.log("\nOs cliques do protótipo apontam para texto que existe\n");
 // sem a guarda do `nome:`, o `nome` de uma entrada casaria com o `clicar` da
 // seguinte, e a mensagem apontaria a tela errada -- que e pior que nao apontar.
 const comClique = [...(gerador ?? "").matchAll(
-  /\{\s*nome:\s*"([^"]+)"(?:(?!nome:)[\s\S])*?clicar:\s*(\[[^\]]*\]|'[^']*'|"[^"]*")/g,
+  /\{\s*nome:\s*"([^"]+)"(?:(?!nome:)[\s\S])*?clicar:\s*(\[[\s\S]*?\](?=\s*[,}])|'[^']*'|"[^"]*")/g,
 )];
 
 const fonte =
@@ -290,8 +338,14 @@ for (const [, nome, bruto] of comClique) {
     const seletor = m[1] ?? m[2];
     for (const texto of textosDoSeletor(seletor)) {
       conferidos++;
-      if (!fonte.includes(texto)) {
-        console.log(`  FALHA   ${nome} — “${texto}” não existe em src/ nem nos exemplos`);
+      // O TEXTO MONTADO É CONFERIDO PELO TRECHO QUE O MONTA, e não pela frase
+      // inteira — ver `INTERPOLADOS` lá em cima.
+      const procurar = INTERPOLADOS[texto] ?? texto;
+      if (!fonte.includes(procurar)) {
+        const comoVeio = procurar === texto ? "" : ` (pelo trecho “${procurar}”)`;
+        console.log(
+          `  FALHA   ${nome} — “${texto}” não existe em src/ nem nos exemplos${comoVeio}`,
+        );
         mortos++;
       }
     }

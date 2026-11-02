@@ -49,6 +49,9 @@ import {
   type EtapaDoMes,
 } from "@/lib/dominio/posts";
 
+import { CardSelecionado } from "@/components/portal/card-selecionado";
+import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
+import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
 import { EnvioDoMes } from "./envio-do-mes";
@@ -131,6 +134,8 @@ export function EditorDoPost({
   portaoDoMes: portaoDoMesDaVez,
   aprovacoesDoCliente,
   referencias,
+  comentarios,
+  agora,
   equipe,
   quemLe,
   compacto = false,
@@ -147,6 +152,10 @@ export function EditorDoPost({
   /** Quantas rodadas de cliente deste post já foram aprovadas — o `k` do portão. */
   aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
+  /** A conversa do cliente sobre esta peça — da peça e de cada card (0126). */
+  comentarios: ComentarioDoConteudo[];
+  /** O instante do servidor — ver a regra do "agora" na thread. */
+  agora: string;
   equipe: { id: string; nome: string }[];
   quemLe: QuemLe;
   /** No painel lateral do calendário a grade de campos vira uma coluna. */
@@ -311,6 +320,7 @@ export function EditorDoPost({
 
       {/* A ARTE ANTES DOS BOTÕES, como no portal: botão antes da arte convida
           a decidir sem olhar. Aqui a razão é a mesma, um passo antes. */}
+      <CardSelecionado>
       {post.midia === "video" ? (
         <div className="space-y-3">
           {/* O ARQUIVO VEM PRIMEIRO (0120), e o link depois — é a ordem da
@@ -388,6 +398,14 @@ export function EditorDoPost({
             }
             alt={`Arte de ${post.tema}`}
             podeEditar={posso}
+            marcadores={
+              slides.length > 1
+                ? slides.map(
+                    (_, i) =>
+                      comentarios.filter((c) => c.cardIndice === i).length,
+                  )
+                : undefined
+            }
           />
 
           {posso ? (
@@ -420,6 +438,37 @@ export function EditorDoPost({
           ) : null}
         </div>
       )}
+
+      {/* ------------------------------------------------ a conversa da peça --
+          **E ESTA ERA A PONTE CONSTRUÍDA E NUNCA ATRAVESSADA.** `comments`
+          existe desde a 0032, `comments_select` é `is_staff()` desde então, e
+          NENHUMA tela do painel lia a tabela: o comentário que o cliente
+          escrevia no portal só existia do lado de lá. O que chegava aqui era o
+          sino, que se apaga no primeiro clique — e o pedido de ajuste ficava
+          na rodada, que esta tela não mostra.
+
+          Ela fica logo DEPOIS da arte e antes dos campos, que é a ordem da
+          leitura de quem produz: o que mudar, e então onde mudar. Depois da
+          legenda ela seria lida por quem já acabou.
+
+          **E ELA É A MESMA `ThreadDeComentarios` DO PORTAL**, com a mesma ação
+          e a mesma leitura. Duas threads divergiriam, e a divergência
+          apareceria no lugar mais caro: o que o cliente escreveu contra o que
+          a agência lê. `somenteLeitura` fica falso — `comments_insert` aceita
+          `is_staff()` desde a 0032, e quem responde *"subi a v2"* na thread do
+          card está tendo a conversa que o pedido existe para ter. */}
+      <ThreadDeComentarios
+        conteudo={{ tipo: "post", id: post.id }}
+        comentarios={comentarios}
+        agora={agora}
+        nomeDaEmpresa={post.cliente}
+        composicao={
+          slides.length > 1
+            ? { quadros: slides.length, versaoAtual: post.versaoAtual }
+            : undefined
+        }
+      />
+      </CardSelecionado>
 
       <div className="space-y-1.5">
         <Label htmlFor={`tema-${post.id}`}>Tema</Label>

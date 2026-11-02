@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useCardSelecionado } from "@/components/portal/card-selecionado";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { FaixaDaComposicao } from "@/components/shared/faixa-da-composicao";
 import { Button } from "@/components/ui/button";
@@ -49,14 +50,26 @@ export function CarrosselDoEditor({
   slides,
   alt,
   podeEditar,
+  marcadores,
 }: {
   postId: string;
   slides: SlideDoEditor[];
   alt: string;
   podeEditar: boolean;
+  /** Quantos comentários do cliente tem cada quadro (0126). */
+  marcadores?: (number | undefined)[];
 }) {
   const router = useRouter();
-  const [indice, setIndice] = useState(0);
+
+  // O FOCO É COMPARTILHADO QUANDO O EDITOR TEM PROVEDOR, e local quando não
+  // tem — a mesma assimetria do visualizador do portal. Com provedor, quem
+  // mais lê o número é a thread do card: quem produz clica no terceiro quadro
+  // e lê o pedido do terceiro. É o anel que escolhe sobre qual slide o botão
+  // de remover age, e é o mesmo anel que escolhe a conversa.
+  const foco = useCardSelecionado();
+  const [indiceLocal, setIndiceLocal] = useState(0);
+  const indice = foco ? foco.card : indiceLocal;
+  const setIndice = foco ? foco.escolher : setIndiceLocal;
   const [removendo, remover] = useTransition();
 
   // O ÍNDICE É GRAMPEADO NA LEITURA, e não num efeito que observa `slides`:
@@ -97,9 +110,15 @@ export function CarrosselDoEditor({
           no lugar mais caro, que é o que a agência olha antes de mandar. */}
       <FaixaDaComposicao
         imagens={slides.map((s) => s.assinada)}
+        marcadores={marcadores}
         rotulo={alt}
-        atual={podeEditar ? atual : undefined}
-        aoEscolher={podeEditar ? setIndice : undefined}
+        // ESCOLHER UM QUADRO É LEITURA, e não edição — por isso o anel não
+        // depende mais de `podeEditar`. Ele escolhe duas coisas: sobre qual
+        // slide o botão de remover age (que continua só para quem pode) e de
+        // qual card é a conversa (0126). Quem não edita o post ainda precisa
+        // ler o pedido de ajuste do terceiro quadro.
+        atual={atual}
+        aoEscolher={setIndice}
         acao={
           podeEditar ? (
             <ConfirmDialog

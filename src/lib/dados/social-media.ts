@@ -1,6 +1,11 @@
 import "server-only";
 
-import { assinarArquivos, nomesDe } from "@/lib/dados/conteudo";
+import {
+  assinarArquivos,
+  comentariosDe,
+  nomesDe,
+  type ComentarioDoConteudo,
+} from "@/lib/dados/conteudo";
 import {
   deslocarMes,
   type CaixinhaDoPost,
@@ -382,6 +387,20 @@ export async function obterPostDaAgencia(id: string): Promise<{
    * qual é a demanda dele.
    */
   portao: PortaoDoMes | null;
+  /**
+   * A conversa sobre esta peça — a da peça e a de cada card (0126).
+   *
+   * **É A MESMA LEITURA DO PORTAL, e não uma cópia.** `comentariosDe()` já
+   * monta o autor, a organização e o escopo do card; uma segunda consulta aqui
+   * nomearia as mesmas colunas num segundo lugar, e a que divergiria é esta —
+   * a do lado que se abre menos.
+   *
+   * **E ela vem no mesmo pacote do post, e não da página**, pela razão
+   * escrita em `portao` logo acima: o editor abre UM post, e quem sabe o que
+   * aquele post carrega é esta consulta. Pedir na página obrigaria a tela a
+   * perguntar duas vezes de qual material é a conversa.
+   */
+  comentarios: ComentarioDoConteudo[];
 } | null> {
   const supabase = await criarClienteServidor();
 
@@ -446,6 +465,7 @@ export async function obterPostDaAgencia(id: string): Promise<{
     aprovacoesDoCliente: aprovadas.length,
     referencias: await referenciasDoPost(id),
     portao,
+    comentarios: await comentariosDe({ tipo: "post", id }),
     versoes: versoes.map((v) => ({
       id: v.id,
       numero: v.numero_versao,

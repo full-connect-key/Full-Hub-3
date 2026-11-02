@@ -124,6 +124,17 @@ export type ComentarioDoConteudo = {
   daAgencia: boolean;
   interno: boolean;
   respostaA: string | null;
+  /**
+   * De qual quadro da composição é o comentário — nulo quando é da peça.
+   *
+   * **A âncora é a posição e não a URL do slide**, e a razão está medida na
+   * 0126: um carrossel consertado sobe com os caminhos todos novos, então
+   * pela URL a thread se perderia a cada versão.
+   */
+  cardIndice: number | null;
+  /** A versão que estava na tela. É ela que impede o índice de mentir quando
+   *  um slide sai do meio e os quadros andam (0048 + 0126). */
+  cardVersao: number | null;
 };
 
 export async function comentariosDe(
@@ -136,7 +147,9 @@ export async function comentariosDe(
     "os comentários do material",
     await supabase
       .from("comments")
-      .select("id, texto, created_at, autor_id, interno, resposta_a")
+      .select(
+        "id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao",
+      )
       .eq("content_type", content_type)
       .eq("content_id", content_id)
       .order("created_at"),
@@ -166,6 +179,8 @@ export async function comentariosDe(
       daAgencia: pessoa?.role !== "cliente",
       interno: l.interno,
       respostaA: l.resposta_a,
+      cardIndice: l.card_indice,
+      cardVersao: l.card_versao,
     };
   });
 }

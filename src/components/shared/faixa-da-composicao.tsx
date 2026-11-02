@@ -26,6 +26,13 @@ import { cn } from "@/lib/utils";
  * quatro ou cinco espremidos, cada um fica pequeno demais para julgar o
  * rodapé, que é o pedido de ajuste mais comum. Em 375px cabe um e meio — o
  * meio é o que diz que há mais, e sem ele a faixa pareceria ter acabado.
+ *
+ * **E CADA QUADRO PODE DIZER QUANTOS COMENTÁRIOS TEM** (`marcadores`, 0126).
+ * O par é o medido do botão cheio — `--action-foreground` sobre `--action` —,
+ * e nunca opacidade sobre a imagem, que daria uma cor que ninguém mediu e no
+ * tema escuro daria outra. Ele fica à DIREITA porque a esquerda é o número do
+ * quadro, e os dois juntos no mesmo canto se leriam como um número de dois
+ * dígitos.
  */
 export function FaixaDaComposicao({
   imagens,
@@ -33,6 +40,7 @@ export function FaixaDaComposicao({
   atual,
   aoEscolher,
   acao,
+  marcadores,
 }: {
   /** As artes em ordem. `null` é slide sem arquivo legível — o quadro fica
    *  vazio em vez de sumir, senão a contagem passa a mentir. */
@@ -43,6 +51,16 @@ export function FaixaDaComposicao({
   aoEscolher?: (indice: number) => void;
   /** O que fica sobre o slide escolhido — o botão de remover, no editor. */
   acao?: React.ReactNode;
+  /**
+   * Quantos comentários tem cada quadro, na ordem das imagens.
+   *
+   * **É o "indicadores" do pedido, e é ele que torna a conversa por card
+   * descobrível:** sem o marcador, quem abre a composição não tem como saber
+   * que o terceiro quadro carrega um pedido de ajuste — ele teria de clicar
+   * nos cinco para descobrir. Zero não desenha nada, que é a regra da matriz
+   * do Day Off: pinta-se a exceção.
+   */
+  marcadores?: (number | undefined)[];
 }) {
   if (imagens.length === 0) return null;
 
@@ -98,6 +116,20 @@ export function FaixaDaComposicao({
               {!uma ? (
                 <span className="bg-brand-navy/80 absolute top-1.5 left-1.5 rounded px-1.5 text-xs font-medium text-white tabular-nums">
                   {i + 1}
+                </span>
+              ) : null}
+
+              {marcadores?.[i] ? (
+                <span
+                  className="bg-action text-action-foreground absolute top-1.5 right-1.5 rounded-full px-1.5 text-xs font-semibold tabular-nums"
+                  title={`${marcadores[i]} ${marcadores[i] === 1 ? "comentário" : "comentários"} neste card`}
+                >
+                  {marcadores[i]}
+                  <span className="sr-only">
+                    {" "}
+                    {marcadores[i] === 1 ? "comentário" : "comentários"} neste
+                    card
+                  </span>
                 </span>
               ) : null}
 

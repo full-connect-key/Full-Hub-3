@@ -750,7 +750,22 @@ from (
     -- continua de pe com a funcao antiga dentro -- o que esta migration
     -- acrescenta e a recusa, e e ela que precisa ser procurada.
     ('0125', 'o briefing completo da campanha', 'no_corpo',
-             'proteger_colunas_da_campanha|O briefing da campanha')
+             'proteger_colunas_da_campanha|O briefing da campanha'),
+
+    -- A HERANCA DENTRO DO TRIGGER DE UM NIVEL, que e a ULTIMA coisa que a
+    -- 0126 cria. As duas colunas e os tres checks nascem nos passos 1 e 2, e
+    -- um marcador numa delas diria `ok` sobre uma colagem que morreu no
+    -- PASSO 4 -- que e o pior lugar para morrer: com as colunas de pe e sem a
+    -- heranca, uma resposta a um pedido do card 3 chega com `card_indice`
+    -- nulo e cai na thread da PECA, respondendo uma pergunta numa thread que
+    -- nao mostra a pergunta. E a armadilha que a 0085 pagou apontando para o
+    -- PASSO 1, e que a 0125 ja evitou do mesmo jeito.
+    --
+    -- E e `no_corpo` e nao `trigger`: `comments_um_nivel` existe desde a 0032
+    -- e continua de pe com a funcao antiga dentro -- o que esta migration
+    -- acrescenta e a heranca, e e ela que precisa ser procurada.
+    ('0126', 'comentario por card do carrossel', 'no_corpo',
+             'comentario_de_um_nivel|new.card_indice := v_card_pai')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

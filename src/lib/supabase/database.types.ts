@@ -3292,6 +3292,27 @@ export interface Database {
           texto: string;
           resposta_a: string | null;
           interno: boolean;
+          /**
+           * De qual quadro da composição é o comentário, contado de zero.
+           * Nulo = da peça inteira, que é todo comentário anterior à 0126.
+           *
+           * **A âncora é a POSIÇÃO e não a URL do slide, e isso foi medido:**
+           * `gravarVersao` recebe a lista `arquivos` inteira e o editor manda
+           * os arquivos que acabaram de subir, então a v2 de um carrossel
+           * consertado tem caminhos todos novos no bucket — pela URL, a
+           * thread se perderia a cada versão, no instante em que quem produz
+           * está lendo o pedido para atender.
+           */
+          card_indice: number | null;
+          /**
+           * A versão que estava na tela quando o comentário foi escrito.
+           *
+           * É ela que impede o índice de mentir: remover um slide do meio
+           * grava uma versão nova com o que restou (0048), e os quadros
+           * ANDAM — sem a versão, o pedido do terceiro de cinco se leria como
+           * sendo do terceiro de quatro.
+           */
+          card_versao: number | null;
           created_at: string;
         };
         Insert: {
@@ -3303,6 +3324,9 @@ export interface Database {
           texto: string;
           resposta_a?: string | null;
           interno?: boolean;
+          /** Os dois ou nenhum — `comments_card_coerente` (0126). */
+          card_indice?: number | null;
+          card_versao?: number | null;
         };
         Update: Record<string, never>;
         Relationships: [];

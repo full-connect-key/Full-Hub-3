@@ -89,6 +89,12 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
       portaoDoMes={aberto?.portao ?? null}
       aprovacoesDoCliente={aberto?.aprovacoesDoCliente ?? 0}
       referencias={aberto?.referencias ?? []}
+      comentarios={aberto?.comentarios ?? []}
+      // O "AGORA" DESCE DO SERVIDOR, que é a regra escrita da thread: com
+      // `new Date()` dentro do componente de cliente, o SSR renderiza "há 2
+      // horas" e o navegador, noutro fuso ou um segundo depois, recalcula
+      // outra coisa na hidratação.
+      agora={new Date().toISOString()}
       clientes={clientes
         .filter((c) => c.ativo)
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}

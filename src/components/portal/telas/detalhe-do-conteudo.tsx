@@ -9,6 +9,7 @@ import { HistoricoDeVersoes } from "@/components/portal/historico-de-versoes";
 import { NavegacaoEntrePecas } from "@/components/portal/navegacao-entre-pecas";
 import { TextoDoConteudo } from "@/components/portal/texto-do-conteudo";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
+import { CardSelecionado } from "@/components/portal/card-selecionado";
 import { VisualizadorDeArte } from "@/components/portal/visualizador-de-arte";
 import { QuadroDeVideo } from "@/components/shared/quadro-de-video";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -208,6 +209,39 @@ export function DetalheDoConteudo({
     Boolean(modelo.video) || modelo.artes.length > 0 || !modelo.aviso;
 
   /**
+   * QUANTOS COMENTÁRIOS TEM CADA QUADRO — o "indicadores" do pedido (0126).
+   *
+   * **A conta é na TELA e não no banco**, pela razão de sempre: a lista
+   * inteira já está aqui, e uma segunda consulta somando por card daria dois
+   * números para o mesmo fato — e o que divergiria é o do selo, que é
+   * justamente o que faz alguém clicar.
+   *
+   * **E ela conta a RAIZ e as RESPOSTAS**, porque o selo responde "tem
+   * conversa aqui?" e uma resposta é conversa. Contar só as raízes deixaria um
+   * card com três respostas e nenhuma pergunta nova parecendo vazio.
+   */
+  const marcadoresDosCards =
+    modelo.artes.length > 1
+      ? modelo.artes.map(
+          (_, i) => comentarios.filter((c) => c.cardIndice === i).length,
+        )
+      : undefined;
+
+  /**
+   * A COMPOSIÇÃO, quando a peça é uma — e `undefined` quando não é.
+   *
+   * **Ela sai de `modelo.artes` e não de `midia`**, e a escolha é o que faz
+   * isto valer para post e para entregável sem um `if` por tipo: o que decide
+   * se existe card é haver mais de um quadro NA TELA. Um entregável cujos
+   * arquivos são o PDF, o AI e o JPG não chega aqui com três artes — `artes`
+   * é só o que o visualizador desenha, e `EH_IMAGEM` (0053) já separa isso.
+   */
+  const composicao =
+    modelo.artes.length > 1
+      ? { quadros: modelo.artes.length, versaoAtual: modelo.versaoAtual }
+      : undefined;
+
+  /**
    * O TEXTO APARECE UMA VEZ SÓ, e em um de três lugares — o que decide é o que
    * ele É naquele material: a legenda ao lado da arte (post), a peça inteira
    * quando não há arte (o portão do meio), ou uma instrução de produção em
@@ -216,6 +250,16 @@ export function DetalheDoConteudo({
   const textoNaColunaEstreita = modelo.textoAoLado === true && temPreview;
 
   return (
+    // O PROVEDOR DO CARD EM FOCO ENVOLVE A TELA INTEIRA (0126).
+    //
+    // Ele é cliente e os `children` continuam sendo o RSC renderizado no
+    // servidor — é por isso que ele pode estar aqui sem puxar o texto e o
+    // histórico para o bundle. Quem lê o número são dois: o visualizador, que
+    // desenha a faixa, e a thread, que precisa mostrar a conversa do quadro
+    // que está em foco. Entre os dois, na ordem da página, ficam o texto e o
+    // histórico de versões — então não havia como levantar o estado sem
+    // transformar esta página de SERVIDOR em componente de cliente.
+    <CardSelecionado>
     <div className="space-y-8">
       {/* ------------------------------------------------------- cabeçalho -- */}
       <div className="space-y-4">
@@ -341,6 +385,7 @@ export function DetalheDoConteudo({
                 />
               ) : (
                 <VisualizadorDeArte
+                  marcadores={marcadoresDosCards}
                   imagens={modelo.artes}
                   alt={`Arte de ${modelo.titulo}`}
                 />
@@ -412,8 +457,10 @@ export function DetalheDoConteudo({
         agora={agora}
         nomeDaEmpresa={nomeDaEmpresa}
         somenteLeitura={comoEquipe}
+        composicao={composicao}
       />
     </div>
+    </CardSelecionado>
   );
 }
 

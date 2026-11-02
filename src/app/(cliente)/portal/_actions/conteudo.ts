@@ -100,11 +100,28 @@ export async function decidirConteudo(
  * dele é sempre público — o trigger `comments_normaliza` garante isso mesmo se
  * alguém montar o insert à mão, mas oferecer a opção na assinatura já seria
  * prometer uma escolha que ele não tem.
+ *
+ * ---------------------------------------------------------------------------
+ * **E ELA É A AÇÃO DOS DOIS LADOS, não só do cliente** — `exigirSessaoNaAcao`
+ * e não `exigirClienteNaAcao`, e `comments_insert` aceita `is_staff()` desde a
+ * 0032. É a decisão da conversa das Solicitações palavra por palavra: *"a ação
+ * é UMA, para os dois lados: mesma tabela, mesma validação, mesma cota. Duas
+ * cópias dariam dois limites de tamanho para a mesma conversa, e a que
+ * divergisse seria a do lado que ninguém testa."*
+ *
+ * **`interno` continua fora da assinatura mesmo para a equipe**, e a ausência
+ * é decisão: quem responde o pedido de ajuste de um card está respondendo ao
+ * cliente, e é essa a conversa. Uma nota interna por card é outra coisa, e
+ * ninguém a pediu.
+ *
+ * `card` é o quadro da composição (0126). Nulo = a peça inteira, que é o
+ * comportamento de sempre.
  */
 export async function comentarNoConteudo(
   conteudo: Conteudo,
   texto: string,
   respostaA: string | null,
+  card: { indice: number; versao: number } | null = null,
 ): Promise<Resultado> {
   return executarAcao("comentarNoConteudo", async () => {
     const sessao = await exigirSessaoNaAcao();
@@ -123,6 +140,11 @@ export async function comentarNoConteudo(
         autor_id: sessao.usuarioId,
         texto: texto.trim(),
         resposta_a: respostaA,
+        // O PAR INTEIRO OU NENHUM, que é o que `comments_card_coerente` cobra
+        // nos dois sentidos (0126). Mandar um sem o outro levaria a recusa do
+        // banco numa tela que não sabe explicá-la.
+        card_indice: card?.indice ?? null,
+        card_versao: card?.versao ?? null,
       })
       .select("id");
 

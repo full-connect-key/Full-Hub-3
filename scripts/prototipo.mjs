@@ -436,9 +436,28 @@ const TELAS = [
   // (decisao do usuario), entao nao ha "proximo slide" para clicar -- e nao
   // ha porque a peça toda ja esta na tela. O seletor era o do desenho
   // anterior, uma imagem por vez com setas.
-  { nome: "59-carrossel", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1300, role: "socio" },
-  { nome: "60-carrossel-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 375, altura: 1900, role: "socio" },
-  { nome: "58-corrente-escuro", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1300, role: "socio", tema: "escuro" },
+  // AS TRES CRESCERAM 500px, e nao e enquadramento: a conversa do cliente
+  // passou a ser desenhada NO EDITOR (0126), logo depois da arte -- e ela era
+  // a decima nona ponte construida e nunca atravessada, porque `comments`
+  // existe desde a 0032 e nenhuma tela do painel lia a tabela. Com a altura
+  // antiga a peca nova cairia fora do corte, e a imagem conferida seria a de
+  // antes.
+  { nome: "59-carrossel", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1800, role: "socio" },
+  { nome: "60-carrossel-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 375, altura: 2500, role: "socio" },
+  { nome: "58-corrente-escuro", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1800, role: "socio", tema: "escuro" },
+  // A CONVERSA DO CARD 3, DO LADO DE QUEM PRODUZ (0126).
+  //
+  // SAO DOIS CLIQUES, e os dois sao a peca: o primeiro escolhe o terceiro
+  // quadro na faixa -- e e ele que prova que o anel passou a escolher a
+  // CONVERSA e nao so o alvo do botao de remover --, e o segundo troca o
+  // escopo da thread. Sem o segundo, a imagem sairia com a conversa da PECA
+  // aberta e o seletor dizendo "Card 3 (2)" sem mostrar os dois.
+  //
+  // E o marcador no terceiro slide sai nas tres de cima, em repouso: ele e o
+  // que faz a conversa ser descobrivel, e um estado que so aparece depois de
+  // dois cliques nao prova isso.
+  { nome: "62-carrossel-card", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p1`, largura: 1440, altura: 1800, role: "socio",
+    clicar: ['button[aria-label="Escolher a arte 3"]', 'button:has-text("Card 3")'] },
 
   { nome: "44-recorrencias", rota: "/painel/gestao-tasks?aba=recorrencias", largura: 1440, altura: 1000, role: "socio" },
   { nome: "44b-recorrencia-editor", rota: "/painel/gestao-tasks?aba=recorrencias&regra=nova", largura: 1440, altura: 1400, role: "socio" },
@@ -857,6 +876,20 @@ const TELAS = [
   { nome: "16l-portal-post-pauta-390", rota: "/portal/social-media/p10", largura: 390, altura: 1500 },
   { nome: "16g-portal-social-375", rota: "/portal/social-media", largura: 375, altura: 1400 },
   { nome: "16h-portal-post-375", rota: "/portal/social-media/p1", largura: 375, altura: 2000 },
+  // A CONVERSA POR CARD, DO LADO DO CLIENTE (0126).
+  //
+  // `16e` e `16h` ja sairiam com o marcador no terceiro quadro e com o
+  // seletor de escopo em repouso — o que elas NAO provam e que trocar de
+  // escopo troca a conversa, nem que a conversa de um card e outra. Dai os
+  // dois cliques: o terceiro quadro, e o escopo.
+  //
+  // **E UM CARD SO TEM MARCADOR, de proposito.** Com os tres marcados a
+  // imagem provaria que o selo aparece e nao que ele DISTINGUE — a razao pela
+  // qual o exemplo do calendario tem um evento de cada par da legenda.
+  { nome: "16y-portal-post-card", rota: "/portal/social-media/p1", largura: 1280, altura: 2100,
+    clicar: ['button[aria-label="Escolher a arte 3"]', 'button:has-text("Card 3")'] },
+  { nome: "16z-portal-post-card-375", rota: "/portal/social-media/p1", largura: 375, altura: 2000,
+    clicar: ['button[aria-label="Escolher a arte 3"]', 'button:has-text("Card 3")'] },
   // A PROPORÇÃO ORIGINAL DA ARTE, nas duas que não são quadradas. Todo exemplo
   // do protótipo era 1080×1080, então o quadro do visualizador podia ser
   // `aspect-square` sem nenhuma imagem mostrar — era a lição da duplicata do

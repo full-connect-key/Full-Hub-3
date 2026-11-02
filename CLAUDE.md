@@ -4598,6 +4598,198 @@ repouso, que é exatamente o que se confere numa faixa que mostra tudo de uma
 vez. Foi o aviso da rodada completa que encontrou — e ele esperou, porque
 aquela rodada leva quinze minutos e não está no CI.
 
+#### E CADA CARD DO CARROSSEL TEM A CONVERSA DELE
+
+Migration 0126, decisão do usuário: *"Comentários individuais por card do
+carrossel"*, com a hierarquia *"Campanha → Peça → Card"* e *"histórico
+individual, autor/data, respostas, indicadores, versões; não misturar cards"*.
+
+**O CARD É UM SLIDE, e o título do pedido diz isso.** Não é o filho de um
+entregável — aquilo é a árvore de dois níveis da 0033 — e não é a caixinha de
+`post_etapa_progresso`, que é uma peça numa fase do mês. É um quadro da
+composição: o terceiro de cinco.
+
+**O que existia é quase tudo.** `comments` é polimórfica desde a 0032
+(`content_type in ('post','deliverable')`), com a thread de um nível por
+trigger, `interno` e o autor forçados por trigger, o aviso para a equipe por
+trigger e as quatro policies; e a tela de detalhe do material no portal é UMA
+SÓ para post e entregável, desenhando a thread. **Nada disso muda.** O que
+faltava era uma coisa: a thread não sabia de QUAL quadro o cliente estava
+falando — um carrossel de cinco slides tinha UMA conversa, e o pedido mais
+comum da casa, *"trocar o texto do terceiro"*, obrigava quem produz a
+descobrir qual era o terceiro.
+
+##### A ÂNCORA É A POSIÇÃO E NÃO A URL DO SLIDE, e isso foi medido
+
+A URL parece a âncora óbvia: ela é estável, sobrevive à reordem e já está no
+jsonb. **Ela não serve, e a medição é esta:** `gravarVersao` recebe a lista
+`arquivos` INTEIRA, e o editor manda `subidos` — os arquivos que acabaram de
+subir. Então a v2 de um carrossel consertado tem **cinco caminhos novos** no
+bucket, e pela URL a thread inteira se perderia a cada versão — exatamente no
+instante em que quem produz está lendo o pedido para atender. É o pior tipo de
+perda: silenciosa, e no único momento em que aquele texto decide alguma coisa.
+
+**E `card_versao` É O QUE IMPEDE O ÍNDICE DE MENTIR.** Remover um slide do meio
+grava uma versão nova com o que restou (0048), então os quadros ANDAM: o pedido
+que era do terceiro de cinco passa a cair no terceiro de quatro, que era o
+quarto. Sem a versão, aquele texto se lê como sendo da composição de hoje —
+plausível e errado, que é o modo de falha desta casa. Com ela, o comentário diz
+de que composição ele falava, e o histórico de versões é onde se olha aquela.
+
+**NULO É A PEÇA**, e é isso que mantém de pé tudo o que já foi escrito: a
+conversa entre as duas empresas é um registro, e uma migration não a
+reinterpreta. **O par é coerente nos dois sentidos**, que é a forma de
+`subtasks_tipo_aprovacao_coerente` (0007) — um índice sem versão é o índice
+mentindo de novo, e uma versão sem índice é um campo que não decide nada.
+
+**A RESPOSTA HERDA O CARD DA RAIZ**, no trigger de um nível, e é a única
+incoerência que importa de verdade: sem isso, um `resposta_a` apontando para um
+comentário do card 3 chega com `card_indice` nulo e cai na thread da PEÇA —
+respondendo uma pergunta numa thread que não mostra a pergunta. Ela é lida
+DEPOIS do achatamento, para a pergunta ser sobre a raiz de verdade. **E não há
+trigger protegendo as duas colunas**: um `card_indice = 7` forjado num
+carrossel de cinco põe o comentário de quem o forjou numa thread que ninguém
+abre.
+
+**E O ENTREGÁVEL NÃO GANHA CARD, de propósito.**
+`deliverable_versions.arquivos` tem a mesma forma (0053) e quer dizer outra
+coisa — *"'Lâmina A5' é o PDF de impressão, o AI aberto e o JPG de conferência
+— três arquivos, uma entrega, uma decisão do cliente"*. São FORMATOS da mesma
+peça, não quadros de uma composição, e a generalização obvia poria a thread do
+PDF separada da do AI: a mesma peça dita duas vezes. **A coluna fica em
+`comments` porque ela é UMA tabela para os dois tipos**, e quem separa é a
+TELA — pela mesma pergunta que ela já faz para desenhar a faixa: `modelo.artes`
+e não `midia`, então isto vale para post e para entregável sem um `if` por
+tipo.
+
+##### A THREAD TEM DOIS ESCOPOS, e as duas contagens à vista
+
+Um seletor — **"A peça inteira (2) / Card 3 (1)"** — e não uma lista só com um
+selo por linha: *"não misturar cards"* descarta a lista única, e esconder a
+conversa da peça enquanto um card está em foco esconderia a outra metade.
+**O que recolhe continua dizendo quantos tem dentro**, que é a regra da faixa
+de áreas de Minhas Tasks — inclusive no zero, porque aqui a linha RESPONDE o
+que existe em cada escopo e "nenhum" é resposta: é o contrário do selo da fila
+de aprovações, que COBRA uma ação e por isso some no zero.
+
+**O CARD EM FOCO É O DO VISUALIZADOR, e não um segundo seletor.** Ele desce por
+contexto (`CardSelecionado`): o cliente está olhando o terceiro quadro, e a
+conversa que ele precisa ler é a do terceiro. Dois seletores diriam duas coisas
+sobre qual card está em foco, e a que divergiria é a da thread — a que decide
+onde o texto vai ser gravado.
+
+**É CONTEXTO E NÃO ESTADO LEVANTADO, e a razão é mecânica:** `detalhe-do-conteudo.tsx`
+é um componente de SERVIDOR, e estado não mora lá; envolver a página num
+componente de cliente puxaria o texto e o histórico para o bundle por causa de
+um número. O provedor é cliente, os `children` continuam sendo o RSC do
+servidor, e os dois consumidores — que já eram de cliente — leem o mesmo
+número. **E o hook devolve `null` fora do provedor** em vez de estourar: a
+faixa é compartilhada com o painel lateral do calendário, que não precisa do
+foco compartilhado, e um `throw` obrigaria todo chamador a embrulhar a tela
+para usar um componente que não mudou.
+
+**A VERSÃO SÓ APARECE QUANDO NÃO É A DE AGORA** — *"pedido na v1"*. Escrevê-la
+em toda linha de uma conversa que é toda da versão corrente é a mesma
+informação repetida: pinta-se a exceção.
+
+**E O INDICADOR É O QUE TORNA ISSO DESCOBRÍVEL.** `FaixaDaComposicao` ganhou
+`marcadores` — quantos comentários tem cada quadro —, porque sem o selo quem
+abre a composição não tem como saber que o terceiro carrega um pedido de ajuste:
+ele teria de clicar nos cinco. Zero não desenha nada, o par é o medido do botão
+cheio (`--action-foreground` sobre `--action`) e nunca opacidade sobre a
+imagem, e ele fica à DIREITA porque a esquerda é o número do quadro — os dois
+no mesmo canto se leriam como um número de dois dígitos. **A conta é na TELA e
+não no banco:** a lista inteira já está ali, e uma segunda consulta somando por
+card daria dois números para o mesmo fato — e o que divergiria é o do selo, que
+é justamente o que faz alguém clicar. Ela conta a raiz **e** as respostas,
+porque o selo responde *"tem conversa aqui?"*.
+
+##### E A AGÊNCIA NÃO TINHA ONDE LER NADA DISSO
+
+**É a décima nona ponte construída e nunca atravessada, e a mais barata de
+desfazer.** `comments` existe desde a 0032, `comments_select` é `is_staff()`
+desde então, e **nenhuma tela do painel lia a tabela**: o comentário que o
+cliente escrevia no portal só existia do lado de lá. O que chegava aqui era o
+sino, que se apaga no primeiro clique — e o pedido de ajuste ficava na rodada,
+que a tela de produção não mostra. O próprio JSDoc de `comentarNoConteudo`
+dizia isso em quantas palavras: *"a agência não tem, hoje, um lugar de onde
+comentar um material do lado de lá"*.
+
+Agora o editor do social desenha **a mesma `ThreadDeComentarios`**, com a mesma
+ação e a mesma leitura — `comentariosDe()` entrou no pacote de
+`obterPostDaAgencia()`, e não como uma segunda consulta. É a decisão da
+conversa das Solicitações palavra por palavra: *"a ação é UMA, para os dois
+lados: mesma tabela, mesma validação, mesma cota"*. Ela fica logo DEPOIS da
+arte e antes dos campos, que é a ordem da leitura de quem produz — o que mudar,
+e então onde mudar.
+
+**`interno` continua fora da assinatura mesmo para a equipe**, e a ausência é
+decisão: quem responde o pedido de ajuste de um card está respondendo ao
+cliente, e é essa a conversa. Uma nota interna por card é outra coisa, e
+ninguém a pediu.
+
+**E ESCOLHER UM QUADRO PASSOU A SER LEITURA, não edição.** O anel da faixa do
+editor dependia de `podeEditar`, porque ele só escolhia o alvo do botão de
+remover; agora ele escolhe também de qual card é a conversa, e quem não edita o
+post ainda precisa ler o pedido do terceiro quadro. O botão de remover continua
+só para quem pode.
+
+**O "agora" desce do servidor**, que é a regra escrita da thread: com
+`new Date()` dentro do componente de cliente, o SSR renderiza "há 2 horas" e o
+navegador recalcula outra coisa na hidratação.
+
+##### O `check:prototipo` ERA CEGO A UMA CLASSE INTEIRA DE SELETOR
+
+Ele confere que o TEXTO de cada seletor de clique ainda existe no produto, e o
+`clicar` em ARRAY era casado por `\[[^\]]*\]` — *"abre colchete, nada que seja
+colchete, fecha"*. **Todo seletor de atributo tem um `]` dentro**
+(`[aria-label="x"]`), então o casamento parava no primeiro colchete interno e o
+resto do array não era conferido.
+
+Eram **21 textos em 7 telas**, e **15 deles anteriores a este sprint** —
+incluindo as três telas da faixa de disponibilidade, que é a entrega mais
+recente a depender de clique encadeado. A checagem dizia *"56 textos, todos no
+produto"* sem nunca ter olhado para nenhum deles. **É a mesma falha de um
+sprint atrás, uma camada acima:** lá o `[^\n]*?` entre o `nome:` e o `clicar:`
+deixava de fora toda entrada escrita em mais de uma linha. As duas vezes o
+sintoma foi um número crescendo e nada reprovando. Hoje são **77**.
+
+**E o conserto obrigou a decidir o que fazer com rótulo MONTADO.** `Card 3`,
+`Escolher a arte 3` e `8 de setembro` existem na tela e não existem em `src/` —
+são interpolação e `date-fns`. A saída não é uma lista de ignorados:
+`INTERPOLADOS` diz qual TRECHO de `src/` produz cada um, e é esse trecho que
+passa a ser conferido — trocar *"Escolher a arte"* por *"Escolher o slide"*
+derruba a checagem do mesmo jeito, e o que se perde é só a conferência do
+número, que é a parte que o produto calcula. É a decisão do `-- SEM LINHA:` do
+`onde-esta-o-banco.sql` e das `ISENTAS` do `check:acoes`: **uma isenção sem
+motivo escrito é onde o furo seguinte se esconde.**
+
+**Medido com duas mutações:** um seletor morto dentro de um array com colchete
+é pego pelo extrator novo e **passa VERDE** com o velho.
+
+##### Oito casos medidos, e o oitavo é um achado a mais
+
+Contra o Postgres de produção, numa transação revertida: índice sem versão,
+versão sem índice e índice negativo são **recusados**; os dois nulos e o par
+inteiro passam; a resposta sem card **herda `2 / 1` da raiz**; a resposta de
+resposta vira resposta da raiz **e mantém o card**; e a resposta a um
+comentário da PEÇA com um card forjado tem o par **zerado para nulo** — a
+herança protege os dois sentidos.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a bateria não foi
+rodada** — não há Docker nem Postgres local neste ambiente —, então não há
+cenário de SQL para os três checks nem para a herança; o que existe é a medição
+acima. E **o protótipo não foi rodado**: as três telas novas
+(`62-carrossel-card`, `16y-portal-post-card`, `16z-portal-post-card-375`) estão
+escritas e o `check:prototipo` está verde, mas o seletor de escopo, o marcador
+na faixa e o rótulo da versão **não foram conferidos em imagem** — nem no
+claro, nem no escuro, nem em 375px.
+
+***E o que fica em aberto:*** não existe conversa por card no entregável de
+campanha, pela razão escrita acima; nem marcador na grade do Feed, que já
+carrega o canto de cima e o ponto de status e onde um terceiro marcador numa
+miniatura quadrada vira confete.
+
 #### O cliente aprova a corrente ETAPA POR ETAPA, e é padrão da conta
 
 Migration 0076, decisão do usuário: *"preciso poder escolher, se as etapas vão
@@ -15199,6 +15391,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O comentário por card | **Cada card do carrossel passou a ter a conversa dele** (migration 0126), decisão do usuário: *"Comentários individuais por card do carrossel"*, com a hierarquia *"Campanha → Peça → Card"* e *"não misturar cards"*. **O CARD É UM SLIDE**, e o título do pedido diz isso — não é o filho de um entregável (a árvore da 0033) nem a caixinha de `post_etapa_progresso`. **Quase tudo existia:** `comments` é polimórfica desde a 0032, com a thread de um nível, `interno` e o autor forçados por trigger, o aviso por trigger e as quatro policies — e a tela de detalhe é UMA SÓ para post e entregável. O que faltava era a thread saber de QUAL quadro o cliente falava: um carrossel de cinco slides tinha UMA conversa, e *"trocar o texto do terceiro"* obrigava quem produz a descobrir qual era o terceiro. **A ÂNCORA É A POSIÇÃO E NÃO A URL, e isso foi medido:** `gravarVersao` recebe a lista `arquivos` inteira e o editor manda os arquivos que acabaram de subir, então a v2 de um carrossel consertado tem cinco caminhos NOVOS no bucket — pela URL a thread se perderia a cada versão, no instante em que quem produz está lendo o pedido. **E `card_versao` impede o índice de mentir:** remover um slide do meio faz os quadros andarem (0048), então o pedido do terceiro de cinco cairia no terceiro de quatro — plausível e errado. **Nulo é a peça**, o par é coerente nos dois sentidos (a forma de `subtasks_tipo_aprovacao_coerente`), e **a RESPOSTA herda o card da raiz** no trigger de um nível: sem isso ela cai na thread da PEÇA, respondendo uma pergunta numa thread que não mostra a pergunta. **O entregável NÃO ganha card**, porque os arquivos dele são FORMATOS da mesma peça (0053) e não quadros de uma composição. Na tela, a thread tem DOIS escopos com as duas contagens à vista — *"não misturar cards"* descarta a lista única, e esconder a peça esconderia a outra metade —, o card em foco é o do VISUALIZADOR e não um segundo seletor, e ele desce por CONTEXTO porque a tela de detalhe é de SERVIDOR. **E A AGÊNCIA NÃO TINHA ONDE LER NADA DISSO: é a décima nona ponte** — `comments_select` é `is_staff()` desde a 0032 e nenhuma tela do painel lia a tabela; o que chegava era o sino, que se apaga no primeiro clique. **Oito casos medidos contra produção**, em transação revertida, e o oitavo é um achado: um card forjado numa resposta à peça é zerado — a herança protege os dois sentidos. **De quebra, o `check:prototipo` era cego a uma classe inteira de seletor:** o `clicar` em ARRAY era casado por `\[[^\]]*\]`, e todo seletor de atributo tem um `]` dentro — eram **21 textos em 7 telas, 15 anteriores a este sprint**, com a checagem dizendo *"56 textos, todos no produto"* sem ter olhado para nenhum. Hoje são 77, com `INTERPOLADOS` dizendo qual trecho de `src/` produz cada rótulo montado. Medido com duas mutações: o mesmo seletor morto passa VERDE com o extrator velho. ***Não foi feito, e é dito:*** a bateria não rodou (sem Docker/Postgres aqui) e o protótipo não rodou — as três telas novas estão escritas e nada foi conferido em imagem. |
 | O briefing da campanha | **O briefing de campanha virou ESTRUTURADO** (migration 0125), decisão do usuário: *"nome, objetivo, público, período; mensagem, produtos, tom, canais; tipos/quantidades/formatos/dimensões; upload de imagens/PDFs + links + observações; restrições"*, com *"persistir com anexos"* e *"reutilizável"*. **METADE JÁ EXISTIA, e é isso que torna a migration pequena:** nome e período são colunas de `campaigns` desde a 0033, tipos e quantidades são `campaign_composicao` (0122), e os anexos e as observações são `task_referencias` e `tasks.briefing_rico` **da demanda** — a decisão da 0051, que continua inteira. O que nasce são NOVE colunas: sete narrativas e duas na composição. **SÃO SETE CAMPOS NOMEADOS E NÃO UMA CAIXA DE TEXTO**, pela razão do roteiro das Solicitações (0068): *"um campo de texto livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta'"*. **E são COLUNAS e não um jsonb**, pelo critério de `post_versions.arquivos` (`publico` é por onde um relatório agruparia) e pelo de `assets` na 0070 (*num jsonb a tela inventa as chaves, até a segunda escrever `tom_voz` onde a primeira escreveu `tom_de_voz`*) — `check:tipos` liga migration a coluna e não liga chave de jsonb a nada. **NÃO HÁ TABELA DE ANEXO NOVA e nem uma linha de upload nova:** `Referencias` é o MESMO componente da tela da demanda, com o `taskId` dela — e *o custo está dito*, os anexos só sobem depois que a campanha existe, porque antes não há `task_id` a que prendê-los (0028), então a tela de abertura diz onde eles ficam em vez de não dizer nada. **A LINHA DE SEGURANÇA é o briefing NÃO entrar em `CampanhaDoPortal`**: aquele tipo é o que o portal recebe, e pôr as sete ali mandaria o objetivo, o público e as restrições no payload de quem contratou — quem as lê é `briefingDaCampanha()`, a decisão de `contatosDasMinhasEmpresas()`. **`canais` é texto livre e não enum** (a razão de `posts.formato`), *e isso custa a agregação, que fica dito* — a diferença é que ninguém conta por canal; a normalização é de `canaisNormalizados()`, um lugar só, e a trava de repetição no banco seria a 0060 de novo. **A assinatura de `abrir_campanha()` não muda pela terceira vez** (0061, 0120): as nove são segundas escritas, em TRÊS, com UMA frase que conta o que falhou — *um `return` por escrita faria a pessoa ler sobre a frente e nunca saber que o briefing também ficou de fora*. **O trigger foi copiado INTEIRO** (a lição da 0030) e ganhou a quinta recusa, com a dica nomeando o que quem produz **ainda pode** editar. **Medido contra o Postgres de produção, cinco casos numa transação revertida:** a designer é recusada no objetivo e nos canais, **passa na capa** (a 0050 inteira), a gestão grava os sete, e a empresa é recusada para a gestão também. **E `check:mensagens` reprovou o meu próprio comentário pela oitava vez** — a explicação escrevia com parênteses o nome da função que monta a frase da recusa, e a varredura a leu como uma chamada sem o nome da action. ***O que NÃO foi feito, e é dito:*** a bateria não foi rodada (sem Docker nem Postgres aqui), então não há cenário de SQL para a recusa nova; e o protótipo não foi rodado, então a seção, os chips de canal e a linha de especificação não foram conferidos em imagem. |
 | A espiral da porta | **A molécula saiu e a espiral da identidade entrou** — decisão do usuário, item 5 da lista dele: *"substituir a animação das moléculas pela espiral da nova identidade, preservando a sensação de movimento e conexão"*. A agência mandou cinco SVG que, medido, diferem **só na cor** — tirando o hexadecimal, os cinco são byte a byte o mesmo desenho, que é exatamente a fatoração que esta casa faz com token. **O DESENHO É LITERAL, e a medição explica por quê:** a POSIÇÃO dos 259 pontos é uma filotaxia de Vogel exata (distância `29,5 · √(i+1)`, ângulo de ouro a cada passo) e reconstrói por fórmula com **0,0066 px** de erro, que é o arredondamento do próprio arquivo; o RAIO de cada ponto, não — ele cresce de 2,61 a 11,97 com o passo caindo de 0,08 para 0,03, e o ajuste linear erra 0,69 px num ponto de 5. **Gerar por fórmula acertaria onde cada ponto está e inventaria o tamanho dele**, que é a definição de desenho parecido. O vazado é `i % 7 === 2`, conferido ponto a ponto: 37 dos 259, sem exceção. **O movimento são duas animações empilhadas, como as da molécula:** uma volta em 120s linear e a respiração de escala em 26s — o mesmo 26s do ciclo de dividir e juntar que ela substitui. **E a "conexão" passou a ser a própria forma:** a molécula afirmava conexão por um EVENTO, duas gotas que viram uma; numa filotaxia cada ponto está em dois braços ao mesmo tempo, e é girando que os braços aparecem. **A ESCALA INVERTEU DUAS VEZES, e as duas por imagem:** a 1,5 (que eu calculei com a meia-diagonal no lugar da meia-largura) só a periferia cabe e o que saiu foi **um campo de bolinhas**, porque uma filotaxia não se reconhece sem o degradê de densidade — o excesso de escala tirava da tela a parte que faz a forma ser a forma. A 0,7 ela é um objeto, e a borda deixou de ser a moeda que eu queria esconder para ser o contorno da marca. Escolhida entre quatro escalas, em imagem. **E ela muda no celular, por enquadramento:** a 0,7 em 375px a espiral não alcança a faixa acima nem a abaixo do cartão, que é onde o fundo aparece num celular — a 1,05 ela preenche a altura e sangra pelos lados. **Saíram o halo e o véu**, e as duas ausências são medidas: o halo existia pela borda seca do corte do alpha, que um ponto não tem, e o véu era uma malha de pontos parados para o movimento ter contra o que se ler — numa rotação a referência é interna. **A cor é `--brand-blue`, e a agência escolheu por nós:** dois dos cinco arquivos vêm em cores que já são token deste produto, e o quinto é um ciano um passo ao lado que não entra, porque dois cianos a um passo são duas verdades esperando divergir. **A opacidade é de grupo e não quebra a regra do par nomeado:** o que ela proíbe é opacidade sobre um fundo QUALQUER, e aqui o fundo é preto, um só e fixo, com o composto calculado em duas contas escritas. **Os três textos da porta ficaram mais legíveis**, e o mais apertado é o que mais ganhou: o subtítulo, o link e o placeholder passaram de **5,92:1 para 8,00:1**. ***E a minha primeira conta do pior caso foi estimada, no mesmo arquivo que proíbe isso*** — #1F2B33 de cabeça contra #1C2F39 calculado. **"Molécula" não entrou na lista de nomes mortos**, porque aquela lista existe para um nome não voltar à TELA e esta palavra nunca esteve em tela nenhuma. |
 | A paleta oficial | **O azul da interface passou a ser o azul da marca do produto, e o royal saiu** — decisão do usuário, item 4 da lista dele (*"atualizar a interface para as cores oficiais do Full Hub"*), respondida com um hexadecimal: **0267C1**. É o mesmo valor que os dois PNG do lockup já tinham dado, então a paleta e a marca são a mesma cor, e é isso que torna a troca pequena. **O QUE SAI ERA A TERCEIRA COR DO PRODUTO** — a exceção escrita à regra "duas cores da Full Connect Key e só", criada ao aprovar a interface Leve porque o ciano dá 1,18:1 sobre a malha e nunca foi cor de texto. **Aquele argumento continua inteiro, e é ele que fecha a conta:** um azul de marca que serve aos DOIS papéis — preenchimento e texto — não precisa de um terceiro ao lado. **E o tom de texto NÃO é o hexadecimal oficial, porque a malha não deixa:** `--brand-hub` sobre `--malha-no-pior-caso` dá **3,86:1**, e o link da faixa de cima ficaria abaixo do mínimo — é o mesmo furo que derrubou o alfa de 0,75 da proposta; `--action-text` é o MESMO azul, mesma matiz e mesma saturação, escurecido até passar. **Tudo o que a troca mexe ficou melhor:** branco sobre `--action` de 4,50 para **5,66**, o link sobre a malha de 4,72 para 4,80, sobre o cartão de 6,91 para 7,02, o item ativo de 5,88 para 5,93, as três paradas do degradê de 4,83/5,94/6,57 para 5,66/6,48/6,57, e no escuro o link sobre o cartão de 8,53 para 9,17. **DOIS PARES NÃO ESTAVAM NA LISTA DO `check:cores`, e um raspava o mínimo:** branco sobre `--action` dava 4,50:1 e ninguém o media; o do item ativo este arquivo afirmava em "5,88:1" desde a interface Leve, com vinte telas escrevendo `bg-action-soft text-action-text`. **O valor mora em `--brand-hub`**, entre as cores cruas, e os dois papéis apontam para ele — um valor e vários nomes, a forma de `--roxo` → `--ferias`. **E `--action` é o único dos dois que atravessa o tema:** preenchimento carrega o próprio chão, e clareá-lo no escuro como `--marca-hub` tiraria o rótulo branco de cima dele (3,2:1 naquele tom). ***O que piorou, e é dito em vez de escondido:*** o azul oficial é mais escuro que o royal, então `--action` como BORDA sobre superfície escura caiu de 3,55:1 para **2,82:1** — consequência aceita porque em toda ocorrência dele a cor é o SEGUNDO sinal (a opção escolhida troca o fundo junto, o recorte do tour vem com a tela escurecida em volta, e os outros dois usos são um fio e uma barra de progresso); **o anel de foco não é este token**, é `--ring`, que aponta para `--blue-strong` e não foi tocado. ***Em aberto:*** a **espiral** da porta, que foi pedida e ainda não chegou. |

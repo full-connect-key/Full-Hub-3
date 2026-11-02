@@ -37,6 +37,7 @@ import type {
 import type { CaixinhaDoPost, EtapaDoMes } from "@/lib/dominio/posts";
 
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
+import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
 import { AcoesDoMes } from "./acoes-do-mes";
@@ -154,6 +155,8 @@ export function SocialMedia({
   portaoDoMes,
   aprovacoesDoCliente,
   referencias,
+  comentarios,
+  agora,
   clientes,
   equipe,
   fluxos,
@@ -176,6 +179,10 @@ export function SocialMedia({
   /** Rodadas de cliente já aprovadas do post aberto — o `k` do portão. */
   aprovacoesDoCliente: number;
   referencias: ReferenciaDoPost[];
+  /** A conversa da peça aberta — a da peça e a de cada card (0126). */
+  comentarios: ComentarioDoConteudo[];
+  /** O instante do servidor, para o tempo relativo não divergir na hidratação. */
+  agora: string;
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string }[];
   /** A integração com o Drive está ligada? Decide o botão "Criar no Drive". */
@@ -302,6 +309,8 @@ export function SocialMedia({
       portaoDoMes={portaoDoMes}
       aprovacoesDoCliente={aprovacoesDoCliente}
       referencias={referencias}
+      comentarios={comentarios}
+      agora={agora}
       equipe={equipe}
       quemLe={quemLe}
       compacto={visao === "calendario"}

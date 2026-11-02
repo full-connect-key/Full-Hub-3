@@ -52,6 +52,8 @@ export async function comentariosDe(
       daAgencia: false,
       interno: false,
       respostaA: null,
+      cardIndice: null,
+      cardVersao: null,
     },
     {
       id: "c2",
@@ -62,6 +64,44 @@ export async function comentariosDe(
       daAgencia: true,
       interno: false,
       respostaA: "c1",
+      cardIndice: null,
+      cardVersao: null,
+    },
+
+    // A CONVERSA DE UM CARD, e de UM SÓ (0126).
+    //
+    // Ela é o que faz a peça nova sair em imagem: o marcador no terceiro
+    // quadro da faixa, o seletor de escopo com os dois números, e a linha que
+    // diz de qual versão era o pedido.
+    //
+    // **E um só de propósito.** Com marcador nos três, a imagem provaria que
+    // o selo aparece e não que ele DISTINGUE — que é a razão pela qual o
+    // exemplo do calendário tem um evento de cada par da legenda. Com o card
+    // 3 marcado e os dois primeiros limpos, o "não misturar cards" do pedido
+    // aparece desenhado.
+    {
+      id: "c3",
+      texto: "No terceiro, o preço ficou por cima da folha. Dá para subir?",
+      quando: new Date(HOJE.getTime() - 3600e3 * 2).toISOString(),
+      autorId: "cliente",
+      autor: "Joana Prado",
+      daAgencia: false,
+      interno: false,
+      respostaA: null,
+      cardIndice: 2,
+      cardVersao: 2,
+    },
+    {
+      id: "c4",
+      texto: "Subi dois centímetros. Olha se ficou bom assim.",
+      quando: new Date(HOJE.getTime() - 3600e3).toISOString(),
+      autorId: "marina",
+      autor: "Marina Costa",
+      daAgencia: true,
+      interno: false,
+      respostaA: "c3",
+      cardIndice: 2,
+      cardVersao: 2,
     },
   ];
 }
