@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -314,9 +315,11 @@ export function DetalheDoPedido({
           ) : null}
 
           {pedido.status !== "recusada" && !pedido.demanda ? (
-            <Button variant="outline" disabled={executando} onClick={() => setRecusando((v) => !v)}>
-              Recusar
-            </Button>
+            <BotaoDeDecisao
+              decisao="recusar"
+              disabled={executando}
+              onClick={() => setRecusando((v) => !v)}
+            />
           ) : null}
 
           {souGestor ? (
@@ -357,8 +360,11 @@ export function DetalheDoPedido({
             <Button variant="ghost" onClick={() => setRecusando(false)}>
               Cancelar
             </Button>
-            <Button
-              disabled={executando || motivo.trim().length < 5}
+            <BotaoDeDecisao
+              decisao="recusar"
+              rotulo="Recusar e avisar"
+              carregando={executando}
+              disabled={motivo.trim().length < 5}
               onClick={() =>
                 comecar(async () => {
                   const r = await chamarEMostrar(() => recusarSolicitacao(pedido.id, motivo));
@@ -368,9 +374,7 @@ export function DetalheDoPedido({
                   }
                 })
               }
-            >
-              Recusar e avisar
-            </Button>
+            />
           </div>
         </div>
       ) : null}

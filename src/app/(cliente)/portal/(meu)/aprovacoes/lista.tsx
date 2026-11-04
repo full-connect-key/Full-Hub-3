@@ -9,13 +9,13 @@ import {
   ArrowRight,
   BadgeCheck,
   ExternalLink,
-  Loader2,
   Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -278,13 +278,8 @@ function CartaoPendente({
             {/* O <span> existe para o tooltip ter o que escutar: botão
                 desabilitado não dispara evento de mouse. */}
             <span className="inline-flex flex-wrap gap-2">
-              <Button variant="outline" disabled>
-                Solicitar ajustes
-              </Button>
-              <Button disabled>
-                <BadgeCheck aria-hidden />
-                Aprovar
-              </Button>
+              <BotaoDeDecisao decisao="ajustar" disabled />
+              <BotaoDeDecisao decisao="aprovar" disabled />
             </span>
           </TooltipTrigger>
           <TooltipContent>
@@ -294,24 +289,23 @@ function CartaoPendente({
         </Tooltip>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
+          {/* O ÍCONE DE APROVAR ERA `BadgeCheck` AQUI e `Check` no detalhe do
+              material — o mesmo botão, a mesma decisão, dois desenhos, em duas
+              telas que a pessoa atravessa num clique. É `ICONE_DA_AREA` de
+              novo, e quem responde agora é o mapa. */}
+          <BotaoDeDecisao
+            decisao="ajustar"
             disabled={executando}
             onClick={() => {
               setMotivo("");
               setPedindoAjustes(true);
             }}
-          >
-            Solicitar ajustes
-          </Button>
-          <Button disabled={executando} onClick={() => decidir("aprovada", "")}>
-            {executando ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <BadgeCheck aria-hidden />
-            )}
-            Aprovar
-          </Button>
+          />
+          <BotaoDeDecisao
+            decisao="aprovar"
+            carregando={executando}
+            onClick={() => decidir("aprovada", "")}
+          />
         </div>
       )}
 
@@ -338,13 +332,13 @@ function CartaoPendente({
             <Button variant="outline" onClick={() => setPedindoAjustes(false)}>
               Cancelar
             </Button>
-            <Button
-              disabled={motivo.trim().length === 0 || executando}
+            <BotaoDeDecisao
+              decisao="ajustar"
+              rotulo="Enviar pedido"
+              carregando={executando}
+              disabled={motivo.trim().length === 0}
               onClick={() => decidir("ajustes_solicitados", motivo)}
-            >
-              {executando ? <Loader2 className="animate-spin" /> : null}
-              Enviar pedido
-            </Button>
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

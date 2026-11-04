@@ -110,6 +110,101 @@ function contraste(a, b) {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
+// --- e as cores que precisam ser DISTINGUÍVEIS entre si ---------------------
+//
+// Contraste responde "dá para LER o texto em cima disto". Ele não responde
+// "dá para diferenciar isto daquilo", e são perguntas diferentes: dois botões
+// podem ter 10:1 cada um e serem a mesma cor um para o outro.
+//
+// **O produto já tinha pago por isso uma vez, à mão.** O Financeiro mediu o
+// par receita/despesa e recusou o encode óbvio: *"o par dá ΔE 4,2 em
+// deuteranopia — as duas linhas ficam idênticas para quem tem daltonismo
+// vermelho-verde, que é o mais comum"*. Aquela medição foi feita uma vez, por
+// uma pessoa, e não ficou em lugar nenhum que reprove.
+//
+// Ela passou a ficar porque a entrega seguinte repetiu o erro: a primeira
+// versão dos três botões de decisão usou `--warning` cheio no "Solicitar
+// ajustes", e `--warning` é cor de TEXTO — escurecida de propósito até ler
+// bem a 11px. Âmbar escurecido é marrom, e o marrom contra o vermelho da
+// recusa dá **ΔE 1,2** em deuteranopia: os dois desfechos negativos, lado a
+// lado, na mesma cor. Contraste passava nos dois (6,33:1 e 6,47:1), e nenhuma
+// das onze verificações do projeto tinha como perceber.
+
+// Brettel/Viénot: a simulação clássica, no espaço LMS de Hunt-Pointer-Estévez.
+function paraLms([r, g, b]) {
+  return [
+    17.8824 * r + 43.5161 * g + 4.11935 * b,
+    3.45565 * r + 27.1554 * g + 3.86714 * b,
+    0.0299566 * r + 0.184309 * g + 1.46709 * b,
+  ];
+}
+
+function deLms([l, m, s]) {
+  return [
+    0.0809444479 * l - 0.130504409 * m + 0.116721066 * s,
+    -0.0102485335 * l + 0.0540193266 * m - 0.113614708 * s,
+    -0.000365296938 * l - 0.00412161469 * m + 0.693511405 * s,
+  ];
+}
+
+function linear(hex) {
+  return canais(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+}
+
+function simular(hex, tipo) {
+  if (tipo === "normal") return linear(hex);
+  let [l, m, s] = paraLms(linear(hex));
+  if (tipo === "protanopia") l = 2.02344 * m - 2.52581 * s;
+  if (tipo === "deuteranopia") m = 0.494207 * l + 1.24827 * s;
+  return deLms([l, m, s]);
+}
+
+// CIE76 sobre L*a*b*, que é a mesma conta do Financeiro.
+function lab([r, g, b]) {
+  const fix = (v) => Math.min(1, Math.max(0, v));
+  const [R, G, B] = [fix(r), fix(g), fix(b)];
+  const X = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047;
+  const Y = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+  const Z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const [fx, fy, fz] = [f(X), f(Y), f(Z)];
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+function distancia(a, b, tipo) {
+  const la = lab(simular(a, tipo));
+  const lb = lab(simular(b, tipo));
+  return Math.hypot(la[0] - lb[0], la[1] - lb[1], la[2] - lb[2]);
+}
+
+// O PISO É 10, e ele vem do que já foi recusado: o Financeiro descartou um par
+// a 4,2 como indistinguível, e as três decisões hoje ficam entre 24 e 69 —
+// então 10 reprova o que já se sabe ruim e passa longe de tudo o que o
+// produto usa. Ele não é um número da literatura; é a régua desta casa.
+const DISTINGUIVEL = 10;
+
+// Grupos em que a cor é o que separa um item do outro. Não é toda cor do
+// produto: só onde duas coisas aparecem JUNTAS e a cor é parte de como se
+// diz qual é qual.
+const GRUPOS = [
+  {
+    nome: "as três decisões, lado a lado",
+    tokens: ["--aprovar", "--ajustar", "--recusar"],
+    // Por que estes e não os `-foreground`: o que o olho compara entre dois
+    // botões é o CHÃO deles. O texto de cada um já foi medido contra o chão
+    // dele na seção de contraste, acima.
+  },
+  {
+    nome: "as séries do gráfico",
+    tokens: ["--serie-1", "--serie-2", "--serie-neg"],
+    // Aqui a cor é o ÚNICO sinal — uma linha de gráfico não tem palavra nem
+    // ícone —, e foi este grupo que ensinou a conta ao produto.
+  },
+];
+
 // --- os pares que a interface realmente usa --------------------------------
 
 const NORMAL = 4.5;
@@ -332,6 +427,39 @@ const PARES = [
   ["--success-foreground", "--success", NORMAL, "texto sobre verde"],
   ["--warning-foreground", "--warning", NORMAL, "texto sobre âmbar"],
   ["--destructive-foreground", "--destructive", NORMAL, "texto sobre vermelho"],
+  // O MESMO PAR PELO NOME CANÔNICO, e as duas linhas ficam de propósito.
+  // `--destructive` aponta para `--danger` e `--destructive-foreground` para
+  // `--danger-foreground`, então hoje uma linha mede as duas — e é justamente
+  // por isso que as duas estão aqui: no dia em que alguém desfizer a cadeia,
+  // uma mede o botão de apagar e a outra mede a decisão de recusar, em vez de
+  // uma afirmar sobre a outra. É a decisão de `--ferias`/`--roxo`.
+  ["--danger-foreground", "--danger", NORMAL, "texto sobre o vermelho da recusa"],
+  // E O HOVER DOS TRÊS, que é a metade que só apareceu porque foi medida. A
+  // primeira versão do botão usava `hover:brightness-110`, e um filtro do
+  // Tailwind não é cor nomeada: esta varredura não tem como resolvê-lo, então
+  // ela dizia "tudo certo" sobre um hover em que branco sobre o verde claro
+  // caía para 4,26:1 — abaixo do mínimo, no botão mais clicado do produto.
+  // É a razão de `--action-grad-1/2/3` existirem: o que a varredura não mede
+  // vira token para poder ser medido.
+  // OS TRÊS CHÃOS DE DECISÃO SÃO TOKENS PRÓPRIOS e não `--success`,
+  // `--warning` e `--danger` — a razão, com os números, está no `globals.css`.
+  // Eles não têm par no `.dark` porque preenchimento carrega o próprio chão
+  // (a decisão de `--action`), então a varredura mede os dois temas e os dois
+  // dão o mesmo número: é o certo, e é o que mata a colisão do tema escuro
+  // por construção.
+  ["--aprovar-foreground", "--aprovar", NORMAL, "aprovar"],
+  ["--ajustar-foreground", "--ajustar", NORMAL, "solicitar ajustes"],
+  ["--recusar-foreground", "--recusar", NORMAL, "recusar"],
+  ["--aprovar-foreground", "--aprovar-hover", NORMAL, "aprovar, com o ponteiro em cima"],
+  ["--ajustar-foreground", "--ajustar-hover", NORMAL, "solicitar ajustes, com o ponteiro em cima"],
+  ["--recusar-foreground", "--recusar-hover", NORMAL, "recusar, com o ponteiro em cima"],
+  // AS TRÊS DECISÕES COMO TEXTO SOBRE O CARTÃO. É onde elas caem quando a ação
+  // é secundária e vive num item de menu: ali a cor é do TEXTO, porque um
+  // fundo cheio dentro de uma lista se lê como "selecionado" e não como
+  // "recusar". `--popover` aponta para `--surface-card`, então este é o par.
+  ["--success", "--surface-card", NORMAL, "aprovar como texto no menu"],
+  ["--warning", "--surface-card", NORMAL, "solicitar ajustes como texto no menu"],
+  ["--danger", "--surface-card", NORMAL, "recusar como texto no menu"],
   ["--success", "--success-soft", NORMAL, "selo de sucesso"],
   ["--warning", "--warning-soft", NORMAL, "selo de atenção"],
   ["--danger", "--danger-soft", NORMAL, "selo de erro"],
@@ -1015,6 +1143,49 @@ if (desconhecidas.size === 0) {
     falhas++;
     console.log(`  FALHOU  ${classe} — não há --color-* com esse nome em ${CSS}`);
     console.log(`          O Tailwind não emite nada para ela, e a tela fica sem a cor.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log("\nCores que precisam ser distinguíveis entre si\n");
+
+for (const grupo of GRUPOS) {
+  // A MESMA FORMA DO LAÇO DE CONTRASTE: o tema claro é o `base` sozinho (mapa
+  // vazio por cima), e o escuro é o `dark` com o `base` por baixo — é o que
+  // `resolver` já espera, e é o que faz um token sem par no `.dark` medir o
+  // mesmo nos dois, que é o certo para `--ajuste`.
+  for (const [tema, tabela] of [
+    ["claro", new Map()],
+    ["escuro", dark],
+  ]) {
+    for (let i = 0; i < grupo.tokens.length; i++) {
+      for (let j = i + 1; j < grupo.tokens.length; j++) {
+        const [a, b] = [grupo.tokens[i], grupo.tokens[j]];
+        const va = resolver(a, tabela, base);
+        const vb = resolver(b, tabela, base);
+        if (!va || !vb) {
+          falhas++;
+          console.log(`  FALHOU  ${!va ? a : b} não existe em ${CSS}`);
+          continue;
+        }
+        const medidas = ["normal", "protanopia", "deuteranopia"].map((t) => ({
+          t,
+          d: distancia(va, vb, t),
+        }));
+        const pior = medidas.reduce((x, y) => (y.d < x.d ? y : x));
+        const rotulo = `${a.replace("--", "")} × ${b.replace("--", "")} (${tema})`;
+        if (pior.d < DISTINGUIVEL) {
+          falhas++;
+          console.log(`  FALHOU  ${rotulo.padEnd(44)} ΔE ${pior.d.toFixed(1)} em ${pior.t}`);
+          console.log(`          ${grupo.nome} — as duas ficam a mesma cor para quem tem`);
+          console.log(`          esse daltonismo. O piso é ${DISTINGUIVEL}.`);
+        } else {
+          console.log(
+            `  ok      ${rotulo.padEnd(44)} ΔE ${pior.d.toFixed(1)} no pior caso (${pior.t})`,
+          );
+        }
+      }
+    }
   }
 }
 

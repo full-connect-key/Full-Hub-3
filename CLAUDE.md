@@ -355,6 +355,170 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   que foi pedido e decidido.
 - Pedir ajustes **exige** comentário, na action e no banco.
 
+#### AS TRÊS DECISÕES TÊM COR, e elas são um componente
+
+Decisão do usuário: *"APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho; em
+todos os módulos; textos+ícones; registrar no histórico; justificativa na
+recusa; sincronizar portal/dashboard"*.
+
+**CINCO METADES, E QUATRO JÁ EXISTIAM.** Ir medir antes de escrever é o que
+separou o que precisava de código do que só precisava ser nomeado — e é a
+lição da 0060, onde uma segunda pergunta embaixo de uma primeira que já barra
+todo mundo não barra ninguém:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| registrar no histórico | `approval_rounds` **sem policy de DELETE**, com quem decidiu, quando e com que comentário — e fora do `audit_log` justamente por isso |
+| sincronizar portal/painel | o mapa único, por construção |
+| as três cores | **não existia** |
+| textos e ícones | **divergia** |
+| justificativa na recusa | **metade** — e ela virou a 0127 |
+
+**O QUE ESTAVA ERRADO NÃO ERA A FALTA DE COR, ERA A DIVERGÊNCIA.** As três
+decisões eram desenhadas em seis telas com quatro aparências:
+
+| Onde | Aprovar | Ajustes | Recusar |
+| --- | --- | --- | --- |
+| detalhe do material | pílula preta + `Check` | `outline` | `outline` + `X` |
+| fila do cliente | pílula preta + `BadgeCheck` | `outline`, sem ícone | — |
+| fila interna | pílula preta, sem ícone | `outline`, sem ícone | — |
+| nota fiscal | pílula preta + `Check` | — | `outline` + `X` |
+
+**No portal, "Solicitar ajustes" e "Rejeitar" eram o MESMO botão** — mesmo
+variant, mesmo tamanho, a dois centímetros de distância, e a única coisa que
+os separava era a palavra. Pedir ajuste e recusar são os dois desfechos
+negativos e querem dizer coisas opostas: *mude isto e volte* contra *não vai
+ao ar desta forma*.
+
+**É UM MAPA E NÃO UMA CONVENÇÃO ESCRITA** (`lib/aprovacoes/decisoes.ts`, ao
+lado de `conteudo.ts`), que é a decisão de `LinhaDeTrabalho` palavra por
+palavra: a sequência passa a ser o TIPO, e a sétima tela não tem como inventar
+uma quinta aparência. **E a PALAVRA entra no mapa**, ao contrário do que a
+`BarraDeContexto` centraliza: lá cada módulo sabe quais são as seções dele;
+aqui a lista é a mesma em todo módulo, e era ela que divergia — o botão dizia
+"Rejeitar", o título do diálogo dizia "Recusar material" e o confirmar dizia
+"Recusar", os três na mesma tela. Fica **"Recusar"**, que é a palavra do
+pedido e a que a nota fiscal e as solicitações já usavam; `rejeitada` continua
+sendo o valor do enum, que é a camada em inglês.
+
+**E A MÁQUINA DE ESTADOS LÊ O MAPA.** Das nove ações de `acoesDaSubtarefa`,
+duas são decisão sobre uma rodada, e o `rotulo` delas saía escrito lá —
+escrever "Aprovar" nos dois lugares seria a segunda verdade sobre o mesmo
+rótulo, e a que divergiria é a da máquina, porque ninguém a relê ao mexer na
+tela. As outras sete continuam com o rótulo delas: são o trabalho andando.
+
+**`enviar_cliente` NÃO é uma decisão**, e a ausência é deliberada: aprovar diz
+que o material está bom, enviar diz que é agora. Pintá-lo de verde ao lado de
+"Aprovar" seria a tela dizendo que são a mesma coisa.
+
+##### E A COR FOI MEDIDA DUAS VEZES, E AS DUAS DERRUBARAM
+
+**A primeira versão usava `--success`, `--warning` e `--danger` como chão do
+botão**, que é o óbvio: são os tokens de estado do produto, com os pares já
+medidos. **Os três reprovaram, e por motivos diferentes.**
+
+**1. O hover.** `hover:brightness-110` clareia, e branco sobre o verde claro
+cai de 5,02:1 para **4,26:1** — abaixo do mínimo, no hover do botão mais
+clicado do produto. **Um filtro do Tailwind não é cor nomeada**, então
+`check:cores` dizia "tudo certo" sobre ele. Os `--*-hover` existem para o par
+poder ser medido, e é por isso que eles **escurecem**: no claro o texto é
+branco e no escuro o chão é claro com texto escuro, então ×0,90 ajuda o par
+apertado e sobra folga no outro.
+
+**2. O daltonismo, e este é o achado.** `--warning` cheio com texto branco
+passa em contraste (6,33:1) e, simulado em **deuteranopia**, fica a **ΔE 1,2**
+do vermelho da recusa — a mesma cor. Aquele token é cor de TEXTO, escurecida
+de propósito até ler bem a 11px, e **âmbar escurecido é marrom**; marrom
+contra vermelho é indistinguível para quem não separa verde de vermelho. Ou
+seja: os dois desfechos negativos, lado a lado, idênticos — **o bug que este
+sprint existe para desfazer, reproduzido em cor**.
+
+**O produto já tinha pago por isso uma vez, à mão.** O Financeiro mediu o par
+receita/despesa e recusou o encode óbvio a ΔE 4,2. Aquela medição foi feita
+uma vez, por uma pessoa, e não ficou em lugar nenhum que reprovasse — então
+ela virou seção do `check:cores`, com simulação de Brettel/Viénot e ΔE CIE76,
+piso 10. **E foi ela que achou o segundo caso enquanto o primeiro estava sendo
+consertado:** no tema ESCURO, `--success` e `--danger` ficam a **ΔE 9,4** pelo
+motivo inverso — lá os dois são pastéis claros de luminosidade parecida, e o
+que os separa é só a matiz, que é justamente o que o daltonismo tira.
+
+**A SAÍDA É UMA FAMÍLIA PRÓPRIA DE TRÊS CHÃOS, E ELA NÃO TROCA POR TEMA.**
+`--aprovar`, `--ajustar` e `--recusar`, declarados uma vez, sem par no
+`.dark` — que é a decisão de `--action` palavra por palavra: **preenchimento
+carrega o próprio chão**, e o que o mede é o texto em cima, não o fundo atrás.
+Com isso a colisão do tema escuro deixa de existir **por construção** em vez
+de por ajuste, e as imagens do claro e do escuro saem idênticas nos três
+botões — duas imagens iguais ali são o resultado certo, como em
+`02-login-escuro`.
+
+No escuro o âmbar **calha** de ter o mesmo valor que `--warning`, e isso é
+acaso e não sinônimo: um é cor de texto, que precisa virar com o tema; o outro
+é chão de botão, que não pode. É a nota de `--text-secondary` ao lado de
+`--brand-gray` — *"os dois coincidirem era acaso, acaso que travava o
+segundo"*.
+
+Medidos: **5,02 / 10,54 / 6,47** em repouso, **5,94 / 8,51 / 7,57** no hover,
+e a pior separação entre os três é **ΔE 22,0**, em protanopia.
+
+**E `--warning-hover`, `--success-hover` e `--danger-hover` saíram** quando a
+família nasceu: eram tokens que nada mais pintava, e isso é a 0023.
+
+**A COR NUNCA É O ÚNICO SINAL**, que é a regra do chip do calendário: cada
+decisão carrega a palavra E o ícone — e é essa a segunda metade do pedido.
+Onde ela não cabe como botão cheio, a cor é do TEXTO: num `DropdownMenuItem`
+um fundo verde ocupando a linha inteira se lê como "selecionado", que é o que
+o `focus` daquele item já faz, e aí a cor diria duas coisas.
+
+**O DAY OFF FICOU DE FORA, e é dito em vez de escondido.** A decisão dele é
+"De acordo" / "Preciso remarcar", e o vocabulário é deliberadamente NÃO o de
+uma hierarquia de aprovação — a 0016 e a 0018 tiraram do módulo a palavra da
+CLT porque a equipe é toda PJ e hierarquia de aprovação é indício de
+subordinação. Pintá-la com o verde e o vermelho da família de aprovação, e com
+o `X` da recusa, desfaria aquela decisão **pela cor**: "preciso remarcar" não
+é uma rejeição, é uma remarcação.
+
+##### E A RECUSA NÃO EXIGIA MOTIVO (0127)
+
+Este arquivo afirmava, desde a 0032, que *"os dois desfechos negativos exigem
+motivo, na ação E no banco"*. **A primeira metade é verdade; a segunda valia
+para um dos dois** — e isso foi medido, não lido:
+
+- `approval_rounds` tinha **um** check, e era o de `content_type`;
+- dos **onze** triggers da tabela, só `proteger_rodada_fechada` cobrava
+  comentário, e o ramo dele perguntava `status = 'ajustes_solicitados'` e mais
+  nada.
+
+Então `rejeitada` com comentário nulo **passava pelo banco**. Quem exigia era
+`decidir_rodada_do_cliente` e os `if` das Server Actions — ou seja, exatamente
+os caminhos que passam pela tela, que são os que ninguém duvidava. **O caminho
+que a trava existe para cobrir é o outro.**
+
+É a 0029 e a 0060 vistas do avesso: lá a regra morava nos dois lados e desfazer
+um não desfez nada; aqui eu escrevi que ela morava nos dois lados e ela morava
+em um. **O custo de afirmar aqui uma propriedade que não foi conferida é que
+ela passa a ser lida como verdade por quem vier depois** — é a mesma falha da
+frase sobre a pilha de avatares não custar consulta.
+
+**SÃO O CHECK E O TRIGGER, e o argumento está na 0084:** o **check** é o piso e
+pega o que o trigger não tem como pegar — o `insert` que já nasce `rejeitada`,
+porque `proteger_rodada_fechada` é `before update`; o **trigger** é quem
+escreve a frase que a pessoa lê, porque a recusa de um check chega como
+*"violates check constraint approval_rounds_desfecho_negativo_com_motivo"*, e
+é esse texto que `atualizarTask` poria na tela.
+
+**O check cabe porque foi medido:** as 31 rodadas `aprovada` do banco estão
+todas sem comentário — que é o certo, aprovar não se explica — e **nenhuma
+linha está num desfecho negativo**, então ele se aplica sem passada de
+conversão. Fosse diferente, a saída seria o trigger sozinho, que é a decisão
+da 0015.
+
+**Medido contra o Postgres de produção**, cinco casos numa transação revertida:
+recusar sem motivo é recusado com a frase nova; com motivo passa; o ajuste com
+espaço em branco continua recusado (o `btrim` é a diferença entre exigir um
+texto e exigir uma tecla); aprovar sem nada continua passando; e o `insert` já
+`rejeitada` é recusado **pelo check**, com a mensagem em inglês que é
+exatamente o argumento de o trigger existir ao lado dele.
+
 #### A exigência de aprovação é de CADA ETAPA, e só dela
 
 Cada subtarefa diz se precisa de aval (`requer_aprovacao`) e de qual
@@ -15391,6 +15555,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| As cores da decisão | **As três decisões ganharam cor, e a recusa passou a exigir motivo** (migration 0127), por decisão do usuário: *"APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho; em todos os módulos; textos+ícones; registrar no histórico; justificativa na recusa; sincronizar portal/dashboard"*. **CINCO METADES, E QUATRO JÁ EXISTIAM** — ir medir antes de escrever é o que separou o que precisava de código do que só precisava ser nomeado (a lição da 0060): o registro no histórico é `approval_rounds` **sem policy de DELETE**, e a sincronização entre portal e painel passou a ser por construção. **O QUE ESTAVA ERRADO NÃO ERA A FALTA DE COR, ERA A DIVERGÊNCIA:** quatro aparências em seis telas, com o ícone de aprovar oscilando entre `Check`, `BadgeCheck` e nenhum — e, no portal, *"Solicitar ajustes"* e *"Rejeitar"* eram o **MESMO** botão `outline`, a dois centímetros, com a palavra como única diferença. É `ICONE_DA_AREA` outra vez, e a resposta é a de `LinhaDeTrabalho`: **um mapa, não uma convenção escrita** — a sequência vira o TIPO. **E A PALAVRA ENTRA NO MAPA**, ao contrário do que a `BarraDeContexto` centraliza, porque a lista é a mesma em todo módulo e era ela que divergia: o botão dizia "Rejeitar", o diálogo "Recusar material" e o confirmar "Recusar", na mesma tela. **A COR FOI MEDIDA DUAS VEZES E AS DUAS DERRUBARAM.** O hover: `brightness-110` leva branco sobre o verde de 5,02:1 a **4,26:1** — e um filtro do Tailwind não é cor nomeada, então o `check:cores` dizia "tudo certo" sobre ele. E o **daltonismo**: `--warning` cheio passa em contraste (6,33:1) e fica a **ΔE 1,2** do vermelho em deuteranopia — aquele token é cor de TEXTO, escurecida até ler a 11px, e **âmbar escurecido é marrom**; os dois desfechos negativos, lado a lado, na mesma cor — **o bug deste sprint reproduzido em cor**. O Financeiro já tinha recusado um par a 4,2 pela mesma conta, **à mão, sem deixar nada que reprovasse**: a conta virou seção do `check:cores` (Brettel/Viénot + ΔE CIE76, piso 10) — **e foi ela que achou o segundo caso enquanto o primeiro era consertado**, `--success` × `--danger` a ΔE 9,4 no tema escuro, pelo motivo inverso. A saída é uma família própria de três chãos que **não trocam por tema**, que é a decisão de `--action`: a colisão do escuro deixa de existir por construção, e as duas imagens saem idênticas nos três botões. **E A RECUSA NÃO EXIGIA MOTIVO:** este arquivo afirmava desde a 0032 que os dois desfechos negativos exigiam, *"na ação e no banco"* — medindo, `approval_rounds` tinha **um** check (o de `content_type`) e, dos **onze** triggers, só um cobrava comentário, perguntando `ajustes_solicitados` e mais nada. É a 0029 pelo avesso: lá a regra morava nos dois lados e desfazer um não desfez nada; aqui eu **escrevi** que ela morava nos dois e ela morava em um. A 0127 põe o check (o piso, que pega o `insert`) e o ramo no trigger (a frase que a pessoa lê), e os cinco casos foram medidos contra o Postgres de produção numa transação revertida. ***O Day Off ficou de fora, e é dito:*** "De acordo" / "Preciso remarcar" é deliberadamente o vocabulário de quem não tem hierarquia de aprovação (0016/0018), e pintá-lo com o verde e o `X` da família desfaria aquela decisão pela cor. |
 | O comentário por card | **Cada card do carrossel passou a ter a conversa dele** (migration 0126), decisão do usuário: *"Comentários individuais por card do carrossel"*, com a hierarquia *"Campanha → Peça → Card"* e *"não misturar cards"*. **O CARD É UM SLIDE**, e o título do pedido diz isso — não é o filho de um entregável (a árvore da 0033) nem a caixinha de `post_etapa_progresso`. **Quase tudo existia:** `comments` é polimórfica desde a 0032, com a thread de um nível, `interno` e o autor forçados por trigger, o aviso por trigger e as quatro policies — e a tela de detalhe é UMA SÓ para post e entregável. O que faltava era a thread saber de QUAL quadro o cliente falava: um carrossel de cinco slides tinha UMA conversa, e *"trocar o texto do terceiro"* obrigava quem produz a descobrir qual era o terceiro. **A ÂNCORA É A POSIÇÃO E NÃO A URL, e isso foi medido:** `gravarVersao` recebe a lista `arquivos` inteira e o editor manda os arquivos que acabaram de subir, então a v2 de um carrossel consertado tem cinco caminhos NOVOS no bucket — pela URL a thread se perderia a cada versão, no instante em que quem produz está lendo o pedido. **E `card_versao` impede o índice de mentir:** remover um slide do meio faz os quadros andarem (0048), então o pedido do terceiro de cinco cairia no terceiro de quatro — plausível e errado. **Nulo é a peça**, o par é coerente nos dois sentidos (a forma de `subtasks_tipo_aprovacao_coerente`), e **a RESPOSTA herda o card da raiz** no trigger de um nível: sem isso ela cai na thread da PEÇA, respondendo uma pergunta numa thread que não mostra a pergunta. **O entregável NÃO ganha card**, porque os arquivos dele são FORMATOS da mesma peça (0053) e não quadros de uma composição. Na tela, a thread tem DOIS escopos com as duas contagens à vista — *"não misturar cards"* descarta a lista única, e esconder a peça esconderia a outra metade —, o card em foco é o do VISUALIZADOR e não um segundo seletor, e ele desce por CONTEXTO porque a tela de detalhe é de SERVIDOR. **E A AGÊNCIA NÃO TINHA ONDE LER NADA DISSO: é a décima nona ponte** — `comments_select` é `is_staff()` desde a 0032 e nenhuma tela do painel lia a tabela; o que chegava era o sino, que se apaga no primeiro clique. **Oito casos medidos contra produção**, em transação revertida, e o oitavo é um achado: um card forjado numa resposta à peça é zerado — a herança protege os dois sentidos. **De quebra, o `check:prototipo` era cego a uma classe inteira de seletor:** o `clicar` em ARRAY era casado por `\[[^\]]*\]`, e todo seletor de atributo tem um `]` dentro — eram **21 textos em 7 telas, 15 anteriores a este sprint**, com a checagem dizendo *"56 textos, todos no produto"* sem ter olhado para nenhum. Hoje são 77, com `INTERPOLADOS` dizendo qual trecho de `src/` produz cada rótulo montado. Medido com duas mutações: o mesmo seletor morto passa VERDE com o extrator velho. ***Não foi feito, e é dito:*** a bateria não rodou (sem Docker/Postgres aqui) e o protótipo não rodou — as três telas novas estão escritas e nada foi conferido em imagem. |
 | O briefing da campanha | **O briefing de campanha virou ESTRUTURADO** (migration 0125), decisão do usuário: *"nome, objetivo, público, período; mensagem, produtos, tom, canais; tipos/quantidades/formatos/dimensões; upload de imagens/PDFs + links + observações; restrições"*, com *"persistir com anexos"* e *"reutilizável"*. **METADE JÁ EXISTIA, e é isso que torna a migration pequena:** nome e período são colunas de `campaigns` desde a 0033, tipos e quantidades são `campaign_composicao` (0122), e os anexos e as observações são `task_referencias` e `tasks.briefing_rico` **da demanda** — a decisão da 0051, que continua inteira. O que nasce são NOVE colunas: sete narrativas e duas na composição. **SÃO SETE CAMPOS NOMEADOS E NÃO UMA CAIXA DE TEXTO**, pela razão do roteiro das Solicitações (0068): *"um campo de texto livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta'"*. **E são COLUNAS e não um jsonb**, pelo critério de `post_versions.arquivos` (`publico` é por onde um relatório agruparia) e pelo de `assets` na 0070 (*num jsonb a tela inventa as chaves, até a segunda escrever `tom_voz` onde a primeira escreveu `tom_de_voz`*) — `check:tipos` liga migration a coluna e não liga chave de jsonb a nada. **NÃO HÁ TABELA DE ANEXO NOVA e nem uma linha de upload nova:** `Referencias` é o MESMO componente da tela da demanda, com o `taskId` dela — e *o custo está dito*, os anexos só sobem depois que a campanha existe, porque antes não há `task_id` a que prendê-los (0028), então a tela de abertura diz onde eles ficam em vez de não dizer nada. **A LINHA DE SEGURANÇA é o briefing NÃO entrar em `CampanhaDoPortal`**: aquele tipo é o que o portal recebe, e pôr as sete ali mandaria o objetivo, o público e as restrições no payload de quem contratou — quem as lê é `briefingDaCampanha()`, a decisão de `contatosDasMinhasEmpresas()`. **`canais` é texto livre e não enum** (a razão de `posts.formato`), *e isso custa a agregação, que fica dito* — a diferença é que ninguém conta por canal; a normalização é de `canaisNormalizados()`, um lugar só, e a trava de repetição no banco seria a 0060 de novo. **A assinatura de `abrir_campanha()` não muda pela terceira vez** (0061, 0120): as nove são segundas escritas, em TRÊS, com UMA frase que conta o que falhou — *um `return` por escrita faria a pessoa ler sobre a frente e nunca saber que o briefing também ficou de fora*. **O trigger foi copiado INTEIRO** (a lição da 0030) e ganhou a quinta recusa, com a dica nomeando o que quem produz **ainda pode** editar. **Medido contra o Postgres de produção, cinco casos numa transação revertida:** a designer é recusada no objetivo e nos canais, **passa na capa** (a 0050 inteira), a gestão grava os sete, e a empresa é recusada para a gestão também. **E `check:mensagens` reprovou o meu próprio comentário pela oitava vez** — a explicação escrevia com parênteses o nome da função que monta a frase da recusa, e a varredura a leu como uma chamada sem o nome da action. ***O que NÃO foi feito, e é dito:*** a bateria não foi rodada (sem Docker nem Postgres aqui), então não há cenário de SQL para a recusa nova; e o protótipo não foi rodado, então a seção, os chips de canal e a linha de especificação não foram conferidos em imagem. |
 | A espiral da porta | **A molécula saiu e a espiral da identidade entrou** — decisão do usuário, item 5 da lista dele: *"substituir a animação das moléculas pela espiral da nova identidade, preservando a sensação de movimento e conexão"*. A agência mandou cinco SVG que, medido, diferem **só na cor** — tirando o hexadecimal, os cinco são byte a byte o mesmo desenho, que é exatamente a fatoração que esta casa faz com token. **O DESENHO É LITERAL, e a medição explica por quê:** a POSIÇÃO dos 259 pontos é uma filotaxia de Vogel exata (distância `29,5 · √(i+1)`, ângulo de ouro a cada passo) e reconstrói por fórmula com **0,0066 px** de erro, que é o arredondamento do próprio arquivo; o RAIO de cada ponto, não — ele cresce de 2,61 a 11,97 com o passo caindo de 0,08 para 0,03, e o ajuste linear erra 0,69 px num ponto de 5. **Gerar por fórmula acertaria onde cada ponto está e inventaria o tamanho dele**, que é a definição de desenho parecido. O vazado é `i % 7 === 2`, conferido ponto a ponto: 37 dos 259, sem exceção. **O movimento são duas animações empilhadas, como as da molécula:** uma volta em 120s linear e a respiração de escala em 26s — o mesmo 26s do ciclo de dividir e juntar que ela substitui. **E a "conexão" passou a ser a própria forma:** a molécula afirmava conexão por um EVENTO, duas gotas que viram uma; numa filotaxia cada ponto está em dois braços ao mesmo tempo, e é girando que os braços aparecem. **A ESCALA INVERTEU DUAS VEZES, e as duas por imagem:** a 1,5 (que eu calculei com a meia-diagonal no lugar da meia-largura) só a periferia cabe e o que saiu foi **um campo de bolinhas**, porque uma filotaxia não se reconhece sem o degradê de densidade — o excesso de escala tirava da tela a parte que faz a forma ser a forma. A 0,7 ela é um objeto, e a borda deixou de ser a moeda que eu queria esconder para ser o contorno da marca. Escolhida entre quatro escalas, em imagem. **E ela muda no celular, por enquadramento:** a 0,7 em 375px a espiral não alcança a faixa acima nem a abaixo do cartão, que é onde o fundo aparece num celular — a 1,05 ela preenche a altura e sangra pelos lados. **Saíram o halo e o véu**, e as duas ausências são medidas: o halo existia pela borda seca do corte do alpha, que um ponto não tem, e o véu era uma malha de pontos parados para o movimento ter contra o que se ler — numa rotação a referência é interna. **A cor é `--brand-blue`, e a agência escolheu por nós:** dois dos cinco arquivos vêm em cores que já são token deste produto, e o quinto é um ciano um passo ao lado que não entra, porque dois cianos a um passo são duas verdades esperando divergir. **A opacidade é de grupo e não quebra a regra do par nomeado:** o que ela proíbe é opacidade sobre um fundo QUALQUER, e aqui o fundo é preto, um só e fixo, com o composto calculado em duas contas escritas. **Os três textos da porta ficaram mais legíveis**, e o mais apertado é o que mais ganhou: o subtítulo, o link e o placeholder passaram de **5,92:1 para 8,00:1**. ***E a minha primeira conta do pior caso foi estimada, no mesmo arquivo que proíbe isso*** — #1F2B33 de cabeça contra #1C2F39 calculado. **"Molécula" não entrou na lista de nomes mortos**, porque aquela lista existe para um nome não voltar à TELA e esta palavra nunca esteve em tela nenhuma. |

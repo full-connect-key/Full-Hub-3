@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, MessageSquareWarning, X } from "lucide-react";
 
 import {
   decidirConteudo,
   type DecisaoDoCliente,
 } from "@/app/(cliente)/portal/_actions/conteudo";
+import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
+import type { Decisao } from "@/lib/aprovacoes/decisoes";
 import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
 /**
@@ -35,28 +36,41 @@ import { ANCORAS, ancora } from "@/lib/tour/ancoras";
  * exigido aqui E no banco: aqui ele escreve a frase que a pessoa lê, lá ele é
  * o que vale.
  *
- * **O botão primário é `--brand-blue` com texto escuro.** Texto branco sobre o
- * azul claro da marca dá 1.7:1, e o `variant="default"` do projeto já resolve
- * isso — nenhuma classe de cor é escrita aqui.
+ * **AS TRÊS CORES VÊM DE `BotaoDeDecisao`, e nenhuma classe de cor é escrita
+ * aqui.** Até aqui "Solicitar ajustes" e "Rejeitar" eram o MESMO botão
+ * `outline`, a dois centímetros de distância: os dois desfechos negativos,
+ * idênticos, com a palavra como única diferença. O argumento inteiro está em
+ * `lib/aprovacoes/decisoes.ts`.
  */
 
+/**
+ * Os dois desfechos negativos passam por um diálogo, e **a DECISÃO de cada um
+ * sai do mapa** — é ele que diz a palavra, o ícone e a cor. O que fica aqui é
+ * o texto que só este diálogo tem: o título, a frase que explica a diferença
+ * entre pedir ajuste e recusar, e o rótulo do campo.
+ */
 const DIALOGO: Record<
   Exclude<DecisaoDoCliente, "aprovada">,
-  { titulo: string; descricao: string; rotulo: string; acao: string }
+  { decisao: Decisao; titulo: string; descricao: string; rotulo: string; acao: string }
 > = {
   ajustes_solicitados: {
+    decisao: "ajustar",
     titulo: "Solicitar ajustes",
     descricao:
       "Diga o que precisa mudar. A equipe recebe o aviso e devolve uma versão nova.",
     rotulo: "O que precisa ser ajustado",
+    // O BOTÃO DO RODAPÉ DIZ O QUE O CLIQUE FAZ, e não repete o nome da
+    // decisão que o título já carrega — "Solicitar ajustes" em cima de
+    // "Solicitar ajustes" é a mesma palavra duas vezes na mesma caixa.
     acao: "Enviar pedido",
   },
   rejeitada: {
+    decisao: "recusar",
     titulo: "Recusar material",
     descricao:
       "Recusar é diferente de pedir ajuste: o material não vai ao ar desta forma. Diga o motivo.",
     rotulo: "Por que o material foi recusado",
-    acao: "Recusar",
+    acao: "Recusar o material",
   },
 };
 
@@ -144,31 +158,23 @@ export function DecisoesDoConteudo({
         lendo.
       */}
       <div className="flex flex-wrap gap-2" {...ancora(ANCORAS.portalDecisoes)}>
-        <Button
+        <BotaoDeDecisao
+          decisao="aprovar"
           onClick={() => decidir("aprovada", "")}
           disabled={enviando || somenteLeitura}
-        >
-          <Check aria-hidden className="size-4" />
-          Aprovar
-        </Button>
+        />
 
-        <Button
-          variant="outline"
+        <BotaoDeDecisao
+          decisao="ajustar"
           onClick={() => setPedindo("ajustes_solicitados")}
           disabled={enviando || somenteLeitura}
-        >
-          <MessageSquareWarning aria-hidden className="size-4" />
-          Solicitar ajustes
-        </Button>
+        />
 
-        <Button
-          variant="outline"
+        <BotaoDeDecisao
+          decisao="recusar"
           onClick={() => setPedindo("rejeitada")}
           disabled={enviando || somenteLeitura}
-        >
-          <X aria-hidden className="size-4" />
-          Rejeitar
-        </Button>
+        />
       </div>
 
       {somenteLeitura ? (
@@ -209,12 +215,13 @@ export function DecisoesDoConteudo({
                 <Button variant="ghost" onClick={() => setPedindo(null)}>
                   Cancelar
                 </Button>
-                <Button
+                <BotaoDeDecisao
+                  decisao={DIALOGO[pedindo].decisao}
+                  rotulo={DIALOGO[pedindo].acao}
+                  carregando={enviando}
+                  disabled={motivo.trim().length === 0}
                   onClick={() => decidir(pedindo, motivo)}
-                  disabled={enviando || motivo.trim().length === 0}
-                >
-                  {DIALOGO[pedindo].acao}
-                </Button>
+                />
               </DialogFooter>
             </>
           ) : null}

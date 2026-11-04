@@ -890,6 +890,17 @@ const TELAS = [
     clicar: ['button[aria-label="Escolher a arte 3"]', 'button:has-text("Card 3")'] },
   { nome: "16z-portal-post-card-375", rota: "/portal/social-media/p1", largura: 375, altura: 2000,
     clicar: ['button[aria-label="Escolher a arte 3"]', 'button:has-text("Card 3")'] },
+  // AS TRES DECISOES NO ESCURO, e esta tela existe por uma medicao.
+  //
+  // A primeira versao dos tres botoes usava `--success`, `--warning` e
+  // `--danger` como chao, e no tema ESCURO o verde e o vermelho ficavam a
+  // deltaE 9,4 em deuteranopia -- dois pasteis claros de luminosidade
+  // parecida, separados so pela matiz, que e justamente o que o daltonismo
+  // tira. Hoje os tres chaos nao trocam por tema (a decisao de `--action`),
+  // entao esta imagem e para ser IGUAL a de cima nos tres botoes: duas
+  // imagens iguais ali sao o resultado certo, como em `02-login-escuro`.
+  { nome: "16y2-portal-post-escuro", rota: "/portal/social-media/p1", largura: 1280, altura: 1500,
+    tema: "escuro" },
   // A PROPORÇÃO ORIGINAL DA ARTE, nas duas que não são quadradas. Todo exemplo
   // do protótipo era 1080×1080, então o quadro do visualizador podia ser
   // `aspect-square` sem nenhuma imagem mostrar — era a lição da duplicata do

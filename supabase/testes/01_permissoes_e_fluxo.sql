@@ -161,6 +161,44 @@ select teste.cenario('Desenvolvedor pede ajustes SEM comentario: recusado', :DIE
   format('update public.approval_rounds set status = ''ajustes_solicitados'', decidido_por = %L where content_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :DIEGO),
   'recusa');
 
+-- A RECUSA TAMBEM EXIGE MOTIVO (0127), e ate ela so o AJUSTE exigia.
+--
+-- O CLAUDE.md afirmava desde a 0032 que os dois desfechos negativos exigiam
+-- motivo "na acao e no banco", e medindo contra o Postgres a segunda metade
+-- valia para um dos dois: `proteger_rodada_fechada` perguntava
+-- `status = 'ajustes_solicitados'` e mais nada, e nenhum dos outros dez
+-- triggers da tabela cobrava comentario. Entao `rejeitada` com comentario
+-- nulo passava por todo caminho que nao fosse a Server Action -- o PATCH
+-- montado a mao, o `update` colado no SQL Editor --, que e exatamente o
+-- caminho que a trava existe para cobrir.
+--
+-- E a DICA entra no cenario, por `recusa_com_dica`: ela e o que `atualizarTask`
+-- concatena na mensagem da tela, e e ela que oferece a outra saida -- "se o
+-- caminho e refazer, o desfecho e Solicitar ajustes". Uma trava com a dica
+-- apagada passaria por uma checagem que so le a mensagem, que e a decisao do
+-- `tasks_sem_cancelada` na 0020.
+select teste.recusa_com_dica('Desenvolvedor recusa SEM motivo: recusado, dizendo o caminho', :DIEGO,
+  format('update public.approval_rounds set status = ''rejeitada'', decidido_por = %L where content_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :DIEGO),
+  'Solicitar ajustes');
+
+-- E O ESPACO EM BRANCO NAO CONTA COMO MOTIVO, nos dois desfechos: o `btrim`
+-- e a diferenca entre exigir um texto e exigir uma tecla.
+select teste.cenario('Desenvolvedor recusa com motivo em branco: recusado', :DIEGO,
+  format('update public.approval_rounds set status = ''rejeitada'', decidido_por = %L, comentario = ''   '' where content_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :DIEGO),
+  'recusa');
+
+select teste.cenario('Desenvolvedor pede ajustes com motivo em branco: recusado', :DIEGO,
+  format('update public.approval_rounds set status = ''ajustes_solicitados'', decidido_por = %L, comentario = ''  '' where content_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :DIEGO),
+  'recusa');
+
+-- E APROVAR CONTINUA SEM EXIGIR NADA, que e a assimetria da 0007: aprovar e a
+-- decisao que nao precisa de explicacao. **O cenario que mede isso ja existe**,
+-- mais abaixo -- "Diego (desenvolvedor) aprova a propria subtarefa", sem
+-- comentario nenhum e esperando `ok` --, e e ele que impede um `check` escrito
+-- sobre `comentario is not null` sem o `status not in (...)`: um assim passaria
+-- por toda a bateria acima e quebraria as 31 aprovacoes que o banco ja tem.
+-- Escrever um segundo aqui seria a segunda verdade sobre o mesmo fato.
+
 select teste.cenario('Desenvolvedor pede ajustes COM comentario', :DIEGO,
   format('update public.approval_rounds set status = ''ajustes_solicitados'', decidido_por = %L, comentario = ''Trocar a cor do fundo'' where content_id = ''dddddddd-0000-0000-0000-000000000002'' and numero_rodada = 1', :DIEGO),
   'ok', 1);

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  BotaoDeDecisao,
+  ConteudoDaDecisao,
+} from "@/components/shared/botao-de-decisao";
 import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { DECISAO_DA_ACAO, type Decisao } from "@/lib/aprovacoes/decisoes";
 import {
   formatarMinutos,
   medidaSuspeita,
@@ -214,6 +219,7 @@ export function AcoesDaSubtarefa({
       <div className="flex items-center gap-1">
         <BotaoComMotivo
           rotulo={principal.rotulo}
+          decisao={DECISAO_DA_ACAO[principal.id]}
           desabilitado={principal.desabilitada || executando}
           motivo={principal.motivo}
           carregando={executando}
@@ -234,15 +240,33 @@ export function AcoesDaSubtarefa({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {secundarias.map((acao) => (
-                <DropdownMenuItem
-                  key={acao.id}
-                  disabled={acao.desabilitada || executando}
-                  onSelect={() => executar(acao.id)}
-                >
-                  {acao.rotulo}
-                </DropdownMenuItem>
-              ))}
+              {/* A DECISÃO QUE CAI NO MENU LEVA A COR NO TEXTO, não no fundo:
+                  um fundo cheio ocupando a linha inteira de um item se lê como
+                  "selecionado", que é o que o `focus` daquele item já faz — e
+                  aí a cor diria duas coisas. Os três pares de texto sobre o
+                  cartão estão medidos no `check:cores`. O que NÃO é decisão
+                  (iniciar, concluir, enviar) continua sem cor nenhuma: são
+                  sete das nove ações, e pintá-las deixaria as duas que
+                  importam sem destaque. */}
+              {secundarias.map((acao) => {
+                const decisao = DECISAO_DA_ACAO[acao.id];
+                return (
+                  <DropdownMenuItem
+                    key={acao.id}
+                    disabled={acao.desabilitada || executando}
+                    onSelect={() => executar(acao.id)}
+                  >
+                    {decisao ? (
+                      <ConteudoDaDecisao
+                        decisao={decisao}
+                        rotulo={acao.rotulo}
+                      />
+                    ) : (
+                      acao.rotulo
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
@@ -297,8 +321,11 @@ export function AcoesDaSubtarefa({
             <Button variant="outline" onClick={() => setPedindoMotivo(false)}>
               Cancelar
             </Button>
-            <Button
-              disabled={motivo.trim().length === 0 || executando}
+            <BotaoDeDecisao
+              decisao="ajustar"
+              rotulo="Enviar pedido"
+              carregando={executando}
+              disabled={motivo.trim().length === 0}
               onClick={() => {
                 if (!rodadaPendenteId) return;
                 iniciar(async () => {
@@ -310,10 +337,7 @@ export function AcoesDaSubtarefa({
                   if (ok) setPedindoMotivo(false);
                 });
               }}
-            >
-              {executando ? <Loader2 className="animate-spin" /> : null}
-              Solicitar ajustes
-            </Button>
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -393,6 +417,7 @@ export function AcoesDaSubtarefa({
  */
 function BotaoComMotivo({
   rotulo,
+  decisao,
   motivo,
   desabilitado,
   carregando,
@@ -400,13 +425,36 @@ function BotaoComMotivo({
   aoClicar,
 }: {
   rotulo: string;
+  /**
+   * Quando a ação principal é uma DECISÃO sobre uma rodada, ela sai colorida.
+   *
+   * **São duas das nove ações da máquina de estados**, e as outras sete
+   * continuam na pílula preta que toda ação principal do produto usa: iniciar,
+   * concluir e enviar são o trabalho andando. Pintar as nove deixaria as duas
+   * que decidem sem distinção nenhuma — é a razão pela qual prioridade Normal
+   * é cinza.
+   */
+  decisao?: Decisao;
   motivo?: string;
   desabilitado: boolean;
   carregando: boolean;
   tamanho: "sm" | "default";
   aoClicar: () => void;
 }) {
-  const botao = (
+  const botao = decisao ? (
+    // O RÓTULO VEM DA MÁQUINA DE ESTADOS e não do mapa, embora hoje os dois
+    // digam a mesma palavra — e eles dizem porque a máquina LÊ o mapa desde
+    // esta entrega. Passá-lo aqui mantém o botão dizendo o que a máquina
+    // decidiu, que é quem sabe qual ação esta pessoa tem neste estado.
+    <BotaoDeDecisao
+      decisao={decisao}
+      rotulo={rotulo}
+      size={tamanho}
+      carregando={carregando}
+      disabled={desabilitado}
+      onClick={aoClicar}
+    />
+  ) : (
     <Button size={tamanho} disabled={desabilitado} onClick={aoClicar}>
       {carregando ? <Loader2 className="animate-spin" /> : null}
       {rotulo}

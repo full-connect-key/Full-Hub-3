@@ -1,3 +1,4 @@
+import { DECISOES } from "@/lib/aprovacoes/decisoes";
 import type {
   EscopoRodada,
   StatusRodada,
@@ -297,15 +298,22 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
     ctx.rodadaPendente &&
     ctx.souGestor
   ) {
+    // A PALAVRA SAI DO MAPA DAS DECISÕES, e não está escrita aqui. As duas
+    // ações deste ramo são as únicas das nove que são DECISÃO sobre uma
+    // rodada, e o mapa é quem diz a palavra, o ícone e a cor delas — escrever
+    // "Aprovar" aqui seria a segunda verdade sobre o mesmo rótulo, e a que
+    // divergiria é esta, porque ninguém relê a máquina de estados ao mexer na
+    // tela. As outras sete continuam com o rótulo delas aqui: elas são o
+    // trabalho andando, não uma decisão.
     acoes.push({
       id: "aprovar",
-      rotulo: "Aprovar",
+      rotulo: DECISOES.aprovar.rotulo,
       principal: true,
       desabilitada: false,
     });
     acoes.push({
       id: "solicitar_ajustes",
-      rotulo: "Solicitar ajustes",
+      rotulo: DECISOES.ajustar.rotulo,
       principal: false,
       desabilitada: false,
     });

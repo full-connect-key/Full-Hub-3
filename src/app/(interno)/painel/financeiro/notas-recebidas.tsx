@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, Inbox, Loader2, Paperclip, Wallet, X } from "lucide-react";
+import { Inbox, Loader2, Paperclip, Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar, SEM_FILTRO } from "@/components/shared/filter-bar";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -250,22 +251,26 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
     if (nota.status === "enviada") {
       return (
         <>
-          <Button
-            variant="outline"
+          {/* AS DUAS DECISÕES SÃO AS MESMAS DO RESTO DO PRODUTO, e não só
+              nesta tela: aprovar e recusar aqui querem dizer exatamente o que
+              querem dizer numa rodada de aprovação — o par nomeado e o ícone
+              saem do mesmo mapa. O que muda é o objeto da decisão, e isso
+              não é cor. */}
+          <BotaoDeDecisao
+            decisao="recusar"
             size="sm"
             disabled={decidindo}
             onClick={() => {
               setRecusando(nota);
               setMotivo("");
             }}
-          >
-            <X aria-hidden />
-            Recusar
-          </Button>
-          <Button size="sm" disabled={decidindo} onClick={() => aprovar(nota)}>
-            {decidindo ? <Loader2 aria-hidden className="animate-spin" /> : <Check aria-hidden />}
-            Aprovar
-          </Button>
+          />
+          <BotaoDeDecisao
+            decisao="aprovar"
+            size="sm"
+            carregando={decidindo}
+            onClick={() => aprovar(nota)}
+          />
         </>
       );
     }
@@ -434,10 +439,15 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
             <Button variant="outline" onClick={() => setRecusando(null)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarRecusa} disabled={decidindo}>
-              {decidindo ? <Loader2 aria-hidden className="animate-spin" /> : null}
-              Recusar
-            </Button>
+            {/* `recusar` E NÃO `destructive`: recusar uma nota não apaga
+                nada — a linha fica no banco com o motivo, e é ela que a
+                trilha de auditoria e o índice único parcial leem. */}
+            <BotaoDeDecisao
+              decisao="recusar"
+              rotulo="Recusar a nota"
+              carregando={decidindo}
+              onClick={confirmarRecusa}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

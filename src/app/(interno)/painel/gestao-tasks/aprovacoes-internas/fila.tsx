@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
+import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -230,21 +231,24 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
       {/* Quem chega nesta fila é gestão, e desde a migration 0029 a gestão
           decide qualquer rodada — inclusive a da etapa que está no próprio
           nome. Não há mais motivo para desligar botão nenhum aqui. */}
+      {/* AS DUAS DECISÕES GANHARAM COR E ÍCONE, e até aqui nenhuma das duas
+          tinha nem uma nem outro: eram a pílula preta e um `outline`, sem
+          glifo nenhum, na tela em que a gestão decide o material da agência
+          inteira. O argumento está em `lib/aprovacoes/decisoes.ts`. */}
       <div className="flex shrink-0 gap-2">
-        <Button
-          variant="outline"
+        <BotaoDeDecisao
+          decisao="ajustar"
           size="sm"
           disabled={executando}
           onClick={() => {
             setMotivo("");
             setPedindoMotivo(true);
           }}
-        >
-          Solicitar ajustes
-        </Button>
-        <Button
+        />
+        <BotaoDeDecisao
+          decisao="aprovar"
           size="sm"
-          disabled={executando}
+          carregando={executando}
           onClick={() =>
             iniciar(async () => {
               if (!item.rodadaId) return;
@@ -258,10 +262,7 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
               }
             })
           }
-        >
-          {executando ? <Loader2 className="animate-spin" /> : null}
-          Aprovar
-        </Button>
+        />
       </div>
 
       <Dialog
@@ -287,8 +288,11 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
             <Button variant="outline" onClick={() => setPedindoMotivo(false)}>
               Cancelar
             </Button>
-            <Button
-              disabled={motivo.trim().length === 0 || executando}
+            <BotaoDeDecisao
+              decisao="ajustar"
+              rotulo="Enviar pedido"
+              carregando={executando}
+              disabled={motivo.trim().length === 0}
               onClick={() =>
                 iniciar(async () => {
                   if (!item.rodadaId) return;
@@ -303,10 +307,7 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
                   }
                 })
               }
-            >
-              {executando ? <Loader2 className="animate-spin" /> : null}
-              Solicitar ajustes
-            </Button>
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

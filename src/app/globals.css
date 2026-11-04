@@ -445,6 +445,56 @@
   --warning-soft: #FEF3C7;
   --danger: #B91C1C;
   --danger-soft: #FEE2E2;
+
+  /* ---------------------------------------------- AS TRES DECISOES ------
+     Aprovar, solicitar ajustes e recusar, como CHAO de botao. Decisao do
+     usuario: "APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho".
+
+     ELES NAO SAO `--success`, `--warning` E `--danger`, e a primeira versao
+     foi exatamente isso -- derrubada por medicao, duas vezes:
+
+       * `--warning` cheio com texto branco passa em contraste (6,33:1) e em
+         DEUTERANOPIA fica a **deltaE 1,2** do vermelho da recusa. Aquele
+         token e cor de TEXTO, escurecida ate ler bem a 11px, e ambar
+         escurecido e MARROM -- marrom contra vermelho e a mesma cor para
+         quem nao distingue verde de vermelho. Os dois desfechos NEGATIVOS,
+         lado a lado, indistinguiveis: o bug que este sprint existe para
+         desfazer, reproduzido em cor;
+       * e no tema ESCURO `--success` e `--danger` ficam a **deltaE 9,4** um
+         do outro pelo mesmo motivo -- la os dois sao pasteis claros de
+         luminosidade parecida, e o que os separa e so a matiz, que e
+         justamente o que o daltonismo tira.
+
+     O Financeiro ja tinha recusado um par a 4,2 pela mesma conta, e aquela
+     medicao foi feita uma vez, a mao, sem ficar em lugar nenhum que
+     reprovasse. Agora ela mora no `check:cores`, e foi ELA que achou o
+     segundo caso enquanto o primeiro estava sendo consertado.
+
+     E ELES NAO TROCAM POR TEMA, que e a decisao de `--action` palavra por
+     palavra: **preenchimento carrega o proprio chao** -- o que o mede e o
+     texto em cima, nao o fundo atras. Sem par no `.dark`, a colisao do tema
+     escuro deixa de existir por construcao em vez de por ajuste. No escuro o
+     ambar CALHA de ter o mesmo valor que `--warning`, e isso e acaso e nao
+     sinonimo: um e cor de texto que precisa virar com o tema, o outro e chao
+     que nao pode -- e a nota de `--text-secondary` ao lado de `--brand-gray`.
+
+     O hover ESCURECE e nao clareia, e isso tambem foi medido: a primeira
+     versao usava `hover:brightness-110`, e clarear o verde leva branco sobre
+     ele de 5,02:1 para **4,26:1** -- abaixo do minimo, no hover do botao mais
+     clicado do produto. Um filtro do Tailwind nao e cor nomeada, entao a
+     varredura dizia "tudo certo" sobre ele.
+
+     Medidos: 5,02 / 10,54 / 6,47 em repouso, 5,94 / 8,51 / 7,57 no hover, e a
+     pior separacao entre os tres e deltaE 22,0, em protanopia. */
+  --aprovar: #15803D;
+  --aprovar-hover: #137337;
+  --aprovar-foreground: #FFFFFF;
+  --ajustar: #FBBF24;
+  --ajustar-hover: #E2AC20;
+  --ajustar-foreground: #17191D;
+  --recusar: #B91C1C;
+  --recusar-hover: #A61919;
+  --recusar-foreground: #FFFFFF;
   /* Prioridade Normal é NEUTRA, não azul: azul chamava atenção para o caso
      que, por definição, não tem nada de especial — e roubava o destaque de
      Alta e Urgente, que é onde ele precisa estar. */
@@ -523,7 +573,17 @@
   --accent: var(--blue-soft);
   --accent-foreground: var(--blue-strong);
   --destructive: var(--danger);
-  --destructive-foreground: #FFFFFF;
+  /* UM VALOR E DOIS NOMES, e o canônico é o que diz o que a cor é.
+     `--destructive` ja apontava para `--danger`; o `-foreground` dele ficava
+     com um hexadecimal proprio, e `destructive` quer dizer "isto apaga alguma
+     coisa" -- que e o que o botao de apagar campanha, a zona de perigo e o
+     desligamento fazem. A decisao de RECUSAR um material nao apaga nada, e
+     escrever `text-destructive-foreground` nela mandaria quem vier depois
+     procurar um apagamento que nao existe ali. E a forma de
+     `--acao-fundo -> --text-primary` e de `--ferias -> --roxo`: um valor,
+     dois nomes, e `check:cores` resolve a cadeia. */
+  --danger-foreground: #FFFFFF;
+  --destructive-foreground: var(--danger-foreground);
   --success-foreground: #FFFFFF;
   --warning-foreground: #FFFFFF;
   /* Azul de informação: o mesmo azul legível. Cor semântica e identidade
@@ -674,7 +734,8 @@
   --accent: var(--surface-sidebar-2);
   --accent-foreground: var(--brand-blue);
   --destructive: var(--danger);
-  --destructive-foreground: #17191D;
+  --danger-foreground: #17191D;
+  --destructive-foreground: var(--danger-foreground);
   --success-foreground: #17191D;
   --warning-foreground: #17191D;
   --info: var(--brand-blue);
@@ -767,6 +828,16 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
+  --color-aprovar: var(--aprovar);
+  --color-aprovar-hover: var(--aprovar-hover);
+  --color-aprovar-foreground: var(--aprovar-foreground);
+  --color-ajustar: var(--ajustar);
+  --color-ajustar-hover: var(--ajustar-hover);
+  --color-ajustar-foreground: var(--ajustar-foreground);
+  --color-recusar: var(--recusar);
+  --color-recusar-hover: var(--recusar-hover);
+  --color-recusar-foreground: var(--recusar-foreground);
+  --color-danger-foreground: var(--danger-foreground);
   --color-danger-soft: var(--danger-soft);
   --color-neutral: var(--neutral);
   --color-neutral-soft: var(--neutral-soft);

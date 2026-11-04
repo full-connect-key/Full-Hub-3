@@ -765,7 +765,21 @@ from (
     -- e continua de pe com a funcao antiga dentro -- o que esta migration
     -- acrescenta e a heranca, e e ela que precisa ser procurada.
     ('0126', 'comentario por card do carrossel', 'no_corpo',
-             'comentario_de_um_nivel|new.card_indice := v_card_pai')
+             'comentario_de_um_nivel|new.card_indice := v_card_pai'),
+
+    -- O MARCADOR APONTA PARA O PASSO 2, que e a ultima coisa que a 0127 cria.
+    -- O PASSO 1 e o `check`, e apontar para ele diria `ok` sobre uma colagem
+    -- que morreu antes do PASSO 2 -- deixando o piso de pe e a FRASE faltando,
+    -- que e justamente a metade que ensina. A recusa de um check chega como
+    -- "violates check constraint approval_rounds_desfecho_negativo_com_motivo",
+    -- e e esse texto que `atualizarTask` poria na tela.
+    --
+    -- E e `no_corpo` e nao `trigger`: `approval_rounds_protege_fechada` existe
+    -- desde a 0032 e continua de pe com a funcao antiga dentro -- o que esta
+    -- migration acrescenta e o ramo da RECUSA, e e ele que precisa ser
+    -- procurado.
+    ('0127', 'a recusa exige motivo', 'no_corpo',
+             'proteger_rodada_fechada|new.status = ''rejeitada''')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
