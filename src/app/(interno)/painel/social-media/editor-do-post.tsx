@@ -54,6 +54,8 @@ import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
+import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
+import { doPost } from "@/lib/aprovacoes/conteudo";
 import { EnvioDoMes } from "./envio-do-mes";
 import type { PortaoDoMes } from "@/lib/dados/social-media";
 import { ReferenciasDoPost } from "./referencias-do-post";
@@ -167,6 +169,10 @@ export function EditorDoPost({
   const [pauta, setPauta] = useState(post.pauta ?? "");
   const [videoUrl, setVideoUrl] = useState(post.videoUrl ?? "");
   const [emAcao, iniciar] = useTransition();
+  // O ENVIO AO CLIENTE PASSOU A PEDIR QUEM RECEBE (0128), então ele deixou de
+  // ser um clique direto e virou o modal compartilhado — o mesmo da etapa de
+  // demanda, da peça de campanha e da fila de aprovações internas.
+  const [enviandoAoCliente, setEnviandoAoCliente] = useState(false);
 
   const versaoAtual = versoes[0] ?? null;
   const slides = versaoAtual?.arquivos ?? [];
@@ -220,10 +226,14 @@ export function EditorDoPost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoUrl]);
 
-  async function agir(tarefa: () => Promise<{ ok: boolean; mensagem?: string; error?: string }>) {
+  /** Devolve `true` quando deu certo — o modal de envio fecha por essa resposta. */
+  async function agir(
+    tarefa: () => Promise<{ ok: boolean; mensagem?: string; error?: string }>,
+  ) {
     const r = await tarefa();
     if (r.ok) toast.success(r.mensagem ?? "Pronto.");
     else toast.error(r.error ?? "Não deu.");
+    return r.ok;
   }
 
   /**
@@ -534,7 +544,7 @@ export function EditorDoPost({
             disabled={!posso || slides.length > 1}
             onValueChange={(v) =>
               iniciar(() =>
-                agir(() => chamarAcao(() => editarPost(post.id, { midia: v as PostMidia }))),
+                void agir(() => chamarAcao(() => editarPost(post.id, { midia: v as PostMidia }))),
               )
             }
           >
@@ -575,7 +585,7 @@ export function EditorDoPost({
                 return;
               }
               iniciar(() =>
-                agir(() => chamarAcao(() => editarPost(post.id, { plataformas: redes }))),
+                void agir(() => chamarAcao(() => editarPost(post.id, { plataformas: redes }))),
               );
             }}
           />
@@ -595,7 +605,7 @@ export function EditorDoPost({
             onBlur={(e) =>
               e.target.value !== (post.formato ?? "") &&
               iniciar(() =>
-                agir(() => chamarAcao(() => editarPost(post.id, { formato: e.target.value }))),
+                void agir(() => chamarAcao(() => editarPost(post.id, { formato: e.target.value }))),
               )
             }
           />
@@ -627,7 +637,7 @@ export function EditorDoPost({
             onChange={(e) =>
               e.target.value !== (post.dataPublicacao ?? "") &&
               iniciar(() =>
-                agir(() =>
+                void agir(() =>
                   chamarAcao(() =>
                     editarPost(post.id, { data_publicacao: e.target.value || null }),
                   ),
@@ -647,7 +657,7 @@ export function EditorDoPost({
             onChange={(e) =>
               e.target.value !== (post.horario ?? "") &&
               iniciar(() =>
-                agir(() =>
+                void agir(() =>
                   chamarAcao(() => editarPost(post.id, { horario: e.target.value || null })),
                 ),
               )
@@ -662,7 +672,7 @@ export function EditorDoPost({
               value={post.responsavelId ?? SEM_VALOR}
               onValueChange={(v) =>
                 iniciar(() =>
-                  agir(() => chamarAcao(() => liberarPost(post.id, v === SEM_VALOR ? null : v))),
+                  void agir(() => chamarAcao(() => liberarPost(post.id, v === SEM_VALOR ? null : v))),
                 )
               }
             >
@@ -701,7 +711,7 @@ export function EditorDoPost({
               size="sm"
               disabled={emAcao}
               onClick={() =>
-                iniciar(() => agir(() => chamarAcao(() => pedirAvalInterno(post.id))))
+                iniciar(() => void agir(() => chamarAcao(() => pedirAvalInterno(post.id))))
               }
             >
               <UserPlus aria-hidden className="size-4" />
@@ -725,9 +735,7 @@ export function EditorDoPost({
               size="sm"
               disabled={!envio.pode || emAcao}
               title={envio.porque ?? undefined}
-              onClick={() =>
-                iniciar(() => agir(() => chamarAcao(() => enviarAoCliente(post.id))))
-              }
+              onClick={() => setEnviandoAoCliente(true)}
             >
               <Send aria-hidden className="size-4" />
               {rotuloDoEnvio(portao)}
@@ -783,6 +791,17 @@ export function EditorDoPost({
           <EnvioDoMes taskId={post.socialTaskId!} portao={portaoDoMesDaVez} />
         </div>
       ) : null}
+
+      <EnvioAoCliente
+        conteudo={doPost(post.id)}
+        aberto={enviandoAoCliente}
+        aoFechar={() => setEnviandoAoCliente(false)}
+        titulo={rotuloDoEnvio(portao)}
+        oQueE="A peça"
+        aoEnviar={(escolhido) =>
+          agir(() => chamarAcao(() => enviarAoCliente(post.id, escolhido)))
+        }
+      />
 
       {etapas.length > 0 ? (
         <div className="border-border border-t pt-4">

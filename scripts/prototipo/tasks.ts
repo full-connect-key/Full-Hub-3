@@ -12,6 +12,7 @@
  */
 import { situacaoDasRodadas } from "../../src/lib/tasks/state-machine";
 import { folhas } from "../../src/lib/dominio/tasks";
+import { PROFILE_CLIENTE } from "./dados-exemplo";
 import { VERTENTES_EXEMPLO } from "./vertentes";
 import type {
   ItemDeCalendario,
@@ -424,6 +425,12 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     // Nulo: a rodada de uma ETAPA de demanda nunca vem de um lote, que é do
     // mês de social (0090).
     lote_id: null,
+    // QUEM RECEBEU (0128), e só na rodada de CLIENTE: a rodada interna é
+    // decidida pela gestão, e nela a coluna é nula por definição. As etapas
+    // do exemplo só têm rodada interna, então as duas saem nulas — quem
+    // fotografa o campo cheio é a tela do MODAL de envio.
+    aprovador_id: r.escopo === "cliente" ? PROFILE_CLIENTE.id : null,
+    mensagem: null,
     created_at: "2026-09-19T10:00:00.000Z",
   }));
 
@@ -490,6 +497,9 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
       ...r,
       solicitante: semente.responsavel,
       decisor: r.decidido_por ? DIEGO : null,
+      // QUEM RECEBEU (0128): nulo nas rodadas internas, que são as únicas que
+      // as etapas do exemplo têm — a rodada interna é decidida pela gestão.
+      aprovador: null,
     })),
     // AS TRÊS FORMAS DE ENTREGA, e as três de propósito (0121).
     //

@@ -179,10 +179,10 @@ select teste.recusa_com('Etapa de cliente com so a interna aprovada: recusa', :A
 -- fixture estaria provando a trava contra um estado que o produto nao produz.
 select teste.cenario('So a gestao abre a rodada do cliente', :DIEGO,
   $$insert into public.approval_rounds
-      (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em)
-    values ('cccccccc-0000-0000-0000-00000000000c', 1, 'cliente',
+  (content_id, numero_rodada, escopo, solicitado_por, status, decidido_por, decidido_em, aprovador_id)
+  values ('cccccccc-0000-0000-0000-00000000000c', 1, 'cliente',
             '22222222-2222-2222-2222-222222222222', 'aprovada',
-            '77777777-7777-7777-7777-777777777777', now())$$, 'ok', 1);
+            '77777777-7777-7777-7777-777777777777', now(), teste.aprovador_de('cccccccc-0000-0000-0000-00000000000c'))$$, 'ok', 1);
 
 select teste.cenario('Rodada do cliente aprovada: entregue passa', :ANA,
   $$update public.tasks set status = 'entregue', status_manual = true

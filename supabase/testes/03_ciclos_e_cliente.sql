@@ -84,11 +84,15 @@ update public.approval_rounds set status = 'aprovada', decidido_por = :ANA, deci
  where content_id = 'bcbcbcbc-0000-0000-0000-000000000003';
 
 select teste.cenario('A gestao envia ao cliente a etapa que ela mesma produziu', :DIEGO,
-  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000003'', 1, ''cliente'', %L)', :DIEGO),
+  format('insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values (''bcbcbcbc-0000-0000-0000-000000000003'', 1, ''cliente'', %L, teste.aprovador_de(''bcbcbcbc-0000-0000-0000-000000000003''))', :DIEGO),
   'ok', 1);
 
 select teste.cenario('Desenvolvedor abre a rodada do cliente', :DIEGO,
-  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''bcbcbcbc-0000-0000-0000-000000000002'', 1, ''cliente'', %L)', :DIEGO),
+  format('insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values (''bcbcbcbc-0000-0000-0000-000000000002'', 1, ''cliente'', %L, teste.aprovador_de(''bcbcbcbc-0000-0000-0000-000000000002''))', :DIEGO),
   'ok', 1);
 
 select teste.cenario('Cliente aprova pela funcao do banco', '77777777-7777-7777-7777-777777777777',

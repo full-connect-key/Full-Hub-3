@@ -1085,11 +1085,21 @@ begin
     return;
   end if;
 
+  -- ELA E A APROVADORA DE TODA RODADA DE CLIENTE DESTE BLOCO, e e por isso
+  -- que a consulta pede `pr.ativo`: a trava da 0128 recusa um `aprovador_id`
+  -- que `aprovadores_da_conta()` nao devolva, e aquela funcao filtra por
+  -- `ativo`. Sem o filtro aqui, o seed escolheria alguem que o banco recusa.
   select cu.user_id into joana
     from public.client_users cu
     join public.profiles pr on pr.id = cu.user_id
-   where cu.client_id = verde and pr.role = 'cliente'
+   where cu.client_id = verde and pr.role = 'cliente' and pr.ativo
+   order by pr.nome
    limit 1;
+
+  if joana is null then
+    raise notice 'A empresa de exemplo nao tem ninguem com acesso ao portal.';
+    return;
+  end if;
 
   -- O POST SAI ANTES DA DEMANDA DO MES, e a ordem e a trava (0086/0088).
   --
@@ -1154,8 +1164,8 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '2 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-  values ('post', p, 1, 'cliente', diego);
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, solicitado_por)
+  values ('post', p, 1, 'cliente', joana, diego);
 
   insert into public.posts (client_id, tema, legenda, data_publicacao, horario,
                             plataformas, formato, arte_url, thumbnail_url, criado_por)
@@ -1167,16 +1177,14 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '1 day');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-  values ('post', p, 1, 'cliente', diego)
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, solicitado_por)
+  values ('post', p, 1, 'cliente', joana, diego)
   returning id into rodada;
 
-  if joana is not null then
-    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
-    values ('post', p, rodada, joana, 'Dá para trocar a foto do fundo pela da loja nova?');
-    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
-    values ('post', p, rodada, marina, 'Dá sim. Já pedimos para o Bruno.');
-  end if;
+  insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+  values ('post', p, rodada, joana, 'Dá para trocar a foto do fundo pela da loja nova?');
+  insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+  values ('post', p, rodada, marina, 'Dá sim. Já pedimos para o Bruno.');
 
   insert into public.comments (content_type, content_id, autor_id, texto, interno)
   values ('post', p, marina, 'Cliente sempre pede foto da loja. Já deixar na próxima.', true);
@@ -1189,8 +1197,8 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '6 hours');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-  values ('post', p, 1, 'cliente', diego);
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, solicitado_por)
+  values ('post', p, 1, 'cliente', joana, diego);
 
   -- --------------------------------------------------------------------- 4 --
   -- Ajustes pedidos pelo cliente: duas versoes, e a rodada 1 fechada com o
@@ -1219,8 +1227,8 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '5 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', joana, 'ajustes_solicitados', diego, joana,
           now() - interval '4 days', 'O logo ficou pequeno demais.');
 
   insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
@@ -1237,8 +1245,8 @@ begin
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '3 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', joana, 'ajustes_solicitados', diego, joana,
           now() - interval '2 days', 'O horário de sábado está errado.');
   update public.posts set status = 'ajustes' where id = p;
 
@@ -1265,15 +1273,13 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '9 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('post', p, 1, 'cliente', 'ajustes_solicitados', diego, joana,
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', joana, 'ajustes_solicitados', diego, joana,
           now() - interval '8 days', 'A legenda ficou dura. Solta mais.')
   returning id into rodada;
 
-  if joana is not null then
-    insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
-    values ('post', p, rodada, joana, 'A legenda ficou dura. Solta mais.');
-  end if;
+  insert into public.comments (content_type, content_id, approval_round_id, autor_id, texto)
+  values ('post', p, rodada, joana, 'A legenda ficou dura. Solta mais.');
 
   insert into public.post_versions (post_id, arte_url, thumbnail_url, legenda, notas_mudanca, criado_por)
   values (p, '/exemplos/arte-3.svg', '/exemplos/arte-3.svg',
@@ -1285,8 +1291,8 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 3, 'interna', 'aprovada', bruno, diego, now() - interval '7 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('post', p, 2, 'cliente', 'aprovada', diego, joana,
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 2, 'cliente', joana, 'aprovada', diego, joana,
           now() - interval '6 days', 'Agora sim. Pode subir.');
   update public.posts set status = 'aprovado' where id = p;
 
@@ -1298,8 +1304,8 @@ begin
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '11 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
-  values ('post', p, 1, 'cliente', 'aprovada', diego, joana, now() - interval '10 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em)
+  values ('post', p, 1, 'cliente', joana, 'aprovada', diego, joana, now() - interval '10 days');
   update public.posts set status = 'aprovado' where id = p;
 
   -- --------------------------------------------------------------------- 6 --
@@ -1313,8 +1319,8 @@ begin
   returning id into p;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('post', p, 1, 'interna', 'aprovada', bruno, diego, now() - interval '13 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('post', p, 1, 'cliente', 'rejeitada', diego, joana, now() - interval '12 days',
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('post', p, 1, 'cliente', joana, 'rejeitada', diego, joana, now() - interval '12 days',
           'Não vamos falar de concorrente. Esse não entra.');
   update public.posts set status = 'rejeitado' where id = p;
 
@@ -1663,11 +1669,21 @@ begin
     return;
   end if;
 
+  -- ELA E A APROVADORA DE TODA RODADA DE CLIENTE DESTE BLOCO, e e por isso
+  -- que a consulta pede `pr.ativo`: a trava da 0128 recusa um `aprovador_id`
+  -- que `aprovadores_da_conta()` nao devolva, e aquela funcao filtra por
+  -- `ativo`. Sem o filtro aqui, o seed escolheria alguem que o banco recusa.
   select cu.user_id into joana
     from public.client_users cu
     join public.profiles pr on pr.id = cu.user_id
-   where cu.client_id = verde and pr.role = 'cliente'
+   where cu.client_id = verde and pr.role = 'cliente' and pr.ativo
+   order by pr.nome
    limit 1;
+
+  if joana is null then
+    raise notice 'A empresa de exemplo nao tem ninguem com acesso ao portal.';
+    return;
+  end if;
 
   -- A DEMANDA DA CAMPANHA SAI JUNTO, e ela e apagada ANTES: `campaigns.task_id`
   -- aponta para ela, e sem esta linha a segunda passada do seed deixava a
@@ -1709,8 +1725,8 @@ begin
 
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '21 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-  values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '19 days',
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+  values ('deliverable', item, 1, 'cliente', joana, 'aprovada', diego, joana, now() - interval '19 days',
           'Ficou ótimo. Pode seguir.');
   update public.deliverables set status = 'aprovado' where id = item;
 
@@ -1774,24 +1790,24 @@ begin
     end if;
 
     if i <= 3 then
-      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
-      values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '8 days');
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'cliente', joana, 'aprovada', diego, joana, now() - interval '8 days');
       update public.deliverables set status = 'aprovado' where id = item;
 
     elsif i = 4 then
       -- RECUSADO COM MOTIVO. O motivo mora na rodada e a arvore o mostra na
       -- propria lista: "Rejeitado" sozinho manda a pessoa abrir o item para
       -- descobrir por que.
-      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em, comentario)
-      values ('deliverable', item, 1, 'cliente', 'rejeitada', diego, joana, now() - interval '7 days',
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em, comentario)
+      values ('deliverable', item, 1, 'cliente', joana, 'rejeitada', diego, joana, now() - interval '7 days',
               'O logo ficou pequeno demais no rodapé. Não dá para usar assim.');
       update public.deliverables set status = 'rejeitado' where id = item;
 
     elsif i = 5 then
       -- Esperando decisao do cliente: a rodada fica PENDENTE, e e ela que faz
       -- o item entrar nas pendencias do portal e no destaque do cartao.
-      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, solicitado_em)
-      values ('deliverable', item, 1, 'cliente', 'pendente', diego, now() - interval '3 days');
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, solicitado_em)
+      values ('deliverable', item, 1, 'cliente', joana, 'pendente', diego, now() - interval '3 days');
 
     else
       update public.deliverables set status = 'em_producao' where id = item;
@@ -1820,12 +1836,12 @@ begin
     end if;
 
     if i <= 4 then
-      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
-      values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '6 days');
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em)
+      values ('deliverable', item, 1, 'cliente', joana, 'aprovada', diego, joana, now() - interval '6 days');
       update public.deliverables set status = 'aprovado' where id = item;
     elsif i <= 6 then
-      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, solicitado_em)
-      values ('deliverable', item, 1, 'cliente', 'pendente', diego, now() - interval '2 days');
+      insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, solicitado_em)
+      values ('deliverable', item, 1, 'cliente', joana, 'pendente', diego, now() - interval '2 days');
     else
       update public.deliverables set status = 'em_producao' where id = item;
     end if;
@@ -1857,8 +1873,8 @@ begin
   returning id into item;
   insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
   values ('deliverable', item, 1, 'interna', 'aprovada', bruno, diego, now() - interval '12 days');
-  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, status, solicitado_por, decidido_por, decidido_em)
-  values ('deliverable', item, 1, 'cliente', 'aprovada', diego, joana, now() - interval '11 days');
+  insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, aprovador_id, status, solicitado_por, decidido_por, decidido_em)
+  values ('deliverable', item, 1, 'cliente', joana, 'aprovada', diego, joana, now() - interval '11 days');
   update public.deliverables set status = 'aprovado' where id = item;
 
   -- ------------------------------------------------------- Arquivos Deskfy --

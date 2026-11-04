@@ -137,9 +137,10 @@ update public.approval_rounds set status = 'aprovada', decidido_por = :DIEGO, de
 -- preparo se identifica como o Diego.
 select set_config('request.jwt.claim.sub', :DIEGO, false);
 
-insert into public.approval_rounds (id, content_id, escopo, numero_rodada, status, solicitado_por)
-values ('ffffffff-0000-0000-0000-0000000000c1', 'ffffffff-0000-0000-0000-00000000000a',
-        'cliente', 1, 'pendente', :DIEGO);
+insert into public.approval_rounds
+  (id, content_id, escopo, numero_rodada, status, solicitado_por, aprovador_id)
+  values ('ffffffff-0000-0000-0000-0000000000c1', 'ffffffff-0000-0000-0000-00000000000a',
+        'cliente', 1, 'pendente', :DIEGO, teste.aprovador_de('ffffffff-0000-0000-0000-00000000000a'));
 
 select set_config('request.jwt.claim.sub', '', false);
 

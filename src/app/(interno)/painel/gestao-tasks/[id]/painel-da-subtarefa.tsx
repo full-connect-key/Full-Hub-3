@@ -875,8 +875,22 @@ function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
                   )}
                   {rodada.decidido_em
                     ? ` · decidida por ${rodada.decisor?.nome ?? "—"} em ${format(parseISO(rodada.decidido_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-                    : " · esperando decisão"}
+                    : rodada.aprovador
+                      ? ` · esperando ${rodada.aprovador.nome}`
+                      : " · esperando decisão"}
                 </p>
+                {/* A MENSAGEM QUE VIAJOU COM O ENVIO (0128), e ela vem ANTES
+                    do comentário: são dois fatos diferentes — esta é o que a
+                    agência disse ao mandar, e o `comentario` é o motivo da
+                    DECISÃO, que a 0127 tornou obrigatório nos dois desfechos
+                    negativos. Na ordem contrária, quem lê o motivo do ajuste
+                    encontra primeiro a frase de quem enviou. */}
+                {rodada.mensagem ? (
+                  <p className="text-text-secondary">
+                    <span className="text-text-muted">Enviada com: </span>
+                    {rodada.mensagem}
+                  </p>
+                ) : null}
                 {rodada.comentario ? <p>{rodada.comentario}</p> : null}
               </div>
             ) : null}

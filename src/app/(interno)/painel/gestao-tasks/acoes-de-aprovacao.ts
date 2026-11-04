@@ -7,8 +7,11 @@ import {
   aindaNaoTratado,
   colunasDoConteudo,
   daSubtarefa,
+  esquemaDeEnvio,
+  ROTULOS_DO_ENVIO,
   type Conteudo,
 } from "@/lib/aprovacoes/conteudo";
+import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import {
   executarAcao,
   falha,
@@ -485,10 +488,34 @@ export async function solicitarAjustesInterna(
  * Nunca automático: aprovar internamente diz que o material está bom, enviar
  * diz que é agora. As duas decisões são de pessoas diferentes em momentos
  * diferentes, e juntá-las já mandou peça errada para cliente em muita agência.
+ *
+ * **E DESDE A 0128 ELE LEVA QUEM RECEBE.** `aprovadorId` é a pessoa do lado do
+ * cliente que a agência nomeia — separada do responsável de PRODUÇÃO, que é
+ * `subtasks.responsavel_id` e diz quem faz. Quem recusa o envio sem ela é
+ * `validar_nova_rodada`, no banco; o esquema aqui existe para a frase ser
+ * portuguesa antes de a ida ao Postgres acontecer, que é a decisão da máquina
+ * de estados ao lado dos gatilhos da 0007.
  */
-export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
+export async function enviarParaCliente(
+  subtaskId: string,
+  envio: unknown,
+): Promise<Resultado> {
   return executarAcao("enviarParaCliente", async () => {
     const sessao = await exigirGestorNaAcao();
+
+    const validacao = esquemaDeEnvio.safeParse(envio);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "enviarParaCliente",
+          validacao.error,
+          envio,
+          "Confira o envio.",
+          ROTULOS_DO_ENVIO,
+        ),
+      );
+    }
+
     const supabase = await criarClienteServidor();
 
     const ctx = await lerSubtarefa(supabase, subtaskId);
@@ -518,6 +545,8 @@ export async function enviarParaCliente(subtaskId: string): Promise<Resultado> {
         numero_rodada: situacao.rodadaAtual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,
+        aprovador_id: validacao.data.aprovadorId,
+        mensagem: validacao.data.mensagem,
       })
       .select("id")
       .single();

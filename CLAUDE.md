@@ -519,6 +519,145 @@ texto e exigir uma tecla); aprovar sem nada continua passando; e o `insert` já
 `rejeitada` é recusado **pelo check**, com a mensagem em inglês que é
 exatamente o argumento de o trigger existir ao lado dele.
 
+#### O ENVIO AO CLIENTE NOMEIA QUEM RECEBE (0128)
+
+Decisão do usuário, item 14: ao enviar um material ao cliente, escolher quem
+aprova passa a ser obrigatório; o envio registra quem mandou, quem recebeu e
+quando; a pessoa escolhida é avisada; e a pendência aparece com o nome dela.
+
+**METADE DO PEDIDO JÁ EXISTIA, e ir medir antes de escrever é o que separou o
+que precisava de código do que só precisava ser ligado** — a lição da 0060 e
+da 0127:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| quem enviou | `approval_rounds.solicitado_por`, desde a 0007 |
+| quando | `solicitado_em`, desde a 0007 |
+| de que empresa | `cliente_da_rodada()`, desde a 0030 |
+| notificar | `approval_rounds_avisa_o_cliente`, desde a 0098 |
+| **quem RECEBEU** | **não existia** |
+| a mensagem do envio | **metade** — o lote tinha `recado`, a peça não tinha nada |
+
+**A MEDIÇÃO QUE DECIDE ESTA MIGRATION: das 28 contas do banco, UMA tem alguém
+com acesso ao portal.** Quer dizer que hoje o material enviado para as outras
+27 **não chega a pessoa nenhuma** — ninguém consegue abrir o portal delas — e
+nada na tela diz isso. A trava não cria o problema: ela o revela. É o oposto
+da 0026, onde eu li a frase do usuário como relato de furo e fechei um furo
+que não existia; aqui o furo foi contado, conta por conta.
+
+**É TRIGGER E NÃO `not null`, QUE É A DECISÃO DA 0015.** Há rodada gravada
+antes desta regra — 18 delas —, e `not null` quebraria a migration em qualquer
+ambiente que as tenha. A coluna aceita nulo, a trava exige **no envio**, e as
+18 antigas ficam como estão: o aviso delas já foi dado, e reescrevê-las seria
+inventar quem recebeu.
+
+**NOMEAR NÃO É TRANCAR, e é a frase que a dica carrega.** Quem foi nomeado é
+quem recebe o AVISO; qualquer pessoa da empresa continua podendo responder,
+porque não há hierarquia do lado do cliente — é a regra escrita do Portal
+desde o Sprint 12, e uma trava de decisão por pessoa a desfaria. O que a
+coluna decide é a cobrança, não o direito.
+
+**E A MENSAGEM NÃO É O `comentario`.** São dois fatos na mesma linha: um é o
+que a agência disse ao MANDAR, o outro é o que o cliente disse ao DECIDIR.
+Reaproveitar a coluna faria o pedido de ajustes apagar o recado do envio — e é
+a razão pela qual `rejeitada` nasceu ao lado de `ajustes_solicitados` em vez de
+reaproveitar o valor (0032).
+
+**A LISTA DE QUEM APROVA É UMA FUNÇÃO SÓ**, `aprovadores_da_conta()`, e a trava
+e a tela consultam a MESMA: duas respostas para *"quem aprova por esta conta"*
+divergiriam, e o que divergiria é o da tela — o modal ofereceria alguém que o
+banco recusa, e a recusa chegaria depois do clique. Ela é `security definer`
+com `is_staff()` escrito à mão na porta, que é a forma de
+`usuarios_do_meu_cliente()` (0031): sem a guarda, a lista de contatos de uma
+conta sairia para quem tiver a chave anon. E ela filtra por `ativo`, senão a
+tela ofereceria quem perdeu o acesso.
+
+**A RECUSA DA CONTA SEM NINGUÉM VEM ANTES DA ESCOLHA**, nos dois lados, e a
+ordem é a lição da 0076: *"escolha quem aprova"* numa conta onde não há ninguém
+para escolher é uma recusa que a pessoa não tem como satisfazer, e o portão
+ficaria fechado para sempre. **A primeira versão do LOTE perguntava na ordem
+inversa**, e um mês de uma conta sem acesso levava exatamente aquela recusa.
+
+**E O LOTE REPETE AS DUAS PERGUNTAS ANTES DE GRAVAR QUALQUER COISA**, porque
+`validar_nova_rodada` é por LINHA: num mês de dezoito peças ele recusaria a
+décima e deixaria nove rodadas e um lote escritos — e a mensagem falaria de UMA
+peça. É a ordem de `abrir_mes_de_social`, que confere os cinco períodos antes
+de abrir post nenhum.
+
+**O AVISO PASSOU A SER DE UMA PESSOA, e isso é mudança de comportamento.** Ele
+percorria `client_users` e tocava o sino de toda a empresa. Nomear um aprovador
+e continuar cobrando todos seria um campo que não decide nada — o pior tipo de
+campo (0023). Os outros continuam **vendo** a peça no portal; o que eles deixam
+de receber é a cobrança.
+
+**O MODAL LÊ A LISTA NA ABERTURA, e o Cliente é TEXTO e não campo:** ele é a
+conta do material, não uma escolha — oferecê-lo como seletor convidaria a
+mandar a peça de uma empresa para outra, que é o vazamento que a 0078 recusa
+num nível acima. Quando a conta não tem ninguém, o botão fica **desligado com
+a razão** e um link para Gestão de Pessoas › Clientes, em linha própria (o
+`link-in-text-block` do axe). E o campo vem **pré-selecionado quando há uma
+pessoa só**: não há escolha a fazer, e um placeholder ali pediria uma decisão
+que não existe.
+
+**A PENDÊNCIA APARECE COM O NOME**, no painel da etapa: `· esperando Joana
+Verde` no lugar de `· esperando decisão`. O nome sai do mapa de pessoas que a
+consulta já montava — **nenhuma consulta nova**, só `aprovador_id` entrando na
+coleção de ids.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a bateria não foi
+rodada** — não há Docker nem Postgres local neste ambiente. O arquivo 47 está
+escrito, com as sete seções, e o que existe no lugar da execução é a medição
+contra o Postgres de produção, cinco casos numa transação revertida: recusar
+sem aprovador, recusar o aprovador de outra conta, passar com o certo, recusar
+a conta sem portal nomeando a empresa, e a rodada `interna` passando sem nada.
+E **35 inserts de rodada de cliente da bateria** ganharam `teste.aprovador_de()`
+— sem isso ela abortaria na primeira seção.
+
+##### E A FUNÇÃO DO LOTE FOI APLICADA ERRADA UMA VEZ
+
+Fica registrado porque é a 0030 pelo outro lado. Aplicando a correção da ordem
+das recusas, eu **redigitei** o corpo da função na chamada em vez de copiar do
+arquivo — e a versão redigitada inventou um `join` com `order by p.criado_em`.
+Aquela coluna não existe (é `created_at`), então o lote passou a estourar em
+tempo de execução; e de quebra as frases das recusas, o texto do aviso e as
+**chaves do jsonb de retorno** saíram diferentes — e as chaves são lidas pela
+action.
+
+A 0030 diz que `create or replace` não avisa quando o texto novo tem MENOS
+coisa que o velho. Esta é a mesma armadilha pelo outro lado: ele também não
+avisa quando o texto novo tem coisa que o velho não tinha, e **plpgsql não
+valida o corpo na criação** — a hora de validar é o clique de alguém.
+**A regra é aplicar a partir do ARQUIVO, nunca de memória**, e a conferência
+que pegou foi comparar o corpo de `pg_get_functiondef()` com o do arquivo, com
+comentário e espaço em branco normalizados.
+
+**De quebra, a ACL dela estava aberta desde a 0090**, e isto foi medido: aquela
+migration tem onze `revoke` e nenhum para esta função. Não era furo — ela não é
+`security definer` e a primeira linha do corpo é `is_gestor() or
+is_atendimento()` —, era inconsistência, e um `drop`+`create` a reabriria de
+qualquer forma, porque o `create` devolve a ACL ao padrão.
+
+##### O PRIMEIRO STUB DE _ACTION_ DO PROTÓTIPO
+
+O gerador troca `lib/dados/` e **nunca** `_actions` — é por isso que o diálogo
+com a contagem de "Apagar o mês" não tem imagem: sem Supabase a ação recusa, e
+a foto sairia provando o caminho de falha no lugar do que se queria conferir.
+
+**O que mudou é que uma imagem que JÁ EXISTE passou a depender de uma action.**
+`envio-do-mes.tsx` lê quem aprova na montagem, e ele é desenhado dentro de
+`57f-social-encerrar-o-mes`: sem o stub, a entrega nova degradaria uma
+conferência velha. É o caso que o comentário de lá previu com as palavras *"é
+decisão explícita quando valer"*. O mecanismo já existia — `SUBSTITUICOES` é o
+mapa de `paths` do tsconfig, e trocar uma action é a mesma linha que troca um
+módulo de dados. **Um stub, pela razão acima, e não a abertura de uma série.**
+
+**E ele não pode importar de `lib/acoes/resultado`.** No produto a action é uma
+fronteira `"use server"` e o navegador recebe só uma referência; trocada por um
+módulo comum, ela é compilada no bundle do cliente — e aquele arquivo tem
+`import "server-only"`. A primeira versão importava `sucesso()` de lá e a
+rodada parou, arrastando o Social Media inteiro no rastro. `lib/acoes/tipos.ts`
+existe exatamente para isto, e o comentário dele já dizia por quê.
+
 #### A exigência de aprovação é de CADA ETAPA, e só dela
 
 Cada subtarefa diz se precisa de aval (`requer_aprovacao`) e de qual
@@ -15555,6 +15694,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Quem recebe a aprovação | **O envio ao cliente passou a nomear quem recebe** (migration 0128), por decisão do usuário, item 14: escolher o responsável é obrigatório, o envio registra quem mandou, quem recebeu e quando, a pessoa é avisada, e a pendência aparece com o nome dela. **METADE JÁ EXISTIA** — quem enviou, quando, de que empresa e o aviso são de 2007/0030/0098; o que não existia era quem RECEBEU. **A MEDIÇÃO QUE DECIDE A MIGRATION: das 28 contas do banco, UMA tem alguém com acesso ao portal** — o material enviado para as outras 27 não chega a pessoa nenhuma, e nada na tela diz isso. A trava não cria o problema, ela o revela, e a recusa nomeia a empresa e manda para Gestão de Pessoas › Clientes. É o oposto da 0026, onde eu li a frase do usuário como relato de furo e fechei um furo que não existia: aqui o furo foi contado, conta por conta. **É trigger e não `not null`** (a 0015), porque há 18 rodadas anteriores à regra; **nomear não é trancar**, porque não há hierarquia do lado do cliente e qualquer pessoa da empresa continua podendo responder — o que a coluna decide é a cobrança; e **a mensagem do envio não é o `comentario`**, que é o que o cliente diz ao DECIDIR. **A recusa da conta sem ninguém vem ANTES da escolha**, nos dois lados, pela lição da 0076 — e a primeira versão do LOTE perguntava na ordem inversa, levando a uma recusa que a pessoa não tinha como satisfazer. **O aviso passou a ser de UMA pessoa**: ele percorria `client_users` e tocava o sino da empresa inteira, e nomear alguém continuando a cobrar todos seria um campo que não decide nada (0023). **E A FUNÇÃO DO LOTE FOI APLICADA ERRADA UMA VEZ, que é a 0030 pelo outro lado:** eu redigitei o corpo dela na chamada em vez de copiar do arquivo, e a versão redigitada inventou um `order by p.criado_em` — coluna que não existe —, além de trocar as frases das recusas e **as chaves do jsonb que a action lê**. `create or replace` também não avisa quando o texto novo tem coisa que o velho não tinha, e plpgsql não valida o corpo na criação: a hora de validar é o clique de alguém. **Aplicar a partir do arquivo, nunca de memória.** De quebra, a ACL daquela função estava aberta desde a 0090 — onze `revoke` lá, nenhum para ela — e foi fechada. **E nasceu o primeiro stub de _action_ do protótipo**, com a razão escrita: o gerador troca `lib/dados/` e nunca `_actions`, e o que mudou é que uma imagem que já existe passou a depender de uma — sem o stub, a entrega nova degradaria uma conferência velha. Ele não pode importar de `lib/acoes/resultado`, que é `server-only`: trocada por um módulo comum, a action é compilada no bundle do cliente. ***A bateria não foi rodada*** — não há Docker nem Postgres aqui —, e no lugar dela está a medição contra produção, cinco casos numa transação revertida; o arquivo 47 está escrito e 35 inserts da bateria ganharam o aprovador. |
 | As cores da decisão | **As três decisões ganharam cor, e a recusa passou a exigir motivo** (migration 0127), por decisão do usuário: *"APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho; em todos os módulos; textos+ícones; registrar no histórico; justificativa na recusa; sincronizar portal/dashboard"*. **CINCO METADES, E QUATRO JÁ EXISTIAM** — ir medir antes de escrever é o que separou o que precisava de código do que só precisava ser nomeado (a lição da 0060): o registro no histórico é `approval_rounds` **sem policy de DELETE**, e a sincronização entre portal e painel passou a ser por construção. **O QUE ESTAVA ERRADO NÃO ERA A FALTA DE COR, ERA A DIVERGÊNCIA:** quatro aparências em seis telas, com o ícone de aprovar oscilando entre `Check`, `BadgeCheck` e nenhum — e, no portal, *"Solicitar ajustes"* e *"Rejeitar"* eram o **MESMO** botão `outline`, a dois centímetros, com a palavra como única diferença. É `ICONE_DA_AREA` outra vez, e a resposta é a de `LinhaDeTrabalho`: **um mapa, não uma convenção escrita** — a sequência vira o TIPO. **E A PALAVRA ENTRA NO MAPA**, ao contrário do que a `BarraDeContexto` centraliza, porque a lista é a mesma em todo módulo e era ela que divergia: o botão dizia "Rejeitar", o diálogo "Recusar material" e o confirmar "Recusar", na mesma tela. **A COR FOI MEDIDA DUAS VEZES E AS DUAS DERRUBARAM.** O hover: `brightness-110` leva branco sobre o verde de 5,02:1 a **4,26:1** — e um filtro do Tailwind não é cor nomeada, então o `check:cores` dizia "tudo certo" sobre ele. E o **daltonismo**: `--warning` cheio passa em contraste (6,33:1) e fica a **ΔE 1,2** do vermelho em deuteranopia — aquele token é cor de TEXTO, escurecida até ler a 11px, e **âmbar escurecido é marrom**; os dois desfechos negativos, lado a lado, na mesma cor — **o bug deste sprint reproduzido em cor**. O Financeiro já tinha recusado um par a 4,2 pela mesma conta, **à mão, sem deixar nada que reprovasse**: a conta virou seção do `check:cores` (Brettel/Viénot + ΔE CIE76, piso 10) — **e foi ela que achou o segundo caso enquanto o primeiro era consertado**, `--success` × `--danger` a ΔE 9,4 no tema escuro, pelo motivo inverso. A saída é uma família própria de três chãos que **não trocam por tema**, que é a decisão de `--action`: a colisão do escuro deixa de existir por construção, e as duas imagens saem idênticas nos três botões. **E A RECUSA NÃO EXIGIA MOTIVO:** este arquivo afirmava desde a 0032 que os dois desfechos negativos exigiam, *"na ação e no banco"* — medindo, `approval_rounds` tinha **um** check (o de `content_type`) e, dos **onze** triggers, só um cobrava comentário, perguntando `ajustes_solicitados` e mais nada. É a 0029 pelo avesso: lá a regra morava nos dois lados e desfazer um não desfez nada; aqui eu **escrevi** que ela morava nos dois e ela morava em um. A 0127 põe o check (o piso, que pega o `insert`) e o ramo no trigger (a frase que a pessoa lê), e os cinco casos foram medidos contra o Postgres de produção numa transação revertida. ***O Day Off ficou de fora, e é dito:*** "De acordo" / "Preciso remarcar" é deliberadamente o vocabulário de quem não tem hierarquia de aprovação (0016/0018), e pintá-lo com o verde e o `X` da família desfaria aquela decisão pela cor. |
 | O comentário por card | **Cada card do carrossel passou a ter a conversa dele** (migration 0126), decisão do usuário: *"Comentários individuais por card do carrossel"*, com a hierarquia *"Campanha → Peça → Card"* e *"não misturar cards"*. **O CARD É UM SLIDE**, e o título do pedido diz isso — não é o filho de um entregável (a árvore da 0033) nem a caixinha de `post_etapa_progresso`. **Quase tudo existia:** `comments` é polimórfica desde a 0032, com a thread de um nível, `interno` e o autor forçados por trigger, o aviso por trigger e as quatro policies — e a tela de detalhe é UMA SÓ para post e entregável. O que faltava era a thread saber de QUAL quadro o cliente falava: um carrossel de cinco slides tinha UMA conversa, e *"trocar o texto do terceiro"* obrigava quem produz a descobrir qual era o terceiro. **A ÂNCORA É A POSIÇÃO E NÃO A URL, e isso foi medido:** `gravarVersao` recebe a lista `arquivos` inteira e o editor manda os arquivos que acabaram de subir, então a v2 de um carrossel consertado tem cinco caminhos NOVOS no bucket — pela URL a thread se perderia a cada versão, no instante em que quem produz está lendo o pedido. **E `card_versao` impede o índice de mentir:** remover um slide do meio faz os quadros andarem (0048), então o pedido do terceiro de cinco cairia no terceiro de quatro — plausível e errado. **Nulo é a peça**, o par é coerente nos dois sentidos (a forma de `subtasks_tipo_aprovacao_coerente`), e **a RESPOSTA herda o card da raiz** no trigger de um nível: sem isso ela cai na thread da PEÇA, respondendo uma pergunta numa thread que não mostra a pergunta. **O entregável NÃO ganha card**, porque os arquivos dele são FORMATOS da mesma peça (0053) e não quadros de uma composição. Na tela, a thread tem DOIS escopos com as duas contagens à vista — *"não misturar cards"* descarta a lista única, e esconder a peça esconderia a outra metade —, o card em foco é o do VISUALIZADOR e não um segundo seletor, e ele desce por CONTEXTO porque a tela de detalhe é de SERVIDOR. **E A AGÊNCIA NÃO TINHA ONDE LER NADA DISSO: é a décima nona ponte** — `comments_select` é `is_staff()` desde a 0032 e nenhuma tela do painel lia a tabela; o que chegava era o sino, que se apaga no primeiro clique. **Oito casos medidos contra produção**, em transação revertida, e o oitavo é um achado: um card forjado numa resposta à peça é zerado — a herança protege os dois sentidos. **De quebra, o `check:prototipo` era cego a uma classe inteira de seletor:** o `clicar` em ARRAY era casado por `\[[^\]]*\]`, e todo seletor de atributo tem um `]` dentro — eram **21 textos em 7 telas, 15 anteriores a este sprint**, com a checagem dizendo *"56 textos, todos no produto"* sem ter olhado para nenhum. Hoje são 77, com `INTERPOLADOS` dizendo qual trecho de `src/` produz cada rótulo montado. Medido com duas mutações: o mesmo seletor morto passa VERDE com o extrator velho. ***Não foi feito, e é dito:*** a bateria não rodou (sem Docker/Postgres aqui) e o protótipo não rodou — as três telas novas estão escritas e nada foi conferido em imagem. |
 | O briefing da campanha | **O briefing de campanha virou ESTRUTURADO** (migration 0125), decisão do usuário: *"nome, objetivo, público, período; mensagem, produtos, tom, canais; tipos/quantidades/formatos/dimensões; upload de imagens/PDFs + links + observações; restrições"*, com *"persistir com anexos"* e *"reutilizável"*. **METADE JÁ EXISTIA, e é isso que torna a migration pequena:** nome e período são colunas de `campaigns` desde a 0033, tipos e quantidades são `campaign_composicao` (0122), e os anexos e as observações são `task_referencias` e `tasks.briefing_rico` **da demanda** — a decisão da 0051, que continua inteira. O que nasce são NOVE colunas: sete narrativas e duas na composição. **SÃO SETE CAMPOS NOMEADOS E NÃO UMA CAIXA DE TEXTO**, pela razão do roteiro das Solicitações (0068): *"um campo de texto livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta'"*. **E são COLUNAS e não um jsonb**, pelo critério de `post_versions.arquivos` (`publico` é por onde um relatório agruparia) e pelo de `assets` na 0070 (*num jsonb a tela inventa as chaves, até a segunda escrever `tom_voz` onde a primeira escreveu `tom_de_voz`*) — `check:tipos` liga migration a coluna e não liga chave de jsonb a nada. **NÃO HÁ TABELA DE ANEXO NOVA e nem uma linha de upload nova:** `Referencias` é o MESMO componente da tela da demanda, com o `taskId` dela — e *o custo está dito*, os anexos só sobem depois que a campanha existe, porque antes não há `task_id` a que prendê-los (0028), então a tela de abertura diz onde eles ficam em vez de não dizer nada. **A LINHA DE SEGURANÇA é o briefing NÃO entrar em `CampanhaDoPortal`**: aquele tipo é o que o portal recebe, e pôr as sete ali mandaria o objetivo, o público e as restrições no payload de quem contratou — quem as lê é `briefingDaCampanha()`, a decisão de `contatosDasMinhasEmpresas()`. **`canais` é texto livre e não enum** (a razão de `posts.formato`), *e isso custa a agregação, que fica dito* — a diferença é que ninguém conta por canal; a normalização é de `canaisNormalizados()`, um lugar só, e a trava de repetição no banco seria a 0060 de novo. **A assinatura de `abrir_campanha()` não muda pela terceira vez** (0061, 0120): as nove são segundas escritas, em TRÊS, com UMA frase que conta o que falhou — *um `return` por escrita faria a pessoa ler sobre a frente e nunca saber que o briefing também ficou de fora*. **O trigger foi copiado INTEIRO** (a lição da 0030) e ganhou a quinta recusa, com a dica nomeando o que quem produz **ainda pode** editar. **Medido contra o Postgres de produção, cinco casos numa transação revertida:** a designer é recusada no objetivo e nos canais, **passa na capa** (a 0050 inteira), a gestão grava os sete, e a empresa é recusada para a gestão também. **E `check:mensagens` reprovou o meu próprio comentário pela oitava vez** — a explicação escrevia com parênteses o nome da função que monta a frase da recusa, e a varredura a leu como uma chamada sem o nome da action. ***O que NÃO foi feito, e é dito:*** a bateria não foi rodada (sem Docker nem Postgres aqui), então não há cenário de SQL para a recusa nova; e o protótipo não foi rodado, então a seção, os chips de canal e a linha de especificação não foram conferidos em imagem. |

@@ -10,6 +10,7 @@ import {
   ConteudoDaDecisao,
 } from "@/components/shared/botao-de-decisao";
 import { DialogoDeTempo } from "@/components/shared/dialogo-de-tempo";
+import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { DECISAO_DA_ACAO, type Decisao } from "@/lib/aprovacoes/decisoes";
+import { daSubtarefa } from "@/lib/aprovacoes/conteudo";
 import {
   formatarMinutos,
   medidaSuspeita,
@@ -130,9 +132,14 @@ export function AcoesDaSubtarefa({
   const [medido, setMedido] = useState<number | null>(null);
   const [pedindoMotivo, setPedindoMotivo] = useState(false);
   const [motivo, setMotivo] = useState("");
-  const [confirmando, setConfirmando] = useState<
-    null | "enviar_aprovacao" | "enviar_cliente"
-  >(null);
+  const [confirmando, setConfirmando] = useState<null | "enviar_aprovacao">(
+    null,
+  );
+  // O ENVIO AO CLIENTE SAIU DO DIÁLOGO DE CONFIRMAÇÃO (0128), e é por isso que
+  // `confirmando` ficou com um valor só: aquele diálogo pergunta "tem
+  // certeza?", e este pede três coisas — o responsável, a mensagem, e mostra
+  // a empresa. Dois diálogos para a mesma ação seriam dois lugares a divergir.
+  const [enviandoAoCliente, setEnviandoAoCliente] = useState(false);
 
   const acoes = acoesDaSubtarefa({
     status: subtarefa.status,
@@ -190,7 +197,7 @@ export function AcoesDaSubtarefa({
         setConfirmando("enviar_aprovacao");
         return;
       case "enviar_cliente":
-        setConfirmando("enviar_cliente");
+        setEnviandoAoCliente(true);
         return;
       case "solicitar_ajustes":
         setMotivo("");
@@ -348,38 +355,29 @@ export function AcoesDaSubtarefa({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {confirmando === "enviar_cliente"
-                ? "Enviar ao cliente"
-                : "Pedir aval interno"}
-            </DialogTitle>
+            <DialogTitle>Pedir aval interno</DialogTitle>
             <DialogDescription>
-              {confirmando === "enviar_cliente"
-                ? "A entrega aparece no Portal do Cliente e ele passa a poder aprovar ou pedir ajustes. Registra quem enviou e quando."
-                : "Abre uma rodada de aval interno. Enquanto ela estiver aberta, a subtarefa fica esperando a decisão."}
+              Abre uma rodada de aval interno. Enquanto ela estiver aberta, a
+              subtarefa fica esperando a decisão.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-between">
-            {confirmando === "enviar_aprovacao" ? (
-              <Button
-                variant="ghost"
-                disabled={executando}
-                onClick={() =>
-                  iniciar(async () => {
-                    const ok = terminar(
-                      await chamarAcao(() =>
-                        enviarParaAprovacao(subtarefa.id, { semArquivo: true }),
-                      ),
-                    );
-                    if (ok) setConfirmando(null);
-                  })
-                }
-              >
-                Esta etapa não gera arquivo
-              </Button>
-            ) : (
-              <span />
-            )}
+            <Button
+              variant="ghost"
+              disabled={executando}
+              onClick={() =>
+                iniciar(async () => {
+                  const ok = terminar(
+                    await chamarAcao(() =>
+                      enviarParaAprovacao(subtarefa.id, { semArquivo: true }),
+                    ),
+                  );
+                  if (ok) setConfirmando(null);
+                })
+              }
+            >
+              Esta etapa não gera arquivo
+            </Button>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setConfirmando(null)}>
                 Cancelar
@@ -388,24 +386,32 @@ export function AcoesDaSubtarefa({
                 disabled={executando}
                 onClick={() =>
                   iniciar(async () => {
-                    const acao =
-                      confirmando === "enviar_cliente"
-                        ? () => enviarParaCliente(subtarefa.id)
-                        : () => enviarParaAprovacao(subtarefa.id);
-                    const ok = terminar(await chamarAcao(acao));
+                    const ok = terminar(
+                      await chamarAcao(() => enviarParaAprovacao(subtarefa.id)),
+                    );
                     if (ok) setConfirmando(null);
                   })
                 }
               >
                 {executando ? <Loader2 className="animate-spin" /> : null}
-                {confirmando === "enviar_cliente"
-                  ? "Enviar ao cliente"
-                  : "Enviar"}
+                Enviar
               </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EnvioAoCliente
+        conteudo={daSubtarefa(subtarefa.id)}
+        aberto={enviandoAoCliente}
+        aoFechar={() => setEnviandoAoCliente(false)}
+        oQueE="A entrega"
+        aoEnviar={async (escolhido) =>
+          terminar(
+            await chamarAcao(() => enviarParaCliente(subtarefa.id, escolhido)),
+          )
+        }
+      />
     </>
   );
 }

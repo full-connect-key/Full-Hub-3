@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ExternalLink, Loader2, Paperclip, Send, TriangleAlert } from "lucide-react";
+import { ExternalLink, Paperclip, Send, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/shared/empty-state";
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
+import type { EnvioEscolhido } from "@/lib/aprovacoes/conteudo";
 import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { FilaDeAprovacoes, ItemDaFila } from "@/lib/dados/aprovacoes";
 
@@ -317,43 +319,48 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
 
 function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
   const router = useRouter();
-  const [executando, iniciar] = useTransition();
+  // O ENVIO PASSOU A PEDIR QUEM RECEBE (0128), então o clique abre o modal
+  // compartilhado em vez de gravar. É o MESMO diálogo das outras três telas —
+  // e era aqui que uma quarta cópia divergiria, porque esta é a menos relida.
+  const [enviando, setEnviando] = useState(false);
+
+  async function mandar(escolhido: EnvioEscolhido) {
+    // CADA TIPO TEM A SUA AÇÃO DE ENVIO, e não dá para unificar:
+    // no post, enviar É abrir a rodada de cliente e o carimbo
+    // `enviado_em` sai do trigger da 0032; na etapa, a ação ainda
+    // registra a linha no histórico da demanda. São dois caminhos
+    // porque são dois fluxos, não por falta de refatoração.
+    const resultado = await chamarAcao(() =>
+      item.tipo === "post"
+        ? enviarAoCliente(item.contentId, escolhido)
+        : item.tipo === "deliverable"
+          ? enviarEntregavelAoCliente(item.contentId, escolhido)
+          : enviarParaCliente(item.contentId, escolhido),
+    );
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return false;
+    }
+    toast.success(resultado.mensagem);
+    router.refresh();
+    return true;
+  }
 
   return (
     <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
       <Cabecalho item={item} />
-      <Button
-        size="sm"
-        disabled={executando}
-        onClick={() =>
-          iniciar(async () => {
-            // CADA TIPO TEM A SUA AÇÃO DE ENVIO, e não dá para unificar:
-            // no post, enviar É abrir a rodada de cliente e o carimbo
-            // `enviado_em` sai do trigger da 0032; na etapa, a ação ainda
-            // registra a linha no histórico da demanda. São dois caminhos
-            // porque são dois fluxos, não por falta de refatoração.
-            const resultado = await chamarAcao(() =>
-              item.tipo === "post"
-                ? enviarAoCliente(item.contentId)
-                : item.tipo === "deliverable"
-                  ? enviarEntregavelAoCliente(item.contentId)
-                  : enviarParaCliente(item.contentId),
-            );
-            if (!resultado.ok) toast.error(resultado.error);
-            else {
-              toast.success(resultado.mensagem);
-              router.refresh();
-            }
-          })
-        }
-      >
-        {executando ? (
-          <Loader2 className="animate-spin" />
-        ) : (
-          <Send aria-hidden />
-        )}
+      <Button size="sm" onClick={() => setEnviando(true)}>
+        <Send aria-hidden />
         Enviar ao cliente
       </Button>
+
+      <EnvioAoCliente
+        conteudo={{ tipo: item.tipo, id: item.contentId }}
+        aberto={enviando}
+        aoFechar={() => setEnviando(false)}
+        oQueE="O material"
+        aoEnviar={mandar}
+      />
     </li>
   );
 }

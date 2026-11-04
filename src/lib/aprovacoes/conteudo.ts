@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { TipoDeConteudo } from "@/lib/supabase/database.types";
 
 /**
@@ -47,3 +49,45 @@ export function colunasDoConteudo(conteudo: Conteudo): {
 export function aindaNaoTratado(conteudo: Conteudo): string {
   return `Aprovação de ${conteudo.tipo} chega com o módulo dela — hoje passam por aqui etapa de demanda, post e entregável de campanha.`;
 }
+
+/**
+ * O QUE TODO ENVIO AO CLIENTE LEVA, desde a migration 0128.
+ *
+ * `aprovadorId` é quem RECEBE — a pessoa do lado do cliente que a agência
+ * nomeia, e para quem o aviso vai. Ela é **separada do responsável de
+ * produção**: `subtasks.responsavel_id`, `posts.responsavel_id` e
+ * `deliverables.responsavel_id` dizem quem FAZ.
+ *
+ * `mensagem` é o recado opcional que viaja com o envio. Não é `comentario`,
+ * que é o motivo da DECISÃO — e que a 0127 tornou obrigatório nos dois
+ * desfechos negativos.
+ *
+ * **Mora aqui e não no modal** porque são os dois lados que o usam: as quatro
+ * Server Actions de envio o recebem, e o diálogo o monta. Módulo sem diretiva,
+ * como o resto deste arquivo.
+ */
+export type EnvioEscolhido = { aprovadorId: string; mensagem: string | null };
+
+/**
+ * O QUE AS QUATRO ACTIONS DE ENVIO VALIDAM, e um esquema só para as quatro.
+ *
+ * Quatro cópias dariam quatro recusas diferentes para o mesmo campo em branco,
+ * e a que divergiria é a da fila de aprovações internas — a menos relida. Os
+ * rótulos vão junto porque é deles que `recusaDeValidacao` monta a frase: sem
+ * eles, quem esquecer de escolher lê *"Confira o campo: aprovadorId"*.
+ */
+export const esquemaDeEnvio = z.object({
+  aprovadorId: z.string().uuid("Escolha quem vai aprovar."),
+  mensagem: z
+    .string()
+    .trim()
+    .max(2000, "A mensagem passou de 2000 caracteres.")
+    .nullable()
+    .optional()
+    .transform((texto) => (texto && texto.length > 0 ? texto : null)),
+});
+
+export const ROTULOS_DO_ENVIO: Record<string, string> = {
+  aprovadorId: "quem vai aprovar",
+  mensagem: "mensagem",
+};

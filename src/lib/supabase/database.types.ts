@@ -2578,6 +2578,33 @@ export interface Database {
            * decidiu e com que comentário, e apagar o lote não pode apagá-la.
            */
           lote_id: string | null;
+          /**
+           * QUEM RECEBEU (migration 0128).
+           *
+           * A pessoa do lado do CLIENTE que a agência nomeou ao enviar, e para
+           * quem o aviso foi. **Separada do responsável de PRODUÇÃO** —
+           * `subtasks.responsavel_id`, `posts.responsavel_id` e
+           * `deliverables.responsavel_id` dizem quem FAZ, e esta diz quem
+           * APROVA.
+           *
+           * Nula em toda rodada de escopo `interna` e nas 18 rodadas de
+           * cliente anteriores à migration: é trigger e não `not null`, pela
+           * decisão da 0015 — preencher as antigas com um nome qualquer
+           * inventaria um destinatário.
+           *
+           * **Não é tranca:** quem DECIDE continua sendo qualquer pessoa da
+           * empresa, porque não há hierarquia do lado do cliente.
+           */
+          aprovador_id: string | null;
+          /**
+           * A mensagem da agência que viajou com ESTE envio (migration 0128).
+           *
+           * **Não é `comentario`**, que é o motivo da DECISÃO e que a 0127
+           * tornou obrigatório nos dois desfechos negativos. E fica nula na
+           * rodada que veio de um lote: ali a mensagem do envio é
+           * `social_lotes.recado`, uma por envio e não uma por peça.
+           */
+          mensagem: string | null;
           created_at: string;
         };
         Insert: {
@@ -2594,12 +2621,22 @@ export interface Database {
           solicitado_por: string;
           comentario?: string | null;
           lote_id?: string | null;
+          aprovador_id?: string | null;
+          mensagem?: string | null;
         };
         Update: {
           status?: StatusRodada;
           decidido_por?: string | null;
           decidido_em?: string | null;
           comentario?: string | null;
+          /**
+           * TROCAR QUEM RECEBE depois do envio é o item 15, e a coluna está
+           * aqui para ele. `validar_nova_rodada` é `before insert`, então a
+           * coerência de conta é conferida na ABERTURA — quem trocar por
+           * `update` passa pela policy e por mais nada, e é por isso que a
+           * troca mora numa action com a mesma pergunta.
+           */
+          aprovador_id?: string | null;
         };
         Relationships: [];
       };
@@ -4005,18 +4042,56 @@ export interface Database {
       // cliente por peca elegivel, numa transacao so. Decisao do usuario: a
       // unidade de envio passou a ser o MES; a decisao continua sendo de cada
       // peca.
+      //
+      // O QUARTO PARAMETRO E A 0128, e ele tem DEFAULT no banco: a lista de
+      // argumentos mudou, entao a migration fez `drop` + `create` -- `create
+      // or replace` criaria uma SEGUNDA funcao e a chamada antiga ficaria
+      // ambigua (a licao da 0061). O default e o que mantem uma chamada de
+      // tres argumentos resolvendo; o que ela passa a levar e a recusa da
+      // trava, com a frase dizendo o que falta.
       enviar_mes_ao_cliente: {
         Args: {
           p_task_id: string;
           p_etapa_id: string;
           p_recado?: string | null;
+          p_aprovador?: string | null;
         };
         Returns: {
           lote_id: string;
           portao: string;
           rodada: number;
           pecas: number;
+          aprovador: string;
         };
+      };
+      // DE QUE EMPRESA E O MATERIAL (migration 0064), pelos tres tipos de
+      // conteudo. O modal de envio a chama para preencher o campo Cliente, e
+      // `validar_nova_rodada` a chama para achar a conta de que a trava da
+      // 0128 precisa -- a MESMA funcao nos dois lados.
+      cliente_da_rodada: {
+        Args: { p_tipo: TipoDeConteudo; p_id: string };
+        Returns: string | null;
+      };
+      // QUEM PODE APROVAR PELA CONTA (migration 0128): as pessoas ATIVAS com
+      // acesso ao portal dela.
+      //
+      // DEFINICAO UNICA, DOIS LEITORES -- o gatilho `validar_nova_rodada`
+      // confere a pertinencia de quem foi nomeado, e o modal de envio lista os
+      // nomes. Duas consultas com o mesmo `where` seriam o lugar onde a lista
+      // da tela e a trava do banco comecam a divergir.
+      //
+      // `security definer` porque o colaborador do Atendimento envia o mes
+      // desde a 0090 e `profiles_select` e `own or is_gestor()`: sem ela o
+      // modal dele abriria vazio e a tela afirmaria que a conta nao tem
+      // ninguem. A guarda e `is_staff()`, porque esta devolve NOME e E-MAIL --
+      // ao contrario de `quem_atende()`, que devolve uuid e nada mais.
+      aprovadores_da_conta: {
+        Args: { p_client_id: string };
+        Returns: {
+          user_id: string;
+          nome: string;
+          email: string;
+        }[];
       };
       // A FASE DA VEZ do mes -- o primeiro portao do cliente ainda nao
       // concluido. `returns public.subtasks` e nao `returns table`, entao o

@@ -456,8 +456,8 @@ end $$;
 
 select teste.cenario('A gestao manda o briefing ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t42.post1'), :DIEGO), 'ok', 1);
 
 select teste.conferir_como('O cliente le o texto do portao, pelo campo', :JOANA,
@@ -547,8 +547,8 @@ select teste.cenario('A gestao data o post', :DIEGO,
 
 select teste.cenario('A gestao manda a peca pronta', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 2, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t42.post1'), :DIEGO), 'ok', 1);
 
 select teste.cenario('E a Joana pede ajustes', :JOANA,

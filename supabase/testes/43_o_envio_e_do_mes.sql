@@ -185,7 +185,8 @@ select teste.cenario('E da peca B', :MARINA,
 -- SEM O AVAL APROVADO O LOTE NAO SAI, e a recusa NOMEIA as pecas: e a decisao
 -- da 0023, e o que separa um "nao pode" de uma instrucao.
 select teste.recusa_com_dica('Sem o aval aprovado, o lote nao sai', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')),
   'falta o aval interno desta versão');
 
@@ -196,7 +197,8 @@ select teste.cenario('Diego aprova os dois avais internos', :DIEGO,
 
 -- O LOTE SAI, com as duas pecas sem data nenhuma.
 select teste.cenario('A gestao envia o mes ao cliente', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, 'Olha a pauta de maio.')$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, 'Olha a pauta de maio.',
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')), 'ok', 1);
 
 select teste.conferir('Nasceu UM lote, na rodada 1',
@@ -299,7 +301,8 @@ select teste.cenario('A Marina refaz a pauta da peca B', :MARINA,
 -- E A RODADA 2 SAI. Com a numeracao antiga este cenario levava
 -- *"duplicate key value violates unique constraint"*, e era o bug 2.
 select teste.cenario('A rodada 2 do portao sai', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, 'Pauta refeita.')$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, 'Pauta refeita.',
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')), 'ok', 1);
 
 select teste.conferir('Sao dois lotes agora, 1 e 2',
@@ -397,18 +400,21 @@ select teste.cenario('E a gestao desliga de novo, para o resto do arquivo', :ANA
 -- mais nada desde a 0060, e a abertura foi pedida duas vezes no sprint.
 
 select teste.cenario('O Design nao envia o mes ao cliente', :BRUNO,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')), 'recusa');
 
 select teste.recusa_com('E a recusa diz de quem e', :BRUNO,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')),
   'da gestão ou do Atendimento');
 
 -- A SOCIAL MEDIA TAMBEM NAO, e e a parte que prova que a abertura nao e para
 -- "todo colaborador": a Marina produziu as duas pautas e nao e Atendimento.
 select teste.cenario('A Social Media que produziu tambem nao envia', :MARINA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.pauta')), 'recusa');
 
 -- E A SEGUNDA PERGUNTA DA 0060 VOLTA A TER A QUEM RECUSAR. Ela foi tirada
@@ -416,7 +422,8 @@ select teste.cenario('A Social Media que produziu tambem nao envia', :MARINA,
 -- ninguem. Com o Atendimento passando, ela alcanca exatamente uma pessoa: o
 -- colaborador do Atendimento que produziu a peca.
 select teste.cenario('A Carla, do Atendimento, passa a envia-lo', :CARLA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, 'Terceira rodada.')$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, 'Terceira rodada.',
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.envio')), 'recusa');
 
 
@@ -474,7 +481,8 @@ select teste.cenario('A Marina marca a Pauta', :MARINA,
 
 -- E O LOTE SAI SEM AVAL INTERNO NENHUM. E a entrega do sprint.
 select teste.cenario('E o mes vai ao cliente SEM aval interno', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.junho'), current_setting('t43.jpauta')), 'ok', 1);
 
 select teste.conferir('Sem nenhuma rodada interna ter existido',
@@ -502,7 +510,8 @@ select set_config('t43.jentrega',
     where titulo = 'Entrega'), false);
 
 select teste.recusa_com_dica('A entrega recusa, e a dica NOMEIA a peca sem data', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.junho'), current_setting('t43.jentrega')),
   'não tem data de publicação');
 
@@ -527,7 +536,8 @@ select teste.conferir_como('E agora nao falta nada no portao', :ANA,
       current_setting('t43.junho')::uuid, current_setting('t43.jentrega')::uuid)$$, '0');
 
 select teste.cenario('E a entrega vai ao cliente', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.junho'), current_setting('t43.jentrega')), 'ok', 1);
 
 -- ---------------------------------------------------------------------------
@@ -622,7 +632,8 @@ select teste.cenario('E a equipe chama as tres', :BRUNO,
 -- --- 10. O lote e do mes, e de um portao DELE -----------------------------
 
 select teste.recusa_com('Uma etapa de outro mes nao abre lote', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.jpauta')),
   'não é um portão deste mês');
 
@@ -630,14 +641,16 @@ select teste.recusa_com('Uma etapa de outro mes nao abre lote', :ANA,
 -- rodada que o cliente nunca decide: ele veria material sem ter onde
 -- responder.
 select teste.recusa_com('E uma etapa que nao e portao tambem nao', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.maio'), current_setting('t43.conteudo')),
   'não é um portão deste mês');
 
 -- E SEM PECA ELEGIVEL O LOTE NAO NASCE VAZIO. Um lote de zero pecas e um
 -- cabecalho no portal dizendo "0 pecas esperando voce".
 select teste.recusa_com('E um portao sem peca esperando nao abre lote', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L, %L, null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L, %L, null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.junho'), current_setting('t43.jentrega')),
   'Não há peça esperando a sua vez');
 
@@ -870,8 +883,9 @@ select teste.cenario('A Marina marca a Pauta das duas', :MARINA,
     current_setting('t43.agosto')), 'ok', 2);
 
 select teste.cenario('E a gestao manda a pauta ao cliente', :ANA,
-  format($fmt$select public.enviar_mes_ao_cliente(%L,
-    (select id from public.etapas_do_mes(%L::uuid) where titulo = 'Pauta'), null)$fmt$,
+  format($fmt$select public.enviar_mes_ao_cliente(%1$L,
+    (select id from public.etapas_do_mes(%L::uuid) where titulo = 'Pauta'), null,
+    teste.aprovador_de(%1$L))$fmt$,
     current_setting('t43.agosto'), current_setting('t43.agosto')), 'ok', 1);
 
 select teste.conferir_como('Agosto aparece com as DUAS pecas esperando', :JOANA,

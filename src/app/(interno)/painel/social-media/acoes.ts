@@ -10,6 +10,7 @@ import {
 } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { esquemaDeEnvio, ROTULOS_DO_ENVIO } from "@/lib/aprovacoes/conteudo";
 import { nomeDaPastaDoMes } from "@/lib/dominio/posts";
 import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -363,9 +364,30 @@ export async function pedirAvalInterno(postId: string): Promise<Resultado> {
  * As três recusas que podem vir do banco: não ser gestão, ter sido quem
  * produziu, e vídeo sem link. A mensagem delas chega pronta e a tela mostra.
  */
-export async function enviarAoCliente(postId: string): Promise<Resultado> {
+export async function enviarAoCliente(
+  postId: string,
+  envio: unknown,
+): Promise<Resultado> {
   return executarAcao("enviarAoCliente", async () => {
     const sessao = await exigirGestorNaAcao();
+
+    // QUEM RECEBE VEM COM O ENVIO (0128), e a frase portuguesa sai daqui: a
+    // trava que vale e `validar_nova_rodada`, no banco, e a recusa dela chega
+    // pronta -- este esquema existe para a pessoa nao precisar clicar para
+    // descobrir que esqueceu de escolher.
+    const validacao = esquemaDeEnvio.safeParse(envio);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "enviarAoCliente",
+          validacao.error,
+          envio,
+          "Confira o envio.",
+          ROTULOS_DO_ENVIO,
+        ),
+      );
+    }
+
     const supabase = await criarClienteServidor();
 
     const { data: post } = await supabase
@@ -391,6 +413,8 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
       escopo: "cliente",
       solicitado_por: sessao.usuarioId,
       status: "pendente",
+      aprovador_id: validacao.data.aprovadorId,
+      mensagem: validacao.data.mensagem,
     });
 
     if (error) return falha(error.message);
@@ -448,16 +472,29 @@ export async function enviarAoCliente(postId: string): Promise<Resultado> {
 export async function enviarMesAoCliente(
   taskId: string,
   etapaId: string,
-  recado?: string | null,
+  recado: string | null | undefined,
+  aprovadorId: unknown,
 ): Promise<Resultado<number>> {
   return executarAcao("enviarMesAoCliente", async () => {
     await exigirEquipeNaAcao();
+
+    // O APROVADOR É OBRIGATÓRIO DESDE A 0128, e a validação aqui é só do
+    // uuid: a mensagem deste envio é o RECADO DO LOTE, uma por envio e não
+    // uma por peça (0090), então `esquemaDeEnvio` — que valida o par —
+    // responderia por um campo que este caminho não tem. Quem recusa de
+    // verdade é `enviar_mes_ao_cliente()`, antes de gravar qualquer coisa.
+    const validacao = z.string().uuid().safeParse(aprovadorId);
+    if (!validacao.success) {
+      return falha("Escolha quem vai aprovar este mês.");
+    }
+
     const supabase = await criarClienteServidor();
 
     const { data, error } = await supabase.rpc("enviar_mes_ao_cliente", {
       p_task_id: taskId,
       p_etapa_id: etapaId,
       p_recado: recado?.trim() || null,
+      p_aprovador: validacao.data,
     });
 
     if (error) {

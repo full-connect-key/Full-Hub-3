@@ -19,6 +19,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
+import {
+  doEntregavel,
+  type EnvioEscolhido,
+} from "@/lib/aprovacoes/conteudo";
 import type { VersaoDoConteudo } from "@/lib/dados/conteudo";
 import {
   podeEnviarPecaAoCliente,
@@ -174,6 +179,7 @@ function Peca({
   const podeAnalise = podePedirAnalise(item, analise);
   const podeEnviar = podeEnviarPecaAoCliente(item, analise);
   const [notas, setNotas] = useState("");
+  const [enviandoAoCliente, setEnviandoAoCliente] = useState(false);
   const [enviando, enviar] = useTransition();
 
   const jaFoi = Boolean(item.enviadoEm);
@@ -223,16 +229,20 @@ function Peca({
     });
   }
 
-  function mandar() {
-    enviar(async () => {
-      const r = await chamarAcao(() => enviarEntregavelAoCliente(item.id));
-      if (r.ok) {
-        toast.success(r.mensagem);
-        router.refresh();
-      } else {
-        toast.error(r.error);
-      }
-    });
+  // O ENVIO AO CLIENTE PASSOU A PEDIR QUEM RECEBE (0128), então ele deixou de
+  // ser um clique direto e virou o modal compartilhado — o mesmo da etapa de
+  // demanda, do post e da fila de aprovações internas.
+  async function mandar(escolhido: EnvioEscolhido) {
+    const r = await chamarAcao(() =>
+      enviarEntregavelAoCliente(item.id, escolhido),
+    );
+    if (r.ok) {
+      toast.success(r.mensagem);
+      router.refresh();
+    } else {
+      toast.error(r.error);
+    }
+    return r.ok;
   }
 
   return (
@@ -373,7 +383,11 @@ function Peca({
                 razão escrita ("falta o aval interno") seria dita a quem não
                 decide isso. Para a gestão ele fica, desligado, com a razão. */}
             {ehGestao ? (
-              <Button size="sm" disabled={enviando || !podeEnviar.pode} onClick={mandar}>
+              <Button
+                size="sm"
+                disabled={enviando || !podeEnviar.pode}
+                onClick={() => setEnviandoAoCliente(true)}
+              >
                 {enviando ? (
                   <Loader2 aria-hidden className="size-4 animate-spin" />
                 ) : (
@@ -444,6 +458,15 @@ function Peca({
           <Historico versoes={versoes} assinadas={assinadas} />
         </div>
       ) : null}
+
+      <EnvioAoCliente
+        conteudo={doEntregavel(item.id)}
+        aberto={enviandoAoCliente}
+        aoFechar={() => setEnviandoAoCliente(false)}
+        titulo={jaFoi ? "Enviar nova versão ao cliente" : "Enviar ao cliente"}
+        oQueE="A peça"
+        aoEnviar={mandar}
+      />
     </div>
   );
 }

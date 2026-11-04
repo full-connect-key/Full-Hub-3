@@ -15,7 +15,12 @@ import {
   type Resultado,
 } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
-import { colunasDoConteudo, doEntregavel } from "@/lib/aprovacoes/conteudo";
+import {
+  colunasDoConteudo,
+  doEntregavel,
+  esquemaDeEnvio,
+  ROTULOS_DO_ENVIO,
+} from "@/lib/aprovacoes/conteudo";
 import {
   canaisNormalizados,
   entregaveisDoWorkflow,
@@ -450,9 +455,26 @@ function textoDoBriefing(conteudo: unknown): string | null {
  */
 export async function enviarEntregavelAoCliente(
   entregavelId: string,
+  envio: unknown,
 ): Promise<Resultado> {
   return executarAcao("enviarEntregavelAoCliente", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
+
+    // QUEM RECEBE VEM COM O ENVIO (0128). A trava que vale é
+    // `validar_nova_rodada`; esta validação escreve a frase antes do clique.
+    const validacao = esquemaDeEnvio.safeParse(envio);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "enviarEntregavelAoCliente",
+          validacao.error,
+          envio,
+          "Confira o envio.",
+          ROTULOS_DO_ENVIO,
+        ),
+      );
+    }
+
     const supabase = await criarClienteServidor();
     const conteudo = doEntregavel(entregavelId);
 
@@ -487,6 +509,8 @@ export async function enviarEntregavelAoCliente(
         numero_rodada: peca.versao_atual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,
+        aprovador_id: validacao.data.aprovadorId,
+        mensagem: validacao.data.mensagem,
       })
       .select("id");
 

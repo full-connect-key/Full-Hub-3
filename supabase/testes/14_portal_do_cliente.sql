@@ -164,8 +164,9 @@ select teste.cenario('Diego aprova a rodada interna', :DIEGO,
      and numero_rodada = 1 and escopo = 'interna'$fmt$, :DIEGO), 'ok', 1);
 
 select teste.cenario('E manda ao cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
-    values ('dddddddd-0000-0000-0000-0000000000b1', 1, 'cliente', %L)$fmt$, :DIEGO), 'ok', 1);
+  format($fmt$insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('dddddddd-0000-0000-0000-0000000000b1', 1, 'cliente', %L, teste.aprovador_de('dddddddd-0000-0000-0000-0000000000b1'))$fmt$, :DIEGO), 'ok', 1);
 
 select teste.cenario('Agora a demanda aparece para a Joana', :JOANA,
   $$select 1 from public.tasks where id = 'cccccccc-0000-0000-0000-0000000000b0'$$,

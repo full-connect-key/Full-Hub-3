@@ -300,8 +300,8 @@ values ('post', current_setting('t39.post')::uuid, 1, 'interna', :BRUNO, 'aprova
 
 select teste.cenario('A gestao manda a pauta ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t39.post'), :DIEGO), 'ok', 1);
 
 -- E O POST PASSOU A EXISTIR PARA O CLIENTE. `enviado_em` e consequencia da
@@ -394,8 +394,8 @@ values ('post', current_setting('t39.outro')::uuid, 1, 'interna', :BRUNO, 'aprov
 
 select teste.cenario('A gestao envia a pauta dele', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t39.outro'), :DIEGO), 'ok', 1);
 
 select teste.cenario('A Joana pede ajustes NA PAUTA', :JOANA,
@@ -474,8 +474,8 @@ values ('post', current_setting('t39.post')::uuid, 2, 'interna', :BRUNO, 'aprova
 
 select teste.cenario('A gestao envia a arte', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 2, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t39.post'), :DIEGO), 'ok', 1);
 
 select teste.cenario('A Joana pede ajustes NA ARTE', :JOANA,
@@ -585,8 +585,8 @@ values ('post', current_setting('t39.sem')::uuid, 1, 'interna', :BRUNO, 'aprovad
 
 select teste.cenario('A gestao envia a arte do mes sem portao do meio', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t39.sem'), :DIEGO), 'ok', 1);
 
 select teste.cenario('A Joana aprova a arte', :JOANA,
@@ -725,8 +725,8 @@ values ('post', current_setting('t39.terceiro')::uuid, 1, 'interna', :BRUNO, 'ap
 
 select teste.cenario('A gestao manda a pauta dela ao cliente sem ninguem ter marcado', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t39.terceiro'), :DIEGO), 'ok', 1);
 
 select teste.conferir('E a caixinha da Pauta dela continua aberta',

@@ -309,3 +309,71 @@ begin
   raise exception 'teste.dia_util_ha(%): nenhum dia util nos 10 dias anteriores', p_dias;
 end;
 $$;
+
+-- ===========================================================================
+-- QUEM APROVA PELA CONTA DESTE MATERIAL (migration 0128).
+--
+-- Desde a 0128 toda rodada de escopo `cliente` precisa de `aprovador_id`, e
+-- ele tem de ser uma pessoa ATIVA com acesso ao portal da empresa daquele
+-- material. A bateria monta estado por `insert` direto, em trinta e tantos
+-- lugares, e cada um pertence a uma das duas empresas do fixture.
+--
+-- **ISTO NÃO É CONVENIÊNCIA DE FIXTURE OCUPANDO O LUGAR DO CENÁRIO**, que é a
+-- armadilha que este projeto pagou duas vezes — o `update` de
+-- `responsavel_atendimento_id` que garantia a única condição em que o bug da
+-- 0062 não acontece, e o `update` do arquivo 19 que pulava a RLS. Aqui a trava
+-- continua inteira: ela recusa o nulo e recusa a pessoa de outra conta, e os
+-- cenários do arquivo 47 medem as duas recusas direto. O que esta função faz é
+-- a MESMA conta que o modal de envio faz — achar a conta do material e pegar
+-- quem aprova por ela.
+--
+-- Escrever o uuid à mão em trinta inserts seria trinta lugares para errar a
+-- empresa, e o erro apareceria como a bateria abortando no meio.
+--
+-- **ELA RECEBE SÓ O id, e a ausência do tipo é deliberada:** o chamador é um
+-- `insert` cujo `content_id` já está escrito ali, com as aspas certas — e
+-- metade deles vive DENTRO de um `format()`, onde um literal `'subtask'`
+-- injetado fecharia a string. Sem segundo argumento não há literal novo para
+-- escapar. Os QUATRO espaços de id não se cruzam, então procurar nos quatro é
+-- exato.
+--
+-- **E O QUARTO É A DEMANDA DO MÊS, por causa do LOTE.**
+-- `enviar_mes_ao_cliente()` recebe a demanda e não uma peça, e o arquivo 43 a
+-- chama catorze vezes — com a 0128 as catorze passaram a precisar de um
+-- aprovador. Uma segunda função respondendo *"quem aprova pela empresa desta
+-- coisa"* seriam dois lugares para divergir, e o que divergiria é o do lote,
+-- que é o caminho que a equipe usa de verdade. Então é a MESMA função, com um
+-- `coalesce` a mais.
+-- ===========================================================================
+create or replace function teste.aprovador_de(p_id uuid)
+returns uuid
+language plpgsql
+stable
+as $$
+declare
+  conta uuid := coalesce(
+    public.cliente_da_rodada('subtask', p_id),
+    public.cliente_da_rodada('post', p_id),
+    public.cliente_da_rodada('deliverable', p_id),
+    (select t.client_id from public.tasks t where t.id = p_id)
+  );
+  quem uuid;
+begin
+  if conta is null then
+    raise exception 'teste.aprovador_de(%): nao achei em subtasks, posts, deliverables nem tasks', p_id;
+  end if;
+
+  select cu.user_id into quem
+    from public.client_users cu
+    join public.profiles p on p.id = cu.user_id
+   where cu.client_id = conta and p.ativo
+   order by p.nome
+   limit 1;
+
+  if quem is null then
+    raise exception 'teste.aprovador_de(%): a empresa % nao tem ninguem com acesso ao portal', p_id, conta;
+  end if;
+
+  return quem;
+end;
+$$;

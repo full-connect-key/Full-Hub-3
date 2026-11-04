@@ -1,15 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { CircleAlert, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { daSubtarefa } from "@/lib/aprovacoes/conteudo";
 import type { PortaoDoMes } from "@/lib/dados/social-media";
+import {
+  quemPodeAprovar,
+  type QuemPodeAprovar,
+} from "@/app/(interno)/painel/_actions/aprovadores";
 import { enviarMesAoCliente } from "./acoes";
 
 /**
@@ -62,10 +74,42 @@ export function EnvioDoMes({
 }) {
   const [recado, setRecado] = useState("");
   const [enviando, comecarTransicao] = useTransition();
+  const [quem, setQuem] = useState<QuemPodeAprovar | null>(null);
+  const [aprovadorId, setAprovadorId] = useState("");
+
+  const etapaId = portao.etapa?.id;
+
+  // QUEM PODE APROVAR SAI DA ETAPA-PORTÃO, e isso não é um atalho: o portão é
+  // uma subtarefa do mês (0088), e `cliente_da_rodada('subtask', ...)` chega à
+  // empresa pela demanda — a MESMA função que a trava do banco usa. Passar um
+  // post daria a mesma resposta por um caminho a mais, e um `client_id` em
+  // prop obrigaria o editor a descobri-lo por conta própria.
+  useEffect(() => {
+    if (!etapaId) return;
+    let valeAinda = true;
+    void (async () => {
+      const r = await chamarAcao(() => quemPodeAprovar(daSubtarefa(etapaId)));
+      if (!valeAinda || !r.ok || !r.dados) return;
+      setQuem(r.dados);
+      // UM APROVADOR SÓ JÁ VEM ESCOLHIDO, que é a decisão do modal: pedir o
+      // clique num seletor de uma opção é pedir uma decisão que não existe.
+      setAprovadorId(
+        r.dados.aprovadores.length === 1 ? r.dados.aprovadores[0].id : "",
+      );
+    })();
+    return () => {
+      valeAinda = false;
+    };
+  }, [etapaId]);
 
   if (!portao.etapa) return null;
 
-  const impedido = portao.falta.length > 0 || portao.pecas === 0;
+  const semNinguem = quem !== null && quem.aprovadores.length === 0;
+  const impedido =
+    portao.falta.length > 0 ||
+    portao.pecas === 0 ||
+    semNinguem ||
+    aprovadorId === "";
 
   const rotulo =
     portao.etapa.papel === "entrega"
@@ -75,7 +119,7 @@ export function EnvioDoMes({
   function enviar() {
     comecarTransicao(async () => {
       const r = await chamarAcao(() =>
-        enviarMesAoCliente(taskId, portao.etapa!.id, recado),
+        enviarMesAoCliente(taskId, portao.etapa!.id, recado, aprovadorId),
       );
       if (r.ok) {
         setRecado("");
@@ -94,6 +138,65 @@ export function EnvioDoMes({
       >
         Envio ao cliente
       </h3>
+
+      {/* QUEM VAI APROVAR VEM ANTES DO RECADO, e a ordem é a da decisão: para
+          quem está indo, e só então o que dizer junto. Ele é obrigatório desde
+          a 0128, e quem recusa de verdade é `enviar_mes_ao_cliente()`, antes
+          de gravar o lote.
+
+          **E AQUI É SELETOR NA PRÓPRIA SEÇÃO, e não o modal compartilhado** —
+          a decisão escrita desta tela é que ela NÃO é um diálogo: o resto da
+          decisão já está à vista (a fase, a contagem, o que falta), e um
+          diálogo em cima repetiria o que a pessoa acabou de ler. O modal serve
+          os três caminhos de material avulso, onde não há nada disso na tela. */}
+      {semNinguem ? (
+        <div className="bg-warning-soft space-y-1.5 rounded-lg px-3 py-2">
+          <p className="text-warning flex items-start gap-2 text-xs font-semibold">
+            <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
+            A {quem?.empresa} ainda não tem ninguém com acesso ao portal.
+          </p>
+          <p className="text-text-secondary text-xs">
+            Material enviado para uma conta sem acesso não chega a pessoa
+            nenhuma.
+          </p>
+          <Link
+            href="/painel/pessoas?aba=clientes"
+            className="text-accent-strong block text-xs font-medium hover:underline"
+          >
+            Dar acesso em Gestão de Pessoas › Clientes
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <Label htmlFor="aprovador-do-mes" className="text-xs">
+            Quem vai aprovar
+          </Label>
+          <Select
+            value={aprovadorId}
+            onValueChange={setAprovadorId}
+            disabled={enviando || quem === null}
+          >
+            <SelectTrigger
+              aria-label="Quem vai aprovar"
+              id="aprovador-do-mes"
+              className="w-full"
+            >
+              <SelectValue placeholder="Escolha a pessoa…" />
+            </SelectTrigger>
+            <SelectContent>
+              {(quem?.aprovadores ?? []).map((pessoa) => (
+                <SelectItem key={pessoa.id} value={pessoa.id}>
+                  {pessoa.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-text-muted text-xs">
+            É quem recebe o aviso. Qualquer pessoa da empresa continua podendo
+            responder.
+          </p>
+        </div>
+      )}
 
       {/* O RECADO VIAJA COM O LOTE, e é um por envio e não um por peça: ele
           responde "o que a agência quis dizer ao mandar este mês", e dezoito
@@ -134,6 +237,8 @@ export function EnvioDoMes({
         <p className="text-text-muted text-xs">
           Todas as peças desta fase já estão com o cliente.
         </p>
+      ) : !semNinguem && aprovadorId === "" && portao.falta.length === 0 ? (
+        <p className="text-text-muted text-xs">Escolha quem vai aprovar.</p>
       ) : null}
 
       {portao.falta.length > 0 ? (

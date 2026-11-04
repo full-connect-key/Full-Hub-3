@@ -302,6 +302,19 @@ const TELAS = [
   { nome: "40-aprovacoes-internas", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
   { nome: "41-aprovacoes-internas-socio", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
   { nome: "42-aprovacoes-ajustes", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Solicitar ajustes")' },
+  // O MODAL DE ENVIO AO CLIENTE (0128). Ele abre da fila porque e de la que o
+  // caminho e mais curto: `prontasParaOCliente` e exatamente o estado em que o
+  // aval interno ja passou e o que falta e o envio.
+  //
+  // O QUE A IMAGEM PRECISA PROVAR sao tres coisas, e nenhuma aparece sem o
+  // clique: o Cliente como TEXTO e nao campo -- ele e a conta do material e
+  // nao uma escolha --, o Responsavel PREENCHIDO com o nome de quem vai
+  // receber, e o botao de enviar LIBERADO. Com o campo vazio a imagem provaria
+  // o contrario do que a entrega fez.
+  { nome: "42b-envio-ao-cliente", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1200, altura: 900, role: "socio", clicar: 'button:has-text("Enviar ao cliente")' },
+  // E EM 375px, porque e um modal com tres campos e um textarea: e a largura
+  // em que o rotulo do Responsavel e o nome dele disputam a mesma linha.
+  { nome: "42c-envio-ao-cliente-375", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 375, altura: 1100, role: "socio", clicar: 'button:has-text("Enviar ao cliente")' },
   { nome: "43-workflows", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1000, role: "socio" },
   { nome: "45-workflow-editor", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1300, role: "socio", clicar: 'button:has-text("Novo workflow")' },
   // O EDITOR COM A ARVORE (migration 0108): abre o workflow de dois niveis e
@@ -1127,6 +1140,13 @@ const LOG_DO_SERVIDOR = path.join(RAIZ, "prototipos", "servidor.log");
 
 // Modulos reais -> versoes de exemplo, aplicados so na copia temporaria.
 const SUBSTITUICOES = {
+  // A UNICA _ACTION_ TROCADA, e a razao mora no stub. A regra do gerador e
+  // trocar `lib/dados/` e nunca `_actions`; esta e a excecao porque uma imagem
+  // que JA EXISTE passou a depender dela -- `envio-do-mes.tsx` le quem aprova
+  // na montagem desde a 0128, e ele e desenhado dentro de
+  // `57f-social-encerrar-o-mes`. Sem o stub, a entrega nova degradaria uma
+  // conferencia velha.
+  "@/app/(interno)/painel/_actions/aprovadores": ["./scripts/prototipo/aprovadores.ts"],
   "@/lib/auth/dal": ["./scripts/prototipo/dal.ts"],
   "@/lib/auth/portal-administrativo": ["./scripts/prototipo/portal-administrativo.ts"],
   "@/lib/supabase/diagnostico": ["./scripts/prototipo/diagnostico.ts"],

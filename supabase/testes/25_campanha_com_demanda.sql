@@ -635,8 +635,8 @@ select teste.cenario('A primeira versao, com arquivo', :BRUNO,
 -- montava a rodada com `max + 1`, que nunca casa com a interna.
 select teste.cenario('A gestao nao envia ao cliente sem o aval interno', :ANA,
   format($fmt$insert into public.approval_rounds
-      (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :PEC, :ANA),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('deliverable', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :PEC, :ANA),
   'recusa');
 
 -- 3. QUEM PRODUZIU MANDA PARA ANALISE.
@@ -665,8 +665,8 @@ select teste.cenario('A gestao aprova a analise', :ANA,
 -- 5. AGORA O ENVIO AO CLIENTE PASSA.
 select teste.cenario('Com o aval, a gestao envia ao cliente', :ANA,
   format($fmt$insert into public.approval_rounds
-      (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :PEC, :ANA),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('deliverable', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :PEC, :ANA),
   'ok', 1);
 
 -- E O ENVIO CARIMBOU A PECA, por `marcar_conteudo_como_enviado` (0033): e
@@ -692,8 +692,8 @@ select teste.conferir('A peca esta na v2',
 
 select teste.cenario('E a v2 nao vai ao cliente com o aval da v1', :ANA,
   format($fmt$insert into public.approval_rounds
-      (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 2, 'cliente', %L)$fmt$, :PEC, :ANA),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('deliverable', %1$L, 2, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :PEC, :ANA),
   'recusa');
 
 

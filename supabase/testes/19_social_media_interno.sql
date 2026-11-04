@@ -157,8 +157,8 @@ select teste.cenario('A gestao decide a rodada interna do post', :DIEGO,
 
 select teste.recusa_com('O colaborador nao envia ao cliente', :BRUNO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :BRUNO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :CARROSSEL, :BRUNO),
   'Enviar ao cliente');
 
 -- VIRADO DO AVESSO NA 0060, e o cenario fica por isso. Ate ela o banco
@@ -175,8 +175,8 @@ update public.posts set responsavel_id = :DIEGO where id = :CARROSSEL;
 
 select teste.cenario('A gestao envia inclusive o que ela mesma produziu', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :DIEGO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :CARROSSEL, :DIEGO),
   'ok', 1);
 
 -- E a rodada de cima precisa sair antes da proxima: o cenario seguinte insere
@@ -189,8 +189,8 @@ update public.posts set responsavel_id = :BRUNO where id = :CARROSSEL;
 
 select teste.cenario('A gestao que nao produziu envia', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :CARROSSEL, :DIEGO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :CARROSSEL, :DIEGO),
   'ok', 1);
 
 -- ENVIAR E CARIMBAR, e o carimbo e consequencia e nao um segundo comando.
@@ -209,8 +209,8 @@ values ('post', :VIDEO, 1, 'interna', :BRUNO, 'aprovada', :DIEGO);
 -- decidiria, porque o botao de aprovar estaria la.
 select teste.recusa_com('Video sem link nao vai ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :VIDEO, :DIEGO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :VIDEO, :DIEGO),
   'ainda não tem o link');
 
 -- A DICA, E NAO SO A MENSAGEM. E o mesmo criterio de `tasks_sem_cancelada`:
@@ -219,16 +219,16 @@ select teste.recusa_com('Video sem link nao vai ao cliente', :DIEGO,
 -- pessoa sem saber o que fazer no lugar.
 select teste.recusa_com_dica('E a recusa diz onde colar o link', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :VIDEO, :DIEGO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :VIDEO, :DIEGO),
   'Drive ou do YouTube');
 
 update public.posts set video_url = 'https://drive.google.com/file/d/abc' where id = :VIDEO;
 
 select teste.cenario('Com o link, vai', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$, :VIDEO, :DIEGO),
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :VIDEO, :DIEGO),
   'ok', 1);
 
 -- Link quebrado digitado a mao e pior que campo vazio: alguem clica.

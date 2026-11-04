@@ -459,8 +459,9 @@ select teste.cenario('Diego aprova a rodada 2 interna', :DIEGO,
 delete from public.notifications;
 
 select teste.cenario('A etapa vai ao cliente numa rodada de escopo cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por)
-          values ('dddddddd-0064-0000-0000-000000000001', 2, 'cliente', %L)$fmt$, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('dddddddd-0064-0000-0000-000000000001', 2, 'cliente', %L, teste.aprovador_de('dddddddd-0064-0000-0000-000000000001'))$fmt$, :DIEGO),
   'ok', 1);
 
 -- A CONTA E SO DA APROVADORA, e nao de todo aviso de `aprovacao`. A primeira

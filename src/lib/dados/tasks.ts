@@ -460,6 +460,15 @@ export async function demandasDaAba(filtros: FiltrosDeTask) {
 export type RodadaDetalhada = ApprovalRound & {
   solicitante: Pessoa | null;
   decisor: Pessoa | null;
+  /**
+   * QUEM RECEBEU (0128), resolvido no mesmo mapa de pessoas que já responde
+   * por `solicitado_por` e `decidido_por` — não custa consulta nenhuma.
+   *
+   * Nulo na rodada interna por definição, e nas rodadas de cliente anteriores
+   * à migration: ali ninguém foi nomeado, e a tela diz isso em vez de
+   * inventar um nome.
+   */
+  aprovador: Pessoa | null;
 };
 
 export type EntregaDetalhada = SubtaskEntrega & {
@@ -622,7 +631,11 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
         ...extras.map((e) => e.user_id),
         ...comentarios.map((c) => c.autor_id),
         ...historico.map((h) => h.autor_id),
-        ...rodadas.flatMap((r) => [r.solicitado_por, r.decidido_por]),
+        ...rodadas.flatMap((r) => [
+          r.solicitado_por,
+          r.decidido_por,
+          r.aprovador_id,
+        ]),
         ...entregas.map((e) => e.enviado_por),
       ].filter(Boolean),
     ),
@@ -685,6 +698,9 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
         solicitante: porPessoa.get(r.solicitado_por) ?? null,
         decisor: r.decidido_por
           ? (porPessoa.get(r.decidido_por) ?? null)
+          : null,
+        aprovador: r.aprovador_id
+          ? (porPessoa.get(r.aprovador_id) ?? null)
           : null,
       })),
       entregas: entregas

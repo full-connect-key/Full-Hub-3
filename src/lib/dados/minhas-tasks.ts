@@ -277,7 +277,12 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
       // O painel pessoal não abre as rodadas em detalhe: ele precisa saber se
       // há uma esperando decisão para escolher o botão. O acordeão completo
       // fica no detalhe da Task.
-      rodadas: minhasRodadas.map((r) => ({ ...r, solicitante: null, decisor: null })),
+      rodadas: minhasRodadas.map((r) => ({
+        ...r,
+        solicitante: null,
+        decisor: null,
+        aprovador: null,
+      })),
       entregas: [],
       ...situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao),
     };

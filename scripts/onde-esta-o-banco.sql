@@ -779,7 +779,21 @@ from (
     -- migration acrescenta e o ramo da RECUSA, e e ele que precisa ser
     -- procurado.
     ('0127', 'a recusa exige motivo', 'no_corpo',
-             'proteger_rodada_fechada|new.status = ''rejeitada''')
+             'proteger_rodada_fechada|new.status = ''rejeitada'''),
+
+    -- O MARCADOR APONTA PARA O PASSO 5, a ULTIMA coisa que a 0128 reescreve, e
+    -- nao para as duas colunas do PASSO 1 -- porque o PASSO 3 e o pior lugar
+    -- para a colagem morrer: com a trava de pe e `enviar_mes_ao_cliente` ainda
+    -- com tres parametros, TODO envio de mes e recusado com "Escolha quem vai
+    -- aprovar" e a tela nao tem como satisfazer a recusa, porque o parametro
+    -- nao existe para ela informar. Apontar para o PASSO 1 diria `ok` sobre
+    -- exatamente esse banco.
+    --
+    -- E e `no_corpo` e nao `trigger`: `approval_rounds_avisa_o_cliente` existe
+    -- desde a 0098 e continua de pe com a funcao antiga dentro -- o que a 0128
+    -- acrescenta e o aviso ser do APROVADOR, e e ele que precisa ser procurado.
+    ('0128', 'o responsavel pela aprovacao do cliente', 'no_corpo',
+             'approval_rounds_avisa_o_cliente|new.aprovador_id')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

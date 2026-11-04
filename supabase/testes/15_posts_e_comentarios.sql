@@ -130,8 +130,9 @@ select teste.cenario('Joana nao enxerga a rodada interna', :JOANA,
 -- quem aprende o fluxo num modulo nao precisa reaprender no outro.
 -- ---------------------------------------------------------------------------
 select teste.cenario('Bruno nao envia ao cliente, mesmo sendo dele o post', :BRUNO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 1, 'cliente', %L)$fmt$, :ENVIADO, :BRUNO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :ENVIADO, :BRUNO),
   'recusa');
 
 -- A FRASE MUDOU NA 0090, e o colaborador continua recusado. Enviar ao cliente
@@ -139,18 +140,21 @@ select teste.cenario('Bruno nao envia ao cliente, mesmo sendo dele o post', :BRU
 -- Atendimento abre o mes desde a 0046 e e quem fala com a conta --, e o Bruno
 -- e Design: ele nao passa em nenhuma das duas.
 select teste.recusa_com('E a recusa diz de quem e o envio ao cliente', :BRUNO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 1, 'cliente', %L)$fmt$, :ENVIADO, :BRUNO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :ENVIADO, :BRUNO),
   'Enviar ao cliente é da gestão ou do Atendimento');
 
 select teste.recusa_com('Sem aval interno, o post nao vai ao cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 1, 'cliente', %L)$fmt$, :RASCUNHO, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :RASCUNHO, :DIEGO),
   'ainda não passou pela aprovação interna');
 
 select teste.cenario('Diego envia ao cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 1, 'cliente', %L)$fmt$, :ENVIADO, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :ENVIADO, :DIEGO),
   'ok', 1);
 
 -- O CARIMBO E CONSEQUENCIA DA RODADA, e nao um segundo comando. Se algum dia
@@ -271,8 +275,9 @@ select teste.cenario('Diego aprova a interna 2', :DIEGO,
   'ok', 1);
 
 select teste.cenario('Diego envia a versao 2 ao cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 2, 'cliente', %L)$fmt$, :ENVIADO, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 2, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :ENVIADO, :DIEGO),
   'ok', 1);
 
 select teste.cenario('Joana aprova', :JOANA,
@@ -438,8 +443,9 @@ select teste.cenario('Diego aprova a interna da etapa', :DIEGO,
   'ok', 1);
 
 select teste.cenario('Diego envia a etapa ao cliente', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('subtask', '70570000-0000-0000-0000-000000000002', 1, 'cliente', %L)$fmt$, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('subtask', '70570000-0000-0000-0000-000000000002', 1, 'cliente', %L, teste.aprovador_de('70570000-0000-0000-0000-000000000002'))$fmt$, :DIEGO),
   'ok', 1);
 
 select teste.recusa_com('Etapa de demanda nao e recusada, e a recusa ensina o caminho', :JOANA,
@@ -493,8 +499,9 @@ select teste.cenario('Diego aprova a interna da Optica', :DIEGO,
   'ok', 1);
 
 select teste.cenario('Diego envia ao cliente da Optica', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('post', %L, 1, 'cliente', %L)$fmt$, :DA_OPTICA, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :DA_OPTICA, :DIEGO),
   'ok', 1);
 
 -- O CENARIO QUE O USUARIO ENCONTROU CLICANDO. Sem a 0062 isto recusa com o

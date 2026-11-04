@@ -162,13 +162,15 @@ select teste.cenario('Diego aprova', :DIEGO,
   'ok', 1);
 
 select teste.recusa_com('Bruno nao envia ao cliente a propria entrega', :BRUNO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :LAMINA, :BRUNO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('deliverable', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :LAMINA, :BRUNO),
   'Enviar para o cliente é do Desenvolvedor');
 
 select teste.cenario('Diego envia', :DIEGO,
-  format($fmt$insert into public.approval_rounds (content_type, content_id, numero_rodada, escopo, solicitado_por)
-    values ('deliverable', %L, 1, 'cliente', %L)$fmt$, :LAMINA, :DIEGO),
+  format($fmt$insert into public.approval_rounds
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values ('deliverable', %1$L, 1, 'cliente', %L, teste.aprovador_de(%1$L))$fmt$, :LAMINA, :DIEGO),
   'ok', 1);
 
 select teste.conferir('Enviar carimbou o entregavel',

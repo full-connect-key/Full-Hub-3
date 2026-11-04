@@ -468,8 +468,8 @@ values ('post', current_setting('t21.post')::uuid, 1, 'interna', :BRUNO, 'aprova
 
 select teste.cenario('A gestao envia o post ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 1, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t21.post'), :DIEGO), 'ok', 1);
 
 -- ---------------------------------------------------------------------------
@@ -615,8 +615,8 @@ values ('post', current_setting('t21.post')::uuid, 2, 'interna', :BRUNO, 'aprova
 
 select teste.cenario('Segunda volta ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    values ('post', %L, 2, 'cliente', %L, 'pendente')$fmt$,
+  (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+  values ('post', %1$L, 2, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$,
     current_setting('t21.post'), :DIEGO), 'ok', 1);
 
 -- E O REENVIO FECHA A CAIXINHA DE NOVO, pelo mesmo caminho: um lugar so, nos

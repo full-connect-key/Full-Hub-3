@@ -229,11 +229,15 @@ select teste.cenario('Aval interno nao conclui subtarefa de tipo cliente', :DIEG
   'recusa');
 
 select teste.cenario('Responsavel NAO envia ao cliente', :BRUNO,
-  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''dddddddd-0000-0000-0000-000000000002'', 2, ''cliente'', %L)', :BRUNO),
+  format('insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values (''dddddddd-0000-0000-0000-000000000002'', 2, ''cliente'', %L, teste.aprovador_de(''dddddddd-0000-0000-0000-000000000002''))', :BRUNO),
   'recusa');
 
 select teste.cenario('Desenvolvedor envia ao cliente (rodada 2, escopo cliente)', :DIEGO,
-  format('insert into public.approval_rounds (content_id, numero_rodada, escopo, solicitado_por) values (''dddddddd-0000-0000-0000-000000000002'', 2, ''cliente'', %L)', :DIEGO),
+  format('insert into public.approval_rounds
+  (content_id, numero_rodada, escopo, solicitado_por, aprovador_id)
+  values (''dddddddd-0000-0000-0000-000000000002'', 2, ''cliente'', %L, teste.aprovador_de(''dddddddd-0000-0000-0000-000000000002''))', :DIEGO),
   'ok', 1);
 
 
