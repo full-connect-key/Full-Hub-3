@@ -181,6 +181,12 @@ uma coluna que ninguém olha**.
 primeira daria seis colunas de 122px num 1440, e só a segunda daria largura
 sobrando com a rolagem de volta.
 
+**E HOUVE UMA TERCEIRA PONTA, um sprint depois:** até ela o board dividia a
+faixa com a coluna de 306px, então tirar o teto devolvia a largura da janela
+MENOS ela. Hoje as três visões ocupam as duas colunas da grade — a decisão
+está em "AS TRÊS VISÕES OCUPAM A LARGURA INTEIRA", abaixo —, e a marca passou
+a devolver a largura inteira de verdade.
+
 **É `:has()` e NÃO margem negativa.** `-mx-4 lg:-mx-8` é a saída que a capa do
 cliente e a barra de contexto já pagaram duas vezes: com `mx-auto max-w-6xl`,
 tirar o respiro deixa a faixa mais larga que o conteúdo e ainda longe da borda
@@ -2887,22 +2893,24 @@ prop e não `ReactNode` dentro de `title` porque o `<h1>` precisa do texto
 inteiro para o leitor de tela: quebrado em dois nós, o nome da página vira
 "Bom dia," e a pessoa fica sem saber onde está.
 
-**OS TRÊS DO TOPO FICAM GRUDADOS, e para isso os ladrilhos subiram** —
+**OS TRÊS DO TOPO FICARAM GRUDADOS, e metade disso foi desfeita depois** —
 decisão do usuário: *"manter os três botões permanentemente visíveis na parte
 superior da página de Minhas Tasks; eles não devem desaparecer durante a
 rolagem vertical do board"*.
 
-A coluna já era `lg:sticky lg:top-20`, e os três não eram contíguos: entre a
-pílula "Nova task" e os ladrilhos "Para hoje" e "Atrasadas" ficava o
-cronômetro, que é o bloco mais alto daqui. Numa janela baixa os dois ladrilhos
-caíam abaixo da dobra da própria coluna grudada — ou seja, **grudavam fora da
-tela**. Juntos no topo os três ocupam cerca de 150px e cabem em qualquer
-janela.
+Eram duas coisas. A coluna já era `lg:sticky lg:top-20`, e os três não eram
+contíguos: entre a pílula "Nova task" e os ladrilhos "Para hoje" e "Atrasadas"
+ficava o cronômetro, que é o bloco mais alto daqui. Numa janela baixa os dois
+ladrilhos caíam abaixo da dobra da própria coluna grudada — ou seja,
+**grudavam fora da tela**. Juntos no topo os três ocupam cerca de 150px e
+cabem em qualquer janela.
 
-**O cronômetro continua na primeira dobra**, que é a regra escrita dele: dois
-ladrilhos lado a lado não empurram nada para baixo da linha de corte. E a
-coluna segue `lg:`, porque abaixo disso ela empilha DEPOIS do conteúdo —
-grudar ali prenderia o resumo depois de a pessoa já ter rolado o board inteiro.
+**A PRIMEIRA METADE FICA; A SEGUNDA SAIU COM A LARGURA DAS VISÕES.** Um
+`sticky` não passa da área de grade dele, e com as três visões ocupando as
+duas colunas a coluna da direita passou a ser da primeira faixa — não há mais
+altura por onde grudar. O que sobra de pé é a ordem: os três estão na primeira
+dobra de qualquer janela, e **o cronômetro continua nela**, que é a regra
+escrita dele.
 
 **MINHAS TASKS GANHOU A COLUNA DA DIREITA, de 306px**, e o artifact diz o que
 ela carrega e por quê: o cronômetro, os contadores e quem está fora — *"as
@@ -2915,6 +2923,48 @@ A largura é fixa de propósito — a coluna carrega dois ladrilhos lado a lado,
 em `1fr` eles encolheriam junto com a lista; o número de 26px é o conteúdo do
 ladrilho, não enfeite que pode espremer. Abaixo de 1150px vira uma coluna só,
 com a direita **depois**: no celular o que a pessoa veio fazer é a lista.
+
+##### AS TRÊS VISÕES OCUPAM A LARGURA INTEIRA, e a coluna é da primeira faixa
+
+Decisão do usuário, com a imagem marcando o vão: *"as visualizações de Board /
+Lista / Calendário estão centralizadas ao box de 'Meu Dia' mas devem ser
+maiores, até o fim da tela no box de 'Nova Task'"*.
+
+**O VÃO ERA O CUSTO DE A COLUNA DA DIREITA IR ATÉ EMBAIXO.** Ela tem 306px e
+quase sempre é mais curta que a lista — então debaixo dela sobrava uma faixa
+de 306px de largura por quase toda a altura da página, do lado de uma lista
+espremida. No board são **326px a menos** para seis colunas caberem; no
+calendário, 46px a mais por dia da semana.
+
+A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas: o
+que mudou é até onde ela desce. Ela é da primeira faixa, ao lado de "Meu dia",
+e as três visões passam a ocupar as duas colunas na faixa de baixo.
+
+**AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido.** O
+`sticky` que mantinha os três botões à vista durante a rolagem do board tem
+como teto a **área de grade** do elemento — para ele grudar enquanto a lista
+rola, a lista precisa estar na mesma faixa que ele. Não há arranjo de CSS em
+que as visões ocupem as duas colunas E a coluna da direita continue grudando:
+a alternativa é `float`, e com ela os cartões da lista passariam por baixo da
+coluna. *O que se perde:* os três botões rolam com a página.
+
+**E A COLOCAÇÃO É EXPLÍCITA, não auto-posicionada.** A ordem do DOM é a do
+CELULAR — "Meu dia", as visões, e o resumo por último, que é a regra escrita
+desta tela —, e com o auto-posicionamento essa mesma ordem poria as visões ao
+lado de "Meu dia" no desktop. Cada peça diz a linha e a coluna dela.
+
+***O que isto custa do outro lado, e também é medido:*** quando a coluna da
+direita é mais alta que "Meu dia" — alguém com o cronômetro correndo E gente
+fora, num dia leve —, sobra uma faixa branca embaixo de "Meu dia", de cerca de
+300px. Ela é **limitada pela altura da coluna**, ao contrário do vão que
+saiu, que corria a página inteira; e some assim que "Meu dia" tem o que
+mostrar. Com o cronômetro parado e ninguém fora — que é o estado da imagem que
+o usuário mandou — ela não existe.
+
+**E O 375 ENTROU NO PROTÓTIPO por causa da colocação explícita.** Era a tela de
+Minhas Tasks que não tinha imagem de celular, e é no celular que a ordem do DOM
+manda: uma colocação trocada poria o resumo entre "Meu dia" e a lista, e
+nenhuma das imagens de 1600px mostraria.
 
 **A contagem da semana virou SUBTÍTULO**, e é a única diferença desta tela
 para o artifact. Ele mostra dois ladrilhos e escreve "7 etapas suas nesta
@@ -15694,6 +15744,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A largura das visões | **As três visões de Minhas Tasks passaram a ocupar a largura inteira**, por decisão do usuário, com a imagem marcando o vão: *"as visualizações de Board / Lista / Calendário estão centralizadas ao box de 'Meu Dia' mas devem ser maiores, até o fim da tela no box de 'Nova Task'"*. **O vão era o custo de a coluna de 306px ir até embaixo:** ela quase sempre é mais curta que a lista, então debaixo dela sobrava uma faixa de 306px por quase toda a altura da página, do lado de uma lista espremida — e no board eram **326px a menos** para seis colunas caberem. A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas; o que mudou é até onde ela desce — ela é da primeira faixa, ao lado de "Meu dia", e as visões ocupam as duas colunas na faixa de baixo. **AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido:** o `sticky` que mantinha os três botões à vista durante a rolagem do board (decisão do sprint 14) tem como teto a ÁREA DE GRADE do elemento — para grudar enquanto a lista rola, a lista precisa estar na mesma faixa que ele. A única alternativa de CSS é `float`, e com ela os cartões passariam por baixo da coluna. *O que se perde:* os três botões rolam com a página. **E a colocação é EXPLÍCITA e não auto-posicionada**, porque a ordem do DOM é a do CELULAR — "Meu dia", as visões, e o resumo por último — e com o auto-posicionamento essa mesma ordem poria as visões ao lado de "Meu dia" no desktop. ***O que custa do outro lado, e também foi medido:*** com o cronômetro correndo E gente fora, num dia leve, sobra uma faixa branca de ~300px embaixo de "Meu dia" — limitada pela altura da coluna, ao contrário do vão que saiu, que corria a página inteira, e inexistente no estado da imagem que o usuário mandou. **O 375 entrou no protótipo por causa da colocação explícita:** era a tela de Minhas Tasks que não tinha imagem de celular, e é lá que a ordem do DOM manda. Nenhuma migration, nenhuma consulta — é layout. |
 | Quem recebe a aprovação | **O envio ao cliente passou a nomear quem recebe** (migration 0128), por decisão do usuário, item 14: escolher o responsável é obrigatório, o envio registra quem mandou, quem recebeu e quando, a pessoa é avisada, e a pendência aparece com o nome dela. **METADE JÁ EXISTIA** — quem enviou, quando, de que empresa e o aviso são de 2007/0030/0098; o que não existia era quem RECEBEU. **A MEDIÇÃO QUE DECIDE A MIGRATION: das 28 contas do banco, UMA tem alguém com acesso ao portal** — o material enviado para as outras 27 não chega a pessoa nenhuma, e nada na tela diz isso. A trava não cria o problema, ela o revela, e a recusa nomeia a empresa e manda para Gestão de Pessoas › Clientes. É o oposto da 0026, onde eu li a frase do usuário como relato de furo e fechei um furo que não existia: aqui o furo foi contado, conta por conta. **É trigger e não `not null`** (a 0015), porque há 18 rodadas anteriores à regra; **nomear não é trancar**, porque não há hierarquia do lado do cliente e qualquer pessoa da empresa continua podendo responder — o que a coluna decide é a cobrança; e **a mensagem do envio não é o `comentario`**, que é o que o cliente diz ao DECIDIR. **A recusa da conta sem ninguém vem ANTES da escolha**, nos dois lados, pela lição da 0076 — e a primeira versão do LOTE perguntava na ordem inversa, levando a uma recusa que a pessoa não tinha como satisfazer. **O aviso passou a ser de UMA pessoa**: ele percorria `client_users` e tocava o sino da empresa inteira, e nomear alguém continuando a cobrar todos seria um campo que não decide nada (0023). **E A FUNÇÃO DO LOTE FOI APLICADA ERRADA UMA VEZ, que é a 0030 pelo outro lado:** eu redigitei o corpo dela na chamada em vez de copiar do arquivo, e a versão redigitada inventou um `order by p.criado_em` — coluna que não existe —, além de trocar as frases das recusas e **as chaves do jsonb que a action lê**. `create or replace` também não avisa quando o texto novo tem coisa que o velho não tinha, e plpgsql não valida o corpo na criação: a hora de validar é o clique de alguém. **Aplicar a partir do arquivo, nunca de memória.** De quebra, a ACL daquela função estava aberta desde a 0090 — onze `revoke` lá, nenhum para ela — e foi fechada. **E nasceu o primeiro stub de _action_ do protótipo**, com a razão escrita: o gerador troca `lib/dados/` e nunca `_actions`, e o que mudou é que uma imagem que já existe passou a depender de uma — sem o stub, a entrega nova degradaria uma conferência velha. Ele não pode importar de `lib/acoes/resultado`, que é `server-only`: trocada por um módulo comum, a action é compilada no bundle do cliente. ***A bateria não foi rodada*** — não há Docker nem Postgres aqui —, e no lugar dela está a medição contra produção, cinco casos numa transação revertida; o arquivo 47 está escrito e 35 inserts da bateria ganharam o aprovador. |
 | As cores da decisão | **As três decisões ganharam cor, e a recusa passou a exigir motivo** (migration 0127), por decisão do usuário: *"APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho; em todos os módulos; textos+ícones; registrar no histórico; justificativa na recusa; sincronizar portal/dashboard"*. **CINCO METADES, E QUATRO JÁ EXISTIAM** — ir medir antes de escrever é o que separou o que precisava de código do que só precisava ser nomeado (a lição da 0060): o registro no histórico é `approval_rounds` **sem policy de DELETE**, e a sincronização entre portal e painel passou a ser por construção. **O QUE ESTAVA ERRADO NÃO ERA A FALTA DE COR, ERA A DIVERGÊNCIA:** quatro aparências em seis telas, com o ícone de aprovar oscilando entre `Check`, `BadgeCheck` e nenhum — e, no portal, *"Solicitar ajustes"* e *"Rejeitar"* eram o **MESMO** botão `outline`, a dois centímetros, com a palavra como única diferença. É `ICONE_DA_AREA` outra vez, e a resposta é a de `LinhaDeTrabalho`: **um mapa, não uma convenção escrita** — a sequência vira o TIPO. **E A PALAVRA ENTRA NO MAPA**, ao contrário do que a `BarraDeContexto` centraliza, porque a lista é a mesma em todo módulo e era ela que divergia: o botão dizia "Rejeitar", o diálogo "Recusar material" e o confirmar "Recusar", na mesma tela. **A COR FOI MEDIDA DUAS VEZES E AS DUAS DERRUBARAM.** O hover: `brightness-110` leva branco sobre o verde de 5,02:1 a **4,26:1** — e um filtro do Tailwind não é cor nomeada, então o `check:cores` dizia "tudo certo" sobre ele. E o **daltonismo**: `--warning` cheio passa em contraste (6,33:1) e fica a **ΔE 1,2** do vermelho em deuteranopia — aquele token é cor de TEXTO, escurecida até ler a 11px, e **âmbar escurecido é marrom**; os dois desfechos negativos, lado a lado, na mesma cor — **o bug deste sprint reproduzido em cor**. O Financeiro já tinha recusado um par a 4,2 pela mesma conta, **à mão, sem deixar nada que reprovasse**: a conta virou seção do `check:cores` (Brettel/Viénot + ΔE CIE76, piso 10) — **e foi ela que achou o segundo caso enquanto o primeiro era consertado**, `--success` × `--danger` a ΔE 9,4 no tema escuro, pelo motivo inverso. A saída é uma família própria de três chãos que **não trocam por tema**, que é a decisão de `--action`: a colisão do escuro deixa de existir por construção, e as duas imagens saem idênticas nos três botões. **E A RECUSA NÃO EXIGIA MOTIVO:** este arquivo afirmava desde a 0032 que os dois desfechos negativos exigiam, *"na ação e no banco"* — medindo, `approval_rounds` tinha **um** check (o de `content_type`) e, dos **onze** triggers, só um cobrava comentário, perguntando `ajustes_solicitados` e mais nada. É a 0029 pelo avesso: lá a regra morava nos dois lados e desfazer um não desfez nada; aqui eu **escrevi** que ela morava nos dois e ela morava em um. A 0127 põe o check (o piso, que pega o `insert`) e o ramo no trigger (a frase que a pessoa lê), e os cinco casos foram medidos contra o Postgres de produção numa transação revertida. ***O Day Off ficou de fora, e é dito:*** "De acordo" / "Preciso remarcar" é deliberadamente o vocabulário de quem não tem hierarquia de aprovação (0016/0018), e pintá-lo com o verde e o `X` da família desfaria aquela decisão pela cor. |
 | O comentário por card | **Cada card do carrossel passou a ter a conversa dele** (migration 0126), decisão do usuário: *"Comentários individuais por card do carrossel"*, com a hierarquia *"Campanha → Peça → Card"* e *"não misturar cards"*. **O CARD É UM SLIDE**, e o título do pedido diz isso — não é o filho de um entregável (a árvore da 0033) nem a caixinha de `post_etapa_progresso`. **Quase tudo existia:** `comments` é polimórfica desde a 0032, com a thread de um nível, `interno` e o autor forçados por trigger, o aviso por trigger e as quatro policies — e a tela de detalhe é UMA SÓ para post e entregável. O que faltava era a thread saber de QUAL quadro o cliente falava: um carrossel de cinco slides tinha UMA conversa, e *"trocar o texto do terceiro"* obrigava quem produz a descobrir qual era o terceiro. **A ÂNCORA É A POSIÇÃO E NÃO A URL, e isso foi medido:** `gravarVersao` recebe a lista `arquivos` inteira e o editor manda os arquivos que acabaram de subir, então a v2 de um carrossel consertado tem cinco caminhos NOVOS no bucket — pela URL a thread se perderia a cada versão, no instante em que quem produz está lendo o pedido. **E `card_versao` impede o índice de mentir:** remover um slide do meio faz os quadros andarem (0048), então o pedido do terceiro de cinco cairia no terceiro de quatro — plausível e errado. **Nulo é a peça**, o par é coerente nos dois sentidos (a forma de `subtasks_tipo_aprovacao_coerente`), e **a RESPOSTA herda o card da raiz** no trigger de um nível: sem isso ela cai na thread da PEÇA, respondendo uma pergunta numa thread que não mostra a pergunta. **O entregável NÃO ganha card**, porque os arquivos dele são FORMATOS da mesma peça (0053) e não quadros de uma composição. Na tela, a thread tem DOIS escopos com as duas contagens à vista — *"não misturar cards"* descarta a lista única, e esconder a peça esconderia a outra metade —, o card em foco é o do VISUALIZADOR e não um segundo seletor, e ele desce por CONTEXTO porque a tela de detalhe é de SERVIDOR. **E A AGÊNCIA NÃO TINHA ONDE LER NADA DISSO: é a décima nona ponte** — `comments_select` é `is_staff()` desde a 0032 e nenhuma tela do painel lia a tabela; o que chegava era o sino, que se apaga no primeiro clique. **Oito casos medidos contra produção**, em transação revertida, e o oitavo é um achado: um card forjado numa resposta à peça é zerado — a herança protege os dois sentidos. **De quebra, o `check:prototipo` era cego a uma classe inteira de seletor:** o `clicar` em ARRAY era casado por `\[[^\]]*\]`, e todo seletor de atributo tem um `]` dentro — eram **21 textos em 7 telas, 15 anteriores a este sprint**, com a checagem dizendo *"56 textos, todos no produto"* sem ter olhado para nenhum. Hoje são 77, com `INTERPOLADOS` dizendo qual trecho de `src/` produz cada rótulo montado. Medido com duas mutações: o mesmo seletor morto passa VERDE com o extrator velho. ***Não foi feito, e é dito:*** a bateria não rodou (sem Docker/Postgres aqui) e o protótipo não rodou — as três telas novas estão escritas e nada foi conferido em imagem. |

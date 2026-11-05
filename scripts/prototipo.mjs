@@ -278,6 +278,14 @@ const TELAS = [
   // porque tres deles nao pintavam fundo. Uma imagem do estado CHEIO nao prova
   // nada sobre o estado que foi reclamado.
   { nome: "30b-minhas-tasks-vazia", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-sem-trabalho" },
+  // E O 375 PROVA A ORDEM DO EMPILHAMENTO, que e o que a largura inteira
+  // custou de risco: com as tres visoes ocupando as duas colunas da grade,
+  // a colocacao no desktop passou a ser explicita -- e e a ordem do DOM que
+  // manda no celular. A regra escrita e "no celular o que a pessoa veio
+  // fazer e a lista; o resumo e contexto", entao aqui tem de sair "Meu dia",
+  // a lista, e so entao Nova task e os ladrilhos. Uma colocacao trocada
+  // poria o resumo no meio, e nenhuma das imagens de 1600px mostraria.
+  { nome: "30c-minhas-tasks-375", rota: "/painel/minhas-tasks", largura: 375, altura: 2200, role: "socio" },
   { nome: "31-minhas-tasks-board", rota: "/painel/minhas-tasks?visao=board", largura: 1600, altura: 1100, role: "socio" },
   { nome: "32-minhas-tasks-calendario", rota: "/painel/minhas-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio" },
   { nome: "33-minhas-tasks-atrasadas", rota: "/painel/minhas-tasks?foco=atrasadas", largura: 1600, altura: 1000, role: "socio" },

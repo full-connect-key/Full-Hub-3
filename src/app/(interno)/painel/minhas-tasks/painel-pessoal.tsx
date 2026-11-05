@@ -143,11 +143,17 @@ export function PainelPessoal({
     // ----------------------------------------------------------------------
     // `data-largo` NA VISÃO DE BOARD, e só nela.
     //
-    // O `main` do painel é `max-w-6xl`, e o board ficava espremido nos 72rem
-    // com a coluna de 306px ao lado: seis colunas de etapa não cabem ali sem
-    // rolar para o lado. A marca tira o teto (o `has-[[data-largo]]` está no
-    // layout), e o board passa a usar a largura que a janela tem, descontada
-    // a barra lateral — que é o que o `mx-auto` faz sozinho.
+    // O `main` do painel é `max-w-6xl`, e o board ficava espremido nos 72rem:
+    // seis colunas de etapa não cabem ali sem rolar para o lado. A marca tira
+    // o teto (o `has-[[data-largo]]` está no layout), e o board passa a usar a
+    // largura que a janela tem, descontada a barra lateral — que é o que o
+    // `mx-auto` faz sozinho.
+    //
+    // **As duas pontas continuam sendo duas**, e a de baixo mudou: até aqui o
+    // board dividia a faixa com a coluna de 306px, e tirar o teto devolvia a
+    // largura da janela MENOS ela. Hoje as três visões ocupam as duas colunas
+    // da grade, então a marca devolve a largura inteira — e sem ela a Lista e
+    // o Calendário ganham os 326px que a coluna comia, dentro dos 72rem.
     //
     // A Lista e o Calendário NÃO recebem a marca: as duas são leitura de
     // texto, e uma linha de 1600px de largura é pior de ler que uma de 1100.
@@ -273,32 +279,50 @@ export function PainelPessoal({
       <Novidades novidades={novidades} />
 
       {/*
-        AS DUAS COLUNAS DO DESENHO APROVADO.
+        AS DUAS COLUNAS SÃO DA PRIMEIRA FAIXA, E AS TRÊS VISÕES VÊM EMBAIXO
+        DELAS, NA LARGURA INTEIRA.
 
-        A coluna da direita não é decoração, e o artifact diz o que ela carrega
-        e por quê: o cronômetro, os contadores e quem está fora — "as três
-        coisas que hoje moram na Home e que ninguém vê estando em Minhas
-        Tasks". Quem passa o dia nesta tela não abre a Home, e o relógio
-        esquecido aberto é justamente o número que ninguém vê.
+        Decisão do usuário: *"as visualizações de Board / Lista / Calendário
+        estão centralizadas ao box de 'Meu Dia' mas devem ser maiores, até o
+        fim da tela no box de 'Nova Task'"*, com a imagem marcando o vão.
 
-        306px é a largura do desenho, e ela é fixa de propósito: a coluna
-        carrega dois ladrilhos lado a lado, e em `1fr` eles encolheriam junto
-        com a lista ao lado — o número de 26px é o conteúdo do ladrilho, não um
-        enfeite que pode espremer.
+        **O vão era o custo de a coluna da direita ir até embaixo.** Ela tem
+        306px e quase sempre é mais curta que a lista — então debaixo dela
+        sobrava uma faixa de 306px de largura por quase toda a altura da
+        página, do lado de uma lista espremida. Numa tela de board são 326px
+        a menos para seis colunas caberem.
 
-        Abaixo de 1150px vira uma coluna só, como no artifact. E a direita vem
-        DEPOIS no empilhamento, porque no celular o que a pessoa veio fazer é a
-        lista; o resumo é contexto.
+        A coluna da direita continua sendo a MESMA, com as mesmas peças e as
+        mesmas consultas — o que mudou é até onde ela desce: ela é da primeira
+        faixa, ao lado de "Meu dia", e as três visões passam a ocupar as duas
+        colunas na faixa de baixo.
+
+        **E a colocação é EXPLÍCITA e não auto-posicionada**, pela razão de
+        sempre: a ordem do DOM é a do CELULAR — "Meu dia", as visões, e o
+        resumo por último, porque no celular o que a pessoa veio fazer é a
+        lista. Com o auto-posicionamento, a mesma ordem poria as visões ao
+        lado de "Meu dia" no desktop.
+
+        ***O QUE ISSO CUSTA, e é dito em vez de escondido:*** os três botões
+        do topo deixam de ficar grudados. A decisão do sprint 14 era
+        *"mantê-los permanentemente visíveis… eles não devem desaparecer
+        durante a rolagem vertical do board"*, e o que a cumpria era a coluna
+        ser `sticky` dentro de uma área de grade tão alta quanto a lista. Uma
+        área de grade é o teto de um `sticky`, então com as visões fora da
+        coluna não há mais altura por onde grudar — as duas decisões não cabem
+        juntas, e esta é a mais nova.
       */}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_306px]">
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <MeuDia
             itens={itensDoDia}
             primeiroNome={primeiroNome}
             usuarioId={usuarioId}
             souGestor={souGestor}
           />
+        </div>
 
+        <div className="min-w-0 space-y-5 lg:col-span-2 lg:col-start-1 lg:row-start-2">
           <div className="flex flex-wrap items-center gap-3">
             <SeletorDeVisao
               atual={visao}
@@ -363,7 +387,7 @@ export function PainelPessoal({
               --------------------------------------------------------------- */}
         </div>
 
-        <aside className="flex flex-col gap-2.5 lg:sticky lg:top-20">
+        <aside className="flex flex-col gap-2.5 lg:col-start-2 lg:row-start-1">
           {/* A PÍLULA DE AÇÃO ABRE A COLUNA, como no desenho. Ela só aparece
               para quem faz Atendimento — `tasks_insert` é quem recusa de
               verdade, e isto evita oferecer um caminho sem saída. */}
@@ -372,22 +396,22 @@ export function PainelPessoal({
           ) : null}
 
           {/* -----------------------------------------------------------
-              OS DOIS LADRILHOS SUBIRAM, e é o que faz os três ficarem à
-              vista.
+              OS DOIS LADRILHOS FICAM LOGO ABAIXO DA PÍLULA, e a ordem é o
+              que sobrou de pé da decisão do sprint 14.
 
-              Decisão do usuário: *"manter os três botões permanentemente
-              visíveis na parte superior da página de Minhas Tasks; eles não
-              devem desaparecer durante a rolagem vertical do board"*. A
-              coluna já era `lg:sticky lg:top-20`, mas os três não eram
-              contíguos: entre a pílula e os ladrilhos ficava o cronômetro,
-              que é o bloco mais alto daqui. Numa janela baixa, "Para hoje" e
-              "Atrasadas" caíam abaixo da dobra da própria coluna grudada — ou
-              seja, grudavam fora da tela.
+              Ela pedia os três botões *"permanentemente visíveis na parte
+              superior"*, e o que a cumpria eram duas coisas: eles serem
+              contíguos — entre a pílula e os ladrilhos ficava o cronômetro,
+              que é o bloco mais alto daqui — e a coluna ser `sticky`. **A
+              segunda metade saiu** quando as três visões passaram a ocupar a
+              largura inteira (a razão está no comentário da grade, acima): a
+              coluna é da primeira faixa, e um `sticky` não passa da área de
+              grade dele.
 
-              Juntos no topo, os três ocupam cerca de 150px e cabem em
-              qualquer janela. **O cronômetro continua na primeira dobra**,
-              que é a regra escrita dele: dois ladrilhos lado a lado não
-              empurram nada para baixo da linha de corte.
+              A primeira metade fica, e é ela que ainda decide alguma coisa:
+              juntos no topo os três ocupam cerca de 150px, então eles estão
+              na primeira dobra de qualquer janela — e **o cronômetro continua
+              nela também**, que é a regra escrita dele.
               ----------------------------------------------------------- */}
           <div className="grid grid-cols-2 gap-2.5">
             {LADRILHOS.map(({ id, Icone, tom }) => {
