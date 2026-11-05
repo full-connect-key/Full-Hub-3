@@ -214,6 +214,32 @@ const TELAS = [
   { nome: "20-tasks-board", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio" },
   { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },
   { nome: "22-tasks-lista", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio" },
+  // O ESCURO DA LISTA, e ele entrou com a CAIXA de cada status: o cabecalho
+  // de grupo passou a ser pintado com o par nomeado do selo, e par nomeado e
+  // exatamente o que precisa ser visto nos dois temas -- no escuro o chao e
+  // escuro e a cor de frente e clara, entao uma caixa que se le no claro
+  // pode sumir la. O board ja tinha a dele; a lista nao tinha nenhuma.
+  { nome: "22b-tasks-lista-escuro", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio", tema: "escuro" },
+  // A FOTO NO FILTRO DE RESPONSAVEL, e ela e fotografada pelo GATILHO e nao
+  // pela lista aberta.
+  //
+  // O `SelectValue` do Radix renderiza o conteudo do item ESCOLHIDO, entao
+  // com `?responsavel=` na URL o gatilho mostra o avatar junto do nome -- que
+  // e a mesma peca que os itens da lista carregam, pelo mesmo caminho.
+  //
+  // **A LISTA ABERTA NAO E FOTOGRAFADA, e a decisao ja estava escrita neste
+  // arquivo:** o `Select` do Radix e modal e marca o resto da pagina com
+  // `aria-hidden`, o que faz o axe acusar `aria-hidden-focus` nos focaveis de
+  // tras -- comportamento dos 52 Selects do produto, nao desta tela. Uma
+  // rodada com esse vermelho fixo gastaria o sinal do unico que existe hoje,
+  // que e a paleta do editor rico esperando resposta. Foi medido: a primeira
+  // versao desta tela clicava no seletor e a rodada passou de 1 para 2.
+  //
+  // A pessoa escolhida e a UNICA do exemplo com retrato, de proposito: as
+  // outras sete sao nulas, e e o circulo com iniciais que elas provam em
+  // dezesseis outras telas.
+  { nome: "22c-tasks-filtro-responsavel", largura: 1600, altura: 900, role: "socio",
+    rota: "/painel/gestao-tasks?visao=lista&responsavel=a0000000-0000-0000-0000-000000000001" },
   { nome: "23-tasks-calendario", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1100, role: "socio" },
   // O BOARD FILTRADO PELO CONTADOR: o destino de clicar em "2 atrasadas", que
   // ate aqui era o board inteiro. E a tela que prova que o numero e a lista

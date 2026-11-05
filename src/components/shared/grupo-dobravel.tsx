@@ -47,7 +47,7 @@ export function GrupoDobravel({
   chave,
   titulo,
   contagem,
-  ponto,
+  caixa,
   parametro = "fechados",
   extra,
   children,
@@ -56,8 +56,32 @@ export function GrupoDobravel({
   chave: string;
   titulo: string;
   contagem: number;
-  /** A classe do ponto colorido, quando o grupo tem uma cor própria. */
-  ponto?: string;
+  /**
+   * O PAR NOMEADO do grupo, quando ele tem uma cor própria — e com ele o
+   * cabeçalho vira uma CAIXA.
+   *
+   * Decisão do usuário: *"cada status como 'Iniciar, Em Andamento, Aguardando
+   * Aprovação etc...' estejam em um box com uma cor única, e o título fique em
+   * caixa alta"*. Era um ponto de 8px ao lado de um título preto: a cor estava
+   * lá e não se lia a dois metros, que é a distância de que uma lista de
+   * quarenta linhas é olhada.
+   *
+   * **A CAIXA E A CAIXA ALTA ANDAM JUNTAS, e as duas dependem desta prop.**
+   * Sem ela o grupo é por CLIENTE ou por CONTA, e ali as duas estariam
+   * erradas: não existe cor da "Mundo Verde" no produto — inventar uma criaria
+   * um vocabulário de cor que nenhuma outra tela conhece —, e caixa alta num
+   * nome de empresa é a tela gritando o nome de quem contratou.
+   *
+   * **E O PONTO SAIU COM ELA.** Dentro de uma caixa já pintada com o par do
+   * status, a bolinha é a mesma cor dita duas vezes a quatro pixels de
+   * distância. O que garante que a cor não é o único sinal continua sendo o
+   * NOME, que está escrito dentro da caixa.
+   *
+   * O valor vem de `classesDoChipDeStatus()`, que sai do MESMO mapa do selo e
+   * do seletor: um segundo de-para de cor para os mesmos estados diverge na
+   * primeira vez que alguém acrescenta um status e só lembra de um deles.
+   */
+  caixa?: string;
   /** O nome do parâmetro, para duas listas na mesma tela não se misturarem. */
   parametro?: string;
   /**
@@ -106,20 +130,42 @@ export function GrupoDobravel({
           onClick={alternar}
           aria-expanded={!fechado}
           aria-controls={idDoConteudo}
-          className="text-text-primary hover:text-accent-strong flex w-full items-center gap-2 text-left text-sm font-semibold"
+          className={cn(
+            "flex items-center gap-2 text-left transition-colors",
+            caixa
+              ? // A CAIXA ABRAÇA O TÍTULO e não a linha inteira: uma faixa
+                // colorida de 1100px por grupo pesa mais que a lista que ela
+                // nomeia, e o pedido é um "box" em volta do status.
+                //
+                // **O HOVER É A BORDA E NÃO O CHÃO**, pela razão da 0127: um
+                // filtro do Tailwind (`brightness`) não é cor nomeada e passa
+                // despercebido pelo `check:cores`. `border-current` é a cor
+                // de frente do próprio par — medida por construção, porque é
+                // ela que o par mede contra o fundo.
+                cn(
+                  "w-fit rounded-lg border px-3 py-1.5 text-xs font-bold tracking-wide uppercase hover:border-current",
+                  caixa,
+                )
+              : "text-text-primary hover:text-accent-strong w-full text-sm font-semibold",
+          )}
         >
           <ChevronDown
             aria-hidden
             className={cn(
-              "text-text-muted size-4 shrink-0 transition-transform",
+              "size-4 shrink-0 transition-transform",
+              !caixa && "text-text-muted",
               fechado && "-rotate-90",
             )}
           />
-          {ponto ? (
-            <span aria-hidden className={cn("size-2 shrink-0 rounded-full", ponto)} />
-          ) : null}
           {titulo}
-          <span className="text-text-muted font-normal tabular-nums">{contagem}</span>
+          <span
+            className={cn(
+              "font-normal tabular-nums",
+              !caixa && "text-text-muted",
+            )}
+          >
+            {contagem}
+          </span>
           {extra}
         </button>
       </h2>

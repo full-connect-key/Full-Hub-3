@@ -202,10 +202,30 @@ export function DataTable<T>({
     <div className={cn("space-y-3", className)}>
       {cabecalho}
 
-      <div className="overflow-hidden rounded-xl border">
+      {/* ------------------------------------------------------------------
+          A TABELA PINTA O PRÓPRIO FUNDO, e até aqui ela não pintava nenhum.
+
+          Decisão do usuário sobre a Lista da Gestão de Tasks: *"deixe o fundo
+          da visualização 'Lista' na cor branca"*. A causa não era de token —
+          `--surface-card` é branco puro desde a interface "Leve" —, era este
+          contêiner: `rounded-xl border` e mais nada, então o que aparecia
+          entre as linhas era a PÁGINA, que é `--surface-page` e não é branca.
+          É o achado dos três contêineres de Minhas Tasks pela segunda vez,
+          agora no componente compartilhado — e por isso ele vale para as seis
+          telas que desenham tabela, não só para a que foi reclamada.
+
+          **E o cabeçalho era `bg-muted/40`**, que é opacidade sobre um fundo
+          qualquer — a regra que esta casa escreve desde o selo de estado. Com
+          o chão desconhecido, 40% de `--neutral-soft` sobre a página ficava a
+          dois pontos de distância dela: a faixa do cabeçalho e as linhas se
+          liam à mesma distância de nada, e era isso que fazia a tela inteira
+          parecer um bloco cinza só. Com o par nomeado, o cabeçalho é cabeçalho
+          e o corpo é branco.
+          ------------------------------------------------------------------ */}
+      <div className="bg-card overflow-hidden rounded-xl border">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableRow className="bg-muted hover:bg-muted">
               {columns.map((coluna) => {
                 const ordenavel = Boolean(coluna.sortValue);
                 const ativa = ordenacao?.colunaId === coluna.id;

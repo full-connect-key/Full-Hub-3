@@ -192,7 +192,15 @@ export function BarraDeFiltrosDeTask({
   vertentes,
 }: {
   clientes: { id: string; nome_empresa: string }[];
-  equipe: { id: string; nome: string }[];
+  /**
+   * A LISTA JÁ CHEGAVA COM A FOTO, e o tipo é que a escondia.
+   *
+   * `painel-de-tasks.tsx` recebe `equipe` com `avatar_url` desde o Sprint 4 —
+   * é ela que o calendário usa para desenhar o rosto em cada chip —, e esta
+   * prop a estreitava para `{ id, nome }`. Alargar o tipo é a entrega inteira
+   * do pedido: nenhuma consulta nova.
+   */
+  equipe: { id: string; nome: string; avatar_url: string | null }[];
   /**
    * As vertentes da conta ESCOLHIDA no filtro acima (0118), ou lista vazia.
    *
@@ -249,7 +257,15 @@ export function BarraDeFiltrosDeTask({
           value: filtros.responsavel,
           allLabel: "Todos os responsáveis",
           onChange: (v) => definir({ responsavel: v }),
-          options: equipe.map((p) => ({ value: p.id, label: p.nome })),
+          // A FOTO VAI NA FRENTE DO NOME (decisão do usuário). Só aqui, e não
+          // nos outros quatro seletores desta barra: cliente, vertente,
+          // prioridade e status não são gente, e um círculo genérico neles
+          // afirmaria que existe alguém — a regra da pilha de avatares.
+          options: equipe.map((p) => ({
+            value: p.id,
+            label: p.nome,
+            avatar: { nome: p.nome, src: p.avatar_url },
+          })),
         },
         {
           id: "prioridade",

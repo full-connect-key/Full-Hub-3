@@ -3103,11 +3103,38 @@ estado de verdade do produto, e não um caso montado para a foto. É a lição d
 Óptica Visão sem atendente (0062) e da pessoa desligada (0069) — o ambiente de
 exemplo mostrando o produto nos estados em que ele dói.
 
-*O que fica em aberto, e é dito em vez de escondido:* o Início tem a mesma
+*O que ficou em aberto, e foi dito em vez de escondido:* o Início tem a mesma
 coluna de 306px e os mesmos ladrilhos, e os dele **já pintam fundo** — o que
-não foi conferido é se algum outro módulo repetiu o `rounded-xl border` sem
-`bg-card`. `check:cores` não pega isso: a ausência de uma classe não é cor
-literal nem classe inexistente.
+não tinha sido conferido era se algum outro módulo repetia o `rounded-xl
+border` sem `bg-card`. `check:cores` não pega isso: a ausência de uma classe
+não é cor literal nem classe inexistente.
+
+##### E REPETIA: ERA A `DataTable`, e ela é de seis telas
+
+Decisão do usuário, sobre a Lista da Gestão de Tasks: *"deixe o fundo da
+visualização 'Lista' na cor branca"*.
+
+**A CAUSA ERA A MESMA, palavra por palavra:** o contêiner da tabela era
+`overflow-hidden rounded-xl border` e mais nada, então o que aparecia entre as
+linhas era a PÁGINA. Só que desta vez ele não é de uma tela — é da
+`DataTable`, que desenha a Lista da Gestão de Tasks, os Clientes, a Equipe, os
+Comodatos, os gastos do Financeiro e a vitrine de componentes. **A pergunta
+que ficou aberta tinha resposta, e ela valia por seis telas.**
+
+**E O CABEÇALHO ERA `bg-muted/40`**, que é a regra do par nomeado sendo
+quebrada em silêncio — a mesma que o `bg-muted/60` do seletor de visão já
+tinha pagado nesta seção. Com o chão desconhecido, 40% de `--neutral-soft`
+sobre a página ficava a dois pontos de distância dela: a faixa do cabeçalho e
+as linhas se liam à mesma distância de nada, e era isso que fazia a tela
+inteira parecer um bloco cinza só. Hoje é `bg-muted` cheio sobre o cartão
+branco, e aí o cabeçalho é cabeçalho.
+
+***Por que mexer num componente de seis donos, quando `EmptyState` não foi
+tocado sendo de quarenta:*** a contagem é só metade do critério, e a outra
+metade é se os donos CONCORDAM. Lá a moldura tracejada estava certa em trinta
+e oito dos quarenta; aqui nenhuma das seis telas quer que a tabela mostre a
+página por baixo das linhas. É a decisão do `SeletorDeVisao`, que mudou por
+ser de dois donos que queriam a mesma coisa.
 
 
 #### O Início ganhou a composição, e passou a dizer o que ele É
@@ -6397,12 +6424,100 @@ de lista"*. Era a diferença que sobrava entre as duas listas — a de Minhas
 Tasks já passava o `ponto` ao `GrupoDobravel` desde que ele nasceu, e a de
 Gestão de Tasks não.
 
-**A cor sai de `corDoPontoDeStatus()`, que é o MESMO `tom` do selo**, e não de
-um mapa paralelo: dois mapas de cor para os mesmos estados divergem na primeira
-vez que alguém acrescenta um status e só lembra de um deles. **E ela é só do
-agrupamento por STATUS:** agrupar por cliente ou por responsável não ganha
-ponto, porque não há cor da "Mundo Verde" no produto, e inventar uma seria pôr
-na tela um significado que nada mais carrega.
+**A cor sai do MESMO `tom` do selo**, e não de um mapa paralelo: dois mapas de
+cor para os mesmos estados divergem na primeira vez que alguém acrescenta um
+status e só lembra de um deles. **E ela é só do agrupamento por STATUS:**
+agrupar por cliente ou por responsável não ganha cor, porque não há cor da
+"Mundo Verde" no produto, e inventar uma seria pôr na tela um significado que
+nada mais carrega.
+
+##### E O PONTO VIROU A CAIXA, com o título em caixa alta
+
+Decisão do usuário: *"cada status como 'Iniciar, Em Andamento, Aguardando
+Aprovação etc...' estejam em um box com uma cor única, e o título fique em
+caixa alta"*.
+
+**O ponto de 8px era cor que não se lia à distância de que uma lista de
+quarenta linhas é olhada.** Agora o cabeçalho inteiro é pintado com
+`classesDoChipDeStatus()` — o par nomeado, do mesmo mapa de sempre —, e o
+título sobe para caixa alta por CSS e não nos dados: `COLUNAS_POR_STATUS`
+alimenta também o board, onde o cabeçalho da coluna é escrito normal, e
+duplicar o rótulo seria a segunda verdade sobre a mesma palavra.
+
+**A CAIXA ABRAÇA O TÍTULO e não a linha inteira:** uma faixa colorida de
+1100px por grupo pesa mais que a lista que ela nomeia, e o pedido é um "box"
+em volta do status. Com isso o alvo do clique passou a ser visível, que antes
+não era — o botão já ocupava a linha toda e nada dizia onde ele estava.
+
+**E O PONTO SAIU.** Dentro de uma caixa já pintada com o par do status, a
+bolinha é a mesma cor dita duas vezes a quatro pixels de distância. O que
+garante que a cor não é o único sinal continua sendo o NOME, escrito dentro da
+caixa — ao contrário de uma legenda, onde a cor é tudo o que há.
+
+**O HOVER É A BORDA E NÃO O CHÃO**, pela lição da 0127: `brightness` é filtro
+do Tailwind, não cor nomeada, e passa despercebido pelo `check:cores`.
+`border-current` é a cor de frente do próprio par — medida por construção,
+porque é ela que o par mede contra o fundo.
+
+**A CAIXA E A CAIXA ALTA ANDAM JUNTAS, e as duas só existem com cor.** Sem
+ela o grupo é por CLIENTE ou por CONTA, e ali as duas estariam erradas: não há
+cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando
+o nome de quem contratou. **E vale nas DUAS listas**, porque duas telas que
+agrupam igual e se comportam diferente é a divergência esperando acontecer.
+
+***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** **três pares de
+status continuam dividindo o mesmo tom.** O produto mapeia os sete status da
+Task em CINCO pares medidos — "Iniciar" e "Aguardando informações" dividem o
+cinza, "Em andamento" e "Aguardando aprovação" dividem o azul, "Entregue" e
+"Em ajuste" dividem o âmbar —, e é a mesma decisão que o calendário do Social
+e o portal tomam, com o argumento escrito lá: *sete cores numa grade viram
+confete*. Dar a cada um a cor dele é uma COR NOVA MEDIDA por par que falta, em
+dois temas, com a separação por daltonismo conferida — e ela mudaria o selo em
+vinte e uma telas, o Portal do Cliente incluído. É o item "centralizar e
+remedir as cores dos status", e é decisão própria. **O que a caixa já resolve
+é o que a cor não resolvia sozinha:** o nome está escrito dentro dela, em
+caixa alta, então dois grupos do mesmo tom não se confundem como duas amostras
+de legenda se confundiriam.
+
+##### E O FILTRO DE RESPONSÁVEIS GANHOU A FOTO
+
+Decisão do usuário, na mesma frase: *"no filtro de Responsáveis, quero que a
+frente do nome de cada colaborador, tenha a foto da pessoa"*.
+
+**É A PONTE CONSTRUÍDA E NÃO ATRAVESSADA, e a mais barata delas:**
+`painel-de-tasks.tsx` recebe `equipe` com `avatar_url` desde o Sprint 4 — é ela
+que o calendário usa para pôr o rosto em cada chip —, e a prop da barra de
+filtros estreitava o tipo para `{ id, nome }`. Alargar o tipo é a entrega
+inteira: **nenhuma consulta nova.**
+
+**O campo é OPCIONAL na `FilterBar`, e só o de Responsável o usa.** Os outros
+seletores daquela barra são cliente, vertente, prioridade e status — um círculo
+genérico neles afirmaria que existe alguém, que é a regra da pilha de avatares.
+
+**`tooltip={false}`, pela razão do chip do calendário:** o item de um `Select`
+já é interativo, e um `TooltipTrigger` dentro dele é `nested-interactive` —
+crítico no axe, e duas paradas de Tab para a mesma coisa. O nome está escrito
+ao lado, então nada se perde. E o item ganhou `textValue`: sem ele a busca por
+tecla do Radix não acha uma opção que deixou de ser texto puro.
+
+**O GATILHO MOSTRA A FOTO DE GRAÇA**, porque o `SelectValue` do Radix renderiza
+o conteúdo do item escolhido — então escolher uma pessoa põe o rosto dela na
+barra de filtros, sem uma linha a mais.
+
+***E É O GATILHO QUE SAI EM IMAGEM, não a lista aberta.*** A decisão já estava
+escrita no gerador de protótipo: o `Select` do Radix é modal e marca o resto da
+página com `aria-hidden`, o que faz o axe acusar os focáveis de trás —
+comportamento dos 52 Selects do produto, não desta tela. **Foi medido:** a
+primeira versão da tela clicava no seletor e a rodada passou de 1 achado para
+2, e um vermelho fixo a mais gastaria o sinal do único que existe hoje, que é a
+paleta do editor rico esperando resposta. A tela abre com `?responsavel=` e
+fotografa o gatilho, que carrega a mesma peça pelo mesmo caminho.
+
+*E de quebra ela encontrou uma armadilha do gerador:* a primeira versão saiu
+com a lista pela METADE DA OPACIDADE, e não era animação — o `Select` do Radix
+**fecha ao rolar**, e a captura de página inteira rola para costurar a imagem.
+O mecanismo para isso (`semRolagem`) já existia, com a razão escrita, desde o
+seletor de status da task.
 
 **O Social ficava FORA do seletor de visão, e era mecânico** — o board desenha
 colunas de `subtask_status` e o calendário desenha prazos, e uma etapa de
@@ -15744,6 +15859,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A caixa do status | **A Lista da Gestão de Tasks ficou branca, e cada status virou uma caixa colorida com o título em caixa alta** — decisão do usuário, mais a foto de cada pessoa no filtro de Responsáveis. **A CAUSA DO CINZA ERA A `DataTable`, e ela é de SEIS telas:** o contêiner era `overflow-hidden rounded-xl border` e mais nada, então o que aparecia entre as linhas era a PÁGINA — o achado dos três contêineres de Minhas Tasks pela segunda vez, agora num componente compartilhado, e a resposta para a pergunta que aquela seção tinha deixado explicitamente aberta. O cabeçalho era `bg-muted/40`, que é a regra do par nomeado quebrada em silêncio: a 40% sobre a página ele ficava a dois pontos de distância dela, e era isso que fazia a tela parecer um bloco cinza só. ***Por que mexer num componente de seis donos quando o `EmptyState`, de quarenta, não foi tocado:*** a contagem é só metade do critério, e a outra metade é se os donos CONCORDAM — lá a moldura tracejada estava certa em trinta e oito dos quarenta; aqui nenhuma das seis telas quer que a tabela mostre a página por baixo das linhas. **O ponto de 8px VIROU A CAIXA**, pintada com o par nomeado do MESMO mapa do selo e do seletor, e o ponto saiu: dentro de uma caixa já pintada ele é a mesma cor dita duas vezes a quatro pixels de distância. A caixa abraça o TÍTULO e não a linha inteira, e com isso o alvo do clique passou a ser visível — antes o botão ocupava a linha toda e nada dizia onde ele estava. **O hover é a BORDA e não o chão**, pela lição da 0127: `brightness` é filtro do Tailwind, não cor nomeada, e passa despercebido pelo `check:cores`. **E vale nas DUAS listas**, porque duas telas que agrupam igual e se comportam diferente é a divergência esperando acontecer — a caixa e a caixa alta só existem onde há COR, então agrupar por cliente ou por conta continua com o cabeçalho de texto: não há cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando o nome de quem contratou. ***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** três pares de status continuam dividindo o mesmo tom — os sete da Task mapeiam em CINCO pares medidos, que é a mesma decisão do calendário do Social e do portal (*sete cores numa grade viram confete*). Dar a cada um a cor dele é uma cor nova medida por par que falta, em dois temas, com a separação por daltonismo conferida, e mudaria o selo em vinte e uma telas, o Portal do Cliente incluído. **E a foto do filtro não custou consulta nenhuma:** `avatar_url` já chegava, e o que a escondia era o tipo da prop. O gatilho mostra o rosto de graça, porque o `SelectValue` do Radix renderiza o item escolhido — e é ele que sai em imagem, não a lista aberta, porque fotografar um `Select` aberto custa um vermelho fixo no axe: **medido**, a rodada passou de 1 achado para 2. Nenhuma migration. |
 | A largura das visões | **As três visões de Minhas Tasks passaram a ocupar a largura inteira**, por decisão do usuário, com a imagem marcando o vão: *"as visualizações de Board / Lista / Calendário estão centralizadas ao box de 'Meu Dia' mas devem ser maiores, até o fim da tela no box de 'Nova Task'"*. **O vão era o custo de a coluna de 306px ir até embaixo:** ela quase sempre é mais curta que a lista, então debaixo dela sobrava uma faixa de 306px por quase toda a altura da página, do lado de uma lista espremida — e no board eram **326px a menos** para seis colunas caberem. A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas; o que mudou é até onde ela desce — ela é da primeira faixa, ao lado de "Meu dia", e as visões ocupam as duas colunas na faixa de baixo. **AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido:** o `sticky` que mantinha os três botões à vista durante a rolagem do board (decisão do sprint 14) tem como teto a ÁREA DE GRADE do elemento — para grudar enquanto a lista rola, a lista precisa estar na mesma faixa que ele. A única alternativa de CSS é `float`, e com ela os cartões passariam por baixo da coluna. *O que se perde:* os três botões rolam com a página. **E a colocação é EXPLÍCITA e não auto-posicionada**, porque a ordem do DOM é a do CELULAR — "Meu dia", as visões, e o resumo por último — e com o auto-posicionamento essa mesma ordem poria as visões ao lado de "Meu dia" no desktop. ***O que custa do outro lado, e também foi medido:*** com o cronômetro correndo E gente fora, num dia leve, sobra uma faixa branca de ~300px embaixo de "Meu dia" — limitada pela altura da coluna, ao contrário do vão que saiu, que corria a página inteira, e inexistente no estado da imagem que o usuário mandou. **O 375 entrou no protótipo por causa da colocação explícita:** era a tela de Minhas Tasks que não tinha imagem de celular, e é lá que a ordem do DOM manda. Nenhuma migration, nenhuma consulta — é layout. |
 | Quem recebe a aprovação | **O envio ao cliente passou a nomear quem recebe** (migration 0128), por decisão do usuário, item 14: escolher o responsável é obrigatório, o envio registra quem mandou, quem recebeu e quando, a pessoa é avisada, e a pendência aparece com o nome dela. **METADE JÁ EXISTIA** — quem enviou, quando, de que empresa e o aviso são de 2007/0030/0098; o que não existia era quem RECEBEU. **A MEDIÇÃO QUE DECIDE A MIGRATION: das 28 contas do banco, UMA tem alguém com acesso ao portal** — o material enviado para as outras 27 não chega a pessoa nenhuma, e nada na tela diz isso. A trava não cria o problema, ela o revela, e a recusa nomeia a empresa e manda para Gestão de Pessoas › Clientes. É o oposto da 0026, onde eu li a frase do usuário como relato de furo e fechei um furo que não existia: aqui o furo foi contado, conta por conta. **É trigger e não `not null`** (a 0015), porque há 18 rodadas anteriores à regra; **nomear não é trancar**, porque não há hierarquia do lado do cliente e qualquer pessoa da empresa continua podendo responder — o que a coluna decide é a cobrança; e **a mensagem do envio não é o `comentario`**, que é o que o cliente diz ao DECIDIR. **A recusa da conta sem ninguém vem ANTES da escolha**, nos dois lados, pela lição da 0076 — e a primeira versão do LOTE perguntava na ordem inversa, levando a uma recusa que a pessoa não tinha como satisfazer. **O aviso passou a ser de UMA pessoa**: ele percorria `client_users` e tocava o sino da empresa inteira, e nomear alguém continuando a cobrar todos seria um campo que não decide nada (0023). **E A FUNÇÃO DO LOTE FOI APLICADA ERRADA UMA VEZ, que é a 0030 pelo outro lado:** eu redigitei o corpo dela na chamada em vez de copiar do arquivo, e a versão redigitada inventou um `order by p.criado_em` — coluna que não existe —, além de trocar as frases das recusas e **as chaves do jsonb que a action lê**. `create or replace` também não avisa quando o texto novo tem coisa que o velho não tinha, e plpgsql não valida o corpo na criação: a hora de validar é o clique de alguém. **Aplicar a partir do arquivo, nunca de memória.** De quebra, a ACL daquela função estava aberta desde a 0090 — onze `revoke` lá, nenhum para ela — e foi fechada. **E nasceu o primeiro stub de _action_ do protótipo**, com a razão escrita: o gerador troca `lib/dados/` e nunca `_actions`, e o que mudou é que uma imagem que já existe passou a depender de uma — sem o stub, a entrega nova degradaria uma conferência velha. Ele não pode importar de `lib/acoes/resultado`, que é `server-only`: trocada por um módulo comum, a action é compilada no bundle do cliente. ***A bateria não foi rodada*** — não há Docker nem Postgres aqui —, e no lugar dela está a medição contra produção, cinco casos numa transação revertida; o arquivo 47 está escrito e 35 inserts da bateria ganharam o aprovador. |
 | As cores da decisão | **As três decisões ganharam cor, e a recusa passou a exigir motivo** (migration 0127), por decisão do usuário: *"APROVAR verde, AJUSTAR amarelo, RECUSAR vermelho; em todos os módulos; textos+ícones; registrar no histórico; justificativa na recusa; sincronizar portal/dashboard"*. **CINCO METADES, E QUATRO JÁ EXISTIAM** — ir medir antes de escrever é o que separou o que precisava de código do que só precisava ser nomeado (a lição da 0060): o registro no histórico é `approval_rounds` **sem policy de DELETE**, e a sincronização entre portal e painel passou a ser por construção. **O QUE ESTAVA ERRADO NÃO ERA A FALTA DE COR, ERA A DIVERGÊNCIA:** quatro aparências em seis telas, com o ícone de aprovar oscilando entre `Check`, `BadgeCheck` e nenhum — e, no portal, *"Solicitar ajustes"* e *"Rejeitar"* eram o **MESMO** botão `outline`, a dois centímetros, com a palavra como única diferença. É `ICONE_DA_AREA` outra vez, e a resposta é a de `LinhaDeTrabalho`: **um mapa, não uma convenção escrita** — a sequência vira o TIPO. **E A PALAVRA ENTRA NO MAPA**, ao contrário do que a `BarraDeContexto` centraliza, porque a lista é a mesma em todo módulo e era ela que divergia: o botão dizia "Rejeitar", o diálogo "Recusar material" e o confirmar "Recusar", na mesma tela. **A COR FOI MEDIDA DUAS VEZES E AS DUAS DERRUBARAM.** O hover: `brightness-110` leva branco sobre o verde de 5,02:1 a **4,26:1** — e um filtro do Tailwind não é cor nomeada, então o `check:cores` dizia "tudo certo" sobre ele. E o **daltonismo**: `--warning` cheio passa em contraste (6,33:1) e fica a **ΔE 1,2** do vermelho em deuteranopia — aquele token é cor de TEXTO, escurecida até ler a 11px, e **âmbar escurecido é marrom**; os dois desfechos negativos, lado a lado, na mesma cor — **o bug deste sprint reproduzido em cor**. O Financeiro já tinha recusado um par a 4,2 pela mesma conta, **à mão, sem deixar nada que reprovasse**: a conta virou seção do `check:cores` (Brettel/Viénot + ΔE CIE76, piso 10) — **e foi ela que achou o segundo caso enquanto o primeiro era consertado**, `--success` × `--danger` a ΔE 9,4 no tema escuro, pelo motivo inverso. A saída é uma família própria de três chãos que **não trocam por tema**, que é a decisão de `--action`: a colisão do escuro deixa de existir por construção, e as duas imagens saem idênticas nos três botões. **E A RECUSA NÃO EXIGIA MOTIVO:** este arquivo afirmava desde a 0032 que os dois desfechos negativos exigiam, *"na ação e no banco"* — medindo, `approval_rounds` tinha **um** check (o de `content_type`) e, dos **onze** triggers, só um cobrava comentário, perguntando `ajustes_solicitados` e mais nada. É a 0029 pelo avesso: lá a regra morava nos dois lados e desfazer um não desfez nada; aqui eu **escrevi** que ela morava nos dois e ela morava em um. A 0127 põe o check (o piso, que pega o `insert`) e o ramo no trigger (a frase que a pessoa lê), e os cinco casos foram medidos contra o Postgres de produção numa transação revertida. ***O Day Off ficou de fora, e é dito:*** "De acordo" / "Preciso remarcar" é deliberadamente o vocabulário de quem não tem hierarquia de aprovação (0016/0018), e pintá-lo com o verde e o `X` da família desfaria aquela decisão pela cor. |

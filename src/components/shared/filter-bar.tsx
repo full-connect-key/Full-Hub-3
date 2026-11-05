@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,7 +21,28 @@ export type SelectFilter = {
   id: string;
   label: string;
   value: string;
-  options: { value: string; label: string }[];
+  options: {
+    value: string;
+    label: string;
+    /**
+     * A FOTO DA PESSOA À FRENTE DO NOME, quando a opção é gente.
+     *
+     * Decisão do usuário sobre o filtro de Responsáveis da Gestão de Tasks:
+     * *"quero que a frente do nome de cada colaborador, tenha a foto da
+     * pessoa"*. É a mesma lista que o board e o calendário já desenham com
+     * rosto — num seletor de quinze nomes, a foto é o que faz achar sem ler.
+     *
+     * **E ela não custou consulta nenhuma:** `equipe` já chega com
+     * `avatar_url` em quem monta a barra; o que a escondia era o tipo da prop,
+     * estreitado a `{ id, nome }`. É a ponte construída e não atravessada
+     * outra vez.
+     *
+     * O campo é OPCIONAL porque as outras opções deste componente são
+     * cliente, status e prioridade — e um círculo genérico ali afirmaria que
+     * existe alguém, que é a regra da pilha de avatares.
+     */
+    avatar?: { nome: string; src: string | null };
+  }[];
   onChange: (value: string) => void;
   /** Rótulo da opção que não filtra nada. */
   allLabel?: string;
@@ -63,8 +85,26 @@ export function FilterBar({
           <SelectContent>
             <SelectItem value={SEM_FILTRO}>{filtro.allLabel ?? filtro.label}</SelectItem>
             {filtro.options.map((opcao) => (
-              <SelectItem key={opcao.value} value={opcao.value}>
-                {opcao.label}
+              // `textValue` é obrigatório quando o item deixa de ser texto
+              // puro: é por ele que a busca por tecla do Radix acha a opção.
+              <SelectItem key={opcao.value} value={opcao.value} textValue={opcao.label}>
+                {opcao.avatar ? (
+                  <span className="flex items-center gap-2">
+                    {/* `tooltip={false}` porque o item do Select já é
+                        interativo, e um `TooltipTrigger` dentro dele é
+                        `nested-interactive` — crítico no axe. O nome está
+                        escrito do lado, então nada se perde. */}
+                    <UserAvatar
+                      size="xs"
+                      tooltip={false}
+                      name={opcao.avatar.nome}
+                      src={opcao.avatar.src}
+                    />
+                    {opcao.label}
+                  </span>
+                ) : (
+                  opcao.label
+                )}
               </SelectItem>
             ))}
           </SelectContent>
