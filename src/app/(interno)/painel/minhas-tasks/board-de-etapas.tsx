@@ -456,6 +456,27 @@ export function BoardDeEtapas({
           nenhuma atrás de uma barra de rolagem, e uma segunda fileira não
           esconde coisa nenhuma.
 
+          **E A LARGURA PAROU DE CRESCER, o que é a padronização das três
+          visões.** O board marcava `data-largo` e usava a janela inteira;
+          hoje ele vive nos 72rem como a Lista e o Calendário, então a conta é
+          fixa: 1088px de conteúdo menos cinco vãos de 12px, repartidos em
+          seis — **~171px por coluna**, contra os ~198px de antes. Acima de
+          2xl ela não cresce mais, porque o teto do `main` chega antes.
+
+          ***E SÃO SEIS E NÃO QUATRO, que é a pergunta que a largura nova
+          levanta.*** Quatro colunas dariam ~258px cada e caberiam
+          confortavelmente, e a conta que as recusa é a mesma que tirou a
+          rolagem horizontal daqui: com quatro, "Em ajustes" e "Concluída"
+          caem para a segunda fileira — e a primeira tem a altura de "Em
+          andamento", que num dia cheio passa de 900px. **Uma coluna que só
+          existe depois de rolar é uma coluna que ninguém olha**, e rolar
+          para baixo não é melhor que rolar para o lado. A 171px o cartão
+          ainda carrega o título, a prioridade, o selo de prazo inteiro (é a
+          quebra do `DateBadge`, do sprint passado, que paga isso), o relógio
+          e o botão de ação — conferido em imagem, que é como a largura de
+          uma coluna se confere: ela não é tipo, não é cor e não é árvore de
+          acessibilidade, então nenhuma varredura a alcança.
+
           `min-w-0` em cada coluna é o que faz isso valer: sem ele o item de
           grade se recusa a ficar menor que o conteúdo (`min-width: auto`) e a
           grade estoura para fora da página — foi assim que a coluna de domingo

@@ -165,10 +165,10 @@ iniciada"** e não "Iniciar" — na Task ele é "Iniciar" porque o cabeçalho da
 coluna é a única coisa escrita ali; aqui cada card carrega o botão de ação, e
 o primeiro deles se chama exatamente "Iniciar".
 
-**AS SEIS COLUNAS APARECEM JUNTAS, e a página perde o teto de 72rem para
-isso** — decisão do usuário: *"o board está limitado ao espaço da caixa
-superior; ajustar para que ocupe toda a largura disponível da tela, todas as
-colunas aparecendo simultaneamente, sem rolagem horizontal"*.
+**AS SEIS COLUNAS APARECEM JUNTAS, SEM ROLAGEM HORIZONTAL** — decisão do
+usuário: *"o board está limitado ao espaço da caixa superior; ajustar para que
+ocupe toda a largura disponível da tela, todas as colunas aparecendo
+simultaneamente, sem rolagem horizontal"*.
 
 Eram `flex gap-3 overflow-x-auto` com coluna de `w-72 shrink-0`: seis colunas
 fixas de 288px dão 1788px, e o board vivia rolando dentro do `max-w-6xl` do
@@ -176,27 +176,53 @@ fixas de 288px dão 1788px, e o board vivia rolando dentro do `max-w-6xl` do
 descobrir se havia algo lá — e **uma coluna que só existe depois de rolar é
 uma coluna que ninguém olha**.
 
-**São DUAS pontas, e as duas no mesmo commit.** A tela marca `data-largo` e o
-`main` responde com `has-[[data-largo]]:max-w-none`; o board vira grade. Só a
-primeira daria seis colunas de 122px num 1440, e só a segunda daria largura
-sobrando com a rolagem de volta.
+**O QUE RESOLVEU AQUILO FOI A GRADE, e não a largura** — e essa distinção só
+ficou clara dois sprints depois, quando a largura saiu. Uma grade reparte o
+espaço que existe: ela não precisa de 1788px para mostrar as seis colunas,
+precisa de uma contagem de colunas que caiba na largura que tem. O `flex` com
+coluna fixa precisava dos 1788px, e é por isso que ele rolava.
 
-**E HOUVE UMA TERCEIRA PONTA, um sprint depois:** até ela o board dividia a
-faixa com a coluna de 306px, então tirar o teto devolvia a largura da janela
-MENOS ela. Hoje as três visões ocupam as duas colunas da grade — a decisão
-está em "AS TRÊS VISÕES OCUPAM A LARGURA INTEIRA", abaixo —, e a marca passou
-a devolver a largura inteira de verdade.
+**E HOUVE UMA SEGUNDA PONTA, QUE DUROU DOIS SPRINTS E SAIU.** A tela marcava
+`data-largo` e o `main` respondia com `has-[[data-largo]]:max-w-none`,
+tirando o teto de 72rem só nesta visão — naquele dia o board ainda era `flex`
+com coluna fixa, e sem a marca ele daria seis colunas de 122px num 1440. Ela
+cresceu uma vez no caminho: até o sprint seguinte o board dividia a faixa com
+a coluna de 306px, então tirar o teto devolvia a largura da janela MENOS ela;
+com as três visões ocupando as duas colunas da grade, a marca passou a
+devolver a largura inteira.
 
-**É `:has()` e NÃO margem negativa.** `-mx-4 lg:-mx-8` é a saída que a capa do
+**E AÍ ELA VIROU O PROBLEMA QUE ELA MESMA CRIOU.** Decisão do usuário:
+*"ficou ótima a visualização de lista e calendário mas a visualização de Board
+está mais expandida que as outras 2, deixe padronizado"* — as três visões são
+a mesma tela, trocadas por um seletor, e a página mudando de largura a cada
+clique é a tela se reorganizando debaixo de quem só queria ver o mesmo
+trabalho de outro jeito. A marca saiu, e **as duas pontas saíram no mesmo
+commit**: um `has-[]` que nada mais aciona é o interruptor que a 0088 deixou
+para trás e que a 0090 encontrou filtrando fora as linhas que ela acabara de
+criar. **Hoje `max-w-6xl` é a única medida do painel, sem exceção.**
+
+**E A SAÍDA NUNCA FOI MARGEM NEGATIVA, que é o registro que vale para o dia em
+que uma tela larga voltar.** `-mx-4 lg:-mx-8` é o caminho que a capa do
 cliente e a barra de contexto já pagaram duas vezes: com `mx-auto max-w-6xl`,
 tirar o respiro deixa a faixa mais larga que o conteúdo e ainda longe da borda
 da janela — nem alinhada nem de ponta a ponta, que é a única das três que
-parece defeito. E não é prop no layout, porque o layout é de servidor e a
+parece defeito. E não era prop no layout, porque o layout é de servidor e a
 visão mora na URL de uma tela só.
 
-**A marca é só da visão de BOARD.** A Lista e o Calendário continuam nos 72rem:
-as duas são leitura de texto, e uma linha de 1600px é pior de ler que uma de
-1100.
+***O QUE A PADRONIZAÇÃO CUSTA, e é dito em vez de escondido:*** cada coluna
+perde 27px. Eram ~198px — a janela de 1600 menos a barra lateral e o respiro —
+e passam a ser **~171px**: os 1088px de conteúdo dos 72rem, menos cinco vãos
+de 12px, repartidos em seis. Medido nas três visões, que agora dão a mesma
+largura de conteúdo.
+
+**E SÃO SEIS E NÃO QUATRO, que é a pergunta que a largura nova levanta.**
+Quatro colunas dariam ~258px cada e caberiam folgadas, e o que as recusa é a
+mesma conta que tirou a rolagem horizontal daqui: com quatro, "Em ajustes" e
+"Concluída" caem para a segunda fileira — e a primeira tem a altura de "Em
+andamento", que num dia cheio passa de 900px. **Rolar para baixo para achar
+uma coluna não é melhor que rolar para o lado.** A 171px o cartão ainda
+carrega o título, a prioridade, o selo de prazo inteiro — é a quebra do
+`DateBadge`, logo abaixo, que paga isso —, o relógio e o botão de ação.
 
 **É GRADE e não `flex-wrap`.** Em `flex-wrap` cada coluna fica do tamanho do
 conteúdo dela e as da segunda fileira não se alinham com as da primeira; a
@@ -2939,6 +2965,14 @@ calendário, 46px a mais por dia da semana.
 A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas: o
 que mudou é até onde ela desce. Ela é da primeira faixa, ao lado de "Meu dia",
 e as três visões passam a ocupar as duas colunas na faixa de baixo.
+
+**"INTEIRA" É A LARGURA DA GRADE, E NÃO A DA JANELA**, e a distinção precisou
+de um sprint para ficar escrita: o board marcava `data-largo` e saía mais
+largo que as outras duas, até o usuário apontar — *"a visualização de Board
+está mais expandida que as outras 2, deixe padronizado"*. **As três visões
+têm exatamente a mesma medida**, as duas colunas da grade dentro dos 72rem do
+`main`, e a marca saiu do produto. O que ela era, e o que a remoção custou ao
+board, está em "AS SEIS COLUNAS APARECEM JUNTAS", acima.
 
 **AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido.** O
 `sticky` que mantinha os três botões à vista durante a rolagem do board tem
@@ -15859,6 +15893,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| As três visões têm a mesma largura | **O board de Minhas Tasks deixou de ser mais largo que a Lista e o Calendário** — decisão do usuário: *"ficou ótima a visualização de lista e calendário mas a visualização de Board está mais expandida que as outras 2, deixe padronizado"*. As três são a mesma tela trocada por um seletor, e a página mudando de largura a cada clique é a tela se reorganizando debaixo de quem só queria ver o mesmo trabalho de outro jeito. **A MARCA SAIU DO PRODUTO, E AS DUAS PONTAS NO MESMO COMMIT:** o board era a única tela a marcar `data-largo`, e o `has-[[data-largo]]:max-w-none` do `main` era o mecanismo que respondia — deixar o `has-[]` lá seria um interruptor que nada mais aciona, que é a camada que a 0088 deixou para trás e que a 0090 encontrou filtrando fora exatamente as linhas que ela acabara de criar. **Hoje `max-w-6xl` é a única medida do painel, sem exceção.** **O ARGUMENTO QUE CRIOU A MARCA JÁ ESTAVA VENCIDO, e é por isso que tirá-la é barato:** ela nasceu quando o board era `flex` com coluna fixa de 288px — seis davam 1788px e ele rolava dentro dos 72rem. Ele virou GRADE no mesmo sprint, e **o que resolveu a rolagem foi a grade e não a largura**: uma grade reparte o espaço que existe, então ela não precisa de 1788px para mostrar as seis, precisa de uma contagem que caiba na largura que tem. A distinção levou dois sprints para ficar escrita. ***O que a padronização custa, e é dito em vez de escondido:*** cada coluna perde 27px — eram ~198px e passam a ser **~171px**, que é o conteúdo de 1088px dos 72rem menos cinco vãos de 12px, repartido em seis. **E SÃO SEIS E NÃO QUATRO**, que é a pergunta que a largura nova levanta: quatro dariam ~258px folgados, e o que as recusa é a mesma conta que tirou a rolagem horizontal daqui — com quatro, "Em ajustes" e "Concluída" caem para a segunda fileira, e a primeira tem a altura de "Em andamento", que num dia cheio passa de 900px; **rolar para baixo para achar uma coluna não é melhor que rolar para o lado**. A 171px o cartão ainda carrega o título, a prioridade, o selo de prazo inteiro (é a quebra do `DateBadge` do sprint passado que paga isso), o relógio e o botão de ação. **Medido nas três visões**, que agora dão a mesma largura de conteúdo, e conferido em imagem — largura de coluna não é tipo, não é cor e não é árvore de acessibilidade, então nenhuma varredura a alcança. Nenhuma migration, nenhuma consulta. |
 | A caixa do status | **A Lista da Gestão de Tasks ficou branca, e cada status virou uma caixa colorida com o título em caixa alta** — decisão do usuário, mais a foto de cada pessoa no filtro de Responsáveis. **A CAUSA DO CINZA ERA A `DataTable`, e ela é de SEIS telas:** o contêiner era `overflow-hidden rounded-xl border` e mais nada, então o que aparecia entre as linhas era a PÁGINA — o achado dos três contêineres de Minhas Tasks pela segunda vez, agora num componente compartilhado, e a resposta para a pergunta que aquela seção tinha deixado explicitamente aberta. O cabeçalho era `bg-muted/40`, que é a regra do par nomeado quebrada em silêncio: a 40% sobre a página ele ficava a dois pontos de distância dela, e era isso que fazia a tela parecer um bloco cinza só. ***Por que mexer num componente de seis donos quando o `EmptyState`, de quarenta, não foi tocado:*** a contagem é só metade do critério, e a outra metade é se os donos CONCORDAM — lá a moldura tracejada estava certa em trinta e oito dos quarenta; aqui nenhuma das seis telas quer que a tabela mostre a página por baixo das linhas. **O ponto de 8px VIROU A CAIXA**, pintada com o par nomeado do MESMO mapa do selo e do seletor, e o ponto saiu: dentro de uma caixa já pintada ele é a mesma cor dita duas vezes a quatro pixels de distância. A caixa abraça o TÍTULO e não a linha inteira, e com isso o alvo do clique passou a ser visível — antes o botão ocupava a linha toda e nada dizia onde ele estava. **O hover é a BORDA e não o chão**, pela lição da 0127: `brightness` é filtro do Tailwind, não cor nomeada, e passa despercebido pelo `check:cores`. **E vale nas DUAS listas**, porque duas telas que agrupam igual e se comportam diferente é a divergência esperando acontecer — a caixa e a caixa alta só existem onde há COR, então agrupar por cliente ou por conta continua com o cabeçalho de texto: não há cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando o nome de quem contratou. ***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** três pares de status continuam dividindo o mesmo tom — os sete da Task mapeiam em CINCO pares medidos, que é a mesma decisão do calendário do Social e do portal (*sete cores numa grade viram confete*). Dar a cada um a cor dele é uma cor nova medida por par que falta, em dois temas, com a separação por daltonismo conferida, e mudaria o selo em vinte e uma telas, o Portal do Cliente incluído. **E a foto do filtro não custou consulta nenhuma:** `avatar_url` já chegava, e o que a escondia era o tipo da prop. O gatilho mostra o rosto de graça, porque o `SelectValue` do Radix renderiza o item escolhido — e é ele que sai em imagem, não a lista aberta, porque fotografar um `Select` aberto custa um vermelho fixo no axe: **medido**, a rodada passou de 1 achado para 2. Nenhuma migration. |
 | A largura das visões | **As três visões de Minhas Tasks passaram a ocupar a largura inteira**, por decisão do usuário, com a imagem marcando o vão: *"as visualizações de Board / Lista / Calendário estão centralizadas ao box de 'Meu Dia' mas devem ser maiores, até o fim da tela no box de 'Nova Task'"*. **O vão era o custo de a coluna de 306px ir até embaixo:** ela quase sempre é mais curta que a lista, então debaixo dela sobrava uma faixa de 306px por quase toda a altura da página, do lado de uma lista espremida — e no board eram **326px a menos** para seis colunas caberem. A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas; o que mudou é até onde ela desce — ela é da primeira faixa, ao lado de "Meu dia", e as visões ocupam as duas colunas na faixa de baixo. **AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido:** o `sticky` que mantinha os três botões à vista durante a rolagem do board (decisão do sprint 14) tem como teto a ÁREA DE GRADE do elemento — para grudar enquanto a lista rola, a lista precisa estar na mesma faixa que ele. A única alternativa de CSS é `float`, e com ela os cartões passariam por baixo da coluna. *O que se perde:* os três botões rolam com a página. **E a colocação é EXPLÍCITA e não auto-posicionada**, porque a ordem do DOM é a do CELULAR — "Meu dia", as visões, e o resumo por último — e com o auto-posicionamento essa mesma ordem poria as visões ao lado de "Meu dia" no desktop. ***O que custa do outro lado, e também foi medido:*** com o cronômetro correndo E gente fora, num dia leve, sobra uma faixa branca de ~300px embaixo de "Meu dia" — limitada pela altura da coluna, ao contrário do vão que saiu, que corria a página inteira, e inexistente no estado da imagem que o usuário mandou. **O 375 entrou no protótipo por causa da colocação explícita:** era a tela de Minhas Tasks que não tinha imagem de celular, e é lá que a ordem do DOM manda. Nenhuma migration, nenhuma consulta — é layout. |
 | Quem recebe a aprovação | **O envio ao cliente passou a nomear quem recebe** (migration 0128), por decisão do usuário, item 14: escolher o responsável é obrigatório, o envio registra quem mandou, quem recebeu e quando, a pessoa é avisada, e a pendência aparece com o nome dela. **METADE JÁ EXISTIA** — quem enviou, quando, de que empresa e o aviso são de 2007/0030/0098; o que não existia era quem RECEBEU. **A MEDIÇÃO QUE DECIDE A MIGRATION: das 28 contas do banco, UMA tem alguém com acesso ao portal** — o material enviado para as outras 27 não chega a pessoa nenhuma, e nada na tela diz isso. A trava não cria o problema, ela o revela, e a recusa nomeia a empresa e manda para Gestão de Pessoas › Clientes. É o oposto da 0026, onde eu li a frase do usuário como relato de furo e fechei um furo que não existia: aqui o furo foi contado, conta por conta. **É trigger e não `not null`** (a 0015), porque há 18 rodadas anteriores à regra; **nomear não é trancar**, porque não há hierarquia do lado do cliente e qualquer pessoa da empresa continua podendo responder — o que a coluna decide é a cobrança; e **a mensagem do envio não é o `comentario`**, que é o que o cliente diz ao DECIDIR. **A recusa da conta sem ninguém vem ANTES da escolha**, nos dois lados, pela lição da 0076 — e a primeira versão do LOTE perguntava na ordem inversa, levando a uma recusa que a pessoa não tinha como satisfazer. **O aviso passou a ser de UMA pessoa**: ele percorria `client_users` e tocava o sino da empresa inteira, e nomear alguém continuando a cobrar todos seria um campo que não decide nada (0023). **E A FUNÇÃO DO LOTE FOI APLICADA ERRADA UMA VEZ, que é a 0030 pelo outro lado:** eu redigitei o corpo dela na chamada em vez de copiar do arquivo, e a versão redigitada inventou um `order by p.criado_em` — coluna que não existe —, além de trocar as frases das recusas e **as chaves do jsonb que a action lê**. `create or replace` também não avisa quando o texto novo tem coisa que o velho não tinha, e plpgsql não valida o corpo na criação: a hora de validar é o clique de alguém. **Aplicar a partir do arquivo, nunca de memória.** De quebra, a ACL daquela função estava aberta desde a 0090 — onze `revoke` lá, nenhum para ela — e foi fechada. **E nasceu o primeiro stub de _action_ do protótipo**, com a razão escrita: o gerador troca `lib/dados/` e nunca `_actions`, e o que mudou é que uma imagem que já existe passou a depender de uma — sem o stub, a entrega nova degradaria uma conferência velha. Ele não pode importar de `lib/acoes/resultado`, que é `server-only`: trocada por um módulo comum, a action é compilada no bundle do cliente. ***A bateria não foi rodada*** — não há Docker nem Postgres aqui —, e no lugar dela está a medição contra produção, cinco casos numa transação revertida; o arquivo 47 está escrito e 35 inserts da bateria ganharam o aprovador. |

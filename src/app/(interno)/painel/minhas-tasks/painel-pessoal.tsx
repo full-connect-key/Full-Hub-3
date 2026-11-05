@@ -141,24 +141,35 @@ export function PainelPessoal({
 
   return (
     // ----------------------------------------------------------------------
-    // `data-largo` NA VISÃO DE BOARD, e só nela.
+    // AS TRÊS VISÕES TÊM A MESMA LARGURA, E A MARCA `data-largo` SAIU.
     //
-    // O `main` do painel é `max-w-6xl`, e o board ficava espremido nos 72rem:
-    // seis colunas de etapa não cabem ali sem rolar para o lado. A marca tira
-    // o teto (o `has-[[data-largo]]` está no layout), e o board passa a usar a
-    // largura que a janela tem, descontada a barra lateral — que é o que o
-    // `mx-auto` faz sozinho.
+    // Decisão do usuário: *"ficou ótima a visualização de lista e calendário
+    // mas a visualização de Board está mais expandida que as outras 2, deixe
+    // padronizado"*. A Lista e o Calendário são as duas que ele aprovou, então
+    // a que se move é o board.
     //
-    // **As duas pontas continuam sendo duas**, e a de baixo mudou: até aqui o
-    // board dividia a faixa com a coluna de 306px, e tirar o teto devolvia a
-    // largura da janela MENOS ela. Hoje as três visões ocupam as duas colunas
-    // da grade, então a marca devolve a largura inteira — e sem ela a Lista e
-    // o Calendário ganham os 326px que a coluna comia, dentro dos 72rem.
+    // **O board era a ÚNICA tela do produto a marcar `data-largo`**, e o
+    // `has-[[data-largo]]:max-w-none` do layout era o mecanismo que respondia
+    // à marca. As duas pontas saem no mesmo commit, que é a regra desta casa:
+    // deixar o `has-[]` lá seria um interruptor que nada mais aciona — a
+    // camada que a 0088 deixou para trás e que a 0090 encontrou filtrando
+    // fora exatamente as linhas que ela acabara de criar.
     //
-    // A Lista e o Calendário NÃO recebem a marca: as duas são leitura de
-    // texto, e uma linha de 1600px de largura é pior de ler que uma de 1100.
+    // **O argumento que criou a marca já estava vencido**, e é por isso que
+    // tirá-la é barato: ela nasceu quando o board era `flex` com coluna fixa
+    // de 288px — seis colunas davam 1788px e ele rolava dentro dos 72rem. Ele
+    // virou GRADE no mesmo sprint, e uma grade reparte a largura que existe:
+    // ela não precisa de 1788px para mostrar as seis, precisa de uma contagem
+    // de colunas que caiba na largura que tem.
+    //
+    // *O que a padronização custa, e é dito em vez de escondido:* cada coluna
+    // do board perde 27px. Eram ~198px (a janela de 1600 menos a barra
+    // lateral e o respiro) e passam a ser ~171px, que é o conteúdo de 1088px
+    // dos 72rem repartido em seis com 12px de vão. **As seis continuam
+    // aparecendo juntas**, que é a decisão do usuário no sprint anterior — a
+    // conta e a razão de não serem quatro estão em `board-de-etapas.tsx`.
     // ----------------------------------------------------------------------
-    <div className="space-y-5" {...(visao === "board" ? { "data-largo": "" } : {})}>
+    <div className="space-y-5">
       {/*
         O CABEÇALHO DA TELA, na composição aprovada: saudação grande em duas
         cores, e embaixo a data com a contagem da semana.
