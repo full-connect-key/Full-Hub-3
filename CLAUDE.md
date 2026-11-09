@@ -2039,10 +2039,23 @@ pontas arredondam, o meio não — o desenho do calendário rolável do Day Off,
 que resolve a mesma seleção; `ordenar()` é a mesma função de lá, e é ela que
 faz a seleção de trás para frente funcionar.
 
-**Medido por dump, em duas telas novas do protótipo:** 2 a 8 de setembro sai
-com 2 pontas, 5 células no meio, 28 fora e *"21h24 de 45h"* em 5 dias úteis;
-28 de setembro a 3 de outubro sai com *"6 dias"* e 45h — o número que só fecha
-se a busca tiver ido atrás dos dias do outro mês.
+**Medido por dump, em duas telas novas do protótipo:** o dia 2 ao 8 sai com 2
+pontas, 5 células no meio, 28 fora e 5 dias úteis; o 28 ao 3 do mês seguinte
+sai com a contagem atravessando a virada — **o número que só fecha se a busca
+tiver ido atrás dos dias do outro mês**, que é a razão da janela ser a união
+do mês com a seleção.
+
+**E OS DIAS DAS DUAS TELAS SÃO CALCULADOS, nunca literais**, o que custou um
+sprint para ser descoberto: elas clicavam em *"2 de setembro"* e *"28 de
+setembro"* escritos à mão, e a tela de abrir o mês nasce no MÊS QUE VEM com a
+faixa no mês da data sugerida — *"o dia 1 do mês aberto menos 32"*. Três meses
+depois os dois cliques pararam de casar, e as imagens saíram **com a faixa em
+repouso**: sem a seleção que elas existem para fotografar, com o nome de uma
+tela que elas não eram. É a lição dos meses da nota fiscal, e o que a
+denunciou foi a linha *"sem o clique"* da rodada — que existe justamente
+porque o clique dar errado não derruba nada. *O que ela custa, e é dito:* o
+vão de 28 ao 3 tem seis dias num mês de trinta e sete num de trinta e um,
+então o número literal do resumo muda com o mês; o que a tela prova não.
 
 **Medido com seis mutações**, e os números estão no cabeçalho da 0081: devolver
 o zero da etapa em branco derruba 6 cenários, devolver o bug da janela derruba

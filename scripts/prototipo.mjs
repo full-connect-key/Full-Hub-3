@@ -45,6 +45,44 @@ import path from "node:path";
 //                 `fullPage` rola a pagina, e o Select do Radix fecha ao rolar.
 // ---------------------------------------------------------------------------
 // O recorte que a secao Social usa para abrir um MES em vez do indice.
+/**
+ * OS DIAS DA FAIXA DE DISPONIBILIDADE, calculados e nunca literais.
+ *
+ * As duas telas de periodo (`56c` e `56d`) clicam em dias pelo ROTULO
+ * ACESSIVEL -- "2 de setembro" --, e esse rotulo anda com o calendario: a
+ * tela de abrir o mes nasce no MES QUE VEM, a faixa abre no mes da data
+ * sugerida para a Pauta, e `periodosSugeridosDoFluxo()` poe essa data em
+ * "o dia 1 do mes aberto menos 32" (2 de folga mais 30 de janela).
+ *
+ * Com a data escrita a mao, os dois cliques pararam de casar sozinhos tres
+ * meses depois -- e as imagens sairam com a faixa EM REPOUSO, sem a selecao
+ * que elas existem para fotografar, com o nome de uma tela que elas nao sao.
+ * E a licao dos meses da nota fiscal: um `2026-09` literal deixa de casar na
+ * virada, e nada reclama.
+ *
+ * Os dias sao 2, 8, 28 e o 3 do mes seguinte: 2 e 8 ficam a uma semana um do
+ * outro (um par vizinho nao mostra o meio da faixa), e 28 → 3 atravessa o mes
+ * em seis dias, que e o numero que o resumo da tela `56d` existe para provar.
+ * Nenhum deles e o 29, o 30 ou o 31, que nao existem em todo mes.
+ */
+const DIAS_DA_FAIXA = (() => {
+  const mesAberto = new Date();
+  mesAberto.setUTCDate(1);
+  mesAberto.setUTCMonth(mesAberto.getUTCMonth() + 1);
+
+  const naFaixa = new Date(mesAberto);
+  naFaixa.setUTCDate(naFaixa.getUTCDate() - 32);
+
+  const seguinte = new Date(Date.UTC(naFaixa.getUTCFullYear(), naFaixa.getUTCMonth() + 1, 1));
+  const nome = (d) =>
+    new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(d);
+
+  return {
+    doMes: (dia) => `${dia} de ${nome(naFaixa)}`,
+    doSeguinte: (dia) => `${dia} de ${nome(seguinte)}`,
+  };
+})();
+
 const MES_DO_SOCIAL = (() => {
   const hoje = new Date();
   const mes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
@@ -431,7 +469,7 @@ const TELAS = [
   // periodo aqui" em vez de "abre".
   { nome: "56c-abrir-o-mes-periodo", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
     clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")',
-             'button[aria-label^="2 de setembro"]', 'button[aria-label^="8 de setembro"]'] },
+             `button[aria-label^="${DIAS_DA_FAIXA.doMes(2)}"]`, `button[aria-label^="${DIAS_DA_FAIXA.doMes(8)}"]`] },
   // O PERIODO ATRAVESSANDO O MES, que o pedido nomeia em voz alta. Ele abre
   // em 28 de setembro, vira o mes, e fecha em 3 de outubro -- e o que a
   // imagem prova nao e a faixa, que sai pela metade porque a outra ponta
@@ -440,8 +478,8 @@ const TELAS = [
   // sairia contando tres, um numero baixo e plausivel.
   { nome: "56d-abrir-o-mes-periodo-dois-meses", rota: "/painel/social-media/abrir", largura: 1440, altura: 2300, role: "socio",
     clicar: ["#resp-Pauta", '[role="option"]:has-text("Marina Costa")', 'button:has-text("Ver os dias de Marina")',
-             'button[aria-label^="28 de setembro"]', 'button[aria-label="Mês seguinte"]',
-             'button[aria-label^="3 de outubro"]'] },
+             `button[aria-label^="${DIAS_DA_FAIXA.doMes(28)}"]`, 'button[aria-label="Mês seguinte"]',
+             `button[aria-label^="${DIAS_DA_FAIXA.doSeguinte(3)}"]`] },
   // A ABA FLUXOS (0087). A lista mostra os tres estados que importam: a
   // corrente da casa, uma com tres portoes do cliente -- o caso que o usuario
   // descreveu -- e uma desativada, que e o unico em que o selo e o botao
