@@ -3,7 +3,7 @@
  */
 import type { Client } from "@/lib/supabase/database.types";
 
-import { CLIENTES_EXEMPLO } from "./dados-exemplo";
+import { APROVADOR_DO_CLIENTE, CLIENTES_EXEMPLO } from "./dados-exemplo";
 
 export async function listarPortaisDeClientes(): Promise<
   { id: string; nome_empresa: string; slug: string }[]
@@ -53,9 +53,12 @@ export async function usuariosDoPortal(
 
   return [
     {
-      user_id: "c1",
-      nome: "Joana Prado",
-      email: "joana@mundoverde.com.br",
+      // A MESMA PESSOA que o seletor de aprovadores oferece e que o historico
+      // nomeia: no produto quem responde as tres e `aprovadores_da_conta()`,
+      // e tres copias aqui sao tres lugares para divergir.
+      user_id: APROVADOR_DO_CLIENTE.id,
+      nome: APROVADOR_DO_CLIENTE.nome,
+      email: APROVADOR_DO_CLIENTE.email,
       ultimo_acesso: ontem.toISOString(),
     },
     {

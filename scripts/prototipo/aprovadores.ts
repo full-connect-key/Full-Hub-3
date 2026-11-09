@@ -1,6 +1,6 @@
 import type { Resultado } from "@/lib/acoes/tipos";
 import type { Conteudo } from "@/lib/aprovacoes/conteudo";
-import { CLIENTES_EXEMPLO, PROFILE_CLIENTE } from "./dados-exemplo";
+import { APROVADOR_DO_CLIENTE, CLIENTES_EXEMPLO } from "./dados-exemplo";
 
 /**
  * QUEM PODE APROVAR, NO PROTÓTIPO.
@@ -61,13 +61,14 @@ export async function quemPodeAprovar(
       // pré-seleciona quando há exatamente uma (não há escolha a fazer), e com
       // duas ela abriria no placeholder. O estado que a conferência precisa ver
       // é o do nome na linha, porque é ele que diz quem vai receber.
-      aprovadores: [
-        {
-          id: PROFILE_CLIENTE.id,
-          nome: PROFILE_CLIENTE.nome,
-          email: PROFILE_CLIENTE.email,
-        },
-      ],
+      //
+      // E ELA É A MESMA QUE O HISTÓRICO NOMEIA, por isso sai de um lugar só: a
+      // imagem de `50f-social-post-aprovacoes` mostra os dois ao mesmo tempo —
+      // o painel de envio e a rodada pendente logo abaixo —, e com dois nomes
+      // diferentes ela afirmava um estado que o banco recusa, porque
+      // `aprovador_pertence_a_conta()` (0129) exige que o nomeado esteja na
+      // lista da conta. Foi a imagem que mostrou.
+      aprovadores: [APROVADOR_DO_CLIENTE],
     },
   };
 }

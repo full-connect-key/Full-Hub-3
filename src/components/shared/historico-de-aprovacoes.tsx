@@ -134,7 +134,7 @@ export function HistoricoDeAprovacoes({
                     então não há a quem nomear. Uma linha vazia ali afirmaria
                     que alguém deixou de preencher um campo. */}
                 {rodada.escopo === "cliente" ? (
-                  <QuemRecebeu conteudo={conteudo} rodada={rodada} />
+                  <QuemRecebeu rodada={rodada} />
                 ) : null}
 
                 {rodada.mensagem ? (
@@ -144,6 +144,18 @@ export function HistoricoDeAprovacoes({
                   </p>
                 ) : null}
                 {rodada.comentario ? <p>{rodada.comentario}</p> : null}
+
+                {/* AS AÇÕES VÊM NO FIM, e não ao lado do nome que elas
+                    mudam. É a regra escrita do detalhe da Task: *"excluir e
+                    'salvar como workflow' não são propriedades, são ações —
+                    no meio dos campos pareciam mais dois campos"*. Foi a
+                    imagem que mostrou: entre "Esperando Joana Prado" e
+                    "Enviada com:", os dois botões partiam em duas metades os
+                    fatos do mesmo envio, e a frase de baixo lia como se
+                    fosse deles. */}
+                {rodada.escopo === "cliente" ? (
+                  <AcoesDaRodada conteudo={conteudo} rodada={rodada} />
+                ) : null}
               </div>
             ) : null}
           </li>
@@ -154,10 +166,51 @@ export function HistoricoDeAprovacoes({
 }
 
 /**
- * QUEM RECEBEU O ENVIO, e — na rodada pendente — os dois botões que mexem nisso.
+ * QUEM RECEBEU O ENVIO — o FATO, e nada que se clique.
  *
  * ---------------------------------------------------------------------------
- * **OS BOTÕES SÓ EXISTEM NA RODADA PENDENTE**, e não aparecem desligados: numa
+ * Ele e a acao moram separados de propósito, e a imagem é que mandou: juntos,
+ * os dois botões caíam entre "Esperando Joana Prado" e "Enviada com: …" —
+ * partindo em duas metades os fatos do mesmo envio, com a frase de baixo
+ * lendo como legenda dos botões. É a decisão do detalhe da Task, onde excluir
+ * e "salvar como workflow" desceram para o fim da página pela mesma razão.
+ *
+ * **O NOME SAI DA LISTA e nunca de um "—"**: `aprovadores` já vem sem quem a
+ * consulta não conseguiu resolver (`profiles_select` é `own or is_gestor()`,
+ * então o colaborador lê um perfil só), e um travessão ali afirmaria que há
+ * alguém sem nome. A lista mais curta diz o que ela sabe.
+ */
+function QuemRecebeu({ rodada }: { rodada: RodadaDoHistorico }) {
+  const pendente = rodada.status === "pendente";
+
+  const nomes =
+    rodada.aprovadores.length === 0
+      ? null
+      : rodada.aprovadores.map((p) => p.nome).join(", ");
+
+  return (
+    <p className="text-text-muted text-xs">
+      {nomes ? (
+        <>
+          <span>{pendente ? "Esperando " : "Recebido por "}</span>
+          <span className="text-text-secondary font-medium">{nomes}</span>
+        </>
+      ) : pendente ? (
+        "Esperando a decisão do cliente."
+      ) : (
+        // ANTERIOR À 0128: ninguém foi nomeado, e dizer isso é melhor que
+        // inventar um nome ou deixar a linha em branco.
+        "Enviada antes de o produto nomear quem recebe."
+      )}
+    </p>
+  );
+}
+
+/**
+ * TROCAR QUEM APROVA E REENVIAR O AVISO — as duas coisas que ainda mudam.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELAS SÓ EXISTEM NA RODADA PENDENTE**, e não aparecem desligadas: numa
  * rodada fechada a razão não é um passo que falta, é uma porta que fechou — o
  * banco congela `aprovador_id` depois da decisão (0129), e um botão
  * permanentemente desligado em cada rodada antiga é ruído. É a distinção que o
@@ -172,7 +225,7 @@ export function HistoricoDeAprovacoes({
  * quem já está nomeado, na ordem do histórico, porque é essa ordem que decide
  * qual nome vai para a coluna.
  */
-function QuemRecebeu({
+function AcoesDaRodada({
   conteudo,
   rodada,
 }: {
@@ -186,12 +239,7 @@ function QuemRecebeu({
   const [salvando, salvar] = useTransition();
   const [reenviando, reenviar] = useTransition();
 
-  const pendente = rodada.status === "pendente";
-
-  const nomes =
-    rodada.aprovadores.length === 0
-      ? null
-      : rodada.aprovadores.map((p) => p.nome).join(", ");
+  if (rodada.status !== "pendente") return null;
 
   function abrirTroca() {
     setTrocando(true);
@@ -207,126 +255,113 @@ function QuemRecebeu({
     })();
   }
 
+  if (!trocando) {
+    return (
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={abrirTroca}
+        >
+          Trocar quem aprova
+        </Button>
+        {/* REENVIAR NÃO RECRIA A RODADA, e é o pedido em quantas palavras:
+            *"reenviar sem recriar a task"*. O número da rodada é a VERSÃO da
+            peça desde a 0033, então abrir outra afirmaria que existe uma
+            versão nova do material — o que se repete é o toque no sino.
+
+            E ELE É DESLIGADO SEM NINGUÉM NOMEADO: `reenviar_aviso_da_rodada()`
+            devolveria zero, e dizer "reenviado" sobre zero avisos seria a tela
+            afirmando o que não aconteceu. */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          disabled={reenviando || rodada.aprovadores.length === 0}
+          onClick={() =>
+            reenviar(async () => {
+              // SEM `refresh` AQUI, de propósito: o reenvio não muda linha
+              // nenhuma — ele toca o sino de quem já está nomeado, e
+              // `solicitado_em` fica como estava, porque ele é o instante do
+              // ENVIO e não o do último toque. Recarregar a tela afirmaria
+              // que algo nela mudou.
+              await chamarEMostrar(() => reenviarAviso(rodada.id));
+            })
+          }
+        >
+          {reenviando ? (
+            <Loader2 aria-hidden className="size-3 animate-spin" />
+          ) : null}
+          Reenviar o aviso
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <p className="text-text-muted text-xs">
-        {nomes ? (
-          <>
-            <span>{pendente ? "Esperando " : "Recebido por "}</span>
-            <span className="text-text-secondary font-medium">{nomes}</span>
-          </>
-        ) : pendente ? (
-          "Esperando a decisão do cliente."
-        ) : (
-          // ANTERIOR À 0128: ninguém foi nomeado, e dizer isso é melhor que
-          // inventar um nome ou deixar a linha em branco.
-          "Enviada antes de o produto nomear quem recebe."
-        )}
-      </p>
+    <div className="space-y-2 pt-1">
+      {pessoas === null ? (
+        <p className="text-text-muted flex items-center gap-2 text-xs">
+          <Loader2 aria-hidden className="size-3 animate-spin" />
+          Lendo quem aprova por esta conta…
+        </p>
+      ) : pessoas.length === 0 ? (
+        <p className="text-warning text-xs">
+          Esta conta não tem ninguém com acesso ao portal.
+        </p>
+      ) : (
+        <SeletorDeAprovadores
+          pessoas={pessoas}
+          valor={rascunho}
+          aoMudar={setRascunho}
+          desabilitado={salvando}
+        />
+      )}
 
-      {pendente && !trocando ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={abrirTroca}
-          >
-            Trocar quem aprova
-          </Button>
-          {/* REENVIAR NÃO RECRIA A RODADA, e é o pedido em quantas palavras:
-              *"reenviar sem recriar a task"*. O número da rodada é a VERSÃO da
-              peça desde a 0033, então abrir outra afirmaria que existe uma
-              versão nova do material — o que se repete é o toque no sino. */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            disabled={reenviando || rodada.aprovadores.length === 0}
-            onClick={() =>
-              reenviar(async () => {
-                // SEM `refresh` AQUI, de propósito: o reenvio não muda linha
-                // nenhuma — ele toca o sino de quem já está nomeado, e
-                // `solicitado_em` fica como estava, porque ele é o instante do
-                // ENVIO e não o do último toque. Recarregar a tela afirmaria
-                // que algo nela mudou.
-                await chamarEMostrar(() => reenviarAviso(rodada.id));
-              })
-            }
-          >
-            {reenviando ? (
-              <Loader2 aria-hidden className="size-3 animate-spin" />
-            ) : null}
-            Reenviar o aviso
-          </Button>
-        </div>
-      ) : null}
-
-      {pendente && trocando ? (
-        <div className="space-y-2">
-          {pessoas === null ? (
-            <p className="text-text-muted flex items-center gap-2 text-xs">
-              <Loader2 aria-hidden className="size-3 animate-spin" />
-              Lendo quem aprova por esta conta…
-            </p>
-          ) : pessoas.length === 0 ? (
-            <p className="text-warning text-xs">
-              Esta conta não tem ninguém com acesso ao portal.
-            </p>
-          ) : (
-            <SeletorDeAprovadores
-              pessoas={pessoas}
-              valor={rascunho}
-              aoMudar={setRascunho}
-              desabilitado={salvando}
-            />
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              disabled={salvando || rascunho.length === 0}
-              onClick={() =>
-                salvar(async () => {
-                  const r = await chamarEMostrar(() =>
-                    trocarAprovadores(rodada.id, rascunho),
-                  );
-                  if (!r.ok) return;
-                  setTrocando(false);
-                  // O `refresh` É DAQUI E NÃO DA ACTION, e a razão é que são
-                  // TRÊS telas: `revalidatePath` casa por caminho, e a action
-                  // não sabe de qual das três ela foi chamada — o painel da
-                  // etapa, o editor do post ou a árvore da campanha. Um
-                  // `revalidatePath` por tela seria a quarta esquecida.
-                  router.refresh();
-                })
-              }
-            >
-              {salvando ? (
-                <Loader2 aria-hidden className="size-3 animate-spin" />
-              ) : null}
-              Salvar
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              disabled={salvando}
-              onClick={() => setTrocando(false)}
-            >
-              Cancelar
-            </Button>
-            {/* NOMEAR NÃO É TRANCAR, e a frase é a mesma do modal de envio:
-                quem é nomeado recebe o AVISO, e qualquer pessoa da empresa
-                continua podendo responder — não há hierarquia do lado do
-                cliente desde o Sprint 12. */}
-            <span className="text-text-muted text-xs">
-              Quem entrar recebe o aviso agora.
-            </span>
-          </div>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          disabled={salvando || rascunho.length === 0}
+          onClick={() =>
+            salvar(async () => {
+              const r = await chamarEMostrar(() =>
+                trocarAprovadores(rodada.id, rascunho),
+              );
+              if (!r.ok) return;
+              setTrocando(false);
+              // O `refresh` É DAQUI E NÃO DA ACTION, e a razão é que são
+              // TRÊS telas: `revalidatePath` casa por caminho, e a action
+              // não sabe de qual das três ela foi chamada — o painel da
+              // etapa, o editor do post ou a árvore da campanha. Um
+              // `revalidatePath` por tela seria a quarta esquecida.
+              router.refresh();
+            })
+          }
+        >
+          {salvando ? (
+            <Loader2 aria-hidden className="size-3 animate-spin" />
+          ) : null}
+          Salvar
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs"
+          disabled={salvando}
+          onClick={() => setTrocando(false)}
+        >
+          Cancelar
+        </Button>
+        {/* NOMEAR NÃO É TRANCAR, e a frase é a mesma do modal de envio:
+            quem é nomeado recebe o AVISO, e qualquer pessoa da empresa
+            continua podendo responder — não há hierarquia do lado do
+            cliente desde o Sprint 12. */}
+        <span className="text-text-muted text-xs">
+          Quem entrar recebe o aviso agora.
+        </span>
+      </div>
     </div>
   );
 }

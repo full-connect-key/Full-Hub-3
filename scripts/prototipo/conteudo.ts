@@ -14,6 +14,8 @@ import type {
   VersaoDoConteudo,
 } from "../../src/lib/dados/conteudo";
 
+import { APROVADOR_DO_CLIENTE } from "./dados-exemplo";
+
 export type { ComentarioDoConteudo, RodadaDoConteudo, VersaoDoConteudo };
 
 /**
@@ -170,7 +172,14 @@ function rodadaInterna(id: string, numero: number, dias: number) {
   };
 }
 
-const JOANA = [{ id: "cliente", nome: "Joana Prado" }];
+// QUEM RECEBEU, e e a MESMA pessoa que `quemPodeAprovar` oferece: escrita
+// duas vezes, a imagem de `50f-social-post-aprovacoes` passou a mostrar o
+// painel de envio oferecendo uma e a rodada esperando outra -- um estado que
+// o banco recusa (`aprovador_pertence_a_conta()`, 0129). O id importa tanto
+// quanto o nome: e por ele que o seletor da troca abre com o chip ja marcado.
+const QUEM_APROVA = [
+  { id: APROVADOR_DO_CLIENTE.id, nome: APROVADOR_DO_CLIENTE.nome },
+];
 
 export async function historicoDeAprovacoes(
   _tipo: Conteudo["tipo"],
@@ -193,8 +202,8 @@ export async function historicoDeAprovacoes(
           decidido_em: null,
           decisor: null,
           comentario: null,
-          mensagem: "Esse e o post da semana que vem. Qualquer coisa me chama.",
-          aprovadores: JOANA,
+          mensagem: "Esse é o post da semana que vem. Qualquer coisa me chama.",
+          aprovadores: QUEM_APROVA,
         },
         rodadaInterna(id, 1, 3),
       ]);
@@ -214,13 +223,45 @@ export async function historicoDeAprovacoes(
           solicitado_em: new Date(HOJE.getTime() - DIA * 6).toISOString(),
           solicitante: "Marina Costa",
           decidido_em: new Date(HOJE.getTime() - DIA * 4).toISOString(),
-          decisor: "Joana Prado",
+          decisor: APROVADOR_DO_CLIENTE.nome,
           comentario:
-            "No terceiro quadro o preco ficou por cima da folha. Da para subir?",
+            "No terceiro quadro o preço ficou por cima da folha. Dá para subir?",
           mensagem: null,
-          aprovadores: JOANA,
+          aprovadores: QUEM_APROVA,
         },
         rodadaInterna(id, 1, 8),
+      ]);
+      continue;
+    }
+
+    if (id === "d-enx-3") {
+      // A PECA RECUSADA, e ela existe por causa de UMA linha: ate aqui nenhum
+      // exemplo tinha rodada `rejeitada`, entao o quarto valor do enum (0032)
+      // nao saia em imagem nenhuma -- e era justamente ele que o ternario de
+      // tres ramos desenhava como "Pendente", na tela em que alguem vai
+      // procurar por que a peca voltou. Com so os tres estados de cima, a
+      // imagem provaria que o rotulo aparece e nao que ele DISTINGUE.
+      //
+      // E ela e `d-enx-3` porque e a peca cujo estado a permite: o cartao
+      // dela ja diz "Rejeitado". Os tres fatos abaixo sao os MESMOS que ele
+      // mostra -- quem decidiu, quando, e o motivo --, senao a tela afirmaria
+      // duas coisas diferentes a poucos centimetros de distancia.
+      mapa.set(id, [
+        {
+          id: "d-enx-3-c1",
+          numero_rodada: 1,
+          escopo: "cliente",
+          status: "rejeitada",
+          solicitado_em: new Date(HOJE.getTime() - DIA * 8).toISOString(),
+          solicitante: "Marina Costa",
+          decidido_em: new Date(HOJE.getTime() - DIA * 7).toISOString(),
+          decisor: APROVADOR_DO_CLIENTE.nome,
+          comentario:
+            "O logo ficou pequeno demais no rodapé. Não dá para usar assim.",
+          mensagem: null,
+          aprovadores: QUEM_APROVA,
+        },
+        rodadaInterna(id, 1, 9),
       ]);
       continue;
     }
@@ -237,10 +278,10 @@ export async function historicoDeAprovacoes(
           solicitado_em: new Date(HOJE.getTime() - DIA * 20).toISOString(),
           solicitante: "Marina Costa",
           decidido_em: new Date(HOJE.getTime() - DIA * 19).toISOString(),
-          decisor: "Joana Prado",
+          decisor: APROVADOR_DO_CLIENTE.nome,
           comentario: null,
-          mensagem: "A chave visual com os ajustes do rodape.",
-          aprovadores: JOANA,
+          mensagem: "A chave visual com os ajustes do rodapé.",
+          aprovadores: QUEM_APROVA,
         },
         rodadaInterna(id, 2, 21),
       ]);

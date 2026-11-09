@@ -39,6 +39,30 @@ export const PROFILE_CLIENTE: Profile = {
   created_at: "2026-01-15T10:00:00.000Z",
 };
 
+/**
+ * A PESSOA DA CONTA QUE APROVA, e ela mora aqui porque TRES stubs a nomeiam.
+ *
+ * A aba "Quem tem acesso" do portal, a lista que o seletor de aprovadores
+ * oferece e o historico de aprovacoes de cada peca falam da MESMA pessoa --
+ * e no produto isso e garantido pelo banco: `aprovadores_da_conta()` e a
+ * unica resposta para "quem aprova por esta conta", e `aprovador_pertence_a_
+ * conta()` (0129) recusa uma rodada que nomeie quem nao esta nela.
+ *
+ * Escrita tres vezes, ela diverge -- e a imagem do prototipo passou a mostrar
+ * o painel de envio oferecendo uma pessoa e a rodada logo abaixo esperando
+ * outra: um estado que o produto NAO alcanca, numa tela que existe para
+ * provar o que ele faz. E a licao da duplicata do Cronograma.
+ *
+ * E ela nao e `PROFILE_CLIENTE`, que e o cliente LOGADO do portal: sao duas
+ * pessoas da Mundo Verde, que e o normal de uma conta -- e e justamente por
+ * haver duas que "varios aprovadores" (0129) significa alguma coisa.
+ */
+export const APROVADOR_DO_CLIENTE = {
+  id: "c1",
+  nome: "Joana Prado",
+  email: "joana@mundoverde.com.br",
+};
+
 export const USUARIO_EXEMPLO = {
   id: PROFILE_EQUIPE.id,
   email: PROFILE_EQUIPE.email,

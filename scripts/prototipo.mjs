@@ -1061,6 +1061,13 @@ const TELAS = [
   // esta logado.
   { nome: "20n-campanhas-colaborador", rota: "/painel/aprovacoes", largura: 1280, altura: 900, role: "colaborador-social" },
   { nome: "20m-campanha-peca-aberta", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1700, role: "socio", clicar: 'button:has-text("KV")' },
+  // A PECA RECUSADA, e ela entrou por UMA linha do historico: `rejeitada` e o
+  // quarto valor de `status_rodada` desde a 0032, e ate aqui nenhuma imagem o
+  // mostrava -- era justamente ele que o ternario de tres ramos desenhava
+  // como "Pendente", na tela em que alguem vai procurar por que a peca
+  // voltou. Abrir a `KV` nao serve: ela esta aprovada, e o historico que o
+  // estado dela permite e o desfecho verde.
+  { nome: "20o-campanha-peca-recusada", rota: "/painel/aprovacoes/campanhas/camp-wave", largura: 1280, altura: 1700, role: "socio", clicar: 'button:has-text("Banner A5 editável")' },
   { nome: "20h-aprovacoes-campanhas-375", rota: "/painel/aprovacoes", largura: 375, altura: 1400, role: "socio" },
   // O DIALOGO DE APAGAR, aberto: a contagem do que vai junto e o campo que
   // exige o nome digitado so aparecem na imagem -- e e o que faz alguem parar.
@@ -1844,6 +1851,23 @@ try {
         //
         // Dialogo nao sofre disso (nao fecha ao rolar), e por isso so as telas
         // de lista suspensa precisam da marca.
+        // E A ROLAGEM VOLTA AO TOPO ANTES DE CAPTURAR, nas telas de pagina
+        // inteira. O `fullPage` do Playwright nao rola mais para costurar --
+        // ele captura alem da janela de uma vez --, e por isso o que e
+        // `fixed` (a barra lateral, a topbar) e desenhado na ROLAGEM
+        // CORRENTE. Numa tela cujo `clicar` esta no pe da pagina, o Playwright
+        // rola ate o alvo para clicar, e a imagem sai com a busca e o menu
+        // atravessados no meio do conteudo -- que le como defeito, e nao como
+        // o que e. Foi a imagem de `20o-campanha-peca-recusada` que mostrou.
+        //
+        // As de `semRolagem` ficam de fora de proposito: elas capturam so a
+        // janela, e rolar fecharia a lista suspensa que elas existem para
+        // fotografar.
+        if (!tela.semRolagem) {
+          await pagina.evaluate(() => window.scrollTo(0, 0));
+          await pagina.waitForTimeout(250);
+        }
+
         await pagina.screenshot({
           path: path.join(SAIDA, `${tela.nome}.png`),
           fullPage: !tela.semRolagem,
