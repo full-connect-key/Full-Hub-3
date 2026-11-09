@@ -8,9 +8,18 @@ import {
   exigirEquipeNaAcao,
   exigirGestorNaAcao,
 } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { esquemaDeEnvio, ROTULOS_DO_ENVIO } from "@/lib/aprovacoes/conteudo";
+import {
+  gravarOsOutrosAprovadores,
+  gravarOsOutrosAprovadoresDoLote,
+} from "@/lib/aprovacoes/aprovadores";
 import { nomeDaPastaDoMes } from "@/lib/dominio/posts";
 import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -71,7 +80,13 @@ const esquemaDeAbertura = z.object({
   plataformas: z
     .array(
       z.enum([
-        "instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest",
+        "instagram",
+        "facebook",
+        "linkedin",
+        "tiktok",
+        "youtube",
+        "twitter",
+        "pinterest",
       ]),
     )
     .min(1, "Escolha ao menos uma rede."),
@@ -92,7 +107,13 @@ export async function abrirPost(dados: unknown): Promise<Resultado<string>> {
     const validacao = esquemaDeAbertura.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("abrirPost", validacao.error, dados, "Confira o post.", ROTULOS),
+        recusaDeValidacao(
+          "abrirPost",
+          validacao.error,
+          dados,
+          "Confira o post.",
+          ROTULOS,
+        ),
       );
     }
     const entrada = validacao.data;
@@ -115,7 +136,10 @@ export async function abrirPost(dados: unknown): Promise<Resultado<string>> {
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Abrir post é do desenvolvedor ou do sócio.");
+    if (!data)
+      return falha(
+        "O banco recusou. Abrir post é do desenvolvedor ou do sócio.",
+      );
 
     revalidar();
     return sucesso(
@@ -140,12 +164,23 @@ const esquemaDeEdicao = z.object({
   video_url: z
     .string()
     .trim()
-    .regex(/^https?:\/\//i, "O link do vídeo precisa começar com http:// ou https://.")
+    .regex(
+      /^https?:\/\//i,
+      "O link do vídeo precisa começar com http:// ou https://.",
+    )
     .nullable()
     .optional(),
   plataformas: z
     .array(
-      z.enum(["instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest"]),
+      z.enum([
+        "instagram",
+        "facebook",
+        "linkedin",
+        "tiktok",
+        "youtube",
+        "twitter",
+        "pinterest",
+      ]),
     )
     .min(1, "Escolha ao menos uma rede.")
     .optional(),
@@ -160,8 +195,13 @@ const esquemaDeEdicao = z.object({
     .optional(),
   status: z
     .enum([
-      "aguardando_informacoes", "em_producao", "em_aprovacao",
-      "ajustes", "aprovado", "rejeitado", "stand_by",
+      "aguardando_informacoes",
+      "em_producao",
+      "em_aprovacao",
+      "ajustes",
+      "aprovado",
+      "rejeitado",
+      "stand_by",
     ])
     .optional(),
 });
@@ -178,14 +218,23 @@ const esquemaDeEdicao = z.object({
  * em branco e quem produz distribui os dias. O que continua travado é enviar
  * um post sem data ao cliente — e quem recusa isso é `validar_nova_rodada`.
  */
-export async function editarPost(id: string, dados: unknown): Promise<Resultado> {
+export async function editarPost(
+  id: string,
+  dados: unknown,
+): Promise<Resultado> {
   return executarAcao("editarPost", async () => {
     await exigirEquipeNaAcao();
 
     const validacao = esquemaDeEdicao.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("editarPost", validacao.error, dados, "Confira os campos.", ROTULOS),
+        recusaDeValidacao(
+          "editarPost",
+          validacao.error,
+          dados,
+          "Confira os campos.",
+          ROTULOS,
+        ),
       );
     }
 
@@ -201,7 +250,9 @@ export async function editarPost(id: string, dados: unknown): Promise<Resultado>
 
     if (error) return falha(error.message);
     if (!data) {
-      return falha("O banco recusou. Este post está com outra pessoa — só quem recebeu edita.");
+      return falha(
+        "O banco recusou. Este post está com outra pessoa — só quem recebeu edita.",
+      );
     }
 
     revalidar();
@@ -230,11 +281,16 @@ export async function liberarPost(
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Liberar post é do desenvolvedor ou do sócio.");
+    if (!data)
+      return falha(
+        "O banco recusou. Liberar post é do desenvolvedor ou do sócio.",
+      );
 
     revalidar();
     return sucesso(
-      responsavelId ? "Liberado. A pessoa foi avisada." : "O post voltou a não ter dono.",
+      responsavelId
+        ? "Liberado. A pessoa foi avisada."
+        : "O post voltou a não ter dono.",
     );
   });
 }
@@ -272,14 +328,23 @@ const esquemaDeVersao = z.object({
  * primeiro slide para `posts.arte_url`. Sem isso, subir cinco slides deixaria
  * o card e o calendário sem imagem nenhuma.
  */
-export async function gravarVersao(postId: string, dados: unknown): Promise<Resultado> {
+export async function gravarVersao(
+  postId: string,
+  dados: unknown,
+): Promise<Resultado> {
   return executarAcao("gravarVersao", async () => {
     const sessao = await exigirEquipeNaAcao();
 
     const validacao = esquemaDeVersao.safeParse(dados);
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("gravarVersao", validacao.error, dados, "Confira os arquivos.", ROTULOS),
+        recusaDeValidacao(
+          "gravarVersao",
+          validacao.error,
+          dados,
+          "Confira os arquivos.",
+          ROTULOS,
+        ),
       );
     }
     const entrada = validacao.data;
@@ -348,7 +413,9 @@ export async function pedirAvalInterno(postId: string): Promise<Resultado> {
 
     revalidar();
     revalidatePath("/painel/gestao-tasks");
-    return sucesso("Enviado para o aval interno. A gestão decide e depois manda ao cliente.");
+    return sucesso(
+      "Enviado para o aval interno. A gestão decide e depois manda ao cliente.",
+    );
   });
 }
 
@@ -406,18 +473,31 @@ export async function enviarAoCliente(
     // é de `exigirGestorNaAcao`, e `validar_nova_rodada` faz a mesma pergunta
     // no banco.
 
-    const { error } = await supabase.from("approval_rounds").insert({
-      content_type: "post",
-      content_id: postId,
-      numero_rodada: post.versao_atual,
-      escopo: "cliente",
-      solicitado_por: sessao.usuarioId,
-      status: "pendente",
-      aprovador_id: validacao.data.aprovadorId,
-      mensagem: validacao.data.mensagem,
-    });
+    const { data: rodada, error } = await supabase
+      .from("approval_rounds")
+      .insert({
+        content_type: "post",
+        content_id: postId,
+        numero_rodada: post.versao_atual,
+        escopo: "cliente",
+        solicitado_por: sessao.usuarioId,
+        status: "pendente",
+        aprovador_id: validacao.data.aprovadorIds[0],
+        mensagem: validacao.data.mensagem,
+      })
+      .select("id")
+      .single();
 
-    if (error) return falha(error.message);
+    if (error || !rodada)
+      return falha(error?.message ?? "Não foi possível enviar.");
+
+    // OS OUTROS APROVADORES ENTRAM DEPOIS, e um aviso no lugar de uma recusa:
+    // o post já está no portal do cliente.
+    const avisoDosOutros = await gravarOsOutrosAprovadores(
+      supabase,
+      rodada.id,
+      validacao.data.aprovadorIds,
+    );
 
     // O E-MAIL SAI DAQUI, e não de um trigger, pela razão mecânica de sempre:
     // o Postgres não fala com o Resend. A consequência está dita no CLAUDE.md
@@ -434,7 +514,9 @@ export async function enviarAoCliente(
     );
 
     revalidar();
-    return sucesso("Enviado. O cliente já vê o post no portal dele.");
+    return sucesso(
+      avisoDosOutros ?? "Enviado. O cliente já vê o post no portal dele.",
+    );
   });
 }
 
@@ -473,17 +555,18 @@ export async function enviarMesAoCliente(
   taskId: string,
   etapaId: string,
   recado: string | null | undefined,
-  aprovadorId: unknown,
+  aprovadorIds: unknown,
 ): Promise<Resultado<number>> {
   return executarAcao("enviarMesAoCliente", async () => {
     await exigirEquipeNaAcao();
 
-    // O APROVADOR É OBRIGATÓRIO DESDE A 0128, e a validação aqui é só do
-    // uuid: a mensagem deste envio é o RECADO DO LOTE, uma por envio e não
-    // uma por peça (0090), então `esquemaDeEnvio` — que valida o par —
-    // responderia por um campo que este caminho não tem. Quem recusa de
-    // verdade é `enviar_mes_ao_cliente()`, antes de gravar qualquer coisa.
-    const validacao = z.string().uuid().safeParse(aprovadorId);
+    // O APROVADOR É OBRIGATÓRIO DESDE A 0128 e pode ser MAIS DE UM desde a
+    // 0129, e a validação aqui é só da lista de uuid: a mensagem deste envio é
+    // o RECADO DO LOTE, uma por envio e não uma por peça (0090), então
+    // `esquemaDeEnvio` — que valida o par — responderia por um campo que este
+    // caminho não tem. Quem recusa de verdade é `enviar_mes_ao_cliente()`,
+    // antes de gravar qualquer coisa.
+    const validacao = z.array(z.string().uuid()).min(1).safeParse(aprovadorIds);
     if (!validacao.success) {
       return falha("Escolha quem vai aprovar este mês.");
     }
@@ -494,7 +577,12 @@ export async function enviarMesAoCliente(
       p_task_id: taskId,
       p_etapa_id: etapaId,
       p_recado: recado?.trim() || null,
-      p_aprovador: validacao.data,
+      // A PRIMEIRA DA LISTA VAI NA RODADA DE CADA PEÇA, e as outras entram
+      // depois, pelo lote: a RPC é uma transação só e a assinatura dela não
+      // muda — `create or replace` não troca a lista de argumentos sem criar
+      // uma segunda função ao lado (a lição da 0061, que já custou um
+      // *"Could not find the function"* ao usuário).
+      p_aprovador: validacao.data[0],
     });
 
     if (error) {
@@ -528,12 +616,21 @@ export async function enviarMesAoCliente(
       );
     }
 
+    const avisoDosOutros = data?.lote_id
+      ? await gravarOsOutrosAprovadoresDoLote(
+          supabase,
+          data.lote_id,
+          validacao.data,
+        )
+      : null;
+
     revalidar();
     revalidatePath("/painel/gestao-tasks");
     return sucesso(
-      enviadas === 1
-        ? "Enviado. O cliente já vê o material no portal dele."
-        : `Enviadas ${enviadas} peças. O cliente já vê o mês no portal dele.`,
+      avisoDosOutros ??
+        (enviadas === 1
+          ? "Enviado. O cliente já vê o material no portal dele."
+          : `Enviadas ${enviadas} peças. O cliente já vê o mês no portal dele.`),
       enviadas,
     );
   });
@@ -553,7 +650,10 @@ export async function excluirPost(id: string): Promise<Resultado> {
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Excluir post é do desenvolvedor ou do sócio.");
+    if (!data)
+      return falha(
+        "O banco recusou. Excluir post é do desenvolvedor ou do sócio.",
+      );
 
     revalidar();
     return sucesso("Post excluído.");
@@ -577,7 +677,13 @@ const esquemaDoMes = z.object({
         redes: z
           .array(
             z.enum([
-              "instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "pinterest",
+              "instagram",
+              "facebook",
+              "linkedin",
+              "tiktok",
+              "youtube",
+              "twitter",
+              "pinterest",
             ]),
           )
           .min(1, "Escolha ao menos uma rede em cada linha."),
@@ -636,7 +742,11 @@ const esquemaDoMes = z.object({
    * sabe se a demanda já existe é o banco; repetir essa pergunta aqui seria
    * criar o segundo lugar onde as duas respostas divergem.
    */
-  link_entrega: z.string().trim().url("A pasta precisa ser um endereço.").optional(),
+  link_entrega: z
+    .string()
+    .trim()
+    .url("A pasta precisa ser um endereço.")
+    .optional(),
   /**
    * O FLUXO que este mês percorre (0087).
    *
@@ -657,7 +767,9 @@ const esquemaDoMes = z.object({
  * — um mês aberto pela metade, que ninguém sabe se abriu. `abrir_mes_de_social`
  * é transacional: ou nascem todos ou não nasce nenhum.
  */
-export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number>> {
+export async function abrirMesDeSocial(
+  dados: unknown,
+): Promise<Resultado<number>> {
   return executarAcao("abrirMesDeSocial", async () => {
     // `exigirAtendimentoNaAcao` E NÃO `exigirGestorNaAcao`, e a troca conserta
     // uma divergência: a 0046 abriu a função para `is_atendimento()` — "o
@@ -674,7 +786,13 @@ export async function abrirMesDeSocial(dados: unknown): Promise<Resultado<number
     const lido = esquemaDoMes.safeParse(dados);
     if (!lido.success) {
       return falha(
-        recusaDeValidacao("abrirMesDeSocial", lido.error, dados, "Confira o mês.", ROTULOS),
+        recusaDeValidacao(
+          "abrirMesDeSocial",
+          lido.error,
+          dados,
+          "Confira o mês.",
+          ROTULOS,
+        ),
       );
     }
 
@@ -788,7 +906,8 @@ export async function marcarPostNaEtapa(
       .eq("subtask_id", etapaId)
       .select("id");
 
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
     if (!data || data.length === 0) {
       return falha(
         "Esta etapa não é sua, e marcar a etapa de outra pessoa é da gestão.",
@@ -804,7 +923,10 @@ const esquemaDaReferencia = z.object({
   url: z
     .string()
     .trim()
-    .regex(/^https?:\/\//i, "O endereço precisa começar com http:// ou https://."),
+    .regex(
+      /^https?:\/\//i,
+      "O endereço precisa começar com http:// ou https://.",
+    ),
   titulo: z.string().trim().nullable().optional(),
 });
 
@@ -843,7 +965,8 @@ export async function juntarReferencia(
       titulo: validacao.data.titulo || null,
     });
 
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
 
     revalidar();
     return sucesso("Referência adicionada.");
@@ -869,16 +992,18 @@ export async function apagarReferencia(id: string): Promise<Resultado> {
       .eq("id", id)
       .select("id");
 
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
     if (!data || data.length === 0) {
-      return falha("Esta referência é de outra pessoa, e só a gestão apaga a dos outros.");
+      return falha(
+        "Esta referência é de outra pessoa, e só a gestão apaga a dos outros.",
+      );
     }
 
     revalidar();
     return sucesso("Referência removida.");
   });
 }
-
 
 /**
  * Apagar a arte, ou um slide do carrossel (0048).
@@ -949,7 +1074,8 @@ export async function removerArquivoDaVersao(
       .select("numero_versao")
       .maybeSingle();
 
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
     if (!data) {
       return falha("Não foi possível gravar a remoção — este post não é seu.");
     }
@@ -987,7 +1113,8 @@ export async function criarPastaDoMesDeSocial(
     await exigirAtendimentoNaAcao();
 
     if (!/^\d{4}-\d{2}$/.test(mes)) return falha("Escolha o mês antes.");
-    if (!clienteId) return falha("Escolha o cliente antes — a pasta nasce dentro da dele.");
+    if (!clienteId)
+      return falha("Escolha o cliente antes — a pasta nasce dentro da dele.");
 
     const { url, clienteNasceuAgora } = await pastaDaEntregaDaDemanda(
       clienteId,
@@ -1038,7 +1165,9 @@ export async function oQueVaiComOMes(taskId: string): Promise<
     await exigirGestorNaAcao();
 
     const supabase = await criarClienteServidor();
-    const { data, error } = await supabase.rpc("o_que_vai_com_o_mes", { p_task_id: taskId });
+    const { data, error } = await supabase.rpc("o_que_vai_com_o_mes", {
+      p_task_id: taskId,
+    });
     if (error) return falha(error.message);
 
     const linha = data?.[0];
@@ -1066,8 +1195,11 @@ export async function apagarMesDeSocial(taskId: string): Promise<Resultado> {
     await exigirGestorNaAcao();
 
     const supabase = await criarClienteServidor();
-    const { data, error } = await supabase.rpc("apagar_mes_de_social", { p_task_id: taskId });
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    const { data, error } = await supabase.rpc("apagar_mes_de_social", {
+      p_task_id: taskId,
+    });
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
 
     revalidatePath(ROTA);
     revalidatePath("/painel/gestao-tasks");
@@ -1088,13 +1220,18 @@ export async function limparPostsDoMes(taskId: string): Promise<Resultado> {
     await exigirGestorNaAcao();
 
     const supabase = await criarClienteServidor();
-    const { data, error } = await supabase.rpc("limpar_posts_do_mes", { p_task_id: taskId });
-    if (error) return falha([error.message, error.hint].filter(Boolean).join(" "));
+    const { data, error } = await supabase.rpc("limpar_posts_do_mes", {
+      p_task_id: taskId,
+    });
+    if (error)
+      return falha([error.message, error.hint].filter(Boolean).join(" "));
 
     revalidatePath(ROTA);
     revalidatePath("/painel/gestao-tasks");
     await anunciar("task");
-    return sucesso(`${data ?? 0} post(s) apagado(s). A demanda e as etapas ficaram.`);
+    return sucesso(
+      `${data ?? 0} post(s) apagado(s). A demanda e as etapas ficaram.`,
+    );
   });
 }
 
@@ -1127,7 +1264,10 @@ export async function arquivarMesDeSocial(
       .maybeSingle();
 
     if (error) return falha(error.message);
-    if (!data) return falha("O banco recusou. Arquivar um mês é do desenvolvedor ou do sócio.");
+    if (!data)
+      return falha(
+        "O banco recusou. Arquivar um mês é do desenvolvedor ou do sócio.",
+      );
 
     revalidatePath(ROTA);
     revalidatePath("/painel/gestao-tasks");

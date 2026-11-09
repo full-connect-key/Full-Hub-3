@@ -7,13 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SeletorDeAprovadores } from "@/components/shared/seletor-de-aprovadores";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { daSubtarefa } from "@/lib/aprovacoes/conteudo";
@@ -75,7 +69,7 @@ export function EnvioDoMes({
   const [recado, setRecado] = useState("");
   const [enviando, comecarTransicao] = useTransition();
   const [quem, setQuem] = useState<QuemPodeAprovar | null>(null);
-  const [aprovadorId, setAprovadorId] = useState("");
+  const [aprovadorIds, setAprovadorIds] = useState<string[]>([]);
 
   const etapaId = portao.etapa?.id;
 
@@ -93,8 +87,8 @@ export function EnvioDoMes({
       setQuem(r.dados);
       // UM APROVADOR SÓ JÁ VEM ESCOLHIDO, que é a decisão do modal: pedir o
       // clique num seletor de uma opção é pedir uma decisão que não existe.
-      setAprovadorId(
-        r.dados.aprovadores.length === 1 ? r.dados.aprovadores[0].id : "",
+      setAprovadorIds(
+        r.dados.aprovadores.length === 1 ? [r.dados.aprovadores[0].id] : [],
       );
     })();
     return () => {
@@ -109,7 +103,7 @@ export function EnvioDoMes({
     portao.falta.length > 0 ||
     portao.pecas === 0 ||
     semNinguem ||
-    aprovadorId === "";
+    aprovadorIds.length === 0;
 
   const rotulo =
     portao.etapa.papel === "entrega"
@@ -119,7 +113,7 @@ export function EnvioDoMes({
   function enviar() {
     comecarTransicao(async () => {
       const r = await chamarAcao(() =>
-        enviarMesAoCliente(taskId, portao.etapa!.id, recado, aprovadorId),
+        enviarMesAoCliente(taskId, portao.etapa!.id, recado, aprovadorIds),
       );
       if (r.ok) {
         setRecado("");
@@ -152,8 +146,8 @@ export function EnvioDoMes({
       {semNinguem ? (
         <div className="bg-warning-soft space-y-1.5 rounded-lg px-3 py-2">
           <p className="text-warning flex items-start gap-2 text-xs font-semibold">
-            <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
-            A {quem?.empresa} ainda não tem ninguém com acesso ao portal.
+            <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />A{" "}
+            {quem?.empresa} ainda não tem ninguém com acesso ao portal.
           </p>
           <p className="text-text-secondary text-xs">
             Material enviado para uma conta sem acesso não chega a pessoa
@@ -168,32 +162,22 @@ export function EnvioDoMes({
         </div>
       ) : (
         <div className="space-y-1">
-          <Label htmlFor="aprovador-do-mes" className="text-xs">
+          {/* É `<span>` E NÃO `<Label htmlFor>`: o alvo é um grupo de botões,
+              e um `<label>` só nomeia campo de formulário. */}
+          <span className="text-text-secondary block text-xs font-medium">
             Quem vai aprovar
-          </Label>
-          <Select
-            value={aprovadorId}
-            onValueChange={setAprovadorId}
-            disabled={enviando || quem === null}
-          >
-            <SelectTrigger
-              aria-label="Quem vai aprovar"
-              id="aprovador-do-mes"
-              className="w-full"
-            >
-              <SelectValue placeholder="Escolha a pessoa…" />
-            </SelectTrigger>
-            <SelectContent>
-              {(quem?.aprovadores ?? []).map((pessoa) => (
-                <SelectItem key={pessoa.id} value={pessoa.id}>
-                  {pessoa.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          </span>
+          <SeletorDeAprovadores
+            id="aprovador-do-mes"
+            pessoas={quem?.aprovadores ?? []}
+            valor={aprovadorIds}
+            aoMudar={setAprovadorIds}
+            desabilitado={enviando || quem === null}
+          />
           <p className="text-text-muted text-xs">
-            É quem recebe o aviso. Qualquer pessoa da empresa continua podendo
-            responder.
+            {aprovadorIds.length > 1
+              ? "São quem recebe o aviso. Qualquer pessoa da empresa continua podendo responder."
+              : "É quem recebe o aviso. Qualquer pessoa da empresa continua podendo responder."}
           </p>
         </div>
       )}
@@ -237,7 +221,9 @@ export function EnvioDoMes({
         <p className="text-text-muted text-xs">
           Todas as peças desta fase já estão com o cliente.
         </p>
-      ) : !semNinguem && aprovadorId === "" && portao.falta.length === 0 ? (
+      ) : !semNinguem &&
+        aprovadorIds.length === 0 &&
+        portao.falta.length === 0 ? (
         <p className="text-text-muted text-xs">Escolha quem vai aprovar.</p>
       ) : null}
 

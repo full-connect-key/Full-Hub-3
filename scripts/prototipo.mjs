@@ -377,6 +377,17 @@ const TELAS = [
   { nome: "50c-social-post-video", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p3`, largura: 1440, altura: 1600, role: "socio" },
   { nome: "50d-social-post-video-link", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p7`, largura: 1440, altura: 1500, role: "socio" },
   { nome: "50e-social-post-video-375", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p3`, largura: 375, altura: 2400, role: "socio" },
+  // O HISTORICO DE APROVACOES COM A RODADA PENDENTE (item 17 mais a 0129), e
+  // ele e `p6` porque e a unica peca do exemplo que esta COM O CLIENTE:
+  // `em_aprovacao`, com `enviadoEm` preenchido. E a rodada pendente que
+  // desenha as duas pecas novas -- a linha de quem esta esperando, e os dois
+  // botoes ao lado dela (trocar quem aprova, reenviar o aviso).
+  //
+  // E ela e uma tela PROPRIA e nao uma altura a mais numa que existe: as
+  // outras oito imagens do editor abrem `p1`, que esta em producao, e um post
+  // em producao nao tem rodada pendente. Fotografar os botoes exigia a peca
+  // cujo estado os permite -- a licao do evento de cada par da legenda.
+  { nome: "50f-social-post-aprovacoes", rota: `/painel/social-media?${MES_DO_SOCIAL}&post=p6`, largura: 1440, altura: 1600, role: "socio" },
   { nome: "51-social-calendario", rota: `/painel/social-media?${MES_DO_SOCIAL}&visao=calendario&post=p1`, largura: 1600, altura: 1100, role: "socio" },
   // O COLABORADOR: o botao de enviar sai desligado com a razao escrita, e a
   // lista abre no grupo dele. E o que prova que a mesma tela serve aos tres.

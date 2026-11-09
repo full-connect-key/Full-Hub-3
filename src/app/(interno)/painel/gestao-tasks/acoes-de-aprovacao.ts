@@ -11,6 +11,7 @@ import {
   ROTULOS_DO_ENVIO,
   type Conteudo,
 } from "@/lib/aprovacoes/conteudo";
+import { gravarOsOutrosAprovadores } from "@/lib/aprovacoes/aprovadores";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import {
   executarAcao,
@@ -290,7 +291,13 @@ export async function aprovarInterna(
     // tinha botão de aprovar. O post ficava em "Revisão" para sempre e, como
     // `podeEnviarAoCliente()` exige o aval, nunca chegava ao cliente.
     if (rodada.content_type === "post") {
-      return decidirRodadaDePost(supabase, sessao.usuarioId, rodada, "aprovada", comentario);
+      return decidirRodadaDePost(
+        supabase,
+        sessao.usuarioId,
+        rodada,
+        "aprovada",
+        comentario,
+      );
     }
 
     // A PEÇA DE CAMPANHA DECIDE POR AQUI TAMBÉM, e antes disto ela não decidia
@@ -489,12 +496,16 @@ export async function solicitarAjustesInterna(
  * diz que é agora. As duas decisões são de pessoas diferentes em momentos
  * diferentes, e juntá-las já mandou peça errada para cliente em muita agência.
  *
- * **E DESDE A 0128 ELE LEVA QUEM RECEBE.** `aprovadorId` é a pessoa do lado do
- * cliente que a agência nomeia — separada do responsável de PRODUÇÃO, que é
- * `subtasks.responsavel_id` e diz quem faz. Quem recusa o envio sem ela é
- * `validar_nova_rodada`, no banco; o esquema aqui existe para a frase ser
- * portuguesa antes de a ida ao Postgres acontecer, que é a decisão da máquina
- * de estados ao lado dos gatilhos da 0007.
+ * **E DESDE A 0128 ELE LEVA QUEM RECEBE** — desde a 0129, uma pessoa ou
+ * várias. Elas são do lado do CLIENTE, separadas do responsável de PRODUÇÃO,
+ * que é `subtasks.responsavel_id` e diz quem faz. Quem recusa o envio sem
+ * ninguém é `validar_nova_rodada`, no banco; o esquema aqui existe para a frase
+ * ser portuguesa antes de a ida ao Postgres acontecer, que é a decisão da
+ * máquina de estados ao lado dos gatilhos da 0007.
+ *
+ * **A PRIMEIRA DA LISTA VAI NA COLUNA e as outras vêm depois**, por
+ * `gravarOsOutrosAprovadores` — a razão de serem duas escritas, e de a segunda
+ * avisar em vez de recusar, está escrita lá.
  */
 export async function enviarParaCliente(
   subtaskId: string,
@@ -545,7 +556,7 @@ export async function enviarParaCliente(
         numero_rodada: situacao.rodadaAtual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,
-        aprovador_id: validacao.data.aprovadorId,
+        aprovador_id: validacao.data.aprovadorIds[0],
         mensagem: validacao.data.mensagem,
       })
       .select("id")
@@ -588,8 +599,18 @@ export async function enviarParaCliente(
       );
     }
 
+    // OS OUTROS APROVADORES ENTRAM DEPOIS, e um aviso no lugar de uma recusa:
+    // a rodada já está gravada e o cliente já foi avisado.
+    const avisoDosOutros = await gravarOsOutrosAprovadores(
+      supabase,
+      rodada.id,
+      validacao.data.aprovadorIds,
+    );
+
     revalidar(ctx.subtarefa.task_id);
-    return sucesso("Enviada ao cliente. Ela já aparece no Portal.");
+    return sucesso(
+      avisoDosOutros ?? "Enviada ao cliente. Ela já aparece no Portal.",
+    );
   });
 }
 
@@ -653,7 +674,9 @@ async function decidirRodadaDePost(
   // linha. Quem barraria aqui é `approval_rounds_decide`, que desde a 0033 já
   // aceita post — por `pode_aprovar_post()`, que é `is_gestor()`.
   if (!data) {
-    return falha("O banco recusou a decisão: só a gestão decide rodada interna.");
+    return falha(
+      "O banco recusou a decisão: só a gestão decide rodada interna.",
+    );
   }
 
   if (post.responsavel_id) {
@@ -748,7 +771,9 @@ async function decidirRodadaDeEntregavel(
   // linha. Quem barraria aqui é `approval_rounds_decide`, que desde a 0033 já
   // aceita entregável — por `pode_aprovar_entregavel()`.
   if (!data) {
-    return falha("O banco recusou a decisão: só a gestão decide rodada interna.");
+    return falha(
+      "O banco recusou a decisão: só a gestão decide rodada interna.",
+    );
   }
 
   // O AVISO E A DEVOLUÇÃO SÃO DO BANCO, pelo trigger

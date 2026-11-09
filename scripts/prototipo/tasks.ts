@@ -498,8 +498,11 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
       solicitante: semente.responsavel,
       decisor: r.decidido_por ? DIEGO : null,
       // QUEM RECEBEU (0128): nulo nas rodadas internas, que são as únicas que
-      // as etapas do exemplo têm — a rodada interna é decidida pela gestão.
+      // as etapas do exemplo têm — a rodada interna é decidida pela gestão. E
+      // por isso a lista da 0129 é vazia junto: não há segundo nome onde não
+      // há o primeiro, e o histórico diz isso em vez de inventar.
       aprovador: null,
+      aprovadores: [],
     })),
     // AS TRÊS FORMAS DE ENTREGA, e as três de propósito (0121).
     //

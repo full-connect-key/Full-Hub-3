@@ -7,6 +7,7 @@
  * tela iguais aqui e no app de verdade.
  */
 import type { Conteudo } from "../../src/lib/aprovacoes/conteudo";
+import type { RodadaDoHistorico } from "../../src/lib/aprovacoes/conteudo";
 import type {
   ComentarioDoConteudo,
   RodadaDoConteudo,
@@ -104,6 +105,149 @@ export async function comentariosDe(
       cardVersao: 2,
     },
   ];
+}
+
+/**
+ * O HISTORICO DE APROVACOES, no prototipo (item 17).
+ *
+ * **Ele existe para a peca nova sair em imagem**, e a peca nova sao DUAS
+ * ausencias e nao um desenho novo: o editor do post nao tinha historico nenhum
+ * e a arvore da campanha mostrava so a rodada interna da versao corrente. Sem
+ * este stub as duas telas sairiam com a secao escondida -- `historico.length >
+ * 0` -- e a rodada terminaria dizendo "Pronto" com a entrega fora de toda
+ * imagem. E a licao da duplicata do Cronograma e do carrossel combinado.
+ *
+ * **CADA PECA RECEBE O HISTORICO QUE O ESTADO DELA PERMITE, e isso nao e
+ * zelo.** O historico e desenhado ao lado do status da peca, na mesma tela: uma
+ * rodada `pendente` num post `em_producao` seria a imagem afirmando que a peca
+ * esta com o cliente e com a producao ao mesmo tempo -- dois fatos que se
+ * contradizem a poucos centimetros de distancia, que e o bug que a conferencia
+ * por imagem existe para pegar. Entao:
+ *
+ *   | peca   | o estado dela              | o historico que casa com ele      |
+ *   | ------ | -------------------------- | --------------------------------- |
+ *   | `p6`   | `em_aprovacao`, ja enviado | a de cliente PENDENTE + a interna |
+ *   | `p1`   | `em_producao`, v2          | a de cliente com AJUSTES + a interna |
+ *   | `d-kv` | `aprovado`, decidido       | a de cliente APROVADA + a interna |
+ *
+ * **E SAO AS TRES QUE O ITEM PRECISA**, uma por linha da tela: a pendente e a
+ * unica que desenha os dois botoes da 0129 (trocar quem aprova e reenviar o
+ * aviso) e a linha de quem esta esperando; a de ajustes e a unica que desenha o
+ * `comentario` da decisao, que e o que explica por que a peca voltou; e a
+ * aprovada e o desfecho verde do mapa da 0127. Com as tres iguais, a imagem
+ * provaria que a secao aparece e nao que ela DISTINGUE -- a razao pela qual o
+ * exemplo do calendario tem um evento de cada par da legenda.
+ *
+ * **A INTERNA ENTRA EM TODAS**, porque e ela a metade do item 17 que nenhuma
+ * tela mostrava: o aval da gestao e uma decisao com autor, data e comentario, e
+ * a arvore da campanha desenhava so a pilula da versao corrente.
+ *
+ * ***E O APROVADOR E UM SO, com a razao dita:*** `quemPodeAprovar` devolve uma
+ * pessoa de proposito -- e o comentario de la explica por que: com duas, o
+ * campo do envio do mes abriria VAZIO e a imagem `57f` deixaria de mostrar o
+ * nome na linha. A consequencia e que a linha de DOIS nomes da 0129, e o
+ * seletor com dois chips, nao aparecem em imagem nenhuma. Fica dito em vez de
+ * escondido.
+ */
+const DIA = 86_400e3;
+
+function rodadaInterna(id: string, numero: number, dias: number) {
+  return {
+    id: `${id}-i${numero}`,
+    numero_rodada: numero,
+    escopo: "interna" as const,
+    status: "aprovada" as const,
+    solicitado_em: new Date(HOJE.getTime() - DIA * (dias + 1)).toISOString(),
+    solicitante: "Bruno Lima",
+    decidido_em: new Date(HOJE.getTime() - DIA * dias).toISOString(),
+    decisor: "Diego Martins",
+    comentario: null,
+    mensagem: null,
+    // A INTERNA NAO TEM APROVADOR, e a ausencia e a regra: ela e decidida por
+    // `is_gestor()` e mais ninguem (0029), entao nao ha a quem nomear. A tela
+    // nem desenha a linha de "quem recebeu" nela.
+    aprovadores: [],
+  };
+}
+
+const JOANA = [{ id: "cliente", nome: "Joana Prado" }];
+
+export async function historicoDeAprovacoes(
+  _tipo: Conteudo["tipo"],
+  ids: string[],
+): Promise<Map<string, RodadaDoHistorico[]>> {
+  const mapa = new Map<string, RodadaDoHistorico[]>();
+
+  for (const id of ids) {
+    if (id === "p6") {
+      // A PECA QUE ESTA COM O CLIENTE: a rodada de cliente PENDENTE, que e a
+      // unica que desenha os dois botoes.
+      mapa.set(id, [
+        {
+          id: "p6-c1",
+          numero_rodada: 1,
+          escopo: "cliente",
+          status: "pendente",
+          solicitado_em: new Date(HOJE.getTime() - DIA * 2).toISOString(),
+          solicitante: "Marina Costa",
+          decidido_em: null,
+          decisor: null,
+          comentario: null,
+          mensagem: "Esse e o post da semana que vem. Qualquer coisa me chama.",
+          aprovadores: JOANA,
+        },
+        rodadaInterna(id, 1, 3),
+      ]);
+      continue;
+    }
+
+    if (id === "p1") {
+      // A PECA QUE VOLTOU: o `comentario` da decisao e o que explica por que
+      // ela esta em producao de novo -- e ele casa com a conversa do card 3,
+      // que o stub de `comentariosDe` ja desenha nesta mesma tela.
+      mapa.set(id, [
+        {
+          id: "p1-c1",
+          numero_rodada: 1,
+          escopo: "cliente",
+          status: "ajustes_solicitados",
+          solicitado_em: new Date(HOJE.getTime() - DIA * 6).toISOString(),
+          solicitante: "Marina Costa",
+          decidido_em: new Date(HOJE.getTime() - DIA * 4).toISOString(),
+          decisor: "Joana Prado",
+          comentario:
+            "No terceiro quadro o preco ficou por cima da folha. Da para subir?",
+          mensagem: null,
+          aprovadores: JOANA,
+        },
+        rodadaInterna(id, 1, 8),
+      ]);
+      continue;
+    }
+
+    if (id === "d-kv") {
+      // A PECA APROVADA: o desfecho verde, com quem decidiu e quando -- os
+      // mesmos `decididoPor` e `decididoEm` que o cartao dela ja mostra.
+      mapa.set(id, [
+        {
+          id: "d-kv-c2",
+          numero_rodada: 2,
+          escopo: "cliente",
+          status: "aprovada",
+          solicitado_em: new Date(HOJE.getTime() - DIA * 20).toISOString(),
+          solicitante: "Marina Costa",
+          decidido_em: new Date(HOJE.getTime() - DIA * 19).toISOString(),
+          decisor: "Joana Prado",
+          comentario: null,
+          mensagem: "A chave visual com os ajustes do rodape.",
+          aprovadores: JOANA,
+        },
+        rodadaInterna(id, 2, 21),
+      ]);
+    }
+  }
+
+  return mapa;
 }
 
 export async function assinarArquivos(

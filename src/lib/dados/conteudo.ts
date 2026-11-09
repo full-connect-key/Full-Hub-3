@@ -2,7 +2,11 @@ import "server-only";
 
 import { ouFalha } from "./consulta";
 
-import { colunasDoConteudo, type Conteudo } from "@/lib/aprovacoes/conteudo";
+import {
+  colunasDoConteudo,
+  type Conteudo,
+  type RodadaDoHistorico,
+} from "@/lib/aprovacoes/conteudo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { StatusRodada } from "@/lib/supabase/database.types";
 
@@ -69,6 +73,124 @@ export async function rodadasDo(
     if (!mapa.has(linha.content_id)) mapa.set(linha.content_id, linha);
   }
   return mapa;
+}
+
+/**
+ * O HISTÓRICO COMPLETO DE APROVAÇÕES DE UM CONTEÚDO (item 17).
+ *
+ * ---------------------------------------------------------------------------
+ * **NÃO É `rodadasDo()`, e as duas convivem.** Aquela responde *"em que pé
+ * está este material"* — a rodada de CLIENTE mais recente de cada um de N
+ * conteúdos, para desenhar um selo numa grade de trinta posts. Esta responde
+ * *"por que refizemos isso três vezes"*: TODAS as rodadas de UM conteúdo, as
+ * internas inclusive, com quem pediu, quem recebeu e quem decidiu. Juntá-las
+ * daria uma função com dois modos e um `if` no meio do `select`, que é a
+ * duplicação de volta com outro nome.
+ *
+ * **E ELA RECEBE N IDS, que é a forma de `rodadasDo()` e da leitura das
+ * rodadas internas da campanha.** Duas das três telas abrem UM material — o
+ * painel da etapa e o editor do post —, e a terceira é a árvore de produção,
+ * que desenha a campanha inteira com cada peça abrindo NO LUGAR: uma chamada
+ * por peça seriam cinquenta idas ao banco para desenhar uma tela, que é a conta
+ * que só aparece quando a Wave está cheia. Uma versão de um id só obrigaria a
+ * terceira a inventar o laço.
+ *
+ * **AS RODADAS INTERNAS ENTRAM, e é metade do pedido.** O aval interno é uma
+ * decisão com autor, data e comentário, e esconder dele deixaria o histórico
+ * dizendo que a peça foi ao cliente sem nunca ter sido revisada — que é
+ * exatamente o passo que a 0033 criou.
+ *
+ * **SÃO TRÊS IDAS E UM MAPA DE PESSOAS SÓ.** As rodadas, os aprovadores extras
+ * e os nomes de todos os envolvidos de uma vez — a forma de `carregar()` em
+ * `lib/dados/tasks.ts`, onde os ids das três origens entram na mesma coleção
+ * antes de a consulta de `profiles` sair. Um `select` com embutido resolveria
+ * em uma, e o PostgREST recusa o `select` INTEIRO quando não acha a relação
+ * pelo nome escrito — foi assim que uma campanha recém-criada não aparecia em
+ * lugar nenhum.
+ */
+export async function historicoDeAprovacoes(
+  tipo: Conteudo["tipo"],
+  ids: string[],
+): Promise<Map<string, RodadaDoHistorico[]>> {
+  if (ids.length === 0) return new Map();
+
+  const supabase = await criarClienteServidor();
+
+  const rodadas = ouFalha(
+    "o histórico de aprovações do material",
+    await supabase
+      .from("approval_rounds")
+      .select(
+        "id, content_id, numero_rodada, escopo, status, solicitado_em, solicitado_por, decidido_em, decidido_por, comentario, mensagem, aprovador_id",
+      )
+      .eq("content_type", tipo)
+      .in("content_id", ids)
+      .order("numero_rodada", { ascending: false })
+      .order("solicitado_em", { ascending: false }),
+  );
+
+  if (rodadas.length === 0) return new Map();
+
+  const extras = ouFalha(
+    "quem mais recebeu cada envio",
+    await supabase
+      .from("approval_round_aprovadores")
+      .select("round_id, user_id")
+      .in(
+        "round_id",
+        rodadas.map((r) => r.id),
+      )
+      .order("created_at"),
+  );
+
+  const nomes = await nomesDe([
+    ...rodadas.flatMap((r) => [
+      r.solicitado_por,
+      r.decidido_por,
+      r.aprovador_id,
+    ]),
+    ...extras.map((e) => e.user_id),
+  ]);
+
+  const porConteudo = new Map<string, RodadaDoHistorico[]>();
+
+  for (const r of rodadas) {
+    const outros = extras
+      .filter((e) => e.round_id === r.id && e.user_id !== r.aprovador_id)
+      .map((e) => e.user_id);
+
+    const linha: RodadaDoHistorico = {
+      id: r.id,
+      numero_rodada: r.numero_rodada,
+      escopo: r.escopo,
+      status: r.status,
+      solicitado_em: r.solicitado_em,
+      solicitante: r.solicitado_por
+        ? (nomes.get(r.solicitado_por) ?? null)
+        : null,
+      decidido_em: r.decidido_em,
+      decisor: r.decidido_por ? (nomes.get(r.decidido_por) ?? null) : null,
+      comentario: r.comentario,
+      mensagem: r.mensagem,
+      aprovadores: [...(r.aprovador_id ? [r.aprovador_id] : []), ...outros]
+        // O NOME QUE NÃO VOLTOU FICA DE FORA, e a ausência é honesta: a
+        // policy de `profiles` é `own or is_gestor()`, então o colaborador lê
+        // UM perfil — o dele. Um "—" no lugar afirmaria que há alguém sem
+        // nome; a lista mais curta diz o que ela sabe.
+        .map((id) => {
+          const nome = nomes.get(id);
+          return nome ? { id, nome } : null;
+        })
+        .filter((p): p is { id: string; nome: string } => p !== null),
+    };
+
+    porConteudo.set(r.content_id, [
+      ...(porConteudo.get(r.content_id) ?? []),
+      linha,
+    ]);
+  }
+
+  return porConteudo;
 }
 
 export async function nomesDe(

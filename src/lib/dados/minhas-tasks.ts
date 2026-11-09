@@ -282,6 +282,7 @@ async function carregar(userId: string): Promise<MinhaTask[]> {
         solicitante: null,
         decisor: null,
         aprovador: null,
+        aprovadores: [],
       })),
       entregas: [],
       ...situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao),

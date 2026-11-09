@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  ChevronRight,
   ExternalLink,
   Link2,
   Loader2,
@@ -56,9 +55,10 @@ import {
 } from "@/lib/dominio/tempo";
 import {
   ROTULO_DA_APROVACAO,
-  ROTULO_DO_ESCOPO,
 } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
+import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
+import { comoHistorico, daSubtarefa } from "@/lib/aprovacoes/conteudo";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
 
 import {
@@ -787,15 +787,15 @@ export function PainelDaSubtarefa({
           {/* Rodadas de aprovação -------------------------------------- */}
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Rodadas de aprovação</h3>
-            {subtarefa.rodadas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {subtarefa.requer_aprovacao
+            <HistoricoDeAprovacoes
+              conteudo={daSubtarefa(subtarefa.id)}
+              rodadas={comoHistorico(subtarefa.rodadas)}
+              vazio={
+                subtarefa.requer_aprovacao
                   ? "Nenhuma rodada ainda."
-                  : "Esta subtarefa não passa por aprovação."}
-              </p>
-            ) : (
-              <Rodadas rodadas={subtarefa.rodadas} />
-            )}
+                  : "Esta subtarefa não passa por aprovação."
+              }
+            />
           </section>
         </div>
       </DialogContent>
@@ -816,107 +816,4 @@ function Campo({
       {children}
     </div>
   );
-}
-
-/**
- * O acordeão cronológico das rodadas.
- *
- * A mais recente vem aberta; as anteriores ficam recolhidas, mas continuam ali
- * com o que foi pedido e decidido. Rodada nunca é sobrescrita nem apagada — é
- * essa pilha que permite responder "por que refizemos isso três vezes?" seis
- * meses depois.
- */
-function Rodadas({ rodadas }: { rodadas: SubtarefaDetalhada["rodadas"] }) {
-  const [abertas, setAbertas] = useState<Set<string>>(
-    new Set([rodadas[0]?.id]),
-  );
-
-  return (
-    <ul className="space-y-2">
-      {rodadas.map((rodada) => {
-        const aberta = abertas.has(rodada.id);
-        const quando = rodada.decidido_em ?? rodada.solicitado_em;
-        return (
-          <li key={rodada.id} className="rounded-md border">
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
-              onClick={() =>
-                setAbertas((atual) => {
-                  const proximo = new Set(atual);
-                  if (proximo.has(rodada.id)) proximo.delete(rodada.id);
-                  else proximo.add(rodada.id);
-                  return proximo;
-                })
-              }
-            >
-              <ChevronRight
-                className={`size-4 shrink-0 transition-transform ${aberta ? "rotate-90" : ""}`}
-                aria-hidden
-              />
-              <span className="font-medium">Rodada {rodada.numero_rodada}</span>
-              <span className="text-muted-foreground">
-                {ROTULO_DO_ESCOPO[rodada.escopo]}
-              </span>
-              <ResultadoDaRodada status={rodada.status} />
-              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-                {format(parseISO(quando), "dd/MM", { locale: ptBR })}
-              </span>
-            </button>
-
-            {aberta ? (
-              <div className="space-y-1 border-t px-3 py-2 text-sm">
-                <p className="text-muted-foreground text-xs">
-                  Pedida por {rodada.solicitante?.nome ?? "—"} em{" "}
-                  {format(
-                    parseISO(rodada.solicitado_em),
-                    "dd/MM/yyyy 'às' HH:mm",
-                    { locale: ptBR },
-                  )}
-                  {rodada.decidido_em
-                    ? ` · decidida por ${rodada.decisor?.nome ?? "—"} em ${format(parseISO(rodada.decidido_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-                    : rodada.aprovador
-                      ? ` · esperando ${rodada.aprovador.nome}`
-                      : " · esperando decisão"}
-                </p>
-                {/* A MENSAGEM QUE VIAJOU COM O ENVIO (0128), e ela vem ANTES
-                    do comentário: são dois fatos diferentes — esta é o que a
-                    agência disse ao mandar, e o `comentario` é o motivo da
-                    DECISÃO, que a 0127 tornou obrigatório nos dois desfechos
-                    negativos. Na ordem contrária, quem lê o motivo do ajuste
-                    encontra primeiro a frase de quem enviou. */}
-                {rodada.mensagem ? (
-                  <p className="text-text-secondary">
-                    <span className="text-text-muted">Enviada com: </span>
-                    {rodada.mensagem}
-                  </p>
-                ) : null}
-                {rodada.comentario ? <p>{rodada.comentario}</p> : null}
-              </div>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function ResultadoDaRodada({
-  status,
-}: {
-  status: SubtarefaDetalhada["rodadas"][number]["status"];
-}) {
-  const texto =
-    status === "aprovada"
-      ? "Aprovada"
-      : status === "ajustes_solicitados"
-        ? "Ajustes solicitados"
-        : "Pendente";
-  const cor =
-    status === "aprovada"
-      ? "text-success"
-      : status === "ajustes_solicitados"
-        ? "text-warning"
-        : "text-info";
-  return <span className={`text-xs font-medium ${cor}`}>{texto}</span>;
 }

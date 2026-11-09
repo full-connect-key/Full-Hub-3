@@ -39,44 +39,49 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
   const sessao = await exigirAcessoARota("/painel/social-media");
   const souGestor = ehGestor(sessao.profile.role);
 
-  const visao = texto(parametros, "visao") === "calendario" ? "calendario" : "lista";
+  const visao =
+    texto(parametros, "visao") === "calendario" ? "calendario" : "lista";
   const mes = texto(parametros, "mes") ?? new Date().toISOString().slice(0, 7);
   const clienteId = texto(parametros, "cliente");
-  const foco = (texto(parametros, "foco") ?? "todos") as "todos" | "meus" | "sem_dono";
+  const foco = (texto(parametros, "foco") ?? "todos") as
+    | "todos"
+    | "meus"
+    | "sem_dono";
   const postId = texto(parametros, "post");
 
   const filtros = { clienteId, foco, usuarioId: sessao.usuarioId };
 
-  const [posts, semData, clientes, equipe, aberto, fluxos, demanda] = await Promise.all([
-    // CADA VISÃO CARREGA SÓ A PRÓPRIA CONSULTA. O calendário quer um mês; a
-    // lista quer a fila dos próximos três, porque quem abre a lista está
-    // procurando trabalho e o que tem para fazer hoje quase sempre publica no
-    // mês que vem.
-    visao === "calendario"
-      ? postsDoMesDaAgencia(mes, filtros)
-      : filaDaAgencia(filtros),
-    // A FAIXA "SEM DATA AINDA" É SÓ DO CALENDÁRIO. Na lista eles já vêm
-    // misturados na fila, em ordem — e a lista é ordenada por data justamente
-    // para quem não tem data aparecer primeiro.
-    visao === "calendario" ? postsSemData(clienteId) : Promise.resolve([]),
-    listarClientes(),
-    listarEquipeAtiva(),
-    postId ? obterPostDaAgencia(postId) : Promise.resolve(null),
-    // SÓ OS ATIVOS: o diálogo oferece o que dá para aplicar, e um fluxo
-    // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
-    // abriria um mês com a corrente que ela aposentou.
-    fluxosDeSocial({ apenasAtivos: true }),
-    // A DEMANDA DESTE MÊS, e ela só existe com uma empresa escolhida: o mês é
-    // identificado pelo par `(?mes=, ?cliente=)`, que é o índice único da
-    // 0061. Em "Todos os clientes" há tantos meses quantas contas têm social
-    // naquela competência, e apagar o primeiro que a consulta achasse seria
-    // apagar o mês de uma conta que ninguém escolheu.
-    //
-    // **É A PONTE QUE FALTAVA PARA AS QUATRO AÇÕES DA 0086.** Elas recebem
-    // `task_id` e esta tela só conhecia a competência, então o botão de
-    // apagar o mês não tinha o que apagar — ver `acoes-do-mes.tsx`.
-    clienteId ? demandaDoMes(mes, clienteId) : Promise.resolve(null),
-  ]);
+  const [posts, semData, clientes, equipe, aberto, fluxos, demanda] =
+    await Promise.all([
+      // CADA VISÃO CARREGA SÓ A PRÓPRIA CONSULTA. O calendário quer um mês; a
+      // lista quer a fila dos próximos três, porque quem abre a lista está
+      // procurando trabalho e o que tem para fazer hoje quase sempre publica no
+      // mês que vem.
+      visao === "calendario"
+        ? postsDoMesDaAgencia(mes, filtros)
+        : filaDaAgencia(filtros),
+      // A FAIXA "SEM DATA AINDA" É SÓ DO CALENDÁRIO. Na lista eles já vêm
+      // misturados na fila, em ordem — e a lista é ordenada por data justamente
+      // para quem não tem data aparecer primeiro.
+      visao === "calendario" ? postsSemData(clienteId) : Promise.resolve([]),
+      listarClientes(),
+      listarEquipeAtiva(),
+      postId ? obterPostDaAgencia(postId) : Promise.resolve(null),
+      // SÓ OS ATIVOS: o diálogo oferece o que dá para aplicar, e um fluxo
+      // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
+      // abriria um mês com a corrente que ela aposentou.
+      fluxosDeSocial({ apenasAtivos: true }),
+      // A DEMANDA DESTE MÊS, e ela só existe com uma empresa escolhida: o mês é
+      // identificado pelo par `(?mes=, ?cliente=)`, que é o índice único da
+      // 0061. Em "Todos os clientes" há tantos meses quantas contas têm social
+      // naquela competência, e apagar o primeiro que a consulta achasse seria
+      // apagar o mês de uma conta que ninguém escolheu.
+      //
+      // **É A PONTE QUE FALTAVA PARA AS QUATRO AÇÕES DA 0086.** Elas recebem
+      // `task_id` e esta tela só conhecia a competência, então o botão de
+      // apagar o mês não tinha o que apagar — ver `acoes-do-mes.tsx`.
+      clienteId ? demandaDoMes(mes, clienteId) : Promise.resolve(null),
+    ]);
 
   return (
     <SocialMedia
@@ -90,6 +95,7 @@ async function Conteudo({ parametros }: { parametros: Parametros }) {
       aprovacoesDoCliente={aberto?.aprovacoesDoCliente ?? 0}
       referencias={aberto?.referencias ?? []}
       comentarios={aberto?.comentarios ?? []}
+      historico={aberto?.historico ?? []}
       // O "AGORA" DESCE DO SERVIDOR, que é a regra escrita da thread: com
       // `new Date()` dentro do componente de cliente, o SSR renderiza "há 2
       // horas" e o navegador, noutro fuso ou um segundo depois, recalcula
@@ -122,7 +128,9 @@ async function Fluxos() {
   const sessao = await exigirAcessoARota("/painel/social-media");
   const lista = await fluxosDeSocial();
 
-  return <FluxosDeSocial fluxos={lista} podeEditar={ehGestor(sessao.profile.role)} />;
+  return (
+    <FluxosDeSocial fluxos={lista} podeEditar={ehGestor(sessao.profile.role)} />
+  );
 }
 
 /**
@@ -193,7 +201,8 @@ export default async function PaginaDeSocialMedia({
    * recusa é a policy de escrita. Recusar a rota inteira seria esconder dele a
    * corrente que ele percorre.
    */
-  const aba = souGestor && texto(parametros, "aba") === "fluxos" ? "fluxos" : "social";
+  const aba =
+    souGestor && texto(parametros, "aba") === "fluxos" ? "fluxos" : "social";
 
   /**
    * DENTRO DE SOCIAL HÁ DOIS ESTADOS, e quem os separa é `?mes=`.

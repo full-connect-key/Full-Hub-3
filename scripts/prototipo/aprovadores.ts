@@ -57,10 +57,10 @@ export async function quemPodeAprovar(
     dados: {
       clienteId: conta.id,
       empresa: conta.nome_empresa,
-    // UMA PESSOA SÓ, e é o que faz a imagem mostrar o campo PREENCHIDO: a tela
-    // pré-seleciona quando há exatamente uma (não há escolha a fazer), e com
-    // duas ela abriria no placeholder. O estado que a conferência precisa ver
-    // é o do nome na linha, porque é ele que diz quem vai receber.
+      // UMA PESSOA SÓ, e é o que faz a imagem mostrar o campo PREENCHIDO: a tela
+      // pré-seleciona quando há exatamente uma (não há escolha a fazer), e com
+      // duas ela abriria no placeholder. O estado que a conferência precisa ver
+      // é o do nome na linha, porque é ele que diz quem vai receber.
       aprovadores: [
         {
           id: PROFILE_CLIENTE.id,
@@ -70,4 +70,39 @@ export async function quemPodeAprovar(
       ],
     },
   };
+}
+
+/**
+ * TROCAR QUEM APROVA e REENVIAR O AVISO, no prototipo (0129).
+ *
+ * **Elas nao existem para serem CLICADAS numa imagem, e sim para os dois
+ * botoes aparecerem:** `HistoricoDeAprovacoes` as importa, e sem o stub a
+ * compilacao do gerador quebra -- depois de dois minutos, que e a janela que o
+ * `check:prototipo` existe para fechar. Nenhuma tela do prototipo clica nelas:
+ * a troca abre um seletor que leria a lista da conta, e a imagem que importa e
+ * a do historico em repouso, com a linha de quem espera e os dois botoes ao
+ * lado dela.
+ *
+ * **E as duas devolvem `ok`**, nao a recusa: um `ok: false` aqui pintaria o
+ * toast de erro na primeira rodada que alguem clicasse, provando o caminho de
+ * falha no lugar do que se queria conferir.
+ */
+export async function trocarAprovadores(
+  _roundId: string,
+  aprovadorIds: string[],
+): Promise<Resultado<number>> {
+  return {
+    ok: true,
+    mensagem:
+      aprovadorIds.length === 1
+        ? "Uma pessoa esta nomeada para aprovar."
+        : `${aprovadorIds.length} pessoas estao nomeadas para aprovar.`,
+    dados: aprovadorIds.length,
+  };
+}
+
+export async function reenviarAviso(
+  _roundId: string,
+): Promise<Resultado<number>> {
+  return { ok: true, mensagem: "O aviso saiu de novo.", dados: 1 };
 }

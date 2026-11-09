@@ -20,9 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
+import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
 import {
   doEntregavel,
   type EnvioEscolhido,
+  type RodadaDoHistorico,
 } from "@/lib/aprovacoes/conteudo";
 import type { VersaoDoConteudo } from "@/lib/dados/conteudo";
 import {
@@ -65,6 +67,7 @@ export function ArvoreDeProducao({
   versoes,
   assinadas,
   analise,
+  historico,
   ehGestao,
 }: {
   clienteId: string;
@@ -74,6 +77,7 @@ export function ArvoreDeProducao({
   assinadas: Record<string, string>;
   /** O estado do aval interno de cada peça. A chave é o id dela. */
   analise: Record<string, AnaliseDaPeca>;
+  historico: Record<string, RodadaDoHistorico[]>;
   /** Quem envia ao cliente é `is_gestor()`, e o botão segue a mesma pergunta. */
   ehGestao: boolean;
 }) {
@@ -90,6 +94,7 @@ export function ArvoreDeProducao({
       aberto={aberto === item.id}
       aoAbrir={() => setAberto((atual) => (atual === item.id ? null : item.id))}
       analise={analise[item.id] ?? { pendente: false, aprovado: false }}
+      historico={historico[item.id] ?? []}
       ehGestao={ehGestao}
     />
   );
@@ -127,8 +132,7 @@ export function ArvoreDeProducao({
               <h3 className="text-text-secondary flex items-baseline justify-between gap-2 pl-3 text-[11px] font-bold tracking-wider uppercase">
                 {no.item.nome}
                 <span className="text-text-muted tabular-nums">
-                  {no.filhos.length}{" "}
-                  {no.filhos.length === 1 ? "peça" : "peças"}
+                  {no.filhos.length} {no.filhos.length === 1 ? "peça" : "peças"}
                 </span>
               </h3>
 
@@ -163,6 +167,7 @@ function Peca({
   aberto,
   aoAbrir,
   analise,
+  historico,
   ehGestao,
 }: {
   item: EntregavelDoPortal;
@@ -173,6 +178,7 @@ function Peca({
   aberto: boolean;
   aoAbrir: () => void;
   analise: AnaliseDaPeca;
+  historico: RodadaDoHistorico[];
   ehGestao: boolean;
 }) {
   const router = useRouter();
@@ -254,9 +260,15 @@ function Peca({
         className="flex w-full items-center gap-3 text-left"
       >
         {aberto ? (
-          <ChevronDown aria-hidden className="text-text-muted size-4 shrink-0" />
+          <ChevronDown
+            aria-hidden
+            className="text-text-muted size-4 shrink-0"
+          />
         ) : (
-          <ChevronRight aria-hidden className="text-text-muted size-4 shrink-0" />
+          <ChevronRight
+            aria-hidden
+            className="text-text-muted size-4 shrink-0"
+          />
         )}
 
         {miniatura ? (
@@ -296,7 +308,11 @@ function Peca({
                   ? " · recusada no aval interno"
                   : " · ajustes pedidos"}
               </span>
-            ) : analise.pendente ? " · no aval interno" : ""}
+            ) : analise.pendente ? (
+              " · no aval interno"
+            ) : (
+              ""
+            )}
           </span>
         </span>
       </button>
@@ -373,7 +389,9 @@ function Peca({
               ) : (
                 <ShieldCheck aria-hidden className="size-4" />
               )}
-              {analise.aprovado ? "Pedir aval interno de novo" : "Pedir aval interno"}
+              {analise.aprovado
+                ? "Pedir aval interno de novo"
+                : "Pedir aval interno"}
             </Button>
 
             {/* O ENVIO AO CLIENTE SÓ APARECE PARA A GESTÃO, e não desligado:
@@ -437,7 +455,9 @@ function Peca({
                 {analise.ajuste.quando ? (
                   <span className="font-normal tabular-nums">
                     {" · "}
-                    {new Date(analise.ajuste.quando).toLocaleDateString("pt-BR")}
+                    {new Date(analise.ajuste.quando).toLocaleDateString(
+                      "pt-BR",
+                    )}
                   </span>
                 ) : null}
               </p>
@@ -445,7 +465,9 @@ function Peca({
                   textarea: sem ele, três linhas de pedido viram um parágrafo
                   corrido e a lista de ajustes deixa de ser uma lista. */}
               {analise.ajuste.comentario ? (
-                <p className="whitespace-pre-line">{analise.ajuste.comentario}</p>
+                <p className="whitespace-pre-line">
+                  {analise.ajuste.comentario}
+                </p>
               ) : null}
               <p>{podeAnalise.porque}</p>
             </div>
@@ -456,6 +478,29 @@ function Peca({
           ) : null}
 
           <Historico versoes={versoes} assinadas={assinadas} />
+
+          {/* O HISTÓRICO DE APROVAÇÕES (item 17), e ele é o MESMO componente
+              do painel da etapa e do editor do post. Até aqui esta tela
+              mostrava UMA rodada — a interna da versão corrente, na pílula
+              acima —, e nada do ciclo com o cliente: quem abria a peça não
+              tinha como saber que o cliente já havia pedido ajuste na v1.
+
+              ELE VEM DEPOIS DAS VERSÕES, e a ordem é a inversa do editor de
+              post de propósito: ali a pergunta é "o que mudar", e o arquivo
+              vem por último; aqui a peça está aberta porque alguém vai subir
+              uma versão, e o histórico de arquivos é o que ele confere
+              primeiro. */}
+          {historico.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="text-text-muted text-xs tracking-wide uppercase">
+                Aprovações
+              </p>
+              <HistoricoDeAprovacoes
+                conteudo={doEntregavel(item.id)}
+                rodadas={historico}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

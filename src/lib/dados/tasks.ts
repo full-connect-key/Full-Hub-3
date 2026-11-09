@@ -99,7 +99,9 @@ const CONCLUIDAS: TaskStatus[] = ["concluido"];
  * data que o produto decidiu ignorar. Quem filtra é `folhas()`, que é a mesma
  * função que `enriquecer()` já usa uma linha acima.
  */
-export function proximoPrazoAberto(linhas: LinhaDeSubtarefa[]): Map<string, string> {
+export function proximoPrazoAberto(
+  linhas: LinhaDeSubtarefa[],
+): Map<string, string> {
   const porTask = new Map<string, string>();
   for (const sub of folhas(linhas)) {
     if (sub.status === "concluida" || !sub.prazo) continue;
@@ -137,7 +139,9 @@ export function demandaAtrasada(
   proximoPrazo: string | null,
   hoje: string,
 ): boolean {
-  return !CONCLUIDAS.includes(status) && proximoPrazo !== null && proximoPrazo < hoje;
+  return (
+    !CONCLUIDAS.includes(status) && proximoPrazo !== null && proximoPrazo < hoje
+  );
 }
 
 type LinhaDeSubtarefa = Pick<
@@ -171,22 +175,26 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
     ...new Set(tasks.map((t) => t.client_id).filter(Boolean)),
   ] as string[];
 
-  const [{ data: clientes }, { data: subtarefas }, vertentesPorConta] = await Promise.all([
-    supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
-    supabase
-      .from("subtasks")
-      .select(
-        "id, task_id, parent_id, titulo, prazo, responsavel_id, status, estimativa_minutos, tempo_real_minutos",
-      )
-      .in("task_id", ids),
-    // AS VERTENTES VÊM NUMA CONSULTA À PARTE, e não num embutido do `select`
-    // das tasks. O PostgREST recusa o `select` INTEIRO quando não acha a
-    // relação pelo nome escrito — foi assim que uma campanha recém-criada não
-    // apareceu em lugar nenhum —, e aqui o estrago seria o board da agência
-    // inteiro voltando vazio por causa de um nome de embutido. Duas idas ao
-    // banco custam menos que essa classe de bug.
-    vertentesDasContas(idsDeClientes),
-  ]);
+  const [{ data: clientes }, { data: subtarefas }, vertentesPorConta] =
+    await Promise.all([
+      supabase
+        .from("clients")
+        .select("id, nome_empresa")
+        .in("id", idsDeClientes),
+      supabase
+        .from("subtasks")
+        .select(
+          "id, task_id, parent_id, titulo, prazo, responsavel_id, status, estimativa_minutos, tempo_real_minutos",
+        )
+        .in("task_id", ids),
+      // AS VERTENTES VÊM NUMA CONSULTA À PARTE, e não num embutido do `select`
+      // das tasks. O PostgREST recusa o `select` INTEIRO quando não acha a
+      // relação pelo nome escrito — foi assim que uma campanha recém-criada não
+      // apareceu em lugar nenhum —, e aqui o estrago seria o board da agência
+      // inteiro voltando vazio por causa de um nome de embutido. Duas idas ao
+      // banco custam menos que essa classe de bug.
+      vertentesDasContas(idsDeClientes),
+    ]);
 
   const porVertente = new Map(
     [...vertentesPorConta.values()].flat().map((v) => [v.id, v]),
@@ -469,6 +477,17 @@ export type RodadaDetalhada = ApprovalRound & {
    * inventar um nome.
    */
   aprovador: Pessoa | null;
+  /**
+   * TODOS OS QUE RECEBERAM (0129), na ordem: a pessoa de `aprovador_id`
+   * primeiro, e as de `approval_round_aprovadores` atrás dela.
+   *
+   * **A ORDEM É A DA COLUNA e não a do `created_at`**: depois de uma
+   * substituição o gatilho apaga a linha de quem saiu e insere a de quem
+   * entrou NO FIM, então pelo carimbo a primeira pessoa deixaria de ser a que
+   * a coluna nomeia — e é a coluna que o produto inteiro lê como "quem
+   * recebeu" desde a 0128.
+   */
+  aprovadores: Pessoa[];
 };
 
 export type EntregaDetalhada = SubtaskEntrega & {
@@ -541,22 +560,22 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
 
   const [respEtapas, respReferencias, respComentarios, respHistorico] =
     await Promise.all([
-    supabase.from("subtasks").select("*").eq("task_id", id).order("ordem"),
-    supabase
-      .from("task_referencias")
-      .select("*")
-      .eq("task_id", id)
-      .order("created_at"),
-    supabase
-      .from("task_comentarios")
-      .select("*")
-      .eq("task_id", id)
-      .order("created_at"),
-    supabase
-      .from("task_history")
-      .select("*")
-      .eq("task_id", id)
-      .order("created_at", { ascending: false }),
+      supabase.from("subtasks").select("*").eq("task_id", id).order("ordem"),
+      supabase
+        .from("task_referencias")
+        .select("*")
+        .eq("task_id", id)
+        .order("created_at"),
+      supabase
+        .from("task_comentarios")
+        .select("*")
+        .eq("task_id", id)
+        .order("created_at"),
+      supabase
+        .from("task_history")
+        .select("*")
+        .eq("task_id", id)
+        .order("created_at", { ascending: false }),
     ]);
 
   const subtarefas = ouFalha("as etapas da demanda", respEtapas);
@@ -566,37 +585,56 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
 
   const idsDeSubtarefas = subtarefas.map((s) => s.id);
 
-  const [respRodadas, respEntregas, respDependencias] =
-    await Promise.all([
-      idsDeSubtarefas.length
-        ? supabase
-            .from("approval_rounds")
-            .select("*")
-            .eq("content_type", "subtask")
-            .in("content_id", idsDeSubtarefas)
-            .order("numero_rodada", { ascending: false })
-        : Promise.resolve({ data: [] as ApprovalRound[], error: null }),
-      idsDeSubtarefas.length
-        ? supabase
-            .from("subtask_entregas")
-            .select("*")
-            .in("subtask_id", idsDeSubtarefas)
-            .order("created_at")
-        : Promise.resolve({ data: [] as SubtaskEntrega[], error: null }),
-      idsDeSubtarefas.length
-        ? supabase
-            .from("subtask_dependencies")
-            .select("subtask_id, depende_de_id")
-            .in("subtask_id", idsDeSubtarefas)
-        : Promise.resolve({
-            data: [] as { subtask_id: string; depende_de_id: string }[],
-            error: null,
-          }),
-    ]);
+  const [respRodadas, respEntregas, respDependencias] = await Promise.all([
+    idsDeSubtarefas.length
+      ? supabase
+          .from("approval_rounds")
+          .select("*")
+          .eq("content_type", "subtask")
+          .in("content_id", idsDeSubtarefas)
+          .order("numero_rodada", { ascending: false })
+      : Promise.resolve({ data: [] as ApprovalRound[], error: null }),
+    idsDeSubtarefas.length
+      ? supabase
+          .from("subtask_entregas")
+          .select("*")
+          .in("subtask_id", idsDeSubtarefas)
+          .order("created_at")
+      : Promise.resolve({ data: [] as SubtaskEntrega[], error: null }),
+    idsDeSubtarefas.length
+      ? supabase
+          .from("subtask_dependencies")
+          .select("subtask_id, depende_de_id")
+          .in("subtask_id", idsDeSubtarefas)
+      : Promise.resolve({
+          data: [] as { subtask_id: string; depende_de_id: string }[],
+          error: null,
+        }),
+  ]);
 
   const rodadas = ouFalha("as rodadas da demanda", respRodadas);
   const entregas = ouFalha("as entregas das etapas", respEntregas);
   const dependencias = ouFalha("as dependências das etapas", respDependencias);
+
+  // QUEM MAIS RECEBEU CADA ENVIO (0129), numa ida só pela demanda inteira.
+  //
+  // Ela vem DEPOIS das rodadas porque depende dos ids delas, e ANTES do mapa
+  // de pessoas porque os ids dela entram nele — sem isso, a segunda pessoa de
+  // um envio apareceria sem nome no histórico. É a forma de `extras` logo
+  // abaixo, que faz o mesmo com a segunda pessoa de uma etapa.
+  const aprovadoresExtras = rodadas.length
+    ? ouFalha(
+        "quem mais recebeu cada envio",
+        await supabase
+          .from("approval_round_aprovadores")
+          .select("round_id, user_id")
+          .in(
+            "round_id",
+            rodadas.map((r) => r.id),
+          )
+          .order("created_at"),
+      )
+    : [];
 
   // QUEM MAIS FAZ CADA ETAPA (0114), numa ida só para a demanda inteira.
   //
@@ -608,7 +646,10 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
     await supabase
       .from("subtask_responsaveis")
       .select("subtask_id, user_id")
-      .in("subtask_id", subtarefas.map((s) => s.id))
+      .in(
+        "subtask_id",
+        subtarefas.map((s) => s.id),
+      )
       .order("created_at"),
   );
 
@@ -636,6 +677,7 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
           r.decidido_por,
           r.aprovador_id,
         ]),
+        ...aprovadoresExtras.map((a) => a.user_id),
         ...entregas.map((e) => e.enviado_por),
       ].filter(Boolean),
     ),
@@ -665,9 +707,7 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
   const [enriquecida] = await enriquecer([task]);
 
   const detalhadas: SubtarefaDetalhada[] = subtarefas.map((sub) => {
-    const minhasRodadas = rodadas.filter(
-      (r) => r.content_id === sub.id,
-    );
+    const minhasRodadas = rodadas.filter((r) => r.content_id === sub.id);
     const situacao = situacaoDasRodadas(minhasRodadas, sub.tipo_aprovacao);
 
     const dependeDe = dependencias
@@ -686,7 +726,9 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
         ? (porPessoa.get(sub.responsavel_id) ?? null)
         : null,
       outrosResponsaveis: extras
-        .filter((e) => e.subtask_id === sub.id && e.user_id !== sub.responsavel_id)
+        .filter(
+          (e) => e.subtask_id === sub.id && e.user_id !== sub.responsavel_id,
+        )
         .map((e) => porPessoa.get(e.user_id))
         .filter((p): p is Pessoa => Boolean(p)),
       dependeDe,
@@ -702,6 +744,18 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
         aprovador: r.aprovador_id
           ? (porPessoa.get(r.aprovador_id) ?? null)
           : null,
+        aprovadores: [
+          ...(r.aprovador_id ? [r.aprovador_id] : []),
+          ...aprovadoresExtras
+            .filter((a) => a.round_id === r.id && a.user_id !== r.aprovador_id)
+            .map((a) => a.user_id),
+        ]
+          // O NOME QUE NÃO VOLTOU FICA DE FORA: `profiles_select` é `own or
+          // is_gestor()`, então o colaborador lê UM perfil — o dele. A lista
+          // mais curta diz o que ela sabe; um "—" afirmaria que há alguém sem
+          // nome.
+          .map((id) => porPessoa.get(id))
+          .filter((p): p is Pessoa => Boolean(p)),
       })),
       entregas: entregas
         .filter((e) => e.subtask_id === sub.id)
@@ -941,7 +995,10 @@ async function campanhasNoCalendario(
 
   if (filtros.cliente) consulta = consulta.eq("client_id", filtros.cliente);
 
-  const linhasDeCampanha = ouFalha("as campanhas do calendário", await consulta);
+  const linhasDeCampanha = ouFalha(
+    "as campanhas do calendário",
+    await consulta,
+  );
   const campanhas = linhasDeCampanha.filter((c) => c.status !== "cancelada");
   if (campanhas.length === 0) return [];
 

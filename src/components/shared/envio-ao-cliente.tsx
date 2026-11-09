@@ -14,13 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { Conteudo, EnvioEscolhido } from "@/lib/aprovacoes/conteudo";
@@ -28,6 +21,7 @@ import {
   quemPodeAprovar,
   type QuemPodeAprovar,
 } from "@/app/(interno)/painel/_actions/aprovadores";
+import { SeletorDeAprovadores } from "@/components/shared/seletor-de-aprovadores";
 
 /**
  * O MODAL DE ENVIO AO CLIENTE: cliente, responsável e mensagem.
@@ -64,6 +58,19 @@ import {
  * instrução (0023). O botão fica desligado COM a razão à vista, e não some: um
  * botão que some ensina que a ação não existe.
  *
+ * **E SÃO VÁRIAS PESSOAS DESDE A 0129** (item 15), não uma. O pedido daquele
+ * item é *"permitir mais de um responsável"*, e o seletor virou um grupo de
+ * chips em vez de ganhar um segundo `<Select>` ao lado: é a decisão do seletor
+ * de redes do social — no celular, marcar o segundo item de um
+ * `<select multiple>` desmarca o primeiro em metade dos navegadores.
+ *
+ * **A ORDEM DO CLIQUE IMPORTA, e é por isso que o seletor não ordena nada.**
+ * `approval_rounds.aprovador_id` continua existindo e continua sendo a PRIMEIRA
+ * pessoa — a forma da 0114, onde a coluna é quem faz a etapa hoje e a tabela de
+ * vínculo é quem manda. Quem a tela manda primeiro é quem fica na coluna, então
+ * ordenar em ordem alfabética aqui trocaria a escolha de quem clicou pela do
+ * alfabeto, sem nada dizendo.
+ *
  * **A MENSAGEM É OPCIONAL de propósito**, e é a decisão do recado do lote
  * (0090): na maioria dos envios não há nada a dizer, e um campo obrigatório
  * faria alguém escrever "segue" dezoito vezes por ano.
@@ -92,7 +99,7 @@ export function EnvioAoCliente({
 }) {
   const [quem, setQuem] = useState<QuemPodeAprovar | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [aprovadorId, setAprovadorId] = useState("");
+  const [aprovadorIds, setAprovadorIds] = useState<string[]>([]);
   const [mensagem, setMensagem] = useState("");
   const [enviando, iniciar] = useTransition();
   const [tentativa, setTentativa] = useState(0);
@@ -123,8 +130,8 @@ export function EnvioAoCliente({
         // clique num seletor de uma opção é pedir uma decisão que não existe —
         // e é o estado da única conta deste banco que tem portal. Com duas ou
         // mais, nada vem marcado: a opção pré-marcada é a que ninguém lê.
-        setAprovadorId(
-          r.dados.aprovadores.length === 1 ? r.dados.aprovadores[0].id : "",
+        setAprovadorIds(
+          r.dados.aprovadores.length === 1 ? [r.dados.aprovadores[0].id] : [],
         );
       } else {
         setErro(r.ok ? "Não foi possível ler quem aprova." : r.error);
@@ -142,20 +149,21 @@ export function EnvioAoCliente({
 
   const carregando = aberto && quem === null && erro === null;
   const semNinguem = quem !== null && quem.aprovadores.length === 0;
-  const impedido = carregando || semNinguem || aprovadorId === "" || enviando;
+  const impedido =
+    carregando || semNinguem || aprovadorIds.length === 0 || enviando;
 
   const motivo = carregando
     ? "Lendo quem aprova por esta conta…"
     : semNinguem
       ? "Esta conta ainda não tem ninguém com acesso ao portal."
-      : aprovadorId === ""
+      : aprovadorIds.length === 0
         ? "Escolha quem vai aprovar."
         : null;
 
   function enviar() {
     iniciar(async () => {
       const ok = await aoEnviar({
-        aprovadorId,
+        aprovadorIds,
         mensagem: mensagem.trim() === "" ? null : mensagem.trim(),
       });
       if (ok) {
@@ -229,35 +237,27 @@ export function EnvioAoCliente({
           {/* RESPONSÁVEL — obrigatório. */}
           {!semNinguem && !erro ? (
             <div className="space-y-1">
-              <Label htmlFor="aprovador-do-envio" className="text-xs">
+              {/* É `<span>` E NÃO `<Label htmlFor>`: o alvo é um grupo de
+                  botões, e um `<label>` só nomeia campo de formulário — a regra
+                  que os 52 `SelectTrigger` do produto já pagaram. Quem nomeia o
+                  grupo é o `aria-label` dele. */}
+              <span className="text-text-secondary block text-xs font-medium">
                 Quem vai aprovar
-              </Label>
-              <Select
-                value={aprovadorId}
-                onValueChange={setAprovadorId}
-                disabled={carregando || enviando}
-              >
-                <SelectTrigger
-                  aria-label="Quem vai aprovar"
-                  id="aprovador-do-envio"
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Escolha a pessoa…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(quem?.aprovadores ?? []).map((pessoa) => (
-                    <SelectItem key={pessoa.id} value={pessoa.id}>
-                      {pessoa.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              </span>
+              <SeletorDeAprovadores
+                id="aprovador-do-envio"
+                pessoas={quem?.aprovadores ?? []}
+                valor={aprovadorIds}
+                aoMudar={setAprovadorIds}
+                desabilitado={carregando || enviando}
+              />
               {/* QUALQUER PESSOA DA EMPRESA CONTINUA PODENDO RESPONDER, e
                   dizê-lo aqui é o que impede a pessoa de concluir que nomear
                   tranca a decisão — não há hierarquia do lado do cliente. */}
               <p className="text-text-muted text-xs">
-                É quem recebe o aviso. Qualquer pessoa da empresa continua
-                podendo responder.
+                {aprovadorIds.length > 1
+                  ? "São quem recebe o aviso. Qualquer pessoa da empresa continua podendo responder."
+                  : "É quem recebe o aviso. Qualquer pessoa da empresa continua podendo responder."}
               </p>
             </div>
           ) : null}
@@ -287,7 +287,11 @@ export function EnvioAoCliente({
           </Button>
           {/* O BOTÃO FICA DESLIGADO COM A RAZÃO À VISTA, e não some: é a
               decisão do "Enviar ao cliente" do Social Media. */}
-          <Button onClick={enviar} disabled={impedido} title={motivo ?? undefined}>
+          <Button
+            onClick={enviar}
+            disabled={impedido}
+            title={motivo ?? undefined}
+          >
             {enviando ? (
               <Loader2 className="animate-spin" />
             ) : (

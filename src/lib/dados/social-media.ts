@@ -3,6 +3,7 @@ import "server-only";
 import {
   assinarArquivos,
   comentariosDe,
+  historicoDeAprovacoes,
   nomesDe,
   type ComentarioDoConteudo,
 } from "@/lib/dados/conteudo";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/dominio/posts";
 import { ouFalha } from "./consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import type { RodadaDoHistorico } from "@/lib/aprovacoes/conteudo";
 import type {
   ArquivoDaVersao,
   ContentStatus,
@@ -401,6 +403,20 @@ export async function obterPostDaAgencia(id: string): Promise<{
    * perguntar duas vezes de qual material é a conversa.
    */
   comentarios: ComentarioDoConteudo[];
+  /**
+   * O HISTÓRICO DE APROVAÇÕES DESTA PEÇA (item 17), as internas inclusive.
+   *
+   * **O editor não tinha nenhum**, e é a metade do item que não é de desenho:
+   * o post passa pelo mesmo motor da etapa de demanda desde a 0032 — rodada
+   * interna, envio ao cliente, decisão com autor, data e comentário — e nada
+   * disso aparecia na tela em que ele é produzido. O pedido de ajustes do
+   * cliente ficava na rodada, que esta tela não mostrava.
+   *
+   * **E ela vem no mesmo pacote do post**, pela razão escrita em `comentarios`
+   * logo acima: o editor abre UM post, e quem sabe o que ele carrega é esta
+   * consulta.
+   */
+  historico: RodadaDoHistorico[];
 } | null> {
   const supabase = await criarClienteServidor();
 
@@ -466,6 +482,10 @@ export async function obterPostDaAgencia(id: string): Promise<{
     referencias: await referenciasDoPost(id),
     portao,
     comentarios: await comentariosDe({ tipo: "post", id }),
+    // UM ID NUMA CHAMADA QUE ACEITA N: o editor abre um post, e a função é a
+    // mesma que a árvore da campanha chama com cinquenta — uma versão de um
+    // id só seria a segunda leitura da mesma pergunta.
+    historico: (await historicoDeAprovacoes("post", [id])).get(id) ?? [],
     versoes: versoes.map((v) => ({
       id: v.id,
       numero: v.numero_versao,
@@ -904,13 +924,21 @@ export async function mesesDeSocialDaAgencia(
 
   // A PRIMEIRA DE CADA MÊS, e o `order("ordem")` acima é o que garante que ela
   // chegue primeiro — por isso o `continue` que preserva a já guardada.
-  const faseDoMes = new Map<string, { titulo: string; responsavelId: string | null }>();
+  const faseDoMes = new Map<
+    string,
+    { titulo: string; responsavelId: string | null }
+  >();
   for (const f of fases) {
     if (faseDoMes.has(f.task_id)) continue;
-    faseDoMes.set(f.task_id, { titulo: f.titulo, responsavelId: f.responsavel_id });
+    faseDoMes.set(f.task_id, {
+      titulo: f.titulo,
+      responsavelId: f.responsavel_id,
+    });
   }
 
-  const nomes = await nomesDe([...faseDoMes.values()].map((f) => f.responsavelId));
+  const nomes = await nomesDe(
+    [...faseDoMes.values()].map((f) => f.responsavelId),
+  );
 
   const total = new Map<string, number>();
   const aprovadas = new Map<string, number>();
@@ -967,7 +995,9 @@ function faseDoCartao(
   if (!fase) return null;
   return {
     titulo: fase.titulo,
-    responsavel: fase.responsavelId ? (nomes.get(fase.responsavelId) ?? null) : null,
+    responsavel: fase.responsavelId
+      ? (nomes.get(fase.responsavelId) ?? null)
+      : null,
   };
 }
 
@@ -1086,7 +1116,9 @@ export type OndeMoraOPost = {
  * continua abrindo por `?post=` quando o mês vem na URL, que é o caminho de
  * quem chega pelo mês.
  */
-export async function ondeMoraOPost(postId: string): Promise<OndeMoraOPost | null> {
+export async function ondeMoraOPost(
+  postId: string,
+): Promise<OndeMoraOPost | null> {
   const supabase = await criarClienteServidor();
 
   const posts = ouFalha(

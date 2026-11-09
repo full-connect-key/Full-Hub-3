@@ -793,7 +793,24 @@ from (
     -- desde a 0098 e continua de pe com a funcao antiga dentro -- o que a 0128
     -- acrescenta e o aviso ser do APROVADOR, e e ele que precisa ser procurado.
     ('0128', 'o responsavel pela aprovacao do cliente', 'no_corpo',
-             'approval_rounds_avisa_o_cliente|new.aprovador_id')
+             'approval_rounds_avisa_o_cliente|new.aprovador_id'),
+
+    -- O MARCADOR APONTA PARA O PASSO 8, que e a ULTIMA coisa que a 0129
+    -- reescreve, e nao para a tabela do PASSO 1. A razao e a mesma da 0128: o
+    -- PASSO 8 e o que fecha o furo, e uma colagem que morre antes dele deixa a
+    -- tabela de vinculo e as quatro funcoes de pe com a rodada fechada ainda
+    -- reescrivel -- que e exatamente o banco em que esta migration nasceu, e o
+    -- que um marcador no PASSO 1 chamaria de `ok`.
+    --
+    -- E e `no_corpo` e nao `trigger`: `approval_rounds_protege_fechada` existe
+    -- desde a 0032 e continua de pe com a funcao de antes dentro. O que a 0129
+    -- acrescenta e o ramo que CONGELA, e e ele que precisa ser procurado.
+    -- E O TRECHO PROCURADO E SEM ACENTO DE PROPOSITO: este arquivo e ASCII, e
+    -- a frase da recusa ("ja decidida nao se reescreve") tem acento no corpo
+    -- da funcao -- um marcador com acento aqui nunca casaria, e a linha diria
+    -- FALTA num banco em dia. O que se procura e a condicao, que e codigo.
+    ('0129', 'varios aprovadores e a rodada congelada', 'no_corpo',
+             'proteger_rodada_fechada|new.aprovador_id is distinct from old.aprovador_id')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

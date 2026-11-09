@@ -51,6 +51,8 @@ import {
 
 import { CardSelecionado } from "@/components/portal/card-selecionado";
 import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
+import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
+import type { RodadaDoHistorico } from "@/lib/aprovacoes/conteudo";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { CarrosselDoEditor } from "./carrossel-do-editor";
 import { CorrenteDoPost } from "./corrente-do-post";
@@ -79,12 +81,21 @@ const SEM_VALOR = "__sem__";
 const BUCKET = "posts-artes";
 
 /** A corrente, desenhada. As quatro mãos, com a atual marcada. */
-const CORRENTE: MaoDoPost[] = ["briefing", "producao", "revisao", "com_cliente"];
+const CORRENTE: MaoDoPost[] = [
+  "briefing",
+  "producao",
+  "revisao",
+  "com_cliente",
+];
 
 function Corrente({ atual }: { atual: MaoDoPost }) {
-  const indice = atual === "encerrado" ? CORRENTE.length : CORRENTE.indexOf(atual);
+  const indice =
+    atual === "encerrado" ? CORRENTE.length : CORRENTE.indexOf(atual);
   return (
-    <ol className="flex flex-wrap items-center gap-1.5" aria-label="Onde o post está">
+    <ol
+      className="flex flex-wrap items-center gap-1.5"
+      aria-label="Onde o post está"
+    >
       {CORRENTE.map((mao, i) => {
         const passou = i < indice;
         const aqui = i === indice;
@@ -137,6 +148,7 @@ export function EditorDoPost({
   aprovacoesDoCliente,
   referencias,
   comentarios,
+  historico,
   agora,
   equipe,
   quemLe,
@@ -156,6 +168,7 @@ export function EditorDoPost({
   referencias: ReferenciaDoPost[];
   /** A conversa do cliente sobre esta peça — da peça e de cada card (0126). */
   comentarios: ComentarioDoConteudo[];
+  historico: RodadaDoHistorico[];
   /** O instante do servidor — ver a regra do "agora" na thread. */
   agora: string;
   equipe: { id: string; nome: string }[];
@@ -294,7 +307,9 @@ export function EditorDoPost({
             {post.cliente} ·{" "}
             {rotuloDaData(
               post.dataPublicacao
-                ? format(parseISO(post.dataPublicacao), "d 'de' MMMM", { locale: ptBR })
+                ? format(parseISO(post.dataPublicacao), "d 'de' MMMM", {
+                    locale: ptBR,
+                  })
                 : null,
             )}
           </p>
@@ -303,7 +318,12 @@ export function EditorDoPost({
           </h2>
         </div>
         {aoFechar ? (
-          <Button variant="ghost" size="sm" onClick={aoFechar} aria-label="Fechar">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={aoFechar}
+            aria-label="Fechar"
+          >
             ✕
           </Button>
         ) : null}
@@ -320,7 +340,9 @@ export function EditorDoPost({
           {post.formato ?? ROTULO_DA_MIDIA[post.midia]}
         </Badge>
         {post.responsavel ? (
-          <span className="text-text-secondary text-xs">com {post.responsavel}</span>
+          <span className="text-text-secondary text-xs">
+            com {post.responsavel}
+          </span>
         ) : (
           <span className="text-warning text-xs">sem responsável</span>
         )}
@@ -331,125 +353,130 @@ export function EditorDoPost({
       {/* A ARTE ANTES DOS BOTÕES, como no portal: botão antes da arte convida
           a decidir sem olhar. Aqui a razão é a mesma, um passo antes. */}
       <CardSelecionado>
-      {post.midia === "video" ? (
-        <div className="space-y-3">
-          {/* O ARQUIVO VEM PRIMEIRO (0120), e o link depois — é a ordem da
+        {post.midia === "video" ? (
+          <div className="space-y-3">
+            {/* O ARQUIVO VEM PRIMEIRO (0120), e o link depois — é a ordem da
               decisão: o vídeo dentro do Full Hub é a forma que o cliente
               assiste sem sair do portal, e o link é a saída de quem já o tem
               no Drive. Antes desta migration o campo de link era a única
               forma, e o cabeçalho da 0042 escreveu o custo dela: *"o cliente
               sai do portal para assistir, e decide longe do botão de
               aprovar"*. */}
-          <QuadroDeVideo
-            src={post.videoAssinado}
-            poster={post.thumbnailUrl}
-            link={post.videoUrl}
-            titulo={post.tema}
-          />
-
-          {posso ? (
-            <EnviarArquivos
-              bucket={BUCKET}
-              familias={["video"]}
-              rotulo={post.videoCaminho ? "Trocar o vídeo" : "Subir o vídeo"}
-              rotuloDoCampo="Escolher o arquivo de vídeo"
-              dica="MP4, MOV ou WEBM, até 500 MB. O envio continua de onde parou se a conexão cair."
-              caminho={(arquivo) =>
-                // O CAMINHO COMEÇA PELO id DA EMPRESA, e não é capricho: a
-                // policy "posts-artes: cliente le" compara
-                // `(storage.foldername(name))[1]` com as empresas de quem
-                // está pedindo. Um arquivo solto na raiz a equipe vê e o
-                // cliente não — e o vídeo aparece quebrado na tela dele.
-                `${post.clienteId}/${post.id}-video-${Date.now()}.${
-                  arquivo.name.split(".").pop() ?? "mp4"
-                }`
-              }
-              onPronto={gravarVideo}
+            <QuadroDeVideo
+              src={post.videoAssinado}
+              poster={post.thumbnailUrl}
+              link={post.videoUrl}
+              titulo={post.tema}
             />
-          ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor={`video-${post.id}`}>
-              Ou o link, se o vídeo está fora do Full Hub
-            </Label>
-            <Input
-              id={`video-${post.id}`}
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://drive.google.com/..."
-              disabled={!posso}
-            />
-            {videoUrl ? (
-              <Button variant="outline" size="sm" asChild>
-                <a href={videoUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink aria-hidden className="size-4" />
-                  Abrir o vídeo
-                </a>
-              </Button>
+            {posso ? (
+              <EnviarArquivos
+                bucket={BUCKET}
+                familias={["video"]}
+                rotulo={post.videoCaminho ? "Trocar o vídeo" : "Subir o vídeo"}
+                rotuloDoCampo="Escolher o arquivo de vídeo"
+                dica="MP4, MOV ou WEBM, até 500 MB. O envio continua de onde parou se a conexão cair."
+                caminho={(arquivo) =>
+                  // O CAMINHO COMEÇA PELO id DA EMPRESA, e não é capricho: a
+                  // policy "posts-artes: cliente le" compara
+                  // `(storage.foldername(name))[1]` com as empresas de quem
+                  // está pedindo. Um arquivo solto na raiz a equipe vê e o
+                  // cliente não — e o vídeo aparece quebrado na tela dele.
+                  `${post.clienteId}/${post.id}-video-${Date.now()}.${
+                    arquivo.name.split(".").pop() ?? "mp4"
+                  }`
+                }
+                onPronto={gravarVideo}
+              />
             ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor={`video-${post.id}`}>
+                Ou o link, se o vídeo está fora do Full Hub
+              </Label>
+              <Input
+                id={`video-${post.id}`}
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                disabled={!posso}
+              />
+              {videoUrl ? (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={videoUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink aria-hidden className="size-4" />
+                    Abrir o vídeo
+                  </a>
+                </Button>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {/* O CARROSSEL, e não uma tira de miniaturas (0048). A tira de 48px
+        ) : (
+          <div className="space-y-2">
+            {/* O CARROSSEL, e não uma tira de miniaturas (0048). A tira de 48px
               não deixava ir de uma imagem para outra — era só isso que ela
               fazia, e quem produz precisa conferir slide a slide antes de
               mandar. A arte única passa pelo mesmo componente com uma imagem
               só: dois desenhos para a mesma coisa divergiriam no dia em que o
               botão de remover mudasse. */}
-          <CarrosselDoEditor
-            postId={post.id}
-            slides={
-              slides.length > 0
-                ? slides
-                : post.thumbnailUrl
-                  ? [{ url: post.arteUrl ?? "capa", assinada: post.thumbnailUrl }]
-                  : []
-            }
-            alt={`Arte de ${post.tema}`}
-            podeEditar={posso}
-            marcadores={
-              slides.length > 1
-                ? slides.map(
-                    (_, i) =>
-                      comentarios.filter((c) => c.cardIndice === i).length,
-                  )
-                : undefined
-            }
-          />
+            <CarrosselDoEditor
+              postId={post.id}
+              slides={
+                slides.length > 0
+                  ? slides
+                  : post.thumbnailUrl
+                    ? [
+                        {
+                          url: post.arteUrl ?? "capa",
+                          assinada: post.thumbnailUrl,
+                        },
+                      ]
+                    : []
+              }
+              alt={`Arte de ${post.tema}`}
+              podeEditar={posso}
+              marcadores={
+                slides.length > 1
+                  ? slides.map(
+                      (_, i) =>
+                        comentarios.filter((c) => c.cardIndice === i).length,
+                    )
+                  : undefined
+              }
+            />
 
-          {posso ? (
-            /* SÓ IMAGEM AQUI, e é a única das três telas com a lista
+            {posso ? (
+              /* SÓ IMAGEM AQUI, e é a única das três telas com a lista
                fechada: `arte_url` é a CAPA, e ela é desenhada num `<img>` no
                card, no calendário e na miniatura do portal. Um PDF ou um PSD
                nesta posição sai como moldura quebrada nos três.
                O arquivo aberto de criação entra pela referência da demanda,
                que aceita as cinco famílias. */
-            <EnviarArquivos
-              bucket={BUCKET}
-              familias={["imagem"]}
-              varios={post.midia === "carrossel"}
-              rotulo={
-                post.midia === "carrossel"
-                  ? "Subir os slides"
-                  : post.arteUrl
-                    ? "Trocar a arte"
-                    : "Subir a arte"
-              }
-              rotuloDoCampo="Escolher a arte do post"
-              dica="JPG ou PNG, até 15 MB."
-              caminho={(arquivo, i) =>
-                `${post.clienteId}/${post.id}-${Date.now()}-${i}.${
-                  arquivo.name.split(".").pop() ?? "png"
-                }`
-              }
-              onPronto={gravarArte}
-            />
-          ) : null}
-        </div>
-      )}
+              <EnviarArquivos
+                bucket={BUCKET}
+                familias={["imagem"]}
+                varios={post.midia === "carrossel"}
+                rotulo={
+                  post.midia === "carrossel"
+                    ? "Subir os slides"
+                    : post.arteUrl
+                      ? "Trocar a arte"
+                      : "Subir a arte"
+                }
+                rotuloDoCampo="Escolher a arte do post"
+                dica="JPG ou PNG, até 15 MB."
+                caminho={(arquivo, i) =>
+                  `${post.clienteId}/${post.id}-${Date.now()}-${i}.${
+                    arquivo.name.split(".").pop() ?? "png"
+                  }`
+                }
+                onPronto={gravarArte}
+              />
+            ) : null}
+          </div>
+        )}
 
-      {/* ------------------------------------------------ a conversa da peça --
+        {/* ------------------------------------------------ a conversa da peça --
           **E ESTA ERA A PONTE CONSTRUÍDA E NUNCA ATRAVESSADA.** `comments`
           existe desde a 0032, `comments_select` é `is_staff()` desde então, e
           NENHUMA tela do painel lia a tabela: o comentário que o cliente
@@ -467,17 +494,17 @@ export function EditorDoPost({
           a agência lê. `somenteLeitura` fica falso — `comments_insert` aceita
           `is_staff()` desde a 0032, e quem responde *"subi a v2"* na thread do
           card está tendo a conversa que o pedido existe para ter. */}
-      <ThreadDeComentarios
-        conteudo={{ tipo: "post", id: post.id }}
-        comentarios={comentarios}
-        agora={agora}
-        nomeDaEmpresa={post.cliente}
-        composicao={
-          slides.length > 1
-            ? { quadros: slides.length, versaoAtual: post.versaoAtual }
-            : undefined
-        }
-      />
+        <ThreadDeComentarios
+          conteudo={{ tipo: "post", id: post.id }}
+          comentarios={comentarios}
+          agora={agora}
+          nomeDaEmpresa={post.cliente}
+          composicao={
+            slides.length > 1
+              ? { quadros: slides.length, versaoAtual: post.versaoAtual }
+              : undefined
+          }
+        />
       </CardSelecionado>
 
       <div className="space-y-1.5">
@@ -543,12 +570,21 @@ export function EditorDoPost({
             value={post.midia}
             disabled={!posso || slides.length > 1}
             onValueChange={(v) =>
-              iniciar(() =>
-                void agir(() => chamarAcao(() => editarPost(post.id, { midia: v as PostMidia }))),
+              iniciar(
+                () =>
+                  void agir(() =>
+                    chamarAcao(() =>
+                      editarPost(post.id, { midia: v as PostMidia }),
+                    ),
+                  ),
               )
             }
           >
-            <SelectTrigger aria-label="Mídia" id={`midia-${post.id}`} className="w-full">
+            <SelectTrigger
+              aria-label="Mídia"
+              id={`midia-${post.id}`}
+              className="w-full"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -584,8 +620,13 @@ export function EditorDoPost({
                 toast.error("O post precisa de ao menos uma rede.");
                 return;
               }
-              iniciar(() =>
-                void agir(() => chamarAcao(() => editarPost(post.id, { plataformas: redes }))),
+              iniciar(
+                () =>
+                  void agir(() =>
+                    chamarAcao(() =>
+                      editarPost(post.id, { plataformas: redes }),
+                    ),
+                  ),
               );
             }}
           />
@@ -604,14 +645,21 @@ export function EditorDoPost({
             placeholder="Feed, Stories, Reels…"
             onBlur={(e) =>
               e.target.value !== (post.formato ?? "") &&
-              iniciar(() =>
-                void agir(() => chamarAcao(() => editarPost(post.id, { formato: e.target.value }))),
+              iniciar(
+                () =>
+                  void agir(() =>
+                    chamarAcao(() =>
+                      editarPost(post.id, { formato: e.target.value }),
+                    ),
+                  ),
               )
             }
           />
           <datalist id={`formatos-${post.id}`}>
             {[
-              ...new Set(post.plataformas.flatMap((p) => FORMATOS_SUGERIDOS[p] ?? [])),
+              ...new Set(
+                post.plataformas.flatMap((p) => FORMATOS_SUGERIDOS[p] ?? []),
+              ),
             ].map((f) => (
               <option key={f} value={f} />
             ))}
@@ -636,12 +684,15 @@ export function EditorDoPost({
             disabled={!posso}
             onChange={(e) =>
               e.target.value !== (post.dataPublicacao ?? "") &&
-              iniciar(() =>
-                void agir(() =>
-                  chamarAcao(() =>
-                    editarPost(post.id, { data_publicacao: e.target.value || null }),
+              iniciar(
+                () =>
+                  void agir(() =>
+                    chamarAcao(() =>
+                      editarPost(post.id, {
+                        data_publicacao: e.target.value || null,
+                      }),
+                    ),
                   ),
-                ),
               )
             }
           />
@@ -656,10 +707,13 @@ export function EditorDoPost({
             disabled={!posso}
             onChange={(e) =>
               e.target.value !== (post.horario ?? "") &&
-              iniciar(() =>
-                void agir(() =>
-                  chamarAcao(() => editarPost(post.id, { horario: e.target.value || null })),
-                ),
+              iniciar(
+                () =>
+                  void agir(() =>
+                    chamarAcao(() =>
+                      editarPost(post.id, { horario: e.target.value || null }),
+                    ),
+                  ),
               )
             }
           />
@@ -671,12 +725,21 @@ export function EditorDoPost({
             <Select
               value={post.responsavelId ?? SEM_VALOR}
               onValueChange={(v) =>
-                iniciar(() =>
-                  void agir(() => chamarAcao(() => liberarPost(post.id, v === SEM_VALOR ? null : v))),
+                iniciar(
+                  () =>
+                    void agir(() =>
+                      chamarAcao(() =>
+                        liberarPost(post.id, v === SEM_VALOR ? null : v),
+                      ),
+                    ),
                 )
               }
             >
-              <SelectTrigger aria-label="Responsável" id={`resp-${post.id}`} className="w-full">
+              <SelectTrigger
+                aria-label="Responsável"
+                id={`resp-${post.id}`}
+                className="w-full"
+              >
                 <SelectValue placeholder="Liberar para…" />
               </SelectTrigger>
               <SelectContent>
@@ -699,8 +762,10 @@ export function EditorDoPost({
         {post.enviadoEm ? (
           <p className="bg-blue-soft text-accent-strong rounded-lg px-3 py-2 text-sm">
             Enviado ao cliente em{" "}
-            {format(parseISO(post.enviadoEm.slice(0, 10)), "dd/MM", { locale: ptBR })}.
-            {post.esperandoCliente ? " Ele ainda não decidiu." : ""}
+            {format(parseISO(post.enviadoEm.slice(0, 10)), "dd/MM", {
+              locale: ptBR,
+            })}
+            .{post.esperandoCliente ? " Ele ainda não decidiu." : ""}
           </p>
         ) : null}
 
@@ -711,7 +776,12 @@ export function EditorDoPost({
               size="sm"
               disabled={emAcao}
               onClick={() =>
-                iniciar(() => void agir(() => chamarAcao(() => pedirAvalInterno(post.id))))
+                iniciar(
+                  () =>
+                    void agir(() =>
+                      chamarAcao(() => pedirAvalInterno(post.id)),
+                    ),
+                )
               }
             >
               <UserPlus aria-hidden className="size-4" />
@@ -816,16 +886,44 @@ export function EditorDoPost({
         </div>
       ) : null}
 
+      {/* O HISTÓRICO DE APROVAÇÕES (item 17), e ele é o MESMO componente do
+          painel da etapa de demanda — as duas telas mostram o registro do mesmo
+          motor de aprovação, e dois desenhos divergiriam no que mais importa
+          ali: quem decidiu, quando, e com que comentário.
+
+          ELE VEM ANTES DAS VERSÕES e depois da corrente, porque é essa a ordem
+          do que se pergunta ao abrir uma peça que voltou: em que pé está a
+          produção, o que o cliente decidiu, e só então que arquivo era cada
+          versão. E é aqui, no fim, e não ao lado da arte: a thread é conversa
+          em curso, o histórico é registro — a decisão do detalhe da Task, onde
+          o que encerra alguma coisa fica no fim da página. */}
+      {historico.length > 0 ? (
+        <div className="border-border border-t pt-4">
+          <p className="text-text-muted mb-2 text-xs tracking-wide uppercase">
+            Aprovações
+          </p>
+          <HistoricoDeAprovacoes
+            conteudo={{ tipo: "post", id: post.id }}
+            rodadas={historico}
+          />
+        </div>
+      ) : null}
+
       {versoes.length > 0 ? (
         <div className="border-border border-t pt-4">
-          <p className="text-text-muted mb-2 text-xs tracking-wide uppercase">Versões</p>
+          <p className="text-text-muted mb-2 text-xs tracking-wide uppercase">
+            Versões
+          </p>
           <ul className="space-y-1.5">
             {versoes.map((v) => (
               <li key={v.id} className="text-text-secondary text-xs">
-                v{v.numero} · {format(parseISO(v.quando.slice(0, 10)), "dd/MM")} ·{" "}
-                {v.autor ?? "—"}
+                v{v.numero} · {format(parseISO(v.quando.slice(0, 10)), "dd/MM")}{" "}
+                · {v.autor ?? "—"}
                 {v.arquivos.length > 0 ? (
-                  <span className="text-text-muted"> — {v.arquivos.length} slides</span>
+                  <span className="text-text-muted">
+                    {" "}
+                    — {v.arquivos.length} slides
+                  </span>
                 ) : null}
                 {v.videoUrl ? (
                   <span className="text-text-muted">

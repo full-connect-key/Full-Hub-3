@@ -21,6 +21,7 @@ import {
   esquemaDeEnvio,
   ROTULOS_DO_ENVIO,
 } from "@/lib/aprovacoes/conteudo";
+import { gravarOsOutrosAprovadores } from "@/lib/aprovacoes/aprovadores";
 import {
   canaisNormalizados,
   entregaveisDoWorkflow,
@@ -222,7 +223,15 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
 
     const validado = esquemaDaCampanha.safeParse(entrada);
     if (!validado.success) {
-      return falha(recusaDeValidacao("criarCampanha", validado.error, entrada, "Confira os dados da campanha.", CAMPOS));
+      return falha(
+        recusaDeValidacao(
+          "criarCampanha",
+          validado.error,
+          entrada,
+          "Confira os dados da campanha.",
+          CAMPOS,
+        ),
+      );
     }
     const dados = validado.data;
 
@@ -298,7 +307,10 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
         .select("id");
 
       if (erroDaVertente) {
-        console.error("[criarCampanha] a vertente não foi gravada", erroDaVertente);
+        console.error(
+          "[criarCampanha] a vertente não foi gravada",
+          erroDaVertente,
+        );
         naoGravou.push("a frente da conta");
       }
     }
@@ -338,7 +350,10 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
         .select("id");
 
       if (erroDoBriefing) {
-        console.error("[criarCampanha] o briefing não foi gravado", erroDoBriefing);
+        console.error(
+          "[criarCampanha] o briefing não foi gravado",
+          erroDoBriefing,
+        );
         naoGravou.push("o briefing");
       }
     }
@@ -500,7 +515,8 @@ export async function enviarEntregavelAoCliente(
       .eq("id", entregavelId)
       .maybeSingle();
 
-    if (!peca) return falha("Este material não existe, ou o seu acesso não o alcança.");
+    if (!peca)
+      return falha("Este material não existe, ou o seu acesso não o alcança.");
 
     const { data, error } = await supabase
       .from("approval_rounds")
@@ -509,19 +525,28 @@ export async function enviarEntregavelAoCliente(
         numero_rodada: peca.versao_atual,
         escopo: "cliente",
         solicitado_por: sessao.usuarioId,
-        aprovador_id: validacao.data.aprovadorId,
+        aprovador_id: validacao.data.aprovadorIds[0],
         mensagem: validacao.data.mensagem,
       })
       .select("id");
 
-    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    if (error)
+      return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
     if (!data || data.length === 0) {
       return falha("O banco recusou o envio deste material.");
     }
 
+    // OS OUTROS APROVADORES ENTRAM DEPOIS, e um aviso no lugar de uma recusa:
+    // a peça já está no portal do cliente.
+    const avisoDosOutros = await gravarOsOutrosAprovadores(
+      supabase,
+      data[0].id,
+      validacao.data.aprovadorIds,
+    );
+
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
-    return sucesso("Enviado ao cliente.");
+    return sucesso(avisoDosOutros ?? "Enviado ao cliente.");
   });
 }
 
@@ -578,7 +603,9 @@ export async function trocarCapaDaCampanha(
 
     if (error) return falha(error.message);
     if (!data || data.length === 0) {
-      return falha("O banco recusou a troca da capa. Trocar capa é da equipe interna.");
+      return falha(
+        "O banco recusou a troca da capa. Trocar capa é da equipe interna.",
+      );
     }
 
     revalidatePath(ROTA);
@@ -682,10 +709,16 @@ export async function gravarVersaoDoEntregavel(
     const validado = esquemaDaVersao.safeParse(entrada);
     if (!validado.success) {
       return falha(
-        recusaDeValidacao("gravarVersaoDoEntregavel", validado.error, entrada, "Confira os arquivos.", {
-          arquivos: "arquivos",
-          notas: "o que mudou",
-        }),
+        recusaDeValidacao(
+          "gravarVersaoDoEntregavel",
+          validado.error,
+          entrada,
+          "Confira os arquivos.",
+          {
+            arquivos: "arquivos",
+            notas: "o que mudou",
+          },
+        ),
       );
     }
 
@@ -838,9 +871,12 @@ export async function editarCampanha(
       .eq("id", campanhaId)
       .select("id");
 
-    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    if (error)
+      return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
     if (!data || data.length === 0) {
-      return falha("O banco recusou. Editar a campanha é de quem abre demanda.");
+      return falha(
+        "O banco recusou. Editar a campanha é de quem abre demanda.",
+      );
     }
 
     revalidatePath(ROTA);
@@ -898,7 +934,8 @@ export async function pedirAnaliseDoEntregavel(
       .eq("id", entregavelId)
       .maybeSingle();
 
-    if (!peca) return falha("Este material não existe, ou o seu acesso não o alcança.");
+    if (!peca)
+      return falha("Este material não existe, ou o seu acesso não o alcança.");
     if (!peca.arte_url) {
       return falha("Suba pelo menos um arquivo antes de pedir o aval interno.");
     }
@@ -913,7 +950,9 @@ export async function pedirAnaliseDoEntregavel(
       .limit(1);
 
     if (jaTem && jaTem.length > 0) {
-      return falha("Esta versão já pediu o aval interno. Suba uma versão nova para pedir de novo.");
+      return falha(
+        "Esta versão já pediu o aval interno. Suba uma versão nova para pedir de novo.",
+      );
     }
 
     const { data, error } = await supabase
@@ -926,16 +965,21 @@ export async function pedirAnaliseDoEntregavel(
       })
       .select("id");
 
-    if (error) return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
+    if (error)
+      return falha(`${error.message}${error.hint ? ` ${error.hint}` : ""}`);
     if (!data || data.length === 0) {
-      return falha("O banco recusou: só quem produziu o material pede o aval interno dele.");
+      return falha(
+        "O banco recusou: só quem produziu o material pede o aval interno dele.",
+      );
     }
 
     revalidatePath(ROTA);
     revalidatePath(`${ROTA}/campanhas/${peca.campaign_id}`);
     // A FILA MORA EM GESTÃO DE TASKS desde que as três telas viraram uma.
     revalidatePath("/painel/gestao-tasks");
-    return sucesso("Aval interno pedido. A gestão decide na fila de aprovações internas.");
+    return sucesso(
+      "Aval interno pedido. A gestão decide na fila de aprovações internas.",
+    );
   });
 }
 
@@ -981,7 +1025,9 @@ export async function arvoreDoWorkflowParaCampanha(
 
     const aplicado = await fluxoDoWorkflow(templateId, base, clienteId);
     if (!aplicado) {
-      return falha("Este workflow não foi encontrado, ou não tem cadeia de etapas.");
+      return falha(
+        "Este workflow não foi encontrado, ou não tem cadeia de etapas.",
+      );
     }
 
     return sucesso(

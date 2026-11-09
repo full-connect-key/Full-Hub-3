@@ -14,7 +14,7 @@
  * E o carrossel tem cinco slides: a faixa em 375px e o que primeiro estoura a
  * largura, e ela so aparece com mais de um.
  */
-import { comentariosDe } from "./conteudo";
+import { comentariosDe, historicoDeAprovacoes } from "./conteudo";
 import type {
   DemandaDoMes as DemandaReal,
   MesDeSocial as MesReal,
@@ -342,6 +342,11 @@ export async function obterPostDaAgencia(id: string) {
     // painel passaria a conferir outra conversa que a do portal -- que e
     // exatamente o par que esta entrega existe para manter igual.
     comentarios: await comentariosDe({ tipo: "post", id: post.id }),
+    // O HISTORICO SAI DO MESMO STUB, pela razao de cima: uma segunda lista de
+    // rodadas aqui faria a imagem do editor conferir um ciclo diferente do
+    // que a arvore da campanha mostra -- e as duas desenham o MESMO
+    // componente.
+    historico: (await historicoDeAprovacoes("post", [post.id])).get(post.id) ?? [],
   };
 }
 

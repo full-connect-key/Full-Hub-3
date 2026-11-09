@@ -20,7 +20,7 @@ import {
   urlsDosArquivos,
   versoesDoEntregavel,
 } from "@/lib/dados/campanhas";
-import { enderecoDaArte } from "@/lib/dados/conteudo";
+import { enderecoDaArte, historicoDeAprovacoes } from "@/lib/dados/conteudo";
 import { referenciasDaDemanda } from "@/lib/dados/tasks";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
@@ -104,6 +104,20 @@ export default async function PaginaDaCampanha({
     itens.map((i) => ({ id: i.id, versaoAtual: i.versaoAtual })),
   );
 
+  // O HISTÓRICO DE APROVAÇÕES DE CADA PEÇA (item 17), numa consulta para a
+  // árvore inteira — a forma de `analiseDosEntregaveis` logo acima, e pela
+  // mesma razão: são quinze peças numa Wave, e uma ida por peça é a conta que
+  // só aparece quando a campanha está cheia.
+  //
+  // E ele mostra o que a análise NÃO mostra: a análise responde "em que pé
+  // está o aval da versão que está no ar", e é com ela que o botão decide; o
+  // histórico responde "por que refizemos isso três vezes" — as rodadas de
+  // CLIENTE inclusive, que aquela consulta filtra fora de propósito.
+  const historico = await historicoDeAprovacoes(
+    "deliverable",
+    itens.map((i) => i.id),
+  );
+
   // O PLANO POR TIPO (0122), numa chamada para a campanha inteira.
   const composicao = await composicaoDaCampanha(campanha.id);
 
@@ -148,7 +162,9 @@ export default async function PaginaDaCampanha({
                 dataInicio={campanha.dataInicio}
                 dataFim={campanha.dataFim}
                 status={campanha.status}
-                tudoAprovado={conta.total > 0 && conta.aprovados === conta.total}
+                tudoAprovado={
+                  conta.total > 0 && conta.aprovados === conta.total
+                }
               />
             ) : null}
             {campanha.taskId ? (
@@ -296,6 +312,7 @@ export default async function PaginaDaCampanha({
         versoes={versoes}
         assinadas={arquivosDasVersoes}
         analise={Object.fromEntries(analise)}
+        historico={Object.fromEntries(historico)}
         ehGestao={ehGestor(sessao.profile.role)}
       />
 

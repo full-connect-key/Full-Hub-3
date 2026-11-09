@@ -86,3 +86,82 @@ export async function quemPodeAprovar(
     });
   });
 }
+
+/**
+ * TROCAR QUEM APROVA, DEPOIS DO ENVIO (item 15, migration 0129).
+ *
+ * ---------------------------------------------------------------------------
+ * **É UMA RPC E NÃO UM `update`, e a razão foi medida.** `approval_rounds` tem
+ * UMA policy de UPDATE — `approval_rounds_decide` —, e ela é
+ * `pode_aprovar_subtarefa / _post / _entregavel`, que depois da 0029 é
+ * `is_gestor()`: a policy que governaria a troca é a que responde *"quem
+ * DECIDE"*. E quem ENVIA não é a mesma lista — `enviar_mes_ao_cliente` é
+ * `is_gestor() or is_atendimento()` desde a 0090 —, então o colaborador do
+ * Atendimento que mandou o mês não conseguiria corrigir quem recebe. Alargar
+ * aquela policy resolveria a troca e daria de lambuja o poder de decidir uma
+ * rodada interna, que a 0029 manteve fechado. São duas perguntas, então a
+ * troca é `security definer` com a dela escrita à mão.
+ *
+ * **A GUARDA DA ACTION É `exigirEquipeNaAcao()` e não uma de gestão**, que é a
+ * lição da 0059: uma pergunta mais apertada aqui não acrescentaria trava
+ * nenhuma — ela recusaria quem o banco aceita, e o banco já pergunta
+ * `is_gestor() or is_atendimento()` na primeira linha da função.
+ */
+export async function trocarAprovadores(
+  roundId: string,
+  aprovadorIds: string[],
+): Promise<Resultado<number>> {
+  return executarAcao("trocarAprovadores", async () => {
+    await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase.rpc("definir_aprovadores_da_rodada", {
+      p_round_id: roundId,
+      p_aprovadores: aprovadorIds,
+    });
+
+    if (error) return falha(error.message);
+
+    return sucesso(
+      data === 1
+        ? "Uma pessoa está nomeada para aprovar."
+        : `${data} pessoas estão nomeadas para aprovar.`,
+      data ?? 0,
+    );
+  });
+}
+
+/**
+ * REENVIAR O AVISO, SEM RECRIAR A RODADA (item 15, migration 0129).
+ *
+ * ---------------------------------------------------------------------------
+ * *"Reenviar sem recriar a task"* é o pedido. Abrir outra rodada afirmaria que
+ * existe uma VERSÃO nova do material — o número da rodada é a versão da peça
+ * desde a 0033 —, e o material é o mesmo: o que se repete é o toque no sino.
+ *
+ * **E a mensagem conta quantos avisos saíram**, porque `notificar()` devolve
+ * `null` sem derrubar a escrita quando não há a quem avisar (0062): zero é uma
+ * resposta possível, e dizer "reenviado" sobre zero avisos seria a tela
+ * afirmando o que não aconteceu.
+ */
+export async function reenviarAviso(roundId: string): Promise<Resultado<number>> {
+  return executarAcao("reenviarAviso", async () => {
+    await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase.rpc("reenviar_aviso_da_rodada", {
+      p_round_id: roundId,
+    });
+
+    if (error) return falha(error.message);
+
+    return sucesso(
+      data === 0
+        ? "Ninguém foi avisado: confira quem está nomeado."
+        : data === 1
+          ? "O aviso saiu de novo."
+          : `O aviso saiu de novo para ${data} pessoas.`,
+      data ?? 0,
+    );
+  });
+}

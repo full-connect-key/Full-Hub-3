@@ -1,5 +1,7 @@
 import { Check, MessageSquareWarning, X, type LucideIcon } from "lucide-react";
 
+import type { StatusRodada } from "@/lib/supabase/database.types";
+
 /**
  * AS TRÊS DECISÕES, com a palavra, o ícone e a cor de cada uma.
  *
@@ -105,4 +107,49 @@ export const DECISOES: Record<
 export const DECISAO_DA_ACAO: Partial<Record<string, Decisao>> = {
   aprovar: "aprovar",
   solicitar_ajustes: "ajustar",
+};
+
+/**
+ * O DESFECHO DE UMA RODADA, pelo status dela.
+ *
+ * ---------------------------------------------------------------------------
+ * **É UM `Record` TOTAL sobre `StatusRodada`, e isso é um conserto.** O
+ * acordeão de rodadas do painel da etapa escrevia o rótulo com um ternário de
+ * três ramos — aprovada, ajustes, e *"Pendente"* no `else` —, e `rejeitada` é o
+ * quarto valor do enum desde a 0032: **uma rodada recusada aparecia como
+ * pendente**, com a cor de "esperando decisão", na tela em que alguém vai
+ * procurar por que a peça voltou. Num `Record` total o compilador cobra o valor
+ * novo, que é a checagem que `STATUS_EM_ORDEM` faz no carregamento do módulo.
+ *
+ * **E AS TRÊS CORES SAEM DE `DECISOES`, não de um segundo mapa.** O status de
+ * uma rodada fechada É a decisão que a fechou — `aprovada` é Aprovar,
+ * `ajustes_solicitados` é Ajustar, `rejeitada` é Recusar —, e a cor de cada uma
+ * está medida pelo `check:cores` desde a 0127. Um par de cor próprio aqui
+ * divergiria do botão que produziu o status, a dois cliques de distância.
+ *
+ * **O RÓTULO, ESSE É PRÓPRIO, e a diferença é de tempo verbal:** o botão diz o
+ * que vai acontecer (*"Solicitar ajustes"*) e o histórico diz o que aconteceu
+ * (*"Ajustes solicitados"*). Reaproveitar o rótulo do botão poria um convite à
+ * ação numa linha que é registro.
+ *
+ * `pendente` não é decisão nenhuma, e por isso não aponta para `DECISOES`: o
+ * tom dela é `--info`, que é o do que está em curso.
+ */
+export const DESFECHO_DA_RODADA: Record<
+  StatusRodada,
+  { rotulo: string; classeDeTexto: string }
+> = {
+  pendente: { rotulo: "Pendente", classeDeTexto: "text-info" },
+  aprovada: {
+    rotulo: "Aprovada",
+    classeDeTexto: DECISOES.aprovar.classeDeTexto,
+  },
+  ajustes_solicitados: {
+    rotulo: "Ajustes solicitados",
+    classeDeTexto: DECISOES.ajustar.classeDeTexto,
+  },
+  rejeitada: {
+    rotulo: "Recusada",
+    classeDeTexto: DECISOES.recusar.classeDeTexto,
+  },
 };

@@ -2640,6 +2640,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * QUEM A AGÊNCIA NOMEOU PARA APROVAR UMA RODADA (migration 0129).
+       *
+       * `approval_rounds.aprovador_id` é a PRIMEIRA pessoa, mantida em dia por
+       * gatilho; esta tabela é quem manda — a forma da 0114.
+       *
+       * **`Insert` e `Update` são `never`**, e é essa a forma de dizer que a
+       * tabela não se escreve pela API: ela tem RLS ligada com policy de SELECT
+       * e mais nenhuma, e quem escreve é o gatilho ou
+       * `definir_aprovadores_da_rodada()`. É a forma de `audit_log` e de
+       * `notifications`, que não tem policy de INSERT desde a 0011.
+       *
+       * **E as duas chaves PRECISAM existir, mesmo valendo `never`.** Omiti-las
+       * não deixa a tabela só-leitura: o genérico do cliente do Supabase exige
+       * as três, e uma tabela sem elas derruba a resolução do `Database`
+       * INTEIRO — o `typecheck` passa de zero a 1572 erros, espalhados por
+       * arquivos que ninguém tocou, com `.update()` recebendo `never` e toda
+       * RPC recebendo `undefined`. O arquivo sozinho compila; quem reclama é
+       * quem o usa.
+       */
+      approval_round_aprovadores: {
+        Row: {
+          round_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       subtask_entregas: {
         Row: {
           id: string;
@@ -4092,6 +4122,47 @@ export interface Database {
           nome: string;
           email: string;
         }[];
+      };
+      /**
+       * Quem foi nomeado nesta rodada, na ordem em que foram (0129). A
+       * primeira é `approval_rounds.aprovador_id`.
+       */
+      aprovadores_da_rodada: {
+        Args: { p_round_id: string };
+        Returns: {
+          user_id: string;
+          nome: string;
+          email: string;
+        }[];
+      };
+      /**
+       * NOMEIA QUEM APROVA — no envio e na substituição (0129). Devolve
+       * quantas pessoas ficaram na rodada.
+       *
+       * Só rodada de cliente ainda `pendente`; a lista não fica vazia; a
+       * pertinência à conta é conferida pelo gatilho, com a MESMA pergunta de
+       * `validar_nova_rodada`. Avisa quem ENTROU, e mais ninguém.
+       */
+      definir_aprovadores_da_rodada: {
+        Args: { p_round_id: string; p_aprovadores: string[] };
+        Returns: number;
+      };
+      /**
+       * O MESMO, para o mês inteiro (0129): um laço sobre a função de cima em
+       * cada peça pendente do lote, com UM aviso por pessoa no fim — o aviso
+       * do lote é um só desde a 0090. Devolve quantas rodadas foram tocadas.
+       */
+      definir_aprovadores_do_lote: {
+        Args: { p_lote_id: string; p_aprovadores: string[] };
+        Returns: number;
+      };
+      /**
+       * TOCA O SINO DE NOVO para quem já está nomeado (0129), sem abrir rodada
+       * nova nem mexer em `solicitado_em`. Devolve quantos avisos saíram.
+       */
+      reenviar_aviso_da_rodada: {
+        Args: { p_round_id: string };
+        Returns: number;
       };
       // A FASE DA VEZ do mes -- o primeiro portao do cliente ainda nao
       // concluido. `returns public.subtasks` e nao `returns table`, entao o

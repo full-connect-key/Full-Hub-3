@@ -384,7 +384,10 @@ cliente é a gestão. Quem aprova ou pede ajustes lá fora é o cliente.
   duas mutações, uma por ramo.
 - **Rodada fechada nunca é reescrita nem apagada.** Cada ciclo de ajuste cria
   uma rodada nova, com número maior, e as anteriores continuam no banco com o
-  que foi pedido e decidido.
+  que foi pedido e decidido. **E ISSO É TRAVA DE BANCO DESDE A 0129, e antes
+  dela era só esta frase** — o que fica registrado em "A RODADA FECHADA NÃO
+  ERA FECHADA", abaixo, porque é a terceira vez neste arquivo que uma
+  propriedade afirmada aqui não existia do lado de lá.
 - Pedir ajustes **exige** comentário, na action e no banco.
 
 #### AS TRÊS DECISÕES TÊM COR, e elas são um componente
@@ -689,6 +692,284 @@ módulo comum, ela é compilada no bundle do cliente — e aquele arquivo tem
 `import "server-only"`. A primeira versão importava `sucesso()` de lá e a
 rodada parou, arrastando o Social Media inteiro no rastro. `lib/acoes/tipos.ts`
 existe exatamente para isto, e o comentário dele já dizia por quê.
+
+#### VÁRIOS APROVADORES, E A RODADA FECHADA (0129)
+
+Decisão do usuário, item 15: *"permitir mais de um responsável; substituir o
+responsável depois do envio; reenviar o aviso sem recriar a task"*.
+
+**A 0128 NOMEOU UMA PESSOA E NÃO PREVIU A TROCA**, e as duas metades do pedido
+são a mesma pergunta vista de dois lados: *o que de uma rodada ainda muda, e
+para quem*. Por isso elas saem na mesma migration — e a segunda metade é o
+achado.
+
+##### A RODADA FECHADA NÃO ERA FECHADA
+
+Este arquivo afirma em **três lugares** que *"rodada fechada nunca é reescrita
+nem apagada"*, e um deles é a razão de `approval_rounds` ficar fora do
+`audit_log` (0058). **Medido contra o Postgres de produção: era falso.**
+
+`approval_rounds` tem **uma** policy de UPDATE — `approval_rounds_decide` —, e
+ela pergunta `pode_aprovar_subtarefa / _post / _entregavel`, que depois da 0029
+é `is_gestor()` e nada mais. Dos onze triggers da tabela,
+`proteger_rodada_fechada` cobrava quatro coisas: não voltar de decidida para
+`pendente`, não trocar de desfecho, o motivo no ajuste, e o motivo na recusa
+(0127). **Nenhum deles olhava `comentario`, `decidido_por`, `decidido_em`,
+`aprovador_id` nem `mensagem`.** Então qualquer gestor reescrevia, por um
+PATCH, quem decidiu e com que comentário uma rodada de três meses atrás — e
+**sem rastro**, justamente porque a tabela está fora da trilha de auditoria,
+por esta propriedade que não existia.
+
+É a **0127 pela segunda vez**, e a lição é a mesma palavra por palavra: *o
+custo de afirmar aqui uma propriedade que não foi conferida é que ela passa a
+ser lida como verdade por quem vier depois*. Lá eu havia escrito que os dois
+desfechos negativos exigiam motivo "na ação E no banco" e o banco cobrava um
+dos dois; aqui escrevi que a rodada era imutável e ela era reescrita inteira.
+
+**SÃO DOIS RAMOS E NÃO UM, e a diferença é QUANDO cada um vale.** A
+**identidade** — `content_type`, `content_id`, `numero_rodada`, `escopo`,
+`solicitado_por`, `solicitado_em`, `lote_id` — é congelada **sempre**, pendente
+inclusive: o número da rodada é a VERSÃO da peça desde a 0033, e trocá-lo numa
+rodada aberta reescreve de que versão era aquele envio. A **decisão** —
+`comentario`, `decidido_por`, `decidido_em`, `aprovador_id`, `mensagem` — é
+congelada **quando a rodada fecha**, porque enquanto ela está pendente é
+exatamente isso que a outra metade desta migration existe para mexer.
+
+**E `status` continua tendo o ramo dele, PRIMEIRO.** Os dois novos poderiam
+cobrir o caso, e não cobririam o que ele cobre: ele recusa a transição —
+voltar para `pendente`, trocar de desfecho — com a frase que diz o caminho, e
+uma recusa genérica de "rodada já decidida não se reescreve" perderia a
+instrução. É a decisão da 0023.
+
+**A função foi copiada INTEIRA**, que é a lição da 0030: `create or replace`
+se reescreve a partir do texto de agora e **não avisa quando o texto novo tem
+menos coisa que o velho** — foi assim que a 0030 perdeu o bloco de carimbos de
+`validar_transicao_de_subtarefa` e só apareceu na 0052. Os quatro ramos
+anteriores estão lá, palavra por palavra.
+
+##### `approval_round_aprovadores`: a forma da 0114 com a recusa da 0113
+
+A coluna `aprovador_id` **continua**, e continua sendo a PRIMEIRA pessoa —
+é a forma da 0114 (`subtask_responsaveis`) palavra por palavra: tudo o que lê a
+coluna continua certo, porque ela aponta para alguém que de fato recebeu o
+envio, e quem precisa das N lê a tabela. Trocá-la por um array seria a 0082
+multiplicada: ela é lida pela trava da 0128, pelo histórico, pela pendência do
+painel da etapa e pelo aviso do banco.
+
+**Dois gatilhos mantêm os dois lados em dia**, como lá: um vincula a pessoa no
+instante em que a rodada nasce ou troca de `aprovador_id` — por qualquer
+caminho, o lote, o post avulso, um `insert` colado no SQL Editor — e **tira a
+antiga quando a pessoa é trocada**, que é o que faz um seletor de uma pessoa
+continuar significando o que sempre significou; o outro faz a coluna acompanhar
+a tabela.
+
+**MAS A ÚLTIMA PESSOA NÃO PODE SAIR, e aqui a 0114 se inverte.** Lá "etapa sem
+responsável" é um estado que o produto desenha — o board diz isso, a abertura
+do mês avisa por extenso. Aqui o estado não existe: `validar_nova_rodada`
+**recusa** desde a 0128 uma rodada de cliente sem aprovador, então uma rodada
+que ficasse sem ninguém seria um estado que o `insert` não deixa nascer e um
+`delete` deixaria acontecer. É a recusa da 0113, com a mesma frase: uma regra
+sem conta nenhuma não gera nada e não avisa.
+
+**E AQUI A GUARDA DO CASCADE É TRAVA, não economia.** Na 0114 o
+`if r.id is null then return old;` existe para o `update` não rodar uma vez por
+linha em todo apagamento de etapa; aqui, sem ele, apagar uma rodada seria
+**recusado pelo próprio gatilho que protege a última pessoa** — o cascade
+chega linha a linha, e na última a rodada ainda existe pelo ponto de vista do
+`before delete`. Medido: sem a guarda, `delete from approval_rounds` aborta.
+
+**A chave estrangeira de `user_id` é `no action` e não `cascade`**, ao
+contrário da 0114 — e a assimetria é o que a tabela significa: lá a linha diz
+quem FAZ a etapa hoje, e quem sai da agência deixa de fazer; aqui ela diz quem
+RECEBEU um envio que já aconteceu. Apagar a pessoa apagaria o registro de que
+o material foi mandado para ela. (Ninguém com histórico é apagado neste
+produto, então na prática a diferença nunca dispara — ela é a declaração.)
+
+**E a tabela tem SELECT e mais nada:** `is_staff()` para ler, e nenhuma policy
+de INSERT, UPDATE ou DELETE. Quem escreve são os gatilhos e a função da troca,
+que é `security definer` — é a forma de `notifications`, onde a única porta é
+`notificar()`.
+
+##### A TROCA É UMA RPC, e não um `update` na tela
+
+**A policy que governaria a troca é a que responde "quem DECIDE".**
+`approval_rounds` tem uma UPDATE só, e ela é `is_gestor()` desde a 0029.
+Alargá-la para quem ENVIA — que é `is_gestor() or is_atendimento()` desde a
+0090 — resolveria a troca e daria de lambuja o poder de **decidir uma rodada
+interna**, que a 0029 manteve fechado. São duas perguntas, então
+`definir_aprovadores_da_rodada()` é `security definer` com a dela escrita à
+mão: `is_gestor() or is_atendimento()`, a MESMA de quem enviou.
+
+**ELA SÓ ALCANÇA RODADA DE CLIENTE E PENDENTE.** A interna é decidida por
+`is_gestor()` e mais ninguém, então não há a quem nomear; e a fechada é
+justamente o que o outro lado desta migration congelou.
+
+**A ORDEM DA LISTA É A DO CLIQUE, e `array_agg(distinct …)` quebraria isso** —
+ele ORDENA, por uuid, e o `aprovador_id` passaria a ser a pessoa de menor uuid
+em vez da primeira escolhida. O dedupe é `unnest(...) with ordinality` com
+`min(ord)`: a mesma lista, sem repetição, na ordem em que a tela a mandou.
+
+**E O AVISO É DE QUEM ENTROU, nunca da lista inteira.** Quem já estava nomeado
+não recebe um segundo sino por causa de uma pessoa que entrou ao lado dele — é
+o aviso que a pessoa aprende a ignorar. Os `novos` são calculados ANTES do
+`insert`, porque depois dele a tabela já os contém.
+
+**O LOTE REPETE A FUNÇÃO E TOCA UM SINO SÓ.** `definir_aprovadores_do_lote()`
+percorre as rodadas pendentes do lote chamando a de cima, com um GUC de escopo
+local silenciando o aviso de cada uma, e toca **um** sino por pessoa no fim: é
+a frase que criou o lote na 0090 — dezoito avisos para um envio é o caminho
+mais curto para o sino virar ruído. E o GUC é desligado antes de a função
+devolver, que é a regra da 0045: a saída de emergência não vira porta
+destrancada.
+
+***E o GUC foi escrito antes de ser lido, o que fica registrado:*** a primeira
+versão da 0129 o gravava no lote e **não o consultava** na função de baixo —
+dezoito sinos sairiam de qualquer forma, com a trava escrita e sem efeito. É a
+mesma família do interruptor que a 0088 deixou para trás.
+
+##### O REENVIO NÃO RECRIA A RODADA
+
+*"Reenviar sem recriar a task"* é o pedido, e a razão de ser uma função própria
+é o número: a rodada É a versão da peça desde a 0033, então abrir outra
+afirmaria que existe uma versão nova do material. `reenviar_aviso_da_rodada()`
+toca o sino de quem está nomeado e **não encosta em `solicitado_em`** — aquela
+coluna é o instante do ENVIO, e movê-la faria o histórico dizer que a peça saiu
+hoje.
+
+**E ela devolve QUANTOS avisos saíram**, porque `notificar()` devolve `null`
+sem derrubar a escrita quando não há a quem avisar (0062): zero é uma resposta
+possível, e dizer "reenviado" sobre zero avisos seria a tela afirmando o que
+não aconteceu.
+
+##### Na tela: chips, e a substituição mora no histórico
+
+**É CHIP E NÃO `<select multiple>`**, pela razão escrita de `SeletorDeRedes`: no
+celular, marcar o segundo item desmarca o primeiro em metade dos navegadores. E
+**é compartilhado porque são CINCO telas** — as quatro de `EnvioAoCliente` mais
+`envio-do-mes.tsx`, que já tinha o seletor dele à parte desde a 0128. Uma cópia
+que ficasse simples largaria as pessoas a mais em silêncio: é a camada deixada
+para trás da 0088.
+
+**UMA PESSOA SÓ JÁ VEM MARCADA e duas não**, que é a decisão da 0128 mantida: a
+opção pré-marcada é a que ninguém lê, e com uma pessoa na conta não há escolha a
+fazer.
+
+**E A SUBSTITUIÇÃO MORA NO HISTÓRICO DE APROVAÇÕES, não numa tela própria:**
+trocar quem aprova é uma coisa que se faz olhando o envio que já aconteceu —
+quem pediu, quando, e quem está esperando. Num diálogo à parte a pessoa
+decidiria sem o envio à vista. **Os botões só existem na rodada PENDENTE e não
+aparecem desligados:** numa rodada fechada a razão não é um passo que falta, é
+uma porta que fechou, e um botão permanentemente desligado em cada rodada antiga
+é ruído — a distinção que o "Enviar ao cliente" do Social Media faz do outro
+lado.
+
+**A LISTA DA CONTA É LIDA NO CLIQUE**, nunca na montagem: o histórico abre em
+toda visita ao material e a troca é raríssima.
+
+**AS DUAS ESCRITAS DO ENVIO SÃO DUAS, e a segunda AVISA em vez de recusar.** O
+`insert` da rodada leva a primeira pessoa — é ela que a trava da 0128 exige —, e
+as outras só podem entrar depois, porque a tabela de vínculo tem chave
+estrangeira para a rodada. Quando a segunda falha, a rodada já está gravada, o
+cliente já foi avisado e o material já está no portal: uma recusa aqui não
+desfaz nada, então o que ela faz é dizer que só a primeira ficou nomeada. É a
+decisão da 0052, e a da vertente na 0122.
+
+***O que fica em aberto, e é dito em vez de escondido:*** **das 28 contas do
+banco, UMA tem alguém com acesso ao portal** — a medição que decidiu a 0128
+continua valendo. Quer dizer que "vários aprovadores" é um modelo à frente dos
+dados: hoje não há uma conta onde escolher dois. O que a migration muda hoje é a
+rodada ficar fechada de verdade; o que ela destrava é o dia em que a segunda
+pessoa de uma conta ganhar acesso.
+
+***E a bateria não foi rodada*** — não há Docker nem Postgres local neste
+ambiente. O que existe no lugar da execução é a medição contra o Postgres de
+produção, treze casos numa transação revertida: a identidade recusada em
+rodada pendente e em fechada, as cinco colunas da decisão recusadas depois do
+fecho e aceitas antes, a troca pelo caminho da função, a pertinência à conta, a
+última pessoa recusada, o cascade não abortando, o caminho da decisão do produto
+ainda passando, e o reenvio contando os avisos.
+
+#### O HISTÓRICO DE APROVAÇÕES É UM COMPONENTE SÓ (item 17)
+
+Decisão do usuário: *"histórico completo de aprovações"*.
+
+**NÃO HAVIA TRÊS DESENHOS, HAVIA UM DESENHO E DUAS AUSÊNCIAS**, e é isso que
+torna este item diferente das sete cópias de `abas.tsx`. O acordeão vivia dentro
+de `painel-da-subtarefa.tsx`, privado daquela tela; o **editor do post não tinha
+histórico nenhum** — o pedido de ajustes do cliente ficava na rodada, que aquela
+tela não mostra, e o que chegava era o sino, que se apaga no primeiro clique —;
+e a **árvore da campanha** mostrava UMA rodada, a interna da versão corrente, na
+pílula azul: quem abria a peça não tinha como saber que o cliente já havia pedido
+ajuste na v1. Três materiais passam pelo mesmo motor desde a 0030, e duas das
+três telas não mostravam o que ele registrou.
+
+**O QUE ELE CENTRALIZA É O DESENHO E A AÇÃO, nunca a leitura**, que é a decisão
+da `BarraDeContexto`: cada tela já tem o material em mãos.
+
+**E A LEITURA NÃO É `rodadasDo()`.** Aquela responde *"em que pé está este
+material"* — a rodada de CLIENTE mais recente de cada um de N conteúdos, para
+desenhar um selo numa grade de trinta posts. `historicoDeAprovacoes()` responde
+*"por que refizemos isso três vezes"*: TODAS as rodadas, as internas inclusive,
+com quem pediu, quem recebeu e quem decidiu. Juntá-las daria uma função com dois
+modos e um `if` no meio do `select`.
+
+**ELA RECEBE N IDS**, que é a forma de `rodadasDo()` e da leitura das rodadas
+internas da campanha: duas telas abrem UM material, e a terceira é a árvore de
+produção, que desenha a campanha inteira com cada peça abrindo no lugar — uma
+chamada por peça seriam cinquenta idas ao banco.
+
+**E O PAINEL DA ETAPA NÃO A CHAMA.** `carregar()` já traz as rodadas da demanda
+inteira com as pessoas resolvidas no mapa que ela monta de qualquer forma;
+`comoHistorico()` é um adaptador, e chamar a leitura de lá seria uma ida ao banco
+por etapa aberta para repetir o que já está em mãos.
+
+**AS RODADAS INTERNAS ENTRAM, e é metade do pedido:** o aval interno é uma
+decisão com autor, data e comentário, e esconder dele deixaria o histórico
+dizendo que a peça foi ao cliente sem nunca ter sido revisada.
+
+**A MENSAGEM VEM ANTES DO COMENTÁRIO**, e a ordem é informação: a primeira é o
+que a agência disse ao MANDAR (0128), o segundo é o motivo da DECISÃO (0127). Na
+ordem contrária, quem abre para ler o motivo do ajuste encontra primeiro a frase
+de quem enviou.
+
+**E UMA RODADA RECUSADA APARECIA COMO PENDENTE, o que é conserto e não
+desenho.** O acordeão escrevia o rótulo com um ternário de três ramos —
+aprovada, ajustes, e *"Pendente"* no `else` —, e `rejeitada` é o quarto valor do
+enum desde a 0032: a rodada que o cliente RECUSOU saía com a palavra e a cor de
+"esperando decisão", na tela em que alguém vai procurar por que a peça voltou.
+`DESFECHO_DA_RODADA` é um `Record` **total** sobre `StatusRodada`, então o
+compilador cobra o valor novo — a checagem que `STATUS_EM_ORDEM` faz no
+carregamento do módulo. **E as três cores saem de `DECISOES`**, não de um segundo
+mapa: o status de uma rodada fechada É a decisão que a fechou, e a cor de cada
+uma está medida pelo `check:cores` desde a 0127. **O rótulo, esse é próprio**, e
+a diferença é de tempo verbal: o botão diz o que vai acontecer (*"Solicitar
+ajustes"*), o histórico diz o que aconteceu (*"Ajustes solicitados"*).
+
+**O NOME QUE NÃO VOLTOU FICA DE FORA DA LISTA**, e a ausência é honesta:
+`profiles_select` é `own or is_gestor()`, então o colaborador lê UM perfil — o
+dele. Um "—" no lugar afirmaria que há alguém sem nome; a lista mais curta diz o
+que ela sabe.
+
+**E CADA PEÇA DO EXEMPLO RECEBE O HISTÓRICO QUE O ESTADO DELA PERMITE**, que é
+a parte da conferência que não é de código: o histórico é desenhado ao lado do
+status da peça, na mesma tela, então uma rodada `pendente` num post
+`em_producao` seria a imagem afirmando que a peça está com o cliente e com a
+produção ao mesmo tempo — dois fatos que se contradizem a poucos centímetros, o
+bug que a conferência por imagem existe para pegar. São três estados e três
+peças: `p6` está `em_aprovacao` e recebe a rodada de cliente PENDENTE, que é a
+única que desenha os dois botões; `p1` está `em_producao` e recebe a de AJUSTES,
+que é a única que desenha o `comentario` da decisão — e ele casa com a conversa
+do card 3 que a mesma tela já mostrava; `d-kv` está `aprovado` e recebe a
+APROVADA, com os mesmos `decididoPor` e `decididoEm` do cartão dela. **E entrou
+uma tela só por causa disso** (`50f-social-post-aprovacoes`), porque as outras
+oito imagens do editor abrem `p1`: fotografar os botões exigia a peça cujo
+estado os permite.
+
+***O que NÃO saiu em imagem, e é dito em vez de escondido:*** o stub de
+`quemPodeAprovar` devolve **uma** pessoa de propósito — com duas, o campo de
+`57f-social-encerrar-o-mes` abriria vazio e a entrega nova degradaria uma
+conferência velha. A consequência é que a linha de DOIS nomes e o seletor com
+dois chips marcados não aparecem em imagem nenhuma.
 
 #### A exigência de aprovação é de CADA ETAPA, e só dela
 
@@ -14067,6 +14348,15 @@ e já carrega quem decidiu, quando e com que comentário. Uma cópia disso seria
 uma segunda verdade sobre o mesmo fato. A bateria guarda o cenário, para o dia
 em que alguém acrescentar a tabela achando que faltava.
 
+**E essa razão era FALSA quando foi escrita, o que a 0129 consertou.** A
+imutabilidade era uma frase deste arquivo e não uma trava: medido contra o
+Postgres de produção, `approval_rounds_decide` aceitava reescrever
+`comentario`, `decidido_por`, `decidido_em` e `aprovador_id` de uma rodada
+**já decidida** — qualquer `is_gestor()`, por um PATCH, sem deixar rastro em
+lugar nenhum, justamente porque esta tabela está fora do `audit_log`. A 0129
+pôs os dois ramos em `proteger_rodada_fechada`, e a razão de a tabela ficar
+fora passou a ser verdadeira.
+
 **Só as colunas que mudaram**, e não a linha inteira duas vezes: dois objetos
 de vinte campos para dizer que um mudou é uma tela em que ninguém acha a
 diferença. `updated_at` fica fora do diff, senão todo `update` geraria uma
@@ -15893,6 +16183,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A rodada fechada, e vários aprovadores | **Vários aprovadores no envio, substituição depois do envio, reenvio sem recriar a rodada, e o histórico completo nas três telas** (migration 0129, itens 15 e 17). **O ACHADO É A SEGUNDA METADE, e ele é meu:** este arquivo afirma em três lugares que *"rodada fechada nunca é reescrita nem apagada"*, e um deles é a razão de `approval_rounds` ficar fora do `audit_log` — **medido contra o Postgres de produção, era falso**. A tabela tem UMA policy de UPDATE, `is_gestor()`, e dos onze triggers nenhum olhava `comentario`, `decidido_por`, `decidido_em`, `aprovador_id` nem `mensagem`: qualquer gestor reescrevia por um PATCH quem decidiu e com que comentário uma rodada de três meses atrás, **sem rastro**, justamente porque a tabela está fora da trilha por esta propriedade que não existia. É a **0127 pela segunda vez**, com a mesma lição — *o custo de afirmar aqui uma propriedade que não foi conferida é que ela passa a ser lida como verdade por quem vier depois*. São DOIS ramos: a **identidade** congela sempre (o número da rodada é a VERSÃO da peça desde a 0033) e a **decisão** congela quando a rodada fecha, porque enquanto ela está pendente é isso que a outra metade existe para mexer; `status` mantém o ramo dele, primeiro, porque a recusa dele diz o CAMINHO. A função foi **copiada inteira** (a lição da 0030). **A outra metade é a forma da 0114 com a recusa da 0113:** `aprovador_id` continua sendo a PRIMEIRA pessoa, `approval_round_aprovadores` manda, dois gatilhos mantêm os dois lados em dia — e **a última pessoa NÃO pode sair**, ao contrário da 0114, porque "rodada sem aprovador" é um estado que o `insert` da 0128 não deixa nascer. **E aqui a guarda do cascade é TRAVA e não economia:** sem ela, apagar uma rodada é recusado pelo próprio gatilho que protege a última pessoa — medido, `delete from approval_rounds` aborta. A troca é `security definer` e não um `update` na tela, porque a policy que a governaria é a que responde *"quem DECIDE"*, fechada desde a 0029 — alargá-la daria de lambuja o poder de decidir uma rodada interna. **`array_agg(distinct …)` quebraria a ordem do clique** (ele ordena por uuid, e `aprovador_id` passaria a ser a pessoa de menor uuid), então o dedupe é `with ordinality` com `min(ord)`. **O aviso é de quem ENTROU** e, no lote, um por pessoa no fim — e ***o GUC que silencia as rodadas foi escrito antes de ser lido***, numa primeira versão em que dezoito sinos sairiam com a trava escrita e sem efeito: o interruptor da 0088 em outra forma. No item 17, **não havia três desenhos, havia um desenho e duas ausências**: o acordeão era privado do painel da etapa, o editor do post **não tinha histórico nenhum** e a árvore da campanha mostrava UMA rodada, a interna da versão corrente. De quebra, **uma rodada RECUSADA aparecia como "Pendente"** — o rótulo saía de um ternário de três ramos e `rejeitada` é o quarto valor do enum desde a 0032; hoje é um `Record` total sobre `StatusRodada`, com as três cores saindo de `DECISOES` e o rótulo no tempo verbal do registro. ***A bateria não foi rodada*** (sem Docker nem Postgres aqui): no lugar dela, TREZE casos medidos contra produção numa transação revertida. ***E o seletor com dois chips não sai em imagem***, porque o stub de `quemPodeAprovar` devolve uma pessoa de propósito — com duas, `57f-social-encerrar-o-mes` abriria com o campo vazio. **O que as imagens provam é cada peça do exemplo com o histórico que o estado dela permite:** `p6` em aprovação com a rodada PENDENTE e os dois botões, `p1` em produção com o pedido de AJUSTES e o comentário da decisão, `d-kv` com a APROVADA — três estados, porque com os três iguais a imagem provaria que a seção aparece e não que ela distingue. |
 | As três visões têm a mesma largura | **O board de Minhas Tasks deixou de ser mais largo que a Lista e o Calendário** — decisão do usuário: *"ficou ótima a visualização de lista e calendário mas a visualização de Board está mais expandida que as outras 2, deixe padronizado"*. As três são a mesma tela trocada por um seletor, e a página mudando de largura a cada clique é a tela se reorganizando debaixo de quem só queria ver o mesmo trabalho de outro jeito. **A MARCA SAIU DO PRODUTO, E AS DUAS PONTAS NO MESMO COMMIT:** o board era a única tela a marcar `data-largo`, e o `has-[[data-largo]]:max-w-none` do `main` era o mecanismo que respondia — deixar o `has-[]` lá seria um interruptor que nada mais aciona, que é a camada que a 0088 deixou para trás e que a 0090 encontrou filtrando fora exatamente as linhas que ela acabara de criar. **Hoje `max-w-6xl` é a única medida do painel, sem exceção.** **O ARGUMENTO QUE CRIOU A MARCA JÁ ESTAVA VENCIDO, e é por isso que tirá-la é barato:** ela nasceu quando o board era `flex` com coluna fixa de 288px — seis davam 1788px e ele rolava dentro dos 72rem. Ele virou GRADE no mesmo sprint, e **o que resolveu a rolagem foi a grade e não a largura**: uma grade reparte o espaço que existe, então ela não precisa de 1788px para mostrar as seis, precisa de uma contagem que caiba na largura que tem. A distinção levou dois sprints para ficar escrita. ***O que a padronização custa, e é dito em vez de escondido:*** cada coluna perde 27px — eram ~198px e passam a ser **~171px**, que é o conteúdo de 1088px dos 72rem menos cinco vãos de 12px, repartido em seis. **E SÃO SEIS E NÃO QUATRO**, que é a pergunta que a largura nova levanta: quatro dariam ~258px folgados, e o que as recusa é a mesma conta que tirou a rolagem horizontal daqui — com quatro, "Em ajustes" e "Concluída" caem para a segunda fileira, e a primeira tem a altura de "Em andamento", que num dia cheio passa de 900px; **rolar para baixo para achar uma coluna não é melhor que rolar para o lado**. A 171px o cartão ainda carrega o título, a prioridade, o selo de prazo inteiro (é a quebra do `DateBadge` do sprint passado que paga isso), o relógio e o botão de ação. **Medido nas três visões**, que agora dão a mesma largura de conteúdo, e conferido em imagem — largura de coluna não é tipo, não é cor e não é árvore de acessibilidade, então nenhuma varredura a alcança. Nenhuma migration, nenhuma consulta. |
 | A caixa do status | **A Lista da Gestão de Tasks ficou branca, e cada status virou uma caixa colorida com o título em caixa alta** — decisão do usuário, mais a foto de cada pessoa no filtro de Responsáveis. **A CAUSA DO CINZA ERA A `DataTable`, e ela é de SEIS telas:** o contêiner era `overflow-hidden rounded-xl border` e mais nada, então o que aparecia entre as linhas era a PÁGINA — o achado dos três contêineres de Minhas Tasks pela segunda vez, agora num componente compartilhado, e a resposta para a pergunta que aquela seção tinha deixado explicitamente aberta. O cabeçalho era `bg-muted/40`, que é a regra do par nomeado quebrada em silêncio: a 40% sobre a página ele ficava a dois pontos de distância dela, e era isso que fazia a tela parecer um bloco cinza só. ***Por que mexer num componente de seis donos quando o `EmptyState`, de quarenta, não foi tocado:*** a contagem é só metade do critério, e a outra metade é se os donos CONCORDAM — lá a moldura tracejada estava certa em trinta e oito dos quarenta; aqui nenhuma das seis telas quer que a tabela mostre a página por baixo das linhas. **O ponto de 8px VIROU A CAIXA**, pintada com o par nomeado do MESMO mapa do selo e do seletor, e o ponto saiu: dentro de uma caixa já pintada ele é a mesma cor dita duas vezes a quatro pixels de distância. A caixa abraça o TÍTULO e não a linha inteira, e com isso o alvo do clique passou a ser visível — antes o botão ocupava a linha toda e nada dizia onde ele estava. **O hover é a BORDA e não o chão**, pela lição da 0127: `brightness` é filtro do Tailwind, não cor nomeada, e passa despercebido pelo `check:cores`. **E vale nas DUAS listas**, porque duas telas que agrupam igual e se comportam diferente é a divergência esperando acontecer — a caixa e a caixa alta só existem onde há COR, então agrupar por cliente ou por conta continua com o cabeçalho de texto: não há cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando o nome de quem contratou. ***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** três pares de status continuam dividindo o mesmo tom — os sete da Task mapeiam em CINCO pares medidos, que é a mesma decisão do calendário do Social e do portal (*sete cores numa grade viram confete*). Dar a cada um a cor dele é uma cor nova medida por par que falta, em dois temas, com a separação por daltonismo conferida, e mudaria o selo em vinte e uma telas, o Portal do Cliente incluído. **E a foto do filtro não custou consulta nenhuma:** `avatar_url` já chegava, e o que a escondia era o tipo da prop. O gatilho mostra o rosto de graça, porque o `SelectValue` do Radix renderiza o item escolhido — e é ele que sai em imagem, não a lista aberta, porque fotografar um `Select` aberto custa um vermelho fixo no axe: **medido**, a rodada passou de 1 achado para 2. Nenhuma migration. |
 | A largura das visões | **As três visões de Minhas Tasks passaram a ocupar a largura inteira**, por decisão do usuário, com a imagem marcando o vão: *"as visualizações de Board / Lista / Calendário estão centralizadas ao box de 'Meu Dia' mas devem ser maiores, até o fim da tela no box de 'Nova Task'"*. **O vão era o custo de a coluna de 306px ir até embaixo:** ela quase sempre é mais curta que a lista, então debaixo dela sobrava uma faixa de 306px por quase toda a altura da página, do lado de uma lista espremida — e no board eram **326px a menos** para seis colunas caberem. A coluna continua sendo a MESMA, com as mesmas peças e as mesmas consultas; o que mudou é até onde ela desce — ela é da primeira faixa, ao lado de "Meu dia", e as visões ocupam as duas colunas na faixa de baixo. **AS DUAS DECISÕES NÃO CABEM JUNTAS, e é dito em vez de escondido:** o `sticky` que mantinha os três botões à vista durante a rolagem do board (decisão do sprint 14) tem como teto a ÁREA DE GRADE do elemento — para grudar enquanto a lista rola, a lista precisa estar na mesma faixa que ele. A única alternativa de CSS é `float`, e com ela os cartões passariam por baixo da coluna. *O que se perde:* os três botões rolam com a página. **E a colocação é EXPLÍCITA e não auto-posicionada**, porque a ordem do DOM é a do CELULAR — "Meu dia", as visões, e o resumo por último — e com o auto-posicionamento essa mesma ordem poria as visões ao lado de "Meu dia" no desktop. ***O que custa do outro lado, e também foi medido:*** com o cronômetro correndo E gente fora, num dia leve, sobra uma faixa branca de ~300px embaixo de "Meu dia" — limitada pela altura da coluna, ao contrário do vão que saiu, que corria a página inteira, e inexistente no estado da imagem que o usuário mandou. **O 375 entrou no protótipo por causa da colocação explícita:** era a tela de Minhas Tasks que não tinha imagem de celular, e é lá que a ordem do DOM manda. Nenhuma migration, nenhuma consulta — é layout. |

@@ -38,6 +38,7 @@ import type { CaixinhaDoPost, EtapaDoMes } from "@/lib/dominio/posts";
 
 import { EditorDoPost, type QuemLe } from "./editor-do-post";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
+import type { RodadaDoHistorico } from "@/lib/aprovacoes/conteudo";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
 
 import { AcoesDoMes } from "./acoes-do-mes";
@@ -156,6 +157,7 @@ export function SocialMedia({
   aprovacoesDoCliente,
   referencias,
   comentarios,
+  historico,
   agora,
   clientes,
   equipe,
@@ -181,6 +183,7 @@ export function SocialMedia({
   referencias: ReferenciaDoPost[];
   /** A conversa da peça aberta — a da peça e a de cada card (0126). */
   comentarios: ComentarioDoConteudo[];
+  historico: RodadaDoHistorico[];
   /** O instante do servidor, para o tempo relativo não divergir na hidratação. */
   agora: string;
   clientes: { id: string; nome_empresa: string }[];
@@ -310,6 +313,7 @@ export function SocialMedia({
       aprovacoesDoCliente={aprovacoesDoCliente}
       referencias={referencias}
       comentarios={comentarios}
+      historico={historico}
       agora={agora}
       equipe={equipe}
       quemLe={quemLe}
@@ -353,7 +357,12 @@ export function SocialMedia({
             O resto da trilha fica: ela responde "onde estou", que é outra
             pergunta — a seta dá o passo de trás, a trilha dá o nível. */}
         <Voltar
-          para={comParametro({ mes: null, cliente: null, post: null, foco: null })}
+          para={comParametro({
+            mes: null,
+            cliente: null,
+            post: null,
+            foco: null,
+          })}
           rotulo="Social"
           className="text-accent-strong -ms-1 font-semibold"
         />
@@ -520,7 +529,9 @@ export function SocialMedia({
                       {/* O PONTO SEPARA OS DOIS NÚMEROS. Sem ele a linha sai
                           "Óptica Visão 2 1 sua", e dois algarismos colados se
                           leem como um — foi a imagem do protótipo que mostrou. */}
-                      <span aria-hidden className="text-text-muted">· </span>
+                      <span aria-hidden className="text-text-muted">
+                        ·{" "}
+                      </span>
                       {grupo.meus === 1 ? "1 sua" : `${grupo.meus} suas`}
                     </span>
                   ) : null
@@ -721,7 +732,9 @@ export function SocialMedia({
                           {p.tema}
                         </span>
                         <span className="text-text-muted">
-                          {p.plataformas.map((r) => SIGLA_DA_PLATAFORMA[r]).join(" ")}
+                          {p.plataformas
+                            .map((r) => SIGLA_DA_PLATAFORMA[r])
+                            .join(" ")}
                         </span>
                       </button>
                     </li>
