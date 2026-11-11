@@ -22,7 +22,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  COR_DO_ANIVERSARIO,
   COR_DO_TIPO_DE_EVENTO,
+  ROTULO_DO_ANIVERSARIO,
   ROTULOS_DE_VISAO,
   VISOES,
   montarIcs,
@@ -45,7 +47,9 @@ import { VisaoDeSemana } from "./visao-semana";
  * A LEGENDA, e ela AGRUPA quem divide a cor.
  *
  * São oito tipos de evento em cinco pares — a decisão está em
- * `COR_DO_TIPO_DE_EVENTO` —, e cinco entradas com oito nomes é o que a
+ * `COR_DO_TIPO_DE_EVENTO` — mais o ANIVERSÁRIO, que não é um tipo de evento e
+ * sim a segunda origem (0130): seis entradas ao todo. Cinco entradas com oito
+ * nomes para a parte de cima é o que a
  * legenda do portal já faz com os sete status em cinco tons. Oito linhas e
  * cinco cores seria pior que cinco: a pessoa procura a diferença entre duas
  * amostras iguais, não acha, e passa a desconfiar do resto.
@@ -66,6 +70,11 @@ const LEGENDA: { cor: string; rotulo: string }[] = [
   { cor: COR_DO_TIPO_DE_EVENTO.lancamento, rotulo: "Lançamento" },
   { cor: COR_DO_TIPO_DE_EVENTO.feriado_cliente, rotulo: "Feriado do cliente" },
   { cor: COR_DO_TIPO_DE_EVENTO.reuniao, rotulo: "Reunião, treinamento e outro" },
+  // O ANIVERSÁRIO FECHA A LISTA (0130), e ele é a única entrada que não sai de
+  // `COR_DO_TIPO_DE_EVENTO` — porque não é um tipo de evento: é a outra
+  // ORIGEM, derivada da ficha da equipe. A cor continua saindo do mesmo lugar
+  // que desenha o chip, que é o que mantém a legenda honesta.
+  { cor: COR_DO_ANIVERSARIO, rotulo: ROTULO_DO_ANIVERSARIO },
 ];
 
 /**

@@ -182,13 +182,67 @@ export function tipoDoEvento(item: ItemDoCalendario): EventoTipo {
     : "outro";
 }
 
+// ---------------------------------------------------------------------------
+// O ANIVERSÁRIO (0130)
+//
+// Ele NÃO é um valor de `evento_tipo`, e a ausência é a decisão inteira: a
+// primeira leitura do pedido era um tipo novo no enum — a forma exata da 0109
+// —, e a segunda frase do usuário a desfez: *"isso deve ser resgatado das
+// informações pessoais do perfil de cada um"*. Derivado da ficha, o
+// aniversário aparece sozinho todo ano; lançado, alguém recria quinze eventos
+// todo janeiro.
+//
+// Então ele não entra em `TIPOS_DE_EVENTO` (que alimenta o seletor do
+// formulário e o `z.enum` da action), não entra em `ROTULOS_DE_TIPO_DE_EVENTO`
+// e não entra em `COR_DO_TIPO_DE_EVENTO`: os três são sobre o que alguém
+// LANÇA. Quem o distingue é `item.tipo`, que é a origem.
+// ---------------------------------------------------------------------------
+
+/**
+ * O par do aniversário.
+ *
+ * **Par novo porque não havia um livre**: o azul é dos Eventos Fullers desde a
+ * 0109, o roxo é de convenção e feira, o verde é de lançamento, o âmbar é do
+ * feriado do cliente e o cinza é de reunião. `--danger` é erro, e `--ferias`
+ * mandaria procurar um day off que não existe ali — que é a razão escrita do
+ * próprio `--roxo`. Medido em `check:cores`: 5,14:1 no claro, 6,16:1 no
+ * escuro.
+ */
+export const COR_DO_ANIVERSARIO = "bg-rosa-soft text-rosa";
+
+/** O que a pessoa lê. O chip mostra o NOME; a palavra fica no `title`. */
+export const ROTULO_DO_ANIVERSARIO = "Aniversário";
+
+/** Veio da ficha da equipe, e não de `events`. */
+export function ehAniversario(item: ItemDoCalendario): boolean {
+  return item.tipo === "aniversario";
+}
+
+/**
+ * O chip abre o painel de detalhe?
+ *
+ * **Só o evento**, e é por isso que esta pergunta existe em vez de um `if` nas
+ * duas visões: um aniversário não tem participante, descrição, empresa nem
+ * período — não há o que abrir, e `obterEvento()` procuraria em `events` um id
+ * que não está lá. Um botão que abre um painel vazio é um controle que não
+ * responde ao clique, que é o que este produto chama de quebrado.
+ *
+ * A regra mora aqui e não na tela porque são DUAS telas (mês e semana), e a
+ * que divergisse seria a da semana, que se abre menos.
+ */
+export function abreDetalhe(item: ItemDoCalendario): boolean {
+  return item.tipo === "evento";
+}
+
 /** A cor do chip. Par nomeado, nunca opacidade. */
 export function corDoEvento(item: ItemDoCalendario): string {
+  if (ehAniversario(item)) return COR_DO_ANIVERSARIO;
   return COR_DO_TIPO_DE_EVENTO[tipoDoEvento(item)];
 }
 
 /** O que a pessoa lê: "Feira", "Convenção". Nunca a chave do enum. */
 export function rotuloDoEvento(item: ItemDoCalendario): string {
+  if (ehAniversario(item)) return ROTULO_DO_ANIVERSARIO;
   return ROTULOS_DE_TIPO_DE_EVENTO[tipoDoEvento(item)];
 }
 

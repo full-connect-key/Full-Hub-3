@@ -380,9 +380,23 @@ export type EventoTipo =
  * camadas)` da tela filtrando fora exatamente as linhas que a migration
  * acabara de criar, sem erro em lugar nenhum. Com um valor só, acrescentar
  * uma origem obriga a mexer aqui, e mexer aqui obriga a mexer na tela.
+ *
+ * ---------------------------------------------------------------------------
+ * E A SEGUNDA VOLTOU NA 0130, por decisao do usuario: os aniversarios da
+ * equipe, derivados de `team_members.data_nascimento`.
+ *
+ * ELA NAO VEM DA VIEW, e e a unica origem do calendario que nunca veio: o
+ * nome mora em `profiles`, cuja policy de SELECT e `own or is_gestor()` --
+ * um `join` dentro de uma view `security_invoker` derrubaria, para um
+ * colaborador, toda linha que nao e a dele. Quem a devolve e
+ * `aniversarios_do_periodo()`, `security definer` com `is_staff()` escrito a
+ * mao na porta. A razao inteira esta no cabecalho da 0130.
+ *
+ * O aviso acima continua valendo palavra por palavra: este tipo e o
+ * interruptor, e ele so tem dois valores porque sao duas as origens.
  * ---------------------------------------------------------------------------
  */
-export type TipoNoCalendario = "evento";
+export type TipoNoCalendario = "evento" | "aniversario";
 
 export type SkillNivel =
   | "iniciante"
@@ -1628,6 +1642,8 @@ export interface Database {
           area: string | null;
           funcao: TeamFuncao | null;
           data_admissao: string | null;
+          /** 0130: dia e mes alimentam o Calendario Full. O ANO nao sai daqui. */
+          data_nascimento: string | null;
           dias_ferias_ano: number;
           max_parcelas_ferias: number;
           ativo: boolean;
@@ -1656,6 +1672,7 @@ export interface Database {
           area?: string | null;
           funcao?: TeamFuncao | null;
           data_admissao?: string | null;
+          data_nascimento?: string | null;
           dias_ferias_ano?: number;
           max_parcelas_ferias?: number;
           ativo?: boolean;
@@ -1668,6 +1685,7 @@ export interface Database {
           area?: string | null;
           funcao?: TeamFuncao | null;
           data_admissao?: string | null;
+          data_nascimento?: string | null;
           dias_ferias_ano?: number;
           max_parcelas_ferias?: number;
           ativo?: boolean;
@@ -4034,6 +4052,22 @@ export interface Database {
        * "nao programada" de "a funcao nao respondeu".
        */
       pecas_programadas: { Args: { p_ids: string[] }; Returns: string[] };
+
+      /**
+       * OS ANIVERSARIOS DA EQUIPE numa janela (migration 0130).
+       *
+       * `security definer` porque o NOME mora em `profiles`, e as duas
+       * policies de SELECT de la sao `own` e `is_gestor()`: um `join` numa
+       * view `security_invoker` devolveria, para um colaborador, um
+       * aniversario — o dele. A guarda e `is_staff()` escrita a mao na porta.
+       *
+       * `dia` e a data PROJETADA no ano da janela, nunca a de nascimento: o
+       * ano fica na ficha, que e onde ele foi digitado.
+       */
+      aniversarios_do_periodo: {
+        Args: { p_inicio: string; p_fim: string };
+        Returns: { user_id: string; nome: string; dia: string }[];
+      };
       my_client_ids: { Args: Record<string, never>; Returns: string[] };
 
       /**

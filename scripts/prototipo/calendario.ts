@@ -75,6 +75,24 @@ const evento = (
   link: `/painel/calendario?evento=${id}`,
 });
 
+/**
+ * O ANIVERSARIO (0130), que vem da ficha da equipe e nao de `events`.
+ *
+ * Sem empresa, sem `status` e sem link: ele nao e um evento que alguem
+ * lancou, e o chip dele nao abre painel nenhum.
+ */
+const aniversario = (id: string, nome: string, emQue: number): ItemDoCalendario => ({
+  id,
+  tipo: "aniversario",
+  titulo: nome,
+  dataInicio: dia(emQue),
+  dataFim: dia(emQue),
+  clientId: null,
+  cliente: null,
+  status: null,
+  link: "",
+});
+
 const MV = { id: VERDE, nome: "Mundo Verde" };
 const OV = { id: OPTICA, nome: "Óptica Visão" };
 
@@ -97,6 +115,26 @@ const ITENS: ItemDoCalendario[] = [
   evento("ev-outro", "Visita do fornecedor", "outro", 5, 5, OV),
   evento("ev-reuniao-2", "Reunião com a Óptica", "reuniao", 1, 1, OV),
   evento("ev-lancamento-2", "Lançamento do app", "lancamento", 16, 16, MV),
+
+  // OS ANIVERSARIOS (0130), e SAO DOIS e nao um.
+  //
+  // Sem nenhum, a legenda ganharia a sexta amostra e a grade nao teria um
+  // chip rosa: a imagem mostraria uma entrada de legenda sem par na tela, que
+  // e exatamente o que a 0109 pagou ao acrescentar o quinto.
+  //
+  // E sao dois porque um deles divide o dia com outros eventos e o outro esta
+  // sozinho: com um so, a imagem provaria que o chip aparece e nao que ele se
+  // distingue do que esta ao lado.
+  //
+  // `tipo: "aniversario"` E A ORIGEM, e e por ela que `corDoEvento()` escolhe
+  // o rosa e `abreDetalhe()` recusa abrir o painel. `status` e nulo de
+  // proposito: um aniversario nao tem `events.tipo`.
+  // A ANA DIVIDE O DIA COM O EVENTO AZUL, e nao com os quatro do dia 16: la
+  // ela caiu dentro do "+ 3 mais" e a imagem mostrava um chip rosa sozinho
+  // numa celula vazia -- provando que ele aparece, e nao que ele se distingue
+  // do que esta ao lado. Foi a imagem que mostrou.
+  aniversario("ani-ana", "Ana Lima", 12),
+  aniversario("ani-bruno", "Bruno Tavares", 19),
 ];
 
 /**

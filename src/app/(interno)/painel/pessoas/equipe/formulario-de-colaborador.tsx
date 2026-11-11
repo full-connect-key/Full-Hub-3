@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import {
   AREA_DA_FUNCAO,
   FUNCOES,
@@ -44,6 +45,7 @@ const esquema = z.object({
   // Atendimento, e sem ela a pessoa entra na equipe sem papel definido.
   funcao: z.string().min(1, "Escolha a função da pessoa na agência."),
   data_admissao: z.string().optional(),
+  data_nascimento: z.string().optional(),
   // number direto (e não coerce): o input converte com valueAsNumber, e o
   // coerce deixaria o tipo de entrada como unknown para o react-hook-form.
   dias_ferias_ano: z.number().int().min(0).max(365),
@@ -94,6 +96,7 @@ export function FormularioDeColaborador({
       cargo: "",
       funcao: "",
       data_admissao: "",
+      data_nascimento: "",
       // **ERA 30, E A COLUNA É 15 DESDE A 0011** — relato do usuário: *"quando
       // vou adicionar um novo colaborador ele está automaticamente dizendo que
       // a pessoa tem 30 dias off por ano sendo que o padrão é 15"*.
@@ -125,6 +128,7 @@ export function FormularioDeColaborador({
         ...dados,
         cargo: dados.cargo || null,
         data_admissao: dados.data_admissao || null,
+        data_nascimento: dados.data_nascimento || null,
       }),
     );
     setEnviando(false);
@@ -255,6 +259,23 @@ export function FormularioDeColaborador({
             <div className="space-y-2">
               <Label htmlFor="colab-admissao">Data de admissão</Label>
               <Input id="colab-admissao" type="date" {...register("data_admissao")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="colab-nascimento">Data de nascimento</Label>
+              <Input
+                id="colab-nascimento"
+                type="date"
+                max={hojeNaAgencia()}
+                {...register("data_nascimento")}
+              />
+              {/* A FRASE DIZ O QUE A DATA FAZ, e ela precisa: este é o único
+                  campo da ficha que vira uma linha numa tela que a agência
+                  inteira abre. Dizer que o ano não sai daqui é a diferença
+                  entre preencher e não preencher. */}
+              <p className="text-text-muted text-xs">
+                O dia e o mês entram no Calendário Full, para a equipe lembrar.
+                O ano não sai desta ficha.
+              </p>
             </div>
           </div>
 

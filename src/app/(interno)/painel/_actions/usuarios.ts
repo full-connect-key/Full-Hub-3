@@ -47,6 +47,7 @@ const esquemaDeColaborador = z.object({
   // Obrigatória: é a função que libera a criação de tasks para o Atendimento.
   funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
+  data_nascimento: z.string().optional().nullable(),
   dias_ferias_ano: z.number().int().min(0).max(365).default(30),
 });
 
@@ -58,6 +59,7 @@ const ROTULOS_DO_COLABORADOR = {
   cargo: "cargo",
   funcao: "função",
   data_admissao: "data de admissão",
+  data_nascimento: "data de nascimento",
   dias_ferias_ano: "dias de day off por ano",
 };
 
@@ -108,6 +110,7 @@ export async function criarColaborador(dados: unknown): Promise<Resultado<Result
         area: areaDaFuncao(pedido.funcao),
         funcao: pedido.funcao,
         data_admissao: textoOuNulo(pedido.data_admissao),
+        data_nascimento: textoOuNulo(pedido.data_nascimento),
         dias_ferias_ano: pedido.dias_ferias_ano,
         ativo: true,
       },

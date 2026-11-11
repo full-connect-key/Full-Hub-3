@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  abreDetalhe,
   corDoEvento,
   ehFaixa,
   ocupaODia,
@@ -246,24 +247,43 @@ export function VisaoDeMes({
                             const abaixo = segundaLinha(item);
                             return (
                               <li key={item.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => aoAbrir(item)}
-                                  title={`${rotuloDoEvento(item)}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
-                                  className={cn(
-                                    "block w-full rounded px-1.5 py-1 text-left leading-tight",
-                                    corDoEvento(item),
-                                  )}
-                                >
-                                  <span className="block truncate font-semibold">
-                                    {item.titulo}
-                                  </span>
-                                  {abaixo ? (
-                                    <span className="block truncate text-[0.6875rem]">
-                                      {abaixo}
+                                {/* O ANIVERSÁRIO NÃO É BOTÃO (0130): ele vem
+                                    da ficha da equipe e não de `events`, então
+                                    não há o que abrir. A pergunta mora em
+                                    `abreDetalhe()`, no domínio, porque a visão
+                                    de semana faz a mesma. */}
+                                {abreDetalhe(item) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => aoAbrir(item)}
+                                    title={`${rotuloDoEvento(item)}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
+                                    className={cn(
+                                      "block w-full rounded px-1.5 py-1 text-left leading-tight",
+                                      corDoEvento(item),
+                                    )}
+                                  >
+                                    <span className="block truncate font-semibold">
+                                      {item.titulo}
                                     </span>
-                                  ) : null}
-                                </button>
+                                    {abaixo ? (
+                                      <span className="block truncate text-[0.6875rem]">
+                                        {abaixo}
+                                      </span>
+                                    ) : null}
+                                  </button>
+                                ) : (
+                                  <div
+                                    title={`${rotuloDoEvento(item)}: ${item.titulo}`}
+                                    className={cn(
+                                      "block w-full rounded px-1.5 py-1 text-left leading-tight",
+                                      corDoEvento(item),
+                                    )}
+                                  >
+                                    <span className="block truncate font-semibold">
+                                      {item.titulo}
+                                    </span>
+                                  </div>
+                                )}
                               </li>
                             );
                           })}

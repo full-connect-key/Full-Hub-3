@@ -811,6 +811,16 @@ from (
     -- FALTA num banco em dia. O que se procura e a condicao, que e codigo.
     ('0129', 'varios aprovadores e a rodada congelada', 'no_corpo',
              'proteger_rodada_fechada|new.aprovador_id is distinct from old.aprovador_id')
+,
+
+    -- O MARCADOR APONTA PARA A FUNCAO DO PASSO 2, e nao para a coluna do
+    -- PASSO 1. Uma colagem que morre no meio deixa `data_nascimento` de pe na
+    -- ficha -- a gestao digita a data, e ela nao aparece em calendario nenhum,
+    -- sem erro em lugar nenhum. Um marcador na coluna chamaria esse banco de
+    -- `ok`, que e o pior lugar para mentir: o PASSO 2 e o que faz a entrega
+    -- existir.
+    ('0130', 'o aniversario da equipe no calendario', 'funcao',
+             'aniversarios_do_periodo')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

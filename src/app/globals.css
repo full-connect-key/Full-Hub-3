@@ -522,6 +522,29 @@
   --ferias: var(--roxo);
   --ferias-soft: var(--roxo-soft);
 
+  /* --- O ROSA DO ANIVERSARIO (0130) ------------------------------------
+     Par novo, e ele entrou porque NAO HAVIA UM LIVRE: o azul `--accent` e dos
+     Eventos Fullers desde a 0109, o roxo e de convencao e feira, o verde e de
+     lancamento, o ambar e do feriado do cliente e o cinza e de reuniao. O
+     `--danger` e erro, e `--ferias` mandaria quem vier depois procurar um day
+     off que nao existe ali — que e a razao escrita do proprio `--roxo`.
+
+     É o precedente da 0109, e nao uma excecao a ele: uma categoria nova que
+     nao cabe em par nenhum ganha token proprio, medido nos dois temas.
+     Medido: **5,14:1 no claro** e **6,16:1 no escuro**.
+
+     O CHIP DO ANIVERSARIO NAO ENTRA NO GRUPO DE DALTONISMO do `check:cores`,
+     e a ausencia e a regra escrita: a cor nunca e o unico sinal — o chip
+     carrega o nome da pessoa e o `title` diz "Aniversario". Os grupos de la
+     sao onde a cor e o UNICO sinal, como a linha de um grafico.
+
+     Medido de quebra, e dito em vez de escondido: os fundos palidos deste
+     tema ja vivem a ΔE 3,5 (roxo × accent) e 3,9 (accent × muted) entre si.
+     O rosa a 3,4 do accent esta na familia — o que separa um chip do outro
+     nunca foi o chao, e sim o texto em cima mais a palavra. */
+  --rosa: #BE185D;
+  --rosa-soft: #FCE7F3;
+
   /* --- Cores de gráfico -------------------------------------------------
      Separadas das cores de estado DE PROPÓSITO. Receita em verde e despesa
      em vermelho é o encode óbvio e reprova: o par #15803D/#B91C1C dá ΔE 4,2
@@ -678,6 +701,11 @@
   --roxo-soft: #2A1A3D;
   --ferias: var(--roxo);
   --ferias-soft: var(--roxo-soft);
+
+  /* Passos proprios, medidos contra o escuro — nao os do claro invertidos,
+     que e a decisao das cores de serie e a do proprio roxo acima. 6,16:1. */
+  --rosa: #F472B6;
+  --rosa-soft: #3B1026;
 
   /* No escuro as cores de gráfico NÃO são as claras invertidas: são passos
      próprios, medidos contra --surface-card do tema escuro. Clarear as do
@@ -843,6 +871,8 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-roxo: var(--roxo);
   --color-roxo-soft: var(--roxo-soft);
+  --color-rosa: var(--rosa);
+  --color-rosa-soft: var(--rosa-soft);
   --color-ferias: var(--ferias);
   --color-ferias-soft: var(--ferias-soft);
   --color-serie-1: var(--serie-1);

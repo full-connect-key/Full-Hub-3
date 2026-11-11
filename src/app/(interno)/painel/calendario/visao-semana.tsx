@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import {
+  abreDetalhe,
   corDoEvento,
   ocupaODia,
   rotuloDoEvento,
@@ -60,24 +61,44 @@ export function VisaoDeSemana({
               </div>
 
               <ul className="mt-2 space-y-1">
-                {doDia.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => aoAbrir(item)}
-                      title={`${rotuloDoEvento(item)}: ${item.titulo}`}
-                      className={cn(
-                        "w-full rounded px-2 py-1 text-left text-xs",
-                        corDoEvento(item),
-                      )}
-                    >
+                {doDia.map((item) => {
+                  const dentro = (
+                    <>
                       <span className="block truncate font-medium">{item.titulo}</span>
                       {item.cliente ? (
                         <span className="block truncate">{item.cliente}</span>
                       ) : null}
-                    </button>
-                  </li>
-                ))}
+                    </>
+                  );
+                  const aparencia = cn(
+                    "w-full rounded px-2 py-1 text-left text-xs",
+                    corDoEvento(item),
+                  );
+                  const rotulo = `${rotuloDoEvento(item)}: ${item.titulo}`;
+
+                  // O ANIVERSÁRIO NÃO É BOTÃO (0130): não há evento para
+                  // abrir, e um botão que abre um painel vazio é um controle
+                  // que não responde. Quem decide é `abreDetalhe()`, no
+                  // domínio, porque a mesma pergunta é feita na visão de mês.
+                  return (
+                    <li key={item.id}>
+                      {abreDetalhe(item) ? (
+                        <button
+                          type="button"
+                          onClick={() => aoAbrir(item)}
+                          title={rotulo}
+                          className={aparencia}
+                        >
+                          {dentro}
+                        </button>
+                      ) : (
+                        <div title={rotulo} className={aparencia}>
+                          {dentro}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

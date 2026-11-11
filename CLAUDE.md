@@ -1750,6 +1750,124 @@ dois formatos dariam duas frases de recusa diferentes na mesma tela.
 **O cliente não alcança evento nenhum**, nem o da própria empresa: o Portal
 mostra material enviado, não a agenda interna da agência.
 
+#### OS ANIVERSÁRIOS DA EQUIPE, e a segunda origem (0130)
+
+Decisão do usuário, em duas frases: *"inclua no calendário Full um tópico pra
+colocarmos os aniversários dos colaboradores"* e, logo em seguida, *"mas isso
+deve ser resgatado das informações pessoais do perfil de cada um, então tem
+que incluir esse campo na gestão da equipe também"*.
+
+**A SEGUNDA FRASE MUDA O DESENHO INTEIRO, e para melhor.** A primeira leitura
+era um valor novo em `evento_tipo` — a forma exata da 0109, e a palavra
+"tópico" quer dizer categoria —, e alguém lançaria quinze eventos todo
+janeiro. Derivado da ficha, o aniversário aparece sozinho todo ano e nunca
+fica desatualizado: é a regra desta casa, **o que dá para calcular não se
+guarda**, a mesma de `atraso` não ser coluna e de `maoDoPost()` não ser
+gravada.
+
+**A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO.**
+`profiles` tem DUAS policies de SELECT, e só duas: `own` e `is_gestor()` — um
+colaborador lê **exatamente um perfil, o dele**. Com a data ali, o calendário
+de aniversários nasceria mostrando, para quem não é gestão, o próprio
+aniversário e os da gestão, e mais nada. `team_members_select` é `is_staff()`
+desde a 0002, e é onde a coluna precisa estar para a tela existir para quem
+ela é. Ela entra ao lado de `data_admissao`, que é a outra data de ficha e
+nasceu na mesma tabela pelo mesmo motivo.
+
+**A VIEW NÃO É TOCADA, e esta é a linha que mais importa.** A tentação é uma
+segunda origem em `calendar_events`, que daria o `.ics` de graça. Ela não
+funciona e não deve funcionar: a view é `security_invoker = true` desde a 0055
+— repetida SEIS vezes —, então um `join` em `profiles` dentro dela derruba,
+para um colaborador, toda linha que não é a dele; o calendário devolveria **um
+aniversário, o próprio**, sem erro em lugar nenhum. Abrir `profiles` para
+`is_staff()` consertaria isso e abriria a tabela de perfis da agência inteira,
+para as vinte telas que a leem — e a recusa já está escrita neste arquivo:
+*"se a regra tiver que mudar, muda na policy — num lugar"*. Um calendário de
+aniversário não é motivo para mexer na postura de privacidade do produto.
+
+Então a origem é uma FUNÇÃO, `aniversarios_do_periodo()`, `security definer`
+com `is_staff()` escrito à mão na porta — a forma de `usuarios_do_meu_cliente()`
+(0031), de `meus_comodatos()` (0069) e de `pecas_programadas()` (0111). **E o
+`.ics` veio de graça assim mesmo**, sem uma linha de mudança: `montarIcs()`
+recebe `ItemDoCalendario[]`, então o aniversário sai no arquivo como
+`CATEGORIES:Aniversário`.
+
+**ISTO ROÇA NA 0105, e a diferença é dita em vez de escondida.** Aquela
+migration fechou o calendário com a frase *"ele deve ser apenas para eventos
+que serao lançados nele, nada de outros abas"*, e o argumento dela era sobre o
+calendário ter virado **o segundo lugar onde se lê o que já se lê no módulo de
+origem** — tasks, social, campanhas, cada um com uma tela própria. Um
+aniversário não é trabalho, não tem módulo e **não aparece em lugar nenhum do
+produto**: não há segundo lugar. O que a 0105 recusava continua recusado.
+
+**O ANO NÃO SAI DA FUNÇÃO, e a ausência é a decisão.** Ela devolve o dia
+projetado no ano que está na tela, nunca a data de nascimento — a idade de
+cada pessoa fica dentro da ficha, que é `is_staff()` como sempre foi, e não
+viaja para uma tela que a agência inteira abre toda segunda. O calendário diz
+que é o aniversário da Ana; ele não diz quantos anos ela faz. **E a tela diz
+isso por extenso**, embaixo do campo: dizer que o ano não sai dali é a
+diferença entre preencher e não preencher.
+
+**29 DE FEVEREIRO.** `make_date(2027, 2, 29)` estoura. Quem nasceu em 29/02
+aparece em **28/02** nos anos que não são bissextos, que é a prática civil
+brasileira — e é o `least()` da projeção que faz isso. Medido contra o
+Postgres de produção: 28/02 em 2027, 29/02 em 2028.
+
+**A JANELA É O ANO DO INÍCIO ATÉ O DO FIM**, e não o do início sozinho: a
+visão de semana mostra 28/12 a 03/01, e os aniversários de janeiro sumiriam de
+uma semana que os contém. É a lição da união do mês com a seleção na faixa de
+disponibilidade (0081). **Medido:** a janela de 28/12/2027 a 15/01/2028
+devolve o dia 10/01/**2028**.
+
+**O TETO É DO ZOD E O PISO É DO BANCO**, e a assimetria não é descuido: *"não
+pode ser no futuro"* precisa de `current_date`, que **não é immutable** — o
+Postgres recusa a constraint com *"functions in check constraint expression
+must be marked IMMUTABLE"*. E não virou trigger de propósito: o calendário usa
+DIA E MÊS e descarta o ano, então um ano digitado errado não corrompe nada do
+que esta tela mostra — corrompe o que a ficha exibe, que é onde ele foi
+digitado. O piso de 1900 é immutable e pega o `0199-05-12` de dedo torto.
+
+**O CHIP NÃO É BOTÃO**, e quem decide é `abreDetalhe()`, no domínio: um
+aniversário não tem participante, descrição, empresa nem período — não há o
+que abrir, e `obterEvento()` procuraria em `events` um id que não está lá. Um
+botão que abre um painel vazio é um controle que não responde ao clique. A
+regra mora no domínio e não na tela porque são DUAS telas, e a que divergiria
+seria a da semana, que se abre menos. **E não há link**: a ficha da pessoa
+mora em `/painel/pessoas`, que é `GESTAO` — um colaborador clicando levaria
+403 na tela que o produto diz que é dele.
+
+**ELE SAI QUANDO ALGUÉM FILTRA POR CLIENTE**, e a leitura nem pergunta nesse
+caso. Um aniversário não tem empresa, e a regra desta tela desde a 0105 é que
+filtrar por cliente deixa de fora o que não tem uma — é o que já acontece com
+a convenção da casa.
+
+##### O ROSA ENTROU PORQUE NÃO HAVIA PAR LIVRE
+
+O azul é dos Eventos Fullers desde a 0109, o roxo é de convenção e feira, o
+verde é de lançamento, o âmbar é do feriado do cliente e o cinza é de reunião.
+`--danger` é erro, e `--ferias` mandaria procurar um day off que não existe
+ali — que é a razão escrita do próprio `--roxo`. **É o precedente da 0109, e
+não uma exceção a ele:** uma categoria nova que não cabe em par nenhum ganha
+token próprio, medido nos dois temas. `--rosa` e `--rosa-soft`, **5,14:1 no
+claro e 6,16:1 no escuro**, conferidos pelo `check:cores`.
+
+**ELE NÃO ENTRA NO GRUPO DE DALTONISMO**, e a ausência é a regra escrita: a
+cor nunca é o único sinal — o chip carrega o nome da pessoa e o `title` diz
+"Aniversário". Os grupos de lá são onde a cor é o ÚNICO sinal, como a linha de
+um gráfico.
+
+***E a medição achou uma coisa que não é desta entrega, dita em vez de
+escondida:*** no tema ESCURO, `--accent` e `--muted` resolvem para **o mesmo
+valor** (`#2C3137`), a ΔE 0,0. Quer dizer que hoje o chip dos Eventos Fullers
+e o de "Reunião, treinamento e outro" têm o mesmo chão, separados só pela cor
+do texto — e a legenda mostra duas amostras com o mesmo fundo, que é
+exatamente o que este arquivo chama de pior que uma. **Não foi tocado aqui**:
+consertar significa mexer na cor que a 0109 escolheu por decisão do usuário, e
+isso é decisão dele, não efeito colateral de um aniversário. Os fundos pálidos
+do tema claro, esses, já vivem entre ΔE 3,5 e 8,9 entre si por construção — o
+rosa a 3,4 do accent está na família, e o que separa um chip do outro nunca
+foi o chão.
+
 #### O que TODO MUNDO vê, e os três filtros que saíram
 
 **A TELA É A MESMA PARA OS QUATRO PERFIS desde a 0105**, e a diferença que
@@ -16249,6 +16367,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O aniversário da equipe | **O Calendário Full ganhou os aniversários da equipe** (migration 0130), por decisão do usuário em duas frases: *"inclua no calendário Full um tópico pra colocarmos os aniversários dos colaboradores"* e, logo em seguida, *"mas isso deve ser resgatado das informações pessoais do perfil de cada um, então tem que incluir esse campo na gestão da equipe também"*. **A SEGUNDA FRASE MUDA O DESENHO INTEIRO, e para melhor:** a primeira leitura era um valor novo em `evento_tipo` — a forma exata da 0109 — e alguém lançaria quinze eventos todo janeiro; derivado da ficha, o aniversário aparece sozinho todo ano e nunca fica desatualizado, que é **o que dá para calcular não se guarda**. **A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO:** `profiles` tem DUAS policies de SELECT, `own` e `is_gestor()`, então um colaborador lê **exatamente um perfil, o dele** — com a data ali, o calendário nasceria mostrando a quem não é gestão o próprio aniversário e os da gestão, e mais nada; `team_members_select` é `is_staff()` desde a 0002. **A VIEW NÃO É TOCADA, e é a linha que mais importa:** `calendar_events` é `security_invoker = true` desde a 0055 — repetida SEIS vezes —, então um `join` em `profiles` dentro dela devolveria a um colaborador **um aniversário, o próprio**, sem erro em lugar nenhum; e abrir `profiles` para `is_staff()` consertaria isso entregando a tabela de perfis da agência inteira às vinte telas que a leem. A origem é `aniversarios_do_periodo()`, `security definer` com `is_staff()` escrito à mão na porta — a forma de `usuarios_do_meu_cliente()` e de `pecas_programadas()` —, **e o `.ics` veio de graça**, porque `montarIcs()` recebe `ItemDoCalendario[]`. **ISTO ROÇA NA 0105 e a diferença é dita:** aquela migration fechou o calendário porque ele tinha virado o segundo lugar onde se lê o que já se lê no módulo de origem, e um aniversário não tem módulo — não há segundo lugar. **O ANO NÃO SAI DA FUNÇÃO**, que devolve só o dia projetado: a idade fica na ficha, e a tela diz isso por extenso embaixo do campo. **O teto é do zod e o piso é do banco**, porque `current_date` não é immutable e o Postgres recusa a constraint; e **29/02 cai em 28/02** nos anos comuns, pelo `least()` da projeção — medido contra produção, com a janela de 28/12/2027 a 15/01/2028 devolvendo 10/01/**2028**, que é o cenário que o `generate_series` de um ano só perderia. **O chip não é botão**, e quem decide é `abreDetalhe()` no domínio: um aniversário não tem participante nem período, e `obterEvento()` procuraria em `events` um id que não está lá. **O rosa entrou porque não havia par livre** — os cinco estão tomados, `--danger` é erro e `--ferias` mandaria procurar um day off —, medido em **5,14:1 no claro e 6,16:1 no escuro**; ele não entra no grupo de daltonismo, porque o chip carrega o nome. ***E a medição achou uma coisa que não é desta entrega:*** no tema escuro `--accent` e `--muted` resolvem para o MESMO valor (ΔE 0,0), então o chip dos Eventos Fullers e o de Reunião têm o mesmo chão — **não foi tocado**, porque consertar é mexer na cor que a 0109 escolheu por decisão do usuário. **Duas coisas que só a imagem pegou:** a Ana caía dentro do "+ 3 mais" e o único chip rosa visível ficava sozinho numa célula vazia, provando que ele aparece e não que ele se distingue; e o campo novo da ficha saía vazio, onde um `<input type="date"` sem valor é idêntico ao que tem o vínculo quebrado. ***A bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, e no lugar dela estão as dez medições contra o Postgres de produção em transações revertidas, com os dez cenários escritos no arquivo 26. |
 | A rodada fechada, e vários aprovadores | **Vários aprovadores no envio, substituição depois do envio, reenvio sem recriar a rodada, e o histórico completo nas três telas** (migration 0129, itens 15 e 17). **O ACHADO É A SEGUNDA METADE, e ele é meu:** este arquivo afirma em três lugares que *"rodada fechada nunca é reescrita nem apagada"*, e um deles é a razão de `approval_rounds` ficar fora do `audit_log` — **medido contra o Postgres de produção, era falso**. A tabela tem UMA policy de UPDATE, `is_gestor()`, e dos onze triggers nenhum olhava `comentario`, `decidido_por`, `decidido_em`, `aprovador_id` nem `mensagem`: qualquer gestor reescrevia por um PATCH quem decidiu e com que comentário uma rodada de três meses atrás, **sem rastro**, justamente porque a tabela está fora da trilha por esta propriedade que não existia. É a **0127 pela segunda vez**, com a mesma lição — *o custo de afirmar aqui uma propriedade que não foi conferida é que ela passa a ser lida como verdade por quem vier depois*. São DOIS ramos: a **identidade** congela sempre (o número da rodada é a VERSÃO da peça desde a 0033) e a **decisão** congela quando a rodada fecha, porque enquanto ela está pendente é isso que a outra metade existe para mexer; `status` mantém o ramo dele, primeiro, porque a recusa dele diz o CAMINHO. A função foi **copiada inteira** (a lição da 0030). **A outra metade é a forma da 0114 com a recusa da 0113:** `aprovador_id` continua sendo a PRIMEIRA pessoa, `approval_round_aprovadores` manda, dois gatilhos mantêm os dois lados em dia — e **a última pessoa NÃO pode sair**, ao contrário da 0114, porque "rodada sem aprovador" é um estado que o `insert` da 0128 não deixa nascer. **E aqui a guarda do cascade é TRAVA e não economia:** sem ela, apagar uma rodada é recusado pelo próprio gatilho que protege a última pessoa — medido, `delete from approval_rounds` aborta. A troca é `security definer` e não um `update` na tela, porque a policy que a governaria é a que responde *"quem DECIDE"*, fechada desde a 0029 — alargá-la daria de lambuja o poder de decidir uma rodada interna. **`array_agg(distinct …)` quebraria a ordem do clique** (ele ordena por uuid, e `aprovador_id` passaria a ser a pessoa de menor uuid), então o dedupe é `with ordinality` com `min(ord)`. **O aviso é de quem ENTROU** e, no lote, um por pessoa no fim — e ***o GUC que silencia as rodadas foi escrito antes de ser lido***, numa primeira versão em que dezoito sinos sairiam com a trava escrita e sem efeito: o interruptor da 0088 em outra forma. No item 17, **não havia três desenhos, havia um desenho e duas ausências**: o acordeão era privado do painel da etapa, o editor do post **não tinha histórico nenhum** e a árvore da campanha mostrava UMA rodada, a interna da versão corrente. De quebra, **uma rodada RECUSADA aparecia como "Pendente"** — o rótulo saía de um ternário de três ramos e `rejeitada` é o quarto valor do enum desde a 0032; hoje é um `Record` total sobre `StatusRodada`, com as três cores saindo de `DECISOES` e o rótulo no tempo verbal do registro. ***A bateria não foi rodada*** (sem Docker nem Postgres aqui): no lugar dela, TREZE casos medidos contra produção numa transação revertida. ***E o seletor com dois chips não sai em imagem***, porque o stub de `quemPodeAprovar` devolve uma pessoa de propósito — com duas, `57f-social-encerrar-o-mes` abriria com o campo vazio. **E AS IMAGENS ACHARAM QUATRO COISAS, três delas minhas.** A primeira é a que faltava para o conserto ter prova: **nenhum exemplo tinha rodada `rejeitada`**, então a linha que o ternário desenhava errado era justamente a que imagem nenhuma mostrava — entrou `20o-campanha-peca-recusada`, na peça cujo cartão já diz "Rejeitado", com os mesmos quem/quando/motivo que ele. A segunda: o painel de envio oferecia **Caio Alves** e a rodada quinze centímetros abaixo esperava **Joana Prado** — um estado que o banco recusa (`aprovador_pertence_a_conta()`), porque três stubs escreviam a pessoa por conta própria onde o produto tem UMA função; hoje é `APROVADOR_DO_CLIENTE`, num lugar só. A terceira: os dois botões caíam **entre** *"Esperando Joana Prado"* e *"Enviada com: …"*, partindo os fatos do mesmo envio — é a decisão do detalhe da Task, e eles desceram para o fim, com o componente separado em FATO e AÇÃO. **A quarta é do GERADOR e é antiga:** o `fullPage` do Playwright captura além da janela sem rolar, então o que é `fixed` sai desenhado na rolagem corrente — numa tela cujo `clicar` está no pé da página, a busca e a barra lateral apareciam **atravessadas no meio do conteúdo**. A rolagem volta ao topo antes de capturar, menos nas de `semRolagem`, que rolando perderiam a lista suspensa que existem para fotografar. **Nenhuma das quatro é tipo, cor ou árvore de acessibilidade** — as sete varreduras passaram verdes nas quatro. |
 | As três visões têm a mesma largura | **O board de Minhas Tasks deixou de ser mais largo que a Lista e o Calendário** — decisão do usuário: *"ficou ótima a visualização de lista e calendário mas a visualização de Board está mais expandida que as outras 2, deixe padronizado"*. As três são a mesma tela trocada por um seletor, e a página mudando de largura a cada clique é a tela se reorganizando debaixo de quem só queria ver o mesmo trabalho de outro jeito. **A MARCA SAIU DO PRODUTO, E AS DUAS PONTAS NO MESMO COMMIT:** o board era a única tela a marcar `data-largo`, e o `has-[[data-largo]]:max-w-none` do `main` era o mecanismo que respondia — deixar o `has-[]` lá seria um interruptor que nada mais aciona, que é a camada que a 0088 deixou para trás e que a 0090 encontrou filtrando fora exatamente as linhas que ela acabara de criar. **Hoje `max-w-6xl` é a única medida do painel, sem exceção.** **O ARGUMENTO QUE CRIOU A MARCA JÁ ESTAVA VENCIDO, e é por isso que tirá-la é barato:** ela nasceu quando o board era `flex` com coluna fixa de 288px — seis davam 1788px e ele rolava dentro dos 72rem. Ele virou GRADE no mesmo sprint, e **o que resolveu a rolagem foi a grade e não a largura**: uma grade reparte o espaço que existe, então ela não precisa de 1788px para mostrar as seis, precisa de uma contagem que caiba na largura que tem. A distinção levou dois sprints para ficar escrita. ***O que a padronização custa, e é dito em vez de escondido:*** cada coluna perde 27px — eram ~198px e passam a ser **~171px**, que é o conteúdo de 1088px dos 72rem menos cinco vãos de 12px, repartido em seis. **E SÃO SEIS E NÃO QUATRO**, que é a pergunta que a largura nova levanta: quatro dariam ~258px folgados, e o que as recusa é a mesma conta que tirou a rolagem horizontal daqui — com quatro, "Em ajustes" e "Concluída" caem para a segunda fileira, e a primeira tem a altura de "Em andamento", que num dia cheio passa de 900px; **rolar para baixo para achar uma coluna não é melhor que rolar para o lado**. A 171px o cartão ainda carrega o título, a prioridade, o selo de prazo inteiro (é a quebra do `DateBadge` do sprint passado que paga isso), o relógio e o botão de ação. **Medido nas três visões**, que agora dão a mesma largura de conteúdo, e conferido em imagem — largura de coluna não é tipo, não é cor e não é árvore de acessibilidade, então nenhuma varredura a alcança. Nenhuma migration, nenhuma consulta. |
 | A caixa do status | **A Lista da Gestão de Tasks ficou branca, e cada status virou uma caixa colorida com o título em caixa alta** — decisão do usuário, mais a foto de cada pessoa no filtro de Responsáveis. **A CAUSA DO CINZA ERA A `DataTable`, e ela é de SEIS telas:** o contêiner era `overflow-hidden rounded-xl border` e mais nada, então o que aparecia entre as linhas era a PÁGINA — o achado dos três contêineres de Minhas Tasks pela segunda vez, agora num componente compartilhado, e a resposta para a pergunta que aquela seção tinha deixado explicitamente aberta. O cabeçalho era `bg-muted/40`, que é a regra do par nomeado quebrada em silêncio: a 40% sobre a página ele ficava a dois pontos de distância dela, e era isso que fazia a tela parecer um bloco cinza só. ***Por que mexer num componente de seis donos quando o `EmptyState`, de quarenta, não foi tocado:*** a contagem é só metade do critério, e a outra metade é se os donos CONCORDAM — lá a moldura tracejada estava certa em trinta e oito dos quarenta; aqui nenhuma das seis telas quer que a tabela mostre a página por baixo das linhas. **O ponto de 8px VIROU A CAIXA**, pintada com o par nomeado do MESMO mapa do selo e do seletor, e o ponto saiu: dentro de uma caixa já pintada ele é a mesma cor dita duas vezes a quatro pixels de distância. A caixa abraça o TÍTULO e não a linha inteira, e com isso o alvo do clique passou a ser visível — antes o botão ocupava a linha toda e nada dizia onde ele estava. **O hover é a BORDA e não o chão**, pela lição da 0127: `brightness` é filtro do Tailwind, não cor nomeada, e passa despercebido pelo `check:cores`. **E vale nas DUAS listas**, porque duas telas que agrupam igual e se comportam diferente é a divergência esperando acontecer — a caixa e a caixa alta só existem onde há COR, então agrupar por cliente ou por conta continua com o cabeçalho de texto: não há cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando o nome de quem contratou. ***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** três pares de status continuam dividindo o mesmo tom — os sete da Task mapeiam em CINCO pares medidos, que é a mesma decisão do calendário do Social e do portal (*sete cores numa grade viram confete*). Dar a cada um a cor dele é uma cor nova medida por par que falta, em dois temas, com a separação por daltonismo conferida, e mudaria o selo em vinte e uma telas, o Portal do Cliente incluído. **E a foto do filtro não custou consulta nenhuma:** `avatar_url` já chegava, e o que a escondia era o tipo da prop. O gatilho mostra o rosto de graça, porque o `SelectValue` do Radix renderiza o item escolhido — e é ele que sai em imagem, não a lista aberta, porque fotografar um `Select` aberto custa um vermelho fixo no axe: **medido**, a rodada passou de 1 achado para 2. Nenhuma migration. |

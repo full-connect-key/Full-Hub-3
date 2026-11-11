@@ -112,6 +112,62 @@ export const itensDoCalendario = cache(
       link: l.link,
     }));
 
+    // -----------------------------------------------------------------------
+    // A SEGUNDA ORIGEM: os aniversários da equipe (0130)
+    //
+    // **Ela não vem da view, e é a única que nunca veio.** O nome mora em
+    // `profiles`, cujas duas policies de SELECT são `own` e `is_gestor()`:
+    // um `join` dentro de uma view `security_invoker` derrubaria, para um
+    // colaborador, toda linha que não é a dele — o calendário devolveria um
+    // aniversário, o próprio, sem erro em lugar nenhum. Quem responde é
+    // `aniversarios_do_periodo()`, `security definer` com `is_staff()` na
+    // porta. A razão inteira está no cabeçalho da 0130.
+    //
+    // **ELA SÓ É PERGUNTADA SEM FILTRO DE CLIENTE**, e isso não é economia:
+    // um aniversário não tem empresa, e a regra desta tela desde a 0105 é
+    // que filtrar por cliente deixa de fora o que não tem uma — é o que já
+    // acontece com a convenção da casa. Deixá-lo passar faria o recorte
+    // mostrar uma linha que não é daquela conta.
+    //
+    // **E a falha dela não derruba a tela**, ao contrário de `ouFalha()` nas
+    // linhas acima: o calendário funciona inteiro sem esta resposta — ela
+    // acrescenta chips a uma grade que já está desenhada. É a exceção escrita
+    // de `portaoDoPost()` e a do selo de programado. O erro vai para o log,
+    // senão um aniversário que parasse de aparecer para a agência inteira
+    // seria descoberto por alguém reclamando que ninguém lembrou do dia dele.
+    // -----------------------------------------------------------------------
+    if (!filtros.clientes?.length) {
+      const { data: aniversarios, error } = await supabase.rpc(
+        "aniversarios_do_periodo",
+        { p_inicio: filtros.de, p_fim: filtros.ate },
+      );
+
+      if (error) {
+        console.error("[calendário] aniversários da equipe:", error);
+      } else {
+        for (const a of aniversarios ?? []) {
+          itens.push({
+            // O ID CARREGA O ANO, e ele precisa: a mesma pessoa tem um
+            // aniversário por ano, e a visão de semana mostra 28/12 a 03/01.
+            // Com o id da pessoa sozinho, aquela semana teria duas linhas com
+            // a mesma chave de React.
+            id: `aniversario-${a.user_id}-${a.dia}`,
+            tipo: "aniversario",
+            titulo: a.nome,
+            dataInicio: a.dia,
+            dataFim: a.dia,
+            clientId: null,
+            cliente: null,
+            status: null,
+            // SEM LINK, e a ausência é decisão: a ficha da pessoa mora em
+            // `/painel/pessoas`, que é `GESTAO` — um colaborador clicando
+            // levaria 403 na tela que o produto diz que é dele.
+            link: "",
+          });
+        }
+      }
+    }
+
     return itens.sort(
       (a, b) =>
         a.dataInicio.localeCompare(b.dataInicio) ||

@@ -577,3 +577,152 @@ select teste.cenario(
      where user_id = '44444444-4444-4444-4444-444444444444'$$,
   'recusa'
 );
+
+
+-- ---------------------------------------------------------------------------
+-- 10. OS ANIVERSARIOS DA EQUIPE (0130)
+-- ---------------------------------------------------------------------------
+-- A SEGUNDA ORIGEM DO CALENDARIO, e a unica que nao vem da view.
+--
+-- O nome mora em `profiles`, cujas duas policies de SELECT sao `own` e
+-- `is_gestor()`: um `join` dentro de uma view `security_invoker` derrubaria,
+-- para um colaborador, toda linha que nao e a dele -- o calendario devolveria
+-- UM aniversario, o proprio, sem erro em lugar nenhum. Por isso a origem e
+-- `aniversarios_do_periodo()`, `security definer` com `is_staff()` escrito a
+-- mao na porta.
+--
+-- O QUE ESTES CENARIOS GUARDAM:
+--
+--   1. que a guarda existe -- o cliente nao alcanca a lista de nomes e datas
+--      da equipe. E o cenario que separa `security definer` com porta de
+--      `security definer` sem porta, e sem ele a funcao devolveria a agenda
+--      pessoal da agencia para quem tiver a chave anon;
+--   2. que `anon` nao executa. Medido pelo PRIVILEGIO e nao pela mensagem de
+--      recusa: uma funcao pode recusar por dentro e continuar executavel, e
+--      ai o que se mediu foi o corpo dela, nao a porta;
+--   3. que o COLABORADOR ve o aniversario dos OUTROS. E a metade que a view
+--      nao conseguiria entregar, e e o ponto inteiro da funcao existir;
+--   4. 29/02, que e a unica data do calendario que nao existe todo ano;
+--   5. a janela que atravessa o ano, que e onde `generate_series` sobre o ano
+--      do inicio sozinho perderia linhas;
+--   6. que quem saiu da agencia nao aparece.
+
+update public.team_members set data_nascimento = date '1988-02-29' where user_id = :BRUNO;
+update public.team_members set data_nascimento = date '1990-01-10' where user_id = :CARLA;
+
+select teste.conferir(
+  'A ficha guarda a data de nascimento',
+  (select data_nascimento::text from public.team_members where user_id = :BRUNO),
+  '1988-02-29'
+);
+
+-- O PISO E `check` E O TETO NAO E, e a razao e a imutabilidade: "nao pode ser
+-- no futuro" precisa de `current_date`, que nao e immutable, e o Postgres
+-- recusa a constraint. O teto mora no zod do formulario. O piso pega o ano de
+-- quatro digitos digitado errado.
+select teste.cenario(
+  'Data de nascimento antes de 1900 e recusada',
+  :ANA,
+  $$update public.team_members set data_nascimento = date '0199-05-12'
+     where user_id = '44444444-4444-4444-4444-444444444444'$$,
+  'recusa'
+);
+
+-- 1 e 3. A GUARDA, e o colaborador vendo os OUTROS.
+select teste.conferir_como(
+  'O colaborador ve o aniversario de quem nao e ele',
+  :CARLA,
+  $$select count(*)::text from public.aniversarios_do_periodo(
+      date '2028-02-01', date '2028-02-29')$$,
+  '1'
+);
+
+select teste.conferir_como(
+  'O cliente nao alcanca aniversario nenhum',
+  :JOANA,
+  $$select count(*)::text from public.aniversarios_do_periodo(
+      date '2028-01-01', date '2028-12-31')$$,
+  '0'
+);
+
+-- 2. `anon` NAO EXECUTA. O Postgres concede execute a `public` em toda funcao
+-- nova e o PostgREST publica o schema `public` sozinho: sem o revoke da 0130,
+-- a lista de nomes e datas sairia para quem tiver a chave anon.
+select teste.conferir(
+  'anon nao executa aniversarios_do_periodo',
+  has_function_privilege('anon', 'public.aniversarios_do_periodo(date,date)', 'execute')::text,
+  'false'
+);
+
+select teste.conferir(
+  'authenticated executa aniversarios_do_periodo',
+  has_function_privilege('authenticated', 'public.aniversarios_do_periodo(date,date)', 'execute')::text,
+  'true'
+);
+
+-- 4. 29/02. Num ano que nao e bissexto o aniversario cai em 28/02, que e a
+-- pratica civil brasileira -- e `make_date(2027, 2, 29)` ESTOURARIA.
+select teste.conferir_como(
+  'Quem nasceu em 29/02 aparece em 28/02 num ano comum',
+  :ANA,
+  $$select dia::text from public.aniversarios_do_periodo(
+      date '2027-02-01', date '2027-02-28')
+     where user_id = '44444444-4444-4444-4444-444444444444'$$,
+  '2027-02-28'
+);
+
+select teste.conferir_como(
+  'E em 29/02 num ano bissexto',
+  :ANA,
+  $$select dia::text from public.aniversarios_do_periodo(
+      date '2028-02-01', date '2028-02-29')
+     where user_id = '44444444-4444-4444-4444-444444444444'$$,
+  '2028-02-29'
+);
+
+-- 5. A JANELA QUE ATRAVESSA O ANO. A visao de semana mostra 28/12 a 03/01, e
+-- com a serie sobre o ano do INICIO sozinho a linha de janeiro sumiria -- de
+-- uma semana que a contem. A janela aqui vai de 2027 a 2028 e o aniversario
+-- da CARLA e 10/01: este cenario e o unico que separa as duas versoes.
+select teste.conferir_como(
+  'A janela que atravessa o ano acha o aniversario do ano seguinte',
+  :ANA,
+  $$select dia::text from public.aniversarios_do_periodo(
+      date '2027-12-28', date '2028-01-15')
+     where user_id = '33333333-3333-3333-3333-333333333333'$$,
+  '2028-01-10'
+);
+
+-- 6. QUEM SAIU DA AGENCIA NAO APARECE.
+--
+-- E O ESTADO E DESFEITO NO FIM DESTA SECAO, que e a licao do vazamento que a
+-- 0103 encontrou: `25_campanha_com_demanda.sql` punha a Marina no Atendimento
+-- e nunca a devolvia, e doze arquivos adiante rodavam com uma Social Media
+-- que o banco achava ser do Atendimento. Um arquivo da bateria nao pode
+-- deixar estado compartilhado mexido para os seguintes.
+update public.team_members set ativo = false where user_id = :BRUNO;
+
+select teste.conferir_como(
+  'Quem saiu da equipe nao tem aniversario no calendario',
+  :ANA,
+  $$select count(*)::text from public.aniversarios_do_periodo(
+      date '2028-02-01', date '2028-02-29')
+     where user_id = '44444444-4444-4444-4444-444444444444'$$,
+  '0'
+);
+
+update public.team_members set ativo = true where user_id = :BRUNO;
+
+select teste.conferir_como(
+  'E volta quando ela volta -- o estado foi desfeito',
+  :ANA,
+  $$select count(*)::text from public.aniversarios_do_periodo(
+      date '2028-02-01', date '2028-02-29')
+     where user_id = '44444444-4444-4444-4444-444444444444'$$,
+  '1'
+);
+
+-- A FICHA VOLTA AO QUE ERA: as duas datas saem, porque nenhum arquivo depois
+-- deste espera que alguem da equipe tenha data de nascimento.
+update public.team_members set data_nascimento = null
+ where user_id in (:BRUNO, :CARLA);

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { AREA_DA_FUNCAO, FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { DIAS_DE_DESCANSO_PADRAO } from "@/lib/dominio/full-days";
@@ -34,6 +35,7 @@ const esquema = z.object({
   // Obrigatória: é ela que libera a criação de tasks para o Atendimento.
   funcao: z.string().min(1, "Escolha a função da pessoa na agência."),
   data_admissao: z.string().optional(),
+  data_nascimento: z.string().optional(),
   dias_ferias_ano: z.number().int().min(0).max(365),
 });
 
@@ -71,6 +73,7 @@ export function DetalheDoColaborador({
       cargo: pessoa.membro?.cargo ?? "",
       funcao: pessoa.membro?.funcao ?? "",
       data_admissao: pessoa.membro?.data_admissao ?? "",
+      data_nascimento: pessoa.membro?.data_nascimento ?? "",
       dias_ferias_ano: pessoa.membro?.dias_ferias_ano ?? DIAS_DE_DESCANSO_PADRAO,
     },
   });
@@ -210,6 +213,23 @@ export function DetalheDoColaborador({
             <div className="space-y-2">
               <Label htmlFor="data_admissao">Data de admissão</Label>
               <Input id="data_admissao" type="date" {...register("data_admissao")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_nascimento">Data de nascimento</Label>
+              <Input
+                id="data_nascimento"
+                type="date"
+                max={hojeNaAgencia()}
+                {...register("data_nascimento")}
+              />
+              {/* A FRASE DIZ O QUE A DATA FAZ. É o único campo desta ficha que
+                  vira uma linha numa tela que a agência inteira abre, e dizer
+                  que o ano não sai daqui é a diferença entre preencher e não
+                  preencher. */}
+              <p className="text-text-muted text-xs">
+                O dia e o mês entram no Calendário Full, para a equipe lembrar.
+                O ano não sai desta ficha.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { FUNCOES, areaDaFuncao } from "@/lib/dominio/equipe";
 import { ehSocio } from "@/lib/auth/roles";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -25,6 +26,22 @@ const esquema = z.object({
   cargo: z.string().max(120).optional().nullable(),
   funcao: z.enum(FUNCOES, { message: "Escolha a função da pessoa na agência." }),
   data_admissao: z.string().optional().nullable(),
+  /**
+   * A DATA DE NASCIMENTO (0130), e o teto é aqui e não no banco.
+   *
+   * "Não pode ser no futuro" não cabe num `check` do Postgres: `current_date`
+   * não é immutable, e a migration estouraria. O banco guarda o piso de 1900,
+   * que é immutable, e o futuro é recusado onde a pessoa está digitando —
+   * é a frase antes do clique, do lado da máquina de estados.
+   */
+  data_nascimento: z
+    .string()
+    .optional()
+    .nullable()
+    .refine(
+      (v) => !v || v <= hojeNaAgencia(),
+      "A data de nascimento não pode ser no futuro.",
+    ),
   dias_ferias_ano: z.number().int().min(0).max(365),
 });
 
@@ -100,6 +117,7 @@ export async function salvarColaborador(dados: unknown): Promise<Resultado> {
           area: areaDaFuncao(ficha.funcao),
           funcao: ficha.funcao,
           data_admissao: vazioParaNulo(ficha.data_admissao),
+          data_nascimento: vazioParaNulo(ficha.data_nascimento),
           dias_ferias_ano: ficha.dias_ferias_ano,
         },
         { onConflict: "user_id" },

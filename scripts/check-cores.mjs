@@ -472,6 +472,10 @@ const PARES = [
   // Day Off e a outra mede o chip do calendário, em vez de uma afirmar sobre
   // a outra. É a decisão do par nomeado aplicada à lista que o confere.
   ["--roxo", "--roxo-soft", NORMAL, "chip de convenção e feira no calendário"],
+  // O PAR DO ANIVERSÁRIO (0130). Ele entrou porque não havia par livre — os
+  // cinco do calendário já têm dono —, e é o precedente do `--roxo` na 0109:
+  // categoria nova que não cabe em nenhum ganha token próprio e medido.
+  ["--rosa", "--rosa-soft", NORMAL, "chip de aniversário no calendário"],
   // Na matriz o quadrado de férias é só cor, sem texto: vale a régua de
   // elemento de interface.
   ["--ferias", "--surface-card", GRANDE, "quadrado de férias na matriz"],
