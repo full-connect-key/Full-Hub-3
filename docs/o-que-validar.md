@@ -1,11 +1,13 @@
-# O que validar — entrega "A etapa por inteiro"
+# O que validar — entrega "A entrega diz o que ela é"
 
 Lista em ordem, do que bloqueia tudo até o detalhe. Cada item diz **onde
 clicar**, **o que você tem que ver** e **o que me dizer se estiver errado**.
 
-> Esta lista é da entrega dos cinco pedidos de 12/11/2026. Ela é descartável:
-> quando você terminar, pode apagar o arquivo. A lista anterior ("A etapa
-> editável") foi substituída por esta.
+> Esta lista é da entrega dos cinco pedidos de 12/11/2026 — o comentário na
+> entrega, o comodato por pessoa, a nota fiscal de dezembro, os filtros das
+> Solicitações e o dia cheio do calendário. Ela é descartável: quando você
+> terminar, pode apagar o arquivo. A lista anterior ("A etapa por inteiro") foi
+> substituída por esta.
 
 ---
 
@@ -16,155 +18,216 @@ clicar**, **o que você tem que ver** e **o que me dizer se estiver errado**.
 ele mostrar o commit de antes, nada abaixo existe no ar — o deploy da Hostinger
 não acontece sozinho, e o site continua respondendo com o build da véspera.
 
-**0.2 — Migration: nada a fazer.** A **0132** (a que conserta o responsável que
-sumia) **já foi aplicada por mim**, no banco de produção, e conferida. Não há
-nada para colar no SQL Editor.
+**0.2 — Colar DUAS migrations, nesta ordem.** A conexão com o Supabase caiu no
+meio desta entrega (ela respondeu *"You do not have permission"* nas últimas
+tentativas), então as duas ficaram escritas e **não aplicadas**. SQL Editor →
+cole o arquivo inteiro → Run:
+
+1. `supabase/migrations/0133_o_portal_do_cliente_e_de_toda_a_equipe.sql`
+2. `supabase/migrations/0134_a_observacao_da_entrega.sql`
+
+**A 0132 você já aplicou** — foi ela que devolveu o erro `42710: policy
+"profiles_select_equipe" already exists`, e esse erro *é* a prova de que ela
+está no banco. Não cole de novo. (Ela ganhou o `drop policy if exists` que
+faltava, então se um dia você recolar o pacote inteiro ela não para mais a
+colagem no meio.)
+
+**Se der erro em qualquer uma das duas**, me manda o texto do erro e **em qual
+das duas** ele apareceu. E antes de desconfiar de qualquer coisa deste
+documento, cole `scripts/onde-esta-o-banco.sql`: ele diz, linha por linha, em
+que migration o banco está. A primeira linha que disser `FALTA` é por onde
+continuar.
+
+**0.3 — Sem a 0134, um item desta lista nem aparece.** O comentário na entrega
+(item 1) depende dela: sem a coluna, a tela não desenha o campo, e você vai
+procurar um botão que não existe. Os itens 2 a 5 funcionam sem migration
+nenhuma.
 
 ---
 
-## 1. O responsável que sumia no colaborador
+## 1. O comentário na entrega
 
-Era o seu pedido nº 5, e era um furo de verdade — de permissão de banco, não de
-tela.
+Era o seu pedido nº 1: *"quando a pessoa vai fazer uma entrega, ela possa
+comentar e subir um link, para especificar qual a entrega certa daquela task,
+cada subtarefa deve poder subir um link diferente, e cada sub etapa também"*.
 
-**Onde:** abra qualquer demanda com responsável preenchido, primeiro como
-**sócio**, depois entrando com uma conta de **colaborador**.
+**Duas das três partes já existiam, e vale saber qual:** subir um link já
+funcionava, e a **sub-etapa** já anexava o link dela — ela abre o mesmo modal
+da etapa. O que não existia era o **comentário**.
 
-**O que ver:** o mesmo nome e a mesma foto nos dois. Antes, quem não era gestão
-lia **um perfil só — o dele**, então o responsável de cada etapa, a pilha de
-avatares da demanda e o autor de cada comentário voltavam vazios.
+**Onde:** abra uma demanda → clique numa etapa → a seção **Entregas** do modal.
 
-**Confira também, como colaborador:**
+**O que ver, em três lugares:**
 
-* a lista de etapas: cada uma com a foto de quem a faz;
-* a **sub-etapa** (a linha recuada): a foto aparece nela também;
-* **⌘K / Ctrl+K** → digite o nome de um colega: o grupo **Equipe** agora
-  responde (antes devolvia nada para quem não é gestão).
+* **No modal da etapa** — o formulário de link ganhou um segundo campo
+  (*"O que é este arquivo?"*), e cada entrega já anexada tem, embaixo dela, ou
+  a frase que alguém escreveu ou o convite **"Dizer o que é este arquivo"**.
+  Clicando em **editar**, o campo abre **com o texto que já estava lá dentro** —
+  se ele abrir vazio, é bug e eu quero saber.
+* **Em "Arquivos da entrega"**, na mesma página da demanda, mais abaixo: a
+  mesma frase aparece embaixo de quem mandou e quando.
+* **Na fila de Aprovações Internas** (Gestão de Tasks → aba Aprovações
+  internas): a frase aparece embaixo do chip do anexo. **É aqui que ela mais
+  serve** — quem decide não é quem produziu, e com quatro anexos na linha era
+  um palpite pelo nome do arquivo.
 
-**O que continua escondido, de propósito:** o contato de **cliente**. A regra
-nova abre a equipe para a equipe e deixa o cliente de fora.
+**Faça também a sub-etapa**, que é a metade do pedido que eu quero que você
+confirme: abra uma etapa que tenha sub-etapas (a linha recuada), clique numa
+delas, e anexe um link com um comentário. Tem que funcionar igual.
 
-**Me diga se:** alguma tela ainda mostrar "sem responsável" numa etapa que tem
-dono.
+**Teste de verdade:** anexe dois links na mesma etapa, escreva em um só, e veja
+se o outro continua sem nada escrito. A nota é de cada arquivo, não da etapa.
 
----
+**O que ela NÃO é, e eu preciso te dizer:** a nota **não é secreta do
+cliente**. A linha da entrega é legível por ele desde o começo do produto — é
+assim que o arquivo chega ao portal —, e a permissão do banco libera a linha
+inteira, não coluna por coluna. **Nenhuma tela do portal desenha a nota**, e a
+frase embaixo do campo diz isso com estas palavras: ela é *"para quem for olhar
+aqui dentro"*, e o recado ao cliente vai no envio da aprovação. Se você quiser
+que ela seja inalcançável por ele de verdade, isso é outra decisão e eu te digo
+o que custa.
 
-## 2. O status da demanda andar sozinho
-
-Era o seu pedido nº 2, e a resposta tem uma parte que vai te surpreender.
-
-**O que o Full Hub já fazia:** o status da demanda é calculado pelas etapas. A
-primeira pessoa que põe a etapa dela em andamento move a demanda para "Em
-andamento" na Gestão de Tasks, e as outras continuam em "Iniciar" cada uma na
-sua. Isso funciona desde sempre.
-
-**O que estava desligando isso:** quando alguém **arrasta um card no board**, o
-Full Hub entende que a pessoa escolheu o status à mão — e **para de calcular
-aquela demanda para sempre**. A tela respondia só "Salvo.", e nada dizia que o
-cálculo tinha sido desligado.
-
-**E conferi no seu banco: a sua única demanda publicada está exatamente assim.**
-"Divulgação Sorteio de Aniversário" está marcada **Em andamento** à mão, com as
-**três etapas ainda em "Não iniciada"**. Era isso que você estava vendo.
-
-**Onde:** `/painel/gestao-tasks` → **Demandas**.
-
-**O que ver agora:**
-
-1. no card dessa demanda (e na linha dela na visão Lista) aparece uma marca
-   discreta: **✋ à mão**;
-2. passando o mouse, ela explica: *"este status foi marcado à mão, então o Full
-   Hub parou de calculá-lo"*;
-3. **clicando nela**, o cálculo volta — a demanda cai para "Iniciar", porque
-   nenhuma das três etapas começou;
-4. peça para alguém pôr uma etapa em andamento: a demanda sobe sozinha para "Em
-   andamento", e as outras duas etapas continuam em "Não iniciada".
-
-**E arrastando um card agora**, a mensagem diz o que aconteceu: *"Status marcado
-à mão — o Full Hub deixa de calculá-lo pelas etapas."*
-
-**Não mexi nas suas demandas.** Soltar o cálculo de todas de uma vez apagaria,
-em silêncio, a escolha de quem marcou de propósito. A marca mostra quais estão
-paradas; o clique é seu.
-
-**Me diga se:** depois de clicar em "à mão", a demanda não acompanhar as etapas.
+**De quebra, achei um defeito antigo arrumando isto.** O carimbo que diz
+*"este arquivo saiu nesta rodada"* **não estava sendo gravado**: a escrita
+existia no código e o banco a recusava em silêncio desde a entrega dos anexos.
+Com a 0134 ela voltaria a funcionar sozinha, o que não era o que eu queria
+ligar por acidente — então ela saiu, com a razão escrita no lugar dela. Isso
+quer dizer que **o cadeadinho "enviado ao cliente" na lista de arquivos pode
+estar faltando em entregas antigas**. Não é desta entrega, não quebra nada, e
+eu consigo arrumar separado se você quiser.
 
 ---
 
-## 3. Briefing dentro da sub-etapa
+## 2. Comodato: "Por pessoa" igual a "Por equipamento"
 
-Era o seu pedido nº 3.
+Era o seu pedido nº 2.
 
-**Onde:** abra uma demanda → clique numa **sub-etapa** (a linha recuada dentro
-de outra etapa) → o modal abre.
+**Onde:** Comodatos → aba **Visão geral** → seletor **Por pessoa**.
 
-**O que ver:** uma seção **Briefing**, logo abaixo das propriedades, com o mesmo
-editor de texto da demanda — negrito, lista, caixa, tabela, cor.
+**O que ver:** cada pessoa abre e os equipamentos dela aparecem com a **mesma
+anatomia** da outra visão — foto (ou o ícone do tipo), nome, o
+`código · tipo · nº de série`, a pílula de situação, desde quando está com ela,
+o estado, e o menu de ações com **"Ver a folha"** dentro. Antes eram três
+campos numa linha, sem foto, sem pílula e sem ações.
 
-**Como ele salva:** no **mesmo botão Salvar** do modal. Escreva alguma coisa e a
-barra do pé passa a contar a alteração junto com as outras; o Salvar grava tudo
-de uma vez.
+**Três coisas que mudaram junto:**
 
-**Por que não tem botão próprio:** com dois botões, a barra do pé diria "2
-alterações por salvar" e gravaria só as cinco propriedades — uma alteração
-pendente que o aviso não conhece é pior que aviso nenhum.
+* **A busca** ficou em cima, e ela casa com código, nome, marca, modelo, série
+  **e o nome da pessoa** — digitando um nome, todos os equipamentos dela vêm.
+* **O atraso aparece na linha**, em âmbar (*"desde 12/03/25"* mais o aviso).
+  O cartão do topo já contava *"Devolução atrasada: 2"* e não dizia **quais** —
+  agora diz.
+* **As colunas se alinham** de uma linha para a de baixo dentro da mesma
+  pessoa, que é o que permite comparar.
 
-**Me diga se:** o texto sumir ao fechar e reabrir o modal depois de salvar.
-
----
-
-## 4. As fotos de todo mundo na demanda
-
-Era o seu pedido nº 4, e ele tinha duas metades.
-
-**A primeira já estava certa e invisível:** as sub-etapas já entravam na coluna
-**Equipe** da demanda, e a foto já era desenhada na linha delas — as duas
-sumiam pelo furo do item 1. Conferido no item 1.
-
-**A segunda era um buraco real:** quando uma etapa tem **duas pessoas** (o campo
-"quem mais faz" dentro do modal), só a primeira aparecia.
-
-**Onde:** abra o modal de uma etapa → acrescente uma segunda pessoa → feche.
-
-**O que ver:** a foto dela encostada no seletor de responsável, na linha da
-etapa, e o nome dela na coluna **Equipe** da demanda.
-
-**Aviso honesto:** hoje o seu banco não tem nenhuma etapa com duas pessoas, então
-esse item só aparece depois que você criar uma.
+**Confira em 375px** (o celular): a linha quebra, e o **nome do equipamento é o
+último a encolher**.
 
 ---
 
-## 5. As cores de status na plataforma toda
+## 3. A nota fiscal conta de dezembro de 2026
 
-Era o seu pedido nº 1.
+Era o seu pedido nº 3, primeira metade.
 
-**O que mudou:** o selo de status — aquele que aparece em vinte e uma telas —
-passou a ser a **pílula cheia com ícone**, igual ao cabeçalho de grupo da Lista.
-Antes ele era pálido no selo e cheio no cabeçalho, as duas na mesma página.
+**Onde:** `/painel/notas-fiscais` (a sua tela), e Financeiro → aba **Notas
+recebidas** (a do sócio).
 
-**Onde conferir, em ordem de importância:**
+**O que ver:** o seletor de mês do diálogo **Enviar nota** começa em
+**dezembro de 2026** e não oferece nada antes. Hoje é novembro de 2026, então
+**o botão está desligado** com a frase *"As notas fiscais passam a ser emitidas
+por aqui a partir de dezembro de 2026."*
 
-1. `/painel/gestao-tasks` → **Lista**: o cabeçalho do grupo e o selo da coluna
-   Status agora são a mesma cor;
-2. `/painel/gestao-tasks` → **Board**: o selo dentro do painel lateral da
-   demanda;
-3. `/painel/minhas-tasks`: lista e board;
-4. **o portal do cliente** (`/portal/{cliente}`): o cartão de cada material.
+**Isso é o certo**, e é o que eu preciso que você confirme: a tela tem **duas
+frases diferentes** para o botão desligado — *"ainda não começou"* (com a data)
+e *"todos os meses em aberto já têm nota enviada"*. Se você vir a segunda em
+novembro, é bug.
 
-**O que ver:** "Não iniciada" e "Cancelada"/"Stand by" continuam **pálidos** de
-propósito — eles são a maioria das linhas, e uma tabela em que tudo grita não
-diz nada. Os outros sete são cheios, cada um com o ícone dele.
-
-**Me diga se:** alguma tela ficou pesada demais com a pílula cheia, ou se achar
-que o portal do cliente deveria ter ficado pálido.
+Em dezembro o botão liga sozinho, com um mês só na lista.
 
 ---
 
-## 6. O que NÃO foi feito, para você saber
+## 4. Solicitações: Status e Cliente
 
-* **Nada foi reescrito no seu banco.** A demanda parada à mão continua parada
-  até você clicar.
-* **Não há como desligar o "à mão" em massa**, de propósito.
-* O **chip do cronograma do portal** continua pálido: lá a cor é o fundo do
-  *título do material*, não do nome do status — cheia, ela poria texto branco
-  sobre cor saturada numa grade de trinta peças.
+Era o seu pedido nº 4, segunda metade: *"troque situação por status e frente
+por cliente para a filtragem"*.
+
+**Onde:** Solicitações (a caixa de entrada do Atendimento).
+
+**O que ver:**
+
+* a primeira fileira de chips se chama **Status** (era "Situação");
+* a segunda dimensão é **Cliente**, e ela é um **seletor** e não chips —
+  porque o cliente cresce com a carteira, e vinte e oito chips seriam uma
+  parede. Ele lista **só as contas que têm pedido na fila**.
+* **a frente continua escrita em toda linha** (Social / Campanha / em âmbar
+  quando falta). Ela deixou de ser um recorte, não deixou de aparecer.
+
+**Os dois recortes ficam no link**, e não se apagam um ao outro: escolha um
+status e um cliente, copie o endereço, abra noutra aba — tem que voltar igual.
+
+**O que se perde, e é dito:** o balde **"Sem classificação"** era a única forma
+de *achar* um pedido anterior à regra de classificação obrigatória. Ele
+continua **visível** em toda linha, mas deixou de ser filtrável. Hoje não há
+nenhum assim no banco; se um dia aparecerem vários, me diz e eu devolvo a
+terceira dimensão.
+
+---
+
+## 5. O dia cheio do calendário
+
+Era o seu pedido nº 5: *"quando tiver muitas tasks no mesmo dia, ele deixe uma
+aba a ser aberta para mostrar todas"*.
+
+**Onde:** Gestão de Tasks → visão **Calendário**.
+
+**O que ver:** um dia com mais itens do que cabe mostra **"+ N mais"**, e
+clicando ali abre um painel **embaixo da grade** com o dia **inteiro** — não só
+os que sobraram, porque juntar de cabeça o que está na célula com o que está
+embaixo é o trabalho que o painel existe para não dar.
+
+**Três detalhes que decidem se está certo:**
+
+* **cabem três no mês e seis na semana** — a célula da semana é mais alta;
+* o painel **rola até aparecer**, porque a grade do mês tem seis semanas e ele
+  nasce abaixo da dobra: sem isso o clique pareceria não fazer nada;
+* **a linha da semana não cresce mais** por causa de um dia cheio. Antes um dia
+  com oito entregas empurrava a linha inteira para quatrocentos pixels e as
+  outras seis colunas ficavam vazias do mesmo tamanho.
+
+**Trocar de mês, de visão ou de responsável fecha o painel** — se ele ficar
+aberto mostrando um dia que não está mais na grade, é bug.
+
+**E isto vale em Minhas Tasks também**, porque é o mesmo componente com outros
+parâmetros.
+
+---
+
+## 6. As propostas de layout
+
+Era o resto dos seus pedidos nº 3 e nº 4: *"me dê propostas de layout de novas
+visualizações da parte de notas fiscais"* e *"me dê propostas de layout para
+Solicitações"*.
+
+**São três para cada módulo**, com a maquete desenhada nas cores do produto, o
+que cada uma responde e **o que ela custa**. Está no link que eu te mandei no
+chat — não é código, é para escolher.
+
+**O que eu preciso de você:** uma de cada. Depois da escolha, a tela entra num
+sprint com as imagens de 1600 e de 375, no claro e no escuro.
+
+---
+
+## 7. O que NÃO foi feito, para você saber
+
+* **A bateria de testes do banco não rodou** nesta entrega — não há Docker nem
+  Postgres neste ambiente. Os vinte e tantos cenários que provariam a permissão
+  e a trava da 0134 estão descritos no cabeçalho dela e **não foram
+  executados**. O que existe no lugar é o `select` de conferência no fim do
+  arquivo, que roda junto com a colagem.
+* **As imagens do protótipo não foram geradas** nesta entrega. As telas estão
+  escritas e as verificações automáticas estão todas verdes, mas o comentário
+  na entrega, o comodato por pessoa e o painel do dia cheio **não foram
+  conferidos em imagem** — nem no claro, nem no escuro, nem em 375px. É por
+  isso que os itens acima pedem que você olhe no celular.
+* **Nada reescreveu as entregas antigas.** O cadeado "enviado ao cliente" que o
+  item 1 menciona continua faltando onde ele já faltava.
