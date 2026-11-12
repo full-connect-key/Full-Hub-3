@@ -23,7 +23,13 @@ import type {
   PessoaComEquipamento,
 } from "../../src/lib/dados/comodatos";
 
-export type { IndicadoresDoInventario, ItemDoInventario, LinhaDaFolha, MeuComodato, PessoaComEquipamento };
+export type {
+  IndicadoresDoInventario,
+  ItemDoInventario,
+  LinhaDaFolha,
+  MeuComodato,
+  PessoaComEquipamento,
+};
 
 export { indicadoresDoInventario } from "../../src/lib/dados/comodatos";
 
@@ -173,6 +179,40 @@ const ITENS: ItemDoInventario[] = [
     armazenamento: null,
     comodato: null,
   },
+  // O BRUNO TEM DOIS, e e a unica razao de este item existir: a linha do item
+  // virou GRADE para alinhar uma com a de baixo, e com uma peca por pessoa a
+  // imagem provaria que o alinhamento existe sobre uma linha so. E a razao do
+  // dia com cinco itens no calendario da Gestao de Tasks.
+  {
+    id: "as-7",
+    codigo: "FCK-0007",
+    tipo: "microfone",
+    nome: "Rode NTG5",
+    marca: "Rode",
+    modelo: "NTG5",
+    numero_serie: "RD-5510",
+    status: "emprestado",
+    estado: "bom",
+    valor_aquisicao: 3100,
+    foto_url: null,
+    foto: null,
+    observacoes: null,
+    data_aquisicao: "2026-02-20",
+    memoria_ram: null,
+    processador: null,
+    placa_de_video: null,
+    armazenamento: null,
+    comodato: {
+      id: "ln-7",
+      user_id: BRUNO,
+      pessoa: "Bruno Lima",
+      pessoa_ativa: true,
+      avatar: null,
+      data_entrega: "2026-09-02",
+      data_prevista_devolucao: null,
+      aceito_em: "2026-09-02T08:30:00Z",
+    },
+  },
   {
     id: "as-6",
     codigo: "FCK-0006",
@@ -270,25 +310,36 @@ export async function inventario(): Promise<ItemDoInventario[]> {
   return ITENS;
 }
 
-export async function porPessoa(itens: ItemDoInventario[]): Promise<PessoaComEquipamento[]> {
-  const nomes: [string, string, boolean][] = [
-    [MARINA, "Marina Alves", true],
-    [BRUNO, "Bruno Lima", true],
-    [SAIU, "Tiago Moraes", false],
-    ["a0000000-0000-0000-0000-000000000003", "Carla Nunes", true],
+export async function porPessoa(
+  itens: ItemDoInventario[],
+): Promise<PessoaComEquipamento[]> {
+  // UMA DAS QUATRO TEM FOTO, e e por isso que ela nao sao quatro nulos: a
+  // visao por pessoa passou a desenhar o avatar, e com `avatar: null` em todas
+  // a imagem provaria que o circulo aparece e nao que ele mostra a FOTO. E uma
+  // so, porque com as quatro ninguem veria as iniciais -- que e o estado da
+  // maioria da equipe. E a licao da Optica Visao sem atendente (0062).
+  const nomes: [string, string, boolean, string | null][] = [
+    [MARINA, "Marina Alves", true, "/exemplos/retrato-1.svg"],
+    [BRUNO, "Bruno Lima", true, null],
+    [SAIU, "Tiago Moraes", false, null],
+    ["a0000000-0000-0000-0000-000000000003", "Carla Nunes", true, null],
   ];
   return nomes
-    .map(([id, nome, ativo]) => ({
+    .map(([id, nome, ativo, avatar]) => ({
       user_id: id,
       nome,
       ativo,
-      avatar: null,
+      avatar,
       itens: itens.filter((i) => i.comodato?.user_id === id),
     }))
-    .sort((a, b) => b.itens.length - a.itens.length || a.nome.localeCompare(b.nome));
+    .sort(
+      (a, b) => b.itens.length - a.itens.length || a.nome.localeCompare(b.nome),
+    );
 }
 
-export async function equipamento(id: string): Promise<ItemDoInventario | null> {
+export async function equipamento(
+  id: string,
+): Promise<ItemDoInventario | null> {
   return ITENS.find((i) => i.id === id) ?? ITENS[0] ?? null;
 }
 
@@ -296,7 +347,9 @@ export async function equipamento(id: string): Promise<ItemDoInventario | null> 
 // de a tela existir: a imagem de uma tela em estado vazio nao mostra a tela,
 // mostra o estado vazio -- e o que precisa ser conferido aqui e a linha do
 // tempo com duas pessoas, que e a razao de a folha existir.
-export async function folhaDoEquipamento(_assetId: string): Promise<LinhaDaFolha[]> {
+export async function folhaDoEquipamento(
+  _assetId: string,
+): Promise<LinhaDaFolha[]> {
   return [
     {
       id: "f6",
@@ -364,7 +417,12 @@ export async function folhaDoEquipamento(_assetId: string): Promise<LinhaDaFolha
 }
 
 export async function comodatosEmAbertoDe(_userId: string) {
-  return [] as { loan_id: string; codigo: string | null; nome: string; data_entrega: string }[];
+  return [] as {
+    loan_id: string;
+    codigo: string | null;
+    nome: string;
+    data_entrega: string;
+  }[];
 }
 
 export async function modeloDoTermo(): Promise<string> {
@@ -386,10 +444,21 @@ Data da entrega: {{DATA_ENTREGA}}
 
 export async function comodatoParaOTermo(
   _loanId: string,
-): Promise<Awaited<ReturnType<typeof import("../../src/lib/dados/comodatos").comodatoParaOTermo>>> {
+): Promise<
+  Awaited<
+    ReturnType<
+      typeof import("../../src/lib/dados/comodatos").comodatoParaOTermo
+    >
+  >
+> {
   return null;
 }
 
 export async function fotosDoComodato(_loanId: string) {
-  return [] as { id: string; momento: string; url: string; assinada: string | null }[];
+  return [] as {
+    id: string;
+    momento: string;
+    url: string;
+    assinada: string | null;
+  }[];
 }

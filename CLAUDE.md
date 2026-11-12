@@ -11572,6 +11572,112 @@ em que o caso mais caro do módulo não existe. É a lição da Óptica Visão s
 responsável de atendimento (0062), aplicada antes de o bug acontecer em vez de
 depois.
 
+#### AS DUAS VISÕES PASSARAM A TER A MESMA ANATOMIA
+
+Decisão do usuário: *"pode deixar a visualização por pessoa, igual a por
+equipamento dentro do comodato"*.
+
+**ELAS NUNCA FORAM IGUAIS, e a distância era grande.** "Por equipamento" é uma
+`DataTable` com foto (ou o ícone do tipo), nome, `código · tipo · série`, a
+pílula de situação, com quem está, o estado, o menu de ações e uma caixa de
+busca. "Por pessoa" era uma lista de `<details>` em que cada item cabia numa
+linha de três campos — nome, código e a data de entrega — **sem foto, sem
+pílula, sem estado, sem ações e sem busca**. A mesma peça parecia duas coisas
+diferentes conforme a visão escolhida, que é o que um seletor de visão existe
+para NÃO fazer: as duas são o mesmo inventário, montado do mesmo array.
+
+**E NENHUMA CONSULTA MUDOU.** `PessoaComEquipamento` carrega `avatar` e
+`itens: ItemDoInventario[]` INTEIROS — com `status`, `estado`, `foto` e o
+`comodato` de cada um — desde a 0069, e a lista desenhava três campos. É a
+ponte construída e nunca atravessada: aqui ela estava inteira dos dois lados,
+e o que faltava era a tela ler o que já estava em mãos.
+
+**AS PEÇAS VIRARAM COMPONENTES, e é por serem DUAS visões e não por tamanho.**
+`IdentidadeDoEquipamento`, `PilulaDaSituacao` e `LinhaDaEntrega` são as mesmas
+nas duas — escrever a anatomia de novo dentro da lista daria a segunda cópia, e
+**a que divergiria é a da lista**, que é a visão que se abre menos. É a
+história das sete cópias de `abas.tsx`, e a de `ICONE_DA_AREA`, que tinha três
+cópias e duas já divergidas.
+
+**O MENU DE AÇÕES É O MESMO `AcoesDoItem`, e com ele veio o caminho para a
+folha:** "Ver a folha" é o primeiro item dele desde a 0069, então a lista por
+pessoa ganhou o link sem um segundo link ao lado — dois caminhos para
+`/painel/comodatos/{id}` seriam dois desenhos da mesma porta.
+
+##### O ATRASO PASSOU A APARECER NA LINHA, e ele faltava nas DUAS
+
+O cartão do topo conta *"Devolução atrasada: 2"* desde a 0069 e **nenhuma das
+duas telas dizia QUAIS**. É o cartão de "11 entregues" com sete na lista
+embaixo que o Resumo da Agência já pagou uma vez, na forma mais cara: um número
+que cobra uma ação e não leva a lugar nenhum.
+
+A conta é a mesma do cartão — `data_prevista_devolucao < hoje` —, e ela mora em
+`LinhaDaEntrega` para as duas lerem a mesma. **E é `--warning`, nunca
+`--danger`**, que é a regra escrita desta tela: o alerta de pessoa desligada é o
+único em `--danger` porque é o caso que custa dinheiro; devolução atrasada é
+cobrança.
+
+**O `hoje` vem de `hojeNaAgencia()`**, que é pura e fixa o fuso — das 21h à
+meia-noite um `toISOString()` daria atraso a toda peça que vence hoje.
+
+**E no cabeçalho da pessoa ele só aparece quando existe**, que é a decisão da
+matriz do Day Off: *"2 atrasados"* em toda linha de uma lista em que quase
+ninguém deve devolução é a mesma linha com um número a mais. Pinta-se a
+exceção.
+
+##### A BUSCA DESFAZ "quem não tem nada aparece", de propósito
+
+A regra da lista continua escrita e continua valendo sem termo nenhum: ler *"a
+Marina não está na lista"* como *"ela não tem equipamento"* é uma conclusão que
+a tela deixaria a pessoa tirar sozinha, e a outra leitura possível é *"a lista
+está filtrada"*.
+
+**Com um termo digitado o modelo muda:** a ausência passa a querer dizer "não
+casou", e não "não tem nada" — então a pessoa sem item que case sai da lista. É
+a decisão dos chips da Biblioteca, onde o zero de uma frente cadastrada é
+resposta e o de uma aposentada não é.
+
+**Ela casa com os MESMOS campos da outra visão** — código, nome, marca, modelo e
+série — mais o nome da pessoa, que lá é coluna e aqui é cabeçalho;
+`textoDoEquipamento()` é o lugar único disso. Duas listas de campos seriam duas
+buscas, e a que divergiria é esta. **E quando a PESSOA casa, os itens dela vêm
+todos:** quem digita um nome está perguntando o que aquela pessoa tem, e filtrar
+os itens por aquele mesmo termo devolveria a linha de quem casou com a lista
+vazia dentro.
+
+**O `<details>` troca de `key` com o termo**, e é mecânico: `open` é prop, então
+depois de alguém abrir ou fechar à mão o React não o reimpõe — sem a chave,
+buscar não abriria as linhas que casaram. É a mesma razão pela qual o editor de
+post se remonta por `key` em vez de ressincronizar por efeito.
+
+##### A GRADE É O QUE ALINHA UMA LINHA COM A DE BAIXO
+
+Foi a imagem que mostrou: com as cinco peças num `flex-wrap`, cada uma fica do
+tamanho do próprio texto, e a pílula de situação de duas linhas da MESMA pessoa
+sai em duas posições. É a decisão da faixa de meses do cartão da conta — o
+alinhamento é o que permite comparar uma linha com a de baixo, e é justamente o
+que uma tabela dá e uma lista não dava.
+
+`display: contents` no `<li>` faz as cinco peças virarem células da grade do
+grupo; o `role="listitem"` fica escrito porque `display: contents` já tirou item
+de lista da árvore de acessibilidade em navegador antigo. **Abaixo de `sm` ela
+volta a ser `flex-wrap`**: ali não há duas colunas para alinhar, e o que importa
+é a linha quebrar sem o título ser o primeiro a encolher — o piso de 14rem é
+dele, pela razão de sempre.
+
+***O que ela NÃO alinha, e é dito em vez de escondido:*** a grade é de cada
+pessoa, então as colunas de duas pessoas diferentes não se alinham entre si.
+Uma grade única exigiria um `<details>` por pessoa dentro de uma grade só, que
+o HTML não dá — e a comparação que importa é entre os itens de quem está com
+eles.
+
+***E o exemplo ganhou um equipamento, pela razão de sempre:*** cada pessoa do
+protótipo tinha UM item, e com um só a imagem provaria que o alinhamento existe
+sobre uma linha sozinha. O Rode NTG5 existe para o Bruno ter dois. **E uma das
+quatro pessoas ganhou foto**: com `avatar: null` em todas, a imagem mostraria
+que o círculo aparece e não que ele desenha a FOTO; com as quatro, ninguém veria
+as iniciais, que é o estado da maioria da equipe.
+
 #### Desligar alguém passa por aqui
 
 No fluxo de desligamento (`/painel/pessoas/equipe/[id]`), a lista de vínculos

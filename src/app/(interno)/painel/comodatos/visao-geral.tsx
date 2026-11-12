@@ -3,15 +3,30 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, ChevronDown, Download, PackageOpen, Plus, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  Download,
+  PackageOpen,
+  Plus,
+  Search,
+  UserRound,
+} from "lucide-react";
 
 import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { baixarCSV, montarCSV } from "@/lib/dominio/csv";
-import type { IndicadoresDoInventario, ItemDoInventario, PessoaComEquipamento } from "@/lib/dados/comodatos";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
+import type {
+  IndicadoresDoInventario,
+  ItemDoInventario,
+  PessoaComEquipamento,
+} from "@/lib/dados/comodatos";
 import {
   CAMPOS_DA_FICHA,
   ICONE_DO_TIPO,
@@ -22,7 +37,11 @@ import {
 } from "@/lib/dominio/comodatos";
 import { cn } from "@/lib/utils";
 
-import { DialogoDeEquipamento, DialogoDeEmprestimo, AcoesDoItem } from "./acoes-do-equipamento";
+import {
+  DialogoDeEquipamento,
+  DialogoDeEmprestimo,
+  AcoesDoItem,
+} from "./acoes-do-equipamento";
 import type { VisaoDaGestao } from "./vocabulario";
 
 /**
@@ -59,7 +78,9 @@ export function VisaoGeral({
   const [cadastrando, setCadastrando] = useState(false);
   const [emprestando, setEmprestando] = useState(false);
 
-  const desligados = itens.filter((i) => i.comodato && !i.comodato.pessoa_ativa);
+  const desligados = itens.filter(
+    (i) => i.comodato && !i.comodato.pessoa_ativa,
+  );
   const disponiveis = itens.filter((i) => i.status === "disponivel");
   const baixados = itens.filter((i) => i.status === "baixado").length;
 
@@ -93,8 +114,16 @@ export function VisaoGeral({
               : `no inventário · ${baixados} ${baixados === 1 ? "baixado" : "baixados"} na lista`
           }
         />
-        <CartaoDeNumero rotulo="Emprestados" valor={indicadores.emprestados} apoio="com alguém" />
-        <CartaoDeNumero rotulo="Disponíveis" valor={indicadores.disponiveis} apoio="na prateleira" />
+        <CartaoDeNumero
+          rotulo="Emprestados"
+          valor={indicadores.emprestados}
+          apoio="com alguém"
+        />
+        <CartaoDeNumero
+          rotulo="Disponíveis"
+          valor={indicadores.disponiveis}
+          apoio="na prateleira"
+        />
         <CartaoDeNumero
           rotulo="Em manutenção"
           valor={indicadores.manutencao}
@@ -104,7 +133,11 @@ export function VisaoGeral({
         <CartaoDeNumero
           rotulo="Devolução atrasada"
           valor={indicadores.atrasados}
-          apoio={indicadores.atrasados === 0 ? "nenhuma passou do prazo" : "passaram da data combinada"}
+          apoio={
+            indicadores.atrasados === 0
+              ? "nenhuma passou do prazo"
+              : "passaram da data combinada"
+          }
           tom={indicadores.atrasados > 0 ? "alerta" : "bom"}
         />
       </div>
@@ -136,15 +169,27 @@ export function VisaoGeral({
         </div>
 
         <div className="ms-auto flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => baixarInventario(itens)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => baixarInventario(itens)}
+          >
             <Download aria-hidden />
             Inventário
           </Button>
-          <Button variant="outline" size="sm" onClick={() => baixarEmAberto(itens)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => baixarEmAberto(itens)}
+          >
             <Download aria-hidden />
             Em aberto
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setEmprestando(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEmprestando(true)}
+          >
             Emprestar
           </Button>
           <Button size="sm" onClick={() => setCadastrando(true)}>
@@ -160,7 +205,10 @@ export function VisaoGeral({
         <PorPessoa pessoas={pessoas} />
       )}
 
-      <DialogoDeEquipamento aberto={cadastrando} aoFechar={() => setCadastrando(false)} />
+      <DialogoDeEquipamento
+        aberto={cadastrando}
+        aoFechar={() => setCadastrando(false)}
+      />
       <DialogoDeEmprestimo
         aberto={emprestando}
         aoFechar={() => setEmprestando(false)}
@@ -171,51 +219,160 @@ export function VisaoGeral({
   );
 }
 
+// ---------------------------------------------------------------------------
+// AS TRÊS PEÇAS DA LINHA, e elas são das DUAS visões
+// ---------------------------------------------------------------------------
+
+/**
+ * A identidade do equipamento: a foto (ou o ícone do tipo), o nome, e o
+ * `código · tipo · série` embaixo.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELAS SÃO COMPONENTES PORQUE SÃO DUAS VISÕES, e não por tamanho.** Decisão
+ * do usuário: *"pode deixar a visualização por pessoa, igual a por
+ * equipamento dentro do comodato"*.
+ *
+ * "Por equipamento" é uma `DataTable`, e cada célula dela era uma função
+ * dentro de `columns`; "Por pessoa" era uma lista de `<details>` com o nome,
+ * o código e a data de entrega soltos numa linha — **sem foto, sem a pílula
+ * de situação, sem o estado, sem as ações e sem busca**. Escrever a anatomia
+ * de novo dentro da lista daria a segunda cópia, e a que divergiria é a da
+ * lista: ela é a visão que se abre menos. É a história das sete cópias de
+ * `abas.tsx`, e a de `ICONE_DA_AREA`, que tinha três cópias e duas já
+ * divergidas.
+ * ---------------------------------------------------------------------------
+ *
+ * **E nenhuma consulta mudou:** `PessoaComEquipamento` já carrega `avatar` e
+ * `itens: ItemDoInventario[]` inteiros — com `status`, `estado`, `foto` e o
+ * `comodato` de cada um — desde a 0069. É a ponte construída e nunca
+ * atravessada: a lista tinha os dados e desenhava três campos.
+ */
+function IdentidadeDoEquipamento({ item }: { item: ItemDoInventario }) {
+  const Icone = ICONE_DO_TIPO[item.tipo];
+  return (
+    <span className="flex min-w-0 items-center gap-2.5">
+      {item.foto ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.foto}
+          alt=""
+          className="bg-muted size-9 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <span className="bg-muted text-text-muted grid size-9 shrink-0 place-items-center rounded">
+          <Icone aria-hidden className="size-4" />
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className="text-text-primary block truncate text-sm">
+          {item.nome}
+        </span>
+        <span className="text-text-muted block truncate text-xs tabular-nums">
+          {[item.codigo, ROTULOS_DE_TIPO[item.tipo], item.numero_serie]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function PilulaDaSituacao({ status }: { status: ItemDoInventario["status"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+        TOM_DO_STATUS[status],
+      )}
+    >
+      {ROTULOS_DE_STATUS[status]}
+    </span>
+  );
+}
+
+/**
+ * Quando a peça saiu, e o que falta nela: a confirmação de quem recebeu, e a
+ * devolução que passou da data.
+ *
+ * **O ATRASO PASSOU A APARECER NA LINHA, e isso é um buraco que as duas
+ * visões tinham.** O cartão do topo conta *"Devolução atrasada: 2"* desde a
+ * 0069 e **nenhuma das duas telas dizia QUAIS** — é o cartão de "11
+ * entregues" com sete na lista embaixo, que o Resumo da Agência já pagou uma
+ * vez. A conta é a mesma do cartão (`data_prevista_devolucao < hoje`), e ela
+ * mora aqui para as duas lerem a mesma.
+ *
+ * **E ele é `--warning`, nunca `--danger`**, que é a regra escrita desta
+ * tela: *"o alerta de pessoa desligada é o único em `--danger`, porque é o
+ * caso que custa dinheiro; devolução atrasada é cobrança"*.
+ *
+ * **O `hoje` vem de `hojeNaAgencia()`** e não de `new Date()`: a função é
+ * pura e fixa o fuso, então o navegador e o servidor respondem a mesma coisa
+ * — e das 21h à meia-noite um `toISOString()` daria atraso a toda peça que
+ * vence hoje.
+ */
+function LinhaDaEntrega({
+  comodato,
+  hoje,
+}: {
+  comodato: NonNullable<ItemDoInventario["comodato"]> | null;
+  hoje: string;
+}) {
+  if (!comodato) return <span className="text-text-muted text-xs">—</span>;
+
+  const atrasado =
+    comodato.data_prevista_devolucao !== null &&
+    comodato.data_prevista_devolucao < hoje;
+
+  return (
+    <span className="text-text-muted block text-xs tabular-nums">
+      desde{" "}
+      {format(parseISO(comodato.data_entrega), "dd/MM/yy", { locale: ptBR })}
+      {comodato.aceito_em === null ? " · sem confirmação" : ""}
+      {atrasado ? (
+        <span className="text-warning font-medium">
+          {" · devolução atrasada desde "}
+          {format(parseISO(comodato.data_prevista_devolucao!), "dd/MM/yy", {
+            locale: ptBR,
+          })}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function textoDoEquipamento(item: ItemDoInventario) {
+  return [item.codigo, item.nome, item.marca, item.modelo, item.numero_serie]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function contarAtrasados(itens: ItemDoInventario[], hoje: string) {
+  return itens.filter(
+    (i) =>
+      i.comodato !== null &&
+      i.comodato.data_prevista_devolucao !== null &&
+      i.comodato.data_prevista_devolucao < hoje,
+  ).length;
+}
+
 function PorEquipamento({ itens }: { itens: ItemDoInventario[] }) {
+  const hoje = hojeNaAgencia();
+
   const colunas = useMemo<Column<ItemDoInventario>[]>(
     () => [
       {
         id: "equipamento",
         header: "Equipamento",
         sortValue: (i) => i.nome,
-        searchValue: (i) =>
-          [i.codigo, i.nome, i.marca, i.modelo, i.numero_serie].filter(Boolean).join(" "),
-        cell: (i) => {
-          const Icone = ICONE_DO_TIPO[i.tipo];
-          return (
-            <span className="flex items-center gap-2.5">
-              {i.foto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={i.foto} alt="" className="bg-muted size-9 shrink-0 rounded object-cover" />
-              ) : (
-                <span className="bg-muted text-text-muted grid size-9 shrink-0 place-items-center rounded">
-                  <Icone aria-hidden className="size-4" />
-                </span>
-              )}
-              <span className="min-w-0">
-                <span className="text-text-primary block truncate text-sm">{i.nome}</span>
-                <span className="text-text-muted block truncate text-xs tabular-nums">
-                  {[i.codigo, ROTULOS_DE_TIPO[i.tipo], i.numero_serie].filter(Boolean).join(" · ")}
-                </span>
-              </span>
-            </span>
-          );
-        },
+        searchValue: (i) => textoDoEquipamento(i),
+        cell: (i) => <IdentidadeDoEquipamento item={i} />,
       },
       {
         id: "status",
         header: "Situação",
         sortValue: (i) => i.status,
-        cell: (i) => (
-          <span
-            className={cn(
-              "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
-              TOM_DO_STATUS[i.status],
-            )}
-          >
-            {ROTULOS_DE_STATUS[i.status]}
-          </span>
-        ),
+        cell: (i) => <PilulaDaSituacao status={i.status} />,
       },
       {
         id: "quem",
@@ -234,10 +391,7 @@ function PorEquipamento({ itens }: { itens: ItemDoInventario[] }) {
                 {i.comodato.pessoa}
                 {!i.comodato.pessoa_ativa ? " · saiu da agência" : ""}
               </span>
-              <span className="text-text-muted block text-xs tabular-nums">
-                desde {format(parseISO(i.comodato.data_entrega), "dd/MM/yy", { locale: ptBR })}
-                {i.comodato.aceito_em === null ? " · sem confirmação" : ""}
-              </span>
+              <LinhaDaEntrega comodato={i.comodato} hoje={hoje} />
             </span>
           ) : (
             <span className="text-text-muted text-xs">—</span>
@@ -247,7 +401,11 @@ function PorEquipamento({ itens }: { itens: ItemDoInventario[] }) {
         id: "estado",
         header: "Estado",
         sortValue: (i) => i.estado,
-        cell: (i) => <span className="text-text-secondary text-xs">{ROTULOS_DE_ESTADO[i.estado]}</span>,
+        cell: (i) => (
+          <span className="text-text-secondary text-xs">
+            {ROTULOS_DE_ESTADO[i.estado]}
+          </span>
+        ),
       },
       {
         id: "acoes",
@@ -256,7 +414,7 @@ function PorEquipamento({ itens }: { itens: ItemDoInventario[] }) {
         cell: (i) => <AcoesDoItem item={i} />,
       },
     ],
-    [],
+    [hoje],
   );
 
   return (
@@ -279,64 +437,172 @@ function PorEquipamento({ itens }: { itens: ItemDoInventario[] }) {
  * Ler "a Marina não está na lista" como "ela não tem equipamento" é uma
  * conclusão que a tela deixaria a pessoa tirar sozinha, e a outra leitura
  * possível é "a lista está filtrada". Dizer zero é dizer.
+ *
+ * ---------------------------------------------------------------------------
+ * **E A BUSCA DESFAZ ESSA REGRA DE PROPÓSITO.** Quem digitou alguma coisa tem
+ * outro modelo na cabeça: a ausência passa a querer dizer *"não casou"*, e
+ * não *"não tem nada"*. Então com termo escrito a pessoa sem item que case
+ * sai da lista, e sem termo ela fica — é a decisão dos chips da Biblioteca,
+ * onde o zero de uma frente cadastrada é resposta e o de uma aposentada não é.
+ *
+ * **Ela casa com os MESMOS campos da outra visão** (código, nome, marca,
+ * modelo, série) mais o nome da pessoa, que lá é coluna e aqui é cabeçalho —
+ * `textoDoEquipamento()` é o lugar único disso. Duas listas de campos seriam
+ * duas buscas, e a que divergiria é esta.
+ *
+ * **E quando a PESSOA casa, os itens dela vêm todos**: quem digita um nome
+ * está perguntando o que aquela pessoa tem, e filtrar os itens por aquele
+ * mesmo termo devolveria a lista vazia na linha de quem casou.
+ * ---------------------------------------------------------------------------
+ *
+ * **O `<details>` troca de `key` com o termo**, e é mecânico: o `open` é prop,
+ * então depois de alguém abrir ou fechar à mão o React não o reimpõe — sem a
+ * chave, buscar não abriria as linhas que casaram.
+ *
+ * **E o atraso aparece no cabeçalho da pessoa, só quando existe** — pinta-se
+ * a exceção, que é a decisão da matriz do Day Off: *"2 atrasados"* em toda
+ * linha de uma lista em que quase ninguém deve devolução é a mesma linha com
+ * um número a mais.
  */
 function PorPessoa({ pessoas }: { pessoas: PessoaComEquipamento[] }) {
+  const [busca, setBusca] = useState("");
+  const hoje = hojeNaAgencia();
+  const termo = busca.trim().toLowerCase();
+
+  const lista = useMemo(() => {
+    if (!termo) return pessoas;
+    return pessoas
+      .map((p) => {
+        const casaAPessoa = p.nome.toLowerCase().includes(termo);
+        return {
+          ...p,
+          itens: casaAPessoa
+            ? p.itens
+            : p.itens.filter((i) => textoDoEquipamento(i).includes(termo)),
+          casaAPessoa,
+        };
+      })
+      .filter((p) => p.casaAPessoa || p.itens.length > 0);
+  }, [pessoas, termo]);
+
   if (pessoas.length === 0) {
     return <EmptyState icon={UserRound} title="Ninguém na equipe ainda" />;
   }
 
   return (
-    <ul className="divide-border divide-y rounded-xl border">
-      {pessoas.map((p) => (
-        <li key={p.user_id}>
-          <details open={p.itens.length > 0} className="group">
-            <summary className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
-              <ChevronDown
-                aria-hidden
-                className="text-text-muted size-4 shrink-0 transition-transform group-open:rotate-180"
-              />
-              <span className="min-w-0 flex-1">
-                <span
-                  className={cn(
-                    "block truncate text-sm",
-                    p.ativo ? "text-text-primary" : "text-danger",
-                  )}
-                >
-                  {p.nome}
-                  {!p.ativo ? " · saiu da agência" : ""}
-                </span>
-              </span>
-              <span className="text-text-muted text-xs tabular-nums">
-                {p.itens.length === 0
-                  ? "nenhum equipamento"
-                  : p.itens.length === 1
-                    ? "1 equipamento"
-                    : `${p.itens.length} equipamentos`}
-              </span>
-            </summary>
+    <div className="space-y-3">
+      <div className="relative min-w-52 sm:max-w-xs">
+        <Search
+          aria-hidden
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+        />
+        <Input
+          value={busca}
+          onChange={(evento) => setBusca(evento.target.value)}
+          placeholder="Buscar por pessoa, código, nome ou série…"
+          aria-label="Buscar por pessoa, código, nome ou série"
+          className="h-8 pl-8"
+        />
+      </div>
 
-            {p.itens.length > 0 ? (
-              <ul className="border-border ms-7 border-s ps-3 pb-2.5">
-                {p.itens.map((i) => (
-                  <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
-                    <span className="text-text-primary min-w-0 flex-1 truncate text-sm">
-                      {i.nome}
+      {lista.length === 0 ? (
+        <EmptyState
+          icon={UserRound}
+          title="Nada com esse nome"
+          description="Nenhuma pessoa e nenhum equipamento casam com o que você digitou."
+        />
+      ) : (
+        <ul className="divide-border divide-y rounded-xl border">
+          {lista.map((p) => {
+            const atrasados = contarAtrasados(p.itens, hoje);
+            return (
+              <li key={p.user_id}>
+                <details
+                  key={termo}
+                  open={p.itens.length > 0}
+                  className="group"
+                >
+                  <summary className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
+                    <ChevronDown
+                      aria-hidden
+                      className="text-text-muted size-4 shrink-0 transition-transform group-open:rotate-180"
+                    />
+                    <UserAvatar
+                      name={p.nome}
+                      src={p.avatar}
+                      size="sm"
+                      tooltip={false}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block truncate text-sm",
+                          p.ativo ? "text-text-primary" : "text-danger",
+                        )}
+                      >
+                        {p.nome}
+                        {!p.ativo ? " · saiu da agência" : ""}
+                      </span>
                     </span>
-                    <span className="text-text-muted text-xs tabular-nums">{i.codigo}</span>
-                    <span className="text-text-secondary text-xs tabular-nums">
-                      desde{" "}
-                      {i.comodato
-                        ? format(parseISO(i.comodato.data_entrega), "dd/MM/yy", { locale: ptBR })
-                        : "—"}
+                    {atrasados > 0 ? (
+                      <span className="text-warning shrink-0 text-xs font-medium tabular-nums">
+                        {atrasados === 1
+                          ? "1 atrasado"
+                          : `${atrasados} atrasados`}
+                      </span>
+                    ) : null}
+                    <span className="text-text-muted shrink-0 text-xs tabular-nums">
+                      {p.itens.length === 0
+                        ? "nenhum equipamento"
+                        : p.itens.length === 1
+                          ? "1 equipamento"
+                          : `${p.itens.length} equipamentos`}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </details>
-        </li>
-      ))}
-    </ul>
+                  </summary>
+
+                  {p.itens.length > 0 ? (
+                    // A GRADE É O QUE ALINHA UMA LINHA COM A DE BAIXO, e é a
+                    // decisão da faixa de meses do cartão da conta: em `flex`
+                    // cada peça fica do tamanho do próprio texto, e a pílula
+                    // de situação de duas linhas da mesma pessoa sai em duas
+                    // posições — que é justamente o que uma tabela dá e uma
+                    // lista não dava. `contents` faz o `<li>` sumir da caixa e
+                    // deixar as cinco peças virarem células; o `role` fica
+                    // escrito porque `display: contents` já tirou item de
+                    // lista da árvore de acessibilidade em navegador antigo.
+                    //
+                    // Abaixo de `sm` ela volta a ser `flex-wrap`: ali não há
+                    // duas colunas para alinhar, e o que importa é a linha
+                    // quebrar sem o título ser o primeiro a encolher.
+                    <ul className="border-border ms-7 space-y-1.5 border-s ps-3 pb-2.5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] sm:items-center sm:gap-x-3 sm:gap-y-1.5 sm:space-y-0">
+                      {p.itens.map((i) => (
+                        <li
+                          key={i.id}
+                          role="listitem"
+                          className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 sm:contents"
+                        >
+                          <span className="min-w-56 flex-1 sm:min-w-0">
+                            <IdentidadeDoEquipamento item={i} />
+                          </span>
+                          <PilulaDaSituacao status={i.status} />
+                          <span className="min-w-0">
+                            <LinhaDaEntrega comodato={i.comodato} hoje={hoje} />
+                          </span>
+                          <span className="text-text-secondary shrink-0 text-xs">
+                            {ROTULOS_DE_ESTADO[i.estado]}
+                          </span>
+                          <AcoesDoItem item={i} />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -416,7 +682,15 @@ function baixarEmAberto(itens: ItemDoInventario[]) {
 
   baixarCSV(
     montarCSV(
-      ["Pessoa", "Código", "Equipamento", "Entrega", "Previsão", "Confirmado", "Valor"],
+      [
+        "Pessoa",
+        "Código",
+        "Equipamento",
+        "Entrega",
+        "Previsão",
+        "Confirmado",
+        "Valor",
+      ],
       linhas,
     ),
     "comodatos-em-aberto.csv",

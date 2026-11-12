@@ -978,6 +978,11 @@ const TELAS = [
   { nome: "95b-comodatos-meus-375", rota: "/painel/comodatos", largura: 375, altura: 1500, role: "colaborador" },
   { nome: "96-comodatos-inventario", rota: "/painel/comodatos?aba=geral", largura: 1600, altura: 1200, role: "socio" },
   { nome: "96b-comodatos-por-pessoa", rota: "/painel/comodatos?aba=geral&visao=pessoa", largura: 1500, altura: 1000, role: "socio" },
+  // O 375 ENTROU com a anatomia nova: a linha do item passou a ter cinco
+  // pecas (identidade, situacao, entrega, estado, acoes), e e no celular que o
+  // `flex-wrap` decide o que desce de linha -- o titulo tem piso justamente
+  // para nao ser ele a encolher.
+  { nome: "96c-comodatos-por-pessoa-375", rota: "/painel/comodatos?aba=geral&visao=pessoa", largura: 375, altura: 1500, role: "socio" },
   { nome: "97-comodatos-modelo-termo", rota: "/painel/comodatos/modelo-termo", largura: 1500, altura: 1400, role: "socio" },
   { nome: "97b-comodatos-folha", rota: "/painel/comodatos/as-1", largura: 1400, altura: 1100, role: "socio" },
   // A FICHA TÉCNICA (0070) só existe DEPOIS do clique: ela é uma seção do
