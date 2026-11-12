@@ -45,24 +45,58 @@ const dia = (deslocamento: number) => {
   return data.toISOString().slice(0, 10);
 };
 
-export const ANA: Pessoa = { id: "a0000000-0000-0000-0000-000000000001", nome: "Ana Souza", avatar_url: null };
-export const DIEGO: Pessoa = { id: "a0000000-0000-0000-0000-000000000002", nome: "Diego Reis", avatar_url: null };
-export const CARLA: Pessoa = { id: "a0000000-0000-0000-0000-000000000003", nome: "Carla Nunes", avatar_url: null };
-export const BRUNO: Pessoa = { id: "a0000000-0000-0000-0000-000000000004", nome: "Bruno Alves", avatar_url: null };
-export const MARINA: Pessoa = { id: "a0000000-0000-0000-0000-000000000005", nome: "Marina Costa", avatar_url: null };
+export const ANA: Pessoa = {
+  id: "a0000000-0000-0000-0000-000000000001",
+  nome: "Ana Souza",
+  avatar_url: null,
+};
+export const DIEGO: Pessoa = {
+  id: "a0000000-0000-0000-0000-000000000002",
+  nome: "Diego Reis",
+  avatar_url: null,
+};
+export const CARLA: Pessoa = {
+  id: "a0000000-0000-0000-0000-000000000003",
+  nome: "Carla Nunes",
+  avatar_url: null,
+};
+export const BRUNO: Pessoa = {
+  id: "a0000000-0000-0000-0000-000000000004",
+  nome: "Bruno Alves",
+  avatar_url: null,
+};
+export const MARINA: Pessoa = {
+  id: "a0000000-0000-0000-0000-000000000005",
+  nome: "Marina Costa",
+  avatar_url: null,
+};
 
-const ALFA = { id: "c0000000-0000-0000-0000-00000000000a", nome_empresa: "Mundo Verde" };
-const BETA = { id: "c0000000-0000-0000-0000-00000000000b", nome_empresa: "Óptica Visão" };
+const ALFA = {
+  id: "c0000000-0000-0000-0000-00000000000a",
+  nome_empresa: "Mundo Verde",
+};
+const BETA = {
+  id: "c0000000-0000-0000-0000-00000000000b",
+  nome_empresa: "Óptica Visão",
+};
 
 const BRIEFING_RICO = {
   type: "doc",
   content: [
-    { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Objetivo" }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Objetivo" }],
+    },
     {
       type: "paragraph",
       content: [
         { type: "text", text: "Anunciar a " },
-        { type: "text", marks: [{ type: "bold" }], text: "nova linha de verão" },
+        {
+          type: "text",
+          marks: [{ type: "bold" }],
+          text: "nova linha de verão",
+        },
         { type: "text", text: " com foco em " },
         {
           type: "text",
@@ -85,13 +119,41 @@ const BRIEFING_RICO = {
         { type: "text", text: "." },
       ],
     },
-    { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Entregáveis" }] },
+    {
+      type: "heading",
+      attrs: { level: 3 },
+      content: [{ type: "text", text: "Entregáveis" }],
+    },
     {
       type: "bulletList",
       content: [
-        { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Carrossel de 5 cartões" }] }] },
-        { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Story com enquete" }] }] },
-        { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Legenda com CTA" }] }] },
+        {
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Carrossel de 5 cartões" }],
+            },
+          ],
+        },
+        {
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Story com enquete" }],
+            },
+          ],
+        },
+        {
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Legenda com CTA" }],
+            },
+          ],
+        },
       ],
     },
     {
@@ -99,7 +161,9 @@ const BRIEFING_RICO = {
       content: [
         {
           type: "paragraph",
-          content: [{ type: "text", text: "O cliente pediu para evitar fundo branco." }],
+          content: [
+            { type: "text", text: "O cliente pediu para evitar fundo branco." },
+          ],
         },
       ],
     },
@@ -119,8 +183,15 @@ const BRIEFING_RICO = {
         {
           type: "paragraph",
           content: [
-            { type: "text", marks: [{ type: "bold" }], text: "Prazo da gráfica: " },
-            { type: "text", text: "o arquivo fechado tem que sair até quarta, senão a tiragem vira para a semana seguinte." },
+            {
+              type: "text",
+              marks: [{ type: "bold" }],
+              text: "Prazo da gráfica: ",
+            },
+            {
+              type: "text",
+              text: "o arquivo fechado tem que sair até quarta, senão a tiragem vira para a semana seguinte.",
+            },
           ],
         },
       ],
@@ -131,16 +202,56 @@ const BRIEFING_RICO = {
         {
           type: "tableRow",
           content: [
-            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Peça" }] }] },
-            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Formato" }] }] },
-            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Observação" }] }] },
+            {
+              type: "tableHeader",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Peça" }],
+                },
+              ],
+            },
+            {
+              type: "tableHeader",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Formato" }],
+                },
+              ],
+            },
+            {
+              type: "tableHeader",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Observação" }],
+                },
+              ],
+            },
           ],
         },
         {
           type: "tableRow",
           content: [
-            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Carrossel" }] }] },
-            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1080×1350" }] }] },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Carrossel" }],
+                },
+              ],
+            },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "1080×1350" }],
+                },
+              ],
+            },
             {
               type: "tableCell",
               content: [
@@ -153,7 +264,14 @@ const BRIEFING_RICO = {
                       // O REALCE, que e a metade "pasteis" do pedido: pastel
                       // como CHAO, com o texto do documento por cima. Pastel
                       // como cor de LETRA e ilegivel por construcao.
-                      marks: [{ type: "textStyle", attrs: { backgroundColor: "var(--rico-realce-amarelo)" } }],
+                      marks: [
+                        {
+                          type: "textStyle",
+                          attrs: {
+                            backgroundColor: "var(--rico-realce-amarelo)",
+                          },
+                        },
+                      ],
                       text: "cupom de 15%",
                     },
                     { type: "text", text: "." },
@@ -166,8 +284,24 @@ const BRIEFING_RICO = {
         {
           type: "tableRow",
           content: [
-            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Story" }] }] },
-            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1080×1920" }] }] },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Story" }],
+                },
+              ],
+            },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "1080×1920" }],
+                },
+              ],
+            },
             {
               type: "tableCell",
               content: [
@@ -181,7 +315,12 @@ const BRIEFING_RICO = {
                       // o briefing antigo continua valendo. A de cima nasceu
                       // antes de a paleta virar token e nao foi reescrita; a
                       // de baixo troca com o tema.
-                      marks: [{ type: "textStyle", attrs: { color: "var(--rico-azul)" } }],
+                      marks: [
+                        {
+                          type: "textStyle",
+                          attrs: { color: "var(--rico-azul)" },
+                        },
+                      ],
                       text: "Enquete",
                     },
                     { type: "text", text: " com duas opções de capa." },
@@ -218,7 +357,12 @@ type Semente = {
   estimativa_minutos: number | null;
   tempo_real_minutos: number | null;
   dependeDe?: string;
-  rodadas?: { numero: number; escopo: "interna" | "cliente"; status: ApprovalRound["status"]; comentario?: string }[];
+  rodadas?: {
+    numero: number;
+    escopo: "interna" | "cliente";
+    status: ApprovalRound["status"];
+    comentario?: string;
+  }[];
   /**
    * O PAPEL DESTA ETAPA NUMA CORRENTE DE SOCIAL (0088), quando ela é uma.
    *
@@ -311,7 +455,12 @@ const SEMENTES: Semente[] = [
     tempo_real_minutos: null,
     dependeDe: "s1",
     rodadas: [
-      { numero: 1, escopo: "interna", status: "ajustes_solicitados", comentario: "Trocar a cor do fundo para o azul da marca." },
+      {
+        numero: 1,
+        escopo: "interna",
+        status: "ajustes_solicitados",
+        comentario: "Trocar a cor do fundo para o azul da marca.",
+      },
       { numero: 2, escopo: "interna", status: "pendente" },
     ],
   },
@@ -525,6 +674,41 @@ const SEMENTES: Semente[] = [
     estimativa_minutos: 120,
     tempo_real_minutos: null,
   },
+  // DUAS ETAPAS A MAIS NO MESMO DIA DE `s12`, e elas existem por UMA imagem:
+  // o "+N" do calendario so aparece quando um dia passa de tres itens, e o
+  // exemplo tinha exatamente tres no dia mais cheio. Sem elas, a entrega nova
+  // nao sairia em imagem nenhuma -- a licao da duplicata do Cronograma.
+  //
+  // E SAO DUAS E NAO UMA: com quatro itens o "+1" aparece e o painel de baixo
+  // mostraria uma coluna so; com cinco, o painel prova que ele reparte em
+  // colunas e que a contagem do cabecalho conta o DIA inteiro, e nao o que
+  // sobrou da celula.
+  {
+    id: "s12b",
+    task_id: "55555555-5555-5555-5555-555555555555",
+    titulo: "Fechar o arquivo para a grafica",
+    ordem: 5,
+    prazo: dia(4),
+    responsavel: BRUNO,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 60,
+    tempo_real_minutos: null,
+  },
+  {
+    id: "s12c",
+    task_id: "55555555-5555-5555-5555-555555555555",
+    titulo: "Conferir a prova de cor",
+    ordem: 6,
+    prazo: dia(4),
+    responsavel: ANA,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 30,
+    tempo_real_minutos: null,
+  },
   {
     id: "s13",
     task_id: "55555555-5555-5555-5555-555555555555",
@@ -599,7 +783,13 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     : undefined;
 
   const dependeDe = dependencia
-    ? [{ id: dependencia.id, titulo: dependencia.titulo, status: dependencia.status }]
+    ? [
+        {
+          id: dependencia.id,
+          titulo: dependencia.titulo,
+          status: dependencia.status,
+        },
+      ]
     : [];
 
   return {
@@ -639,13 +829,16 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     // interno está desligado nelas, que é uma frase sobre o social.
     social_aval_interno: null,
     iniciada_em: null,
-    concluida_em: semente.status === "concluida" ? "2026-09-20T11:00:00.000Z" : null,
+    concluida_em:
+      semente.status === "concluida" ? "2026-09-20T11:00:00.000Z" : null,
     // O cronometro. Fixo, porque a imagem do prototipo precisa sair igual a
     // cada rodada -- um relogio correndo daria um PNG diferente por captura.
     // A etapa em andamento comeca 47 minutos atras para o selo aparecer
     // rodando; as outras mostram so o acumulado.
     andando_desde:
-      semente.status === "em_andamento" ? new Date(Date.now() - 47 * 60 * 1000).toISOString() : null,
+      semente.status === "em_andamento"
+        ? new Date(Date.now() - 47 * 60 * 1000).toISOString()
+        : null,
     tempo_medido_segundos: semente.status === "nao_iniciada" ? 0 : 95 * 60,
     created_at: "2026-09-10T09:05:00.000Z",
     updated_at: "2026-09-19T15:30:00.000Z",
@@ -659,7 +852,9 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     // empilhadas nao provam nada a mais e empurram os campos para baixo.
     outrosResponsaveis: semente.titulo === "Criar KV" ? [MARINA] : [],
     dependeDe,
-    dependenciasAbertas: dependeDe.filter((d) => d.status !== "concluida").map((d) => d.titulo),
+    dependenciasAbertas: dependeDe
+      .filter((d) => d.status !== "concluida")
+      .map((d) => d.titulo),
     rodadas: rodadas.map((r) => ({
       ...r,
       solicitante: semente.responsavel,
@@ -746,7 +941,9 @@ function comStatusCalculado(subs: SubtarefaDetalhada[]): SubtarefaDetalhada[] {
     const andando = filhas.filter((f) =>
       ["em_andamento", "enviada_aprovacao", "em_ajustes"].includes(f.status),
     ).length;
-    const esperando = filhas.filter((f) => f.status === "aguardando_informacoes").length;
+    const esperando = filhas.filter(
+      (f) => f.status === "aguardando_informacoes",
+    ).length;
 
     const status =
       concluidas === filhas.length
@@ -763,7 +960,9 @@ function comStatusCalculado(subs: SubtarefaDetalhada[]): SubtarefaDetalhada[] {
   });
 }
 
-export const SUBTAREFAS: SubtarefaDetalhada[] = comStatusCalculado(SEMENTES.map(montarSubtarefa));
+export const SUBTAREFAS: SubtarefaDetalhada[] = comStatusCalculado(
+  SEMENTES.map(montarSubtarefa),
+);
 
 // --- tasks ------------------------------------------------------------------
 
@@ -838,7 +1037,8 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     data_inicio: dia(-6),
     data_fim: dia(8),
     briefing_rico: BRIEFING_RICO,
-    briefing_texto: "Anunciar a nova linha de verão com foco em conversão direta.",
+    briefing_texto:
+      "Anunciar a nova linha de verão com foco em conversão direta.",
   },
   {
     id: "22222222-2222-2222-2222-222222222222",
@@ -963,9 +1163,17 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     }
   }
 
-  const emAberto = minhas.filter((s) => s.status !== "concluida" && s.prazo).map((s) => s.prazo!);
-  const estimativa = minhas.reduce((total, s) => total + (s.estimativa_minutos ?? 0), 0);
-  const real = minhas.reduce((total, s) => total + (s.tempo_real_minutos ?? 0), 0);
+  const emAberto = minhas
+    .filter((s) => s.status !== "concluida" && s.prazo)
+    .map((s) => s.prazo!);
+  const estimativa = minhas.reduce(
+    (total, s) => total + (s.estimativa_minutos ?? 0),
+    0,
+  );
+  const real = minhas.reduce(
+    (total, s) => total + (s.tempo_real_minutos ?? 0),
+    0,
+  );
 
   return {
     ...BASE,
@@ -997,11 +1205,12 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     // e é o certo — uma demanda comum não é mês de social nenhum.
     social_do_mes: semente.social_do_mes ?? null,
     arquivada_em: null,
-  social_flow_id: null,
-  // No protótipo nenhum mês de social é montado por aqui, então o mês nunca
-  // anda em paralelo: o padrão do produto é andar junto (0090).
-  social_paralelo: false,
-    briefing_rico: (semente.briefing_rico ?? null) as TaskDaLista["briefing_rico"],
+    social_flow_id: null,
+    // No protótipo nenhum mês de social é montado por aqui, então o mês nunca
+    // anda em paralelo: o padrão do produto é andar junto (0090).
+    social_paralelo: false,
+    briefing_rico: (semente.briefing_rico ??
+      null) as TaskDaLista["briefing_rico"],
     briefing_texto: semente.briefing_texto ?? null,
     prioridade: semente.prioridade,
     status: semente.status,
@@ -1016,7 +1225,8 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     tempoRealMinutos: real > 0 ? real : null,
     proximoPrazo: emAberto.sort()[0] ?? null,
     aprovacaoPendenteEm:
-      minhas.find((s) => s.rodadas.some((r) => r.status === "pendente"))?.titulo ?? null,
+      minhas.find((s) => s.rodadas.some((r) => r.status === "pendente"))
+        ?.titulo ?? null,
     temSubtarefaEmAjustes: minhas.some((s) => s.status === "em_ajustes"),
   };
 }
@@ -1027,21 +1237,26 @@ export async function enriquecer(): Promise<TaskDaLista[]> {
   return TASKS;
 }
 
-export async function listarTasks(filtros: FiltrosDeTask = {}): Promise<TaskDaLista[]> {
+export async function listarTasks(
+  filtros: FiltrosDeTask = {},
+): Promise<TaskDaLista[]> {
   return TASKS.filter((task) => {
     if (filtros.cliente && task.client_id !== filtros.cliente) return false;
     if (filtros.vertente && task.vertente_id !== filtros.vertente) return false;
-    if (filtros.prioridade && task.prioridade !== filtros.prioridade) return false;
+    if (filtros.prioridade && task.prioridade !== filtros.prioridade)
+      return false;
     if (filtros.status && task.status !== filtros.status) return false;
     if (filtros.responsavel) {
       const minhas = SUBTAREFAS.filter(
-        (s) => s.task_id === task.id && s.responsavel_id === filtros.responsavel,
+        (s) =>
+          s.task_id === task.id && s.responsavel_id === filtros.responsavel,
       );
       if (minhas.length === 0) return false;
     }
     if (filtros.soAtrasadas) {
       const viva = task.status !== "concluido" && task.status !== "cancelada";
-      if (!viva || !task.proximoPrazo || task.proximoPrazo >= dia(0)) return false;
+      if (!viva || !task.proximoPrazo || task.proximoPrazo >= dia(0))
+        return false;
     }
     return true;
   });
@@ -1075,11 +1290,14 @@ export function contarDemandas(tasks: TaskDaLista[], hoje: string) {
 export async function demandasDaAba(filtros: FiltrosDeTask = {}) {
   const hoje = dia(0);
   const todas = await listarTasks({ ...filtros, soAtrasadas: false });
-  const viva = (t: TaskDaLista) => t.status !== "concluido" && t.status !== "cancelada";
+  const viva = (t: TaskDaLista) =>
+    t.status !== "concluido" && t.status !== "cancelada";
 
   return {
     tasks: filtros.soAtrasadas
-      ? todas.filter((t) => viva(t) && t.proximoPrazo !== null && t.proximoPrazo < hoje)
+      ? todas.filter(
+          (t) => viva(t) && t.proximoPrazo !== null && t.proximoPrazo < hoje,
+        )
       : todas,
     contadores: contarDemandas(todas, hoje),
   };
@@ -1156,7 +1374,8 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
               subtask_id: null,
               approval_round_id: null,
               autor_id: ANA.id,
-              texto: "@Bruno o cliente pediu para evitar fundo branco nos cartões.",
+              texto:
+                "@Bruno o cliente pediu para evitar fundo branco nos cartões.",
               interno: true,
               resposta_a: null,
               created_at: "2026-09-18T14:10:00.000Z",
@@ -1179,7 +1398,9 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
   };
 }
 
-export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<ItemDeCalendario[]> {
+export async function itensDoCalendario(
+  filtros: FiltrosDeTask = {},
+): Promise<ItemDeCalendario[]> {
   const tasks = await listarTasks(filtros);
   const itens: ItemDeCalendario[] = [];
 
@@ -1192,7 +1413,8 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
   for (const sub of SUBTAREFAS) {
     const mae = tasks.find((t) => t.id === sub.task_id);
     if (!mae || !sub.prazo) continue;
-    if (filtros.responsavel && sub.responsavel_id !== filtros.responsavel) continue;
+    if (filtros.responsavel && sub.responsavel_id !== filtros.responsavel)
+      continue;
     itens.push({
       chave: `subtarefa-${sub.id}`,
       tipo: "subtarefa",
@@ -1235,7 +1457,9 @@ export async function itensDoCalendario(filtros: FiltrosDeTask = {}): Promise<It
   return itens.sort((a, b) => a.prazo.localeCompare(b.prazo));
 }
 
-export async function urlsDosArquivos(caminhos: string[]): Promise<Record<string, string>> {
+export async function urlsDosArquivos(
+  caminhos: string[],
+): Promise<Record<string, string>> {
   const mapa: Record<string, string> = {};
   for (const caminho of caminhos) mapa[caminho] = "#";
   return mapa;
@@ -1266,7 +1490,9 @@ export async function meusRascunhos(): Promise<RascunhoDaLista[]> {
  * e estado de excecao. Quem quiser a imagem desse aviso troca o array por uma
  * linha; e por isso que a funcao existe em vez de o bloco ser recortado.
  */
-export async function rascunhosAExpirar(): Promise<{ id: string; titulo: string }[]> {
+export async function rascunhosAExpirar(): Promise<
+  { id: string; titulo: string }[]
+> {
   return [];
 }
 

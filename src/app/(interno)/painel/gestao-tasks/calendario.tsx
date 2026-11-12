@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   addDays,
@@ -109,6 +109,9 @@ export function CalendarioDeTasks({
   const [referencia, setReferencia] = useState(new Date());
   const [modo, setModo] = useState<"mes" | "semana">("mes");
   const [responsavel, setResponsavel] = useState(SEM_FILTRO);
+  // O DIA ABERTO EMBAIXO DA GRADE — decisão do usuário: *"quando tiver muitas
+  // tasks no mesmo dia, deixe uma aba a ser aberta para mostrar todas"*.
+  const [diaAberto, setDiaAberto] = useState<string | null>(null);
 
   const visiveis = useMemo(
     () =>
@@ -138,6 +141,46 @@ export function CalendarioDeTasks({
     }
     return mapa;
   }, [visiveis]);
+
+  // QUANTOS CABEM NA CÉLULA É POR VISÃO, porque a altura da célula é por
+  // visão: `min-h-32` no mês e `min-h-64` na semana. O chip tem três linhas e
+  // uns 54px, então três enchem a célula do mês sem a linha da semana virar
+  // uma página — era a queixa, *"muitas tasks no mesmo dia"*. Um número só
+  // para as duas ou deixaria a semana cortando o que cabe, ou deixaria o mês
+  // crescendo do mesmo jeito.
+  const cabemNaCelula = modo === "semana" ? 6 : 3;
+
+  // O DIA ABERTO É DERIVADO, e não sincronizado: se ele não está na grade de
+  // agora — porque alguém trocou de mês, de visão ou de responsável —, o
+  // painel não é desenhado. Guardar um `useEffect` para limpá-lo seria uma
+  // segunda verdade sobre qual dia está aberto, e é a razão pela qual atraso
+  // não é coluna.
+  const chavesNaGrade = useMemo(
+    () => new Set(dias.map((dia) => format(dia, "yyyy-MM-dd"))),
+    [dias],
+  );
+  const aberto = diaAberto && chavesNaGrade.has(diaAberto) ? diaAberto : null;
+  const itensDoDiaAberto = aberto ? (porDia.get(aberto) ?? []) : [];
+
+  // UM LUGAR SÓ DECIDE PARA ONDE O CHIP LEVA, e ele é lido pela célula e pelo
+  // painel: duas cópias divergiriam no destino, que é a única coisa que o
+  // chip faz.
+  function abrir(item: ItemDeCalendario) {
+    // A campanha tem destino próprio e não abre o painel lateral de demanda:
+    // ela não é uma, e o painel mostraria campos que ela não tem.
+    if (item.href) return router.push(item.href);
+    if (aoAbrir) return aoAbrir(item.taskId);
+    router.push(`/painel/gestao-tasks/${item.taskId}`);
+  }
+
+  // O PAINEL ROLA PARA A VISTA, e isto não é enfeite: a grade do mês tem seis
+  // semanas e passa de mil pixels, então o painel nasce abaixo da dobra —
+  // clicar no "+2" pareceria não fazer nada. `block: "nearest"` e não
+  // `"center"`: quando ele já está visível, nada se mexe.
+  const painelDoDia = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (aberto) painelDoDia.current?.scrollIntoView({ block: "nearest" });
+  }, [aberto]);
 
   function navegar(passo: number) {
     setReferencia((atual) =>
@@ -286,141 +329,97 @@ export function CalendarioDeTasks({
                 </div>
 
                 <ul className="space-y-1">
-                  {doDia.map((item) => {
-                    const situacao = situacaoDoPrazo(
-                      item.prazo,
-                      item.concluida,
-                      prazos.hoje,
-                      prazos.fimDaSemana,
-                    );
-                    const tinta = TINTA_DA_SITUACAO[situacao];
-                    // O rótulo é de MÓDULO, e a etapa não tem nenhum: ela é a
-                    // entidade desta tela. O mapa é um `Record` sobre a união
-                    // justamente para um tipo novo não cair calado no último
-                    // ramo de um `? :` — foi assim que "entregável" quase
-                    // virou "Etapa".
-                    const rotulo = ROTULO_DO_ITEM_DE_CALENDARIO[item.tipo];
-                    // A LINHAGEM É UMA LINHA PARA CADA, e não um `Cliente ·
-                    // Demanda` só: decisão do usuário, a proposta C. Juntas
-                    // numa linha de 158px, a primeira que trunca é a demanda
-                    // — e é ela que diz de que trabalho a etapa é.
-                    const descricao = [
-                      item.cliente,
-                      item.demanda,
-                      rotulo ? `${rotulo}: ${item.titulo}` : item.titulo,
-                      item.responsavel ? `com ${item.responsavel.nome}` : null,
-                      `prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ");
-
-                    return (
-                      <li key={item.chave}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            // A campanha tem destino próprio e não abre o
-                            // painel lateral de demanda: ela não é uma, e o
-                            // painel mostraria campos que ela não tem.
-                            item.href
-                              ? router.push(item.href)
-                              : aoAbrir
-                                ? aoAbrir(item.taskId)
-                                : router.push(
-                                    `/painel/gestao-tasks/${item.taskId}`,
-                                  )
-                          }
-                          title={descricao}
-                          aria-label={descricao}
-                          className={cn(
-                            "relative w-full overflow-hidden rounded border border-transparent py-1 pr-1.5 pl-2.5 text-left text-xs transition-opacity hover:opacity-85",
-                            // A COR É O CHIP. Era um cartão branco com um fio
-                            // de quatro pixels, e quatro fios numa célula não
-                            // se leem à distância de que a grade do mês é
-                            // olhada.
-                            tinta.chip,
-                            // Pontilhado para o que não é etapa de demanda:
-                            // a campanha vive em outro módulo, e o traço diz
-                            // isso sem ocupar espaço.
-                            rotulo && "border-border border-dotted",
-                          )}
-                        >
-                          {/* A barra é a cor cheia, e ela fica: sobre o chip
-                              tingido ela é a borda de leitura que separa uma
-                              linha da de baixo quando as duas são do mesmo
-                              tom. */}
-                          <span
-                            aria-hidden
-                            className={cn(
-                              "absolute inset-y-0 left-0 w-1",
-                              tinta.barra,
-                            )}
-                          />
-
-                          {/* TRÊS LINHAS: cliente, demanda, etapa.
-                              Decisão do usuário, a proposta C — e a ordem é a
-                              do print dele: o que dá o contexto em cima, o
-                              trabalho embaixo e em destaque.
-
-                              O peso faz o trabalho que a cor faria: medium,
-                              normal e semibold, três tamanhos, uma família de
-                              tom só. Dar uma cor própria ao cliente exigiria
-                              medi-la contra os quatro fundos tingidos do
-                              chip, e o que ela acrescentaria é o que o
-                              tamanho já diz. */}
-                          {item.cliente ? (
-                            <span className="text-text-secondary block truncate text-[10px] font-medium">
-                              {item.cliente}
-                            </span>
-                          ) : null}
-
-                          {item.demanda ? (
-                            <span className="text-text-muted block truncate text-[10px] leading-tight">
-                              {item.demanda}
-                            </span>
-                          ) : null}
-
-                          <span className="mt-0.5 flex items-center gap-1">
-                            {rotulo ? (
-                              <span
-                                className={cn(
-                                  "shrink-0 text-[10px] font-medium uppercase",
-                                  tinta.rotulo,
-                                )}
-                              >
-                                {rotulo}
-                              </span>
-                            ) : null}
-                            <span
-                              className={cn(
-                                "text-text-primary min-w-0 flex-1 truncate text-[13px] leading-tight font-semibold",
-                                item.concluida && "line-through",
-                              )}
-                            >
-                              {item.titulo}
-                            </span>
-                            {/* Sem tooltip: o chip é um botão, e um gatilho
-                                interativo dentro dele é nested-interactive. */}
-                            {item.responsavel ? (
-                              <UserAvatar
-                                name={item.responsavel.nome}
-                                src={item.responsavel.avatar_url}
-                                size="xs"
-                                tooltip={false}
-                                className="ring-background shrink-0 ring-1"
-                              />
-                            ) : null}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {doDia.slice(0, cabemNaCelula).map((item) => (
+                    <ChipDoItem
+                      key={item.chave}
+                      item={item}
+                      prazos={prazos}
+                      abrir={abrir}
+                    />
+                  ))}
                 </ul>
+
+                {/* O "+N" É BOTÃO E NÃO LINK, ao contrário do Cronograma do
+                    portal, e a razão é de onde mora o estado: lá o MÊS está na
+                    URL, então `?dia=` aponta para um dia que a grade com
+                    certeza mostra; aqui o mês, a visão e o filtro são estado
+                    local, e um endereço com o dia abriria num mês que não é o
+                    dele. */}
+                {doDia.length > cabemNaCelula ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDiaAberto(aberto === chave ? null : chave)
+                    }
+                    // O RÓTULO ACESSÍVEL DIZ O DIA, e o visível não: quem
+                    // lê a tela vê o "+2" dentro da célula de 12 de março e
+                    // não precisa que ele se repita; quem OUVE chega no
+                    // botão sem o contexto da célula.
+                    aria-label={`Ver os ${doDia.length} itens de ${format(dia, "d 'de' MMMM", { locale: ptBR })}`}
+                    aria-expanded={aberto === chave}
+                    className="text-text-secondary hover:text-text-primary mt-1 w-full rounded px-1 py-0.5 text-left text-[11px] font-medium underline-offset-2 hover:underline"
+                  >
+                    {aberto === chave
+                      ? "fechar"
+                      : `+${doDia.length - cabemNaCelula} ${doDia.length - cabemNaCelula === 1 ? "item" : "itens"}`}
+                  </button>
+                ) : null}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* O DIA CHEIO, EMBAIXO DA GRADE e não num diálogo. Um modal por cima do
+          calendário esconde justamente a semana de que o dia faz parte — e a
+          pergunta de quem clica no "+4" é *o que mais cai neste dia*, que se
+          responde olhando os dois. É a forma do Cronograma do portal, que
+          resolveu a mesma coisa.
+
+          E ELE DESENHA O DIA INTEIRO, não só os que sobraram: a lista
+          truncada obrigaria a juntar de cabeça o que está na célula com o que
+          está aqui embaixo. */}
+      {aberto && itensDoDiaAberto.length > 0 ? (
+        <section
+          ref={painelDoDia}
+          className="bg-surface-card rounded-card shadow-cartao space-y-2 border p-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-text-primary text-sm font-semibold">
+              {format(new Date(`${aberto}T12:00:00`), "EEEE, d 'de' MMMM", {
+                locale: ptBR,
+              })}
+              <span className="text-text-secondary ml-2 font-normal">
+                {itensDoDiaAberto.length === 1
+                  ? "1 item"
+                  : `${itensDoDiaAberto.length} itens`}
+              </span>
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDiaAberto(null)}
+            >
+              Fechar
+            </Button>
+          </div>
+
+          {/* DUAS COLUNAS A PARTIR DE `sm`, e não uma lista corrida: o chip é
+              estreito por desenho — ele foi feito para uma célula de 158px —,
+              e numa faixa de 1100px uma coluna só deixaria dois terços da
+              linha vazios. */}
+          <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+            {itensDoDiaAberto.map((item) => (
+              <ChipDoItem
+                key={item.chave}
+                item={item}
+                prazos={prazos}
+                abrir={abrir}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* A LEGENDA TEM QUATRO ENTRADAS, e não seis nem uma nota de pé de
           página. A amostra é o chip de verdade — fundo tingido mais a barra —
@@ -462,5 +461,137 @@ export function CalendarioDeTasks({
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * O chip de um item, desenhado na célula do dia E no painel do dia cheio.
+ *
+ * **Ele virou componente por causa do painel**, e não por tamanho: as duas
+ * telas desenham o MESMO chip, e uma segunda cópia divergiria na primeira
+ * mudança — a que divergiria é a do painel, que se abre menos. É a história
+ * das sete cópias de `abas.tsx` em miniatura.
+ */
+function ChipDoItem({
+  item,
+  prazos,
+  abrir,
+}: {
+  item: ItemDeCalendario;
+  prazos: { hoje: string; fimDaSemana: string };
+  abrir: (item: ItemDeCalendario) => void;
+}) {
+  const situacao = situacaoDoPrazo(
+    item.prazo,
+    item.concluida,
+    prazos.hoje,
+    prazos.fimDaSemana,
+  );
+  const tinta = TINTA_DA_SITUACAO[situacao];
+  // O rótulo é de MÓDULO, e a etapa não tem nenhum: ela é a
+  // entidade desta tela. O mapa é um `Record` sobre a união
+  // justamente para um tipo novo não cair calado no último
+  // ramo de um `? :` — foi assim que "entregável" quase
+  // virou "Etapa".
+  const rotulo = ROTULO_DO_ITEM_DE_CALENDARIO[item.tipo];
+  // A LINHAGEM É UMA LINHA PARA CADA, e não um `Cliente ·
+  // Demanda` só: decisão do usuário, a proposta C. Juntas
+  // numa linha de 158px, a primeira que trunca é a demanda
+  // — e é ela que diz de que trabalho a etapa é.
+  const descricao = [
+    item.cliente,
+    item.demanda,
+    rotulo ? `${rotulo}: ${item.titulo}` : item.titulo,
+    item.responsavel ? `com ${item.responsavel.nome}` : null,
+    `prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => abrir(item)}
+        title={descricao}
+        aria-label={descricao}
+        className={cn(
+          "relative w-full overflow-hidden rounded border border-transparent py-1 pr-1.5 pl-2.5 text-left text-xs transition-opacity hover:opacity-85",
+          // A COR É O CHIP. Era um cartão branco com um fio
+          // de quatro pixels, e quatro fios numa célula não
+          // se leem à distância de que a grade do mês é
+          // olhada.
+          tinta.chip,
+          // Pontilhado para o que não é etapa de demanda:
+          // a campanha vive em outro módulo, e o traço diz
+          // isso sem ocupar espaço.
+          rotulo && "border-border border-dotted",
+        )}
+      >
+        {/* A barra é a cor cheia, e ela fica: sobre o chip
+          tingido ela é a borda de leitura que separa uma
+          linha da de baixo quando as duas são do mesmo
+          tom. */}
+        <span
+          aria-hidden
+          className={cn("absolute inset-y-0 left-0 w-1", tinta.barra)}
+        />
+
+        {/* TRÊS LINHAS: cliente, demanda, etapa.
+          Decisão do usuário, a proposta C — e a ordem é a
+          do print dele: o que dá o contexto em cima, o
+          trabalho embaixo e em destaque.
+
+          O peso faz o trabalho que a cor faria: medium,
+          normal e semibold, três tamanhos, uma família de
+          tom só. Dar uma cor própria ao cliente exigiria
+          medi-la contra os quatro fundos tingidos do
+          chip, e o que ela acrescentaria é o que o
+          tamanho já diz. */}
+        {item.cliente ? (
+          <span className="text-text-secondary block truncate text-[10px] font-medium">
+            {item.cliente}
+          </span>
+        ) : null}
+
+        {item.demanda ? (
+          <span className="text-text-muted block truncate text-[10px] leading-tight">
+            {item.demanda}
+          </span>
+        ) : null}
+
+        <span className="mt-0.5 flex items-center gap-1">
+          {rotulo ? (
+            <span
+              className={cn(
+                "shrink-0 text-[10px] font-medium uppercase",
+                tinta.rotulo,
+              )}
+            >
+              {rotulo}
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              "text-text-primary min-w-0 flex-1 truncate text-[13px] leading-tight font-semibold",
+              item.concluida && "line-through",
+            )}
+          >
+            {item.titulo}
+          </span>
+          {/* Sem tooltip: o chip é um botão, e um gatilho
+            interativo dentro dele é nested-interactive. */}
+          {item.responsavel ? (
+            <UserAvatar
+              name={item.responsavel.nome}
+              src={item.responsavel.avatar_url}
+              size="xs"
+              tooltip={false}
+              className="ring-background shrink-0 ring-1"
+            />
+          ) : null}
+        </span>
+      </button>
+    </li>
   );
 }

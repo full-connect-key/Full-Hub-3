@@ -285,6 +285,12 @@ const TELAS = [
   { nome: "22c-tasks-filtro-responsavel", largura: 1600, altura: 900, role: "socio",
     rota: "/painel/gestao-tasks?visao=lista&responsavel=a0000000-0000-0000-0000-000000000001" },
   { nome: "23-tasks-calendario", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1100, role: "socio" },
+  // O DIA CHEIO ABERTO EMBAIXO DA GRADE. O "+N" so existe num dia que passa de
+  // tres itens, e o exemplo ganhou duas etapas no mesmo dia por causa desta
+  // imagem: sem elas a entrega nova nao sairia em imagem nenhuma. O seletor
+  // casa pelo PREFIXO do rotulo acessivel, que e literal em `src/` -- o
+  // numero e o dia sao interpolados.
+  { nome: "23b-tasks-calendario-dia-cheio", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1300, role: "socio", clicar: 'button[aria-label^="Ver os"]' },
   // O BOARD FILTRADO PELO CONTADOR: o destino de clicar em "2 atrasadas", que
   // ate aqui era o board inteiro. E a tela que prova que o numero e a lista
   // falam da mesma coisa -- sem dump, "ver quais" e uma promessa que ninguem

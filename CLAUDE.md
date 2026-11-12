@@ -10698,6 +10698,65 @@ legenda que mostra outra coisa que a tela é uma legenda que ensina errado. A
 lista e a ordem moram em `LEGENDA_DO_CALENDARIO`: duas cópias divergiriam na
 primeira vez que alguém mexesse numa, e a tela discordaria da própria legenda.
 
+##### E O DIA CHEIO ABRE EMBAIXO DA GRADE
+
+Decisão do usuário: *"no gestão de tasks, quero que quando tiver muitas tasks
+no mesmo dia, ele deixe uma aba a ser aberta para mostrar todas (na
+visualização de calendário)"*.
+
+**A CÉLULA NÃO CORTAVA, ELA CRESCIA** — e é por isso que o pedido não é sobre
+texto truncado. `min-h-32` é um PISO, então um dia com oito entregas empurrava
+a linha inteira da semana para quatrocentos pixels, e as outras seis colunas
+daquela linha ficavam vazias do mesmo tamanho. A grade do mês deixava de caber
+na tela por causa de um dia.
+
+**QUANTOS CABEM É POR VISÃO, porque a altura da célula é por visão:** três no
+mês (`min-h-32`) e seis na semana (`min-h-64`). O chip tem três linhas e uns
+54px desde que ele passou a carregar cliente, demanda e etapa — um número só
+para as duas ou cortaria o que cabe na semana, ou deixaria o mês crescendo do
+mesmo jeito.
+
+**O "+N" É BOTÃO E NÃO LINK, ao contrário do Cronograma do portal**, e a
+diferença é onde mora o estado: lá o MÊS está na URL, então `?dia=` aponta
+para um dia que a grade com certeza mostra; aqui o mês, a visão e o filtro são
+estado local, e um endereço com o dia abriria num mês que não é o dele.
+
+**E O DIA ABERTO É DERIVADO, nunca sincronizado:** se ele não está na grade de
+agora — porque alguém trocou de mês, de visão ou de responsável —, o painel
+não é desenhado. Um `useEffect` que o limpasse seria uma segunda verdade sobre
+qual dia está aberto, que é a razão pela qual atraso não é coluna.
+
+**O PAINEL DESENHA O DIA INTEIRO, e não só os que sobraram:** a lista truncada
+obrigaria a juntar de cabeça o que está na célula com o que está aqui embaixo.
+Ele é **embaixo da grade e não um diálogo** — um modal por cima esconde
+justamente a semana de que o dia faz parte, e a pergunta de quem clica no "+2"
+é *o que mais cai neste dia*, que se responde olhando os dois. **E em duas ou
+três colunas**, porque o chip foi desenhado para uma célula de 158px: numa
+faixa de 1100px uma coluna só deixaria dois terços da linha vazios.
+
+**ELE ROLA PARA A VISTA, e isso não é enfeite** — foi a imagem que mostrou: a
+grade do mês tem seis semanas e passa de mil pixels, então o painel nasce
+abaixo da dobra e o clique no "+2" pareceria não fazer nada. `block: "nearest"`
+e não `"center"`: quando ele já está visível, nada se mexe.
+
+**O CHIP VIROU COMPONENTE por causa do painel**, e não por tamanho: as duas
+telas desenham o mesmo chip, e a cópia que divergiria é a do painel, que se
+abre menos. E **o destino também saiu para um lugar só** (`abrir()`), que é a
+única coisa que o chip faz.
+
+**O RÓTULO ACESSÍVEL DIZ O DIA e o visível não:** quem LÊ a tela vê o "+2"
+dentro da célula do dia 16 e não precisa que ele se repita; quem OUVE chega no
+botão sem o contexto da célula.
+
+***E o exemplo ganhou duas etapas no mesmo dia***, pela razão de sempre: o dia
+mais cheio tinha exatamente três itens, então o "+N" não sairia em imagem
+nenhuma — a lição da duplicata do Cronograma. **E são duas e não uma:** com
+quatro itens o painel mostraria uma coluna só; com cinco ele prova que reparte
+em colunas e que a contagem do cabeçalho conta o DIA inteiro.
+
+**E ISSO VALE EM MINHAS TASKS TAMBÉM**, porque é o mesmo componente com outros
+parâmetros — a decisão escrita desde o Sprint 4.
+
 **O ROSTO DE QUEM É DONO DA ETAPA** — *"coloque o rosto da pessoa responsável
 na visualização da task, dentro de gestão de task, visualização de
 calendário"*. Ele **não custou consulta nenhuma**: `itensDoCalendario` já traz
