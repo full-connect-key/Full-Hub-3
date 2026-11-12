@@ -7528,6 +7528,127 @@ duas das três que ganharam cor própria: a Lista sairia em imagem com o marrom 
 o lima novos e sem o laranja e o vermelho. É a lição da Óptica Visão sem
 atendente (0062).
 
+##### E A CAIXA FICOU CHEIA, COM UM ÍCONE DENTRO
+
+Decisão do usuário, por **referência**: uma imagem de uma lista agrupada em que
+cada cabeçalho é uma pílula **cheia e saturada**, com um ícone à esquerda do
+nome, e a contagem fora dela, em cinza.
+
+**ELE JÁ TINHA DITO ISSO UMA VEZ, e esta entrega é o pedido anterior levado até
+o fim.** A caixa nasceu porque *"a cor estava lá e não se lia a dois metros, que
+é a distância de que uma lista de quarenta linhas é olhada"* — e o par nomeado
+resolve o pastel claro a 11px e **não resolve a distância**: sete pílulas
+pálidas numa página branca continuam sendo sete manchas claras. A saturação é o
+que faltava, e é o que a referência mostra.
+
+**O QUE NÃO SE PODE USAR SÃO OS TOKENS QUE JÁ EXISTEM, e o número diz por quê:**
+`--laranja`, `--marrom`, `--lima` e os outros são cor de TEXTO e **trocam por
+tema** — `--laranja` é `#B4440C` no claro e `#FB923C` no escuro. Como chão de
+uma pílula com texto branco, o primeiro dá 5,57:1 e o segundo dá 2,1:1. Então é
+a decisão da 0127 palavra por palavra: **preenchimento carrega o próprio chão**,
+uma família `--status-*` declarada uma vez, sem par no `.dark` — e a colisão do
+tema escuro deixa de existir por construção em vez de por ajuste. O par nomeado
+continua servindo o SELO e o chip do cronograma, que é onde a cor é a frente e o
+chão é suave; aqui os papéis se invertem.
+
+**NÃO É UM SEGUNDO MAPA DE COR, e a distinção é a que faz ele caber.** O que
+este produto proíbe é um segundo de-para de STATUS para cor — duas listas que
+divergem na primeira vez que alguém acrescenta um status e só lembra de uma.
+Aqui o de-para continua sendo um, `STATUS[status].tom`; o que muda é o PAPEL da
+superfície, e `Record<Tom, string>` obriga os dois mapas a serem totais: um tom
+novo não compila sem os dois.
+
+**TRÊS DOS SETE CALHAM DE TER O MESMO VALOR DA FAMÍLIA DAS DECISÕES**, e é
+coerência deliberada: "Concluído" é o verde de Aprovar, "Em ajuste" é o vermelho
+de Recusar, e o âmbar é o de Ajustar — as duas palavras querem dizer a mesma
+coisa nos dois lugares. **Eles NÃO apontam um para o outro**, ao contrário de
+`--ferias → --roxo`, porque o chão de lá é de um BOTÃO, que tem hover, foco e
+pressionado, e o daqui é de um RÓTULO, que não tem nenhum dos três: no dia em
+que o botão escurecer por uma razão de interação, o rótulo não vai junto. As
+duas famílias são medidas em separado pelo `check:cores`, então nenhuma quebra
+em silêncio.
+
+Medidos, iguais nos dois temas: **5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 /
+6,47** em repouso e **7,02 / 6,90 / 10,31 / 8,51 / 5,94 / 6,20 / 7,57** no
+hover. **E o hover ESCURECE por um token**, nunca por `brightness`: é filtro do
+Tailwind, não é cor nomeada, e foi assim que o hover do botão mais clicado do
+produto passou meses abaixo do mínimo sem a varredura dizer nada (0127).
+
+###### O ÍCONE É O TERCEIRO SINAL, e ele existe por causa de uma medição
+
+A entrega anterior deixou escrito, com o número, que **sete pares dos sete tons
+ficam abaixo do piso de daltonismo** e que eles ficavam fora dos grupos porque
+*"o que separa um status do outro sempre foi a palavra"*. Isso continua
+verdadeiro e continua sendo o mínimo: medindo agora os chãos CHEIOS,
+`--status-marrom` fica a **ΔE 1,9** de `--status-negativo` em protanopia e
+`--status-lima` a **3,4** dele em deuteranopia — para quem não separa vermelho
+de verde, "Aguardando aprovação", "Em ajuste" e "Entregue" são três pílulas da
+mesma cor.
+
+A ampulheta, a seta de voltar e o avião de papel são três silhuetas que nada
+têm em comum, e elas sobrevivem ao tema, ao daltonismo e à distância de que a
+lista é olhada — que é onde a palavra a 11px já não ajuda. **É a decisão do bolo
+do aniversário no Calendário Full**, palavra por palavra: *um ícone é FORMA, que
+é o que a cor não tem como ser*.
+
+**O MAPA DE ÍCONE É KEYADO POR STATUS E NÃO POR TOM**, ao contrário de tudo o
+mais naquele arquivo, e é a única chave que serve: `negativo` é o tom de
+`em_ajustes` (a equipe vai refazer) E de `rejeitado` (o cliente disse não) — a
+cor é a mesma de propósito e a frase não é. Um ícone por tom daria a mesma seta
+de "volta para mexer" a uma recusa.
+
+###### `neutro` E `pausado` FICAM PÁLIDOS, e a ausência é a referência
+
+Na imagem que ele mandou, o status mais comum da lista é o único chip CLARO. É a
+decisão da matriz do Day Off outra vez — **pinta-se a exceção** —, e é o que
+mantém as outras sete valendo alguma coisa: sete pílulas cheias e uma clara se
+leem; oito pílulas cheias se anulam. "Stand by" segue com a borda tracejada, que
+é a ausência de trabalho e não um estado que grita.
+
+###### A SETA E A CONTAGEM SAÍRAM DE DENTRO
+
+As duas estavam dentro da caixa e as duas são fatos sobre a LISTA, não sobre o
+status: a seta diz se o grupo está aberto, a contagem diz o tamanho dele. Dentro
+de uma pílula cheia a seta ainda competiria com o ícone do status a seis pixels
+de distância — dois glifos brancos na mesma peça, um dizendo o estado do
+trabalho e o outro o estado da dobra —, e a contagem herdava o branco e o caixa
+alta e lia como parte do nome. Fora, em cinza, ela continua sobrevivendo à
+dobra, que é a regra que a pôs no cabeçalho.
+
+**E A PÍLULA É `rounded-full`**, não mais `rounded-lg`: com o chão cheio a
+distinção entre um rótulo e uma caixa de conteúdo passou a importar — um
+retângulo saturado seria uma faixa, que é o que esta decisão recusou quando a
+caixa nasceu.
+
+###### O `group` É UM CONTRATO, e ele é escrito
+
+O hover da pílula é `group-hover:`, e quem a desenha a envolve num elemento com
+`group`. A razão é que o alvo do clique quase nunca é a pílula sozinha — no
+cabeçalho ela divide o botão com a seta e com a contagem, e um `hover:` só
+acenderia com o ponteiro exatamente em cima dela.
+
+***O que NÃO muda, e é dito em vez de escondido:*** o **selo** (`StatusBadge`),
+que aparece em vinte e uma telas, continua com o par suave — uma pílula cheia e
+saturada dentro de uma célula de tabela densa é peso onde o status é o dado
+secundário da linha. E o **chip do cronograma do portal** também, pela mesma
+razão de sempre: ele carrega o título do material e a cor é o chão daquele
+título, não a peça. `classesDoChipDeStatus` serve esses dois;
+`classesDaCaixaDeStatus` serve o cabeçalho, que é a peça que NOMEIA um bloco.
+
+***E uma frase daquele arquivo voltou a ser verdade:*** o JSDoc de
+`classesDoChipDeStatus` dizia *"quem o usa é o cronograma do portal"* enquanto
+os dois cabeçalhos de grupo também o usavam — a função ganhou consumidores e o
+comentário ficou para trás, que é prosa mantida à mão afirmando o que o código
+não faz. Com os cabeçalhos na função nova, ela é de novo exata.
+
+***E o `icone` quase ficou no objeto sem chegar à tela:*** a Lista monta cada
+grupo como um objeto e passa prop a prop, então acrescentar o campo ali compila,
+passa no lint e no build, e o ícone simplesmente não aparece. **É a ponte
+construída e não atravessada em miniatura**, e quem a pegou foi o `tsc` por
+acaso — um ramo do agrupamento por CLIENTE tinha ficado sem o campo. Os outros
+dois ramos dizem `icone: undefined` por extenso, com a razão escrita: um cliente
+e uma pessoa não têm cor nem forma neste produto.
+
 ##### E O FILTRO DE RESPONSÁVEIS GANHOU A FOTO
 
 Decisão do usuário, na mesma frase: *"no filtro de Responsáveis, quero que a
@@ -17039,6 +17160,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A caixa cheia | **O cabeçalho de grupo da Lista virou uma pílula CHEIA, com um ícone dentro** — decisão do usuário, por referência: uma imagem de uma lista agrupada com pílulas saturadas, ícone à esquerda do nome e a contagem fora, em cinza. **ELE JÁ TINHA DITO ISSO UMA VEZ, e esta entrega leva o pedido anterior até o fim:** a caixa nasceu porque *"a cor estava lá e não se lia a dois metros"*, e o par nomeado resolve o pastel a 11px e **não resolve a distância** — sete pílulas pálidas numa página branca continuam sendo sete manchas claras. **OS TOKENS QUE JÁ EXISTEM NÃO SERVEM, e o número diz por quê:** eles são cor de TEXTO e trocam por tema — `--laranja` é `#B4440C` no claro e `#FB923C` no escuro, e como chão com texto branco o primeiro dá 5,57:1 e o segundo dá **2,1:1**. É a 0127 palavra por palavra: **preenchimento carrega o próprio chão**, uma família `--status-*` declarada uma vez, sem par no `.dark`, e a colisão do tema escuro deixa de existir por construção. **NÃO É UM SEGUNDO MAPA DE COR**, e a distinção é a que faz ele caber: o de-para de status para tom continua sendo um, e o que muda é o PAPEL da superfície — `Record<Tom, string>` obriga os dois mapas a serem totais, então um tom novo não compila sem os dois. **Três dos sete calham de ter o valor da família das decisões** (Concluído é o verde de Aprovar, Em ajuste o vermelho de Recusar), e **não apontam** um para o outro, ao contrário de `--ferias → --roxo`: o chão de lá é de um BOTÃO, com hover, foco e pressionado, e o daqui é de um RÓTULO — no dia em que o botão escurecer por uma razão de interação, o rótulo não vai junto. Medidos, iguais nos dois temas: **5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 / 6,47** em repouso e sete pares de hover acima deles. **O ÍCONE EXISTE POR CAUSA DE UMA MEDIÇÃO e não por enfeite:** nos chãos cheios, `--status-marrom` fica a **ΔE 1,9** de `--status-negativo` em protanopia e `--status-lima` a **3,4** em deuteranopia — para quem não separa vermelho de verde, "Aguardando aprovação", "Em ajuste" e "Entregue" são três pílulas da mesma cor. A ampulheta, a seta de voltar e o avião de papel são três silhuetas que nada têm em comum, e é a decisão do bolo do aniversário palavra por palavra. **O mapa é keyado por STATUS e não por tom**, que é a única chave que serve: `negativo` é o tom de `em_ajustes` E de `rejeitado`, e um ícone por tom daria a mesma seta de "volta para mexer" a uma recusa. **`neutro` e `pausado` ficam pálidos**, e a ausência é a referência: pinta-se a exceção, e sete pílulas cheias com uma clara se leem onde oito se anulam. **A seta e a contagem saíram de dentro**, porque as duas são fatos sobre a LISTA e não sobre o status — e dentro, a seta competiria com o ícone a seis pixels de distância. ***O que NÃO muda, e é dito:*** o selo de vinte e uma telas e o chip do cronograma continuam com o par suave — lá o status é o dado secundário da linha, e a saturação seria peso onde não se pede. ***E uma frase voltou a ser verdade:*** o JSDoc de `classesDoChipDeStatus` dizia *"quem o usa é o cronograma"* enquanto dois cabeçalhos também o usavam. ***E o `icone` quase ficou no objeto sem chegar à tela*** — a ponte construída e não atravessada em miniatura, pega por acaso pelo `tsc` num ramo do agrupamento por cliente. |
 | A etapa editável | **Seis pedidos numa mensagem, e cinco deles são sobre a mesma tela: a lista de etapas da demanda.** **(1) O responsável se escolhe na LINHA** — *"clicando na palavra responsável, sem precisar abrir mais abas para editar, quero que a plataforma de maneira geral seja intuitiva"*. O que estava ali era TEXTO MORTO pela terceira vez neste produto: `atualizarSubtarefa` grava `responsavel_id` desde o Sprint 3B, e a linha desenhava um `<span>` cinza. `SeletorDeResponsavel` **não decide quando salvar** — na linha o clique É o salvamento, no modal ele escreve no rascunho —, que é a assimetria escrita de `FaixaDeDisponibilidade`. **E o chevron aparece em REPOUSO, o que foi um conserto no meio da entrega:** escondido até o ponteiro passar por cima, o controle ficava idêntico ao `<span>` que ele substituiu — literalmente a queixa que abriu o pedido —, e a tela do protótipo precisava ABRIR a lista, o que custa três nós de `aria-hidden-focus` no axe. **(2) O modal ganhou um SALVAR**, que desfaz METADE da 0028: *"salva sozinho, campo a campo"* continua certo no rascunho, que não existe para mais ninguém, e nunca valeu numa etapa publicada, com dono e prazo, que a outra pessoa vê mudar enquanto quem edita ainda decide. São CINCO campos no rascunho e não os doze; a barra existe nos DOIS estados, porque uma barra que só nasce depois da primeira edição é descoberta depois de ela acontecer; e ela gruda no pé enquanto há rascunho. ***O que custa:*** fechar o modal descarta sem perguntar — a guarda de saída seria a cerimônia que o nome digitado do `ConfirmDialog` já custou uma vez. **(3) e (4) A ordem se ARRASTA**, e a segunda frase dele é a que decide o desenho: *"arrastando, elas já mudem de ordem de visualização"* — então reordena irmãs e **nunca troca de mãe**, porque mudar o `parent_id` por um gesto de seis pixels é a diferença entre uma etapa que conta tempo e uma agrupadora que não conta (0022). `reordenarSubtarefas` existia e estava nas `ISENTAS` do `check:acoes` com o motivo escrito — *"FALTA A TELA"* —, e a isenção saiu junto, porque uma que deixou de ser verdade é pior que isenção nenhuma. O arrasto é por ALÇA e não pela linha: espalhar os `attributes` do dnd-kit num contêiner que carrega botões dá `nested-interactive`, e este produto já pagou isso uma vez no cartão do board. **(5) SETE STATUS, SETE CORES** — e ele descreveu a dívida que este arquivo já tinha escrito: três pares dividiam o mesmo tom, e com a CAIXA no cabeçalho de grupo o chão virou a peça grande da tela. `info` saiu (era `marca` com outro nome, a mesma string letra por letra), `atencao` ficou com um consumidor só — o "Ajustes" do cliente, que fica ao lado de "Rejeitado" e que a 0127 existe para separar —, e os três pares novos foram medidos ANTES da troca: 4,86 / 6,89 / 4,60 no claro. A troca vale nos TRÊS vocabulários de propósito: a legenda do calendário do portal AGRUPA lendo `corDoPontoDeStatus`, então ela se reorganiza de cinco entradas para sete sem uma linha de código. ***E a medição do daltonismo é dita com o número em vez de afirmada:*** rodando os sete chãos como grupo, **sete pares ficam abaixo do piso**, o pior a ΔE 0,8 — eles ficam fora porque o NOME está escrito dentro da caixa, que é a regra de 0127 e 0130, e porque os pastéis desta paleta vivem perto entre si por construção. **De quebra o `--accent` do tema escuro foi consertado:** ele era `#2C3137` igual a `--muted`, a ΔE 0,0 — achado que a 0130 declarou e deixou de fora, e que deixou de ser aceitável quando dois cabeçalhos de grupo passaram a ter o mesmo chão. **(6) O BRIEFING ganhou caixa, tabela e uma paleta que sai de TOKEN**, e isso resolve uma decisão que estava em suspenso neste arquivo por uma TERCEIRA saída que ele não enxergava: gravar o NOME e não o valor. A premissa das duas saídas antigas — *"a cor não pode sair de um token"* — estava errada, e a verificação foi de dependência e não de memória: `getStyleProperty` em `@tiptap/core` lê o `style` cru, então a `var()` atravessa o parse. Com ela a exceção do `editor-rico.tsx` saiu do `check:cores` (o arquivo não tem mais hexadecimal nenhum) e os pares passaram a ser medidos toda vez — **4,94:1 no claro e 6,82:1 no escuro** contra 3,18 e 2,30. ***O que não se faz, e é a consequência honesta:*** o documento antigo mantém o hex dele e não é reescrito — o exemplo guarda um, e o axe o acusa **só no escuro**, que é o argumento inteiro medido por uma ferramenta de fora. A caixa tem quatro tipos e o comando ALTERNA; a tabela abre 3×3 com cabeçalho e rola dentro de si; e a fileira de nove bolinhas de 16px virou quatro MENUS, porque vinte alvos daquele tamanho seriam duas fileiras acima do campo. |
 | A porta das áreas | **Os três chips saíram do cabeçalho de Minhas Tasks, e a porta foi para a linha** — decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e social, quero que elas sejam acessadas por meio das tasks em si, quando a pessoa é marcada em um task de algum desses tipos, ela tenha acesso a página referente"*. **A FAIXA ESTAVA CERTA NO DIA EM QUE NASCEU, e é isso que explica por que ela pôde sair:** Social Media e Campanhas tinham acabado de sair da barra lateral, e *"tirar um item de menu de um módulo que não aparece em mais lugar nenhum é esconder o módulo"* — ela nomeava as três áreas, com contagem e no zero, para dizer que elas existem aqui. **O que ela NÃO respondia é a pergunta de quem olha uma LINHA:** *esta etapa, de que mês é? de que campanha?* Quem tinha a fase de Layout de outubro da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do módulo, para procurar de novo a conta e o mês que a linha já sabia. Hoje o endereço é da linha, por `destinoDaEtapa()`. **E O CHIP DE DEMANDAS LEVAVA 403, que é o conserto embutido na remoção:** ele apontava para `/painel/gestao-tasks`, que é `GESTAO`, e o colaborador — a pessoa para quem esta tela existe — lia *"Seu perfil não permite esta ação"*; `ROTA_DA_AREA.demandas` passou a devolver nulo, porque **não existe módulo "minhas demandas" ao lado desta tela — Minhas Tasks é ele**. **O rótulo virou o MÓDULO e não o nome do objeto**, desfazendo meia decisão escrita: a pílula dizia o NOME da campanha, e `abrir_campanha()` (0051) dá à demanda o título `p_nome` — o nome já estava na linhagem, a dois centímetros. **Na Lista é pílula; no board e no calendário é o PAINEL**, porque o cartão tem ~171px e já carrega seis coisas. **E o painel só oferece "Abrir em página inteira" para a gestão**, que é o mesmo 403 um andar abaixo. ***O que se perde, e é dito:*** o ZERO — a faixa dizia "Campanhas 0" nos dias vazios, e quem continua nomeando as três é a faixa de novidades, que é condicional e é literalmente o caso que o pedido descreve. **E A CHECAGEM PASSOU A MEDIR O ENDEREÇO:** `A_PORTA` procurava os três nomes no texto renderizado, e hoje procura `href="` mais o prefixo de cada porta no HTML cru — **foi a mutação que cobrou**, trocando o `href` por um `data-*` o endereço continuava no HTML e a checagem passava sobre uma porta que não abre. Medida com três mutações, mais duas na mão dupla do botão de página inteira. ***E um defeito anterior saiu junto:*** o `X` do `SheetContent` era desenhado **em cima** do ícone do último botão do cabeçalho do painel — só a imagem pega, porque sobreposição não é tipo, não é cor e não é árvore de acessibilidade. |
 | Ticar o primeiro passo | **Os cinco itens de "Primeiros passos" passaram a ter caixa** (migration 0131), por decisão do usuário: *"quero que o tutorial seja possível ticar os itens, caso a pessoa já saiba como fazer, sem precisar fazer o tutorial necessariamente"*. **A DERIVAÇÃO CONTINUA INTEIRA, e o que isto desfaz é a consequência dela:** o pedido do sprint 3M está certo — *"derivar evita o bug clássico, a pessoa faz a coisa por outro caminho e a lista continua dizendo que falta"* —, e o que estava errado é ela ser a ÚNICA porta: sendo assim, o único jeito de fechar um item é FAZER a coisa. **E o caso de verdade não é o da primeira semana:** o bloco só se esconde com `pendentes = 0`, e quem está na agência há dois anos e nunca propôs um período no Day Off vê os cinco itens todo dia, numa tela que ela abre toda manhã, sem caminho nenhum para fechá-los. **A conta passa a ser `derivado OR dispensado`**, e é esta forma que mantém a derivação de pé: **ticar só FECHA um item, nunca reabre o que o estado já fechou** — quem subiu a foto tem o item fechado pelo FATO, e destique nenhum faz a foto desaparecer. É a assimetria de `status_manual` (0025) pelo outro lado: lá o manual TRAVA o recálculo inteiro, porque o status de uma demanda é uma escolha que o cálculo não adivinha; aqui não há o que travar — os dois lados dizem "feito" —, e `OR` é a forma mais fraca e a mais honesta, porque **ela não tem como mentir sobre um fato**. **SÃO TRÊS DESENHOS NA LINHA E NÃO DOIS:** a caixa vazia do pendente, com o título ainda linkado (o link leva à tela para FAZER, a caixa diz *"já sei"*); a caixa marcada do dispensado, com **`· já sei`** ao lado — a linha que impede a lista de afirmar o que não aconteceu, porque sem ela um item riscado diria que a foto foi subida; e o **derivado-feito, sem controle nenhum**, que é a decisão da caixinha do post palavra por palavra (*"sem a caixa desligada, e isto é regra deste produto"*). **ELA NÃO ENCOSTA EM `tour_progresso` NEM EM `academy_progresso`**, que eram os dois com mais chance de serem corrompidos: ticar o item do tour **não escreve `pulado`** — aquele valor quer dizer *"abriu o tour e saiu"*, e escrevê-lo daqui poria no acompanhamento da gestão linhas de gente que nunca abriu o tour —, e ticar o do playbook **não marca nada como lido**, então `academy_obrigatorios_de()` continua respondendo que falta. ***Este último é o que mais pesa, e é dito em vez de escondido:*** se a agência preferir que o playbook obrigatório não seja dispensável, é uma linha em `lib/dados/primeiros-passos.ts`, e não uma mudança de banco. **É tabela e não jsonb** (o critério da 0070, e `check:tipos` não liga chave de jsonb a nada) e não `localStorage` (a lista é lida por um componente de SERVIDOR); **a linha É a dispensa**, sem coluna `dispensado` que valeria `true` em toda linha (0023); e **há policy de DELETE**, ao contrário de `tour_progresso`, porque aqui *"ela dispensou e depois desdispensou"* não é pergunta de ninguém. As quatro fecham em `auth.uid()`. **Dois achados da imagem:** o marcador do derivado-feito saía uns 3px à direita da borda das caixas — o `Check` solto desenha o traço adentro do slot dele —, e virou o ladrilho de `corrente-do-post.tsx`, com o par nomeado já medido; e **o bloco não tinha imagem de celular**, então entrou `82b-tour-primeiros-passos-375`, que mostra que a linha não quebra a 375px. ***E a bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, então não há cenário de SQL para as quatro policies; o que existe no lugar é o `select` de conferência no fim da migration. |

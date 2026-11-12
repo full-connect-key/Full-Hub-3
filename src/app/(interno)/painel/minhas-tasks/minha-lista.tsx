@@ -16,7 +16,8 @@ import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import {
   StatusBadge,
-  classesDoChipDeStatus,
+  classesDaCaixaDeStatus,
+  iconeDoStatus,
 } from "@/components/shared/status-badge";
 import {
   Tooltip,
@@ -160,7 +161,8 @@ export function MinhaLista({
             // Sem ele o cabeçalho é a única parte da tela em que o status
             // aparece sem cor, e o olho não liga o grupo às linhas que estão
             // dentro dele.
-            caixa={classesDoChipDeStatus(grupo.status)}
+            caixa={classesDaCaixaDeStatus(grupo.status)}
+            icone={iconeDoStatus(grupo.status)}
           >
             {conteudo}
           </GrupoDobravel>

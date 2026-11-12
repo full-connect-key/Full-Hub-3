@@ -475,6 +475,28 @@ const PARES = [
   ["--aprovar-foreground", "--aprovar-hover", NORMAL, "aprovar, com o ponteiro em cima"],
   ["--ajustar-foreground", "--ajustar-hover", NORMAL, "solicitar ajustes, com o ponteiro em cima"],
   ["--recusar-foreground", "--recusar-hover", NORMAL, "recusar, com o ponteiro em cima"],
+
+  // A CAIXA DE STATUS CHEIA do cabeçalho de grupo. Ela é a segunda família que
+  // carrega o próprio chão, então cada par é medido UMA vez: sem linha no
+  // `.dark`, o tema não muda nem o chão nem o texto.
+  //
+  // Os sete são medidos aqui mesmo que três deles tenham hoje o mesmo valor da
+  // família das decisões, e a duplicação é a decisão de `--roxo`/`--ferias`:
+  // no dia em que uma das duas andar, cada linha continua medindo a sua.
+  ["--status-marca-foreground", "--status-marca", NORMAL, "caixa de em andamento"],
+  ["--status-laranja-foreground", "--status-laranja", NORMAL, "caixa de aguardando informações"],
+  ["--status-marrom-foreground", "--status-marrom", NORMAL, "caixa de aguardando aprovação"],
+  ["--status-atencao-foreground", "--status-atencao", NORMAL, "caixa de ajustes (fluxo do cliente)"],
+  ["--status-positivo-foreground", "--status-positivo", NORMAL, "caixa de concluído"],
+  ["--status-lima-foreground", "--status-lima", NORMAL, "caixa de entregue"],
+  ["--status-negativo-foreground", "--status-negativo", NORMAL, "caixa de em ajuste"],
+  ["--status-marca-foreground", "--status-marca-hover", NORMAL, "caixa de em andamento, com o ponteiro em cima"],
+  ["--status-laranja-foreground", "--status-laranja-hover", NORMAL, "caixa de aguardando informações, com o ponteiro em cima"],
+  ["--status-marrom-foreground", "--status-marrom-hover", NORMAL, "caixa de aguardando aprovação, com o ponteiro em cima"],
+  ["--status-atencao-foreground", "--status-atencao-hover", NORMAL, "caixa de ajustes (fluxo do cliente), com o ponteiro em cima"],
+  ["--status-positivo-foreground", "--status-positivo-hover", NORMAL, "caixa de concluído, com o ponteiro em cima"],
+  ["--status-lima-foreground", "--status-lima-hover", NORMAL, "caixa de entregue, com o ponteiro em cima"],
+  ["--status-negativo-foreground", "--status-negativo-hover", NORMAL, "caixa de em ajuste, com o ponteiro em cima"],
   // AS TRÊS DECISÕES COMO TEXTO SOBRE O CARTÃO. É onde elas caem quando a ação
   // é secundária e vive num item de menu: ali a cor é do TEXTO, porque um
   // fundo cheio dentro de uma lista se lê como "selecionado" e não como

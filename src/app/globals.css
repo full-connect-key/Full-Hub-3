@@ -495,6 +495,71 @@
   --recusar: #B91C1C;
   --recusar-hover: #A61919;
   --recusar-foreground: #FFFFFF;
+
+  /* A CAIXA DE STATUS CHEIA, e ela e a segunda familia que carrega o proprio
+     chao.
+
+     Decisao do usuario, por referencia: o cabecalho de grupo da Lista passou
+     de pilula PASTEL para pilula CHEIA, saturada, com um icone dentro.
+
+     POR QUE NAO DA PARA USAR `--laranja`, `--marrom`, `--lima` E OS OUTROS:
+     eles sao cor de TEXTO, e trocam por tema -- `--laranja` e #B4440C no
+     claro e #FB923C no escuro. Como chao de uma pilula com texto branco, o
+     primeiro da 5,57:1 e o segundo da 2,1:1. O par nomeado deles continua
+     servindo o SELO e o chip do cronograma, que e onde a cor e a frente e o
+     chao e suave; aqui os papeis se invertem.
+
+     Entao e a decisao de `--action` e da familia da 0127 palavra por palavra:
+     **preenchimento carrega o proprio chao** -- o que o mede e o texto em
+     cima, nao o fundo atras --, e sem par no `.dark` a colisao do tema escuro
+     deixa de existir por construcao em vez de por ajuste.
+
+     TRES DELES CALHAM DE TER O MESMO VALOR DA FAMILIA DAS DECISOES, e isso e
+     coerencia deliberada e nao sinonimo: "Concluido" e o verde de Aprovar,
+     "Em ajuste" e o vermelho de Recusar, e o ambar e o de Ajustar -- as duas
+     palavras querem dizer a mesma coisa nos dois lugares. Eles NAO apontam um
+     para o outro porque o chao de la e de um BOTAO, que tem hover, foco e
+     pressionado, e o daqui e de um ROTULO, que nao tem nenhum dos tres: no
+     dia em que o botao escurecer por uma razao de interacao, o rotulo nao vai
+     junto. E a nota de `--text-secondary` ao lado de `--brand-gray`, e as
+     duas familias sao medidas em separado pelo `check:cores`.
+
+     `neutro` e `pausado` FICAM DE FORA, e a ausencia e a referencia: o status
+     mais comum da lista nao pode ser a pilula mais barulhenta da tela. Os
+     dois continuam com o par suave e a borda tracejada que ja tinham.
+
+     Medidos: 5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 / 6,47 em repouso, e
+     7,02 / 6,90 / 10,31 / 8,51 / 5,94 / 6,20 / 7,57 no hover.
+
+     E A SEPARACAO ENTRE OS CHAOS NAO PASSA NO PISO DE DALTONISMO, o que e
+     dito com o numero em vez de afirmado: marrom x vermelho fica a deltaE
+     1,9 em protanopia, e lima x vermelho a 3,4 em deuteranopia. Eles ficam
+     fora dos grupos do `check:cores` pela regra escrita -- um grupo existe
+     onde a cor e o UNICO sinal --, e e justamente por essa medicao que a
+     caixa ganhou ICONE junto com a cor: o nome ja estava escrito dentro
+     dela, e a forma e o terceiro sinal, que sobrevive ao tema e ao
+     daltonismo. */
+  --status-marca: #0267C1;
+  --status-marca-hover: #0259A7;
+  --status-marca-foreground: #FFFFFF;
+  --status-laranja: #B4440C;
+  --status-laranja-hover: #9C3B0A;
+  --status-laranja-foreground: #FFFFFF;
+  --status-marrom: #6B4423;
+  --status-marrom-hover: #5A391D;
+  --status-marrom-foreground: #FFFFFF;
+  --status-atencao: #FBBF24;
+  --status-atencao-hover: #E2AC20;
+  --status-atencao-foreground: #17191D;
+  --status-positivo: #15803D;
+  --status-positivo-hover: #137337;
+  --status-positivo-foreground: #FFFFFF;
+  --status-lima: #4D7C0F;
+  --status-lima-hover: #436C0D;
+  --status-lima-foreground: #FFFFFF;
+  --status-negativo: #B91C1C;
+  --status-negativo-hover: #A61919;
+  --status-negativo-foreground: #FFFFFF;
   /* Prioridade Normal é NEUTRA, não azul: azul chamava atenção para o caso
      que, por definição, não tem nada de especial — e roubava o destaque de
      Alta e Urgente, que é onde ele precisa estar. */
@@ -1020,6 +1085,28 @@
   --color-recusar: var(--recusar);
   --color-recusar-hover: var(--recusar-hover);
   --color-recusar-foreground: var(--recusar-foreground);
+  /* A caixa de status cheia do cabecalho de grupo. */
+  --color-status-marca: var(--status-marca);
+  --color-status-marca-hover: var(--status-marca-hover);
+  --color-status-marca-foreground: var(--status-marca-foreground);
+  --color-status-laranja: var(--status-laranja);
+  --color-status-laranja-hover: var(--status-laranja-hover);
+  --color-status-laranja-foreground: var(--status-laranja-foreground);
+  --color-status-marrom: var(--status-marrom);
+  --color-status-marrom-hover: var(--status-marrom-hover);
+  --color-status-marrom-foreground: var(--status-marrom-foreground);
+  --color-status-atencao: var(--status-atencao);
+  --color-status-atencao-hover: var(--status-atencao-hover);
+  --color-status-atencao-foreground: var(--status-atencao-foreground);
+  --color-status-positivo: var(--status-positivo);
+  --color-status-positivo-hover: var(--status-positivo-hover);
+  --color-status-positivo-foreground: var(--status-positivo-foreground);
+  --color-status-lima: var(--status-lima);
+  --color-status-lima-hover: var(--status-lima-hover);
+  --color-status-lima-foreground: var(--status-lima-foreground);
+  --color-status-negativo: var(--status-negativo);
+  --color-status-negativo-hover: var(--status-negativo-hover);
+  --color-status-negativo-foreground: var(--status-negativo-foreground);
   --color-danger-foreground: var(--danger-foreground);
   --color-danger-soft: var(--danger-soft);
   --color-neutral: var(--neutral);

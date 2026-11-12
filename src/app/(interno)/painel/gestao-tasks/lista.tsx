@@ -17,13 +17,23 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { GrupoDobravel } from "@/components/shared/grupo-dobravel";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
-import { classesDoChipDeStatus, StatusBadge } from "@/components/shared/status-badge";
+import {
+  classesDaCaixaDeStatus,
+  iconeDoStatus,
+  StatusBadge,
+} from "@/components/shared/status-badge";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { TaskDaLista } from "@/lib/dados/tasks";
 import {
   COLUNAS_POR_STATUS,
@@ -61,7 +71,9 @@ function vencida(task: TaskDaLista): boolean {
 
 /** Indicador discreto de "salvo", igual ao das ferramentas de produtividade. */
 function useSalvamento() {
-  const [estado, setEstado] = useState<"parado" | "salvando" | "salvo">("parado");
+  const [estado, setEstado] = useState<"parado" | "salvando" | "salvo">(
+    "parado",
+  );
   const router = useRouter();
 
   async function salvar(executar: () => Promise<Resultado>) {
@@ -103,9 +115,15 @@ function PrioridadeInline({ task }: { task: TaskDaLista }) {
     <div className="flex items-center gap-1.5">
       <Select
         value={task.prioridade}
-        onValueChange={(valor) => salvar(() => atualizarTask(task.id, { prioridade: valor }))}
+        onValueChange={(valor) =>
+          salvar(() => atualizarTask(task.id, { prioridade: valor }))
+        }
       >
-        <SelectTrigger aria-label="Prioridade da demanda" size="sm" className="h-7 border-none px-1 shadow-none">
+        <SelectTrigger
+          aria-label="Prioridade da demanda"
+          size="sm"
+          className="h-7 border-none px-1 shadow-none"
+        >
           <PriorityBadge priority={task.prioridade} />
         </SelectTrigger>
         <SelectContent>
@@ -161,7 +179,9 @@ function PeriodoInline({ task }: { task: TaskDaLista }) {
         onBlur={(e) => {
           setEditando(false);
           if (e.target.value !== (task.data_fim ?? "")) {
-            void salvar(() => atualizarTask(task.id, { data_fim: e.target.value || null }));
+            void salvar(() =>
+              atualizarTask(task.id, { data_fim: e.target.value || null }),
+            );
           }
         }}
       />
@@ -203,7 +223,9 @@ function BarraDeAcoesEmMassa({
 
   function aplicar(campos: Record<string, unknown>) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => atualizarTasksEmMassa(selecionadas, campos));
+      const resultado = await chamarAcao(() =>
+        atualizarTasksEmMassa(selecionadas, campos),
+      );
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success(resultado.mensagem);
@@ -220,7 +242,11 @@ function BarraDeAcoesEmMassa({
       </span>
 
       <Select onValueChange={(v) => aplicar({ prioridade: v })}>
-        <SelectTrigger aria-label="Prioridade das selecionadas" size="sm" className="w-36">
+        <SelectTrigger
+          aria-label="Prioridade das selecionadas"
+          size="sm"
+          className="w-36"
+        >
           <SelectValue placeholder="Prioridade" />
         </SelectTrigger>
         <SelectContent>
@@ -236,7 +262,11 @@ function BarraDeAcoesEmMassa({
           porque os outros eram calculados e o banco desfaria a escolha. Agora
           marcar à mão dura, e em massa vale o mesmo que uma a uma. */}
       <Select onValueChange={(v) => aplicar({ status: v })}>
-        <SelectTrigger aria-label="Status das selecionadas" size="sm" className="w-44">
+        <SelectTrigger
+          aria-label="Status das selecionadas"
+          size="sm"
+          className="w-44"
+        >
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -249,7 +279,10 @@ function BarraDeAcoesEmMassa({
       </Select>
 
       <div className="flex items-center gap-1.5">
-        <Label htmlFor="prazo-em-massa" className="text-muted-foreground text-xs">
+        <Label
+          htmlFor="prazo-em-massa"
+          className="text-muted-foreground text-xs"
+        >
           Prazo
         </Label>
         <Input
@@ -260,9 +293,16 @@ function BarraDeAcoesEmMassa({
         />
       </div>
 
-      {aplicando ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+      {aplicando ? (
+        <Loader2 aria-hidden className="size-4 animate-spin" />
+      ) : null}
 
-      <Button variant="ghost" size="sm" onClick={aoTerminar} className="ml-auto">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={aoTerminar}
+        className="ml-auto"
+      >
         Cancelar seleção
       </Button>
     </div>
@@ -406,9 +446,15 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       cell: (task) => {
         if (task.tempoRealMinutos === null) return "—";
         const estourou =
-          task.estimativaMinutos !== null && task.tempoRealMinutos > task.estimativaMinutos;
+          task.estimativaMinutos !== null &&
+          task.tempoRealMinutos > task.estimativaMinutos;
         return (
-          <span className={cn("tabular-nums", estourou && "text-destructive font-medium")}>
+          <span
+            className={cn(
+              "tabular-nums",
+              estourou && "text-destructive font-medium",
+            )}
+          >
             {formatarMinutos(task.tempoRealMinutos)}
           </span>
         );
@@ -440,7 +486,9 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   // caro, porque a coluna repetida tira largura justamente do nome. Onde ele
   // aparece, continua aparecendo ANTES do nome.
   const colunasVisiveis =
-    agrupamento === "status" ? colunas.filter((c) => c.id !== "status") : colunas;
+    agrupamento === "status"
+      ? colunas.filter((c) => c.id !== "status")
+      : colunas;
 
   // SEM `useMemo`, e de propósito.
   //
@@ -459,7 +507,10 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     // não têm cor no produto, e inventar uma aqui criaria um vocabulário de
     // cor que nenhuma outra tela conhece — a pessoa aprenderia que azul é a
     // Mundo Verde nesta lista e em nenhuma outra.
-    if (!agrupado) return [{ chave: "", titulo: "", caixa: undefined, tasks }];
+    if (!agrupado)
+      return [
+        { chave: "", titulo: "", caixa: undefined, icone: undefined, tasks },
+      ];
 
     // O STATUS NÃO ORDENA EM ALFABÉTICA, e é o motivo de ele sair antes.
     //
@@ -487,7 +538,8 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
         // **E O PONTO VIROU A CAIXA**, por decisão do usuário: o par nomeado
         // inteiro pinta o cabeçalho, em vez de uma bolinha de 8px ao lado de
         // um título preto. O mapa continua sendo um só.
-        caixa: classesDoChipDeStatus(coluna.status),
+        caixa: classesDaCaixaDeStatus(coluna.status),
+        icone: iconeDoStatus(coluna.status),
         tasks: visiveis.filter((t) => t.status === coluna.status),
       })).filter((grupo) => grupo.tasks.length > 0);
     }
@@ -502,11 +554,24 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
     }
     return [...mapa.entries()]
       .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
-      .map(([titulo, itens]) => ({ chave: titulo, titulo, caixa: undefined, tasks: itens }));
+      .map(([titulo, itens]) => ({
+        chave: titulo,
+        titulo,
+        // SEM CAIXA E SEM ÍCONE: aqui o grupo é um CLIENTE ou uma PESSOA, e
+        // nenhum dos dois tem cor nem forma neste produto. Inventá-las seria
+        // um vocabulário que nenhuma outra tela conhece — e caixa alta num
+        // nome de empresa é a tela gritando o nome de quem contratou.
+        caixa: undefined,
+        icone: undefined,
+        tasks: itens,
+      }));
   })();
 
   const seletorDeAgrupamento = (
-    <Select value={agrupamento} onValueChange={(v) => setAgrupamento(v as typeof agrupamento)}>
+    <Select
+      value={agrupamento}
+      onValueChange={(v) => setAgrupamento(v as typeof agrupamento)}
+    >
       <SelectTrigger aria-label="Agrupar por" size="sm" className="w-44">
         <SelectValue />
       </SelectTrigger>
@@ -522,7 +587,10 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
   return (
     <div className="space-y-4">
       {selecionadas.length > 0 ? (
-        <BarraDeAcoesEmMassa selecionadas={selecionadas} aoTerminar={() => setSelecionadas([])} />
+        <BarraDeAcoesEmMassa
+          selecionadas={selecionadas}
+          aoTerminar={() => setSelecionadas([])}
+        />
       ) : null}
 
       {/* A BUSCA E O SELETOR, UMA VEZ SÓ, acima de tudo — e só no modo
@@ -585,6 +653,7 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
             titulo={grupo.titulo}
             contagem={grupo.tasks.length}
             caixa={grupo.caixa}
+            icone={grupo.icone}
           >
             {tabela}
           </GrupoDobravel>

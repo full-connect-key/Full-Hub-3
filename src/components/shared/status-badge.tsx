@@ -1,3 +1,17 @@
+import {
+  Circle,
+  CircleCheck,
+  CircleDot,
+  CirclePause,
+  CircleQuestionMark,
+  CircleSlash,
+  CircleX,
+  Hourglass,
+  RotateCcw,
+  Send,
+  type LucideIcon,
+} from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 /**
@@ -129,6 +143,12 @@ export function corDoPontoDeStatus(status: Status): string {
  * alguém acrescenta um status e só lembra de um deles. Quem o usa é o
  * cronograma do portal, onde o chip precisa caber numa célula de 90px e o
  * selo inteiro não cabe — mas a cor tem de ser a mesma que ele teria.
+ *
+ * **E ESTA FRASE VOLTOU A SER VERDADE.** Ela já dizia "quem o usa é o
+ * cronograma" quando os dois cabeçalhos de grupo também o usavam: a função
+ * ganhou consumidores e o comentário ficou para trás, que é prosa mantida à
+ * mão afirmando o que o código não faz. Os cabeçalhos passaram para
+ * `classesDaCaixaDeStatus`, logo abaixo, e o cronograma voltou a ser o único.
  */
 export function classesDoChipDeStatus(status: Status): string {
   return TONS[STATUS[status]?.tom ?? "neutro"];
@@ -145,6 +165,117 @@ const TONS: Record<Tom, string> = {
   negativo: "bg-danger-soft text-danger border-transparent",
   pausado: "bg-transparent text-muted-foreground border-border border-dashed",
 };
+
+/**
+ * O MESMO TOM, CHEIO — para o cabeçalho de grupo, onde a pílula É a peça.
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário, por referência: a caixa do cabeçalho passou de pastel
+ * para **cheia e saturada, com um ícone dentro**.
+ *
+ * **NÃO É UM SEGUNDO MAPA DE COR, e essa distinção é a que faz ele caber
+ * aqui.** O que este arquivo proíbe é um segundo de-para de STATUS para cor —
+ * duas listas que divergem na primeira vez que alguém acrescenta um status e
+ * só lembra de uma. Aqui o de-para continua sendo um: `STATUS[status].tom`.
+ * O que muda é o PAPEL da superfície — lá o tom é a frente sobre um chão
+ * suave, aqui ele é o chão com o texto por cima —, e `Record<Tom, string>`
+ * obriga os dois mapas a serem totais: um tom novo não compila sem os dois.
+ *
+ * **`neutro` E `pausado` APONTAM PARA AS MESMAS CLASSES de `TONS`**, e a
+ * repetição é a decisão: o status mais comum da lista não pode ser a pílula
+ * mais barulhenta da tela, e "Stand by" é a ausência de trabalho, não um
+ * estado que grita. Era assim na referência, e é o que mantém as outras sete
+ * valendo alguma coisa — sete pílulas cheias e uma clara se leem; oito
+ * pílulas cheias se anulam.
+ *
+ * **O HOVER É `group-hover:` E ISSO É UM CONTRATO:** quem desenha a pílula a
+ * envolve num elemento com `group`. A razão é que o alvo do clique quase
+ * nunca é a pílula sozinha — no cabeçalho de grupo ela divide o botão com a
+ * seta e com a contagem, e um `hover:` só acenderia quando o ponteiro
+ * estivesse exatamente em cima dela. **E ele ESCURECE por um token medido,
+ * nunca por `brightness`**, que é filtro do Tailwind e não cor nomeada: foi
+ * assim que o hover do botão mais clicado do produto passou meses abaixo do
+ * mínimo sem a varredura dizer nada (0127).
+ * ---------------------------------------------------------------------------
+ */
+const TONS_CHEIOS: Record<Tom, string> = {
+  neutro: TONS.neutro,
+  marca:
+    "bg-status-marca text-status-marca-foreground group-hover:bg-status-marca-hover",
+  laranja:
+    "bg-status-laranja text-status-laranja-foreground group-hover:bg-status-laranja-hover",
+  marrom:
+    "bg-status-marrom text-status-marrom-foreground group-hover:bg-status-marrom-hover",
+  atencao:
+    "bg-status-atencao text-status-atencao-foreground group-hover:bg-status-atencao-hover",
+  positivo:
+    "bg-status-positivo text-status-positivo-foreground group-hover:bg-status-positivo-hover",
+  lima: "bg-status-lima text-status-lima-foreground group-hover:bg-status-lima-hover",
+  negativo:
+    "bg-status-negativo text-status-negativo-foreground group-hover:bg-status-negativo-hover",
+  pausado: TONS.pausado,
+};
+
+/**
+ * A FORMA DE CADA STATUS, e ela é o terceiro sinal.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE É KEYADO POR STATUS E NÃO POR TOM**, ao contrário de tudo o mais
+ * neste arquivo, e é a única chave que serve: `negativo` é o tom de
+ * `em_ajustes` (a equipe vai refazer) E de `rejeitado` (o cliente disse não)
+ * — a cor é a mesma de propósito e a frase não é. Um ícone por tom daria a
+ * mesma seta de "volta para mexer" a uma recusa.
+ *
+ * **E ELE EXISTE POR CAUSA DE UMA MEDIÇÃO, não por enfeite.** Rodando os sete
+ * chãos cheios como um grupo de daltonismo, `--status-marrom` fica a **ΔE
+ * 1,9** de `--status-negativo` em protanopia e `--status-lima` a **3,4** dele
+ * em deuteranopia: para quem não separa vermelho de verde, "Aguardando
+ * aprovação", "Em ajuste" e "Entregue" são três pílulas da mesma cor. A regra
+ * escrita desta casa é que **a cor nunca é o único sinal**, e até aqui quem a
+ * cumpria era o NOME dentro da caixa. A ampulheta, a seta de voltar e o avião
+ * de papel são três silhuetas que nada têm em comum — e elas sobrevivem ao
+ * tema, ao daltonismo e à distância de que uma lista de quarenta linhas é
+ * olhada, que é onde a palavra a 11px já não ajuda.
+ *
+ * É a decisão do bolo do aniversário no Calendário Full, palavra por palavra.
+ * ---------------------------------------------------------------------------
+ */
+const ICONE: Record<Status, LucideIcon> = {
+  // Conteúdo
+  aguardando_informacoes: CircleQuestionMark,
+  em_producao: CircleDot,
+  em_aprovacao: Hourglass,
+  ajustes: RotateCcw,
+  aprovado: CircleCheck,
+  rejeitado: CircleX,
+  stand_by: CirclePause,
+  // Task
+  nao_iniciada: Circle,
+  em_andamento: CircleDot,
+  entregue: Send,
+  em_ajustes: RotateCcw,
+  concluido: CircleCheck,
+  cancelada: CircleSlash,
+  // Subtarefa
+  enviada_aprovacao: Hourglass,
+  concluida: CircleCheck,
+};
+
+export function iconeDoStatus(status: Status): LucideIcon {
+  return ICONE[status] ?? Circle;
+}
+
+/**
+ * O CHÃO CHEIO do status, para o cabeçalho de grupo.
+ *
+ * Ele é o par de `classesDoChipDeStatus` e não o substitui: aquele serve quem
+ * desenha um chip pequeno dentro de conteúdo, este serve quem desenha a peça
+ * que NOMEIA um bloco. O hover escurece o chão por um token medido, nunca por
+ * `brightness`, que é filtro do Tailwind e não cor nomeada — a lição da 0127.
+ */
+export function classesDaCaixaDeStatus(status: Status): string {
+  return TONS_CHEIOS[STATUS[status]?.tom ?? "neutro"];
+}
 
 const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // Conteúdo
@@ -201,7 +332,13 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   concluida: { label: "Concluída", tom: "positivo" },
 };
 
-export function StatusBadge({ status, className }: { status: Status; className?: string }) {
+export function StatusBadge({
+  status,
+  className,
+}: {
+  status: Status;
+  className?: string;
+}) {
   const definicao = STATUS[status];
 
   // Status que ainda não conhecemos aparece cru, em vez de sumir da tela: é

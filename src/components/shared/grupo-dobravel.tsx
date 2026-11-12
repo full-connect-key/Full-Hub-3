@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -48,6 +48,7 @@ export function GrupoDobravel({
   titulo,
   contagem,
   caixa,
+  icone: Icone,
   parametro = "fechados",
   extra,
   children,
@@ -82,6 +83,20 @@ export function GrupoDobravel({
    * primeira vez que alguém acrescenta um status e só lembra de um deles.
    */
   caixa?: string;
+  /**
+   * A FORMA do grupo, ao lado da cor — e ela só existe com `caixa`.
+   *
+   * Decisão do usuário, por referência: a pílula ganhou um ícone dentro. Ele
+   * vem de `iconeDoStatus()` e não de um mapa daqui, porque este componente
+   * agrupa também por CLIENTE e por CONTA, e ali não há forma a escolher —
+   * inventar uma seria um vocabulário de ícone que nenhuma outra tela conhece,
+   * que é o mesmo argumento que mantém `caixa` fora daqueles grupos.
+   *
+   * **Ele é `aria-hidden`**: o nome do status está escrito ao lado, dentro da
+   * mesma pílula, e um `aria-label` no ícone faria o leitor de tela dizer a
+   * mesma palavra duas vezes.
+   */
+  icone?: LucideIcon;
   /** O nome do parâmetro, para duas listas na mesma tela não se misturarem. */
   parametro?: string;
   /**
@@ -114,7 +129,9 @@ export function GrupoDobravel({
 
   function alternar() {
     const proximos = new URLSearchParams(parametros.toString());
-    const lista = fechado ? fechados.filter((c) => c !== chave) : [...fechados, chave];
+    const lista = fechado
+      ? fechados.filter((c) => c !== chave)
+      : [...fechados, chave];
     if (lista.length === 0) proximos.delete(parametro);
     else proximos.set(parametro, lista.map(encodeURIComponent).join(","));
     // `scroll: false` porque dobrar um grupo no meio da página e ser jogado
@@ -131,39 +148,56 @@ export function GrupoDobravel({
           aria-expanded={!fechado}
           aria-controls={idDoConteudo}
           className={cn(
-            "flex items-center gap-2 text-left transition-colors",
+            // `group` É O CONTRATO da pílula cheia: o hover dela é
+            // `group-hover:`, porque o alvo do clique é o botão inteiro — a
+            // seta e a contagem incluídas — e um `hover:` na pílula só
+            // acenderia com o ponteiro exatamente em cima dela.
+            "group flex items-center gap-2 text-left",
             caixa
-              ? // A CAIXA ABRAÇA O TÍTULO e não a linha inteira: uma faixa
-                // colorida de 1100px por grupo pesa mais que a lista que ela
-                // nomeia, e o pedido é um "box" em volta do status.
-                //
-                // **O HOVER É A BORDA E NÃO O CHÃO**, pela razão da 0127: um
-                // filtro do Tailwind (`brightness`) não é cor nomeada e passa
-                // despercebido pelo `check:cores`. `border-current` é a cor
-                // de frente do próprio par — medida por construção, porque é
-                // ela que o par mede contra o fundo.
-                cn(
-                  "w-fit rounded-lg border px-3 py-1.5 text-xs font-bold tracking-wide uppercase hover:border-current",
-                  caixa,
-                )
-              : "text-text-primary hover:text-accent-strong w-full text-sm font-semibold",
+              ? "w-fit"
+              : "text-text-primary hover:text-accent-strong w-full text-sm font-semibold transition-colors",
           )}
         >
+          {/* A SETA SAI DE DENTRO DA PÍLULA, e isso é a referência: ela diz
+              se o grupo está aberto, que é um fato sobre a LISTA e não sobre
+              o status. Dentro de uma pílula cheia e saturada ela também
+              competiria com o ícone do status a seis pixels de distância —
+              dois glifos brancos na mesma peça, um dizendo o estado do
+              trabalho e o outro o estado da dobra. */}
           <ChevronDown
             aria-hidden
             className={cn(
-              "size-4 shrink-0 transition-transform",
-              !caixa && "text-text-muted",
+              "text-text-muted size-4 shrink-0 transition-transform",
               fechado && "-rotate-90",
             )}
           />
-          {titulo}
-          <span
-            className={cn(
-              "font-normal tabular-nums",
-              !caixa && "text-text-muted",
-            )}
-          >
+          {caixa ? (
+            <span
+              className={cn(
+                // PÍLULA e não retângulo: `rounded-full` é o que separa um
+                // rótulo de uma caixa de conteúdo, e com o chão cheio a
+                // distinção passou a importar — um retângulo saturado de
+                // 1100px seria uma faixa, que é o que esta decisão recusou
+                // quando a caixa nasceu.
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold tracking-wide uppercase transition-colors",
+                caixa,
+              )}
+            >
+              {Icone ? (
+                <Icone aria-hidden className="size-3.5 shrink-0" />
+              ) : null}
+              {titulo}
+            </span>
+          ) : (
+            titulo
+          )}
+          {/* A CONTAGEM SAI DA PÍLULA, e a razão é o que cada uma responde: a
+              pílula diz o que é o grupo e a contagem diz o tamanho dele —
+              um fato da lista, como a seta. Dentro, ela herdava o branco e o
+              caixa alta e lia como parte do nome do status. Fora, em cinza,
+              ela continua sobrevivendo à dobra, que é a regra que a pôs no
+              cabeçalho. */}
+          <span className="text-text-muted font-normal tabular-nums">
             {contagem}
           </span>
           {extra}
