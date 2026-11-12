@@ -1852,9 +1852,9 @@ token próprio, medido nos dois temas. `--rosa` e `--rosa-soft`, **5,14:1 no
 claro e 6,16:1 no escuro**, conferidos pelo `check:cores`.
 
 **ELE NÃO ENTRA NO GRUPO DE DALTONISMO**, e a ausência é a regra escrita: a
-cor nunca é o único sinal — o chip carrega o nome da pessoa e o `title` diz
-"Aniversário". Os grupos de lá são onde a cor é o ÚNICO sinal, como a linha de
-um gráfico.
+cor nunca é o único sinal — o chip carrega o nome da pessoa e, desde a marca
+logo abaixo, o BOLO, que é forma e não cor. Os grupos de lá são onde a cor é o
+ÚNICO sinal, como a linha de um gráfico.
 
 ***E a medição achou uma coisa que não é desta entrega, dita em vez de
 escondida:*** no tema ESCURO, `--accent` e `--muted` resolvem para **o mesmo
@@ -1867,6 +1867,110 @@ isso é decisão dele, não efeito colateral de um aniversário. Os fundos páli
 do tema claro, esses, já vivem entre ΔE 3,5 e 8,9 entre si por construção — o
 rosa a 3,4 do accent está na família, e o que separa um chip do outro nunca
 foi o chão.
+
+##### E O CHIP PASSOU A DIZER QUE É UM ANIVERSÁRIO
+
+Decisão do usuário, olhando a entrega: *"quero que mostre no calendário que é
+aniversário da pessoa, não só o nome dela… pode ter um ícone só talvez, ou o
+texto, não sei, vê como fica melhor"*.
+
+**O CHIP DIZIA SÓ "Ana Lima"**, em rosa, e a palavra vivia no `title` — que não
+existe para quem usa toque e que ninguém lê de relance. Numa grade de mês
+cheia, um nome de pessoa num chip colorido não se distingue de um nome de
+evento: *"Ana Lima"* e *"Visita do fornecedor"* são as duas um texto numa
+pílula. E a legenda, que é quem nomeia a cor, fica ABAIXO da grade: rolando até
+a última semana ela sai da tela, e o chip fica sozinho com a cor.
+
+**É O ÍCONE E NÃO A PALAVRA, e as duas razões são de medida.** A célula do mês
+tem cerca de 96px nas sete colunas, e sobram uns 76px de texto depois do
+respiro — "Aniversário" a 11px já ocupa uns 62px, então ela só cabe numa
+SEGUNDA LINHA. E a segunda linha do chip é onde mora a empresa: um aniversário
+não tem nenhuma, e é justamente por isso que ele é hoje **o único chip de uma
+linha só**. Pondo a palavra ali, todo aniversário passa a ocupar duas — e em
+janeiro, com três no mesmo dia, a célula enche para dizer três vezes a mesma
+palavra. O bolo custa 16px na linha que já existe.
+
+**É a decisão do selo de "programado" no calendário do Social**, palavra por
+palavra: *"a célula de um dia com três posts não tem onze pixels para a
+palavra"* — lá o nome inteiro ficou no `title` e num `sr-only`, e aqui é o
+mesmo.
+
+**E UM ÍCONE É FORMA, que é o que a cor não tem como ser.** A regra escrita
+desta casa é *a cor nunca é o único sinal*, e até aqui quem a cumpria era o
+`title` — ou seja, ninguém, para quem olha a grade sem passar o mouse. O bolo
+sobrevive ao tema e ao daltonismo.
+
+**A LEGENDA NÃO GANHA O BOLO**, e a ausência é decisão. Ela responde *o que
+esta cor quer dizer*, e as seis entradas respondem isso do mesmo jeito — um
+ponto na classe do chip de verdade. A linha de lá já escreve a palavra
+"Aniversário"; o ícone existe para o CHIP, que não a escreve. Pôr o bolo na
+amostra seria a mesma coisa dita duas vezes na mesma linha, e deixaria uma das
+seis amostras com outra forma que as cinco.
+
+**ELA É UM COMPONENTE E NÃO UM `if` NAS DUAS VISÕES**
+(`calendario/marca-do-aniversario.tsx`). São duas telas que desenham o mesmo
+chip — o mês e a semana —, e o que não pode divergir são três coisas de uma
+vez: qual ícone quer dizer aniversário, de que tamanho, e se existe o `sr-only`
+ao lado dele. É `ICONE_DA_AREA` em miniatura, que tinha três cópias e duas já
+divergidas. Ela devolve `null` para o evento, em vez de a tela perguntar antes:
+a pergunta é `ehAniversario()`, que mora no domínio ao lado de `abreDetalhe()`,
+e assim a linha do título das duas visões é a mesma em qualquer item.
+
+**E O CHIP DO MÊS DEIXOU DE SER ESCRITO DUAS VEZES.** Os dois ramos — o
+`<button>` do evento e o `<div>` do aniversário — repetiam a marcação inteira,
+e a marca entrou nos dois; hoje o conteúdo é um `dentro` e os ramos escolhem só
+a TAG, que é a forma que a visão de semana já tinha.
+
+**`min-w-0` É O QUE FAZ O `truncate` VALER**, e ele é obrigatório porque a
+linha virou `flex`: um item de flex se recusa a ficar menor que o conteúdo
+(`min-width: auto`), então sem ele um nome longo **estoura o chip em vez de
+cortar** — é a coluna de domingo do Cronograma e o selo de prazo do board de
+etapas, pela terceira vez.
+
+**E O VÃO SAÍA 9px ONDE O CÓDIGO DIZIA 4, o que só a imagem ampliada pegou.** O
+`sr-only` é irmão de flex, então o `gap-1` do chip contava DUAS vezes — o bolo,
+o `sr-only` de 1px, o nome. A marca virou **um elemento só**, com o ícone e a
+palavra dentro dele. Numa linha que tem uns 60px para o nome, cinco deles são o
+que separa um nome inteiro de um truncado.
+
+##### E A SEMANA DO PROTÓTIPO ESTAVA VAZIA, o que esta entrega encontrou
+
+`92-calendario-semana` saía com **sete cabeçalhos de dia e nada dentro**. A
+causa: a visão de semana abre a semana do **dia 1** do mês
+(`segundaDaSemana(primeiroDiaDoMes)`), e todo item do exemplo é datado à
+FRENTE de hoje — a grade do mês mostrava tudo e a da semana, nada.
+
+**Quer dizer que o chip da semana não era conferido por imagem nenhuma**: nem o
+par de cor, nem a segunda linha do cliente, nem agora a marca. Quem encontrou
+foi esta entrega, porque ela precisava daquela imagem.
+
+**O DIA 1 É O ÚNICO QUE ESTÁ NAQUELA SEMANA EM QUALQUER MÊS** — a segunda-feira
+dela cai entre o dia 26 do mês anterior e o próprio dia 1, então o dia 2 só às
+vezes. E ele é **calculado e não literal**, que é a lição dos meses da nota
+fiscal: uma data fixa para de cair na janela sozinha, e a imagem sai igual sem
+nada reclamar.
+
+**São DOIS itens no mesmo dia, e não um:** um aniversário sozinho na coluna
+provaria que o bolo aparece, não que ele **distingue** o chip do que está ao
+lado — é a razão do evento de cada par da legenda, e a mesma pela qual a Ana
+divide o dia com o evento azul na grade do mês. **E o vizinho não é `reuniao`**,
+que foi a primeira versão: aquele tipo usa o par CINZA, e a célula de fim de
+semana usa o MESMO `bg-muted` — o dia 1 cai num sábado ou num domingo em dois
+meses de sete, e nesses a imagem saía com o chip vizinho sem chão nenhum, lido
+como texto solto.
+
+**E O NOME DO ANIVERSARIANTE DO EXEMPLO É LONGO de propósito:** com o bolo
+comendo 16px, só um nome longo mostra o `truncate` valendo — que é o bug do
+parágrafo acima, fotografado em vez de afirmado.
+
+***E um achado que não é desta entrega, dito em vez de escondido:*** `reuniao`,
+`treinamento` e `outro` usam `bg-muted`, e a célula de fim de semana e a de
+outro mês usam esse mesmo token — então **um desses três eventos num sábado,
+num domingo ou num dia da virada aparece como texto sem chip**. Não foi tocado
+aqui: consertar é dar um sexto par de cor a três dos oito tipos, e a decisão
+escrita desta lista é o contrário — *oito tipos em cinco cores, porque oito
+tons distintos numa grade de mês viram confete*. A outra saída seria uma borda
+em todo chip, que mexe nos seis pares. As duas são decisão própria.
 
 #### O que TODO MUNDO vê, e os três filtros que saíram
 
@@ -16367,6 +16471,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A marca do aniversário | **O chip do aniversário passou a dizer que é um aniversário** — decisão do usuário: *"quero que mostre no calendário que é aniversário da pessoa, não só o nome dela… pode ter um ícone só talvez, ou o texto, não sei, vê como fica melhor"*. Ele dizia só "Ana Lima", em rosa, e a palavra vivia no `title` — que não existe para quem usa toque e que ninguém lê de relance; e a legenda, que é quem nomeia a cor, fica ABAIXO da grade, então rolando até a última semana ela sai da tela. **É O ÍCONE E NÃO A PALAVRA, e as duas razões são de medida:** a célula do mês tem uns 96px nas sete colunas e sobram uns 76px de texto, e "Aniversário" a 11px já ocupa uns 62px — ela só cabe numa SEGUNDA LINHA, que é onde mora a empresa; um aniversário não tem nenhuma, e é por isso que ele é hoje **o único chip de uma linha só**. Pondo a palavra ali, todo aniversário passa a ocupar duas, e em janeiro com três no mesmo dia a célula enche para dizer três vezes a mesma palavra. **É a decisão do selo de "programado" no calendário do Social**, palavra por palavra — *"a célula de um dia com três posts não tem onze pixels para a palavra"* —, e **um ícone é FORMA**, que é o que a cor não tem como ser: a regra escrita é *a cor nunca é o único sinal*, e até aqui quem a cumpria era o `title`, ou seja ninguém. **A legenda não ganha o bolo**, porque a linha dela já escreve a palavra e as seis amostras respondem a mesma pergunta do mesmo jeito. **É um componente e não um `if` nas duas visões**, porque o que não pode divergir são três coisas de uma vez — qual ícone, de que tamanho, e se existe o `sr-only` ao lado dele: é `ICONE_DA_AREA` em miniatura. De quebra, o chip do mês deixou de ser escrito duas vezes nos dois ramos. **Duas coisas que só a imagem pegou:** o vão entre o bolo e o nome saía **9px onde o código dizia 4**, porque o `sr-only` é irmão de flex e o `gap-1` contava duas vezes (a marca virou um elemento só); e **`92-calendario-semana` saía com a semana VAZIA** — a visão de semana abre a semana do dia 1 e todo item do exemplo é datado à frente de hoje, então o chip da semana não era conferido por imagem nenhuma. O exemplo ganhou dois itens no dia 1, **calculado e não literal** (a lição dos meses da NF), com o vizinho num par visível — `reuniao` usa o cinza, e a célula de fim de semana usa o MESMO `bg-muted`. ***E um achado que não é desta entrega:*** por isso mesmo, um evento de reunião, treinamento ou "outro" num sábado, num domingo ou num dia da virada aparece **como texto sem chip**; não foi tocado, porque consertar é dar um sexto par a três dos oito tipos, contra a decisão escrita de *oito tipos em cinco cores*. |
 | O aniversário da equipe | **O Calendário Full ganhou os aniversários da equipe** (migration 0130), por decisão do usuário em duas frases: *"inclua no calendário Full um tópico pra colocarmos os aniversários dos colaboradores"* e, logo em seguida, *"mas isso deve ser resgatado das informações pessoais do perfil de cada um, então tem que incluir esse campo na gestão da equipe também"*. **A SEGUNDA FRASE MUDA O DESENHO INTEIRO, e para melhor:** a primeira leitura era um valor novo em `evento_tipo` — a forma exata da 0109 — e alguém lançaria quinze eventos todo janeiro; derivado da ficha, o aniversário aparece sozinho todo ano e nunca fica desatualizado, que é **o que dá para calcular não se guarda**. **A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO:** `profiles` tem DUAS policies de SELECT, `own` e `is_gestor()`, então um colaborador lê **exatamente um perfil, o dele** — com a data ali, o calendário nasceria mostrando a quem não é gestão o próprio aniversário e os da gestão, e mais nada; `team_members_select` é `is_staff()` desde a 0002. **A VIEW NÃO É TOCADA, e é a linha que mais importa:** `calendar_events` é `security_invoker = true` desde a 0055 — repetida SEIS vezes —, então um `join` em `profiles` dentro dela devolveria a um colaborador **um aniversário, o próprio**, sem erro em lugar nenhum; e abrir `profiles` para `is_staff()` consertaria isso entregando a tabela de perfis da agência inteira às vinte telas que a leem. A origem é `aniversarios_do_periodo()`, `security definer` com `is_staff()` escrito à mão na porta — a forma de `usuarios_do_meu_cliente()` e de `pecas_programadas()` —, **e o `.ics` veio de graça**, porque `montarIcs()` recebe `ItemDoCalendario[]`. **ISTO ROÇA NA 0105 e a diferença é dita:** aquela migration fechou o calendário porque ele tinha virado o segundo lugar onde se lê o que já se lê no módulo de origem, e um aniversário não tem módulo — não há segundo lugar. **O ANO NÃO SAI DA FUNÇÃO**, que devolve só o dia projetado: a idade fica na ficha, e a tela diz isso por extenso embaixo do campo. **O teto é do zod e o piso é do banco**, porque `current_date` não é immutable e o Postgres recusa a constraint; e **29/02 cai em 28/02** nos anos comuns, pelo `least()` da projeção — medido contra produção, com a janela de 28/12/2027 a 15/01/2028 devolvendo 10/01/**2028**, que é o cenário que o `generate_series` de um ano só perderia. **O chip não é botão**, e quem decide é `abreDetalhe()` no domínio: um aniversário não tem participante nem período, e `obterEvento()` procuraria em `events` um id que não está lá. **O rosa entrou porque não havia par livre** — os cinco estão tomados, `--danger` é erro e `--ferias` mandaria procurar um day off —, medido em **5,14:1 no claro e 6,16:1 no escuro**; ele não entra no grupo de daltonismo, porque o chip carrega o nome. ***E a medição achou uma coisa que não é desta entrega:*** no tema escuro `--accent` e `--muted` resolvem para o MESMO valor (ΔE 0,0), então o chip dos Eventos Fullers e o de Reunião têm o mesmo chão — **não foi tocado**, porque consertar é mexer na cor que a 0109 escolheu por decisão do usuário. **Duas coisas que só a imagem pegou:** a Ana caía dentro do "+ 3 mais" e o único chip rosa visível ficava sozinho numa célula vazia, provando que ele aparece e não que ele se distingue; e o campo novo da ficha saía vazio, onde um `<input type="date"` sem valor é idêntico ao que tem o vínculo quebrado. ***A bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, e no lugar dela estão as dez medições contra o Postgres de produção em transações revertidas, com os dez cenários escritos no arquivo 26. |
 | A rodada fechada, e vários aprovadores | **Vários aprovadores no envio, substituição depois do envio, reenvio sem recriar a rodada, e o histórico completo nas três telas** (migration 0129, itens 15 e 17). **O ACHADO É A SEGUNDA METADE, e ele é meu:** este arquivo afirma em três lugares que *"rodada fechada nunca é reescrita nem apagada"*, e um deles é a razão de `approval_rounds` ficar fora do `audit_log` — **medido contra o Postgres de produção, era falso**. A tabela tem UMA policy de UPDATE, `is_gestor()`, e dos onze triggers nenhum olhava `comentario`, `decidido_por`, `decidido_em`, `aprovador_id` nem `mensagem`: qualquer gestor reescrevia por um PATCH quem decidiu e com que comentário uma rodada de três meses atrás, **sem rastro**, justamente porque a tabela está fora da trilha por esta propriedade que não existia. É a **0127 pela segunda vez**, com a mesma lição — *o custo de afirmar aqui uma propriedade que não foi conferida é que ela passa a ser lida como verdade por quem vier depois*. São DOIS ramos: a **identidade** congela sempre (o número da rodada é a VERSÃO da peça desde a 0033) e a **decisão** congela quando a rodada fecha, porque enquanto ela está pendente é isso que a outra metade existe para mexer; `status` mantém o ramo dele, primeiro, porque a recusa dele diz o CAMINHO. A função foi **copiada inteira** (a lição da 0030). **A outra metade é a forma da 0114 com a recusa da 0113:** `aprovador_id` continua sendo a PRIMEIRA pessoa, `approval_round_aprovadores` manda, dois gatilhos mantêm os dois lados em dia — e **a última pessoa NÃO pode sair**, ao contrário da 0114, porque "rodada sem aprovador" é um estado que o `insert` da 0128 não deixa nascer. **E aqui a guarda do cascade é TRAVA e não economia:** sem ela, apagar uma rodada é recusado pelo próprio gatilho que protege a última pessoa — medido, `delete from approval_rounds` aborta. A troca é `security definer` e não um `update` na tela, porque a policy que a governaria é a que responde *"quem DECIDE"*, fechada desde a 0029 — alargá-la daria de lambuja o poder de decidir uma rodada interna. **`array_agg(distinct …)` quebraria a ordem do clique** (ele ordena por uuid, e `aprovador_id` passaria a ser a pessoa de menor uuid), então o dedupe é `with ordinality` com `min(ord)`. **O aviso é de quem ENTROU** e, no lote, um por pessoa no fim — e ***o GUC que silencia as rodadas foi escrito antes de ser lido***, numa primeira versão em que dezoito sinos sairiam com a trava escrita e sem efeito: o interruptor da 0088 em outra forma. No item 17, **não havia três desenhos, havia um desenho e duas ausências**: o acordeão era privado do painel da etapa, o editor do post **não tinha histórico nenhum** e a árvore da campanha mostrava UMA rodada, a interna da versão corrente. De quebra, **uma rodada RECUSADA aparecia como "Pendente"** — o rótulo saía de um ternário de três ramos e `rejeitada` é o quarto valor do enum desde a 0032; hoje é um `Record` total sobre `StatusRodada`, com as três cores saindo de `DECISOES` e o rótulo no tempo verbal do registro. ***A bateria não foi rodada*** (sem Docker nem Postgres aqui): no lugar dela, TREZE casos medidos contra produção numa transação revertida. ***E o seletor com dois chips não sai em imagem***, porque o stub de `quemPodeAprovar` devolve uma pessoa de propósito — com duas, `57f-social-encerrar-o-mes` abriria com o campo vazio. **E AS IMAGENS ACHARAM QUATRO COISAS, três delas minhas.** A primeira é a que faltava para o conserto ter prova: **nenhum exemplo tinha rodada `rejeitada`**, então a linha que o ternário desenhava errado era justamente a que imagem nenhuma mostrava — entrou `20o-campanha-peca-recusada`, na peça cujo cartão já diz "Rejeitado", com os mesmos quem/quando/motivo que ele. A segunda: o painel de envio oferecia **Caio Alves** e a rodada quinze centímetros abaixo esperava **Joana Prado** — um estado que o banco recusa (`aprovador_pertence_a_conta()`), porque três stubs escreviam a pessoa por conta própria onde o produto tem UMA função; hoje é `APROVADOR_DO_CLIENTE`, num lugar só. A terceira: os dois botões caíam **entre** *"Esperando Joana Prado"* e *"Enviada com: …"*, partindo os fatos do mesmo envio — é a decisão do detalhe da Task, e eles desceram para o fim, com o componente separado em FATO e AÇÃO. **A quarta é do GERADOR e é antiga:** o `fullPage` do Playwright captura além da janela sem rolar, então o que é `fixed` sai desenhado na rolagem corrente — numa tela cujo `clicar` está no pé da página, a busca e a barra lateral apareciam **atravessadas no meio do conteúdo**. A rolagem volta ao topo antes de capturar, menos nas de `semRolagem`, que rolando perderiam a lista suspensa que existem para fotografar. **Nenhuma das quatro é tipo, cor ou árvore de acessibilidade** — as sete varreduras passaram verdes nas quatro. |
 | As três visões têm a mesma largura | **O board de Minhas Tasks deixou de ser mais largo que a Lista e o Calendário** — decisão do usuário: *"ficou ótima a visualização de lista e calendário mas a visualização de Board está mais expandida que as outras 2, deixe padronizado"*. As três são a mesma tela trocada por um seletor, e a página mudando de largura a cada clique é a tela se reorganizando debaixo de quem só queria ver o mesmo trabalho de outro jeito. **A MARCA SAIU DO PRODUTO, E AS DUAS PONTAS NO MESMO COMMIT:** o board era a única tela a marcar `data-largo`, e o `has-[[data-largo]]:max-w-none` do `main` era o mecanismo que respondia — deixar o `has-[]` lá seria um interruptor que nada mais aciona, que é a camada que a 0088 deixou para trás e que a 0090 encontrou filtrando fora exatamente as linhas que ela acabara de criar. **Hoje `max-w-6xl` é a única medida do painel, sem exceção.** **O ARGUMENTO QUE CRIOU A MARCA JÁ ESTAVA VENCIDO, e é por isso que tirá-la é barato:** ela nasceu quando o board era `flex` com coluna fixa de 288px — seis davam 1788px e ele rolava dentro dos 72rem. Ele virou GRADE no mesmo sprint, e **o que resolveu a rolagem foi a grade e não a largura**: uma grade reparte o espaço que existe, então ela não precisa de 1788px para mostrar as seis, precisa de uma contagem que caiba na largura que tem. A distinção levou dois sprints para ficar escrita. ***O que a padronização custa, e é dito em vez de escondido:*** cada coluna perde 27px — eram ~198px e passam a ser **~171px**, que é o conteúdo de 1088px dos 72rem menos cinco vãos de 12px, repartido em seis. **E SÃO SEIS E NÃO QUATRO**, que é a pergunta que a largura nova levanta: quatro dariam ~258px folgados, e o que as recusa é a mesma conta que tirou a rolagem horizontal daqui — com quatro, "Em ajustes" e "Concluída" caem para a segunda fileira, e a primeira tem a altura de "Em andamento", que num dia cheio passa de 900px; **rolar para baixo para achar uma coluna não é melhor que rolar para o lado**. A 171px o cartão ainda carrega o título, a prioridade, o selo de prazo inteiro (é a quebra do `DateBadge` do sprint passado que paga isso), o relógio e o botão de ação. **Medido nas três visões**, que agora dão a mesma largura de conteúdo, e conferido em imagem — largura de coluna não é tipo, não é cor e não é árvore de acessibilidade, então nenhuma varredura a alcança. Nenhuma migration, nenhuma consulta. |

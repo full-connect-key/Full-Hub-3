@@ -55,20 +55,41 @@ const RAFAEL = { id: "a0000000-0000-0000-0000-000000000006", nome: "Rafael Dias"
 // devolveria zero sempre.
 export const PESSOAS: PessoaDoCalendario[] = [CARLA, BRUNO, MARINA, RAFAEL, ANA];
 
+/**
+ * A SEMANA QUE A VISAO DE SEMANA ABRE e a do DIA 1 do mes --
+ * `janelaDoPeriodo()` faz `segundaDaSemana(primeiroDiaDoMes(mes))` --, e todo
+ * item deste arquivo era datado a FRENTE de hoje. Com isso
+ * `92-calendario-semana` saia com a semana VAZIA: sete cabecalhos de dia e nada
+ * dentro, numa imagem que nao provava chip nenhum -- nem o par de cor, nem a
+ * segunda linha do cliente, nem a marca do aniversario. Foi a entrega da marca
+ * (o bolo no chip) que encontrou, porque ela precisava da imagem para ser
+ * conferida.
+ *
+ * O DIA 1 e o unico que esta naquela semana em QUALQUER mes: a segunda-feira
+ * dela cai entre o dia 26 do mes anterior e o proprio dia 1, entao o dia 2 so
+ * as vezes. E ele e CALCULADO e nao literal, que e a licao dos meses da nota
+ * fiscal: uma data fixa para de cair na janela sozinha, e a imagem sai igual
+ * sem nada reclamar.
+ */
+const DIA_UM = `${dia(0).slice(0, 8)}01`;
+
+/** Delta de dias a partir de hoje, ou a data pronta. */
+const emQue = (d: number | string) => (typeof d === "number" ? dia(d) : d);
+
 /** `status` carrega `events.tipo`, e e dele que sai a cor do chip. */
 const evento = (
   id: string,
   titulo: string,
   tipo: string,
-  de: number,
-  ate: number,
+  de: number | string,
+  ate: number | string,
   cliente: { id: string; nome: string } | null,
 ): ItemDoCalendario => ({
   id,
   tipo: "evento",
   titulo,
-  dataInicio: dia(de),
-  dataFim: dia(ate),
+  dataInicio: emQue(de),
+  dataFim: emQue(ate),
   clientId: cliente?.id ?? null,
   cliente: cliente?.nome ?? null,
   status: tipo,
@@ -81,12 +102,12 @@ const evento = (
  * Sem empresa, sem `status` e sem link: ele nao e um evento que alguem
  * lancou, e o chip dele nao abre painel nenhum.
  */
-const aniversario = (id: string, nome: string, emQue: number): ItemDoCalendario => ({
+const aniversario = (id: string, nome: string, quando: number | string): ItemDoCalendario => ({
   id,
   tipo: "aniversario",
   titulo: nome,
-  dataInicio: dia(emQue),
-  dataFim: dia(emQue),
+  dataInicio: emQue(quando),
+  dataFim: emQue(quando),
   clientId: null,
   cliente: null,
   status: null,
@@ -115,6 +136,19 @@ const ITENS: ItemDoCalendario[] = [
   evento("ev-outro", "Visita do fornecedor", "outro", 5, 5, OV),
   evento("ev-reuniao-2", "Reunião com a Óptica", "reuniao", 1, 1, OV),
   evento("ev-lancamento-2", "Lançamento do app", "lancamento", 16, 16, MV),
+  // O EVENTO DA SEMANA DA VIRADA, e ele divide o dia com um aniversario de
+  // proposito: lado a lado, a imagem da semana prova que a marca DISTINGUE o
+  // chip rosa do chip ao lado -- com o aniversario sozinho na coluna, ela
+  // provaria so que o bolo aparece. E ele tem empresa, porque a segunda linha
+  // do chip da semana e o cliente e ela nao saia em imagem nenhuma.
+  //
+  // E ELE NAO E `reuniao`, que foi a primeira versao: aquele tipo usa o par
+  // CINZA (`bg-muted`), e a celula de fim de semana e a de outro mes usam o
+  // MESMO `bg-muted` -- o dia 1 cai num sabado ou num domingo em dois meses de
+  // sete, e nesses a imagem saia com o chip vizinho sem chao nenhum, lido como
+  // texto solto. Um par visivel em qualquer celula e o que faz a comparacao
+  // valer no mes que for.
+  evento("ev-briefing", "Lançamento do catálogo", "lancamento", DIA_UM, DIA_UM, MV),
 
   // OS ANIVERSARIOS (0130), e SAO DOIS e nao um.
   //
@@ -135,6 +169,13 @@ const ITENS: ItemDoCalendario[] = [
   // do que esta ao lado. Foi a imagem que mostrou.
   aniversario("ani-ana", "Ana Lima", 12),
   aniversario("ani-bruno", "Bruno Tavares", 19),
+  // O TERCEIRO ESTA NA SEMANA DA VIRADA, que e a unica que a visao de SEMANA
+  // abre, e o NOME DELE E LONGO de proposito: o chip ganhou o bolo, e o bolo
+  // come 16px da linha -- com um nome curto a imagem nao mostraria o `truncate`
+  // valendo, que e o bug que o selo de prazo do board de etapas e a coluna de
+  // domingo do Cronograma pagaram cada um uma vez (item de flex se recusa a
+  // ficar menor que o conteudo, e o texto estoura em vez de cortar).
+  aniversario("ani-duda", "Maria Eduarda Nogueira", DIA_UM),
 ];
 
 /**

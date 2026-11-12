@@ -12,6 +12,7 @@ import {
 } from "@/lib/dominio/calendario";
 import { cn } from "@/lib/utils";
 
+import { MarcaDoAniversario } from "./marca-do-aniversario";
 import { diasDoPeriodo, ehFimDeSemana, type Janela } from "./periodo";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 
@@ -64,7 +65,13 @@ export function VisaoDeSemana({
                 {doDia.map((item) => {
                   const dentro = (
                     <>
-                      <span className="block truncate font-medium">{item.titulo}</span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <MarcaDoAniversario item={item} />
+                        {/* `min-w-0` nos dois: item de flex se recusa a ficar
+                            menor que o conteúdo, e sem ele um nome longo
+                            estoura o chip em vez de cortar. */}
+                        <span className="min-w-0 truncate font-medium">{item.titulo}</span>
+                      </span>
                       {item.cliente ? (
                         <span className="block truncate">{item.cliente}</span>
                       ) : null}

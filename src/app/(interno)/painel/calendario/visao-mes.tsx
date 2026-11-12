@@ -10,6 +10,7 @@ import {
 } from "@/lib/dominio/calendario";
 import { cn } from "@/lib/utils";
 
+import { MarcaDoAniversario } from "./marca-do-aniversario";
 import { ehDoMes, ehFimDeSemana, semanasDoMes } from "./periodo";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 
@@ -245,6 +246,37 @@ export function VisaoDeMes({
                         <ul className="mt-1 space-y-1">
                           {doDia.slice(0, NO_DIA).map((item) => {
                             const abaixo = segundaLinha(item);
+
+                            // O CONTEÚDO DO CHIP É UM, e os dois ramos abaixo
+                            // só escolhem a TAG. A primeira versão repetia a
+                            // marcação nos dois, e a marca do aniversário
+                            // entrou duas vezes — a forma que a visão de
+                            // semana já tinha, trazida para cá.
+                            const dentro = (
+                              <>
+                                <span className="flex min-w-0 items-center gap-1">
+                                  <MarcaDoAniversario item={item} />
+                                  {/* `min-w-0` é o que faz o `truncate` valer:
+                                      item de flex se recusa a ficar menor que o
+                                      conteúdo (`min-width: auto`), e sem ele um
+                                      nome longo estoura o chip em vez de
+                                      cortar. */}
+                                  <span className="min-w-0 truncate font-semibold">
+                                    {item.titulo}
+                                  </span>
+                                </span>
+                                {abaixo ? (
+                                  <span className="block truncate text-[0.6875rem]">
+                                    {abaixo}
+                                  </span>
+                                ) : null}
+                              </>
+                            );
+                            const aparencia = cn(
+                              "block w-full rounded px-1.5 py-1 text-left leading-tight",
+                              corDoEvento(item),
+                            );
+
                             return (
                               <li key={item.id}>
                                 {/* O ANIVERSÁRIO NÃO É BOTÃO (0130): ele vem
@@ -257,31 +289,16 @@ export function VisaoDeMes({
                                     type="button"
                                     onClick={() => aoAbrir(item)}
                                     title={`${rotuloDoEvento(item)}: ${item.titulo}${item.cliente ? ` — ${item.cliente}` : ""}`}
-                                    className={cn(
-                                      "block w-full rounded px-1.5 py-1 text-left leading-tight",
-                                      corDoEvento(item),
-                                    )}
+                                    className={aparencia}
                                   >
-                                    <span className="block truncate font-semibold">
-                                      {item.titulo}
-                                    </span>
-                                    {abaixo ? (
-                                      <span className="block truncate text-[0.6875rem]">
-                                        {abaixo}
-                                      </span>
-                                    ) : null}
+                                    {dentro}
                                   </button>
                                 ) : (
                                   <div
                                     title={`${rotuloDoEvento(item)}: ${item.titulo}`}
-                                    className={cn(
-                                      "block w-full rounded px-1.5 py-1 text-left leading-tight",
-                                      corDoEvento(item),
-                                    )}
+                                    className={aparencia}
                                   >
-                                    <span className="block truncate font-semibold">
-                                      {item.titulo}
-                                    </span>
+                                    {dentro}
                                   </div>
                                 )}
                               </li>
