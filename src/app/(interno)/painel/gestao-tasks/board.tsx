@@ -344,17 +344,44 @@ export function BoardDeTasks({
 
   return (
     <DndContext sensors={sensores} onDragStart={aoComecar} onDragEnd={aoSoltar}>
-      <div className="flex items-start gap-3.5 overflow-x-auto pb-2">
-        {colunas.map((coluna) => (
-          <Coluna
-            key={coluna.id}
-            coluna={coluna}
-            tasks={porColuna.get(coluna.id) ?? []}
-            aoAbrir={aoAbrir}
-            podeArrastar={podeArrastar}
-            marcador={marcador}
-          />
-        ))}
+      {/* O BOARD É UMA FOLHA BRANCA, e a causa era a de sempre: ele não
+          pintava fundo NENHUM, então o que aparecia entre as colunas era a
+          PÁGINA. Decisão do usuário, olhando o board vazio: *"deixe o fundo
+          branco"* — e ali não havia um pixel branco na tela, só quatro caixas
+          tracejadas sobre cinza.
+
+          **É O MESMO ACHADO DA LISTA, na visão ao lado.** Lá o contêiner da
+          `DataTable` era `overflow-hidden rounded-xl border` e mais nada; aqui
+          era um `flex` solto. As duas são a mesma tela trocada por um seletor,
+          e uma branca ao lado de uma cinza é a página mudando de fundo a cada
+          clique — que é a padronização que ele já pediu para as três visões de
+          Minhas Tasks.
+
+          **E A COLUNA CONTINUA SEM CAIXA.** A decisão da interface "Leve"
+          fica inteira — *"ela era um retângulo cinza com fio, e o que se lia
+          primeiro era o retângulo"* —, e é por isso que a folha não a desfaz:
+          o que se pinta é a REGIÃO, não cada coluna. O cartão continua sendo
+          o objeto, e sobre o branco quem o separa é a borda mais a sombra que
+          ele já tinha — a mesma separação que as linhas da `DataTable` usam.
+
+          **A FOLHA ENVOLVE O ROLAMENTO em vez de rolar junto:** com
+          `overflow-x-auto` no próprio elemento que tem o respiro, o padding da
+          ponta direita é comido pelos filhos de flex, e a última coluna
+          encosta na borda. Com a folha por fora, a barra de rolagem fica
+          DENTRO dela e o respiro vale nas duas pontas. */}
+      <div className="bg-card rounded-card shadow-cartao border p-3.5">
+        <div className="flex items-start gap-3.5 overflow-x-auto pb-2">
+          {colunas.map((coluna) => (
+            <Coluna
+              key={coluna.id}
+              coluna={coluna}
+              tasks={porColuna.get(coluna.id) ?? []}
+              aoAbrir={aoAbrir}
+              podeArrastar={podeArrastar}
+              marcador={marcador}
+            />
+          ))}
+        </div>
       </div>
 
       <DragOverlay>{taskArrastada ? <Card task={taskArrastada} /> : null}</DragOverlay>

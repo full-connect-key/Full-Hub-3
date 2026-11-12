@@ -251,6 +251,12 @@ const TELAS = [
 
   { nome: "20-tasks-board", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio" },
   { nome: "21-tasks-board-escuro", rota: "/painel/gestao-tasks", largura: 1600, altura: 1000, role: "socio", tema: "escuro" },
+  // O BOARD VAZIO, e é o estado em que o usuário o fotografou: um recorte sem
+  // nenhuma demanda. Era a tela em que não havia um pixel branco — sete caixas
+  // tracejadas sobre a página cinza —, e é ela que a folha branca existe para
+  // desfazer. Com todas as colunas cheias a imagem provaria que a folha
+  // aparece, não que ela segura o board quando não há o que segurar.
+  { nome: "20b-tasks-board-vazio", rota: "/painel/gestao-tasks?prioridade=urgente&status=aguardando_informacoes", largura: 1600, altura: 700, role: "socio" },
   { nome: "22-tasks-lista", rota: "/painel/gestao-tasks?visao=lista", largura: 1600, altura: 900, role: "socio" },
   // O ESCURO DA LISTA, e ele entrou com a CAIXA de cada status: o cabecalho
   // de grupo passou a ser pintado com o par nomeado do selo, e par nomeado e

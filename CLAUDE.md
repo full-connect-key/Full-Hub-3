@@ -12173,6 +12173,46 @@ um fio contra o fundo cinza da coluna; com o cartão solto sobre a página, o fi
 sumia. Em 4px ela é a mesma borda à esquerda que a linha atrasada de Minhas
 Tasks usa.
 
+###### E O BOARD VIROU UMA FOLHA BRANCA, com a coluna continuando sem caixa
+
+Decisão do usuário, com a imagem do board VAZIO: *"deixe o fundo branco"*.
+
+**A CAUSA ERA A DE SEMPRE, e é a quarta vez neste arquivo:** o board não
+pintava fundo NENHUM — era um `flex` solto —, então o que aparecia entre as
+colunas era a PÁGINA. Na imagem que ele mandou não havia um pixel branco: sete
+caixas tracejadas de *"Nada aqui."* sobre cinza, que é o pior caso dos três
+contêineres de Minhas Tasks com outro nome.
+
+**É O MESMO ACHADO DA LISTA, na visão ao lado.** Lá o contêiner da `DataTable`
+era `overflow-hidden rounded-xl border` e mais nada, e ele pediu o mesmo com as
+mesmas palavras. As duas são a MESMA tela trocada por um seletor, e uma branca
+ao lado de uma cinza é a página mudando de fundo a cada clique — que é a
+padronização que ele já havia pedido para as três visões de Minhas Tasks.
+
+**A COLUNA CONTINUA SEM CAIXA, e a decisão acima fica inteira.** O que se pinta
+é a REGIÃO e não cada coluna: o retângulo cinza com fio que se lia antes das
+demandas não volta. O cartão continua sendo o objeto, e sobre o branco quem o
+separa é a borda mais a sombra que ele já tinha — a mesma separação que as
+linhas da `DataTable` usam, e a razão pela qual a folha única foi recusada em
+Minhas Tasks **não vale aqui**: lá a proposta C fazia a etapa virar LINHA
+dentro da folha, e aqui o cartão continua cartão.
+
+**A FOLHA ENVOLVE O ROLAMENTO em vez de rolar junto.** Com `overflow-x-auto` no
+próprio elemento que tem o respiro, o padding da ponta direita é comido pelos
+filhos de flex e a última coluna encosta na borda; com a folha por fora, a barra
+de rolagem fica DENTRO dela e o respiro vale nas duas pontas.
+
+**E ENTROU UMA TELA SÓ POR CAUSA DISSO** (`20b-tasks-board-vazio`): com todas as
+colunas cheias a imagem provaria que a folha aparece, não que ela segura o board
+quando não há o que segurar — e o board vazio é exatamente o estado em que ele o
+fotografou.
+
+***O que NÃO foi tocado, e é dito em vez de escondido:*** **o board de Minhas
+Tasks continua com `bg-muted/40` na coluna**, que é a regra do par nomeado sendo
+quebrada em silêncio — a mesma que o `bg-muted/60` do seletor de visão e o
+`bg-muted/40` do cabeçalho da `DataTable` já pagaram, as duas vezes com o
+argumento escrito. São dois boards com dois fundos, e o pedido era sobre este.
+
 **O PAR DE DATAS VIROU UM CHIP "Prazo"**, e com ele a barra de filtros cabe numa
 linha só. Eram dois rótulos e dois `<input type="date">` de 144px cada — 320
 pixels e uma faixa inteira da primeira dobra para um recorte que quase ninguém
