@@ -291,10 +291,10 @@ const NA_BARRA = [
     // `funcao: "Atendimento"` no gerador), e é por isso que ela TEM
     // Solicitações. O par dela é a Redatora logo abaixo.
     tela: "08-painel-colaborador",
-    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo"],
-    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy", "Portais de Clientes"],
+    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo", "Portais de Clientes"],
+    naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy"],
     porque:
-      "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks",
+      "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks, e os Portais entraram na Principal por decisão do usuário",
   },
   {
     // SOLICITAÇÕES É DO ATENDIMENTO (migration 0110), e esta é a metade da
@@ -310,15 +310,26 @@ const NA_BARRA = [
     // E os dois itens que ela TEM existem para a checagem não passar por uma
     // barra que parou de desenhar qualquer coisa.
     tela: "30b-minhas-tasks-vazia",
-    tem: ["Início", "Minhas Tasks"],
+    tem: ["Início", "Minhas Tasks", "Portais de Clientes"],
     naoTem: ["Solicitações"],
     porque:
       "a Redatora é colaboradora como a de cima e não é do Atendimento: a leitura dos pedidos é `is_atendimento()` desde a 0110",
   },
   {
+    // E AQUI MORA A METADE QUE PROVA A **SEÇÃO** e não o `roles`. Com as duas
+    // listas de cima, um `section: "gestao"` devolvido por engano passaria
+    // verde: o colaborador tem `EQUIPE`, então o item apareceria para ele de
+    // qualquer forma — na caixa errada. `antesDaGestao` mede a POSIÇÃO dentro
+    // do `<nav>`: o rótulo tem de vir antes do cabeçalho "Gestão", que é o
+    // único lugar do dump onde a divisão do menu é desenhada.
+    //
+    // É a lição de `A_PORTA` em outra forma — ela passou a medir o `href` e
+    // não a palavra, porque a palavra continuava no HTML depois de a porta
+    // deixar de abrir.
     tela: "05-painel-socio",
     tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Portais de Clientes", "Financeiro", "Day Off", "Acervo"],
     naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy", "Feedback"],
+    antesDaGestao: ["Portais de Clientes"],
     porque:
       "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria; e o Feedback saiu com eles",
   },
@@ -717,7 +728,7 @@ for (const { frase, tem, naoTem, porque } of POR_PERFIL) {
 
 console.log("\nO que a barra lateral lista\n");
 
-for (const { tela, tem, naoTem, porque } of NA_BARRA) {
+for (const { tela, tem, naoTem, antesDaGestao, porque } of NA_BARRA) {
   const barras = barrasDe(await readFile(path.join(DUMPS, `${tela}.html`), "utf8"));
 
   // SEM A BARRA, ELE FALHA — nunca passa em branco. Um dump em que o recorte
@@ -748,7 +759,28 @@ for (const { tela, tem, naoTem, porque } of NA_BARRA) {
   } else if (voltaram.length > 0) {
     problemas.push(`a barra de ${tela} voltou a listar ${voltaram.join(", ")} — ${porque}`);
   } else {
-    certo(`${tela}: ${tem.length} item(ns) de pé, ${naoTem.length} fora`);
+    // A POSIÇÃO, para as telas que pedem. O cabeçalho "Gestão" é o divisor, e
+    // um rótulo depois dele está na seção errada mesmo estando na barra.
+    // O PRIMEIRO "Gestão" DO TEXTO É O CABEÇALHO, e não um item: ele é
+    // desenhado antes dos itens da seção, e nada da Principal contém a
+    // palavra. Sem seção de Gestão na barra — o caso do colaborador — ele é
+    // `-1` e esta checagem não tem o que medir, que é o certo.
+    const gestao = texto.indexOf("Gestão");
+    const fora = (antesDaGestao ?? []).filter((rotulo) => {
+      const onde = texto.indexOf(rotulo);
+      return onde === -1 || (gestao !== -1 && onde > gestao);
+    });
+
+    if (fora.length > 0) {
+      problemas.push(
+        `na barra de ${tela}, ${fora.join(", ")} aparece DEPOIS do cabeçalho\n` +
+          "          “Gestão” — o item está na seção errada. Medir só a presença\n" +
+          "          não pega isto: com `roles: EQUIPE` ele aparece de qualquer\n" +
+          "          forma, na caixa errada.",
+      );
+    } else {
+      certo(`${tela}: ${tem.length} item(ns) de pé, ${naoTem.length} fora`);
+    }
   }
 }
 

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { forbidden } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { ehGestor } from "@/lib/auth/roles";
 import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { PortaisDeClientes } from "./grade";
@@ -44,19 +42,33 @@ const ROTA = "/painel/portais";
  * errada, que é o argumento que renomeou "Aprovações & Conteúdo" para
  * "Campanhas" e que desfez as duas entradas do Social Media.
  *
- * **E ELA É DE `GESTAO`, com as três camadas de sempre.** `exigirAcessoARota`
- * responde pelo `MENU`, o `forbidden()` abaixo estreita, e a terceira é a que
- * vale: `/portal/{slug}` recusa o colaborador no servidor, e
- * `client_portal_views_select` fecha em `is_gestor()` desde a 0009. O
- * `forbidden()` existe porque `roles: GESTAO` já esconde o item — e esconder o
- * link nunca foi segurança neste produto.
+ * **E ELA É DA EQUIPE INTEIRA, por decisão do usuário** — *"preciso que passe
+ * a aba Portal dos Clientes, para a aba Principal, com acesso de todos"*. O
+ * parágrafo que estava escrito aqui dizia que ela era de `GESTAO` porque
+ * `/portal/{slug}` recusava o colaborador no servidor, e as duas pontas saíram
+ * no mesmo commit: um item de menu apontando para uma rota que devolve 403 é o
+ * chip de "Demandas" de Minhas Tasks pela segunda vez.
+ *
+ * **E NÃO HÁ `forbidden()` AQUI**, porque não há a quem recusar: `roles:
+ * EQUIPE` e `exigirAcessoARota` respondem a mesma pergunta, e uma segunda
+ * pergunta embaixo de uma primeira que já barra todo mundo não barra ninguém —
+ * a 0060. Quem recorta de verdade é a RLS: `clients_select` é `is_staff()`
+ * desde a 0002, então a grade sempre soube responder para a equipe inteira, e
+ * `client_portal_views_select` continua em `is_gestor()` — quem andou vendo o
+ * portal de quem é informação sobre as outras pessoas, e essa metade é de
+ * gestão.
+ *
+ * **O que a tela NÃO deixa fazer continua valendo para todo mundo**: dentro de
+ * `/portal/{slug}` ninguém decide, ninguém comenta e ninguém escreve em nome
+ * do cliente — `comoEquipe` desliga as três decisões e a conversa, e
+ * `decidir_rodada_do_cliente` recusa no banco quem não é o cliente daquela
+ * rodada. A visita é leitura, e é por isso que ela pode ser de todos.
  *
  * **MENOS DE DUAS SEÇÕES NÃO VIRA BARRA**, então o nome do módulo vem do
  * `PageHeader` — a regra que os Comodatos e as Notas Fiscais já aplicavam.
  */
 export default async function PaginaDePortaisDeClientes() {
-  const { profile } = await exigirAcessoARota(ROTA);
-  if (!ehGestor(profile.role)) forbidden();
+  await exigirAcessoARota(ROTA);
 
   const clientes = await listarPortaisDeClientes();
 

@@ -3,8 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirAtendimentoNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  exigirAtendimentoNaAcao,
+  exigirGestorNaAcao,
+} from "@/lib/acoes/guardas";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import {
   FRENTES_DA_SOLICITACAO,
@@ -135,7 +143,8 @@ export async function classificarSolicitacao(
       .maybeSingle();
 
     if (error) return falha(`Não foi possível classificar: ${error.message}`);
-    if (!data) return falha("O banco recusou. Classificar é de quem abre demanda.");
+    if (!data)
+      return falha("O banco recusou. Classificar é de quem abre demanda.");
 
     revalidarOsDoisLados(id);
     return sucesso(
@@ -157,7 +166,10 @@ export async function classificarSolicitacao(
  * pela razão da auditoria: a recusa pode vir por outro caminho um dia, e um
  * aviso escrito na camada de aplicação cobre só o que passou pela tela.
  */
-export async function recusarSolicitacao(id: string, motivo: unknown): Promise<Resultado> {
+export async function recusarSolicitacao(
+  id: string,
+  motivo: unknown,
+): Promise<Resultado> {
   return executarAcao("recusarSolicitacao", async () => {
     await exigirAtendimentoNaAcao("Recusar um pedido do cliente");
 
@@ -169,7 +181,12 @@ export async function recusarSolicitacao(id: string, motivo: unknown): Promise<R
 
     if (!validacao.success) {
       return falha(
-        recusaDeValidacao("recusarSolicitacao", validacao.error, motivo, "Informe o motivo."),
+        recusaDeValidacao(
+          "recusarSolicitacao",
+          validacao.error,
+          motivo,
+          "Informe o motivo.",
+        ),
       );
     }
 
@@ -182,7 +199,8 @@ export async function recusarSolicitacao(id: string, motivo: unknown): Promise<R
       .maybeSingle();
 
     if (error) return falha(`Não foi possível recusar: ${error.message}`);
-    if (!data) return falha("O banco recusou. Triar pedido é de quem abre demanda.");
+    if (!data)
+      return falha("O banco recusou. Triar pedido é de quem abre demanda.");
 
     revalidarOsDoisLados(id);
     return sucesso("Pedido recusado, e o cliente foi avisado com o motivo.");
@@ -228,13 +246,16 @@ export async function apagarSolicitacao(id: string): Promise<Resultado> {
  * `tasks.data_fim` é o que a agência assume. Copiar uma na outra transformaria
  * um desejo em compromisso sem ninguém ter concordado.
  */
-function briefingDoPedido(pedido: {
-  descricao: string | null;
-  respostas: Record<string, string>;
-  data_desejada: string | null;
-  empresa: string | null;
-  frente: SolicitacaoFrente | null;
-}, campos: ReturnType<typeof camposDoRoteiro>): string {
+function briefingDoPedido(
+  pedido: {
+    descricao: string | null;
+    respostas: Record<string, string>;
+    data_desejada: string | null;
+    empresa: string | null;
+    frente: SolicitacaoFrente | null;
+  },
+  campos: ReturnType<typeof camposDoRoteiro>,
+): string {
   const linhas: string[] = ["Pedido aberto pelo cliente no Portal.", ""];
 
   // ---------------------------------------------------------------------
@@ -314,9 +335,13 @@ function briefingDoPedido(pedido: {
  * escondido. Uma função `security definer` para isto furaria `tasks_insert`,
  * que é quem decide se esta pessoa pode abrir demanda.
  */
-export async function converterEmDemanda(id: string): Promise<Resultado<string>> {
+export async function converterEmDemanda(
+  id: string,
+): Promise<Resultado<string>> {
   return executarAcao("converterEmDemanda", async () => {
-    const sessao = await exigirAtendimentoNaAcao("Converter um pedido em demanda");
+    const sessao = await exigirAtendimentoNaAcao(
+      "Converter um pedido em demanda",
+    );
     const supabase = await criarClienteServidor();
 
     const { data: pedido, error: erroDoPedido } = await supabase
@@ -325,29 +350,40 @@ export async function converterEmDemanda(id: string): Promise<Resultado<string>>
       .eq("id", id)
       .maybeSingle();
 
-    if (erroDoPedido) return falha(`Não foi possível ler o pedido: ${erroDoPedido.message}`);
+    if (erroDoPedido)
+      return falha(`Não foi possível ler o pedido: ${erroDoPedido.message}`);
     if (!pedido) return falha("Este pedido não existe mais.");
     if (pedido.status === "recusada") {
-      return falha("Este pedido foi recusado. Reabra a conversa com o cliente antes.");
+      return falha(
+        "Este pedido foi recusado. Reabra a conversa com o cliente antes.",
+      );
     }
 
-    const [{ data: jaExiste }, { data: empresa }, { data: tipo }, { data: padroes }] =
-      await Promise.all([
-        supabase.from("tasks").select("id").eq("request_id", id).maybeSingle(),
-        supabase.from("clients").select("nome_empresa").eq("id", pedido.client_id).maybeSingle(),
-        pedido.request_type_id
-          ? supabase
-              .from("request_types")
-              .select("campos_json")
-              .eq("id", pedido.request_type_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase
-          .from("client_flow_defaults")
-          .select("pasta_entrega_url")
-          .eq("client_id", pedido.client_id)
-          .maybeSingle(),
-      ]);
+    const [
+      { data: jaExiste },
+      { data: empresa },
+      { data: tipo },
+      { data: padroes },
+    ] = await Promise.all([
+      supabase.from("tasks").select("id").eq("request_id", id).maybeSingle(),
+      supabase
+        .from("clients")
+        .select("nome_empresa")
+        .eq("id", pedido.client_id)
+        .maybeSingle(),
+      pedido.request_type_id
+        ? supabase
+            .from("request_types")
+            .select("campos_json")
+            .eq("id", pedido.request_type_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("client_flow_defaults")
+        .select("pasta_entrega_url")
+        .eq("client_id", pedido.client_id)
+        .maybeSingle(),
+    ]);
 
     // O ÍNDICE ÚNICO JÁ GARANTE ISTO, e a consulta existe para a frase: sem
     // ela a pessoa levaria a recusa crua do Postgres, com o nome do índice.
@@ -392,8 +428,12 @@ export async function converterEmDemanda(id: string): Promise<Resultado<string>>
       .select("id")
       .maybeSingle();
 
-    if (error) return falha(`Não foi possível abrir a demanda: ${error.message}`);
-    if (!task) return falha("O banco recusou. Abrir demanda é do Atendimento e da gestão.");
+    if (error)
+      return falha(`Não foi possível abrir a demanda: ${error.message}`);
+    if (!task)
+      return falha(
+        "O banco recusou. Abrir demanda é do Atendimento e da gestão.",
+      );
 
     const { data: anexos } = await supabase
       .from("request_attachments")
@@ -401,16 +441,18 @@ export async function converterEmDemanda(id: string): Promise<Resultado<string>>
       .eq("request_id", id);
 
     if (anexos && anexos.length > 0) {
-      const { error: erroDasReferencias } = await supabase.from("task_referencias").insert(
-        anexos.map((a) => ({
-          task_id: task.id,
-          tipo: "arquivo" as const,
-          url: a.caminho,
-          titulo: a.nome,
-          arquivo_nome: a.nome,
-          adicionado_por: sessao.usuarioId,
-        })),
-      );
+      const { error: erroDasReferencias } = await supabase
+        .from("task_referencias")
+        .insert(
+          anexos.map((a) => ({
+            task_id: task.id,
+            tipo: "arquivo" as const,
+            url: a.caminho,
+            titulo: a.nome,
+            arquivo_nome: a.nome,
+            adicionado_por: sessao.usuarioId,
+          })),
+        );
       // A demanda já existe, e ela é o que importa. Uma referência que não
       // copiou não pode desfazer a conversão — mas também não pode sumir
       // calada: o Atendimento precisa saber que o anexo ficou só no pedido.

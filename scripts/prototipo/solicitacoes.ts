@@ -18,11 +18,10 @@ import type {
   MensagemDoPedido,
   PedidoCompleto,
   PedidoNaLista,
-  RecorteDeFrente,
 } from "../../src/lib/dados/solicitacoes";
 import type { RequestType } from "../../src/lib/supabase/database.types";
 
-export type { PedidoCompleto, PedidoNaLista, MensagemDoPedido, RecorteDeFrente };
+export type { PedidoCompleto, PedidoNaLista, MensagemDoPedido };
 
 export { BUCKET_DOS_PEDIDOS } from "../../src/lib/dominio/solicitacoes";
 
@@ -401,29 +400,13 @@ export async function tiposDePedido(): Promise<RequestType[]> {
   return TIPOS;
 }
 
-export async function caixaDeEntrada(filtros?: {
-  status?: PedidoNaLista["status"] | null;
-  clienteId?: string | null;
-  frente?: RecorteDeFrente | null;
-}): Promise<PedidoNaLista[]> {
-  const recortados = PEDIDOS.filter((p) => {
-    if (filtros?.status && p.status !== filtros.status) return false;
-    if (filtros?.clienteId && p.client_id !== filtros.clienteId) return false;
-    if (filtros?.frente === "sem" && p.frente !== null) return false;
-    if (
-      filtros?.frente &&
-      filtros.frente !== "sem" &&
-      p.frente !== filtros.frente
-    ) {
-      return false;
-    }
-    return true;
-  });
-
-  const abertos = recortados.filter(
+export async function caixaDeEntrada(): Promise<PedidoNaLista[]> {
+  // A FILA DESCE INTEIRA, como no produto (0134): quem recorta é a tela, para
+  // as opções de cada dimensão saírem do todo e não do que sobrou da outra.
+  const abertos = PEDIDOS.filter(
     (p) => p.status === "nova" || p.status === "em_analise",
   );
-  const resto = recortados.filter(
+  const resto = PEDIDOS.filter(
     (p) => p.status !== "nova" && p.status !== "em_analise",
   );
   return [...abertos, ...resto];

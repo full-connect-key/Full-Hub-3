@@ -175,8 +175,7 @@ export const MENU: MenuItem[] = [
     icon: Images,
     roles: EQUIPE,
     section: "principal",
-    description:
-      "Os posts da agência, da pauta ao envio ao cliente.",
+    description: "Os posts da agência, da pauta ao envio ao cliente.",
     hiddenFromMenu: true,
   },
   {
@@ -327,7 +326,60 @@ export const MENU: MenuItem[] = [
     roles: EQUIPE,
     section: "principal",
     exigeAtendimento: true,
-    description: "O que os clientes pediram pelo Portal, e o que virou demanda.",
+    description:
+      "O que os clientes pediram pelo Portal, e o que virou demanda.",
+  },
+  {
+    // A LISTA DE CLIENTES, COM O PORTAL DE CADA UM A UM CLIQUE.
+    //
+    // Ela era uma seção da tela Início e saiu de lá por decisão do usuário:
+    // *"tire a lista de clientes da aba inicial e crie uma aba na lateral com
+    // a lista dos clientes"*.
+    //
+    // **ESTA LINHA É O QUE FAZ A REMOÇÃO SER UMA MUDANÇA DE LUGAR**, e é a
+    // lição das duas entradas que saíram da barra: Social Media e Campanhas só
+    // puderam sair porque a faixa das três áreas de Minhas Tasks passou a
+    // nomeá-las — tirar um item de um módulo que não aparece em mais lugar
+    // nenhum é esconder o módulo. Aqui a grade está PERDENDO a casa que tinha,
+    // então ela precisa ganhar uma. Sem esta linha, o portal de um cliente
+    // passaria a ser alcançável só digitando o endereço.
+    //
+    // **E O RÓTULO NÃO É "CLIENTES", de propósito.** "Clientes" já é o nome de
+    // uma aba — a de Gestão de Pessoas —, e ela leva ao CADASTRO: ficha,
+    // contato, vínculos, zona de perigo. Esta tela responde outra pergunta,
+    // *o que este cliente está vendo?*, e abre o portal dele em aba nova. Dois
+    // itens com o mesmo nome levando a telas diferentes é como se aprende a
+    // procurar na errada — o argumento que renomeou "Aprovações & Conteúdo" e
+    // que desfez as duas entradas do Social Media no mesmo dia.
+    //
+    // **E ELA SAIU DE GESTÃO PARA A PRINCIPAL, por decisão do usuário**:
+    // *"preciso que passe a aba Portal dos Clientes, para a aba Principal, com
+    // acesso de todos"*. O parágrafo que estava escrito neste lugar dizia o
+    // contrário — que conferir o portal de um cliente é "o que eu faço sobre os
+    // outros" — e ele errava sobre o que a tela É: ela não faz nada sobre
+    // ninguém, ela LÊ. Quem produz a peça tem a mesma pergunta de quem a
+    // distribui, *como isto chegou ao cliente?*, e a resposta estava atrás de
+    // um item que ele não via.
+    //
+    // **E A ROTA ACOMPANHOU NO MESMO COMMIT.** Um item de menu apontando para
+    // uma rota que devolve 403 é o chip de "Demandas" de Minhas Tasks outra
+    // vez: `/painel/portais` e `/portal/{slug}` passaram a aceitar a equipe
+    // inteira. Esconder o link nunca foi a proteção — quem decide o que cada
+    // pessoa LÊ dentro do portal continua sendo a RLS de cada tabela dele.
+    //
+    // **E A VISITA CONTINUA DEIXANDO RASTRO** (migration 0133): a policy de
+    // INSERT de `client_portal_views` abriu para `is_staff()`, senão a visita
+    // do colaborador não seria gravada e o bloco da ficha do cliente passaria a
+    // mentir por omissão. **Quem LÊ o rastro continua sendo `is_gestor()`** —
+    // a trilha de quem andou vendo o portal de quem é sobre as outras pessoas,
+    // e essa metade é de gestão.
+    label: "Portais de Clientes",
+    href: "/painel/portais",
+    icon: Building2,
+    roles: EQUIPE,
+    section: "principal",
+    description:
+      "O portal de cada cliente, em modo leitura, para conferir o que ele enxerga.",
   },
   {
     // O FEEDBACK DE DESENVOLVIMENTO (Sprint 3H). Em GESTÃO porque a divisão do
@@ -364,7 +416,8 @@ export const MENU: MenuItem[] = [
     roles: GESTAO,
     section: "gestao",
     hiddenFromMenu: true,
-    description: "Gere, revise e envie o feedback de desenvolvimento da equipe.",
+    description:
+      "Gere, revise e envie o feedback de desenvolvimento da equipe.",
   },
   {
     // A EXPLICAÇÃO É DE TODO MUNDO, e por isso ela tem entrada própria: sem
@@ -440,42 +493,6 @@ export const MENU: MenuItem[] = [
     description: "Quem é da casa e quem é cliente: função, área e acessos.",
   },
   {
-    // A LISTA DE CLIENTES, COM O PORTAL DE CADA UM A UM CLIQUE.
-    //
-    // Ela era uma seção da tela Início e saiu de lá por decisão do usuário:
-    // *"tire a lista de clientes da aba inicial e crie uma aba na lateral com
-    // a lista dos clientes"*.
-    //
-    // **ESTA LINHA É O QUE FAZ A REMOÇÃO SER UMA MUDANÇA DE LUGAR**, e é a
-    // lição das duas entradas que saíram da barra: Social Media e Campanhas só
-    // puderam sair porque a faixa das três áreas de Minhas Tasks passou a
-    // nomeá-las — tirar um item de um módulo que não aparece em mais lugar
-    // nenhum é esconder o módulo. Aqui a grade está PERDENDO a casa que tinha,
-    // então ela precisa ganhar uma. Sem esta linha, o portal de um cliente
-    // passaria a ser alcançável só digitando o endereço.
-    //
-    // **E O RÓTULO NÃO É "CLIENTES", de propósito.** "Clientes" já é o nome de
-    // uma aba — a de Gestão de Pessoas, logo acima —, e ela leva ao CADASTRO:
-    // ficha, contato, vínculos, zona de perigo. Esta tela responde outra
-    // pergunta, *o que este cliente está vendo?*, e abre o portal dele em aba
-    // nova. Dois itens com o mesmo nome levando a telas diferentes é como se
-    // aprende a procurar na errada — o argumento que renomeou "Aprovações &
-    // Conteúdo" e que desfez as duas entradas do Social Media no mesmo dia.
-    //
-    // **EM GESTÃO, e ao lado de Gestão de Pessoas.** A divisão do menu é sobre
-    // a PESSOA, e conferir o que um cliente enxerga antes de uma reunião é "o
-    // que eu faço sobre os outros". `client_portal_views_select` fecha em
-    // `is_gestor()` desde a 0009, e `/portal/{slug}` recusa o colaborador no
-    // servidor — esconder o item nunca foi a proteção.
-    label: "Portais de Clientes",
-    href: "/painel/portais",
-    icon: Building2,
-    roles: GESTAO,
-    section: "gestao",
-    description:
-      "O portal de cada cliente, em modo leitura, para conferir o que ele enxerga.",
-  },
-  {
     // GESTÃO INTEIRA, e as quatro abas também — a quinta, a Rentabilidade,
     // era a única de `is_socio()` e saiu com a receita na 0095. O
     // desenvolvedor distribui trabalho e responde por prazo, então produção,
@@ -515,7 +532,8 @@ export const MENU: MenuItem[] = [
     icon: CircleDollarSign,
     roles: SOCIO,
     section: "gestao",
-    description: "As notas da equipe para conferir e pagar, e os gastos da agência.",
+    description:
+      "As notas da equipe para conferir e pagar, e os gastos da agência.",
   },
   {
     // SÓ O SÓCIO, e pelo mesmo motivo do Financeiro — na verdade POR CAUSA

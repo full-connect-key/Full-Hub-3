@@ -92,9 +92,7 @@ export function DetalheDoPedido({
     <div className="space-y-6">
       <PageHeader
         title={pedido.titulo}
-        actions={
-          <Voltar para="/painel/solicitacoes" rotulo="A fila" />
-        }
+        actions={<Voltar para="/painel/solicitacoes" rotulo="A fila" />}
       />
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -122,23 +120,35 @@ export function DetalheDoPedido({
             endereço. */}
         {pedido.vertente ? (
           <>
-            <span aria-hidden className="text-muted-foreground">·</span>
+            <span aria-hidden className="text-muted-foreground">
+              ·
+            </span>
             <span className="text-muted-foreground">{pedido.vertente}</span>
           </>
         ) : null}
         {pedido.tipo ? (
           <>
-            <span aria-hidden className="text-muted-foreground">·</span>
+            <span aria-hidden className="text-muted-foreground">
+              ·
+            </span>
             <span className="text-muted-foreground">{pedido.tipo}</span>
           </>
         ) : null}
-        <span aria-hidden className="text-muted-foreground">·</span>
+        <span aria-hidden className="text-muted-foreground">
+          ·
+        </span>
         <span className="text-muted-foreground tabular-nums">
-          {format(parseISO(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+          {format(parseISO(pedido.created_at), "dd/MM/yyyy 'às' HH:mm", {
+            locale: ptBR,
+          })}
         </span>
         {pedido.autor ? (
           <span className="ms-2 inline-flex items-center gap-1.5">
-            <UserAvatar name={pedido.autor.nome} src={pedido.autor.avatar_url} size="sm" />
+            <UserAvatar
+              name={pedido.autor.nome}
+              src={pedido.autor.avatar_url}
+              size="sm"
+            />
             <span className="text-muted-foreground">{pedido.autor.nome}</span>
           </span>
         ) : null}
@@ -165,8 +175,8 @@ export function DetalheDoPedido({
           </p>
           <p className="text-text-primary text-sm">
             A classificação decide quem produz, e é ela que o relatório da
-            agência soma. Os pedidos abertos pelo Portal já chegam
-            classificados — este é anterior à regra.
+            agência soma. Os pedidos abertos pelo Portal já chegam classificados
+            — este é anterior à regra.
           </p>
           <div className="flex flex-wrap gap-2">
             {FRENTES_DA_SOLICITACAO.map((f) => (
@@ -201,9 +211,12 @@ export function DetalheDoPedido({
           <span>
             O cliente gostaria para{" "}
             <strong className="tabular-nums">
-              {format(parseISO(pedido.data_desejada), "dd/MM/yyyy", { locale: ptBR })}
+              {format(parseISO(pedido.data_desejada), "dd/MM/yyyy", {
+                locale: ptBR,
+              })}
             </strong>
-            . É o desejo dele, não o prazo combinado — o prazo é o que você assumir na demanda.
+            . É o desejo dele, não o prazo combinado — o prazo é o que você
+            assumir na demanda.
           </span>
         </p>
       ) : null}
@@ -211,7 +224,9 @@ export function DetalheDoPedido({
       {pedido.descricao ? (
         <section className="space-y-1.5">
           <h2 className="text-sm font-semibold">O que ele escreveu</h2>
-          <p className="text-text-secondary text-sm whitespace-pre-wrap">{pedido.descricao}</p>
+          <p className="text-text-secondary text-sm whitespace-pre-wrap">
+            {pedido.descricao}
+          </p>
         </section>
       ) : null}
 
@@ -220,7 +235,10 @@ export function DetalheDoPedido({
           <h2 className="text-sm font-semibold">O briefing</h2>
           <dl className="divide-y rounded-lg border">
             {respostas.map((r) => (
-              <div key={r.rotulo} className="grid gap-1 p-3 sm:grid-cols-[12rem_1fr]">
+              <div
+                key={r.rotulo}
+                className="grid gap-1 p-3 sm:grid-cols-[12rem_1fr]"
+              >
                 <dt className="text-muted-foreground text-sm">
                   {r.rotulo}
                   {/* A RESPOSTA ÓRFÃ APARECE, e não some: quando o roteiro
@@ -228,7 +246,9 @@ export function DetalheDoPedido({
                       existe mais. Esconder a linha faria sumir uma informação
                       que o cliente escreveu. */}
                   {r.orfa ? (
-                    <span className="text-warning ms-1 text-xs">(pergunta antiga)</span>
+                    <span className="text-warning ms-1 text-xs">
+                      (pergunta antiga)
+                    </span>
                   ) : null}
                 </dt>
                 <dd className="text-sm whitespace-pre-wrap">{r.valor}</dd>
@@ -240,11 +260,16 @@ export function DetalheDoPedido({
 
       {pedido.anexos.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Arquivos ({pedido.anexos.length})</h2>
+          <h2 className="text-sm font-semibold">
+            Arquivos ({pedido.anexos.length})
+          </h2>
           <ul className="divide-y rounded-lg border">
             {pedido.anexos.map((a) => (
               <li key={a.id} className="flex items-center gap-2 p-3 text-sm">
-                <Paperclip aria-hidden className="text-muted-foreground size-4 shrink-0" />
+                <Paperclip
+                  aria-hidden
+                  className="text-muted-foreground size-4 shrink-0"
+                />
                 <span className="min-w-0 flex-1 truncate">{a.nome}</span>
                 {a.assinado ? (
                   <a
@@ -260,7 +285,9 @@ export function DetalheDoPedido({
                   // O CAMINHO CRU NUNCA VIRA LINK: a assinatura falhou, e um
                   // href para `empresa/pedido/a.png` devolve 404. Dizer que não
                   // deu é melhor que um link quebrado.
-                  <span className="text-muted-foreground text-xs">Não foi possível abrir</span>
+                  <span className="text-muted-foreground text-xs">
+                    Não foi possível abrir
+                  </span>
                 )}
               </li>
             ))}
@@ -328,11 +355,17 @@ export function DetalheDoPedido({
               description="Apagar não deixa rastro do lado do cliente — ele simplesmente some do portal dele. Para dizer que a agência não vai seguir, recuse com o motivo: isso o cliente lê."
               confirmLabel="Apagar"
               onConfirm={async () => {
-                const r = await chamarEMostrar(() => apagarSolicitacao(pedido.id));
+                const r = await chamarEMostrar(() =>
+                  apagarSolicitacao(pedido.id),
+                );
                 if (r.ok) router.push("/painel/solicitacoes");
               }}
               trigger={
-                <Button variant="ghost" size="sm" className="text-danger ms-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-danger ms-auto"
+                >
                   <Trash2 aria-hidden />
                   Apagar
                 </Button>
@@ -367,7 +400,9 @@ export function DetalheDoPedido({
               disabled={motivo.trim().length < 5}
               onClick={() =>
                 comecar(async () => {
-                  const r = await chamarEMostrar(() => recusarSolicitacao(pedido.id, motivo));
+                  const r = await chamarEMostrar(() =>
+                    recusarSolicitacao(pedido.id, motivo),
+                  );
                   if (r.ok) {
                     setMotivo("");
                     setRecusando(false);
@@ -387,23 +422,31 @@ export function DetalheDoPedido({
         <div>
           <h2 className="text-sm font-semibold">Conversa</h2>
           <p className="text-muted-foreground text-xs">
-            O cliente lê tudo o que for escrito aqui. Para falar com a equipe, use os comentários da
-            demanda.
+            O cliente lê tudo o que for escrito aqui. Para falar com a equipe,
+            use os comentários da demanda.
           </p>
         </div>
 
         {pedido.mensagens.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Ninguém escreveu nada ainda.</p>
+          <p className="text-muted-foreground text-sm">
+            Ninguém escreveu nada ainda.
+          </p>
         ) : (
           <ul className="space-y-3">
             {pedido.mensagens.map((m) => (
               <li key={m.id} className="flex gap-2">
-                <UserAvatar name={m.autor?.nome ?? "—"} src={m.autor?.avatar_url} size="sm" />
+                <UserAvatar
+                  name={m.autor?.nome ?? "—"}
+                  src={m.autor?.avatar_url}
+                  size="sm"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs">
                     <span className="font-medium">{m.autor?.nome ?? "—"}</span>{" "}
                     <span className="text-muted-foreground tabular-nums">
-                      {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      {format(parseISO(m.created_at), "dd/MM 'às' HH:mm", {
+                        locale: ptBR,
+                      })}
                     </span>
                   </p>
                   <p className="text-sm whitespace-pre-wrap">{m.texto}</p>

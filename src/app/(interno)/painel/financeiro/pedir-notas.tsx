@@ -23,7 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
-import { diaEMes, mesPorExtenso, mesesParaEmitir } from "@/lib/dominio/notas-fiscais";
+import {
+  PRIMEIRO_MES_DA_NF,
+  diaEMes,
+  mesPorExtenso,
+  mesesParaEmitir,
+} from "@/lib/dominio/notas-fiscais";
 
 import {
   contarQuemDeveNota,
@@ -68,7 +73,18 @@ export function PedirNotas({
 }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
-  const [mes, setMes] = useState(competencia.slice(0, 7));
+  /**
+   * O MÊS INICIAL É GRAMPEADO NO QUE O SELETOR OFERECE (`PRIMEIRO_MES_DA_NF`).
+   *
+   * `competencia` é o mês corrente, e antes de dezembro de 2026 ele fica
+   * abaixo do piso: o `Select` abriria com um valor que não está na lista dele
+   * — um gatilho em branco, e um pedido enviado com a competência de um mês
+   * que o produto não emite. Com a lista vazia o diálogo nem abre, que é a
+   * outra metade.
+   */
+  const [mes, setMes] = useState(
+    () => mesesParaEmitir(hojeISO)[0]?.valor ?? competencia.slice(0, 7),
+  );
   const [nomes, setNomes] = useState<string[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [contando, setContando] = useState(false);
@@ -131,6 +147,12 @@ export function PedirNotas({
 
   return (
     <Dialog open={aberto} onOpenChange={abrirOuFechar}>
+      {/* O GATILHO CONTINUA LIGADO, e a razão está logo abaixo: desligá-lo
+          deixaria a explicação no `title`, que não existe para quem usa toque
+          — e o que sobraria na tela é um botão morto sem nada dizendo por quê.
+          Quem desliga é o CONFIRMAR, lá dentro, onde cabe a frase. É a mesma
+          escolha do "Enviar ao cliente" do Social Media: o botão desligado que
+          diz a razão é o que ensina a regra. */}
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <BellRing aria-hidden className="size-3.5" />
@@ -148,66 +170,81 @@ export function PedirNotas({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="mes-do-pedido">Mês de serviço</Label>
-            <Select value={mes} onValueChange={trocarMes}>
-              <SelectTrigger
-                id="mes-do-pedido"
-                className="w-full"
-                aria-label="Mês de serviço da nota"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {meses.map((m) => (
-                  <SelectItem key={m.valor} value={m.valor}>
-                    {m.rotulo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* ANTES DE DEZEMBRO DE 2026 NÃO HÁ MÊS A PEDIR, e o que aparece é a
+              data — não um seletor vazio. `mesesParaEmitir` devolve lista
+              vazia enquanto o mês corrente estiver abaixo de
+              `PRIMEIRO_MES_DA_NF`, e um `Select` sem opção é um controle que
+              não responde ao clique. */}
+          {meses.length === 0 ? (
+            <p className="text-warning text-sm">
+              As notas fiscais passam a ser emitidas e pedidas por aqui a partir
+              de {mesPorExtenso(`${PRIMEIRO_MES_DA_NF}-01`).toLowerCase()} — até
+              lá não há mês de serviço para cobrar.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="mes-do-pedido">Mês de serviço</Label>
+                <Select value={mes} onValueChange={trocarMes}>
+                  <SelectTrigger
+                    id="mes-do-pedido"
+                    className="w-full"
+                    aria-label="Mês de serviço da nota"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {meses.map((m) => (
+                      <SelectItem key={m.valor} value={m.valor}>
+                        {m.rotulo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* O PRAZO É O MESMO DIA, E A FRASE VEM ANTES DO BOTÃO.
+              {/* O PRAZO É O MESMO DIA, E A FRASE VEM ANTES DO BOTÃO.
               
               Decisão do usuário: a nota precisa ser enviada no mesmo dia do
               pedido. Quem aperta precisa saber que está marcando o prazo para
               hoje — e quem recebe o aviso lê a data escrita nele, nunca a
               palavra "hoje", que passa a mentir amanhã. */}
-          <p className="bg-blue-soft text-text-primary rounded-lg px-3 py-2 text-sm">
-            O prazo é o <strong>mesmo dia do pedido</strong> — hoje,{" "}
-            {diaEMes(hojeISO)}. Quem perder o dia continua podendo enviar: o
-            atraso aparece na fila, não trava a nota.
-          </p>
+              <p className="bg-blue-soft text-text-primary rounded-lg px-3 py-2 text-sm">
+                O prazo é o <strong>mesmo dia do pedido</strong> — hoje,{" "}
+                {diaEMes(hojeISO)}. Quem perder o dia continua podendo enviar: o
+                atraso aparece na fila, não trava a nota.
+              </p>
 
-          {/* QUEM VAI RECEBER, PELO NOME. */}
-          <div className="rounded-lg border p-3">
-            {contando ? (
-              <p className="text-text-muted flex items-center gap-2 text-sm">
-                <Loader2 aria-hidden className="size-3.5 animate-spin" />
-                Vendo quem está devendo…
-              </p>
-            ) : erro ? (
-              <p className="text-danger text-sm">{erro}</p>
-            ) : quantas === 0 ? (
-              <p className="text-text-secondary text-sm">
-                Ninguém está devendo a nota de {mesPorExtenso(`${mes}-01`)}.
-                Nenhum aviso será enviado.
-              </p>
-            ) : (
-              <>
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  <Users aria-hidden className="text-text-muted size-3.5" />
-                  {quantas === 1
-                    ? "1 pessoa vai ser avisada"
-                    : `${quantas} pessoas vão ser avisadas`}
-                </p>
-                <p className="text-text-secondary mt-1 text-sm">
-                  {nomes?.join(", ")}
-                </p>
-              </>
-            )}
-          </div>
+              {/* QUEM VAI RECEBER, PELO NOME. */}
+              <div className="rounded-lg border p-3">
+                {contando ? (
+                  <p className="text-text-muted flex items-center gap-2 text-sm">
+                    <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                    Vendo quem está devendo…
+                  </p>
+                ) : erro ? (
+                  <p className="text-danger text-sm">{erro}</p>
+                ) : quantas === 0 ? (
+                  <p className="text-text-secondary text-sm">
+                    Ninguém está devendo a nota de {mesPorExtenso(`${mes}-01`)}.
+                    Nenhum aviso será enviado.
+                  </p>
+                ) : (
+                  <>
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <Users aria-hidden className="text-text-muted size-3.5" />
+                      {quantas === 1
+                        ? "1 pessoa vai ser avisada"
+                        : `${quantas} pessoas vão ser avisadas`}
+                    </p>
+                    <p className="text-text-secondary mt-1 text-sm">
+                      {nomes?.join(", ")}
+                    </p>
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
           {/* O PEDIDO ANTERIOR APARECE, e é o que impede o clique por dúvida:
               um botão sem memória se aperta duas vezes para conferir se a
@@ -225,20 +262,31 @@ export function PedirNotas({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => abrirOuFechar(false)} disabled={mandando}>
+          <Button
+            variant="ghost"
+            onClick={() => abrirOuFechar(false)}
+            disabled={mandando}
+          >
             Fechar
           </Button>
           {/* DESLIGADO QUANDO NÃO HÁ NINGUÉM, com a razão escrita acima — em
               vez de sumir. Um botão que some ensina que não existe; um
               desligado ao lado de "ninguém está devendo" ensina a regra. É a
               decisão do "Enviar ao cliente" no Social. */}
-          <Button onClick={enviar} disabled={mandando || contando || quantas === 0}>
+          <Button
+            onClick={enviar}
+            disabled={
+              mandando || contando || quantas === 0 || meses.length === 0
+            }
+          >
             {mandando ? (
               <Loader2 aria-hidden className="size-3.5 animate-spin" />
             ) : (
               <BellRing aria-hidden className="size-3.5" />
             )}
-            {quantas === 1 ? "Pedir para 1 pessoa" : `Pedir para ${quantas} pessoas`}
+            {quantas === 1
+              ? "Pedir para 1 pessoa"
+              : `Pedir para ${quantas} pessoas`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -836,7 +836,16 @@ from (
     -- O trecho e o que SO a 0132 escreve: o recorte por linha que deixa o
     -- contato de cliente de fora.
     ('0132', 'a equipe enxerga a equipe', 'policy',
-             'profiles|profiles_select_equipe|cliente')
+             'profiles|profiles_select_equipe|cliente'),
+
+    -- O MARCADOR MEDE O CORPO, pela mesma razao da 0132: a policy de INSERT de
+    -- `client_portal_views` existe desde a 0009, entao procurar "uma policy de
+    -- insert" diria `ok` num banco parado na 0132. O trecho e o que SO a 0133
+    -- escreve: `is_staff` no lugar de `is_gestor`. E ele nao e `is_staff`
+    -- sozinho -- `is_gestor()` tambem contem `staff`, pelo `staff_user_id` que
+    -- a condicao ao lado carrega.
+    ('0133', 'o portal do cliente e de toda a equipe', 'policy',
+             'client_portal_views|client_portal_views_insert|is_staff()')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

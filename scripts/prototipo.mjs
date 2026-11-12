@@ -661,6 +661,11 @@ const TELAS = [
   { nome: "59b-portal-escolha-pela-equipe", rota: "/portal", largura: 1400, altura: 700, role: "socio-no-portal" },
   { nome: "59c-portal-itens-pela-equipe", rota: "/portal/mundo-verde/itens", largura: 1400, altura: 1100, role: "socio-no-portal" },
   { nome: "59d-portal-configuracoes-pela-equipe", rota: "/portal/mundo-verde/configuracoes", largura: 1400, altura: 900, role: "socio-no-portal" },
+  // O COLABORADOR no portal de um cliente: a prova de que a guarda caiu com a
+  // entrada do menu. A faixa de aviso e os botoes de decisao desligados tem de
+  // sair iguais aos do socio -- `comoEquipe` nao pergunta o perfil, e a tela
+  // continua sendo leitura para toda a equipe.
+  { nome: "59e-portal-pelo-colaborador", rota: "/portal/mundo-verde", largura: 1400, altura: 1200, role: "colaborador-no-portal" },
 
   // --- Sprint 6: Full Days -----------------------------------------------
   { nome: "60-full-days-solicitar", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "socio" },
@@ -933,8 +938,15 @@ const TELAS = [
   //  * `91b` e a SAIDA que ele tem: o bloco de classificar, que so existe
   //    quando falta.
   // ------------------------------------------------------------------------
-  { nome: "90c-solicitacoes-por-frente", rota: "/painel/solicitacoes?frente=campanha", largura: 1500, altura: 900, role: "colaborador" },
-  { nome: "90d-solicitacoes-sem-classificacao", rota: "/painel/solicitacoes?frente=sem", largura: 1500, altura: 800, role: "colaborador" },
+  // O recorte por CLIENTE: a Optica Visao tem UM dos seis pedidos da fila, e os
+  // chips de status continuam contando o mes inteiro -- com uma conta que
+  // tivesse todos, a imagem nao separaria "o filtro recorta" de "o filtro nao
+  // faz nada".
+  { nome: "90c-solicitacoes-por-cliente", rota: "/painel/solicitacoes?cliente=b0000000-0000-0000-0000-000000000002", largura: 1500, altura: 900, role: "colaborador" },
+  // E o recorte por STATUS, que e a outra fileira: com ele escolhido, o seletor
+  // de cliente continua oferecendo as duas contas da fila -- a regra de que as
+  // opcoes de um filtro saem da lista inteira.
+  { nome: "90d-solicitacoes-por-status", rota: "/painel/solicitacoes?status=concluida", largura: 1500, altura: 800, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "91b-solicitacao-classificar", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000004", largura: 1500, altura: 1300, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
@@ -1475,6 +1487,14 @@ const PERFIS = {
   // portal do proprio cliente. Entra como PERFIL pela mesma razao do primeiro
   // acesso -- o gerador ja sobe um servidor por perfil.
   "socio-no-portal": { role: "socio", portalComoEquipe: true },
+  // O COLABORADOR abrindo o portal de um cliente, que passou a ser permitido
+  // junto com a entrada na Principal. Ele existe por UMA imagem, e ela e a
+  // unica prova de que a guarda caiu: a barra lateral diz que o item esta la,
+  // e isto diz que o destino ABRE. Sem ela, um `forbidden()` que voltasse
+  // deixaria o item apontando para um 403 -- o chip de "Demandas" de Minhas
+  // Tasks pela segunda vez. (A checagem de 403 do gerador e de mao dupla pelo
+  // NOME da tela, entao uma tela sem "403" no nome que leve 403 reprova.)
+  "colaborador-no-portal": { role: "colaborador", portalComoEquipe: true },
 };
 
 function subirServidor(perfil, extra = {}) {

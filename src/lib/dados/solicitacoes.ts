@@ -8,8 +8,6 @@ import type {
   RequestAttachment,
   RequestMessage,
   RequestType,
-  SolicitacaoFrente,
-  SolicitacaoStatus,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -40,9 +38,6 @@ export { BUCKET_DOS_PEDIDOS } from "@/lib/dominio/solicitacoes";
 import { BUCKET_DOS_PEDIDOS } from "@/lib/dominio/solicitacoes";
 
 export type Pessoa = { id: string; nome: string; avatar_url: string | null };
-
-/** O recorte da fila por frente, com o balde do não classificado. */
-export type RecorteDeFrente = SolicitacaoFrente | "sem";
 
 export type PedidoNaLista = ClientRequest & {
   empresa: string | null;
@@ -230,28 +225,35 @@ async function enfeitar(pedidos: ClientRequest[]): Promise<PedidoNaLista[]> {
  * Os encerrados vão para o fim, e não para fora: o Atendimento precisa achar
  * o que já respondeu quando o cliente pergunta de novo.
  */
-export async function caixaDeEntrada(filtros?: {
-  status?: SolicitacaoStatus | null;
-  clienteId?: string | null;
-  /**
-   * O recorte por frente (0124), com `"sem"` para o pedido não classificado.
-   *
-   * **O `"sem"` é um filtro de verdade e não um descuido:** é onde mora o
-   * pedido anterior à regra, e é justamente ele que o Atendimento precisa
-   * achar para classificar. Sem a opção, ele ficaria alcançável só em "Todas"
-   * — no meio da fila inteira, que é onde ninguém o procura.
-   */
-  frente?: RecorteDeFrente | null;
-}): Promise<PedidoNaLista[]> {
+/**
+ * A FILA INTEIRA, sem recorte nenhum — e a ausência dos filtros é a decisão.
+ *
+ * Ela recebia `status`, `clienteId` e `frente` e recortava no `select`, e isso
+ * quebra a regra que esta casa escreve desde as abas de Pedidos do portal:
+ * **as opções de um filtro saem da lista INTEIRA, nunca do que sobrou do
+ * outro**. Com o recorte no banco, escolher um status encolhia a lista de
+ * clientes que a tela tem para oferecer — e quem escolhesse os dois perderia
+ * o caminho de volta.
+ *
+ * Então quem recorta é a TELA, que é quem precisa dos dois conjuntos ao mesmo
+ * tempo. **E os parâmetros SAÍRAM em vez de ficarem sem chamador** (0023): um
+ * filtro que nenhuma tela passa é o que alguém reaproveita três sprints depois
+ * achando que ele ainda decide alguma coisa — `clienteId` já era assim, nunca
+ * passado por ninguém desde a 0068.
+ *
+ * *O que isto custa, e é dito em vez de escondido:* a fila desce inteira, e
+ * ela cresce com o tempo porque o pedido encerrado vai para o FIM e não para
+ * fora (0068). No dia em que o volume pesar, o recorte volta para o banco —
+ * e aí as opções de cada dimensão precisam de uma leitura própria, que é o
+ * preço que esta versão não paga.
+ */
+export async function caixaDeEntrada(): Promise<PedidoNaLista[]> {
   const supabase = await criarClienteServidor();
 
-  let consulta = supabase.from("client_requests").select("*");
-  if (filtros?.status) consulta = consulta.eq("status", filtros.status);
-  if (filtros?.clienteId) consulta = consulta.eq("client_id", filtros.clienteId);
-  if (filtros?.frente === "sem") consulta = consulta.is("frente", null);
-  else if (filtros?.frente) consulta = consulta.eq("frente", filtros.frente);
-
-  const r = await consulta.order("created_at", { ascending: true });
+  const r = await supabase
+    .from("client_requests")
+    .select("*")
+    .order("created_at", { ascending: true });
   const pedidos = ouFalha("caixa de entrada de pedidos", r) ?? [];
 
   const enfeitados = await enfeitar(pedidos);

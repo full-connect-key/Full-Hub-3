@@ -11,16 +11,24 @@ import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   DIAS_ATE_DESTACAR,
-  FRENTES_DA_SOLICITACAO,
-  ROTULOS_DE_FRENTE,
   ROTULOS_PARA_A_EQUIPE,
   STATUS_DA_SOLICITACAO,
   diasEsperando,
   estaEsquecida,
   rotuloDaFrente,
 } from "@/lib/dominio/solicitacoes";
-import type { PedidoNaLista, RecorteDeFrente } from "@/lib/dados/solicitacoes";
+import type { PedidoNaLista } from "@/lib/dados/solicitacoes";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+/** O valor que o `Select` do Radix usa para "sem recorte": ele não aceita "". */
+const TODOS = "__todos__";
 
 /**
  * A fila do Atendimento.
@@ -93,7 +101,9 @@ function FileiraDeFiltro({
           aria-pressed={ativo === o.valor}
           className={cn(
             "rounded-full border px-3 py-1 text-sm transition-colors",
-            ativo === o.valor ? "border-accent-strong bg-accent" : "hover:bg-accent",
+            ativo === o.valor
+              ? "border-accent-strong bg-accent"
+              : "hover:bg-accent",
           )}
         >
           {o.rotulo}
@@ -108,12 +118,12 @@ export function CaixaDeEntrada({
   pedidos,
   hojeISO,
   statusAtivo,
-  frenteAtiva,
+  clienteAtivo,
 }: {
   pedidos: PedidoNaLista[];
   hojeISO: string;
   statusAtivo: string | null;
-  frenteAtiva: RecorteDeFrente | null;
+  clienteAtivo: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,7 +134,7 @@ export function CaixaDeEntrada({
    * eles NÃO se apagam um ao outro: "os pedidos de campanha que estão novos" é
    * um link, e é a pergunta que a fila responde na segunda-feira.
    */
-  function filtrar(chave: "status" | "frente", valor: string | null) {
+  function filtrar(chave: "status" | "cliente", valor: string | null) {
     const proximos = new URLSearchParams(parametros.toString());
     if (valor) proximos.set(chave, valor);
     else proximos.delete(chave);
@@ -134,12 +144,40 @@ export function CaixaDeEntrada({
     });
   }
 
-  const esperando = pedidos.filter((p) => p.status === "nova" || p.status === "em_analise").length;
+  /**
+   * O RECORTE ACONTECE AQUI, e é o que mantém as duas listas honestas.
+   *
+   * `caixaDeEntrada()` desce a fila inteira (0134), então as opções de cada
+   * dimensão saem do TODO e não do que sobrou da outra: escolher um status não
+   * encolhe a lista de clientes, e escolher um cliente não some com nenhum
+   * status. É a decisão das abas de Pedidos do portal e a dos contadores de
+   * Minhas Tasks, pela terceira vez.
+   */
+  const clientes = [
+    ...new Map(
+      pedidos
+        .filter((p) => p.empresa)
+        .map((p) => [p.client_id, p.empresa as string] as const),
+    ),
+  ].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+
+  const visiveis = pedidos.filter(
+    (p) =>
+      (!statusAtivo || p.status === statusAtivo) &&
+      (!clienteAtivo || p.client_id === clienteAtivo),
+  );
+
+  // O CONTADOR CONTA A FILA INTEIRA, nunca o recorte: ele cobra quantos
+  // esperam alguém, e um número que encolhe porque o Atendimento escolheu um
+  // cliente cobraria menos do que existe. É o selo da aba das Notas Fiscais.
+  const esperando = pedidos.filter(
+    (p) => p.status === "nova" || p.status === "em_analise",
+  ).length;
 
   return (
     <div className="space-y-4">
       <FileiraDeFiltro
-        rotulo="Situação"
+        rotulo="Status"
         ativo={statusAtivo}
         aoEscolher={(v) => filtrar("status", v)}
         opcoes={STATUS_DA_SOLICITACAO.map((s) => ({
@@ -158,32 +196,55 @@ export function CaixaDeEntrada({
       </FileiraDeFiltro>
 
       {/* ------------------------------------------------------------------
-          O RECORTE POR FRENTE (0124), com o balde do não classificado.
+          O RECORTE POR CLIENTE, no lugar do recorte por frente.
 
-          **"Sem classificação" é um chip de verdade**, e é onde mora o pedido
-          anterior à regra: sem ele, aquele pedido só seria alcançável em
-          "Todos" — no meio da fila inteira, que é onde ninguém o procura. E é
-          justamente ele que pede ação: classificar.
+          Decisão do usuário: *"troque situação por status e frente por cliente
+          para a filtragem"*. A pergunta que a fila responde na segunda-feira é
+          de quem é o pedido, e a frente continua escrita em TODA LINHA — o que
+          ela deixou de ser é uma dimensão de recorte.
 
-          **E O CHIP APARECE MESMO COM ZERO**, ao contrário do selo da aba: a
-          fileira RESPONDE o que existe no recorte, e "nenhum pedido de
-          campanha" é resposta — é a decisão da faixa de áreas de Minhas
-          Tasks. O selo cobra uma ação, e aí o zero não cobraria nada.
+          **É SELETOR E NÃO FILEIRA DE CHIPS, e a diferença é quantos são.** O
+          status tem cinco valores e não cresce; o cliente cresce com a
+          carteira, e vinte e oito chips são a faixa de catorze pílulas que o
+          portal já desfez uma vez. É a decisão da Biblioteca, palavra por
+          palavra: a frente em chips e o mês em seletor.
+
+          **E ELE LISTA SÓ QUEM TEM PEDIDO NA FILA**, nunca a carteira inteira:
+          uma conta sem pedido nenhum é uma opção que, escolhida, esvazia a
+          tela — e um controle que só sabe esvaziar é o interruptor da 0088.
+
+          ***O que se perde, e é dito em vez de escondido:*** o balde "Sem
+          classificação" era a única forma de ACHAR o pedido anterior à 0124.
+          Ele continua visível — a frente é desenhada em toda linha, em âmbar
+          quando falta —, mas deixou de ser filtrável. Hoje não há nenhum no
+          banco; no dia em que a lista crescer, uma terceira dimensão é
+          decisão própria.
           ------------------------------------------------------------------ */}
-      <FileiraDeFiltro
-        rotulo="Frente"
-        ativo={frenteAtiva}
-        aoEscolher={(v) => filtrar("frente", v)}
-        opcoes={[
-          ...FRENTES_DA_SOLICITACAO.map((f) => ({
-            valor: f,
-            rotulo: ROTULOS_DE_FRENTE[f],
-          })),
-          { valor: "sem", rotulo: "Sem classificação" },
-        ]}
-      />
+      {clientes.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-text-muted w-full text-[11px] font-medium tracking-wide uppercase sm:w-auto">
+            Cliente
+          </span>
+          <Select
+            value={clienteAtivo ?? TODOS}
+            onValueChange={(v) => filtrar("cliente", v === TODOS ? null : v)}
+          >
+            <SelectTrigger className="w-56" aria-label="Filtrar por cliente">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todos os clientes</SelectItem>
+              {clientes.map(([id, nome]) => (
+                <SelectItem key={id} value={id}>
+                  {nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
-      {pedidos.length === 0 ? (
+      {visiveis.length === 0 ? (
         /* DUAS FRASES E NÃO UMA: a fila sem pedido nenhum e o recorte sem
            resultado são fatos diferentes, e a primeira dita sobre um filtro
            escolhido faria o Atendimento concluir que nenhum cliente pediu
@@ -191,19 +252,19 @@ export function CaixaDeEntrada({
         <EmptyState
           icon={Inbox}
           title={
-            statusAtivo || frenteAtiva
+            statusAtivo || clienteAtivo
               ? "Nenhum pedido neste recorte"
               : "Nenhum pedido aqui"
           }
           description={
-            statusAtivo || frenteAtiva
+            statusAtivo || clienteAtivo
               ? "Nenhum pedido se encaixa nos filtros escolhidos acima — tire um deles para ver a fila inteira."
               : "Quando um cliente abrir um pedido pelo Portal dele, ele aparece nesta fila — do que espera há mais tempo para o mais recente."
           }
         />
       ) : (
         <div className="divide-y rounded-lg border">
-          {pedidos.map((p) => {
+          {visiveis.map((p) => {
             const dias = diasEsperando(p.created_at, hojeISO);
             const esquecido = estaEsquecida(p, hojeISO);
 
@@ -239,7 +300,9 @@ export function CaixaDeEntrada({
                     {p.demanda ? (
                       <>
                         <span aria-hidden>·</span>
-                        <span className="truncate">Demanda: {p.demanda.titulo}</span>
+                        <span className="truncate">
+                          Demanda: {p.demanda.titulo}
+                        </span>
                       </>
                     ) : null}
                   </p>
@@ -266,7 +329,11 @@ export function CaixaDeEntrada({
                 ) : null}
 
                 {p.autor ? (
-                  <UserAvatar name={p.autor.nome} src={p.autor.avatar_url} size="sm" />
+                  <UserAvatar
+                    name={p.autor.nome}
+                    src={p.autor.avatar_url}
+                    size="sm"
+                  />
                 ) : null}
 
                 {/* A IDADE POR EXTENSO, e não só a data: "há 4 dias" é o que
@@ -275,11 +342,21 @@ export function CaixaDeEntrada({
                 <span
                   className={cn(
                     "text-xs tabular-nums",
-                    esquecido ? "text-warning font-medium" : "text-muted-foreground",
+                    esquecido
+                      ? "text-warning font-medium"
+                      : "text-muted-foreground",
                   )}
-                  title={format(parseISO(p.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  title={format(
+                    parseISO(p.created_at),
+                    "dd/MM/yyyy 'às' HH:mm",
+                    { locale: ptBR },
+                  )}
                 >
-                  {dias === 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`}
+                  {dias === 0
+                    ? "hoje"
+                    : dias === 1
+                      ? "ontem"
+                      : `há ${dias} dias`}
                 </span>
 
                 {/* ------------------------------------------------------
@@ -316,7 +393,8 @@ export function CaixaDeEntrada({
       )}
 
       <p className="text-muted-foreground text-xs">
-        Um pedido em aberto há {DIAS_ATE_DESTACAR} dias ou mais aparece em destaque.
+        Um pedido em aberto há {DIAS_ATE_DESTACAR} dias ou mais aparece em
+        destaque.
       </p>
     </div>
   );

@@ -10,7 +10,9 @@ import { DetalheDoPedido } from "./detalhe-do-pedido";
 
 export const metadata: Metadata = { title: "Solicitação" };
 
-export default async function Pagina({ params }: PageProps<"/painel/solicitacoes/[id]">) {
+export default async function Pagina({
+  params,
+}: PageProps<"/painel/solicitacoes/[id]">) {
   const sessao = await exigirAcessoARota("/painel/solicitacoes");
   const { id } = await params;
 

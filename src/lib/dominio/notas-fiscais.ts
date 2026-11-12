@@ -61,19 +61,57 @@ export function competenciaDoMes(mes: string): string {
 }
 
 /**
- * Os doze meses que o seletor oferece, do atual para trás.
+ * O PRIMEIRO MÊS QUE A AGÊNCIA EMITE PELO FULL HUB.
+ *
+ * Decisão do usuário: *"pode começar a contar as notas fiscais a partir do mês
+ * de dezembro de 2026 em diante"*.
+ *
+ * **É UMA CONSTANTE E NÃO UMA COLUNA**, e a diferença é o que ela significa:
+ * não é uma configuração que muda por pessoa nem por ano — é a data em que o
+ * módulo passou a valer para a agência, e ela aconteceu uma vez. Uma coluna
+ * seria um campo numa tela de configuração que ninguém reabre, com o valor
+ * certo gravado uma vez e nenhuma pergunta depois.
+ *
+ * **E ELA NÃO APAGA O QUE JÁ ESTÁ GRAVADO.** Nota anterior a dezembro continua
+ * no histórico, na fila e na trilha de auditoria — o que o piso decide é o que
+ * o seletor OFERECE, e não o que o banco guarda. Reescrever o passado por causa
+ * de uma data de início seria destruir registro de pagamento, que é justamente
+ * o que `team_invoices` existe para não perder.
+ */
+export const PRIMEIRO_MES_DA_NF = "2026-12";
+
+/** "2026-12" → 24323, para comparar mês com mês sem passar por `Date`. */
+function emMeses(mes: string): number {
+  const [ano, m] = mes.split("-").map(Number);
+  return ano * 12 + (m - 1);
+}
+
+/**
+ * Os meses que o seletor oferece, do atual para trás.
  *
  * **Para trás e nunca para a frente**, e a regra é a mesma do lançamento
  * retroativo do Full Days vista do avesso: ninguém emite nota de um mês que
- * não aconteceu. Doze porque uma nota esquecida há mais de um ano é conversa
- * com a contabilidade, não um campo numa tela.
+ * não aconteceu. **E nunca antes de `PRIMEIRO_MES_DA_NF`**, que é quando a
+ * agência começou a emitir por aqui.
+ *
+ * O teto de doze continua, e agora ele é o MENOR dos dois limites: uma nota
+ * esquecida há mais de um ano é conversa com a contabilidade, não um campo
+ * numa tela.
+ *
+ * **A LISTA PODE SAIR VAZIA, e é um estado de verdade e não um defeito** — é o
+ * que acontece em todo mês anterior a dezembro de 2026. Quem a recebe desliga
+ * o botão e escreve a razão, em vez de abrir um seletor sem opção; e são DUAS
+ * razões diferentes, porque "ainda não começou" e "os meses já têm nota" pedem
+ * coisas opostas de quem lê.
  */
 export function mesesParaEmitir(hoje: string): { valor: string; rotulo: string }[] {
-  const [ano, mes] = hoje.split("-").map(Number);
+  const atual = emMeses(hoje.slice(0, 7));
+  const piso = emMeses(PRIMEIRO_MES_DA_NF);
   const lista: { valor: string; rotulo: string }[] = [];
 
   for (let i = 0; i < 12; i++) {
-    const total = ano * 12 + (mes - 1) - i;
+    const total = atual - i;
+    if (total < piso) break;
     const a = Math.floor(total / 12);
     const m = (total % 12) + 1;
     const valor = `${a}-${String(m).padStart(2, "0")}`;

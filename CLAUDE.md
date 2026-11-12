@@ -10298,12 +10298,83 @@ Dois itens com o mesmo nome levando a telas diferentes é como se aprende a
 procurar na errada — o argumento que renomeou "Aprovações & Conteúdo" para
 "Campanhas" e que desfez as duas entradas do Social Media no mesmo dia.
 
-**E ELA MORA AO LADO DE GESTÃO DE PESSOAS, na seção Gestão.** A divisão do
-menu é sobre a PESSOA, e conferir o que um cliente enxerga antes de uma
-reunião é "o que eu faço sobre os outros". As três camadas de sempre valem, e
-a terceira é a que conta: `roles: GESTAO` esconde o item, o `forbidden()` da
-rota estreita, e `client_portal_views_select` fecha em `is_gestor()` desde a
-0009 — esconder o link nunca foi segurança neste produto.
+**E ELA MORAVA AO LADO DE GESTÃO DE PESSOAS, na seção Gestão**, com o
+argumento de que a divisão do menu é sobre a PESSOA e que conferir o que um
+cliente enxerga antes de uma reunião é "o que eu faço sobre os outros".
+`roles: GESTAO` escondia o item, um `forbidden()` estreitava a rota, e
+`/portal/{slug}` recusava o colaborador no servidor.
+
+##### E ELA PASSOU PARA A PRINCIPAL, COM ACESSO DE TODA A EQUIPE (0133)
+
+Decisão do usuário: *"preciso que passe a aba Portal dos Clientes, para a aba
+Principal, com acesso de todos, e edição limitada a atendimento, e Sócios"*.
+
+**O ARGUMENTO ANTIGO ERRAVA SOBRE O QUE A TELA É.** Ele classificava a tela
+pelo que ela MOSTRA — a conta inteira de um cliente — e a divisão do menu é
+sobre o que a pessoa FAZ: aqui ela não faz nada sobre ninguém, ela LÊ. E quem
+produz a peça tem exatamente a mesma pergunta de quem a distribui, *como isto
+chegou ao cliente?* — a resposta estava atrás de um item que ele não via.
+
+**AS TRÊS CAMADAS MUDARAM NO MESMO COMMIT, e é a lição da porta das áreas:**
+`roles: EQUIPE` no `MENU`, o `forbidden()` fora de `/painel/portais`, e a
+recusa do colaborador fora de `exigirVisualizacaoDoPortal()`. Um item de menu
+apontando para uma rota que devolve 403 é o chip de "Demandas" de Minhas Tasks
+pela segunda vez.
+
+**E NÃO SOBROU `forbidden()` NA ROTA**, pela 0060: `roles: EQUIPE` e
+`exigirAcessoARota` respondem a mesma pergunta, e uma segunda pergunta embaixo
+de uma primeira que já barra todo mundo não barra ninguém. **Esconder o link
+nunca foi a proteção**, e ela não mudou: `clients_select` é `is_staff()` desde
+a 0002 — a grade SEMPRE soube responder para a equipe inteira —, e dentro do
+portal quem recorta cada linha são as policies de `tasks`, `posts`,
+`deliverables`, `approval_rounds` e `comments`.
+
+***O que isso abre, e é dito em vez de escondido:*** o colaborador passa a ver,
+de uma conta, o que o cliente dela vê — a grade do mês, a árvore das campanhas,
+a Biblioteca. Era tudo legível para `is_staff()` pelo painel; o que muda é o
+ARRANJO, que é a frase que criou esta rota.
+
+**A MIGRATION É UMA LINHA, E ELA É SOBRE O RASTRO.**
+`client_portal_views_insert` era `is_gestor() and staff_user_id = auth.uid()`
+desde a 0009. Deixada assim, a visita do colaborador voltaria **sem erro e sem
+linha** — a escrita é `.select()`ada e o erro vai para o log —, a tela abriria
+do mesmo jeito, e o bloco "quem abriu o portal deste cliente" da ficha passaria
+a mentir **por omissão**. Uma trilha mais curta que a verdade é pior que trilha
+nenhuma: ela é consultada exatamente na conversa em que o cliente pergunta
+*"vocês viram o que eu comentei?"*.
+
+**E QUEM LÊ O RASTRO CONTINUA SENDO `is_gestor()`**, que é a assimetria inteira
+da migration: escrever a própria visita é registrar o que eu fiz, e ler a lista
+é saber quem andou vendo o portal de quem — informação sobre as outras pessoas,
+como a trilha de auditoria da 0058. `staff_user_id = auth.uid()` fica, e é ele
+que impede forjar a visita de alguém.
+
+***"EDIÇÃO LIMITADA A ATENDIMENTO E SÓCIOS" NÃO TEM REFERENTE NESTE MÓDULO, e é
+dito em vez de inventado.*** Dentro de `/portal/{slug}` ninguém edita nada
+hoje, para perfil nenhum: `comoEquipe` desliga as três decisões e a conversa,
+`decidir_rodada_do_cliente` recusa no banco quem não é o cliente daquela
+rodada, e a faixa do topo já escreve *"nenhuma ação em nome do cliente está
+disponível"*. A única escrita da visualização é a linha de rastro. **Criar uma
+trava para uma ação que não existe é a 0060 de novo** — então a frase vale como
+BORDA: no dia em que a tela ganhar uma ação, ela nasce `is_atendimento()`, e aí
+é migration própria. Os dois lugares onde ela poderia cair são a conversa do
+material (hoje desligada para a equipe inteira) e o cadastro do cliente, que é
+`is_gestor()` em `clients_update_gestor` e mora em outro módulo.
+
+**E A CHECAGEM PASSOU A MEDIR A SEÇÃO, não só o `roles`.** `check:sprint9`
+media presença e ausência do rótulo na barra, e com `roles: EQUIPE` um
+`section: "gestao"` devolvido por engano passaria verde — o item apareceria
+para o colaborador, na caixa errada. `antesDaGestao` compara a POSIÇÃO do
+rótulo com a do cabeçalho "Gestão" dentro do `<nav>`, que é o único lugar do
+dump onde a divisão do menu é desenhada. É `A_PORTA` medindo o `href` em vez da
+palavra, em outra forma. **E a Redatora entrou no par**: ela é `colaborador`
+igual à pessoa do Atendimento e TEM o item, que é o que prova que ele não é
+`exigeAtendimento`.
+
+**E ENTROU UMA IMAGEM SÓ POR CAUSA DA GUARDA** (`59e-portal-pelo-colaborador`):
+a barra lateral prova que o item está lá, e só ela prova que o destino ABRE.
+A checagem de 403 do gerador é de mão dupla pelo NOME da tela, então uma tela
+sem "403" no nome que leve 403 reprova.
 
 **O ARQUIVO MUDOU DE PASTA**, e não ficou onde estava: `_blocos/` é a pasta dos
 blocos do Início, e um componente ali que o Início não desenha é o que alguém

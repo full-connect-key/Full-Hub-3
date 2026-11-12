@@ -39,6 +39,7 @@ import {
   mesPorExtenso,
   recusadasPendentes,
   semRecusadasResolvidas,
+  PRIMEIRO_MES_DA_NF,
 } from "@/lib/dominio/notas-fiscais";
 import { criarClienteNavegador } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -263,9 +264,18 @@ export function MinhasNotas({
         </Button>
       </div>
 
-      {oferecidos.length === 0 && visiveis.length > 0 ? (
+      {/* SÃO DUAS RAZÕES PARA O BOTÃO ESTAR DESLIGADO, e elas pedem coisas
+          opostas de quem lê: "já mandei tudo" é a resposta boa, e "ainda não
+          começou" é uma data para esperar. Uma frase só para as duas faria a
+          pessoa de novembro concluir que ela já enviou a nota de dezembro. */}
+      {mesesDisponiveis.length === 0 ? (
         <p className="text-muted-foreground text-xs">
-          Os doze últimos meses já têm nota enviada.
+          As notas fiscais passam a ser emitidas por aqui a partir de{" "}
+          {mesPorExtenso(`${PRIMEIRO_MES_DA_NF}-01`).toLowerCase()}.
+        </p>
+      ) : oferecidos.length === 0 && visiveis.length > 0 ? (
+        <p className="text-muted-foreground text-xs">
+          Todos os meses em aberto já têm nota enviada.
         </p>
       ) : null}
 
