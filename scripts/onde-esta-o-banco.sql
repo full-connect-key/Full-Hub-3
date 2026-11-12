@@ -853,7 +853,13 @@ from (
     -- PASSO 3 e justamente o que impede a policy nova de virar a porta para
     -- trocar o arquivo de uma entrega ja carimbada.
     ('0134', 'a observacao da entrega', 'trigger',
-             'subtask_entregas|subtask_entregas_so_a_observacao')
+             'subtask_entregas|subtask_entregas_so_a_observacao'),
+
+    -- A FUNCAO NASCE NA 0135 e nao existia antes, entao `funcao` basta -- nao
+    -- e o caso da 0132 nem da 0133, onde o objeto ja existia com outra regra
+    -- dentro. E ela e a UNICA coisa que o arquivo cria: um banco onde ela
+    -- existe e um banco onde a colagem chegou ao fim.
+    ('0135', 'a busca da auditoria', 'funcao', 'trilha_de_auditoria')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -921,6 +921,16 @@ const TELAS = [
   // parou de mostrar o item para todo mundo, e so a segunda passaria numa tela
   // que nunca existiu. O criterio e de mao dupla.
   { nome: "99e-auditoria-socio", rota: "/painel/auditoria", largura: 1500, altura: 1000, role: "socio" },
+  // A BUSCA DA AUDITORIA, e ela precisa de um TERMO na URL para sair em
+  // imagem (0135): a coluna "O que mudou" saiu da tabela, e o campo
+  // encontrado -- a unica coisa que diz por que aquela linha esta no
+  // resultado -- so e desenhado quando ha busca. Sem esta tela, a peca nova
+  // nao apareceria em lugar nenhum.
+  //
+  // E o termo vai SEM ACENTO de proposito: a linha que ele acha renomeia a
+  // empresa para "Optica Visao" com acento, entao a imagem prova a dobra de
+  // `sem_acento()` (0073) ao mesmo tempo que o campo encontrado.
+  { nome: "99g-auditoria-busca", rota: "/painel/auditoria?busca=optica", largura: 1500, altura: 700, role: "socio" },
   { nome: "99f-painel-desenvolvedor-sem-auditoria", rota: "/painel", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "99e-metricas-375", rota: "/painel/metricas?aba=tempo", largura: 375, altura: 1600, role: "socio" },
 

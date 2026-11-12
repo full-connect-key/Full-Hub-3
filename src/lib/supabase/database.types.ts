@@ -4658,6 +4658,40 @@ export interface Database {
        * o que cada perfil acha, e é por isso que a consulta daqui não repete
        * filtro nenhum.
        */
+      /**
+       * A TRILHA DE AUDITORIA, com recorte e busca (0135).
+       *
+       * **Não é `security definer`**, e é a linha que mais importa dela:
+       * `audit_log_select` fecha em `is_socio()` desde a 0058, e uma função
+       * `invoker` deixa a policy valer dentro dela — é a forma de
+       * `busca_global()` logo abaixo, e é por ela que esta função não vira a
+       * porta dos fundos da trilha do sócio.
+       *
+       * Ela **não devolve `antes` nem `depois`**: a tela deixou de desenhar o
+       * diff, e o que viaja é o campo que a busca encontrou — a razão de
+       * aquela linha estar no resultado.
+       */
+      trilha_de_auditoria: {
+        Args: {
+          p_tabela?: string | null;
+          p_quem?: string | null;
+          p_de?: string | null;
+          p_ate?: string | null;
+          p_busca?: string | null;
+          p_limite?: number;
+        };
+        Returns: {
+          id: string;
+          tabela: string;
+          registro_id: string | null;
+          operacao: string;
+          quando: string;
+          quem: string | null;
+          quem_nome: string | null;
+          campo_encontrado: string | null;
+          valor_encontrado: string | null;
+        }[];
+      };
       busca_global: {
         Args: { p_termo: string; p_limite?: number };
         Returns: {

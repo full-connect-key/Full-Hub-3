@@ -1010,7 +1010,7 @@ export async function pedirAnaliseDoEntregavel(
  * `criarCampanha`, porque quem monta a árvore é quem vai abrir a campanha.
  */
 export async function arvoreDoWorkflowParaCampanha(
-  templateId: string,
+  tipoId: string,
   clienteId: string | null,
   dataInicio: string,
 ): Promise<Resultado<NoDeModelo[]>> {
@@ -1023,10 +1023,27 @@ export async function arvoreDoWorkflowParaCampanha(
     // qual o offset existe no modelo (0008).
     const base = dataInicio || hojeNaAgencia();
 
-    const aplicado = await fluxoDoWorkflow(templateId, base, clienteId);
+    // O PARÂMETRO SE CHAMAVA `templateId`, E FOI O NOME QUE ESCONDEU O BUG.
+    // `fluxoDoWorkflow()` procura em `task_types` — o parâmetro dela se chama
+    // `tipoId` —, e a tela mandava o id da CADEIA (`workflow_templates`). O
+    // nome daqui casava com o que a tela mandava e mentia sobre o que a função
+    // espera, então a leitura nunca achava a linha e a recusa abaixo saía para
+    // todo workflow. Hoje os três nomes dizem a mesma coisa.
+    const aplicado = await fluxoDoWorkflow(tipoId, base, clienteId);
     if (!aplicado) {
       return falha(
         "Este workflow não foi encontrado, ou não tem cadeia de etapas.",
+      );
+    }
+
+    // CADEIA VAZIA NÃO É "ÁRVORE MONTADA", e esta recusa é a mesma que
+    // `aplicarWorkflowNaTask` já fazia do outro lado. Sem ela, escolher um
+    // workflow sem etapas APAGAVA a árvore que estava na tela — `plantar([])`
+    // — e respondia "Árvore montada a partir do workflow": a tela afirmando
+    // que montou o que ela acabou de limpar.
+    if (aplicado.etapas.length === 0) {
+      return falha(
+        "Este workflow ainda não tem etapas — monte os entregáveis à mão, ou cadastre as etapas dele em Gestão de Tasks › Workflows.",
       );
     }
 

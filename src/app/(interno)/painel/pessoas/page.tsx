@@ -35,9 +35,10 @@ export const metadata: Metadata = { title: "Gestão de Pessoas" };
 
 async function Conteudo({ aba }: { aba: Aba }) {
   if (aba === "equipe") {
-    // Traz também quem está desligado: a lista filtra por padrão para
-    // "ativos", mas a gestão precisa alcançar a ficha de quem saiu para
-    // reativar o acesso.
+    // TRAZ TAMBÉM QUEM ESTÁ DESLIGADO, e desde a 0135 a lista os DESENHA: ela
+    // abria filtrada em "ativos", e o padrão virou "todos" por decisão do
+    // usuário — *"todos na mesma página, sem separar ninguém"*. O selo
+    // "Desligado" da última coluna é o que diz quem é quem.
     const equipe = await listarEquipe(true);
     return <ListaDaEquipe equipe={equipe} />;
   }

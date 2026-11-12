@@ -8,10 +8,16 @@
  *   - um APAGAMENTO, que e o unico selo em tom de erro;
  *   - uma linha SEM PESSOA, para a tela escrever "sistema" em vez de deixar
  *     branco -- o seed e a chave de servico escrevem sem sessao;
- *   - um valor NULO virando "(vazio)", senao a linha sai com um buraco que
- *     parece defeito;
- *   - um INSERT com muitos campos, para a celula cortar em cinco e dizer
- *     quantos sobraram em vez de empurrar a tabela para fora da tela.
+ *   - e, desde a 0135, uma BUSCA que casa: a coluna "O que mudou" saiu da
+ *     tabela, e o campo encontrado e a unica coisa que diz por que aquela
+ *     linha esta no resultado. Sem o stub busca-lo, a peca nova nao sairia em
+ *     imagem nenhuma -- a lição da duplicata do Cronograma.
+ *
+ * O `antes`/`depois` CONTINUA AQUI DENTRO, e deixou de sair daqui: a funcao de
+ * verdade procura dentro dele no Postgres e devolve so o campo que casou. O
+ * stub faz a mesma coisa em TypeScript -- guardar o jsonb e a unica forma de
+ * ele poder responder a busca, e devolve-lo seria a coluna voltando por outro
+ * caminho.
  *
  * As datas sao relativas a hoje. Data fixa envelhece, e meses depois a imagem
  * mostra uma auditoria que parece abandonada -- o mesmo criterio do stub do
@@ -22,6 +28,7 @@ import type {
   LinhaDaAuditoria,
   PaginaDaAuditoria,
 } from "../../src/lib/dados/auditoria";
+import type { Operacao } from "../../src/lib/dominio/auditoria";
 
 export type { FiltrosDaAuditoria, LinhaDaAuditoria, PaginaDaAuditoria };
 
@@ -32,7 +39,19 @@ function horasAtras(quantas: number): string {
 const ANA = { id: "a0000000-0000-0000-0000-000000000001", nome: "Ana Souza" };
 const DIEGO = { id: "a0000000-0000-0000-0000-000000000002", nome: "Diego Lima" };
 
-const LINHAS: LinhaDaAuditoria[] = [
+/** A linha como ela mora no banco: com o que mudou dentro. */
+type NoBanco = {
+  id: string;
+  tabela: string;
+  registroId: string | null;
+  operacao: Operacao;
+  quando: string;
+  quem: { id: string; nome: string } | null;
+  antes: Record<string, unknown> | null;
+  depois: Record<string, unknown> | null;
+};
+
+const LINHAS: NoBanco[] = [
   {
     id: "au-1",
     tabela: "profiles",
@@ -108,12 +127,44 @@ const LINHAS: LinhaDaAuditoria[] = [
     tabela: "clients",
     registroId: "c0000000-0000-0000-0000-00000000000b",
     operacao: "UPDATE",
+    // ELA E A LINHA QUE A BUSCA ENCONTRA, e e por isso que ela renomeia a
+    // empresa: `registrar_auditoria()` grava so as colunas que mudaram, entao
+    // o nome de um cliente so esta na linha em que ele FOI o que mudou. Com
+    // ela aqui, a imagem da busca por "Optica" mostra o campo encontrado --
+    // e a de sem acento mostra que `sem_acento()` dobra os dois lados.
     quando: horasAtras(74),
     quem: DIEGO,
-    antes: { telefone: null, contato: "" },
-    depois: { telefone: "(11) 98888-1122", contato: "Otto Visão" },
+    antes: { nome_empresa: "Otica Visao", telefone: null },
+    depois: { nome_empresa: "Óptica Visão", telefone: "(11) 98888-1122" },
   },
 ];
+
+/** Dobra caixa e acento, como `sem_acento()` no Postgres (0073). */
+function semAcento(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+/**
+ * O campo que casou, na ordem de `depois` antes de `antes`.
+ *
+ * E a mesma ordem do `left join lateral` da 0135: os dois valores sao
+ * procurados -- quem busca o nome ANTIGO acha a linha que o trocou -- e o de
+ * depois e o que aparece.
+ */
+function encontrar(linha: NoBanco, termo: string) {
+  const alvo = semAcento(termo);
+  for (const documento of [linha.depois, linha.antes]) {
+    for (const [campo, valor] of Object.entries(documento ?? {})) {
+      if (valor === null || valor === undefined) continue;
+      const texto = String(valor);
+      if (semAcento(texto).includes(alvo)) return { campo, valor: texto };
+    }
+  }
+  return null;
+}
 
 export async function trilhaDeAuditoria(
   filtros: FiltrosDaAuditoria,
@@ -121,7 +172,35 @@ export async function trilhaDeAuditoria(
   let linhas = LINHAS;
   if (filtros.tabela) linhas = linhas.filter((l) => l.tabela === filtros.tabela);
   if (filtros.quem) linhas = linhas.filter((l) => l.quem?.id === filtros.quem);
-  return { linhas, temMais: false };
+
+  const termo = filtros.busca?.trim() ?? "";
+
+  const comBusca = linhas.map((linha) => ({
+    linha,
+    encontrado: termo === "" ? null : encontrar(linha, termo),
+  }));
+
+  const visiveis =
+    termo === ""
+      ? comBusca
+      : comBusca.filter(
+          (l) =>
+            l.encontrado !== null ||
+            semAcento(l.linha.quem?.nome ?? "").includes(semAcento(termo)),
+        );
+
+  return {
+    temMais: false,
+    linhas: visiveis.map(({ linha, encontrado }) => ({
+      id: linha.id,
+      tabela: linha.tabela,
+      registroId: linha.registroId,
+      operacao: linha.operacao,
+      quando: linha.quando,
+      quem: linha.quem,
+      encontrado,
+    })),
+  };
 }
 
 export async function quemApareceNaAuditoria(): Promise<{ id: string; nome: string }[]> {

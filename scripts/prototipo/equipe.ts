@@ -9,9 +9,10 @@ export type MembroDaEquipe = Profile & { membro: TeamMember | null };
 
 /**
  * A assinatura precisa bater com a do modulo real, que a pagina de Equipe
- * chama com `true` para tambem trazer quem foi desligado. No conjunto de
- * exemplo ninguem esta desligado, entao o filtro nao muda o resultado -- mas
- * ele existe para o exemplo nao mentir sobre o comportamento.
+ * chama com `true` para tambem trazer quem foi desligado -- e desde que o
+ * conjunto de exemplo tem UMA pessoa desligada, o parametro passou a mudar o
+ * resultado de verdade. Ate aqui ele nao mudava nada, e era essa a razao pela
+ * qual nenhuma imagem mostrava a linha de quem saiu.
  */
 export async function listarEquipe(incluirDesligados = false): Promise<MembroDaEquipe[]> {
   const todos = EQUIPE_EXEMPLO as unknown as MembroDaEquipe[];
@@ -24,8 +25,20 @@ export async function obterColaborador(id: string): Promise<MembroDaEquipe | nul
   );
 }
 
+/**
+ * QUEM PODE RECEBER TRABALHO, e por isso ela FILTRA -- o que o stub nao fazia.
+ *
+ * A de producao chama `listarEquipe(false)` (que recorta `profiles.ativo`) e
+ * ainda descarta `membro.ativo === false`; esta mapeava o conjunto inteiro.
+ * Era um bug latente: so nao aparecia porque ninguem no exemplo estava
+ * desligado. Com a Helena no array, sem o filtro todo seletor de responsavel
+ * do prototipo passaria a oferecer quem saiu da agencia -- o exemplo mostrando
+ * um estado que o produto nao tem, e degradando dezenas de imagens velhas.
+ */
 export async function listarEquipeAtiva() {
-  return EQUIPE_EXEMPLO.map((pessoa) => ({
+  return EQUIPE_EXEMPLO.filter(
+    (pessoa) => pessoa.ativo && pessoa.membro?.ativo !== false,
+  ).map((pessoa) => ({
     id: pessoa.id,
     nome: pessoa.nome,
     email: pessoa.email,

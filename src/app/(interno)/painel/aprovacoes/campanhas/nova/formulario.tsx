@@ -350,7 +350,25 @@ export function FormularioDeCampanha({
             formato: l.formato,
             dimensoes: l.dimensoes,
           })),
-          templateId: templateId === SEM_MODELO ? null : templateId,
+          // SÓ O MODELO DE CAMPANHA VIAJA COMO PROCEDÊNCIA, nunca o
+          // workflow — e isto é conserto, não zelo.
+          //
+          // `templateId` vira `p_template` em `abrir_campanha()`, que grava
+          // `campaigns.template_id` — uma chave estrangeira para
+          // `campaign_templates` (0033). Com um workflow escolhido, o valor
+          // do seletor é um id de `task_types`, e o `insert` era **recusado
+          // pela chave estrangeira**: mesmo com a árvore montada, "Criar
+          // campanha" falhava com um erro de banco cru. Era o segundo bug
+          // desta mesma linha.
+          //
+          // E ele continuaria errado se a chave aceitasse: a coluna responde
+          // *de qual modelo de campanha esta árvore saiu*, e um workflow não
+          // é um. É a razão pela qual "Montar a lista" devolve o seletor a
+          // "Montar do zero" em vez de deixá-lo apontando para um modelo que
+          // não produziu a árvore.
+          templateId: templates.some((t) => t.id === templateId)
+            ? templateId
+            : null,
           vertenteId: vertenteId === SEM_VERTENTE ? null : vertenteId,
           estrutura: arvore
             // Linha em branco não vira entregável: quem clicou em "adicionar"
@@ -814,7 +832,15 @@ export function FormularioDeCampanha({
                   {workflows.map((w) => (
                     <SelectItem key={w.id} value={w.id}>
                       {w.nome}
-                      {w.etapas > 0 ? ` · ${w.etapas} etapa(s)` : ""}
+                      {/* O ZERO É DITO, e não omitido: um workflow nasce com
+                          `etapas: []` por padrão, então "cadastrado e ainda
+                          sem cadeia" é um estado comum — e é o único que esta
+                          tela recusa. Sem a frase, a linha parecia igual às
+                          outras e a recusa chegava depois do clique. Pinta-se
+                          a exceção, que aqui é o vazio. */}
+                      {w.etapas > 0
+                        ? ` · ${w.etapas} etapa(s)`
+                        : " · ainda sem etapas"}
                     </SelectItem>
                   ))}
                 </SelectGroup>

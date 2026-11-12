@@ -17,6 +17,21 @@ import type { Operacao } from "@/lib/dominio/auditoria";
  * legítimo — "ninguém mexeu em nada neste período". As duas coisas são
  * indistinguíveis, e a errada é a que diz que não houve mudança nenhuma numa
  * agência que trabalhou a semana inteira.
+ *
+ * ---------------------------------------------------------------------------
+ * **QUEM LÊ É UMA RPC DESDE A 0135, e a razão é a BUSCA.** A tela traz as 80
+ * mais recentes do recorte; filtrar aquelas 80 no navegador seria uma busca
+ * que responde "não achei" sobre uma trilha onde a linha existe. E o predicado
+ * não cabe no PostgREST: não há como escrever `antes::text ilike …` num
+ * filtro, e o nome de quem mexeu mora em `profiles`.
+ *
+ * **A função NÃO é `security definer`** — é a forma de `busca_global()` (0073):
+ * a policy vale dentro dela, então ela não é a porta dos fundos da trilha do
+ * sócio. É também por isso que a consulta de nomes desapareceu daqui: o
+ * `left join profiles` de dentro dela passa pela policy daquela tabela (0132),
+ * e uma segunda ida ao banco para resolver os mesmos nomes seria uma segunda
+ * resposta para a mesma pergunta.
+ * ---------------------------------------------------------------------------
  */
 
 export type LinhaDaAuditoria = {
@@ -27,8 +42,15 @@ export type LinhaDaAuditoria = {
   quando: string;
   /** Nulo quando a escrita veio do seed, de uma rotina ou da chave de serviço. */
   quem: { id: string; nome: string } | null;
-  antes: Record<string, unknown> | null;
-  depois: Record<string, unknown> | null;
+  /**
+   * O CAMPO QUE A BUSCA ENCONTROU, e nulo quando não há termo.
+   *
+   * **Isto não é a coluna "O que mudou" de volta** — ela saiu da tabela em
+   * todo estado, por decisão do usuário. Esta é uma linha só, e ela existe
+   * para dizer POR QUE aquela linha está no resultado: um recorte que a pessoa
+   * não tem como conferir é pior que um recorte a menos.
+   */
+  encontrado: { campo: string; valor: string } | null;
 };
 
 export type FiltrosDaAuditoria = {
@@ -36,6 +58,7 @@ export type FiltrosDaAuditoria = {
   quem?: string | null;
   de?: string | null;
   ate?: string | null;
+  busca?: string | null;
   /** Quantas linhas trazer. A tela pede uma a mais para saber se há próxima. */
   limite: number;
 };
@@ -51,34 +74,24 @@ export async function trilhaDeAuditoria(
 ): Promise<PaginaDaAuditoria> {
   const supabase = await criarClienteServidor();
 
-  let consulta = supabase
-    .from("audit_log")
-    .select("*")
-    .order("quando", { ascending: false })
-    // UMA A MAIS DO QUE CABE. É como se sabe que há próxima página sem pedir
-    // um `count` exato — que numa tabela que só cresce é uma varredura inteira
-    // para escrever um número que ninguém lê.
-    .limit(filtros.limite + 1);
-
-  if (filtros.tabela) consulta = consulta.eq("tabela", filtros.tabela);
-  if (filtros.quem) consulta = consulta.eq("quem", filtros.quem);
-  if (filtros.de) consulta = consulta.gte("quando", filtros.de);
-  // `ate` chega como data; o dia inteiro conta, então o corte é no fim dele.
-  if (filtros.ate) consulta = consulta.lt("quando", `${filtros.ate}T23:59:59.999Z`);
-
-  const linhas = ouFalha("a trilha de auditoria", await consulta);
+  const linhas = ouFalha(
+    "a trilha de auditoria",
+    await supabase.rpc("trilha_de_auditoria", {
+      p_tabela: filtros.tabela ?? null,
+      p_quem: filtros.quem ?? null,
+      p_de: filtros.de ?? null,
+      // `ate` chega como data; o dia inteiro conta, então o corte é no fim dele.
+      p_ate: filtros.ate ? `${filtros.ate}T23:59:59.999Z` : null,
+      p_busca: filtros.busca ?? null,
+      // UMA A MAIS DO QUE CABE. É como se sabe que há próxima página sem pedir
+      // um `count` exato — que numa tabela que só cresce é uma varredura
+      // inteira para escrever um número que ninguém lê.
+      p_limite: filtros.limite + 1,
+    }),
+  );
 
   const temMais = linhas.length > filtros.limite;
   const visiveis = temMais ? linhas.slice(0, filtros.limite) : linhas;
-
-  const ids = [...new Set(visiveis.map((l) => l.quem).filter(Boolean))] as string[];
-  const pessoas = ids.length
-    ? ouFalha(
-        "os nomes da auditoria",
-        await supabase.from("profiles").select("id, nome").in("id", ids),
-      )
-    : [];
-  const porId = new Map(pessoas.map((p) => [p.id, p]));
 
   return {
     temMais,
@@ -86,15 +99,17 @@ export async function trilhaDeAuditoria(
       id: l.id,
       tabela: l.tabela,
       registroId: l.registro_id,
-      operacao: l.operacao,
+      operacao: l.operacao as Operacao,
       quando: l.quando,
       // NOME QUE NÃO ESTÁ MAIS NO `profiles` NÃO VIRA LINHA EM BRANCO. Pessoa
       // desligada mantém o perfil (o produto nunca apaga quem tem histórico),
       // mas a coluna é `on delete set null` — se um dia a conta do Auth sair,
       // a auditoria continua dizendo que houve a mudança.
-      quem: l.quem ? (porId.get(l.quem) ?? { id: l.quem, nome: "Conta removida" }) : null,
-      antes: l.antes,
-      depois: l.depois,
+      quem: l.quem ? { id: l.quem, nome: l.quem_nome ?? "Conta removida" } : null,
+      encontrado:
+        l.campo_encontrado !== null
+          ? { campo: l.campo_encontrado, valor: l.valor_encontrado ?? "" }
+          : null,
     })),
   };
 }

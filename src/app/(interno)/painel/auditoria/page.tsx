@@ -12,8 +12,9 @@ import { ehSocio } from "@/lib/auth/roles";
 import { trilhaDeAuditoria, quemApareceNaAuditoria } from "@/lib/dados/auditoria";
 import {
   ROTULOS_DE_OPERACAO,
-  mudancasDe,
+  rotuloDaColuna,
   rotuloDaTabela,
+  valorLegivel,
   type Operacao,
 } from "@/lib/dominio/auditoria";
 
@@ -71,6 +72,7 @@ export default async function PaginaDeAuditoria({
           quem={texto("quem")}
           de={texto("de")}
           ate={texto("ate")}
+          busca={texto("busca")}
         />
       </Suspense>
     </div>
@@ -82,14 +84,16 @@ async function Conteudo({
   quem,
   de,
   ate,
+  busca,
 }: {
   tabela: string | null;
   quem: string | null;
   de: string | null;
   ate: string | null;
+  busca: string | null;
 }) {
   const [pagina, pessoas] = await Promise.all([
-    trilhaDeAuditoria({ tabela, quem, de, ate, limite: POR_PAGINA }),
+    trilhaDeAuditoria({ tabela, quem, de, ate, busca, limite: POR_PAGINA }),
     quemApareceNaAuditoria(),
   ]);
 
@@ -98,21 +102,49 @@ async function Conteudo({
       <FiltrosDaAuditoria pessoas={pessoas} />
 
       {pagina.linhas.length === 0 ? (
+        /*
+          DUAS FRASES PARA DOIS VAZIOS, e a distinção é a mesma da Biblioteca:
+          "nada neste recorte" e "não achei o que você digitou" são fatos
+          diferentes, e a primeira dita sobre uma busca manda a pessoa
+          desconfiar da trilha em vez do termo.
+
+          E a segunda diz o que a busca NÃO alcança: `registrar_auditoria()`
+          grava só as colunas que mudaram (0058), então o nome da empresa está
+          na linha quando foi ELE que mudou. Sem a frase, quem busca "Mundo
+          Verde" e não acha a troca de telefone dela conclui que a trilha não
+          registrou — e ela registrou.
+        */
         <p className="text-muted-foreground bg-surface-card rounded-lg border p-6 text-sm">
-          Nada registrado neste recorte. A trilha guarda mudanças de perfil de
-          acesso, de cliente, de ficha da equipe, do Financeiro e do Day Off —
-          e o apagamento de demanda, etapa, campanha, post e material.
+          {busca ? (
+            <>
+              Nada com <strong>{busca}</strong> neste recorte. A busca procura o
+              nome de quem mexeu e o conteúdo da mudança — e a trilha guarda só
+              as colunas que mudaram, então o nome de um cliente aparece na
+              linha em que ele foi cadastrado, apagado ou renomeado.
+            </>
+          ) : (
+            <>
+              Nada registrado neste recorte. A trilha guarda mudanças de perfil
+              de acesso, de cliente, de ficha da equipe, do Financeiro e do Day
+              Off — e o apagamento de demanda, etapa, campanha, post e material.
+            </>
+          )}
         </p>
       ) : (
         <>
           <div className="bg-surface-card overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[46rem] text-sm">
+            <table className="w-full min-w-[34rem] text-sm">
               <thead className="text-muted-foreground border-b text-left text-xs">
                 <tr>
                   <th className="px-3 py-2 font-medium">Quando</th>
                   <th className="px-3 py-2 font-medium">Quem</th>
+                  {/*
+                    "O QUE MUDOU" SAIU DA TABELA, por decisão do usuário
+                    (0135). Eram cinco linhas de `campo: a → b` mais "e mais 12
+                    campos" numa célula, em oitenta linhas — e o que entra no
+                    lugar é a busca, que procura dentro do que mudou.
+                  */}
                   <th className="px-3 py-2 font-medium">O quê</th>
-                  <th className="px-3 py-2 font-medium">O que mudou</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,9 +174,21 @@ async function Conteudo({
                         <SeloDaOperacao operacao={linha.operacao} />
                         <span>{rotuloDaTabela(linha.tabela)}</span>
                       </div>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Mudancas linha={linha} />
+                      {/*
+                        O CAMPO QUE A BUSCA ENCONTROU, e só quando há termo.
+                        Ele não é a coluna de volta: é UMA linha, e ela existe
+                        para dizer por que esta linha está no resultado — um
+                        recorte que a pessoa não tem como conferir é pior que um
+                        recorte a menos.
+                      */}
+                      {linha.encontrado ? (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {rotuloDaColuna(linha.encontrado.campo)}:{" "}
+                          <span className="text-text-primary font-medium">
+                            {valorLegivel(linha.encontrado.valor)}
+                          </span>
+                        </p>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -212,58 +256,5 @@ function SeloDaOperacao({ operacao }: { operacao: Operacao }) {
     <Badge className={`${tom} border-0`} variant="secondary">
       {ROTULOS_DE_OPERACAO[operacao]}
     </Badge>
-  );
-}
-
-/**
- * O que mudou, campo por campo.
- *
- * **"de → para" numa linha por campo**, e não dois blocos de JSON: o que a
- * pessoa quer saber é "o perfil da Joana virou sócio", e dois objetos lado a
- * lado obrigam a comparar chave por chave com o olho.
- *
- * No apagamento não há "para": mostra o que havia, que é a única coisa que
- * sobrou daquela linha.
- */
-function Mudancas({
-  linha,
-}: {
-  linha: { operacao: Operacao; antes: Record<string, unknown> | null; depois: Record<string, unknown> | null };
-}) {
-  const mudancas = mudancasDe(linha.antes, linha.depois);
-  if (mudancas.length === 0) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-
-  // CINCO CAMPOS E O RESTO CONTADO. Um INSERT traz a linha inteira, e vinte
-  // campos numa célula empurram a tabela para fora da tela — o mesmo bug de
-  // 375px que a barra de abas teve, por outro caminho.
-  const visiveis = mudancas.slice(0, 5);
-  const sobraram = mudancas.length - visiveis.length;
-
-  return (
-    <div className="space-y-0.5">
-      {visiveis.map((m) => (
-        <div key={m.coluna} className="flex flex-wrap items-baseline gap-1">
-          <span className="text-muted-foreground">{m.rotulo}:</span>
-          {linha.operacao === "UPDATE" ? (
-            <>
-              <span className="text-muted-foreground line-through">{m.de}</span>
-              <span aria-hidden className="text-muted-foreground">→</span>
-              <span className="font-medium">{m.para}</span>
-            </>
-          ) : (
-            <span className="font-medium">
-              {linha.operacao === "DELETE" ? m.de : m.para}
-            </span>
-          )}
-        </div>
-      ))}
-      {sobraram > 0 ? (
-        <p className="text-muted-foreground text-xs">
-          e mais {sobraram} {sobraram === 1 ? "campo" : "campos"}
-        </p>
-      ) : null}
-    </div>
   );
 }

@@ -176,6 +176,40 @@ export const EQUIPE_EXEMPLO = [
       desligado_em: null, created_at: "2025-04-02T10:00:00.000Z",
     },
   },
+  // ELA ESTA DESLIGADA, e sem ela a lista de Equipe nao prova a mudanca: ate
+  // aqui o conjunto de exemplo tinha so gente ativa, e o padrao do filtro
+  // "Situacao" indo de "ativos" para "todos" sairia na MESMA imagem. E a licao
+  // da duplicata do Cronograma pela enesima vez -- um ambiente de exemplo que
+  // mostra o produto no unico estado em que a mudanca e invisivel.
+  //
+  // ELA E A ULTIMA DO ARRAY de proposito: `obterMinhaFicha` acha a pessoa pelo
+  // `role`, e uma `colaborador` antes da Carla trocaria o cargo do cartao do
+  // menu em toda tela rodada como colaborador.
+  //
+  // E A FUNCAO E `Redator` por coerencia com o que o produto ja desenha: o
+  // stub dos padroes da conta diz que a etapa de Redator e a que fica sem
+  // dono, e uma Redatora que saiu da agencia e exatamente por que a conta nao
+  // tem ninguem naquela funcao.
+  //
+  // SEM DATA DE NASCIMENTO: `aniversarios_do_periodo()` (0130) le quem esta
+  // ativo, e um aniversario dela no Calendario Full seria o exemplo mentindo
+  // na outra direcao.
+  {
+    id: "a0000000-0000-0000-0000-000000000008",
+    email: "redacao@fullconnectkey.com.br",
+    nome: "Helena Braga",
+    role: "colaborador" as const,
+    avatar_url: null,
+    ativo: false,
+    deve_trocar_senha: false,
+    created_at: "2024-09-09T10:00:00.000Z",
+    membro: {
+      id: "t7", user_id: "a0000000-0000-0000-0000-000000000008",
+      cargo: "Redatora", area: "Criação", funcao: "Redator" as const,
+      data_admissao: "2024-09-09", data_nascimento: null, dias_ferias_ano: 15, max_parcelas_ferias: 2, ativo: false,
+      desligado_em: "2026-08-29", created_at: "2024-09-09T10:00:00.000Z",
+    },
+  },
 ];
 
 /** Clientes fictícios, já com responsável e contagem de acessos. */

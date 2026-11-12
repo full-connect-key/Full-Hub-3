@@ -87,7 +87,23 @@ export default async function PaginaDeNovaCampanha() {
         workflows={workflows
           .filter((w) => w.ativo && w.workflow !== null)
           .map((w) => ({
-            id: w.workflow!.id,
+            // O ID É O DO WORKFLOW E NUNCA O DA CADEIA DELE, e esta linha é
+            // um conserto: ela era `w.workflow!.id`.
+            //
+            // São duas tabelas — `task_types` guarda o nome e o alcance,
+            // `workflow_templates` guarda a cadeia —, e a tela nunca mostra a
+            // divisão. Quem recebe este id é `fluxoDoWorkflow()`, que procura
+            // em `task_types`: um id de `workflow_templates` não casa com
+            // linha nenhuma lá, então ela devolvia `null` e a tela dizia
+            // *"Este workflow não foi encontrado, ou não tem cadeia de
+            // etapas"* — **para todo workflow, inclusive os que têm etapas**.
+            // A metade de tela da 0108 nunca funcionou.
+            //
+            // E o id tem de ser este também porque é o que o seletor da TELA
+            // DE TASK carrega (`task.task_type_id`): a mesma escolha
+            // significando duas coisas em duas telas é onde a troca se
+            // esconde de novo.
+            id: w.id,
             // O NOME DIZ DE QUEM É quando o workflow é de uma conta: no
             // seletor de uma campanha da Mundo Verde, "Campanha" da Óptica
             // Visão e "Campanha" da casa seriam duas linhas iguais.

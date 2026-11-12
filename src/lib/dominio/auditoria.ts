@@ -128,32 +128,20 @@ export function valorLegivel(valor: unknown): string {
   return JSON.stringify(valor);
 }
 
-export type MudancaDeCampo = {
-  coluna: string;
-  rotulo: string;
-  de: string;
-  para: string;
-};
-
 /**
- * As mudanças de uma linha, prontas para desenhar.
+ * `mudancasDe()` E `MudancaDeCampo` SAÍRAM, e a ausência é decisão do usuário:
+ * *"pode tirar da auditoria a parte de o que mudou"* (0135).
  *
- * A ordem é a das chaves do `depois`, e num DELETE a do `antes`. Ordenar
- * alfabeticamente poria "ativo" antes de "nome" em toda linha, e o que a
- * pessoa procura primeiro quase nunca começa com A.
+ * Elas montavam o diff campo por campo, e a tabela deixou de desenhá-lo em
+ * todo estado. **Apagar e não aposentar**, que é a decisão da 0023: um
+ * `export` sem chamador atravessa o `tsc`, o `lint` e o `build`, e é o que
+ * alguém reaproveita três sprints depois achando que a tela ainda mostra
+ * aquilo.
+ *
+ * `rotuloDaColuna()` e `valorLegivel()` FICARAM, com um consumidor cada: a
+ * busca da 0135 devolve o CAMPO que casou, e são os dois que o escrevem em
+ * português — o nome da coluna e o valor dela.
  */
-export function mudancasDe(
-  antes: Record<string, unknown> | null,
-  depois: Record<string, unknown> | null,
-): MudancaDeCampo[] {
-  const chaves = Object.keys(depois ?? antes ?? {});
-  return chaves.map((coluna) => ({
-    coluna,
-    rotulo: rotuloDaColuna(coluna),
-    de: valorLegivel(antes?.[coluna] ?? null),
-    para: valorLegivel(depois?.[coluna] ?? null),
-  }));
-}
 
 /**
  * As tabelas que o filtro oferece.

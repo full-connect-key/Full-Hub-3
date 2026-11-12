@@ -2866,6 +2866,62 @@ para criar o modelo sem a cadeia (a task nascia vazia) ou a cadeia sem o modelo
 - "Salvar as subtarefas desta task como workflow" grava o **modelo** junto com
   a cadeia. Gravar só a cadeia deixava o resultado inalcançável.
 
+#### E A CAMPANHA MANDAVA O ID DA CADEIA ONDE O WORKFLOW É PEDIDO
+
+Relato do usuário: *"quando aplico um workflow aparece que o workflow não foi
+encontrado ou não tem etapas, mesmo que ele exista"*. Ele estava certo, e a
+frase é literal: a tela respondia isso **para todo workflow, inclusive os que
+têm etapas** — a metade de tela da 0108 nunca funcionou.
+
+**A CAUSA É A DIVISÃO EM DUAS TABELAS, e é ela que esta seção acabou de
+descrever como *"detalhe de armazenamento"*.** O seletor da nova campanha
+montava cada opção com `w.workflow!.id` — o id da CADEIA
+(`workflow_templates`) —, e quem recebe esse id é `fluxoDoWorkflow()`, que
+procura em **`task_types`**. Um id de uma tabela não casa com linha nenhuma da
+outra, então a leitura devolvia `null` e a recusa saía sempre.
+
+**O NOME DO PARÂMETRO FOI O QUE ESCONDEU ISSO.** A action chamava o argumento
+dela de `templateId`, que é exatamente o que a tela mandava — então os dois
+lados concordavam, e `fluxoDoWorkflow(tipoId)` era o único que discordava, do
+lado de dentro. É a lição da 0109 em outra forma: ali a lista de tipos de
+evento estava copiada e a cópia ficou com sete; aqui o id estava certo para a
+tabela errada, e **nenhuma verificação pega isso** — os dois são `string`, o
+`tsc` não liga uma coluna de `task_types` a uma de `workflow_templates`, e
+`check:tipos` liga migration a tipo e não um id ao seu dono. Hoje os três
+nomes dizem `tipoId`.
+
+**E O ID TEM DE SER O DO WORKFLOW porque é o que a outra tela já carrega:** no
+detalhe da demanda o seletor vale `task.task_type_id`, porque é ele que fica
+gravado. A mesma escolha significando duas coisas em duas telas é onde a troca
+se esconde de novo.
+
+**ERAM DOIS BUGS NA MESMA LINHA, e o segundo é pior.** O valor do seletor
+viaja para `criarCampanha` como PROCEDÊNCIA da estrutura e vira
+`campaigns.template_id` — **chave estrangeira para `campaign_templates`**
+(0033). Com um workflow escolhido, o `insert` era recusado pela chave: mesmo
+com a árvore montada, "Criar campanha" falhava com um erro de banco cru. Hoje
+só o modelo de campanha viaja ali, e a razão não é só a chave: a coluna
+responde *de qual modelo de campanha esta árvore saiu*, e um workflow não é um
+— é a decisão de "Montar a lista" devolver o seletor a "Montar do zero".
+
+**CADEIA VAZIA DEIXOU DE SER "ÁRVORE MONTADA".** `esquemaDeWorkflow` tem
+`etapas: z.array(...).default([])`, então "cadastrado e ainda sem cadeia" é um
+estado comum — e escolher um desses **apagava** a árvore que estava na tela e
+respondia *"Árvore montada a partir do workflow"*: a tela afirmando que montou
+o que ela acabou de limpar. Agora ela recusa com o caminho, que é a mesma
+recusa que `aplicarWorkflowNaTask` já fazia do outro lado, e **o seletor diz
+"· ainda sem etapas"** na linha — pinta-se a exceção, que aqui é o vazio.
+
+***E A IMAGEM QUE PEGARIA ISTO FOI DECLARADA AUSENTE, o que fica registrado
+porque é a lição que sobra.*** O comentário da tela no gerador diz, desde a
+0108, que a campanha com o workflow aplicado **não tem imagem** — a action
+chama `is_atendimento()` no banco e o protótipo não tem Supabase —, e fecha
+com *"o que a imagem provaria se confere na tela, logado"*. Ninguém conferiu.
+O stub de `fluxoDoWorkflow` do protótipo é fiel ao de produção (procura em
+`TIPOS` pelo `tipoId`), então **uma imagem teria falhado no primeiro dia**.
+Dar a ela um segundo stub de _action_ é decisão própria: a 0128 abriu o
+primeiro com a razão escrita e dizendo que não era "a abertura de uma série".
+
 ### Demandas recorrentes
 
 `task_recurrences` guarda a regra, `recurrence_runs` guarda cada execução —
@@ -10923,6 +10979,53 @@ antigos viram 308 em `ROTAS_RENOMEADAS`, e **as fichas vêm primeiro na lista**:
 o Next casa na ordem, e `/painel/clientes/:id` precisa ser testado antes de
 `/painel/clientes`, senão a ficha cai na lista e o id se perde no caminho.
 
+#### A EQUIPE INTEIRA NUMA PÁGINA, sem separar ninguém
+
+Decisão do usuário: *"coloque na parte de equipe, todos na mesma página, sem
+separar ninguém"*.
+
+**NÃO HAVIA AGRUPAMENTO NENHUM, e é isso que torna o pedido preciso.** A lista
+de Equipe é uma `DataTable` sem cabeçalho de grupo — ao contrário da Lista de
+Minhas Tasks e da da Gestão de Tasks, que agrupam por status. O que separava
+gente eram **duas coisas que ninguém escolheu de propósito**:
+
+| O que separava | O que a pessoa via |
+| --- | --- |
+| o filtro "Situação" abrindo em **"ativos"** | quem saiu da agência não estava na tela |
+| `pageSize={12}` | a sétima pessoa em diante atrás de um "próxima página" |
+
+**A PAGINAÇÃO ERA O PIOR DOS DOIS, porque ela não se anuncia.** A `DataTable`
+só desenha os controles quando as linhas passam do tamanho da página, então numa
+agência de nove pessoas ela não aparecia; com a décima terceira, três quartos da
+equipe passam a morar numa segunda página sem nada na tela dizendo que a lista
+cresceu. **O teto de 200 não é um truque:** ele é o tamanho da página, e a
+`DataTable` volta a paginar sozinha no dia em que a agência passar dele — que é
+o estado em que uma página só deixa de ser uma boa ideia.
+
+**E O FILTRO FICA, com o padrão trocado.** Ele não é o que separava — o padrão
+era; e *"só os desligados"* é uma pergunta de verdade na tela em que se reativa
+um acesso. O que distingue quem saiu passou a ser o selo **"Desligado"** na
+linha dela, que é a decisão da matriz do Day Off: **pinta-se a exceção**, em vez
+de esconder a linha.
+
+***E O EXEMPLO DO PROTÓTIPO NÃO PROVAVA NADA, o que é a parte que custou mais
+que a mudança.*** `EQUIPE_EXEMPLO` tinha só gente ativa — o comentário do stub
+dizia isso em quantas palavras, *"no conjunto de exemplo ninguém está
+desligado, então o filtro não muda o resultado"* —, então o padrão indo de
+"ativos" para "todos" sairia na **mesma imagem**. É a lição da duplicata do
+Cronograma pela enésima vez: um ambiente de exemplo que mostra o produto no
+único estado em que a mudança é invisível. Entrou a **Helena Braga**, Redatora
+desligada em agosto — e ela é a última do array, porque `obterMinhaFicha` acha
+a pessoa pelo `role` e uma `colaborador` antes da Carla trocaria o cargo do
+cartão do menu em toda tela rodada como colaborador.
+
+***E ISSO ENCONTROU UM BUG LATENTE NO STUB:*** `listarEquipeAtiva` mapeava o
+conjunto INTEIRO, enquanto a de produção chama `listarEquipe(false)` e ainda
+descarta `membro.ativo === false`. Só não doía porque ninguém estava desligado;
+com a Helena no array e sem o filtro, **todo seletor de responsável do protótipo
+passaria a oferecer quem saiu da agência** — o exemplo mentindo na outra
+direção, e degradando dezenas de imagens velhas de uma vez.
+
 #### A ÁREA DEIXOU DE SER UM CAMPO, e o day off nasce com 15 e não 30
 
 Duas correções na mesma tela, as duas relatadas pelo usuário: *"quando vou
@@ -15981,6 +16084,85 @@ importa.
 tem que aparecer no painel do sócio **e** faltar no do desenvolvedor. Só a
 primeira metade passaria numa tela que parou de mostrar o item para todo
 mundo; só a segunda passaria numa tela que nunca existiu.
+
+#### O DIFF SAIU DA TABELA, E NO LUGAR DELE ENTROU A BUSCA (0135)
+
+Decisão do usuário, em duas frases: *"adicionar aba de pesquisa na auditoria"*
+e *"pode tirar da auditoria a parte de o que mudou"*.
+
+**AS DUAS SÃO A MESMA MUDANÇA, e é por isso que elas saem juntas.** A coluna
+"O que mudou" era a única coisa da linha com conteúdo — *"Mudou · Cliente"* não
+diz qual cliente —, e ela dizia isso do jeito mais caro possível: cinco linhas
+de `campo: a → b` mais "e mais 12 campos", numa célula de tabela, em oitenta
+linhas. Tirando só a coluna, a trilha pararia de responder a pergunta que ela
+existe para responder; o que entra no lugar é a busca, **que procura dentro do
+que mudou**.
+
+**A LINHA ENCONTRADA MOSTRA O CAMPO QUE CASOU, e só quando há termo.** Não é a
+coluna de volta: é UMA linha, e ela existe para dizer *por que esta linha está
+no resultado* — **um recorte que a pessoa não tem como conferir é pior que um
+recorte a menos**, que é a decisão do filtro de formato da Biblioteca e a do
+selo de vertente no board.
+
+**A BUSCA PRECISA SER DO BANCO, e é isso que obriga a migration.** A tela traz
+as 80 mais recentes do recorte; filtrar aquelas 80 no navegador seria uma busca
+que responde *"não achei"* sobre uma trilha onde a linha existe — plausível e
+errado. E o predicado não cabe no PostgREST: não há como escrever
+`antes::text ilike …` num filtro, e o nome de quem mexeu mora em `profiles`.
+
+**`trilha_de_auditoria()` NÃO É `security definer`, e é a linha que mais importa
+do arquivo.** `audit_log_select` fecha em `is_socio()` desde a 0058, e **um log
+é tão sensível quanto a coisa mais sensível que tem dentro dele**. Uma função
+`invoker` roda com o `current_user` de quem chamou, então a policy vale DENTRO
+dela — é a forma de `busca_global()` (0073), e é por ela que esta função não
+vira a porta dos fundos da trilha do sócio. **E com isso a consulta de nomes
+saiu de `lib/dados/`:** o `left join profiles` de dentro dela passa pela policy
+daquela tabela (0132), e uma segunda ida ao banco para resolver os mesmos nomes
+seria uma segunda resposta para a mesma pergunta.
+
+**ELA NÃO DEVOLVE `antes` NEM `depois`.** Devolver os dois jsonb e deixar a tela
+escolher o que desenhar seria a coluna de volta por outro caminho — e seria
+payload morto no tipo, que é o que a 0023 apaga. O que viaja é o campo que
+casou. `mudancasDe()` e `MudancaDeCampo` foram **apagadas** pela mesma razão:
+um `export` sem chamador atravessa o `tsc`, o `lint` e o `build`.
+
+**A UNIÃO DE `depois` E `antes` É ORDENADA, e não um `||` de jsonb:** o operador
+deixa o lado direito ganhar, então um merge perderia o valor ANTIGO de um campo
+que mudou — quem busca o nome que a empresa tinha não acharia a linha que o
+trocou. Na união os dois são procurados e o `order by` faz o de DEPOIS ser o que
+aparece. E o `left join lateral` decide se a linha casou **e** devolve o campo:
+duas passadas pelo mesmo jsonb seriam duas verdades sobre qual campo foi, e a
+que divergiria é a que aparece.
+
+***O QUE A BUSCA NÃO ACHA, e é dito na própria tela:*** `registrar_auditoria()`
+grava **só as colunas que mudaram**, então num UPDATE o nome da empresa só está
+na linha se foi ELE que mudou — buscar "Mundo Verde" não acha a troca de
+telefone dela. No INSERT e no DELETE o jsonb é a linha inteira, e aqueles dois
+são justamente os que a tela existe para responder: *"quem apagou"* está no
+subtítulo dela. Resolver o UPDATE exigiria ler a tabela de origem por linha, com
+um `case` por tabela em SQL dinâmico — uma segunda lista das tabelas auditadas
+ao lado da da 0058, e a que divergiria seria a nova. **Por isso o vazio tem duas
+frases:** "nada neste recorte" e "nada com <termo>", e a segunda diz o limite —
+sem ela, quem busca e não acha conclui que a trilha não registrou.
+
+**O CAMPO É SOLTO, COM `key` NA PALAVRA DA URL**, e não um `useState`
+ressincronizado por efeito: `setState` no corpo de um efeito dispara
+renderização em cascata e o `react-hooks` do projeto reprova — a mesma linha que
+o editor de post pagou com `key` e que a faixa de disponibilidade pagou
+derivando. E a `key` é o que faz "Limpar" limpar o campo também.
+
+**E ELE SÓ VAI PARA A URL NO ENTER (ou no `blur`)**, ao contrário dos outros
+quatro filtros: eles são um clique, e este é texto. Levando cada tecla à URL,
+cada letra seria uma navegação de servidor e uma consulta nova numa tabela que
+só cresce. **E não é o debounce de 600 ms da tela de task:** lá o campo é a
+coisa que se grava, aqui ele é o recorte de uma lista — quem digita um termo sabe
+quando acabou, e o Enter é esse momento.
+
+***E a imagem precisou de um TERMO na URL***, porque o campo encontrado só é
+desenhado quando há busca: sem `99g-auditoria-busca` a peça nova não sairia em
+imagem nenhuma. O termo vai **sem acento** de propósito — a linha que ele acha
+renomeia a empresa para "Óptica Visão", então a mesma imagem prova a dobra de
+`sem_acento()` e o campo encontrado.
 
 ### A tela se atualiza quando outra pessoa mexe
 

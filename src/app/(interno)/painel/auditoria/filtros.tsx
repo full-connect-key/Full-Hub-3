@@ -1,8 +1,10 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -46,10 +48,19 @@ export function FiltrosDaAuditoria({
     parametros.has("tabela") ||
     parametros.has("quem") ||
     parametros.has("de") ||
-    parametros.has("ate");
+    parametros.has("ate") ||
+    parametros.has("busca");
 
   return (
     <div className="flex flex-wrap items-end gap-2">
+      {/*
+        A BUSCA VEM PRIMEIRO, e é o que entrou no lugar da coluna "O que
+        mudou" (0135): ela procura o nome de quem mexeu e o conteúdo da
+        mudança, e é a única coisa desta barra que alcança o que a tabela
+        deixou de desenhar. Os outros quatro recortam dimensões que a tabela
+        mostra — tabela, pessoa, data.
+      */}
+      <Busca />
       <label className="flex flex-col gap-1">
         <span className="text-muted-foreground text-xs font-medium">O quê</span>
         <Select
@@ -120,5 +131,78 @@ export function FiltrosDaAuditoria({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * O campo de busca da auditoria.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELE SÓ VAI PARA A URL NO ENTER (ou no `blur`)**, e a
+ * assimetria com os outros quatro filtros é deliberada: eles são um clique, e
+ * a busca é texto. Levando cada tecla à URL, cada letra digitada seria uma
+ * navegação de servidor e uma consulta nova — e a trilha é a tela mais pesada
+ * do painel, porque `audit_log` só cresce.
+ *
+ * **E ela NÃO é debounce de 600 ms**, como o título da task: ali o campo é a
+ * coisa que se grava, aqui ele é o recorte de uma lista — quem digita um
+ * termo de busca sabe quando acabou de digitar, e o Enter é esse momento. O
+ * `blur` existe pelo mesmo par da 0028: ele é o que recolhe quem digitou e
+ * clicou em outra coisa.
+ *
+ * **O valor mora na URL assim que é confirmado**, como todo filtro de
+ * listagem do produto: "olha o que aconteceu com a Mundo Verde" precisa ser um
+ * link que abre no mesmo lugar para quem recebe.
+ * ---------------------------------------------------------------------------
+ */
+function Busca() {
+  const router = useRouter();
+  const parametros = useSearchParams();
+  const naUrl = parametros.get("busca") ?? "";
+
+  function enviar(valor: string) {
+    const limpo = valor.trim();
+    if (limpo === naUrl) return;
+
+    const novos = new URLSearchParams(parametros.toString());
+    if (limpo === "") novos.delete("busca");
+    else novos.set("busca", limpo);
+    router.push(`/painel/auditoria?${novos.toString()}`);
+  }
+
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-muted-foreground text-xs font-medium">Procurar</span>
+      <div className="relative">
+        <Search
+          aria-hidden
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+        />
+        <Input
+          // O CAMPO E SOLTO, COM `key` NA PALAVRA DA URL, e nao um `useState`
+          // ressincronizado por efeito: `setState` no corpo de um efeito
+          // dispara renderizacao em cascata, e o `react-hooks` do projeto
+          // reprova -- a mesma linha que o editor de post pagou com `key` em
+          // vez de efeito, e que a faixa de disponibilidade pagou derivando.
+          //
+          // A `key` e o que faz "Limpar" limpar o campo tambem: sem ela o
+          // botao apagaria o recorte e deixaria a palavra escrita, dizendo que
+          // a lista esta filtrada por ela.
+          key={naUrl}
+          defaultValue={naUrl}
+          type="search"
+          aria-label="Procurar na auditoria"
+          placeholder="Nome, cliente, valor…"
+          className="h-9 w-56 pl-8"
+          onBlur={(e) => enviar(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              enviar(e.currentTarget.value);
+            }
+          }}
+        />
+      </div>
+    </label>
   );
 }

@@ -14,11 +14,37 @@ import { ROTULOS_DE_ROLE } from "@/lib/auth/roles";
 import { FUNCOES, ROTULOS_DE_FUNCAO, rotuloDaFuncao } from "@/lib/dominio/equipe";
 import type { MembroDaEquipe } from "@/lib/dados/equipe";
 
+/**
+ * QUANTAS LINHAS CABEM NUMA PÁGINA, e o número é um teto e não uma escolha.
+ *
+ * Decisão do usuário: *"coloque na parte de equipe, todos na mesma página, sem
+ * separar ninguém"*. A lista paginava de doze em doze, e numa agência de
+ * quinze pessoas isso parte a equipe em doze mais três — a tabela diz "13–15
+ * de 15" e as três últimas ficam numa segunda página que ninguém abre.
+ *
+ * **Não é `Infinity` nem um truque:** a `DataTable` só desenha a paginação
+ * quando há mais linhas que o tamanho da página, então duzentos é a agência
+ * inteira numa página — e no dia em que a Full tiver mais de duzentas pessoas
+ * a paginação volta sozinha, que é o comportamento certo e não um defeito.
+ */
+const TODA_A_EQUIPE_NUMA_PAGINA = 200;
+
 export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
   const [area, setArea] = useState(SEM_FILTRO);
   const [funcao, setFuncao] = useState(SEM_FILTRO);
   const [role, setRole] = useState(SEM_FILTRO);
-  const [status, setStatus] = useState("ativos");
+  // A LISTA ABRE COM TODO MUNDO, e não só com quem está ativo.
+  //
+  // Ela abria em "Ativos", e era a outra metade do *"sem separar ninguém"*:
+  // quem saiu da agência não aparecia, e a única forma de alcançá-lo era
+  // descobrir que o seletor de Situação tinha um segundo valor. **Quem saiu
+  // continua no produto** — ninguém com histórico é apagado aqui —, e o selo
+  // "Desligado" da última coluna é o que diz quem é quem, sem tirar ninguém da
+  // tela.
+  //
+  // O filtro FICA, porque "só os desligados" é uma pergunta de verdade na hora
+  // de reativar um acesso. O que mudou é o padrão.
+  const [status, setStatus] = useState(SEM_FILTRO);
 
   const areas = [...new Set(equipe.map((p) => p.membro?.area).filter(Boolean))] as string[];
 
@@ -107,7 +133,7 @@ export function ListaDaEquipe({ equipe }: { equipe: MembroDaEquipe[] }) {
       data={filtrados}
       columns={colunas}
       getRowId={(pessoa) => pessoa.id}
-      pageSize={12}
+      pageSize={TODA_A_EQUIPE_NUMA_PAGINA}
       searchPlaceholder="Buscar por nome, e-mail ou cargo…"
       emptyIcon={UserRound}
       emptyTitle={
