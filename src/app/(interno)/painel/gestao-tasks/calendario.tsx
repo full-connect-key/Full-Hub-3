@@ -37,7 +37,6 @@ import {
 import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import { cn } from "@/lib/utils";
 
-const SEM_FILTRO = "__todos__";
 const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
 /**
@@ -76,7 +75,8 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
  * responsável na visualização da task, dentro de gestão de task, visualização
  * de calendário"*. Ele não custa consulta nenhuma: `itensDoCalendario` já traz
  * `profiles(id, nome, avatar_url)` de cada responsável desde o Sprint 4 — era
- * o que alimentava o filtro "pauta de" deste cabeçalho. **A ponte estava
+ * o que alimentava o filtro "pauta de" que vivia neste cabeçalho e que saiu
+ * depois (o porquê está no lugar dele, mais abaixo). **A ponte estava
  * construída e ninguém a atravessava**, e quem a atravessa é a linha, que é
  * onde a pergunta é feita: *a arte vence quinta, quem está com ela?*
  *
@@ -94,12 +94,10 @@ const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
  */
 export function CalendarioDeTasks({
   itens,
-  equipe,
   prazos,
   aoAbrir,
 }: {
   itens: ItemDeCalendario[];
-  equipe: { id: string; nome: string }[];
   /** Régua de datas calculada no servidor, para não classificar por fuso. */
   prazos: { hoje: string; fimDaSemana: string };
   /** Quando existe, o item abre isto em vez de navegar para a página. */
@@ -108,18 +106,9 @@ export function CalendarioDeTasks({
   const router = useRouter();
   const [referencia, setReferencia] = useState(new Date());
   const [modo, setModo] = useState<"mes" | "semana">("mes");
-  const [responsavel, setResponsavel] = useState(SEM_FILTRO);
   // O DIA ABERTO EMBAIXO DA GRADE — decisão do usuário: *"quando tiver muitas
   // tasks no mesmo dia, deixe uma aba a ser aberta para mostrar todas"*.
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
-
-  const visiveis = useMemo(
-    () =>
-      responsavel === SEM_FILTRO
-        ? itens
-        : itens.filter((item) => item.responsavel?.id === responsavel),
-    [itens, responsavel],
-  );
 
   const dias = useMemo(() => {
     if (modo === "semana") {
@@ -136,11 +125,11 @@ export function CalendarioDeTasks({
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, ItemDeCalendario[]>();
-    for (const item of visiveis) {
+    for (const item of itens) {
       mapa.set(item.prazo, [...(mapa.get(item.prazo) ?? []), item]);
     }
     return mapa;
-  }, [visiveis]);
+  }, [itens]);
 
   // QUANTOS CABEM NA CÉLULA É POR VISÃO, porque a altura da célula é por
   // visão: `min-h-32` no mês e `min-h-64` na semana. O chip tem três linhas e
@@ -151,8 +140,8 @@ export function CalendarioDeTasks({
   const cabemNaCelula = modo === "semana" ? 6 : 3;
 
   // O DIA ABERTO É DERIVADO, e não sincronizado: se ele não está na grade de
-  // agora — porque alguém trocou de mês, de visão ou de responsável —, o
-  // painel não é desenhado. Guardar um `useEffect` para limpá-lo seria uma
+  // agora — porque alguém trocou de mês ou de visão —, o painel não é
+  // desenhado. Guardar um `useEffect` para limpá-lo seria uma
   // segunda verdade sobre qual dia está aberto, e é a razão pela qual atraso
   // não é coluna.
   const chavesNaGrade = useMemo(
@@ -226,34 +215,41 @@ export function CalendarioDeTasks({
             produziria "Setembro De 2026". */}
         <h2 className="text-sm font-medium first-letter:uppercase">{titulo}</h2>
 
+        {/* ------------------------------------------------------------------
+            O SELETOR DE RESPONSÁVEL SAIU DAQUI, e a ausência é a entrega.
+
+            Decisão do usuário: *"a aba de toda a equipe saia — deixando
+            apenas o filtro dos responsáveis"*. Ele era um `Select` de quinze
+            nomes com "Pauta de toda a equipe" na primeira linha, e o que
+            estava errado não era o rótulo: era ele existir.
+
+            **ERAM DOIS FILTROS PARA A MESMA PERGUNTA, e o de cima é o que
+            vale.** `BarraDeFiltrosDeTask` tem um seletor de Responsável desde
+            o Sprint 3, ele mora em `?responsavel=` — como todo filtro de
+            listagem deste produto — e **o servidor já o aplica aos itens
+            deste calendário**: `itensDoCalendario` descarta a etapa de outra
+            pessoa antes de a lista chegar aqui. Este, ao contrário, era
+            `useState` local: ele não sobrevive ao `refresh`, não entra no link
+            que alguém cola no chat, e some ao trocar de visão.
+
+            **E OS DOIS PODIAM SE CONTRADIZER.** Com a barra filtrando a Ana e
+            este seletor no Bruno, a grade saía vazia — duas respostas para
+            *de quem é este trabalho*, uma na URL e uma no componente, com a
+            tela afirmando que não há nada no mês.
+
+            **EM MINHAS TASKS ELE ERA PIOR QUE DUPLICATA.** Lá os itens vêm de
+            `itensPessoaisDoCalendario`, que traz só as etapas de quem está
+            olhando — então catorze dos quinze nomes do seletor só sabiam
+            esvaziar a tela, e o décimo quinto não mudava nada. É o
+            interruptor de luz da 0105 em outra forma.
+
+            **COM ELE FOI A PROP `equipe`**, que era o único leitor dela aqui —
+            e em `minhas-tasks` ela era o único leitor da prop do painel, o que
+            fez `listarEquipeAtiva()` deixar de ser consultada naquela tela. Em
+            Gestão de Tasks a lista FICA, porque a barra de filtros a usa: é
+            ela que desenha o rosto de cada pessoa no seletor que sobrou.
+            ------------------------------------------------------------------ */}
         <div className="ml-auto flex items-center gap-2">
-          <Select value={responsavel} onValueChange={setResponsavel}>
-            <SelectTrigger aria-label="Responsável" size="sm" className="w-48">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            {/* "PAUTA DE" FICA SÓ NO GENÉRICO, e sai dos nomes — decisão do
-                usuário: *"está escrito a todo momento 'pauta de Emerson
-                Aguiar, Pauta de Gabriela Oliveira…', isso está repetitivo e
-                ruim"*. Ele estava certo: com quinze pessoas a lista repetia a
-                mesma preposição quinze vezes, e o que a pessoa procura ali é
-                um NOME — as duas palavras na frente empurravam o sobrenome
-                para fora dos 192px do seletor.
-
-                A primeira linha mantém a frase porque ela não é um nome: ela
-                é o que o filtro faz quando ninguém escolhe ninguém, e
-                "Toda a equipe" sozinho não diz de que a tela está falando.
-                Quem diz para o leitor de tela é o `aria-label` do gatilho, que
-                continua sendo "Responsável". */}
-            <SelectContent>
-              <SelectItem value={SEM_FILTRO}>Pauta de toda a equipe</SelectItem>
-              {equipe.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <Select
             value={modo}
             onValueChange={(v) => setModo(v as "mes" | "semana")}

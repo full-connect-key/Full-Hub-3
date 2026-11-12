@@ -7923,9 +7923,12 @@ que o calendário usa para pôr o rosto em cada chip —, e a prop da barra de
 filtros estreitava o tipo para `{ id, nome }`. Alargar o tipo é a entrega
 inteira: **nenhuma consulta nova.**
 
-**O campo é OPCIONAL na `FilterBar`, e só o de Responsável o usa.** Os outros
-seletores daquela barra são cliente, vertente, prioridade e status — um círculo
-genérico neles afirmaria que existe alguém, que é a regra da pilha de avatares.
+**O campo é OPCIONAL na `FilterBar`, e ele nasceu com um consumidor só.** Os
+outros seletores daquela barra são cliente, vertente, prioridade e status — um
+círculo genérico neles afirmaria que existe alguém, que é a regra da pilha de
+avatares. *(O de CLIENTE passou a usá-lo depois, e a régua mudou de palavra sem
+mudar de sentido: ela é sobre haver uma identidade por trás da opção, e não
+sobre ser gente. Está logo abaixo.)*
 
 **`tooltip={false}`, pela razão do chip do calendário:** o item de um `Select`
 já é interativo, e um `TooltipTrigger` dentro dele é `nested-interactive` —
@@ -7951,6 +7954,100 @@ com a lista pela METADE DA OPACIDADE, e não era animação — o `Select` do Ra
 **fecha ao rolar**, e a captura de página inteira rola para costurar a imagem.
 O mecanismo para isso (`semRolagem`) já existia, com a razão escrita, desde o
 seletor de status da task.
+
+##### E A CONTA GANHOU A FOTO JUNTO, com a régua reescrita
+
+Decisão do usuário, sobre o filtro ao lado: *"no filtro de clientes apareça a
+foto deles"*.
+
+**A COLUNA EXISTE DESDE A 0002 e a tela não a pedia.** `clients.logo_url` nasceu
+naquela migration, `listarClientes()` faz `select("*")`, então ela já chegava à
+Gestão de Tasks — e a prop a descartava, como a do Responsável descartava
+`avatar_url`. É a mesma ponte, do lado da empresa.
+
+**O QUE ELA CUSTA A MAIS É A ASSINATURA, e é só isso.** O rosto da pessoa está
+em `profiles.avatar_url`, que é endereço; o logo mora no bucket PRIVADO
+`campanhas-arquivos`, e caminho de bucket num `src` é o navegador pedindo ao
+próprio site e levando 404 — o bug que `ImagemAssinada` existe para não deixar
+voltar. Quem assina é `contasComFoto()`, **numa ida só para a lista inteira**,
+porque `assinarArquivos` recebe um array.
+
+**E ELA É SEPARADA DE `clientesAtivos()`**, que é a decisão de `clientesComPasta()`
+palavra por palavra: aquela serve três abas, e a assinatura é uma ida ao Storage
+que duas delas não precisam — o seletor de Workflows e o editor de recorrência
+não desenham foto nenhuma. Ela parte de `listarClientes()`, que é `cache`, então
+não há segunda ida ao banco.
+
+**O CÍRCULO APARECE MESMO SEM LOGO, com as INICIAIS da empresa** — e isso é o
+contrário do que a capa do portal faz, onde a conta sem logo não desenha nada. A
+diferença é o que está em volta: lá é UMA identidade num cabeçalho, e um círculo
+a menos não custa nada; aqui são vinte e oito opções numa coluna, e metade com
+círculo e metade sem deixa a margem esquerda irregular — é por ela que o olho
+desce a lista. **"MV" é um signo de verdade**, que é o que o produto já faz com
+quem não tem foto, e é `UserAvatar` quem o desenha: uma segunda forma de fazer o
+círculo é onde o `object-cover` da foto achatada se perde.
+
+**E A RÉGUA DO CAMPO `avatar` DEIXOU DE SER "SÓ GENTE".** O que ela diz agora é
+que o círculo entra onde há uma IDENTIDADE por trás da opção — uma pessoa, uma
+empresa —, e fica fora de status, prioridade e vertente, que não têm retrato
+nenhum para mostrar: um círculo com as iniciais de "Urgente" não é signo de
+coisa alguma. A frase antiga listava "cliente" entre os que ficam de fora, e era
+a lista e não a regra.
+
+***E A IMAGEM PRECISOU DE UMA CONTA COM LOGO E UMA SEM.*** `logo_url` era nulo
+nas três contas do exemplo, então a foto não sairia em imagem nenhuma — a lição
+da duplicata do Cronograma pela enésima vez. `public/exemplos/logo-1.svg` vai
+para a **Mundo Verde** e as outras duas ficam nulas, pela razão de
+`retrato-1.svg` ir para a Ana e não para a equipe inteira: com as três
+preenchidas a imagem provaria que o círculo aparece, e não que ele **escolhe**.
+A metade do logo sai no `23c`, que já abre com a Mundo Verde para desenhar o
+filtro de vertente; a das iniciais entrou como `22d`, com a Óptica Visão — que
+de quebra não tem vertente nenhuma, então ela mostra o segundo seletor ausente,
+que é o estado que o `23c` não mostra.
+
+***E o stub de `identidadeDoPortal` continua com a foto NULA escrita à mão***,
+agora que a coluna existe no exemplo: ele fixa um estado para a imagem em vez de
+ler o dado, como já fazia com a capa. Lendo a coluna, a Mundo Verde — que é a
+primeira de `EMPRESAS_EXEMPLO`, e portanto a conta que o portal abre — passaria
+a ter logo, e o círculo vazio sobre a faixa sairia de imagem nenhuma.
+
+##### E O SELETOR DE RESPONSÁVEL SAIU DO CALENDÁRIO
+
+Decisão do usuário, na mesma mensagem: *"a aba de toda a equipe saia — deixando
+apenas o filtro dos responsáveis"*. O cabeçalho do calendário tinha um `Select`
+de quinze nomes com **"Pauta de toda a equipe"** na primeira linha, e o que
+estava errado não era o rótulo: era ele existir.
+
+**ERAM DOIS FILTROS PARA A MESMA PERGUNTA, e o de cima é o que vale.** A barra
+de filtros tem um seletor de Responsável desde o Sprint 3, ele mora em
+`?responsavel=` — como todo filtro de listagem deste produto — e **o servidor já
+o aplica aos itens deste calendário**: `itensDoCalendario` descarta a etapa de
+outra pessoa antes de a lista chegar à tela. Este, ao contrário, era `useState`
+local: não sobrevive ao `refresh`, não entra no link que alguém cola no chat, e
+some ao trocar de visão.
+
+**E OS DOIS PODIAM SE CONTRADIZER.** Com a barra filtrando a Ana e o seletor de
+dentro no Bruno, a grade saía vazia — duas respostas para *de quem é este
+trabalho*, uma na URL e uma no componente, com a tela afirmando que não há nada
+no mês.
+
+**EM MINHAS TASKS ELE ERA PIOR QUE DUPLICATA.** Lá os itens vêm de
+`itensPessoaisDoCalendario`, que traz só as etapas de quem está olhando — então
+catorze dos quinze nomes do seletor **só sabiam esvaziar a tela**, e o décimo
+quinto não mudava nada. É o interruptor de luz da 0105 em outra forma: *um filtro
+que só sabe esvaziar a tela e um botão que não muda nada*.
+
+**COM ELE FOI A PROP `equipe`**, que era o único leitor dela no calendário — e em
+Minhas Tasks ela era o único leitor da prop do painel, o que fez
+**`listarEquipeAtiva()` deixar de ser consultada naquela tela**: uma ida ao banco
+por visita para alimentar uma lista que nenhuma tela desenha. Em Gestão de Tasks
+a consulta FICA, porque a barra de filtros a usa — é ela que desenha o rosto de
+cada pessoa no seletor que sobrou.
+
+***O que se perde, e é dito em vez de escondido:*** em Gestão de Tasks, recortar
+o calendário por pessoa passou a recarregar a tela, porque o filtro que ficou é
+de servidor. É o preço de o recorte estar no link, e ele é o mesmo preço que as
+outras oito telas de listagem do produto já pagam.
 
 **O Social ficava FORA do seletor de visão, e era mecânico** — o board desenha
 colunas de `subtask_status` e o calendário desenha prazos, e uma etapa de

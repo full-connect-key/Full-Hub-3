@@ -7,7 +7,6 @@ import { ptBR } from "date-fns/locale";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
-import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import {
   contadoresPessoais,
   etapaEmAndamento,
@@ -53,7 +52,6 @@ async function Conteudo({
     itensDeCalendario,
     itensDoDia,
     contadores,
-    equipe,
     podeCriarTask,
     novidades,
     correndoAgora,
@@ -63,7 +61,12 @@ async function Conteudo({
     itensPessoaisDoCalendario(usuarioId, foco, prazos),
     meuDia(usuarioId, prazos),
     contadoresPessoais(usuarioId, prazos),
-    listarEquipeAtiva(),
+    // A EQUIPE NÃO É MAIS CONSULTADA AQUI, e a ausência é consequência de uma
+    // remoção e não economia: o único leitor dela nesta tela era o seletor de
+    // responsável do calendário, que saiu — e nele ela só sabia esvaziar a
+    // grade, porque os itens desta tela já são todos de quem está olhando. Uma
+    // ida ao banco por visita para alimentar uma lista que nenhuma tela
+    // desenha é a ponte construída e nunca atravessada pelo outro lado.
     souDoAtendimento(),
     // O SINAL DE "CHEGOU COISA NOVA" (decisão do usuário). Ele lê as
     // notificações por ler desta pessoa e as separa por área pelo endereço —
@@ -89,7 +92,6 @@ async function Conteudo({
       itensDoDia={itensDoDia}
       novidades={novidades}
       contadores={contadores}
-      equipe={equipe}
       prazos={prazos}
       usuarioId={usuarioId}
       souGestor={souGestor}

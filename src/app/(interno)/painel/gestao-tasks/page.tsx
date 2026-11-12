@@ -5,6 +5,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
 import { listarClientes } from "@/lib/dados/clientes";
+import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { pastasPadraoDasContas } from "@/lib/dados/fluxo-do-cliente";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
@@ -84,6 +85,41 @@ async function clientesAtivos() {
 }
 
 /**
+ * AS CONTAS COM A FOTO DE CADA UMA — o seletor de cliente da barra de filtros.
+ *
+ * Decisão do usuário: *"no filtro de clientes apareça a foto deles"*. É o
+ * mesmo pedido que pôs o rosto no seletor de Responsável, um filtro ao lado —
+ * e a resposta é a mesma peça: `FilterBar` já desenha `avatar` por opção.
+ *
+ * ---------------------------------------------------------------------------
+ * **A COLUNA JÁ EXISTIA E PRECISA SER ASSINADA.** `clients.logo_url` nasceu na
+ * 0002 e `listarClientes()` faz `select("*")`, então ela já chega aqui — o que
+ * falta é o endereço: o logo mora no bucket PRIVADO `campanhas-arquivos`, e
+ * caminho de bucket num `src` é o navegador pedindo ao próprio site e levando
+ * 404. Quem assina é `assinarArquivos`, numa ida só para a lista inteira.
+ *
+ * **ELA É SEPARADA DE `clientesAtivos()` pela razão escrita ali embaixo:**
+ * aquela serve três abas, e a assinatura é uma ida ao Storage que duas delas
+ * não precisam — o seletor de Workflows e o editor de recorrência não desenham
+ * foto nenhuma. É a mesma decisão de `clientesComPasta()`.
+ *
+ * E ela parte de `listarClientes()`, que é `cache`: a aba já a chama, então
+ * não há segunda ida ao banco — só a do Storage.
+ */
+async function contasComFoto() {
+  const clientes = (await listarClientes()).filter((c) => c.ativo);
+  const assinadas = await assinarArquivos(
+    "campanhas-arquivos",
+    clientes.map((c) => c.logo_url),
+  );
+  return clientes.map((c) => ({
+    id: c.id,
+    nome_empresa: c.nome_empresa,
+    fotoAssinada: enderecoDaArte(c.logo_url, assinadas),
+  }));
+}
+
+/**
  * As contas com a pasta padrão de cada uma — só o editor de recorrência pede.
  *
  * Ela é SEPARADA de `clientesAtivos()` de propósito: aquela serve três abas
@@ -110,7 +146,7 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
     await Promise.all([
       demandasDaAba(filtros),
       itensDoCalendario(filtros),
-      listarClientes(),
+      contasComFoto(),
       listarEquipeAtiva(),
       meusRascunhos(),
       // A MESMA PERGUNTA QUE A POLICY FAZ, por RPC — nunca um `if (role ===`
@@ -140,9 +176,7 @@ async function AbaDeDemandas({ filtros }: { filtros: FiltrosDeTask }) {
         tasks={tasks}
         rascunhos={rascunhos}
         itensDeCalendario={itens}
-        clientes={clientes
-          .filter((cliente) => cliente.ativo)
-          .map((cliente) => ({ id: cliente.id, nome_empresa: cliente.nome_empresa }))}
+        clientes={clientes}
         vertentes={vertentes.map((v) => ({ id: v.id, nome: v.nome, ativa: v.ativa }))}
         equipe={equipe}
         prazos={prazosDeHoje()}

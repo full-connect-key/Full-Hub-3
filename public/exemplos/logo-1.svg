@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Logo de exemplo">
+  <rect width="240" height="240" fill="#BCE4F9"/>
+  <path d="M120 44c30 26 44 50 44 74a44 44 0 0 1-88 0c0-24 14-48 44-74z" fill="#0267C1"/>
+  <path d="M120 196c0-26 18-46 44-50-4 30-22 48-44 50z" fill="#0C75A6"/>
+  <path d="M120 196c0-26-18-46-44-50 4 30 22 48 44 50z" fill="#0C75A6"/>
+</svg>

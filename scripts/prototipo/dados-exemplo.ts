@@ -183,6 +183,12 @@ export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000a",
     nome_empresa: "Mundo Verde",
+    // O LOGO VAI PARA UMA DAS TRÊS, e as outras duas ficam nulas de propósito:
+    // com as três preenchidas a imagem provaria que o círculo do filtro
+    // aparece, e não que ele ESCOLHE entre o logo e as iniciais da empresa. É
+    // a razão escrita de `retrato-1.svg` ir para a Ana e não para a equipe
+    // inteira, e a do evento de cada par da legenda do calendário.
+    logo_url: "/exemplos/logo-1.svg",
     nome_contato: "Caio Alves",
     email_contato: "contato@mundoverde.com.br",
     telefone: "(11) 98888-0001",
@@ -197,6 +203,7 @@ export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000b",
     nome_empresa: "Óptica Visão",
+    logo_url: null,
     nome_contato: "Marcos Vieira",
     email_contato: "contato@opticavisao.com.br",
     telefone: "(11) 98888-0002",
@@ -211,6 +218,7 @@ export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000c",
     nome_empresa: "Academia Corpo Livre",
+    logo_url: null,
     nome_contato: null,
     email_contato: null,
     telefone: null,

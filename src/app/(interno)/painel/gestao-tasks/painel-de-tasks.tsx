@@ -40,7 +40,7 @@ export function PainelDeTasks({
   rascunhos: RascunhoDaLista[];
   tasks: TaskDaLista[];
   itensDeCalendario: ItemDeCalendario[];
-  clientes: { id: string; nome_empresa: string }[];
+  clientes: { id: string; nome_empresa: string; fotoAssinada: string | null }[];
   /** As vertentes da conta escolhida no filtro, ou vazio (0118). */
   vertentes: { id: string; nome: string; ativa: boolean }[];
   equipe: { id: string; nome: string; avatar_url: string | null; funcao: TeamFuncao | null }[];
@@ -129,7 +129,7 @@ export function PainelDeTasks({
         </div>
       ) : null}
       {filtros.visao === "calendario" ? (
-        <CalendarioDeTasks itens={itensDeCalendario} equipe={equipe} prazos={prazos} />
+        <CalendarioDeTasks itens={itensDeCalendario} prazos={prazos} />
       ) : null}
 
     </div>

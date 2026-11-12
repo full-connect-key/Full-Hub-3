@@ -17,7 +17,6 @@ import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 import type { ItemDoDia } from "@/lib/dados/minhas-tasks";
 import type { NovidadeDeArea } from "@/lib/dados/novidades";
-import type { TeamFuncao } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
@@ -76,7 +75,6 @@ export function PainelPessoal({
   itensDeCalendario,
   itensDoDia,
   contadores,
-  equipe,
   prazos,
   usuarioId,
   souGestor,
@@ -95,12 +93,6 @@ export function PainelPessoal({
   itensDoDia: ItemDoDia[];
   novidades: NovidadeDeArea[];
   contadores: Record<FocoDoDia, number>;
-  equipe: {
-    id: string;
-    nome: string;
-    avatar_url: string | null;
-    funcao: TeamFuncao | null;
-  }[];
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
@@ -340,7 +332,6 @@ export function PainelPessoal({
           {visao === "calendario" ? (
             <CalendarioDeTasks
               itens={itensDeCalendario}
-              equipe={equipe}
               prazos={prazos}
               aoAbrir={setTaskAberta}
             />

@@ -54,6 +54,12 @@ export async function identidadeDoPortal(clienteId?: string) {
     // A foto fica NULA de propósito: é o estado do dia um de todo cliente, e
     // é o que precisa ser conferido na imagem — a capa com foto é o caso
     // fácil; o círculo vazio sobre a faixa é o que quebra.
+    //
+    // **E ela continua literal depois de `logo_url` entrar no exemplo**, como
+    // a capa logo acima: este stub FIXA um estado para a foto, não lê a
+    // coluna. Lendo-a, a Mundo Verde — que é a primeira de
+    // `EMPRESAS_EXEMPLO`, e portanto a conta que o portal abre — passaria a
+    // ter logo, e o círculo vazio sairia de imagem nenhuma.
     fotoAssinada: null,
   };
 }

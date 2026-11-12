@@ -284,6 +284,23 @@ const TELAS = [
   // dezesseis outras telas.
   { nome: "22c-tasks-filtro-responsavel", largura: 1600, altura: 900, role: "socio",
     rota: "/painel/gestao-tasks?visao=lista&responsavel=a0000000-0000-0000-0000-000000000001" },
+  // A FOTO NO FILTRO DE CLIENTE, e esta tela e a METADE DAS INICIAIS.
+  //
+  // Decisao do usuario: *"no filtro de clientes apareca a foto deles"*. O
+  // gatilho e fotografado pelo mesmo caminho do `22c` -- `?cliente=` na URL
+  // faz o `SelectValue` renderizar o item escolhido, com o circulo dentro --,
+  // e a conta aqui e a OPTICA VISAO, que nao tem logo: o circulo sai com "OV".
+  //
+  // **A metade do LOGO ja sai no `23c`**, que escolhe a Mundo Verde para
+  // desenhar o filtro de vertente: ela e a unica das tres contas do exemplo
+  // com `logo_url`, de proposito. As duas telas juntas sao o que prova que o
+  // circulo ESCOLHE entre a imagem e as iniciais -- uma sozinha provaria que
+  // ele aparece.
+  //
+  // A Optica tambem nao tem vertente nenhuma, entao o segundo seletor nao e
+  // desenhado aqui: e o estado que o `23c` nao mostra.
+  { nome: "22d-tasks-filtro-cliente", largura: 1600, altura: 900, role: "socio",
+    rota: "/painel/gestao-tasks?visao=lista&cliente=c0000000-0000-0000-0000-00000000000b" },
   { nome: "23-tasks-calendario", rota: "/painel/gestao-tasks?visao=calendario", largura: 1600, altura: 1100, role: "socio" },
   // O DIA CHEIO ABERTO EMBAIXO DA GRADE. O "+N" so existe num dia que passa de
   // tres itens, e o exemplo ganhou duas etapas no mesmo dia por causa desta

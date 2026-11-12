@@ -191,7 +191,15 @@ export function BarraDeFiltrosDeTask({
   equipe,
   vertentes,
 }: {
-  clientes: { id: string; nome_empresa: string }[];
+  /**
+   * A FOTO DA CONTA vem assinada de quem monta a tela (`contasComFoto`).
+   *
+   * `logo_url` mora no bucket privado `campanhas-arquivos`, então o endereço
+   * tem de ser assinado no servidor — um caminho de bucket num `src` é o
+   * navegador pedindo ao próprio site e levando 404. Nulo é a conta que não
+   * subiu logo nenhum, e ali o círculo carrega as INICIAIS da empresa.
+   */
+  clientes: { id: string; nome_empresa: string; fotoAssinada: string | null }[];
   /**
    * A LISTA JÁ CHEGAVA COM A FOTO, e o tipo é que a escondia.
    *
@@ -227,7 +235,24 @@ export function BarraDeFiltrosDeTask({
           // zero resultados, com os dois seletores na tela afirmando um
           // recorte que não existe.
           onChange: (v) => definir({ cliente: v, vertente: SEM_FILTRO }),
-          options: clientes.map((c) => ({ value: c.id, label: c.nome_empresa })),
+          // A FOTO DA CONTA NA FRENTE DO NOME — decisão do usuário: *"no
+          // filtro de clientes apareça a foto deles"*. Com vinte e oito contas
+          // na lista, o logo é o que faz achar sem ler, que é o argumento do
+          // rosto no seletor de Responsável logo abaixo.
+          //
+          // **E O CÍRCULO APARECE MESMO SEM LOGO, com as iniciais da
+          // empresa** — ao contrário da capa do portal, que não desenha nada
+          // quando a conta não subiu nenhum. A diferença é que lá é UMA
+          // identidade num cabeçalho, onde um círculo a menos não custa nada,
+          // e aqui são vinte e oito opções numa coluna: metade com círculo e
+          // metade sem deixa a margem esquerda irregular, e é justamente por
+          // ela que o olho desce a lista. "MV" é um signo de verdade, que é o
+          // que o produto já faz com quem não tem foto.
+          options: clientes.map((c) => ({
+            value: c.id,
+            label: c.nome_empresa,
+            avatar: { nome: c.nome_empresa, src: c.fotoAssinada },
+          })),
         },
         // A VERTENTE SÓ APARECE COM O CLIENTE ESCOLHIDO E A CONTA TENDO
         // ALGUMA. Um seletor vazio em "Todos os clientes" é um filtro que não
@@ -257,10 +282,12 @@ export function BarraDeFiltrosDeTask({
           value: filtros.responsavel,
           allLabel: "Todos os responsáveis",
           onChange: (v) => definir({ responsavel: v }),
-          // A FOTO VAI NA FRENTE DO NOME (decisão do usuário). Só aqui, e não
-          // nos outros quatro seletores desta barra: cliente, vertente,
-          // prioridade e status não são gente, e um círculo genérico neles
-          // afirmaria que existe alguém — a regra da pilha de avatares.
+          // A FOTO VAI NA FRENTE DO NOME (decisão do usuário). Ela existe
+          // aqui e no seletor de CLIENTE, e em mais nenhum desta barra:
+          // vertente, prioridade e status não têm retrato nenhum para mostrar,
+          // e um círculo com as iniciais de "Urgente" não é signo de coisa
+          // alguma — a regra é que o círculo só entra onde há uma identidade
+          // por trás dele, e não que ele seja só de gente.
           options: equipe.map((p) => ({
             value: p.id,
             label: p.nome,

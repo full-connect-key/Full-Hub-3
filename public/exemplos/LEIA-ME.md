@@ -56,3 +56,20 @@ Ele é 480 × 854 (9/16) porque um Reels é vertical, tem 3 segundos e 4,7 KB:
 o que a imagem precisa provar é que o quadro do vídeo está no lugar e com os
 controles, não o conteúdo dele. As cores são as mesmas dos SVGs, pela mesma
 exceção declarada acima.
+
+`logo-1.svg` é o sétimo, e ele existe porque o seletor de CLIENTE da Gestão de
+Tasks passou a desenhar a foto de cada conta na frente do nome — decisão do
+usuário. Sem ele, `logo_url` seria nulo nas três contas do exemplo e a imagem
+mostraria três círculos de iniciais: ela provaria que o círculo aparece, e não
+que ele **escolhe** entre o logo e as iniciais.
+
+**E ele vai para UMA das três**, pela mesma razão de `retrato-1.svg` ir para a
+Ana e não para a equipe inteira: a Mundo Verde carrega o logo, a Óptica Visão e
+a Academia Corpo Livre ficam nulas, e é o par que faz a imagem distinguir os
+dois estados.
+
+Ele é QUADRADO, ao contrário de `retrato-1.svg`, e a diferença é o que cada um
+prova: aquela é 3 por 4 porque o bug que ela guarda é a foto achatada numa caixa
+quadrada — uma imagem quadrada passaria com e sem o `object-cover`. Aqui o
+`object-cover` já está provado por ela, e o que se quer é a forma que um logo de
+marca tem de verdade.

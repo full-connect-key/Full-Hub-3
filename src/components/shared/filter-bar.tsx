@@ -25,21 +25,29 @@ export type SelectFilter = {
     value: string;
     label: string;
     /**
-     * A FOTO DA PESSOA À FRENTE DO NOME, quando a opção é gente.
+     * A FOTO À FRENTE DO NOME, quando a opção tem uma identidade por trás.
      *
      * Decisão do usuário sobre o filtro de Responsáveis da Gestão de Tasks:
      * *"quero que a frente do nome de cada colaborador, tenha a foto da
-     * pessoa"*. É a mesma lista que o board e o calendário já desenham com
-     * rosto — num seletor de quinze nomes, a foto é o que faz achar sem ler.
+     * pessoa"*, e depois sobre o de Clientes da mesma barra: *"no filtro de
+     * clientes apareça a foto deles"*. É a mesma lista que o board e o
+     * calendário já desenham com rosto — num seletor de quinze nomes, ou de
+     * vinte e oito contas, a foto é o que faz achar sem ler.
      *
-     * **E ela não custou consulta nenhuma:** `equipe` já chega com
-     * `avatar_url` em quem monta a barra; o que a escondia era o tipo da prop,
-     * estreitado a `{ id, nome }`. É a ponte construída e não atravessada
-     * outra vez.
+     * **E ela não custou consulta nenhuma na primeira vez:** `equipe` já chega
+     * com `avatar_url` em quem monta a barra; o que a escondia era o tipo da
+     * prop, estreitado a `{ id, nome }`. É a ponte construída e não
+     * atravessada outra vez. A da conta custa a assinatura do bucket, porque
+     * `clients.logo_url` é privado — e quem assina é o servidor.
      *
-     * O campo é OPCIONAL porque as outras opções deste componente são
-     * cliente, status e prioridade — e um círculo genérico ali afirmaria que
-     * existe alguém, que é a regra da pilha de avatares.
+     * **O campo é OPCIONAL e a régua não é "só gente".** Ele entra onde a
+     * opção É alguém ou alguma empresa; fica fora de status, prioridade e
+     * vertente, que não têm retrato nenhum para mostrar — um círculo com as
+     * iniciais de "Urgente" não é signo de coisa alguma.
+     *
+     * `src` nulo desenha as INICIAIS, e não nada: numa coluna de opções,
+     * metade com círculo e metade sem deixa a margem esquerda irregular, e é
+     * por ela que o olho desce a lista.
      */
     avatar?: { nome: string; src: string | null };
   }[];
