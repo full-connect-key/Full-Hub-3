@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
+import { SeletorDeResponsavel } from "@/components/shared/seletor-de-responsavel";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -60,6 +61,7 @@ import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
 import { comoHistorico, daSubtarefa } from "@/lib/aprovacoes/conteudo";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
+import { cn } from "@/lib/utils";
 
 import {
   anexarEntrega,
@@ -125,15 +127,91 @@ export function PainelDaSubtarefa({
     });
   }
 
-  function salvar(campos: Record<string, unknown>) {
+  /* --------------------------------------------------------------------------
+     O RASCUNHO DAS PROPRIEDADES, e o botão que o oficializa.
+
+     Decisão do usuário: *"quero que na subtarefas, quando a pessoa edite algo,
+     ela tenho o botão de salvar para oficializar as alterações"*.
+
+     **ISTO DESFAZ METADE DE UMA DECISÃO ESCRITA, e o recorte é a outra
+     metade.** A 0028 pôs a tela de task a salvar sozinha, campo a campo, com a
+     razão registrada: *"a demanda nasce como rascunho no instante do clique e
+     a pessoa cai na tela completa"* — ali não há botão porque não há momento
+     de confirmar: a linha já existe no banco e cada campo é um fato isolado.
+
+     **A etapa não é aquilo.** Ela tem cinco propriedades que se leem juntas e
+     se decidem juntas — quem faz, com que prioridade, de quando a quando, em
+     quantas horas —, e o período tem duas pontas que o `check subtasks_periodo`
+     compara entre si: gravar uma ponta por vez é gravar metade de uma decisão.
+     Um botão aqui não é cerimônia, é a transação que o campo a campo não
+     tinha.
+
+     **O QUE O BOTÃO NÃO OWNA, e cada ausência tem motivo:**
+
+       * o **nome**, que é `NomeEditavel` — ele salva com 600 ms de pausa mais
+         o `blur` desde a 0028, é compartilhado com a tela da demanda, e dois
+         jeitos de gravar o mesmo campo em duas telas é a divergência que
+         aquele componente existe para não ter;
+       * o **status**, que é AÇÃO e não propriedade: ele passa por
+         `moverSubtarefa`, cujas travas recusam transições e cuja recusa diz o
+         caminho — um Salvar por cima disso esconderia a recusa atrás de um
+         segundo clique;
+       * as **dependências**, as **entregas** e a **segunda pessoa**, que são
+         acrescentar e tirar, cada uma com a ação dela. Um "Salvar" acima de um
+         botão que acabou de remover uma dependência prometeria que a remoção
+         ainda não aconteceu.
+
+     **O rascunho guarda SÓ o que foi tocado** — `undefined` quer dizer "não
+     mexi" —, então salvar manda ao banco exatamente os campos que mudaram, e
+     a trilha de auditoria não registra alteração em campo que ninguém editou.
+     É a razão pela qual `NomeEditavel` compara antes de gravar.
+     -------------------------------------------------------------------------- */
+  type Rascunho = {
+    responsavel_id?: string | null;
+    prioridade?: string;
+    data_inicio?: string;
+    prazo?: string;
+    estimativa?: string;
+  };
+  const [rascunho, setRascunho] = useState<Rascunho>({});
+  const mexidos = Object.keys(rascunho).length;
+
+  function mexer(campos: Rascunho) {
+    setRascunho((atual) => ({ ...atual, ...campos }));
+  }
+
+  function oficializar() {
+    if (mexidos === 0) return;
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        atualizarSubtarefa(subtarefa.id, taskId, campos),
+        atualizarSubtarefa(subtarefa.id, taskId, rascunho),
       );
-      if (!resultado.ok) toast.error(resultado.error);
-      else router.refresh();
+      if (!resultado.ok) {
+        // O RASCUNHO FICA NA TELA quando o banco recusa, e é a regra desta
+        // casa: o valor que falhou continua à vista para ser corrigido, em vez
+        // de a tela voltar ao antigo e a pessoa redigitar o que ela já havia
+        // escrito. É a decisão de `NomeEditavel`.
+        toast.error(resultado.error);
+        return;
+      }
+      setRascunho({});
+      toast.success(resultado.mensagem);
+      router.refresh();
     });
   }
+
+  /** O valor que o campo mostra: o rascunho quando há, o do banco quando não. */
+  const valor = {
+    responsavel_id:
+      rascunho.responsavel_id !== undefined
+        ? rascunho.responsavel_id
+        : subtarefa.responsavel_id,
+    prioridade: rascunho.prioridade ?? subtarefa.prioridade,
+    data_inicio: rascunho.data_inicio ?? subtarefa.data_inicio ?? "",
+    prazo: rascunho.prazo ?? subtarefa.prazo ?? "",
+    estimativa:
+      rascunho.estimativa ?? tempoParaCampo(subtarefa.estimativa_minutos),
+  };
 
   /**
    * Põe ou tira a segunda pessoa (0114).
@@ -254,41 +332,20 @@ export function PainelDaSubtarefa({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo rotulo="Responsável">
-              {podeGerenciar ? (
-                <Select
-                  value={subtarefa.responsavel_id ?? SEM_VALOR}
-                  onValueChange={(valor) =>
-                    salvar({
-                      responsavel_id: valor === SEM_VALOR ? null : valor,
-                    })
-                  }
-                >
-                  <SelectTrigger aria-label="Responsável" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SEM_VALOR}>Sem responsável</SelectItem>
-                    {equipe.map((pessoa) => (
-                      <SelectItem key={pessoa.id} value={pessoa.id}>
-                        {pessoa.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : subtarefa.responsavel ? (
-                <span className="flex items-center gap-2 text-sm">
-                  <UserAvatar
-                    name={subtarefa.responsavel.nome}
-                    src={subtarefa.responsavel.avatar_url}
-                    size="sm"
-                  />
-                  {subtarefa.responsavel.nome}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-sm">
-                  Sem responsável
-                </span>
-              )}
+              {/* O MESMO SELETOR DA LINHA DA LISTA, e o que muda é quando ele
+                  grava: aqui ele só marca a escolha, e quem oficializa é o
+                  Salvar — é a assimetria escrita no próprio componente, a
+                  mesma de `FaixaDeDisponibilidade`. Duas cópias divergiriam, e
+                  a que divergiria é a da linha, que se relê menos. */}
+              <SeletorDeResponsavel
+                valor={valor.responsavel_id}
+                /* Como na linha: `equipe` é quem está ativo, e quem responde
+                   por esta etapa pode não estar nela. */
+                atual={subtarefa.responsavel}
+                equipe={equipe}
+                aoMudar={(quem) => mexer({ responsavel_id: quem })}
+                podeEditar={podeGerenciar}
+              />
 
               {/* ----------------------------------------------------------
                   QUEM MAIS FAZ ESTA ETAPA (0114).
@@ -376,8 +433,8 @@ export function PainelDaSubtarefa({
             <Campo rotulo="Prioridade">
               {podeGerenciar ? (
                 <Select
-                  value={subtarefa.prioridade}
-                  onValueChange={(valor) => salvar({ prioridade: valor })}
+                  value={valor.prioridade}
+                  onValueChange={(escolhida) => mexer({ prioridade: escolhida })}
                 >
                   <SelectTrigger aria-label="Prioridade" className="w-full">
                     <SelectValue />
@@ -407,15 +464,15 @@ export function PainelDaSubtarefa({
                 começa, e exigir as duas faria a pessoa inventar uma. */}
             <Campo rotulo="Início">
               {podeGerenciar ? (
+                /* CONTROLADO e não `defaultValue`: com o rascunho, Descartar
+                   precisa devolver o campo ao valor do banco — e um input
+                   não controlado ficaria mostrando o que a pessoa digitou
+                   depois de a tela já ter desistido dele. */
                 <Input
                   type="date"
                   aria-label="Data de início da etapa"
-                  defaultValue={subtarefa.data_inicio ?? ""}
-                  onBlur={(evento) => {
-                    if (evento.target.value !== (subtarefa.data_inicio ?? "")) {
-                      salvar({ data_inicio: evento.target.value });
-                    }
-                  }}
+                  value={valor.data_inicio}
+                  onChange={(evento) => mexer({ data_inicio: evento.target.value })}
                 />
               ) : (
                 <span className="text-sm">
@@ -433,12 +490,8 @@ export function PainelDaSubtarefa({
                 <Input
                   type="date"
                   aria-label="Prazo da etapa"
-                  defaultValue={subtarefa.prazo ?? ""}
-                  onBlur={(evento) => {
-                    if (evento.target.value !== (subtarefa.prazo ?? "")) {
-                      salvar({ prazo: evento.target.value });
-                    }
-                  }}
+                  value={valor.prazo}
+                  onChange={(evento) => mexer({ prazo: evento.target.value })}
                 />
               ) : (
                 <span className="text-sm">
@@ -470,25 +523,33 @@ export function PainelDaSubtarefa({
             <FaixaDeDisponibilidade
               userId={subtarefa.responsavel.id}
               nome={subtarefa.responsavel.nome}
-              inicio={subtarefa.data_inicio}
-              fim={subtarefa.prazo}
+              /* ELA MOSTRA O RASCUNHO, e não o que está no banco: quem
+                 acabou de escrever uma data no campo ao lado precisa ver a
+                 faixa pintada nela, senão as duas metades da mesma decisão
+                 discordariam a dois centímetros de distância. */
+              inicio={valor.data_inicio || null}
+              fim={valor.prazo || null}
               /*
-               * O PRIMEIRO CLIQUE GRAVA UM PERÍODO DE UM DIA, e o segundo o
-               * estica. A faixa devolve `fim` nulo na primeira ponta, e aqui
-               * ele vira `data_inicio = prazo`: neste painel o clique É o
-               * salvamento (0028), e meio período gravado é um período que o
-               * `check subtasks_periodo` pode recusar — com um início antigo
-               * à frente de um prazo novo, a recusa chegaria como um clique
-               * num dia que simplesmente não faz nada.
+               * O CLIQUE PREENCHE OS DOIS CAMPOS, e quem grava é o Salvar.
                *
-               * O custo está dito: clicar um dia solto numa etapa que já
-               * tinha período encolhe os dois para aquele dia. É o que
-               * "iniciar uma nova seleção" quer dizer, e o segundo clique
-               * devolve a outra ponta na hora.
+               * Isto é a decisão da faixa cumprida ao pé da letra — *"ELA NÃO
+               * DECIDE O QUE FAZER COM AS DUAS PONTAS"* —, e desfaz pela
+               * metade a nota que estava aqui: ela dizia que *"neste painel o
+               * clique É o salvamento (0028), e meio período gravado é um
+               * período que o `check subtasks_periodo` pode recusar"*.
+               *
+               * **O argumento era bom e virou desnecessário:** com o botão,
+               * as duas pontas vão ao banco na MESMA escrita, então não existe
+               * mais o estado de meio período gravado que o `check` recusaria.
+               * O primeiro clique continua fechando um período de um dia,
+               * porque a faixa devolve `fim` nulo na primeira ponta e um
+               * `prazo` em branco ao lado de um início não é uma data: é um
+               * campo pela metade esperando o segundo clique.
                */
               aoEscolher={(de: string, ate: string | null) =>
-                salvar({ data_inicio: de, prazo: ate ?? de })
+                mexer({ data_inicio: de, prazo: ate ?? de })
               }
+              rotuloDoClique="Clique num dia para abrir o período e noutro para fechar. O Salvar grava."
               buscar={buscarDisponibilidade}
             />
           ) : null}
@@ -497,18 +558,14 @@ export function PainelDaSubtarefa({
             <Campo rotulo="Estimativa">
               {podeMexer ? (
                 <Input
-                  defaultValue={tempoParaCampo(subtarefa.estimativa_minutos)}
+                  value={valor.estimativa}
                   placeholder="2h30"
                   // O rotulo do Campo e texto solto, nao um <label for>: sem isto o
                   // unico nome do campo seria o title, que so existe para quem
                   // tem mouse e paira sobre ele.
                   aria-label="Estimativa"
                   title={AJUDA_DE_TEMPO}
-                  onBlur={(evento) => {
-                    const atual = tempoParaCampo(subtarefa.estimativa_minutos);
-                    if (evento.target.value !== atual)
-                      salvar({ estimativa: evento.target.value });
-                  }}
+                  onChange={(evento) => mexer({ estimativa: evento.target.value })}
                 />
               ) : (
                 <span className="text-sm">
@@ -523,6 +580,73 @@ export function PainelDaSubtarefa({
               Tempo real registrado:{" "}
               {formatarMinutos(subtarefa.tempo_real_minutos)}.
             </p>
+          ) : null}
+
+          {/* ----------------------------------------------------------------
+              O BOTÃO QUE OFICIALIZA, e ele fica AQUI e não no pé do modal.
+
+              Ele governa os cinco campos acima e mais nada — e no fim da
+              caixa, depois das dependências, das entregas e do histórico, ele
+              pareceria salvar aquilo também. É a decisão do detalhe da Task
+              palavra por palavra: *"excluir e 'salvar como workflow' não são
+              propriedades, são ações sobre a demanda: no meio dos campos
+              pareciam mais dois campos"* — vista do avesso, uma ação que É
+              sobre os campos fica junto deles.
+
+              **ELE APARECE SEMPRE, desligado quando não há o que salvar.** A
+              regra desta casa é pintar a exceção, e aqui ela não vale: uma
+              barra que só nasce depois da primeira edição é uma barra que a
+              pessoa descobre DEPOIS de ter editado — e até lá ela não sabe que
+              o modal passou a ter um momento de confirmar. Desligado, ele
+              ensina que existe; e o rótulo conta quantos campos vão junto, que
+              é a diferença entre um botão e uma instrução.
+
+              **E ELE GRUDA NO PÉ ENQUANTO HÁ RASCUNHO.** A caixa rola dentro
+              de si (85vh), e a etapa tem doze campos: sem isto, editar o
+              responsável e rolar até o histórico tiraria o Salvar da tela —
+              e fechar o modal perderia a edição sem nada ter avisado. Grudado,
+              fechar com alteração pendente passa a ser um ato deliberado.
+
+              *O que isto custa, e é dito em vez de escondido:* fechar o modal
+              com o rascunho aberto DESCARTA a edição, sem perguntar. Não há
+              guarda de saída — e a razão é que uma pergunta "tem certeza?" num
+              diálogo que já mostra o que não foi salvo é a cerimônia que o
+              nome digitado do `ConfirmDialog` já custou uma vez.
+              ---------------------------------------------------------------- */}
+          {podeGerenciar ? (
+            <div
+              className={cn(
+                "flex flex-wrap items-center justify-end gap-2",
+                mexidos > 0 &&
+                  "bg-card/95 sticky bottom-0 -mx-4 border-t px-4 py-3 backdrop-blur",
+              )}
+            >
+              {mexidos > 0 ? (
+                <p className="text-warning mr-auto text-xs">
+                  {mexidos} alteraç{mexidos === 1 ? "ão" : "ões"} por salvar.
+                </p>
+              ) : null}
+              {mexidos > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={salvando}
+                  onClick={() => setRascunho({})}
+                >
+                  Descartar
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                disabled={salvando || mexidos === 0}
+                onClick={oficializar}
+              >
+                {salvando ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                Salvar
+              </Button>
+            </div>
           ) : null}
 
           <Separator />

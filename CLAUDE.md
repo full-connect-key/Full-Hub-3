@@ -1246,6 +1246,250 @@ telas são seis lugares para divergir, e são eles que fariam a sincronização
 entre as visualizações deixar de valer. Quem quiser a edição inline depois tem o
 componente pronto.
 
+##### E O MODAL GANHOU UM SALVAR, que desfaz METADE da 0028
+
+Decisão do usuário: *"quero que na subtarefas, quando a pessoa edite algo, ela
+tenha o botão de salvar para oficializar as alterações"*.
+
+**ISTO É UMA REVERSÃO DECLARADA, e é por isso que ela é meia e não inteira.**
+A 0028 decidiu que a tela de task *"salva sozinha, campo a campo"*, e o
+argumento dela continua inteiro onde ele vale: o rascunho é de quem o criou e
+não existe para mais ninguém, então um salvamento parcial não alcança a equipe.
+**No modal da ETAPA aquele argumento nunca valeu:** a etapa está publicada, tem
+dono, tem prazo e aparece no "Minhas Tasks" de alguém — cada campo gravado
+sozinho é uma mudança que a outra pessoa vê no instante em que quem edita ainda
+está decidindo. É a razão escrita do editor de recorrência, que também não
+salva sozinho: *"cada salvamento parcial mexe no que a rotina vai gerar"*.
+
+**SÃO CINCO CAMPOS NO RASCUNHO e não os doze**, e o corte é o que a reversão
+tem de meio: responsável, prioridade, início, prazo e estimativa — as cinco
+PROPRIEDADES da etapa, que a pessoa mexe em bloco quando está distribuindo
+trabalho. O nome continua salvando sozinho (ele é o `NomeEditavel`, com a pausa
+e o `blur` da 0028), e as listas de dentro — pessoas a mais, dependências,
+entregas — continuam cada uma com a ação dela, porque **ali o botão não é
+"salvar", é "acrescentar" e "tirar"**: um Salvar por cima de uma lista que já
+grava no clique esconderia a recusa atrás de um segundo passo.
+
+**A BARRA EXISTE NOS DOIS ESTADOS, e o desligado é o que ensina.** Ela aparece
+sempre, com o Salvar inerte enquanto não há o que gravar — a regra desta casa é
+pintar a exceção, e aqui ela não vale: uma barra que só nasce depois da primeira
+edição é uma barra que a pessoa descobre DEPOIS de ter editado, e até lá ela não
+sabe que o modal passou a ter um momento de confirmar. **E o rótulo conta
+quantos campos vão junto** — *"3 alterações por salvar"* —, que é a diferença
+entre um botão e uma instrução.
+
+**E ELA GRUDA NO PÉ ENQUANTO HÁ RASCUNHO.** A caixa rola dentro de si e a etapa
+tem doze campos: sem isso, mexer no responsável e rolar até o histórico tiraria
+o Salvar da tela, e fechar o modal perderia a edição sem nada ter avisado.
+
+***O que isto custa, e é dito em vez de escondido:*** fechar o modal com
+alteração pendente DESCARTA, sem perguntar. Não há guarda de saída, e a razão é
+que uma pergunta "tem certeza?" num diálogo que já mostra, grudado no pé, o que
+não foi salvo é a cerimônia que o nome digitado do `ConfirmDialog` já custou uma
+vez. **E a recusa não limpa o rascunho:** quando o banco nega, o que a pessoa
+escreveu continua na tela, com a mensagem ao lado — perder a edição junto com a
+recusa seria pedir que ela a digitasse de novo para descobrir o mesmo "não".
+
+##### O RESPONSÁVEL SE ESCOLHE NA PRÓPRIA LINHA
+
+Decisão do usuário, e a frase carrega o critério: *"preciso que quando alguém
+vá abrir uma task, ela possa selecionar o responsável, clicando na palavra
+responsável, sem precisar abrir mais abas para editar, quero que a plataforma
+de maneira geral seja intuitiva"*.
+
+**O QUE ESTAVA ALI ERA TEXTO MORTO, e é a terceira vez que este produto
+encontra um.** A linha da etapa desenhava o avatar de quem a faz, ou um
+`<span>` cinza escrito "sem responsável" — e para trocar a pessoa era preciso
+abrir o modal. É o `SheetTitle` do nome da etapa de novo, e o `link_entrega` de
+novo: **a ponte construída e nunca atravessada**, porque `atualizarSubtarefa`
+grava `responsavel_id` desde o Sprint 3B.
+
+**`SeletorDeResponsavel` NÃO DECIDE QUANDO SALVAR**, e é essa assimetria que o
+faz servir aos dois chamadores no mesmo sprint em que um deles ganhou um botão
+de Salvar: ele avisa a escolha e mais nada. **Na LINHA, o clique É o
+salvamento** — não há Salvar ali, e a lista é o lugar de distribuir trabalho
+depressa; **no MODAL, ele escreve no rascunho** e quem grava é o botão. É a
+decisão escrita de `FaixaDeDisponibilidade`, palavra por palavra.
+
+**E O CHEVRON APARECE EM REPOUSO, o que foi um conserto no meio da entrega.**
+A primeira versão o escondia até o ponteiro passar por cima, com o argumento
+de que onze setas numa lista de onze linhas seriam ruído. O argumento está
+certo sobre o TAMANHO e errado sobre a presença: em repouso o controle ficava
+**idêntico ao `<span>` morto que ele substituiu**, e quem não passasse o mouse
+não tinha como saber que ali se clica — que é literalmente a queixa que abriu
+o pedido. Hoje ele sai no cinza de texto secundário e escurece no ponteiro:
+visível o bastante para dizer "aqui se escolhe", discreto o bastante para onze
+linhas não virarem onze setas gritando. *De quebra isso
+pagou uma imagem:* a tela do protótipo precisava ABRIR a lista para a peça
+aparecer, e fotografar um `Select` aberto custa três nós de
+`aria-hidden-focus` no axe — comportamento dos 52 Selects do produto, e a
+decisão de não fotografar um aberto já estava escrita na `22c`. Com o chevron
+em repouso, a imagem fechada basta e a tela extra deixou de existir.
+
+**O NOME DE QUEM NÃO ESTÁ NA LISTA É UM TERCEIRO ESTADO, e a honestidade é o
+ponto:** `equipe` traz quem está ativo, então a etapa no nome de alguém que
+saiu da agência não cai em "Sem responsável" — isso afirmaria que ela não tem
+dono. Ela diz **"Responsável fora da equipe"**, que é o que a tela sabe.
+
+**E SEM PERMISSÃO NÃO HÁ GATILHO**, em vez de um campo desligado: num `<li>` de
+uma lista, um botão permanentemente inerte é ruído em toda linha, e a razão —
+"esta etapa não é sua para distribuir" — não é um passo que falta. É a decisão
+do "Abrir em página inteira" do painel de Minhas Tasks, virada do avesso do
+"Enviar ao cliente" do Social Media.
+
+##### A ORDEM DAS ETAPAS SE ARRASTA
+
+Decisão do usuário, em duas frases: *"quero poder mudar a ordem das subtarefas
+só clicando e arrastando, para que elas já entrem automaticamente"* e, logo em
+seguida, *"no caso, preciso que arrastando, elas já mudem de ordem de
+visualização"*.
+
+**A SEGUNDA FRASE É A QUE DECIDE O DESENHO**, e ela desfaz a leitura óbvia da
+primeira: *"entrem automaticamente"* podia querer dizer que arrastar uma etapa
+para dentro de outra a aninharia. A segunda diz que o que muda é a ORDEM DE
+VISUALIZAÇÃO — então arrastar reordena irmãs, e **nunca troca de mãe**. É a
+escolha certa pela mecânica também: mudar o `parent_id` por arrasto é a
+diferença entre uma etapa que conta tempo e uma agrupadora que não conta (0022),
+e isso não pode acontecer por um gesto de seis pixels.
+
+**A AÇÃO JÁ EXISTIA, E ESTAVA NA LISTA DE ISENTAS DO `check:acoes` COM O MOTIVO
+ESCRITO:** *"FALTA A TELA: não há como reordenar as etapas de uma demanda
+arrastando. O dnd-kit já está no projeto e o board de etapas de Minhas Tasks
+arrasta desde o Sprint 10, então o que falta é a lista do detalhe da Task virar
+um alvo de solta."* A isenção saiu junto com a entrega — **uma isenção que
+deixou de ser verdade é pior que isenção nenhuma**, e a própria varredura
+reprova a que fica para trás.
+
+**O ARRASTO É POR ALÇA, e não pela linha inteira.** Espalhar os `attributes` do
+dnd-kit no `<li>` dá `role="button"` num contêiner que carrega botões —
+`nested-interactive`, crítico no axe —, e **este produto já pagou isso uma
+vez**, no cartão do board. A alça é um `<button>` de verdade, com
+`aria-label`, que é o que mantém o teclado com uma parada só por linha e o
+papel certo na árvore.
+
+**E A REORDEM É POR NÍVEL, que é o que a torna barata.** `emArvore()` ordena as
+raízes por `ordem` e as filhas de cada mãe por `ordem` **dentro daquela mãe**,
+então o número nunca colide entre níveis: um `SortableContext` para as raízes e
+um por mãe, e `reordenarSubtarefas(taskId, ids)` grava `ordem = índice + 1`
+exatamente para os ids que recebeu. Nenhuma migration, nenhuma coluna nova.
+
+**A ORDEM NOVA VALE NA TELA ANTES DE O BANCO RESPONDER**, e volta sozinha
+quando ele recusa: sem isso a linha saltaria de volta ao lugar antigo e só
+depois para o novo, que é o arrasto se desfazendo na frente de quem arrastou. É
+a mesma decisão do board da Gestão de Tasks.
+
+#### O BRIEFING GANHOU CAIXA, TABELA E UMA PALETA QUE SAI DE TOKEN
+
+Decisão do usuário: *"quero que adicione parte de construir briefing mais
+opções de formatação, como box, tabela e mais cores, pasteis, mais cores vivas,
+de maneira geral"*.
+
+##### A PALETA DO EDITOR SAIU DE TOKEN, e isso resolve uma decisão em suspenso
+
+**ESTE ARQUIVO REGISTRAVA O PROBLEMA COM OS NÚMEROS, e enxergava duas saídas,
+as duas ruins:** a cor escolhida é gravada DENTRO do documento do TipTap, então
+`editor-rico.tsx` era exceção do `check:cores` e a regra de contraste não valia
+ali — no claro três das cinco cores reprovavam (4,31 / 3,18 / 3,36 / 4,61 /
+5,09) e no escuro **as cinco**, de 2,30 a 3,68, *"porque um tom escuro o
+bastante para o fundo claro é claro demais para o escuro"*. As duas saídas
+escritas eram escolher o tema claro e piorar o escuro, ou tirar o controle de
+cor do editor.
+
+**A TERCEIRA SAÍDA É GRAVAR O NOME E NÃO O VALOR.** O documento escreve
+`style="color: var(--rico-vermelho)"`, o valor mora no `globals.css` com par no
+`.dark`, e o briefing passa a trocar de cor com o tema como o resto do produto.
+A premissa que sustentava as duas saídas antigas — *"a cor **não pode** sair de
+um token"* — **estava errada**, e a verificação é de dependência e não de
+memória: `getStyleProperty` em `@tiptap/core` lê o atributo `style` CRU, partindo
+na `;`, então a `var()` atravessa o parse e o render sem ser resolvida. Foi lido
+no código da dependência antes de a decisão ser tomada.
+
+**SÃO NOVE CORES DE LETRA E SETE REALCES**, que são as duas metades do pedido:
+*"mais cores vivas"* são as letras, *"pastéis"* são os realces. **E o pastel é
+CHÃO, nunca letra** — um pastel como cor de texto é ilegível por construção; como
+fundo, com o texto do documento por cima, é exatamente o que "pastel num
+briefing" quer dizer. O realce não custou pacote nenhum: `BackgroundColor` já
+vem dentro de `@tiptap/extension-text-style`, que já era dependência por causa
+do `Color`.
+
+**E OS PARES SÃO MEDIDOS TODA VEZ**, numa seção própria do `check:cores`: oito
+cores × onze chãos — a folha, os seis realces e os quatro fundos de caixa —, com
+**uma linha por cor, a do pior chão**, porque 88 linhas afogariam os 72 pares
+que a interface usa. O pior caso hoje é **4,94:1 no claro** e **6,82:1 no
+escuro**, contra 3,18 e 2,30 de antes. *E a lista de chãos nasceu errada:* a
+primeira versão começava no cartão, e o axe acusou o briefing da tela de detalhe
+sobre `#edeef0` — **o editor da demanda mora direto na PÁGINA**. Um chão a menos
+é uma linha que a varredura afirma e não confere.
+
+***O que isto NÃO faz, e é a consequência honesta:*** **o documento antigo
+mantém o hexadecimal dele**, e não é reescrito. Rewriting o briefing de alguém
+no instante em que ele abre seria mexer no texto da pessoa sem ela ter pedido, e
+um `!important` em `.conteudo-rico` para forçar o token mataria junto as cores
+novas. O que o produto pode fazer por um documento antigo é o que ele já faz:
+quem reaplicar a cor pelo menu grava o token. **E o preço está medido e sai em
+imagem:** o exemplo do protótipo guarda um parágrafo com `#b91c1c` literal — o
+MESMO valor que `--rico-vermelho` tem no claro —, e o axe acusa ele **só no tema
+escuro**, a 2,75:1 contra 5,57:1 no claro. As duas cores lado a lado no mesmo
+documento, uma congelada e uma que acompanha o tema, são o argumento inteiro.
+
+##### A CAIXA, e por que ela é um `Node` e não um `blockquote` pintado
+
+`components/shared/caixa-do-briefing.ts`, com **quatro tipos**: neutra, info,
+aviso e perigo. São quatro e não sete pela razão das oito categorias em cinco
+cores: **uma caixa existe para destacar, e sete tons de destaque na mesma página
+não destacam nada**.
+
+**O CHROME SAI DOS TOKENS**, e por isso o `.dark` vem de graça: `--muted`,
+`--accent`, `--warning-soft` e `--danger-soft` são os mesmos pares que o produto
+já mede. **E o comando ALTERNA**: pedir a caixa que a seleção já é a desfaz,
+pedir outra troca o tipo. Sem isso, clicar duas vezes no mesmo item aninharia
+uma caixa dentro da outra — e aninhar destaque é a forma mais rápida de não
+destacar nada.
+
+##### A TABELA abre em 3×3 com cabeçalho
+
+`TableKit`, com `resizable`. **E ela rola dentro de si, nunca a página:** uma
+tabela de seis colunas num painel de 768px passa da caixa, e a regra desta casa
+é que o corpo da página não rola para o lado — tabela, diagrama e código rolam
+cada um no próprio contêiner. **`table-layout: fixed` é o que o TipTap pede**:
+ele guarda a largura de cada coluna num `colgroup`, e sem o layout fixo o
+navegador reparte pelo conteúdo e a coluna redimensionada volta sozinha.
+
+**O tamanho inicial não é um seletor de dimensão**, e a ausência é decisão: um
+briefing que pede tabela pede quase sempre "campo / valor" ou "peça / formato /
+prazo", e as linhas se acrescentam dentro com o Tab. Uma grade de escolher
+dimensão é um passo a mais para acertar de primeira um número que o teclado já
+resolve.
+
+##### A BARRA VIROU MENUS, e a fileira de bolinhas saiu
+
+Eram nove bolinhas de 16px soltas na barra. Com nove cores, sete realces e
+quatro caixas, **vinte alvos de 16px** seriam duas fileiras inteiras acima do
+campo — e 16px é o que a diretriz de toque chama de pequeno demais. São quatro
+menus: cor, realce, caixa e tabela.
+
+**E CADA ITEM DIZ A PALAVRA ao lado da amostra.** Num item de lista a cor
+sozinha não tem como ser o único sinal, que é a regra desta casa desde o chip do
+calendário — e aqui ela vale duas vezes, porque sete pastéis em miniatura são
+sete quadradinhos quase iguais.
+
+**OS COMANDOS DE DENTRO DA TABELA SÓ EXISTEM DENTRO**, e não aparecem
+desligados: fora de uma tabela a razão não é um passo que falta, é que não há
+tabela nenhuma a que eles se apliquem. É a distinção que o "Enviar ao cliente"
+do Social Media faz do outro lado.
+
+**E `MenuDaBarra` é um componente porque são QUATRO** com a mesma casca — a
+quarta cópia é a que divergiria no `aria-label` ou no tamanho do ícone, que é a
+história das sete cópias de `abas.tsx` em miniatura.
+
+***E a imagem fotografa o RESULTADO e não os controles:*** o briefing do exemplo
+ganhou uma caixa de aviso e uma tabela de três colunas, com um realce e uma cor
+nomeada dentro. O que o usuário pediu foi poder CONSTRUIR um briefing com box e
+tabela, então o que precisa aparecer é o chão da caixa, a borda e o cabeçalho da
+tabela — não a fileira de botões que os insere. Um menu aberto provaria que o
+controle existe; isto prova que ele faz alguma coisa, **e prova nos dois temas**,
+que é onde o chão de uma caixa pode sumir.
+
 #### O CARTÃO INTEIRO ABRE OS DETALHES
 
 Decisão do usuário: *"toda a superfície do card deve abrir os detalhes,
@@ -7162,19 +7406,127 @@ cor de empresa no produto, e caixa alta num nome de empresa é a tela gritando
 o nome de quem contratou. **E vale nas DUAS listas**, porque duas telas que
 agrupam igual e se comportam diferente é a divergência esperando acontecer.
 
-***O QUE NÃO FOI FEITO, e é dito em vez de escondido:*** **três pares de
-status continuam dividindo o mesmo tom.** O produto mapeia os sete status da
-Task em CINCO pares medidos — "Iniciar" e "Aguardando informações" dividem o
-cinza, "Em andamento" e "Aguardando aprovação" dividem o azul, "Entregue" e
-"Em ajuste" dividem o âmbar —, e é a mesma decisão que o calendário do Social
-e o portal tomam, com o argumento escrito lá: *sete cores numa grade viram
-confete*. Dar a cada um a cor dele é uma COR NOVA MEDIDA por par que falta, em
-dois temas, com a separação por daltonismo conferida — e ela mudaria o selo em
-vinte e uma telas, o Portal do Cliente incluído. É o item "centralizar e
-remedir as cores dos status", e é decisão própria. **O que a caixa já resolve
-é o que a cor não resolvia sozinha:** o nome está escrito dentro dela, em
-caixa alta, então dois grupos do mesmo tom não se confundem como duas amostras
-de legenda se confundiriam.
+**O QUE FALTAVA ERAM AS CORES, e elas chegaram no sprint seguinte** — o
+parágrafo que estava aqui dizia que três pares de status continuavam dividindo
+o mesmo tom e que dar a cada um o seu era "decisão própria". Foi tomada, e está
+logo abaixo. O que ele dizia e continua valendo é o que a caixa resolve sozinha:
+o nome está escrito dentro dela, em caixa alta, então dois grupos do mesmo tom
+nunca se confundiram como duas amostras de legenda se confundiriam.
+
+##### SETE STATUS, SETE CORES — e a dívida de cinco pares foi paga
+
+Decisão do usuário, com a paleta por extenso: *"na lista da gestão de task,
+deixe o a produzir cinza, em produção azul, aguardando informações laranja,
+aguardando aprovação marrom, ajuste é vermelho, e entregue verde mais claro e
+concluido verde escuro"*.
+
+**ELE DESCREVEU A DÍVIDA QUE ESTE ARQUIVO JÁ TINHA ESCRITO**, palavra por
+palavra: *"'Iniciar' e 'Aguardando informações' dividem o cinza, 'Em andamento'
+e 'Aguardando aprovação' dividem o azul, 'Entregue' e 'Em ajuste' dividem o
+âmbar"*. Enquanto o status era um selo pequeno, dois estados do mesmo tom se
+distinguiam pela palavra dentro dele; com a **caixa** no cabeçalho de grupo, o
+chão passou a ser a peça grande da tela — e três pares de caixas saíam com o
+mesmo chão, na tela em que a agência procura onde o trabalho está.
+
+| Status | Tom | Era |
+| --- | --- | --- |
+| Não iniciada | `neutro` | — |
+| Em andamento | `marca` | — |
+| Aguardando informações | **`laranja`** | cinza, com "Não iniciada" |
+| Aguardando aprovação | **`marrom`** | azul, com "Em andamento" |
+| Em ajuste | **`negativo`** | âmbar, com "Entregue" |
+| Entregue | **`lima`** | âmbar, com "Em ajuste" |
+| Concluído | `positivo` | — |
+
+**`info` SAIU, e ele era `marca` com outro nome.** As duas entradas de `TONS`
+eram a MESMA string de classes, letra por letra — dois nomes para uma cor é o
+que faz alguém "mudar o azul" e mudar metade dos selos. É a decisão da 0023
+aplicada a um tom; quem usava `info` era justamente `em_aprovacao`, que passou
+para o marrom.
+
+**E `atencao` FICOU, com um consumidor só: o "Ajustes" do fluxo do CLIENTE.**
+Ele não vira vermelho junto com o "Em ajuste" da equipe, e a razão é a 0127: no
+fluxo do cliente, "Ajustes" fica ao lado de "Rejeitado" — os dois desfechos
+negativos, que *"querem dizer coisas opostas"* e que aquela migration existe
+para separar. No fluxo da task não há `rejeitado`, então ali o vermelho está
+livre. **Mesma palavra, dois vocabulários, duas cores**, e é a mesma razão pela
+qual este produto mantém três enums de status separados.
+
+**A TROCA VALE NOS TRÊS VOCABULÁRIOS, e isso é escolha e não efeito
+colateral.** O mapa é indexado pelo VALOR do status, compartilhado entre
+`task_status`, `subtask_status` e `content_status`, então "Aguardando
+informações" muda de cor também no Portal do Cliente. Forcar um mapa por
+vocabulário foi considerado e recusado: **a legenda do calendário do portal
+AGRUPA quem divide a cor lendo `corDoPontoDeStatus`** — ela se reorganiza
+sozinha de cinco entradas para sete, sem uma linha de código e sem uma lista
+mantida à mão. *O custo está dito:* o calendário do cliente passa de cinco
+para sete cores, e a decisão escrita lá é que *sete cores numa grade viram
+confete*. **Ele é aceito porque as duas que ganharam cor própria são as duas
+que mais importam para quem está do lado de fora** — "a Full está travada
+esperando uma resposta minha" e "isto está esperando a minha decisão" —, e as
+duas estavam escondidas dentro do cinza do stand by e do azul do trabalho em
+andamento.
+
+**OS TRÊS PARES NOVOS SÃO MEDIDOS, nos dois temas**, e entraram no
+`check:cores` ANTES de a tela trocar de tom: sem isso a troca seria uma
+afirmação sobre um número que ninguém conferiu.
+
+| Par | Claro | Escuro |
+| --- | --- | --- |
+| `--laranja` sobre `--laranja-soft` | 4,86:1 | 6,57:1 |
+| `--marrom` sobre `--marrom-soft` | 6,89:1 | 8,47:1 |
+| `--lima` sobre `--lima-soft` | 4,60:1 | 9,03:1 |
+
+**O LIMA É "VERDE MAIS CLARO" E A MATIZ É O QUE ENTREGA ISSO.** "Entregue" e
+"Aprovado" não são a mesma coisa — o material saiu, ninguém disse que está
+certo —, e o que muda é a cor que diz isso: entregar é um passo adiante, então
+é verde; falta o aval, então é mais claro que o verde escuro do concluído. Um
+verde-600 sobre verde-50 daria 3,0:1, abaixo do mínimo; o lima-700 sobre
+lima-100 passa e lê amarelado ao lado do verde escuro, que é a distinção.
+
+**ELES NÃO ENTRAM NUM GRUPO DE DALTONISMO, e isto PRECISA ser dito com o
+número em vez de ser afirmado.** A regra dos grupos é escrita desde a 0127:
+eles existem onde a cor é o **ÚNICO** sinal — a linha de um gráfico, a amostra
+de uma legenda. Aqui o nome do status está escrito DENTRO da caixa, em caixa
+alta, e o selo carrega o rótulo por extenso; é a mesma razão pela qual o
+`--rosa` do aniversário ficou de fora na 0130.
+
+***E a medição mostra por que a regra não é uma desculpa de conveniência:***
+rodando os sete chãos como se fossem um grupo, **sete pares ficam abaixo do
+piso de 10**, e o pior é `--marrom-soft` × `--danger-soft` a **ΔE 0,8 em
+deuteranopia, no tema escuro** — ou seja, para quem não separa vermelho de
+verde, o chão de "Aguardando aprovação" e o de "Em ajuste" são o mesmo chão.
+Nas cores de FRENTE o quadro repete: `--marrom` × `--danger` dá ΔE 1,9 em
+protanopia.
+
+**Isso não é um defeito desta paleta, é uma propriedade declarada dela** — a
+0130 já tinha escrito que *"os fundos pálidos do tema claro vivem entre ΔE 3,5
+e 8,9 entre si por construção"*, e os três novos caem nessa mesma família. O
+que separa um status do outro, para quem quer que seja, **sempre foi a
+palavra**: a caixa não substitui o rótulo, ela acompanha. Quem um dia quiser
+que a cor sozinha baste precisa de outra paleta inteira, não de três tons a
+mais — e aí os sete pares acima são a lista do que teria de ser refeito.
+
+**E O `--accent` DO TEMA ESCURO FOI CONSERTADO JUNTO, porque ele era a MESMA
+cor de outro token.** Ele apontava para `--surface-sidebar-2`, e a 0130 já
+tinha registrado o achado em voz alta — *"no tema ESCURO, `--accent` e
+`--muted` resolvem para o mesmo valor (`#2C3137`), a ΔE 0,0"* —, deixando-o de
+fora porque consertar significava mexer numa cor que a 0109 escolheu. **Deixou
+de ser verdade quando o marrom entrou:** com a caixa pintada, "Em andamento"
+(`--accent`) e um grupo neutro (`--muted`) passavam a ser dois cabeçalhos com o
+mesmo chão, um ao lado do outro. Hoje ele aponta para `--blue-soft`, que é o
+azul suave do tema escuro. *O que isso custa, e é dito:* `hover:bg-accent` no
+escuro passa a ser azulado em vez de cinza — que é exatamente o que ele já era
+no claro, e o que ele devia ter sido desde sempre.
+
+***E a imagem é a única conferência que a troca tem:*** cor de caixa não é
+tipo, não é árvore de acessibilidade, e o `check:cores` mede o PAR e não se ele
+aparece. O exemplo do protótipo ganhou **duas demandas** por causa disso — uma
+em `aguardando_informacoes` e uma em `em_ajustes` —, porque as demandas de
+exemplo cobriam cinco dos sete valores e as duas que faltavam eram justamente
+duas das três que ganharam cor própria: a Lista sairia em imagem com o marrom e
+o lima novos e sem o laranja e o vermelho. É a lição da Óptica Visão sem
+atendente (0062).
 
 ##### E O FILTRO DE RESPONSÁVEIS GANHOU A FOTO
 
@@ -15050,26 +15402,20 @@ Os valores do escuro **não são os do claro invertidos**, e é a mesma decisão
 das cores de série do Financeiro: são passos próprios medidos contra os fundos
 do tema escuro, onde o pior par era outro (`--neutral-soft`, a 4,17:1).
 
-> **Decisão em suspenso, com os números:** a paleta de cor do editor rico é o
-> único lugar do produto em que a cor **não pode** sair de um token — ela é
-> gravada DENTRO do documento do TipTap, e é por isso que
-> `components/shared/editor-rico.tsx` é exceção registrada no `check:cores`. A
-> consequência é que a regra de contraste não tem como valer ali, e medindo:
-> no tema claro, o pior caso de cada cor sobre os cinco fundos é 4,31 (vermelho),
-> 3,18 (laranja), 3,36 (verde), 4,61 (azul) e 5,09 (roxo) — **três das cinco
-> reprovam**; no tema escuro **as cinco reprovam**, de 2,30 a 3,68, porque um
-> tom escuro o bastante para o fundo claro é claro demais para o escuro.
-> **Não existe hex que resolva os dois**, e escurecer a paleta nem corrige o
-> texto já gravado, que carrega o valor antigo. As saídas são escolher o tema
-> claro e piorar o escuro, ou tirar o controle de cor do editor e ficar com
-> negrito, itálico e realce. As duas são decisão de quem usa o editor, então
-> ficou como está — e o achado continua aparecendo no relatório, nomeado, em
-> vez de ser silenciado por uma exceção.
+> **A decisão que estava em suspenso AQUI foi resolvida, e por uma terceira
+> saída.** O parágrafo que ficava neste lugar media a paleta de cor do editor
+> rico e dizia que ela era *"o único lugar do produto em que a cor **não pode**
+> sair de um token"*, porque o valor é gravado DENTRO do documento do TipTap;
+> com os números: no claro o pior caso de cada cor sobre os cinco fundos era
+> 4,31 / 3,18 / 3,36 / 4,61 / 5,09 — **três das cinco reprovavam** — e no
+> escuro **as cinco reprovavam**, de 2,30 a 3,68. As duas saídas que ele
+> enxergava eram escolher o tema claro e piorar o escuro, ou tirar o controle
+> de cor do editor.
 >
-> **Por isso a rodada completa termina em 1, com três nós.** São as sete
-> famílias reduzidas a esta, e o vermelho que sobra não é ruído: ele é esta
-> decisão esperando resposta. Silenciá-la por exceção deixaria a lista verde e
-> a decisão esquecida — e a lista verde é a que ninguém confere.
+> **A terceira é gravar o NOME em vez do valor**, e está em "A PALETA DO EDITOR
+> SAIU DE TOKEN", abaixo. Com ela a exceção do `editor-rico.tsx` saiu da lista
+> do `check:cores` — o arquivo não tem mais um hexadecimal — e os pares passaram
+> a ser medidos toda vez.
 
 **Onde a opacidade servia para dizer "inativo", ela era o segundo sinal e não o
 primeiro:** o workflow arquivado já tem o selo "Arquivado", o contrato inativo
@@ -16693,6 +17039,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A etapa editável | **Seis pedidos numa mensagem, e cinco deles são sobre a mesma tela: a lista de etapas da demanda.** **(1) O responsável se escolhe na LINHA** — *"clicando na palavra responsável, sem precisar abrir mais abas para editar, quero que a plataforma de maneira geral seja intuitiva"*. O que estava ali era TEXTO MORTO pela terceira vez neste produto: `atualizarSubtarefa` grava `responsavel_id` desde o Sprint 3B, e a linha desenhava um `<span>` cinza. `SeletorDeResponsavel` **não decide quando salvar** — na linha o clique É o salvamento, no modal ele escreve no rascunho —, que é a assimetria escrita de `FaixaDeDisponibilidade`. **E o chevron aparece em REPOUSO, o que foi um conserto no meio da entrega:** escondido até o ponteiro passar por cima, o controle ficava idêntico ao `<span>` que ele substituiu — literalmente a queixa que abriu o pedido —, e a tela do protótipo precisava ABRIR a lista, o que custa três nós de `aria-hidden-focus` no axe. **(2) O modal ganhou um SALVAR**, que desfaz METADE da 0028: *"salva sozinho, campo a campo"* continua certo no rascunho, que não existe para mais ninguém, e nunca valeu numa etapa publicada, com dono e prazo, que a outra pessoa vê mudar enquanto quem edita ainda decide. São CINCO campos no rascunho e não os doze; a barra existe nos DOIS estados, porque uma barra que só nasce depois da primeira edição é descoberta depois de ela acontecer; e ela gruda no pé enquanto há rascunho. ***O que custa:*** fechar o modal descarta sem perguntar — a guarda de saída seria a cerimônia que o nome digitado do `ConfirmDialog` já custou uma vez. **(3) e (4) A ordem se ARRASTA**, e a segunda frase dele é a que decide o desenho: *"arrastando, elas já mudem de ordem de visualização"* — então reordena irmãs e **nunca troca de mãe**, porque mudar o `parent_id` por um gesto de seis pixels é a diferença entre uma etapa que conta tempo e uma agrupadora que não conta (0022). `reordenarSubtarefas` existia e estava nas `ISENTAS` do `check:acoes` com o motivo escrito — *"FALTA A TELA"* —, e a isenção saiu junto, porque uma que deixou de ser verdade é pior que isenção nenhuma. O arrasto é por ALÇA e não pela linha: espalhar os `attributes` do dnd-kit num contêiner que carrega botões dá `nested-interactive`, e este produto já pagou isso uma vez no cartão do board. **(5) SETE STATUS, SETE CORES** — e ele descreveu a dívida que este arquivo já tinha escrito: três pares dividiam o mesmo tom, e com a CAIXA no cabeçalho de grupo o chão virou a peça grande da tela. `info` saiu (era `marca` com outro nome, a mesma string letra por letra), `atencao` ficou com um consumidor só — o "Ajustes" do cliente, que fica ao lado de "Rejeitado" e que a 0127 existe para separar —, e os três pares novos foram medidos ANTES da troca: 4,86 / 6,89 / 4,60 no claro. A troca vale nos TRÊS vocabulários de propósito: a legenda do calendário do portal AGRUPA lendo `corDoPontoDeStatus`, então ela se reorganiza de cinco entradas para sete sem uma linha de código. ***E a medição do daltonismo é dita com o número em vez de afirmada:*** rodando os sete chãos como grupo, **sete pares ficam abaixo do piso**, o pior a ΔE 0,8 — eles ficam fora porque o NOME está escrito dentro da caixa, que é a regra de 0127 e 0130, e porque os pastéis desta paleta vivem perto entre si por construção. **De quebra o `--accent` do tema escuro foi consertado:** ele era `#2C3137` igual a `--muted`, a ΔE 0,0 — achado que a 0130 declarou e deixou de fora, e que deixou de ser aceitável quando dois cabeçalhos de grupo passaram a ter o mesmo chão. **(6) O BRIEFING ganhou caixa, tabela e uma paleta que sai de TOKEN**, e isso resolve uma decisão que estava em suspenso neste arquivo por uma TERCEIRA saída que ele não enxergava: gravar o NOME e não o valor. A premissa das duas saídas antigas — *"a cor não pode sair de um token"* — estava errada, e a verificação foi de dependência e não de memória: `getStyleProperty` em `@tiptap/core` lê o `style` cru, então a `var()` atravessa o parse. Com ela a exceção do `editor-rico.tsx` saiu do `check:cores` (o arquivo não tem mais hexadecimal nenhum) e os pares passaram a ser medidos toda vez — **4,94:1 no claro e 6,82:1 no escuro** contra 3,18 e 2,30. ***O que não se faz, e é a consequência honesta:*** o documento antigo mantém o hex dele e não é reescrito — o exemplo guarda um, e o axe o acusa **só no escuro**, que é o argumento inteiro medido por uma ferramenta de fora. A caixa tem quatro tipos e o comando ALTERNA; a tabela abre 3×3 com cabeçalho e rola dentro de si; e a fileira de nove bolinhas de 16px virou quatro MENUS, porque vinte alvos daquele tamanho seriam duas fileiras acima do campo. |
 | A porta das áreas | **Os três chips saíram do cabeçalho de Minhas Tasks, e a porta foi para a linha** — decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e social, quero que elas sejam acessadas por meio das tasks em si, quando a pessoa é marcada em um task de algum desses tipos, ela tenha acesso a página referente"*. **A FAIXA ESTAVA CERTA NO DIA EM QUE NASCEU, e é isso que explica por que ela pôde sair:** Social Media e Campanhas tinham acabado de sair da barra lateral, e *"tirar um item de menu de um módulo que não aparece em mais lugar nenhum é esconder o módulo"* — ela nomeava as três áreas, com contagem e no zero, para dizer que elas existem aqui. **O que ela NÃO respondia é a pergunta de quem olha uma LINHA:** *esta etapa, de que mês é? de que campanha?* Quem tinha a fase de Layout de outubro da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do módulo, para procurar de novo a conta e o mês que a linha já sabia. Hoje o endereço é da linha, por `destinoDaEtapa()`. **E O CHIP DE DEMANDAS LEVAVA 403, que é o conserto embutido na remoção:** ele apontava para `/painel/gestao-tasks`, que é `GESTAO`, e o colaborador — a pessoa para quem esta tela existe — lia *"Seu perfil não permite esta ação"*; `ROTA_DA_AREA.demandas` passou a devolver nulo, porque **não existe módulo "minhas demandas" ao lado desta tela — Minhas Tasks é ele**. **O rótulo virou o MÓDULO e não o nome do objeto**, desfazendo meia decisão escrita: a pílula dizia o NOME da campanha, e `abrir_campanha()` (0051) dá à demanda o título `p_nome` — o nome já estava na linhagem, a dois centímetros. **Na Lista é pílula; no board e no calendário é o PAINEL**, porque o cartão tem ~171px e já carrega seis coisas. **E o painel só oferece "Abrir em página inteira" para a gestão**, que é o mesmo 403 um andar abaixo. ***O que se perde, e é dito:*** o ZERO — a faixa dizia "Campanhas 0" nos dias vazios, e quem continua nomeando as três é a faixa de novidades, que é condicional e é literalmente o caso que o pedido descreve. **E A CHECAGEM PASSOU A MEDIR O ENDEREÇO:** `A_PORTA` procurava os três nomes no texto renderizado, e hoje procura `href="` mais o prefixo de cada porta no HTML cru — **foi a mutação que cobrou**, trocando o `href` por um `data-*` o endereço continuava no HTML e a checagem passava sobre uma porta que não abre. Medida com três mutações, mais duas na mão dupla do botão de página inteira. ***E um defeito anterior saiu junto:*** o `X` do `SheetContent` era desenhado **em cima** do ícone do último botão do cabeçalho do painel — só a imagem pega, porque sobreposição não é tipo, não é cor e não é árvore de acessibilidade. |
 | Ticar o primeiro passo | **Os cinco itens de "Primeiros passos" passaram a ter caixa** (migration 0131), por decisão do usuário: *"quero que o tutorial seja possível ticar os itens, caso a pessoa já saiba como fazer, sem precisar fazer o tutorial necessariamente"*. **A DERIVAÇÃO CONTINUA INTEIRA, e o que isto desfaz é a consequência dela:** o pedido do sprint 3M está certo — *"derivar evita o bug clássico, a pessoa faz a coisa por outro caminho e a lista continua dizendo que falta"* —, e o que estava errado é ela ser a ÚNICA porta: sendo assim, o único jeito de fechar um item é FAZER a coisa. **E o caso de verdade não é o da primeira semana:** o bloco só se esconde com `pendentes = 0`, e quem está na agência há dois anos e nunca propôs um período no Day Off vê os cinco itens todo dia, numa tela que ela abre toda manhã, sem caminho nenhum para fechá-los. **A conta passa a ser `derivado OR dispensado`**, e é esta forma que mantém a derivação de pé: **ticar só FECHA um item, nunca reabre o que o estado já fechou** — quem subiu a foto tem o item fechado pelo FATO, e destique nenhum faz a foto desaparecer. É a assimetria de `status_manual` (0025) pelo outro lado: lá o manual TRAVA o recálculo inteiro, porque o status de uma demanda é uma escolha que o cálculo não adivinha; aqui não há o que travar — os dois lados dizem "feito" —, e `OR` é a forma mais fraca e a mais honesta, porque **ela não tem como mentir sobre um fato**. **SÃO TRÊS DESENHOS NA LINHA E NÃO DOIS:** a caixa vazia do pendente, com o título ainda linkado (o link leva à tela para FAZER, a caixa diz *"já sei"*); a caixa marcada do dispensado, com **`· já sei`** ao lado — a linha que impede a lista de afirmar o que não aconteceu, porque sem ela um item riscado diria que a foto foi subida; e o **derivado-feito, sem controle nenhum**, que é a decisão da caixinha do post palavra por palavra (*"sem a caixa desligada, e isto é regra deste produto"*). **ELA NÃO ENCOSTA EM `tour_progresso` NEM EM `academy_progresso`**, que eram os dois com mais chance de serem corrompidos: ticar o item do tour **não escreve `pulado`** — aquele valor quer dizer *"abriu o tour e saiu"*, e escrevê-lo daqui poria no acompanhamento da gestão linhas de gente que nunca abriu o tour —, e ticar o do playbook **não marca nada como lido**, então `academy_obrigatorios_de()` continua respondendo que falta. ***Este último é o que mais pesa, e é dito em vez de escondido:*** se a agência preferir que o playbook obrigatório não seja dispensável, é uma linha em `lib/dados/primeiros-passos.ts`, e não uma mudança de banco. **É tabela e não jsonb** (o critério da 0070, e `check:tipos` não liga chave de jsonb a nada) e não `localStorage` (a lista é lida por um componente de SERVIDOR); **a linha É a dispensa**, sem coluna `dispensado` que valeria `true` em toda linha (0023); e **há policy de DELETE**, ao contrário de `tour_progresso`, porque aqui *"ela dispensou e depois desdispensou"* não é pergunta de ninguém. As quatro fecham em `auth.uid()`. **Dois achados da imagem:** o marcador do derivado-feito saía uns 3px à direita da borda das caixas — o `Check` solto desenha o traço adentro do slot dele —, e virou o ladrilho de `corrente-do-post.tsx`, com o par nomeado já medido; e **o bloco não tinha imagem de celular**, então entrou `82b-tour-primeiros-passos-375`, que mostra que a linha não quebra a 375px. ***E a bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, então não há cenário de SQL para as quatro policies; o que existe no lugar é o `select` de conferência no fim da migration. |
 | A marca do aniversário | **O chip do aniversário passou a dizer que é um aniversário** — decisão do usuário: *"quero que mostre no calendário que é aniversário da pessoa, não só o nome dela… pode ter um ícone só talvez, ou o texto, não sei, vê como fica melhor"*. Ele dizia só "Ana Lima", em rosa, e a palavra vivia no `title` — que não existe para quem usa toque e que ninguém lê de relance; e a legenda, que é quem nomeia a cor, fica ABAIXO da grade, então rolando até a última semana ela sai da tela. **É O ÍCONE E NÃO A PALAVRA, e as duas razões são de medida:** a célula do mês tem uns 96px nas sete colunas e sobram uns 76px de texto, e "Aniversário" a 11px já ocupa uns 62px — ela só cabe numa SEGUNDA LINHA, que é onde mora a empresa; um aniversário não tem nenhuma, e é por isso que ele é hoje **o único chip de uma linha só**. Pondo a palavra ali, todo aniversário passa a ocupar duas, e em janeiro com três no mesmo dia a célula enche para dizer três vezes a mesma palavra. **É a decisão do selo de "programado" no calendário do Social**, palavra por palavra — *"a célula de um dia com três posts não tem onze pixels para a palavra"* —, e **um ícone é FORMA**, que é o que a cor não tem como ser: a regra escrita é *a cor nunca é o único sinal*, e até aqui quem a cumpria era o `title`, ou seja ninguém. **A legenda não ganha o bolo**, porque a linha dela já escreve a palavra e as seis amostras respondem a mesma pergunta do mesmo jeito. **É um componente e não um `if` nas duas visões**, porque o que não pode divergir são três coisas de uma vez — qual ícone, de que tamanho, e se existe o `sr-only` ao lado dele: é `ICONE_DA_AREA` em miniatura. De quebra, o chip do mês deixou de ser escrito duas vezes nos dois ramos. **Duas coisas que só a imagem pegou:** o vão entre o bolo e o nome saía **9px onde o código dizia 4**, porque o `sr-only` é irmão de flex e o `gap-1` contava duas vezes (a marca virou um elemento só); e **`92-calendario-semana` saía com a semana VAZIA** — a visão de semana abre a semana do dia 1 e todo item do exemplo é datado à frente de hoje, então o chip da semana não era conferido por imagem nenhuma. O exemplo ganhou dois itens no dia 1, **calculado e não literal** (a lição dos meses da NF), com o vizinho num par visível — `reuniao` usa o cinza, e a célula de fim de semana usa o MESMO `bg-muted`. ***E um achado que não é desta entrega:*** por isso mesmo, um evento de reunião, treinamento ou "outro" num sábado, num domingo ou num dia da virada aparece **como texto sem chip**; não foi tocado, porque consertar é dar um sexto par a três dos oito tipos, contra a decisão escrita de *oito tipos em cinco cores*. |

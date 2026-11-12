@@ -545,6 +545,112 @@
   --rosa: #BE185D;
   --rosa-soft: #FCE7F3;
 
+  /* --- AS TRES CORES QUE OS SETE STATUS PEDIRAM -------------------------
+     Decisao do usuario, com a paleta por extenso: *"na lista da gestao de
+     task, deixe o a produzir cinza, em producao azul, aguardando informacoes
+     laranja, aguardando aprovacao marrom, ajuste e vermelho, e entregue verde
+     mais claro e concluido verde escuro"*.
+
+     SAO SETE STATUS E ERAM CINCO PARES, e este arquivo registrava a divida em
+     voz alta: *"tres pares de status continuam dividindo o mesmo tom... dar a
+     cada um a cor dele e uma COR NOVA MEDIDA por par que falta, em dois temas,
+     com a separacao por daltonismo conferida"*. Sao estas tres.
+
+     E O PRECEDENTE E O DO `--roxo` (0109) E DO `--rosa` (0130): nao havia par
+     livre. O cinza e do "a produzir", o azul do "em producao", o ambar ficou
+     com o "Ajustes" do fluxo do CLIENTE e o vermelho com o "Em ajuste" do
+     fluxo da equipe, o verde escuro e do concluido. Laranja, marrom e lima
+     nao existiam.
+
+     POR QUE O VERDE DO "entregue" E LIMA e nao um verde mais claro na mesma
+     matiz: o que se le como "mais claro" e a MATIZ junto com o chao — lima-700
+     sobre lima-100 le amarelado ao lado de green-700 sobre green-100, e um
+     green-600 sobre green-50 daria 3,0:1, abaixo do minimo. A matiz e o que
+     resolve os dois de uma vez.
+
+     Medidos: **4,86:1** (laranja), **6,89:1** (marrom) e **4,60:1** (lima) no
+     claro; **6,57:1**, **8,47:1** e **9,03:1** no escuro.
+
+     ELES NAO ENTRAM NO GRUPO DE DALTONISMO, e a ausencia foi MEDIDA e nao
+     presumida: os oito chaos de status ficam a ΔE **1,9** no pior par
+     (ambar × lima, em deuteranopia) e as frentes a **1,2** (ambar × vermelho,
+     que e exatamente o achado da 0127). Um grupo com os oito reprovaria.
+
+     E a regra escrita e por que isso esta certo: a cor nunca e o unico sinal.
+     O selo carrega o ROTULO dentro dele, e a caixa do grupo da Lista carrega o
+     nome em caixa alta — ao contrario de uma legenda ou de uma linha de
+     grafico, onde a cor e tudo o que ha. Os dois pares que a conta reprova
+     nunca aparecem como a MESMA palavra: "Ajustes" e do `content_status` e
+     "Em ajuste" e do `task_status`, e "Entregue" nao existe no fluxo do
+     cliente. */
+  --laranja: #B4440C;
+  --laranja-soft: #FFEDD5;
+  --marrom: #6B4423;
+  --marrom-soft: #F1E6DA;
+  /* "lima" e nao "verde-claro", pela razao do proprio `--roxo`: o nome diz a
+     COR e o papel aponta para ele. Um `--verde-claro` ao lado de `--success`
+     mandaria quem vier depois procurar qual dos dois e o verde. */
+  --lima: #4D7C0F;
+  --lima-soft: #ECFCCB;
+
+  /* --- A PALETA DO EDITOR RICO, e ela deixou de ser cor literal -----------
+     Decisao do usuario: *"quero que adicione parte de construir briefing mais
+     opcoes de formatacao, como box, tabela e mais cores, pasteis, mais cores
+     vivas, de maneira geral"*.
+
+     ISTO FECHA A "DECISAO EM SUSPENSO" que este produto registrava com os
+     numeros. A paleta do editor era a UNICA cor da interface que nao saia de
+     token — ela e gravada DENTRO do documento do TipTap —, e por isso o
+     arquivo estava na lista de excecoes do `check:cores`, com a conta escrita:
+     *"no tema claro, o pior caso de cada cor sobre os cinco fundos e 4,31
+     (vermelho), 3,18 (laranja), 3,36 (verde), 4,61 (azul) e 5,09 (roxo) — tres
+     das cinco reprovam; no tema escuro as cinco reprovam, de 2,30 a 3,68.
+     Nao existe hex que resolva os dois"*.
+
+     **Nao existe, e era essa a armadilha: a saida nao e um hex, e um NOME.**
+     Aquela nota listava duas saidas — escolher o tema claro e piorar o escuro,
+     ou tirar o controle de cor do editor. A terceira e esta: o documento grava
+     `var(--rico-vermelho)` em vez de `#dc2626`, o VALOR mora aqui, e o escuro
+     tem o par dele. Medido: o pior par das nove cores sobre os oito chaos
+     possiveis (os dois do tema mais os seis realces) e **4,95:1 no claro** e
+     **6,82:1 no escuro** — contra 3,18 e 2,30 de antes.
+
+     **E O DOCUMENTO ANTIGO FICA COMO ESTA.** O briefing escrito antes desta
+     entrega carrega o hexadecimal, continua desenhando a mesma cor, e continua
+     valendo so no tema claro. Reescrever o conteudo de todos eles seria
+     reinterpretar o que alguem escreveu — e e a decisao de `card_versao`
+     (0126): a versao antiga diz de que versao ela era.
+
+     **OS PASTEIS SAO REALCE E NAO COR DE TEXTO**, e e a unica leitura honesta
+     do pedido: um pastel como cor de letra e ilegivel sobre fundo claro por
+     construcao — e a conta que derrubou os cinco hex de antes, levada ao
+     extremo. Como CHAO, com a cor de texto do documento em cima, ele e
+     exatamente o que "pastel" quer dizer num briefing.
+
+     **ELES NAO APONTAM PARA `--danger`, `--rosa` NEM `--roxo`**, e a
+     duplicacao de valor aqui e deliberada — nao e a cadeia de `--ferias` →
+     `--roxo`. Aquela existe onde os dois nomes querem dizer A MESMA COISA; um
+     vermelho de briefing nao e um erro, e no dia em que a paleta de estado
+     mudar o texto que alguem escreveu nao pode mudar com ela. */
+  --rico-vermelho: #B91C1C;
+  --rico-laranja: #9A3412;
+  --rico-ambar: #92400E;
+  /* VERDE-800 e nao 700, e o degrau foi medido: a 700 (#047857) ele dava
+     4,49:1 sobre o realce azul — reprovava por um centesimo, no unico par dos
+     setenta e dois que reprovava. */
+  --rico-verde: #065F46;
+  --rico-azul: #1D4ED8;
+  --rico-roxo: #6D28D9;
+  --rico-rosa: #BE185D;
+  --rico-cinza: #4B5563;
+
+  --rico-realce-amarelo: #FEF3C7;
+  --rico-realce-verde: #DCFCE7;
+  --rico-realce-azul: #DBEAFE;
+  --rico-realce-rosa: #FCE7F3;
+  --rico-realce-roxo: #EDE9FE;
+  --rico-realce-laranja: #FFEDD5;
+
   /* --- Cores de gráfico -------------------------------------------------
      Separadas das cores de estado DE PROPÓSITO. Receita em verde e despesa
      em vermelho é o encode óbvio e reprova: o par #15803D/#B91C1C dá ΔE 4,2
@@ -707,6 +813,35 @@
   --rosa: #F472B6;
   --rosa-soft: #3B1026;
 
+  /* As tres do status no escuro. Nao sao as do claro invertidas: sao passos
+     proprios medidos contra os fundos deste tema, que e a decisao das cores de
+     serie e a do proprio roxo acima. 6,57 / 8,47 / 9,03. */
+  --laranja: #FB923C;
+  --laranja-soft: #3A2208;
+  --marrom: #E3B88A;
+  --marrom-soft: #2E2216;
+  --lima: #A3E635;
+  --lima-soft: #263209;
+
+  /* A paleta do editor no escuro. Nao e a do claro invertida: sao os tons
+     claros da mesma matiz, medidos contra os dois chaos deste tema e contra os
+     seis realces escuros. Pior par: 6,82:1. */
+  --rico-vermelho: #FCA5A5;
+  --rico-laranja: #FDBA74;
+  --rico-ambar: #FCD34D;
+  --rico-verde: #6EE7B7;
+  --rico-azul: #93C5FD;
+  --rico-roxo: #C4B5FD;
+  --rico-rosa: #F9A8D4;
+  --rico-cinza: #CBD5E1;
+
+  --rico-realce-amarelo: #3A3108;
+  --rico-realce-verde: #14321F;
+  --rico-realce-azul: #16303D;
+  --rico-realce-rosa: #3B1026;
+  --rico-realce-roxo: #2A1A3D;
+  --rico-realce-laranja: #3A2208;
+
   /* No escuro as cores de gráfico NÃO são as claras invertidas: são passos
      próprios, medidos contra --surface-card do tema escuro. Clarear as do
      tema claro estouraria a faixa de luminosidade e as marcas perderiam
@@ -759,7 +894,27 @@
      Trocar aqui vale para todo componente do shadcn de uma vez; trocar classe
      por classe seriam 131 telas e a 132a ficaria para tras. */
   --muted-foreground: var(--neutral);
-  --accent: var(--surface-sidebar-2);
+  /* O AZUL DO ESCURO PASSOU A SER AZUL, e isto e um conserto que este arquivo
+     ja tinha medido e deixado em aberto na 0130: *"no tema ESCURO, `--accent` e
+     `--muted` resolvem para o MESMO valor (#2C3137), a ΔE 0,0"* — o chip dos
+     Eventos Fullers e o de "Reuniao, treinamento e outro" tinham o mesmo chao,
+     separados so pela cor do texto.
+
+     Ele ficou em aberto porque consertar mexeria na cor que a 0109 escolheu, e
+     a 0130 escreveu que isso era *"decisao dele, nao efeito colateral de um
+     aniversario"*. A decisao chegou: com os sete status pedindo sete caixas
+     distinguiveis na Lista, "em producao azul" nao pode sair com o mesmo chao
+     do "a produzir" cinza — e no claro `--accent` JA e `var(--blue-soft)`.
+     Apontar para o mesmo token aqui nao inventa nada: alinha o escuro com o
+     claro, e e o que faz a frase da 0109 ser verdade nos dois temas.
+
+     Medido: `--accent-foreground` sobre `--accent` passa de 5,86:1 para
+     **7,97:1**, e os dois chips do calendario deixam de ter o mesmo chao.
+     *O que isto custa, e e dito em vez de escondido:* todo `hover:bg-accent`
+     do shadcn no tema escuro passa a ter um tingimento azul — que e
+     exatamente o que o tema CLARO sempre fez, porque la o token aponta para
+     o mesmo `--blue-soft`. */
+  --accent: var(--blue-soft);
   --accent-foreground: var(--brand-blue);
   --destructive: var(--danger);
   --danger-foreground: #17191D;
@@ -873,6 +1028,12 @@
   --color-roxo-soft: var(--roxo-soft);
   --color-rosa: var(--rosa);
   --color-rosa-soft: var(--rosa-soft);
+  --color-laranja: var(--laranja);
+  --color-laranja-soft: var(--laranja-soft);
+  --color-marrom: var(--marrom);
+  --color-marrom-soft: var(--marrom-soft);
+  --color-lima: var(--lima);
+  --color-lima-soft: var(--lima-soft);
   --color-ferias: var(--ferias);
   --color-ferias-soft: var(--ferias-soft);
   --color-serie-1: var(--serie-1);
@@ -1138,6 +1299,92 @@
   font-size: 0.85em;
 }
 .conteudo-rico hr { border-top: 1px solid var(--border); }
+
+/* --- A CAIXA DO BRIEFING ----------------------------------------------------
+   Decisao do usuario: *"mais opcoes de formatacao, como box, tabela"*.
+
+   **E NO E `blockquote`.** A citacao tem um fio a esquerda e texto cinza — ela
+   diz *"isto foi dito por alguem"*. A caixa tem chao, borda inteira e o texto
+   no tom normal: ela diz *"leia isto"*. O briefing usa as duas coisas, e
+   reaproveitar a citacao para a segunda faria cada observacao importante
+   parecer uma fala citada.
+
+   **O CHAO SAI DE TOKEN, e e por isso que ela nao e um pastel do editor.** O
+   tipo da caixa viaja no documento como um NOME (`data-caixa="aviso"`) e a cor
+   mora aqui, com par no `.dark` — entao ela troca de tema junto com a
+   interface, e os quatro pares ja estao medidos pelo `check:cores` desde
+   sempre. Um pastel gravado no documento ficaria claro no tema escuro.
+
+   SAO QUATRO e nao sete, pela razao das oito categorias em cinco cores: uma
+   caixa existe para destacar, e sete tons de destaque na mesma pagina nao
+   destacam nada. */
+.conteudo-rico [data-caixa] {
+  border: 1px solid transparent;
+  border-radius: var(--radius-card, 0.75rem);
+  padding: 0.75rem 0.875rem;
+}
+.conteudo-rico [data-caixa] > * + * { margin-top: 0.5em; }
+.conteudo-rico [data-caixa="neutra"] {
+  background: var(--muted);
+  border-color: var(--border);
+}
+.conteudo-rico [data-caixa="info"] {
+  background: var(--accent);
+  border-color: var(--blue-muted);
+}
+.conteudo-rico [data-caixa="aviso"] {
+  background: var(--warning-soft);
+}
+.conteudo-rico [data-caixa="perigo"] {
+  background: var(--danger-soft);
+}
+
+/* --- A TABELA DO BRIEFING ---------------------------------------------------
+   `table-layout: fixed` e `@tiptap/extension-table` que pede: ele guarda a
+   largura de cada coluna num `colgroup`, e sem o layout fixo o navegador
+   reparte pelo conteudo e a coluna redimensionada volta sozinha.
+
+   **E ELA ROLA DENTRO DE SI**, nunca a pagina: uma tabela de seis colunas num
+   painel de 768px passa da caixa, e a regra desta casa e que o corpo da pagina
+   nao rola para o lado — tabela, diagrama e codigo rolam cada um no proprio
+   contener. */
+.conteudo-rico table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  overflow: hidden;
+}
+.conteudo-rico :is(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.375rem 0.5rem;
+  vertical-align: top;
+  position: relative;
+}
+.conteudo-rico th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+/* A celula selecionada, enquanto o cursor esta dentro da tabela. */
+.conteudo-rico .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.dark .conteudo-rico .selectedCell::after { mix-blend-mode: screen; }
+/* A alca de redimensionar coluna. */
+.conteudo-rico .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent-strong);
+  cursor: col-resize;
+}
 
 /* Placeholder do editor vazio. */
 .conteudo-rico p.esta-vazio:first-child::before {

@@ -61,8 +61,6 @@ import { execSync } from "node:child_process";
 const ISENTAS = {
   "gestao-tasks/acoes.ts:criarTask":
     "CÓDIGO MORTO, e pela regra da 0023 ela se apaga. A 0028 trocou o formulário de abertura pela tela de detalhe: a demanda nasce como rascunho no clique de '+ Nova task', por outra action, e tudo salva campo a campo. Esta cria a task com as subtarefas de uma vez, que é o caminho que deixou de existir — e é o pior tipo de código morto, porque ela parece a maneira certa de criar uma demanda para quem a encontrar.",
-  "gestao-tasks/acoes-de-itens.ts:reordenarSubtarefas":
-    "FALTA A TELA: não há como reordenar as etapas de uma demanda arrastando. O dnd-kit já está no projeto e o board de etapas de Minhas Tasks arrasta desde o Sprint 10, então o que falta é a lista do detalhe da Task virar um alvo de solta.",
   "comodatos/acoes.ts:registrarFoto":
     "FALTA A TELA, e ela é a que o módulo precisa mais: o CLAUDE.md diz que as fotos *'são o que resolve discussão na devolução — a tampa já estava assim'*, e não existe por onde subir uma. `asset_photos` e o bucket estão de pé desde a 0069, com o momento (entrega/devolução) em coluna.",
   "feedback/acoes.ts:marcarFeedbackExplicado":

@@ -65,7 +65,20 @@ const BRIEFING_RICO = {
         { type: "text", text: " com foco em " },
         {
           type: "text",
-          marks: [{ type: "textStyle", attrs: { color: "#dc2626" } }],
+          // O HEXADECIMAL LITERAL, de proposito: este paragrafo e um briefing
+          // ANTERIOR a paleta por token, e ele e o que prova que o documento
+          // antigo continua renderizando. O valor e o MESMO que
+          // `--rico-vermelho` tem no claro -- entao as duas "cores" sao a
+          // mesma cor, e o que as separa e so o tema: esta fica onde esta, a
+          // de baixo (`var(--rico-azul)`, na tabela) clareia no escuro.
+          //
+          // **E O AXE ACUSA ELE NO ESCURO, que e o argumento inteiro da
+          // entrega medido por uma ferramenta de fora:** 5,57:1 no claro e
+          // 2,75:1 no escuro, sobre `--surface-page`. Nao e para ser
+          // "consertado" no exemplo: consertar aqui seria mostrar um
+          // documento antigo que esta bem, quando ele nao esta -- e o que o
+          // produto pode fazer por ele esta escrito no CLAUDE.md.
+          marks: [{ type: "textStyle", attrs: { color: "#b91c1c" } }],
           text: "conversão direta",
         },
         { type: "text", text: "." },
@@ -86,6 +99,96 @@ const BRIEFING_RICO = {
         {
           type: "paragraph",
           content: [{ type: "text", text: "O cliente pediu para evitar fundo branco." }],
+        },
+      ],
+    },
+    // A CAIXA E A TABELA, que sao o pedido do usuario em imagem.
+    //
+    // Elas estao no EXEMPLO e nao numa tela de menu aberto, de proposito: o
+    // que ele pediu foi poder CONSTRUIR um briefing com box e tabela, entao o
+    // que precisa aparecer e o resultado -- o chao da caixa, a borda, o
+    // cabecalho da tabela -- e nao a fileira de botoes que os insere. Um menu
+    // aberto provaria que o controle existe; isto prova que ele faz alguma
+    // coisa, e prova nos DOIS temas de uma vez, que e onde o chao da caixa
+    // pode sumir.
+    {
+      type: "caixaDoBriefing",
+      attrs: { tipo: "aviso" },
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", marks: [{ type: "bold" }], text: "Prazo da gráfica: " },
+            { type: "text", text: "o arquivo fechado tem que sair até quarta, senão a tiragem vira para a semana seguinte." },
+          ],
+        },
+      ],
+    },
+    {
+      type: "table",
+      content: [
+        {
+          type: "tableRow",
+          content: [
+            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Peça" }] }] },
+            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Formato" }] }] },
+            { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Observação" }] }] },
+          ],
+        },
+        {
+          type: "tableRow",
+          content: [
+            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Carrossel" }] }] },
+            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1080×1350" }] }] },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "O último cartão leva o " },
+                    {
+                      type: "text",
+                      // O REALCE, que e a metade "pasteis" do pedido: pastel
+                      // como CHAO, com o texto do documento por cima. Pastel
+                      // como cor de LETRA e ilegivel por construcao.
+                      marks: [{ type: "textStyle", attrs: { backgroundColor: "var(--rico-realce-amarelo)" } }],
+                      text: "cupom de 15%",
+                    },
+                    { type: "text", text: "." },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "tableRow",
+          content: [
+            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Story" }] }] },
+            { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1080×1920" }] }] },
+            {
+              type: "tableCell",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      // A COR POR NOME, ao lado do `#dc2626` literal la em
+                      // cima: as duas no MESMO documento sao o que prova que
+                      // o briefing antigo continua valendo. A de cima nasceu
+                      // antes de a paleta virar token e nao foi reescrita; a
+                      // de baixo troca com o tema.
+                      marks: [{ type: "textStyle", attrs: { color: "var(--rico-azul)" } }],
+                      text: "Enquete",
+                    },
+                    { type: "text", text: " com duas opções de capa." },
+                  ],
+                },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -253,6 +356,33 @@ const SEMENTES: Semente[] = [
     requer_aprovacao: false,
     tipo_aprovacao: null,
     estimativa_minutos: 45,
+    tempo_real_minutos: null,
+    dependeDe: "s2",
+  },
+  // A SUB-ETAPA SEM DONO, e ela entrou com o seletor de responsavel na linha.
+  //
+  // Em repouso aquele seletor e TEXTO -- o nome da pessoa, ou "Sem
+  // responsavel". Com todas as onze etapas do exemplo tendo dono, a imagem
+  // mostraria onze nomes e nada provaria que ali agora se clica: e a licao da
+  // Optica Visao sem atendente (0062), e e o estado que a tela precisa ter
+  // para a entrega sair em foto.
+  //
+  // E ela e a TERCEIRA irma debaixo de "Adaptar formatos", de proposito: com
+  // duas, arrastar uma para o lugar da outra e uma troca, e a imagem nao
+  // distingue "reordenou" de "inverteu". Com tres, a ordem tem como estar
+  // errada de mais de um jeito.
+  {
+    id: "s3c",
+    task_id: "11111111-1111-1111-1111-111111111111",
+    parent_id: "s3",
+    titulo: "Capa do destaque",
+    ordem: 3,
+    prazo: dia(6),
+    responsavel: null,
+    status: "nao_iniciada",
+    requer_aprovacao: false,
+    tipo_aprovacao: null,
+    estimativa_minutos: 30,
     tempo_real_minutos: null,
     dependeDe: "s2",
   },
@@ -716,6 +846,37 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     status: "entregue",
     data_inicio: dia(-14),
     data_fim: dia(-1),
+  },
+  // AS DUAS DEMANDAS QUE FALTAVAM, e elas entraram com as sete cores de
+  // status. Os exemplos cobriam CINCO dos sete valores de `task_status` --
+  // `aguardando_informacoes` e `em_ajustes` nao existiam em demanda nenhuma --,
+  // e sao justamente duas das tres que ganharam cor propria: a Lista sairia em
+  // imagem com o marrom e o lima novos e SEM o laranja e o vermelho.
+  //
+  // E a imagem e a unica conferencia que esta mudanca tem: cor de caixa nao e
+  // tipo, nao e arvore de acessibilidade, e o `check:cores` mede o par e nao
+  // se ele aparece. E a licao da Optica Visao sem atendente (0062) -- um
+  // ambiente de exemplo que mostra o produto no unico estado em que a entrega
+  // nao existe esconde a entrega inteira.
+  {
+    id: "7a000000-0000-0000-0000-000000000001",
+    client_id: ALFA.id,
+    cliente: ALFA,
+    titulo: "Catálogo de verão — falta a lista de produtos",
+    prioridade: "normal",
+    status: "aguardando_informacoes",
+    data_inicio: dia(-6),
+    data_fim: dia(8),
+  },
+  {
+    id: "7a000000-0000-0000-0000-000000000002",
+    client_id: BETA.id,
+    cliente: BETA,
+    titulo: "Banner da fachada — o cliente pediu outra foto",
+    prioridade: "alta",
+    status: "em_ajustes",
+    data_inicio: dia(-9),
+    data_fim: dia(2),
   },
   // A DEMANDA DO MES DE SOCIAL (0088), que e a entrega do sprint vista desta
   // tela: depois que a fase virou subtarefa, ela aparece aqui pelo caminho de

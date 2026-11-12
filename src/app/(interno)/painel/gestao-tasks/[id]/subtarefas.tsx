@@ -1,7 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -21,9 +34,9 @@ import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
 import { PriorityBadge } from "@/components/shared/priority-badge";
+import { SeletorDeResponsavel } from "@/components/shared/seletor-de-responsavel";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,9 +53,11 @@ import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import {
+  atualizarSubtarefa,
   criarSubtarefa,
   moverSubtarefa,
   removerSubtarefa,
+  reordenarSubtarefas,
 } from "../acoes-de-itens";
 import { PainelDaSubtarefa } from "./painel-da-subtarefa";
 
@@ -91,12 +106,149 @@ export function Subtarefas({
   const [aninhandoEm, setAninhandoEm] = useState<string | null>(null);
   const [novaFilha, setNovaFilha] = useState("");
 
-  const arvore = emArvore(subtarefas);
+  /**
+   * A ORDEM OTIMISTA, e ela é o que o pedido chama de "já mudem de ordem".
+   *
+   * Decisão do usuário: *"quero poder mudar a ordem das subtarefas só clicando
+   * e arrastando, para que elas já entrem automaticamente"* e, logo depois,
+   * *"no caso, preciso que arrastando, elas já mudem de ordem de
+   * visualização"*. Sem a cópia local a linha voltaria para o lugar antigo e
+   * só pularia para o novo quando o `router.refresh()` terminasse — o arrasto
+   * pareceria não ter funcionado, e a pessoa arrastaria de novo.
+   *
+   * É a forma do board de demandas, que já guarda uma cópia local do status
+   * pela mesma razão. E ela é por NÍVEL: a chave é o id do pai, ou `"raiz"`.
+   */
+  const [ordemLocal, setOrdemLocal] = useState<Record<string, string[]>>({});
+
+  const sensores = useSensors(
+    // Os MESMOS 6px do board, e o número não é estilo: a linha também ABRE o
+    // modal no clique, então sem a distância um clique viraria arrasto.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const arvore = useMemo(() => {
+    const bruta = emArvore(subtarefas);
+
+    /** Reordena uma lista pela cópia local, mantendo quem ela não conhece. */
+    function aplicar<T>(
+      itens: T[],
+      chave: string,
+      id: (item: T) => string,
+    ): T[] {
+      const ordem = ordemLocal[chave];
+      if (!ordem) return itens;
+      const indice = new Map(ordem.map((cada, i) => [cada, i]));
+      // `?? itens.length` põe no FIM o que a cópia local não conhece: a etapa
+      // criada depois do arrasto e antes do refresh. Sem isso ela iria para o
+      // topo, que é onde ninguém a pôs.
+      return [...itens].sort(
+        (a, b) =>
+          (indice.get(id(a)) ?? itens.length) -
+          (indice.get(id(b)) ?? itens.length),
+      );
+    }
+
+    const raizes = aplicar(bruta, "raiz", (r) => r.etapa.id);
+    return raizes.map(({ etapa, filhas }) => ({
+      etapa,
+      filhas: aplicar(filhas, etapa.id, (f) => f.id),
+    }));
+  }, [subtarefas, ordemLocal]);
   // O CONTADOR É DE FOLHAS. Contar a agrupadora faria "3 de 4" ficar parado
   // para sempre: ela só conclui depois das filhas, então a conta nunca fecha.
   const asFolhas = folhas(subtarefas);
   const concluidas = asFolhas.filter((s) => s.status === "concluida").length;
   const emAberto = subtarefas.find((s) => s.id === aberta) ?? null;
+
+  /**
+   * QUEM FAZ ESTA ETAPA, gravado no clique.
+   *
+   * Aqui o clique É a escrita, porque uma linha de lista não tem botão de
+   * salvar — é a assimetria que `SeletorDeResponsavel` existe para servir: no
+   * modal ele só marca a escolha, e quem oficializa é o Salvar.
+   */
+  function trocarResponsavel(
+    sub: SubtarefaDetalhada,
+    responsavelId: string | null,
+  ) {
+    iniciar(async () => {
+      const resultado = await chamarAcao(() =>
+        atualizarSubtarefa(sub.id, taskId, { responsavel_id: responsavelId }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
+
+  /**
+   * A ORDEM NOVA, gravada no soltar.
+   *
+   * **REORDENA DENTRO DO NÍVEL, nunca entre níveis.** Tirar uma sub-etapa de
+   * dentro da mãe é mexer em `parent_id`, que é outra operação com outras
+   * travas — `subtasks_agrupadora` recusa o neto, e a mãe que perde a última
+   * filha volta a ser unidade de trabalho (0022). O que o arrasto faz é
+   * exatamente o que o pedido diz: mudar a ordem.
+   *
+   * **E `ordem` só é comparada entre IRMÃOS**, o que é o que torna isto
+   * barato: `emArvore()` ordena as raízes entre si e as filhas de cada mãe
+   * entre si, então gravar `1..n` num nível não colide com nenhum outro.
+   *
+   * **A cópia local é escrita ANTES da ida ao banco** e desfeita na recusa: é
+   * o board de demandas palavra por palavra.
+   */
+  function reordenar(chave: string, ids: string[], anterior: string[]) {
+    setOrdemLocal((atual) => ({ ...atual, [chave]: ids }));
+    iniciar(async () => {
+      const resultado = await chamarAcao(() =>
+        reordenarSubtarefas(taskId, ids),
+      );
+      if (!resultado.ok) {
+        setOrdemLocal((atual) => ({ ...atual, [chave]: anterior }));
+        toast.error(resultado.error);
+      } else {
+        router.refresh();
+      }
+    });
+  }
+
+  /**
+   * DESCOBRE O NÍVEL pelo id de quem saiu, e só então reordena.
+   *
+   * Com um `DndContext` só, este é o lugar onde "arrastar entre níveis não faz
+   * nada" acontece: se o destino não está na lista daquele nível,
+   * `indexOf` devolve -1 e `aoSoltar` desiste.
+   */
+  function aoSoltarNoNivel(evento: DragEndEvent) {
+    const quem = String(evento.active.id);
+
+    const raizes = arvore.map(({ etapa }) => etapa.id);
+    if (raizes.includes(quem)) {
+      aoSoltar("raiz", raizes, evento);
+      return;
+    }
+
+    const mae = arvore.find(({ filhas }) => filhas.some((f) => f.id === quem));
+    if (mae) {
+      aoSoltar(
+        mae.etapa.id,
+        mae.filhas.map((f) => f.id),
+        evento,
+      );
+    }
+  }
+
+  /** Traduz o soltar do dnd-kit na lista de ids na ordem nova. */
+  function aoSoltar(chave: string, atuais: string[], evento: DragEndEvent) {
+    const { active, over } = evento;
+    if (!over || active.id === over.id) return;
+    const de = atuais.indexOf(String(active.id));
+    const para = atuais.indexOf(String(over.id));
+    if (de < 0 || para < 0) return;
+    const nova = [...atuais];
+    nova.splice(para, 0, ...nova.splice(de, 1));
+    reordenar(chave, nova, atuais);
+  }
 
   function adicionar(titulo: string, parentId: string | null) {
     const limpo = titulo.trim();
@@ -191,100 +343,151 @@ export function Subtarefas({
           aprovação.
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border">
-          {arvore.map(({ etapa, filhas }) => (
-            <li key={etapa.id}>
-              <Linha
-                sub={etapa}
-                filhas={filhas.length}
-                somaDasFilhas={
-                  filhas.length > 0
-                    ? {
-                        real: somar(filhas, "tempo_real_minutos"),
-                        estimado: somar(filhas, "estimativa_minutos"),
-                        concluidas: filhas.filter(
-                          (f) => f.status === "concluida",
-                        ).length,
-                      }
-                    : null
-                }
-                podeGerenciar={podeGerenciar}
-                souGestor={souGestor}
-                usuarioId={usuarioId}
-                agoraDoServidor={agoraDoServidor}
-                aoAbrir={() => setAberta(etapa.id)}
-                aoMudarStatus={(destino) => trocarStatus(etapa, destino)}
-                aoAninhar={() => {
-                  setAninhandoEm(aninhandoEm === etapa.id ? null : etapa.id);
-                  setNovaFilha("");
-                }}
-                aoRemover={() => remover(etapa, filhas.length)}
-              />
-
-              {filhas.length > 0 ? (
-                <ul className="border-t">
-                  {filhas.map((filha) => (
-                    <li key={filha.id} className="border-b last:border-b-0">
+        /* UM `DndContext` SÓ, com um `SortableContext` por NÍVEL.
+           Aninhar contextos resolveria igual e custaria a propagação do evento
+           entre eles; com um, o `onDragEnd` descobre o nível pelo id de quem
+           saiu — e um arrasto que atravessa níveis não acha o destino na lista
+           daquele nível e não faz nada, que é a recusa certa: mudar de mãe é
+           mexer em `parent_id`, outra operação com outras travas. */
+        <DndContext sensors={sensores} onDragEnd={aoSoltarNoNivel}>
+          <SortableContext
+            items={arvore.map(({ etapa }) => etapa.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="divide-y rounded-lg border">
+              {arvore.map(({ etapa, filhas }) => (
+                <ItemArrastavel
+                  key={etapa.id}
+                  id={etapa.id}
+                  podeArrastar={podeGerenciar && arvore.length > 1}
+                >
+                  {(alca) => (
+                    <>
                       <Linha
-                        sub={filha}
-                        aninhada
-                        filhas={0}
-                        somaDasFilhas={null}
+                        sub={etapa}
+                        alca={alca}
+                        equipe={equipe}
+                        aoMudarResponsavel={(quem) =>
+                          trocarResponsavel(etapa, quem)
+                        }
+                        filhas={filhas.length}
+                        somaDasFilhas={
+                          filhas.length > 0
+                            ? {
+                                real: somar(filhas, "tempo_real_minutos"),
+                                estimado: somar(filhas, "estimativa_minutos"),
+                                concluidas: filhas.filter(
+                                  (f) => f.status === "concluida",
+                                ).length,
+                              }
+                            : null
+                        }
                         podeGerenciar={podeGerenciar}
                         souGestor={souGestor}
                         usuarioId={usuarioId}
                         agoraDoServidor={agoraDoServidor}
-                        aoAbrir={() => setAberta(filha.id)}
+                        aoAbrir={() => setAberta(etapa.id)}
                         aoMudarStatus={(destino) =>
-                          trocarStatus(filha, destino)
+                          trocarStatus(etapa, destino)
                         }
-                        aoAninhar={null}
-                        aoRemover={() => remover(filha, 0)}
+                        aoAninhar={() => {
+                          setAninhandoEm(
+                            aninhandoEm === etapa.id ? null : etapa.id,
+                          );
+                          setNovaFilha("");
+                        }}
+                        aoRemover={() => remover(etapa, filhas.length)}
                       />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
 
-              {aninhandoEm === etapa.id ? (
-                <form
-                  className="bg-muted flex gap-2 border-t p-3 pl-10"
-                  onSubmit={(evento) => {
-                    evento.preventDefault();
-                    adicionar(novaFilha, etapa.id);
-                  }}
-                >
-                  <Input
-                    autoFocus
-                    value={novaFilha}
-                    onChange={(evento) => setNovaFilha(evento.target.value)}
-                    placeholder={`Sub-etapa dentro de "${etapa.titulo}"`}
-                    aria-label={`Título da nova sub-etapa de ${etapa.titulo}`}
-                  />
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    disabled={salvando || novaFilha.trim() === ""}
-                  >
-                    {salvando ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <Plus aria-hidden />
-                    )}
-                    Adicionar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setAninhandoEm(null)}
-                  >
-                    Cancelar
-                  </Button>
-                </form>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                      {filhas.length > 0 ? (
+                        <SortableContext
+                          items={filhas.map((f) => f.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <ul className="border-t">
+                            {filhas.map((filha) => (
+                              <ItemArrastavel
+                                key={filha.id}
+                                id={filha.id}
+                                podeArrastar={
+                                  podeGerenciar && filhas.length > 1
+                                }
+                                className="border-b last:border-b-0"
+                              >
+                                {(alcaDaFilha) => (
+                                  <Linha
+                                    sub={filha}
+                                    alca={alcaDaFilha}
+                                    equipe={equipe}
+                                    aoMudarResponsavel={(quem) =>
+                                      trocarResponsavel(filha, quem)
+                                    }
+                                    aninhada
+                                    filhas={0}
+                                    somaDasFilhas={null}
+                                    podeGerenciar={podeGerenciar}
+                                    souGestor={souGestor}
+                                    usuarioId={usuarioId}
+                                    agoraDoServidor={agoraDoServidor}
+                                    aoAbrir={() => setAberta(filha.id)}
+                                    aoMudarStatus={(destino) =>
+                                      trocarStatus(filha, destino)
+                                    }
+                                    aoAninhar={null}
+                                    aoRemover={() => remover(filha, 0)}
+                                  />
+                                )}
+                              </ItemArrastavel>
+                            ))}
+                          </ul>
+                        </SortableContext>
+                      ) : null}
+
+                      {aninhandoEm === etapa.id ? (
+                        <form
+                          className="bg-muted flex gap-2 border-t p-3 pl-10"
+                          onSubmit={(evento) => {
+                            evento.preventDefault();
+                            adicionar(novaFilha, etapa.id);
+                          }}
+                        >
+                          <Input
+                            autoFocus
+                            value={novaFilha}
+                            onChange={(evento) =>
+                              setNovaFilha(evento.target.value)
+                            }
+                            placeholder={`Sub-etapa dentro de "${etapa.titulo}"`}
+                            aria-label={`Título da nova sub-etapa de ${etapa.titulo}`}
+                          />
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={salvando || novaFilha.trim() === ""}
+                          >
+                            {salvando ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Plus aria-hidden />
+                            )}
+                            Adicionar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setAninhandoEm(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </form>
+                      ) : null}
+                    </>
+                  )}
+                </ItemArrastavel>
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
 
       {asFolhas.length > 0 ? (
@@ -340,6 +543,90 @@ export function Subtarefas({
 }
 
 /**
+ * Uma linha que ARRASTA, e a alça é um botão de verdade.
+ *
+ * ---------------------------------------------------------------------------
+ * **O `GripVertical` ERA `aria-hidden` E NÃO ARRASTAVA NADA** — uma alça que
+ * não alça, desenhada em toda linha desde o Sprint 3. E `reordenarSubtarefas`
+ * existe em `acoes-de-itens.ts` desde o mesmo sprint, na lista `ISENTAS` do
+ * `check:acoes` como ação sem chamador: a ponte estava construída dos dois
+ * lados e faltava o clique. Decisão do usuário: *"quero poder mudar a ordem
+ * das subtarefas só clicando e arrastando"*.
+ *
+ * ---------------------------------------------------------------------------
+ * **A ALÇA SEGURA O ARRASTO, e não a linha inteira.** A linha carrega seis
+ * controles — o seletor de status, o título, o responsável, o relógio, o botão
+ * de ação e o de apagar —, e espalhar os `listeners` do dnd-kit no contêiner
+ * faria o `role="button"` dele embrulhar todos eles: `nested-interactive`,
+ * crítico no axe, e na prática duas paradas de Tab para a mesma linha. **Este
+ * produto já pagou isso duas vezes**, no card do board de demandas e no de
+ * etapas, e as duas vezes a saída foi a mesma — os `attributes` vão num
+ * elemento que já é focável por natureza.
+ *
+ * Aqui o elemento é a própria alça, que passou a ser um `<button>`: ela era o
+ * único lugar da linha que não fazia nada, e é exatamente o lugar onde quem
+ * quer arrastar põe o ponteiro.
+ *
+ * *O que isto custa, e é dito em vez de escondido:* o arrasto por TECLADO
+ * depende do `KeyboardSensor`, que não está ligado aqui — a alça é focável e
+ * anunciada, e pressionar espaço nela não move nada. O caminho de teclado para
+ * reordenar continua não existindo, como no board de etapas, e ligá-lo é um
+ * sensor a mais mais o `sortableKeyboardCoordinates`.
+ * ---------------------------------------------------------------------------
+ */
+function ItemArrastavel({
+  id,
+  podeArrastar,
+  className,
+  children,
+}: {
+  id: string;
+  podeArrastar: boolean;
+  className?: string;
+  /** Recebe a alça já pronta, para a linha desenhá-la no lugar dela. */
+  children: (alca: React.ReactNode) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: !podeArrastar });
+
+  const alca = podeArrastar ? (
+    <button
+      type="button"
+      // `cursor-grab` e não `cursor-move`: o primeiro diz "isto se pega", que é
+      // o gesto; o segundo é o cursor de janela.
+      className="text-muted-foreground/50 hover:text-text-secondary -ml-1 cursor-grab touch-none rounded p-0.5 focus-visible:ring-1 focus-visible:outline-none active:cursor-grabbing"
+      aria-label="Arrastar para reordenar"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical aria-hidden className="size-4" />
+    </button>
+  ) : null;
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      // `relative z-10` só enquanto arrasta: sem isso a linha em movimento
+      // passa POR BAIXO das vizinhas, porque todas são irmãs no fluxo e a
+      // ordem de pintura é a do DOM.
+      className={cn(
+        className,
+        isDragging && "bg-card relative z-10 shadow-cartao",
+      )}
+    >
+      {children(alca)}
+    </li>
+  );
+}
+
+/**
  * Uma linha da lista, nos dois papéis que ela tem.
  *
  * **Agrupadora** (`somaDasFilhas` preenchido): sem responsável, sem prazo, sem
@@ -351,6 +638,9 @@ export function Subtarefas({
  */
 function Linha({
   sub,
+  alca,
+  equipe,
+  aoMudarResponsavel,
   aninhada = false,
   filhas,
   somaDasFilhas,
@@ -364,6 +654,10 @@ function Linha({
   aoRemover,
 }: {
   sub: SubtarefaDetalhada;
+  /** A alça de arrastar, já pronta — null para quem não pode reordenar. */
+  alca: React.ReactNode;
+  equipe: Pessoa[];
+  aoMudarResponsavel: (responsavelId: string | null) => void;
   aninhada?: boolean;
   filhas: number;
   somaDasFilhas: {
@@ -403,18 +697,25 @@ function Linha({
   return (
     <LinhaDeTrabalho
       className={cn("p-3", aninhada && "pl-10")}
+      /* A ALÇA VEM PRIMEIRO, E O `GripVertical` DECORATIVO SAIU DAQUI.
+         Ele era `aria-hidden` e não arrastava nada — a mesma forma, no mesmo
+         lugar, sem o comportamento que ela anuncia. Quem o desenha agora é
+         `ItemArrastavel`, como um `<button>` de verdade.
+
+         NA SUB-ETAPA OS DOIS FICAM, e é informação e não enfeite: a seta diz
+         que a linha é filha de alguém, a alça diz que ela se reordena. O
+         recuo (`pl-10`) tem espaço para os dois, e sem a seta a sub-etapa com
+         alça ficaria idêntica a uma etapa de topo recuada. */
       antes={
-        aninhada ? (
-          <CornerDownRight
-            className="text-muted-foreground/50 size-4 shrink-0"
-            aria-hidden
-          />
-        ) : podeGerenciar ? (
-          <GripVertical
-            className="text-muted-foreground/50 size-4 shrink-0"
-            aria-hidden
-          />
-        ) : null
+        <>
+          {alca}
+          {aninhada ? (
+            <CornerDownRight
+              className="text-muted-foreground/50 size-4 shrink-0"
+              aria-hidden
+            />
+          ) : null}
+        </>
       }
       status={seletorDeStatus}
       nome={
@@ -507,17 +808,35 @@ function Linha({
                 </Tooltip>
               ) : null}
 
-              {sub.responsavel ? (
-                <UserAvatar
-                  name={sub.responsavel.nome}
-                  src={sub.responsavel.avatar_url}
-                  size="sm"
-                />
-              ) : (
-                <span className="text-muted-foreground text-xs">
-                  sem responsável
-                </span>
-              )}
+              {/* QUEM FAZ, ESCOLHIDO AQUI. Decisão do usuário: *"ela possa
+                  selecionar o responsável, clicando na palavra responsável,
+                  sem precisar abrir mais abas para editar"*.
+
+                  **A palavra era literalmente esta:** `sem responsável`, em
+                  cinza, do lado do relógio — uma frase que descreve uma falta,
+                  parece o lugar de resolvê-la, e não respondia ao clique. Quem
+                  queria distribuir trabalho abria o modal, achava o campo no
+                  meio de doze e fechava.
+
+                  **Quem pode é `podeGerenciar`**, a MESMA pergunta que o campo
+                  do modal faz — e não uma parecida: distribuir trabalho é do
+                  Atendimento e da gestão, e quem só executa continua mudando o
+                  próprio andamento pelo seletor de status, duas posições à
+                  esquerda. */}
+              <SeletorDeResponsavel
+                valor={sub.responsavel_id}
+                /* A PESSOA COMO ESTA LINHA A CONHECE. `equipe` é quem está
+                   ATIVO, e a imagem do protótipo mostrou o preço de depender
+                   só dela: três etapas COM dono saíram marcadas "sem
+                   responsável", porque a pessoa delas não estava na lista. A
+                   linha sabe — ela desenhava o avatar dessa pessoa desde o
+                   Sprint 3B. */
+                atual={sub.responsavel}
+                equipe={equipe}
+                aoMudar={aoMudarResponsavel}
+                podeEditar={podeGerenciar}
+                compacto
+              />
 
               {/* O relógio à vista. Um cronômetro que ninguém vê é um número
                   que aparece pronto no diálogo de conclusão, sem a pessoa ter

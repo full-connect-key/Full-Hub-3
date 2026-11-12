@@ -49,7 +49,45 @@ export type StatusSubtarefa =
 
 export type Status = StatusConteudo | StatusTask | StatusSubtarefa;
 
-type Tom = "neutro" | "marca" | "info" | "atencao" | "positivo" | "negativo" | "pausado";
+/**
+ * OS OITO TONS, e eram sete com um deles duplicado.
+ *
+ * ---------------------------------------------------------------------------
+ * **SETE STATUS DE TASK, SETE CORES** — decisão do usuário, com a paleta por
+ * extenso: *"na lista da gestão de task, deixe o a produzir cinza, em produção
+ * azul, aguardando informações laranja, aguardando aprovação marrom, ajuste é
+ * vermelho, e entregue verde mais claro e concluido verde escuro"*.
+ *
+ * Os sete mapeavam em CINCO pares, e este produto registrava a dívida em voz
+ * alta: *"'Iniciar' e 'Aguardando informações' dividem o cinza, 'Em andamento'
+ * e 'Aguardando aprovação' dividem o azul, 'Entregue' e 'Em ajuste' dividem o
+ * âmbar"*. Com a caixa colorida no cabeçalho de grupo da Lista, três pares de
+ * caixas saíam com o mesmo chão.
+ *
+ * **`info` SAIU, e ele era `marca` com outro nome:** as duas entradas de
+ * `TONS` eram a MESMA string de classes, letra por letra. Dois nomes para uma
+ * cor é o que faz alguém "mudar o azul" e mudar metade dos selos — é a decisão
+ * da 0023, aplicada a um tom. Quem usava `info` era `em_aprovacao` e
+ * `enviada_aprovacao`, e os dois passaram para `marrom`.
+ *
+ * **E `atencao` FICOU, com um consumidor só:** o "Ajustes" do fluxo do
+ * CLIENTE. Ele não vira vermelho junto com o "Em ajuste" da equipe, e a razão
+ * é a 0127: no fluxo do cliente, "Ajustes" fica ao lado de "Rejeitado" — os
+ * dois desfechos negativos, que *"querem dizer coisas opostas"* e que aquela
+ * migration existe para separar. No fluxo da task não há `rejeitado`, então
+ * ali o vermelho está livre.
+ * ---------------------------------------------------------------------------
+ */
+type Tom =
+  | "neutro"
+  | "marca"
+  | "laranja"
+  | "marrom"
+  | "atencao"
+  | "positivo"
+  | "lima"
+  | "negativo"
+  | "pausado";
 
 /**
  * Cada tom é um PAR de tokens: fundo suave mais a cor cheia como texto. Os
@@ -70,9 +108,11 @@ type Tom = "neutro" | "marca" | "info" | "atencao" | "positivo" | "negativo" | "
 const PONTO: Record<Tom, string> = {
   neutro: "bg-neutral",
   marca: "bg-accent-strong",
-  info: "bg-accent-strong",
+  laranja: "bg-laranja",
+  marrom: "bg-marrom",
   atencao: "bg-warning",
   positivo: "bg-success",
+  lima: "bg-lima",
   negativo: "bg-danger",
   pausado: "bg-neutral",
 };
@@ -97,18 +137,28 @@ export function classesDoChipDeStatus(status: Status): string {
 const TONS: Record<Tom, string> = {
   neutro: "bg-neutral-soft text-neutral border-transparent",
   marca: "bg-accent text-accent-foreground border-blue-muted",
-  info: "bg-accent text-accent-foreground border-blue-muted",
+  laranja: "bg-laranja-soft text-laranja border-transparent",
+  marrom: "bg-marrom-soft text-marrom border-transparent",
   atencao: "bg-warning-soft text-warning border-transparent",
   positivo: "bg-success-soft text-success border-transparent",
+  lima: "bg-lima-soft text-lima border-transparent",
   negativo: "bg-danger-soft text-danger border-transparent",
   pausado: "bg-transparent text-muted-foreground border-border border-dashed",
 };
 
 const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // Conteúdo
-  aguardando_informacoes: { label: "Aguardando informações", tom: "neutro" },
+  // LARANJA e nao cinza: ele dividia o cinza com o "Stand by", e os dois
+  // dizem coisas opostas — um e a Full travada esperando algo, o outro e a
+  // peca parada por escolha. No portal, laranja e a cor que diz "a agencia
+  // precisa de uma resposta".
+  aguardando_informacoes: { label: "Aguardando informações", tom: "laranja" },
   em_producao: { label: "Em produção", tom: "marca" },
-  em_aprovacao: { label: "Aguardando aprovação", tom: "info" },
+  // MARROM e nao azul: ele dividia o azul com "Em producao", e para o cliente
+  // esta e a unica linha que quer dizer *esperando VOCE* — era a distincao
+  // mais importante do fluxo dele, escondida dentro da cor do trabalho em
+  // andamento. Era tambem o unico consumidor do tom `info`.
+  em_aprovacao: { label: "Aguardando aprovação", tom: "marrom" },
   ajustes: { label: "Ajustes", tom: "atencao" },
   aprovado: { label: "Aprovado", tom: "positivo" },
   rejeitado: { label: "Rejeitado", tom: "negativo" },
@@ -125,14 +175,29 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // demanda sai, e nao ha botao nenhum concorrendo ao lado.
   nao_iniciada: { label: "Não iniciada", tom: "neutro" },
   em_andamento: { label: "Em andamento", tom: "marca" },
-  // "Entregue" e "Aprovado" nao sao a mesma coisa: o material saiu, ninguem
-  // disse que esta certo. Por isso tom de atencao, e nao o verde de aprovado.
-  entregue: { label: "Entregue", tom: "atencao" },
-  em_ajustes: { label: "Em ajuste", tom: "atencao" },
+  // "Entregue" e "Aprovado" NAO sao a mesma coisa, e o argumento continua
+  // inteiro: o material saiu, ninguem disse que esta certo. O que muda e a
+  // cor que diz isso. Era `atencao`, o ambar — e ambar dividia com "Em
+  // ajuste", ou seja o material entregue tinha a cor de material devolvido.
+  //
+  // Agora e o LIMA: verde, porque entregar e um passo adiante, e mais claro
+  // que o verde escuro do concluido, porque falta o aval. "verde mais claro"
+  // foi a palavra do usuario, e a matiz e o que a entrega — lima-700 sobre
+  // lima-100 le amarelado ao lado do verde, e um verde-600 sobre verde-50
+  // daria 3,0:1, abaixo do minimo.
+  entregue: { label: "Entregue", tom: "lima" },
+  // VERMELHO, e aqui ele esta livre: `rejeitado` so existe no fluxo do
+  // cliente, entao no fluxo da task o vermelho nao concorre com nada. Era
+  // ambar, dividido com "Entregue".
+  em_ajustes: { label: "Em ajuste", tom: "negativo" },
   concluido: { label: "Concluído", tom: "positivo" },
   cancelada: { label: "Cancelada", tom: "pausado" },
   // Subtarefa
-  enviada_aprovacao: { label: "Enviada para aprovação", tom: "info" },
+  //
+  // MARROM, junto com `em_aprovacao`: as duas dizem a mesma coisa num nivel
+  // diferente — o material esta esperando uma decisao. Deixar uma marrom e a
+  // outra azul seria a divergencia que este arquivo existe para nao ter.
+  enviada_aprovacao: { label: "Enviada para aprovação", tom: "marrom" },
   concluida: { label: "Concluída", tom: "positivo" },
 };
 

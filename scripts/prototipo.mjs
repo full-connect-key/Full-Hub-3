@@ -317,6 +317,18 @@ const TELAS = [
   // montando, e nenhuma das imagens mostra esse momento". Quem quiser a tela
   // do rascunho semeia uma task com `publicada_em: null` e aponta a rota para
   // ela -- e ai e uma rota, nao um clique.
+  //
+  // **E ELA E A IMAGEM DA ALCA E DO SELETOR DE RESPONSAVEL NA LINHA**, as
+  // duas entregas da lista de etapas. Nenhuma das duas ganhou tela propria, e
+  // a razao e que nenhuma precisa de um clique para aparecer: a alca esta em
+  // toda linha, e o chevron do seletor passou a aparecer em repouso -- a
+  // primeira versao dele so se anunciava no ponteiro em cima, e uma tela
+  // propria teria de ABRIR a lista, o que custa tres nos de
+  // `aria-hidden-focus` no axe (comportamento dos 52 Selects do produto, e a
+  // decisao de nao fotografar um Select aberto ja estava escrita na `22c`).
+  //
+  // Uma tela a mais mostrando a mesma pagina em repouso seria uma duplicata,
+  // que e o contrario do que uma imagem de prototipo existe para fazer.
   { nome: "25-task-detalhe", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio" },
   // O seletor ABERTO. Os sete status com os calculados desligados so se veem
   // com a lista aberta -- fechada, a tela mostra um campo e nada prova que
@@ -331,6 +343,23 @@ const TELAS = [
   // que ja viajou numa rodada, e o link do Drive ao lado dos dois -- porque
   // ate aqui o link era a UNICA forma que existia.
   { nome: "25c-task-arquivos-da-entrega", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111#arquivos-da-entrega", largura: 1600, altura: 1500, role: "socio" },
+  // O BRIEFING NO ESCURO, e ele entrou com a CAIXA e a TABELA.
+  //
+  // Os dois sao chao: a caixa pinta `--muted`, `--accent`, `--warning-soft` ou
+  // `--danger-soft`, e o cabecalho da tabela pinta `--muted`. Chao e
+  // exatamente o que precisa ser visto nos dois temas -- no escuro o par
+  // inverte, e um fundo que se le no claro pode virar texto escuro sobre
+  // escuro la. A `25` fotografa o claro; nenhuma imagem do produto mostrava
+  // esta tela no escuro.
+  //
+  // **E ELA PROVA A PALETA POR NOME**, que e a metade da entrega que nao tem
+  // outra conferencia: o briefing do exemplo tem um "conversao direta" em
+  // `#dc2626` literal (um documento anterior a esta entrega, deixado de
+  // proposito) e uma "Enquete" em `var(--rico-azul)`. No claro as duas sao
+  // vermelho e azul legiveis; no ESCURO a literal continua vermelho-escuro
+  // sobre fundo escuro e a nomeada clareia. As duas lado a lado sao o
+  // argumento inteiro.
+  { nome: "25d-task-briefing-escuro", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio", tema: "escuro" },
   // O PAINEL DA ETAPA com o enviador ligado: e ali que o arquivo entra, e a
   // 46 ja abre o painel -- o que faltava era ele ter por onde subir.
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },
@@ -592,6 +621,23 @@ const TELAS = [
   { nome: "48-enviar-aprovacao", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "colaborador-social", clicar: 'button:has-text("Pedir aval interno")' },
   { nome: "49-aprovacao-propria", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 900, role: "desenvolvedor" },
   { nome: "46-subtarefa-painel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Criar KV")' },
+  // O MODAL COM ALTERACAO POR SALVAR, e ele PRECISA de um clique a mais.
+  //
+  // A barra de Salvar existe nos dois estados -- desligada quando nao ha o
+  // que gravar, grudada no pe quando ha --, e a `46` abre o modal LIMPO: ela
+  // fotografa o botao desligado, que e a metade que ensina que o momento de
+  // confirmar existe. O que ela nao mostra e a outra metade: o chao grudado,
+  // o "1 alteracao por salvar" em ambar e o Descartar ao lado.
+  //
+  // E so a segunda metade e a entrega. Sem esta tela, o pedido do usuario --
+  // *"quando a pessoa edite algo, ela tenha o botao de salvar para
+  // oficializar as alteracoes"* -- nao sai em imagem nenhuma.
+  //
+  // O CAMPO MEXIDO E A PRIORIDADE porque ela e o unico dos cinco que muda com
+  // dois cliques e sem digitar: data pede um calendario, estimativa pede
+  // teclado, e responsavel abriria uma segunda lista por cima.
+  { nome: "46b-subtarefa-salvar", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
+    clicar: ['button:has-text("Criar KV")', '[role="dialog"] [aria-label="Prioridade"]', '[role="option"]:has-text("Urgente")'] },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 
   // --- Sprint 3C: identidade, tela inicial e portais de clientes ---------

@@ -2,19 +2,40 @@
 
 import { useEditor, EditorContent, type Editor, type JSONContent } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
-import { Color, TextStyle } from "@tiptap/extension-text-style";
+import { BackgroundColor, Color, TextStyle } from "@tiptap/extension-text-style";
 import { Placeholder } from "@tiptap/extension-placeholder";
+import { TableKit } from "@tiptap/extension-table";
 import {
   Bold,
+  Columns3,
+  Highlighter,
   Italic,
   Link2,
   List,
   ListOrdered,
+  Palette,
   Quote,
+  Rows3,
+  Square,
+  Table as TableIcon,
+  Trash2,
   Underline as UnderlineIcon,
 } from "lucide-react";
 
+import {
+  CaixaDoBriefing,
+  ROTULO_DA_CAIXA,
+  TIPOS_DE_CAIXA,
+  type TipoDeCaixa,
+} from "@/components/shared/caixa-do-briefing";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -29,13 +50,60 @@ import { cn } from "@/lib/utils";
  * citação e link — só cor de texto e placeholder precisam ser acrescentados.
  */
 
+/**
+ * A PALETA, e ela passou a ser um NOME em vez de um hexadecimal.
+ *
+ * ---------------------------------------------------------------------------
+ * **ISTO FECHA A "DECISÃO EM SUSPENSO" deste produto**, que registrava a conta
+ * com os números: as cinco cores de antes eram hex literais gravados DENTRO do
+ * documento, e por isso este arquivo era exceção do `check:cores` — *"no tema
+ * claro três das cinco reprovam; no escuro as cinco reprovam, de 2,30 a 3,68.
+ * Não existe hex que resolva os dois"*.
+ *
+ * **Não existe, e era essa a armadilha: a saída não é um hex, é um NOME.** O
+ * documento grava `var(--rico-vermelho)`, o valor mora no `globals.css` com
+ * par no `.dark`, e a mesma frase se lê nos dois temas. Medido: o pior par das
+ * nove cores sobre os oito chãos possíveis é **4,95:1 no claro** e **6,82:1 no
+ * escuro**.
+ *
+ * **E ISSO FUNCIONA porque o TipTap guarda o VALOR e não a cor resolvida:** o
+ * `Color` do `@tiptap/extension-text-style` escreve `style="color: …"` e lê de
+ * volta a declaração crua do atributo, nunca a cor computada. Foi conferido no
+ * código dele, não suposto — `getStyleProperty` parte o atributo `style` por
+ * `;` e devolve o texto depois dos dois-pontos.
+ * ---------------------------------------------------------------------------
+ */
 const CORES = [
   { nome: "Padrão", valor: "" },
-  { nome: "Vermelho", valor: "#dc2626" },
-  { nome: "Laranja", valor: "#ea580c" },
-  { nome: "Verde", valor: "#059669" },
-  { nome: "Azul", valor: "#2563eb" },
-  { nome: "Roxo", valor: "#7c3aed" },
+  { nome: "Vermelho", valor: "var(--rico-vermelho)" },
+  { nome: "Laranja", valor: "var(--rico-laranja)" },
+  { nome: "Âmbar", valor: "var(--rico-ambar)" },
+  { nome: "Verde", valor: "var(--rico-verde)" },
+  { nome: "Azul", valor: "var(--rico-azul)" },
+  { nome: "Roxo", valor: "var(--rico-roxo)" },
+  { nome: "Rosa", valor: "var(--rico-rosa)" },
+  { nome: "Cinza", valor: "var(--rico-cinza)" },
+];
+
+/**
+ * OS PASTÉIS, e eles são REALCE — não cor de letra.
+ *
+ * É a única leitura honesta de *"mais cores, pasteis"*: um pastel como cor de
+ * texto é ilegível sobre fundo claro por construção, que é a conta que
+ * derrubou os cinco hex de antes levada ao extremo. Como CHÃO, com a cor do
+ * documento em cima, ele é exatamente o que "pastel" quer dizer num briefing.
+ *
+ * No tema escuro eles viram tinturas escuras da mesma matiz: um pastel de
+ * verdade ali seria um bloco luminoso com texto claro por cima.
+ */
+const REALCES = [
+  { nome: "Sem realce", valor: "" },
+  { nome: "Amarelo", valor: "var(--rico-realce-amarelo)" },
+  { nome: "Verde", valor: "var(--rico-realce-verde)" },
+  { nome: "Azul", valor: "var(--rico-realce-azul)" },
+  { nome: "Rosa", valor: "var(--rico-realce-rosa)" },
+  { nome: "Roxo", valor: "var(--rico-realce-roxo)" },
+  { nome: "Laranja", valor: "var(--rico-realce-laranja)" },
 ];
 
 function BotaoDaBarra({
@@ -156,27 +224,163 @@ function Barra({ editor }: { editor: Editor }) {
 
       <Separator orientation="vertical" className="mx-1 h-5" />
 
-      <div className="flex items-center gap-1 px-1">
+      {/* A CAIXA, a tabela, a cor e o realce viraram MENUS, e a fileira de
+          bolinhas saiu. Com nove cores, sete realces e quatro caixas, vinte
+          alvos de 16px soltos numa barra que o modal da etapa também desenha
+          seriam duas fileiras inteiras acima do campo — e um alvo de 16px é o
+          que a diretriz de toque chama de pequeno demais.
+
+          E CADA MENU DIZ A PALAVRA ao lado da amostra: num item de lista a
+          cor sozinha não tem como ser o único sinal, que é a regra desta casa
+          desde o chip do calendário. */}
+      <MenuDaBarra titulo="Cor do texto" icone={<Palette aria-hidden />}>
         {CORES.map((cor) => (
-          <button
+          <DropdownMenuItem
             key={cor.nome}
-            type="button"
-            title={`Cor: ${cor.nome}`}
-            aria-label={`Cor do texto: ${cor.nome}`}
-            onClick={() =>
+            onSelect={() =>
               cor.valor
                 ? editor.chain().focus().setColor(cor.valor).run()
                 : editor.chain().focus().unsetColor().run()
             }
-            className={cn(
-              "size-4 rounded-full border transition-transform hover:scale-110",
-              !cor.valor && "bg-foreground",
-            )}
-            style={cor.valor ? { backgroundColor: cor.valor } : undefined}
-          />
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "size-3.5 shrink-0 rounded-full border",
+                !cor.valor && "bg-foreground",
+              )}
+              style={cor.valor ? { backgroundColor: cor.valor } : undefined}
+            />
+            {cor.nome}
+          </DropdownMenuItem>
         ))}
-      </div>
+      </MenuDaBarra>
+
+      <MenuDaBarra titulo="Realce" icone={<Highlighter aria-hidden />}>
+        {REALCES.map((realce) => (
+          <DropdownMenuItem
+            key={realce.nome}
+            onSelect={() =>
+              realce.valor
+                ? editor.chain().focus().setBackgroundColor(realce.valor).run()
+                : editor.chain().focus().unsetBackgroundColor().run()
+            }
+          >
+            <span
+              aria-hidden
+              className="size-3.5 shrink-0 rounded-sm border"
+              style={realce.valor ? { backgroundColor: realce.valor } : undefined}
+            />
+            {realce.nome}
+          </DropdownMenuItem>
+        ))}
+      </MenuDaBarra>
+
+      <MenuDaBarra titulo="Caixa" icone={<Square aria-hidden />}>
+        {TIPOS_DE_CAIXA.map((tipo) => (
+          <DropdownMenuItem
+            key={tipo}
+            onSelect={() => editor.chain().focus().alternarCaixa(tipo).run()}
+          >
+            <span
+              aria-hidden
+              data-caixa={tipo}
+              className="conteudo-rico size-3.5 shrink-0 rounded-sm border"
+              style={{ padding: 0, borderRadius: "0.25rem" }}
+            />
+            {ROTULO_DA_CAIXA[tipo as TipoDeCaixa]}
+          </DropdownMenuItem>
+        ))}
+      </MenuDaBarra>
+
+      {/* A TABELA abre em 3×3 COM CABEÇALHO, e não num seletor de tamanho: um
+          briefing que pede tabela pede quase sempre "campo / valor" ou
+          "peça / formato / prazo", e as linhas se acrescentam dentro. Uma
+          grade de escolher dimensão é um passo a mais para acertar na primeira
+          um número que o Tab já resolve. */}
+      <MenuDaBarra titulo="Tabela" icone={<TableIcon aria-hidden />}>
+        <DropdownMenuItem
+          onSelect={() =>
+            editor
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          }
+        >
+          <TableIcon aria-hidden className="size-3.5" />
+          Inserir tabela 3×3
+        </DropdownMenuItem>
+        {/* OS COMANDOS DE DENTRO SÓ EXISTEM DENTRO, e não aparecem
+            desligados: fora de uma tabela a razão não é um passo que falta, é
+            que não há tabela nenhuma a que eles se apliquem. */}
+        {editor.isActive("table") ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => editor.chain().focus().addRowAfter().run()}>
+              <Rows3 aria-hidden className="size-3.5" />
+              Acrescentar linha
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => editor.chain().focus().addColumnAfter().run()}>
+              <Columns3 aria-hidden className="size-3.5" />
+              Acrescentar coluna
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => editor.chain().focus().deleteRow().run()}>
+              <Rows3 aria-hidden className="size-3.5" />
+              Apagar a linha
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => editor.chain().focus().deleteColumn().run()}>
+              <Columns3 aria-hidden className="size-3.5" />
+              Apagar a coluna
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => editor.chain().focus().deleteTable().run()}
+            >
+              <Trash2 aria-hidden className="size-3.5" />
+              Apagar a tabela
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </MenuDaBarra>
     </div>
+  );
+}
+
+/**
+ * Um menu da barra: o gatilho é um botão de ícone como os outros.
+ *
+ * Ele existe porque são QUATRO menus com a mesma casca — e a quarta cópia é a
+ * que divergiria no `aria-label` ou no tamanho do ícone, que é a história das
+ * sete cópias de `abas.tsx` em miniatura.
+ */
+function MenuDaBarra({
+  titulo,
+  icone,
+  children,
+}: {
+  titulo: string;
+  icone: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          title={titulo}
+          aria-label={titulo}
+          className="size-8"
+        >
+          {icone}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -186,6 +390,16 @@ const EXTENSOES = [
   }),
   TextStyle,
   Color,
+  // O REALCE JÁ VINHA NA MESMA CAIXA, e isto é o que torna os pastéis de graça:
+  // `BackgroundColor` mora dentro de `@tiptap/extension-text-style`, que já era
+  // dependência por causa do `Color`. Nenhum pacote novo para a metade do
+  // pedido que fala de cor.
+  BackgroundColor,
+  CaixaDoBriefing,
+  // `TableKit` traz a tabela, a linha, a célula e o cabeçalho de uma vez.
+  // `resizable` porque uma tabela de briefing quase nunca tem colunas iguais —
+  // "peça" é curta e "observação" é longa.
+  TableKit.configure({ table: { resizable: true } }),
 ];
 
 export function EditorRico({

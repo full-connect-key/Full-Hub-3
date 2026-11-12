@@ -22,13 +22,18 @@ const CSS = "src/app/globals.css";
 
 /* As exceções, cada uma com motivo. Nenhuma delas é cor de interface. */
 const EXCECOES = [
-  {
-    arquivo: "src/components/shared/editor-rico.tsx",
-    motivo:
-      "paleta de texto do editor rico: a cor escolhida é gravada DENTRO do documento " +
-      "do TipTap. Uma var() ali viajaria junto com o conteúdo e apareceria crua em " +
-      "qualquer lugar que renderize o documento fora deste app.",
-  },
+  /* A EXCEÇÃO DO `editor-rico.tsx` SAIU, e a remoção é o ponto da entrega que
+     a tirou. O motivo dela dizia que a cor escolhida é gravada DENTRO do
+     documento do TipTap e que uma `var()` ali "viajaria junto com o conteúdo";
+     hoje é exatamente isso que ela faz — o documento grava o NOME
+     (`var(--rico-vermelho)`), o valor mora no `globals.css` com par no `.dark`,
+     e a seção "Paleta do editor do briefing", abaixo, mede os pares.
+
+     Uma isenção que deixou de ser verdade é pior que isenção nenhuma: ela é
+     lida justamente por quem está em dúvida, e afirma que aquele arquivo tem
+     cor literal quando ele não tem mais nenhuma. É a regra das `ISENTAS` do
+     `check:acoes` e do `-- SEM LINHA:` do `onde-esta-o-banco.sql`, aplicada à
+     lista de exceções desta varredura. */
   {
     arquivo: "src/app/layout.tsx",
     motivo:
@@ -189,6 +194,23 @@ const DISTINGUIVEL = 10;
 // Grupos em que a cor é o que separa um item do outro. Não é toda cor do
 // produto: só onde duas coisas aparecem JUNTAS e a cor é parte de como se
 // diz qual é qual.
+//
+// OS SETE TONS DE STATUS NÃO SÃO UM GRUPO, e a ausência é declarada com o
+// número porque sem ele ela pareceria conveniência.
+//
+// Rodando os sete chãos como grupo, SETE pares ficam abaixo do piso: o pior é
+// `--marrom-soft` × `--danger-soft` a ΔE 0,8 em deuteranopia no tema escuro —
+// "Aguardando aprovação" e "Em ajuste" com o mesmo chão para quem não separa
+// vermelho de verde. Nas frentes, `--marrom` × `--danger` dá ΔE 1,9.
+//
+// Eles ficam de fora porque a cor NUNCA é o único sinal ali: o nome do status
+// é escrito dentro da caixa, em caixa alta, e o selo carrega o rótulo por
+// extenso. É a mesma razão do `--rosa` da 0130, e é a propriedade que a mesma
+// migration já tinha declarado — os fundos pálidos do tema claro vivem entre
+// ΔE 3,5 e 8,9 entre si por construção.
+//
+// Quem um dia quiser que a cor sozinha baste precisa de outra paleta inteira;
+// os sete pares acima são a lista do que teria de ser refeito.
 const GRUPOS = [
   {
     nome: "as três decisões, lado a lado",
@@ -476,6 +498,21 @@ const PARES = [
   // cinco do calendário já têm dono —, e é o precedente do `--roxo` na 0109:
   // categoria nova que não cabe em nenhum ganha token próprio e medido.
   ["--rosa", "--rosa-soft", NORMAL, "chip de aniversário no calendário"],
+
+  // --- OS TRÊS PARES QUE OS SETE STATUS PEDIRAM ---------------------------
+  //
+  // Decisão do usuário, com a paleta por extenso. Os sete status da Task
+  // mapeavam em CINCO tons, então três pares de caixas do cabeçalho de grupo
+  // da Lista saíam com o mesmo chão — e este projeto registrava a dívida em
+  // voz alta como "não foi feito", justamente porque ela custa uma cor NOVA
+  // MEDIDA por par que falta, em dois temas.
+  //
+  // Estas são as três linhas que pagam aquela dívida. E elas entraram ANTES
+  // da troca do mapa de tons, que é a regra da casa: sem isso a troca seria
+  // uma afirmação sobre números que ninguém mediu.
+  ["--laranja", "--laranja-soft", NORMAL, "selo de aguardando informações"],
+  ["--marrom", "--marrom-soft", NORMAL, "selo de aguardando aprovação"],
+  ["--lima", "--lima-soft", NORMAL, "selo de entregue"],
   // Na matriz o quadrado de férias é só cor, sem texto: vale a régua de
   // elemento de interface.
   ["--ferias", "--surface-card", GRANDE, "quadrado de férias na matriz"],
@@ -939,6 +976,91 @@ for (const [frente, fundo, minimo, descricao] of PARES) {
   }
 }
 
+// --- a paleta do editor do briefing ----------------------------------------
+//
+// ELA É UM PRODUTO CARTESIANO, e é por isso que ela não cabe em `PARES`: as
+// oito cores de letra podem cair em ONZE chãos — a folha do documento, os seis
+// realces e os quatro fundos de caixa —, e escrever 88 linhas ali afogaria os
+// 72 pares que a interface usa. A conta é a mesma; o que muda é que esta seção
+// imprime UMA linha por cor, a do pior chão.
+//
+// E ELA EXISTE PORQUE A PALETA PASSOU A SER MEDÍVEL. Enquanto a cor escolhida
+// era um hexadecimal gravado dentro do documento, este arquivo registrava a
+// decisão em suspenso com os números por extenso: *"no tema claro três das
+// cinco reprovam; no tema escuro as cinco reprovam, de 2,30 a 3,68"*. Com a
+// cor saindo de token, o par pode ser conferido toda vez em vez de uma vez.
+//
+// O MÍNIMO É 4.5 e não 3: isto é texto de leitura corrida num briefing, não
+// ícone nem borda.
+const CORES_DO_EDITOR = [
+  "--rico-vermelho",
+  "--rico-laranja",
+  "--rico-ambar",
+  "--rico-verde",
+  "--rico-azul",
+  "--rico-roxo",
+  "--rico-rosa",
+  "--rico-cinza",
+];
+
+// Todo chão que uma letra colorida alcança dentro de um briefing. A folha vem
+// primeiro porque é o caso comum; os quatro últimos são as caixas, e o `th` da
+// tabela usa o mesmo `--muted` da caixa neutra.
+const CHAOS_DO_EDITOR = [
+  // A PAGINA VEM PRIMEIRO, e ela entrou por medicao: a primeira versao desta
+  // lista comecava no cartao, e o axe acusou o briefing da tela de detalhe
+  // sobre `#edeef0` -- o editor da demanda mora direto na PAGINA, nao num
+  // cartao. Um chao a menos na lista e uma linha que a varredura afirma e nao
+  // confere.
+  "--surface-page",
+  "--surface-card",
+  "--rico-realce-amarelo",
+  "--rico-realce-verde",
+  "--rico-realce-azul",
+  "--rico-realce-rosa",
+  "--rico-realce-roxo",
+  "--rico-realce-laranja",
+  "--muted",
+  "--accent",
+  "--warning-soft",
+  "--danger-soft",
+];
+
+console.log("\nPaleta do editor do briefing — cada cor no PIOR chão\n");
+
+for (const cor of CORES_DO_EDITOR) {
+  const pior = [];
+  let ruim = false;
+
+  for (const [nomeDoTema, tema] of [
+    ["claro", new Map()],
+    ["escuro", dark],
+  ]) {
+    const f = resolver(cor, tema, base);
+    let menor = Infinity;
+    let onde = "";
+
+    for (const chao of CHAOS_DO_EDITOR) {
+      const razao = contraste(f, resolver(chao, tema, base));
+      if (razao < menor) {
+        menor = razao;
+        onde = chao;
+      }
+    }
+
+    if (menor < 4.5) ruim = true;
+    pior.push(`${nomeDoTema} ${menor.toFixed(2)}:1 sobre ${onde}`);
+  }
+
+  if (ruim) {
+    falhas++;
+    console.log(`  FALHOU  ${cor}`);
+    console.log(`          ${pior.join("   ")} (mínimo 4.5)`);
+  } else {
+    console.log(`  ok      ${cor.padEnd(18)} ${pior.join("   ")}`);
+  }
+}
+
 // --- opacidade em cor de ESTADO ---------------------------------------------
 //
 // A regra do produto: selo de estado usa o PAR NOMEADO (`bg-warning-soft
@@ -966,6 +1088,12 @@ const COM_PAR_SUAVE = [
   "roxo",
   "info",
   "brand",
+  // As três do status. Entram na lista no mesmo commit em que os tokens
+  // nascem: um par nomeado que ainda não tem como ser escrito com opacidade é
+  // um par que alguém escreve com opacidade na primeira tela nova.
+  "laranja",
+  "marrom",
+  "lima",
 ];
 
 {
