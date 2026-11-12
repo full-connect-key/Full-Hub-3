@@ -638,6 +638,16 @@ const TELAS = [
   // teclado, e responsavel abriria uma segunda lista por cima.
   { nome: "46b-subtarefa-salvar", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
     clicar: ['button:has-text("Criar KV")', '[role="dialog"] [aria-label="Prioridade"]', '[role="option"]:has-text("Urgente")'] },
+  // A SUB-ETAPA COM BRIEFING, e ela precisa ser uma SUB-etapa.
+  //
+  // Decisao do usuario: *"quando abro uma subetapa, na subtarefa, preciso
+  // poder escrever um briefing, escrever texto, como na etapa normal"*. A `46`
+  // abre "Criar KV", que e uma etapa de topo -- o editor aparece nela tambem,
+  // e a foto nao responderia o que ele pediu. Esta abre "Feed 1:1", que e
+  // filha de "Adaptar formatos", e e a unica das tres irmas com briefing
+  // escrito: a imagem prova que ele guarda o texto, e as outras duas provam
+  // que o campo vazio continua sendo o estado normal.
+  { nome: "46c-subetapa-briefing", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Feed 1:1")' },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 
   // --- Sprint 3C: identidade, tela inicial e portais de clientes ---------

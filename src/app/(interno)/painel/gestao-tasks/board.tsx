@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { DateBadge } from "@/components/shared/date-badge";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
+
 import { Badge } from "@/components/ui/badge";
 import { COR_DA_PRIORIDADE, type ColunaDoBoard } from "@/lib/dominio/tasks";
 import type { TaskDaLista } from "@/lib/dados/tasks";
@@ -29,6 +30,7 @@ import type { TaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask } from "./acoes";
+import { MarcaDeStatusManual } from "./marca-de-status-manual";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 
@@ -75,11 +77,16 @@ function Card({
           borda à esquerda que a linha atrasada de Minhas Tasks usa. */}
       <span
         aria-hidden
-        className={cn("absolute inset-y-0 left-0 w-1", COR_DA_PRIORIDADE[task.prioridade])}
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          COR_DA_PRIORIDADE[task.prioridade],
+        )}
       />
 
       <div className="space-y-2 pl-2.5">
-        <p className="text-[13.5px] leading-snug font-bold tracking-[-0.015em]">{task.titulo}</p>
+        <p className="text-[13.5px] leading-snug font-bold tracking-[-0.015em]">
+          {task.titulo}
+        </p>
 
         {marcador}
 
@@ -102,10 +109,14 @@ function Card({
         {task.cliente ? (
           <div className="min-w-0 space-y-1">
             <Badge variant="outline" className="max-w-full">
-              <span className="min-w-0 truncate">{task.cliente.nome_empresa}</span>
+              <span className="min-w-0 truncate">
+                {task.cliente.nome_empresa}
+              </span>
             </Badge>
             {task.vertente ? (
-              <p className="text-text-muted text-xs leading-snug">{task.vertente.nome}</p>
+              <p className="text-text-muted text-xs leading-snug">
+                {task.vertente.nome}
+              </p>
             ) : null}
           </div>
         ) : null}
@@ -125,6 +136,12 @@ function Card({
           ) : task.proximoPrazo ? (
             <DateBadge date={task.proximoPrazo} />
           ) : null}
+          {/* A MARCA DE "parado na mão", e ela é o botão que o desfaz.
+              Arrastar este card chama `atualizarTask({status})`, que marca
+              `status_manual` — e a partir daí o cálculo pelas etapas não mexe
+              mais nesta demanda. Era o board a desligar a regra que o board
+              existe para mostrar, sem nada dizendo. */}
+          {task.status_manual ? <MarcaDeStatusManual taskId={task.id} /> : null}
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -140,7 +157,10 @@ function Card({
               demanda, montada pelos donos das subtarefas. */}
           {task.equipe.length > 0 ? (
             <UserAvatarGroup
-              users={task.equipe.map((p) => ({ name: p.nome, src: p.avatar_url }))}
+              users={task.equipe.map((p) => ({
+                name: p.nome,
+                src: p.avatar_url,
+              }))}
               max={3}
               size="sm"
             />
@@ -167,7 +187,9 @@ function CardArrastavel({
     disabled: !arrastavel,
   });
 
-  const conteudo = <Card task={task} arrastando={isDragging} marcador={marcador} />;
+  const conteudo = (
+    <Card task={task} arrastando={isDragging} marcador={marcador} />
+  );
 
   // O ARRASTO VAI NO PRÓPRIO ELEMENTO CLICÁVEL, e não num <div> em volta dele.
   //
@@ -180,7 +202,10 @@ function CardArrastavel({
   // `aria-roledescription` e o `aria-describedby` das instruções de teclado.
   const { role: _papel, tabIndex: _parada, ...aria } = attributes;
   const doArrasto = arrastavel ? { ...aria, ...listeners } : {};
-  const classe = cn("block w-full text-left touch-none", !arrastavel && "cursor-default");
+  const classe = cn(
+    "block w-full text-left touch-none",
+    !arrastavel && "cursor-default",
+  );
 
   return aoAbrir ? (
     <button
@@ -243,7 +268,9 @@ function Coluna({
         <h3 className="text-text-secondary text-[11px] font-bold tracking-wider uppercase">
           {coluna.titulo}
         </h3>
-        <span className="text-text-muted text-xs font-bold tabular-nums">{tasks.length}</span>
+        <span className="text-text-muted text-xs font-bold tabular-nums">
+          {tasks.length}
+        </span>
       </header>
 
       <div className="flex max-h-[calc(100dvh-20rem)] flex-col gap-2.5 overflow-y-auto px-0.5 pb-1">
@@ -295,7 +322,11 @@ export function BoardDeTasks({
   );
 
   const comStatusAtual = useMemo(
-    () => tasks.map((task) => ({ ...task, status: otimistas[task.id] ?? task.status })),
+    () =>
+      tasks.map((task) => ({
+        ...task,
+        status: otimistas[task.id] ?? task.status,
+      })),
     [otimistas, tasks],
   );
 
@@ -310,7 +341,8 @@ export function BoardDeTasks({
     return mapa;
   }, [colunas, comStatusAtual]);
 
-  const taskArrastada = comStatusAtual.find((task) => task.id === arrastando) ?? null;
+  const taskArrastada =
+    comStatusAtual.find((task) => task.id === arrastando) ?? null;
 
   function aoComecar(evento: DragStartEvent) {
     setArrastando(String(evento.active.id));
@@ -331,7 +363,9 @@ export function BoardDeTasks({
 
     setOtimistas((atual) => ({ ...atual, [id]: coluna.status }));
 
-    const resultado = await chamarAcao(() => atualizarTask(id, { status: coluna.status }));
+    const resultado = await chamarAcao(() =>
+      atualizarTask(id, { status: coluna.status }),
+    );
 
     if (!resultado.ok) {
       // Rollback: devolve o card para onde estava e avisa.
@@ -370,7 +404,29 @@ export function BoardDeTasks({
           encosta na borda. Com a folha por fora, a barra de rolagem fica
           DENTRO dela e o respiro vale nas duas pontas. */}
       <div className="bg-card rounded-card shadow-cartao border p-3.5">
-        <div className="flex items-start gap-3.5 overflow-x-auto pb-2">
+        {/* E ELA É UMA REGIÃO FOCÁVEL, que é a decisão da tabela de composição
+            da campanha palavra por palavra: *quando rolar é o conteúdo, a
+            resposta do axe é dar ao teclado como chegar nele — com nome, senão
+            o leitor de tela anuncia uma região sem dizer de quê*.
+
+            Sete colunas de 288px dão 2100px: o board rola em qualquer janela, e
+            **até aqui o teclado só alcançava a sétima coluna passando por todos
+            os cards das seis primeiras.** No board VAZIO ele não a alcançava de
+            jeito nenhum — não há um `<button>` dentro para receber o foco —, e
+            foi `20b-tasks-board-vazio` que trouxe o achado do axe: a tela
+            entrou na rodada anterior, e o furo é mais velho que ela.
+
+            A parada de Tab a mais é o custo, e ele se paga: ela é o único
+            caminho de teclado para rolar a faixa. Não dá para fazer como a
+            legenda do Calendário Full, onde a saída foi NÃO ROLAR — lá a
+            fileira era estática e cabia quebrando de linha; aqui a coluna é a
+            peça. */}
+        <div
+          className="focus-visible:ring-ring flex items-start gap-3.5 overflow-x-auto rounded-md pb-2 focus-visible:ring-2 focus-visible:outline-none"
+          tabIndex={0}
+          role="region"
+          aria-label="Board de demandas, por status"
+        >
           {colunas.map((coluna) => (
             <Coluna
               key={coluna.id}
@@ -384,7 +440,9 @@ export function BoardDeTasks({
         </div>
       </div>
 
-      <DragOverlay>{taskArrastada ? <Card task={taskArrastada} /> : null}</DragOverlay>
+      <DragOverlay>
+        {taskArrastada ? <Card task={taskArrastada} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }

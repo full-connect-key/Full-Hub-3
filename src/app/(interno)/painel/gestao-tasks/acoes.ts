@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { interpretarTempo } from "@/lib/dominio/tempo";
@@ -65,7 +70,8 @@ function vazioParaNulo(valor: unknown): string | null {
 /** Tempo chega como texto livre ("2h30", "150"). Aqui vira minuto inteiro. */
 function minutosOuNulo(valor: unknown): number | null {
   if (valor === null || valor === undefined || valor === "") return null;
-  if (typeof valor === "number") return Number.isFinite(valor) ? Math.round(valor) : null;
+  if (typeof valor === "number")
+    return Number.isFinite(valor) ? Math.round(valor) : null;
   const lido = interpretarTempo(String(valor));
   return lido ?? null;
 }
@@ -115,7 +121,8 @@ const esquemaDeTask = z.object({
     .trim()
     .min(1, "Informe a pasta de entrega: onde o material final vai ficar.")
     .regex(/^https?:\/\/\S+$/, {
-      message: "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
+      message:
+        "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
     }),
   subtarefas: z.array(esquemaDeSubtarefa).default([]),
   referencias: z.array(esquemaDeReferencia).default([]),
@@ -160,13 +167,23 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
 
     const validacao = esquemaDeTask.safeParse(dados);
     if (!validacao.success) {
-      return falha(recusaDeValidacao("criarTask", validacao.error, dados, "Confira os dados da task.", ROTULOS_DA_TASK));
+      return falha(
+        recusaDeValidacao(
+          "criarTask",
+          validacao.error,
+          dados,
+          "Confira os dados da task.",
+          ROTULOS_DA_TASK,
+        ),
+      );
     }
     const entrada = validacao.data;
 
     for (const sub of entrada.subtarefas) {
       if (sub.requer_aprovacao && !sub.tipo_aprovacao) {
-        return falha(`Diga de que tipo é a aprovação de "${sub.titulo}": interna ou do cliente.`);
+        return falha(
+          `Diga de que tipo é a aprovação de "${sub.titulo}": interna ou do cliente.`,
+        );
       }
     }
 
@@ -191,7 +208,9 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
       .single();
 
     if (error || !task) {
-      return falha(`Não foi possível criar a task: ${error?.message ?? RECUSA_DO_BANCO}`);
+      return falha(
+        `Não foi possível criar a task: ${error?.message ?? RECUSA_DO_BANCO}`,
+      );
     }
 
     if (entrada.subtarefas.length > 0) {
@@ -205,7 +224,9 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
             responsavel_id: sub.responsavel_id || null,
             prioridade: sub.prioridade,
             requer_aprovacao: sub.requer_aprovacao,
-            tipo_aprovacao: sub.requer_aprovacao ? (sub.tipo_aprovacao ?? "interna") : null,
+            tipo_aprovacao: sub.requer_aprovacao
+              ? (sub.tipo_aprovacao ?? "interna")
+              : null,
             estimativa_minutos: minutosOuNulo(sub.estimativa),
             ordem: indice + 1,
           })),
@@ -227,7 +248,10 @@ export async function criarTask(dados: unknown): Promise<Resultado<string>> {
           subtask_id: porOrdem.get(ordem)!,
           depende_de_id: porOrdem.get(sub.depende_de!)!,
         }))
-        .filter((v) => v.subtask_id && v.depende_de_id && v.subtask_id !== v.depende_de_id);
+        .filter(
+          (v) =>
+            v.subtask_id && v.depende_de_id && v.subtask_id !== v.depende_de_id,
+        );
 
       if (vinculos.length > 0) {
         const { error: erroDasDependencias } = await supabase
@@ -303,9 +327,13 @@ const esquemaDeEdicao = z.object({
   link_entrega: z
     .string()
     .trim()
-    .min(1, "A pasta de entrega não se apaga — dá para trocar por outro endereço.")
+    .min(
+      1,
+      "A pasta de entrega não se apaga — dá para trocar por outro endereço.",
+    )
     .regex(/^https?:\/\/\S+$/, {
-      message: "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
+      message:
+        "A pasta de entrega precisa ser um endereço começando com http:// ou https://.",
     })
     .optional(),
 });
@@ -314,13 +342,24 @@ const esquemaDeEdicao = z.object({
  * Edição pontual — o arrastar do board, a edição inline da lista e o detalhe.
  * Recebe só os campos que mudaram.
  */
-export async function atualizarTask(id: string, campos: unknown): Promise<Resultado> {
+export async function atualizarTask(
+  id: string,
+  campos: unknown,
+): Promise<Resultado> {
   return executarAcao("atualizarTask", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
 
     const validacao = esquemaDeEdicao.safeParse(campos);
     if (!validacao.success) {
-      return falha(recusaDeValidacao("atualizarTask", validacao.error, campos, "Confira os dados da task.", ROTULOS_DA_TASK));
+      return falha(
+        recusaDeValidacao(
+          "atualizarTask",
+          validacao.error,
+          campos,
+          "Confira os dados da task.",
+          ROTULOS_DA_TASK,
+        ),
+      );
     }
 
     const entrada = validacao.data;
@@ -328,19 +367,24 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     if (entrada.titulo !== undefined) mudancas.titulo = entrada.titulo.trim();
     if (entrada.client_id !== undefined) mudancas.client_id = entrada.client_id;
-    if (entrada.vertente_id !== undefined) mudancas.vertente_id = entrada.vertente_id;
-    if (entrada.task_type_id !== undefined) mudancas.task_type_id = entrada.task_type_id;
+    if (entrada.vertente_id !== undefined)
+      mudancas.vertente_id = entrada.vertente_id;
+    if (entrada.task_type_id !== undefined)
+      mudancas.task_type_id = entrada.task_type_id;
     // O conteúdo do editor chega como unknown (é JSON arbitrário do TipTap);
     // o banco guarda em jsonb, então a conversão é declarada aqui, num lugar só.
     if (entrada.briefing_rico !== undefined)
       mudancas.briefing_rico = (entrada.briefing_rico ?? null) as Json | null;
-    if (entrada.briefing_texto !== undefined) mudancas.briefing_texto = entrada.briefing_texto;
+    if (entrada.briefing_texto !== undefined)
+      mudancas.briefing_texto = entrada.briefing_texto;
     // O PERÍODO NÃO ENTRA MAIS AQUI. Desde a 0028 ele é derivado das etapas
     // e escrito por trigger; aceitar as duas datas de volta recriaria a
     // segunda verdade que a migration acabou de eliminar — a que a pessoa
     // digitou no topo contra a que as etapas dizem.
-    if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
-    if (entrada.link_entrega !== undefined) mudancas.link_entrega = entrada.link_entrega;
+    if (entrada.prioridade !== undefined)
+      mudancas.prioridade = entrada.prioridade;
+    if (entrada.link_entrega !== undefined)
+      mudancas.link_entrega = entrada.link_entrega;
 
     const supabase = await criarClienteServidor();
 
@@ -396,7 +440,8 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
           .eq("client_id", mudancas.client_id)
           .maybeSingle();
 
-        if (padrao?.pasta_entrega_url) mudancas.link_entrega = padrao.pasta_entrega_url;
+        if (padrao?.pasta_entrega_url)
+          mudancas.link_entrega = padrao.pasta_entrega_url;
       }
 
       if (
@@ -456,6 +501,24 @@ export async function atualizarTask(id: string, campos: unknown): Promise<Result
 
     revalidatePath(ROTA);
     revalidatePath(`${ROTA}/${id}`);
+
+    // A FRASE DIZ O QUE A ESCOLHA DESLIGOU, e não só que gravou.
+    //
+    // Marcar o status à mão trava o recálculo INTEIRO (0025) — e o caminho
+    // mais usado para marcá-lo é arrastar um card no board, um gesto de seis
+    // pixels que desliga, para sempre, a regra de a demanda acompanhar as
+    // etapas. Até aqui a resposta era "Salvo.", que é verdade e esconde a
+    // metade que importa: medido neste banco, TODA demanda publicada estava
+    // parada na mão, e ninguém tinha como saber.
+    //
+    // É a decisão da recusa da 0023 vista pelo lado do sucesso: dizer o que
+    // aconteceu é a diferença entre um recibo e uma instrução. A volta é a
+    // marca "à mão" no card e na linha, que devolve o volante num clique.
+    if (entrada.status !== undefined) {
+      return sucesso(
+        "Status marcado à mão — o Full Hub deixa de calculá-lo pelas etapas.",
+      );
+    }
     return sucesso("Salvo.");
   });
 }
@@ -470,7 +533,11 @@ async function lerContextoDaTask(
   status: Database["public"]["Enums"]["task_status"];
   souGestorOuAtendimento: boolean;
 } | null> {
-  const { data: task } = await supabase.from("tasks").select("status").eq("id", id).maybeSingle();
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
   if (!task) return null;
 
   // A pessoa do Atendimento pode não ser gestora, e mesmo assim manda na task:
@@ -515,7 +582,9 @@ export async function voltarACalcularStatus(id: string): Promise<Resultado> {
 
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
     if (!data || data.length === 0) {
-      return falha("O banco recusou a mudança — confira se você ainda alcança esta demanda.");
+      return falha(
+        "O banco recusou a mudança — confira se você ainda alcança esta demanda.",
+      );
     }
 
     revalidatePath(ROTA);
@@ -524,7 +593,10 @@ export async function voltarACalcularStatus(id: string): Promise<Resultado> {
 }
 
 /** Ações em massa da visão Lista. */
-export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Promise<Resultado> {
+export async function atualizarTasksEmMassa(
+  ids: string[],
+  campos: unknown,
+): Promise<Resultado> {
   return executarAcao("atualizarTasksEmMassa", async () => {
     await exigirRotaNaAcao(ROTA);
     if (ids.length === 0) return falha("Nenhuma task selecionada.");
@@ -534,16 +606,22 @@ export async function atualizarTasksEmMassa(ids: string[], campos: unknown): Pro
 
     const entrada = validacao.data;
     const mudancas: EdicaoDeTask = {};
-    if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
+    if (entrada.prioridade !== undefined)
+      mudancas.prioridade = entrada.prioridade;
     if (entrada.status !== undefined) {
       mudancas.status = entrada.status;
       mudancas.status_manual = true;
     }
 
-    if (Object.keys(mudancas).length === 0) return falha("Escolha o que alterar.");
+    if (Object.keys(mudancas).length === 0)
+      return falha("Escolha o que alterar.");
 
     const supabase = await criarClienteServidor();
-    const { data, error } = await supabase.from("tasks").update(mudancas).in("id", ids).select("id");
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(mudancas)
+      .in("id", ids)
+      .select("id");
 
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
     if (!data || data.length === 0) return falha(RECUSA_DO_BANCO);
@@ -590,7 +668,9 @@ function mensagemDoFluxo(aplicado: FluxoAplicado): string {
 
   if (aplicado.semDono.length === 0) return base;
 
-  const nomes = aplicado.semDono.map((funcao) => ROTULOS_DE_FUNCAO[funcao]).join(", ");
+  const nomes = aplicado.semDono
+    .map((funcao) => ROTULOS_DE_FUNCAO[funcao])
+    .join(", ");
   return `${base} Esta conta não tem ninguém em ${nomes}: estas etapas nasceram sem responsável.`;
 }
 
@@ -689,7 +769,10 @@ export async function publicarTask(id: string): Promise<Resultado> {
       ...new Set(
         (etapas ?? [])
           .map((e) => e.responsavel_id)
-          .filter((quem): quem is string => Boolean(quem) && quem !== sessao.usuarioId),
+          .filter(
+            (quem): quem is string =>
+              Boolean(quem) && quem !== sessao.usuarioId,
+          ),
       ),
     ];
 
@@ -777,7 +860,9 @@ export async function aplicarWorkflowNaTask(
         .eq("id", taskId);
       if (error) return falha(`Não foi possível salvar: ${error.message}`);
       revalidatePath(`${ROTA}/${taskId}`);
-      return sucesso("Workflow removido. As etapas que estavam lá continuam onde estão.");
+      return sucesso(
+        "Workflow removido. As etapas que estavam lá continuam onde estão.",
+      );
     }
 
     const { data: task } = await supabase
@@ -789,7 +874,11 @@ export async function aplicarWorkflowNaTask(
 
     // O CLIENTE VAI JUNTO, e é o que liga os padrões da conta (0064): sem ele a
     // resolução não acontece e a etapa que dependia da função nasce órfã.
-    const aplicado = await fluxoDoWorkflow(tipoId, task.data_inicio, task.client_id);
+    const aplicado = await fluxoDoWorkflow(
+      tipoId,
+      task.data_inicio,
+      task.client_id,
+    );
 
     const { error: erroDaTask } = await supabase
       .from("tasks")
@@ -798,7 +887,8 @@ export async function aplicarWorkflowNaTask(
         workflow_snapshot: (aplicado?.snapshot ?? null) as Json,
       })
       .eq("id", taskId);
-    if (erroDaTask) return falha(`Não foi possível salvar: ${erroDaTask.message}`);
+    if (erroDaTask)
+      return falha(`Não foi possível salvar: ${erroDaTask.message}`);
 
     if (!aplicado || aplicado.etapas.length === 0) {
       revalidatePath(`${ROTA}/${taskId}`);
@@ -829,11 +919,16 @@ export async function aplicarWorkflowNaTask(
       responsavel_id: etapa.responsavel_id,
       prioridade: etapa.prioridade,
       requer_aprovacao: etapa.requer_aprovacao,
-      tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
+      tipo_aprovacao: etapa.requer_aprovacao
+        ? (etapa.tipo_aprovacao ?? "interna")
+        : null,
       ordem,
     });
 
-    const posicoes = aplicado.etapas.map((etapa, indice) => ({ etapa, posicao: indice + 1 }));
+    const posicoes = aplicado.etapas.map((etapa, indice) => ({
+      etapa,
+      posicao: indice + 1,
+    }));
     const topo = posicoes.filter(({ etapa }) => etapa.parent_de === null);
     const filhas = posicoes.filter(({ etapa }) => etapa.parent_de !== null);
 
@@ -903,7 +998,8 @@ export async function aplicarWorkflowNaTask(
       if (etapa.depende_de === null) return [];
       const subtask_id = idPorPosicao.get(posicao);
       const depende_de_id = idPorPosicao.get(etapa.depende_de);
-      if (!subtask_id || !depende_de_id || subtask_id === depende_de_id) return [];
+      if (!subtask_id || !depende_de_id || subtask_id === depende_de_id)
+        return [];
       return [{ subtask_id, depende_de_id }];
     });
 
@@ -954,7 +1050,9 @@ export async function aplicarWorkflowNaTask(
  * responde "pronto" sem ter criado nada mandaria ela procurar no Drive uma
  * pasta que talvez não exista. O e-mail é aviso; isto é o trabalho.
  */
-export async function criarPastaDeEntrega(id: string): Promise<Resultado<string>> {
+export async function criarPastaDeEntrega(
+  id: string,
+): Promise<Resultado<string>> {
   return executarAcao("criarPastaDeEntrega", async () => {
     await exigirRotaNaAcao(ROTA);
 
@@ -968,7 +1066,9 @@ export async function criarPastaDeEntrega(id: string): Promise<Resultado<string>
     if (error) return falha(error.message);
     if (!task) return falha("Task não encontrada.");
     if (!task.client_id) {
-      return falha("Escolha o cliente antes — a pasta nasce dentro da pasta dele.");
+      return falha(
+        "Escolha o cliente antes — a pasta nasce dentro da pasta dele.",
+      );
     }
     if (!task.titulo.trim()) {
       return falha("Dê um título à demanda antes: é ele que nomeia a pasta.");

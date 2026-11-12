@@ -232,8 +232,47 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
 
   const comRodadaPendente = new Set(pendentes.map((r) => r.content_id));
 
+  // AS PESSOAS A MAIS DA ETAPA ENTRAM AQUI, e é o que faz esta coluna
+  // responder a pergunta que ela promete.
+  //
+  // Decisão do usuário: *"quando a pessoa estiver numa task, na parte de
+  // equipe, apareçam todas as pessoas que são responsáveis, até mesmo das
+  // subetapas"*. As sub-etapas já entravam — `folhas()` as devolve, e é a
+  // agrupadora que fica de fora, porque desde a 0022 os campos dela passaram
+  // para as filhas. O que não entrava era a SEGUNDA pessoa de cada etapa:
+  // `subtasks.responsavel_id` é a PRIMEIRA desde a 0114, e quem manda é
+  // `subtask_responsaveis`.
+  //
+  // **Hoje as duas leituras dão a mesma resposta** — medido: 3 vínculos, 0
+  // pessoas a mais —, e é por isso que a ponte durou. Ela diverge no instante
+  // em que alguém usar o campo que a 0114 construiu, e aí a coluna Equipe
+  // esconderia metade de quem está na demanda.
+  const vinculos = linhas.length
+    ? ouFalha(
+        "as pessoas a mais das etapas",
+        await supabase
+          .from("subtask_responsaveis")
+          .select("subtask_id, user_id")
+          .in(
+            "subtask_id",
+            linhas.map((s) => s.id),
+          ),
+      )
+    : [];
+
+  const maisDaEtapa = new Map<string, string[]>();
+  for (const v of vinculos) {
+    maisDaEtapa.set(v.subtask_id, [
+      ...(maisDaEtapa.get(v.subtask_id) ?? []),
+      v.user_id,
+    ]);
+  }
+
   const idsDePessoas = [
-    ...new Set(linhas.map((s) => s.responsavel_id).filter(Boolean)),
+    ...new Set([
+      ...linhas.map((s) => s.responsavel_id).filter(Boolean),
+      ...vinculos.map((v) => v.user_id),
+    ]),
   ] as string[];
   const pessoas = idsDePessoas.length
     ? ouFalha(
@@ -261,11 +300,17 @@ export async function enriquecer(tasks: Task[]): Promise<TaskDaLista[]> {
       atual.estimativa += sub.estimativa_minutos;
     if (sub.tempo_real_minutos !== null)
       atual.tempoReal += sub.tempo_real_minutos;
-    const pessoa = sub.responsavel_id
-      ? porPessoa.get(sub.responsavel_id)
-      : null;
-    if (pessoa && !atual.equipe.some((p) => p.id === pessoa.id))
-      atual.equipe.push(pessoa);
+    // UMA VEZ POR PESSOA E NÃO POR ETAPA: quem tem três etapas na mesma
+    // demanda é um rosto, e três iguais lado a lado leriam como três pessoas.
+    // É a regra da pilha de avatares de Minhas Tasks.
+    for (const quem of [
+      sub.responsavel_id,
+      ...(maisDaEtapa.get(sub.id) ?? []),
+    ]) {
+      const pessoa = quem ? porPessoa.get(quem) : null;
+      if (pessoa && !atual.equipe.some((p) => p.id === pessoa.id))
+        atual.equipe.push(pessoa);
+    }
     resumos.set(sub.task_id, atual);
   }
 

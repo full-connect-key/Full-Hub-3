@@ -292,6 +292,76 @@ não é poder afirmar que o cliente aprovou.
 
 No board, arrastar é aceito para os sete.
 
+#### E O VOLANTE NA MÃO PASSOU A APARECER
+
+Decisão do usuário: *"preciso que esse movimento das tasks entre as etapas seja
+automático também com base no andamento das pessoas. Se uma task tem 10 etapas,
+e a primeira pessoa colocou ela em andamento, ela já vai pra em andamento na
+gestão de tasks, mas continua em a iniciar para as outras pessoas que ainda não
+começaram suas partes"*.
+
+**O QUE ELE DESCREVE É O QUE O PRODUTO JÁ FAZ, e por isso esta entrega não tem
+migration.** `recalcular_status_task()` roda por trigger a cada escrita em
+`subtasks` desde a 0007, e a precedência põe `em_andamento` acima de
+`nao_iniciada`: a primeira etapa que alguém começa move a Task sozinha, e as
+outras nove ficam onde estão, cada uma com o status dela. Quem olha a demanda vê
+o conjunto; quem olha a própria etapa vê a dela. **Medido em transação
+revertida**, contra o Postgres de produção: soltando `status_manual` a demanda
+dele cai para `nao_iniciada`, e começar a primeira etapa a devolve a
+`em_andamento` sozinha.
+
+**O QUE DESLIGA ISSO É `status_manual`, E ELE ERA UMA PORTA DE UMA MÃO SÓ.** A
+0025 é um pedido anterior dele — os sete passaram a ser marcáveis à mão — e a
+trava inteira do recálculo é o que faz a escolha durar: *aceitar e desfazer
+calado é pior que recusar com explicação*. **Aquele argumento continua inteiro.**
+O que não estava escrito em lugar nenhum é o preço: **arrastar um card no board
+chama `atualizarTask({status})`**, que marca `status_manual` — um gesto de seis
+pixels desligando a regra que o board existe para mostrar, com a tela
+respondendo *"Salvo."*.
+
+**E ISSO FOI MEDIDO: das demandas publicadas daquele banco, TODAS estavam
+paradas na mão.** Não é caso de borda — é o estado normal de quem trabalha pelo
+board, e é exatamente a queixa que abriu o pedido.
+
+**SÃO TRÊS METADES, e nenhuma delas afrouxa a 0025:**
+
+| | O que mudou |
+| --- | --- |
+| **no instante** | a frase deixou de ser "Salvo." e passou a dizer o que a escolha desligou |
+| **depois** | a marca **"à mão"** no card do board e na linha da Lista — a exceção, pintada |
+| **a volta** | essa marca É o botão que devolve o volante, num clique |
+
+**A MARCA PINTA A EXCEÇÃO**, que é a decisão da matriz do Day Off: o normal é o
+status sair do andamento das etapas, e uma linha dizendo isso em toda demanda
+seria a mesma frase em dez cards.
+
+**E ELA É O BOTÃO, não um selo.** O caminho existia e ficava a dois cliques e
+uma tela de distância — no rodapé do seletor de status, dentro do detalhe da
+demanda. **Quem trabalha no board não passa por lá**, e uma marca que nomeia um
+problema sem oferecer a saída é a recusa sem instrução que a 0023 recusa. O
+trigger `tasks_volta_a_calcular` recalcula na hora, então o card se move no
+`refresh` seguinte.
+
+**NA LISTA ELA VEM NA COLUNA DO NOME e não na do status**, e a razão é o
+agrupamento: quando a Lista agrupa POR STATUS aquela coluna some — o cabeçalho
+do grupo já a diz —, e a marca sumiria junto justamente na visão em que a
+demanda parada na mão é a que mais salta.
+
+**O PERFIL NÃO É PERGUNTADO NA MARCA**, e a ausência é medida: a rota inteira é
+`GESTAO`, e `voltarACalcularStatus` exige gestão ou Atendimento — quem enxerga a
+marca já passa pela pergunta que o banco faz. É a 0060: uma segunda pergunta
+embaixo de uma primeira que já barra todo mundo não barra ninguém.
+
+***E o clique não sobe***, nos dois chamadores: no board o card inteiro abre a
+demanda e carrega os `listeners` do dnd-kit, e na Lista a linha é um `<Link>`.
+Sem o `stopPropagation` no `onPointerDown` e no clique, devolver o volante
+abriria a tela da demanda por cima — ou começaria um arrasto.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** nada reescreveu as
+demandas já paradas. Uma passada soltando `status_manual` em todas desfaria, em
+silêncio, a escolha de quem marcou de propósito — que é a decisão que a 0025
+existe para proteger. A marca mostra quais são, e o clique é de quem decide.
+
 **São sete status, e `cancelada` não é um deles.** Ela era o terceiro manual e
 saiu na migration 0020: uma demanda que não vai mais acontecer se apaga, em
 Gestão de Tasks. Parada em `cancelada` ela ficava para sempre no board de quem
@@ -945,10 +1015,11 @@ uma está medida pelo `check:cores` desde a 0127. **O rótulo, esse é próprio*
 a diferença é de tempo verbal: o botão diz o que vai acontecer (*"Solicitar
 ajustes"*), o histórico diz o que aconteceu (*"Ajustes solicitados"*).
 
-**O NOME QUE NÃO VOLTOU FICA DE FORA DA LISTA**, e a ausência é honesta:
-`profiles_select` é `own or is_gestor()`, então o colaborador lê UM perfil — o
-dele. Um "—" no lugar afirmaria que há alguém sem nome; a lista mais curta diz o
-que ela sabe.
+**O NOME QUE NÃO VOLTOU FICA DE FORA DA LISTA**, e a ausência é honesta: um "—"
+no lugar afirmaria que há alguém sem nome, e a lista mais curta diz o que ela
+sabe. *(O caso que a motivou era o colaborador lendo UM perfil — o dele —, e a
+0132 o desfez: a equipe passou a enxergar a equipe. O que não volta hoje é o
+contato de CLIENTE, que continua fora para quem não é gestão.)*
 
 **E CADA PEÇA DO EXEMPLO RECEBE O HISTÓRICO QUE O ESTADO DELA PERMITE**, que é
 a parte da conferência que não é de código: o histórico é desenhado ao lado do
@@ -1289,6 +1360,72 @@ não foi salvo é a cerimônia que o nome digitado do `ConfirmDialog` já custou
 vez. **E a recusa não limpa o rascunho:** quando o banco nega, o que a pessoa
 escreveu continua na tela, com a mensagem ao lado — perder a edição junto com a
 recusa seria pedir que ela a digitasse de novo para descobrir o mesmo "não".
+
+###### E O BRIEFING ENTROU NO MESMO SALVAR
+
+Decisão do usuário: *"quando abro uma subetapa, na subtarefa, preciso poder
+escrever um briefing, escrever texto, como na etapa normal"*.
+
+**A COLUNA EXISTIA E A AÇÃO JÁ A ACEITAVA.** `subtasks.descricao_rica` e
+`descricao_texto` estão na tabela desde o Sprint 3B, `atualizarSubtarefa` grava
+as duas desde então, `obterTask` lê `select("*")` — e **nenhuma tela do produto
+jamais mandou nenhuma das duas**. É a ponte construída e nunca atravessada pela
+vigésima primeira vez, e desta vez ela estava inteira dos dois lados: nenhuma
+migration, nenhuma coluna nova, nenhuma linha em `lib/dados/`. O que faltava era
+o editor.
+
+**ELE PEDE O EDITOR E NÃO O BOTÃO, e a diferença decide onde o briefing é
+gravado.** O briefing da DEMANDA tem botão próprio porque aquela tela não tem
+nenhum — ela salva campo a campo desde a 0028, e ali o botão do briefing é o
+único momento de confirmar que existe. **Este modal já tem um**, e um segundo
+faria a barra do pé contar *"2 alterações por salvar"* sobre um briefing que ela
+não grava: **uma alteração pendente que o aviso de alteração pendente não conhece
+é pior que aviso nenhum**, e o custo escrito deste modal — *fechar com alteração
+pendente DESCARTA, sem perguntar* — passaria a valer para duas coisas e a ser
+explicado por uma.
+
+**Então são SEIS campos no rascunho**, e a frase de cima continua valendo para os
+cinco: eles são as PROPRIEDADES que se decidem em bloco. O briefing é o sexto
+porque é a mesma transação, não porque é uma propriedade.
+
+**O VALOR MORA NUM `ref` E O AVISO NUM ESTADO**, que é a forma do briefing da
+demanda: o `onChange` do TipTap dispara a cada tecla, e pô-lo no `useState` do
+rascunho re-renderizaria o modal inteiro — com a faixa de disponibilidade e o
+histórico de rodadas dentro — a cada letra digitada. O booleano vira UMA vez, na
+primeira tecla, e é ele que a barra conta.
+
+**AS DUAS COLUNAS ANDAM JUNTAS, e o texto vazio vira NULO.**
+`descricao_texto` é o que a busca lê e `descricao_rica` é o que a tela desenha;
+gravar uma sem a outra deixaria o briefing invisível para um dos dois lados. E um
+documento do TipTap sem nada dentro ainda é um parágrafo vazio — guardá-lo é
+guardar o formato do nada, então **quem decide se há briefing é o texto**.
+
+**ELE VEM ANTES DAS LISTAS**, que é a ordem da demanda um nível acima: o que a
+etapa É antes do que ela depende, entrega e já decidiu. Lido depois das rodadas,
+o briefing seria a última coisa da tela — e é a primeira que quem vai produzir
+procura.
+
+**E ELE FICA ACIMA DA BARRA DE SALVAR, o que só a imagem pegou.** A primeira
+versão o pôs logo abaixo dela, que é onde ele parece pertencer — depois dos
+campos, antes das listas. **A barra só gruda no pé enquanto há rascunho**, então
+no estado de repouso ela sai no meio do modal com o editor embaixo: a tela
+dizendo que o briefing não é do Salvar, na única seção em que ele é. É o
+uploader do Acervo palavra por palavra — *"o botão morava na linha do seletor de
+arquivo, e as duas coisas que ele grava ficavam ABAIXO dele"* —, e a regra que
+sai das duas é uma: **tudo o que a barra grava fica acima dela.**
+
+**E ELE NÃO SOME QUANDO ESTÁ VAZIO**, ao contrário do briefing da campanha: ali a
+seção some porque a campanha anterior à 0125 não tem nenhum dos sete campos, e
+sete rótulos com um travessão embaixo ocupariam a tela toda. Aqui o campo vazio é
+onde se escreve, e escondê-lo esconderia o pedido inteiro. Para quem não edita, a
+ausência vira a frase — que é o que a tela sabe.
+
+***E a imagem precisou de uma sub-etapa com briefing escrito***, pela razão de
+sempre: a tela `46` abre "Criar KV", que é etapa de TOPO, e o editor aparece nela
+também — a foto não responderia o que ele pediu. Entrou
+`46c-subetapa-briefing`, abrindo "Feed 1:1", que é filha de "Adaptar formatos"; e
+ela é **a única das três irmãs com briefing**, porque com as três preenchidas a
+imagem provaria que o editor aparece e não que ele guarda o que foi escrito.
 
 ##### O RESPONSÁVEL SE ESCOLHE NA PRÓPRIA LINHA
 
@@ -2009,13 +2146,14 @@ fica desatualizado: é a regra desta casa, **o que dá para calcular não se
 guarda**, a mesma de `atraso` não ser coluna e de `maoDoPost()` não ser
 gravada.
 
-**A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO.**
-`profiles` tem DUAS policies de SELECT, e só duas: `own` e `is_gestor()` — um
-colaborador lê **exatamente um perfil, o dele**. Com a data ali, o calendário
-de aniversários nasceria mostrando, para quem não é gestão, o próprio
-aniversário e os da gestão, e mais nada. `team_members_select` é `is_staff()`
-desde a 0002, e é onde a coluna precisa estar para a tela existir para quem
-ela é. Ela entra ao lado de `data_admissao`, que é a outra data de ficha e
+**A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO.** No
+dia desta migration `profiles` tinha DUAS policies de SELECT, e só duas: `own` e
+`is_gestor()` — um colaborador lia **exatamente um perfil, o dele**. Com a data
+ali, o calendário de aniversários nasceria mostrando, para quem não é gestão, o
+próprio aniversário e os da gestão, e mais nada. `team_members_select` é
+`is_staff()` desde a 0002, e é onde a coluna precisa estar para a tela existir
+para quem ela é. *(A 0132 depois alargou aquela policy, e a decisão continua a
+mesma: data de ficha mora na ficha, e `profiles` guarda acesso.)* Ela entra ao lado de `data_admissao`, que é a outra data de ficha e
 nasceu na mesma tabela pelo mesmo motivo.
 
 **A VIEW NÃO É TOCADA, e esta é a linha que mais importa.** A tentação é uma
@@ -2602,6 +2740,75 @@ capacidade da 0081 de novo. O outro zero é porque a guarda do cascade ali **nã
 é trava, é economia**: sem ela, o `update` roda uma vez por linha em todo
 apagamento de etapa, e apagar uma demanda com sessenta etapas são sessenta
 updates que não mudam nada.
+
+#### A EQUIPE ENXERGA A EQUIPE (0132)
+
+Relato do usuário: *"quando eu preencho um responsável, com a visualização de
+sócio, ela desaparece na visualização de colaborador"*.
+
+**ELE ESTAVA CERTO, E O FURO ERA DE RLS.** `profiles` tinha DUAS policies de
+SELECT e só duas — `own` e `is_gestor()` —, então **um colaborador lia
+exatamente UM perfil, o dele**. Todo embutido `profiles(id, nome, avatar_url)`
+do produto voltava nulo para ele: o responsável de cada etapa, a pilha de
+avatares da demanda, o autor de cada comentário, a pessoa de cada rodada. A
+gestão via o nome e a foto; quem executa via "sem responsável" na mesma linha.
+
+**Medido como gente de verdade**, antes e depois: o colaborador lia **1** perfil
+e **0** responsáveis de etapa, o sócio lia 15 e 1. Com a policy, o colaborador
+passou a ler **14** perfis e 1 responsável — e **0** contatos de cliente.
+
+**ELA É ESTREITADA POR LINHA E NÃO POR COLUNA**, e a outra saída foi medida e
+recusada: revogar a coluna de e-mail resolveria o que ela expõe e **quebraria o
+login de todo mundo**, porque `dal.ts` faz `select("*")` do próprio perfil a
+cada carregamento de página. O recorte é `is_staff() and role <> 'cliente'`: a
+equipe enxerga a equipe, e o contato de cliente continua fora.
+
+***O que ela expõe, e é dito em vez de escondido:*** com ela, um colaborador
+que monte a consulta à mão lê `email`, `role`, `ativo` e `deve_trocar_senha` dos
+colegas. **Nenhuma tela desenha nenhum dos quatro** para ele, e os quatro são
+sobre a equipe da própria agência — não sobre cliente nem sobre dinheiro. É a
+troca aceita: a alternativa era o produto continuar escondendo de quem executa
+quem faz o trabalho ao lado dele.
+
+**E A FRASE DA BUSCA GLOBAL DEIXOU DE VALER.** Estava escrito que *"buscar o
+nome de um colega devolve nada para quem não é gestão"* e que, se a regra
+tivesse que mudar, ela mudaria **na policy — num lugar, para as vinte telas que
+leem `profiles`**. Mudou ali, e as vinte telas acompanharam sem uma linha de
+código: o grupo "Equipe" da paleta passou a responder para a equipe inteira,
+porque `busca_global()` não é `security definer` justamente para a policy valer
+dentro dela.
+
+##### E A SEGUNDA PESSOA DA ETAPA ENTROU NA EQUIPE DA DEMANDA
+
+Decisão do usuário, na mesma mensagem: *"preciso que quando a pessoa estiver
+numa task, na parte de equipe, apareçam todas as pessoas que são responsáveis,
+até mesmo das subetapas, quero que apareçam as fotos das pessoas tbm na sub
+etapa"*.
+
+**AS SUB-ETAPAS JÁ ENTRAVAM**, e a razão é a 0022: `enriquecer()` monta a
+equipe a partir de `folhas()`, e uma sub-etapa É uma folha — quem fica de fora é
+a AGRUPADORA, porque os campos dela passaram para as filhas no instante em que
+ela ganhou a primeira. **E a foto da sub-etapa também já estava lá**, porque a
+linha aninhada é o MESMO componente da linha de topo, com `SeletorDeResponsavel`
+e o avatar dentro. As duas eram invisíveis pelo furo de cima, não por ausência.
+
+**O QUE NÃO ENTRAVA ERA A SEGUNDA PESSOA.** `subtasks.responsavel_id` é a
+PRIMEIRA desde a 0114, e quem manda é `subtask_responsaveis` — a coluna lida
+sozinha deixa de fora quem foi acrescentado depois. Hoje `enriquecer()` lê a
+tabela de vínculo numa ida só e junta as duas listas, **uma vez por PESSOA e não
+por etapa**, que é a regra da pilha de avatares.
+
+***E isso não muda nada hoje, o que é dito em vez de escondido:*** medido, o
+banco tem **3 vínculos e 0 pessoas a mais** — as duas leituras dão a mesma
+resposta, e é por isso que a ponte durou. Ela diverge no instante em que alguém
+usar o campo que a 0114 construiu, e aí a coluna Equipe esconderia metade de
+quem está na demanda.
+
+**E A LINHA DA ETAPA PASSOU A MOSTRAR AS DUAS.** O seletor desenha UMA pessoa,
+que é a coluna; quem vem a mais é uma pilha encostada nele, que **some quando
+não há ninguém** — uma coluna vazia em nove de dez linhas é a largura do nome
+gasta para dizer que não há o que dizer. Ela fica ao lado do seletor e não numa
+coluna própria porque é a mesma pergunta: quem faz isto.
 
 ### Dependências
 
@@ -7627,13 +7834,55 @@ O hover da pílula é `group-hover:`, e quem a desenha a envolve num elemento co
 cabeçalho ela divide o botão com a seta e com a contagem, e um `hover:` só
 acenderia com o ponteiro exatamente em cima dela.
 
-***O que NÃO muda, e é dito em vez de escondido:*** o **selo** (`StatusBadge`),
-que aparece em vinte e uma telas, continua com o par suave — uma pílula cheia e
-saturada dentro de uma célula de tabela densa é peso onde o status é o dado
-secundário da linha. E o **chip do cronograma do portal** também, pela mesma
-razão de sempre: ele carrega o título do material e a cor é o chão daquele
-título, não a peça. `classesDoChipDeStatus` serve esses dois;
-`classesDaCaixaDeStatus` serve o cabeçalho, que é a peça que NOMEIA um bloco.
+***O selo FICOU DE FORA, e o parágrafo seguinte é a reversão disso.*** O que
+estava escrito aqui é que o **selo** (`StatusBadge`), de vinte e uma telas,
+continuava com o par suave — *uma pílula cheia e saturada dentro de uma célula
+de tabela densa é peso onde o status é o dado secundário da linha*. O argumento
+é sobre densidade e ele continua verdadeiro; o que ele não viu está logo abaixo.
+O **chip do cronograma do portal**, esse continua suave de verdade:
+`classesDoChipDeStatus` serve a ele, e `classesDaCaixaDeStatus` serve o
+cabeçalho, que é a peça que NOMEIA um bloco.
+
+###### E ELA FOI PARA A PLATAFORMA TODA
+
+Decisão do usuário, olhando o resultado: *"padronize essas cores na plataforma
+toda"*.
+
+**O ARGUMENTO DA DENSIDADE ESTAVA CERTO E NÃO ERA O QUE DECIDIA.** O que a
+exclusão produziu foi pior que uma tabela pesada: **o mesmo status passou a ter
+duas cores conforme a tela** — pálido no selo de vinte e uma telas, cheio no
+cabeçalho de grupo, a dois centímetros um do outro na mesma página da Lista. É
+a história das sete cópias de `abas.tsx` e a de `ICONE_DA_AREA`, que tinha três
+cópias e duas já divergidas: **consistência ganha de densidade**, porque quem
+troca de tela não deveria reaprender o que uma cor quer dizer.
+
+**E O SELO LEVA O ÍCONE PELA MESMA MEDIÇÃO QUE O PÔS NO CABEÇALHO:** três dos
+sete chãos cheios ficam abaixo do piso de daltonismo entre si (ΔE 1,9 e 3,4). No
+cabeçalho o nome está em caixa alta e grande; num selo de 11px ele está
+pequeno — **é ali que a forma trabalha mais**, não menos.
+
+**ELE É `rounded-full` E PERDEU A BORDA**, que é a decisão do cabeçalho palavra
+por palavra: com o chão cheio a borda some dentro da própria cor, e um retângulo
+saturado numa célula de tabela se lê como uma faixa. `neutro` e `pausado`
+continuam pálidos — "Não iniciada" é o status da maioria das linhas de qualquer
+tabela deste produto, e uma tabela em que toda linha grita não diz nada.
+
+**E O HOVER PRECISOU SAIR DO MAPA DE COR, que é a parte não óbvia.** Ele vivia
+dentro de `TONS_CHEIOS` como `group-hover:`, e isso serve um `<button>`; o selo
+não responde a clique nenhum, e **todo selo desenhado dentro de um elemento com
+`group` trocaria de tom quando o ponteiro passasse pelo CARD em volta dele** — o
+card do board e a linha da Lista são exatamente isso, e o status da demanda
+piscaria por causa de um movimento do mouse que não tem nada a ver com ele.
+Hoje `TONS_CHEIOS` é o chão, `HOVER_CHEIO` é a interação, e só
+`classesDaCaixaDeStatus` junta os dois. É a mesma assimetria de `--status-*` não
+apontar para a família das decisões: **aquele chão é de um botão e tem três
+estados; este é de um rótulo e não tem nenhum.**
+
+***E o selo vale nas DUAS áreas***, porque `StatusBadge` é lido por seis telas do
+Portal do Cliente também — o cartão do post, o da campanha, o do item, a árvore
+de entregáveis, o detalhe do material e a tela inicial. "Na plataforma toda" é a
+frase dele, e uma pílula cheia no painel ao lado de uma pálida no portal seria a
+mesma divergência um nível acima.
 
 ***E uma frase daquele arquivo voltou a ser verdade:*** o JSDoc de
 `classesDoChipDeStatus` dizia *"quem o usa é o cronograma do portal"* enquanto
@@ -15833,16 +16082,22 @@ A trava é a RLS **restritiva** da 0028 e não um filtro na consulta: o que volt
 é o meu e de mais ninguém — nem do sócio. O selo diz que ele ainda não existe
 para a equipe. Para reverter, é uma linha no ramo de demanda.
 
-#### O grupo "Equipe" só responde para a gestão, e não é escolha da busca
+#### O grupo "Equipe" responde pela POLICY, e nunca por uma pergunta da busca
 
-`profiles_select` é `own or is_gestor()` desde o Sprint 2: **um colaborador lê
-exatamente UM perfil, o dele.** Então buscar o nome de um colega devolve nada
-para quem não é gestão, e a busca herda isso sem uma linha a respeito.
+**Isto já foi uma restrição, e ela mudou onde tinha de mudar.** Até a 0132,
+`profiles` fechava em `own or is_gestor()` — *um colaborador lê exatamente UM
+perfil, o dele* —, então buscar o nome de um colega devolvia nada para quem não
+é gestão, e a busca herdava isso sem uma linha a respeito. Estava escrito aqui
+que, se a regra tivesse que mudar, ela mudaria **na policy — num lugar, para as
+vinte telas que leem `profiles`**: a 0132 acrescentou `is_staff() and role <>
+'cliente'`, e a busca passou a responder para a equipe inteira **sem uma linha
+de código**, porque `busca_global()` não é `security definer`.
 
-**O cenário da bateria existe para o dia em que alguém achar que a busca está
-quebrada e "consertar" com `security definer`:** isso não consertaria a busca,
-abriria a tabela de perfis da agência inteira. Se a regra tiver que mudar, muda
-na policy — num lugar, para as vinte telas que leem `profiles`.
+**O cenário da bateria continua existindo para o dia em que alguém achar que a
+busca está quebrada e "consertar" com `security definer`:** isso não consertaria
+nada e abriria a tabela de perfis — inclusive o contato de cliente, que é o que
+a 0132 deixou de fora de propósito. **A regra mora na policy; a busca só a
+herda.**
 
 #### A paleta, e por que nada dela mora na URL
 
@@ -17160,6 +17415,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A etapa por inteiro | **Cinco pedidos numa mensagem, e dois deles eram o mesmo bug de RLS.** **(1) `padronize essas cores na plataforma toda`:** a pílula cheia com ícone saiu do cabeçalho de grupo e foi para o `StatusBadge`, de vinte e uma telas, **nas duas áreas** — seis delas do Portal do Cliente. Eu tinha escrito o argumento CONTRA uma entrega atrás (*uma pílula saturada numa célula densa é peso onde o status é o dado secundário*), e ele está certo sobre densidade e não é o que decide: o que a exclusão produziu foi **o mesmo status com duas cores conforme a tela**, a dois centímetros um do outro na página da Lista. Consistência ganha de densidade. **O hover precisou sair do mapa de cor**, que é a parte não óbvia: `group-hover:` serve um `<button>`, e num selo ele faria o status piscar quando o ponteiro passasse pelo CARD em volta — o card do board e a linha da Lista são exatamente isso. **(2) O status automático:** o que ele descreve **o produto já faz** — `recalcular_status_task()` roda por trigger desde a 0007 e `em_andamento` tem precedência sobre `nao_iniciada`. O que o desliga é `status_manual` (0025), e ele era uma porta de uma mão só: **arrastar um card no board** o marca, com a tela respondendo *"Salvo."*. **Medido: das demandas publicadas daquele banco, TODAS estavam paradas na mão.** São três metades e nenhuma afrouxa a 0025 — a frase passou a dizer o que a escolha desligou, a marca **"à mão"** pinta a exceção no card e na linha, e ela É o botão que devolve o volante num clique. Nada reescreveu as demandas já paradas: soltá-las em massa desfaria, em silêncio, a escolha de quem marcou de propósito. **(3) Briefing na sub-etapa:** `descricao_rica` e `descricao_texto` existem desde o Sprint 3B, `atualizarSubtarefa` grava as duas desde então, e **nenhuma tela jamais mandou nenhuma** — a ponte construída e nunca atravessada pela vigésima primeira vez, inteira dos dois lados. O editor entrou no MESMO Salvar das cinco propriedades: um segundo botão faria a barra do pé contar duas alterações sobre um briefing que ela não grava, e *uma alteração pendente que o aviso de alteração pendente não conhece é pior que aviso nenhum*. O valor mora num `ref` e o aviso num estado, senão o modal inteiro re-renderizaria a cada tecla. **(4) e (5) A equipe que sumia:** *"quando eu preencho um responsável, com a visualização de sócio, ela desaparece na visualização de colaborador"*. **`profiles` tinha DUAS policies de SELECT, `own` e `is_gestor()`** — um colaborador lia **exatamente UM perfil, o dele**, então todo embutido `profiles(...)` do produto voltava nulo para ele: o responsável de cada etapa, a pilha de avatares, o autor de cada comentário. Medido como gente de verdade: 1 perfil e 0 responsáveis contra 15 e 1 do sócio. A **migration 0132** acrescenta `is_staff() and role <> 'cliente'` — **estreitada por LINHA e não por coluna**, porque revogar a coluna de e-mail quebraria o login de todo mundo (`dal.ts` faz `select("*")` do próprio perfil a cada página). Depois: 14 perfis, 1 responsável, **0 contatos de cliente**. Com isso as sub-etapas e as fotos delas voltaram a aparecer — elas **já entravam**, por `folhas()` e pelo mesmo componente de linha. O que de fato faltava era a SEGUNDA pessoa da etapa, que mora em `subtask_responsaveis` desde a 0114 e que `enriquecer()` não lia; *medido, isso não muda nada hoje — 3 vínculos, 0 pessoas a mais —, e é por isso que a ponte durou*. ***E a frase da busca global deixou de valer***: estava escrito que, se a regra mudasse, mudaria **na policy — num lugar, para as vinte telas que leem `profiles`**. Mudou ali, e a paleta passou a achar colega sem uma linha de código, porque `busca_global()` não é `security definer`. |
 | A caixa cheia | **O cabeçalho de grupo da Lista virou uma pílula CHEIA, com um ícone dentro** — decisão do usuário, por referência: uma imagem de uma lista agrupada com pílulas saturadas, ícone à esquerda do nome e a contagem fora, em cinza. **ELE JÁ TINHA DITO ISSO UMA VEZ, e esta entrega leva o pedido anterior até o fim:** a caixa nasceu porque *"a cor estava lá e não se lia a dois metros"*, e o par nomeado resolve o pastel a 11px e **não resolve a distância** — sete pílulas pálidas numa página branca continuam sendo sete manchas claras. **OS TOKENS QUE JÁ EXISTEM NÃO SERVEM, e o número diz por quê:** eles são cor de TEXTO e trocam por tema — `--laranja` é `#B4440C` no claro e `#FB923C` no escuro, e como chão com texto branco o primeiro dá 5,57:1 e o segundo dá **2,1:1**. É a 0127 palavra por palavra: **preenchimento carrega o próprio chão**, uma família `--status-*` declarada uma vez, sem par no `.dark`, e a colisão do tema escuro deixa de existir por construção. **NÃO É UM SEGUNDO MAPA DE COR**, e a distinção é a que faz ele caber: o de-para de status para tom continua sendo um, e o que muda é o PAPEL da superfície — `Record<Tom, string>` obriga os dois mapas a serem totais, então um tom novo não compila sem os dois. **Três dos sete calham de ter o valor da família das decisões** (Concluído é o verde de Aprovar, Em ajuste o vermelho de Recusar), e **não apontam** um para o outro, ao contrário de `--ferias → --roxo`: o chão de lá é de um BOTÃO, com hover, foco e pressionado, e o daqui é de um RÓTULO — no dia em que o botão escurecer por uma razão de interação, o rótulo não vai junto. Medidos, iguais nos dois temas: **5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 / 6,47** em repouso e sete pares de hover acima deles. **O ÍCONE EXISTE POR CAUSA DE UMA MEDIÇÃO e não por enfeite:** nos chãos cheios, `--status-marrom` fica a **ΔE 1,9** de `--status-negativo` em protanopia e `--status-lima` a **3,4** em deuteranopia — para quem não separa vermelho de verde, "Aguardando aprovação", "Em ajuste" e "Entregue" são três pílulas da mesma cor. A ampulheta, a seta de voltar e o avião de papel são três silhuetas que nada têm em comum, e é a decisão do bolo do aniversário palavra por palavra. **O mapa é keyado por STATUS e não por tom**, que é a única chave que serve: `negativo` é o tom de `em_ajustes` E de `rejeitado`, e um ícone por tom daria a mesma seta de "volta para mexer" a uma recusa. **`neutro` e `pausado` ficam pálidos**, e a ausência é a referência: pinta-se a exceção, e sete pílulas cheias com uma clara se leem onde oito se anulam. **A seta e a contagem saíram de dentro**, porque as duas são fatos sobre a LISTA e não sobre o status — e dentro, a seta competiria com o ícone a seis pixels de distância. ***O que NÃO muda, e é dito:*** o selo de vinte e uma telas e o chip do cronograma continuam com o par suave — lá o status é o dado secundário da linha, e a saturação seria peso onde não se pede. ***E uma frase voltou a ser verdade:*** o JSDoc de `classesDoChipDeStatus` dizia *"quem o usa é o cronograma"* enquanto dois cabeçalhos também o usavam. ***E o `icone` quase ficou no objeto sem chegar à tela*** — a ponte construída e não atravessada em miniatura, pega por acaso pelo `tsc` num ramo do agrupamento por cliente. |
 | A etapa editável | **Seis pedidos numa mensagem, e cinco deles são sobre a mesma tela: a lista de etapas da demanda.** **(1) O responsável se escolhe na LINHA** — *"clicando na palavra responsável, sem precisar abrir mais abas para editar, quero que a plataforma de maneira geral seja intuitiva"*. O que estava ali era TEXTO MORTO pela terceira vez neste produto: `atualizarSubtarefa` grava `responsavel_id` desde o Sprint 3B, e a linha desenhava um `<span>` cinza. `SeletorDeResponsavel` **não decide quando salvar** — na linha o clique É o salvamento, no modal ele escreve no rascunho —, que é a assimetria escrita de `FaixaDeDisponibilidade`. **E o chevron aparece em REPOUSO, o que foi um conserto no meio da entrega:** escondido até o ponteiro passar por cima, o controle ficava idêntico ao `<span>` que ele substituiu — literalmente a queixa que abriu o pedido —, e a tela do protótipo precisava ABRIR a lista, o que custa três nós de `aria-hidden-focus` no axe. **(2) O modal ganhou um SALVAR**, que desfaz METADE da 0028: *"salva sozinho, campo a campo"* continua certo no rascunho, que não existe para mais ninguém, e nunca valeu numa etapa publicada, com dono e prazo, que a outra pessoa vê mudar enquanto quem edita ainda decide. São CINCO campos no rascunho e não os doze; a barra existe nos DOIS estados, porque uma barra que só nasce depois da primeira edição é descoberta depois de ela acontecer; e ela gruda no pé enquanto há rascunho. ***O que custa:*** fechar o modal descarta sem perguntar — a guarda de saída seria a cerimônia que o nome digitado do `ConfirmDialog` já custou uma vez. **(3) e (4) A ordem se ARRASTA**, e a segunda frase dele é a que decide o desenho: *"arrastando, elas já mudem de ordem de visualização"* — então reordena irmãs e **nunca troca de mãe**, porque mudar o `parent_id` por um gesto de seis pixels é a diferença entre uma etapa que conta tempo e uma agrupadora que não conta (0022). `reordenarSubtarefas` existia e estava nas `ISENTAS` do `check:acoes` com o motivo escrito — *"FALTA A TELA"* —, e a isenção saiu junto, porque uma que deixou de ser verdade é pior que isenção nenhuma. O arrasto é por ALÇA e não pela linha: espalhar os `attributes` do dnd-kit num contêiner que carrega botões dá `nested-interactive`, e este produto já pagou isso uma vez no cartão do board. **(5) SETE STATUS, SETE CORES** — e ele descreveu a dívida que este arquivo já tinha escrito: três pares dividiam o mesmo tom, e com a CAIXA no cabeçalho de grupo o chão virou a peça grande da tela. `info` saiu (era `marca` com outro nome, a mesma string letra por letra), `atencao` ficou com um consumidor só — o "Ajustes" do cliente, que fica ao lado de "Rejeitado" e que a 0127 existe para separar —, e os três pares novos foram medidos ANTES da troca: 4,86 / 6,89 / 4,60 no claro. A troca vale nos TRÊS vocabulários de propósito: a legenda do calendário do portal AGRUPA lendo `corDoPontoDeStatus`, então ela se reorganiza de cinco entradas para sete sem uma linha de código. ***E a medição do daltonismo é dita com o número em vez de afirmada:*** rodando os sete chãos como grupo, **sete pares ficam abaixo do piso**, o pior a ΔE 0,8 — eles ficam fora porque o NOME está escrito dentro da caixa, que é a regra de 0127 e 0130, e porque os pastéis desta paleta vivem perto entre si por construção. **De quebra o `--accent` do tema escuro foi consertado:** ele era `#2C3137` igual a `--muted`, a ΔE 0,0 — achado que a 0130 declarou e deixou de fora, e que deixou de ser aceitável quando dois cabeçalhos de grupo passaram a ter o mesmo chão. **(6) O BRIEFING ganhou caixa, tabela e uma paleta que sai de TOKEN**, e isso resolve uma decisão que estava em suspenso neste arquivo por uma TERCEIRA saída que ele não enxergava: gravar o NOME e não o valor. A premissa das duas saídas antigas — *"a cor não pode sair de um token"* — estava errada, e a verificação foi de dependência e não de memória: `getStyleProperty` em `@tiptap/core` lê o `style` cru, então a `var()` atravessa o parse. Com ela a exceção do `editor-rico.tsx` saiu do `check:cores` (o arquivo não tem mais hexadecimal nenhum) e os pares passaram a ser medidos toda vez — **4,94:1 no claro e 6,82:1 no escuro** contra 3,18 e 2,30. ***O que não se faz, e é a consequência honesta:*** o documento antigo mantém o hex dele e não é reescrito — o exemplo guarda um, e o axe o acusa **só no escuro**, que é o argumento inteiro medido por uma ferramenta de fora. A caixa tem quatro tipos e o comando ALTERNA; a tabela abre 3×3 com cabeçalho e rola dentro de si; e a fileira de nove bolinhas de 16px virou quatro MENUS, porque vinte alvos daquele tamanho seriam duas fileiras acima do campo. |
 | A porta das áreas | **Os três chips saíram do cabeçalho de Minhas Tasks, e a porta foi para a linha** — decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e social, quero que elas sejam acessadas por meio das tasks em si, quando a pessoa é marcada em um task de algum desses tipos, ela tenha acesso a página referente"*. **A FAIXA ESTAVA CERTA NO DIA EM QUE NASCEU, e é isso que explica por que ela pôde sair:** Social Media e Campanhas tinham acabado de sair da barra lateral, e *"tirar um item de menu de um módulo que não aparece em mais lugar nenhum é esconder o módulo"* — ela nomeava as três áreas, com contagem e no zero, para dizer que elas existem aqui. **O que ela NÃO respondia é a pergunta de quem olha uma LINHA:** *esta etapa, de que mês é? de que campanha?* Quem tinha a fase de Layout de outubro da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do módulo, para procurar de novo a conta e o mês que a linha já sabia. Hoje o endereço é da linha, por `destinoDaEtapa()`. **E O CHIP DE DEMANDAS LEVAVA 403, que é o conserto embutido na remoção:** ele apontava para `/painel/gestao-tasks`, que é `GESTAO`, e o colaborador — a pessoa para quem esta tela existe — lia *"Seu perfil não permite esta ação"*; `ROTA_DA_AREA.demandas` passou a devolver nulo, porque **não existe módulo "minhas demandas" ao lado desta tela — Minhas Tasks é ele**. **O rótulo virou o MÓDULO e não o nome do objeto**, desfazendo meia decisão escrita: a pílula dizia o NOME da campanha, e `abrir_campanha()` (0051) dá à demanda o título `p_nome` — o nome já estava na linhagem, a dois centímetros. **Na Lista é pílula; no board e no calendário é o PAINEL**, porque o cartão tem ~171px e já carrega seis coisas. **E o painel só oferece "Abrir em página inteira" para a gestão**, que é o mesmo 403 um andar abaixo. ***O que se perde, e é dito:*** o ZERO — a faixa dizia "Campanhas 0" nos dias vazios, e quem continua nomeando as três é a faixa de novidades, que é condicional e é literalmente o caso que o pedido descreve. **E A CHECAGEM PASSOU A MEDIR O ENDEREÇO:** `A_PORTA` procurava os três nomes no texto renderizado, e hoje procura `href="` mais o prefixo de cada porta no HTML cru — **foi a mutação que cobrou**, trocando o `href` por um `data-*` o endereço continuava no HTML e a checagem passava sobre uma porta que não abre. Medida com três mutações, mais duas na mão dupla do botão de página inteira. ***E um defeito anterior saiu junto:*** o `X` do `SheetContent` era desenhado **em cima** do ícone do último botão do cabeçalho do painel — só a imagem pega, porque sobreposição não é tipo, não é cor e não é árvore de acessibilidade. |

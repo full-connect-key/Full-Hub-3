@@ -23,6 +23,7 @@ import {
   StatusBadge,
 } from "@/components/shared/status-badge";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ import { formatarMinutos } from "@/lib/dominio/tempo";
 import { cn } from "@/lib/utils";
 
 import { atualizarTask, atualizarTasksEmMassa } from "./acoes";
+import { MarcaDeStatusManual } from "./marca-de-status-manual";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 
@@ -378,15 +380,23 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
       // mostrou, quando o status passou a vir antes dele.
       className: "min-w-[14rem]",
       cell: (task) => (
-        <Link
-          href={`/painel/gestao-tasks/${task.id}`}
-          className={cn(
-            "font-medium hover:underline",
-            vencida(task) && "text-destructive",
-          )}
-        >
-          {task.titulo}
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <Link
+            href={`/painel/gestao-tasks/${task.id}`}
+            className={cn(
+              "font-medium hover:underline",
+              vencida(task) && "text-destructive",
+            )}
+          >
+            {task.titulo}
+          </Link>
+          {/* A MARCA VEM NA COLUNA DO NOME e não na do status, e a razão é
+              o agrupamento: quando a Lista agrupa POR STATUS aquela coluna
+              some — o cabeçalho do grupo já a diz —, e a marca sumiria junto
+              justamente na visão em que a demanda parada na mão é a que mais
+              salta. Aqui ela está em toda linha, em todo agrupamento. */}
+          {task.status_manual ? <MarcaDeStatusManual taskId={task.id} /> : null}
+        </div>
       ),
       sortValue: (task) => task.titulo,
       searchValue: (task) => `${task.titulo} ${task.briefing_texto ?? ""}`,

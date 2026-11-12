@@ -25,6 +25,7 @@ import type {
 } from "../../src/lib/dados/tasks";
 import type {
   ApprovalRound,
+  Json,
   SocialFlowPapel,
   TaskReferencia,
 } from "../../src/lib/supabase/database.types";
@@ -204,6 +205,9 @@ type Semente = {
   parent_id?: string;
   /** O começo do período da etapa; `prazo` é o fim. */
   data_inicio?: string;
+  /** O briefing da etapa, quando alguém escreveu um. */
+  descricao_rica?: unknown;
+  descricao_texto?: string | null;
   titulo: string;
   ordem: number;
   prazo: string | null;
@@ -334,6 +338,32 @@ const SEMENTES: Semente[] = [
     task_id: "11111111-1111-1111-1111-111111111111",
     parent_id: "s3",
     titulo: "Feed 1:1",
+    // A SUB-ETAPA COM BRIEFING, e ela e UMA das tres irmas de proposito.
+    //
+    // Decisao do usuario: *"quando abro uma subetapa, na subtarefa, preciso
+    // poder escrever um briefing, escrever texto, como na etapa normal"*. Com
+    // as tres preenchidas, a imagem provaria que o editor aparece; com uma, a
+    // imagem prova que ele guarda o que foi escrito E que o campo vazio e o
+    // estado normal das outras -- que e a razao do evento de cada par da
+    // legenda do calendario.
+    descricao_rica: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Formato " },
+            { type: "text", marks: [{ type: "bold" }], text: "1080 × 1080" },
+            {
+              type: "text",
+              text: ". A foto do produto entra sobre o fundo claro, com a marca no canto inferior direito.",
+            },
+          ],
+        },
+      ],
+    },
+    descricao_texto:
+      "Formato 1080 × 1080. A foto do produto entra sobre o fundo claro, com a marca no canto inferior direito.",
     ordem: 1,
     prazo: dia(4),
     responsavel: MARINA,
@@ -578,9 +608,16 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
     parent_id: semente.parent_id ?? null,
     titulo: semente.titulo,
     data_inicio: semente.data_inicio ?? null,
-    descricao_rica: null,
+    // O BRIEFING DA ETAPA, e ele e o que a entrega nova desenha.
+    //
+    // As duas colunas existem em `subtasks` desde o Sprint 3B e
+    // `atualizarSubtarefa` sempre as aceitou -- o que faltava era o editor no
+    // modal. Sem UMA semente preenchida, o modal sairia em imagem com o campo
+    // vazio: a foto provaria que o editor existe e nao que ele guarda alguma
+    // coisa. E o estado que a tela precisa ter para a entrega sair em foto.
+    descricao_rica: (semente.descricao_rica ?? null) as Json | null,
     aviso_geracao: null,
-  descricao_texto: null,
+    descricao_texto: semente.descricao_texto ?? null,
     prazo: semente.prazo,
     responsavel_id: semente.responsavel?.id ?? null,
     prioridade: "normal",
@@ -771,6 +808,16 @@ type SementeDeTask = {
   data_fim: string | null;
   briefing_rico?: unknown;
   briefing_texto?: string | null;
+  /**
+   * O status desta demanda foi marcado à MÃO, e o cálculo parou nela (0025).
+   *
+   * **UMA das demandas do exemplo, e não todas**: a marca "à mão" é a exceção
+   * que o board e a Lista pintam, e com todas marcadas a imagem provaria que
+   * ela aparece — não que ela distingue uma demanda parada na mão das que
+   * acompanham as etapas. É a razão do evento de cada par da legenda do
+   * calendário, e a da peça programada no Social.
+   */
+  status_manual?: boolean;
   concluida_em?: string | null;
   /** A vertente da conta (0118). Ausente é a demanda que ninguém classificou. */
   vertente_id?: string | null;
@@ -800,6 +847,7 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     titulo: "Reels institucional",
     prioridade: "urgente",
     status: "em_aprovacao",
+    status_manual: true,
     data_inicio: dia(-10),
     data_fim: dia(5),
   },
@@ -935,6 +983,8 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
         })()
       : null,
     titulo: semente.titulo,
+    // O STATUS PARADO NA MÃO vem da semente e sobrescreve o `false` de `BASE`.
+    status_manual: semente.status_manual ?? false,
     // No protótipo tudo já nasce publicado: rascunho é a tela de quem está
     // montando, e nenhuma das imagens mostra esse momento.
     publicada_em: "2026-09-10T09:00:00.000Z",

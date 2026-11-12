@@ -200,20 +200,44 @@ const TONS: Record<Tom, string> = {
  */
 const TONS_CHEIOS: Record<Tom, string> = {
   neutro: TONS.neutro,
-  marca:
-    "bg-status-marca text-status-marca-foreground group-hover:bg-status-marca-hover",
-  laranja:
-    "bg-status-laranja text-status-laranja-foreground group-hover:bg-status-laranja-hover",
-  marrom:
-    "bg-status-marrom text-status-marrom-foreground group-hover:bg-status-marrom-hover",
-  atencao:
-    "bg-status-atencao text-status-atencao-foreground group-hover:bg-status-atencao-hover",
-  positivo:
-    "bg-status-positivo text-status-positivo-foreground group-hover:bg-status-positivo-hover",
-  lima: "bg-status-lima text-status-lima-foreground group-hover:bg-status-lima-hover",
-  negativo:
-    "bg-status-negativo text-status-negativo-foreground group-hover:bg-status-negativo-hover",
+  marca: "bg-status-marca text-status-marca-foreground",
+  laranja: "bg-status-laranja text-status-laranja-foreground",
+  marrom: "bg-status-marrom text-status-marrom-foreground",
+  atencao: "bg-status-atencao text-status-atencao-foreground",
+  positivo: "bg-status-positivo text-status-positivo-foreground",
+  lima: "bg-status-lima text-status-lima-foreground",
+  negativo: "bg-status-negativo text-status-negativo-foreground",
   pausado: TONS.pausado,
+};
+
+/**
+ * O HOVER MORA À PARTE DO CHÃO, e a separação nasceu quando o SELO passou a
+ * ser cheio.
+ *
+ * O chão cheio serve duas peças com naturezas opostas: o **cabeçalho de
+ * grupo**, que é um `<button>` — dobra a lista, e o ponteiro em cima dele
+ * precisa dizer isso —, e o **selo**, que não responde a clique nenhum. Com o
+ * `group-hover:` dentro do mapa de cor, todo selo desenhado dentro de um
+ * elemento com `group` trocaria de tom quando o ponteiro passasse pelo CARD
+ * em volta dele: o card do board e a linha da Lista são exatamente isso, e o
+ * status da demanda piscaria por causa de um movimento do mouse que não tem
+ * nada a ver com ele.
+ *
+ * Então o mapa de cima é o chão, este é a interação, e quem precisa dos dois
+ * é `classesDaCaixaDeStatus`. É a mesma assimetria de `--status-*` não
+ * apontar para a família das decisões: aquele chão é de um botão e tem três
+ * estados; este é de um rótulo e não tem nenhum.
+ */
+const HOVER_CHEIO: Record<Tom, string> = {
+  neutro: "",
+  marca: "group-hover:bg-status-marca-hover",
+  laranja: "group-hover:bg-status-laranja-hover",
+  marrom: "group-hover:bg-status-marrom-hover",
+  atencao: "group-hover:bg-status-atencao-hover",
+  positivo: "group-hover:bg-status-positivo-hover",
+  lima: "group-hover:bg-status-lima-hover",
+  negativo: "group-hover:bg-status-negativo-hover",
+  pausado: "",
 };
 
 /**
@@ -274,7 +298,8 @@ export function iconeDoStatus(status: Status): LucideIcon {
  * `brightness`, que é filtro do Tailwind e não cor nomeada — a lição da 0127.
  */
 export function classesDaCaixaDeStatus(status: Status): string {
-  return TONS_CHEIOS[STATUS[status]?.tom ?? "neutro"];
+  const tom = STATUS[status]?.tom ?? "neutro";
+  return `${TONS_CHEIOS[tom]} ${HOVER_CHEIO[tom]}`.trim();
 }
 
 const STATUS: Record<Status, { label: string; tom: Tom }> = {
@@ -332,6 +357,46 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   concluida: { label: "Concluída", tom: "positivo" },
 };
 
+/**
+ * O SELO DE STATUS, cheio e com o ícone dentro.
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário, depois de ver o cabeçalho de grupo ficar cheio:
+ * *"padronize essas cores na plataforma toda"*.
+ *
+ * **ISTO DESFAZ UMA DECISÃO MINHA, e a decisão era defensável.** Quando a
+ * família `--status-*` nasceu, o selo ficou de fora com o argumento escrito:
+ * *uma pílula cheia e saturada dentro de uma célula de tabela densa é peso
+ * onde o status é o dado secundário da linha*. O que ele responde é o que
+ * nenhum argumento sobre densidade alcança: **o mesmo status aparecia de duas
+ * cores conforme a tela** — pálido no selo de vinte e uma telas, cheio no
+ * cabeçalho da Lista, a dois centímetros um do outro na mesma página. É a
+ * história das sete cópias de `abas.tsx` e a de `ICONE_DA_AREA`, que tinha
+ * três cópias e duas já divergidas: consistência ganha de densidade, porque
+ * quem troca de tela não deveria reaprender o que uma cor quer dizer.
+ *
+ * **E ELE CARREGA O ÍCONE PELA MESMA MEDIÇÃO QUE O PÔS NO CABEÇALHO:** nos
+ * chãos cheios, três dos sete tons ficam abaixo do piso de daltonismo entre
+ * si. Num cabeçalho de grupo o nome está escrito em caixa alta e grande; num
+ * selo de 11px ele está escrito pequeno, e é justamente ali que a forma
+ * trabalha mais.
+ *
+ * **`neutro` E `pausado` CONTINUAM PÁLIDOS**, que é a decisão da matriz do Day
+ * Off mantida: "Não iniciada" é o status da maioria das linhas de qualquer
+ * tabela deste produto, e uma tabela em que toda linha grita não diz nada. O
+ * selo cheio é a exceção, e por isso ele se lê.
+ *
+ * **E ELE É `rounded-full` SEM BORDA.** Com o chão cheio a borda some dentro
+ * da própria cor, e a distinção entre um RÓTULO e uma caixa de conteúdo passou
+ * a importar: um retângulo saturado numa célula de tabela se lê como uma
+ * faixa. É a decisão do cabeçalho de grupo, palavra por palavra.
+ *
+ * ***O que NÃO muda, e é dito em vez de escondido:*** o **chip do cronograma
+ * do portal** (`classesDoChipDeStatus`), onde a cor é o chão do TÍTULO do
+ * material e não do nome do status — cheia, ela poria um título branco sobre
+ * saturado numa grade de trinta peças, que é outra peça com outro trabalho.
+ * ---------------------------------------------------------------------------
+ */
 export function StatusBadge({
   status,
   className,
@@ -342,7 +407,10 @@ export function StatusBadge({
   const definicao = STATUS[status];
 
   // Status que ainda não conhecemos aparece cru, em vez de sumir da tela: é
-  // assim que um valor novo no banco é notado em vez de passar batido.
+  // assim que um valor novo no banco é notado em vez de passar batido. Ele
+  // fica com o par SUAVE e sem ícone de propósito: não há tom nem forma para
+  // um valor que o produto não conhece, e inventar um daria a um estado novo
+  // a aparência de um estado que alguém decidiu.
   if (!definicao) {
     return (
       <span
@@ -357,14 +425,17 @@ export function StatusBadge({
     );
   }
 
+  const Icone = ICONE[status];
+
   return (
     <span
       className={cn(
-        "inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        TONS[definicao.tom],
+        "inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        TONS_CHEIOS[definicao.tom],
         className,
       )}
     >
+      {Icone ? <Icone aria-hidden className="size-3 shrink-0" /> : null}
       {definicao.label}
     </span>
   );

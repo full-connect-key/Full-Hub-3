@@ -1,10 +1,11 @@
-# O que validar — entrega "A etapa editável"
+# O que validar — entrega "A etapa por inteiro"
 
 Lista em ordem, do que bloqueia tudo até o detalhe. Cada item diz **onde
 clicar**, **o que você tem que ver** e **o que me dizer se estiver errado**.
 
-> Esta lista é da entrega de 12/11/2026 (seis pedidos numa mensagem). Ela é
-> descartável: quando você terminar, pode apagar o arquivo.
+> Esta lista é da entrega dos cinco pedidos de 12/11/2026. Ela é descartável:
+> quando você terminar, pode apagar o arquivo. A lista anterior ("A etapa
+> editável") foi substituída por esta.
 
 ---
 
@@ -15,168 +16,155 @@ clicar**, **o que você tem que ver** e **o que me dizer se estiver errado**.
 ele mostrar o commit de antes, nada abaixo existe no ar — o deploy da Hostinger
 não acontece sozinho, e o site continua respondendo com o build da véspera.
 
-**0.2 — Migration: nada a fazer.** Conferi no banco: a tabela da 0131
-(`primeiros_passos_dispensados`) **já está aplicada**, com as quatro policies.
-Era o item que ficou em aberto nas duas últimas entregas; está fechado.
-**Esta entrega não traz migration nenhuma.**
+**0.2 — Migration: nada a fazer.** A **0132** (a que conserta o responsável que
+sumia) **já foi aplicada por mim**, no banco de produção, e conferida. Não há
+nada para colar no SQL Editor.
 
 ---
 
-## 1. As sete cores de status
+## 1. O responsável que sumia no colaborador
 
-**Onde:** `/painel/gestao-tasks` → aba **Demandas** → visão **Lista**.
+Era o seu pedido nº 5, e era um furo de verdade — de permissão de banco, não de
+tela.
 
-**O que ver:** sete caixas de cabeçalho, uma por status, cada uma com cor
-própria:
+**Onde:** abra qualquer demanda com responsável preenchido, primeiro como
+**sócio**, depois entrando com uma conta de **colaborador**.
 
-| Status | Cor |
-| --- | --- |
-| Não iniciada | cinza |
-| Em andamento | azul |
-| Aguardando informações | **laranja** |
-| Aguardando aprovação | **marrom** |
-| Em ajuste | **vermelho** |
-| Entregue | **verde claro (lima)** |
-| Concluído | verde escuro |
+**O que ver:** o mesmo nome e a mesma foto nos dois. Antes, quem não era gestão
+lia **um perfil só — o dele**, então o responsável de cada etapa, a pilha de
+avatares da demanda e o autor de cada comentário voltavam vazios.
 
-**Depois troque para o tema escuro** (o seletor no menu do seu avatar) e olhe de
-novo: as sete continuam distinguíveis.
+**Confira também, como colaborador:**
 
-**Me diga se:** alguma cor não é a que você imaginou — principalmente o
-**marrom** (ele é um tom quente, não terroso-escuro) e o **lima** (ele é
-amarelado ao lado do verde do concluído, de propósito, para "entregue" não se
-confundir com "concluído").
+* a lista de etapas: cada uma com a foto de quem a faz;
+* a **sub-etapa** (a linha recuada): a foto aparece nela também;
+* **⌘K / Ctrl+K** → digite o nome de um colega: o grupo **Equipe** agora
+  responde (antes devolvia nada para quem não é gestão).
 
----
+**O que continua escondido, de propósito:** o contato de **cliente**. A regra
+nova abre a equipe para a equipe e deixa o cliente de fora.
 
-## 2. O mesmo status no Portal do Cliente
-
-**Onde:** `/portal/mundo-verde` → **Social Media** → calendário do mês.
-
-**O que ver:** a legenda abaixo do calendário passou de **cinco** para **sete**
-entradas. É consequência declarada: o mapa de cor é um só para a agência e para
-o cliente.
-
-**Me diga se:** sete cores na grade do cliente ficaram demais. O ganho é que
-"Aguardando informações" (a Full travada esperando resposta dele) e "Aguardando
-aprovação" (esperando a decisão dele) deixaram de estar escondidas dentro do
-cinza e do azul. Se você preferir, dá para voltar o portal aos cinco tons sem
-mexer no painel — mas aí passam a ser dois mapas, e eles podem divergir.
+**Me diga se:** alguma tela ainda mostrar "sem responsável" numa etapa que tem
+dono.
 
 ---
 
-## 3. O briefing: caixa, tabela e cores
+## 2. O status da demanda andar sozinho
 
-**Onde:** `/painel/gestao-tasks` → abra qualquer demanda → campo **Briefing**.
+Era o seu pedido nº 2, e a resposta tem uma parte que vai te surpreender.
 
-**O que ver na barra de ferramentas**, à direita dos botões de lista: quatro
-ícones novos — **paleta** (cor do texto), **marca-texto** (realce), **quadrado**
-(caixa) e **grade** (tabela).
+**O que o Full Hub já fazia:** o status da demanda é calculado pelas etapas. A
+primeira pessoa que põe a etapa dela em andamento move a demanda para "Em
+andamento" na Gestão de Tasks, e as outras continuam em "Iniciar" cada uma na
+sua. Isso funciona desde sempre.
 
-**Teste, nesta ordem:**
+**O que estava desligando isso:** quando alguém **arrasta um card no board**, o
+Full Hub entende que a pessoa escolheu o status à mão — e **para de calcular
+aquela demanda para sempre**. A tela respondia só "Salvo.", e nada dizia que o
+cálculo tinha sido desligado.
 
-1. Selecione uma frase → **paleta** → escolha uma cor. Cada item do menu diz o
-   nome ao lado da amostra.
-2. Selecione outra frase → **marca-texto** → escolha um pastel. O pastel é
-   FUNDO, não cor de letra — foi de propósito: pastel como letra não se lê.
-3. Ponha o cursor num parágrafo → **quadrado** → **Aviso**. Ele vira uma caixa
-   com fundo âmbar. Clicando em "Aviso" de novo, a caixa se desfaz.
-4. **Grade** → *Inserir tabela 3×3*. Com o cursor dentro dela, o mesmo menu
-   passa a oferecer acrescentar/apagar linha e coluna e apagar a tabela.
-   As colunas se arrastam pela borda.
-5. **Troque para o tema escuro.** A cor do texto e o fundo da caixa acompanham.
+**E conferi no seu banco: a sua única demanda publicada está exatamente assim.**
+"Divulgação Sorteio de Aniversário" está marcada **Em andamento** à mão, com as
+**três etapas ainda em "Não iniciada"**. Era isso que você estava vendo.
 
-**Me diga se:** faltou alguma cor ou algum tipo de caixa. São 9 cores de letra,
-7 realces e 4 caixas — o limite é proposital (vinte tons num mesmo briefing
-deixam de destacar qualquer coisa), mas é ajustável.
+**Onde:** `/painel/gestao-tasks` → **Demandas**.
 
-### 3.1 — Um briefing ANTIGO, no escuro
+**O que ver agora:**
 
-**O que ver:** um briefing escrito ANTES desta entrega, com cor aplicada, no
-tema escuro: a cor dele **não clareia** e pode ficar difícil de ler.
+1. no card dessa demanda (e na linha dela na visão Lista) aparece uma marca
+   discreta: **✋ à mão**;
+2. passando o mouse, ela explica: *"este status foi marcado à mão, então o Full
+   Hub parou de calculá-lo"*;
+3. **clicando nela**, o cálculo volta — a demanda cai para "Iniciar", porque
+   nenhuma das três etapas começou;
+4. peça para alguém pôr uma etapa em andamento: a demanda sobe sozinha para "Em
+   andamento", e as outras duas etapas continuam em "Não iniciada".
 
-**Isso é consequência declarada e não bug.** O texto antigo guarda o valor exato
-da cor dentro do documento; o novo guarda o NOME, que troca com o tema.
-Reescrever os documentos antigos no instante em que alguém os abre seria mexer
-no texto da pessoa sem ela pedir. **O conserto de um documento antigo é
-reaplicar a cor pelo menu** — aí ele passa a acompanhar o tema.
+**E arrastando um card agora**, a mensagem diz o que aconteceu: *"Status marcado
+à mão — o Full Hub deixa de calculá-lo pelas etapas."*
 
-**Me diga se:** isso incomoda o bastante para valer uma varredura que converta
-os briefings antigos de uma vez. É decisão sua.
+**Não mexi nas suas demandas.** Soltar o cálculo de todas de uma vez apagaria,
+em silêncio, a escolha de quem marcou de propósito. A marca mostra quais estão
+paradas; o clique é seu.
 
----
-
-## 4. O responsável se escolhe na linha
-
-**Onde:** a mesma tela, seção **Subtarefas**.
-
-**O que ver:** na coluna do responsável, o avatar (ou "sem responsável") agora
-tem uma **setinha** ao lado. Clique nela — a lista da equipe abre ali mesmo, sem
-abrir o modal.
-
-**Teste:** troque o responsável de uma etapa. O salvamento é o próprio clique —
-não há botão nesta linha.
-
-**Repare também:** quem não pode distribuir trabalho **não vê a setinha** (vê só
-o avatar). E uma etapa no nome de alguém que saiu da agência diz *"fora da
-equipe"*, não *"sem responsável"* — são coisas diferentes.
-
-**Me diga se:** a setinha está discreta demais ou chamativa demais. Ela foi
-calibrada para onze linhas não virarem onze setas.
+**Me diga se:** depois de clicar em "à mão", a demanda não acompanhar as etapas.
 
 ---
 
-## 5. Arrastar para reordenar
+## 3. Briefing dentro da sub-etapa
 
-**Onde:** a mesma lista de subtarefas.
+Era o seu pedido nº 3.
 
-**O que ver:** uma **alça** (⠿) no começo de cada linha. Arraste uma etapa para
-cima ou para baixo — a ordem muda na hora.
+**Onde:** abra uma demanda → clique numa **sub-etapa** (a linha recuada dentro
+de outra etapa) → o modal abre.
 
-**Teste os dois níveis:** arraste uma etapa de topo, e depois arraste uma
-sub-etapa dentro de "Adaptar formatos".
+**O que ver:** uma seção **Briefing**, logo abaixo das propriedades, com o mesmo
+editor de texto da demanda — negrito, lista, caixa, tabela, cor.
 
-**O que NÃO acontece, de propósito:** arrastar uma etapa para DENTRO de outra.
-A ordem muda; a hierarquia não. Mudar a mãe de uma etapa por um gesto de seis
-pixels é a diferença entre uma etapa que conta tempo e uma agrupadora que não
-conta.
+**Como ele salva:** no **mesmo botão Salvar** do modal. Escreva alguma coisa e a
+barra do pé passa a contar a alteração junto com as outras; o Salvar grava tudo
+de uma vez.
 
-**Me diga se:** você esperava que arrastar para dentro aninhasse. Dá para fazer,
-e aí vira decisão explícita.
+**Por que não tem botão próprio:** com dois botões, a barra do pé diria "2
+alterações por salvar" e gravaria só as cinco propriedades — uma alteração
+pendente que o aviso não conhece é pior que aviso nenhum.
 
----
-
-## 6. O botão de salvar na etapa
-
-**Onde:** a mesma lista → clique no **nome** de uma etapa para abrir o modal.
-
-**O que ver:** no fim do bloco de propriedades há agora uma barra com
-**Salvar** — desligada enquanto você não mexer em nada.
-
-**Teste:**
-
-1. Mude a **prioridade**. A barra acende, gruda no pé da caixa e passa a dizer
-   *"1 alteração por salvar."* em âmbar, com **Descartar** ao lado.
-2. Mude também a **data** (clicando num dia do calendário de disponibilidade) e
-   a **estimativa**. O contador sobe.
-3. **Descartar** devolve tudo. **Salvar** grava os três de uma vez.
-
-**São cinco campos no rascunho:** responsável, prioridade, início, prazo e
-estimativa. O **nome** continua salvando sozinho, e as listas de dentro
-(pessoas a mais, dependências, entregas) continuam cada uma com o botão delas —
-ali o botão não é "salvar", é "acrescentar" e "tirar".
-
-**O que custa, e é escolha:** fechar o modal com alteração pendente **descarta
-sem perguntar**. Não pus a pergunta "tem certeza?" porque a barra grudada já
-mostra, na tela, o que não foi salvo.
-
-**Me diga se:** você quer a pergunta ao fechar.
+**Me diga se:** o texto sumir ao fechar e reabrir o modal depois de salvar.
 
 ---
 
-## 7. Se alguma coisa der errado
+## 4. As fotos de todo mundo na demanda
 
-Me mande **o print** e, se aparecer, **a frase da mensagem de erro** — ela é
-escrita para dizer o caminho, não só "deu erro". Se for uma tela que não
-carrega, o número que o Next mostra não ajuda: ele muda a cada build. O que
-ajuda é o print e o que você clicou antes.
+Era o seu pedido nº 4, e ele tinha duas metades.
+
+**A primeira já estava certa e invisível:** as sub-etapas já entravam na coluna
+**Equipe** da demanda, e a foto já era desenhada na linha delas — as duas
+sumiam pelo furo do item 1. Conferido no item 1.
+
+**A segunda era um buraco real:** quando uma etapa tem **duas pessoas** (o campo
+"quem mais faz" dentro do modal), só a primeira aparecia.
+
+**Onde:** abra o modal de uma etapa → acrescente uma segunda pessoa → feche.
+
+**O que ver:** a foto dela encostada no seletor de responsável, na linha da
+etapa, e o nome dela na coluna **Equipe** da demanda.
+
+**Aviso honesto:** hoje o seu banco não tem nenhuma etapa com duas pessoas, então
+esse item só aparece depois que você criar uma.
+
+---
+
+## 5. As cores de status na plataforma toda
+
+Era o seu pedido nº 1.
+
+**O que mudou:** o selo de status — aquele que aparece em vinte e uma telas —
+passou a ser a **pílula cheia com ícone**, igual ao cabeçalho de grupo da Lista.
+Antes ele era pálido no selo e cheio no cabeçalho, as duas na mesma página.
+
+**Onde conferir, em ordem de importância:**
+
+1. `/painel/gestao-tasks` → **Lista**: o cabeçalho do grupo e o selo da coluna
+   Status agora são a mesma cor;
+2. `/painel/gestao-tasks` → **Board**: o selo dentro do painel lateral da
+   demanda;
+3. `/painel/minhas-tasks`: lista e board;
+4. **o portal do cliente** (`/portal/{cliente}`): o cartão de cada material.
+
+**O que ver:** "Não iniciada" e "Cancelada"/"Stand by" continuam **pálidos** de
+propósito — eles são a maioria das linhas, e uma tabela em que tudo grita não
+diz nada. Os outros sete são cheios, cada um com o ícone dele.
+
+**Me diga se:** alguma tela ficou pesada demais com a pílula cheia, ou se achar
+que o portal do cliente deveria ter ficado pálido.
+
+---
+
+## 6. O que NÃO foi feito, para você saber
+
+* **Nada foi reescrito no seu banco.** A demanda parada à mão continua parada
+  até você clicar.
+* **Não há como desligar o "à mão" em massa**, de propósito.
+* O **chip do cronograma do portal** continua pálido: lá a cor é o fundo do
+  *título do material*, não do nome do status — cheia, ela poria texto branco
+  sobre cor saturada numa grade de trinta peças.

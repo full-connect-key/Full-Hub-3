@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import type { JSONContent } from "@tiptap/react";
+
+import { EditorRico, VisualizadorRico } from "@/components/shared/editor-rico";
 import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
 import { SeletorDeResponsavel } from "@/components/shared/seletor-de-responsavel";
@@ -54,9 +57,7 @@ import {
   formatarMinutos,
   tempoParaCampo,
 } from "@/lib/dominio/tempo";
-import {
-  ROTULO_DA_APROVACAO,
-} from "@/lib/tasks/state-machine";
+import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
 import { comoHistorico, daSubtarefa } from "@/lib/aprovacoes/conteudo";
@@ -174,17 +175,68 @@ export function PainelDaSubtarefa({
     estimativa?: string;
   };
   const [rascunho, setRascunho] = useState<Rascunho>({});
-  const mexidos = Object.keys(rascunho).length;
+
+  /* --------------------------------------------------------------------------
+     O BRIEFING ENTRA NO MESMO SALVAR, e não ganha um botão próprio.
+
+     Decisão do usuário: *"quando abro uma subetapa, na subtarefa, preciso
+     poder escrever um briefing, escrever texto, como na etapa normal"*.
+
+     **ELE PEDE O EDITOR E NÃO O BOTÃO**, e a diferença decide o desenho: o
+     briefing da DEMANDA tem botão próprio porque aquela tela não tem nenhum —
+     ela salva campo a campo desde a 0028, e ali o botão do briefing é o único
+     momento de confirmar que existe. **Este modal já tem um**, e um segundo
+     faria a barra do pé contar "2 alterações por salvar" sobre um briefing que
+     ela não grava: uma alteração pendente que o aviso de alteração pendente
+     não conhece é pior que aviso nenhum, e o custo escrito deste modal —
+     *fechar com alteração pendente DESCARTA, sem perguntar* — passaria a valer
+     para duas coisas e a ser explicado por uma.
+
+     **O VALOR MORA NUM `ref` E O AVISO NUM ESTADO**, que é a forma do briefing
+     da demanda: o `onChange` do TipTap dispara a cada tecla, e pô-lo no
+     `useState` do rascunho re-renderizaria o modal inteiro — com a faixa de
+     disponibilidade e o histórico de rodadas dentro — a cada letra digitada. O
+     booleano vira UMA vez, na primeira tecla, e é ele que a barra conta.
+
+     **E AS DUAS COLUNAS ANDAM JUNTAS.** `descricao_texto` é o que a busca lê e
+     `descricao_rica` é o que a tela desenha; gravar uma sem a outra deixaria o
+     briefing invisível para um dos dois lados — e `atualizarSubtarefa` aceita
+     as duas desde o Sprint 3B, sem nunca ter recebido nenhuma. É a ponte
+     construída e não atravessada pela vigésima primeira vez: nenhuma migration
+     nesta entrega, nenhuma coluna nova, nenhuma linha em `lib/dados/`.
+     -------------------------------------------------------------------------- */
+  const briefing = useRef<{ json: JSONContent; texto: string } | null>(null);
+  const [briefingMexido, setBriefingMexido] = useState(false);
+
+  const mexidos = Object.keys(rascunho).length + (briefingMexido ? 1 : 0);
 
   function mexer(campos: Rascunho) {
     setRascunho((atual) => ({ ...atual, ...campos }));
+  }
+
+  function descartar() {
+    setRascunho({});
+    setBriefingMexido(false);
+    briefing.current = null;
   }
 
   function oficializar() {
     if (mexidos === 0) return;
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        atualizarSubtarefa(subtarefa.id, taskId, rascunho),
+        atualizarSubtarefa(subtarefa.id, taskId, {
+          ...rascunho,
+          ...(briefingMexido && briefing.current
+            ? {
+                descricao_rica: briefing.current.json,
+                // O TEXTO VAZIO VIRA NULO, e o rico não: um documento do
+                // TipTap sem nada dentro ainda é um parágrafo vazio, e
+                // guardá-lo é guardar o formato do nada. O que decide se há
+                // briefing é o texto.
+                descricao_texto: briefing.current.texto.trim() || null,
+              }
+            : {}),
+        }),
       );
       if (!resultado.ok) {
         // O RASCUNHO FICA NA TELA quando o banco recusa, e é a regra desta
@@ -194,7 +246,7 @@ export function PainelDaSubtarefa({
         toast.error(resultado.error);
         return;
       }
-      setRascunho({});
+      descartar();
       toast.success(resultado.mensagem);
       router.refresh();
     });
@@ -434,7 +486,9 @@ export function PainelDaSubtarefa({
               {podeGerenciar ? (
                 <Select
                   value={valor.prioridade}
-                  onValueChange={(escolhida) => mexer({ prioridade: escolhida })}
+                  onValueChange={(escolhida) =>
+                    mexer({ prioridade: escolhida })
+                  }
                 >
                   <SelectTrigger aria-label="Prioridade" className="w-full">
                     <SelectValue />
@@ -472,7 +526,9 @@ export function PainelDaSubtarefa({
                   type="date"
                   aria-label="Data de início da etapa"
                   value={valor.data_inicio}
-                  onChange={(evento) => mexer({ data_inicio: evento.target.value })}
+                  onChange={(evento) =>
+                    mexer({ data_inicio: evento.target.value })
+                  }
                 />
               ) : (
                 <span className="text-sm">
@@ -565,7 +621,9 @@ export function PainelDaSubtarefa({
                   // tem mouse e paira sobre ele.
                   aria-label="Estimativa"
                   title={AJUDA_DE_TEMPO}
-                  onChange={(evento) => mexer({ estimativa: evento.target.value })}
+                  onChange={(evento) =>
+                    mexer({ estimativa: evento.target.value })
+                  }
                 />
               ) : (
                 <span className="text-sm">
@@ -582,12 +640,59 @@ export function PainelDaSubtarefa({
             </p>
           ) : null}
 
+          <Separator />
+
+          {/* Briefing ---------------------------------------------------
+              ELE VEM ANTES DAS LISTAS, e a ordem é a da demanda um nível
+              acima: o que a etapa É antes do que ela depende, entrega e já
+              decidiu. Lido depois das rodadas, o briefing seria a última
+              coisa da tela — e é a primeira que quem vai produzir procura.
+
+              **E ELE NÃO SOME QUANDO ESTÁ VAZIO**, ao contrário do briefing
+              da campanha: ali a seção some porque a campanha anterior à 0125
+              não tem nenhum dos sete campos e sete rótulos com um travessão
+              embaixo ocupariam a tela toda; aqui o campo vazio é onde se
+              escreve, e escondê-lo esconderia o pedido inteiro. Para quem não
+              edita, a ausência vira a frase — que é o que a tela sabe. */}
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold">Briefing</h3>
+            {podeMexer ? (
+              <EditorRico
+                conteudo={
+                  (subtarefa.descricao_rica as JSONContent | null) ?? null
+                }
+                placeholder="O que precisa ser feito nesta etapa…"
+                onChange={(dados) => {
+                  briefing.current = dados;
+                  if (!briefingMexido) setBriefingMexido(true);
+                }}
+              />
+            ) : subtarefa.descricao_rica ? (
+              <div className="rounded-lg border p-4">
+                <VisualizadorRico
+                  conteudo={subtarefa.descricao_rica as JSONContent}
+                />
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Sem briefing.</p>
+            )}
+          </section>
+
           {/* ----------------------------------------------------------------
               O BOTÃO QUE OFICIALIZA, e ele fica AQUI e não no pé do modal.
 
-              Ele governa os cinco campos acima e mais nada — e no fim da
+              Ele governa as seis coisas acima e mais nada — e no fim da
               caixa, depois das dependências, das entregas e do histórico, ele
-              pareceria salvar aquilo também. É a decisão do detalhe da Task
+              pareceria salvar aquilo também.
+
+              **E O BRIEFING FICA ACIMA DELE, e não abaixo.** Ele é a sexta
+              coisa que este botão grava, e a imagem mostrou o preço de pô-lo
+              do outro lado: com o rascunho vazio a barra não gruda, então ela
+              saía no meio do modal com o editor embaixo — a tela dizendo que
+              o briefing não é do Salvar. É o uploader do Acervo palavra por
+              palavra: *"o botão morava na linha do seletor de arquivo, e as
+              duas coisas que ele grava ficavam ABAIXO dele"*. Tudo o que a
+              barra grava fica acima dela. É a decisão do detalhe da Task
               palavra por palavra: *"excluir e 'salvar como workflow' não são
               propriedades, são ações sobre a demanda: no meio dos campos
               pareciam mais dois campos"* — vista do avesso, uma ação que É
@@ -632,7 +737,7 @@ export function PainelDaSubtarefa({
                   variant="ghost"
                   size="sm"
                   disabled={salvando}
-                  onClick={() => setRascunho({})}
+                  onClick={descartar}
                 >
                   Descartar
                 </Button>
@@ -643,7 +748,9 @@ export function PainelDaSubtarefa({
                 disabled={salvando || mexidos === 0}
                 onClick={oficializar}
               >
-                {salvando ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                {salvando ? (
+                  <Loader2 className="animate-spin" aria-hidden />
+                ) : null}
                 Salvar
               </Button>
             </div>

@@ -828,7 +828,15 @@ from (
     -- chave anon -- e e o pior lugar para morrer. Um marcador na tabela
     -- chamaria esse banco de `ok`.
     ('0131', 'ticar o primeiro passo que ja sei', 'policy',
-             'primeiros_passos_dispensados|primeiros_passos_dispensados_delete|auth.uid')
+             'primeiros_passos_dispensados|primeiros_passos_dispensados_delete|auth.uid'),
+
+    -- O MARCADOR MEDE O CORPO E NAO A EXISTENCIA, que e a licao da 0110:
+    -- `profiles` ja tinha duas policies de SELECT antes desta, entao procurar
+    -- "uma policy de select em profiles" diria `ok` num banco parado na 0131.
+    -- O trecho e o que SO a 0132 escreve: o recorte por linha que deixa o
+    -- contato de cliente de fora.
+    ('0132', 'a equipe enxerga a equipe', 'policy',
+             'profiles|profiles_select_equipe|cliente')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

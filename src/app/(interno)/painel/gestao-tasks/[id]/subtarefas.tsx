@@ -35,6 +35,7 @@ import { DateBadge } from "@/components/shared/date-badge";
 import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { SeletorDeResponsavel } from "@/components/shared/seletor-de-responsavel";
+import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -837,6 +838,32 @@ function Linha({
                 podeEditar={podeGerenciar}
                 compacto
               />
+
+              {/* QUEM MAIS FAZ ESTA ETAPA, e ela vale para a sub-etapa também.
+                  Decisão do usuário: *"quero que apareçam as fotos das pessoas
+                  tbm na sub etapa"*.
+
+                  **O seletor desenha UMA pessoa, que é a coluna** — e desde a
+                  0114 a coluna é a PRIMEIRA, com `subtask_responsaveis`
+                  mandando. A segunda via a etapa em Minhas Tasks, contava na
+                  carga dela, e não aparecia na linha de quem a distribuiu: o
+                  pior tipo de trabalho, o que existe e ninguém sabe de quem é.
+
+                  **Ela fica ENCOSTADA no seletor e não numa coluna própria**,
+                  porque é a mesma pergunta — quem faz isto —, e some quando
+                  não há ninguém a mais: uma coluna vazia em nove de dez linhas
+                  é a largura do nome gasta para dizer que não há o que dizer.
+                  Quem põe e tira continua sendo o modal, onde a lista cabe. */}
+              {sub.outrosResponsaveis.length > 0 ? (
+                <UserAvatarGroup
+                  users={sub.outrosResponsaveis.map((p) => ({
+                    name: p.nome,
+                    src: p.avatar_url,
+                  }))}
+                  max={2}
+                  size="sm"
+                />
+              ) : null}
 
               {/* O relógio à vista. Um cronômetro que ninguém vê é um número
                   que aparece pronto no diálogo de conclusão, sem a pessoa ter
