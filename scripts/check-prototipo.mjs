@@ -277,6 +277,11 @@ const INTERPOLADOS = {
   "8 de setembro": "d 'de' MMMM",
   "28 de setembro": "d 'de' MMMM",
   "3 de outubro": "d 'de' MMMM",
+  // `nome: `${semente.titulo} final.pdf`` no stub das entregas (0134) — o
+  // nome do arquivo de exemplo carrega o título da etapa, e o seletor da
+  // `46d` é escopado por ele porque "editar" aparece em toda entrega que tem
+  // nota. O que fica conferido é o sufixo, que é a parte escrita.
+  "Criar KV final.pdf": " final.pdf`",
 };
 
 /** Os textos literais que dá para extrair de um seletor. */

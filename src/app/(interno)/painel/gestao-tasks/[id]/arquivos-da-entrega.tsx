@@ -85,7 +85,9 @@ export function ArquivosDaEntrega({
               className="bg-surface-card rounded-card shadow-cartao space-y-2 border p-3.5"
             >
               <div className="flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold">{sub.titulo}</p>
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {sub.titulo}
+                </p>
                 {sub.responsavel ? (
                   <span className="text-text-muted flex shrink-0 items-center gap-1.5 text-xs">
                     <UserAvatar
@@ -108,7 +110,9 @@ export function ArquivosDaEntrega({
                       className="flex min-w-0 items-center gap-2 py-1.5 text-sm"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate">{entrega.nome ?? entrega.url}</p>
+                        <p className="truncate">
+                          {entrega.nome ?? entrega.url}
+                        </p>
                         {/* QUEM MANDOU E QUANDO, que é o "registrar data e
                             hora automaticamente" do pedido — e ele nunca foi
                             uma coluna nova: `created_at` e `enviado_por` estão
@@ -116,9 +120,13 @@ export function ArquivosDaEntrega({
                             era alguém mostrar. */}
                         <p className="text-text-muted text-xs">
                           {entrega.autor?.nome ?? "Alguém"} ·{" "}
-                          {format(parseISO(entrega.created_at), "dd/MM/yy 'às' HH:mm", {
-                            locale: ptBR,
-                          })}
+                          {format(
+                            parseISO(entrega.created_at),
+                            "dd/MM/yy 'às' HH:mm",
+                            {
+                              locale: ptBR,
+                            },
+                          )}
                           {/* A RODADA É A VERSÃO (0121), e não uma coluna ao
                               lado: a rodada 1 leva os arquivos que existiam
                               quando ela abriu, a 2 leva os que vieram depois
@@ -134,6 +142,19 @@ export function ArquivosDaEntrega({
                             </>
                           ) : null}
                         </p>
+                        {/* O QUE É ESTE ARQUIVO (0134). Esta seção é a lista
+                            da demanda inteira, então ela é onde a nota mais
+                            serve: quatro arquivos de quatro etapas, e só a
+                            frase diz qual é a entrega e qual é o apoio.
+                            Ela vem DEPOIS de quem mandou e quando, porque
+                            aquela linha é o fato e esta é o recado — a ordem
+                            da mensagem antes do comentário no histórico de
+                            aprovações. Nulo não escreve nada. */}
+                        {entrega.observacao ? (
+                          <p className="text-text-secondary text-xs">
+                            {entrega.observacao}
+                          </p>
+                        ) : null}
                       </div>
 
                       {formato ? (

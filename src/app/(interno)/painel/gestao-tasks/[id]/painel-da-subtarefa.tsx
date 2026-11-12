@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -61,12 +62,14 @@ import { ROTULO_DA_APROVACAO } from "@/lib/tasks/state-machine";
 import type { Pessoa, SubtarefaDetalhada } from "@/lib/dados/tasks";
 import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
 import { comoHistorico, daSubtarefa } from "@/lib/aprovacoes/conteudo";
+import type { EntregaDetalhada } from "@/lib/dados/tasks";
 import type { SubtaskStatus } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 
 import {
   anexarEntrega,
   atualizarSubtarefa,
+  comentarEntrega,
   mudarResponsavelExtra,
   buscarDisponibilidade,
   desvincularDependencia,
@@ -108,6 +111,7 @@ export function PainelDaSubtarefa({
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
   const [link, setLink] = useState("");
+  const [notaDoLink, setNotaDoLink] = useState("");
 
   // AS DUAS PESSOAS DA ETAPA, e não só a primeira (0114 + 0121).
   //
@@ -862,64 +866,74 @@ export function PainelDaSubtarefa({
             ) : (
               <ul className="space-y-1">
                 {subtarefa.entregas.map((entrega) => (
-                  <li
-                    key={entrega.id}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <Paperclip
-                      className="text-muted-foreground size-3.5 shrink-0"
-                      aria-hidden
-                    />
-                    {/* O ENDEREÇO É O ASSINADO, e não o `url` cru (0121): um
+                  <li key={entrega.id} className="space-y-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Paperclip
+                        className="text-muted-foreground size-3.5 shrink-0"
+                        aria-hidden
+                      />
+                      {/* O ENDEREÇO É O ASSINADO, e não o `url` cru (0121): um
                         arquivo do bucket tem como `url` o CAMINHO, e pô-lo
                         num `href` é um link que não leva a lugar nenhum. O
                         link do Drive atravessa a mesma função sem assinatura.
 
                         Sem `assinado`, a assinatura falhou — e aí o nome fica
                         como texto, em vez de virar um link quebrado. */}
-                    {entrega.assinado ? (
-                      <a
-                        href={entrega.assinado}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-accent-strong min-w-0 flex-1 truncate underline-offset-2 hover:underline"
-                      >
-                        {entrega.nome ?? entrega.url}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground min-w-0 flex-1 truncate">
-                        {entrega.nome ?? entrega.url}
-                      </span>
-                    )}
-                    <ExternalLink
-                      className="text-muted-foreground size-3 shrink-0"
-                      aria-hidden
-                    />
-                    {/* O BOTÃO SOME NO ARQUIVO QUE JÁ SAIU, em vez de aparecer
+                      {entrega.assinado ? (
+                        <a
+                          href={entrega.assinado}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-accent-strong min-w-0 flex-1 truncate underline-offset-2 hover:underline"
+                        >
+                          {entrega.nome ?? entrega.url}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground min-w-0 flex-1 truncate">
+                          {entrega.nome ?? entrega.url}
+                        </span>
+                      )}
+                      <ExternalLink
+                        className="text-muted-foreground size-3 shrink-0"
+                        aria-hidden
+                      />
+                      {/* O BOTÃO SOME NO ARQUIVO QUE JÁ SAIU, em vez de aparecer
                         desligado: a razão não é um passo que falta, é uma
                         porta que fechou — a mesma distinção do "cancelar" do
                         Day Off. Quem recusa de verdade é o gatilho
                         `subtask_entregas_nao_apaga_enviada` (0121), e a
                         recusa dele nomeia a rodada. */}
-                    {podeMexer && entrega.approval_round_id === null ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label="Remover entrega"
-                        onClick={() =>
-                          iniciar(async () => {
-                            const r = await chamarAcao(() =>
-                              removerEntrega(entrega.id, taskId),
-                            );
-                            if (!r.ok) toast.error(r.error);
-                            else router.refresh();
-                          })
-                        }
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    ) : null}
+                      {podeMexer && entrega.approval_round_id === null ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          aria-label="Remover entrega"
+                          onClick={() =>
+                            iniciar(async () => {
+                              const r = await chamarAcao(() =>
+                                removerEntrega(entrega.id, taskId),
+                              );
+                              if (!r.ok) toast.error(r.error);
+                              else router.refresh();
+                            })
+                          }
+                        >
+                          <Trash2 aria-hidden />
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {/* O QUE É ESTE ARQUIVO (0134). Ele fica EMBAIXO da linha
+                        e não ao lado: ela já carrega o nome, o ícone de "abre
+                        fora" e o botão de remover, e um quarto elemento ali
+                        espremeria justamente o nome — que é a única coisa que
+                        identifica o arquivo. */}
+                    <ObservacaoDaEntrega
+                      entrega={entrega}
+                      taskId={taskId}
+                      podeMexer={podeMexer}
+                    />
                   </li>
                 ))}
               </ul>
@@ -978,8 +992,20 @@ export function PainelDaSubtarefa({
                   }}
                 />
 
+                {/* O LINK VEM COM A OBSERVAÇÃO JUNTO (0134), e é a frase do
+                    pedido inteira: *"ela possa comentar e subir um link, para
+                    especificar qual a entrega certa"*. Quem cola um endereço
+                    está digitando, e dizer ali o que ele é custa a mesma
+                    respirada; quem arrasta um arquivo não digita nada, e para
+                    ele o campo está na linha que acabou de aparecer.
+
+                    E A OBSERVAÇÃO FICA ACIMA DO BOTÃO, que é a regra do
+                    uploader do Acervo: **tudo o que o botão grava fica acima
+                    dele**. Abaixo, ela seria o campo que a pessoa escreve
+                    depois de já ter clicado em Anexar — e o que ela escrevesse
+                    não iria junto. */}
                 <form
-                  className="flex gap-2"
+                  className="space-y-2"
                   onSubmit={(evento) => {
                     evento.preventDefault();
                     if (!link.trim()) return;
@@ -988,11 +1014,13 @@ export function PainelDaSubtarefa({
                         anexarEntrega(taskId, subtarefa.id, {
                           tipo: "link",
                           url: link,
+                          observacao: notaDoLink,
                         }),
                       );
                       if (!r.ok) toast.error(r.error);
                       else {
                         setLink("");
+                        setNotaDoLink("");
                         router.refresh();
                       }
                     });
@@ -1004,10 +1032,18 @@ export function PainelDaSubtarefa({
                     placeholder="https://…"
                     aria-label="Link da entrega"
                   />
-                  <Button type="submit" variant="outline" disabled={salvando}>
-                    {salvando ? <Loader2 className="animate-spin" /> : null}
-                    Anexar
-                  </Button>
+                  <Input
+                    value={notaDoLink}
+                    onChange={(evento) => setNotaDoLink(evento.target.value)}
+                    placeholder="O que é este link? (opcional)"
+                    aria-label="O que é este link"
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="outline" disabled={salvando}>
+                      {salvando ? <Loader2 className="animate-spin" /> : null}
+                      Anexar
+                    </Button>
+                  </div>
                 </form>
               </div>
             ) : null}
@@ -1045,6 +1081,159 @@ function Campo({
     <div className="space-y-1.5">
       <Label className="text-muted-foreground text-xs">{rotulo}</Label>
       {children}
+    </div>
+  );
+}
+
+/**
+ * O que É este arquivo — a observação de uma entrega (0134).
+ *
+ * Decisão do usuário: *"quero que quando a pessoa vai fazer uma entrega, ela
+ * possa comentar e subir um link, para especificar qual a entrega certa
+ * daquela task, cada subtarefa deve poder subir um link diferente, e cada sub
+ * etapa também"*.
+ *
+ * ---------------------------------------------------------------------------
+ * **DUAS DAS TRÊS METADES JÁ EXISTIAM**, e ir medir antes de escrever é o que
+ * separou o que precisava de banco do que só precisava ser nomeado — a lição
+ * da 0060 e da 0128. Subir um LINK é `subtask_entregas.tipo = 'link'` desde a
+ * 0007, e era o único tipo com tela até a 0121; e **cada sub-etapa já sobe o
+ * dela**, porque uma sub-etapa É uma subtarefa (0022) e a linha dela abre o
+ * MESMO modal — `aoAbrir={() => setAberta(filha.id)}`. O que não existia era
+ * a observação.
+ * ---------------------------------------------------------------------------
+ *
+ * **ELE É UM COMPONENTE PORQUE TEM ESTADO, e estado não se chama de dentro de
+ * um `.map`** — é a razão pela qual a linha da lista de Minhas Tasks virou
+ * componente, e não o tamanho dela.
+ *
+ * **E A EDIÇÃO É O CASO COMUM, não a exceção:** quem sobe o PSD, o PDF e o
+ * JPG só sabe dizer *"este é o certo"* depois de ver os três. Por isso a nota
+ * se escreve na LINHA, e não só no instante do anexo — é o único lugar que
+ * serve ao arquivo e ao link com um campo só.
+ *
+ * **O ARQUIVO QUE JÁ SAIU CONTINUA COMENTÁVEL**, ao contrário do botão de
+ * remover ao lado, e a assimetria é o que a nota é: o `url` de uma entrega
+ * carimbada não muda nunca (o gatilho da 0134 recusa), porque o comentário da
+ * rodada fala daquele arquivo; a observação é uma nota interna sobre ele, e
+ * corrigir *"na verdade o certo é o outro"* depois do envio é exatamente
+ * quando ela vale mais.
+ *
+ * **SEM PERMISSÃO NÃO HÁ GATILHO**, em vez de um botão desligado em cada
+ * linha: a razão — "esta entrega não é sua" — não é um passo que falta, e um
+ * controle inerte em toda linha é ruído. É a decisão do `SeletorDeResponsavel`
+ * palavra por palavra. Quem não edita continua LENDO a observação, que é o
+ * ponto dela.
+ *
+ * ***E ela é interna por TELA e não por policy, dito em vez de escondido:***
+ * `subtask_entregas_select_cliente` entrega a linha ao cliente desde a 0007, e
+ * policy não limita coluna. Nenhuma tela do portal a desenha — e é por isso
+ * que o campo diz, embaixo, que ela é para a equipe: um campo que a pessoa
+ * ACHA que é interno e não é seria pior que um campo visível.
+ */
+function ObservacaoDaEntrega({
+  entrega,
+  taskId,
+  podeMexer,
+}: {
+  entrega: EntregaDetalhada;
+  taskId: string;
+  podeMexer: boolean;
+}) {
+  const router = useRouter();
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState(entrega.observacao ?? "");
+  const [salvando, iniciar] = useTransition();
+
+  if (!editando) {
+    if (entrega.observacao) {
+      return (
+        <p className="text-muted-foreground ps-5.5 text-xs">
+          {entrega.observacao}
+          {podeMexer ? (
+            <button
+              type="button"
+              onClick={() => {
+                setTexto(entrega.observacao ?? "");
+                setEditando(true);
+              }}
+              className="hover:text-accent-strong ms-1.5 underline underline-offset-2"
+            >
+              editar
+            </button>
+          ) : null}
+        </p>
+      );
+    }
+
+    if (!podeMexer) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={() => setEditando(true)}
+        className="text-muted-foreground hover:text-accent-strong ps-5.5 text-xs underline underline-offset-2"
+      >
+        Dizer o que é este arquivo
+      </button>
+    );
+  }
+
+  return (
+    <div className="ps-5.5 space-y-1.5">
+      <Textarea
+        value={texto}
+        onChange={(evento) => setTexto(evento.target.value)}
+        rows={2}
+        placeholder="É este o arquivo certo? O que vai junto?"
+        aria-label={`O que é ${entrega.nome ?? entrega.url}`}
+        autoFocus
+      />
+      {/* A FRASE DIZ PARA QUEM É, e ela não promete sigilo: a linha da entrega
+          é legível pelo cliente desde a 0007, e policy não limita coluna —
+          nenhuma tela do portal desenha a observação, e quem montar a consulta
+          à mão lê. Prometer "só a equipe vê" seria a tela afirmando o que o
+          banco não garante. */}
+      <p className="text-muted-foreground text-xs">
+        É uma nota sobre o arquivo, para quem for olhar aqui dentro. O que você
+        quiser dizer ao cliente vai no envio da aprovação.
+      </p>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={salvando}
+          onClick={() =>
+            iniciar(async () => {
+              const r = await chamarAcao(() =>
+                comentarEntrega(entrega.id, taskId, texto),
+              );
+              if (!r.ok) toast.error(r.error);
+              else {
+                setEditando(false);
+                router.refresh();
+              }
+            })
+          }
+        >
+          {salvando ? <Loader2 className="animate-spin" /> : null}
+          Salvar
+        </Button>
+        {/* CANCELAR DEVOLVE O TEXTO GRAVADO, e não o que está digitado: sem
+            isso, reabrir o campo traria de volta o rascunho que a pessoa acabou
+            de descartar. */}
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={salvando}
+          onClick={() => {
+            setTexto(entrega.observacao ?? "");
+            setEditando(false);
+          }}
+        >
+          Cancelar
+        </Button>
+      </div>
     </div>
   );
 }

@@ -227,13 +227,21 @@ export async function enviarParaAprovacao(
     if (error || !rodada)
       return falha(error?.message ?? "Não foi possível abrir a rodada.");
 
-    // As entregas soltas passam a pertencer a esta rodada: é o que amarra o
-    // arquivo ao ciclo em que ele foi avaliado.
-    await supabase
-      .from("subtask_entregas")
-      .update({ approval_round_id: rodada.id })
-      .eq("subtask_id", subtaskId)
-      .is("approval_round_id", null);
+    // O CARIMBO É DO GATILHO, e este `update` SAIU na 0134.
+    //
+    // Ele dizia "as entregas soltas passam a pertencer a esta rodada", e isso
+    // continua acontecendo — só que quem faz é `carimbar_entregas_da_rodada()`
+    // desde a 0121, um gatilho `security definer` no `insert` de
+    // `approval_rounds`. **E esta linha não fazia nada desde então:**
+    // `subtask_entregas` não tinha policy de UPDATE nenhuma, então ela
+    // alcançava ZERO linhas — sem erro, porque um `update` sem `.select()`
+    // volta calado quando o RLS barra.
+    //
+    // **Ela não podia ficar, e a 0134 é a razão:** aquela migration dá à
+    // tabela a primeira policy de UPDATE dela (para a observação), e um
+    // `update` morto que a policy ressuscita é o interruptor que a 0088
+    // deixou para trás — ele voltaria a escrever, pelo caminho que a 0121
+    // tirou dele de propósito.
 
     const { data: movida, error: erroDoStatus } = await supabase
       .from("subtasks")

@@ -2696,6 +2696,10 @@ export interface Database {
           tipo: "arquivo" | "link";
           url: string;
           nome: string | null;
+          // O QUE E ESTE ARQUIVO (0134): "o PDF e o certo, o AI vai junto so
+          // para edicao". E do ARQUIVO; o que a agencia diz ao MANDAR a peca
+          // e `approval_rounds.mensagem` (0128).
+          observacao: string | null;
           enviado_por: string;
           created_at: string;
         };
@@ -2706,9 +2710,16 @@ export interface Database {
           tipo: "arquivo" | "link";
           url: string;
           nome?: string | null;
+          observacao?: string | null;
           enviado_por: string;
         };
-        Update: { approval_round_id?: string | null; nome?: string | null };
+        // SO A OBSERVACAO, e e o tipo dizendo o que a 0134 decidiu: a policy
+        // de UPDATE nasceu para ela, e o gatilho
+        // `subtask_entregas_so_a_observacao` recusa todo o resto. As duas
+        // chaves que estavam aqui antes -- `approval_round_id` e `nome` --
+        // nunca foram alcancaveis: a tabela nao tinha policy de UPDATE
+        // nenhuma, e quem escreve o carimbo e um gatilho `security definer`.
+        Update: { observacao?: string | null };
         Relationships: [];
       };
       task_history: {

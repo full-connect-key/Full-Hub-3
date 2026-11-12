@@ -6,7 +6,10 @@
  * proprio desenvolvedor e o responsavel -- que desde a migration 0029 aparece
  * COM os botoes, porque a gestao decide inclusive o proprio trabalho.
  */
-import type { FilaDeAprovacoes, ItemDaFila } from "../../src/lib/dados/aprovacoes";
+import type {
+  FilaDeAprovacoes,
+  ItemDaFila,
+} from "../../src/lib/dados/aprovacoes";
 
 import { BRUNO, CARLA, DIEGO, SUBTAREFAS } from "./tasks";
 
@@ -24,10 +27,17 @@ const horasAtras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
  * acende o alerta numa conta e não na outra — que é a razão de o prazo ser por
  * conta e não uma constante.
  */
-const PRAZO_DA_CONTA: Record<string, number> = { "cli-verde": 3, "cli-optica": 1 };
+const PRAZO_DA_CONTA: Record<string, number> = {
+  "cli-verde": 3,
+  "cli-optica": 1,
+};
 
-function comPrazo<T extends { desde: string; clienteId: string | null }>(item: T) {
-  const dias = Math.floor((AGORA - new Date(item.desde).getTime()) / 86_400_000);
+function comPrazo<T extends { desde: string; clienteId: string | null }>(
+  item: T,
+) {
+  const dias = Math.floor(
+    (AGORA - new Date(item.desde).getTime()) / 86_400_000,
+  );
   const combinado = item.clienteId ? (PRAZO_DA_CONTA[item.clienteId] ?? 3) : 3;
   return { ...item, diasParada: Math.max(dias, 0), atrasada: dias > combinado };
 }
@@ -37,10 +47,25 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
   const landing = SUBTAREFAS.find((s) => s.titulo === "Desenvolver landing")!;
   const roteiro = SUBTAREFAS.find((s) => s.titulo === "Roteiro do reels")!;
 
-  const anexosDe = (entregas: { id: string; nome: string | null; url: string }[]) =>
-    entregas.map((e) => ({ id: e.id, nome: e.nome ?? "Entrega", url: e.url }));
+  const anexosDe = (
+    entregas: {
+      id: string;
+      nome: string | null;
+      url: string;
+      observacao: string | null;
+    }[],
+  ) =>
+    entregas.map((e) => ({
+      id: e.id,
+      nome: e.nome ?? "Entrega",
+      url: e.url,
+      observacao: e.observacao,
+    }));
 
-  const fila: { esperando: ItemSemPrazo[]; prontasParaOCliente: ItemSemPrazo[] } = {
+  const fila: {
+    esperando: ItemSemPrazo[];
+    prontasParaOCliente: ItemSemPrazo[];
+  } = {
     esperando: [
       {
         rodadaId: "rod-kv",
@@ -73,7 +98,12 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         tipoAprovacao: "cliente",
         desde: horasAtras(9),
         anexos: [
-          { id: "arte-carrossel", nome: "Arte", url: "https://exemplo.invalid/arte.png" },
+          {
+            id: "arte-carrossel",
+            nome: "Arte",
+            url: "https://exemplo.invalid/arte.png",
+            observacao: null,
+          },
         ],
       },
       {
@@ -124,7 +154,14 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
         tipoAprovacao: "cliente",
         desde: horasAtras(2),
         anexos: [
-          { id: "arte-estatico", nome: "Arte", url: "https://exemplo.invalid/arte2.png" },
+          {
+            id: "arte-estatico",
+            nome: "Arte",
+            url: "https://exemplo.invalid/arte2.png",
+            // A arte de um POST nao e linha de `subtask_entregas`: o anexo e
+            // sintetico, e nao ha nota de ninguem para mostrar (0134).
+            observacao: null,
+          },
         ],
       },
     ],

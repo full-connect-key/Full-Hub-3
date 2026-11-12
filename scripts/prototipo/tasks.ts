@@ -15,6 +15,7 @@ import { folhas } from "../../src/lib/dominio/tasks";
 import { PROFILE_CLIENTE } from "./dados-exemplo";
 import { VERTENTES_EXEMPLO } from "./vertentes";
 import type {
+  EntregaDetalhada as EntregaReal,
   ItemDeCalendario,
   FiltrosDeTask as FiltrosReais,
   Pessoa as PessoaReal,
@@ -36,6 +37,7 @@ export type TaskDaLista = TaskDaListaReal;
 export type TaskCompleta = TaskCompletaReal;
 export type SubtarefaDetalhada = SubtarefaReal;
 export type RascunhoDaLista = RascunhoReal;
+export type EntregaDetalhada = EntregaReal;
 export type { ItemDeCalendario };
 
 const HOJE = new Date();
@@ -888,6 +890,13 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
               tipo: "arquivo" as const,
               url: `entregas/${semente.id}/1758275400-0-${semente.titulo} final.pdf`,
               nome: `${semente.titulo} final.pdf`,
+              // DUAS DAS TRES TEM OBSERVACAO (0134), e a do meio nao tem de
+              // proposito: com as tres preenchidas a imagem provaria que a
+              // nota aparece e nao que a linha SEM nota oferece o botao de
+              // escrever uma. E a razao do evento de cada par da legenda do
+              // calendario.
+              observacao:
+                "Este e o arquivo certo para impressao -- o zip ao lado vai so com as fontes.",
               enviado_por: semente.responsavel?.id ?? ANA.id,
               created_at: "2026-09-19T09:50:00.000Z",
               autor: semente.responsavel,
@@ -900,6 +909,7 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
               tipo: "arquivo" as const,
               url: `entregas/${semente.id}/1758361800-0-fontes.zip`,
               nome: "fontes.zip",
+              observacao: null,
               enviado_por: semente.responsavel?.id ?? ANA.id,
               created_at: "2026-09-20T09:50:00.000Z",
               autor: semente.responsavel,
@@ -912,6 +922,7 @@ function montarSubtarefa(semente: Semente): SubtarefaDetalhada {
               tipo: "link" as const,
               url: "https://www.figma.com/file/exemplo",
               nome: `${semente.titulo} v${rodadas.length}`,
+              observacao: "O Figma e so para conferir o layout, nao e entrega.",
               enviado_por: semente.responsavel?.id ?? ANA.id,
               created_at: "2026-09-19T09:50:00.000Z",
               autor: semente.responsavel,

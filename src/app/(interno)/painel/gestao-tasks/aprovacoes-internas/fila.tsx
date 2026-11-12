@@ -135,7 +135,10 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
         {item.cliente ? <Badge variant="outline">{item.cliente}</Badge> : null}
-        <Link href={item.rota} className="hover:text-accent-strong text-sm font-medium">
+        <Link
+          href={item.rota}
+          className="hover:text-accent-strong text-sm font-medium"
+        >
           {item.titulo}
         </Link>
         {/* DE QUE TIPO É ESTA LINHA. Os botões são os mesmos e o que acontece
@@ -191,9 +194,17 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
           "Aprovar" numa linha sem nada para abrir convida ao mesmo erro do
           lado de cá. */}
       {item.anexos.length > 0 ? (
-        <ul className="flex flex-wrap gap-2 pt-1">
+        /* `items-start` porque o item COM observação fica mais alto que os
+           outros: sem ele, um anexo com nota esticaria os três vizinhos. */
+        <ul className="flex flex-wrap items-start gap-2 pt-1">
           {item.anexos.map((anexo) => (
-            <li key={anexo.id}>
+            /* A NOTA MORA DENTRO DO `<li>`, que já é a unidade de quebra da
+               fileira — então o anexo que tem uma fica mais alto e os outros
+               continuam exatamente como antes. Repetir o nome do arquivo numa
+               lista separada embaixo diria duas vezes a mesma coisa; e um
+               `title` não existe para quem usa toque, que é a razão pela qual
+               o motivo da recusa da nota fiscal saiu do `title` também. */
+            <li key={anexo.id} className="max-w-xs space-y-0.5">
               <a
                 href={anexo.url}
                 target="_blank"
@@ -204,6 +215,11 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
                 {anexo.nome}
                 <ExternalLink className="size-3" aria-hidden />
               </a>
+              {anexo.observacao ? (
+                <p className="text-text-secondary text-xs break-words">
+                  {anexo.observacao}
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>

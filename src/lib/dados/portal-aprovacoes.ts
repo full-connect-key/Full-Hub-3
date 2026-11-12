@@ -73,7 +73,10 @@ export type AprovacaoDoCliente = {
    * entrega era link — com o upload ligado, ele é um caminho de bucket, e o
    * cliente clicaria num link que não leva a lugar nenhum.
    */
-  entregas: (SubtaskEntrega & { assinado: string | null })[];
+  entregas: (Pick<
+    SubtaskEntrega,
+    "id" | "subtask_id" | "tipo" | "url" | "nome" | "created_at"
+  > & { assinado: string | null })[];
   /** Os comentários que a agência marcou como visíveis ao cliente. */
   conversa: { id: string; texto: string; created_at: string; meu: boolean }[];
 };
@@ -190,7 +193,17 @@ async function aprovacoesDeEtapa(
       .in("id", idsDeSubtarefas),
     supabase
       .from("subtask_entregas")
-      .select("*")
+      // AS COLUNAS SÃO NOMEADAS, e não `*` (0134). A observação de uma
+      // entrega é uma nota INTERNA sobre o arquivo, e esta é a leitura do
+      // PORTAL: um `select("*")` a traria para dentro do servidor do lado de
+      // lá, a um `...e` de distância de ser desenhada por engano. É a decisão
+      // de `briefingDaCampanha()` ser leitura própria (0125).
+      //
+      // *E ela não é a trava:* `subtask_entregas_select_cliente` entrega a
+      // LINHA ao cliente desde a 0007, e policy não limita coluna — quem
+      // montar a consulta à mão lê. Isto é o que impede o acidente, não o
+      // acesso.
+      .select("id, subtask_id, tipo, url, nome, created_at")
       .in("subtask_id", idsDeSubtarefas),
   ]);
   const subtarefas = ouFalha("as etapas em aprovação", respostaDeSubtarefas);
@@ -244,7 +257,10 @@ async function aprovacoesDeEtapa(
       comentario: rodada.comentario,
       entregas: entregas
         .filter((e) => e.subtask_id === sub.id)
-        .map((e) => ({ ...e, assinado: enderecoDaArte(e.url, assinadasDasEntregas) })),
+        .map((e) => ({
+          ...e,
+          assinado: enderecoDaArte(e.url, assinadasDasEntregas),
+        })),
       conversa: comentarios
         .filter((c) => c.subtask_id === sub.id)
         .map((c) => ({

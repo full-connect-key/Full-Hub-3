@@ -71,6 +71,13 @@
 -- tela.
 -- ---------------------------------------------------------------------------
 
+-- O `drop` ANTES, e ele e a regra desta casa: *migrations precisam poder
+-- rodar mais de uma vez sem erro*. Sem ele, colar o arquivo num banco que ja
+-- o tem leva `42710: policy "profiles_select_equipe" ... already exists` -- e
+-- quem esta aplicando um pacote de migrations em sequencia nao tem como saber,
+-- lendo aquilo, se a colagem parou numa que falta ou numa que ja estava la.
+drop policy if exists profiles_select_equipe on public.profiles;
+
 create policy profiles_select_equipe on public.profiles
   for select
   using (is_staff() and role <> 'cliente');

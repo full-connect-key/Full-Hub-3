@@ -67,11 +67,9 @@ export async function minhasAprovacoes(
           {
             id: "pe2",
             subtask_id: "s5",
-            approval_round_id: "pc2",
             tipo: "link",
             url: "https://drive.google.com/exemplo-banner",
             nome: "Banner 1440x480",
-            enviado_por: "a0000000-0000-0000-0000-000000000003",
             created_at: diasAtras(0),
             assinado: "https://drive.google.com/exemplo-banner",
           },
@@ -95,19 +93,18 @@ export async function minhasAprovacoes(
           {
             id: "pe1",
             subtask_id: "s4",
-            approval_round_id: "pc1",
             tipo: "link",
             url: "https://docs.google.com/document/exemplo",
             nome: "Roteiro v1",
             assinado: "https://docs.google.com/document/exemplo",
-            enviado_por: "a0000000-0000-0000-0000-000000000003",
             created_at: diasAtras(1),
           },
         ],
         conversa: [
           {
             id: "pk1",
-            texto: "Seguimos a linha que você aprovou na reunião. Qualquer ajuste, é só dizer.",
+            texto:
+              "Seguimos a linha que você aprovou na reunião. Qualquer ajuste, é só dizer.",
             created_at: diasAtras(1),
             meu: false,
           },

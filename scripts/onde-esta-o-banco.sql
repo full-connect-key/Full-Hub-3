@@ -845,7 +845,15 @@ from (
     -- sozinho -- `is_gestor()` tambem contem `staff`, pelo `staff_user_id` que
     -- a condicao ao lado carrega.
     ('0133', 'o portal do cliente e de toda a equipe', 'policy',
-             'client_portal_views|client_portal_views_insert|is_staff()')
+             'client_portal_views|client_portal_views_insert|is_staff()'),
+
+    -- O MARCADOR APONTA PARA O GATILHO, que e a ULTIMA coisa que a 0134 cria.
+    -- A coluna nasce no PASSO 1 e a policy no PASSO 2: apontar para qualquer
+    -- um dos dois diria `ok` sobre uma colagem que morreu antes do fim -- e o
+    -- PASSO 3 e justamente o que impede a policy nova de virar a porta para
+    -- trocar o arquivo de uma entrega ja carimbada.
+    ('0134', 'a observacao da entrega', 'trigger',
+             'subtask_entregas|subtask_entregas_so_a_observacao')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

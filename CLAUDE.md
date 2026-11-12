@@ -15322,6 +15322,118 @@ clicar"* — a pergunta que se faz no instante do clique.
   entrega tocou e fica registrado em vez de corrigido — o pedido era o upload, e
   trocar o diálogo do link é outra tela.
 
+#### A ENTREGA DIZ O QUE ELA É (0134)
+
+Decisão do usuário: *"quero que quando a pessoa vai fazer uma entrega, ela
+possa comentar e subir um link, para especificar qual a entrega certa daquela
+task, cada subtarefa deve poder subir um link diferente, e cada sub etapa
+também"*.
+
+**DUAS DAS TRÊS METADES JÁ EXISTIAM, e ir medir antes de escrever é o que fez a
+migration ser uma coluna** — a lição da 0060 e da 0127:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| subir um link | `subtask_entregas.tipo = 'link'`, desde a 0007 |
+| um link por SUB-ETAPA | a sub-etapa abre o MESMO modal da etapa desde a 0022 — e é por isso que ela já anexava |
+| **comentar** | **não existia** |
+
+**A SUB-ETAPA NÃO PRECISOU DE NADA, e vale dizer por quê:** `subtask_entregas`
+aponta para `subtasks`, e uma sub-etapa É uma `subtasks` com `parent_id` (0022)
+— então "cada sub etapa também" era verdade antes de alguém pedir. O que a
+tornava invisível é outra coisa: até a 0121 a seção de arquivos existia só
+dentro do painel de cada etapa, uma por vez.
+
+##### A COLUNA É DA ENTREGA, e não uma thread
+
+`comments` é polimórfica desde a 0032 e teria servido — e o que ela responde é
+outra pergunta. Uma thread é uma CONVERSA, com autor, data, resposta de um
+nível e aviso no sino; isto é um RÓTULO: uma frase que diz *este é o arquivo
+certo, o outro vai só com as fontes*. Pôr a frase numa thread daria a cada
+arquivo uma caixa de comentários que ninguém responde — e a conversa sobre o
+material já tem dois lugares (`task_comentarios` na demanda, `comments` no
+portal). **Uma coluna por linha é o que a frase é.**
+
+**E ELA É EDITÁVEL**, ao contrário de quase tudo o que este produto grava: *"qual
+é a entrega certa"* só se sabe depois de ver os quatro arquivos no lugar, e quem
+anexou o primeiro ainda não tinha o segundo. É o oposto da rodada fechada
+(0129), que registra uma decisão tomada.
+
+**A POLICY DE UPDATE NASCEU AQUI, e isso é o achado da entrega.**
+`subtask_entregas` tinha INSERT, SELECT e DELETE e **nenhum UPDATE** desde a
+0007 — então `acoes-de-aprovacao.ts` carregava um
+`update({ approval_round_id })` que, desde a 0121, **alcançava zero linhas sem
+erro nenhum**: a escrita era barrada pela RLS, o retorno era descartado, e o
+carimbo de "este arquivo saiu nesta rodada" simplesmente não acontecia. Com a
+policy nova ele voltaria a funcionar — **a camada que a 0088 deixou para trás,
+pelo outro lado: ali um interruptor sobreviveu à origem; aqui uma escrita morta
+esperava a porta reabrir.** Ele saiu no mesmo commit, com a razão escrita no
+lugar dele.
+
+**E O TRIGGER É O QUE MANTÉM A PORTA ESTREITA.** A policy libera a LINHA, e
+**policy não limita coluna** — a frase que este produto repete desde a 0005 —,
+então `entrega_so_muda_a_observacao()` recusa mexer em `subtask_id`, `tipo`,
+`url`, `nome`, `enviado_por` e `created_at`: sem ele, quem anexou troca o
+endereço por baixo de um arquivo que o cliente já olhou. **`approval_round_id`
+fica FORA da lista de propósito**, e é a única exceção: ele é o carimbo que
+`enviar_para_aprovacao` escreve, e a função é `security definer` — o que
+contorna a RLS e **não contorna trigger**.
+
+**QUEM EDITA É QUEM ANEXOU, OU A GESTÃO.** A primeira metade é a mesma régua da
+referência da demanda e do comentário das Recomendações — a gestão modera, e
+quem escreveu corrige o que escreveu.
+
+##### A NOTA É INTERNA POR TELA, e isso é exposição declarada
+
+A linha de `subtask_entregas` é legível pelo cliente desde a 0007, por
+`subtask_visivel_ao_cliente()` — é assim que o arquivo chega ao portal. Então a
+coluna nova **é legível por ele também**, e nenhuma policy nova consertaria isso
+sem mexer naquela, que é o caminho do material.
+
+O que o produto faz é o que ele pode fazer honestamente: **nenhuma tela do portal
+desenha a observação** — `portal-aprovacoes.ts` deixou de ser `select("*")` e
+passou a nomear as seis colunas que a tela usa, então a coluna não chega nem ao
+código do servidor daquele lado —, e **a frase embaixo do campo não promete
+sigilo**: ela diz que a nota é *"para quem for olhar aqui dentro"* e que o recado
+ao cliente vai no envio da aprovação. É o precedente da 0132, palavra por
+palavra: o que a policy expõe se diz em voz alta em vez de ser escondido atrás
+de uma frase que o banco não garante.
+
+##### TRÊS TELAS, e em cada uma ela serve a outra coisa
+
+| Onde | O que a nota faz ali |
+| --- | --- |
+| o modal da etapa | é onde ela se escreve, no campo ao lado do link |
+| Arquivos da entrega | a lista da demanda inteira: quatro arquivos de quatro etapas, e só a frase diz qual é a entrega |
+| a fila de aprovações | **é onde ela mais serve**, porque quem decide não é quem produziu |
+
+**NA FILA ELA MORA DENTRO DO `<li>` do chip**, que já é a unidade de quebra da
+fileira: o anexo que tem nota fica mais alto e os outros continuam exatamente
+como antes. Uma lista separada embaixo repetiria o nome do arquivo para dizer de
+qual deles é a frase, e um `title` não existe para quem usa toque — a razão pela
+qual o motivo da recusa da nota fiscal saiu do `title`. O `items-start` da
+fileira é o que impede um anexo com nota de esticar os três vizinhos.
+
+**E NA LISTA DA DEMANDA ELA VEM DEPOIS DE QUEM MANDOU E QUANDO:** aquela linha é
+o FATO e esta é o RECADO — a ordem da mensagem antes do comentário no histórico
+de aprovações (0128).
+
+**O NULO NÃO ESCREVE NADA**, nas três: pinta-se a exceção, que é a decisão da
+matriz do Day Off. O que aparece no lugar, e só para quem pode editar, é
+**"Dizer o que é este arquivo"** — um convite e não um campo vazio, porque um
+`<textarea>` em cada linha de uma lista de quatro arquivos é a coisa mais alta
+de uma seção cujo conteúdo é o arquivo.
+
+**E O CANCELAR DEVOLVE O TEXTO GRAVADO, nunca o digitado:** sem isso, reabrir o
+campo traria de volta o rascunho que a pessoa acabou de descartar.
+
+***O que fica dito em vez de escondido:*** a **bateria não foi rodada** — não há
+Docker nem Postgres local neste ambiente —, então não há cenário de SQL para a
+policy nem para o trigger; o que existe no lugar é o `select` de conferência no
+fim da migration. E **a migration não foi aplicada**: ela está escrita, com a
+linha no `onde-esta-o-banco.sql` apontando para o trigger, que é a última coisa
+que o arquivo cria.
+
 ### O sino
 
 `notifications` **não tem policy de INSERT.** A única porta é a função

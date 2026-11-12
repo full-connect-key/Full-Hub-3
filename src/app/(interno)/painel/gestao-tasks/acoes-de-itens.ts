@@ -4,14 +4,23 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { exigirEquipeNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
-import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
+import {
+  executarAcao,
+  falha,
+  sucesso,
+  type Resultado,
+} from "@/lib/acoes/resultado";
 import { anunciar } from "@/lib/acoes/ao-vivo";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { disponibilidadeDe } from "@/lib/dados/disponibilidade";
 import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
 import { interpretarTempo } from "@/lib/dominio/tempo";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import type { Database, Json, SubtaskStatus } from "@/lib/supabase/database.types";
+import type {
+  Database,
+  Json,
+  SubtaskStatus,
+} from "@/lib/supabase/database.types";
 
 type EdicaoDeSubtarefa = Database["public"]["Tables"]["subtasks"]["Update"];
 type ClienteSupabase = Awaited<ReturnType<typeof criarClienteServidor>>;
@@ -60,7 +69,8 @@ function vazioParaNulo(valor: unknown): string | null {
 /** Tempo chega como texto livre ("2h30", "150"). Aqui vira minuto inteiro. */
 function minutosOuNulo(valor: unknown): number | null {
   if (valor === null || valor === undefined || valor === "") return null;
-  if (typeof valor === "number") return Number.isFinite(valor) ? Math.round(valor) : null;
+  if (typeof valor === "number")
+    return Number.isFinite(valor) ? Math.round(valor) : null;
   const lido = interpretarTempo(String(valor));
   return lido ?? null;
 }
@@ -99,7 +109,8 @@ export async function criarSubtarefa(
     if (!validacao.success) return falha("Confira os dados da subtarefa.");
     const entrada = validacao.data;
 
-    if (!entrada.titulo?.trim()) return falha("A subtarefa precisa de um título.");
+    if (!entrada.titulo?.trim())
+      return falha("A subtarefa precisa de um título.");
     if (entrada.requer_aprovacao && !entrada.tipo_aprovacao) {
       return falha("Diga de que tipo é a aprovação: interna ou do cliente.");
     }
@@ -109,10 +120,14 @@ export async function criarSubtarefa(
     // A ordem é contada DENTRO da etapa de cima quando há uma: a sub-etapa é
     // a primeira da mãe dela, não a oitava da demanda. Contar sobre a task
     // inteira faria a lista de cada mãe começar num número qualquer.
-    const consultaDaOrdem = supabase.from("subtasks").select("ordem").eq("task_id", taskId);
-    const { data: ultima } = await (entrada.parent_id
-      ? consultaDaOrdem.eq("parent_id", entrada.parent_id)
-      : consultaDaOrdem.is("parent_id", null)
+    const consultaDaOrdem = supabase
+      .from("subtasks")
+      .select("ordem")
+      .eq("task_id", taskId);
+    const { data: ultima } = await (
+      entrada.parent_id
+        ? consultaDaOrdem.eq("parent_id", entrada.parent_id)
+        : consultaDaOrdem.is("parent_id", null)
     )
       .order("ordem", { ascending: false })
       .limit(1)
@@ -129,7 +144,9 @@ export async function criarSubtarefa(
         responsavel_id: entrada.responsavel_id || null,
         prioridade: entrada.prioridade ?? "normal",
         requer_aprovacao: entrada.requer_aprovacao ?? false,
-        tipo_aprovacao: entrada.requer_aprovacao ? (entrada.tipo_aprovacao ?? "interna") : null,
+        tipo_aprovacao: entrada.requer_aprovacao
+          ? (entrada.tipo_aprovacao ?? "interna")
+          : null,
         estimativa_minutos: minutosOuNulo(entrada.estimativa),
         ordem: (ultima?.ordem ?? 0) + 1,
       })
@@ -137,7 +154,9 @@ export async function criarSubtarefa(
       .single();
 
     if (error || !data) {
-      return falha(`Não foi possível criar a subtarefa: ${error?.message ?? RECUSA_DO_BANCO}`);
+      return falha(
+        `Não foi possível criar a subtarefa: ${error?.message ?? RECUSA_DO_BANCO}`,
+      );
     }
 
     await registrar(supabase, {
@@ -202,13 +221,17 @@ export async function mudarResponsavelExtra(
         .select("user_id");
       if (error) return falha(`Não foi possível tirar: ${error.message}`);
       if (!data || data.length === 0) {
-        return falha("O banco recusou. Distribuir trabalho é de quem edita a demanda.");
+        return falha(
+          "O banco recusou. Distribuir trabalho é de quem edita a demanda.",
+        );
       }
     }
 
     revalidatePath(`${ROTA}/${taskId}`);
     anunciar("etapa");
-    return sucesso(entra ? "Pessoa acrescentada à etapa." : "Pessoa tirada da etapa.");
+    return sucesso(
+      entra ? "Pessoa acrescentada à etapa." : "Pessoa tirada da etapa.",
+    );
   });
 }
 
@@ -228,12 +251,16 @@ export async function atualizarSubtarefa(
     if (entrada.titulo !== undefined) mudancas.titulo = entrada.titulo.trim();
     if (entrada.descricao_rica !== undefined)
       mudancas.descricao_rica = (entrada.descricao_rica ?? null) as Json | null;
-    if (entrada.descricao_texto !== undefined) mudancas.descricao_texto = entrada.descricao_texto;
+    if (entrada.descricao_texto !== undefined)
+      mudancas.descricao_texto = entrada.descricao_texto;
     if (entrada.data_inicio !== undefined)
       mudancas.data_inicio = vazioParaNulo(entrada.data_inicio);
-    if (entrada.prazo !== undefined) mudancas.prazo = vazioParaNulo(entrada.prazo);
-    if (entrada.responsavel_id !== undefined) mudancas.responsavel_id = entrada.responsavel_id;
-    if (entrada.prioridade !== undefined) mudancas.prioridade = entrada.prioridade;
+    if (entrada.prazo !== undefined)
+      mudancas.prazo = vazioParaNulo(entrada.prazo);
+    if (entrada.responsavel_id !== undefined)
+      mudancas.responsavel_id = entrada.responsavel_id;
+    if (entrada.prioridade !== undefined)
+      mudancas.prioridade = entrada.prioridade;
     if (entrada.estimativa !== undefined)
       mudancas.estimativa_minutos = minutosOuNulo(entrada.estimativa);
     if (entrada.ordem !== undefined) mudancas.ordem = entrada.ordem;
@@ -257,7 +284,11 @@ export async function atualizarSubtarefa(
 
     const anterior =
       entrada.responsavel_id !== undefined
-        ? await supabase.from("subtasks").select("responsavel_id").eq("id", id).maybeSingle()
+        ? await supabase
+            .from("subtasks")
+            .select("responsavel_id")
+            .eq("id", id)
+            .maybeSingle()
         : null;
 
     const { data, error } = await supabase
@@ -270,7 +301,10 @@ export async function atualizarSubtarefa(
     if (error) return falha(`Não foi possível salvar: ${error.message}`);
     if (!data) return falha(RECUSA_DA_SUBTAREFA);
 
-    if (anterior?.data && anterior.data.responsavel_id !== entrada.responsavel_id) {
+    if (
+      anterior?.data &&
+      anterior.data.responsavel_id !== entrada.responsavel_id
+    ) {
       await registrar(supabase, {
         task_id: taskId,
         subtask_id: id,
@@ -312,7 +346,8 @@ export async function moverSubtarefa(
     if (!antes) return falha("Subtarefa não encontrada.");
 
     const mudancas: EdicaoDeSubtarefa = { status: destino };
-    if (tempoReal !== undefined) mudancas.tempo_real_minutos = minutosOuNulo(tempoReal);
+    if (tempoReal !== undefined)
+      mudancas.tempo_real_minutos = minutosOuNulo(tempoReal);
 
     const { data, error } = await supabase
       .from("subtasks")
@@ -338,7 +373,10 @@ export async function moverSubtarefa(
   });
 }
 
-export async function removerSubtarefa(id: string, taskId: string): Promise<Resultado> {
+export async function removerSubtarefa(
+  id: string,
+  taskId: string,
+): Promise<Resultado> {
   return executarAcao("removerSubtarefa", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
@@ -355,7 +393,10 @@ export async function removerSubtarefa(id: string, taskId: string): Promise<Resu
   });
 }
 
-export async function reordenarSubtarefas(taskId: string, ids: string[]): Promise<Resultado> {
+export async function reordenarSubtarefas(
+  taskId: string,
+  ids: string[],
+): Promise<Resultado> {
   return executarAcao("reordenarSubtarefas", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
@@ -382,7 +423,8 @@ export async function vincularDependencia(
 ): Promise<Resultado> {
   return executarAcao("vincularDependencia", async () => {
     await exigirRotaNaAcao(ROTA);
-    if (subtaskId === dependeDeId) return falha("Uma subtarefa não depende de si mesma.");
+    if (subtaskId === dependeDeId)
+      return falha("Uma subtarefa não depende de si mesma.");
 
     const supabase = await criarClienteServidor();
     // O ciclo é recusado por trigger, com a mensagem por extenso. Aqui ela
@@ -420,7 +462,12 @@ export async function desvincularDependencia(
 
 export async function adicionarReferencia(
   taskId: string,
-  referencia: { tipo: "link" | "arquivo"; url: string; titulo?: string; arquivo_nome?: string },
+  referencia: {
+    tipo: "link" | "arquivo";
+    url: string;
+    titulo?: string;
+    arquivo_nome?: string;
+  },
 ): Promise<Resultado> {
   return executarAcao("adicionarReferencia", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
@@ -443,11 +490,17 @@ export async function adicionarReferencia(
   });
 }
 
-export async function removerReferencia(id: string, taskId: string): Promise<Resultado> {
+export async function removerReferencia(
+  id: string,
+  taskId: string,
+): Promise<Resultado> {
   return executarAcao("removerReferencia", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
-    const { error } = await supabase.from("task_referencias").delete().eq("id", id);
+    const { error } = await supabase
+      .from("task_referencias")
+      .delete()
+      .eq("id", id);
     if (error) return falha(`Não foi possível remover: ${error.message}`);
     revalidar(taskId);
     return sucesso("Referência removida.");
@@ -461,7 +514,9 @@ export async function removerReferencia(id: string, taskId: string): Promise<Res
  * solto. A URL assinada vale uma hora e é gerada sob a sessão de quem pediu,
  * então o RLS do Storage ainda vale.
  */
-export async function urlDoArquivo(caminho: string): Promise<Resultado<string>> {
+export async function urlDoArquivo(
+  caminho: string,
+): Promise<Resultado<string>> {
   return executarAcao("urlDoArquivo", async () => {
     await exigirRotaNaAcao(ROTA);
 
@@ -470,7 +525,8 @@ export async function urlDoArquivo(caminho: string): Promise<Resultado<string>> 
       .from("task-arquivos")
       .createSignedUrl(caminho, 60 * 60);
 
-    if (error || !data) return falha(`Não foi possível abrir: ${error?.message ?? "erro"}`);
+    if (error || !data)
+      return falha(`Não foi possível abrir: ${error?.message ?? "erro"}`);
     return sucesso("Link gerado.", data.signedUrl);
   });
 }
@@ -486,7 +542,11 @@ export async function urlDoArquivo(caminho: string): Promise<Resultado<string>> 
 export async function comentar(
   taskId: string,
   texto: string,
-  opcoes?: { respostaA?: string | null; subtaskId?: string | null; interno?: boolean },
+  opcoes?: {
+    respostaA?: string | null;
+    subtaskId?: string | null;
+    interno?: boolean;
+  },
 ): Promise<Resultado> {
   return executarAcao("comentar", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
@@ -509,11 +569,17 @@ export async function comentar(
   });
 }
 
-export async function removerComentario(id: string, taskId: string): Promise<Resultado> {
+export async function removerComentario(
+  id: string,
+  taskId: string,
+): Promise<Resultado> {
   return executarAcao("removerComentario", async () => {
     await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
-    const { error } = await supabase.from("task_comentarios").delete().eq("id", id);
+    const { error } = await supabase
+      .from("task_comentarios")
+      .delete()
+      .eq("id", id);
     if (error) return falha(`Não foi possível remover: ${error.message}`);
     revalidar(taskId);
     return sucesso("Comentário removido.");
@@ -532,11 +598,17 @@ export async function removerComentario(id: string, taskId: string): Promise<Res
 export async function anexarEntrega(
   taskId: string,
   subtaskId: string,
-  entrega: { tipo: "link" | "arquivo"; url: string; nome?: string | null },
+  entrega: {
+    tipo: "link" | "arquivo";
+    url: string;
+    nome?: string | null;
+    observacao?: string | null;
+  },
 ): Promise<Resultado> {
   return executarAcao("anexarEntrega", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
-    if (!entrega.url?.trim()) return falha("Informe o endereço ou envie o arquivo.");
+    if (!entrega.url?.trim())
+      return falha("Informe o endereço ou envie o arquivo.");
 
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase
@@ -546,6 +618,12 @@ export async function anexarEntrega(
         tipo: entrega.tipo,
         url: entrega.url.trim(),
         nome: vazioParaNulo(entrega.nome),
+        // A OBSERVAÇÃO VEM JUNTO NO LINK, e depois no arquivo (0134): quem
+        // cola um endereço está digitando, e escrever ali "é este o certo" é
+        // a mesma respirada; quem arrasta um arquivo não digita nada, e para
+        // ele o campo está na linha que acabou de aparecer. É um campo só,
+        // nos dois caminhos — `comentarEntrega` é a mesma coluna.
+        observacao: vazioParaNulo(entrega.observacao),
         enviado_por: sessao.usuarioId,
       })
       .select("id")
@@ -576,6 +654,72 @@ export async function anexarEntrega(
 }
 
 /**
+ * O que É este arquivo — a observação de uma entrega (0134).
+ *
+ * Decisão do usuário: *"quero que quando a pessoa vai fazer uma entrega, ela
+ * possa comentar e subir um link, para especificar qual a entrega certa
+ * daquela task"*.
+ *
+ * ---------------------------------------------------------------------------
+ * **É UM `update`, E A TABELA GANHOU A PRIMEIRA POLICY DE UPDATE DELA NA
+ * 0134.** `subtask_entregas` tinha SELECT, INSERT e DELETE desde a 0007 e
+ * mais nada: quem escreve `approval_round_id` é o gatilho do carimbo (0121),
+ * que é `security definer` e passa por fora da RLS.
+ *
+ * **E a edição é o caso comum**: quem sobe o PSD, o PDF e o JPG só sabe dizer
+ * *"este é o certo"* depois de ver os três.
+ *
+ * **O BANCO É QUEM DECIDE QUEM ESCREVE**, e esta função não repete a
+ * pergunta: a policy é `enviado_por = auth.uid() or is_gestor()` — a mesma de
+ * quem apaga, desde a 0007 —, e uma segunda pergunta aqui seria a 0060 de
+ * novo. O `.select()` é o que separa "recusado" de "gravado": sem ele um
+ * update barrado pelo RLS volta sem erro e sem linha, e a tela diria "salvo".
+ *
+ * ***E A OBSERVAÇÃO NÃO ENTRA NO `task_history`, dito em vez de escondido:***
+ * ela é uma nota sobre um arquivo que o histórico já registrou quando foi
+ * anexado, e gravar cada correção de texto encheria a trilha da demanda com
+ * linhas que não contam uma decisão. O que fica registrado é o anexo e a
+ * remoção, que é o que muda o material.
+ */
+export async function comentarEntrega(
+  id: string,
+  taskId: string,
+  observacao: string,
+): Promise<Resultado> {
+  return executarAcao("comentarEntrega", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("subtask_entregas")
+      .update({ observacao: vazioParaNulo(observacao) })
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      const dica = (error as { hint?: string | null }).hint;
+      return falha(
+        dica
+          ? `${error.message} ${dica}`
+          : `Não foi possível salvar: ${error.message}`,
+      );
+    }
+    if (!data) {
+      return falha(
+        "O banco recusou a observação. Comentar a entrega é de quem a anexou " +
+          "ou da gestão.",
+      );
+    }
+
+    revalidar(taskId);
+    return sucesso(
+      observacao.trim() ? "Observação salva." : "Observação apagada.",
+    );
+  });
+}
+
+/**
  * Tirar um arquivo da entrega de uma etapa.
  *
  * **O QUE SAI DAQUI FICA NO HISTÓRICO** (0121). Até aqui a remoção não
@@ -593,7 +737,10 @@ export async function anexarEntrega(
  * banco que ela mostra, com o `hint` junto, porque ele diz o que fazer no
  * lugar.
  */
-export async function removerEntrega(id: string, taskId: string): Promise<Resultado> {
+export async function removerEntrega(
+  id: string,
+  taskId: string,
+): Promise<Resultado> {
   return executarAcao("removerEntrega", async () => {
     const sessao = await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
@@ -615,7 +762,11 @@ export async function removerEntrega(id: string, taskId: string): Promise<Result
       .maybeSingle();
     if (error) {
       const dica = (error as { hint?: string | null }).hint;
-      return falha(dica ? `${error.message} ${dica}` : `Não foi possível remover: ${error.message}`);
+      return falha(
+        dica
+          ? `${error.message} ${dica}`
+          : `Não foi possível remover: ${error.message}`,
+      );
     }
     if (!data) return falha(RECUSA_DO_BANCO);
 

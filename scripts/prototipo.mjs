@@ -654,6 +654,19 @@ const TELAS = [
   // escrito: a imagem prova que ele guarda o texto, e as outras duas provam
   // que o campo vazio continua sendo o estado normal.
   { nome: "46c-subetapa-briefing", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio", clicar: 'button:has-text("Feed 1:1")' },
+
+  // A OBSERVACAO DA ENTREGA ABERTA PARA EDICAO (0134). A `46` ja mostra as
+  // tres entregas em repouso -- duas com nota, uma com o "Dizer o que e este
+  // arquivo" --, e o que ela nao prova e que o editor abre COM o texto
+  // gravado dentro: um bug ali abriria o campo vazio, e quem clicasse em
+  // "editar" para corrigir uma palavra apagaria a frase inteira sem ver.
+  //
+  // O seletor e escopado pelo nome do arquivo porque "editar" aparece em
+  // toda entrega que tem nota -- duas, neste exemplo --, e um seletor
+  // ambiguo sai sem o clique: a imagem viria em repouso, com o nome de uma
+  // tela que ela nao e.
+  { nome: "46d-entrega-observacao", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
+    clicar: ['button:has-text("Criar KV")', 'li:has-text("Criar KV final.pdf") button:has-text("editar")'] },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 
   // --- Sprint 3C: identidade, tela inicial e portais de clientes ---------

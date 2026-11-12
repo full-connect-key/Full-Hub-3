@@ -67,7 +67,24 @@ const BUCKET_DAS_CAMPANHAS = "campanhas-arquivos";
  * "Aprovar" numa linha sem nada para olhar convida ao mesmo erro do lado de
  * cá.
  */
-export type AnexoDaFila = { id: string; nome: string; url: string };
+export type AnexoDaFila = {
+  id: string;
+  nome: string;
+  url: string;
+  /**
+   * O QUE É ESTE ARQUIVO, escrito por quem o anexou (0134).
+   *
+   * Esta é a fila onde a diferença mais importa: a linha pode ter quatro
+   * anexos, e decidir qual deles é a entrega era um palpite pelo nome do
+   * arquivo. É o pedido do usuário em quantas palavras — *"especificar qual a
+   * entrega certa daquela task"* —, e aqui ele vale duas vezes, porque quem
+   * decide não é quem produziu.
+   *
+   * Nulo é o caso comum, e a tela não escreve nada no lugar: pinta-se a
+   * exceção.
+   */
+  observacao: string | null;
+};
 
 export type ItemDaFila = {
   rodadaId: string | null;
@@ -151,11 +168,17 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
 
   const agora = Date.now();
   const comPrazo = (item: ItemSemPrazo): ItemDaFila => {
-    const dias = Math.floor((agora - new Date(item.desde).getTime()) / 86_400_000);
+    const dias = Math.floor(
+      (agora - new Date(item.desde).getTime()) / 86_400_000,
+    );
     const combinado = item.clienteId
       ? (prazos.get(item.clienteId) ?? PRAZO_DE_APROVACAO_PADRAO)
       : PRAZO_DE_APROVACAO_PADRAO;
-    return { ...item, diasParada: Math.max(dias, 0), atrasada: dias > combinado };
+    return {
+      ...item,
+      diasParada: Math.max(dias, 0),
+      atrasada: dias > combinado,
+    };
   };
 
   // QUEM ESPERA HÁ MAIS TEMPO VEM PRIMEIRO, e a ordenação é feita depois de
@@ -172,12 +195,16 @@ export async function filaDeAprovacoes(): Promise<FilaDeAprovacoes> {
 
   return {
     esperando: esperando.map(comPrazo).sort(maisAntigoPrimeiro),
-    prontasParaOCliente: prontasParaOCliente.map(comPrazo).sort(maisAntigoPrimeiro),
+    prontasParaOCliente: prontasParaOCliente
+      .map(comPrazo)
+      .sort(maisAntigoPrimeiro),
   };
 }
 
 /** O prazo combinado com cada conta, só das que aparecem na fila. */
-async function prazosDasContas(ids: (string | null)[]): Promise<Map<string, number>> {
+async function prazosDasContas(
+  ids: (string | null)[],
+): Promise<Map<string, number>> {
   const unicos = [...new Set(ids.filter(Boolean))] as string[];
   if (unicos.length === 0) return new Map();
 
@@ -190,7 +217,9 @@ async function prazosDasContas(ids: (string | null)[]): Promise<Map<string, numb
       .in("client_id", unicos),
   );
 
-  return new Map((linhas ?? []).map((l) => [l.client_id, l.prazo_aprovacao_cliente_dias]));
+  return new Map(
+    (linhas ?? []).map((l) => [l.client_id, l.prazo_aprovacao_cliente_dias]),
+  );
 }
 
 /** As rodadas internas de ETAPA de demanda. */
@@ -238,7 +267,12 @@ async function etapasNaFila(): Promise<FilaCrua> {
   const [tasks, pessoas] = await Promise.all([
     idsDeTasks.length === 0
       ? Promise.resolve(
-          [] as { id: string; titulo: string; client_id: string; status: string }[],
+          [] as {
+            id: string;
+            titulo: string;
+            client_id: string;
+            status: string;
+          }[],
         )
       : supabase
           .from("tasks")
@@ -265,7 +299,10 @@ async function etapasNaFila(): Promise<FilaCrua> {
       ? []
       : ouFalha(
           "os clientes da fila",
-          await supabase.from("clients").select("id, nome_empresa").in("id", idsDeClientes),
+          await supabase
+            .from("clients")
+            .select("id, nome_empresa")
+            .in("id", idsDeClientes),
         );
 
   const porTask = new Map((tasks ?? []).map((t) => [t.id, t]));
@@ -309,6 +346,7 @@ async function etapasNaFila(): Promise<FilaCrua> {
           id: e.id,
           nome: e.nome ?? "Entrega",
           url: enderecoDaArte(e.url, assinadasDasEntregas),
+          observacao: e.observacao,
         }))
         .filter((a): a is AnexoDaFila => a.url !== null),
     };
@@ -392,7 +430,8 @@ async function postsNaFila(): Promise<FilaCrua> {
       .in("id", idsDePosts),
   );
 
-  if (!posts || posts.length === 0) return { esperando: [], prontasParaOCliente: [] };
+  if (!posts || posts.length === 0)
+    return { esperando: [], prontasParaOCliente: [] };
 
   const [clientes, pessoas, assinadas] = await Promise.all([
     supabase
@@ -416,7 +455,9 @@ async function postsNaFila(): Promise<FilaCrua> {
     ),
   ]);
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const porCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 
   const esperando: ItemSemPrazo[] = [];
@@ -447,7 +488,9 @@ async function postsNaFila(): Promise<FilaCrua> {
       // SEMPRE `cliente`, e não é atalho: a corrente do post termina no ar,
       // passando pelo cliente. Não existe post que pare no aval interno.
       tipoAprovacao: "cliente" as TipoAprovacao,
-      anexos: assinada ? [{ id: post.id, nome: "Arte", url: assinada }] : [],
+      anexos: assinada
+        ? [{ id: post.id, nome: "Arte", url: assinada, observacao: null }]
+        : [],
     };
 
     const pendente = minhas.find(
@@ -540,7 +583,8 @@ async function entregaveisNaFila(): Promise<FilaCrua> {
       .in("id", [...new Set(todas.map((r) => r.content_id))]),
   );
 
-  if (!pecas || pecas.length === 0) return { esperando: [], prontasParaOCliente: [] };
+  if (!pecas || pecas.length === 0)
+    return { esperando: [], prontasParaOCliente: [] };
 
   const campanhas = ouFalha(
     "as campanhas da fila",
@@ -556,9 +600,7 @@ async function entregaveisNaFila(): Promise<FilaCrua> {
     supabase
       .from("clients")
       .select("id, nome_empresa")
-      .in("id", [
-        ...new Set((campanhas ?? []).map((c) => c.client_id)),
-      ])
+      .in("id", [...new Set((campanhas ?? []).map((c) => c.client_id))])
       .then((r) => ouFalha("os clientes da fila de campanha", r)),
     supabase
       .from("profiles")
@@ -573,7 +615,9 @@ async function entregaveisNaFila(): Promise<FilaCrua> {
     ),
   ]);
 
-  const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nome_empresa]));
+  const porCliente = new Map(
+    (clientes ?? []).map((c) => [c.id, c.nome_empresa]),
+  );
   const porPessoa = new Map((pessoas ?? []).map((p) => [p.id, p]));
 
   const esperando: ItemSemPrazo[] = [];
@@ -600,7 +644,9 @@ async function entregaveisNaFila(): Promise<FilaCrua> {
       // Não há material de campanha que pare no aval interno — ele é o portão,
       // nunca o destino.
       tipoAprovacao: "cliente" as TipoAprovacao,
-      anexos: assinada ? [{ id: peca.id, nome: "Arte", url: assinada }] : [],
+      anexos: assinada
+        ? [{ id: peca.id, nome: "Arte", url: assinada, observacao: null }]
+        : [],
     };
 
     const pendente = minhas.find(
