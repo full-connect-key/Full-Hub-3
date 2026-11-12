@@ -1474,6 +1474,20 @@ uma lista, um botão permanentemente inerte é ruído em toda linha, e a razão 
 do "Abrir em página inteira" do painel de Minhas Tasks, virada do avesso do
 "Enviar ao cliente" do Social Media.
 
+**E O TERCEIRO ESTADO NÃO EXISTIA NESSE RAMO, o que é a mesma mentira no único
+lugar que ninguém releu.** O ramo de quem não edita escrevia "sem responsável"
+**sem olhar `valor`** — ou seja, cometia exatamente o que a prop `atual` nasceu
+para matar, duas telas depois de ela nascer: a frase plausível que manda
+distribuir de novo uma etapa que tem dono. **E ele é o ramo de quem NÃO É
+GESTÃO**, que é quem menos tem como conferir. A distinção já estava escrita em
+`rotulo`; o que faltava era este ramo usá-la.
+
+**Quem mostrou foi um relato do usuário** — *"a Giovanna Bellucci é responsável
+pela sub que aparece como sem responsável"* —, e ali a causa era a RLS da 0132:
+quem não era gestão lia um perfil só, então `atual` vinha nulo e `equipe` tinha
+uma pessoa. A policy conserta o caso dele; este ramo era o que continuaria
+mentindo no dia em que a pessoa da etapa saísse da agência. **As duas pontas
+saem no mesmo commit**, que é a regra desta casa.
 ##### A ORDEM DAS ETAPAS SE ARRASTA
 
 Decisão do usuário, em duas frases: *"quero poder mudar a ordem das subtarefas

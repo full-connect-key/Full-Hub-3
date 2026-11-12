@@ -144,12 +144,21 @@ export function SeletorDeResponsavel({
   // uma lista um `<button>` permanentemente inerte é ruído em toda linha, e a
   // razão — "esta etapa não é sua para distribuir" — não é um passo que falta.
   // É a decisão do "Abrir em página inteira" do painel de Minhas Tasks.
+  //
+  // **E AQUI A FRASE É A MESMA DO OUTRO RAMO**, que é um conserto e não
+  // simetria. Este ramo escrevia "sem responsável" sem olhar `valor` — ou
+  // seja, cometia exatamente a mentira plausível que a prop `atual` existe
+  // para matar, no único ramo que ninguém releu ao criá-la. E ele é o ramo de
+  // QUEM NÃO É GESTÃO: a pessoa que lê a linha é a que menos tem como
+  // conferir, e "sem responsável" numa etapa com dono a manda avisar que o
+  // trabalho está órfão. A distinção já estava escrita em `rotulo`; o que
+  // faltava era este ramo usá-la.
   if (!podeEditar) {
     return pessoa ? (
       <UserAvatar name={pessoa.nome} src={pessoa.avatar_url} size="sm" />
     ) : (
-      <span className="text-muted-foreground text-xs">
-        {compacto ? "sem responsável" : rotulo}
+      <span className="text-muted-foreground text-xs" title={rotulo}>
+        {compacto ? (valor ? "fora da equipe" : "sem responsável") : rotulo}
       </span>
     );
   }
