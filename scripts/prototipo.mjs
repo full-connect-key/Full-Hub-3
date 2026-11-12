@@ -1172,8 +1172,18 @@ const TELAS = [
   // e o passo 1 aponta para o menu -- que no desktop e a barra lateral.
   { nome: "81-tour-primeiro-passo", rota: "/painel", largura: 1280, altura: 900, role: "colaborador-recem-chegada", clicar: 'button:has-text("Começar o tour")' },
   // PRIMEIROS PASSOS, sem dialogo na frente: dois de cinco feitos, porque o
-  // zero nao prova que o risco do item concluido funciona.
+  // zero nao prova que o risco do item concluido funciona. Desde a 0131 um
+  // terceiro esta DISPENSADO, e com ele os tres desenhos da linha saem na
+  // mesma imagem: o visto do derivado-feito, a caixa marcada com `· ja sei`, e
+  // a caixa vazia do pendente.
   { nome: "82-tour-primeiros-passos", rota: "/painel", largura: 1280, altura: 1100, role: "colaborador-ambientando" },
+  // O 375 ENTROU COM A CAIXA (0131), porque e a largura em que ela tinha como
+  // quebrar: a linha e `flex`, e a caixa, o titulo riscado e o `· ja sei`
+  // disputam a mesma. *O que a imagem mostra e que nao quebra* -- o titulo
+  // mais longo da lista ainda cabe numa linha so, e a coluna dos marcadores
+  // continua alinhada. Ela fica porque e a conferencia que faltava, e porque
+  // um titulo mais longo que os cinco de hoje muda essa resposta.
+  { nome: "82b-tour-primeiros-passos-375", rota: "/painel", largura: 375, altura: 1400, role: "colaborador-ambientando" },
   // O CONVITE DO MICRO-TOUR, no canto. Ele aparece porque a Luiza nao tem
   // linha nenhuma de `modulo:*` -- e so neste modulo porque e a rota desta
   // tela.

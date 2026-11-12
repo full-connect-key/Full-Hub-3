@@ -3776,6 +3776,24 @@ export interface Database {
        * não entra no `Update`: mover a linha para outro nome é recusado, e o
        * campo aqui só serviria para alguém tentar.
        */
+      primeiros_passos_dispensados: {
+        Row: {
+          id: string;
+          user_id: string;
+          chave: string;
+          dispensado_em: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          chave: string;
+        };
+        // SEM `Update`, e a ausência é a tabela: a linha é a dispensa, e
+        // desticar é o `delete` dela. `dispensado_em` tem default e não se
+        // reescreve — mover a data seria dizer que ela dispensou hoje.
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       tour_progresso: {
         Row: {
           id: string;

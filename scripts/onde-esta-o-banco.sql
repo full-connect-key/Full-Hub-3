@@ -820,7 +820,15 @@ from (
     -- `ok`, que e o pior lugar para mentir: o PASSO 2 e o que faz a entrega
     -- existir.
     ('0130', 'o aniversario da equipe no calendario', 'funcao',
-             'aniversarios_do_periodo')
+             'aniversarios_do_periodo'),
+
+    -- O MARCADOR APONTA PARA A ULTIMA POLICY, e nao para a tabela do PASSO 1.
+    -- O `enable row level security` esta no PASSO 2: uma colagem que morre
+    -- entre os dois deixa a tabela de pe SEM RLS, legivel por quem tiver a
+    -- chave anon -- e e o pior lugar para morrer. Um marcador na tabela
+    -- chamaria esse banco de `ok`.
+    ('0131', 'ticar o primeiro passo que ja sei', 'policy',
+             'primeiros_passos_dispensados|primeiros_passos_dispensados_delete|auth.uid')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
