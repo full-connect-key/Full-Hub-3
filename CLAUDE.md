@@ -6926,18 +6926,112 @@ campanha aberta sem entregável responderia "campanha".
 
 **A Lista chegou a AGRUPAR POR ÁREA, e hoje agrupa por status** — a decisão
 está em "A Lista agrupa por status", logo abaixo. O que sobrou da área na
-Lista é o selo da campanha em cada linha, que diz mais que um cabeçalho: ele
-nomeia QUAL campanha. `areaDaLinha()` continua respondendo pela faixa de chips
-e pelo Social, que é bloco à parte.
+Lista é a PÍLULA de cada linha, que diz mais que um cabeçalho: ela nomeia o
+módulo **e leva até ele**. `areaDaLinha()` continua respondendo por ela, pela
+faixa de novidades e pelo cabeçalho de cada seção.
 
-**A faixa de áreas mostra o ZERO, ao contrário do selo da fila de aprovações.**
-As duas regras não brigam: lá o selo COBRA uma ação, e um zero cobraria nada;
-aqui a linha RESPONDE onde o meu trabalho está, e "nenhum" é resposta — é
-justamente o caso em que a pessoa procurava a área e não a encontrava. Cada
-chip é um link para a área inteira e **não um filtro**: ele leva ao MÓDULO —
-onde a pessoa vê o mês de social inteiro, a campanha com a árvore —, e isso é
-outra coisa que estreitar esta lista. Um filtro seria um parâmetro de URL a
-mais para manter em dia, oferecendo um recorte que a faixa já não promete.
+**A faixa de áreas mostrava o ZERO**, ao contrário do selo da fila de
+aprovações — as duas regras não brigavam: lá o selo COBRA uma ação, e um zero
+cobraria nada; aqui a linha RESPONDIA onde o meu trabalho está, e "nenhum" é
+resposta. **Ela saiu**, e o que ficou no lugar está logo abaixo.
+
+##### A PORTA DA ÁREA SAIU DO CABEÇALHO E FOI PARA A LINHA
+
+Decisão do usuário: *"preciso que no minhas tasks, você tire os botoes do
+cabeçalho de demandas, campanhas e social, quero que elas sejam acessadas por
+meio das tasks em si, quando a pessoa é marcada em um task de algum desses
+tipos, ela tenha acesso a página referente"*.
+
+**A FAIXA ESTAVA CERTA NO DIA EM QUE NASCEU, e é o que explica por que ela
+pôde sair agora.** Social Media e Campanhas tinham acabado de sair da barra
+lateral, e *"tirar um item de menu de um módulo que não aparece em mais lugar
+nenhum não é enxugar a barra, é esconder o módulo"* — a faixa nomeava as três
+áreas, com contagem e inclusive no zero, para dizer que elas existem aqui. Ela
+respondia *"onde está o meu trabalho"*.
+
+**O QUE ELA NÃO RESPONDIA é a pergunta de quem está olhando uma LINHA:** *esta
+etapa, de que mês é? de que campanha?* Quem tinha a fase de Layout de outubro
+da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do módulo, para
+procurar de novo a conta e o mês que a linha já sabia. Hoje o endereço é da
+linha — `?aba=social&mes=2026-10&cliente=…`, que é o par do índice único da
+0061, exatamente o que o módulo abre.
+
+**E O CHIP DE DEMANDAS LEVAVA 403, que é o conserto embutido na remoção.** Ele
+apontava para `/painel/gestao-tasks`, que é `GESTAO` em `permissions.ts`, e o
+colaborador — a pessoa para quem esta tela existe — clicava e lia *"Seu perfil
+não permite esta ação"*. **Não há endereço melhor**, e por isso
+`ROTA_DA_AREA.demandas` passou a devolver nulo: não existe módulo "minhas
+demandas" ao lado desta tela — **Minhas Tasks é ele**, e a demanda inteira já
+abre no painel lateral. Nada se perde: a novidade de uma demanda SEMPRE vira
+linha nesta mesma tela, porque ela tem responsável — e é por isso que ela é
+novidade.
+
+**O RÓTULO PASSOU A SER O MÓDULO e não o nome do objeto**, e isto desfaz meia
+decisão escrita aqui: a pílula da campanha dizia o NOME dela, com o argumento
+de que *"'Campanha' repetia o cabeçalho cinco vezes sem informar nada"* —
+verdadeiro enquanto havia a seção Campanhas, e **vencido por
+`abrir_campanha()` (0051)**, que dá à demanda o título `p_nome`: o nome da
+campanha está escrito na linhagem, à ESQUERDA da pílula, a dois centímetros. O
+que ela não dizia é PARA ONDE leva. O nome continua no `title`.
+
+**NA LISTA É PÍLULA; NO BOARD E NO CALENDÁRIO É O PAINEL.** O cartão do board
+tem ~171px e já carrega o título, a linhagem, a prioridade, o selo de prazo, o
+relógio e o botão de ação; a célula do calendário tem menos ainda. Então ali a
+porta é o botão no cabeçalho do painel lateral, que as três visões abrem —
+**calculado por quem abre o painel** e não por uma consulta nova lá dentro: a
+tela já tem as linhas em mãos. E ele vem ANTES de "Abrir em página inteira",
+que é a ordem da pergunta: quem abriu a fase de Layout quer o MÊS, não a
+demanda do mês numa segunda tela.
+
+**E O PAINEL SÓ OFERECE "Abrir em página inteira" PARA A GESTÃO**, que é o
+mesmo 403 um andar abaixo: `/painel/gestao-tasks/{id}` é `GESTAO`, e
+`souGestor` é a MESMA pergunta que a rota faz (`is_gestor()`), não uma
+parecida. **O botão SOME em vez de aparecer desligado**, pela razão do "Enviar
+ao cliente" do Social Media virada do avesso: lá o desligado ensina um passo
+que falta, e aqui não falta passo nenhum — é uma porta que não é dela. O que
+ela perde não é acesso: o painel mostra a demanda inteira, e o que a página
+cheia acrescenta são as ações da demanda, que são de quem gerencia.
+
+***O que se perde, e é dito em vez de escondido:*** **o ZERO**. A faixa dizia
+"Campanhas 0" nos dias em que não havia peça nenhuma, e era essa linha que
+afirmava que a área existe mesmo vazia. Quem continua nomeando as três é a
+faixa de novidades — que aparece quando chega trabalho novo, e é literalmente
+o caso que o pedido descreve — e o cabeçalho de área da Lista.
+
+**A faixa de novidades FICA, e `demandas` conta sem linkar.** Ela é
+condicional, some quando não há nada, e é o aviso de que chegou trabalho que
+ainda NÃO está na lista — o post que a gestão acabou de liberar não tem prazo
+próprio, e a peça de campanha só vira linha depois de alguém abrir a demanda.
+E ali o nulo é impossível **pelo TIPO**: `NovidadeDeArea["area"]` é
+`"social" | "campanhas"`, nunca `demandas` — por isso `ROTA_DA_AREA` virou
+`as const satisfies` em vez de um `Record` declarado, senão todo leitor
+ganharia um ramo "e se não houver rota" que nenhum caminho produz.
+
+**E A CHECAGEM PASSOU A MEDIR O ENDEREÇO, e não a palavra.** `A_PORTA` em
+`check:sprint9` procurava os três NOMES no texto renderizado de
+`30-minhas-tasks-lista`; hoje ela procura `href="` mais o prefixo de cada
+porta, no HTML CRU. **Foi o teste de mutação que cobrou:** trocando o `href`
+da pílula por um `data-*`, o endereço continuava no HTML e a checagem passava
+sobre uma porta que não abre — ela afirmava que a string existe, não que ela é
+um link. **E o `&` vira `&amp;` na serialização**, que derrubou a primeira
+rodada sobre um endereço certo: é a classe do `grep -i` que dobrava acento
+pelo locale. Medida com três mutações, uma por ramo, mais duas na mão dupla do
+botão de página inteira.
+
+**O exemplo ganhou `social_do_mes`**, pela razão de sempre: com a coluna nula a
+porta do Social não teria endereço, `destinoDaEtapa()` devolveria nulo, e a
+entrega não sairia em imagem nenhuma — a lição da duplicata do Cronograma. E
+entraram DUAS telas: o painel aberto numa fase de social (a `35` abre uma
+demanda comum, que é justamente a que não tem porta) e o mesmo painel para
+quem não é gestão.
+
+***E um defeito anterior a esta entrega saiu junto:*** o `X` do `SheetContent`
+é `absolute top-4 right-4` e o cabeçalho tem `p-4`, então o último botão da
+linha chegava embaixo dele — o `X` saía desenhado **em cima** do ícone de
+"Abrir em página inteira". Foi a imagem que mostrou, e nenhuma verificação
+pegaria: sobreposição não é tipo, não é cor e não é árvore de acessibilidade.
+O respiro mora no painel e não no `SheetContent`, que é de vinte telas e onde
+nenhuma outra põe botão nessa linha.
 
 #### A Lista agrupa por STATUS
 
@@ -16559,6 +16653,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| A porta das áreas | **Os três chips saíram do cabeçalho de Minhas Tasks, e a porta foi para a linha** — decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e social, quero que elas sejam acessadas por meio das tasks em si, quando a pessoa é marcada em um task de algum desses tipos, ela tenha acesso a página referente"*. **A FAIXA ESTAVA CERTA NO DIA EM QUE NASCEU, e é isso que explica por que ela pôde sair:** Social Media e Campanhas tinham acabado de sair da barra lateral, e *"tirar um item de menu de um módulo que não aparece em mais lugar nenhum é esconder o módulo"* — ela nomeava as três áreas, com contagem e no zero, para dizer que elas existem aqui. **O que ela NÃO respondia é a pergunta de quem olha uma LINHA:** *esta etapa, de que mês é? de que campanha?* Quem tinha a fase de Layout de outubro da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do módulo, para procurar de novo a conta e o mês que a linha já sabia. Hoje o endereço é da linha, por `destinoDaEtapa()`. **E O CHIP DE DEMANDAS LEVAVA 403, que é o conserto embutido na remoção:** ele apontava para `/painel/gestao-tasks`, que é `GESTAO`, e o colaborador — a pessoa para quem esta tela existe — lia *"Seu perfil não permite esta ação"*; `ROTA_DA_AREA.demandas` passou a devolver nulo, porque **não existe módulo "minhas demandas" ao lado desta tela — Minhas Tasks é ele**. **O rótulo virou o MÓDULO e não o nome do objeto**, desfazendo meia decisão escrita: a pílula dizia o NOME da campanha, e `abrir_campanha()` (0051) dá à demanda o título `p_nome` — o nome já estava na linhagem, a dois centímetros. **Na Lista é pílula; no board e no calendário é o PAINEL**, porque o cartão tem ~171px e já carrega seis coisas. **E o painel só oferece "Abrir em página inteira" para a gestão**, que é o mesmo 403 um andar abaixo. ***O que se perde, e é dito:*** o ZERO — a faixa dizia "Campanhas 0" nos dias vazios, e quem continua nomeando as três é a faixa de novidades, que é condicional e é literalmente o caso que o pedido descreve. **E A CHECAGEM PASSOU A MEDIR O ENDEREÇO:** `A_PORTA` procurava os três nomes no texto renderizado, e hoje procura `href="` mais o prefixo de cada porta no HTML cru — **foi a mutação que cobrou**, trocando o `href` por um `data-*` o endereço continuava no HTML e a checagem passava sobre uma porta que não abre. Medida com três mutações, mais duas na mão dupla do botão de página inteira. ***E um defeito anterior saiu junto:*** o `X` do `SheetContent` era desenhado **em cima** do ícone do último botão do cabeçalho do painel — só a imagem pega, porque sobreposição não é tipo, não é cor e não é árvore de acessibilidade. |
 | Ticar o primeiro passo | **Os cinco itens de "Primeiros passos" passaram a ter caixa** (migration 0131), por decisão do usuário: *"quero que o tutorial seja possível ticar os itens, caso a pessoa já saiba como fazer, sem precisar fazer o tutorial necessariamente"*. **A DERIVAÇÃO CONTINUA INTEIRA, e o que isto desfaz é a consequência dela:** o pedido do sprint 3M está certo — *"derivar evita o bug clássico, a pessoa faz a coisa por outro caminho e a lista continua dizendo que falta"* —, e o que estava errado é ela ser a ÚNICA porta: sendo assim, o único jeito de fechar um item é FAZER a coisa. **E o caso de verdade não é o da primeira semana:** o bloco só se esconde com `pendentes = 0`, e quem está na agência há dois anos e nunca propôs um período no Day Off vê os cinco itens todo dia, numa tela que ela abre toda manhã, sem caminho nenhum para fechá-los. **A conta passa a ser `derivado OR dispensado`**, e é esta forma que mantém a derivação de pé: **ticar só FECHA um item, nunca reabre o que o estado já fechou** — quem subiu a foto tem o item fechado pelo FATO, e destique nenhum faz a foto desaparecer. É a assimetria de `status_manual` (0025) pelo outro lado: lá o manual TRAVA o recálculo inteiro, porque o status de uma demanda é uma escolha que o cálculo não adivinha; aqui não há o que travar — os dois lados dizem "feito" —, e `OR` é a forma mais fraca e a mais honesta, porque **ela não tem como mentir sobre um fato**. **SÃO TRÊS DESENHOS NA LINHA E NÃO DOIS:** a caixa vazia do pendente, com o título ainda linkado (o link leva à tela para FAZER, a caixa diz *"já sei"*); a caixa marcada do dispensado, com **`· já sei`** ao lado — a linha que impede a lista de afirmar o que não aconteceu, porque sem ela um item riscado diria que a foto foi subida; e o **derivado-feito, sem controle nenhum**, que é a decisão da caixinha do post palavra por palavra (*"sem a caixa desligada, e isto é regra deste produto"*). **ELA NÃO ENCOSTA EM `tour_progresso` NEM EM `academy_progresso`**, que eram os dois com mais chance de serem corrompidos: ticar o item do tour **não escreve `pulado`** — aquele valor quer dizer *"abriu o tour e saiu"*, e escrevê-lo daqui poria no acompanhamento da gestão linhas de gente que nunca abriu o tour —, e ticar o do playbook **não marca nada como lido**, então `academy_obrigatorios_de()` continua respondendo que falta. ***Este último é o que mais pesa, e é dito em vez de escondido:*** se a agência preferir que o playbook obrigatório não seja dispensável, é uma linha em `lib/dados/primeiros-passos.ts`, e não uma mudança de banco. **É tabela e não jsonb** (o critério da 0070, e `check:tipos` não liga chave de jsonb a nada) e não `localStorage` (a lista é lida por um componente de SERVIDOR); **a linha É a dispensa**, sem coluna `dispensado` que valeria `true` em toda linha (0023); e **há policy de DELETE**, ao contrário de `tour_progresso`, porque aqui *"ela dispensou e depois desdispensou"* não é pergunta de ninguém. As quatro fecham em `auth.uid()`. **Dois achados da imagem:** o marcador do derivado-feito saía uns 3px à direita da borda das caixas — o `Check` solto desenha o traço adentro do slot dele —, e virou o ladrilho de `corrente-do-post.tsx`, com o par nomeado já medido; e **o bloco não tinha imagem de celular**, então entrou `82b-tour-primeiros-passos-375`, que mostra que a linha não quebra a 375px. ***E a bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, então não há cenário de SQL para as quatro policies; o que existe no lugar é o `select` de conferência no fim da migration. |
 | A marca do aniversário | **O chip do aniversário passou a dizer que é um aniversário** — decisão do usuário: *"quero que mostre no calendário que é aniversário da pessoa, não só o nome dela… pode ter um ícone só talvez, ou o texto, não sei, vê como fica melhor"*. Ele dizia só "Ana Lima", em rosa, e a palavra vivia no `title` — que não existe para quem usa toque e que ninguém lê de relance; e a legenda, que é quem nomeia a cor, fica ABAIXO da grade, então rolando até a última semana ela sai da tela. **É O ÍCONE E NÃO A PALAVRA, e as duas razões são de medida:** a célula do mês tem uns 96px nas sete colunas e sobram uns 76px de texto, e "Aniversário" a 11px já ocupa uns 62px — ela só cabe numa SEGUNDA LINHA, que é onde mora a empresa; um aniversário não tem nenhuma, e é por isso que ele é hoje **o único chip de uma linha só**. Pondo a palavra ali, todo aniversário passa a ocupar duas, e em janeiro com três no mesmo dia a célula enche para dizer três vezes a mesma palavra. **É a decisão do selo de "programado" no calendário do Social**, palavra por palavra — *"a célula de um dia com três posts não tem onze pixels para a palavra"* —, e **um ícone é FORMA**, que é o que a cor não tem como ser: a regra escrita é *a cor nunca é o único sinal*, e até aqui quem a cumpria era o `title`, ou seja ninguém. **A legenda não ganha o bolo**, porque a linha dela já escreve a palavra e as seis amostras respondem a mesma pergunta do mesmo jeito. **É um componente e não um `if` nas duas visões**, porque o que não pode divergir são três coisas de uma vez — qual ícone, de que tamanho, e se existe o `sr-only` ao lado dele: é `ICONE_DA_AREA` em miniatura. De quebra, o chip do mês deixou de ser escrito duas vezes nos dois ramos. **Duas coisas que só a imagem pegou:** o vão entre o bolo e o nome saía **9px onde o código dizia 4**, porque o `sr-only` é irmão de flex e o `gap-1` contava duas vezes (a marca virou um elemento só); e **`92-calendario-semana` saía com a semana VAZIA** — a visão de semana abre a semana do dia 1 e todo item do exemplo é datado à frente de hoje, então o chip da semana não era conferido por imagem nenhuma. O exemplo ganhou dois itens no dia 1, **calculado e não literal** (a lição dos meses da NF), com o vizinho num par visível — `reuniao` usa o cinza, e a célula de fim de semana usa o MESMO `bg-muted`. ***E um achado que não é desta entrega:*** por isso mesmo, um evento de reunião, treinamento ou "outro" num sábado, num domingo ou num dia da virada aparece **como texto sem chip**; não foi tocado, porque consertar é dar um sexto par a três dos oito tipos, contra a decisão escrita de *oito tipos em cinco cores*. |
 | O aniversário da equipe | **O Calendário Full ganhou os aniversários da equipe** (migration 0130), por decisão do usuário em duas frases: *"inclua no calendário Full um tópico pra colocarmos os aniversários dos colaboradores"* e, logo em seguida, *"mas isso deve ser resgatado das informações pessoais do perfil de cada um, então tem que incluir esse campo na gestão da equipe também"*. **A SEGUNDA FRASE MUDA O DESENHO INTEIRO, e para melhor:** a primeira leitura era um valor novo em `evento_tipo` — a forma exata da 0109 — e alguém lançaria quinze eventos todo janeiro; derivado da ficha, o aniversário aparece sozinho todo ano e nunca fica desatualizado, que é **o que dá para calcular não se guarda**. **A COLUNA MORA EM `team_members` E NÃO EM `profiles`, E ISSO FOI MEDIDO:** `profiles` tem DUAS policies de SELECT, `own` e `is_gestor()`, então um colaborador lê **exatamente um perfil, o dele** — com a data ali, o calendário nasceria mostrando a quem não é gestão o próprio aniversário e os da gestão, e mais nada; `team_members_select` é `is_staff()` desde a 0002. **A VIEW NÃO É TOCADA, e é a linha que mais importa:** `calendar_events` é `security_invoker = true` desde a 0055 — repetida SEIS vezes —, então um `join` em `profiles` dentro dela devolveria a um colaborador **um aniversário, o próprio**, sem erro em lugar nenhum; e abrir `profiles` para `is_staff()` consertaria isso entregando a tabela de perfis da agência inteira às vinte telas que a leem. A origem é `aniversarios_do_periodo()`, `security definer` com `is_staff()` escrito à mão na porta — a forma de `usuarios_do_meu_cliente()` e de `pecas_programadas()` —, **e o `.ics` veio de graça**, porque `montarIcs()` recebe `ItemDoCalendario[]`. **ISTO ROÇA NA 0105 e a diferença é dita:** aquela migration fechou o calendário porque ele tinha virado o segundo lugar onde se lê o que já se lê no módulo de origem, e um aniversário não tem módulo — não há segundo lugar. **O ANO NÃO SAI DA FUNÇÃO**, que devolve só o dia projetado: a idade fica na ficha, e a tela diz isso por extenso embaixo do campo. **O teto é do zod e o piso é do banco**, porque `current_date` não é immutable e o Postgres recusa a constraint; e **29/02 cai em 28/02** nos anos comuns, pelo `least()` da projeção — medido contra produção, com a janela de 28/12/2027 a 15/01/2028 devolvendo 10/01/**2028**, que é o cenário que o `generate_series` de um ano só perderia. **O chip não é botão**, e quem decide é `abreDetalhe()` no domínio: um aniversário não tem participante nem período, e `obterEvento()` procuraria em `events` um id que não está lá. **O rosa entrou porque não havia par livre** — os cinco estão tomados, `--danger` é erro e `--ferias` mandaria procurar um day off —, medido em **5,14:1 no claro e 6,16:1 no escuro**; ele não entra no grupo de daltonismo, porque o chip carrega o nome. ***E a medição achou uma coisa que não é desta entrega:*** no tema escuro `--accent` e `--muted` resolvem para o MESMO valor (ΔE 0,0), então o chip dos Eventos Fullers e o de Reunião têm o mesmo chão — **não foi tocado**, porque consertar é mexer na cor que a 0109 escolheu por decisão do usuário. **Duas coisas que só a imagem pegou:** a Ana caía dentro do "+ 3 mais" e o único chip rosa visível ficava sozinho numa célula vazia, provando que ele aparece e não que ele se distingue; e o campo novo da ficha saía vazio, onde um `<input type="date"` sem valor é idêntico ao que tem o vínculo quebrado. ***A bateria não foi rodada*** — não há Docker nem Postgres local neste ambiente —, e no lugar dela estão as dez medições contra o Postgres de produção em transações revertidas, com os dez cenários escritos no arquivo 26. |

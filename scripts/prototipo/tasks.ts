@@ -623,6 +623,17 @@ type SementeDeTask = {
   id: string;
   client_id: string;
   cliente: { id: string; nome_empresa: string };
+  /**
+   * A COMPETÊNCIA, quando esta demanda é um MÊS DE SOCIAL — `AAAA-MM-01`,
+   * como a coluna `tasks.social_do_mes` desde a 0061.
+   *
+   * É ela que dá endereço à porta do Social Media na linha: com nulo,
+   * `destinoDaEtapa()` devolve nulo e a pílula não é desenhada — então sem
+   * esta semente a entrega do sprint não sai em imagem nenhuma. É a lição da
+   * duplicata do Cronograma: um ambiente de exemplo que mostra o produto num
+   * estado que ele não tem esconde uma classe inteira de bug.
+   */
+  social_do_mes?: string;
   titulo: string;
   prioridade: TaskDaLista["prioridade"];
   status: TaskDaLista["status"];
@@ -718,6 +729,10 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     id: "88888888-8888-8888-8888-888888888888",
     client_id: ALFA.id,
     cliente: ALFA,
+    // O DIA 1, como a coluna de verdade. É ele mais o cliente que montam o
+    // endereço do mês — `?aba=social&mes=2026-10&cliente=…` —, que é o par do
+    // índice único da 0061 e exatamente o que o módulo abre.
+    social_do_mes: "2026-10-01",
     titulo: "Social · Outubro/2026 de Mundo Verde",
     prioridade: "normal",
     status: "em_andamento",
@@ -766,6 +781,10 @@ function montarTask(semente: SementeDeTask): TaskDaLista {
     // banco e o caso comum. Quem mostra o `false` e a lista de recorrencias,
     // onde o selo decide algo -- aqui ele nao e desenhado em lugar nenhum.
     conta_no_resumo: true,
+    // A COMPETÊNCIA VEM DA SEMENTE, e sobrescreve o nulo de `BASE`: ela é o
+    // que dá endereço à porta do Social Media na linha. Nem toda demanda tem,
+    // e é o certo — uma demanda comum não é mês de social nenhum.
+    social_do_mes: semente.social_do_mes ?? null,
     arquivada_em: null,
   social_flow_id: null,
   // No protótipo nenhum mês de social é montado por aqui, então o mês nunca

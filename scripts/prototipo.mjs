@@ -367,7 +367,21 @@ const TELAS = [
   // da ok. Substring presente em algum lugar nao e botao presente na rota --
   // quem prova isso e a rodada.
   { nome: "35-minhas-tasks-detalhe", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'button:has-text("Revisar o texto do manual")' },
+  // O PAINEL ABERTO NUMA ETAPA DE SOCIAL, e ele é a porta das outras DUAS
+  // visões: no board o cartão tem uns 171px e no calendário a célula tem menos
+  // ainda — não há onde caber a pílula que a Lista carrega, então ali a porta
+  // da área é este botão. Sem esta imagem a entrega sai conferida pela metade:
+  // a `35` abre uma DEMANDA comum, que é justamente a que não tem porta.
+  { nome: "35b-minhas-tasks-painel-social", rota: "/painel/minhas-tasks", largura: 1600, altura: 1200, role: "socio", clicar: 'button:has-text("Pauta")' },
   { nome: "36-minhas-tasks-atendimento", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador" },
+  // O MESMO PAINEL PARA QUEM NÃO É GESTÃO, e é a metade da AUSÊNCIA: o botão
+  // "Abrir em página inteira" leva a `/painel/gestao-tasks/{id}`, que é
+  // `GESTAO` — a Carla clicava e lia *"Seu perfil não permite esta ação"*.
+  // Com a `35b` ao lado, as duas provam que ele some por PERFIL e não por
+  // engano: medindo só a presença, uma guarda que nunca barrasse passaria;
+  // medindo só a ausência, passaria um painel que parou de desenhá-lo para
+  // todo mundo.
+  { nome: "36b-minhas-tasks-painel-colaborador", rota: "/painel/minhas-tasks", largura: 1600, altura: 1100, role: "colaborador", clicar: 'button:has-text("Impressão")' },
   { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
   { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button:has-text("Concluir")' },
 

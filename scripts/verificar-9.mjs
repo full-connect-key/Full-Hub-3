@@ -210,6 +210,21 @@ const POR_PERFIL = [
     porque:
       "a trilha copia o trecho que mudou do Financeiro, e quem lê o log lê o Financeiro",
   },
+  {
+    // O PAINEL LATERAL DA TASK leva a `/painel/gestao-tasks/{id}`, que é
+    // `GESTAO` em `lib/auth/permissions.ts` — e `souGestor`, que decide se o
+    // botão existe, é a MESMA pergunta (`is_gestor()`) e não uma parecida.
+    //
+    // Sem a guarda, o colaborador — a pessoa para quem Minhas Tasks existe —
+    // clicava e lia *"Seu perfil não permite esta ação"*. O botão SOME em vez
+    // de aparecer desligado porque a razão não é um passo que falta: é uma
+    // porta que não é dela, e o painel já mostra a demanda inteira.
+    frase: "Abrir em página inteira",
+    tem: "35b-minhas-tasks-painel-social",
+    naoTem: "36b-minhas-tasks-painel-colaborador",
+    porque:
+      "`/painel/gestao-tasks/{id}` é GESTAO, e o botão levava o colaborador a um 403",
+  },
 ];
 
 /**
@@ -234,8 +249,9 @@ const POR_PERFIL = [
  * devem ficar dentro de minhas tasks para diminuir a quantidade de itens"*. As
  * duas rotas continuam de pé (`hiddenFromMenu` em `lib/auth/permissions.ts`,
  * não linha apagada, senão `canAccess` deixaria de conhecê-las e a rota
- * devolveria 403), e a porta passou a ser a faixa das três áreas em Minhas
- * Tasks.
+ * devolveria 403), e a porta passou a ser Minhas Tasks — a faixa das três
+ * áreas no cabeçalho, até que o usuário a tirasse, e desde então a PÍLULA de
+ * cada linha, que leva ao mês de social ou à campanha daquela etapa.
  *
  * **E É DE MÃO DUPLA COM `A_PORTA`, que é a metade que falta.** Sem ela, a
  * checagem de ausência passaria no dia em que a faixa de Minhas Tasks
@@ -315,11 +331,54 @@ const NA_BARRA = [
   },
 ];
 
+/**
+ * A PORTA DAS ÁREAS, e ela passou a ser medida pelo ENDEREÇO.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA ERA A FAIXA DE TRÊS CHIPS no cabeçalho de Minhas Tasks**, e esta
+ * checagem procurava os três NOMES no texto renderizado. A faixa saiu, por
+ * decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e
+ * social, quero que elas sejam acessadas por meio das tasks em si, quando a
+ * pessoa é marcada em um task de algum desses tipos, ela tenha acesso a
+ * página referente"*.
+ *
+ * **O QUE ELA PROTEGE NÃO MUDOU:** Social Media e Campanhas saíram da barra
+ * lateral porque a porta passou a existir nesta tela, e tirar um item de menu
+ * de um módulo que não aparece em mais lugar nenhum é esconder o módulo. Esta
+ * é a metade positiva da checagem de ausência da barra — sem ela, as duas
+ * sumiriam do produto em silêncio no dia em que a porta quebrasse.
+ *
+ * ---------------------------------------------------------------------------
+ * **AGORA ELA MEDE O `href` E NÃO A PALAVRA, e a diferença é o que ela prova.**
+ * A pílula de cada linha escreve o nome do módulo, e uma pílula que deixasse
+ * de ser link — um `<span>` por engano, um `destinoDaEtapa()` devolvendo nulo
+ * — continuaria com a palavra na tela: a checagem passaria sobre uma porta que
+ * não abre. O endereço é a porta.
+ *
+ * E ele é medido no HTML CRU e não no texto, que é a única coisa que esta
+ * checagem lê de lá: `textoDe()` existe justamente para comentário e atributo
+ * não contarem, e um `href` é atributo.
+ *
+ * **"Demandas" SAIU DA LISTA, de propósito.** `ROTA_DA_AREA.demandas` devolve
+ * nulo desde que os chips saíram, porque `/painel/gestao-tasks` é `GESTAO` e o
+ * colaborador — a pessoa para quem esta tela existe — levava **403** clicando
+ * ali. Exigir a porta dela aqui seria exigir de volta o 403. Não existe módulo
+ * "minhas demandas" ao lado desta tela: Minhas Tasks é ele.
+ * ---------------------------------------------------------------------------
+ */
 const A_PORTA = {
   tela: "30-minhas-tasks-lista",
-  nomes: ["Demandas", "Campanhas", "Social Media"],
+  // O NOME que a pessoa lê, no texto renderizado.
+  nomes: ["Campanhas", "Social Media"],
+  // O ENDEREÇO, procurado como `href="<isto>` no HTML cru. Prefixo e não URL
+  // inteira: o id da campanha e a competência do mês são do exemplo, e
+  // prendê-los aqui faria esta checagem reprovar no dia em que alguém trocasse
+  // uma semente. O `?aba=social&mes=` é o que separa a PÍLULA DA LINHA — que
+  // leva ao mês daquela etapa — do chip da faixa de novidades, que leva ao
+  // índice do módulo: sem ele, a checagem passaria com a porta da linha morta.
+  enderecos: ["/painel/aprovacoes/campanhas/", "/painel/social-media?aba=social&mes="],
   porque:
-    "a faixa das três áreas é a porta que substituiu as duas entradas da barra; sem os nomes nela, o módulo sumiu do produto",
+    "a porta de cada área mora na LINHA desde que os três chips saíram do cabeçalho; sem ela, Social Media e Campanhas não estão na barra nem em lugar nenhum",
 };
 
 /**
@@ -693,16 +752,40 @@ for (const { tela, tem, naoTem, porque } of NA_BARRA) {
   }
 }
 
+// O HTML ESCAPA O `&` COMO `&amp;`, e sem desfazer isso a checagem reprova
+// um endereço que está certo: foi o que aconteceu na primeira rodada. É a
+// mesma classe do `grep -i` que dobrava acento pelo locale — uma checagem cujo
+// trabalho é afirmar que um texto existe não pode falhar pela forma em que ele
+// foi serializado.
+const cruDaPorta = (
+  await readFile(path.join(DUMPS, `${A_PORTA.tela}.html`), "utf8")
+).replaceAll("&amp;", "&");
+
 const daPorta = A_PORTA.nomes.filter(
   (nome) => !apareceInteira(textos.get(A_PORTA.tela) ?? "", nome),
 );
+// `href="` NA FRENTE, e não o endereço solto — foi o teste de mutação que
+// cobrou: trocando o `href` da pílula por um `data-*`, o ENDEREÇO continuava
+// no HTML e a checagem passava sobre uma porta que não abre. Ela afirmava que
+// a string existe, não que ela é um link.
+const semEndereco = A_PORTA.enderecos.filter(
+  (e) => !cruDaPorta.includes(`href="${e}`),
+);
 
-if (daPorta.length > 0) {
+if (daPorta.length > 0 || semEndereco.length > 0) {
+  const faltas = [
+    ...daPorta.map((n) => `o nome ${n}`),
+    ...semEndereco.map((e) => `o endereço ${e}`),
+  ];
   problemas.push(
-    `${A_PORTA.tela} não nomeia ${daPorta.join(", ")} — ${A_PORTA.porque}`,
+    `${A_PORTA.tela} não tem ${faltas.join(", ")} — ${A_PORTA.porque}.\n` +
+      "          O nome sem o endereço é uma pílula que não abre; o endereço\n" +
+      "          sem o nome é um link que não diz para onde vai.",
   );
 } else {
-  certo(`${A_PORTA.tela} nomeia as três áreas`);
+  certo(
+    `${A_PORTA.tela}: ${A_PORTA.nomes.length} porta(s) de área, com nome e endereço`,
+  );
 }
 
 // ---------------------------------------------------------------------------

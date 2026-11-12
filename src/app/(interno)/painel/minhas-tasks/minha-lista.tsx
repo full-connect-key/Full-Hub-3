@@ -30,13 +30,13 @@ import { cn } from "@/lib/utils";
 
 import type { Prazos } from "@/lib/dados/minhas-tasks";
 
-import { ICONE_DA_AREA, STATUS_EM_ORDEM, type LinhaPessoal } from "./linhas";
-
-/** O selo da peça usa o ÍCONE DA ÁREA, e não um desenho escolhido aqui: ele
- *  aponta para a campanha, que é a área cujo cabeçalho está duas linhas acima.
- *  Dois desenhos na mesma tela para a mesma coisa é o que este mapa saiu de
- *  três lugares para evitar. */
-const IconeDaCampanha = ICONE_DA_AREA.campanhas;
+import {
+  ICONE_DA_AREA,
+  STATUS_EM_ORDEM,
+  areaDaLinha,
+  destinoDaEtapa,
+  type LinhaPessoal,
+} from "./linhas";
 
 /**
  * Lista de Minhas Tasks — uma linha por ETAPA minha.
@@ -249,6 +249,13 @@ function LinhaDaLista({
   );
   const cliqueNaLinha = useCliqueNoCartao(() => aoAbrir(linha.taskId));
 
+  // A PORTA DA ÁREA, e o ÍCONE SAI DO MESMO MAPA que o chip da busca global e
+  // o cabeçalho de área usam: um segundo desenho para a mesma área é a
+  // divergência que `ICONE_DA_AREA` nasceu para desfazer, depois de três
+  // cópias das quais duas já tinham divergido.
+  const destino = destinoDaEtapa(linha);
+  const IconeDaArea = ICONE_DA_AREA[areaDaLinha(linha)];
+
   return (
     <LinhaDeTrabalho
       /* O CARTÃO INTEIRO ABRE A DEMANDA. O nome continua sendo o botão
@@ -348,33 +355,51 @@ function LinhaDaLista({
                   · {linha.demanda.minhas} etapas minhas aqui
                 </span>
               ) : null}
-              {/* O SELO DA CAMPANHA, e ele é um LINK para onde o arquivo
-                        sobe (0051 + Sprint das Campanhas).
+              {/* A PORTA DA ÁREA, e ela é um LINK para o módulo em que a
+                        peça vive.
 
-                        A peça de campanha já era uma etapa minha — abrir a
-                        campanha cria a demanda com uma etapa por entregável —, e
-                        o que faltava era o caminho de volta: clicar na linha abre
-                        a DEMANDA, e o PDF da lâmina sobe em
-                        `/painel/aprovacoes/campanhas/{id}`. Sem o selo, quem
-                        produz lia "Lâmina A5" e caía numa tela sem lugar para o
-                        arquivo.
+                        **ERA SÓ DA CAMPANHA, e a decisão do usuário a abriu
+                        para as três:** *"quando a pessoa é marcada em um task
+                        de algum desses tipos, ela tenha acesso a página
+                        referente"*. A fase de social não tinha porta nenhuma —
+                        quem tinha o Layout de outubro da Mundo Verde lia a
+                        linha e não tinha para onde clicar —, e a demanda comum
+                        não tem módulo ao lado desta tela, então `demandas`
+                        devolve nulo e nada é desenhado.
+
+                        **O RÓTULO PASSOU A SER O MÓDULO, e isto desfaz meia
+                        decisão minha.** Ele era o NOME da campanha, com o
+                        argumento de que *"'Campanha' repetia o cabeçalho cinco
+                        vezes sem informar nada"* — verdadeiro enquanto havia a
+                        seção Campanhas, e vencido por `abrir_campanha()`
+                        (0051), que dá à demanda o título `p_nome`: o nome da
+                        campanha está escrito na linhagem, à ESQUERDA desta
+                        pílula, a dois centímetros. O que a pílula não dizia é
+                        para onde ela leva. O nome continua no `title`.
 
                         `stopPropagation` porque a linha inteira abre o painel
-                        lateral: sem ele o clique no selo abriria os dois. */}
-              {sub.campanha ? (
+                        lateral: sem ele o clique na pílula abriria os dois. */}
+              {destino ? (
                 <Link
-                  href={`/painel/aprovacoes/campanhas/${sub.campanha.id}`}
+                  href={destino.href}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-blue-soft text-accent-strong ms-1 inline-flex min-w-0 max-w-[14rem] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-                  title={`Peça da campanha ${sub.campanha.nome} — abre onde o material sobe`}
+                  /* SEM `truncate` E SEM TETO DE LARGURA, e eles saíram com o
+                     rótulo antigo: ele era o NOME da campanha, que é texto de
+                     alguém e podia ter qualquer tamanho. Hoje `destino.rotulo`
+                     vem de uma lista de DOIS literais — "Campanhas" e "Social
+                     Media" —, então o corte nunca dispara, e um guarda que
+                     nenhum caminho alcança é o que alguém reaproveita depois
+                     achando que ele decide alguma coisa.
+
+                     `shrink-0` FICA, e ele é o que faz a diferença em 375px:
+                     dentro do `flex-wrap` da linhagem, sem ele a pílula se
+                     espremeria até "Social Me" em vez de descer inteira para
+                     a linha de baixo. */
+                  className="bg-blue-soft text-accent-strong ms-1 inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                  title={destino.titulo}
                 >
-                  <IconeDaCampanha aria-hidden className="size-3 shrink-0" />
-                  {/* O SELO DIZ QUAL CAMPANHA, e não a palavra "Campanha".
-                            Dentro da seção Campanhas ele repetiria o cabeçalho
-                            cinco vezes sem informar nada; o nome diz de qual peça
-                            é esta etapa — que é a pergunta de quem tem três
-                            campanhas correndo. */}
-                  <span className="truncate">{sub.campanha.nome}</span>
+                  <IconeDaArea aria-hidden className="size-3" />
+                  {destino.rotulo}
                 </Link>
               ) : null}
             </p>

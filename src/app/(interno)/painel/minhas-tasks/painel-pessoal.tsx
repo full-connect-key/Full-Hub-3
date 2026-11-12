@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ArrowRight, CalendarDays, Clock, type LucideIcon } from "lucide-react";
@@ -23,13 +22,7 @@ import { cn } from "@/lib/utils";
 
 import { CalendarioDeTasks } from "../gestao-tasks/calendario";
 import { BoardDeEtapas } from "./board-de-etapas";
-import {
-  ICONE_DA_AREA,
-  ROTA_DA_AREA,
-  ROTULOS_DE_AREA,
-  areaDaLinha,
-  type LinhaPessoal,
-} from "./linhas";
+import { destinoDaEtapa, type LinhaPessoal } from "./linhas";
 import { Novidades } from "./novidades";
 import { MeuDia } from "./meu-dia";
 import { MinhaLista } from "./minha-lista";
@@ -130,6 +123,14 @@ export function PainelPessoal({
 
   const [taskAberta, setTaskAberta] = useState<string | null>(null);
 
+  // DERIVADO e não guardado, que é a regra desta casa: o destino é uma função
+  // da task aberta, e um segundo estado ao lado dela seria a segunda verdade
+  // sobre para onde o painel leva.
+  const linhaAberta = taskAberta
+    ? linhas.find((l) => l.taskId === taskAberta)
+    : undefined;
+  const destinoDaTaskAberta = linhaAberta ? destinoDaEtapa(linhaAberta) : null;
+
   function navegar(mudancas: Record<string, string | null>) {
     const proximos = new URLSearchParams(parametros.toString());
     for (const [chave, valor] of Object.entries(mudancas)) {
@@ -218,69 +219,38 @@ export function PainelPessoal({
         }
       />
 
-      {/* AS TRÊS ÁREAS, COM CONTAGEM, MESMO QUANDO UMA DELAS ESTÁ EM ZERO.
-          ---------------------------------------------------------------
-          Decisão do usuário: *"Social Media e Campanhas ainda não está dentro
-          de Minhas Tasks"*. Elas estavam — a peça de campanha é uma subtarefa
-          desde a 0051 e a etapa de social desde a 0088 —, mas as duas só
-          apareciam QUANDO havia trabalho nelas. Quem abre a tela procurando a
-          área pelo nome, e não tem nada lá naquele dia, conclui que ela não
-          existe aqui.
+      {/* OS TRÊS CHIPS SAÍRAM, e a porta foi para a LINHA.
+          -------------------------------------------------
+          Decisão do usuário: *"tire os botoes do cabeçalho de demandas,
+          campanhas e social, quero que elas sejam acessadas por meio das
+          tasks em si, quando a pessoa é marcada em um task de algum desses
+          tipos, ela tenha acesso a página referente"*.
 
-          **AS TRÊS CONTAGENS SAEM DE `areaDaLinha()` AGORA**, e isso é a 0088
-          aparecendo na tela: até ela o Social contava de `etapasDeSocial`,
-          uma consulta própria, porque a corrente era de `post_etapas` e não
-          cabia na lista. Com a etapa sendo do mês ela é uma subtarefa comum e
-          entra na mesma lista — então o número é a mesma soma dos outros dois,
-          sobre as mesmas linhas, e não há segundo lugar onde ele possa
-          divergir.
+          **A FAIXA EXISTIA PARA RESPONDER OUTRA PERGUNTA, e ela estava certa
+          no dia em que nasceu:** Social Media e Campanhas tinham acabado de
+          sair da barra lateral, e *"tirar um item de menu de um módulo que não
+          aparece em mais lugar nenhum não é enxugar a barra, é esconder o
+          módulo"* — então a faixa nomeava as três áreas, com contagem e
+          inclusive no zero, para dizer que elas existem aqui.
 
-          Por isso esta faixa mostra o ZERO, ao contrário do selo de contagem
-          da fila de aprovações, onde a ausência é a resposta. As duas regras
-          não brigam: lá o selo COBRA uma ação, e um zero cobraria nada; aqui
-          a linha RESPONDE onde o meu trabalho está, e "nenhum" é resposta.
+          **O QUE ELA NÃO RESPONDIA é a pergunta de quem está olhando uma
+          linha:** *esta etapa, de que mês é? de que campanha?* Quem tem a
+          fase de Layout de outubro da Mundo Verde clicava em "Social Media" e
+          caía no ÍNDICE do módulo, para procurar de novo a conta e o mês que a
+          linha já sabia. Hoje o endereço é da linha, por `destinoDaEtapa()`.
 
-          Cada chip é um link para a área inteira — não um filtro: a Lista já
-          separa por área logo abaixo, e um filtro seria um segundo jeito de
-          fazer a mesma coisa, com a URL para manter em dia. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            [
-              "demandas",
-              linhas.filter((l) => areaDaLinha(l) === "demandas").length,
-            ],
-            [
-              "campanhas",
-              linhas.filter((l) => areaDaLinha(l) === "campanhas").length,
-            ],
-            [
-              "social",
-              linhas.filter((l) => areaDaLinha(l) === "social").length,
-            ],
-          ] as const
-        ).map(([area, quantas]) => {
-          const Icone = ICONE_DA_AREA[area];
-          return (
-            <Link
-              key={area}
-              href={ROTA_DA_AREA[area]}
-              className={cn(
-                // `bg-card` pela razão do bloco "Meu dia": sem fundo, o chip
-                // é a página com uma borda, e três deles em fila leem como
-                // uma faixa cinza. Com fundo, eles leem como três botões.
-                "bg-card inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
-                "hover:bg-accent",
-                quantas === 0 && "text-muted-foreground",
-              )}
-            >
-              <Icone aria-hidden className="size-3.5" />
-              {ROTULOS_DE_AREA[area]}
-              <span className="tabular-nums font-medium">{quantas}</span>
-            </Link>
-          );
-        })}
-      </div>
+          **E O CHIP DE DEMANDAS LEVAVA 403**, que é o conserto embutido nesta
+          remoção: ele apontava para `/painel/gestao-tasks`, que é `GESTAO`, e
+          o colaborador — a pessoa para quem esta tela existe — clicava e lia
+          *"Seu perfil não permite esta ação"*. A razão está escrita em
+          `ROTA_DA_AREA`, que hoje devolve nulo para ela.
+
+          *O que se perde, e é dito em vez de escondido:* o ZERO. A faixa
+          dizia "Campanhas 0" nos dias em que não havia peça nenhuma, e era
+          essa linha que afirmava que a área existe mesmo vazia. Quem continua
+          nomeando as três é a faixa de novidades logo abaixo — que aparece
+          quando chega trabalho novo, que é literalmente o caso que o usuário
+          descreve — e o cabeçalho de área da Lista. */}
 
       {/* A FAIXA FICA ACIMA DE "MEU DIA", e é o único lugar em que ela cabe:
           ela diz que chegou trabalho que ainda NÃO está em nenhuma das listas
@@ -501,8 +471,18 @@ export function PainelPessoal({
         </aside>
       </div>
 
+      {/* A PORTA DA ÁREA DESCE PARA O PAINEL, e ela é calculada AQUI:
+          `linhas` está em mãos, e perguntar lá dentro seria uma consulta a
+          mais por abertura para repetir o que esta tela já sabe.
+
+          **A LINHA TEM DE SER A DA TASK ABERTA, e não "a primeira que houver":**
+          o painel também abre do CALENDÁRIO, que mostra itens que não são
+          etapas minhas — e ali `find` não acha nada. Sem porta é a resposta
+          certa nesse caso; cair na primeira linha da lista mandaria a pessoa
+          para a campanha de outra demanda. */}
       <PainelLateralDaTask
         taskId={taskAberta}
+        destino={destinoDaTaskAberta}
         aoFechar={() => setTaskAberta(null)}
       />
     </div>

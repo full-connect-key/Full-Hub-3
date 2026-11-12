@@ -50,6 +50,19 @@ export type LinhaPessoal = {
      * "quem está com o resto?".
      */
     outros: Pessoa[];
+    /**
+     * O MÊS DE SOCIAL que esta demanda é, quando ela é um.
+     *
+     * `tasks.social_do_mes` é o que diz isso desde a 0061, e o par com o
+     * cliente é o índice único de lá — então ele endereça UM mês de UMA
+     * conta, que é exatamente o que o Social Media abre.
+     *
+     * **Vem da DEMANDA e não da etapa**, ao contrário de `subtarefa.campanha`:
+     * a fase é do mês inteiro desde a 0088, e `social_papel` diz que a etapa é
+     * uma fase mas não de qual mês. Nulo quando falta o cliente — sem ele não
+     * há endereço, e um link quebrado é pior que link nenhum.
+     */
+    social: { clienteId: string; mes: string } | null;
   };
   subtarefa: MinhaSubtarefa;
 };
@@ -94,6 +107,10 @@ export function montarLinhas(tasks: MinhaTask[]): LinhaPessoal[] {
           total: task.subtarefasTotal,
           minhas: task.minhasSubtarefas.length,
           outros: quemMaisEstaNa(task.outrasSubtarefas),
+          social:
+            task.social_do_mes && task.cliente
+              ? { clienteId: task.cliente.id, mes: task.social_do_mes.slice(0, 7) }
+              : null,
         },
         subtarefa: sub,
       })),
@@ -132,12 +149,39 @@ export const ROTULOS_DE_AREA: Record<AreaDeTrabalho, string> = {
   social: "Social Media",
 };
 
-/** Para onde a seção manda quem quiser ver a área inteira. */
-export const ROTA_DA_AREA: Record<AreaDeTrabalho, string> = {
-  demandas: "/painel/gestao-tasks",
+/**
+ * O MÓDULO DE CADA ÁREA, quando ele existe — e o de demandas NÃO existe.
+ *
+ * ---------------------------------------------------------------------------
+ * **`demandas` É NULO, e isso é um conserto.** Ele apontava para
+ * `/painel/gestao-tasks`, que é `GESTAO` em `lib/auth/permissions.ts` desde
+ * sempre: o colaborador — a pessoa para quem Minhas Tasks existe — clicava e
+ * levava **403**. A rota não tem como ser outra, porque não existe um módulo
+ * "minhas demandas" ao lado desta tela: Minhas Tasks É ele.
+ *
+ * E não há o que perder: a novidade de uma demanda sempre vira LINHA nesta
+ * mesma tela, porque ela tem responsável — é por isso que ela é novidade. As
+ * outras duas podem não estar na lista ainda (o post que a gestão acabou de
+ * liberar não tem prazo próprio, e a peça de campanha só vira linha depois de
+ * alguém abrir a demanda), e é por isso que elas continuam levando ao módulo.
+ * ---------------------------------------------------------------------------
+ * **É `as const satisfies` E NÃO UM `Record` DECLARADO**, e isso não é
+ * preciosismo de tipo: com `Record<AreaDeTrabalho, string | null>` a resposta
+ * de `ROTA_DA_AREA.social` passaria a ser `string | null`, e todo leitor
+ * ganharia um ramo "e se não houver rota" que **nenhum caminho produz** — a
+ * faixa de novidades só conhece `social` e `campanhas`, as duas com endereço.
+ * Um ramo que nada alcança é o que alguém reaproveita três sprints depois
+ * achando que ele decide alguma coisa.
+ *
+ * O `satisfies` é a outra metade: ele mantém a cobertura do enum, então uma
+ * quarta área obriga uma linha aqui em vez de sumir sem erro.
+ * ---------------------------------------------------------------------------
+ */
+export const ROTA_DA_AREA = {
+  demandas: null,
   campanhas: "/painel/aprovacoes",
   social: "/painel/social-media",
-};
+} as const satisfies Record<AreaDeTrabalho, string | null>;
 
 /**
  * O ÍCONE DE CADA ÁREA, e ele mora aqui pela razão de `FUNCOES`.
@@ -197,6 +241,73 @@ export function areaDaLinha(linha: LinhaPessoal): AreaDeTrabalho {
 
 export function ehArea(valor: string | undefined): valor is AreaDeTrabalho {
   return Boolean(valor) && (AREAS as readonly string[]).includes(valor as string);
+}
+
+/**
+ * A PORTA DA ÁREA, a partir da ETAPA — e é ela que substitui os três chips.
+ *
+ * Decisão do usuário: *"tire os botoes do cabeçalho de demandas, campanhas e
+ * social, quero que elas sejam acessadas por meio das tasks em si, quando a
+ * pessoa é marcada em um task de algum desses tipos, ela tenha acesso a
+ * página referente"*.
+ *
+ * ---------------------------------------------------------------------------
+ * **OS CHIPS ERAM TRÊS LINKS PARA O MÓDULO, e a faixa estava LÁ EM CIMA.** Ela
+ * respondia *"onde está o meu trabalho"* — com a contagem, inclusive no zero —,
+ * e a pergunta que ela não respondia é a que se faz olhando uma linha:
+ * **ESTA etapa, de que mês é? de que campanha?** Quem tinha a fase de Layout
+ * de outubro da Mundo Verde clicava em "Social Media" e caía no ÍNDICE do
+ * módulo, para procurar de novo a conta e o mês que a linha já sabia.
+ *
+ * **Agora o endereço é da LINHA**, e com ele a volta deixa de ser uma busca:
+ * a fase leva ao mês dela, a peça leva à campanha dela.
+ *
+ * ---------------------------------------------------------------------------
+ * **E `demandas` DEVOLVE NULO, que é um conserto e não uma omissão.** O chip
+ * apontava para `/painel/gestao-tasks`, que é `GESTAO`: o colaborador — a
+ * pessoa para quem Minhas Tasks existe — clicava e levava **403**. Não há
+ * endereço melhor, porque não existe módulo "minhas demandas" ao lado desta
+ * tela: **Minhas Tasks É ele**, e a demanda inteira já abre no painel lateral,
+ * que é a decisão escrita desta tela desde o Sprint 10.
+ *
+ * ---------------------------------------------------------------------------
+ * **O RÓTULO É O MÓDULO e não o nome do objeto**, e isto desfaz meia decisão
+ * minha: a pílula da campanha dizia o NOME dela, com o argumento de que
+ * *"'Campanha' repetia o cabeçalho cinco vezes sem informar nada"* — verdadeiro
+ * enquanto havia a seção Campanhas, e vencido por `abrir_campanha()` (0051),
+ * que dá à demanda o título `p_nome`, o nome da campanha. Ou seja: a linhagem
+ * logo acima JÁ escreve aquele nome, e a pílula o dizia de novo a dois
+ * centímetros. O que ela não dizia é PARA ONDE ela leva, que é o que mudou.
+ * ---------------------------------------------------------------------------
+ */
+export function destinoDaEtapa(
+  linha: LinhaPessoal,
+): { href: string; rotulo: string; titulo: string } | null {
+  const area = areaDaLinha(linha);
+
+  if (area === "social") {
+    // O MÊS E A CONTA, nunca o índice: `?aba=social` sem os dois abre a lista
+    // de contas, que é de onde a pessoa teria de procurar o mês outra vez.
+    const s = linha.demanda.social;
+    if (!s) return null;
+    return {
+      href: `/painel/social-media?aba=social&mes=${s.mes}&cliente=${s.clienteId}`,
+      rotulo: "Social Media",
+      titulo: `Abrir ${linha.demanda.titulo} no Social Media`,
+    };
+  }
+
+  if (area === "campanhas") {
+    const c = linha.subtarefa.campanha;
+    if (!c) return null;
+    return {
+      href: `/painel/aprovacoes/campanhas/${c.id}`,
+      rotulo: "Campanhas",
+      titulo: `Abrir a campanha ${c.nome}`,
+    };
+  }
+
+  return null;
 }
 
 /**

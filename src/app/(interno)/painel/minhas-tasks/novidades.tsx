@@ -72,9 +72,24 @@ export function Novidades({ novidades }: { novidades: NovidadeDeArea[] }) {
 
       <ul className="flex flex-wrap items-center gap-2">
         {novidades.map(({ area, ids }) => {
-          // O NOME, A ROTA E O ÍCONE VÊM DO MESMO MAPA DA FAIXA DE ÁREAS,
-          // dois blocos acima nesta tela. Esta faixa tinha os três copiados
-          // — e a cópia já tinha divergido no ícone do Social.
+          // O NOME, A ROTA E O ÍCONE VÊM DO MESMO MAPA DA FAIXA DE ÁREAS que
+          // esta tela tinha no cabeçalho. Ela saiu — a porta de cada área
+          // passou a ser a pílula de cada linha —, e o mapa fica: era ele que
+          // impedia esta faixa de ter a terceira cópia dos três, e a cópia já
+          // tinha divergido uma vez, no ícone do Social.
+          //
+          // **E AQUI O `href` NUNCA É NULO, pelo TIPO e não por sorte:**
+          // `NovidadeDeArea["area"]` é `"social" | "campanhas"` — nunca
+          // `demandas`, que é a única sem rota desde que os chips saíram
+          // (`/painel/gestao-tasks` é `GESTAO`, e o colaborador levava 403
+          // clicando ali). Um `if` para o nulo aqui seria um ramo que nenhum
+          // caminho alcança, e é por isso que `ROTA_DA_AREA` é
+          // `as const satisfies` em vez de um `Record` declarado.
+          //
+          // Nada se perde com `demandas` fora desta faixa: a novidade de uma
+          // demanda SEMPRE vira linha nesta mesma tela — ela tem responsável,
+          // e é por isso que ela é novidade. As outras duas podem ainda não
+          // estar na lista, que é a razão desta faixa existir.
           const rotulo = ROTULOS_DE_AREA[area];
           const href = ROTA_DA_AREA[area];
           const Icone = ICONE_DA_AREA[area];
