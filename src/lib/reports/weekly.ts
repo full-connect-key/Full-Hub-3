@@ -119,12 +119,18 @@ export type ResumoDaAgencia = {
     social: number;
     campanha: number;
     /**
-     * Os anteriores à 0124.
+     * Os pedidos sem frente.
      *
-     * **Ele aparece com zero?** Não — a tela o esconde, porque num banco
-     * classificado ele é zero para sempre, e uma linha permanente dizendo
-     * "0 sem classificação" é a mesma linha com um número a mais. Pinta-se a
-     * exceção.
+     * **Eram os anteriores à 0124**, e desde a 0137 eles são também os que
+     * nasceram assim: a exigência da abertura saiu por decisão do usuário —
+     * *"não precisa ser social ou campanha necessariamente"* —, e o nulo
+     * passou a ser um estado que a tela do portal oferece. Quem classifica, aí,
+     * é o Atendimento, pela ação que a 0124 criou para o pedido antigo.
+     *
+     * **Ele aparece com zero?** Não — a tela o esconde, e a razão mudou de
+     * lado: ela era *"num banco classificado ele é zero para sempre"*, e hoje
+     * é o contrário — ele quase sempre tem alguém, e esconder serve para a
+     * semana em que não tiver.
      */
     semClassificacao: number;
     lista: PedidoDoResumo[];

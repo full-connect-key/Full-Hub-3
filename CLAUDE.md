@@ -10198,20 +10198,19 @@ convite a trocar o que o cliente declarou.
 cliente, porque o trigger recusa a linha que tem as duas coisas — a recusa
 chegaria como um clique que não faz nada.
 
-##### Na abertura, a ordem é conta → vertente → frente → campanha
+##### Na abertura, os cartões e o que cada um decide
 
-É a ordem da decisão, e é a do seletor da tela de task (0118): de qual conta,
-de qual parte dela, de que frente, e só então de qual campanha. **A frente vem
-antes do tipo de trabalho**, porque as duas perguntas não são a mesma — o tipo é
-o roteiro de briefing, a frente é quem produz.
-
-**SÃO DOIS CARTÕES E NÃO UM `<Select>`**, pela razão do seletor de redes do
-social: a frase que explica cada lado é o que faz a escolha não ser palpite, e
-num `<Select>` ela ficaria escondida atrás de um clique — justamente o clique
-da decisão. **E a frente nasce vazia**, nunca em "Social": a opção pré-marcada
-é a que ninguém lê, e o relatório passaria a somar o padrão em vez da resposta.
+**SÃO CARTÕES E NÃO UM `<Select>`**, pela razão do seletor de redes do social:
+a frase que explica cada lado é o que faz a escolha não ser palpite, e num
+`<Select>` ela ficaria escondida atrás de um clique — justamente o clique da
+decisão. **E a frente nasce vazia**, nunca em "Social": a opção pré-marcada é a
+que ninguém lê, e o relatório passaria a somar o padrão em vez da resposta.
 Menos quando o pedido nasce DENTRO de uma campanha, onde a resposta já está
 dada e o trigger recusaria qualquer outra.
+
+**A frente e o tipo de trabalho são duas perguntas e não uma** — o tipo é o
+roteiro de briefing, a frente é quem produz. A ORDEM delas na tela mudou na
+0137, e o que está escrito sobre ela está logo abaixo.
 
 **O campo da campanha só existe na frente Campanha**, e quando a conta não tem
 nenhuma aberta o que aparece é uma frase: o pedido chega antes de a campanha
@@ -10225,6 +10224,180 @@ do diff, não contagem. E **o seed deixou de ter pedido sem frente**: num banco
 novo o trigger recusa o insert sem ela, então os quatro nascem classificados, e
 quem mostra o estado "sem classificação" em imagem é o stub do protótipo — onde
 ele é o estado que a produção tem agora, numa linha anterior à migration.
+
+#### A CLASSIFICAÇÃO DEIXOU DE SER OBRIGATÓRIA, E O FORMULÁRIO MUDOU DE ORDEM (0137)
+
+Quatro decisões do usuário na mesma mensagem, e as quatro são sobre a mesma
+tela — a abertura de pedido no portal:
+
+> *"a nova solicitação dentro do portal do cliente não precisa ser social ou
+> campanha necessariamente, o cliente deve poder especificar o que ele quer sem
+> colocar em alguma categoria, podendo escrever caso ele queira"*
+>
+> *"Mude a frase Para a gente não precisar perguntar depois"*
+>
+> *"tire o texto abaixo que de que tipo de trabalho é, esses textinhos parecem
+> indiretas não são legais"*
+>
+> *"gere um novo layout no portal do cliente de nova solicitação, de maneira que
+> faça sentido e que fique o mais completo possível"*
+
+**É UMA REVERSÃO DECLARADA DA 0124, E ELA É DE UM RAMO SÓ.** Aquela migration
+nasceu de *"exigir a classificação como Social ou Campanha"*, do mesmo usuário,
+e escreveu o argumento no cabeçalho: *"'Nenhuma das duas' seria a terceira opção
+óbvia, e ela desfaz o pedido"*. O que sai de `client_requests_classificacao` é
+**um dos quatro ramos** — o que recusa o `insert` sem frente. A coluna, o enum,
+a coerência campanha→frente, a coerência vertente→conta, o índice, o chip da
+fila, a ação de classificar e o bloco do relatório ficam inteiros.
+
+**E A FRENTE CONTINUA SENDO UMA DECLARAÇÃO E NÃO UMA CONTA**, que é a linha
+central daquele cabeçalho: `campaign_id is not null ? "campanha" : "social"`
+continua errado, porque campanha nula não quer dizer social. **O que mudou é
+QUEM declara** — antes era sempre o cliente, na abertura; agora é o cliente OU o
+Atendimento, pela ação que a 0124 criou justamente para o pedido anterior a ela.
+O nulo deixou de ser só o pedido antigo e passou a ser um estado que a tela
+oferece.
+
+**OS RAMOS 2 E 3 FICAM, e as duas assimetrias são a decisão.** *"A frente não se
+esvazia depois"* continua valendo — abrir sem classificar é uma coisa, apagar a
+classificação de um pedido que já tem é outra, e é a segunda que o relatório não
+tem como perceber. E `is distinct from` alcança o nulo, então um pedido com o
+uuid de uma campanha e a frente em branco continua recusado: estar numa campanha
+É ser da frente Campanha.
+
+##### SÃO TRÊS CARTÕES, DOIS VALORES DE ENUM E QUATRO ESTADOS NA TELA
+
+O terceiro cartão — **"Não sei dizer"** — viaja como nulo. Um valor "nenhuma"
+no enum poria no relatório da agência uma terceira categoria onde o que existe é
+a ausência de categoria, e quebraria o `satisfies` da tupla do domínio contra o
+enum do banco.
+
+**E ELE É UM CARTÃO E NÃO UM CAMPO QUE SE PULA**, que é a decisão de *"Não é de
+nenhuma em especial"* no seletor de vertente: um formulário em que a
+classificação simplesmente não é cobrada deixa quem abre sem saber se esqueceu
+alguma coisa.
+
+**O QUARTO ESTADO É `null`, E FOI A IMAGEM QUE O EXIGIU.** Com um estado só, o
+terceiro cartão nascia MARCADO — ou seja, era o padrão, que é exatamente o que
+este arquivo repete que não se faz. São dois estados que viajam como o mesmo
+nulo e que a tela precisa distinguir: `null` é *não mexi nisso* e `"nenhuma"` é
+*não é nem um nem outro*.
+
+##### O TIPO DE TRABALHO DEIXOU DE VIR PRÉ-SELECIONADO
+
+Ele era `tipos[0]?.id` — *"Peça para redes"* vinha marcado —, e com ele vinham
+as duas perguntas obrigatórias daquele roteiro. **Todo pedido nascia
+classificado como peça para redes sem ninguém ter escolhido**, e quem queria
+outra coisa tinha de desfazer uma escolha que não fez.
+
+**E clicar no cartão escolhido o DESFAZ**, que é o que torna o tipo de verdade
+opcional: sem isso, quem clica por engano não tem como voltar ao estado sem tipo
+— e volta a ser cobrado pelas perguntas de um trabalho que não é o dele.
+
+***O que isso custa, e é dito em vez de escondido:*** sem um tipo escolhido não
+há roteiro de briefing, e o argumento da 0068 — *"um campo de texto livre
+chamado 'descreva o que você precisa' devolve 'uma arte pro insta', e a primeira
+mensagem da conversa é sempre a mesma pergunta"* — continua verdadeiro. Ele
+continua valendo para quem escolhe um tipo: as perguntas aparecem no instante da
+escolha. O que o produto deixou de fazer é COBRAR aquelas respostas de quem não
+quis classificar nada.
+
+##### A ORDEM INVERTEU: o que você precisa vem antes de onde isso entra
+
+O formulário começava pela CLASSIFICAÇÃO — empresa, vertente, Social ou
+Campanha, tipo de trabalho — e só no sexto campo perguntava o que a pessoa quer.
+**Essa é a ordem da AGÊNCIA**: são as quatro perguntas de que a fila precisa para
+encaminhar o pedido. A ordem de quem PEDE é a inversa: ela abriu o portal porque
+precisa de uma coisa, e a primeira tela do pedido tem de ser sobre essa coisa.
+
+São quatro seções numeradas, cada uma com uma pergunta:
+
+| | O que ela pergunta |
+| --- | --- |
+| **1. O que você precisa** | o nome, o texto livre e os anexos |
+| **2. Que tipo de trabalho é** | opcional, e é ela que acrescenta o roteiro |
+| **3. Onde isso entra** | empresa, vertente, Social/Campanha, campanha |
+| **4. Para quando** | a data desejada, com o que ela significa |
+
+**E SÃO NUMERADAS pela razão escrita em `SecaoDoFormulario`:** o número dá à
+conversa um jeito de apontar ("faltou a 3") sem descrever onde o campo fica na
+tela — e aqui a conversa com o Atendimento acontece na tela ao lado. É o
+terceiro consumidor daquele componente, depois do Nova Task e do Day Off.
+
+**O TEXTO LIVRE VIROU O CAMPO PRINCIPAL**, com `rows={5}`, e o rótulo deixou de
+ser *"Mais alguma coisa"* — aquele nome fazia dele o campo de sobra, o lugar do
+detalhe que não caiu em nenhuma pergunta. Com a classificação deixando de ser
+obrigatória, ele é onde o pedido inteiro pode morar, e o tamanho da caixa é o
+que diz isso sem uma frase de ajuda. É o *"podendo escrever caso ele queira"* do
+pedido.
+
+**E O ANEXO SUBIU PARA A SEÇÃO 1**, junto do texto: a referência é parte do que
+a pessoa quer, e não um apêndice do fim do formulário.
+
+**A SEÇÃO 4 É UMA SEÇÃO E NÃO O ÚLTIMO CAMPO DA TERCEIRA**, porque a pergunta é
+outra: as três de cima são sobre o trabalho, esta é sobre o calendário.
+Numerada, ela ganha o peso do campo que mais se interpreta errado — e a frase
+embaixo dele FICA, porque ela não descreve uma categoria nem cobra nada: ela
+impede um mal-entendido caro. *"Não é o prazo combinado"* é informação, e quem
+digita a data precisa dela ANTES de digitar.
+
+##### AS TRÊS FRASES QUE SAÍRAM, e as que ficaram
+
+| O que saiu | Por quê |
+| --- | --- |
+| *"Para a gente não precisar perguntar depois"* | explicava por que a AGÊNCIA quer as respostas, que é problema da agência |
+| as quatro `request_types.descricao` | *"Não se encaixa nos anteriores — conte o que você precisa"* é o caso que ele nomeou |
+| *"o que ajudar a gente a entender o que você quer"* | diz que o pedido não está claro, embaixo do botão de anexar |
+
+O título do roteiro virou **"Sobre este material"** — ele diz o que a seção é, e
+nada mais, no vocabulário que o portal já usa.
+
+**A `ajuda` DE CADA CAMPO FICA, e a diferença é o que ela faz:** *"Folder A5,
+banner de 2x1, cartão de visita…"* é um EXEMPLO do que cabe no campo, e sem ele
+a pessoa não sabe em que forma responder. O que saiu descrevia a categoria, que
+o nome do cartão já diz.
+
+***UMA DELAS NÃO ERA EXEMPLO, e ela saiu junto — o que não foi nomeado e é dito
+em vez de escondido.*** *"Em uma ou duas frases. O texto final é com a gente."*
+tem duas sentenças, e a segunda não diz o que cabe no campo: diz o que a pessoa
+não deve fazer. É a mesma coisa que ele nomeou, no mesmo bloco da mesma tela. O
+`update` da 0137 é cirúrgico e idempotente — só alcança a frase exata, só na
+linha que a tem, e não toca em `campos_json` que alguém já tenha editado, porque
+aquilo é conteúdo da agência e não schema.
+
+**A COLUNA `request_types.descricao` FICA SEM LEITOR**, carimbada. É a 0116 e não
+a 0023: aquela apaga uma coluna que continua sendo PERGUNTADA e não decide mais
+nada; esta não é perguntada em tela nenhuma — é texto de seed, e apagar
+destruiria o que está gravado por causa de um parágrafo que saiu do desenho.
+
+##### O QUE ISSO CUSTA NA FILA E NO RELATÓRIO
+
+**1. A fila do Atendimento passa a receber pedido sem classificação como caso
+NORMAL**, e o chip dele é âmbar — *"aí sim é exceção, e é a única das três que
+pede uma ação"*. Com a maioria chegando em branco, a maioria das linhas fica
+âmbar, que é o contrário da regra desta casa. **Fica âmbar assim mesmo**, e por
+uma razão: classificar É uma pendência de verdade — sem a frente, o relatório não
+soma o pedido e a conversão não sabe de que lado abrir o trabalho. A fila é
+exatamente a tela onde pendência se pinta, e ela já tem o chip de filtro
+*"Sem classificação"* desde a 0124.
+
+**2. O bloco "O que os clientes pediram" do Resumo da Agência** tem a linha
+*"sem classificação"* desenhada só quando existe, com o comentário dizendo que
+*"num banco classificado ele é zero para sempre"*. **Essa premissa caiu**: ela
+passa a ser uma linha comum. O código não muda — `> 0` continua certo —, e a
+razão de esconder trocou de lado: era *"ele é zero para sempre"*, e hoje é
+*"serve para a semana em que não tiver nenhum"*.
+
+***E uma tela entrou no protótipo por causa disto:*** `93d-portal-pedido-com-roteiro`
+clica num cartão de tipo, porque com o tipo nascendo vazio a `93` passou a
+fotografar o formulário SEM as perguntas — e sem esta tela a seção *"Sobre este
+material"*, que é o que a 0068 construiu, não sairia em imagem nenhuma. O clique
+é o que prova as duas metades: que ele não está lá por padrão, e que ele aparece.
+
+***E a bateria não foi rodada*** — não há Docker nem Postgres local neste
+ambiente. O cenário da 0124 que prova o ramo 1 é o que esta migration vira do
+avesso: *"tirar a exigência da frente no insert derruba 3"* passa a ser o
+contrário, e o insert sem frente tem de PASSAR.
 
 ### Portal do Cliente
 

@@ -895,7 +895,17 @@ from (
     -- de graca. Marcar o ultimo mandaria recolar o arquivo inteiro por causa
     -- de um comentario que falta.
     ('0136', 'o briefing volta a ser prosa', 'comentario',
-             'campaigns|objetivo|MORTA desde a 0136')
+             'campaigns|objetivo|MORTA desde a 0136'),
+
+    -- A 0137 TAMBEM NAO CRIA NADA: ela tira UM dos quatro ramos de
+    -- `client_requests_classificacao` -- o que exigia a frente na abertura --
+    -- e carimba duas colunas. O marcador e o comentario de
+    -- `client_requests.frente`, que e a ULTIMA coisa que o arquivo faz, e e
+    -- marcador por PRESENCA de proposito: `sem_no_corpo` com a frase da
+    -- recusa envelhece quando alguem ACRESCENTA, que e a armadilha que a
+    -- linha da 0060 pagou duas migrations depois.
+    ('0137', 'a classificacao deixa de ser obrigatoria', 'comentario',
+             'client_requests|frente|OPCIONAL desde a 0137')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

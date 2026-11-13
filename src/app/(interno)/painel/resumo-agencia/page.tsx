@@ -170,9 +170,14 @@ export default async function PaginaDoResumoDaAgencia({
           mesmo é o cartão de "11 entregues" com sete na lista embaixo, que
           este arquivo já pagou uma vez.
 
-          **E "sem classificação" só aparece quando existe**: num banco
-          classificado ele é zero para sempre, e a linha permanente dizendo
-          isso é a mesma linha com um número a mais. Pinta-se a exceção.
+          **E "sem classificação" só aparece quando existe.** O argumento
+          escrito aqui era que *num banco classificado ele é zero para
+          sempre*, e **essa premissa caiu com a 0137**: a frente deixou de ser
+          exigida na abertura por decisão do usuário, então o pedido sem
+          classificação virou um estado comum e esta linha passou a aparecer
+          toda semana. O `> 0` fica, e por outra razão: ele some quando não há
+          nenhum, que é a semana em que a frase seria a mesma linha com um
+          número a mais. Pinta-se a exceção — ela é que deixou de ser rara.
           ------------------------------------------------------------------ */}
       <section className="bg-surface-card rounded-card border p-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold">

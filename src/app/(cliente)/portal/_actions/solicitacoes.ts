@@ -64,7 +64,7 @@ const esquemaDoPedido = z.object({
    */
   campaign_id: z.string().uuid("Escolha uma campanha da lista.").optional().nullable(),
   /**
-   * A FRENTE É OBRIGATÓRIA, e a lista sai do domínio (0124).
+   * A FRENTE É OPCIONAL desde a 0137, e a lista sai do domínio (0124).
    *
    * `z.enum(FRENTES_DA_SOLICITACAO)` e nunca os dois valores escritos à mão
    * aqui: foi essa cópia que recusou o oitavo tipo de evento no clique, com
@@ -72,12 +72,18 @@ const esquemaDoPedido = z.object({
    * valor. A tupla do domínio é a única lista, e o `satisfies` dela trava
    * contra o enum do banco.
    *
-   * **E o obrigatório é daqui para a frente de propósito:** quem recusa de
-   * verdade é o trigger `client_requests_classificacao`, e esta linha existe
-   * para a recusa ser uma frase em português antes da ida ao Postgres — o par
-   * tela/banco que este produto mantém em toda regra que vive nos dois lados.
+   * **O `.nullable()` é a reversão da 0124**, por decisão do usuário: *"não
+   * precisa ser social ou campanha necessariamente"*. O enum continua com DOIS
+   * valores — a terceira opção da tela é a AUSÊNCIA de um deles, e ela viaja
+   * como nulo (`OPCAO_SEM_FRENTE`, no domínio). Um terceiro valor no enum poria
+   * no relatório uma categoria "nenhuma" onde o que existe é não ter categoria.
+   *
+   * **E o que o banco ainda recusa continua recusado:** `is distinct from` do
+   * ramo 3 alcança o nulo, então um pedido com campanha e sem frente é negado
+   * lá — estar numa campanha É ser da frente Campanha. A tela não oferece essa
+   * combinação; a trava é para quem monta a chamada à mão.
    */
-  frente: z.enum(FRENTES_DA_SOLICITACAO),
+  frente: z.enum(FRENTES_DA_SOLICITACAO).optional().nullable(),
   /**
    * A VERTENTE É OPCIONAL, E A COERÊNCIA É DO BANCO — como a campanha.
    *
@@ -141,7 +147,7 @@ export async function abrirSolicitacao(dados: unknown): Promise<Resultado<string
         client_id: entrada.client_id,
         request_type_id: entrada.request_type_id || null,
         campaign_id: entrada.campaign_id || null,
-        frente: entrada.frente,
+        frente: entrada.frente ?? null,
         vertente_id: entrada.vertente_id || null,
         titulo: entrada.titulo,
         descricao: entrada.descricao?.trim() || null,

@@ -1059,6 +1059,13 @@ const TELAS = [
   // que o campo "De que campanha e" aparece PREENCHIDO -- em `?novo=1` solto
   // ele nasce em "Nenhuma", e a imagem provaria so que o seletor existe.
   { nome: "93c-portal-pedido-na-campanha", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 1900, role: "cliente" },
+  // O ROTEIRO DE BRIEFING, que depois da 0137 so existe com um tipo ESCOLHIDO.
+  // Ele vinha pre-selecionado ate aqui, entao a `93` acima o mostrava de graca;
+  // com o tipo nascendo vazio, ela passou a fotografar o formulario SEM as
+  // perguntas -- e sem esta tela a secao "Sobre este material", que e o que a
+  // 0068 construiu, nao sairia em imagem nenhuma. O clique e o que prova as
+  // duas metades: que ele nao esta la por padrao, e que ele aparece.
+  { nome: "93d-portal-pedido-com-roteiro", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 2100, role: "cliente", clicar: '[role="radio"]:has-text("Peça para redes")' },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
   // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
   // telas: a de cima prova que o material aparece, a de baixo prova que o

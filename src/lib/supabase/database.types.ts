@@ -1168,14 +1168,21 @@ export interface Database {
           data_desejada?: string | null;
           campaign_id?: string | null;
           /**
-           * OBRIGATÓRIA, e não opcional como as outras.
+           * OPCIONAL desde a 0137, e ela já foi obrigatória.
            *
-           * `client_requests_classificacao` recusa o insert sem ela, e um `?`
-           * aqui faria a recusa chegar do banco em vez do compilador — que é a
-           * razão pela qual `tempo_medido_segundos` fica fora do Insert e esta
-           * fica dentro, exigida.
+           * O comentário que estava aqui dizia que `client_requests_classificacao`
+           * recusava o insert sem ela, *"e um `?` aqui faria a recusa chegar do
+           * banco em vez do compilador"*. Aquele ramo do gatilho saiu por
+           * decisão do usuário — *"não precisa ser social ou campanha
+           * necessariamente"* —, e manter o obrigatório aqui faria o compilador
+           * recusar o que o banco passou a aceitar.
+           *
+           * **E o nulo é EXPLÍCITO e não um `?`:** a terceira opção da tela é a
+           * ausência de frente, e ela viaja como `null` — um campo omitido e um
+           * campo nulo são a mesma coisa para o Postgres, e não são a mesma
+           * coisa para quem lê a chamada.
            */
-          frente: SolicitacaoFrente;
+          frente?: SolicitacaoFrente | null;
           vertente_id?: string | null;
         };
         Update: {

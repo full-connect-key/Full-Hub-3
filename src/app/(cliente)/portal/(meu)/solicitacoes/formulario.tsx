@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  CircleDashed,
   CircleHelp,
   Megaphone,
   Paperclip,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { abrirSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
+import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +32,7 @@ import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
 import {
   EXPLICACAO_DA_FRENTE,
   FRENTES_DA_SOLICITACAO,
+  OPCAO_SEM_FRENTE,
   ROTULOS_DE_FRENTE,
   camposDoRoteiro,
   respostasQueFaltam,
@@ -49,26 +52,77 @@ const TETO_DE_ARQUIVOS = 10;
 const ICONES = { Share2, Printer, Video, CircleHelp } as const;
 
 /**
+ * A ESCOLHA DE FRENTE TEM TRÊS VALORES E UM QUARTO ESTADO, e a diferença entre
+ * os dois últimos é o que faz o terceiro cartão existir.
+ *
+ * `"social"` e `"campanha"` são o enum do banco. `"nenhuma"` é o terceiro
+ * cartão — a pessoa DIZ que não é nem um nem outro —, e `null` é não ter
+ * tocado em nada. **Os dois viajam como nulo**, então para o banco eles são a
+ * mesma linha; para a TELA não são: com um estado só, o terceiro cartão
+ * nasceria marcado, e *a opção pré-marcada é a que ninguém lê*. Um cartão que
+ * já vem escolhido não diz nada sobre quem o escolheu.
+ */
+type EscolhaDeFrente = SolicitacaoFrente | "nenhuma";
+
+/**
+ * As três opções, na ordem em que elas aparecem.
+ *
+ * **O tipo é escrito e não inferido**, porque `[...FRENTES_DA_SOLICITACAO,
+ * "nenhuma"]` infere `string[]` — e aí o terceiro deixaria de ser
+ * distinguível de um valor de enum torto, que é o que a tupla do domínio
+ * existe para travar. Com a anotação, acrescentar um valor ao enum do banco
+ * acrescenta um cartão aqui sem uma linha de mudança, e um valor inventado não
+ * compila.
+ */
+const OPCOES_DE_FRENTE: EscolhaDeFrente[] = [
+  ...FRENTES_DA_SOLICITACAO,
+  "nenhuma",
+];
+
+/**
  * O formulário de um pedido novo.
  *
  * ---------------------------------------------------------------------------
- * **O TIPO VEM PRIMEIRO, E ELE MUDA O RESTO DA TELA.**
+ * **A ORDEM É O QUE MAIS MUDOU, e ela é a resposta a *"gere um novo layout de
+ * nova solicitação, de maneira que faça sentido e que fique o mais completo
+ * possível"*.**
  *
- * Escolher "Peça para redes" acrescenta as perguntas daquele trabalho — onde
- * vai ao ar, que formato, o que precisa dizer. É o roteiro de briefing, e ele
- * existe porque um campo de texto livre chamado "descreva o que você precisa"
- * devolve "uma arte pro insta", e a primeira mensagem da conversa é sempre a
- * mesma pergunta.
+ * Ele começava pela CLASSIFICAÇÃO — empresa, vertente, Social ou Campanha,
+ * tipo de trabalho — e só no sexto campo perguntava o que a pessoa quer. Essa
+ * é a ordem da AGÊNCIA: são as quatro perguntas de que a fila precisa para
+ * encaminhar o pedido. A ordem de quem PEDE é a inversa: ela abriu o portal
+ * porque precisa de uma coisa, e a primeira tela do pedido tem de ser sobre
+ * essa coisa.
  *
- * As perguntas vêm do banco (`request_types.campos_json`) e não daqui: a
- * gestão edita o roteiro sem deploy, que é a mesma razão pela qual a
- * capacidade da equipe é coluna e não constante.
+ * São quatro seções numeradas, cada uma com uma pergunta:
+ *
+ *   1. **O que você precisa** — o nome, o texto livre e os anexos
+ *   2. **Que tipo de trabalho é** — opcional, e é ela que acrescenta o roteiro
+ *   3. **Onde isso entra** — empresa, vertente, Social/Campanha, campanha
+ *   4. **Para quando** — a data desejada, com o que ela significa
+ *
+ * **E são numeradas pela razão escrita em `SecaoDoFormulario`:** o número dá à
+ * conversa um jeito de apontar ("faltou a 3") sem descrever onde o campo está
+ * na tela — e aqui a conversa com o Atendimento acontece na tela ao lado.
  * ---------------------------------------------------------------------------
  *
- * **"Para quando você gostaria" diz o que significa, embaixo do campo.** Um
- * campo de data sem essa frase é lido como prazo combinado — e ele não é: o
- * prazo é o que a agência assume depois de olhar o pedido. Quem digita a data
- * precisa saber disso ANTES de digitar, não quando a peça não chegar no dia.
+ * **NADA DE CATEGORIA É OBRIGATÓRIO, e isso é a reversão da 0124** — decisão
+ * do usuário: *"não precisa ser social ou campanha necessariamente, o cliente
+ * deve poder especificar o que ele quer sem colocar em alguma categoria,
+ * podendo escrever caso ele queira"*. A frente ganhou um terceiro cartão, *Não
+ * sei dizer*, que viaja como nulo; e o TIPO deixou de vir pré-selecionado.
+ *
+ * ***O que isso custa, e é dito em vez de escondido:*** sem um tipo escolhido
+ * não há roteiro de briefing, e o argumento da 0068 — *"um campo de texto
+ * livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta', e
+ * a primeira mensagem da conversa é sempre a mesma pergunta"* — continua
+ * verdadeiro. Ele continua valendo para quem escolhe um tipo: as perguntas
+ * aparecem no instante da escolha. O que o produto deixou de fazer é COBRAR
+ * aquelas respostas de quem não quis classificar nada.
+ *
+ * **As perguntas vêm do banco** (`request_types.campos_json`) e não daqui: a
+ * gestão edita o roteiro sem deploy, que é a mesma razão pela qual a
+ * capacidade da equipe é coluna e não constante.
  */
 export function FormularioDePedido({
   empresas,
@@ -115,21 +169,37 @@ export function FormularioDePedido({
   const [executando, comecar] = useTransition();
 
   const [clienteId, setClienteId] = useState(empresas[0]?.id ?? "");
-  const [tipoId, setTipoId] = useState<string>(tipos[0]?.id ?? "");
+  /**
+   * O TIPO NASCE VAZIO, e isso é a 0137.
+   *
+   * Ele era `tipos[0]?.id` — "Peça para redes" vinha marcado —, e com ele
+   * vinham as duas perguntas obrigatórias daquele roteiro. Quer dizer que todo
+   * pedido nascia classificado como peça para redes **sem ninguém ter
+   * escolhido**, e que quem queria outra coisa tinha de desfazer uma escolha
+   * que não fez. É a regra desta casa pela enésima vez: *a opção pré-marcada é
+   * a que ninguém lê*.
+   */
+  const [tipoId, setTipoId] = useState<string>("");
   const [campanhaId, setCampanhaId] = useState<string>(campanhaInicial ?? "");
   /**
-   * A FRENTE NASCE VAZIA, e não em "Social".
+   * A FRENTE NASCE VAZIA, e o vazio agora é uma OPÇÃO e não uma lacuna.
    *
-   * Um padrão aqui desfaz o pedido: *exigir a classificação* quer dizer que
-   * alguém escolhe, e a opção pré-marcada é a que ninguém lê — o relatório
-   * passaria a somar o padrão em vez da resposta. É a mesma razão pela qual o
-   * status não se escolhe no rascunho da demanda.
+   * Na 0124 ela nascia assim porque a opção pré-marcada é a que ninguém lê, e
+   * era obrigatória no envio. Depois da 0137 ela continua nascendo vazia pela
+   * mesma razão, e o vazio deixou de ser cobrado.
+   *
+   * **E `null` NÃO é o terceiro cartão**, que foi o que a imagem pegou: com um
+   * estado só, *Não sei dizer* nascia marcado — ou seja, era o padrão, que é
+   * exatamente o que este comentário diz para não fazer. São dois estados
+   * diferentes que viajam como o mesmo nulo: `null` é *não mexi nisso* e
+   * `"nenhuma"` é *não é nem um nem outro*.
    *
    * **Menos quando o pedido nasce DENTRO de uma campanha:** ali a resposta já
-   * está dada, e `client_requests_classificacao` recusaria qualquer outra.
+   * está dada, e `client_requests_classificacao` recusaria qualquer outra —
+   * inclusive a ausência, porque o ramo 3 compara com `is distinct from`.
    */
-  const [frente, setFrente] = useState<SolicitacaoFrente | "">(
-    campanhaInicial ? "campanha" : "",
+  const [frente, setFrente] = useState<EscolhaDeFrente | null>(
+    campanhaInicial ? "campanha" : null,
   );
   const [vertenteId, setVertenteId] = useState<string>("");
   const [titulo, setTitulo] = useState("");
@@ -145,10 +215,6 @@ export function FormularioDePedido({
    * e a primeira coisa que a pessoa lê é uma cobrança por não ter feito nada
    * ainda. É a mesma razão pela qual o alerta que está sempre aceso deixa de
    * ser alerta.
-   *
-   * **E o botão fica LIGADO**, com o título preenchido: um botão desligado não
-   * tem como dizer por que está desligado, e clicar nele é justamente o
-   * momento em que a pessoa pede para saber o que falta.
    */
   const [tentou, setTentou] = useState(false);
 
@@ -194,11 +260,18 @@ export function FormularioDePedido({
 
   const tipo = tipos.find((t) => t.id === tipoId) ?? null;
   const campos = camposDoRoteiro(tipo?.campos_json);
+  /**
+   * O QUE FALTA, e a frente NÃO está mais nesta lista (0137).
+   *
+   * **E o título entrou nela.** Ele era cobrado pelo `disabled` do botão —
+   * `titulo.trim().length < 3` —, e o próprio arquivo escrevia o argumento
+   * contra isso duas telas acima: *um botão desligado não tem como dizer por
+   * que está desligado, e clicar nele é justamente o momento em que a pessoa
+   * pede para saber o que falta*. Hoje o botão fica ligado e a frase nomeia o
+   * que falta, que é a decisão da recusa da 0023.
+   */
   const faltando = [
-    // A FRENTE VEM PRIMEIRO NA FRASE porque ela é a primeira pergunta da
-    // tela: listá-la depois das respostas do roteiro mandaria a pessoa rolar
-    // para baixo para achar o que está mais em cima.
-    ...(frente === "" ? ["Social ou Campanha"] : []),
+    ...(titulo.trim().length < 3 ? ["o nome do pedido"] : []),
     ...respostasQueFaltam(campos, respostas),
   ];
 
@@ -207,7 +280,7 @@ export function FormularioDePedido({
   }
 
   function enviar() {
-    if (faltando.length > 0 || frente === "") {
+    if (faltando.length > 0) {
       setTentou(true);
       return;
     }
@@ -217,7 +290,10 @@ export function FormularioDePedido({
           client_id: clienteId,
           request_type_id: tipoId || null,
           campaign_id: campanhaValida || null,
-          frente,
+          // A FRENTE VIAJA COMO NULO nos DOIS estados sem lado — quem não
+          // mexeu e quem disse "não sei". O enum tem dois valores, e a
+          // terceira opção da tela é a ausência de um deles.
+          frente: frente === "nenhuma" || frente === null ? null : frente,
           vertente_id: vertenteEscolhida || null,
           titulo,
           descricao,
@@ -270,139 +346,166 @@ export function FormularioDePedido({
   }
 
   return (
-    <div className="space-y-6">
-      {/* O SELETOR DE EMPRESA SÓ APARECE COM MAIS DE UMA. Com uma, ele é um
-          campo com uma opção — a pessoa lê, pensa, e escolhe a única. */}
-      {empresas.length > 1 ? (
+    <div className="space-y-8">
+      {/* ==================================================================
+          1. O QUE VOCÊ PRECISA
+
+          A PRIMEIRA SEÇÃO É SOBRE A COISA, e não sobre a classificação dela.
+          Quem abre o portal para pedir uma arte tem a arte na cabeça, não a
+          frente de produção — e o texto livre aqui é o *"podendo escrever
+          caso ele queira"* do pedido: ele é o caminho principal, e sozinho já
+          é um pedido inteiro.
+          ================================================================== */}
+      <SecaoDoFormulario numero={1} titulo="O que você precisa">
         <div className="space-y-1.5">
-          <Label htmlFor="pedido-empresa">Para qual empresa</Label>
-          <Select value={clienteId} onValueChange={setClienteId}>
-            <SelectTrigger
-              aria-label="Empresa"
-              id="pedido-empresa"
-              className="w-full sm:w-80"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {empresas.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.nome_empresa}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="pedido-titulo">Em uma linha, o que é *</Label>
+          <Input
+            id="pedido-titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Arte para o Dia das Mães"
+          />
         </div>
-      ) : null}
 
-      {/* ------------------------------------------------------------------
-          A VERTENTE VEM DEPOIS DA EMPRESA, e é a ordem da decisão: de qual
-          conta, de qual parte dela, e só então de que frente. Acima da
-          empresa ela perguntaria sobre uma conta que ainda não foi escolhida
-          — a mesma ordem do seletor da tela de task (0118).
-
-          **E O CAMPO SÓ EXISTE QUANDO A CONTA TEM VERTENTE**, que é a maioria
-          ao contrário: quase nenhuma tem. Um seletor permanentemente vazio
-          pede uma escolha que não existe.
-          ------------------------------------------------------------------ */}
-      {vertentesDaEmpresa.length > 0 ? (
         <div className="space-y-1.5">
-          <Label htmlFor="pedido-vertente">De que parte da sua conta é</Label>
-          <Select
-            value={vertenteEscolhida || "nenhuma"}
-            onValueChange={(v) => setVertenteId(v === "nenhuma" ? "" : v)}
-          >
-            <SelectTrigger
-              aria-label="Vertente"
-              id="pedido-vertente"
-              className="w-full sm:w-80"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {/* "SEM VERTENTE" FICA COMO OPÇÃO, e não é indecisão: a reunião
-                  mensal e o material institucional não pertencem a nenhuma
-                  frente, e obrigar a escolha faria a pessoa marcar a primeira
-                  da lista — que é pior que não classificar, porque o relatório
-                  passaria a contá-la onde ela não está. É a decisão da 0118,
-                  palavra por palavra. */}
-              <SelectItem value="nenhuma">Não é de nenhuma em especial</SelectItem>
-              {vertentesDaEmpresa.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.nome}
-                  {v.ativa ? "" : " (desativada)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="pedido-descricao">Conte com as suas palavras</Label>
+          {/* ROWS 5 E NÃO 3, e o rótulo deixou de ser "Mais alguma coisa".
+              Aquele nome fazia dele um campo de sobra — o lugar do detalhe que
+              não caiu em nenhuma pergunta. Com a classificação deixando de ser
+              obrigatória, ele é o campo onde o pedido inteiro pode morar, e o
+              tamanho da caixa é o que diz isso sem uma frase de ajuda. */}
+          <Textarea
+            id="pedido-descricao"
+            rows={5}
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            placeholder="O que é, para que serve, onde vai ser usado, o que não pode faltar."
+          />
         </div>
-      ) : null}
 
-      {/* ------------------------------------------------------------------
-          A CLASSIFICAÇÃO — decisão do usuário: *"exigir a classificação como
-          Social ou Campanha"*.
+        {/* ---------------------------------------------------------------
+            O ANEXO NA ABERTURA — decisão do usuário.
 
-          **ELA VEM ANTES DO TIPO DE TRABALHO**, e as duas perguntas não são a
-          mesma: o tipo é o roteiro de briefing — o que é a peça —, e a frente
-          é quem produz. Uma peça para redes nasce das duas, e é essa a conta
-          que o relatório da agência separa.
+            **Ele existia só na tela do pedido JÁ CRIADO**, e a linha do pé
+            deste formulário dizia isso em voz alta: "depois de enviar você pode
+            anexar arquivos". Quem abre um pedido está com a referência na mão —
+            o print, a foto do material, a arte do ano passado —, e mandá-la num
+            segundo passo é mandá-la num passo que metade das pessoas não dá.
 
-          **E SÃO DOIS CARTÕES e não um `<Select>`**, pela razão do seletor de
-          redes do social: a frase que explica cada lado é o que faz a escolha
-          não ser palpite, e num `<Select>` ela não cabe — ficaria escondida
-          atrás de um clique, que é justamente o clique da decisão.
-          ------------------------------------------------------------------ */}
-      <fieldset className="space-y-2">
-        <legend className="mb-2 text-sm font-medium">É para o quê *</legend>
-        <div
-          role="radiogroup"
-          aria-label="Social ou Campanha"
-          className="grid gap-2 sm:grid-cols-2"
-        >
-          {FRENTES_DA_SOLICITACAO.map((f) => {
-            const Icone = f === "social" ? Share2 : Megaphone;
-            const escolhido = f === frente;
-            return (
-              <button
-                key={f}
-                type="button"
-                role="radio"
-                aria-checked={escolhido}
-                onClick={() => {
-                  setFrente(f);
-                  // TROCAR PARA SOCIAL APAGA A CAMPANHA, senão o envio
-                  // carregaria uma campanha num pedido que diz social — a
-                  // contradição que o trigger da 0124 recusa.
-                  if (f === "social") setCampanhaId("");
-                }}
-                className={
-                  escolhido
-                    ? "border-accent-strong bg-accent rounded-lg border p-3 text-left"
-                    : "hover:bg-accent rounded-lg border p-3 text-left transition-colors"
+            **Os arquivos ficam em memória até o envio**, porque o caminho no
+            bucket leva o id do pedido e ele ainda não existe. Por isso esta
+            lista é uma lista de escolhas, e não de anexos: ninguém subiu nada
+            ainda, e a tela não pode afirmar que subiu.
+
+            **E ele mora na seção 1**, junto do texto: a referência é parte do
+            que a pessoa quer, e não um apêndice do fim do formulário.
+            --------------------------------------------------------------- */}
+        <div className="space-y-2">
+          <Label htmlFor="pedido-arquivos">Imagens e arquivos</Label>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={arquivos.length >= TETO_DE_ARQUIVOS}
+              onClick={() => campo.current?.click()}
+            >
+              <Paperclip aria-hidden />
+              Escolher arquivos
+            </Button>
+
+            <input
+              ref={campo}
+              id="pedido-arquivos"
+              type="file"
+              multiple
+              // `sr-only` esconde da vista e NÃO da árvore de acessibilidade —
+              // por isso o `aria-label`: sem ele o campo é anunciado como
+              // "editar" e mais nada.
+              aria-label="Escolher imagens e arquivos para anexar"
+              className="sr-only"
+              onChange={(e) => {
+                const escolhidos = Array.from(e.target.files ?? []);
+                // O CORTE AVISA, em vez de descartar calado: cada arquivo foi
+                // escolhido por uma pessoa, e sumir com o décimo primeiro faria
+                // ela achar que mandou o que não chegou. É a decisão do teto de
+                // anexos do banco, que recusa em vez de cortar.
+                const cabem = TETO_DE_ARQUIVOS - arquivos.length;
+                if (escolhidos.length > cabem) {
+                  toast.error(
+                    `São até ${TETO_DE_ARQUIVOS} arquivos por pedido. Entraram os ${cabem} primeiros.`,
+                  );
                 }
-              >
-                <Icone aria-hidden className="text-accent-strong mb-1 size-5" />
-                <p className="text-sm font-medium">{ROTULOS_DE_FRENTE[f]}</p>
-                <p className="text-muted-foreground text-xs">
-                  {EXPLICACAO_DA_FRENTE[f]}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+                setArquivos((atual) => [...atual, ...escolhidos.slice(0, cabem)]);
+                e.target.value = "";
+              }}
+            />
 
-      <fieldset className="space-y-2">
-        <legend className="mb-2 text-sm font-medium">
-          Que tipo de trabalho é
-        </legend>
+            <span className="text-muted-foreground text-xs">
+              {arquivos.length} de {TETO_DE_ARQUIVOS}
+            </span>
+          </div>
+
+          {arquivos.length > 0 ? (
+            <ul className="space-y-1">
+              {arquivos.map((a, i) => (
+                <li
+                  key={`${a.name}-${i}`}
+                  className="bg-neutral-soft flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+                >
+                  <Paperclip
+                    aria-hidden
+                    className="text-muted-foreground size-4 shrink-0"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Tirar ${a.name} da lista`}
+                    className="text-muted-foreground hover:text-danger transition-colors"
+                    onClick={() =>
+                      setArquivos((atual) => atual.filter((_, j) => j !== i))
+                    }
+                  >
+                    <X aria-hidden className="size-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            // A FRASE DEIXOU DE DIZER PARA QUE SERVE O ANEXO. Ela era "o que
+            // ajudar a gente a entender o que você quer", e é o caso que o
+            // usuário nomeou: *"esses textinhos parecem indiretas"*. O que
+            // sobra é a lista das coisas que cabem ali.
+            <p className="text-muted-foreground text-xs">
+              Print, foto, a arte de referência, um PDF.
+            </p>
+          )}
+        </div>
+      </SecaoDoFormulario>
+
+      {/* ==================================================================
+          2. QUE TIPO DE TRABALHO É — e ela é OPCIONAL.
+
+          **OS CARTÕES PERDERAM A LINHA DE BAIXO** — decisão do usuário:
+          *"tire o texto abaixo que de que tipo de trabalho é, esses textinhos
+          parecem indiretas não são legais"*. Eram as quatro frases de
+          `request_types.descricao`, da 0068, e a quarta era literalmente isso:
+          *"Não se encaixa nos anteriores — conte o que você precisa"*. A
+          coluna fica gravada, sem leitor, carimbada pela 0137.
+
+          **E NENHUM VEM MARCADO**, que é a outra metade da 0137: o tipo
+          decide quais perguntas aparecem, e um tipo pré-marcado fazia o
+          formulário cobrar as respostas de um trabalho que ninguém escolheu.
+          ================================================================== */}
+      <SecaoDoFormulario numero={2} titulo="Que tipo de trabalho é">
         {/* `role="radiogroup"` no invólucro porque os cartões são
             `role="radio"`: um radio sem o grupo por perto é um papel sem pai,
             e o leitor de tela anuncia "opção 1 de 1" em cada um deles. */}
         <div
           role="radiogroup"
           aria-label="Tipo de pedido"
-          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-2"
         >
           {tipos.map((t) => {
             const Icone = ICONES[t.icone as keyof typeof ICONES] ?? CircleHelp;
@@ -413,7 +516,11 @@ export function FormularioDePedido({
                 type="button"
                 role="radio"
                 aria-checked={escolhido}
-                onClick={() => setTipoId(t.id)}
+                // CLICAR NO CARTÃO ESCOLHIDO O DESFAZ, e é o que faz o tipo
+                // ser de verdade opcional: sem isso, quem clica por engano não
+                // tem como voltar ao estado sem tipo — e volta a ser cobrado
+                // pelas perguntas de um trabalho que não é o dele.
+                onClick={() => setTipoId(escolhido ? "" : t.id)}
                 className={
                   escolhido
                     ? "border-accent-strong bg-accent rounded-lg border p-3 text-left"
@@ -422,264 +529,322 @@ export function FormularioDePedido({
               >
                 <Icone aria-hidden className="text-accent-strong mb-1 size-5" />
                 <p className="text-sm font-medium">{t.nome}</p>
-                {t.descricao ? (
-                  <p className="text-muted-foreground text-xs">{t.descricao}</p>
-                ) : null}
               </button>
             );
           })}
         </div>
-      </fieldset>
 
-      {/* ------------------------------------------------------------------
-          A CAMPANHA VEM DEPOIS DO TIPO E ANTES DO TÍTULO, e a ordem é a da
-          decisão: que trabalho é, de que campanha ele faz parte, e só então
-          como ele se chama. Depois do título ela leria como um detalhe de
-          classificação, quando ela é contexto do pedido inteiro.
+        {/* ----------------------------------------------------------------
+            O ROTEIRO DE BRIEFING (0068), e o título dele mudou.
 
-          **E O CAMPO SÓ EXISTE QUANDO HÁ CAMPANHA ABERTA.** Um seletor com a
-          única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
-          está — a mesma razão pela qual o seletor de empresa só aparece com
-          mais de uma.
+            Ele era *"Para a gente não precisar perguntar depois"* — decisão do
+            usuário: *"Mude a frase"*. Aquele título explicava por que a
+            AGÊNCIA queria as respostas, o que é problema da agência, e lido do
+            lado de fora soava como cobrança. O que ficou no lugar diz o que a
+            seção é, e nada mais.
 
-          **E SÓ NA FRENTE CAMPANHA** (0124): na frente Social não há campanha
-          para escolher, e o trigger recusa a linha que tem as duas coisas.
-          Quando a frente é Campanha e a conta não tem nenhuma aberta, o que
-          aparece é a FRASE abaixo — o pedido chega antes de a campanha
-          existir, que é o caso comum de quem pede uma ação nova.
-          ------------------------------------------------------------------ */}
-      {frente === "campanha" && daEmpresa.length === 0 ? (
-        <p className="text-text-muted text-sm">
-          Esta empresa não tem campanha aberta no momento — a gente organiza
-          isso por aqui depois de ler o seu pedido.
-        </p>
-      ) : null}
+            **E ele só existe com um tipo escolhido**, o que depois da 0137 é
+            uma escolha e não o padrão.
+            ---------------------------------------------------------------- */}
+        {campos.length > 0 ? (
+          <section className="space-y-4 rounded-lg border p-4">
+            <h3 className="text-sm font-semibold">Sobre este material</h3>
 
-      {frente === "campanha" && daEmpresa.length > 0 ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="pedido-campanha">De que campanha é</Label>
-          <Select
-            value={campanhaEscolhida || "nenhuma"}
-            onValueChange={(v) => setCampanhaId(v === "nenhuma" ? "" : v)}
-          >
-            <SelectTrigger
-              aria-label="Campanha"
-              id="pedido-campanha"
-              className="w-full sm:w-80"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {/* O VALOR VAZIO NÃO É ACEITO PELO `<Select>` do shadcn — ele
-                  trata `""` como "sem valor" e volta ao placeholder. Então o
-                  "nenhuma" é uma opção de verdade, traduzida para nulo no
-                  envio: é o que permite DESFAZER a escolha, que um placeholder
-                  não permite. */}
-              <SelectItem value="nenhuma">Nenhuma, é um pedido solto</SelectItem>
-              {daEmpresa.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-text-muted text-sm">
-            Assim este pedido aparece junto do resto da campanha.
-          </p>
-        </div>
-      ) : null}
+            {campos.map((c) => {
+              const id = `roteiro-${c.chave}`;
+              const valor = respostas[c.chave] ?? "";
 
-      <div className="space-y-1.5">
-        <Label htmlFor="pedido-titulo">Em uma linha, o que é *</Label>
-        <Input
-          id="pedido-titulo"
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Arte para o Dia das Mães"
-        />
-      </div>
+              return (
+                <div key={c.chave} className="space-y-1.5">
+                  <Label htmlFor={id}>
+                    {c.rotulo}
+                    {c.obrigatorio ? " *" : ""}
+                  </Label>
 
-      {campos.length > 0 ? (
-        <section className="space-y-4 rounded-lg border p-4">
-          <h2 className="text-sm font-semibold">
-            Para a gente não precisar perguntar depois
-          </h2>
-
-          {campos.map((c) => {
-            const id = `roteiro-${c.chave}`;
-            const valor = respostas[c.chave] ?? "";
-
-            return (
-              <div key={c.chave} className="space-y-1.5">
-                <Label htmlFor={id}>
-                  {c.rotulo}
-                  {c.obrigatorio ? " *" : ""}
-                </Label>
-
-                {c.tipo === "escolha" && c.opcoes?.length ? (
-                  <Select
-                    value={valor}
-                    onValueChange={(v) => responder(c.chave, v)}
-                  >
-                    <SelectTrigger
-                      aria-label={c.rotulo}
-                      id={id}
-                      className="w-full sm:w-80"
+                  {c.tipo === "escolha" && c.opcoes?.length ? (
+                    <Select
+                      value={valor}
+                      onValueChange={(v) => responder(c.chave, v)}
                     >
-                      <SelectValue placeholder="Escolha" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {c.opcoes.map((o) => (
-                        <SelectItem key={o} value={o}>
-                          {o}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : c.tipo === "texto_longo" ? (
-                  <Textarea
-                    id={id}
-                    rows={3}
-                    value={valor}
-                    onChange={(e) => responder(c.chave, e.target.value)}
-                  />
-                ) : (
-                  <Input
-                    id={id}
-                    type={c.tipo === "data" ? "date" : "text"}
-                    value={valor}
-                    onChange={(e) => responder(c.chave, e.target.value)}
-                  />
-                )}
+                      <SelectTrigger
+                        aria-label={c.rotulo}
+                        id={id}
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="Escolha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {c.opcoes.map((o) => (
+                          <SelectItem key={o} value={o}>
+                            {o}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : c.tipo === "texto_longo" ? (
+                    <Textarea
+                      id={id}
+                      rows={3}
+                      value={valor}
+                      onChange={(e) => responder(c.chave, e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      id={id}
+                      type={c.tipo === "data" ? "date" : "text"}
+                      value={valor}
+                      onChange={(e) => responder(c.chave, e.target.value)}
+                    />
+                  )}
 
-                {c.ajuda ? (
-                  <p className="text-muted-foreground text-xs">{c.ajuda}</p>
-                ) : null}
-              </div>
-            );
-          })}
-        </section>
-      ) : null}
+                  {/* A AJUDA DE CADA CAMPO FICA, e a diferença com as frases
+                      que saíram é o que ela faz: "Folder A5, banner de 2x1,
+                      cartão de visita…" é um EXEMPLO do que cabe no campo, e
+                      sem ele a pessoa não sabe em que forma responder. O que
+                      saiu descrevia a categoria, que o nome do cartão já diz. */}
+                  {c.ajuda ? (
+                    <p className="text-muted-foreground text-xs">{c.ajuda}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
+      </SecaoDoFormulario>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="pedido-descricao">Mais alguma coisa</Label>
-        <Textarea
-          id="pedido-descricao"
-          rows={3}
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          placeholder="Qualquer detalhe que ajude."
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="pedido-quando">Para quando você gostaria</Label>
-        <Input
-          id="pedido-quando"
-          type="date"
-          value={quando}
-          onChange={(e) => setQuando(e.target.value)}
-          className="w-full sm:w-52"
-        />
-        <p className="text-muted-foreground text-xs">
-          É a data que ajudaria você — não é o prazo combinado. A gente olha o
-          pedido e responde por aqui com a data que dá para assumir.
-        </p>
-      </div>
-
-      {/* ---------------------------------------------------------------
-          O ANEXO NA ABERTURA — decisão do usuário.
-
-          **Ele existia só na tela do pedido JÁ CRIADO**, e a linha do pé
-          deste formulário dizia isso em voz alta: "depois de enviar você pode
-          anexar arquivos". Quem abre um pedido está com a referência na mão —
-          o print, a foto do material, a arte do ano passado —, e mandá-la num
-          segundo passo é mandá-la num passo que metade das pessoas não dá.
-
-          **Os arquivos ficam em memória até o envio**, porque o caminho no
-          bucket leva o id do pedido e ele ainda não existe. Por isso esta
-          lista é uma lista de escolhas, e não de anexos: ninguém subiu nada
-          ainda, e a tela não pode afirmar que subiu.
-          --------------------------------------------------------------- */}
-      <div className="space-y-2">
-        <Label htmlFor="pedido-arquivos">Imagens e arquivos</Label>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={arquivos.length >= TETO_DE_ARQUIVOS}
-            onClick={() => campo.current?.click()}
-          >
-            <Paperclip aria-hidden />
-            Escolher arquivos
-          </Button>
-
-          <input
-            ref={campo}
-            id="pedido-arquivos"
-            type="file"
-            multiple
-            // `sr-only` esconde da vista e NÃO da árvore de acessibilidade —
-            // por isso o `aria-label`: sem ele o campo é anunciado como
-            // "editar" e mais nada.
-            aria-label="Escolher imagens e arquivos para anexar"
-            className="sr-only"
-            onChange={(e) => {
-              const escolhidos = Array.from(e.target.files ?? []);
-              // O CORTE AVISA, em vez de descartar calado: cada arquivo foi
-              // escolhido por uma pessoa, e sumir com o décimo primeiro faria
-              // ela achar que mandou o que não chegou. É a decisão do teto de
-              // anexos do banco, que recusa em vez de cortar.
-              const cabem = TETO_DE_ARQUIVOS - arquivos.length;
-              if (escolhidos.length > cabem) {
-                toast.error(
-                  `São até ${TETO_DE_ARQUIVOS} arquivos por pedido. Entraram os ${cabem} primeiros.`,
-                );
-              }
-              setArquivos((atual) => [...atual, ...escolhidos.slice(0, cabem)]);
-              e.target.value = "";
-            }}
-          />
-
-          <span className="text-muted-foreground text-xs">
-            {arquivos.length} de {TETO_DE_ARQUIVOS}
-          </span>
-        </div>
-
-        {arquivos.length > 0 ? (
-          <ul className="space-y-1">
-            {arquivos.map((a, i) => (
-              <li
-                key={`${a.name}-${i}`}
-                className="bg-neutral-soft flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+      {/* ==================================================================
+          3. ONDE ISSO ENTRA — a classificação, agora toda opcional.
+          ================================================================== */}
+      <SecaoDoFormulario numero={3} titulo="Onde isso entra">
+        {/* O SELETOR DE EMPRESA SÓ APARECE COM MAIS DE UMA. Com uma, ele é um
+            campo com uma opção — a pessoa lê, pensa, e escolhe a única. */}
+        {empresas.length > 1 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-empresa">Para qual empresa</Label>
+            <Select value={clienteId} onValueChange={setClienteId}>
+              <SelectTrigger
+                aria-label="Empresa"
+                id="pedido-empresa"
+                className="w-full"
               >
-                <Paperclip
-                  aria-hidden
-                  className="text-muted-foreground size-4 shrink-0"
-                />
-                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {empresas.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nome_empresa}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        {/* ----------------------------------------------------------------
+            A VERTENTE VEM DEPOIS DA EMPRESA, e é a ordem da decisão: de qual
+            conta, e de qual parte dela. Acima da empresa ela perguntaria sobre
+            uma conta que ainda não foi escolhida — a mesma ordem do seletor da
+            tela de task (0118).
+
+            **E O CAMPO SÓ EXISTE QUANDO A CONTA TEM VERTENTE**, que é a
+            maioria ao contrário: quase nenhuma tem. Um seletor
+            permanentemente vazio pede uma escolha que não existe.
+            ---------------------------------------------------------------- */}
+        {vertentesDaEmpresa.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-vertente">De que parte da sua conta é</Label>
+            <Select
+              value={vertenteEscolhida || "nenhuma"}
+              onValueChange={(v) => setVertenteId(v === "nenhuma" ? "" : v)}
+            >
+              <SelectTrigger
+                aria-label="Vertente"
+                id="pedido-vertente"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* "SEM VERTENTE" FICA COMO OPÇÃO, e não é indecisão: a reunião
+                    mensal e o material institucional não pertencem a nenhuma
+                    frente, e obrigar a escolha faria a pessoa marcar a primeira
+                    da lista — que é pior que não classificar, porque o relatório
+                    passaria a contá-la onde ela não está. É a decisão da 0118,
+                    palavra por palavra. */}
+                <SelectItem value="nenhuma">Não é de nenhuma em especial</SelectItem>
+                {vertentesDaEmpresa.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.nome}
+                    {v.ativa ? "" : " (desativada)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        {/* ----------------------------------------------------------------
+            A CLASSIFICAÇÃO — e ela deixou de ser obrigatória (0137).
+
+            **SÃO TRÊS CARTÕES E DOIS VALORES DE ENUM.** O terceiro,
+            `OPCAO_SEM_FRENTE`, viaja como nulo: um valor "nenhuma" no enum
+            poria no relatório da agência uma terceira categoria onde o que
+            existe é a ausência de categoria.
+
+            **E ELE É UM CARTÃO E NÃO UM CAMPO QUE SE PULA**, que é a decisão
+            de *"Não é de nenhuma em especial"* no seletor de vertente: um
+            formulário em que a classificação simplesmente não é cobrada deixa
+            quem abre sem saber se esqueceu alguma coisa.
+
+            **E SÃO CARTÕES e não um `<Select>`**, pela razão do seletor de
+            redes do social: a frase que explica cada lado é o que faz a
+            escolha não ser palpite, e num `<Select>` ela ficaria escondida
+            atrás de um clique — justamente o clique da decisão. Eles empilham
+            em vez de ficar lado a lado: no painel de 540px, três colunas
+            dariam 150px para um ícone, um título e uma frase.
+            ---------------------------------------------------------------- */}
+        <fieldset className="space-y-2">
+          <legend className="mb-2 text-sm font-medium">É para o quê</legend>
+          <div
+            role="radiogroup"
+            aria-label="Social, Campanha, ou nenhum dos dois"
+            className="grid gap-2"
+          >
+            {OPCOES_DE_FRENTE.map((f) => {
+              // O ÍCONE DO TERCEIRO É UM CÍRCULO TRACEJADO, e não o
+              // `CircleHelp` do tipo "Outro": o mesmo desenho para duas coisas
+              // diferentes no mesmo formulário é o que faz alguém ler um pelo
+              // outro. Tracejado é a forma de "ainda não definido".
+              const Icone =
+                f === "social"
+                  ? Share2
+                  : f === "campanha"
+                    ? Megaphone
+                    : CircleDashed;
+              const rotulo =
+                f === "nenhuma" ? OPCAO_SEM_FRENTE.rotulo : ROTULOS_DE_FRENTE[f];
+              const explicacao =
+                f === "nenhuma"
+                  ? OPCAO_SEM_FRENTE.explicacao
+                  : EXPLICACAO_DA_FRENTE[f];
+              const escolhido = f === frente;
+              return (
                 <button
+                  key={f}
                   type="button"
-                  aria-label={`Tirar ${a.name} da lista`}
-                  className="text-muted-foreground hover:text-danger transition-colors"
-                  onClick={() =>
-                    setArquivos((atual) => atual.filter((_, j) => j !== i))
+                  role="radio"
+                  aria-checked={escolhido}
+                  onClick={() => {
+                    setFrente(f);
+                    // SAIR DE CAMPANHA APAGA A CAMPANHA, senão o envio
+                    // carregaria uma campanha num pedido que diz outra coisa —
+                    // a contradição que o ramo 3 do gatilho recusa, e que
+                    // depois da 0137 alcança também a frente em branco.
+                    if (f !== "campanha") setCampanhaId("");
+                  }}
+                  className={
+                    escolhido
+                      ? "border-accent-strong bg-accent flex items-start gap-3 rounded-lg border p-3 text-left"
+                      : "hover:bg-accent flex items-start gap-3 rounded-lg border p-3 text-left transition-colors"
                   }
                 >
-                  <X aria-hidden className="size-4" />
+                  <Icone
+                    aria-hidden
+                    className="text-accent-strong mt-0.5 size-5 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{rotulo}</span>
+                    <span className="text-muted-foreground block text-xs">
+                      {explicacao}
+                    </span>
+                  </span>
                 </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground text-xs">
-            Print, foto, a arte de referência — o que ajudar a gente a entender
-            o que você quer.
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {/* ----------------------------------------------------------------
+            A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA (0124): na frente Social
+            não há campanha para escolher, e o trigger recusa a linha que tem
+            as duas coisas.
+
+            **E O CAMPO SÓ EXISTE QUANDO HÁ CAMPANHA ABERTA.** Um seletor com a
+            única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
+            está — a mesma razão pela qual o seletor de empresa só aparece com
+            mais de uma. Quando a frente é Campanha e a conta não tem nenhuma
+            aberta, o que aparece é a FRASE abaixo — o pedido chega antes de a
+            campanha existir, que é o caso comum de quem pede uma ação nova.
+            ---------------------------------------------------------------- */}
+        {frente === "campanha" && daEmpresa.length === 0 ? (
+          <p className="text-text-muted text-sm">
+            Esta empresa não tem campanha aberta no momento — a gente organiza
+            isso por aqui depois de ler o seu pedido.
           </p>
-        )}
-      </div>
+        ) : null}
+
+        {frente === "campanha" && daEmpresa.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-campanha">De que campanha é</Label>
+            <Select
+              value={campanhaEscolhida || "nenhuma"}
+              onValueChange={(v) => setCampanhaId(v === "nenhuma" ? "" : v)}
+            >
+              <SelectTrigger
+                aria-label="Campanha"
+                id="pedido-campanha"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* O VALOR VAZIO NÃO É ACEITO PELO `<Select>` do shadcn — ele
+                    trata `""` como "sem valor" e volta ao placeholder. Então o
+                    "nenhuma" é uma opção de verdade, traduzida para nulo no
+                    envio: é o que permite DESFAZER a escolha, que um placeholder
+                    não permite. */}
+                <SelectItem value="nenhuma">Nenhuma, é um pedido solto</SelectItem>
+                {daEmpresa.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+      </SecaoDoFormulario>
+
+      {/* ==================================================================
+          4. PARA QUANDO — e a frase embaixo FICA.
+
+          Ela não é do grupo que saiu: *"É a data que ajudaria você — não é o
+          prazo combinado"* não descreve uma categoria nem cobra nada, ela
+          impede um mal-entendido caro. Um campo de data sem essa linha é lido
+          como prazo acordado, e quem digita precisa saber disso ANTES de
+          digitar — não no dia em que a peça não chegar.
+
+          **E ela é uma SEÇÃO e não o último campo da terceira**, porque a
+          pergunta é outra: as três de cima são sobre o trabalho, esta é sobre
+          o calendário. Numerada, ela ganha o peso do campo do formulário que
+          mais se interpreta errado.
+          ================================================================== */}
+      <SecaoDoFormulario numero={4} titulo="Para quando">
+        <div className="space-y-1.5">
+          <Label htmlFor="pedido-quando">A data que ajudaria você</Label>
+          <Input
+            id="pedido-quando"
+            type="date"
+            value={quando}
+            onChange={(e) => setQuando(e.target.value)}
+            className="w-full sm:w-52"
+          />
+          <p className="text-muted-foreground text-xs">
+            Não é o prazo combinado. A gente olha o pedido e responde por aqui
+            com a data que dá para assumir.
+          </p>
+        </div>
+      </SecaoDoFormulario>
 
       {/* A FRASE NOMEIA O QUE FALTA, e não diz "preencha os obrigatórios".
           É a decisão da recusa da 0023, que conta quantas faltam e diz QUAIS:
@@ -698,10 +863,7 @@ export function FormularioDePedido({
         >
           Cancelar
         </Button>
-        <Button
-          onClick={enviar}
-          disabled={executando || titulo.trim().length < 3 || !clienteId}
-        >
+        <Button onClick={enviar} disabled={executando || !clienteId}>
           {/* O BOTÃO DIZ QUE ESTÁ ENVIANDO, e não só fica desabilitado.
               Com anexo, o envio é o pedido mais uma ida ao bucket por
               arquivo — tempo suficiente para quem clicou achar que o clique

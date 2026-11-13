@@ -126,11 +126,27 @@ export const TOM_DA_SOLICITACAO: Record<
 // a segunda verdade; aqui não há de onde calcular, e o que existe é a
 // declaração de quem abre.
 //
-// **São DOIS valores e não três.** "Nenhuma das duas" é a terceira opção
-// óbvia, e ela desfaz o pedido: *exigir a classificação* quer dizer escolher
-// um lado. O pedido que não é nem um nem outro existe — e é o pedido ANTERIOR
-// à regra, que fica nulo e aparece como "Sem classificação", não um valor que
-// a tela oferece.
+// **São DOIS valores no ENUM e TRÊS opções na tela**, e a diferença é a 0137.
+//
+// A 0124 nasceu de *"exigir a classificação como Social ou Campanha"* e
+// escrevia aqui que a terceira opção *"desfaz o pedido"*. O usuário pediu o
+// contrário: *"a nova solicitação não precisa ser social ou campanha
+// necessariamente, o cliente deve poder especificar o que ele quer sem colocar
+// em alguma categoria"*. **É uma reversão declarada**, e ela é de UM ramo: o
+// que recusava o `insert` sem frente saiu do gatilho, e o resto da 0124 — a
+// coluna, o enum, a coerência campanha→frente, a coerência vertente→conta, o
+// chip da fila, a ação de classificar, o bloco do relatório — fica inteiro.
+//
+// **O NULO DEIXOU DE SER SÓ O PEDIDO ANTIGO.** Ele era isso até a 0137: uma
+// linha anterior à regra, que a fila desenha como "Sem classificação". Agora
+// ele é um estado que a tela OFERECE — `OPCAO_SEM_FRENTE`, logo abaixo —, e
+// quem classifica passa a ser o cliente OU o Atendimento, pela ação que existe
+// desde a 0124 justamente para o pedido anterior a ela.
+//
+// **E a frente continua sendo uma DECLARAÇÃO e não uma conta**, que é a linha
+// central daquele cabeçalho: `campaign_id is not null ? "campanha" : "social"`
+// continua errado, porque campanha nula não quer dizer social. O que mudou é
+// quem declara, não se dá para calcular.
 // ---------------------------------------------------------------------------
 
 export const FRENTES_DA_SOLICITACAO = ["social", "campanha"] as const;
@@ -171,6 +187,30 @@ export const EXPLICACAO_DA_FRENTE: Record<SolicitacaoFrente, string> = {
   social: "Entra na linha do mês — feed, stories, o conteúdo que vai ao ar.",
   campanha: "Faz parte de uma ação com começo e fim, com várias peças juntas.",
 };
+
+/**
+ * A TERCEIRA OPÇÃO DA TELA, que não é um valor do enum (0137).
+ *
+ * Ela existe porque *"sem categoria"* precisa ser uma coisa que a pessoa
+ * ESCOLHE, e não um campo que ela pula. Um formulário em que a classificação
+ * simplesmente não é cobrada deixa quem abre sem saber se esqueceu alguma
+ * coisa; um terceiro cartão ao lado dos dois diz que não escolher é uma
+ * resposta — e é a mesma decisão de *"Não é de nenhuma em especial"* no
+ * seletor de vertente e de *"Nenhuma, é um pedido solto"* no de campanha.
+ *
+ * **Ela NÃO entra em `FRENTES_DA_SOLICITACAO`**, e a ausência é o que mantém o
+ * `satisfies` daquela tupla valendo contra o enum do banco: um valor "nenhuma"
+ * ali não compilaria, e inventá-lo no enum poria no relatório uma terceira
+ * categoria onde o que existe é a ausência de categoria. O que viaja para a
+ * action é `null`.
+ *
+ * **E a explicação dela é uma promessa, não uma ressalva:** quem escolhe este
+ * cartão precisa saber que o pedido segue do mesmo jeito.
+ */
+export const OPCAO_SEM_FRENTE = {
+  rotulo: "Não sei dizer",
+  explicacao: "A gente organiza isso por aqui depois de ler.",
+} as const;
 
 export function ehFrenteDaSolicitacao(
   valor: string | undefined | null,

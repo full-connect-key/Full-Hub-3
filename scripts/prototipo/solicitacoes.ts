@@ -76,7 +76,7 @@ const TIPOS: RequestType[] = [
         rotulo: "O que esta peça precisa dizer",
         tipo: "texto_longo",
         obrigatorio: true,
-        ajuda: "Em uma ou duas frases. O texto final é com a gente.",
+        ajuda: "Em uma ou duas frases.",
       },
     ],
     ordem: 10,
