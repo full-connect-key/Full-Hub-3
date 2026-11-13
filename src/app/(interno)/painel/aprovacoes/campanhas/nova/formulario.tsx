@@ -22,17 +22,14 @@ import {
 import { chamarAcao } from "@/lib/acoes/cliente";
 import {
   arvoreDaComposicao,
-  BRIEFING_VAZIO,
   entregaveisDoTemplate,
   FORMATOS_SUGERIDOS,
   ROTULO_DA_CAMPANHA,
   ROTULO_DO_TIPO,
   TIPOS_DE_MATERIAL,
-  type BriefingDaCampanha,
   type LinhaDaComposicao,
   type NoDeModelo,
 } from "@/lib/dominio/campanhas";
-import { BriefingDaCampanhaCampos } from "@/components/shared/briefing-da-campanha";
 import type {
   CampaignStatus,
   DeliverableTipo,
@@ -155,17 +152,15 @@ export function FormularioDeCampanha({
   // Task, o campo precisa estar aqui: sem ele o banco recusa a demanda e a
   // campanha nasceria sem o trabalho dela.
   const [linkEntrega, setLinkEntrega] = useState("");
-  /** As OBSERVAÇÕES, em prosa — o briefing em texto que a DEMANDA já tem. */
-  const [briefing, setBriefing] = useState<JSONContent | null>(null);
   /**
-   * O BRIEFING ESTRUTURADO (0125), que é de `campaigns`.
+   * O BRIEFING, em prosa — e ele é da DEMANDA (`tasks.briefing_rico`).
    *
-   * Ele não vai no `briefing` acima, e é a lição da 0124: o que virou coluna
-   * não se escreve também em prosa — a do texto é a que envelhece, porque
-   * ninguém reescreve o briefing no dia em que alguém troca o público.
+   * É UMA CAIXA DE TEXTO E NÃO SETE CAMPOS desde a 0136, por decisão do
+   * usuário, e isto restaura a 0051: o briefing é da demanda, e uma segunda
+   * caixa com o mesmo papel em `campaigns` era o lugar onde as duas versões
+   * divergiam.
    */
-  const [briefingRico, setBriefingRico] =
-    useState<BriefingDaCampanha>(BRIEFING_VAZIO);
+  const [briefing, setBriefing] = useState<JSONContent | null>(null);
   const [arvore, setArvore] = useState<NoEmEdicao[]>([]);
   /**
    * A COMPOSIÇÃO: deste tipo, tantos.
@@ -340,7 +335,6 @@ export function FormularioDeCampanha({
           status,
           linkEntrega,
           briefing,
-          ...briefingRico,
           // A COMPOSIÇÃO VIAJA À PARTE de `estrutura`, e só o formato e a
           // medida: a QUANTIDADE quem conta é `abrir_campanha()`, das folhas
           // da árvore (0122) — mandá-la daqui seria a segunda verdade sobre
@@ -548,32 +542,26 @@ export function FormularioDeCampanha({
         </div>
       </SecaoDoFormulario>
 
-      {/* O BRIEFING É ESTRUTURADO (0125), e não uma caixa de texto.
+      {/* O BRIEFING É UMA CAIXA DE TEXTO (0136), por decisão do usuário —
+          *"sem todos os questionamentos que aparecem atualmente quando vou
+          abrir uma campanha"*.
 
-          São SETE CAMPOS NOMEADOS pela razão do roteiro de briefing das
-          Solicitações (0068): *um campo de texto livre chamado "descreva o que
-          você precisa" devolve "uma arte pro insta", e a primeira mensagem da
-          conversa é sempre a mesma pergunta*. Perguntar campo a campo é o que
-          faz a resposta servir a quem produz.
+          Ele é a prosa da DEMANDA (`tasks.briefing_rico`), que é onde o
+          briefing de toda demanda deste produto mora: a decisão da 0051, que
+          a 0125 tinha desfeito ao criar sete colunas em `campaigns` — e o
+          preço daquela segunda caixa era a tela, porque as OBSERVAÇÕES
+          escritas aqui não apareciam no painel da campanha, que desenhava só
+          as sete.
 
-          E as OBSERVAÇÕES continuam sendo o briefing em prosa da DEMANDA
-          (`tasks.briefing_rico`), que é onde o briefing de toda demanda deste
-          produto mora — a decisão da 0051, que continua inteira: uma segunda
-          caixa de texto com o mesmo papel em outra tabela é onde as duas
-          versões divergem. O que mudou é que a prosa deixou de ser a ÚNICA
-          coisa, e virou o "mais alguma coisa" depois dos sete campos. */}
+          **É o mesmo `EditorRico` da demanda**, com caixa, tabela e a paleta
+          nomeada: um `<textarea>` seria um segundo editor de briefing no
+          produto, e o que divergiria é este. */}
       <SecaoDoFormulario numero={3} titulo="O briefing da campanha">
-        <BriefingDaCampanhaCampos
-          briefing={briefingRico}
-          onChange={setBriefingRico}
-        />
-
-        <div className="space-y-1.5 border-t pt-5">
-          <Label>Observações</Label>
+        <div className="space-y-1.5">
           <EditorRico
             conteudo={briefing}
             onChange={({ json }) => setBriefing(json)}
-            placeholder="Mais alguma coisa que quem produz precisa saber…"
+            placeholder="O objetivo, o público, a mensagem, o que não pode faltar…"
           />
           {/* A FRASE DIZ ONDE OS ANEXOS FICAM, e ela é obrigatória: os
               anexos só podem ser subidos DEPOIS que a campanha existe,

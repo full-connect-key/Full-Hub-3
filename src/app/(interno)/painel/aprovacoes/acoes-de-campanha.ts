@@ -23,7 +23,6 @@ import {
 } from "@/lib/aprovacoes/conteudo";
 import { gravarOsOutrosAprovadores } from "@/lib/aprovacoes/aprovadores";
 import {
-  canaisNormalizados,
   entregaveisDoWorkflow,
   TIPOS_DE_MATERIAL,
   type NoDeModelo,
@@ -54,29 +53,6 @@ const CAMPOS = {
   clienteId: "cliente",
   dataInicio: "data de início",
   dataFim: "data de encerramento",
-};
-
-/**
- * Os rótulos do briefing para a frase da recusa (0125).
- *
- * Eles NÃO saem de `CAMPOS_DO_BRIEFING`, que é do domínio: aquele mapa é a
- * pergunta que a TELA faz ("Com quem ela fala?"), e a recusa de validação
- * precisa do nome do campo numa frase — *"Confira o campo: público"*. Duas
- * coisas diferentes com o mesmo nome seriam uma só, divergindo.
- *
- * *(E o nome da função que monta essa frase não aparece escrito acima de
- * propósito: `check:mensagens` casa por posição e leria a menção como uma
- * chamada sem o nome da action — a armadilha de a explicação carregar o que
- * ela proíbe, que este projeto já pagou sete vezes.)*
- */
-const CAMPOS_DO_BRIEFING_NA_RECUSA = {
-  objetivo: "objetivo",
-  publico: "público",
-  mensagem: "mensagem central",
-  produtos: "produtos ou serviços",
-  tomDeVoz: "tom de voz",
-  canais: "canais",
-  restricoes: "restrições",
 };
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha uma data.");
@@ -138,25 +114,6 @@ const esquemaDaCampanha = z
     linkEntrega: z.string().trim().optional(),
     /** As OBSERVAÇÕES, em JSON do TipTap — o briefing em prosa da Task. */
     briefing: z.unknown().nullable().optional(),
-    /**
-     * O BRIEFING ESTRUTURADO (0125), e ele é de `campaigns` e não da Task.
-     *
-     * **Os sete campos são opcionais**, pela razão da 0015: há campanha
-     * gravada antes desta regra, e exigi-los faria a pessoa inventar um
-     * objetivo e um público para poder abrir a campanha de hoje — que é pior
-     * que não classificar, porque o relatório somaria o inventado.
-     *
-     * **E eles NÃO entram no briefing em texto**, que é a lição da 0124: o
-     * que virou coluna não se escreve também em prosa, senão são duas
-     * verdades e a do texto é a que envelhece.
-     */
-    objetivo: z.string().trim().optional(),
-    publico: z.string().trim().optional(),
-    mensagem: z.string().trim().optional(),
-    produtos: z.string().trim().optional(),
-    tomDeVoz: z.string().trim().optional(),
-    canais: z.array(z.string()).default([]),
-    restricoes: z.string().trim().optional(),
     /**
      * O FORMATO E A MEDIDA de cada tipo da composição (0125).
      *
@@ -292,11 +249,12 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
     // decisão de `etapa_acompanha_o_entregavel` (0052): o trigger está do
     // outro lado, e uma recusa dele apareceria como o clique DA PESSOA
     // falhando, com uma mensagem sobre outra coisa.
-    // SAO TRES SEGUNDAS ESCRITAS e UMA frase, e a diferença importa: um
-    // `return` por escrita faria a pessoa ler sobre a frente e nunca saber
-    // que o briefing também ficou de fora. Elas contam o que falhou e
-    // mandam para onde se conserta — a decisão da recusa da 0023, que nomeia
-    // CADA etapa sem aprovação em vez de dizer "há etapa sem aprovação".
+    // SAO DUAS SEGUNDAS ESCRITAS e UMA frase — eram três até a 0136 tirar a
+    // do briefing —, e a diferença importa: um `return` por escrita faria a
+    // pessoa ler sobre a frente e nunca saber que o formato também ficou de
+    // fora. Elas contam o que falhou e mandam para onde se conserta — a
+    // decisão da recusa da 0023, que nomeia CADA etapa sem aprovação em vez
+    // de dizer "há etapa sem aprovação".
     const naoGravou: string[] = [];
 
     if (dados.vertenteId) {
@@ -315,49 +273,11 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
       }
     }
 
-    // ------------------------------------------------- o briefing estruturado
+    // O BRIEFING NÃO TEM SEGUNDA ESCRITA DESDE A 0136, e a ausência é a
+    // entrega: ele é a prosa da DEMANDA, e `abrir_campanha()` já a grava no
+    // `p_briefing_rico`/`p_briefing_texto` acima. As sete colunas da 0125
+    // deixaram de ser escritas por qualquer caminho do produto.
     //
-    // ELE É UMA SEGUNDA ESCRITA pela mesma razão da vertente: `create or
-    // replace` não troca a lista de argumentos de `abrir_campanha()` (0061), e
-    // um `drop`+`create` abriria a janela que a 0120 pagou.
-    //
-    // O `update` passa pelo trigger `campaigns_protege_colunas`, que desde a
-    // 0125 recusa o briefing para quem não é `is_atendimento()` — e quem chega
-    // aqui já passou por `exigirAtendimentoNaAcao()`, então a recusa só
-    // apareceria se as duas perguntas divergissem. É a mesma trava nos dois
-    // idiomas da casa.
-    const briefing = {
-      objetivo: dados.objetivo || null,
-      publico: dados.publico || null,
-      mensagem: dados.mensagem || null,
-      produtos: dados.produtos || null,
-      tom_de_voz: dados.tomDeVoz || null,
-      // A NORMALIZAÇÃO É AQUI e não no banco, e a razão está escrita em
-      // `canaisNormalizados()`: nenhuma conta depende de `canais`, então uma
-      // trava de repetição no Postgres seria a 0060 de novo.
-      canais: canaisNormalizados(dados.canais).slice(0, 20),
-      restricoes: dados.restricoes || null,
-    };
-
-    if (
-      briefing.canais.length > 0 ||
-      Object.values(briefing).some((v) => typeof v === "string" && v)
-    ) {
-      const { error: erroDoBriefing } = await supabase
-        .from("campaigns")
-        .update(briefing)
-        .eq("id", data)
-        .select("id");
-
-      if (erroDoBriefing) {
-        console.error(
-          "[criarCampanha] o briefing não foi gravado",
-          erroDoBriefing,
-        );
-        naoGravou.push("o briefing");
-      }
-    }
-
     // --------------------------------- o formato e a medida de cada tipo
     //
     // UM `update` POR TIPO, e não um `upsert`: as linhas já existem — quem as
@@ -1056,14 +976,28 @@ export async function arvoreDoWorkflowParaCampanha(
   });
 }
 
+/**
+ * O briefing de uma campanha, e as especificações de cada tipo (0136).
+ *
+ * **É UMA CAIXA DE TEXTO e não sete campos**, por decisão do usuário — e isto
+ * restaura a 0051, que já tinha escrito a razão: *"o briefing e a pasta de
+ * entrega são da DEMANDA, não colunas novas em `campaigns`. Uma segunda caixa
+ * de texto com o mesmo papel em outra tabela seria o lugar onde as duas
+ * versões do briefing divergem."* A 0125 criou esse segundo lugar, e o preço
+ * apareceu na tela: as OBSERVAÇÕES escritas na abertura ficavam em
+ * `tasks.briefing_rico` e o painel da campanha mostrava só as sete colunas —
+ * o briefing que a pessoa digitou não aparecia onde ela ia relê-lo.
+ *
+ * Então o que se grava aqui é a prosa da DEMANDA, pelo mesmo par de colunas
+ * que `atualizarTask` escreve: `briefing_rico` é o que a tela desenha e
+ * `briefing_texto` é o que a busca lê, e **as duas andam juntas** — gravar
+ * uma sem a outra deixaria o briefing invisível para um dos dois lados.
+ */
 const esquemaDoBriefing = z.object({
-  objetivo: z.string().trim(),
-  publico: z.string().trim(),
-  mensagem: z.string().trim(),
-  produtos: z.string().trim(),
-  tomDeVoz: z.string().trim(),
-  canais: z.array(z.string()),
-  restricoes: z.string().trim(),
+  /** O documento do TipTap. */
+  rico: z.unknown().nullable(),
+  /** O mesmo briefing em texto puro, que é o que a busca lê. */
+  texto: z.string(),
   /** O formato e a medida de cada tipo da composição (0125). */
   composicao: z
     .array(
@@ -1079,23 +1013,26 @@ const esquemaDoBriefing = z.object({
 export type BriefingParaSalvar = z.input<typeof esquemaDoBriefing>;
 
 /**
- * Salvar o briefing de uma campanha que já existe (0125).
+ * Salvar o briefing de uma campanha que já existe.
  *
  * **A SEÇÃO TEM BOTÃO e não salva sozinha**, ao contrário da tela de task
  * (0028). Lá o rascunho é de quem o criou e não existe para mais ninguém;
  * aqui cada salvamento parcial muda o combinado que quem produz vai ler, e um
- * objetivo pela metade lido por quem está desenhando a peça é pior que o
- * objetivo antigo. É a decisão do editor de recorrência.
+ * briefing pela metade lido por quem está desenhando a peça é pior que o
+ * briefing antigo. É a decisão do editor de recorrência.
  *
- * **Quem pode é `is_atendimento()` nos DOIS idiomas da casa**:
- * `exigirAtendimentoNaAcao()` aqui e o trigger `campaigns_protege_colunas`
- * (0125) no banco — `campaigns_update` é `is_staff()` desde a 0033 porque é
- * por ela que quem produz troca a CAPA, e **policy não limita coluna**.
+ * **QUEM PODE É `is_atendimento()` NOS DOIS IDIOMAS DA CASA, e desde a 0136
+ * os dois dizem a mesma coisa sem um trigger no meio:**
+ * `exigirAtendimentoNaAcao()` aqui e `pode_editar_task()` no banco — que é
+ * `is_atendimento()` ou o responsável da demanda desde a 0004. Até aqui a
+ * trava do briefing era `campaigns_protege_colunas` (0125), um trigger que
+ * existia porque `campaigns_update` é `is_staff()` (é por ela que quem produz
+ * troca a CAPA) e **policy não limita coluna**. Com o briefing morando na
+ * demanda, a policy de `tasks` responde sozinha.
  *
- * As OBSERVAÇÕES e os ANEXOS não passam por aqui: eles são o briefing em
- * prosa e as referências da DEMANDA, e quem os grava é `atualizarTask` e
- * `adicionarReferencia`, que já existem. Uma segunda porta para a mesma
- * escrita seria a segunda verdade sobre o mesmo material.
+ * Os ANEXOS continuam sendo as referências da DEMANDA, e quem os grava é
+ * `adicionarReferencia`. Uma segunda porta para a mesma escrita seria a
+ * segunda verdade sobre o mesmo material.
  */
 export async function salvarBriefingDaCampanha(
   campanhaId: string,
@@ -1113,7 +1050,6 @@ export async function salvarBriefingDaCampanha(
           validacao.error,
           entrada,
           "Confira o briefing.",
-          CAMPOS_DO_BRIEFING_NA_RECUSA,
         ),
       );
     }
@@ -1121,20 +1057,40 @@ export async function salvarBriefingDaCampanha(
 
     const supabase = await criarClienteServidor();
 
-    // `.select()` porque o RLS e o trigger podem recusar: sem ele, um update
-    // barrado volta sem erro e sem linha, e a tela diz "pronto" à toa.
-    const { data, error } = await supabase
+    // A DEMANDA DA CAMPANHA, e é ela quem guarda o briefing desde a 0051.
+    // A campanha anterior àquela migration tem `task_id` nulo, e aí não há
+    // onde gravar — a recusa diz isso em vez de voltar sem linha e sem erro,
+    // que é o "salvo" à toa que o `.select()` existe para impedir.
+    const { data: daCampanha, error: erroDaCampanha } = await supabase
       .from("campaigns")
-      .update({
-        objetivo: dados.objetivo || null,
-        publico: dados.publico || null,
-        mensagem: dados.mensagem || null,
-        produtos: dados.produtos || null,
-        tom_de_voz: dados.tomDeVoz || null,
-        canais: canaisNormalizados(dados.canais).slice(0, 20),
-        restricoes: dados.restricoes || null,
-      })
+      .select("task_id")
       .eq("id", campanhaId)
+      .limit(1);
+
+    if (erroDaCampanha) return falha(erroDaCampanha.message);
+
+    const taskId = daCampanha?.[0]?.task_id ?? null;
+    if (!taskId) {
+      return falha(
+        "Esta campanha não tem demanda ligada, então não há onde guardar o briefing. Ela foi aberta antes de a demanda nascer junto — rode scripts/campanhas-sem-demanda.sql.",
+      );
+    }
+
+    // AS DUAS COLUNAS ANDAM JUNTAS, e o texto vazio vira NULO: um documento
+    // do TipTap sem nada dentro ainda é um parágrafo vazio, e guardá-lo é
+    // guardar o formato do nada — quem decide se há briefing é o TEXTO. É a
+    // regra do briefing da sub-etapa, palavra por palavra.
+    const texto = dados.texto.trim();
+
+    // `.select()` porque o RLS pode recusar: sem ele, um update barrado volta
+    // sem erro e sem linha, e a tela diz "pronto" à toa.
+    const { data, error } = await supabase
+      .from("tasks")
+      .update({
+        briefing_rico: texto === "" ? null : ((dados.rico ?? null) as Json),
+        briefing_texto: texto === "" ? null : texto,
+      })
+      .eq("id", taskId)
       .select("id");
 
     if (error) {
@@ -1194,12 +1150,12 @@ export async function salvarBriefingDaCampanha(
 }
 
 /**
- * O briefing de OUTRA campanha, para partir dele (0125).
+ * O briefing de OUTRA campanha, para partir dele (0125, 0136).
  *
  * É o *"reutilizável"* do pedido, e **o que ele devolve cai no rascunho da
  * tela e não no banco**: a pessoa confere e ajusta antes de salvar. Gravar no
- * clique poria o público de outra campanha no combinado desta sem ninguém ter
- * lido — e "reutilizável" quer dizer *partir de*, não *herdar*.
+ * clique poria o combinado de outra campanha neste sem ninguém ter lido — e
+ * "reutilizável" quer dizer *partir de*, não *herdar*.
  *
  * **ELA LÊ E NÃO ESCREVE, e é por isso que é uma action e não
  * `lib/dados/`.** A convenção manda leitura para lá, que é `server-only` e
@@ -1208,9 +1164,10 @@ export async function salvarBriefingDaCampanha(
  * precedente de `buscarPreviaDoLink` e de `buscarDisponibilidade`.
  *
  * **A trava é a RLS e não uma pergunta aqui**: ela usa o cliente da própria
- * pessoa, então `campaigns_select` decide — e `briefingsParaCopiar()`, que
- * monta a lista, já recorta pela MESMA conta. Um `client_id` repetido aqui
- * seria a segunda pergunta embaixo de uma primeira que já barra todo mundo.
+ * pessoa, então `campaigns_select` e `tasks_select` decidem — e
+ * `briefingsParaCopiar()`, que monta a lista, já recorta pela MESMA conta. Um
+ * `client_id` repetido aqui seria a segunda pergunta embaixo de uma primeira
+ * que já barra todo mundo.
  */
 export async function copiarBriefingDeOutraCampanha(
   deCampanhaId: string,
@@ -1221,12 +1178,27 @@ export async function copiarBriefingDeOutraCampanha(
 
     const supabase = await criarClienteServidor();
 
-    const { data, error } = await supabase
+    // DUAS IDAS E NÃO UM EMBUTIDO, pela razão escrita em `lib/dados/
+    // campanhas.ts`: o PostgREST recusa o `select` INTEIRO quando não acha a
+    // relação pelo nome escrito, e o nome daquela chave estrangeira não está
+    // escrito em lugar nenhum do repositório — escrevê-lo seria adivinhar.
+    const { data: daCampanha, error: erroDaCampanha } = await supabase
       .from("campaigns")
-      .select(
-        "objetivo, publico, mensagem, produtos, tom_de_voz, canais, restricoes",
-      )
+      .select("task_id")
       .eq("id", deCampanhaId)
+      .limit(1);
+
+    if (erroDaCampanha) return falha(erroDaCampanha.message);
+
+    const taskId = daCampanha?.[0]?.task_id ?? null;
+    if (!taskId) {
+      return falha("Essa campanha não foi encontrada, ou não é desta conta.");
+    }
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("briefing_rico, briefing_texto")
+      .eq("id", taskId)
       .limit(1);
 
     if (error) return falha(error.message);
@@ -1237,13 +1209,8 @@ export async function copiarBriefingDeOutraCampanha(
     }
 
     return sucesso("Briefing copiado.", {
-      objetivo: linha.objetivo ?? "",
-      publico: linha.publico ?? "",
-      mensagem: linha.mensagem ?? "",
-      produtos: linha.produtos ?? "",
-      tomDeVoz: linha.tom_de_voz ?? "",
-      canais: linha.canais ?? [],
-      restricoes: linha.restricoes ?? "",
+      rico: linha.briefing_rico ?? null,
+      texto: linha.briefing_texto ?? "",
       // O FORMATO NÃO VEM NA CÓPIA, e a ausência é decisão: ele é do TIPO de
       // material desta campanha, e a outra pode ter tipos que esta não tem.
       // Copiar "1080x1350" para um tipo que não existe aqui não grava nada, e

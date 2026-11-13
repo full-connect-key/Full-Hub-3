@@ -74,6 +74,29 @@ from (
              split_part(v.nome, '|', 1), split_part(v.nome, '|', 2), 'execute')
       when 'feriado' then exists (
         select 1 from public.holidays h where h.data = v.nome::date)
+      -- COMENTARIO DE COLUNA, e a 0136 e a primeira migration do produto que
+      -- nao cria NADA: ela move conteudo entre duas colunas que ja existem e
+      -- carimba sete como mortas. Nenhum dos tipos acima responde por ela --
+      -- nao nasce tabela, coluna, funcao, trigger, policy nem valor de enum,
+      -- e o `update` da conversao depende de haver campanha com briefing
+      -- escrito, entao um marcador nele responderia FALTA para sempre num
+      -- banco limpo. `tabela|coluna|trecho`.
+      --
+      -- A 0109 recusa marcador por PROSA, e a objecao e boa: comentario e
+      -- texto, e a proxima reescrita o apaga. Aqui ela e aceita porque o
+      -- unico jeito de apaga-lo e recolar a 0125 DEPOIS da 0136 -- colagem
+      -- fora de ordem, que este produto ja viu --, e o estrago disso e barato
+      -- e se conserta sozinho: o marcador diz FALTA, alguem recola a 0136, e
+      -- ela e idempotente.
+      when 'comentario' then exists (
+        select 1 from pg_description d
+          join pg_class k on k.oid = d.objoid
+          join pg_namespace n on n.oid = k.relnamespace
+          join pg_attribute a on a.attrelid = k.oid and a.attnum = d.objsubid
+         where n.nspname = 'public'
+           and k.relname = split_part(v.nome, '|', 1)
+           and a.attname = split_part(v.nome, '|', 2)
+           and d.description like '%' || split_part(v.nome, '|', 3) || '%')
       -- VALOR DE ENUM, e a 0109 e a primeira migration do produto que cria
       -- UM e mais nada. Nenhum dos tipos acima responde por ela: nao nasce
       -- tabela, coluna, funcao nem trigger -- e o `comment on type` que ela
@@ -859,7 +882,20 @@ from (
     -- e o caso da 0132 nem da 0133, onde o objeto ja existia com outra regra
     -- dentro. E ela e a UNICA coisa que o arquivo cria: um banco onde ela
     -- existe e um banco onde a colagem chegou ao fim.
-    ('0135', 'a busca da auditoria', 'funcao', 'trilha_de_auditoria')
+    ('0135', 'a busca da auditoria', 'funcao', 'trilha_de_auditoria'),
+
+    -- A 0136 NAO CRIA NADA, e e a primeira assim: ela move o briefing das
+    -- sete colunas da 0125 para a prosa da demanda e carimba as sete como
+    -- mortas. O marcador e o COMENTARIO de `objetivo`, que e a primeira das
+    -- sete a receber o carimbo -- e aponta para ela e nao para `restricoes`,
+    -- a ultima, de proposito: os sete `comment on` sao uma instrucao cada,
+    -- sem transacao em volta, e um banco onde o primeiro passou e o setimo
+    -- nao e um banco onde a CONVERSAO (o PASSO 1, que vem antes de todos)
+    -- ja aconteceu -- que e a unica coisa desta migration que nao se repete
+    -- de graca. Marcar o ultimo mandaria recolar o arquivo inteiro por causa
+    -- de um comentario que falta.
+    ('0136', 'o briefing volta a ser prosa', 'comentario',
+             'campaigns|objetivo|MORTA desde a 0136')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

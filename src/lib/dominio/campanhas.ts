@@ -851,146 +851,25 @@ export function faltaMontar(composicao: ComposicaoDaCampanha[]): number {
 }
 
 // ===========================================================================
-// O BRIEFING DA CAMPANHA (0125)
+// O QUE A COMPOSIÇÃO SUGERE
 // ===========================================================================
 
-/**
- * O briefing estruturado de uma campanha.
+/*
+ * AQUI MORAVAM OS SETE CAMPOS DO BRIEFING (0125), e eles foram APAGADOS na
+ * 0136 — decisão do usuário: *"Briefing deve ser apenas uma caixa de texto,
+ * sem todos os questionamentos que aparecem atualmente quando vou abrir uma
+ * campanha"*.
  *
- * **São SETE campos nomeados e não uma caixa de texto**, e a razão é a mesma
- * do roteiro de briefing das Solicitações (0068): *"um campo de texto livre
- * chamado 'descreva o que você precisa' devolve 'uma arte pro insta', e a
- * primeira mensagem da conversa é sempre a mesma pergunta"*. Perguntar campo
- * a campo é o que faz a resposta ser utilizável por quem produz.
+ * Saíram `BriefingDaCampanha`, `BRIEFING_VAZIO`, `CAMPOS_DO_BRIEFING`,
+ * `CANAIS_SUGERIDOS`, `TONS_SUGERIDOS`, `canaisNormalizados()` e
+ * `briefingEstaVazio()` — e saíram em vez de ficarem ao lado, que é a 0023:
+ * uma lista que nenhuma tela lê é o que alguém reaproveita errado três
+ * sprints depois, achando que ela ainda diz a verdade sobre o briefing.
  *
- * **Eles são COLUNAS de `campaigns`** (0125), e não chaves de um jsonb nem
- * prosa dentro de `tasks.briefing_rico`: o que virou coluna não se escreve
- * também em texto, que é a decisão da vertente na 0124 — *"a do texto é a que
- * envelhece, porque ninguém reescreve o briefing no dia em que alguém troca a
- * vertente da demanda"*.
- *
- * **O que NÃO está aqui, e é decisão:** o nome e o período, que são colunas
- * de `campaigns` desde a 0033; os tipos e quantidades, que são
- * `campaign_composicao` (0122); os anexos e links, que são
- * `task_referencias` DA DEMANDA (0051); e as observações, que são o briefing
- * em texto que toda demanda deste produto já tem.
+ * **O briefing da campanha é a prosa da DEMANDA** (`tasks.briefing_rico`),
+ * que é onde o briefing de toda demanda deste produto sempre morou — a
+ * decisão da 0051, restaurada.
  */
-export type BriefingDaCampanha = {
-  objetivo: string;
-  publico: string;
-  mensagem: string;
-  produtos: string;
-  tomDeVoz: string;
-  canais: string[];
-  restricoes: string;
-};
-
-export const BRIEFING_VAZIO: BriefingDaCampanha = {
-  objetivo: "",
-  publico: "",
-  mensagem: "",
-  produtos: "",
-  tomDeVoz: "",
-  canais: [],
-  restricoes: "",
-};
-
-/**
- * O rótulo e a pergunta de cada campo, num lugar só.
- *
- * **É UM MAPA E NÃO UMA CONVENÇÃO ESCRITA**, pela razão de `LinhaDeTrabalho`
- * e de `ICONE_DA_AREA`: são DOIS chamadores — o formulário de abertura e a
- * seção do painel da campanha —, e duas listas de rótulo divergiriam na
- * primeira vez que alguém reescrevesse uma pergunta. A que divergiria é a do
- * painel, porque ela é a que se relê menos.
- *
- * **A `pergunta` não é placeholder, é AJUDA embaixo do campo.** Placeholder
- * desaparece no primeiro caractere digitado — some exatamente quando a pessoa
- * está escrevendo a resposta, que é quando ela precisa reler o que foi
- * perguntado. É a decisão do `DateBadge` com o `title`: o que informa não
- * pode depender de um estado que a pessoa não controla.
- */
-export const CAMPOS_DO_BRIEFING: {
-  chave: keyof BriefingDaCampanha;
-  rotulo: string;
-  pergunta: string;
-  linhas: number;
-}[] = [
-  {
-    chave: "objetivo",
-    rotulo: "Objetivo",
-    pergunta: "O que esta campanha precisa conseguir? Venda, alcance, inscrição, presença.",
-    linhas: 3,
-  },
-  {
-    chave: "publico",
-    rotulo: "Público",
-    pergunta: "Com quem ela fala? Quanto mais específico, menos a arte volta.",
-    linhas: 3,
-  },
-  {
-    chave: "mensagem",
-    rotulo: "Mensagem central",
-    pergunta: "Se a pessoa levar uma frase só desta campanha, qual é?",
-    linhas: 3,
-  },
-  {
-    chave: "produtos",
-    rotulo: "Produtos ou serviços",
-    pergunta: "O que entra na campanha, e o que fica de fora.",
-    linhas: 3,
-  },
-  {
-    chave: "tomDeVoz",
-    rotulo: "Tom de voz",
-    pergunta: "Como a marca fala aqui. Há sugestões abaixo, e o campo aceita qualquer coisa.",
-    linhas: 2,
-  },
-  {
-    chave: "restricoes",
-    rotulo: "Restrições",
-    pergunta:
-      "O que NÃO pode: palavra proibida, claim que o jurídico barra, cor que a marca não usa.",
-    linhas: 3,
-  },
-];
-
-/**
- * Os canais sugeridos, como CHIPS e não como lista fechada.
- *
- * `canais` é texto livre no banco pela razão de `posts.formato` (0032) —
- * *"esses nomes mudam a cada temporada de produto das plataformas"* —, e os
- * chips são o que dá consistência sem o custo do enum: quem clica escreve
- * sempre "Instagram", e quem precisa de "Feira do Varejo 2027" digita.
- *
- * **E eles são chips e não um `<select multiple>`**, pela razão do seletor de
- * redes do social: no celular, marcar o segundo item desmarca o primeiro em
- * metade dos navegadores.
- */
-export const CANAIS_SUGERIDOS = [
-  "Instagram",
-  "Facebook",
-  "LinkedIn",
-  "TikTok",
-  "YouTube",
-  "WhatsApp",
-  "E-mail",
-  "Site",
-  "Loja física",
-  "Out-of-home",
-  "Impresso",
-  "Rádio",
-] as const;
-
-/** Os tons sugeridos. Sugestão, nunca lista fechada — o tom é da marca. */
-export const TONS_SUGERIDOS = [
-  "Próximo e informal",
-  "Institucional",
-  "Técnico",
-  "Divertido",
-  "Inspiracional",
-  "Direto ao ponto",
-] as const;
 
 /** Os formatos sugeridos de cada tipo, na composição. */
 export const FORMATOS_SUGERIDOS = [
@@ -1003,56 +882,3 @@ export const FORMATOS_SUGERIDOS = [
   "A5 impresso",
   "Banner web",
 ] as const;
-
-/**
- * Apara, tira o vazio e tira o repetido — e é o ÚNICO lugar que normaliza.
- *
- * **A trava não é do banco, e a ausência é medida.** `posts.plataformas`
- * (0082) tem `check` contra repetição porque lá a repetição fazia a contagem
- * por rede somar o mesmo post duas vezes; aqui um canal repetido desenha o
- * mesmo chip duas vezes num briefing lido por uma pessoa. Uma segunda
- * pergunta no banco embaixo de uma primeira que nenhuma conta usa é a 0060 de
- * novo — e se um dia houver relatório por canal, o enum e o de-para vêm
- * juntos, como decisão própria.
- *
- * **A comparação é sem caixa e o que fica é a PRIMEIRA grafia:** quem clicou
- * no chip "Instagram" e depois digitou "instagram" quis dizer a mesma coisa, e
- * a do chip é a que o resto da lista usa.
- */
-export function canaisNormalizados(canais: readonly string[]): string[] {
-  const vistos = new Set<string>();
-  const limpos: string[] = [];
-
-  for (const bruto of canais) {
-    const canal = bruto.trim();
-    if (!canal) continue;
-
-    const chave = canal.toLocaleLowerCase("pt-BR");
-    if (vistos.has(chave)) continue;
-
-    vistos.add(chave);
-    limpos.push(canal);
-  }
-
-  return limpos;
-}
-
-/**
- * O briefing tem alguma coisa dentro?
- *
- * Quem pergunta é a seção do painel da campanha, que **some quando não há o
- * que dizer** — a regra dos blocos de exceção do Início: a campanha anterior à
- * 0125 não tem briefing nenhum, e sete rótulos com um travessão embaixo
- * ocupariam a tela toda para informar em nenhuma.
- */
-export function briefingEstaVazio(briefing: BriefingDaCampanha): boolean {
-  return (
-    briefing.canais.length === 0 &&
-    !briefing.objetivo.trim() &&
-    !briefing.publico.trim() &&
-    !briefing.mensagem.trim() &&
-    !briefing.produtos.trim() &&
-    !briefing.tomDeVoz.trim() &&
-    !briefing.restricoes.trim()
-  );
-}

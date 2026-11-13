@@ -10,10 +10,8 @@ import {
 } from "@/lib/dados/conteudo";
 import { ouFalha } from "@/lib/dados/consulta";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { BRIEFING_VAZIO } from "@/lib/dominio/campanhas";
 import type {
   AnaliseDaPeca,
-  BriefingDaCampanha,
   CampanhaDoPortal,
   ComposicaoDaCampanha,
   EntregavelDoPortal,
@@ -273,70 +271,70 @@ export async function obterCampanha(
 }
 
 /**
- * O BRIEFING ESTRUTURADO de uma campanha (0125).
+ * O BRIEFING DA CAMPANHA — a prosa da DEMANDA (0136).
  *
- * **É UMA LEITURA PRÓPRIA e não um campo de `CampanhaDoPortal`**, e a razão é
- * de quem lê: aquele tipo é o que o PORTAL recebe — `obterCampanha()` serve a
- * listagem e a tela do cliente —, e o briefing é o combinado INTERNO. Pô-lo
- * ali mandaria o objetivo, o público e as restrições no payload de quem
- * contratou, numa área que mostra material e não o acordo.
+ * **ELE NÃO MORA MAIS EM `campaigns`**, e a 0136 escreve por quê: o briefing
+ * de toda demanda deste produto é `tasks.briefing_rico` + `briefing_texto`,
+ * e os sete campos nomeados da 0125 eram um segundo lugar para a mesma coisa
+ * — *"uma segunda caixa de texto com o mesmo papel em outra tabela seria o
+ * lugar onde as duas versões do briefing divergem"* (0051).
  *
- * É a decisão de `contatosDasMinhasEmpresas()`: *"ela não substitui
- * `obterMinhasEmpresas()` — aquela responde 'de que empresas eu sou', esta
- * traz as três colunas que só aquela tela edita"*. E é por isso que
- * `COLUNAS_DA_CAMPANHA` não ganhou nenhuma das sete.
+ * **E ELE CONTINUA SENDO UMA LEITURA PRÓPRIA**, pela razão de antes: o tipo
+ * `CampanhaDoPortal` é o que o PORTAL recebe, e o briefing é o combinado
+ * INTERNO — pô-lo ali mandaria o acordo da agência no payload de quem
+ * contratou.
  *
- * **O vazio é um briefing vazio e não nulo**, porque a campanha anterior à
- * 0125 tem as sete colunas nulas e o painel precisa desenhar os campos para
- * poder preenchê-los — quem decide se a SEÇÃO aparece é
- * `briefingEstaVazio()`, do lado do domínio.
+ * **A campanha sem demanda devolve vazio**, e não erro: `task_id` é nulo nas
+ * anteriores à 0051, e `scripts/campanhas-sem-demanda.sql` é quem as liga.
  */
 export async function briefingDaCampanha(
   campanhaId: string,
-): Promise<BriefingDaCampanha> {
+): Promise<{ rico: unknown; texto: string } | null> {
   const supabase = await criarClienteServidor();
 
-  const data = ouFalha(
+  const [campanha] = ouFalha(
+    "a demanda da campanha",
+    await supabase.from("campaigns").select("task_id").eq("id", campanhaId).limit(1),
+  );
+  if (!campanha?.task_id) return null;
+
+  const [demanda] = ouFalha(
     "o briefing da campanha",
     await supabase
-      .from("campaigns")
-      .select(
-        "objetivo, publico, mensagem, produtos, tom_de_voz, canais, restricoes",
-      )
-      .eq("id", campanhaId)
+      .from("tasks")
+      .select("briefing_rico, briefing_texto")
+      .eq("id", campanha.task_id)
       .limit(1),
   );
+  if (!demanda) return null;
 
-  const linha = data[0];
-  if (!linha) return BRIEFING_VAZIO;
-
-  return {
-    objetivo: linha.objetivo ?? "",
-    publico: linha.publico ?? "",
-    mensagem: linha.mensagem ?? "",
-    produtos: linha.produtos ?? "",
-    // O NOME MUDA DE CAMADA AQUI, como em `emAjustes`: o banco fala
-    // `tom_de_voz`, o domínio fala `tomDeVoz`. O tipo de domínio não é o Row.
-    tomDeVoz: linha.tom_de_voz ?? "",
-    canais: linha.canais ?? [],
-    restricoes: linha.restricoes ?? "",
-  };
+  return { rico: demanda.briefing_rico, texto: demanda.briefing_texto ?? "" };
 }
 
 /**
  * Os briefings das OUTRAS campanhas desta conta, para copiar de um.
  *
- * É o *"reutilizável"* do pedido, e ele é um SELETOR e não um modelo
- * guardado: um `campaign_briefing_templates` seria uma terceira tabela de
- * modelo ao lado de `campaign_templates` (0033) e de `workflow_templates`
- * (0007), para guardar o que a campanha anterior da mesma conta já tem
- * escrito. **O que se reusa aqui é uma campanha de verdade**, com o briefing
- * que foi combinado — e não uma versão idealizada dele que alguém teria de
- * manter em dia.
+ * É o *"reutilizável"* do pedido da 0125, e ele sobrevive à 0136 porque o que
+ * ele reusa é uma campanha de VERDADE — não um modelo guardado, que seria uma
+ * terceira tabela de template ao lado de `campaign_templates` (0033) e de
+ * `workflow_templates` (0007), para guardar o que a campanha anterior já tem
+ * escrito e que alguém teria de manter em dia.
  *
  * **Só as da MESMA conta**, e isso não é zelo: o briefing carrega o público e
  * as restrições daquela empresa, e oferecer o de outra seria a tela
  * convidando a colar o acordo de um cliente no de outro.
+ *
+ * **E ele passou a perguntar à DEMANDA**, que é onde o briefing mora desde a
+ * 0136: só entra na lista a campanha cuja demanda tem prosa escrita. Uma
+ * campanha sem briefing ali é uma opção que, escolhida, não faz nada — e um
+ * controle que não responde ao clique é um controle quebrado.
+ *
+ * **SÃO DUAS IDAS AO BANCO E NÃO UM EMBUTIDO**, e a razão está escrita neste
+ * produto com o nome do bug: o PostgREST recusa o `select` INTEIRO quando não
+ * acha a relação pelo nome escrito, e foi assim que uma campanha recém-criada
+ * não apareceu em lugar nenhum. Duas idas custam menos que essa classe de
+ * bug — e o nome do `fkey` de `campaigns.task_id` nunca foi escrito em lugar
+ * nenhum deste repositório, então escrevê-lo aqui seria adivinhá-lo.
  */
 export async function briefingsParaCopiar(
   clienteId: string,
@@ -346,20 +344,31 @@ export async function briefingsParaCopiar(
 
   let consulta = supabase
     .from("campaigns")
-    .select("id, nome, objetivo, publico, mensagem")
+    .select("id, nome, task_id")
     .eq("client_id", clienteId)
+    .not("task_id", "is", null)
     .order("data_inicio", { ascending: false })
     .limit(20);
 
   if (excetoId) consulta = consulta.neq("id", excetoId);
 
-  const data = ouFalha("os briefings para copiar", await consulta);
+  const campanhas = ouFalha("os briefings para copiar", await consulta);
+  if (campanhas.length === 0) return [];
 
-  // SÓ AS QUE TÊM O QUE COPIAR. Uma campanha sem briefing nenhum na lista é
-  // uma opção que, escolhida, não faz nada — e um controle que não responde
-  // ao clique é um controle quebrado.
-  return data
-    .filter((c) => c.objetivo || c.publico || c.mensagem)
+  const comBriefing = ouFalha(
+    "as demandas dos briefings para copiar",
+    await supabase
+      .from("tasks")
+      .select("id, briefing_texto")
+      .in("id", campanhas.map((c) => c.task_id as string)),
+  );
+
+  const escritos = new Set(
+    comBriefing.filter((t) => t.briefing_texto?.trim()).map((t) => t.id),
+  );
+
+  return campanhas
+    .filter((c) => escritos.has(c.task_id as string))
     .map((c) => ({ id: c.id, nome: c.nome }));
 }
 

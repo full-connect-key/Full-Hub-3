@@ -8817,304 +8817,120 @@ campanha. Quem acrescenta uma peça hoje acrescenta uma etapa na demanda, e ela
 entra como `criadas` sem mexer no combinado — que é o estado honesto: o plano
 é o que foi combinado, e ele não muda porque alguém montou uma peça a mais.
 
-#### O BRIEFING DA CAMPANHA É ESTRUTURADO, e não uma caixa de texto
+#### O BRIEFING DA CAMPANHA É UMA CAIXA DE TEXTO (0136)
 
-Migration 0125, decisão do usuário, item 8: um briefing completo com *"nome,
-objetivo, público, período; mensagem, produtos, tom, canais;
-tipos/quantidades/formatos/dimensões; upload de imagens/PDFs + links +
-observações; restrições"*, *"persistir com anexos"* e *"reutilizável"*.
+Decisão do usuário: *"Briefing deve ser apenas uma caixa de texto, sem todos
+os questionamentos que aparecem atualmente quando vou abrir uma campanha"*.
 
-**METADE JÁ EXISTIA, e é isso que torna a migration pequena.**
+**ISTO RESTAURA A 0051, E A RAZÃO JÁ ESTAVA ESCRITA LÁ:** *"o briefing e a
+pasta de entrega são da DEMANDA, não colunas novas em `campaigns`. Uma segunda
+caixa de texto com o mesmo papel em outra tabela seria o lugar onde as duas
+versões do briefing divergem."* A 0125 criou esse segundo lugar — sete colunas
+narrativas em `campaigns` — com o argumento do roteiro das Solicitações
+(*"um campo de texto livre devolve 'uma arte pro insta'"*), e o argumento
+continua certo **para quem está do lado de fora**: o roteiro da 0068 existe
+porque quem escreve é o CLIENTE, e perguntar campo a campo é o que faz a
+resposta servir. Dentro da agência quem escreve é o Atendimento, que já sabe o
+que o briefing precisa dizer — e lá a pergunta por campo vira formulário.
 
-| O que o pedido pede | Onde ele já estava |
-| --- | --- |
-| nome e período | `campaigns.nome`, `data_inicio`, `data_fim` (0033) |
-| tipos e quantidades | `campaign_composicao` (0122) |
-| anexos e links | `task_referencias` **da demanda** (0004) |
-| observações | `tasks.briefing_rico` + `briefing_texto` (0004) |
+**E O PREÇO DA SEGUNDA CAIXA ERA A TELA, não a teoria.** As OBSERVAÇÕES que a
+pessoa escrevia na abertura iam para `tasks.briefing_rico`, e o painel da
+campanha desenhava **só as sete colunas**: o briefing digitado não aparecia na
+tela onde ele seria relido. Duas caixas com o mesmo papel, e a que a pessoa
+preencheu era a invisível.
 
-**O que nasce aqui são NOVE COLUNAS:** sete narrativas em `campaigns` —
-`objetivo`, `publico`, `mensagem`, `produtos`, `tom_de_voz`, `canais`,
-`restricoes` — e duas em `campaign_composicao`: `formato` e `dimensoes`.
+##### AS SETE COLUNAS FICAM, e isso é a 0116 e não a 0023
 
-**SÃO SETE CAMPOS NOMEADOS E NÃO UMA CAIXA DE TEXTO**, e a razão é a do
-roteiro de briefing das Solicitações (0068), palavra por palavra: *"um campo de
-texto livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta',
-e a primeira mensagem da conversa é sempre a mesma pergunta"*. Perguntar campo
-a campo é o que faz a resposta servir a quem produz.
+A 0023 apaga uma coluna que **continua sendo PERGUNTADA** e não decide mais
+nada — *o pior tipo de campo, porque quem responde acha que garantiu alguma
+coisa*. Estas deixam de ser perguntadas por qualquer tela, então aquele
+argumento não as alcança; o que as alcança é o da 0116, que manteve
+`max_parcelas_ferias`: **apagar destruiria o que já está gravado**, e aqui há
+campanha anterior à 0051 cuja `task_id` é nula — ela não tem demanda para onde
+o conteúdo mudar. Elas ficam **sem leitor**, com `comment on column` dizendo
+isso.
 
-##### NÃO HÁ TABELA DE ANEXO NOVA, e a ausência é a decisão da 0051
+**A CONVERSÃO É A METADE QUE IMPORTA**, e é a lição da 0087: *sem a conversão,
+toda conta que combinou aprovar a pauta perderia o portão no instante em que a
+migration fosse aplicada*. O PASSO 1 da 0136 percorre as campanhas com
+qualquer dos sete campos preenchido e **acrescenta** o que estava neles ao
+briefing da demanda, como parágrafos rotulados, depois da prosa que já houver.
+Sem ela, o briefing de toda campanha aberta entre a 0125 e a 0136 sumiria da
+tela sem erro em lugar nenhum.
 
-Ela está escrita lá em quantas palavras: *"o briefing e a pasta de entrega são
-da DEMANDA, não colunas novas em `campaigns`. Uma segunda caixa de texto com o
-mesmo papel em outra tabela seria o lugar onde as duas versões do briefing
-divergem."*
+- **Ela pula a campanha sem demanda** e conta quantas foram (`sem_demanda` no
+  `raise notice`): não há onde gravar, e inventar um destino seria pior.
+- **E ela é idempotente pelo MARCADOR**, não por uma coluna de controle: se o
+  texto da demanda já contém `Briefing da campanha`, a conversão não repete.
+  Recolar o arquivo não duplica parágrafo nenhum.
 
-`task_referencias` já tem `tipo` (`link` | `arquivo`), `url`, `titulo`,
-`arquivo_nome`, quem adicionou e quando; já se apagam uma a uma; o bucket
-`task-arquivos` já é privado com a policy escrita; e **`Referencias` já é o
-componente que sobe, lista e apaga** — o painel da campanha o desenha com o
-`taskId` da demanda, e não há uma linha de upload nova nesta entrega. Uma
-`campaign_anexos` ao lado seria a segunda verdade sobre o mesmo material, e a
-que divergiria é a nova, porque a tela da demanda continuaria escrevendo na
-antiga.
+##### `formato` e `dimensoes` continuam onde estavam
 
-***O custo está dito:*** os anexos só podem ser subidos **depois** que a
-campanha existe, porque antes não há `task_id` a que prendê-los — é a razão
-escrita da 0028 vista de outro ângulo (*"subtarefa, referência e comentário
-precisam de um `task_id` para serem gravados"*). Então a tela de abertura diz
-por extenso onde eles ficam, em vez de não dizer nada: sem a frase, quem
-procura o botão de anexar conclui que o produto não guarda anexo.
+As duas colunas são de `campaign_composicao` e não do briefing — elas são do
+TIPO de material (*"dez estáticos em 1080x1350" é uma linha, não dez*), e a
+0125 já escrevia isso. O que a 0136 não mexe é onde elas são EDITADAS: na
+seção do briefing, pela razão de lá — *o briefing se escreve de uma vez, e
+tirar o formato do editor obrigaria a pessoa a salvar e ir procurar outro
+lugar para a medida*.
 
-##### SÃO COLUNAS E NÃO UM `briefing jsonb`
+##### A trava deixou de ser um trigger
 
-Pelo critério que o produto já escreveu duas vezes. O de
-`post_versions.arquivos`: *jsonb é para o que se escreve de uma vez e se lê
-inteiro, nunca consultado item a item* — e `publico` é a coluna por onde um
-relatório por público agruparia. E o de `assets` na 0070: *num jsonb a tela
-inventa as chaves, até a segunda escrever `tom_voz` onde a primeira escreveu
-`tom_de_voz` — sem erro de tipo, sem erro de banco, e com o campo aparecendo
-vazio*. **`check:tipos` liga migration a COLUNA e não liga chave de jsonb a
-nada.**
+`campaigns_protege_colunas` (0125) existia porque `campaigns_update` é
+`is_staff()` desde a 0033 — é por ela que quem produz troca a CAPA — e
+**policy não limita coluna**. Com o briefing morando na demanda, quem decide é
+`pode_editar_task()`, que é `is_atendimento()` ou o responsável desde a 0004:
+**a mesma pergunta que `exigirAtendimentoNaAcao()` faz na action**, sem um
+trigger no meio. O trigger fica de pé para o nome, o período, o estado e a
+empresa, que continuam sendo o combinado com o cliente; o ramo das sete sai
+sozinho porque nada mais as escreve.
 
-##### E ELAS NÃO VÃO PARA O BRIEFING EM TEXTO, que é a lição da 0124
+##### O "reutilizável" sobrevive, e passou a perguntar à demanda
 
-Lá a FRENTE vai para o briefing e a VERTENTE não, com a razão escrita: *"ela
-virou coluna, e escrevê-la também seria a segunda verdade — a do texto é a que
-envelhece, porque ninguém reescreve o briefing no dia em que alguém troca a
-vertente da demanda."* Vale igual para as sete.
+Copiar o briefing de outra campanha continua existindo, pela razão da 0125:
+*o que se reusa é uma campanha que existiu*, e não um modelo guardado que
+alguém teria de manter em dia. O que mudou é a leitura — `briefingsParaCopiar()`
+só lista a campanha cuja DEMANDA tem prosa escrita, porque uma campanha sem
+briefing na lista é uma opção que, escolhida, não faz nada.
 
-**Quem lê o briefing estruturado lê na CAMPANHA**, e o caminho existe desde a
-0051: a demanda tem "Ver campanha", a campanha tem "Abrir a demanda", e a etapa
-de cada peça carrega o selo com o nome da campanha, que é link. **E as
-OBSERVAÇÕES continuam sendo a prosa da demanda** — o que mudou é que ela deixou
-de ser a única coisa e virou o "mais alguma coisa" depois dos sete campos.
+**SÃO DUAS IDAS AO BANCO E NÃO UM EMBUTIDO**, nas duas leituras: o PostgREST
+recusa o `select` INTEIRO quando não acha a relação pelo nome escrito — foi
+assim que uma campanha recém-criada não apareceu em lugar nenhum —, e **o nome
+do `fkey` de `campaigns.task_id` nunca foi escrito em lugar nenhum deste
+repositório**, então escrevê-lo seria adivinhá-lo.
 
-##### O BRIEFING É UMA LEITURA PRÓPRIA, e nunca um campo de `CampanhaDoPortal`
+##### Na tela: o MESMO `EditorRico` da demanda
 
-É a linha de segurança desta entrega, e ela é sobre quem LÊ: aquele tipo é o
-que o **PORTAL** recebe — `obterCampanha()` serve a listagem e a tela do
-cliente —, e o briefing é o combinado INTERNO. Pô-lo ali mandaria o objetivo, o
-público e as restrições no payload de quem contratou, numa área cuja regra é
-mostrar material e não o acordo. Por isso `COLUNAS_DA_CAMPANHA` não ganhou
-nenhuma das sete, e quem as lê é `briefingDaCampanha()` — a decisão de
-`contatosDasMinhasEmpresas()`: *uma leitura própria quando a pergunta é outra.*
+Não é um `<textarea>`, e a distinção é a de sempre: um segundo editor de
+briefing no produto é o que divergiria — e o que divergiria é este, que se
+abre menos. Com ele vêm a caixa, a tabela e a paleta nomeada da 0127.
 
-##### `canais` É TEXTO LIVRE E NÃO ENUM
+**E a cópia remonta o editor por `key`.** O TipTap lê o `conteudo` na montagem
+e não o ressincroniza depois: sem remontar, o briefing copiado iria para o
+`ref` e a caixa continuaria mostrando o texto antigo. É a decisão do editor de
+post, que se remonta por `key` em vez de ressincronizar por efeito.
 
-Pela razão que a 0032 escreveu para `posts.formato`: *"esses nomes mudam a cada
-temporada de produto das plataformas, e um enum obrigaria uma migration a cada
-nome novo."* Feira, out-of-home, e-mail e a rede da estação entram sem
-migration, e os doze chips sugeridos dão a consistência sem o custo do enum.
+**O valor mora num `ref` e o aviso num estado**, que é a forma do briefing da
+demanda e da sub-etapa: o `onChange` do TipTap dispara a cada tecla, e pô-lo no
+`useState` re-renderizaria a seção inteira — com a lista de formatos dentro —
+a cada letra digitada. **E as duas colunas andam juntas, com o texto vazio
+virando NULO**: um documento do TipTap sem nada dentro ainda é um parágrafo
+vazio, e quem decide se há briefing é o TEXTO.
 
-***E isso custa a agregação, que fica dito:*** com texto livre "Instagram" e
-"instagram" são duas linhas do mesmo canal — e é exatamente a razão pela qual a
-0122 e a 0124 fizeram `tipo` e `frente` serem enum. **A diferença é que ninguém
-conta por canal:** ele é informação para quem produz, não dimensão de
-relatório. No dia em que um relatório por canal for pedido, o enum e o de-para
-vêm juntos, como decisão própria.
+`BriefingDaCampanhaCampos` foi **apagado** e com ele `BriefingDaCampanha`,
+`BRIEFING_VAZIO`, `CAMPOS_DO_BRIEFING`, `CANAIS_SUGERIDOS`, `TONS_SUGERIDOS`,
+`canaisNormalizados()` e `briefingEstaVazio()` — a 0023 aplicada ao código:
+uma lista que nenhuma tela lê é o que alguém reaproveita errado três sprints
+depois. `FORMATOS_SUGERIDOS` fica, porque o campo de formato fica.
 
-**E não há trava de repetição nem de vazio no banco**, ao contrário de
-`posts.plataformas` (0082). Lá a repetição fazia a contagem por rede somar o
-mesmo post duas vezes; aqui um canal repetido desenha o mesmo chip duas vezes
-num briefing lido por uma pessoa. Quem normaliza é `canaisNormalizados()`, **um
-lugar só para os dois chamadores e para o chip da tela** — e uma segunda
-pergunta no Postgres embaixo de uma primeira que nenhuma conta usa é a 0060 de
-novo. *A comparação é sem caixa e o que fica é a PRIMEIRA grafia:* quem clicou
-no chip "Instagram" e depois digitou "instagram" quis dizer a mesma coisa.
-
-##### `formato` E `dimensoes` SÃO DA COMPOSIÇÃO, e a chave dela não muda
-
-"Dez estáticos em 1080x1350" é **uma** linha, não dez: o formato e a medida são
-do TIPO, e é por isso que moram ao lado da quantidade. A chave continua
-`(campaign_id, tipo)` pela razão que a 0122 escreveu — *"duas linhas de
-'estático' seriam dois planos para o mesmo material"*.
-
-***O que ela não representa, e é consequência aceita:*** dez estáticos em duas
-medidas diferentes. O campo é texto, então as duas cabem escritas; o que não
-cabe é a agência querer **contar** por medida, e aí a chave muda.
-
-**E eles são EDITADOS na seção do briefing e LIDOS na tabela da composição.** A
-assimetria é a decisão: o briefing se escreve de uma vez — tirar o formato do
-editor obrigaria a pessoa a salvar e ir procurar outro lugar para a medida —, e
-o plano por tipo é lido onde ele mora. Repetir os dois na seção do briefing
-seria "1080x1350" dito duas vezes a dez centímetros de distância, que é o
-cartão de "11 entregues" com sete na lista embaixo. **Na tabela ele fica embaixo
-do nome do tipo e não numa coluna própria:** é texto de tamanho imprevisível, e
-uma oitava coluna numa tabela de sete números faria o layout repartir pelo
-conteúdo e espremer justamente as contagens que ela existe para comparar.
-
-##### A ASSINATURA DE `abrir_campanha()` NÃO MUDA, pela terceira vez
-
-`create or replace` não troca a lista de argumentos — ele cria uma SEGUNDA
-função ao lado e a chamada antiga vira ambígua (a lição da 0061, que custou um
-*"Could not find the function"* ao usuário), e um `drop`+`create` abriria a
-janela que a 0120 pagou. **As sete colunas são escritas DEPOIS que a RPC
-devolve**, que é a forma da vertente na 0122, e as duas da composição também —
-`abrir_campanha()` conta o plano das FOLHAS, e o formato não sai de folha
-nenhuma.
-
-**SÃO TRÊS SEGUNDAS ESCRITAS E UMA FRASE**, e a diferença importa: um `return`
-por escrita faria a pessoa ler sobre a frente e nunca saber que o briefing
-também ficou de fora. Elas contam o que falhou e mandam para onde se conserta —
-a decisão da recusa da 0023, que nomeia CADA etapa sem aprovação em vez de
-dizer "há etapa sem aprovação". **E nenhuma derruba a campanha que acabou de
-nascer:** a demanda, as etapas e as peças já estão gravadas, então uma recusa
-aqui não desfaz nada e o que ela pode fazer é avisar (0052).
-
-**UM `update` POR TIPO e nunca um `upsert`**, nas duas actions: as linhas já
-existem, e um `upsert` precisaria mandar `quantidade` de volta — que é
-justamente o número que `abrir_campanha()` acabou de contar das folhas. Mandá-lo
-daqui seria a segunda verdade sobre quantos materiais a campanha combinou.
-
-##### O trigger foi copiado INTEIRO, e o briefing é de quem abre
-
-`proteger_colunas_da_campanha()` ganhou a quinta recusa, e a função foi
-**reescrita por inteiro**: `create or replace function` se reescreve a partir
-do texto que se escreve agora e **não avisa quando o texto novo tem menos coisa
-que o velho** — a lição da 0030, que perdeu um bloco de carimbos assim e só
-apareceu na 0052. As quatro recusas da 0078 estão todas lá, palavra por
-palavra.
-
-**POR QUE O BRIEFING ENTRA NELE:** ele é o combinado com o cliente, igual ao
-nome, ao período e ao estado — e `campaigns_update` é `is_staff()` desde a 0033
-**e tem que continuar sendo**, porque é por ela que o colaborador que produz
-troca a CAPA (0050). Abrir a policy entregaria o combinado a quem produz, e a
-trava de coluna é trigger pela razão de sempre: **policy não limita coluna.**
-
-**A recusa é UMA para os sete campos e não uma por campo:** quem produz não
-edita nenhum deles, e sete frases quase iguais no banco seriam sete lugares
-para divergir. E a dica nomeia **o que ele ainda pode editar** — *"as
-observações e os anexos ficam na demanda, e esses você edita"* —, que é a
-diferença entre uma recusa e uma instrução.
-
-**Medido contra o Postgres de produção, cinco casos numa transação revertida:**
-a designer tentando o `objetivo` leva *"O briefing da campanha é de quem a
-abriu."*; a MESMA designer trocando a capa **passa** (a 0050 inteira); os
-`canais` pela designer são recusados pelo mesmo ramo; a gestão grava os sete e
-passa; e a empresa é recusada **para a gestão também**, que é a única das cinco
-sem exceção para ninguém.
-
-##### O "reutilizável" é copiar de uma campanha DE VERDADE
-
-E não um modelo guardado: um `campaign_briefing_templates` seria uma terceira
-tabela de modelo ao lado de `campaign_templates` (0033) e de
-`workflow_templates` (0007), para guardar o que a campanha anterior da mesma
-conta já tem escrito — e alguém teria de mantê-lo em dia. **O que se reusa é
-uma campanha que existiu**, com o briefing que foi combinado.
-
-**Só as da MESMA conta**, e isso não é zelo: o briefing carrega o público e as
-restrições daquela empresa, e oferecer o de outra seria a tela convidando a
-colar o acordo de um cliente no de outro. **E só as que têm o que copiar** —
-uma campanha sem briefing na lista é uma opção que, escolhida, não faz nada, e
-um controle que não responde ao clique é um controle quebrado.
-
-**O que ele copia cai no RASCUNHO e não no banco:** a pessoa confere e ajusta
-antes de salvar. Gravar no clique poria o público de outra campanha no
-combinado desta sem ninguém ter lido — e "reutilizável" quer dizer *partir de*,
-não *herdar*. **O formato não vem na cópia**, e a ausência é decisão: ele é do
-TIPO de material desta campanha, e a outra pode ter tipos que esta não tem —
-copiá-lo para o tipo errado é pior que não copiar.
-
-##### A seção do painel, e a que some
-
-**ELA TEM BOTÃO e não salva sozinha**, ao contrário da tela de task (0028): lá
-o rascunho é de quem o criou e não existe para mais ninguém; aqui cada
-salvamento parcial muda o combinado que quem produz vai ler, e um objetivo pela
-metade lido por quem está desenhando a peça é pior que o objetivo antigo. É a
-decisão do editor de recorrência.
-
-**ELA VEM ANTES DA COMPOSIÇÃO**, e a ordem é a de quem abre a tela para
-produzir: o que esta campanha é, o que ela precisa dizer, e só então quantas
-peças. Depois da árvore o briefing seria lido por último, por quem já escolheu o
-que fazer. **As referências ficam no FIM**, depois da árvore: referência é
-consulta, e quem abre o painel abre para ver as peças.
-
-**A SEÇÃO SOME QUANDO NÃO HÁ BRIEFING E NÃO HÁ QUEM O ESCREVA**, que é a regra
-dos blocos de exceção do Início: a campanha anterior à 0125 não tem nenhum dos
-sete campos, e sete rótulos com um travessão embaixo ocupariam a tela toda para
-informar em nenhuma. **Para quem PODE escrever ela aparece vazia de propósito**
-— ali a ausência é uma falta, e esconder esconderia a falta. É a assimetria de
-`CapaDoCartao`, que tem três respostas para "não há imagem".
-
-**E na leitura só o que tem valor aparece**, que é a regra da ficha técnica do
-equipamento (0070): "Restrições —" numa campanha sem restrição ocupa uma linha
-para dizer que não há o que dizer. No formulário é o contrário, porque lá o
-campo vazio é onde se escreve. O `whitespace-pre-line` da leitura não é enfeite:
-o campo é um `<textarea>`, e sem ele um briefing de três parágrafos sai como um
-bloco corrido com a quebra que a pessoa digitou desaparecida.
-
-**A PERGUNTA DE CADA CAMPO É AJUDA E NÃO PLACEHOLDER**, porque placeholder
-desaparece no primeiro caractere — some exatamente quando a pessoa está
-escrevendo a resposta, que é quando ela precisa reler o que foi perguntado. É a
-decisão do `title` do `DateBadge`: o que informa não pode depender de um estado
-que a pessoa não controla.
-
-##### `CAMPOS_DO_BRIEFING` é UM mapa, e `BriefingDaCampanhaCampos` é UM componente
-
-São DOIS chamadores — o formulário de abertura e a seção do painel —, e duas
-listas de rótulo ou dois desenhos dos mesmos sete campos divergiriam na
-primeira mudança. **A que divergiria é a do painel**, porque é a que se relê
-menos. É a decisão de `LinhaDeTrabalho` e de `ICONE_DA_AREA`, que tinha três
-cópias e duas já divergidas.
-
-**E o componente não decide quando salvar**, que é a assimetria escrita de
-`FaixaDeDisponibilidade`: ele avisa a mudança e mais nada — o formulário grava
-tudo no fim, o painel grava a seção num Salvar próprio.
-
-**Os rótulos da RECUSA são outro mapa, e a duplicação é deliberada:**
-`CAMPOS_DO_BRIEFING` é a pergunta que a TELA faz (*"Com quem ela fala?"*), e a
-recusa de validação precisa do nome do campo numa frase (*"Confira o campo:
-público"*). Duas coisas diferentes com o mesmo nome seriam uma só, divergindo.
-
-##### Duas idas ao banco onde havia uma, e por quê
-
-`composicao_da_campanha()` é `returns table`, e **`create or replace` não troca
-o tipo de retorno de uma** — a lição da 0088, que a 0116 pagou de novo.
-Acrescentar `formato` e `dimensoes` a ela exigiria `drop function` antes do
-`create`, e um `drop`+`create` abre a janela em que a tela no ar chama uma
-função que não existe: a 0120 pagou por isso.
-
-E o que as duas colunas são é o lado **planejado**, que mora na tabela e que
-`campaign_composicao_select` (0122) já entrega a `is_staff()`. Então a RPC
-continua respondendo o que só ela sabe — as cinco contagens derivadas, com a
-conta sendo a mesma do relatório — e o plano vem da tabela, ao lado. É a decisão
-do índice do Social Media: *"são quatro idas, e as três últimas à parte"*.
-
-**A segunda ida não derruba a primeira**, pela razão escrita na própria função:
-o painel funciona inteiro sem o formato — ele acrescenta duas células a uma
-tabela que já diz o que importa —, e sem esse ramo uma falha ali apagaria as
-cinco contagens junto.
-
-##### Três coisas que as varreduras pegaram, e uma que elas não pegariam
-
-**`check:mensagens` reprovou o MEU PRÓPRIO COMENTÁRIO**, pela oitava vez nesta
-armadilha: a explicação de por que os rótulos da recusa não saem do mapa do
-domínio escrevia o nome da função que monta a frase **com os parênteses**, e a
-varredura casa por posição — ela leu a menção como uma chamada sem o nome da
-action. *A explicação não pode carregar o que ela proíbe*, e o nome dela está
-dito em prosa agora, com a razão ao lado.
-
-**`check:tipos` pegou as duas pontas de cada coluna**, nos dois sentidos, e
-**`check:prototipo` pegou o stub** que não exportava `referenciasDaDemanda` —
-que é a família de falha que atravessa o `tsc`, o `lint` e o `build` e só
-aparece quinze minutos depois, no fim de uma rodada de protótipo.
-
-***E o que nenhuma pegaria:*** o briefing ter entrado em `CampanhaDoPortal`. Um
-campo a mais num tipo que o portal recebe compila, passa no lint, passa no
-`check:tipos` — e manda o acordo da agência no payload de quem contratou. Quem
-protege isso é a leitura própria, e é por isso que a razão está escrita ao lado
-dela em vez de aqui só.
-
-***O que NÃO foi feito, e é dito em vez de escondido:*** **a bateria não foi
-rodada** — não há Docker nem Postgres local neste ambiente —, então não há
-cenário de SQL novo para a quinta recusa do trigger; o que existe é a medição
-contra o Postgres de produção descrita acima, cinco casos numa transação
-revertida. E **o protótipo não foi rodado**: os stubs acompanham e o
-`check:prototipo` está verde, mas nenhuma imagem nova foi gerada, então a
-seção do briefing, os chips de canal e a linha de especificação da tabela não
-foram conferidos em imagem — nem no claro, nem no escuro, nem em 375px.
-
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a migration não foi
+aplicada e a bateria não foi rodada** — não há Docker nem Postgres local neste
+ambiente. A 0136 está escrita, com a linha no `onde-esta-o-banco.sql`
+apontando para o comentário da PRIMEIRA das sete colunas, que é o marcador de
+tipo `comentario` — novo, e necessário porque esta migration **não cria objeto
+nenhum**: ela converte dado e escreve comentários. Ele aponta para a primeira
+porque a conversão (o PASSO 1) é a única parte não idempotente e roda antes de
+todos os comentários: um marcador no último diria `ok` sobre uma colagem que
+morreu no meio.
 #### A campanha se edita depois de aberta
 
 Migration 0078, decisão do usuário: *"preciso poder editar as informações de

@@ -16,10 +16,7 @@ import type {
   CampanhaDoPortal,
   EntregavelDoPortal,
 } from "../../src/lib/dominio/campanhas";
-import type {
-  BriefingDaCampanha,
-  ComposicaoDaCampanha,
-} from "../../src/lib/dominio/campanhas";
+import type { ComposicaoDaCampanha } from "../../src/lib/dominio/campanhas";
 import type { EstruturaDeTemplate } from "../../src/lib/supabase/database.types";
 
 const HOJE = new Date();
@@ -438,26 +435,55 @@ const COMPOSICAO_DA_WAVE: ComposicaoDaCampanha[] = [
 ];
 
 /*
- * O BRIEFING DO EXEMPLO (0125), e ele é CHEIO de propósito: a seção some
- * quando não há briefing e não há quem o escreva, então um exemplo vazio
- * fotografaria a ausência dela. O estado vazio tem tela própria, abaixo.
+ * O BRIEFING DO EXEMPLO, e ele e CHEIO de proposito: a secao some quando nao
+ * ha briefing e nao ha quem o escreva, entao um exemplo vazio fotografaria a
+ * ausencia dela. O estado vazio tem tela propria.
+ *
+ * DESDE A 0136 ELE E PROSA e nao sete campos, porque o briefing voltou a ser
+ * o da DEMANDA (`tasks.briefing_rico`): o stub tem que devolver o par
+ * rico/texto que a tela desenha, senao a imagem mostraria a caixa vazia numa
+ * campanha que tem briefing escrito.
  */
-const BRIEFING_DA_WAVE: BriefingDaCampanha = {
-  objetivo:
-    "Vender o combo de verão nas lojas próprias e no e-commerce, com foco nas duas semanas que antecedem o feriado.",
-  publico:
-    "Mães de 30 a 45 anos, moradoras da zona sul, que já compraram na loja física pelo menos uma vez.",
-  mensagem: "O verão começa em casa — e a Mundo Verde leva.",
-  produtos: "Combo Verão (3 itens), Kit Praia e a linha de protetor solar.",
-  tomDeVoz: "Próximo, sem gíria",
-  canais: ["Instagram", "Facebook", "E-mail", "Loja física"],
-  restricoes:
-    "Não usar a palavra “promoção” (o jurídico barra fora de período oficial) e não mostrar criança sem autorização de imagem.",
+const BRIEFING_DA_WAVE = {
+  rico: {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Vender o combo de verao nas lojas proprias e no e-commerce, com foco nas duas semanas que antecedem o feriado.",
+          },
+        ],
+      },
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "O publico sao maes de 30 a 45 anos, moradoras da zona sul, que ja compraram na loja fisica pelo menos uma vez. A mensagem: o verao comeca em casa, e a Mundo Verde leva.",
+          },
+        ],
+      },
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Nao usar a palavra promocao (o juridico barra fora de periodo oficial) e nao mostrar crianca sem autorizacao de imagem.",
+          },
+        ],
+      },
+    ],
+  },
+  texto:
+    "Vender o combo de verao nas lojas proprias e no e-commerce, com foco nas duas semanas que antecedem o feriado. O publico sao maes de 30 a 45 anos, moradoras da zona sul, que ja compraram na loja fisica pelo menos uma vez. A mensagem: o verao comeca em casa, e a Mundo Verde leva. Nao usar a palavra promocao e nao mostrar crianca sem autorizacao de imagem.",
 };
 
 export async function briefingDaCampanha(
   _campanhaId: string,
-): Promise<BriefingDaCampanha> {
+): Promise<{ rico: unknown; texto: string } | null> {
   return BRIEFING_DA_WAVE;
 }
 
